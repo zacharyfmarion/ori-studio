@@ -1,5 +1,12 @@
 import { selectProject } from '../../store/workspaceStore/designTabs';
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
   simulatorAccuracyLabel,
@@ -38,6 +45,14 @@ import {
 } from "../../simulator/SimulatorViewport";
 import { announceUprightSet } from "../../lib/uprightFeedback";
 import { useSimulatorShortcuts } from "../../simulator/useSimulatorShortcuts";
+import {
+  runSimulatorShortcut,
+  type SimulatorShortcutHandlers,
+} from "../../simulator/useSimulatorShortcuts";
+import { simulatorMenuItems } from "../../simulator/simulatorContextMenu";
+import { ContextMenu } from "../ui/ContextMenu";
+import { useContextMenuController } from "../../menus/context/useContextMenuController";
+import { useShortcutStore } from "../../store/shortcutStore";
 import { FoldPlayhead } from "../../simulator/foldPlayhead";
 import { SimulatorExportMenu } from "../../simulator/SimulatorExportMenu";
 import { useSimulatorViewExport } from "../../simulator/useSimulatorViewExport";
@@ -123,6 +138,7 @@ export function SimulatorPanel() {
   // Render/material/solver settings live in the store: the options pane is a
   // sibling panel, so this panel applies them but does not own them.
   const viewSettings = useWorkspaceStore((state) => state.simulatorSettings);
+  const shortcutOverrides = useShortcutStore((store) => store.overrides);
   const setSimulatorSetting = useWorkspaceStore((state) => state.setSimulatorSetting);
   const [stepAccuracy, setStepAccuracy] =
     useState<StepSimulationAccuracy>("fast");
@@ -479,23 +495,49 @@ export function SimulatorPanel() {
   // Keyboard controls, through the shared dispatcher rather than a window
   // listener of our own. The panel is no longer the only thing that can hold a
   // simulation, so "only mounted here" stopped being a scoping argument.
+  // One set of verbs, two surfaces. The keymap below and the viewport's context
+  // menu both dispatch through `runSimulatorShortcut` against *these* handlers,
+  // so a menu row and its own key binding cannot come to mean different things.
+  const simulatorHandlers: SimulatorShortcutHandlers = {
+    playPause: () => setPlaying(!playing),
+    nudgeFold,
+    setFoldPercent: setFoldTarget,
+    replay: replayFromFlat,
+    resetView,
+    zoomBy,
+    toggleSetting: (key) => {
+      // Hidden lines only mean anything while crease lines are drawn.
+      if (key === "showHiddenLines" && !viewSettings.showEdges) return;
+      setSimulatorSetting(key, !viewSettings[key]);
+    },
+  };
+
   useSimulatorShortcuts({
     active: loadState === "ready",
     foldStepPercent: runConfig.foldStepPercent,
-    handlers: {
-      playPause: () => setPlaying(!playing),
-      nudgeFold,
-      setFoldPercent: setFoldTarget,
-      replay: replayFromFlat,
-      resetView,
-      zoomBy,
-      toggleSetting: (key) => {
-        // Hidden lines only mean anything while crease lines are drawn.
-        if (key === "showHiddenLines" && !viewSettings.showEdges) return;
-        setSimulatorSetting(key, !viewSettings[key]);
-      },
-    },
+    handlers: simulatorHandlers,
   });
+
+  const contextMenu = useContextMenuController("simulator");
+  const onViewportContextMenu = (event: ReactMouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (loadState !== "ready") return;
+    contextMenu.request({
+      clientX: event.clientX,
+      clientY: event.clientY,
+      targetKind: "empty",
+      hasSelection: false,
+      build: () =>
+        simulatorMenuItems({
+          t,
+          shortcuts: shortcutOverrides,
+          run: (id) =>
+            runSimulatorShortcut(id, simulatorHandlers, runConfig.foldStepPercent),
+          playing,
+          settings: viewSettings,
+        }),
+    });
+  };
 
   const errorDetail =
     stepSimulationError ??
@@ -640,7 +682,10 @@ export function SimulatorPanel() {
             )}
           </div>
         </div>
-        <div className="panel-body simulator-panel__body">
+        <div
+          className="panel-body simulator-panel__body"
+          onContextMenu={onViewportContextMenu}
+        >
           <SimulatorViewport
             ref={viewportRef}
             canvasKey={`${allowGpuRender ? "gl" : "2d"}:${runtime.canvasGeneration}`}
@@ -661,6 +706,14 @@ export function SimulatorPanel() {
               "panels:simulator.canvasTitle",
               "Drag to rotate, scroll to zoom, double-click to reset view",
             )}
+          />
+          <ContextMenu
+            open={contextMenu.open}
+            x={contextMenu.x}
+            y={contextMenu.y}
+            items={contextMenu.items}
+            onOpenChange={contextMenu.onOpenChange}
+            onCloseAutoFocus={contextMenu.onCloseAutoFocus}
           />
           {loadState !== "ready" && (
             <div className="simulator-panel__empty">

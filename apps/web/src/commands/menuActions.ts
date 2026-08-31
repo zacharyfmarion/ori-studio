@@ -159,7 +159,7 @@ export interface WorkspaceCommands {
   redo(): Promise<void>;
   cutSelection(): Promise<void>;
   copySelection(): void;
-  pasteClipboard(): Promise<void>;
+  pasteClipboard(at?: Point): Promise<void>;
   deleteSelection(): Promise<void>;
   optimizeScale(): Promise<void>;
   optimizeEdges(): Promise<void>;

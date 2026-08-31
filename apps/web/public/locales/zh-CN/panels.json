@@ -14,6 +14,13 @@
   "bpPacking": {
     "canvas": "箱形褶皱排布画布",
     "config": "配置",
+    "contextMenu": {
+      "nudge": "微调",
+      "nudgeDown": "下",
+      "nudgeLeft": "左",
+      "nudgeRight": "右",
+      "nudgeUp": "上"
+    },
     "diagonal": "对角线",
     "flapHeight": "H",
     "flapHeightAria": "翼片高度",
@@ -202,6 +209,17 @@
     "changeFoldedModel": "更改折叠模型",
     "closeFoldedModels": "关闭折叠模型",
     "commandFailed": "命令失败",
+    "contextMenu": {
+      "creaseType": "折线类型",
+      "delete": "删除",
+      "diagnostics": "诊断",
+      "editText": "编辑文本",
+      "insertImage": "插入图片…",
+      "insertText": "插入文本",
+      "repair": "修复",
+      "select": "选择",
+      "transform": "变换"
+    },
     "couldNotOpenForEditing": "无法打开此折痕图进行编辑。",
     "couldNotOpenForEditingHint": "以只读方式显示。你仍然可以查看、折叠和导出它。",
     "cropImage": "裁剪图像",
@@ -463,6 +481,14 @@
     "moveRight": "右移",
     "rename": "重命名"
   },
+  "designTree": {
+    "contextMenu": {
+      "edgeTools": "边",
+      "nodeTools": "节点",
+      "select": "选择",
+      "strain": "应变"
+    }
+  },
   "diagnostics": {
     "allConditionsFeasible": "所有条件均可行",
     "buildingCreasePattern": "正在生成折痕图",
@@ -685,6 +711,11 @@
     "backendGpuTitle": "在 GPU 上求解（WebGL2）",
     "canvasAriaLabel": "折纸折叠基础模拟器。拖动以旋转，滚动以缩放，双击以重置视图。",
     "canvasTitle": "拖动以旋转，滚动以缩放，双击以重置视图",
+    "contextMenu": {
+      "pause": "暂停",
+      "play": "播放",
+      "view": "视图"
+    },
     "controls": "模拟控件",
     "fold": "折叠",
     "foldPercent": "折叠百分比",
@@ -788,5 +819,11 @@
     "textControls": "文本控件",
     "textStyle": "文本样式",
     "underline": "下划线"
+  },
+  "treeEditor": {
+    "contextMenu": {
+      "addLeaf": "在此添加叶节点",
+      "deselect": "取消全部选择"
+    }
   }
 }

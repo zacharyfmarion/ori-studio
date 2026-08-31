@@ -14,6 +14,13 @@
   "bpPacking": {
     "canvas": "Холст упаковки Box Pleat",
     "config": "Конфигурация",
+    "contextMenu": {
+      "nudge": "Сдвинуть",
+      "nudgeDown": "Вниз",
+      "nudgeLeft": "Влево",
+      "nudgeRight": "Вправо",
+      "nudgeUp": "Вверх"
+    },
     "diagonal": "Диагональ",
     "flapHeight": "H",
     "flapHeightAria": "Высота клапана",
@@ -214,6 +221,17 @@
     "changeFoldedModel": "Изменить сложенную модель",
     "closeFoldedModels": "Закрыть сложенные модели",
     "commandFailed": "Команда не выполнена",
+    "contextMenu": {
+      "creaseType": "Тип сгиба",
+      "delete": "Удалить",
+      "diagnostics": "Диагностика",
+      "editText": "Изменить текст",
+      "insertImage": "Вставить изображение…",
+      "insertText": "Вставить текст",
+      "repair": "Исправить",
+      "select": "Выделение",
+      "transform": "Преобразовать"
+    },
     "couldNotOpenForEditing": "Этот паттерн складок не удалось открыть для редактирования.",
     "couldNotOpenForEditingHint": "Показан только для чтения. Его по-прежнему можно просматривать, складывать и экспортировать.",
     "cropImage": "Обрезать изображение",
@@ -511,6 +529,14 @@
     "moveRight": "Переместить вправо",
     "rename": "Переименовать"
   },
+  "designTree": {
+    "contextMenu": {
+      "edgeTools": "Ребро",
+      "nodeTools": "Узел",
+      "select": "Выделение",
+      "strain": "Деформация"
+    }
+  },
   "diagnostics": {
     "allConditionsFeasible": "Все условия выполнимы",
     "buildingCreasePattern": "Построение паттерна складок",
@@ -753,6 +779,11 @@
     "backendGpuTitle": "Вычисление на GPU (WebGL2)",
     "canvasAriaLabel": "Симулятор сложенной базы оригами. Перетаскивайте для вращения, прокручивайте для масштабирования, двойной щелчок сбрасывает вид.",
     "canvasTitle": "Перетаскивайте для вращения, прокручивайте для масштабирования, двойной щелчок сбрасывает вид",
+    "contextMenu": {
+      "pause": "Пауза",
+      "play": "Воспроизвести",
+      "view": "Вид"
+    },
     "controls": "Элементы управления симуляцией",
     "fold": "Сложить",
     "foldPercent": "Процент складывания",
@@ -859,5 +890,11 @@
     "textControls": "Элементы управления текстом",
     "textStyle": "Стиль текста",
     "underline": "Подчёркнутый"
+  },
+  "treeEditor": {
+    "contextMenu": {
+      "addLeaf": "Добавить лист здесь",
+      "deselect": "Снять выделение"
+    }
   }
 }

@@ -144,6 +144,32 @@ export function offsetCpLineSegmentsForPaste(
   );
 }
 
+/**
+ * Move a clipboard's lines so their bounding box's top-left sits at `topLeft`.
+ *
+ * The placed counterpart of {@link offsetCpLineSegmentsForPaste}. That one
+ * *cascades* — each paste steps diagonally off the last so repeats do not stack —
+ * which is the only sensible answer for a Cmd+V that has no point to aim at.
+ * This one has a point, so it uses it, and no cascade applies.
+ *
+ * Top-left is `(minX, minY)` because model y increases *downward* on screen:
+ * `modelPointToCpSvg` maps y with a positive coefficient into SVG space, and
+ * `ORIEDITA_PAPER_CORNERS` labels `(minX, minY)` "paper top left". Getting this
+ * backwards would put the paste a full bounding-box height above the cursor,
+ * which on a large selection is off screen.
+ */
+export function placeCpLineSegmentsAt(
+  lines: readonly OristudioCpLineSegment[],
+  topLeft: Point
+): OristudioCpLineSegment[] {
+  const bounds = cpLineSelectionBounds(lines);
+  if (!bounds) return [...lines];
+  return translateCpLineSegments(lines, {
+    x: topLeft.x - bounds.minX,
+    y: topLeft.y - bounds.minY,
+  });
+}
+
 export function transformCpLineSegments(
   lines: readonly OristudioCpLineSegment[],
   transform: CpSelectionTransform

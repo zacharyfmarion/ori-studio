@@ -39,6 +39,14 @@ import { edgeLengthRepositions, leafLocationAt } from './dragRule';
 import { subtreeIds, treeTopology } from './model';
 import { clampLength } from './lengths';
 import { SYMMETRY_LANE_PX, TreeScene } from './TreeScene';
+import { ContextMenu } from '../components/ui/ContextMenu';
+import {
+  contextMenuKeyboardAnchor,
+  useContextMenuController,
+  type ContextMenuSource,
+} from '../menus/context/useContextMenuController';
+import { treeMenuItems, type TreeContextTarget } from './treeContextMenu';
+import { useTranslation } from 'react-i18next';
 import { TreeEditorToolbar } from './TreeEditorToolbar';
 import { TreeEdgeLengthEditor } from './TreeEdgeLengthEditor';
 import { selectedEdge as findSelectedEdge, type TreeEditorHost } from './host';
@@ -60,6 +68,10 @@ function cameraScale(zoomPercent: number): number {
  */
 export function TreeEditor({ host }: { host: TreeEditorHost }) {
   const { tree, frame, lengths, copy, symmetry, classPrefix } = host;
+  const { t } = useTranslation();
+  // 'tree' for both mounts: the box-pleat and ExplOri canvases are this one
+  // editor, and a menu opened on either is the same fact about the same code.
+  const contextMenu = useContextMenuController('tree');
   const svgRef = useRef<SVGSVGElement | null>(null);
   // The live drag is deliberately not React state: a pointer sample must not
   // re-render the drawing. The session writes the moving elements itself.
@@ -195,6 +207,12 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
     // nothing the moment a name field, the toolbar or a neighbouring pane had it
     // — the focus dependence AGENTS.md forbids of any shortcut.
     onViewportShortcut: (id) => {
+      if (id === 'viewport.contextMenu') {
+        const anchor = contextMenuKeyboardAnchor(containerRef.current);
+        if (!anchor) return false;
+        onSceneContextMenu(null, anchor.clientX, anchor.clientY, 'keyboard');
+        return true;
+      }
       if (id !== 'viewport.cancel') return false;
       // Declined when there is nothing to dismiss. This executor is registered
       // under the surface id every tree canvas shares, and the runtime is now
@@ -540,6 +558,76 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
     host.onLongPress?.(event);
   });
 
+  /**
+   * Right-click, from whichever mark the scene resolved.
+   *
+   * Unlike the crease-pattern canvas, the right button means nothing on a tree
+   * canvas, so this needs no gesture trade — it always opens a menu. Selecting
+   * first is what makes the menu act on what was clicked; a mark already inside
+   * the selection is left alone, so right-clicking one node of a group does not
+   * silently narrow it.
+   */
+  const onSceneContextMenu = useEventCallback(
+    (
+      target: TreeContextTarget,
+      clientX: number,
+      clientY: number,
+      source: ContextMenuSource = 'pointer'
+    ) => {
+      if (target !== null) {
+        const selected =
+          target.kind === 'vertex'
+            ? host.selection.vertices.has(target.id)
+            : host.selection.edges.has(target.id);
+        if (!selected) host.select(target);
+      }
+      const point = clientToTreePoint({ x: clientX, y: clientY });
+      const anchorId = addAnchorId;
+      contextMenu.request({
+        clientX,
+        clientY,
+        targetKind: target === null ? 'empty' : target.kind === 'vertex' ? 'node' : 'edge',
+        hasSelection: host.selection.vertices.size + host.selection.edges.size > 0,
+        source,
+        build: () =>
+          treeMenuItems(target, {
+            t,
+            action: contextMenu.actionContext(),
+            addLeafHere:
+              target === null && anchorId !== null
+                ? () => {
+                    const parent = tree.vertices.find((vertex) => vertex.id === anchorId);
+                    if (!parent) return;
+                    void host.addLeaf(
+                      anchorId,
+                      frame.constrain(newLeafLocation(parent.loc, point)),
+                      symmetryAxisTolerance
+                    );
+                  }
+                : null,
+            unpair:
+              target?.kind === 'vertex' && symmetry?.partnerOf(target.id) !== null
+                ? () => symmetry?.unpair(target.id)
+                : null,
+            mirror: symmetry
+              ? {
+                  enabled: symmetry.enabled,
+                  toggle: symmetry.toggle,
+                  label: copy.mirrorDraw,
+                }
+              : null,
+            labels: {
+              visible: host.layers.labels,
+              toggle: () => host.setLayer('labels', !host.layers.labels),
+              label: copy.layerLabels,
+            },
+            clearSelection: dismissSelection,
+            hasSelection: host.selection.vertices.size + host.selection.edges.size > 0,
+          }),
+      });
+    }
+  );
+
   const onVertexPointerDown = useEventCallback(
     (event: PointerEvent<SVGCircleElement>, vertexId: number) => {
       if (event.button !== 0 || spacePressed) return;
@@ -726,6 +814,7 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
             onRendered={onSceneRendered}
             onEdgePointerDown={onEdgePointerDown}
             onVertexPointerDown={onVertexPointerDown}
+            onContextMenu={onSceneContextMenu}
           />
         </TransformComponent>
       </TransformWrapper>
@@ -774,6 +863,14 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
           onEscape={dismissSelection}
         />
       )}
+      <ContextMenu
+        open={contextMenu.open}
+        x={contextMenu.x}
+        y={contextMenu.y}
+        items={contextMenu.items}
+        onOpenChange={contextMenu.onOpenChange}
+        onCloseAutoFocus={contextMenu.onCloseAutoFocus}
+      />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent,
   type ReactNode,
 } from 'react';
@@ -67,6 +68,16 @@ import {
 } from '../../lib/symmetryAuthoring';
 import { resetEngine } from '../../engines/engineHost';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { ContextMenu } from '../ui/ContextMenu';
+import {
+  contextMenuKeyboardAnchor,
+  useContextMenuController,
+  type ContextMenuSource,
+} from '../../menus/context/useContextMenuController';
+import {
+  designTreeMenuItems,
+  type DesignTreeContextTarget,
+} from '../../lib/designTreeContextMenu';
 import { DesignAttributionFooter } from '../DesignAttributionFooter';
 import { BpTreePanel } from './BpTreePanel';
 import { IconButton } from '../ui/IconButton';
@@ -520,6 +531,50 @@ function TreeMakerDesignPanel() {
   const selection = useWorkspaceStore((state) => selectSelection(state));
   const symmetryAuthoringPairs = useWorkspaceStore((state) => selectSymmetryAuthoringPairs(state));
   const select = useWorkspaceStore((state) => state.select);
+  const designContextMenu = useContextMenuController('design-tree');
+  /**
+   * Right-click anywhere on the design canvas.
+   *
+   * The right button means nothing on this canvas, so there is no gesture to
+   * trade — it always opens a menu. A mark that is not already selected is
+   * selected first, so the verbs act on what was clicked; one already inside a
+   * multi-selection is left alone, so right-clicking a node of a selected group
+   * does not silently narrow it to that node.
+   */
+  const openDesignContextMenu = useCallback(
+    (
+      target: DesignTreeContextTarget,
+      at: { clientX: number; clientY: number },
+      alreadySelected: boolean,
+      source: ContextMenuSource = 'pointer'
+    ) => {
+      if (!alreadySelected && target.kind !== 'empty') {
+        if (target.kind === 'node') select({ kind: 'node', id: target.id });
+        else if (target.kind === 'edge') select({ kind: 'edge', id: target.id });
+        else select({ kind: 'path', id: target.id });
+      }
+      designContextMenu.request({
+        clientX: at.clientX,
+        clientY: at.clientY,
+        targetKind: target.kind === 'empty' ? 'empty' : target.kind === 'edge' ? 'edge' : 'node',
+        hasSelection: selectionSize(selection) > 0,
+        source,
+        build: () =>
+          designTreeMenuItems(target, { t, action: designContextMenu.actionContext() }),
+      });
+    },
+    [designContextMenu, select, selection, t]
+  );
+
+  /** The pointer path: swallow the browser menu, then open ours. */
+  const onDesignContextMenu = useCallback(
+    (target: DesignTreeContextTarget, event: ReactMouseEvent, alreadySelected: boolean) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openDesignContextMenu(target, event, alreadySelected);
+    },
+    [openDesignContextMenu]
+  );
   const addNodeAt = useWorkspaceStore((state) => state.addNodeAt);
   const addNodeWithSymmetry = useWorkspaceStore((state) => state.addNodeWithSymmetry);
   const moveNode = useWorkspaceStore((state) => state.moveNode);
@@ -684,11 +739,19 @@ function TreeMakerDesignPanel() {
         case 'viewport.actualSize':
           setActualSize();
           return true;
+        case 'viewport.contextMenu': {
+          const anchor = contextMenuKeyboardAnchor(
+            svgRef.current?.closest('.panel-body') as HTMLElement | null
+          );
+          if (!anchor) return false;
+          openDesignContextMenu({ kind: 'empty' }, anchor, false, 'keyboard');
+          return true;
+        }
         default:
           return false;
       }
     },
-    [fitToView, setActualSize]
+    [fitToView, setActualSize, openDesignContextMenu]
   );
 
   useEffect(
@@ -982,6 +1045,7 @@ function TreeMakerDesignPanel() {
               onPointerDown={onCanvasPointerDown}
               onPointerMove={onCanvasPointerMove}
               onPointerLeave={() => setHoverPoint(null)}
+              onContextMenu={(event) => onDesignContextMenu({ kind: 'empty' }, event, false)}
             >
               <rect
                 className="paper-shadow"
@@ -1122,6 +1186,9 @@ function TreeMakerDesignPanel() {
                         event.stopPropagation();
                         select({ kind: 'path', id: path.id });
                       }}
+                      onContextMenu={(event) =>
+                        onDesignContextMenu({ kind: 'path', id: path.id }, event, active)
+                      }
                     />
                   );
                 })}
@@ -1144,6 +1211,9 @@ function TreeMakerDesignPanel() {
                           : { kind: 'edge', id: edge.id }
                       );
                     }}
+                    onContextMenu={(event) =>
+                      onDesignContextMenu({ kind: 'edge', id: edge.id }, event, active)
+                    }
                   >
                     <line
                       className={[
@@ -1185,6 +1255,9 @@ function TreeMakerDesignPanel() {
                       cy={point.y}
                       r={dotPx}
                       onPointerDown={(event) => onNodePointerDown(event, node.id)}
+                      onContextMenu={(event) =>
+                        onDesignContextMenu({ kind: 'node', id: node.id }, event, active)
+                      }
                       onPointerMove={(event) => onNodePointerMove(event, node.id)}
                       onPointerUp={(event) => finishDrag(event, node.id)}
                       onPointerCancel={(event) => finishDrag(event, node.id)}
@@ -1200,6 +1273,14 @@ function TreeMakerDesignPanel() {
             </svg>
           </TransformComponent>
         </TransformWrapper>
+        <ContextMenu
+          open={designContextMenu.open}
+          x={designContextMenu.x}
+          y={designContextMenu.y}
+          items={designContextMenu.items}
+          onOpenChange={designContextMenu.onOpenChange}
+          onCloseAutoFocus={designContextMenu.onCloseAutoFocus}
+        />
         <DesignViewportToolbar
           zoomPercent={zoomPercent}
           layers={layers}

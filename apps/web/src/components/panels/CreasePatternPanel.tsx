@@ -114,7 +114,7 @@ import { FoldedFigureControls } from '../../cp-workspace/folded/FoldedFigureCont
 import { FoldedFigureModal } from '../../cp-workspace/folded/FoldedFigureModal';
 import { useCpFavoriteToolbarGroup } from '../../cp-workspace/toolCatalog/useCpFavoriteToolbarGroup';
 import { useIsPhoneLayout } from '../../platform/phoneLayout';
-import type { CpContextMenuRequest } from '../../cp-workspace/contextMenuTarget';
+import { useCpCanvasContextMenu } from '../../cp-workspace/contextMenu/useCpCanvasContextMenu';
 // Registers `__foldedStaleDebug()` in dev builds; no-op in production.
 import '../../cp-workspace/folded/foldedFigureStalenessDebug';
 // Registers `__inlineSimStaleDebug()` in dev builds; no-op in production.
@@ -122,7 +122,6 @@ import '../../cp-workspace/inlineSimulation/inlineSimulationStalenessDebug';
 import { DECODABLE_IMAGE_ACCEPT } from '../../lib/imageFormats';
 import { useWorkspaceErrorText } from '../../hooks/useWorkspaceErrorText';
 import { ContextMenu } from '../ui/ContextMenu';
-import type { ContextMenuRequest } from '../ui/contextMenuTypes';
 import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
 import { foldedGeometryFromShapes } from '../../cp-workspace/adapters/cpFoldedToScene';
 import { CanvasObjectOverlay } from '../../cp-workspace/CanvasObjectOverlay';
@@ -153,7 +152,6 @@ import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
 import { CpSelectionToolbar } from '../../cp-workspace/CpSelectionToolbar';
 import { CpFoldedFigureToolbar } from '../../cp-workspace/folded/CpFoldedFigureToolbar';
 import { useFoldedFigures } from '../../cp-workspace/folded/useFoldedFigures';
-import { foldedFigureMenuItemsWith } from '../../cp-workspace/folded/foldedFigureMenuItems';
 import { selectedCanvasObjectId as selectedCanvasObjectIdOf } from '../../cp-workspace/canvasObjects/transformableObject';
 import { InlineSimulationLayer } from '../../cp-workspace/InlineSimulationLayer';
 import { Folded3dWindowLayer } from '../../cp-workspace/Folded3dWindowLayer';
@@ -1089,46 +1087,18 @@ export function CreasePatternPanel() {
 
 
 
-  // Right-click context menu for a folded form. Items act on the clicked figure by
-  // id (not the active one), so they behave correctly even before selection settles.
-  const [foldedContextMenu, setFoldedContextMenu] = useState<ContextMenuRequest | null>(null);
-  const buildFoldedFigureMenuItems = useCallback(
-    (figure: OristudioCpFoldedFigureEntry) =>
-      foldedFigureMenuItemsWith(figure, foldedFigureActionDeps, t),
-    [foldedFigureActionDeps, t]
-  );
-  const handleRequestContextMenu = useCallback(
-    (request: CpContextMenuRequest) => {
-      // Only folded figures raise a menu today; other targets fall through to the
-      // canvas's existing behavior (e.g. right-drag erase).
-      if (request.target.kind !== 'folded-figure') return;
-      const figureId = request.target.figureId;
-      const figure = oristudioCpFoldedFigures.find((candidate) => candidate.id === figureId);
-      if (!figure) return;
-      setOristudioCpActiveFoldedFigure(figureId);
-      setFoldedContextMenu({
-        x: request.clientX,
-        y: request.clientY,
-        items: buildFoldedFigureMenuItems(figure),
-      });
-    },
-    [oristudioCpFoldedFigures, setOristudioCpActiveFoldedFigure, buildFoldedFigureMenuItems]
-  );
-  /**
-   * Right-click on a canvas object. The overlay sits above the canvas and takes
-   * the press first, so the canvas's own right-click path never sees a click
-   * that lands on an object — this is what routes it to the folded menu.
-   * Annotations have no context menu yet and simply select.
-   */
-  const handleCanvasObjectContextMenu = useCallback(
-    (id: string, clientX: number, clientY: number) => {
-      const figure = oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
-      if (!figure) return;
-      setOristudioCpActiveFoldedFigure(id);
-      setFoldedContextMenu({ x: clientX, y: clientY, items: buildFoldedFigureMenuItems(figure) });
-    },
-    [oristudioCpFoldedFigures, setOristudioCpActiveFoldedFigure, buildFoldedFigureMenuItems]
-  );
+  // Everything the crease-pattern canvas raises on a right-click, in one place:
+  // the folded-figure menu, the crease-selection menu, and the annotation menus.
+  // `useCpCanvasContextMenu` owns which of those a target maps to and how each
+  // one's rows are built; the panel only hands it the bindings it cannot reach
+  // for itself and mounts the single `<ContextMenu>` below.
+  const cpContextMenu = useCpCanvasContextMenu({
+    foldedFigures: oristudioCpFoldedFigures,
+    foldedFigureActionDeps,
+    setActiveFoldedFigure: setOristudioCpActiveFoldedFigure,
+    annotations,
+    selectCanvasObject,
+  });
   // Vertex dots: dedup crease-segment endpoints — the top main-thread cost after an
   // edit on dense patterns. Dedup straight from the transport's typed arrays
   // (parity-proven identical to getCpVertexPoints); the structured fallback only runs
@@ -2886,6 +2856,8 @@ export function CreasePatternPanel() {
         case 'viewport.actualSize':
           cpCamera()?.setZoomPercent(100);
           return true;
+        case 'viewport.contextMenu':
+          return cpContextMenu.openFromKeyboard(containerRef.current);
       }
     },
     [
@@ -2895,6 +2867,7 @@ export function CreasePatternPanel() {
       vertexSolve,
       deleteSelectedCanvasObject,
       dropLastMeasurement,
+      cpContextMenu,
     ]
   );
 
@@ -3230,7 +3203,7 @@ export function CreasePatternPanel() {
                   onEraseCircle={(id) => {
                     void executeOristudioCpCommand('LineSegmentDelete', { circle_ids: [id] });
                   }}
-                  onRequestContextMenu={handleRequestContextMenu}
+                  onRequestContextMenu={cpContextMenu.onCanvasContextMenu}
                   mode={mode}
                   lineStyle={oristudioCpViewport.lineStyle ?? DEFAULT_ORISTUDIO_CP_LINE_STYLE}
                   foldAngleDisplay={
@@ -3251,13 +3224,12 @@ export function CreasePatternPanel() {
                   gridVisible={oristudioCpViewport.gridVisible}
                 />
                 <ContextMenu
-                  open={foldedContextMenu !== null}
-                  x={foldedContextMenu?.x ?? 0}
-                  y={foldedContextMenu?.y ?? 0}
-                  items={foldedContextMenu?.items ?? []}
-                  onOpenChange={(open) => {
-                    if (!open) setFoldedContextMenu(null);
-                  }}
+                  open={cpContextMenu.controller.open}
+                  x={cpContextMenu.controller.x}
+                  y={cpContextMenu.controller.y}
+                  items={cpContextMenu.controller.items}
+                  onOpenChange={cpContextMenu.controller.onOpenChange}
+                  onCloseAutoFocus={cpContextMenu.controller.onCloseAutoFocus}
                 />
                 {webglOverlayView &&
                   isCpMeasurementOperation(activeCpCommand?.operationId) &&
@@ -3314,7 +3286,7 @@ export function CreasePatternPanel() {
                     onUpdate={handleCanvasObjectUpdate}
                     onCropUpdate={annotations.applyCrop}
                     onRequestEdit={annotations.requestEditText}
-                    onContextMenu={handleCanvasObjectContextMenu}
+                    onContextMenu={cpContextMenu.onCanvasObjectContextMenu}
                     canCrop={annotations.canCrop}
                     onGestureStart={beginCanvasObjectGesture}
                     onGestureCommit={commitCanvasObjectGesture}
@@ -3484,7 +3456,10 @@ export function CreasePatternPanel() {
                   onChange={(event) => {
                     const file = event.target.files?.[0];
                     event.target.value = '';
-                    if (file) void addImageFromFile(file, null);
+                    // A placement parked by whoever opened the picker, or null
+                    // for the viewport centre. The right-click menu parks the
+                    // point it was raised at; the Insert menu parks nothing.
+                    if (file) void addImageFromFile(file, annotations.consumePendingImagePoint());
                   }}
                 />
               )}

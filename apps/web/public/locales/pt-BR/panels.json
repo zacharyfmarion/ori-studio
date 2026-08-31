@@ -14,6 +14,13 @@
   "bpPacking": {
     "canvas": "Canvas do empacotamento de dobra em caixa",
     "config": "Config",
+    "contextMenu": {
+      "nudge": "Deslocar",
+      "nudgeDown": "Para baixo",
+      "nudgeLeft": "Esquerda",
+      "nudgeRight": "Direita",
+      "nudgeUp": "Para cima"
+    },
     "diagonal": "Diagonal",
     "flapHeight": "H",
     "flapHeightAria": "Altura da aba",
@@ -210,6 +217,17 @@
     "changeFoldedModel": "Alterar modelo dobrado",
     "closeFoldedModels": "Fechar modelos dobrados",
     "commandFailed": "Comando falhou",
+    "contextMenu": {
+      "creaseType": "Tipo de vinco",
+      "delete": "Excluir",
+      "diagnostics": "Diagnósticos",
+      "editText": "Editar texto",
+      "insertImage": "Inserir imagem…",
+      "insertText": "Inserir texto",
+      "repair": "Reparar",
+      "select": "Selecionar",
+      "transform": "Transformar"
+    },
     "couldNotOpenForEditing": "Não foi possível abrir este padrão de vincos para edição.",
     "couldNotOpenForEditingHint": "Exibido somente leitura. Você ainda pode visualizar, dobrar e exportar.",
     "cropImage": "Recortar imagem",
@@ -495,6 +513,14 @@
     "moveRight": "Mover para a direita",
     "rename": "Renomear"
   },
+  "designTree": {
+    "contextMenu": {
+      "edgeTools": "Aresta",
+      "nodeTools": "Nó",
+      "select": "Selecionar",
+      "strain": "Tensão"
+    }
+  },
   "diagnostics": {
     "allConditionsFeasible": "Todas as condições viáveis",
     "buildingCreasePattern": "Gerando padrão de vincos",
@@ -729,6 +755,11 @@
     "backendGpuTitle": "Resolvendo na GPU (WebGL2)",
     "canvasAriaLabel": "Simulador de base dobrada de origami. Arraste para girar, role para aproximar, clique duplo para redefinir a visualização.",
     "canvasTitle": "Arraste para girar, role para aproximar, clique duplo para redefinir a visualização",
+    "contextMenu": {
+      "pause": "Pausar",
+      "play": "Reproduzir",
+      "view": "Exibir"
+    },
     "controls": "Controles de simulação",
     "fold": "Dobrar",
     "foldPercent": "Porcentagem de dobra",
@@ -834,5 +865,11 @@
     "textControls": "Controles de texto",
     "textStyle": "Estilo do texto",
     "underline": "Sublinhado"
+  },
+  "treeEditor": {
+    "contextMenu": {
+      "addLeaf": "Adicionar folha aqui",
+      "deselect": "Desmarcar tudo"
+    }
   }
 }

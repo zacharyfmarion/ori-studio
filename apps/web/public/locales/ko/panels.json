@@ -14,6 +14,13 @@
   "bpPacking": {
     "canvas": "박스 플리츠 패킹 캔버스",
     "config": "구성",
+    "contextMenu": {
+      "nudge": "미세 이동",
+      "nudgeDown": "아래",
+      "nudgeLeft": "왼쪽",
+      "nudgeRight": "오른쪽",
+      "nudgeUp": "위"
+    },
     "diagonal": "대각선",
     "flapHeight": "H",
     "flapHeightAria": "플랩 높이",
@@ -202,6 +209,17 @@
     "changeFoldedModel": "접힌 모델 변경",
     "closeFoldedModels": "접힌 모델 닫기",
     "commandFailed": "명령 실패",
+    "contextMenu": {
+      "creaseType": "접는 선 종류",
+      "delete": "삭제",
+      "diagnostics": "진단",
+      "editText": "텍스트 편집",
+      "insertImage": "이미지 삽입…",
+      "insertText": "텍스트 삽입",
+      "repair": "복구",
+      "select": "선택",
+      "transform": "변환"
+    },
     "couldNotOpenForEditing": "이 전개도를 편집용으로 열 수 없습니다.",
     "couldNotOpenForEditingHint": "읽기 전용으로 표시됩니다. 계속 보기, 접기, 내보내기를 할 수 있습니다.",
     "cropImage": "이미지 자르기",
@@ -463,6 +481,14 @@
     "moveRight": "오른쪽으로 이동",
     "rename": "이름 바꾸기"
   },
+  "designTree": {
+    "contextMenu": {
+      "edgeTools": "간선",
+      "nodeTools": "노드",
+      "select": "선택",
+      "strain": "변형"
+    }
+  },
   "diagnostics": {
     "allConditionsFeasible": "모든 조건 실현 가능",
     "buildingCreasePattern": "전개도 생성 중",
@@ -685,6 +711,11 @@
     "backendGpuTitle": "GPU에서 계산 중 (WebGL2)",
     "canvasAriaLabel": "종이접기 접힌 베이스 시뮬레이터. 드래그하여 회전, 스크롤하여 확대/축소, 더블 클릭하여 보기 초기화.",
     "canvasTitle": "드래그하여 회전, 스크롤하여 확대/축소, 더블 클릭하여 보기 초기화",
+    "contextMenu": {
+      "pause": "일시정지",
+      "play": "재생",
+      "view": "보기"
+    },
     "controls": "시뮬레이션 컨트롤",
     "fold": "접기",
     "foldPercent": "접기 백분율",
@@ -788,5 +819,11 @@
     "textControls": "텍스트 컨트롤",
     "textStyle": "텍스트 스타일",
     "underline": "밑줄"
+  },
+  "treeEditor": {
+    "contextMenu": {
+      "addLeaf": "여기에 잎 추가",
+      "deselect": "모두 선택 해제"
+    }
   }
 }

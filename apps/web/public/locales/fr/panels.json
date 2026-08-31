@@ -14,6 +14,13 @@
   "bpPacking": {
     "canvas": "Canevas d'agencement du pliage en boîte",
     "config": "Config",
+    "contextMenu": {
+      "nudge": "Déplacer",
+      "nudgeDown": "Bas",
+      "nudgeLeft": "Gauche",
+      "nudgeRight": "Droite",
+      "nudgeUp": "Haut"
+    },
     "diagonal": "Diagonale",
     "flapHeight": "H",
     "flapHeightAria": "Hauteur du rabat",
@@ -210,6 +217,17 @@
     "changeFoldedModel": "Modifier le modèle plié",
     "closeFoldedModels": "Fermer les modèles pliés",
     "commandFailed": "Échec de la commande",
+    "contextMenu": {
+      "creaseType": "Type de pli",
+      "delete": "Supprimer",
+      "diagnostics": "Diagnostics",
+      "editText": "Modifier le texte",
+      "insertImage": "Insérer une image…",
+      "insertText": "Insérer du texte",
+      "repair": "Réparer",
+      "select": "Sélectionner",
+      "transform": "Transformer"
+    },
     "couldNotOpenForEditing": "Ce patron de plis n'a pas pu être ouvert pour modification.",
     "couldNotOpenForEditingHint": "Affiché en lecture seule. Vous pouvez toujours le visualiser, le plier et l’exporter.",
     "cropImage": "Rogner l'image",
@@ -495,6 +513,14 @@
     "moveRight": "Déplacer vers la droite",
     "rename": "Renommer"
   },
+  "designTree": {
+    "contextMenu": {
+      "edgeTools": "Arête",
+      "nodeTools": "Nœud",
+      "select": "Sélectionner",
+      "strain": "Contrainte"
+    }
+  },
   "diagnostics": {
     "allConditionsFeasible": "Toutes les conditions sont réalisables",
     "buildingCreasePattern": "Génération du patron de plis",
@@ -729,6 +755,11 @@
     "backendGpuTitle": "Résolution sur le GPU (WebGL2)",
     "canvasAriaLabel": "Simulateur de base pliée en origami. Faites glisser pour pivoter, défilez pour zoomer, double-cliquez pour réinitialiser la vue.",
     "canvasTitle": "Faites glisser pour pivoter, défilez pour zoomer, double-cliquez pour réinitialiser la vue",
+    "contextMenu": {
+      "pause": "Pause",
+      "play": "Lecture",
+      "view": "Affichage"
+    },
     "controls": "Commandes de simulation",
     "fold": "Plier",
     "foldPercent": "Pourcentage de pliage",
@@ -834,5 +865,11 @@
     "textControls": "Contrôles de texte",
     "textStyle": "Style de texte",
     "underline": "Souligné"
+  },
+  "treeEditor": {
+    "contextMenu": {
+      "addLeaf": "Ajouter une feuille ici",
+      "deselect": "Tout désélectionner"
+    }
   }
 }

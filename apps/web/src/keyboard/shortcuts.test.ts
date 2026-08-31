@@ -86,6 +86,39 @@ describe('shortcut registry', () => {
     expect(formatKeyChord(chord, { platform: 'other' })).toBe('Ctrl+Shift+S');
   });
 
+  it('prints the arrow keys as glyphs', () => {
+    expect(formatKeyChord({ key: 'arrowleft' })).toBe('←');
+    expect(formatKeyChord({ key: 'arrowright' })).toBe('→');
+    expect(formatKeyChord({ key: 'arrowup' })).toBe('↑');
+    expect(formatKeyChord({ key: 'arrowdown' })).toBe('↓');
+    expect(formatKeyChord({ shift: true, key: 'arrowleft' })).toBe('Shift+←');
+  });
+
+  it.each([
+    ['home', 'Home'],
+    ['end', 'End'],
+    ['pageup', 'Page Up'],
+    ['pagedown', 'Page Down'],
+    ['tab', 'Tab'],
+    ['insert', 'Insert'],
+    ['capslock', 'Caps Lock'],
+    ['contextmenu', 'Menu'],
+  ])('names %s rather than printing the raw key', (key, expected) => {
+    expect(formatKeyChord({ key })).toBe(expected);
+  });
+
+  it('leaves no registry binding printing a raw key name', () => {
+    // The bug this guards: `displayKey`'s fallback only knew single characters
+    // and F-keys, so every other multi-character key fell through as its raw
+    // lowercase `KeyboardEvent.key` — the simulator menu read "Shift+arrowleft".
+    // A new binding on an unnamed key fails here rather than in a screenshot.
+    const raw = SHORTCUT_DEFINITIONS.flatMap((definition) =>
+      definition.defaultChords.map((chord) => formatKeyChord(chord))
+    ).filter((label) => /[a-z]{2}/u.test(label.replace(/Cmd|Ctrl|Meta|Option|Alt|Shift|Page Up|Page Down|Caps Lock|Delete|Backspace|Esc|Enter|Space|Tab|Home|End|Insert|Menu/gu, '')));
+
+    expect(raw).toEqual([]);
+  });
+
   it('keeps hybrid globals while applying Oriedita scoped CP defaults', () => {
     expect(shortcutLabelForAction('file.saveAs')).toMatch(/Shift\+S$/u);
     // Line types sit on the left-hand home row: A/S/D/F.

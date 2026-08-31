@@ -57,6 +57,10 @@ function renderItem(item: ContextMenuItem, index: number): React.ReactNode {
           className="context-menu__item"
           data-danger={item.danger || undefined}
           disabled={item.disabled}
+          // Radix renders a `div`, not a native control, so a disabled row still
+          // receives hover — which is what makes this reachable on exactly the
+          // rows that most need it.
+          title={item.hint}
           onSelect={item.onSelect}
         >
           {item.icon != null && <span className="context-menu__icon">{item.icon}</span>}

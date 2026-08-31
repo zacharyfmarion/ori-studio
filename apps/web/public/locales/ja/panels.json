@@ -14,6 +14,13 @@
   "bpPacking": {
     "canvas": "ボックスプリーツパッキングキャンバス",
     "config": "設定",
+    "contextMenu": {
+      "nudge": "微調整",
+      "nudgeDown": "下",
+      "nudgeLeft": "左",
+      "nudgeRight": "右",
+      "nudgeUp": "上"
+    },
     "diagonal": "対角",
     "flapHeight": "H",
     "flapHeightAria": "フラップの高さ",
@@ -202,6 +209,17 @@
     "changeFoldedModel": "折り上がり図を変更",
     "closeFoldedModels": "折り上がりモデルを閉じる",
     "commandFailed": "コマンドが失敗しました",
+    "contextMenu": {
+      "creaseType": "折り線の種類",
+      "delete": "削除",
+      "diagnostics": "診断",
+      "editText": "テキストを編集",
+      "insertImage": "画像を挿入…",
+      "insertText": "テキストを挿入",
+      "repair": "修復",
+      "select": "選択",
+      "transform": "変換"
+    },
     "couldNotOpenForEditing": "この展開図は編集用に開けませんでした。",
     "couldNotOpenForEditingHint": "読み取り専用で表示されています。表示、折り、書き出しは引き続き行えます。",
     "cropImage": "画像を切り抜き",
@@ -463,6 +481,14 @@
     "moveRight": "右へ移動",
     "rename": "名前を変更"
   },
+  "designTree": {
+    "contextMenu": {
+      "edgeTools": "辺",
+      "nodeTools": "ノード",
+      "select": "選択",
+      "strain": "ひずみ"
+    }
+  },
   "diagnostics": {
     "allConditionsFeasible": "すべての条件が実行可能",
     "buildingCreasePattern": "展開図を作成中",
@@ -685,6 +711,11 @@
     "backendGpuTitle": "GPUで計算中（WebGL2）",
     "canvasAriaLabel": "折り紙の折りベースシミュレーター。ドラッグで回転、スクロールでズーム、ダブルクリックで表示をリセットします。",
     "canvasTitle": "ドラッグで回転、スクロールでズーム、ダブルクリックで表示をリセット",
+    "contextMenu": {
+      "pause": "一時停止",
+      "play": "再生",
+      "view": "表示"
+    },
     "controls": "シミュレーション操作",
     "fold": "折る",
     "foldPercent": "折りの割合",
@@ -788,5 +819,11 @@
     "textControls": "テキストコントロール",
     "textStyle": "テキストスタイル",
     "underline": "下線"
+  },
+  "treeEditor": {
+    "contextMenu": {
+      "addLeaf": "ここに葉を追加",
+      "deselect": "すべて選択解除"
+    }
   }
 }

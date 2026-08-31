@@ -14,6 +14,13 @@
   "bpPacking": {
     "canvas": "Box-Pleating-Packungsleinwand",
     "config": "Konfiguration",
+    "contextMenu": {
+      "nudge": "Verschieben",
+      "nudgeDown": "Nach unten",
+      "nudgeLeft": "Nach links",
+      "nudgeRight": "Nach rechts",
+      "nudgeUp": "Nach oben"
+    },
     "diagonal": "Diagonal",
     "flapHeight": "H",
     "flapHeightAria": "Höhe der Lasche",
@@ -206,6 +213,17 @@
     "changeFoldedModel": "Gefaltetes Modell ändern",
     "closeFoldedModels": "Gefaltete Modelle schließen",
     "commandFailed": "Befehl fehlgeschlagen",
+    "contextMenu": {
+      "creaseType": "Falttyp",
+      "delete": "Löschen",
+      "diagnostics": "Diagnose",
+      "editText": "Text bearbeiten",
+      "insertImage": "Bild einfügen…",
+      "insertText": "Text einfügen",
+      "repair": "Reparieren",
+      "select": "Auswählen",
+      "transform": "Transformieren"
+    },
     "couldNotOpenForEditing": "Dieses Faltmuster konnte nicht zur Bearbeitung geöffnet werden.",
     "couldNotOpenForEditingHint": "Wird schreibgeschützt angezeigt. Sie können es weiterhin ansehen, falten und exportieren.",
     "cropImage": "Bild zuschneiden",
@@ -479,6 +497,14 @@
     "moveRight": "Nach rechts verschieben",
     "rename": "Umbenennen"
   },
+  "designTree": {
+    "contextMenu": {
+      "edgeTools": "Kante",
+      "nodeTools": "Knoten",
+      "select": "Auswählen",
+      "strain": "Dehnung"
+    }
+  },
   "diagnostics": {
     "allConditionsFeasible": "Alle Bedingungen erfüllbar",
     "buildingCreasePattern": "Faltmuster wird erstellt",
@@ -705,6 +731,11 @@
     "backendGpuTitle": "Berechnung auf der GPU (WebGL2)",
     "canvasAriaLabel": "Origami-Simulator für gefaltete Basen. Ziehen zum Drehen, Scrollen zum Zoomen, Doppelklick zum Zurücksetzen der Ansicht.",
     "canvasTitle": "Ziehen zum Drehen, Scrollen zum Zoomen, Doppelklick zum Zurücksetzen der Ansicht",
+    "contextMenu": {
+      "pause": "Pause",
+      "play": "Abspielen",
+      "view": "Ansicht"
+    },
     "controls": "Simulationssteuerung",
     "fold": "Falten",
     "foldPercent": "Faltprozentsatz",
@@ -809,5 +840,11 @@
     "textControls": "Textsteuerung",
     "textStyle": "Textstil",
     "underline": "Unterstrichen"
+  },
+  "treeEditor": {
+    "contextMenu": {
+      "addLeaf": "Blatt hier hinzufügen",
+      "deselect": "Auswahl aufheben"
+    }
   }
 }

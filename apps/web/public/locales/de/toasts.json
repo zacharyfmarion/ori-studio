@@ -1,4 +1,8 @@
 {
+  "contextMenu": {
+    "failed": "Diese Aktion konnte nicht ausgeführt werden",
+    "failedDetail": "Es wurde nichts geändert. Wenn das weiterhin passiert, lade die Seite neu."
+  },
   "creasePattern": {
     "inlineSimulationCap": "Bis zu {{max}} Simulationsfenster gleichzeitig. Schließe eines, um ein weiteres zu öffnen.",
     "inlineSimulationRegionGone": "Dieser Bereich ist nicht mehr im Faltmuster vorhanden, daher kann dieses Fenster nicht neu aufgebaut werden.",

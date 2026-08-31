@@ -1,4 +1,8 @@
 {
+  "contextMenu": {
+    "failed": "No se pudo completar esa acción",
+    "failedDetail": "No se cambió nada. Si sigue ocurriendo, prueba a recargar."
+  },
   "creasePattern": {
     "inlineSimulationCap": "Hasta {{max}} ventanas de simulación a la vez. Cierra una para abrir otra.",
     "inlineSimulationRegionGone": "Esa región ya no está en el patrón de pliegues, así que esta ventana no se puede reconstruir.",

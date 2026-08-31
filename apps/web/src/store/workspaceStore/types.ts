@@ -673,7 +673,14 @@ export interface ClipboardSliceState {
 export interface ClipboardSliceActions {
   copySelection: () => void;
   cutSelection: () => Promise<void>;
-  pasteClipboard: () => Promise<void>;
+  /**
+   * Paste the clipboard.
+   *
+   * `at` places the pasted bounding box's **top-left** there, for a caller that
+   * has a point — the canvas context menu. Omitted keeps the cascading offset,
+   * which is the only thing a keyboard paste can do.
+   */
+  pasteClipboard: (at?: Point) => Promise<void>;
 }
 
 export type ClipboardSlice = ClipboardSliceState & ClipboardSliceActions;

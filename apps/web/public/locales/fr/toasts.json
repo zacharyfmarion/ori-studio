@@ -1,4 +1,8 @@
 {
+  "contextMenu": {
+    "failed": "Cette action n’a pas pu être effectuée",
+    "failedDetail": "Rien n’a été modifié. Si cela persiste, essayez de recharger."
+  },
   "creasePattern": {
     "inlineSimulationCap": "Jusqu'à {{max}} fenêtres de simulation à la fois. Fermez-en une pour en ouvrir une autre.",
     "inlineSimulationRegionGone": "Cette région n'est plus dans le patron de plis, cette fenêtre ne peut donc pas être reconstruite.",

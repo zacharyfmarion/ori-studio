@@ -16,6 +16,15 @@ export type ContextMenuItem =
       icon?: ReactNode;
       /** Optional right-aligned hint, e.g. a keyboard shortcut. */
       shortcut?: string;
+      /**
+       * Why this row is the way it is, shown on hover as the row's tooltip.
+       *
+       * Carried mainly by *disabled* rows, where it is the difference between a
+       * dead end and an instruction ("Select one or more crease-pattern lines
+       * first"). A menu has nowhere else to say that: there is no status line
+       * under it and a greyed row explains itself to nobody.
+       */
+      hint?: string;
       disabled?: boolean;
       /** Renders the item in a destructive tone (e.g. Delete). */
       danger?: boolean;
