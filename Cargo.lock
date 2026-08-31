@@ -5274,17 +5274,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "treemaker-sequence"
-version = "0.2.1"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "treemaker-flatfold",
- "treemaker-fold",
-]
-
-[[package]]
 name = "treemaker-wasm"
 version = "0.2.1"
 dependencies = [
@@ -5294,7 +5283,6 @@ dependencies = [
  "treemaker-core",
  "treemaker-flatfold",
  "treemaker-fold",
- "treemaker-sequence",
  "wasm-bindgen",
  "wasm-bindgen-test",
 ]

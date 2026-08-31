@@ -3,8 +3,6 @@ import type {
   ConditionKind,
   FoldArtifacts,
   FoldDocument,
-  SequencePlan,
-  SequenceTargetState,
   TreeEdit,
   WasmErrorEnvelope,
 } from '../../engine/types';
@@ -800,16 +798,7 @@ export interface CreasePatternSliceState {
   foldArtifactRevision: number;
   foldArtifactResolvedRevision: number | null;
   selectedSegmentId: number | null;
-  sequenceTarget: SequenceTargetState | null;
-  sequencePlan: SequencePlan | null;
-  sequenceSimulationFocus: SequenceSimulationFocus;
-  sequencePlanning: boolean;
-  sequenceError: string | null;
 }
-
-export type SequenceSimulationFocus =
-  | { kind: 'whole' }
-  | { kind: 'sequence_step'; stepId: string };
 
 export interface CreasePatternSliceActions {
   optimizeScale: () => Promise<void>;
@@ -831,8 +820,6 @@ export interface CreasePatternSliceActions {
   markFoldSourceChanged: () => void;
   ensureFoldArtifacts: () => Promise<FoldArtifacts | null>;
   refreshFoldArtifacts: () => Promise<FoldArtifacts | null>;
-  analyzeSequenceTarget: () => Promise<SequenceTargetState | null>;
-  planFoldingSequence: () => Promise<SequencePlan | null>;
   setCreaseColorMode: (mode: CreaseColorMode) => void;
   setSelectedSegment: (id: number | null) => void;
   /**
@@ -898,7 +885,6 @@ export interface CreasePatternSliceActions {
    * Resolves the number of windows that got a fold back.
    */
   restoreOristudioCpInlineSimulationSources: () => Promise<number>;
-  setSequenceSimulationFocus: (focus: SequenceSimulationFocus) => void;
   /**
    * Record the settled Edit-canvas camera so a save persists the view. Does not
    * touch `dirty` — see {@link WorkspaceState.oristudioCpCamera}.

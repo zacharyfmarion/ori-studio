@@ -120,22 +120,13 @@ can ship the full app including TreeMaker.
 
 ### Two licensing defects found on the way (worth fixing regardless)
 
-- **`treemaker-sequence` has contradictory provenance — but it is not on the
-  critical path.** `NOTICE` lists it as TreeMaker-derived; its `Cargo.toml`
-  declares `MIT OR Apache-2.0`; its code imports only `treemaker-flatfold` and
-  `treemaker-fold` and describes itself as original research. `LICENSING.md`'s
-  GPL crate list omits it.
-
-  What matters for the iPad: the crate is reachable **only through the GPL
-  bridge**. `treemaker-wasm/src/lib.rs:19` is its sole consumer, exposing
-  `sequence_plan_fold` / `sequence_analyze_fold` /
-  `sequence_plan_fold_with_target`, which `workers/treemakerWorker.ts:15-17`
-  wraps and `SequencePanel.tsx` renders. So **excluding the TreeMaker design kind
-  removes `treemaker-sequence` along with it**, and the provenance question never
-  has to be answered for an MIT-only build. It only becomes live if someone wants
-  to *keep* folding-sequence in a TreeMaker-free build, which would mean
-  re-homing those entry points onto a permissive bridge — its dependency graph
-  already permits that. Fix `NOTICE` for tidiness, not as a gate.
+- **`treemaker-sequence` had contradictory provenance — resolved by deleting the
+  crate.** `NOTICE` listed it as TreeMaker-derived while its `Cargo.toml`
+  declared `MIT OR Apache-2.0`. It was a failed folding-sequence research attempt
+  reachable only through the GPL bridge, so the provenance question never had to
+  be answered; it and its whole frontend surface were removed in
+  [remove-treemaker-sequence.md](remove-treemaker-sequence.md), and the `NOTICE`
+  and `LICENSING.md` entries went with it.
 - **The MIT-engine wasm bridges inherit GPL by default.** `oristudio-cp-wasm`,
   `oristudio-bp-wasm`, and `oristudio-cp-detect-wasm` all take
   `license.workspace = true` = GPL-2.0-or-later despite having **no dependency
@@ -428,8 +419,7 @@ Nothing expensive should start until these are answered.
 
 **Owner's call, recorded:** dropping the TreeMaker design type is considered a
 clean, low-risk excision, so the licensing blocker has an accepted fallback and
-does not gate the engineering. `treemaker-sequence` rides along with it and its
-provenance need not be resolved for the iPad path.
+does not gate the engineering.
 
 ### Phase 1 — Fixes that stand alone (~1–2 weeks) — **LANDED**
 
@@ -770,12 +760,10 @@ mitigated by the native integrations above plus good reviewer notes.
 
 1. Has Lang ever been contacted about this port? The repo has no record, and
    everything downstream is contingency planning for a "no" that may never come.
-2. ~~Is `treemaker-sequence` actually TreeMaker-derived?~~ **Answered as moot** —
-   it is reachable only through the GPL bridge, so it is excluded along with the
-   TreeMaker design kind. Worth fixing `NOTICE` for tidiness.
+2. ~~Is `treemaker-sequence` actually TreeMaker-derived?~~ **Moot** — the crate
+   was deleted as dead research, so nothing depends on the answer.
 3. Is a Design workspace **without** TreeMaker a coherent product, or does the
-   iPad become "the CP editor"? (Note this also drops the folding-sequence
-   panel, which rides on the same bridge.)
+   iPad become "the CP editor"?
 4. Pencil-required for construction — acceptable for v1, or must fingers work?
 5. Does the desktop Tauri build currently meet its GPL source-availability
    obligation (written offer / license text surfaced to users)? Worth confirming

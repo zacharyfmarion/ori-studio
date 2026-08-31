@@ -1,6 +1,5 @@
 import type { FoldArtifacts } from '../../engine/types';
 import { resolveCpSegments } from '../../lib/creasePatternSegmentation';
-import type { SequenceSimulationFocus } from './types';
 
 export type FoldArtifactStatus = 'idle' | 'stale' | 'loading' | 'ready' | 'error';
 
@@ -21,16 +20,6 @@ export interface FoldArtifactResourceState {
 function defaultSelectedSegmentId(foldArtifacts: FoldArtifacts | null): number | null {
   return resolveCpSegments(foldArtifacts)[0]?.id ?? null;
 }
-
-export interface FoldArtifactDependentState {
-  sequenceTarget: null;
-  sequencePlan: null;
-  sequenceSimulationFocus: SequenceSimulationFocus;
-  sequencePlanning: false;
-  sequenceError: null;
-}
-
-const wholeSimulationFocus: SequenceSimulationFocus = { kind: 'whole' };
 
 export function emptyFoldArtifactResourceState(): FoldArtifactResourceState {
   return {
@@ -75,7 +64,7 @@ export function pickFoldArtifactResourceState(
  */
 export function staleFoldArtifactResourceState(
   currentRevision: number
-): FoldArtifactResourceState & FoldArtifactDependentState {
+): FoldArtifactResourceState {
   return {
     foldArtifacts: null,
     foldArtifactError: null,
@@ -83,11 +72,6 @@ export function staleFoldArtifactResourceState(
     foldArtifactRevision: currentRevision + 1,
     foldArtifactResolvedRevision: null,
     selectedSegmentId: null,
-    sequenceTarget: null,
-    sequencePlan: null,
-    sequenceSimulationFocus: wholeSimulationFocus,
-    sequencePlanning: false,
-    sequenceError: null,
   };
 }
 

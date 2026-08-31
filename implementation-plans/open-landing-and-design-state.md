@@ -395,7 +395,7 @@ mode and grid settings; both should survive the round trip.
 **4c — the URL is the only driver** — BLOCKED, needs a decision (see Risks)
 - [ ] `activateWorkspace` private to the route layer; all other callers navigate
 - [ ] Delete `workspaceUrlSync` and its loop guards
-- [ ] Audit the non-loader callers (`SequencePanel`, `activatePanel`, menu actions)
+- [ ] Audit the non-loader callers (`activatePanel`, menu actions)
 - [ ] Test: workspace changes are always driven by a route, never observed after
 
 ### Close-out

@@ -51,8 +51,6 @@ dependency.
   origami applications.
 - `treemaker-flatfold`: flat-foldability and layer-order solving for FOLD
   crease patterns.
-- `treemaker-sequence`: research planner primitives for deriving origami
-  folding sequences from FOLD crease patterns.
 
 The main TreeMaker engine entry point is `treemaker_core::Tree`.
 
