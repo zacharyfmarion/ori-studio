@@ -228,9 +228,21 @@ function smoothstep(edge0: number, edge1: number, x: number): number {
   return t * t * (3 - 2 * t);
 }
 
-/** Selection highlight: accent colour + a wider stroke. */
+/** Tool previews and cursor highlights: geometry being *drawn*, not selected. */
 const SELECTION_COLOR_VAR = '--accent-primary';
 const SELECTION_FALLBACK: Rgba = [0.4, 0.6, 1, 1];
+/**
+ * Selected creases and points: a solid colour plus a wider stroke.
+ *
+ * Usually the theme's accent, and deliberately *not* the accent in the themes
+ * where that would be confusable with a fold — red is mountain and blue is
+ * valley, and a crease's colour is the only thing that says which it is, so a
+ * selected mountain painted accent-blue read as a valley. See `selection.cp` in
+ * `themes/types.ts` for which themes override and why.
+ */
+const SELECTED_COLOR_VAR = '--cp-selection';
+/** One-dark's gold, if the token somehow fails to resolve. */
+const SELECTED_FALLBACK: Rgba = [0.898, 0.753, 0.482, 1];
 const SELECTION_WIDTH_MUL = 2.6;
 /** Alpha of a copy gesture's ghost, so prospective creases read as not-yet-real. */
 const GHOST_ALPHA = 0.55;
@@ -1226,7 +1238,7 @@ export function CreasePatternWebglCanvas({
       const dashPatterns = cpLineStyleDashPatterns(lineStyle);
       const selection = {
         selected,
-        color: readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK),
+        color: readCssVarColor(document.documentElement, SELECTED_COLOR_VAR, SELECTED_FALLBACK),
         widthMul: SELECTION_WIDTH_MUL,
       };
       // Build strokes from the compact transport (typed arrays) — the default hot
@@ -1306,7 +1318,7 @@ export function CreasePatternWebglCanvas({
         {
           pointIdx: new Set(selectedPointIds.map((id) => id - 1)),
           circleIdx: new Set(selectedCircleIds.map((id) => id - 1)),
-          color: readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK),
+          color: readCssVarColor(document.documentElement, SELECTED_COLOR_VAR, SELECTED_FALLBACK),
         }
       );
     },

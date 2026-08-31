@@ -2,7 +2,19 @@ import { mixHexColors } from '../lib/rgbColor';
 import type { ThemeTokens, TreeMakerTheme } from './types';
 import { tokenToCssVar } from './types';
 
-const TOKEN_VARIABLE_MAP: Array<[keyof ThemeTokens, string]> = [
+/**
+ * Tokens every theme must define, which is every one except the optional
+ * `selection.cp`. Naming them structurally rather than as `keyof ThemeTokens`
+ * keeps this map's values `string` — an optional token would widen them to
+ * `string | undefined` and there is nothing sensible to set a CSS variable to in
+ * that case. Anything optional belongs in `applyTreeMakerDerivedTokens`, where it
+ * can state its own fallback.
+ */
+type RequiredThemeToken = {
+  [K in keyof ThemeTokens]-?: undefined extends ThemeTokens[K] ? never : K;
+}[keyof ThemeTokens];
+
+const TOKEN_VARIABLE_MAP: Array<[RequiredThemeToken, string]> = [
   ['bg.primary', '--bg-primary'],
   ['bg.secondary', '--bg-secondary'],
   ['bg.tertiary', '--bg-tertiary'],
@@ -75,6 +87,10 @@ function applyTreeMakerDerivedTokens(theme: TreeMakerTheme, setVar: (name: strin
   setVar('--fold-valley', MOUNTAIN_VALLEY_COLORS[theme.type].valley);
   setVar('--fold-flat', MOUNTAIN_VALLEY_COLORS[theme.type].aux);
   setVar('--fold-border', colors['text.primary']);
+  // The theme's own accent, unless that accent is confusable with a fold colour —
+  // red is mountain, blue is valley, and a selected crease is painted this outright,
+  // so either would be read as its assignment. See `selection.cp` in themes/types.
+  setVar('--cp-selection', colors['selection.cp'] ?? colors['accent.primary']);
   setVar(
     '--fold-monochrome-valley',
     mixHexColors(colors['text.primary'], colors['bg.canvas'], MONOCHROME_VALLEY_INK_RATIO)
