@@ -55,6 +55,21 @@ export interface UseCpAnnotationsOptions {
  * lands as a single undo entry. That invariant is only checkable if the code
  * that depends on it is in one place.
  */
+/**
+ * Where a picked or dropped image should land, in **client** coordinates.
+ *
+ * `anchor` is what separates the gestures. A drop and the Insert menu put the
+ * image under the cursor / in the middle of the view — those mean "here-ish".
+ * The canvas context menu means "start it here", so it asks for `'top-left'`
+ * and the box's corner lands on the point, matching a placed paste.
+ */
+export interface CpImagePlacement {
+  x: number;
+  y: number;
+  /** Defaults to `'center'`, which is every pre-existing caller's behaviour. */
+  anchor?: 'center' | 'top-left';
+}
+
 export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsOptions) {
   const { t } = useTranslation();
   const annotations = useWorkspaceStore((state) => state.oristudioCpAnnotations);
@@ -78,6 +93,18 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
    */
   const preGestureAnnotationsRef = useRef<readonly CanvasAnnotation[] | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement | null>(null);
+  /**
+   * Where the next picked image should land, in client coordinates.
+   *
+   * A parked value rather than an argument, because the picker breaks the call
+   * in half: the caller that knows the point (a right-click on blank paper)
+   * only opens a file dialog, and the file arrives later on the input's
+   * `change`. Nothing in between carries a point.
+   *
+   * `null` means "wherever the picker defaults to", which is the viewport
+   * centre — the Insert menu's own behaviour, unchanged.
+   */
+  const pendingImagePointRef = useRef<CpImagePlacement | null>(null);
 
   const beginGesture = useCallback(() => {
     preGestureAnnotationsRef.current = useWorkspaceStore.getState().oristudioCpAnnotations;
@@ -157,17 +184,17 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
 
   // Import an image file and add it as a reference image, placed at the given
   // client point (or the view center) and sized to ~half the view. Shared by the
-  // drop handler and the Insert-image button.
+  // drop handler, the Insert-image button, and the canvas context menu.
   const addImageFromFile = useCallback(
-    async (file: File, client: { x: number; y: number } | null) => {
+    async (file: File, placement: CpImagePlacement | null) => {
       const rect = viewportRef.current?.getBoundingClientRect();
       try {
         const source = await importImageFile(file);
         let center = { x: 0.5, y: 0.5 };
         let targetExtent = 1;
         if (overlayView && rect) {
-          const cssPoint = client
-            ? { x: client.x - rect.left, y: client.y - rect.top }
+          const cssPoint = placement
+            ? { x: placement.x - rect.left, y: placement.y - rect.top }
             : { x: rect.width / 2, y: rect.height / 2 };
           const model = overlayCssToModel(overlayView, cssPoint);
           if (model) center = model;
@@ -181,6 +208,26 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
           source.naturalHeight,
           targetExtent
         );
+        const rotation = uprightRotationForView(overlayView);
+        // A drop and the Insert menu put the image *under the cursor* / in the
+        // middle of the view, which is what those gestures mean. The context
+        // menu means "start it here", so its corner goes on the point instead —
+        // the same rule as a placed paste.
+        //
+        // Rotated through the box's own angle rather than offset in model axes:
+        // the image is squared to the screen, so under a turned view its visual
+        // top-left is not its model-space minimum corner.
+        if (placement?.anchor === 'top-left') {
+          const radians = (rotation * Math.PI) / 180;
+          const cos = Math.cos(radians);
+          const sin = Math.sin(radians);
+          const halfX = width / 2;
+          const halfY = height / 2;
+          center = {
+            x: center.x + halfX * cos - halfY * sin,
+            y: center.y + halfX * sin + halfY * cos,
+          };
+        }
         const images = useWorkspaceStore.getState().oristudioCpAnnotations;
         const topZ = images.reduce((max, image) => Math.max(max, image.z), 0);
         addAnnotation(
@@ -193,7 +240,7 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
             height,
             // Square to the screen it was dropped on. Centre and extent above
             // already go through the overlay view, so they need no adjustment.
-            rotation: uprightRotationForView(overlayView),
+            rotation,
             z: topZ + 1,
           })
         );
@@ -251,31 +298,83 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
     [addImageFromFile]
   );
 
-  // Image-layer edits driven by the inspector: each records one undo entry.
+  /**
+   * Park a placement for the image the user is about to pick.
+   *
+   * Set immediately before whatever opens the picker — the caller does not have
+   * to be the thing that opens it, which is what lets the context menu keep
+   * dispatching `insert.image` through `handleMenuAction` (and so through the
+   * analytics chokepoint) instead of reaching for the file input itself.
+   */
+  const setPendingImagePoint = useCallback((placement: CpImagePlacement | null) => {
+    pendingImagePointRef.current = placement;
+  }, []);
+
+  /**
+   * Take the parked placement, clearing it.
+   *
+   * Cleared on read so a placement can never outlive the pick it was set for: a
+   * cancelled dialog would otherwise leave the point armed and drop the *next*
+   * image, inserted from the menu bar, at a spot the user last right-clicked
+   * minutes ago.
+   */
+  const consumePendingImagePoint = useCallback(() => {
+    const point = pendingImagePointRef.current;
+    pendingImagePointRef.current = null;
+    return point;
+  }, []);
+
+  // Annotation-layer edits, each recording one undo entry.
+  //
+  // Addressed **by id**, with the selected-* forms below expressed in terms of
+  // them. A caller that acts on a thing it has just selected — the context menu
+  // does exactly this, selecting what the right-click landed on and then
+  // building rows for it — cannot use the selected-* forms: they close over
+  // `selectedAnnotationId`, which is React state and still holds the *previous*
+  // selection for the rest of the tick. Taking the id is what makes "act on what
+  // was clicked" expressible at all.
+  const bringAnnotationToFront = useCallback(
+    (id: string) => {
+      const images = useWorkspaceStore.getState().oristudioCpAnnotations;
+      const maxZ = images.reduce((max, image) => Math.max(max, image.z), 0);
+      beginGesture();
+      updateAnnotation(id, { z: maxZ + 1 });
+      commitGesture(t('panels:creasePattern.bringImageToFront', 'Bring image to front'));
+    },
+    [updateAnnotation, beginGesture, commitGesture, t]
+  );
+
+  const sendAnnotationToBack = useCallback(
+    (id: string) => {
+      const images = useWorkspaceStore.getState().oristudioCpAnnotations;
+      const minZ = images.reduce((min, image) => Math.min(min, image.z), 0);
+      beginGesture();
+      updateAnnotation(id, { z: minZ - 1 });
+      commitGesture(t('panels:creasePattern.sendImageToBack', 'Send image to back'));
+    },
+    [updateAnnotation, beginGesture, commitGesture, t]
+  );
+
+  const deleteAnnotationById = useCallback(
+    (id: string) => {
+      beginGesture();
+      removeAnnotation(id);
+      commitGesture(t('panels:creasePattern.deleteImage', 'Delete image'));
+    },
+    [removeAnnotation, beginGesture, commitGesture, t]
+  );
+
   const bringSelectedImageToFront = useCallback(() => {
-    if (!selectedAnnotationId) return;
-    const images = useWorkspaceStore.getState().oristudioCpAnnotations;
-    const maxZ = images.reduce((max, image) => Math.max(max, image.z), 0);
-    beginGesture();
-    updateAnnotation(selectedAnnotationId, { z: maxZ + 1 });
-    commitGesture(t('panels:creasePattern.bringImageToFront', 'Bring image to front'));
-  }, [selectedAnnotationId, updateAnnotation, beginGesture, commitGesture, t]);
+    if (selectedAnnotationId) bringAnnotationToFront(selectedAnnotationId);
+  }, [selectedAnnotationId, bringAnnotationToFront]);
 
   const sendSelectedImageToBack = useCallback(() => {
-    if (!selectedAnnotationId) return;
-    const images = useWorkspaceStore.getState().oristudioCpAnnotations;
-    const minZ = images.reduce((min, image) => Math.min(min, image.z), 0);
-    beginGesture();
-    updateAnnotation(selectedAnnotationId, { z: minZ - 1 });
-    commitGesture(t('panels:creasePattern.sendImageToBack', 'Send image to back'));
-  }, [selectedAnnotationId, updateAnnotation, beginGesture, commitGesture, t]);
+    if (selectedAnnotationId) sendAnnotationToBack(selectedAnnotationId);
+  }, [selectedAnnotationId, sendAnnotationToBack]);
 
   const deleteSelectedImage = useCallback(() => {
-    if (!selectedAnnotationId) return;
-    beginGesture();
-    removeAnnotation(selectedAnnotationId);
-    commitGesture(t('panels:creasePattern.deleteImage', 'Delete image'));
-  }, [selectedAnnotationId, removeAnnotation, beginGesture, commitGesture, t]);
+    if (selectedAnnotationId) deleteAnnotationById(selectedAnnotationId);
+  }, [selectedAnnotationId, deleteAnnotationById]);
 
   // --- Inline text editing ---
 
@@ -445,11 +544,16 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
     canCrop,
     imageFileInputRef,
     addImageFromFile,
+    setPendingImagePoint,
+    consumePendingImagePoint,
     handleViewportDragOver,
     handleViewportDrop,
     bringSelectedImageToFront,
     sendSelectedImageToBack,
     deleteSelectedImage,
+    bringAnnotationToFront,
+    sendAnnotationToBack,
+    deleteAnnotationById,
     editingTextId,
     requestEditText,
     createTextAt,

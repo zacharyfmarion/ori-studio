@@ -14,6 +14,13 @@
   "bpPacking": {
     "canvas": "ボックスプリーツパッキングキャンバス",
     "config": "設定",
+    "contextMenu": {
+      "nudge": "微調整",
+      "nudgeDown": "下",
+      "nudgeLeft": "左",
+      "nudgeRight": "右",
+      "nudgeUp": "上"
+    },
     "diagonal": "対角",
     "flapHeight": "H",
     "flapHeightAria": "フラップの高さ",
@@ -202,6 +209,17 @@
     "changeFoldedModel": "折り上がり図を変更",
     "closeFoldedModels": "折り上がりモデルを閉じる",
     "commandFailed": "コマンドが失敗しました",
+    "contextMenu": {
+      "creaseType": "折り線の種類",
+      "delete": "削除",
+      "diagnostics": "診断",
+      "editText": "テキストを編集",
+      "insertImage": "画像を挿入…",
+      "insertText": "テキストを挿入",
+      "repair": "修復",
+      "select": "選択",
+      "transform": "変換"
+    },
     "couldNotOpenForEditing": "この展開図は編集用に開けませんでした。",
     "couldNotOpenForEditingHint": "読み取り専用で表示されています。表示、折り、書き出しは引き続き行えます。",
     "cropImage": "画像を切り抜き",
@@ -463,6 +481,14 @@
     "moveRight": "右へ移動",
     "rename": "名前を変更"
   },
+  "designTree": {
+    "contextMenu": {
+      "edgeTools": "辺",
+      "nodeTools": "ノード",
+      "select": "選択",
+      "strain": "ひずみ"
+    }
+  },
   "diagnostics": {
     "allConditionsFeasible": "すべての条件が実行可能",
     "buildingCreasePattern": "展開図を作成中",
@@ -634,82 +660,33 @@
     "y": "Y",
     "yes": "はい"
   },
-  "sequence": {
-    "after": "後",
-    "before": "前",
-    "budgetReached": "探索の上限に達し、部分的な結果になりました",
-    "creasePattern": "展開図",
-    "details": "詳細",
-    "detailsPlanning": "計画中 {{elapsed}}",
-    "diagramLabel": "折り手順図",
-    "foldedState": "折り状態",
-    "headerPlanning": "計画中 | {{elapsed}}",
-    "headerSummary": "{{status}} | {{steps}}",
-    "idle": "待機中",
-    "layerStateOne": "{{value}} 層状態",
-    "layerStateOther": "{{value}} 層状態",
-    "metricOpen": "オープン",
-    "metricStates": "状態",
-    "metricStatus": "ステータス",
-    "metricSteps": "ステップ",
-    "noSteps": "手順ステップがありません",
-    "plan": "計画",
-    "planning": "計画中",
-    "planningFoldingSequence": "折り手順を計画中",
-    "planningInProgress": "手順の計画を実行中",
-    "planningMessageLong": "{{elapsed}} 経過してもまだ計画中です。大きな展開図には時間がかかることがあります。この処理はまだ実行中です。",
-    "planningMessageMedium": "手順の状態を探索中です。複雑な展開図は単純なベースより時間がかかることがあります。",
-    "planningMessageShort": "平坦折りの目標を解決し、折りステップを探索中です。",
-    "simulate": "シミュレート",
-    "simulateStep": "ステップをシミュレート",
-    "stateTransition": "{{from}} から {{to}}",
-    "stateUnavailable": "状態を利用できません",
-    "statusNotPlanned": "手順が未計画",
-    "statusPending": "展開図を保留中",
-    "statusPlanning": "手順を計画中",
-    "statusPreparing": "展開図を準備中",
-    "stepCountOne_other": "{{count}} ステップ",
-    "stepCountOther_other": "{{count}} ステップ",
-    "stepNumber": "ステップ {{number}}",
-    "targetSummary": "{{faces}} 面、{{layers}}",
-    "title": "シーケンス"
-  },
   "simulator": {
-    "accuracyAccurate": "高精度",
-    "accuracyAccurateTitle": "より小さいソルバー刻みと多めの安定化によるステッププレビュー",
-    "accuracyFast": "高速",
-    "accuracyFastTitle": "標準的なシミュレーター処理によるステッププレビュー",
     "backendCpu": "CPU",
     "backendCpuTitle": "CPUで計算中（WebGL2は利用できません）",
     "backendGpu": "GPU",
     "backendGpuTitle": "GPUで計算中（WebGL2）",
     "canvasAriaLabel": "折り紙の折りベースシミュレーター。ドラッグで回転、スクロールでズーム、ダブルクリックで表示をリセットします。",
     "canvasTitle": "ドラッグで回転、スクロールでズーム、ダブルクリックで表示をリセット",
+    "contextMenu": {
+      "pause": "一時停止",
+      "play": "再生",
+      "view": "表示"
+    },
     "controls": "シミュレーション操作",
     "fold": "折る",
     "foldPercent": "折りの割合",
     "idle": "待機中",
     "loading": "読み込み中",
-    "manualPreview": "手動プレビュー",
     "noCreasePattern": "展開図がありません",
     "pause": "一時停止",
     "percent": "{{value}}%",
     "play": "再生",
     "refresh": "更新",
     "reset": "リセット",
-    "scope": "シミュレーターの範囲",
-    "scopeStep": "ステップ",
-    "scopeStepTitle": "選択した手順ステップをシミュレート",
-    "scopeWhole": "全体",
-    "scopeWholeTitle": "展開図全体をシミュレート",
     "setUpright": "上方向を設定",
     "stats": "{{vertices}} 頂点 | {{triangles}} 三角形",
     "step": "ステップ",
-    "stepAccuracy": "ステップシミュレーションの精度",
-    "stepChip": "ステップ {{n}}：{{kind}}",
-    "stepPercent": "ステップの割合",
     "stepReadout": "ステップ {{n}}",
-    "stepSimulationUnavailable": "ステップシミュレーションを利用できません。",
     "strain": "ひずみ {{value}}",
     "title": "シミュレーター",
     "unavailable": "シミュレーターを利用できません",
@@ -799,5 +776,11 @@
     "textControls": "テキストコントロール",
     "textStyle": "テキストスタイル",
     "underline": "下線"
+  },
+  "treeEditor": {
+    "contextMenu": {
+      "addLeaf": "ここに葉を追加",
+      "deselect": "すべて選択解除"
+    }
   }
 }

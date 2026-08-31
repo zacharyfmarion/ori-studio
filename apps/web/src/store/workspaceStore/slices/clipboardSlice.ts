@@ -4,6 +4,7 @@ import { clampPaperPoint, type Point } from '../../../lib/geometry';
 import {
   buildCpLineClipboardPayload,
   offsetCpLineSegmentsForPaste,
+  placeCpLineSegmentsAt,
 } from '../../../lib/creasePatternClipboard';
 import type { Selection, TreeProject } from '../../../lib/sampleProject';
 import { selectedEdgeIds, selectedNodeIds } from '../../../lib/selection';
@@ -118,15 +119,25 @@ export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set,
     await get().deleteSelection();
   },
 
-  pasteClipboard: async () => {
+  pasteClipboard: async (at) => {
     if (get().activeEditingContext === 'crease-pattern') {
       const clipboard = get().clipboard;
       if (!clipboard || clipboard.kind !== 'cp-lines' || clipboard.lines.length === 0) return;
-      const segments = offsetCpLineSegmentsForPaste(clipboard.lines, get().clipboardPasteCount);
+      // Two placements, and which one applies is decided by whether the caller
+      // had a point at all. A right-click knows where it happened, so the paste
+      // lands there; Cmd+V does not, so it cascades off the copy origin the way
+      // it always has.
+      const segments = at
+        ? placeCpLineSegmentsAt(clipboard.lines, at)
+        : offsetCpLineSegmentsForPaste(clipboard.lines, get().clipboardPasteCount);
       const pasted = await get().insertOristudioCpLineSegments(segments, 'Paste CP lines');
       if (!pasted) return;
       set({
-        clipboardPasteCount: get().clipboardPasteCount + 1,
+        // The counter only advances for a cascading paste. It exists so repeats
+        // do not stack, and a placed paste answers that question itself — while
+        // *bumping* it would make the next Cmd+V skip a step for no reason the
+        // user could see.
+        clipboardPasteCount: at ? get().clipboardPasteCount : get().clipboardPasteCount + 1,
         error: null,
         projectMessage: `Pasted ${segments.length} CP lines`,
       });

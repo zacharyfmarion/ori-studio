@@ -101,6 +101,10 @@
   --fold-flat: #64c8c8;
   --fold-border: #111417;
   --fold-unassigned: #9aa4ad;
+  /* Selected creases and points: the theme's accent, unless that accent is
+     confusable with a fold colour -- red is mountain, blue is valley. One-dark's
+     accent is blue, so it overrides to its gold; see themes/applyTheme. */
+  --cp-selection: #e5c07b;
   /* Hue a shallower crease shifts toward: mountains run red -> magenta, valleys
      blue -> violet. Magenta is the only anchor where both halves take the short
      way round the wheel, so neither desaturates into grey. See
@@ -4917,44 +4921,9 @@ button.cp-folded-figure-toolbar__notice:hover {
   flex-wrap: wrap;
 }
 
-.simulator-scope-controls {
-  flex: 1 1 auto;
-  min-width: 0;
-  flex-wrap: wrap;
-}
-
-.simulator-accuracy-controls {
-  display: inline-flex;
-  min-width: 0;
-}
-
-.simulator-scope-controls .segmented__option,
-.simulator-accuracy-controls .segmented__option,
 .simulator-view-settings .segmented__option {
   height: 24px;
   padding: 0 7px;
-}
-
-.simulator-step-chip {
-  display: inline-flex;
-  min-width: 0;
-  max-width: 190px;
-  height: 24px;
-  align-items: center;
-  gap: 5px;
-  overflow: hidden;
-  padding: 0 7px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  font-size: 0.66rem;
-  font-weight: 750;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.simulator-step-chip--warn {
-  color: var(--status-warning);
 }
 
 .simulator-panel__empty {

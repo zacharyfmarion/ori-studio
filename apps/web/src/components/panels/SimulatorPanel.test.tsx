@@ -2,7 +2,7 @@ import { singleTreemakerDesignTab } from '../../store/workspaceStore/designTabs'
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { FoldDocument, SequencePlan, SequenceStateSnapshot } from '../../engine/types';
+import type { FoldDocument } from '../../engine/types';
 import { createSampleProject } from '../../lib/sampleProject';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
@@ -89,12 +89,9 @@ describe('SimulatorPanel', () => {
     await flushSimulator();
 
     expect(rendered.querySelector('[aria-label="Fold percent"]')).not.toBeNull();
-    expect(rendered.querySelector('[aria-label="Simulator scope"]')?.textContent).toContain('Whole');
-    expect(rendered.querySelector('[aria-label="Step simulation accuracy"]')).toBeNull();
     expect(rendered.querySelector('.simulator-canvas')?.getAttribute('data-lighting')).toBe(
       'true'
     );
-    expect(rendered.textContent).not.toContain('Manual preview');
     expect(putImageDataMock).toHaveBeenCalled();
     expect(fillMock).toHaveBeenCalledTimes(putImageDataMock.mock.calls.length);
 
@@ -165,42 +162,6 @@ describe('SimulatorPanel', () => {
     await flushSimulator();
 
     expect(rendered.textContent).toContain('4 vertices | 2 triangles');
-  });
-
-  it('renders step-mode labels and manual-collapse warning copy when focused', () => {
-    const plan = manualCollapsePlan();
-    const rendered = renderPanel({
-      foldArtifacts: { fold: simpleFold() },
-      sequencePlan: plan,
-      sequenceSimulationFocus: { kind: 'sequence_step', stepId: 'manual' },
-    });
-
-    expect(rendered.querySelector('[aria-label="Step percent"]')).not.toBeNull();
-    expect(rendered.textContent).toContain('Step 1: manual collapse');
-    expect(rendered.textContent).toContain('Manual preview');
-    expect(rendered.querySelector('[aria-label="Step simulation accuracy"]')?.textContent).toContain(
-      'Fast'
-    );
-    expect(activeAccuracyButton(rendered)?.textContent).toBe('Fast');
-  });
-
-  it('lets step simulation switch between accurate and fast solver work', () => {
-    const plan = manualCollapsePlan();
-    const rendered = renderPanel({
-      foldArtifacts: { fold: simpleFold() },
-      sequencePlan: plan,
-      sequenceSimulationFocus: { kind: 'sequence_step', stepId: 'manual' },
-    });
-    const accuracyControl = rendered.querySelector('[aria-label="Step simulation accuracy"]');
-    const accurateButton = Array.from(accuracyControl?.querySelectorAll('button') ?? []).find(
-      (button) => button.textContent === 'Accurate'
-    );
-
-    expect(activeAccuracyButton(rendered)?.textContent).toBe('Fast');
-    act(() => {
-      accurateButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-    expect(activeAccuracyButton(rendered)?.textContent).toBe('Accurate');
   });
 
   it('drives the transport from the keyboard', async () => {
@@ -288,60 +249,6 @@ function renderPanel(state: Partial<ReturnType<typeof useWorkspaceStore.getState
     );
   });
   return container;
-}
-
-function activeAccuracyButton(rendered: HTMLDivElement): HTMLButtonElement | null {
-  const accuracyControl = rendered.querySelector('[aria-label="Step simulation accuracy"]');
-  return (
-    Array.from(accuracyControl?.querySelectorAll('button') ?? []).find(
-      (button) => button.getAttribute('aria-pressed') === 'true'
-    ) ?? null
-  );
-}
-
-function manualCollapsePlan(): SequencePlan {
-  const before = sequenceState('before', simpleFold(['B', 'B', 'B', 'B', 'F'], [null, null, null, null, 0]));
-  const after = sequenceState('after', simpleFold());
-  return {
-    status: 'partial',
-    steps: [
-      {
-        kind: 'manual_collapse',
-        id: 'manual',
-        label: 'Collapse up until this point',
-        affected_creases: [4],
-        affected_faces: [0, 1],
-        before_state: before.id,
-        after_state: after.id,
-      },
-    ],
-    states: [before, after],
-    diagnostics: [],
-    unresolved_regions: [],
-    search: {
-      states_explored: 2,
-      branches_pruned: 0,
-      repeated_states: 0,
-      timed_out: false,
-      budget_exhausted: false,
-      best_unresolved_creases: 0,
-      target_solves: 0,
-      target_solve_cache_hits: 0,
-      duplicate_candidates_pruned: 0,
-    },
-  };
-}
-
-function sequenceState(id: string, document: FoldDocument): SequenceStateSnapshot {
-  return {
-    id,
-    document,
-    active_creases: [],
-    face_orders: [],
-    folded_vertices: document.vertices_coords.map((coord) => [coord[0] ?? 0, coord[1] ?? 0]),
-    unresolved_regions: [],
-    diagnostics: [],
-  };
 }
 
 function simpleFold(

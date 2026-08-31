@@ -272,7 +272,21 @@
     "valley": "Linha V",
     "yellow": "Linha amarela"
   },
+  "simulator": {
+    "foldBackward": "Retroceder dobra",
+    "foldEnd": "Ir para dobrado",
+    "foldForward": "Avançar dobra",
+    "foldStart": "Ir para plano",
+    "playPause": "Reproduzir / pausar dobra",
+    "replay": "Repetir do plano",
+    "resetView": "Redefinir vista do simulador",
+    "toggleCreases": "Linhas de vinco",
+    "toggleFaces": "Faces",
+    "toggleHiddenLines": "Linhas ocultas",
+    "toggleLighting": "Iluminação"
+  },
   "viewport": {
+    "contextMenu": "Abrir menu de contexto",
     "fit": "Ajustar",
     "more": "Mais controles de vista",
     "pan": "Deslocar",

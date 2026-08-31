@@ -48,7 +48,6 @@ const WORKSPACE_BY_PANEL_ID: Record<string, WorkspaceId> = {
   'cp-view-controls': 'edit',
   'simulator-view-controls': 'simulate',
   simulator: 'simulate',
-  sequence: 'simulate',
 };
 
 export function workspaceForPanelId(panelId: string): WorkspaceId | null {

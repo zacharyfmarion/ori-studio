@@ -264,7 +264,21 @@
     "valley": "Linie V",
     "yellow": "Linie Gelb"
   },
+  "simulator": {
+    "foldBackward": "Faltung rückwärts",
+    "foldEnd": "Zum gefalteten Zustand",
+    "foldForward": "Faltung vorwärts",
+    "foldStart": "Zum flachen Zustand",
+    "playPause": "Faltung abspielen / pausieren",
+    "replay": "Von flach wiederholen",
+    "resetView": "Simulatoransicht zurücksetzen",
+    "toggleCreases": "Falzlinien",
+    "toggleFaces": "Flächen",
+    "toggleHiddenLines": "Verdeckte Linien",
+    "toggleLighting": "Beleuchtung"
+  },
   "viewport": {
+    "contextMenu": "Kontextmenü öffnen",
     "fit": "Einpassen",
     "more": "Weitere Ansichtssteuerung",
     "pan": "Schwenken",

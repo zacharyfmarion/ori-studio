@@ -25,6 +25,34 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('dialogs:settings.shortcuts.viewportFit', 'Fit To View');
     case 'viewport.actualSize':
       return t('dialogs:settings.shortcuts.viewportActualSize', 'Actual Size');
+    case 'viewport.contextMenu':
+      return t('tools:viewport.contextMenu', 'Open Context Menu');
+    // The simulator verbs, which until now fell through to the English label
+    // below because the shortcut list was their only reader. The simulator's
+    // context menu is built from these same definitions, so they are now the
+    // wording on a menu row rather than a line in a settings table.
+    case 'simulator.playPause':
+      return t('tools:simulator.playPause', 'Play / Pause Fold');
+    case 'simulator.foldForward':
+      return t('tools:simulator.foldForward', 'Fold Forward');
+    case 'simulator.foldBackward':
+      return t('tools:simulator.foldBackward', 'Fold Backward');
+    case 'simulator.foldEnd':
+      return t('tools:simulator.foldEnd', 'Jump To Folded');
+    case 'simulator.foldStart':
+      return t('tools:simulator.foldStart', 'Jump To Flat');
+    case 'simulator.replay':
+      return t('tools:simulator.replay', 'Replay From Flat');
+    case 'simulator.resetView':
+      return t('tools:simulator.resetView', 'Reset Simulator View');
+    case 'simulator.toggleFaces':
+      return t('tools:simulator.toggleFaces', 'Faces');
+    case 'simulator.toggleCreases':
+      return t('tools:simulator.toggleCreases', 'Crease lines');
+    case 'simulator.toggleHiddenLines':
+      return t('tools:simulator.toggleHiddenLines', 'Hidden lines');
+    case 'simulator.toggleLighting':
+      return t('tools:simulator.toggleLighting', 'Lighting');
     default:
       return definition.label;
   }

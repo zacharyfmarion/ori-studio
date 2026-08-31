@@ -38,7 +38,6 @@ const STATIC_PANEL_CONTEXTS: Record<string, EditingContext> = {
   'cp-view-controls': 'crease-pattern',
   simulator: 'simulate',
   'simulator-view-controls': 'simulate',
-  sequence: 'simulate',
 };
 
 /**

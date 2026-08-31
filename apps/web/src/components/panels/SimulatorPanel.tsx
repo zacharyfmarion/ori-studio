@@ -1,13 +1,15 @@
 import { selectProject } from '../../store/workspaceStore/designTabs';
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
 import {
-  simulatorAccuracyLabel,
-  simulatorAccuracyTitle,
-} from "../../i18n/enumLabels";
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
+import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
-  AlertTriangle,
   Axis3d,
   Pause,
   Play,
@@ -21,36 +23,34 @@ import {
   useSimulatorRuntime,
   type SimulatorFrameView,
 } from "../../simulator/useSimulatorRuntime";
-import { buildSequenceStepSimulation } from "../../lib/sequenceSimulation";
 import {
   buildSegmentSimulationFold,
   resolveCpSegments,
 } from "../../lib/creasePatternSegmentation";
 import { SimulatorSegmentsSidebar } from "./SimulatorSegmentsPanel";
-import {
-  STEP_SIMULATION_ACCURACY_OPTIONS,
-  simulatorRunConfig,
-  type StepSimulationAccuracy,
-} from "../../lib/simulatorRunConfig";
+import { simulatorRunConfig } from "../../lib/simulatorRunConfig";
 import {
   SimulatorViewport,
   type SimulatorViewportHandle,
 } from "../../simulator/SimulatorViewport";
 import { announceUprightSet } from "../../lib/uprightFeedback";
 import { useSimulatorShortcuts } from "../../simulator/useSimulatorShortcuts";
+import {
+  runSimulatorShortcut,
+  type SimulatorShortcutHandlers,
+} from "../../simulator/useSimulatorShortcuts";
+import { simulatorMenuItems } from "../../simulator/simulatorContextMenu";
+import { ContextMenu } from "../ui/ContextMenu";
+import { useContextMenuController } from "../../menus/context/useContextMenuController";
+import { useShortcutStore } from "../../store/shortcutStore";
 import { FoldPlayhead } from "../../simulator/foldPlayhead";
 import { SimulatorExportMenu } from "../../simulator/SimulatorExportMenu";
 import { useSimulatorViewExport } from "../../simulator/useSimulatorViewExport";
-import {
-  foldNeedsTriangulation,
-  type SimulatorHighlights,
-  EMPTY_HIGHLIGHTS,
-} from "../../simulator/canvas2dFrame";
+import { foldNeedsTriangulation } from "../../simulator/canvas2dFrame";
 import { simulatorMaterialOptions } from "../../lib/simulatorSettings";
 import { useWorkspaceStore } from "../../store/workspaceStore";
 import { useWorkspaceCapabilities } from "../../store/workspaceStore/useWorkspaceCapabilities";
 import { IconButton } from "../ui/IconButton";
-import { SegmentedControl } from "../ui/SegmentedControl";
 import { NextDocumentAction } from "./NextDocumentAction";
 // Registers `__simCapabilityProbe()` in dev builds; no-op in production.
 import "../../simulator/capabilityProbe";
@@ -98,13 +98,6 @@ export function SimulatorPanel() {
   const foldArtifactStatus = useWorkspaceStore(
     (state) => state.foldArtifactStatus,
   );
-  const sequencePlan = useWorkspaceStore((state) => state.sequencePlan);
-  const sequenceSimulationFocus = useWorkspaceStore(
-    (state) => state.sequenceSimulationFocus,
-  );
-  const setSequenceSimulationFocus = useWorkspaceStore(
-    (state) => state.setSequenceSimulationFocus,
-  );
   const ensureFoldArtifacts = useWorkspaceStore(
     (state) => state.ensureFoldArtifacts,
   );
@@ -123,47 +116,22 @@ export function SimulatorPanel() {
   // Render/material/solver settings live in the store: the options pane is a
   // sibling panel, so this panel applies them but does not own them.
   const viewSettings = useWorkspaceStore((state) => state.simulatorSettings);
+  const shortcutOverrides = useShortcutStore((store) => store.overrides);
   const setSimulatorSetting = useWorkspaceStore((state) => state.setSimulatorSetting);
-  const [stepAccuracy, setStepAccuracy] =
-    useState<StepSimulationAccuracy>("fast");
   const refreshCapability = capabilities["simulator.refresh"];
-  const stepSimulationResult = useMemo(
-    () =>
-      sequenceSimulationFocus.kind === "sequence_step"
-        ? buildSequenceStepSimulation(
-            sequencePlan,
-            sequenceSimulationFocus.stepId,
-          )
-        : null,
-    [sequencePlan, sequenceSimulationFocus],
-  );
-  const activeStepSimulation = stepSimulationResult?.ok
-    ? stepSimulationResult.simulation
-    : null;
-  const stepSimulationError =
-    stepSimulationResult && !stepSimulationResult.ok
-      ? stepSimulationResult.reason
-      : null;
-  const simulatorMode =
-    sequenceSimulationFocus.kind === "sequence_step" ? "step" : "whole";
-  const runConfig = useMemo(
-    () => simulatorRunConfig(simulatorMode, stepAccuracy),
-    [simulatorMode, stepAccuracy],
-  );
+  const runConfig = simulatorRunConfig();
   // Segment the whole document's fold and simulate only the selected pattern.
   // Memoized so a new sub-fold object is not produced on every render (which
-  // would thrash the prepare/dispose effect). Sequence-step mode is unaffected.
+  // would thrash the prepare/dispose effect).
   const activeSegmentId = useMemo(() => {
-    if (activeStepSimulation || simulatorMode !== "whole") return null;
     const segments = resolveCpSegments(foldArtifacts);
     if (segments.length <= 1) return null;
     const segment =
       segments.find((candidate) => candidate.id === selectedSegmentId) ??
       segments[0];
     return segment?.id ?? null;
-  }, [activeStepSimulation, foldArtifacts, selectedSegmentId, simulatorMode]);
+  }, [foldArtifacts, selectedSegmentId]);
   const simulationFold = useMemo(() => {
-    if (activeStepSimulation) return activeStepSimulation.fold;
     const wholeFold =
       foldArtifacts?.simulation_model?.fold ?? foldArtifacts?.fold ?? null;
     if (!wholeFold) return null;
@@ -174,16 +142,9 @@ export function SimulatorPanel() {
       if (segment && foldArtifacts) return buildSegmentSimulationFold(foldArtifacts, segment);
     }
     return wholeFold;
-  }, [activeStepSimulation, foldArtifacts, activeSegmentId]);
-  const simulationFoldProfile = activeStepSimulation?.foldProfile ?? null;
-  const simulationModelError =
-    stepSimulationError ??
-    (!activeStepSimulation ? foldArtifacts?.simulation_model_error : null);
-  const simulationSourceKey = activeStepSimulation
-    ? `step:${activeStepSimulation.step.id}:${activeStepSimulation.beforeState.id}:${activeStepSimulation.afterState.id}`
-    : sequenceSimulationFocus.kind === "sequence_step"
-      ? `step-error:${sequenceSimulationFocus.stepId}:${stepSimulationError ?? "unknown"}`
-      : `whole:${foldArtifacts ? foldArtifactRevision : "empty"}:${activeSegmentId ?? "all"}`;
+  }, [foldArtifacts, activeSegmentId]);
+  const simulationModelError = foldArtifacts?.simulation_model_error;
+  const simulationSourceKey = `whole:${foldArtifacts ? foldArtifactRevision : "empty"}:${activeSegmentId ?? "all"}`;
 
   const handleFrame = useCallback(
     (frame: SimulatorFrameView) => {
@@ -216,10 +177,6 @@ export function SimulatorPanel() {
     [],
   );
 
-  // A fold profile (segment/sequence-step simulation) uses a solver path the GPU
-  // renderer does not cover, so those keep the canvas-2D path.
-  const allowGpuRender = !simulationFoldProfile;
-
   // The run profile sets the work budget (steps per frame and so on); the user's
   // material and stability choices layer on top. Memoized so a new options object
   // does not re-trigger the runtime's load effect on every render.
@@ -230,11 +187,9 @@ export function SimulatorPanel() {
 
   const runtime = useSimulatorRuntime({
     fold: simulationFold as SimulatorFoldDocument | null,
-    foldProfile: simulationFoldProfile,
     solverOptions,
     triangulate: simulationFold ? foldNeedsTriangulation(simulationFold) : true,
     canvas: canvasEl,
-    allowGpuRender,
     onFrame: handleFrame,
   });
 
@@ -276,20 +231,8 @@ export function SimulatorPanel() {
     }
   }, [runtimeModel]);
 
-  // Creases and faces a sequence step is emphasising, for the CPU renderer.
-  const highlights = useMemo<SimulatorHighlights>(
-    () =>
-      activeStepSimulation
-        ? {
-            creases: new Set(activeStepSimulation.affectedCreases),
-            faces: new Set(activeStepSimulation.affectedFaces),
-          }
-        : EMPTY_HIGHLIGHTS,
-    [activeStepSimulation],
-  );
-
   // Reset the fold target when the source model genuinely changes, so switching
-  // segment or sequence step does not inherit the previous scrub position.
+  // segment does not inherit the previous scrub position.
   useEffect(() => {
     if (sourceKeyRef.current === simulationSourceKey) return;
     sourceKeyRef.current = simulationSourceKey;
@@ -301,25 +244,6 @@ export function SimulatorPanel() {
   // Load/error state is derived from the runtime plus the surrounding document
   // state; there is no separate solver lifecycle to track any more.
   useEffect(() => {
-    if (simulatorMode === "step") {
-      if (stepSimulationError) {
-        setModelError(stepSimulationError);
-        setLoadState("error");
-      } else if (activeStepSimulation) {
-        setModelError(null);
-        setLoadState(runtimeStatus === "ready" ? "ready" : "loading");
-      } else {
-        setModelError(
-          t(
-            "panels:simulator.stepSimulationUnavailable",
-            "Step simulation unavailable.",
-          ),
-        );
-        setLoadState("error");
-      }
-      return;
-    }
-
     if (creaseCount === 0 && !hasEditableCp) {
       setPlaying(false);
       setModelError(null);
@@ -366,9 +290,6 @@ export function SimulatorPanel() {
     foldArtifactStatus,
     ensureFoldArtifacts,
     simulationModelError,
-    simulatorMode,
-    activeStepSimulation,
-    stepSimulationError,
     runtimeStatus,
     runtime.error,
     setPlaying,
@@ -479,26 +400,51 @@ export function SimulatorPanel() {
   // Keyboard controls, through the shared dispatcher rather than a window
   // listener of our own. The panel is no longer the only thing that can hold a
   // simulation, so "only mounted here" stopped being a scoping argument.
+  // One set of verbs, two surfaces. The keymap below and the viewport's context
+  // menu both dispatch through `runSimulatorShortcut` against *these* handlers,
+  // so a menu row and its own key binding cannot come to mean different things.
+  const simulatorHandlers: SimulatorShortcutHandlers = {
+    playPause: () => setPlaying(!playing),
+    nudgeFold,
+    setFoldPercent: setFoldTarget,
+    replay: replayFromFlat,
+    resetView,
+    zoomBy,
+    toggleSetting: (key) => {
+      // Hidden lines only mean anything while crease lines are drawn.
+      if (key === "showHiddenLines" && !viewSettings.showEdges) return;
+      setSimulatorSetting(key, !viewSettings[key]);
+    },
+  };
+
   useSimulatorShortcuts({
     active: loadState === "ready",
     foldStepPercent: runConfig.foldStepPercent,
-    handlers: {
-      playPause: () => setPlaying(!playing),
-      nudgeFold,
-      setFoldPercent: setFoldTarget,
-      replay: replayFromFlat,
-      resetView,
-      zoomBy,
-      toggleSetting: (key) => {
-        // Hidden lines only mean anything while crease lines are drawn.
-        if (key === "showHiddenLines" && !viewSettings.showEdges) return;
-        setSimulatorSetting(key, !viewSettings[key]);
-      },
-    },
+    handlers: simulatorHandlers,
   });
 
+  const contextMenu = useContextMenuController("simulator");
+  const onViewportContextMenu = (event: ReactMouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (loadState !== "ready") return;
+    contextMenu.request({
+      clientX: event.clientX,
+      clientY: event.clientY,
+      targetKind: "empty",
+      hasSelection: false,
+      build: () =>
+        simulatorMenuItems({
+          t,
+          shortcuts: shortcutOverrides,
+          run: (id) =>
+            runSimulatorShortcut(id, simulatorHandlers, runConfig.foldStepPercent),
+          playing,
+          settings: viewSettings,
+        }),
+    });
+  };
+
   const errorDetail =
-    stepSimulationError ??
     modelError ??
     foldArtifactError ??
     t("panels:simulator.unavailable", "Simulator unavailable");
@@ -566,84 +512,14 @@ export function SimulatorPanel() {
               disabled={loadState !== "ready"}
             />
           </div>
-          {/* Scope controls hidden while the Sequence panel is hidden (always "whole"). */}
-          <div
-            className="panel-toolbar__group simulator-scope-controls"
-            style={{ display: "none" }}
-          >
-            <SegmentedControl
-              aria-label={t("panels:simulator.scope", "Simulator scope")}
-              value={simulatorMode}
-              onChange={(mode) => {
-                if (mode === "whole") {
-                  setSequenceSimulationFocus({ kind: "whole" });
-                  return;
-                }
-                if (sequenceSimulationFocus.kind === "sequence_step") return;
-                const firstStep = sequencePlan?.steps[0];
-                if (firstStep) {
-                  setSequenceSimulationFocus({
-                    kind: "sequence_step",
-                    stepId: firstStep.id,
-                  });
-                }
-              }}
-              options={[
-                {
-                  value: "whole",
-                  label: t("panels:simulator.scopeWhole", "Whole"),
-                  title: t(
-                    "panels:simulator.scopeWholeTitle",
-                    "Simulate the whole crease pattern",
-                  ),
-                },
-                {
-                  value: "step",
-                  label: t("panels:simulator.scopeStep", "Step"),
-                  title: t(
-                    "panels:simulator.scopeStepTitle",
-                    "Simulate the selected sequence step",
-                  ),
-                },
-              ]}
-            />
-            {activeStepSimulation && (
-              <span className="simulator-step-chip">
-                {t("panels:simulator.stepChip", "Step {{n}}: {{kind}}", {
-                  n: activeStepSimulation.stepIndex + 1,
-                  kind: formatKind(activeStepSimulation.step.kind),
-                })}
-              </span>
-            )}
-            {activeStepSimulation?.warning && (
-              <span className="simulator-step-chip simulator-step-chip--warn">
-                <AlertTriangle size={12} />
-                {t("panels:simulator.manualPreview", "Manual preview")}
-              </span>
-            )}
-            {simulatorMode === "step" && (
-              <div className="simulator-accuracy-controls">
-                <SegmentedControl
-                  aria-label={t(
-                    "panels:simulator.stepAccuracy",
-                    "Step simulation accuracy",
-                  )}
-                  value={stepAccuracy}
-                  onChange={setStepAccuracy}
-                  options={STEP_SIMULATION_ACCURACY_OPTIONS.map((option) => ({
-                    ...option,
-                    label: simulatorAccuracyLabel(t, option.value),
-                    title: simulatorAccuracyTitle(t, option.value),
-                  }))}
-                />
-              </div>
-            )}
-          </div>
         </div>
-        <div className="panel-body simulator-panel__body">
+        <div
+          className="panel-body simulator-panel__body"
+          onContextMenu={onViewportContextMenu}
+        >
           <SimulatorViewport
             ref={viewportRef}
-            canvasKey={`${allowGpuRender ? "gl" : "2d"}:${runtime.canvasGeneration}`}
+            canvasKey={`gl:${runtime.canvasGeneration}`}
             onCanvasChange={setCanvasEl}
             interactive={loadState === "ready"}
             gpuActive={gpuActive}
@@ -651,7 +527,6 @@ export function SimulatorPanel() {
             // This is the surface with room for one. `.simulator-panel__body` is
             // the positioned container it anchors to; see the prop.
             viewCube={viewSettings.showViewCube}
-            highlights={highlights}
             pushCamera={pushCamera}
             pushRenderSettings={pushRenderSettings}
             perfSurface="simulate-panel"
@@ -664,6 +539,14 @@ export function SimulatorPanel() {
               "panels:simulator.canvasTitle",
               "Drag to rotate, scroll to zoom, double-click to reset view",
             )}
+          />
+          <ContextMenu
+            open={contextMenu.open}
+            x={contextMenu.x}
+            y={contextMenu.y}
+            items={contextMenu.items}
+            onOpenChange={contextMenu.onOpenChange}
+            onCloseAutoFocus={contextMenu.onCloseAutoFocus}
           />
           {loadState !== "ready" && (
             <div className="simulator-panel__empty">
@@ -733,17 +616,9 @@ export function SimulatorPanel() {
             </IconButton>
           </div>
           <label className="simulator-slider">
-            <span>
-              {simulatorMode === "step"
-                ? t("panels:simulator.step", "Step")
-                : t("panels:simulator.fold", "Fold")}
-            </span>
+            <span>{t("panels:simulator.fold", "Fold")}</span>
             <input
-              aria-label={
-                simulatorMode === "step"
-                  ? t("panels:simulator.stepPercent", "Step percent")
-                  : t("panels:simulator.foldPercent", "Fold percent")
-              }
+              aria-label={t("panels:simulator.foldPercent", "Fold percent")}
               type="range"
               min="0"
               max="100"
@@ -815,7 +690,4 @@ function shortStatus(message: string, t: TFunction): string {
   return sentence.length > 54 ? `${sentence.slice(0, 51)}...` : sentence;
 }
 
-function formatKind(kind: string): string {
-  return kind.replaceAll("_", " ");
-}
 

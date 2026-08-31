@@ -255,8 +255,8 @@ export function nextSelectionForEdit(
  * user is working on — and, worse, claim `kind: 'treemaker'` on a box-pleat tab,
  * because exports reach `ensureTreeHandle` too.
  *
- * It also deliberately omits the fold-artifact and `sequence*` resets that a real
- * install carries: materializing a cold handle is not a document swap.
+ * It also deliberately omits the fold-artifact resets that a real install
+ * carries: materializing a cold handle is not a document swap.
  */
 export function syncTreemakerProject(
   state: DesignTabsSlice,
@@ -295,11 +295,6 @@ export function projectStateFromSnapshot(
     status: 'ready' as const,
     error: null,
     ...emptyFoldArtifactResourceState(),
-    sequenceTarget: null,
-    sequencePlan: null,
-    sequenceSimulationFocus: { kind: 'whole' as const },
-    sequencePlanning: false,
-    sequenceError: null,
   };
 }
 
