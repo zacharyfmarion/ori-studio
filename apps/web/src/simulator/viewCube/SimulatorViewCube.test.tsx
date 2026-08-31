@@ -60,7 +60,9 @@ function faces(): HTMLElement[] {
 }
 
 function face(label: string): HTMLElement {
-  const found = faces().find((element) => element.textContent === label);
+  const found = faces().find(
+    (element) => element.querySelector('.simulator-view-cube__label')?.textContent === label
+  );
   expect(found, `a face labelled ${label}`).toBeDefined();
   return found as HTMLElement;
 }
@@ -92,7 +94,7 @@ function hover(target: HTMLElement | null) {
 function litFaces(): string[] {
   return faces()
     .filter((element) => element.querySelector('[data-lit="true"]'))
-    .map((element) => element.textContent ?? '')
+    .map((element) => element.querySelector('.simulator-view-cube__label')?.textContent ?? '')
     .sort();
 }
 
@@ -203,7 +205,9 @@ describe('SimulatorViewCube', () => {
 
     const tabbable = spots('Front').filter((spot) => spot.tabIndex !== -1);
     expect(tabbable).toHaveLength(1);
-    expect(tabbable[0]?.textContent).toBe('Front');
+    // Named by `aria-label`: the visible word is painted across the whole face,
+    // so it is not this button's text and is hidden from assistive tech there.
+    expect(tabbable[0]?.getAttribute('aria-label')).toBe('Front');
   });
 
   it('lights all three cells that reach a corner', () => {

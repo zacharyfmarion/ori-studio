@@ -242,6 +242,21 @@ export function SimulatorViewCube({ ref, interactive, onSnap, orbit }: Simulator
             className="simulator-view-cube__face"
             style={{ transform: face.transform }}
           >
+            {/*
+              The name belongs to the face, not to the ninth of it in the middle,
+              and saying so is what keeps it centred. Held inside the middle cell
+              it was a grid item wider than its own area — and a grid item's
+              automatic minimum is its min-content width, so it could neither
+              shrink to the cell nor be centred in it, and sat half its overflow
+              off the face's midline. Out here it is simply centred on the face
+              and free to overhang whatever it likes.
+
+              `aria-hidden` because the middle cell now carries the same name;
+              the two together would read it twice.
+            */}
+            <span className="simulator-view-cube__label" aria-hidden>
+              {faceLabel(t, face.id)}
+            </span>
             {face.spots.map((spot, cell) => {
               const press = () => {
                 // A drag that happened to end over a face is not a press on it.
@@ -269,11 +284,10 @@ export function SimulatorViewCube({ ref, interactive, onSnap, orbit }: Simulator
                   type="button"
                   data-viewpoint={spot.viewpoint}
                   className="simulator-view-cube__spot simulator-view-cube__spot--face"
+                  aria-label={faceLabel(t, face.id)}
                   disabled={!interactive}
                   onClick={press}
-                >
-                  {faceLabel(t, face.id)}
-                </button>
+                />
               ) : (
                 <button
                   key={cell}

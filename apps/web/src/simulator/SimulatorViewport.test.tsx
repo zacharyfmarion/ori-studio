@@ -176,7 +176,7 @@ describe('SimulatorViewport view cube', () => {
     const spots = Array.from(
       host?.querySelectorAll<HTMLButtonElement>('.simulator-view-cube__spot--face') ?? []
     );
-    const spot = spots.find((element) => element.textContent === label);
+    const spot = spots.find((element) => element.getAttribute('aria-label') === label);
     expect(spot, label).toBeDefined();
     act(() => spot?.click());
   }
@@ -277,7 +277,7 @@ describe('SimulatorViewport view cube', () => {
     render(true, undefined, true);
     const front = Array.from(
       host?.querySelectorAll<HTMLButtonElement>('.simulator-view-cube__spot--face') ?? []
-    ).find((spot) => spot.textContent === 'Front');
+    ).find((spot) => spot.getAttribute('aria-label') === 'Front');
     expect(front).toBeDefined();
 
     const send = (type: string, x: number, y: number) =>

@@ -4705,12 +4705,12 @@ button.cp-folded-figure-toolbar__notice:hover {
      neighbours, so a face-on view is never a dead end.
 
      `minmax(0, 1fr)`, not `1fr`: a `1fr` track will not shrink below its
-     content, so the label in the middle cell widened its own column and the
-     outer two absorbed the shortfall. That made the corner cells 12px on FRONT
-     and 19px on TOP — the same viewpoint, a different size on each face, which
-     is not what the corner of a cube looks like. The floor of zero takes the
-     label out of the track sizing, so every cell is exactly a third and the lit
-     corner is congruent across all three faces that meet there. */
+     content, so when the label still lived in the middle cell it widened its own
+     column and the outer two absorbed the shortfall — corner cells of 12px on
+     FRONT against 19px on TOP, the same viewpoint at a different size on each
+     face. The label has since moved out to the face, but the floor of zero is
+     what makes "equal thirds" true of whatever a cell ever holds rather than of
+     what it happens to hold today. */
   display: grid;
   grid-template: repeat(3, minmax(0, 1fr)) / repeat(3, minmax(0, 1fr));
   border: 1px solid var(--border-subtle);
@@ -4721,36 +4721,45 @@ button.cp-folded-figure-toolbar__notice:hover {
   transition: background-color 120ms ease;
 }
 
-.simulator-view-cube__spot {
+/*
+  The face's name, centred on the face and painted over the cells.
+
+  Not a child of any one cell: the word is wider than a third of the face, and a
+  grid item's automatic minimum is its min-content width, so inside the middle
+  cell it could neither shrink to fit nor be centred in it — it sat half its
+  overflow to the right of the face's midline. Here it spans the whole face, so
+  centring is unconditional and it may overhang the edge cells freely.
+*/
+.simulator-view-cube__label {
+  position: absolute;
+  inset: 0;
   display: grid;
-  margin: 0;
-  /* A UA button's own padding survives `display: grid` and pushes the label off
-     centre; see the icon buttons, which need the same. */
-  padding: 0;
-  border: 0;
-  appearance: none;
-  background: transparent;
   color: var(--text-secondary);
-  font-family: inherit;
   font-size: 0.56rem;
   font-weight: 750;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   place-items: center;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: color 120ms ease;
+}
+
+.simulator-view-cube__spot {
+  display: grid;
+  margin: 0;
+  /* A UA button's own padding survives `display: grid`; see the icon buttons,
+     which need the same. */
+  padding: 0;
+  border: 0;
+  appearance: none;
+  background: transparent;
   cursor: pointer;
   pointer-events: none;
-  /* The label is wider than the third of a face it is centred in, and now says
-     so instead of stretching its column. It overhangs symmetrically onto the two
-     cells beside it, which are transparent, so the face still reads as one word
-     across the middle. */
-  overflow: visible;
-  white-space: nowrap;
   /* The cube is dragged to turn the model, so the browser must not read that as
      a pan or a page zoom — the same reason the canvas behind it sets this. */
   touch-action: none;
-  transition:
-    background-color 120ms ease,
-    color 120ms ease;
+  transition: background-color 120ms ease;
 }
 
 /*
@@ -4787,11 +4796,18 @@ button.cp-folded-figure-toolbar__notice:hover {
   background: color-mix(in srgb, var(--accent-primary) 28%, var(--bg-elevated));
 }
 
-.simulator-view-cube__spot--face[data-lit='true'],
-.simulator-view-cube__spot--face:focus-visible {
-  /* The face behind it is already lit; the label only has to keep up. */
-  background: transparent;
+/* The face behind it is already lit; the name only has to keep up. */
+.simulator-view-cube__face:has(.simulator-view-cube__spot--face[data-lit='true'])
+  .simulator-view-cube__label,
+.simulator-view-cube__face:has(.simulator-view-cube__spot--face:focus-visible)
+  .simulator-view-cube__label {
   color: var(--text-primary);
+}
+
+/* The middle cell is the face's own target and lights the whole of it, so it
+   adds nothing of its own. */
+.simulator-view-cube__spot--face[data-lit='true'] {
+  background: transparent;
 }
 
 .simulator-view-cube__spot:focus-visible {
@@ -4800,6 +4816,7 @@ button.cp-folded-figure-toolbar__notice:hover {
 
 @media (prefers-reduced-motion: reduce) {
   .simulator-view-cube__face,
+  .simulator-view-cube__label,
   .simulator-view-cube__spot {
     transition: none;
   }
