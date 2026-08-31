@@ -252,7 +252,13 @@ describe('.osf persistence', () => {
   it('round-trips regions through save and open', () => {
     const regions = [
       region({ id: 'plain', label: 'Fragment library', suppress: ['maekawa'] }),
-      region({ id: 'warm', solveInput: { spans: [1, 2, 3] }, rotation: 0.5, opacity: 0.4 }),
+      region({
+        id: 'warm',
+        solveInput: { spans: [1, 2, 3] },
+        imageId: 'image-7',
+        rotation: 0.5,
+        opacity: 0.4,
+      }),
     ];
     const parsed = parseNativeProjectFile(
       serializeNativeProjectFile(projectFileWith(regions))
@@ -267,6 +273,29 @@ describe('.osf persistence', () => {
       projectFileWith([]).schemaVersion
     );
     expect(projectFileWith([region()]).minimumReaderSchemaVersion).toBe(1);
+  });
+
+  it('keeps a link to the reference image the region owns', () => {
+    // Named in `validateCpSuppressionRegion`'s literal or it is deleted on load,
+    // with no type error anywhere — the failure mode `superset-features.md`
+    // names. Here the cost would be a locked underlay with nothing left that can
+    // reach it, which is the bug the link exists to fix.
+    const parsed = parseNativeProjectFile(
+      serializeNativeProjectFile(projectFileWith([region({ id: 'r', imageId: 'image-7' })]))
+    );
+    expect(
+      parsed.workspace.creasePattern?.creasePattern.suppressionRegions[0]?.imageId
+    ).toBe('image-7');
+  });
+
+  it('drops a link that is not a usable id, rather than carrying it', () => {
+    for (const imageId of [42, '', null]) {
+      const parsed = validateCpSuppressionRegion({
+        ...region({ id: 'r' }),
+        imageId,
+      });
+      expect(parsed?.imageId).toBeUndefined();
+    }
   });
 
   it('reads a file written before regions existed as having none', () => {

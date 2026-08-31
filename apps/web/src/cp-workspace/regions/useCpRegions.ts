@@ -26,9 +26,11 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { OristudioCpDiagnosticEntry } from '../../engine/oristudioCpTypes';
 import {
   bottomAnnotationZ,
+  isImageAnnotation,
   isSuppressionRegionAnnotation,
   type CanvasAnnotation,
 } from '../annotations/annotation';
+import type { CpImage } from '../images/cpImage';
 import {
   CP_CHECK_CLASSES,
   createCpSuppressionRegion,
@@ -60,6 +62,15 @@ export interface CpRegionView {
    * of those runs continuously and can flicker mid-edit, exactly when it must not.
    */
   solvable: boolean;
+  /**
+   * The reference image this region owns, resolved from its `imageId`.
+   *
+   * Null for a region that has none *and* for one whose id no longer resolves —
+   * `validateCpImage` drops an image with a bad `src` while the region survives,
+   * and a chip with no image control is the honest answer to that. The chip never
+   * has to know which of the two it is looking at.
+   */
+  image: CpImage | null;
 }
 
 /**
@@ -83,7 +94,26 @@ export interface UseCpRegionActions {
    * the first one that moves and closes it once, on release.
    */
   moveRegion: (id: string, center: { x: number; y: number }) => void;
+  /**
+   * Delete a region **and the reference image it owns**, as one undo entry.
+   *
+   * The cascade is the point. A region's image is locked so it never takes a
+   * click meant for the creases under repair, and nothing else in the product can
+   * select a locked annotation — so a region deleted on its own would leave an
+   * underlay the user can see and can never remove.
+   */
   removeRegion: (id: string) => void;
+  /** Show or hide a region's owned image, as one undo entry. */
+  toggleRegionImageHidden: (id: string) => void;
+  /**
+   * Set a region's owned image opacity. Deliberately unbracketed, like
+   * {@link moveRegion}: a slider drag is one gesture and forty samples, and
+   * `AnnotationOpacitySlider` opens and closes the snapshot around the whole of
+   * it.
+   */
+  setRegionImageOpacity: (id: string, opacity: number) => void;
+  /** Delete a region's owned image and drop the link, as one undo entry. */
+  removeRegionImage: (id: string) => void;
   /** Snapshot before a multi-step edit (a chip drag), so it undoes as one. */
   beginGesture: () => void;
   /** Close the snapshot opened by {@link beginGesture} under `label`. */
@@ -250,11 +280,49 @@ export function useCpRegionActions(): UseCpRegionActions {
 
   const removeRegion = useCallback(
     (id: string) => {
+      const imageId = ownedImageId(id);
       beginGesture();
       removeAnnotation(id);
+      // After the region, not before: `removeAnnotation` clears the canvas
+      // selection when it removes the selected object, and the region is the one
+      // holding it.
+      if (imageId) removeAnnotation(imageId);
       commitGesture(t('panels:cpRegion.delete', 'Delete region'));
     },
     [beginGesture, commitGesture, removeAnnotation, t]
+  );
+
+  const toggleRegionImageHidden = useCallback(
+    (id: string) => {
+      const image = ownedImage(id);
+      if (!image) return;
+      beginGesture();
+      updateAnnotation(image.id, { hidden: !image.hidden });
+      commitGesture(t('panels:cpRegion.imageVisibility', 'Show or hide reference image'));
+    },
+    [beginGesture, commitGesture, updateAnnotation, t]
+  );
+
+  const setRegionImageOpacity = useCallback(
+    (id: string, opacity: number) => {
+      const imageId = ownedImageId(id);
+      if (imageId) updateAnnotation(imageId, { opacity });
+    },
+    [updateAnnotation]
+  );
+
+  const removeRegionImage = useCallback(
+    (id: string) => {
+      const imageId = ownedImageId(id);
+      if (!imageId) return;
+      beginGesture();
+      removeAnnotation(imageId);
+      // The link goes with it. A region left pointing at a deleted image would
+      // still render an image menu, one press from a crash or a no-op.
+      updateAnnotation(id, { imageId: undefined });
+      commitGesture(t('panels:cpRegion.imageDelete', 'Remove reference image'));
+    },
+    [beginGesture, commitGesture, removeAnnotation, updateAnnotation, t]
   );
 
   return useMemo(
@@ -264,6 +332,9 @@ export function useCpRegionActions(): UseCpRegionActions {
       toggleRegionCheckClass,
       moveRegion,
       removeRegion,
+      toggleRegionImageHidden,
+      setRegionImageOpacity,
+      removeRegionImage,
       beginGesture,
       commitGesture,
     }),
@@ -273,10 +344,41 @@ export function useCpRegionActions(): UseCpRegionActions {
       commitGesture,
       moveRegion,
       removeRegion,
+      removeRegionImage,
       selectRegion,
+      setRegionImageOpacity,
       toggleRegionCheckClass,
+      toggleRegionImageHidden,
     ]
   );
+}
+
+/**
+ * The image a region owns, read imperatively at the moment of the verb.
+ *
+ * Imperative like every other mutation in this hook, so `useCpRegionActions`
+ * still subscribes to no store slice at all — a consumer that only *writes*
+ * regions must not re-render when one moves.
+ */
+function ownedImage(regionId: string): CpImage | null {
+  const annotations = useWorkspaceStore.getState().oristudioCpAnnotations;
+  const region = annotations.find((annotation) => annotation.id === regionId);
+  if (!region || !isSuppressionRegionAnnotation(region) || !region.imageId) return null;
+  return regionOwnedImage(annotations, region);
+}
+
+function ownedImageId(regionId: string): string | null {
+  return ownedImage(regionId)?.id ?? null;
+}
+
+/** Resolve a region's `imageId` against the annotation array. */
+export function regionOwnedImage(
+  annotations: readonly CanvasAnnotation[],
+  region: CpSuppressionRegion
+): CpImage | null {
+  if (!region.imageId) return null;
+  const found = annotations.find((annotation) => annotation.id === region.imageId);
+  return found && isImageAnnotation(found) ? found : null;
 }
 
 export function useCpRegions(): UseCpRegions {
@@ -317,6 +419,7 @@ export function useCpRegions(): UseCpRegions {
       region,
       hiddenCount: counts.get(region.id) ?? 0,
       solvable: hasAttachedSolveInput(region),
+      image: regionOwnedImage(annotations, region),
     }));
   }, [annotations, documentSuppress, unfilteredEntries]);
 

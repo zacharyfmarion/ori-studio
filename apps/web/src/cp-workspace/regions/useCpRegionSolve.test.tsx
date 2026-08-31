@@ -155,6 +155,7 @@ const REGION = createCpSuppressionRegion({
   height: 420,
   label: 'Detected crease pattern',
   solveInput: { schema: 'exact-solve-input', vertices: [] },
+  imageId: 'image-1',
 });
 
 /** A second detected pattern, well clear of the first. */
@@ -168,12 +169,15 @@ const OTHER_REGION = createCpSuppressionRegion({
 
 /** The rectified underlay the repair flow places behind the creases. */
 const IMAGE = createCpImage({
+  id: 'image-1',
   src: 'data:image/jpeg;base64,xx',
   naturalWidth: 1024,
   naturalHeight: 1024,
   center: { x: 300, y: 300 },
   width: 400,
   height: 400,
+  // Locked during repair so it never takes a click meant for the creases over
+  // it — which is exactly why Accept has to release it.
   locked: true,
   opacity: 0.5,
 });
@@ -474,13 +478,21 @@ describe('useCpRegionSolve', () => {
     expect(api.stateFor(REGION.id)).toBeUndefined();
   });
 
-  it('deletes the region on Accept and keeps the source image', async () => {
+  it('deletes the region on Accept and keeps the source image, unlocked', async () => {
     await solve();
     await settle(() => api.onAccept(REGION.id));
 
     // Checking comes back with the region gone; the underlay is the user's own
     // annotation by now and is still the best thing to compare against.
     expect(annotationIds()).toEqual([IMAGE.id]);
+    // Unlocked, which is the half that makes "the user's own annotation" true.
+    // Locked is absolute — no body, no handles, no context menu, and no lock
+    // toggle anywhere in the product — so a locked image released from its
+    // region is one the user can see and can never select, fade or delete.
+    const image = useWorkspaceStore
+      .getState()
+      .oristudioCpAnnotations.find((annotation) => annotation.id === IMAGE.id);
+    expect(image?.locked).toBe(false);
     // No further coordinate write: the solve already applied them.
     expect(replaceLineSegments).toHaveBeenCalledTimes(1);
   });

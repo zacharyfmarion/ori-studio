@@ -77,15 +77,19 @@ export function CpRegionLayer({ container, solve }: CpRegionLayerProps) {
     toggleRegionCheckClass,
     moveRegion,
     removeRegion,
+    toggleRegionImageHidden,
+    setRegionImageOpacity,
+    removeRegionImage,
     beginGesture,
     commitGesture,
   } = useCpRegions();
 
   return (
     <>
-      {regions.map(({ region, hiddenCount, solvable }) => {
+      {regions.map(({ region, hiddenCount, solvable, image }) => {
         const base = {
           region,
+          image,
           container,
           hiddenCount,
           onSelect: () => selectRegion(region.id),
@@ -97,6 +101,9 @@ export function CpRegionLayer({ container, solve }: CpRegionLayerProps) {
           // that knows what the drag was names it.
           onGestureCommit: commitGesture,
           onDelete: () => removeRegion(region.id),
+          onToggleImageHidden: () => toggleRegionImageHidden(region.id),
+          onImageOpacity: (opacity: number) => setRegionImageOpacity(region.id, opacity),
+          onDeleteImage: () => removeRegionImage(region.id),
         };
         if (!solvable || !solve) {
           return <SuppressionRegionChip key={region.id} {...base} />;

@@ -1754,20 +1754,26 @@ function repairAnnotations(
   const inset = 2 * DETECT_PAPER_INSET_PX;
   const scale = imageSrc.width > inset ? imageSrc.width / (imageSrc.width - inset) : 1;
   const margin = Math.max(paperWidth, paperHeight) * REGION_PAPER_MARGIN_RATIO;
+  const image = createCpImage({
+    src: imageSrc.src,
+    naturalWidth: imageSrc.width,
+    naturalHeight: imageSrc.height,
+    center,
+    width: paperWidth * scale,
+    height: paperHeight * scale,
+    // Locked so it never takes a click meant for the creases over it, and at
+    // half opacity so it reads as an underlay rather than as the drawing.
+    //
+    // Locked is absolute — no body, no handles, no context menu, and
+    // `annotationAtModelPoint` skips it — so the region below has to carry the
+    // controls for it, which is what `imageId` is for. Accepting the solve
+    // unlocks it; deleting the region deletes it.
+    opacity: 0.5,
+    locked: true,
+    z: bottomZ - 1,
+  });
   return [
-    createCpImage({
-      src: imageSrc.src,
-      naturalWidth: imageSrc.width,
-      naturalHeight: imageSrc.height,
-      center,
-      width: paperWidth * scale,
-      height: paperHeight * scale,
-      // Locked so it never takes a click meant for the creases over it, and at
-      // half opacity so it reads as an underlay rather than as the drawing.
-      opacity: 0.5,
-      locked: true,
-      z: bottomZ - 1,
-    }),
+    image,
     createCpSuppressionRegion({
       center,
       width: paperWidth + 2 * margin,
@@ -1777,6 +1783,7 @@ function repairAnnotations(
       // Verbatim and unread here: its presence is what gives the region a Solve
       // affordance, and only detection produces one.
       solveInput,
+      imageId: image.id,
       z: bottomZ - 2,
     }),
   ];

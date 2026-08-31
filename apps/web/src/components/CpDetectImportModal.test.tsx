@@ -803,7 +803,12 @@ describe('CpDetectImportModal add', () => {
     expect(image.width).toBeCloseTo((PAPER_SIZE * IMAGE_SIZE) / (IMAGE_SIZE - 64), 6);
     expect(image.height).toBeCloseTo((PAPER_SIZE * IMAGE_SIZE) / (IMAGE_SIZE - 64), 6);
     expect(image.opacity).toBe(0.5);
+    // Locked so it never takes a click meant for the creases being repaired over
+    // it — and locked is absolute, so the region has to own it or nothing can
+    // reach it. That is what `imageId` is for; Accept unlocks it, deleting the
+    // region deletes it.
     expect(image.locked).toBe(true);
+    expect(region.imageId).toBe(image.id);
     // The region covers the paper edge with room to spare, so a boundary vertex
     // sitting exactly on it is inside.
     expect(region.width).toBeGreaterThan(PAPER_SIZE);

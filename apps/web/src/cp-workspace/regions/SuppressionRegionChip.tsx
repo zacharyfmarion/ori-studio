@@ -6,9 +6,11 @@ import { Check, EyeOff, ListChecks, Trash2 } from 'lucide-react';
 import { IconButton } from '../../components/ui/IconButton';
 import { MenuIconButton } from '../../components/ui/MenuIconButton';
 import { CpRegionChipBar } from './CpRegionChipBar';
+import { RegionImageMenu, type CpRegionImageActions } from './RegionImageMenu';
 import { useCpRegionChipDrag } from './useCpRegionChipDrag';
 import { cpCheckClassLabel } from '../diagnostics/checkSuppression';
 import type { Vec2 } from '../annotations/annotationTransform';
+import type { CpImage } from '../images/cpImage';
 import {
   CP_CHECK_CLASSES,
   type CpCheckClass,
@@ -57,12 +59,16 @@ import {
  *
  * # What is deliberately not here
  *
- * Opacity and stacking order — the rest of the shared {@link AnnotationActions}
- * set. Those exist for reference images, where "which one is on top" and "how
- * strongly does it show through the creases" are real questions. A suppression
- * region is a filter with a fixed, faint fill; neither control says anything
- * about what it does, and both crowded out the ones that do. Delete is composed
- * directly here instead.
+ * Opacity and stacking order **for the region itself** — the rest of the shared
+ * {@link AnnotationActions} set. A suppression region is a filter with a fixed,
+ * faint fill; neither control says anything about what it does, and both crowded
+ * out the ones that do. Delete is composed directly here instead.
+ *
+ * A region that owns a *reference image* is a different question, and gets
+ * {@link RegionImageMenu}: that image is locked so it never takes a click meant
+ * for the creases being repaired, which in the shipped build left it with no way
+ * to be hidden, faded or removed at all. Show/opacity/delete for it are on the
+ * bar, in their own dropdown, and only when there is one.
  *
  * # Why there is no Solve button here, ever
  *
@@ -76,14 +82,13 @@ import {
  */
 
 /**
- * Presentation lives inline rather than in `theme.css`.
- *
- * Not a preference — this stage owns no stylesheet. These are theme tokens either
- * way, so the rules move to a `.cp-region-chip*` block unchanged whenever someone
- * touches `theme.css` next; the class names below are already in place for it.
- */
-/**
  * The hidden count wears the theme's warning hue rather than muted text.
+ *
+ * Presentation lives inline rather than in `theme.css` — not a preference, this
+ * stage owns no stylesheet. These are theme tokens either way, so the rules move
+ * to a `.cp-region-chip*` block unchanged whenever someone touches `theme.css`
+ * next; the class names are already in place for it. The bar's font size is the
+ * one thing that is *not* here, and deliberately: see `CpRegionChipBar`.
  *
  * `--status-warning` is written by the active theme preset, so it follows light
  * and dark; `--text-warning` is defined nowhere in this app and would silently
@@ -130,8 +135,17 @@ function chipAriaLabel(t: TFunction, region: CpSuppressionRegion): string {
   return region.label ? `${generic}: ${region.label}` : generic;
 }
 
-export interface SuppressionRegionChipProps {
+export interface SuppressionRegionChipProps extends CpRegionImageActions {
   region: CpSuppressionRegion;
+  /**
+   * The reference image this region owns, or null for one that has none.
+   *
+   * Resolved by the caller from `region.imageId`, never looked up here: a chip is
+   * a readout, and a dangling id has to resolve to "no image control" rather than
+   * to a crash — which is a decision about the annotation array, not about this
+   * component.
+   */
+  image: CpImage | null;
   /** Element the canvas is positioned against — see {@link useCanvasObjectAnchor}. */
   container: HTMLElement | null;
   /** Findings this region alone is hiding. See `useCpRegions`. */
@@ -152,6 +166,7 @@ export interface SuppressionRegionChipProps {
 
 export function SuppressionRegionChip({
   region,
+  image,
   container,
   hiddenCount,
   onSelect,
@@ -160,6 +175,9 @@ export function SuppressionRegionChip({
   onGestureStart,
   onGestureCommit,
   onDelete,
+  onToggleImageHidden,
+  onImageOpacity,
+  onDeleteImage,
   children,
 }: SuppressionRegionChipProps) {
   const { t } = useTranslation();
@@ -206,6 +224,16 @@ export function SuppressionRegionChip({
       </span>
       <span className="cp-region-chip__controls" style={CONTROLS_STYLE}>
         {children}
+        {image && (
+          <RegionImageMenu
+            image={image}
+            onToggleImageHidden={onToggleImageHidden}
+            onImageOpacity={onImageOpacity}
+            onDeleteImage={onDeleteImage}
+            onGestureStart={onGestureStart}
+            onGestureCommit={onGestureCommit}
+          />
+        )}
         <CheckClassMenu suppress={region.suppress} onToggle={onToggleCheckClass} />
         <IconButton
           size="sm"

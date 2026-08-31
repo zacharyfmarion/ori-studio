@@ -102,6 +102,29 @@ export interface CpSuppressionRegion extends Omit<AnnotationBase, 'hidden'> {
    * exactly when it must not.
    */
   solveInput?: unknown;
+  /**
+   * A reference image this region owns — the `id` of a {@link CpImage} in the
+   * same annotation array.
+   *
+   * **A link, not an embedded image.** The two are deliberately different
+   * rectangles (the image is the rectified frame, the region is the paper plus a
+   * margin), so an inline copy would have to re-declare most of `AnnotationBase`
+   * anyway; and four pipelines are keyed on `isImageAnnotation` — the GPU image
+   * channel, the save-size warning, the export-loss warning and the panel's
+   * framing list — which an image hidden inside a region would silently drop out
+   * of. A multi-megabyte underlay that stops being counted by the save-size
+   * warning is the specific regression that decided this.
+   *
+   * What "owned" buys is lifecycle, and that is the part the user sees: the chip
+   * is the only thing that can show, hide or fade it while the repair is going
+   * on, deleting the region deletes it, and accepting a solve *unlocks* it so it
+   * becomes an ordinary image with an ordinary inspector.
+   *
+   * A dangling id is tolerated, not repaired. `validateCpImage` drops an image
+   * with a bad `src` while the region survives, and the honest response to that
+   * is a chip with no image control — not a region deleted for its underlay.
+   */
+  imageId?: string;
 }
 
 /** A partial update to a region (its `id` and `kind` never change). */
@@ -131,6 +154,8 @@ export interface CreateCpSuppressionRegionInput {
   suppress?: readonly CpCheckClass[];
   label?: string;
   solveInput?: unknown;
+  /** The id of a `CpImage` this region owns — see {@link CpSuppressionRegion.imageId}. */
+  imageId?: string;
   opacity?: number;
   locked?: boolean;
   z?: number;
@@ -153,6 +178,7 @@ export function createCpSuppressionRegion(
     suppress: normalizeCheckClasses(input.suppress ?? DEFAULT_SUPPRESSED_CHECK_CLASSES),
     ...(input.label === undefined ? {} : { label: input.label }),
     ...(input.solveInput === undefined ? {} : { solveInput: input.solveInput }),
+    ...(input.imageId === undefined ? {} : { imageId: input.imageId }),
   };
 }
 
@@ -234,6 +260,14 @@ export function validateCpSuppressionRegion(value: unknown): CpSuppressionRegion
     // of a compiler struct, and the solver refuses a malformed one itself with
     // a reason worth showing.
     ...(value.solveInput === undefined ? {} : { solveInput: value.solveInput }),
+    // Named here or it is deleted on load: this validator rebuilds an explicit
+    // literal, so a field it forgets is written out and lost on the way back in
+    // with no type error anywhere. Not resolved against the image array — that
+    // needs both arrays and this sees one region — so a dangling id survives the
+    // read and the chip simply offers no image control.
+    ...(typeof value.imageId === 'string' && value.imageId.length > 0
+      ? { imageId: value.imageId }
+      : {}),
   };
 }
 

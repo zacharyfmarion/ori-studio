@@ -65,6 +65,7 @@ function renderChip(
       <TooltipProvider>
         <SolveRegionChip
           region={REGION}
+          image={null}
           container={container}
           hiddenCount={0}
           state={state}
@@ -73,6 +74,9 @@ function renderChip(
           onAccept={handlers.onAccept ?? NOOP}
           onTryAgain={handlers.onTryAgain ?? NOOP}
           onSelect={NOOP}
+          onToggleImageHidden={NOOP}
+          onImageOpacity={NOOP}
+          onDeleteImage={NOOP}
           onToggleCheckClass={NOOP}
           onMove={NOOP}
           onGestureStart={NOOP}

@@ -9,6 +9,7 @@ import {
   type CpSuppressionRegion,
 } from '../annotations/suppressionRegion';
 import { createTextAnnotation } from '../annotations/textAnnotation';
+import { createCpImage, type CpImage } from '../images/cpImage';
 import { cpRegionHiddenCounts, toggledCheckClasses, useCpRegions } from './useCpRegions';
 import type { UseCpRegions } from './useCpRegions';
 
@@ -275,6 +276,105 @@ describe('useCpRegions', () => {
 
     expect(annotations().map((annotation) => annotation.id)).toEqual(['r2']);
     expect(historyLength()).toBe(1);
+  });
+
+  describe('the reference image a region owns', () => {
+    /** A region plus the locked underlay it owns, as detection builds them. */
+    function seedOwned(patch: Partial<CpImage> = {}): CpImage {
+      const image = createCpImage({
+        id: 'img-1',
+        src: 'data:image/png;base64,iVBORw0KGgo=',
+        naturalWidth: 1024,
+        naturalHeight: 1024,
+        center: { x: 0, y: 0 },
+        width: 4,
+        height: 4,
+        opacity: 0.5,
+        locked: true,
+        ...patch,
+      });
+      seed([image, boxAt(0, 0, 'r1', { imageId: 'img-1' })]);
+      mount();
+      return image;
+    }
+
+    it('resolves the link, and reports none for a region that owns no image', () => {
+      seedOwned();
+      expect(api.regions[0].image?.id).toBe('img-1');
+
+      seed([boxAt(0, 0, 'r1')]);
+      mount();
+      expect(api.regions[0].image).toBeNull();
+    });
+
+    it('reports no image for a link that no longer resolves, rather than throwing', () => {
+      // `validateCpImage` drops an image with a bad `src` while the region
+      // survives its own validator, so this state reaches a real document. The
+      // honest answer is a chip with no image control.
+      seed([boxAt(0, 0, 'r1', { imageId: 'img-gone' })]);
+      mount();
+      expect(api.regions[0].image).toBeNull();
+    });
+
+    it('deletes the image with the region, because nothing else could reach it', () => {
+      // The cascade is the point. The image is locked so it never takes a click
+      // meant for the creases under repair, and no lock toggle or layers panel
+      // exists — so a region deleted on its own would leave an underlay the user
+      // can see and can never remove.
+      seedOwned();
+      act(() => api.removeRegion('r1'));
+
+      expect(annotations()).toHaveLength(0);
+      expect(historyLength()).toBe(1);
+    });
+
+    it('toggles the image hidden as one entry, and the region stays visible', () => {
+      seedOwned();
+      act(() => api.toggleRegionImageHidden('r1'));
+
+      expect((annotations()[0] as CpImage).hidden).toBe(true);
+      // The region itself may never be hidden — its chip is the safety
+      // affordance — and `allowedAnnotationUpdate` enforces that by stripping
+      // `hidden` from any patch aimed at one. The image's own `hidden` is a
+      // different annotation's field, so it passes through untouched. Both
+      // behaviours are pinned here because they sit one link apart.
+      expect((annotations()[1] as CpSuppressionRegion).hidden).toBe(false);
+      expect(historyLength()).toBe(1);
+    });
+
+    it('leaves the opacity drag unbracketed, so the slider can own the entry', () => {
+      seedOwned();
+      act(() => {
+        api.setRegionImageOpacity('r1', 0.4);
+        api.setRegionImageOpacity('r1', 0.3);
+      });
+
+      expect((annotations()[0] as CpImage).opacity).toBeCloseTo(0.3);
+      expect(historyLength()).toBe(0);
+    });
+
+    it('drops the link when the image alone is deleted', () => {
+      seedOwned();
+      act(() => api.removeRegionImage('r1'));
+
+      const remaining = annotations();
+      expect(remaining).toHaveLength(1);
+      // Or the chip would keep offering an image menu for an image that is gone.
+      expect((remaining[0] as CpSuppressionRegion).imageId).toBeUndefined();
+      expect(historyLength()).toBe(1);
+    });
+
+    it('does nothing for a region with no image, rather than deleting something else', () => {
+      seed([boxAt(0, 0, 'r1')]);
+      mount();
+      act(() => {
+        api.toggleRegionImageHidden('r1');
+        api.removeRegionImage('r1');
+      });
+
+      expect(annotations()).toHaveLength(1);
+      expect(historyLength()).toBe(0);
+    });
   });
 
   it('collapses a whole chip drag into one undo entry', () => {

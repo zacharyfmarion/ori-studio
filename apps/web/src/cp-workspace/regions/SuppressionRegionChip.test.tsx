@@ -10,6 +10,7 @@ import {
   type CpCheckClass,
   type CpSuppressionRegion,
 } from '../annotations/suppressionRegion';
+import { createCpImage, type CpImage } from '../images/cpImage';
 import { SuppressionRegionChip } from './SuppressionRegionChip';
 import { REGION_CHIP_MIN_WIDTH } from './regionChipPlacement';
 
@@ -44,8 +45,26 @@ function region(patch: Partial<CpSuppressionRegion> = {}): CpSuppressionRegion {
   };
 }
 
+/** A locked half-opacity underlay, the shape detection attaches to a region. */
+function referenceImage(patch: Partial<CpImage> = {}): CpImage {
+  return {
+    ...createCpImage({
+      src: 'data:image/png;base64,iVBORw0KGgo=',
+      naturalWidth: 1024,
+      naturalHeight: 1024,
+      center: { x: 0.5, y: 0.5 },
+      width: 1,
+      height: 1,
+      opacity: 0.5,
+      locked: true,
+    }),
+    ...patch,
+  };
+}
+
 function renderChip(props: {
   region?: CpSuppressionRegion;
+  image?: CpImage | null;
   hiddenCount?: number;
   onSelect?: () => void;
   onToggleCheckClass?: (cpCheckClass: CpCheckClass) => void;
@@ -53,12 +72,16 @@ function renderChip(props: {
   onGestureStart?: () => void;
   onGestureCommit?: (label: string) => void;
   onDelete?: () => void;
+  onToggleImageHidden?: () => void;
+  onImageOpacity?: (opacity: number) => void;
+  onDeleteImage?: () => void;
 }): void {
   act(() => {
     root.render(
       <TooltipProvider>
         <SuppressionRegionChip
           region={props.region ?? region()}
+          image={props.image ?? null}
           container={container}
           hiddenCount={props.hiddenCount ?? 0}
           onSelect={props.onSelect ?? NOOP}
@@ -67,6 +90,9 @@ function renderChip(props: {
           onGestureStart={props.onGestureStart ?? NOOP}
           onGestureCommit={props.onGestureCommit ?? NOOP}
           onDelete={props.onDelete ?? NOOP}
+          onToggleImageHidden={props.onToggleImageHidden ?? NOOP}
+          onImageOpacity={props.onImageOpacity ?? NOOP}
+          onDeleteImage={props.onDeleteImage ?? NOOP}
         />
       </TooltipProvider>
     );
@@ -103,10 +129,30 @@ function stubPointerCapture(element: Element): void {
  * deliver, so the menu is driven the way a keyboard user drives it.
  */
 function openChecksMenu(): void {
-  const trigger = document.querySelector<HTMLButtonElement>(
-    'button[aria-label="Suppressed checks"]'
-  );
-  if (!trigger) throw new Error('the class menu trigger did not render');
+  openMenu('Suppressed checks');
+}
+
+function openImageMenu(): void {
+  openMenu('Reference image');
+}
+
+/**
+ * Move a range input the way a user does.
+ *
+ * Assigning `.value` directly is invisible to React: its value tracker sees no
+ * change and swallows the `input` event, so `onChange` never fires and the
+ * assertion fails for a reason that has nothing to do with the component. Going
+ * through the prototype's setter is what updates the tracker too.
+ */
+function dragSlider(slider: HTMLInputElement, value: string): void {
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+  setter?.call(slider, value);
+  slider.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function openMenu(label: string): void {
+  const trigger = document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+  if (!trigger) throw new Error(`the ${label} menu trigger did not render`);
   act(() => {
     trigger.focus();
     trigger.dispatchEvent(
@@ -210,7 +256,7 @@ describe('SuppressionRegionChip', () => {
     expect(document.querySelector('button[aria-label="Delete region"]')).not.toBeNull();
   });
 
-  it('offers no opacity or stacking controls at all', () => {
+  it('offers no opacity or stacking controls for the region itself', () => {
     renderChip({});
 
     // Those belong to reference images. Neither says anything about what a
@@ -218,6 +264,95 @@ describe('SuppressionRegionChip', () => {
     expect(chip().querySelector('input[type="range"]')).toBeNull();
     expect(document.querySelector('button[aria-label="Bring to front"]')).toBeNull();
     expect(document.querySelector('button[aria-label="Send to back"]')).toBeNull();
+    // And no image menu either, because this region owns no image.
+    expect(document.querySelector('button[aria-label="Reference image"]')).toBeNull();
+  });
+
+  describe('the reference image it owns', () => {
+    /**
+     * The bug this whole control exists for: a detection's underlay is `locked`
+     * so it never takes a click meant for the creases over it, and locked is
+     * absolute — no body, no handles, no context menu, and no lock toggle exists
+     * anywhere in the product. Without a control on this bar the user can see the
+     * image and can do nothing whatsoever about it.
+     */
+    it('offers a menu only when there is an image to control', () => {
+      renderChip({ image: referenceImage() });
+      expect(document.querySelector('button[aria-label="Reference image"]')).not.toBeNull();
+
+      renderChip({ image: null });
+      expect(document.querySelector('button[aria-label="Reference image"]')).toBeNull();
+    });
+
+    it('draws the trigger pressed while the image is showing, and not while it is hidden', () => {
+      renderChip({ image: referenceImage({ hidden: false }) });
+      expect(
+        document.querySelector('button[aria-label="Reference image"]')?.getAttribute('data-active')
+      ).toBe('true');
+
+      renderChip({ image: referenceImage({ hidden: true }) });
+      expect(
+        document.querySelector('button[aria-label="Reference image"]')?.getAttribute('data-active')
+      ).toBeNull();
+    });
+
+    it('carries show, opacity and delete, and routes each to its own verb', () => {
+      const onToggleImageHidden = vi.fn();
+      const onImageOpacity = vi.fn();
+      const onDeleteImage = vi.fn();
+      renderChip({
+        image: referenceImage(),
+        onToggleImageHidden,
+        onImageOpacity,
+        onDeleteImage,
+      });
+      openImageMenu();
+
+      const item = (label: string) =>
+        [...document.querySelectorAll<HTMLElement>('.context-menu__item')].find((candidate) =>
+          candidate.textContent?.includes(label)
+        );
+      act(() => item('Show reference image')?.click());
+      expect(onToggleImageHidden).toHaveBeenCalledTimes(1);
+
+      // Not `AnnotationActions`' bring-to-front / send-to-back: the renderer's
+      // z-slot order is fixed at grid, regions, images, creases, so a reference
+      // image is already exactly where it belongs and `z` only sorts within the
+      // image layer. A reorder control here would do nothing.
+      expect(item('Bring to front')).toBeUndefined();
+      expect(item('Send to back')).toBeUndefined();
+
+      const slider = document.querySelector<HTMLInputElement>('input[type="range"]');
+      if (!slider) throw new Error('the image menu rendered no opacity slider');
+      expect(slider.value).toBe('50');
+      act(() => dragSlider(slider, '20'));
+      expect(onImageOpacity).toHaveBeenCalledWith(0.2);
+
+      act(() => item('Remove reference image')?.click());
+      expect(onDeleteImage).toHaveBeenCalledTimes(1);
+    });
+
+    it('brackets an opacity drag as one undo entry, not one per sample', () => {
+      const onGestureStart = vi.fn();
+      const onGestureCommit = vi.fn();
+      renderChip({ image: referenceImage(), onGestureStart, onGestureCommit });
+      openImageMenu();
+
+      const slider = document.querySelector<HTMLInputElement>('input[type="range"]');
+      if (!slider) throw new Error('the image menu rendered no opacity slider');
+      // Three samples of one drag: the snapshot opens once, on the first.
+      act(() => {
+        for (const value of ['40', '30', '20']) dragSlider(slider, value);
+      });
+      expect(onGestureStart).toHaveBeenCalledTimes(1);
+      expect(onGestureCommit).not.toHaveBeenCalled();
+
+      // The native `change` is release. A pointer-up on a range thumb can swallow
+      // it, which is why the listener is on the element rather than on React's
+      // synthetic onChange.
+      act(() => slider.dispatchEvent(new Event('change', { bubbles: true })));
+      expect(onGestureCommit).toHaveBeenCalledWith('Adjust reference image');
+    });
   });
 
   it('draws the class menu pressed only while something is suppressed', () => {

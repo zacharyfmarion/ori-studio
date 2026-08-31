@@ -308,10 +308,10 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
   /**
    * Keep the result: the region goes away and full checking comes back.
    *
-   * **The source image stays.** It is still the best thing to compare the solved
-   * pattern against, it is the user's own annotation by then, and deleting it
-   * would be this flow reaching outside itself to throw away something the user
-   * can see and can remove in one click.
+   * **The source image stays, unlocked.** It is still the best thing to compare
+   * the solved pattern against, and it is the user's own annotation by then —
+   * see {@link removeRegionReleasingImage} for why releasing the lock is the
+   * part that makes that true rather than a trap.
    */
   const onAccept = useCallback(
     async (regionId: string) => {
@@ -335,7 +335,7 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
         }
       }
       write(regionId, null);
-      removeRegionKeepingImage(regionId, acceptLabel(latest.current.t));
+      removeRegionReleasingImage(regionId, acceptLabel(latest.current.t));
     },
     [records, revision, write]
   );
@@ -490,16 +490,34 @@ function commandTargetRegion(): CpSuppressionRegion | null {
 }
 
 /**
- * Delete the region without touching anything else on the layer.
+ * Delete the region and **release** the reference image it owned.
+ *
+ * The source image stays: it is still the best thing to compare the solved
+ * pattern against, and this flow reaching outside itself to throw away something
+ * the user can see would be the wrong call. What changes on the way out is that
+ * it stops being locked.
+ *
+ * That is not a detail. The image is locked during repair so it never takes a
+ * click meant for the creases being drawn over it, and locked is absolute — the
+ * overlay gives it no body, no handles and no context menu, and there is no lock
+ * toggle anywhere in the product. So a locked image released from its region is
+ * an underlay the user can see and can never select, fade or delete; this
+ * function used to leave exactly that behind, under a comment claiming they
+ * could remove it in one click. Unlocking is what makes that true: it becomes an
+ * ordinary image with the ordinary `CpImageInspector`.
  *
  * Bracketed by hand rather than through `useCpRegionActions.removeRegion` only
  * because the label has to say what the user pressed; the protocol is the same
  * one, and it is the annotation stack's own single-entry rule.
  */
-function removeRegionKeepingImage(regionId: string, label: string): void {
+function removeRegionReleasingImage(regionId: string, label: string): void {
   const store = useWorkspaceStore.getState();
   const before = store.oristudioCpAnnotations;
+  const region = before.find((annotation) => annotation.id === regionId);
+  const imageId =
+    region && isSuppressionRegionAnnotation(region) ? region.imageId : undefined;
   store.removeAnnotation(regionId);
+  if (imageId) store.updateAnnotation(imageId, { locked: false });
   store.recordAnnotationHistory([...before], label);
 }
 
