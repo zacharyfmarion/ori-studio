@@ -206,10 +206,7 @@ export function setUprightView(view: SimulatorOrbitView): SimulatorOrbitView {
  */
 export type SimulatorViewDirection = readonly [number, number, number];
 
-/**
- * Below this, a direction is on the yaw axis and yaw has nothing left to name.
- * Squared distance from the pole, so no root is taken to compare it.
- */
+/** Below this, a direction is on the yaw axis and yaw has nothing left to name. */
 const POLE_EPSILON = 1e-9;
 
 /**
@@ -241,9 +238,22 @@ const POLE_EPSILON = 1e-9;
  * `DEFAULT_SIMULATOR_VIEW` is at −0.955 and {@link UPRIGHT_PITCH} at −π/2 — and
  * it puts screen-up on world `+Y` for all four side-on views.
  *
- * On the yaw axis itself the yaw is free, so the current one is kept: a snap to
- * Top or Bottom must not also spin the paper about the direction you are
- * looking down.
+ * ## On the poles the yaw is answered, not inherited
+ *
+ * Looking straight down the yaw axis, every yaw draws the same eye — so nothing
+ * about the *direction* pins the in-plane angle, and this used to keep whatever
+ * the camera already had. The reasoning was that a snap should not spin the
+ * paper about the line of sight for no reason. It is wrong: keeping the yaw does
+ * not avoid an arbitrary spin, it preserves one. Off the poles the yaw *is*
+ * pinned by the direction, so the four side faces came up square while Top and
+ * Bottom came up at whatever angle the last drag happened to end on — the same
+ * verb behaving two different ways, which is what someone reported.
+ *
+ * Zero, then, and zero is not a fallback: at `(yaw 0, pitch 0)` the view
+ * transform reduces to `screen_x = FOLD x`, `screen_y = −FOLD y`, so Top is the
+ * fold laid out exactly as the crease-pattern canvas draws it. Bottom is that
+ * seen through the sheet. Every one of the six is now one view rather than a
+ * family of them.
  */
 export function simulatorViewLookingFrom(
   view: SimulatorOrbitView,
@@ -252,7 +262,7 @@ export function simulatorViewLookingFrom(
   const flat = Math.hypot(direction[0], direction[2]);
   return {
     ...view,
-    yaw: flat < POLE_EPSILON ? view.yaw : Math.atan2(direction[0], -direction[2]),
+    yaw: flat < POLE_EPSILON ? 0 : Math.atan2(direction[0], -direction[2]),
     pitch: Math.atan2(-flat, direction[1]),
   };
 }

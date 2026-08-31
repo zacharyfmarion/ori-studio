@@ -85,12 +85,26 @@ describe('looking from a direction', () => {
     expect(view.pitch).toBeCloseTo(-0.9553166, 6);
   });
 
-  it('keeps the yaw on the poles, where it names nothing', () => {
-    // Looking straight down the yaw axis, every yaw draws the same eye. Choosing
-    // one would spin the paper about the line of sight for no reason.
+  it('answers the yaw on the poles rather than inheriting it', () => {
+    // Nothing about the direction pins the in-plane angle here, so keeping the
+    // camera's own yaw does not avoid an arbitrary spin — it preserves one. The
+    // four side faces come up square because their yaw *is* pinned; Top and
+    // Bottom used to come up at whatever angle the last drag ended on.
     const start: SimulatorOrbitView = { yaw: 1.234, pitch: -0.7, zoom: 1 };
-    expect(simulatorViewLookingFrom(start, [0, 1, 0]).yaw).toBe(start.yaw);
-    expect(simulatorViewLookingFrom(start, [0, -1, 0]).yaw).toBe(start.yaw);
+    expect(simulatorViewLookingFrom(start, [0, 1, 0]).yaw).toBe(0);
+    expect(simulatorViewLookingFrom(start, [0, -1, 0]).yaw).toBe(0);
+  });
+
+  it('lays Top out the way the crease-pattern canvas draws it', () => {
+    // Which is why zero is the answer rather than merely a fallback: at
+    // (yaw 0, pitch 0) the transform is screen_x = FOLD x, screen_y = −FOLD y.
+    const top = simulatorViewLookingFrom({ yaw: 2.5, pitch: 0.4, zoom: 1 }, [0, 1, 0]);
+    const m = viewRotationFor(top);
+    // Row 0 is screen-right, row 1 screen-up.
+    expect([m[0], m[1], m[2]]).toEqual([1, 0, 0]);
+    expect(m[3]).toBeCloseTo(0, 12);
+    expect(m[4]).toBeCloseTo(0, 12);
+    expect(m[5]).toBeCloseTo(1, 12);
   });
 
   it('leaves any roll alone: it is not the eye either', () => {
