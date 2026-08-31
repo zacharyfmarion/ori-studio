@@ -47,10 +47,22 @@ measures the hole cycle.
 - `crates/oristudio-cp/src/folding.rs` + `session.rs` — the cleared-faces no-op
   and the hole-aware wording for a parity abort.
 
+## Outcome
+
+Verified in the browser on the reported file: it opens, `Cmd+A` + `G` folds it,
+and the folded figure draws with one layer ordering and no error. The `.osf`
+itself carries a stranded `status: 'error'` folded-figure entry from when the
+bug fired — the persistence half of Phase 4, in the wild.
+
+Two things stay refused, and correctly: a hole no crease reaches (the paper face
+is then annular, which a vertex ring cannot describe — the Euler gate refuses it,
+and lifting that needs a multi-ring face representation), and fold angles that
+genuinely do not close around the hole cycle (`LoopNotClosed`).
+
 ## Checklist
 
 - [x] Phase 1 — hole filter in `calculate_faces`, with unit tests
 - [x] Phase 2 — flat + 3D integration coverage on holed sheets
 - [x] Phase 3 — name the failure: interior-cut parity abort, cleared-faces no-op
 - [x] Phase 4 — frontend: stop stranding a failed folded figure
-- [ ] Phase 5 — validate (fmt, clippy, workspace tests, web checks) and run the app
+- [x] Phase 5 — validate (fmt, clippy, workspace tests, web checks) and run the app
