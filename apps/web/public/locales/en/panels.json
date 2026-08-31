@@ -707,7 +707,17 @@
     "stepReadout": "Step {{n}}",
     "strain": "Strain {{value}}",
     "title": "Simulator",
-    "unavailable": "Simulator unavailable"
+    "unavailable": "Simulator unavailable",
+    "viewCube": {
+      "back": "Back",
+      "bottom": "Bottom",
+      "front": "Front",
+      "label": "View cube",
+      "left": "Left",
+      "right": "Right",
+      "roll": "Roll the view",
+      "top": "Top"
+    }
   },
   "simulatorExport": {
     "png": "PNG image",
@@ -764,7 +774,8 @@
     "style": "Style",
     "stylePaper": "Paper",
     "styleXray": "X-ray",
-    "valley": "Valley"
+    "valley": "Valley",
+    "viewCube": "View cube"
   },
   "textAnnotation": {
     "addText": "Add text",

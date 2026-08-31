@@ -729,7 +729,17 @@
     "stepReadout": "Paso {{n}}",
     "strain": "Tensión {{value}}",
     "title": "Simulador",
-    "unavailable": "Simulador no disponible"
+    "unavailable": "Simulador no disponible",
+    "viewCube": {
+      "back": "Posterior",
+      "bottom": "Inferior",
+      "front": "Frontal",
+      "label": "Cubo de vistas",
+      "left": "Izquierda",
+      "right": "Derecha",
+      "roll": "Girar la vista",
+      "top": "Superior"
+    }
   },
   "simulatorExport": {
     "png": "Imagen PNG",
@@ -787,7 +797,8 @@
     "style": "Estilo",
     "stylePaper": "Papel",
     "styleXray": "Rayos X",
-    "valley": "Valle"
+    "valley": "Valle",
+    "viewCube": "Cubo de vistas"
   },
   "textAnnotation": {
     "addText": "Añadir texto",

@@ -23,7 +23,7 @@ let root: Root | null = null;
 let host: HTMLDivElement | null = null;
 let pushCamera: Mock<PushCamera>;
 
-function render(interactive: boolean, claimsWheel?: () => boolean) {
+function render(interactive: boolean, claimsWheel?: () => boolean, viewCube = false) {
   act(() => {
     root?.render(
       <SimulatorViewport
@@ -33,6 +33,7 @@ function render(interactive: boolean, claimsWheel?: () => boolean) {
         claimsWheel={claimsWheel}
         gpuActive
         viewSettings={DEFAULT_SIMULATOR_SETTINGS}
+        viewCube={viewCube}
         pushCamera={pushCamera}
         pushRenderSettings={() => {}}
         ariaLabel="simulator"
@@ -143,5 +144,200 @@ describe('SimulatorViewport wheel gestures', () => {
 
     expect(event.defaultPrevented).toBe(false);
     expect(pushCamera).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The view cube snap.
+ *
+ * The animation is the *camera's*, not the cube's — it moves `viewRef` every
+ * frame so the fold and the cube follow one motion — which is why it is asserted
+ * here, on what reaches the worker, rather than on what the cube looks like.
+ *
+ * Frames are driven by hand. jsdom's `requestAnimationFrame` runs on a timer, so
+ * waiting for real ones would make "did it land exactly" a race.
+ */
+describe('SimulatorViewport view cube', () => {
+  let frames: FrameRequestCallback[];
+  let clock: number;
+
+  /** Run every frame requested so far, at `clock` ms. */
+  function runFrames(steps: number) {
+    for (let i = 0; i < steps; i += 1) {
+      const pending = frames;
+      frames = [];
+      clock += 16;
+      act(() => pending.forEach((frame) => frame(clock)));
+    }
+  }
+
+  /** A face's own middle cell — the one that snaps to the face itself. */
+  function press(label: string) {
+    const spots = Array.from(
+      host?.querySelectorAll<HTMLButtonElement>('.simulator-view-cube__spot--face') ?? []
+    );
+    const spot = spots.find((element) => element.getAttribute('aria-label') === label);
+    expect(spot, label).toBeDefined();
+    act(() => spot?.click());
+  }
+
+  /** The camera the viewport most recently pushed. */
+  function lastView(): SimulatorOrbitView {
+    const view = pushCamera.mock.calls.at(-1)?.[0];
+    expect(view).toBeDefined();
+    return view as SimulatorOrbitView;
+  }
+
+  beforeEach(() => {
+    frames = [];
+    clock = 1000;
+    // jsdom implements no pointer capture at all, so these are added rather than
+    // spied on, and removed again below.
+    const element = HTMLElement.prototype as unknown as Record<string, unknown>;
+    element.setPointerCapture = () => {};
+    element.hasPointerCapture = () => false;
+    element.releasePointerCapture = () => {};
+    vi.spyOn(performance, 'now').mockImplementation(() => clock);
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((frame) => {
+      frames.push(frame);
+      return frames.length;
+    });
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {
+      frames = [];
+    });
+  });
+
+  afterEach(() => {
+    const element = HTMLElement.prototype as unknown as Record<string, unknown>;
+    delete element.setPointerCapture;
+    delete element.hasPointerCapture;
+    delete element.releasePointerCapture;
+    vi.restoreAllMocks();
+  });
+
+  it('turns to the face that was pressed, and lands on it exactly', () => {
+    render(true, undefined, true);
+
+    press('Top');
+    // Generous: the snap is ~250ms at 16ms a frame, and the loop stops itself.
+    runFrames(40);
+
+    // Looking straight down the paper's normal. Not "close to" — a snap that
+    // stopped short would leave the camera off every named viewpoint.
+    expect(lastView().pitch).toBeCloseTo(0, 12);
+    expect(frames).toHaveLength(0);
+  });
+
+  it('moves through the turn rather than jumping', () => {
+    render(true, undefined, true);
+    const opening = DEFAULT_SIMULATOR_VIEW.pitch;
+
+    press('Top');
+    runFrames(3);
+    const partway = lastView().pitch;
+
+    expect(partway).toBeGreaterThan(opening);
+    expect(partway).toBeLessThan(0);
+    expect(frames.length).toBeGreaterThan(0);
+  });
+
+  it('gives the camera up the moment a drag starts', () => {
+    // A snap still running would overwrite the drag on its next frame, and the
+    // canvas would read as dead until the animation finished.
+    render(true, undefined, true);
+    press('Back');
+    runFrames(2);
+
+    act(() => {
+      canvas().dispatchEvent(
+        new PointerEvent('pointerdown', { pointerId: 1, clientX: 0, clientY: 0, bubbles: true })
+      );
+    });
+
+    expect(frames).toHaveLength(0);
+    const stopped = lastView().pitch;
+    runFrames(5);
+    expect(lastView().pitch).toBe(stopped);
+  });
+
+  it('stands the picture back up when a face is pressed', () => {
+    // A named viewpoint is one view, not a family of them. It also has to be:
+    // the ring can only be reached square-on to a face, so a view rolled from a
+    // corner would have no way home if a snap kept the roll.
+    render(true, undefined, true);
+    const front = Array.from(
+      host?.querySelectorAll<HTMLButtonElement>('.simulator-view-cube__spot--face') ?? []
+    ).find((spot) => spot.getAttribute('aria-label') === 'Front');
+
+    // Roll it well away from upright, then snap.
+    act(() => {
+      // Shift on the *press*: the mode is fixed there, so setting it only on
+      // the move would make this an ordinary orbit and prove nothing.
+      front?.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          pointerId: 8,
+          clientX: 0,
+          clientY: 0,
+          shiftKey: true,
+          bubbles: true,
+        })
+      );
+      front?.dispatchEvent(
+        new PointerEvent('pointermove', {
+          pointerId: 8,
+          clientX: 90,
+          clientY: 0,
+          shiftKey: true,
+          bubbles: true,
+        })
+      );
+    });
+    expect(lastView().roll, 'the drag rolled it first').toBeCloseTo(0.9, 6);
+
+    press('Front');
+    runFrames(40);
+
+    expect(lastView().roll).toBe(0);
+  });
+
+  it('keeps the zoom a snap was made at', () => {
+    render(true, undefined, true);
+    pinch(-100);
+    const zoomed = lastZoom();
+
+    press('Right');
+    runFrames(40);
+
+    expect(lastView().zoom).toBe(zoomed);
+  });
+
+  it('turns the model when the cube itself is dragged', () => {
+    // End to end through the real gesture, not the cube's mock of it: a drag on
+    // the cube has to reach the camera exactly as a drag on the canvas does.
+    render(true, undefined, true);
+    const front = Array.from(
+      host?.querySelectorAll<HTMLButtonElement>('.simulator-view-cube__spot--face') ?? []
+    ).find((spot) => spot.getAttribute('aria-label') === 'Front');
+    expect(front).toBeDefined();
+
+    const send = (type: string, x: number, y: number) =>
+      act(() => {
+        front?.dispatchEvent(
+          new PointerEvent(type, { pointerId: 3, clientX: x, clientY: y, bubbles: true })
+        );
+      });
+    send('pointerdown', 200, 200);
+    send('pointermove', 260, 200);
+    send('pointerup', 260, 200);
+
+    // Dragging right lowers the yaw, the same way and by the same amount as on
+    // the canvas — 60px at the shared sensitivity.
+    expect(lastView().yaw).toBeCloseTo(DEFAULT_SIMULATOR_VIEW.yaw - 0.6, 12);
+  });
+
+  it('is off unless a surface asks for it', () => {
+    render(true);
+
+    expect(host?.querySelector('.simulator-view-cube')).toBeNull();
   });
 });

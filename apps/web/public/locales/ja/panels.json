@@ -689,7 +689,17 @@
     "stepReadout": "ステップ {{n}}",
     "strain": "ひずみ {{value}}",
     "title": "シミュレーター",
-    "unavailable": "シミュレーターを利用できません"
+    "unavailable": "シミュレーターを利用できません",
+    "viewCube": {
+      "back": "後",
+      "bottom": "下",
+      "front": "前",
+      "label": "ビューキューブ",
+      "left": "左",
+      "right": "右",
+      "roll": "ビューを回転",
+      "top": "上"
+    }
   },
   "simulatorExport": {
     "png": "PNG 画像",
@@ -745,7 +755,8 @@
     "style": "スタイル",
     "stylePaper": "紙",
     "styleXray": "X線",
-    "valley": "谷"
+    "valley": "谷",
+    "viewCube": "ビューキューブ"
   },
   "textAnnotation": {
     "addText": "テキストを追加",

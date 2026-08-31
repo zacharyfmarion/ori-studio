@@ -8,7 +8,7 @@ import {
 
 describe('simulator orbit controls', () => {
   const view: SimulatorOrbitView = { yaw: 1, pitch: 0.2, zoom: 1.5 };
-  const drag: SimulatorOrbitDrag = { x: 100, y: 100, yaw: view.yaw, pitch: view.pitch };
+  const drag: SimulatorOrbitDrag = { x: 100, y: 100, yaw: view.yaw, pitch: view.pitch, roll: 0 };
 
   it('maps horizontal dragging to conventional orbit direction', () => {
     expect(nextSimulatorOrbitView(view, drag, { x: 140, y: 100 }).yaw).toBeLessThan(view.yaw);

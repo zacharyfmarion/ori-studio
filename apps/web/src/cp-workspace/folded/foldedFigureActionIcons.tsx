@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import {
-  ArrowUpToLine,
+  Axis3d,
   ChevronFirst,
   ChevronRight,
   Copy,
@@ -35,11 +35,12 @@ export function foldedFigureActionIconNode(
     // than undoing anything the user did to the paper.
     case 'reset-view':
       return <Focus size={size} />;
-    // An upward arrow to a line: this declares which way is up, so the glyph is
-    // about the axis rather than about rotating — nothing here turns the model,
-    // it renames the pole the turntable spins on.
+    // A three-axis gizmo: this declares which way is up, so the glyph is about
+    // the frame rather than about rotating — nothing here turns the model, it
+    // renames the pole the turntable spins on. An arrow-to-a-line said that too,
+    // but it is also the universal glyph for "upload", which is what it read as.
     case 'set-upright':
-      return <ArrowUpToLine size={size} />;
+      return <Axis3d size={size} />;
     case 'style':
       return <Layers size={size} />;
     case 'another':

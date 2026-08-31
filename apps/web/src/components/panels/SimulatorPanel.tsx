@@ -10,7 +10,7 @@ import {
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
-  ArrowUpToLine,
+  Axis3d,
   Pause,
   Play,
   RefreshCw,
@@ -505,7 +505,7 @@ export function SimulatorPanel() {
                 announceUprightSet(t);
               }}
             >
-              <ArrowUpToLine size={14} />
+              <Axis3d size={14} />
             </IconButton>
             <SimulatorExportMenu
               onExport={exportView}
@@ -524,6 +524,9 @@ export function SimulatorPanel() {
             interactive={loadState === "ready"}
             gpuActive={gpuActive}
             viewSettings={viewSettings}
+            // This is the surface with room for one. `.simulator-panel__body` is
+            // the positioned container it anchors to; see the prop.
+            viewCube={viewSettings.showViewCube}
             pushCamera={pushCamera}
             pushRenderSettings={pushRenderSettings}
             perfSurface="simulate-panel"

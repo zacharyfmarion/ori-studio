@@ -59,6 +59,8 @@ export {
   projectViewPoint,
   toViewSpace,
   viewRotation,
+  viewRotationFor,
+  rollRotation,
   viewDepthAxis,
   multiplyMat3,
   transposeMat3,

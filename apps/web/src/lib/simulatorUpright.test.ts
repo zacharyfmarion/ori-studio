@@ -5,7 +5,12 @@ import {
   setUprightView,
   type SimulatorOrbitView,
 } from './simulatorOrbit';
-import { toViewSpace, viewRotation, type CameraUniforms, type Mat3 } from '@treemaker/origami-simulator';
+import {
+  toViewSpace,
+  viewRotationFor,
+  type CameraUniforms,
+  type Mat3,
+} from '@treemaker/origami-simulator';
 
 /**
  * Setting which way is up.
@@ -31,7 +36,7 @@ function uniforms(rotation: Mat3): CameraUniforms {
 
 /** Where a model direction lands in view space, under a whole view. */
 function imageOf(view: SimulatorOrbitView, d: readonly [number, number, number]) {
-  const camera = uniforms(viewRotation(view.yaw, view.pitch, view.orient));
+  const camera = uniforms(viewRotationFor(view));
   return toViewSpace(d[0], d[1], d[2], camera);
 }
 
@@ -39,7 +44,7 @@ function imageOf(view: SimulatorOrbitView, d: readonly [number, number, number])
 function screenUpAxis(view: SimulatorOrbitView): [number, number, number] {
   // Rows of a rotation are orthonormal, so the inverse is the transpose: the
   // direction mapping to view +Y is the middle *column*, i.e. row 1 read down.
-  const m = viewRotation(view.yaw, view.pitch, view.orient);
+  const m = viewRotationFor(view);
   return [m[3], m[4], m[5]];
 }
 
@@ -113,7 +118,7 @@ describe('setting the current view as upright', () => {
     const upright = setUprightView(VIEWS[0]!);
     expect(upright.pitch).toBe(UPRIGHT_PITCH);
 
-    const drag = { x: 0, y: 0, yaw: upright.yaw, pitch: upright.pitch };
+    const drag = { x: 0, y: 0, yaw: upright.yaw, pitch: upright.pitch, roll: 0 };
     const down = nextSimulatorOrbitView(upright, drag, { x: 0, y: 40 });
     const up = nextSimulatorOrbitView(upright, drag, { x: 0, y: -40 });
     expect(down.pitch).toBeGreaterThan(upright.pitch);
@@ -122,6 +127,24 @@ describe('setting the current view as upright', () => {
 
   it('keeps zoom, which is not a rotation', () => {
     for (const view of VIEWS) expect(setUprightView(view).zoom).toBe(view.zoom);
+  });
+
+  it('absorbs a roll rather than leaving it to be applied twice', () => {
+    // The orientation it derives is the *whole* rotation, roll included. Keeping
+    // the roll beside it would spin the picture again on the next frame, which
+    // is exactly the promise this verb makes it does not do.
+    for (const view of VIEWS) {
+      const rolled = { ...view, roll: 0.8 };
+      const upright = setUprightView(rolled);
+      expect(upright.roll).toBe(0);
+      for (const probe of PROBES) {
+        const before = imageOf(rolled, probe);
+        const after = imageOf(upright, probe);
+        expect(after[0]).toBeCloseTo(before[0], 12);
+        expect(after[1]).toBeCloseTo(before[1], 12);
+        expect(after[2]).toBeCloseTo(before[2], 12);
+      }
+    }
   });
 });
 

@@ -707,7 +707,17 @@
     "stepReadout": "Schritt {{n}}",
     "strain": "Dehnung {{value}}",
     "title": "Simulator",
-    "unavailable": "Simulator nicht verfügbar"
+    "unavailable": "Simulator nicht verfügbar",
+    "viewCube": {
+      "back": "Hinten",
+      "bottom": "Unten",
+      "front": "Vorne",
+      "label": "Ansichtswürfel",
+      "left": "Links",
+      "right": "Rechts",
+      "roll": "Ansicht drehen",
+      "top": "Oben"
+    }
   },
   "simulatorExport": {
     "png": "PNG-Bild",
@@ -764,7 +774,8 @@
     "style": "Stil",
     "stylePaper": "Papier",
     "styleXray": "Röntgen",
-    "valley": "Tal"
+    "valley": "Tal",
+    "viewCube": "Ansichtswürfel"
   },
   "textAnnotation": {
     "addText": "Text hinzufügen",

@@ -751,7 +751,17 @@
     "stepReadout": "Шаг {{n}}",
     "strain": "Натяжение {{value}}",
     "title": "Симулятор",
-    "unavailable": "Симулятор недоступен"
+    "unavailable": "Симулятор недоступен",
+    "viewCube": {
+      "back": "Сзади",
+      "bottom": "Снизу",
+      "front": "Спереди",
+      "label": "Куб вида",
+      "left": "Слева",
+      "right": "Справа",
+      "roll": "Повернуть вид",
+      "top": "Сверху"
+    }
   },
   "simulatorExport": {
     "png": "Изображение PNG",
@@ -810,7 +820,8 @@
     "style": "Стиль",
     "stylePaper": "Бумага",
     "styleXray": "Просвет",
-    "valley": "Долина"
+    "valley": "Долина",
+    "viewCube": "Куб вида"
   },
   "textAnnotation": {
     "addText": "Добавить текст",

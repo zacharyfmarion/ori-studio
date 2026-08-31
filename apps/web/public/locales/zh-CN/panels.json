@@ -689,7 +689,17 @@
     "stepReadout": "第 {{n}} 步",
     "strain": "张力 {{value}}",
     "title": "模拟器",
-    "unavailable": "模拟器不可用"
+    "unavailable": "模拟器不可用",
+    "viewCube": {
+      "back": "后",
+      "bottom": "下",
+      "front": "前",
+      "label": "视图立方体",
+      "left": "左",
+      "right": "右",
+      "roll": "旋转视图",
+      "top": "上"
+    }
   },
   "simulatorExport": {
     "png": "PNG 图像",
@@ -745,7 +755,8 @@
     "style": "样式",
     "stylePaper": "纸张",
     "styleXray": "X 射线",
-    "valley": "谷折"
+    "valley": "谷折",
+    "viewCube": "视图立方体"
   },
   "textAnnotation": {
     "addText": "添加文本",
