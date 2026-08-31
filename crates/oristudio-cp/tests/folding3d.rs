@@ -7,7 +7,7 @@
 //! not drift.
 
 use oristudio_cp::CLOSURE_RESIDUAL_BAR_DEGREES;
-use oristudio_cp::checks_spatial::Vec3;
+use oristudio_cp::checks_spatial::{Vec3, dispatched_camv};
 use oristudio_cp::folding3d::{
     Fold3dOutcome, Fold3dPlacementError, Fold3dRefusal, Fold3dTolerances, Placement3d, admit,
     admit_with, place_segments,
@@ -438,6 +438,10 @@ fn distance(a: Vec3, b: Vec3) -> f64 {
 
 /// A drawn ring: four radial creases at 90 degrees around a square hole whose
 /// edges are borders.
+///
+/// Multiply-connected paper, and admitted as such: the hole is dropped by
+/// `FoldGraph::without_hole_faces`, so the ring places and the loop gap is what
+/// judges it.
 fn annulus_90() -> Vec<LineSegment> {
     let square = |r: f64| {
         [
@@ -467,20 +471,56 @@ fn annulus_90() -> Vec<LineSegment> {
     segments
 }
 
+/// A square sheet cut in two by an interior border, with a crease so the spatial
+/// branch has something to look at.
+///
+/// A **cut**, not a hole: both sides are paper, so neither is dropped and the
+/// divider keeps two traced faces. Every ring segment is split where something
+/// meets it, or the arrangement declines to trace and the fixture proves nothing.
+fn divided_square_90() -> Vec<LineSegment> {
+    let border = |ax: f64, ay: f64, bx: f64, by: f64| {
+        LineSegment::with_color(Point::new(ax, ay), Point::new(bx, by), LineColor::Black0)
+    };
+    let mut segments = vec![
+        border(0.0, 0.0, 100.0, 0.0),
+        border(100.0, 0.0, 200.0, 0.0),
+        border(200.0, 0.0, 200.0, 200.0),
+        border(200.0, 200.0, 100.0, 200.0),
+        border(100.0, 200.0, 0.0, 200.0),
+        border(0.0, 200.0, 0.0, 100.0),
+        border(0.0, 100.0, 0.0, 0.0),
+        border(100.0, 0.0, 100.0, 100.0),
+        border(100.0, 100.0, 100.0, 200.0),
+    ];
+    segments.push(
+        LineSegment::with_color(
+            Point::new(0.0, 100.0),
+            Point::new(100.0, 100.0),
+            LineColor::Red1,
+        )
+        .with_fold_magnitude(FoldMagnitude::from_degrees(90.0)),
+    );
+    segments
+}
+
 /// The interior-cut refusal, through the gate, in the order the gate applies it.
 ///
 /// Two claims, and the second is the one worth a test. The first is that a cut
-/// drawn inside the sheet refuses at all. The second is that it refuses *here*,
-/// before the placement — because the placement also declines this document, for
-/// an unrelated reason (`NonCreaseJoin`, two faces meeting across a border), and
-/// that refusal names a segment without saying the check above it examined
-/// nothing. Reorder the gate and this test is what notices.
+/// drawn inside the sheet refuses at all. The second is that it refuses *first*,
+/// ahead of the flat check — this document's T-junctions also break Oriedita's
+/// `NumberOfFolds`, and that refusal names a vertex without saying the check
+/// above it examined nothing. Reorder the gate and this test is what notices.
+///
+/// The fixture used to be `annulus_90`, back when a hole was traced as paper and
+/// its boundary therefore had paper on both sides. A ring is now admitted (see
+/// below), so the shape that exercises this refusal is one where both sides
+/// really are paper.
 ///
 /// `InteriorCut` is the corpus's third most common verdict — 7 of 65 files —
 /// which is why it is not left to an external corpus run to cover.
 #[test]
 fn a_cut_drawn_inside_the_sheet_is_refused_before_the_placement_is_attempted() {
-    let segments = annulus_90();
+    let segments = divided_square_90();
 
     match admit(&segments, 1) {
         Err(Fold3dPlacementError::Refused(Fold3dRefusal::InteriorCut { line, point })) => {
@@ -490,36 +530,69 @@ fn a_cut_drawn_inside_the_sheet_is_refused_before_the_placement_is_attempted() {
                 "the refusal has to name a border segment"
             );
             assert!(
-                point.x.abs() <= 40.0 + 1e-9 && point.y.abs() <= 40.0 + 1e-9,
-                "the named border is the inner square's, not the paper's edge: {point:?}"
+                (point.x - 100.0).abs() < 1e-9,
+                "the named border is the divider, not the paper's edge: {point:?}"
             );
         }
         other => panic!("expected an interior cut, got {other:?}"),
     }
 
-    // The placement's own verdict on the same document, so the ordering claim
+    // The flat check's own verdict on the same document, so the ordering claim
     // above is about two refusals that both really fire.
+    let model = CreasePatternModel {
+        line_segments: segments.clone(),
+        ..CreasePatternModel::default()
+    };
     assert!(
-        matches!(
-            place_segments(&segments, 1),
-            Err(Fold3dPlacementError::Refused(
-                Fold3dRefusal::NonCreaseJoin { .. }
-            ))
-        ),
-        "the placement is supposed to decline this too, for its own reason"
+        !dispatched_camv(&model).flat.is_empty(),
+        "the flat check is supposed to decline this too, for its own reason"
     );
+}
+
+/// Multiply-connected paper is admitted, and the loop gap is what judges it.
+///
+/// The counterpart to the test above, and the reason its fixture had to change.
+/// A hole is not a cut: `FoldGraph::without_hole_faces` drops it, its boundary
+/// becomes an ordinary paper edge, and nothing reports an interior border. What
+/// carries correctness from there is the loop gap — the condition that is an
+/// algebraic consequence of per-vertex closure on a disk and the only one that
+/// works on a ring, where every vertex touches a border and the closure check
+/// examines nothing at all.
+///
+/// Four 90-degree radial creases do not close, and the gap says so.
+#[test]
+fn a_ring_places_and_is_judged_by_the_loop_gap() {
+    let segments = annulus_90();
+
+    let placement = place_segments(&segments, 1).expect("a ring places");
+    assert_eq!(
+        placement.loop_gap.non_tree_edges, 1,
+        "the cycle around the hole is the one independent consistency condition"
+    );
+
+    match admit(&segments, 1) {
+        Err(Fold3dPlacementError::Refused(Fold3dRefusal::LoopNotClosed {
+            gap_radians, ..
+        })) => {
+            assert!(
+                (gap_radians - 2.094_395_1).abs() < 1e-6,
+                "the ring is out by {gap_radians} rad"
+            );
+        }
+        other => panic!("expected the loop gap to judge the ring, got {other:?}"),
+    }
 }
 
 /// The loop-gap bar is a gate, not a report.
 ///
-/// **No fixture reaches this and none is expected to**: on simply connected
-/// paper a closed loop follows from per-vertex closure, and the coverage hole
-/// that made the implication false — a border the closure check declines to look
-/// at — is refused one step earlier by `InteriorCut`. So the gate is driven
-/// directly, by moving the bar under a placement's own measured gap rather than
-/// by authoring geometry that cannot exist. What this pins is that the
-/// comparison happens, that it is relative to the span, and that it reports the
-/// numbers the placement measured.
+/// **No simply connected fixture reaches this**: on a disk a closed loop follows
+/// from per-vertex closure. A ring does reach it — see
+/// `a_ring_places_and_is_judged_by_the_loop_gap` — but a ring cannot show that
+/// the bar is *relative to the span*, because its gap is orders of magnitude
+/// over any bar. So this drives the gate directly, by moving the bar under a
+/// real placement's own measured gap. What it pins is that the comparison
+/// happens, that it scales with the span, and that it reports the numbers the
+/// placement measured.
 #[test]
 fn the_loop_gap_refusal_fires_when_the_measured_gap_exceeds_the_bar() {
     let Some(model) = try_fixture(TEST_LOOP_GAP_REFUSAL, "penguin_freeform") else {

@@ -1431,7 +1431,7 @@ pub fn estimate_wireframe_from_segments(
         return Ok(None);
     }
 
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -1455,7 +1455,7 @@ pub fn face_position_wireframe_from_segments(
         return Ok(None);
     }
 
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -1499,7 +1499,7 @@ pub fn folded_subface_figure_from_segments(
         return Ok(None);
     }
 
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -1617,7 +1617,7 @@ pub fn initial_hierarchy_from_segments(
         return Ok(None);
     }
 
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -1637,7 +1637,7 @@ pub fn equivalence_condition_candidates_from_segments(
         return Ok(None);
     }
 
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -1734,7 +1734,7 @@ pub fn additional_estimation_from_segments(
         return Ok(None);
     }
 
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -2693,7 +2693,7 @@ fn overlap_enumerator_from_segments(
     }
 
     fold_phase_timer!("enumerator start");
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -2747,7 +2747,7 @@ fn two_colored_overlap_enumerator_from_segments(
         return Ok(None);
     }
 
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -2790,7 +2790,7 @@ fn folded_graph_and_wireframe_from_segments(
         return Ok(None);
     }
 
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }

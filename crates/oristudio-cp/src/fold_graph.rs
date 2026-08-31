@@ -99,7 +99,7 @@ impl FoldGraph {
         } else {
             model.line_segments.clone()
         };
-        let mut graph = Self::from_segments(&segments, true);
+        let mut graph = Self::from_sheet_segments(&segments);
         if !graph.include_faces {
             graph.calculate_faces_per_component();
         }
@@ -151,7 +151,7 @@ impl FoldGraph {
                 .iter()
                 .filter_map(|&line| self.segments.get(line).cloned())
                 .collect();
-            let part = Self::from_segments(&segments, true);
+            let part = Self::from_sheet_segments(&segments);
             if !part.include_faces {
                 return;
             }
@@ -231,6 +231,30 @@ impl FoldGraph {
                 .push(index);
         }
         groups.into_values().collect()
+    }
+
+    /// The arrangement of a **sheet** — segments the user drew, where a bounded
+    /// region enclosed by border is a hole in the paper rather than paper.
+    ///
+    /// Opt-in, and deliberately not the default. Several arrangements in this
+    /// crate are *derived* rather than drawn: `folding3d::cells` synthesises one
+    /// per plane with every segment coloured `Black0` because colour is
+    /// meaningless there, and the flat folder builds one over the folded image's
+    /// subfaces. Their bounded regions are cells and subfaces, not paper, and
+    /// dropping the enclosed ones silently removes real work — measured, an
+    /// unconditional filter turned `spikes_small` from `Folded` into
+    /// `NoLayerOrder { OverlapWithoutCell }`.
+    ///
+    /// So the sheet path names itself. A site that should use this and does not
+    /// keeps today's behaviour (a hole folded as paper, which is a loud parity
+    /// abort); a derived site that used it by accident would lose cells quietly.
+    /// Opting in is the direction whose mistakes are visible.
+    pub(crate) fn from_sheet_segments(segments: &[LineSegment]) -> Self {
+        let mut graph = Self::from_segments(segments, true);
+        if graph.include_faces {
+            graph.drop_hole_faces();
+        }
+        graph
     }
 
     pub(crate) fn from_segments(segments: &[LineSegment], calculate_faces: bool) -> Self {
@@ -415,6 +439,107 @@ impl FoldGraph {
             Vec::new()
         };
         include_faces
+    }
+
+    /// Drop the traced faces that are holes in the sheet rather than paper.
+    ///
+    /// `calculate_faces` traces every positively-oriented bounded region — the
+    /// only filter is `face_area(..) > 0.0`, which discards exactly one region,
+    /// the unbounded face. That is faithful to Oriedita
+    /// (`PointSet.isNonDegenerated`), whose sheet is always a disk, and it means
+    /// a hole comes back **filled**. Its border segments then carry two traced
+    /// faces each, so `line_face_border` reports them as joins,
+    /// `initial_hierarchy_from_graph` reads them as creases, and the parity seed
+    /// aborts on the odd cycle the hole face makes in the dual graph — blaming
+    /// whichever crease the walk reached first. See
+    /// `research/2026-08-31-holes-in-the-folding-pipeline.md`.
+    ///
+    /// The rule is Flat-Folder's, which this repo already ports for the other
+    /// flat solver (`treemaker-flatfold`'s `normalize_fold`, from
+    /// `third_party/flat-folder/src/io.js:277`): **a face whose every edge is a
+    /// boundary edge is a hole.**
+    ///
+    /// # The added clause, and why it is not optional
+    ///
+    /// Upstream is safe with the bare rule because its input is FOLD, where `B`
+    /// means paper boundary by definition and an interior divider would be `F`
+    /// or `U`. Here `Black0` is a primary palette colour users draw with, and
+    /// FOLD `C` (cut) and `J` (join) both import onto it as well. Under the bare
+    /// rule a plain square split in half by one interior `Black0` line has *two*
+    /// all-border faces and loses both — upstream's only guard is
+    /// `FV.length > 1`, which does not stop that.
+    ///
+    /// So a ring edge must also **have a face on the other side**. That is
+    /// `checks_spatial::interior_border_segments`' own predicate — a border
+    /// segment with paper on both sides — lifted from one segment to a whole
+    /// ring. A hole is enclosed by construction; each half of a divided square
+    /// carries outer-boundary edges, which belong to one traced face because the
+    /// unbounded face is never traced.
+    ///
+    /// Never removes *every* face: an all-`Black0` grid is a genuinely ambiguous
+    /// document, and answering it with an empty arrangement is worse than
+    /// answering it the way we do today.
+    ///
+    /// **After the Euler gate, never before.** `F - E + V == 1` counts every
+    /// bounded region, and on paper with `h` holes the holes are exactly the `h`
+    /// faces that make the arithmetic come out right — a subdivided annulus has
+    /// `V - E + F_paper == 0`. Dropping them first would move the target to
+    /// `1 - h`, which the 0.005 slack cannot absorb below ~200 faces, and the
+    /// gate would refuse every holed sheet.
+    fn drop_hole_faces(&mut self) {
+        if self.faces.len() < 2 {
+            return;
+        }
+
+        // A vertex pair is a border iff *every* line drawn on it is `Black0`. A
+        // crease drawn over a border is a degenerate document either way, and
+        // this is the reading that declines to drop rather than the one that
+        // drops on a coincidence.
+        let mut border_pair: HashMap<(usize, usize), bool> = HashMap::new();
+        for line in &self.lines {
+            let key = (line.begin.min(line.end), line.begin.max(line.end));
+            let is_border = line.color == LineColor::Black0;
+            border_pair
+                .entry(key)
+                .and_modify(|all| *all &= is_border)
+                .or_insert(is_border);
+        }
+
+        let mut ring_faces: HashMap<(usize, usize), usize> = HashMap::new();
+        for face in &self.faces {
+            for index in 0..face.len() {
+                let (a, b) = (face[index], face[(index + 1) % face.len()]);
+                *ring_faces.entry((a.min(b), a.max(b))).or_default() += 1;
+            }
+        }
+
+        let is_hole = |face: &Vec<usize>| {
+            !face.is_empty()
+                && (0..face.len()).all(|index| {
+                    let (a, b) = (face[index], face[(index + 1) % face.len()]);
+                    let key = (a.min(b), a.max(b));
+                    border_pair.get(&key) == Some(&true)
+                        && ring_faces.get(&key).copied().unwrap_or(0) >= 2
+                })
+        };
+
+        let holes = self.faces.iter().filter(|face| is_hole(face)).count();
+        if holes == 0 || holes == self.faces.len() {
+            return;
+        }
+
+        self.faces.retain(|face| !is_hole(face));
+        // Face ids shifted, so the line/face index has to be rebuilt from the
+        // reduced set rather than patched.
+        let mut incidence = vec![Vec::<usize>::new(); self.points.len()];
+        for (index, face) in self.faces.iter().enumerate() {
+            for &point in face {
+                if let Some(entries) = incidence.get_mut(point) {
+                    entries.push(index);
+                }
+            }
+        }
+        self.line_face_borders = self.line_face_borders_from_incidence(&incidence);
     }
 
     /// Oriedita `PointSet.findLineInFaceBorder()`: resolve every line's border
@@ -844,12 +969,136 @@ mod tests {
     /// from segment *endpoints*, so undivided crossings contribute no vertex and
     /// the graph comes back with no faces at all. Callers in `folding.rs` reach
     /// the graph only after `divide_intersections`; this is the same shape.
+    ///
+    /// Border on the perimeter and creases inside, because that is what a sheet
+    /// is. An all-`Black0` grid — which this used to be — is a document in which
+    /// every interior cell is enclosed by border on all four sides, so
+    /// [`FoldGraph::without_hole_faces`] reads the interior as holes and the
+    /// fixture quietly shrinks from `n²` faces to its perimeter ring. That
+    /// ambiguity is real and covered by its own test below; it has no business
+    /// thinning the arrangement these tests are about.
     fn grid_segments(n: usize) -> Vec<LineSegment> {
         let step = 400.0 / n as f64;
         let at = |i: usize| i as f64 * step;
+        let color = |i: usize| {
+            if i == 0 || i == n {
+                LineColor::Black0
+            } else {
+                LineColor::Blue2
+            }
+        };
         let mut segments = Vec::new();
         for i in 0..=n {
             for j in 0..n {
+                segments.push(LineSegment::with_color(
+                    Point::new(at(i), at(j)),
+                    Point::new(at(i), at(j + 1)),
+                    color(i),
+                ));
+                segments.push(LineSegment::with_color(
+                    Point::new(at(j), at(i)),
+                    Point::new(at(j + 1), at(i)),
+                    color(i),
+                ));
+            }
+        }
+        segments
+    }
+
+    /// A square sheet with a rectangular hole cut out of it, and one crease from
+    /// the hole to the outer boundary so the paper region is simply connected.
+    fn holed_sheet() -> Vec<LineSegment> {
+        let border = |ax: f64, ay: f64, bx: f64, by: f64| {
+            LineSegment::with_color(Point::new(ax, ay), Point::new(bx, by), LineColor::Black0)
+        };
+        let mut segments = vec![
+            border(-200.0, -200.0, 50.0, -200.0),
+            border(50.0, -200.0, 200.0, -200.0),
+            border(200.0, -200.0, 200.0, 200.0),
+            border(200.0, 200.0, 50.0, 200.0),
+            border(50.0, 200.0, -200.0, 200.0),
+            border(-200.0, 200.0, -200.0, -200.0),
+            border(50.0, -50.0, 100.0, -50.0),
+            border(100.0, -50.0, 100.0, 50.0),
+            border(100.0, 50.0, 50.0, 50.0),
+            border(50.0, 50.0, 50.0, -50.0),
+        ];
+        for (ax, ay, bx, by) in [(50.0, -200.0, 50.0, -50.0), (50.0, 50.0, 50.0, 200.0)] {
+            segments.push(LineSegment::with_color(
+                Point::new(ax, ay),
+                Point::new(bx, by),
+                LineColor::Blue2,
+            ));
+        }
+        segments
+    }
+
+    /// The reported bug: the hole was traced as paper, so its border segments
+    /// carried two faces each and read as creases.
+    #[test]
+    fn a_hole_in_the_sheet_is_not_traced_as_paper() {
+        let graph = FoldGraph::from_sheet_segments(&holed_sheet());
+        assert!(graph.include_faces, "the arrangement traces");
+        assert_eq!(
+            graph.faces.len(),
+            2,
+            "two paper faces either side of the fold line, and no filled hole"
+        );
+
+        // The point of dropping it: every border segment now belongs to one
+        // traced face, so `initial_hierarchy_from_graph` skips them all.
+        for (index, line) in graph.lines.iter().enumerate() {
+            if line.color != LineColor::Black0 {
+                continue;
+            }
+            let border = graph.line_face_border(index);
+            assert!(
+                border.is_none_or(|(first, second)| first == second),
+                "border line {index} still looks like a join: {border:?}"
+            );
+        }
+    }
+
+    /// The clause this repo adds to Flat-Folder's rule. Both halves of a divided
+    /// square have every edge in `Black0`, and upstream's unclaused filter — its
+    /// only guard is `FV.length > 1` — would drop both and leave nothing.
+    #[test]
+    fn a_square_split_by_an_interior_border_keeps_both_halves() {
+        let border = |ax: f64, ay: f64, bx: f64, by: f64| {
+            LineSegment::with_color(Point::new(ax, ay), Point::new(bx, by), LineColor::Black0)
+        };
+        let segments = vec![
+            border(0.0, 0.0, 100.0, 0.0),
+            border(100.0, 0.0, 200.0, 0.0),
+            border(200.0, 0.0, 200.0, 200.0),
+            border(200.0, 200.0, 100.0, 200.0),
+            border(100.0, 200.0, 0.0, 200.0),
+            border(0.0, 200.0, 0.0, 0.0),
+            border(100.0, 0.0, 100.0, 200.0),
+        ];
+
+        let graph = FoldGraph::from_sheet_segments(&segments);
+        assert_eq!(
+            graph.faces.len(),
+            2,
+            "neither half is enclosed — each carries outer-boundary edges"
+        );
+    }
+
+    /// A document drawn entirely in border colour is genuinely ambiguous: every
+    /// interior cell is enclosed by border on all four sides, and nothing local
+    /// distinguishes "hole" from "separate piece".
+    ///
+    /// Pinned rather than defended. What the filter must **not** do is answer it
+    /// with an empty arrangement, which is what upstream's unclaused rule does
+    /// and what would turn a fold into a silent no-op.
+    #[test]
+    fn an_all_border_grid_keeps_its_perimeter_ring() {
+        let step = 100.0;
+        let at = |i: usize| i as f64 * step;
+        let mut segments = Vec::new();
+        for i in 0..=3 {
+            for j in 0..3 {
                 segments.push(LineSegment::with_color(
                     Point::new(at(i), at(j)),
                     Point::new(at(i), at(j + 1)),
@@ -862,7 +1111,26 @@ mod tests {
                 ));
             }
         }
-        segments
+
+        let graph = FoldGraph::from_sheet_segments(&segments);
+        assert_eq!(
+            graph.faces.len(),
+            8,
+            "the one enclosed cell is read as a hole; the perimeter ring is not"
+        );
+        assert!(!graph.faces.is_empty(), "never every face");
+    }
+
+    /// A document with no border lines at all — the common case — must be
+    /// untouched. No face can be all-border, so the filter is a no-op.
+    #[test]
+    fn a_document_with_no_border_lines_is_untouched() {
+        let creases: Vec<LineSegment> = grid_segments(4)
+            .into_iter()
+            .map(|segment| segment.with_line_color(LineColor::Blue2))
+            .collect();
+        let graph = FoldGraph::from_sheet_segments(&creases);
+        assert_eq!(graph.faces.len(), 16);
     }
 
     /// The cache is only a faster way to compute the scan, so it must agree with

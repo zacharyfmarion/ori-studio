@@ -457,6 +457,51 @@ fn annulus(inner_angle_degrees: f64) -> CreasePatternModel {
     model
 }
 
+/// A square sheet cut in half by one interior border line, plus a crease so the
+/// spatial branch of the dispatch has a reason to look.
+///
+/// This, not [`annulus`], is what "a border with paper on both sides" means now.
+/// A hole's boundary has paper on *one* side — `calculate_faces` no longer
+/// traces the hole as paper — while both halves of this square are paper and the
+/// divider genuinely separates them. The outer ring is pre-split at the
+/// divider's endpoints so the arrangement traces.
+fn divided_square(inner_angle_degrees: f64) -> CreasePatternModel {
+    let mut model = CreasePatternModel::default();
+    // Every ring segment is split where something else meets it: an unsplit
+    // T-junction makes the arrangement decline to trace at all, and then
+    // `interior_border_segments` reports nothing for want of faces rather than
+    // because there is nothing to report.
+    for pair in [
+        ((0.0, 0.0), (100.0, 0.0)),
+        ((100.0, 0.0), (200.0, 0.0)),
+        ((200.0, 0.0), (200.0, 200.0)),
+        ((200.0, 200.0), (100.0, 200.0)),
+        ((100.0, 200.0), (0.0, 200.0)),
+        ((0.0, 200.0), (0.0, 100.0)),
+        ((0.0, 100.0), (0.0, 0.0)),
+        ((100.0, 0.0), (100.0, 100.0)),
+        ((100.0, 100.0), (100.0, 200.0)),
+    ] {
+        model.add_line_segment(crease(
+            pair.0.0,
+            pair.0.1,
+            pair.1.0,
+            pair.1.1,
+            LineColor::Black0,
+            None,
+        ));
+    }
+    model.add_line_segment(crease(
+        0.0,
+        100.0,
+        100.0,
+        100.0,
+        LineColor::Red1,
+        Some(inner_angle_degrees),
+    ));
+    model
+}
+
 #[test]
 fn the_closure_check_examines_nothing_on_an_annulus() {
     // Not the bug — the *reason* the bug is invisible, pinned so a later change
@@ -642,21 +687,36 @@ fn the_unreachable_vertex_produces_a_camv_error_entry() {
 
 #[test]
 fn a_border_with_paper_on_both_sides_is_named() {
-    let borders = interior_border_segments(&annulus(90.0));
+    let borders = interior_border_segments(&divided_square(90.0));
 
     assert_eq!(
         borders.len(),
-        4,
-        "the four inner-square segments have paper on both sides; the four outer \
-         ones are the real paper edge"
+        2,
+        "both halves of the divider have paper on both sides; the seven outer \
+         segments are the real paper edge"
     );
     for border in &borders {
         assert!(
-            (50.0..=150.0).contains(&border.point.x) && (50.0..=150.0).contains(&border.point.y),
-            "an inner-ring midpoint, not an outer one: {:?}",
+            (border.point.x - 100.0).abs() < 1e-9,
+            "a point on the divider, not on an outer segment: {:?}",
             border.point
         );
     }
+}
+
+/// The counterpart, and the reason the fixture above had to change: a hole's
+/// boundary is **not** a border with paper on both sides.
+///
+/// `calculate_faces` used to trace the hole as paper, which made every one of
+/// the inner ring's segments look like a cut — this same assertion read 4. The
+/// hole is dropped now (`FoldGraph::without_hole_faces`), so the ring bounds
+/// paper on one side only, exactly like the outer edge.
+#[test]
+fn a_hole_boundary_is_the_paper_edge_and_not_a_cut() {
+    assert!(
+        interior_border_segments(&annulus(90.0)).is_empty(),
+        "a ring's inner boundary is where the paper stops, not a cut through it"
+    );
 }
 
 #[test]
@@ -686,8 +746,8 @@ fn a_plain_square_has_no_interior_border() {
 /// one making a claim. An all-classic document's `CheckCamv` output has to stay
 /// byte-identical to Oriedita's, and that is what this pins.
 #[test]
-fn an_all_classic_annulus_reports_no_interior_border_through_the_dispatch() {
-    let mut classic = annulus(90.0);
+fn an_all_classic_cut_reports_no_interior_border_through_the_dispatch() {
+    let mut classic = divided_square(90.0);
     for segment in &mut classic.line_segments {
         *segment = segment.clone().with_fold_magnitude(None);
     }
@@ -699,7 +759,7 @@ fn an_all_classic_annulus_reports_no_interior_border_through_the_dispatch() {
         "no non-classic crease, so nothing consults it and nothing pays for it"
     );
     // The borders are still there; only the dispatch declines to look.
-    assert_eq!(interior_border_segments(&classic).len(), 4);
+    assert_eq!(interior_border_segments(&classic).len(), 2);
 }
 
 /// The spatial half of `CheckCamv` speaks a fixed vocabulary of `rule` codes,
@@ -754,10 +814,15 @@ fn the_spatial_check_emits_only_the_rules_the_frontend_words() {
     ];
 
     // Every shape that has ever produced a spatial diagnostic in this suite:
-    // an annulus whose inner ring is an interior border, a vertex whose creases
-    // do not close, a degree-3 rigid vertex, and a vertex whose undecided crease
-    // has no closing angle.
-    let mut models = vec![annulus(90.0), unreachable_undecided_vertex()];
+    // a square whose interior divider is a cut through the paper, a vertex whose
+    // creases do not close, a degree-3 rigid vertex, and a vertex whose
+    // undecided crease has no closing angle.
+    //
+    // The `InteriorBorder` fixture used to be an annulus, back when the hole was
+    // traced as paper and its inner ring therefore looked like four cuts. A
+    // divided square is the shape that actually has paper on both sides of a
+    // border, so it is the one that keeps this rule reachable.
+    let mut models = vec![divided_square(90.0), unreachable_undecided_vertex()];
 
     // The same closing degree-5 fan as `crossing` below, with the first one or
     // two creases left undecided: one unknown is solvable and names its angle,

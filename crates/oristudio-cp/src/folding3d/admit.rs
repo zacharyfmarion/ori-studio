@@ -127,7 +127,7 @@ pub fn admit_with(
     // 2. Trace the arrangement, once. Step 3's interior-border question and
     //    step 4's placement both need it, and it is the most expensive thing
     //    this function does.
-    let graph = FoldGraph::from_segments(&segments, true);
+    let graph = FoldGraph::from_sheet_segments(&segments);
 
     //    Then the shipped check, dispatched per vertex: Oriedita's flat rules
     //    where every incident crease is a full fold, the closure condition where
