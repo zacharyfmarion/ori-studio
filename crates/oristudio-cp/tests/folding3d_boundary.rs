@@ -87,16 +87,28 @@ fn fold_loaded(session: &mut CpSession, document: u32, name: &str) -> Fold3dFold
 /// document the **flat** folder answers, built here rather than taken from the
 /// 3D fixtures because every one of those is either non-classic or (in
 /// `box_90_unangled`'s case) not flat-foldable at all.
+///
+/// The top and bottom edges are split where the crease meets them. They were
+/// not, and the arrangement therefore did not trace at all: the fold below
+/// returned a handle to a figure with no faces in it, and the assertions passed
+/// on geometry nothing had folded. `fold_faces_unresolved` is what noticed.
 fn folded_in_half() -> Vec<LineSegment> {
-    let corner = [
-        Point::new(0.0, 0.0),
-        Point::new(400.0, 0.0),
-        Point::new(400.0, 400.0),
-        Point::new(0.0, 400.0),
+    let ring = [
+        ((0.0, 0.0), (200.0, 0.0)),
+        ((200.0, 0.0), (400.0, 0.0)),
+        ((400.0, 0.0), (400.0, 400.0)),
+        ((400.0, 400.0), (200.0, 400.0)),
+        ((200.0, 400.0), (0.0, 400.0)),
+        ((0.0, 400.0), (0.0, 0.0)),
     ];
-    let mut segments: Vec<LineSegment> = (0..4)
-        .map(|slot| {
-            LineSegment::with_color(corner[slot], corner[(slot + 1) % 4], LineColor::Black0)
+    let mut segments: Vec<LineSegment> = ring
+        .iter()
+        .map(|((ax, ay), (bx, by))| {
+            LineSegment::with_color(
+                Point::new(*ax, *ay),
+                Point::new(*bx, *by),
+                LineColor::Black0,
+            )
         })
         .collect();
     segments.push(LineSegment::with_color(
