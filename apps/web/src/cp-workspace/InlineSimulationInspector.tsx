@@ -2,7 +2,7 @@ import { useCallback, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { ArrowUpToLine, Palette, Pause, Play, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
+import { Axis3d, Palette, Pause, Play, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
 import { FloatingToolbar } from '../components/ui/FloatingToolbar';
 import { resolveCpViewportCanvas } from './cpViewportCanvas';
 import { IconButton } from '../components/ui/IconButton';
@@ -195,7 +195,7 @@ export function InlineSimulationInspector({
         title={t('panels:creasePattern.inlineSimulation.setUpright', 'Set upright')}
         onClick={onSetUpright}
       >
-        <ArrowUpToLine size={14} />
+        <Axis3d size={14} />
       </IconButton>
       <IconButton
         size="sm"

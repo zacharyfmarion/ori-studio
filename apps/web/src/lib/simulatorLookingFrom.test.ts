@@ -100,16 +100,40 @@ describe('looking from a direction', () => {
     expect(looked.orient).toBe(upright.orient);
   });
 
-  it('still reaches the paper axis after an upright has been set', () => {
-    // `orient` multiplies on the right of the camera, so it has to be folded into
-    // the target before the angles are solved. Transposing it here would pass
-    // every identity-orientation test above and be wrong on every standing model.
+  it('names directions in the frame an upright chose, not the paper’s', () => {
+    // The argument is in the camera's own frame, so an upright changes which
+    // physical direction it names and nothing about how it is solved. That is
+    // what lets a view cube stay honest across one: the cube shows the frame the
+    // angles turn in, so its vertical is the axis a drag actually spins about.
     for (const start of STARTING_VIEWS) {
       const upright = setUprightView(start);
       expect(upright.orient).toBeDefined();
       for (const [, direction] of AXES) {
-        expectDirection(eyeDirection(simulatorViewLookingFrom(upright, direction)), direction);
+        const looked = simulatorViewLookingFrom(upright, direction);
+        // Row 2 of the camera alone — the eye in the chosen frame.
+        const camera = viewRotation(looked.yaw, looked.pitch);
+        expectDirection([camera[6], camera[7], camera[8]], direction);
+        // And the orientation is carried, not consumed.
+        expect(looked.orient).toBe(upright.orient);
       }
+    }
+  });
+
+  it('leaves the paper reachable through the orientation it was given', () => {
+    // The paper's axes have not gone anywhere; they are just no longer what an
+    // argument names. `orient · n` is the paper direction `n` restated in the
+    // chosen frame, and asking for that still puts the eye on the paper's axis —
+    // which is the conversion this function used to do for every caller.
+    const upright = setUprightView({ yaw: 1.2, pitch: 0.3, zoom: 2.5 });
+    const orient = upright.orient!;
+    for (const [, direction] of AXES) {
+      const inChosenFrame: SimulatorViewDirection = [
+        orient[0] * direction[0] + orient[1] * direction[1] + orient[2] * direction[2],
+        orient[3] * direction[0] + orient[4] * direction[1] + orient[5] * direction[2],
+        orient[6] * direction[0] + orient[7] * direction[1] + orient[8] * direction[2],
+      ];
+      const looked = simulatorViewLookingFrom(upright, inChosenFrame);
+      expectDirection(eyeDirection(looked), direction);
     }
   });
 });

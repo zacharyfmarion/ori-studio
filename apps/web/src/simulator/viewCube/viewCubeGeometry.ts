@@ -139,6 +139,9 @@ function viewCubeFace(
  * pattern's bottom edge, and it is the edge nearest the eye at the simulator's
  * opening view; hence Front.
  *
+ * That derivation is about the frame the angles turn in, which is the paper's
+ * until **Set upright** renames it; see {@link viewCubeRotation}.
+ *
  * Note this is *not* OpenSCAD Studio's mapping, which relabels three.js's
  * `[+X, −X, +Y, −Y, +Z, −Z]` as Front/Back/Top/Bottom/Left/Right for OpenSCAD's
  * coordinate convention. Ours is the paper's.
@@ -185,11 +188,28 @@ const CSS_Y_FLIP: Mat3 = [1, 0, 0, 0, -1, 0, 0, 0, 1];
  * The cube's rotation, in CSS's coordinate space (x right, y **down**, z toward
  * the viewer).
  *
- * A proper rotation at every angle and under any `orient` — that is the
- * invariant the tests assert, and the reason the cube can be plain CSS.
+ * A proper rotation at every angle — that is the invariant the tests assert, and
+ * the reason the cube can be plain CSS.
+ *
+ * ## `orient` is deliberately left out
+ *
+ * The cube shows the frame the camera's angles turn in, not the paper's. Until
+ * an upright is set the two are the same thing, so this reads as the paper's
+ * axes and the labels mean the paper's sides.
+ *
+ * After **Set upright** they part, and following the paper is the wrong half.
+ * The turntable now spins about the axis the user picked, so a cube anchored to
+ * the paper tumbles about an axis running through it at an angle — it no longer
+ * turns the way the drag does, and its faces no longer name what pressing them
+ * would do. Anchored here, its vertical *is* the pole, a sideways drag spins it
+ * like a turntable, and pressing Top looks down the up that was just chosen.
+ *
+ * The trade is that after an upright the labels name the chosen frame rather
+ * than the paper — which is the point of having chosen one. The way back to the
+ * paper's own frame is the view reset, which drops the orientation.
  */
 export function viewCubeRotation(view: SimulatorOrbitView): Mat3 {
-  const camera = viewRotation(view.yaw, view.pitch, view.orient);
+  const camera = viewRotation(view.yaw, view.pitch);
   return multiplyMat3(CSS_Y_FLIP, multiplyMat3(multiplyMat3(camera, CUBE_BASIS), CSS_Y_FLIP));
 }
 
@@ -231,7 +251,9 @@ export function viewCubeTransform(view: SimulatorOrbitView): string {
  * meaning anything a reader could check.
  */
 export function visibleViewCubeFaces(view: SimulatorOrbitView): number {
-  const eye = viewDepthAxis(viewRotation(view.yaw, view.pitch, view.orient));
+  // Without `orient`, matching {@link viewCubeRotation}: the faces are the
+  // camera frame's, so which of them face the eye is asked in that frame too.
+  const eye = viewDepthAxis(viewRotation(view.yaw, view.pitch));
   let mask = 0;
   VIEW_CUBE_FACES.forEach((face, index) => {
     const facing =

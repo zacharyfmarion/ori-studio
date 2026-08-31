@@ -146,17 +146,16 @@ export function setUprightView(view: SimulatorOrbitView): SimulatorOrbitView {
  * Which way we are looking from
  * ----------------------------------------------------------------------- */
 
-/** A unit direction in the renderer's world: Y is the flat paper's normal. */
+/**
+ * A unit direction in the frame the camera's angles turn in.
+ *
+ * That is the renderer's world — Y the flat paper's normal — until an upright is
+ * set, and the frame chosen by {@link setUprightView} afterwards. Naming it in
+ * the *camera's* frame rather than the paper's is what keeps a view cube honest
+ * across an upright: the cube shows the frame you are navigating, so its
+ * vertical is the axis a drag actually spins about.
+ */
 export type SimulatorViewDirection = readonly [number, number, number];
-
-/** Row-major `m · v`. */
-function transformVec3(m: Mat3, v: SimulatorViewDirection): SimulatorViewDirection {
-  return [
-    m[0] * v[0] + m[1] * v[1] + m[2] * v[2],
-    m[3] * v[0] + m[4] * v[1] + m[5] * v[2],
-    m[6] * v[0] + m[7] * v[1] + m[8] * v[2],
-  ];
-}
 
 /**
  * Below this, a direction is on the yaw axis and yaw has nothing left to name.
@@ -180,8 +179,10 @@ const POLE_EPSILON = 1e-9;
  * row 2 = (−sin p · sin y,  cos p,  sin p · cos y)
  * ```
  *
- * with `orient` folded in first — the stored rotation multiplies on the right of
- * the camera, so requiring `row2(C · O) = n` gives `row2(C)ᵀ = O · n`.
+ * `orient` is carried through untouched and takes no part in the arithmetic:
+ * `direction` is already in the frame those angles turn in, which is what
+ * `orient` defines. So an upright changes which physical direction a given
+ * argument names, and changes nothing about how it is solved.
  *
  * ## The sign of the hypotenuse is load-bearing
  *
@@ -199,12 +200,11 @@ export function simulatorViewLookingFrom(
   view: SimulatorOrbitView,
   direction: SimulatorViewDirection
 ): SimulatorOrbitView {
-  const target = view.orient ? transformVec3(view.orient, direction) : direction;
-  const flat = Math.hypot(target[0], target[2]);
+  const flat = Math.hypot(direction[0], direction[2]);
   return {
     ...view,
-    yaw: flat < POLE_EPSILON ? view.yaw : Math.atan2(target[0], -target[2]),
-    pitch: Math.atan2(-flat, target[1]),
+    yaw: flat < POLE_EPSILON ? view.yaw : Math.atan2(direction[0], -direction[2]),
+    pitch: Math.atan2(-flat, direction[1]),
   };
 }
 

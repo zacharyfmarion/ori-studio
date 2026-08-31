@@ -8,7 +8,7 @@ import {
 import type { TFunction } from "i18next";
 import {
   AlertTriangle,
-  ArrowUpToLine,
+  Axis3d,
   Pause,
   Play,
   RefreshCw,
@@ -559,7 +559,7 @@ export function SimulatorPanel() {
                 announceUprightSet(t);
               }}
             >
-              <ArrowUpToLine size={14} />
+              <Axis3d size={14} />
             </IconButton>
             <SimulatorExportMenu
               onExport={exportView}
