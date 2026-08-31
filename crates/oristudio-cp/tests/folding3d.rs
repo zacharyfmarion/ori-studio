@@ -630,6 +630,80 @@ fn a_holed_sheet_whose_hole_cycle_closes_is_admitted() {
     );
 }
 
+/// A fold line a hole interrupts is still **one** fold line.
+///
+/// The regression this pins is a soundness hole, not a message: `loop_gap.offset`
+/// is sampled at the two endpoints of the crease the spanning tree dropped, and
+/// both lie *on* that crease, so a holonomy that is a rotation about that line
+/// fixes them and measures an exact `0.0` at any angle. Holding only `offset`
+/// therefore admitted a sheet whose one fold line was folded 90 degrees below the
+/// hole and 20 degrees above it — geometry in which the paper between them has to
+/// tear.
+///
+/// It was unreachable while `InteriorCut` refused every holed sheet, because on a
+/// disk per-vertex closure rules that rotation out independently. Holed paper
+/// reaches the gate now, so the gate holds both halves.
+#[test]
+fn an_interrupted_fold_line_cannot_be_folded_two_different_ways() {
+    let border = |ax: f64, ay: f64, bx: f64, by: f64| {
+        LineSegment::with_color(Point::new(ax, ay), Point::new(bx, by), LineColor::Black0)
+    };
+    let sheet = |bottom: f64, top: f64| {
+        let mut segments = vec![
+            border(-200.0, -200.0, 50.0, -200.0),
+            border(50.0, -200.0, 200.0, -200.0),
+            border(200.0, -200.0, 200.0, 200.0),
+            border(200.0, 200.0, 50.0, 200.0),
+            border(50.0, 200.0, -200.0, 200.0),
+            border(-200.0, 200.0, -200.0, -200.0),
+            border(50.0, -50.0, 100.0, -50.0),
+            border(100.0, -50.0, 100.0, 50.0),
+            border(100.0, 50.0, 50.0, 50.0),
+            border(50.0, 50.0, 50.0, -50.0),
+        ];
+        for (ax, ay, bx, by, degrees) in [
+            (50.0, -200.0, 50.0, -50.0, bottom),
+            (50.0, 50.0, 50.0, 200.0, top),
+        ] {
+            segments.push(
+                LineSegment::with_color(Point::new(ax, ay), Point::new(bx, by), LineColor::Blue2)
+                    .with_fold_magnitude(FoldMagnitude::from_degrees(degrees)),
+            );
+        }
+        segments
+    };
+
+    // The control: one angle on both halves is the same fold, and it is admitted.
+    assert!(
+        admit(&sheet(90.0, 90.0), 1).is_ok(),
+        "one fold line at one angle is a fold"
+    );
+
+    for (bottom, top) in [(90.0, 20.0), (90.0, 179.0), (150.0, 30.0), (90.0, 91.0)] {
+        let segments = sheet(bottom, top);
+        // The blind half reads a clean zero, which is the whole point.
+        let placement = place_segments(&segments, 1).expect("it places");
+        assert_eq!(
+            placement.loop_gap.offset, 0.0,
+            "{bottom}/{top}: the endpoint sample cannot see this"
+        );
+        assert!(
+            placement.loop_gap.rotation_radians > 1e-3,
+            "{bottom}/{top}: the rotation half must see it, got {}",
+            placement.loop_gap.rotation_radians
+        );
+        assert!(
+            matches!(
+                admit(&segments, 1),
+                Err(Fold3dPlacementError::Refused(
+                    Fold3dRefusal::LoopNotClosed { .. }
+                ))
+            ),
+            "{bottom}/{top}: folding one line two ways must be refused"
+        );
+    }
+}
+
 /// The loop-gap bar is a gate, not a report.
 ///
 /// **No simply connected fixture reaches this**: on a disk a closed loop follows

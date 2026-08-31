@@ -159,9 +159,21 @@ pub(crate) enum Convention {
 #[derive(Debug, Clone, PartialEq)]
 pub struct LoopGap {
     /// Worst rotation disagreement over the non-tree dual adjacencies, radians.
+    ///
+    /// **Not a diagnostic — the other half of the test.** [`Self::offset`] is
+    /// blind to exactly one thing, and this is that thing; see its docs. The
+    /// gate holds both.
     pub rotation_radians: f64,
     /// Worst disagreement about where the shared crease's endpoints land, in
     /// paper units. This is the number the fixture corpus records.
+    ///
+    /// **Blind to a rotation about the closing crease's own line, structurally
+    /// and not by luck.** Both sampled points lie on that line, so such a
+    /// holonomy fixes them and this reads an exact `0.0` however large the
+    /// rotation. [`Self::rotation_radians`] is what sees it, and
+    /// `folding3d::admit` gates the two together — a zero here on its own means
+    /// "the holonomy fixes the crease line pointwise", which is not the same as
+    /// "the loop closes".
     pub offset: f64,
     /// The crease line (an index into the input segments) carrying the worst
     /// disagreement.
