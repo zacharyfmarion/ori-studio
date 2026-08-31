@@ -73,5 +73,5 @@ Explicitly **not** touched, despite matching a `sequence` grep:
 - [x] Collapse the simulator to whole-model scope
 - [x] Drop the `sequence` locale namespace and dead simulator keys
 - [x] Update docs
-- [ ] Validate: cargo fmt/clippy/test, web lint/typecheck/test/build, i18n check
-- [ ] Open draft PR
+- [x] Validate: cargo fmt/clippy/test, web lint/typecheck/test/build, i18n check
+- [x] Open draft PR
