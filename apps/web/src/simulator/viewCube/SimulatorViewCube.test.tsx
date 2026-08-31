@@ -92,6 +92,13 @@ function hover(target: HTMLElement | null) {
   });
 }
 
+/** Two angles are the same when they differ by a whole number of turns. */
+function expectAngle(actual: number | undefined, expected: number) {
+  const turn = Math.PI * 2;
+  const apart = Math.abs((((actual ?? Number.NaN) - expected) % turn) + turn) % turn;
+  expect(Math.min(apart, turn - apart)).toBeCloseTo(0, 12);
+}
+
 /** Every cell currently lit, named by the face it sits on. */
 function litFaces(): string[] {
   return faces()
@@ -383,33 +390,44 @@ describe('SimulatorViewCube', () => {
     expect(markDegrees()).toBeCloseTo(90, 3);
   });
 
-  it('rolls to wherever the ring is grabbed', () => {
-    // Absolute, not a delta: the mark goes where you grab and follows from
-    // there, which is what a ring affords.
+  it('does not move on the press, however far from the mark it lands', () => {
+    // A steering wheel turns by how far your hand travels; taking hold of it at
+    // ten to two does not straighten the wheels.
     render();
     act(() => handle?.setView(simulatorViewLookingFrom(OPENING, [0, 0, -1])));
 
-    // Straight right of centre is a quarter turn clockwise.
+    // Straight right of centre — a quarter turn away from the mark at the top.
     grabRing([10, 0]);
-    expect(onRoll).toHaveBeenCalledWith(Math.PI / 2);
 
-    // Straight up is zero, and straight down is a half turn.
-    grabRing([0, -10]);
-    expect(onRoll).toHaveBeenLastCalledWith(0);
-    grabRing([0, 10]);
-    expect(Math.abs(onRoll.mock.calls.at(-1)?.[0] ?? 0)).toBeCloseTo(Math.PI, 12);
+    expect(onRoll).not.toHaveBeenCalled();
   });
 
-  it('follows the pointer along the ring', () => {
+  it('turns by how far the grab sweeps, from wherever it started', () => {
     render();
-    act(() => handle?.setView(simulatorViewLookingFrom(OPENING, [0, 0, -1])));
+    act(() => handle?.setView({ ...simulatorViewLookingFrom(OPENING, [0, 0, -1]), roll: 0.25 }));
 
-    grabRing([0, -10], [10, 0], [0, 10]);
+    // Take hold at 3 o'clock and sweep a quarter turn to 6 o'clock: a quarter
+    // turn is added to the roll that was already there, rather than replacing it.
+    grabRing([10, 0], [0, 10]);
+
+    expect(onRoll).toHaveBeenLastCalledWith(0.25 + Math.PI / 2);
+  });
+
+  it('keeps turning the long way round rather than snapping back', () => {
+    // Measured from the press, a sweep past half a turn would fold back through
+    // the short arc. Accumulating a step at a time is what makes three quarters
+    // of a turn read as three quarters.
+    render();
+    act(() => handle?.setView({ ...simulatorViewLookingFrom(OPENING, [0, 0, -1]), roll: 0 }));
+
+    grabRing([0, -10], [10, 0], [0, 10], [-10, 0]);
 
     const seen = onRoll.mock.calls.map(([roll]) => roll);
-    expect(seen[0]).toBeCloseTo(0, 12);
-    expect(seen[1]).toBeCloseTo(Math.PI / 2, 12);
-    expect(Math.abs(seen[2] ?? 0)).toBeCloseTo(Math.PI, 12);
+    expectAngle(seen[0], Math.PI / 2);
+    // A half turn normalizes to −π, which is the same angle as π — hence the
+    // comparison modulo a whole turn rather than on the number itself.
+    expectAngle(seen[1], Math.PI);
+    expectAngle(seen[2], (3 * Math.PI) / 2);
   });
 
   it('does not read a grab on the ring as a turn of the cube', () => {
@@ -418,7 +436,7 @@ describe('SimulatorViewCube', () => {
     render();
     act(() => handle?.setView(simulatorViewLookingFrom(OPENING, [0, 0, -1])));
 
-    grabRing([10, 0]);
+    grabRing([10, 0], [0, 10]);
 
     expect(orbit.begin).not.toHaveBeenCalled();
   });

@@ -15,10 +15,11 @@ import {
   visibleViewCubeFaces,
   type ViewCubeFaceId,
 } from './viewCubeGeometry';
-import type {
-  SimulatorOrbitGesture,
-  SimulatorOrbitView,
-  SimulatorViewDirection,
+import {
+  normalizeAngle,
+  type SimulatorOrbitGesture,
+  type SimulatorOrbitView,
+  type SimulatorViewDirection,
 } from '../../lib/simulatorOrbit';
 import { track } from '../../analytics';
 import { ANALYTICS_EVENTS } from '../../analytics/events';
@@ -137,10 +138,22 @@ export function SimulatorViewCube({
   const ringRef = useRef<SVGSVGElement | null>(null);
   const ringMarkRef = useRef<SVGGElement | null>(null);
   const ringHitRef = useRef<SVGCircleElement | null>(null);
-  // Where the ring is centred on screen, read once when a drag starts rather
-  // than per move: the cube does not move under the pointer, and this is the
-  // only layout read the component makes.
-  const ringDragRef = useRef<{ pointerId: number; x: number; y: number } | null>(null);
+  /**
+   * A grab of the ring in flight.
+   *
+   * `x`/`y` are where the ring is centred on screen, read once when the drag
+   * starts rather than per move: the cube does not move under the pointer, and
+   * this is the only layout read the component makes. `angle` is where the
+   * pointer was last seen and `roll` what the view had reached by then — the two
+   * that make this a steering wheel rather than a dial.
+   */
+  const ringDragRef = useRef<{
+    pointerId: number;
+    x: number;
+    y: number;
+    angle: number;
+    roll: number;
+  } | null>(null);
   // The roll the ring is showing, so a key press can nudge from it.
   const rollRef = useRef(0);
 
@@ -202,23 +215,14 @@ export function SimulatorViewCube({
   }, []);
 
   /**
-   * The roll the pointer is asking for: the angle from the ring's centre out to
-   * it, measured clockwise from straight up.
-   *
-   * Absolute rather than a delta, so the mark goes where you grab and follows
-   * the pointer from there — which is what a ring affords, and it means a press
-   * anywhere on it is already a meaningful answer.
+   * Where the pointer sits on the ring: clockwise from straight up, which is the
+   * sense `rollRotation` turns the picture in.
    */
-  const rollTowardPointer = useCallback(
-    (event: { clientX: number; clientY: number }) => {
-      const centre = ringDragRef.current;
-      if (!centre) return;
-      // atan2(dx, −dy): zero straight up, growing clockwise, which is the sense
-      // `rollRotation` turns the picture in.
-      onRoll(Math.atan2(event.clientX - centre.x, centre.y - event.clientY));
-    },
-    [onRoll]
-  );
+  const ringAngle = (event: { clientX: number; clientY: number }) => {
+    const drag = ringDragRef.current;
+    if (!drag) return 0;
+    return Math.atan2(event.clientX - drag.x, drag.y - event.clientY);
+  };
 
   const handleRingPointerDown = (event: ReactPointerEvent<SVGCircleElement>) => {
     if (!interactive) return;
@@ -230,15 +234,28 @@ export function SimulatorViewCube({
       pointerId: event.pointerId,
       x: box.left + box.width / 2,
       y: box.top + box.height / 2,
+      angle: 0,
+      roll: rollRef.current,
     };
+    // Where you took hold, not where the mark should go: a steering wheel turns
+    // by how far your hand travels, and grabbing it at ten to two does not
+    // straighten the wheels. So the press only anchors, and `onRoll` is left for
+    // the first move.
+    ringDragRef.current.angle = ringAngle(event);
     event.currentTarget.setPointerCapture?.(event.pointerId);
-    rollTowardPointer(event);
   };
 
   const handleRingPointerMove = (event: ReactPointerEvent<SVGCircleElement>) => {
-    if (ringDragRef.current?.pointerId !== event.pointerId) return;
+    const drag = ringDragRef.current;
+    if (drag?.pointerId !== event.pointerId) return;
     event.stopPropagation();
-    rollTowardPointer(event);
+    const angle = ringAngle(event);
+    // Accumulated a step at a time rather than measured from the press, so a
+    // sweep the long way round keeps turning instead of snapping back through
+    // the short arc when it passes half a turn.
+    drag.roll += normalizeAngle(angle - drag.angle);
+    drag.angle = angle;
+    onRoll(normalizeAngle(drag.roll));
   };
 
   const handleRingPointerEnd = (event: ReactPointerEvent<SVGCircleElement>) => {
