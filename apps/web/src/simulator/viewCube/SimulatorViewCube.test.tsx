@@ -27,6 +27,7 @@ let host: HTMLDivElement | null = null;
 let onSnap: Mock<Snap>;
 let orbit: { [K in keyof SimulatorOrbitGesture]: Mock<SimulatorOrbitGesture[K]> };
 let handle: SimulatorViewCubeHandle | null = null;
+let litCell: HTMLElement | null = null;
 
 function render(interactive = true) {
   act(() => {
@@ -71,6 +72,23 @@ function spots(label: string): HTMLButtonElement[] {
   return Array.from(face(label).querySelectorAll('.simulator-view-cube__spot'));
 }
 
+/** Move the pointer onto a cell, as the browser reports it. */
+function hover(target: HTMLElement | null) {
+  act(() => {
+    if (litCell) litCell.dispatchEvent(new PointerEvent('pointerout', { bubbles: true }));
+    litCell = target;
+    target?.dispatchEvent(new PointerEvent('pointerover', { bubbles: true }));
+  });
+}
+
+/** Every cell currently lit, named by the face it sits on. */
+function litFaces(): string[] {
+  return faces()
+    .filter((element) => element.querySelector('[data-lit="true"]'))
+    .map((element) => element.textContent ?? '')
+    .sort();
+}
+
 function visibleLabels(): string[] {
   return faces()
     .filter((element) => element.dataset.hidden === 'false')
@@ -85,6 +103,7 @@ beforeEach(() => {
   onSnap = vi.fn<Snap>();
   orbit = { begin: vi.fn(), move: vi.fn(), end: vi.fn() };
   handle = null;
+  litCell = null;
   // jsdom implements no pointer capture, and a drag on a face takes it.
   const element = HTMLElement.prototype as unknown as Record<string, unknown>;
   element.setPointerCapture = () => {};
@@ -178,6 +197,47 @@ describe('SimulatorViewCube', () => {
     const tabbable = spots('Front').filter((spot) => spot.tabIndex !== -1);
     expect(tabbable).toHaveLength(1);
     expect(tabbable[0]?.textContent).toBe('Front');
+  });
+
+  it('lights all three cells that reach a corner', () => {
+    // The three sit together in plain sight around a visible corner and snap to
+    // the identical view, so lighting one of them says they are three different
+    // targets — which is the opposite of true.
+    render();
+
+    // The Front face's bottom-right cell is the front-right-bottom corner, and
+    // Right and Bottom each offer it too.
+    hover(spots('Front')[8]!);
+
+    expect(litFaces()).toEqual(['Bottom', 'Front', 'Right']);
+  });
+
+  it('lights both cells that reach an edge', () => {
+    render();
+
+    // The Front face's middle-right cell is the front-right edge.
+    hover(spots('Front')[5]!);
+
+    expect(litFaces()).toEqual(['Front', 'Right']);
+  });
+
+  it('lights one face at a time', () => {
+    render();
+
+    hover(faceButton('Front'));
+
+    expect(litFaces()).toEqual(['Front']);
+  });
+
+  it('puts the last viewpoint out when the pointer moves on', () => {
+    render();
+    hover(spots('Front')[8]!);
+
+    hover(spots('Front')[5]!);
+    expect(litFaces()).toEqual(['Front', 'Right']);
+
+    hover(null);
+    expect(litFaces()).toEqual([]);
   });
 
   /** Press, move through the given offsets, release — all on one face. */

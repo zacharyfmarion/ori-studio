@@ -4751,19 +4751,29 @@ button.cp-folded-figure-toolbar__notice:hover {
   pointer-events: auto;
 }
 
-/* An edge or corner lights only itself; the middle lights the whole face, which
-   is how drei's reads — the face is the target, not a ninth of it. */
-.simulator-view-cube__spot:hover {
+/*
+  What lights up is a *viewpoint*, not a cell.
+
+  A corner belongs to three faces and an edge to two, so the same view is offered
+  from more than one place on the cube — around a visible corner, three cells
+  snap to the identical camera. `data-lit` is set on all of them at once (see
+  `lightViewpoint`), which is why this is not a `:hover` rule: CSS cannot ask for
+  "every element whose attribute matches the hovered one".
+
+  The middle cell lights its whole face rather than a ninth of it, which is how
+  drei's reads — the face is the target, not a corner of it.
+*/
+.simulator-view-cube__spot[data-lit='true'] {
   background: color-mix(in srgb, var(--accent-primary) 34%, transparent);
 }
 
-.simulator-view-cube__face:has(.simulator-view-cube__spot--face:hover),
+.simulator-view-cube__face:has(.simulator-view-cube__spot--face[data-lit='true']),
 .simulator-view-cube__face:has(.simulator-view-cube__spot--face:focus-visible) {
   border-color: color-mix(in srgb, var(--accent-primary) 60%, transparent);
   background: color-mix(in srgb, var(--accent-primary) 28%, var(--bg-elevated));
 }
 
-.simulator-view-cube__spot--face:hover,
+.simulator-view-cube__spot--face[data-lit='true'],
 .simulator-view-cube__spot--face:focus-visible {
   /* The face behind it is already lit; the label only has to keep up. */
   background: transparent;

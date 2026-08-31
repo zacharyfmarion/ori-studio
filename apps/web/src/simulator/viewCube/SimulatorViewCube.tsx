@@ -110,6 +110,8 @@ export function SimulatorViewCube({ ref, interactive, onSnap, orbit }: Simulator
   );
   // Set when a drag ends, and cleared by the press it swallows.
   const swallowPressRef = useRef(false);
+  // The viewpoint currently lit, so the previous one can be put out.
+  const litRef = useRef<string | null>(null);
 
   const applyView = useCallback((view: SimulatorOrbitView) => {
     const scene = sceneRef.current;
@@ -123,6 +125,33 @@ export function SimulatorViewCube({ ref, interactive, onSnap, orbit }: Simulator
   }, []);
 
   useImperativeHandle(ref, () => ({ setView: applyView }), [applyView]);
+
+  /**
+   * Light every cell that reaches one viewpoint, and put out the last.
+   *
+   * A corner belongs to three faces and an edge to two, so around a visible
+   * corner there are three cells that snap to the identical view. Lighting only
+   * the one under the pointer says they are three different targets, which is
+   * the opposite of true — and it is what you notice first, because the three
+   * sit together in plain sight.
+   *
+   * Found by attribute rather than through kept references: hover happens at
+   * human speed, so a query over 54 buttons costs nothing, and there is no
+   * bookkeeping to fall out of step with the DOM.
+   */
+  const lightViewpoint = useCallback((viewpoint: string | null) => {
+    if (litRef.current === viewpoint) return;
+    const root = rootRef.current;
+    if (!root) return;
+    const set = (key: string, lit: boolean) => {
+      root.querySelectorAll<HTMLElement>(`[data-viewpoint="${key}"]`).forEach((spot) => {
+        spot.dataset.lit = lit ? 'true' : 'false';
+      });
+    };
+    if (litRef.current) set(litRef.current, false);
+    litRef.current = viewpoint;
+    if (viewpoint) set(viewpoint, true);
+  }, []);
 
   /*
    * Turning the cube.
@@ -192,6 +221,14 @@ export function SimulatorViewCube({ ref, interactive, onSnap, orbit }: Simulator
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerEnd}
       onPointerCancel={handlePointerEnd}
+      // `out` then `over` is the order the browser sends these in, so moving
+      // between two cells puts the old viewpoint out and lights the new one with
+      // nothing in between. A captured drag reports both against the face it
+      // grabbed, so the highlight holds still while the cube turns under it.
+      onPointerOver={(event) =>
+        lightViewpoint((event.target as HTMLElement).dataset?.viewpoint ?? null)
+      }
+      onPointerOut={() => lightViewpoint(null)}
       role="group"
       aria-label={t('panels:simulator.viewCube.label', 'View cube')}
     >
@@ -230,6 +267,7 @@ export function SimulatorViewCube({ ref, interactive, onSnap, orbit }: Simulator
                 <button
                   key={cell}
                   type="button"
+                  data-viewpoint={spot.viewpoint}
                   className="simulator-view-cube__spot simulator-view-cube__spot--face"
                   disabled={!interactive}
                   onClick={press}
@@ -243,6 +281,7 @@ export function SimulatorViewCube({ ref, interactive, onSnap, orbit }: Simulator
                   aria-hidden
                   tabIndex={-1}
                   data-kind={spot.kind}
+                  data-viewpoint={spot.viewpoint}
                   className="simulator-view-cube__spot"
                   disabled={!interactive}
                   onClick={press}

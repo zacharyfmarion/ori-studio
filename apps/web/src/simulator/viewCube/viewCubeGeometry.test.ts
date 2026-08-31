@@ -4,6 +4,7 @@ import {
   viewCubeRotation,
   viewCubeTransform,
   visibleViewCubeFaces,
+  type ViewCubeSpot,
 } from './viewCubeGeometry';
 import {
   setUprightView,
@@ -147,6 +148,31 @@ describe('the view cube transform', () => {
     expect(kinds.filter((kind) => kind === 'face')).toHaveLength(6);
     expect(kinds.filter((kind) => kind === 'edge')).toHaveLength(12);
     expect(kinds.filter((kind) => kind === 'corner')).toHaveLength(8);
+  });
+
+  it('gives every cell that reaches one viewpoint the same name', () => {
+    // A corner belongs to three faces and an edge to two, so the same view is
+    // offered from more than one place. The name is what lets all of them light
+    // together, and it has to agree exactly across faces.
+    const byViewpoint = new Map<string, ViewCubeSpot[]>();
+    for (const face of VIEW_CUBE_FACES) {
+      for (const spot of face.spots) {
+        byViewpoint.set(spot.viewpoint, [...(byViewpoint.get(spot.viewpoint) ?? []), spot]);
+      }
+    }
+    expect(byViewpoint.size).toBe(26);
+
+    for (const [viewpoint, spots] of byViewpoint) {
+      const [first] = spots as [ViewCubeSpot, ...ViewCubeSpot[]];
+      // As many cells as there are faces meeting there, and every one of them
+      // pointing at the same camera.
+      const expected = { face: 1, edge: 2, corner: 3 }[first.kind];
+      expect(spots, viewpoint).toHaveLength(expected);
+      for (const spot of spots) {
+        expect(spot.kind, viewpoint).toBe(first.kind);
+        expect([...spot.direction], viewpoint).toEqual([...first.direction]);
+      }
+    }
   });
 
   it('reaches the opening view from a corner spot', () => {

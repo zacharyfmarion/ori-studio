@@ -32,6 +32,18 @@ export interface ViewCubeSpot {
   kind: ViewCubeSpotKind;
   /** The eye direction to snap to. Unit length. */
   direction: SimulatorViewDirection;
+  /**
+   * Which of the 26 viewpoints this is, as a name shared by every cell that
+   * reaches it.
+   *
+   * A corner belongs to three faces and an edge to two, so the same viewpoint is
+   * offered from more than one place on the cube — three cells around a visible
+   * corner all snap to the identical view. Hovering one lights all of them, and
+   * this is what says which. Exact integers, not rounded coordinates: the axes
+   * summed here are unit and mutually perpendicular, so every component is
+   * already −1, 0 or 1.
+   */
+  viewpoint: string;
 }
 
 export interface ViewCubeFace {
@@ -99,6 +111,10 @@ function facesSpots(
     return {
       kind: steps === 0 ? 'face' : steps === 1 ? 'edge' : 'corner',
       direction: [raw[0] / length, raw[1] / length, raw[2] / length] as SimulatorViewDirection,
+      // Named before the normalize, while the components are still integers —
+      // two cells on different faces must produce the same string, and floats
+      // divided by different roots would not reliably.
+      viewpoint: raw.join(','),
     };
   });
 }
