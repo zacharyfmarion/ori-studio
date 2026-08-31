@@ -22,9 +22,9 @@ each of which is a distinct upstream with its own parity obligations:
   (`crates/treemaker-flatfold`).
 
 Original functionality is built on top of the ports — reference images beside
-crease patterns, crease-pattern detection from images, the origami simulator,
-folding-sequence research — but compatibility with the upstream tools and their
-file formats is a priority.
+crease patterns, crease-pattern detection from images, the origami simulator —
+but compatibility with the upstream tools and their file formats is a
+priority.
 
 When naming things in new code and docs, use **Ori Studio** for the product, and
 an upstream's name only when referring to that specific tool, port, or vendored
@@ -57,7 +57,6 @@ crates/
   # Shared / research
   treemaker-fold/                 # Generic FOLD data structures and geometry helpers
   treemaker-flatfold/             # Flat-foldability and layer-order solver (Flat-Folder port)
-  treemaker-sequence/             # Folding-sequence planner primitives (research)
   oracle-tests/                   # Parity + fixture tests against every vendored oracle
 apps/
   web/                            # React + Vite shared web frontend

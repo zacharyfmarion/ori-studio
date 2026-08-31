@@ -86,7 +86,6 @@ import {
 import {
   engineError,
   ensureTreeHandle,
-  getEngine,
   syncTreemakerProject,
   type EngineClient,
 } from '../engineRuntime';
@@ -367,7 +366,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     return freeOristudioCpFoldedFigure(handle);
   });
 
-  const wholeSimulationFocus = { kind: 'whole' as const };
   let foldArtifactPromise: Promise<FoldArtifacts | null> | null = null;
   let foldArtifactPromiseRevision: number | null = null;
   // Newest artifact request. Loader-private rather than store state: a document
@@ -1113,11 +1111,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   function clearFoldArtifactSource() {
     set({
       ...emptyFoldArtifactResourceState(),
-      sequenceTarget: null,
-      sequencePlan: null,
-      sequenceSimulationFocus: wholeSimulationFocus,
-      sequencePlanning: false,
-      sequenceError: null,
     });
   }
 
@@ -1180,11 +1173,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       foldArtifactStatus: 'loading',
       foldArtifactResolvedRevision: null,
       selectedSegmentId: null,
-      sequenceTarget: null,
-      sequencePlan: null,
-      sequenceSimulationFocus: wholeSimulationFocus,
-      sequencePlanning: false,
-      sequenceError: null,
     });
 
     foldArtifactPromiseRevision = currentRevision;
@@ -1198,11 +1186,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         ) {
           set({
             ...readyFoldArtifactResourceState(foldArtifacts, currentRevision),
-            sequenceTarget: null,
-            sequencePlan: null,
-            sequenceSimulationFocus: wholeSimulationFocus,
-            sequencePlanning: false,
-            sequenceError: null,
           });
         }
         return foldArtifacts;
@@ -1217,11 +1200,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             foldArtifactStatus: 'error',
             foldArtifactResolvedRevision: currentRevision,
             selectedSegmentId: null,
-            sequenceTarget: null,
-            sequencePlan: null,
-            sequenceSimulationFocus: wholeSimulationFocus,
-            sequencePlanning: false,
-            sequenceError: null,
           });
         }
         return null;
@@ -1234,18 +1212,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     })();
 
     return foldArtifactPromise;
-  }
-
-  async function requireFoldForSequence(): Promise<FoldArtifacts | null> {
-    const foldArtifacts = get().foldArtifacts ?? (await loadFoldArtifacts(false));
-    if (!foldArtifacts) {
-      set({
-        sequencePlanning: false,
-        sequenceError: 'No crease pattern is available for sequence planning.',
-      });
-      return null;
-    }
-    return foldArtifacts;
   }
 
   async function runOptimization(
@@ -1319,11 +1285,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     oristudioCpFocusedInlineSimulationId: null,
     oristudioCpFocusedFoldedFigureId: null,
     ...emptyFoldArtifactResourceState(),
-    sequenceTarget: null,
-    sequencePlan: null,
-    sequenceSimulationFocus: wholeSimulationFocus,
-    sequencePlanning: false,
-    sequenceError: null,
 
     optimizeScale: async () => {
       await runOptimization('Optimize scale', 'optimize.scale', (api, treeHandle) =>
@@ -1486,11 +1447,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
               message: 'Build CP completed but did not produce drawable crease-pattern geometry.',
             },
             ...emptyFoldArtifactResourceState(),
-            sequenceTarget: null,
-            sequencePlan: null,
-            sequenceSimulationFocus: wholeSimulationFocus,
-            sequencePlanning: false,
-            sequenceError: null,
             oristudioCpDocument: null,
             oristudioCpLineage: null,
             oristudioCpSelection: emptyOristudioCpSelection(),
@@ -1545,11 +1501,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                 foldArtifactResolvedRevision: artifactRevision,
                 selectedSegmentId: null,
               }),
-          sequenceTarget: null,
-          sequencePlan: null,
-          sequenceSimulationFocus: wholeSimulationFocus,
-          sequencePlanning: false,
-          sequenceError: null,
           dirty: true,
           projectMessage: 'Built crease pattern',
         });
@@ -1619,60 +1570,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     ensureFoldArtifacts: () => loadFoldArtifacts(false),
 
     refreshFoldArtifacts: () => loadFoldArtifacts(true),
-
-    analyzeSequenceTarget: async () => {
-      set({ sequencePlanning: true, sequenceError: null });
-      try {
-        const foldArtifacts = await requireFoldForSequence();
-        if (!foldArtifacts) return null;
-        const sourceRevision = get().foldArtifactResolvedRevision;
-        const api = await getEngine();
-        const target = await api.sequenceAnalyzeFold(JSON.stringify(foldArtifacts.fold), {
-          solution_limit: 10,
-        });
-        if (get().foldArtifactResolvedRevision !== sourceRevision) return null;
-        set({ sequenceTarget: target, sequencePlanning: false, sequenceError: null });
-        return target;
-      } catch (error) {
-        const message = engineError(error).message;
-        set({ sequencePlanning: false, sequenceError: message, sequenceTarget: null });
-        return null;
-      }
-    },
-
-    planFoldingSequence: async () => {
-      set({ sequencePlanning: true, sequenceError: null });
-      try {
-        const foldArtifacts = await requireFoldForSequence();
-        if (!foldArtifacts) return null;
-        const sourceRevision = get().foldArtifactResolvedRevision;
-        const api = await getEngine();
-        const foldJson = JSON.stringify(foldArtifacts.fold);
-        const { target, plan } = await api.sequencePlanFoldWithTarget(foldJson, {
-          solution_limit: 10,
-          max_steps: 64,
-          max_states: 1024,
-        });
-        if (get().foldArtifactResolvedRevision !== sourceRevision) return null;
-        set({
-          sequenceTarget: target,
-          sequencePlan: plan,
-          sequenceSimulationFocus: wholeSimulationFocus,
-          sequencePlanning: false,
-          sequenceError: null,
-        });
-        return plan;
-      } catch (error) {
-        const message = engineError(error).message;
-        set({
-          sequencePlanning: false,
-          sequenceError: message,
-          sequencePlan: null,
-          sequenceSimulationFocus: wholeSimulationFocus,
-        });
-        return null;
-      }
-    },
 
     setCreaseColorMode: (creaseColorMode) => set({ creaseColorMode }),
 
@@ -1930,7 +1827,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       return true;
     },
 
-    setSequenceSimulationFocus: (sequenceSimulationFocus) => set({ sequenceSimulationFocus }),
 
     setOristudioCpCamera: (oristudioCpCamera) => set({ oristudioCpCamera }),
 

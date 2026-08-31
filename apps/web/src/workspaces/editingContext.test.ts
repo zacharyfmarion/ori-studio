@@ -64,9 +64,8 @@ describe('resolveEditingContext', () => {
     );
   });
 
-  it('maps the simulator and sequence panes', () => {
+  it('maps the simulator pane', () => {
     expect(resolveEditingContext({ ...base, activePanelId: 'simulator' })).toBe('simulate');
-    expect(resolveEditingContext({ ...base, activePanelId: 'sequence' })).toBe('simulate');
   });
 
   it('resolves TreeMaker side panes to the tree context', () => {

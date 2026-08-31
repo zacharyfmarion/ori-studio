@@ -75,29 +75,3 @@ export function cpFoldAngleDisplayLabel(
   }
 }
 
-export type SimulatorAccuracy = 'fast' | 'accurate';
-
-export function simulatorAccuracyLabel(t: TFunction, value: SimulatorAccuracy): string {
-  switch (value) {
-    case 'fast':
-      return t('panels:simulator.accuracyFast', 'Fast');
-    case 'accurate':
-      return t('panels:simulator.accuracyAccurate', 'Accurate');
-    default:
-      return value;
-  }
-}
-
-export function simulatorAccuracyTitle(t: TFunction, value: SimulatorAccuracy): string {
-  switch (value) {
-    case 'fast':
-      return t('panels:simulator.accuracyFastTitle', 'Step preview with standard simulator work');
-    case 'accurate':
-      return t(
-        'panels:simulator.accuracyAccurateTitle',
-        'Step preview with smaller solver increments and more settling'
-      );
-    default:
-      return value;
-  }
-}

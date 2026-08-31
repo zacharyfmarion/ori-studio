@@ -34,7 +34,6 @@ serde-wasm-bindgen.workspace = true
 treemaker-core = { path = "../treemaker-core" }
 treemaker-flatfold = { path = "../treemaker-flatfold" }
 treemaker-fold = { path = "../treemaker-fold" }
-treemaker-sequence.workspace = true
 wasm-bindgen.workspace = true
 
 [dev-dependencies]

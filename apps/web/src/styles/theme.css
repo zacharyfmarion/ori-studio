@@ -4664,44 +4664,9 @@ button.cp-folded-figure-toolbar__notice:hover {
   flex-wrap: wrap;
 }
 
-.simulator-scope-controls {
-  flex: 1 1 auto;
-  min-width: 0;
-  flex-wrap: wrap;
-}
-
-.simulator-accuracy-controls {
-  display: inline-flex;
-  min-width: 0;
-}
-
-.simulator-scope-controls .segmented__option,
-.simulator-accuracy-controls .segmented__option,
 .simulator-view-settings .segmented__option {
   height: 24px;
   padding: 0 7px;
-}
-
-.simulator-step-chip {
-  display: inline-flex;
-  min-width: 0;
-  max-width: 190px;
-  height: 24px;
-  align-items: center;
-  gap: 5px;
-  overflow: hidden;
-  padding: 0 7px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  font-size: 0.66rem;
-  font-weight: 750;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.simulator-step-chip--warn {
-  color: var(--status-warning);
 }
 
 .simulator-panel__empty {
