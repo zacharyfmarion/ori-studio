@@ -147,6 +147,16 @@ jobs:
           node scripts/share-smoke.mjs "${{ steps.deploy.outputs.url }}" \
             --alias https://pr-${{ github.event.pull_request.number }}.oristudio.pages.dev
 
+      # Here rather than only on the production deploy, because there the check runs *after*
+      # `wrangler pages deploy` — it reports that the live site is broken, it does not stop
+      # it. On a preview the same check runs before anything reaches main, which is the
+      # difference between a detector and a gate.
+      #
+      # No false failures on unrelated PRs: every assertion reads the built `dist`, and a PR
+      # that does not touch these files produces identical bytes for them.
+      - name: Verify SEO files
+        run: node scripts/seo-smoke.mjs "${{ steps.deploy.outputs.url }}"
+
   # Fork PRs get a read-only `GITHUB_TOKEN` no matter what `permissions:` above asks for, so
   # posting the comment 403s. The only comment a fork could get is the "skipped, no secrets"
   # notice, which tells the contributor nothing they can act on — and it turned every green
