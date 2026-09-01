@@ -476,6 +476,13 @@ describe('useCpRegionSolve', () => {
     expect(segments[4].a).toEqual({ x: 300, y: 100 });
     expect(annotationIds()).toContain(REGION.id);
     expect(api.stateFor(REGION.id)).toBeUndefined();
+
+    // And nothing is left selected. Try again replaces every crease in the
+    // pattern exactly as the solve does, so it inherits the same problem — the
+    // mutation's derived selection marks all of them — and needs the same clear.
+    // It called the store directly and skipped it until this test existed.
+    expect(setSelection).toHaveBeenCalledTimes(2);
+    expect(setSelection.mock.calls[1][0]).toEqual(emptyOristudioCpSelection());
   });
 
   it('deletes the region on Accept and keeps the source image, unlocked', async () => {

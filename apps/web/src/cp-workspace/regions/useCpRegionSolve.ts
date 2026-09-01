@@ -61,6 +61,7 @@ import {
   type CpSolveMovement,
 } from './solveCompletion';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import type { OristudioCpLineSegment } from '../../engine/oristudioCpTypes';
 import { isSuppressionRegionAnnotation } from '../annotations/annotation';
 import {
   hasAttachedSolveInput,
@@ -352,13 +353,11 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
       const record = currentRecord(records, regionId, revision);
       write(regionId, null);
       if (!record || record.owned.lineIds.length === 0) return;
-      await useWorkspaceStore
-        .getState()
-        .replaceOristudioCpLineSegments(
-          record.owned.lineIds,
-          record.owned.segments,
-          tryAgainLabel(latest.current.t)
-        );
+      await writeRegionSegments(
+        record.owned.lineIds,
+        record.owned.segments,
+        tryAgainLabel(latest.current.t)
+      );
     },
     [records, revision, write]
   );
@@ -427,18 +426,34 @@ async function place(
 ): Promise<{ ok: true } | { ok: false; refusal: CpRegionSolvePlacementRefusal }> {
   const placement = solvedRegionSegments(owned.segments, moved);
   if (!placement.ok) return placement;
-  const store = useWorkspaceStore.getState();
-  await store.replaceOristudioCpLineSegments(owned.lineIds, placement.segments, label);
-  // Drop the selection the mutation left behind.
-  //
-  // `applyOristudioCpLineMutation` derives the selection from the document the
-  // kernel hands back (`projectSlice.ts:789`), and a replace marks what it
-  // replaced — which is right for a transform the user aimed at a selection, and
-  // wrong here: a solve rewrites every crease in the pattern, so the user is
-  // handed all ~99 of them selected and the selection toolbar opens on top of
-  // the region's own chip. Nothing was aimed at, so nothing should be selected.
-  store.setOristudioCpSelection(emptyOristudioCpSelection());
+  await writeRegionSegments(owned.lineIds, placement.segments, label);
   return { ok: true };
+}
+
+/**
+ * Rewrite a region's creases, leaving nothing selected.
+ *
+ * Shared by every path that writes the whole pattern back — the solve, and Try
+ * again putting the pre-solve coordinates back — because the selection clear is
+ * not incidental to one of them. `applyOristudioCpLineMutation` derives the
+ * selection from the document the kernel hands back
+ * (`projectSlice.ts:789`), and a replace marks what it replaced. That is right
+ * for a transform the user aimed at a selection, and wrong here: these rewrite
+ * *every* crease in the pattern, so the user is handed all ~200 of them
+ * selected and the selection toolbar opens on top of the region's own chip.
+ * Nothing was aimed at, so nothing should be selected.
+ *
+ * Try again used to call `replaceOristudioCpLineSegments` directly and so kept
+ * the highlight, which is what this being one function now prevents.
+ */
+async function writeRegionSegments(
+  lineIds: number[],
+  segments: OristudioCpLineSegment[],
+  label: string
+): Promise<void> {
+  const store = useWorkspaceStore.getState();
+  await store.replaceOristudioCpLineSegments(lineIds, segments, label);
+  store.setOristudioCpSelection(emptyOristudioCpSelection());
 }
 
 function solvableRegion(regionId: string): CpSuppressionRegion | null {
