@@ -214,7 +214,67 @@ not the solver.
   some vertices, showing up as more `Ambiguous`. If so the tolerance is too loose
   or the constraint wants to be a soft prior rather than a shared parameter.
 
-### Phase 2 — Big-Little-Big as a solver residual
+### Phase 2 — Big-Little-Big as a solver residual — **TRIED, REVERTED**
+
+Built exactly as specified: `max(0, smallest_differing - smallest_same + margin)`
+per fan, one row beside each Kawasaki row, with hand-written analytic Jacobian
+entries (four `add_angle_derivative` calls — a hinge on the difference of two
+sectors, and each sector is a difference of two ray bearings). The existing
+analytic-vs-finite-difference tests passed against it.
+
+**Two things were learned, and the second one kills the approach.**
+
+*The activation test must ignore ties.* The obvious reading — active while
+`differing + margin <= same` is false — fires on every tie, and ties are the
+normal case in a quantized pattern. That version pushed exact patterns off their
+own geometry: `tiger_wip_3-00` went from 0 violations to 6 with no solving
+needed. Activating only on a strict violation (`same < differing`) fixes it.
+
+*A weighted least-squares penalty cannot express this.* Sweeping the barrier's
+sigma on the exact corpus, against a baseline of **8 clean / 3 violating**:
+
+| barrier sigma | clean | BLB > 0 | angle > 0 |
+| --- | --- | --- | --- |
+| 0.1° | 6 | 2 | **4** |
+| 0.5° | 6 | 3 | **4** |
+| 1° | 8 | 3 | 1 |
+| 2° | 8 | 3 | 0 |
+| 5° | 8 | 3 | 0 |
+| 10° | 8 | 3 | 0 |
+
+At weights strong enough to move anything the barrier breaks Kawasaki; at weights
+weak enough to preserve Kawasaki it does nothing. Tightening Kawasaki instead, to
+buy scale separation, is worse still (2 clean at 0.001°, **0 clean** at 0.0001°,
+because that also unbalances it against the movement priors).
+
+**The requirement is lexicographic** — satisfy Kawasaki *exactly*, then use the
+remaining freedom for ordering — and the two live five orders of magnitude apart
+(1e-6° versus ~0.5°). A single weighted sum cannot rank them.
+
+### Phase 2 — what to try instead (**fork: needs a decision**)
+
+Three candidates, in increasing cost:
+
+1. **Preserve ties rather than repair violations.** The corpus says GT satisfies
+   Kawasaki *and* holds its ties, so the two do not conflict — the tie-preserving
+   solution *is* ground truth. Add a symmetric equality residual between sectors
+   whose input values are already within ~ε, instead of a hinge on the ones that
+   have gone wrong. Well-conditioned, acts from the start, and it is the same
+   idea as the soft straightness prior from Phase 1. **Risk:** picking ε. With
+   detection noise near 0.5° and quantization steps of 22.5°, the separation
+   looks comfortable, but false ties would pin sectors that GT has apart.
+2. **Correct inside the Kawasaki null space.** After the solve converges, move
+   only along directions that leave the alternating sum unchanged — at degree 4
+   that is a 3-dimensional space, so there is room. Proper lexicographic
+   treatment; needs a null-space basis per vertex and a second solver stage.
+3. **Constrained optimisation** — Kawasaki as an equality constraint rather than
+   a residual. The largest change, and it would touch every existing tuning.
+
+My recommendation is (1): it is the cheapest, it follows directly from what the
+corpus showed, and unlike a hinge it cannot fight Kawasaki because the geometry
+it prefers is the geometry Kawasaki already accepts.
+
+### Phase 2 (original text, for reference) — Big-Little-Big as a solver residual
 
 For whatever Phase 1 leaves. Per vertex, `A` = smallest same-bounded sector,
 `B` = smallest differently-bounded sector:
@@ -286,9 +346,10 @@ wrongly-inferred family pulls solves away from GT rather than toward it.
 - [ ] **Phase 1** — union carrier groups across pass-through pairs; unit tests
       for a crossing, a genuine shallow corner, and a degree-2 case.
 - [ ] **Phase 1** — scorecard vs baseline; check `Ambiguous` did not increase.
-- [ ] **Phase 2** — BLB hinge residual + `blb_sigma`; test it is exactly zero on
-      a satisfied fan and drives a violating one to a tie.
-- [ ] **Phase 2** — scorecard; extend beyond the first reduction step if needed.
+- [x] **Phase 2** — BLB hinge residual built and measured; a least-squares
+      penalty cannot rank Kawasaki above ordering. Reverted.
+- [ ] **Phase 2** — pick a replacement (tie-preservation / null-space correction
+      / hard constraint). **Fork — stopped for Zach.**
 - [ ] **Phase 3** — BLB in the `Solved` criteria and the completion sentence.
       **Stop and confirm with Zach.**
 - [ ] **Phase 4** — GT error across the corpus; decide on an angle-quantization
