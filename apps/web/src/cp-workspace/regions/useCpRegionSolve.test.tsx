@@ -553,10 +553,17 @@ describe('useCpRegionSolve', () => {
     await solve();
 
     expect(replaceLineSegments).not.toHaveBeenCalled();
-    expect(api.stateFor(REGION.id)).toMatchObject({
+    const state = api.stateFor(REGION.id);
+    expect(state).toMatchObject({
       status: 'failed',
-      reason: expect.stringContaining('does not line up'),
+      reason: expect.stringContaining('could not be matched'),
     });
+    // It must not claim the attachment is some *other* pattern. This code cannot
+    // know that, and the claim was false every time it was seen — the commonest
+    // cause was re-solving a region whose answer had already been applied, which
+    // is the same pattern by construction.
+    const reason = state?.status === 'failed' ? state.reason : '';
+    expect(reason).not.toContain('different pattern');
   });
 
   it('runs the same solve for the Exact Solve command', async () => {

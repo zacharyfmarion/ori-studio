@@ -103,9 +103,9 @@ export type CpRegionSolvePlacementRefusal =
    */
   | 'paper_not_square'
   /**
-   * The hypothesis did not check out: the solver's vertices do not sit where it
-   * says they should. The attachment and these creases are not the same pattern
-   * any more.
+   * The hypothesis did not check out: too few of the solver's vertices could be
+   * found among these creases, at either end of the move. The document has
+   * drifted too far from what the attachment describes to place an answer on it.
    */
   | 'frame_unrecognized';
 
@@ -146,6 +146,9 @@ const VERTEX_MATCH_TOLERANCE = 1e-3;
  * document between the attachment being made and the solve running, so a vertex
  * they moved or deleted is *expected* to be missing. A clear majority says the
  * two are the same pattern; anything less says they are not.
+ *
+ * "Found" means found at *either* end of the move — see the note at the call
+ * site for why the `after` half is what makes a second Solve possible at all.
  */
 const FRAME_CONFIRMATION_RATIO = 0.5;
 
@@ -190,14 +193,32 @@ export function solvedRegionSegments(
   });
 
   // Confirm the frame against the creases before trusting it with them.
+  //
+  // A vertex confirms the frame from **either end of its move**, and the second
+  // half is not a nicety. Solving is idempotent — the same attachment gives the
+  // same answer — so once an answer has been applied, every vertex it moved is
+  // sitting at its `after` and there is nothing at its `before` any more.
+  // Confirming on `before` alone therefore made a *second* Solve on the same
+  // region fail every time, and fail with a sentence blaming the user's edits.
+  // Measured on `solution_does_not_line_up.osf`: 8 of 10 moved vertices were at
+  // distance 0.0000 from `after` and 0.5–0.9 from `before`, so 1 of 10 confirmed
+  // against a threshold of 5. Finding a vertex where the solver *put* it is
+  // evidence the frame is right, not evidence against it.
+  //
+  // Only `before` produces a rewrite target, though: a vertex already at its
+  // solved position has nothing to move to, and re-solving an unchanged pattern
+  // should write nothing.
   const ends = segmentEndpoints(owned);
   const targets: { from: { x: number; y: number }; to: { x: number; y: number } }[] = [];
+  let confirmed = 0;
   for (const vertex of moved) {
     const from = toDocument(vertex.before);
-    if (!hasEndpointNear(ends, from, tolerance)) continue;
-    targets.push({ from, to: toDocument(vertex.after) });
+    const to = toDocument(vertex.after);
+    const atBefore = hasEndpointNear(ends, from, tolerance);
+    if (atBefore || hasEndpointNear(ends, to, tolerance)) confirmed += 1;
+    if (atBefore) targets.push({ from, to });
   }
-  if (targets.length < Math.ceil(moved.length * FRAME_CONFIRMATION_RATIO)) {
+  if (confirmed < Math.ceil(moved.length * FRAME_CONFIRMATION_RATIO)) {
     return { ok: false, refusal: 'frame_unrecognized' };
   }
 

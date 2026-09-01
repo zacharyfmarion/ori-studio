@@ -607,9 +607,15 @@ function placementRefusalLabel(t: TFunction, refusal: CpRegionSolvePlacementRefu
         'The creases in this region no longer span a square sheet, so the solved answer could not be placed. Rotating the pattern or removing part of the paper edge does this.'
       );
     case 'frame_unrecognized':
+      // Deliberately says drift, not identity. The old wording asserted "the
+      // saved solver data belongs to a different pattern", which is a claim this
+      // code cannot make and which was false every time it was seen: the
+      // commonest cause was re-solving a region whose answer had already been
+      // applied. Say what is known — too few vertices could be matched — and
+      // name the only thing the user can do about it.
       return t(
         'panels:cpRegion.placement.frameUnrecognized',
-        'The solved answer does not line up with the creases in this region, so nothing was changed. The saved solver data belongs to a different pattern.'
+        'The solved answer could not be matched to the creases in this region, so nothing was changed. The pattern has changed too much since the solver data was saved — re-detect it to solve again.'
       );
   }
 }

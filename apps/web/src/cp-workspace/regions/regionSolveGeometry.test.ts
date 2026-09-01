@@ -189,8 +189,8 @@ describe('solvedRegionSegments', () => {
 
   it('refuses when the answer does not line up with the creases', () => {
     // The frame is a hypothesis, and this is the check that it holds: none of
-    // these vertices is sitting where the mapping says it should be, so the
-    // attachment belongs to a different pattern and nothing is written.
+    // these vertices is at either end of its move, so the document has drifted
+    // past what the attachment describes and nothing is written.
     const owned = paperSquare();
     const placed = solvedRegionSegments(owned, [
       moved([0.31, 0.42], [0.32, 0.42], 1),
@@ -211,5 +211,34 @@ describe('solvedRegionSegments', () => {
       moved([0.31, 0.42], [0.32, 0.42], 3),
     ]);
     expect(placed.ok).toBe(true);
+  });
+
+  it('places a second time on a region whose answer has already been applied', () => {
+    // Solving is idempotent — the same attachment gives the same answer — so once
+    // an answer has been applied every vertex it moved is sitting at its `after`
+    // and there is nothing at its `before` any more. Confirming the frame on
+    // `before` alone made every second Solve fail, and fail while blaming the
+    // user's edits. Measured on `solution_does_not_line_up.osf`: 8 of 10 moved
+    // vertices were at distance 0.0000 from `after`, so 1 of 10 confirmed against
+    // a threshold of 5.
+    //
+    // The paper here is already at the solved coordinates: the solver says it
+    // moved x=0.5 to x=0.51, and the crease is at 0.51 of the edge.
+    const owned = [
+      segment(100, 100, 500, 100),
+      segment(500, 100, 500, 500),
+      segment(500, 500, 100, 500),
+      segment(100, 500, 100, 100),
+      segment(304, 100, 296, 500),
+    ];
+    const placed = solvedRegionSegments(owned, [
+      moved([0.5, 0], [0.51, 0], 1),
+      moved([0.5, 1], [0.49, 1], 2),
+    ]);
+
+    expect(placed.ok).toBe(true);
+    // Nothing to rewrite: the creases are already where the answer puts them, so
+    // re-solving an unchanged pattern is a no-op rather than a refusal.
+    if (placed.ok) expect(placed.rewrittenEndpoints).toBe(0);
   });
 });
