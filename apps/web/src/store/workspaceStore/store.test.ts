@@ -4275,6 +4275,34 @@ describe('workspace store slices', () => {
     expect(oristudioCpMocks.freeOristudioCpFoldedFigure).toHaveBeenCalledWith(31);
   });
 
+  // The sibling of the case above, and it had the same debris with a different
+  // cause: a fold that *throws* left the draft behind as a permanent `error`
+  // row, kept the folded-figure verbs aimed at it, and took the user's crease
+  // selection with it. A failed fold costs the fold, not the selection.
+  it('keeps no figure and gives the selection back when the first fold throws', async () => {
+    resetStores(seedSnapshot());
+    const selection = { ...emptyOristudioCpSelection(), lines: [1] };
+    useWorkspaceStore.setState({
+      activePanelId: 'crease-pattern',
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      oristudioCpSelection: selection,
+    });
+
+    oristudioCpMocks.foldOristudioCpDocument.mockRejectedValueOnce({
+      code: 'fold_interior_cut',
+      message: 'segment 7 at (100, 50) is a border with paper on both sides',
+    });
+
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(false);
+
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toEqual([]);
+    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBeNull();
+    // The engine's own code survives, so `humanizeError` can pick its sentence
+    // rather than falling back to the raw kernel string.
+    expect(useWorkspaceStore.getState().error?.code).toBe('fold_interior_cut');
+    expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([1]);
+  });
+
   it('refuses to refold a figure whose source creases are gone', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({

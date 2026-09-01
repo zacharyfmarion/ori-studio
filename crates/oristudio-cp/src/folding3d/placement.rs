@@ -159,9 +159,21 @@ pub(crate) enum Convention {
 #[derive(Debug, Clone, PartialEq)]
 pub struct LoopGap {
     /// Worst rotation disagreement over the non-tree dual adjacencies, radians.
+    ///
+    /// **Not a diagnostic — the other half of the test.** [`Self::offset`] is
+    /// blind to exactly one thing, and this is that thing; see its docs. The
+    /// gate holds both.
     pub rotation_radians: f64,
     /// Worst disagreement about where the shared crease's endpoints land, in
     /// paper units. This is the number the fixture corpus records.
+    ///
+    /// **Blind to a rotation about the closing crease's own line, structurally
+    /// and not by luck.** Both sampled points lie on that line, so such a
+    /// holonomy fixes them and this reads an exact `0.0` however large the
+    /// rotation. [`Self::rotation_radians`] is what sees it, and
+    /// `folding3d::admit` gates the two together — a zero here on its own means
+    /// "the holonomy fixes the crease line pointwise", which is not the same as
+    /// "the loop closes".
     pub offset: f64,
     /// The crease line (an index into the input segments) carrying the worst
     /// disagreement.
@@ -421,11 +433,15 @@ pub(crate) fn place_faces(
 ///
 /// The result carries raw residuals and no verdict; [`crate::folding3d::admit`]
 /// is what decides whether they are small enough to draw.
+///
+/// A **sheet** arrangement, matching what the gate traces: a hole is not a face
+/// to place, and walking into one would put a rigid motion across a border that
+/// carries no fold angle.
 pub fn place_segments(
     segments: &[LineSegment],
     starting_face_id: i32,
 ) -> Result<Placement3d, Fold3dPlacementError> {
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     place_faces(&graph, starting_face_id)
 }
 
@@ -733,7 +749,11 @@ fn measure_loop_gap(
             _ => placement.face_transforms[f].compose(&step),
         };
         let rotation = predicted.rotation_angle_to(&placement.face_transforms[g]);
-        if offset > gap.offset || gap.worst_edge.is_none() {
+        // Whichever half is worse, because either can be the one that refuses.
+        // Tracking `offset` alone named an arbitrary crease on exactly the
+        // refusals the rotation clause exists for: there, every join's offset is
+        // an exact 0.0, so the first join seen won by default.
+        if offset > gap.offset || rotation > gap.rotation_radians || gap.worst_edge.is_none() {
             gap.worst_edge = Some(join.line);
         }
         gap.offset = gap.offset.max(offset);
@@ -1269,7 +1289,13 @@ mod tests {
                 "{name} is not an all-classic document"
             );
 
-            let graph = FoldGraph::from_segments(&model.line_segments, true);
+            // The sheet constructor, because this test stands in for the
+            // production path and that is what production builds. All three
+            // documents measure the same either way today — none has an
+            // enclosed all-border face — but a holed document added to the list
+            // would otherwise walk a different arrangement than the one that
+            // ships, silently.
+            let graph = FoldGraph::from_sheet_segments(&model.line_segments);
             let positions = graph.face_positions(1).expect("connected");
             let placement =
                 place_faces(&graph, 1).unwrap_or_else(|error| panic!("{name}: {error}"));
@@ -1318,24 +1344,26 @@ mod tests {
         segments
     }
 
-    /// Multiply-connected paper, and the reason the walk refuses a non-crease
-    /// join instead of stepping over it.
+    /// Multiply-connected paper, and the one check that judges it.
     ///
-    /// `calculate_faces` traces every bounded region, so a drawn ring comes back
-    /// with its hole **filled** — that half of the old argument is true and
-    /// reproduces here. What fails is the inference that per-vertex closure then
-    /// covers the loop: `is_interior_vertex` declines every hub vertex for
-    /// touching a border, so the check examines nothing at all here.
-    /// The measurement harness stepped over the border joins with an identity
-    /// and measured a 1.571 rad gap on the filled disk; the walk instead refuses
-    /// the join, which is a truer answer than a gap measured on geometry the
-    /// drawing does not describe.
+    /// The closure check still examines **nothing** here, and that has not
+    /// changed and cannot: `is_interior_vertex` declines every hub vertex for
+    /// touching a border, and it is right to — the paper does not wrap around a
+    /// vertex on a hole boundary, so there is no closure condition to evaluate.
+    /// What changed is what happens next. `calculate_faces` used to hand back the
+    /// ring with its hole **filled**, which made the hole's border segments look
+    /// like joins between two faces; the walk then refused the non-crease join,
+    /// and `interior_borders` reported four cuts. Now the hole is dropped
+    /// (`FoldGraph::without_hole_faces`), its edges belong to one traced face
+    /// like any paper edge, and the ring places.
     ///
-    /// The eight declined vertices are now *reported* as declined rather than
-    /// omitted, which is what stops "examined nothing" from reading as clean.
-    /// The count that matters is still zero.
+    /// So correctness rests entirely on the loop gap — the "defence in depth"
+    /// condition that is an algebraic consequence of per-vertex closure on a
+    /// disk and the only thing that works on an annulus. Four 90-degree radial
+    /// creases do not close, and it says so: 2.094 rad, the figure
+    /// `research/2026-08-07-3d-fold-feasibility.md` §2b measured independently.
     #[test]
-    fn a_drawn_ring_is_refused_at_the_join_the_closure_check_cannot_see() {
+    fn a_drawn_ring_places_and_the_loop_gap_is_what_judges_it() {
         let segments = annulus_90();
         let model = CreasePatternModel {
             line_segments: segments.clone(),
@@ -1358,18 +1386,28 @@ mod tests {
             "every hub vertex touches a border, so none of them has a closure condition"
         );
         assert_eq!(camv.flat.len(), 0);
-        assert_eq!(
-            camv.interior_borders.len(),
-            4,
-            "the inner square's four edges have paper on both sides"
+        assert!(
+            camv.interior_borders.is_empty(),
+            "the inner square bounds a hole, not a cut, so nothing has paper on both sides: {:?}",
+            camv.interior_borders
         );
 
-        let graph = FoldGraph::from_segments(&segments, true);
-        assert_eq!(graph.faces.len(), 5, "four sectors plus the filled hole");
+        let graph = FoldGraph::from_sheet_segments(&segments);
+        assert_eq!(graph.faces.len(), 4, "four sectors, and no filled hole");
+        let placement = place_faces(&graph, 1).expect("a drawn ring places");
+        assert_eq!(
+            placement.loop_gap.non_tree_edges, 1,
+            "the cycle around the hole is the one independent consistency condition"
+        );
+        assert!(
+            (placement.loop_gap.rotation_radians - 2.094_395_1).abs() < 1e-6,
+            "the ring does not close, by {} rad",
+            placement.loop_gap.rotation_radians
+        );
         assert!(matches!(
-            place_faces(&graph, 1),
+            crate::folding3d::admit::admit(&segments, 1),
             Err(Fold3dPlacementError::Refused(
-                Fold3dRefusal::NonCreaseJoin { .. }
+                Fold3dRefusal::LoopNotClosed { .. }
             ))
         ));
     }

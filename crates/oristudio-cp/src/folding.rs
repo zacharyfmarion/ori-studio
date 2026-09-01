@@ -257,7 +257,12 @@ impl EstimationOrder {
         }
     }
 
-    fn is_at_least(self, other: Self) -> bool {
+    /// `pub(crate)` because [`crate::session`] asks the same question: the step
+    /// ladder below only climbs for a caller that asked it to, so a caller
+    /// deciding whether an empty result is a *failure* has to gate on the same
+    /// threshold. It said `order != Order0 && order != Order1` there, which is
+    /// the same thing until someone adds an order below `Order2`.
+    pub(crate) fn is_at_least(self, other: Self) -> bool {
         self.value() >= other.value()
     }
 }
@@ -1431,7 +1436,7 @@ pub fn estimate_wireframe_from_segments(
         return Ok(None);
     }
 
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -1455,7 +1460,7 @@ pub fn face_position_wireframe_from_segments(
         return Ok(None);
     }
 
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -1499,7 +1504,7 @@ pub fn folded_subface_figure_from_segments(
         return Ok(None);
     }
 
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -1617,7 +1622,7 @@ pub fn initial_hierarchy_from_segments(
         return Ok(None);
     }
 
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -1637,7 +1642,7 @@ pub fn equivalence_condition_candidates_from_segments(
         return Ok(None);
     }
 
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -1734,7 +1739,7 @@ pub fn additional_estimation_from_segments(
         return Ok(None);
     }
 
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -2693,7 +2698,7 @@ fn overlap_enumerator_from_segments(
     }
 
     fold_phase_timer!("enumerator start");
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -2747,7 +2752,7 @@ fn two_colored_overlap_enumerator_from_segments(
         return Ok(None);
     }
 
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -2790,7 +2795,7 @@ fn folded_graph_and_wireframe_from_segments(
         return Ok(None);
     }
 
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }

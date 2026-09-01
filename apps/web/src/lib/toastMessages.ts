@@ -125,6 +125,25 @@ export function humanizeError(error: unknown, t: TFunction): string {
         'errors:fold.sameParity',
         "This crease pattern can't be folded flat: two faces meet with the same orientation across a crease."
       );
+    // The same parity failure, when the kernel could say *why*. A border segment
+    // with paper on both sides is a cut through the sheet, and the folder reads
+    // it as a crease — so the raw verdict above names some unrelated crease
+    // instead. `fold_interior_cut` is the flat twin of the 3D `interior_cut`
+    // refusal, and is worded to match it.
+    case 'fold_interior_cut':
+      return t(
+        'errors:fold.interiorCut',
+        "This crease pattern can't be folded: an edge line runs through the middle of the paper, with paper on both sides of it. Remove it, or make it a crease."
+      );
+    // A fold that produced nothing. The kernel's step ladder stops at step 1
+    // when the arrangement cannot be traced, and used to hand back a folded
+    // figure with no faces in it and no error at all — see `fold_segments`.
+    // Same sentence as the 3D refusal, because it is the same geometry.
+    case 'fold_faces_unresolved':
+      return t(
+        'dialogs:fold3dRefused.facesUnresolved',
+        'The faces of this crease pattern could not be worked out. Creases that cross without a vertex, or stop short of one, are the usual cause.'
+      );
     case 'fold_layer_search':
       return t(
         'errors:fold.layerSearch',
