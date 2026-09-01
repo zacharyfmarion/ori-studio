@@ -16,13 +16,23 @@
  * at length — the production hostname keeps serving the previous deployment until this one
  * propagates, so a check against it can pass without touching the build under test.
  *
+ * Pass `--preview` for anything that is not the production deploy. A preview serves the
+ * same marketing copy on a public hostname, so `prerender-landing.mjs` gives it a
+ * `Disallow: /` robots.txt — which means the two deploys have deliberately *different*
+ * correct answers, and a checker that knows only one of them fails the other. Mirrors
+ * `ORI_SITE_ENV` on the build side, as a flag rather than an env var because this script
+ * is also run by hand against arbitrary URLs, where an inherited variable would lie.
+ *
  *   node scripts/seo-smoke.mjs https://346909ff.oristudio.pages.dev
+ *   node scripts/seo-smoke.mjs https://0ba7d0df.oristudio.pages.dev --preview
  */
 
-const base = process.argv[2]?.replace(/\/+$/, '');
+const args = process.argv.slice(2);
+const preview = args.includes('--preview');
+const base = args.find((arg) => !arg.startsWith('--'))?.replace(/\/+$/, '');
 
 if (!base) {
-  console.error('usage: seo-smoke.mjs <deployment-url>');
+  console.error('usage: seo-smoke.mjs <deployment-url> [--preview]');
   process.exit(2);
 }
 
@@ -42,7 +52,14 @@ const CHECKS = [
     path: '/robots.txt',
     rejectHtml: true,
     contentType: 'text/plain',
-    contains: ['User-agent:', 'Sitemap: https://oristudio.dev/sitemap.xml'],
+    // Production invites crawlers and names the sitemap; a preview must refuse them, or it
+    // competes with the real site for the same copy on a hostname nobody meant to publish.
+    // Asserting the preview case positively is the point — a preview that quietly shipped
+    // the production robots.txt is the failure worth catching, and it looks like success.
+    contains: preview
+      ? ['User-agent: *', 'Disallow: /']
+      : ['User-agent: *', 'Allow: /', 'Sitemap: https://oristudio.dev/sitemap.xml'],
+    absent: preview ? ['Allow: /'] : ['Disallow: /'],
   },
   {
     name: 'sitemap.xml is a real file, not the SPA fallback',
@@ -79,7 +96,7 @@ const CHECKS = [
   },
 ];
 
-async function check({ name, path, rejectHtml, contentType, contains = [] }) {
+async function check({ name, path, rejectHtml, contentType, contains = [], absent = [] }) {
   const response = await fetch(`${base}${path}`, { redirect: 'follow' });
   const type = response.headers.get('content-type') ?? '';
   const body = await response.text();
@@ -92,6 +109,9 @@ async function check({ name, path, rejectHtml, contentType, contains = [] }) {
   }
   for (const needle of contains) {
     if (!body.includes(needle)) return `${name}: response does not contain ${JSON.stringify(needle)}`;
+  }
+  for (const needle of absent) {
+    if (body.includes(needle)) return `${name}: response should not contain ${JSON.stringify(needle)}`;
   }
   return null;
 }
@@ -109,7 +129,11 @@ async function main() {
   }
 
   for (const failure of failures) console.error(`  ✗ ${failure}`);
-  if (failures.length === 0) console.log(`seo-smoke: ${CHECKS.length} checks passed against ${base}`);
+  if (failures.length === 0) {
+    console.log(
+      `seo-smoke: ${CHECKS.length} checks passed against ${base} (${preview ? 'preview' : 'production'})`
+    );
+  }
   process.exit(failures.length === 0 ? 0 : 1);
 }
 

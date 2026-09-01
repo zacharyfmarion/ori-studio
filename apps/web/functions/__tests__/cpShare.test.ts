@@ -554,6 +554,26 @@ describe('GET /s/[[shareId]]', () => {
     expect(response.headers.get('Cross-Origin-Opener-Policy')).toBe('same-origin');
   });
 
+  it('leaves the prerendered landing on a dead link, because that path never rewrites', async () => {
+    // Documented, not accidental. A missing share returns the asset untouched — before any
+    // body read, and deliberately without a KV write — so the landing copy the build
+    // injects stays on the page. It is the same content the SPA would render at that URL
+    // anyway, and `canonical -> /` consolidates it, so stripping it would buy nothing and
+    // cost a rewrite on every crawler probe. A *real* share does strip: see the
+    // renderShareCardMeta tests above.
+    const env = createEnv();
+    const prerendered = INDEX_HTML.replace(
+      '<div id="root"></div>',
+      '<div id="seo-content"><p>A free workspace</p></div><div id="root"></div>'
+    );
+    const response = await getSharePage(
+      createContext(env, new Request('https://oristudio.pages.dev/s/a3bK9xmQ'), { shareId: 'a3bK9xmQ' },
+        async () => new Response(prerendered, { headers: { 'Content-Type': 'text/html' } })
+      )
+    );
+    expect(await response.text()).toContain('id="seo-content"');
+  });
+
   it('serves the SPA for a well-formed id that no longer exists', async () => {
     const env = createEnv();
     const response = await getSharePage(
