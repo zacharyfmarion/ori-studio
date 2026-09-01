@@ -257,7 +257,12 @@ impl EstimationOrder {
         }
     }
 
-    fn is_at_least(self, other: Self) -> bool {
+    /// `pub(crate)` because [`crate::session`] asks the same question: the step
+    /// ladder below only climbs for a caller that asked it to, so a caller
+    /// deciding whether an empty result is a *failure* has to gate on the same
+    /// threshold. It said `order != Order0 && order != Order1` there, which is
+    /// the same thing until someone adds an order below `Order2`.
+    pub(crate) fn is_at_least(self, other: Self) -> bool {
         self.value() >= other.value()
     }
 }

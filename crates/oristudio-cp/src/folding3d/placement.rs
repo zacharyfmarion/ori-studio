@@ -1285,7 +1285,13 @@ mod tests {
                 "{name} is not an all-classic document"
             );
 
-            let graph = FoldGraph::from_segments(&model.line_segments, true);
+            // The sheet constructor, because this test stands in for the
+            // production path and that is what production builds. All three
+            // documents measure the same either way today — none has an
+            // enclosed all-border face — but a holed document added to the list
+            // would otherwise walk a different arrangement than the one that
+            // ships, silently.
+            let graph = FoldGraph::from_sheet_segments(&model.line_segments);
             let positions = graph.face_positions(1).expect("connected");
             let placement =
                 place_faces(&graph, 1).unwrap_or_else(|error| panic!("{name}: {error}"));

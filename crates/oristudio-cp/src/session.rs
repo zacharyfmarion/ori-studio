@@ -946,8 +946,7 @@ impl CpSession {
         //
         // The 3D gate already refuses the same geometry, as
         // `Fold3dRefusal::FacesUnresolved`, and this code shares its sentence.
-        if order != EstimationOrder::Order0
-            && order != EstimationOrder::Order1
+        if order.is_at_least(EstimationOrder::Order2)
             && session.estimate().estimation_step == EstimationStep::Step1
         {
             return Err(EngineError::new(

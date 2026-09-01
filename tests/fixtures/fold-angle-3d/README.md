@@ -219,9 +219,15 @@ all of them and `dispatched_camv` examines nothing (`spatial` reads 0, and that
 is the fixture's point rather than a gap in it). On every other fixture the
 non-tree dual edges close cycles per-vertex closure has already forced, and the
 loop-gap bar is defence in depth; here the one cycle goes around the hole,
-per-vertex closure says nothing about it, and the gap is the whole check. It is
-the shape that caught the gate holding only the *translational* half of the
-holonomy — see
+per-vertex closure says nothing about it, and the gap is the whole check.
+
+Multiply-connected paper is also what made the gate's blind spot reachable —
+`loop_gap.offset` is sampled at the endpoints of the dropped crease, so it cannot
+see a holonomy that is a rotation about that crease's own line. This fixture is
+not the one that catches it (it closes, so it passes either way); the shape that
+does is a *fold line the hole interrupts*, which is
+`tests/fixtures/oriedita/holed_frame_collinear.ori`'s geometry with the two
+halves given different angles. See
 `folding3d.rs::an_interrupted_fold_line_cannot_be_folded_two_different_ways`.
 
 This is the `annulus_90` role from *What is deliberately absent* below, filled.
