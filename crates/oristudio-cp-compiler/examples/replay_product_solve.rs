@@ -93,6 +93,54 @@ fn main() {
             },
         );
         report("attachment stage 2", &s2, a2.elapsed().as_secs_f64());
+
+        // Is the saved document sitting at the ATTACHMENT's answer? Map both
+        // into document units and measure. This is the difference between "the
+        // solve ran on the stale input" and "the solve ran on the document".
+        let doc_pts: Vec<(f64, f64)> = {
+            let mut v: Vec<(f64, f64)> = Vec::new();
+            for seg in &owned.line_segments {
+                for p in [seg.a, seg.b] {
+                    if !v
+                        .iter()
+                        .any(|q| (q.0 - p.x).abs() < 1e-9 && (q.1 - p.y).abs() < 1e-9)
+                    {
+                        v.push((p.x, p.y));
+                    }
+                }
+            }
+            v
+        };
+        let nearest = |x: f64, y: f64| {
+            doc_pts
+                .iter()
+                .map(|(dx, dy)| ((dx - x).powi(2) + (dy - y).powi(2)).sqrt())
+                .fold(f64::INFINITY, f64::min)
+        };
+        for (label, pts) in [
+            (
+                "attachment INPUT  (as imported)",
+                attached
+                    .vertices
+                    .iter()
+                    .map(|v| v.point)
+                    .collect::<Vec<_>>(),
+            ),
+            ("attachment ANSWER (stage 2 out)", s2.vertices_exact.clone()),
+        ] {
+            let mut errs: Vec<f64> = pts
+                .iter()
+                .map(|p| nearest(p.x * 400.0 - 200.0, p.y * 400.0 - 200.0))
+                .collect();
+            errs.sort_by(f64::total_cmp);
+            let q = |f: f64| errs[((errs.len() - 1) as f64 * f) as usize];
+            println!(
+                "  {label}: distance to nearest document vertex -> median {:.6}  p90 {:.6}  max {:.6} (document units)",
+                q(0.5),
+                q(0.9),
+                q(1.0)
+            );
+        }
         println!("\n########## DOCUMENT ##########");
     }
 
