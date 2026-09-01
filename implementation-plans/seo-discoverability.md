@@ -385,13 +385,17 @@ and Search Console shows the English page indexed and ranking for something.
 - [x] Update canonical, `og:url`, `og:image`, `twitter:*`, `robots.txt`, `sitemap.xml`, `README.md`
 - [x] Confirm `cpShare.ts` needs no change — `shareUrl`/`thumbnailUrl` take the origin
       from `new URL(request.url).origin`, so share links follow whatever host serves them
-- [ ] **Attach `oristudio.dev` to the `oristudio` Pages project** *(needs Zach — dashboard
-      only; wrangler has no `pages domain` command)*
-- [ ] Merge this branch **after** the domain is attached — until then the canonical points
-      at a host that does not resolve
-- [ ] 301 `oristudio.pages.dev` → `oristudio.dev` (Pages redirect rule)
-- [ ] Switch `deploy-web.yml`'s `--alias` to `https://oristudio.dev` once it resolves —
-      left on `pages.dev` for now so the deploy does not fail against a dead host
+- [x] Attach `oristudio.dev` to the `oristudio` Pages project (dashboard only — wrangler
+      has no `pages domain` command). Active, serving 200, COOP/COEP intact
+- [x] Add `www.oristudio.dev` as a second custom domain. Both CNAME to
+      `oristudio.pages.dev`, proxied. It *serves* rather than redirects, which the
+      canonical makes harmless
+- [x] Switch `deploy-web.yml`'s `--alias` to `https://oristudio.dev`
+- [ ] Merge this branch — production still advertises `pages.dev` until it lands
+- [ ] Optional: 301 `www` → apex via the "Redirect from WWW to root" rule template.
+      Tidier, near-zero effect while the canonical names the apex
+- [ ] Optional: 301 `oristudio.pages.dev` → `oristudio.dev`. Deliberately *not* done yet —
+      existing share links live on that host and it costs nothing to keep serving
 - [ ] Re-verify in Search Console; run the Change of Address tool
 
 ### Phase 4 — Performance
