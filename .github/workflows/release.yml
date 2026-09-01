@@ -159,7 +159,10 @@ jobs:
             --json conclusion --jq '.[].conclusion' || true)"
           if ! grep -qx success <<< "$conclusions"; then
             echo "::error::no successful CI run for ${GITHUB_SHA}."
-            echo "::error::Open a PR for this commit, or dispatch CI on its branch, before tagging."
+            echo "::error::Merging anything else to main cancels this commit's CI run"
+            echo "::error::(ci.yml sets cancel-in-progress). ci.yml has no workflow_dispatch,"
+            echo "::error::so re-run the cancelled run with 'gh run rerun <id>', wait for"
+            echo "::error::green, then re-run this workflow. See RELEASE.md."
             exit 1
           fi
 
@@ -450,8 +453,12 @@ jobs:
           # Only on a tag. tauri-action skips release upload without these.
           releaseId: ${{ needs.draft.outputs.release_id }}
           tagName: ${{ needs.validate.outputs.is_release == 'true' && github.ref_name || '' }}
-          # Composed once by a later job instead: four legs read-modify-writing
-          # one latest.json race and silently drop a platform.
+          # Off because four legs read-modify-writing one latest.json race and
+          # silently drop a platform. Nothing in this workflow composes it
+          # either: `scripts/publish-updater-manifest.sh <version>` is the live
+          # path, run by hand after the draft is flipped to a prerelease and
+          # before it is armed. See RELEASE.md, and the unchecked `manifest` /
+          # `publish` items in implementation-plans/desktop-auto-update.md.
           uploadUpdaterJson: false
 
       # One artifact per platform, globbed explicitly. Deliberately not the

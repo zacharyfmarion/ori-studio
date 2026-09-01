@@ -50,18 +50,96 @@ logs a warning saying so.
 ./scripts/release.sh publish 0.3.0    # verify the merge, tag, push
 ```
 
+Merge nothing else to `main` between merging the release PR and `publish` —
+see [why below](#do-not-merge-to-main-while-a-release-is-in-flight).
+
 The pushed tag triggers the same build, which additionally uploads to a GitHub
-Release created as a **draft**. Publish it as a *prerelease*, install it
-yourself, and only then arm it:
+Release created as a **draft**. From there it is four steps, and the order
+matters:
 
 ```sh
+# 1. Publish the draft as a PRERELEASE.
+gh release edit v0.3.0 --draft=false --prerelease=true
+
+# 2. Compose, verify and attach the updater manifest. Nothing in CI does this.
+./scripts/publish-updater-manifest.sh 0.3.0
+
+# 3. Install the build yourself and confirm it launches.
+
+# 4. Arm it. This is what starts offering the update to users.
 gh release edit v0.3.0 --prerelease=false
 ```
 
-`releases/latest` skips drafts and prereleases, so until that command runs the
+`releases/latest` skips drafts and prereleases, so until step 4 runs the
 release is downloadable but offered to nobody. That is the soak gate, and it is
 also the kill switch — flipping `--prerelease=true` puts `releases/latest` back
 on the previous good release.
+
+#### Step 2 is mandatory, and its position is not arbitrary
+
+`latest.json` is the updater manifest: the one file the desktop updater reads
+to learn a new version exists. **No CI job composes it.** The
+`uploadUpdaterJson: false` comment in `release.yml` says it is "composed once by
+a later job instead", but that job was never built — the `manifest` and
+`publish` items are still unchecked in
+[implementation-plans/desktop-auto-update.md](implementation-plans/desktop-auto-update.md).
+`scripts/publish-updater-manifest.sh` is the live path. It composes the manifest
+from the release's actual assets, inlines the `.sig` contents CI produced, and
+checks each one against the pubkey compiled into the app before uploading — a
+pubkey/private-key mismatch is otherwise invisible until the whole install base
+has downloaded an update and refused it.
+
+It needs `minisign` on top of the usual `gh`, `jq` and `node`:
+
+```sh
+brew install minisign
+```
+
+The window between steps 1 and 4 is the only time it will run:
+
+- **After** the draft becomes a prerelease. The script hard-errors on a release
+  whose `isPrerelease` is not `true`, because replacing `latest.json` under a
+  live release hands a changed manifest to clients mid-poll.
+- **Before** arming, because arming is what makes this release
+  `releases/latest` — which is exactly where the updater endpoint reads from.
+
+Skipping it fails silently, and not on the release you are looking at. The
+armed release becomes `releases/latest` with no `latest.json` asset, so the
+endpoint compiled into every shipped app,
+
+```text
+https://github.com/zacharyfmarion/ori-studio/releases/latest/download/latest.json
+```
+
+404s, and every existing install quietly stops being offered updates. The new
+release looks perfect; the fleet you already shipped to is the part that breaks.
+
+### Do not merge to `main` while a release is in flight
+
+Between merging the release PR and `release.sh publish`, `main` has to stay
+still.
+
+`ci.yml` sets `cancel-in-progress: true` on a concurrency group keyed on the
+ref, so the next push to `main` cancels the CI run for the release merge commit.
+That run is a gate: `release.yml`'s `validate` job asks GitHub for a *successful*
+CI run at the tagged commit, and a cancelled one does not count. The release
+build fails immediately with `no successful CI run for <sha>`.
+
+`ci.yml` has no `workflow_dispatch`, so there is no way to start a fresh run at
+that commit. Re-running the cancelled run is the only recovery:
+
+```sh
+gh run list --commit <merge-sha> --workflow CI
+gh run rerun <cancelled-run-id>
+```
+
+If the tag is not pushed yet, that is the whole fix — wait for green, then run
+`release.sh publish`. If it is, re-run the failed Desktop Build run once CI is
+green. Do not delete or re-point the tag:
+
+```sh
+gh run rerun <failed-desktop-build-run-id>
+```
 
 ### Release states
 
@@ -72,9 +150,12 @@ corruption. Do not delete or re-point a tag.
 | --- | --- | --- |
 | No tag, no release | Nothing started | `release.sh prepare` |
 | Tag pushed, build running | Normal | Wait |
+| Tag pushed, `no successful CI run` | Something else was merged to `main` and cancelled the merge commit's CI | `gh run rerun` the cancelled CI run, then the failed Desktop Build run — see above |
 | Tag pushed, some legs failed | Draft holds a partial asset set | `gh run rerun --failed`; if the failure is real, burn the version and cut the next patch |
-| Draft release, all assets | Ready to test | Publish as prerelease, install it |
-| Prerelease, verified | Ready to ship | `gh release edit vX --prerelease=false` |
+| Draft release, all assets | Ready to test | Publish as prerelease, then `publish-updater-manifest.sh X.Y.Z` |
+| Prerelease, no `latest.json` | The manifest step was skipped; arming now silently strands every install | `./scripts/publish-updater-manifest.sh X.Y.Z` before arming |
+| Prerelease with `latest.json`, verified | Ready to ship | `gh release edit vX --prerelease=false` |
+| Latest, no `latest.json` | Already stranded: the updater endpoint 404s fleet-wide | `gh release edit vX --prerelease=true`, run the manifest script, re-arm |
 | Latest, and wrong | Shipped a bad build | `gh release edit vX --prerelease=true`, then hotfix forward |
 
 ### Required secrets
@@ -159,9 +240,10 @@ set `publish = false` per-crate on the app and internal members instead —
    `https://oristudio.pages.dev/`.
 8. Open a test PR that changes web code and verify the preview comment points to
    `https://pr-<number>.oristudio.pages.dev/`.
-9. On your Mac, install and authenticate release tooling:
+9. On your Mac, install and authenticate release tooling. `minisign` is used by
+   `publish-updater-manifest.sh` to verify updater signatures before upload:
    ```sh
-   brew install gh jq
+   brew install gh jq minisign
    gh auth login
    ```
 10. Ensure Rust, Node, npm, Xcode, and Xcode command-line tools are available.
@@ -175,6 +257,10 @@ set `publish = false` per-crate on the app and internal members instead —
     Apple values.
 14. For each release, run `./scripts/release.sh prepare X.Y.Z`, merge the
     release PR, then run `./scripts/release.sh publish X.Y.Z` from a clean local
-    Mac checkout.
+    Mac checkout. Merge nothing else to `main` in between.
 15. After publish, verify the GitHub Release contains the versioned and latest
     Apple Silicon DMGs, download the DMG, mount it, and launch `Ori Studio.app`.
+16. Publish the draft as a prerelease, run
+    `./scripts/publish-updater-manifest.sh X.Y.Z`, confirm `latest.json` is
+    attached to the release, and only then arm it with
+    `gh release edit vX.Y.Z --prerelease=false`.
