@@ -14,9 +14,15 @@
     />
     <meta
       name="description"
-      content="Ori Studio is a web and desktop workspace for origami design: draw and edit crease patterns, design from a tree structure or a box-pleating grid, and fold the result in the simulator."
+      content="Ori Studio is a free, open-source workspace for origami design: draw and edit crease patterns, design from a tree structure or a box-pleating grid, and fold the result in the simulator. Runs in the browser, nothing to install."
     />
-    <link rel="canonical" href="https://oristudio.pages.dev/" />
+    <!--
+      Canonical is `/`, not `/welcome`. The router redirects `/` to `/welcome`
+      client-side, so both hold the landing page; pointing every copy at `/`
+      consolidates them onto the one URL worth ranking. `/welcome` inherits this
+      tag, which is what makes the duplicate fold in rather than compete.
+    -->
+    <link rel="canonical" href="https://oristudio.dev/" />
     <!-- Small first, and no `/favicon.png` in the list: that file is a 1024px
          PNG weighing 2.2MB, which every tab was downloading to draw a 16px
          icon. It stays in `public/` — the Help dialog renders it deliberately —
@@ -39,14 +45,27 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Ori Studio" />
-    <meta property="og:title" content="Ori Studio" />
+    <meta property="og:title" content="Ori Studio — origami crease pattern editor and folding simulator" />
     <meta
       property="og:description"
       content="Draw and edit crease patterns, design from a tree structure or a box-pleating grid, and fold the result — in the browser. Opens .cp, .fold, .ori and .bps."
     />
-    <meta property="og:url" content="https://oristudio.pages.dev/" />
+    <meta property="og:url" content="https://oristudio.dev/" />
     <meta property="og:type" content="website" />
-    <title>Ori Studio</title>
+    <meta property="og:image" content="https://oristudio.dev/og-default.png" />
+    <!--
+      The share route rewrites all of these per crease pattern (see
+      functions/_lib/cpShareHtml.ts). These are the site-wide defaults, and they
+      are what a link to the root unfurls as — the root had no image at all.
+    -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Ori Studio — origami crease pattern editor and folding simulator" />
+    <meta
+      name="twitter:description"
+      content="Draw and edit crease patterns, design from a tree structure or a box-pleating grid, and fold the result — in the browser."
+    />
+    <meta name="twitter:image" content="https://oristudio.dev/og-default.png" />
+    <title>Ori Studio — free online origami crease pattern editor and folding simulator</title>
   </head>
   <body>
     <div id="root"></div>

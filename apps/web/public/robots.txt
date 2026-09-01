@@ -1,0 +1,16 @@
+# Ori Studio — https://oristudio.dev
+#
+# Everything is crawlable. The workspace routes (/edit, /design, /simulate) and
+# share pages (/s/*) currently serve the same shell as `/`; they get `noindex`
+# once per-route metadata lands, which is the right tool for "crawl it, don't
+# index it". Blocking them here instead would let Google index the bare URLs
+# with no content attached, which is worse than leaving them alone.
+#
+# This has to exist as a real file. Cloudflare Pages answers unmatched paths
+# with `index.html` at 200 (the SPA fallback `_headers` warns about), so a
+# missing robots.txt is served as HTML rather than 404 — indistinguishable from
+# success in any status-code check. Assert on the content type, not the status.
+User-agent: *
+Allow: /
+
+Sitemap: https://oristudio.dev/sitemap.xml

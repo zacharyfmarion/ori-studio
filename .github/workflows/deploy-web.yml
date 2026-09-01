@@ -114,3 +114,10 @@ jobs:
       # `--alias` keeps the public hostname covered, as a reachability probe.
       - name: Verify share endpoints
         run: node scripts/share-smoke.mjs "${{ steps.deploy.outputs.url }}" --alias https://oristudio.pages.dev
+
+      # robots.txt and sitemap.xml are the two files whose absence is invisible: Pages'
+      # SPA fallback serves index.html at 200 for both, so a status check calls a missing
+      # file a success. This asserts on content type and body instead. Same per-deployment
+      # host as the share checks, for the same reason.
+      - name: Verify SEO files
+        run: node scripts/seo-smoke.mjs "${{ steps.deploy.outputs.url }}"
