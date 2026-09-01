@@ -101,8 +101,37 @@ const DETECT_DECODER_BACKEND = 'legacy_candidate_exact_solve_v1' as const;
  * at `inset + u·(image_size - 2·inset)`. That is what makes the rectified image
  * and the candidate graph register without any user alignment: they come out of
  * the *same* rectification.
+ *
+ * **Only the fallback.** Rectification has three paths and only one of them
+ * insets by this much: `warp_detected_panel` warps a panel found *inside* the
+ * frame onto `Quad::square(32, size - 1 - 32)`, while `resize_full_frame` (the
+ * panel *is* the frame — an already-cropped CP, which is the common case for a
+ * clean source image) and `resize_without_panel` both resize with **no inset at
+ * all**. Assuming the inset unconditionally drew the underlay 6.7% oversized on
+ * two paths in three, with the photographed paper edge sitting outside the
+ * creases. The report carries the truth in `target_quad`, so
+ * {@link paperPixelBox} reads that and this is what is left when a report
+ * predates the field.
  */
 const DETECT_PAPER_INSET_PX = 32;
+
+/**
+ * Where the paper sits inside the rectified image, in pixels.
+ *
+ * Every rectification path reports the square it mapped the paper onto, and the
+ * paths disagree about it — so read it rather than assume. Axis-aligned on all
+ * three (a `Quad::square`, or the letterbox rectangle), so bounds are enough.
+ */
+function paperPixelBox(
+  quad: CpDetectQuad | undefined
+): { width: number; height: number } | null {
+  if (!quad) return null;
+  const xs = [quad.top_left.x, quad.top_right.x, quad.bottom_right.x, quad.bottom_left.x];
+  const ys = [quad.top_left.y, quad.top_right.y, quad.bottom_right.y, quad.bottom_left.y];
+  const width = Math.max(...xs) - Math.min(...xs);
+  const height = Math.max(...ys) - Math.min(...ys);
+  return width > 0 && height > 0 ? { width, height } : null;
+}
 
 /**
  * Outward margin on the suppression region, as a fraction of the paper.
@@ -604,6 +633,9 @@ export function CpDetectImportModal() {
                 src: imageDataToDataUrl(rectified.image, t),
                 width: rectified.image.width,
                 height: rectified.image.height,
+                // Where the rectifier says it put the paper. The three paths
+                // disagree, so this is read rather than assumed.
+                paperPixels: paperPixelBox(rectified.report.target_quad),
               }
             : null;
         // Detect is reachable with no crease pattern open at all (it is gated
@@ -1743,7 +1775,13 @@ function verdictMessage(
  */
 function repairAnnotations(
   paper: OristudioCpModelBox,
-  imageSrc: { src: string; width: number; height: number },
+  imageSrc: {
+    src: string;
+    width: number;
+    height: number;
+    /** The paper's box inside the rectified image — see {@link paperPixelBox}. */
+    paperPixels: { width: number; height: number } | null;
+  },
   solveInput: unknown,
   label: string,
   bottomZ: number
@@ -1751,16 +1789,26 @@ function repairAnnotations(
   const center = { x: (paper.minX + paper.maxX) / 2, y: (paper.minY + paper.maxY) / 2 };
   const paperWidth = paper.maxX - paper.minX;
   const paperHeight = paper.maxY - paper.minY;
+  // The image box is the paper scaled by however much of the rectified frame the
+  // paper does *not* occupy. Per axis, because a letterboxed resize reports a
+  // non-square box; the reported box is centred on every current path, so there
+  // is no offset to apply.
   const inset = 2 * DETECT_PAPER_INSET_PX;
-  const scale = imageSrc.width > inset ? imageSrc.width / (imageSrc.width - inset) : 1;
+  const fallback = imageSrc.width > inset ? imageSrc.width / (imageSrc.width - inset) : 1;
+  const scaleX = imageSrc.paperPixels
+    ? imageSrc.width / imageSrc.paperPixels.width
+    : fallback;
+  const scaleY = imageSrc.paperPixels
+    ? imageSrc.height / imageSrc.paperPixels.height
+    : fallback;
   const margin = Math.max(paperWidth, paperHeight) * REGION_PAPER_MARGIN_RATIO;
   const image = createCpImage({
     src: imageSrc.src,
     naturalWidth: imageSrc.width,
     naturalHeight: imageSrc.height,
     center,
-    width: paperWidth * scale,
-    height: paperHeight * scale,
+    width: paperWidth * scaleX,
+    height: paperHeight * scaleY,
     // Locked so it never takes a click meant for the creases over it, and at
     // half opacity so it reads as an underlay rather than as the drawing.
     //
