@@ -20,7 +20,7 @@ members = [
 resolver = "3"
 
 [workspace.package]
-version = "0.2.1"
+version = "0.3.0"
 edition = "2024"
 license = "GPL-2.0-or-later"
 repository = "https://github.com/zacharyfmarion/ori-studio"
