@@ -6,7 +6,9 @@ import type { CpSolveFrameTransform } from '../../engine/cpExactSolveTypes';
 import {
   cpRegionPatternLines,
   foldEdgesVertices,
+  partialVertexPositions,
   solvedRegionSegments,
+  solvedVertexPositions,
 } from './regionSolveGeometry';
 
 /**
@@ -128,7 +130,7 @@ describe('solvedRegionSegments', () => {
     // the paper: 0.51 of 400 units starting at x=100.
     const placed = solvedRegionSegments(
       owned,
-      [moved([0.5, 0], [0.51, 0], 4)],
+      partialVertexPositions([moved([0.5, 0], [0.51, 0], 4)]),
       SQUARE_EDGES,
       FRAME
     );
@@ -151,7 +153,7 @@ describe('solvedRegionSegments', () => {
     ];
     const placed = solvedRegionSegments(
       owned,
-      [moved([0.5, 0], [0.51, 0], 4)],
+      partialVertexPositions([moved([0.5, 0], [0.51, 0], 4)]),
       SQUARE_EDGES,
       FRAME
     );
@@ -174,7 +176,7 @@ describe('solvedRegionSegments', () => {
     const owned = [...paperSquare(), segment(300, 100, 300, 500)];
     const placed = solvedRegionSegments(
       owned,
-      [moved([0.5, 0], [0.51, 0], 4), moved([0.5, 1], [0.49, 1], 5)],
+      partialVertexPositions([moved([0.5, 0], [0.51, 0], 4), moved([0.5, 1], [0.49, 1], 5)]),
       SQUARE_EDGES,
       FRAME
     );
@@ -197,7 +199,7 @@ describe('solvedRegionSegments', () => {
       segment(300.2, 100, 300.2, 500),
     ];
     const edges = [...SQUARE_EDGES, [4, 6], [7, 8]] as const;
-    const placed = solvedRegionSegments(owned, [moved([0.5, 0], [0.6, 0], 4)], edges, FRAME);
+    const placed = solvedRegionSegments(owned, partialVertexPositions([moved([0.5, 0], [0.6, 0], 4)]), edges, FRAME);
 
     expect(placed.ok).toBe(true);
     if (!placed.ok) return;
@@ -222,7 +224,7 @@ describe('solvedRegionSegments', () => {
     const owned = [...paperSquare(), segment(300, 100, 300, 500)];
     const placed = solvedRegionSegments(
       owned,
-      [moved([0.5, 0], [0.51, 0], 4)],
+      partialVertexPositions([moved([0.5, 0], [0.51, 0], 4)]),
       SQUARE_EDGES,
       rotated
     );
@@ -237,12 +239,48 @@ describe('solvedRegionSegments', () => {
     // are already exact, so the solver has nothing to move. Idempotence falls
     // out of solving the live document rather than needing a rule of its own.
     const owned = paperSquare();
-    const placed = solvedRegionSegments(owned, [], SQUARE_EDGES.slice(0, 4), FRAME);
+    const placed = solvedRegionSegments(owned, new Map(), SQUARE_EDGES.slice(0, 4), FRAME);
     expect(placed).toMatchObject({ ok: true, rewrittenEndpoints: 0 });
   });
 
+  it('places a solved vertex the movement report never mentions', () => {
+    // The bug this channel exists to prevent. A collinear degree-2 vertex is
+    // dissolved for the solve and placed back on the straightened crease
+    // *after* the solver takes its movement comparison, so it is in
+    // `vertices_exact` and absent from `moved_vertices`. Placing from the report
+    // left it at its old, off-line coordinate while both neighbours moved — and
+    // a degree-2 vertex is Kawasaki-clean only when exactly collinear, so it
+    // came back as an angle violation on a pattern just called foldable.
+    //
+    // Vertex 5 here is that vertex: a mid-crease point the report would omit.
+    const owned = [
+      ...paperSquare(),
+      segment(300, 100, 300, 300),
+      segment(300, 300, 300, 500),
+    ];
+    const edges = [...SQUARE_EDGES, [5, 6]] as const;
+    const solved = solvedVertexPositions([
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+      { x: 0, y: 1 },
+      { x: 0.51, y: 0 },
+      // Straightened onto the chord between vertices 4 and 6.
+      { x: 0.505, y: 0.5 },
+      { x: 0.5, y: 1 },
+    ]);
+
+    const placed = solvedRegionSegments(owned, solved, edges, FRAME);
+    expect(placed.ok).toBe(true);
+    if (!placed.ok) return;
+    expect(placed.segments[4].a).toEqual({ x: 304, y: 100 });
+    expect(placed.segments[4].b).toEqual({ x: 302, y: 300 });
+    expect(placed.segments[5].a).toEqual({ x: 302, y: 300 });
+    expect(placed.segments[5].b).toEqual({ x: 300, y: 500 });
+  });
+
   it('refuses when the region holds no creases', () => {
-    expect(solvedRegionSegments([], [moved([0.5, 0], [0.51, 0])], [], FRAME)).toEqual({
+    expect(solvedRegionSegments([], partialVertexPositions([moved([0.5, 0], [0.51, 0])]), [], FRAME)).toEqual({
       ok: false,
       refusal: 'no_pattern',
     });
@@ -254,7 +292,12 @@ describe('solvedRegionSegments', () => {
     // creases they were not computed for.
     const owned = [...paperSquare(), segment(300, 100, 300, 500)];
     expect(
-      solvedRegionSegments(owned, [moved([0.5, 0], [0.51, 0], 4)], SQUARE_EDGES.slice(0, 4), FRAME)
+      solvedRegionSegments(
+        owned,
+        partialVertexPositions([moved([0.5, 0], [0.51, 0], 4)]),
+        SQUARE_EDGES.slice(0, 4),
+        FRAME
+      )
     ).toEqual({ ok: false, refusal: 'graph_mismatch' });
   });
 });

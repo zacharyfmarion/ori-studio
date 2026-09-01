@@ -322,6 +322,25 @@ interface CpExactSolveAcceptedFields {
   stage: CpExactSolveStage;
   /** Vertices whose position changed, for the "45 vertices moved" line. */
   movedVertices: readonly CpExactSolveMovedVertex[];
+  /**
+   * **Every** solved vertex, indexed by vertex id — the geometry the verdict
+   * above was computed on, and therefore the only thing that should be written
+   * into a document.
+   *
+   * Not the same set as {@link movedVertices}, which is a *report*: it is
+   * filtered by comparing the solver's own start and end points, and the solver
+   * finishes some vertices after that comparison is taken. A collinear degree-2
+   * vertex is dissolved for the solve and placed back on the straightened crease
+   * afterwards (`exact_solve.rs`'s `place_dissolved_vertices`), so it lands in
+   * this array and never appears in that list.
+   *
+   * Placing from the list left those vertices at their old, slightly-off-line
+   * coordinates while both their neighbours moved. A degree-2 vertex is
+   * Kawasaki-clean only when it is *exactly* collinear, so each one came back as
+   * an angle violation on a pattern the solver had just called foldable —
+   * measured at 4 vertices on `mid-solve_5` and 21 on `mid-solve`.
+   */
+  verticesExact: readonly { x: number; y: number }[];
   /** The largest single displacement, in model units. */
   maxMovement: number;
   elapsedSeconds: number;
@@ -598,6 +617,7 @@ export function classifyCpExactSolve(
       kind: solved.status === 'solved' ? 'solved' : 'ambiguous',
       stage,
       movedVertices: movedVertices(report, 'moved_vertices'),
+      verticesExact: Array.isArray(solved.vertices_exact) ? solved.vertices_exact : [],
       maxMovement: finiteNumber(report.max_vertex_movement),
       elapsedSeconds,
       residuals: cpExactSolveResiduals(solved),

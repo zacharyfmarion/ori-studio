@@ -103,6 +103,83 @@ fn report(tag: &str, input: &ExactSolveInput) {
         return;
     }
     let solved = solve_exact(input, ExactSolveOptions::default());
+
+    // Which vertices did the solver actually move, and which of those does the
+    // movement report tell a caller about?
+    let reported: std::collections::BTreeSet<usize> = solved.movement_report["moved_vertices"]
+        .as_array()
+        .map(|v| {
+            v.iter()
+                .filter_map(|m| m["vertex_id"].as_u64().map(|n| n as usize))
+                .collect()
+        })
+        .unwrap_or_default();
+    let mut actually_moved = Vec::new();
+    for (id, vertex) in input.vertices.iter().enumerate() {
+        let Some(after) = solved.vertices_exact.get(id) else {
+            continue;
+        };
+        let d = ((after.x - vertex.point.x).powi(2) + (after.y - vertex.point.y).powi(2)).sqrt();
+        if d > 1e-10 {
+            actually_moved.push((id, d));
+        }
+    }
+    let silent: Vec<usize> = actually_moved
+        .iter()
+        .map(|(id, _)| *id)
+        .filter(|id| !reported.contains(id))
+        .collect();
+    // Raw degree over fold spans, before any normalisation the solver applies.
+    let mut raw_degree = vec![0usize; input.vertices.len()];
+    for span in &input.selected_spans {
+        if span.assignment_label() == oristudio_cp_compiler::AssignmentLabel::Boundary {
+            continue;
+        }
+        for v in span.vertices {
+            if let Some(slot) = raw_degree.get_mut(v) {
+                *slot += 1;
+            }
+        }
+    }
+    let raw_deg2: Vec<usize> = (0..input.vertices.len())
+        .filter(|&i| raw_degree[i] == 2)
+        .collect();
+    println!(
+        "{tag} RAW degree-2 vertices in the input: {} {:?}",
+        raw_deg2.len(),
+        &raw_deg2.iter().take(12).collect::<Vec<_>>()
+    );
+    let silent_set: std::collections::BTreeSet<usize> = silent.iter().copied().collect();
+    let raw_set: std::collections::BTreeSet<usize> = raw_deg2.iter().copied().collect();
+    println!(
+        "{tag} silent ∩ raw-degree-2 = {:?}   silent not degree-2 = {:?}",
+        silent_set.intersection(&raw_set).collect::<Vec<_>>(),
+        silent_set.difference(&raw_set).collect::<Vec<_>>()
+    );
+    for id in silent.iter().take(6) {
+        let v = &input.vertices[*id];
+        let a = solved.vertices_exact[*id];
+        println!(
+            "{tag}   silent v{id}: kind {:?} policy {:?} side {:?}  input ({:.9},{:.9}) -> exact ({:.9},{:.9})  d={:.3e}",
+            v.kind,
+            v.movement_policy,
+            v.boundary_side,
+            v.point.x,
+            v.point.y,
+            a.x,
+            a.y,
+            ((a.x - v.point.x).powi(2) + (a.y - v.point.y).powi(2)).sqrt()
+        );
+    }
+    println!(
+        "{tag} vertices_exact len {} (input {}), moved-in-vertices_exact {}, reported {}, MOVED BUT UNREPORTED {}: {:?}",
+        solved.vertices_exact.len(),
+        input.vertices.len(),
+        actually_moved.len(),
+        reported.len(),
+        silent.len(),
+        &silent.iter().take(12).collect::<Vec<_>>()
+    );
     println!(
         "{tag} SOLVE: {:?} accepted={} reasons={:?} maxmove={}",
         solved.status,

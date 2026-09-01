@@ -37,7 +37,23 @@
  * within a tolerance of a crease end, which meant a tolerance to tune, close
  * vertex pairs that could claim each other's displacement, and a majority vote
  * to decide whether the whole thing was trustworthy. None of those exist here —
- * an id either was moved or was not.
+ * an id either has a solved position or it does not.
+ *
+ * ## What counts as the answer
+ *
+ * `vertices_exact`, not the movement report. The report is filtered by comparing
+ * the solver's own start and end points, and the solver finishes some vertices
+ * *after* that comparison is taken: a collinear degree-2 vertex is dissolved for
+ * the solve and placed back on the straightened crease afterwards. Placing from
+ * the report left every one of those at its old, off-line coordinate while both
+ * neighbours moved — and a degree-2 vertex is Kawasaki-clean only when it is
+ * exactly collinear, so each came back as an angle violation on a pattern that
+ * had just been called foldable. Measured: 4 such vertices on `mid-solve_5`, 21
+ * on `mid-solve`, and on both files *every* silently-unplaced vertex was one.
+ *
+ * So the caller passes positions **by vertex id** and this module does not care
+ * which report they came from. A solve supplies all of them; a timed-out solve's
+ * partial answer supplies only what it managed.
  */
 import {
   cpSolveFramePoint,
@@ -124,6 +140,30 @@ export type CpRegionSolvePlacement =
   | { ok: false; refusal: CpRegionSolvePlacementRefusal };
 
 /**
+ * Solved positions by vertex id, in the solver's unit square.
+ *
+ * A map rather than an array because the two things that produce one are not the
+ * same shape: an accepted solve gives a complete `vertices_exact` indexed by id,
+ * and a timed-out solve gives only the vertices it managed to place. An id that
+ * is absent keeps its document coordinate.
+ */
+export type CpSolvedVertexPositions = ReadonlyMap<number, { x: number; y: number }>;
+
+/** Every vertex of an accepted solve, which is the whole answer. */
+export function solvedVertexPositions(
+  verticesExact: readonly { x: number; y: number }[]
+): CpSolvedVertexPositions {
+  return new Map(verticesExact.map((point, id) => [id, point]));
+}
+
+/** What a timed-out solve managed to place — the only channel it has. */
+export function partialVertexPositions(
+  moved: readonly CpExactSolveMovedVertex[]
+): CpSolvedVertexPositions {
+  return new Map(moved.map((vertex) => [vertex.vertex_id, vertex.after]));
+}
+
+/**
  * Place a solved answer onto the region's creases.
  *
  * Endpoints move; nothing else does. The solver changes coordinates only — the
@@ -139,30 +179,33 @@ export type CpRegionSolvePlacement =
  */
 export function solvedRegionSegments(
   owned: readonly OristudioCpLineSegment[],
-  moved: readonly CpExactSolveMovedVertex[],
+  positions: CpSolvedVertexPositions,
   edgesVertices: readonly (readonly [number, number])[],
   transform: CpSolveFrameTransform
 ): CpRegionSolvePlacement {
   if (owned.length === 0) return { ok: false, refusal: 'no_pattern' };
   if (edgesVertices.length !== owned.length) return { ok: false, refusal: 'graph_mismatch' };
-  // A solve that moved nothing is a success with nothing to place. Returning the
-  // creases untouched keeps the caller's single code path rather than making it
-  // special-case a result it would then write unchanged.
-  if (moved.length === 0) return { ok: true, segments: [...owned], rewrittenEndpoints: 0 };
+  // A solve that placed nothing is a success with nothing to write. Returning
+  // the creases untouched keeps the caller's single code path rather than making
+  // it special-case a result it would then write unchanged.
+  if (positions.size === 0) return { ok: true, segments: [...owned], rewrittenEndpoints: 0 };
 
-  const placed = new Map<number, { x: number; y: number }>();
-  for (const vertex of moved) {
-    placed.set(vertex.vertex_id, cpSolveFramePoint(transform, vertex.after));
-  }
-
+  // A vertex that did not move still resolves to the coordinate it already has,
+  // so `rewrittenEndpoints` counts *ends given a solved position*, not ends whose
+  // value changed. It is a placement statistic; the movement figures the UI
+  // reports come from the solver.
   let rewrittenEndpoints = 0;
   const segments = owned.map((segment, index) => {
     const [from, to] = edgesVertices[index];
-    const a = placed.get(from) ?? null;
-    const b = placed.get(to) ?? null;
-    if (!a && !b) return segment;
-    rewrittenEndpoints += (a ? 1 : 0) + (b ? 1 : 0);
-    return { ...segment, a: a ?? segment.a, b: b ?? segment.b };
+    const solvedA = positions.get(from);
+    const solvedB = positions.get(to);
+    if (!solvedA && !solvedB) return segment;
+    rewrittenEndpoints += (solvedA ? 1 : 0) + (solvedB ? 1 : 0);
+    return {
+      ...segment,
+      a: solvedA ? cpSolveFramePoint(transform, solvedA) : segment.a,
+      b: solvedB ? cpSolveFramePoint(transform, solvedB) : segment.b,
+    };
   });
   return { ok: true, segments, rewrittenEndpoints };
 }

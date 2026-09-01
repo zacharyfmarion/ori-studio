@@ -73,6 +73,7 @@ function accepted(
     kind,
     stage: 'refinement',
     movedVertices: [],
+    verticesExact: [],
     maxMovement: 0.001,
     elapsedSeconds: 1,
     residuals: figures,

@@ -141,13 +141,33 @@ const AMBIGUOUS_RESIDUALS: CpExactSolveTheoremReport = {
   after: { max_kawasaki_residual_degrees: 0.00747, odd_degree_vertices: [12, 41, 77] },
 };
 
+/**
+ * The solved geometry for {@link FOLD_JSON}, in the solver's unit square: the
+ * paper corners, then the interior crease's two ends with the top one nudged to
+ * 0.51 — 304 in document units.
+ *
+ * This, not `moved_vertices`, is what placement reads. The report is filtered by
+ * the solver's own movement comparison and omits vertices it finishes after
+ * taking it, so a fixture that carried only the report would not exercise the
+ * channel the product uses.
+ */
+const VERTICES_EXACT = [
+  { x: 0, y: 0 },
+  { x: 1, y: 0 },
+  { x: 1, y: 1 },
+  { x: 0, y: 1 },
+  { x: 0.51, y: 0 },
+  { x: 0.5, y: 1 },
+];
+
 function graph(
   report: CpExactSolveMovementReport,
-  theorem: CpExactSolveTheoremReport = {}
+  theorem: CpExactSolveTheoremReport = {},
+  verticesExact: { x: number; y: number }[] = VERTICES_EXACT
 ): CpExactSolvedGraph {
   return {
     schema: 'oristudio/cp-compiler/exact-solved-graph-v1',
-    vertices_exact: [],
+    vertices_exact: report.accepted ? verticesExact : [],
     edges_exact: [],
     movement_report: report,
     theorem_residual_report: theorem,
@@ -168,11 +188,12 @@ function solveInputSeen(): unknown {
 function bridge(
   report: CpExactSolveMovementReport,
   gate?: Promise<void>,
-  theorem?: CpExactSolveTheoremReport
+  theorem?: CpExactSolveTheoremReport,
+  verticesExact?: { x: number; y: number }[]
 ): CpExactSolver {
   const answer = async () => {
     if (gate) await gate;
-    return graph(report, theorem);
+    return graph(report, theorem, verticesExact);
   };
   return {
     solveExact: async (inputJson) => {
@@ -610,6 +631,40 @@ describe('useCpRegionSolve', () => {
 
     expect(replaceLineSegments).not.toHaveBeenCalled();
     expect(api.stateFor('plain')).toBeUndefined();
+  });
+
+  it('writes the solved geometry, including vertices the report omits', async () => {
+    // A collinear degree-2 vertex is dissolved for the solve and placed back on
+    // the straightened crease *after* the solver takes its movement comparison,
+    // so it reaches `vertices_exact` and never appears in `moved_vertices`.
+    // Placing from the report left it at its old, off-line coordinate while both
+    // neighbours moved, and a degree-2 vertex is Kawasaki-clean only when
+    // exactly collinear — so it came back as an angle violation on a pattern the
+    // solver had just called foldable.
+    //
+    // Vertex 5 is that vertex here: solved, and deliberately absent from the
+    // report below.
+    solver = bridge(
+      {
+        ...ACCEPTED,
+        moved_vertices: [
+          { vertex_id: 4, before: { x: 0.5, y: 0 }, after: { x: 0.51, y: 0 }, movement: 0.01 },
+        ],
+      },
+      undefined,
+      undefined,
+      // Vertex 5 is solved to x = 0.505 — document x = 302, away from the 300 it
+      // sits at in `SEGMENTS` — and named nowhere in the report above.
+      [...VERTICES_EXACT.slice(0, 5), { x: 0.505, y: 1 }]
+    );
+    await solve();
+
+    const [, segments] = replaceLineSegments.mock.calls[0];
+    // The reported vertex landed.
+    expect(segments[4].a).toEqual({ x: 304, y: 100 });
+    // And so did the unreported one, which used to keep the document's x = 300
+    // while its own crease moved underneath it.
+    expect(segments[4].b).toEqual({ x: 302, y: 500 });
   });
 
   it('solves the creases on screen, not the input attached at import', async () => {

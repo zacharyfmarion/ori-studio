@@ -238,6 +238,7 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
     let normalized = normalized_input(input);
     let mut solved = solve_exact_inner(&normalized, options, Rc::new(BTreeSet::new()));
     place_dissolved_vertices(&normalized, input, &mut solved.vertices_exact);
+    report_dissolved_movement(&normalized, input, &mut solved);
     restore_original_edges(input, &mut solved);
     solved
 }
@@ -256,8 +257,78 @@ pub fn solve_exact_with_exemptions(
         Rc::new(options.exempt_vertex_ids.clone()),
     );
     place_dissolved_vertices(&normalized, input, &mut solved.vertices_exact);
+    report_dissolved_movement(&normalized, input, &mut solved);
     restore_original_edges(input, &mut solved);
     solved
+}
+
+/// Tell the movement report about the vertices [`place_dissolved_vertices`] just
+/// moved.
+///
+/// The report is built inside the solve, from the graph the solve ran on — which
+/// is the *normalized* one, where a dissolved degree-2 vertex belongs to no span
+/// and therefore never moves. Straightening it onto the solved crease happens
+/// after that, so without this the report undercounts: 55 vertices claimed
+/// against 76 actually moved on `mid-solve_4`, and that count is what a caller
+/// shows the user to justify accepting the answer.
+///
+/// Only additive. `before` is the coordinate the caller handed in and `after` is
+/// what `vertices_exact` now holds, so no existing entry changes and the
+/// acceptance decision — long since taken — cannot move.
+fn report_dissolved_movement(
+    normalized: &ExactSolveInput,
+    original: &ExactSolveInput,
+    solved: &mut ExactSolvedGraph,
+) {
+    let dissolved: Vec<usize> = normalized
+        .selected_spans
+        .iter()
+        .flat_map(|span| span.collapsed_vertex_ids.iter().copied())
+        .collect();
+    if dissolved.is_empty() {
+        return;
+    }
+    let Some(report) = solved.movement_report.as_object_mut() else {
+        return;
+    };
+    let mut added = Vec::new();
+    let mut max_added = 0.0_f64;
+    for id in dissolved {
+        let (Some(was), Some(now)) = (original.vertices.get(id), solved.vertices_exact.get(id))
+        else {
+            continue;
+        };
+        let movement = distance(was.point, *now);
+        if movement <= 1e-10 {
+            continue;
+        }
+        max_added = max_added.max(movement);
+        added.push(json!({
+            "vertex_id": was.id,
+            "before": was.point,
+            "after": now,
+            "movement": round6(movement),
+            "movement_policy": was.movement_policy,
+            "boundary_side": was.boundary_side,
+            "support": round6(was.support),
+        }));
+    }
+    if added.is_empty() {
+        return;
+    }
+    for key in ["moved_vertices", "attempted_moved_vertices"] {
+        if let Some(Value::Array(list)) = report.get_mut(key) {
+            list.extend(added.iter().cloned());
+        }
+    }
+    for key in ["max_vertex_movement", "attempted_max_vertex_movement"] {
+        if let Some(slot) = report.get_mut(key) {
+            let current = slot.as_f64().unwrap_or(0.0);
+            if max_added > current {
+                *slot = json!(round6(max_added));
+            }
+        }
+    }
 }
 
 /// Read an input the way the compiler means it, before anything else looks at it.
@@ -4061,6 +4132,52 @@ mod tests {
             "a collinear split should be merged away, got {:?}",
             topology.combinatorial.degree_two_vertices
         );
+    }
+
+    /// A dissolved vertex is straightened after the movement report is built, so
+    /// the report has to be told — otherwise it undercounts, and callers that
+    /// read it as the answer never place the vertex at all.
+    ///
+    /// That is not hypothetical: placing from `moved_vertices` left every
+    /// dissolved vertex at its old, off-line coordinate while both neighbours
+    /// moved, and a degree-2 vertex is Kawasaki-clean only when exactly
+    /// collinear. Measured on `mid-solve_4`: 48 CAMV angle violations before,
+    /// 40 placing from the report, 2 placing from `vertices_exact`.
+    #[test]
+    fn a_dissolved_vertex_appears_in_the_movement_report() {
+        let input = degree_two_input(1.5, MV);
+        let solved = solve_exact(&input, ExactSolveOptions::default());
+
+        // It is straightened in the answer...
+        let straightened = solved.vertices_exact[4];
+        assert!(
+            distance(straightened, input.vertices[4].point) > 1e-10,
+            "the dissolved vertex should have been placed onto the solved crease"
+        );
+
+        // ...and the report says so, at the same coordinate.
+        let reported = solved.movement_report["moved_vertices"]
+            .as_array()
+            .expect("moved_vertices")
+            .iter()
+            .find(|entry| entry["vertex_id"] == 4)
+            .expect("the dissolved vertex must be reported as moved");
+        assert_eq!(reported["after"]["x"], json!(straightened.x));
+        assert_eq!(reported["after"]["y"], json!(straightened.y));
+
+        // Every vertex that moved is named. This is the invariant a caller needs
+        // in order to trust the report at all.
+        for (id, vertex) in input.vertices.iter().enumerate() {
+            if distance(solved.vertices_exact[id], vertex.point) <= 1e-10 {
+                continue;
+            }
+            assert!(
+                solved.movement_report["moved_vertices"]
+                    .as_array()
+                    .is_some_and(|list| list.iter().any(|e| e["vertex_id"] == id)),
+                "vertex {id} moved but is missing from the movement report"
+            );
+        }
     }
 
     /// A vertex whose creases genuinely turn is a corner. Merging it would

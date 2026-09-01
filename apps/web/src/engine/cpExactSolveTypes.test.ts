@@ -77,6 +77,10 @@ describe('classifyCpExactSolve', () => {
       kind: 'solved',
       stage: 'refinement',
       movedVertices: MOVED,
+      // The solved geometry rides along beside the report, because the report is
+      // not a placement channel: it is filtered on the solver's own start and end
+      // points, and some vertices are finished after that comparison is taken.
+      verticesExact: [{ x: 0, y: 0 }],
       maxMovement: 0.02,
       elapsedSeconds: 3.5,
       residuals: null,

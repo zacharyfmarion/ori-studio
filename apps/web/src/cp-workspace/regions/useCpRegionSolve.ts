@@ -79,7 +79,10 @@ import type { CpSolveFrameTransform } from '../../engine/cpExactSolveTypes';
 import {
   cpRegionPatternLines,
   foldEdgesVertices,
+  partialVertexPositions,
   solvedRegionSegments,
+  solvedVertexPositions,
+  type CpSolvedVertexPositions,
   type CpRegionPatternLines,
   type CpRegionSolvePlacementRefusal,
 } from './regionSolveGeometry';
@@ -311,7 +314,16 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
         return;
       }
 
-      const placed = await place(owned, outcome.movedVertices, frame, solveLabel(latest.current.t));
+      // `verticesExact`, not `movedVertices` — see `regionSolveGeometry`. The
+      // report omits vertices the solver finishes after taking its movement
+      // comparison, and those came back as angle violations on a pattern it had
+      // just called foldable.
+      const placed = await place(
+        owned,
+        solvedVertexPositions(outcome.verticesExact),
+        frame,
+        solveLabel(latest.current.t)
+      );
       if (!placed.ok) {
         failed(placementRefusalLabel(latest.current.t, placed.refusal));
         return;
@@ -384,7 +396,7 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
       if (record?.partial && record.partial.length > 0 && record.frame) {
         const placed = await place(
           record.owned,
-          record.partial,
+          partialVertexPositions(record.partial),
           record.frame,
           partialLabel(latest.current.t)
         );
@@ -487,13 +499,13 @@ function currentRecord(
  */
 async function place(
   owned: CpRegionPatternLines,
-  moved: readonly CpExactSolveMovedVertex[],
+  positions: CpSolvedVertexPositions,
   frame: CpRegionSolveFrame,
   label: string
 ): Promise<{ ok: true } | { ok: false; refusal: CpRegionSolvePlacementRefusal }> {
   const placement = solvedRegionSegments(
     owned.segments,
-    moved,
+    positions,
     frame.edgesVertices,
     frame.transform
   );

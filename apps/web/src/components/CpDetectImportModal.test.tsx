@@ -242,6 +242,7 @@ function solvedOutcome(): CpExactSolveOutcome {
     kind: 'solved',
     stage: 'refinement',
     movedVertices: [],
+    verticesExact: [],
     maxMovement: 0.0004,
     elapsedSeconds: 1.2,
     residuals: {
