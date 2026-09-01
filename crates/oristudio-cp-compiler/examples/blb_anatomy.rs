@@ -38,6 +38,22 @@ fn main() {
         },
     );
     println!("solve status: {:?}", solved.status);
+    {
+        use std::collections::BTreeMap;
+        let mut sizes: BTreeMap<usize, usize> = BTreeMap::new();
+        for span in &input.selected_spans {
+            if let Some(id) = span.source_carrier_ids.first() {
+                *sizes.entry(*id).or_default() += 1;
+            }
+        }
+        let shared = sizes.values().filter(|n| **n > 1).count();
+        let in_shared: usize = sizes.values().filter(|n| **n > 1).sum();
+        println!(
+            "carrier groups: {} total, {shared} hold more than one span ({in_shared} of {} spans)",
+            sizes.len(),
+            input.selected_spans.len()
+        );
+    }
 
     // Write the solved coordinates back onto the creases, then check.
     let mut out = model.clone();

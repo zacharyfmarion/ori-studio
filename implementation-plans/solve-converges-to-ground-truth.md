@@ -168,7 +168,35 @@ is to widen it:
   the synthetic perturbation. Those caches are v3 while
   `scripts/cp-detect/current-model.json` names v5; say which in any report.
 
-### Phase 1 — hold pass-through creases collinear
+### Phase 1 — hold pass-through creases collinear — **TRIED, REVERTED**
+
+Implemented as the plan specified (union the carrier groups of ray pairs within
+5° of opposite, tolerance measured from a sharply bimodal histogram: 1,282 of
+2,819 rays under 3°, 1,418 past 12°, 34 in the valley between) and **it made the
+solve infeasible**:
+
+| file | spans in multi-span carriers | before | after |
+| --- | --- | --- | --- |
+| `close_but_not_good_enough` | 128 → **272** | Solved, 0 angle / 28 BLB | **Ambiguous, 167 angle** |
+| `pegasus-attempt` | 110 → **234** | Solved, 0 angle / 32 BLB | **Ambiguous, 167 angle** |
+| `mid-solve_5` | 52 → **91** | Solved, 0 angle / 7 BLB | **Ambiguous, 67 angle** |
+
+Roughly doubling the spans held on shared lines leaves too few degrees of freedom
+to satisfy Kawasaki at all. The BLB counts fell only because the solve stopped
+moving anything.
+
+**A carrier group is a hard constraint — shared θ and ρ parameters — and what is
+wanted here is a preference.** If this is revisited it should be a *soft*
+straightness residual: for each pass-through pair, penalise the turn's deviation
+from 180° with its own sigma. That cannot make the system infeasible, and it is
+the same "preserve the coincidence" idea the tie finding points at. Deriving the
+pairs inside `SolveModel::new` rather than writing them into `ExactSolveInput`
+would also make it apply to the detector's attachment, not just rebuilt inputs.
+
+Left undone deliberately: Phase 2 is the more targeted intervention and is
+inactive-by-construction, so it goes first now.
+
+### Phase 1 (original text, for reference) — hold pass-through creases collinear
 
 Replace the bin with an explicit relation: at each vertex, pair rays within
 tolerance of opposite and union their carrier groups (union-find over spans, in
