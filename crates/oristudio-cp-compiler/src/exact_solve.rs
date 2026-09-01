@@ -1577,7 +1577,7 @@ fn analyze_graph(
     let cut_boundary_span_ids = cut_boundary_span_ids(&input.selected_spans);
     let boundary_vertex_ids = boundary_vertex_ids(&input.selected_spans);
     for span in &input.selected_spans {
-        if is_boundary_like_span(span) {
+        if !is_fold_span(span) {
             continue;
         }
         let [a, b] = span.vertices;
@@ -1906,7 +1906,10 @@ fn kawasaki_residual_entries(
     let mut incident = vec![Vec::<IncidentRay>::new(); vertices.len()];
     let boundary_vertices = boundary_vertex_ids(spans);
     for span in spans {
-        if is_boundary_like_span(span) {
+        // The same fan the analysis builds, and it has to be: this one is what
+        // the optimizer minimizes, and a residual over a different set of rays
+        // than the report describes is two answers to one question.
+        if !is_fold_span(span) {
             continue;
         }
         let [a, b] = span.vertices;
@@ -2425,6 +2428,42 @@ fn is_boundary_like_span(span: &CandidateCreaseSpan) -> bool {
     span.boundary_role() != CandidateCreaseBoundaryRole::None
 }
 
+/// Whether this span is a **fold**, and so belongs in a vertex's fan.
+///
+/// Boundary spans are excluded because the paper edge is not a crease. `Flat` is
+/// excluded for the same reason: FOLD's `F` is an edge whose fold angle is zero,
+/// so the paper is continuous across it. Two things follow, and the solver used
+/// to get both wrong:
+///
+/// - **Kawasaki's alternating sum is over folds.** A flat edge splits one sector
+///   into two collinear halves, which flips the parity of every sector after it
+///   and makes the alternation meaningless.
+/// - **The odd-degree test is a count of folds.** Four folds plus one auxiliary
+///   line read as degree five, i.e. "cannot fold flat no matter where the
+///   vertices sit" — about a vertex that folds perfectly well.
+///
+/// Maekawa already excluded `Flat` (it counts Mountain and Valley only), so the
+/// analysis disagreed with itself; this is the half that was wrong. `Unknown` is
+/// the label for *a fold whose direction is undecided* and stays in the fan,
+/// which is what keeps it counted in the degree while correctly suppressing
+/// Maekawa.
+///
+/// Two other places already read `Flat` this way — `decode.rs`'s crease count
+/// and `compare_exact_solve_benchmark.rs`'s edge walk both group it with
+/// `Boundary` and skip — so this makes the compiler agree with its own callers.
+/// Oriedita agrees too: `is_folding_line()` is Black0|Red1|Blue2, and
+/// `point_line_map` skips Cyan3 outright, so an auxiliary line is not in its
+/// foldability graph at all.
+///
+/// Measured: detection attachments carry **zero** `Flat` spans, so this is a
+/// no-op on the shipped path. It matters for a graph rebuilt from a document the
+/// user has edited, where an auxiliary crease is an ordinary thing to draw — and
+/// for TreeMaker, whose `Flat` spans are all `UNFOLDED_HINGE`, upstream's own
+/// name for a crease that does not fold.
+fn is_fold_span(span: &CandidateCreaseSpan) -> bool {
+    !is_boundary_like_span(span) && span.assignment_label() != AssignmentLabel::Flat
+}
+
 fn boundary_span_ids(spans: &[CandidateCreaseSpan]) -> Vec<usize> {
     spans
         .iter()
@@ -2584,11 +2623,15 @@ fn unmodeled_crossings(
 ) -> Vec<[usize; 2]> {
     let mut crossings = Vec::new();
     for (left_index, left) in input.selected_spans.iter().enumerate() {
-        if is_boundary_like_span(left) {
+        // Folds only, for the same reason the fan is folds only. An auxiliary
+        // line crossing a crease is not a topology error — it is a guide drawn
+        // across the pattern, which is what guides are for — so counting it here
+        // makes the gate fire on a document the user drew correctly.
+        if !is_fold_span(left) {
             continue;
         }
         for right in input.selected_spans.iter().skip(left_index + 1) {
-            if is_boundary_like_span(right) {
+            if !is_fold_span(right) {
                 continue;
             }
             if left.vertices.iter().any(|id| right.vertices.contains(id)) {
@@ -3726,6 +3769,92 @@ mod tests {
                 AssignmentLabel::Mountain,
             ],
         )
+    }
+
+    /// An auxiliary line is not a fold, and must not be counted as one.
+    ///
+    /// FOLD's `F` is an edge whose fold angle is zero — the paper is continuous
+    /// across it — and the CP kernel round-trips it as `Cyan3`, which CAMV skips
+    /// outright. So a vertex with four folds and one auxiliary line through it
+    /// has degree four, not five, and folds perfectly well.
+    #[test]
+    fn an_auxiliary_span_does_not_make_a_vertex_odd_degree() {
+        let mut input = four_ray_input(Point2::new(0.5, 0.5));
+        // A fifth ray to a new vertex, carrying `Flat`. Before this was fixed it
+        // pushed the junction to degree 5 and the pattern read as unfoldable at
+        // any coordinates.
+        input.vertices.push(vertex(
+            5,
+            Point2::new(0.5, 0.9),
+            CandidateVertexKind::InteriorJunction,
+            CandidateVertexMovementPolicy::Movable,
+            None,
+        ));
+        input
+            .selected_spans
+            .push(span(8, 4, 5, AssignmentLabel::Flat, 8, &input.vertices));
+
+        let topology = analyze_candidate_topology(&input);
+        assert!(
+            topology.combinatorial.odd_degree_vertices.is_empty(),
+            "an auxiliary line must not change a vertex's fold degree, got {:?}",
+            topology.combinatorial.odd_degree_vertices
+        );
+    }
+
+    /// `Unknown` is the opposite case and must stay in the fan: it means a fold
+    /// whose direction is undecided, not a non-fold. Keeping it counted is also
+    /// what leaves Maekawa correctly suppressed rather than failing.
+    #[test]
+    fn an_unknown_span_still_counts_as_a_fold() {
+        let mut input = four_ray_input(Point2::new(0.5, 0.5));
+        input.vertices.push(vertex(
+            5,
+            Point2::new(0.5, 0.9),
+            CandidateVertexKind::InteriorJunction,
+            CandidateVertexMovementPolicy::Movable,
+            None,
+        ));
+        input
+            .selected_spans
+            .push(span(8, 4, 5, AssignmentLabel::Unknown, 8, &input.vertices));
+
+        let topology = analyze_candidate_topology(&input);
+        // Vertex 5 is the span's loose far end and is odd at degree 1 either
+        // way; vertex 4 is the junction under test, odd only because the
+        // undecided fifth fold counts.
+        assert!(
+            topology.combinatorial.odd_degree_vertices.contains(&4),
+            "an undecided fold is still a fold, so five of them is odd degree, got {:?}",
+            topology.combinatorial.odd_degree_vertices
+        );
+    }
+
+    /// An auxiliary line crossing a crease is a guide drawn across the pattern,
+    /// which is what guides are for — not a topology error the solve caused.
+    #[test]
+    fn an_auxiliary_span_crossing_a_crease_is_not_an_unmodeled_crossing() {
+        let mut input = four_ray_input(Point2::new(0.5, 0.5));
+        // Two loose vertices whose span cuts clean across one of the four rays,
+        // sharing no vertex with it.
+        for (id, point) in [(5, Point2::new(0.1, 0.4)), (6, Point2::new(0.4, 0.1))] {
+            input.vertices.push(vertex(
+                id,
+                point,
+                CandidateVertexKind::InteriorJunction,
+                CandidateVertexMovementPolicy::Movable,
+                None,
+            ));
+        }
+        let crossing = span(8, 5, 6, AssignmentLabel::Flat, 8, &input.vertices);
+        input.selected_spans.push(crossing);
+
+        let topology = analyze_candidate_topology(&input);
+        assert!(
+            topology.combinatorial.unmodeled_crossings.is_empty(),
+            "an auxiliary crossing is not a modelling failure, got {:?}",
+            topology.combinatorial.unmodeled_crossings
+        );
     }
 
     fn assert_analytic_jacobian_matches_finite_difference(input: &ExactSolveInput) {

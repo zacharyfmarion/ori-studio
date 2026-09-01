@@ -10,8 +10,13 @@
 //!
 //! The solver only enforces Kawasaki, so it clears the `Angles` (Kawasaki) CAMV
 //! violations but not `LittleBigLittle` — an assignment/foldability condition
-//! TreeMaker leaves for the user (a large fraction of TreeMaker creases are `Flat`,
-//! i.e. unresolved). We therefore adopt the result when it is **Kawasaki-clean (0
+//! TreeMaker leaves for the user. (A large fraction of TreeMaker creases are
+//! `Flat` — 122 of 434 on `tmModelTester_5` — but every one of those is an
+//! `UNFOLDED_HINGE`, upstream's own name for a crease that does not fold, not
+//! an unresolved one. They round-trip into the editor as `Cyan3`, which CAMV
+//! skips, and the solver excludes them from its fans for the same reason.)
+//!
+//! We therefore adopt the result when it is **Kawasaki-clean (0
 //! `Angles` violations) and has strictly fewer total CAMV violations** than the
 //! input; the residual `LittleBigLittle`/assignment warnings are the user's to fix
 //! manually. Otherwise the original FOLD is returned. Exactize never throws and is
