@@ -77,16 +77,30 @@ function injectIntoHead(html, snippet) {
 }
 
 /**
- * The markup goes *before* `#root`, as a sibling.
+ * The markup goes *before* `#root`, as a sibling, followed immediately by an inline script
+ * that removes it.
  *
- * Not inside it: `createRoot().render()` clears the container on mount, which would work
- * but makes React's first commit responsible for removing content it did not create.
- * A sibling is removed explicitly by `main.tsx`, in one place, where it can be read.
+ * The script is the load-bearing part, and it has to be **inline and adjacent**. The module
+ * bundle is deferred: it does not execute until the document is parsed, and ~1MB of JS
+ * takes far longer to arrive than the 35KB of render-blocking CSS ahead of it. That window
+ * is real, and in it the browser paints this block. On `/welcome` that is landing-then-
+ * landing and nearly invisible; on `/edit` — where anyone who turned off "show welcome on
+ * startup" lands from `/` — it is a full marketing page flashing before the editor. That is
+ * not a trade worth making for a paint we throw away a moment later.
+ *
+ * An inline `<script>` runs synchronously at its position in the parse, before the parser
+ * reaches `#root` and before first paint, so the node never reaches the screen on any
+ * route. None of the SEO value depends on it surviving: a crawler that reads bytes has
+ * already received the markup, and one that renders gets React's identical copy.
+ *
+ * `main.tsx` removes it too. That is not redundancy for its own sake — it is the fallback
+ * if a future CSP blocks inline scripts, which would otherwise silently restore the flash.
  */
 function injectContent(html, id, markup) {
   const anchor = '<div id="root"></div>';
   if (!html.includes(anchor)) fail(`dist/index.html has no ${anchor}`);
-  return html.replace(anchor, `<div id="${id}">${markup}</div>\n    ${anchor}`);
+  const strip = `<script>document.getElementById(${JSON.stringify(id)}).remove()</script>`;
+  return html.replace(anchor, `<div id="${id}">${markup}</div>${strip}\n    ${anchor}`);
 }
 
 async function main() {
