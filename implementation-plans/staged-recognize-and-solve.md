@@ -444,56 +444,56 @@ instance of the same defect.
       `useCpRegionSolve` is now the listener, resolving the target the way the
       capability is gated — one solvable pattern is unambiguous, more than one is
       disambiguated by the selected crease.
-- [ ] **Deferred — expose the `ExactSolveInput` rebuild over the bridge.**
-      Deferred because the export is a Rust API-surface change in
-      `oristudio-cp-compiler` that nothing else in this plan needs, and shipping
-      the frontend flow behind it would have held the whole staged path on it.
-      A region solve therefore still runs on the *attachment*, so the user's
-      repairs do not reach the solver — which is the whole point of the flow, and
-      why this is the one item here that is a gap rather than a nicety.
-      `fold_exactize::fold_to_exact_solve_input` already does exactly this
-      (paper polygon by turn angle → similarity onto the unit square → map back
-      into the input's frame) but it is **private, with no wasm export**, and
-      `oristudio_cp_wasm::exactize_fold` is not a substitute: it fuses the solve,
-      applies its own adoption gate, and reports no movement, no stages and no
-      exemptions, so routing through it would be the second solve implementation
-      this plan exists to prevent. `cp-workspace/regions/regionSolveGeometry.ts`
-      stands in meanwhile — it places the answer under one stated hypothesis
-      (unit square, shift and uniform scale) and **refuses rather than guesses**
-      when the creases do not confirm it. It goes away with the export.
+- [x] **Expose the `ExactSolveInput` rebuild over the bridge.** *Landed
+      2026-09-01.* This was the one item here that was a gap rather than a
+      nicety: a region solve ran on the *attachment*, so the user's repairs never
+      reached the solver — the whole point of the flow.
 
-      **Measured on a real repair, 2026-08-31** (`mid_solve_3.osf`, replayed with
-      `cargo run -p oristudio-cp-compiler --example replay_attached_solve_input`).
-      The user repaired a detection — 6 lines drawn, and 44 creases the model had
-      mislabelled valley recoloured to auxiliary — pressed Solve, and got "Could
-      not solve". Every one of those edits reached the document and none reached
-      the attachment, which is 201 spans mapping 1:1 onto document edges with the
-      6 new ones absent and all 44 still labelled valley.
+      `fold_exactize::fold_to_exact_solve_input` already did exactly the right
+      thing (paper polygon by turn angle → similarity onto the unit square) and
+      was private with no export. It is now
+      `oristudio_cp_compiler::exact_solve_input_from_fold`, reached from
+      `cp_detect_exact_solve_input_from_fold` on the solve worker. The region's
+      creases go to the kernel as a scratch document, come back planarized, and
+      the compiler rebuilds from that. `oristudio_cp_wasm::exactize_fold` was
+      never a substitute — it fuses the solve, applies its own adoption gate, and
+      reports no movement, no stages and no exemptions, so routing through it
+      would have been the second solve implementation this plan exists to
+      prevent.
 
-      | | attachment (what solved) | + the user's repair |
+      **`regionSolveGeometry.ts` did not go away; it got smaller and exact.** It
+      placed the answer under a stated hypothesis (unit square, shift and uniform
+      scale) and refused when the creases did not confirm it. The rebuild returns
+      the similarity it used, so the transform is known; and because the kernel's
+      exporter emits one edge per segment in order, a moved vertex is placed by
+      *id*. That retired the match tolerance, the nearest-of-a-close-pair
+      tie-break and the majority-vote frame check, along with the
+      `paper_not_square` and `frame_unrecognized` refusals. A rotated pattern
+      places instead of being refused.
+
+      **What it fixed, over the six saved repair states** (headless, via
+      `cargo run -p oristudio-cp-compiler --example
+      rebuild_solve_input_from_document`, and confirmed in the browser):
+
+      | file | attachment | rebuilt from the document |
       | --- | --- | --- |
-      | odd-degree vertices | 14 | **0** |
-      | Maekawa failures | 42 | **0** |
-      | max Kawasaki | 182.01° | 21.92° → **0.0089°** |
-      | movement wanted vs 0.010 budget | 0.0705 (**7×**) | 0.0046 (inside) |
-      | outcome | `Failed`, `["candidate_status_failed","movement_budget_exceeded"]` | **accepted**, 90 vertices placed, 0.07 s |
+      | `mid-solve` | `Failed` (movement budget) | `Ambiguous`; 2.3° → 0°, 2 real odd-degree vertices left |
+      | `mid-solve_2` | `Ambiguous`, odd `[87,99,103]` | `Ambiguous`, **no blockers** |
+      | `mid-solve_4` | `Failed` | **`Solved`** |
+      | `mid-solve_5` | `Ambiguous`, odd `[87,99,103]` | **`Solved`** |
+      | `mid_solve_3` | `Failed`, 14 odd + 42 Maekawa | `Ambiguous`; 19.5° → 0.06°, **0 odd** |
+      | `solution_does_not_line_up` | `Ambiguous`, odd `[13]` | **`Solved`** |
 
-      So the repair was correct and sufficient, and the gap is the only reason it
-      did not land. The budget rejection is a **symptom**: lifting
-      `max_vertex_movement` to 0.2 on the unrepaired attachment buys `Ambiguous`
-      rather than `Solved`, because 14 odd-degree vertices keep `topology_clean`
-      false. Nothing about the cap is the problem.
+      None regressed, and none hit the boundary refusal that scoping had
+      predicted would block most mid-repair states — that estimate came from
+      synthesized intermediate geometry, not from saved documents, and did not
+      reproduce on a single real file.
 
-      Two consequences worth carrying into the work:
-
-      - The failure is **silent and plausible**. The chip refuses with the first
-        alphabetical rejection reason, which renders as "The answer still breaks a
-        foldability condition… work through the remaining markers" — over a canvas
-        whose markers the user has just cleared. Until the export lands, that
-        sentence is telling the truth about a graph the user cannot see and has
-        already fixed.
-      - A saved `.osf` carries the stale attachment, so reopening does not heal
-        it. Re-detecting is the only route back to a solvable region.
+      The two consequences the gap had are both gone: the chip no longer reports
+      blockers about a graph the user cannot see and has already fixed, and a
+      saved `.osf` no longer needs re-detecting to become solvable — the
+      attachment still marks a region as detected, but it is not what gets
+      solved.
 
 ### Phase C — cancellation, measured first
 
