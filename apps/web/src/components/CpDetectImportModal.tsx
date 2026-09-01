@@ -101,8 +101,9 @@ const DETECT_DECODER_BACKEND = 'legacy_candidate_exact_solve_v1' as const;
  *
  * **This constant is the registration, and nothing else is.** It is tempting to
  * read the rectifier's own `report.target_quad` instead — it says where the
- * paper really landed, the three rectification paths disagree about it, and two
- * of them (`resize_full_frame`, `resize_without_panel`) do not inset at all. But
+ * paper really landed, and the three rectification paths used to disagree about
+ * it, two of them (`resize_full_frame`, `resize_without_panel`) not insetting at
+ * all. But
  * `unit_from_px` and `px_from_unit` never consult it: they always divide by
  * `image_size - 64`. So the candidate's unit square is at pixels
  * `[32, size - 32]` **whatever the rectifier did**, and an underlay placed from
@@ -110,14 +111,11 @@ const DETECT_DECODER_BACKEND = 'legacy_candidate_exact_solve_v1' as const;
  * sits 1024/960 ≈ 6.7% off. That was tried, in a999608e, and reverted: the
  * symptom is "the borders line up but the lines don't".
  *
- * The real inconsistency is upstream and is not the modal's to fix. On the paths
- * that do not inset, the detector is decoding a paper that fills the frame as
- * though it were inset — the constant is named for the *synthetic render*
- * convention the model was trained on, so the decoder cannot simply stop
- * assuming it; the rectifier would have to inset on every path so the input
- * matches that distribution. Until then, matching this constant is what makes
- * the underlay agree with the creases the user is actually repairing, which is
- * the only alignment that matters here.
+ * Rectification agrees with it now — `paper_target_span` (`rectify.rs`) puts the
+ * paper at `[32, image_size - 32]` on all three paths, where it used to inset
+ * only when it had warped a detected panel. So the underlay, the decode and the
+ * model's training renders are finally one convention rather than three, and
+ * this constant is the name of it.
  */
 const DETECT_PAPER_INSET_PX = 32;
 
