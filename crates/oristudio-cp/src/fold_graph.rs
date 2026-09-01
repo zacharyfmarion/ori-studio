@@ -546,6 +546,23 @@ impl FoldGraph {
             return;
         }
 
+        // A hole cannot be load-bearing connectivity. If removing these faces
+        // leaves the dual graph in more pieces than it was already in, they were
+        // holding the sheet together, which is not something a hole does — so
+        // whatever they are, this rule has misread them and must stand aside.
+        //
+        // Measured: a plus-shaped sheet whose centre square is drawn in border
+        // colour has four arms that touch each other only at that square's
+        // corners. Dropping it separated all four, and a document that folds on
+        // its own terms became `fold_disconnected`. Counting components rather
+        // than asserting one keeps this correct on a canvas holding two designs.
+        let kept: Vec<&Vec<usize>> = self.faces.iter().filter(|face| !is_hole(face)).collect();
+        if Self::dual_components(&kept)
+            != Self::dual_components(&self.faces.iter().collect::<Vec<_>>())
+        {
+            return;
+        }
+
         self.faces.retain(|face| !is_hole(face));
         // Face ids shifted, so the line/face index has to be rebuilt from the
         // reduced set rather than patched.
@@ -558,6 +575,39 @@ impl FoldGraph {
             }
         }
         self.line_face_borders = self.line_face_borders_from_incidence(&incidence);
+    }
+
+    /// Connected components of the dual graph of `faces`, where two faces are
+    /// adjacent when they share a ring edge.
+    ///
+    /// Keyed on the undirected vertex pair, which is how [`FoldGraph::drop_hole_faces`]
+    /// already reads a ring, so the two cannot disagree about what "shares an edge"
+    /// means.
+    fn dual_components(faces: &[&Vec<usize>]) -> usize {
+        let mut edge_faces: HashMap<(usize, usize), Vec<usize>> = HashMap::new();
+        for (index, face) in faces.iter().enumerate() {
+            for slot in 0..face.len() {
+                let (a, b) = (face[slot], face[(slot + 1) % face.len()]);
+                edge_faces
+                    .entry((a.min(b), a.max(b)))
+                    .or_default()
+                    .push(index);
+            }
+        }
+        let mut parent: Vec<usize> = (0..faces.len()).collect();
+        for sharing in edge_faces.values() {
+            for pair in sharing.windows(2) {
+                let (a, b) = (root(&mut parent, pair[0]), root(&mut parent, pair[1]));
+                if a != b {
+                    parent[a.max(b)] = a.min(b);
+                }
+            }
+        }
+        let mut seen = BTreeSet::new();
+        for index in 0..faces.len() {
+            seen.insert(root(&mut parent, index));
+        }
+        seen.len()
     }
 
     /// Oriedita `PointSet.findLineInFaceBorder()`: resolve every line's border
@@ -1137,6 +1187,67 @@ mod tests {
             graph.faces.len(),
             9,
             "no crease, so no reading of which cells are paper — all nine stay"
+        );
+    }
+
+    /// A hole cannot be the thing holding the sheet together.
+    ///
+    /// A plus-shaped sheet whose centre square is drawn in border colour has
+    /// four arms that touch each other only at that square's corners, so the
+    /// centre is a cut vertex of the dual graph. It is enclosed and all-border,
+    /// which is everything the rule looks at — and dropping it separated all
+    /// four arms, turning a document that folds into `fold_disconnected`.
+    #[test]
+    fn a_drop_that_would_fragment_the_sheet_is_declined() {
+        let border = |ax: f64, ay: f64, bx: f64, by: f64| {
+            LineSegment::with_color(Point::new(ax, ay), Point::new(bx, by), LineColor::Black0)
+        };
+        let mut segments: Vec<LineSegment> = [
+            // The plus outline.
+            ((-50.0, -150.0), (50.0, -150.0)),
+            ((50.0, -150.0), (50.0, -50.0)),
+            ((50.0, -50.0), (150.0, -50.0)),
+            ((150.0, -50.0), (150.0, 50.0)),
+            ((150.0, 50.0), (50.0, 50.0)),
+            ((50.0, 50.0), (50.0, 150.0)),
+            ((50.0, 150.0), (-50.0, 150.0)),
+            ((-50.0, 150.0), (-50.0, 50.0)),
+            ((-50.0, 50.0), (-150.0, 50.0)),
+            ((-150.0, 50.0), (-150.0, -50.0)),
+            ((-150.0, -50.0), (-50.0, -50.0)),
+            ((-50.0, -50.0), (-50.0, -150.0)),
+            // The centre square, every edge with paper on both sides.
+            ((-50.0, -50.0), (50.0, -50.0)),
+            ((50.0, -50.0), (50.0, 50.0)),
+            ((50.0, 50.0), (-50.0, 50.0)),
+            ((-50.0, 50.0), (-50.0, -50.0)),
+        ]
+        .iter()
+        .map(|((ax, ay), (bx, by))| border(*ax, *ay, *bx, *by))
+        .collect();
+        for ((ax, ay), (bx, by)) in [
+            ((-50.0, -150.0), (50.0, -50.0)),
+            ((50.0, -50.0), (150.0, 50.0)),
+            ((50.0, 150.0), (-50.0, 50.0)),
+            ((-50.0, 50.0), (-150.0, -50.0)),
+        ] {
+            segments.push(LineSegment::with_color(
+                Point::new(ax, ay),
+                Point::new(bx, by),
+                LineColor::Red1,
+            ));
+        }
+
+        let graph = FoldGraph::from_sheet_segments(&segments);
+        assert_eq!(
+            graph.faces.len(),
+            9,
+            "the centre is enclosed and all-border, but the four arms reach each \
+             other only through it"
+        );
+        assert!(
+            graph.face_positions(1).is_ok(),
+            "and so the walk still reaches every face"
         );
     }
 

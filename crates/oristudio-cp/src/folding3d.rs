@@ -151,9 +151,12 @@ impl Fold3dTolerances {
     ///   translational half only — the rotational half has no such census, and
     ///   the two fixtures that reach it read 1.1e-15 and 1.0e-9 rad against a
     ///   1e-7 bar. The worst loop gap over
-    ///   every admitted fixture is 2.0e-10 of span (`penguin_freeform`, which
-    ///   is one of the three held outside the repository — see
-    ///   `tests/common/mod.rs`) and over the whole external corpus 6.8e-10
+    ///   every admitted fixture is 4.8e-10 of span — `hole_vertex_90`, which is
+    ///   committed, and whose floor is `FoldMagnitude`'s 1e-7-degree quantum
+    ///   applied to a mountain angle of `arccos(1/3)` that is not representable
+    ///   exactly; before it was committed the worst was 2.0e-10
+    ///   (`penguin_freeform`, one of the three held outside the repository — see
+    ///   `tests/common/mod.rs`). Over the whole external corpus 6.8e-10
     ///   (`self-intersecting-vertex`, a hand-rounded toy); the smallest refused
     ///   is 1.1e-1 (`rabbit_unclosed`). Three decades of headroom either side,
     ///   asserted by `the_loop_gap_bar_sits_in_an_empty_band`.
