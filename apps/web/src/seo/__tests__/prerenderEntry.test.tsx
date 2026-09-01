@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LANDING_SECTIONS } from '../../components/landing/WelcomeLanding';
-import { landingJsonLd } from '../jsonLd';
+import { escapeForScriptTag, landingJsonLd, landingJsonLdScript } from '../jsonLd';
 import { renderLandingMarkup } from '../prerenderEntry';
 import { SEO_CONTENT_ID, SITE_ORIGIN, SITE_TITLE, SITEMAP_PATHS } from '../siteMeta';
 
@@ -84,6 +84,12 @@ describe('landing JSON-LD', () => {
   });
 
   it('escapes < so a value can never close the script tag', () => {
-    expect(JSON.stringify(data)).not.toContain('</script');
+    // Against a hostile string, because none of the live constants contains a `<` — so
+    // asserting on the real output passes whether or not the escaper is wired up at all.
+    // That was the previous version of this test, and it tested nothing.
+    expect(escapeForScriptTag('{"x":"</script><img onerror=1>"}')).not.toContain('</script');
+    expect(escapeForScriptTag('{"x":"</script>"}')).toContain('\\u003c/script');
+    // And the shipped block carries no raw `<` either way.
+    expect(landingJsonLdScript()).not.toContain('<');
   });
 });

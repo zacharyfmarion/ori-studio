@@ -85,7 +85,11 @@ const CHECKS = [
     contains: ['id="seo-content"', 'crease pattern', 'application/ld+json', '<h1'],
   },
   {
-    name: '/welcome is a real prerendered file too',
+    // Names the outcome, not the mechanism. Pages' SPA fallback serves `index.html` for an
+    // unmatched path, and that file carries the same copy — so this cannot distinguish a
+    // written `dist/welcome/index.html` from the fallback, and must not claim to. What it
+    // does prove is the one thing that matters: the URL answers with the landing copy.
+    name: '/welcome answers with the landing copy, however it is served',
     path: '/welcome',
     contains: ['id="seo-content"', 'crease pattern'],
   },

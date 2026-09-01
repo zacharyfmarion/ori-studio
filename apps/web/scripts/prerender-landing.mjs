@@ -71,9 +71,21 @@ async function withVite(fn) {
   }
 }
 
+/**
+ * Wrap a replacement so `String.prototype.replace` inserts it verbatim.
+ *
+ * A string replacement expands `$&`, `$'`, `` $` `` and `$1`..`$9`. The landing markup and
+ * the JSON-LD both pass through here, and either can grow a `$` the moment someone writes
+ * one into the marketing copy — at which point the page silently corrupts itself and every
+ * check downstream still passes. A function replacement is never interpreted.
+ */
+function verbatim(replacement) {
+  return () => replacement;
+}
+
 function injectIntoHead(html, snippet) {
   if (!html.includes('</head>')) fail('dist/index.html has no </head>');
-  return html.replace('</head>', `  ${snippet}\n  </head>`);
+  return html.replace('</head>', verbatim(`  ${snippet}\n  </head>`));
 }
 
 /**
@@ -100,7 +112,7 @@ function injectContent(html, id, markup) {
   const anchor = '<div id="root"></div>';
   if (!html.includes(anchor)) fail(`dist/index.html has no ${anchor}`);
   const strip = `<script>document.getElementById(${JSON.stringify(id)}).remove()</script>`;
-  return html.replace(anchor, `<div id="${id}">${markup}</div>${strip}\n    ${anchor}`);
+  return html.replace(anchor, verbatim(`<div id="${id}">${markup}</div>${strip}\n    ${anchor}`));
 }
 
 async function main() {

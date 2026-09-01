@@ -39,6 +39,23 @@ function escapeRegExp(value: string): string {
  * The `[^>]*` tag scan would mis-split a tag whose attribute value contained a literal
  * `>`. Nothing we write can: every value goes through {@link escapeHtmlAttribute} first.
  */
+/**
+ * Wrap a replacement so `String.prototype.replace` inserts it verbatim.
+ *
+ * A *string* replacement expands `$&`, `$'`, `` $` `` and `$1`..`$9`. Every value
+ * substituted below is or contains a share title, which is user input, and
+ * {@link escapeHtmlAttribute} does not escape `$` — so a title of `x$'` splices the rest of
+ * the document into the attribute it lands in, `"` characters and all, and breaks out of
+ * it. A *function* replacement is never interpreted, which closes the class instead of
+ * escaping one more character and waiting for the next one.
+ *
+ * The `<meta>` rewrite below already passes a function and was never exposed; these are the
+ * three call sites that took a string.
+ */
+function verbatim(replacement: string): () => string {
+  return () => replacement;
+}
+
 function setMetaTag(html: string, attr: 'property' | 'name', name: string, content: string): string {
   const escaped = escapeHtmlAttribute(content);
   const replacement = `<meta ${attr}="${name}" content="${escaped}" />`;
@@ -53,14 +70,14 @@ function setMetaTag(html: string, attr: 'property' | 'name', name: string, conte
   if (replaced) return next;
 
   return next.includes('</head>')
-    ? next.replace('</head>', `  ${replacement}\n  </head>`)
+    ? next.replace('</head>', verbatim(`  ${replacement}\n  </head>`))
     : `${next}\n${replacement}`;
 }
 
 function setDocumentTitle(html: string, title: string): string {
   const escaped = escapeHtmlAttribute(title);
   return /<title>[\s\S]*?<\/title>/i.test(html)
-    ? html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escaped}</title>`)
+    ? html.replace(/<title>[\s\S]*?<\/title>/i, verbatim(`<title>${escaped}</title>`))
     : html;
 }
 
@@ -80,7 +97,7 @@ function inlineSharedPayload(html: string, meta: ShareCardMeta, payload: string)
   });
   const script = `<script type="application/json" id="${SHARED_CP_SCRIPT_ID}">${data}</script>`;
   return html.includes('</head>')
-    ? html.replace('</head>', `  ${script}\n  </head>`)
+    ? html.replace('</head>', verbatim(`  ${script}\n  </head>`))
     : `${html}\n${script}`;
 }
 

@@ -452,6 +452,28 @@ describe('GET /s/[[shareId]]', () => {
     expect(html).toContain(VALID_PAYLOAD);
   });
 
+  it('treats $-sequences in a title as text, not as replacement patterns', () => {
+    // `String.prototype.replace` with a string replacement expands `$&`, `$'`, `` $` `` and
+    // `$1`. A title is user input and `escapeHtmlAttribute` does not escape `$`, so before
+    // the `verbatim()` wrapper a title of `x$'` spliced the remainder of the document into
+    // whichever attribute it landed in — `"` characters included, which ends the attribute
+    // and starts parsing markup. Measured, not theoretical: this produced
+    // `content="PROBE  <meta name="twitter:description" ...` on a real render.
+    const hostile = { ...meta, title: "PROBE$'AFTER", author: "B$&A" };
+    const html = renderSharedCpHtml(INDEX_HTML, hostile, VALID_PAYLOAD);
+
+    // The literal text survives intact on both sides of every `$` sequence.
+    expect(html).toContain('PROBE');
+    expect(html).toContain('AFTER');
+    // And nothing from elsewhere in the document was spliced in around it.
+    expect(html).not.toMatch(/content="[^"]*<meta/);
+    expect(html).not.toMatch(/<title>[^<]*<meta/);
+    // One title tag, one og:title — a broken-out attribute shows up as extra or malformed
+    // tags, so the counts are the tell.
+    expect(html.match(/<title>/g)).toHaveLength(1);
+    expect(html.match(/property="og:title"/g)).toHaveLength(1);
+  });
+
   it('escapes a title that would otherwise break out of the script or an attribute', () => {
     const hostile = {
       ...meta,
