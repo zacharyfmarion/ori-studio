@@ -19,6 +19,7 @@ import type {
   OristudioCpFoldedRenderSnapshot,
   OristudioCpFoldedFigureSnapshot,
   OristudioCpLineSegment,
+  OristudioCpModel,
   OristudioCpOperationDescriptor,
 } from '../../engine/oristudioCpTypes';
 import type { WasmErrorEnvelope } from '../../engine/types';
@@ -847,6 +848,47 @@ export async function exportFoldFrameAsFormat(
       case 'orh':
         return await api.exportOrh(scratch);
     }
+  } finally {
+    await api.freeDocument(scratch).catch(() => undefined);
+  }
+}
+
+/**
+ * Export **just these creases** as FOLD, through a scratch kernel handle.
+ *
+ * The kernel is what planarizes: it splits crossings, merges coincident
+ * endpoints and assigns `B`/`M`/`V`/`F` from line colour, which is exactly the
+ * graph the exact solver's adapter needs and none of which this side should
+ * reimplement. So the creases go in as a document and come out as topology.
+ *
+ * A *subset* rather than the whole document, because the caller is a region:
+ * detection places its pattern beside whatever the user was already working on,
+ * and a second pattern's paper edge in the same FOLD would give the boundary
+ * trace two loops to choose between. The subset is the region's own contents.
+ *
+ * Everything but the creases is dropped. Auxiliary lines are not creases and the
+ * solver has no model for them; circles, points and texts are annotations that
+ * would only ride along into the FOLD's extras. The grid is kept because it is
+ * metadata the exporter expects, not geometry.
+ */
+export async function exportOristudioCpCreasesAsFold(
+  creasePattern: OristudioCpModel,
+  segments: readonly OristudioCpLineSegment[]
+): Promise<string> {
+  const api = await getOristudioCpClient();
+  const scratch = await api.loadDocument({
+    crease_pattern: {
+      ...creasePattern,
+      line_segments: [...segments],
+      aux_line_segments: [],
+      circles: [],
+      points: [],
+      texts: [],
+    },
+    metadata: {},
+  });
+  try {
+    return await api.exportFold(scratch);
   } finally {
     await api.freeDocument(scratch).catch(() => undefined);
   }

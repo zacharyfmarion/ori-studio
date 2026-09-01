@@ -49,6 +49,23 @@ vi.mock('../../engine/cpExactSolve', () => ({
   runCpExactSolve: (...args: unknown[]) => runCpExactSolve(...args),
 }));
 
+/**
+ * The solve rebuilds its input from the live creases before it runs, and both
+ * halves of that need a kernel. Stubbed here for the same reason the solve
+ * itself is: these assertions are about the wiring reaching the shared
+ * implementation, not about what the solver does with it.
+ */
+const REBUILT_INPUT = { schema: 'exact-solve-input', source: 'rebuilt-from-document' };
+const exportCreasesAsFold = vi.hoisted(() => vi.fn());
+vi.mock('../../store/workspaceStore/oristudioCpRuntime', () => ({
+  exportOristudioCpCreasesAsFold: exportCreasesAsFold,
+}));
+const rebuildSolveInput = vi.hoisted(() => vi.fn());
+vi.mock('../../engine/cpExactSolveInputRebuild', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  rebuildCpExactSolveInput: rebuildSolveInput,
+}));
+
 // FloatingToolbar's autoUpdate attaches one, and jsdom has none.
 class ResizeObserverStub {
   observe(): void {}
@@ -138,6 +155,12 @@ beforeEach(() => {
     user: { origin: [100, 100], ex: [400, 0], ey: [0, 400] },
   });
   toolbarRenderProbe.renders = 0;
+  exportCreasesAsFold.mockReset().mockResolvedValue('{"edges_vertices":[]}');
+  rebuildSolveInput.mockReset().mockResolvedValue({
+    schema: 'oristudio/cp-detect/exact-solve-input-from-fold-v1',
+    input: REBUILT_INPUT,
+    transform: { origin: { x: 100, y: 100 }, ux: [1, 0], uy: [0, 1], side: 400, flip: 1 },
+  });
   runCpExactSolve.mockReset();
   // Never settles: these tests assert the call was made, and a resolution would
   // land a `setRecords` outside `act`.
@@ -219,19 +242,23 @@ describe('suppression regions in the crease-pattern panel', () => {
    * the second one also typechecks: the panel could build a `CpRegionSolveBinding`
    * literal of four no-ops and every assertion above would still pass.
    */
-  it('runs the shared solve when the chip button is pressed', () => {
+  it('runs the shared solve when the chip button is pressed', async () => {
     mount([DETECTED_REGION]);
 
     const solve = [...document.querySelectorAll<HTMLButtonElement>('.cp-region-chip button')].find(
       (button) => button.textContent === 'Solve'
     );
-    act(() => solve?.click());
+    await act(async () => {
+      solve?.click();
+    });
 
     expect(runCpExactSolve).toHaveBeenCalledTimes(1);
     const [input, options] = runCpExactSolve.mock.calls[0] as [unknown, { run: unknown }];
-    // The region's own attachment, verbatim — not a rebuild, which is the
-    // outstanding Phase B item and needs a wasm export that does not exist yet.
-    expect(input).toBe(DETECTED_REGION.solveInput);
+    // The creases as they stand, rebuilt — **not** `DETECTED_REGION.solveInput`,
+    // the input detection attached at import. Solving the attachment is what made
+    // every hand repair invisible to the solver.
+    expect(input).toBe(REBUILT_INPUT);
+    expect(input).not.toBe(DETECTED_REGION.solveInput);
     expect(options.run).toEqual({ kind: 'region', targetId: DETECTED_REGION.id });
   });
 
@@ -244,16 +271,16 @@ describe('suppression regions in the crease-pattern panel', () => {
    * mounts that hook; a hand-rolled binding object would keep the chip tests
    * green and kill the command again.
    */
-  it('runs the same solve when the menu command is dispatched', () => {
+  it('runs the same solve when the menu command is dispatched', async () => {
     mount([DETECTED_REGION]);
 
-    act(() => {
+    await act(async () => {
       window.dispatchEvent(new CustomEvent(CP_EXACT_SOLVE_REQUEST_EVENT));
     });
 
     expect(runCpExactSolve).toHaveBeenCalledTimes(1);
     const [input, options] = runCpExactSolve.mock.calls[0] as [unknown, { run: unknown }];
-    expect(input).toBe(DETECTED_REGION.solveInput);
+    expect(input).toBe(REBUILT_INPUT);
     // One implementation, one argument apart: only the run kind separates the
     // two entry points.
     expect(options.run).toEqual({ kind: 'command', targetId: DETECTED_REGION.id });

@@ -27,6 +27,7 @@ console_error_panic_hook.workspace = true
 oristudio-cp-compiler.workspace = true
 oristudio-cp-detect.workspace = true
 oristudio-cp-detect-inspector = { path = "../oristudio-cp-detect-inspector" }
+treemaker-fold.workspace = true
 js-sys.workspace = true
 serde.workspace = true
 serde_json.workspace = true

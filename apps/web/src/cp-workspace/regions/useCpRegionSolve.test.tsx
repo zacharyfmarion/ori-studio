@@ -9,6 +9,7 @@ import {
   withCpExactSolveRun,
 } from '../../engine/cpExactSolveRuns';
 import { CpExactSolveCancelledError } from '../../engine/cpExactSolveSession';
+import { CpExactSolveInputRebuildError } from '../../engine/cpExactSolveInputRebuild';
 import type {
   CpExactSolveMovementReport,
   CpExactSolveTheoremReport,
@@ -50,14 +51,64 @@ const toast = vi.hoisted(() => ({
 }));
 vi.mock('sonner', () => ({ toast }));
 
+/**
+ * The two bridge calls the solve makes *before* the solver: export the region's
+ * creases as FOLD, and have the compiler rebuild an `ExactSolveInput` from it.
+ *
+ * Both need a kernel, so both are stubbed — but the FOLD they exchange is the
+ * real shape, because it is what numbers the solver's vertices. `edges_vertices`
+ * here mirrors {@link SEGMENTS}: four boundary edges round vertices 0-3, then the
+ * interior crease between 4 and 5. That is what makes `vertex_id: 4` in a
+ * movement report land on the crease it is supposed to.
+ */
+const FOLD_JSON = JSON.stringify({
+  vertices_coords: [
+    [100, 100],
+    [500, 100],
+    [500, 500],
+    [100, 500],
+    [300, 100],
+    [300, 500],
+  ],
+  edges_vertices: [
+    [0, 1],
+    [1, 2],
+    [2, 3],
+    [3, 0],
+    [4, 5],
+  ],
+});
+
+const exportCreasesAsFold = vi.hoisted(() => vi.fn());
+vi.mock('../../store/workspaceStore/oristudioCpRuntime', () => ({
+  exportOristudioCpCreasesAsFold: exportCreasesAsFold,
+}));
+
+const rebuildSolveInput = vi.hoisted(() => vi.fn());
+vi.mock('../../engine/cpExactSolveInputRebuild', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  rebuildCpExactSolveInput: rebuildSolveInput,
+}));
+
+/** The frame for the [100,500]² paper: no rotation, 400 units across. */
+const REBUILT = {
+  schema: 'oristudio/cp-detect/exact-solve-input-from-fold-v1',
+  // Deliberately distinguishable from `REGION.solveInput`: the whole point is
+  // which of the two reaches the solver.
+  input: { schema: 'exact-solve-input', source: 'rebuilt-from-document', vertices: [] },
+  transform: { origin: { x: 100, y: 100 }, ux: [1, 0], uy: [0, 1], side: 400, flip: 1 },
+} as const;
+
 const ACCEPTED: CpExactSolveMovementReport = {
   timed_out: false,
   accepted: true,
   rejection_reasons: [],
   elapsed_seconds: 0.4,
   max_vertex_movement: 0.001,
+  // Vertex 4 is the interior crease's top end in `FOLD_JSON` — placement is by
+  // id now, so this is the id that decides which crease end moves.
   moved_vertices: [
-    { vertex_id: 1, before: { x: 0.5, y: 0 }, after: { x: 0.51, y: 0 }, movement: 0.01 },
+    { vertex_id: 4, before: { x: 0.5, y: 0 }, after: { x: 0.51, y: 0 }, movement: 0.01 },
   ],
 };
 
@@ -76,7 +127,7 @@ const TIMED_OUT: CpExactSolveMovementReport = {
   elapsed_seconds: 25,
   attempted_max_vertex_movement: 0.002,
   attempted_moved_vertices: [
-    { vertex_id: 1, before: { x: 0.5, y: 0 }, after: { x: 0.505, y: 0 }, movement: 0.005 },
+    { vertex_id: 4, before: { x: 0.5, y: 0 }, after: { x: 0.505, y: 0 }, movement: 0.005 },
   ],
 };
 
@@ -107,6 +158,12 @@ function graph(
   };
 }
 
+/** What the last `solveExact` was actually handed, parsed back. */
+let lastSolveInputJson: string | null = null;
+function solveInputSeen(): unknown {
+  return lastSolveInputJson === null ? null : JSON.parse(lastSolveInputJson);
+}
+
 /** A bridge that answers both stages with `report`, after `gate` settles. */
 function bridge(
   report: CpExactSolveMovementReport,
@@ -118,7 +175,10 @@ function bridge(
     return graph(report, theorem);
   };
   return {
-    solveExact: answer,
+    solveExact: async (inputJson) => {
+      lastSolveInputJson = inputJson;
+      return answer();
+    },
     solveExactToFold: async () => ({
       schema: 'oristudio/cp-detect/solve-exact-fold-v1',
       solved: await answer(),
@@ -258,6 +318,9 @@ describe('useCpRegionSolve', () => {
     toast.success.mockClear();
     toast.warning.mockClear();
     toast.error.mockClear();
+    lastSolveInputJson = null;
+    exportCreasesAsFold.mockReset().mockResolvedValue(FOLD_JSON);
+    rebuildSolveInput.mockReset().mockResolvedValue(REBUILT);
     solver = bridge(ACCEPTED);
     host = document.createElement('div');
     document.body.appendChild(host);
@@ -549,28 +612,36 @@ describe('useCpRegionSolve', () => {
     expect(api.stateFor('plain')).toBeUndefined();
   });
 
-  it('says so when the solved answer does not line up with the creases', async () => {
-    solver = bridge({
-      ...ACCEPTED,
-      moved_vertices: [
-        { vertex_id: 1, before: { x: 0.31, y: 0.42 }, after: { x: 0.32, y: 0.42 }, movement: 0.01 },
-        { vertex_id: 2, before: { x: 0.77, y: 0.18 }, after: { x: 0.78, y: 0.18 }, movement: 0.01 },
-      ],
-    });
+  it('solves the creases on screen, not the input attached at import', async () => {
+    // The bug behind every "it says N errors but I fixed them" report. The region
+    // carries an `ExactSolveInput` published by the decode, and solving *that*
+    // meant no hand repair — a merged degree-2 vertex, two corners joined, a
+    // recoloured crease — ever reached the solver.
+    await solve();
+
+    const [creasePattern, owned] = exportCreasesAsFold.mock.calls[0];
+    expect(creasePattern.line_segments).toHaveLength(SEGMENTS.length);
+    expect(owned).toHaveLength(SEGMENTS.length);
+    expect(rebuildSolveInput).toHaveBeenCalledWith(FOLD_JSON);
+    // And what the solver received is the rebuild, not the attachment.
+    expect(solveInputSeen()).toEqual(REBUILT.input);
+    expect(solveInputSeen()).not.toEqual(REGION.solveInput);
+  });
+
+  it('reports the compiler’s own words when it will not rebuild the pattern', async () => {
+    // Non-square paper, a boundary that is not a closed quadrilateral. The
+    // refusal names the geometry rather than the failure, so it is shown as-is
+    // instead of being flattened into "could not solve".
+    rebuildSolveInput.mockRejectedValue(
+      new CpExactSolveInputRebuildError('non-square paper is not yet supported')
+    );
     await solve();
 
     expect(replaceLineSegments).not.toHaveBeenCalled();
-    const state = api.stateFor(REGION.id);
-    expect(state).toMatchObject({
+    expect(api.stateFor(REGION.id)).toMatchObject({
       status: 'failed',
-      reason: expect.stringContaining('could not be matched'),
+      reason: 'non-square paper is not yet supported',
     });
-    // It must not claim the attachment is some *other* pattern. This code cannot
-    // know that, and the claim was false every time it was seen — the commonest
-    // cause was re-solving a region whose answer had already been applied, which
-    // is the same pattern by construction.
-    const reason = state?.status === 'failed' ? state.reason : '';
-    expect(reason).not.toContain('different pattern');
   });
 
   it('runs the same solve for the Exact Solve command', async () => {

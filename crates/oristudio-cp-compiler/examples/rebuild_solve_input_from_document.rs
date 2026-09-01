@@ -64,6 +64,12 @@ fn main() {
                     xform.side,
                     xform.flip
                 );
+                if std::env::var("PRINT_TRANSFORM").is_ok() {
+                    println!(
+                        "   transform json: {}",
+                        serde_json::to_string(&xform).unwrap()
+                    );
+                }
                 report("   rebuilt", &input);
             }
         }

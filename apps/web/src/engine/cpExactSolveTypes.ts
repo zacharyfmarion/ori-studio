@@ -176,6 +176,54 @@ export interface CpExactSolvedGraph {
   status: CpExactSolveStatus;
 }
 
+/**
+ * The similarity mapping a FOLD's own coordinates onto the unit square the
+ * solver works in.
+ *
+ * Mirrored from `fold_exactize::Similarity` because this side does arithmetic
+ * with it — {@link cpSolveFramePoint} inverts it to put a moved vertex back on
+ * the user's creases. That is the one thing on this seam worth a typed copy;
+ * `ExactSolveInput` next door stays `unknown` precisely because nothing here
+ * reads its fields.
+ */
+export interface CpSolveFrameTransform {
+  origin: { x: number; y: number };
+  ux: [number, number];
+  uy: [number, number];
+  side: number;
+  flip: number;
+}
+
+/**
+ * Unit-square coordinates back to the FOLD's own — the inverse of the transform
+ * the Rust applied. Kept beside the type so the two halves of the round trip are
+ * read together; `Similarity::invert` is the other one.
+ */
+export function cpSolveFramePoint(
+  transform: CpSolveFrameTransform,
+  point: { x: number; y: number }
+): { x: number; y: number } {
+  const fx = point.x * transform.side;
+  const fy = transform.flip * point.y * transform.side;
+  return {
+    x: transform.origin.x + fx * transform.ux[0] + fy * transform.uy[0],
+    y: transform.origin.y + fx * transform.ux[1] + fy * transform.uy[1],
+  };
+}
+
+/** `cp_detect_exact_solve_input_from_fold`'s payload. */
+export interface CpExactSolveInputFromFold {
+  schema: string;
+  /**
+   * An `ExactSolveInput`, opaque for the same reason `CpDetectRecognizeResult`
+   * keeps it opaque: it round-trips back over the bridge verbatim and a mirrored
+   * struct would be a second definition of a large Rust type with nothing
+   * checking that it still matches.
+   */
+  input: unknown;
+  transform: CpSolveFrameTransform;
+}
+
 /** `cp_detect_solve_exact_to_fold`'s payload: one solve, both products. */
 export interface CpExactSolveFoldResult {
   schema: string;

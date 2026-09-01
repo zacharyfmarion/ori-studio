@@ -71,7 +71,14 @@ import type { CpRegionSolveBinding } from './CpRegionLayer';
 import type { CpRegionSolveState } from './SolveRegionChip';
 import { emptyOristudioCpSelection } from '../../lib/creasePatternViewport';
 import {
+  CpExactSolveInputRebuildError,
+  rebuildCpExactSolveInput,
+} from '../../engine/cpExactSolveInputRebuild';
+import { exportOristudioCpCreasesAsFold } from '../../store/workspaceStore/oristudioCpRuntime';
+import type { CpSolveFrameTransform } from '../../engine/cpExactSolveTypes';
+import {
   cpRegionPatternLines,
+  foldEdgesVertices,
   solvedRegionSegments,
   type CpRegionPatternLines,
   type CpRegionSolvePlacementRefusal,
@@ -113,8 +120,24 @@ interface CpRegionSolveRecord {
   revision: number;
   /** The creases as they stood before the solve — what Try again puts back. */
   owned: CpRegionPatternLines;
+  /** How to put an answer back on those creases. Null when no solve reached one. */
+  frame: CpRegionSolveFrame | null;
   /** A timed-out solve's partial answer, which Accept can still take. */
   partial: readonly CpExactSolveMovedVertex[] | null;
+}
+
+/**
+ * What is needed to place a solved answer: the graph the solver numbered its
+ * vertices in, and the transform out of its unit square.
+ *
+ * Held rather than re-derived because Accept can write a timed-out solve's
+ * partial answer long after the solve, and it has to land in the same frame the
+ * solve was computed in.
+ */
+interface CpRegionSolveFrame {
+  /** `edges_vertices` of the FOLD the input was rebuilt from, in segment order. */
+  edgesVertices: readonly (readonly [number, number])[];
+  transform: CpSolveFrameTransform;
 }
 
 const NO_RECORDS: ReadonlyMap<string, CpRegionSolveRecord> = new Map();
@@ -167,6 +190,7 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
           state: { status: 'failed', reason },
           revision: useWorkspaceStore.getState().oristudioCpRevision,
           owned,
+          frame: null,
           partial: null,
         });
         toast.error(
@@ -179,14 +203,49 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
         return;
       }
 
+      // Solve **what is on screen**, not what detection attached at import.
+      //
+      // The region carries an `ExactSolveInput` published by the decode, and for
+      // as long as that was what got solved, every repair made afterwards was
+      // invisible to the solver: a merged degree-2 vertex, two corners joined, a
+      // crease recoloured from valley to auxiliary. It then reported blockers
+      // about vertices that were no longer there, which is what all three of
+      // "it says 3 errors but I fixed them" were. So the creases are exported to
+      // FOLD and the compiler rebuilds the input from that.
+      //
+      // `region.solveInput` is still what makes a region *solvable*
+      // (`hasAttachedSolveInput`), and still what the file carries — it says this
+      // region came from a detection. It is no longer what gets solved.
       let outcome: CpExactSolveOutcome;
+      let frame: CpRegionSolveFrame;
       try {
-        const run = await latest.current.solve(region.solveInput, {
+        const creasePattern =
+          useWorkspaceStore.getState().oristudioCpDocument?.document.crease_pattern;
+        if (!creasePattern) {
+          failed(placementRefusalLabel(latest.current.t, 'no_pattern'));
+          return;
+        }
+        const foldJson = await exportOristudioCpCreasesAsFold(creasePattern, owned.segments);
+        const edgesVertices = foldEdgesVertices(foldJson);
+        if (!edgesVertices) {
+          failed(placementRefusalLabel(latest.current.t, 'graph_mismatch'));
+          return;
+        }
+        const rebuilt = await rebuildCpExactSolveInput(foldJson);
+        frame = { edgesVertices, transform: rebuilt.transform };
+        const run = await latest.current.solve(rebuilt.input, {
           timeoutSeconds: CP_REGION_SOLVE_BUDGET_SECONDS,
           run: { kind, targetId: regionId },
         } satisfies CpExactSolveRunOptions);
         outcome = run.outcome;
       } catch (error) {
+        // The compiler refused the geometry — non-square paper, a boundary that
+        // is not a closed quadrilateral. Its own words name the pattern rather
+        // than the failure, so they are shown as-is.
+        if (error instanceof CpExactSolveInputRebuildError) {
+          failed(error.reason);
+          return;
+        }
         // A second press while the first solve is still running. The chip does
         // not offer Solve then — `stateFor` reports the live run — so this is the
         // race between two presses, and it is refused before the worker is
@@ -215,6 +274,7 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
           },
           revision: useWorkspaceStore.getState().oristudioCpRevision,
           owned,
+          frame,
           // Held rather than applied: on every non-acceptance the solver returns
           // the coordinates it was given, so the document is unchanged and the
           // partial is an *offer*. Accept is what takes it.
@@ -251,7 +311,7 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
         return;
       }
 
-      const placed = await place(owned, outcome.movedVertices, solveLabel(latest.current.t));
+      const placed = await place(owned, outcome.movedVertices, frame, solveLabel(latest.current.t));
       if (!placed.ok) {
         failed(placementRefusalLabel(latest.current.t, placed.refusal));
         return;
@@ -265,6 +325,7 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
         state: { status: 'solved', ...movement, ...facts },
         revision: useWorkspaceStore.getState().oristudioCpRevision,
         owned,
+        frame,
         partial: null,
       });
       completionToast(latest.current.t, regionId, facts, movement);
@@ -320,8 +381,13 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
       // A timed-out solve applied nothing, so accepting it is where its partial
       // answer is written — and it is written *first*, so that undoing the accept
       // walks back through the coordinates rather than past them.
-      if (record?.partial && record.partial.length > 0) {
-        const placed = await place(record.owned, record.partial, partialLabel(latest.current.t));
+      if (record?.partial && record.partial.length > 0 && record.frame) {
+        const placed = await place(
+          record.owned,
+          record.partial,
+          record.frame,
+          partialLabel(latest.current.t)
+        );
         if (!placed.ok) {
           // Toasted like every other refusal. It used to be the one ending whose
           // only surface was the chip's own sentence, which meant that once the
@@ -422,9 +488,15 @@ function currentRecord(
 async function place(
   owned: CpRegionPatternLines,
   moved: readonly CpExactSolveMovedVertex[],
+  frame: CpRegionSolveFrame,
   label: string
 ): Promise<{ ok: true } | { ok: false; refusal: CpRegionSolvePlacementRefusal }> {
-  const placement = solvedRegionSegments(owned.segments, moved);
+  const placement = solvedRegionSegments(
+    owned.segments,
+    moved,
+    frame.edgesVertices,
+    frame.transform
+  );
   if (!placement.ok) return placement;
   await writeRegionSegments(owned.lineIds, placement.segments, label);
   return { ok: true };
@@ -616,21 +688,10 @@ function placementRefusalLabel(t: TFunction, refusal: CpRegionSolvePlacementRefu
         'panels:cpRegion.placement.noPattern',
         'There are no creases inside this region, so there is nothing to solve. Move the region over the detected pattern and try again.'
       );
-    case 'paper_not_square':
+    case 'graph_mismatch':
       return t(
-        'panels:cpRegion.placement.paperNotSquare',
-        'The creases in this region no longer span a square sheet, so the solved answer could not be placed. Rotating the pattern or removing part of the paper edge does this.'
-      );
-    case 'frame_unrecognized':
-      // Deliberately says drift, not identity. The old wording asserted "the
-      // saved solver data belongs to a different pattern", which is a claim this
-      // code cannot make and which was false every time it was seen: the
-      // commonest cause was re-solving a region whose answer had already been
-      // applied. Say what is known — too few vertices could be matched — and
-      // name the only thing the user can do about it.
-      return t(
-        'panels:cpRegion.placement.frameUnrecognized',
-        'The solved answer could not be matched to the creases in this region, so nothing was changed. The pattern has changed too much since the solver data was saved — re-detect it to solve again.'
+        'panels:cpRegion.placement.graphMismatch',
+        'The solved answer does not describe the creases in this region, so nothing was changed. Try solving again.'
       );
   }
 }

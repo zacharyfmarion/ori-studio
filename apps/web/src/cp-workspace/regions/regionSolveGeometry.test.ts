@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import type { CpExactSolveMovedVertex } from '../../engine/cpExactSolveTypes';
 import type { OristudioCpLineSegment } from '../../engine/oristudioCpTypes';
 import { createCpSuppressionRegion } from '../annotations/suppressionRegion';
-import { cpRegionPatternLines, solvedRegionSegments } from './regionSolveGeometry';
+import type { CpSolveFrameTransform } from '../../engine/cpExactSolveTypes';
+import {
+  cpRegionPatternLines,
+  foldEdgesVertices,
+  solvedRegionSegments,
+} from './regionSolveGeometry';
 
 /**
  * The two things standing between a solved answer and the document: which
@@ -53,6 +58,30 @@ function moved(
   };
 }
 
+/**
+ * The frame for the [100,500]² paper: no rotation, 400 units across.
+ * What `exact_solve_input_from_fold` returns for a document at these coordinates.
+ */
+const FRAME: CpSolveFrameTransform = {
+  origin: { x: 100, y: 100 },
+  ux: [1, 0],
+  uy: [0, 1],
+  side: 400,
+  flip: 1,
+};
+
+/**
+ * The FOLD edges for `paperSquare()` plus one middle crease: four boundary edges
+ * round vertices 0-3, then the middle crease between 4 and 5.
+ */
+const SQUARE_EDGES = [
+  [0, 1],
+  [1, 2],
+  [2, 3],
+  [3, 0],
+  [4, 5],
+] as const satisfies readonly (readonly [number, number])[];
+
 /** The paper square as four boundary creases, in document coordinates. */
 function paperSquare(): OristudioCpLineSegment[] {
   return [
@@ -93,14 +122,19 @@ describe('cpRegionPatternLines', () => {
 });
 
 describe('solvedRegionSegments', () => {
-  it('maps unit-square coordinates onto the paper the creases actually span', () => {
+  it('places a moved vertex by id, through the frame the compiler handed back', () => {
     const owned = [...paperSquare(), segment(300, 100, 300, 500)];
-    // The middle crease's top end, nudged right by a hundredth of the paper.
-    const placed = solvedRegionSegments(owned, [moved([0.5, 0], [0.51, 0])]);
+    // Vertex 4 is the middle crease's top end. Nudged right by a hundredth of
+    // the paper: 0.51 of 400 units starting at x=100.
+    const placed = solvedRegionSegments(
+      owned,
+      [moved([0.5, 0], [0.51, 0], 4)],
+      SQUARE_EDGES,
+      FRAME
+    );
 
     expect(placed.ok).toBe(true);
     if (!placed.ok) return;
-    // 0.51 of a 400-unit paper starting at x=100.
     expect(placed.segments[4].a).toEqual({ x: 304, y: 100 });
     expect(placed.rewrittenEndpoints).toBe(1);
   });
@@ -115,7 +149,12 @@ describe('solvedRegionSegments', () => {
         fold_magnitude: 90,
       }),
     ];
-    const placed = solvedRegionSegments(owned, [moved([0.5, 0], [0.51, 0])]);
+    const placed = solvedRegionSegments(
+      owned,
+      [moved([0.5, 0], [0.51, 0], 4)],
+      SQUARE_EDGES,
+      FRAME
+    );
 
     expect(placed.ok).toBe(true);
     if (!placed.ok) return;
@@ -133,10 +172,12 @@ describe('solvedRegionSegments', () => {
 
   it('moves both ends of a crease when the solver moved both vertices', () => {
     const owned = [...paperSquare(), segment(300, 100, 300, 500)];
-    const placed = solvedRegionSegments(owned, [
-      moved([0.5, 0], [0.51, 0], 1),
-      moved([0.5, 1], [0.49, 1], 2),
-    ]);
+    const placed = solvedRegionSegments(
+      owned,
+      [moved([0.5, 0], [0.51, 0], 4), moved([0.5, 1], [0.49, 1], 5)],
+      SQUARE_EDGES,
+      FRAME
+    );
 
     expect(placed.ok).toBe(true);
     if (!placed.ok) return;
@@ -145,100 +186,93 @@ describe('solvedRegionSegments', () => {
     expect(placed.rewrittenEndpoints).toBe(2);
   });
 
-  it('takes the nearest vertex, so one of a close pair cannot claim the other', () => {
-    // Detected patterns carry genuinely close vertex pairs; "first within
-    // tolerance" would hand one of them the other's displacement.
+  it('moves every crease meeting at a shared vertex, and only those', () => {
+    // The case proximity matching had to work for and could get wrong. Two
+    // creases genuinely meet at vertex 4; a third passes within a fifth of a
+    // unit of it and must not move. An id says which is which, exactly.
     const owned = [
       ...paperSquare(),
       segment(300.0, 100, 300.0, 500),
+      segment(300.0, 100, 500.0, 300),
       segment(300.2, 100, 300.2, 500),
     ];
-    const placed = solvedRegionSegments(owned, [
-      moved([0.5005, 0], [0.6, 0], 1),
-      moved([0.5, 0], [0.4, 0], 2),
-    ]);
+    const edges = [...SQUARE_EDGES, [4, 6], [7, 8]] as const;
+    const placed = solvedRegionSegments(owned, [moved([0.5, 0], [0.6, 0], 4)], edges, FRAME);
 
     expect(placed.ok).toBe(true);
     if (!placed.ok) return;
-    expect(placed.segments[4].a.x).toBeCloseTo(260, 6);
-    expect(placed.segments[5].a.x).toBeCloseTo(340, 6);
+    expect(placed.segments[4].a).toEqual({ x: 340, y: 100 });
+    expect(placed.segments[5].a).toEqual({ x: 340, y: 100 });
+    // Close, but a different vertex. Untouched.
+    expect(placed.segments[6].a).toEqual({ x: 300.2, y: 100 });
+    expect(placed.rewrittenEndpoints).toBe(2);
+  });
+
+  it('places onto a rotated pattern, which the old frame hypothesis refused', () => {
+    // The paper turned a quarter turn: the frame says so, and that is the whole
+    // of it. Deriving the mapping from a bounding box could not express this and
+    // refused with `paper_not_square`, which is why that refusal is gone.
+    const rotated: CpSolveFrameTransform = {
+      origin: { x: 500, y: 100 },
+      ux: [0, 1],
+      uy: [-1, 0],
+      side: 400,
+      flip: 1,
+    };
+    const owned = [...paperSquare(), segment(300, 100, 300, 500)];
+    const placed = solvedRegionSegments(
+      owned,
+      [moved([0.5, 0], [0.51, 0], 4)],
+      SQUARE_EDGES,
+      rotated
+    );
+
+    expect(placed.ok).toBe(true);
+    if (!placed.ok) return;
+    expect(placed.segments[4].a).toEqual({ x: 500, y: 304 });
   });
 
   it('succeeds with nothing to do when the solver moved nothing', () => {
+    // What a second solve looks like now: the input is rebuilt from creases that
+    // are already exact, so the solver has nothing to move. Idempotence falls
+    // out of solving the live document rather than needing a rule of its own.
     const owned = paperSquare();
-    const placed = solvedRegionSegments(owned, []);
+    const placed = solvedRegionSegments(owned, [], SQUARE_EDGES.slice(0, 4), FRAME);
     expect(placed).toMatchObject({ ok: true, rewrittenEndpoints: 0 });
   });
 
   it('refuses when the region holds no creases', () => {
-    expect(solvedRegionSegments([], [moved([0.5, 0], [0.51, 0])])).toEqual({
+    expect(solvedRegionSegments([], [moved([0.5, 0], [0.51, 0])], [], FRAME)).toEqual({
       ok: false,
       refusal: 'no_pattern',
     });
   });
 
-  it('refuses when the creases no longer span a square sheet', () => {
-    // Rotating the pattern or deleting a paper edge does this, and the
-    // unit-square hypothesis cannot survive either.
-    const owned = [segment(100, 100, 500, 100), segment(500, 100, 500, 300)];
-    expect(solvedRegionSegments(owned, [moved([0.5, 0], [0.51, 0])])).toEqual({
-      ok: false,
-      refusal: 'paper_not_square',
-    });
-  });
-
-  it('refuses when the answer does not line up with the creases', () => {
-    // The frame is a hypothesis, and this is the check that it holds: none of
-    // these vertices is at either end of its move, so the document has drifted
-    // past what the attachment describes and nothing is written.
-    const owned = paperSquare();
-    const placed = solvedRegionSegments(owned, [
-      moved([0.31, 0.42], [0.32, 0.42], 1),
-      moved([0.77, 0.18], [0.78, 0.18], 2),
-    ]);
-    expect(placed).toEqual({ ok: false, refusal: 'frame_unrecognized' });
-  });
-
-  it('still places when repairs have removed some of the solver’s vertices', () => {
-    // Repair is edits between the attachment being made and the solve running, so
-    // a missing vertex is expected rather than disqualifying. A clear majority
-    // found is the bar.
+  it('refuses a solved graph that does not describe these creases', () => {
+    // Unreachable through the UI — the FOLD was built from these very segments —
+    // so this is the assertion saying so, rather than placing coordinates on
+    // creases they were not computed for.
     const owned = [...paperSquare(), segment(300, 100, 300, 500)];
-    const placed = solvedRegionSegments(owned, [
-      moved([0.5, 0], [0.51, 0], 1),
-      moved([0.5, 1], [0.49, 1], 2),
-      // Two vertices the user deleted while repairing.
-      moved([0.31, 0.42], [0.32, 0.42], 3),
+    expect(
+      solvedRegionSegments(owned, [moved([0.5, 0], [0.51, 0], 4)], SQUARE_EDGES.slice(0, 4), FRAME)
+    ).toEqual({ ok: false, refusal: 'graph_mismatch' });
+  });
+});
+
+describe('foldEdgesVertices', () => {
+  it('reads the edge list a rebuilt input was numbered against', () => {
+    expect(foldEdgesVertices('{"edges_vertices":[[0,1],[1,2]]}')).toEqual([
+      [0, 1],
+      [1, 2],
     ]);
-    expect(placed.ok).toBe(true);
   });
 
-  it('places a second time on a region whose answer has already been applied', () => {
-    // Solving is idempotent — the same attachment gives the same answer — so once
-    // an answer has been applied every vertex it moved is sitting at its `after`
-    // and there is nothing at its `before` any more. Confirming the frame on
-    // `before` alone made every second Solve fail, and fail while blaming the
-    // user's edits. Measured on `solution_does_not_line_up.osf`: 8 of 10 moved
-    // vertices were at distance 0.0000 from `after`, so 1 of 10 confirmed against
-    // a threshold of 5.
-    //
-    // The paper here is already at the solved coordinates: the solver says it
-    // moved x=0.5 to x=0.51, and the crease is at 0.51 of the edge.
-    const owned = [
-      segment(100, 100, 500, 100),
-      segment(500, 100, 500, 500),
-      segment(500, 500, 100, 500),
-      segment(100, 500, 100, 100),
-      segment(304, 100, 296, 500),
-    ];
-    const placed = solvedRegionSegments(owned, [
-      moved([0.5, 0], [0.51, 0], 1),
-      moved([0.5, 1], [0.49, 1], 2),
-    ]);
-
-    expect(placed.ok).toBe(true);
-    // Nothing to rewrite: the creases are already where the answer puts them, so
-    // re-solving an unchanged pattern is a no-op rather than a refusal.
-    if (placed.ok) expect(placed.rewrittenEndpoints).toBe(0);
+  it('answers null rather than throwing on anything it cannot read', () => {
+    // A caller refuses with a sentence; an exception here would surface as a
+    // bridge failure and blame the solver for a malformed document.
+    expect(foldEdgesVertices('not json')).toBeNull();
+    expect(foldEdgesVertices('{}')).toBeNull();
+    expect(foldEdgesVertices('{"edges_vertices":[[0]]}')).toBeNull();
+    expect(foldEdgesVertices('{"edges_vertices":[[0,"1"]]}')).toBeNull();
   });
 });

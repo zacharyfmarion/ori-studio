@@ -557,7 +557,12 @@ fn corner_aligned_transform(raw: &[Point2], corners: &[usize; 4]) -> Option<Simi
     let c1 = raw[corners[1]];
     let ex = (c1.x - c0.x, c1.y - c0.y);
     let side = (ex.0 * ex.0 + ex.1 * ex.1).sqrt();
-    if side <= 0.0 {
+    // `!(side > 0.0)` rather than `side <= 0.0`, so a NaN scale is refused too.
+    // Finite coordinates are not enough to guarantee a finite difference: two
+    // corners at opposite ends of the f64 range overflow to an infinite `side`,
+    // whose reciprocal makes every transformed point NaN — which used to reach a
+    // `partial_cmp().unwrap()` further down.
+    if !(side > 0.0) || !side.is_finite() {
         return None;
     }
     let ux = (ex.0 / side, ex.1 / side);
@@ -636,7 +641,7 @@ fn square_plan(raw: &[Point2], quad: &QuadBoundary) -> Option<BoundaryPlan> {
                     BoundarySide::Top | BoundarySide::Bottom => pts[k].x,
                     BoundarySide::Left | BoundarySide::Right => pts[k].y,
                 };
-                key(i).partial_cmp(&key(j)).unwrap()
+                key(i).total_cmp(&key(j))
             });
             (side, pair, contacts)
         })
@@ -952,6 +957,22 @@ mod tests {
                 .odd_degree_vertices
                 .is_empty(),
             "the repair must be visible to the solver"
+        );
+    }
+
+    /// Coordinates can be finite and still make the frame NaN: two corners at
+    /// opposite ends of the f64 range overflow in the subtraction, so the paper
+    /// side is infinite and every transformed point is NaN. That used to reach a
+    /// `partial_cmp().unwrap()` in the boundary-contact sort — a panic no input
+    /// validation on the *vertices* would have caught.
+    #[test]
+    fn an_overflowing_paper_is_refused_rather_than_going_nan() {
+        let mut fold = simple_square();
+        fold.vertices_coords[0] = vec![-f64::MAX, -f64::MAX];
+        fold.vertices_coords[2] = vec![f64::MAX, f64::MAX];
+        assert_eq!(
+            exact_solve_input_from_fold(&fold).err().as_deref(),
+            Some("non-square paper is not yet supported")
         );
     }
 

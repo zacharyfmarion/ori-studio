@@ -413,6 +413,53 @@ pub fn cp_detect_solve_exact_to_fold(
 
 const SOLVE_EXACT_FOLD_SCHEMA: &str = "oristudio/cp-detect/solve-exact-fold-v1";
 
+/// Rebuild an `ExactSolveInput` from a FOLD crease pattern — **the current
+/// document's**, not the one detection attached at import.
+///
+/// A detection publishes its input once and the region carries it from then on.
+/// Every hand repair after that — a degree-2 vertex merged, two corners joined,
+/// a crease recoloured from valley to auxiliary — changes the document and not
+/// the attachment, so a re-solve ran on geometry the user had already moved past
+/// and reported blockers they had already fixed. This is the export that lets
+/// the browser hand the solver what is actually on screen.
+///
+/// Takes a FOLD document as JSON — the browser gets one out of a scratch kernel
+/// handle holding just the region's creases — and returns
+/// `{ schema, input, transform }`. `transform` is the similarity onto the unit
+/// square the solver works in; the caller inverts it to put the answer back in
+/// document coordinates. That replaces guessing the frame and checking the guess
+/// afterwards, and it is what makes a rotated pattern work.
+///
+/// Solving is deliberately **not** part of this: `cp_detect_solve_exact` already
+/// runs in two stages with a shared budget, and folding the rebuild into it
+/// would either duplicate that or spend the budget twice.
+#[wasm_bindgen]
+pub fn cp_detect_exact_solve_input_from_fold(fold_json: &str) -> Result<JsValue, JsValue> {
+    install_panic_hook();
+    let fold: treemaker_fold::FoldDocument = serde_json::from_str(fold_json)
+        .map_err(|error| js_error("invalid_fold", error.to_string()))?;
+    let (input, transform) = oristudio_cp_compiler::exact_solve_input_from_fold(&fold)
+        .map_err(|reason| js_error("unsupported_pattern", reason))?;
+
+    let mut payload = serde_json::Map::new();
+    payload.insert(
+        "schema".to_owned(),
+        serde_json::Value::String(EXACT_SOLVE_INPUT_FROM_FOLD_SCHEMA.to_owned()),
+    );
+    payload.insert(
+        "input".to_owned(),
+        serde_json::to_value(&input).map_err(|error| js_error("js_value", error.to_string()))?,
+    );
+    payload.insert(
+        "transform".to_owned(),
+        serde_json::to_value(transform).map_err(|error| js_error("js_value", error.to_string()))?,
+    );
+    to_js_value_via_json(&serde_json::Value::Object(payload))
+}
+
+const EXACT_SOLVE_INPUT_FROM_FOLD_SCHEMA: &str =
+    "oristudio/cp-detect/exact-solve-input-from-fold-v1";
+
 /// The shared front half of both solve exports: parse the input, parse the
 /// options, and reject an exemption set that cannot do what it claims.
 fn parse_exact_solve_request(

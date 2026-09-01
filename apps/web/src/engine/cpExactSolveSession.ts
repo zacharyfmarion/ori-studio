@@ -39,16 +39,25 @@
 import { wrap } from 'comlink';
 import { attachWorkerDiagnostics, type WorkerFailure } from '../lib/workerDiagnostics';
 import type { CpExactSolveWorkerApi } from '../workers/cpExactSolveWorker';
-import type { CpExactSolveFoldResult, CpExactSolvedGraph } from './cpExactSolveTypes';
+import type {
+  CpExactSolveFoldResult,
+  CpExactSolveInputFromFold,
+  CpExactSolvedGraph,
+} from './cpExactSolveTypes';
 
 /**
- * The two bridge calls a solve needs. An interface rather than the worker client
+ * The bridge calls a solve needs. An interface rather than the worker client
  * itself so the staging logic is testable without comlink, a worker, or a wasm
  * build.
+ *
+ * `exactSolveInputFromFold` is optional because an injected test solver has no
+ * reason to implement a rebuild it is not exercising, and because
+ * {@link runCpExactSolve} only reaches for it when it was handed a FOLD.
  */
 export interface CpExactSolver {
   solveExact(inputJson: string, optionsJson?: string): Promise<CpExactSolvedGraph>;
   solveExactToFold(inputJson: string, optionsJson?: string): Promise<CpExactSolveFoldResult>;
+  exactSolveInputFromFold?(foldJson: string): Promise<CpExactSolveInputFromFold>;
 }
 
 /**
@@ -171,6 +180,7 @@ export function openCpExactSolveSession(): CpExactSolveSession {
     solveExact: (inputJson, optionsJson) => guarded(client.solveExact(inputJson, optionsJson)),
     solveExactToFold: (inputJson, optionsJson) =>
       guarded(client.solveExactToFold(inputJson, optionsJson)),
+    exactSolveInputFromFold: (foldJson) => guarded(client.exactSolveInputFromFold(foldJson)),
   };
 
   return {

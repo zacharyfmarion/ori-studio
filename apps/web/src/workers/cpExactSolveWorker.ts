@@ -21,15 +21,26 @@
  * instantiation, not a compiled inference session, and that is precisely why the
  * detect worker must never be the thing terminated.
  *
- * The API is deliberately two methods wide. Anything else added here would be a
- * reason not to terminate it.
+ * The API is deliberately narrow, and the test each method has to pass is
+ * whether terminating mid-call would cost anything: anything expensive to
+ * rebuild here would be a reason not to terminate, which is the one thing this
+ * worker exists to allow. The two solve calls pass because a discarded solve is
+ * a discarded solve. {@link CpExactSolveWorkerApi.exactSolveInputFromFold}
+ * passes because it is a pure microsecond transform of a JSON graph, and it is
+ * *here* rather than in the detect worker because rebuilding is part of the
+ * shipping repair flow while detection is dev-gated.
  */
 import { expose } from 'comlink';
 import init, {
+  cp_detect_exact_solve_input_from_fold,
   cp_detect_solve_exact,
   cp_detect_solve_exact_to_fold,
 } from '../generated/oristudio-cp-detect-wasm/oristudio_cp_detect_wasm';
-import type { CpExactSolveFoldResult, CpExactSolvedGraph } from '../engine/cpExactSolveTypes';
+import type {
+  CpExactSolveFoldResult,
+  CpExactSolveInputFromFold,
+  CpExactSolvedGraph,
+} from '../engine/cpExactSolveTypes';
 import type { WasmErrorEnvelope } from '../engine/types';
 
 let wasmReady: Promise<void> | null = null;
@@ -76,6 +87,20 @@ const api = {
    */
   async solveExact(inputJson: string, optionsJson = ''): Promise<CpExactSolvedGraph> {
     return call(() => cp_detect_solve_exact(inputJson, optionsJson) as CpExactSolvedGraph);
+  },
+  /**
+   * Rebuild an `ExactSolveInput` from a FOLD — **the document's current
+   * geometry**, not the input detection attached at import.
+   *
+   * Runs before the two stages below and on the same session, so a repaired
+   * topology is what gets solved. Also returns the similarity onto the unit
+   * square, which the caller inverts to put the answer back on the user's
+   * creases.
+   */
+  async exactSolveInputFromFold(foldJson: string): Promise<CpExactSolveInputFromFold> {
+    return call(
+      () => cp_detect_exact_solve_input_from_fold(foldJson) as CpExactSolveInputFromFold
+    );
   },
   /** Stage 2: solve, and export the result as FOLD at the solved coordinates. */
   async solveExactToFold(inputJson: string, optionsJson = ''): Promise<CpExactSolveFoldResult> {
