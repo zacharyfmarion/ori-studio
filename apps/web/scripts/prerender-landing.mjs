@@ -83,9 +83,20 @@ function verbatim(replacement) {
   return () => replacement;
 }
 
-function injectIntoHead(html, snippet) {
+/**
+ * Replace the JSON-LD block rather than appending another.
+ *
+ * Same idempotency reasoning as {@link stripExisting}, and the same silent outcome if it is
+ * missed: a second run over the same `dist` left two `SoftwareApplication` nodes in the
+ * head, which is invalid structured data, and every check downstream still passed.
+ */
+function injectJsonLd(html, snippet) {
   if (!html.includes('</head>')) fail('dist/index.html has no </head>');
-  return html.replace('</head>', verbatim(`  ${snippet}\n  </head>`));
+  const stripped = html.replace(
+    /[ \t]*<script type="application\/ld\+json">[\s\S]*?<\/script>\n?/g,
+    ''
+  );
+  return stripped.replace('</head>', verbatim(`  ${snippet}\n  </head>`));
 }
 
 /**
@@ -108,9 +119,27 @@ function injectIntoHead(html, snippet) {
  * `main.tsx` removes it too. That is not redundancy for its own sake — it is the fallback
  * if a future CSP blocks inline scripts, which would otherwise silently restore the flash.
  */
+/**
+ * Drop a block a previous run left behind, so injecting is idempotent.
+ *
+ * `vite build` empties `dist`, so the shipped path always starts clean — but running this
+ * script directly is the obvious way to iterate on it without waiting on a wasm rebuild,
+ * and doing that twice used to produce two copies of the landing page. Nothing downstream
+ * would say so: the smoke test asserts the copy is *present*, never how often, so the
+ * result was a crawler seeing the pitch and two `<h1>`s twice over, silently.
+ */
+function stripExisting(html, id, anchor) {
+  const start = html.indexOf(`<div id="${id}">`);
+  if (start === -1) return html;
+  const end = html.indexOf(anchor, start);
+  if (end === -1) fail(`dist/index.html has a stale #${id} block with no ${anchor} after it`);
+  return html.slice(0, start) + html.slice(end);
+}
+
 function injectContent(html, id, markup) {
   const anchor = '<div id="root"></div>';
   if (!html.includes(anchor)) fail(`dist/index.html has no ${anchor}`);
+  html = stripExisting(html, id, anchor);
   const strip = `<script>document.getElementById(${JSON.stringify(id)}).remove()</script>`;
   return html.replace(anchor, verbatim(`<div id="${id}">${markup}</div>${strip}\n    ${anchor}`));
 }
@@ -131,7 +160,7 @@ async function main() {
 
   const source = await readFile(resolve(dist, 'index.html'), 'utf8');
   let html = injectContent(source, SEO_CONTENT_ID, markup);
-  html = injectIntoHead(
+  html = injectJsonLd(
     html,
     `<script type="application/ld+json">${landingJsonLdScript()}</script>`
   );
