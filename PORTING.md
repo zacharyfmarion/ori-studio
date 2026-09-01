@@ -182,6 +182,48 @@ are unchanged:
   not touch the parallel test, the intersection solve, or any accepted output,
   and `lengthen_crease_matches_oriedita_oracle` remains the gate.
 
+- **The flat-foldability check is evaluated with orientation-invariant
+  arithmetic.** `checks::check4` and `checks::check3` default to
+  `CamvAngleArithmetic::Refined`, which differs from upstream in two evaluations
+  that are identities in exact arithmetic and are not identities in `f64`.
+  Upstream's are reachable as `CamvAngleArithmetic::OrieditaExact`, and that is
+  what `check4_matches_oriedita_foldlineset_oracle`,
+  `check_camv_task_matches_oriedita_task_oracle` and
+  `check3_matches_oriedita_foldlineset_oracle` ask for, so the Java remains the
+  gate on the ported behaviour.
+
+  The larger one is the crimp reduction's `maxAngle -= 2.0 * minAngle`
+  (`Check4.java:246`), which shrinks the working range by twice the *global
+  minimum* sector where the geometry removes twice the *collapsed* sector. The
+  tie test `|tmpAngle - minAngle| < Epsilon.FLAT` (`:230`) is what makes those
+  the same number — but its window is 1e-6 **degrees**, and several sectors can
+  sit inside it. On a solved crease pattern from CP detection, four sectors at
+  one vertex lay within 8.2e-7 of each other, so four different pairs qualified
+  and the `SortingBox` order decided which collapsed. That order starts at the
+  ray with the smallest absolute bearing, so *rotating the pattern changed the
+  verdict*: the same file reported 3/3/2/3/2/5 violations under the six bit-exact
+  coordinate transforms, with a union of 7 sites and an intersection of **0**.
+  99.68% of the surviving vertex's residual came from this substitution; 0.32%
+  was real geometry. Subtracting the collapsed sector makes the final residual
+  the Kawasaki alternating sum, which every legal merge preserves exactly, so the
+  verdict stops depending on the path.
+
+  The smaller one is the ray bearing. `OritaCalc.angle` (`OritaCalc.java:71-97`)
+  is `Math.acos(x / L)` — the vendored tree contains no `atan` at all — and
+  `acos` is ill-conditioned as its argument approaches ±1, i.e. for a
+  near-horizontal ray, since `dθ/dc = -1/sin θ`. Measured over 200k rays per
+  band: 9.9e-7° of error near bearing 0° against a 1e-6° bar, versus 2.8e-14° at
+  45° and 90°. `Refined` uses a well-conditioned bearing local to `checks.rs`.
+
+  Neither is sufficient alone — exact subtraction over `acos` bearings still
+  flips three vertices, a better bearing alone flips four — and this is a
+  strictly *sharper* check, not a laxer one: a vertex genuinely missing Kawasaki
+  by 1.4e-6° is caught in six orientations of six where upstream's arithmetic
+  catches it in three (`a_real_violation_is_caught_in_every_orientation`).
+  `geometry::angle` itself is untouched, along with every one of its nineteen
+  call sites outside these checks, and so are `Epsilon::FLAT`, the algorithm's
+  control flow, and the big-little-big condition.
+
 - **Flip Mountain/Valley also flips a direction hint.** `CreaseToggleMv`'s
   dispatch runs the port and then
   `operations::native::direction_hint::flip_direction_hints`, so the tool

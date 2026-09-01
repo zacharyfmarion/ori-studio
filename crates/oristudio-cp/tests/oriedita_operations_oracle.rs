@@ -1,7 +1,8 @@
 use oristudio_cp::checks::{
     CamvAngleArithmetic, FixInaccurateOptions, FixInaccurateResult, FlatFoldabilityColor,
     FlatFoldabilityRule, FlatFoldabilityViolation, FlatFoldableBoundaryCheck, check_camv_task_with,
-    check1, check2, check3, check4_with, fix_inaccurate_for_indices, flat_foldable_boundary_check,
+    check1, check2, check3_with, check4_with, fix_inaccurate_for_indices,
+    flat_foldable_boundary_check,
 };
 use oristudio_cp::geometry::{Circle, Intersection, LineColor, LineSegment, Point, RgbColor};
 use oristudio_cp::model::{
@@ -646,7 +647,7 @@ fn check3_matches_oriedita_foldlineset_oracle() {
         let mut args = vec!["foldline-check3".to_string(), segments.len().to_string()];
         push_segment_args(&mut args, &segments);
         assert_eq!(
-            line_segment_list_summary(&check3(&model)),
+            line_segment_list_summary(&check3_with(&model, CamvAngleArithmetic::OrieditaExact)),
             run_oracle(&oracle, &args)
         );
     }

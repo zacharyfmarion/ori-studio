@@ -143,37 +143,28 @@ ill-conditioned as its argument approaches ±1 — a **near-horizontal** ray —
 `d(θ)/dc = -1/sin θ`. Measured over 200k random rays per band: error 9.9e-7° at
 bearing ≈0°, 9.1e-7° at ≈180°, and 2.8e-14° at 45° and 90°.
 
-**Take the sector route.** Feed the reduction sector angles computed between
-consecutive rays,
+**Landed: a well-conditioned bearing, local to `checks.rs`.** `refined_bearing`
+is `atan2`, used only by the fan builder under `Refined`. Upstream's
+`geometry::angle` is untouched, along with all nineteen of its call sites outside
+these checks and the test that pins it.
 
-```
-cross = ux·vy − uy·vx      dot = ux·vx + uy·vy
-sector = atan2(cross, dot)          normalized into [0, 360)
-```
+*This plan originally proposed restructuring the reduction to carry sectors
+computed as `atan2(cross, dot)` between consecutive rays, on the grounds that it
+avoids changing the shared primitive. A local bearing achieves that same
+isolation without rewriting a ported algorithm, and the measurement already had
+`bearing + atan2 + exact` at `[0, 0, 0, 0, 0, 0]` — identical to
+`sector + atan2 + exact`. The sector prototype reproduced the bearing reduction
+bit-for-bit across all six transforms and the whole corpus, so it was faithful
+and bought nothing on top of the subtraction fix.*
 
-and leave the `SortingBox` ordering, the starting ray, the cyclic scan and every
-`Epsilon::FLAT` exactly as they are. Three reasons over patching the primitive:
+The one thing sectors would still buy is *bit*-exact invariance under exact
+rotation rather than the 1.13e-13 spread bearings leave, because `cross` and
+`dot` are rotation-invariant scalars: `(a,b),(c,d) → (−b,a),(−d,c)` gives
+`cross' = (−b)(c) − (a)(−d) = ad − bc`, the same two products with signs
+rearranged. At seven orders below the bar that cannot change a verdict, so it did
+not justify restructuring the ported reduction. Worth knowing if the bar ever
+tightens.
 
-- `orita_calc::angle` has **19 call sites outside CAMV** — `fold_graph.rs:519`,
-  `io/fold.rs:495`, seven in `operations/construction.rs`, three in
-  `operations/circle.rs`, `operations/measure.rs:12`, two in
-  `operations/transform.rs` — and `tests/geometry.rs:55` pins the primitive
-  itself. Changing it makes every one of those a divergence.
-- `cross` and `dot` are **rotation-invariant scalars**. Under an exact 90°
-  rotation they are bit-identical: `(a,b),(c,d) → (−b,a),(−d,c)` gives
-  `cross' = (−b)(c) − (a)(−d) = ad − bc` — the same two products with signs
-  rearranged — and `dot' = bd + ac`.
-- In sector mode `acos` survives only as an **ordering key**, and its worst
-  observed failure is benign there: under rot90 a ray whose true bearing is
-  359.999999962665° is reported as `-0.0` and sorted first. That is a cyclic
-  rotation of the fan, not a reordering — and exact subtraction has already made
-  the starting point irrelevant.
-
-The reduction consumes weights only through *differences*, so substituting a
-sector for a difference-of-bearings changes no mathematical quantity. Verified:
-the sector prototype reproduces the bearing reduction **bit-for-bit** under
-`atan2` on all six transforms and across the corpus, including the site lists and
-a `BigLittleBig` verdict.
 
 ### Three things measurement killed, recorded so they are not re-proposed
 
@@ -309,28 +300,41 @@ residual implementations across the workspace.
 
 ## Checklist
 
-- [ ] Build the Oriedita oracle locally (`tools/oriedita-oracle/build_geometry_oracle.sh`)
+- [x] Build the Oriedita oracle locally (`tools/oriedita-oracle/build_geometry_oracle.sh`)
       and confirm `check4_matches_oriedita_foldlineset_oracle` actually runs
       rather than silently skipping. **Do this first** — every parity claim below
       is unverified against Java until it does.
-- [ ] `CamvAngleArithmetic` enum + `check4_with`, defaulting to `Refined`, with
+- [x] `CamvAngleArithmetic` enum + `check4_with`, defaulting to `Refined`, with
       `check4`/`check_camv_task` signatures unchanged.
-- [ ] Sector angles from ray pairs under `Refined`; upstream bearings under
+- [x] A well-conditioned bearing under `Refined`; upstream's under
+      `OrieditaExact`. *Landed as a local `atan2` bearing rather than the sector
+      restructure this plan proposed — `bearing + atan2 + exact` was already
+      measured at `[0,0,0,0,0,0]`, and it leaves the ported reduction's
+      structure untouched, which the restructure would not have.*
+- [x] `max_angle -= 2.0 * temp_angle` under `Refined`; `2.0 * min_angle` under
       `OrieditaExact`.
-- [ ] `max_angle -= 2.0 * temp_angle` under `Refined`; `2.0 * min_angle` under
-      `OrieditaExact`.
-- [ ] Three oracle tests pass `OrieditaExact` with an inline comment each.
-- [ ] Test: six-transform invariance on `worked_but_has_errors.osf`, asserting 0
-      in every orientation.
-- [ ] Test: the δ=7e-7 sensitivity case asserting `Angles` in all six
+- [x] Three oracle tests pass `OrieditaExact` with an inline comment each.
+- [x] Test: six-transform invariance, asserting one verdict in every
+      orientation. *Built synthetically rather than from the `.osf`, which lives
+      outside the repo; paired with a stays-clean case so invariance cannot be
+      bought by reporting nothing.*
+- [x] Test: the δ=7e-7 sensitivity case asserting `Angles` in all six
       orientations. **This is the one that fails on today's code (3/6)** — it is
       the regression test that would have caught this.
-- [ ] Test: `20/100/160/80` same-colour-flanked `BigLittleBig` in all six
+- [x] Test: `20/100/160/80` same-colour-flanked `BigLittleBig` in all six
       orientations.
-- [ ] Decide Check3 (`:1371`) — fix or document. Leaving it is two
-      implementations of one condition that disagree.
-- [ ] `PORTING.md` entry in the "Bounded lengthen extensions" shape.
+- [x] Check3 **fixed**, not documented: `check3_with` takes the same parameter
+      and `extended_fushimi_decide_inside` gets the same two changes. Its parity
+      test asks for `OrieditaExact` and passes against the Java.
+- [x] `PORTING.md` entry in the "Bounded lengthen extensions" shape.
 - [ ] `cargo test --workspace`, plus `native-oracle`'s Oriedita step locally.
+
+**Landed.** The oracle runs — and confirms the plan's warning exactly: with
+`ORIEDITA_OPERATIONS_ORACLE` set the CAMV parity tests take 0.71 s, without it
+they "pass" in 0.00 s by silently skipping. All three pass under `OrieditaExact`
+against the real Java. Two tests in that suite fail, `angle_restricted_5_with_grid`
+and `closest_grid_point`; both fail identically on a clean tree and neither
+touches `checks.rs`.
 
 ## Risks and mitigations
 
