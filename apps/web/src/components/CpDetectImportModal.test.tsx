@@ -138,26 +138,10 @@ function imageData(size: number): ImageData {
   } as unknown as ImageData;
 }
 
-/**
- * `targetQuad` is where the rectifier says it put the paper. `warp_detected_panel`
- * insets by 32; `resize_full_frame` and `resize_without_panel` do not inset at
- * all, and the modal has to read this rather than assume the inset.
- */
-function rectifiedImage(inset = 32) {
-  const far = IMAGE_SIZE - 1 - inset;
+function rectifiedImage() {
   return {
     image: imageData(IMAGE_SIZE),
-    report: {
-      source_quad: quad(),
-      detected_source_quad: quad(),
-      target_quad: {
-        top_left: { x: inset, y: inset },
-        top_right: { x: far, y: inset },
-        bottom_right: { x: far, y: far },
-        bottom_left: { x: inset, y: far },
-      },
-      warnings: [],
-    },
+    report: { source_quad: quad(), detected_source_quad: quad(), warnings: [] },
   } as never;
 }
 
@@ -815,12 +799,19 @@ describe('CpDetectImportModal add', () => {
     // Both centred on the added paper, wherever `import_add` put it.
     expect(image.center).toEqual({ x: 0, y: 0 });
     expect(region.center).toEqual({ x: 0, y: 0 });
-    // The rectifier reported the paper at pixels [32, 991] of 1024 — 959 across,
-    // not 960, because `Quad::square` spans `size - 1` — so the whole frame is
-    // 1024/959 of the paper. Read from the report, not assumed: anything else is
-    // a registration bug.
-    expect(image.width).toBeCloseTo((PAPER_SIZE * IMAGE_SIZE) / 959, 6);
-    expect(image.height).toBeCloseTo((PAPER_SIZE * IMAGE_SIZE) / 959, 6);
+    // The underlay is sized to the DECODER, not to where the rectifier says it
+    // put the paper.
+    //
+    // `unit_from_px` always divides by `image_size - 64`
+    // (`junction_carrier_v1.rs:23`) and never reads `report.target_quad`, so the
+    // candidate's unit square is at pixels [32, 992] of 1024 whatever the
+    // rectifier did — and the whole frame is therefore 1024/960 of the paper.
+    // Sizing from `target_quad` instead was tried and reverted: on the two
+    // rectification paths that do not inset, it lines the image's border up with
+    // the paper and leaves every crease inside it 6.7% off, which is exactly the
+    // alignment a repair flow needs to be right.
+    expect(image.width).toBeCloseTo((PAPER_SIZE * IMAGE_SIZE) / (IMAGE_SIZE - 64), 6);
+    expect(image.height).toBeCloseTo((PAPER_SIZE * IMAGE_SIZE) / (IMAGE_SIZE - 64), 6);
     expect(image.opacity).toBe(0.5);
     // Locked so it never takes a click meant for the creases being repaired over
     // it — and locked is absolute, so the region has to own it or nothing can
@@ -842,28 +833,6 @@ describe('CpDetectImportModal add', () => {
     expect(region.z).toBeLessThan(image.z);
     // One overlay-only history entry for both, so undo peels them off together.
     expect(storeActions.recordAnnotationHistory).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not inset the underlay when the rectifier did not inset the paper', async () => {
-    // The bug this is for. Rectification has three paths and only
-    // `warp_detected_panel` insets: an already-cropped CP takes
-    // `resize_full_frame`, which fills the frame edge to edge. Assuming the
-    // 32 px inset regardless drew the underlay 6.7% oversized, with the
-    // photographed paper edge sitting outside the creases.
-    detectClient.autoRectifyImage.mockResolvedValueOnce(rectifiedImage(0));
-
-    await reachReviewStage();
-    click('Review & Fix');
-    await settle();
-
-    const image = storeActions.addAnnotation.mock.calls
-      .map((call) => call[0])
-      .find(isImageAnnotation);
-    if (!image) throw new Error('expected an image');
-    // Paper spans [0, 1023] of 1024, so the frame is 1024/1023 of the paper —
-    // the same size, not 6.7% larger.
-    expect(image.width).toBeCloseTo((PAPER_SIZE * IMAGE_SIZE) / 1023, 6);
-    expect(image.width / PAPER_SIZE).toBeLessThan(1.01);
   });
 
   it('frames the addition, which would otherwise land off-screen', async () => {
