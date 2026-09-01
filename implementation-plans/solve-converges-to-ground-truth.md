@@ -77,66 +77,78 @@ separate reasons, none fixable by picking a different pack.
 into its connected components — traditional bases are tiled in one canvas, and
 diagram files hold one pattern per step. From three files:
 
-| source | components | CAMV-clean GT |
-| --- | --- | --- |
-| `traditional_bases.ori` | 8 | **8** |
-| `lamprey-draft-v0.6.ori` | 23 | (mostly clean; all refuse below) |
-| `iguana_50.osf` | 63 | — |
-| **total** | **88** | **69 clean, 15 BLB-only, 4 both** |
+| source | components | CAMV-clean GT | square paper |
+| --- | --- | --- | --- |
+| `traditional_bases.ori` | 8 | **8** | all |
+| `lamprey-draft-v0.6.ori` | 23 | — | none |
+| `iguana_50.osf` | 63 | — | some |
+| subtotal | 88 | **69** | 41 of 69 |
+| **`22-5/` (7 files)** | **14** | **11** | **all 11** |
 
-**69 of 88 with an exactly-foldable ground truth**, against 0 of 194 generated.
-This is the Phase 0 corpus, and it already exists.
+**80 patterns with an exactly-foldable ground truth**, against 0 of 194
+generated. The `22-5/` set is the better half: every one is square paper, so
+nothing refuses, and being 22.5°/45° designs they carry the dense tie structure
+the failure needs.
 
 ### What it shows
 
-`--example solve_gt_scorecard` takes each clean-GT sample, solves it as-is (a
-no-op — all 41 solvable samples come back `Solved 0a 0b`), then perturbs every
-movable vertex by a seeded Gaussian and solves again. Sweeping the noise:
+`--example solve_gt_scorecard` takes each clean-GT sample, solves it as-is, then
+perturbs every movable vertex by a seeded Gaussian and solves again. **Every
+sample is `Solved 0a 0b` as-is** — the solve preserves an exact pattern when
+nothing disturbs it. After perturbation, on the `22-5/` set:
 
-| noise (of paper edge) | solved + clean | **solved but BLB** | did not converge |
+| sample | verts | noise 0.001 | noise 0.002 | GT err |
+| --- | --- | --- | --- | --- |
+| `cat_progress-00` | 43 | **Solved 0a 3b** | **Solved 0a 3b** | 2.2 – 4.5 px |
+| `cat_progress_2-01` | 43 | **Solved 0a 4b** | **Solved 0a 5b** | 1.5 – 3.0 px |
+| `tiger_wip_3-00` | 110 | **Solved 0a 3b** | **Solved 0a 3b** | 3.3 – 4.1 px |
+| the other 8 | — | Solved 0a 0b | Solved 0a 0b | 0.4 – 4.6 px |
+
+Three of eleven come back **`Solved` with a pattern that cannot fold flat** — the
+solver reporting success on its own damage. On the larger corpus the same thing
+happens to `iguana50-41` at every noise level from 0.0005 to 0.004, always
+exactly 2 violations, and at 0.0005 it is **0.26 px from ground truth**. The
+count does not scale with the noise, which rules out "it did not converge far
+enough".
+
+### Why: designed patterns are quantized, so ties are everywhere
+
+Read straight off the ground truth — how often the *smallest* sector at an
+interior vertex is exactly tied with another, and what angles the pattern is
+built from:
+
+| pattern | interior vertices | smallest sector tied | distinct sector angles |
 | --- | --- | --- | --- |
-| 0.0005 | 39 | **1** | 1 |
-| 0.001 | 40 | **1** | 0 |
-| 0.002 | 39 | **1** | 1 |
-| 0.003 | 33 | **1** | 7 |
-| 0.004 | 19 | **1** | 21 |
+| `tiger_wip_3-00` | 47 | **47 (100%)** | {45, 90, 135} |
+| `cat_progress-00` | 13 | 7 (53%) | {22.5, 45, 67.5, 90, 112.5, 135, 157.5} |
+| `cat_progress_2-01` | 13 | 7 (53%) | same 22.5° family |
+| `cat_progress-01` | 16 | 6 (37%) | same 22.5° family |
+| `iguana50-41` | 15 | 7 (47%) | 45 / 63.4 / 116.6 / 18.4 / 71.6 |
 
-The same sample every time — `iguana50-41`, 35 vertices — and **always exactly 2
-BLB violations, even at 0.0005 noise where it converges to 0.26 px of ground
-truth**. The count does not scale with the noise, which rules out "the solve did
-not converge far enough".
+**A designed crease pattern is quantized to an angle family, so tied sectors are
+the norm — 37% to 100% of interior vertices.** BigLittleBig needs a *strictly*
+smaller sector, so **it is vacuous at a tie** and fires the moment one breaks.
 
-### Why: exact patterns are full of exact ties
+The solver treats angles as free continuous variables under a single Kawasaki
+equation per vertex. It has no reason to preserve a tie, so it generically breaks
+them — converting legal vertices into violations while reporting success.
 
-The mechanism, read straight off that sample's ground truth: **7 of its 15
-interior vertices have their smallest sector *exactly* tied.**
-
-```
-v20  deg 4   116.6(V/V)  63.4(V/M)  63.4(M/V)  116.6(V/V)
-v11  deg 8   45.0 45.0 45.0 45.0  71.6(V/M) 18.4(M/V) 18.4(V/M) 71.6(M/V)
-```
-
-BigLittleBig needs a *strictly* smaller sector, so **it is vacuous at a tie** —
-and the moment a tie breaks, a legal vertex becomes a violation. This is not
-incidental to one pattern: flat-foldable crease patterns are built from repeated
-exact angles, so ties are the normal case, and a solver that treats angles as
-free continuous variables under a single Kawasaki equation will generically break
-them.
-
-That reframes the fix. A BLB barrier treats the vertices where a broken tie
-happens to matter; **preserving the coincidences the pattern actually has** treats
-the cause — which is also why holding pass-through creases collinear is so
-powerful, since that *is* preserving a tie (opposite sectors equal).
+That reorders the fix. A BLB barrier treats the vertices where a broken tie
+happens to matter; **preserving the coincidences the pattern has** treats the
+cause. Holding pass-through creases collinear is one instance of it (opposite
+sectors equal). An angle-family prior is the general one — and the table above
+makes it far less speculative than it looked: these patterns live on {22.5°} or
+{45°} grids, and the family is *measurable from the input* rather than assumed.
 
 ### Limits of this corpus, stated plainly
 
-- **28 of the 69 refuse** with "paper is not a square" —
+- **28 of the first 69 refuse** with "paper is not a square" —
   `exact_solve_input_from_fold` is square-only, and diagram steps are often
-  partial shapes. That costs every large `lamprey` pattern, which would be the
-  best stress cases.
-- **Only 1 of 41 reproduces the failure.** These patterns are small and their
-  sectors are far apart; the dense `.osf` states (28 and 32 violations) remain the
-  volume reproduction. Use both.
+  partial shapes. That costs every large `lamprey` pattern. The `22-5/` set does
+  not have this problem: 11 of 11 are square.
+- **4 of 52 solvable samples reproduce the failure.** Enough to prove blame and
+  to regression-test a fix, not enough for statistics; the dense `.osf` states
+  (28 and 32 violations) remain the volume reproduction. Use both.
 
 ## Approach
 
@@ -209,10 +221,12 @@ a product decision, not just a code change.
 ### Phase 4 — prove convergence
 
 Scorecard over the Phase 0 corpus: vertex error against GT plus CAMV on both
-rules. If error against GT is still material after Phases 1–2, the remaining gap
-is that nothing prefers the *particular* angles the pattern is built from, which
-is the point to consider an angle-quantization prior. **Fork — stop there**, as a
-wrong quantization pulls solves away from GT rather than toward it.
+rules. If error against GT is still material after Phases 1–2, the remaining gap is that
+nothing prefers the *particular* angles the pattern is built from. The tie table
+above says that gap is real and structured: infer the angle family from the input
+(a histogram of sector angles is strongly peaked — {45, 90, 135} or the 22.5°
+set) and prefer it, rather than hardcoding one. **Fork — stop there**, since a
+wrongly-inferred family pulls solves away from GT rather than toward it.
 
 ## Affected Areas
 
@@ -233,8 +247,9 @@ wrong quantization pulls solves away from GT rather than toward it.
 
 ## Checklist
 
-- [x] **Phase 0** — exact corpus from hand-authored sources: 69 clean-GT patterns
-      from three files, vs 0 of 194 generated.
+- [x] **Phase 0** — exact corpus from hand-authored sources: 80 clean-GT patterns
+      (69 from three files, 11 from `22-5/`), vs 0 of 194 generated. Four
+      reproduce the failure; all 11 of the `22-5/` set are square paper.
 - [x] **Phase 0** — `gt_camv_survey` and `solve_gt_scorecard`; baseline above.
 - [ ] **Phase 0** — lift the square-paper restriction so the 28 refusals (all the
       large `lamprey` patterns) become usable stress cases.

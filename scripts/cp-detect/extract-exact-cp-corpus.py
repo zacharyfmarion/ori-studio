@@ -37,12 +37,24 @@ def load(path):
              ORI_COLOR.get(s["color"], "U"))
             for s in document["lineSegments"]
         ]
-    model = document["workspace"]["creasePattern"]["creasePattern"]
-    return [
-        (s["a"]["x"], s["a"]["y"], s["b"]["x"], s["b"]["y"],
-         OSF_COLOR.get(s["color"], "U"))
-        for s in model["document"]["crease_pattern"]["line_segments"]
-    ]
+    # Two `.osf` shapes, split by schemaVersion: v8 hoisted the crease-pattern
+    # design to `workspace.creasePattern`, before which it was one of
+    # `workspace.documents`.
+    workspace = document["workspace"]
+    designs = (
+        [workspace["creasePattern"]]
+        if "creasePattern" in workspace
+        else [d for d in workspace.get("documents", []) if "creasePattern" in d]
+    )
+    segments = []
+    for design in designs:
+        model = design["creasePattern"]["document"]["crease_pattern"]
+        segments += [
+            (s["a"]["x"], s["a"]["y"], s["b"]["x"], s["b"]["y"],
+             OSF_COLOR.get(s["color"], "U"))
+            for s in model["line_segments"]
+        ]
+    return segments
 
 
 def components(segments):
