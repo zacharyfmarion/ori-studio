@@ -3073,6 +3073,7 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
+ "treemaker-fold",
  "wasm-bindgen",
  "wasm-bindgen-test",
 ]
