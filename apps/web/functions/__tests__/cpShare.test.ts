@@ -425,6 +425,27 @@ describe('GET /s/[[shareId]]', () => {
     expect(html).toContain(`name="twitter:image" content="${meta.imageUrl}"`);
   });
 
+  it('strips the prerendered landing page a share must not carry', () => {
+    // Every share serves the same `dist/index.html`, and the build injects the marketing
+    // page into it for crawlers. Left in, the crawlable body of /s/<id> would be the Ori
+    // Studio pitch while the card above it advertised a crease pattern.
+    const prerendered = INDEX_HTML.replace(
+      '<div id="root"></div>',
+      '<div id="seo-content"><h1>Ori Studio</h1><div><p>A free workspace</p></div></div><div id="root"></div>'
+    );
+    const html = renderSharedCpHtml(prerendered, meta, VALID_PAYLOAD);
+    expect(html).not.toContain('id="seo-content"');
+    expect(html).not.toContain('A free workspace');
+    // Anchored on #root rather than the first </div>, so the nested markup cannot make it
+    // cut early and swallow the app mount point.
+    expect(html).toContain('<div id="root"></div>');
+  });
+
+  it('leaves a build with no prerendered block untouched', () => {
+    const html = renderSharedCpHtml(INDEX_HTML, meta, VALID_PAYLOAD);
+    expect(html).toContain('<div id="root"></div>');
+  });
+
   it('inlines the payload so the SPA needs no fetch', () => {
     const html = renderSharedCpHtml(INDEX_HTML, meta, VALID_PAYLOAD);
     expect(html).toContain('<script type="application/json" id="shared-cp">');

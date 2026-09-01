@@ -17,6 +17,7 @@
     "pretest": "npm run build:simulator && npm run build:wasm",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "postbuild": "node scripts/prerender-landing.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",

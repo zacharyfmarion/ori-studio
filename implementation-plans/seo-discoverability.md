@@ -363,21 +363,33 @@ and Search Console shows the English page indexed and ranking for something.
 
 ### Phase 2 — Real HTML for crawlers
 
-- [ ] `src/seo/StaticLanding.tsx` composing the existing `Landing*` components
-- [ ] `scripts/prerender-landing.mjs` via Vite SSR, reusing `cpShareHtml` helpers
-- [ ] Inject `#seo-content`; remove it in `main.tsx` before `createRoot`
-- [ ] Prerender both `dist/index.html` and `dist/welcome/index.html`
-- [ ] Landing `<title>` and description written for the target query
-- [ ] `twitter:card` / `twitter:image` on the landing
-- [ ] `SoftwareApplication` JSON-LD, validated in the Rich Results Test
-- [ ] Regenerate `og-default.png` at 1200×630
-- [ ] Wire it up: `postbuild` hook in `apps/web/package.json`
-- [ ] Script fails the build when injection did not happen
-- [ ] `ORI_SITE_ENV=production` in `deploy-web.yml`; `Disallow: /` robots.txt otherwise
-- [ ] Test: prerendered HTML contains each landing section heading (vitest, PR gate)
-- [ ] Test: booting the app removes `#seo-content` exactly once
-- [ ] Note the `--ignore-scripts` interaction in AGENTS.md
-- [ ] Confirm via Search Console URL Inspection that Googlebot sees the copy
+- [x] `src/seo/StaticLanding.tsx` composing the existing `Landing*` components
+- [x] `scripts/prerender-landing.mjs` via Vite SSR (`configFile: false` — the app's config
+      carries the Sentry upload plugin, which has a token on the production deploy)
+- [x] Inject `#seo-content`; remove it in `main.tsx` before `createRoot`
+- [x] Prerender both `dist/index.html` and `dist/welcome/index.html`
+- [x] Landing `<title>`, description, `twitter:card` (shipped in Phase 1)
+- [x] `SoftwareApplication` JSON-LD
+- [x] `postbuild` hook in `apps/web/package.json`
+- [x] Script fails the build when injection did not happen, or when the render came back
+      implausibly small — a silent empty render passes every other check downstream
+- [x] `ORI_SITE_ENV=production` in `deploy-web.yml`; `Disallow: /` robots.txt otherwise
+- [x] `sitemap.xml` and `robots.txt` generated from `src/seo/siteMeta.ts`, and the static
+      copies deleted — the origin is now written down once
+- [x] Strip `#seo-content` on `/s/*`, or a share page's crawlable body is the landing pitch
+- [x] Tests: prerender content + sections + single h1 + JSON-LD + share stripping
+- [x] `seo-smoke.mjs` asserts the landing copy is actually in the served HTML
+- [x] Note the `--ignore-scripts` interaction in AGENTS.md
+- [ ] Regenerate `og-default.png` at 1200×630 (currently 1000×525 — right ratio, small)
+- [ ] Confirm via Search Console URL Inspection that Googlebot sees the copy *(needs Zach,
+      after deploy)*
+
+**`noindex` on the app routes was dropped, deliberately.** Every route serves the same
+`dist/index.html`, so `/edit` now carries the prerendered landing copy too. The fix is not
+a runtime `<meta robots>` — that only exists after the render pass, which is the pass we
+stopped depending on. `canonical → /` is already on every copy, is honoured in the raw
+HTML, and tells Google exactly what to consolidate. It is the stronger signal here and it
+is already shipped.
 
 ### Phase 3 — Custom domain
 

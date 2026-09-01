@@ -51,6 +51,10 @@ jobs:
       - name: Build web app
         run: npm run build:web
         env:
+          # Opts this build into a crawlable robots.txt. Absence means "not production",
+          # so PR previews de-index themselves rather than competing with the real site
+          # for the same copy. Same absence-is-off firewall as the telemetry below.
+          ORI_SITE_ENV: production
           # PostHog analytics config is inlined by Vite at build time. Absent =
           # analytics silently disabled (the dev/prod firewall). Set only here,
           # on the prod (main) deploy — PR previews intentionally leave these

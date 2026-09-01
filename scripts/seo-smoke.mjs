@@ -61,6 +61,18 @@ const CHECKS = [
     ],
   },
   {
+    // The whole point of the prerender. Without it this returns a valid, 200, correctly
+    // canonicalised page with no words in it — which every other check here would pass.
+    name: 'the landing copy is in the HTML, not just in the JavaScript',
+    path: '/',
+    contains: ['id="seo-content"', 'crease pattern', 'application/ld+json', '<h1'],
+  },
+  {
+    name: '/welcome is a real prerendered file too',
+    path: '/welcome',
+    contains: ['id="seo-content"', 'crease pattern'],
+  },
+  {
     name: 'the OpenGraph image is served',
     path: '/og-default.png',
     contentType: 'image/png',

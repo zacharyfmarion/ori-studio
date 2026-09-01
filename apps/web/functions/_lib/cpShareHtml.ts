@@ -11,6 +11,8 @@ import { escapeHtmlAttribute, escapeJsonForScript } from './cpShare';
 import { shareCardDescription, shareCardTitle } from '../../src/lib/shareCardText';
 // One owner for the script id, because a drift here fails silently — see the module.
 import { SHARED_CP_SCRIPT_ID } from '../../src/lib/sharedCpContract';
+// The prerendered landing block this has to remove — see `stripSeoContent`.
+import { SEO_CONTENT_ID } from '../../src/seo/siteMeta';
 
 /** Everything the card and the inlined bootstrap need. */
 export interface ShareCardMeta {
@@ -82,12 +84,37 @@ function inlineSharedPayload(html: string, meta: ShareCardMeta, payload: string)
     : `${html}\n${script}`;
 }
 
+/**
+ * Remove the prerendered landing copy from a share page.
+ *
+ * `scripts/prerender-landing.mjs` injects the marketing page into `dist/index.html` for
+ * crawlers, and every share serves that same file. Without this, the crawlable body of
+ * `/s/<id>` would be the Ori Studio pitch rather than the shared crease pattern — the OG
+ * card would be right and the page underneath it would be about something else.
+ *
+ * Anchored on `<div id="root">` rather than counting tags: the landing markup is full of
+ * nested `</div>`, so a non-greedy match would cut at the first one and leave the rest of
+ * the page inside a block it no longer owns. The prerender always writes the two elements
+ * adjacent, which makes the anchor exact.
+ *
+ * A no-op when the marker is absent, which is every build that skipped the prerender.
+ */
+function stripSeoContent(html: string): string {
+  const start = html.indexOf(`<div id="${SEO_CONTENT_ID}">`);
+  if (start === -1) return html;
+  const anchor = '<div id="root"></div>';
+  const end = html.indexOf(anchor, start);
+  if (end === -1) return html;
+  return html.slice(0, start) + html.slice(end);
+}
+
 /** Apply the card metadata only — used when the share is missing but the SPA still serves. */
 export function renderShareCardMeta(html: string, meta: ShareCardMeta): string {
   const title = shareCardTitle(meta);
   const description = shareCardDescription();
 
-  let next = setDocumentTitle(html, title);
+  let next = stripSeoContent(html);
+  next = setDocumentTitle(next, title);
   next = setMetaTag(next, 'name', 'description', description);
   next = setMetaTag(next, 'property', 'og:title', title);
   next = setMetaTag(next, 'property', 'og:description', description);
