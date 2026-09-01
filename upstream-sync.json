@@ -24,7 +24,7 @@
       "vendored_path": "third_party/oriedita",
       "vendored_commit": "c02a54420c50d375fa0463f444290c391722d715",
       "last_checked_commit": "c02a54420c50d375fa0463f444290c391722d715",
-      "last_checked_date": "2026-08-10",
+      "last_checked_date": "2026-09-01",
       "unported_upstream_features": [
         "Apollonius circle drawing tools (MouseHandlerCircleDrawApollonius, MouseHandlerCircleDrawApolloniusRadius), added upstream in PR #505. Vendored but not ported: a product decision about whether Ori Studio wants the tool, not a parity gap."
       ],
