@@ -196,16 +196,31 @@ fn unchanged(
 
 /// Angle-preserving similarity (rotate + uniform scale + optional reflection +
 /// translate) mapping the input FOLD frame to the axis-aligned unit square.
-struct Similarity {
-    origin: Point2,
-    ux: (f64, f64),
-    uy: (f64, f64),
-    side: f64,
-    flip: f64,
+/// The similarity that carries a FOLD's own coordinates onto the unit square the
+/// solver works in — and, through [`Similarity::invert`], carries an answer back.
+///
+/// Serializable because the browser owns the second half of that round trip: it
+/// rebuilds an input over the bridge, solves it, and has to put the moved
+/// vertices back where the user's creases are. Handing it the transform is what
+/// replaces the frame *hypothesis* the web used to apply and then verify by
+/// looking for the solver's vertices among the crease ends.
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Similarity {
+    /// The paper corner the frame is measured from, in FOLD coordinates.
+    pub origin: Point2,
+    /// Unit vector along the first paper side.
+    pub ux: (f64, f64),
+    /// Unit vector along the perpendicular side.
+    pub uy: (f64, f64),
+    /// Paper side length in FOLD units — the scale factor.
+    pub side: f64,
+    /// `-1.0` when the paper had to be reflected to land in +y, else `1.0`.
+    pub flip: f64,
 }
 
 impl Similarity {
-    fn apply(&self, p: Point2) -> Point2 {
+    /// FOLD coordinates -> unit-square coordinates.
+    pub fn apply(&self, p: Point2) -> Point2 {
         let d = (p.x - self.origin.x, p.y - self.origin.y);
         Point2::new(
             (d.0 * self.ux.0 + d.1 * self.ux.1) / self.side,
@@ -213,7 +228,8 @@ impl Similarity {
         )
     }
 
-    fn invert(&self, q: Point2) -> Point2 {
+    /// Unit-square coordinates -> FOLD coordinates. The inverse of [`Self::apply`].
+    pub fn invert(&self, q: Point2) -> Point2 {
         let fx = q.x * self.side;
         let fy = self.flip * q.y * self.side;
         Point2::new(
@@ -236,6 +252,79 @@ struct BoundaryPlan {
     sides: Vec<(BoundarySide, [usize; 2], Vec<usize>)>,
     /// Boundary-side label per vertex id; `None` for corners and interior vertices.
     vertex_side: Vec<Option<BoundarySide>>,
+}
+
+/// Rebuild an [`ExactSolveInput`] from a FOLD crease pattern, with the
+/// [`Similarity`] that maps between the two frames.
+///
+/// **This is the seam that lets a solve run on what the user is actually looking
+/// at.** A detection attaches its input to the region at import, and for a long
+/// time that attachment was the only thing a re-solve could consume — so a
+/// hand-repaired topology (a merged degree-2 vertex, a recoloured crease, a
+/// corner joined into one point) was invisible to the solver, which then
+/// reported blockers the user had already fixed. Running this over the current
+/// document instead is what closes that gap; see `useCpRegionSolve.ts`.
+///
+/// The topology, assignments and boundary all come from the FOLD. What it cannot
+/// recover is the detector's own per-crease confidence, so every vertex gets
+/// `support: 1.0` and every span `AssignmentEvidenceSource::Inferred` — the
+/// pattern is taken as *stated* rather than as *guessed*, which is the right
+/// reading of geometry a user has been editing by hand.
+pub fn exact_solve_input_from_fold(
+    fold: &FoldDocument,
+) -> Result<(ExactSolveInput, Similarity), String> {
+    validate_fold(fold)?;
+    fold_to_exact_solve_input(fold)
+}
+
+/// Refuse a FOLD that the rest of this module would index its way off the end of.
+///
+/// Everything below is written against a FOLD that our own exporter produced, so
+/// it indexes `edges_assignment[id]` by an `edges_vertices` position and
+/// `vertices_coords[v]` by an edge endpoint without checking either. That was
+/// fine while the only caller was `exactize_fold` on a document the kernel had
+/// just serialized. It is not fine now: [`exact_solve_input_from_fold`] is
+/// public and reached from the browser, and a hand-assembled or truncated FOLD
+/// arriving over the bridge must come back as a refusal the UI can show, never
+/// as a wasm trap that takes the worker down with no message.
+///
+/// Checked once, here, so the code after it can keep indexing plainly — the
+/// alternative is a `get()` and a `?` at each of a dozen sites, which would
+/// bury the geometry in bounds handling for invariants that hold everywhere but
+/// the door.
+fn validate_fold(fold: &FoldDocument) -> Result<(), String> {
+    let n = fold.vertices_coords.len();
+    if n == 0 {
+        return Err("empty FOLD".to_owned());
+    }
+    if let Some(bad) = fold.vertices_coords.iter().position(|v| v.len() < 2) {
+        return Err(format!("vertex {bad} has fewer than 2 coordinates"));
+    }
+    if let Some(bad) = fold
+        .vertices_coords
+        .iter()
+        .position(|v| !v[0].is_finite() || !v[1].is_finite())
+    {
+        return Err(format!("vertex {bad} is not finite"));
+    }
+    if fold.edges_assignment.len() != fold.edges_vertices.len() {
+        return Err(format!(
+            "FOLD has {} edges but {} assignments",
+            fold.edges_vertices.len(),
+            fold.edges_assignment.len()
+        ));
+    }
+    if let Some(bad) = fold
+        .edges_vertices
+        .iter()
+        .position(|e| e[0] >= n || e[1] >= n)
+    {
+        return Err(format!("edge {bad} names a vertex that does not exist"));
+    }
+    if let Some(bad) = fold.edges_vertices.iter().position(|e| e[0] == e[1]) {
+        return Err(format!("edge {bad} starts and ends at the same vertex"));
+    }
+    Ok(())
 }
 
 fn fold_to_exact_solve_input(fold: &FoldDocument) -> Result<(ExactSolveInput, Similarity), String> {
@@ -433,7 +522,7 @@ fn detect_quad(fold: &FoldDocument, raw: &[Point2]) -> Result<QuadBoundary, Stri
             (cross.atan2(dot).abs().to_degrees(), loop_ids[k])
         })
         .collect();
-    turns.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+    turns.sort_by(|a, b| b.0.total_cmp(&a.0));
     if turns.len() < 4 || turns[3].0 < CORNER_TURN_DEGREES {
         return Err("paper is not a 4-corner quadrilateral".to_owned());
     }
@@ -503,7 +592,7 @@ fn square_plan(raw: &[Point2], quad: &QuadBoundary) -> Option<BoundaryPlan> {
             .min_by(|&&i, &&j| {
                 let di = (xform.apply(raw[i]).x - t.x).hypot(xform.apply(raw[i]).y - t.y);
                 let dj = (xform.apply(raw[j]).x - t.x).hypot(xform.apply(raw[j]).y - t.y);
-                di.partial_cmp(&dj).unwrap()
+                di.total_cmp(&dj)
             })
             .unwrap()
     });
@@ -717,7 +806,7 @@ fn max_movement(before: &[Point2], after: &[Point2]) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::solve_exact;
+    use crate::{analyze_candidate_topology, solve_exact};
     use treemaker_core::Tree;
 
     fn square_fold() -> FoldDocument {
@@ -770,5 +859,139 @@ mod tests {
             after, 0,
             "polygon-exactized CP still has {after} CAMV violations (before {before})"
         );
+    }
+
+    /// A hand-built square with one interior vertex, in document-ish coordinates.
+    /// Not the unit square, so the transform has real work to do.
+    fn simple_square() -> FoldDocument {
+        let mut fold = FoldDocument::new(
+            vec![
+                vec![-200.0, -200.0],
+                vec![200.0, -200.0],
+                vec![200.0, 200.0],
+                vec![-200.0, 200.0],
+                vec![0.0, 0.0],
+            ],
+            vec![
+                [0, 1],
+                [1, 2],
+                [2, 3],
+                [3, 0],
+                [0, 4],
+                [1, 4],
+                [2, 4],
+                [3, 4],
+            ],
+        );
+        fold.edges_assignment = vec![
+            Assignment::Boundary,
+            Assignment::Boundary,
+            Assignment::Boundary,
+            Assignment::Boundary,
+            Assignment::Mountain,
+            Assignment::Valley,
+            Assignment::Mountain,
+            Assignment::Valley,
+        ];
+        fold.edges_fold_angle = vec![None; 8];
+        fold
+    }
+
+    #[test]
+    fn rebuilds_an_input_from_a_document_fold_and_round_trips_its_frame() {
+        let fold = simple_square();
+        let (input, xform) = exact_solve_input_from_fold(&fold).unwrap();
+
+        assert_eq!(input.vertices.len(), 5);
+        assert_eq!(input.selected_spans.len(), 8);
+        // The paper is 400 units across and lands on the unit square.
+        assert!((xform.side - 400.0).abs() < 1e-9, "side {}", xform.side);
+
+        // Every vertex maps back onto the coordinate it came from. This is the
+        // half the browser owns: it solves in the unit square and has to put the
+        // answer back where the user's creases are.
+        for (i, vertex) in input.vertices.iter().enumerate() {
+            let back = xform.invert(vertex.point);
+            assert!(
+                (back.x - fold.vertices_coords[i][0]).abs() < 1e-9
+                    && (back.y - fold.vertices_coords[i][1]).abs() < 1e-9,
+                "vertex {i} round-tripped to ({}, {})",
+                back.x,
+                back.y
+            );
+        }
+    }
+
+    /// The bug this adapter was made public for.
+    ///
+    /// A detection attaches an input at import; the user then repairs the
+    /// topology. Solving the attachment reports blockers they already fixed —
+    /// here, the odd-degree vertex left by a missing crease. Rebuilding from the
+    /// document sees the repair.
+    #[test]
+    fn a_repaired_topology_reaches_the_solver() {
+        let mut broken = simple_square();
+        // Drop one of the four creases at the interior vertex: degree 3, odd.
+        broken.edges_vertices.remove(7);
+        broken.edges_assignment.remove(7);
+        broken.edges_fold_angle.remove(7);
+        let (stale, _) = exact_solve_input_from_fold(&broken).unwrap();
+        assert_eq!(
+            analyze_candidate_topology(&stale)
+                .combinatorial
+                .odd_degree_vertices,
+            vec![4],
+            "precondition: the unrepaired pattern has an odd-degree vertex"
+        );
+
+        // The user draws the missing crease back in. Same adapter, live geometry.
+        let (repaired, _) = exact_solve_input_from_fold(&simple_square()).unwrap();
+        assert!(
+            analyze_candidate_topology(&repaired)
+                .combinatorial
+                .odd_degree_vertices
+                .is_empty(),
+            "the repair must be visible to the solver"
+        );
+    }
+
+    /// Every one of these used to be an index panic, which over the wasm bridge
+    /// is a trap that kills the worker with no message the UI can show.
+    #[test]
+    fn a_malformed_fold_is_refused_rather_than_panicking() {
+        let cases: Vec<(&str, FoldDocument)> = vec![
+            ("empty FOLD", FoldDocument::new(vec![], vec![])),
+            ("vertex 1 has fewer than 2 coordinates", {
+                let mut f = simple_square();
+                f.vertices_coords[1] = vec![0.0];
+                f
+            }),
+            ("vertex 2 is not finite", {
+                let mut f = simple_square();
+                f.vertices_coords[2] = vec![f64::NAN, 0.0];
+                f
+            }),
+            ("FOLD has 8 edges but 7 assignments", {
+                let mut f = simple_square();
+                f.edges_assignment.pop();
+                f
+            }),
+            ("edge 4 names a vertex that does not exist", {
+                let mut f = simple_square();
+                f.edges_vertices[4] = [0, 99];
+                f
+            }),
+            ("edge 5 starts and ends at the same vertex", {
+                let mut f = simple_square();
+                f.edges_vertices[5] = [3, 3];
+                f
+            }),
+        ];
+        for (expected, fold) in cases {
+            assert_eq!(
+                exact_solve_input_from_fold(&fold).err().as_deref(),
+                Some(expected)
+            );
+        }
     }
 }

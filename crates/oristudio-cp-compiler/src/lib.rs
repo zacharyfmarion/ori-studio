@@ -47,7 +47,10 @@ pub use exact_solve::{
     LinearSolver, TopologyDiagnostics, TopologyVertexDiagnostic, analyze_candidate_topology,
     solve_exact, solve_exact_with_exemptions,
 };
-pub use fold_exactize::{ExactizeOutcome, ExactizeStatus, exactize_fold, exactize_fold_json};
+pub use fold_exactize::{
+    ExactizeOutcome, ExactizeStatus, Similarity, exact_solve_input_from_fold, exactize_fold,
+    exactize_fold_json,
+};
 pub use fold_export::export_candidate_to_fold_document;
 pub use report::{CompilerReport, CompilerSummary};
 
