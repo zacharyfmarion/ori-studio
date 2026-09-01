@@ -749,7 +749,11 @@ fn measure_loop_gap(
             _ => placement.face_transforms[f].compose(&step),
         };
         let rotation = predicted.rotation_angle_to(&placement.face_transforms[g]);
-        if offset > gap.offset || gap.worst_edge.is_none() {
+        // Whichever half is worse, because either can be the one that refuses.
+        // Tracking `offset` alone named an arbitrary crease on exactly the
+        // refusals the rotation clause exists for: there, every join's offset is
+        // an exact 0.0, so the first join seen won by default.
+        if offset > gap.offset || rotation > gap.rotation_radians || gap.worst_edge.is_none() {
             gap.worst_edge = Some(join.line);
         }
         gap.offset = gap.offset.max(offset);

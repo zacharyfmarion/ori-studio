@@ -1416,15 +1416,55 @@ mod tests {
 
     /// A parity failure with no cut behind it keeps the parity code. The hint
     /// above must not swallow the verdict it is enriching.
+    ///
+    /// Through `flat_fold_error`, not through `EngineError::from`. The first
+    /// version of this test called the conversion directly, which cannot reach
+    /// the hint at all — it asserted that a function it never ran did nothing.
     #[test]
     fn a_parity_failure_without_a_cut_keeps_its_own_code() {
-        let error = EngineError::from(FoldingEstimateError::Setup(
-            FoldSetupError::InitialHierarchy(InitialHierarchyError::SameParityAdjacentFaces {
-                line: 0,
-                first_face: 0,
-                second_face: 1,
-            }),
+        use crate::geometry::{LineColor, LineSegment, Point};
+
+        // A plain square with one diagonal: no border has paper on both sides,
+        // so the hint finds nothing to say and must stand aside.
+        let mut segments: Vec<LineSegment> = [
+            ((0.0, 0.0), (200.0, 0.0)),
+            ((200.0, 0.0), (200.0, 200.0)),
+            ((200.0, 200.0), (0.0, 200.0)),
+            ((0.0, 200.0), (0.0, 0.0)),
+        ]
+        .iter()
+        .map(|((ax, ay), (bx, by))| {
+            LineSegment::with_color(
+                Point::new(*ax, *ay),
+                Point::new(*bx, *by),
+                LineColor::Black0,
+            )
+        })
+        .collect();
+        segments.push(LineSegment::with_color(
+            Point::new(0.0, 0.0),
+            Point::new(200.0, 200.0),
+            LineColor::Red1,
         ));
+        assert!(
+            crate::checks_spatial::interior_border_segments(&CreasePatternModel {
+                line_segments: segments.clone(),
+                ..CreasePatternModel::default()
+            })
+            .is_empty(),
+            "the fixture must carry no interior border, or this proves nothing"
+        );
+
+        let error = flat_fold_error(
+            FoldingEstimateError::Setup(FoldSetupError::InitialHierarchy(
+                InitialHierarchyError::SameParityAdjacentFaces {
+                    line: 0,
+                    first_face: 0,
+                    second_face: 1,
+                },
+            )),
+            &segments,
+        );
         assert_eq!(error.code, "fold_same_parity");
     }
 

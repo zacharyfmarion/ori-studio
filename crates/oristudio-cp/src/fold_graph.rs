@@ -490,6 +490,24 @@ impl FoldGraph {
         if self.faces.len() < 2 {
             return;
         }
+        // A document with no crease at all is not a sheet this can read. The
+        // rule asks which bounded regions are paper, and on an all-`Black0`
+        // drawing every answer is as good as every other — measured, a 3x3 grid
+        // of border lines loses its middle cell and still folds `Solved`, which
+        // is a silent wrong answer rather than the documented ambiguity. Nothing
+        // is being folded there in any case, so declining to reinterpret it
+        // costs nothing and keeps the reading it has always had.
+        //
+        // A holed sheet with no crease is unaffected: its paper region is
+        // annular, which a vertex ring cannot describe, so the Euler gate has
+        // already refused the whole arrangement before this runs.
+        if !self
+            .lines
+            .iter()
+            .any(|line| line.color != LineColor::Black0)
+        {
+            return;
+        }
 
         // A vertex pair is a border iff *every* line drawn on it is `Black0`. A
         // crease drawn over a border is a degenerate document either way, and
@@ -1089,11 +1107,13 @@ mod tests {
     /// interior cell is enclosed by border on all four sides, and nothing local
     /// distinguishes "hole" from "separate piece".
     ///
-    /// Pinned rather than defended. What the filter must **not** do is answer it
-    /// with an empty arrangement, which is what upstream's unclaused rule does
-    /// and what would turn a fold into a silent no-op.
+    /// So the filter declines to answer, and this pins that. It used to drop the
+    /// enclosed cell and still fold `Solved` — a silent wrong answer, and a
+    /// worse failure than the ambiguity it came from. Nothing is being folded on
+    /// a document with no crease anyway, so keeping the reading it has always
+    /// had costs nothing.
     #[test]
-    fn an_all_border_grid_keeps_its_perimeter_ring() {
+    fn an_all_border_grid_is_left_alone() {
         let step = 100.0;
         let at = |i: usize| i as f64 * step;
         let mut segments = Vec::new();
@@ -1115,10 +1135,9 @@ mod tests {
         let graph = FoldGraph::from_sheet_segments(&segments);
         assert_eq!(
             graph.faces.len(),
-            8,
-            "the one enclosed cell is read as a hole; the perimeter ring is not"
+            9,
+            "no crease, so no reading of which cells are paper — all nine stay"
         );
-        assert!(!graph.faces.is_empty(), "never every face");
     }
 
     /// A document with no border lines at all — the common case — must be

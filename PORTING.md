@@ -243,6 +243,42 @@ are unchanged:
   `FoldLineSet` can hold, so the one colour at issue is unreachable from it.
   `crates/oristudio-cp/tests/color_operations.rs` covers the widened half.
 
+### Holes in the sheet
+
+`PointSet.calculateFaces` keeps every traced region whose signed area is
+positive (`isNonDegenerated`, `PointSet.java:218`), so Oriedita's arrangement
+includes a hole cut in the paper as an ordinary face. Upstream's sheet is always
+a disk and nothing downstream of that ever asks, so the reading costs it nothing.
+
+**Ori Studio diverges, in `FoldGraph::from_sheet_segments` only.** A face whose
+every edge is a boundary edge *and* whose every such edge has a face on the other
+side is a hole, and is dropped. The rule is Flat-Folder's
+(`third_party/flat-folder/src/io.js:277`, already ported for the other flat
+solver at `crates/treemaker-flatfold/src/conversion.rs:75`); the second clause is
+ours, because `Black0` here is a palette colour rather than FOLD's `B`
+assignment, and without it a square split by one interior border line loses both
+halves. A document with no crease at all is left alone: the question "which
+regions are paper" has no defensible answer on an all-`Black0` drawing, and
+nothing is being folded there anyway.
+
+Two consequences worth stating rather than discovering:
+
+- **The FOLD exporter writes fewer faces than Oriedita would.**
+  `from_model_for_export` goes through the sheet constructor, so a holed sheet's
+  `faces_vertices` describes paper and omits the hole — 2 faces where upstream
+  emits 3. This is deliberate: `faces_vertices` is supposed to be the paper, and
+  every FOLD consumer that handles holes filters them itself. No committed
+  fixture has a hole, so `oriedita_io_oracle` is unaffected; a holed fixture
+  added there would need this recorded as its expected difference.
+- **Derived arrangements are excluded by construction.** `folding3d::cells`
+  synthesises a per-plane arrangement coloured entirely `Black0`, and the flat
+  folder builds one over the folded image's subfaces. Their bounded regions are
+  cells and subfaces, not paper. They keep `from_segments`; only drawn sheet
+  segments go through `from_sheet_segments`, and the opt-in direction is chosen
+  so a missed site keeps upstream's behaviour rather than silently losing cells.
+
+See `research/2026-08-31-holes-in-the-folding-pipeline.md`.
+
 ### Folding search coverage
 
 The layer-ordering search is ported whole, and this section exists to say which
