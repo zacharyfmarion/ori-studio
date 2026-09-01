@@ -569,21 +569,15 @@ describe('useCpRegionSolve', () => {
     expect(setSelection.mock.calls[1][0]).toEqual(emptyOristudioCpSelection());
   });
 
-  it('deletes the region on Accept and keeps the source image, unlocked', async () => {
+  it('deletes the region and its underlay on Accept', async () => {
     await solve();
     await settle(() => api.onAccept(REGION.id));
 
-    // Checking comes back with the region gone; the underlay is the user's own
-    // annotation by now and is still the best thing to compare against.
-    expect(annotationIds()).toEqual([IMAGE.id]);
-    // Unlocked, which is the half that makes "the user's own annotation" true.
-    // Locked is absolute — no body, no handles, no context menu, and no lock
-    // toggle anywhere in the product — so a locked image released from its
-    // region is one the user can see and can never select, fade or delete.
-    const image = useWorkspaceStore
-      .getState()
-      .oristudioCpAnnotations.find((annotation) => annotation.id === IMAGE.id);
-    expect(image?.locked).toBe(false);
+    // Both gone. The image is scaffolding the repair flow imported to trace
+    // against, so accepting the answer retires it with the region that owns it
+    // rather than leaving a half-transparent photograph of the pattern sitting
+    // under the pattern for the user to find and delete by hand.
+    expect(annotationIds()).toEqual([]);
     // No further coordinate write: the solve already applied them.
     expect(replaceLineSegments).toHaveBeenCalledTimes(1);
   });
@@ -616,7 +610,8 @@ describe('useCpRegionSolve', () => {
     // undoing walks back through the coordinates rather than past them.
     expect(replaceLineSegments).toHaveBeenCalledTimes(1);
     expect(replaceLineSegments.mock.calls[0][1][4].a).toEqual({ x: 302, y: 100 });
-    expect(annotationIds()).toEqual([IMAGE.id]);
+    // And the underlay goes with the region, the same as on a clean accept.
+    expect(annotationIds()).toEqual([]);
   });
 
   it('refuses a region with no attachment, without touching the worker', async () => {
