@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-09-01
+
+The first release you can use on a tablet or a phone.
+
+### Added
+
+- Add touch support throughout: a tablet workspace, a phone layout, and an installable PWA. Gestures are arbitrated across the whole crease-pattern surface, so a pinch no longer fights a drag, and the phone toolbar and tool sheet can be given your own favourites.
+- Add context menus to every canvas surface, so the verbs a thing offers are reachable where the thing is.
+- Add a view cube to the Simulate workspace for orienting the folded model.
+- Fold paper that has a hole in it. A sheet with an interior boundary is no longer refused as unfoldable.
+- Add an Insert menu, and let creases be drawn at an active fold angle rather than only assigned one afterwards.
+- Solve fold angles for undecided creases, and stop a silent solve reading as success.
+- Bisect parallel creases between two crossing destinations, which Angle Bisector previously had no way to express.
+- Let a click select creases with the lasso tools, not only a dragged loop.
+
+### Improved
+
+- Draw the document grid and non-180° fold angles into exported and shared images, so an export looks like what was on the canvas.
+- Default non-180° creases to the opacity display, making a partially folded crease legible at a glance.
+- Take the stroke-sizing reference off the render path and bound the orbit-camera queue, removing zoom and orbit stalls that grew with the session.
+
+### Fixed
+
+- Stop the simulator mirroring every crease pattern. The simulated model was a reflection of the sheet it came from.
+- Fix a crease pattern that simulated as two torn halves, and close the 3D layer-order hierarchy before searching it.
+- Stop a selected mountain crease reading as a valley.
+- Read ORIPA's line-type codes the way Oriedita does, so `.cp` files round-trip with the right assignments.
+- Fix Angle Bisector on parallel lines, and the rendering blow-up it caused.
+- Let Make Auxiliary reach an unassigned crease.
+- Let creases take a press from the image or text sitting under them.
+- Ask the worker before committing a simulator canvas, fixing a blank render on some Linux systems.
+- Stop the welcome screen's figure taking the page down with it.
+- Draw folded figures above crease points and vertices, and stop a live transform stranding the fold-angle badges.
+- Let a design be authored beside an imported crease pattern, and balance the design tab's two ends.
+- Correct several Japanese translations.
+
 ## [0.2.1] - 2026-08-19
 
 ### Changed
