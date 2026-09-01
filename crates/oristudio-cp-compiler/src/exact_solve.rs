@@ -19,6 +19,7 @@ use nalgebra_sparse::factorization::CscCholesky;
 use nalgebra_sparse::{CooMatrix, CscMatrix};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use std::borrow::Cow;
 use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
@@ -234,7 +235,11 @@ impl ExactSolveDeadline {
 }
 
 pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> ExactSolvedGraph {
-    solve_exact_inner(input, options, Rc::new(BTreeSet::new()))
+    let normalized = normalized_input(input);
+    let mut solved = solve_exact_inner(&normalized, options, Rc::new(BTreeSet::new()));
+    place_dissolved_vertices(&normalized, input, &mut solved.vertices_exact);
+    restore_original_edges(input, &mut solved);
+    solved
 }
 
 /// [`solve_exact`] with a per-vertex movement-budget exemption set; see
@@ -244,11 +249,100 @@ pub fn solve_exact_with_exemptions(
     input: &ExactSolveInput,
     options: &ExactSolveOptionsWithExemptions,
 ) -> ExactSolvedGraph {
-    solve_exact_inner(
-        input,
+    let normalized = normalized_input(input);
+    let mut solved = solve_exact_inner(
+        &normalized,
         options.options,
         Rc::new(options.exempt_vertex_ids.clone()),
-    )
+    );
+    place_dissolved_vertices(&normalized, input, &mut solved.vertices_exact);
+    restore_original_edges(input, &mut solved);
+    solved
+}
+
+/// Read an input the way the compiler means it, before anything else looks at it.
+///
+/// Today that is one normalisation — dissolving collinear degree-2 vertices, see
+/// [`merge_collinear_degree_two_spans`] — and it is applied here rather than at
+/// either call site so that the topology report and the solve can never disagree
+/// about what the graph is. A gate that routes the user to Review & Fix over a
+/// vertex the solve would have merged anyway is the failure this placement
+/// prevents.
+fn normalized_input(input: &ExactSolveInput) -> Cow<'_, ExactSolveInput> {
+    let mut owned = input.clone();
+    if merge_collinear_degree_two_spans(&mut owned) > 0 {
+        Cow::Owned(owned)
+    } else {
+        Cow::Borrowed(input)
+    }
+}
+
+/// Put every dissolved vertex back onto the crease it was dissolved into.
+///
+/// Merging a collinear split takes the vertex out of the constraint system,
+/// which is the point — but it also takes it out of the *answer*, and that half
+/// would be a regression. `solvedRegionSegments` moves the crease ends the solver
+/// moved, so a dissolved vertex left at its input position while both its
+/// neighbours move does not merely stay kinked, it gets *more* kinked. The
+/// solver used to straighten these itself, through shared-carrier incidence —
+/// `shared_carrier_incidence_straightens_noisy_split_vertex` is the test that
+/// proves it — and that outcome has to survive.
+///
+/// So it is reconstructed rather than optimised: each dissolved vertex keeps its
+/// parameter along the original chord and is placed at that parameter along the
+/// solved one. Exactly on the line, which is better than the trust-region nudge
+/// it used to get, and free.
+/// Report the answer against the graph the caller passed, not the one solved.
+///
+/// Merging is an internal normalisation, so it must not change the shape of the
+/// result: `edges_exact` is paired with `input.selected_spans` by index
+/// downstream — `export_exact_solved_to_fold_document` refuses on a count
+/// mismatch, which is how this was caught — and every original span's endpoints
+/// are valid now that the dissolved vertices sit back on their creases.
+fn restore_original_edges(original: &ExactSolveInput, solved: &mut ExactSolvedGraph) {
+    solved.edges_exact = original
+        .selected_spans
+        .iter()
+        .map(|span| span.vertices)
+        .collect();
+}
+
+fn place_dissolved_vertices(
+    normalized: &ExactSolveInput,
+    original: &ExactSolveInput,
+    points: &mut [Point2],
+) {
+    for span in &normalized.selected_spans {
+        if span.collapsed_vertex_ids.is_empty() {
+            continue;
+        }
+        let [a, b] = span.vertices;
+        let (Some(&solved_a), Some(&solved_b)) = (points.get(a), points.get(b)) else {
+            continue;
+        };
+        let (Some(from), Some(to)) = (original.vertices.get(a), original.vertices.get(b)) else {
+            continue;
+        };
+        let (dx, dy) = (to.point.x - from.point.x, to.point.y - from.point.y);
+        let chord = dx * dx + dy * dy;
+        if chord <= 0.0 {
+            continue;
+        }
+        for &id in &span.collapsed_vertex_ids {
+            let (Some(was), Some(slot)) = (original.vertices.get(id), points.get_mut(id)) else {
+                continue;
+            };
+            // Parameter along the original chord, clamped so a vertex that sat
+            // slightly past an end does not fly off the solved crease.
+            let t = (((was.point.x - from.point.x) * dx + (was.point.y - from.point.y) * dy)
+                / chord)
+                .clamp(0.0, 1.0);
+            *slot = Point2::new(
+                solved_a.x + t * (solved_b.x - solved_a.x),
+                solved_a.y + t * (solved_b.y - solved_a.y),
+            );
+        }
+    }
 }
 
 fn solve_exact_inner(
@@ -1806,6 +1900,10 @@ pub struct TopologyVertexDiagnostic {
 /// [`TopologyDiagnostics::blockers`]). Measured 21 us at 36 spans to 171 us at
 /// 230 spans, release, native — cheap enough to run on every edit.
 pub fn analyze_candidate_topology(input: &ExactSolveInput) -> TopologyDiagnostics {
+    // Blockers first, and *then* normalise. A malformed graph — a vertex id that
+    // is not its own index, a span referencing a vertex that does not exist — is
+    // refused, not quietly repaired, and the normalisation below indexes by id
+    // so it must not run on one.
     let blockers = topology_analysis_blockers(input);
     if !blockers.is_empty() {
         return TopologyDiagnostics {
@@ -1814,6 +1912,7 @@ pub fn analyze_candidate_topology(input: &ExactSolveInput) -> TopologyDiagnostic
             ..TopologyDiagnostics::default()
         };
     }
+    let input = &normalized_input(input);
     let options = ExactSolveOptions::default();
     let model = SolveModel::new(
         input,
@@ -2422,6 +2521,148 @@ fn is_interior_fold_vertex(vertex: &CandidateVertex, boundary_vertices: &BTreeSe
             vertex.kind,
             CandidateVertexKind::Corner | CandidateVertexKind::BoundaryContact
         )
+}
+
+/// How far from straight two spans may turn and still count as one crease split
+/// in two.
+///
+/// Read off the data rather than picked. Turn angles at the degree-2 vertices of
+/// four saved detections, in degrees from straight:
+///
+/// ```text
+/// 0.51 0.54 0.56 0.64 0.69 0.72 1.42 1.48 1.57 1.60 1.78 1.97 | 11.10 11.19 | 110.03 112.67
+/// ```
+///
+/// A tight cluster under 2° — detector noise on a vertex that should not exist,
+/// every one of them with the same assignment on both sides — then a clear gap,
+/// then two at 11° and two unambiguous corners. 5° sits in the gap.
+///
+/// Erring low is the safe direction: refusing to merge leaves a real vertex
+/// visible as the defect it is, while merging too eagerly fabricates a straight
+/// crease the user never drew.
+const DEGREE_TWO_MERGE_TOLERANCE_DEGREES: f64 = 5.0;
+
+/// Dissolve degree-2 vertices whose two creases are one straight line.
+///
+/// The shipping candidate generator emits a crease crossed by nothing as two
+/// spans meeting at a degree-2 vertex — 24 of them on one saved detection, 26 of
+/// 30 across the four. That vertex is not information: it is one crease reported
+/// twice, and it costs the solve twice.
+///
+/// The first cost is the carrier. Two collinear spans carry two carrier
+/// geometries, and if the binning does not group them the solve is pinned to two
+/// nearly-parallel lines that cannot both be satisfied. The second is the
+/// **report**: a degree-2 vertex is `degree < 4`, so it is skipped by Kawasaki
+/// entirely and never appears in the residual — while the editor's CAMV calls a
+/// non-collinear one an `Angles` violation. So the solver silently ignores what
+/// the checker flags.
+///
+/// **Only collinear ones.** A degree-2 vertex whose creases genuinely turn is a
+/// corner, and merging it would fabricate geometry the user never drew — it is a
+/// real defect and it should stay visible. Upstream draws the same line:
+/// `del_v_all` merges only through a `Parallel*` intersection.
+///
+/// Vertices are **not renumbered**. A merged-away vertex simply stops being
+/// referenced, so `vertices_exact` stays index-aligned with `input.vertices` and
+/// every caller that maps a solved point back by id keeps working.
+pub fn merge_collinear_degree_two_spans(input: &mut ExactSolveInput) -> usize {
+    let cos_limit = -(DEGREE_TWO_MERGE_TOLERANCE_DEGREES.to_radians().cos());
+    let mut merged = 0usize;
+    while let Some((keep, drop, vertex)) = next_collinear_degree_two(input, cos_limit) {
+        let removed = input.selected_spans[drop].clone();
+        let far = other_end(&removed, vertex);
+        let span = &mut input.selected_spans[keep];
+        let near = other_end(span, vertex);
+        span.vertices = [near, far];
+        span.t_interval = [
+            span.t_interval[0].min(removed.t_interval[0]),
+            span.t_interval[1].max(removed.t_interval[1]),
+        ];
+        // The weaker half governs: a merged crease is only as well-evidenced as
+        // its worse piece, and claiming otherwise would let a merge launder a
+        // low-confidence span into a high-confidence one.
+        span.presence_probability = span.presence_probability.min(removed.presence_probability);
+        span.line_support_min = span.line_support_min.min(removed.line_support_min);
+        span.line_support_max = span.line_support_max.max(removed.line_support_max);
+        span.line_support_mean = 0.5 * (span.line_support_mean + removed.line_support_mean);
+        span.style_support = span.style_support.min(removed.style_support);
+        span.non_crease_support = span.non_crease_support.max(removed.non_crease_support);
+        span.collapsed_vertex_ids.push(vertex);
+        span.collapsed_vertex_ids
+            .extend(&removed.collapsed_vertex_ids);
+        span.source_edge_ids.extend(&removed.source_edge_ids);
+        span.source_atomic_edge_ids
+            .extend(&removed.source_atomic_edge_ids);
+        span.source_carrier_ids.extend(&removed.source_carrier_ids);
+        span.replaced_span_ids.push(removed.id);
+        span.replaced_span_ids.extend(&removed.replaced_span_ids);
+        span.replaced_atomic_edge_ids
+            .extend(&removed.replaced_atomic_edge_ids);
+        input.selected_spans.remove(drop);
+        merged += 1;
+    }
+    merged
+}
+
+fn other_end(span: &CandidateCreaseSpan, vertex: usize) -> usize {
+    if span.vertices[0] == vertex {
+        span.vertices[1]
+    } else {
+        span.vertices[0]
+    }
+}
+
+/// The next `(keep, drop, vertex)` to merge, or none when the graph is settled.
+fn next_collinear_degree_two(
+    input: &ExactSolveInput,
+    cos_limit: f64,
+) -> Option<(usize, usize, usize)> {
+    let boundary = boundary_vertex_ids(&input.selected_spans);
+    let mut incident: Vec<Vec<usize>> = vec![Vec::new(); input.vertices.len()];
+    for (index, span) in input.selected_spans.iter().enumerate() {
+        if !is_fold_span(span) {
+            continue;
+        }
+        for id in span.vertices {
+            if let Some(slot) = incident.get_mut(id) {
+                slot.push(index);
+            }
+        }
+    }
+    for vertex in &input.vertices {
+        if !is_interior_fold_vertex(vertex, &boundary) {
+            continue;
+        }
+        let [left, right] = match incident[vertex.id][..] {
+            [left, right] => [left, right],
+            _ => continue,
+        };
+        let a = &input.selected_spans[left];
+        let b = &input.selected_spans[right];
+        // Merging across an assignment change would invent a mountain where the
+        // user drew a valley, so a colour change is a real vertex.
+        if a.assignment_label() != b.assignment_label() {
+            continue;
+        }
+        let here = input.vertices[vertex.id].point;
+        let to = |span: &CandidateCreaseSpan| {
+            let far = input.vertices[other_end(span, vertex.id)].point;
+            let (dx, dy) = (far.x - here.x, far.y - here.y);
+            let length = (dx * dx + dy * dy).sqrt();
+            (dx / length, dy / length, length)
+        };
+        let (ax, ay, la) = to(a);
+        let (bx, by, lb) = to(b);
+        if la <= 0.0 || lb <= 0.0 || !la.is_finite() || !lb.is_finite() {
+            continue;
+        }
+        // The two rays must point opposite ways: straight through, not a corner.
+        if ax * bx + ay * by > cos_limit {
+            continue;
+        }
+        return Some((left, right, vertex.id));
+    }
+    None
 }
 
 fn is_boundary_like_span(span: &CandidateCreaseSpan) -> bool {
@@ -3769,6 +4010,91 @@ mod tests {
                 AssignmentLabel::Mountain,
             ],
         )
+    }
+
+    /// A vertex with two collinear creases through it, plus their far ends.
+    /// `turn_degrees` bends the second away from straight.
+    fn degree_two_input(turn_degrees: f64, labels: [AssignmentLabel; 2]) -> ExactSolveInput {
+        let mut input = base_square_input();
+        let here = Point2::new(0.5, 0.5);
+        // Vertex 5 sits due -x of the junction, so its ray is at 180 deg.
+        // Straight through is therefore 0 deg, and the turn bends off that.
+        let angle = turn_degrees.to_radians();
+        for (id, point) in [
+            (4, here),
+            (5, Point2::new(0.2, 0.5)),
+            (
+                6,
+                Point2::new(0.5 + 0.3 * angle.cos(), 0.5 + 0.3 * angle.sin()),
+            ),
+        ] {
+            input.vertices.push(vertex(
+                id,
+                point,
+                CandidateVertexKind::InteriorJunction,
+                CandidateVertexMovementPolicy::Movable,
+                None,
+            ));
+        }
+        input
+            .selected_spans
+            .push(span(8, 4, 5, labels[0], 8, &input.vertices));
+        input
+            .selected_spans
+            .push(span(9, 4, 6, labels[1], 9, &input.vertices));
+        input
+    }
+
+    const MV: [AssignmentLabel; 2] = [AssignmentLabel::Mountain, AssignmentLabel::Mountain];
+
+    /// One crease reported as two is not information, and it costs the solve
+    /// twice: two carrier geometries for one line, and a `degree < 4` vertex the
+    /// Kawasaki pass skips while the editor's CAMV flags it.
+    #[test]
+    fn a_collinear_degree_two_vertex_is_dissolved() {
+        // 1.5 deg — inside the sub-2 deg noise cluster the four saved detections
+        // put every spurious split in.
+        let input = degree_two_input(1.5, MV);
+        let topology = analyze_candidate_topology(&input);
+        assert!(
+            topology.combinatorial.degree_two_vertices.is_empty(),
+            "a collinear split should be merged away, got {:?}",
+            topology.combinatorial.degree_two_vertices
+        );
+    }
+
+    /// A vertex whose creases genuinely turn is a corner. Merging it would
+    /// fabricate a straight crease the user never drew, so it stays — visible as
+    /// the defect it is.
+    #[test]
+    fn a_genuine_corner_is_not_dissolved() {
+        let input = degree_two_input(60.0, MV);
+        let topology = analyze_candidate_topology(&input);
+        assert_eq!(
+            topology.combinatorial.degree_two_vertices,
+            vec![4],
+            "a 60 deg corner is a real vertex"
+        );
+    }
+
+    /// Merging across an assignment change would invent a mountain where the
+    /// user drew a valley.
+    #[test]
+    fn a_mountain_meeting_a_valley_is_not_dissolved() {
+        let input = degree_two_input(0.5, [AssignmentLabel::Mountain, AssignmentLabel::Valley]);
+        let topology = analyze_candidate_topology(&input);
+        assert_eq!(topology.combinatorial.degree_two_vertices, vec![4]);
+    }
+
+    /// The merge must not renumber: `vertices_exact` is index-aligned with
+    /// `input.vertices`, and every caller that maps a solved point back by id
+    /// depends on that. A dissolved vertex stops being referenced, it does not
+    /// disappear.
+    #[test]
+    fn dissolving_a_vertex_keeps_the_vertex_array_aligned() {
+        let input = degree_two_input(1.5, MV);
+        let solved = solve_exact(&input, ExactSolveOptions::default());
+        assert_eq!(solved.vertices_exact.len(), input.vertices.len());
     }
 
     /// An auxiliary line is not a fold, and must not be counted as one.
