@@ -1554,10 +1554,13 @@ fn extended_fushimi_decide_sides_model(
 ) -> bool {
     let vertex = closest_point_of_fold_line(model, point);
     let nbox = vertex_sorting_box(model, vertex, arithmetic);
-    extended_fushimi_decide_sides(nbox, arithmetic)
+    // No arithmetic parameter: this half of the Fushimi check carries neither
+    // the bearing (its box is already built) nor the subtraction. The `_model`
+    // wrapper above needs it only to build that box.
+    extended_fushimi_decide_sides(nbox)
 }
 
-fn extended_fushimi_decide_sides(mut nbox: SortingBox, arithmetic: CamvAngleArithmetic) -> bool {
+fn extended_fushimi_decide_sides(mut nbox: SortingBox) -> bool {
     if nbox.total() < 2 {
         return false;
     }

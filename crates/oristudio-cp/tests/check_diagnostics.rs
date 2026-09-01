@@ -158,7 +158,10 @@ fn segment(ax: f64, ay: f64, bx: f64, by: f64, color: LineColor) -> LineSegment 
 /// `f64` and none of them changes the geometry by so much as an ulp. A check
 /// that answers differently under any of them is answering about the frame, not
 /// about the pattern.
-const EXACT_TRANSFORMS: [(&str, fn(Point) -> Point); 6] = [
+/// A named, lossless coordinate transform.
+type ExactTransform = (&'static str, fn(Point) -> Point);
+
+const EXACT_TRANSFORMS: [ExactTransform; 6] = [
     ("identity", |p| p),
     ("rot90", |p| Point::new(-p.y, p.x)),
     ("rot180", |p| Point::new(-p.x, -p.y)),
