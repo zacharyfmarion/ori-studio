@@ -1,7 +1,7 @@
 use oristudio_cp::checks::{
-    FixInaccurateOptions, FixInaccurateResult, FlatFoldabilityColor, FlatFoldabilityRule,
-    FlatFoldabilityViolation, FlatFoldableBoundaryCheck, check_camv_task, check1, check2, check3,
-    check4, fix_inaccurate_for_indices, flat_foldable_boundary_check,
+    CamvAngleArithmetic, FixInaccurateOptions, FixInaccurateResult, FlatFoldabilityColor,
+    FlatFoldabilityRule, FlatFoldabilityViolation, FlatFoldableBoundaryCheck, check_camv_task_with,
+    check1, check2, check3, check4_with, fix_inaccurate_for_indices, flat_foldable_boundary_check,
 };
 use oristudio_cp::geometry::{Circle, Intersection, LineColor, LineSegment, Point, RgbColor};
 use oristudio_cp::model::{
@@ -688,7 +688,15 @@ fn check4_matches_oriedita_foldlineset_oracle() {
         let mut args = vec!["foldline-check4".to_string(), segments.len().to_string()];
         push_segment_args(&mut args, &segments);
         assert_eq!(
-            flat_foldability_violation_summary(&check4(&model)),
+            // `OrieditaExact`, explicitly: this test's whole job is to hold the
+            // port bit-identical to the Java, so it must ask for upstream's
+            // arithmetic rather than the default. The default diverges on
+            // purpose — see `CamvAngleArithmetic` and
+            // `implementation-plans/orientation-invariant-flat-foldability.md`.
+            flat_foldability_violation_summary(&check4_with(
+                &model,
+                CamvAngleArithmetic::OrieditaExact
+            )),
             run_oracle(&oracle, &args)
         );
     }
@@ -708,7 +716,9 @@ fn check_camv_task_matches_oriedita_task_oracle() {
         segment(0.0, 0.0, -10.0, 0.0, LineColor::Blue2),
     ];
     let model = model_from_segments(&segments);
-    let result = check_camv_task(&model);
+    // `OrieditaExact` for the same reason as `check4` above: this asserts
+    // parity with the Java, not the product default.
+    let result = check_camv_task_with(&model, CamvAngleArithmetic::OrieditaExact);
     let mut args = vec!["check-camv-task".to_string(), segments.len().to_string()];
     push_segment_args(&mut args, &segments);
     let rust_summary = format!(
