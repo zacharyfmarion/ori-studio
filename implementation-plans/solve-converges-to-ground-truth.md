@@ -54,70 +54,107 @@ the opposite sectors are forced equal — and BLB needs a *strictly* smaller
 sector, so a fan of ties cannot violate it at all. That is why ground truth (four
 90° sectors at a crossing) is BLB-clean and the solve's answer is not.
 
-## Blocker found: there is no ground truth that passes our own checker
+## The corpus: hand-authored patterns, not generated ones
 
-The goal says "converge to GT with no foldability errors". Surveying every
-GT-carrying pack (`--example gt_camv_survey`):
+**No *generated* corpus has a usable ground truth.** Surveying every GT-carrying
+pack (`--example gt_camv_survey`): **0 of 194 samples are CAMV-clean**, for three
+separate reasons, none fixable by picking a different pack.
 
-| pack | samples with `gt.fold` | GT CAMV-clean | why not |
+- `clean-1024-s15` and its two variants (15 each): ground truth misses Kawasaki
+  by **2.5e-4 to 2.0e-3°** against a 1e-6° bar. Not storage precision —
+  coordinates carry 17 significant decimals, and the **source** FOLD in the
+  dataset is equally imprecise (2.8e-3°). It is TreeMaker's own optimizer
+  tolerance, which `PORTING.md` documents and `fold_exactize` exists to repair.
+  Because 1e-3° is enough to flip sector ordering, 9 of those 15 also carry BLB
+  violations of their own.
+- `box-pleat-native-v1` (179 each, two packs): every non-boundary edge is
+  assigned `U`. BLB is a statement about assignment *differences*, so it is
+  undefined there whatever the geometry does.
+- `native-cp-*` (563): no `gt.fold` at all.
+
+**Hand-authored patterns are exact by construction, and Zach already has them.**
+`scripts/cp-detect/extract-exact-cp-corpus.py` splits a `.ori`/`.osf` document
+into its connected components — traditional bases are tiled in one canvas, and
+diagram files hold one pattern per step. From three files:
+
+| source | components | CAMV-clean GT |
+| --- | --- | --- |
+| `traditional_bases.ori` | 8 | **8** |
+| `lamprey-draft-v0.6.ori` | 23 | (mostly clean; all refuse below) |
+| `iguana_50.osf` | 63 | — |
+| **total** | **88** | **69 clean, 15 BLB-only, 4 both** |
+
+**69 of 88 with an exactly-foldable ground truth**, against 0 of 194 generated.
+This is the Phase 0 corpus, and it already exists.
+
+### What it shows
+
+`--example solve_gt_scorecard` takes each clean-GT sample, solves it as-is (a
+no-op — all 41 solvable samples come back `Solved 0a 0b`), then perturbs every
+movable vertex by a seeded Gaussian and solves again. Sweeping the noise:
+
+| noise (of paper edge) | solved + clean | **solved but BLB** | did not converge |
 | --- | --- | --- | --- |
-| `box-pleat-native-v1-baseline-v3` | 179 | **0** | all 9396 non-boundary edges are assigned `U` — no M/V at all |
-| `box-pleat-native-v1-renderings` | 179 | **0** | same |
-| `clean-1024-s15` | 15 | **0** | GT's own Kawasaki residual is 2.5e-4 – 2.0e-3° |
-| `clean-source-1536-global-1024-s15` | 15 | **0** | same |
-| `clean-source-2048-global-1024-s15` | 15 | **0** | same |
-| `native-cp-v1` and siblings | 0 | — | no `gt.fold` |
+| 0.0005 | 39 | **1** | 1 |
+| 0.001 | 40 | **1** | 0 |
+| 0.002 | 39 | **1** | 1 |
+| 0.003 | 33 | **1** | 7 |
+| 0.004 | 19 | **1** | 21 |
 
-**0 of 194.** Three separate reasons, and none is fixable by picking a different
-pack:
+The same sample every time — `iguana50-41`, 35 vertices — and **always exactly 2
+BLB violations, even at 0.0005 noise where it converges to 0.26 px of ground
+truth**. The count does not scale with the noise, which rules out "the solve did
+not converge far enough".
 
-1. **The generators are not exact.** `clean-1024-s15`'s ground truth misses
-   Kawasaki by 2.5e-4 to 2.0e-3°, against CAMV's 1e-6° bar — 250× to 2000× over.
-   This is not storage precision (coordinates carry 17 significant decimals); the
-   **source** FOLD in the dataset is equally imprecise (2.8e-3° on
-   `treemaker_tree_v1-5gjmj-000148`). It is TreeMaker's own optimizer tolerance,
-   which `PORTING.md` already documents and which `fold_exactize` exists to
-   repair.
-2. **Because GT is noisy at 1e-3°, GT has BLB violations of its own** — 9 of the
-   15 `clean-1024-s15` samples. Ordering is exactly what 1e-3° of noise flips.
-3. **Box-pleat GT carries no assignments.** BLB is a statement about assignment
-   *differences*, so it is undefined on an all-`U` pattern, whatever the geometry
-   does.
+### Why: exact patterns are full of exact ties
 
-So "the solve should converge to GT" and "the result should be CAMV-clean" are
-**two different targets**, and no existing corpus supplies the second. GT gives
-the right combinatorics and the right shape to about a pixel — measured end to
-end on `rabbit_ear_fold_program_v1-5wk0b-000080`, detected-and-solved sits
-**1.03 px median** from GT — but it cannot certify exactness, because it is
-less exact than the bar.
+The mechanism, read straight off that sample's ground truth: **7 of its 15
+interior vertices have their smallest sector *exactly* tied.**
+
+```
+v20  deg 4   116.6(V/V)  63.4(V/M)  63.4(M/V)  116.6(V/V)
+v11  deg 8   45.0 45.0 45.0 45.0  71.6(V/M) 18.4(M/V) 18.4(V/M) 71.6(M/V)
+```
+
+BigLittleBig needs a *strictly* smaller sector, so **it is vacuous at a tie** —
+and the moment a tie breaks, a legal vertex becomes a violation. This is not
+incidental to one pattern: flat-foldable crease patterns are built from repeated
+exact angles, so ties are the normal case, and a solver that treats angles as
+free continuous variables under a single Kawasaki equation will generically break
+them.
+
+That reframes the fix. A BLB barrier treats the vertices where a broken tie
+happens to matter; **preserving the coincidences the pattern actually has** treats
+the cause — which is also why holding pass-through creases collinear is so
+powerful, since that *is* preserving a tie (opposite sectors equal).
+
+### Limits of this corpus, stated plainly
+
+- **28 of the 69 refuse** with "paper is not a square" —
+  `exact_solve_input_from_fold` is square-only, and diagram steps are often
+  partial shapes. That costs every large `lamprey` pattern, which would be the
+  best stress cases.
+- **Only 1 of 41 reproduces the failure.** These patterns are small and their
+  sectors are far apart; the dense `.osf` states (28 and 32 violations) remain the
+  volume reproduction. Use both.
 
 ## Approach
 
-### Phase 0 — build a corpus where the goal is checkable
+### Phase 0 — done, in outline
 
-Two sources, in this order:
+The corpus and the two harnesses exist: `extract-exact-cp-corpus.py`,
+`gt_camv_survey`, `solve_gt_scorecard`. Baseline is the table above. What is left
+is to widen it:
 
-- **Constructed exact patterns.** Miura, box pleating on a lattice, bird and
-  frog bases at exact 45°/22.5°: patterns whose coordinates are closed-form and
-  whose flat-foldability is true by construction, with real M/V. Small (10–20)
-  but airtight — the only corpus where "GT has no foldability errors" is a fact
-  rather than an assertion. Render them through the existing pipeline to get
-  detected inputs.
-- **Exactized `clean-1024-s15`.** Run `fold_exactize::exactize_fold` over the 15
-  GT folds and keep only results that come out **0 angle and 0 BLB**. This
-  reuses machinery that already exists for exactly this problem. Caveat to state
-  plainly in the report: exactize runs the same solver we are studying, so the
-  result is a legitimate *target* but a partly circular *measurement* — it is
-  there to scale the corpus, not to prove the solver correct.
-
-Then a scorecard binary over both, emitting: verdict, angle before/after, BLB
-before/after, and vertex error against GT. Baseline recorded here.
-
-Detected geometry comes from `decode_dense_manifest` against the caches in the
-**shared main checkout** — no ONNX needed natively. Note the caches for the
-GT-carrying packs were built with the v3 model while
-`scripts/cp-detect/current-model.json` names v5; for a solver study any realistic
-detector output serves, but the report must say which.
+- **Lift the square-paper restriction** so the 28 refusals become samples. The
+  `ENABLE_POLYGON_EXACTIZE` path already exists and is documented as needing a
+  boundary-precision fix; this is the reason to do it.
+- Add more hand-authored sources as Zach has them — the extractor takes any
+  `.ori` or `.osf`.
+- Optionally, detected geometry via `decode_dense_manifest` against the caches in
+  the **shared main checkout** (no ONNX needed natively), for realism alongside
+  the synthetic perturbation. Those caches are v3 while
+  `scripts/cp-detect/current-model.json` names v5; say which in any report.
 
 ### Phase 1 — hold pass-through creases collinear
 
@@ -196,12 +233,11 @@ wrong quantization pulls solves away from GT rather than toward it.
 
 ## Checklist
 
-- [ ] **Phase 0** — constructed exact patterns (Miura, lattice box pleat, bird /
-      frog base) with closed-form coordinates and real M/V; assert each is 0
-      angle / 0 BLB before use.
-- [ ] **Phase 0** — exactize `clean-1024-s15` GT, keep only 0/0 results, report
-      how many of 15 survive.
-- [ ] **Phase 0** — scorecard binary over both; baseline table committed here.
+- [x] **Phase 0** — exact corpus from hand-authored sources: 69 clean-GT patterns
+      from three files, vs 0 of 194 generated.
+- [x] **Phase 0** — `gt_camv_survey` and `solve_gt_scorecard`; baseline above.
+- [ ] **Phase 0** — lift the square-paper restriction so the 28 refusals (all the
+      large `lamprey` patterns) become usable stress cases.
 - [ ] **Phase 1** — measure the near-opposite angle distribution; pick the
       pass-through tolerance from it.
 - [ ] **Phase 1** — union carrier groups across pass-through pairs; unit tests
@@ -218,10 +254,14 @@ wrong quantization pulls solves away from GT rather than toward it.
 
 ## Open questions
 
-- **Phase 0 is now the real risk.** Everything downstream is measured against a
-  corpus that does not yet exist. If constructing exact patterns turns out to be
-  more work than expected, the fallback is exactized GT alone — with the
-  circularity stated in every report that uses it.
+- **Tie preservation may be the whole story.** If the solve simply kept the exact
+  angular coincidences its input already has, both the BLB violations and much of
+  the drift from GT would go with them. Phase 1 (shared carriers) is one instance
+  of that idea; whether a general "preserve near-exact ties" prior is better than
+  a BLB barrier is worth settling with the scorecard before building Phase 2.
+- **Only one sample in the exact corpus reproduces the failure.** The dense
+  `.osf` states carry it at volume (28 and 32 violations). Neither corpus alone
+  is sufficient — the exact one proves blame, the dense one gives statistics.
 - The `.osf` states stay useful as *regression* material even though several are
   genuinely damaged, because the BLB counts above are reproducible.
   `worked_but_has_errors` is 0/0 before and after and is the anchor nothing may
