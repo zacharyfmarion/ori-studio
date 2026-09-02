@@ -8,12 +8,22 @@ Ship "Detect CP from Image" to real users on every surface Ori Studio has:
   reliably, cached after the first visit, and the feature switchable without a
   code change.
 - **Desktop** (Tauri: macOS, Windows, Linux), faster than the web because
-  inference and the solve run natively on the machine's own hardware — GPU or
-  neural engine for the model, all cores for the rest — with the model inside
-  the installer so nothing downloads.
-- **Mobile web**, on the phones that can carry it, with a camera path and a
-  crop step that works under a thumb, and an honest refusal on the phones that
-  cannot.
+  inference uses the machine's GPU and the solve runs natively on all cores,
+  with the model downloaded on first use into a place the user can see and
+  manage, not baked into the installer.
+- **Models as a managed, versioned download** on both surfaces: one registry
+  says which model is current, the app shows what it has, what it could
+  update to, and what it would cost in megabytes, and lets the user remove
+  it — the way Affinity manages its machine-learning models.
+- **Mobile web: hidden for now.** The dialog's buttons do not fit a phone,
+  and that is a design problem to solve on purpose later, not a runtime
+  one. The entry point is hidden on phones so nobody meets a half-working
+  flow.
+
+Decided 2026-09-02 with Zach: R2-hosted fp32 for the model; desktop
+downloads rather than bundles; a model manager with an update story; mobile
+punted. Open: whether desktop ships the native ONNX Runtime for the GPU
+(see Phase 2's sizes) or starts with the webview's own GPU path.
 
 ## Where things stand
 
@@ -40,8 +50,23 @@ independent of each other once it is made; Phase 4 is release engineering.
 
 ### Phase 0 — The model artifact and how it reaches the browser
 
-Two ways past the 25 MiB cap. **A is recommended; B is worth measuring
-because it also halves the download.**
+**Decided: A, R2-hosted fp32.** B stays written down because it also
+halves the download, and may be worth measuring later for phones.
+
+**What it costs.** Cloudflare R2 (checked 2026-09-02): storage
+$0.015/GB-month after a free 10 GB-month; reads (`GetObject`, Class B)
+$0.36 per million after 10 million free a month; writes (Class A) $4.50 per
+million after 1 million free; **egress is free**, including through
+Workers. Twenty model versions are under a gigabyte, so storage rounds to
+zero, and with the edge cache in front of the function R2 is read once per
+Cloudflare location per model version, so reads round to zero too. The one
+meter that moves is the Pages Function itself, billed as a Worker: the free
+plan allows 100,000 requests a day with 10 ms of CPU each (a stream-through
+is well under that); the paid plan is $5 a month for 10 million requests
+and $0.30 per million after. A model fetch is one request per user per
+version, so the feature stays inside the free plan until it has tens of
+thousands of first-time users a day. The share-link function already draws
+on the same allowance.
 
 **A. Keep fp32; host it on R2 behind the site's own origin.** A bucket
 `oristudio-models` (R2 is already in use for share thumbnails) with immutable
@@ -106,71 +131,70 @@ Either way, three things change in the app:
   headers and the model's first byte, so a broken function or an unuploaded
   model fails the deploy rather than the first user.
 
-### Phase 2 — Desktop: native inference and a native solve
+### Phase 2 — Desktop: the GPU without bloating the installer, and a native solve
 
 The CP kernel already shows the shape: one worker API surface, two
 implementations, picked in `engines/engineHost.ts`. Detection gets the same.
 
-- **Ship the model in the installer.** `bundle.resources` carries
-  `models/cp-detector/<id>/{manifest.json, model.onnx}`; the desktop build
-  copies it from the location `current-model.json` names and verifies the
-  sha. About 43 MiB on top of the DMG (or 21 MiB if Phase 0 validates fp16).
-  No download, works offline, versioned with the app.
-- **Native inference through the `ort` crate** (ONNX Runtime 1.2x) with the
-  platform's execution provider: **CoreML on macOS** (Apple Silicon's GPU and
-  neural engine), **DirectML on Windows**, and the CPU provider on all cores
-  everywhere as the fallback. Expected order of magnitude on an M-series
-  machine: hundreds of milliseconds per image against tens of seconds for
-  single-threaded wasm today. The two risks are packaging and size: `ort`
-  links prebuilt ONNX Runtime binaries (`download-binaries` at build time,
-  or vendored static libraries), the macOS dylib must be signed and
-  notarised inside the `.app`, Linux needs a glibc floor, and the runtime
-  adds roughly 30–60 MB to each installer. **A spike settles this before
-  anything else in the phase:** build one `cp_detect_recognize` command on
-  all three release runners, notarise the macOS artifact, and time one image.
-  If packaging proves ugly, `tract` (pure Rust, CPU with rayon, no GPU) is
-  the fallback: no binary risk and still far faster than one wasm thread,
-  but it leaves the GPU idle, which is the thing this phase exists to use.
-- **Native everything else.** `oristudio-cp-detect` already holds rectify,
-  decode, the solve input rebuild and the exact solver; the Tauri shell gains
-  `cp_detect_*` commands over them, and `cpDetectNativeClient.ts` implements
-  `CpDetectWorkerApi` the way `oristudioCpNativeClient.ts` implements the
-  kernel's. The exact-solve session gets a native transport too. Stop needs a
-  native path: today's Stop terminates a worker; natively it becomes a
-  cancellation flag on `ExactSolveOptions` checked where the solver already
-  checks its deadline, following `cp_fold_cancel`'s `AtomicU32` pattern.
-- **Isolation headers on the custom protocol** via Tauri's
-  `app.security.headers` (COOP/COEP), so any wasm worker that remains on
-  desktop gets threads and `SharedArrayBuffer`. Cheap, and it removes the
-  "desktop is the one-thread surface" trap for every other engine.
-- **Threads beyond inference.** The solve is a single-threaded LM; after
-  the Cuthill–McKee fix its cost is small, so parallelising the Jacobian is a
-  later lever, not a blocker. Native alone is the 5× step.
-- **CI.** `release.yml` builds all three platforms; the Windows job in
-  `ci.yml` only tests file-format crates today and gains a check of the new
-  crate. The desktop check (`check:desktop`) covers the shell.
+**The model is downloaded, not bundled.** Desktop uses the same registry and
+the same fetch-verify-store path as the web (Phase 5), except that the
+bytes land in the app data directory (`~/Library/Application Support/…/models/<id>/`
+and the platform equivalents) through a Tauri command, so a native runtime
+can open them by path and the model manager can list and remove them.
 
-### Phase 3 — Mobile web: minimal, honest, measured
+**Using the GPU — three routes, sized honestly.** The question Zach asked
+is the right one: hardware acceleration through ONNX Runtime means shipping
+ONNX Runtime.
 
-Feasible on current phones, with limits that must be stated rather than
-discovered:
+| route | what ships | where it accelerates | notes |
+| --- | --- | --- | --- |
+| 1. The webview's own GPU | nothing new (0 MB) | Windows via WebView2's WebGPU (Chromium); macOS 26+ via WebKit's WebGPU; older macOS and Linux fall back to wasm on 4 threads once COOP/COEP are set | The web runtime already tries WebGPU first. Desktop gets it for free the moment the custom protocol carries the isolation headers |
+| 2. Native ONNX Runtime with CoreML / DirectML | `libonnxruntime` ≈ 20–25 MB on macOS arm64 (CoreML included), `onnxruntime.dll` ≈ 12–15 MB plus `DirectML.dll` ≈ 15–20 MB on Windows, ≈ 20 MB on Linux (CPU); a DMG compresses that to roughly half | GPU and neural engine on macOS, GPU on Windows, all cores on Linux | Best speed everywhere; costs the bytes, a signed and notarised dylib inside the app, and a glibc floor on Linux |
+| 3. The operating system's own ML frameworks | 0 MB runtime | CoreML on macOS (neural engine), Windows ML on Windows | Needs a CoreML conversion of the model and Objective-C bridging on macOS, and a WinML path with an opset ceiling on Windows; the most work and two model formats to version |
 
-- **Compute.** iOS Safari and Android Chrome honour COOP/COEP, so wasm gets
-  threads; WebGPU exists on iOS 26 and recent Android Chrome and is worth
-  trying first as on desktop. The unknown is memory: a 1024² UNet's
-  activations on top of a 43 MiB model in a wasm heap. Measure on the iOS
-  Simulator (real WebKit, reaches the dev server) and one real phone before
-  promising anything.
-- **The dialog under a thumb.** A capture button
-  (`<input type="file" accept="image/*" capture="environment">`) beside
-  Choose Image; crop handles with a 44 px hit area on coarse pointers, the
-  loupe already there; the crop and review panes stacked rather than side by
-  side below the phone media query; the download notice with the size and a
-  confirmation on the first fetch.
-- **Preflight decides.** No isolation and no WebGPU means one thread, so
-  the dialog says "expect a minute" instead of hanging; under 4 GB reported
-  memory it warns; a failed session creation says the phone cannot run the
-  model and offers the desktop or web app instead.
+**Order: route 1 first, route 2 by measurement.** Route 1 is a header and
+a rebuild, and it lets a Windows machine use its GPU and a new Mac use its
+GPU with the installer unchanged. Then measure one image on an M1, an Intel
+Mac on macOS 15, a Windows laptop with an integrated GPU, and Linux. If the
+older-Mac and Linux numbers are the ones that hurt, route 2 earns its bytes,
+and a packaging spike settles it before the rest of the phase: build one
+`cp_detect_recognize` command on all three release runners, notarise the
+macOS artifact, time one image. `tract` (pure Rust, CPU with rayon, no GPU)
+stays the fallback if that packaging proves ugly.
+
+**Native everything else, regardless of route.** `oristudio-cp-detect`
+already holds rectify, decode, the solve input rebuild and the exact solver;
+the Tauri shell gains `cp_detect_*` commands over them, and
+`cpDetectNativeClient.ts` implements `CpDetectWorkerApi` the way
+`oristudioCpNativeClient.ts` implements the kernel's, with inference
+delegated to whichever route is live. The exact-solve session gets a native
+transport: ~5× faster than wasm, on all cores where the crate is parallel.
+Stop needs a native path: today's Stop terminates a worker; natively it
+becomes a cancellation flag on `ExactSolveOptions` checked where the solver
+already checks its deadline, following `cp_fold_cancel`'s `AtomicU32`
+pattern.
+
+**Isolation headers on the custom protocol** via Tauri's
+`app.security.headers` (COOP/COEP): route 1's enabler, and it removes the
+"desktop is the one-thread surface" trap for every other wasm engine.
+
+**CI.** `release.yml` builds all three platforms; the Windows job in
+`ci.yml` only tests file-format crates today and gains a check of the new
+commands. Route 2, if taken, adds the runtime download and signing steps.
+
+### Phase 3 — Mobile web: hidden, deliberately
+
+Punted with Zach: the dialog's buttons do not fit a phone, and a runtime
+that works under a layout that does not is not a feature. The "Detect CP
+from Image" entry point is hidden under the phone media query and coarse
+pointers (`platform/phoneLayout.ts`, `pointerSurface.ts`), so a phone never
+sees it. What a future phase would need is recorded so it is not
+rediscovered: a capture input (`<input type="file" accept="image/*"
+capture="environment">`), 44 px handles, stacked panes, a download
+confirmation on cellular, and a memory measurement on the iOS Simulator and
+one real phone before anything is promised — iOS Safari and Android Chrome
+do honour COOP/COEP, so the compute side is plausible; the layout is the
+work.
 
 ### Phase 4 — Release engineering and rollout
 
@@ -186,6 +210,42 @@ discovered:
   the README mentions the feature once it is on; `docs/analytics.md` lists
   the new properties.
 
+### Phase 5 — The model manager: versions, updates, removal
+
+Both surfaces download, so both need the same story, and it has to answer
+"what happens when I release a newer model".
+
+- **A registry, not a URL.** One small JSON at a stable path,
+  `/models/registry.json` (served by the same function from R2, cached
+  briefly rather than immutably): a list of model families, and for each the
+  `current` id plus every published version with `id`, `version`, `size`,
+  `sha256`, `url`, `released`, and a one-line note. Model objects are
+  immutable at versioned keys; only the registry moves. Publishing a model is
+  `publish-model.mjs`: upload the object, append the version, move
+  `current`. Rolling back is moving `current` back.
+- **Local state.** What is downloaded, keyed by model id, with its size and
+  sha — Cache API on the web, files under the app data directory on desktop
+  through Tauri commands (`cp_detect_model_list/remove/path`). The app never
+  trusts a stored model without its sha matching the registry entry.
+- **Updates are offered, not forced.** When the dialog opens and the
+  registry says `current` is newer than what is installed, the dialog shows
+  one line — "A newer detector is available (v6, 43 MB)" with Download and
+  Not now — and keeps working with the installed one. No download happens
+  on cellular-class surprise; the user always sees the size first. A
+  preference, off by default, makes updates download automatically on
+  desktop. The previous version is kept until the new one has verified, then
+  removed, so an interrupted update never leaves the user with nothing.
+- **The manager UI**, in Preferences under a "Models" section: each model
+  family as a row — name, installed version and size, status (not
+  downloaded / downloaded / update available), and Download, Update, Remove.
+  Removing is immediate and frees the bytes; the detect dialog then offers
+  the download again on its next open. The same panel shows where desktop
+  keeps the files.
+- **Pinning.** A document does not pin a model: detection is a one-time
+  import and its provenance (`cp_detector.source`, the model id in the
+  report) already travels in the FOLD the import wrote, which is what a
+  later "which model made this" question needs.
+
 ### Acceptance
 
 - No static file over 25 MiB in `apps/web/dist`; the deploy's smoke test
@@ -193,10 +253,11 @@ discovered:
 - Web, cold: first detection under 60 s on a 2020 laptop including the
   download; warm: under 15 s. Offline after the first download.
 - Desktop, Apple Silicon: image to solved pattern under 5 s on the 22.5°
-  corpus, with the GPU or neural engine reported as the active provider;
-  never a download.
-- Phone: either a detection with a stated expectation, or a refusal that
-  names the reason; never a silent hang.
+  corpus, with the active provider reported; the model downloaded once and
+  visible in the manager.
+- Phone: the entry point is not shown.
+- A newer published model appears as an offer within one dialog open, and
+  removing a model frees its bytes and re-offers it.
 
 ## Affected Areas
 
@@ -211,9 +272,11 @@ discovered:
   `scripts/cp-detect/publish-model.mjs`, a models smoke script — delivery.
 - `apps/web/src/analytics/events.ts`, `monitoring/` — properties and
   error surface.
-- `apps/tauri/src-tauri/` — `cp_detect_*` commands, a cancellation flag,
-  `bundle.resources`, `app.security.headers`; a new crate for native
-  inference (`crates/oristudio-cp-detect-native` or a module of the shell).
+- `apps/tauri/src-tauri/` — `cp_detect_*` commands, model file commands
+  (list, remove, path), a cancellation flag, `app.security.headers`; if
+  route 2 is taken, a crate for native inference.
+- A Preferences "Models" section and the registry client
+  (`lib/cpDetectModels.ts`), shared by the dialog's update offer.
 - `apps/web/src/engine/cpDetectNativeClient.ts`, `engines/engineHost.ts`,
   `engine/cpExactSolveSession.ts` — the native transport.
 - `crates/oristudio-cp-compiler/src/exact_solve.rs` — a cancellation flag
@@ -224,43 +287,41 @@ discovered:
 
 ## Checklist
 
-Phase 0 — model artifact
-- [ ] Decide A (R2, fp32) or B (fp16 static); if B, run the box-pleat eval and
-      the 563-CP benchmark on the fp16 export first and record the deltas.
+Phase 0 — model artifact (decided: R2-hosted fp32)
 - [ ] R2 bucket + Pages Function `/models/*` with immutable and CORP headers,
-      preview binding, edge cache.
-- [ ] `publish-model.mjs` driven by `current-model.json`, wired into
-      `deploy-web.yml` (idempotent, sha-verified).
-- [ ] App-side fetch with progress, sha256 verification, Cache API store,
-      session from bytes; unit tests with a fake fetch and cache.
+      preview binding, edge cache; `registry.json` served with a short cache.
+- [ ] `publish-model.mjs` driven by `current-model.json`: upload, append the
+      version, move `current`; wired into `deploy-web.yml` (idempotent,
+      sha-verified).
+- [ ] App-side fetch with progress, sha256 verification, store, session from
+      bytes; unit tests with a fake fetch and store.
 
 Phase 1 — web
 - [ ] `cpDetect` feature id + `VITE_CP_DETECT` in both deploy workflows;
-      manifest-driven availability sentence in the dialog.
-- [ ] Preflight line (provider, threads, memory, cached?) before the first
-      image.
+      registry-driven availability sentence in the dialog.
+- [ ] Preflight line (provider, threads, memory, installed model) before the
+      first image.
 - [ ] Telemetry properties and the wired `cpDetectCancelled`; Sentry surface.
 - [ ] Models smoke test after deploy.
 
 Phase 2 — desktop
-- [ ] Packaging spike: one native recognize command with `ort` on the three
-      release runners, notarised macOS artifact, one timed image; go/no-go on
-      `ort` vs `tract`.
-- [ ] Model in `bundle.resources`, sha-verified at build.
+- [ ] COOP/COEP via `app.security.headers`; confirm `crossOriginIsolated` and
+      the thread count in the desktop shell.
+- [ ] Route 1 measured on an M1, an Intel Mac, a Windows laptop, Linux; numbers
+      recorded here.
+- [ ] Decision on route 2 from those numbers; if taken, the packaging spike
+      (three runners, notarised, one timed image) before the rest.
+- [ ] Model download into app data through Tauri commands; the native client
+      reads it by path.
 - [ ] `cp_detect_*` commands (rectify, recognize, decode, solve, rebuild),
       `cpDetectNativeClient.ts`, host selection on desktop.
 - [ ] Native Stop: cancellation flag on `ExactSolveOptions`, checked at the
       deadline checkpoints; wired to the run registry.
-- [ ] COOP/COEP via `app.security.headers`.
-- [ ] Windows CI check of the new crate; release workflow builds and signs
-      the runtime.
+- [ ] Windows CI check of the new commands.
 
 Phase 3 — mobile web
-- [ ] Measure on the iOS Simulator and one real phone: session creation,
-      inference time, peak memory; record which phones pass.
-- [ ] Capture input, 44 px handles on coarse pointers, stacked panes under
-      the phone query, download confirmation.
-- [ ] Preflight refusals and expectations for the phone cases.
+- [ ] Hide the entry point under the phone media query and coarse pointers;
+      a test that a phone-shaped session never sees it.
 
 Phase 4 — rollout
 - [ ] Preview with the flag; internal pass on real images.
@@ -268,3 +329,13 @@ Phase 4 — rollout
 - [ ] Desktop release with native detection; acceptance numbers recorded in
       this file's Outcome section.
 - [ ] `RELEASE.md`, README, `docs/analytics.md`.
+
+Phase 5 — model manager
+- [ ] Registry schema and client; the dialog's "newer detector available"
+      offer with size, Download and Not now.
+- [ ] Local model state on web (Cache API) and desktop (app data via Tauri),
+      sha-checked on every use.
+- [ ] Preferences ▸ Models: rows with version, size, status, Download,
+      Update, Remove; desktop shows the folder.
+- [ ] Update keeps the previous version until the new one verifies.
+- [ ] Optional desktop preference for automatic model updates, off by default.
