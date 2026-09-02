@@ -73,8 +73,10 @@ export const CP_FOLDABILITY_CHECK_EPSILON_DEGREES = 1e-6;
  *   of the 1e-3 / 1e-6 gap rather than a failure.
  * - `improved` — accepted and better, not exact; the topology is clean, so the
  *   remaining error is angles alone.
- * - `unfoldable` — accepted and better, and vertices with an odd number of
- *   creases remain. No amount of solving clears those.
+ * - `unfoldable` — accepted and better, and something no amount of solving
+ *   clears remains: vertices with an odd number of creases, or a Big-Little-Big
+ *   violation (the smallest angle at a vertex sits between two creases of the
+ *   same assignment).
  */
 export type CpSolveCompletion = 'exact' | 'approximate' | 'improved' | 'unfoldable';
 
@@ -98,8 +100,11 @@ export function cpSolveCompletion(outcome: CpExactSolveAcceptedOutcome): CpSolve
   const residuals = outcome.residuals;
   if (!residuals) return outcome.kind === 'solved' ? 'exact' : 'improved';
   // Topology first: an odd fan is skipped by the Kawasaki pass entirely, so the
-  // angle number below says nothing about it.
+  // angle number below says nothing about it. Ordering next, for the same
+  // reason — Kawasaki can be exact on a fan that cannot fold. A null count is
+  // an older report that did not measure it, and is not read as a violation.
   if (residuals.oddDegreeVerticesAfter > 0) return 'unfoldable';
+  if ((residuals.bigLittleBigViolationsAfter ?? 0) > 0) return 'unfoldable';
   if (outcome.kind !== 'solved') return 'improved';
   return residuals.maxKawasakiDegreesAfter <= CP_FOLDABILITY_CHECK_EPSILON_DEGREES
     ? 'exact'
@@ -203,17 +208,34 @@ export function cpSolveCompletionDetail(t: TFunction, facts: CpSolveCompletionFa
   });
   if (completion !== 'unfoldable') return angles;
 
-  // Leading, not appended: this is the cause the user can act on, and it is true
-  // of the graph rather than of where its vertices happen to sit — so it survives
-  // any re-solve, which the angle number does not.
-  const odd = t('panels:cpRegion.completion.oddDegreeDetail', {
-    count: residuals.oddDegreeVerticesAfter,
-    defaultValue_one:
-      '1 vertex still has an odd number of creases, so this pattern cannot fold flat no matter where the vertices sit.',
-    defaultValue_other:
-      '{{count}} vertices still have an odd number of creases, so this pattern cannot fold flat no matter where the vertices sit.',
-  });
-  return `${odd} ${angles}`;
+  // Leading, not appended: these are the causes the user can act on, and they
+  // are true of the graph rather than of where its vertices happen to sit — so
+  // they survive any re-solve, which the angle number does not. Only the ones
+  // that apply are said; "0 vertices have an odd number of creases" is noise.
+  const causes: string[] = [];
+  if (residuals.oddDegreeVerticesAfter > 0) {
+    causes.push(
+      t('panels:cpRegion.completion.oddDegreeDetail', {
+        count: residuals.oddDegreeVerticesAfter,
+        defaultValue_one:
+          '1 vertex still has an odd number of creases, so this pattern cannot fold flat no matter where the vertices sit.',
+        defaultValue_other:
+          '{{count}} vertices still have an odd number of creases, so this pattern cannot fold flat no matter where the vertices sit.',
+      })
+    );
+  }
+  if ((residuals.bigLittleBigViolationsAfter ?? 0) > 0) {
+    causes.push(
+      t('panels:cpRegion.completion.bigLittleBigDetail', {
+        count: residuals.bigLittleBigViolationsAfter,
+        defaultValue_one:
+          'At 1 vertex the smallest angle sits between two creases folded the same way, so this pattern cannot fold flat.',
+        defaultValue_other:
+          'At {{count}} vertices the smallest angle sits between two creases folded the same way, so this pattern cannot fold flat.',
+      })
+    );
+  }
+  return [...causes, angles].join(' ');
 }
 
 /** How many vertices the solve moved, and how far, for the surfaces that show it. */

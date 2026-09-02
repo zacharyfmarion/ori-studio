@@ -61,6 +61,8 @@ function residuals(over: Partial<CpExactSolveResiduals> = {}): CpExactSolveResid
     maxKawasakiDegreesAfter: 0.00747,
     oddDegreeVerticesBefore: 0,
     oddDegreeVerticesAfter: 0,
+    bigLittleBigViolationsBefore: 0,
+    bigLittleBigViolationsAfter: 0,
     ...over,
   };
 }
@@ -99,6 +101,27 @@ describe('cpSolveCompletion', () => {
       accepted('ambiguous', residuals({ maxKawasakiDegreesAfter: 0, oddDegreeVerticesAfter: 3 }))
     );
     expect(completion).toBe('unfoldable');
+  });
+
+  it('puts a big-little-big violation ahead of any angle number', () => {
+    // Kawasaki can be exact on a fan that cannot fold: the smallest angle sitting
+    // between two creases of the same assignment. The angle number is silent
+    // about it, so it has to lead the same way odd degree does.
+    const completion = cpSolveCompletion(
+      accepted(
+        'ambiguous',
+        residuals({ maxKawasakiDegreesAfter: 0, bigLittleBigViolationsAfter: 3 })
+      )
+    );
+    expect(completion).toBe('unfoldable');
+  });
+
+  it('does not read an unmeasured big-little-big count as a violation', () => {
+    // Null is an older report that did not compute it — not zero, and not three.
+    const completion = cpSolveCompletion(
+      accepted('ambiguous', residuals({ bigLittleBigViolationsAfter: null }))
+    );
+    expect(completion).toBe('improved');
   });
 
   it('separates the solver at 1e-3 from the check at 1e-6', () => {
@@ -198,6 +221,29 @@ describe('cpSolveCompletionDetail', () => {
     // And still says what the solve did, because a user who repairs those three
     // needs to know the angles came 1,900x closer rather than not at all.
     expect(detail).toContain('14.4°');
+  });
+
+  it('leads with the big-little-big cause when that is what remains', () => {
+    const detail = cpSolveCompletionDetail(t, {
+      completion: 'unfoldable',
+      residuals: residuals({ bigLittleBigViolationsAfter: 3 }),
+    });
+
+    expect(detail.startsWith('At 3 vertices the smallest angle sits between two creases')).toBe(true);
+    // No odd-degree sentence for a count of zero: "0 vertices still have an odd
+    // number of creases" is exactly the noise a joined sentence must not say.
+    expect(detail).not.toContain('odd number of creases');
+    expect(detail).toContain('14.4°');
+  });
+
+  it('names both causes when both remain, odd degree first', () => {
+    const detail = cpSolveCompletionDetail(t, {
+      completion: 'unfoldable',
+      residuals: residuals({ oddDegreeVerticesAfter: 2, bigLittleBigViolationsAfter: 1 }),
+    });
+
+    expect(detail.startsWith('2 vertices still have an odd number of creases')).toBe(true);
+    expect(detail).toContain('At 1 vertex the smallest angle sits between two creases');
   });
 
   it('agrees with itself on one odd vertex', () => {
@@ -313,6 +359,8 @@ describe('mid-solve_2.osf, end to end from the solver payload', () => {
       maxKawasakiDegreesAfter: 0.00747,
       oddDegreeVerticesBefore: 3,
       oddDegreeVerticesAfter: 3,
+      bigLittleBigViolationsBefore: null,
+      bigLittleBigViolationsAfter: null,
     });
   });
 

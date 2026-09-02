@@ -142,6 +142,8 @@ describe('classifyCpExactSolve', () => {
       maxKawasakiDegreesAfter: 0.00747,
       oddDegreeVerticesBefore: 3,
       oddDegreeVerticesAfter: 3,
+      bigLittleBigViolationsBefore: null,
+      bigLittleBigViolationsAfter: null,
     });
     // No `+polish(rounds=N)` suffix on an accepted solve: the polish loop ran
     // and every round it computed was refused by the acceptance gate.
@@ -365,6 +367,8 @@ describe('cpExactSolveResiduals', () => {
       maxKawasakiDegreesAfter: 0.00747,
       oddDegreeVerticesBefore: 3,
       oddDegreeVerticesAfter: 3,
+      bigLittleBigViolationsBefore: null,
+      bigLittleBigViolationsAfter: null,
     });
   });
 

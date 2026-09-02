@@ -143,6 +143,9 @@ export interface CpExactSolvePolishRefusal {
 export interface CpExactSolveAnalysis {
   max_kawasaki_residual_degrees?: number;
   odd_degree_vertices?: number[];
+  /** The editor's own checker, run by the solver on this geometry. */
+  camv_angle_violations?: number | null;
+  big_little_big_violations?: number | null;
   [key: string]: unknown;
 }
 
@@ -315,6 +318,14 @@ export interface CpExactSolveResiduals {
   /** Interior vertices with an odd crease count — never solvable, only repairable. */
   oddDegreeVerticesBefore: number;
   oddDegreeVerticesAfter: number;
+  /**
+   * Big-Little-Big violations the editor's checker reports on the solved
+   * geometry — the smallest angle at a vertex sitting between two creases of
+   * the *same* assignment. `null` when the report predates the field; never
+   * zero for that, because `0` is what a clean pattern reports.
+   */
+  bigLittleBigViolationsBefore: number | null;
+  bigLittleBigViolationsAfter: number | null;
 }
 
 /** The two endings the solver accepted, which differ only in whether it is exact. */
@@ -508,7 +519,12 @@ function readAnalysis(analysis: CpExactSolveAnalysis | undefined) {
   const oddDegree = analysis.odd_degree_vertices;
   if (typeof kawasaki !== 'number' || !Number.isFinite(kawasaki)) return null;
   if (!Array.isArray(oddDegree)) return null;
-  return { kawasaki, oddDegree: oddDegree.length };
+  const blb = analysis.big_little_big_violations;
+  return {
+    kawasaki,
+    oddDegree: oddDegree.length,
+    bigLittleBig: typeof blb === 'number' && Number.isFinite(blb) ? blb : null,
+  };
 }
 
 /**
@@ -531,6 +547,8 @@ export function cpExactSolveResiduals(
     maxKawasakiDegreesAfter: after.kawasaki,
     oddDegreeVerticesBefore: before.oddDegree,
     oddDegreeVerticesAfter: after.oddDegree,
+    bigLittleBigViolationsBefore: before.bigLittleBig,
+    bigLittleBigViolationsAfter: after.bigLittleBig,
   };
 }
 

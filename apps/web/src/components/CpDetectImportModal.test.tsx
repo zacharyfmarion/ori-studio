@@ -234,6 +234,8 @@ function solvedOutcome(): CpExactSolveOutcome {
       maxKawasakiDegreesAfter: 0,
       oddDegreeVerticesBefore: 0,
       oddDegreeVerticesAfter: 0,
+      bigLittleBigViolationsBefore: 0,
+      bigLittleBigViolationsAfter: 0,
     },
     polishAdopted: true,
   };
@@ -272,6 +274,8 @@ function ambiguousOutcome(): CpExactSolveOutcome {
       maxKawasakiDegreesAfter: 0.00747,
       oddDegreeVerticesBefore: 3,
       oddDegreeVerticesAfter: 3,
+      bigLittleBigViolationsBefore: 0,
+      bigLittleBigViolationsAfter: 0,
     },
     polishAdopted: false,
   };

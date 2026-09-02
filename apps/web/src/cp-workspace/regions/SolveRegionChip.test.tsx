@@ -35,6 +35,8 @@ const RESIDUALS = {
   maxKawasakiDegreesAfter: 0.00747,
   oddDegreeVerticesBefore: 3,
   oddDegreeVerticesAfter: 0,
+      bigLittleBigViolationsBefore: 0,
+      bigLittleBigViolationsAfter: 0,
 };
 
 /** A solve that reached foldable precision — the one ending that says "Solved". */
@@ -238,7 +240,9 @@ describe('SolveRegionChip', () => {
         movedVertices: 45,
         maxMovementPx: 0.42,
         completion,
-        residuals: { ...RESIDUALS, oddDegreeVerticesAfter: 3 },
+        residuals: { ...RESIDUALS, oddDegreeVerticesAfter: 3,
+      bigLittleBigViolationsBefore: 0,
+      bigLittleBigViolationsAfter: 0, },
       });
       expect(chip().textContent).not.toContain('Solved');
     }
