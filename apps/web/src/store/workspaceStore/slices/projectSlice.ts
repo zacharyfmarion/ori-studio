@@ -2411,6 +2411,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           filename: payload.filename,
           circles: payload.circles,
           circleSourceBounds: payload.circleSourceBounds,
+          mergeExtraVertices: payload.mergeExtraVertices,
         })
       ),
 

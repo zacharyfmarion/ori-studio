@@ -938,6 +938,20 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
         'Merge collinear crease pairs regardless of type — a mountain and a valley merge to an edge',
     }
   ),
+  // Not a tool: the sweep above confined to a set of creases, run by an accepted
+  // solve over the creases it produced so the user's own creases beside them
+  // are left alone. Nothing in the UI reaches it directly.
+  ready(
+    'DeleteExtraVerticesAmong',
+    'Delete Extra Vertices in Pattern',
+    'check-fix',
+    'wrench',
+    'OriStudioDeleteExtraVerticesAmong',
+    {
+      placement: 'hidden-ui-only',
+      tooltip: 'Merge collinear same-type crease pairs among the given creases only',
+    }
+  ),
   ready('OrganizeCircles', 'Organize circles', 'annotations', 'circle-ellipsis', 'OrganizeCircles', {
     placement: 'menu',
     tooltip: 'Prune invalid zero-radius circles using Oriedita cleanup rules',
@@ -1081,6 +1095,7 @@ export const ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS = [
   // is the order the kernel's `OperationId` uses too.
   'SquareGenerate',
   'VertexInsertOnCreases',
+  'DeleteExtraVerticesAmong',
 ] as const;
 
 export type OristudioCpOperationId = (typeof ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS)[number];

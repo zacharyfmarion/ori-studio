@@ -851,6 +851,7 @@ pub enum OperationId {
     // Oriedita's source map with our additions visible at the end.
     SquareGenerate,
     VertexInsertOnCreases,
+    DeleteExtraVerticesAmong,
 }
 
 /// Source-map descriptor for an Oriedita operation.
@@ -1909,6 +1910,14 @@ const OPERATION_DESCRIPTORS: &[OperationDescriptor] = &[
         native VertexInsertOnCreases,
         "OriStudioVertexInsertOnCreases",
         "operations::native::vertex_insert::insert_vertex_on_creases",
+        Kernel,
+        8,
+        UnitTested
+    ),
+    descriptor!(
+        native DeleteExtraVerticesAmong,
+        "OriStudioDeleteExtraVerticesAmong",
+        "operations::arrangement::del_v_among_lines",
         Kernel,
         8,
         UnitTested
@@ -3141,6 +3150,12 @@ pub fn execute_command(
         OperationId::DeleteExtraVerticesIgnoreColor => {
             let before = document.crease_pattern.line_segments.len();
             operations::arrangement::del_v_all_color_change(&mut document.crease_pattern);
+            before.abs_diff(document.crease_pattern.line_segments.len())
+        }
+        OperationId::DeleteExtraVerticesAmong => {
+            let line_indices = required_line_indices(&command)?;
+            let before = document.crease_pattern.line_segments.len();
+            operations::arrangement::del_v_among_lines(&mut document.crease_pattern, &line_indices);
             before.abs_diff(document.crease_pattern.line_segments.len())
         }
         OperationId::FixInaccurate => {
@@ -8385,6 +8400,57 @@ mod tests {
         )
         .expect("a second sweep should execute");
         assert_eq!(repeat.diagnostics, vec!["Changed 0 line(s)"]);
+    }
+
+    #[test]
+    fn delete_extra_vertices_among_merges_only_the_listed_creases() {
+        let mut document = CreasePatternDocument::default();
+        // Two collinear same-colour pairs: one at x=10 among the listed
+        // creases, one at x=40 outside them.
+        document.crease_pattern.add_line(
+            Point::new(0.0, 0.0),
+            Point::new(10.0, 0.0),
+            LineColor::Red1,
+        );
+        document.crease_pattern.add_line(
+            Point::new(10.0, 0.0),
+            Point::new(20.0, 0.0),
+            LineColor::Red1,
+        );
+        document.crease_pattern.add_line(
+            Point::new(30.0, 0.0),
+            Point::new(40.0, 0.0),
+            LineColor::Red1,
+        );
+        document.crease_pattern.add_line(
+            Point::new(40.0, 0.0),
+            Point::new(50.0, 0.0),
+            LineColor::Red1,
+        );
+
+        let mut command = CreasePatternCommand::new(OperationId::DeleteExtraVerticesAmong);
+        command.payload.line_ids = vec![1, 2];
+        let result = execute_command(&mut document, command)
+            .expect("DeleteExtraVerticesAmong should execute");
+
+        assert_eq!(result.diagnostics, vec!["Changed 1 line(s)"]);
+        assert_eq!(document.crease_pattern.line_segments.len(), 3);
+        assert!(
+            document
+                .crease_pattern
+                .line_segments
+                .iter()
+                .any(|line| line.a == Point::new(0.0, 0.0) && line.b == Point::new(20.0, 0.0))
+        );
+
+        let unlisted = execute_command(
+            &mut document,
+            CreasePatternCommand::new(OperationId::DeleteExtraVerticesAmong),
+        );
+        assert!(
+            unlisted.is_err(),
+            "an empty line set is refused, not a whole-document sweep"
+        );
     }
 
     #[test]

@@ -156,6 +156,15 @@ const REGION_PAPER_MARGIN_RATIO = 0.02;
 type ImportMode = 'add' | 'addImproved' | 'reviewAndFix' | 'addPartial' | 'addAsIs';
 
 /**
+ * The modes that add what a solve produced. Those get the extra-vertex sweep
+ * over the added creases: detection split every crease at every junction it
+ * found, the solve keeps the pieces, and an accepted solve is where they are
+ * put back together. The other two add the raw detection, whose collinear
+ * pieces are only nearly collinear and are the user's to repair.
+ */
+const SOLVER_OUTPUT_MODES: ReadonlySet<ImportMode> = new Set(['add', 'addImproved', 'addPartial']);
+
+/**
  * What the recognize report says about the candidate's **graph**.
  *
  * Read from `topology_diagnostics.combinatorial`: findings that are properties
@@ -657,6 +666,7 @@ export function CpDetectImportModal() {
           format: 'fold',
           filename: detectedFoldFilename(source.name),
           label,
+          mergeExtraVertices: SOLVER_OUTPUT_MODES.has(mode),
         });
         if (!merged) {
           throw new Error(

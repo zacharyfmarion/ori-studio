@@ -117,6 +117,14 @@ const api = {
   }),
   documentGeometry: vi.fn(async (handle: number) => ({ snapshot: documents.get(handle) })),
   operationDescriptors: vi.fn(async () => []),
+  // The scoped extra-vertex sweep. What it merges is the kernel's business
+  // (`del_v_among_lines_*`); here only *which creases it is handed* matters.
+  executeCommand: vi.fn(async (_handle: number, operation: string) => ({
+    operation,
+    changed: 0,
+    diagnostics: [],
+    diagnostic_entries: [],
+  })),
 };
 
 vi.mock('../../engines/engineHost', () => ({
@@ -148,10 +156,11 @@ const IMPORT_TEXT = JSON.stringify({
   ],
 });
 
-async function importAdd() {
+async function importAdd(options: { mergeExtraVertices?: boolean } = {}) {
   return importAddOristudioCpDocumentFromText(IMPORT_TEXT, {
     format: 'fold',
     filename: 'detected.fold',
+    ...options,
   });
 }
 
@@ -264,5 +273,55 @@ describe('import (add) placement', () => {
     // from the summary and never decodes the document to find out.
     const geometryReads = api.documentGeometry.mock.calls.length;
     expect(geometryReads).toBe(1); // the post-merge refresh, and nothing before it
+  });
+});
+
+describe('import (add) with the extra-vertex sweep', () => {
+  it('sweeps the added creases only, once they are placed', async () => {
+    await createBlankOristudioCpDocument();
+    const starter = createStarterOristudioCpDocument();
+    await restoreOristudioCpDocumentInPlace({
+      ...starter,
+      crease_pattern: {
+        ...starter.crease_pattern,
+        line_segments: [...starter.crease_pattern.line_segments, segment(-100, -100, 100, 100)],
+      },
+    });
+
+    await importAdd({ mergeExtraVertices: true });
+
+    // Five creases were there (the border and one of the user's); the import's
+    // five are the ones past them, and the user's are not in the set.
+    expect(api.executeCommand).toHaveBeenCalledTimes(1);
+    expect(api.executeCommand).toHaveBeenCalledWith(1, 'DeleteExtraVerticesAmong', {
+      line_ids: [6, 7, 8, 9, 10],
+    });
+    // After the merge, not before it: the ids are positions in the merged document.
+    expect(api.importAdd.mock.invocationCallOrder[0]).toBeLessThan(
+      api.executeCommand.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('sweeps every crease when the import is the whole document', async () => {
+    await createBlankOristudioCpDocument();
+
+    await importAdd({ mergeExtraVertices: true });
+
+    expect(api.executeCommand).toHaveBeenCalledWith(1, 'DeleteExtraVerticesAmong', {
+      line_ids: [1, 2, 3, 4, 5],
+    });
+    // Placement is unchanged by the sweep.
+    expect(lastOristudioCpImportAddPlacement()).toEqual({
+      bounds: { minX: -200, minY: -200, maxX: 200, maxY: 200 },
+      centered: true,
+    });
+  });
+
+  it('runs no sweep unless asked', async () => {
+    await createBlankOristudioCpDocument();
+
+    await importAdd();
+
+    expect(api.executeCommand).not.toHaveBeenCalled();
   });
 });

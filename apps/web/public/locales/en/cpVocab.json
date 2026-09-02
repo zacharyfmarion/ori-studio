@@ -1034,6 +1034,11 @@
       "tooltip": "Merge collinear crease pairs regardless of type — a mountain and a valley merge to an edge",
       "disabledReason": "Ready"
     },
+    "cp_action_delete_extra_vertices_among": {
+      "label": "Delete Extra Vertices in Pattern",
+      "tooltip": "Merge collinear same-type crease pairs among the given creases only",
+      "disabledReason": "Ready"
+    },
     "cp_action_organize_circles": {
       "label": "Organize circles",
       "tooltip": "Prune invalid zero-radius circles using Oriedita cleanup rules",

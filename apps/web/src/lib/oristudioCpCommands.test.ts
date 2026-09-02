@@ -298,6 +298,7 @@ describe('Ori Studio native operations', () => {
       'CreaseSetDirectionHint',
       'CreaseSetFoldAngle',
       'CreaseSetLineColor',
+      'DeleteExtraVerticesAmong',
       'PropagateFoldAngles',
       'SquareGenerate',
       'VertexInsertOnCreases',

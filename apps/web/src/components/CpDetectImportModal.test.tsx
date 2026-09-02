@@ -771,6 +771,11 @@ describe('CpDetectImportModal add', () => {
     );
     // No annotations on this path: the underlay and the region belong to repair.
     expect(storeActions.addAnnotation).not.toHaveBeenCalled();
+    // And no sweep: this is the raw detection, whose collinear pieces are only
+    // nearly collinear and are the user's to repair.
+    expect(storeActions.importAddOristudioCpText).toHaveBeenCalledWith(
+      expect.objectContaining({ mergeExtraVertices: false })
+    );
   });
 
   it('adds the solved document after a solve, not the candidate it started from', async () => {
@@ -783,6 +788,11 @@ describe('CpDetectImportModal add', () => {
       { text: string },
     ];
     expect(JSON.parse(text)).toEqual(solvedFold());
+    // An accepted solve puts detection's split creases back together — among
+    // the added creases only, which the add itself scopes.
+    expect(storeActions.importAddOristudioCpText).toHaveBeenCalledWith(
+      expect.objectContaining({ mergeExtraVertices: true })
+    );
   });
 
   it('runs no kernel command after adding: the fixes would edit the user’s creases, and the boundary check needs a dragged path', async () => {

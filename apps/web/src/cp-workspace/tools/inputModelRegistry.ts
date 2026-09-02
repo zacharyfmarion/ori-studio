@@ -235,6 +235,9 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
   DeleteLineTypeSelect: { model: 'select-apply' },
   DeleteExtraVertices: { model: 'select-apply' },
   DeleteExtraVerticesIgnoreColor: { model: 'select-apply' },
+  // Reached only from an accepted solve, with its line ids in hand; no pointer
+  // input, but the registry covers every ready command.
+  DeleteExtraVerticesAmong: { model: 'select-apply' },
   Fix1: { model: 'select-apply' },
   Fix2: { model: 'select-apply' },
   FixInaccurate: { model: 'select-apply' },

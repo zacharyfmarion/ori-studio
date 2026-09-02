@@ -440,6 +440,11 @@ export async function importAddOristudioCpDocumentFromText(
      */
     circles?: readonly SendToEditCircle[];
     circleSourceBounds?: readonly [number, number, number, number];
+    /**
+     * Run the extra-vertex sweep over the added creases, and only them, before
+     * returning — so it lands in the same history entry as the add.
+     */
+    mergeExtraVertices?: boolean;
   }
 ): Promise<OristudioCpDocumentState> {
   if (handle === null) {
@@ -494,7 +499,9 @@ export async function importAddOristudioCpDocumentFromText(
       ),
       centered: false,
     };
-    return merged;
+    return source.mergeExtraVertices
+      ? mergeExtraVerticesAmongAdded(api, targetHandle, merged, target.segmentCount)
+      : merged;
   }
 
   // The target was cleared first, so every line in the merged document came
@@ -520,7 +527,32 @@ export async function importAddOristudioCpDocumentFromText(
     },
     centered: true,
   };
-  return centered;
+  return source.mergeExtraVertices
+    ? mergeExtraVerticesAmongAdded(api, targetHandle, centered, 0)
+    : centered;
+}
+
+/**
+ * The extra-vertex sweep over the creases an import (add) appended — the ones
+ * past `existingCount`, which is every crease when the target was blank — and
+ * none of the creases that were already there.
+ */
+async function mergeExtraVerticesAmongAdded(
+  api: OristudioCpClient,
+  targetHandle: number,
+  placed: OristudioCpDocumentState,
+  existingCount: number
+): Promise<OristudioCpDocumentState> {
+  const total = placed.document.crease_pattern.line_segments.length;
+  if (total <= existingCount) return placed;
+  // One-based, like every `line_ids` payload.
+  const lineIds = Array.from({ length: total - existingCount }, (_, i) => existingCount + i + 1);
+  const result = await api.executeCommand(targetHandle, 'DeleteExtraVerticesAmong', {
+    line_ids: lineIds,
+  });
+  const swept = await refreshOristudioCpDocument(result);
+  if (!swept) throw new Error('Editable crease-pattern document was released');
+  return swept;
 }
 
 interface ImportAddTarget {

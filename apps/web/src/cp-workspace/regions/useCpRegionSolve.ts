@@ -412,6 +412,18 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
           return;
         }
       }
+      // Detection split every crease at every junction it found, and the solve
+      // leaves the pieces where they are. Accepting is where they go back
+      // together: the extra-vertex sweep confined to this region's own creases,
+      // so the user's creases beside it are not touched. Its own entry, after
+      // the partial and before the region goes, for the same undo reason.
+      const region = solvableRegion(regionId);
+      const owned = region ? ownedLines(region) : null;
+      if (owned && owned.lineIds.length > 0) {
+        await useWorkspaceStore
+          .getState()
+          .executeOristudioCpCommand('DeleteExtraVerticesAmong', { line_ids: owned.lineIds });
+      }
       write(regionId, null);
       removeRegionAndItsImage(regionId, acceptLabel(latest.current.t));
     },

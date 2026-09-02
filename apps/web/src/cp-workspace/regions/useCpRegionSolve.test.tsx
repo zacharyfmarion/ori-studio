@@ -1,4 +1,5 @@
 import { act } from 'react';
+import { cpRegionPatternLines } from './regionSolveGeometry';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CP_EXACT_SOLVE_REQUEST_EVENT } from '../../commands/menuActions';
@@ -272,6 +273,9 @@ describe('useCpRegionSolve', () => {
   let api: CpRegionSolveBinding;
   let replaceLineSegments: ReturnType<typeof vi.fn>;
   let setSelection: ReturnType<typeof vi.fn>;
+  let executeCommand: ReturnType<typeof vi.fn>;
+  /** The annotation ids on screen when the sweep was asked for. */
+  let annotationsAtSweep: string[] = [];
   let solver: CpExactSolver;
 
   function Probe() {
@@ -284,6 +288,13 @@ describe('useCpRegionSolve', () => {
 
   function seed(annotations: CanvasAnnotation[] = [IMAGE, REGION]): void {
     setSelection = vi.fn();
+    annotationsAtSweep = [];
+    executeCommand = vi.fn(async () => {
+      annotationsAtSweep = useWorkspaceStore
+        .getState()
+        .oristudioCpAnnotations.map((annotation) => annotation.id);
+      return true;
+    });
     replaceLineSegments = vi.fn(async (_ids: number[], segments: OristudioCpLineSegment[]) => {
       // Stands in for the kernel round trip: the store bumps the revision and
       // records one history entry carrying the previous document *and* the
@@ -310,6 +321,7 @@ describe('useCpRegionSolve', () => {
       oristudioCpRevision: 1,
       oristudioCpCamvResult: null,
       replaceOristudioCpLineSegments: replaceLineSegments,
+      executeOristudioCpCommand: executeCommand,
       setOristudioCpSelection: setSelection,
     } as unknown as Partial<ReturnType<typeof useWorkspaceStore.getState>>);
   }
@@ -583,6 +595,25 @@ describe('useCpRegionSolve', () => {
     expect(replaceLineSegments).toHaveBeenCalledTimes(1);
   });
 
+  it('merges the extra vertices among the region’s own creases on Accept, before the region goes', async () => {
+    await solve();
+    await settle(() => api.onAccept(REGION.id));
+
+    // Detection split every crease at every junction; accepting the solve is
+    // where the collinear pieces go back together. Only the creases wholly
+    // inside the region are handed over — the user's creases beside it are
+    // not the sweep's to touch.
+    const owned = cpRegionPatternLines(SEGMENTS, REGION);
+    expect(owned.lineIds.length).toBeGreaterThan(0);
+    expect(executeCommand).toHaveBeenCalledTimes(1);
+    expect(executeCommand).toHaveBeenCalledWith('DeleteExtraVerticesAmong', {
+      line_ids: owned.lineIds,
+    });
+    // The region was still there when the sweep ran: it names the creases.
+    expect(annotationsAtSweep).toContain(REGION.id);
+    expect(annotationIds()).toEqual([]);
+  });
+
   it('reports a rejection in the solver’s own words, and changes nothing', async () => {
     solver = bridge(REJECTED);
     await solve();
@@ -611,6 +642,11 @@ describe('useCpRegionSolve', () => {
     // undoing walks back through the coordinates rather than past them.
     expect(replaceLineSegments).toHaveBeenCalledTimes(1);
     expect(replaceLineSegments.mock.calls[0][1][4].a).toEqual({ x: 302, y: 100 });
+    // The sweep follows the write: it merges the coordinates just accepted.
+    expect(executeCommand).toHaveBeenCalledTimes(1);
+    expect(replaceLineSegments.mock.invocationCallOrder[0]).toBeLessThan(
+      executeCommand.mock.invocationCallOrder[0]
+    );
     // And the underlay goes with the region, the same as on a clean accept.
     expect(annotationIds()).toEqual([]);
   });
