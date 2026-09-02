@@ -195,17 +195,26 @@ export function solvedRegionSegments(
   // value changed. It is a placement statistic; the movement figures the UI
   // reports come from the solver.
   let rewrittenEndpoints = 0;
-  const segments = owned.map((segment, index) => {
+  const segments: OristudioCpLineSegment[] = [];
+  owned.forEach((segment, index) => {
     const [from, to] = edgesVertices[index];
     const solvedA = positions.get(from);
     const solvedB = positions.get(to);
-    if (!solvedA && !solvedB) return segment;
+    if (!solvedA && !solvedB) {
+      segments.push(segment);
+      return;
+    }
     rewrittenEndpoints += (solvedA ? 1 : 0) + (solvedB ? 1 : 0);
-    return {
+    // A crease whose two ends the solve placed at one point is a stub between
+    // two detected vertices the design has as one (`merged_vertices` in the
+    // solver's answer). Its ends have merged, so it is not rewritten but
+    // removed: its id is in the replaced set and nothing takes its place.
+    if (solvedA && solvedB && solvedA.x === solvedB.x && solvedA.y === solvedB.y) return;
+    segments.push({
       ...segment,
       a: solvedA ? cpSolveFramePoint(transform, solvedA) : segment.a,
       b: solvedB ? cpSolveFramePoint(transform, solvedB) : segment.b,
-    };
+    });
   });
   return { ok: true, segments, rewrittenEndpoints };
 }

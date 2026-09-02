@@ -94,6 +94,113 @@ pub struct ExactSolveOptions {
     /// Stop polishing once the max Kawasaki residual is below this (degrees).
     #[serde(default = "default_polish_target_kawasaki_degrees")]
     pub polish_target_kawasaki_degrees: f64,
+    /// Whether to look for the angle family a designed pattern is drawn in and
+    /// pin its creases to it once the solve has converged. See
+    /// [`AngleFamilyMode`].
+    #[serde(default)]
+    pub angle_family: AngleFamilyMode,
+    /// How far from a lattice angle a carrier may sit and still be read as on
+    /// it — both for deciding whether a family is present at all and for
+    /// deciding which carriers are pinned. Radians. A pinned round refused at
+    /// this width is retried at half of it, [`ANGLE_FAMILY_RETRY_HALVINGS`]
+    /// times.
+    #[serde(default = "default_angle_family_snap_tolerance_radians")]
+    pub angle_family_snap_tolerance_radians: f64,
+    /// Fraction of fold carriers that must sit within tolerance of a candidate
+    /// lattice before the family is believed.
+    #[serde(default = "default_angle_family_min_fraction")]
+    pub angle_family_min_fraction: f64,
+}
+
+/// Designed crease patterns are quantized: their creases lie on a small set of
+/// exact angles — 45° families, 22.5° families, occasionally 15° — and every
+/// tie between two sectors at a vertex comes from that. Measured on hand-drawn
+/// ground truth, between 37% and 100% of interior vertices have their smallest
+/// sector *exactly* tied, and Big-Little-Big is vacuous at a tie.
+///
+/// Kawasaki alone cannot recover such a pattern. At degree 4 it is one equation
+/// on four angles, leaving three free directions, and the optimizer spends them
+/// on whatever the movement priors prefer — which is the noisy detected geometry,
+/// not the lattice. So it breaks the ties by hundredths of a degree and turns
+/// legal vertices into violations while staying Kawasaki-exact.
+///
+/// Nor can a *weighted* pull toward the lattice fix that: Big-Little-Big at a
+/// near-tie is decided by the sign of the tie-break, not its size, so shrinking
+/// the break from 0.02° to 0.002° only re-flips the coins (measured: a soft
+/// lattice residual at every sigma from 0.1° to 2° left the clean corpus at the
+/// same Big-Little-Big count it started with). The tie has to be exact, within
+/// the checker's 1e-6°, and only a *pinned* direction gives that.
+///
+/// `Auto` therefore ends the polish stage with one more round: infer the family
+/// (see [`infer_angle_family`]), set every on-lattice carrier's direction to its
+/// exact lattice angle, freeze it there, and re-solve everything else. With the
+/// directions pinned, incidence is linear and the solve lands vertices on those
+/// lines to machine precision, so every sector angle is an exact lattice
+/// difference — Kawasaki exact and every designed tie exact. The round is kept
+/// only if it costs nothing: the acceptance gate, the Kawasaki bar, and the
+/// checker's own angle and Big-Little-Big counts must all hold or improve, and
+/// a refused round is retried with a tighter tolerance before giving up. A
+/// carrier that is not near the lattice (a box-pleat diagonal at `atan 2`, a
+/// freehand crease) is never pinned, and a pattern with no family is left
+/// entirely alone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AngleFamilyMode {
+    #[default]
+    Auto,
+    Off,
+}
+
+fn default_angle_family_snap_tolerance_radians() -> f64 {
+    1.5_f64.to_radians()
+}
+
+const fn default_angle_family_min_fraction() -> f64 {
+    0.5
+}
+
+/// How many times a refused pinned round halves its tolerance and tries again.
+/// 1.5° → 0.75° → 0.375°: a refusal means some pinned carrier was never on the
+/// lattice, and the ones furthest from it are the suspects.
+const ANGLE_FAMILY_RETRY_HALVINGS: usize = 2;
+
+/// The lattice steps a designed pattern is likely drawn on, finest first: a 45°
+/// design also fits the 22.5° lattice and pins to the same angles under it, so
+/// preferring the finer of the two loses nothing.
+///
+/// Only the two families the corpus actually contains. A finer candidate is a
+/// trap: with detection noise wide enough that a real 22.5° pattern misses the
+/// bar, an 11.25° lattice will "explain" the stragglers by accident and be
+/// chosen instead — measured on close_but_not_good_enough.osf, which is a 22.5°
+/// design and was read as 11.25°, snapping carriers to angles it does not have.
+/// 15° and 11.25° can be added when a pattern that needs them exists to test on.
+const ANGLE_FAMILY_STEPS_DEGREES: [f64; 2] = [22.5, 45.0];
+
+/// Signed distance from `theta` to the nearest multiple of `step`, in
+/// `(-step/2, step/2]`. A carrier's theta is its normal's angle, and every
+/// candidate step divides 90°, so a lattice on directions is the same lattice
+/// on normals.
+fn lattice_offset(theta: f64, step: f64) -> f64 {
+    theta - (theta / step).round() * step
+}
+
+/// The finest lattice that at least `min_fraction` of the carriers sit within
+/// `tolerance` of, or `None` when no candidate does. Freehand geometry lands
+/// within 1.5° of a 22.5° lattice about 13% of the time, well under the bar.
+fn infer_angle_family(thetas: &[f64], tolerance: f64, min_fraction: f64) -> Option<f64> {
+    if thetas.is_empty() {
+        return None;
+    }
+    ANGLE_FAMILY_STEPS_DEGREES
+        .iter()
+        .map(|degrees| degrees.to_radians())
+        .find(|step| {
+            let on_lattice = thetas
+                .iter()
+                .filter(|theta| lattice_offset(**theta, *step).abs() <= tolerance)
+                .count();
+            on_lattice as f64 >= min_fraction * thetas.len() as f64
+        })
 }
 
 const fn default_polish() -> bool {
@@ -150,11 +257,14 @@ impl Default for ExactSolveOptions {
             // checker directly now; this stays as the solver's own reading.
             solved_kawasaki_epsilon_degrees: 1e-6,
             solved_carrier_epsilon: 5e-4,
-            degenerate_edge_epsilon: 1e-6,
+            degenerate_edge_epsilon: COLLAPSED_SPAN_LENGTH,
             crossing_epsilon: 1e-7,
             timeout_seconds: default_timeout_seconds(),
             linear_solver: LinearSolver::Sparse,
             polish: default_polish(),
+            angle_family: AngleFamilyMode::default(),
+            angle_family_snap_tolerance_radians: default_angle_family_snap_tolerance_radians(),
+            angle_family_min_fraction: default_angle_family_min_fraction(),
             polish_kawasaki_sigma_radians: default_polish_kawasaki_sigma_radians(),
             polish_carrier_incidence_sigma: default_polish_carrier_incidence_sigma(),
             polish_rounds: default_polish_rounds(),
@@ -487,6 +597,7 @@ fn solve_exact_inner(
                 .iter()
                 .map(|span| span.vertices)
                 .collect(),
+            merged_vertices: Vec::new(),
             movement_report,
             theorem_residual_report,
             status: ExactSolvedGraphStatus::Failed,
@@ -520,18 +631,40 @@ fn solve_exact_inner(
     // solution and re-solve with tightened theorem sigmas. Runs only when the
     // stage-1 candidate would be accepted, so failure paths are untouched.
     let mut polish_outcome = PolishOutcome::default();
-    let (final_params, termination, evaluations, objective, polish_adopted) = 'polish: {
+    let no_merges = BTreeSet::new();
+    let (final_params, termination, evaluations, objective, polish_adopted, merged_span_ids) = 'polish: {
         if !options.polish {
             polish_outcome.stop_reason = "disabled";
-            break 'polish (final_params, termination, evaluations, objective, false);
+            break 'polish (
+                final_params,
+                termination,
+                evaluations,
+                objective,
+                false,
+                no_merges,
+            );
         }
         if final_params.is_empty() {
             polish_outcome.stop_reason = "no_parameters";
-            break 'polish (final_params, termination, evaluations, objective, false);
+            break 'polish (
+                final_params,
+                termination,
+                evaluations,
+                objective,
+                false,
+                no_merges,
+            );
         }
         if model.timeout_reached() {
             polish_outcome.stop_reason = "timed_out";
-            break 'polish (final_params, termination, evaluations, objective, false);
+            break 'polish (
+                final_params,
+                termination,
+                evaluations,
+                objective,
+                false,
+                no_merges,
+            );
         }
         let stage1_points = model.points_from_params(&final_params);
         let stage1_after = analyze_graph(input, &stage1_points, &model, &final_params, options);
@@ -547,10 +680,18 @@ fn solve_exact_inner(
         .is_empty();
         if !stage1_accepted {
             polish_outcome.stop_reason = "stage1_rejected";
-            break 'polish (final_params, termination, evaluations, objective, false);
+            break 'polish (
+                final_params,
+                termination,
+                evaluations,
+                objective,
+                false,
+                no_merges,
+            );
         }
         let mut current_params = final_params.clone();
         let mut current_kawasaki = stage1_after.max_kawasaki_residual_degrees;
+        let mut current_after = stage1_after;
         let mut polish_evaluations = 0usize;
         let mut rounds_adopted = 0usize;
         polish_outcome.stop_reason = "max_rounds";
@@ -608,25 +749,63 @@ fn solve_exact_inner(
             }
             current_params = polished_params;
             current_kawasaki = polished_after.max_kawasaki_residual_degrees;
+            current_after = polished_after;
             polish_evaluations += polish_round_evaluations;
             rounds_adopted += 1;
             polish_outcome.rounds_adopted = rounds_adopted;
             polish_outcome.kawasaki_after_degrees = Some(current_kawasaki);
         }
-        if rounds_adopted == 0 {
-            break 'polish (final_params, termination, evaluations, objective, false);
+        // Last: pin the pattern to its angle family, if it has one. Runs after
+        // the rounds, not as one of them, because a candidate that reached the
+        // Kawasaki target straight out of stage 1 skips the loop entirely, and
+        // that is exactly the clean designed pattern the pin is for.
+        let mut pinned_adopted = false;
+        let mut merged_span_ids = BTreeSet::new();
+        if let Some(round) = pin_to_angle_family(
+            &model,
+            input,
+            &before,
+            &current_params,
+            &current_after,
+            options,
+        ) {
+            if let Some(adoption) = round.adopted {
+                current_params = adoption.params;
+                current_kawasaki = adoption.after.max_kawasaki_residual_degrees;
+                current_after = adoption.after;
+                polish_evaluations += adoption.evaluations;
+                merged_span_ids = adoption.merged_span_ids;
+                polish_outcome.kawasaki_after_degrees = Some(current_kawasaki);
+                pinned_adopted = true;
+            }
+            polish_outcome.pinned_family = Some(round.outcome);
+        }
+        let _ = &current_after;
+        if rounds_adopted == 0 && !pinned_adopted {
+            break 'polish (
+                final_params,
+                termination,
+                evaluations,
+                objective,
+                false,
+                merged_span_ids,
+            );
         }
         let polished_objective = residual_energy(&model.residuals_for(&current_params));
+        let pinned = if pinned_adopted { ",pinned" } else { "" };
         (
             current_params,
-            format!("{termination}+polish(rounds={rounds_adopted})"),
+            format!("{termination}+polish(rounds={rounds_adopted}{pinned})"),
             evaluations + polish_evaluations,
             polished_objective,
             true,
+            merged_span_ids,
         )
     };
+    // From here the answer is judged and described as the editor will hold it.
+    let model = model.with_merged_spans(&merged_span_ids);
 
-    let candidate_points = model.points_from_params(&final_params);
+    let candidate_points = model.placed_points(&final_params);
     let candidate_after = analyze_graph(input, &candidate_points, &model, &final_params, options);
     let candidate_status = classify_status(&before, &candidate_after, options);
     let timed_out = model.timeout_reached();
@@ -715,6 +894,7 @@ fn solve_exact_inner(
             .iter()
             .map(|span| span.vertices)
             .collect(),
+        merged_vertices: model.merged_vertex_pairs(),
         movement_report,
         theorem_residual_report,
         status,
@@ -725,6 +905,17 @@ fn solve_exact_inner(
 struct SolveModel {
     vertex_params: Vec<VertexParameterization>,
     carrier_groups: Vec<CarrierGroup>,
+    /// Parameters the optimizer must not move, by index; empty means none. A
+    /// frozen parameter still shapes every residual it appears in, it just gets
+    /// no Jacobian column. See [`SolveModel::pinned_to_angle_family`].
+    frozen_params: Vec<bool>,
+    /// Spans the pinned round collapsed to a point and the solve adopted as
+    /// merges: their two endpoints are one vertex. See [`analyze_graph`].
+    merged_span_ids: BTreeSet<usize>,
+    /// Per vertex, the vertex that stands for it once merges are applied — its
+    /// own id outside any merge. Empty when there are no merges. See
+    /// [`merged_vertex_representatives`].
+    merged_representative: Vec<usize>,
     span_to_carrier_group: BTreeMap<usize, usize>,
     initial_params: OVector<f64, Dyn>,
     selected_spans: Vec<CandidateCreaseSpan>,
@@ -825,6 +1016,7 @@ impl SolveModel {
                     rho_index,
                     initial_theta: theta,
                     initial_rho: span.carrier.rho,
+                    pinned_step: None,
                 });
                 group_by_key.insert(key, index);
                 index
@@ -836,6 +1028,9 @@ impl SolveModel {
         Self {
             vertex_params,
             carrier_groups,
+            frozen_params: Vec::new(),
+            merged_span_ids: BTreeSet::new(),
+            merged_representative: Vec::new(),
             span_to_carrier_group,
             initial_params: OVector::<f64, Dyn>::from_vec(params),
             selected_spans: input.selected_spans.clone(),
@@ -861,7 +1056,8 @@ impl SolveModel {
     }
 
     fn points_from_params(&self, params: &OVector<f64, Dyn>) -> Vec<Point2> {
-        self.vertex_params
+        let points: Vec<Point2> = self
+            .vertex_params
             .iter()
             .map(|param| match *param {
                 VertexParameterization::Fixed { point } => point,
@@ -879,7 +1075,23 @@ impl SolveModel {
                     params[y_index].clamp(-0.25, 1.25),
                 ),
             })
-            .collect()
+            .collect();
+        points
+    }
+
+    /// The points the answer places: [`Self::points_from_params`] with every
+    /// merged pair at one point. The optimizer holds the two within ~1e-12 of
+    /// each other, and the answer makes that exact, because the editor and the
+    /// checker both group creases at a point by an epsilon and a pair that
+    /// straddled it would be two half-fans.
+    fn placed_points(&self, params: &OVector<f64, Dyn>) -> Vec<Point2> {
+        let mut points = self.points_from_params(params);
+        for (vertex, &representative) in self.merged_representative.iter().enumerate() {
+            if representative != vertex {
+                points[vertex] = points[representative];
+            }
+        }
+        points
     }
 
     /// A copy of this model whose movement/carrier priors anchor to the given
@@ -900,6 +1112,81 @@ impl SolveModel {
         polished.options.kawasaki_sigma_radians = self.options.polish_kawasaki_sigma_radians;
         polished.options.carrier_incidence_sigma = self.options.polish_carrier_incidence_sigma;
         polished
+    }
+
+    /// The polish model for a pinned round: re-anchored to `solved` like
+    /// [`Self::reanchored_for_polish`], with every carrier within `tolerance`
+    /// of the `step` lattice set to its exact lattice angle and frozen there.
+    /// Returns the model and the parameters to start from — `solved` with those
+    /// directions snapped — or `None` when no carrier is both on the lattice and
+    /// off it by enough to be worth moving. See [`AngleFamilyMode`].
+    fn pinned_to_angle_family(
+        &self,
+        solved: &OVector<f64, Dyn>,
+        step: f64,
+        tolerance: f64,
+    ) -> Option<(Self, OVector<f64, Dyn>)> {
+        let mut pinned = self.reanchored_for_polish(solved);
+        pinned.frozen_params = vec![false; solved.len()];
+        let mut start = solved.clone();
+        let mut moved = 0usize;
+        for group in &mut pinned.carrier_groups {
+            let theta = solved[group.theta_index];
+            let offset = lattice_offset(theta, step);
+            if offset.abs() > tolerance {
+                continue;
+            }
+            let snapped = theta - offset;
+            group.pinned_step = Some(step);
+            group.initial_theta = snapped;
+            start[group.theta_index] = snapped;
+            pinned.frozen_params[group.theta_index] = true;
+            if offset.abs() > 1e-12 {
+                moved += 1;
+            }
+        }
+        if moved == 0 {
+            return None;
+        }
+        pinned.initial_params = start.clone();
+        Some((pinned, start))
+    }
+
+    /// This model with `span_ids` read as merges. See [`analyze_graph`].
+    fn with_merged_spans(&self, span_ids: &BTreeSet<usize>) -> Self {
+        let mut merged = self.clone();
+        merged.merged_span_ids.extend(span_ids.iter().copied());
+        merged.merged_representative = if merged.merged_span_ids.is_empty() {
+            Vec::new()
+        } else {
+            merged_vertex_representatives(
+                self.vertices.len(),
+                &self.selected_spans,
+                &merged.merged_span_ids,
+                &boundary_vertex_ids(&self.selected_spans),
+            )
+        };
+        merged
+    }
+
+    /// The vertex that stands for `vertex` once merges are applied.
+    fn representative_of(&self, vertex: usize) -> usize {
+        self.merged_representative
+            .get(vertex)
+            .copied()
+            .unwrap_or(vertex)
+    }
+
+    /// The spans read as merges, in span order.
+    fn merged_spans(&self) -> impl Iterator<Item = &CandidateCreaseSpan> {
+        self.selected_spans
+            .iter()
+            .filter(|span| self.merged_span_ids.contains(&span.id))
+    }
+
+    /// The merged spans as vertex pairs, for the answer and its report.
+    fn merged_vertex_pairs(&self) -> Vec<[usize; 2]> {
+        self.merged_spans().map(|span| span.vertices).collect()
     }
 
     fn residuals_for(&self, params: &OVector<f64, Dyn>) -> Vec<f64> {
@@ -985,6 +1272,9 @@ impl SolveModel {
             let normal = Point2::new(theta.cos(), theta.sin());
             for span_index in &group.span_indices {
                 let span = &self.selected_spans[*span_index];
+                if self.merged_span_ids.contains(&span.id) {
+                    continue;
+                }
                 for vertex_id in span.vertices {
                     let point = points[vertex_id];
                     push_residual(
@@ -998,7 +1288,27 @@ impl SolveModel {
             }
         }
 
-        for residual in kawasaki_residuals(&points, &self.vertices, &self.selected_spans) {
+        // A merged pair is one vertex: hold its members together as hard as a
+        // vertex is held to its carrier. See [`analyze_graph`].
+        for span in self.merged_spans() {
+            let [a, b] = span.vertices;
+            for (pa, pb) in [(points[a].x, points[b].x), (points[a].y, points[b].y)] {
+                push_residual(
+                    &mut residuals,
+                    &mut breakdown,
+                    ResidualFamily::Coincidence,
+                    (pa - pb) / self.options.carrier_incidence_sigma,
+                );
+            }
+        }
+
+        for residual in kawasaki_residuals(
+            &points,
+            &self.vertices,
+            &self.selected_spans,
+            &self.merged_span_ids,
+            &self.merged_representative,
+        ) {
             push_residual(
                 &mut residuals,
                 &mut breakdown,
@@ -1012,8 +1322,13 @@ impl SolveModel {
 
     fn analytic_jacobian(&self, params: &OVector<f64, Dyn>) -> OMatrix<f64, Dyn, Dyn> {
         let points = self.points_from_params(params);
-        let kawasaki_entries =
-            kawasaki_residual_entries(&points, &self.vertices, &self.selected_spans);
+        let kawasaki_entries = kawasaki_residual_entries(
+            &points,
+            &self.vertices,
+            &self.selected_spans,
+            &self.merged_span_ids,
+            &self.merged_representative,
+        );
         let rows = self.analytic_residual_count(kawasaki_entries.len());
         let cols = params.len();
         let mut matrix = OMatrix::<f64, Dyn, Dyn>::zeros(rows, cols);
@@ -1038,6 +1353,17 @@ impl SolveModel {
         kawasaki_entries: &[KawasakiResidualEntry],
         add: &mut dyn FnMut(usize, usize, f64),
     ) {
+        // A frozen parameter gets no column. Its gradient entry is then zero
+        // and its damped-step row is decoupled, so the step leaves it exactly
+        // where it is — on the sparse path (`solve_lm_step` floors the damping
+        // diagonal) and on the dense one (MINPACK scales a zero column by 1).
+        let frozen = &self.frozen_params;
+        let mut masked = |row: usize, col: usize, value: f64| {
+            if !frozen.get(col).copied().unwrap_or(false) {
+                add(row, col, value);
+            }
+        };
+        let add: &mut dyn FnMut(usize, usize, f64) = &mut masked;
         let source_weight = if self.provenance.source_adapter == CandidateSourceAdapter::Legacy {
             1.0
         } else {
@@ -1083,6 +1409,9 @@ impl SolveModel {
 
             for span_index in &group.span_indices {
                 let span = &self.selected_spans[*span_index];
+                if self.merged_span_ids.contains(&span.id) {
+                    continue;
+                }
                 for vertex_id in span.vertices {
                     let point = points[vertex_id];
                     let scale = 1.0 / self.options.carrier_incidence_sigma;
@@ -1105,6 +1434,17 @@ impl SolveModel {
             }
         }
 
+        for span in self.merged_spans() {
+            let [a, b] = span.vertices;
+            let scale = 1.0 / self.options.carrier_incidence_sigma;
+            self.add_point_derivative(add, row, a, scale, 0.0, params);
+            self.add_point_derivative(add, row, b, -scale, 0.0, params);
+            row += 1;
+            self.add_point_derivative(add, row, a, 0.0, scale, params);
+            self.add_point_derivative(add, row, b, 0.0, -scale, params);
+            row += 1;
+        }
+
         for entry in kawasaki_entries {
             for (index, ray) in entry.rays.iter().enumerate() {
                 let angle_weight = if index % 2 == 0 { -2.0 } else { 2.0 };
@@ -1112,7 +1452,7 @@ impl SolveModel {
                 self.add_angle_derivative(
                     add,
                     row,
-                    entry.vertex_id,
+                    ray.origin_vertex_id,
                     ray.target_vertex_id,
                     scale,
                     points,
@@ -1137,9 +1477,21 @@ impl SolveModel {
         let carrier_residuals = self
             .carrier_groups
             .iter()
-            .map(|group| 2 + group.span_indices.len() * 2)
+            .map(|group| {
+                let incident_spans = group
+                    .span_indices
+                    .iter()
+                    .filter(|index| {
+                        !self
+                            .merged_span_ids
+                            .contains(&self.selected_spans[**index].id)
+                    })
+                    .count();
+                2 + incident_spans * 2
+            })
             .sum::<usize>();
-        vertex_residuals + carrier_residuals + kawasaki_residual_count
+        let coincidence_residuals = self.merged_spans().count() * 2;
+        vertex_residuals + carrier_residuals + coincidence_residuals + kawasaki_residual_count
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1222,8 +1574,13 @@ impl SolveModel {
     fn build_normal_equations(&self, params: &OVector<f64, Dyn>, residuals: &[f64]) -> GaussNewton {
         let n = params.len();
         let points = self.points_from_params(params);
-        let kawasaki_entries =
-            kawasaki_residual_entries(&points, &self.vertices, &self.selected_spans);
+        let kawasaki_entries = kawasaki_residual_entries(
+            &points,
+            &self.vertices,
+            &self.selected_spans,
+            &self.merged_span_ids,
+            &self.merged_representative,
+        );
 
         // Jacobian entries, row-monotonic (emit order).
         let mut flat: Vec<(usize, usize, f64)> = Vec::new();
@@ -1499,6 +1856,8 @@ struct ResidualBreakdown {
     carrier_incidence_energy: f64,
     kawasaki_count: usize,
     kawasaki_energy: f64,
+    coincidence_count: usize,
+    coincidence_energy: f64,
 }
 
 impl ResidualBreakdown {
@@ -1516,6 +1875,7 @@ impl ResidualBreakdown {
             + self.carrier_prior_energy
             + self.carrier_incidence_energy
             + self.kawasaki_energy
+            + self.coincidence_energy
     }
 
     fn record(&mut self, family: ResidualFamily, residual: f64) {
@@ -1541,6 +1901,10 @@ impl ResidualBreakdown {
                 self.kawasaki_count += 1;
                 self.kawasaki_energy += energy;
             }
+            ResidualFamily::Coincidence => {
+                self.coincidence_count += 1;
+                self.coincidence_energy += energy;
+            }
         }
     }
 }
@@ -1552,6 +1916,7 @@ enum ResidualFamily {
     CarrierPrior,
     CarrierIncidence,
     Kawasaki,
+    Coincidence,
 }
 
 fn push_residual(
@@ -1620,6 +1985,9 @@ struct CarrierGroup {
     rho_index: usize,
     initial_theta: f64,
     initial_rho: f64,
+    /// The lattice step this carrier's direction is pinned to, in a pinned
+    /// polish round. See [`AngleFamilyMode`] and [`SolveModel::pinned_to_angle_family`].
+    pinned_step: Option<f64>,
 }
 
 #[derive(Debug, Clone)]
@@ -1736,6 +2104,61 @@ struct VertexAnalysis {
     maekawa_residual: Option<usize>,
 }
 
+/// Which vertex each vertex *is*, once the model's merged spans are read as
+/// merges: a vertex in no merge is its own; the members of a merge share one
+/// representative. A boundary member wins the role so the merged fan is judged
+/// the way the editor judges a boundary vertex — not by Kawasaki at all — and
+/// otherwise the lowest id does.
+fn merged_vertex_representatives(
+    count: usize,
+    spans: &[CandidateCreaseSpan],
+    merged_span_ids: &BTreeSet<usize>,
+    boundary_vertex_ids: &BTreeSet<usize>,
+) -> Vec<usize> {
+    let mut representative: Vec<usize> = (0..count).collect();
+    if merged_span_ids.is_empty() {
+        return representative;
+    }
+    let mut parent: Vec<usize> = (0..count).collect();
+    fn find(parent: &mut [usize], mut v: usize) -> usize {
+        while parent[v] != v {
+            parent[v] = parent[parent[v]];
+            v = parent[v];
+        }
+        v
+    }
+    for span in spans {
+        if !merged_span_ids.contains(&span.id) {
+            continue;
+        }
+        let [a, b] = span.vertices;
+        if a >= count || b >= count {
+            continue;
+        }
+        let (ra, rb) = (find(&mut parent, a), find(&mut parent, b));
+        if ra != rb {
+            parent[ra.max(rb)] = ra.min(rb);
+        }
+    }
+    let rank = |id: usize| (usize::from(!boundary_vertex_ids.contains(&id)), id);
+    let mut chosen: BTreeMap<usize, usize> = BTreeMap::new();
+    for v in 0..count {
+        let root = find(&mut parent, v);
+        chosen
+            .entry(root)
+            .and_modify(|best| {
+                if rank(v) < rank(*best) {
+                    *best = v;
+                }
+            })
+            .or_insert(v);
+    }
+    for (v, slot) in representative.iter_mut().enumerate() {
+        *slot = chosen[&find(&mut parent, v)];
+    }
+    representative
+}
+
 fn analyze_graph(
     input: &ExactSolveInput,
     points: &[Point2],
@@ -1748,20 +2171,27 @@ fn analyze_graph(
     let paper_boundary_span_ids = paper_boundary_span_ids(&input.selected_spans);
     let cut_boundary_span_ids = cut_boundary_span_ids(&input.selected_spans);
     let boundary_vertex_ids = boundary_vertex_ids(&input.selected_spans);
+    // A merged span is the one place this fan deliberately differs from the
+    // optimizer's (`kawasaki_residual_entries`): the solve keeps the stub as a
+    // crease whose direction its carrier still pins, while the answer the
+    // editor will hold has its two coincident ends as one vertex and the stub
+    // gone. The verdict is on the answer.
     for span in &input.selected_spans {
-        if !is_fold_span(span) {
+        if !is_fold_span(span) || model.merged_span_ids.contains(&span.id) {
             continue;
         }
         let [a, b] = span.vertices;
         if a >= points.len() || b >= points.len() {
             continue;
         }
-        incident[a].push(IncidentRay {
+        incident[model.representative_of(a)].push(IncidentRay {
+            origin_vertex_id: a,
             target_vertex_id: b,
             angle: angle_radians(points[a], points[b]),
             assignment: span.assignment_label(),
         });
-        incident[b].push(IncidentRay {
+        incident[model.representative_of(b)].push(IncidentRay {
+            origin_vertex_id: b,
             target_vertex_id: a,
             angle: angle_radians(points[b], points[a]),
             assignment: span.assignment_label(),
@@ -1869,6 +2299,12 @@ fn analyze_graph(
     } else {
         movement.iter().sum::<f64>() / movement.len() as f64
     };
+    let merged_edges: Vec<[usize; 2]> = input
+        .selected_spans
+        .iter()
+        .filter(|span| model.merged_span_ids.contains(&span.id))
+        .map(|span| span.vertices)
+        .collect();
 
     GraphAnalysis {
         eligible_vertices,
@@ -1886,7 +2322,10 @@ fn analyze_graph(
         max_vertex_movement,
         max_budgeted_vertex_movement,
         mean_vertex_movement,
-        degenerate_edges: degenerate_edges(input, points, options),
+        degenerate_edges: degenerate_edges(input, points, options)
+            .into_iter()
+            .filter(|edge| !merged_edges.contains(edge))
+            .collect(),
         unmodeled_crossings: unmodeled_crossings(input, points, options),
         boundary_failures: boundary_failures(input, points),
     }
@@ -2054,6 +2493,9 @@ fn topology_analysis_blockers(input: &ExactSolveInput) -> Vec<String> {
 
 #[derive(Debug, Clone)]
 struct IncidentRay {
+    /// The vertex the ray actually starts at — its own position parameters —
+    /// which is the fan's vertex except for a ray folded into a merged fan.
+    origin_vertex_id: usize,
     target_vertex_id: usize,
     angle: f64,
     assignment: AssignmentLabel,
@@ -2061,7 +2503,6 @@ struct IncidentRay {
 
 #[derive(Debug, Clone)]
 struct KawasakiResidualEntry {
-    vertex_id: usize,
     rays: Vec<IncidentRay>,
 }
 
@@ -2069,8 +2510,10 @@ fn kawasaki_residuals(
     points: &[Point2],
     vertices: &[CandidateVertex],
     spans: &[CandidateCreaseSpan],
+    merged_span_ids: &BTreeSet<usize>,
+    representative: &[usize],
 ) -> Vec<f64> {
-    kawasaki_residual_entries(points, vertices, spans)
+    kawasaki_residual_entries(points, vertices, spans, merged_span_ids, representative)
         .iter()
         .map(|entry| signed_kawasaki_residual_radians(&entry.rays))
         .collect()
@@ -2080,26 +2523,32 @@ fn kawasaki_residual_entries(
     points: &[Point2],
     vertices: &[CandidateVertex],
     spans: &[CandidateCreaseSpan],
+    merged_span_ids: &BTreeSet<usize>,
+    representative: &[usize],
 ) -> Vec<KawasakiResidualEntry> {
     let mut incident = vec![Vec::<IncidentRay>::new(); vertices.len()];
     let boundary_vertices = boundary_vertex_ids(spans);
+    let fan_of = |vertex: usize| representative.get(vertex).copied().unwrap_or(vertex);
     for span in spans {
         // The same fan the analysis builds, and it has to be: this one is what
         // the optimizer minimizes, and a residual over a different set of rays
-        // than the report describes is two answers to one question.
-        if !is_fold_span(span) {
+        // than the report describes is two answers to one question. Merges
+        // included: a merged pair is one fan here too, with the stub out of it.
+        if !is_fold_span(span) || merged_span_ids.contains(&span.id) {
             continue;
         }
         let [a, b] = span.vertices;
         if a >= points.len() || b >= points.len() {
             continue;
         }
-        incident[a].push(IncidentRay {
+        incident[fan_of(a)].push(IncidentRay {
+            origin_vertex_id: a,
             target_vertex_id: b,
             angle: angle_radians(points[a], points[b]),
             assignment: span.assignment_label(),
         });
-        incident[b].push(IncidentRay {
+        incident[fan_of(b)].push(IncidentRay {
+            origin_vertex_id: b,
             target_vertex_id: a,
             angle: angle_radians(points[b], points[a]),
             assignment: span.assignment_label(),
@@ -2112,10 +2561,7 @@ fn kawasaki_residual_entries(
             let mut rays = incident[vertex.id].clone();
             rays.sort_by(|left, right| left.angle.total_cmp(&right.angle));
             if rays.len() >= 4 && rays.len().is_multiple_of(2) {
-                Some(KawasakiResidualEntry {
-                    vertex_id: vertex.id,
-                    rays,
-                })
+                Some(KawasakiResidualEntry { rays })
             } else {
                 None
             }
@@ -2191,6 +2637,21 @@ pub fn camv_violation_counts(
     if points.is_empty() {
         return None;
     }
+    // Only spans with length: the editor drops a zero-length crease when the
+    // answer is written (`insert_line_segments`), and its two coincident ends
+    // become one vertex, so that is the pattern the check has to run on. The
+    // checker builds each fan from the segments touching a point, and a stub
+    // would otherwise add a ray of no direction to the merged vertex.
+    let spans: Vec<&CandidateCreaseSpan> = spans
+        .iter()
+        .filter(|span| {
+            let [a, b] = span.vertices;
+            match (points.get(a), points.get(b)) {
+                (Some(a), Some(b)) => distance(*a, *b) > COLLAPSED_SPAN_LENGTH,
+                _ => true,
+            }
+        })
+        .collect();
     // Unit square -> the editor's ±200 sheet. The import normalizes to that
     // sheet anyway; landing there already keeps its rescale a near-identity.
     let mut fold = treemaker_fold::FoldDocument::new(
@@ -2216,6 +2677,18 @@ pub fn camv_violation_counts(
         big_little_big_violations: violations.len() - angle_violations,
     })
 }
+
+/// A span the pinned round has shrunk to no more than this — a tenth of a pixel
+/// at the detector's scale — is a collapse in progress: see the second pass in
+/// [`pin_to_angle_family`] for why the first pass stops short of a point.
+const COLLAPSE_CANDIDATE_LENGTH: f64 = 1e-4;
+
+/// A span no longer than this has collapsed to a point. The editor's own bar
+/// for dropping a crease on write is far coarser, so anything under this is
+/// gone the moment the answer lands; it is also the default
+/// `degenerate_edge_epsilon`, and the two have to agree for a collapse the
+/// solve sanctions as a merge to be the same collapse the editor performs.
+const COLLAPSED_SPAN_LENGTH: f64 = 1e-6;
 
 fn classify_status(
     before: &GraphAnalysis,
@@ -2308,6 +2781,244 @@ struct PolishOutcome {
     kawasaki_after_degrees: Option<f64>,
     /// The first round that was computed and then refused, if any.
     refused_round: Option<PolishRefusal>,
+    /// The pinned round, when the pattern was read as having an angle family.
+    /// `None` when it has none, or when polish never got that far.
+    pinned_family: Option<PinnedFamilyOutcome>,
+}
+
+/// What the pinned round did. See [`AngleFamilyMode`] and [`pin_to_angle_family`].
+#[derive(Debug, Clone)]
+struct PinnedFamilyOutcome {
+    step_degrees: f64,
+    /// Carrier groups in the model, so `pinned_carriers` reads as a fraction.
+    carriers: usize,
+    /// Every attempt, widest tolerance first; the last one is the adopted one
+    /// when `adopted` is true.
+    attempts: Vec<PinnedAttempt>,
+    adopted: bool,
+}
+
+/// One attempt at pinning, and why it was refused if it was.
+#[derive(Debug, Clone)]
+struct PinnedAttempt {
+    tolerance_degrees: f64,
+    pinned_carriers: usize,
+    kawasaki_degrees: f64,
+    camv: Option<CamvCounts>,
+    /// Edges the lattice collapsed to a point that were not degenerate before:
+    /// two detected vertices the design has as one. Vertex id pairs, with the
+    /// edge's length in the input.
+    collapsed_edges: Vec<([usize; 2], f64)>,
+    /// The widest gap the optimizer left in a collapsed pair before the answer
+    /// closed it; zero when nothing collapsed.
+    lm_separation: f64,
+    seconds: f64,
+    /// Reasons from [`exact_solution_rejection_reasons`] followed by those from
+    /// [`pinned_round_regressions`]; empty when adopted.
+    refusals: Vec<String>,
+}
+
+/// A pinned round's result: the report, plus the adopted attempt when one was.
+struct PinnedFamilyRound {
+    outcome: PinnedFamilyOutcome,
+    adopted: Option<PinnedAdoption>,
+}
+
+struct PinnedAdoption {
+    params: OVector<f64, Dyn>,
+    after: GraphAnalysis,
+    evaluations: usize,
+    /// Spans the round collapsed and the answer therefore reads as merges.
+    merged_span_ids: BTreeSet<usize>,
+}
+
+/// Pin the pattern to its angle family and judge the result. See
+/// [`AngleFamilyMode`] for why, [`SolveModel::pinned_to_angle_family`] for how.
+/// `None` when the mode is off, the budget is gone, or no family is present.
+fn pin_to_angle_family(
+    model: &SolveModel,
+    input: &ExactSolveInput,
+    before: &GraphAnalysis,
+    current_params: &OVector<f64, Dyn>,
+    current_after: &GraphAnalysis,
+    options: ExactSolveOptions,
+) -> Option<PinnedFamilyRound> {
+    if options.angle_family == AngleFamilyMode::Off || model.timeout_reached() {
+        return None;
+    }
+    let thetas: Vec<f64> = model
+        .carrier_groups
+        .iter()
+        .map(|group| current_params[group.theta_index])
+        .collect();
+    let step = infer_angle_family(
+        &thetas,
+        options.angle_family_snap_tolerance_radians,
+        options.angle_family_min_fraction,
+    )?;
+    let mut outcome = PinnedFamilyOutcome {
+        step_degrees: step.to_degrees(),
+        carriers: model.carrier_groups.len(),
+        attempts: Vec::new(),
+        adopted: false,
+    };
+    let mut adopted = None;
+    let mut tolerance = options.angle_family_snap_tolerance_radians;
+    for _attempt in 0..=ANGLE_FAMILY_RETRY_HALVINGS {
+        if model.timeout_reached() {
+            break;
+        }
+        let Some((pinned_model, start)) =
+            model.pinned_to_angle_family(current_params, step, tolerance)
+        else {
+            break;
+        };
+        let pinned_carriers = pinned_model
+            .carrier_groups
+            .iter()
+            .filter(|group| group.pinned_step.is_some())
+            .count();
+        // Objective progress is judged from the snapped start, where the pinned
+        // directions have just been moved out from under their vertices: that is
+        // the problem this round solves, and the only fair "before" for it.
+        let started = model.deadline.elapsed_seconds();
+        let (pinned_params, _termination, mut evaluations, _objective, _counters) =
+            run_lm_minimize(&pinned_model, &start, options);
+        let raw_points = model.points_from_params(&pinned_params);
+        // A span the lattice collapsed is two detected vertices the design has
+        // as one: with every direction pinned, its ends meet only where the
+        // lines through them are concurrent, and that is the design's vertex.
+        // The editor merges them on write, so the round is judged on the
+        // merged pattern — and the merge has to pass every check below, which
+        // is what separates a design vertex from a stub that must not go.
+        let merged_span_ids: BTreeSet<usize> = input
+            .selected_spans
+            .iter()
+            .filter(|span| {
+                let [a, b] = span.vertices;
+                !model.merged_span_ids.contains(&span.id)
+                    && !current_after.degenerate_edges.contains(&[a, b])
+                    && a < raw_points.len()
+                    && b < raw_points.len()
+                    && distance(raw_points[a], raw_points[b]) <= COLLAPSE_CANDIDATE_LENGTH
+            })
+            .map(|span| span.id)
+            .collect();
+        // Second pass for a collapse: with the pair held together and the stub
+        // out of the fans and off its carrier. The first pass cannot finish the
+        // job — a stub's direction, read from two points a hair apart, couples
+        // Kawasaki at both ends to their separation, and the optimizer settles
+        // a few millionths short of the intersection. This pass solves the
+        // merged vertex the round is about to be judged on.
+        let (judged_model, pinned_params) = if merged_span_ids.is_empty() {
+            (pinned_model.clone(), pinned_params)
+        } else {
+            let merged_pinned = pinned_model.with_merged_spans(&merged_span_ids);
+            let (params, _termination, more, _objective, _counters) =
+                run_lm_minimize(&merged_pinned, &pinned_params, options);
+            evaluations += more;
+            (merged_pinned, params)
+        };
+        let start_energy = residual_energy(&judged_model.residuals_for(&start));
+        let final_energy = residual_energy(&judged_model.residuals_for(&pinned_params));
+        let merged_model = model.with_merged_spans(&merged_span_ids);
+        let raw_points = model.points_from_params(&pinned_params);
+        // How far apart the optimizer actually left each collapsed pair, before
+        // the answer makes them one point: a diagnostic on the round's
+        // convergence, and the movement the snap is about to add.
+        let lm_separation = merged_model
+            .merged_spans()
+            .map(|span| distance(raw_points[span.vertices[0]], raw_points[span.vertices[1]]))
+            .fold(0.0_f64, f64::max);
+        let pinned_points = merged_model.placed_points(&pinned_params);
+        let pinned_after = analyze_graph(
+            input,
+            &pinned_points,
+            &merged_model,
+            &pinned_params,
+            options,
+        );
+        let pinned_status = classify_status(before, &pinned_after, options);
+        let mut refusals = exact_solution_rejection_reasons(
+            before,
+            &pinned_after,
+            pinned_status,
+            start_energy,
+            final_energy,
+            options,
+        );
+        refusals.extend(pinned_round_regressions(
+            current_after,
+            &pinned_after,
+            options,
+        ));
+        let collapsed_edges = input
+            .selected_spans
+            .iter()
+            .filter(|span| merged_span_ids.contains(&span.id))
+            .map(|span| {
+                let [a, b] = span.vertices;
+                (
+                    [a, b],
+                    distance(input.vertices[a].point, input.vertices[b].point),
+                )
+            })
+            .collect();
+        outcome.attempts.push(PinnedAttempt {
+            tolerance_degrees: tolerance.to_degrees(),
+            pinned_carriers,
+            kawasaki_degrees: pinned_after.max_kawasaki_residual_degrees,
+            camv: pinned_after.camv,
+            collapsed_edges,
+            lm_separation,
+            seconds: model.deadline.elapsed_seconds() - started,
+            refusals: refusals.clone(),
+        });
+        if refusals.is_empty() {
+            outcome.adopted = true;
+            adopted = Some(PinnedAdoption {
+                params: pinned_params,
+                after: pinned_after,
+                evaluations,
+                merged_span_ids,
+            });
+            break;
+        }
+        tolerance /= 2.0;
+    }
+    Some(PinnedFamilyRound { outcome, adopted })
+}
+
+/// Why a pinned round must not land, over and above the ordinary acceptance
+/// gate. The round exists to make designed ties exact; one that reaches them by
+/// giving up a Kawasaki vertex, or by creating a Big-Little-Big violation, has
+/// pinned a carrier that was never on the lattice, and the answer is to pin
+/// fewer, not to keep it.
+fn pinned_round_regressions(
+    current: &GraphAnalysis,
+    pinned: &GraphAnalysis,
+    options: ExactSolveOptions,
+) -> Vec<String> {
+    let mut reasons = Vec::new();
+    let kawasaki_bar = current
+        .max_kawasaki_residual_degrees
+        .max(options.solved_kawasaki_epsilon_degrees);
+    if pinned.max_kawasaki_residual_degrees > kawasaki_bar {
+        reasons.push("pinned_kawasaki_regressed".to_owned());
+    }
+    match (current.camv, pinned.camv) {
+        (Some(was), Some(now)) => {
+            if now.angle_violations > was.angle_violations {
+                reasons.push("pinned_angle_violations_increased".to_owned());
+            }
+            if now.big_little_big_violations > was.big_little_big_violations {
+                reasons.push("pinned_big_little_big_increased".to_owned());
+            }
+        }
+        (Some(_), None) => reasons.push("pinned_checker_unavailable".to_owned()),
+        (None, _) => {}
+    }
+    reasons
 }
 
 /// A polish round that was computed, judged, and rejected.
@@ -2339,6 +3050,7 @@ impl PolishOutcome {
             kawasaki_before_degrees: None,
             kawasaki_after_degrees: None,
             refused_round: None,
+            pinned_family: None,
         }
     }
 
@@ -2363,6 +3075,34 @@ fn polish_report_json(polish: &PolishOutcome, options: ExactSolveOptions) -> Val
                 "kawasaki_degrees": round12(refusal.kawasaki_degrees),
                 "kawasaki_regressed": refusal.kawasaki_regressed,
                 "rejection_reasons": refusal.rejection_reasons,
+            })
+        }),
+        "pinned_family": polish.pinned_family.as_ref().map(|pinned| {
+            json!({
+                "step_degrees": pinned.step_degrees,
+                "carriers": pinned.carriers,
+                "adopted": pinned.adopted,
+                "attempts": pinned
+                    .attempts
+                    .iter()
+                    .map(|attempt| {
+                        json!({
+                            "tolerance_degrees": attempt.tolerance_degrees,
+                            "pinned_carriers": attempt.pinned_carriers,
+                            "kawasaki_degrees": round12(attempt.kawasaki_degrees),
+                            "camv_angle_violations": attempt.camv.map(|camv| camv.angle_violations),
+                            "big_little_big_violations": attempt.camv.map(|camv| camv.big_little_big_violations),
+                            "collapsed_edges": attempt
+                                .collapsed_edges
+                                .iter()
+                                .map(|(edge, length)| json!({ "vertices": edge, "input_length": round6(*length) }))
+                                .collect::<Vec<_>>(),
+                            "lm_separation": attempt.lm_separation,
+                            "seconds": round6(attempt.seconds),
+                            "refusals": attempt.refusals,
+                        })
+                    })
+                    .collect::<Vec<_>>(),
             })
         }),
     })
@@ -2499,8 +3239,13 @@ fn movement_report(
         .zip(candidate_points)
         .map(|((_, before), after)| distance(*before, *after))
         .fold(0.0_f64, f64::max);
+    let merged_vertices = model.merged_vertex_pairs();
     json!({
         "schema": "oristudio/cp-compiler/exact-solve-movement-report-v1",
+        // Vertex pairs the answer places at one point: the pinned round found
+        // the design has them as a single vertex, and the crease between them
+        // is gone once the answer is written. See `pin_to_angle_family`.
+        "merged_vertices": merged_vertices,
         "termination": termination,
         "timed_out": model.timed_out.get(),
         "timeout_seconds": options.timeout_seconds,
@@ -2632,6 +3377,10 @@ fn residual_breakdown_json(breakdown: &ResidualBreakdown) -> Value {
             "count": breakdown.kawasaki_count,
             "energy": round6(breakdown.kawasaki_energy),
         },
+        "coincidence": {
+            "count": breakdown.coincidence_count,
+            "energy": round6(breakdown.coincidence_energy),
+        },
     })
 }
 
@@ -2672,6 +3421,7 @@ fn failed_graph(
             .iter()
             .map(|span| span.vertices)
             .collect(),
+        merged_vertices: Vec::new(),
         movement_report,
         theorem_residual_report,
         status: ExactSolvedGraphStatus::Failed,
@@ -3215,6 +3965,306 @@ mod tests {
     const CAMV_FLAT_EPSILON_DEGREES: f64 = 1e-6;
 
     #[test]
+    fn lattice_offset_is_signed_distance_to_nearest_multiple() {
+        let step = 22.5_f64.to_radians();
+        for (theta_degrees, expected_degrees) in [
+            (45.0_f64, 0.0_f64),
+            (46.0, 1.0),
+            (44.0, -1.0),
+            (-22.5, 0.0),
+            (170.0, -10.0),
+            (0.3, 0.3),
+        ] {
+            let offset = lattice_offset(theta_degrees.to_radians(), step).to_degrees();
+            assert!(
+                (offset - expected_degrees).abs() < 1e-9,
+                "{theta_degrees}: expected {expected_degrees}, got {offset}"
+            );
+        }
+    }
+
+    #[test]
+    fn infer_angle_family_prefers_the_finest_lattice_that_fits() {
+        let tolerance = 1.5_f64.to_radians();
+        let degrees = |list: &[f64]| list.iter().map(|d| d.to_radians()).collect::<Vec<_>>();
+        // A 22.5° design, drawn with half a degree of noise.
+        let family = infer_angle_family(
+            &degrees(&[0.4, 22.1, 45.3, 67.9, 90.0, 112.6]),
+            tolerance,
+            0.5,
+        );
+        assert_eq!(family.map(f64::to_degrees), Some(22.5));
+        // A 45° design fits both lattices and reads as 22.5°, which pins it to
+        // the same angles.
+        let family = infer_angle_family(&degrees(&[0.0, 45.2, 90.1, 135.0]), tolerance, 0.5);
+        assert_eq!(family.map(f64::to_degrees), Some(22.5));
+        // Box-pleat diagonals at atan 2 are on neither, and with them in the
+        // majority there is no family to pin to.
+        let family = infer_angle_family(
+            &degrees(&[26.57, 63.43, 116.57, 153.43, 0.0, 90.0]),
+            tolerance,
+            0.5,
+        );
+        assert_eq!(family, None);
+        assert_eq!(infer_angle_family(&[], tolerance, 0.5), None);
+    }
+
+    /// The four-ray fan pinned to its family. Its rays run to the fixed
+    /// corners, so the only point where all four sit at exactly 45° is the
+    /// centre of the square, and the pinned round has to put the vertex there
+    /// — not near it — for the four right angles to tie within the checker's
+    /// 1e-6°.
+    fn assert_pinned_fan_lands_on_the_centre(options: ExactSolveOptions) {
+        let input = maekawa_clean_four_ray_input(Point2::new(0.505, 0.50));
+        let solved = solve_exact(&input, options);
+        let pinned = &solved.movement_report["polish"]["pinned_family"];
+        assert_eq!(
+            pinned["adopted"],
+            serde_json::Value::Bool(true),
+            "the fan is a 45° design and must be pinned: {pinned}"
+        );
+        assert_eq!(pinned["step_degrees"], serde_json::json!(22.5));
+        assert!(
+            solved.movement_report["termination"]
+                .as_str()
+                .unwrap()
+                .ends_with(",pinned)"),
+            "{}",
+            solved.movement_report["termination"]
+        );
+        assert_eq!(solved.status, ExactSolvedGraphStatus::Solved);
+        let centre = solved.vertices_exact[4];
+        assert!(
+            (centre.x - 0.5).abs() < 1e-9 && (centre.y - 0.5).abs() < 1e-9,
+            "pinned directions through fixed corners meet at the centre, got {centre:?}"
+        );
+        for corner in 0..4 {
+            let to = solved.vertices_exact[corner];
+            let angle = (to.y - centre.y).atan2(to.x - centre.x).to_degrees();
+            let off_lattice = lattice_offset(angle, 45.0);
+            assert!(
+                off_lattice.abs() < 1e-7,
+                "ray to corner {corner} sits {off_lattice} degrees off the lattice"
+            );
+        }
+    }
+
+    #[test]
+    fn pinned_round_makes_designed_ties_exact() {
+        assert_pinned_fan_lands_on_the_centre(ExactSolveOptions::default());
+    }
+
+    #[test]
+    fn pinned_round_freezes_directions_on_the_dense_path_too() {
+        assert_pinned_fan_lands_on_the_centre(ExactSolveOptions {
+            linear_solver: LinearSolver::Dense,
+            ..ExactSolveOptions::default()
+        });
+    }
+
+    #[test]
+    fn angle_family_off_never_pins() {
+        let input = maekawa_clean_four_ray_input(Point2::new(0.505, 0.50));
+        let solved = solve_exact(
+            &input,
+            ExactSolveOptions {
+                angle_family: AngleFamilyMode::Off,
+                ..ExactSolveOptions::default()
+            },
+        );
+        assert!(solved.movement_report["polish"]["pinned_family"].is_null());
+        assert!(
+            !solved.movement_report["termination"]
+                .as_str()
+                .unwrap()
+                .contains("pinned")
+        );
+    }
+
+    /// A pinned round that would cost a Kawasaki vertex is refused, and the
+    /// solve keeps the unpinned answer. The fan's top ray is bent 4° off the
+    /// diagonal, which is outside every retry tolerance, so it is never pinned;
+    /// pinning the other three then forces Kawasaki at the centre onto a
+    /// direction the free ray cannot reach from where its far end is fixed.
+    #[test]
+    fn pinned_round_is_refused_rather_than_break_kawasaki() {
+        let mut input = maekawa_clean_four_ray_input(Point2::new(0.5, 0.5));
+        // Move corner 2 (the (1,1) end) off the diagonal so its ray is 4° off
+        // 45°; the corner is fixed, so nothing the solve does can put it back.
+        let bent = 49.0_f64.to_radians();
+        input.vertices[2].point = Point2::new(0.5 + 0.5 * bent.cos(), 0.5 + 0.5 * bent.sin());
+        let solved = solve_exact(&input, ExactSolveOptions::default());
+        let pinned = &solved.movement_report["polish"]["pinned_family"];
+        if pinned.is_null() {
+            // Three of six carriers on the lattice is exactly the fraction bar;
+            // either reading is fine, as long as nothing was pinned.
+            return;
+        }
+        assert_eq!(
+            pinned["adopted"],
+            serde_json::Value::Bool(false),
+            "{pinned}"
+        );
+        for attempt in pinned["attempts"].as_array().unwrap() {
+            assert!(
+                !attempt["refusals"].as_array().unwrap().is_empty(),
+                "every attempt must say why it was refused: {attempt}"
+            );
+        }
+    }
+
+    /// The design's centre vertex — eight creases at 45° — detected as two
+    /// vertices `a` and `b` a few pixels apart on the horizontal crease through
+    /// it, joined by a stub of that crease. Each half is a legal vertex on its
+    /// own (degree 6 and degree 4, Kawasaki- and Maekawa-clean, no
+    /// Big-Little-Big), so nothing but the lattice says they are one: pinned,
+    /// the lines through each are concurrent at the centre, the stub collapses,
+    /// and the answer holds one vertex.
+    fn split_junction_input() -> (ExactSolveInput, usize, usize, usize) {
+        let mut input = base_square_input();
+        // Boundary contacts for the horizontal and vertical creases. The base
+        // square's Top side is y = 0, corners 0 → 1.
+        for (id, point, side) in [
+            (4, Point2::new(0.5, 0.0), BoundarySide::Top),
+            (5, Point2::new(0.5, 1.0), BoundarySide::Bottom),
+            (6, Point2::new(0.0, 0.5), BoundarySide::Left),
+            (7, Point2::new(1.0, 0.5), BoundarySide::Right),
+        ] {
+            input.vertices.push(vertex(
+                id,
+                point,
+                CandidateVertexKind::BoundaryContact,
+                CandidateVertexMovementPolicy::Movable,
+                Some(side),
+            ));
+        }
+        let a = 8;
+        let b = 9;
+        input.vertices.push(vertex(
+            a,
+            Point2::new(0.496, 0.5005),
+            CandidateVertexKind::InteriorJunction,
+            CandidateVertexMovementPolicy::Movable,
+            None,
+        ));
+        input.vertices.push(vertex(
+            b,
+            Point2::new(0.504, 0.4995),
+            CandidateVertexKind::InteriorJunction,
+            CandidateVertexMovementPolicy::Movable,
+            None,
+        ));
+        // Split each of the Top and Bottom border spans at its contact, and the
+        // Left and Right ones likewise.
+        input.selected_spans.clear();
+        let border = [
+            (0, 0, 4),
+            (1, 4, 1),
+            (2, 1, 7),
+            (3, 7, 2),
+            (4, 3, 5),
+            (5, 5, 2),
+            (6, 0, 6),
+            (7, 6, 3),
+        ];
+        for (id, p, q) in border {
+            input.selected_spans.push(span(
+                id,
+                p,
+                q,
+                AssignmentLabel::Boundary,
+                id,
+                &input.vertices,
+            ));
+        }
+        input.boundary.sides[0].contact_vertices = vec![0, 4, 1];
+        input.boundary.sides[1].contact_vertices = vec![1, 7, 2];
+        input.boundary.sides[2].contact_vertices = vec![3, 5, 2];
+        input.boundary.sides[3].contact_vertices = vec![0, 6, 3];
+        input.boundary.generated_border_span_ids = (0..8).collect();
+        use AssignmentLabel::{Mountain as M, Valley as V};
+        // `a` keeps the left half of the fan plus both verticals; `b` the right
+        // half. Maekawa holds on each half with the stub counted, and on the
+        // union without it: 5 mountains to 3 valleys.
+        let stub = 8;
+        let creases = [
+            (stub, a, b, M),
+            (9, a, 5, M),  // up (the Bottom side is y = 1 — image coordinates)
+            (10, a, 3, V), // (0, 1)
+            (11, a, 6, M), // left
+            (12, a, 0, V), // (0, 0)
+            (13, a, 4, M), // down
+            (14, b, 2, M), // (1, 1)
+            (15, b, 7, V), // right
+            (16, b, 1, M), // (1, 0)
+        ];
+        for (id, p, q, label) in creases {
+            input
+                .selected_spans
+                .push(span(id, p, q, label, id, &input.vertices));
+        }
+        (input, a, b, stub)
+    }
+
+    #[test]
+    fn pinned_round_merges_a_split_junction() {
+        let (input, a, b, stub) = split_junction_input();
+        let solved = solve_exact(&input, ExactSolveOptions::default());
+        let pinned = &solved.movement_report["polish"]["pinned_family"];
+        assert_eq!(pinned["adopted"], serde_json::Value::Bool(true), "{pinned}");
+        assert_eq!(
+            solved.merged_vertices,
+            vec![[a, b]],
+            "the stub's ends are the design's one vertex: {}",
+            solved.movement_report["polish"]
+        );
+        assert_eq!(
+            solved.movement_report["merged_vertices"],
+            serde_json::json!([[a, b]])
+        );
+        let (at_a, at_b) = (solved.vertices_exact[a], solved.vertices_exact[b]);
+        assert_eq!(at_a, at_b, "a merged pair is one point, exactly");
+        assert!(
+            (at_a.x - 0.5).abs() < 1e-9 && (at_a.y - 0.5).abs() < 1e-9,
+            "the pinned lines are concurrent at the centre, got {at_a:?}"
+        );
+        assert_eq!(
+            solved.status,
+            ExactSolvedGraphStatus::Solved,
+            "{}",
+            solved.movement_report
+        );
+        // The stub is still listed, index-paired with the input's spans, and is
+        // what the editor will drop.
+        assert_eq!(solved.edges_exact.len(), input.selected_spans.len());
+        assert_eq!(solved.edges_exact[stub], [a, b]);
+        // The FOLD the answer exports holds the merged pattern: one vertex
+        // fewer, the stub gone, and the checker clean on it.
+        let fold = crate::fold_export::export_exact_solved_to_fold_document(&input, &solved)
+            .expect("export");
+        assert_eq!(fold.edges_vertices.len(), input.selected_spans.len() - 1);
+        assert_eq!(fold.vertices_coords.len(), input.vertices.len() - 1);
+        assert_eq!(fold.edges_assignment.len(), fold.edges_vertices.len());
+        let model = oristudio_cp::io::fold::import_fold_document(&fold).expect("import");
+        let violations = oristudio_cp::checks::check_camv_task(&model).violations;
+        assert!(violations.is_empty(), "{violations:?}");
+    }
+
+    #[test]
+    fn split_junction_stays_split_without_the_pin() {
+        let (input, a, b, _stub) = split_junction_input();
+        let solved = solve_exact(
+            &input,
+            ExactSolveOptions {
+                angle_family: AngleFamilyMode::Off,
+                ..ExactSolveOptions::default()
+            },
+        );
+        assert!(solved.merged_vertices.is_empty());
+        assert_ne!(solved.vertices_exact[a], solved.vertices_exact[b]);
+    }
+
+    #[test]
     fn polish_report_records_adopted_rounds() {
         // Maekawa-clean, so the polish can actually reach `Solved`; the M,V,M,V
         // fan never can, and a round that cannot improve past `Ambiguous` is
@@ -3658,10 +4708,10 @@ mod tests {
         // ...and that solve is still the committed golden, so the budget now
         // reading a restricted maximum changed no accepted behavior.
         let golden = load_golden_points("right_small_fork");
-        // `Ambiguous`, not `Solved`: this golden is Kawasaki-exact and carries one
-        // Big-Little-Big violation, which the verdict now counts. Still accepted —
-        // the assertion that matters for this test is the next one.
-        assert_eq!(plain.status, ExactSolvedGraphStatus::Ambiguous);
+        // `Solved`: the fixture is a 22.5° design, and the pinned round makes its
+        // designed ties exact — the one Big-Little-Big violation the Kawasaki-only
+        // solve left behind is gone with them.
+        assert_eq!(plain.status, ExactSolvedGraphStatus::Solved);
         assert!(plain.movement_report["accepted"].as_bool().unwrap_or(false));
         let drift = max_golden_drift_px(&plain.vertices_exact, &golden, 1.0);
         assert!(
@@ -3725,10 +4775,10 @@ mod tests {
                 exempt_vertex_ids: BTreeSet::from([FORK_MOVED_VERTEX]),
             },
         );
-        // See `empty_exemption_set_reproduces_the_unexempted_solve_exactly`: the
-        // golden carries one Big-Little-Big violation, so `Ambiguous` is the
-        // honest verdict. Exemption is about acceptance, which is asserted next.
-        assert_eq!(accepted.status, ExactSolvedGraphStatus::Ambiguous);
+        // Exemption is about acceptance, which is asserted next; the verdict is
+        // the pinned round's, as in
+        // `empty_exemption_set_reproduces_the_unexempted_solve_exactly`.
+        assert_eq!(accepted.status, ExactSolvedGraphStatus::Solved);
         assert!(
             accepted.movement_report["accepted"]
                 .as_bool()
@@ -4102,6 +5152,16 @@ mod tests {
             .and_then(Value::as_object_mut)
         {
             report.remove("elapsed_seconds");
+            if let Some(attempts) = report
+                .get_mut("polish")
+                .and_then(|polish| polish.get_mut("pinned_family"))
+                .and_then(|pinned| pinned.get_mut("attempts"))
+                .and_then(Value::as_array_mut)
+            {
+                for attempt in attempts.iter_mut().filter_map(Value::as_object_mut) {
+                    attempt.remove("seconds");
+                }
+            }
         }
         value
     }

@@ -251,7 +251,7 @@ because that also unbalances it against the movement priors).
 remaining freedom for ordering — and the two live five orders of magnitude apart
 (1e-6° versus ~0.5°). A single weighted sum cannot rank them.
 
-### Phase 2 — what to try instead (**fork: needs a decision**)
+### Phase 2 — what to try instead (**decided: a pinned lattice round — see Outcome**)
 
 Three candidates, in increasing cost:
 
@@ -341,20 +341,85 @@ wrongly-inferred family pulls solves away from GT rather than toward it.
 - [x] **Phase 0** — `gt_camv_survey` and `solve_gt_scorecard`; baseline above.
 - [ ] **Phase 0** — lift the square-paper restriction so the 28 refusals (all the
       large `lamprey` patterns) become usable stress cases.
-- [ ] **Phase 1** — measure the near-opposite angle distribution; pick the
-      pass-through tolerance from it.
-- [ ] **Phase 1** — union carrier groups across pass-through pairs; unit tests
-      for a crossing, a genuine shallow corner, and a degree-2 case.
-- [ ] **Phase 1** — scorecard vs baseline; check `Ambiguous` did not increase.
+- [x] **Phase 1** — hard carrier sharing measured; over-constrains. Reverted.
 - [x] **Phase 2** — BLB hinge residual built and measured; a least-squares
       penalty cannot rank Kawasaki above ordering. Reverted.
-- [ ] **Phase 2** — pick a replacement (tie-preservation / null-space correction
-      / hard constraint). **Fork — stopped for Zach.**
-- [ ] **Phase 3** — BLB in the `Solved` criteria and the completion sentence.
-      **Stop and confirm with Zach.**
-- [ ] **Phase 4** — GT error across the corpus; decide on an angle-quantization
-      prior. **Fork — stop.**
+- [x] **Phase 2 replacement** — a *soft* lattice prior measured at every sigma
+      and tolerance: GT error improves, BLB does not move (see Outcome). Replaced
+      by the **pinned angle-family round**, which does.
+- [x] **Phase 3** — the verdict counts Maekawa and Big-Little-Big through the
+      editor's own checker (`camv_violation_counts`), `Solved` sits at 1e-6°,
+      and the completion sentence names the Big-Little-Big cause. (31c45191,
+      b334fffb)
+- [x] **Phase 4** — GT error across the corpus, with and without the pin; the
+      benchmark gained `solve_foldable` / `solve_recovered_and_foldable`.
+- [x] Detector-split junctions: a stub the lattice collapses is adopted as a
+      vertex merge (`ExactSolvedGraph::merged_vertices`).
 - [ ] Update `PORTING.md` if the acceptance criteria diverge from Oriedita's.
+- [ ] Retry by peeling: when a pinned round is refused, unpin only the carriers
+      through the vertices where Kawasaki broke, instead of halving the
+      tolerance for all of them (iguana50-09/10/40 are refused today at every
+      tolerance while their unpinned solve is already clean; close_but's three
+      attempts cost 6–14 s each).
+- [ ] A merged pair in the solve summary ("2 vertices merged"), once the i18n
+      pass is due.
+
+## Outcome — the pinned angle-family round (2026-09-01)
+
+**What was measured before choosing.** The soft prior — a residual
+`lattice_offset(θ)/σ` on every carrier within a tolerance of the 22.5°/45°
+lattice — was swept over σ ∈ {0.1°, 0.5°, 2°} × tolerance ∈ {0.5°, 1.5°, 3°},
+stage-1-and-polish and polish-only, on the 11-sample `22-5/` corpus at 4 px
+noise plus the three user files:
+
+| setting | clean | BLB>0 | GT err px | pegasus angle viol. |
+| --- | --- | --- | --- | --- |
+| off (baseline) | 8 | 3 | 1.78 | 0 |
+| σ 0.1°, tol 0.5° | 7 | 4 | 1.45 | 0 |
+| σ 0.1°, tol ≥ 1.5° | 7 | 4 | 1.45 | **167** |
+| σ 0.5°, tol 0.5° | 7 | 4 | 1.53 | 0 |
+| σ 2°, any tol | 8 | 3 | 1.74 | 0 |
+
+GT error improves and Big-Little-Big does not move — because BLB at a near-tie
+is decided by the *sign* of the tie-break, not its size. Shrinking the break
+from 0.02° to 0.002° re-flips coins. The tie has to be exact within the
+checker's 1e-6°, and only a pinned direction gives that.
+
+**What ships.** After the polish rounds, one more: infer the family (≥ 50% of
+carriers within 1.5° of the 22.5° lattice; a 45° design fits it too), set every
+on-lattice carrier's θ to its exact lattice angle and freeze it (a masked
+Jacobian column), re-solve, and keep the result only if the acceptance gate,
+the Kawasaki bar and the checker's own angle and BLB counts all hold or improve.
+A refused round retries at half the tolerance, twice. With directions pinned,
+incidence is linear and vertices land on their lines to machine precision, so
+every sector is an exact lattice difference: Kawasaki exact, every designed tie
+exact. `movement_report.polish.pinned_family` records each attempt.
+
+A detector-split junction — two vertices a few pixels apart on a pass-through
+crease — collapses under the pin, because the pinned lines through both are
+concurrent. That is adopted as a **merge**: the pair is one fan for the
+optimizer and the analysis (a coincidence residual holds them together, the
+stub leaves the fans and its carrier), the answer places both at one exact
+point, the FOLD export drops the stub, and the web placement removes the
+crease. A first pinned pass alone stops ~4e-6 short of the intersection —
+the stub's direction, read from two points a hair apart, couples Kawasaki at
+both ends to their separation — hence the second, merged pass.
+
+**Measured after.** `solve_gt_scorecard`, pinned vs off:
+
+| corpus | noise | off | pinned |
+| --- | --- | --- | --- |
+| `22-5/` (11) | 1 px | 8 clean | **11 clean** |
+| `22-5/` (11) | 2 px | 8 clean | **11 clean** |
+| `22-5/` (11) | 4 px | 7 clean | 8 clean (one refused on the movement budget; two stage-1 Kawasaki failures unrelated to the pin) |
+| `bases` (41 square) | 2 px | 39 clean, 2 broken | **40 clean**, 1 broken (iguana50-23: 96 → 6 angle violations, the pin adopted as an improvement) |
+
+Three fully-lattice samples come back at **0.00 px** from ground truth. User
+files: `mid-solve_4` and `mostly-successful` go to `Solved` with 0 angle and 0
+BLB, each with one ~7 px stub merged; `close_but` (27% of spans > 1.5° off the
+lattice) and `pegasus` (18%) are refused at every tolerance and keep their
+unpinned answer, unchanged. The pinned round costs 2–200 ms at these sizes;
+close_but's three refused attempts cost 6–14 s each, inside the deadline.
 
 ## Open questions
 

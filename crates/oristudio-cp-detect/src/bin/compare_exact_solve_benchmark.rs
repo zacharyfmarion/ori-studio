@@ -173,6 +173,17 @@ struct BenchmarkSummary {
     /// honest end-to-end success count, vs `implementations.selected.strict_topology`
     /// which only scores the candidate graph.
     solve_recovered_original: usize,
+    /// Number of samples whose solved fold the editor's own foldability check
+    /// passes — zero Kawasaki *and* zero Big-Little-Big violations from CAMV.
+    ///
+    /// Orthogonal to `solve_recovered_original`, which matches topology and
+    /// assignment at a pixel tolerance and is therefore blind to whether the
+    /// answer folds: measured across the ground-truth packs, 0 of 563 `native-cp-v1`
+    /// samples pass this check, so matching GT and being foldable are different
+    /// achievements and the benchmark has to count both.
+    solve_foldable: usize,
+    /// Both at once: matched the original *and* passes the check.
+    solve_recovered_and_foldable: usize,
     total_seconds: f64,
     timing: BenchmarkTimingAggregate,
     implementations: BTreeMap<String, ImplementationAggregate>,
@@ -215,6 +226,9 @@ struct BenchmarkSample {
     /// it recovered the original crease pattern. (`selected.strict_topology` only
     /// scores the candidate graph; this scores the solved fold.)
     solve_recovered_original: bool,
+    /// The solved fold passes CAMV — 0 angle, 0 Big-Little-Big. `false` when the
+    /// solve was skipped or the check could not run.
+    solve_foldable: bool,
     attribution: FailureAttribution,
     timing: BenchmarkSampleTiming,
     seconds: f64,
@@ -355,6 +369,9 @@ struct ExactSolveSummary {
     status: String,
     seconds: f64,
     accepted: Option<bool>,
+    /// CAMV on the solved geometry, by the checker the editor draws from.
+    camv_angle_violations: Option<usize>,
+    big_little_big_violations: Option<usize>,
     rejection_reasons: Vec<String>,
     initial_objective: Option<f64>,
     final_objective: Option<f64>,
@@ -383,6 +400,8 @@ struct ExactSolveAggregate {
     solved: usize,
     ambiguous: usize,
     failed: usize,
+    /// Accepted solves whose result passes CAMV outright.
+    foldable: usize,
     accepted: usize,
     rejected: usize,
     total_seconds: f64,
@@ -408,6 +427,10 @@ impl ExactSolveAggregate {
         }
         if exact.accepted.unwrap_or(false) {
             self.accepted += 1;
+            if exact.camv_angle_violations == Some(0) && exact.big_little_big_violations == Some(0)
+            {
+                self.foldable += 1;
+            }
         } else {
             self.rejected += 1;
         }
@@ -1023,7 +1046,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             bad_topology_exact_solve_summary()
         } else {
             match &exact_solved {
-                Some(exact) => exact_solve_summary(exact, exact_seconds),
+                Some(exact) => exact_solve_summary(&exact_input, exact, exact_seconds),
                 None => skipped_exact_solve_summary(),
             }
         };
@@ -1057,6 +1080,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let sample_seconds = sample_started.elapsed().as_secs_f64();
         let solve_recovered_original = exact_summary.accepted == Some(true)
             && exact_output.strict_topology.exact_topology_and_assignment;
+        let solve_foldable = exact_summary.accepted == Some(true)
+            && exact_summary.camv_angle_violations == Some(0)
+            && exact_summary.big_little_big_violations == Some(0);
         let row = BenchmarkSample {
             id: sample.id.clone(),
             source_id: sample.source_id.clone(),
@@ -1075,6 +1101,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             },
             exact_solve: exact_summary,
             solve_recovered_original,
+            solve_foldable,
             attribution,
             timing: BenchmarkSampleTiming {
                 read_logits_seconds: round3(read_logits_seconds),
@@ -1148,6 +1175,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         solve_recovered_original: rows
             .iter()
             .filter(|row| row.solve_recovered_original)
+            .count(),
+        solve_foldable: rows.iter().filter(|row| row.solve_foldable).count(),
+        solve_recovered_and_foldable: rows
+            .iter()
+            .filter(|row| row.solve_recovered_original && row.solve_foldable)
             .count(),
         total_seconds: round3(started.elapsed().as_secs_f64()),
         timing: aggregate_timing(&rows),
@@ -2012,6 +2044,8 @@ fn skipped_exact_solve_summary() -> ExactSolveSummary {
         status: "skipped".to_owned(),
         seconds: 0.0,
         accepted: None,
+        camv_angle_violations: None,
+        big_little_big_violations: None,
         rejection_reasons: Vec::new(),
         initial_objective: None,
         final_objective: None,
@@ -2032,6 +2066,8 @@ fn bad_topology_exact_solve_summary() -> ExactSolveSummary {
         status: "failed".to_owned(),
         seconds: 0.0,
         accepted: Some(false),
+        camv_angle_violations: None,
+        big_little_big_violations: None,
         rejection_reasons: vec!["topology_mismatch".to_owned()],
         initial_objective: None,
         final_objective: None,
@@ -2045,10 +2081,20 @@ fn bad_topology_exact_solve_summary() -> ExactSolveSummary {
     }
 }
 
-fn exact_solve_summary(exact: &ExactSolvedGraph, seconds: f64) -> ExactSolveSummary {
+fn exact_solve_summary(
+    input: &ExactSolveInput,
+    exact: &ExactSolvedGraph,
+    seconds: f64,
+) -> ExactSolveSummary {
+    // `vertices_exact` is index-aligned with `input.vertices` and the spans are
+    // the input's own, so this is the checker over exactly the answer returned.
+    let camv =
+        oristudio_cp_compiler::camv_violation_counts(&exact.vertices_exact, &input.selected_spans);
     ExactSolveSummary {
         status: exact_status_label(exact.status).to_owned(),
         seconds: round3(seconds),
+        camv_angle_violations: camv.map(|c| c.angle_violations),
+        big_little_big_violations: camv.map(|c| c.big_little_big_violations),
         accepted: exact
             .movement_report
             .get("accepted")

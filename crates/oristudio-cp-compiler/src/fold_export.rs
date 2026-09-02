@@ -1,6 +1,6 @@
 use crate::{
-    AssignmentLabel, CandidateProgram, CompilerError, EdgeSelection, ExactSolveInput,
-    ExactSolvedGraph, ExactSolvedGraphStatus,
+    AssignmentLabel, CandidateCreaseSpan, CandidateProgram, CompilerError, EdgeSelection,
+    ExactSolveInput, ExactSolvedGraph, ExactSolvedGraphStatus,
 };
 use serde_json::json;
 use treemaker_fold::{Assignment, FoldAngle, FoldDocument};
@@ -93,8 +93,33 @@ pub fn export_exact_solved_to_fold_document(
         )));
     }
 
-    let mut used_vertices = solved
+    // A merged pair is one vertex in the answer and the crease between them is
+    // gone: alias each member to the lowest id in its group and drop the edges
+    // that become self-loops, so the FOLD holds the pattern the editor will.
+    // See `ExactSolvedGraph::merged_vertices`.
+    let mut alias: Vec<usize> = (0..solved.vertices_exact.len()).collect();
+    fn resolve(alias: &[usize], mut vertex: usize) -> usize {
+        while vertex < alias.len() && alias[vertex] != vertex {
+            vertex = alias[vertex];
+        }
+        vertex
+    }
+    for &[a, b] in &solved.merged_vertices {
+        let (ra, rb) = (resolve(&alias, a), resolve(&alias, b));
+        if ra != rb && ra < alias.len() && rb < alias.len() {
+            alias[ra.max(rb)] = ra.min(rb);
+        }
+    }
+    let resolved_edges: Vec<[usize; 2]> = solved
         .edges_exact
+        .iter()
+        .map(|&[a, b]| [resolve(&alias, a), resolve(&alias, b)])
+        .collect();
+    let kept: Vec<bool> = resolved_edges.iter().map(|[a, b]| a != b).collect();
+    let kept_edges: Vec<[usize; 2]> = kept_only(resolved_edges.iter().copied(), &kept);
+    let kept_spans: Vec<&CandidateCreaseSpan> = kept_only(input.selected_spans.iter(), &kept);
+
+    let mut used_vertices = kept_edges
         .iter()
         .flat_map(|edge| edge.iter().copied())
         .collect::<Vec<_>>();
@@ -113,8 +138,8 @@ pub fn export_exact_solved_to_fold_document(
         vertices_coords.push(vec![point.x, point.y]);
     }
 
-    let mut edges_vertices = Vec::with_capacity(solved.edges_exact.len());
-    for edge in &solved.edges_exact {
+    let mut edges_vertices = Vec::with_capacity(kept_edges.len());
+    for edge in &kept_edges {
         let [a, b] = *edge;
         let Some(remapped_a) = vertex_remap.get(a).copied() else {
             return Err(CompilerError::ExactExport(format!(
@@ -134,8 +159,7 @@ pub fn export_exact_solved_to_fold_document(
         edges_vertices.push([remapped_a, remapped_b]);
     }
 
-    let edges_assignment = input
-        .selected_spans
+    let edges_assignment = kept_spans
         .iter()
         .map(|span| fold_assignment(span.assignment_label()))
         .collect::<Vec<_>>();
@@ -156,35 +180,29 @@ pub fn export_exact_solved_to_fold_document(
             "image_size": input.image_size,
             "exact_status": solved.status,
             "vertex_original_ids": used_vertices,
-            "edge_ids": input
-                .selected_spans
+            "edge_ids": kept_spans
                 .iter()
                 .map(|span| span.source_edge_ids.first().copied().unwrap_or(span.id))
                 .collect::<Vec<_>>(),
-            "edge_span_ids": input.selected_spans.iter().map(|span| span.id).collect::<Vec<_>>(),
-            "edge_source": input.selected_spans.iter().map(|span| span.source_kind).collect::<Vec<_>>(),
-            "edge_provenance": input
-                .selected_spans
+            "edge_span_ids": kept_spans.iter().map(|span| span.id).collect::<Vec<_>>(),
+            "edge_source": kept_spans.iter().map(|span| span.source_kind).collect::<Vec<_>>(),
+            "edge_provenance": kept_spans
                 .iter()
                 .map(|span| span.provenance.clone())
                 .collect::<Vec<_>>(),
-            "edge_support": input
-                .selected_spans
+            "edge_support": kept_spans
                 .iter()
                 .map(|span| span.line_support_mean)
                 .collect::<Vec<_>>(),
-            "assignment_confidence": input
-                .selected_spans
+            "assignment_confidence": kept_spans
                 .iter()
                 .map(|span| span.assignment_evidence.confidence)
                 .collect::<Vec<_>>(),
-            "assignment_margin": input
-                .selected_spans
+            "assignment_margin": kept_spans
                 .iter()
                 .map(|span| span.assignment_evidence.margin)
                 .collect::<Vec<_>>(),
-            "boundary_role": input
-                .selected_spans
+            "boundary_role": kept_spans
                 .iter()
                 .map(|span| span.boundary_role())
                 .collect::<Vec<_>>(),
@@ -195,6 +213,16 @@ pub fn export_exact_solved_to_fold_document(
         }),
     );
     Ok(document)
+}
+
+/// `values` where `kept` says so, in order.
+fn kept_only<T>(values: impl IntoIterator<Item = T>, kept: &[bool]) -> Vec<T> {
+    values
+        .into_iter()
+        .zip(kept)
+        .filter(|(_, keep)| **keep)
+        .map(|(value, _)| value)
+        .collect()
 }
 
 pub fn export_exact_solved_to_fold_json(
@@ -240,6 +268,7 @@ pub fn export_candidate_to_fold_document(
     let candidate = ExactSolvedGraph {
         schema: CANDIDATE_GRAPH_SCHEMA.to_owned(),
         vertices_exact: input.vertices.iter().map(|vertex| vertex.point).collect(),
+        merged_vertices: Vec::new(),
         edges_exact: input
             .selected_spans
             .iter()
@@ -366,6 +395,7 @@ mod tests {
         let mut solved = ExactSolvedGraph {
             schema: "test".to_owned(),
             vertices_exact: input.vertices.iter().map(|vertex| vertex.point).collect(),
+            merged_vertices: Vec::new(),
             edges_exact: input
                 .selected_spans
                 .iter()
@@ -462,6 +492,7 @@ mod tests {
         let identity = ExactSolvedGraph {
             schema: "test".to_owned(),
             vertices_exact: input.vertices.iter().map(|vertex| vertex.point).collect(),
+            merged_vertices: Vec::new(),
             edges_exact: input
                 .selected_spans
                 .iter()

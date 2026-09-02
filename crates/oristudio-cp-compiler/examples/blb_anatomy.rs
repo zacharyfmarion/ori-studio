@@ -29,14 +29,51 @@ fn main() {
 
     let fold = export_fold_document(&model, None);
     let (input, xform) = exact_solve_input_from_fold(&fold).expect("rebuild");
-    let solved = solve_exact(
-        &input,
-        ExactSolveOptions {
-            polish: true,
-            timeout_seconds: 60.0,
-            ..Default::default()
-        },
+    let mut options = ExactSolveOptions {
+        polish: true,
+        timeout_seconds: 60.0,
+        ..Default::default()
+    };
+    if std::env::var("ANGLE_FAMILY").as_deref() == Ok("off") {
+        options.angle_family = oristudio_cp_compiler::AngleFamilyMode::Off;
+    }
+    if let Some(v) = std::env::var("ANGLE_FAMILY_TOL_DEG")
+        .ok()
+        .and_then(|v| v.parse::<f64>().ok())
+    {
+        options.angle_family_snap_tolerance_radians = v.to_radians();
+    }
+    let solved = solve_exact(&input, options);
+    // What the pinned round did, and how far the carriers were from the
+    // lattice when it took them.
+    println!(
+        "pinned_family: {}",
+        solved.movement_report["polish"]["pinned_family"]
     );
+    if let Some(step) = solved.movement_report["polish"]["pinned_family"]["step_degrees"].as_f64() {
+        let step = step.to_radians();
+        let mut offsets: Vec<f64> = input
+            .selected_spans
+            .iter()
+            .filter(|s| s.assignment_label() != oristudio_cp_compiler::AssignmentLabel::Boundary)
+            .map(|s| {
+                let theta = s.carrier.normal.y.atan2(s.carrier.normal.x);
+                (theta - (theta / step).round() * step).abs().to_degrees()
+            })
+            .collect();
+        offsets.sort_by(f64::total_cmp);
+        let q = |f: f64| offsets[((offsets.len() - 1) as f64 * f) as usize];
+        println!(
+            "  |lattice offset| over fold spans: median {:.3} p75 {:.3} p90 {:.3} max {:.3} deg;  within 0.5: {}  0.5-1.5: {}  >1.5: {}",
+            q(0.5),
+            q(0.75),
+            q(0.9),
+            q(1.0),
+            offsets.iter().filter(|o| **o <= 0.5).count(),
+            offsets.iter().filter(|o| **o > 0.5 && **o <= 1.5).count(),
+            offsets.iter().filter(|o| **o > 1.5).count(),
+        );
+    }
     println!(
         "solve status: {:?}   accepted {}   rejection_reasons {}",
         solved.status,
@@ -71,6 +108,12 @@ fn main() {
         segment.b.x = b.x;
         segment.b.y = b.y;
     }
+    // A crease the solve collapsed to a point (a merged pair's stub) is gone
+    // once the answer is written — the editor drops it on insert — so it is
+    // dropped here too, or its zero-length line would add a ray of no direction
+    // to the merged vertex's fan.
+    out.line_segments
+        .retain(|segment| segment.a.distance(segment.b) > 0.0);
 
     // Before / after, so "the solve converges into BLB" is a measurement.
     let before = check_camv_task(&model);

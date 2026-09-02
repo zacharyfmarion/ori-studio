@@ -1092,6 +1092,14 @@ pub struct ExactSolvedGraph {
     pub schema: String,
     pub vertices_exact: Vec<Point2>,
     pub edges_exact: Vec<[usize; 2]>,
+    /// Vertex pairs the answer holds as one vertex, at one point. The solve
+    /// found the design has them as a single junction the detector split, so
+    /// `vertices_exact` places both at the same coordinates and the crease
+    /// between them (still listed in `edges_exact`, which is index-paired with
+    /// the input's spans) has zero length and is dropped wherever the answer
+    /// is written.
+    #[serde(default)]
+    pub merged_vertices: Vec<[usize; 2]>,
     pub movement_report: serde_json::Value,
     pub theorem_residual_report: serde_json::Value,
     pub status: ExactSolvedGraphStatus,

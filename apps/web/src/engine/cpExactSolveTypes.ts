@@ -174,6 +174,13 @@ export interface CpExactSolvedGraph {
   schema: string;
   vertices_exact: { x: number; y: number }[];
   edges_exact: [number, number][];
+  /**
+   * Vertex pairs the answer holds as one vertex, at one point: the solve found
+   * the design has them as a single junction the detector split. The crease
+   * between them is zero-length in the answer and is dropped when it is placed.
+   * Absent from solves that predate merging.
+   */
+  merged_vertices?: [number, number][];
   movement_report: CpExactSolveMovementReport;
   theorem_residual_report: CpExactSolveTheoremReport;
   status: CpExactSolveStatus;

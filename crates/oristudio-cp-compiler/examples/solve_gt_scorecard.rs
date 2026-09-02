@@ -95,12 +95,13 @@ fn main() {
             clean_broken += 1;
         }
         println!(
-            "{name:<30} {:>6} {:>6}   {:<22} {:<22}  {:>9.2}",
+            "{name:<30} {:>6} {:>6}   {:<22} {:<22}  {:>9.2}  {}",
             fold.vertices_coords.len(),
             fold.edges_vertices.len(),
             format!("{} {}a {}b", as_is.0, as_is.1, as_is.2),
             format!("{} {}a {}b", perturbed.0, perturbed.1, perturbed.2),
-            perturbed.3
+            perturbed.3,
+            perturbed.4
         );
     }
     println!(
@@ -114,15 +115,22 @@ fn run(
     input: &ExactSolveInput,
     fold: &FoldDocument,
     xform: &oristudio_cp_compiler::Similarity,
-) -> (String, usize, usize, f64) {
-    let solved = solve_exact(
-        input,
-        ExactSolveOptions {
-            polish: true,
-            timeout_seconds: 60.0,
-            ..Default::default()
-        },
-    );
+) -> (String, usize, usize, f64, String) {
+    let mut options = ExactSolveOptions {
+        polish: true,
+        timeout_seconds: 60.0,
+        ..Default::default()
+    };
+    if std::env::var("ANGLE_FAMILY").as_deref() == Ok("off") {
+        options.angle_family = oristudio_cp_compiler::AngleFamilyMode::Off;
+    }
+    if let Some(v) = std::env::var("ANGLE_FAMILY_TOL_DEG")
+        .ok()
+        .and_then(|v| v.parse::<f64>().ok())
+    {
+        options.angle_family_snap_tolerance_radians = v.to_radians();
+    }
+    let solved = solve_exact(input, options);
     let mut out = fold.clone();
     for (index, coord) in out.vertices_coords.iter_mut().enumerate() {
         let Some(point) = solved.vertices_exact.get(index) else {
@@ -133,10 +141,22 @@ fn run(
         coord[1] = back.y;
     }
     let Ok(text) = serde_json::to_string(&out) else {
-        return (format!("{:?}", solved.status), 0, 0, f64::NAN);
+        return (
+            format!("{:?}", solved.status),
+            0,
+            0,
+            f64::NAN,
+            pin_summary(&solved),
+        );
     };
     let Ok(document) = oristudio_cp::io::fold::import_fold_file_document_json(&text) else {
-        return (format!("{:?}", solved.status), 0, 0, f64::NAN);
+        return (
+            format!("{:?}", solved.status),
+            0,
+            0,
+            f64::NAN,
+            pin_summary(&solved),
+        );
     };
     let violations = check_camv_task(&document.crease_pattern).violations;
     let angles = violations
@@ -158,7 +178,57 @@ fn run(
         angles,
         violations.len() - angles,
         worst / xform.side * 1024.0,
+        pin_summary(&solved),
     )
+}
+
+/// One phrase for what the pinned round did.
+fn pin_summary(solved: &oristudio_cp_compiler::ExactSolvedGraph) -> String {
+    let pinned = &solved.movement_report["polish"]["pinned_family"];
+    if pinned.is_null() {
+        return format!(
+            "pin: none ({})",
+            solved.movement_report["polish"]["stop_reason"]
+        );
+    }
+    let attempts = pinned["attempts"].as_array().cloned().unwrap_or_default();
+    let Some(last) = attempts.last() else {
+        return "pin: family but nothing to move".to_owned();
+    };
+    let carriers = format!("{}/{}", last["pinned_carriers"], pinned["carriers"]);
+    if pinned["adopted"].as_bool() == Some(true) {
+        format!(
+            "pin: adopted @{:.3}deg {carriers} in {}s",
+            last["tolerance_degrees"].as_f64().unwrap_or(0.0),
+            last["seconds"]
+        )
+    } else {
+        let reasons: Vec<String> = attempts
+            .iter()
+            .map(|a| {
+                format!(
+                    "@{:.3}: {} [{}a {}b k={} collapsed={}]",
+                    a["tolerance_degrees"].as_f64().unwrap_or(0.0),
+                    a["refusals"]
+                        .as_array()
+                        .map(|r| r
+                            .iter()
+                            .filter_map(|v| v.as_str())
+                            .collect::<Vec<_>>()
+                            .join(","))
+                        .unwrap_or_default(),
+                    a["camv_angle_violations"],
+                    a["big_little_big_violations"],
+                    a["kawasaki_degrees"],
+                    a["collapsed_edges"]
+                        .as_array()
+                        .map(|c| c.len())
+                        .unwrap_or(0)
+                )
+            })
+            .collect();
+        format!("pin: refused {carriers} {}", reasons.join(" | "))
+    }
 }
 
 /// Box-Muller on a xorshift stream, so a run is reproducible per sample.

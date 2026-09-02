@@ -141,6 +141,24 @@ describe('solvedRegionSegments', () => {
     expect(placed.rewrittenEndpoints).toBe(1);
   });
 
+  it('removes a crease whose two ends the solve merged into one point', () => {
+    const owned = [...paperSquare(), segment(300, 100, 300, 500)];
+    // Both ends of the middle crease placed at the centre: the solver's
+    // `merged_vertices` case, a stub between two halves of one junction.
+    const placed = solvedRegionSegments(
+      owned,
+      partialVertexPositions([moved([0.5, 0], [0.5, 0.5], 4), moved([0.5, 1], [0.5, 0.5], 5)]),
+      SQUARE_EDGES,
+      FRAME
+    );
+
+    expect(placed.ok).toBe(true);
+    if (!placed.ok) return;
+    expect(placed.segments).toHaveLength(owned.length - 1);
+    expect(placed.segments.some((s) => s.a.x === s.b.x && s.a.y === s.b.y)).toBe(false);
+    expect(placed.rewrittenEndpoints).toBe(2);
+  });
+
   it('carries every non-geometric field through verbatim', () => {
     const owned = [
       ...paperSquare(),

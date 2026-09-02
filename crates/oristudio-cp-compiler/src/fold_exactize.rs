@@ -562,7 +562,7 @@ fn corner_aligned_transform(raw: &[Point2], corners: &[usize; 4]) -> Option<Simi
     // corners at opposite ends of the f64 range overflow to an infinite `side`,
     // whose reciprocal makes every transformed point NaN — which used to reach a
     // `partial_cmp().unwrap()` further down.
-    if !(side > 0.0) || !side.is_finite() {
+    if side <= 0.0 || !side.is_finite() {
         return None;
     }
     let ux = (ex.0 / side, ex.1 / side);

@@ -42,7 +42,7 @@ pub use candidates::{
 pub use constraints::{ConstraintDiagnostics, ConstraintSeverity, VertexConstraintDiagnostic};
 pub use evidence::{EvidenceSource, Provenance};
 pub use exact_solve::{
-    AngleDependentTopologyFindings, CamvCounts, CombinatorialTopologyFindings,
+    AngleDependentTopologyFindings, AngleFamilyMode, CamvCounts, CombinatorialTopologyFindings,
     DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS, ExactSolveOptions, ExactSolveOptionsWithExemptions,
     LinearSolver, TopologyDiagnostics, TopologyVertexDiagnostic, analyze_candidate_topology,
     camv_violation_counts, solve_exact, solve_exact_with_exemptions,

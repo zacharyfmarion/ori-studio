@@ -35,8 +35,8 @@ fn default_image_size() -> f64 {
 
 fn main() {
     println!(
-        "{:<44} {:>6} {:>7} {:>7} {:>7} {:>7}   {}",
-        "pack", "n", "clean", "angle", "BLB", "both", "worst angle / BLB counts"
+        "{:<44} {:>6} {:>7} {:>7} {:>7} {:>7}   worst angle / BLB counts",
+        "pack", "n", "clean", "angle", "BLB", "both"
     );
     let (mut all, mut all_clean) = (0usize, 0usize);
     for pack in std::env::args().skip(1) {
