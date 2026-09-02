@@ -420,7 +420,7 @@ describe('cpSolveCompletionDetail — the grid snap', () => {
       residuals: remaining(),
       angleFamily: null,
     });
-    expect(detail).toContain('not close enough to a 22.5° or 45° grid');
+    expect(detail).toContain('Fewer than half the creases sit near a 15°, 22.5°, 30° or 45° grid');
   });
 
   it('says the snap was refused for breaking vertices, with their count', () => {

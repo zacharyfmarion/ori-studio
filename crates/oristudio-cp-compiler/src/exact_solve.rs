@@ -182,17 +182,21 @@ const PINNED_ROUND_RESERVE_SECONDS: f64 = 0.5;
 /// floating-point rounding, ~1e-15 radians.
 const LATTICE_KAWASAKI_TOLERANCE: f64 = 1e-9;
 
-/// The lattice steps a designed pattern is likely drawn on, finest first: a 45°
-/// design also fits the 22.5° lattice and pins to the same angles under it, so
-/// preferring the finer of the two loses nothing.
+/// The lattice steps a designed pattern is likely drawn on, coarsest first: the
+/// square families (45° box pleating, 22.5°) and the hexagonal ones (30° hex
+/// pleating, 15°). The family chosen is the one most of the carriers sit on
+/// (see [`infer_angle_family`]); a tie goes to the coarser step, since a 45°
+/// design fits every one of these and pins to the same angles under each.
 ///
-/// Only the two families the corpus actually contains. A finer candidate is a
-/// trap: with detection noise wide enough that a real 22.5° pattern misses the
-/// bar, an 11.25° lattice will "explain" the stragglers by accident and be
-/// chosen instead — measured on close_but_not_good_enough.osf, which is a 22.5°
-/// design and was read as 11.25°, snapping carriers to angles it does not have.
-/// 15° and 11.25° can be added when a pattern that needs them exists to test on.
-const ANGLE_FAMILY_STEPS_DEGREES: [f64; 2] = [22.5, 45.0];
+/// Not finer than 15°. A finer candidate is a trap: with detection noise wide
+/// enough that a real 22.5° pattern misses the bar, an 11.25° lattice will
+/// "explain" the stragglers by accident and be chosen instead — measured on
+/// close_but_not_good_enough.osf, which is a 22.5° design and was read as
+/// 11.25°, snapping carriers to angles it does not have. 15° is the same
+/// distance from the 22.5° family's odd multiples (7.5°) as 11.25° is from
+/// nothing, and a 22.5° design fits it only at its multiples of 45°, so the
+/// fraction test keeps them apart: measured, 22.5° designs read as 22.5°.
+const ANGLE_FAMILY_STEPS_DEGREES: [f64; 4] = [45.0, 30.0, 22.5, 15.0];
 
 /// Signed distance from `theta` to the nearest multiple of `step`, in
 /// `(-step/2, step/2]`. A carrier's theta is its normal's angle, and every
@@ -202,23 +206,32 @@ fn lattice_offset(theta: f64, step: f64) -> f64 {
     theta - (theta / step).round() * step
 }
 
-/// The finest lattice that at least `min_fraction` of the carriers sit within
-/// `tolerance` of, or `None` when no candidate does. Freehand geometry lands
-/// within 1.5° of a 22.5° lattice about 13% of the time, well under the bar.
+/// The lattice most of the carriers sit within `tolerance` of — the largest
+/// such fraction, at least `min_fraction`, ties to the coarser step — or `None`
+/// when no candidate reaches the bar. Freehand geometry lands within 1.5° of a
+/// 15° lattice about 20% of the time and of a 22.5° one about 13%, both well
+/// under the bar. Returned in **degrees**, as written in
+/// [`ANGLE_FAMILY_STEPS_DEGREES`], so a report says `15` and not
+/// `14.999999999999998`; the lattice arithmetic takes radians.
 fn infer_angle_family(thetas: &[f64], tolerance: f64, min_fraction: f64) -> Option<f64> {
     if thetas.is_empty() {
         return None;
     }
-    ANGLE_FAMILY_STEPS_DEGREES
-        .iter()
-        .map(|degrees| degrees.to_radians())
-        .find(|step| {
-            let on_lattice = thetas
-                .iter()
-                .filter(|theta| lattice_offset(**theta, *step).abs() <= tolerance)
-                .count();
-            on_lattice as f64 >= min_fraction * thetas.len() as f64
-        })
+    let mut best: Option<(f64, usize)> = None;
+    for step_degrees in ANGLE_FAMILY_STEPS_DEGREES {
+        let step = step_degrees.to_radians();
+        let on_lattice = thetas
+            .iter()
+            .filter(|theta| lattice_offset(**theta, step).abs() <= tolerance)
+            .count();
+        if (on_lattice as f64) < min_fraction * thetas.len() as f64 {
+            continue;
+        }
+        if best.is_none_or(|(_, count)| on_lattice > count) {
+            best = Some((step_degrees, on_lattice));
+        }
+    }
+    best.map(|(step_degrees, _)| step_degrees)
 }
 
 const fn default_polish() -> bool {
@@ -3004,13 +3017,14 @@ fn pin_to_angle_family(
         .iter()
         .map(|group| current_params[group.theta_index])
         .collect();
-    let step = infer_angle_family(
+    let step_degrees = infer_angle_family(
         &thetas,
         options.angle_family_snap_tolerance_radians,
         options.angle_family_min_fraction,
     )?;
+    let step = step_degrees.to_radians();
     let mut outcome = PinnedFamilyOutcome {
-        step_degrees: step.to_degrees(),
+        step_degrees,
         carriers: model.carrier_groups.len(),
         attempts: Vec::new(),
         adopted: false,
@@ -4208,28 +4222,25 @@ mod tests {
     }
 
     #[test]
-    fn infer_angle_family_prefers_the_finest_lattice_that_fits() {
+    fn infer_angle_family_picks_the_lattice_most_carriers_sit_on() {
         let tolerance = 1.5_f64.to_radians();
         let degrees = |list: &[f64]| list.iter().map(|d| d.to_radians()).collect::<Vec<_>>();
-        // A 22.5° design, drawn with half a degree of noise.
-        let family = infer_angle_family(
-            &degrees(&[0.4, 22.1, 45.3, 67.9, 90.0, 112.6]),
-            tolerance,
-            0.5,
+        let family = |list: &[f64]| infer_angle_family(&degrees(list), tolerance, 0.5);
+        // A 22.5° design, drawn with half a degree of noise. Its odd multiples
+        // are 7.5° from the 15° lattice, so that one only fits the 45° subset.
+        assert_eq!(family(&[0.4, 22.1, 45.3, 67.9, 90.0, 112.6]), Some(22.5));
+        // A 45° design fits every family and reads as the coarsest.
+        assert_eq!(family(&[0.0, 45.2, 90.1, 135.0]), Some(45.0));
+        // Hex pleating: 30° and 60° everywhere, which the square families miss.
+        assert_eq!(family(&[0.2, 29.8, 60.4, 90.0, 120.1, 149.7]), Some(30.0));
+        // A hex design that also uses 15° creases reads as 15°, not 30°.
+        assert_eq!(
+            family(&[0.0, 15.2, 30.1, 45.0, 60.3, 75.0, 90.0, 104.9]),
+            Some(15.0)
         );
-        assert_eq!(family.map(f64::to_degrees), Some(22.5));
-        // A 45° design fits both lattices and reads as 22.5°, which pins it to
-        // the same angles.
-        let family = infer_angle_family(&degrees(&[0.0, 45.2, 90.1, 135.0]), tolerance, 0.5);
-        assert_eq!(family.map(f64::to_degrees), Some(22.5));
-        // Box-pleat diagonals at atan 2 are on neither, and with them in the
-        // majority there is no family to pin to.
-        let family = infer_angle_family(
-            &degrees(&[26.57, 63.43, 116.57, 153.43, 0.0, 90.0]),
-            tolerance,
-            0.5,
-        );
-        assert_eq!(family, None);
+        // Box-pleat diagonals at atan 2 are on none of them, and with them in
+        // the majority there is no family to pin to.
+        assert_eq!(family(&[26.57, 63.43, 116.57, 153.43, 0.0, 90.0]), None);
         assert_eq!(infer_angle_family(&[], tolerance, 0.5), None);
     }
 
@@ -4247,7 +4258,8 @@ mod tests {
             serde_json::Value::Bool(true),
             "the fan is a 45° design and must be pinned: {pinned}"
         );
-        assert_eq!(pinned["step_degrees"], serde_json::json!(22.5));
+        // A fan of diagonals fits every family and reads as the coarsest.
+        assert_eq!(pinned["step_degrees"], serde_json::json!(45.0));
         assert!(
             solved.movement_report["termination"]
                 .as_str()

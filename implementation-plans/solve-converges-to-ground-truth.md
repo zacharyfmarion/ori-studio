@@ -361,6 +361,10 @@ wrongly-inferred family pulls solves away from GT rather than toward it.
       optimising (see Outcome, "second pass").
 - [x] The chip says what the grid snap did when Big-Little-Big remains: no grid,
       snapped, refused (broke N vertices / moved too far), or out of time.
+- [x] Hexagonal families: 30° (hex pleating) and 15° join 45° and 22.5°; the
+      family is the one most carriers sit on, ties to the coarser. Measured on
+      naoki_terao_okapi_hp_failure.osf (a 15° design, 202 of 208 creases on the
+      lattice): 21 Big-Little-Big → `Solved`, 0/0, in 1.5 s.
 - [ ] Peel by optimizer result: when a pinned attempt is still refused, unpin
       the carriers through the vertices it left over the bar and retry.
 - [ ] A merged pair in the solve summary ("2 vertices merged"), once the i18n
@@ -437,6 +441,16 @@ In the product flow (two stages on one 25 s budget) pegasus's stage 2 lands
 in 16.3 s of the 24.2 s it has, adopted. The remaining violations on pegasus
 and close_but are at creases the detection left more than 0.75°/1.5° off the
 lattice; the optimizer-result peel above is the next lever for those.
+
+**Hexagonal families (2026-09-02).** The candidate steps are 45°, 30°, 22.5°
+and 15°, and the family is the one most carriers sit within tolerance of —
+ties to the coarser, so a 45° design reads as 45° and a hex design that also
+uses 15° creases reads as 15°. A 22.5° design fits the 15° lattice only at
+its multiples of 45° (its odd multiples are 7.5° from it), so the fraction
+test keeps the square and hexagonal families apart: the 22.5° corpora are
+unchanged at 11/11 and 41/41. Okapi (Naoki Terao, hex pleating with 15°
+creases): no family before, so no snap and 21 violations; now 15°, 113 of
+115 carriers pinned, `Solved` with 0 angle and 0 Big-Little-Big in 1.5 s.
 
 Three fully-lattice samples come back at **0.00 px** from ground truth. User
 files: `mid-solve_4` and `mostly-successful` go to `Solved` with 0 angle and 0

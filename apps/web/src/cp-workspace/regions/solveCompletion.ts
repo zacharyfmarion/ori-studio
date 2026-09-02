@@ -265,7 +265,7 @@ function gridSnapDetail(t: TFunction, family: CpSolveAngleFamily | null | undefi
   if (!family) {
     return t(
       'panels:cpRegion.completion.gridSnapNoGridDetail',
-      'The creases are not close enough to a 22.5° or 45° grid to snap them to it.'
+      'Fewer than half the creases sit near a 15°, 22.5°, 30° or 45° grid, so there was no grid to snap them to.'
     );
   }
   const step = formatGridStep(family.stepDegrees);

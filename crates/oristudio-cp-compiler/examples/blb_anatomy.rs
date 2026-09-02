@@ -46,6 +46,44 @@ fn main() {
     let solved = solve_exact(&input, options);
     // What the pinned round did, and how far the carriers were from the
     // lattice when it took them.
+    // Which lattice the fold spans sit on, whatever the solver inferred: the
+    // fraction within 1.5° of each candidate step.
+    {
+        let thetas: Vec<f64> = input
+            .selected_spans
+            .iter()
+            .filter(|s| s.assignment_label() != oristudio_cp_compiler::AssignmentLabel::Boundary)
+            .map(|s| s.carrier.normal.y.atan2(s.carrier.normal.x))
+            .collect();
+        for step_deg in [45.0_f64, 30.0, 22.5, 15.0, 11.25] {
+            let step = step_deg.to_radians();
+            let within = |tol: f64| {
+                thetas
+                    .iter()
+                    .filter(|t| (*t - (*t / step).round() * step).abs() <= tol.to_radians())
+                    .count()
+            };
+            println!(
+                "  lattice {step_deg:>5}°: within 0.5° {:>4}  within 1.5° {:>4}  within 3° {:>4}  of {} fold spans",
+                within(0.5),
+                within(1.5),
+                within(3.0),
+                thetas.len()
+            );
+        }
+    }
+    let theorem = &solved.theorem_residual_report;
+    println!(
+        "solver: termination {}  polish stop {}  kawasaki before {} after {}  camv before {}a/{}b after {}a/{}b",
+        solved.movement_report["termination"],
+        solved.movement_report["polish"]["stop_reason"],
+        theorem["before"]["max_kawasaki_residual_degrees"],
+        theorem["after"]["max_kawasaki_residual_degrees"],
+        theorem["before"]["camv_angle_violations"],
+        theorem["before"]["big_little_big_violations"],
+        theorem["after"]["camv_angle_violations"],
+        theorem["after"]["big_little_big_violations"],
+    );
     println!(
         "pinned_family: {}",
         solved.movement_report["polish"]["pinned_family"]
