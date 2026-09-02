@@ -332,7 +332,6 @@
       "inactiveHere": "ここでは無効",
       "notBindable": "{{label}} にはまだショートカットを割り当てられません。",
       "pressKeys": "キーを押してください",
-      "pressPrompt": "{{label}} のショートカットを押してください。",
       "reserved": "{{chord}} はブラウザによって予約されています。デスクトップアプリでは使用できます。",
       "reservedAppMenu": "{{chord}} は macOS のアプリメニューが使用しています。割り当てるとそのコマンドが動作しなくなります。",
       "reset": "{{label}} のショートカットをリセット",

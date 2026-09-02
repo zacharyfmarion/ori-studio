@@ -360,7 +360,6 @@
       "inactiveHere": "não ativo aqui",
       "notBindable": "{{label}} ainda não aceita um atalho.",
       "pressKeys": "Pressione as teclas",
-      "pressPrompt": "Pressione um atalho para {{label}}.",
       "reserved": "{{chord}} é reservado pelo navegador. O aplicativo para desktop pode usá-lo.",
       "reservedAppMenu": "{{chord}} pertence ao menu do aplicativo do macOS. Atribuí-lo impediria esse comando de funcionar.",
       "reset": "Redefinir atalho de {{label}}",

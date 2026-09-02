@@ -54,7 +54,11 @@ const RUNTIME_INJECTED = /^--radix-/u;
  * right value is obvious.
  */
 const KNOWN_MISSING: Record<string, number> = {
-  '--border-muted': 2,
+  // Was 2 until the shortcuts status line moved into the row it answers. The
+  // rule that went with it asked for a `--border-muted` border, which means it
+  // had been rendering with no border at all for as long as it existed — the
+  // replacement uses no border and does not miss it.
+  '--border-muted': 1,
   '--font-sans': 4,
   '--shadow-soft': 1,
   // `--surface-base` and `--surface-raised` were here until the three private

@@ -346,7 +346,6 @@
       "inactiveHere": "not active here",
       "notBindable": "{{label}} cannot take a shortcut yet.",
       "pressKeys": "Press keys",
-      "pressPrompt": "Press a shortcut for {{label}}.",
       "reserved": "{{chord}} is reserved by the browser. The desktop app can use it.",
       "reservedAppMenu": "{{chord}} belongs to the macOS app menu. Binding it would stop that command working.",
       "reset": "Reset {{label}} shortcut",

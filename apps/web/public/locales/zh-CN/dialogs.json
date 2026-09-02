@@ -332,7 +332,6 @@
       "inactiveHere": "此处无效",
       "notBindable": "{{label}} 目前还不能设置快捷键。",
       "pressKeys": "按下按键",
-      "pressPrompt": "为 {{label}} 按下快捷键。",
       "reserved": "{{chord}} 已被浏览器保留。桌面应用可以使用它。",
       "reservedAppMenu": "{{chord}} 属于 macOS 应用菜单。绑定它会导致该菜单命令失效。",
       "reset": "重置 {{label}} 快捷键",

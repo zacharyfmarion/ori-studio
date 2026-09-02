@@ -360,7 +360,6 @@
       "inactiveHere": "no activo aquí",
       "notBindable": "{{label}} todavía no admite un atajo.",
       "pressKeys": "Pulsa las teclas",
-      "pressPrompt": "Pulsa un atajo para {{label}}.",
       "reserved": "{{chord}} está reservado por el navegador. La aplicación de escritorio sí puede usarlo.",
       "reservedAppMenu": "{{chord}} pertenece al menú de la aplicación de macOS. Asignarlo impediría que ese comando funcione.",
       "reset": "Restablecer el atajo de {{label}}",

@@ -360,7 +360,6 @@
       "inactiveHere": "inactif ici",
       "notBindable": "{{label}} n’accepte pas encore de raccourci.",
       "pressKeys": "Appuyez sur les touches",
-      "pressPrompt": "Appuyez sur un raccourci pour {{label}}.",
       "reserved": "{{chord}} est réservé par le navigateur. L’application de bureau peut l’utiliser.",
       "reservedAppMenu": "{{chord}} appartient au menu de l’application macOS. L’attribuer empêcherait cette commande de fonctionner.",
       "reset": "Réinitialiser le raccourci {{label}}",

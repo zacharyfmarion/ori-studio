@@ -346,7 +346,6 @@
       "inactiveHere": "hier nicht aktiv",
       "notBindable": "{{label}} kann noch kein Tastenkürzel aufnehmen.",
       "pressKeys": "Tasten drücken",
-      "pressPrompt": "Drücken Sie ein Tastenkürzel für {{label}}.",
       "reserved": "{{chord}} ist vom Browser reserviert. Die Desktop-App kann es verwenden.",
       "reservedAppMenu": "{{chord}} gehört zum macOS-App-Menü. Eine Zuweisung würde diesen Befehl außer Kraft setzen.",
       "reset": "{{label}}-Tastenkürzel zurücksetzen",

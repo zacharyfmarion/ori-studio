@@ -721,7 +721,20 @@ function ShortcutsTab() {
   const [search, setSearch] = useState('');
   const [assignedOnly, setAssignedOnly] = useState(false);
   const [capturingId, setCapturingId] = useState<ShortcutActionId | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  /**
+   * Capture feedback, and the row it belongs to.
+   *
+   * Row-scoped because this list is long and scrolls. A single message line
+   * above the table is off-screen exactly when it is needed — you are looking
+   * at the row you just clicked, several screens down, and the refusal appears
+   * somewhere you cannot see, so a key that *was* answered reads as a key that
+   * did nothing. Every message this tab produces is about one row, so none of
+   * them ever needed to live anywhere else.
+   */
+  const [feedback, setFeedback] = useState<{
+    actionId: ShortcutActionId;
+    text: string;
+  } | null>(null);
   const [importing, setImporting] = useState(false);
   const setNestedDialogOpen = useContext(NestedDialogContext);
   useEffect(() => {
@@ -731,21 +744,36 @@ function ShortcutsTab() {
 
   useEffect(() => {
     if (!capturingId) return undefined;
+    const say = (text: string | null) =>
+      setFeedback(text ? { actionId: capturingId, text } : null);
     const onKeyDown = (event: KeyboardEvent) => {
-      event.preventDefault();
+      // Nothing outside the recorder may *act* on a key typed into it — without
+      // this, rebinding onto an already-assigned chord would run that action on
+      // the way past. Propagation stops for every key; whether the key is also
+      // taken away from the host is decided per chord below, and those are two
+      // separate questions that this handler used to answer with one line.
       event.stopPropagation();
       if (event.key === 'Escape') {
+        event.preventDefault();
         setCapturingId(null);
-        setMessage(null);
+        setFeedback(null);
         return;
       }
       const chord = keyChordFromKeyboardEvent(event);
+      // Half a chord: every real one starts with a modifier held down. Leaving
+      // it entirely alone costs nothing, since a bare modifier matches nothing.
       if (!chord) return;
       const reserved = describeReservedKey(chord);
       if (reserved.classification === 'hard-reserved') {
-        setMessage(reservedKeyMessage(t, chord, reserved.reason));
+        // Refused *because the host owns the chord*, so preventDefault here
+        // would take it from the host as well and hand it to nobody. That is
+        // what stopped Cmd+Shift+I opening devtools while a capture was armed.
+        say(reservedKeyMessage(t, chord, reserved.reason));
         return;
       }
+      // Past here the chord is one we could hold, so it is ours to consume
+      // whatever we decide about it.
+      event.preventDefault();
       const definition = getShortcutDefinition(capturingId);
       if (!definition) return;
       const assignedMessage =
@@ -754,7 +782,7 @@ function ShortcutsTab() {
           : null;
       const decision = decideCapture(definition, chord, resolution);
       if (decision.kind === 'not-bindable') {
-        setMessage(
+        say(
           t(
             'dialogs:settings.shortcuts.notBindable',
             '{{label}} cannot take a shortcut yet.',
@@ -764,7 +792,7 @@ function ShortcutsTab() {
         return;
       }
       if (decision.kind === 'refuse') {
-        setMessage(t('dialogs:settings.shortcuts.alreadyAssigned', '{{chord}} is already assigned to {{label}}.', { chord: formatKeyChord(chord), label: shortcutActionLabel(t, decision.blocker) }));
+        say(t('dialogs:settings.shortcuts.alreadyAssigned', '{{chord}} is already assigned to {{label}}.', { chord: formatKeyChord(chord), label: shortcutActionLabel(t, decision.blocker) }));
         return;
       }
       if (decision.kind === 'unbind') {
@@ -774,7 +802,7 @@ function ShortcutsTab() {
         const { blocker } = decision;
         const blockerLabel = shortcutActionLabel(t, blocker);
         setCapturingId(null);
-        setMessage(null);
+        setFeedback(null);
         void requestConfirmation({
           title: t('dialogs:settings.shortcuts.unbindTitle', 'Unbind {{label}}?', { label: blockerLabel }),
           message: t(
@@ -791,13 +819,13 @@ function ShortcutsTab() {
         }).then((confirmed) => {
           if (!confirmed) return;
           assignShortcut(targetId, chord, { unbind: [blocker.id] });
-          setMessage(assignedMessage);
+          say(assignedMessage);
         });
         return;
       }
       setShortcut(capturingId, chord);
       setCapturingId(null);
-      setMessage(assignedMessage);
+      say(assignedMessage);
     };
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
@@ -840,13 +868,13 @@ function ShortcutsTab() {
       if (!confirmed) return;
       resetAllShortcuts();
       setCapturingId(null);
-      setMessage(null);
+      setFeedback(null);
     });
   };
 
   const changeDefaultsSource = (next: ShortcutDefaultsSource) => {
     setCapturingId(null);
-    setMessage(null);
+    setFeedback(null);
     const diff = diffDefaultsSource(overrides, defaultsSource, next);
     // Which layout a user settles on is the one thing this feature exists to
     // learn; the chokepoint cannot see it, since the toggle is not a menu action.
@@ -933,7 +961,6 @@ function ShortcutsTab() {
             </IconButton>
           </div>
         </div>
-        {message && <div className="settings-shortcuts__message">{message}</div>}
       </section>
 
       {/*
@@ -990,7 +1017,20 @@ function ShortcutsTab() {
                     title={inertMessage ?? undefined}
                     onClick={() => {
                       setCapturingId(definition.id);
-                      setMessage(t('dialogs:settings.shortcuts.pressPrompt', 'Press a shortcut for {{label}}.', { label: actionLabel }));
+                      setFeedback(null);
+                    }}
+                    // Abandoning the recorder has to end the session, because an
+                    // armed capture swallows every keystroke in the *whole app*
+                    // — click "Press keys", change your mind, click anywhere
+                    // else, and the keyboard is dead with nothing on screen
+                    // saying why. Focus is the honest signal for "still
+                    // recording": the button holds it for exactly as long as the
+                    // session should last, and keys cannot move it because the
+                    // handler consumes them.
+                    onBlur={() => {
+                      if (capturingId !== definition.id) return;
+                      setCapturingId(null);
+                      setFeedback(null);
                     }}
                   >
                     {capturingId === definition.id
@@ -1009,7 +1049,7 @@ function ShortcutsTab() {
                     onClick={() => {
                       clearShortcut(definition.id);
                       setCapturingId(null);
-                      setMessage(null);
+                      setFeedback(null);
                     }}
                   >
                     <X size={13} />
@@ -1022,11 +1062,19 @@ function ShortcutsTab() {
                     onClick={() => {
                       resetShortcut(definition.id);
                       setCapturingId(null);
-                      setMessage(null);
+                      setFeedback(null);
                     }}
                   >
                     <RotateCcw size={13} />
                   </IconButton>
+                  {feedback?.actionId === definition.id && (
+                    // `assertive`, not `polite`: this answers a key the user
+                    // just pressed, and a polite region waits for a pause that
+                    // someone trying chords in quick succession never gives.
+                    <p className="settings-shortcuts__rowMessage" role="alert" aria-live="assertive">
+                      {feedback.text}
+                    </p>
+                  )}
                 </div>
               );
             })}

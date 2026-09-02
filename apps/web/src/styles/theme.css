@@ -2677,13 +2677,15 @@
   white-space: nowrap;
 }
 
-.settings-shortcuts__message {
-  padding: var(--space-2);
-  border: 1px solid var(--border-muted);
-  border-radius: var(--radius-sm);
-  background: var(--bg-primary);
+/* Capture feedback, in the row it answers. Spans the whole five-column track so
+   it reads as a line under the row rather than a sixth cell, and wraps, because
+   the reserved-key messages are a sentence rather than a label. */
+.settings-shortcuts__rowMessage {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding-top: var(--space-1);
   color: var(--text-secondary);
-  font-size: 0.74rem;
+  font-size: 0.7rem;
   line-height: 1.4;
 }
 
