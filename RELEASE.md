@@ -50,9 +50,6 @@ logs a warning saying so.
 ./scripts/release.sh publish 0.3.0    # verify the merge, tag, push
 ```
 
-Merge nothing else to `main` between merging the release PR and `publish` —
-see [why below](#do-not-merge-to-main-while-a-release-is-in-flight).
-
 The pushed tag triggers the same build, which additionally uploads to a GitHub
 Release created as a **draft**. From there it is four steps, and the order
 matters:
@@ -114,24 +111,27 @@ https://github.com/zacharyfmarion/ori-studio/releases/latest/download/latest.jso
 404s, and every existing install quietly stops being offered updates. The new
 release looks perfect; the fleet you already shipped to is the part that breaks.
 
-### Do not merge to `main` while a release is in flight
+### If the release build reports `no successful CI run`
 
-Between merging the release PR and `release.sh publish`, `main` has to stay
-still.
+`release.yml`'s `validate` job asks GitHub for a *successful* CI run at the
+tagged commit. A cancelled run, or no run at all, fails the build immediately.
 
-`ci.yml` sets `cancel-in-progress: true` on a concurrency group keyed on the
-ref, so the next push to `main` cancels the CI run for the release merge commit.
-That run is a gate: `release.yml`'s `validate` job asks GitHub for a *successful*
-CI run at the tagged commit, and a cancelled one does not count. The release
-build fails immediately with `no successful CI run for <sha>`.
+Merging to `main` while a release was in flight used to cause this, and `main`
+had to stay still between merging the release PR and `publish`. **That is no
+longer true.** `ci.yml` keys `main` commits by SHA and never cancels them, so
+merges during a release are safe; see the comment above `concurrency:` there.
 
-`ci.yml` has no `workflow_dispatch`, so there is no way to start a fresh run at
-that commit. Re-running the cancelled run is the only recovery:
+What still reaches this gate is a commit that never had a run: CI does not
+trigger on tags, so a hotfix cut outside a PR arrives with nothing to find.
+Start a fresh run at that ref — Actions ▸ CI ▸ Run workflow, or:
 
 ```sh
-gh run list --commit <merge-sha> --workflow CI
-gh run rerun <cancelled-run-id>
+gh workflow run CI --ref <branch-or-tag>
 ```
+
+Dispatch takes a branch or tag, not a bare commit SHA, and runs the `ci.yml`
+that exists *at that ref* — so a tag cut before `workflow_dispatch` was added
+cannot be dispatched; use `gh run rerun <id>` on an existing run there instead.
 
 If the tag is not pushed yet, that is the whole fix — wait for green, then run
 `release.sh publish`. If it is, re-run the failed Desktop Build run once CI is
@@ -150,7 +150,7 @@ corruption. Do not delete or re-point a tag.
 | --- | --- | --- |
 | No tag, no release | Nothing started | `release.sh prepare` |
 | Tag pushed, build running | Normal | Wait |
-| Tag pushed, `no successful CI run` | Something else was merged to `main` and cancelled the merge commit's CI | `gh run rerun` the cancelled CI run, then the failed Desktop Build run — see above |
+| Tag pushed, `no successful CI run` | The tagged commit has no successful CI run — usually a hotfix cut outside a PR | Dispatch CI at that ref, then re-run the failed Desktop Build run — see above |
 | Tag pushed, some legs failed | Draft holds a partial asset set | `gh run rerun --failed`; if the failure is real, burn the version and cut the next patch |
 | Draft release, all assets | Ready to test | Publish as prerelease, then `publish-updater-manifest.sh X.Y.Z` |
 | Prerelease, no `latest.json` | The manifest step was skipped; arming now silently strands every install | `./scripts/publish-updater-manifest.sh X.Y.Z` before arming |
@@ -257,7 +257,7 @@ set `publish = false` per-crate on the app and internal members instead —
     Apple values.
 14. For each release, run `./scripts/release.sh prepare X.Y.Z`, merge the
     release PR, then run `./scripts/release.sh publish X.Y.Z` from a clean local
-    Mac checkout. Merge nothing else to `main` in between.
+    Mac checkout.
 15. After publish, verify the GitHub Release contains the versioned and latest
     Apple Silicon DMGs, download the DMG, mount it, and launch `Ori Studio.app`.
 16. Publish the draft as a prerelease, run

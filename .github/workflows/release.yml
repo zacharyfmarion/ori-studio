@@ -159,10 +159,10 @@ jobs:
             --json conclusion --jq '.[].conclusion' || true)"
           if ! grep -qx success <<< "$conclusions"; then
             echo "::error::no successful CI run for ${GITHUB_SHA}."
-            echo "::error::Merging anything else to main cancels this commit's CI run"
-            echo "::error::(ci.yml sets cancel-in-progress). ci.yml has no workflow_dispatch,"
-            echo "::error::so re-run the cancelled run with 'gh run rerun <id>', wait for"
-            echo "::error::green, then re-run this workflow. See RELEASE.md."
+            echo "::error::CI does not trigger on tags, so a commit can reach a tag"
+            echo "::error::with no run at all. Dispatch CI at that ref (Actions > CI >"
+            echo "::error::Run workflow, or 'gh workflow run CI --ref <branch-or-tag>'),"
+            echo "::error::wait for green, then re-run this workflow. See RELEASE.md."
             exit 1
           fi
 

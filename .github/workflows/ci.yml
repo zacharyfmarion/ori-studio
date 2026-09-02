@@ -5,10 +5,33 @@ on:
     branches:
       - main
   pull_request:
+  # Recovery hatch for release.yml's CI gate, which needs a successful run at
+  # the exact tagged SHA. CI does not trigger on tags, so a commit can reach a
+  # tag with no run at all — a hotfix cut outside a PR is the usual way in.
+  # Dispatch takes a branch or tag (not a bare SHA) and runs the ci.yml living
+  # at that ref. Before this, recovery meant `gh run rerun <id>`, which needs a
+  # run to already exist.
+  workflow_dispatch:
 
+# Keyed by PR number on pull_request, and by commit *SHA* everywhere else.
+#
+# release.yml's "Check CI was green at this commit" gate requires a successful
+# CI run at the exact tagged SHA. Grouping main by `github.ref` put every commit
+# on main into one group, so merging a second PR cancelled the still-running CI
+# of the previous merge commit — permanently, because nothing re-runs CI at an
+# already-merged SHA, and a release tagged there cannot be built. That is what
+# happened to 2fc848fc, cancelled minutes after it merged by PR #329's merge.
+#
+# `github.sha` gives each main commit its own group, so main runs never contend.
+# Making `cancel-in-progress` conditional is not on its own enough to fix this:
+# only one run may be *pending* per group, so with main still sharing a group a
+# third merge would cancel the second one's queued run before it ever started.
+#
+# Pull requests keep cancelling superseded runs — native-oracle builds the C++
+# oracle and is expensive — but nothing outside a PR is ever cancelled.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   CARGO_TERM_COLOR: always
