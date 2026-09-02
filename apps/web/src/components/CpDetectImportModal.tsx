@@ -12,6 +12,7 @@ import { Crop, ImagePlus, Loader2, Play, Square, Upload, Wrench, X } from 'lucid
 import { CpDetectCropEditor } from './CpDetectCropEditor';
 import { sourceSizeForRectification } from './cpDetectCropLoupe';
 import { track } from '../analytics';
+import { identityOf } from '../lib/objectIdentity';
 import {
   cpDetectCompilerReport,
   type CpDetectDecodeReport,
@@ -415,6 +416,22 @@ export function CpDetectImportModal() {
    * dragged twice in quick succession sends two requests, and the first one
    * finishing last must not overwrite the crop the user actually left.
    */
+  /**
+   * What the crop editor is shown of the source: its size and its URL, never
+   * its pixels. An ImageData's pixel array is an own property, and React's
+   * development build diffs the props of every component it re-renders for its
+   * performance track, so a prop that reaches one is walked byte by byte on the
+   * main thread. The seconds-long freeze after a crop drag was exactly that.
+   */
+  const cropSource = useMemo(
+    () =>
+      source && {
+        image: { width: source.image.width, height: source.image.height },
+        url: source.url,
+      },
+    [source]
+  );
+
   const rectifyRequestRef = useRef(0);
 
   /**
@@ -794,7 +811,7 @@ export function CpDetectImportModal() {
           </div>
         )}
 
-        {stage === 'crop' && source && (
+        {stage === 'crop' && cropSource && (
           <>
             <div className="cp-detect-modal__actions">
               <Button size="sm" onClick={chooseImage} disabled={busy !== null}>
@@ -815,7 +832,7 @@ export function CpDetectImportModal() {
                 {/* The crop re-rectifies itself when a corner is let go; the
                     only button here is the one that does the next thing. */}
                 <CpDetectCropEditor
-                  source={source}
+                  source={cropSource}
                   quad={quad}
                   onQuadChange={setQuad}
                   onDragEnd={(next) => void rerunManualRectification(next)}
@@ -824,7 +841,7 @@ export function CpDetectImportModal() {
 
               <section className="cp-detect-modal__pane">
                 <h3>{t('dialogs:cpDetectImport.rectified', 'Rectified')}</h3>
-                {rectified ? <CanvasImage image={rectified.image} /> : <div className="cp-detect-modal__empty" />}
+                {rectified ? <CanvasImage key={identityOf(rectified.image)} image={rectified.image} /> : <div className="cp-detect-modal__empty" />}
               </section>
             </div>
           </>
@@ -834,7 +851,7 @@ export function CpDetectImportModal() {
           <div className="cp-detect-modal__detecting">
             <Loader2 size={28} className="cp-detect-modal__spinner" />
             <div>{status ?? t('dialogs:cpDetectImport.runningModel', 'Running model')}</div>
-            {rectified && <CanvasImage image={rectified.image} />}
+            {rectified && <CanvasImage key={identityOf(rectified.image)} image={rectified.image} />}
           </div>
         )}
 
@@ -932,7 +949,7 @@ export function CpDetectImportModal() {
             <div className="cp-detect-modal__review-grid">
               <section className="cp-detect-modal__pane">
                 <h3>{t('dialogs:cpDetectImport.rectified', 'Rectified')}</h3>
-                {rectified ? <CanvasImage image={rectified.image} /> : <div className="cp-detect-modal__empty" />}
+                {rectified ? <CanvasImage key={identityOf(rectified.image)} image={rectified.image} /> : <div className="cp-detect-modal__empty" />}
               </section>
 
               <section className="cp-detect-modal__pane">
@@ -1010,6 +1027,10 @@ function StatusRows({ status, error }: { status: string | null; error: string | 
   );
 }
 
+/**
+ * One canvas per image — key it by the image. Updating a mounted one with a
+ * different image hands React's development build two pixel arrays to diff.
+ */
 function CanvasImage({ image }: { image: ImageData }) {
   const ref = useRef<HTMLCanvasElement>(null);
 

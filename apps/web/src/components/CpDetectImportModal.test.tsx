@@ -1060,6 +1060,24 @@ describe('CpDetectImportModal crop editing', () => {
     expect(movedQuad.top_left).toEqual({ x: 32, y: 32 });
   });
 
+  it('mounts a fresh canvas for each rectified image instead of updating the old one', async () => {
+    await reachCropStage();
+    const before = document.querySelector('.cp-detect-modal__canvas');
+    expect(before).not.toBeNull();
+
+    const wrap = document.querySelector('.cp-detect-modal__image-wrap');
+    if (!wrap) throw new Error('no crop editor');
+    pointer('pointerdown', handle(), 0, 0);
+    pointer('pointermove', wrap, 50, 50);
+    pointer('pointerup', wrap, 50, 50);
+    await settle();
+
+    expect(detectClient.manualRectifyImage).toHaveBeenCalledTimes(1);
+    const after = document.querySelector('.cp-detect-modal__canvas');
+    expect(after).not.toBeNull();
+    expect(after).not.toBe(before);
+  });
+
   it('shows the magnifier only while a corner is being dragged', async () => {
     await reachCropStage();
     const wrap = document.querySelector('.cp-detect-modal__image-wrap');
