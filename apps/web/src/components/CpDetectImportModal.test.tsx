@@ -115,6 +115,9 @@ vi.mock('../platform/fileService', () => ({
 const runCpExactSolve = vi.fn();
 vi.mock('../engine/cpExactSolve', () => ({
   runCpExactSolve: (...args: unknown[]) => runCpExactSolve(...args),
+  // Negative disables the solver's deadline — the real constant, spelled here
+  // because the module is replaced wholesale.
+  CP_EXACT_SOLVE_NO_DEADLINE: -1,
 }));
 
 import { TooltipProvider } from './ui/Tooltip';
@@ -459,13 +462,14 @@ describe('CpDetectImportModal recognize-then-solve', () => {
    * the `timeout_seconds` of the call it is in, so the published total has to be
    * handed over for `runCpExactSolve` to divide between its two stages.
    */
-  it('hands the solver the published total budget, not a per-stage one', async () => {
+  it('runs the solve without a deadline, whatever budget the recognize path published', async () => {
     detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(0)));
     await reachReviewStage();
 
     const [input, options] = runCpExactSolve.mock.calls[0] as [unknown, Record<string, unknown>];
     expect(input).toEqual({ schema: 'exact-solve-input-v1' });
-    expect(options.timeoutSeconds).toBe(BUDGET_SECONDS);
+    // Negative disables the solver's timeout; the published 25 s is not sent.
+    expect(options.timeoutSeconds).toBe(-1);
     expect(options.run).toEqual({ kind: 'detect-import', targetId: expect.any(String) });
   });
 

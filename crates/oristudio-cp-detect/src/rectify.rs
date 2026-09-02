@@ -339,16 +339,93 @@ fn edge_mask(luma: &[f32], width: usize, height: usize) -> Vec<bool> {
 }
 
 fn detect_panel(analysis: &ImageAnalysis) -> Option<PanelCandidate> {
+    let ranked = ranked_panel_candidates(analysis);
+    let chosen = choose_panel(&ranked)?;
+    let mut chosen = chosen.clone();
+    if let Value::Object(ref mut map) = chosen.metrics {
+        map.insert("candidates".to_owned(), candidate_summaries(&ranked));
+    }
+    Some(chosen)
+}
+
+/// Every panel the finder considered, best first.
+///
+/// A full-frame border, when the image is one, outranks everything: the paper
+/// fills the image and there is nothing to crop. Otherwise the projection quads
+/// and the ink bounding box compete on confidence.
+fn ranked_panel_candidates(analysis: &ImageAnalysis) -> Vec<PanelCandidate> {
     if let Some(candidate) = frame_candidate(analysis) {
-        return Some(candidate);
+        return vec![candidate];
     }
     let mut candidates = projection_candidates(analysis);
     if let Some(candidate) = density_candidate(analysis) {
         candidates.push(candidate);
     }
+    candidates.sort_by(|left, right| right.confidence.total_cmp(&left.confidence));
     candidates
-        .into_iter()
-        .max_by(|left, right| left.confidence.total_cmp(&right.confidence))
+}
+
+/// The largest credible bordered square, not the best-scoring one.
+///
+/// A crease pattern is full of squares: a box-pleated grid, a preliminary
+/// base, a blintz all draw one inside the paper, bordered by creases as
+/// crisp as the paper's own edge. Scored on border support, squareness and
+/// ink density they tie with the paper — the size term saturates at a sixth
+/// of the image and a full frame is even marked down — and the tie broke on
+/// noise, cropping a turtle to its shell. The paper is the square that holds
+/// all the others, so among the bordered squares the finder believes in, the
+/// largest is the paper. The ink bounding box is not a bordered square and
+/// keeps to the ranking: a caption outside the paper stretches it.
+fn choose_panel(ranked: &[PanelCandidate]) -> Option<&PanelCandidate> {
+    let best = ranked.first()?;
+    ranked
+        .iter()
+        .filter(|candidate| {
+            candidate.method == "border_projection"
+                && candidate.confidence >= MIN_PANEL_CONFIDENCE
+                && candidate
+                    .metrics
+                    .get("square_score")
+                    .and_then(Value::as_f64)
+                    .is_some_and(|square| square >= 0.9)
+        })
+        .max_by(|left, right| {
+            left.quad
+                .area()
+                .total_cmp(&right.quad.area())
+                .then(left.confidence.total_cmp(&right.confidence))
+        })
+        .or(Some(best))
+}
+
+/// The ranked candidates as the report carries them: enough to see what
+/// competed and why it lost, without the per-candidate metric blobs.
+fn candidate_summaries(ranked: &[PanelCandidate]) -> Value {
+    Value::Array(
+        ranked
+            .iter()
+            .take(8)
+            .map(|candidate| {
+                let points = candidate.quad.points();
+                let xs = points.map(|point| point.x);
+                let ys = points.map(|point| point.y);
+                json!({
+                    "method": candidate.method,
+                    "confidence": candidate.confidence,
+                    "box": [
+                        xs.iter().copied().fold(f32::INFINITY, f32::min),
+                        ys.iter().copied().fold(f32::INFINITY, f32::min),
+                        xs.iter().copied().fold(f32::NEG_INFINITY, f32::max),
+                        ys.iter().copied().fold(f32::NEG_INFINITY, f32::max),
+                    ],
+                    "area_ratio": candidate.metrics.get("area_ratio").cloned().unwrap_or(Value::Null),
+                    "border_score": candidate.metrics.get("border_score").cloned().unwrap_or(Value::Null),
+                    "square_score": candidate.metrics.get("square_score").cloned().unwrap_or(Value::Null),
+                    "edge_density": candidate.metrics.get("edge_density").cloned().unwrap_or(Value::Null),
+                })
+            })
+            .collect(),
+    )
 }
 
 fn frame_candidate(analysis: &ImageAnalysis) -> Option<PanelCandidate> {
@@ -1288,6 +1365,45 @@ mod tests {
         let detected = result.report.detected_source_quad.expect("detected quad");
         assert!((detected.top_left.x - 52.0).abs() <= 6.0, "{detected:?}");
         assert!((detected.top_left.y - 28.0).abs() <= 6.0, "{detected:?}");
+    }
+
+    /// A square drawn inside the paper — a preliminary base, a blintz, one
+    /// cell of a grid — is bordered by creases as crisp as the paper's edge and
+    /// scores as well as the paper does. The paper is the square that holds it.
+    #[test]
+    fn auto_rectifier_prefers_the_paper_over_a_square_drawn_inside_it() {
+        let mut image = white_rgba(400, 400);
+        // The paper.
+        draw_rect(&mut image, 400, 30, 30, 370, 370, [0, 0, 0], 3);
+        // A square of creases inside it, with its own diagonals.
+        draw_rect(&mut image, 400, 120, 120, 280, 280, [200, 0, 0], 3);
+        draw_line(&mut image, 400, 120, 120, 280, 280, [0, 0, 200], 2);
+        draw_line(&mut image, 400, 280, 120, 120, 280, [0, 0, 200], 2);
+        // Creases across the rest of the paper, so the paper is not empty.
+        draw_line(&mut image, 400, 30, 200, 370, 200, [200, 0, 0], 2);
+        draw_line(&mut image, 400, 200, 30, 200, 370, [0, 0, 200], 2);
+        draw_line(&mut image, 400, 30, 30, 370, 370, [200, 0, 0], 2);
+
+        let result = auto_rectify_rgba(&image, 400, 400, 256).expect("rectify");
+
+        assert_eq!(result.report.mode, "detect_quad_warp");
+        let detected = result.report.detected_source_quad.expect("detected quad");
+        assert!((detected.top_left.x - 30.0).abs() <= 6.0, "{detected:?}");
+        assert!((detected.top_left.y - 30.0).abs() <= 6.0, "{detected:?}");
+        assert!(
+            (detected.bottom_right.x - 370.0).abs() <= 6.0,
+            "{detected:?}"
+        );
+        assert!(
+            (detected.bottom_right.y - 370.0).abs() <= 6.0,
+            "{detected:?}"
+        );
+        // The inner square was a credible candidate, and the report says so.
+        let candidates = result.report.metrics["raw"]["candidates"]
+            .as_array()
+            .expect("candidates")
+            .clone();
+        assert!(candidates.len() >= 2, "{candidates:?}");
     }
 
     #[test]

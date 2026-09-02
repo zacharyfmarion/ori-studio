@@ -21,7 +21,7 @@ import {
   type CpDetectRecognizeResult,
   type CpDetectRectifiedImage,
 } from '../engine/cpDetectTypes';
-import { runCpExactSolve } from '../engine/cpExactSolve';
+import { CP_EXACT_SOLVE_NO_DEADLINE, runCpExactSolve } from '../engine/cpExactSolve';
 import { requestCpExactSolveStop } from '../engine/cpExactSolveRuns';
 import { isCpExactSolveCancelledError } from '../engine/cpExactSolveSession';
 import {
@@ -474,18 +474,14 @@ export function CpDetectImportModal() {
   );
 
   /**
-   * Run the exact solve on a recognized candidate, in the two stages it has.
+   * Solve the recognized candidate, with no deadline.
    *
-   * The shared implementation, not a second one: `runCpExactSolve` is the same
-   * call the region chip's Solve makes, and it owns the parts that must not be
-   * re-derived per surface — the stage split, the run registry, and the budget
-   * rule. **The budget is the caller's obligation** and this is where it is met:
-   * `solve_exact` builds its deadline from the `timeout_seconds` of the call it
-   * is in, so two calls would otherwise be two independent deadlines and the
-   * staged path would quietly get twice the fused path's cap. Handing over the
-   * published `budget.total_seconds` is what keeps the total whole; a negative
-   * total passes through unchanged, because it disables the timeout and `0`
-   * means "time out immediately".
+   * The recognize path publishes `solve.budget.total_seconds` — the 25 s the
+   * native decode was measured against — and this used to hand it over. It no
+   * longer does: a solve that is still converging at 25 s was being cut off and
+   * offered as a partial, and a complex pattern that gets there in forty
+   * seconds is worth forty seconds. The dialog's own Stop, and the solving
+   * toast's Cancel, are how a solve that would not get there ends.
    */
   const solveRecognized = useCallback(
     async (recognized: CpDetectRecognizeResult) => {
@@ -496,7 +492,7 @@ export function CpDetectImportModal() {
       setSolveTargetId(targetId);
       try {
         const result = await runCpExactSolve(recognized.solveInput, {
-          timeoutSeconds: recognized.solve.budget?.totalSeconds,
+          timeoutSeconds: CP_EXACT_SOLVE_NO_DEADLINE,
           run: { kind: 'detect-import', targetId },
           onStage: (stage) => setPhase({ kind: 'solving', stage }),
         });
@@ -834,7 +830,11 @@ export function CpDetectImportModal() {
               </Button>
             </div>
 
-            <StatusRows status={status} error={error} />
+            {/* No "Rectifying crop" row here: it is over in a blink and a row
+                that appears above the grid shoves the crop and the result down
+                and back up again, which reads as something going wrong. The
+                dropzone still says it for the first, slower load. */}
+            <StatusRows status={busy === 'rectifying' ? null : status} error={error} />
 
             <div className="cp-detect-modal__crop-grid">
               <section className="cp-detect-modal__pane">

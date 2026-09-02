@@ -287,6 +287,17 @@ async function solveOnSession(
  *   legitimate value to send: the budget really is gone, and immediate timeout is
  *   the honest answer rather than a fresh 25 s.
  */
+/**
+ * The budget that means "no deadline". A negative total disables the solver's
+ * timeout (`ExactSolveOptions::timeout_seconds`, where zero times out at once),
+ * and {@link remainingSolveBudget} passes it through both stages unchanged. A
+ * solve run under it ends when it converges, gives up, or is stopped — the
+ * product's policy since the 25 s cap was dropped: a pattern that gets there in
+ * forty seconds is worth forty seconds, and Stop is there for the ones that
+ * would not.
+ */
+export const CP_EXACT_SOLVE_NO_DEADLINE = -1;
+
 export function remainingSolveBudget(
   totalSeconds: number | undefined,
   spentSeconds: number
