@@ -12,6 +12,7 @@ import {
   CP_EXACT_SOLVE_PREFLIGHT_REASONS,
   CP_EXACT_SOLVE_REASONS,
   classifyCpExactSolve,
+  cpExactSolveAngleFamily,
   cpExactSolveResiduals,
   isCpExactSolveAccepted,
   isCpExactSolveReason,
@@ -84,6 +85,7 @@ describe('classifyCpExactSolve', () => {
       maxMovement: 0.02,
       elapsedSeconds: 3.5,
       residuals: null,
+      angleFamily: null,
       polishAdopted: true,
     });
     expect(primaryCpExactSolveReason(outcome)).toBeNull();
@@ -404,5 +406,67 @@ describe('the reason vocabulary', () => {
     for (const reason of CP_EXACT_SOLVE_REASONS) expect(isCpExactSolveReason(reason)).toBe(true);
     expect(isCpExactSolveReason('preflight_degenerate_edge')).toBe(false);
     expect(isCpExactSolveReason('')).toBe(false);
+  });
+});
+
+describe('cpExactSolveAngleFamily', () => {
+  const solvedWith = (movement_report: CpExactSolveMovementReport): CpExactSolvedGraph =>
+    ({
+      schema: 'test',
+      vertices_exact: [],
+      edges_exact: [],
+      movement_report,
+      theorem_residual_report: {},
+      status: 'ambiguous',
+    }) as CpExactSolvedGraph;
+
+  it('is null when the report has no grid block', () => {
+    expect(cpExactSolveAngleFamily(solvedWith({}))).toBeNull();
+    expect(cpExactSolveAngleFamily(solvedWith({ polish: { pinned_family: null } }))).toBeNull();
+    expect(cpExactSolveAngleFamily(solvedWith({ polish: { pinned_family: {} } }))).toBeNull();
+  });
+
+  it('reads the last attempt, which is the one that was judged', () => {
+    const family = cpExactSolveAngleFamily(
+      solvedWith({
+        polish: {
+          pinned_family: {
+            step_degrees: 22.5,
+            carriers: 328,
+            adopted: false,
+            stop_reason: 'refused',
+            attempts: [
+              { tolerance_degrees: 1.5, refusals: ['candidate_status_failed'], kawasaki_over_bar: 165 },
+              { tolerance_degrees: 0.75, refusals: ['pinned_kawasaki_regressed'], kawasaki_over_bar: 33 },
+            ],
+          },
+        },
+      })
+    );
+    expect(family).toEqual({
+      stepDegrees: 22.5,
+      adopted: false,
+      stopReason: 'refused',
+      refusals: ['pinned_kawasaki_regressed'],
+      verticesOverBar: 33,
+    });
+  });
+
+  it('reads an adopted snap', () => {
+    const family = cpExactSolveAngleFamily(
+      solvedWith({
+        polish: {
+          pinned_family: {
+            step_degrees: 22.5,
+            adopted: true,
+            stop_reason: 'adopted',
+            attempts: [{ tolerance_degrees: 1.5, refusals: [], kawasaki_over_bar: 0 }],
+          },
+        },
+      })
+    );
+    expect(family?.adopted).toBe(true);
+    expect(family?.stopReason).toBe('adopted');
+    expect(family?.refusals).toEqual([]);
   });
 });

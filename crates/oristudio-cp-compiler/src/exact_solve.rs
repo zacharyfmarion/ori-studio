@@ -164,6 +164,24 @@ const fn default_angle_family_min_fraction() -> f64 {
 /// lattice, and the ones furthest from it are the suspects.
 const ANGLE_FAMILY_RETRY_HALVINGS: usize = 2;
 
+/// How many times a pinned attempt re-anchors its priors to its own result and
+/// solves again before it is judged. The first solve stops with Kawasaki a few
+/// millionths of a degree over the bar: the vertices it moved onto the pinned
+/// lines charge movement energy, next to which those residuals are invisible
+/// to the stopping test. Re-anchoring zeroes that charge, and the residuals
+/// are all that is left to minimise — the same trick the polish rounds use.
+const PINNED_REANCHOR_ROUNDS: usize = 3;
+
+/// What the pinned round leaves on the clock for the analysis and report that
+/// follow it. A round that runs out of its own allowance is refused; it must
+/// never turn an accepted solve into one that timed out.
+const PINNED_ROUND_RESERVE_SECONDS: f64 = 0.5;
+
+/// Alternating sum a fully-pinned fan may have and still count as satisfying
+/// Kawasaki on the lattice. Exact multiples of the step sum to zero up to
+/// floating-point rounding, ~1e-15 radians.
+const LATTICE_KAWASAKI_TOLERANCE: f64 = 1e-9;
+
 /// The lattice steps a designed pattern is likely drawn on, finest first: a 45°
 /// design also fits the 22.5° lattice and pins to the same angles under it, so
 /// preferring the finer of the two loses nothing.
@@ -1116,26 +1134,33 @@ impl SolveModel {
 
     /// The polish model for a pinned round: re-anchored to `solved` like
     /// [`Self::reanchored_for_polish`], with every carrier within `tolerance`
-    /// of the `step` lattice set to its exact lattice angle and frozen there.
-    /// Returns the model and the parameters to start from — `solved` with those
-    /// directions snapped — or `None` when no carrier is both on the lattice and
-    /// off it by enough to be worth moving. See [`AngleFamilyMode`].
+    /// of the `step` lattice set to its exact lattice angle and frozen there —
+    /// less the ones [`Self::peel_inconsistent_pins`] lets go. Returns the
+    /// model, the parameters to start from (`solved` with those directions
+    /// snapped) and how many carriers were let go, or `None` when no carrier is
+    /// both on the lattice and off it by enough to be worth moving.
     fn pinned_to_angle_family(
         &self,
         solved: &OVector<f64, Dyn>,
         step: f64,
         tolerance: f64,
-    ) -> Option<(Self, OVector<f64, Dyn>)> {
+    ) -> Option<(Self, OVector<f64, Dyn>, usize)> {
+        let mut pin: Vec<bool> = self
+            .carrier_groups
+            .iter()
+            .map(|group| lattice_offset(solved[group.theta_index], step).abs() <= tolerance)
+            .collect();
+        let peeled = self.peel_inconsistent_pins(solved, step, &mut pin);
         let mut pinned = self.reanchored_for_polish(solved);
         pinned.frozen_params = vec![false; solved.len()];
         let mut start = solved.clone();
         let mut moved = 0usize;
-        for group in &mut pinned.carrier_groups {
-            let theta = solved[group.theta_index];
-            let offset = lattice_offset(theta, step);
-            if offset.abs() > tolerance {
+        for (group, &pin_this) in pinned.carrier_groups.iter_mut().zip(&pin) {
+            if !pin_this {
                 continue;
             }
+            let theta = solved[group.theta_index];
+            let offset = lattice_offset(theta, step);
             let snapped = theta - offset;
             group.pinned_step = Some(step);
             group.initial_theta = snapped;
@@ -1149,7 +1174,118 @@ impl SolveModel {
             return None;
         }
         pinned.initial_params = start.clone();
-        Some((pinned, start))
+        Some((pinned, start, peeled))
+    }
+
+    /// Let go, before any optimising, of what the lattice itself says cannot be
+    /// pinned. At a vertex whose every carrier is pinned, the sector angles are
+    /// fixed by the lattice alone, so Kawasaki there is arithmetic: if the
+    /// snapped directions fail it, no optimizer will pass it, and one of those
+    /// carriers was never on the lattice. The one furthest from it is let go and
+    /// the check repeats until every fully-pinned vertex passes. Returns how
+    /// many carriers were let go. Measured on pegasus-attempt at 1.5°: the
+    /// optimizer spent three seconds finding a 0.59° Kawasaki failure this
+    /// finds in microseconds.
+    fn peel_inconsistent_pins(
+        &self,
+        solved: &OVector<f64, Dyn>,
+        step: f64,
+        pin: &mut [bool],
+    ) -> usize {
+        use std::f64::consts::{FRAC_PI_2, PI};
+        let points = self.points_from_params(solved);
+        let boundary = boundary_vertex_ids(&self.selected_spans);
+        let mut incident: Vec<Vec<usize>> = vec![Vec::new(); self.vertices.len()];
+        for (index, span) in self.selected_spans.iter().enumerate() {
+            if !is_fold_span(span) || self.merged_span_ids.contains(&span.id) {
+                continue;
+            }
+            for vertex in span.vertices {
+                if let Some(list) = incident.get_mut(vertex) {
+                    list.push(index);
+                }
+            }
+        }
+        let mut peeled = 0usize;
+        loop {
+            let mut let_go: Option<usize> = None;
+            for vertex in &self.vertices {
+                if !is_interior_fold_vertex(vertex, &boundary) {
+                    continue;
+                }
+                let spans = &incident[vertex.id];
+                if spans.len() < 4 || !spans.len().is_multiple_of(2) {
+                    continue;
+                }
+                let mut rays = Vec::with_capacity(spans.len());
+                let mut furthest: Option<(usize, f64)> = None;
+                let mut fully_pinned = true;
+                for &span_index in spans {
+                    let span = &self.selected_spans[span_index];
+                    let Some(&group_index) = self.span_to_carrier_group.get(&span.id) else {
+                        fully_pinned = false;
+                        break;
+                    };
+                    if !pin[group_index] {
+                        fully_pinned = false;
+                        break;
+                    }
+                    let theta = solved[self.carrier_groups[group_index].theta_index];
+                    let offset = lattice_offset(theta, step);
+                    let [a, b] = span.vertices;
+                    let (from, to) = if a == vertex.id { (a, b) } else { (b, a) };
+                    let current = angle_radians(points[from], points[to]);
+                    // The pinned line's direction, in the sense this ray runs.
+                    let direction = theta - offset + FRAC_PI_2;
+                    let ray = if angle_delta(direction, current).abs() <= FRAC_PI_2 {
+                        direction
+                    } else {
+                        direction + PI
+                    };
+                    rays.push(ray.rem_euclid(TAU));
+                    if furthest.is_none_or(|(_, worst)| offset.abs() > worst) {
+                        furthest = Some((group_index, offset.abs()));
+                    }
+                }
+                if !fully_pinned {
+                    continue;
+                }
+                rays.sort_by(f64::total_cmp);
+                let mut alternating = 0.0;
+                for (k, ray) in rays.iter().enumerate() {
+                    let sector = (rays[(k + 1) % rays.len()] - ray).rem_euclid(TAU);
+                    alternating += if k % 2 == 0 { sector } else { -sector };
+                }
+                if alternating.abs() > LATTICE_KAWASAKI_TOLERANCE {
+                    let_go = furthest.map(|(group_index, _)| group_index);
+                    break;
+                }
+            }
+            match let_go {
+                Some(group_index) => {
+                    pin[group_index] = false;
+                    peeled += 1;
+                }
+                None => return peeled,
+            }
+        }
+    }
+
+    /// A copy on its own clock: `seconds` from now, with a timeout flag that is
+    /// its own. The shared flag would turn a round that ran out of its
+    /// allowance into a solve that timed out.
+    fn with_own_budget(&self, seconds: f64) -> Self {
+        let mut own = self.clone();
+        own.deadline = ExactSolveDeadline::start(seconds);
+        own.timed_out = Rc::new(Cell::new(false));
+        own
+    }
+
+    /// Seconds left on this model's clock, or `None` when it has no deadline.
+    fn remaining_seconds(&self) -> Option<f64> {
+        let deadline = &self.deadline;
+        (deadline.timeout_seconds.is_finite() && deadline.timeout_seconds >= 0.0)
+            .then(|| deadline.timeout_seconds - deadline.elapsed_seconds())
     }
 
     /// This model with `span_ids` read as merges. See [`analyze_graph`].
@@ -2796,6 +2932,9 @@ struct PinnedFamilyOutcome {
     /// when `adopted` is true.
     attempts: Vec<PinnedAttempt>,
     adopted: bool,
+    /// Why the attempts stopped: `adopted`, `refused` (every tolerance tried),
+    /// `nothing_to_pin`, or `out_of_time`.
+    stop_reason: &'static str,
 }
 
 /// One attempt at pinning, and why it was refused if it was.
@@ -2803,6 +2942,11 @@ struct PinnedFamilyOutcome {
 struct PinnedAttempt {
     tolerance_degrees: f64,
     pinned_carriers: usize,
+    /// Carriers within tolerance that [`SolveModel::peel_inconsistent_pins`]
+    /// let go before optimising.
+    peeled_carriers: usize,
+    /// Re-anchored solves adopted after the first; see [`PINNED_REANCHOR_ROUNDS`].
+    reanchored_rounds: usize,
     kawasaki_degrees: f64,
     camv: Option<CamvCounts>,
     /// Edges the lattice collapsed to a point that were not degenerate before:
@@ -2812,6 +2956,15 @@ struct PinnedAttempt {
     /// The widest gap the optimizer left in a collapsed pair before the answer
     /// closed it; zero when nothing collapsed.
     lm_separation: f64,
+    /// How the optimizer stopped (the last pass, when there were two), and how
+    /// many residual evaluations both passes cost: a round refused at
+    /// `sparse_max_iterations` ran out of budget, not out of room.
+    termination: String,
+    evaluations: usize,
+    /// Interior vertices whose Kawasaki residual is above the solved bar, and
+    /// the worst five of them by (vertex id, degrees).
+    kawasaki_over_bar: usize,
+    worst_kawasaki: Vec<(usize, f64)>,
     seconds: f64,
     /// Reasons from [`exact_solution_rejection_reasons`] followed by those from
     /// [`pinned_round_regressions`]; empty when adopted.
@@ -2861,28 +3014,36 @@ fn pin_to_angle_family(
         carriers: model.carrier_groups.len(),
         attempts: Vec::new(),
         adopted: false,
+        stop_reason: "refused",
     };
     let mut adopted = None;
     let mut tolerance = options.angle_family_snap_tolerance_radians;
     for _attempt in 0..=ANGLE_FAMILY_RETRY_HALVINGS {
-        if model.timeout_reached() {
+        // The round runs on its own clock, inside what is left of the solve's.
+        let budget = model
+            .remaining_seconds()
+            .map(|seconds| seconds - PINNED_ROUND_RESERVE_SECONDS);
+        if budget.is_some_and(|seconds| seconds <= 0.0) {
+            outcome.stop_reason = "out_of_time";
             break;
         }
-        let Some((pinned_model, start)) =
+        let Some((pinned_model, start, peeled_carriers)) =
             model.pinned_to_angle_family(current_params, step, tolerance)
         else {
+            outcome.stop_reason = "nothing_to_pin";
             break;
+        };
+        let pinned_model = match budget {
+            Some(seconds) => pinned_model.with_own_budget(seconds),
+            None => pinned_model,
         };
         let pinned_carriers = pinned_model
             .carrier_groups
             .iter()
             .filter(|group| group.pinned_step.is_some())
             .count();
-        // Objective progress is judged from the snapped start, where the pinned
-        // directions have just been moved out from under their vertices: that is
-        // the problem this round solves, and the only fair "before" for it.
         let started = model.deadline.elapsed_seconds();
-        let (pinned_params, _termination, mut evaluations, _objective, _counters) =
+        let (pinned_params, mut termination, mut evaluations, _objective, _counters) =
             run_lm_minimize(&pinned_model, &start, options);
         let raw_points = model.points_from_params(&pinned_params);
         // A span the lattice collapsed is two detected vertices the design has
@@ -2910,18 +3071,50 @@ fn pin_to_angle_family(
         // Kawasaki at both ends to their separation, and the optimizer settles
         // a few millionths short of the intersection. This pass solves the
         // merged vertex the round is about to be judged on.
-        let (judged_model, pinned_params) = if merged_span_ids.is_empty() {
+        let (mut judged_model, mut pinned_params) = if merged_span_ids.is_empty() {
             (pinned_model.clone(), pinned_params)
         } else {
             let merged_pinned = pinned_model.with_merged_spans(&merged_span_ids);
-            let (params, _termination, more, _objective, _counters) =
+            let (params, merged_termination, more, _objective, _counters) =
                 run_lm_minimize(&merged_pinned, &pinned_params, options);
             evaluations += more;
+            termination = merged_termination;
             (merged_pinned, params)
         };
+        let merged_model = model.with_merged_spans(&merged_span_ids);
+        let analyze = |params: &OVector<f64, Dyn>| {
+            let points = merged_model.placed_points(params);
+            analyze_graph(input, &points, &merged_model, params, options)
+        };
+        let mut pinned_after = analyze(&pinned_params);
+        // Then re-anchor and solve again while Kawasaki is over the bar and
+        // still improving. See [`PINNED_REANCHOR_ROUNDS`].
+        let mut reanchored_rounds = 0usize;
+        for _round in 0..PINNED_REANCHOR_ROUNDS {
+            if pinned_after.max_kawasaki_residual_degrees <= options.solved_kawasaki_epsilon_degrees
+                || judged_model.timeout_reached()
+            {
+                break;
+            }
+            let reanchored = judged_model.reanchored_for_polish(&pinned_params);
+            let (params, round_termination, more, _objective, _counters) =
+                run_lm_minimize(&reanchored, &pinned_params, options);
+            evaluations += more;
+            let after = analyze(&params);
+            if after.max_kawasaki_residual_degrees >= pinned_after.max_kawasaki_residual_degrees {
+                break;
+            }
+            pinned_params = params;
+            pinned_after = after;
+            judged_model = reanchored;
+            termination = round_termination;
+            reanchored_rounds += 1;
+        }
+        // Objective progress is judged from the snapped start, where the pinned
+        // directions have just been moved out from under their vertices: that is
+        // the problem this round solves, and the only fair "before" for it.
         let start_energy = residual_energy(&judged_model.residuals_for(&start));
         let final_energy = residual_energy(&judged_model.residuals_for(&pinned_params));
-        let merged_model = model.with_merged_spans(&merged_span_ids);
         let raw_points = model.points_from_params(&pinned_params);
         // How far apart the optimizer actually left each collapsed pair, before
         // the answer makes them one point: a diagnostic on the round's
@@ -2930,14 +3123,6 @@ fn pin_to_angle_family(
             .merged_spans()
             .map(|span| distance(raw_points[span.vertices[0]], raw_points[span.vertices[1]]))
             .fold(0.0_f64, f64::max);
-        let pinned_points = merged_model.placed_points(&pinned_params);
-        let pinned_after = analyze_graph(
-            input,
-            &pinned_points,
-            &merged_model,
-            &pinned_params,
-            options,
-        );
         let pinned_status = classify_status(before, &pinned_after, options);
         let mut refusals = exact_solution_rejection_reasons(
             before,
@@ -2967,15 +3152,43 @@ fn pin_to_angle_family(
         outcome.attempts.push(PinnedAttempt {
             tolerance_degrees: tolerance.to_degrees(),
             pinned_carriers,
+            peeled_carriers,
+            reanchored_rounds,
             kawasaki_degrees: pinned_after.max_kawasaki_residual_degrees,
             camv: pinned_after.camv,
             collapsed_edges,
             lm_separation,
+            termination,
+            evaluations,
+            kawasaki_over_bar: pinned_after
+                .vertex_diagnostics
+                .iter()
+                .filter(|vertex| {
+                    vertex
+                        .kawasaki_residual_degrees
+                        .is_some_and(|degrees| degrees > options.solved_kawasaki_epsilon_degrees)
+                })
+                .count(),
+            worst_kawasaki: {
+                let mut worst: Vec<(usize, f64)> = pinned_after
+                    .vertex_diagnostics
+                    .iter()
+                    .filter_map(|vertex| {
+                        vertex
+                            .kawasaki_residual_degrees
+                            .map(|degrees| (vertex.vertex_id, degrees))
+                    })
+                    .collect();
+                worst.sort_by(|a, b| b.1.total_cmp(&a.1));
+                worst.truncate(5);
+                worst
+            },
             seconds: model.deadline.elapsed_seconds() - started,
             refusals: refusals.clone(),
         });
         if refusals.is_empty() {
             outcome.adopted = true;
+            outcome.stop_reason = "adopted";
             adopted = Some(PinnedAdoption {
                 params: pinned_params,
                 after: pinned_after,
@@ -3082,6 +3295,7 @@ fn polish_report_json(polish: &PolishOutcome, options: ExactSolveOptions) -> Val
                 "step_degrees": pinned.step_degrees,
                 "carriers": pinned.carriers,
                 "adopted": pinned.adopted,
+                "stop_reason": pinned.stop_reason,
                 "attempts": pinned
                     .attempts
                     .iter()
@@ -3089,6 +3303,8 @@ fn polish_report_json(polish: &PolishOutcome, options: ExactSolveOptions) -> Val
                         json!({
                             "tolerance_degrees": attempt.tolerance_degrees,
                             "pinned_carriers": attempt.pinned_carriers,
+                            "peeled_carriers": attempt.peeled_carriers,
+                            "reanchored_rounds": attempt.reanchored_rounds,
                             "kawasaki_degrees": round12(attempt.kawasaki_degrees),
                             "camv_angle_violations": attempt.camv.map(|camv| camv.angle_violations),
                             "big_little_big_violations": attempt.camv.map(|camv| camv.big_little_big_violations),
@@ -3098,6 +3314,14 @@ fn polish_report_json(polish: &PolishOutcome, options: ExactSolveOptions) -> Val
                                 .map(|(edge, length)| json!({ "vertices": edge, "input_length": round6(*length) }))
                                 .collect::<Vec<_>>(),
                             "lm_separation": attempt.lm_separation,
+                            "termination": attempt.termination,
+                            "evaluations": attempt.evaluations,
+                            "kawasaki_over_bar": attempt.kawasaki_over_bar,
+                            "worst_kawasaki": attempt
+                                .worst_kawasaki
+                                .iter()
+                                .map(|(vertex, degrees)| json!({ "vertex": vertex, "degrees": round12(*degrees) }))
+                                .collect::<Vec<_>>(),
                             "seconds": round6(attempt.seconds),
                             "refusals": attempt.refusals,
                         })

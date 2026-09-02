@@ -20,6 +20,7 @@ import type {
   CpExactSolveAcceptedOutcome,
   CpExactSolveResiduals,
   CpExactSolvedGraph,
+  CpSolveAngleFamily,
 } from '../../engine/cpExactSolveTypes';
 import { classifyCpExactSolve, isCpExactSolveAccepted } from '../../engine/cpExactSolveTypes';
 import {
@@ -396,5 +397,83 @@ describe('mid-solve_2.osf, end to end from the solver payload', () => {
     // sentence leads, it does not replace it.
     expect(detail).toContain('from 14.4° to 0.007°');
     expect(detail).toContain('below 0.000001°');
+  });
+});
+
+describe('cpSolveCompletionDetail — the grid snap', () => {
+  // Four big-little-big violations remain, so the snap is the next thing to say.
+  const remaining = () => residuals({ bigLittleBigViolationsAfter: 4 });
+  function family(over: Partial<CpSolveAngleFamily> = {}): CpSolveAngleFamily {
+    return {
+      stepDegrees: 22.5,
+      adopted: false,
+      stopReason: 'refused',
+      refusals: ['pinned_kawasaki_regressed', 'pinned_angle_violations_increased'],
+      verticesOverBar: 33,
+      ...over,
+    };
+  }
+
+  it('says when there was no grid to snap to', () => {
+    const detail = cpSolveCompletionDetail(t, {
+      completion: 'unfoldable',
+      residuals: remaining(),
+      angleFamily: null,
+    });
+    expect(detail).toContain('not close enough to a 22.5° or 45° grid');
+  });
+
+  it('says the snap was refused for breaking vertices, with their count', () => {
+    const detail = cpSolveCompletionDetail(t, {
+      completion: 'unfoldable',
+      residuals: remaining(),
+      angleFamily: family(),
+    });
+    expect(detail).toContain(
+      'Snapping the creases to the 22.5° grid was tried and refused because 33 vertices could not stay flat-foldable on it.'
+    );
+    // Still leads with the cause, and still quotes the angles.
+    expect(detail.startsWith('At 4 vertices the smallest angle')).toBe(true);
+    expect(detail).toContain('14.4°');
+  });
+
+  it('says the snap was refused for moving vertices too far', () => {
+    const detail = cpSolveCompletionDetail(t, {
+      completion: 'unfoldable',
+      residuals: remaining(),
+      angleFamily: family({
+        refusals: ['candidate_status_failed', 'movement_budget_exceeded'],
+        verticesOverBar: 0,
+      }),
+    });
+    expect(detail).toContain('would have moved vertices too far');
+  });
+
+  it('says what remains is off the grid when the snap landed', () => {
+    const detail = cpSolveCompletionDetail(t, {
+      completion: 'unfoldable',
+      residuals: remaining(),
+      angleFamily: family({ adopted: true, stopReason: 'adopted', refusals: [], verticesOverBar: 0 }),
+    });
+    expect(detail).toContain('were snapped to it; what remains is at creases that are not on it');
+  });
+
+  it('writes a 45° grid without a decimal', () => {
+    const detail = cpSolveCompletionDetail(t, {
+      completion: 'unfoldable',
+      residuals: remaining(),
+      angleFamily: family({ stepDegrees: 45, adopted: true, stopReason: 'adopted', refusals: [] }),
+    });
+    expect(detail).toContain('the 45° grid');
+    expect(detail).not.toContain('45.0');
+  });
+
+  it('says nothing about the grid when no big-little-big violation remains', () => {
+    const detail = cpSolveCompletionDetail(t, {
+      completion: 'unfoldable',
+      residuals: residuals({ oddDegreeVerticesAfter: 2 }),
+      angleFamily: family(),
+    });
+    expect(detail).not.toContain('grid');
   });
 });

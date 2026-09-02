@@ -356,11 +356,13 @@ wrongly-inferred family pulls solves away from GT rather than toward it.
 - [x] Detector-split junctions: a stub the lattice collapses is adopted as a
       vertex merge (`ExactSolvedGraph::merged_vertices`).
 - [ ] Update `PORTING.md` if the acceptance criteria diverge from Oriedita's.
-- [ ] Retry by peeling: when a pinned round is refused, unpin only the carriers
-      through the vertices where Kawasaki broke, instead of halving the
-      tolerance for all of them (iguana50-09/10/40 are refused today at every
-      tolerance while their unpinned solve is already clean; close_but's three
-      attempts cost 6–14 s each).
+- [x] Re-anchored rounds inside a pinned attempt, the round on its own clock,
+      and a lattice pre-check that lets provably inconsistent pins go before
+      optimising (see Outcome, "second pass").
+- [x] The chip says what the grid snap did when Big-Little-Big remains: no grid,
+      snapped, refused (broke N vertices / moved too far), or out of time.
+- [ ] Peel by optimizer result: when a pinned attempt is still refused, unpin
+      the carriers through the vertices it left over the bar and retry.
 - [ ] A merged pair in the solve summary ("2 vertices merged"), once the i18n
       pass is due.
 
@@ -413,6 +415,28 @@ both ends to their separation — hence the second, merged pass.
 | `22-5/` (11) | 2 px | 8 clean | **11 clean** |
 | `22-5/` (11) | 4 px | 7 clean | 8 clean (one refused on the movement budget; two stage-1 Kawasaki failures unrelated to the pin) |
 | `bases` (41 square) | 2 px | 39 clean, 2 broken | **40 clean**, 1 broken (iguana50-23: 96 → 6 angle violations, the pin adopted as an improvement) |
+
+**Second pass (2026-09-02).** A pinned attempt's first solve stops with
+Kawasaki a few millionths of a degree over the bar (pegasus at 0.75°: 8e-6°
+at 33 vertices, `sparse_ftol`): the vertices it moved onto the pinned lines
+charge movement energy, next to which those residuals are invisible to the
+stopping test. Re-anchoring the priors to the attempt's own result and solving
+again — the polish rounds' trick — takes it to 4e-10°. With that, plus a
+lattice pre-check (a fully-pinned vertex whose snapped directions fail Kawasaki
+is arithmetic, not optimisation) and the round on its own clock (a round that
+runs out of its allowance is refused, never a timed-out solve):
+
+| file | before | after |
+| --- | --- | --- |
+| pegasus | refused at every tolerance; 32 BLB | adopted at 0.75°, 2 merges; **9 BLB**, 0 angle |
+| close_but | refused at every tolerance; 28 BLB | adopted at 1.5°; **8 BLB**, 0 angle |
+| `bases` (41 square) at 2 px | 40 clean | **41 clean** |
+| `22-5/` (11) at 2 px | 11 clean | 11 clean |
+
+In the product flow (two stages on one 25 s budget) pegasus's stage 2 lands
+in 16.3 s of the 24.2 s it has, adopted. The remaining violations on pegasus
+and close_but are at creases the detection left more than 0.75°/1.5° off the
+lattice; the optimizer-result peel above is the next lever for those.
 
 Three fully-lattice samples come back at **0.00 px** from ground truth. User
 files: `mid-solve_4` and `mostly-successful` go to `Solved` with 0 angle and 0

@@ -115,6 +115,37 @@ export interface CpExactSolvePolishReport {
   /** Max Kawasaki residual after the adopted rounds; equal to `before` when none were. */
   kawasaki_after_degrees?: number | null;
   refused_round?: CpExactSolvePolishRefusal | null;
+  /** What the grid snap did, or null when the solver saw no grid to snap to. */
+  pinned_family?: CpExactSolvePinnedFamilyReport | null;
+  [key: string]: unknown;
+}
+
+/**
+ * `movement_report.polish.pinned_family` — what the angle-family snap did.
+ *
+ * A designed pattern's creases sit on a 22.5° or 45° grid, and its
+ * Big-Little-Big ties are exact only there. At the end of refinement the solver
+ * snaps the creases near that grid to exact grid angles and re-solves the rest,
+ * keeping the result only if nothing gets worse; `attempts` records each try,
+ * widest tolerance first, and the last one is the adopted one when `adopted`.
+ */
+export interface CpExactSolvePinnedFamilyReport {
+  step_degrees?: number;
+  carriers?: number;
+  adopted?: boolean;
+  /** `adopted` | `refused` | `nothing_to_pin` | `out_of_time`. */
+  stop_reason?: string;
+  attempts?: CpExactSolvePinnedAttempt[];
+  [key: string]: unknown;
+}
+
+export interface CpExactSolvePinnedAttempt {
+  tolerance_degrees?: number;
+  pinned_carriers?: number;
+  /** Vertices this attempt left over the flat-fold bar. */
+  kawasaki_over_bar?: number;
+  /** Why it was refused — acceptance-gate tokens; empty when adopted. */
+  refusals?: string[];
   [key: string]: unknown;
 }
 
@@ -371,6 +402,11 @@ interface CpExactSolveAcceptedFields {
    */
   residuals: CpExactSolveResiduals | null;
   /**
+   * What the grid snap did, or null when there was no grid to snap to. See
+   * {@link cpExactSolveAngleFamily}.
+   */
+  angleFamily?: CpSolveAngleFamily | null;
+  /**
    * Whether the refinement stage's polish loop kept any of its rounds.
    *
    * Read from `movement_report.polish.rounds_adopted`, which the solver reports
@@ -560,6 +596,50 @@ export function cpExactSolveResiduals(
 }
 
 /**
+ * What the grid snap did, in the fields a sentence needs.
+ *
+ * Read off `movement_report.polish.pinned_family`. Null when the report has no
+ * such block — the solver saw no 22.5° or 45° grid to snap to, or predates the
+ * snap — so a caller can tell "no grid" from "tried and refused".
+ */
+export interface CpSolveAngleFamily {
+  stepDegrees: number;
+  adopted: boolean;
+  /** `adopted` | `refused` | `nothing_to_pin` | `out_of_time`. */
+  stopReason: string;
+  /** The last attempt's acceptance-gate tokens; empty when adopted or never attempted. */
+  refusals: string[];
+  /** Vertices the last attempt left over the flat-fold bar, when it reported them. */
+  verticesOverBar: number | null;
+}
+
+export function cpExactSolveAngleFamily(solved: CpExactSolvedGraph): CpSolveAngleFamily | null {
+  const pinned = solved.movement_report?.polish?.pinned_family;
+  if (!pinned || typeof pinned !== 'object') return null;
+  const step = pinned.step_degrees;
+  if (typeof step !== 'number' || !Number.isFinite(step)) return null;
+  const attempts = Array.isArray(pinned.attempts) ? pinned.attempts : [];
+  const last = attempts.length > 0 ? attempts[attempts.length - 1] : undefined;
+  const refusals = Array.isArray(last?.refusals)
+    ? last.refusals.filter((reason): reason is string => typeof reason === 'string')
+    : [];
+  const adopted = pinned.adopted === true;
+  const over = last?.kawasaki_over_bar;
+  return {
+    stepDegrees: step,
+    adopted,
+    stopReason:
+      typeof pinned.stop_reason === 'string'
+        ? pinned.stop_reason
+        : adopted
+          ? 'adopted'
+          : 'refused',
+    refusals,
+    verticesOverBar: typeof over === 'number' && Number.isFinite(over) ? over : null,
+  };
+}
+
+/**
  * `sparse_ftol+polish(rounds=3)` — the suffix is written only for rounds that
  * were kept, so no suffix means the polish ran and was thrown away, not that it
  * never ran. Parsed rather than matched on the whole string because the prefix
@@ -646,6 +726,7 @@ export function classifyCpExactSolve(
       maxMovement: finiteNumber(report.max_vertex_movement),
       elapsedSeconds,
       residuals: cpExactSolveResiduals(solved),
+      angleFamily: cpExactSolveAngleFamily(solved),
       polishAdopted: polishWasAdopted(report),
     };
   }

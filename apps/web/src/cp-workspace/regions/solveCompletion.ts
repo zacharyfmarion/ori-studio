@@ -47,6 +47,7 @@ import { cpExactSolveReasonLabel } from '../../engine/cpExactSolveMessages';
 import type {
   CpExactSolveAcceptedOutcome,
   CpExactSolveResiduals,
+  CpSolveAngleFamily,
 } from '../../engine/cpExactSolveTypes';
 
 /**
@@ -85,6 +86,8 @@ export interface CpSolveCompletionFacts {
   completion: CpSolveCompletion;
   /** The solver's own before/after figures, or null when it reported none. */
   residuals: CpExactSolveResiduals | null;
+  /** What the grid snap did, or null when there was no grid to snap to. */
+  angleFamily?: CpSolveAngleFamily | null;
 }
 
 /**
@@ -115,7 +118,11 @@ export function cpSolveCompletion(outcome: CpExactSolveAcceptedOutcome): CpSolve
 export function cpSolveCompletionFacts(
   outcome: CpExactSolveAcceptedOutcome
 ): CpSolveCompletionFacts {
-  return { completion: cpSolveCompletion(outcome), residuals: outcome.residuals };
+  return {
+    completion: cpSolveCompletion(outcome),
+    residuals: outcome.residuals,
+    angleFamily: outcome.angleFamily ?? null,
+  };
 }
 
 /**
@@ -234,8 +241,76 @@ export function cpSolveCompletionDetail(t: TFunction, facts: CpSolveCompletionFa
           'At {{count}} vertices the smallest angle sits between two creases folded the same way, so this pattern cannot fold flat.',
       })
     );
+    // The grid snap is what takes those away on a designed pattern, so when
+    // they remain, what it did is the next thing to say — and a snap that was
+    // tried and refused would otherwise be invisible.
+    causes.push(gridSnapDetail(t, facts.angleFamily));
   }
   return [...causes, angles].join(' ');
+}
+
+/** `22.5` and `45`, not `22.50` and `45.0`. */
+function formatGridStep(degrees: number): string {
+  return Number.isInteger(degrees) ? String(degrees) : degrees.toFixed(1);
+}
+
+/**
+ * What the grid snap did, when Big-Little-Big violations remain.
+ *
+ * Four endings the user can tell apart: no grid to snap to, snapped (what is
+ * left is off the grid), refused for breaking vertices or moving too far, and
+ * out of time. Each is said as what happened, not as a solver token.
+ */
+function gridSnapDetail(t: TFunction, family: CpSolveAngleFamily | null | undefined): string {
+  if (!family) {
+    return t(
+      'panels:cpRegion.completion.gridSnapNoGridDetail',
+      'The creases are not close enough to a 22.5° or 45° grid to snap them to it.'
+    );
+  }
+  const step = formatGridStep(family.stepDegrees);
+  if (family.adopted) {
+    return t('panels:cpRegion.completion.gridSnapAdoptedDetail', {
+      step,
+      defaultValue:
+        'The creases near the {{step}}° grid were snapped to it; what remains is at creases that are not on it.',
+    });
+  }
+  if (family.stopReason === 'nothing_to_pin') {
+    return t('panels:cpRegion.completion.gridSnapNothingToSnapDetail', {
+      step,
+      defaultValue: 'The creases already sit exactly on the {{step}}° grid, so snapping changed nothing.',
+    });
+  }
+  if (family.stopReason === 'out_of_time') {
+    return t('panels:cpRegion.completion.gridSnapOutOfTimeDetail', {
+      step,
+      defaultValue: 'Snapping the creases to the {{step}}° grid ran out of time.',
+    });
+  }
+  if (family.refusals.includes('movement_budget_exceeded')) {
+    return t('panels:cpRegion.completion.gridSnapMovedTooFarDetail', {
+      step,
+      defaultValue:
+        'Snapping the creases to the {{step}}° grid was tried and refused because it would have moved vertices too far.',
+    });
+  }
+  const count = family.verticesOverBar;
+  if (count !== null && count > 0) {
+    return t('panels:cpRegion.completion.gridSnapBrokeVerticesDetail', {
+      step,
+      count,
+      defaultValue_one:
+        'Snapping the creases to the {{step}}° grid was tried and refused because 1 vertex could not stay flat-foldable on it.',
+      defaultValue_other:
+        'Snapping the creases to the {{step}}° grid was tried and refused because {{count}} vertices could not stay flat-foldable on it.',
+    });
+  }
+  return t('panels:cpRegion.completion.gridSnapRefusedDetail', {
+    step,
+    defaultValue:
+      'Snapping the creases to the {{step}}° grid was tried and refused because it made the pattern worse.',
+  });
 }
 
 /** How many vertices the solve moved, and how far, for the surfaces that show it. */
