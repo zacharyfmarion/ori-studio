@@ -206,13 +206,25 @@ export function cpSolveCompletionDetail(t: TFunction, facts: CpSolveCompletionFa
   }
   if (!residuals) return cpExactSolveReasonLabel(t, 'above_fold_precision');
 
-  const angles = t('panels:cpRegion.completion.angleDetail', {
-    before: formatSolveAngleDegrees(residuals.maxKawasakiDegreesBefore),
-    after: formatSolveAngleDegrees(residuals.maxKawasakiDegreesAfter),
-    bar: formatSolveAngleDegrees(CP_FOLDABILITY_CHECK_EPSILON_DEGREES),
-    defaultValue:
-      'The worst angle error went from {{before}}° to {{after}}°, and the check needs it below {{bar}}°.',
-  });
+  // "…and the check needs it below the bar" is only a true sentence while the
+  // angle is still what fails. Once it passes, saying the bar next to a 0° reads
+  // as a contradiction, and the failing part is the topology named above it.
+  const anglePasses =
+    residuals.maxKawasakiDegreesAfter <= CP_FOLDABILITY_CHECK_EPSILON_DEGREES;
+  const angles = anglePasses
+    ? t('panels:cpRegion.completion.anglePassesDetail', {
+        before: formatSolveAngleDegrees(residuals.maxKawasakiDegreesBefore),
+        after: formatSolveAngleDegrees(residuals.maxKawasakiDegreesAfter),
+        defaultValue:
+          'The worst angle error went from {{before}}° to {{after}}°, which passes the check.',
+      })
+    : t('panels:cpRegion.completion.angleDetail', {
+        before: formatSolveAngleDegrees(residuals.maxKawasakiDegreesBefore),
+        after: formatSolveAngleDegrees(residuals.maxKawasakiDegreesAfter),
+        bar: formatSolveAngleDegrees(CP_FOLDABILITY_CHECK_EPSILON_DEGREES),
+        defaultValue:
+          'The worst angle error went from {{before}}° to {{after}}°, and the check needs it below {{bar}}°.',
+      });
   if (completion !== 'unfoldable') return angles;
 
   // Leading, not appended: these are the causes the user can act on, and they

@@ -28,7 +28,20 @@ fn main() {
         serde_json::from_value(cp["document"]["crease_pattern"].clone()).expect("model");
 
     let fold = export_fold_document(&model, None);
-    let (input, xform) = exact_solve_input_from_fold(&fold).expect("rebuild");
+    let (mut input, xform) = exact_solve_input_from_fold(&fold).expect("rebuild");
+    // `SOLVE_INPUT=attachment`: solve the raw detection the file carries (the
+    // region's `solveInput`) instead of the document — the state a user's
+    // Review & Fix starts from, before any repair.
+    let attachment = std::env::var("SOLVE_INPUT").as_deref() == Ok("attachment");
+    if attachment {
+        input = serde_json::from_value(cp["suppressionRegions"][0]["solveInput"].clone())
+            .expect("attachment solveInput");
+        println!(
+            "solving the ATTACHMENT: {} vertices, {} spans",
+            input.vertices.len(),
+            input.selected_spans.len()
+        );
+    }
     let mut options = ExactSolveOptions {
         polish: true,
         timeout_seconds: 60.0,
@@ -111,6 +124,10 @@ fn main() {
             offsets.iter().filter(|o| **o > 0.5 && **o <= 1.5).count(),
             offsets.iter().filter(|o| **o > 1.5).count(),
         );
+    }
+    leftover_report(&input, &solved);
+    if attachment {
+        return;
     }
     println!(
         "solve status: {:?}   accepted {}   rejection_reasons {}",
@@ -384,6 +401,117 @@ fn anatomy(rays: &[Ray], tally: &mut Tally) {
         }
         if rays[i].label != rays[j].label {
             tally.split_assignment += 1;
+        }
+    }
+}
+
+/// For every Big-Little-Big vertex left after the solve: its fan, and for each
+/// crease in it, how far its carrier sits from the adopted lattice and whether
+/// that put it inside the pin tolerance. The unpinned ones are why the vertex
+/// is still there.
+fn leftover_report(
+    input: &oristudio_cp_compiler::ExactSolveInput,
+    solved: &oristudio_cp_compiler::ExactSolvedGraph,
+) {
+    use oristudio_cp_compiler::fold_export::export_exact_solved_to_fold_document;
+    let pinned = &solved.movement_report["polish"]["pinned_family"];
+    let Some(step_degrees) = pinned["step_degrees"].as_f64() else {
+        println!("leftovers: no family adopted");
+        return;
+    };
+    let last = pinned["attempts"].as_array().and_then(|a| a.last());
+    let tolerance_degrees = last
+        .and_then(|a| a["tolerance_degrees"].as_f64())
+        .unwrap_or(1.5);
+    // The short-crease attempt widens per carrier: noise over the crease length.
+    let noise_px = last.and_then(|a| a["short_crease_noise_px"].as_f64());
+    let image_px = input.image_size.map_or(1024.0, |s| s as f64);
+    let step = step_degrees.to_radians();
+    let Ok(mut fold) = export_exact_solved_to_fold_document(input, solved) else {
+        println!("leftovers: export failed");
+        return;
+    };
+    // Land on the editor's ±200 sheet so the import's rescale is a near-identity
+    // and the checker's points map back to solved vertices by proximity.
+    for coord in &mut fold.vertices_coords {
+        coord[0] = coord[0] * 400.0 - 200.0;
+        coord[1] = coord[1] * 400.0 - 200.0;
+    }
+    let Ok(model) = oristudio_cp::io::fold::import_fold_document(&fold) else {
+        println!("leftovers: import failed");
+        return;
+    };
+    let violations = check_camv_task(&model).violations;
+    let leftovers: Vec<_> = violations
+        .iter()
+        .filter(|v| !matches!(v.rule, FlatFoldabilityRule::Angles))
+        .collect();
+    println!(
+        "\n== leftovers: {} non-angle violations after the solve (family {step_degrees}°, tolerance {tolerance_degrees}°) ==",
+        leftovers.len()
+    );
+    for violation in leftovers {
+        let (px, py) = (violation.point.x, violation.point.y);
+        let nearest = solved
+            .vertices_exact
+            .iter()
+            .enumerate()
+            .map(|(id, p)| {
+                (
+                    id,
+                    ((p.x * 400.0 - 200.0 - px).powi(2) + (p.y * 400.0 - 200.0 - py).powi(2))
+                        .sqrt(),
+                )
+            })
+            .min_by(|a, b| a.1.total_cmp(&b.1));
+        let Some((id, dist)) = nearest else { continue };
+        let at = solved.vertices_exact[id];
+        println!(
+            "  vertex {id} ({:?}, {:.2} sheet units from the marker) at ({:.0}, {:.0}) px of {image_px:.0}:",
+            violation.rule,
+            dist,
+            at.x * image_px,
+            at.y * image_px
+        );
+        let mut fan: Vec<(f64, String)> = Vec::new();
+        for span in &input.selected_spans {
+            if span.assignment_label() == oristudio_cp_compiler::AssignmentLabel::Boundary {
+                continue;
+            }
+            let [a, b] = span.vertices;
+            if a != id && b != id {
+                continue;
+            }
+            let (from, to) = if a == id { (a, b) } else { (b, a) };
+            let (pf, pt) = (solved.vertices_exact[from], solved.vertices_exact[to]);
+            let ray = (pt.y - pf.y)
+                .atan2(pt.x - pf.x)
+                .to_degrees()
+                .rem_euclid(360.0);
+            let theta = span.carrier.normal.y.atan2(span.carrier.normal.x);
+            let offset = (theta - (theta / step).round() * step).to_degrees();
+            let length_px = ((pt.x - pf.x).powi(2) + (pt.y - pf.y).powi(2)).sqrt() * 1024.0;
+            let allowed = match noise_px {
+                Some(noise) if length_px > 0.0 => {
+                    tolerance_degrees.max((noise / length_px).atan().to_degrees())
+                }
+                _ => tolerance_degrees,
+            };
+            let pinned_here = offset.abs() <= allowed;
+            let _ = image_px;
+            fan.push((
+                ray,
+                format!(
+                    "    ray {ray:>7.2}°  {:?}  carrier off-lattice {offset:+.2}°  {}  length {length_px:.1} px  span {}",
+                    span.assignment_label(),
+                    if pinned_here { "pinned  " } else { "UNPINNED" },
+                    span.id
+                ),
+            ));
+        }
+        fan.sort_by(|a, b| a.0.total_cmp(&b.0));
+        for (_, line) in fan {
+            println!("{line}");
         }
     }
 }

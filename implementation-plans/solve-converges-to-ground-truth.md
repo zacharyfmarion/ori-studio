@@ -365,6 +365,17 @@ wrongly-inferred family pulls solves away from GT rather than toward it.
       family is the one most carriers sit on, ties to the coarser. Measured on
       naoki_terao_okapi_hp_failure.osf (a 15° design, 202 of 208 creases on the
       lattice): 21 Big-Little-Big → `Solved`, 0/0, in 1.5 s.
+- [x] Short creases: after an adopted attempt, one more with a length-aware
+      tolerance (2 px of endpoint noise over the crease length: ~6.7° at 17 px,
+      ~3.4° at 34 px, the flat 1.5° above ~75 px), judged against the adopted
+      state. On okapi's raw detection every carrier pins (142/142); what is
+      left there is one wrong assignment and one odd-degree vertex — Review &
+      Fix work, which the chip now names correctly.
+- [x] The angle sentence stops quoting the bar once the angle passes it.
+- [ ] close_but's short-crease attempt reaches 2 violations (from 8) with 20
+      merges and is refused only on the 10 px movement budget, in 23.5 s: a
+      budget that understands merges (a merged pair moves half a stub each),
+      and a faster wide attempt, would take it.
 - [ ] Peel by optimizer result: when a pinned attempt is still refused, unpin
       the carriers through the vertices it left over the bar and retry.
 - [ ] A merged pair in the solve summary ("2 vertices merged"), once the i18n
@@ -451,6 +462,19 @@ test keeps the square and hexagonal families apart: the 22.5° corpora are
 unchanged at 11/11 and 41/41. Okapi (Naoki Terao, hex pleating with 15°
 creases): no family before, so no snap and 21 violations; now 15°, 113 of
 115 carriers pinned, `Solved` with 0 angle and 0 Big-Little-Big in 1.5 s.
+
+**Short creases (2026-09-02).** A flat tolerance is the wrong shape for a
+short crease: a pixel of endpoint noise on a 17 px crease is 3°. On okapi's
+raw detection (the attachment, what Review & Fix starts from) the flat 1.5°
+left five carriers unpinned and two vertices violating, and at one of them
+the unpinned creases were 17 px at 4.2° off and 34 px at 2.3° off. After an
+adopted attempt, one more runs with tolerance `max(2t, atan(2 px / length))`,
+judged against the adopted state so it can only keep or improve it: okapi's
+raw detection pins 142 of 142. The two vertices that remain there are a
+genuine wrong assignment (the unique smallest sector, 30°, sits between two
+valleys) and the odd-degree vertex — the Review & Fix work the chip names.
+Pegasus's extra attempt is refused (4.7° Kawasaki, movement budget) and its
+0.75° result stands; the corpora are unchanged at 11/11 and 41/41.
 
 Three fully-lattice samples come back at **0.00 px** from ground truth. User
 files: `mid-solve_4` and `mostly-successful` go to `Solved` with 0 angle and 0

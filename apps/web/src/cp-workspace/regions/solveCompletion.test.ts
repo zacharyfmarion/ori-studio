@@ -400,6 +400,27 @@ describe('mid-solve_2.osf, end to end from the solver payload', () => {
   });
 });
 
+describe('cpSolveCompletionDetail — the angle sentence', () => {
+  it('does not quote the bar once the angle passes it', () => {
+    const detail = cpSolveCompletionDetail(t, {
+      completion: 'unfoldable',
+      residuals: residuals({ maxKawasakiDegreesAfter: 6e-7, bigLittleBigViolationsAfter: 2 }),
+      angleFamily: null,
+    });
+    expect(detail).toContain('which passes the check');
+    expect(detail).not.toContain('needs it below');
+  });
+
+  it('still quotes the bar while the angle is what fails', () => {
+    const detail = cpSolveCompletionDetail(t, {
+      completion: 'unfoldable',
+      residuals: residuals({ bigLittleBigViolationsAfter: 2 }),
+      angleFamily: null,
+    });
+    expect(detail).toContain('needs it below 0.000001°');
+  });
+});
+
 describe('cpSolveCompletionDetail — the grid snap', () => {
   // Four big-little-big violations remain, so the snap is the next thing to say.
   const remaining = () => residuals({ bigLittleBigViolationsAfter: 4 });

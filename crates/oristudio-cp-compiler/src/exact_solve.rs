@@ -177,6 +177,17 @@ const PINNED_REANCHOR_ROUNDS: usize = 3;
 /// never turn an accepted solve into one that timed out.
 const PINNED_ROUND_RESERVE_SECONDS: f64 = 0.5;
 
+/// Endpoint noise a detected crease is allowed, in pixels, when the pinned
+/// round widens its tolerance for short creases: a crease of length `L` px may
+/// sit `atan(SHORT_CREASE_NOISE_PX / L)` off the lattice and still be read as
+/// on it. A 17 px crease gets ~6.7°, a 34 px one ~3.4°, and anything over
+/// ~75 px keeps the flat 1.5°. Measured on okapi's raw detection: the two
+/// creases a flat tolerance left unpinned at its last violating vertex were
+/// 17 px at 4.2° off and 34 px at 2.3° off. Run only as an extra attempt on
+/// top of an adopted round, judged by the same gate, so a short crease that is
+/// genuinely off the lattice can cost nothing but the attempt.
+const SHORT_CREASE_NOISE_PX: f64 = 2.0;
+
 /// Alternating sum a fully-pinned fan may have and still count as satisfying
 /// Kawasaki on the lattice. Exact multiples of the step sum to zero up to
 /// floating-point rounding, ~1e-15 radians.
@@ -947,6 +958,9 @@ struct SolveModel {
     /// own id outside any merge. Empty when there are no merges. See
     /// [`merged_vertex_representatives`].
     merged_representative: Vec<usize>,
+    /// The raster the input was detected from, in pixels per paper edge; what a
+    /// pixel of endpoint noise is worth in angle on a crease of a given length.
+    image_size_px: f64,
     span_to_carrier_group: BTreeMap<usize, usize>,
     initial_params: OVector<f64, Dyn>,
     selected_spans: Vec<CandidateCreaseSpan>,
@@ -1062,6 +1076,7 @@ impl SolveModel {
             frozen_params: Vec::new(),
             merged_span_ids: BTreeSet::new(),
             merged_representative: Vec::new(),
+            image_size_px: input.image_size.map_or(1024.0, |size| size as f64),
             span_to_carrier_group,
             initial_params: OVector::<f64, Dyn>::from_vec(params),
             selected_spans: input.selected_spans.clone(),
@@ -1157,11 +1172,36 @@ impl SolveModel {
         solved: &OVector<f64, Dyn>,
         step: f64,
         tolerance: f64,
+        short_crease_noise_px: Option<f64>,
     ) -> Option<(Self, OVector<f64, Dyn>, usize)> {
+        let points = self.points_from_params(solved);
         let mut pin: Vec<bool> = self
             .carrier_groups
             .iter()
-            .map(|group| lattice_offset(solved[group.theta_index], step).abs() <= tolerance)
+            .map(|group| {
+                let allowed = match short_crease_noise_px {
+                    None => tolerance,
+                    Some(noise_px) => {
+                        // The longest crease on the carrier is the best measure
+                        // of its direction; noise over that length is the angle
+                        // it may be off by.
+                        let longest_px = group
+                            .span_indices
+                            .iter()
+                            .map(|&index| {
+                                let [a, b] = self.selected_spans[index].vertices;
+                                distance(points[a], points[b]) * self.image_size_px
+                            })
+                            .fold(0.0_f64, f64::max);
+                        if longest_px > 0.0 {
+                            tolerance.max((noise_px / longest_px).atan())
+                        } else {
+                            tolerance
+                        }
+                    }
+                };
+                lattice_offset(solved[group.theta_index], step).abs() <= allowed
+            })
             .collect();
         let peeled = self.peel_inconsistent_pins(solved, step, &mut pin);
         let mut pinned = self.reanchored_for_polish(solved);
@@ -2411,6 +2451,11 @@ fn analyze_graph(
 
     let mut max_carrier_residual = 0.0_f64;
     for (span_id, group_index) in &model.span_to_carrier_group {
+        // A merged stub is gone from the answer and has no line to sit on;
+        // measuring it would fail a Solved pattern on a crease it no longer has.
+        if model.merged_span_ids.contains(span_id) {
+            continue;
+        }
         let Some(span) = input.selected_spans.iter().find(|span| span.id == *span_id) else {
             continue;
         };
@@ -2954,6 +2999,9 @@ struct PinnedFamilyOutcome {
 #[derive(Debug, Clone)]
 struct PinnedAttempt {
     tolerance_degrees: f64,
+    /// `Some` for the short-crease attempt: the endpoint noise its tolerance
+    /// was widened for. See [`SHORT_CREASE_NOISE_PX`].
+    short_crease_noise_px: Option<f64>,
     pinned_carriers: usize,
     /// Carriers within tolerance that [`SolveModel::peel_inconsistent_pins`]
     /// let go before optimising.
@@ -3030,190 +3078,269 @@ fn pin_to_angle_family(
         adopted: false,
         stop_reason: "refused",
     };
-    let mut adopted = None;
+    let mut adopted: Option<PinnedAdoption> = None;
     let mut tolerance = options.angle_family_snap_tolerance_radians;
     for _attempt in 0..=ANGLE_FAMILY_RETRY_HALVINGS {
-        // The round runs on its own clock, inside what is left of the solve's.
-        let budget = model
-            .remaining_seconds()
-            .map(|seconds| seconds - PINNED_ROUND_RESERVE_SECONDS);
-        if budget.is_some_and(|seconds| seconds <= 0.0) {
-            outcome.stop_reason = "out_of_time";
-            break;
-        }
-        let Some((pinned_model, start, peeled_carriers)) =
-            model.pinned_to_angle_family(current_params, step, tolerance)
-        else {
-            outcome.stop_reason = "nothing_to_pin";
-            break;
-        };
-        let pinned_model = match budget {
-            Some(seconds) => pinned_model.with_own_budget(seconds),
-            None => pinned_model,
-        };
-        let pinned_carriers = pinned_model
-            .carrier_groups
-            .iter()
-            .filter(|group| group.pinned_step.is_some())
-            .count();
-        let started = model.deadline.elapsed_seconds();
-        let (pinned_params, mut termination, mut evaluations, _objective, _counters) =
-            run_lm_minimize(&pinned_model, &start, options);
-        let raw_points = model.points_from_params(&pinned_params);
-        // A span the lattice collapsed is two detected vertices the design has
-        // as one: with every direction pinned, its ends meet only where the
-        // lines through them are concurrent, and that is the design's vertex.
-        // The editor merges them on write, so the round is judged on the
-        // merged pattern — and the merge has to pass every check below, which
-        // is what separates a design vertex from a stub that must not go.
-        let merged_span_ids: BTreeSet<usize> = input
-            .selected_spans
-            .iter()
-            .filter(|span| {
-                let [a, b] = span.vertices;
-                !model.merged_span_ids.contains(&span.id)
-                    && !current_after.degenerate_edges.contains(&[a, b])
-                    && a < raw_points.len()
-                    && b < raw_points.len()
-                    && distance(raw_points[a], raw_points[b]) <= COLLAPSE_CANDIDATE_LENGTH
-            })
-            .map(|span| span.id)
-            .collect();
-        // Second pass for a collapse: with the pair held together and the stub
-        // out of the fans and off its carrier. The first pass cannot finish the
-        // job — a stub's direction, read from two points a hair apart, couples
-        // Kawasaki at both ends to their separation, and the optimizer settles
-        // a few millionths short of the intersection. This pass solves the
-        // merged vertex the round is about to be judged on.
-        let (mut judged_model, mut pinned_params) = if merged_span_ids.is_empty() {
-            (pinned_model.clone(), pinned_params)
-        } else {
-            let merged_pinned = pinned_model.with_merged_spans(&merged_span_ids);
-            let (params, merged_termination, more, _objective, _counters) =
-                run_lm_minimize(&merged_pinned, &pinned_params, options);
-            evaluations += more;
-            termination = merged_termination;
-            (merged_pinned, params)
-        };
-        let merged_model = model.with_merged_spans(&merged_span_ids);
-        let analyze = |params: &OVector<f64, Dyn>| {
-            let points = merged_model.placed_points(params);
-            analyze_graph(input, &points, &merged_model, params, options)
-        };
-        let mut pinned_after = analyze(&pinned_params);
-        // Then re-anchor and solve again while Kawasaki is over the bar and
-        // still improving. See [`PINNED_REANCHOR_ROUNDS`].
-        let mut reanchored_rounds = 0usize;
-        for _round in 0..PINNED_REANCHOR_ROUNDS {
-            if pinned_after.max_kawasaki_residual_degrees <= options.solved_kawasaki_epsilon_degrees
-                || judged_model.timeout_reached()
-            {
-                break;
-            }
-            let reanchored = judged_model.reanchored_for_polish(&pinned_params);
-            let (params, round_termination, more, _objective, _counters) =
-                run_lm_minimize(&reanchored, &pinned_params, options);
-            evaluations += more;
-            let after = analyze(&params);
-            if after.max_kawasaki_residual_degrees >= pinned_after.max_kawasaki_residual_degrees {
-                break;
-            }
-            pinned_params = params;
-            pinned_after = after;
-            judged_model = reanchored;
-            termination = round_termination;
-            reanchored_rounds += 1;
-        }
-        // Objective progress is judged from the snapped start, where the pinned
-        // directions have just been moved out from under their vertices: that is
-        // the problem this round solves, and the only fair "before" for it.
-        let start_energy = residual_energy(&judged_model.residuals_for(&start));
-        let final_energy = residual_energy(&judged_model.residuals_for(&pinned_params));
-        let raw_points = model.points_from_params(&pinned_params);
-        // How far apart the optimizer actually left each collapsed pair, before
-        // the answer makes them one point: a diagnostic on the round's
-        // convergence, and the movement the snap is about to add.
-        let lm_separation = merged_model
-            .merged_spans()
-            .map(|span| distance(raw_points[span.vertices[0]], raw_points[span.vertices[1]]))
-            .fold(0.0_f64, f64::max);
-        let pinned_status = classify_status(before, &pinned_after, options);
-        let mut refusals = exact_solution_rejection_reasons(
+        match pinned_attempt(
+            model,
+            input,
             before,
-            &pinned_after,
-            pinned_status,
-            start_energy,
-            final_energy,
-            options,
-        );
-        refusals.extend(pinned_round_regressions(
+            current_params,
             current_after,
-            &pinned_after,
+            step,
+            tolerance,
+            None,
             options,
-        ));
-        let collapsed_edges = input
-            .selected_spans
-            .iter()
-            .filter(|span| merged_span_ids.contains(&span.id))
-            .map(|span| {
-                let [a, b] = span.vertices;
-                (
-                    [a, b],
-                    distance(input.vertices[a].point, input.vertices[b].point),
-                )
-            })
-            .collect();
-        outcome.attempts.push(PinnedAttempt {
-            tolerance_degrees: tolerance.to_degrees(),
-            pinned_carriers,
-            peeled_carriers,
-            reanchored_rounds,
-            kawasaki_degrees: pinned_after.max_kawasaki_residual_degrees,
-            camv: pinned_after.camv,
-            collapsed_edges,
-            lm_separation,
-            termination,
-            evaluations,
-            kawasaki_over_bar: pinned_after
-                .vertex_diagnostics
-                .iter()
-                .filter(|vertex| {
-                    vertex
-                        .kawasaki_residual_degrees
-                        .is_some_and(|degrees| degrees > options.solved_kawasaki_epsilon_degrees)
-                })
-                .count(),
-            worst_kawasaki: {
-                let mut worst: Vec<(usize, f64)> = pinned_after
-                    .vertex_diagnostics
-                    .iter()
-                    .filter_map(|vertex| {
-                        vertex
-                            .kawasaki_residual_degrees
-                            .map(|degrees| (vertex.vertex_id, degrees))
-                    })
-                    .collect();
-                worst.sort_by(|a, b| b.1.total_cmp(&a.1));
-                worst.truncate(5);
-                worst
-            },
-            seconds: model.deadline.elapsed_seconds() - started,
-            refusals: refusals.clone(),
-        });
-        if refusals.is_empty() {
-            outcome.adopted = true;
-            outcome.stop_reason = "adopted";
-            adopted = Some(PinnedAdoption {
-                params: pinned_params,
-                after: pinned_after,
-                evaluations,
-                merged_span_ids,
-            });
-            break;
+        ) {
+            PinnedAttemptResult::Skipped(reason) => {
+                outcome.stop_reason = reason;
+                break;
+            }
+            PinnedAttemptResult::Judged { attempt, adoption } => {
+                outcome.attempts.push(*attempt);
+                if let Some(adoption) = adoption {
+                    adopted = Some(*adoption);
+                    break;
+                }
+            }
         }
         tolerance /= 2.0;
     }
+    // On an adopted round, one more attempt for the short creases: a flat
+    // tolerance is the wrong shape for them, since a pixel of endpoint noise
+    // on a 17 px crease is 3°. Judged against the adopted state, so it can
+    // only keep it or improve it. See [`SHORT_CREASE_NOISE_PX`].
+    if let Some(base) = &adopted {
+        let base_model = model.with_merged_spans(&base.merged_span_ids);
+        if let PinnedAttemptResult::Judged { attempt, adoption } = pinned_attempt(
+            &base_model,
+            input,
+            before,
+            &base.params,
+            &base.after,
+            step,
+            tolerance * 2.0,
+            Some(SHORT_CREASE_NOISE_PX),
+            options,
+        ) {
+            outcome.attempts.push(*attempt);
+            if let Some(adoption) = adoption {
+                adopted = Some(*adoption);
+            }
+        }
+    }
+    if adopted.is_some() {
+        outcome.adopted = true;
+        outcome.stop_reason = "adopted";
+    }
     Some(PinnedFamilyRound { outcome, adopted })
+}
+
+/// What one pinned attempt came to.
+enum PinnedAttemptResult {
+    /// Not run: no time left, or nothing on the lattice to move.
+    Skipped(&'static str),
+    /// Run and judged; the adoption is `Some` when it passed. Boxed: the
+    /// attempt record and the adopted parameters are large next to a `&str`.
+    Judged {
+        attempt: Box<PinnedAttempt>,
+        adoption: Option<Box<PinnedAdoption>>,
+    },
+}
+
+/// One pinned attempt, from `base_params` (already carrying `model`'s merges):
+/// pin, solve, merge what collapsed, re-anchor while over the bar, and judge
+/// against `base_after`. See [`pin_to_angle_family`] for the sequence of
+/// attempts this is one of.
+#[allow(clippy::too_many_arguments)]
+fn pinned_attempt(
+    model: &SolveModel,
+    input: &ExactSolveInput,
+    before: &GraphAnalysis,
+    base_params: &OVector<f64, Dyn>,
+    base_after: &GraphAnalysis,
+    step: f64,
+    tolerance: f64,
+    short_crease_noise_px: Option<f64>,
+    options: ExactSolveOptions,
+) -> PinnedAttemptResult {
+    // The attempt runs on its own clock, inside what is left of the solve's.
+    let budget = model
+        .remaining_seconds()
+        .map(|seconds| seconds - PINNED_ROUND_RESERVE_SECONDS);
+    if budget.is_some_and(|seconds| seconds <= 0.0) {
+        return PinnedAttemptResult::Skipped("out_of_time");
+    }
+    let Some((pinned_model, start, peeled_carriers)) =
+        model.pinned_to_angle_family(base_params, step, tolerance, short_crease_noise_px)
+    else {
+        return PinnedAttemptResult::Skipped("nothing_to_pin");
+    };
+    let pinned_model = match budget {
+        Some(seconds) => pinned_model.with_own_budget(seconds),
+        None => pinned_model,
+    };
+    let pinned_carriers = pinned_model
+        .carrier_groups
+        .iter()
+        .filter(|group| group.pinned_step.is_some())
+        .count();
+    let started = model.deadline.elapsed_seconds();
+    let (pinned_params, mut termination, mut evaluations, _objective, _counters) =
+        run_lm_minimize(&pinned_model, &start, options);
+    let raw_points = model.points_from_params(&pinned_params);
+    // A span the lattice collapsed is two detected vertices the design has
+    // as one: with every direction pinned, its ends meet only where the
+    // lines through them are concurrent, and that is the design's vertex.
+    // The editor merges them on write, so the round is judged on the
+    // merged pattern — and the merge has to pass every check below, which
+    // is what separates a design vertex from a stub that must not go.
+    let new_merges: BTreeSet<usize> = input
+        .selected_spans
+        .iter()
+        .filter(|span| {
+            let [a, b] = span.vertices;
+            !model.merged_span_ids.contains(&span.id)
+                && !base_after.degenerate_edges.contains(&[a, b])
+                && a < raw_points.len()
+                && b < raw_points.len()
+                && distance(raw_points[a], raw_points[b]) <= COLLAPSE_CANDIDATE_LENGTH
+        })
+        .map(|span| span.id)
+        .collect();
+    // Second pass for a collapse: with the pair held together and the stub
+    // out of the fans and off its carrier. The first pass cannot finish the
+    // job — a stub's direction, read from two points a hair apart, couples
+    // Kawasaki at both ends to their separation, and the optimizer settles
+    // a few millionths short of the intersection. This pass solves the
+    // merged vertex the round is about to be judged on.
+    let (mut judged_model, mut pinned_params) = if new_merges.is_empty() {
+        (pinned_model.clone(), pinned_params)
+    } else {
+        let merged_pinned = pinned_model.with_merged_spans(&new_merges);
+        let (params, merged_termination, more, _objective, _counters) =
+            run_lm_minimize(&merged_pinned, &pinned_params, options);
+        evaluations += more;
+        termination = merged_termination;
+        (merged_pinned, params)
+    };
+    let merged_model = model.with_merged_spans(&new_merges);
+    let analyze = |params: &OVector<f64, Dyn>| {
+        let points = merged_model.placed_points(params);
+        analyze_graph(input, &points, &merged_model, params, options)
+    };
+    let mut pinned_after = analyze(&pinned_params);
+    // Then re-anchor and solve again while Kawasaki is over the bar and
+    // still improving. See [`PINNED_REANCHOR_ROUNDS`].
+    let mut reanchored_rounds = 0usize;
+    for _round in 0..PINNED_REANCHOR_ROUNDS {
+        if pinned_after.max_kawasaki_residual_degrees <= options.solved_kawasaki_epsilon_degrees
+            || judged_model.timeout_reached()
+        {
+            break;
+        }
+        let reanchored = judged_model.reanchored_for_polish(&pinned_params);
+        let (params, round_termination, more, _objective, _counters) =
+            run_lm_minimize(&reanchored, &pinned_params, options);
+        evaluations += more;
+        let after = analyze(&params);
+        if after.max_kawasaki_residual_degrees >= pinned_after.max_kawasaki_residual_degrees {
+            break;
+        }
+        pinned_params = params;
+        pinned_after = after;
+        judged_model = reanchored;
+        termination = round_termination;
+        reanchored_rounds += 1;
+    }
+    // Objective progress is judged from the snapped start, where the pinned
+    // directions have just been moved out from under their vertices: that is
+    // the problem this round solves, and the only fair "before" for it.
+    let start_energy = residual_energy(&judged_model.residuals_for(&start));
+    let final_energy = residual_energy(&judged_model.residuals_for(&pinned_params));
+    let raw_points = model.points_from_params(&pinned_params);
+    // How far apart the optimizer actually left each collapsed pair, before
+    // the answer makes them one point: a diagnostic on the round's
+    // convergence, and the movement the snap is about to add.
+    let lm_separation = merged_model
+        .merged_spans()
+        .filter(|span| new_merges.contains(&span.id))
+        .map(|span| distance(raw_points[span.vertices[0]], raw_points[span.vertices[1]]))
+        .fold(0.0_f64, f64::max);
+    let pinned_status = classify_status(before, &pinned_after, options);
+    let mut refusals = exact_solution_rejection_reasons(
+        before,
+        &pinned_after,
+        pinned_status,
+        start_energy,
+        final_energy,
+        options,
+    );
+    refusals.extend(pinned_round_regressions(base_after, &pinned_after, options));
+    let collapsed_edges = input
+        .selected_spans
+        .iter()
+        .filter(|span| new_merges.contains(&span.id))
+        .map(|span| {
+            let [a, b] = span.vertices;
+            (
+                [a, b],
+                distance(input.vertices[a].point, input.vertices[b].point),
+            )
+        })
+        .collect();
+    let attempt = PinnedAttempt {
+        tolerance_degrees: tolerance.to_degrees(),
+        short_crease_noise_px,
+        pinned_carriers,
+        peeled_carriers,
+        reanchored_rounds,
+        kawasaki_degrees: pinned_after.max_kawasaki_residual_degrees,
+        camv: pinned_after.camv,
+        collapsed_edges,
+        lm_separation,
+        termination,
+        evaluations,
+        kawasaki_over_bar: pinned_after
+            .vertex_diagnostics
+            .iter()
+            .filter(|vertex| {
+                vertex
+                    .kawasaki_residual_degrees
+                    .is_some_and(|degrees| degrees > options.solved_kawasaki_epsilon_degrees)
+            })
+            .count(),
+        worst_kawasaki: {
+            let mut worst: Vec<(usize, f64)> = pinned_after
+                .vertex_diagnostics
+                .iter()
+                .filter_map(|vertex| {
+                    vertex
+                        .kawasaki_residual_degrees
+                        .map(|degrees| (vertex.vertex_id, degrees))
+                })
+                .collect();
+            worst.sort_by(|a, b| b.1.total_cmp(&a.1));
+            worst.truncate(5);
+            worst
+        },
+        seconds: model.deadline.elapsed_seconds() - started,
+        refusals: refusals.clone(),
+    };
+    let adoption = refusals.is_empty().then(|| {
+        let mut merged_span_ids = model.merged_span_ids.clone();
+        merged_span_ids.extend(new_merges);
+        Box::new(PinnedAdoption {
+            params: pinned_params,
+            after: pinned_after,
+            evaluations,
+            merged_span_ids,
+        })
+    });
+    PinnedAttemptResult::Judged {
+        attempt: Box::new(attempt),
+        adoption,
+    }
 }
 
 /// Why a pinned round must not land, over and above the ordinary acceptance
@@ -3316,6 +3443,7 @@ fn polish_report_json(polish: &PolishOutcome, options: ExactSolveOptions) -> Val
                     .map(|attempt| {
                         json!({
                             "tolerance_degrees": attempt.tolerance_degrees,
+                            "short_crease_noise_px": attempt.short_crease_noise_px,
                             "pinned_carriers": attempt.pinned_carriers,
                             "peeled_carriers": attempt.peeled_carriers,
                             "reanchored_rounds": attempt.reanchored_rounds,
