@@ -241,6 +241,8 @@
   display: grid;
   place-items: center;
   overflow: hidden;
+  /* A corner drag is the only gesture here; the page must not scroll under it. */
+  touch-action: none;
 }
 
 .cp-detect-modal__image-wrap img {
@@ -272,6 +274,25 @@
   vector-effect: non-scaling-stroke;
   cursor: grab;
   pointer-events: auto;
+}
+
+.cp-detect-modal__handle--active {
+  fill: var(--bg-primary);
+  stroke: var(--accent-primary);
+  cursor: grabbing;
+}
+
+/* The magnifier beside a dragged corner: source pixels at native size or
+   larger, with the crop's edges and a crosshair through it. Positioned by the
+   editor, which keeps it off the pointer and inside the pane. */
+.cp-detect-modal__loupe {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid var(--accent-primary);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  background: #fff;
+  pointer-events: none;
+  z-index: 2;
 }
 
 .cp-detect-modal__canvas {

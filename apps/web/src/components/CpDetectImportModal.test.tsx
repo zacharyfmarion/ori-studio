@@ -354,6 +354,13 @@ beforeEach(() => {
     drawImage: vi.fn(),
     putImageData: vi.fn(),
     getImageData: () => imageData(64),
+    // The crop loupe draws lines and a crosshair as well.
+    setTransform: vi.fn(),
+    fillRect: vi.fn(),
+    beginPath: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    stroke: vi.fn(),
   })) as never;
   HTMLCanvasElement.prototype.toDataURL = vi.fn(() => 'data:image/jpeg;base64,AAAA');
 
@@ -986,5 +993,106 @@ describe('CpDetectImportModal session reset', () => {
     await settle();
 
     expect(globalThis.URL.revokeObjectURL).toHaveBeenCalledWith('blob:source');
+  });
+});
+
+/**
+ * The crop step: a corner drag is the whole interaction, and the crop must
+ * follow the pointer, show the magnifier while it does, and re-rectify itself
+ * when the corner is let go — there is no button for that, and the one that was
+ * sat beside a blue Detect that kept getting pressed instead.
+ */
+describe('CpDetectImportModal crop editing', () => {
+  async function reachCropStage(): Promise<void> {
+    await act(async () => {
+      root?.render(
+        <TooltipProvider>
+          <CpDetectImportModal />
+        </TooltipProvider>
+      );
+    });
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('ori-studio:detect-cp-image'));
+    });
+    await settle();
+    click('Choose Image');
+    await settle();
+  }
+
+  function pointer(type: string, target: Element, x: number, y: number): void {
+    act(() => {
+      target.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: x, clientY: y }));
+    });
+  }
+
+  function handle(): SVGCircleElement {
+    const found = document.querySelector('.cp-detect-modal__handle');
+    if (!found) throw new Error('no crop handle on screen');
+    return found as SVGCircleElement;
+  }
+
+  function loupe(): Element | null {
+    return document.querySelector('[data-testid="cp-detect-crop-loupe"]');
+  }
+
+  beforeEach(() => {
+    // jsdom lays nothing out: the image is 100 × 100 CSS pixels at the origin, so
+    // a pointer at (50, 50) is the middle of the 64 px source image.
+    HTMLElement.prototype.getBoundingClientRect = vi.fn(
+      () => ({ left: 0, top: 0, width: 100, height: 100, right: 100, bottom: 100, x: 0, y: 0, toJSON: () => ({}) })
+    ) as never;
+  });
+
+  it('has no Update Crop button: the crop re-rectifies itself when a corner is let go', async () => {
+    await reachCropStage();
+    expect(button('Update Crop')).toBeNull();
+    expect(button('Detect')).not.toBeNull();
+    expect(detectClient.manualRectifyImage).not.toHaveBeenCalled();
+
+    const wrap = document.querySelector('.cp-detect-modal__image-wrap');
+    if (!wrap) throw new Error('no crop editor');
+    pointer('pointerdown', handle(), 0, 0);
+    pointer('pointermove', wrap, 50, 50);
+    pointer('pointerup', wrap, 50, 50);
+    await settle();
+
+    expect(detectClient.manualRectifyImage).toHaveBeenCalledTimes(1);
+    const call = detectClient.manualRectifyImage.mock.calls[0] as unknown[];
+    const movedQuad = call[1] as { top_left: { x: number; y: number } };
+    expect(movedQuad.top_left).toEqual({ x: 32, y: 32 });
+  });
+
+  it('shows the magnifier only while a corner is being dragged', async () => {
+    await reachCropStage();
+    const wrap = document.querySelector('.cp-detect-modal__image-wrap');
+    if (!wrap) throw new Error('no crop editor');
+    expect(loupe()).toBeNull();
+
+    pointer('pointerdown', handle(), 0, 0);
+    expect(loupe()).not.toBeNull();
+    pointer('pointermove', wrap, 50, 50);
+    expect(loupe()).not.toBeNull();
+    pointer('pointerup', wrap, 50, 50);
+    expect(loupe()).toBeNull();
+  });
+
+  it('does not re-rectify when the corner was pressed and released in place', async () => {
+    await reachCropStage();
+    const wrap = document.querySelector('.cp-detect-modal__image-wrap');
+    if (!wrap) throw new Error('no crop editor');
+    pointer('pointerdown', handle(), 0, 0);
+    pointer('pointerup', wrap, 0, 0);
+    await settle();
+    expect(detectClient.manualRectifyImage).not.toHaveBeenCalled();
+  });
+
+  it('offers Edit Crop on the review step, which goes back to the crop', async () => {
+    await reachReviewStage();
+    expect(button('Update Crop')).toBeNull();
+    click('Edit Crop');
+    await settle();
+    expect(detectClient.manualRectifyImage).toHaveBeenCalledTimes(1);
+    expect(button('Edit Crop')).toBeNull();
+    expect(document.querySelector('.cp-detect-modal__image-wrap')).not.toBeNull();
   });
 });

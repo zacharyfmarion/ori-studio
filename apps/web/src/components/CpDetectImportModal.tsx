@@ -5,18 +5,16 @@ import {
   useRef,
   useState,
   type DragEvent as ReactDragEvent,
-  type PointerEvent as ReactPointerEvent,
-  type RefObject,
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ImagePlus, Loader2, Play, RefreshCw, Square, Upload, Wrench, X } from 'lucide-react';
+import { Crop, ImagePlus, Loader2, Play, Square, Upload, Wrench, X } from 'lucide-react';
+import { CpDetectCropEditor } from './CpDetectCropEditor';
 import { track } from '../analytics';
 import {
   cpDetectCompilerReport,
   type CpDetectDecodeReport,
   type CpDetectModelManifest,
-  type CpDetectPoint,
   type CpDetectQuad,
   type CpDetectRecognizeResult,
   type CpDetectRectifiedImage,
@@ -75,7 +73,6 @@ type BusyState =
   | 'solving'
   | 'importing'
   | null;
-type QuadHandle = keyof CpDetectQuad;
 type ModalStage = 'upload' | 'crop' | 'detecting' | 'review';
 type PreviewOverlayKey = 'inferred' | 'assignments';
 
@@ -226,7 +223,6 @@ type SolvePhase =
 const NOT_ATTEMPTED: SolvePhase = { kind: 'not_attempted' };
 const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
 const IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
-const QUAD_HANDLES: QuadHandle[] = ['top_left', 'top_right', 'bottom_right', 'bottom_left'];
 const DEFAULT_PREVIEW_OVERLAYS: PreviewOverlayState = {
   inferred: false,
   assignments: false,
@@ -243,10 +239,8 @@ export function CpDetectImportModal() {
   const [modelManifest, setModelManifest] = useState<CpDetectModelManifest | null>(null);
   const [busy, setBusy] = useState<BusyState>(null);
   const [error, setError] = useState<string | null>(null);
-  const [dragging, setDragging] = useState<QuadHandle | null>(null);
   const [dropActive, setDropActive] = useState(false);
   const [previewOverlays, setPreviewOverlays] = useState<PreviewOverlayState>(DEFAULT_PREVIEW_OVERLAYS);
-  const sourceImageRef = useRef<HTMLImageElement>(null);
   /**
    * Distinguishes one detection's solve from the next one's in the run registry.
    *
@@ -335,7 +329,6 @@ export function CpDetectImportModal() {
     setPhase(NOT_ATTEMPTED);
     setSolveTargetId(null);
     setError(null);
-    setDragging(null);
     setDropActive(false);
     setPreviewOverlays(DEFAULT_PREVIEW_OVERLAYS);
   }, []);
@@ -416,26 +409,42 @@ export function CpDetectImportModal() {
     [loadImageFile, t]
   );
 
-  const rerunManualRectification = useCallback(async () => {
-    if (!source || !quad) return;
-    setBusy('rectifying');
-    setError(null);
-    setRecognition(null);
-    setPhase(NOT_ATTEMPTED);
-    setPreviewOverlays(DEFAULT_PREVIEW_OVERLAYS);
-    try {
-      const client = await getCpDetectClient();
-      setRectified(
-        await whileCpDetectClientAlive(
-          client.manualRectifyImage(source.image, quad, DETECT_IMAGE_SIZE)
-        )
-      );
-    } catch (caught) {
-      setError(cpDetectError(caught).message);
-    } finally {
-      setBusy(null);
-    }
-  }, [quad, source]);
+  /**
+   * Distinguishes one crop's rectification from the next one's: a corner
+   * dragged twice in quick succession sends two requests, and the first one
+   * finishing last must not overwrite the crop the user actually left.
+   */
+  const rectifyRequestRef = useRef(0);
+
+  /**
+   * Re-rectify from the crop — the one handed in when a drag just ended, since
+   * the state may be a render behind the pointer, or the current one.
+   */
+  const rerunManualRectification = useCallback(
+    async (nextQuad?: CpDetectQuad) => {
+      const target = nextQuad ?? quad;
+      if (!source || !target) return;
+      rectifyRequestRef.current += 1;
+      const request = rectifyRequestRef.current;
+      setBusy('rectifying');
+      setError(null);
+      setRecognition(null);
+      setPhase(NOT_ATTEMPTED);
+      setPreviewOverlays(DEFAULT_PREVIEW_OVERLAYS);
+      try {
+        const client = await getCpDetectClient();
+        const result = await whileCpDetectClientAlive(
+          client.manualRectifyImage(source.image, target, DETECT_IMAGE_SIZE)
+        );
+        if (request === rectifyRequestRef.current) setRectified(result);
+      } catch (caught) {
+        if (request === rectifyRequestRef.current) setError(cpDetectError(caught).message);
+      } finally {
+        if (request === rectifyRequestRef.current) setBusy(null);
+      }
+    },
+    [quad, source]
+  );
 
   /**
    * Run the exact solve on a recognized candidate, in the two stages it has.
@@ -797,10 +806,6 @@ export function CpDetectImportModal() {
                 <ImagePlus size={14} />
                 {t('dialogs:cpDetectImport.chooseImage', 'Choose Image')}
               </Button>
-              <Button size="sm" onClick={rerunManualRectification} disabled={!quad || busy !== null}>
-                <RefreshCw size={14} />
-                {t('dialogs:cpDetectImport.updateCrop', 'Update Crop')}
-              </Button>
               <Button size="sm" variant="primary" onClick={runDetection} disabled={!rectified || busy !== null}>
                 <Play size={14} />
                 {t('dialogs:cpDetectImport.detect', 'Detect')}
@@ -812,13 +817,13 @@ export function CpDetectImportModal() {
             <div className="cp-detect-modal__crop-grid">
               <section className="cp-detect-modal__pane">
                 <h3>{t('dialogs:cpDetectImport.crop', 'Crop')}</h3>
-                <SourceCropEditor
+                {/* The crop re-rectifies itself when a corner is let go; the
+                    only button here is the one that does the next thing. */}
+                <CpDetectCropEditor
                   source={source}
                   quad={quad}
-                  dragging={dragging}
-                  sourceImageRef={sourceImageRef}
-                  onDragHandle={setDragging}
-                  onUpdateQuad={setQuad}
+                  onQuadChange={setQuad}
+                  onDragEnd={(next) => void rerunManualRectification(next)}
                 />
               </section>
 
@@ -845,9 +850,15 @@ export function CpDetectImportModal() {
                 <ImagePlus size={14} />
                 {t('dialogs:cpDetectImport.chooseImage', 'Choose Image')}
               </Button>
-              <Button size="sm" onClick={rerunManualRectification} disabled={!source || !quad || busy !== null}>
-                <RefreshCw size={14} />
-                {t('dialogs:cpDetectImport.updateCrop', 'Update Crop')}
+              {/* Back to the crop step: re-rectifying clears the recognition,
+                  and the crop editor is what the modal shows without one. */}
+              <Button
+                size="sm"
+                onClick={() => void rerunManualRectification()}
+                disabled={!source || !quad || busy !== null}
+              >
+                <Crop size={14} />
+                {t('dialogs:cpDetectImport.editCrop', 'Edit Crop')}
               </Button>
               <Button size="sm" onClick={runDetection} disabled={!rectified || busy !== null}>
                 <Play size={14} />
@@ -1001,58 +1012,6 @@ function StatusRows({ status, error }: { status: string | null; error: string | 
       )}
       {error && <div className="cp-detect-modal__error">{error}</div>}
     </>
-  );
-}
-
-function SourceCropEditor({
-  source,
-  quad,
-  dragging,
-  sourceImageRef,
-  onDragHandle,
-  onUpdateQuad,
-}: {
-  source: SourceImage;
-  quad: CpDetectQuad | null;
-  dragging: QuadHandle | null;
-  sourceImageRef: RefObject<HTMLImageElement | null>;
-  onDragHandle: (handle: QuadHandle | null) => void;
-  onUpdateQuad: (quad: CpDetectQuad) => void;
-}) {
-  return (
-    <div
-      className="cp-detect-modal__image-wrap"
-      style={{ aspectRatio: `${source.image.width} / ${source.image.height}` }}
-      onPointerMove={(event) => {
-        if (!dragging || !sourceImageRef.current || !quad) return;
-        event.preventDefault();
-        const point = pointFromPointer(event, sourceImageRef.current, source.image);
-        onUpdateQuad({ ...quad, [dragging]: clampPoint(point, source.image) });
-      }}
-      onPointerUp={() => onDragHandle(null)}
-      onPointerLeave={() => onDragHandle(null)}
-    >
-      <img ref={sourceImageRef} src={source.url} alt="" draggable={false} />
-      {quad && (
-        <svg className="cp-detect-modal__overlay" viewBox={`0 0 ${source.image.width} ${source.image.height}`}>
-          <polygon points={quadPolygon(quad)} className="cp-detect-modal__quad" />
-          {QUAD_HANDLES.map((handle) => (
-            <circle
-              key={handle}
-              cx={quad[handle].x}
-              cy={quad[handle].y}
-              r={Math.max(source.image.width, source.image.height) * 0.012}
-              className="cp-detect-modal__handle"
-              onPointerDown={(event) => {
-                event.preventDefault();
-                (event.currentTarget as SVGCircleElement).setPointerCapture(event.pointerId);
-                onDragHandle(handle);
-              }}
-            />
-          ))}
-        </svg>
-      )}
-    </div>
   );
 }
 
@@ -1229,27 +1188,6 @@ function isSupportedImageFile(file: File): boolean {
   if (IMAGE_MIME_TYPES.includes(file.type)) return true;
   const extension = file.name.split('.').pop()?.toLowerCase() ?? '';
   return IMAGE_EXTENSIONS.includes(extension);
-}
-
-function pointFromPointer(event: ReactPointerEvent, element: HTMLElement, image: ImageData): CpDetectPoint {
-  const rect = element.getBoundingClientRect();
-  return {
-    x: ((event.clientX - rect.left) / rect.width) * image.width,
-    y: ((event.clientY - rect.top) / rect.height) * image.height,
-  };
-}
-
-function clampPoint(point: CpDetectPoint, image: ImageData): CpDetectPoint {
-  return {
-    x: Math.min(Math.max(point.x, 0), image.width - 1),
-    y: Math.min(Math.max(point.y, 0), image.height - 1),
-  };
-}
-
-function quadPolygon(quad: CpDetectQuad): string {
-  return [quad.top_left, quad.top_right, quad.bottom_right, quad.bottom_left]
-    .map((point) => `${point.x},${point.y}`)
-    .join(' ');
 }
 
 /**
