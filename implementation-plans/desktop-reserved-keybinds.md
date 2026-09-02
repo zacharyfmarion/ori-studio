@@ -173,18 +173,42 @@ chord simply never arrives and the binding is inert.
 - [x] Phase 1 — surface-aware classification. `ReservedKeyHost`, the four host
       tables, `isWindowsPlatform`, and `Mod+N` added to the web set. Registry
       guard split into a strict desktop invariant and a named web exception.
-- [ ] Phase 2 — copy. "reserved by the browser" only on web, and say the desktop
-      app can bind it. On desktop, a distinct message for `Cmd+Q`/`Cmd+H` naming
-      the menu command that would stop working. Extract + `i18n:check`.
-- [ ] Phase 3 — make the inert accelerator visible in the shortcuts table rather
-      than silently printing a chord that cannot fire on this host.
-- [ ] Phase 4 — the Oriedita import inherits the classification; check its
-      rejection copy and tests, since an Oriedita config is full of
-      desktop-shaped chords.
+- [x] Phase 2 — copy. `describeReservedKey` returns the reason beside the
+      strength, and four messages hang off it: the web refusal now says the
+      desktop app can use the chord, and the desktop refusal names the app menu
+      instead of a browser that is not there.
+- [x] Phase 3 — the shortcuts table marks a chord this host never delivers, so
+      the one row that was silently advertising a dead `Cmd+N` says so.
+- [x] Phase 4 — the Oriedita import takes a `host`, carries the reason on the
+      row, and applies on desktop what it skips on the web. Its tests pin the
+      host rather than inheriting jsdom's.
 - [ ] Follow-up, needs a Windows machine — measure the WebView2 accelerator set
       for real and decide between the soft warnings shipped here and disabling
       them outright with `SetAreBrowserAcceleratorKeysEnabled(false)` through
       `with_webview`. `Ctrl+S`/`Ctrl+O` are shipped defaults, so if the
       documented list is right they are already broken there.
-- [ ] Validation: `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`,
-      `npm run i18n:check`.
+
+## Validation
+
+`npm run lint:web`, `npm run typecheck:web`, `npm run i18n:check`, and the full
+`vitest` suite (429 files / 5297 tests) pass. No Rust, wasm, or desktop-shell
+code changed, so the native-oracle CI surface is untouched.
+
+Verified in a running dev server rather than only in tests, since three of the
+four phases are UI:
+
+- One row carries the inert marker — "New Project / global - newAction - not
+  active here", dashed chord button, title "Cmd+N is reserved by the browser.
+  The desktop app can use it."
+- Capturing `Cmd+T` is refused with that message; with the runtime probe
+  answering desktop it is accepted, and `Cmd+Q` is then refused with the
+  app-menu message.
+- The real import planner skips `colRedAction=ctrl pressed W` on `web` and
+  applies it as `primary+w` on `desktop-macos`.
+
+## Not verified
+
+The desktop build itself was not run. What holds the chain up is the WKWebView
+measurement above — the keydown reaches the page — plus the dispatcher, which
+handles the chord the same way it handles every other. Windows and Linux are
+documented, not measured; that is the open follow-up.
