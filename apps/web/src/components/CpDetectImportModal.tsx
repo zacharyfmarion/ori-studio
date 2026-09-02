@@ -669,20 +669,14 @@ export function CpDetectImportModal() {
           track('cp suppression region created', { source: 'detect' });
         }
         useLayoutStore.getState().activateWorkspace('edit');
-        // One check, where this used to run seven. Two of those (`Fix1`, `Fix2`)
-        // *mutate*, and they now run over the **merged** document — they would
-        // silently edit the user's own creases, which is precisely what adding
-        // beside their work exists to stop. Of the five read-only ones only the
-        // last had any visible effect, since each overwrites `lastCommandResult`.
-        // The repair worklist itself is the always-on CAMV overlay, which the
-        // merge already scheduled.
-        await useWorkspaceStore
-          .getState()
-          .executeOristudioCpCommand('FlatFoldableCheck')
-          .catch(() => false);
-        // Last, so it wins over the check's own jump to its first issue: the
-        // import lands clear of the existing pattern, so without this the user
-        // sees the modal close and — as far as the viewport is concerned —
+        // No check is run here. This used to run seven, then one —
+        // `FlatFoldableCheck`, which is a drag-path tool: it traces the loop the
+        // user drags and tests the paper inside it, and called with no path it
+        // can only report "Boundary loop is not closed", which is what every
+        // import ended with. The repair worklist is the always-on CAMV overlay,
+        // which the merge already scheduled.
+        // The import lands clear of the existing pattern, so without this the
+        // user sees the modal close and — as far as the viewport is concerned —
         // nothing else happen. Best effort; a camera is only registered while an
         // Edit canvas is mounted, and a canvas mounting fresh fits by itself.
         if (paper) cpCamera()?.frameModelBounds(paper);

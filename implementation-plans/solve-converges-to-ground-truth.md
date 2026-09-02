@@ -383,6 +383,14 @@ wrongly-inferred family pulls solves away from GT rather than toward it.
       judged on the final answer only.
 - [ ] close_but's short-crease attempt reaches 2 violations (from 8) with 20
       merges in 23.5 s; a faster wide attempt would let the product take it.
+- [x] Mirror symmetry, detected in the input (`crates/oristudio-cp-compiler/src/symmetry.rs`:
+      vertices onto vertices, creases onto creases of the same assignment, for
+      ≥ 75% of each) and held as a judged round after the pin, where it is
+      linear. Every axis that qualifies is held; a symmetric base holds four.
+      Holding it from the first solve was measured and rejected (close_but
+      0 → 167 angle violations). Result: the two halves of a symmetric answer
+      are one answer — mirror error 2–9 px → 1e-10 on the user files and
+      across the bases corpus (44 axes adopted, 0 refused, 41/41 clean).
 - [ ] Peel by optimizer result: when a pinned attempt is still refused, unpin
       the carriers through the vertices it left over the bar and retry.
 - [ ] A merged pair in the solve summary ("2 vertices merged"), once the i18n
@@ -497,6 +505,24 @@ because its carriers had improved; refinement now rejects an answer above
 the bar when its input was at it. Result: `Solved` 0/0 on the saved state,
 the raw detection (the four odd-degree vertices were two of the close
 pairs) and the product flow.
+
+**Mirror symmetry (2026-09-02).** Solved on its own, each half of a symmetric
+pattern converges to its own exact answer and the two differ by a pixel or
+so: the pattern folds, but mirror one half over the other and nothing lines
+up. The input's symmetry is detected on the unit square — each fold vertex's
+reflection must land on a fold vertex (or the vertex on the axis), and each
+crease's image must be a crease of the same assignment, for at least 75% of
+each; pairing goes before the on-axis test so a split junction straddling the
+axis is a pair, and a pair is kept only if most of its creases agree — and
+held as residuals (each vertex to its partner's image, each axis vertex to
+the axis, at the incidence weight). It is a judged round: holding it from the
+first solve destabilised noisy detections (close_but 0 → 167 angle
+violations, okapi rejected); as a round after the pin, on the frozen merged
+state, it is linear and lands or is refused without harm. Every qualifying
+axis is held (a symmetric base has four). Measured: Terao's pegasus
+(diagonal) 2.9 px → 2e-10, mostly-successful and mid-solve_4 (anti-diagonal)
+to 1e-11, okapi (vertical), pegasus-attempt 9 → 6 Big-Little-Big, close_but
+unchanged; corpora 11/11 and 41/41 with 44 axes adopted and none refused.
 
 Three fully-lattice samples come back at **0.00 px** from ground truth. User
 files: `mid-solve_4` and `mostly-successful` go to `Solved` with 0 angle and 0

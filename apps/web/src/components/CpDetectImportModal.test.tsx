@@ -785,15 +785,13 @@ describe('CpDetectImportModal add', () => {
     expect(JSON.parse(text)).toEqual(solvedFold());
   });
 
-  it('never runs the mutating fixes, which would now edit the user’s own creases', async () => {
+  it('runs no kernel command after adding: the fixes would edit the user’s creases, and the boundary check needs a dragged path', async () => {
     await reachReviewStage();
     click('Add as-is');
     await settle();
 
     const operations = storeActions.executeOristudioCpCommand.mock.calls.map((call) => call[0]);
-    expect(operations.length).toBeGreaterThan(0);
-    expect(operations).not.toContain('Fix1');
-    expect(operations).not.toContain('Fix2');
+    expect(operations).toEqual([]);
   });
 
   it('places the source image and a solve-carrying region over the added paper', async () => {

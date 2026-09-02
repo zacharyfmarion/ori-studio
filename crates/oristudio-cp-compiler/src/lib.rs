@@ -22,6 +22,7 @@ pub mod optimizer;
 pub mod repair;
 pub mod report;
 pub mod selection;
+pub mod symmetry;
 pub mod verify;
 
 use serde::{Deserialize, Serialize};

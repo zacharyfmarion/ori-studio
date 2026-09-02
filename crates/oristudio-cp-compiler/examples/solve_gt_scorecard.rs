@@ -182,8 +182,39 @@ fn run(
     )
 }
 
-/// One phrase for what the pinned round did.
+/// One phrase for what the symmetry and pinned rounds did.
 fn pin_summary(solved: &oristudio_cp_compiler::ExactSolvedGraph) -> String {
+    let symmetry = &solved.movement_report["symmetry"];
+    let round = &solved.movement_report["polish"]["symmetry_round"];
+    let symmetry_text = match symmetry.as_array() {
+        Some(axes) if !axes.is_empty() => {
+            let axes: Vec<String> = axes
+                .iter()
+                .map(|axis| {
+                    format!(
+                        "{}{} v{:.2} c{:.2} err {:.2}->{:.2}px",
+                        axis["axis"].as_str().unwrap_or("?"),
+                        if axis["held"].as_bool() == Some(true) {
+                            "*"
+                        } else {
+                            ""
+                        },
+                        axis["vertex_fraction"].as_f64().unwrap_or(0.0),
+                        axis["crease_fraction"].as_f64().unwrap_or(0.0),
+                        axis["mirror_error_before"].as_f64().unwrap_or(0.0) * 1024.0,
+                        axis["mirror_error_after"].as_f64().unwrap_or(0.0) * 1024.0
+                    )
+                })
+                .collect();
+            format!(
+                "sym[{}] round {} {} | ",
+                axes.join(", "),
+                round["stop_reason"].as_str().unwrap_or("-"),
+                round["refusals"]
+            )
+        }
+        _ => String::new(),
+    };
     let pinned = &solved.movement_report["polish"]["pinned_family"];
     if pinned.is_null() {
         return format!(
@@ -198,7 +229,7 @@ fn pin_summary(solved: &oristudio_cp_compiler::ExactSolvedGraph) -> String {
     let carriers = format!("{}/{}", last["pinned_carriers"], pinned["carriers"]);
     if pinned["adopted"].as_bool() == Some(true) {
         format!(
-            "pin: adopted @{:.3}deg {carriers} in {}s",
+            "{symmetry_text}pin: adopted @{:.3}deg {carriers} in {}s",
             last["tolerance_degrees"].as_f64().unwrap_or(0.0),
             last["seconds"]
         )
@@ -227,7 +258,10 @@ fn pin_summary(solved: &oristudio_cp_compiler::ExactSolvedGraph) -> String {
                 )
             })
             .collect();
-        format!("pin: refused {carriers} {}", reasons.join(" | "))
+        format!(
+            "{symmetry_text}pin: refused {carriers} {}",
+            reasons.join(" | ")
+        )
     }
 }
 

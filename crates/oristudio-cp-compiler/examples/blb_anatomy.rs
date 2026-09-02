@@ -85,6 +85,21 @@ fn main() {
             );
         }
     }
+    println!("symmetry: {}", solved.movement_report["symmetry"]);
+    for candidate in oristudio_cp_compiler::symmetry::symmetry_candidates(
+        &input.vertices,
+        &input.selected_spans,
+        options.symmetry_match_tolerance,
+    ) {
+        println!(
+            "  symmetry candidate {:?} (unnormalized input): vertices {:.3} creases {:.3} (pairs {}, on axis {})",
+            candidate.axis,
+            candidate.vertex_fraction,
+            candidate.crease_fraction,
+            candidate.pairs.len(),
+            candidate.on_axis.len()
+        );
+    }
     let theorem = &solved.theorem_residual_report;
     println!(
         "solver: termination {}  polish stop {}  kawasaki before {} after {}  camv before {}a/{}b after {}a/{}b",

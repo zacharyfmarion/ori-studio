@@ -7,6 +7,7 @@
 use crate::candidate_graph::{
     BoundaryReconstructionPolicy, CandidateCreaseBoundaryRole, CandidateVertex,
 };
+use crate::symmetry::{DetectedSymmetry, detect_symmetries, mirror_error};
 use crate::{
     AssignmentLabel, BoundaryModel, BoundarySide, CandidateCreaseSpan, CandidateCreaseSpanKind,
     CandidateGraphProvenance, CandidateSourceAdapter, CandidateVertexKind,
@@ -110,6 +111,45 @@ pub struct ExactSolveOptions {
     /// lattice before the family is believed.
     #[serde(default = "default_angle_family_min_fraction")]
     pub angle_family_min_fraction: f64,
+    /// Whether to look for mirror symmetry in the input and hold it through
+    /// the solve. See [`crate::symmetry`].
+    #[serde(default)]
+    pub symmetry: SymmetryMode,
+    /// How far a vertex's mirror image may sit from its partner and still be
+    /// read as the same vertex, in the unit square: 12 px at 1024.
+    #[serde(default = "default_symmetry_match_tolerance")]
+    pub symmetry_match_tolerance: f64,
+    /// Fraction of fold vertices, and of fold creases, that must have a mirror
+    /// image before an axis is believed. See [`default_symmetry_min_fraction`].
+    #[serde(default = "default_symmetry_min_fraction")]
+    pub symmetry_min_fraction: f64,
+}
+
+/// Solved on its own, each half of a mirror-symmetric pattern converges to its
+/// own exact answer, and the two differ by a pixel or so: the pattern folds,
+/// but mirror one half over the other and nothing lines up. `Auto` detects the
+/// symmetry in the input ([`crate::symmetry::detect_symmetries`]) and holds it
+/// during the solve — each vertex to its partner's image, each axis vertex to
+/// the axis — so the two halves are one answer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SymmetryMode {
+    #[default]
+    Auto,
+    Off,
+}
+
+const fn default_symmetry_match_tolerance() -> f64 {
+    0.012
+}
+
+/// Below this fraction of fold vertices with a mirror image, or of fold creases
+/// whose image is a crease of the same assignment, no axis is believed.
+/// Measured: the wrong axes of a symmetric design score 0.1–0.2 on creases,
+/// the right one 0.8–0.94; a raw detection with a few split junctions loses a
+/// few percent to them.
+const fn default_symmetry_min_fraction() -> f64 {
+    0.75
 }
 
 /// Designed crease patterns are quantized: their creases lie on a small set of
@@ -314,6 +354,9 @@ impl Default for ExactSolveOptions {
             angle_family: AngleFamilyMode::default(),
             angle_family_snap_tolerance_radians: default_angle_family_snap_tolerance_radians(),
             angle_family_min_fraction: default_angle_family_min_fraction(),
+            symmetry: SymmetryMode::default(),
+            symmetry_match_tolerance: default_symmetry_match_tolerance(),
+            symmetry_min_fraction: default_symmetry_min_fraction(),
             polish_kawasaki_sigma_radians: default_polish_kawasaki_sigma_radians(),
             polish_carrier_incidence_sigma: default_polish_carrier_incidence_sigma(),
             polish_rounds: default_polish_rounds(),
@@ -681,7 +724,7 @@ fn solve_exact_inner(
     // stage-1 candidate would be accepted, so failure paths are untouched.
     let mut polish_outcome = PolishOutcome::default();
     let no_merges = BTreeSet::new();
-    let (final_params, termination, evaluations, objective, polish_adopted, merged_span_ids) = 'polish: {
+    let (final_params, termination, evaluations, objective, polish_adopted, merged_span_ids, model) = 'polish: {
         if !options.polish {
             polish_outcome.stop_reason = "disabled";
             break 'polish (
@@ -691,6 +734,7 @@ fn solve_exact_inner(
                 objective,
                 false,
                 no_merges,
+                model,
             );
         }
         if final_params.is_empty() {
@@ -702,6 +746,7 @@ fn solve_exact_inner(
                 objective,
                 false,
                 no_merges,
+                model,
             );
         }
         if model.timeout_reached() {
@@ -713,6 +758,7 @@ fn solve_exact_inner(
                 objective,
                 false,
                 no_merges,
+                model,
             );
         }
         let stage1_points = model.points_from_params(&final_params);
@@ -736,6 +782,7 @@ fn solve_exact_inner(
                 objective,
                 false,
                 no_merges,
+                model,
             );
         }
         let mut current_params = final_params.clone();
@@ -804,14 +851,16 @@ fn solve_exact_inner(
             polish_outcome.rounds_adopted = rounds_adopted;
             polish_outcome.kawasaki_after_degrees = Some(current_kawasaki);
         }
-        // Last: pin the pattern to its angle family, if it has one. Runs after
-        // the rounds, not as one of them, because a candidate that reached the
-        // Kawasaki target straight out of stage 1 skips the loop entirely, and
-        // that is exactly the clean designed pattern the pin is for.
+        // Then the two judged rounds, after the loop and not as part of it,
+        // because a candidate that reached the Kawasaki target straight out of
+        // stage 1 skips the loop entirely — and that is exactly the clean
+        // designed pattern both rounds are for. The pin first; symmetry then
+        // runs on the pinned, merged state, where it is linear.
+        let mut active = model.clone();
         let mut pinned_adopted = false;
         let mut merged_span_ids = BTreeSet::new();
         if let Some(round) = pin_to_angle_family(
-            &model,
+            &active,
             input,
             &before,
             &current_params,
@@ -824,13 +873,35 @@ fn solve_exact_inner(
                 current_after = adoption.after;
                 polish_evaluations += adoption.evaluations;
                 merged_span_ids = adoption.merged_span_ids;
+                active = active.with_merged_spans(&merged_span_ids);
+                active.frozen_params = adoption.frozen_params;
                 polish_outcome.kawasaki_after_degrees = Some(current_kawasaki);
                 pinned_adopted = true;
             }
             polish_outcome.pinned_family = Some(round.outcome);
         }
+        let mut symmetry_adopted = false;
+        if let Some(round) = symmetry_round(
+            &active,
+            input,
+            &before,
+            &current_params,
+            &current_after,
+            options,
+        ) {
+            if let Some(adoption) = round.adopted {
+                current_params = adoption.params;
+                current_kawasaki = adoption.after.max_kawasaki_residual_degrees;
+                current_after = adoption.after;
+                polish_evaluations += adoption.evaluations;
+                polish_outcome.kawasaki_after_degrees = Some(current_kawasaki);
+                active = active.with_symmetries_held();
+                symmetry_adopted = true;
+            }
+            polish_outcome.symmetry = Some(round.outcome);
+        }
         let _ = &current_after;
-        if rounds_adopted == 0 && !pinned_adopted {
+        if rounds_adopted == 0 && !symmetry_adopted && !pinned_adopted {
             break 'polish (
                 final_params,
                 termination,
@@ -838,17 +909,20 @@ fn solve_exact_inner(
                 objective,
                 false,
                 merged_span_ids,
+                active,
             );
         }
-        let polished_objective = residual_energy(&model.residuals_for(&current_params));
+        let polished_objective = residual_energy(&active.residuals_for(&current_params));
         let pinned = if pinned_adopted { ",pinned" } else { "" };
+        let symmetric = if symmetry_adopted { ",symmetric" } else { "" };
         (
             current_params,
-            format!("{termination}+polish(rounds={rounds_adopted}{pinned})"),
+            format!("{termination}+polish(rounds={rounds_adopted}{pinned}{symmetric})"),
             evaluations + polish_evaluations,
             polished_objective,
             true,
             merged_span_ids,
+            active,
         )
     };
     // From here the answer is judged and described as the editor will hold it.
@@ -984,6 +1058,13 @@ struct SolveModel {
     /// The raster the input was detected from, in pixels per paper edge; what a
     /// pixel of endpoint noise is worth in angle on a crease of a given length.
     image_size_px: f64,
+    /// The mirror symmetries the input was found to have. See [`SymmetryMode`].
+    candidate_symmetries: Vec<DetectedSymmetry>,
+    /// The symmetries this model holds as residuals — empty until the symmetry
+    /// round adopts them; see [`symmetry_round`]. Holding them from the first
+    /// solve destabilised noisy detections (close_but went from 0 to 167 angle
+    /// violations), which is why they are a judged round, like the pin.
+    symmetries: Vec<DetectedSymmetry>,
     span_to_carrier_group: BTreeMap<usize, usize>,
     initial_params: OVector<f64, Dyn>,
     selected_spans: Vec<CandidateCreaseSpan>,
@@ -1100,6 +1181,20 @@ impl SolveModel {
             merged_span_ids: BTreeSet::new(),
             merged_representative: Vec::new(),
             image_size_px: input.image_size.map_or(1024.0, |size| size as f64),
+            // Only on the square: the axes are the square's, and a polygon's
+            // boundary vertices are parameterized along sides a reflection
+            // need not map onto each other.
+            candidate_symmetries: if options.symmetry == SymmetryMode::Auto && !polygon {
+                detect_symmetries(
+                    &input.vertices,
+                    &input.selected_spans,
+                    options.symmetry_match_tolerance,
+                    options.symmetry_min_fraction,
+                )
+            } else {
+                Vec::new()
+            },
+            symmetries: Vec::new(),
             span_to_carrier_group,
             initial_params: OVector::<f64, Dyn>::from_vec(params),
             selected_spans: input.selected_spans.clone(),
@@ -1364,6 +1459,13 @@ impl SolveModel {
             .then(|| deadline.timeout_seconds - deadline.elapsed_seconds())
     }
 
+    /// This model holding every symmetry it detected. See [`symmetry_round`].
+    fn with_symmetries_held(&self) -> Self {
+        let mut held = self.clone();
+        held.symmetries = self.candidate_symmetries.clone();
+        held
+    }
+
     /// This model with `span_ids` read as merges. See [`analyze_graph`].
     fn with_merged_spans(&self, span_ids: &BTreeSet<usize>) -> Self {
         let mut merged = self.clone();
@@ -1514,6 +1616,31 @@ impl SolveModel {
             }
         }
 
+        // A mirror-symmetric pattern is one answer, not two halves each exact
+        // on its own: each vertex is held to its partner's image and each axis
+        // vertex to the axis, as hard as a vertex is held to its carrier.
+        for symmetry in &self.symmetries {
+            for &[a, b] in &symmetry.pairs {
+                let image = symmetry.axis.reflect(points[a]);
+                for value in [image.x - points[b].x, image.y - points[b].y] {
+                    push_residual(
+                        &mut residuals,
+                        &mut breakdown,
+                        ResidualFamily::Symmetry,
+                        value / self.options.carrier_incidence_sigma,
+                    );
+                }
+            }
+            for &id in &symmetry.on_axis {
+                push_residual(
+                    &mut residuals,
+                    &mut breakdown,
+                    ResidualFamily::Symmetry,
+                    symmetry.axis.distance_from(points[id]) / self.options.carrier_incidence_sigma,
+                );
+            }
+        }
+
         for residual in kawasaki_residuals(
             &points,
             &self.vertices,
@@ -1657,6 +1784,26 @@ impl SolveModel {
             row += 1;
         }
 
+        for symmetry in &self.symmetries {
+            let scale = 1.0 / self.options.carrier_incidence_sigma;
+            // `image = M·p + c`, so the image's x row is M's first row and its
+            // y row the second; the partner enters each with -1.
+            let [[mxx, mxy], [myx, myy]] = symmetry.axis.reflection_matrix();
+            for &[a, b] in &symmetry.pairs {
+                self.add_point_derivative(add, row, a, mxx * scale, mxy * scale, params);
+                self.add_point_derivative(add, row, b, -scale, 0.0, params);
+                row += 1;
+                self.add_point_derivative(add, row, a, myx * scale, myy * scale, params);
+                self.add_point_derivative(add, row, b, 0.0, -scale, params);
+                row += 1;
+            }
+            let [gx, gy] = symmetry.axis.distance_gradient();
+            for &id in &symmetry.on_axis {
+                self.add_point_derivative(add, row, id, gx * scale, gy * scale, params);
+                row += 1;
+            }
+        }
+
         for entry in kawasaki_entries {
             for (index, ray) in entry.rays.iter().enumerate() {
                 let angle_weight = if index % 2 == 0 { -2.0 } else { 2.0 };
@@ -1703,7 +1850,16 @@ impl SolveModel {
             })
             .sum::<usize>();
         let coincidence_residuals = self.merged_spans().count() * 2;
-        vertex_residuals + carrier_residuals + coincidence_residuals + kawasaki_residual_count
+        let symmetry_residuals = self
+            .symmetries
+            .iter()
+            .map(|symmetry| symmetry.pairs.len() * 2 + symmetry.on_axis.len())
+            .sum::<usize>();
+        vertex_residuals
+            + carrier_residuals
+            + coincidence_residuals
+            + symmetry_residuals
+            + kawasaki_residual_count
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -2070,6 +2226,8 @@ struct ResidualBreakdown {
     kawasaki_energy: f64,
     coincidence_count: usize,
     coincidence_energy: f64,
+    symmetry_count: usize,
+    symmetry_energy: f64,
 }
 
 impl ResidualBreakdown {
@@ -2088,6 +2246,7 @@ impl ResidualBreakdown {
             + self.carrier_incidence_energy
             + self.kawasaki_energy
             + self.coincidence_energy
+            + self.symmetry_energy
     }
 
     fn record(&mut self, family: ResidualFamily, residual: f64) {
@@ -2117,6 +2276,10 @@ impl ResidualBreakdown {
                 self.coincidence_count += 1;
                 self.coincidence_energy += energy;
             }
+            ResidualFamily::Symmetry => {
+                self.symmetry_count += 1;
+                self.symmetry_energy += energy;
+            }
         }
     }
 }
@@ -2129,6 +2292,7 @@ enum ResidualFamily {
     CarrierIncidence,
     Kawasaki,
     Coincidence,
+    Symmetry,
 }
 
 fn push_residual(
@@ -3030,6 +3194,155 @@ struct PolishOutcome {
     /// The pinned round, when the pattern was read as having an angle family.
     /// `None` when it has none, or when polish never got that far.
     pinned_family: Option<PinnedFamilyOutcome>,
+    /// The symmetry round, when the pattern was read as mirror-symmetric.
+    symmetry: Option<SymmetryRoundOutcome>,
+}
+
+/// What the symmetry round did. See [`symmetry_round`].
+#[derive(Debug, Clone)]
+struct SymmetryRoundOutcome {
+    axes: Vec<crate::symmetry::SymmetryAxis>,
+    adopted: bool,
+    /// `adopted`, `refused`, or `out_of_time`.
+    stop_reason: &'static str,
+    kawasaki_degrees: f64,
+    camv: Option<CamvCounts>,
+    /// The worst departure from the symmetries before and after the round.
+    mirror_error_before: f64,
+    mirror_error_after: f64,
+    reanchored_rounds: usize,
+    evaluations: usize,
+    seconds: f64,
+    refusals: Vec<String>,
+}
+
+/// The symmetry round's result: the report, and the adopted state when it passed.
+struct SymmetryRound {
+    outcome: SymmetryRoundOutcome,
+    adopted: Option<PinnedAdoption>,
+}
+
+/// Hold the pattern to the mirror symmetries it was found to have, and judge
+/// the result the way the pinned round is judged: the acceptance gate, the
+/// Kawasaki bar, and the checker's own counts must all hold or improve. Runs
+/// after the pin: with the directions frozen and the merges made, what is left
+/// is linear in the positions, so the round converges in a step and a split
+/// junction cannot collapse under it into a stub it has no way to merge. (A
+/// mirrored pair of carriers snaps to mirrored angles under the pin on its
+/// own, since the mirror of a lattice angle is a lattice angle.)
+fn symmetry_round(
+    model: &SolveModel,
+    input: &ExactSolveInput,
+    before: &GraphAnalysis,
+    current_params: &OVector<f64, Dyn>,
+    current_after: &GraphAnalysis,
+    options: ExactSolveOptions,
+) -> Option<SymmetryRound> {
+    if model.candidate_symmetries.is_empty() || model.timeout_reached() {
+        return None;
+    }
+    let axes = model
+        .candidate_symmetries
+        .iter()
+        .map(|symmetry| symmetry.axis)
+        .collect();
+    let budget = model
+        .remaining_seconds()
+        .map(|seconds| seconds - PINNED_ROUND_RESERVE_SECONDS);
+    if budget.is_some_and(|seconds| seconds <= 0.0) {
+        return Some(SymmetryRound {
+            outcome: SymmetryRoundOutcome {
+                axes,
+                adopted: false,
+                stop_reason: "out_of_time",
+                kawasaki_degrees: current_after.max_kawasaki_residual_degrees,
+                camv: current_after.camv,
+                mirror_error_before: 0.0,
+                mirror_error_after: 0.0,
+                reanchored_rounds: 0,
+                evaluations: 0,
+                seconds: 0.0,
+                refusals: Vec::new(),
+            },
+            adopted: None,
+        });
+    }
+    let started = model.deadline.elapsed_seconds();
+    let held = model.with_symmetries_held();
+    let worst_mirror = |points: &[Point2]| {
+        held.symmetries
+            .iter()
+            .map(|symmetry| mirror_error(symmetry, points))
+            .fold(0.0_f64, f64::max)
+    };
+    let mirror_error_before = worst_mirror(&model.placed_points(current_params));
+    let mut solving = held.reanchored_for_polish(current_params);
+    if let Some(seconds) = budget {
+        solving = solving.with_own_budget(seconds);
+    }
+    let start_energy = residual_energy(&solving.residuals_for(current_params));
+    let (mut params, _termination, mut evaluations, _objective, _counters) =
+        run_lm_minimize(&solving, current_params, options);
+    let analyze = |params: &OVector<f64, Dyn>| {
+        let points = held.placed_points(params);
+        analyze_graph(input, &points, &held, params, options)
+    };
+    let mut after = analyze(&params);
+    let mut reanchored_rounds = 0usize;
+    for _round in 0..PINNED_REANCHOR_ROUNDS {
+        if after.max_kawasaki_residual_degrees <= options.solved_kawasaki_epsilon_degrees
+            || solving.timeout_reached()
+        {
+            break;
+        }
+        let reanchored = solving.reanchored_for_polish(&params);
+        let (next, _next_termination, more, _objective, _counters) =
+            run_lm_minimize(&reanchored, &params, options);
+        evaluations += more;
+        let next_after = analyze(&next);
+        if next_after.max_kawasaki_residual_degrees >= after.max_kawasaki_residual_degrees {
+            break;
+        }
+        params = next;
+        after = next_after;
+        solving = reanchored;
+        reanchored_rounds += 1;
+    }
+    let final_energy = residual_energy(&solving.residuals_for(&params));
+    let status = classify_status(before, &after, options);
+    let mut refusals = exact_solution_rejection_reasons(
+        before,
+        &after,
+        status,
+        start_energy,
+        final_energy,
+        options,
+    );
+    refusals.extend(pinned_round_regressions(current_after, &after, options));
+    let mirror_error_after = worst_mirror(&held.placed_points(&params));
+    let adopted = refusals.is_empty();
+    Some(SymmetryRound {
+        outcome: SymmetryRoundOutcome {
+            axes,
+            adopted,
+            stop_reason: if adopted { "adopted" } else { "refused" },
+            kawasaki_degrees: after.max_kawasaki_residual_degrees,
+            camv: after.camv,
+            mirror_error_before,
+            mirror_error_after,
+            reanchored_rounds,
+            evaluations,
+            seconds: model.deadline.elapsed_seconds() - started,
+            refusals: refusals.clone(),
+        },
+        adopted: adopted.then(|| PinnedAdoption {
+            params,
+            after,
+            evaluations,
+            merged_span_ids: model.merged_span_ids.clone(),
+            frozen_params: model.frozen_params.clone(),
+        }),
+    })
 }
 
 /// What the pinned round did. See [`AngleFamilyMode`] and [`pin_to_angle_family`].
@@ -3096,6 +3409,8 @@ struct PinnedAdoption {
     evaluations: usize,
     /// Spans the round collapsed and the answer therefore reads as merges.
     merged_span_ids: BTreeSet<usize>,
+    /// The directions the round froze, so a later round keeps them frozen.
+    frozen_params: Vec<bool>,
 }
 
 /// Pin the pattern to its angle family and judge the result. See
@@ -3389,6 +3704,7 @@ fn pinned_attempt(
             after: pinned_after,
             evaluations,
             merged_span_ids,
+            frozen_params: judged_model.frozen_params.clone(),
         })
     });
     PinnedAttemptResult::Judged {
@@ -3459,6 +3775,7 @@ impl PolishOutcome {
             kawasaki_after_degrees: None,
             refused_round: None,
             pinned_family: None,
+            symmetry: None,
         }
     }
 
@@ -3483,6 +3800,22 @@ fn polish_report_json(polish: &PolishOutcome, options: ExactSolveOptions) -> Val
                 "kawasaki_degrees": round12(refusal.kawasaki_degrees),
                 "kawasaki_regressed": refusal.kawasaki_regressed,
                 "rejection_reasons": refusal.rejection_reasons,
+            })
+        }),
+        "symmetry_round": polish.symmetry.as_ref().map(|round| {
+            json!({
+                "axes": round.axes,
+                "adopted": round.adopted,
+                "stop_reason": round.stop_reason,
+                "kawasaki_degrees": round12(round.kawasaki_degrees),
+                "camv_angle_violations": round.camv.map(|camv| camv.angle_violations),
+                "big_little_big_violations": round.camv.map(|camv| camv.big_little_big_violations),
+                "mirror_error_before": round12(round.mirror_error_before),
+                "mirror_error_after": round12(round.mirror_error_after),
+                "reanchored_rounds": round.reanchored_rounds,
+                "evaluations": round.evaluations,
+                "seconds": round6(round.seconds),
+                "refusals": round.refusals,
             })
         }),
         "pinned_family": polish.pinned_family.as_ref().map(|pinned| {
@@ -3660,8 +3993,28 @@ fn movement_report(
         .map(|((_, before), after)| distance(*before, *after))
         .fold(0.0_f64, f64::max);
     let merged_vertices = model.merged_vertex_pairs();
+    // The mirror symmetries held through the solve, and how far the input and
+    // the answer each depart from them: the "after" figure is what mirroring
+    // one half of the answer onto the other would miss by.
+    let symmetry: Vec<Value> = model
+        .candidate_symmetries
+        .iter()
+        .map(|symmetry| {
+            json!({
+                "axis": symmetry.axis,
+                "held": model.symmetries.contains(symmetry),
+                "pairs": symmetry.pairs,
+                "on_axis": symmetry.on_axis,
+                "vertex_fraction": round6(symmetry.vertex_fraction),
+                "crease_fraction": round6(symmetry.crease_fraction),
+                "mirror_error_before": round12(mirror_error(symmetry, before_points)),
+                "mirror_error_after": round12(mirror_error(symmetry, after_points)),
+            })
+        })
+        .collect();
     json!({
         "schema": "oristudio/cp-compiler/exact-solve-movement-report-v1",
+        "symmetry": symmetry,
         // Vertex pairs the answer places at one point: the pinned round found
         // the design has them as a single vertex, and the crease between them
         // is gone once the answer is written. See `pin_to_angle_family`.
@@ -3800,6 +4153,10 @@ fn residual_breakdown_json(breakdown: &ResidualBreakdown) -> Value {
         "coincidence": {
             "count": breakdown.coincidence_count,
             "energy": round6(breakdown.coincidence_energy),
+        },
+        "symmetry": {
+            "count": breakdown.symmetry_count,
+            "energy": round6(breakdown.symmetry_energy),
         },
     })
 }
@@ -4457,7 +4814,7 @@ mod tests {
             solved.movement_report["termination"]
                 .as_str()
                 .unwrap()
-                .ends_with(",pinned)"),
+                .contains(",pinned"),
             "{}",
             solved.movement_report["termination"]
         );
@@ -4621,19 +4978,20 @@ mod tests {
         input.boundary.generated_border_span_ids = (0..8).collect();
         use AssignmentLabel::{Mountain as M, Valley as V};
         // `a` keeps the left half of the fan plus both verticals; `b` the right
-        // half. Maekawa holds on each half with the stub counted, and on the
-        // union without it: 5 mountains to 3 valleys.
+        // half. Mirror images carry the same assignment, as a mirror-symmetric
+        // design's do, and Maekawa holds on each half with the stub counted and
+        // on the union without it: 3 mountains to 5 valleys.
         let stub = 8;
         let creases = [
-            (stub, a, b, M),
+            (stub, a, b, V),
             (9, a, 5, M),  // up (the Bottom side is y = 1 — image coordinates)
-            (10, a, 3, V), // (0, 1)
-            (11, a, 6, M), // left
+            (10, a, 3, M), // (0, 1)
+            (11, a, 6, V), // left
             (12, a, 0, V), // (0, 0)
-            (13, a, 4, M), // down
-            (14, b, 2, M), // (1, 1)
-            (15, b, 7, V), // right
-            (16, b, 1, M), // (1, 0)
+            (13, a, 4, V), // down
+            (14, b, 2, M), // (1, 1), the image of (0, 1)
+            (15, b, 7, V), // right, the image of left
+            (16, b, 1, V), // (1, 0), the image of (0, 0)
         ];
         for (id, p, q, label) in creases {
             input
@@ -4647,6 +5005,27 @@ mod tests {
     fn pinned_round_merges_a_split_junction() {
         let (input, a, b, stub) = split_junction_input();
         let solved = solve_exact(&input, ExactSolveOptions::default());
+        // The halves are each other's mirror image about the vertical midline,
+        // and the symmetry round holds them so before the pin merges them.
+        let symmetry = &solved.movement_report["polish"]["symmetry_round"];
+        assert_eq!(
+            symmetry["adopted"],
+            serde_json::Value::Bool(true),
+            "{symmetry}"
+        );
+        assert_eq!(symmetry["axes"], serde_json::json!(["vertical"]));
+        assert!(
+            symmetry["mirror_error_after"].as_f64().unwrap() < 1e-9,
+            "{symmetry}"
+        );
+        assert!(
+            solved.movement_report["termination"]
+                .as_str()
+                .unwrap()
+                .contains(",symmetric"),
+            "{}",
+            solved.movement_report["termination"]
+        );
         let pinned = &solved.movement_report["polish"]["pinned_family"];
         assert_eq!(pinned["adopted"], serde_json::Value::Bool(true), "{pinned}");
         assert_eq!(
@@ -4741,6 +5120,87 @@ mod tests {
         assert_ne!(solved.vertices_exact[a], solved.vertices_exact[b]);
     }
 
+    /// Mountains to the top corners, valleys to the bottom ones: mirror-symmetric
+    /// about the vertical midline and about nothing else, since every other
+    /// axis maps a mountain onto a valley.
+    #[test]
+    fn symmetry_detection_reads_assignments_as_well_as_positions() {
+        let input = four_ray_input_with_labels(
+            Point2::new(0.505, 0.5),
+            [
+                AssignmentLabel::Mountain,
+                AssignmentLabel::Mountain,
+                AssignmentLabel::Valley,
+                AssignmentLabel::Valley,
+            ],
+        );
+        let found = crate::symmetry::detect_symmetries(
+            &input.vertices,
+            &input.selected_spans,
+            ExactSolveOptions::default().symmetry_match_tolerance,
+            ExactSolveOptions::default().symmetry_min_fraction,
+        );
+        let axes: Vec<_> = found.iter().map(|symmetry| symmetry.axis).collect();
+        assert_eq!(
+            axes,
+            vec![crate::symmetry::SymmetryAxis::Vertical],
+            "{found:?}"
+        );
+        assert_eq!(found[0].on_axis, vec![4]);
+        assert_eq!(found[0].pairs, vec![[0, 1], [2, 3]]);
+    }
+
+    #[test]
+    fn symmetry_pairs_the_split_junction_halves() {
+        let (input, a, b, _stub) = split_junction_input();
+        let found = crate::symmetry::detect_symmetries(
+            &input.vertices,
+            &input.selected_spans,
+            ExactSolveOptions::default().symmetry_match_tolerance,
+            ExactSolveOptions::default().symmetry_min_fraction,
+        );
+        let candidates = crate::symmetry::symmetry_candidates(
+            &input.vertices,
+            &input.selected_spans,
+            ExactSolveOptions::default().symmetry_match_tolerance,
+        );
+        let vertical = found
+            .iter()
+            .find(|symmetry| symmetry.axis == crate::symmetry::SymmetryAxis::Vertical)
+            .unwrap_or_else(|| {
+                panic!("the split junction is mirror-symmetric about the vertical midline: {candidates:?}")
+            });
+        assert!(
+            vertical.pairs.contains(&[a.min(b), a.max(b)]),
+            "{vertical:?}"
+        );
+        assert_eq!(vertical.vertex_fraction, 1.0);
+        // The stub's halves split the vertical creases between them, so two of
+        // the nine creases have no image; the pair itself agrees on the rest.
+        assert!(vertical.crease_fraction > 0.75, "{vertical:?}");
+    }
+
+    #[test]
+    fn an_asymmetric_pattern_has_no_symmetry() {
+        let mut input = base_square_input();
+        input.vertices.push(vertex(
+            4,
+            Point2::new(0.3, 0.4),
+            CandidateVertexKind::InteriorJunction,
+            CandidateVertexMovementPolicy::Movable,
+            None,
+        ));
+        input
+            .selected_spans
+            .push(span(4, 4, 0, AssignmentLabel::Mountain, 4, &input.vertices));
+        input
+            .selected_spans
+            .push(span(5, 4, 1, AssignmentLabel::Valley, 5, &input.vertices));
+        let found =
+            crate::symmetry::detect_symmetries(&input.vertices, &input.selected_spans, 0.012, 0.9);
+        assert!(found.is_empty(), "{found:?}");
+    }
+
     #[test]
     fn polish_report_records_adopted_rounds() {
         // Maekawa-clean, so the polish can actually reach `Solved`; the M,V,M,V
@@ -4790,11 +5250,17 @@ mod tests {
         // `>`), but every polish round has to move further to tighten Kawasaki,
         // so the first one is computed and then thrown away.
         let input = four_ray_input(Point2::new(0.505, 0.50));
+        // Symmetry off: the M,V,M,V fan is mirror-symmetric about a diagonal,
+        // and holding its centre to that line is not the accounting under test.
+        let options = ExactSolveOptions {
+            symmetry: SymmetryMode::Off,
+            ..ExactSolveOptions::default()
+        };
         let stage1_only = solve_exact(
             &input,
             ExactSolveOptions {
                 polish: false,
-                ..ExactSolveOptions::default()
+                ..options
             },
         );
         assert!(stage1_only.movement_report["accepted"].as_bool().unwrap());
@@ -4810,7 +5276,7 @@ mod tests {
             &input,
             ExactSolveOptions {
                 max_vertex_movement: budget,
-                ..ExactSolveOptions::default()
+                ..options
             },
         );
         assert!(
@@ -5638,6 +6104,13 @@ mod tests {
                 for attempt in attempts.iter_mut().filter_map(Value::as_object_mut) {
                     attempt.remove("seconds");
                 }
+            }
+            if let Some(round) = report
+                .get_mut("polish")
+                .and_then(|polish| polish.get_mut("symmetry_round"))
+                .and_then(Value::as_object_mut)
+            {
+                round.remove("seconds");
             }
         }
         value
