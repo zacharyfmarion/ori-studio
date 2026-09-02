@@ -161,10 +161,19 @@ function skipReasonText(t: TFunction, row: OrieditaImportRow): string {
         ? rejectReasonText(t, row.detail.rejectReason)
         : t('dialogs:orieditaImport.reason.unreadable', 'This hotkey could not be read.');
     case 'reserved-chord':
-      return t(
-        'dialogs:orieditaImport.reason.reserved',
-        'The browser keeps this shortcut for itself.'
-      );
+      // Oriedita is a desktop application, so an exported config is full of
+      // chords only a browser objects to. Saying which host is refusing, and
+      // that the desktop build would take it, is the difference between a dead
+      // end and an answer.
+      return row.detail.reservedReason === 'app-menu'
+        ? t(
+            'dialogs:orieditaImport.reason.reservedAppMenu',
+            'The macOS app menu keeps this shortcut for itself.'
+          )
+        : t(
+            'dialogs:orieditaImport.reason.reserved',
+            'The browser keeps this shortcut for itself. The desktop app can use it.'
+          );
     case 'shadowed': {
       const shadowing = row.detail.shadowing;
       if (!shadowing) {

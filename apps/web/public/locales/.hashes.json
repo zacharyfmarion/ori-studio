@@ -2285,7 +2285,7 @@
     "dialogs:orieditaImport.reason.noKeystroke": "282369fa6e56",
     "dialogs:orieditaImport.reason.notBindable": "30fdf5ab6ed1",
     "dialogs:orieditaImport.reason.released": "c044d3ba706f",
-    "dialogs:orieditaImport.reason.reserved": "e655390e9b3e",
+    "dialogs:orieditaImport.reason.reserved": "77e9eebf6604",
     "dialogs:orieditaImport.reason.shadowedLoses": "bbb7da98e2fb",
     "dialogs:orieditaImport.reason.shadowedTakes": "f0be5dc2c0dc",
     "dialogs:orieditaImport.reason.shadowedWithinImport": "ec761c9e0210",
@@ -2611,7 +2611,8 @@
     "errors:fold.interiorCut": "ba6033f8163a",
     "dialogs:settings.shortcuts.reservedAppMenu": "ad74c1b86244",
     "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34",
-    "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f"
+    "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f",
+    "dialogs:orieditaImport.reason.reservedAppMenu": "6e4ab68cd59a"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4899,7 +4900,7 @@
     "dialogs:orieditaImport.reason.noKeystroke": "282369fa6e56",
     "dialogs:orieditaImport.reason.notBindable": "30fdf5ab6ed1",
     "dialogs:orieditaImport.reason.released": "c044d3ba706f",
-    "dialogs:orieditaImport.reason.reserved": "e655390e9b3e",
+    "dialogs:orieditaImport.reason.reserved": "77e9eebf6604",
     "dialogs:orieditaImport.reason.shadowedLoses": "bbb7da98e2fb",
     "dialogs:orieditaImport.reason.shadowedTakes": "f0be5dc2c0dc",
     "dialogs:orieditaImport.reason.shadowedWithinImport": "ec761c9e0210",
@@ -5225,7 +5226,8 @@
     "errors:fold.interiorCut": "ba6033f8163a",
     "dialogs:settings.shortcuts.reservedAppMenu": "ad74c1b86244",
     "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34",
-    "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f"
+    "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f",
+    "dialogs:orieditaImport.reason.reservedAppMenu": "6e4ab68cd59a"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7513,7 +7515,7 @@
     "dialogs:orieditaImport.reason.noKeystroke": "282369fa6e56",
     "dialogs:orieditaImport.reason.notBindable": "30fdf5ab6ed1",
     "dialogs:orieditaImport.reason.released": "c044d3ba706f",
-    "dialogs:orieditaImport.reason.reserved": "e655390e9b3e",
+    "dialogs:orieditaImport.reason.reserved": "77e9eebf6604",
     "dialogs:orieditaImport.reason.shadowedLoses": "bbb7da98e2fb",
     "dialogs:orieditaImport.reason.shadowedTakes": "f0be5dc2c0dc",
     "dialogs:orieditaImport.reason.shadowedWithinImport": "ec761c9e0210",
@@ -7839,7 +7841,8 @@
     "errors:fold.interiorCut": "ba6033f8163a",
     "dialogs:settings.shortcuts.reservedAppMenu": "ad74c1b86244",
     "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34",
-    "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f"
+    "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f",
+    "dialogs:orieditaImport.reason.reservedAppMenu": "6e4ab68cd59a"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -10097,7 +10100,7 @@
     "dialogs:orieditaImport.reason.noKeystroke": "282369fa6e56",
     "dialogs:orieditaImport.reason.notBindable": "30fdf5ab6ed1",
     "dialogs:orieditaImport.reason.released": "c044d3ba706f",
-    "dialogs:orieditaImport.reason.reserved": "e655390e9b3e",
+    "dialogs:orieditaImport.reason.reserved": "77e9eebf6604",
     "dialogs:orieditaImport.reason.shadowedLoses": "bbb7da98e2fb",
     "dialogs:orieditaImport.reason.shadowedTakes": "f0be5dc2c0dc",
     "dialogs:orieditaImport.reason.shadowedWithinImport": "ec761c9e0210",
@@ -10412,7 +10415,8 @@
     "errors:fold.interiorCut": "ba6033f8163a",
     "dialogs:settings.shortcuts.reservedAppMenu": "ad74c1b86244",
     "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34",
-    "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f"
+    "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f",
+    "dialogs:orieditaImport.reason.reservedAppMenu": "6e4ab68cd59a"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12670,7 +12674,7 @@
     "dialogs:orieditaImport.reason.noKeystroke": "282369fa6e56",
     "dialogs:orieditaImport.reason.notBindable": "30fdf5ab6ed1",
     "dialogs:orieditaImport.reason.released": "c044d3ba706f",
-    "dialogs:orieditaImport.reason.reserved": "e655390e9b3e",
+    "dialogs:orieditaImport.reason.reserved": "77e9eebf6604",
     "dialogs:orieditaImport.reason.shadowedLoses": "bbb7da98e2fb",
     "dialogs:orieditaImport.reason.shadowedTakes": "f0be5dc2c0dc",
     "dialogs:orieditaImport.reason.shadowedWithinImport": "ec761c9e0210",
@@ -12985,7 +12989,8 @@
     "errors:fold.interiorCut": "ba6033f8163a",
     "dialogs:settings.shortcuts.reservedAppMenu": "ad74c1b86244",
     "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34",
-    "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f"
+    "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f",
+    "dialogs:orieditaImport.reason.reservedAppMenu": "6e4ab68cd59a"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -15273,7 +15278,7 @@
     "dialogs:orieditaImport.reason.noKeystroke": "282369fa6e56",
     "dialogs:orieditaImport.reason.notBindable": "30fdf5ab6ed1",
     "dialogs:orieditaImport.reason.released": "c044d3ba706f",
-    "dialogs:orieditaImport.reason.reserved": "e655390e9b3e",
+    "dialogs:orieditaImport.reason.reserved": "77e9eebf6604",
     "dialogs:orieditaImport.reason.shadowedLoses": "bbb7da98e2fb",
     "dialogs:orieditaImport.reason.shadowedTakes": "f0be5dc2c0dc",
     "dialogs:orieditaImport.reason.shadowedWithinImport": "ec761c9e0210",
@@ -15599,7 +15604,8 @@
     "errors:fold.interiorCut": "ba6033f8163a",
     "dialogs:settings.shortcuts.reservedAppMenu": "ad74c1b86244",
     "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34",
-    "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f"
+    "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f",
+    "dialogs:orieditaImport.reason.reservedAppMenu": "6e4ab68cd59a"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -17887,7 +17893,7 @@
     "dialogs:orieditaImport.reason.noKeystroke": "282369fa6e56",
     "dialogs:orieditaImport.reason.notBindable": "30fdf5ab6ed1",
     "dialogs:orieditaImport.reason.released": "c044d3ba706f",
-    "dialogs:orieditaImport.reason.reserved": "e655390e9b3e",
+    "dialogs:orieditaImport.reason.reserved": "77e9eebf6604",
     "dialogs:orieditaImport.reason.shadowedLoses": "bbb7da98e2fb",
     "dialogs:orieditaImport.reason.shadowedTakes": "f0be5dc2c0dc",
     "dialogs:orieditaImport.reason.shadowedWithinImport": "ec761c9e0210",
@@ -18213,7 +18219,8 @@
     "errors:fold.interiorCut": "ba6033f8163a",
     "dialogs:settings.shortcuts.reservedAppMenu": "ad74c1b86244",
     "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34",
-    "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f"
+    "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f",
+    "dialogs:orieditaImport.reason.reservedAppMenu": "6e4ab68cd59a"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -20471,7 +20478,7 @@
     "dialogs:orieditaImport.reason.noKeystroke": "282369fa6e56",
     "dialogs:orieditaImport.reason.notBindable": "30fdf5ab6ed1",
     "dialogs:orieditaImport.reason.released": "c044d3ba706f",
-    "dialogs:orieditaImport.reason.reserved": "e655390e9b3e",
+    "dialogs:orieditaImport.reason.reserved": "77e9eebf6604",
     "dialogs:orieditaImport.reason.shadowedLoses": "bbb7da98e2fb",
     "dialogs:orieditaImport.reason.shadowedTakes": "f0be5dc2c0dc",
     "dialogs:orieditaImport.reason.shadowedWithinImport": "ec761c9e0210",
@@ -20786,6 +20793,7 @@
     "errors:fold.interiorCut": "ba6033f8163a",
     "dialogs:settings.shortcuts.reservedAppMenu": "ad74c1b86244",
     "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34",
-    "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f"
+    "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f",
+    "dialogs:orieditaImport.reason.reservedAppMenu": "6e4ab68cd59a"
   }
 }
