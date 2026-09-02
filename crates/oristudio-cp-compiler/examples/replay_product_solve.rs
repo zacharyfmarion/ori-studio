@@ -14,7 +14,26 @@ use oristudio_cp_compiler::{
 use serde_json::Value;
 use std::time::Instant;
 
-const BUDGET: f64 = 25.0;
+/// The product's budget until the deadline was dropped; `BUDGET_SECONDS` in the
+/// environment overrides it, and a negative value is no deadline at all.
+fn budget_seconds() -> f64 {
+    std::env::var("BUDGET_SECONDS")
+        .ok()
+        .and_then(|value| value.parse::<f64>().ok())
+        .unwrap_or(25.0)
+}
+
+/// What stage 2 gets after stage 1 spent `spent`: the product's
+/// `remainingSolveBudget`, where a negative total passes through unchanged
+/// (it means no deadline) rather than clamping to "no time at all".
+fn remaining_budget(spent: f64) -> f64 {
+    let total = budget_seconds();
+    if total < 0.0 {
+        total
+    } else {
+        (total - spent).max(0.0)
+    }
+}
 
 fn main() {
     let path = std::env::args().nth(1).expect("usage: <file.osf>");
@@ -77,7 +96,7 @@ fn main() {
             &attached,
             ExactSolveOptions {
                 polish: false,
-                timeout_seconds: BUDGET,
+                timeout_seconds: budget_seconds(),
                 ..Default::default()
             },
         );
@@ -88,7 +107,7 @@ fn main() {
             &attached,
             ExactSolveOptions {
                 polish: true,
-                timeout_seconds: (BUDGET - e1).max(0.0),
+                timeout_seconds: remaining_budget(e1),
                 ..Default::default()
             },
         );
@@ -149,14 +168,14 @@ fn main() {
         &input,
         ExactSolveOptions {
             polish: false,
-            timeout_seconds: BUDGET,
+            timeout_seconds: budget_seconds(),
             ..Default::default()
         },
     );
     let stage1_secs = started.elapsed().as_secs_f64();
     report("stage 1 (geometry, no polish)", &stage1, stage1_secs);
 
-    let remaining = (BUDGET - stage1_secs).max(0.0);
+    let remaining = remaining_budget(stage1_secs);
     println!("\nbudget left for stage 2: {remaining:.3}s");
     let started2 = Instant::now();
     let stage2 = solve_exact(

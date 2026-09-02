@@ -16,13 +16,14 @@ use crate::{
 };
 use levenberg_marquardt::{LeastSquaresProblem, LevenbergMarquardt};
 use nalgebra::{DMatrix, Dyn, OMatrix, OVector, storage::Owned};
-use nalgebra_sparse::factorization::CscCholesky;
+use nalgebra_sparse::factorization::{CscCholesky, CscSymbolicCholesky};
 use nalgebra_sparse::{CooMatrix, CscMatrix};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::borrow::Cow;
 use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
@@ -1999,34 +2000,22 @@ impl SolveModel {
     /// Solve the damped LM step `(JᵀJ + lambda·diag(JᵀJ)) δ = -Jᵀr` via sparse
     /// Cholesky. Returns `None` if the (damped) system is not positive definite,
     /// signalling the caller to increase damping.
-    fn solve_lm_step(&self, gn: &GaussNewton, lambda: f64, n: usize) -> Option<OVector<f64, Dyn>> {
-        let mut rows = Vec::with_capacity(gn.jtj.len() * 2 + n);
-        let mut cols = Vec::with_capacity(gn.jtj.len() * 2 + n);
-        let mut vals = Vec::with_capacity(gn.jtj.len() * 2 + n);
-        for &(i, j, v) in &gn.jtj {
-            rows.push(i);
-            cols.push(j);
-            vals.push(v);
-            if i != j {
-                rows.push(j);
-                cols.push(i);
-                vals.push(v);
-            }
+    ///
+    /// `system` is the step's reusable half: the fill-reducing order, the
+    /// permuted pattern and its symbolic factorisation, built on the first call
+    /// and kept while the pattern holds. See [`SparseStepSystem`].
+    fn solve_lm_step(
+        &self,
+        gn: &GaussNewton,
+        lambda: f64,
+        n: usize,
+        system: &mut Option<SparseStepSystem>,
+    ) -> Option<OVector<f64, Dyn>> {
+        if system.as_ref().is_none_or(|ready| !ready.covers(gn)) {
+            *system = Some(SparseStepSystem::new(gn, n)?);
         }
-        for k in 0..n {
-            rows.push(k);
-            cols.push(k);
-            vals.push(lambda * gn.diagonal[k].max(1e-12));
-        }
-        let coo = CooMatrix::try_from_triplets(n, n, rows, cols, vals).ok()?;
-        let csc = CscMatrix::from(&coo);
-        let chol = CscCholesky::factor(&csc).ok()?;
-        let rhs = DMatrix::from_fn(n, 1, |i, _| -gn.gradient[i]);
-        let sol = chol.solve(&rhs);
-        Some(OVector::<f64, Dyn>::from_iterator(
-            n,
-            (0..n).map(|i| sol[(i, 0)]),
-        ))
+        let ready = system.as_mut()?;
+        ready.solve(gn, lambda)
     }
 
     /// Sparse Levenberg-Marquardt minimize. Mirrors the dense crate's role
@@ -2068,6 +2057,7 @@ impl SolveModel {
         let mut stall = 0usize;
         const MAX_OUTER: usize = 200;
         let mut termination = "sparse_max_iterations".to_owned();
+        let mut system: Option<SparseStepSystem> = None;
 
         'outer: for _iter in 0..MAX_OUTER {
             if self.timeout_reached() {
@@ -2095,7 +2085,7 @@ impl SolveModel {
                     termination = "sparse_timeout".to_owned();
                     break 'outer;
                 }
-                let Some(delta) = self.solve_lm_step(&gn, lambda, n) else {
+                let Some(delta) = self.solve_lm_step(&gn, lambda, n, &mut system) else {
                     lambda *= nu;
                     nu *= 2.0;
                     stall += 1;
@@ -2175,6 +2165,181 @@ struct GaussNewton {
     diagonal: Vec<f64>,
     gradient: Vec<f64>,
     gradient_norm: f64,
+}
+
+/// The damped normal equations as the sparse Cholesky sees them, reused across
+/// the LM iterations of one minimize.
+///
+/// Two things made the old step slow, and both were the same every iteration.
+/// The system was factored in *parameter order* — detection order, a random
+/// walk over the sheet — and a planar mesh factored in a random order fills
+/// in until the factor is nearly dense: on a 382-vertex pattern one
+/// factorisation cost half a second, 96% of the solve's time. And the pattern
+/// was rebuilt, sorted and symbolically analysed from scratch each time, though
+/// nothing about it changes between iterations but the values.
+///
+/// So the parameters are renumbered once by reverse Cuthill–McKee, which keeps
+/// a planar graph's neighbours close in the ordering and its factor banded;
+/// the permuted pattern is built once; the symbolic factorisation is done
+/// once; and each iteration only writes the new values into their slots and
+/// refactors numerically. The arithmetic is the same system solved in a
+/// different order — the step is identical up to rounding.
+struct SparseStepSystem {
+    n: usize,
+    /// `perm[old] = new`: where parameter `old` sits in the factored system.
+    perm: Vec<usize>,
+    /// Value slot in the permuted CSC storage for each (row, col) it holds.
+    slots: HashMap<(usize, usize), usize>,
+    /// Slot of each parameter's diagonal entry, in parameter order.
+    diagonal_slots: Vec<usize>,
+    symbolic: CscSymbolicCholesky,
+    values: Vec<f64>,
+    factor: Option<CscCholesky<f64>>,
+    rhs: DMatrix<f64>,
+}
+
+impl SparseStepSystem {
+    fn new(gn: &GaussNewton, n: usize) -> Option<Self> {
+        let perm = reverse_cuthill_mckee(n, gn.jtj.iter().map(|&(i, j, _)| (i, j)));
+        let mut rows = Vec::with_capacity(gn.jtj.len() * 2 + n);
+        let mut cols = Vec::with_capacity(gn.jtj.len() * 2 + n);
+        for &(i, j, _) in &gn.jtj {
+            rows.push(perm[i]);
+            cols.push(perm[j]);
+            if i != j {
+                rows.push(perm[j]);
+                cols.push(perm[i]);
+            }
+        }
+        for &k in &perm {
+            rows.push(k);
+            cols.push(k);
+        }
+        let ones = vec![1.0; rows.len()];
+        let coo = CooMatrix::try_from_triplets(n, n, rows, cols, ones).ok()?;
+        let csc = CscMatrix::from(&coo);
+        let mut slots = HashMap::with_capacity(csc.nnz());
+        for (slot, (row, col, _)) in csc.triplet_iter().enumerate() {
+            slots.insert((row, col), slot);
+        }
+        let diagonal_slots = perm
+            .iter()
+            .map(|&k| slots.get(&(k, k)).copied())
+            .collect::<Option<Vec<_>>>()?;
+        let symbolic = CscSymbolicCholesky::factor(csc.pattern().clone());
+        Some(Self {
+            n,
+            perm,
+            slots,
+            diagonal_slots,
+            symbolic,
+            values: vec![0.0; csc.nnz()],
+            factor: None,
+            rhs: DMatrix::zeros(n, 1),
+        })
+    }
+
+    /// Whether every entry of `gn` has a slot here. The pattern is fixed for a
+    /// model, so this holds after the first call; it is checked rather than
+    /// assumed because a wrong slot would be a silently wrong step.
+    fn covers(&self, gn: &GaussNewton) -> bool {
+        gn.diagonal.len() == self.n
+            && gn.jtj.iter().all(|&(i, j, _)| {
+                i < self.n && j < self.n && self.slots.contains_key(&(self.perm[i], self.perm[j]))
+            })
+    }
+
+    fn solve(&mut self, gn: &GaussNewton, lambda: f64) -> Option<OVector<f64, Dyn>> {
+        self.values.iter_mut().for_each(|value| *value = 0.0);
+        for &(i, j, v) in &gn.jtj {
+            let (pi, pj) = (self.perm[i], self.perm[j]);
+            self.values[*self.slots.get(&(pi, pj))?] += v;
+            if i != j {
+                self.values[*self.slots.get(&(pj, pi))?] += v;
+            }
+        }
+        for k in 0..self.n {
+            self.values[self.diagonal_slots[k]] += lambda * gn.diagonal[k].max(1e-12);
+        }
+        match self.factor.as_mut() {
+            Some(factor) => {
+                if factor.refactor(&self.values).is_err() {
+                    // Not positive definite at this damping. Drop the factor so
+                    // the next attempt starts clean rather than from a half
+                    // written one.
+                    self.factor = None;
+                    return None;
+                }
+            }
+            None => {
+                self.factor =
+                    Some(CscCholesky::factor_numerical(self.symbolic.clone(), &self.values).ok()?);
+            }
+        }
+        let factor = self.factor.as_ref()?;
+        for k in 0..self.n {
+            self.rhs[(self.perm[k], 0)] = -gn.gradient[k];
+        }
+        let sol = factor.solve(&self.rhs);
+        Some(OVector::<f64, Dyn>::from_iterator(
+            self.n,
+            (0..self.n).map(|k| sol[(self.perm[k], 0)]),
+        ))
+    }
+}
+
+/// Reverse Cuthill–McKee: a renumbering of `n` nodes that keeps the neighbours
+/// of a sparse symmetric pattern close together, so its Cholesky factor stays
+/// banded. `pairs` are the pattern's off-diagonal couplings (either triangle;
+/// diagonal pairs are ignored). Returns `perm[old] = new`.
+///
+/// Each connected component is walked breadth-first from its lowest-degree
+/// node, neighbours taken in increasing degree, and the whole order reversed.
+/// Ties break on index, so the numbering is deterministic.
+fn reverse_cuthill_mckee(n: usize, pairs: impl Iterator<Item = (usize, usize)>) -> Vec<usize> {
+    let mut adjacency = vec![Vec::new(); n];
+    for (i, j) in pairs {
+        if i != j && i < n && j < n {
+            adjacency[i].push(j);
+            adjacency[j].push(i);
+        }
+    }
+    for list in &mut adjacency {
+        list.sort_unstable();
+        list.dedup();
+    }
+    let mut by_degree: Vec<usize> = (0..n).collect();
+    by_degree.sort_by_key(|&node| (adjacency[node].len(), node));
+
+    let mut order = Vec::with_capacity(n);
+    let mut visited = vec![false; n];
+    let mut queue = VecDeque::new();
+    for &start in &by_degree {
+        if visited[start] {
+            continue;
+        }
+        visited[start] = true;
+        queue.push_back(start);
+        while let Some(node) = queue.pop_front() {
+            order.push(node);
+            let mut next: Vec<usize> = adjacency[node]
+                .iter()
+                .copied()
+                .filter(|&other| !visited[other])
+                .collect();
+            next.sort_by_key(|&other| (adjacency[other].len(), other));
+            for other in next {
+                visited[other] = true;
+                queue.push_back(other);
+            }
+        }
+    }
+    order.reverse();
+    let mut perm = vec![0; n];
+    for (new, &old) in order.iter().enumerate() {
+        perm[old] = new;
+    }
+    perm
 }
 
 /// Run one LM minimize with the configured linear-solver backend, returning the
@@ -4648,6 +4813,92 @@ fn round6(value: f64) -> f64 {
 /// [`round6`] would quantise the interesting digits (or flatten them to zero).
 fn round12(value: f64) -> f64 {
     (value * 1e12).round() / 1e12
+}
+
+#[cfg(test)]
+mod sparse_step_tests {
+    use super::*;
+
+    #[test]
+    fn reverse_cuthill_mckee_is_a_permutation_that_bands_a_scrambled_path() {
+        // A path 0-1-2-…-9 given with its nodes shuffled: RCM must number
+        // neighbours adjacently again.
+        let path = [3, 7, 1, 9, 0, 5, 2, 8, 6, 4];
+        let pairs: Vec<(usize, usize)> = path.windows(2).map(|w| (w[0], w[1])).collect();
+        let perm = reverse_cuthill_mckee(10, pairs.iter().copied());
+        let mut seen = perm.clone();
+        seen.sort_unstable();
+        assert_eq!(seen, (0..10).collect::<Vec<_>>(), "a permutation: {perm:?}");
+        let bandwidth = pairs
+            .iter()
+            .map(|&(i, j)| perm[i].abs_diff(perm[j]))
+            .max()
+            .unwrap_or(0);
+        assert_eq!(bandwidth, 1, "{perm:?}");
+    }
+
+    #[test]
+    fn reverse_cuthill_mckee_numbers_every_node_of_a_disconnected_pattern() {
+        let perm = reverse_cuthill_mckee(5, [(0, 1), (3, 4)].into_iter());
+        let mut seen = perm.clone();
+        seen.sort_unstable();
+        assert_eq!(seen, vec![0, 1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn the_permuted_step_solves_the_same_system() {
+        // (JᵀJ + λ·diag) δ = −g on a small SPD system, against a direct dense
+        // solve; the reordering must not change the answer beyond rounding.
+        let n = 6;
+        let jtj = vec![
+            (0, 0, 4.0),
+            (1, 1, 5.0),
+            (2, 2, 6.0),
+            (3, 3, 7.0),
+            (4, 4, 8.0),
+            (5, 5, 9.0),
+            (0, 3, 1.0),
+            (1, 4, -1.5),
+            (2, 5, 0.5),
+            (0, 1, 0.25),
+            (3, 5, -0.75),
+        ];
+        let diagonal = vec![4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
+        let gradient = vec![1.0, -2.0, 3.0, -4.0, 5.0, -6.0];
+        let gn = GaussNewton {
+            jtj: jtj.clone(),
+            diagonal: diagonal.clone(),
+            gradient: gradient.clone(),
+            gradient_norm: 1.0,
+        };
+        let lambda = 0.1;
+        let mut system = SparseStepSystem::new(&gn, n).expect("system");
+        let delta = system.solve(&gn, lambda).expect("solve");
+        // Twice, to exercise the refactor path.
+        let again = system.solve(&gn, lambda).expect("solve again");
+
+        let mut dense = DMatrix::zeros(n, n);
+        for &(i, j, v) in &jtj {
+            dense[(i, j)] += v;
+            if i != j {
+                dense[(j, i)] += v;
+            }
+        }
+        for k in 0..n {
+            dense[(k, k)] += lambda * diagonal[k];
+        }
+        let rhs = DMatrix::from_fn(n, 1, |i, _| -gradient[i]);
+        let expected = dense.lu().solve(&rhs).expect("dense solve");
+        for k in 0..n {
+            assert!(
+                (delta[k] - expected[(k, 0)]).abs() < 1e-12,
+                "{k}: {} vs {}",
+                delta[k],
+                expected[(k, 0)]
+            );
+            assert!((again[k] - delta[k]).abs() < 1e-15);
+        }
+    }
 }
 
 #[cfg(test)]
