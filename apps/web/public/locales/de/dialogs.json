@@ -342,6 +342,7 @@
       "defaultsOriStudioTitle": "Ori-Studio-Standardwerte verwenden?",
       "defaultsUnbind": "{{label}} wird unbelegt",
       "importOriedita": "Aus Oriedita importieren...",
+      "inactiveHere": "hier nicht aktiv",
       "notBindable": "{{label}} kann noch kein Tastenkürzel aufnehmen.",
       "pressKeys": "Tasten drücken",
       "pressPrompt": "Drücken Sie ein Tastenkürzel für {{label}}.",

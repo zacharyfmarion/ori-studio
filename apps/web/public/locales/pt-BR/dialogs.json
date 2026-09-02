@@ -356,6 +356,7 @@
       "defaultsOriStudioTitle": "Usar os padrões do Ori Studio?",
       "defaultsUnbind": "{{label}} fica sem atribuição",
       "importOriedita": "Importar do Oriedita...",
+      "inactiveHere": "não ativo aqui",
       "notBindable": "{{label}} ainda não aceita um atalho.",
       "pressKeys": "Pressione as teclas",
       "pressPrompt": "Pressione um atalho para {{label}}.",

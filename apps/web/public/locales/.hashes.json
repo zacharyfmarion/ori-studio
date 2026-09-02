@@ -2610,7 +2610,8 @@
     "panels:simulator.viewCube.roll": "e221d9c288cc",
     "errors:fold.interiorCut": "ba6033f8163a",
     "dialogs:settings.shortcuts.reservedAppMenu": "ad74c1b86244",
-    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34"
+    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34",
+    "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5223,7 +5224,8 @@
     "panels:simulator.viewCube.roll": "e221d9c288cc",
     "errors:fold.interiorCut": "ba6033f8163a",
     "dialogs:settings.shortcuts.reservedAppMenu": "ad74c1b86244",
-    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34"
+    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34",
+    "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7836,7 +7838,8 @@
     "panels:simulator.viewCube.roll": "e221d9c288cc",
     "errors:fold.interiorCut": "ba6033f8163a",
     "dialogs:settings.shortcuts.reservedAppMenu": "ad74c1b86244",
-    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34"
+    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34",
+    "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -10408,7 +10411,8 @@
     "panels:simulator.viewCube.roll": "e221d9c288cc",
     "errors:fold.interiorCut": "ba6033f8163a",
     "dialogs:settings.shortcuts.reservedAppMenu": "ad74c1b86244",
-    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34"
+    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34",
+    "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12980,7 +12984,8 @@
     "panels:simulator.viewCube.roll": "e221d9c288cc",
     "errors:fold.interiorCut": "ba6033f8163a",
     "dialogs:settings.shortcuts.reservedAppMenu": "ad74c1b86244",
-    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34"
+    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34",
+    "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -15593,7 +15598,8 @@
     "panels:simulator.viewCube.roll": "e221d9c288cc",
     "errors:fold.interiorCut": "ba6033f8163a",
     "dialogs:settings.shortcuts.reservedAppMenu": "ad74c1b86244",
-    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34"
+    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34",
+    "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -18206,7 +18212,8 @@
     "panels:simulator.viewCube.roll": "e221d9c288cc",
     "errors:fold.interiorCut": "ba6033f8163a",
     "dialogs:settings.shortcuts.reservedAppMenu": "ad74c1b86244",
-    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34"
+    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34",
+    "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -20778,6 +20785,7 @@
     "panels:simulator.viewCube.roll": "e221d9c288cc",
     "errors:fold.interiorCut": "ba6033f8163a",
     "dialogs:settings.shortcuts.reservedAppMenu": "ad74c1b86244",
-    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34"
+    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34",
+    "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f"
   }
 }

@@ -356,6 +356,7 @@
       "defaultsOriStudioTitle": "Utiliser les valeurs par défaut d’Ori Studio ?",
       "defaultsUnbind": "{{label}} devient non assigné",
       "importOriedita": "Importer depuis Oriedita...",
+      "inactiveHere": "inactif ici",
       "notBindable": "{{label}} n’accepte pas encore de raccourci.",
       "pressKeys": "Appuyez sur les touches",
       "pressPrompt": "Appuyez sur un raccourci pour {{label}}.",

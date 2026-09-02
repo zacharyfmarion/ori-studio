@@ -342,6 +342,7 @@
       "defaultsOriStudioTitle": "Use Ori Studio defaults?",
       "defaultsUnbind": "{{label}} becomes unassigned",
       "importOriedita": "Import from Oriedita...",
+      "inactiveHere": "not active here",
       "notBindable": "{{label}} cannot take a shortcut yet.",
       "pressKeys": "Press keys",
       "pressPrompt": "Press a shortcut for {{label}}.",

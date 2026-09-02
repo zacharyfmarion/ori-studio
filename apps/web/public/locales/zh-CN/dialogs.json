@@ -328,6 +328,7 @@
       "defaultsOriStudioTitle": "使用 Ori Studio 默认值？",
       "defaultsUnbind": "{{label}} 将变为未分配",
       "importOriedita": "从 Oriedita 导入...",
+      "inactiveHere": "此处无效",
       "notBindable": "{{label}} 目前还不能设置快捷键。",
       "pressKeys": "按下按键",
       "pressPrompt": "为 {{label}} 按下快捷键。",

@@ -370,6 +370,7 @@
       "defaultsOriStudioTitle": "Использовать стандартные значения Ori Studio?",
       "defaultsUnbind": "«{{label}}» останется без назначения",
       "importOriedita": "Импорт из Oriedita...",
+      "inactiveHere": "здесь не работает",
       "notBindable": "«{{label}}» пока не может принять сочетание клавиш.",
       "pressKeys": "Нажмите клавиши",
       "pressPrompt": "Нажмите сочетание клавиш для {{label}}.",

@@ -961,6 +961,15 @@ function ShortcutsTab() {
                 overrides,
                 definition.id
               );
+              // A chord this host never delivers. The row printed it like any
+              // other, so File ▸ New advertised Cmd+N in a browser that takes it
+              // before the page — a shortcut that has never once fired there.
+              const inert = getResolvedShortcuts(definition.id, resolution).find(
+                (chord) => describeReservedKey(chord).classification === 'hard-reserved'
+              );
+              const inertMessage = inert
+                ? reservedKeyMessage(t, inert, describeReservedKey(inert).reason)
+                : null;
               return (
                 <div key={definition.id} className="settings-shortcuts__row">
                   <div className="settings-shortcuts__copy">
@@ -968,12 +977,17 @@ function ShortcutsTab() {
                     <small>
                       {shortcutScopeLabel(t, definition.scope)}
                       {definition.upstreamAction ? ` - ${definition.upstreamAction}` : ''}
+                      {inert
+                        ? ` - ${t('dialogs:settings.shortcuts.inactiveHere', 'not active here')}`
+                        : ''}
                     </small>
                   </div>
                   <button
                     type="button"
                     className="settings-shortcuts__capture"
                     data-capturing={capturingId === definition.id || undefined}
+                    data-inert={inert ? true : undefined}
+                    title={inertMessage ?? undefined}
                     onClick={() => {
                       setCapturingId(definition.id);
                       setMessage(t('dialogs:settings.shortcuts.pressPrompt', 'Press a shortcut for {{label}}.', { label: actionLabel }));

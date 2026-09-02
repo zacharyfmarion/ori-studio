@@ -2749,6 +2749,16 @@
   background: var(--bg-elevated);
 }
 
+/* A chord this host never delivers, so the row is printing a key that cannot
+   fire. Dimmed rather than struck through: it is still the binding, still
+   editable, and still live on the other surface — the row beneath it says so,
+   and the button's title says why. Capturing wins, since a row being edited is
+   about the chord you are choosing, not the one it had. */
+.settings-shortcuts__capture[data-inert]:not([data-capturing]) {
+  border-style: dashed;
+  color: var(--text-tertiary);
+}
+
 .settings-shortcuts__default {
   color: var(--text-tertiary);
   font-size: 0.7rem;

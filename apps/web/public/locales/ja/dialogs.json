@@ -328,6 +328,7 @@
       "defaultsOriStudioTitle": "Ori Studio の既定値を使いますか？",
       "defaultsUnbind": "{{label}} は割り当てなしになります",
       "importOriedita": "Oriedita からインポート...",
+      "inactiveHere": "ここでは無効",
       "notBindable": "{{label}} にはまだショートカットを割り当てられません。",
       "pressKeys": "キーを押してください",
       "pressPrompt": "{{label}} のショートカットを押してください。",
