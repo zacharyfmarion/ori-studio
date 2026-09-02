@@ -42,10 +42,10 @@ pub use candidates::{
 pub use constraints::{ConstraintDiagnostics, ConstraintSeverity, VertexConstraintDiagnostic};
 pub use evidence::{EvidenceSource, Provenance};
 pub use exact_solve::{
-    AngleDependentTopologyFindings, CombinatorialTopologyFindings,
+    AngleDependentTopologyFindings, CamvCounts, CombinatorialTopologyFindings,
     DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS, ExactSolveOptions, ExactSolveOptionsWithExemptions,
     LinearSolver, TopologyDiagnostics, TopologyVertexDiagnostic, analyze_candidate_topology,
-    solve_exact, solve_exact_with_exemptions,
+    camv_violation_counts, solve_exact, solve_exact_with_exemptions,
 };
 pub use fold_exactize::{
     ExactizeOutcome, ExactizeStatus, Similarity, exact_solve_input_from_fold, exactize_fold,

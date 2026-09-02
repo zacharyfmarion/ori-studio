@@ -37,7 +37,12 @@ fn main() {
             ..Default::default()
         },
     );
-    println!("solve status: {:?}", solved.status);
+    println!(
+        "solve status: {:?}   accepted {}   rejection_reasons {}",
+        solved.status,
+        solved.movement_report["accepted"],
+        solved.movement_report["rejection_reasons"]
+    );
     {
         use std::collections::BTreeMap;
         let mut sizes: BTreeMap<usize, usize> = BTreeMap::new();

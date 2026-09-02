@@ -144,7 +144,11 @@ impl Default for ExactSolveOptions {
             carrier_incidence_sigma: 0.0008,
             kawasaki_sigma_radians: 0.10_f64.to_radians(),
             max_vertex_movement: 0.010,
-            solved_kawasaki_epsilon_degrees: 1e-3,
+            // The editor's check (`Epsilon::FLAT`) is 1e-6 degrees. This was
+            // 1e-3 — a thousand times looser — so "solved" and "no markers"
+            // were different claims. `classify_status` also consults the
+            // checker directly now; this stays as the solver's own reading.
+            solved_kawasaki_epsilon_degrees: 1e-6,
             solved_carrier_epsilon: 5e-4,
             degenerate_edge_epsilon: 1e-6,
             crossing_epsilon: 1e-7,
@@ -1694,6 +1698,9 @@ impl LeastSquaresProblem<f64, Dyn, Dyn> for ExactLeastSquaresProblem {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 struct GraphAnalysis {
     eligible_vertices: usize,
+    /// What the editor's own checker says about this geometry — `None` when the
+    /// graph could not be handed to it. See [`camv_violation_counts`].
+    camv: Option<CamvCounts>,
     odd_degree_vertices: Vec<usize>,
     degree_two_vertices: Vec<usize>,
     maekawa_failures: Vec<usize>,
@@ -1865,6 +1872,7 @@ fn analyze_graph(
 
     GraphAnalysis {
         eligible_vertices,
+        camv: camv_violation_counts(points, &input.selected_spans),
         odd_degree_vertices,
         degree_two_vertices,
         maekawa_failures,
@@ -2154,6 +2162,61 @@ fn validate_input(input: &ExactSolveInput) -> Vec<String> {
     blockers
 }
 
+/// The editor's foldability verdict on a solved geometry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CamvCounts {
+    /// Kawasaki (`FlatFoldabilityRule::Angles`) violations.
+    pub angle_violations: usize,
+    /// Everything else the check reports — Big-Little-Big and its kin.
+    pub big_little_big_violations: usize,
+}
+
+/// Run the editor's own CAMV checker on solver geometry.
+///
+/// This is deliberately the *checker* and not a re-derivation of it. The
+/// solver's Kawasaki residual and the checker's angle rule agree on a clean
+/// pattern, but Big-Little-Big is a crimp reduction over the whole fan
+/// (`oristudio-cp/src/checks.rs`), and a second implementation of it here would
+/// be a second answer to the question "will markers appear?". So the geometry
+/// is handed to the checker the way an import would hand it — as a FOLD on the
+/// ±200 sheet — and the counts come back from the same code that draws them.
+///
+/// `None` when the graph could not be built into a document at all.
+pub fn camv_violation_counts(
+    points: &[Point2],
+    spans: &[CandidateCreaseSpan],
+) -> Option<CamvCounts> {
+    use oristudio_cp::checks::{FlatFoldabilityRule, check_camv_task};
+
+    if points.is_empty() {
+        return None;
+    }
+    // Unit square -> the editor's ±200 sheet. The import normalizes to that
+    // sheet anyway; landing there already keeps its rescale a near-identity.
+    let mut fold = treemaker_fold::FoldDocument::new(
+        points
+            .iter()
+            .map(|p| vec![p.x * 400.0 - 200.0, p.y * 400.0 - 200.0])
+            .collect(),
+        spans.iter().map(|span| span.vertices).collect(),
+    );
+    fold.edges_assignment = spans
+        .iter()
+        .map(|span| crate::fold_export::fold_assignment(span.assignment_label()))
+        .collect();
+    fold.edges_fold_angle = vec![None; spans.len()];
+    let model = oristudio_cp::io::fold::import_fold_document(&fold).ok()?;
+    let violations = check_camv_task(&model).violations;
+    let angle_violations = violations
+        .iter()
+        .filter(|v| matches!(v.rule, FlatFoldabilityRule::Angles))
+        .count();
+    Some(CamvCounts {
+        angle_violations,
+        big_little_big_violations: violations.len() - angle_violations,
+    })
+}
+
 fn classify_status(
     before: &GraphAnalysis,
     after: &GraphAnalysis,
@@ -2166,15 +2229,37 @@ fn classify_status(
     {
         return ExactSolvedGraphStatus::Failed;
     }
-    let topology_clean = after.odd_degree_vertices.is_empty();
+    // `Solved` is a promise that the editor's foldability check will pass, so it
+    // is made on the same terms the check uses. Kawasaki and odd degree were
+    // always here; Maekawa was computed and never consulted, and Big-Little-Big
+    // was not computed at all — so a pattern could be called solved with a
+    // canvas full of markers. Measured before this: 0 angle violations and 28
+    // Big-Little-Big on a `Solved` close_but_not_good_enough.osf.
+    let topology_clean = after.odd_degree_vertices.is_empty() && after.maekawa_failures.is_empty();
+    let checker_clean = after
+        .camv
+        .is_some_and(|camv| camv.angle_violations == 0 && camv.big_little_big_violations == 0);
     if topology_clean
+        && checker_clean
         && after.max_kawasaki_residual_degrees <= options.solved_kawasaki_epsilon_degrees
         && after.max_carrier_residual <= options.solved_carrier_epsilon
     {
         return ExactSolvedGraphStatus::Solved;
     }
+    // Angles that were already at the bar are not a failure to improve them.
+    // With Maekawa and Big-Little-Big in the verdict above, a pattern can be
+    // Kawasaki-exact and still not `Solved`; solving it moves nothing, and
+    // "nothing moved" used to fall through to `Failed`. That is `Ambiguous`: the
+    // geometry is as good as angles can make it, and what remains is not angles.
+    //
+    // Only over a fan Kawasaki actually judged: an odd-degree vertex is skipped
+    // by the Kawasaki pass, so its residual reads as zero without meaning it.
+    let at_the_bar = after.odd_degree_vertices.is_empty()
+        && after.max_kawasaki_residual_degrees <= options.solved_kawasaki_epsilon_degrees
+        && after.max_carrier_residual <= options.solved_carrier_epsilon;
     if after.odd_degree_vertices.len() <= before.odd_degree_vertices.len()
-        && (after.max_kawasaki_residual_degrees < before.max_kawasaki_residual_degrees
+        && (at_the_bar
+            || after.max_kawasaki_residual_degrees < before.max_kawasaki_residual_degrees
             || after.max_carrier_residual < before.max_carrier_residual)
     {
         ExactSolvedGraphStatus::Ambiguous
@@ -2310,7 +2395,15 @@ fn exact_solution_rejection_reasons(
     if after.boundary_failures.len() > before.boundary_failures.len() {
         reasons.push("boundary_failures_worsened".to_owned());
     }
+    // Only a defect when the optimizer had something to do. An input whose
+    // angles already sit at the bar leaves it nothing to improve, and a result
+    // short of `Solved` for a reason it does not optimise — Maekawa, Big-Little-
+    // Big — must not be thrown away as a failed solve.
+    let nothing_to_improve = before.odd_degree_vertices.is_empty()
+        && before.max_kawasaki_residual_degrees <= options.solved_kawasaki_epsilon_degrees
+        && before.max_carrier_residual <= options.solved_carrier_epsilon;
     if candidate_status != ExactSolvedGraphStatus::Solved
+        && !nothing_to_improve
         && candidate_objective + 1e-9 >= initial_objective
     {
         reasons.push("objective_not_improved".to_owned());
@@ -2553,6 +2646,8 @@ fn analysis_json(analysis: &GraphAnalysis) -> Value {
         "cut_boundary_span_ids": analysis.cut_boundary_span_ids,
         "boundary_vertices": analysis.boundary_vertices,
         "max_kawasaki_residual_degrees": round6(analysis.max_kawasaki_residual_degrees),
+        "camv_angle_violations": analysis.camv.map(|c| c.angle_violations),
+        "big_little_big_violations": analysis.camv.map(|c| c.big_little_big_violations),
         "max_carrier_residual": round6(analysis.max_carrier_residual),
         "max_vertex_movement": round6(analysis.max_vertex_movement),
         "mean_vertex_movement": round6(analysis.mean_vertex_movement),
@@ -3030,7 +3125,10 @@ mod tests {
 
     #[test]
     fn valid_cp_remains_solved_and_stable() {
-        let input = four_ray_input(Point2::new(0.5, 0.5));
+        // `four_ray_input` is M,V,M,V — a Maekawa failure, as the sibling
+        // fixture's own comment says. It only ever passed as "valid" while the
+        // verdict ignored Maekawa.
+        let input = maekawa_clean_four_ray_input(Point2::new(0.5, 0.5));
         let solved = solve_exact(&input, ExactSolveOptions::default());
         assert_eq!(solved.status, ExactSolvedGraphStatus::Solved);
         assert!(distance(solved.vertices_exact[4], Point2::new(0.5, 0.5)) < 1e-8);
@@ -3118,7 +3216,10 @@ mod tests {
 
     #[test]
     fn polish_report_records_adopted_rounds() {
-        let input = four_ray_input(Point2::new(0.505, 0.50));
+        // Maekawa-clean, so the polish can actually reach `Solved`; the M,V,M,V
+        // fan never can, and a round that cannot improve past `Ambiguous` is
+        // refused on its objective — which is right, and not what this tests.
+        let input = maekawa_clean_four_ray_input(Point2::new(0.505, 0.50));
         let solved = solve_exact(&input, ExactSolveOptions::default());
         let polish = &solved.movement_report["polish"];
         assert!(polish["enabled"].as_bool().unwrap());
@@ -3127,7 +3228,19 @@ mod tests {
             polish["rounds_adopted"].as_u64().unwrap() > 0,
             "an adopted polish must report its round count, got {polish}"
         );
-        assert!(polish["refused_round"].is_null());
+        // A round may be refused once progress stalls — on this fixture the
+        // polish bottoms out near 2e-5 degrees, and a third round that cannot
+        // lower the objective is rightly thrown away. What must never happen is
+        // a refusal that *regressed*, or no adopted round at all. (Under the old
+        // 1e-3 bar the stalled round counted as `Solved`, which hid the refusal
+        // rather than avoiding it.)
+        if !polish["refused_round"].is_null() {
+            assert_eq!(
+                polish["refused_round"]["kawasaki_regressed"],
+                serde_json::Value::Bool(false),
+                "a refused round must not have made Kawasaki worse: {polish}"
+            );
+        }
         let before = polish["kawasaki_before_degrees"].as_f64().unwrap();
         let after = polish["kawasaki_after_degrees"].as_f64().unwrap();
         assert!(
@@ -3545,7 +3658,10 @@ mod tests {
         // ...and that solve is still the committed golden, so the budget now
         // reading a restricted maximum changed no accepted behavior.
         let golden = load_golden_points("right_small_fork");
-        assert_eq!(plain.status, ExactSolvedGraphStatus::Solved);
+        // `Ambiguous`, not `Solved`: this golden is Kawasaki-exact and carries one
+        // Big-Little-Big violation, which the verdict now counts. Still accepted —
+        // the assertion that matters for this test is the next one.
+        assert_eq!(plain.status, ExactSolvedGraphStatus::Ambiguous);
         assert!(plain.movement_report["accepted"].as_bool().unwrap_or(false));
         let drift = max_golden_drift_px(&plain.vertices_exact, &golden, 1.0);
         assert!(
@@ -3609,7 +3725,10 @@ mod tests {
                 exempt_vertex_ids: BTreeSet::from([FORK_MOVED_VERTEX]),
             },
         );
-        assert_eq!(accepted.status, ExactSolvedGraphStatus::Solved);
+        // See `empty_exemption_set_reproduces_the_unexempted_solve_exactly`: the
+        // golden carries one Big-Little-Big violation, so `Ambiguous` is the
+        // honest verdict. Exemption is about acceptance, which is asserted next.
+        assert_eq!(accepted.status, ExactSolvedGraphStatus::Ambiguous);
         assert!(
             accepted.movement_report["accepted"]
                 .as_bool()

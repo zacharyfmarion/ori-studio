@@ -278,7 +278,7 @@ pub fn export_candidate_to_fold_document(
     Ok(document)
 }
 
-fn fold_assignment(label: AssignmentLabel) -> Assignment {
+pub(crate) fn fold_assignment(label: AssignmentLabel) -> Assignment {
     match label {
         AssignmentLabel::Boundary => Assignment::Boundary,
         AssignmentLabel::Mountain => Assignment::Mountain,
