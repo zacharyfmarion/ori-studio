@@ -372,10 +372,17 @@ wrongly-inferred family pulls solves away from GT rather than toward it.
       left there is one wrong assignment and one odd-degree vertex — Review &
       Fix work, which the chip now names correctly.
 - [x] The angle sentence stops quoting the bar once the angle passes it.
+- [x] The movement budget understands merges: a merged vertex is judged by its
+      distance from the stub it was one end of, not from its own detected
+      point, and a stub longer than 1.5× the budget is never merged. Naoki
+      Terao's pegasus (five close pairs, stubs 5–12 px) went from every pinned
+      attempt refused on the budget to `Solved` 0/0 on the saved state, the
+      raw detection and the product flow (1.1 s).
+- [x] Refinement may not hand back worse angles than it was given: an input at
+      the bar whose answer is above it is rejected (`kawasaki_regressed_from_bar`),
+      judged on the final answer only.
 - [ ] close_but's short-crease attempt reaches 2 violations (from 8) with 20
-      merges and is refused only on the 10 px movement budget, in 23.5 s: a
-      budget that understands merges (a merged pair moves half a stub each),
-      and a faster wide attempt, would take it.
+      merges in 23.5 s; a faster wide attempt would let the product take it.
 - [ ] Peel by optimizer result: when a pinned attempt is still refused, unpin
       the carriers through the vertices it left over the bar and retry.
 - [ ] A merged pair in the solve summary ("2 vertices merged"), once the i18n
@@ -475,6 +482,21 @@ genuine wrong assignment (the unique smallest sector, 30°, sits between two
 valleys) and the odd-degree vertex — the Review & Fix work the chip names.
 Pegasus's extra attempt is refused (4.7° Kawasaki, movement budget) and its
 0.75° result stands; the corpora are unchanged at 11/11 and 41/41.
+
+**Merges and the movement budget (2026-09-02).** Naoki Terao's pegasus, a
+22.5° design whose detection split five junctions into close pairs joined by
+5–12 px stubs: every pinned attempt reached 0 angle / 0 Big-Little-Big and
+every one was refused for `movement_budget_exceeded`, because collapsing a
+12 px stub whose pinned lines meet at one end moves the other end 12 px, and
+the budget measured that as drift. A merged vertex is now judged by its
+distance from the stub it was one end of (the detector put the junction
+somewhere along it), and a stub longer than 1.5× the budget is never read as
+a merge. The same file's saved state — already Kawasaki-exact — also came
+back from a re-solve at 0.002° with 75 angle violations and was accepted
+because its carriers had improved; refinement now rejects an answer above
+the bar when its input was at it. Result: `Solved` 0/0 on the saved state,
+the raw detection (the four odd-degree vertices were two of the close
+pairs) and the product flow.
 
 Three fully-lattice samples come back at **0.00 px** from ground truth. User
 files: `mid-solve_4` and `mostly-successful` go to `Solved` with 0 angle and 0

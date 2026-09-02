@@ -188,6 +188,13 @@ const PINNED_ROUND_RESERVE_SECONDS: f64 = 0.5;
 /// genuinely off the lattice can cost nothing but the attempt.
 const SHORT_CREASE_NOISE_PX: f64 = 2.0;
 
+/// How long a collapsed span may be, as a multiple of the movement budget, and
+/// still be read as a merge. A detector-split junction is a close pair — 3 to
+/// 12 px on the files this was built on — and a collapse that long is two
+/// detected vertices the design has as one. A longer one is two vertices, and
+/// pinning that folded them together has pinned something wrong.
+const MERGE_STUB_BUDGET_MULTIPLE: f64 = 1.5;
+
 /// Alternating sum a fully-pinned fan may have and still count as satisfying
 /// Kawasaki on the lattice. Exact multiples of the step sum to zero up to
 /// floating-point rounding, ~1e-15 radians.
@@ -864,14 +871,30 @@ fn solve_exact_inner(
     } else if polish_adopted {
         Vec::new()
     } else {
-        exact_solution_rejection_reasons(
+        let mut reasons = exact_solution_rejection_reasons(
             &before,
             &candidate_after,
             candidate_status,
             initial_objective,
             objective,
             options,
-        )
+        );
+        // Refinement must not hand back worse angles than it was given. An
+        // input already at the bar — a pattern solved and accepted once — came
+        // back from a re-solve at 0.002° with 75 angle violations, accepted
+        // because its carriers had improved. Judged here, on the answer, and
+        // not on the geometry candidate inside refinement: that one is a basin
+        // search the polish and the pin start from, and refusing it there kept
+        // both from running. The geometry stage on its own is exempt for the
+        // same reason.
+        if options.polish
+            && before.max_kawasaki_residual_degrees <= options.solved_kawasaki_epsilon_degrees
+            && candidate_after.max_kawasaki_residual_degrees
+                > options.solved_kawasaki_epsilon_degrees
+        {
+            reasons.push("kawasaki_regressed_from_bar".to_owned());
+        }
+        reasons
     };
     let accepted = !timed_out && rejection_reasons.is_empty();
     let (vertices_exact, after, accepted_objective, status) = if accepted {
@@ -2470,11 +2493,40 @@ fn analyze_graph(
         }
     }
 
+    // A merged vertex is judged against the stub it was one end of, not its own
+    // detected position: the detector put the junction somewhere along that
+    // stub, so landing anywhere on it is no drift, and only distance *from* it
+    // is. Measured from the own position, collapsing a 12 px stub whose lines
+    // meet at one end reads as 12 px of movement and fails a perfect answer.
+    let mut group_members: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
+    for (vertex, &representative) in model.merged_representative.iter().enumerate() {
+        group_members
+            .entry(representative)
+            .or_default()
+            .push(vertex);
+    }
     let movement = input
         .vertices
         .iter()
         .zip(points)
-        .map(|(vertex, point)| distance(vertex.point, *point))
+        .map(|(vertex, point)| {
+            let representative = model.representative_of(vertex.id);
+            match group_members.get(&representative) {
+                Some(members) if members.len() > 1 => members
+                    .iter()
+                    .flat_map(|&a| members.iter().map(move |&b| (a, b)))
+                    .filter(|(a, b)| a < b)
+                    .map(|(a, b)| {
+                        distance_to_segment(
+                            *point,
+                            input.vertices[a].point,
+                            input.vertices[b].point,
+                        )
+                    })
+                    .fold(f64::INFINITY, f64::min),
+                _ => distance(vertex.point, *point),
+            }
+        })
         .collect::<Vec<_>>();
     let max_vertex_movement = movement.iter().copied().fold(0.0_f64, f64::max);
     let max_budgeted_vertex_movement = if model.exempt_vertex_ids.is_empty() {
@@ -3195,6 +3247,7 @@ fn pinned_attempt(
     // The editor merges them on write, so the round is judged on the
     // merged pattern — and the merge has to pass every check below, which
     // is what separates a design vertex from a stub that must not go.
+    let longest_merge = MERGE_STUB_BUDGET_MULTIPLE * options.max_vertex_movement;
     let new_merges: BTreeSet<usize> = input
         .selected_spans
         .iter()
@@ -3205,6 +3258,7 @@ fn pinned_attempt(
                 && a < raw_points.len()
                 && b < raw_points.len()
                 && distance(raw_points[a], raw_points[b]) <= COLLAPSE_CANDIDATE_LENGTH
+                && distance(input.vertices[a].point, input.vertices[b].point) <= longest_merge
         })
         .map(|span| span.id)
         .collect();
@@ -4120,6 +4174,17 @@ fn distance(left: Point2, right: Point2) -> f64 {
     ((left.x - right.x).powi(2) + (left.y - right.y).powi(2)).sqrt()
 }
 
+/// Distance from `point` to the segment `a`–`b`.
+fn distance_to_segment(point: Point2, a: Point2, b: Point2) -> f64 {
+    let (dx, dy) = (b.x - a.x, b.y - a.y);
+    let length_squared = dx * dx + dy * dy;
+    if length_squared <= 0.0 {
+        return distance(point, a);
+    }
+    let t = (((point.x - a.x) * dx + (point.y - a.y) * dy) / length_squared).clamp(0.0, 1.0);
+    distance(point, Point2::new(a.x + t * dx, a.y + t * dy))
+}
+
 fn residual_energy(residuals: &[f64]) -> f64 {
     0.5 * residuals.iter().map(|value| value * value).sum::<f64>()
 }
@@ -4485,6 +4550,14 @@ mod tests {
     /// the lines through each are concurrent at the centre, the stub collapses,
     /// and the answer holds one vertex.
     fn split_junction_input() -> (ExactSolveInput, usize, usize, usize) {
+        split_junction_input_with(Point2::new(0.496, 0.5005), Point2::new(0.504, 0.4995))
+    }
+
+    /// [`split_junction_input`] with the two halves at `a` and `b`.
+    fn split_junction_input_with(
+        a_at: Point2,
+        b_at: Point2,
+    ) -> (ExactSolveInput, usize, usize, usize) {
         let mut input = base_square_input();
         // Boundary contacts for the horizontal and vertical creases. The base
         // square's Top side is y = 0, corners 0 → 1.
@@ -4506,14 +4579,14 @@ mod tests {
         let b = 9;
         input.vertices.push(vertex(
             a,
-            Point2::new(0.496, 0.5005),
+            a_at,
             CandidateVertexKind::InteriorJunction,
             CandidateVertexMovementPolicy::Movable,
             None,
         ));
         input.vertices.push(vertex(
             b,
-            Point2::new(0.504, 0.4995),
+            b_at,
             CandidateVertexKind::InteriorJunction,
             CandidateVertexMovementPolicy::Movable,
             None,
@@ -4612,6 +4685,46 @@ mod tests {
         let model = oristudio_cp::io::fold::import_fold_document(&fold).expect("import");
         let violations = oristudio_cp::checks::check_camv_task(&model).violations;
         assert!(violations.is_empty(), "{violations:?}");
+    }
+
+    /// The junction detected at one end of the stub: `a` sits on the design's
+    /// vertex and `b` is 12 px along the crease. The pinned lines meet at `a`,
+    /// so merging moves `b` the whole 12 px — more than the 10 px budget when
+    /// measured from its own position, and nothing at all measured from the
+    /// stub it was one end of.
+    #[test]
+    fn merging_along_the_stub_is_not_movement() {
+        let (input, a, b, _stub) =
+            split_junction_input_with(Point2::new(0.5, 0.5), Point2::new(0.5 + 12.0 / 1024.0, 0.5));
+        let solved = solve_exact(&input, ExactSolveOptions::default());
+        assert_eq!(
+            solved.merged_vertices,
+            vec![[a, b]],
+            "{}",
+            solved.movement_report["polish"]
+        );
+        assert_eq!(
+            solved.status,
+            ExactSolvedGraphStatus::Solved,
+            "{}",
+            solved.movement_report
+        );
+        assert_eq!(solved.vertices_exact[a], solved.vertices_exact[b]);
+    }
+
+    /// A stub longer than the merge allowance is two vertices, whatever the
+    /// lattice says: the collapse is not a merge, and the round is refused.
+    #[test]
+    fn a_long_stub_is_not_merged() {
+        let (input, a, b, _stub) =
+            split_junction_input_with(Point2::new(0.5, 0.5), Point2::new(0.5 + 20.0 / 1024.0, 0.5));
+        let solved = solve_exact(&input, ExactSolveOptions::default());
+        assert!(
+            solved.merged_vertices.is_empty(),
+            "{}",
+            solved.movement_report["polish"]
+        );
+        assert_ne!(solved.vertices_exact[a], solved.vertices_exact[b]);
     }
 
     #[test]
