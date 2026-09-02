@@ -3,6 +3,7 @@ import {
   getRuntimeSurface,
   isAppleMobilePlatform,
   isApplePlatform,
+  isWindowsPlatform,
   isDesktopRuntime,
   isWebRuntime,
   usesNativeAppMenu,
@@ -88,6 +89,33 @@ describe('isApplePlatform', () => {
     // An iPad with a Magic Keyboard sends Cmd, not Ctrl. `lib/platform`
     // re-exports this predicate for exactly that question.
     expect(isApplePlatform(IPADOS)).toBe(true);
+  });
+});
+
+describe('isWindowsPlatform', () => {
+  it('reads either field, the way the Apple test does', () => {
+    expect(isWindowsPlatform({ platform: 'Win32' })).toBe(true);
+    expect(
+      isWindowsPlatform({
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Edg/120.0',
+      })
+    ).toBe(true);
+  });
+
+  it('answers false for the other two desktop engines', () => {
+    expect(isWindowsPlatform({ platform: 'MacIntel' })).toBe(false);
+    expect(isWindowsPlatform({ platform: 'Linux x86_64' })).toBe(false);
+  });
+
+  it('answers false when the platform cannot be determined', () => {
+    expect(isWindowsPlatform(undefined)).toBe(false);
+    expect(isWindowsPlatform({})).toBe(false);
+  });
+
+  it('is not fooled by an unrelated substring', () => {
+    // "win" alone appears in plenty of strings; the pattern requires one of the
+    // three real tokens.
+    expect(isWindowsPlatform({ userAgent: 'DarwinKit/1.0' })).toBe(false);
   });
 });
 

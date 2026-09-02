@@ -5,6 +5,7 @@ import {
   getShortcutRegistryDiagnostics,
   keyChordId,
   shortcutMayDecline,
+  type ShortcutActionId,
   type ShortcutDefinition,
 } from './shortcuts';
 import { ORISTUDIO_CP_ACTIONS, cpHiddenActions } from '../lib/oristudioCpActions';
@@ -30,16 +31,38 @@ function boundDefinitions(): ShortcutDefinition[] {
  */
 const ROUTED_CHORD_EXCEPTIONS = new Set(['cp.action.folding-estimate', 'cp.action.fold']);
 
+/**
+ * Shipped defaults whose chord the browser takes before the page sees it, so the
+ * accelerator is inert on the web build and works on desktop.
+ *
+ * Listed rather than fixed, and deliberately: `Mod+N` is the conventional chord
+ * for New everywhere, it is live in the desktop app, and the menu item is
+ * reachable by mouse in both. Moving it would cost every desktop user a standard
+ * binding to spare the web build a dead label. What the list buys is that the
+ * set cannot grow by accident — a *new* browser-inert default fails the guard
+ * above until someone adds it here on purpose.
+ */
+const WEB_INERT_DEFAULTS = new Set<ShortcutActionId>(['file.new']);
+
 describe('shortcut registry invariants', () => {
   it('has no duplicate default chords within a scope', () => {
     expect(getShortcutRegistryDiagnostics().duplicateDefaultChords).toEqual([]);
   });
 
-  it('binds no hard-reserved browser chords by default', () => {
-    const hardReserved = getShortcutRegistryDiagnostics().reservedDefaultChords.filter(
-      (entry) => entry.classification === 'hard-reserved'
-    );
-    expect(hardReserved).toEqual([]);
+  it('binds no chord the desktop app cannot deliver', () => {
+    for (const host of ['desktop-macos', 'desktop-windows', 'desktop-other'] as const) {
+      const hardReserved = getShortcutRegistryDiagnostics(host).reservedDefaultChords.filter(
+        (entry) => entry.classification === 'hard-reserved'
+      );
+      expect(hardReserved).toEqual([]);
+    }
+  });
+
+  it('binds exactly the known-inert chords on the web', () => {
+    const hardReserved = getShortcutRegistryDiagnostics('web')
+      .reservedDefaultChords.filter((entry) => entry.classification === 'hard-reserved')
+      .map((entry) => entry.actionId);
+    expect(hardReserved).toEqual([...WEB_INERT_DEFAULTS]);
   });
 
   it('never assigns a default chord to a bare Ctrl combination', () => {
@@ -94,8 +117,9 @@ describe('shortcut registry invariants', () => {
 
   it('classifies every default chord it binds', () => {
     for (const definition of boundDefinitions()) {
+      if (WEB_INERT_DEFAULTS.has(definition.id)) continue;
       for (const chord of definition.defaultChords) {
-        expect(classifyReservedKey(chord)).not.toBe('hard-reserved');
+        expect(classifyReservedKey(chord, 'web')).not.toBe('hard-reserved');
       }
     }
   });

@@ -100,6 +100,26 @@ export function isAppleMobilePlatform(probe: PlatformProbe | undefined = default
   return isApplePlatform(probe) && (probe.maxTouchPoints ?? 0) > 0;
 }
 
+const WINDOWS_PATTERN = /\bwin(dows|32|64)/i;
+
+/**
+ * Whether the webview is running on Windows.
+ *
+ * Read the same way as {@link isApplePlatform}, and for the same reason: the one
+ * caller needs the answer synchronously, and `navigator.userAgentData` exists on
+ * WebView2 but on neither of the other two engines, so relying on it would
+ * answer for one platform and be undefined for the rest.
+ *
+ * **Unknown answers false**, which matches {@link isApplePlatform}. The caller
+ * is {@link classifyReservedKey}, where a false negative costs a missing warning
+ * and a false positive warns every Linux user about keys their engine does not
+ * take.
+ */
+export function isWindowsPlatform(probe: PlatformProbe | undefined = defaultProbe()): boolean {
+  if (!probe) return false;
+  return WINDOWS_PATTERN.test(probe.platform ?? '') || WINDOWS_PATTERN.test(probe.userAgent ?? '');
+}
+
 /**
  * Whether the OS menu bar can host this app's commands.
  *
