@@ -8,7 +8,7 @@
     "build:oristudio-cp-wasm": "wasm-pack build ../../crates/oristudio-cp-wasm --target web --out-dir ../../apps/web/src/generated/oristudio-cp-wasm",
     "build:oristudio-bp-wasm": "wasm-pack build ../../crates/oristudio-bp-wasm --target web --out-dir ../../apps/web/src/generated/oristudio-bp-wasm",
     "build:oristudio-cp-detect-wasm": "wasm-pack build ../../crates/oristudio-cp-detect-wasm --target web --out-dir ../../apps/web/src/generated/oristudio-cp-detect-wasm && npm run gen:cp-detect-defaults",
-    "gen:cp-detect-defaults": "cargo run -q --manifest-path ../../Cargo.toml -p oristudio-cp-detect --bin emit_cp_detect_defaults_ts > src/generated/cpDetectDefaults.generated.ts",
+    "gen:cp-detect-defaults": "cargo run -q --manifest-path ../../Cargo.toml -p oristudio-cp-detect --bin emit_cp_detect_defaults_ts > src/generated/cpDetectDefaults.generated.ts.tmp && mv src/generated/cpDetectDefaults.generated.ts.tmp src/generated/cpDetectDefaults.generated.ts",
     "build:wasm": "npm run build:treemaker-wasm && npm run build:oristudio-cp-wasm && npm run build:oristudio-bp-wasm && npm run build:oristudio-cp-detect-wasm",
     "build:simulator": "npm --workspace @treemaker/origami-simulator run build",
     "predev": "npm run build:simulator && npm run build:wasm",
