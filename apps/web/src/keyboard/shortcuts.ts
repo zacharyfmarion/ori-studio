@@ -1261,17 +1261,60 @@ export function classifyReservedKey(
   chord: KeyChord,
   host: ReservedKeyHost = currentReservedKeyHost()
 ): ReservedKeyClassification {
+  return describeReservedKey(chord, host).classification;
+}
+
+/**
+ * Who takes the chord. Four reasons rather than one, because the message a user
+ * needs is different in each case — "the desktop app can use this" is help on
+ * the web and nonsense on desktop.
+ *
+ * The reason lives here, beside the tables that know it, so the copy cannot
+ * drift: a settings dialog branching on the host itself would be a second
+ * implementation of the same question.
+ */
+export type ReservedKeyReason =
+  /** Browser chrome takes it before the page: new tab, address bar, DevTools. */
+  | 'browser-chrome'
+  /** Browser reload. Delivered by some browsers and not others. */
+  | 'browser-reload'
+  /** A predefined item in our own macOS app menu — Quit, Hide, Hide Others. */
+  | 'app-menu'
+  /** WebView2's built-in accelerator keys on Windows desktop. */
+  | 'webview-accelerator';
+
+export interface ReservedKeyDescription {
+  classification: ReservedKeyClassification;
+  /** Null exactly when the classification is `allowed`. */
+  reason: ReservedKeyReason | null;
+}
+
+const ALLOWED: ReservedKeyDescription = { classification: 'allowed', reason: null };
+
+export function describeReservedKey(
+  chord: KeyChord,
+  host: ReservedKeyHost = currentReservedKeyHost()
+): ReservedKeyDescription {
   const id = keyChordId(chord);
   switch (host) {
     case 'web':
-      if (WEB_HARD_RESERVED.has(id)) return 'hard-reserved';
-      return WEB_SOFT_RESERVED.has(id) ? 'soft-reserved' : 'allowed';
+      if (WEB_HARD_RESERVED.has(id)) {
+        return { classification: 'hard-reserved', reason: 'browser-chrome' };
+      }
+      if (WEB_SOFT_RESERVED.has(id)) {
+        return { classification: 'soft-reserved', reason: 'browser-reload' };
+      }
+      return ALLOWED;
     case 'desktop-macos':
-      return MAC_DESKTOP_HARD_RESERVED.has(id) ? 'hard-reserved' : 'allowed';
+      return MAC_DESKTOP_HARD_RESERVED.has(id)
+        ? { classification: 'hard-reserved', reason: 'app-menu' }
+        : ALLOWED;
     case 'desktop-windows':
-      return WINDOWS_DESKTOP_SOFT_RESERVED.has(id) ? 'soft-reserved' : 'allowed';
+      return WINDOWS_DESKTOP_SOFT_RESERVED.has(id)
+        ? { classification: 'soft-reserved', reason: 'webview-accelerator' }
+        : ALLOWED;
     case 'desktop-other':
-      return 'allowed';
+      return ALLOWED;
   }
 }
 

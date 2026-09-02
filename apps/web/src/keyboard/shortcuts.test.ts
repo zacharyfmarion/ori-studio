@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   classifyReservedKey,
+  describeReservedKey,
   findShortcutConflict,
   findShortcutShadowing,
   formatKeyChord,
@@ -209,6 +210,20 @@ describe('shortcut registry', () => {
     // The browser owns Cmd+Q too, but there it never reaches the page, so
     // nothing the app does with it matters.
     expect(classifyReservedKey({ primary: true, key: 'q' }, 'web')).toBe('allowed');
+  });
+
+  it('names who takes the chord, so the copy can differ by host', () => {
+    // The four reasons carry four different messages. A settings dialog
+    // branching on the host itself would be a second copy of this table.
+    expect(describeReservedKey({ primary: true, key: 't' }, 'web').reason).toBe('browser-chrome');
+    expect(describeReservedKey({ primary: true, key: 'r' }, 'web').reason).toBe('browser-reload');
+    expect(describeReservedKey({ primary: true, key: 'q' }, 'desktop-macos').reason).toBe(
+      'app-menu'
+    );
+    expect(describeReservedKey({ key: 'f5' }, 'desktop-windows').reason).toBe(
+      'webview-accelerator'
+    );
+    expect(describeReservedKey({ key: 'm' }, 'web').reason).toBeNull();
   });
 
   it('warns about the WebView2 accelerator keys on Windows desktop', () => {

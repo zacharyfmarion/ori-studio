@@ -39,7 +39,7 @@ import { useLocaleStore } from '../store/localeStore';
 import { NumberField } from './ui/NumberField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/Select';
 import {
-  classifyReservedKey,
+  describeReservedKey,
   findShortcutShadowing,
   formatKeyChord,
   getDefaultShortcutChords,
@@ -54,6 +54,7 @@ import {
   shortcutMayDecline,
   shortcutLabelForAction,
   type KeyChord,
+  type ReservedKeyReason,
   type ShortcutActionId,
   type ShortcutDefaultsSource,
   type ShortcutDefinition,
@@ -609,6 +610,50 @@ type CaptureDecision =
  * excludes the two non-collisions — a `simulator` claimant, in the stack only
  * while a simulation owns the keyboard, and one verb wearing two ids.
  */
+/**
+ * What to tell the user about a chord someone else owns.
+ *
+ * One message per {@link ReservedKeyReason} rather than one per strength: the
+ * web refusal is worth softening with "the desktop app can" and the desktop
+ * refusal is not, and a Windows warning about the web engine is a different
+ * claim from a browser warning about reload.
+ */
+function reservedKeyMessage(
+  t: TFunction,
+  chord: KeyChord,
+  reason: ReservedKeyReason | null
+): string | null {
+  const values = { chord: formatKeyChord(chord) };
+  switch (reason) {
+    case 'browser-chrome':
+      return t(
+        'dialogs:settings.shortcuts.reserved',
+        '{{chord}} is reserved by the browser. The desktop app can use it.',
+        values
+      );
+    case 'browser-reload':
+      return t(
+        'dialogs:settings.shortcuts.softReserved',
+        '{{chord}} was assigned, but some browsers may reserve it.',
+        values
+      );
+    case 'app-menu':
+      return t(
+        'dialogs:settings.shortcuts.reservedAppMenu',
+        '{{chord}} belongs to the macOS app menu. Binding it would stop that command working.',
+        values
+      );
+    case 'webview-accelerator':
+      return t(
+        'dialogs:settings.shortcuts.softReservedWebview',
+        '{{chord}} was assigned, but the desktop web engine may take it first.',
+        values
+      );
+    case null:
+      return null;
+  }
+}
+
 function decideCapture(
   definition: ShortcutDefinition,
   chord: KeyChord,
@@ -696,16 +741,16 @@ function ShortcutsTab() {
       }
       const chord = keyChordFromKeyboardEvent(event);
       if (!chord) return;
-      const reserved = classifyReservedKey(chord);
-      if (reserved === 'hard-reserved') {
-        setMessage(t('dialogs:settings.shortcuts.reserved', '{{chord}} is reserved by the browser.', { chord: formatKeyChord(chord) }));
+      const reserved = describeReservedKey(chord);
+      if (reserved.classification === 'hard-reserved') {
+        setMessage(reservedKeyMessage(t, chord, reserved.reason));
         return;
       }
       const definition = getShortcutDefinition(capturingId);
       if (!definition) return;
       const assignedMessage =
-        reserved === 'soft-reserved'
-          ? t('dialogs:settings.shortcuts.softReserved', '{{chord}} was assigned, but some browsers may reserve it.', { chord: formatKeyChord(chord) })
+        reserved.classification === 'soft-reserved'
+          ? reservedKeyMessage(t, chord, reserved.reason)
           : null;
       const decision = decideCapture(definition, chord, resolution);
       if (decision.kind === 'not-bindable') {
