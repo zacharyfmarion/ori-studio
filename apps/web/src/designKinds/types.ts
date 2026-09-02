@@ -166,6 +166,13 @@ export interface SendToEditPayload {
    * solve leaves the pieces where they are.
    */
   mergeExtraVertices?: boolean;
+  /**
+   * Recolour the added creases the file left unassigned as auxiliary lines,
+   * in the same undo entry. What a detection import asks for: a crease the
+   * model could not call mountain or valley is a guide for the user to decide
+   * on, not a crease the checks should count.
+   */
+  unassignedAsAuxiliary?: boolean;
 }
 
 /**

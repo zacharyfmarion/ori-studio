@@ -663,6 +663,10 @@ export function CpDetectImportModal() {
           filename: detectedFoldFilename(source.name),
           label,
           mergeExtraVertices: SOLVER_OUTPUT_MODES.has(mode),
+          // A crease the model could not call mountain or valley arrives
+          // unassigned; in the pattern it is a guide for the user to decide on,
+          // not a crease for the checks to count, so it lands as auxiliary.
+          unassignedAsAuxiliary: true,
         });
         if (!merged) {
           throw new Error(

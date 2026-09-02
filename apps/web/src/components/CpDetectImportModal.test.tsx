@@ -780,6 +780,10 @@ describe('CpDetectImportModal add', () => {
     expect(storeActions.importAddOristudioCpText).toHaveBeenCalledWith(
       expect.objectContaining({ mergeExtraVertices: false })
     );
+    // But its undecided creases land as auxiliary lines, on every path.
+    expect(storeActions.importAddOristudioCpText).toHaveBeenCalledWith(
+      expect.objectContaining({ unassignedAsAuxiliary: true })
+    );
   });
 
   it('adds the solved document after a solve, not the candidate it started from', async () => {

@@ -445,6 +445,11 @@ export async function importAddOristudioCpDocumentFromText(
      * returning — so it lands in the same history entry as the add.
      */
     mergeExtraVertices?: boolean;
+    /**
+     * Recolour the added creases that arrived unassigned as auxiliary lines,
+     * after the sweep and in the same history entry.
+     */
+    unassignedAsAuxiliary?: boolean;
   }
 ): Promise<OristudioCpDocumentState> {
   if (handle === null) {
@@ -499,9 +504,7 @@ export async function importAddOristudioCpDocumentFromText(
       ),
       centered: false,
     };
-    return source.mergeExtraVertices
-      ? mergeExtraVerticesAmongAdded(api, targetHandle, merged, target.segmentCount)
-      : merged;
+    return finishAddedLines(api, targetHandle, merged, target.segmentCount, source);
   }
 
   // The target was cleared first, so every line in the merged document came
@@ -527,32 +530,69 @@ export async function importAddOristudioCpDocumentFromText(
     },
     centered: true,
   };
-  return source.mergeExtraVertices
-    ? mergeExtraVerticesAmongAdded(api, targetHandle, centered, 0)
-    : centered;
+  return finishAddedLines(api, targetHandle, centered, 0, source);
 }
 
 /**
- * The extra-vertex sweep over the creases an import (add) appended — the ones
- * past `existingCount`, which is every crease when the target was blank — and
- * none of the creases that were already there.
+ * What an import (add) does to the creases it appended — the ones past
+ * `existingCount`, which is every crease when the target was blank — and to
+ * none of the creases that were already there. Both steps run inside the add's
+ * own history entry.
+ *
+ * The sweep goes first: two unassigned collinear pieces still merge as one
+ * unassigned crease, and would not once recoloured, because the sweep leaves
+ * auxiliary lines alone. The sweep keeps the added creases past
+ * `existingCount` — it removes only among them and appends what it merges —
+ * so the same range names them for the recolour.
  */
-async function mergeExtraVerticesAmongAdded(
+async function finishAddedLines(
   api: OristudioCpClient,
   targetHandle: number,
   placed: OristudioCpDocumentState,
-  existingCount: number
+  existingCount: number,
+  wanted: { mergeExtraVertices?: boolean; unassignedAsAuxiliary?: boolean }
 ): Promise<OristudioCpDocumentState> {
-  const total = placed.document.crease_pattern.line_segments.length;
-  if (total <= existingCount) return placed;
-  // One-based, like every `line_ids` payload.
-  const lineIds = Array.from({ length: total - existingCount }, (_, i) => existingCount + i + 1);
-  const result = await api.executeCommand(targetHandle, 'DeleteExtraVerticesAmong', {
-    line_ids: lineIds,
-  });
-  const swept = await refreshOristudioCpDocument(result);
-  if (!swept) throw new Error('Editable crease-pattern document was released');
-  return swept;
+  let state = placed;
+  if (wanted.mergeExtraVertices) {
+    const lineIds = addedLineIds(state, existingCount);
+    if (lineIds.length > 0) {
+      state = await runOnAddedLines(api, targetHandle, 'DeleteExtraVerticesAmong', {
+        line_ids: lineIds,
+      });
+    }
+  }
+  if (wanted.unassignedAsAuxiliary) {
+    const segments = state.document.crease_pattern.line_segments;
+    const lineIds = addedLineIds(state, existingCount).filter(
+      (id) => segments[id - 1]?.color === 'None'
+    );
+    if (lineIds.length > 0) {
+      state = await runOnAddedLines(api, targetHandle, 'CreaseSetLineColor', {
+        line_ids: lineIds,
+        line_color: 'Cyan3',
+      });
+    }
+  }
+  return state;
+}
+
+/** One-based ids of the creases past `existingCount`, like every `line_ids` payload. */
+function addedLineIds(state: OristudioCpDocumentState, existingCount: number): number[] {
+  const total = state.document.crease_pattern.line_segments.length;
+  if (total <= existingCount) return [];
+  return Array.from({ length: total - existingCount }, (_, i) => existingCount + i + 1);
+}
+
+async function runOnAddedLines(
+  api: OristudioCpClient,
+  targetHandle: number,
+  operationId: OristudioCpOperationId,
+  payload: OristudioCpCommandPayload
+): Promise<OristudioCpDocumentState> {
+  const result = await api.executeCommand(targetHandle, operationId, payload);
+  const refreshed = await refreshOristudioCpDocument(result);
+  if (!refreshed) throw new Error('Editable crease-pattern document was released');
+  return refreshed;
 }
 
 interface ImportAddTarget {

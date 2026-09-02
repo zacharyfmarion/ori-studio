@@ -156,13 +156,27 @@ const IMPORT_TEXT = JSON.stringify({
   ],
 });
 
-async function importAdd(options: { mergeExtraVertices?: boolean } = {}) {
-  return importAddOristudioCpDocumentFromText(IMPORT_TEXT, {
+async function importAdd(
+  options: { mergeExtraVertices?: boolean; unassignedAsAuxiliary?: boolean } = {},
+  text = IMPORT_TEXT
+) {
+  return importAddOristudioCpDocumentFromText(text, {
     format: 'fold',
     filename: 'detected.fold',
     ...options,
   });
 }
+
+/** The unit square again, with its diagonal left unassigned by the file. */
+const UNASSIGNED_DIAGONAL_TEXT = JSON.stringify({
+  segments: [
+    segment(-200, -200, 200, -200),
+    segment(200, -200, 200, 200),
+    segment(200, 200, -200, 200),
+    segment(-200, 200, -200, -200),
+    { ...segment(-200, -200, 200, 200), color: 'None' },
+  ],
+});
 
 beforeEach(async () => {
   await releaseOristudioCpDocument();
@@ -321,6 +335,54 @@ describe('import (add) with the extra-vertex sweep', () => {
     await createBlankOristudioCpDocument();
 
     await importAdd();
+
+    expect(api.executeCommand).not.toHaveBeenCalled();
+  });
+});
+
+describe('import (add) with unassigned creases as auxiliary', () => {
+  it('recolours the added creases that arrived unassigned, and only those', async () => {
+    await createBlankOristudioCpDocument();
+    const starter = createStarterOristudioCpDocument();
+    await restoreOristudioCpDocumentInPlace({
+      ...starter,
+      crease_pattern: {
+        ...starter.crease_pattern,
+        line_segments: [
+          ...starter.crease_pattern.line_segments,
+          { ...segment(-100, -100, 100, 100), color: 'None' },
+        ],
+      },
+    });
+
+    await importAdd({ unassignedAsAuxiliary: true }, UNASSIGNED_DIAGONAL_TEXT);
+
+    // The user's own unassigned crease (id 5) is not touched; the import's
+    // diagonal is the tenth line and the only added one that was unassigned.
+    expect(api.executeCommand).toHaveBeenCalledTimes(1);
+    expect(api.executeCommand).toHaveBeenCalledWith(1, 'CreaseSetLineColor', {
+      line_ids: [10],
+      line_color: 'Cyan3',
+    });
+  });
+
+  it('recolours after the sweep, so unassigned pieces merge before they become guides', async () => {
+    await createBlankOristudioCpDocument();
+
+    await importAdd({ mergeExtraVertices: true, unassignedAsAuxiliary: true }, UNASSIGNED_DIAGONAL_TEXT);
+
+    const operations = api.executeCommand.mock.calls.map((call) => call[1]);
+    expect(operations).toEqual(['DeleteExtraVerticesAmong', 'CreaseSetLineColor']);
+    expect(api.executeCommand).toHaveBeenLastCalledWith(1, 'CreaseSetLineColor', {
+      line_ids: [5],
+      line_color: 'Cyan3',
+    });
+  });
+
+  it('leaves unassigned creases alone unless asked', async () => {
+    await createBlankOristudioCpDocument();
+
+    await importAdd({}, UNASSIGNED_DIAGONAL_TEXT);
 
     expect(api.executeCommand).not.toHaveBeenCalled();
   });
