@@ -120,3 +120,28 @@ export function quadEdges(quad: CpDetectQuad): [CpDetectPoint, CpDetectPoint][] 
   const corners = [quad.top_left, quad.top_right, quad.bottom_right, quad.bottom_left];
   return corners.map((corner, index) => [corner, corners[(index + 1) % corners.length]]);
 }
+
+/**
+ * The longest side, in pixels, of the copy the rectifier works from. The
+ * rectified frame is 1024 px, and a source twice that is more than it can
+ * tell apart; a phone photo or a scan comes in at 4000–8000 px, and every
+ * crop update used to copy all of it to the worker and warp from all of it —
+ * a 64 MB copy and a 0.4 s rectify at 4096 px, against 0.14 s from 2048.
+ * The full-resolution image still backs the picture on screen and the loupe.
+ */
+export const RECTIFY_SOURCE_MAX_PX = 2048;
+
+/** The size to decode a `width` × `height` image to for rectification. */
+export function sourceSizeForRectification(
+  width: number,
+  height: number,
+  maxSide = RECTIFY_SOURCE_MAX_PX
+): { width: number; height: number } {
+  const longest = Math.max(width, height);
+  if (!(longest > maxSide)) return { width, height };
+  const scale = maxSide / longest;
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  };
+}

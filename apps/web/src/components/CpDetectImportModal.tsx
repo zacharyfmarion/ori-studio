@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Crop, ImagePlus, Loader2, Play, Square, Upload, Wrench, X } from 'lucide-react';
 import { CpDetectCropEditor } from './CpDetectCropEditor';
+import { sourceSizeForRectification } from './cpDetectCropLoupe';
 import { track } from '../analytics';
 import {
   cpDetectCompilerReport,
@@ -1150,12 +1151,16 @@ async function sourceImageFromFile(file: OpenBinaryFileResult, t: TFunction): Pr
   const url = URL.createObjectURL(blob);
   try {
     const bitmap = await createImageBitmap(blob);
+    // The rectifier's copy, no larger than it can use; the object URL above
+    // keeps the full resolution for the picture on screen and the loupe. See
+    // `sourceSizeForRectification`.
+    const { width, height } = sourceSizeForRectification(bitmap.width, bitmap.height);
     const canvas = document.createElement('canvas');
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
+    canvas.width = width;
+    canvas.height = height;
     const context = canvas.getContext('2d');
     if (!context) throw new Error(t('errors:cpDetectImport.canvasUnavailable', 'Canvas 2D is unavailable'));
-    context.drawImage(bitmap, 0, 0);
+    context.drawImage(bitmap, 0, 0, width, height);
     bitmap.close?.();
     return {
       image: context.getImageData(0, 0, canvas.width, canvas.height),

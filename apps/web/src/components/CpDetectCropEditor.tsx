@@ -216,9 +216,22 @@ function drawLoupe(
   const window_ = loupeWindow(center, size.width, size.height);
   const rect = loupeImageRect(window_, size.width, size.height);
   if (rect) {
+    // The crop lives in the rectifier's copy, which may be smaller than the
+    // picture; the loupe reads the picture at its own resolution.
+    const scale = image.naturalWidth > 0 ? image.naturalWidth / size.width : 1;
     // Source pixels, not a resampled blur: the point of the loupe is the pixel.
     context.imageSmoothingEnabled = false;
-    context.drawImage(image, rect.sx, rect.sy, rect.sw, rect.sh, rect.dx, rect.dy, rect.dw, rect.dh);
+    context.drawImage(
+      image,
+      rect.sx * scale,
+      rect.sy * scale,
+      rect.sw * scale,
+      rect.sh * scale,
+      rect.dx,
+      rect.dy,
+      rect.dw,
+      rect.dh
+    );
   }
 
   const accent = getComputedStyle(canvas).getPropertyValue('--accent-primary').trim() || '#3b82f6';

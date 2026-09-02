@@ -8,6 +8,7 @@ import {
   loupeWindow,
   projectToLoupe,
   quadEdges,
+  sourceSizeForRectification,
 } from './cpDetectCropLoupe';
 
 describe('loupeSpan', () => {
@@ -107,5 +108,17 @@ describe('quadEdges', () => {
       { x: 0, y: 10 },
       { x: 0, y: 0 },
     ]);
+  });
+});
+
+describe('sourceSizeForRectification', () => {
+  it('leaves an image at or under the cap alone', () => {
+    expect(sourceSizeForRectification(1024, 768)).toEqual({ width: 1024, height: 768 });
+    expect(sourceSizeForRectification(2048, 2048)).toEqual({ width: 2048, height: 2048 });
+  });
+
+  it('scales the longer side to the cap and keeps the aspect ratio', () => {
+    expect(sourceSizeForRectification(4096, 3072)).toEqual({ width: 2048, height: 1536 });
+    expect(sourceSizeForRectification(3000, 6000)).toEqual({ width: 1024, height: 2048 });
   });
 });
