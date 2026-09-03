@@ -56,6 +56,14 @@
   justify-content: space-between;
 }
 
+.cp-detect-modal__beta-note {
+  margin: 2px 0 0;
+  max-width: 60ch;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
 .cp-detect-modal__pane-heading {
   justify-content: space-between;
   min-width: 0;

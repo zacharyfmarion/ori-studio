@@ -2352,6 +2352,31 @@
   min-width: 0;
 }
 
+/* A small inline label beside a title. Tinted from the accent, never a surface. */
+.ui-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.ui-badge--accent {
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);
+}
+
+.ui-badge--neutral {
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+}
+
 .settings-section__title {
   margin: 0;
   color: var(--text-tertiary);

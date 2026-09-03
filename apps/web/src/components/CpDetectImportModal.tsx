@@ -15,6 +15,7 @@ import { track } from '../analytics';
 import type { CpDetectFailureReason, CpDetectImageSource } from '../analytics/events';
 import { proxy } from 'comlink';
 import { CpDetectModelLine } from './CpDetectModelLine';
+import { Badge } from './ui/Badge';
 import { detectRuntimeProperties, loadDetectorModel, type DetectorModelState } from './cpDetectModelState';
 import { defaultCpDetectModelStore, formatModelSize, type CpDetectModelDownloadProgress } from '../lib/cpDetectModels';
 import { identityOf } from '../lib/objectIdentity';
@@ -882,7 +883,20 @@ export function CpDetectImportModal() {
       <div className={`cp-detect-modal__surface cp-detect-modal__surface--${stage}`}>
         <header className="cp-detect-modal__header">
           <div>
-            <h2>{t('dialogs:cpDetectImport.title', 'Detect CP from Image')}</h2>
+            <h2>
+              {t('dialogs:cpDetectImport.title', 'Detect CP from Image')}{' '}
+              <Badge>{t('dialogs:cpDetectImport.beta', 'Beta')}</Badge>
+            </h2>
+            {/* The two limits worth knowing before an image is chosen and again
+                before a result is added, so the line stays through every stage:
+                what the feature is good at today, and what a solve promises —
+                a pattern that folds flat, not the one the designer drew. */}
+            <p className="cp-detect-modal__beta-note">
+              {t(
+                'dialogs:cpDetectImport.betaNote',
+                'Works best on small and medium crease patterns. A solve guarantees a pattern that folds flat, not the one the designer drew: spacing that should be even can come out slightly uneven.'
+              )}
+            </p>
             {source && <p>{source.name}</p>}
           </div>
           <IconButton title={t('common:close', 'Close')} size="sm" onClick={close} disabled={!canClose}>

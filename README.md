@@ -15,7 +15,7 @@ incorporates ports of [Treemaker](https://langorigami.com/article/treemaker/) an
 While the ports serve as the base for functionality, additional tools and functionality
 are being built on top of them - for example the edit workspace supports adding images next
 to crease patterns, which is useful as you are designing for references of the subject.
-Another is **Detect CP from Image** (File menu): a photo or render of a square
+Another is **Detect CP from Image** (File menu, in beta): a photo or render of a square
 crease pattern is cropped, run through a detection model, and solved into an
 exact, editable pattern — the model downloads once (45 MB) and is kept on the
 device; Settings ▸ Models shows what is installed. However, maintaining

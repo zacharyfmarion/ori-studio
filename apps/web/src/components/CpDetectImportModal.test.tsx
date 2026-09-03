@@ -421,6 +421,36 @@ afterEach(() => {
  * thrown away the moment the user edits it — 123 of 140 hard solves spend the
  * whole cap. So the flagged case must never reach the solver.
  */
+describe('CpDetectImportModal beta label', () => {
+  /**
+   * The feature is labelled beta at its only entry point, with the two limits
+   * a user needs before spending time on it: what it is good at today, and
+   * that a solve promises a pattern that folds flat rather than the one the
+   * designer drew. Both stay through every stage, so a result is added with
+   * the second limit in view.
+   */
+  it('names the feature beta and states its limits from the first stage on', async () => {
+    await act(async () => {
+      root?.render(
+        <TooltipProvider>
+          <CpDetectImportModal />
+        </TooltipProvider>
+      );
+    });
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('ori-studio:detect-cp-image'));
+    });
+    await settle();
+    expect(document.querySelector('.ui-badge')?.textContent).toBe('Beta');
+    expect(bodyText()).toMatch(/Works best on small and medium crease patterns/);
+    expect(bodyText()).toMatch(/folds flat, not the one the designer drew/);
+
+    await reachReviewStage();
+    expect(document.querySelector('.ui-badge')?.textContent).toBe('Beta');
+    expect(bodyText()).toMatch(/folds flat, not the one the designer drew/);
+  });
+});
+
 describe('CpDetectImportModal recognize-then-solve', () => {
   it('does not solve a candidate with repair sites, and offers to repair it', async () => {
     await reachReviewStage();
