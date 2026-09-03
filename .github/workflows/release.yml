@@ -243,6 +243,11 @@ jobs:
         if: env.VITE_PUBLIC_POSTHOG_KEY != ''
         run: node scripts/verify-analytics-build.mjs apps/web/dist
 
+      # Same terms as the web deploys: the detector's runtime must be in a
+      # build with the flag, and an installed version cannot be redeployed.
+      - name: Verify the detector runtime was built
+        run: node scripts/verify-cp-detect-build.mjs apps/web/dist
+
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: web-dist

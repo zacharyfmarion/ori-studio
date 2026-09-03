@@ -88,6 +88,14 @@ jobs:
       # reports nothing. This is the only place that difference is observable —
       # assert it here rather than discovering it in an empty dashboard weeks
       # later.
+      # The detector's runtime is stubbed out of a build without the flag and
+      # must be present with it; the first flagged deploy shipped the dialog
+      # over a stub, and nothing before the first user's Detect noticed.
+      - name: Verify the detector runtime was built
+        run: node scripts/verify-cp-detect-build.mjs apps/web/dist
+        env:
+          VITE_CP_DETECT: '1'
+
       - name: Verify telemetry config was inlined
         run: node scripts/verify-analytics-build.mjs apps/web/dist
 

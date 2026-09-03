@@ -121,6 +121,14 @@ jobs:
       # The `pr-N` alias is a new hostname on a branch's first deploy and serves
       # inconsistently for a few seconds after it appears; smoke-testing it failed roughly
       # one in ten first deploys on builds that were fine.
+      # The detector's runtime is stubbed out of a build without the flag and
+      # must be present with it; the first flagged deploy shipped the dialog
+      # over a stub, and nothing before the first user's Detect noticed.
+      - name: Verify the detector runtime was built
+        run: node scripts/verify-cp-detect-build.mjs apps/web/dist
+        env:
+          VITE_CP_DETECT: '1'
+
       - name: Deploy preview to Cloudflare Pages
         id: deploy
         working-directory: apps/web

@@ -38,6 +38,12 @@ and copying the assets it names:
 node scripts/cp-detect/publish-model.mjs --note "why this version"
 ```
 
+The runtime is separate from the model: a build with `VITE_CP_DETECT=1`
+bundles ONNX Runtime for the browser, a build without it stubs the runtime out,
+and `scripts/verify-cp-detect-build.mjs` fails a deploy whose `dist` has the
+wrong one of the two (the first flagged deploy shipped the dialog over the
+stub). It also refuses a service worker that precaches the runtime.
+
 It verifies the local sha, uploads the model and manifest if the key is new,
 appends the version to the registry, and moves `current` (`--no-promote` to
 publish without promoting; `--dry-run` to see what it would do). Rolling back
