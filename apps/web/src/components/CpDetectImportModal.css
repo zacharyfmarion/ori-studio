@@ -54,11 +54,17 @@
 
 .cp-detect-modal__header {
   justify-content: space-between;
+  align-items: flex-start;
+}
+
+/* The title column takes the width; the close button keeps only its own. */
+.cp-detect-modal__header > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .cp-detect-modal__beta-note {
   margin: 2px 0 0;
-  max-width: 60ch;
   color: var(--text-secondary);
   font-size: 0.75rem;
   line-height: 1.4;
