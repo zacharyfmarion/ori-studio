@@ -74,7 +74,9 @@ export function whileCpDetectClientAlive<T>(pending: Promise<T>): Promise<T> {
   const lost = new Promise<never>((_resolve, reject) => {
     unsubscribe = onCpDetectClientLost((loss) => {
       reject({
-        code: 'cp_detect',
+        // Its own code, so a surface can tell a runtime that died from a model
+        // that failed: the funnel's `worker_lost` reason reads it.
+        code: 'cp_detect_client_lost',
         message:
           loss.failure?.message ??
           'The crease-pattern detection worker stopped while it was running.',

@@ -29,6 +29,7 @@
  */
 import { toast } from 'sonner';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { track } from '../../analytics';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 
@@ -421,6 +422,13 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
       }
       write(regionId, null);
       removeRegionAndItsImage(regionId, acceptLabel(latest.current.t));
+      // The second half of the solve funnel: a solve that landed and was kept.
+      // A timed-out partial is its own value, being a weaker endorsement.
+      if (record) {
+        track('cp exact solve resolved', {
+          resolution: record.partial && record.partial.length > 0 ? 'accepted-partial' : 'accepted',
+        });
+      }
     },
     [records, revision, write]
   );
@@ -437,6 +445,7 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
       const record = currentRecord(records, regionId, revision);
       write(regionId, null);
       if (!record || record.owned.lineIds.length === 0) return;
+      track('cp exact solve resolved', { resolution: 'retried' });
       await writeRegionSegments(
         record.owned.lineIds,
         record.owned.segments,

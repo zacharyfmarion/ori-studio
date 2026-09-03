@@ -19,5 +19,6 @@ interface ImportMetaEnv {
   readonly VITE_PUBLIC_POSTHOG_KEY?: string;
   /** `'1'` ships CP detection in a deployed build; absent means no entry point and no runtime. */
   readonly VITE_CP_DETECT?: string;
+  readonly VITE_CP_DETECT_MODEL_ORIGIN?: string;
   readonly VITE_PUBLIC_POSTHOG_HOST?: string;
 }

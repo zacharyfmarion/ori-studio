@@ -364,6 +364,15 @@ export interface CpExactSolveResiduals {
    */
   bigLittleBigViolationsBefore: number | null;
   bigLittleBigViolationsAfter: number | null;
+  /**
+   * Vertices the editor's checker flags for their angles — Kawasaki off by
+   * more than its 1e-6° bar — on the solved geometry. The number of circles
+   * the user will see once a not-exact solve is accepted, which the worst
+   * residual alone does not say: a pattern 0.01° off at its worst is usually
+   * off at nearly every vertex. `null` when the report predates the field.
+   */
+  angleViolationsBefore: number | null;
+  angleViolationsAfter: number | null;
 }
 
 /** The two endings the solver accepted, which differ only in whether it is exact. */
@@ -563,10 +572,12 @@ function readAnalysis(analysis: CpExactSolveAnalysis | undefined) {
   if (typeof kawasaki !== 'number' || !Number.isFinite(kawasaki)) return null;
   if (!Array.isArray(oddDegree)) return null;
   const blb = analysis.big_little_big_violations;
+  const angles = analysis.camv_angle_violations;
   return {
     kawasaki,
     oddDegree: oddDegree.length,
     bigLittleBig: typeof blb === 'number' && Number.isFinite(blb) ? blb : null,
+    angleViolations: typeof angles === 'number' && Number.isFinite(angles) ? angles : null,
   };
 }
 
@@ -592,6 +603,8 @@ export function cpExactSolveResiduals(
     oddDegreeVerticesAfter: after.oddDegree,
     bigLittleBigViolationsBefore: before.bigLittleBig,
     bigLittleBigViolationsAfter: after.bigLittleBig,
+    angleViolationsBefore: before.angleViolations,
+    angleViolationsAfter: after.angleViolations,
   };
 }
 

@@ -5,8 +5,10 @@
  * installed from Settings is exactly what a Detect would have installed.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { track } from '../../analytics';
 import {
   cpDetectModelStatus,
+  CpDetectModelError,
   CP_DETECT_MODEL_FAMILY,
   defaultCpDetectModelStore,
   ensureCpDetectModelInstalled,
@@ -125,6 +127,10 @@ export function useDetectorModels(deps: DetectorModelsDeps = {}): DetectorModels
         setInstalled(await store.list());
       } catch (caught) {
         if (alive.current) setError(caught instanceof Error ? caught.message : String(caught));
+        track('cp detect model download failed', {
+          source: 'settings',
+          code: caught instanceof CpDetectModelError ? caught.code : 'unknown',
+        });
       } finally {
         if (alive.current) setDownloading(null);
       }

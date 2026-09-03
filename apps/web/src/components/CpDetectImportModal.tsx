@@ -12,6 +12,7 @@ import { Crop, ImagePlus, Loader2, Play, Square, Upload, Wrench, X } from 'lucid
 import { CpDetectCropEditor } from './CpDetectCropEditor';
 import { sourceSizeForRectification } from './cpDetectCropLoupe';
 import { track } from '../analytics';
+import type { CpDetectFailureReason, CpDetectImageSource } from '../analytics/events';
 import { proxy } from 'comlink';
 import { CpDetectModelLine } from './CpDetectModelLine';
 import { detectRuntimeProperties, loadDetectorModel, type DetectorModelState } from './cpDetectModelState';
@@ -79,6 +80,31 @@ type BusyState =
   | 'importing'
   | null;
 type ModalStage = 'upload' | 'crop' | 'detecting' | 'review';
+
+/**
+ * The funnel's reason for a detection that did not complete: the model store's
+ * own code when the download half failed, `worker_lost` when the runtime died
+ * under the inference, and `inference` for everything else the model run
+ * raised. Never the message, which can name the registry URL.
+ */
+function detectFailureReason(code: string): CpDetectFailureReason {
+  switch (code) {
+    case 'registry_unavailable':
+    case 'registry_invalid':
+    case 'download_failed':
+    case 'integrity':
+      return code;
+    case 'cp_detect_client_lost':
+      return 'worker_lost';
+    default:
+      return 'inference';
+  }
+}
+
+/** Where the dialog stands, from the three facts that decide it. */
+function modalStage(busy: string | null, recognition: unknown, source: unknown): ModalStage {
+  return busy === 'detecting' ? 'detecting' : recognition ? 'review' : source ? 'crop' : 'upload';
+}
 type PreviewOverlayKey = 'inferred' | 'assignments';
 
 interface PreviewOverlayState {
@@ -341,7 +367,9 @@ export function CpDetectImportModal() {
       if (previous.id !== next.id) await defaultCpDetectModelStore().remove(previous.id);
       track('cp detect model downloaded', { source: 'update' });
     } catch (caught) {
-      setError(cpDetectError(caught).message);
+      const failure = cpDetectError(caught);
+      setError(failure.message);
+      track('cp detect model download failed', { source: 'update', code: failure.code });
     } finally {
       setModelUpdating(false);
       setModelProgress(null);
@@ -397,11 +425,14 @@ export function CpDetectImportModal() {
     // Stopped before the state is cleared, so the solve's own rejection lands on
     // a session that is already gone rather than writing a phase into it.
     if (busy === 'solving') stopSolve();
+    // The funnel's exit, with where it happened. Only a close that abandons the
+    // session reaches here; a successful add closes through `addToDocument`.
+    track('cp detect dismissed', { stage: modalStage(busy, recognition, source) });
     setOpen(false);
     resetSession();
-  }, [busy, canClose, resetSession, stopSolve]);
+  }, [busy, canClose, recognition, resetSession, source, stopSolve]);
 
-  const loadImageFile = useCallback(async (file: OpenBinaryFileResult) => {
+  const loadImageFile = useCallback(async (file: OpenBinaryFileResult, from: CpDetectImageSource) => {
     const nextSource = await sourceImageFromFile(file, t);
     setSource((previous) => {
       if (previous?.url) URL.revokeObjectURL(previous.url);
@@ -420,6 +451,12 @@ export function CpDetectImportModal() {
     );
     setRectified(auto);
     setQuad(auto.report.detected_source_quad ?? auto.report.source_quad);
+    // Funnel step two, with the auto-crop's own success as a property: whether
+    // it found the paper. No image data, size or filename.
+    track('cp detect image loaded', {
+      source: from,
+      paper_found: auto.report.detected_source_quad != null,
+    });
   }, [t]);
 
   const chooseImage = useCallback(async () => {
@@ -431,7 +468,7 @@ export function CpDetectImportModal() {
         extensions: IMAGE_EXTENSIONS,
         mimeTypes: IMAGE_MIME_TYPES,
       });
-      if (file) await loadImageFile(file);
+      if (file) await loadImageFile(file, 'picker');
     } catch (caught) {
       setError(cpDetectError(caught).message);
     } finally {
@@ -447,7 +484,7 @@ export function CpDetectImportModal() {
         if (!isSupportedImageFile(file)) {
           throw new Error(t('errors:cpDetectImport.unsupportedImage', 'Use a PNG, JPEG, or WebP image.'));
         }
-        await loadImageFile(await openBinaryFileFromBrowserFile(file));
+        await loadImageFile(await openBinaryFileFromBrowserFile(file), 'drop');
       } catch (caught) {
         setError(cpDetectError(caught).message);
       } finally {
@@ -603,8 +640,9 @@ export function CpDetectImportModal() {
       }
       track('cp detect completed', { succeeded: true, ...detectRuntimeProperties(recognized.runtime) });
     } catch (caught) {
-      setError(cpDetectError(caught).message);
-      track('cp detect completed', { succeeded: false });
+      const failure = cpDetectError(caught);
+      setError(failure.message);
+      track('cp detect completed', { succeeded: false, reason: detectFailureReason(failure.code) });
       setBusy(null);
       return;
     } finally {
@@ -802,9 +840,6 @@ export function CpDetectImportModal() {
   );
 
   const report = recognition?.detectorReport ?? null;
-  const rectificationWarnings = rectified?.report.warnings ?? [];
-  const detectorWarnings = report?.warnings ?? [];
-  const compilerMetadata = useMemo(() => compilerReportMetadata(t, report), [report, t]);
   const compilerOverlay = useMemo(() => compilerPreviewOverlay(report), [report]);
   /**
    * What the preview draws: the solved pattern once there is one, and the
@@ -818,8 +853,7 @@ export function CpDetectImportModal() {
     const solved = phase.kind === 'settled' ? phase.fold : null;
     return solved ? foldPreviewOf(solved) : parseFoldPreview(recognition.foldJson);
   }, [phase, recognition]);
-  const stage: ModalStage =
-    busy === 'detecting' ? 'detecting' : recognition ? 'review' : source ? 'crop' : 'upload';
+  const stage = modalStage(busy, recognition, source);
   const canChooseImage = model !== null && busy === null && !modelUpdating;
   // The solve has its own row, which names the stage rather than saying "busy".
   const downloading =
@@ -1052,41 +1086,6 @@ export function CpDetectImportModal() {
           </>
         )}
 
-        {stage !== 'upload' &&
-          (model || rectificationWarnings.length > 0 || detectorWarnings.length > 0 || report) && (
-            <div className="cp-detect-modal__report">
-              {model && <span>{model.active.id}</span>}
-              {report && (
-                <span>
-                  {t('dialogs:cpDetectImport.report.counts', '{{vertices}} vertices, {{edges}} edges', {
-                    vertices: report.vertex_count,
-                    edges: report.edge_count,
-                  })}
-                </span>
-              )}
-              {report && (
-                <span>{report.quality_report?.candidate_strategy ?? report.decoder_backend}</span>
-              )}
-              {compilerMetadata.map((item) => (
-                <span key={item}>{item}</span>
-              ))}
-              {/* Why the solve did not land, in the solver's own vocabulary. A
-                  timeout is told apart by `classifyCpExactSolve` reading the
-                  `movement_report.timed_out` **boolean** — never by matching the
-                  reason string, which embeds a formatted number. A malformed
-                  input carries no `rejection_reasons` key at all and so has no
-                  token to print here; the verdict above says what happened. */}
-              {phase.kind === 'settled' && phase.outcome.kind === 'timeout' && (
-                <span>{t('dialogs:cpDetectImport.report.solveTimedOut', 'solve timed out')}</span>
-              )}
-              {phase.kind === 'settled' &&
-                phase.outcome.kind === 'rejected' &&
-                phase.outcome.reasons[0] && <span>{phase.outcome.reasons[0]}</span>}
-              {[...rectificationWarnings, ...detectorWarnings].map((warning, index) => (
-                <span key={`${warning.code}-${index}`}>{warning.code}</span>
-              ))}
-            </div>
-          )}
       </div>
     </div>
   );
@@ -1432,52 +1431,6 @@ function compilerPreviewOverlay(report: CpDetectDecodeReport | null): CompilerPr
     }
   }
   return { assignmentEdgeIds };
-}
-
-function compilerReportMetadata(t: TFunction, report: CpDetectDecodeReport | null): string[] {
-  const compilerReport = cpDetectCompilerReport(report);
-  if (!compilerReport) return [];
-  const emitted = compilerOutputWasEmitted(compilerReport);
-  const data = compilerReport as {
-    output?: { selected?: string };
-    topology?: { accepted_moves?: unknown[]; ambiguous?: boolean };
-    assignments?: { decisions?: unknown[]; ambiguous?: boolean };
-    final_verification?: { classifications?: string[] };
-  };
-  const items: string[] = [];
-  if (!emitted && data.output?.selected === 'legacy_fallback') {
-    items.push(t('dialogs:cpDetectImport.report.compilerFallback', 'compiler fallback'));
-  }
-  const moves = emitted ? data.topology?.accepted_moves?.length ?? 0 : 0;
-  if (moves > 0) {
-    items.push(
-      moves === 1
-        ? t('dialogs:cpDetectImport.report.topologyMove', '{{count}} topology move', { count: moves })
-        : t('dialogs:cpDetectImport.report.topologyMoves', '{{count}} topology moves', { count: moves })
-    );
-  }
-  const decisions = emitted ? data.assignments?.decisions?.filter((decision) => {
-    return (
-      decision &&
-      typeof decision === 'object' &&
-      (decision as { provenance?: unknown }).provenance !== 'assignment_observed'
-    );
-  }).length ?? 0 : 0;
-  if (decisions > 0) {
-    items.push(
-      decisions === 1
-        ? t('dialogs:cpDetectImport.report.assignmentChange', '{{count}} assignment change', { count: decisions })
-        : t('dialogs:cpDetectImport.report.assignmentChanges', '{{count}} assignment changes', { count: decisions })
-    );
-  }
-  if (data.topology?.ambiguous || data.assignments?.ambiguous) {
-    items.push(t('dialogs:cpDetectImport.report.ambiguous', 'ambiguous'));
-  }
-  const classifications = data.final_verification?.classifications ?? [];
-  if (classifications.length > 0 && !classifications.includes('clean')) {
-    items.push(...classifications);
-  }
-  return items;
 }
 
 /**

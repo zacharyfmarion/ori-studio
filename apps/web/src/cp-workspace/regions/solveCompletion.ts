@@ -218,13 +218,7 @@ export function cpSolveCompletionDetail(t: TFunction, facts: CpSolveCompletionFa
         defaultValue:
           'The worst angle error went from {{before}}° to {{after}}°, which passes the check.',
       })
-    : t('panels:cpRegion.completion.angleDetail', {
-        before: formatSolveAngleDegrees(residuals.maxKawasakiDegreesBefore),
-        after: formatSolveAngleDegrees(residuals.maxKawasakiDegreesAfter),
-        bar: formatSolveAngleDegrees(CP_FOLDABILITY_CHECK_EPSILON_DEGREES),
-        defaultValue:
-          'The worst angle error went from {{before}}° to {{after}}°, and the check needs it below {{bar}}°.',
-      });
+    : angleShortfallDetail(t, residuals);
   if (completion !== 'unfoldable') return angles;
 
   // Leading, not appended: these are the causes the user can act on, and they
@@ -262,6 +256,39 @@ export function cpSolveCompletionDetail(t: TFunction, facts: CpSolveCompletionFa
 }
 
 /** `22.5` and `45`, not `22.50` and `45.0`. */
+/**
+ * The angle sentence while the angle is what fails.
+ *
+ * With a count, it says how many vertices are still over the bar: that is the
+ * number of markers the user sees on accepting — a pattern 0.01° off at its
+ * worst is usually off at nearly every vertex, and "1 vertex" in the sentence
+ * before this one has been read as the whole of the problem. Without a count
+ * (a report predating the field), the worst residual and the bar alone.
+ */
+function angleShortfallDetail(t: TFunction, residuals: CpExactSolveResiduals): string {
+  const figures = {
+    before: formatSolveAngleDegrees(residuals.maxKawasakiDegreesBefore),
+    after: formatSolveAngleDegrees(residuals.maxKawasakiDegreesAfter),
+    bar: formatSolveAngleDegrees(CP_FOLDABILITY_CHECK_EPSILON_DEGREES),
+  };
+  const count = residuals.angleViolationsAfter;
+  if (count !== null && count > 0) {
+    return t('panels:cpRegion.completion.angleShortfallDetail', {
+      ...figures,
+      count,
+      defaultValue_one:
+        'The worst angle error went from {{before}}° to {{after}}°; the check needs it below {{bar}}°, which 1 vertex still misses.',
+      defaultValue_other:
+        'The worst angle error went from {{before}}° to {{after}}°; the check needs it below {{bar}}°, which {{count}} vertices still miss.',
+    });
+  }
+  return t('panels:cpRegion.completion.angleDetail', {
+    ...figures,
+    defaultValue:
+      'The worst angle error went from {{before}}° to {{after}}°, and the check needs it below {{bar}}°.',
+  });
+}
+
 function formatGridStep(degrees: number): string {
   return Number.isInteger(degrees) ? String(degrees) : degrees.toFixed(1);
 }

@@ -228,10 +228,14 @@ the person chose it or is following their OS. Two things it is deliberately not:
 | `fold warning shown` | `source` (`pre-fold`) | That check found violations and the warning was raised |
 | `fold warning accepted` | `source`, `accepted`, `suppressed_future_warnings` | The user answered that warning |
 | `fold simulation run` | `source` (`fold-3d-refused`/`fold-3d-no-layer-order`), `crease_count_bucket` | The simulator was opened instead of a 3D fold — because the fold was refused, or because a placed figure's layers could not be ordered |
+| `cp detect image loaded` | `source` (`picker`/`drop`), `paper_found` | An image reached the Detect dialog and was rectified. `paper_found` is whether the paper's outline was found automatically, which is the auto-crop's hit rate |
 | `cp detect started` | — | Image→CP detection begins |
-| `cp detect completed` | `succeeded`, optional `execution_provider` (`webgpu`/`wasm`), `wasm_threads_bucket`, `session_create_ms_bucket`, `inference_ms_bucket`, `model_source` (`installed`/`downloaded`) | Detection finishes. The runtime facts ride only on success: which provider ran, how many wasm threads it had, how long the session took to build and the inference to run, and whether the model's bytes were already on the device — the spread across devices is the point of measuring |
+| `cp detect dismissed` | `stage` (`upload`/`crop`/`detecting`/`review`) | The dialog was closed without importing, and where it stood. The funnel's drop-off, counted rather than inferred |
+| `cp detect completed` | `succeeded`, on failure `reason` (`registry_unavailable`/`registry_invalid`/`download_failed`/`integrity`/`worker_lost`/`inference`), on success optional `execution_provider` (`webgpu`/`wasm`), `wasm_threads_bucket`, `session_create_ms_bucket`, `inference_ms_bucket`, `model_source` (`installed`/`downloaded`) | Detection finishes. The runtime facts ride only on success: which provider ran, how many wasm threads it had, how long the session took to build and the inference to run, and whether the model's bytes were already on the device — the spread across devices is the point of measuring |
 | `cp detect imported` | `mode`, `outcome`, `repair_sites` (bucketed) | A detected CP is imported. `outcome` is how the pattern came out — the five solver endings under their own names (`solved`, `ambiguous`, `timeout`, `rejected`, `malformed`), plus `recognized` (not solved, because the topology was flagged) and `cancelled`. `ambiguous` is the one to watch: the solver kept its answer and the pattern got better, but not to the precision the foldability check holds, so it is an improvement rather than a success |
 | `cp detect cancelled` | `kind` (`region`/`detect-import`/`command`), `stage`, `duration_ms_bucket` | A running exact solve was stopped by the user. Deliberately not a verdict on `cp exact solve completed` — a stopped run reached none of the solver's endings, and counting it there would put it in the feature's failure rate |
+| `cp detect model download failed` | `source` (`settings`/`update`), `code` (the model store's own code) | A download asked for by hand did not verify. A first run's failing download is a `cp detect completed` failure instead |
+| `cp exact solve resolved` | `resolution` (`accepted`/`accepted-partial`/`retried`) | The Accept / Try again gate on a solved region was answered. A solve neither accepted nor retried — the region deleted, or the document edited under it — sends nothing, so "abandoned" is `cp exact solve completed` minus this event |
 | `cp detect model downloaded` | `source` (`first-run`/`update`) | A detector model's bytes arrived and verified — on the first Detect of a device, or when an offered update was taken. The model id is deliberately not sent as a property; `cp detect completed`'s buckets already split by device, and the registry knows what was current when |
 | `cp exact solve completed` | `verdict`, `stage`, `reason`, `duration_ms_bucket`, `moved_vertices_bucket` | An exact solve reached a verdict, however it ended. `reason` is one of the solver's own fixed tokens, never its prose; the blocker messages on a malformed input name the user's geometry and are never sent |
 | `crease pattern shared` | `crease_count_bucket`, `had_title`, `had_author` | A share link is published |
@@ -259,6 +263,29 @@ measurement, unbucketable without inventing a scale, and identifying in
 aggregate. That is why `folded figure orbited` and `folded figure zoomed` carry
 no properties at all. The useful question — *does anyone turn these figures?* —
 is answered by the event existing; where they turned it to is not ours.
+
+### The Image→CP funnel
+
+The detector's events are a funnel, and reading them in order is how "is
+anyone using this, and does it work" gets answered:
+
+1. `command invoked` with `action: file.detectCpImage` — the dialog opened.
+2. `cp detect image loaded` — an image was chosen and rectified.
+3. `cp detect started` — Detect was pressed. The first press on a device is
+   also the model download; `cp detect model downloaded` with
+   `source: first-run` marks it.
+4. `cp detect completed` — `succeeded` and, on success, the runtime buckets;
+   on failure, the `reason`. Success rate of the model run.
+5. `cp detect imported` — the pattern was added, with `outcome` saying how far
+   the solve got (`solved` is the clean ending; `ambiguous` improved the
+   pattern without reaching the foldability check).
+6. `cp exact solve completed` and `cp exact solve resolved` — for a pattern
+   added with a solve region, whether the solve landed and whether the user
+   kept it.
+
+`cp detect dismissed` carries the stage at every exit before step 5, so the
+drop-off between any two steps is a count. Nothing in the funnel carries the
+image, the pattern, or the model id.
 
 ## Maintenance rules
 

@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { formatModelSize } from '../../lib/cpDetectModels';
 import { isCpDetectBuildEnabled } from '../../platform/features';
@@ -42,36 +43,29 @@ export function ModelsSection({ deps }: { deps?: DetectorModelsDeps } = {}) {
       {models.rows.map((row) => {
         const busy = models.downloading?.id === row.version.id;
         const progress = busy ? models.downloading?.progress : null;
+        const state = busy
+          ? progress && progress.total > 0
+            ? t('dialogs:settings.models.downloading', 'Downloading — {{loaded}} of {{total}}', {
+                loaded: formatModelSize(progress.loaded),
+                total: formatModelSize(progress.total),
+              })
+            : t('dialogs:settings.models.downloadingStart', 'Downloading…')
+          : row.installed
+            ? t('dialogs:settings.models.installed', 'Installed')
+            : updateFor(row)
+              ? t('dialogs:settings.models.updateAvailable', 'Newer than what is installed')
+              : t('dialogs:settings.models.notInstalled', 'Not downloaded');
         return (
-          <div className="settings-toggle-row" key={row.version.id} data-testid={`settings-model-${row.version.id}`}>
-            <div>
-              <div>
-                {t('dialogs:settings.models.row', 'Detector v{{version}} · {{size}}', {
-                  version: row.version.version,
-                  size: formatModelSize(row.version.size_bytes),
-                })}
-                {row.current && (
-                  <span className="settings-models__tag">
-                    {' '}
-                    {t('dialogs:settings.models.current', 'current')}
-                  </span>
-                )}
-              </div>
-              <p className="settings-toggle-row__desc">
-                {busy
-                  ? progress && progress.total > 0
-                    ? t('dialogs:settings.models.downloading', 'Downloading — {{loaded}} of {{total}}', {
-                        loaded: formatModelSize(progress.loaded),
-                        total: formatModelSize(progress.total),
-                      })
-                    : t('dialogs:settings.models.downloadingStart', 'Downloading…')
-                  : row.installed
-                    ? t('dialogs:settings.models.installed', 'Installed')
-                    : updateFor(row)
-                      ? t('dialogs:settings.models.updateAvailable', 'Newer than what is installed')
-                      : t('dialogs:settings.models.notInstalled', 'Not downloaded')}
-                {row.version.note ? ` · ${row.version.note}` : ''}
-              </p>
+          <div
+            className="settings-toggle-row settings-toggle-row--action"
+            key={row.version.id}
+            data-testid={`settings-model-${row.version.id}`}
+          >
+            <div className="settings-toggle-row__copy">
+              <span className="settings-toggle-row__label">{rowLabel(t, row)}</span>
+              <span className="settings-toggle-row__desc">
+                {[formatModelSize(row.version.size_bytes), state, ...rowNotes(t, row)].join(' · ')}
+              </span>
             </div>
             {row.installed ? (
               <Button size="sm" variant="secondary" onClick={() => void models.remove(row.version.id)} disabled={models.downloading !== null}>
@@ -88,12 +82,20 @@ export function ModelsSection({ deps }: { deps?: DetectorModelsDeps } = {}) {
         );
       })}
       {models.orphaned.map((model) => (
-        <div className="settings-toggle-row" key={model.id} data-testid={`settings-model-${model.id}`}>
-          <div>
-            <div>{formatModelSize(model.size_bytes)}</div>
-            <p className="settings-toggle-row__desc">
+        <div
+          className="settings-toggle-row settings-toggle-row--action"
+          key={model.id}
+          data-testid={`settings-model-${model.id}`}
+        >
+          <div className="settings-toggle-row__copy">
+            <span className="settings-toggle-row__label">
+              {t('dialogs:settings.models.orphanedLabel', 'Retired detector')}
+            </span>
+            <span className="settings-toggle-row__desc">
+              {formatModelSize(model.size_bytes)}
+              {' · '}
               {t('dialogs:settings.models.orphaned', 'No longer published; never used.')}
-            </p>
+            </span>
           </div>
           <Button size="sm" variant="secondary" onClick={() => void models.remove(model.id)}>
             {t('dialogs:settings.models.remove', 'Remove')}
@@ -107,4 +109,28 @@ export function ModelsSection({ deps }: { deps?: DetectorModelsDeps } = {}) {
       )}
     </section>
   );
+}
+
+/**
+ * The row's name. A published version is named by its number; the dev
+ * server's local manifest, which the registry client reports as version 0
+ * with the note `local`, is named for what it is rather than as "v0".
+ */
+function rowLabel(t: TFunction, row: DetectorModelRow): string {
+  if (isLocalDevModel(row)) {
+    return t('dialogs:settings.models.localRow', 'Development detector');
+  }
+  return t('dialogs:settings.models.row', 'Detector v{{version}}', { version: row.version.version });
+}
+
+/** What follows the state: "Current" on the version the detector offers, and the publisher's note. */
+function rowNotes(t: TFunction, row: DetectorModelRow): string[] {
+  const notes: string[] = [];
+  if (row.current) notes.push(t('dialogs:settings.models.current', 'Current'));
+  if (row.version.note && !isLocalDevModel(row)) notes.push(row.version.note);
+  return notes;
+}
+
+function isLocalDevModel(row: DetectorModelRow): boolean {
+  return row.version.version === 0 && row.version.note === 'local';
 }

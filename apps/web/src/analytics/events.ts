@@ -236,7 +236,29 @@ export type CpExactSolveRejectionReason =
  * a materially weaker endorsement than taking a completed solve, and merging
  * them would make the timeout path look as healthy as the successful one.
  */
-export type CpExactSolveResolution = 'accepted' | 'accepted-partial' | 'retried' | 'abandoned';
+export type CpExactSolveResolution = 'accepted' | 'accepted-partial' | 'retried';
+
+/** How an image reached the Detect dialog. */
+export type CpDetectImageSource = 'picker' | 'drop';
+
+/** Where the Detect dialog stood when it was closed without importing. */
+export type CpDetectDismissStage = 'upload' | 'crop' | 'detecting' | 'review';
+
+/**
+ * Why a detection did not complete.
+ *
+ * The first four are the model store's own codes — the download half of a
+ * first run, which is where a CDN or a bucket problem shows up. `worker_lost`
+ * is the runtime dying under the inference (a wasm trap, an OOM), and
+ * `inference` is every other failure of the model run itself.
+ */
+export type CpDetectFailureReason =
+  | 'registry_unavailable'
+  | 'registry_invalid'
+  | 'download_failed'
+  | 'integrity'
+  | 'worker_lost'
+  | 'inference';
 
 /**
  * Where a simulator run was started from.
@@ -334,9 +356,18 @@ export const ANALYTICS_EVENTS = {
    * success, and nothing before this event can tell the two apart.
    */
   cpExactSolveResolved: 'cp exact solve resolved',
+  /**
+   * The Image→CP funnel, in order. `command invoked` (`file.detectCpImage`)
+   * opens the dialog; then an image is loaded, Detect is pressed, detection
+   * completes, and the pattern is imported. A close at any point before the
+   * import is a `cp detect dismissed` with the stage it happened at, so the
+   * drop-off between any two steps is a count, not an inference.
+   */
+  cpDetectImageLoaded: 'cp detect image loaded',
   cpDetectStarted: 'cp detect started',
   cpDetectCompleted: 'cp detect completed',
   cpDetectImported: 'cp detect imported',
+  cpDetectDismissed: 'cp detect dismissed',
   /**
    * A run the user stopped, on any of the three surfaces that start one.
    *
@@ -351,6 +382,13 @@ export const ANALYTICS_EVENTS = {
   cpDetectCancelled: 'cp detect cancelled',
   /** A detector model's bytes arrived and verified — the first run's, or an offered update's. */
   cpDetectModelDownloaded: 'cp detect model downloaded',
+  /**
+   * A download that was asked for by hand — Settings ▸ Models, or the dialog's
+   * update offer — did not verify. A first run's download failing is a
+   * `cp detect completed` with `succeeded: false` and the same code as its
+   * reason, since that is the funnel step it broke.
+   */
+  cpDetectModelDownloadFailed: 'cp detect model download failed',
   foldSimulationRun: 'fold simulation run',
   foldedFormExported: 'folded form exported',
   foldWarningShown: 'fold warning shown',

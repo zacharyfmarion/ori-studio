@@ -64,6 +64,8 @@ function residuals(over: Partial<CpExactSolveResiduals> = {}): CpExactSolveResid
     oddDegreeVerticesAfter: 0,
     bigLittleBigViolationsBefore: 0,
     bigLittleBigViolationsAfter: 0,
+    angleViolationsBefore: null,
+    angleViolationsAfter: null,
     ...over,
   };
 }
@@ -209,6 +211,24 @@ describe('cpSolveCompletionDetail', () => {
     expect(detail).toContain('14.4°');
     expect(detail).toContain('0.007°');
     expect(detail).toContain('0.000001°');
+  });
+
+  it('says how many vertices still miss the angle bar, which is what the user will see marked', () => {
+    const detail = cpSolveCompletionDetail(t, {
+      completion: 'improved',
+      residuals: residuals({ maxKawasakiDegreesAfter: 0.0119, angleViolationsAfter: 241 }),
+    });
+    expect(detail).toContain('to 0.01°');
+    expect(detail).toContain('which 241 vertices still miss');
+    expect(detail).not.toContain('which passes');
+  });
+
+  it('keeps the bare angle sentence when the report carries no count', () => {
+    const detail = cpSolveCompletionDetail(t, {
+      completion: 'improved',
+      residuals: residuals({ maxKawasakiDegreesAfter: 0.0119, angleViolationsAfter: null }),
+    });
+    expect(detail).toMatch(/and the check needs it below 0\.000001°\.$/);
   });
 
   it('leads with the odd-degree cause, because that is the actionable one', () => {
@@ -362,6 +382,8 @@ describe('mid-solve_2.osf, end to end from the solver payload', () => {
       oddDegreeVerticesAfter: 3,
       bigLittleBigViolationsBefore: null,
       bigLittleBigViolationsAfter: null,
+      angleViolationsBefore: null,
+      angleViolationsAfter: null,
     });
   });
 

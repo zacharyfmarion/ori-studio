@@ -210,11 +210,13 @@ fn report(label: &str, solved: &ExactSolvedGraph, wall: f64) {
     println!("  polish {}", mr["polish"]);
     for phase in ["before", "after"] {
         println!(
-            "  {phase}: kawasaki {} deg, carrier {}, odd-degree {}, maekawa {}",
+            "  {phase}: kawasaki {} deg, carrier {}, odd-degree {}, maekawa {}, camv angle violations {}, big-little-big {}",
             tr[phase]["max_kawasaki_residual_degrees"],
             tr[phase]["max_carrier_residual"],
             tr[phase]["odd_degree_vertices"],
-            tr[phase]["maekawa_failures"]
+            tr[phase]["maekawa_failures"],
+            tr[phase]["camv_angle_violations"],
+            tr[phase]["big_little_big_violations"]
         );
     }
 }

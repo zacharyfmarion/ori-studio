@@ -2412,6 +2412,14 @@
   width: 132px;
 }
 
+/*
+ * A row whose control is a button — Check now, Download, Remove. The button
+ * owns the click, so the row does not claim the pointer cursor either.
+ */
+.settings-toggle-row--action {
+  cursor: default;
+}
+
 .settings-toggle-row__copy {
   display: grid;
   gap: 2px;

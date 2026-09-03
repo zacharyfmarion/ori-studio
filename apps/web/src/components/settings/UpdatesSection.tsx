@@ -114,12 +114,14 @@ export function UpdatesSection() {
           'Updates are downloaded in full — Ori Studio has no partial updates. Nothing installs until you choose to relaunch.'
         )}
       </p>
-      <div className="settings-toggle-row">
-        <div>
-          <div>{t('dialogs:settings.updates.currentVersion', 'Version {{version}}', {
-            version: APP_VERSION,
-          })}</div>
-          <p className="settings-toggle-row__desc">{updateCheckSummary(t, { lastCheck, version })}</p>
+      <div className="settings-toggle-row settings-toggle-row--action">
+        <div className="settings-toggle-row__copy">
+          <span className="settings-toggle-row__label">
+            {t('dialogs:settings.updates.currentVersion', 'Version {{version}}', {
+              version: APP_VERSION,
+            })}
+          </span>
+          <span className="settings-toggle-row__desc">{updateCheckSummary(t, { lastCheck, version })}</span>
         </div>
         <Button
           size="sm"

@@ -37,6 +37,8 @@ const RESIDUALS = {
   oddDegreeVerticesAfter: 0,
       bigLittleBigViolationsBefore: 0,
       bigLittleBigViolationsAfter: 0,
+      angleViolationsBefore: null,
+      angleViolationsAfter: null,
 };
 
 /** A solve that reached foldable precision — the one ending that says "Solved". */
@@ -242,7 +244,9 @@ describe('SolveRegionChip', () => {
         completion,
         residuals: { ...RESIDUALS, oddDegreeVerticesAfter: 3,
       bigLittleBigViolationsBefore: 0,
-      bigLittleBigViolationsAfter: 0, },
+      bigLittleBigViolationsAfter: 0,
+      angleViolationsBefore: null,
+      angleViolationsAfter: null, },
       });
       expect(chip().textContent).not.toContain('Solved');
     }

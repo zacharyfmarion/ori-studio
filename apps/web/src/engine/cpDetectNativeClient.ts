@@ -1,6 +1,6 @@
 /**
  * The desktop's detect client: the worker for what stays in wasm
- * (rectification, dev-only ablation), Tauri commands for what the machine
+ * (rectification, the inspector's ablation runs), Tauri commands for what the machine
  * should do itself — the model's session on CoreML or all cores, and the
  * exact solve with a Stop. Same `CpDetectWorkerApi` surface, so the dialog
  * does not know which it holds. See `apps/tauri/src-tauri/src/cp_detect.rs`.

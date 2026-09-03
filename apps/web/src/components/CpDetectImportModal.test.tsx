@@ -269,6 +269,8 @@ function solvedOutcome(): CpExactSolveOutcome {
       oddDegreeVerticesAfter: 0,
       bigLittleBigViolationsBefore: 0,
       bigLittleBigViolationsAfter: 0,
+      angleViolationsBefore: null,
+      angleViolationsAfter: null,
     },
     polishAdopted: true,
   };
@@ -309,6 +311,8 @@ function ambiguousOutcome(): CpExactSolveOutcome {
       oddDegreeVerticesAfter: 3,
       bigLittleBigViolationsBefore: 0,
       bigLittleBigViolationsAfter: 0,
+      angleViolationsBefore: null,
+      angleViolationsAfter: null,
     },
     polishAdopted: false,
   };
@@ -663,7 +667,9 @@ describe('CpDetectImportModal failure reporting', () => {
     await reachReviewStage();
 
     expect(bodyText()).toMatch(/further than the solver is allowed to/);
-    expect(bodyText()).toContain('movement_budget_exceeded');
+    // The solver's token itself is not shown: the sentence is the explanation,
+    // and the chip row that used to print `movement_budget_exceeded` is gone.
+    expect(bodyText()).not.toContain('movement_budget_exceeded');
     expect(button('Review & Fix')).not.toBeNull();
     expect(button('Add as-is')).not.toBeNull();
     expect(button('Add')).toBeNull();
@@ -689,7 +695,6 @@ describe('CpDetectImportModal failure reporting', () => {
     );
     await reachReviewStage();
 
-    expect(bodyText()).toContain('solve timed out');
     expect(bodyText()).toMatch(/ran out of time/);
     expect(bodyText()).toMatch(/moved 1 vertex into place/);
     expect(button('Add partial result')).not.toBeNull();

@@ -82,15 +82,18 @@ type ActiveExecutionProvider = 'webgpu' | 'wasm';
 type OrtModule = typeof import('onnxruntime-web/webgpu');
 
 /**
- * The same gate the "Detect CP from Image..." menu entry uses
- * (`menus/menuDefinition.ts`): the detector is experimental and dev-only, and
- * the model assets it needs are gitignored, so no deployed build can reach it.
+ * Whether this build carries the detector at all — the same switch the
+ * "Detect CP from Image..." capability reads (`lib/workspaceCapabilities.ts`):
+ * every dev build, and a deployed build only when `VITE_CP_DETECT=1` was set
+ * at build time, which the web deploy and desktop build workflows do. The
+ * model itself is not in the build either way; the first Detect on a device
+ * downloads it from the registry (`lib/cpDetectModels.ts`).
  *
- * Its cost, though, is paid by every deployed build: ONNX Runtime's WebGPU
- * entry point drags a 22.6 MiB `.wasm` runtime behind it, which is more than
- * half of `dist`. Constant-folding this to `false` takes the `import()` below
- * out of the production module graph, so the runtime is neither bundled nor
- * emitted. Un-gating the menu means un-gating this too.
+ * It matters here because of what the runtime costs: ONNX Runtime's WebGPU
+ * entry point drags a 22.6 MiB `.wasm` runtime behind it, more than half of
+ * `dist`. In a build without the flag this constant-folds to `false`, which
+ * takes the `import()` below out of the module graph, so the runtime is
+ * neither bundled nor emitted.
  */
 const CP_DETECT_RUNTIME_AVAILABLE = isCpDetectBuildEnabled();
 
@@ -216,9 +219,9 @@ async function importOrt(): Promise<OrtModule> {
     mjs: wasmMjsUrl.default,
     wasm: wasmUrl.default,
   };
-  ortModule.env.webgpu.powerPreference = 'high-performance';
   return ortModule;
 }
+
 
 async function createSessionRuntime(
   ortModule: OrtModule,
@@ -273,6 +276,21 @@ function providerCandidates(
   return webgpuAvailable ? ['webgpu', 'wasm'] : ['wasm'];
 }
 
+/**
+ * No power preference is expressed here, on purpose.
+ *
+ * `env.webgpu.powerPreference = 'high-performance'` used to be set in
+ * `importOrt`. onnxruntime-web 1.26 deprecates it, and in this version it is a
+ * no-op besides: the flag only reaches the adapter the JS side probes for and
+ * discards, while the session's device is made by the wasm side with its own
+ * defaults. The replacement the deprecation names — a caller-made device on
+ * the `webgpu` provider option — was tried, with and without the adapter's
+ * limits and features, and every session on it failed to build ("Failed to
+ * wait for the operation: 3") before falling back to wasm, where the runtime's
+ * own device builds fine. So the runtime picks its adapter; on a two-GPU laptop
+ * that is the browser's default one. Revisit when a runtime upgrade makes the
+ * external device build.
+ */
 function sessionOptions(provider: ActiveExecutionProvider): ort.InferenceSession.SessionOptions {
   return {
     executionProviders: provider === 'webgpu' ? ['webgpu', 'wasm'] : ['wasm'],

@@ -45,7 +45,6 @@
 
 .cp-detect-modal__header,
 .cp-detect-modal__actions,
-.cp-detect-modal__report,
 .cp-detect-modal__pane-heading,
 .cp-detect-modal__preview-controls {
   display: flex;
@@ -360,20 +359,6 @@
 .cp-detect-modal__detecting .cp-detect-modal__canvas {
   width: min(360px, 80%);
   opacity: 0.72;
-}
-
-.cp-detect-modal__report {
-  flex-wrap: wrap;
-  min-height: 24px;
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-}
-
-.cp-detect-modal__report span {
-  padding: 3px 7px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-subtle);
-  border-radius: 999px;
 }
 
 @keyframes cp-detect-spin {

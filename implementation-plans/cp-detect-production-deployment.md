@@ -328,8 +328,20 @@ Phase 4 — rollout
 - [ ] Preview with the flag; internal pass on real images.
 - [ ] Prod deploy with the flag; watch the new events for a week.
 - [ ] Desktop release with native detection (numbers so far in the Outcome
-      section; the release runners have not built with `ort` yet).
-- [x] `RELEASE.md`, README, `docs/analytics.md`.
+      section; the release runners have not built with `ort` yet). The
+      Desktop Build workflow now sets `VITE_CP_DETECT=1` — it did not before,
+      so a desktop build would have shipped without the feature — and takes a
+      `model_origin` input for a tester build of an unmerged branch.
+- [x] `RELEASE.md` (including "Testing the detector before merging"), README,
+      `docs/analytics.md`.
+- [x] The funnel's missing events: `cp detect image loaded`, `cp detect
+      dismissed` (with the stage), a `reason` on a failed `cp detect
+      completed`, `cp detect model download failed`, and `cp exact solve
+      resolved`, which was defined but never sent.
+- [x] `env.webgpu.powerPreference` removed: deprecated in onnxruntime-web
+      1.26 and a no-op there; the replacement (a caller-made device) fails to
+      build a session in that version, measured, so the runtime picks its own
+      adapter. Recorded in `workers/cpDetectWorker.ts`.
 
 Phase 5 — model manager
 - [x] Registry schema and client; the dialog's "newer detector available"

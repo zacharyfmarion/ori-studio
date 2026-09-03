@@ -74,7 +74,7 @@ describe('Settings ▸ Models', () => {
     expect(text()).toMatch(/Detector v5 · 11.0 B|Detector v5/);
     const rows = [...(container?.querySelectorAll('[data-testid^="settings-model-"]') ?? [])];
     expect(rows.map((row) => row.getAttribute('data-testid'))).toEqual(['settings-model-v5', 'settings-model-v4']);
-    expect(rows[0].textContent).toContain('current');
+    expect(rows[0].textContent).toContain('Current');
     expect(rows[0].textContent).toContain('Not downloaded');
     expect(button('Download')).not.toBeNull();
   });
