@@ -263,6 +263,51 @@ describe('classifyCpExactSolve', () => {
     expect(primaryCpExactSolveReason(outcome)).toBe('movement_budget_exceeded');
   });
 
+  it('carries what a refused answer would have broken, read off candidate_after', () => {
+    // On a rejection `after` is `before` — the solver returns the coordinates
+    // it was given — so only `candidate_after` can say why the answer was
+    // refused, and none of it is drawn as a marker.
+    const solved = {
+      schema: 'oristudio/cp-detect/exact-solve-v1',
+      status: 'failed',
+      vertices_exact: [],
+      edges_exact: [],
+      movement_report: {
+        timed_out: false,
+        accepted: false,
+        rejection_reasons: ['candidate_status_failed', 'movement_budget_exceeded'],
+        elapsed_seconds: 0.2,
+      },
+      theorem_residual_report: {
+        before: { max_kawasaki_residual_degrees: 3.9, odd_degree_vertices: [] },
+        after: { max_kawasaki_residual_degrees: 3.9, odd_degree_vertices: [] },
+        candidate_after: {
+          max_kawasaki_residual_degrees: 0.4,
+          odd_degree_vertices: [],
+          unmodeled_crossings: [[12, 40]],
+          degenerate_edges: [],
+          boundary_failures: [7, 9],
+        },
+      },
+    } as unknown as CpExactSolvedGraph;
+    const outcome = classifyCpExactSolve(solved, 'refinement');
+    expect(outcome.kind === 'rejected' && outcome.candidate).toEqual({
+      degenerateEdges: 0,
+      unmodeledCrossings: 1,
+      boundaryFailures: 2,
+      movedOverBudget: true,
+      improvedAngles: true,
+    });
+  });
+
+  it('reports no findings, rather than zeroes, when the report predates candidate_after', () => {
+    const outcome = classifyCpExactSolve(
+      graph({ timed_out: false, accepted: false, rejection_reasons: ['candidate_status_failed'] }),
+      'geometry'
+    );
+    expect(outcome.kind === 'rejected' && outcome.candidate).toBeNull();
+  });
+
   it('drops a token it has no sentence for rather than surfacing it raw', () => {
     const outcome = classifyCpExactSolve(
       graph({

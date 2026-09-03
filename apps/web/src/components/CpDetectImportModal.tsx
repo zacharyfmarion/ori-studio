@@ -1703,8 +1703,10 @@ function verdictMessage(
   }
   if (phase.kind === 'settled' || phase.kind === 'errored') {
     const reason = phase.kind === 'settled' ? primaryCpExactSolveReason(phase.outcome) : null;
+    const candidate =
+      phase.kind === 'settled' && phase.outcome.kind === 'rejected' ? phase.outcome.candidate : null;
     return [
-      reason ? cpExactSolveReasonLabel(t, reason) : null,
+      reason ? cpExactSolveReasonLabel(t, reason, candidate) : null,
       partialVertices === null
         ? null
         : t('dialogs:cpDetectImport.verdict.timeoutPartial', {

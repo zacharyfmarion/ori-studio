@@ -18,7 +18,11 @@
  * needs it.
  */
 import type { TFunction } from 'i18next';
-import type { CpExactSolveReason, CpExactSolveStage } from './cpExactSolveTypes';
+import type {
+  CpExactSolveCandidateFindings,
+  CpExactSolveReason,
+  CpExactSolveStage,
+} from './cpExactSolveTypes';
 
 /** The progress line for a stage. Two, because the solver has exactly two. */
 export function cpExactSolveStageLabel(t: TFunction, stage: CpExactSolveStage): string {
@@ -41,7 +45,15 @@ export function cpExactSolveStageHint(t: TFunction, stage: CpExactSolveStage): s
     : t('panels:cpExactSolve.hint.refinement', 'This is most of the wait — up to about 25 seconds.');
 }
 
-export function cpExactSolveReasonLabel(t: TFunction, reason: CpExactSolveReason): string {
+/**
+ * `candidate` is what a refused answer would have broken, for the one token
+ * that does not say — `candidate_status_failed` — and is ignored for the rest.
+ */
+export function cpExactSolveReasonLabel(
+  t: TFunction,
+  reason: CpExactSolveReason,
+  candidate: CpExactSolveCandidateFindings | null = null
+): string {
   switch (reason) {
     // --- Preflight: the input was refused before any solve ran. -------------
     case 'preflight_degenerate_edges':
@@ -61,10 +73,7 @@ export function cpExactSolveReasonLabel(t: TFunction, reason: CpExactSolveReason
     // non-acceptance the solver returns the coordinates it was given, so nothing
     // moved and there is nothing to undo.
     case 'candidate_status_failed':
-      return t(
-        'panels:cpExactSolve.reason.stillNotFoldable',
-        'The answer still breaks a foldability condition, so it was not applied. Work through the remaining markers and solve again.'
-      );
+      return candidateStatusFailedLabel(t, candidate);
     case 'movement_budget_exceeded':
       return t(
         'panels:cpExactSolve.reason.movedTooFar',
@@ -118,4 +127,62 @@ export function cpExactSolveReasonLabel(t: TFunction, reason: CpExactSolveReason
         'The saved solver data does not match this crease pattern, so the solve could not run.'
       );
   }
+}
+
+/**
+ * `candidate_status_failed` is the solver's verdict on its own answer: the
+ * geometry it computed would break one of four conditions, or bring the angles
+ * no closer, so it handed back the coordinates it was given. None of the four
+ * is drawn as a marker — they are true of an answer that was never applied,
+ * not of the pattern on screen — so the sentence names the one it was. It used
+ * to send the user to "the remaining markers", over a region the editor was
+ * showing as clean.
+ */
+function candidateStatusFailedLabel(
+  t: TFunction,
+  candidate: CpExactSolveCandidateFindings | null
+): string {
+  if (candidate && candidate.unmodeledCrossings > 0) {
+    return t('panels:cpExactSolve.reason.answerCrossings', {
+      count: candidate.unmodeledCrossings,
+      defaultValue_one:
+        'In the solver’s answer 1 pair of creases would cross with no vertex where they meet, so it was not applied and nothing moved. Add a vertex at that crossing, or move the creases apart, and solve again.',
+      defaultValue_other:
+        'In the solver’s answer {{count}} pairs of creases would cross with no vertex where they meet, so it was not applied and nothing moved. Add a vertex at each crossing, or move the creases apart, and solve again.',
+    });
+  }
+  if (candidate && candidate.degenerateEdges > 0) {
+    return t('panels:cpExactSolve.reason.answerCollapsed', {
+      count: candidate.degenerateEdges,
+      defaultValue_one:
+        'The solver’s answer would collapse 1 crease to zero length, so it was not applied and nothing moved. Its two ends are probably one vertex; merge them and solve again.',
+      defaultValue_other:
+        'The solver’s answer would collapse {{count}} creases to zero length, so it was not applied and nothing moved. Their ends are probably single vertices; merge them and solve again.',
+    });
+  }
+  if (candidate && candidate.boundaryFailures > 0) {
+    return t('panels:cpExactSolve.reason.answerOffPaper', {
+      count: candidate.boundaryFailures,
+      defaultValue_one:
+        'The solver’s answer would push 1 vertex off the edge of the paper, so it was not applied and nothing moved.',
+      defaultValue_other:
+        'The solver’s answer would push {{count}} vertices off the edge of the paper, so it was not applied and nothing moved.',
+    });
+  }
+  if (candidate?.movedOverBudget) {
+    return t(
+      'panels:cpExactSolve.reason.answerMovedTooFar',
+      'The solver’s answer would move a vertex further than it is allowed to, so it was not applied and nothing moved. An edit is probably far from where the crease actually lies.'
+    );
+  }
+  if (candidate?.improvedAngles === false) {
+    return t(
+      'panels:cpExactSolve.reason.answerNoCloser',
+      'The solver’s answer brought the angles no closer to foldable, so it was not applied and nothing moved. The topology most likely still needs repair.'
+    );
+  }
+  return t(
+    'panels:cpExactSolve.reason.stillNotFoldable',
+    'The solver’s answer would still break a foldability condition, so it was not applied and nothing moved. That is a property of the answer rather than of the pattern as drawn, so there may be no marker for it; adjust the creases near the last edit and solve again.'
+  );
 }

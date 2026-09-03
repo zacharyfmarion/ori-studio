@@ -304,7 +304,11 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
         const reason = primaryCpExactSolveReason(outcome);
         failed(
           reason
-            ? cpExactSolveReasonLabel(latest.current.t, reason)
+            ? cpExactSolveReasonLabel(
+                latest.current.t,
+                reason,
+                outcome.kind === 'rejected' ? outcome.candidate : null
+              )
             : cpExactSolveReasonLabel(latest.current.t, 'malformed_input')
         );
         return;

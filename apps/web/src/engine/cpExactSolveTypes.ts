@@ -177,7 +177,40 @@ export interface CpExactSolveAnalysis {
   /** The editor's own checker, run by the solver on this geometry. */
   camv_angle_violations?: number | null;
   big_little_big_violations?: number | null;
+  /** Spans shorter than the degenerate-edge epsilon, as vertex id pairs. */
+  degenerate_edges?: [number, number][];
+  /** Non-boundary spans crossing without a shared vertex, as span id pairs. */
+  unmodeled_crossings?: [number, number][];
+  /** Vertices whose boundary parameter has left its paper edge. */
+  boundary_failures?: number[];
   [key: string]: unknown;
+}
+
+/**
+ * What the solver's *answer* would have broken, when the answer was refused.
+ *
+ * Read off `candidate_after`, never `after`: on a rejection the solver returns
+ * the coordinates it was given, so `after` describes the pattern as drawn and
+ * says nothing about why the answer was refused. None of these is a marker the
+ * editor draws — they are true of geometry that was never applied — so a
+ * sentence that names the one it was is the only way the user learns it, and
+ * "work through the remaining markers" over a region the editor called clean
+ * was the measured alternative.
+ *
+ * `improvedAngles` is the fifth way to the same token: an answer that broke
+ * none of the four but brought the angles no closer is refused too.
+ */
+export interface CpExactSolveCandidateFindings {
+  /** Creases the answer would collapse to zero length. */
+  degenerateEdges: number;
+  /** Pairs of creases that would cross with no vertex where they meet. */
+  unmodeledCrossings: number;
+  /** Vertices the answer would push off the paper's edge. */
+  boundaryFailures: number;
+  /** Whether a vertex would move further than the movement budget allows. */
+  movedOverBudget: boolean;
+  /** Whether the answer's worst Kawasaki residual is below the input's; null when either side is missing. */
+  improvedAngles: boolean | null;
 }
 
 /**
@@ -488,6 +521,8 @@ export type CpExactSolveOutcome =
       status: CpExactSolveStatus;
       /** The tokens the solver wrote, in its own order, unknown ones dropped. */
       reasons: readonly CpExactSolveReason[];
+      /** What the refused answer would have broken; null when the report predates `candidate_after`. */
+      candidate: CpExactSolveCandidateFindings | null;
       elapsedSeconds: number;
     }
   | {
@@ -750,6 +785,34 @@ export function classifyCpExactSolve(
     stage,
     status: solved.status,
     reasons,
+    candidate: cpExactSolveCandidateFindings(solved, reasons),
     elapsedSeconds,
   };
+}
+
+/** See {@link CpExactSolveCandidateFindings}. Null when the report carries no `candidate_after`. */
+export function cpExactSolveCandidateFindings(
+  solved: CpExactSolvedGraph,
+  reasons: readonly CpExactSolveReason[]
+): CpExactSolveCandidateFindings | null {
+  const candidate = solved.theorem_residual_report?.candidate_after;
+  if (!candidate || typeof candidate !== 'object') return null;
+  const before = solved.theorem_residual_report?.before?.max_kawasaki_residual_degrees;
+  const after = candidate.max_kawasaki_residual_degrees;
+  return {
+    degenerateEdges: arrayLength(candidate.degenerate_edges),
+    unmodeledCrossings: arrayLength(candidate.unmodeled_crossings),
+    boundaryFailures: arrayLength(candidate.boundary_failures),
+    // The compiler writes this token whenever the answer's budgeted movement is
+    // over the limit, whether or not the status gate also failed on it.
+    movedOverBudget: reasons.includes('movement_budget_exceeded'),
+    improvedAngles:
+      typeof before === 'number' && typeof after === 'number' && Number.isFinite(before) && Number.isFinite(after)
+        ? after < before
+        : null,
+  };
+}
+
+function arrayLength(value: unknown): number {
+  return Array.isArray(value) ? value.length : 0;
 }

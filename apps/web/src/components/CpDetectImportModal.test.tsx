@@ -661,6 +661,7 @@ describe('CpDetectImportModal failure reporting', () => {
         stage: 'geometry',
         status: 'failed',
         reasons: ['movement_budget_exceeded'],
+        candidate: null,
         elapsedSeconds: 0.4,
       })
     );
