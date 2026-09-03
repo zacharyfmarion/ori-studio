@@ -1,7 +1,6 @@
 //! `wasm-bindgen` wrapper around `oristudio-cp-detect`.
 
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
 use std::sync::Once;
 use wasm_bindgen::prelude::*;
 
@@ -472,116 +471,16 @@ fn parse_exact_solve_request(
     ),
     JsValue,
 > {
-    let input = parse_exact_solve_input(input_json)?;
-    let options = parse_exact_solve_options(options_json)?;
-    let unknown = unknown_exempt_vertex_ids(
-        input.vertices.iter().map(|vertex| vertex.id),
-        &options.exempt_vertex_ids,
-    );
-    if !unknown.is_empty() {
-        return Err(js_error(
-            "unknown_exempt_vertex_id",
-            format!(
-                "exempt_vertex_ids names {} vertex id(s) absent from the solve input: {}",
-                unknown.len(),
-                summarize_ids(&unknown)
-            ),
-        ));
-    }
-    Ok((input, options))
-}
-
-fn parse_exact_solve_input(text: &str) -> Result<oristudio_cp_compiler::ExactSolveInput, JsValue> {
-    serde_json::from_str(text.trim())
-        .map_err(|error| js_error("invalid_exact_solve_input", error.to_string()))
-}
-
-fn parse_exact_solve_options(
-    text: &str,
-) -> Result<oristudio_cp_compiler::ExactSolveOptionsWithExemptions, JsValue> {
-    exact_solve_options_from_json(text)
-        .map_err(|message| js_error("invalid_exact_solve_options", message))
-}
-
-/// `ExactSolveOptions` derives `Deserialize` without a blanket `default`, so
-/// most of its fields are mandatory in a plain `from_str`. The browser wants to
-/// override one knob (a per-vertex movement budget, a shorter timeout) and
-/// inherit the rest, so overrides are merged over the serialized defaults.
-///
-/// The parsed type is `ExactSolveOptionsWithExemptions` rather than
-/// `ExactSolveOptions` because its `#[serde(flatten)]` makes the JSON a strict
-/// superset: every options object that parsed before still parses, to the same
-/// options, and `exempt_vertex_ids` is now one more accepted key rather than the
-/// unknown-option error it used to be. That is the whole difference — a solve
-/// with an empty exemption set is `solve_exact`.
-///
-/// Kept `JsValue`-free so it is testable off-target; the wasm wrapper above
-/// turns the message into the shared error envelope.
-fn exact_solve_options_from_json(
-    text: &str,
-) -> Result<oristudio_cp_compiler::ExactSolveOptionsWithExemptions, String> {
-    let defaults = oristudio_cp_compiler::ExactSolveOptionsWithExemptions::from(
-        oristudio_cp_compiler::ExactSolveOptions::default(),
-    );
-    let trimmed = text.trim();
-    if trimmed.is_empty() {
-        return Ok(defaults);
-    }
-
-    let overrides = match serde_json::from_str(trimmed).map_err(|error| error.to_string())? {
-        serde_json::Value::Null => return Ok(defaults),
-        serde_json::Value::Object(map) => map,
-        _ => return Err("exact solve options must be a JSON object".to_owned()),
-    };
-
-    let serde_json::Value::Object(mut merged) =
-        serde_json::to_value(defaults).map_err(|error| error.to_string())?
-    else {
-        return Err("exact solve options did not serialize to an object".to_owned());
-    };
-    for (key, value) in overrides {
-        // Neither options type denies unknown fields, and `#[serde(flatten)]`
-        // swallows leftovers outright, so without this a misspelled knob would
-        // deserialize cleanly and change nothing.
-        if !merged.contains_key(&key) {
-            return Err(format!("unknown exact solve option {key:?}"));
-        }
-        merged.insert(key, value);
-    }
-    serde_json::from_value(serde_json::Value::Object(merged)).map_err(|error| error.to_string())
-}
-
-/// Exempt ids naming no vertex in the input, in ascending order.
-///
-/// The movement budget matches on `CandidateVertex::id`, not on position within
-/// `vertices`, so an id that names nothing is not a harmless no-op: it leaves
-/// the budget in force over the vertex the user actually moved, and the solve
-/// comes back `movement_budget_exceeded` with nothing pointing at the cause.
-/// That is the same reasoning that makes a misspelled option an error above,
-/// and the likeliest way to hit it is passing array indices instead of ids.
-fn unknown_exempt_vertex_ids(
-    known_vertex_ids: impl IntoIterator<Item = usize>,
-    exempt_vertex_ids: &BTreeSet<usize>,
-) -> Vec<usize> {
-    let known = known_vertex_ids.into_iter().collect::<BTreeSet<_>>();
-    exempt_vertex_ids.difference(&known).copied().collect()
-}
-
-/// Bounded rendering of an id list for an error message: a pattern can carry
-/// thousands of vertices and the message is read by a human.
-fn summarize_ids(ids: &[usize]) -> String {
-    const SHOWN: usize = 8;
-    let head = ids
-        .iter()
-        .take(SHOWN)
-        .map(usize::to_string)
-        .collect::<Vec<_>>()
-        .join(", ");
-    if ids.len() > SHOWN {
-        format!("{head}, … ({} more)", ids.len() - SHOWN)
-    } else {
-        head
-    }
+    // The parse lives in the compiler, shared with the desktop's native
+    // commands; only the error envelope is this bridge's.
+    oristudio_cp_compiler::parse_exact_solve_request(input_json, options_json).map_err(|message| {
+        let code = if message.starts_with("exempt_vertex_ids names") {
+            "unknown_exempt_vertex_id"
+        } else {
+            "invalid_exact_solve_options"
+        };
+        js_error(code, message)
+    })
 }
 
 #[wasm_bindgen]
@@ -993,7 +892,7 @@ mod default_export_tests {
 mod exact_solve_options_tests {
     //! `JsValue` is unusable off-target, so these cover the parsing helper the
     //! solve exports share rather than the exports themselves.
-    use super::exact_solve_options_from_json;
+    use oristudio_cp_compiler::exact_solve_options_from_json;
     use oristudio_cp_compiler::{ExactSolveOptions, ExactSolveOptionsWithExemptions};
     use std::collections::BTreeSet;
 
@@ -1116,37 +1015,4 @@ mod exact_solve_options_tests {
 }
 
 #[cfg(test)]
-mod exempt_vertex_id_tests {
-    use super::{summarize_ids, unknown_exempt_vertex_ids};
-    use std::collections::BTreeSet;
-
-    #[test]
-    fn ids_present_in_the_input_are_accepted() {
-        assert!(
-            unknown_exempt_vertex_ids([0, 1, 2, 9], &BTreeSet::from([0, 9])).is_empty(),
-            "ids that name real vertices are not unknown"
-        );
-        assert!(unknown_exempt_vertex_ids([0, 1], &BTreeSet::new()).is_empty());
-        // No vertices and no exemptions is the ordinary no-op solve.
-        assert!(unknown_exempt_vertex_ids([], &BTreeSet::new()).is_empty());
-    }
-
-    #[test]
-    fn ids_absent_from_the_input_are_reported() {
-        // Vertex ids are not indices, so a caller that sends positions instead
-        // of ids gets told rather than silently losing the exemption.
-        assert_eq!(
-            unknown_exempt_vertex_ids([10, 11, 12], &BTreeSet::from([0, 11, 4])),
-            vec![0, 4]
-        );
-    }
-
-    #[test]
-    fn the_id_list_in_a_message_is_bounded() {
-        assert_eq!(summarize_ids(&[3, 11]), "3, 11");
-        assert_eq!(
-            summarize_ids(&(0..10).collect::<Vec<_>>()),
-            "0, 1, 2, 3, 4, 5, 6, 7, … (2 more)"
-        );
-    }
-}
+mod exempt_vertex_id_tests {}

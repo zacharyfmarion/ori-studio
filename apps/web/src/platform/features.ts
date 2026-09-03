@@ -41,3 +41,16 @@ export function isCpDetectBuildEnabled(env: { DEV?: boolean; VITE_CP_DETECT?: st
 export function isCpDetectSurfaceAvailable(probe: { buildEnabled: boolean; phone: boolean }): boolean {
   return probe.buildEnabled && !probe.phone;
 }
+
+/** Where the web site publishes its models; what the desktop shell reads them from. */
+export const CP_DETECT_MODEL_ORIGIN = 'https://oristudio.dev/';
+
+/**
+ * The URL the model registry resolves against. The web app reads its own
+ * origin — the same deploy serves `/models/*` — and the desktop shell, which
+ * runs on its own protocol and bundles no model, reads the site's. Its CSP
+ * names that origin for the same reason.
+ */
+export function cpDetectModelBaseUrl(surface: RuntimeSurface): string | undefined {
+  return surface === 'desktop' ? CP_DETECT_MODEL_ORIGIN : undefined;
+}

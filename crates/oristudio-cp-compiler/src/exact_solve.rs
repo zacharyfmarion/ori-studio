@@ -403,13 +403,34 @@ impl From<ExactSolveOptions> for ExactSolveOptionsWithExemptions {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+thread_local! {
+    /// The Stop a native caller can press. Set by [`with_cancellation`] for the
+    /// length of one solve on the thread running it; every deadline started
+    /// meanwhile carries it, and reads as expired the moment it is raised. The
+    /// web has no need of it — a Stop there terminates the worker.
+    static CANCEL_FLAG: std::cell::RefCell<Option<std::sync::Arc<std::sync::atomic::AtomicBool>>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// Run `solve` with `cancel` as the Stop every deadline inside it honours.
+pub fn with_cancellation<T>(
+    cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    solve: impl FnOnce() -> T,
+) -> T {
+    CANCEL_FLAG.with(|slot| *slot.borrow_mut() = Some(cancel));
+    let result = solve();
+    CANCEL_FLAG.with(|slot| *slot.borrow_mut() = None);
+    result
+}
+
+#[derive(Debug, Clone)]
 struct ExactSolveDeadline {
     timeout_seconds: f64,
     #[cfg(not(target_arch = "wasm32"))]
     started_at: Instant,
     #[cfg(target_arch = "wasm32")]
     started_at_ms: f64,
+    cancel: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
 }
 
 impl ExactSolveDeadline {
@@ -420,7 +441,14 @@ impl ExactSolveDeadline {
             started_at: Instant::now(),
             #[cfg(target_arch = "wasm32")]
             started_at_ms: js_sys::Date::now(),
+            cancel: CANCEL_FLAG.with(|slot| slot.borrow().clone()),
         }
+    }
+
+    fn cancelled(&self) -> bool {
+        self.cancel
+            .as_ref()
+            .is_some_and(|flag| flag.load(std::sync::atomic::Ordering::Relaxed))
     }
 
     fn elapsed_seconds(&self) -> f64 {
@@ -435,9 +463,10 @@ impl ExactSolveDeadline {
     }
 
     fn expired(&self) -> bool {
-        self.timeout_seconds.is_finite()
-            && self.timeout_seconds >= 0.0
-            && self.elapsed_seconds() >= self.timeout_seconds
+        self.cancelled()
+            || (self.timeout_seconds.is_finite()
+                && self.timeout_seconds >= 0.0
+                && self.elapsed_seconds() >= self.timeout_seconds)
     }
 }
 
@@ -453,6 +482,66 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
 /// [`solve_exact`] with a per-vertex movement-budget exemption set; see
 /// [`ExactSolveOptionsWithExemptions`]. With an empty exemption set this is
 /// [`solve_exact`].
+/// Solve options from a JSON object of overrides over the defaults, as every
+/// bridge hands them over. Empty or `null` is the defaults; an unknown key is
+/// an error rather than a silent no-op, because neither options type denies
+/// unknown fields and `#[serde(flatten)]` swallows leftovers outright.
+pub fn exact_solve_options_from_json(
+    text: &str,
+) -> Result<ExactSolveOptionsWithExemptions, String> {
+    let defaults = ExactSolveOptionsWithExemptions::from(ExactSolveOptions::default());
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return Ok(defaults);
+    }
+    let overrides = match serde_json::from_str(trimmed).map_err(|error| error.to_string())? {
+        serde_json::Value::Null => return Ok(defaults),
+        serde_json::Value::Object(map) => map,
+        _ => return Err("exact solve options must be a JSON object".to_owned()),
+    };
+    let serde_json::Value::Object(mut merged) =
+        serde_json::to_value(defaults).map_err(|error| error.to_string())?
+    else {
+        return Err("exact solve options did not serialize to an object".to_owned());
+    };
+    for (key, value) in overrides {
+        if !merged.contains_key(&key) {
+            return Err(format!("unknown exact solve option {key:?}"));
+        }
+        merged.insert(key, value);
+    }
+    serde_json::from_value(serde_json::Value::Object(merged)).map_err(|error| error.to_string())
+}
+
+/// An exact-solve request as the bridges receive it: the input JSON and the
+/// options JSON, checked against each other — an exemption naming a vertex the
+/// input does not have is refused here rather than ignored.
+pub fn parse_exact_solve_request(
+    input_json: &str,
+    options_json: &str,
+) -> Result<(ExactSolveInput, ExactSolveOptionsWithExemptions), String> {
+    let input: ExactSolveInput =
+        serde_json::from_str(input_json.trim()).map_err(|error| error.to_string())?;
+    let options = exact_solve_options_from_json(options_json)?;
+    let known: BTreeSet<usize> = input.vertices.iter().map(|vertex| vertex.id).collect();
+    let unknown: Vec<usize> = options
+        .exempt_vertex_ids
+        .iter()
+        .copied()
+        .filter(|id| !known.contains(id))
+        .collect();
+    if !unknown.is_empty() {
+        let shown: Vec<String> = unknown.iter().take(8).map(|id| id.to_string()).collect();
+        let suffix = if unknown.len() > 8 { ", …" } else { "" };
+        return Err(format!(
+            "exempt_vertex_ids names {} vertex id(s) absent from the solve input: {}{suffix}",
+            unknown.len(),
+            shown.join(", ")
+        ));
+    }
+    Ok((input, options))
+}
+
 pub fn solve_exact_with_exemptions(
     input: &ExactSolveInput,
     options: &ExactSolveOptionsWithExemptions,
@@ -4816,6 +4905,35 @@ fn round12(value: f64) -> f64 {
 }
 
 #[cfg(test)]
+mod request_and_cancellation_tests {
+    use super::*;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    #[test]
+    fn options_json_merges_over_defaults_and_refuses_unknown_keys() {
+        let defaults = ExactSolveOptionsWithExemptions::from(ExactSolveOptions::default());
+        assert_eq!(exact_solve_options_from_json(""), Ok(defaults.clone()));
+        assert_eq!(exact_solve_options_from_json("null"), Ok(defaults));
+        let parsed = exact_solve_options_from_json(r#"{"timeout_seconds": -1}"#).expect("parse");
+        assert_eq!(parsed.options.timeout_seconds, -1.0);
+        assert!(exact_solve_options_from_json(r#"{"timeout_secondz": 1}"#).is_err());
+    }
+
+    #[test]
+    fn a_raised_flag_reads_as_an_expired_deadline() {
+        let flag = Arc::new(AtomicBool::new(false));
+        let deadline = with_cancellation(flag.clone(), || ExactSolveDeadline::start(-1.0));
+        assert!(!deadline.expired(), "no deadline and no stop: not expired");
+        flag.store(true, Ordering::Relaxed);
+        assert!(deadline.expired(), "the stop is the deadline");
+        // Outside `with_cancellation` a deadline carries no flag.
+        let plain = ExactSolveDeadline::start(-1.0);
+        assert!(!plain.expired());
+    }
+}
+
+#[cfg(test)]
 mod sparse_step_tests {
     use super::*;
 
@@ -6946,5 +7064,19 @@ mod tests {
             provenance: vec![Provenance::LegacyDecoder],
             reasons: Vec::new(),
         }
+    }
+    #[test]
+    fn a_request_naming_an_absent_exempt_vertex_is_refused() {
+        let input =
+            serde_json::to_string(&four_ray_input(Point2 { x: 0.5, y: 0.5 })).expect("json");
+        let error = parse_exact_solve_request(&input, r#"{"exempt_vertex_ids": [70]}"#)
+            .expect_err("unknown id");
+        assert!(
+            error.contains("exempt_vertex_ids names 1 vertex id(s)"),
+            "{error}"
+        );
+        let (_, options) =
+            parse_exact_solve_request(&input, r#"{"exempt_vertex_ids": [4]}"#).expect("known id");
+        assert!(options.exempt_vertex_ids.contains(&4));
     }
 }

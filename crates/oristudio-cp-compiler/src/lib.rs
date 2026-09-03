@@ -46,7 +46,8 @@ pub use exact_solve::{
     AngleDependentTopologyFindings, AngleFamilyMode, CamvCounts, CombinatorialTopologyFindings,
     DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS, ExactSolveOptions, ExactSolveOptionsWithExemptions,
     LinearSolver, TopologyDiagnostics, TopologyVertexDiagnostic, analyze_candidate_topology,
-    camv_violation_counts, solve_exact, solve_exact_with_exemptions,
+    camv_violation_counts, exact_solve_options_from_json, parse_exact_solve_request, solve_exact,
+    solve_exact_with_exemptions, with_cancellation,
 };
 pub use fold_exactize::{
     ExactizeOutcome, ExactizeStatus, Similarity, exact_solve_input_from_fold, exactize_fold,

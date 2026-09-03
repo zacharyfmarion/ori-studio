@@ -15,6 +15,8 @@ import {
   type CpDetectModelVersion,
 } from '../lib/cpDetectModels';
 import { bucketCount, CP_DETECT_INFERENCE_MS_BUCKETS, DURATION_MS_BUCKETS } from '../analytics/events';
+import { cpDetectModelBaseUrl } from '../platform/features';
+import { getRuntimeSurface } from '../platform/runtime';
 
 export interface DetectorModelState {
   registry: CpDetectModelRegistry;
@@ -36,11 +38,15 @@ export interface DetectorModelClient {
 
 export async function loadDetectorModel(
   client: DetectorModelClient,
-  options: { fetchImpl?: typeof fetch; store?: CpDetectModelStore } = {}
+  options: { fetchImpl?: typeof fetch; store?: CpDetectModelStore; base?: string } = {}
 ): Promise<DetectorModelState> {
+  const base = options.base ?? cpDetectModelBaseUrl(getRuntimeSurface());
   const registry = await fetchCpDetectModelRegistry({
     fetchImpl: options.fetchImpl,
-    fallbackManifestUrl: DEFAULT_CP_DETECT_MODEL_MANIFEST_URL,
+    base,
+    // A dev checkout serves no registry and reads its local manifest instead;
+    // the desktop shell has no local manifest to fall back to.
+    fallbackManifestUrl: base ? null : DEFAULT_CP_DETECT_MODEL_MANIFEST_URL,
   });
   const store = options.store ?? defaultCpDetectModelStore();
   const status = cpDetectModelStatus(registry, await store.list());

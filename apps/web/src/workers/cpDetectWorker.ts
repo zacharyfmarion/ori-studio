@@ -30,7 +30,6 @@ import type {
 } from '../engine/cpDetectTypes';
 import {
   CP_DETECT_DEFAULT_JUNCTION_SOURCE,
-  CP_DETECT_DEFAULT_LINE_EVIDENCE_SOURCE,
   cpDetectCandidateSourceFromFold,
   cpDetectSolveInput,
   cpDetectSolveState,
@@ -58,6 +57,13 @@ import {
   type CpDetectModelVersion,
 } from '../lib/cpDetectModels';
 import { isCpDetectBuildEnabled } from '../platform/features';
+import {
+  detectedJunctionSource,
+  recognizeContractError,
+  resolveLineEvidenceSource,
+  withLineEvidenceSource,
+  type DecodedFold,
+} from '../lib/cpDetectDecode';
 
 let wasmReady: Promise<void> | null = null;
 let sessionPromise: Promise<CpDetectSessionRuntime> | null = null;
@@ -539,10 +545,7 @@ async function denseInferenceForImage(
   };
 }
 
-type WasmDecodedFold = {
-  fold_json: string;
-  report: CpDetectFoldResult['detectorReport'];
-};
+type WasmDecodedFold = DecodedFold;
 
 interface DecodedRectifiedImage extends WasmDecodedFold {
   manifest: CpDetectModelManifest;
@@ -595,14 +598,6 @@ async function decodeRectifiedImage(
  * asked for a candidate to repair and would otherwise be handed solved geometry
  * under a type that says it is unsolved.
  */
-function recognizeContractError(detail: string): WasmErrorEnvelope {
-  return {
-    code: 'cp_detect_recognize_contract',
-    message:
-      `Recognize-only was requested but ${detail}. The generated wasm bridge is probably ` +
-      'stale — rebuild it with `npm --workspace @treemaker/web run build:oristudio-cp-detect-wasm`.',
-  };
-}
 
 function decodeFoldFromDenseOutputs(
   image: ImageData,
@@ -674,33 +669,7 @@ function decodeFoldFromDenseOutputs(
   );
 }
 
-function resolveLineEvidenceSource(
-  value: CpDetectWorkerRunOptions['lineEvidenceSource']
-): CpDetectLineEvidenceSource {
-  if (value === undefined || value === null || value === CP_DETECT_DEFAULT_LINE_EVIDENCE_SOURCE) {
-    return CP_DETECT_DEFAULT_LINE_EVIDENCE_SOURCE;
-  }
-  if (value === 'dense-model') {
-    return 'dense-model';
-  }
-  throw new Error(`Unsupported CP detector line evidence source: ${String(value)}`);
-}
 
-function withLineEvidenceSource(
-  decoded: WasmDecodedFold,
-  lineEvidenceSource: CpDetectLineEvidenceSource
-): WasmDecodedFold {
-  return {
-    ...decoded,
-    report: {
-      ...decoded.report,
-      quality_report: {
-        ...(decoded.report.quality_report ?? {}),
-        line_evidence_source: lineEvidenceSource,
-      },
-    },
-  };
-}
 
 type WasmRectifiedImage = {
   readonly width: number;
@@ -750,15 +719,6 @@ function enqueueOrtOperation<T>(operation: () => Promise<T>): Promise<T> {
   return run;
 }
 
-function detectedJunctionSource(
-  report: CpDetectFoldResult['detectorReport'],
-  fallback: CpDetectJunctionSource
-): CpDetectJunctionSource {
-  const source = report.quality_report?.junction_source;
-  return source === 'dense-model' || source === 'line-arrangement' || source === 'vertex-refiner-v3'
-    ? source
-    : fallback;
-}
 
 export type CpDetectWorkerApi = typeof api;
 
