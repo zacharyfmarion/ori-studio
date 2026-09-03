@@ -261,6 +261,14 @@
         "1": "Pick destination point"
       }
     },
+    "cp_action_vertex_move": {
+      "label": "Move Vertex",
+      "tooltip": "Drag a vertex — every crease that ends there follows",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Drag a vertex to move it"
+      }
+    },
     "cp_action_crease_make_mountain": {
       "label": "Make mountain",
       "tooltip": "Make selected lines mountain folds",

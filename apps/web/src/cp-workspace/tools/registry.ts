@@ -8,9 +8,10 @@ import type { ToolEngine } from './types';
 import { dragLineTool } from './dragLineTool';
 import { dragBoxTool } from './dragBoxTool';
 import { dragPathTool } from './dragPathTool';
+import { dragVertexTool } from './dragVertexTool';
 
 /** Drag input modes handled by a local-preview engine. */
-export type ToolInputMode = 'drag-line' | 'drag-box' | 'drag-path';
+export type ToolInputMode = 'drag-line' | 'drag-box' | 'drag-path' | 'drag-vertex';
 
 // State shapes differ per engine; the runtime type-erases them, so the registry
 // holds engines by their common interface.
@@ -19,6 +20,7 @@ const ENGINES: Record<ToolInputMode, ToolEngine<any>> = {
   'drag-line': dragLineTool,
   'drag-box': dragBoxTool,
   'drag-path': dragPathTool,
+  'drag-vertex': dragVertexTool,
 };
 
 export function toolEngineFor(mode: ToolInputMode): ToolEngine<unknown> {

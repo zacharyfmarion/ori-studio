@@ -261,6 +261,14 @@
         "1": "Choisissez le point de destination"
       }
     },
+    "cp_action_vertex_move": {
+      "label": "Déplacer le sommet",
+      "tooltip": "Faites glisser un sommet : tous les plis qui s’y terminent le suivent",
+      "disabledReason": "Prêt",
+      "steps": {
+        "0": "Faites glisser un sommet pour le déplacer"
+      }
+    },
     "cp_action_crease_make_mountain": {
       "label": "Définir comme montagne",
       "tooltip": "Définir les lignes sélectionnées comme plis montagne",

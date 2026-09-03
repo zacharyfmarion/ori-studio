@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CP_ACTIVE_TOOL_MODES,
   cpPointerReleaseRoute,
+  toolModeArmsDrawStart,
   toolModeSnapsDrawPoint,
   type ActiveToolMode,
   type CpReleaseState,
@@ -139,6 +140,7 @@ describe('cpPointerReleaseRoute', () => {
         'drag-line',
         'drag-box',
         'drag-path',
+        'drag-vertex',
         'sequence',
         'line-entity',
         'lengthen',
@@ -150,21 +152,24 @@ describe('cpPointerReleaseRoute', () => {
   });
 });
 
+const SNAPPING_MODES: ActiveToolMode[] = ['drag-line', 'angle-drag', 'drag-vertex'];
+const ARMING_MODES: ActiveToolMode[] = ['drag-line', 'angle-drag'];
+
 describe('toolModeSnapsDrawPoint', () => {
-  // Both crease-draw modes run `dragLineTool`, whose click-vs-drag test measures the
-  // release against the start. Angle Restricted Line used to snap only its press, so
-  // the snap displacement (up to a 10px radius, against a 4px click threshold) read as
-  // pointer travel and a stationary click near a vertex committed a crease from the
-  // vertex to the cursor. Both modes must be in this set for that test to compare like
+  // Every mode here measures a release against a start, so a phase left unsnapped
+  // makes the snap displacement itself read as pointer travel. Angle Restricted
+  // Line used to snap only its press (a 10px radius against a 4px click
+  // threshold), so a stationary click near a vertex committed a crease from the
+  // vertex to the cursor. Move Vertex is in the same position: its anchor is a
+  // junction the surface resolved, so its release must be snapped to compare like
   // with like.
-  it('includes every mode that feeds the draw engine', () => {
-    expect(toolModeSnapsDrawPoint('drag-line')).toBe(true);
-    expect(toolModeSnapsDrawPoint('angle-drag')).toBe(true);
+  it.each(SNAPPING_MODES)('snaps %s, which measures a release against a start', (mode) => {
+    expect(toolModeSnapsDrawPoint(mode)).toBe(true);
   });
 
   // Selection/erase boxes and freehand paths follow the raw cursor, so a rubber-band
   // select doesn't jump to nearby points.
-  it.each(CP_ACTIVE_TOOL_MODES.filter((mode) => mode !== 'drag-line' && mode !== 'angle-drag'))(
+  it.each(CP_ACTIVE_TOOL_MODES.filter((mode) => !SNAPPING_MODES.includes(mode)))(
     'leaves %s on the raw cursor',
     (mode) => {
       expect(toolModeSnapsDrawPoint(mode)).toBe(false);
@@ -173,5 +178,33 @@ describe('toolModeSnapsDrawPoint', () => {
 
   it('is false with no tool active', () => {
     expect(toolModeSnapsDrawPoint(null)).toBe(false);
+  });
+});
+
+describe('toolModeArmsDrawStart', () => {
+  // The predicate that used to be conflated with snapping. `drawRuntime` hands
+  // every arming mode the *persistent drag-line runtime*, so a mode listed here by
+  // mistake draws creases instead of running its own engine — which is what would
+  // have happened to Move Vertex had the two stayed one predicate.
+  it.each(ARMING_MODES)('%s parks a start between gestures', (mode) => {
+    expect(toolModeArmsDrawStart(mode)).toBe(true);
+  });
+
+  it.each(CP_ACTIVE_TOOL_MODES.filter((mode) => !ARMING_MODES.includes(mode)))(
+    '%s opens a fresh engine per press',
+    (mode) => {
+      expect(toolModeArmsDrawStart(mode)).toBe(false);
+    }
+  );
+
+  it('is a strict subset of the snapping modes', () => {
+    // Arming implies snapping (both arming modes run `dragLineTool`), but not the
+    // reverse — that asymmetry is the whole reason the two are separate.
+    for (const mode of ARMING_MODES) expect(toolModeSnapsDrawPoint(mode)).toBe(true);
+    expect(SNAPPING_MODES.some((mode) => !ARMING_MODES.includes(mode))).toBe(true);
+  });
+
+  it('is false with no tool active', () => {
+    expect(toolModeArmsDrawStart(null)).toBe(false);
   });
 });

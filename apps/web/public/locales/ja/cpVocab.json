@@ -261,6 +261,14 @@
         "1": "コピー先の点を選択"
       }
     },
+    "cp_action_vertex_move": {
+      "label": "頂点を移動",
+      "tooltip": "ドラッグした頂点に、そこで終わるすべての折り線が追従します",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "頂点をドラッグして移動"
+      }
+    },
     "cp_action_crease_make_mountain": {
       "label": "山折りにする",
       "tooltip": "選択した線を山折りにします",

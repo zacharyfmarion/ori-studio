@@ -261,6 +261,14 @@
         "1": "选取目标点"
       }
     },
+    "cp_action_vertex_move": {
+      "label": "移动顶点",
+      "tooltip": "拖动顶点，所有以该点为端点的折痕随之移动",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "拖动顶点以移动"
+      }
+    },
     "cp_action_crease_make_mountain": {
       "label": "设为山折",
       "tooltip": "将所选线设为山折",
