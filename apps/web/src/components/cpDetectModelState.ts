@@ -44,9 +44,10 @@ export async function loadDetectorModel(
   const registry = await fetchCpDetectModelRegistry({
     fetchImpl: options.fetchImpl,
     base,
-    // A dev checkout serves no registry and reads its local manifest instead;
-    // the desktop shell has no local manifest to fall back to.
-    fallbackManifestUrl: base ? null : DEFAULT_CP_DETECT_MODEL_MANIFEST_URL,
+    // A dev checkout serves no registry and reads its local manifest instead.
+    // A deployed desktop shell has no local manifest to fall back to; a dev
+    // shell is pointed at the dev server, which has one.
+    fallbackManifestUrl: base && !import.meta.env.DEV ? null : DEFAULT_CP_DETECT_MODEL_MANIFEST_URL,
   });
   const store = options.store ?? defaultCpDetectModelStore();
   const status = cpDetectModelStatus(registry, await store.list());

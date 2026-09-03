@@ -90,7 +90,7 @@ export function useDetectorModels(deps: DetectorModelsDeps = {}): DetectorModels
         fetchCpDetectModelRegistry({
           fetchImpl,
           base,
-          fallbackManifestUrl: base ? null : DEFAULT_CP_DETECT_MODEL_MANIFEST_URL,
+          fallbackManifestUrl: base && !import.meta.env.DEV ? null : DEFAULT_CP_DETECT_MODEL_MANIFEST_URL,
         }),
         store.list(),
       ]);
