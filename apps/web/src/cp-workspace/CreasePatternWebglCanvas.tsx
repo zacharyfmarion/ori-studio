@@ -2266,6 +2266,12 @@ export function CreasePatternWebglCanvas({
         setToolPreview(null);
         if (kernelPreviewed) publishAnglePreview(undefined, { x: 0, y: 0 });
         if (snaps) syncArmedDrawPoint(out.livePoints, null);
+        // Before the early return, not after the resolve below: a cancel carries
+        // no cursor to resolve. Leaving it to the drag-vertex block further down
+        // stranded the moved creases at the dragged position with the document
+        // unchanged — which a `pointercancel` makes routine, since iOS raises one
+        // whenever the system claims a touch.
+        if (mode === 'drag-vertex') liveRef.current.clearTransformPreview();
         renderNow();
         return;
       }
@@ -2318,10 +2324,10 @@ export function CreasePatternWebglCanvas({
           renderer.setStrokes(liveRef.current.buildStrokes(move));
           renderer.setPoints(liveRef.current.buildPoints(move));
           cpTransformPreviewStore.set(move);
-        } else if (kind !== 'move' && !out.commit) {
-          // A click in place, or a cancel: put the strokes back. A *commit* leaves
-          // them where the cursor left them, so the creases do not snap home for a
-          // frame before the document lands.
+        } else if (kind === 'up' && !out.commit) {
+          // A click in place: put the strokes back. A *commit* leaves them where
+          // the cursor left them, so the creases do not snap home for a frame
+          // before the document lands. (`cancel` returned above.)
           liveRef.current.clearTransformPreview();
         }
       }
