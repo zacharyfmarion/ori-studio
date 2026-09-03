@@ -909,7 +909,10 @@ export function CpDetectImportModal() {
               {t('dialogs:cpDetectImport.chooseImage', 'Choose Image')}
             </Button>
             <div className="cp-detect-modal__drop-hint">{t('dialogs:cpDetectImport.dropImageHere', 'Drop image here')}</div>
-            <CpDetectModelLine model={model} progress={modelProgress} updating={modelUpdating} onUpdate={() => void updateModel()} />
+            {/* No model line here. Which detector is installed, and how big the
+                first download is, are the crop step's business — that is where
+                Detect is the next press. Asked for an image, the user does not
+                need the implementation behind it. */}
             {status && (
               <div className="cp-detect-modal__inline-status">
                 <Loader2 size={14} className="cp-detect-modal__spinner" />
