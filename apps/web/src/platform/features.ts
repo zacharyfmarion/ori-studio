@@ -80,11 +80,19 @@ export function cpDetectModelOriginOverride(
  * origin — the same deploy serves `/models/*` — and the desktop shell, which
  * runs on its own protocol and bundles no model, reads the site's. Its CSP
  * names that origin for the same reason. A build-time override wins on both.
+ *
+ * A *dev* desktop shell is served by the dev server, so it reads that, the
+ * way a dev browser does: no registry, and the local manifest as the fallback.
+ * Reading the site from a dev shell was measured to disable the dialog — the
+ * site answers every unknown path with the app's HTML, status 200, so both the
+ * registry and the fallback manifest parsed as nothing, and a registry a
+ * branch adds is not on the site until the branch merges anyway.
  */
 export function cpDetectModelBaseUrl(
   surface: RuntimeSurface,
-  override: string | undefined = cpDetectModelOriginOverride()
+  override: string | undefined = cpDetectModelOriginOverride(),
+  dev: boolean = Boolean(import.meta.env.DEV)
 ): string | undefined {
   if (override) return override;
-  return surface === 'desktop' ? CP_DETECT_MODEL_ORIGIN : undefined;
+  return surface === 'desktop' && !dev ? CP_DETECT_MODEL_ORIGIN : undefined;
 }

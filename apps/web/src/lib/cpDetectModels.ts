@@ -233,10 +233,25 @@ export async function fetchCpDetectModelRegistry(
   }
   if (options.fallbackManifestUrl) {
     const manifestUrl = new URL(options.fallbackManifestUrl, base).toString();
-    const response = await fetchImpl(manifestUrl);
-    if (response.ok) {
-      const manifest = JSON.parse(await response.text()) as CpDetectModelManifest;
-      return registryFromManifest(manifest, manifestUrl);
+    // A fallback that is itself broken — unreachable, or a site answering
+    // the path with its HTML — is reported as the registry failure it was
+    // standing in for, with its own problem named, rather than as a bare
+    // parse error that says neither.
+    try {
+      const response = await fetchImpl(manifestUrl);
+      if (response.ok) {
+        const manifest = JSON.parse(await response.text()) as CpDetectModelManifest;
+        return registryFromManifest(manifest, manifestUrl);
+      }
+      failure = new CpDetectModelError(
+        failure.code,
+        `${failure.message}; the local manifest answered ${response.status}`
+      );
+    } catch (error) {
+      failure = new CpDetectModelError(
+        failure.code,
+        `${failure.message}; the local manifest could not be read: ${describe(error)}`
+      );
     }
   }
   throw failure;

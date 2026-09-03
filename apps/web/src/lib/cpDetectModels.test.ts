@@ -156,6 +156,32 @@ describe('the model registry', () => {
       fetchCpDetectModelRegistry({ fetchImpl: fetchOf({}), base: 'https://example.test/' })
     ).rejects.toMatchObject({ code: 'registry_unavailable' });
   });
+
+  /**
+   * The site answers every unknown path with the app's HTML, status 200 — a
+   * registry not yet deployed looks exactly like this from a desktop shell.
+   * Both reads then parse as nothing, and what the caller must get is the
+   * registry's failure naming both, never a bare SyntaxError from the fallback.
+   */
+  it('reports a site answering the fallback path with HTML as the registry failure', async () => {
+    const html = () => new Response('<!doctype html><title>Ori Studio</title>', {
+      status: 200,
+      headers: { 'content-type': 'text/html' },
+    });
+    await expect(
+      fetchCpDetectModelRegistry({
+        fetchImpl: fetchOf({
+          'https://example.test/models/registry.json': html,
+          'https://example.test/models/cp-detector-v3/manifest.json': html,
+        }),
+        base: 'https://example.test/',
+        fallbackManifestUrl: '/models/cp-detector-v3/manifest.json',
+      })
+    ).rejects.toMatchObject({
+      code: 'registry_invalid',
+      message: expect.stringMatching(/not JSON; the local manifest could not be read/),
+    });
+  });
 });
 
 describe('downloading a model', () => {
