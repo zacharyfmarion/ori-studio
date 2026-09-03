@@ -59,14 +59,24 @@ export const CP_CHECK_CLASSES: readonly CpCheckClass[] = [
 ];
 
 /**
- * What a freshly created region suppresses: the two angle classes.
+ * What a region created by hand suppresses: every class.
  *
- * Also detection's preset, and for the same reason — those are the classes an
- * inexact candidate trips everywhere, while the combinatorial ones stay
- * meaningful. A region created by hand starts here too rather than empty,
- * because a region suppressing nothing is indistinguishable from no region.
+ * A hand-drawn region is a "not now" over a part of the pattern the user is
+ * still working on, and a region suppressing nothing is indistinguishable
+ * from no region — so it starts with everything off, and the chip's toggles
+ * bring classes back one at a time. It used to start with the two angle
+ * classes, detection's preset, which left the combinatorial markers showing
+ * inside a region drawn to quiet them.
  */
-export const DEFAULT_SUPPRESSED_CHECK_CLASSES: readonly CpCheckClass[] = [
+export const DEFAULT_SUPPRESSED_CHECK_CLASSES: readonly CpCheckClass[] = CP_CHECK_CLASSES;
+
+/**
+ * What a region created by a detection import suppresses: the two angle
+ * classes only. Those are what an inexact candidate trips at every vertex
+ * before its solve, while the combinatorial ones — odd degree, Maekawa — stay
+ * meaningful and are the repair worklist the solve waits on.
+ */
+export const DETECT_SUPPRESSED_CHECK_CLASSES: readonly CpCheckClass[] = [
   'kawasaki',
   'bigLittleBig',
 ];

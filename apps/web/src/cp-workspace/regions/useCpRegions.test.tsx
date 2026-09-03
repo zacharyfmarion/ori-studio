@@ -42,7 +42,15 @@ function finding(
 
 function boxAt(x: number, y: number, id: string, extra: Partial<CpSuppressionRegion> = {}) {
   return {
-    ...createCpSuppressionRegion({ id, center: { x, y }, width: 2, height: 2 }),
+    // The two angle classes, stated: the hand-drawn default is every class,
+    // and these tests count what an angle-only region hides and toggles.
+    ...createCpSuppressionRegion({
+      id,
+      center: { x, y },
+      width: 2,
+      height: 2,
+      suppress: ['kawasaki', 'bigLittleBig'],
+    }),
     ...extra,
   };
 }

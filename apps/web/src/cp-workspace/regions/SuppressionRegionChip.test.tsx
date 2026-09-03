@@ -40,7 +40,14 @@ const NOOP = () => {};
 
 function region(patch: Partial<CpSuppressionRegion> = {}): CpSuppressionRegion {
   return {
-    ...createCpSuppressionRegion({ center: { x: 0.5, y: 0.5 }, width: 1, height: 1 }),
+    // The two angle classes, stated: the hand-drawn default is every class,
+    // and these tests read the chip with two ticked and two not.
+    ...createCpSuppressionRegion({
+      center: { x: 0.5, y: 0.5 },
+      width: 1,
+      height: 1,
+      suppress: ['kawasaki', 'bigLittleBig'],
+    }),
     ...patch,
   };
 }

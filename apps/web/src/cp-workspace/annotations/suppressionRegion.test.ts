@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   CP_CHECK_CLASSES,
-  DEFAULT_SUPPRESSED_CHECK_CLASSES,
   createCpSuppressionRegion,
+  DEFAULT_SUPPRESSED_CHECK_CLASSES,
+  DETECT_SUPPRESSED_CHECK_CLASSES,
   hasAttachedSolveInput,
   suppressesCheckClass,
-  validateCpSuppressionRegion,
-  validateCpSuppressionRegions,
   type CpSuppressionRegion,
   type CreateCpSuppressionRegionInput,
+  validateCpSuppressionRegion,
+  validateCpSuppressionRegions,
 } from './suppressionRegion';
 import {
   annotationAspectLockPolicy,
@@ -41,8 +42,11 @@ function region(overrides: Partial<Parameters<typeof createCpSuppressionRegion>[
 
 describe('createCpSuppressionRegion', () => {
   it('suppresses the two angle classes by default', () => {
-    expect(region().suppress).toEqual(['kawasaki', 'bigLittleBig']);
-    expect(DEFAULT_SUPPRESSED_CHECK_CLASSES).toEqual(['kawasaki', 'bigLittleBig']);
+    expect(region().suppress).toEqual(['kawasaki', 'bigLittleBig', 'maekawa', 'vertexClosure']);
+    expect(DEFAULT_SUPPRESSED_CHECK_CLASSES).toEqual(CP_CHECK_CLASSES);
+    // Detection's preset stays the two angle classes: the combinatorial
+    // markers are the repair worklist its solve waits on.
+    expect(DETECT_SUPPRESSED_CHECK_CLASSES).toEqual(['kawasaki', 'bigLittleBig']);
   });
 
   it('refuses to be created hidden — at compile time', () => {
@@ -136,6 +140,8 @@ describe('validateCpSuppressionRegion', () => {
     expect(validateCpSuppressionRegion(withoutSuppress)?.suppress).toEqual([
       'kawasaki',
       'bigLittleBig',
+      'maekawa',
+      'vertexClosure',
     ]);
     // Present but unrecognisable is a different case: the user really did have a
     // set, and every member of it is gone, so an empty one is the honest answer.

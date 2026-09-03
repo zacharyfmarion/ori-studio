@@ -65,7 +65,7 @@ import { cpCamera } from '../cp-workspace/renderer/cpCameraRegistry';
 import { bottomAnnotationZ, type CanvasAnnotation } from '../cp-workspace/annotations/annotation';
 import {
   createCpSuppressionRegion,
-  DEFAULT_SUPPRESSED_CHECK_CLASSES,
+  DETECT_SUPPRESSED_CHECK_CLASSES,
 } from '../cp-workspace/annotations/suppressionRegion';
 import { createCpImage, IMAGE_JPEG_QUALITY } from '../cp-workspace/images/cpImage';
 import { Button } from './ui/Button';
@@ -1803,7 +1803,7 @@ function repairAnnotations(
       center,
       width: paperWidth + 2 * margin,
       height: paperHeight + 2 * margin,
-      suppress: DEFAULT_SUPPRESSED_CHECK_CLASSES,
+      suppress: DETECT_SUPPRESSED_CHECK_CLASSES,
       label,
       // Verbatim and unread here: its presence is what gives the region a Solve
       // affordance, and only detection produces one.
