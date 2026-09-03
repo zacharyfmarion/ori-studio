@@ -866,6 +866,7 @@ pub enum OperationId {
     // alongside their thematic neighbours, so this list keeps reading as
     // Oriedita's source map with our additions visible at the end.
     SquareGenerate,
+    VertexMove,
 }
 
 /// Source-map descriptor for an Oriedita operation.
@@ -1920,6 +1921,14 @@ const OPERATION_DESCRIPTORS: &[OperationDescriptor] = &[
         8,
         UnitTested
     ),
+    descriptor!(
+        native VertexMove,
+        "OriStudioVertexMove",
+        "operations::native::vertex::move_vertex",
+        Kernel,
+        8,
+        UnitTested
+    ),
 ];
 
 /// Return all source-mapped Oriedita operation descriptors.
@@ -2352,6 +2361,17 @@ fn dispatch_command(
                 );
             }
             corners.len()
+        }
+        OperationId::VertexMove => {
+            // [from, to]. A `from` with no vertex on it moves nothing and is not
+            // an error: the surface gates the press on a vertex being there, and
+            // a race between that gate and the document is a miss, not a failure.
+            let points = required_points(&command, 2)?;
+            operations::native::vertex::move_vertex(
+                &mut document.crease_pattern,
+                points[0],
+                points[1],
+            )
         }
         OperationId::DrawBlintz
         | OperationId::DrawFishBase

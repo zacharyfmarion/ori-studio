@@ -20,3 +20,4 @@ pub mod direction_hint;
 pub mod fold_propagation;
 pub mod square;
 pub mod unassign;
+pub mod vertex;
