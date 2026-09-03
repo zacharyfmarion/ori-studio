@@ -203,6 +203,13 @@
     "title": "ツール",
     "trigger": "ツール"
   },
+  "creaseAngle": {
+    "close": "折り線の角度を閉じる",
+    "degrees": "折り線の角度（度）",
+    "fieldTitle": "新しい山折り・谷折りに与える折り角度",
+    "menuRow": "折り線の角度: {{angle}}",
+    "title": "折り線の角度"
+  },
   "divideMode": {
     "count": "個数",
     "countTitle": "線を等分に分割します",
@@ -252,7 +259,21 @@
     "valley": "線 V",
     "yellow": "線 黄"
   },
+  "simulator": {
+    "foldBackward": "折りを戻す",
+    "foldEnd": "折り上がりへ移動",
+    "foldForward": "折りを進める",
+    "foldStart": "平らな状態へ移動",
+    "playPause": "折りたたみの再生 / 一時停止",
+    "replay": "平らな状態から再生",
+    "resetView": "シミュレーターの視点をリセット",
+    "toggleCreases": "折り線",
+    "toggleFaces": "面",
+    "toggleHiddenLines": "隠れ線",
+    "toggleLighting": "ライティング"
+  },
   "viewport": {
+    "contextMenu": "コンテキストメニューを開く",
     "fit": "フィット",
     "more": "その他のビュー操作",
     "pan": "パン",

@@ -286,6 +286,44 @@ export type CommandGroup =
   | 'help'
   | 'other';
 
+/**
+ * The canvas a context menu was raised on.
+ *
+ * The surface, not the panel component: `tree` covers both tree canvases,
+ * because they are one editor mounted twice and a menu opened on either is the
+ * same fact about the same code.
+ */
+export type ContextMenuSurface =
+  | 'crease-pattern'
+  | 'bp-packing'
+  | 'tree'
+  | 'design-tree'
+  | 'simulator';
+
+/**
+ * What the menu was raised *on*, coarsely.
+ *
+ * A closed vocabulary shared by every surface rather than each surface's own
+ * primitive names: the question these menus exist to answer is whether people
+ * right-click on things or on nothing, and one enum keeps that comparable
+ * across canvases. `'empty'` is the interesting one — a menu raised on empty
+ * space with a live selection is the flow this feature was built for.
+ */
+export type ContextMenuTargetKind =
+  | 'empty'
+  | 'selection'
+  | 'crease'
+  | 'point'
+  | 'circle'
+  | 'text'
+  | 'image'
+  | 'folded-figure'
+  | 'flap'
+  | 'river'
+  | 'sheet'
+  | 'node'
+  | 'edge';
+
 /** Where an error was surfaced, for `app error` bucketing. */
 export type AnalyticsErrorDomain =
   | 'bootstrap'
@@ -309,6 +347,21 @@ export const ANALYTICS_EVENTS = {
   appError: 'app error',
   analyticsPreferenceChanged: 'analytics preference changed',
   commandInvoked: 'command invoked',
+  /**
+   * A context menu was raised on a canvas.
+   *
+   * The *open* is the event, not the item picked: an item that is one of the
+   * app's commands already lands on `command invoked` at the `handleMenuAction`
+   * chokepoint, and firing a second event for the same press would double-count
+   * every verb these menus share with the menu bar. What the chokepoint cannot
+   * say is that the menu was opened at all — including the opens that closed
+   * again with nothing chosen, which is exactly the signal for whether the
+   * menus offer the right verbs.
+   *
+   * Carries `surface`, `target_kind`, `has_selection`, `source` (pointer /
+   * keyboard / touch), and a bucketed `item_count`.
+   */
+  contextMenuOpened: 'context menu opened',
   cpToolUsed: 'cp tool used',
   workspaceViewed: 'workspace viewed',
   creasePatternBuilt: 'crease pattern built',
@@ -403,6 +456,25 @@ export const ANALYTICS_EVENTS = {
   // it, so a low count means standing models are rarer than assumed rather than
   // that the verb is hard to find.
   modelUprightSet: 'model upright set',
+  /**
+   * A view cube face was pressed. `face` is one of the six names, which is a
+   * fixed enum and says nothing about the design — where the camera *was* is a
+   * measured value about someone's model and stays out, as it does for
+   * {@link ANALYTICS_EVENTS.modelUprightSet}.
+   *
+   * The question is which faces anyone actually uses: if it is only Top, the
+   * cube is doing the job a "view from above" button would do more cheaply.
+   */
+  simulatorViewCubeSnapped: 'simulator view cube snapped',
+  /**
+   * A quarter turn about the line of sight, from the view cube's arrows.
+   * `direction` is `cw` or `ccw` and says nothing about the design.
+   *
+   * Only the arrows are counted, not the Shift-drag beside them — an orbit drag
+   * is not counted either, and a per-frame event would be noise. The question is
+   * whether anyone finds the control at all.
+   */
+  simulatorViewRolled: 'simulator view rolled',
   foldedFigureRehydrated: 'folded figure rehydrated',
   creasePatternShared: 'crease pattern shared',
   shareLinkCopied: 'share link copied',

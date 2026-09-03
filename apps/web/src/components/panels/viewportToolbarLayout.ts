@@ -41,11 +41,8 @@ export type ViewportToolbarPointer = 'fine' | 'coarse';
  */
 export type ViewportToolbarPhoneBehavior = 'collapse' | 'omit';
 
-/**
- * A control the bar renders itself, and can therefore also render as a menu
- * item — which is what lets it move into the overflow menu on a touch device.
- */
-export interface ViewportToolbarAction {
+/** The half of an action that says nothing about mode-versus-verb. */
+interface ViewportToolbarActionBase {
   kind: 'action';
   id: string;
   /** Accessible name inline, and the item's text in the overflow menu. */
@@ -55,20 +52,20 @@ export interface ViewportToolbarAction {
   icon: ReactNode;
   disabled?: boolean;
   /**
-   * Present ⇒ this is a mode rather than a verb: it renders pressed inline and
-   * as a checked item in the menu.
-   */
-  checked?: boolean;
-  /**
-   * Set on a mode whose being on is not visible anywhere else. The pan tool
-   * qualifies: it changes what a drag on the canvas does and draws nothing.
-   * A layer toggle does not — you can see the layer — and neither does mirror
-   * draw, which puts its axis on the paper.
+   * True **right now** this control is doing something the collapsed bar does
+   * not show — so the overflow trigger lights and it is never silently on.
    *
-   * Such a mode lights the overflow trigger while it is collapsed, so it is
-   * never silently on. Marking the ones that need no announcement is what keeps
-   * that light meaningful: layers default to visible, so counting every checked
-   * item would leave the trigger permanently lit.
+   * The state itself, not a marker for one. It used to be a marker that
+   * `hasUnseenActiveControl` combined with `checked`, which quietly restricted
+   * the signal to modes: a *verb* holding a value away from its default — the
+   * crease angle at 90 — had no way to say so, because it has no `checked` to
+   * be combined with. One flag, answered by whoever knows the answer.
+   *
+   * Set it only where being on is genuinely invisible. The pan tool qualifies:
+   * it changes what a drag does and draws nothing. A layer toggle does not —
+   * you can see the layer — and neither does mirror draw, which puts its axis
+   * on the paper. Lighting the trigger for those would leave it permanently on
+   * and the signal worth nothing.
    */
   unseenWhenCollapsed?: boolean;
   onSelect: () => void;
@@ -81,22 +78,56 @@ export interface ViewportToolbarAction {
   pinned?: boolean;
   /** Overrides {@link pinned} on the phone layout. See {@link ViewportToolbarPhoneBehavior}. */
   onPhone?: ViewportToolbarPhoneBehavior;
-  /**
-   * This action opens a dialog, so the overflow menu must not take focus back
-   * when it closes.
-   *
-   * Radix restores focus to the menu's trigger as it unmounts, asynchronously
-   * and after any mount effect the dialog runs — so without this a dialog opened
-   * from the menu ends up with focus on the toolbar button behind it. That is
-   * invisible with a mouse and total with a screen reader: `aria-modal` hides
-   * everything outside the dialog, and the node holding focus is on the hidden
-   * side of that line, so nothing is announced at all.
-   *
-   * Declared on the action rather than fixed on the menu because the menu's
-   * other exits — Escape, a tap outside — should still hand the trigger back.
-   */
-  opensDialog?: boolean;
 }
+
+/**
+ * A control the bar renders itself, and can therefore also render as a menu
+ * item — which is what lets it move into the overflow menu on a touch device.
+ *
+ * A **mode** or a **verb**, and never both. The two arms are mutually exclusive
+ * on purpose rather than as tidiness: `checked` makes the overflow row a
+ * `CheckboxItem`, which shows a tick in place of the icon and cancels its own
+ * select so a run of layer toggles does not close the menu after each one.
+ * `opensDialog` only means anything *when* the menu closes — it suppresses the
+ * focus restore that would otherwise land behind the dialog. So an action
+ * declaring both is asking for a row that never closes to be careful about how
+ * it closes.
+ *
+ * That contradiction shipped once. The crease-angle row set `checked` to light
+ * the trigger while also setting `opensDialog`, and the result was a row that
+ * showed a tick instead of its protractor and did not close when tapped.
+ */
+export type ViewportToolbarAction = ViewportToolbarActionBase &
+  (
+    | {
+        /**
+         * A mode: it renders pressed inline and as a checked item in the menu,
+         * and selecting it leaves the menu open.
+         */
+        checked: boolean;
+        opensDialog?: never;
+      }
+    | {
+        checked?: undefined;
+        /**
+         * This verb opens a dialog, so the overflow menu must not take focus
+         * back when it closes.
+         *
+         * Radix restores focus to the menu's trigger as it unmounts,
+         * asynchronously and after any mount effect the dialog runs — so without
+         * this a dialog opened from the menu ends up with focus on the toolbar
+         * button behind it. That is invisible with a mouse and total with a
+         * screen reader: `aria-modal` hides everything outside the dialog, and
+         * the node holding focus is on the hidden side of that line, so nothing
+         * is announced at all.
+         *
+         * Declared on the action rather than fixed on the menu because the
+         * menu's other exits — Escape, a tap outside — should still hand the
+         * trigger back.
+         */
+        opensDialog?: boolean;
+      }
+  );
 
 /**
  * A control the bar cannot render for itself: a popover, a form, a named toggle.
@@ -232,14 +263,17 @@ export function viewportToolbarSlots<Group extends { id: string }>(
 }
 
 /**
- * Whether the menu hides a mode that is on and shows nowhere else.
+ * Whether the menu hides a control that is doing something visible nowhere else.
  *
- * Hiding a mode is the one real risk in collapsing controls, and the trigger
- * carries this so the state stays visible. See `unseenWhenCollapsed` for why it
- * is not simply "any checked item".
+ * Hiding one is the real risk in collapsing controls, and the trigger carries
+ * this so the state stays visible. A pure read of `unseenWhenCollapsed`, which
+ * is the state rather than a marker — see that field for why it no longer also
+ * consults `checked`, and why "any checked item" was never the question.
  */
-export function hasUnseenActiveMode(overflow: readonly ViewportToolbarOverflowGroup[]): boolean {
+export function hasUnseenActiveControl(
+  overflow: readonly ViewportToolbarOverflowGroup[]
+): boolean {
   return overflow.some((group) =>
-    group.items.some((item) => item.checked === true && item.unseenWhenCollapsed === true)
+    group.items.some((item) => item.unseenWhenCollapsed === true)
   );
 }

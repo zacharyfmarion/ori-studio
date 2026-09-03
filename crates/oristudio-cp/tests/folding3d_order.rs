@@ -774,9 +774,12 @@ fn a_wall_orders_the_face_its_crease_runs_through() {
 /// Every committed 3D fixture, with the numbers recorded rather than described.
 #[test]
 fn the_committed_fixtures_order_completely() {
-    let expected: [(&str, usize, usize, usize, usize); 5] = [
+    let expected: [(&str, usize, usize, usize, usize); 6] = [
         // fixture, variables, components, couplings, crossings
         ("hinge_90", 0, 0, 0, 0),
+        // Census 0, so no ordering variables — the same degenerate shape as
+        // `hinge_90`, reached a different way (six faces over six planes).
+        ("hole_vertex_90", 0, 0, 0, 0),
         ("box_90", 17, 1, 0, 0),
         ("spikes_small", 36, 1, 8, 0),
         ("spikes_large", 543, 1, 64, 0),

@@ -605,60 +605,6 @@ function createMockEngineApi(initialSnapshot: TreeSnapshot) {
     flatFoldArtifacts: vi.fn(async (foldJson: string) =>
       foldArtifactsFromFold(JSON.parse(foldJson) as FoldDocument)
     ),
-    sequenceAnalyzeFold: vi.fn(async (foldJson: string) => ({
-      normalized: JSON.parse(foldJson) as FoldDocument,
-      folded_vertices: [],
-      faces_flip: [],
-      face_orders: [],
-      states: '1',
-      diagnostics: [],
-    })),
-    sequencePlanFold: vi.fn(async () => ({
-      status: 'complete',
-      steps: [],
-      states: [],
-      diagnostics: [],
-      unresolved_regions: [],
-      search: {
-        states_explored: 1,
-        branches_pruned: 0,
-        repeated_states: 0,
-        timed_out: false,
-        budget_exhausted: false,
-        best_unresolved_creases: 0,
-        target_solves: 0,
-        target_solve_cache_hits: 0,
-        duplicate_candidates_pruned: 0,
-      },
-    })),
-    sequencePlanFoldWithTarget: vi.fn(async (foldJson: string) => ({
-      target: {
-        normalized: JSON.parse(foldJson) as FoldDocument,
-        folded_vertices: [],
-        faces_flip: [],
-        face_orders: [],
-        states: '1',
-        diagnostics: [],
-      },
-      plan: {
-        status: 'complete',
-        steps: [],
-        states: [],
-        diagnostics: [],
-        unresolved_regions: [],
-        search: {
-          states_explored: 1,
-          branches_pruned: 0,
-          repeated_states: 0,
-          timed_out: false,
-          budget_exhausted: false,
-          best_unresolved_creases: 0,
-          target_solves: 0,
-          target_solve_cache_hits: 0,
-          duplicate_candidates_pruned: 0,
-        },
-      },
-    })),
     optimizeScale: vi.fn(async (): Promise<OptimizationReport> => {
       const oldScale = snapshotState.paper.scale;
       snapshotState = makeSnapshot({
@@ -1031,12 +977,7 @@ function loadSnapshotIntoStore(snapshot: TreeSnapshot, title = 'Seed project') {
     oristudioCpSelection: emptyOristudioCpSelection(),
     oristudioCpViewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
     foldArtifacts: null,
-    foldArtifactError: null,
-    sequenceTarget: null,
-    sequencePlan: null,
-    sequenceSimulationFocus: { kind: 'whole' },
-    sequencePlanning: false,
-    sequenceError: null});
+    foldArtifactError: null});
 }
 
 function sampleBpDocument(): import('../../engine/oristudioBpTypes').OristudioBpDocumentState {
@@ -4334,6 +4275,34 @@ describe('workspace store slices', () => {
     expect(oristudioCpMocks.freeOristudioCpFoldedFigure).toHaveBeenCalledWith(31);
   });
 
+  // The sibling of the case above, and it had the same debris with a different
+  // cause: a fold that *throws* left the draft behind as a permanent `error`
+  // row, kept the folded-figure verbs aimed at it, and took the user's crease
+  // selection with it. A failed fold costs the fold, not the selection.
+  it('keeps no figure and gives the selection back when the first fold throws', async () => {
+    resetStores(seedSnapshot());
+    const selection = { ...emptyOristudioCpSelection(), lines: [1] };
+    useWorkspaceStore.setState({
+      activePanelId: 'crease-pattern',
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      oristudioCpSelection: selection,
+    });
+
+    oristudioCpMocks.foldOristudioCpDocument.mockRejectedValueOnce({
+      code: 'fold_interior_cut',
+      message: 'segment 7 at (100, 50) is a border with paper on both sides',
+    });
+
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(false);
+
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toEqual([]);
+    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBeNull();
+    // The engine's own code survives, so `humanizeError` can pick its sentence
+    // rather than falling back to the raw kernel string.
+    expect(useWorkspaceStore.getState().error?.code).toBe('fold_interior_cut');
+    expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([1]);
+  });
+
   it('refuses to refold a figure whose source creases are gone', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
@@ -7302,25 +7271,6 @@ describe('workspace store slices', () => {
     await expect(closedFileRequest).resolves.toBe(closedFileArtifacts);
 
     expect(useWorkspaceStore.getState().foldArtifacts).toBe(currentArtifacts);
-  });
-
-  it('plans a folding sequence from loaded fold artifacts', async () => {
-    const api = resetStores(seedSnapshot());
-    loadSnapshotIntoStore(seedSnapshot());
-    await useWorkspaceStore.getState().buildCreasePattern();
-    useWorkspaceStore
-      .getState()
-      .setSequenceSimulationFocus({ kind: 'sequence_step', stepId: 'stale-step' });
-
-    const plan = await useWorkspaceStore.getState().planFoldingSequence();
-
-    expect(api.sequencePlanFoldWithTarget).toHaveBeenCalledOnce();
-    expect(api.sequenceAnalyzeFold).not.toHaveBeenCalled();
-    expect(api.sequencePlanFold).not.toHaveBeenCalled();
-    expect(plan?.status).toBe('complete');
-    expect(useWorkspaceStore.getState().sequencePlan?.status).toBe('complete');
-    expect(useWorkspaceStore.getState().sequenceSimulationFocus).toEqual({ kind: 'whole' });
-    expect(useWorkspaceStore.getState().sequenceError).toBeNull();
   });
 
   it('does not mark CP ready when build returns no drawable crease pattern', async () => {

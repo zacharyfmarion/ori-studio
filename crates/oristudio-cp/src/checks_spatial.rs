@@ -1476,7 +1476,7 @@ pub fn interior_border_segments(model: &CreasePatternModel) -> Vec<InteriorBorde
     {
         return Vec::new();
     }
-    interior_border_segments_in(&FoldGraph::from_segments(&model.line_segments, true))
+    interior_border_segments_in(&FoldGraph::from_sheet_segments(&model.line_segments))
 }
 
 /// [`interior_border_segments`] against an arrangement the caller already has.

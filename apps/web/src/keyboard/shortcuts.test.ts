@@ -86,6 +86,39 @@ describe('shortcut registry', () => {
     expect(formatKeyChord(chord, { platform: 'other' })).toBe('Ctrl+Shift+S');
   });
 
+  it('prints the arrow keys as glyphs', () => {
+    expect(formatKeyChord({ key: 'arrowleft' })).toBe('←');
+    expect(formatKeyChord({ key: 'arrowright' })).toBe('→');
+    expect(formatKeyChord({ key: 'arrowup' })).toBe('↑');
+    expect(formatKeyChord({ key: 'arrowdown' })).toBe('↓');
+    expect(formatKeyChord({ shift: true, key: 'arrowleft' })).toBe('Shift+←');
+  });
+
+  it.each([
+    ['home', 'Home'],
+    ['end', 'End'],
+    ['pageup', 'Page Up'],
+    ['pagedown', 'Page Down'],
+    ['tab', 'Tab'],
+    ['insert', 'Insert'],
+    ['capslock', 'Caps Lock'],
+    ['contextmenu', 'Menu'],
+  ])('names %s rather than printing the raw key', (key, expected) => {
+    expect(formatKeyChord({ key })).toBe(expected);
+  });
+
+  it('leaves no registry binding printing a raw key name', () => {
+    // The bug this guards: `displayKey`'s fallback only knew single characters
+    // and F-keys, so every other multi-character key fell through as its raw
+    // lowercase `KeyboardEvent.key` — the simulator menu read "Shift+arrowleft".
+    // A new binding on an unnamed key fails here rather than in a screenshot.
+    const raw = SHORTCUT_DEFINITIONS.flatMap((definition) =>
+      definition.defaultChords.map((chord) => formatKeyChord(chord))
+    ).filter((label) => /[a-z]{2}/u.test(label.replace(/Cmd|Ctrl|Meta|Option|Alt|Shift|Page Up|Page Down|Caps Lock|Delete|Backspace|Esc|Enter|Space|Tab|Home|End|Insert|Menu/gu, '')));
+
+    expect(raw).toEqual([]);
+  });
+
   it('keeps hybrid globals while applying Oriedita scoped CP defaults', () => {
     expect(shortcutLabelForAction('file.saveAs')).toMatch(/Shift\+S$/u);
     // Line types sit on the left-hand home row: A/S/D/F.
@@ -203,15 +236,18 @@ describe('shortcut registry', () => {
     });
   });
 
-  it('keeps the mirror family on M and puts the measure tools on Shift+M / Shift+A', () => {
+  it('keeps the mirror family on M and puts the measure tools on Shift+M / Shift+N', () => {
     expect(getResolvedShortcut('cp.action.symmetric-draw')).toEqual({ key: 'm' });
     expect(getResolvedShortcut('cp.action.draw-crease-symmetric')).toEqual({ primary: true, key: 'm' });
     expect(getResolvedShortcut('cp.action.display-length-between-points1')).toEqual({
       key: 'm',
       shift: true,
     });
+    // The angle readout gave Shift+A up to the active crease angle, which is set
+    // between strokes rather than reached for to answer one question. It keeps a
+    // bare Shift+letter of its own rather than losing its chord.
     expect(getResolvedShortcut('cp.action.display-angle-between-three-points1')).toEqual({
-      key: 'a',
+      key: 'n',
       shift: true,
     });
     // The bare keys they shift stay with their own tools.
@@ -220,8 +256,16 @@ describe('shortcut registry', () => {
       /Shift\+M$/u
     );
     expect(shortcutLabelForAction('cp.action.display-angle-between-three-points1')).toMatch(
-      /Shift\+A$/u
+      /Shift\+N$/u
     );
+  });
+
+  // The pen: what angle the creases you draw next take. Distinct from
+  // `cp.action.crease-set-fold-angle` on Shift+F, which sets the angle on what
+  // is already selected — two moments, two chords.
+  it('binds the active crease angle to Shift+A', () => {
+    expect(getResolvedShortcut('cp.setActiveCreaseAngle')).toEqual({ key: 'a', shift: true });
+    expect(shortcutLabelForAction('cp.setActiveCreaseAngle')).toMatch(/Shift\+A$/u);
   });
 
   it('reports import diagnostics for follow-up mapping work', () => {

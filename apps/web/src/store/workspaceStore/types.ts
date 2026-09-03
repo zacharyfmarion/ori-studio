@@ -3,8 +3,6 @@ import type {
   ConditionKind,
   FoldArtifacts,
   FoldDocument,
-  SequencePlan,
-  SequenceTargetState,
   TreeEdit,
   WasmErrorEnvelope,
 } from '../../engine/types';
@@ -125,6 +123,29 @@ export interface OristudioCpHistoryEntry {
 export interface OristudioCpActionRequest {
   id: number;
   operationId: OristudioCpOperationId;
+}
+
+/**
+ * Something the mounted crease-pattern panel must do that is *not* a kernel
+ * operation, and so has no {@link OristudioCpOperationId} to ask for.
+ *
+ * Both current members are UI the panel owns and nothing else can reach: the
+ * image picker closes over the viewport rect and overlay view it places an
+ * image against, and the crease-angle popover anchors to a control on the
+ * panel's own toolbar. One channel with a `kind` rather than one store field per
+ * errand, because a second near-identical request/clear/id-bump trio is the
+ * shape that drifts.
+ */
+export type OristudioCpSurfaceRequestKind = 'insert-image' | 'crease-angle';
+
+export interface OristudioCpSurfaceRequest {
+  /**
+   * Bumped per request, and the reason this is not a boolean: asking twice in a
+   * row has to fire twice. "Insert image, cancel the picker, insert image" is
+   * an ordinary thing to do, and an idempotent flag would ignore the second ask.
+   */
+  id: number;
+  kind: OristudioCpSurfaceRequestKind;
 }
 
 
@@ -650,7 +671,14 @@ export interface ClipboardSliceState {
 export interface ClipboardSliceActions {
   copySelection: () => void;
   cutSelection: () => Promise<void>;
-  pasteClipboard: () => Promise<void>;
+  /**
+   * Paste the clipboard.
+   *
+   * `at` places the pasted bounding box's **top-left** there, for a caller that
+   * has a point — the canvas context menu. Omitted keeps the cascading offset,
+   * which is the only thing a keyboard paste can do.
+   */
+  pasteClipboard: (at?: Point) => Promise<void>;
 }
 
 export type ClipboardSlice = ClipboardSliceState & ClipboardSliceActions;
@@ -691,6 +719,7 @@ export interface CreasePatternSliceState {
   creaseColorMode: CreaseColorMode;
   oristudioCpSelection: OristudioCpSelection;
   oristudioCpActionRequest: OristudioCpActionRequest | null;
+  oristudioCpSurfaceRequest: OristudioCpSurfaceRequest | null;
   /**
    * The crease-pattern tool the user last selected, persisted so it survives
    * panel remounts (e.g. switching to the Simulate workspace and back).
@@ -769,16 +798,7 @@ export interface CreasePatternSliceState {
   foldArtifactRevision: number;
   foldArtifactResolvedRevision: number | null;
   selectedSegmentId: number | null;
-  sequenceTarget: SequenceTargetState | null;
-  sequencePlan: SequencePlan | null;
-  sequenceSimulationFocus: SequenceSimulationFocus;
-  sequencePlanning: boolean;
-  sequenceError: string | null;
 }
-
-export type SequenceSimulationFocus =
-  | { kind: 'whole' }
-  | { kind: 'sequence_step'; stepId: string };
 
 export interface CreasePatternSliceActions {
   optimizeScale: () => Promise<void>;
@@ -800,8 +820,6 @@ export interface CreasePatternSliceActions {
   markFoldSourceChanged: () => void;
   ensureFoldArtifacts: () => Promise<FoldArtifacts | null>;
   refreshFoldArtifacts: () => Promise<FoldArtifacts | null>;
-  analyzeSequenceTarget: () => Promise<SequenceTargetState | null>;
-  planFoldingSequence: () => Promise<SequencePlan | null>;
   setCreaseColorMode: (mode: CreaseColorMode) => void;
   setSelectedSegment: (id: number | null) => void;
   /**
@@ -867,7 +885,6 @@ export interface CreasePatternSliceActions {
    * Resolves the number of windows that got a fold back.
    */
   restoreOristudioCpInlineSimulationSources: () => Promise<number>;
-  setSequenceSimulationFocus: (focus: SequenceSimulationFocus) => void;
   /**
    * Record the settled Edit-canvas camera so a save persists the view. Does not
    * touch `dirty` — see {@link WorkspaceState.oristudioCpCamera}.
@@ -888,8 +905,10 @@ export interface CreasePatternSliceActions {
    */
   claimCanvasForCreaseSelection: () => void;
   requestOristudioCpAction: (operationId: OristudioCpOperationId) => void;
+  requestOristudioCpSurface: (kind: OristudioCpSurfaceRequestKind) => void;
   setOristudioCpActiveToolId: (id: OristudioCpActionId | null) => void;
   clearOristudioCpActionRequest: (id: number) => void;
+  clearOristudioCpSurfaceRequest: (id: number) => void;
   setOristudioCpActiveDiagnostic: (id: string | null) => void;
   foldOristudioCpDocument: (options?: {
     startingFaceId?: number;

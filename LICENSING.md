@@ -85,11 +85,10 @@ still permissive on its own terms; it is the combined binary that is GPL.
 | --- | --- | --- |
 | `treemaker-core` | `treemaker-fold` | `GPL-2.0-or-later` — the port |
 | `treemaker-cli` | `treemaker-core`, `oristudio-cp-compiler`, `oristudio-cp`, `treemaker-flatfold`, `treemaker-fold` | `GPL-2.0-or-later` |
-| `treemaker-wasm` | `treemaker-core`, `treemaker-sequence`, `treemaker-flatfold`, `treemaker-fold` | `GPL-2.0-or-later` |
+| `treemaker-wasm` | `treemaker-core`, `treemaker-flatfold`, `treemaker-fold` | `GPL-2.0-or-later` |
 | `oracle-tests` | none (dev-only: `treemaker-core`, `treemaker-flatfold`, `treemaker-fold`) | `GPL-2.0-or-later` — the edge is a dev-dependency, but the crate is nothing but tests and every test binary links `treemaker-core` |
 | `treemaker-fold` | none | MIT OR Apache-2.0 |
 | `treemaker-flatfold` | `treemaker-fold` | MIT OR Apache-2.0 |
-| `treemaker-sequence` | `treemaker-flatfold`, `treemaker-fold` | MIT OR Apache-2.0 |
 | `oristudio-cp` | `treemaker-fold` | MIT OR Apache-2.0 |
 | `oristudio-cp-wasm` | `oristudio-cp`, `treemaker-fold` | MIT OR Apache-2.0 |
 | `oristudio-cp-compiler` | `oristudio-cp`, `treemaker-flatfold`, `treemaker-fold` | MIT OR Apache-2.0 |
@@ -104,17 +103,7 @@ still permissive on its own terms; it is the combined binary that is GPL.
 Regenerate the middle column with
 `cargo tree -p <crate> --edges normal --prefix none`.
 
-Two of those rows deserve a sentence each.
-
-`treemaker-sequence` is **not** a TreeMaker derivative on any evidence in the
-tree: it declares `MIT OR Apache-2.0`, its module docs describe original
-folding-sequence research, and it imports only `treemaker-flatfold` and
-`treemaker-fold`. `NOTICE` used to list it among the crates TreeMaker was ported
-into and no longer does. That is a scope correction, not a settled authorship
-finding — establishing what its code derives from would take a source review, not
-a dependency graph. Note that the practical reachability is unchanged either way:
-the crate enters a build only through `treemaker-wasm`, so it ships exactly when
-the TreeMaker design kind does.
+One of those rows deserves a sentence.
 
 The Tauri shell, `ori-studio`, has no native dependency edge to `treemaker-core`
 — the TreeMaker engine reaches the desktop app as wasm loaded by the renderer,

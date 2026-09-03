@@ -211,6 +211,13 @@
     "title": "Tools",
     "trigger": "Tools"
   },
+  "creaseAngle": {
+    "close": "Close crease angle",
+    "degrees": "Crease angle in degrees",
+    "fieldTitle": "Fold angle given to new mountain and valley creases",
+    "menuRow": "Crease angle: {{angle}}",
+    "title": "Crease angle"
+  },
   "divideMode": {
     "count": "Count",
     "countTitle": "Divide the line into equal parts",
@@ -260,7 +267,21 @@
     "valley": "Line V",
     "yellow": "Line yellow"
   },
+  "simulator": {
+    "foldBackward": "Fold Backward",
+    "foldEnd": "Jump To Folded",
+    "foldForward": "Fold Forward",
+    "foldStart": "Jump To Flat",
+    "playPause": "Play / Pause Fold",
+    "replay": "Replay From Flat",
+    "resetView": "Reset Simulator View",
+    "toggleCreases": "Crease lines",
+    "toggleFaces": "Faces",
+    "toggleHiddenLines": "Hidden lines",
+    "toggleLighting": "Lighting"
+  },
   "viewport": {
+    "contextMenu": "Open Context Menu",
     "fit": "Fit",
     "more": "More view controls",
     "pan": "Pan",

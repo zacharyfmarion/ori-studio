@@ -25,10 +25,14 @@ import type { OristudioCpSelection } from './creasePatternViewport';
  * user sees: "the creases inside these edges".
  *
  * Coordinate note: the CP-model space (line-segment `a`/`b`), the exported fold,
- * and the simulation-fold plane are the same 2D space. The fold export writes
- * plain `[x, y]`; `prepareFoldModel` remaps via `normalizePoint([x,y]) = [x,0,y]`;
- * `flatPlaneAxes` reads the plane back as `(x, z) = (x, y)`. Round trip is the
- * identity, so crease coordinates and segment boundaries are directly comparable.
+ * and the simulation-fold plane are the same 2D space, but only because one
+ * function keeps them so. The fold export writes plain `[x, y]`;
+ * `prepareFoldModel` remaps via `normalizePoint([x,y]) = [x, 0, −y]`, which
+ * lifts the sheet into the XZ plane **and** negates, so that a reflecting
+ * `MeshRenderer` view draws it the way round the canvas does; `flatPlaneReader`
+ * undoes exactly that. Round trip is the identity, so crease coordinates and
+ * segment boundaries are directly comparable — read a lifted coordinate by hand
+ * and they are mirrored.
  */
 export interface SelectedSegmentMatch {
   /** The matched segment (from `resolveCpSegments`, so `id` is the shared key). */

@@ -14,6 +14,13 @@
   "bpPacking": {
     "canvas": "Box Pleat packing canvas",
     "config": "Config",
+    "contextMenu": {
+      "nudge": "Nudge",
+      "nudgeDown": "Down",
+      "nudgeLeft": "Left",
+      "nudgeRight": "Right",
+      "nudgeUp": "Up"
+    },
     "diagonal": "Diagonal",
     "flapHeight": "H",
     "flapHeightAria": "Flap height",
@@ -305,6 +312,17 @@
     "changeFoldedModel": "Change folded model",
     "closeFoldedModels": "Close folded models",
     "commandFailed": "Command failed",
+    "contextMenu": {
+      "creaseType": "Crease type",
+      "delete": "Delete",
+      "diagnostics": "Diagnostics",
+      "editText": "Edit text",
+      "insertImage": "Insert image…",
+      "insertText": "Insert text",
+      "repair": "Repair",
+      "select": "Select",
+      "transform": "Transform"
+    },
     "couldNotOpenForEditing": "This crease pattern could not be opened for editing.",
     "couldNotOpenForEditingHint": "It is shown read-only. You can still view, fold, and export it.",
     "cropImage": "Crop image",
@@ -431,7 +449,6 @@
       "replay": "Reset to flat",
       "setUpright": "Set upright"
     },
-    "insertImage": "Insert image...",
     "linesCount_one": "{{count}} lines",
     "linesCount_other": "{{count}} lines",
     "measure": "Measure",
@@ -581,6 +598,14 @@
     "moveLeft": "Move left",
     "moveRight": "Move right",
     "rename": "Rename"
+  },
+  "designTree": {
+    "contextMenu": {
+      "edgeTools": "Edge",
+      "nodeTools": "Node",
+      "select": "Select",
+      "strain": "Strain"
+    }
   },
   "diagnostics": {
     "allConditionsFeasible": "All conditions feasible",
@@ -755,87 +780,46 @@
     "y": "Y",
     "yes": "Yes"
   },
-  "sequence": {
-    "after": "After",
-    "before": "Before",
-    "budgetReached": "Search budget reached with a partial result",
-    "creasePattern": "crease pattern",
-    "details": "Details",
-    "detailsPlanning": "Planning {{elapsed}}",
-    "diagramLabel": "Folding sequence diagram",
-    "foldedState": "folded state",
-    "headerPlanning": "Planning | {{elapsed}}",
-    "headerSummary": "{{status}} | {{steps}}",
-    "idle": "Idle",
-    "layerStateOne": "{{value}} layer state",
-    "layerStateOther": "{{value}} layer states",
-    "metricOpen": "Open",
-    "metricStates": "States",
-    "metricStatus": "Status",
-    "metricSteps": "Steps",
-    "noSteps": "No sequence steps",
-    "plan": "Plan",
-    "planning": "Planning",
-    "planningFoldingSequence": "Planning folding sequence",
-    "planningInProgress": "Sequence planning in progress",
-    "planningMessageLong": "Still planning after {{elapsed}}. Large crease patterns can take a while; this run is still active.",
-    "planningMessageMedium": "Searching sequence states. Complex crease patterns may take longer than simple bases.",
-    "planningMessageShort": "Resolving the flat-fold target and searching for fold steps.",
-    "simulate": "Simulate",
-    "simulateStep": "Simulate step",
-    "stateTransition": "{{from}} to {{to}}",
-    "stateUnavailable": "State unavailable",
-    "statusNotPlanned": "Sequence not planned",
-    "statusPending": "Crease pattern pending",
-    "statusPlanning": "Planning sequence",
-    "statusPreparing": "Preparing crease pattern",
-    "stepCountOne_one": "{{count}} step",
-    "stepCountOne_other": "{{count}} step",
-    "stepCountOther_one": "{{count}} steps",
-    "stepCountOther_other": "{{count}} steps",
-    "stepNumber": "Step {{number}}",
-    "targetSummary": "{{faces}} faces, {{layers}}",
-    "title": "Sequence"
-  },
   "simulator": {
-    "accuracyAccurate": "Accurate",
-    "accuracyAccurateTitle": "Step preview with smaller solver increments and more settling",
-    "accuracyFast": "Fast",
-    "accuracyFastTitle": "Step preview with standard simulator work",
     "backendCpu": "CPU",
     "backendCpuTitle": "Solving on the CPU (WebGL2 unavailable)",
     "backendGpu": "GPU",
     "backendGpuTitle": "Solving on the GPU (WebGL2)",
     "canvasAriaLabel": "Origami folded-base simulator. Drag to rotate, scroll to zoom, double-click to reset view.",
     "canvasTitle": "Drag to rotate, scroll to zoom, double-click to reset view",
+    "contextMenu": {
+      "pause": "Pause",
+      "play": "Play",
+      "view": "View"
+    },
     "controls": "Simulation controls",
     "fold": "Fold",
     "foldPercent": "Fold percent",
     "idle": "Idle",
     "loading": "Loading",
-    "manualPreview": "Manual preview",
     "noCreasePattern": "No crease pattern",
     "pause": "Pause",
     "percent": "{{value}}%",
     "play": "Play",
     "refresh": "Refresh",
     "reset": "Reset",
-    "scope": "Simulator scope",
-    "scopeStep": "Step",
-    "scopeStepTitle": "Simulate the selected sequence step",
-    "scopeWhole": "Whole",
-    "scopeWholeTitle": "Simulate the whole crease pattern",
     "setUpright": "Set upright",
     "stats": "{{vertices}} vertices | {{triangles}} triangles",
     "step": "Step",
-    "stepAccuracy": "Step simulation accuracy",
-    "stepChip": "Step {{n}}: {{kind}}",
-    "stepPercent": "Step percent",
     "stepReadout": "Step {{n}}",
-    "stepSimulationUnavailable": "Step simulation unavailable.",
     "strain": "Strain {{value}}",
     "title": "Simulator",
-    "unavailable": "Simulator unavailable"
+    "unavailable": "Simulator unavailable",
+    "viewCube": {
+      "back": "Back",
+      "bottom": "Bottom",
+      "front": "Front",
+      "label": "View cube",
+      "left": "Left",
+      "right": "Right",
+      "roll": "Roll the view",
+      "top": "Top"
+    }
   },
   "simulatorExport": {
     "png": "PNG image",
@@ -892,7 +876,8 @@
     "style": "Style",
     "stylePaper": "Paper",
     "styleXray": "X-ray",
-    "valley": "Valley"
+    "valley": "Valley",
+    "viewCube": "View cube"
   },
   "textAnnotation": {
     "addText": "Add text",
@@ -912,5 +897,11 @@
     "textControls": "Text controls",
     "textStyle": "Text style",
     "underline": "Underline"
+  },
+  "treeEditor": {
+    "contextMenu": {
+      "addLeaf": "Add leaf here",
+      "deselect": "Deselect all"
+    }
   }
 }

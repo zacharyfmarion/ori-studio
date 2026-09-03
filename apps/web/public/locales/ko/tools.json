@@ -203,6 +203,13 @@
     "title": "도구",
     "trigger": "도구"
   },
+  "creaseAngle": {
+    "close": "접는 선 각도 닫기",
+    "degrees": "접는 선 각도(도)",
+    "fieldTitle": "새로 그리는 산접기와 골접기에 적용되는 접기 각도",
+    "menuRow": "접는 선 각도: {{angle}}",
+    "title": "접는 선 각도"
+  },
   "divideMode": {
     "count": "개수",
     "countTitle": "선을 같은 크기로 분할합니다",
@@ -252,7 +259,21 @@
     "valley": "선 V",
     "yellow": "선 노랑"
   },
+  "simulator": {
+    "foldBackward": "접기 뒤로",
+    "foldEnd": "접힌 상태로 이동",
+    "foldForward": "접기 앞으로",
+    "foldStart": "평평한 상태로 이동",
+    "playPause": "접기 재생 / 일시정지",
+    "replay": "평평한 상태부터 재생",
+    "resetView": "시뮬레이터 보기 초기화",
+    "toggleCreases": "접는 선",
+    "toggleFaces": "면",
+    "toggleHiddenLines": "숨은 선",
+    "toggleLighting": "조명"
+  },
   "viewport": {
+    "contextMenu": "컨텍스트 메뉴 열기",
     "fit": "맞춤",
     "more": "기타 보기 컨트롤",
     "pan": "화면 이동",

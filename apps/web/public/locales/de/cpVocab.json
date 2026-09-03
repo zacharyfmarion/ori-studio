@@ -618,7 +618,7 @@
     },
     "cp_action_crease_make_aux": {
       "label": "Als Hilfslinie festlegen",
-      "tooltip": "Ausgewählte Faltlinien in Hilfslinien umwandeln",
+      "tooltip": "Ausgewählte Linien in Hilfslinien umwandeln",
       "disabledReason": "Bereit"
     },
     "cp_action_operation_frame_create": {

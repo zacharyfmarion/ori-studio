@@ -101,6 +101,10 @@
   --fold-flat: #64c8c8;
   --fold-border: #111417;
   --fold-unassigned: #9aa4ad;
+  /* Selected creases and points: the theme's accent, unless that accent is
+     confusable with a fold colour -- red is mountain, blue is valley. One-dark's
+     accent is blue, so it overrides to its gold; see themes/applyTheme. */
+  --cp-selection: #e5c07b;
   /* Hue a shallower crease shifts toward: mountains run red -> magenta, valleys
      blue -> violet. Magenta is the only anchor where both halves take the short
      way round the wheel, so neither desaturates into grey. See
@@ -204,6 +208,54 @@
   width: 32px;
   height: 32px;
   padding: 0;
+}
+
+/* A pill-shaped quick pick; see components/ui/Chip.tsx. Everything but the
+   padding and type scale is shared, which is what the size variants leave
+   alone. */
+.ui-chip {
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  /* Transparent, which is what these chips have always rendered as: the rule
+     this replaces asked for `--surface-raised`, a token theme.css never defines,
+     so the browser dropped the declaration. Stated rather than inherited by
+     accident. */
+  background: transparent;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.ui-chip:hover {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+/* Chips are ordinary tab stops — the crease-angle popover is keyboard-first and
+   Tab lands here — so the ring has to be visible. */
+.ui-chip:focus-visible {
+  border-color: var(--accent-primary);
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+  color: var(--text-primary);
+}
+
+/* `--bg-secondary`, not the `--surface-base` the old rule named: that token does
+   not exist either, so the pressed chip was drawing grey text on a blue fill. */
+.ui-chip[aria-pressed='true'] {
+  border-color: var(--accent-primary);
+  background: var(--accent-primary);
+  color: var(--bg-secondary);
+}
+
+.ui-chip--sm {
+  padding: 2px 7px;
+  font-size: 0.66rem;
+}
+
+.ui-chip--md {
+  padding: 6px 12px;
+  font-size: 0.78rem;
 }
 
 /*
@@ -4639,50 +4691,272 @@ button.cp-folded-figure-toolbar__notice:hover {
   cursor: grabbing;
 }
 
+/*
+  The view cube.
+
+  An ordinary CSS 3D cube: the scene carries one `matrix3d` written per orbit
+  frame, and the browser does the culling, the hit testing and the hover. No
+  `perspective` on purpose — drei renders its gizmo through an orthographic
+  camera, and this follows it.
+
+  Deliberately without a `z-index`: `.simulator-panel__empty` is positioned,
+  comes later in the DOM and has none either, so a loading or errored panel
+  covers the cube by document order rather than by a number either could drift.
+*/
+.simulator-view-cube {
+  --view-cube-size: 62px;
+  --view-cube-half: calc(var(--view-cube-size) / 2);
+  position: absolute;
+  /*
+    Inset far enough that a *turned* cube still clears the pane.
+
+    The box is one edge square, but the cube inside it is not: a corner sits
+    √3/2 of an edge from the centre, so at the worst angle the silhouette
+    overhangs the box by (√3 − 1)/2 ≈ 0.37 of an edge on every side — 23px at
+    this size. Anything less than that as an inset and some rotation clips on
+    the pane edge or lands on the transport bar below.
+  */
+  bottom: 34px;
+  left: 30px;
+  width: var(--view-cube-size);
+  height: var(--view-cube-size);
+  /* The cube's box is square; only its faces are the cube. Everything else in
+     the corner has to reach the canvas behind. */
+  pointer-events: none;
+}
+
+.simulator-view-cube__scene {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+/*
+  The roll ring: which way up the picture is, and a handle to change it.
+
+  Sized `√2` cube edges across so its 100-unit box has the circumscribing circle
+  at exactly r = 50 — the circle through the corners of the square face. It
+  therefore overhangs the cube's own box by about 13px, well inside the clearance
+  the rotated silhouette already needs, so it costs no room.
+
+  Only offered square-on to a face; `data-available` is written by the component
+  from the same visible-face mask the cube already keeps.
+*/
+.simulator-view-cube__ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--view-cube-size) * 1.41421356);
+  height: calc(var(--view-cube-size) * 1.41421356);
+  /* The stroke and the mark sit on r = 50, which is the box's own edge. */
+  overflow: visible;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  transition: opacity 120ms ease;
+}
+
+.simulator-view-cube__ring[data-available='true'] {
+  opacity: 1;
+}
+
+.simulator-view-cube__ring-track {
+  fill: none;
+  stroke: var(--border-subtle);
+  stroke-width: 1.6;
+}
+
+.simulator-view-cube__ring-mark {
+  fill: var(--text-secondary);
+  stroke: var(--bg-primary);
+  stroke-width: 1.2;
+  transition: fill 120ms ease;
+}
+
+/*
+  Only the band of the ring is grabbable — `pointer-events: stroke` on a circle
+  with no fill — so the cube inside it stays pressable. That is the whole reason
+  this is a ring rather than a disc over the face.
+*/
+.simulator-view-cube__ring-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14;
+  pointer-events: none;
+  cursor: grab;
+}
+
+.simulator-view-cube[data-interactive] .simulator-view-cube__ring[data-available='true'] .simulator-view-cube__ring-hit {
+  pointer-events: stroke;
+}
+
+.simulator-view-cube__ring-hit:active {
+  cursor: grabbing;
+}
+
+.simulator-view-cube__ring:has(.simulator-view-cube__ring-hit:hover)
+  .simulator-view-cube__ring-mark,
+.simulator-view-cube__ring:has(.simulator-view-cube__ring-hit:focus-visible)
+  .simulator-view-cube__ring-mark {
+  fill: var(--accent-primary);
+}
+
+.simulator-view-cube__ring:has(.simulator-view-cube__ring-hit:hover)
+  .simulator-view-cube__ring-track,
+.simulator-view-cube__ring:has(.simulator-view-cube__ring-hit:focus-visible)
+  .simulator-view-cube__ring-track {
+  stroke: color-mix(in srgb, var(--accent-primary) 60%, transparent);
+}
+
+/*
+  Plain `:focus`, not only `:focus-visible`. A grab focuses the ring without
+  making it focus-visible, so a `:focus-visible` rule left the UA outline to draw
+  a box round the whole cube on every drag. The keyboard indicator is the track
+  and mark going to the accent above, which is how the faces show focus too.
+*/
+.simulator-view-cube__ring-hit:focus {
+  outline: none;
+}
+
+.simulator-view-cube__face {
+  position: absolute;
+  inset: 0;
+  /* Three by three: the middle cell is the face, the four beside it are the
+     cube's edges and the four in the corners its corners — the 26 viewpoints
+     drei offers as little floating boxes, which in CSS would be six more faces
+     apiece. It also means the face you are looking at always offers its own
+     neighbours, so a face-on view is never a dead end.
+
+     `minmax(0, 1fr)`, not `1fr`: a `1fr` track will not shrink below its
+     content, so when the label still lived in the middle cell it widened its own
+     column and the outer two absorbed the shortfall — corner cells of 12px on
+     FRONT against 19px on TOP, the same viewpoint at a different size on each
+     face. The label has since moved out to the face, but the floor of zero is
+     what makes "equal thirds" true of whatever a cell ever holds rather than of
+     what it happens to hold today. */
+  display: grid;
+  grid-template: repeat(3, minmax(0, 1fr)) / repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--bg-elevated) 90%, transparent);
+  backface-visibility: hidden;
+  pointer-events: none;
+  transition: background-color 120ms ease;
+}
+
+/*
+  The face's name, centred on the face and painted over the cells.
+
+  Not a child of any one cell: the word is wider than a third of the face, and a
+  grid item's automatic minimum is its min-content width, so inside the middle
+  cell it could neither shrink to fit nor be centred in it — it sat half its
+  overflow to the right of the face's midline. Here it spans the whole face, so
+  centring is unconditional and it may overhang the edge cells freely.
+*/
+.simulator-view-cube__label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  color: var(--text-secondary);
+  font-size: 0.56rem;
+  font-weight: 750;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  place-items: center;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: color 120ms ease;
+}
+
+.simulator-view-cube__spot {
+  display: grid;
+  margin: 0;
+  /* A UA button's own padding survives `display: grid`; see the icon buttons,
+     which need the same. */
+  padding: 0;
+  border: 0;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: none;
+  /* The cube is dragged to turn the model, so the browser must not read that as
+     a pan or a page zoom — the same reason the canvas behind it sets this. */
+  touch-action: none;
+  transition: background-color 120ms ease;
+}
+
+/*
+  A spot takes a press only on a face that is both live and turned toward the
+  eye. The browser already declines to hit-test what `backface-visibility` stops
+  it painting; `data-hidden` states it as well, because a press landing on the
+  face behind would snap to the opposite view, and because jsdom has no
+  backfaces.
+*/
+.simulator-view-cube[data-interactive] .simulator-view-cube__face[data-hidden='false']
+  .simulator-view-cube__spot {
+  pointer-events: auto;
+}
+
+/*
+  What lights up is a *viewpoint*, not a cell.
+
+  A corner belongs to three faces and an edge to two, so the same view is offered
+  from more than one place on the cube — around a visible corner, three cells
+  snap to the identical camera. `data-lit` is set on all of them at once (see
+  `lightViewpoint`), which is why this is not a `:hover` rule: CSS cannot ask for
+  "every element whose attribute matches the hovered one".
+
+  The middle cell lights its whole face rather than a ninth of it, which is how
+  drei's reads — the face is the target, not a corner of it.
+*/
+.simulator-view-cube__spot[data-lit='true'] {
+  background: color-mix(in srgb, var(--accent-primary) 34%, transparent);
+}
+
+.simulator-view-cube__face:has(.simulator-view-cube__spot--face[data-lit='true']),
+.simulator-view-cube__face:has(.simulator-view-cube__spot--face:focus-visible) {
+  border-color: color-mix(in srgb, var(--accent-primary) 60%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 28%, var(--bg-elevated));
+}
+
+/* The face behind it is already lit; the name only has to keep up. */
+.simulator-view-cube__face:has(.simulator-view-cube__spot--face[data-lit='true'])
+  .simulator-view-cube__label,
+.simulator-view-cube__face:has(.simulator-view-cube__spot--face:focus-visible)
+  .simulator-view-cube__label {
+  color: var(--text-primary);
+}
+
+/* The middle cell is the face's own target and lights the whole of it, so it
+   adds nothing of its own. */
+.simulator-view-cube__spot--face[data-lit='true'] {
+  background: transparent;
+}
+
+.simulator-view-cube__spot:focus-visible {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .simulator-view-cube__face,
+  .simulator-view-cube__label,
+  .simulator-view-cube__ring,
+  .simulator-view-cube__ring-mark,
+  .simulator-view-cube__spot {
+    transition: none;
+  }
+}
+
 .simulator-view-settings {
   flex: 1 1 auto;
   justify-content: flex-end;
   flex-wrap: wrap;
 }
 
-.simulator-scope-controls {
-  flex: 1 1 auto;
-  min-width: 0;
-  flex-wrap: wrap;
-}
-
-.simulator-accuracy-controls {
-  display: inline-flex;
-  min-width: 0;
-}
-
-.simulator-scope-controls .segmented__option,
-.simulator-accuracy-controls .segmented__option,
 .simulator-view-settings .segmented__option {
   height: 24px;
   padding: 0 7px;
-}
-
-.simulator-step-chip {
-  display: inline-flex;
-  min-width: 0;
-  max-width: 190px;
-  height: 24px;
-  align-items: center;
-  gap: 5px;
-  overflow: hidden;
-  padding: 0 7px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  font-size: 0.66rem;
-  font-weight: 750;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.simulator-step-chip--warn {
-  color: var(--status-warning);
 }
 
 .simulator-panel__empty {
@@ -6013,28 +6287,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   gap: 4px;
 }
 
-.cp-context-panel__chip {
-  padding: 2px 7px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 999px;
-  background: var(--surface-raised);
-  color: var(--text-secondary);
-  font-size: 0.66rem;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-}
-
-.cp-context-panel__chip:hover {
-  border-color: var(--accent-primary);
-  color: var(--text-primary);
-}
-
-.cp-context-panel__chip[aria-pressed='true'] {
-  border-color: var(--accent-primary);
-  background: var(--accent-primary);
-  color: var(--surface-base);
-}
-
 .cp-context-panel__measure-kinds {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -6548,6 +6800,129 @@ button.cp-folded-figure-toolbar__notice:hover {
   border-color: var(--accent-primary);
   background: var(--bg-surface);
   outline: none;
+}
+
+/* The active crease angle: an editable readout plus a caret that opens the
+   popover. Sized and styled off `__rotation-input` beside it, because the two
+   are the same kind of control and reading as a pair is the point. */
+.crease-angle-field {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.crease-angle-field__input {
+  height: 28px;
+  /* Sized to the widest reachable value: `-` is impossible here (a magnitude is
+     unsigned), so `180°` plus two decimals is the ceiling. */
+  width: 48px;
+  padding: 0 1px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  /* `font` shorthand for the family (inputs default to the system UI font),
+     then the toolbar's control size. */
+  font: inherit;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.crease-angle-field__input:hover {
+  border-color: var(--border-default);
+}
+
+.crease-angle-field__input:focus,
+.crease-angle-field__input:focus-visible {
+  border-color: var(--accent-primary);
+  background: var(--bg-surface);
+  outline: none;
+}
+
+/* A pen off 180 changes what every stroke does, so it is not allowed to look
+   like an idle readout. The accent is on the number rather than a badge beside
+   it: the value *is* the state. */
+.crease-angle-field[data-angled] .crease-angle-field__input {
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+
+.crease-angle-field__caret {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Explicit, because the UA button padding would otherwise defeat centering
+     on a bespoke icon button this small. */
+  padding: 0;
+  width: 16px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.crease-angle-field__caret:hover {
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+
+/* Fills whichever frame it is in. The width belongs to the *frame*, not the
+   body: anchored, the pill sizes itself (below); as a modal, the document is
+   already `min(360px, 100vw - 24px)` and a body with a width of its own left the
+   form huddled in the corner of it. */
+.crease-angle-popover {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3);
+}
+
+/* The floating frame is a `FloatingToolbar` pill, which is laid out for a row of
+   icon buttons; this body is a small form, so it takes the padding back and
+   states the width the pill has no content-based reason to pick. */
+.crease-angle-popover__floating {
+  width: 232px;
+  padding: 0;
+}
+
+.crease-angle-popover__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.crease-angle-popover__input {
+  width: 100%;
+  height: 28px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.crease-angle-popover__input:focus,
+.crease-angle-popover__input:focus-visible {
+  border-color: var(--accent-primary);
+  outline: none;
+}
+
+.crease-angle-popover__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .viewport-toolbar__zoom-button:hover,

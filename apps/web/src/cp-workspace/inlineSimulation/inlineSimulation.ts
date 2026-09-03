@@ -450,6 +450,8 @@ export function inlineSimulationAsTransformable(
     // Free resize: a window is a viewport onto the fold, not a picture of it, so
     // there is no proportion to preserve. Shift locks it, as elsewhere.
     aspectLock: 'default-off',
+    // A window is its own DOM layer above the canvas, so it keeps its press.
+    yieldsPressToCreases: false,
   };
 }
 

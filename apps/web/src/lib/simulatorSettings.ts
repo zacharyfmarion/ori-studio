@@ -69,6 +69,14 @@ export interface SimulatorSettings {
   showEdges: boolean;
   showHiddenLines: boolean;
   lighting: boolean;
+  /**
+   * Offer the view cube in the corner of the Simulate workspace's viewport.
+   *
+   * On the simulator settings rather than somewhere general because that is the
+   * only surface that shows one — the windowed surfaces on the Edit canvas are
+   * too small for it and keep their cameras elsewhere.
+   */
+  showViewCube: boolean;
   /** Paper front/back, or null for the theme's `--sim-paper-*` tokens. */
   paperFront: SimulatorColorOverride;
   paperBack: SimulatorColorOverride;
@@ -122,6 +130,7 @@ export const DEFAULT_SIMULATOR_SETTINGS: SimulatorSettings = {
   showEdges: true,
   showHiddenLines: false,
   lighting: true,
+  showViewCube: true,
   paperFront: null,
   paperBack: null,
   mountainColor: null,

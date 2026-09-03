@@ -8,6 +8,7 @@ import type {
   ViewTransform,
 } from './types';
 import type { CpRenderFrame } from './CpRenderer';
+import { createCpImage } from '../images/cpImage';
 
 /**
  * The order every mocked program drew in, for the frame under test.
@@ -56,10 +57,18 @@ vi.mock('./programs/pointProgram', () => ({ createPointProgram: () => mockProgra
 vi.mock('./programs/fillProgram', () => ({ createFillProgram: () => mockProgram() }));
 vi.mock('./programs/markerProgram', () => ({ createMarkerProgram: () => mockProgram() }));
 vi.mock('./programs/wedgeProgram', () => ({ createWedgeProgram: () => mockProgram() }));
-vi.mock('./programs/imageProgram', () => ({ createImageProgram: () => mockProgram() }));
-// The region program has no `setData` — the renderer holds the region list and
-// hands it to `draw` — so it cannot be identified by its upload like the others.
-// It logs a fixed label instead.
+// Two programs are identified by construction rather than by their upload:
+// neither has a `setData` — the image draw list is rebuilt per frame from the
+// image layer, and the renderer holds the region list and hands it to `draw` —
+// so there is nothing to tag in `layerOf`. Each logs a fixed label instead.
+vi.mock('./programs/imageProgram', () => ({
+  createImageProgram: () => ({
+    draw: () => {
+      drawLog.push('images');
+    },
+    dispose: () => {},
+  }),
+}));
 vi.mock('./programs/regionProgram', () => ({
   createRegionProgram: () => ({
     draw: () => {
@@ -206,5 +215,45 @@ describe('reglRenderer layer order', () => {
       'imported-fills',
       'imported-strokes',
     ]);
+  });
+
+  /**
+   * Reference images are the one canvas-object kind the crease pattern is drawn
+   * *over*, and a pile of behaviour now rests on that: `yieldsPressToCreases` in
+   * `canvasObjects/transformableObject` makes an image yield its press to a
+   * crease on top of it, on the premise asserted here. Invert this draw order
+   * and that rule silently becomes backwards — the image would be occluding
+   * creases while still handing them every click.
+   */
+  it('draws reference images below the creases, so tracing over them works', async () => {
+    // The decode path is `fetch` → `blob` → `createImageBitmap`, none of which
+    // jsdom has. Only truthiness matters: the texture it produces is regl's, and
+    // regl is mocked.
+    vi.stubGlobal('fetch', async () => ({ blob: async () => ({}) }));
+    vi.stubGlobal('createImageBitmap', async () => ({}) as ImageBitmap);
+
+    const renderer = createReglRenderer(document.createElement('canvas'));
+    renderer.resize({ width: 100, height: 100, dpr: 1 });
+    renderer.setStrokes(strokes('creases'));
+    renderer.setImages([
+      createCpImage({
+        src: 'data:image/png;base64,AAAA',
+        naturalWidth: 4,
+        naturalHeight: 4,
+        center: { x: 0, y: 0 },
+        width: 10,
+        height: 10,
+      }),
+    ]);
+    // Let the whole decode chain settle. Until the texture lands
+    // `buildImageItems` skips the image and the layer is not drawn at all —
+    // which would satisfy an `indexOf(...) < indexOf(...)` assertion for the
+    // wrong reason, hence the `toContain` below.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    renderer.render(FRAME);
+    renderer.dispose();
+
+    expect(drawLog).toContain('images');
+    expect(drawLog.indexOf('images')).toBeLessThan(drawLog.indexOf('creases'));
   });
 });

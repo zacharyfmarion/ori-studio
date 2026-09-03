@@ -113,11 +113,25 @@ use crate::geometry::Point;
 /// referent.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Fold3dTolerances {
-    /// Radians, on normals. Scale-free: two faces whose normals differ by less
-    /// than this are parallel.
+    /// Radians, on an angle between two orientations. Scale-free.
+    ///
+    /// Two roles, and they are the same question asked of different things: two
+    /// faces whose **normals** differ by less than this are parallel, and a
+    /// placement whose loop **holonomy** rotates by less than this closes. The
+    /// second is the same construction as `vertex_closure_residual`, which
+    /// [`crate::CLOSURE_RESIDUAL_BAR_DEGREES`] holds to 1.7e-8 rad — 5.7x
+    /// tighter — fourteen lines earlier in the same gate. Deliberate: a loop
+    /// residual accumulates around a whole cycle where a vertex residual is one
+    /// fan, so the looser bar is the one with a reason. Every fixture that
+    /// admits measures 1.1e-15 rad or less either way.
     pub angle_radians: f64,
-    /// Relative to the paper span. The bar the placement's loop gap is held to,
-    /// and the bar two coplanar faces' offsets are held to.
+    /// Relative to the paper span. The bar the **translational** half of the
+    /// placement's loop gap is held to, and the bar two coplanar faces' offsets
+    /// are held to.
+    ///
+    /// Only half of the loop test. `LoopGap::offset` is blind to a holonomy that
+    /// is a rotation about the closing crease's own line, so
+    /// [`Self::angle_radians`] gates the other half; see `LoopGap`'s docs.
     pub distance_relative: f64,
     /// Degrees. A crease within this of a full fold is treated as a full fold —
     /// **in the gate's own copy of the segments, never written back**.
@@ -133,10 +147,16 @@ impl Fold3dTolerances {
     ///
     /// - `angle_radians` is far above the 1e-8 conditioning floor of the naive
     ///   `acos` form and far below any real design angle.
-    /// - `distance_relative` sits in an empty band. The worst loop gap over
-    ///   every admitted fixture is 2.0e-10 of span (`penguin_freeform`, which
-    ///   is one of the three held outside the repository — see
-    ///   `tests/common/mod.rs`) and over the whole external corpus 6.8e-10
+    /// - `distance_relative` sits in an empty band, measured on the
+    ///   translational half only — the rotational half has no such census, and
+    ///   the two fixtures that reach it read 1.1e-15 and 1.0e-9 rad against a
+    ///   1e-7 bar. The worst loop gap over
+    ///   every admitted fixture is 4.8e-10 of span — `hole_vertex_90`, which is
+    ///   committed, and whose floor is `FoldMagnitude`'s 1e-7-degree quantum
+    ///   applied to a mountain angle of `arccos(1/3)` that is not representable
+    ///   exactly; before it was committed the worst was 2.0e-10
+    ///   (`penguin_freeform`, one of the three held outside the repository — see
+    ///   `tests/common/mod.rs`). Over the whole external corpus 6.8e-10
     ///   (`self-intersecting-vertex`, a hand-rounded toy); the smallest refused
     ///   is 1.1e-1 (`rabbit_unclosed`). Three decades of headroom either side,
     ///   asserted by `the_loop_gap_bar_sits_in_an_empty_band`.

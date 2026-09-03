@@ -1,4 +1,8 @@
 {
+  "contextMenu": {
+    "failed": "Não foi possível concluir essa ação",
+    "failedDetail": "Nada foi alterado. Se continuar acontecendo, tente recarregar."
+  },
   "cpRegionSolve": {
     "failed": "",
     "incompleteAction": "",

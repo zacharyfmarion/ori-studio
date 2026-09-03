@@ -1,6 +1,6 @@
 mod additional_estimation;
 mod combination;
-mod permutation;
+pub mod permutation;
 mod quad_tree;
 
 use crate::fold_graph::{FacePositions, FoldGraph, FoldGraphError};
@@ -257,7 +257,12 @@ impl EstimationOrder {
         }
     }
 
-    fn is_at_least(self, other: Self) -> bool {
+    /// `pub(crate)` because [`crate::session`] asks the same question: the step
+    /// ladder below only climbs for a caller that asked it to, so a caller
+    /// deciding whether an empty result is a *failure* has to gate on the same
+    /// threshold. It said `order != Order0 && order != Order1` there, which is
+    /// the same thing until someone adds an order below `Order2`.
+    pub(crate) fn is_at_least(self, other: Self) -> bool {
         self.value() >= other.value()
     }
 }
@@ -1431,7 +1436,7 @@ pub fn estimate_wireframe_from_segments(
         return Ok(None);
     }
 
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -1455,7 +1460,7 @@ pub fn face_position_wireframe_from_segments(
         return Ok(None);
     }
 
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -1499,7 +1504,7 @@ pub fn folded_subface_figure_from_segments(
         return Ok(None);
     }
 
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -1617,7 +1622,7 @@ pub fn initial_hierarchy_from_segments(
         return Ok(None);
     }
 
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -1637,7 +1642,7 @@ pub fn equivalence_condition_candidates_from_segments(
         return Ok(None);
     }
 
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -1734,7 +1739,7 @@ pub fn additional_estimation_from_segments(
         return Ok(None);
     }
 
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -2693,7 +2698,7 @@ fn overlap_enumerator_from_segments(
     }
 
     fold_phase_timer!("enumerator start");
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -2747,7 +2752,7 @@ fn two_colored_overlap_enumerator_from_segments(
         return Ok(None);
     }
 
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -2790,7 +2795,7 @@ fn folded_graph_and_wireframe_from_segments(
         return Ok(None);
     }
 
-    let graph = FoldGraph::from_segments(segments, true);
+    let graph = FoldGraph::from_sheet_segments(segments);
     if graph.faces.is_empty() {
         return Ok(None);
     }
@@ -4813,6 +4818,35 @@ impl HierarchyTable {
             relations,
         }
     }
+}
+
+/// Oriedita's setup-time `removeMode` AEA round, over a caller-supplied subface
+/// set rather than a [`SubFaceConfiguration`].
+///
+/// This exists for `folding3d`, whose subfaces are built by `cells.rs` and by the
+/// coupling scaffolding and never pass through `configure_subfaces`. The flat
+/// path reaches the same code through [`run_additional_estimation_remove`]; the
+/// two differ only in how the face-id lists are obtained, so this is a call site,
+/// not a second algorithm, and nothing here is reachable from a flat caller.
+///
+/// Returns the closed hierarchy and prunes `conditions` in place. Errors —
+/// including `Contradiction` — are the caller's to route: on the 3D side a
+/// contradiction between synthetic coupling scaffolding and a determination is
+/// not a statement about the user's paper, so `folding3d` discards the pass
+/// rather than promoting it to a verdict.
+pub(crate) fn close_hierarchy_with_removal(
+    hierarchy: &InitialHierarchy,
+    subface_face_ids: Vec<Vec<usize>>,
+    conditions: &mut EquivalenceConditionSet,
+) -> Result<InitialHierarchy, AdditionalEstimationError> {
+    let mut table = HierarchyTable::from_initial(hierarchy);
+    additional_estimation::AdditionalEstimation::new(subface_face_ids).run_with_removal(
+        &mut table,
+        &mut conditions.triple_conditions,
+        &mut conditions.quadruple_conditions,
+        0,
+    )?;
+    Ok(table.into_initial_hierarchy(hierarchy.faces_total))
 }
 
 fn run_additional_estimation(

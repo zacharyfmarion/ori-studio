@@ -22,9 +22,9 @@ each of which is a distinct upstream with its own parity obligations:
   (`crates/treemaker-flatfold`).
 
 Original functionality is built on top of the ports — reference images beside
-crease patterns, crease-pattern detection from images, the origami simulator,
-folding-sequence research — but compatibility with the upstream tools and their
-file formats is a priority.
+crease patterns, crease-pattern detection from images, the origami simulator —
+but compatibility with the upstream tools and their file formats is a
+priority.
 
 When naming things in new code and docs, use **Ori Studio** for the product, and
 an upstream's name only when referring to that specific tool, port, or vendored
@@ -57,7 +57,6 @@ crates/
   # Shared / research
   treemaker-fold/                 # Generic FOLD data structures and geometry helpers
   treemaker-flatfold/             # Flat-foldability and layer-order solver (Flat-Folder port)
-  treemaker-sequence/             # Folding-sequence planner primitives (research)
   oracle-tests/                   # Parity + fixture tests against every vendored oracle
 apps/
   web/                            # React + Vite shared web frontend
@@ -268,6 +267,18 @@ matching bridge before you trust anything you see in the browser:
 ```bash
 npm --workspace @treemaker/web run build:oristudio-cp-wasm
 ```
+
+The same hook mechanism carries the landing prerender. `postbuild` runs
+`scripts/prerender-landing.mjs`, which writes the crawlable copy of the landing
+page into `dist/index.html` and generates `dist/robots.txt` and
+`dist/sitemap.xml` from `src/seo/siteMeta.ts`. So `npm run build:web
+--ignore-scripts` produces a bundle that looks fine, deploys fine, and has no
+words in it for any crawler — the same silent class as a stale `.wasm`. Both
+deploy workflows run a plain `npm run build:web`, so this only bites locally.
+
+`robots.txt` is crawlable **only** when `ORI_SITE_ENV=production`, which is set
+in `deploy-web.yml` and nowhere else. PR previews therefore de-index themselves
+rather than competing with the real site for the same copy.
 
 (CP and BP were tracked until they weren't: they predated CI building wasm, and
 the tracked copies then sat there stale with nothing to catch it. The history is

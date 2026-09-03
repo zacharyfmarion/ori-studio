@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { normalizePoint } from '@treemaker/origami-simulator';
 import type { FoldDocument } from '../engine/types';
 import { segmentFoldDocument } from './creasePatternSegmentation';
 import type {
@@ -767,6 +768,25 @@ describe('crease pattern export grid', () => {
     expect(Math.max(...loops[0]!.map((point) => point.y))).toBeCloseTo(
       projector.contentTop + projector.contentHeight,
       1
+    );
+  });
+
+  it('projects a lifted simulation fold exactly as it projects the base fold', () => {
+    // `foldProjector` takes either — a base fold in model space, or one that has
+    // been through `prepareFoldModel` and so lifted into XZ with y negated. An
+    // export must not depend on which arrives, and reading `coord[2]` raw would
+    // have flipped the picture top for bottom.
+    const base = unitSquareFold();
+    const lifted = {
+      ...base,
+      vertices_coords: (base.vertices_coords ?? []).map((coord) => normalizePoint(coord)),
+    } as FoldDocument;
+
+    const fromBase = foldProjector(base);
+    const fromLifted = foldProjector(lifted);
+    const corners = (base.vertices_coords ?? []).map((_, index) => index);
+    expect(corners.map((index) => fromLifted.project(index))).toEqual(
+      corners.map((index) => fromBase.project(index))
     );
   });
 

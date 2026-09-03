@@ -60,6 +60,11 @@ fn text_command_pipeline_round_trips_through_ori_and_fold() {
     assert_eq!(from_fold.crease_pattern.texts, expected);
 }
 
+/// The four line-type codes, on Oriedita's own `square.cp` test fixture plus an
+/// auxiliary line. Code 2 is the **mountain** (`Red1`) and code 3 is the
+/// **valley** (`Blue2`) — see [`cp::cp_assignment_to_line_color`], and
+/// `oriedita_io_oracle::cp_import_matches_oriedita_native_io_oracle` for the
+/// same claim checked against Oriedita's real importer rather than by hand.
 #[test]
 fn cp_import_and_export_preserve_oriedita_assignment_numbers() {
     let input = "\
@@ -72,8 +77,8 @@ fn cp_import_and_export_preserve_oriedita_assignment_numbers() {
     let model = cp::import_cp_str(input).expect("valid cp");
     assert_eq!(model.line_segments.len(), 4);
     assert_eq!(model.line_segments[0].color, LineColor::Black0);
-    assert_eq!(model.line_segments[1].color, LineColor::Red1);
-    assert_eq!(model.line_segments[2].color, LineColor::Blue2);
+    assert_eq!(model.line_segments[1].color, LineColor::Blue2);
+    assert_eq!(model.line_segments[2].color, LineColor::Red1);
     assert_eq!(model.line_segments[3].color, LineColor::Cyan3);
 
     assert_eq!(cp::export_cp_string(&model), input);

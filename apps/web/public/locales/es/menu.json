@@ -38,6 +38,7 @@
     "repair": "Reparar",
     "replaceLineType": "Reemplazar tipo de línea seleccionado...",
     "selectedLines": "Líneas seleccionadas",
+    "setActiveCreaseAngle": "Definir ángulo de pliegue...",
     "toggleMountainValley": "Alternar monte/valle",
     "transform": "Transformar selección",
     "transformFlipHorizontal": "Voltear horizontalmente",
@@ -104,12 +105,17 @@
     "about": "Acerca de Ori Studio",
     "checkForUpdates": "Buscar actualizaciones…"
   },
+  "insert": {
+    "image": "Imagen...",
+    "text": "Texto"
+  },
   "menubar": {
     "creasePattern": "Patrón de pliegues",
     "design": "Diseño",
     "edit": "Edición",
     "file": "Archivo",
     "help": "Ayuda",
+    "insert": "Insertar",
     "view": "Ver"
   },
   "optimize": {

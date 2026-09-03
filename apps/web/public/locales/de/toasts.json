@@ -1,4 +1,8 @@
 {
+  "contextMenu": {
+    "failed": "Diese Aktion konnte nicht ausgeführt werden",
+    "failedDetail": "Es wurde nichts geändert. Wenn das weiterhin passiert, lade die Seite neu."
+  },
   "cpRegionSolve": {
     "failed": "",
     "incompleteAction": "",

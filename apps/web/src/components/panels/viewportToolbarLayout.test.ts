@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  hasUnseenActiveMode,
+  hasUnseenActiveControl,
   planViewportToolbar,
   viewportToolbarSlots,
   type ViewportToolbarAction,
@@ -42,7 +42,7 @@ function surfaceGroups(options: {
       id: 'view',
       items: [
         action('fit', { pinned: true }),
-        options.pan && action('pan', { checked: false, unseenWhenCollapsed: true }),
+        options.pan && action('pan', { checked: false, unseenWhenCollapsed: false }),
         options.rotate && action('rotate-ccw'),
         options.rotate && node('rotation', { only: 'fine' }),
         options.rotate && action('rotate-cw'),
@@ -222,38 +222,53 @@ describe('viewportToolbarSlots', () => {
   });
 });
 
-describe('hasUnseenActiveMode', () => {
+describe('hasUnseenActiveControl', () => {
   it('reports a mode that is on and shows nowhere else', () => {
     expect(
-      hasUnseenActiveMode([
+      hasUnseenActiveControl([
         { id: 'view', items: [action('pan', { checked: true, unseenWhenCollapsed: true })] },
       ])
     ).toBe(true);
   });
 
-  it('ignores plain verbs and modes that are off', () => {
+  /**
+   * The case the old shape could not express. A verb has no `checked` to be
+   * combined with, so gating the signal on one restricted it to modes — and the
+   * crease angle, a *value* away from its default with no other trace on a
+   * phone, went unannounced.
+   */
+  it('reports a verb holding a non-default value', () => {
     expect(
-      hasUnseenActiveMode([
+      hasUnseenActiveControl([
+        { id: 'angle', items: [action('crease-angle', { unseenWhenCollapsed: true })] },
+      ])
+    ).toBe(true);
+  });
+
+  it('ignores plain verbs and controls at rest', () => {
+    expect(
+      hasUnseenActiveControl([
         {
           id: 'view',
           items: [
-            action('pan', { checked: false, unseenWhenCollapsed: true }),
+            action('pan', { checked: false, unseenWhenCollapsed: false }),
+            action('crease-angle', { unseenWhenCollapsed: false }),
             action('insert-image'),
           ],
         },
       ])
     ).toBe(false);
-    expect(hasUnseenActiveMode([])).toBe(false);
+    expect(hasUnseenActiveControl([])).toBe(false);
   });
 
   /**
    * Layers default to visible and mirror draw puts its axis on the paper, so
    * counting every checked item would leave the trigger permanently lit and the
-   * signal worth nothing.
+   * signal worth nothing. Which is why the flag is opt-in rather than derived.
    */
   it('ignores a mode the canvas already shows', () => {
     expect(
-      hasUnseenActiveMode([
+      hasUnseenActiveControl([
         { id: 'layers', items: [action('layer-labels', { checked: true })] },
         { id: 'symmetry', items: [action('symmetry', { checked: true })] },
       ])

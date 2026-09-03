@@ -1,4 +1,8 @@
 {
+  "contextMenu": {
+    "failed": "Не удалось выполнить это действие",
+    "failedDetail": "Ничего не изменено. Если это повторяется, попробуйте перезагрузить."
+  },
   "cpRegionSolve": {
     "failed": "",
     "incompleteAction": "",

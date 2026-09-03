@@ -1,4 +1,8 @@
 {
+  "contextMenu": {
+    "failed": "해당 작업을 완료할 수 없습니다",
+    "failedDetail": "변경된 내용이 없습니다. 계속 발생하면 새로고침해 보세요."
+  },
   "cpRegionSolve": {
     "failed": "",
     "incompleteAction": "",

@@ -51,6 +51,10 @@ jobs:
       - name: Build web app
         run: npm run build:web
         env:
+          # Opts this build into a crawlable robots.txt. Absence means "not production",
+          # so PR previews de-index themselves rather than competing with the real site
+          # for the same copy. Same absence-is-off firewall as the telemetry below.
+          ORI_SITE_ENV: production
           # PostHog analytics config is inlined by Vite at build time. Absent =
           # analytics silently disabled (the dev/prod firewall). Set only here,
           # on the prod (main) deploy — PR previews intentionally leave these
@@ -118,7 +122,14 @@ jobs:
       # against it can pass green without ever touching the build that was just uploaded.
       # `--alias` keeps the public hostname covered, as a reachability probe.
       - name: Verify share endpoints
-        run: node scripts/share-smoke.mjs "${{ steps.deploy.outputs.url }}" --alias https://oristudio.pages.dev
+        run: node scripts/share-smoke.mjs "${{ steps.deploy.outputs.url }}" --alias https://oristudio.dev
+
+      # robots.txt and sitemap.xml are the two files whose absence is invisible: Pages'
+      # SPA fallback serves index.html at 200 for both, so a status check calls a missing
+      # file a success. This asserts on content type and body instead. Same per-deployment
+      # host as the share checks, for the same reason.
+      - name: Verify SEO files
+        run: node scripts/seo-smoke.mjs "${{ steps.deploy.outputs.url }}"
 
       # The model store: the registry is served, names a current detector whose
       # manifest is served, and the model's first byte comes back with the

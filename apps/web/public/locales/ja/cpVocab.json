@@ -618,7 +618,7 @@
     },
     "cp_action_crease_make_aux": {
       "label": "補助線にする",
-      "tooltip": "選択した折り線を補助線に変換します",
+      "tooltip": "選択した線を補助線に変換します",
       "disabledReason": "準備完了"
     },
     "cp_action_operation_frame_create": {

@@ -618,7 +618,7 @@
     },
     "cp_action_crease_make_aux": {
       "label": "Make auxiliary",
-      "tooltip": "Convert selected folding lines to auxiliary lines",
+      "tooltip": "Convert selected lines to auxiliary lines",
       "disabledReason": "Ready"
     },
     "cp_action_operation_frame_create": {

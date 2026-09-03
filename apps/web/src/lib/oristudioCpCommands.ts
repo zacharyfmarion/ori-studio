@@ -619,8 +619,12 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   ),
   ready('CreaseMakeAux', 'Make auxiliary', 'color', 'scan-line', 'MouseHandlerCreaseMakeAux', {
     placement: 'menu',
-    selectionRequirement: 'selected folding lines',
-    tooltip: 'Convert selected folding lines to auxiliary lines',
+    // Not "folding lines", which is upstream's gate spelled literally and was
+    // wrong here: an unassigned crease is not one, and this silently declined it
+    // until `operations::color::make_aux` widened. A line already auxiliary is
+    // the only thing left that declines.
+    selectionRequirement: 'selected non-auxiliary lines',
+    tooltip: 'Convert selected lines to auxiliary lines',
   }),
   ready('OperationFrameCreate', 'Operation frame', 'transform', 'frame', 'MouseHandlerOperationFrameCreate', {
     // Hidden per Zach — CP export is handled differently here, so the frame isn't
@@ -1207,6 +1211,56 @@ export function cpCommandUsesActiveLineColor(
   operationId: OristudioCpOperationId | undefined
 ): boolean {
   return operationId ? CP_ACTIVE_LINE_COLOR_OPERATIONS.has(operationId) : false;
+}
+
+/**
+ * Drawing tools whose creases are a full ±180 by construction, whatever the
+ * active crease angle happens to be.
+ *
+ * A subtraction from {@link CP_ACTIVE_LINE_COLOR_OPERATIONS} rather than a
+ * second list of what *does* take the angle, because "draws in the active
+ * colour" and "should take the active angle" agree on nearly everything — two
+ * independent lists would drift, and the interesting content is the handful of
+ * exceptions rather than the thirty tools that are not exceptional.
+ *
+ * Two reasons appear here, and they are worth keeping distinct:
+ *
+ * - **Flat-foldable by construction.** The classical bases fold flat; that is
+ *   what they are. So do the vertex-completion tools, whose entire output is a
+ *   crease that makes a vertex flat-foldable — a non-180 crease at that vertex
+ *   contradicts the answer the tool just computed.
+ * - **Inherits instead.** `LengthenCreaseSameColor` extends a crease keeping
+ *   the crease's own colour, so it keeps the crease's own angle too. Its
+ *   sibling `LengthenCrease` draws in the active colour and does take the pen.
+ */
+const CP_CLASSIC_ONLY_CREASE_OPERATIONS = new Set<OristudioCpOperationId>([
+  'DrawBlintz',
+  'DrawFishBase',
+  'DrawDoveBase',
+  'DrawBirdBase',
+  'DrawFrogBase',
+  'VertexMakeAngularlyFlatFoldable',
+  'FoldableLineDraw',
+  'FoldableLineInput',
+  'LengthenCreaseSameColor',
+]);
+
+/**
+ * Whether `operationId` gives the creases it draws the active crease angle.
+ *
+ * Not the same question as {@link cpCommandUsesActiveLineColor}, which is why
+ * it is a separate predicate: a tool can draw in the colour the user picked and
+ * still owe its creases a full fold. See
+ * {@link CP_CLASSIC_ONLY_CREASE_OPERATIONS}.
+ */
+export function cpCommandUsesActiveCreaseAngle(
+  operationId: OristudioCpOperationId | undefined
+): boolean {
+  if (!operationId) return false;
+  return (
+    cpCommandUsesActiveLineColor(operationId) &&
+    !CP_CLASSIC_ONLY_CREASE_OPERATIONS.has(operationId)
+  );
 }
 
 /**

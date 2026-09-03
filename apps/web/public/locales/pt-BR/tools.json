@@ -219,6 +219,13 @@
     "title": "Ferramentas",
     "trigger": "Ferramentas"
   },
+  "creaseAngle": {
+    "close": "Fechar ângulo do vinco",
+    "degrees": "Ângulo do vinco em graus",
+    "fieldTitle": "Ângulo de dobra dado aos novos vincos de monte e vale",
+    "menuRow": "Ângulo do vinco: {{angle}}",
+    "title": "Ângulo do vinco"
+  },
   "divideMode": {
     "count": "Quantidade",
     "countTitle": "Dividir a linha em partes iguais",
@@ -268,7 +275,21 @@
     "valley": "Linha V",
     "yellow": "Linha amarela"
   },
+  "simulator": {
+    "foldBackward": "Retroceder dobra",
+    "foldEnd": "Ir para dobrado",
+    "foldForward": "Avançar dobra",
+    "foldStart": "Ir para plano",
+    "playPause": "Reproduzir / pausar dobra",
+    "replay": "Repetir do plano",
+    "resetView": "Redefinir vista do simulador",
+    "toggleCreases": "Linhas de vinco",
+    "toggleFaces": "Faces",
+    "toggleHiddenLines": "Linhas ocultas",
+    "toggleLighting": "Iluminação"
+  },
   "viewport": {
+    "contextMenu": "Abrir menu de contexto",
     "fit": "Ajustar",
     "more": "Mais controles de vista",
     "pan": "Deslocar",

@@ -91,6 +91,7 @@ node scripts/osf-fold-projection.mjs "$CORPUS/spikes_better.fold"               
 # The three plant/ designs are NOT committed; they derive into the corpus itself.
 # See crates/oristudio-cp/tests/common/mod.rs.
 cp "$CORPUS/tooling/base_fixed.osf" $OUT/box_90.osf
+# hole_vertex_90 is not derived from the corpus — see its entry below.
 ```
 
 **No coordinate rounding**, and that is a decision rather than an oversight. The
@@ -109,9 +110,10 @@ Total: **23.1 KB** of `.fold` across the five committed fixtures (against 144.8 
 
 ## Licence and provenance
 
-The **six** files now in this directory — `hinge_90`, `box_90`, `box_90_unangled`,
-`spikes_small`, `spikes_large` and `box_90.osf` — were authored by the repository
-owner in Ori Studio and are contributed for this purpose under the repository's
+The **seven** files now in this directory — `hinge_90`, `hole_vertex_90`,
+`box_90`, `box_90_unangled`, `spikes_small`, `spikes_large` and `box_90.osf` —
+were authored by the repository owner in Ori Studio (`hole_vertex_90` with its
+fold angles solved rather than saved; see its entry) and are contributed for this purpose under the repository's
 licence. `box_90.osf` carries `images: []`, `textAnnotations: []` and
 `inlineSimulations: []`, so unlike `iguana_24.osf` nothing had to be stripped
 from it.
@@ -183,6 +185,7 @@ and the reason having both is worth it.
 | fixture | V / E / F | ±180 | non-classic | flat | closure | self-int | indet | spatial | loop-gap | ntree | dihedral | min-sep | sep-bins | planes | census | 3D verdict |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `hinge_90` | 4 / 5 / 2 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | — | 0 | 0.00e0 | — | 0/0/0/0/0 | 2 | **0** | admit |
+| `hole_vertex_90` | 20 / 26 / 6 | 0 | 6 | 0 | 0 | 0 | 0 | 0 | 1.90e-7 | 1 | 2.44e-8 | — | 0/0/0/0/0 | 6 | **0** | admit |
 | `box_90` | 13 / 23 / 11 | 7 | 6 | 0 | 0 | 0 | 0 | 2 | 1.46e-13 | 3 | 0.00e0 | 2.828e2 | 7/0/0/0/1 | 4 | 17 | admit |
 | `box_90_unangled` | 13 / 23 / 11 | 13 | 0 | **2** | 0 | 0 | 0 | 0 | 4.00e2 | 3 | 1.80e2 | — | 10/0/0/0/0 | 1 | 27 | n/a (flat path) |
 | `spikes_small` | 24 / 48 / 25 | 20 | 16 | 0 | 0 | 0 | 0 | 8 | 7.00e-14 | 12 | 2.54e-14 | — | 22/0/0/0/0 | 3 | 36 | admit |
@@ -207,6 +210,47 @@ graph is a tree, so the loop gap has nothing to be a maximum over; that has to
 read as `--` and not as `0.0`. Per the plan's §1, a two-face hinge discriminates
 nothing about composition order and must never be the only placement test.
 Source: `test_export.fold` (sha256 `b4b85db4…`), itself an Ori Studio FOLD export.
+
+**`hole_vertex_90`** — the first **multiply-connected** fixture here, and the
+only one whose loop gap is load-bearing. A sheet with a square window, six
+creases running from the window's rim out to the paper's, and **no interior
+vertex at all**: every vertex touches a border, so `is_interior_vertex` declines
+all of them and `dispatched_camv` examines nothing (`spatial` reads 0, and that
+is the fixture's point rather than a gap in it). On every other fixture the
+non-tree dual edges close cycles per-vertex closure has already forced, and the
+loop-gap bar is defence in depth; here the one cycle goes around the hole,
+per-vertex closure says nothing about it, and the gap is the whole check.
+
+Multiply-connected paper is also what made the gate's blind spot reachable —
+`loop_gap.offset` is sampled at the endpoints of the dropped crease, so it cannot
+see a holonomy that is a rotation about that crease's own line. This fixture is
+not the one that catches it (it closes, so it passes either way); the shape that
+does is a *fold line the hole interrupts*, which is
+`tests/fixtures/oriedita/holed_frame_collinear.ori`'s geometry with the two
+halves given different angles. See
+`folding3d.rs::an_interrupted_fold_line_cannot_be_folded_two_different_ways`.
+
+This is the `annulus_90` role from *What is deliberately absent* below, filled.
+
+It is also the **only committed fixture with more than one fold-angle
+magnitude**: four valleys at 90° and two mountains at
+arccos(1/3) = 70.5287793655°. Its six crease lines are concurrent at the window's
+centre, so the annulus is kinematically a degree-6 vertex with the vertex punched
+out, and the closing states are that vertex's — a one-parameter family under the
+pattern's own two-fold symmetry, related by
+`tan(mountain/2) = tan(valley/2) / √2`. That is where 70.5287793655° comes from,
+and why it is not round: uniform magnitudes do **not** close, which is the bug
+report this fixture came from.
+
+Provenance differs from the rest of this directory, and is recorded rather than
+glossed. The **geometry** is the repository owner's, authored in Ori Studio; the
+**fold angles** are not in that file — `.ori` cannot carry them — and were solved
+against the vertex closure condition. Both are contributed under the repository's
+licence, so rule 1 holds; it is simply not a straight projection of a saved
+project the way the others are, and so it has no row in `non_flat_corpus.rs`'s
+`DERIVATIONS`. Its two all-classic siblings are the other components of the same
+source file: `tests/fixtures/oriedita/holed_sheet_spiral.ori` and
+`holed_frame_collinear.ori`.
 
 **`box_90`** — 11 faces over 4 planes, 6 creases at 90°, census 17. The smallest
 model here that is a real 3D fold: multiple planes, real coplanar overlap, and
@@ -296,7 +340,8 @@ commit.
   authored fixture or it ships untested — see Phase 2's authoring list.
 - **Adversarial cases.** `strip_coupled` (the cross-plane coupling
   counterexample), `pinwheel_cyclic`, `prism_60`, `tube`, `nested_tongue`,
-  `bridge_tuck`, `annulus_90`, and the 60°/120° three-face chains Spike B needs.
+  `bridge_tuck`, and the 60°/120° three-face chains Spike B needs. `annulus_90` is
+  **done** — it is `hole_vertex_90` above.
   None of them occurs in naturally authored material, all of them have to be
   built, and Phase 2's checklist owns them.
 - **Anything third-party.** Including the Mooser's Train ground-truth pair, which

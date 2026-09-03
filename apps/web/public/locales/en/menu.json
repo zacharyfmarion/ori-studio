@@ -38,6 +38,7 @@
     "repair": "Repair",
     "replaceLineType": "Replace Selected Line Type...",
     "selectedLines": "Selected Lines",
+    "setActiveCreaseAngle": "Set Crease Angle...",
     "toggleMountainValley": "Toggle Mountain/Valley",
     "transform": "Transform Selection",
     "transformFlipHorizontal": "Flip Horizontal",
@@ -104,12 +105,17 @@
     "about": "About Ori Studio",
     "checkForUpdates": "Check for Updates…"
   },
+  "insert": {
+    "image": "Image...",
+    "text": "Text"
+  },
   "menubar": {
     "creasePattern": "Crease Pattern",
     "design": "Design",
     "edit": "Edit",
     "file": "File",
     "help": "Help",
+    "insert": "Insert",
     "view": "View"
   },
   "optimize": {

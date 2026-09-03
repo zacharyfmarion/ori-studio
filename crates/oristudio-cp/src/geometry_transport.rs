@@ -518,6 +518,8 @@ pub fn decode(compact: &CompactGeometry) -> Result<CreasePatternDocument, String
             aux_line_segments,
             texts: compact.tail.texts.clone(),
             grid: compact.tail.grid,
+            // Command-scoped, so a decoded document starts with no pen armed.
+            pen_fold_magnitude: None,
         },
         operation_frame: compact.tail.operation_frame.clone(),
         metadata: compact.tail.metadata.clone(),

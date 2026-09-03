@@ -38,6 +38,7 @@
     "repair": "Reparieren",
     "replaceLineType": "Ausgewählten Linientyp ersetzen...",
     "selectedLines": "Ausgewählte Linien",
+    "setActiveCreaseAngle": "Faltwinkel festlegen...",
     "toggleMountainValley": "Berg/Tal umschalten",
     "transform": "Auswahl transformieren",
     "transformFlipHorizontal": "Horizontal spiegeln",
@@ -104,12 +105,17 @@
     "about": "Über Ori Studio",
     "checkForUpdates": "Nach Updates suchen…"
   },
+  "insert": {
+    "image": "Bild...",
+    "text": "Text"
+  },
   "menubar": {
     "creasePattern": "Faltmuster",
     "design": "Design",
     "edit": "Bearbeiten",
     "file": "Datei",
     "help": "Hilfe",
+    "insert": "Einfügen",
     "view": "Ansicht"
   },
   "optimize": {

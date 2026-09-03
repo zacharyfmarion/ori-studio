@@ -618,7 +618,7 @@
     },
     "cp_action_crease_make_aux": {
       "label": "Marcar como auxiliar",
-      "tooltip": "Convertir las líneas de plegado seleccionadas en líneas auxiliares",
+      "tooltip": "Convertir las líneas seleccionadas en líneas auxiliares",
       "disabledReason": "Listo"
     },
     "cp_action_operation_frame_create": {

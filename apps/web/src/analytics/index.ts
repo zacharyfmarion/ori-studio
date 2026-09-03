@@ -19,6 +19,8 @@ export type {
   AnalyticsPropertyValue,
   AnalyticsErrorDomain,
   CommandGroup,
+  ContextMenuSurface,
+  ContextMenuTargetKind,
   CpFavoriteSurface,
   DesignMethod,
   DesignTabSource,

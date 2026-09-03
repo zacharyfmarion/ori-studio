@@ -2184,9 +2184,13 @@ fn square_bisector_modes_match_oriedita_oracle() {
     let first_destination = segment(-1.0, -1.0, -1.0, 3.0, LineColor::Black0);
     let second_destination = segment(1.0, -1.0, 1.0, 3.0, LineColor::Black0);
     let mut model = model_from_segments(&segments);
+    // `parallel_second` is passed only so the port can enforce the destination
+    // filter upstream keeps in its hover handler. Both destinations here cross the
+    // sources, so the filter passes and this stays a like-for-like oracle compare.
     let added = square_bisector_parallel_between_destinations(
         &mut model,
         &indicator,
+        &parallel_second,
         &first_destination,
         &second_destination,
         LineColor::Blue2,

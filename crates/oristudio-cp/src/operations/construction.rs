@@ -1062,14 +1062,58 @@ pub fn commit_square_bisector_parallel_indicator(
     add_square_bisector_line(model, &indicator.with_line_color(color))
 }
 
+/// Whether a crease may serve as a destination in the parallel square-bisector
+/// branch, i.e. Oriedita's `move_drag_select_destination_2L_P` filter.
+///
+/// Upstream keeps this in the *hover* handler: a crease only becomes a candidate
+/// destination when it is `NOT_PARALLEL` to the second source, and the pick is
+/// simply refused otherwise. That placement is why it is easy to miss — it reads
+/// as highlight logic rather than as a precondition of the commit. It is the
+/// latter. The destinations are about to be intersected with the indicator, which
+/// runs parallel to both sources, so a destination parallel to the second source
+/// is parallel to the indicator, and `find_intersection` divides by their
+/// determinant. For two nearly-parallel creases that determinant is float noise
+/// rather than a clean zero, so the intersection comes back finite and enormous
+/// instead of failing, and is committed as a crease endpoint.
+///
+/// That is the same failure as the original Angle Bisector bug, one arm over: a
+/// real user file reached 8.2e12 through it. So the rule is ported here, next to
+/// the operation it guards, rather than left in whichever surface happens to be
+/// driving — see [`square_bisector_parallel_between_destinations`], which
+/// re-checks it rather than trusting its caller.
+pub fn square_bisector_parallel_destination_is_usable(
+    second_source: &LineSegment,
+    destination: &LineSegment,
+) -> bool {
+    is_line_segment_parallel(
+        StraightLine::from_segment(destination),
+        StraightLine::from_segment(second_source),
+    ) == ParallelJudgement::NotParallel
+}
+
 /// Oriedita `SQUARE_BISECTOR_7` parallel two-line branch using two destinations.
+///
+/// `second_source` is the second of the two parallel creases, carried purely so
+/// this can enforce [`square_bisector_parallel_destination_is_usable`] itself.
+/// Upstream's equivalent takes only the destinations, because by the time it runs
+/// its hover handler has already refused every unusable one — an invariant that
+/// holds for upstream's single caller and for nobody else. Checking here makes it
+/// hold for every caller, which is what stops a divide by ~0 from being one
+/// forgotten UI filter away.
 pub fn square_bisector_parallel_between_destinations(
     model: &mut CreasePatternModel,
     indicator: &LineSegment,
+    second_source: &LineSegment,
     first_destination: &LineSegment,
     second_destination: &LineSegment,
     color: LineColor,
 ) -> bool {
+    if !square_bisector_parallel_destination_is_usable(second_source, first_destination)
+        || !square_bisector_parallel_destination_is_usable(second_source, second_destination)
+    {
+        return false;
+    }
+
     if is_line_segment_parallel(
         StraightLine::from_segment(first_destination),
         StraightLine::from_segment(second_destination),

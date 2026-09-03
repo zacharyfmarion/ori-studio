@@ -16,8 +16,8 @@ use serde::Serialize;
 
 use crate::fold_graph::FoldGraphError;
 use crate::folding::{
-    AdditionalEstimationError, DisplayStyle, EstimationOrder, FoldSetupError, FoldedFigureModel,
-    FoldedFigureRenderOptions, FoldedFigureRenderSnapshot, FoldedFigureSnapshot,
+    AdditionalEstimationError, DisplayStyle, EstimationOrder, EstimationStep, FoldSetupError,
+    FoldedFigureModel, FoldedFigureRenderOptions, FoldedFigureRenderSnapshot, FoldedFigureSnapshot,
     FoldingEstimateError, FoldingEstimateSession, InitialHierarchyError, WorkerOverlapSearchError,
     fold_another, folded_figure_render_snapshot_from_session, folded_figure_snapshot_from_session,
     folding_estimate_to_case,
@@ -932,7 +932,28 @@ impl CpSession {
             ));
         }
         let mut session = FoldingEstimateSession::new(segments, starting_face_id);
-        session.folding_estimated(order)?;
+        if let Err(error) = session.folding_estimated(order) {
+            return Err(flat_fold_error(error, segments));
+        }
+        // A fold that produced nothing is a failure, and only this boundary can
+        // say so. The step ladder inside `folding_estimated` is Oriedita's, and
+        // each rung is conditional on the one below producing something — so
+        // when `calculate_faces`'s Euler gate clears the arrangement, estimation
+        // stops at `Step1` and returns `Ok`. That is right for the ported
+        // routine, which is incremental by design, and wrong for a caller whose
+        // whole request was "give me a folded figure": it got a figure with
+        // nothing in it and no error to show for it.
+        //
+        // The 3D gate already refuses the same geometry, as
+        // `Fold3dRefusal::FacesUnresolved`, and this code shares its sentence.
+        if order.is_at_least(EstimationOrder::Order2)
+            && session.estimate().estimation_step == EstimationStep::Step1
+        {
+            return Err(EngineError::new(
+                "fold_faces_unresolved",
+                "the arrangement could not be traced, so there are no faces to fold",
+            ));
+        }
         let snapshot = folded_figure_snapshot_from_session(&session, model.clone());
         let handle = self.store_folded(FoldedFigure::Flat(Box::new(FlatFoldedFigure {
             session,
@@ -1155,6 +1176,55 @@ fn title_from(title: &str) -> Option<String> {
     }
 }
 
+/// The flat fold's error, with the one cause the raw verdict cannot name.
+///
+/// `SameParityAdjacentFaces` is Maekawa's even-degree corollary: it fires on any
+/// odd cycle in the dual graph and is completely colour-blind, so it reports a
+/// crease rather than the thing that made the cycle. When a border segment has
+/// paper on both sides — a cut drawn through the sheet — that border is read as
+/// a crease, and *it* is the odd cycle. The parity verdict then blames whichever
+/// crease the walk happened to reach first, which is usually nowhere near it.
+///
+/// So consult the detector the 3D gate already uses, and only on this one
+/// verdict. A pattern that folds still folds; only the sentence changes, and it
+/// changes to the same complaint `Fold3dRefusal::InteriorCut` makes about the
+/// same geometry.
+///
+/// A hole in the sheet does **not** land here: `FoldGraph::from_sheet_segments`
+/// drops it, so its boundary has paper on one side and is nobody's cut.
+fn flat_fold_error(error: FoldingEstimateError, segments: &[LineSegment]) -> EngineError {
+    let parity = matches!(
+        &error,
+        FoldingEstimateError::Setup(FoldSetupError::InitialHierarchy(
+            InitialHierarchyError::SameParityAdjacentFaces { .. }
+        )) | FoldingEstimateError::WorkerOverlap(WorkerOverlapSearchError::Setup(
+            FoldSetupError::InitialHierarchy(InitialHierarchyError::SameParityAdjacentFaces { .. })
+        )) | FoldingEstimateError::WorkerOverlap(WorkerOverlapSearchError::AdditionalEstimation(
+            AdditionalEstimationError::Setup(FoldSetupError::InitialHierarchy(
+                InitialHierarchyError::SameParityAdjacentFaces { .. }
+            ))
+        ))
+    );
+    if !parity {
+        return EngineError::from(error);
+    }
+    let model = CreasePatternModel {
+        line_segments: segments.to_vec(),
+        ..CreasePatternModel::default()
+    };
+    let borders = crate::checks_spatial::interior_border_segments(&model);
+    let Some(first) = borders.first() else {
+        return EngineError::from(error);
+    };
+    EngineError::new(
+        "fold_interior_cut",
+        format!(
+            "segment {} at ({}, {}) is a border with paper on both sides",
+            first.segment, first.point.x, first.point.y
+        ),
+    )
+}
+
 fn selected_folding_segments(
     segments: &[LineSegment],
     selected_line_ids: &[usize],
@@ -1288,6 +1358,114 @@ mod tests {
             ),
         ));
         assert_eq!(contradiction.code, "fold_contradiction");
+    }
+
+    /// A cut through the sheet is named as one, rather than reported as a parity
+    /// failure on an unrelated crease.
+    ///
+    /// `SameParityAdjacentFaces` is colour-blind and fires on any odd cycle in
+    /// the dual graph, so its own report blames whichever crease the walk
+    /// reached first. Here that is line 9, three segments away from the cut.
+    #[test]
+    fn a_cut_through_the_sheet_is_named_rather_than_blamed_on_a_crease() {
+        use crate::geometry::{LineColor, LineSegment, Point};
+
+        let border = |ax: f64, ay: f64, bx: f64, by: f64| {
+            LineSegment::with_color(Point::new(ax, ay), Point::new(bx, by), LineColor::Black0)
+        };
+        let mut segments = vec![
+            border(0.0, 0.0, 100.0, 0.0),
+            border(100.0, 0.0, 200.0, 0.0),
+            border(200.0, 0.0, 200.0, 200.0),
+            border(200.0, 200.0, 100.0, 200.0),
+            border(100.0, 200.0, 0.0, 200.0),
+            border(0.0, 200.0, 0.0, 100.0),
+            border(0.0, 100.0, 0.0, 0.0),
+            border(100.0, 0.0, 100.0, 100.0),
+            border(100.0, 100.0, 100.0, 200.0),
+        ];
+        segments.push(LineSegment::with_color(
+            Point::new(0.0, 100.0),
+            Point::new(100.0, 100.0),
+            LineColor::Red1,
+        ));
+
+        let mut session = CpSession::new();
+        let handle = session.load_document(crate::CreasePatternDocument {
+            crease_pattern: CreasePatternModel {
+                line_segments: segments,
+                ..CreasePatternModel::default()
+            },
+            ..crate::CreasePatternDocument::default()
+        });
+        let error = session
+            .folded_figure_fold(
+                handle,
+                1,
+                crate::folding::EstimationOrder::Order5,
+                FoldedFigureModel::default(),
+            )
+            .expect_err("a sheet cut in two does not fold");
+        assert_eq!(error.code, "fold_interior_cut");
+        assert!(
+            error.message.contains("(100, 50)"),
+            "the message must locate the cut: {}",
+            error.message
+        );
+    }
+
+    /// A parity failure with no cut behind it keeps the parity code. The hint
+    /// above must not swallow the verdict it is enriching.
+    ///
+    /// Through `flat_fold_error`, not through `EngineError::from`. The first
+    /// version of this test called the conversion directly, which cannot reach
+    /// the hint at all — it asserted that a function it never ran did nothing.
+    #[test]
+    fn a_parity_failure_without_a_cut_keeps_its_own_code() {
+        use crate::geometry::{LineColor, LineSegment, Point};
+
+        // A plain square with one diagonal: no border has paper on both sides,
+        // so the hint finds nothing to say and must stand aside.
+        let mut segments: Vec<LineSegment> = [
+            ((0.0, 0.0), (200.0, 0.0)),
+            ((200.0, 0.0), (200.0, 200.0)),
+            ((200.0, 200.0), (0.0, 200.0)),
+            ((0.0, 200.0), (0.0, 0.0)),
+        ]
+        .iter()
+        .map(|((ax, ay), (bx, by))| {
+            LineSegment::with_color(
+                Point::new(*ax, *ay),
+                Point::new(*bx, *by),
+                LineColor::Black0,
+            )
+        })
+        .collect();
+        segments.push(LineSegment::with_color(
+            Point::new(0.0, 0.0),
+            Point::new(200.0, 200.0),
+            LineColor::Red1,
+        ));
+        assert!(
+            crate::checks_spatial::interior_border_segments(&CreasePatternModel {
+                line_segments: segments.clone(),
+                ..CreasePatternModel::default()
+            })
+            .is_empty(),
+            "the fixture must carry no interior border, or this proves nothing"
+        );
+
+        let error = flat_fold_error(
+            FoldingEstimateError::Setup(FoldSetupError::InitialHierarchy(
+                InitialHierarchyError::SameParityAdjacentFaces {
+                    line: 0,
+                    first_face: 0,
+                    second_face: 1,
+                },
+            )),
+            &segments,
+        );
+        assert_eq!(error.code, "fold_same_parity");
     }
 
     /// A folded form is refused with a code of its own, not the shared

@@ -12,7 +12,7 @@ import { readCssVarColor } from './renderer/cssColor';
 import { syncHeldModifiersFromEvent } from '../keyboard/heldModifiers';
 import { resolveWheelGesture, type WheelGesturePreference } from '../lib/wheelGesture';
 import { claimWheelBurst, forwardWheel } from '../lib/wheelBurst';
-import { cpCanvasCursor, usePanModifierHeld } from './cpCanvasCursor';
+import { cpCanvasCursor, isPanModifierHeld, usePanModifierHeld } from './cpCanvasCursor';
 import {
   cameraZoomForPercent,
   fitUserCamera,
@@ -30,6 +30,8 @@ import {
 } from './renderer/camera';
 import { registerCpCamera, type CpCameraHandle } from './renderer/cpCameraRegistry';
 import { LineHitIndex } from './picking/lineHitIndex';
+import { registerCpSurfacePress } from './picking/cpSurfacePressRegistry';
+import { surfaceClaimsPress } from './picking/surfaceClaimsPress';
 import {
   circleRingIntersectsConvexQuad,
   pointInConvexQuad,
@@ -42,6 +44,10 @@ import { applyPinchToCamera } from './gestures/pinchCamera';
 import type { GesturePoint, PinchTransform } from './gestures/pinchTransform';
 import { previewGroupsToStrokes, previewSegmentsToStrokes } from './renderer/previewStrokes';
 import { candidatePreviewGroups } from './adapters/candidatePreviewGroups';
+import {
+  FOLD_ANGLE_ANCHOR_FALLBACK,
+  FOLD_ANGLE_ANCHOR_VAR,
+} from './foldAngle/foldAngleRamp';
 import {
   type FoldedGeometry,
   type MarkerGeometry,
@@ -80,7 +86,12 @@ import {
 import type { CpGeometryTransport } from '../engine/oristudioCpGeometry';
 import type { CpImage } from './images/cpImage';
 import type { CpSuppressionRegion } from './annotations/suppressionRegion';
-import { cpContentBounds, cpSizingBounds } from './cpContentBounds';
+import {
+  cpContentBounds,
+  cpPlacedObjectBounds,
+  cpTrimmedCreaseBounds,
+  unionBounds,
+} from './cpContentBounds';
 import { cpSizingScales } from './cpSizingScales';
 import { cpPointsToScene, VERTEX_RADIUS_FACTOR } from './adapters/cpPointsToScene';
 import { createCpLineAppearanceResolver } from './adapters/cpLineStyle';
@@ -95,6 +106,7 @@ import {
 import type { OristudioCpFoldedFigureEntry } from '../engine/oristudioCpTypes';
 import { useFolded3dOrbitFigures } from './folded/useFolded3dOrbitFigures';
 import type { CpContextMenuRequest } from './contextMenuTarget';
+import { cpHasSelection, cpRightClickOutcome } from './contextMenu/cpRightClick';
 import {
   cpGridLinesToStrokes,
   gridBoundsKey,
@@ -175,9 +187,6 @@ const EMPTY_REGIONS: readonly CpSuppressionRegion[] = [];
  * variable keeps the two renderers visually identical when toggling.
  */
 const CANVAS_BG_VAR = '--bg-primary';
-/** Hue a shallower fold shifts toward; see `foldAngle/foldAngleRamp.ts`. */
-const FOLD_ANGLE_ANCHOR_VAR = '--fold-angle-anchor';
-const FOLD_ANGLE_ANCHOR_FALLBACK: Rgba = [0.851, 0.275, 0.937, 1];
 
 /** Fallback if the CSS variable is missing (roughly a neutral dark panel). */
 const FALLBACK_CLEAR: Rgba = [0.157, 0.172, 0.204, 1];
@@ -223,9 +232,21 @@ function smoothstep(edge0: number, edge1: number, x: number): number {
   return t * t * (3 - 2 * t);
 }
 
-/** Selection highlight: accent colour + a wider stroke. */
+/** Tool previews and cursor highlights: geometry being *drawn*, not selected. */
 const SELECTION_COLOR_VAR = '--accent-primary';
 const SELECTION_FALLBACK: Rgba = [0.4, 0.6, 1, 1];
+/**
+ * Selected creases and points: a solid colour plus a wider stroke.
+ *
+ * Usually the theme's accent, and deliberately *not* the accent in the themes
+ * where that would be confusable with a fold — red is mountain and blue is
+ * valley, and a crease's colour is the only thing that says which it is, so a
+ * selected mountain painted accent-blue read as a valley. See `selection.cp` in
+ * `themes/types.ts` for which themes override and why.
+ */
+const SELECTED_COLOR_VAR = '--cp-selection';
+/** One-dark's gold, if the token somehow fails to resolve. */
+const SELECTED_FALLBACK: Rgba = [0.898, 0.753, 0.482, 1];
 const SELECTION_WIDTH_MUL = 2.6;
 /** Alpha of a copy gesture's ghost, so prospective creases read as not-yet-real. */
 const GHOST_ALPHA = 0.55;
@@ -668,8 +689,19 @@ export interface CreasePatternWebglCanvasProps {
    * Report a sequence tool's live input (placed points + cursor, and picked +
    * hovered crease ids) so the controller can kernel-preview + highlight them; the
    * result comes back via `toolCommandPreviewSegments`.
+   *
+   * `lineIds` is *highlight only* — the kernel resolves creases from the points,
+   * so it never reaches the payload. `pickedLineIds` is the other thing: creases
+   * the tool has actually taken, which do go to the kernel as `line_ids`. A tool
+   * whose input is creases rather than points has no points to preview from, so
+   * without this the request is skipped and the tool never sees what the kernel
+   * would do with its picks.
    */
-  onToolPreviewInput: (points: readonly ModelPoint[], lineIds: readonly number[]) => void;
+  onToolPreviewInput: (
+    points: readonly ModelPoint[],
+    lineIds: readonly number[],
+    pickedLineIds?: readonly number[]
+  ) => void;
   /**
    * Report how many inputs the active tool has taken so far (0 when reset) — creases
    * for a `line-entity` tool, placed points for a `sequence` one — so the controller
@@ -920,6 +952,17 @@ export function CreasePatternWebglCanvas({
     'none'
   );
   const foldedOrbitPointerRef = useRef<'none' | 'over' | 'turning'>('none');
+  /**
+   * Whether something selectable is under the cursor, so a crease reads as
+   * clickable before you click it.
+   *
+   * Same shape and same reasoning as `foldedOrbitPointer` above: written from a
+   * pointer handler, so it is mirrored in a ref and only re-renders when the
+   * answer flips — which happens when the pointer crosses a crease's hit band,
+   * not on every sample.
+   */
+  const [creaseHovered, setCreaseHovered] = useState(false);
+  const creaseHoveredRef = useRef(false);
   // Cmd held offers a grab before the press, so the pan affordance is visible
   // rather than something you have to already know about.
   const panModifierHeld = usePanModifierHeld();
@@ -1135,9 +1178,24 @@ export function CreasePatternWebglCanvas({
   // What stroke/marker sizing measures against, which is deliberately *not*
   // `contentBounds` — see `cpSizingBounds`. Framing must include a far-flung
   // point; sizing must not let one set the scale for the whole canvas.
+  //
+  // Deliberately two memos rather than one `cpSizingBounds` call. The crease
+  // half walks every endpoint, and it depends on the geometry alone; the placed
+  // objects are a handful of boxes, but `images`, `overlayBoxes` and
+  // `foldedFigures` are rebuilt per render. Keying the expensive half on those
+  // ran it on every camera frame, which measured as ~45% of all JavaScript in a
+  // zoom profile — see `implementation-plans/cp-sizing-bounds-zoom-cost.md`.
+  const creaseSizingBounds = useMemo<UserBounds | null>(
+    () => cpTrimmedCreaseBounds(lineSegments, modelToSvg),
+    [lineSegments, modelToSvg]
+  );
   const sizingBounds = useMemo<UserBounds | null>(
-    () => cpSizingBounds({ lineSegments, images, overlayBoxes, foldedFigures, modelToSvg }),
-    [lineSegments, images, overlayBoxes, foldedFigures, modelToSvg]
+    () =>
+      unionBounds(
+        creaseSizingBounds,
+        cpPlacedObjectBounds({ images, overlayBoxes, foldedFigures, modelToSvg })
+      ),
+    [creaseSizingBounds, images, overlayBoxes, foldedFigures, modelToSvg]
   );
 
   // Spatial indices for click hit-testing. Points are indexed as zero-length
@@ -1196,7 +1254,7 @@ export function CreasePatternWebglCanvas({
       const dashPatterns = cpLineStyleDashPatterns(lineStyle);
       const selection = {
         selected,
-        color: readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK),
+        color: readCssVarColor(document.documentElement, SELECTED_COLOR_VAR, SELECTED_FALLBACK),
         widthMul: SELECTION_WIDTH_MUL,
       };
       // Build strokes from the compact transport (typed arrays) — the default hot
@@ -1276,7 +1334,7 @@ export function CreasePatternWebglCanvas({
         {
           pointIdx: new Set(selectedPointIds.map((id) => id - 1)),
           circleIdx: new Set(selectedCircleIds.map((id) => id - 1)),
-          color: readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK),
+          color: readCssVarColor(document.documentElement, SELECTED_COLOR_VAR, SELECTED_FALLBACK),
         }
       );
     },
@@ -1341,6 +1399,12 @@ export function CreasePatternWebglCanvas({
     foldedFigures,
     foldedBounds,
           selectedLineSet,
+    // The raw id lists too, not just the line set: the right-button rule asks
+    // whether *anything* is selected, and points and circles are selections the
+    // line set cannot see.
+    selectedLineIds,
+    selectedPointIds,
+    selectedCircleIds,
     buildStrokes,
     buildPoints,
     onSelect,
@@ -1797,6 +1861,51 @@ export function CreasePatternWebglCanvas({
       if (foldedOrbitPointerRef.current === next) return;
       foldedOrbitPointerRef.current = next;
       setFoldedOrbitPointer(next);
+    };
+
+    const applyCreaseHover = (next: boolean) => {
+      if (creaseHoveredRef.current === next) return;
+      creaseHoveredRef.current = next;
+      setCreaseHovered(next);
+    };
+    /**
+     * Whether a click would select what is under the cursor.
+     *
+     * Not "no tool is armed" — the canvas rests with Box Select armed, so that
+     * question is always answered no. What the region-select family shares is
+     * the click action. One predicate, because the hover cursor and the answer
+     * given to the overlay above must not disagree about it.
+     */
+    const clickSelectsUnderCursor = () =>
+      liveRef.current.activeToolInputMode === null ||
+      liveRef.current.activeToolClickAction === 'select';
+    /**
+     * Ask whether something selectable is under the cursor, at most once per
+     * frame.
+     *
+     * Coalesced because this is a hit test and a high-rate pointer reports
+     * several times per frame — the same rule the canvas-object overlay's cursor
+     * probe follows, and the one stated on `claimsPress`. A query costs ~2 µs on
+     * a 5k-crease pattern at fit zoom and ~500 µs in the worst case that can
+     * occur, which is affordable per frame and would not be per sample.
+     */
+    let creaseHoverFrame = 0;
+    let creaseHoverAt: { x: number; y: number } | null = null;
+    const probeCreaseHover = (clientX: number, clientY: number) => {
+      // Always the latest position: a frame booked three samples ago must answer
+      // for where the pointer is now, not where it was.
+      creaseHoverAt = { x: clientX, y: clientY };
+      if (creaseHoverFrame) return;
+      creaseHoverFrame = requestAnimationFrame(() => {
+        creaseHoverFrame = 0;
+        if (creaseHoverAt) applyCreaseHover(hitTest(creaseHoverAt.x, creaseHoverAt.y) !== null);
+      });
+    };
+    const clearCreaseHover = () => {
+      if (creaseHoverFrame) cancelAnimationFrame(creaseHoverFrame);
+      creaseHoverFrame = 0;
+      creaseHoverAt = null;
+      applyCreaseHover(false);
     };
 
     /**
@@ -2562,11 +2671,19 @@ export function CreasePatternWebglCanvas({
         return;
       }
 
-      // mode === 'line': collect the 2nd source crease, then a destination crease.
+      // mode === 'line': collect the 2nd source crease, then destinations.
       //
-      // Only the non-parallel interaction. Parallel sources have no angle to bisect,
-      // and the kernel refuses them — see the `SquareBisector` dispatch for why that
-      // is a refusal rather than upstream's second interaction.
+      // How many destinations depends on the sources, because upstream splits into
+      // two interactions after the second pick (`checkIfParallel`). Sources that
+      // meet take one destination, for the bisector of the angle between them.
+      // Parallel sources have no angle, so upstream bisects them with the midline
+      // *between* them and asks for two creases crossing it, which become the new
+      // crease's two endpoints.
+      //
+      // The kernel decides which it is rather than this handler re-deciding it: it
+      // answers the two-source preview with the midline when they are parallel and
+      // with nothing when they are not, and that is the only preview this tool
+      // emits in line mode, so the midline's presence *is* the signal.
       const lineId = lineUnderCursor();
       const lines = state.lineIds;
       if (lines.length < 2) {
@@ -2574,17 +2691,36 @@ export function CreasePatternWebglCanvas({
           if (lineId > 0 && !lines.includes(lineId)) {
             lines.push(lineId);
             setLinePickHighlight([...lines]);
+            // Both sources in: ask which of the two interactions this is. The picks
+            // go on the third channel, the one that reaches the kernel — this tool
+            // previews from creases and has no points to send.
+            if (lines.length === 2) liveRef.current.onToolPreviewInput([], [], [...lines]);
           }
         } else {
           setLinePickHighlight(lineId > 0 && !lines.includes(lineId) ? [...lines, lineId] : [...lines]);
         }
-      } else if (kind === 'down') {
-        if (lineId > 0) {
-          liveRef.current.onToolCommit({ lineIds: [...lines, lineId] });
-          reset();
+        renderNow();
+        return;
+      }
+
+      // Held from the two-source preview and deliberately not re-requested as
+      // destinations are picked, so the midline stays on screen to aim at.
+      const parallel = liveRef.current.toolCommandPreviewSegments.length > 0;
+      // One destination when the sources meet, two when they do not. A click before
+      // the preview lands reads as non-parallel and sends three ids, which the
+      // kernel refuses with a message rather than approximating.
+      const wanted = parallel ? 4 : 3;
+      if (kind === 'down') {
+        if (lineId > 0 && !lines.includes(lineId)) {
+          lines.push(lineId);
+          setLinePickHighlight([...lines]);
+          if (lines.length === wanted) {
+            liveRef.current.onToolCommit({ lineIds: [...lines] });
+            reset();
+          }
         }
       } else {
-        setLinePickHighlight(lineId > 0 ? [...lines, lineId] : [...lines]);
+        setLinePickHighlight(lineId > 0 && !lines.includes(lineId) ? [...lines, lineId] : [...lines]);
       }
       renderNow();
     };
@@ -3119,6 +3255,21 @@ export function CreasePatternWebglCanvas({
             ? 'over'
             : 'none'
         );
+        // Only where a click would select what is under the cursor.
+        //
+        // That is *not* the same as "no tool armed": the canvas rests with Box
+        // Select armed (`drag-box`), so gating on a null input mode showed the
+        // pointer nowhere at all. What the region-select family shares is the
+        // click action — Box Select and both lassos resolve to `select`, and
+        // their click selects the crease under the cursor exactly as the
+        // no-tool fallback does. A draw tool has its own cursor and its own
+        // hover preview, and a drag in flight has already committed to what it
+        // is doing.
+        if (clickSelectsUnderCursor() && !movingSelection && !selecting) {
+          probeCreaseHover(e.clientX, e.clientY);
+        } else {
+          clearCreaseHover();
+        }
       }
       if (orbiting) {
         // The pointer is captured, so a drag that leaves the figure keeps
@@ -3288,17 +3439,46 @@ export function CreasePatternWebglCanvas({
         clearPreview();
         const raw = clientToModel(e.clientX, e.clientY);
         if (eraseRuntime && raw) {
-          const figureId = !moved ? figureAt(e.clientX, e.clientY) : null;
-          if (cancelled) {
+          // The whole right-button rule — erase versus menu — is
+          // `cpRightClickOutcome`, so the trade against Oriedita's unconditional
+          // erase is stated and tested in one place rather than inferred from
+          // the shape of this branch.
+          // Asked once and shared: `cpRightClickOutcome` needs to know whether
+          // erasing would act here, and the erase branch below needs the hit
+          // itself. Hit-testing twice would let the two disagree.
+          const clickHit = !moved ? hitTest(e.clientX, e.clientY) : null;
+          const outcome = cpRightClickOutcome({
+            moved,
+            cancelled,
+            figureId: !moved ? figureAt(e.clientX, e.clientY) : null,
+            hasSelection: cpHasSelection({
+              lines: liveRef.current.selectedLineIds,
+              points: liveRef.current.selectedPointIds,
+              circles: liveRef.current.selectedCircleIds,
+            }),
+            // The erase question, not the hit question — see `cpRightClick`.
+            // `eraseHit` acts on lines and circles only, so a point under the
+            // cursor leaves the press free for the blank menu.
+            erasableUnderCursor: clickHit?.kind === 'line' || clickHit?.kind === 'circle',
+          });
+          if (outcome === 'cancel') {
             eraseRuntime.feed({ kind: 'cancel', point: raw });
-          } else if (figureId) {
-            // Right-*click* (no drag) over a folded figure opens its context menu
-            // instead of erasing; right-*drag* and clicks elsewhere still erase.
+          } else if (outcome !== 'erase') {
+            // The erase runtime is rolled back first, whichever menu this is: it
+            // took the press to claim the gesture, and a menu that leaves it
+            // armed feeds every later drag to a stale runtime (see
+            // `pointerRelease.ts`).
             eraseRuntime.feed({ kind: 'cancel', point: raw });
+            const figureId = outcome === 'folded-figure-menu' ? figureAt(e.clientX, e.clientY) : null;
             liveRef.current.onRequestContextMenu({
               clientX: e.clientX,
               clientY: e.clientY,
-              target: { kind: 'folded-figure', figureId },
+              target:
+                figureId !== null
+                  ? { kind: 'folded-figure', figureId }
+                  : outcome === 'blank-menu'
+                    ? { kind: 'blank', modelPoint: raw }
+                    : { kind: 'selection' },
             });
           } else {
             const out = eraseRuntime.feed({
@@ -3311,7 +3491,7 @@ export function CreasePatternWebglCanvas({
               liveRef.current.onEraseBox(out.commit.points ?? []);
             } else {
               // Right-click (degenerate box): erase the primitive under the cursor.
-              eraseHit(hitTest(e.clientX, e.clientY));
+              eraseHit(clickHit);
             }
           }
         }
@@ -3456,6 +3636,7 @@ export function CreasePatternWebglCanvas({
       // bit-identical to before touch existed.
       if (isCoarsePointer(e.pointerType)) return;
       if (!orbiting) setOrbitPointer('none');
+      clearCreaseHover();
       parkDrawPreview();
       renderNow();
     };
@@ -3478,6 +3659,50 @@ export function CreasePatternWebglCanvas({
     // And it is the canvas' own in-flight gesture that a press landing anywhere
     // else on the surface has to take back.
     const detachAbort = gestures.onAbort('canvas', abortInFlightGesture);
+    /**
+     * Publish this canvas' press pipeline for the canvas-object overlay, which
+     * sits above it as a sibling and so takes presses that were meant for the
+     * creases under a reference image.
+     *
+     * `claimsPress` runs the *same* `hitTest` `onPointerDown` runs — not a
+     * reimplementation. A second notion of "on a crease" would drift from this
+     * one, and the gap would be a ring around every crease where the overlay
+     * declines and the canvas picks nothing either.
+     */
+    const detachSurfacePress = registerCpSurfacePress({
+      claimsPress: (event) =>
+        surfaceClaimsPress({
+          button: event.button,
+          metaKey: event.metaKey,
+          panToolActive: liveRef.current.panToolActive,
+          hit: hitTest(event.clientX, event.clientY),
+        }),
+      press: onPointerDown,
+      /**
+       * What the overlay above should show, resolved here rather than read off
+       * this canvas' rendered style — see the note on the handle. While the
+       * pointer is over a reference image this canvas receives no hover at all,
+       * so its own cursor is not an answer to anything.
+       */
+      hoverCursor: (point) => {
+        const hit = hitTest(point.clientX, point.clientY);
+        const claimed = surfaceClaimsPress({
+          button: point.button,
+          metaKey: point.metaKey,
+          panToolActive: liveRef.current.panToolActive,
+          hit,
+        });
+        if (!claimed) return null;
+        return (
+          cpCanvasCursor({
+            panToolActive: liveRef.current.panToolActive,
+            panModifierHeld: point.metaKey || isPanModifierHeld(),
+            panDragging: false,
+            creaseHovered: hit !== null && clickSelectsUnderCursor(),
+          }) ?? 'default'
+        );
+      },
+    });
     canvas.addEventListener('pointerdown', onPointerDown);
     canvas.addEventListener('pointermove', onPointerMove);
     canvas.addEventListener('pointerup', onPointerUp);
@@ -3494,8 +3719,10 @@ export function CreasePatternWebglCanvas({
       // surface believe fingers were already on it (this effect re-runs on WebGL
       // context loss, which is exactly when nobody lifts anything).
       gestures.reset();
+      if (creaseHoverFrame) cancelAnimationFrame(creaseHoverFrame);
       detachTransformSink();
       detachAbort();
+      detachSurfacePress();
       canvas.removeEventListener('pointerdown', onPointerDown);
       canvas.removeEventListener('pointermove', onPointerMove);
       canvas.removeEventListener('pointerup', onPointerUp);
@@ -3809,6 +4036,7 @@ export function CreasePatternWebglCanvas({
     panDragging,
     foldedOrbitHovered: foldedOrbitPointer === 'over',
     foldedOrbitDragging: foldedOrbitPointer === 'turning',
+    creaseHovered,
   });
 
   return (

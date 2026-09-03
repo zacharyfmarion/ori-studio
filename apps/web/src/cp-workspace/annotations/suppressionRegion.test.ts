@@ -199,6 +199,9 @@ describe('as a canvas annotation', () => {
       locked: true,
       hidden: false,
       aspectLock: 'default-off',
+      // A backdrop, often the whole paper: a press on a crease inside it is
+      // for the crease.
+      yieldsPressToCreases: true,
     });
   });
 });

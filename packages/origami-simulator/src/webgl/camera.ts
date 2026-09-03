@@ -16,6 +16,16 @@ export interface OrbitView {
    * turntable this has always been.
    */
   orient?: Mat3;
+  /**
+   * Rotation about the line of sight, in radians. Absent means none.
+   *
+   * The third degree of freedom. Yaw and pitch move the eye on a sphere, which
+   * fixes *where* you look from and leaves no say in which way up the picture
+   * lands; this spins it in the plane of the screen without moving the eye at
+   * all. See {@link viewRotationFor} for why that is exact rather than
+   * approximate.
+   */
+  roll?: number;
 }
 
 /**
@@ -58,6 +68,29 @@ export const IDENTITY_MAT3: Mat3 = [1, 0, 0, 0, 1, 0, 0, 0, 1];
  * `orient` is an optional model rotation applied **before** the camera, so yaw
  * spins about `orientᵀ · Y` rather than about world Y. Identity by default,
  * which reproduces the original transform exactly.
+ *
+ * ## This is a reflection, not a rotation
+ *
+ * Its determinant is **−1** at every yaw and pitch — at `(0, 0)` it is the plain
+ * y/z swap `[[1,0,0],[0,0,1],[0,1,0]]`, whose rows are a *left*-handed basis
+ * (`right × up = −eye`). Upstream draws through THREE.js, whose camera basis is
+ * right-handed, so this is a port divergence and everything downstream of it
+ * either cancels the reflection or inherits it.
+ *
+ * Two consequences, both relied on by callers:
+ *
+ * - **The picture is mirrored.** A model has to be handed to this camera
+ *   reflected to come out reading correctly. `normalizePoint`'s 2D lift and
+ *   `folded3dMesh.ts`'s `toSimBasis` are each that reflection for their own
+ *   surface, and a change to one without the other puts them out of step.
+ * - **`gl_FrontFacing` is inverted** relative to THREE's `FrontSide`:
+ *   `sign(screen winding) = −sign(n · eyeDir)`, so a triangle whose right-hand
+ *   normal points *toward* the eye is drawn with `u_backColor`. A folded figure
+ *   winds about `−paperFrontNormal` for exactly this reason.
+ *
+ * Straightening the basis is not a local change: it would flip both of those at
+ * once for both surfaces, and it would change what `pitch` means — which is
+ * document state, stored per folded figure in `.osf`.
  */
 export function viewRotation(yaw: number, pitch: number, orient: Mat3 = IDENTITY_MAT3): Mat3 {
   const cy = Math.cos(yaw);
@@ -70,6 +103,49 @@ export function viewRotation(yaw: number, pitch: number, orient: Mat3 = IDENTITY
   //   depth = -sp·sy·dx + cp·dy + sp·cy·dz
   const camera: Mat3 = [cy, 0, sy, -cp * sy, -sp, cp * cy, -sp * sy, cp, sp * cy];
   return orient === IDENTITY_MAT3 ? camera : multiplyMat3(camera, orient);
+}
+
+/**
+ * Spin the *view* about the line of sight, as a matrix.
+ *
+ * Row-major, and in view space rather than the world: it mixes the right and up
+ * rows and leaves the depth row exactly `(0, 0, 1)`. Composed on the **left** of
+ * a view rotation, that is what makes roll independent of everything else —
+ * see {@link viewRotationFor}.
+ */
+export function rollRotation(roll: number): Mat3 {
+  const c = Math.cos(roll);
+  const s = Math.sin(roll);
+  return [c, s, 0, -s, c, 0, 0, 0, 1];
+}
+
+/**
+ * The whole view rotation for a camera: roll, angles and model orientation.
+ *
+ * ```
+ * M = Roll(roll) · Yaw/Pitch(yaw, pitch) · orient
+ * ```
+ *
+ * ## Roll cannot disturb the viewpoint
+ *
+ * Not by care but by construction: `Roll`'s bottom row is `(0, 0, 1)`, so row 2
+ * of the product is row 2 of what it multiplies — and row 2 *is* the eye
+ * direction (see {@link viewDepthAxis}). Rolling therefore leaves "where am I
+ * looking from" untouched, which is what lets everything built on that row —
+ * the depth sort, the folded projector's side-of-plane test, the view cube's
+ * face solver — carry on unaware that roll exists.
+ *
+ * ## Take the camera whole
+ *
+ * Prefer this to unpacking a view into `viewRotation(v.yaw, v.pitch, v.orient)`
+ * at each call site. Every such site is a place to forget the next field, and
+ * forgetting one is not a crash: it is one render path quietly drawing at a
+ * different angle from the others. `roll` was added after eight of them already
+ * existed, which is the whole argument.
+ */
+export function viewRotationFor(view: OrbitView): Mat3 {
+  const camera = viewRotation(view.yaw, view.pitch, view.orient);
+  return view.roll ? multiplyMat3(rollRotation(view.roll), camera) : camera;
 }
 
 /** Row-major `a · b`. */
@@ -157,7 +233,7 @@ export function cameraUniforms(
   const scale = (fitExtent(width, height) / (2 * safeRadius)) * view.zoom;
   return {
     center,
-    rotation: viewRotation(view.yaw, view.pitch, view.orient),
+    rotation: viewRotationFor(view),
     scale,
     width,
     height,

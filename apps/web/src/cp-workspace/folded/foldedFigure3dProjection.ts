@@ -90,7 +90,7 @@ import {
   toViewSpace,
   traverseBsp,
   viewDepthAxis,
-  viewRotation,
+  viewRotationFor,
   type BspItem,
   type CameraUniforms,
   type DrawnPiece,
@@ -400,7 +400,7 @@ function cameraUniformsFor(camera: FoldedFigureCamera, centre: Vec3): CameraUnif
     center: sim,
     // `pitch` is measured from face-on; the simulator's own zero is face-on too,
     // so the two agree and no offset is applied.
-    rotation: viewRotation(camera.yaw, camera.pitch, camera.orient),
+    rotation: viewRotationFor(camera),
     // Not `camera.zoom`: this projection is drawn unclipped, so a zoomed-in
     // model would spill outside the frame its chrome is anchored to instead of
     // being cropped by it. Zoom is a window setting — see `FoldedFigureCamera`.
@@ -463,7 +463,7 @@ export function folded3dFrameRadius(model: OristudioCpFolded3dRenderModel): numb
  * way to say which one that is.
  */
 export function folded3dEyeDirection(camera: FoldedFigureCamera): Vec3 {
-  const [a, b, c] = viewDepthAxis(viewRotation(camera.yaw, camera.pitch, camera.orient));
+  const [a, b, c] = viewDepthAxis(viewRotationFor(camera));
   return [a, -c, b];
 }
 

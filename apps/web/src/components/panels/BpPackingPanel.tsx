@@ -1,4 +1,8 @@
-import { selectOristudioBpSelection, selectOristudioBpViewportFitRequestId } from '../../store/workspaceStore/designTabs';
+import {
+  selectOristudioBpDocument,
+  selectOristudioBpSelection,
+  selectOristudioBpViewportFitRequestId,
+} from '../../store/workspaceStore/designTabs';
 import {
   useCallback,
   useEffect,
@@ -75,7 +79,6 @@ import {
 } from '../../lib/bpPackingViewport';
 import {
   BpPackingPrimitive,
-  deviceIndexFromId,
   deviceInfoFromPrimitiveId,
   flapIdFromPrimitiveId,
   riverIdFromPrimitiveId,
@@ -121,6 +124,19 @@ import {
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { IconButton } from '../ui/IconButton';
+import {
+  bpPackingNudgeDirectionFromKey,
+  constrainBpPackingDeviceTarget,
+  planBpPackingNudge,
+  selectedNudgeDevice,
+  selectedNudgeFlaps,
+} from '../../lib/bpPackingNudge';
+import { ContextMenu } from '../ui/ContextMenu';
+import { useBpPackingContextMenu } from '../../hooks/useBpPackingContextMenu';
+import type {
+  BpPackingContextTarget,
+  BpPackingNudgeDirection,
+} from '../../lib/bpPackingContextMenu';
 import { BpPackingEmptySpaceLayer } from './BpPackingEmptySpaceLayer';
 import { BpPackingRiverBandLayer } from './BpPackingRiverBandLayer';
 import { BpFlapEditor } from './BpFlapEditor';
@@ -133,7 +149,6 @@ import {
   type ViewportToolbarGroupSpec,
 } from './ViewportToolbar';
 
-type BpPackingNudgeDirection = 'up' | 'down' | 'left' | 'right';
 
 // Pointer travel before an empty-space drag becomes a rubberband selection,
 // matching Box Pleating Studio's SelectionController MOUSE_THRESHOLD.
@@ -193,13 +208,6 @@ interface BpPackingDragState {
 }
 
 
-const BP_PACKING_NUDGE_VECTORS: Record<BpPackingNudgeDirection, Point> = {
-  up: { x: 0, y: 1 },
-  down: { x: 0, y: -1 },
-  left: { x: -1, y: 0 },
-  right: { x: 1, y: 0 },
-};
-
 const BP_DPAD_INITIAL_REPEAT_MS = 750;
 const BP_DPAD_REPEAT_MS = 150;
 /** Alerts shown before the stack collapses into a "+N more" row. */
@@ -254,62 +262,6 @@ function bpPackingLayerLabel(t: TFunction, key: BpPackingViewLayerKey): string {
 
 function viewBox(rect: { x: number; y: number; width: number; height: number }): string {
   return `${rect.x} ${rect.y} ${rect.width} ${rect.height}`;
-}
-
-function bpPackingNudgeDirectionFromKey(key: string): BpPackingNudgeDirection | null {
-  switch (key) {
-    case 'ArrowUp':
-    case 'Up':
-      return 'up';
-    case 'ArrowDown':
-    case 'Down':
-      return 'down';
-    case 'ArrowLeft':
-    case 'Left':
-      return 'left';
-    case 'ArrowRight':
-    case 'Right':
-      return 'right';
-    default:
-      return null;
-  }
-}
-
-function selectedNudgeFlaps(
-  selection: OristudioBpSelection,
-  flaps: OristudioBpFlap[]
-): OristudioBpFlap[] {
-  if (selection.kind === 'bp-flap') {
-    return flaps.filter((flap) => flap.id === selection.id);
-  }
-  if (selection.kind === 'bp-multi') {
-    const selected = new Set(selection.flaps);
-    return flaps.filter((flap) => selected.has(flap.id));
-  }
-  return [];
-}
-
-function selectedNudgeDevice(
-  selection: OristudioBpSelection,
-  devices: OristudioBpDevice[]
-): OristudioBpDevice | null {
-  if (selection.kind === 'bp-device') {
-    return devices.find((device) => device.id === selection.id) ?? null;
-  }
-  if (
-    selection.kind === 'bp-multi' &&
-    selection.vertices.length === 0 &&
-    selection.edges.length === 0 &&
-    selection.flaps.length === 0 &&
-    selection.rivers.length === 0 &&
-    selection.stretches.length === 0 &&
-    selection.devices.length === 1 &&
-    selection.invalidJunctions.length === 0
-  ) {
-    const id = selection.devices[0];
-    return id ? devices.find((device) => device.id === id) ?? null : null;
-  }
-  return null;
 }
 
 /**
@@ -884,6 +836,16 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     (state) => selectOristudioBpViewportFitRequestId(state)
   );
 
+  /**
+   * The keyboard route into the context menu, held in a ref.
+   *
+   * The executor has to be handed to `useViewportSurface`, which is also what
+   * produces the container the menu anchors to — so the two cannot be written in
+   * one expression. Same shape, and for the same reason, as
+   * `TreeEditor.dismissSelectionRef`.
+   */
+  const openKeyboardMenuRef = useRef<(() => boolean) | null>(null);
+
   const {
     containerRef,
     transformRef,
@@ -897,6 +859,8 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     onTransformed,
   } = useViewportSurface({
     surface: 'bp-editor',
+    onViewportShortcut: (id) =>
+      id === 'viewport.contextMenu' ? (openKeyboardMenuRef.current?.() ?? false) : false,
     worldRect,
     // The fit-request id makes an optimize mint a fresh key, so its result gets
     // framed; ordinary edits keep the same key and leave the camera alone.
@@ -1001,49 +965,64 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   );
 
 
+  // Thin bindings over `planBpPackingNudge`, which is where the geometry lives.
+  //
+  // Two callbacks over the same planner rather than one calling the other: the
+  // arrow keys want the move, the context menu wants the *answer* (so it can
+  // grey a direction that is blocked before the press), and chaining the two
+  // through a memoized `planNudge` is a shape the React Compiler declines to
+  // compile. Both call the pure planner directly instead.
+  /**
+   * The planner's input, read from the store rather than from this render.
+   *
+   * Read at *call* time, deliberately. A right-click selects what it landed on
+   * and then builds the menu in the same tick, so anything sourced from React
+   * state is still the previous selection — which showed up as Nudge greyed on
+   * the first press of a flap and live on the second. `selectOristudioBp` writes
+   * synchronously, so asking the store is always current.
+   */
+  const readNudgeInput = useCallback(() => {
+    const state = useWorkspaceStore.getState();
+    const snapshot = selectOristudioBpDocument(state)?.snapshot;
+    return {
+      selection: selectOristudioBpSelection(state),
+      flaps: snapshot?.packing.flaps ?? [],
+      devices: snapshot?.packing.devices ?? [],
+      sheet: snapshot?.packing.sheet ?? packing.sheet,
+    };
+  }, [packing.sheet]);
+
+  const canNudge = useCallback(
+    (direction: BpPackingNudgeDirection) =>
+      planBpPackingNudge(direction, readNudgeInput()) !== null,
+    [readNudgeInput]
+  );
+
   const nudgeSelection = useCallback(
     (direction: BpPackingNudgeDirection) => {
-      const flaps = selectedNudgeFlaps(selection, packing.flaps);
-      const reference = flaps[0];
-      const vector = BP_PACKING_NUDGE_VECTORS[direction];
-      if (!reference) {
-        const device = selectedNudgeDevice(selection, packing.devices);
-        if (!device || !device.rangeScalar || device.forward === null) return false;
-        const index = deviceIndexFromId(device.id);
-        if (index === null) return false;
-        const constrained = constrainBpPackingDeviceTarget(device, device.position, {
-          x: device.position.x + vector.x * 2,
-          y: device.position.y + vector.y * 2,
-        });
-        if (constrained.vector.x === 0 && constrained.vector.y === 0) return false;
-        void moveOristudioBpDevice(device.stretchId, index, constrained.loc, false);
-        return true;
+      const plan = planBpPackingNudge(direction, readNudgeInput());
+      if (!plan) return false;
+      if (plan.kind === 'device') {
+        void moveOristudioBpDevice(plan.stretchId, plan.index, plan.loc, false);
+      } else if (plan.ids.length > 1) {
+        void moveFlaps(plan.ids, plan.loc, false);
+      } else {
+        void moveFlap(plan.referenceId, plan.loc, false);
       }
-      const { loc, vector: constrainedVector } = constrainBpPackingFlapGroupTarget(
-        flaps,
-        reference,
-        {
-          x: reference.anchor.x + vector.x,
-          y: reference.anchor.y + vector.y,
-        },
-        packing.sheet
-      );
-      if (constrainedVector.x === 0 && constrainedVector.y === 0) return false;
-      const ids = flaps.map((flap) => flap.id);
-      if (ids.length > 1) void moveFlaps(ids, loc, false);
-      else void moveFlap(reference.id, loc, false);
       return true;
     },
-    [
-      selection,
-      moveOristudioBpDevice,
-      moveFlap,
-      moveFlaps,
-      packing.devices,
-      packing.flaps,
-      packing.sheet,
-    ]
+    [readNudgeInput, moveOristudioBpDevice, moveFlap, moveFlaps]
   );
+
+  const contextMenu = useBpPackingContextMenu({
+    selection,
+    canNudge,
+    nudge: nudgeSelection,
+    symmetry,
+  });
+  useEffect(() => {
+    openKeyboardMenuRef.current = () => contextMenu.openFromKeyboard(containerRef.current);
+  });
 
   const dragRequests = useBpPackingDragRequests({
     moveFlap,
@@ -1201,6 +1180,32 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     if (index === 0) return;
     const selection = bpSelectionFromToken(stack[index]);
     if (selection) selectOristudioBp(selection);
+  };
+
+  /**
+   * Right-click on the packing canvas.
+   *
+   * Unlike the crease-pattern canvas, the right button means nothing here — Box
+   * Pleating Studio's own canvas leaves it to the browser — so this needs no
+   * gesture trade: it always opens a menu.
+   *
+   * What it does have to do is *select* first. The stack lookup is the same one
+   * the click-cycle uses, so right-clicking a flap acts on that flap even when
+   * something else was selected — which is the behaviour every design tool has
+   * and the one thing that makes a canvas context menu feel correct.
+   */
+  const onCanvasContextMenu = (event: ReactMouseEvent<SVGSVGElement>) => {
+    event.preventDefault();
+    const token = bpSelectionStackAt(event.clientX, event.clientY)[0];
+    const hit = token ? bpSelectionFromToken(token) : null;
+    if (hit && !bpSelectionContains(selection, hit)) selectOristudioBp(hit);
+    const target: BpPackingContextTarget =
+      hit?.kind === 'bp-flap'
+        ? { kind: 'flap', count: selectedFlapIds.length || 1 }
+        : hit?.kind === 'bp-river'
+          ? { kind: 'river' }
+          : { kind: 'sheet' };
+    contextMenu.open(target, event.clientX, event.clientY);
   };
 
   const onFlapPointerDown = (event: PointerEvent<SVGGElement>, flapId: number) => {
@@ -1476,6 +1481,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
             onPointerUp={finishMarquee}
             onPointerCancel={finishMarquee}
             onClick={onSelectionCycleClick}
+            onContextMenu={onCanvasContextMenu}
           >
             <defs>
               {/*
@@ -1966,6 +1972,14 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
           if (diagnostic.selection) selectOristudioBp(diagnostic.selection);
         }}
       />
+      <ContextMenu
+        open={contextMenu.controller.open}
+        x={contextMenu.controller.x}
+        y={contextMenu.controller.y}
+        items={contextMenu.controller.items}
+        onOpenChange={contextMenu.controller.onOpenChange}
+        onCloseAutoFocus={contextMenu.controller.onCloseAutoFocus}
+      />
     </div>
   );
 }
@@ -2056,6 +2070,42 @@ function conflictStrokeWidth(thicknessPx: number | null, cellPx: number): number
   return Math.min(MIN_CONFLICT_VISIBLE_PX - thicknessPx, cellPx);
 }
 
+/**
+ * Whether `hit` is already part of `selection`.
+ *
+ * Asked before a right-click re-selects, and the multi-selection arm is the
+ * whole reason it exists: right-clicking one flap of a selected group must act
+ * on **the group**, not narrow the selection to the flap under the cursor.
+ * Narrowing is what a left-click does, and doing it here would mean a menu that
+ * silently discards the selection it is about to offer verbs for — you nudge
+ * four flaps by selecting four and right-clicking one, and three of them stay
+ * put.
+ */
+function bpSelectionContains(selection: OristudioBpSelection, hit: OristudioBpSelection): boolean {
+  if (selection.kind === hit.kind) {
+    return 'id' in selection && 'id' in hit ? selection.id === hit.id : true;
+  }
+  if (selection.kind !== 'bp-multi') return false;
+  switch (hit.kind) {
+    case 'bp-flap':
+      return selection.flaps.includes(hit.id);
+    case 'bp-river':
+      return selection.rivers.includes(hit.id);
+    case 'bp-vertex':
+      return selection.vertices.includes(hit.id);
+    case 'bp-edge':
+      return selection.edges.includes(hit.id);
+    case 'bp-device':
+      return selection.devices.includes(hit.id);
+    case 'bp-stretch':
+      return selection.stretches.includes(hit.id);
+    case 'bp-invalid-junction':
+      return selection.invalidJunctions.includes(hit.id);
+    default:
+      return false;
+  }
+}
+
 /** Parse a `data-bp-select` token (`kind:id`) into a selection. */
 function bpSelectionFromToken(token: string): OristudioBpSelection | null {
   const separator = token.indexOf(':');
@@ -2133,35 +2183,6 @@ function bpPackingAlertMessage(diagnostic: OristudioBpDiagnostic, t: TFunction):
         'panels:bpPacking.patternNotFoundNoConfig',
         'These flaps overlap in a way Ori Studio cannot crease yet. Move one of them away from the others, or enlarge the sheet.'
       );
-}
-
-function constrainBpPackingDeviceTarget(
-  device: OristudioBpDevice,
-  start: Point,
-  target: Point
-): {
-  loc: Point;
-  vector: Point;
-  rangeScalar: [number, number];
-} {
-  const forward = device.forward ?? true;
-  const f = forward ? 1 : -1;
-  const range = device.rangeScalar ?? [Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY];
-  const projected = Math.round(((target.x - start.x) + f * (target.y - start.y)) / 2);
-  const dx = clamp(projected, range[0], range[1]);
-  const vector = { x: dx, y: f * dx };
-  return {
-    loc: {
-      x: device.position.x + vector.x,
-      y: device.position.y + vector.y,
-    },
-    vector,
-    rangeScalar: [range[0] - dx, range[1] - dx],
-  };
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
 }
 
 function selectedFlapDragIds(

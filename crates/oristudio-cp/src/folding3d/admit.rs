@@ -127,7 +127,7 @@ pub fn admit_with(
     // 2. Trace the arrangement, once. Step 3's interior-border question and
     //    step 4's placement both need it, and it is the most expensive thing
     //    this function does.
-    let graph = FoldGraph::from_segments(&segments, true);
+    let graph = FoldGraph::from_sheet_segments(&segments);
 
     //    Then the shipped check, dispatched per vertex: Oriedita's flat rules
     //    where every incident crease is a full fold, the closure condition where
@@ -208,8 +208,27 @@ pub fn admit_with(
     //    per-vertex closure — but the closure check declines every vertex a
     //    border touches, so "it follows" is a statement about coverage rather
     //    than about paper, and the coverage is what step 3 above is for.
+    //
+    //    **Both halves, and the second is not decoration.** `offset` is sampled
+    //    at the two endpoints of the crease the spanning tree dropped, and both
+    //    of those lie *on* that crease's line — so a holonomy that is a rotation
+    //    about that very line fixes them and measures an exact `0.0`, at any
+    //    angle. `rotation_radians` is precisely the component that sample cannot
+    //    see. Together they certify the identity: offset zero says the holonomy
+    //    fixes the crease line pointwise, rotation zero says it is not a
+    //    rotation about it, and nothing else is left.
+    //
+    //    On a disk the blind spot is unreachable — per-vertex closure rules that
+    //    rotation out independently — which is why holding only `offset` was
+    //    sound until holed paper started reaching here. It is not any more: on a
+    //    sheet whose fold line a hole interrupts, the two halves of that one line
+    //    can be given *different* angles, the paper has to tear, and the offset
+    //    is a clean zero. See
+    //    `an_interrupted_fold_line_cannot_be_folded_two_different_ways`.
     let relative = placement.loop_gap.offset / placement.span;
-    if relative > tolerances.distance_relative {
+    if relative > tolerances.distance_relative
+        || placement.loop_gap.rotation_radians > tolerances.angle_radians
+    {
         return Err(Fold3dRefusal::LoopNotClosed {
             worst_edge: placement.loop_gap.worst_edge,
             gap_radians: placement.loop_gap.rotation_radians,

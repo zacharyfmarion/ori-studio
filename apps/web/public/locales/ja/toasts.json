@@ -1,4 +1,8 @@
 {
+  "contextMenu": {
+    "failed": "この操作を完了できませんでした",
+    "failedDetail": "変更はありません。繰り返す場合は再読み込みをお試しください。"
+  },
   "cpRegionSolve": {
     "failed": "",
     "incompleteAction": "",

@@ -50,7 +50,6 @@ which bill even on public repos.
 with caret version requirements while `[workspace.package] version = "0.1.2"`:
 
 ```toml
-treemaker-sequence     = { version = "0.1.1", path = "crates/treemaker-sequence" }
 oristudio-cp           = { version = "0.1.1", path = "crates/oristudio-cp" }
 oristudio-cp-compiler  = { version = "0.1.1", path = "crates/oristudio-cp-compiler" }
 oristudio-cp-detect    = { version = "0.1.1", path = "crates/oristudio-cp-detect" }

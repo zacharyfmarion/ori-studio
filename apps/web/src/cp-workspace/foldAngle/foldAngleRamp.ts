@@ -119,6 +119,18 @@ export const FOLD_ANGLE_MIN_OPACITY = 0.2;
 export const FOLD_ANGLE_MAX_OPACITY = 0.8;
 
 /**
+ * The hue a shallower fold shifts toward, in `color` mode.
+ *
+ * Here rather than in the WebGL canvas that first read it, because the anchor is
+ * a property of the ramp — {@link applyFoldAngleRamp} is the only thing that
+ * interprets it — and it now has a second reader: the tool-preview ink, which
+ * has to resolve a candidate the same way the document resolves a crease.
+ */
+export const FOLD_ANGLE_ANCHOR_VAR = '--fold-angle-anchor';
+/** Used when the theme has no `--fold-angle-anchor`. */
+export const FOLD_ANGLE_ANCHOR_FALLBACK: Rgba = [0.851, 0.275, 0.937, 1];
+
+/**
  * Fade `ink` according to a stored fold magnitude, leaving **RGB untouched**.
  *
  * The mirror of {@link applyFoldAngleRamp}: one function per channel, each

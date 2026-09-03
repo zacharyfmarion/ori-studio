@@ -38,6 +38,7 @@
     "repair": "修复",
     "replaceLineType": "替换所选线型...",
     "selectedLines": "所选线",
+    "setActiveCreaseAngle": "设置折痕角度...",
     "toggleMountainValley": "切换山折/谷折",
     "transform": "变换所选内容",
     "transformFlipHorizontal": "水平翻转",
@@ -104,12 +105,17 @@
     "about": "关于 Ori Studio",
     "checkForUpdates": "检查更新…"
   },
+  "insert": {
+    "image": "图片...",
+    "text": "文本"
+  },
   "menubar": {
     "creasePattern": "折痕图",
     "design": "设计",
     "edit": "编辑",
     "file": "文件",
     "help": "帮助",
+    "insert": "插入",
     "view": "视图"
   },
   "optimize": {

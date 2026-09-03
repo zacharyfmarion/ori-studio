@@ -121,7 +121,7 @@ export function cpContentBounds(input: CpContentBoundsInput): UserBounds | null 
 
 /**
  * Fraction of crease endpoints discarded from each end of each axis by
- * {@link cpSizingBounds}.
+ * {@link cpTrimmedCreaseBounds}.
  *
  * 2% is chosen from measurement, with headroom on both sides. On a real dense CP
  * it is *exactly* a no-op — a crease pattern's paper edges carry many vertices
@@ -132,11 +132,158 @@ export function cpContentBounds(input: CpContentBoundsInput): UserBounds | null 
  */
 const SIZING_TRIM_FRACTION = 0.02;
 
-/** Span between the trimmed extremes of `values`, which this sorts in place. */
-function trimmedExtent(values: number[], fraction: number): { min: number; max: number } {
-  values.sort((a, b) => a - b);
-  const drop = Math.floor(values.length * fraction);
-  return { min: values[drop], max: values[values.length - 1 - drop] };
+function swap(values: Float64Array, i: number, j: number): void {
+  const t = values[i];
+  values[i] = values[j];
+  values[j] = t;
+}
+
+/**
+ * The `k`-th smallest of `values[lo..hi]`, reordering that range in place.
+ *
+ * Quickselect rather than a sort, because only two order statistics per axis are
+ * wanted and a total order is not. That is not a micro-optimisation: sorting
+ * here was ~1.9s of a 6.4s zoom profile — about 45% of all JavaScript on the
+ * main thread — on a document whose sizing reference had not changed at all.
+ *
+ * Median-of-three pivoting is what keeps that honest. Quickselect's O(n²) case
+ * is sorted and reverse-sorted input, and crease endpoints arrive close to it
+ * routinely: they are grouped by the order creases were drawn, and a pattern
+ * built by repeated grid subdivision hands over long ascending runs.
+ *
+ * Callers filter non-finite coordinates out beforehand, so no NaN reaches the
+ * comparisons here — a NaN would make both partition scans fall through.
+ */
+function selectNth(values: Float64Array, k: number, lo: number, hi: number): number {
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    // Order the three so `values[mid]` is their median, then pivot on it.
+    if (values[mid] < values[lo]) swap(values, lo, mid);
+    if (values[hi] < values[lo]) swap(values, lo, hi);
+    if (values[hi] < values[mid]) swap(values, mid, hi);
+    const pivot = values[mid];
+
+    let i = lo;
+    let j = hi;
+    while (i <= j) {
+      // Both scans stop at the pivot's own slot at the latest, so neither can
+      // run past the range.
+      while (values[i] < pivot) i += 1;
+      while (values[j] > pivot) j -= 1;
+      if (i <= j) {
+        swap(values, i, j);
+        i += 1;
+        j -= 1;
+      }
+    }
+
+    if (k <= j) hi = j;
+    else if (k >= i) lo = i;
+    else return values[k];
+  }
+  return values[lo];
+}
+
+/**
+ * The trimmed extent of the crease endpoints alone, in SVG user coordinates.
+ * Null when no crease offers a usable coordinate.
+ *
+ * Split out of {@link cpSizingBounds} because it is the expensive half and the
+ * only half that depends on the document's geometry. The canvas memoises it on
+ * `lineSegments` alone for that reason; folding it in with the placed-object
+ * kinds, whose arrays are rebuilt every render, is what put a full pass over
+ * every crease endpoint on every camera frame.
+ *
+ * **`modelToSvg` must map each axis independently and monotonically.** That is
+ * what lets this select in model space and project two corners, rather than
+ * projecting 2N points and selecting on those — the mapping cannot change which
+ * endpoint is `k`-th along an axis. `cpModelToSvg`, the only mapping this is
+ * called with, is a positive per-axis affine onto the paper rect. A decreasing
+ * axis is still fine, because the two projected corners are recombined with
+ * min/max rather than assumed to arrive in order; a rotation is not, and would
+ * need the old project-then-select path back.
+ */
+export function cpTrimmedCreaseBounds(
+  lineSegments: CpContentBoundsInput['lineSegments'],
+  modelToSvg: CpContentBoundsInput['modelToSvg']
+): UserBounds | null {
+  if (lineSegments.length === 0) return null;
+
+  const xs = new Float64Array(lineSegments.length * 2);
+  const ys = new Float64Array(lineSegments.length * 2);
+  let n = 0;
+  for (const segment of lineSegments) {
+    // Unrolled rather than iterating `[segment.a, segment.b]`: that allocates a
+    // two-element array per crease, and this walks the whole document.
+    const { a, b } = segment;
+    if (Number.isFinite(a.x) && Number.isFinite(a.y)) {
+      xs[n] = a.x;
+      ys[n] = a.y;
+      n += 1;
+    }
+    if (Number.isFinite(b.x) && Number.isFinite(b.y)) {
+      xs[n] = b.x;
+      ys[n] = b.y;
+      n += 1;
+    }
+  }
+  if (n === 0) return null;
+
+  const drop = Math.floor(n * SIZING_TRIM_FRACTION);
+  // The upper select runs over `[drop, n-1]` only: the lower one already
+  // partitioned everything below `drop` to the left of it.
+  const low = modelToSvg({
+    x: selectNth(xs, drop, 0, n - 1),
+    y: selectNth(ys, drop, 0, n - 1),
+  });
+  const high = modelToSvg({
+    x: selectNth(xs, n - 1 - drop, drop, n - 1),
+    y: selectNth(ys, n - 1 - drop, drop, n - 1),
+  });
+
+  // Each axis was selected on its own, so these two are corners of the trimmed
+  // box rather than endpoints that ever existed. That is what is wanted — the
+  // caller asked for an extent, not for a pair of creases.
+  if (
+    !Number.isFinite(low.x) ||
+    !Number.isFinite(low.y) ||
+    !Number.isFinite(high.x) ||
+    !Number.isFinite(high.y)
+  ) {
+    // Finite model coordinates can only land here by overflowing the mapping.
+    // Reporting nothing lets the placed-object kinds answer instead, which is
+    // what this did before when every endpoint was unusable.
+    return null;
+  }
+
+  return {
+    minX: Math.min(low.x, high.x),
+    minY: Math.min(low.y, high.y),
+    maxX: Math.max(low.x, high.x),
+    maxY: Math.max(low.y, high.y),
+  };
+}
+
+/** {@link cpContentBounds} over every placed kind *except* creases. */
+export function cpPlacedObjectBounds(
+  input: Omit<CpContentBoundsInput, 'lineSegments'>
+): UserBounds | null {
+  return cpContentBounds({ ...input, lineSegments: [] });
+}
+
+/** The box containing both, or whichever one is not null. */
+export function unionBounds(
+  a: UserBounds | null,
+  b: UserBounds | null
+): UserBounds | null {
+  if (!a) return b;
+  if (!b) return a;
+  return {
+    minX: Math.min(a.minX, b.minX),
+    minY: Math.min(a.minY, b.minY),
+    maxX: Math.max(a.maxX, b.maxX),
+    maxY: Math.max(a.maxY, b.maxY),
+  };
 }
 
 /**
@@ -162,32 +309,14 @@ function trimmedExtent(values: number[], fraction: number): { min: number; max: 
  * Falls back to {@link cpContentBounds} when there are no creases to trim.
  */
 export function cpSizingBounds(input: CpContentBoundsInput): UserBounds | null {
-  const { lineSegments, modelToSvg } = input;
-  if (lineSegments.length === 0) return cpContentBounds(input);
-
-  const xs: number[] = [];
-  const ys: number[] = [];
-  for (const segment of lineSegments) {
-    for (const point of [segment.a, segment.b]) {
-      const u = modelToSvg(point);
-      if (!Number.isFinite(u.x) || !Number.isFinite(u.y)) continue;
-      xs.push(u.x);
-      ys.push(u.y);
-    }
-  }
-  if (xs.length === 0) return cpContentBounds(input);
-
-  const x = trimmedExtent(xs, SIZING_TRIM_FRACTION);
-  const y = trimmedExtent(ys, SIZING_TRIM_FRACTION);
-
   // The non-crease kinds ride along untrimmed, via the shared enumeration so
   // they cannot drift apart from the framing bounds' idea of what is placed.
-  const rest = cpContentBounds({ ...input, lineSegments: [] });
-
-  return {
-    minX: Math.min(x.min, rest?.minX ?? Infinity),
-    minY: Math.min(y.min, rest?.minY ?? Infinity),
-    maxX: Math.max(x.max, rest?.maxX ?? -Infinity),
-    maxY: Math.max(y.max, rest?.maxY ?? -Infinity),
-  };
+  //
+  // The canvas calls the two halves separately so it can memoise them on
+  // different things; this composition is what the tests pin and what any other
+  // caller should reach for.
+  return unionBounds(
+    cpTrimmedCreaseBounds(input.lineSegments, input.modelToSvg),
+    cpPlacedObjectBounds(input)
+  );
 }

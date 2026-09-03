@@ -1,4 +1,8 @@
 {
+  "contextMenu": {
+    "failed": "That action could not be completed",
+    "failedDetail": "Nothing was changed. If it keeps happening, try reloading."
+  },
   "cpRegionSolve": {
     "failed": "Could not solve this pattern",
     "incompleteAction": "Try again to repair the topology and solve again, or Accept anyway to keep these coordinates.",

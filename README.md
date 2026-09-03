@@ -1,7 +1,7 @@
 # Ori Studio
 
 [![CI](https://github.com/zacharyfmarion/ori-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/zacharyfmarion/ori-studio/actions/workflows/ci.yml)
-[![Web](https://img.shields.io/badge/Web-oristudio.pages.dev-brightgreen.svg)](https://oristudio.pages.dev/)
+[![Web](https://img.shields.io/badge/Web-oristudio.dev-brightgreen.svg)](https://oristudio.dev/)
 [![Latest Release](https://img.shields.io/github/v/release/zacharyfmarion/ori-studio?display_name=tag)](https://github.com/zacharyfmarion/ori-studio/releases)
 
 Ori Studio aims to be the ultimate workspace for origami design and analysis. It
@@ -22,7 +22,7 @@ device; Settings ▸ Models shows what is installed. However, maintaining
 compatibility with existing tools is a priority - you will always be able to
 export to to a `.ori` file, which will just omit the images.
 
-Try the hosted app at [oristudio.pages.dev](https://oristudio.pages.dev/).
+Try the hosted app at [oristudio.dev](https://oristudio.dev/).
 Signed Apple Silicon DMGs are published from local notarized builds on
 [GitHub Releases](https://github.com/zacharyfmarion/ori-studio/releases) (other platforms
 coming soon, community help would be appreciated!).
@@ -55,8 +55,6 @@ dependency.
   origami applications.
 - `treemaker-flatfold`: flat-foldability and layer-order solving for FOLD
   crease patterns.
-- `treemaker-sequence`: research planner primitives for deriving origami
-  folding sequences from FOLD crease patterns.
 
 The main TreeMaker engine entry point is `treemaker_core::Tree`.
 

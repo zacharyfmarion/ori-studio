@@ -68,6 +68,15 @@ describe('simulatorSettings', () => {
     }
   });
 
+  it('carries a stored settings object forward when a setting is added', () => {
+    // Everything persisted before `showViewCube` existed has no such key, and
+    // the cube would be missing for every returning user if that read as false.
+    const restored = normalizeSimulatorSettings({ lighting: false });
+
+    expect(restored.showViewCube).toBe(true);
+    expect(normalizeSimulatorSettings({ showViewCube: false }).showViewCube).toBe(false);
+  });
+
   it('validates the export background and clamps the crease weight', () => {
     expect(normalizeSimulatorSettings({ exportBackground: 'chartreuse' }).exportBackground).toBe(
       DEFAULT_SIMULATOR_SETTINGS.exportBackground

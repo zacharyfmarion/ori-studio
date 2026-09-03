@@ -618,7 +618,7 @@
     },
     "cp_action_crease_make_aux": {
       "label": "设为辅助线",
-      "tooltip": "将所选折线转换为辅助线",
+      "tooltip": "将所选线转换为辅助线",
       "disabledReason": "就绪"
     },
     "cp_action_operation_frame_create": {

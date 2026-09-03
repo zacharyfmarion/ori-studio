@@ -38,6 +38,7 @@
     "repair": "修復",
     "replaceLineType": "選択した線種を置換...",
     "selectedLines": "選択した線",
+    "setActiveCreaseAngle": "折り線の角度を設定...",
     "toggleMountainValley": "山折り／谷折りを切り替え",
     "transform": "選択範囲を変形",
     "transformFlipHorizontal": "左右反転",
@@ -104,12 +105,17 @@
     "about": "Ori Studio について",
     "checkForUpdates": "アップデートを確認…"
   },
+  "insert": {
+    "image": "画像...",
+    "text": "テキスト"
+  },
   "menubar": {
     "creasePattern": "展開図",
     "design": "デザイン",
     "edit": "編集",
     "file": "ファイル",
     "help": "ヘルプ",
+    "insert": "挿入",
     "view": "表示"
   },
   "optimize": {

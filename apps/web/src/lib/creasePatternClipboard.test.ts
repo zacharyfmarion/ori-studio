@@ -6,6 +6,7 @@ import {
   cpLineSelectionFrame,
   cpLineSelectionMoveAnchorPoints,
   offsetCpLineSegmentsForPaste,
+  placeCpLineSegmentsAt,
   rotationAngleFromCenter,
   snapRotationDegrees,
   translateCpLineSegments,
@@ -91,6 +92,46 @@ describe('crease-pattern clipboard geometry', () => {
       b: { x: 18, y: -14 },
     });
     expect(source[0].a).toEqual({ x: 1, y: 1 });
+  });
+
+  it('places a paste so its bounding box top-left lands on the point', () => {
+    const source = [
+      cpLine({ x: 10, y: 20 }, { x: 14, y: 20 }),
+      cpLine({ x: 12, y: 26 }, { x: 12, y: 22 }),
+    ];
+
+    const placed = placeCpLineSegmentsAt(source, { x: 100, y: 200 });
+    const bounds = cpLineSelectionBounds(placed);
+
+    // Top-left is (minX, minY): model y increases *downward* on screen, which
+    // `ORIEDITA_PAPER_CORNERS` records by labelling (minX, minY) "paper top
+    // left". Reading it the other way would drop the paste a full bounding-box
+    // height above the cursor.
+    expect(bounds).toMatchObject({ minX: 100, minY: 200 });
+  });
+
+  it('keeps a placed paste rigid — shape and size are untouched', () => {
+    const source = [
+      cpLine({ x: 10, y: 20 }, { x: 14, y: 20 }),
+      cpLine({ x: 12, y: 26 }, { x: 12, y: 22 }),
+    ];
+    const before = cpLineSelectionBounds(source);
+
+    const after = cpLineSelectionBounds(placeCpLineSegmentsAt(source, { x: -5, y: 7 }));
+
+    expect(after?.width).toBe(before?.width);
+    expect(after?.height).toBe(before?.height);
+    expect(source[0].a).toEqual({ x: 10, y: 20 });
+  });
+
+  it('is idempotent — placing at the current top-left changes nothing', () => {
+    const source = [cpLine({ x: 3, y: 4 }, { x: 9, y: 12 })];
+
+    expect(placeCpLineSegmentsAt(source, { x: 3, y: 4 })).toEqual(source);
+  });
+
+  it('returns an empty paste unchanged rather than throwing on absent bounds', () => {
+    expect(placeCpLineSegmentsAt([], { x: 1, y: 2 })).toEqual([]);
   });
 
   it('translates selected lines by a model-space delta', () => {

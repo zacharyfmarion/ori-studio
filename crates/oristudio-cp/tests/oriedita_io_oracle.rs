@@ -1,6 +1,6 @@
 use oristudio_cp::CreasePatternDocument;
 use oristudio_cp::geometry::{ActiveState, Circle, LineColor, LineSegment, Point, RgbColor};
-use oristudio_cp::io::{dxf, fold, obj, orh, ori};
+use oristudio_cp::io::{cp, dxf, fold, obj, orh, ori};
 use oristudio_cp::model::{CreasePatternModel, GridMetadata, GridState};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -177,6 +177,59 @@ fn ori_import_and_export_match_oriedita_native_io_oracle() {
     let _ = std::fs::remove_file(input_path);
     let _ = std::fs::remove_file(export_path);
     assert_eq!(rust_summary, oracle_summary);
+}
+
+/// The `.cp` line-type codes, against Oriedita's real `CpImporter`.
+///
+/// Worth an oracle rather than a table: an importer that swaps 2 and 3 paired
+/// with an exporter that swaps them back round-trips its own files perfectly,
+/// so nothing local can catch it. Ori Studio shipped exactly that inversion —
+/// every `.cp` from Oriedita, ORIPA, or Box Pleating Studio arrived with its
+/// mountains and valleys exchanged.
+///
+/// Both of Oriedita's own `.cp` test fixtures are checked, so the case is made
+/// on upstream's data and not on a file written to suit us.
+#[test]
+fn cp_import_matches_oriedita_native_io_oracle() {
+    let Some(oracle) = native_io_oracle() else {
+        eprintln!("skipping Oriedita native IO oracle test: ORIEDITA_NATIVE_IO_ORACLE is not set");
+        return;
+    };
+
+    // A hand-built pattern first, because Oriedita's fixtures happen to carry no
+    // code-4 line and the auxiliary code has to be covered too.
+    let all_four_codes = "\
+1 200.0 200.0 200.0 -200.0
+2 200.0 200.0 0.0 0.0
+3 0.0 0.0 -200.0 -200.0
+4 1.5 2.25 3.5 4.75
+";
+    let inputs = [
+        ("all-four-codes", all_four_codes),
+        (
+            "square",
+            include_str!(
+                "../../../third_party/oriedita/oriedita-data/src/test/resources/square.cp"
+            ),
+        ),
+        (
+            "birdbase",
+            include_str!(
+                "../../../third_party/oriedita/oriedita-data/src/test/resources/birdbase.cp"
+            ),
+        ),
+    ];
+
+    for (name, input) in inputs {
+        let path = write_temp(&format!("cp-native-oracle-{name}"), ".cp", input.as_bytes());
+        let oracle_summary = run_oracle(&oracle, &["cp-import-summary", path.to_str().unwrap()]);
+        let model = cp::import_cp_str(input).expect("Rust CP import should succeed");
+        // `CpImporter` builds a bare `Save`, which has neither a title nor a grid.
+        let rust_summary = model_summary(Some(""), &model, None);
+
+        let _ = std::fs::remove_file(path);
+        assert_eq!(rust_summary, oracle_summary, "{name}.cp");
+    }
 }
 
 #[test]
@@ -601,8 +654,41 @@ fn active_state_name(active: ActiveState) -> &'static str {
     }
 }
 
+/// Render a double the way `Double.toString` does, so a summary can be compared
+/// to the oracle's `System.out.println` text verbatim.
+///
+/// Java and Rust both print the shortest decimal that round-trips, so the digits
+/// already agree; only the presentation differs. Two rules cover it:
+///
+/// - A whole number keeps one fractional digit (`200` → `200.0`).
+/// - Outside `[1e-3, 1e7)` Java switches to scientific notation (`1.5E-14`)
+///   where Rust never does. `{:e}` gives the same mantissa and exponent, so this
+///   is a re-spelling and not a re-rounding: uppercase the `E`, and give a
+///   bare mantissa the `.0` Java always writes.
+///
+/// Real crease patterns reach the small end constantly — an endpoint that should
+/// be the origin lands at `9.09e-15` after a rotation — so without this a
+/// coordinate-carrying oracle test cannot use upstream's own fixtures.
 fn java_double_string(value: f64) -> String {
-    if value.is_finite() && value.fract() == 0.0 {
+    if !value.is_finite() {
+        return value.to_string();
+    }
+
+    let magnitude = value.abs();
+    if magnitude != 0.0 && !(1e-3..1e7).contains(&magnitude) {
+        let (mantissa, exponent) = format!("{value:e}")
+            .split_once('e')
+            .map(|(mantissa, exponent)| (mantissa.to_string(), exponent.to_string()))
+            .expect("Rust exponential formatting always contains 'e'");
+        let mantissa = if mantissa.contains('.') {
+            mantissa
+        } else {
+            format!("{mantissa}.0")
+        };
+        return format!("{mantissa}E{exponent}");
+    }
+
+    if value.fract() == 0.0 {
         format!("{value:.1}")
     } else {
         value.to_string()

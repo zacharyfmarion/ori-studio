@@ -9,11 +9,11 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
-  ImagePlus,
   ListChecks,
   Loader2,
   Origami,
 } from 'lucide-react';
+import { ProtractorIcon } from '../ui/ProtractorIcon';
 import {
   registerCpActionShortcutExecutor,
   registerViewportShortcutExecutor,
@@ -47,6 +47,7 @@ import {
 import {
   cpCommandCommitsWebSide,
   cpCommandSnapsKernelSide,
+  cpCommandUsesActiveCreaseAngle,
   cpCommandUsesActiveLineColor,
   type OristudioCpCommandDefinition,
 } from '../../lib/oristudioCpCommands';
@@ -115,7 +116,7 @@ import { FoldedFigureControls } from '../../cp-workspace/folded/FoldedFigureCont
 import { FoldedFigureModal } from '../../cp-workspace/folded/FoldedFigureModal';
 import { useCpFavoriteToolbarGroup } from '../../cp-workspace/toolCatalog/useCpFavoriteToolbarGroup';
 import { useIsPhoneLayout } from '../../platform/phoneLayout';
-import type { CpContextMenuRequest } from '../../cp-workspace/contextMenuTarget';
+import { useCpCanvasContextMenu } from '../../cp-workspace/contextMenu/useCpCanvasContextMenu';
 // Registers `__foldedStaleDebug()` in dev builds; no-op in production.
 import '../../cp-workspace/folded/foldedFigureStalenessDebug';
 // Registers `__inlineSimStaleDebug()` in dev builds; no-op in production.
@@ -123,7 +124,6 @@ import '../../cp-workspace/inlineSimulation/inlineSimulationStalenessDebug';
 import { DECODABLE_IMAGE_ACCEPT } from '../../lib/imageFormats';
 import { useWorkspaceErrorText } from '../../hooks/useWorkspaceErrorText';
 import { ContextMenu } from '../ui/ContextMenu';
-import type { ContextMenuRequest } from '../ui/contextMenuTypes';
 import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
 import { foldedGeometryFromShapes } from '../../cp-workspace/adapters/cpFoldedToScene';
 import { CanvasObjectOverlay } from '../../cp-workspace/CanvasObjectOverlay';
@@ -131,6 +131,22 @@ import type { CanvasObjectBoxUpdate } from '../../cp-workspace/CanvasObjectOverl
 import { CpTextAnnotationLayer } from '../../cp-workspace/CpTextAnnotationLayer';
 import { CpMeasureLayer } from '../../cp-workspace/CpMeasureLayer';
 import { CpFoldAngleLayer } from '../../cp-workspace/foldAngle/CpFoldAngleLayer';
+import {
+  DEFAULT_CREASE_ANGLE_DEGREES,
+  creaseAnglePayloadDegrees,
+  creaseAnglePreviewMagnitude,
+  formatCreaseAngle,
+  isClassicCreaseAngle,
+} from '../../cp-workspace/foldAngle/activeCreaseAngle';
+import {
+  FOLD_ANGLE_ANCHOR_FALLBACK,
+  FOLD_ANGLE_ANCHOR_VAR,
+  foldAngleInk,
+} from '../../cp-workspace/foldAngle/foldAngleRamp';
+import { creaseColorForFoldDirection } from '../../lib/foldAngle';
+import type { OristudioCpFoldDirectionHint } from '../../engine/oristudioCpTypes';
+import { CreaseAngleField } from '../../cp-workspace/foldAngle/CreaseAngleField';
+import { CreaseAnglePopover } from '../../cp-workspace/foldAngle/CreaseAnglePopover';
 import { useVertexSolve } from '../../cp-workspace/foldAngleSolve/useVertexSolve';
 import { usePropagationDraft } from '../../cp-workspace/foldPropagation/usePropagationDraft';
 import { CpToolOptionLayer } from '../../cp-workspace/toolOptions/CpToolOptionLayer';
@@ -138,7 +154,6 @@ import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
 import { CpSelectionToolbar } from '../../cp-workspace/CpSelectionToolbar';
 import { CpFoldedFigureToolbar } from '../../cp-workspace/folded/CpFoldedFigureToolbar';
 import { useFoldedFigures } from '../../cp-workspace/folded/useFoldedFigures';
-import { foldedFigureMenuItemsWith } from '../../cp-workspace/folded/foldedFigureMenuItems';
 import { selectedCanvasObjectId as selectedCanvasObjectIdOf } from '../../cp-workspace/canvasObjects/transformableObject';
 import { InlineSimulationLayer } from '../../cp-workspace/InlineSimulationLayer';
 import { Folded3dWindowLayer } from '../../cp-workspace/Folded3dWindowLayer';
@@ -278,7 +293,8 @@ function cpCommandPayloadDefaults(
   lineColor: OristudioCpLineColor,
   snapDistance: number,
   toolOptions: OristudioCpToolOptions,
-  snapCandidates: OristudioCpSnapCandidates | undefined
+  snapCandidates: OristudioCpSnapCandidates | undefined,
+  creaseAngle: number
 ): OristudioCpCommandPayload {
   const payload: OristudioCpCommandPayload = {};
   const operationId = command.operationId;
@@ -307,6 +323,16 @@ function cpCommandPayloadDefaults(
     // param. `toolPreviewColor` resolves through the same function, which is
     // what stops the preview and the commit disagreeing.
     payload.line_color = resolveCpToolLineColor(operationId, toolOptions, lineColor);
+  }
+
+  // A separate predicate, not the branch above: a tool can draw in the colour
+  // the user picked and still owe its creases a full fold — the classical bases
+  // and the vertex-completion tools are flat-foldable by construction. The
+  // field is omitted entirely at 180, so an ordinary classic draw sends exactly
+  // what it sent before the pen existed.
+  if (cpCommandUsesActiveCreaseAngle(operationId)) {
+    const pen = creaseAnglePayloadDegrees(creaseAngle);
+    if (pen !== undefined) payload.active_fold_magnitude_degrees = pen;
   }
 
   if (
@@ -580,6 +606,39 @@ export function CreasePatternPanel() {
   }, []);
   const [cpToolState, setCpToolState] = useState(IDLE_ORISTUDIO_CP_TOOL_STATE);
   const [activeCpLineColor, setActiveCpLineColor] = useState<OristudioCpLineColor>('Red1');
+  /**
+   * The active crease angle — the `|ρ|` a newly drawn mountain or valley takes.
+   *
+   * Panel state beside the active line colour, because it is the same kind of
+   * thing: selection-independent authoring state that the tools read. Not a
+   * `cpToolOptions` entry, which would tie it to the tool-settings reset and
+   * make it a property of whichever tool happens to be armed.
+   */
+  const [activeCpCreaseAngle, setActiveCpCreaseAngle] = useState(DEFAULT_CREASE_ANGLE_DEGREES);
+  const [creaseAnglePopoverOpen, setCreaseAnglePopoverOpen] = useState(false);
+  /**
+   * Apply a typed crease angle: the magnitude always, and the line type when the
+   * entry named a direction with an explicit sign.
+   *
+   * Both halves, because a signed angle is a statement about the whole crease —
+   * `-45` is "a 45 degree mountain", and setting the magnitude while leaving the
+   * line type on valley would produce the crease the user did not ask for and
+   * badge it `+45` to prove it.
+   *
+   * Writes the *base* colour, not the effective one: the inversion the modifier
+   * key applies is a transient read of what the user chose, and typing an angle
+   * should not bake a held Control into the choice.
+   */
+  const applyCreaseAngleEntry = useCallback(
+    (degrees: number, direction: OristudioCpFoldDirectionHint | null) => {
+      setActiveCpCreaseAngle(degrees);
+      if (direction) setActiveCpLineColor(creaseColorForFoldDirection(direction));
+    },
+    []
+  );
+  // The field the popover hangs off. A rect rather than the node, because that
+  // is what `FloatingToolbar` anchors against.
+  const creaseAngleAnchorRef = useRef<HTMLDivElement | null>(null);
   // Most of these are per-use and start at their defaults every session. The few
   // that are working preferences — the angle system, Fix Inaccurate's tolerance —
   // are opted into persistence by name; see `lib/cpToolOptionPersistence.ts`.
@@ -784,6 +843,10 @@ export function CreasePatternPanel() {
   const clearOristudioCpActionRequest = useWorkspaceStore(
     (state) => state.clearOristudioCpActionRequest
   );
+  const oristudioCpSurfaceRequest = useWorkspaceStore((state) => state.oristudioCpSurfaceRequest);
+  const clearOristudioCpSurfaceRequest = useWorkspaceStore(
+    (state) => state.clearOristudioCpSurfaceRequest
+  );
   const setOristudioCpActiveFoldedFigure = useWorkspaceStore(
     (state) => state.setOristudioCpActiveFoldedFigure
   );
@@ -808,6 +871,10 @@ export function CreasePatternPanel() {
   // The fold chord lands on FoldingEstimate (Fold is the deduped duplicate);
   // `handleCpShortcutAction` routes both to the real fold path.
   const foldShortcutLabel = shortcutLabelForAction('cp.action.folding-estimate', shortcutResolution);
+  const creaseAngleShortcutLabel = shortcutLabelForAction(
+    'cp.setActiveCreaseAngle',
+    shortcutResolution
+  );
 
   const editableCp = oristudioCpDocument?.document ?? null;
   const editableCpHandle = oristudioCpDocument?.handle ?? null;
@@ -1083,46 +1150,18 @@ export function CreasePatternPanel() {
 
 
 
-  // Right-click context menu for a folded form. Items act on the clicked figure by
-  // id (not the active one), so they behave correctly even before selection settles.
-  const [foldedContextMenu, setFoldedContextMenu] = useState<ContextMenuRequest | null>(null);
-  const buildFoldedFigureMenuItems = useCallback(
-    (figure: OristudioCpFoldedFigureEntry) =>
-      foldedFigureMenuItemsWith(figure, foldedFigureActionDeps, t),
-    [foldedFigureActionDeps, t]
-  );
-  const handleRequestContextMenu = useCallback(
-    (request: CpContextMenuRequest) => {
-      // Only folded figures raise a menu today; other targets fall through to the
-      // canvas's existing behavior (e.g. right-drag erase).
-      if (request.target.kind !== 'folded-figure') return;
-      const figureId = request.target.figureId;
-      const figure = oristudioCpFoldedFigures.find((candidate) => candidate.id === figureId);
-      if (!figure) return;
-      setOristudioCpActiveFoldedFigure(figureId);
-      setFoldedContextMenu({
-        x: request.clientX,
-        y: request.clientY,
-        items: buildFoldedFigureMenuItems(figure),
-      });
-    },
-    [oristudioCpFoldedFigures, setOristudioCpActiveFoldedFigure, buildFoldedFigureMenuItems]
-  );
-  /**
-   * Right-click on a canvas object. The overlay sits above the canvas and takes
-   * the press first, so the canvas's own right-click path never sees a click
-   * that lands on an object — this is what routes it to the folded menu.
-   * Annotations have no context menu yet and simply select.
-   */
-  const handleCanvasObjectContextMenu = useCallback(
-    (id: string, clientX: number, clientY: number) => {
-      const figure = oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
-      if (!figure) return;
-      setOristudioCpActiveFoldedFigure(id);
-      setFoldedContextMenu({ x: clientX, y: clientY, items: buildFoldedFigureMenuItems(figure) });
-    },
-    [oristudioCpFoldedFigures, setOristudioCpActiveFoldedFigure, buildFoldedFigureMenuItems]
-  );
+  // Everything the crease-pattern canvas raises on a right-click, in one place:
+  // the folded-figure menu, the crease-selection menu, and the annotation menus.
+  // `useCpCanvasContextMenu` owns which of those a target maps to and how each
+  // one's rows are built; the panel only hands it the bindings it cannot reach
+  // for itself and mounts the single `<ContextMenu>` below.
+  const cpContextMenu = useCpCanvasContextMenu({
+    foldedFigures: oristudioCpFoldedFigures,
+    foldedFigureActionDeps,
+    setActiveFoldedFigure: setOristudioCpActiveFoldedFigure,
+    annotations,
+    selectCanvasObject,
+  });
   // Vertex dots: dedup crease-segment endpoints — the top main-thread cost after an
   // edit on dense patterns. Dedup straight from the transport's typed arrays
   // (parity-proven identical to getCpVertexPoints); the structured fallback only runs
@@ -1358,11 +1397,18 @@ export function CreasePatternPanel() {
         // here from the rounded zoom percent would skew the kernel's search.
         cpSnapDistanceRef.current,
         cpToolOptions,
-        cpKernelSnapPolicy
+        cpKernelSnapPolicy,
+        activeCpCreaseAngle
       ),
       ...payload,
     }),
-    [cpKernelSnapPolicy, effectiveCpLineColor, cpToolOptions, editableCpGridWidth]
+    [
+      cpKernelSnapPolicy,
+      effectiveCpLineColor,
+      cpToolOptions,
+      editableCpGridWidth,
+      activeCpCreaseAngle,
+    ]
   );
 
   const [cpToolUnavailable, setCpToolUnavailable] = useState<string | null>(null);
@@ -1609,6 +1655,22 @@ export function CreasePatternPanel() {
     }
     clearOristudioCpActionRequest(oristudioCpActionRequest.id);
   }, [clearOristudioCpActionRequest, handleCpToolAction, oristudioCpActionRequest]);
+
+  // The sibling of the effect above, for the panel-owned UI that has no kernel
+  // operation to name — see `OristudioCpSurfaceRequest`.
+  useEffect(() => {
+    if (!oristudioCpSurfaceRequest) return;
+
+    switch (oristudioCpSurfaceRequest.kind) {
+      case 'insert-image':
+        imageFileInputRef.current?.click();
+        break;
+      case 'crease-angle':
+        setCreaseAnglePopoverOpen(true);
+        break;
+    }
+    clearOristudioCpSurfaceRequest(oristudioCpSurfaceRequest.id);
+  }, [clearOristudioCpSurfaceRequest, imageFileInputRef, oristudioCpSurfaceRequest]);
 
   const handleApplyActiveContextCommand = useCallback(() => {
     // Propagation's Apply *opens* a draft rather than committing one: this is
@@ -2045,18 +2107,48 @@ export function CreasePatternPanel() {
   // only 4 of the 34 crease-drawing operations carry that group, so the other 30
   // (Angle Restricted Line among them) previewed accent-blue and then committed
   // in the crease colour.
+  // A crease is a colour *and* a fold angle, so the preview ink has to resolve
+  // both. It used to resolve only the colour, which was complete while every
+  // crease was a full fold and stopped being so when the active crease angle
+  // arrived: dragging with the pen at 90 showed a flat 180 stroke and then
+  // committed a 90 crease, which is precisely the mismatch this memo exists to
+  // prevent.
+  //
+  // Through `foldAngleInk`, the same entry point the document's stroke builder
+  // uses, so a candidate follows the View panel's fold-angle display mode rather
+  // than inventing a second appearance for the same fact. And gated on
+  // `cpCommandUsesActiveCreaseAngle` — the predicate that decides the *payload* —
+  // so a tool whose creases are 180 by construction (the classical bases, the
+  // vertex-completion tools) previews flat because it commits flat.
   const toolPreviewColor = useMemo(() => {
     const operationId = activeCpCommand?.operationId;
+    if (!cpCommandUsesActiveLineColor(operationId)) {
+      return readCssVarColor(document.documentElement, '--accent-primary', [0.4, 0.6, 1, 1] as const);
+    }
     // `resolveCpToolLineColor`, not the active colour directly: Square can
     // override it, and the payload resolves through the same function.
-    return cpCommandUsesActiveLineColor(operationId)
-      ? resolveCpLineColor(
-          resolveCpToolLineColor(operationId, cpToolOptions, effectiveCpLineColor),
-          mode,
-          document.documentElement
-        )
-      : readCssVarColor(document.documentElement, '--accent-primary', [0.4, 0.6, 1, 1] as const);
-  }, [activeCpCommand?.operationId, cpToolOptions, effectiveCpLineColor, mode]);
+    const ink = resolveCpLineColor(
+      resolveCpToolLineColor(operationId, cpToolOptions, effectiveCpLineColor),
+      mode,
+      document.documentElement
+    );
+    if (!cpCommandUsesActiveCreaseAngle(operationId)) return ink;
+    return foldAngleInk(ink, creaseAnglePreviewMagnitude(activeCpCreaseAngle), {
+      display: oristudioCpViewport.foldAngleDisplay ?? DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY,
+      anchor: readCssVarColor(
+        document.documentElement,
+        FOLD_ANGLE_ANCHOR_VAR,
+        FOLD_ANGLE_ANCHOR_FALLBACK
+      ),
+    });
+  }, [
+    activeCpCommand?.operationId,
+    cpToolOptions,
+    effectiveCpLineColor,
+    mode,
+    activeCpCreaseAngle,
+    oristudioCpViewport.foldAngleDisplay,
+  ]);
 
   // The active tool's WebGL routing from its declarative steps: a drag mode; a
   // click-based `sequence` with a per-step kind (free point vs picked crease); or
@@ -2225,10 +2317,17 @@ export function CreasePatternPanel() {
     [activeCpCommand?.operationId]
   );
   const handleWebglToolPreviewInput = useCallback(
-    (points: readonly Point[], highlightLineIds: readonly number[]) => {
+    (
+      points: readonly Point[],
+      highlightLineIds: readonly number[],
+      pickedLineIds: readonly number[] = []
+    ) => {
       const command = activeCpCommand;
-      // The passed ids are the hovered crease(s) — highlight only. The kernel
+      // `highlightLineIds` are the hovered crease(s) — highlight only. The kernel
       // resolves creases from the points, so its payload carries the selection.
+      // `pickedLineIds` are the creases a tool has actually *taken*, which do go
+      // to the kernel: a tool that picks creases rather than placing points has
+      // no points to preview from, and would otherwise never get a preview at all.
       const highlight = highlightLineIds
         .map((id) => editableCp?.crease_pattern.line_segments[id - 1])
         .filter((s): s is OristudioCpLineSegment => Boolean(s))
@@ -2237,7 +2336,7 @@ export function CreasePatternPanel() {
         setCpMeasureLivePoints([...points]);
         if (points.length === 0) setCpMeasureLiveValue(null);
       }
-      if (!command || points.length === 0) {
+      if (!command || (points.length === 0 && pickedLineIds.length === 0)) {
         webglPreviewRequestRef.current += 1;
         setWebglToolPreviewSegments([]);
         setWebglToolHighlightSegments(highlight);
@@ -2277,7 +2376,7 @@ export function CreasePatternPanel() {
       void previewOristudioCpCommand(
         command.operationId,
         buildCpCommandPayload(command, {
-          line_ids: oristudioCpSelection.lines,
+          line_ids: pickedLineIds.length > 0 ? [...pickedLineIds] : oristudioCpSelection.lines,
           circle_ids: oristudioCpSelection.circles,
           points: [...points],
         })
@@ -2870,6 +2969,8 @@ export function CreasePatternPanel() {
         case 'viewport.actualSize':
           cpCamera()?.setZoomPercent(100);
           return true;
+        case 'viewport.contextMenu':
+          return cpContextMenu.openFromKeyboard(containerRef.current);
       }
     },
     [
@@ -2879,6 +2980,7 @@ export function CreasePatternPanel() {
       vertexSolve,
       deleteSelectedCanvasObject,
       dropLastMeasurement,
+      cpContextMenu,
     ]
   );
 
@@ -2921,21 +3023,57 @@ export function CreasePatternPanel() {
     }
   }, [cpToolState.activeOperationId, cpToolState.phase]);
 
-  // What this surface adds to the shared view controls. Insert-image collapses
-  // into the touch overflow menu — it is a once-per-document errand — while Fold
-  // and its figure menu stay on the bar: after drawing, folding is the verb, and
-  // no gesture stands in for it.
+  // What this surface adds to the shared view controls. The crease angle is a
+  // readout you set and then draw against, so it earns a place on the bar; Fold
+  // and its figure menu stay too, because after drawing folding is the verb and
+  // no gesture stands in for it. (Insertion left this bar for the Insert menu.)
   const viewportGroups: ViewportToolbarGroupSpec[] = editableCp
     ? [
         {
-          id: 'image',
+          id: 'crease-angle',
           items: [
             {
+              kind: 'node',
+              id: 'crease-angle',
+              // A text field cannot become a `role="menuitem"`, so it cannot
+              // collapse — the coarse row below is the touch form of it.
+              only: 'fine',
+              node: (
+                <CreaseAngleField
+                  degrees={activeCpCreaseAngle}
+                  onChange={applyCreaseAngleEntry}
+                  onOpenPopover={() => setCreaseAnglePopoverOpen(true)}
+                  shortcutLabel={creaseAngleShortcutLabel}
+                  anchorRef={(element) => {
+                    creaseAngleAnchorRef.current = element;
+                  }}
+                />
+              ),
+            },
+            {
               kind: 'action',
-              id: 'insert-image',
-              label: t('panels:creasePattern.insertImage', 'Insert image...'),
-              icon: <ImagePlus size={14} />,
-              onSelect: () => imageFileInputRef.current?.click(),
+              id: 'crease-angle',
+              only: 'coarse',
+              // Carries the live value, because on touch this row is the only
+              // place the pen is visible at all.
+              label: t('tools:creaseAngle.menuRow', 'Crease angle: {{angle}}', {
+                angle: formatCreaseAngle(activeCpCreaseAngle),
+              }),
+              icon: <ProtractorIcon size={14} />,
+              // Deliberately **no** `checked`. This row opens a control; it is
+              // not a mode you switch. `OverflowItem` reads any `checked` at all
+              // as "this is a mode" and renders a `CheckboxItem`, which swaps
+              // the icon for a tick and cancels the select so the menu stays
+              // open for runs of layer toggles. Both were wrong here, and both
+              // shipped: the row showed a tick instead of a protractor and did
+              // not close when tapped.
+              opensDialog: true,
+              // A pen off 180 changes what every stroke does, and on a phone
+              // there is nothing else on screen that says so — the field is not
+              // rendered and the status readout is hidden outright. So the
+              // trigger carries it, the same way it carries an active pan.
+              unseenWhenCollapsed: !isClassicCreaseAngle(activeCpCreaseAngle),
+              onSelect: () => setCreaseAnglePopoverOpen(true),
             },
           ],
         },
@@ -3179,7 +3317,7 @@ export function CreasePatternPanel() {
                   onEraseCircle={(id) => {
                     void executeOristudioCpCommand('LineSegmentDelete', { circle_ids: [id] });
                   }}
-                  onRequestContextMenu={handleRequestContextMenu}
+                  onRequestContextMenu={cpContextMenu.onCanvasContextMenu}
                   mode={mode}
                   lineStyle={oristudioCpViewport.lineStyle ?? DEFAULT_ORISTUDIO_CP_LINE_STYLE}
                   foldAngleDisplay={
@@ -3200,13 +3338,12 @@ export function CreasePatternPanel() {
                   gridVisible={oristudioCpViewport.gridVisible}
                 />
                 <ContextMenu
-                  open={foldedContextMenu !== null}
-                  x={foldedContextMenu?.x ?? 0}
-                  y={foldedContextMenu?.y ?? 0}
-                  items={foldedContextMenu?.items ?? []}
-                  onOpenChange={(open) => {
-                    if (!open) setFoldedContextMenu(null);
-                  }}
+                  open={cpContextMenu.controller.open}
+                  x={cpContextMenu.controller.x}
+                  y={cpContextMenu.controller.y}
+                  items={cpContextMenu.controller.items}
+                  onOpenChange={cpContextMenu.controller.onOpenChange}
+                  onCloseAutoFocus={cpContextMenu.controller.onCloseAutoFocus}
                 />
                 {webglOverlayView &&
                   isCpMeasurementOperation(activeCpCommand?.operationId) &&
@@ -3279,7 +3416,7 @@ export function CreasePatternPanel() {
                     onUpdate={handleCanvasObjectUpdate}
                     onCropUpdate={annotations.applyCrop}
                     onRequestEdit={annotations.requestEditText}
-                    onContextMenu={handleCanvasObjectContextMenu}
+                    onContextMenu={cpContextMenu.onCanvasObjectContextMenu}
                     canCrop={annotations.canCrop}
                     onGestureStart={beginCanvasObjectGesture}
                     onGestureCommit={commitCanvasObjectGesture}
@@ -3441,6 +3578,19 @@ export function CreasePatternPanel() {
                   onModelGestureEnd={folded.endModelGesture}
                 />
               )}
+              {/* Portals itself, so where it is mounted only decides its
+                  lifetime. Beside the bar rather than inside it because it
+                  outlives the field it anchors to: `Shift+A` opens it on a
+                  phone, where there is no field at all. */}
+              {editableCp && creaseAnglePopoverOpen && (
+                <CreaseAnglePopover
+                  degrees={activeCpCreaseAngle}
+                  onChange={applyCreaseAngleEntry}
+                  onClose={() => setCreaseAnglePopoverOpen(false)}
+                  anchorRef={creaseAngleAnchorRef}
+                  boundaryRef={cpViewportRef}
+                />
+              )}
               {/* Outside the bar rather than in it: the picker is
                   `display: none`, so as a toolbar item it would be a group with
                   nothing visible in it — and the bar draws a hairline between
@@ -3458,7 +3608,10 @@ export function CreasePatternPanel() {
                   onChange={(event) => {
                     const file = event.target.files?.[0];
                     event.target.value = '';
-                    if (file) void addImageFromFile(file, null);
+                    // A placement parked by whoever opened the picker, or null
+                    // for the viewport centre. The right-click menu parks the
+                    // point it was raised at; the Insert menu parks nothing.
+                    if (file) void addImageFromFile(file, annotations.consumePendingImagePoint());
                   }}
                 />
               )}

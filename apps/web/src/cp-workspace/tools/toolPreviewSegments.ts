@@ -20,6 +20,15 @@
  *   indicator geometry — the angle-system fan's `Orange4`/`Green6` rays, circle
  *   rings — and those are drawn *about* the pattern rather than being creases in
  *   it.
+ *
+ * Indicator geometry keeps its colour by the *other* route. The rule above is
+ * about candidates — geometry the tool would commit — where wearing the active
+ * line type is the whole point. An indicator is never a crease you are about to
+ * draw, so there is nothing for it to misrepresent, and upstream gives each one a
+ * fixed colour on purpose: Angle Bisector's parallel branch draws its midline in
+ * `Purple8` because you are meant to *aim at it*. Stroked in the active colour it
+ * is one more red line in a pattern full of them, which is indistinguishable from
+ * the tool having done nothing.
  */
 import type { OristudioCpLineSegment } from '../../engine/oristudioCpTypes';
 import {
@@ -34,11 +43,20 @@ export function toolPreviewSegments(
   operationId: OristudioCpOperationId | undefined
 ): ToolPreviewSegment[] {
   const carriesCrease = cpCommandCandidatesCarryCrease(operationId);
-  return (segments ?? []).map((segment) => ({
-    a: segment.a,
-    b: segment.b,
-    ...(carriesCrease && isFoldingCrease(segment.color)
-      ? { crease: { color: segment.color, foldMagnitude: segment.fold_magnitude } }
-      : {}),
-  }));
+  return (segments ?? []).map((segment) => {
+    // Indicator geometry: keeps its colour, but on its own field. Putting it in
+    // `crease` would say it *is* a crease of that colour and let it pick up
+    // crease rendering (fold-angle ink and the rest), which is the thing the
+    // rule above exists to prevent.
+    if (!isFoldingCrease(segment.color)) {
+      return { a: segment.a, b: segment.b, indicator: { color: segment.color } };
+    }
+    return {
+      a: segment.a,
+      b: segment.b,
+      ...(carriesCrease
+        ? { crease: { color: segment.color, foldMagnitude: segment.fold_magnitude } }
+        : {}),
+    };
+  });
 }

@@ -14,6 +14,13 @@
   "bpPacking": {
     "canvas": "Canevas d'agencement du pliage en boîte",
     "config": "Config",
+    "contextMenu": {
+      "nudge": "Déplacer",
+      "nudgeDown": "Bas",
+      "nudgeLeft": "Gauche",
+      "nudgeRight": "Droite",
+      "nudgeUp": "Haut"
+    },
     "diagonal": "Diagonale",
     "flapHeight": "H",
     "flapHeightAria": "Hauteur du rabat",
@@ -318,6 +325,17 @@
     "changeFoldedModel": "Modifier le modèle plié",
     "closeFoldedModels": "Fermer les modèles pliés",
     "commandFailed": "Échec de la commande",
+    "contextMenu": {
+      "creaseType": "Type de pli",
+      "delete": "Supprimer",
+      "diagnostics": "Diagnostics",
+      "editText": "Modifier le texte",
+      "insertImage": "Insérer une image…",
+      "insertText": "Insérer du texte",
+      "repair": "Réparer",
+      "select": "Sélectionner",
+      "transform": "Transformer"
+    },
     "couldNotOpenForEditing": "Ce patron de plis n'a pas pu être ouvert pour modification.",
     "couldNotOpenForEditingHint": "Affiché en lecture seule. Vous pouvez toujours le visualiser, le plier et l’exporter.",
     "cropImage": "Rogner l'image",
@@ -455,7 +473,6 @@
       "replay": "Revenir à plat",
       "setUpright": "Définir la verticale"
     },
-    "insertImage": "Insérer une image...",
     "linesCount_one": "{{count}} ligne",
     "linesCount_many": "{{count}} lignes",
     "linesCount_other": "{{count}} lignes",
@@ -607,6 +624,14 @@
     "moveLeft": "Déplacer vers la gauche",
     "moveRight": "Déplacer vers la droite",
     "rename": "Renommer"
+  },
+  "designTree": {
+    "contextMenu": {
+      "edgeTools": "Arête",
+      "nodeTools": "Nœud",
+      "select": "Sélectionner",
+      "strain": "Contrainte"
+    }
   },
   "diagnostics": {
     "allConditionsFeasible": "Toutes les conditions sont réalisables",
@@ -787,89 +812,46 @@
     "y": "Y",
     "yes": "Oui"
   },
-  "sequence": {
-    "after": "Après",
-    "before": "Avant",
-    "budgetReached": "Budget de recherche atteint avec un résultat partiel",
-    "creasePattern": "patron de plis",
-    "details": "Détails",
-    "detailsPlanning": "Planification {{elapsed}}",
-    "diagramLabel": "Diagramme de la séquence de pliage",
-    "foldedState": "état plié",
-    "headerPlanning": "Planification | {{elapsed}}",
-    "headerSummary": "{{status}} | {{steps}}",
-    "idle": "Inactif",
-    "layerStateOne": "{{value}} état de couches",
-    "layerStateOther": "{{value}} états de couches",
-    "metricOpen": "Ouverts",
-    "metricStates": "États",
-    "metricStatus": "Statut",
-    "metricSteps": "Étapes",
-    "noSteps": "Aucune étape de séquence",
-    "plan": "Planifier",
-    "planning": "Planification",
-    "planningFoldingSequence": "Planification de la séquence de pliage",
-    "planningInProgress": "Planification de la séquence en cours",
-    "planningMessageLong": "Planification toujours en cours après {{elapsed}}. Les grands patrons de plis peuvent prendre du temps ; cette exécution est toujours active.",
-    "planningMessageMedium": "Recherche des états de séquence. Les patrons de plis complexes peuvent prendre plus de temps que les bases simples.",
-    "planningMessageShort": "Résolution de la cible de pliage à plat et recherche des étapes de pliage.",
-    "simulate": "Simuler",
-    "simulateStep": "Simuler l'étape",
-    "stateTransition": "{{from}} à {{to}}",
-    "stateUnavailable": "État indisponible",
-    "statusNotPlanned": "Séquence non planifiée",
-    "statusPending": "Patron de plis en attente",
-    "statusPlanning": "Planification de la séquence",
-    "statusPreparing": "Préparation du patron de plis",
-    "stepCountOne_one": "{{count}} étape",
-    "stepCountOne_many": "{{count}} étape",
-    "stepCountOne_other": "{{count}} étape",
-    "stepCountOther_one": "{{count}} étapes",
-    "stepCountOther_many": "{{count}} étapes",
-    "stepCountOther_other": "{{count}} étapes",
-    "stepNumber": "Étape {{number}}",
-    "targetSummary": "{{faces}} faces, {{layers}}",
-    "title": "Séquence"
-  },
   "simulator": {
-    "accuracyAccurate": "Précis",
-    "accuracyAccurateTitle": "Aperçu de l'étape avec des incréments de solveur plus petits et plus de stabilisation",
-    "accuracyFast": "Rapide",
-    "accuracyFastTitle": "Aperçu de l'étape avec le traitement standard du simulateur",
     "backendCpu": "CPU",
     "backendCpuTitle": "Résolution sur le CPU (WebGL2 indisponible)",
     "backendGpu": "GPU",
     "backendGpuTitle": "Résolution sur le GPU (WebGL2)",
     "canvasAriaLabel": "Simulateur de base pliée en origami. Faites glisser pour pivoter, défilez pour zoomer, double-cliquez pour réinitialiser la vue.",
     "canvasTitle": "Faites glisser pour pivoter, défilez pour zoomer, double-cliquez pour réinitialiser la vue",
+    "contextMenu": {
+      "pause": "Pause",
+      "play": "Lecture",
+      "view": "Affichage"
+    },
     "controls": "Commandes de simulation",
     "fold": "Plier",
     "foldPercent": "Pourcentage de pliage",
     "idle": "Inactif",
     "loading": "Chargement",
-    "manualPreview": "Aperçu manuel",
     "noCreasePattern": "Aucun patron de plis",
     "pause": "Pause",
     "percent": "{{value}} %",
     "play": "Lecture",
     "refresh": "Actualiser",
     "reset": "Réinitialiser",
-    "scope": "Portée du simulateur",
-    "scopeStep": "Étape",
-    "scopeStepTitle": "Simuler l'étape de séquence sélectionnée",
-    "scopeWhole": "Complet",
-    "scopeWholeTitle": "Simuler l'ensemble du patron de plis",
     "setUpright": "Définir la verticale",
     "stats": "{{vertices}} sommets | {{triangles}} triangles",
     "step": "Étape",
-    "stepAccuracy": "Précision de la simulation de l'étape",
-    "stepChip": "Étape {{n}} : {{kind}}",
-    "stepPercent": "Pourcentage de l'étape",
     "stepReadout": "Étape {{n}}",
-    "stepSimulationUnavailable": "Simulation de l'étape indisponible.",
     "strain": "Tension {{value}}",
     "title": "Simulateur",
-    "unavailable": "Simulateur indisponible"
+    "unavailable": "Simulateur indisponible",
+    "viewCube": {
+      "back": "Arrière",
+      "bottom": "Dessous",
+      "front": "Avant",
+      "label": "Cube de vue",
+      "left": "Gauche",
+      "right": "Droite",
+      "roll": "Pivoter la vue",
+      "top": "Dessus"
+    }
   },
   "simulatorExport": {
     "png": "Image PNG",
@@ -927,7 +909,8 @@
     "style": "Style",
     "stylePaper": "Papier",
     "styleXray": "Rayons X",
-    "valley": "Vallée"
+    "valley": "Vallée",
+    "viewCube": "Cube de vue"
   },
   "textAnnotation": {
     "addText": "Ajouter du texte",
@@ -947,5 +930,11 @@
     "textControls": "Contrôles de texte",
     "textStyle": "Style de texte",
     "underline": "Souligné"
+  },
+  "treeEditor": {
+    "contextMenu": {
+      "addLeaf": "Ajouter une feuille ici",
+      "deselect": "Tout désélectionner"
+    }
   }
 }

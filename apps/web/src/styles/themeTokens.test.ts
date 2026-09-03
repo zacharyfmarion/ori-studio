@@ -57,8 +57,11 @@ const KNOWN_MISSING: Record<string, number> = {
   '--border-muted': 2,
   '--font-sans': 4,
   '--shadow-soft': 1,
-  '--surface-base': 1,
-  '--surface-raised': 1,
+  // `--surface-base` and `--surface-raised` were here until the three private
+  // chip styles became one `.ui-chip`. Both were named only by that rule, so
+  // consolidating it removed the last reads: a chip's resting background is now
+  // `transparent` (what it always rendered as) and its pressed text
+  // `--bg-secondary` (which fixes grey-on-blue).
 };
 
 describe('theme.css custom properties', () => {

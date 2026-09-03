@@ -211,6 +211,13 @@
     "title": "Werkzeuge",
     "trigger": "Werkzeuge"
   },
+  "creaseAngle": {
+    "close": "Faltwinkel schließen",
+    "degrees": "Faltwinkel in Grad",
+    "fieldTitle": "Faltwinkel für neue Berg- und Talfalten",
+    "menuRow": "Faltwinkel: {{angle}}",
+    "title": "Faltwinkel"
+  },
   "divideMode": {
     "count": "Anzahl",
     "countTitle": "Die Linie in gleiche Teile teilen",
@@ -260,7 +267,21 @@
     "valley": "Linie V",
     "yellow": "Linie Gelb"
   },
+  "simulator": {
+    "foldBackward": "Faltung rückwärts",
+    "foldEnd": "Zum gefalteten Zustand",
+    "foldForward": "Faltung vorwärts",
+    "foldStart": "Zum flachen Zustand",
+    "playPause": "Faltung abspielen / pausieren",
+    "replay": "Von flach wiederholen",
+    "resetView": "Simulatoransicht zurücksetzen",
+    "toggleCreases": "Falzlinien",
+    "toggleFaces": "Flächen",
+    "toggleHiddenLines": "Verdeckte Linien",
+    "toggleLighting": "Beleuchtung"
+  },
   "viewport": {
+    "contextMenu": "Kontextmenü öffnen",
     "fit": "Einpassen",
     "more": "Weitere Ansichtssteuerung",
     "pan": "Schwenken",

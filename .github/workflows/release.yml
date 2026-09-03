@@ -167,7 +167,10 @@ jobs:
             --json conclusion --jq '.[].conclusion' || true)"
           if ! grep -qx success <<< "$conclusions"; then
             echo "::error::no successful CI run for ${GITHUB_SHA}."
-            echo "::error::Open a PR for this commit, or dispatch CI on its branch, before tagging."
+            echo "::error::CI does not trigger on tags, so a commit can reach a tag"
+            echo "::error::with no run at all. Dispatch CI at that ref (Actions > CI >"
+            echo "::error::Run workflow, or 'gh workflow run CI --ref <branch-or-tag>'),"
+            echo "::error::wait for green, then re-run this workflow. See RELEASE.md."
             exit 1
           fi
 
@@ -337,6 +340,33 @@ jobs:
           toolchain: stable
           targets: ${{ matrix.target }}
 
+      # The `targets:` above is not enough, and its failure mode is one leg deep.
+      #
+      # rust-toolchain.toml pins the compiler to a specific channel, and rustup
+      # honours that file for anything run inside the repo — which is the whole
+      # point of the pin, and is stated in that file's own header. So the action
+      # above installs the target into *stable*, while `tauri build` runs under
+      # the *pinned* toolchain, which does not have it:
+      #
+      #   failed to build app: Target x86_64-apple-darwin is not installed
+      #   (installed targets: aarch64-apple-darwin, wasm32-unknown-unknown)
+      #
+      # Three of the four legs hide this, because their target is their runner's
+      # host target and a toolchain always carries its own host. macos-x86_64 is
+      # the only cross-compile in the matrix — an arm64 runner building x86_64 —
+      # so it is the only leg that needs a target added, and the only one that
+      # broke. ci.yml never cross-compiles, so nothing catches this before a tag:
+      # v0.3.0 was tagged, built three legs, and lost the Intel Mac.
+      #
+      # This runs in the repo, so it adds the target to the *pinned* toolchain.
+      # Keep it keyed on matrix.target rather than naming the Apple triple, so a
+      # future cross-compiling leg is covered when it is added rather than
+      # failing the same way. Adding the triple to rust-toolchain.toml would also
+      # work, but that file is honoured everywhere, so it would make every Linux
+      # and Windows job — and every clone — fetch a macOS std it never links.
+      - name: Add the build target to the pinned toolchain
+        run: rustup target add ${{ matrix.target }}
+
       # save-if is off on purpose. Actions caches written from the default branch
       # are readable by every ref, so a poisoned cache would put build-script and
       # proc-macro binaries into the one job that holds the Apple signing key.
@@ -463,8 +493,12 @@ jobs:
           # Only on a tag. tauri-action skips release upload without these.
           releaseId: ${{ needs.draft.outputs.release_id }}
           tagName: ${{ needs.validate.outputs.is_release == 'true' && github.ref_name || '' }}
-          # Composed once by a later job instead: four legs read-modify-writing
-          # one latest.json race and silently drop a platform.
+          # Off because four legs read-modify-writing one latest.json race and
+          # silently drop a platform. Nothing in this workflow composes it
+          # either: `scripts/publish-updater-manifest.sh <version>` is the live
+          # path, run by hand after the draft is flipped to a prerelease and
+          # before it is armed. See RELEASE.md, and the unchecked `manifest` /
+          # `publish` items in implementation-plans/desktop-auto-update.md.
           uploadUpdaterJson: false
 
       # One artifact per platform, globbed explicitly. Deliberately not the

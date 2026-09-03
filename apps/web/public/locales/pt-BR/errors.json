@@ -38,6 +38,7 @@
     "disconnected": "Esta seleção se divide em partes separadas que não se tocam, então não pode ser dobrada como um único modelo. Selecione uma parte e dobre novamente.",
     "foldedForm": "Este arquivo FOLD contém um modelo dobrado em vez de um padrão de vincos, então não há vincos para abrir. Abra o padrão de vincos a partir do qual ele foi dobrado.",
     "foldedFormTooLarge": "Esta figura dobrada é grande demais para ser gravada em um arquivo FOLD. Exporte apenas o padrão de vincos ou salve o projeto como .osf, que mantém a figura.",
+    "interiorCut": "Este padrão de vincos não pode ser dobrado: há uma linha de borda no meio do papel, com papel dos dois lados. Remova-a ou transforme-a em um vinco.",
     "isFlat": "Estes vincos são todos montanhas e vales completos, então dobram em plano em vez de numa forma 3D.",
     "layerSearch": "Não foi possível dobrar este padrão de vincos: suas camadas não podem ser organizadas sem sobreposição.",
     "needs3d": "Alguns destes vincos dobram num ângulo que não é uma montanha ou vale completos, então não têm forma dobrada em plano. Tente dobrar de novo; se persistir, o app e o padrão saíram de sincronia.",

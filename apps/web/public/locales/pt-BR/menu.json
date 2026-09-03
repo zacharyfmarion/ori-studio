@@ -38,6 +38,7 @@
     "repair": "Reparar",
     "replaceLineType": "Substituir tipo de linha selecionado...",
     "selectedLines": "Linhas selecionadas",
+    "setActiveCreaseAngle": "Definir ângulo do vinco...",
     "toggleMountainValley": "Alternar montanha/vale",
     "transform": "Transformar seleção",
     "transformFlipHorizontal": "Espelhar horizontalmente",
@@ -104,12 +105,17 @@
     "about": "Sobre o Ori Studio",
     "checkForUpdates": "Verificar atualizações…"
   },
+  "insert": {
+    "image": "Imagem...",
+    "text": "Texto"
+  },
   "menubar": {
     "creasePattern": "Padrão de vincos",
     "design": "Design",
     "edit": "Editar",
     "file": "Arquivo",
     "help": "Ajuda",
+    "insert": "Inserir",
     "view": "Exibir"
   },
   "optimize": {

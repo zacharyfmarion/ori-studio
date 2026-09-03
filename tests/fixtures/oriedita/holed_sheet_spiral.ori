@@ -1,0 +1,772 @@
+{
+  "@version": "v1.1",
+  "auxLineSegments": [],
+  "circles": [],
+  "gridModel": {
+    "baseState": "WITHIN_PAPER",
+    "drawDiagonalGridlines": false,
+    "gridAngle": 90.0,
+    "gridSize": 8,
+    "gridXA": 1.0,
+    "gridXB": 0.0,
+    "gridXC": 1.0,
+    "gridYA": 1.0,
+    "gridYB": 0.0,
+    "gridYC": 1.0,
+    "horizontalScalePosition": 0,
+    "intervalGridSize": 4,
+    "verticalScalePosition": 0
+  },
+  "lineSegments": [
+    {
+      "a": "-200.0,200.0",
+      "active": "INACTIVE_0",
+      "b": "-150.0,200.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "200.0,200.0",
+      "active": "INACTIVE_0",
+      "b": "200.0,150.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "200.0,-200.0",
+      "active": "INACTIVE_0",
+      "b": "150.00000000000003,-199.99999999999994",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-200.0,-200.0",
+      "active": "INACTIVE_0",
+      "b": "-200.0,-150.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-199.99999999999997,-200.0",
+      "active": "INACTIVE_0",
+      "b": "-149.99999999999997,-149.99999999999997",
+      "color": "RED_1",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-200.0,200.0",
+      "active": "INACTIVE_0",
+      "b": "-150.0,150.0",
+      "color": "RED_1",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "0.000000000000009094947017729283,-0.000000000000009094947017729283",
+      "active": "INACTIVE_0",
+      "b": "50.0,-50.0",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "0.000000000000009094947017729283,-0.000000000000009094947017729283",
+      "active": "INACTIVE_0",
+      "b": "49.99999999999999,49.99999999999998",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "200.0,150.0",
+      "active": "INACTIVE_0",
+      "b": "150.00000000000003,150.0",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "200.0,150.0",
+      "active": "INACTIVE_0",
+      "b": "200.0,100.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "150.00000000000003,150.00000000000003",
+      "active": "INACTIVE_0",
+      "b": "200.0,200.0",
+      "color": "RED_1",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "200.0,100.0",
+      "active": "INACTIVE_0",
+      "b": "100.0,99.99999999999999",
+      "color": "RED_1",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "100.00000000000001,100.00000000000001",
+      "active": "INACTIVE_0",
+      "b": "150.00000000000003,150.00000000000003",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "200.0,100.0",
+      "active": "INACTIVE_0",
+      "b": "200.0,50.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "200.0,50.0",
+      "active": "INACTIVE_0",
+      "b": "100.0,50.0",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "49.99999999999999,49.99999999999998",
+      "active": "INACTIVE_0",
+      "b": "100.00000000000001,100.00000000000001",
+      "color": "RED_1",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "200.0,50.0",
+      "active": "INACTIVE_0",
+      "b": "200.0,0.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "200.0,0.0",
+      "active": "INACTIVE_0",
+      "b": "100.0,-0.0",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "200.0,0.0",
+      "active": "INACTIVE_0",
+      "b": "200.0,-50.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "200.0,-50.0",
+      "active": "INACTIVE_0",
+      "b": "100.0,-50.0",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "50.0,-50.0",
+      "active": "INACTIVE_0",
+      "b": "100.0,-100.0",
+      "color": "RED_1",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "200.0,-50.0",
+      "active": "INACTIVE_0",
+      "b": "200.0,-100.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "200.0,-100.0",
+      "active": "INACTIVE_0",
+      "b": "100.0,-100.0",
+      "color": "RED_1",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "100.0,-100.0",
+      "active": "INACTIVE_0",
+      "b": "150.0,-150.0",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "200.0,-100.0",
+      "active": "INACTIVE_0",
+      "b": "200.0,-150.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "200.0,-150.0",
+      "active": "INACTIVE_0",
+      "b": "150.0,-150.0",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "150.0,-150.0",
+      "active": "INACTIVE_0",
+      "b": "200.0,-200.0",
+      "color": "RED_1",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "200.0,-150.0",
+      "active": "INACTIVE_0",
+      "b": "200.0,-200.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-149.99999999999997,-200.0",
+      "active": "INACTIVE_0",
+      "b": "-149.99999999999994,-149.99999999999997",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-149.99999999999994,-200.0",
+      "active": "INACTIVE_0",
+      "b": "-200.0,-200.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-149.99999999999997,-149.99999999999997",
+      "active": "INACTIVE_0",
+      "b": "-99.99999999999994,-99.99999999999994",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-99.99999999999997,-200.0",
+      "active": "INACTIVE_0",
+      "b": "-99.99999999999993,-99.99999999999994",
+      "color": "RED_1",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-99.99999999999997,-200.0",
+      "active": "INACTIVE_0",
+      "b": "-149.99999999999994,-200.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-99.99999999999994,-99.99999999999994",
+      "active": "INACTIVE_0",
+      "b": "-49.99999999999998,-49.999999999999986",
+      "color": "RED_1",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-49.99999999999997,-200.0",
+      "active": "INACTIVE_0",
+      "b": "-49.99999999999998,-49.999999999999986",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-49.99999999999997,-199.99999999999997",
+      "active": "INACTIVE_0",
+      "b": "-99.99999999999997,-200.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-49.99999999999998,-49.999999999999986",
+      "active": "INACTIVE_0",
+      "b": "0.000000000000009094947017729283,-0.000000000000009094947017729283",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "0.00000000000002842170943040401,-200.0",
+      "active": "INACTIVE_0",
+      "b": "0.00000000000002842170943040401,-0.00000000000002842170943040401",
+      "color": "RED_1",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "0.000000000000028421709430404014,-199.99999999999994",
+      "active": "INACTIVE_0",
+      "b": "-49.99999999999997,-199.99999999999997",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "50.00000000000003,-200.0",
+      "active": "INACTIVE_0",
+      "b": "50.00000000000002,-50.00000000000002",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "50.00000000000002,-199.99999999999994",
+      "active": "INACTIVE_0",
+      "b": "0.000000000000028421709430404014,-199.99999999999994",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "100.00000000000003,-200.0",
+      "active": "INACTIVE_0",
+      "b": "100.00000000000007,-100.00000000000007",
+      "color": "RED_1",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "100.00000000000001,-199.99999999999994",
+      "active": "INACTIVE_0",
+      "b": "50.00000000000002,-199.99999999999994",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "150.00000000000003,-200.0",
+      "active": "INACTIVE_0",
+      "b": "150.00000000000006,-150.00000000000006",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "150.00000000000003,-199.99999999999994",
+      "active": "INACTIVE_0",
+      "b": "100.00000000000001,-199.99999999999994",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-200.0,150.0",
+      "active": "INACTIVE_0",
+      "b": "-150.0,150.0",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-200.0,150.0",
+      "active": "INACTIVE_0",
+      "b": "-200.0,200.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-150.0,150.0",
+      "active": "INACTIVE_0",
+      "b": "-100.0,100.0",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-200.0,100.0",
+      "active": "INACTIVE_0",
+      "b": "-100.0,100.0",
+      "color": "RED_1",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-200.0,100.0",
+      "active": "INACTIVE_0",
+      "b": "-200.0,150.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-100.0,100.0",
+      "active": "INACTIVE_0",
+      "b": "-50.0,50.0",
+      "color": "RED_1",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-200.0,50.0",
+      "active": "INACTIVE_0",
+      "b": "-50.0,50.0",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-200.0,50.0",
+      "active": "INACTIVE_0",
+      "b": "-200.0,100.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-50.0,50.0",
+      "active": "INACTIVE_0",
+      "b": "0.000000000000009094947017729283,-0.000000000000009094947017729283",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-200.0,0.0",
+      "active": "INACTIVE_0",
+      "b": "-0.0,0.0",
+      "color": "RED_1",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-200.0,0.0",
+      "active": "INACTIVE_0",
+      "b": "-200.0,50.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-200.0,-50.0",
+      "active": "INACTIVE_0",
+      "b": "-50.00000000000001,-50.00000000000001",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-200.0,-50.0",
+      "active": "INACTIVE_0",
+      "b": "-200.0,0.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-200.0,-100.0",
+      "active": "INACTIVE_0",
+      "b": "-100.00000000000001,-100.00000000000001",
+      "color": "RED_1",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-200.0,-100.0",
+      "active": "INACTIVE_0",
+      "b": "-200.0,-50.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-200.0,-150.0",
+      "active": "INACTIVE_0",
+      "b": "-150.0,-150.0",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-200.0,-150.0",
+      "active": "INACTIVE_0",
+      "b": "-200.0,-100.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "150.0,200.0",
+      "active": "INACTIVE_0",
+      "b": "150.0,150.0",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "150.0,200.0",
+      "active": "INACTIVE_0",
+      "b": "200.0,200.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "100.0,200.0",
+      "active": "INACTIVE_0",
+      "b": "100.00000000000001,100.0",
+      "color": "RED_1",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "100.0,200.0",
+      "active": "INACTIVE_0",
+      "b": "150.0,200.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "50.0,200.0",
+      "active": "INACTIVE_0",
+      "b": "50.00000000000001,49.999999999999986",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "50.0,200.0",
+      "active": "INACTIVE_0",
+      "b": "100.0,200.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "0.0,200.0",
+      "active": "INACTIVE_0",
+      "b": "0.0,0.0",
+      "color": "RED_1",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-0.0,200.0",
+      "active": "INACTIVE_0",
+      "b": "50.0,200.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-50.0,200.0",
+      "active": "INACTIVE_0",
+      "b": "-50.0,50.0",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-50.0,200.0",
+      "active": "INACTIVE_0",
+      "b": "-0.0,200.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-100.0,200.0",
+      "active": "INACTIVE_0",
+      "b": "-100.0,100.0",
+      "color": "RED_1",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-100.0,200.0",
+      "active": "INACTIVE_0",
+      "b": "-50.0,200.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-150.0,200.0",
+      "active": "INACTIVE_0",
+      "b": "-150.0,150.0",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "-150.0,200.0",
+      "active": "INACTIVE_0",
+      "b": "-100.0,200.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "50.0,-50.0",
+      "active": "INACTIVE_0",
+      "b": "50.0,0.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "50.0,0.0",
+      "active": "INACTIVE_0",
+      "b": "50.0,50.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "50.0,0.0",
+      "active": "INACTIVE_0",
+      "b": "0.000000000000018189894035458565,-0.0",
+      "color": "BLUE_2",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "50.0,50.0",
+      "active": "INACTIVE_0",
+      "b": "100.0,50.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "100.0,50.0",
+      "active": "INACTIVE_0",
+      "b": "100.0,-0.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "100.0,-0.0",
+      "active": "INACTIVE_0",
+      "b": "100.0,-50.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    },
+    {
+      "a": "100.0,-50.0",
+      "active": "INACTIVE_0",
+      "b": "50.00000000000003,-50.0",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff64c8c8",
+      "selected": 0
+    }
+  ],
+  "points": [],
+  "texts": [],
+  "title": "holed_sheet_spiral"
+}

@@ -163,14 +163,17 @@ describe('box-pleat sendToEdit', () => {
     expect(client.exportCp).toHaveBeenCalledWith(9, false, true, 1);
   });
 
-  it('swaps BP mountain/valley into the CP editor convention', async () => {
+  it('hands BP crease types to Edit untranslated', async () => {
     const client = fakeBoxPleatClient();
     const sendToEdit = createBoxPleatSendToEdit(async () => client as unknown as OristudioBpClient);
     const payload = await sendToEdit(3, { editGridDivisions: 16, title: 'x' });
 
-    // BP writes M=2, V=3; the editor reads 2=valley, 3=mountain. Border(1) and
-    // auxiliary(4) are shared and must pass through untouched.
-    expect(payload.text.split('\n').map((line) => line[0])).toEqual(['1', '3', '2', '4']);
+    // Both sides speak ORIPA's codes — 1 border, 2 mountain, 3 valley, 4
+    // auxiliary — so every line type passes through as written. This once
+    // asserted a 2<->3 swap, which was compensating for an inverted `.cp`
+    // importer in the CP kernel rather than for any real difference between the
+    // two upstreams.
+    expect(payload.text.split('\n').map((line) => line[0])).toEqual(['1', '2', '3', '4']);
     expect(payload.format).toBe('cp');
   });
 

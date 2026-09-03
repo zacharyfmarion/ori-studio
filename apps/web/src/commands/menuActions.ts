@@ -22,6 +22,7 @@ import type { OristudioCpSelection } from '../lib/creasePatternViewport';
 import type { CpSelectionTransform } from '../lib/creasePatternClipboard';
 import type { Point } from '../lib/geometry';
 import type { OristudioCpOperationId } from '../lib/oristudioCpCommands';
+import type { OristudioCpSurfaceRequestKind } from '../store/workspaceStore/types';
 import type { EditingContext } from '../workspaces/editingContext';
 import type {
 } from '../engine/oristudioBpTypes';
@@ -126,6 +127,9 @@ export const MENU_ACTION_IDS = [
   'cp.exactSolve',
   'cp.changeCircleColor',
   'cp.organizeCircles',
+  'cp.setActiveCreaseAngle',
+  'insert.image',
+  'insert.text',
   'help.about',
   'help.checkForUpdates',
 ] as const;
@@ -156,7 +160,7 @@ export interface WorkspaceCommands {
   redo(): Promise<void>;
   cutSelection(): Promise<void>;
   copySelection(): void;
-  pasteClipboard(): Promise<void>;
+  pasteClipboard(at?: Point): Promise<void>;
   deleteSelection(): Promise<void>;
   optimizeScale(): Promise<void>;
   optimizeEdges(): Promise<void>;
@@ -195,6 +199,7 @@ export interface WorkspaceCommands {
   setOristudioCpSelection(selection: OristudioCpSelection): void;
   clearOristudioCpSelection(): void;
   requestOristudioCpAction(operationId: OristudioCpOperationId): void;
+  requestOristudioCpSurface(kind: OristudioCpSurfaceRequestKind): void;
   executeOristudioCpCommand(
     operationId: OristudioCpOperationId,
     payload?: OristudioCpCommandPayload
@@ -308,6 +313,20 @@ const CP_CONTEXT_ACTIONS: Partial<Record<MenuActionId, OristudioCpOperationId>> 
   'cp.deleteLineType': 'DeleteLineTypeSelect',
   'cp.fixInaccurate': 'FixInaccurate',
   'cp.changeCircleColor': 'CircleChangeColor',
+  // Insert > Text arms the text tool; the next canvas click places the box.
+  // No new plumbing, because placing text was always a tool — the menu entry
+  // just gives it a name outside the rail.
+  'insert.text': 'Text',
+};
+
+/**
+ * Menu entries the mounted crease-pattern panel has to handle itself, because
+ * they are panel-owned UI rather than kernel operations. See
+ * `OristudioCpSurfaceRequest`.
+ */
+const CP_SURFACE_ACTIONS: Partial<Record<MenuActionId, OristudioCpSurfaceRequestKind>> = {
+  'insert.image': 'insert-image',
+  'cp.setActiveCreaseAngle': 'crease-angle',
 };
 
 const CP_SELECTION_TRANSFORM_ACTIONS: Partial<Record<MenuActionId, CpSelectionTransform>> = {
@@ -468,6 +487,12 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
         return false;
       }
       deps.workspace.requestOristudioCpAction(cpContextOperation);
+      return true;
+    }
+
+    const cpSurfaceKind = CP_SURFACE_ACTIONS[id];
+    if (cpSurfaceKind) {
+      deps.workspace.requestOristudioCpSurface(cpSurfaceKind);
       return true;
     }
 

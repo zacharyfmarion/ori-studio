@@ -349,15 +349,25 @@ fn our_own_export_reopens_as_the_crease_pattern() {
 /// data, which is the failure this whole feature is defined against.
 #[test]
 fn a_flat_figure_is_refused_rather_than_skipped() {
-    let corner = [
-        Point::new(0.0, 0.0),
-        Point::new(400.0, 0.0),
-        Point::new(400.0, 400.0),
-        Point::new(0.0, 400.0),
+    // Split where the crease meets the edge. Unsplit, the arrangement does not
+    // trace at all and the fold below returns a figure with no faces in it — see
+    // `fold_faces_unresolved`, which is what caught this fixture.
+    let ring = [
+        ((0.0, 0.0), (200.0, 0.0)),
+        ((200.0, 0.0), (400.0, 0.0)),
+        ((400.0, 0.0), (400.0, 400.0)),
+        ((400.0, 400.0), (200.0, 400.0)),
+        ((200.0, 400.0), (0.0, 400.0)),
+        ((0.0, 400.0), (0.0, 0.0)),
     ];
-    let mut segments: Vec<LineSegment> = (0..4)
-        .map(|slot| {
-            LineSegment::with_color(corner[slot], corner[(slot + 1) % 4], LineColor::Black0)
+    let mut segments: Vec<LineSegment> = ring
+        .iter()
+        .map(|((ax, ay), (bx, by))| {
+            LineSegment::with_color(
+                Point::new(*ax, *ay),
+                Point::new(*bx, *by),
+                LineColor::Black0,
+            )
         })
         .collect();
     segments.push(LineSegment::with_color(

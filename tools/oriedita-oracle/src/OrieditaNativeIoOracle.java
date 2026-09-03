@@ -1,5 +1,6 @@
 import oriedita.editor.FrameProvider;
 import oriedita.editor.databinding.GridModel;
+import oriedita.editor.export.CpImporter;
 import oriedita.editor.export.FoldImporter;
 import oriedita.editor.export.OriImporter;
 import oriedita.editor.save.Save;
@@ -19,8 +20,17 @@ public class OrieditaNativeIoOracle {
         switch (args[0]) {
             case "ori-import-summary" -> oriImportSummary(args);
             case "fold-import-summary" -> foldImportSummary(args);
+            case "cp-import-summary" -> cpImportSummary(args);
             default -> usage("unknown command: " + args[0]);
         }
+    }
+
+    private static void cpImportSummary(String[] args) throws Exception {
+        if (args.length != 2) {
+            usage("cp-import-summary expects a file path");
+        }
+
+        printSaveSummary(new CpImporter().doImport(new File(args[1])));
     }
 
     private static void oriImportSummary(String[] args) throws Exception {
@@ -116,6 +126,7 @@ public class OrieditaNativeIoOracle {
         System.err.println(message);
         System.err.println("usage: OrieditaNativeIoOracle ori-import-summary <path>");
         System.err.println("   or: OrieditaNativeIoOracle fold-import-summary <path>");
+        System.err.println("   or: OrieditaNativeIoOracle cp-import-summary <path>");
         System.exit(2);
     }
 }

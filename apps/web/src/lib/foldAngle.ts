@@ -21,6 +21,7 @@
  */
 import type {
   OristudioCpFoldDirectionHint,
+  OristudioCpLineColor,
   OristudioCpLineSegment,
 } from '../engine/oristudioCpTypes';
 
@@ -107,6 +108,36 @@ export function foldAngleFromParts(
   if (!isFoldingCrease(color as OristudioCpLineSegment['color'])) return null;
   const magnitude = magnitudeUnits === undefined ? 180 : foldMagnitudeToDegrees(magnitudeUnits);
   return color === 'Red1' ? -magnitude : magnitude;
+}
+
+/**
+ * The direction a *signed* fold angle names — the sign half of
+ * {@link foldAngleFromParts}, read backwards.
+ *
+ * `null` at zero, which agrees with neither: a crease that does not fold has no
+ * direction. Mirrors `FoldDirection::of_signed_angle` in the kernel, so the two
+ * ends of the wire read a sign the same way.
+ */
+export function foldDirectionOfSignedAngle(
+  degrees: number
+): OristudioCpFoldDirectionHint | null {
+  if (!Number.isFinite(degrees) || degrees === 0) return null;
+  return degrees < 0 ? 'Mountain' : 'Valley';
+}
+
+/**
+ * The line colour that folds `direction` — the colour half of
+ * {@link foldAngleFromParts}, read backwards.
+ *
+ * Written here rather than at the one call site because it *is* the convention
+ * this module exists to hold: `Red1` is negative and `Blue2` positive, and a
+ * second copy of that mapping is exactly how a UI ends up disagreeing with the
+ * badge it draws.
+ */
+export function creaseColorForFoldDirection(
+  direction: OristudioCpFoldDirectionHint
+): OristudioCpLineColor {
+  return direction === 'Mountain' ? 'Red1' : 'Blue2';
 }
 
 /** `|ρ|` in degrees for a crease, or `null` when the segment is not a crease. */

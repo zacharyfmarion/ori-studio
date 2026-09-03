@@ -30,6 +30,7 @@ export type ViewportShortcutId =
   | 'viewport.cancel'
   | 'viewport.delete'
   | 'viewport.simulateSelectionInline'
+  | 'viewport.contextMenu'
   | 'viewport.solveAnglesPrevious'
   | 'viewport.solveAnglesNext'
   | 'viewport.solveAnglesApply';
@@ -146,8 +147,12 @@ const ORIEDITA_DEFAULTS: Record<string, string> = {
   colCyanAction: 'F', // Auxiliary
   // Ori Studio addition: no Oriedita equivalent, because Oriedita creases are
   // always a full +/-180. Shift+F sits in the same left-hand family as the line
-  // types it complements and leaves A/S/D/F untouched. (Shift+A was the first
-  // choice but belongs to a1Action, the three-point angle readout.)
+  // types it complements and leaves A/S/D/F untouched.
+  //
+  // This is the *selection* verb — set the angle on what is selected. Its
+  // sibling is `cp.setActiveCreaseAngle` in MENU_SHORTCUTS, the pen: what an
+  // angle the creases you are about to draw. Two chords because they are two
+  // moments, not two ways of saying one thing.
   OriStudioSetFoldAngle: 'shift F',
 
   // -- Draw / construct --------------------------------------------------
@@ -186,11 +191,17 @@ const ORIEDITA_DEFAULTS: Record<string, string> = {
   // empty for both). `l1Action` / `a1Action` are the two visible measure tools'
   // upstream identities — the other three measure operations are hidden from the
   // UI. Length takes Shift+M so the mirror family keeps the bare key (M mirror
-  // line, Ctrl+M reflect), and angle takes the matching Shift+A. These are the
-  // app's first bare Shift+letter chords; the dispatcher records `shift` on every
-  // event, so M and Shift+M (and A and Shift+A) stay distinct.
+  // line, Ctrl+M reflect). The dispatcher records `shift` on every event, so M
+  // and Shift+M stay distinct.
+  //
+  // The angle readout had the matching Shift+A, and gave it up: the active
+  // crease angle is a thing you set *between* strokes, dozens of times in a
+  // transcription session, where the three-point readout is something you reach
+  // for to answer one question. The pairing was tidy but it was not paying for
+  // the better key. Shift+N is free, and `N` is otherwise unclaimed here, so the
+  // readout keeps a bare Shift+letter of its own.
   l1Action: 'shift M',
-  a1Action: 'shift A',
+  a1Action: 'shift N',
 
   // -- Mountain / valley -------------------------------------------------
   senbun_henkan2Action: 'C', // flip M/V of the selection
@@ -272,6 +283,18 @@ const MENU_SHORTCUTS: ShortcutDefinition[] = [
     { primary: true, shift: true, key: 'v' },
     'v_del_allAction'
   ),
+  // The pen: what angle the creases you draw next take. Here rather than in
+  // ORIEDITA_DEFAULTS because that table is keyed by Oriedita `upstreamAction`
+  // and drives CP *tool* actions — this arms no tool and has no kernel
+  // operation, it opens a control. Going through a menu id also makes it
+  // focus-independent and picks up the `command invoked` analytics event that
+  // `handleMenuAction` already emits.
+  //
+  // Shift+A took this from `a1Action`; see the note there for why.
+  menuShortcut('cp.setActiveCreaseAngle', 'Set Crease Angle', 'Crease Pattern', {
+    shift: true,
+    key: 'a',
+  }),
 ];
 
 function simulatorShortcut(
@@ -396,6 +419,16 @@ const VIEWPORT_SHORTCUTS: ShortcutDefinition[] = [
   // selection. Claiming the pair would let an Oriedita user who moved "stop the
   // running fold" silently move "cancel what I am drawing" instead.
   viewportShortcut('viewport.cancel', 'Cancel / Deselect', { key: 'escape' }),
+  // The keyboard route to a context menu, on the two chords every desktop
+  // platform already uses for it. Without this the menus below are pointer-only
+  // — and a menu that is the *only* home for a verb (the tree canvas's "Add leaf
+  // here", the simulator's view toggles) would then be unreachable without a
+  // mouse. `contextmenu` is the dedicated key where a keyboard has one; Shift+F10
+  // is the equivalent everywhere else, including every Mac keyboard.
+  viewportShortcut('viewport.contextMenu', 'Open Context Menu', [
+    { key: 'contextmenu' },
+    { shift: true, key: 'f10' },
+  ]),
   // Delete is shared with `edit.delete` at global scope, which deletes creases.
   // Viewport scope resolves first, so this one is asked whether the *viewport*
   // owns the press — a selected canvas object, or a measurement to drop — and
@@ -1168,8 +1201,32 @@ function normalizeKey(key: string): string {
   }
 }
 
+/**
+ * A key as a *hint*, for a menu row or a settings table.
+ *
+ * The `default` arm only knows single characters and `F<n>`, so every other
+ * multi-character `KeyboardEvent.key` used to fall through as the raw
+ * lowercase name — the simulator's menu read "Shift+arrowleft". Everything the
+ * registry can bind, and everything a rebind can produce, is named here.
+ *
+ * Arrows are the glyphs rather than words. They are what every other
+ * application prints, they are the symbol on the key itself, and they keep a
+ * chord to one narrow column — "Shift+←" against "Shift+Arrow Left", in a
+ * right-aligned slot that sits beside a label. Plain text, so nothing needs a
+ * component: the same string works in a menu row, the settings table, and the
+ * conflict messages. The native macOS menu is unaffected — Tauri accelerators
+ * are built by `acceleratorKey` in `menus/nativeMenu.ts`, not by this.
+ */
 function displayKey(key: string): string {
   switch (key) {
+    case 'arrowleft':
+      return '←';
+    case 'arrowright':
+      return '→';
+    case 'arrowup':
+      return '↑';
+    case 'arrowdown':
+      return '↓';
     case 'delete':
       return 'Delete';
     case 'backspace':
@@ -1180,6 +1237,24 @@ function displayKey(key: string): string {
       return 'Enter';
     case 'space':
       return 'Space';
+    case 'tab':
+      return 'Tab';
+    case 'home':
+      return 'Home';
+    case 'end':
+      return 'End';
+    case 'pageup':
+      return 'Page Up';
+    case 'pagedown':
+      return 'Page Down';
+    case 'insert':
+      return 'Insert';
+    case 'capslock':
+      return 'Caps Lock';
+    // The dedicated context-menu key. "Menu" is what the keycap says; the glyph
+    // (☰) is not on every keyboard's key and reads as a hamburger elsewhere.
+    case 'contextmenu':
+      return 'Menu';
     case ',':
     case '.':
     case '/':

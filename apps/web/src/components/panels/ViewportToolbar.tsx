@@ -392,8 +392,9 @@ export function ViewportToolbar({
             icon: <Hand size={14} />,
             checked: panToolActive ?? false,
             // Left-drag panning instead of drawing is not visible until you
-            // drag, so the trigger says so while the button is behind it.
-            unseenWhenCollapsed: true,
+            // drag, so the trigger says so while the button is behind it. The
+            // live state, not a marker: the flag *is* the answer now.
+            unseenWhenCollapsed: panToolActive ?? false,
             onSelect: togglePanTool,
           },
           rotateView && {

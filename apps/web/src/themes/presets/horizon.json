@@ -13,6 +13,7 @@
     "text.muted": "#6c6f93",
     "text.inverse": "#ffffff",
     "accent.primary": "#e95678",
+    "selection.cp": "#b877db",
     "accent.hover": "#f09383",
     "border.default": "#2e303e",
     "border.active": "#e95678",
