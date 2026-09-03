@@ -39,6 +39,7 @@ use crate::{
     CandidateSelectionPolicy, CandidateSourceAdapter, CostModel, ExactSolveInput,
     ExactSolveOptions, Point2, Provenance, solve_exact,
 };
+use std::collections::BTreeMap;
 use treemaker_fold::{Assignment, FoldDocument};
 
 /// Minimum turn (degrees) at a boundary vertex for it to count as a paper corner.
@@ -393,6 +394,7 @@ fn build_input(
 
     let mut spans = Vec::with_capacity(fold.edges_vertices.len());
     let mut border_span_ids = Vec::new();
+    let mut carrier_ids = BTreeMap::new();
     for (id, edge) in fold.edges_vertices.iter().enumerate() {
         let (a, b) = (edge[0], edge[1]);
         let label = assignment_label(fold.edges_assignment[id]);
@@ -406,7 +408,7 @@ fn build_input(
         let source_carrier_ids = if is_border {
             vec![]
         } else {
-            vec![carrier_bin_id(&carrier)]
+            vec![carrier_id_for(&mut carrier_ids, &carrier)]
         };
         spans.push(CandidateCreaseSpan {
             id,
@@ -746,11 +748,40 @@ fn carrier_from(a: Point2, b: Point2) -> (CandidateCarrierGeometry, [f64; 2]) {
     )
 }
 
-fn carrier_bin_id(carrier: &CandidateCarrierGeometry) -> usize {
-    let theta = carrier.normal.y.atan2(carrier.normal.x);
-    let angle_bin = (theta / 0.01).round() as i64;
+/// The bin a carrier line falls in — the same 0.01 rad / 0.0025 grid the
+/// solver's `CarrierGroupKey::Geometry` uses — so collinear creases share one.
+fn carrier_bin(carrier: &CandidateCarrierGeometry) -> (i64, i64) {
     let rho_bin = (carrier.rho / 0.0025).round() as i64;
-    ((angle_bin as usize) << 20) ^ (rho_bin as usize & 0xF_FFFF)
+    let mut theta = carrier.normal.y.atan2(carrier.normal.x);
+    // A line through the frame's origin has no offset, so the sign rule
+    // `carrier_from` orients a normal by (rho >= 0) does not pick a direction
+    // for it: the two halves of such a crease, drawn towards and away from the
+    // origin, had normals a half-turn apart and were two carriers. Where the
+    // offset bin is zero the angle is folded to a half-turn, where they are one.
+    if rho_bin == 0 {
+        theta = theta.rem_euclid(std::f64::consts::PI);
+    }
+    ((theta / 0.01).round() as i64, rho_bin)
+}
+
+/// A small, dense id per distinct bin, in first-seen order.
+///
+/// This used to be a hash of the bin folded into a `usize` — the angle bin
+/// shifted by 20 bits, XOR the offset bin — which put a negative angle's id
+/// just under 2^64. Two things broke on that. A `usize` is 32 bits in wasm, so
+/// the same crease had a different id on the web than on the desktop. And a
+/// JavaScript number holds 53 bits, so on the desktop, where the input crosses
+/// the page as JSON between the rebuild and the solve, neighbouring ids rounded
+/// to one value: on a 327-crease pattern two unrelated creases became one
+/// carrier, the polish pinned them to one line, and the solve was refused for
+/// seven crossings the pattern did not have. Dense ids fit every integer type
+/// on every path; the solver reads them for equality only.
+fn carrier_id_for(
+    ids: &mut BTreeMap<(i64, i64), usize>,
+    carrier: &CandidateCarrierGeometry,
+) -> usize {
+    let next = ids.len();
+    *ids.entry(carrier_bin(carrier)).or_insert(next)
 }
 
 fn side_of(p: Point2) -> Option<BoundarySide> {
@@ -900,6 +931,59 @@ mod tests {
         ];
         fold.edges_fold_angle = vec![None; 8];
         fold
+    }
+
+    /// The carrier id used to be a hash folded into a `usize`, which put a
+    /// negative angle's id just under 2^64: different on wasm's 32-bit `usize`
+    /// than on the desktop, and beyond what a JavaScript number holds, so the
+    /// JSON trip through the page rounded neighbouring ids together and the
+    /// solver pinned unrelated creases to one line — seven spurious crossings on
+    /// a 327-crease pattern. Dense ids survive every path.
+    #[test]
+    fn carrier_ids_are_dense_and_survive_a_javascript_number_round_trip() {
+        let fold = simple_square();
+        let (input, _) = exact_solve_input_from_fold(&fold).unwrap();
+        let ids: Vec<Option<usize>> = input
+            .selected_spans
+            .iter()
+            .map(|span| span.source_carrier_ids.first().copied())
+            .collect();
+        // Borders carry no carrier; the two diagonals are two carriers, each
+        // shared by its two halves, numbered densely from zero.
+        assert_eq!(ids[..4], [None, None, None, None]);
+        assert_eq!(ids[4], ids[6]);
+        assert_eq!(ids[5], ids[7]);
+        assert_ne!(ids[4], ids[5]);
+        assert_eq!(ids[4..].iter().flatten().max().copied(), Some(1));
+
+        // Nothing in the serialized input is beyond 2^53, and rounding every
+        // integer through a double — what `JSON.parse` does — changes nothing.
+        let value = serde_json::to_value(&input).unwrap();
+        fn max_integer(value: &serde_json::Value) -> u64 {
+            match value {
+                serde_json::Value::Array(items) => items.iter().map(max_integer).max().unwrap_or(0),
+                serde_json::Value::Object(map) => map.values().map(max_integer).max().unwrap_or(0),
+                serde_json::Value::Number(number) => number.as_u64().unwrap_or(0),
+                _ => 0,
+            }
+        }
+        assert!(max_integer(&value) < (1u64 << 53));
+        let rounded: ExactSolveInput = serde_json::from_value(
+            serde_json::from_str(&serde_json::to_string(&value).unwrap()).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            rounded
+                .selected_spans
+                .iter()
+                .map(|span| span.source_carrier_ids.clone())
+                .collect::<Vec<_>>(),
+            input
+                .selected_spans
+                .iter()
+                .map(|span| span.source_carrier_ids.clone())
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]
