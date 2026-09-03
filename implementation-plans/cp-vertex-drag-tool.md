@@ -296,63 +296,86 @@ the action definition. `i18n:extract` → translate 8 locales → `i18n:stamp` �
 
 ### Phase 1 — kernel
 
-- [ ] `VERTEX_COINCIDENCE`, `vertex_endpoints_at`, `move_vertex` in
+- [x] `VERTEX_COINCIDENCE`, `vertex_endpoints_at`, `move_vertex` in
       `operations/native/vertex.rs`
-- [ ] Unit tests: a degree-4 junction moves all four; a crease *passing through*
+- [x] Unit tests: a degree-4 junction moves all four; a crease *passing through*
       the point without ending there does not move; dragging onto an adjacent
       vertex collapses that crease and leaves no sliver; dragging across another
       crease splits at the new crossing; a `from` with no vertex returns 0; a
       zero-length move returns 0
-- [ ] `OperationId::VertexMove` + `descriptor!(native …)`, execute branch
-- [ ] Golden fixture generator + the match fixture under `tests/fixtures/cp/`
-- [ ] `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
-      `cargo test --workspace`
+- [x] `OperationId::VertexMove` + `descriptor!(native …)`, execute branch
+- [x] Golden fixture generator + the match fixture under `tests/fixtures/cp/`
+- [x] `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
+      `cargo test --workspace` (1690 tests, 144 suites)
 
 ### Phase 2 — preview channel
 
 Reviewable on its own, with the existing move-drag as the regression surface.
 
-- [ ] `endpoints` on `CpTransformPreview`; the clause in both stroke builders
-- [ ] Parity gate covers a vertex-move preview
-- [ ] `vertexIdx` on `CpPointSelection`
-- [ ] `drawnAt` endpoint slot + `CpFoldAngleLayer` test that a badge on an
+- [x] `endpoints` on `CpTransformPreview`; the clause in both stroke builders
+- [x] Parity gate covers a vertex-move preview
+- [x] `vertexIdx` on `CpPointSelection`
+- [x] `drawnAt` endpoint slot + `CpFoldAngleLayer` test that a badge on an
       attached crease follows a vertex drag
 
 ### Phase 3 — tool
 
-- [ ] `dragVertexTool` + tests: press with no vertex starts nothing; a
+- [x] `dragVertexTool` + tests: press with no vertex starts nothing; a
       stationary click commits nothing; a drag commits `[vertex, destination]`;
       cancel returns to idle
-- [ ] `vertexEndpoints.ts` + its golden test against the Rust fixture
-- [ ] `'drag-vertex'` through the four unions; input-model entry
-- [ ] `vertexIndex` memo + the canvas pointer branch + hover highlight + cursor
-- [ ] Command definition, action override, `CLEAR_CP_SELECTION_AFTER_OPERATIONS`
-- [ ] Corrected the two "vertices are not selectable, so they get no index"
+- [x] `vertexEndpoints.ts` + its golden test against the Rust fixture. The
+      golden immediately earned its keep: a transcribed `1e-7` is one ulp below
+      the kernel's `0.01 * 1e-5`, so the constant is now written as the same
+      product rather than the decimal it comes to.
+- [x] `'drag-vertex'` through the four unions; input-model entry
+- [x] `vertexIndex` memo + the canvas pointer branch + hover highlight + cursor
+- [x] Command definition, action override, `CLEAR_CP_SELECTION_AFTER_OPERATIONS`
+- [x] Corrected the two "vertices are not selectable, so they get no index"
       comments
+- [x] **Unplanned, and load-bearing:** `toolModeSnapsDrawPoint` split in two.
+      It was answering both "does this mode snap its points" and "does it park a
+      start between gestures", and `drawRuntime` uses the second to hand out the
+      *persistent drag-line runtime*. Move Vertex needs the first and not the
+      second, so one predicate would have had it drawing creases.
+      `toolModeArmsDrawStart` is the new one, with its own coverage.
 
 ### Phase 4 — validation
 
-- [ ] `npx tsc --noEmit` and vitest run **from `apps/web`** (from the repo root
-      vitest loads no config and fails every test)
-- [ ] `npm run lint:web`
-- [ ] `i18n:extract` → 8 locales → `i18n:stamp` → `i18n:check`
-- [ ] Registry coverage tests: `oristudioCpCommands.test.ts` (a UI command per
+- [x] `npx tsc --noEmit` and vitest run **from `apps/web`** (from the repo root
+      vitest loads no config and fails every test) — 5336 tests, 431 files
+- [x] `npm run lint:web`
+- [x] `i18n:extract` → 8 locales → `i18n:stamp` → `i18n:check`
+- [x] Registry coverage tests: `oristudioCpCommands.test.ts` (a UI command per
       source-mapped operation, and the pinned native set),
-      `inputModelRegistry.test.ts`
+      `inputModelRegistry.test.ts`, `pointerRelease.test.ts` mode coverage
+- [x] `npm run check:desktop`
 
 ### Phase 5 — browser checklist
 
-- [ ] Move Vertex appears in the Transform rail section
-- [ ] The vertex under the cursor highlights; a press 20 px from any vertex does
-      nothing and does not clear the selection
-- [ ] A degree-4 junction drags with all four creases attached, live
-- [ ] The destination snaps to grid and to other vertices
-- [ ] Dragging a vertex across a crease leaves a split crossing (check the new
-      vertex dot appears at the intersection)
-- [ ] Dragging a vertex onto its neighbour merges rather than leaving a stub
-- [ ] Fold-angle badges on the attached creases follow during the drag
-- [ ] One undo returns the whole drag
-- [ ] The same, in the Tauri desktop shell
+Driven with synthetic `PointerEvent`s from the page: the automated pane's
+`left_click_drag` does not reach the canvas's pointer handlers at all (the
+shipping Line tool commits nothing through it either).
+
+- [x] Move Vertex appears in the Transform rail section, with its tool hint
+- [x] A press well away from any vertex does nothing, and leaves the selection
+      intact — it does not fall through to the marquee
+- [x] A degree-4 junction drags with all four creases attached; the passer-by
+      crease is untouched
+- [x] The destination snaps to grid (aimed at model (47, 52), landed on (50, 50))
+- [x] Dragging a vertex across a crease splits both at the intersection
+- [x] Dragging a vertex onto its neighbour collapses that crease with no sliver
+- [x] One undo returns the whole drag
+- [x] A cancelled drag puts the strokes back — **this was broken and is fixed**;
+      see the mutation-checked regression test
+- [ ] The vertex under the cursor highlights (**not verified in the pane**: the
+      probe is rAF-coalesced and the pane runs `visibilityState: hidden` with
+      zero animation frames — measured. Covered by a fake-timer test instead,
+      and the shipping crease-hover probe has the same structure.)
+- [ ] Fold-angle badges follow during the drag (**not verified in the pane**,
+      same reason. The preview channel it reads was confirmed correct mid-drag:
+      `endpoints` held exactly the four `a` slots, `ids` was empty.)
+- [ ] The same, in the Tauri desktop shell (`check:desktop` passes; the running
+      app is the author's to confirm)
 
 ## Open questions for review
 
