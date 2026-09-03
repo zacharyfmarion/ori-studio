@@ -2374,12 +2374,36 @@ mod tests {
     /// cannot agree on. Blanked on both sides before comparison — and the
     /// pointer is asserted to exist, so a rename cannot silently turn this into
     /// a comparison that skips a field which genuinely diverged.
+    /// The solve report with every wall-clock reading nulled: `elapsed_seconds`
+    /// at the top of the movement report, and the `seconds` each polish round —
+    /// the symmetry round included — records for itself. Those are the only
+    /// fields two runs of a pure function are allowed to disagree on, and the
+    /// symmetry round's used to slip through: microseconds that matched by luck.
     fn without_solve_wall_clock(solve: &Value) -> Value {
+        fn scrub(value: &mut Value) {
+            match value {
+                Value::Object(map) => {
+                    for (key, child) in map.iter_mut() {
+                        if key == "seconds" || key == "elapsed_seconds" {
+                            *child = Value::Null;
+                        } else {
+                            scrub(child);
+                        }
+                    }
+                }
+                Value::Array(items) => items.iter_mut().for_each(scrub),
+                _ => {}
+            }
+        }
         let mut normalized = solve.clone();
-        let elapsed = normalized
-            .pointer_mut("/movement_report/elapsed_seconds")
-            .expect("solve report should carry movement_report.elapsed_seconds");
-        *elapsed = Value::Null;
+        let report = normalized
+            .pointer_mut("/movement_report")
+            .expect("solve report should carry a movement_report");
+        assert!(
+            report.get("elapsed_seconds").is_some(),
+            "solve report should carry movement_report.elapsed_seconds"
+        );
+        scrub(report);
         normalized
     }
 
