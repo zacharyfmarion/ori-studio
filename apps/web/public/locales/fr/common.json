@@ -81,7 +81,7 @@
     "deleteSelectedTreeParts": "Supprimer les parties d'arbre sélectionnées",
     "deselectAll": "Tout désélectionner",
     "design": "Conception",
-    "detectCpBeforeExactSolve": "La résolution exacte nécessite un patron détecté ; lancez d’abord Détecter un CP depuis une image",
+    "detectCpBeforeExactSolve": "La résolution exacte nécessite un patron de plis détecté ; lancez d’abord Détecter le CP depuis une image",
     "detectCpFromImage": "Détecter le CP depuis une image...",
     "detectSquareCpFromImage": "Détecter un patron de plis carré à partir d'une image",
     "edgeEditsRequireTree": "Les modifications d'arête requièrent un document d'arbre",

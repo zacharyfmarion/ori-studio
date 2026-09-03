@@ -81,7 +81,7 @@
     "deleteSelectedTreeParts": "Excluir partes selecionadas da árvore",
     "deselectAll": "Desmarcar tudo",
     "design": "Design",
-    "detectCpBeforeExactSolve": "A resolução exata precisa de um padrão detectado; execute primeiro Detectar CP a partir de imagem",
+    "detectCpBeforeExactSolve": "A resolução exata precisa de um padrão de vincos detectado; execute primeiro Detectar CP a partir de imagem",
     "detectCpFromImage": "Detectar CP a partir de imagem...",
     "detectSquareCpFromImage": "Detectar um padrão de vincos quadrado a partir de uma imagem",
     "edgeEditsRequireTree": "A edição de arestas requer um documento de árvore",

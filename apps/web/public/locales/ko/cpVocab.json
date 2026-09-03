@@ -750,8 +750,8 @@
       }
     },
     "cp_action_check_suppression_region_create": {
-      "label": "검사 제외 영역",
-      "tooltip": "상자를 끌어 그 안에서 선택한 접힘 검사 보고를 중단합니다",
+      "label": "검사 억제 영역",
+      "tooltip": "상자를 끌어 그 안에서 선택한 접힘 가능성 검사 보고를 중단합니다",
       "disabledReason": "준비됨",
       "steps": {
         "0": "검사를 중단할 영역을 상자로 끌어 지정합니다"
@@ -1035,9 +1035,9 @@
       "disabledReason": "준비됨"
     },
     "cp_action_delete_extra_vertices_among": {
-      "label": "",
-      "tooltip": "",
-      "disabledReason": ""
+      "label": "전개도 안의 불필요한 정점 삭제",
+      "tooltip": "주어진 접힘선 안에서만 같은 유형의 일직선 접힘선 쌍 병합",
+      "disabledReason": "준비됨"
     },
     "cp_action_organize_circles": {
       "label": "원 정리",

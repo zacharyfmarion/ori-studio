@@ -751,10 +751,10 @@
     },
     "cp_action_check_suppression_region_create": {
       "label": "抑制領域",
-      "tooltip": "ボックスをドラッグして、その内側で選択した折りたたみ検査の報告を止めます",
+      "tooltip": "ボックスをドラッグして、その内側で選択した折り可能性チェックの報告を止めます",
       "disabledReason": "準備完了",
       "steps": {
-        "0": "検査を止める範囲をドラッグして囲みます"
+        "0": "チェックを止める範囲をドラッグして囲みます"
       }
     },
     "cp_action_draw_blintz": {
@@ -1035,9 +1035,9 @@
       "disabledReason": "準備完了"
     },
     "cp_action_delete_extra_vertices_among": {
-      "label": "",
-      "tooltip": "",
-      "disabledReason": ""
+      "label": "展開図内の余分な頂点を削除",
+      "tooltip": "指定した折り線の範囲内でのみ、同じ種類の一直線上の折り線を統合します",
+      "disabledReason": "準備完了"
     },
     "cp_action_organize_circles": {
       "label": "円を整理",

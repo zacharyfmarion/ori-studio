@@ -4,12 +4,12 @@
     "failedDetail": "Es wurde nichts geändert. Wenn das weiterhin passiert, lade die Seite neu."
   },
   "cpRegionSolve": {
-    "failed": "",
-    "incompleteAction": "",
-    "solvedAction": "",
-    "timedOut": "",
-    "timedOutDetail_one": "",
-    "timedOutDetail_other": ""
+    "failed": "Dieses Muster konnte nicht gelöst werden",
+    "incompleteAction": "„Erneut versuchen“, um die Topologie zu reparieren und erneut zu lösen, oder „Trotzdem übernehmen“, um diese Koordinaten zu behalten.",
+    "solvedAction": "„Übernehmen“, um es zu behalten, oder „Erneut versuchen“, um zurückzugehen und die Topologie zu ändern.",
+    "timedOut": "Die Zeit für das Lösen ist abgelaufen",
+    "timedOutDetail_one": "Ein Knoten war bereits gesetzt – übernehmen Sie das bisher Erreichte oder bearbeiten Sie weiter und versuchen Sie es erneut.",
+    "timedOutDetail_other": "{{count}} Knoten waren bereits gesetzt – übernehmen Sie das bisher Erreichte oder bearbeiten Sie weiter und versuchen Sie es erneut."
   },
   "creasePattern": {
     "inlineSimulationCap": "Bis zu {{max}} Simulationsfenster gleichzeitig. Schließe eines, um ein weiteres zu öffnen.",
@@ -29,11 +29,11 @@
     "foldStopped": "Falten abgebrochen",
     "foldStopping": "Wird abgebrochen…",
     "saved": "{{name}} gespeichert",
-    "solveStop": "",
-    "solveStopped": "",
-    "solveStopping": "",
-    "solving": "",
-    "solvingLong": ""
+    "solveStop": "Abbrechen",
+    "solveStopped": "Lösen abgebrochen",
+    "solveStopping": "Wird abgebrochen…",
+    "solving": "Wird gelöst…",
+    "solvingLong": "Wird noch gelöst – das kann eine Weile dauern"
   },
   "simulatorExport": {
     "empty": "Diese Simulation hat noch nichts zu exportieren",

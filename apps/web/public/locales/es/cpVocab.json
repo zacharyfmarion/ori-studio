@@ -751,7 +751,7 @@
     },
     "cp_action_check_suppression_region_create": {
       "label": "Región de supresión",
-      "tooltip": "Arrastra un recuadro para dejar de informar dentro de él las comprobaciones de plegado seleccionadas",
+      "tooltip": "Arrastra un recuadro para dejar de informar dentro de él las comprobaciones de plegabilidad seleccionadas",
       "disabledReason": "Listo",
       "steps": {
         "0": "Arrastra un recuadro sobre el área que dejará de comprobarse"
@@ -1035,9 +1035,9 @@
       "disabledReason": "Listo"
     },
     "cp_action_delete_extra_vertices_among": {
-      "label": "",
-      "tooltip": "",
-      "disabledReason": ""
+      "label": "Eliminar vértices sobrantes del patrón",
+      "tooltip": "Fusionar los pares de pliegues colineales del mismo tipo solo entre los pliegues indicados",
+      "disabledReason": "Listo"
     },
     "cp_action_organize_circles": {
       "label": "Organizar círculos",

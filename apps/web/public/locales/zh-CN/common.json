@@ -81,7 +81,7 @@
     "deleteSelectedTreeParts": "删除所选树部件",
     "deselectAll": "取消全选",
     "design": "设计",
-    "detectCpBeforeExactSolve": "精确求解需要检测得到的折痕图；请先运行“从图像检测折痕图”",
+    "detectCpBeforeExactSolve": "精确求解需要检测得到的折痕图；请先运行“从图像检测 CP”",
     "detectCpFromImage": "从图像检测 CP...",
     "detectSquareCpFromImage": "从图像检测方形折痕图",
     "edgeEditsRequireTree": "编辑边需要树文档",

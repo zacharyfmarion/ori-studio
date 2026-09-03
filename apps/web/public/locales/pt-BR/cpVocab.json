@@ -751,7 +751,7 @@
     },
     "cp_action_check_suppression_region_create": {
       "label": "Região de supressão",
-      "tooltip": "Arraste um retângulo para parar de relatar dentro dele as verificações de dobradura selecionadas",
+      "tooltip": "Arraste um retângulo para parar de relatar dentro dele as verificações de dobrabilidade selecionadas",
       "disabledReason": "Pronto",
       "steps": {
         "0": "Arraste um retângulo sobre a área que deixará de ser verificada"
@@ -1035,9 +1035,9 @@
       "disabledReason": "Pronto"
     },
     "cp_action_delete_extra_vertices_among": {
-      "label": "",
-      "tooltip": "",
-      "disabledReason": ""
+      "label": "Excluir vértices extras no padrão",
+      "tooltip": "Mesclar pares de vincos colineares do mesmo tipo apenas entre os vincos indicados",
+      "disabledReason": "Pronto"
     },
     "cp_action_organize_circles": {
       "label": "Organizar círculos",

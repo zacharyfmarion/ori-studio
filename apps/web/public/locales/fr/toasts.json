@@ -4,13 +4,13 @@
     "failedDetail": "Rien n’a été modifié. Si cela persiste, essayez de recharger."
   },
   "cpRegionSolve": {
-    "failed": "",
-    "incompleteAction": "",
-    "solvedAction": "",
-    "timedOut": "",
-    "timedOutDetail_one": "",
-    "timedOutDetail_many": "",
-    "timedOutDetail_other": ""
+    "failed": "Impossible de résoudre ce patron",
+    "incompleteAction": "« Réessayer » pour réparer la topologie et relancer la résolution, ou « Accepter quand même » pour conserver ces coordonnées.",
+    "solvedAction": "« Accepter » pour le conserver, ou « Réessayer » pour revenir en arrière et modifier la topologie.",
+    "timedOut": "La résolution a dépassé le temps imparti",
+    "timedOutDetail_one": "Le solveur avait placé {{count}} sommet — acceptez ce qui a été calculé, ou continuez à modifier puis réessayez.",
+    "timedOutDetail_many": "Le solveur avait placé {{count}} sommets — acceptez ce qui a été calculé, ou continuez à modifier puis réessayez.",
+    "timedOutDetail_other": "Le solveur avait placé {{count}} sommets — acceptez ce qui a été calculé, ou continuez à modifier puis réessayez."
   },
   "creasePattern": {
     "inlineSimulationCap": "Jusqu'à {{max}} fenêtres de simulation à la fois. Fermez-en une pour en ouvrir une autre.",
@@ -30,11 +30,11 @@
     "foldStopped": "Pliage annulé",
     "foldStopping": "Annulation…",
     "saved": "{{name}} enregistré",
-    "solveStop": "",
-    "solveStopped": "",
-    "solveStopping": "",
-    "solving": "",
-    "solvingLong": ""
+    "solveStop": "Annuler",
+    "solveStopped": "Résolution annulée",
+    "solveStopping": "Annulation…",
+    "solving": "Résolution…",
+    "solvingLong": "Résolution toujours en cours — cela peut prendre du temps"
   },
   "simulatorExport": {
     "empty": "Cette simulation n'a encore rien à exporter",

@@ -751,10 +751,10 @@
     },
     "cp_action_check_suppression_region_create": {
       "label": "Prüfungsfreier Bereich",
-      "tooltip": "Ziehe ein Rechteck auf, in dem die ausgewählten Faltbarkeitsprüfungen nicht mehr gemeldet werden",
+      "tooltip": "Ein Rechteck aufziehen, in dem die ausgewählten Faltbarkeitsprüfungen nicht mehr gemeldet werden",
       "disabledReason": "Bereit",
       "steps": {
-        "0": "Ziehe ein Rechteck über den Bereich, der nicht mehr geprüft werden soll"
+        "0": "Ein Rechteck über den Bereich ziehen, der nicht mehr geprüft werden soll"
       }
     },
     "cp_action_draw_blintz": {
@@ -1035,9 +1035,9 @@
       "disabledReason": "Bereit"
     },
     "cp_action_delete_extra_vertices_among": {
-      "label": "",
-      "tooltip": "",
-      "disabledReason": ""
+      "label": "Überflüssige Knoten im Muster löschen",
+      "tooltip": "Kollineare Faltenpaare gleichen Typs nur unter den angegebenen Falten zusammenführen",
+      "disabledReason": "Bereit"
     },
     "cp_action_organize_circles": {
       "label": "Kreise organisieren",

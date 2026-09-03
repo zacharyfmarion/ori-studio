@@ -81,7 +81,7 @@
     "deleteSelectedTreeParts": "選択したツリー部分を削除",
     "deselectAll": "すべて選択解除",
     "design": "デザイン",
-    "detectCpBeforeExactSolve": "厳密解には検出された展開図が必要です。まず「画像から展開図を検出」を実行してください",
+    "detectCpBeforeExactSolve": "厳密解には検出された展開図が必要です。まず「画像から CP を検出」を実行してください",
     "detectCpFromImage": "画像から CP を検出...",
     "detectSquareCpFromImage": "画像から正方形の展開図を検出",
     "edgeEditsRequireTree": "辺の編集にはツリードキュメントが必要です",

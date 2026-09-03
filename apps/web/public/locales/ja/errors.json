@@ -21,7 +21,7 @@
     "foldProducedNothing": "これらの折り線には描画できる平坦な折り上がり形状がありません"
   },
   "cpDetectImport": {
-    "addFailed": "この展開図を追加できませんでした。",
+    "addFailed": "検出した展開図を追加できませんでした。",
     "canvasUnavailable": "Canvas 2D を利用できません",
     "unsupportedImage": "PNG、JPEG、または WebP 画像を使用してください。"
   },

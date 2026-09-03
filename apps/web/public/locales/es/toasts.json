@@ -4,13 +4,13 @@
     "failedDetail": "No se cambió nada. Si sigue ocurriendo, prueba a recargar."
   },
   "cpRegionSolve": {
-    "failed": "",
-    "incompleteAction": "",
-    "solvedAction": "",
-    "timedOut": "",
-    "timedOutDetail_one": "",
-    "timedOutDetail_many": "",
-    "timedOutDetail_other": ""
+    "failed": "No se pudo resolver este patrón",
+    "incompleteAction": "Usa Reintentar para reparar la topología y volver a resolver, o Aceptar de todos modos para conservar estas coordenadas.",
+    "solvedAction": "Usa Aceptar para conservarlo, o Reintentar para volver atrás y cambiar la topología.",
+    "timedOut": "Se agotó el tiempo de la resolución",
+    "timedOutDetail_one": "Había colocado {{count}} vértice: acepta hasta donde llegó, o sigue editando y vuelve a intentarlo.",
+    "timedOutDetail_many": "Había colocado {{count}} vértices: acepta hasta donde llegó, o sigue editando y vuelve a intentarlo.",
+    "timedOutDetail_other": "Había colocado {{count}} vértices: acepta hasta donde llegó, o sigue editando y vuelve a intentarlo."
   },
   "creasePattern": {
     "inlineSimulationCap": "Hasta {{max}} ventanas de simulación a la vez. Cierra una para abrir otra.",
@@ -30,11 +30,11 @@
     "foldStopped": "Plegado cancelado",
     "foldStopping": "Cancelando…",
     "saved": "{{name}} guardado",
-    "solveStop": "",
-    "solveStopped": "",
-    "solveStopping": "",
-    "solving": "",
-    "solvingLong": ""
+    "solveStop": "Cancelar",
+    "solveStopped": "Resolución cancelada",
+    "solveStopping": "Cancelando…",
+    "solving": "Resolviendo…",
+    "solvingLong": "Sigue resolviendo: esto puede tardar un rato"
   },
   "simulatorExport": {
     "empty": "Esta simulación aún no tiene nada que exportar",
