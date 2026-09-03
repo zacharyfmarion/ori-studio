@@ -30,6 +30,7 @@ import { cpDiagnosticEntryMessage } from './foldabilityMessages';
 import { CpDiagnosticGlyph } from './CpDiagnosticGlyph';
 import { useCpDiagnosticList } from './useCpDiagnosticList';
 import { useCpDiagnosticHudLane } from './useCpDiagnosticHudLane';
+import type { CpDiagnosticHudStatus } from './hudStatus';
 
 /**
  * A one-line row, from the stylesheet: 7px padding twice, 0.72rem at line-height
@@ -94,7 +95,7 @@ const CpDiagnosticHudRow = memo(function CpDiagnosticHudRow({
 
 export function CpDiagnosticHud() {
   const { t } = useTranslation();
-  const { entries, status, activeId, selectDiagnostic } = useCpDiagnosticList();
+  const { entries, status, hiddenCount, activeId, selectDiagnostic } = useCpDiagnosticList();
   const [expanded, setExpanded] = useState(false);
   const listRef = useRef<HTMLDivElement | null>(null);
   // State rather than a ref: the lane is measured from this element, so the hook
@@ -141,7 +142,30 @@ export function CpDiagnosticHud() {
     overscan: 8,
   });
 
-  if (!status) return null;
+  /**
+   * What the scoped check filter is costing, in words.
+   *
+   * A filter whose cost cannot be seen is how "no errors" comes to mean "no
+   * errors we told you about" — the failure the whole scoped-filter design is
+   * built to avoid, and the reason a suppression region may not be `hidden`. Each
+   * region's chip carries its own share; this is the document's total, and it is
+   * the only place the document-wide rule's share is ever stated.
+   */
+  const hiddenNote =
+    hiddenCount > 0
+      ? t('panels:creasePattern.diagnosticsHidden', {
+          count: hiddenCount,
+          defaultValue_one: '1 finding hidden by a filter',
+          defaultValue_other: '{{count}} findings hidden by a filter',
+        })
+      : null;
+  // With everything suppressed there is no check left to name, and returning
+  // null here would hand the user a clean canvas over a document nobody checked.
+  // So the count stands in as the headline: informational, because it reports on
+  // the filter rather than on the pattern's foldability.
+  const shown: CpDiagnosticHudStatus | null =
+    status ?? (hiddenNote === null ? null : { label: hiddenNote, detail: null, tone: 'info' });
+  if (!shown) return null;
 
   const items = virtualizer.getVirtualItems();
 
@@ -149,7 +173,7 @@ export function CpDiagnosticHud() {
     <div
       ref={setHudEl}
       className="cp-diagnostic-hud"
-      data-tone={status.tone}
+      data-tone={shown.tone}
       data-expanded={expanded || undefined}
       // Nothing at all while the HUD clears the status readout, which is every
       // desktop width — the stylesheet's own `top` stays in charge there. See
@@ -164,8 +188,13 @@ export function CpDiagnosticHud() {
         onClick={() => setExpanded((open) => !open)}
       >
         <span className="cp-diagnostic-hud__copy">
-          <span>{status.label}</span>
-          {status.detail && status.detail !== status.label && <small>{status.detail}</small>}
+          <span>{shown.label}</span>
+          {shown.detail && shown.detail !== shown.label && <small>{shown.detail}</small>}
+          {/* Only when a check named the headline — otherwise the note *is* the
+              headline and this would say it twice. */}
+          {status && hiddenNote && (
+            <small className="cp-diagnostic-hud__hidden">{hiddenNote}</small>
+          )}
         </span>
         {expanded ? (
           <ChevronDown aria-hidden="true" size={16} />

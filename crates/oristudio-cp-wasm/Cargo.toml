@@ -27,6 +27,7 @@ wasm-opt = ['-O2', '-g']
 [dependencies]
 js-sys.workspace = true
 oristudio-cp.workspace = true
+oristudio-cp-compiler.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 serde-wasm-bindgen.workspace = true

@@ -6,6 +6,7 @@ import type {
   OristudioCpDiagnosticEntry,
 } from '../../engine/oristudioCpTypes';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import type { CpCheckClass } from '../annotations/suppressionRegion';
 import { visibleCpDiagnosticEntries } from './visibleEntries';
 import { CpDiagnosticHud } from './CpDiagnosticHud';
 
@@ -50,10 +51,26 @@ function result(operation: string, ids: string[]): OristudioCpCommandResult {
   } as OristudioCpCommandResult;
 }
 
+/**
+ * A Kawasaki finding — the one the scoped check filter can hide.
+ *
+ * No `violation_color`, so it evidences `kawasaki` alone: an `Angles` entry
+ * wearing a Maekawa colour is also a parity fault and would survive a rule that
+ * suppresses angles only, which is the masking case `checkSuppression` tests.
+ */
+function angleEntry(id: string): OristudioCpDiagnosticEntry {
+  return { ...entry(id), rule: 'Angles' } as OristudioCpDiagnosticEntry;
+}
+
+function angleResult(operation: string, ids: string[]): OristudioCpCommandResult {
+  return { ...result(operation, ids), diagnostic_entries: ids.map(angleEntry) };
+}
+
 function renderHud(options: {
   camvResult?: OristudioCpCommandResult | null;
   lastCommandResult?: OristudioCpCommandResult | null;
   camvIssuesVisible?: boolean;
+  suppressedCheckClasses?: CpCheckClass[];
 }) {
   const initial = useWorkspaceStore.getInitialState();
   useWorkspaceStore.setState(
@@ -66,6 +83,7 @@ function renderHud(options: {
       oristudioCpViewport: {
         ...initial.oristudioCpViewport,
         camvIssuesVisible: options.camvIssuesVisible ?? true,
+        suppressedCheckClasses: options.suppressedCheckClasses,
       },
     },
     true
@@ -291,5 +309,53 @@ describe('CpDiagnosticHud', () => {
       rows[1]?.click();
     });
     expect(useWorkspaceStore.getState().oristudioCpActiveDiagnosticId).toBe('camv-2');
+  });
+
+  // What the scoped check filter costs has to be readable, or "no errors" comes
+  // to mean "no errors we told you about". These three are that contract.
+  describe('hidden findings', () => {
+    it('stays on screen for the count alone when the filter hides everything', () => {
+      // No status to name — every finding is suppressed — and returning null here
+      // would hand the user a clean canvas over a document nobody checked.
+      const view = renderHud({
+        camvResult: angleResult('CheckCamv', ['camv-1', 'camv-2', 'camv-3']),
+        suppressedCheckClasses: ['kawasaki'],
+      });
+      const hud = view.querySelector('.cp-diagnostic-hud');
+      expect(hud).not.toBeNull();
+      expect(hud?.getAttribute('data-tone')).toBe('info');
+      expect(view.querySelector('.cp-diagnostic-hud__copy span')?.textContent).toBe(
+        '3 findings hidden by a filter'
+      );
+      // Said once, not twice: with no check naming the headline, the note is it.
+      expect(view.querySelector('.cp-diagnostic-hud__hidden')).toBeNull();
+      expect(rowIds(view)).toEqual([]);
+    });
+
+    it('appends the count to a headline a check still names', () => {
+      const camvResult = {
+        ...result('CheckCamv', ['camv-1', 'camv-2']),
+        diagnostic_entries: [angleEntry('camv-1'), entry('camv-2')],
+      };
+      const view = renderHud({ camvResult, suppressedCheckClasses: ['kawasaki'] });
+      // The headline counts what survived the filter, and the note says what did
+      // not — an "OK" with no second line is the dishonest version of this.
+      expect(view.querySelector('.cp-diagnostic-hud__copy span')?.textContent).toBe(
+        '1 Foldability Error'
+      );
+      expect(view.querySelector('.cp-diagnostic-hud__hidden')?.textContent).toBe(
+        '1 finding hidden by a filter'
+      );
+      expand(view);
+      expect(rowIds(view)).toEqual(['camv-2']);
+    });
+
+    it('says nothing about hiding when no rule is suppressing anything', () => {
+      const view = renderHud({ camvResult: angleResult('CheckCamv', ['camv-1']) });
+      expect(view.querySelector('.cp-diagnostic-hud__hidden')).toBeNull();
+      expect(view.querySelector('.cp-diagnostic-hud__copy span')?.textContent).toBe(
+        '1 Foldability Error'
+      );
+    });
   });
 });

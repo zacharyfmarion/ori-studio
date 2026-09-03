@@ -113,11 +113,22 @@ jobs:
 
       - name: Build web app
         run: npm run build:web
+        env:
+          # Previews carry CP detection too, reading the production registry.
+          VITE_CP_DETECT: '1'
 
       # Capture the immutable per-deployment host so the checks below test *this* upload.
       # The `pr-N` alias is a new hostname on a branch's first deploy and serves
       # inconsistently for a few seconds after it appears; smoke-testing it failed roughly
       # one in ten first deploys on builds that were fine.
+      # The detector's runtime is stubbed out of a build without the flag and
+      # must be present with it; the first flagged deploy shipped the dialog
+      # over a stub, and nothing before the first user's Detect noticed.
+      - name: Verify the detector runtime was built
+        run: node scripts/verify-cp-detect-build.mjs apps/web/dist
+        env:
+          VITE_CP_DETECT: '1'
+
       - name: Deploy preview to Cloudflare Pages
         id: deploy
         working-directory: apps/web
@@ -156,6 +167,11 @@ jobs:
       # that does not touch these files produces identical bytes for them.
       - name: Verify SEO files
         run: node scripts/seo-smoke.mjs "${{ steps.deploy.outputs.url }}" --preview
+
+      # The model store, on the same terms: the preview binds the production bucket, and
+      # a registry a branch changes is tested here before it is live.
+      - name: Verify model store
+        run: node scripts/models-smoke.mjs "${{ steps.deploy.outputs.url }}"
 
   # Fork PRs get a read-only `GITHUB_TOKEN` no matter what `permissions:` above asks for, so
   # posting the comment 403s. The only comment a fork could get is the "skipped, no secrets"

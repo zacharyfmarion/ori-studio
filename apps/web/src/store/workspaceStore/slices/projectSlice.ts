@@ -119,6 +119,7 @@ import { simulationFoldOf } from '../../../lib/creasePatternSegmentation';
 import {
   flattenTextAnnotations,
   isImageAnnotation,
+  isSuppressionRegionAnnotation,
   isTextAnnotation,
 } from '../../../cp-workspace/annotations/annotation';
 import {
@@ -361,6 +362,13 @@ const SYNC_CP_LINE_SELECTION_AFTER_OPERATIONS = new Set<OristudioCpOperationId>(
   'UnselectLineIntersecting',
   'SelectLasso',
   'UnselectLasso',
+  // Not a selection tool, and here for the reason the sync exists: a split keeps
+  // both halves' `selected` flag, but only the first half keeps the *id* the
+  // store is holding — the second is appended at a new index the store has never
+  // seen. Left to the id filter below, selecting a crease and inserting a vertex
+  // on it would silently leave half of it selected, so a following Make Mountain
+  // would recolour half a crease.
+  'VertexInsertOnCreases',
 ]);
 
 const NON_MUTATING_CP_OPERATIONS = new Set<OristudioCpOperationId>([
@@ -1148,9 +1156,12 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     ...discardCpDocumentState(),
     oristudioCpDocument: documentState,
     oristudioCpLineage: nativeDocument.creasePattern.lineage,
+    // The file stores one array per annotation kind; the store holds one array
+    // for all of them, because z-order and selection are shared across kinds.
     oristudioCpAnnotations: [
       ...nativeDocument.creasePattern.images,
       ...nativeDocument.creasePattern.textAnnotations,
+      ...nativeDocument.creasePattern.suppressionRegions,
     ],
     oristudioCpSelectedAnnotationId: null,
     // Placement and provenance only. Each window's fold is rebuilt from the
@@ -1646,6 +1657,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       lineage: get().oristudioCpLineage ?? importedCpLineage(),
       images: get().oristudioCpAnnotations.filter(isImageAnnotation),
       textAnnotations: get().oristudioCpAnnotations.filter(isTextAnnotation),
+      suppressionRegions: get().oristudioCpAnnotations.filter(isSuppressionRegionAnnotation),
       inlineSimulations: get().oristudioCpInlineSimulations,
       // Carried through for the same reason the design writer carries them: a
       // project written by a newer build may hold designs this one has no
@@ -1667,6 +1679,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const warnings = collectExportLossWarnings(format, {
       images: get().oristudioCpAnnotations.filter(isImageAnnotation),
       richText: get().oristudioCpAnnotations.filter(isTextAnnotation),
+      suppressionRegions: get().oristudioCpAnnotations.filter(isSuppressionRegionAnnotation),
       inlineSimulations: get().oristudioCpInlineSimulations,
       lineSegments: get().oristudioCpDocument?.document.crease_pattern.line_segments ?? [],
       foldedFigures: get().oristudioCpFoldedFigures,
@@ -2382,6 +2395,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           filename: payload.filename,
           circles: payload.circles,
           circleSourceBounds: payload.circleSourceBounds,
+          mergeExtraVertices: payload.mergeExtraVertices,
+          unassignedAsAuxiliary: payload.unassignedAsAuxiliary,
         })
       ),
 

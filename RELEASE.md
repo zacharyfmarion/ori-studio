@@ -21,6 +21,85 @@ The Cloudflare Pages project name is `oristudio`; the production URL is
 `https://oristudio.pages.dev/`. Pull request previews are deployed from
 non-fork PRs to `https://pr-<number>.oristudio.pages.dev/`.
 
+## Detector models
+
+The crease-pattern detector's model (45 MB) is not in the build: Cloudflare
+Pages caps a static file at 25 MiB. It lives in the `oristudio-models` R2
+bucket at an immutable versioned key and is served from the site's origin by
+`apps/web/functions/models/[[path]].ts`; `registry.json` in the same bucket
+says which version is current. The app downloads a model once, verifies its
+sha256, and keeps it (Cache API on the web, the app data directory on desktop,
+listed under Settings ▸ Models).
+
+Publishing a new model, after updating `scripts/cp-detect/current-model.json`
+and copying the assets it names:
+
+```sh
+node scripts/cp-detect/publish-model.mjs --note "why this version"
+```
+
+The runtime is separate from the model: a build with `VITE_CP_DETECT=1`
+bundles ONNX Runtime for the browser, a build without it stubs the runtime out,
+and `scripts/verify-cp-detect-build.mjs` fails a deploy whose `dist` has the
+wrong one of the two (the first flagged deploy shipped the dialog over the
+stub). It also refuses a service worker that precaches the runtime.
+
+It verifies the local sha, uploads the model and manifest if the key is new,
+appends the version to the registry, and moves `current` (`--no-promote` to
+publish without promoting; `--dry-run` to see what it would do). Rolling back
+is running it again for the previous pointer. It needs `wrangler` logged in;
+in CI, `CLOUDFLARE_API_TOKEN` must carry **Workers R2 Storage: Edit** for the
+account. The deploy's `Verify model store` step fails a deploy whose registry
+or model is unreachable.
+
+The desktop build links ONNX Runtime statically; `ort-sys` downloads the
+prebuilt binaries at build time, which a proxied shell may need `HTTPS_PROXY`
+unset for. Release runners are not proxied.
+
+### Testing the detector before merging
+
+Merging to `main` deploys the web app with the detector on, so a change to the
+download, the registry, or the model is tested on production builds *before*
+the merge, against the real bucket. Three builds cover it; the R2 side is the
+same for all of them, since previews bind the production `oristudio-models`
+bucket and the objects are immutable.
+
+1. **Production web build, hosted**: open the PR. The preview at
+   `https://pr-<n>.oristudio.pages.dev` is the production bundle with
+   `VITE_CP_DETECT=1`, serving `/models/*` from the bucket through the same
+   Pages Function production uses. To re-test the first download, remove the
+   model under Settings ▸ Models, or clear the site's storage.
+2. **Production web build, local**: point a local production bundle at that
+   preview's origin — the Function answers cross-origin — and serve it with the
+   `web-prod` launch config, or `vite preview` by hand:
+
+   ```sh
+   VITE_CP_DETECT=1 VITE_CP_DETECT_MODEL_ORIGIN=https://pr-<n>.oristudio.pages.dev/ \
+     npm run build:web
+   npx vite preview apps/web --port 5230 --strictPort
+   ```
+
+3. **Desktop build**: the desktop shell reads the registry from
+   `https://oristudio.dev/models/registry.json`, which a branch's changes do
+   not reach until the merge, so a pre-merge desktop build names the preview
+   too. Locally, with the proxy unset for the ONNX Runtime download:
+
+   ```sh
+   VITE_CP_DETECT=1 VITE_CP_DETECT_MODEL_ORIGIN=https://pr-<n>.oristudio.pages.dev/ \
+     npm run build:desktop
+   ```
+
+   The app is under `apps/tauri/src-tauri/target/release/bundle/`; unsigned,
+   which is fine on the machine that built it. For a signed build, dispatch the
+   Desktop Build workflow on the branch with its `model_origin` input set to
+   the preview origin; the DMG is an artifact of that run and is never
+   published. The override is an origin only, and the desktop CSP allows
+   `https://*.oristudio.pages.dev` for exactly this; any other origin needs a
+   CSP entry in `apps/tauri/src-tauri/tauri.conf.json` as well.
+
+Once `main` has deployed, the default origin serves the registry and no
+override is needed.
+
 ## Desktop App
 
 Desktop builds are produced by the **Desktop Build** workflow

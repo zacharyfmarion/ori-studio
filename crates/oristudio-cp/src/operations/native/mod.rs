@@ -21,3 +21,4 @@ pub mod fold_propagation;
 pub mod square;
 pub mod unassign;
 pub mod vertex;
+pub mod vertex_insert;

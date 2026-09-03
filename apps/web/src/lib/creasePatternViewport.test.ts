@@ -21,6 +21,7 @@ import {
   modelPointToCpSvg,
   nearestCpSnapTarget,
   cpKernelSnapCandidates,
+  nearestCpJunctionTarget,
   nearestOrieditaDrawPointTarget,
   normalizeOrieditaGridSize,
   ORIEDITA_PAPER_BOUNDS,
@@ -610,5 +611,146 @@ describe('viewport-following (infinite) grid generation', () => {
     expect(bounds.maxY).toBeCloseTo(60);
     expect(bounds.spanX).toBeCloseTo(200);
     expect(bounds.spanY).toBeCloseTo(80);
+  });
+});
+
+describe('nearestCpJunctionTarget', () => {
+  const segment = (
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number
+  ): OristudioCpDocumentSnapshot['crease_pattern']['line_segments'][number] => ({
+    a: { x: ax, y: ay },
+    b: { x: bx, y: by },
+    active: 'Inactive0',
+    color: 'Red1',
+    selected: 0,
+    customized: 0,
+    customized_color: { red: 0, green: 0, blue: 0 },
+  });
+
+  const patternOf = (
+    segments: OristudioCpDocumentSnapshot['crease_pattern']['line_segments']
+  ): OristudioCpDocumentSnapshot => ({
+    ...document,
+    crease_pattern: {
+      ...document.crease_pattern,
+      line_segments: segments,
+      points: [],
+      grid: { ...document.crease_pattern.grid, base_state: 'Hidden' },
+    },
+  });
+
+  const options = {
+    gridVisible: false,
+    snapToGrid: false,
+    snapToVertices: true,
+    snapToLines: false,
+  };
+
+  /**
+   * The dominant repair, and the whole reason this function exists: nothing is
+   * *at* a crossing, so every existing snap target misses it and the insert lands
+   * on one crease instead of the junction.
+   */
+  it('finds the point two crossing creases pass through', () => {
+    const crossing = patternOf([segment(-10, 0, 10, 0), segment(0, -10, 0, 10)]);
+
+    expect(
+      nearestCpJunctionTarget(crossing, { x: 1.5, y: 1.5 }, ORIEDITA_PAPER_BOUNDS, options, 4)
+    ).toMatchObject({ kind: 'crossing', point: { x: 0, y: 0 } });
+
+    expect(
+      nearestOrieditaDrawPointTarget(
+        crossing,
+        { x: 1.5, y: 1.5 },
+        ORIEDITA_PAPER_BOUNDS,
+        options,
+        4
+      )
+    ).toBeNull();
+  });
+
+  it('reports which two creases cross, so the answer is checkable', () => {
+    const crossing = patternOf([segment(-10, 0, 10, 0), segment(0, -10, 0, 10)]);
+
+    expect(
+      nearestCpJunctionTarget(crossing, { x: 0.2, y: 0.2 }, ORIEDITA_PAPER_BOUNDS, options, 4)?.label
+    ).toBe('line 1 x line 2');
+  });
+
+  /**
+   * Crossings join the vertex class rather than outranking it. A vertex a hair
+   * away must not be shouldered aside by a crossing further off, or clicking a
+   * junction that already exists would move the pick somewhere else.
+   */
+  it('prefers a nearer existing vertex to a further crossing', () => {
+    const both = patternOf([
+      segment(-10, 0, 10, 0),
+      segment(0, -10, 0, 10),
+      // Endpoint at (3, 0.2): closer to the cursor below than the crossing is.
+      segment(3, 0.2, 3, 10),
+    ]);
+
+    expect(
+      nearestCpJunctionTarget(both, { x: 3, y: 0.3 }, ORIEDITA_PAPER_BOUNDS, options, 4)
+    ).toMatchObject({ kind: 'vertex', point: { x: 3, y: 0.2 } });
+  });
+
+  it('prefers the nearer of two crossings', () => {
+    const two = patternOf([
+      segment(-10, 0, 10, 0),
+      segment(0, -10, 0, 10),
+      segment(4, -10, 4, 10),
+    ]);
+
+    expect(
+      nearestCpJunctionTarget(two, { x: 3.4, y: 0 }, ORIEDITA_PAPER_BOUNDS, options, 4)
+    ).toMatchObject({ kind: 'crossing', point: { x: 4, y: 0 } });
+  });
+
+  /**
+   * A T is not a crossing: the meeting point is already an endpoint, so the
+   * vertex snap owns it and reporting it twice would only make the two answers
+   * race. The kernel agrees — it refuses to split within tolerance of an end.
+   */
+  it('does not call a touch at an endpoint a crossing', () => {
+    const tee = patternOf([segment(-10, 0, 10, 0), segment(0, 0, 0, 10)]);
+
+    expect(
+      nearestCpJunctionTarget(tee, { x: 0.4, y: 0.4 }, ORIEDITA_PAPER_BOUNDS, options, 4)
+    ).toMatchObject({ kind: 'vertex', point: { x: 0, y: 0 } });
+  });
+
+  it('ignores parallel creases and creases that do not reach each other', () => {
+    const apart = patternOf([segment(-10, 0, 10, 0), segment(-10, 1, 10, 1), segment(2, 40, 8, 40)]);
+
+    expect(
+      nearestCpJunctionTarget(apart, { x: 0, y: 0.5 }, ORIEDITA_PAPER_BOUNDS, options, 4)
+    ).toBeNull();
+  });
+
+  /** Out of reach is out of reach; the radius is not widened for crossings. */
+  it('offers no crossing beyond the point-snap reach', () => {
+    const crossing = patternOf([segment(-10, 0, 10, 0), segment(0, -10, 0, 10)]);
+
+    expect(
+      nearestCpJunctionTarget(crossing, { x: 6, y: 6 }, ORIEDITA_PAPER_BOUNDS, options, 1)
+    ).toBeNull();
+  });
+
+  it('stays quiet when the user has turned vertex snapping off', () => {
+    const crossing = patternOf([segment(-10, 0, 10, 0), segment(0, -10, 0, 10)]);
+
+    expect(
+      nearestCpJunctionTarget(
+        crossing,
+        { x: 1, y: 1 },
+        ORIEDITA_PAPER_BOUNDS,
+        { ...options, snapToVertices: false },
+        4
+      )
+    ).toBeNull();
   });
 });

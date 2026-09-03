@@ -4,6 +4,7 @@ import {
   visibleCpDiagnosticEntries,
   visibleCpDiagnosticEntry,
 } from '../../cp-workspace/diagnostics/visibleEntries';
+import { cpCheckSuppressionRules } from '../../cp-workspace/diagnostics/checkSuppression';
 import { cpCamera } from '../../cp-workspace/renderer/cpCameraRegistry';
 import type { WorkspaceState } from './types';
 
@@ -25,13 +26,22 @@ import type { WorkspaceState } from './types';
  * that object's identity — so merely re-deriving the entry list replayed the
  * jump, and toggling "Foldability issues" off and on threw the user back to an
  * issue they had zoomed away from.
+ *
+ * "Hidden" includes hidden by a check-class filter, which is why the suppression
+ * rules are built here too. Without them this is the one surface where a
+ * suppressed finding still moves the camera — the marker is not drawn, the HUD
+ * row is not listed, and the canvas jumps to a place with nothing on it.
  */
 export function frameActiveCpDiagnostic(state: WorkspaceState): void {
   const entry = visibleCpDiagnosticEntry(
     visibleCpDiagnosticEntries(
       state.oristudioCpCamvResult,
       state.oristudioCpDocument?.lastCommandResult ?? null,
-      state.oristudioCpViewport.camvIssuesVisible !== false
+      state.oristudioCpViewport.camvIssuesVisible !== false,
+      cpCheckSuppressionRules(
+        state.oristudioCpViewport.suppressedCheckClasses,
+        state.oristudioCpAnnotations
+      )
     ),
     state.oristudioCpActiveDiagnosticId
   );

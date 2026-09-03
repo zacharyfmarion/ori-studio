@@ -1,8 +1,8 @@
 /**
  * The shared substrate for canvas *annotations* — objects placed on the
  * crease-pattern canvas that behave alike (select, drag, resize, rotate,
- * z-order, opacity, lock/hide) regardless of what they draw. Reference images
- * and rich-text boxes are both annotations.
+ * z-order, opacity, lock/hide) regardless of what they draw. Reference images,
+ * rich-text boxes and check-suppression regions are all annotations.
  *
  * This is a **leaf** module: pure types with no DOM/GPU/store dependencies, so
  * the payload types (`CpImage`, the text annotation) can extend it without a
@@ -14,7 +14,7 @@
  */
 
 /** Discriminant tag identifying an annotation's payload kind. */
-export type AnnotationKind = 'image' | 'text';
+export type AnnotationKind = 'image' | 'text' | 'suppressionRegion';
 
 /**
  * Fields every annotation carries. A concrete annotation extends this with a
@@ -36,6 +36,11 @@ export interface AnnotationBase {
   opacity: number;
   /** When locked, the annotation ignores hit-testing and edits. */
   locked: boolean;
-  /** When hidden, the annotation is not drawn. */
+  /**
+   * When hidden, the annotation is not drawn.
+   *
+   * A kind may narrow this to `false`, and the suppression region does: a box
+   * that silences checks invisibly is a state that design must not allow.
+   */
   hidden: boolean;
 }

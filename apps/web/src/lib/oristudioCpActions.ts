@@ -350,6 +350,13 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
     upstreamAction: 'vertexAddAction',
     upstreamMouseMode: 'DRAW_POINT_14',
   },
+  // Ori Studio native, so no `upstreamMouseMode`: there is no Oriedita mouse
+  // mode to name, and leaving it unset keeps the tool out of the Oriedita hotkey
+  // import rather than offering a binding for a mode upstream does not have.
+  // `DRAW_POINT_14` belongs to Draw point above, which is a different operation.
+  VertexInsertOnCreases: {
+    upstreamAction: 'insertVertexOnCreasesAction',
+  },
   DrawCreaseSymmetric: {
     label: 'Reflect selection over line',
     group: 'transform',
@@ -475,6 +482,13 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
   Text: {
     upstreamAction: 'textAction',
     upstreamMouseMode: 'TEXT',
+  },
+  // No `upstreamMouseMode`: there is no Oriedita mouse mode to name, so leaving
+  // it unset is what keeps this tool out of the Oriedita hotkey import rather
+  // than offering a binding for a mode upstream does not have.
+  CheckSuppressionRegionCreate: {
+    label: 'Suppression Region',
+    upstreamAction: 'checkSuppressionRegionCreateAction',
   },
   DrawBlintz: {
     upstreamAction: 'drawBlintzAction',

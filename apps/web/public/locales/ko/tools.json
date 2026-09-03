@@ -74,6 +74,9 @@
     "foldDirectionValleyDescription": "이 미정 접는 선이 골접기였음을 기억합니다",
     "from": "시작",
     "index": "인덱스",
+    "insertVertex": {
+      "noCreaseThroughPoint": "이 점을 지나는 접힘선이 없어 삽입할 정점이 없습니다. 교차점이나 접힘선 위의 점을 노려 보세요."
+    },
     "instructions": "설명",
     "left": "왼쪽",
     "leftSegmentRatio": "왼쪽 구간 비율",

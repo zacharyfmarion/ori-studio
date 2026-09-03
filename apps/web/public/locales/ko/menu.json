@@ -24,6 +24,7 @@
     "deleteLineType": "선택한 선 종류 삭제...",
     "deleteSelectedLines": "선택한 선 삭제",
     "diagnostics": "진단",
+    "exactSolve": "정밀 풀이...",
     "fix1": "겹침 복구",
     "fix2": "T자 접합 분할",
     "fixInaccurate": "부정확한 접힘선 수정...",

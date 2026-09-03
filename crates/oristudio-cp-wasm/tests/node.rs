@@ -382,6 +382,37 @@ fn command_dispatch_accepts_resolved_line_payloads() {
     oristudio_cp_wasm::free_document(handle).expect("document handle should free");
 }
 
+/// The repair verb crosses the bridge on the generic command path, like every
+/// other operation: an id string and a `points` payload, no new export. Worth a
+/// test on the target that runs it because the payload is a point list rather
+/// than the line ids the case above sends, and a mistyped argument reaching wasm
+/// surfaces as a bare "memory access out of bounds" rather than a type error.
+#[wasm_bindgen_test]
+fn command_dispatch_inserts_a_vertex_across_every_crease_at_a_point() {
+    let handle = oristudio_cp_wasm::load_cp("2 -1 0 1 0\n3 0 -1 0 1\n", "crossing")
+        .expect("cp import should succeed");
+    let result = oristudio_cp_wasm::execute_cp_command(
+        handle,
+        serde_wasm_bindgen::to_value("VertexInsertOnCreases")
+            .expect("operation id should serialize"),
+        serde_wasm_bindgen::to_value(&oristudio_cp::CreasePatternCommandPayload {
+            points: vec![oristudio_cp::geometry::Point::new(0.0, 0.0)],
+            ..oristudio_cp::CreasePatternCommandPayload::default()
+        })
+        .expect("payload should serialize"),
+    )
+    .expect("vertex insert should execute");
+    let result: serde_json::Value =
+        serde_wasm_bindgen::from_value(result).expect("result should deserialize");
+    assert_eq!(result["operation"], "VertexInsertOnCreases");
+
+    let summary = oristudio_cp_wasm::document_summary(handle).expect("summary should serialize");
+    let summary: serde_json::Value =
+        serde_wasm_bindgen::from_value(summary).expect("summary should deserialize");
+    assert_eq!(summary["line_segments"], 4);
+    oristudio_cp_wasm::free_document(handle).expect("document handle should free");
+}
+
 /// The web transport, end to end on the target that actually runs it: a slot in
 /// shared memory written from outside the module reaches the kernel's
 /// checkpoints and comes back as a `fold_cancelled` error envelope.

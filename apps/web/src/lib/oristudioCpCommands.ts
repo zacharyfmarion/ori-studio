@@ -279,6 +279,24 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   ready('DrawPoint', 'Draw point', 'draw', 'circle-dot', 'MouseHandlerDrawPoint', {
     toolSteps: ['Pick point'],
   }),
+  // Ori Studio native, and deliberately next to Draw point because the pair is
+  // the whole distinction: Oriedita's `DRAW_POINT_14` resolves the *closest*
+  // crease and divides that one, so at a crossing it splits one crease and
+  // leaves the other whole. That is right for putting a reference point on a
+  // crease and wrong for a junction the graph is missing, where one 4-valent
+  // crossing costs four missing edges plus two extra ones and is one repair,
+  // not four.
+  ready(
+    'VertexInsertOnCreases',
+    'Insert vertex',
+    'draw',
+    'crosshair',
+    'OriStudioVertexInsertOnCreases',
+    {
+      toolSteps: ['Click where the creases should meet'],
+      tooltip: 'Split every crease through the clicked point so they meet at one vertex',
+    }
+  ),
   ready('DeletePoint', 'Delete point', 'select-edit', 'circle-x', 'MouseHandlerDeletePoint', {
     toolSteps: ['Pick vertex'],
     tooltip: 'Merge same-color creases meeting at the picked vertex',
@@ -719,6 +737,28 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Click text position'],
     tooltip: 'Create, select, drag, and edit text annotations',
   }),
+  // Ori Studio native: Oriedita checks the whole sheet or nothing, so it has no
+  // notion of an area where a theorem is not reported.
+  //
+  // Grouped with Text and Draw circle rather than with Check/Fix, because what
+  // this tool *makes* is a `CanvasAnnotation` — the same union those two write
+  // into, with the same select / move / resize / undo — and the rail groups
+  // tools by what they produce. The Check group is where the checks it silences
+  // are run from, which is a different question.
+  //
+  // Commits web-side; see {@link cpCommandCommitsWebSide}.
+  ready(
+    'CheckSuppressionRegionCreate',
+    'Check suppression region',
+    'annotations',
+    'square-dashed',
+    'OriStudioCheckSuppressionRegionCreate',
+    {
+      toolSteps: ['Drag a box over the area to stop checking'],
+      inputMode: 'drag-box',
+      tooltip: 'Drag a box to stop reporting the selected foldability checks inside it',
+    }
+  ),
   ready('DrawBlintz', 'Blintz base', 'generators', 'sparkles', 'MouseHandlerDrawBlintz', {
     toolSteps: ['Pick first anchor point', 'Pick second anchor point'],
   }),
@@ -909,6 +949,20 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
         'Merge collinear crease pairs regardless of type — a mountain and a valley merge to an edge',
     }
   ),
+  // Not a tool: the sweep above confined to a set of creases, run by an accepted
+  // solve over the creases it produced so the user's own creases beside them
+  // are left alone. Nothing in the UI reaches it directly.
+  ready(
+    'DeleteExtraVerticesAmong',
+    'Delete Extra Vertices in Pattern',
+    'check-fix',
+    'wrench',
+    'OriStudioDeleteExtraVerticesAmong',
+    {
+      placement: 'hidden-ui-only',
+      tooltip: 'Merge collinear same-type crease pairs among the given creases only',
+    }
+  ),
   ready('OrganizeCircles', 'Organize circles', 'annotations', 'circle-ellipsis', 'OrganizeCircles', {
     placement: 'menu',
     tooltip: 'Prune invalid zero-radius circles using Oriedita cleanup rules',
@@ -996,6 +1050,7 @@ export const ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS = [
   'SelectLasso',
   'UnselectLasso',
   'Text',
+  'CheckSuppressionRegionCreate',
   'DrawBlintz',
   'DrawFishBase',
   'DrawDoveBase',
@@ -1050,6 +1105,8 @@ export const ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS = [
   // reading as Oriedita's source map with our additions visible at the end, which
   // is the order the kernel's `OperationId` uses too.
   'SquareGenerate',
+  'VertexInsertOnCreases',
+  'DeleteExtraVerticesAmong',
   'VertexMove',
 ] as const;
 
@@ -1256,6 +1313,34 @@ export function cpCommandSnapsKernelSide(
   operationId: OristudioCpOperationId | undefined
 ): boolean {
   return operationId ? CP_KERNEL_SNAPPED_OPERATIONS.has(operationId) : false;
+}
+
+/**
+ * Tools the kernel has never heard of: they arm and gesture like any other tool,
+ * but what they commit is web state, so neither their commit nor their live
+ * preview may be sent to `executeOristudioCpCommand` / `previewOristudioCpCommand`.
+ *
+ * This matters at *two* call sites, and only one of them is obvious. The commit
+ * path is the one anybody thinks of. The other is the per-pointer-move preview:
+ * `previewOristudioCpCommand` catches a kernel refusal into `oristudioCpError`
+ * rather than throwing, so an unrecognised operation does not crash — it raises
+ * an error banner on **every mouse move** of the drag, and the tool otherwise
+ * appears to work. One predicate for both, so a third web-side tool cannot be
+ * wired into the commit and forgotten in the preview.
+ *
+ * Not the same question as {@link isNativeCpOperation}: `SquareGenerate` and
+ * `VertexSolveFoldAngles` are equally native and both very much do reach the
+ * kernel. This asks who *stores the result*.
+ */
+const CP_WEB_SIDE_COMMIT_OPERATIONS = new Set<OristudioCpOperationId>([
+  'CheckSuppressionRegionCreate',
+]);
+
+/** Whether `operationId` is committed by the web app rather than by the kernel. */
+export function cpCommandCommitsWebSide(
+  operationId: OristudioCpOperationId | null | undefined
+): boolean {
+  return operationId ? CP_WEB_SIDE_COMMIT_OPERATIONS.has(operationId) : false;
 }
 
 export function cpRailCommands(): OristudioCpCommandDefinition[] {

@@ -199,6 +199,14 @@
         "0": "Pick point"
       }
     },
+    "cp_action_vertex_insert_on_creases": {
+      "label": "Insert vertex",
+      "tooltip": "Split every crease through the clicked point so they meet at one vertex",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Click where the creases should meet"
+      }
+    },
     "cp_action_delete_point": {
       "label": "Delete Point",
       "tooltip": "Merge same-color creases meeting at the picked vertex",
@@ -749,6 +757,14 @@
         "0": "Click text position"
       }
     },
+    "cp_action_check_suppression_region_create": {
+      "label": "Suppression Region",
+      "tooltip": "Drag a box to stop reporting the selected foldability checks inside it",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Drag a box over the area to stop checking"
+      }
+    },
     "cp_action_draw_blintz": {
       "label": "Blintz base",
       "tooltip": "Blintz base",
@@ -1024,6 +1040,11 @@
     "cp_action_delete_extra_vertices_ignore_color": {
       "label": "Delete Extra Vertices (Ignore Type)",
       "tooltip": "Merge collinear crease pairs regardless of type — a mountain and a valley merge to an edge",
+      "disabledReason": "Ready"
+    },
+    "cp_action_delete_extra_vertices_among": {
+      "label": "Delete Extra Vertices in Pattern",
+      "tooltip": "Merge collinear same-type crease pairs among the given creases only",
       "disabledReason": "Ready"
     },
     "cp_action_organize_circles": {

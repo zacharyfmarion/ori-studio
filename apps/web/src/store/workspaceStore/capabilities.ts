@@ -18,6 +18,8 @@ import {
   designKindRegistry,
   type DesignKindDescriptor,
 } from '../../designKinds';
+import { isSuppressionRegionAnnotation } from '../../cp-workspace/annotations/annotation';
+import { hasAttachedSolveInput } from '../../cp-workspace/annotations/suppressionRegion';
 import type { EditingContext } from '../../workspaces/editingContext';
 import type { WorkspaceState } from './types';
 
@@ -62,6 +64,29 @@ function anyDesignIsSavable(state: WorkspaceState): boolean {
   return state.designTabs.some((tab) => (tab.kind ? designKind(tab.kind)?.isSavable(tab) : false) ?? false);
 }
 
+/**
+ * How many patterns in this document can be exact-solved right now.
+ *
+ * v1 offers Solve only where an `ExactSolveInput` is *attached* — the warm tier.
+ * That attachment arrives on the suppression region a detection import places,
+ * so counting regions that carry one counts solvable patterns: one region per
+ * added candidate, by construction.
+ *
+ * Data, never a geometric "does this box contain a solvable pattern" test. One of
+ * those would run on every edit and could flicker mid-drag, which is exactly when
+ * a menu item must not change state under the cursor. It is also why the count is
+ * of *attachments* rather than of paper squares: a hand-drawn CP has no input to
+ * solve from until the cold-rebuild tier lands, and offering the command for it
+ * would be offering a refusal.
+ */
+export function cpSolvablePatternCount(state: WorkspaceState): number {
+  let count = 0;
+  for (const annotation of state.oristudioCpAnnotations) {
+    if (isSuppressionRegionAnnotation(annotation) && hasAttachedSolveInput(annotation)) count += 1;
+  }
+  return count;
+}
+
 export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabilityInput {
   const context = state.activeEditingContext;
   const activeKind = designKindForContext(context);
@@ -99,6 +124,7 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
     oristudioCpSelectedLineCount: state.oristudioCpSelection.lines.length,
     oristudioCpSelectedPointCount: state.oristudioCpSelection.points.length,
     oristudioCpSelectedCircleCount: state.oristudioCpSelection.circles.length,
+    oristudioCpSolvablePatternCount: cpSolvablePatternCount(state),
     hasDeletableDesignSelection:
       activeKind?.deletableTarget?.(activeDesignTab(state)) != null,
     canSaveDesign: anyDesignIsSavable(state),

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useFoldRunIndicator } from '../cp-workspace/folded/useFoldRunIndicator';
+import { useCpExactSolveRunIndicator } from '../cp-workspace/regions/useCpExactSolveRunIndicator';
 import { formatUnknownError, humanizeError } from '../lib/toastMessages';
 import { createDelayedProgress } from '../lib/delayedProgress';
 import { useWorkspaceStore } from '../store/workspaceStore';
@@ -25,11 +26,22 @@ const FOLD_TOAST_ID = 'oristudio-folding';
 const FOLD_STOPPED_TOAST_ID = 'oristudio-folding-stopped';
 /** One id, so saving repeatedly replaces the notice rather than stacking it. */
 const SAVED_TOAST_ID = 'oristudio-saved';
+/**
+ * A solve has to run this long before it is worth a toast. Longer than a fold's
+ * half second: the region chip and the detect dialog each show their own
+ * spinner and Stop from the first moment, so the toast is for the solve that has
+ * gone on long enough that the user may have panned or tabbed away from them.
+ */
+export const SOLVE_TOAST_DELAY_MS = 3000;
+const SOLVE_TOAST_MIN_VISIBLE_MS = 1000;
+const SOLVE_TOAST_ID = 'oristudio-solving';
+const SOLVE_STOPPED_TOAST_ID = 'oristudio-solving-stopped';
 
 export function GlobalToasts() {
   const { t } = useTranslation();
   const error = useWorkspaceStore((state) => state.error);
   const { folding, stoppable, stopping, longRun, stop: stopFolds } = useFoldRunIndicator();
+  const solve = useCpExactSolveRunIndicator();
   const projectMessage = useWorkspaceStore((state) => state.projectMessage);
   const clearProjectMessage = useWorkspaceStore((state) => state.clearProjectMessage);
   const savedNotice = useWorkspaceStore((state) => state.savedNotice);
@@ -148,6 +160,63 @@ export function GlobalToasts() {
       id: FOLD_STOPPED_TOAST_ID,
     });
   }, [folding, stopping, t]);
+
+  // The exact solve, the same way. Since the 25 s cap went a solve ends only by
+  // converging, giving up, or being stopped, and a toast that outlives the chip
+  // the user started it from is what carries the Cancel for a long one.
+  const [solveVisible, setSolveVisible] = useState(false);
+  const solveProgress = useMemo(
+    () =>
+      createDelayedProgress({
+        delayMs: SOLVE_TOAST_DELAY_MS,
+        minVisibleMs: SOLVE_TOAST_MIN_VISIBLE_MS,
+        show: () => setSolveVisible(true),
+        hide: () => {
+          setSolveVisible(false);
+          toast.dismiss(SOLVE_TOAST_ID);
+        },
+      }),
+    []
+  );
+
+  useEffect(() => {
+    if (solve.solving) solveProgress.start();
+    else solveProgress.stop();
+  }, [solve.solving, solveProgress]);
+
+  useEffect(() => () => solveProgress.dispose(), [solveProgress]);
+
+  const stopSolves = solve.stop;
+  useEffect(() => {
+    if (!solveVisible) return;
+    const message = solve.stopping
+      ? t('toasts:global.solveStopping', 'Cancelling…')
+      : solve.longRun
+        ? t('toasts:global.solvingLong', 'Still solving — this can take a while')
+        : t('toasts:global.solving', 'Solving…');
+    toast.loading(message, {
+      id: SOLVE_TOAST_ID,
+      duration: Infinity,
+      dismissible: !solve.stoppable,
+      action:
+        solve.stoppable && !solve.stopping
+          ? {
+              label: t('toasts:global.solveStop', 'Cancel'),
+              onClick: () => stopSolves(),
+            }
+          : undefined,
+    });
+  }, [solve.longRun, solve.stoppable, solve.stopping, solveVisible, stopSolves, t]);
+
+  const solveStopRequested = useRef(false);
+  useEffect(() => {
+    if (solve.stopping) solveStopRequested.current = true;
+    if (solve.solving || !solveStopRequested.current) return;
+    solveStopRequested.current = false;
+    toast.message(t('toasts:global.solveStopped', 'Solve cancelled'), {
+      id: SOLVE_STOPPED_TOAST_ID,
+    });
+  }, [solve.solving, solve.stopping, t]);
 
   return null;
 }

@@ -1,8 +1,8 @@
 use oristudio_cp::geometry::{FoldMagnitude, LineColor, LineSegment, Point};
 use oristudio_cp::model::CreasePatternModel;
 use oristudio_cp::operations::arrangement::{
-    branch_trim, del_v_all, del_v_all_color_change, del_v_at_point, del_v_at_point_color_change,
-    del_v_pair, delete_intersecting_or_overlapping_lines_along,
+    branch_trim, del_v_all, del_v_all_color_change, del_v_among_lines, del_v_at_point,
+    del_v_at_point_color_change, del_v_pair, delete_intersecting_or_overlapping_lines_along,
     delete_line_segment_vertex_for_index, delete_line_segments_for_indices,
     delete_overlapping_lines_along, divide_intersections, divide_intersections_fast,
     divide_line_segment_with_new_lines, fix1, fix2, intersect_divide_pair,
@@ -536,6 +536,106 @@ fn del_v_all_merges_same_color_non_cyan_vertex_pairs() {
         Point::new(20.0, 0.0),
         LineColor::Red1,
     );
+}
+
+#[test]
+fn del_v_among_lines_merges_a_pair_inside_the_set() {
+    let mut model = CreasePatternModel::default();
+    model.add_line(Point::new(0.0, 0.0), Point::new(10.0, 0.0), LineColor::Red1);
+    model.add_line(
+        Point::new(10.0, 0.0),
+        Point::new(20.0, 0.0),
+        LineColor::Red1,
+    );
+
+    del_v_among_lines(&mut model, &[0, 1]);
+
+    assert_eq!(model.line_segments.len(), 1);
+    assert_segment(
+        &model.line_segments[0],
+        Point::new(0.0, 0.0),
+        Point::new(20.0, 0.0),
+        LineColor::Red1,
+    );
+}
+
+#[test]
+fn del_v_among_lines_leaves_a_pair_outside_the_set() {
+    let mut model = CreasePatternModel::default();
+    model.add_line(Point::new(0.0, 0.0), Point::new(10.0, 0.0), LineColor::Red1);
+    model.add_line(
+        Point::new(10.0, 0.0),
+        Point::new(20.0, 0.0),
+        LineColor::Red1,
+    );
+    model.add_line(Point::new(0.0, 5.0), Point::new(10.0, 5.0), LineColor::Red1);
+    model.add_line(
+        Point::new(10.0, 5.0),
+        Point::new(20.0, 5.0),
+        LineColor::Red1,
+    );
+    let before = model.line_segments.clone();
+
+    del_v_among_lines(&mut model, &[2, 3]);
+
+    // The y=0 pair is untouched, in place; only the y=5 pair merged.
+    assert_eq!(model.line_segments.len(), 3);
+    assert_eq!(model.line_segments[0], before[0]);
+    assert_eq!(model.line_segments[1], before[1]);
+    assert_segment(
+        &model.line_segments[2],
+        Point::new(0.0, 5.0),
+        Point::new(20.0, 5.0),
+        LineColor::Red1,
+    );
+}
+
+#[test]
+fn del_v_among_lines_keeps_the_vertex_where_the_set_meets_the_rest() {
+    let mut model = CreasePatternModel::default();
+    model.add_line(Point::new(0.0, 0.0), Point::new(10.0, 0.0), LineColor::Red1);
+    model.add_line(
+        Point::new(10.0, 0.0),
+        Point::new(20.0, 0.0),
+        LineColor::Red1,
+    );
+    let before = model.line_segments.clone();
+
+    // One crease of the pair is in the set, the other is the user's own.
+    del_v_among_lines(&mut model, &[1]);
+
+    assert_eq!(model.line_segments, before);
+}
+
+#[test]
+fn del_v_among_lines_collapses_a_collinear_chain_inside_the_set() {
+    let mut model = CreasePatternModel::default();
+    model.add_line(
+        Point::new(0.0, 0.0),
+        Point::new(10.0, 0.0),
+        LineColor::Blue2,
+    );
+    model.add_line(
+        Point::new(10.0, 0.0),
+        Point::new(20.0, 0.0),
+        LineColor::Blue2,
+    );
+    model.add_line(
+        Point::new(20.0, 0.0),
+        Point::new(30.0, 0.0),
+        LineColor::Blue2,
+    );
+    // Out of range, so ignored rather than a panic.
+    del_v_among_lines(&mut model, &[0, 1, 2, 99]);
+
+    assert_eq!(model.line_segments.len(), 1);
+    // Which way round the merged crease runs is upstream's pair-order quirk
+    // (`replace_line_in_vertex_groups`), not this sweep's business.
+    let merged = &model.line_segments[0];
+    let mut ends = [merged.a, merged.b];
+    ends.sort_by(|p, q| p.x.total_cmp(&q.x));
+    assert_eq!(ends, [Point::new(0.0, 0.0), Point::new(30.0, 0.0)]);
+    assert_eq!(merged.color, LineColor::Blue2);
 }
 
 #[test]

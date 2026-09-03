@@ -21,6 +21,7 @@
     "foldProducedNothing": "These creases have no flat folded form to draw"
   },
   "cpDetectImport": {
+    "addFailed": "The detected crease pattern could not be added.",
     "canvasUnavailable": "Canvas 2D is unavailable",
     "unsupportedImage": "Use a PNG, JPEG, or WebP image."
   },

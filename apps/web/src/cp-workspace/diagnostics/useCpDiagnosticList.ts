@@ -15,6 +15,7 @@ import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { OristudioCpDiagnosticEntry } from '../../engine/oristudioCpTypes';
+import { cpCheckSuppressionRules, cpCommandResultWithSuppression } from './checkSuppression';
 import {
   diagnosticHudStatus,
   diagnosticHudStatusForEntries,
@@ -22,13 +23,22 @@ import {
   isDiagnosticResultOperation,
   type CpDiagnosticHudStatus,
 } from './hudStatus';
-import { visibleCpDiagnosticEntries } from './visibleEntries';
+import { visibleCpDiagnostics } from './visibleEntries';
 
 export interface CpDiagnosticList {
   /** Every diagnostic currently on the canvas, in kernel order. */
   entries: readonly OristudioCpDiagnosticEntry[];
   /** The collapsed HUD's headline, or null when there is nothing to report. */
   status: CpDiagnosticHudStatus | null;
+  /**
+   * How many findings the scoped check filter is hiding — the document-wide rule
+   * plus any suppression region.
+   *
+   * The design's safety affordance, and the reason a region may not be `hidden`:
+   * a filter you cannot see the cost of turns "no errors" into "no errors we
+   * told you about". Zero whenever nothing is suppressed.
+   */
+  hiddenCount: number;
   activeId: string | null;
   selectDiagnostic: (id: string) => void;
 }
@@ -42,8 +52,25 @@ export function useCpDiagnosticList(): CpDiagnosticList {
   const camvIssuesVisible = useWorkspaceStore(
     (state) => state.oristudioCpViewport.camvIssuesVisible !== false
   );
+  const suppressedCheckClasses = useWorkspaceStore(
+    (state) => state.oristudioCpViewport.suppressedCheckClasses
+  );
+  const annotations = useWorkspaceStore((state) => state.oristudioCpAnnotations);
   const activeId = useWorkspaceStore((state) => state.oristudioCpActiveDiagnosticId);
   const setActive = useWorkspaceStore((state) => state.setOristudioCpActiveDiagnostic);
+
+  // The document-wide rule and every region's, composed the ordinary way:
+  // document default, regional override.
+  //
+  // Subscribing to the whole annotation array is wider than this hook's usual
+  // discipline, and it costs nothing in the case that matters: with no regions
+  // and nothing suppressed `cpCheckSuppressionRules` hands back its shared empty
+  // list, so dragging an image re-runs this memo and leaves `rules` identical —
+  // and the entry list below never recomputes.
+  const rules = useMemo(
+    () => cpCheckSuppressionRules(suppressedCheckClasses, annotations),
+    [annotations, suppressedCheckClasses]
+  );
 
   // The same call the canvas overlay makes.
   //
@@ -54,9 +81,9 @@ export function useCpDiagnosticList(): CpDiagnosticList {
   //
   // `visibleEntries.ts` already says why there is one function: markers, this
   // list, and what a jump-to-diagnostic can reach all ask the same question.
-  const entries = useMemo(
-    () => visibleCpDiagnosticEntries(camvResult, lastCommandResult, camvIssuesVisible),
-    [camvIssuesVisible, camvResult, lastCommandResult]
+  const { entries, hiddenCount } = useMemo(
+    () => visibleCpDiagnostics(camvResult, lastCommandResult, camvIssuesVisible, rules),
+    [camvIssuesVisible, camvResult, lastCommandResult, rules]
   );
 
   // Which check names the headline, and whether a clean result is worth showing.
@@ -65,14 +92,24 @@ export function useCpDiagnosticList(): CpDiagnosticList {
   // every edit, so it is the standing account of the document — and an explicit
   // check command names it otherwise. `issueOnly` follows: a clean overlay is
   // silent, a clean command the user ran on purpose says "OK".
+  //
+  // Both results are filtered **before** they are asked to name anything. The
+  // chokepoint above covers the counts, because those already derive from
+  // `entries` — but naming reads the result itself, so an unfiltered CAMV would
+  // put "Foldability" over a list the filter had emptied, and an unfiltered
+  // Check4 would say "Maekawa/BLB OK" over findings it had merely hidden. The
+  // honest version of "OK" under a filter is `hiddenCount` beside it.
   const headline = useMemo(() => {
+    const camvShown = cpCommandResultWithSuppression(camvResult, rules);
     const camvNames =
-      camvIssuesVisible && diagnosticHudStatus(t, camvResult, { issueOnly: true }) !== null;
-    if (camvNames && camvResult) return { result: camvResult, issueOnly: true };
+      camvIssuesVisible && diagnosticHudStatus(t, camvShown, { issueOnly: true }) !== null;
+    if (camvNames && camvShown) return { result: camvShown, issueOnly: true };
     const command =
-      !camvIssuesVisible && lastCommandResult?.operation === 'CheckCamv' ? null : lastCommandResult;
+      !camvIssuesVisible && lastCommandResult?.operation === 'CheckCamv'
+        ? null
+        : cpCommandResultWithSuppression(lastCommandResult, rules);
     return command ? { result: command, issueOnly: false } : null;
-  }, [camvIssuesVisible, camvResult, lastCommandResult, t]);
+  }, [camvIssuesVisible, camvResult, lastCommandResult, rules, t]);
 
   // Counted from `entries` — what the list actually shows — rather than from the
   // naming result's own entries, which is a different set whenever both the
@@ -94,5 +131,5 @@ export function useCpDiagnosticList(): CpDiagnosticList {
 
   const selectDiagnostic = useCallback((id: string) => setActive(id), [setActive]);
 
-  return { entries, status, activeId, selectDiagnostic };
+  return { entries, status, hiddenCount, activeId, selectDiagnostic };
 }

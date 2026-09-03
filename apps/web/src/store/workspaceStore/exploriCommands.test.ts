@@ -52,6 +52,7 @@ function stateWith(tab: DesignTab): WorkspaceState {
     oristudioCpHistoryPast: [],
     oristudioCpHistoryFuture: [],
     oristudioCpSelection: { lines: [], points: [], circles: [] },
+    oristudioCpAnnotations: [],
     oristudioBpBusy: false,
     importedCreasePattern: null,
     foldArtifacts: null,

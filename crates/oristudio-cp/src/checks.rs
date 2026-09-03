@@ -20,6 +20,38 @@ pub struct FlatFoldableBoundaryCheck {
     pub crossing_count: usize,
 }
 
+/// Which arithmetic the flat-foldability check evaluates Oriedita's algorithm
+/// with.
+///
+/// The *algorithm* is identical either way — same crimp reduction, same tie
+/// test, same `Epsilon::FLAT` everywhere. What differs is two evaluations that
+/// are identities in exact arithmetic and are not identities in `f64`, and which
+/// between them make the check's verdict depend on which way up the pattern is
+/// drawn. See `implementation-plans/orientation-invariant-flat-foldability.md`.
+///
+/// Measured on `worked_but_has_errors.osf` under the six bit-exact coordinate
+/// transforms — identity, the three 90° rotations, a mirror and a transpose,
+/// which only permute and negate coordinates so no geometry changes at all:
+///
+/// | | violations across the six |
+/// | --- | --- |
+/// | [`OrieditaExact`](Self::OrieditaExact) | `[3, 3, 2, 3, 2, 5]` |
+/// | [`Refined`](Self::Refined) | `[0, 0, 0, 0, 0, 0]` |
+///
+/// Under `OrieditaExact` the union of reported sites is 7 and the intersection
+/// is **0**: not one reported violation survives every orientation, and every
+/// one of them is a false positive — the worst true Kawasaki residual in that
+/// file is 1.6e-7°, against a 1e-6° bar.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CamvAngleArithmetic {
+    /// Well-conditioned ray bearings, and the reduction shrinks its working
+    /// range by the sector it actually collapsed. The default.
+    #[default]
+    Refined,
+    /// Upstream's arithmetic reproduced verbatim, for oracle parity.
+    OrieditaExact,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FlatFoldabilityRule {
     NumberOfFolds,
@@ -207,31 +239,103 @@ pub fn check2(model: &CreasePatternModel) -> Vec<LineSegment> {
 
 /// Oriedita `Check3.apply`: collect legacy vertex flat-foldability markers.
 pub fn check3(model: &CreasePatternModel) -> Vec<LineSegment> {
+    check3_with(model, CamvAngleArithmetic::default())
+}
+
+/// [`check3`] under a chosen arithmetic.
+///
+/// Check3 runs the *same* Fushimi reduction as Check4 against the same
+/// `SortingBox`, with its own copy of both defects — the `acos` bearing and the
+/// `2.0 * min_angle` subtraction. It gets the same treatment for the same
+/// reason: leaving one of two implementations of one condition on the old
+/// arithmetic is how they come to disagree with each other.
+pub fn check3_with(
+    model: &CreasePatternModel,
+    arithmetic: CamvAngleArithmetic,
+) -> Vec<LineSegment> {
     let mut diagnostics = Vec::new();
     for segment in &model.line_segments {
         if segment.color == LineColor::Cyan3 {
             continue;
         }
 
-        check3_point(model, segment.a, &mut diagnostics);
-        check3_point(model, segment.b, &mut diagnostics);
+        check3_point(model, segment.a, arithmetic, &mut diagnostics);
+        check3_point(model, segment.b, arithmetic, &mut diagnostics);
     }
 
     diagnostics
 }
 
+/// A ray's bearing in degrees, well-conditioned at every orientation.
+///
+/// [`crate::geometry::angle`] is `acos(x / length)`, transcribed statement for
+/// statement from `OritaCalc.java:71-97` (the vendored tree contains no `atan`
+/// at all). `acos` is ill-conditioned as its argument approaches ±1 — a
+/// *near-horizontal* ray — because `dθ/dc = -1/sin θ`. Measured over 200k random
+/// rays per band: 9.9e-7° of error at a bearing near 0°, 9.1e-7° near 180°, and
+/// 2.8e-14° at 45° and 90°. Against a 1e-6° bar that is the whole margin.
+///
+/// `atan2` is uniformly conditioned, so this returns the same value everywhere
+/// upstream's is accurate and a better one where it is not. It is deliberately
+/// **local to this module** rather than a change to
+/// [`crate::geometry::angle`]: that primitive has nineteen call sites outside
+/// the foldability check and a test pinning its exact behaviour, and none of
+/// them are what this is for.
+fn refined_bearing(a: Point, b: Point) -> f64 {
+    let x = b.x - a.x;
+    let y = b.y - a.y;
+    if x == 0.0 && y == 0.0 {
+        // The sentinel upstream returns for a zero-length segment; callers
+        // downstream sort on it and never arithmetic on it.
+        return -10000.0;
+    }
+    let degrees = y.atan2(x).to_degrees();
+    if degrees < 0.0 {
+        degrees + 360.0
+    } else {
+        degrees
+    }
+}
+
+/// The bearing feeding the fan, under the caller's chosen arithmetic.
+fn fan_bearing(a: Point, b: Point, arithmetic: CamvAngleArithmetic) -> f64 {
+    match arithmetic {
+        CamvAngleArithmetic::Refined => refined_bearing(a, b),
+        CamvAngleArithmetic::OrieditaExact => angle((a, b)),
+    }
+}
+
 /// Oriedita `Check4.apply`: collect CAMV and big-little-big violations.
 pub fn check4(model: &CreasePatternModel) -> Vec<FlatFoldabilityViolation> {
+    check4_with(model, CamvAngleArithmetic::default())
+}
+
+/// [`check4`] under a chosen arithmetic. Oracle parity tests pass
+/// [`CamvAngleArithmetic::OrieditaExact`]; everything else takes the default.
+pub fn check4_with(
+    model: &CreasePatternModel,
+    arithmetic: CamvAngleArithmetic,
+) -> Vec<FlatFoldabilityViolation> {
     point_line_map(model)
         .into_iter()
-        .filter_map(|vertex| find_flat_foldability_violation(vertex.point, &vertex.lines))
+        .filter_map(|vertex| {
+            find_flat_foldability_violation_with(vertex.point, &vertex.lines, arithmetic)
+        })
         .collect()
 }
 
 /// Oriedita `CheckCAMVTask.run`: recompute Check4 violations and mark the canvas dirty.
 pub fn check_camv_task(model: &CreasePatternModel) -> CamvCheckResult {
+    check_camv_task_with(model, CamvAngleArithmetic::default())
+}
+
+/// [`check_camv_task`] under a chosen arithmetic.
+pub fn check_camv_task_with(
+    model: &CreasePatternModel,
+    arithmetic: CamvAngleArithmetic,
+) -> CamvCheckResult {
     CamvCheckResult {
-        violations: check4(model),
+        violations: check4_with(model, arithmetic),
         dirty: true,
     }
 }
@@ -295,6 +399,15 @@ pub fn find_flat_foldability_violation(
     point: Point,
     lines: &[LineSegment],
 ) -> Option<FlatFoldabilityViolation> {
+    find_flat_foldability_violation_with(point, lines, CamvAngleArithmetic::default())
+}
+
+/// [`find_flat_foldability_violation`] under a chosen arithmetic.
+pub fn find_flat_foldability_violation_with(
+    point: Point,
+    lines: &[LineSegment],
+    arithmetic: CamvAngleArithmetic,
+) -> Option<FlatFoldabilityViolation> {
     let mut red = 0usize;
     let mut blue = 0usize;
     let mut black = 0usize;
@@ -310,9 +423,15 @@ pub fn find_flat_foldability_violation(
 
         if segment.color.is_folding_line() {
             if point.distance(segment.a) < Epsilon::FLAT {
-                nbox.add_by_weight(segment.clone(), angle((segment.a, segment.b)));
+                nbox.add_by_weight(
+                    segment.clone(),
+                    fan_bearing(segment.a, segment.b, arithmetic),
+                );
             } else if point.distance(segment.b) < Epsilon::FLAT {
-                nbox.add_by_weight(segment.clone(), angle((segment.b, segment.a)));
+                nbox.add_by_weight(
+                    segment.clone(),
+                    fan_bearing(segment.b, segment.a, arithmetic),
+                );
             }
         }
     }
@@ -326,7 +445,7 @@ pub fn find_flat_foldability_violation(
     }
 
     if black == 0 {
-        let angle_or_lbl = find_flat_foldability_violation_inside(point, nbox);
+        let angle_or_lbl = find_flat_foldability_violation_inside(point, nbox, arithmetic);
         let mut rule = angle_or_lbl
             .as_ref()
             .map(|violation| violation.rule)
@@ -428,7 +547,12 @@ pub fn flat_foldable_boundary_check(
     }
 }
 
-fn check3_point(model: &CreasePatternModel, point: Point, diagnostics: &mut Vec<LineSegment>) {
+fn check3_point(
+    model: &CreasePatternModel,
+    point: Point,
+    arithmetic: CamvAngleArithmetic,
+    diagnostics: &mut Vec<LineSegment>,
+) {
     let tss = vertex_surrounding_line_count(model, point, Epsilon::UNKNOWN_1EN4, |_| true);
     let tss_red = vertex_surrounding_line_count(model, point, Epsilon::UNKNOWN_1EN4, |segment| {
         segment.color == LineColor::Red1
@@ -452,12 +576,12 @@ fn check3_point(model: &CreasePatternModel, point: Point, diagnostics: &mut Vec<
         if tss - tss_aux_live == tss_red + tss_blue && tss_red.abs_diff(tss_blue) != 2 {
             diagnostics.push(LineSegment::new(point, point));
         }
-        if !extended_fushimi_decide_inside_model(model, point) {
+        if !extended_fushimi_decide_inside_model(model, point, arithmetic) {
             diagnostics.push(LineSegment::new(point, point));
         }
     }
 
-    if tss_black == 2 && !extended_fushimi_decide_sides_model(model, point) {
+    if tss_black == 2 && !extended_fushimi_decide_sides_model(model, point, arithmetic) {
         diagnostics.push(LineSegment::new(point, point));
     }
 }
@@ -849,6 +973,7 @@ fn maekawa_color(red: usize, blue: usize) -> FlatFoldabilityColor {
 fn find_flat_foldability_violation_inside(
     point: Point,
     mut nbox: SortingBox,
+    arithmetic: CamvAngleArithmetic,
 ) -> Option<FlatFoldabilityViolation> {
     if nbox.total() % 2 == 1 {
         return Some(FlatFoldabilityViolation::new(
@@ -943,7 +1068,29 @@ fn find_flat_foldability_violation_inside(
                         reduced.add(weighted.clone());
                     }
 
-                    max_angle -= 2.0 * min_angle;
+                    // Twice the sector actually collapsed, not twice the
+                    // global minimum. Upstream writes `2.0 * min_angle`
+                    // (`Check4.java:246`), and the two are the same number in
+                    // exact arithmetic — the tie test above is what asserts it.
+                    // But that test's window is `Epsilon::FLAT` **degrees**, and
+                    // several sectors can sit inside it: on the vertex this was
+                    // measured against, four lay within 8.2e-7 of each other, so
+                    // four different pairs qualified and the sort order — which
+                    // rotating the pattern changes — decided which one collapsed.
+                    // 99.68% of that vertex's final residual came from this one
+                    // substitution; 0.32% was real geometry.
+                    //
+                    // Subtracting the collapsed sector makes the final residual
+                    // the Kawasaki alternating sum, and *any* legal merge
+                    // preserves that exactly: replacing s(k-1), s(k), s(k+1) with
+                    // s(k-1) - s(k) + s(k+1) leaves it unchanged. So the verdict
+                    // stops depending on which pair was chosen — provably, rather
+                    // than because no counter-example turned up.
+                    max_angle -= 2.0
+                        * match arithmetic {
+                            CamvAngleArithmetic::Refined => temp_angle,
+                            CamvAngleArithmetic::OrieditaExact => min_angle,
+                        };
                     result = Some(reduced);
                     break;
                 }
@@ -1299,13 +1446,17 @@ fn vertex_surrounding_line_count(
         .count()
 }
 
-fn extended_fushimi_decide_inside_model(model: &CreasePatternModel, point: Point) -> bool {
+fn extended_fushimi_decide_inside_model(
+    model: &CreasePatternModel,
+    point: Point,
+    arithmetic: CamvAngleArithmetic,
+) -> bool {
     let vertex = closest_point_of_fold_line(model, point);
-    let nbox = vertex_sorting_box(model, vertex);
-    extended_fushimi_decide_inside(nbox)
+    let nbox = vertex_sorting_box(model, vertex, arithmetic);
+    extended_fushimi_decide_inside(nbox, arithmetic)
 }
 
-fn extended_fushimi_decide_inside(mut nbox: SortingBox) -> bool {
+fn extended_fushimi_decide_inside(mut nbox: SortingBox, arithmetic: CamvAngleArithmetic) -> bool {
     if nbox.total() % 2 == 1 {
         return false;
     }
@@ -1368,7 +1519,13 @@ fn extended_fushimi_decide_inside(mut nbox: SortingBox) -> bool {
                     reduced.add(weighted.clone());
                 }
 
-                max_angle -= 2.0 * min_angle;
+                // The Check4 twin of the same substitution; see the comment
+                // there for why the collapsed sector is the right one.
+                max_angle -= 2.0
+                    * match arithmetic {
+                        CamvAngleArithmetic::Refined => temp_angle,
+                        CamvAngleArithmetic::OrieditaExact => min_angle,
+                    };
                 result = Some(reduced);
                 break;
             }
@@ -1390,9 +1547,16 @@ fn extended_fushimi_decide_inside(mut nbox: SortingBox) -> bool {
     (max_angle - temp_angle * 2.0).abs() < Epsilon::FLAT
 }
 
-fn extended_fushimi_decide_sides_model(model: &CreasePatternModel, point: Point) -> bool {
+fn extended_fushimi_decide_sides_model(
+    model: &CreasePatternModel,
+    point: Point,
+    arithmetic: CamvAngleArithmetic,
+) -> bool {
     let vertex = closest_point_of_fold_line(model, point);
-    let nbox = vertex_sorting_box(model, vertex);
+    let nbox = vertex_sorting_box(model, vertex, arithmetic);
+    // No arithmetic parameter: this half of the Fushimi check carries neither
+    // the bearing (its box is already built) nor the subtraction. The `_model`
+    // wrapper above needs it only to build that box.
     extended_fushimi_decide_sides(nbox)
 }
 
@@ -1500,14 +1664,24 @@ fn extended_fushimi_determine_sides_theorem(nbox: &SortingBox) -> SortingBox {
     nbox.clone()
 }
 
-fn vertex_sorting_box(model: &CreasePatternModel, vertex: Point) -> SortingBox {
+fn vertex_sorting_box(
+    model: &CreasePatternModel,
+    vertex: Point,
+    arithmetic: CamvAngleArithmetic,
+) -> SortingBox {
     let mut nbox = SortingBox::default();
     for segment in &model.line_segments {
         if segment.color.is_folding_line() {
             if vertex.distance(segment.a) < Epsilon::FLAT {
-                nbox.add_by_weight(segment.clone(), angle((segment.a, segment.b)));
+                nbox.add_by_weight(
+                    segment.clone(),
+                    fan_bearing(segment.a, segment.b, arithmetic),
+                );
             } else if vertex.distance(segment.b) < Epsilon::FLAT {
-                nbox.add_by_weight(segment.clone(), angle((segment.b, segment.a)));
+                nbox.add_by_weight(
+                    segment.clone(),
+                    fan_bearing(segment.b, segment.a, arithmetic),
+                );
             }
         }
     }

@@ -45,6 +45,7 @@ import {
   type OristudioCpCommandActionDefinition,
 } from '../../lib/oristudioCpActions';
 import {
+  cpCommandCommitsWebSide,
   cpCommandSnapsKernelSide,
   cpCommandUsesActiveCreaseAngle,
   cpCommandUsesActiveLineColor,
@@ -91,6 +92,7 @@ import {
   emptyOristudioCpSelection,
   getCpVertexPoints,
   getOrieditaGridBasis,
+  nearestCpJunctionTarget,
   nearestCpSnapTarget,
   nearestOrieditaDrawPointTarget,
   ORIEDITA_PAPER_BOUNDS,
@@ -162,8 +164,15 @@ import { useBlurOnPressOutside } from '../../cp-workspace/inlineSimulation/useBl
 import { cpOverlayViewStore } from '../../cp-workspace/cpOverlayViewStore';
 import type { CpOverlayViews } from '../../cp-workspace/cpOverlayViewStore';
 import { useCpDocumentCamera } from '../../cp-workspace/camera/useCpDocumentCamera';
-import { isTextAnnotation } from '../../cp-workspace/annotations/annotation';
+import {
+  isSuppressionRegionAnnotation,
+  isTextAnnotation,
+} from '../../cp-workspace/annotations/annotation';
 import { useCpAnnotations } from '../../cp-workspace/annotations/useCpAnnotations';
+import { CpRegionLayer } from '../../cp-workspace/regions/CpRegionLayer';
+import { useCpRegionActions } from '../../cp-workspace/regions/useCpRegions';
+import { useCpRegionSolve } from '../../cp-workspace/regions/useCpRegionSolve';
+import { cpSuppressionBoxFromCommitPoints } from '../../cp-workspace/regions/suppressionBox';
 import { CpContextToolPanel, cpLineTypeStatusLabel } from './CpContextToolPanel';
 import {
   buildCpDiagnosticMarkers,
@@ -171,6 +180,7 @@ import {
   resolveCpDiagnosticToneColors,
 } from '../../cp-workspace/diagnostics/geometry';
 import { visibleCpDiagnosticEntries } from '../../cp-workspace/diagnostics/visibleEntries';
+import { cpCheckSuppressionRules } from '../../cp-workspace/diagnostics/checkSuppression';
 import { cpInputModel } from '../../cp-workspace/tools/inputModelRegistry';
 import { usePickToolSelectionReset } from '../../cp-workspace/tools/usePickToolSelectionReset';
 import { distanceToSegment } from '../../cp-workspace/picking/lineHitIndex';
@@ -201,6 +211,7 @@ import {
   isSquareBisectorOperation,
   isVariablePointSequenceOperation,
   isWholeDocumentCpCommand,
+  snapsToCreaseCrossings,
   toolClickAction,
 } from '../../cp-workspace/tools/predicates';
 import {
@@ -219,6 +230,7 @@ import {
 } from '../../cp-workspace/measurePreferences';
 import { IconButton } from '../ui/IconButton';
 import { SurfaceLoading } from '../ui/SurfaceLoading';
+import { ANALYTICS_EVENTS, track } from '../../analytics';
 import { CpToolRail } from './CpToolRail';
 import { withShiftLatch } from '../../cp-workspace/touchModifiers/shiftLatch';
 import { NextDocumentAction } from './NextDocumentAction';
@@ -267,6 +279,8 @@ function measureSnapLabel(t: TFunction, kind: CpSnapTarget['kind'] | null): stri
       return t('panels:creasePattern.measureSnapPoint', 'point');
     case 'line':
       return t('panels:creasePattern.measureSnapCrease', 'crease');
+    case 'crossing':
+      return t('panels:creasePattern.measureSnapCrossing', 'crossing');
     default:
       return t('panels:creasePattern.measureSnapFree', 'free');
   }
@@ -752,6 +766,34 @@ export function CreasePatternPanel() {
     () => oristudioCpAnnotations.filter(isTextAnnotation),
     [oristudioCpAnnotations]
   );
+  // Check-suppression regions, narrowed once and used twice: the canvas draws
+  // them (GL, behind the images) and the framing list includes them. Their chips
+  // and every verb behind them come from `useCpRegions` inside `CpRegionLayer`;
+  // the panel only carries the geometry the canvas needs.
+  const regionAnnotations = useMemo(
+    () => oristudioCpAnnotations.filter(isSuppressionRegionAnnotation),
+    [oristudioCpAnnotations]
+  );
+  // Verbs only — the rail tool's commit lands here and needs `addRegion`. The
+  // full `useCpRegions` also derives each region's hidden-findings count, which
+  // costs a pass over every diagnostic and which nothing on this path reads;
+  // `CpRegionLayer` is the one consumer of that.
+  const regionActions = useCpRegionActions();
+  // How a region's solve is run and settled, and the one listener behind
+  // `Crease Pattern ▸ Repair ▸ Exact Solve…`. A hook rather than state here: the
+  // panel decides that a solve binding is mounted, not what one does.
+  const regionSolve = useCpRegionSolve();
+  // Which floating toolbar owns the corner. `selectedImage` narrows by kind and
+  // is null for a region, so it cannot answer this — and a selected region
+  // expands its chip into a toolbar the others must stand down for.
+  //
+  // Derived here rather than in `useCpRegions` only because this is its one
+  // consumer and that hook's `regions` view costs a hidden-findings pass per
+  // instance; a second consumer should move it there.
+  const selectedCpRegion = useMemo(
+    () => regionAnnotations.find((region) => region.id === oristudioCpSelectedAnnotationId) ?? null,
+    [regionAnnotations, oristudioCpSelectedAnnotationId]
+  );
   // Object toolbars anchor themselves against the *live* camera (see
   // useCanvasObjectAnchor); the panel only supplies the element they measure
   // from. Anchoring off the panel's debounced camera copy left them behind
@@ -951,10 +993,9 @@ export function CreasePatternPanel() {
     onBlur: inlineSimulations.blur,
   });
   /**
-   * Everything placed on the canvas that the WebGL renderer does not draw
-   * itself, for framing. Both kinds live on their own DOM layers, so without
-   * this the camera cannot see them: fitting to view would frame the creases
-   * alone and leave a simulation window off screen.
+   * Everything placed on the canvas whose geometry is just a rotated box, for
+   * framing. Without this the camera cannot see them: fitting to view would
+   * frame the creases alone and leave a simulation window off screen.
    */
   const overlayBoxes = useMemo(
     () => [
@@ -966,8 +1007,12 @@ export function CreasePatternPanel() {
         ...simulation.box,
         hidden: false,
       })),
+      // Suppression regions are drawn in GL rather than on a DOM layer, but
+      // framing does not care who draws a box — only that the list names every
+      // kind. A region left off here is a region fit-to-view will not include.
+      ...regionAnnotations,
     ],
-    [textAnnotations, inlineSimulations.simulations]
+    [textAnnotations, inlineSimulations.simulations, regionAnnotations]
   );
   // Shared with the selection toolbar, so the keyboard and the button cannot
   // disagree about what counts as a simulatable region.
@@ -988,15 +1033,33 @@ export function CreasePatternPanel() {
     ]
   );
   /**
-   * Every body the overlay must leave alone, from both kinds that have an
-   * interior of their own: a focused simulation window orbits its solver, a
-   * focused 3D folded figure orbits its camera. At most one of the two is ever
-   * non-empty — `takeCanvasSelection` makes the two focuses exclusive — but the
-   * overlay takes one set, so they are merged here rather than at the call site.
+   * Every body the overlay must leave alone.
+   *
+   * Two of the three kinds here are *conditionally* inert, because they have an
+   * interior of their own that takes drags once focused: a focused simulation
+   * window orbits its solver, a focused 3D folded figure orbits its camera. At
+   * most one of those two is ever non-empty — `takeCanvasSelection` makes the
+   * focuses exclusive — but the overlay takes one set, so they are merged here
+   * rather than at the call site.
+   *
+   * A suppression region is **unconditionally** inert, which is the difference
+   * worth understanding. Its interior is not its own content at all: what is
+   * under a region is the crease pattern, and the region is a wash drawn behind
+   * it. So there is no state in which its body polygon should take a pointer —
+   * an interactive body means every click inside the box selects the region and
+   * the creases it is drawn over cannot be picked, drawn on, or dragged, which
+   * is exactly the state the repair flow needs. Regions stay movable through
+   * their chip, which is the drag handle, and resizable through the selection
+   * handles — `inertBodyIds` disables the body alone and leaves both.
    */
   const inertBodyIds = useMemo(
-    () => new Set([...inlineSimulations.inertBodyIds, ...folded.inertBodyIds]),
-    [inlineSimulations.inertBodyIds, folded.inertBodyIds]
+    () =>
+      new Set([
+        ...inlineSimulations.inertBodyIds,
+        ...folded.inertBodyIds,
+        ...regionAnnotations.map((region) => region.id),
+      ]),
+    [inlineSimulations.inertBodyIds, folded.inertBodyIds, regionAnnotations]
   );
   const isFoldedFigureId = useCallback(
     (id: string) => folded.transformableObjects.some((object) => object.id === id),
@@ -1239,11 +1302,26 @@ export function CreasePatternPanel() {
       : squareBisectorToolPrompt;
   const activeCpToolPrompt = measureToolPrompt;
   const lastCommandResult = oristudioCpDocument?.lastCommandResult ?? null;
+  // The scoped check filter: the document-wide per-class rule and every
+  // suppression region's, composed document-default-then-regional-override.
+  // Identical to what `useCpDiagnosticList` builds for the HUD, and it has to be
+  // — the markers below and the HUD list must not disagree about what is hidden.
+  const cpCheckRules = useMemo(
+    () =>
+      cpCheckSuppressionRules(oristudioCpViewport.suppressedCheckClasses, oristudioCpAnnotations),
+    [oristudioCpViewport.suppressedCheckClasses, oristudioCpAnnotations]
+  );
   // What the canvas is showing — the same rule the store applies when it decides
   // whether a newly activated diagnostic is one the user can actually see.
   const latestDiagnosticEntries = useMemo(
-    () => visibleCpDiagnosticEntries(oristudioCpCamvResult, lastCommandResult, camvIssuesVisible),
-    [camvIssuesVisible, lastCommandResult, oristudioCpCamvResult]
+    () =>
+      visibleCpDiagnosticEntries(
+        oristudioCpCamvResult,
+        lastCommandResult,
+        camvIssuesVisible,
+        cpCheckRules
+      ),
+    [camvIssuesVisible, cpCheckRules, lastCommandResult, oristudioCpCamvResult]
   );
   // WebGL diagnostic overlay geometry (vertex markers + BLB wedges). Rebuilt when
   // the entries or theme change; the tone colours read the current theme's CSS vars.
@@ -1738,7 +1816,12 @@ export function CreasePatternPanel() {
       toleranceModel: number
     ): { point: Point; snapped: boolean; kind?: CpSnapTarget['kind'] } => {
       if (!editableCp) return { point: rawPoint, snapped: false };
-      const target = nearestOrieditaDrawPointTarget(
+      // Insert vertex also snaps to crease crossings; every other tool keeps
+      // Oriedita's point snap exactly. See `snapsToCreaseCrossings`.
+      const nearestTarget = snapsToCreaseCrossings(activeCpCommand?.operationId)
+        ? nearestCpJunctionTarget
+        : nearestOrieditaDrawPointTarget;
+      const target = nearestTarget(
         editableCp,
         rawPoint,
         editableCpBounds,
@@ -1750,7 +1833,7 @@ export function CreasePatternPanel() {
       // the measure tool can say whether an endpoint is a real vertex or a free point.
       return { point: target?.point ?? rawPoint, snapped: target !== null, kind: target?.kind };
     },
-    [editableCp, editableCpBounds, oristudioCpViewport]
+    [activeCpCommand?.operationId, editableCp, editableCpBounds, oristudioCpViewport]
   );
 
   // Crease steps: snap the point onto the nearest crease (forcing line/vertex
@@ -1863,6 +1946,27 @@ export function CreasePatternPanel() {
         return;
       }
 
+      // Web-side commits: what the tool produces is a `CanvasAnnotation`, so the
+      // kernel must never see it — `executeOristudioCpCommand` would refuse an
+      // operation it has never heard of. Asked through one predicate shared with
+      // the preview path below, so a future web-side tool cannot be wired into
+      // one and forgotten in the other. Today the only member is the suppression
+      // region; `addRegion` places it under the annotation stack and records the
+      // undo entry itself.
+      if (cpCommandCommitsWebSide(command.operationId)) {
+        const box = cpSuppressionBoxFromCommitPoints(points, webglOverlayView);
+        if (box) {
+          regionActions.addRegion(box);
+          track(ANALYTICS_EVENTS.cpSuppressionRegionCreated, { source: 'tool' });
+        }
+        setCpToolState((state) =>
+          state.activeOperationId === command.operationId
+            ? transitionOristudioCpToolState(state, { type: 'commit', keepActive: true })
+            : state
+        );
+        return;
+      }
+
       // Measure tools are non-mutating: never execute (the kernel has no execute arm
       // by design). Ask the kernel for the exact length/angle at the committed points
       // and show it; then just finalize the tool state. The active *command* is always
@@ -1961,8 +2065,10 @@ export function CreasePatternPanel() {
       previewOristudioCpCommand,
       oristudioCpSelection.circles,
       oristudioCpSelection.lines,
+      regionActions,
       t,
       vertexSolve,
+      webglOverlayView,
     ]
   );
 
@@ -2254,6 +2360,13 @@ export function CreasePatternPanel() {
         );
         return;
       }
+      // A web-side tool has nothing to ask the kernel for — the drag box is
+      // already drawn by the tool engine's own preview. Asking anyway is worse
+      // than useless: `previewOristudioCpCommand` catches the refusal into
+      // `oristudioCpError` instead of throwing, so an unrecognised operation
+      // raises an error banner on every pointer move of the drag while the tool
+      // otherwise appears to work.
+      if (cpCommandCommitsWebSide(command.operationId)) return;
       // Show a hovered-crease highlight immediately, but when there is none don't blank
       // the current kernel preview while the async recompute is in flight: that
       // clear-then-repopulate on every mouse move is what makes continuous guide lines
@@ -3096,6 +3209,7 @@ export function CreasePatternPanel() {
                   lineSegments={editableCp.crease_pattern.line_segments}
                   geometry={oristudioCpDocument?.geometry ?? null}
                   images={imageAnnotations}
+                  regions={regionAnnotations}
                   overlayBoxes={overlayBoxes}
                   framingKey={`${projectLoadId}:${editableCpHandle ?? 'none'}`}
                   modelToSvg={editableModelToSvg}
@@ -3276,6 +3390,22 @@ export function CreasePatternPanel() {
                     onSyncHeight={annotations.syncAnnotationHeight}
                   />
                 )}
+                {/* Region chips, always mounted — a region *hides findings*, and
+                    a suppressor you cannot see until you click it is the footgun
+                    the hidden count on each chip exists to close. Ungated for the
+                    same reason `CpToolOptionLayer` is: it renders nothing when
+                    there are no regions, and each chip portals itself, so an
+                    empty document pays a hook and no DOM.
+
+                    The `solve` binding is what makes `SolveRegionChip` reachable
+                    at all: the layer picks it on `solvable && solve`, so an
+                    attached region without this prop silently gets the base chip
+                    and the repair flow dead-ends with no way to solve. The prop
+                    is optional — deliberately, since a host that cannot service a
+                    solve should show no button rather than a dead one — so
+                    dropping it again would typecheck cleanly. `regionWiring.test`
+                    is what fails instead. */}
+                <CpRegionLayer container={toolbarContainer} solve={regionSolve} />
                 {webglOverlayView && canvasObjects.length > 0 && (
                   <CanvasObjectOverlay
                     objects={canvasObjects}
@@ -3332,6 +3462,19 @@ export function CreasePatternPanel() {
                     onDelete={() => inlineSimulations.remove(focusedInlineSimulation.id)}
                   />
                 )}
+                {/* The per-object inspectors, hand-written as a mutual-exclusion
+                    cascade because there is no per-kind inspector registry. A
+                    region is the fourth kind and does not get a clause here: its
+                    chip is mounted above, unconditionally, and *expands* into the
+                    inspector when the region holds the selection. So what a fourth
+                    kind costs this cascade is the `!selectedCpRegion` guards below
+                    — a selected region is a floating toolbar on screen, and the
+                    others have to stand down for it exactly as they do for each
+                    other.
+
+                    Flagged rather than quietly extended, per AGENTS.md: the fix
+                    is a registry keyed by annotation kind, not a fifth condition
+                    on each of four clauses. */}
                 {annotationsInteractive && selectedCpImage && !editingTextId && (
                   <CpImageInspector
                     image={selectedCpImage}
@@ -3362,9 +3505,18 @@ export function CreasePatternPanel() {
                     same corner and it is asking a question — its verbs are the
                     only ones that make sense until the user answers, and the
                     toolbar's (fold, simulate, export) would all act on a
-                    document the pending proposal has not been applied to. */}
+                    document the pending proposal has not been applied to.
+
+                    A selected suppression region is one too, and it is the only
+                    clause that needs saying: every other pair above is already
+                    exclusive because the store keeps one canvas-object selection,
+                    while *this* toolbar follows the crease selection — which a
+                    click on a region leaves standing. Without the guard, picking
+                    a region while creases are selected puts two toolbars on the
+                    canvas at once. */}
                 {!editingTextId &&
                   !selectedCpImage &&
+                  !selectedCpRegion &&
                   !selectedFoldedFigure &&
                   !openToolOptionWindow && <CpSelectionToolbar container={toolbarContainer} />}
                 </>

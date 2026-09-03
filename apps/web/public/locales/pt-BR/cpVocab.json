@@ -199,6 +199,14 @@
         "0": "Escolha o ponto"
       }
     },
+    "cp_action_vertex_insert_on_creases": {
+      "label": "Inserir vértice",
+      "tooltip": "Dividir todos os vincos que passam pelo ponto clicado para que se encontrem em um único vértice",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Clique onde os vincos devem se encontrar"
+      }
+    },
     "cp_action_delete_point": {
       "label": "Excluir ponto",
       "tooltip": "Mesclar vincos da mesma cor que se encontram no vértice escolhido",
@@ -749,6 +757,14 @@
         "0": "Clique na posição do texto"
       }
     },
+    "cp_action_check_suppression_region_create": {
+      "label": "Região de supressão",
+      "tooltip": "Arraste um retângulo para parar de relatar dentro dele as verificações de dobrabilidade selecionadas",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Arraste um retângulo sobre a área que deixará de ser verificada"
+      }
+    },
     "cp_action_draw_blintz": {
       "label": "Base blintz",
       "tooltip": "Base blintz",
@@ -1024,6 +1040,11 @@
     "cp_action_delete_extra_vertices_ignore_color": {
       "label": "Excluir vértices extras (ignorar tipo)",
       "tooltip": "Mesclar pares de vincos colineares independentemente do tipo — uma montanha e um vale se mesclam em uma borda",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_delete_extra_vertices_among": {
+      "label": "Excluir vértices extras no padrão",
+      "tooltip": "Mesclar pares de vincos colineares do mesmo tipo apenas entre os vincos indicados",
       "disabledReason": "Pronto"
     },
     "cp_action_organize_circles": {

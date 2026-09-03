@@ -46,6 +46,12 @@ export const CP_TOOL_UNAVAILABLE_CODES = [
   'PropagationNoComponentAtPoint',
   'PropagationSelectionNothingFree',
   'PropagationNothingInScope',
+  // `vertex_insert::plan_vertex_insert` found nothing to split. Also an answer
+  // rather than an error, and the one code here that has to be *said* loudly,
+  // because the tool it belongs to is otherwise invisible in ink: a click that
+  // lands a hair off a crossing splits nothing and looks identical on screen to
+  // a click that split it.
+  'NoCreaseThroughPoint',
   // `PropagationOutOfScope` is deliberately absent: its sentence interpolates a
   // vertex count that arrives in the scope report rather than in the code, so
   // `propagationUnavailableMessage` answers it from there. Adding it here would
@@ -129,6 +135,11 @@ export function cpToolUnavailableMessage(
       return t(
         'tools:cpContext.propagation.nothingInScope',
         'The selection no longer names any creases. Select some again, or clear the selection and click a pattern.'
+      );
+    case 'NoCreaseThroughPoint':
+      return t(
+        'tools:cpContext.insertVertex.noCreaseThroughPoint',
+        'No crease passes through this point, so there is no vertex to insert. Aim at a crossing, or at a point on a crease.'
       );
     case 'BoundaryVertex':
       return t(

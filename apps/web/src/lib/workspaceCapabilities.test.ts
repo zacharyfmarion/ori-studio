@@ -23,12 +23,14 @@ function capabilities({
   oristudioCpSelectedLineCount = 0,
   oristudioCpSelectedPointCount = 0,
   oristudioCpSelectedCircleCount = 0,
+  oristudioCpSolvablePatternCount = 0,
   hasDeletableDesignSelection = false,
   canSaveDesign = activeEditingContext !== 'crease-pattern',
   historyPastCount = 0,
   historyFutureCount = 0,
   clipboard = null,
   selection = treeSelection,
+  cpDetectAvailable,
 }: {
   documentMode?: DocumentMode;
   activeEditingContext?: EditingContext;
@@ -47,12 +49,14 @@ function capabilities({
   oristudioCpSelectedLineCount?: number;
   oristudioCpSelectedPointCount?: number;
   oristudioCpSelectedCircleCount?: number;
+  oristudioCpSolvablePatternCount?: number;
   hasDeletableDesignSelection?: boolean;
   canSaveDesign?: boolean;
   historyPastCount?: number;
   historyFutureCount?: number;
   clipboard?: unknown | null;
   selection?: Selection;
+  cpDetectAvailable?: boolean;
 } = {}) {
   return getWorkspaceCapabilities({
     activeEditingContext,
@@ -72,12 +76,14 @@ function capabilities({
     oristudioCpSelectedLineCount,
     oristudioCpSelectedPointCount,
     oristudioCpSelectedCircleCount,
+    oristudioCpSolvablePatternCount,
     hasDeletableDesignSelection,
     canSaveDesign,
     historyPastCount,
     historyFutureCount,
     clipboard,
     selection,
+    cpDetectAvailable,
   });
 }
 
@@ -94,6 +100,13 @@ describe('workspace capabilities', () => {
     expect(state['cp.build'].enabled).toBe(false);
     expect(state['cp.build'].reason).toBe('Add tree edges, then optimize before building the crease pattern');
     expect(getNextDocumentAction(state)).toBe('optimize.scale');
+  });
+
+  it('hides Detect CP from Image on a phone, and where the build does not carry it', () => {
+    const shown = capabilities({ cpDetectAvailable: true });
+    expect(shown['file.detectCpImage'].visible).toBe(true);
+    const hidden = capabilities({ cpDetectAvailable: false });
+    expect(hidden['file.detectCpImage'].visible).toBe(false);
   });
 
   it('enables optimization before CP build and build after optimization', () => {
@@ -677,5 +690,83 @@ describe('workspace capabilities', () => {
     expect(sim['edit.undo'].enabled).toBe(false);
     expect(sim['edit.redo'].visible).toBe(true);
     expect(sim['edit.redo'].enabled).toBe(false);
+  });
+});
+
+describe('cp.exactSolve', () => {
+  const cp = (extra: Record<string, unknown> = {}) =>
+    capabilities({
+      documentMode: 'crease-pattern',
+      hasEditableCreasePattern: true,
+      ...extra,
+    });
+
+  it('is disabled with the solver reason when nothing carries an attachment', () => {
+    // v1 offers Solve only where a detection attached an `ExactSolveInput`, so
+    // an ordinary hand-drawn document has nothing to point the solver at — and
+    // the reason says which action produces one rather than just "unavailable".
+    const state = cp();
+
+    expect(state['cp.exactSolve'].enabled).toBe(false);
+    expect(state['cp.exactSolve'].reason).toBe(
+      'Exact solve needs a detected crease pattern; run Detect CP from Image first'
+    );
+  });
+
+  it('reads an absent count as nothing to solve rather than as everything', () => {
+    // The field is optional so a caller that has not been taught to supply it
+    // still compiles. Absent has to mean disabled: the other way round would
+    // offer the command over a document with no attachment at all.
+    const state = capabilities({
+      documentMode: 'crease-pattern',
+      hasEditableCreasePattern: true,
+      oristudioCpSolvablePatternCount: undefined,
+    });
+
+    expect(state['cp.exactSolve'].enabled).toBe(false);
+  });
+
+  it('needs no selection when there is only one pattern to solve', () => {
+    // Scope is the pattern, not the selection. Requiring a selection with a
+    // single candidate would be asking the user to state the only answer.
+    const state = cp({ oristudioCpSolvablePatternCount: 1 });
+
+    expect(state['cp.exactSolve'].enabled).toBe(true);
+    expect(state['cp.exactSolve'].reason).toBe(
+      'Re-solve the detected pattern to exact coordinates'
+    );
+  });
+
+  it('asks for a selection only to disambiguate two patterns', () => {
+    // After a detection is added beside the user's own work the document holds
+    // two paper squares, and a click is the only thing that says which.
+    const ambiguous = cp({ oristudioCpSolvablePatternCount: 2 });
+    expect(ambiguous['cp.exactSolve'].enabled).toBe(false);
+    expect(ambiguous['cp.exactSolve'].reason).toBe(
+      'Select a crease in the pattern you want to solve'
+    );
+
+    const disambiguated = cp({
+      oristudioCpSolvablePatternCount: 2,
+      oristudioCpSelectedLineCount: 3,
+    });
+    expect(disambiguated['cp.exactSolve'].enabled).toBe(true);
+  });
+
+  it('falls back to the no-document reason before the no-attachment one', () => {
+    const state = capabilities({ oristudioCpSolvablePatternCount: 1 });
+
+    expect(state['cp.exactSolve'].enabled).toBe(false);
+    expect(state['cp.exactSolve'].reason).toBe('Open an editable crease pattern first');
+  });
+
+  it('is hidden outside the crease-pattern editor, like every other cp.* command', () => {
+    const design = capabilities({
+      activeEditingContext: 'treemaker-tree',
+      hasEditableCreasePattern: true,
+      oristudioCpSolvablePatternCount: 1,
+    });
+
+    expect(design['cp.exactSolve'].visible).toBe(false);
   });
 });
