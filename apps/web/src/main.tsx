@@ -11,8 +11,10 @@ import {
 import {
   initializeSentry,
   MonitoringRuntimeProvider,
+  reportError,
   type SentryClientLike,
 } from './monitoring';
+import { installTranslatedDomGuard } from './lib/translatedDomGuard';
 import { AppErrorBoundary } from './components/errors/AppErrorBoundary';
 import { readBoolean, storageKey, STORAGE_KEYS } from './lib/storage';
 import { registerServiceWorker } from './pwa/register';
@@ -58,6 +60,24 @@ const analyticsReady = initializePostHog(
   import.meta.env
 );
 const analyticsClient = analyticsReady ? (posthog as unknown as PostHogClientLike) : null;
+
+// Before the first render, and after Sentry so the one report it makes is deliverable:
+// an in-page translator (Google Translate and friends) rewraps text nodes React owns, and
+// React throws the moment it tries to remove one. See `translatedDomGuard` for why the app
+// tolerates that rather than opting out of translation.
+let reportedTranslatedDom = false;
+installTranslatedDomGuard({
+  onBlocked: (method) => {
+    // Once per session. The condition persists for as long as the translator is on, so
+    // every event after the first repeats what the first already said.
+    if (reportedTranslatedDom) return;
+    reportedTranslatedDom = true;
+    reportError(new Error('DOM mutated outside React, likely an in-page translator'), {
+      surface: 'dom:translated',
+      tags: { blocked_method: method },
+    });
+  },
+});
 
 // The outermost boundary. The router has its own `errorElement` for everything
 // inside the route tree; this only catches what is above or around it, so that

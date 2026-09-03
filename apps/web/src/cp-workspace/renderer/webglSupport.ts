@@ -35,6 +35,31 @@ export const CP_GL_ATTRIBUTES: WebGLContextAttributes = {
 /** The one extension the renderer cannot run without. */
 export const CP_REQUIRED_EXTENSION = 'ANGLE_instanced_arrays';
 
+/**
+ * Ask for the required extension the way regl asks for it.
+ *
+ * regl lowercases every name before the lookup (`tryLoadExtension`, regl.js:1021), and the
+ * WebGL spec matches extension names case-insensitively, so on a conforming browser this is
+ * the same question as asking in the canonical case. Where the two differ, regl's is the
+ * one that decides whether the renderer starts — so it is the only one worth asking.
+ *
+ * This is a real gap between the probe and the renderer, independent of whether it explains
+ * any particular failure: they were asking different questions, and a browser that answered
+ * them differently would get a probe that says "supported", a regl that throws
+ * "extension is not supported", and a {@link classifyCpWebglFailure} that finds the canvas
+ * healthy and reports the gap as `unclassified` — which is the exact signature of
+ * ORI-STUDIO-4. Asking regl's question makes the disagreement impossible to have rather
+ * than merely unlikely.
+ */
+function hasRequiredExtension(gl: WebGLRenderingContext): boolean {
+  try {
+    return Boolean(gl.getExtension(CP_REQUIRED_EXTENSION.toLowerCase()));
+  } catch {
+    // Same as regl, which swallows a throwing `getExtension` and treats it as a miss.
+    return false;
+  }
+}
+
 export type CpWebglGap =
   | 'no-context'
   | 'no-instanced-arrays'
@@ -98,7 +123,7 @@ export function probeCpWebglSupport(): CpWebglSupport {
   const gl = acquireProbeContext(canvas);
   if (!gl) return { supported: false, gap: 'no-context' };
   try {
-    if (!gl.getExtension(CP_REQUIRED_EXTENSION)) {
+    if (!hasRequiredExtension(gl)) {
       return { supported: false, gap: 'no-instanced-arrays' };
     }
     return { supported: true };
@@ -140,11 +165,7 @@ export function classifyCpWebglFailure(canvas: HTMLCanvasElement): CpWebglGap | 
   }
   if (!gl) return 'no-context';
   if (gl.isContextLost()) return 'context-lost-at-start';
-  try {
-    if (!gl.getExtension(CP_REQUIRED_EXTENSION)) return 'no-instanced-arrays';
-  } catch {
-    return 'no-instanced-arrays';
-  }
+  if (!hasRequiredExtension(gl)) return 'no-instanced-arrays';
   return null;
 }
 

@@ -12,6 +12,10 @@ import {
  * extensions the fake context admits to; anything else answers null, which is
  * what a real context does for one it does not implement.
  *
+ * Matching is case-insensitive, as the WebGL spec requires — `caseSensitive` models the
+ * browser that is not, which is the one case where asking in the canonical case and asking
+ * the way regl asks give different answers.
+ *
  * `lost` models the case a real lost context presents: `isContextLost()` is true
  * *and* every `getExtension` answers null, which is why the two have to be asked
  * in that order to tell them apart.
@@ -20,13 +24,18 @@ function stubContext(options: {
   context: boolean;
   extensions?: readonly string[];
   lost?: boolean;
+  caseSensitive?: boolean;
 }) {
   const lose = vi.fn();
-  const extensions = new Set(options.extensions ?? []);
+  const declared = options.extensions ?? [];
+  const supports = (name: string) =>
+    options.caseSensitive
+      ? declared.includes(name)
+      : declared.some((entry) => entry.toLowerCase() === name.toLowerCase());
   const getExtension = (name: string) =>
     name === 'WEBGL_lose_context'
       ? { loseContext: lose }
-      : !options.lost && extensions.has(name)
+      : !options.lost && supports(name)
         ? {}
         : null;
   const spy = vi
@@ -87,6 +96,15 @@ describe('probeCpWebglSupport', () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
+  // regl lowercases every extension name before looking it up, so on a browser that
+  // matches case-sensitively the canonical name resolves and regl's does not. Asking in
+  // the canonical case put the probe *ahead* of the renderer: it said supported, regl then
+  // threw, and the user was told to upgrade a machine that was fine.
+  it('agrees with regl on a browser that matches extension names case-sensitively', () => {
+    stubContext({ context: true, extensions: [CP_REQUIRED_EXTENSION], caseSensitive: true });
+    expect(probeCpWebglSupport()).toEqual({ supported: false, gap: 'no-instanced-arrays' });
+  });
+
   it('names each gap distinctly', () => {
     const described = (['no-context', 'no-instanced-arrays', 'context-lost-at-start'] as const).map(
       describeCpWebglGap
@@ -127,6 +145,14 @@ describe('classifyCpWebglFailure', () => {
   it('declines to name a gap on a healthy canvas, so the raw error survives', () => {
     stubContext({ context: true, extensions: [CP_REQUIRED_EXTENSION] });
     expect(classifyCpWebglFailure(canvas())).toBeNull();
+  });
+
+  // The `unclassified` tag on every recent ORI-STUDIO-4 event: regl could not get the
+  // extension, and the classifier — asking in a different case — found the canvas healthy
+  // and had nothing to say about it.
+  it('names the gap regl actually hit on a case-sensitive browser', () => {
+    stubContext({ context: true, extensions: [CP_REQUIRED_EXTENSION], caseSensitive: true });
+    expect(classifyCpWebglFailure(canvas())).toBe('no-instanced-arrays');
   });
 
   // The probe may throw this away; the real canvas may not. The caller is about
