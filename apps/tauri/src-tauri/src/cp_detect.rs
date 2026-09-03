@@ -585,7 +585,10 @@ pub async fn cp_detect_recognize(
 // The exact solve, with a Stop
 // ---------------------------------------------------------------------------
 
+/// Tauri renames only a command's own arguments to snake_case; a struct
+/// argument keeps the page's spelling, so this one declares it.
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SolveArgs {
     pub input_json: String,
     #[serde(default)]

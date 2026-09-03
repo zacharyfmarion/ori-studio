@@ -327,9 +327,9 @@ Phase 3 — mobile web
 Phase 4 — rollout
 - [ ] Preview with the flag; internal pass on real images.
 - [ ] Prod deploy with the flag; watch the new events for a week.
-- [ ] Desktop release with native detection; acceptance numbers recorded in
-      this file's Outcome section.
-- [ ] `RELEASE.md`, README, `docs/analytics.md`.
+- [ ] Desktop release with native detection (numbers so far in the Outcome
+      section; the release runners have not built with `ort` yet).
+- [x] `RELEASE.md`, README, `docs/analytics.md`.
 
 Phase 5 — model manager
 - [x] Registry schema and client; the dialog's "newer detector available"
@@ -353,9 +353,17 @@ Phase 5 — model manager
   Static link adds ~26 MB to the binary. The ORT binaries download failed
   behind this machine's proxy (`native-tls: record overflow`) and succeeded
   with `HTTPS_PROXY` unset.
-- **Desktop native path is wired** (commands, client, session with Stop,
-  model files in app data) and builds; it has not yet been exercised in a
-  running Tauri window, which is the next verification.
+- **Desktop native path verified in a running Tauri window** (the dev shell
+  pointed at a self-test page, results posted to the dev server): the real
+  WKWebView reports a desktop surface, `crossOriginIsolated: true`, WebGPU
+  present; the model downloaded through the page and landed in app data over
+  the raw IPC; CoreML built the session in 18.6 s the first time and 2.3 s
+  once its cache directory held the compiled model; recognition took 3.2 s
+  cold and 0.83 s warm end to end (model run ≈ 0.55–0.65 s, decode ≈ 0.3 s),
+  and read the synthetic sheet correctly (9 vertices, 16 lines); the native
+  solve returned in 6 ms with the pinned polish in its termination. The Stop
+  path fired after the solve had already finished, so it rests on its unit
+  tests until a long solve is tried in the window.
 - **Not done**: desktop route-2 numbers on Intel, Windows and Linux; the
   release runners building with `ort`; the automatic-update preference on
   desktop; DirectML on Windows.
