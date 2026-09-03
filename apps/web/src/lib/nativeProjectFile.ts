@@ -36,6 +36,10 @@ import {
   validateTextAnnotations,
   type TextAnnotation,
 } from '../cp-workspace/annotations/textAnnotation';
+import {
+  validateCpSuppressionRegions,
+  type CpSuppressionRegion,
+} from '../cp-workspace/annotations/suppressionRegion';
 import { validateInlineSimulations } from '../cp-workspace/inlineSimulation/inlineSimulationFile';
 import type { InlineSimulation } from '../cp-workspace/inlineSimulation/inlineSimulation';
 import { validateUserCamera } from '../cp-workspace/renderer/camera';
@@ -118,6 +122,20 @@ export interface NativeCreasePatternDocumentV1 extends NativeProjectBaseDocument
      * `implementation-plans/persist-inline-simulations.md`.
      */
     inlineSimulations: InlineSimulation[];
+    /**
+     * Superset feature: check-suppression regions placed on the canvas, each
+     * with the classes it silences and (when detection made it) an attached
+     * `ExactSolveInput`.
+     *
+     * **Additive, with no schema bump.** A region is absent from every older
+     * file and reads back as `[]`, which is exactly what such a file means —
+     * nothing suppressed — so an old `.osf` opens unchanged. The reverse
+     * direction is the reason the bump would be wrong too: an older build
+     * opening this file loses the regions and shows *more* findings than the
+     * author saw, which is degraded but not misleading. See
+     * `implementation-plans/crease-topology-repair.md`.
+     */
+    suppressionRegions: CpSuppressionRegion[];
   };
   viewState: {
     creaseColorMode: CreaseColorMode;
@@ -263,6 +281,12 @@ export interface NativeCreasePatternProjectInput {
   textAnnotations?: TextAnnotation[];
   /** Superset feature: inline simulation windows (schema v5). */
   inlineSimulations?: InlineSimulation[];
+  /**
+   * Superset feature: check-suppression regions. Optional and additive — see
+   * {@link NativeCreasePatternDocumentV1}'s field of the same name for why this
+   * rides in without a schema bump.
+   */
+  suppressionRegions?: CpSuppressionRegion[];
   /**
    * Document-level extension bag carried forward from a loaded file. Threading
    * this back on save preserves data written by a *newer* app version across a
@@ -634,6 +658,7 @@ function createNativeCreasePatternDocument(
       images: input.images ?? [],
       textAnnotations: input.textAnnotations ?? [],
       inlineSimulations: input.inlineSimulations ?? [],
+      suppressionRegions: input.suppressionRegions ?? [],
     },
     viewState: {
       creaseColorMode: input.creaseColorMode,
@@ -1187,6 +1212,9 @@ function validateDocumentV1(value: unknown): NativeProjectDocumentV1 {
         // Absent before schema v4 → []. Invalid entries are dropped, not thrown.
         textAnnotations: validateTextAnnotations(creasePattern.textAnnotations),
         inlineSimulations: validateInlineSimulations(creasePattern.inlineSimulations),
+        // Absent in every file written before regions existed → [], i.e.
+        // nothing suppressed, which is what those files mean.
+        suppressionRegions: validateCpSuppressionRegions(creasePattern.suppressionRegions),
       },
       viewState: {
         creaseColorMode:

@@ -24,6 +24,7 @@ import {
   isVariablePointSequenceOperation,
   isWholeDocumentCpCommand,
   lineColorMatchesCustomType,
+  snapsToCreaseCrossings,
   shouldPreferPointSnapForStep,
 } from './predicates';
 
@@ -250,5 +251,25 @@ describe('isWholeDocumentCpCommand', () => {
     expect(isWholeDocumentCpCommand(cpCommandByOperation('CreaseMakeMountain')!)).toBe(false);
     // Settings to configure before applying.
     expect(isWholeDocumentCpCommand(cpCommandByOperation('VoronoiCreate')!)).toBe(false);
+  });
+});
+
+describe('snapsToCreaseCrossings', () => {
+  it('covers Insert vertex, whose click has to land on the junction itself', () => {
+    expect(snapsToCreaseCrossings('VertexInsertOnCreases')).toBe(true);
+  });
+
+  /**
+   * The ordinary point snap is Oriedita's. Widening it for the tools that draw
+   * would be a divergence from upstream nobody asked for, so the list stays one
+   * operation long — including for Draw point, which looks like the same gesture
+   * and is a different operation.
+   */
+  it('leaves every drawing tool on Oriedita\'s own point snap', () => {
+    expect(snapsToCreaseCrossings('DrawPoint')).toBe(false);
+    expect(snapsToCreaseCrossings('DrawCreaseFree')).toBe(false);
+    expect(snapsToCreaseCrossings('DeletePoint')).toBe(false);
+    expect(snapsToCreaseCrossings(null)).toBe(false);
+    expect(snapsToCreaseCrossings(undefined)).toBe(false);
   });
 });

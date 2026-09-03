@@ -16,11 +16,13 @@ pub mod evidence;
 pub mod exact_probe;
 pub mod exact_solve;
 pub mod exactize;
+pub mod fold_exactize;
 pub mod fold_export;
 pub mod optimizer;
 pub mod repair;
 pub mod report;
 pub mod selection;
+pub mod symmetry;
 pub mod verify;
 
 use serde::{Deserialize, Serialize};
@@ -41,8 +43,17 @@ pub use candidates::{
 pub use constraints::{ConstraintDiagnostics, ConstraintSeverity, VertexConstraintDiagnostic};
 pub use evidence::{EvidenceSource, Provenance};
 pub use exact_solve::{
-    DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS, ExactSolveOptions, LinearSolver, solve_exact,
+    AngleDependentTopologyFindings, AngleFamilyMode, CamvCounts, CombinatorialTopologyFindings,
+    DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS, ExactSolveOptions, ExactSolveOptionsWithExemptions,
+    LinearSolver, TopologyDiagnostics, TopologyVertexDiagnostic, analyze_candidate_topology,
+    camv_violation_counts, exact_solve_options_from_json, parse_exact_solve_request, solve_exact,
+    solve_exact_with_exemptions, with_cancellation,
 };
+pub use fold_exactize::{
+    ExactizeOutcome, ExactizeStatus, Similarity, exact_solve_input_from_fold, exactize_fold,
+    exactize_fold_json,
+};
+pub use fold_export::export_candidate_to_fold_document;
 pub use report::{CompilerReport, CompilerSummary};
 
 pub const COMPILER_BACKEND_ID: &str = "constraint_compiler_v1";

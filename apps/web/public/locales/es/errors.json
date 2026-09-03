@@ -21,6 +21,7 @@
     "foldProducedNothing": "Estos pliegues no tienen ninguna forma plegada en plano que dibujar"
   },
   "cpDetectImport": {
+    "addFailed": "No se pudo añadir el patrón de pliegues detectado.",
     "canvasUnavailable": "Canvas 2D no está disponible",
     "unsupportedImage": "Usa una imagen PNG, JPEG o WebP."
   },

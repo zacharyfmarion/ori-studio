@@ -49,9 +49,17 @@
     "yes": "예"
   },
   "cpDetectImport": {
+    "add": "추가",
+    "addAsIs": "그대로 추가",
+    "addImproved": "개선된 결과 추가",
+    "addLabel": "감지된 전개도 추가",
+    "addPartial": "부분 결과 추가",
     "ariaLabel": "이미지에서 CP 감지",
+    "beta": "베타",
+    "betaNote": "작거나 중간 크기의 전개도에서 가장 잘 작동합니다. 풀이는 평평하게 접히는 전개도를 보장할 뿐, 디자이너가 그린 그대로를 보장하지는 않습니다. 균일해야 할 간격이 조금 어긋날 수 있습니다.",
     "busy": {
       "detecting": "모델 실행 중",
+      "downloadingModel": "감지기 다운로드 중 — {{total}} 중 {{loaded}}",
       "importing": "전개도 가져오는 중",
       "loadingModel": "감지기 모델 확인 중",
       "opening": "이미지 여는 중",
@@ -63,23 +71,41 @@
     "detect": "감지",
     "detected": "감지됨",
     "dropImageHere": "여기에 이미지를 놓으세요",
-    "import": "가져오기",
+    "editCrop": "자르기 편집",
     "inferred": "추론됨",
+    "model": {
+      "deviceGpu": "이 기기에는 GPU가 있어 감지가 몇 초면 끝납니다.",
+      "deviceSingle": "이 기기에는 GPU가 없고 스레드도 하나뿐이라 1분 정도 걸립니다.",
+      "deviceThreads": "이 기기에는 GPU가 없어 감지가 CPU에서 실행되며 시간이 걸릴 수 있습니다.",
+      "download": "감지기는 {{size}} 크기로 한 번만 다운로드합니다.",
+      "installed": "감지기 v{{version}} 설치됨({{size}}).",
+      "installedLocal": "감지기 설치됨({{size}}).",
+      "update": "다운로드",
+      "updateAvailable": "더 새로운 감지기가 있습니다(v{{version}}, {{size}}).",
+      "updating": "새 감지기 다운로드 중 — {{total}} 중 {{loaded}}",
+      "updatingStart": "새 감지기 다운로드 중…"
+    },
     "mvChanges": "산/골 변경",
     "openImageTitle": "전개도 이미지 열기",
     "rectified": "보정됨",
-    "report": {
-      "ambiguous": "모호함",
-      "assignmentChange_other": "{{count}}개 할당 변경",
-      "assignmentChanges_other": "{{count}}개 할당 변경",
-      "compilerFallback": "컴파일러 대체",
-      "counts": "정점 {{vertices}}개, 모서리 {{edges}}개",
-      "topologyMove_other": "{{count}}개 위상 이동",
-      "topologyMoves_other": "{{count}}개 위상 이동"
-    },
+    "regionLabel": "감지된 전개도",
+    "repairLabel": "수정할 감지된 전개도 추가",
+    "reviewAndFix": "검토 후 수정",
     "runningModel": "모델 실행 중",
+    "stopping": "중지하는 중…",
+    "stopSolve": "중지",
     "title": "이미지에서 CP 감지",
-    "updateCrop": "자르기 업데이트"
+    "verdict": {
+      "afterFailure": "‘검토 후 수정’은 후보와 그 뒤의 원본 이미지를 추가하고 솔버 데이터도 함께 보관하므로, 수정한 뒤 다시 풀 수 있습니다.",
+      "blocked": "솔버가 이 후보 그래프를 읽지 못해 손으로 고칠 것이 없습니다. 그래도 그대로 추가할 수는 있습니다.",
+      "cancelled": "풀이를 중지했으므로 아무것도 바뀌지 않았습니다. 인식된 그대로의 패턴입니다. ‘검토 후 수정’은 뒤에 원본 이미지를 두고 추가하며 솔버 데이터도 보관하므로, 문서에서 다시 풀 수 있습니다.",
+      "exact": "작업물 옆에 추가되며 문서의 나머지 부분은 그대로 유지됩니다.",
+      "improved": "‘검토 후 수정’은 뒤에 원본 이미지를 두고 추가하며 솔버 데이터도 보관하므로, 남은 부분을 고친 뒤 다시 풀 수 있습니다. 아니면 개선된 결과를 그대로 추가해도 됩니다.",
+      "improvedNoFold": "‘검토 후 수정’은 뒤에 원본 이미지를 두고 추가하며 솔버 데이터도 보관하므로, 남은 부분을 고친 뒤 다시 풀 수 있습니다.",
+      "repairable_other": "인식됨 — 수리할 곳이 {{count}}군데입니다. 그래서 풀이를 실행하지 않았습니다. 곧 바꿀 형상에 예산을 모두 쓰게 되기 때문입니다. ‘검토 후 수정’은 후보와 그 뒤의 원본 이미지를 추가하므로 수정한 뒤 풀 수 있습니다. 그대로 추가하면 모든 각도가 근사값으로 남습니다.",
+      "solving": "위상에 표시된 문제가 없어 풀이를 실행하고 있습니다. 아래는 인식된 결과이며, 풀이가 끝나면 접는 선이 제자리로 이동합니다.",
+      "timeoutPartial_other": "시간이 끝나기 전까지 꼭짓점 {{count}}개를 제자리로 옮겼으며, 원본 후보 대신 그 부분 결과를 추가할 수 있습니다."
+    }
   },
   "export": {
     "allPatterns": "모든 패턴",
@@ -133,6 +159,7 @@
       "images": "이미지",
       "inlineSimulations": "시뮬레이션 창",
       "richText": "리치 텍스트 서식",
+      "suppressionRegions": "검사 억제 영역",
       "symmetry": "거울 대칭",
       "unassignedCreases": "미할당 접는 선"
     },
@@ -292,6 +319,25 @@
     "language": {
       "system": "시스템 기본값",
       "title": "언어"
+    },
+    "models": {
+      "current": "현재 사용 중",
+      "description": "전개도 감지기는 모델을 한 번만 다운로드해 이 기기에 보관합니다. 더 새로운 모델이 있으면 여기와 감지 대화상자에서 안내하며, 크기를 먼저 보여주지 않고 다운로드하는 일은 없습니다.",
+      "download": "다운로드",
+      "downloading": "다운로드 중 — {{total}} 중 {{loaded}}",
+      "downloadingStart": "다운로드 중…",
+      "installed": "설치됨",
+      "loading": "모델 레지스트리를 읽는 중…",
+      "localRow": "개발용 감지기",
+      "notInstalled": "다운로드 안 됨",
+      "orphaned": "더 이상 배포되지 않으며 사용되지 않습니다.",
+      "orphanedLabel": "사용 중단된 감지기",
+      "remove": "제거",
+      "row": "감지기 v{{version}}",
+      "title": "모델",
+      "unavailable": "모델 레지스트리를 읽을 수 없습니다: {{reason}}",
+      "update": "업데이트",
+      "updateAvailable": "설치된 것보다 최신"
     },
     "sections": "설정 섹션",
     "shortcuts": {

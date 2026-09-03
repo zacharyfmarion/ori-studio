@@ -82,6 +82,9 @@
     "foldDirectionValleyDescription": "Lembrar que estes vincos indefinidos dobravam como vale",
     "from": "De",
     "index": "Índice",
+    "insertVertex": {
+      "noCreaseThroughPoint": "Nenhum vinco passa por este ponto, portanto não há vértice a inserir. Mire em uma interseção ou em um ponto sobre um vinco."
+    },
     "instructions": "Instruções",
     "left": "Esquerda",
     "leftSegmentRatio": "Proporção do segmento esquerdo",

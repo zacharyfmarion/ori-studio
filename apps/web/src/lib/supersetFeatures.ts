@@ -1,5 +1,6 @@
 import type { CpImage } from '../cp-workspace/images/cpImage';
 import type { TextAnnotation } from '../cp-workspace/annotations/textAnnotation';
+import type { CpSuppressionRegion } from '../cp-workspace/annotations/suppressionRegion';
 import type { InlineSimulation } from '../cp-workspace/inlineSimulation/inlineSimulation';
 import type {
   OristudioCpFoldedFigureEntry,
@@ -53,6 +54,16 @@ export interface SupersetPresence {
    */
   inlineSimulations: readonly InlineSimulation[];
   /**
+   * Check-suppression regions. No Oriedita format has a concept of "do not
+   * check inside here", so they are dropped whole.
+   *
+   * Required, like its neighbours. Optional would let a sampler forget the kind
+   * and still compile — and the export-loss warning is the *only* thing standing
+   * between a user and silently dropping their regions on a `.cp` export, so a
+   * missing field has to be a type error rather than a zero.
+   */
+  suppressionRegions: readonly CpSuppressionRegion[];
+  /**
    * Crease line segments, for counting non-180 fold angles. Unlike the other
    * entries this is sourced from kernel geometry rather than frontend state.
    */
@@ -82,6 +93,7 @@ export type SupersetFeatureId =
   | 'images'
   | 'richText'
   | 'inlineSimulations'
+  | 'suppressionRegions'
   | 'symmetry'
   | 'foldAngles'
   | 'unassignedCreases'
@@ -161,6 +173,22 @@ const SUPERSET_FEATURES: readonly SupersetFeature[] = [
     id: 'inlineSimulations',
     count: (presence) => presence.inlineSimulations.length,
     droppedByFormats: ALL_LOSSY_FORMATS,
+  },
+  {
+    id: 'suppressionRegions',
+    count: (presence) => presence.suppressionRegions.length,
+    droppedByFormats: ALL_LOSSY_FORMATS,
+    /**
+     * Not blocking, for the same reason images are not: the crease pattern
+     * still means what it meant. What is lost is an instruction about *which
+     * findings not to report*, so a re-import shows more than the author saw —
+     * noisier, never wrong, and the `.osf` still has the regions.
+     *
+     * An attached `ExactSolveInput` goes with them, which is the sharper loss:
+     * a re-imported pattern can no longer offer a warm Solve. Still recoverable
+     * — the cold rebuild derives one from geometry — so it does not earn a
+     * refusal either.
+     */
   },
   {
     id: 'symmetry',

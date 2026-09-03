@@ -21,6 +21,7 @@
     "foldProducedNothing": "Diese Faltlinien haben keine flache Faltform, die sich zeichnen ließe"
   },
   "cpDetectImport": {
+    "addFailed": "Das erkannte Faltmuster konnte nicht hinzugefügt werden.",
     "canvasUnavailable": "Canvas 2D ist nicht verfügbar",
     "unsupportedImage": "Verwenden Sie ein PNG-, JPEG- oder WebP-Bild."
   },

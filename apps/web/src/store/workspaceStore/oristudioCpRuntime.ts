@@ -19,6 +19,7 @@ import type {
   OristudioCpFoldedRenderSnapshot,
   OristudioCpFoldedFigureSnapshot,
   OristudioCpLineSegment,
+  OristudioCpModel,
   OristudioCpOperationDescriptor,
 } from '../../engine/oristudioCpTypes';
 import type { WasmErrorEnvelope } from '../../engine/types';
@@ -29,7 +30,10 @@ import {
 import type { ImportedCreasePatternFormat } from '../../lib/creasePatternImport';
 import { orieditaDocumentTitle } from '../../lib/orieditaDocumentTitle';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
-import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDocument';
+import {
+  createStarterBorderSegments,
+  createStarterOristudioCpDocument,
+} from '../../lib/oristudioCpStarterDocument';
 import type { OristudioCpWorkerApi } from '../../workers/oristudioCpWorker';
 import type { SendToEditCircle } from '../../designKinds/types';
 
@@ -359,11 +363,68 @@ export async function deselectAllOristudioCp(): Promise<OristudioCpDocumentState
   return refreshOristudioCpDocument(null);
 }
 
+/** An axis-aligned box in crease-pattern model (Oriedita 400-space) coordinates. */
+export interface OristudioCpModelBox {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+/** Where the last {@link importAddOristudioCpDocumentFromText} put its import. */
+export interface OristudioCpImportAddPlacement {
+  /**
+   * Bounding box of the merged-in geometry, in the *merged document's*
+   * coordinates. Null when the import carried no line segments.
+   */
+  bounds: OristudioCpModelBox | null;
+  /**
+   * True when the target held no geometry of its own and the import was centred
+   * on the origin instead of gapped beside it — see the note on
+   * {@link importAddOristudioCpDocumentFromText}.
+   */
+  centered: boolean;
+}
+
+let lastImportAddPlacement: OristudioCpImportAddPlacement | null = null;
+
+/**
+ * Where the most recent import (add) landed.
+ *
+ * Read straight after awaiting the merge. It exists because only the merge
+ * knows where the import ended up — the kernel computes the shift itself, and
+ * the centring path below moves everything again afterwards — while the caller
+ * is the one that needs the box: CP detection anchors the rectified source
+ * image and the check-suppression region to the *added* paper square, not to
+ * the document's.
+ */
+export function lastOristudioCpImportAddPlacement(): OristudioCpImportAddPlacement | null {
+  return lastImportAddPlacement;
+}
+
 /**
  * Oriedita import (add): parse `text` into a throwaway document, merge it into
  * the currently loaded crease pattern (shifted beside the existing pattern and
  * divided against it), then release the throwaway document. Mirrors Oriedita's
  * `ImportAddAction` → `setSave_for_reading_tuika` flow.
+ *
+ * **One deliberate departure from Oriedita, web-side only.** `import_add`
+ * places by `max_x(existing) + 100 - min_x(added)`, and on a document with no
+ * geometry those extents are `0.0` — so an import into a blank canvas lands in
+ * the lower-right quadrant rather than on the paper, which is exactly the
+ * "opened the app, imported a crease pattern" case. When the target holds
+ * nothing of its own this drops that placement: it clears the untouched starter
+ * border first (so the merge is a pure append with nothing to divide against,
+ * and the import's own paper edge becomes the paper edge), then recentres the
+ * result on the origin.
+ *
+ * The kernel is untouched and stays bit-identical to Oriedita —
+ * `import_add_into_empty_pattern_gaps_by_one_hundred` still describes what the
+ * kernel does. "Nothing of its own" is a tight test: zero line segments, or
+ * exactly the four starter border segments at their original coordinates and
+ * colour, and in both cases no circles, points, auxiliary lines or texts. One
+ * crease drawn, one circle placed, or a resized sheet and Oriedita's placement
+ * is used unchanged.
  */
 export async function importAddOristudioCpDocumentFromText(
   text: string,
@@ -379,12 +440,26 @@ export async function importAddOristudioCpDocumentFromText(
      */
     circles?: readonly SendToEditCircle[];
     circleSourceBounds?: readonly [number, number, number, number];
+    /**
+     * Run the extra-vertex sweep over the added creases, and only them, before
+     * returning — so it lands in the same history entry as the add.
+     */
+    mergeExtraVertices?: boolean;
+    /**
+     * Recolour the added creases that arrived unassigned as auxiliary lines,
+     * after the sweep and in the same history entry.
+     */
+    unassignedAsAuxiliary?: boolean;
   }
 ): Promise<OristudioCpDocumentState> {
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
   }
   const api = await getOristudioCpClient();
+  const targetHandle = handle;
+  lastImportAddPlacement = null;
+
+  const target = await readImportAddTarget(api, targetHandle);
   const importedHandle =
     source.format === 'cp'
       ? await api.loadCp(text, titleFromFilename(source.filename))
@@ -398,14 +473,257 @@ export async function importAddOristudioCpDocumentFromText(
     if (source.circles?.length && source.circleSourceBounds) {
       await api.placeCircles(importedHandle, source.circleSourceBounds, source.circles);
     }
-    await api.importAdd(handle, importedHandle);
+    if (target.blank) {
+      await api.restoreDocument(targetHandle, clearedCreasePattern(target.blank));
+    }
+    try {
+      await api.importAdd(targetHandle, importedHandle);
+    } catch (error) {
+      // Put the sheet back. Clearing it is justified only by the merge that
+      // replaces it, and a merge that threw leaves the user staring at a canvas
+      // with no paper on it and no idea why.
+      if (target.blank) {
+        await api.restoreDocument(targetHandle, target.blank).catch(() => undefined);
+      }
+      throw error;
+    }
   } finally {
     await api.freeDocument(importedHandle).catch(() => undefined);
   }
 
-  const refreshed = await refreshOristudioCpDocument(null);
+  const merged = await refreshOristudioCpDocument(null);
+  if (!merged) throw new Error('Editable crease-pattern document was released');
+
+  if (!target.blank) {
+    // The kernel appends the import and only divides added-against-existing, and
+    // the 100-unit gap guarantees no added/existing pair intersects — so the
+    // merged-in lines are exactly the ones past the pre-merge count.
+    lastImportAddPlacement = {
+      bounds: lineSegmentBounds(
+        merged.document.crease_pattern.line_segments.slice(target.segmentCount)
+      ),
+      centered: false,
+    };
+    return finishAddedLines(api, targetHandle, merged, target.segmentCount, source);
+  }
+
+  // The target was cleared first, so every line in the merged document came
+  // from the import and centring it is a translation of the whole model.
+  const bounds = lineSegmentBounds(merged.document.crease_pattern.line_segments);
+  if (!bounds) {
+    lastImportAddPlacement = { bounds: null, centered: true };
+    return merged;
+  }
+  const dx = -(bounds.minX + bounds.maxX) / 2;
+  const dy = -(bounds.minY + bounds.maxY) / 2;
+  const centered = await restoreOristudioCpDocumentInPlace(
+    translateCreasePattern(merged.document, dx, dy),
+    merged.source,
+    null
+  );
+  lastImportAddPlacement = {
+    bounds: {
+      minX: bounds.minX + dx,
+      minY: bounds.minY + dy,
+      maxX: bounds.maxX + dx,
+      maxY: bounds.maxY + dy,
+    },
+    centered: true,
+  };
+  return finishAddedLines(api, targetHandle, centered, 0, source);
+}
+
+/**
+ * What an import (add) does to the creases it appended — the ones past
+ * `existingCount`, which is every crease when the target was blank — and to
+ * none of the creases that were already there. Both steps run inside the add's
+ * own history entry.
+ *
+ * The sweep goes first: two unassigned collinear pieces still merge as one
+ * unassigned crease, and would not once recoloured, because the sweep leaves
+ * auxiliary lines alone. The sweep keeps the added creases past
+ * `existingCount` — it removes only among them and appends what it merges —
+ * so the same range names them for the recolour.
+ */
+async function finishAddedLines(
+  api: OristudioCpClient,
+  targetHandle: number,
+  placed: OristudioCpDocumentState,
+  existingCount: number,
+  wanted: { mergeExtraVertices?: boolean; unassignedAsAuxiliary?: boolean }
+): Promise<OristudioCpDocumentState> {
+  let state = placed;
+  if (wanted.mergeExtraVertices) {
+    const lineIds = addedLineIds(state, existingCount);
+    if (lineIds.length > 0) {
+      state = await runOnAddedLines(api, targetHandle, 'DeleteExtraVerticesAmong', {
+        line_ids: lineIds,
+      });
+    }
+  }
+  if (wanted.unassignedAsAuxiliary) {
+    const segments = state.document.crease_pattern.line_segments;
+    const lineIds = addedLineIds(state, existingCount).filter(
+      (id) => segments[id - 1]?.color === 'None'
+    );
+    if (lineIds.length > 0) {
+      state = await runOnAddedLines(api, targetHandle, 'CreaseSetLineColor', {
+        line_ids: lineIds,
+        line_color: 'Cyan3',
+      });
+    }
+  }
+  return state;
+}
+
+/** One-based ids of the creases past `existingCount`, like every `line_ids` payload. */
+function addedLineIds(state: OristudioCpDocumentState, existingCount: number): number[] {
+  const total = state.document.crease_pattern.line_segments.length;
+  if (total <= existingCount) return [];
+  return Array.from({ length: total - existingCount }, (_, i) => existingCount + i + 1);
+}
+
+async function runOnAddedLines(
+  api: OristudioCpClient,
+  targetHandle: number,
+  operationId: OristudioCpOperationId,
+  payload: OristudioCpCommandPayload
+): Promise<OristudioCpDocumentState> {
+  const result = await api.executeCommand(targetHandle, operationId, payload);
+  const refreshed = await refreshOristudioCpDocument(result);
   if (!refreshed) throw new Error('Editable crease-pattern document was released');
   return refreshed;
+}
+
+interface ImportAddTarget {
+  /** Line-segment count before the merge — the index the import starts at. */
+  segmentCount: number;
+  /**
+   * The target snapshot when it holds no geometry of its own (so the merge can
+   * clear it and centre the import), else null.
+   */
+  blank: OristudioCpDocumentSnapshot | null;
+}
+
+/**
+ * Asks the cheap summary first: anything with more than the starter's four
+ * segments, or with a circle / loose point / auxiliary line / text, is the
+ * user's work and is answered without decoding a document at all.
+ */
+async function readImportAddTarget(
+  api: OristudioCpClient,
+  targetHandle: number
+): Promise<ImportAddTarget> {
+  const summary = await api.summary(targetHandle);
+  if (
+    summary.line_segments > STARTER_BORDER_SEGMENT_COUNT ||
+    summary.circles > 0 ||
+    summary.points > 0 ||
+    summary.aux_line_segments > 0 ||
+    summary.texts > 0
+  ) {
+    return { segmentCount: summary.line_segments, blank: null };
+  }
+  const { document } = await fetchDocumentAndGeometry(api, targetHandle);
+  return {
+    segmentCount: document.crease_pattern.line_segments.length,
+    blank: creasePatternHoldsNothingOfItsOwn(document) ? document : null,
+  };
+}
+
+const STARTER_BORDER_SEGMENT_COUNT = 4;
+
+function clearedCreasePattern(
+  document: OristudioCpDocumentSnapshot
+): OristudioCpDocumentSnapshot {
+  return {
+    ...document,
+    crease_pattern: { ...document.crease_pattern, line_segments: [] },
+  };
+}
+
+/**
+ * Whether this document is a blank canvas: empty, or nothing but the untouched
+ * starter border square. Endpoint pairs are compared unordered and the segments
+ * in any order, because nothing promises the kernel round-trips either.
+ */
+function creasePatternHoldsNothingOfItsOwn(document: OristudioCpDocumentSnapshot): boolean {
+  const model = document.crease_pattern;
+  if (
+    model.circles.length > 0 ||
+    model.points.length > 0 ||
+    model.aux_line_segments.length > 0 ||
+    model.texts.length > 0
+  ) {
+    return false;
+  }
+  if (model.line_segments.length === 0) return true;
+  if (model.line_segments.length !== STARTER_BORDER_SEGMENT_COUNT) return false;
+  const starter = createStarterBorderSegments().map(segmentKey);
+  const present = model.line_segments.map(segmentKey);
+  return starter.every((key) => present.includes(key));
+}
+
+function segmentKey(segment: OristudioCpLineSegment): string {
+  const a = `${segment.a.x},${segment.a.y}`;
+  const b = `${segment.b.x},${segment.b.y}`;
+  const [first, second] = a <= b ? [a, b] : [b, a];
+  return `${segment.color}|${first}|${second}`;
+}
+
+/**
+ * Translate every placed element of a crease pattern. Used only on the centring
+ * path above, where the whole model came from one import, so this deliberately
+ * moves the model rather than a subset — the grid is a coordinate frame, not
+ * content, and is left where it is.
+ */
+function translateCreasePattern(
+  document: OristudioCpDocumentSnapshot,
+  dx: number,
+  dy: number
+): OristudioCpDocumentSnapshot {
+  const model = document.crease_pattern;
+  return {
+    ...document,
+    crease_pattern: {
+      ...model,
+      line_segments: model.line_segments.map((segment) => ({
+        ...segment,
+        a: { x: segment.a.x + dx, y: segment.a.y + dy },
+        b: { x: segment.b.x + dx, y: segment.b.y + dy },
+      })),
+      aux_line_segments: model.aux_line_segments.map((segment) => ({
+        ...segment,
+        a: { x: segment.a.x + dx, y: segment.a.y + dy },
+        b: { x: segment.b.x + dx, y: segment.b.y + dy },
+      })),
+      circles: model.circles.map((circle) => ({
+        ...circle,
+        x: circle.x + dx,
+        y: circle.y + dy,
+      })),
+      points: model.points.map((point) => ({ x: point.x + dx, y: point.y + dy })),
+    },
+  };
+}
+
+function lineSegmentBounds(
+  segments: readonly OristudioCpLineSegment[]
+): OristudioCpModelBox | null {
+  if (segments.length === 0) return null;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const segment of segments) {
+    for (const point of [segment.a, segment.b]) {
+      if (point.x < minX) minX = point.x;
+      if (point.y < minY) minY = point.y;
+      if (point.x > maxX) maxX = point.x;
+      if (point.y > maxY) maxY = point.y;
+    }
+  }
+  return Number.isFinite(minX) ? { minX, minY, maxX, maxY } : null;
 }
 
 export async function replaceOristudioCpLineSegments(
@@ -602,6 +920,47 @@ export async function exportFoldFrameAsFormat(
       case 'orh':
         return await api.exportOrh(scratch);
     }
+  } finally {
+    await api.freeDocument(scratch).catch(() => undefined);
+  }
+}
+
+/**
+ * Export **just these creases** as FOLD, through a scratch kernel handle.
+ *
+ * The kernel is what planarizes: it splits crossings, merges coincident
+ * endpoints and assigns `B`/`M`/`V`/`F` from line colour, which is exactly the
+ * graph the exact solver's adapter needs and none of which this side should
+ * reimplement. So the creases go in as a document and come out as topology.
+ *
+ * A *subset* rather than the whole document, because the caller is a region:
+ * detection places its pattern beside whatever the user was already working on,
+ * and a second pattern's paper edge in the same FOLD would give the boundary
+ * trace two loops to choose between. The subset is the region's own contents.
+ *
+ * Everything but the creases is dropped. Auxiliary lines are not creases and the
+ * solver has no model for them; circles, points and texts are annotations that
+ * would only ride along into the FOLD's extras. The grid is kept because it is
+ * metadata the exporter expects, not geometry.
+ */
+export async function exportOristudioCpCreasesAsFold(
+  creasePattern: OristudioCpModel,
+  segments: readonly OristudioCpLineSegment[]
+): Promise<string> {
+  const api = await getOristudioCpClient();
+  const scratch = await api.loadDocument({
+    crease_pattern: {
+      ...creasePattern,
+      line_segments: [...segments],
+      aux_line_segments: [],
+      circles: [],
+      points: [],
+      texts: [],
+    },
+    metadata: {},
+  });
+  try {
+    return await api.exportFold(scratch);
   } finally {
     await api.freeDocument(scratch).catch(() => undefined);
   }

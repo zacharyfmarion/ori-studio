@@ -3,6 +3,13 @@
     "failed": "この操作を完了できませんでした",
     "failedDetail": "変更はありません。繰り返す場合は再読み込みをお試しください。"
   },
+  "cpRegionSolve": {
+    "failed": "この展開図を解けませんでした",
+    "incompleteAction": "「再試行」でトポロジーを修復してから解き直すか、「そのまま適用」でこの座標のまま確定できます。",
+    "solvedAction": "「適用」で確定するか、「再試行」で戻ってトポロジーを変更できます。",
+    "timedOut": "計算が時間切れになりました",
+    "timedOutDetail_other": "頂点 {{count}} 個を配置済みです。途中結果を適用するか、編集を続けてからもう一度お試しください。"
+  },
   "creasePattern": {
     "inlineSimulationCap": "同時に開けるシミュレーションウィンドウは最大 {{max}} 個です。別のウィンドウを開くには、いずれかを閉じてください。",
     "inlineSimulationRegionGone": "その領域は展開図に存在しなくなったため、このウィンドウは再構築できません。",
@@ -20,7 +27,12 @@
     "foldStop": "キャンセル",
     "foldStopped": "折り上げをキャンセルしました",
     "foldStopping": "キャンセル中…",
-    "saved": "{{name}} を保存しました"
+    "saved": "{{name}} を保存しました",
+    "solveStop": "キャンセル",
+    "solveStopped": "解くのをキャンセルしました",
+    "solveStopping": "キャンセル中…",
+    "solving": "解いています…",
+    "solvingLong": "まだ解いています — しばらく時間がかかる場合があります"
   },
   "simulatorExport": {
     "empty": "このシミュレーションには書き出せるものがまだありません",

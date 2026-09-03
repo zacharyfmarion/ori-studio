@@ -1,0 +1,278 @@
+//! Does the solve keep an exactly-foldable pattern foldable?
+//!
+//! For every sample whose ground truth is CAMV-clean: solve it as-is (the solve
+//! should be a no-op), then perturb it the way detection does and solve again.
+//! The second run is the one that matters — it is the only setting where "the
+//! solve introduced a violation" is provable, because the target is known to be
+//! clean and the only thing between the two is the solver.
+//!
+//! Usage:
+//!   cargo run --release -p oristudio-cp-compiler --example solve_gt_scorecard \
+//!     -- <pack-dir> [noise-in-paper-units]
+
+use oristudio_cp::checks::{FlatFoldabilityRule, check_camv_task};
+use oristudio_cp_compiler::{
+    ExactSolveInput, ExactSolveOptions, Point2, exact_solve_input_from_fold, solve_exact,
+};
+use treemaker_fold::FoldDocument;
+
+fn main() {
+    let pack = std::env::args().nth(1).expect("usage: <pack-dir> [noise]");
+    let noise: f64 = std::env::args()
+        .nth(2)
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0.004);
+
+    println!("noise sigma: {noise} of the paper edge\n");
+    println!(
+        "{:<30} {:>6} {:>6}   {:<22} {:<22}  {:>9}",
+        "sample", "verts", "edges", "solved as-is", "solved after noise", "GT err px"
+    );
+
+    let mut entries: Vec<_> = std::fs::read_dir(format!("{pack}/samples"))
+        .expect("samples/")
+        .flatten()
+        .collect();
+    entries.sort_by_key(std::fs::DirEntry::file_name);
+
+    let (mut clean_kept, mut clean_broken, mut refused, mut considered) = (0, 0, 0, 0);
+    for entry in entries {
+        let Ok(text) = std::fs::read_to_string(entry.path().join("gt.fold")) else {
+            continue;
+        };
+        let Ok(fold) = serde_json::from_str::<FoldDocument>(&text) else {
+            continue;
+        };
+        // Only patterns whose ground truth is already clean can answer the
+        // question; anything else confounds "the solve broke it".
+        let Ok(gt_doc) = oristudio_cp::io::fold::import_fold_file_document_json(&text) else {
+            continue;
+        };
+        if !check_camv_task(&gt_doc.crease_pattern)
+            .violations
+            .is_empty()
+        {
+            continue;
+        }
+        considered += 1;
+        let name: String = entry
+            .file_name()
+            .to_string_lossy()
+            .chars()
+            .take(28)
+            .collect();
+
+        let Ok((input, xform)) = exact_solve_input_from_fold(&fold) else {
+            println!(
+                "{name:<30} {:>6} {:>6}   REFUSED (paper is not a square)",
+                fold.vertices_coords.len(),
+                fold.edges_vertices.len()
+            );
+            refused += 1;
+            continue;
+        };
+        let as_is = run(&input, &fold, &xform);
+
+        // Perturb every movable interior vertex, deterministically per sample.
+        let mut noisy = input.clone();
+        let mut seed = 0x9E3779B97F4A7C15_u64 ^ (name.len() as u64);
+        for vertex in &mut noisy.vertices {
+            if vertex.movement_policy
+                != oristudio_cp_compiler::CandidateVertexMovementPolicy::Movable
+            {
+                continue;
+            }
+            vertex.point = Point2::new(
+                vertex.point.x + noise * gauss(&mut seed),
+                vertex.point.y + noise * gauss(&mut seed),
+            );
+        }
+        let perturbed = run(&noisy, &fold, &xform);
+
+        if perturbed.1 == 0 && perturbed.2 == 0 {
+            clean_kept += 1;
+        } else {
+            clean_broken += 1;
+        }
+        println!(
+            "{name:<30} {:>6} {:>6}   {:<22} {:<22}  {:>9.2}  {}",
+            fold.vertices_coords.len(),
+            fold.edges_vertices.len(),
+            format!("{} {}a {}b", as_is.0, as_is.1, as_is.2),
+            format!("{} {}a {}b", perturbed.0, perturbed.1, perturbed.2),
+            perturbed.3,
+            perturbed.4
+        );
+    }
+    println!(
+        "\n{considered} clean-GT samples: {clean_kept} stayed clean through a noisy solve, \
+         {clean_broken} came back with violations, {refused} refused (non-square paper)"
+    );
+}
+
+/// Solve and report `(status, angle violations, BLB violations, GT error px)`.
+fn run(
+    input: &ExactSolveInput,
+    fold: &FoldDocument,
+    xform: &oristudio_cp_compiler::Similarity,
+) -> (String, usize, usize, f64, String) {
+    let mut options = ExactSolveOptions {
+        polish: true,
+        timeout_seconds: 60.0,
+        ..Default::default()
+    };
+    if std::env::var("ANGLE_FAMILY").as_deref() == Ok("off") {
+        options.angle_family = oristudio_cp_compiler::AngleFamilyMode::Off;
+    }
+    if let Some(v) = std::env::var("ANGLE_FAMILY_TOL_DEG")
+        .ok()
+        .and_then(|v| v.parse::<f64>().ok())
+    {
+        options.angle_family_snap_tolerance_radians = v.to_radians();
+    }
+    let solved = solve_exact(input, options);
+    let mut out = fold.clone();
+    for (index, coord) in out.vertices_coords.iter_mut().enumerate() {
+        let Some(point) = solved.vertices_exact.get(index) else {
+            continue;
+        };
+        let back = xform.invert(*point);
+        coord[0] = back.x;
+        coord[1] = back.y;
+    }
+    let Ok(text) = serde_json::to_string(&out) else {
+        return (
+            format!("{:?}", solved.status),
+            0,
+            0,
+            f64::NAN,
+            pin_summary(&solved),
+        );
+    };
+    let Ok(document) = oristudio_cp::io::fold::import_fold_file_document_json(&text) else {
+        return (
+            format!("{:?}", solved.status),
+            0,
+            0,
+            f64::NAN,
+            pin_summary(&solved),
+        );
+    };
+    let violations = check_camv_task(&document.crease_pattern).violations;
+    let angles = violations
+        .iter()
+        .filter(|v| matches!(v.rule, FlatFoldabilityRule::Angles))
+        .count();
+
+    // Distance from ground truth, as a fraction of the paper edge scaled to 1024.
+    let mut worst = 0.0_f64;
+    for (index, coord) in fold.vertices_coords.iter().enumerate() {
+        let Some(point) = solved.vertices_exact.get(index) else {
+            continue;
+        };
+        let back = xform.invert(*point);
+        worst = worst.max((back.x - coord[0]).hypot(back.y - coord[1]));
+    }
+    (
+        format!("{:?}", solved.status),
+        angles,
+        violations.len() - angles,
+        worst / xform.side * 1024.0,
+        pin_summary(&solved),
+    )
+}
+
+/// One phrase for what the symmetry and pinned rounds did.
+fn pin_summary(solved: &oristudio_cp_compiler::ExactSolvedGraph) -> String {
+    let symmetry = &solved.movement_report["symmetry"];
+    let round = &solved.movement_report["polish"]["symmetry_round"];
+    let symmetry_text = match symmetry.as_array() {
+        Some(axes) if !axes.is_empty() => {
+            let axes: Vec<String> = axes
+                .iter()
+                .map(|axis| {
+                    format!(
+                        "{}{} v{:.2} c{:.2} err {:.2}->{:.2}px",
+                        axis["axis"].as_str().unwrap_or("?"),
+                        if axis["held"].as_bool() == Some(true) {
+                            "*"
+                        } else {
+                            ""
+                        },
+                        axis["vertex_fraction"].as_f64().unwrap_or(0.0),
+                        axis["crease_fraction"].as_f64().unwrap_or(0.0),
+                        axis["mirror_error_before"].as_f64().unwrap_or(0.0) * 1024.0,
+                        axis["mirror_error_after"].as_f64().unwrap_or(0.0) * 1024.0
+                    )
+                })
+                .collect();
+            format!(
+                "sym[{}] round {} {} | ",
+                axes.join(", "),
+                round["stop_reason"].as_str().unwrap_or("-"),
+                round["refusals"]
+            )
+        }
+        _ => String::new(),
+    };
+    let pinned = &solved.movement_report["polish"]["pinned_family"];
+    if pinned.is_null() {
+        return format!(
+            "pin: none ({})",
+            solved.movement_report["polish"]["stop_reason"]
+        );
+    }
+    let attempts = pinned["attempts"].as_array().cloned().unwrap_or_default();
+    let Some(last) = attempts.last() else {
+        return "pin: family but nothing to move".to_owned();
+    };
+    let carriers = format!("{}/{}", last["pinned_carriers"], pinned["carriers"]);
+    if pinned["adopted"].as_bool() == Some(true) {
+        format!(
+            "{symmetry_text}pin: adopted @{:.3}deg {carriers} in {}s",
+            last["tolerance_degrees"].as_f64().unwrap_or(0.0),
+            last["seconds"]
+        )
+    } else {
+        let reasons: Vec<String> = attempts
+            .iter()
+            .map(|a| {
+                format!(
+                    "@{:.3}: {} [{}a {}b k={} collapsed={}]",
+                    a["tolerance_degrees"].as_f64().unwrap_or(0.0),
+                    a["refusals"]
+                        .as_array()
+                        .map(|r| r
+                            .iter()
+                            .filter_map(|v| v.as_str())
+                            .collect::<Vec<_>>()
+                            .join(","))
+                        .unwrap_or_default(),
+                    a["camv_angle_violations"],
+                    a["big_little_big_violations"],
+                    a["kawasaki_degrees"],
+                    a["collapsed_edges"]
+                        .as_array()
+                        .map(|c| c.len())
+                        .unwrap_or(0)
+                )
+            })
+            .collect();
+        format!(
+            "{symmetry_text}pin: refused {carriers} {}",
+            reasons.join(" | ")
+        )
+    }
+}
+
+/// Box-Muller on a xorshift stream, so a run is reproducible per sample.
+fn gauss(seed: &mut u64) -> f64 {
+    let mut next = || {
+        *seed ^= *seed << 13;
+        *seed ^= *seed >> 7;
+        *seed ^= *seed << 17;
+        (*seed >> 11) as f64 / (1u64 << 53) as f64
+    };
+    let (u1, u2) = (next().max(1e-12), next());
+    (-2.0 * u1.ln()).sqrt() * (std::f64::consts::TAU * u2).cos()
+}

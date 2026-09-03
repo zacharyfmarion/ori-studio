@@ -199,6 +199,14 @@
         "0": "Punkt wählen"
       }
     },
+    "cp_action_vertex_insert_on_creases": {
+      "label": "Knoten einfügen",
+      "tooltip": "Alle Falten durch den angeklickten Punkt teilen, sodass sie sich in einem Knoten treffen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Dorthin klicken, wo sich die Falten treffen sollen"
+      }
+    },
     "cp_action_delete_point": {
       "label": "Punkt löschen",
       "tooltip": "Gleichfarbige Falten zusammenführen, die sich am gewählten Knoten treffen",
@@ -741,6 +749,14 @@
         "0": "Textposition anklicken"
       }
     },
+    "cp_action_check_suppression_region_create": {
+      "label": "Prüfungsfreier Bereich",
+      "tooltip": "Ein Rechteck aufziehen, in dem die ausgewählten Faltbarkeitsprüfungen nicht mehr gemeldet werden",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Ein Rechteck über den Bereich ziehen, der nicht mehr geprüft werden soll"
+      }
+    },
     "cp_action_draw_blintz": {
       "label": "Blintz-Basis",
       "tooltip": "Blintz-Basis",
@@ -1016,6 +1032,11 @@
     "cp_action_delete_extra_vertices_ignore_color": {
       "label": "Überflüssige Knoten löschen (Typ ignorieren)",
       "tooltip": "Kollineare Faltenpaare unabhängig vom Typ zusammenführen – Berg und Tal werden zu einem Rand",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_delete_extra_vertices_among": {
+      "label": "Überflüssige Knoten im Muster löschen",
+      "tooltip": "Kollineare Faltenpaare gleichen Typs nur unter den angegebenen Falten zusammenführen",
       "disabledReason": "Bereit"
     },
     "cp_action_organize_circles": {

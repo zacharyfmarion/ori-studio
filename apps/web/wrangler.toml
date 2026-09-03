@@ -26,6 +26,15 @@ id = "fb0e4645cdce47beb0809d2d945b5bf3"
 binding = "SHARE_R2"
 bucket_name = "oristudio-cp-thumbnails"
 
+# The detector's models — 45 MB each, over Pages' 25 MiB static-file cap — at
+# immutable versioned keys, served by `functions/models/[[path]].ts`. One bucket
+# for production and previews: the objects are immutable, the registry is the
+# only thing that moves, and a preview reading the production registry is the
+# point of a preview. Published by `scripts/cp-detect/publish-model.mjs`.
+[[r2_buckets]]
+binding = "MODELS_R2"
+bucket_name = "oristudio-models"
+
 [[env.preview.kv_namespaces]]
 binding = "SHARE_KV"
 id = "5b08ed1c951c4029822acb39285c4eff"
@@ -33,3 +42,7 @@ id = "5b08ed1c951c4029822acb39285c4eff"
 [[env.preview.r2_buckets]]
 binding = "SHARE_R2"
 bucket_name = "oristudio-cp-thumbnails-preview"
+
+[[env.preview.r2_buckets]]
+binding = "MODELS_R2"
+bucket_name = "oristudio-models"

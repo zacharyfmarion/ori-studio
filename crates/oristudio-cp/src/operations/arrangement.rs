@@ -792,6 +792,28 @@ pub fn del_v_all_color_change(model: &mut CreasePatternModel) {
     del_v_all_impl(model, true);
 }
 
+/// Ori Studio: [`del_v_all`] confined to the creases at `line_indices`.
+///
+/// The same sweep in the same order, with one restriction: a vertex is merged
+/// only when *both* creases meeting there are in the set. A crease from the set
+/// meeting one from outside it is the boundary with whatever else is in the
+/// document, and that vertex stays. A merged crease joins the set, so a chain
+/// of collinear pieces still collapses to one crease.
+///
+/// This is what an accepted solve runs over the creases it produced — detection
+/// splits every crease at every junction it finds, and the solve does not put
+/// the pieces back together — without touching creases the user drew beside
+/// them. Indices out of range are ignored.
+pub fn del_v_among_lines(model: &mut CreasePatternModel, line_indices: &[usize]) {
+    let mut scope = vec![false; model.line_segments.len()];
+    for &index in line_indices {
+        if let Some(slot) = scope.get_mut(index) {
+            *slot = true;
+        }
+    }
+    del_v_sweep(model, false, Some(scope));
+}
+
 /// Oriedita `FoldLineSet.del_V(LineSegment, LineSegment)`.
 pub fn del_v_pair(
     model: &mut CreasePatternModel,
@@ -1017,6 +1039,19 @@ fn apply_line_segment_divide_for_fix2(model: &mut CreasePatternModel, point: Poi
 /// redirect whichever matched first. Documents carrying exact duplicates are
 /// `Fix1`'s business, and upstream is equally ill-defined there.
 fn del_v_all_impl(model: &mut CreasePatternModel, allow_color_change: bool) {
+    del_v_sweep(model, allow_color_change, None);
+}
+
+/// The sweep behind [`del_v_all_impl`] and [`del_v_among_lines`].
+///
+/// `scope`, when given, is one flag per segment: a pair merges only when both
+/// flags are set, and the merged segment's flag is pushed set. Without it the
+/// walk is upstream's exactly.
+fn del_v_sweep(
+    model: &mut CreasePatternModel,
+    allow_color_change: bool,
+    mut scope: Option<Vec<bool>>,
+) {
     let VertexIndex {
         mut groups,
         exact_vertex,
@@ -1031,6 +1066,11 @@ fn del_v_all_impl(model: &mut CreasePatternModel, allow_color_change: bool) {
         // Upstream reads both segments straight out of the map and lets
         // `deleteLine` fail if one is already gone. A dead index is that case.
         if !alive[i] || !alive[j] {
+            continue;
+        }
+        if let Some(scope) = &scope
+            && (!scope[i] || !scope[j])
+        {
             continue;
         }
 
@@ -1063,6 +1103,9 @@ fn del_v_all_impl(model: &mut CreasePatternModel, allow_color_change: bool) {
             ..LineSegment::with_color(a, b, color)
         });
         alive.push(true);
+        if let Some(scope) = &mut scope {
+            scope.push(true);
+        }
 
         replace_line_in_vertex_groups(&mut groups, &exact_vertex, &first, i, merged);
         replace_line_in_vertex_groups(&mut groups, &exact_vertex, &second, j, merged);

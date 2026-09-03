@@ -1,3 +1,5 @@
+import { isCpDetectBuildEnabled, isCpDetectSurfaceAvailable } from '../platform/features';
+import { isPhoneLayout } from '../platform/phoneLayout';
 import type { TFunction } from 'i18next';
 import { DESIGN_KINDS, designKindRegistry } from '../designKinds/registry';
 import type { DesignKindDescriptor } from '../designKinds/types';
@@ -101,6 +103,7 @@ export type WorkspaceCapabilityId =
   | 'cp.deleteExtraVertices'
   | 'cp.deleteExtraVerticesIgnoreColor'
   | 'cp.fixInaccurate'
+  | 'cp.exactSolve'
   | 'cp.changeCircleColor'
   | 'cp.organizeCircles'
   | 'cp.setActiveCreaseAngle'
@@ -139,6 +142,18 @@ export interface WorkspaceCapabilityInput {
   oristudioCpSelectedPointCount: number;
   oristudioCpSelectedCircleCount: number;
   /**
+   * How many patterns in the document carry an attached `ExactSolveInput` — i.e.
+   * how many the exact solver can be pointed at. One per check-suppression
+   * region that CP detection created; a hand-drawn region has no attachment and
+   * is not counted.
+   *
+   * Optional, and absent reads as zero, which disables `cp.exactSolve` with the
+   * "nothing to solve" reason. That is the correct state for a document that has
+   * had no detection run in it, and it is also what a caller that has not been
+   * taught to supply this yet gets — the menu entry is inert rather than wrong.
+   */
+  oristudioCpSolvablePatternCount?: number;
+  /**
    * Whether the active design kind has something Delete would remove.
    *
    * One flag for every kind, answered by its descriptor. It used to be
@@ -159,6 +174,18 @@ export interface WorkspaceCapabilityInput {
   historyFutureCount: number;
   clipboard: unknown | null;
   selection: Selection;
+  /**
+   * Whether CP detection is offered on this surface. Defaults to the build
+   * flag and the layout of the window this runs in; tests pass it.
+   */
+  cpDetectAvailable?: boolean;
+}
+
+function cpDetectAvailableHere(): boolean {
+  return isCpDetectSurfaceAvailable({
+    buildEnabled: isCpDetectBuildEnabled(),
+    phone: isPhoneLayout(),
+  });
 }
 
 export function getWorkspaceCapabilities(
@@ -213,6 +240,21 @@ export function getWorkspaceCapabilities(
     (input.hasEditableCreasePattern ||
       (treeMode && (input.creaseCount > 0 || input.facetCount > 0)));
   const hasSelectedCpLines = input.oristudioCpSelectedLineCount > 0;
+  const solvablePatternCount = input.oristudioCpSolvablePatternCount ?? 0;
+  // Scope is a *pattern* — the closed-boundary component — never the selection
+  // and never a region's box. Exact solve is one global constrained
+  // optimisation: Kawasaki couples every vertex through its fan and the boundary
+  // is pinned to the unit square, so on a fragment it would either refuse or
+  // silently move vertices shared with unselected geometry.
+  //
+  // Selection is therefore *disambiguation*, not extent, and only when there is
+  // something to disambiguate: after a detection is added beside the user's own
+  // work the document holds two paper squares, and a click has to say which one.
+  // With a single solvable pattern the selection is not consulted at all —
+  // requiring one there would be asking the user to state the only answer.
+  const canExactSolveCp = canEditCp && solvablePatternCount > 0;
+  const exactSolveNeedsDisambiguation =
+    canExactSolveCp && solvablePatternCount > 1 && !hasSelectedCpLines;
   const hasSelectedCpPoints = input.oristudioCpSelectedPointCount > 0;
   const hasSelectedCpCircles = input.oristudioCpSelectedCircleCount > 0;
   const hasSelectedCpLinesOrCircles = hasSelectedCpLines || hasSelectedCpCircles;
@@ -253,13 +295,18 @@ export function getWorkspaceCapabilities(
           ? busyReason(input.status, t)
           : t('common:capability.openEditableCpBeforeImporting', 'Open an editable crease pattern before importing')
     ),
-    'file.detectCpImage': capability(
-      !isBusy,
-      t('common:capability.detectCpFromImage', 'Detect CP from Image...'),
-      isBusy
-        ? busyReason(input.status, t)
-        : t('common:capability.detectSquareCpFromImage', 'Detect a square crease pattern from an image')
-    ),
+    'file.detectCpImage': {
+      ...capability(
+        !isBusy,
+        t('common:capability.detectCpFromImage', 'Detect CP from Image...'),
+        isBusy
+          ? busyReason(input.status, t)
+          : t('common:capability.detectSquareCpFromImage', 'Detect a square crease pattern from an image')
+      ),
+      // Hidden, not disabled: a build without the runtime has nothing to offer,
+      // and a phone has no layout for the dialog.
+      visible: input.cpDetectAvailable ?? cpDetectAvailableHere(),
+    },
     'file.save': capability(
       (input.canSaveDesign || canSaveEditableCreasePattern) && !isBusy,
       t('common:capability.save', 'Save'),
@@ -922,6 +969,26 @@ export function getWorkspaceCapabilities(
         ? hasSelectedCpLines
           ? t('common:capability.openInaccurateCreaseRepairSettings', 'Open inaccurate-crease repair settings for selected lines')
           : t('common:capability.selectCpLinesFirst', 'Select one or more crease-pattern lines first')
+        : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
+    ),
+    'cp.exactSolve': capability(
+      canExactSolveCp && !exactSolveNeedsDisambiguation,
+      t('common:capability.exactSolve', 'Exact Solve...'),
+      canEditCp
+        ? canExactSolveCp
+          ? exactSolveNeedsDisambiguation
+            ? t(
+                'common:capability.selectCreaseInPatternToSolve',
+                'Select a crease in the pattern you want to solve'
+              )
+            : t(
+                'common:capability.solveDetectedPatternExactly',
+                'Re-solve the detected pattern to exact coordinates'
+              )
+          : t(
+              'common:capability.detectCpBeforeExactSolve',
+              'Exact solve needs a detected crease pattern; run Detect CP from Image first'
+            )
         : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
     ),
     'cp.changeCircleColor': capability(

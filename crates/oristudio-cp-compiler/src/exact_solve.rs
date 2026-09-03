@@ -4,7 +4,10 @@
 //! coordinates that better satisfy geometric/origami constraints. It does not
 //! add or remove creases; topology selection belongs to the previous phase.
 
-use crate::candidate_graph::{CandidateCreaseBoundaryRole, CandidateVertex};
+use crate::candidate_graph::{
+    BoundaryReconstructionPolicy, CandidateCreaseBoundaryRole, CandidateVertex,
+};
+use crate::symmetry::{DetectedSymmetry, detect_symmetries, mirror_error};
 use crate::{
     AssignmentLabel, BoundaryModel, BoundarySide, CandidateCreaseSpan, CandidateCreaseSpanKind,
     CandidateGraphProvenance, CandidateSourceAdapter, CandidateVertexKind,
@@ -13,12 +16,14 @@ use crate::{
 };
 use levenberg_marquardt::{LeastSquaresProblem, LevenbergMarquardt};
 use nalgebra::{DMatrix, Dyn, OMatrix, OVector, storage::Owned};
-use nalgebra_sparse::factorization::CscCholesky;
+use nalgebra_sparse::factorization::{CscCholesky, CscSymbolicCholesky};
 use nalgebra_sparse::{CooMatrix, CscMatrix};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use std::borrow::Cow;
 use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
@@ -91,6 +96,201 @@ pub struct ExactSolveOptions {
     /// Stop polishing once the max Kawasaki residual is below this (degrees).
     #[serde(default = "default_polish_target_kawasaki_degrees")]
     pub polish_target_kawasaki_degrees: f64,
+    /// Whether to look for the angle family a designed pattern is drawn in and
+    /// pin its creases to it once the solve has converged. See
+    /// [`AngleFamilyMode`].
+    #[serde(default)]
+    pub angle_family: AngleFamilyMode,
+    /// How far from a lattice angle a carrier may sit and still be read as on
+    /// it — both for deciding whether a family is present at all and for
+    /// deciding which carriers are pinned. Radians. A pinned round refused at
+    /// this width is retried at half of it, [`ANGLE_FAMILY_RETRY_HALVINGS`]
+    /// times.
+    #[serde(default = "default_angle_family_snap_tolerance_radians")]
+    pub angle_family_snap_tolerance_radians: f64,
+    /// Fraction of fold carriers that must sit within tolerance of a candidate
+    /// lattice before the family is believed.
+    #[serde(default = "default_angle_family_min_fraction")]
+    pub angle_family_min_fraction: f64,
+    /// Whether to look for mirror symmetry in the input and hold it through
+    /// the solve. See [`crate::symmetry`].
+    #[serde(default)]
+    pub symmetry: SymmetryMode,
+    /// How far a vertex's mirror image may sit from its partner and still be
+    /// read as the same vertex, in the unit square: 12 px at 1024.
+    #[serde(default = "default_symmetry_match_tolerance")]
+    pub symmetry_match_tolerance: f64,
+    /// Fraction of fold vertices, and of fold creases, that must have a mirror
+    /// image before an axis is believed. See [`default_symmetry_min_fraction`].
+    #[serde(default = "default_symmetry_min_fraction")]
+    pub symmetry_min_fraction: f64,
+}
+
+/// Solved on its own, each half of a mirror-symmetric pattern converges to its
+/// own exact answer, and the two differ by a pixel or so: the pattern folds,
+/// but mirror one half over the other and nothing lines up. `Auto` detects the
+/// symmetry in the input ([`crate::symmetry::detect_symmetries`]) and holds it
+/// during the solve — each vertex to its partner's image, each axis vertex to
+/// the axis — so the two halves are one answer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SymmetryMode {
+    #[default]
+    Auto,
+    Off,
+}
+
+const fn default_symmetry_match_tolerance() -> f64 {
+    0.012
+}
+
+/// Below this fraction of fold vertices with a mirror image, or of fold creases
+/// whose image is a crease of the same assignment, no axis is believed.
+/// Measured: the wrong axes of a symmetric design score 0.1–0.2 on creases,
+/// the right one 0.8–0.94; a raw detection with a few split junctions loses a
+/// few percent to them.
+const fn default_symmetry_min_fraction() -> f64 {
+    0.75
+}
+
+/// Designed crease patterns are quantized: their creases lie on a small set of
+/// exact angles — 45° families, 22.5° families, occasionally 15° — and every
+/// tie between two sectors at a vertex comes from that. Measured on hand-drawn
+/// ground truth, between 37% and 100% of interior vertices have their smallest
+/// sector *exactly* tied, and Big-Little-Big is vacuous at a tie.
+///
+/// Kawasaki alone cannot recover such a pattern. At degree 4 it is one equation
+/// on four angles, leaving three free directions, and the optimizer spends them
+/// on whatever the movement priors prefer — which is the noisy detected geometry,
+/// not the lattice. So it breaks the ties by hundredths of a degree and turns
+/// legal vertices into violations while staying Kawasaki-exact.
+///
+/// Nor can a *weighted* pull toward the lattice fix that: Big-Little-Big at a
+/// near-tie is decided by the sign of the tie-break, not its size, so shrinking
+/// the break from 0.02° to 0.002° only re-flips the coins (measured: a soft
+/// lattice residual at every sigma from 0.1° to 2° left the clean corpus at the
+/// same Big-Little-Big count it started with). The tie has to be exact, within
+/// the checker's 1e-6°, and only a *pinned* direction gives that.
+///
+/// `Auto` therefore ends the polish stage with one more round: infer the family
+/// (see [`infer_angle_family`]), set every on-lattice carrier's direction to its
+/// exact lattice angle, freeze it there, and re-solve everything else. With the
+/// directions pinned, incidence is linear and the solve lands vertices on those
+/// lines to machine precision, so every sector angle is an exact lattice
+/// difference — Kawasaki exact and every designed tie exact. The round is kept
+/// only if it costs nothing: the acceptance gate, the Kawasaki bar, and the
+/// checker's own angle and Big-Little-Big counts must all hold or improve, and
+/// a refused round is retried with a tighter tolerance before giving up. A
+/// carrier that is not near the lattice (a box-pleat diagonal at `atan 2`, a
+/// freehand crease) is never pinned, and a pattern with no family is left
+/// entirely alone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AngleFamilyMode {
+    #[default]
+    Auto,
+    Off,
+}
+
+fn default_angle_family_snap_tolerance_radians() -> f64 {
+    1.5_f64.to_radians()
+}
+
+const fn default_angle_family_min_fraction() -> f64 {
+    0.5
+}
+
+/// How many times a refused pinned round halves its tolerance and tries again.
+/// 1.5° → 0.75° → 0.375°: a refusal means some pinned carrier was never on the
+/// lattice, and the ones furthest from it are the suspects.
+const ANGLE_FAMILY_RETRY_HALVINGS: usize = 2;
+
+/// How many times a pinned attempt re-anchors its priors to its own result and
+/// solves again before it is judged. The first solve stops with Kawasaki a few
+/// millionths of a degree over the bar: the vertices it moved onto the pinned
+/// lines charge movement energy, next to which those residuals are invisible
+/// to the stopping test. Re-anchoring zeroes that charge, and the residuals
+/// are all that is left to minimise — the same trick the polish rounds use.
+const PINNED_REANCHOR_ROUNDS: usize = 3;
+
+/// What the pinned round leaves on the clock for the analysis and report that
+/// follow it. A round that runs out of its own allowance is refused; it must
+/// never turn an accepted solve into one that timed out.
+const PINNED_ROUND_RESERVE_SECONDS: f64 = 0.5;
+
+/// Endpoint noise a detected crease is allowed, in pixels, when the pinned
+/// round widens its tolerance for short creases: a crease of length `L` px may
+/// sit `atan(SHORT_CREASE_NOISE_PX / L)` off the lattice and still be read as
+/// on it. A 17 px crease gets ~6.7°, a 34 px one ~3.4°, and anything over
+/// ~75 px keeps the flat 1.5°. Measured on okapi's raw detection: the two
+/// creases a flat tolerance left unpinned at its last violating vertex were
+/// 17 px at 4.2° off and 34 px at 2.3° off. Run only as an extra attempt on
+/// top of an adopted round, judged by the same gate, so a short crease that is
+/// genuinely off the lattice can cost nothing but the attempt.
+const SHORT_CREASE_NOISE_PX: f64 = 2.0;
+
+/// How long a collapsed span may be, as a multiple of the movement budget, and
+/// still be read as a merge. A detector-split junction is a close pair — 3 to
+/// 12 px on the files this was built on — and a collapse that long is two
+/// detected vertices the design has as one. A longer one is two vertices, and
+/// pinning that folded them together has pinned something wrong.
+const MERGE_STUB_BUDGET_MULTIPLE: f64 = 1.5;
+
+/// Alternating sum a fully-pinned fan may have and still count as satisfying
+/// Kawasaki on the lattice. Exact multiples of the step sum to zero up to
+/// floating-point rounding, ~1e-15 radians.
+const LATTICE_KAWASAKI_TOLERANCE: f64 = 1e-9;
+
+/// The lattice steps a designed pattern is likely drawn on, coarsest first: the
+/// square families (45° box pleating, 22.5°) and the hexagonal ones (30° hex
+/// pleating, 15°). The family chosen is the one most of the carriers sit on
+/// (see [`infer_angle_family`]); a tie goes to the coarser step, since a 45°
+/// design fits every one of these and pins to the same angles under each.
+///
+/// Not finer than 15°. A finer candidate is a trap: with detection noise wide
+/// enough that a real 22.5° pattern misses the bar, an 11.25° lattice will
+/// "explain" the stragglers by accident and be chosen instead — measured on
+/// close_but_not_good_enough.osf, which is a 22.5° design and was read as
+/// 11.25°, snapping carriers to angles it does not have. 15° is the same
+/// distance from the 22.5° family's odd multiples (7.5°) as 11.25° is from
+/// nothing, and a 22.5° design fits it only at its multiples of 45°, so the
+/// fraction test keeps them apart: measured, 22.5° designs read as 22.5°.
+const ANGLE_FAMILY_STEPS_DEGREES: [f64; 4] = [45.0, 30.0, 22.5, 15.0];
+
+/// Signed distance from `theta` to the nearest multiple of `step`, in
+/// `(-step/2, step/2]`. A carrier's theta is its normal's angle, and every
+/// candidate step divides 90°, so a lattice on directions is the same lattice
+/// on normals.
+fn lattice_offset(theta: f64, step: f64) -> f64 {
+    theta - (theta / step).round() * step
+}
+
+/// The lattice most of the carriers sit within `tolerance` of — the largest
+/// such fraction, at least `min_fraction`, ties to the coarser step — or `None`
+/// when no candidate reaches the bar. Freehand geometry lands within 1.5° of a
+/// 15° lattice about 20% of the time and of a 22.5° one about 13%, both well
+/// under the bar. Returned in **degrees**, as written in
+/// [`ANGLE_FAMILY_STEPS_DEGREES`], so a report says `15` and not
+/// `14.999999999999998`; the lattice arithmetic takes radians.
+fn infer_angle_family(thetas: &[f64], tolerance: f64, min_fraction: f64) -> Option<f64> {
+    if thetas.is_empty() {
+        return None;
+    }
+    let mut best: Option<(f64, usize)> = None;
+    for step_degrees in ANGLE_FAMILY_STEPS_DEGREES {
+        let step = step_degrees.to_radians();
+        let on_lattice = thetas
+            .iter()
+            .filter(|theta| lattice_offset(**theta, step).abs() <= tolerance)
+            .count();
+        if (on_lattice as f64) < min_fraction * thetas.len() as f64 {
+            continue;
+        }
+        if best.is_none_or(|(_, count)| on_lattice > count) {
+            best = Some((step_degrees, on_lattice));
+        }
+    }
+    best.map(|(step_degrees, _)| step_degrees)
 }
 
 const fn default_polish() -> bool {
@@ -141,13 +341,23 @@ impl Default for ExactSolveOptions {
             carrier_incidence_sigma: 0.0008,
             kawasaki_sigma_radians: 0.10_f64.to_radians(),
             max_vertex_movement: 0.010,
-            solved_kawasaki_epsilon_degrees: 1e-3,
+            // The editor's check (`Epsilon::FLAT`) is 1e-6 degrees. This was
+            // 1e-3 — a thousand times looser — so "solved" and "no markers"
+            // were different claims. `classify_status` also consults the
+            // checker directly now; this stays as the solver's own reading.
+            solved_kawasaki_epsilon_degrees: 1e-6,
             solved_carrier_epsilon: 5e-4,
-            degenerate_edge_epsilon: 1e-6,
+            degenerate_edge_epsilon: COLLAPSED_SPAN_LENGTH,
             crossing_epsilon: 1e-7,
             timeout_seconds: default_timeout_seconds(),
             linear_solver: LinearSolver::Sparse,
             polish: default_polish(),
+            angle_family: AngleFamilyMode::default(),
+            angle_family_snap_tolerance_radians: default_angle_family_snap_tolerance_radians(),
+            angle_family_min_fraction: default_angle_family_min_fraction(),
+            symmetry: SymmetryMode::default(),
+            symmetry_match_tolerance: default_symmetry_match_tolerance(),
+            symmetry_min_fraction: default_symmetry_min_fraction(),
             polish_kawasaki_sigma_radians: default_polish_kawasaki_sigma_radians(),
             polish_carrier_incidence_sigma: default_polish_carrier_incidence_sigma(),
             polish_rounds: default_polish_rounds(),
@@ -156,13 +366,71 @@ impl Default for ExactSolveOptions {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+/// [`ExactSolveOptions`] plus the set of vertices exempt from the
+/// `max_vertex_movement` budget.
+///
+/// The exemption is what lets a user-authored repair through: the movement
+/// budget is measured from the *input* coordinates, so a vertex the user
+/// deliberately dragged reads as a large drift and rejects the whole solve
+/// (`movement_budget_exceeded`), even though every other vertex is well inside
+/// the cap. Exempting that one vertex leaves the cap in force everywhere else,
+/// which is the point — the budget's job is to catch LM wandering off toward a
+/// nearby valid-but-wrong CP, and a blanket raise gives that up globally.
+///
+/// The set lives here rather than in [`ExactSolveOptions`] because
+/// `ExactSolveOptions` is `Copy` and is moved out of shared references across
+/// the workspace (e.g. `solve_exact(&input, args.options)` inside a `par_iter`
+/// closure in the replay binary); a heap-allocated field would break those
+/// call sites. `#[serde(flatten)]` keeps the JSON shape a superset of the
+/// options object, so a serialized `ExactSolveOptions` deserializes into this
+/// type unchanged and gains one optional `exempt_vertex_ids` key.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+pub struct ExactSolveOptionsWithExemptions {
+    #[serde(flatten)]
+    pub options: ExactSolveOptions,
+    /// Vertex ids excluded from the `max_vertex_movement` maximum. Empty by
+    /// default, in which case the budget behaves exactly as it always has.
+    #[serde(default)]
+    pub exempt_vertex_ids: BTreeSet<usize>,
+}
+
+impl From<ExactSolveOptions> for ExactSolveOptionsWithExemptions {
+    fn from(options: ExactSolveOptions) -> Self {
+        Self {
+            options,
+            exempt_vertex_ids: BTreeSet::new(),
+        }
+    }
+}
+
+thread_local! {
+    /// The Stop a native caller can press. Set by [`with_cancellation`] for the
+    /// length of one solve on the thread running it; every deadline started
+    /// meanwhile carries it, and reads as expired the moment it is raised. The
+    /// web has no need of it — a Stop there terminates the worker.
+    static CANCEL_FLAG: std::cell::RefCell<Option<std::sync::Arc<std::sync::atomic::AtomicBool>>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// Run `solve` with `cancel` as the Stop every deadline inside it honours.
+pub fn with_cancellation<T>(
+    cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    solve: impl FnOnce() -> T,
+) -> T {
+    CANCEL_FLAG.with(|slot| *slot.borrow_mut() = Some(cancel));
+    let result = solve();
+    CANCEL_FLAG.with(|slot| *slot.borrow_mut() = None);
+    result
+}
+
+#[derive(Debug, Clone)]
 struct ExactSolveDeadline {
     timeout_seconds: f64,
     #[cfg(not(target_arch = "wasm32"))]
     started_at: Instant,
     #[cfg(target_arch = "wasm32")]
     started_at_ms: f64,
+    cancel: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
 }
 
 impl ExactSolveDeadline {
@@ -173,7 +441,14 @@ impl ExactSolveDeadline {
             started_at: Instant::now(),
             #[cfg(target_arch = "wasm32")]
             started_at_ms: js_sys::Date::now(),
+            cancel: CANCEL_FLAG.with(|slot| slot.borrow().clone()),
         }
+    }
+
+    fn cancelled(&self) -> bool {
+        self.cancel
+            .as_ref()
+            .is_some_and(|flag| flag.load(std::sync::atomic::Ordering::Relaxed))
     }
 
     fn elapsed_seconds(&self) -> f64 {
@@ -188,13 +463,260 @@ impl ExactSolveDeadline {
     }
 
     fn expired(&self) -> bool {
-        self.timeout_seconds.is_finite()
-            && self.timeout_seconds >= 0.0
-            && self.elapsed_seconds() >= self.timeout_seconds
+        self.cancelled()
+            || (self.timeout_seconds.is_finite()
+                && self.timeout_seconds >= 0.0
+                && self.elapsed_seconds() >= self.timeout_seconds)
     }
 }
 
 pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> ExactSolvedGraph {
+    let normalized = normalized_input(input);
+    let mut solved = solve_exact_inner(&normalized, options, Rc::new(BTreeSet::new()));
+    place_dissolved_vertices(&normalized, input, &mut solved.vertices_exact);
+    report_dissolved_movement(&normalized, input, &mut solved);
+    restore_original_edges(input, &mut solved);
+    solved
+}
+
+/// [`solve_exact`] with a per-vertex movement-budget exemption set; see
+/// [`ExactSolveOptionsWithExemptions`]. With an empty exemption set this is
+/// [`solve_exact`].
+/// Solve options from a JSON object of overrides over the defaults, as every
+/// bridge hands them over. Empty or `null` is the defaults; an unknown key is
+/// an error rather than a silent no-op, because neither options type denies
+/// unknown fields and `#[serde(flatten)]` swallows leftovers outright.
+pub fn exact_solve_options_from_json(
+    text: &str,
+) -> Result<ExactSolveOptionsWithExemptions, String> {
+    let defaults = ExactSolveOptionsWithExemptions::from(ExactSolveOptions::default());
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return Ok(defaults);
+    }
+    let overrides = match serde_json::from_str(trimmed).map_err(|error| error.to_string())? {
+        serde_json::Value::Null => return Ok(defaults),
+        serde_json::Value::Object(map) => map,
+        _ => return Err("exact solve options must be a JSON object".to_owned()),
+    };
+    let serde_json::Value::Object(mut merged) =
+        serde_json::to_value(defaults).map_err(|error| error.to_string())?
+    else {
+        return Err("exact solve options did not serialize to an object".to_owned());
+    };
+    for (key, value) in overrides {
+        if !merged.contains_key(&key) {
+            return Err(format!("unknown exact solve option {key:?}"));
+        }
+        merged.insert(key, value);
+    }
+    serde_json::from_value(serde_json::Value::Object(merged)).map_err(|error| error.to_string())
+}
+
+/// An exact-solve request as the bridges receive it: the input JSON and the
+/// options JSON, checked against each other — an exemption naming a vertex the
+/// input does not have is refused here rather than ignored.
+pub fn parse_exact_solve_request(
+    input_json: &str,
+    options_json: &str,
+) -> Result<(ExactSolveInput, ExactSolveOptionsWithExemptions), String> {
+    let input: ExactSolveInput =
+        serde_json::from_str(input_json.trim()).map_err(|error| error.to_string())?;
+    let options = exact_solve_options_from_json(options_json)?;
+    let known: BTreeSet<usize> = input.vertices.iter().map(|vertex| vertex.id).collect();
+    let unknown: Vec<usize> = options
+        .exempt_vertex_ids
+        .iter()
+        .copied()
+        .filter(|id| !known.contains(id))
+        .collect();
+    if !unknown.is_empty() {
+        let shown: Vec<String> = unknown.iter().take(8).map(|id| id.to_string()).collect();
+        let suffix = if unknown.len() > 8 { ", …" } else { "" };
+        return Err(format!(
+            "exempt_vertex_ids names {} vertex id(s) absent from the solve input: {}{suffix}",
+            unknown.len(),
+            shown.join(", ")
+        ));
+    }
+    Ok((input, options))
+}
+
+pub fn solve_exact_with_exemptions(
+    input: &ExactSolveInput,
+    options: &ExactSolveOptionsWithExemptions,
+) -> ExactSolvedGraph {
+    let normalized = normalized_input(input);
+    let mut solved = solve_exact_inner(
+        &normalized,
+        options.options,
+        Rc::new(options.exempt_vertex_ids.clone()),
+    );
+    place_dissolved_vertices(&normalized, input, &mut solved.vertices_exact);
+    report_dissolved_movement(&normalized, input, &mut solved);
+    restore_original_edges(input, &mut solved);
+    solved
+}
+
+/// Tell the movement report about the vertices [`place_dissolved_vertices`] just
+/// moved.
+///
+/// The report is built inside the solve, from the graph the solve ran on — which
+/// is the *normalized* one, where a dissolved degree-2 vertex belongs to no span
+/// and therefore never moves. Straightening it onto the solved crease happens
+/// after that, so without this the report undercounts: 55 vertices claimed
+/// against 76 actually moved on `mid-solve_4`, and that count is what a caller
+/// shows the user to justify accepting the answer.
+///
+/// Only additive. `before` is the coordinate the caller handed in and `after` is
+/// what `vertices_exact` now holds, so no existing entry changes and the
+/// acceptance decision — long since taken — cannot move.
+fn report_dissolved_movement(
+    normalized: &ExactSolveInput,
+    original: &ExactSolveInput,
+    solved: &mut ExactSolvedGraph,
+) {
+    let dissolved: Vec<usize> = normalized
+        .selected_spans
+        .iter()
+        .flat_map(|span| span.collapsed_vertex_ids.iter().copied())
+        .collect();
+    if dissolved.is_empty() {
+        return;
+    }
+    let Some(report) = solved.movement_report.as_object_mut() else {
+        return;
+    };
+    let mut added = Vec::new();
+    let mut max_added = 0.0_f64;
+    for id in dissolved {
+        let (Some(was), Some(now)) = (original.vertices.get(id), solved.vertices_exact.get(id))
+        else {
+            continue;
+        };
+        let movement = distance(was.point, *now);
+        if movement <= 1e-10 {
+            continue;
+        }
+        max_added = max_added.max(movement);
+        added.push(json!({
+            "vertex_id": was.id,
+            "before": was.point,
+            "after": now,
+            "movement": round6(movement),
+            "movement_policy": was.movement_policy,
+            "boundary_side": was.boundary_side,
+            "support": round6(was.support),
+        }));
+    }
+    if added.is_empty() {
+        return;
+    }
+    for key in ["moved_vertices", "attempted_moved_vertices"] {
+        if let Some(Value::Array(list)) = report.get_mut(key) {
+            list.extend(added.iter().cloned());
+        }
+    }
+    for key in ["max_vertex_movement", "attempted_max_vertex_movement"] {
+        if let Some(slot) = report.get_mut(key) {
+            let current = slot.as_f64().unwrap_or(0.0);
+            if max_added > current {
+                *slot = json!(round6(max_added));
+            }
+        }
+    }
+}
+
+/// Read an input the way the compiler means it, before anything else looks at it.
+///
+/// Today that is one normalisation — dissolving collinear degree-2 vertices, see
+/// [`merge_collinear_degree_two_spans`] — and it is applied here rather than at
+/// either call site so that the topology report and the solve can never disagree
+/// about what the graph is. A gate that routes the user to Review & Fix over a
+/// vertex the solve would have merged anyway is the failure this placement
+/// prevents.
+fn normalized_input(input: &ExactSolveInput) -> Cow<'_, ExactSolveInput> {
+    let mut owned = input.clone();
+    if merge_collinear_degree_two_spans(&mut owned) > 0 {
+        Cow::Owned(owned)
+    } else {
+        Cow::Borrowed(input)
+    }
+}
+
+/// Put every dissolved vertex back onto the crease it was dissolved into.
+///
+/// Merging a collinear split takes the vertex out of the constraint system,
+/// which is the point — but it also takes it out of the *answer*, and that half
+/// would be a regression. `solvedRegionSegments` moves the crease ends the solver
+/// moved, so a dissolved vertex left at its input position while both its
+/// neighbours move does not merely stay kinked, it gets *more* kinked. The
+/// solver used to straighten these itself, through shared-carrier incidence —
+/// `shared_carrier_incidence_straightens_noisy_split_vertex` is the test that
+/// proves it — and that outcome has to survive.
+///
+/// So it is reconstructed rather than optimised: each dissolved vertex keeps its
+/// parameter along the original chord and is placed at that parameter along the
+/// solved one. Exactly on the line, which is better than the trust-region nudge
+/// it used to get, and free.
+/// Report the answer against the graph the caller passed, not the one solved.
+///
+/// Merging is an internal normalisation, so it must not change the shape of the
+/// result: `edges_exact` is paired with `input.selected_spans` by index
+/// downstream — `export_exact_solved_to_fold_document` refuses on a count
+/// mismatch, which is how this was caught — and every original span's endpoints
+/// are valid now that the dissolved vertices sit back on their creases.
+fn restore_original_edges(original: &ExactSolveInput, solved: &mut ExactSolvedGraph) {
+    solved.edges_exact = original
+        .selected_spans
+        .iter()
+        .map(|span| span.vertices)
+        .collect();
+}
+
+fn place_dissolved_vertices(
+    normalized: &ExactSolveInput,
+    original: &ExactSolveInput,
+    points: &mut [Point2],
+) {
+    for span in &normalized.selected_spans {
+        if span.collapsed_vertex_ids.is_empty() {
+            continue;
+        }
+        let [a, b] = span.vertices;
+        let (Some(&solved_a), Some(&solved_b)) = (points.get(a), points.get(b)) else {
+            continue;
+        };
+        let (Some(from), Some(to)) = (original.vertices.get(a), original.vertices.get(b)) else {
+            continue;
+        };
+        let (dx, dy) = (to.point.x - from.point.x, to.point.y - from.point.y);
+        let chord = dx * dx + dy * dy;
+        if chord <= 0.0 {
+            continue;
+        }
+        for &id in &span.collapsed_vertex_ids {
+            let (Some(was), Some(slot)) = (original.vertices.get(id), points.get_mut(id)) else {
+                continue;
+            };
+            // Parameter along the original chord, clamped so a vertex that sat
+            // slightly past an end does not fly off the solved crease.
+            let t = (((was.point.x - from.point.x) * dx + (was.point.y - from.point.y) * dy)
+                / chord)
+                .clamp(0.0, 1.0);
+            *slot = Point2::new(
+                solved_a.x + t * (solved_b.x - solved_a.x),
+                solved_a.y + t * (solved_b.y - solved_a.y),
+            );
+        }
+    }
+}
+
+fn solve_exact_inner(
+    input: &ExactSolveInput,
+    options: ExactSolveOptions,
+    exempt_vertex_ids: Rc<BTreeSet<usize>>,
+) -> ExactSolvedGraph {
     let deadline = ExactSolveDeadline::start(options.timeout_seconds);
     let validation = validate_input(input);
     if !validation.is_empty() {
@@ -212,7 +734,7 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
         );
     }
 
-    let model = SolveModel::new(input, options, deadline);
+    let model = SolveModel::new(input, options, deadline, exempt_vertex_ids);
     let initial_params = model.initial_params.clone();
     let before_points = model.points_from_params(&initial_params);
     let before = analyze_graph(input, &before_points, &model, &initial_params, options);
@@ -239,6 +761,7 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
             &initial_breakdown,
             &initial_breakdown,
             &counters,
+            &PolishOutcome::not_run("preflight_blocked"),
         );
         let theorem_residual_report = theorem_report(
             &before,
@@ -256,6 +779,7 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
                 .iter()
                 .map(|span| span.vertices)
                 .collect(),
+            merged_vertices: Vec::new(),
             movement_report,
             theorem_residual_report,
             status: ExactSolvedGraphStatus::Failed,
@@ -288,9 +812,44 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
     // ~1e-4 precision tolerance. Re-anchor the priors to the accepted stage-1
     // solution and re-solve with tightened theorem sigmas. Runs only when the
     // stage-1 candidate would be accepted, so failure paths are untouched.
-    let (final_params, termination, evaluations, objective, polish_adopted) = 'polish: {
-        if !options.polish || final_params.is_empty() || model.timeout_reached() {
-            break 'polish (final_params, termination, evaluations, objective, false);
+    let mut polish_outcome = PolishOutcome::default();
+    let no_merges = BTreeSet::new();
+    let (final_params, termination, evaluations, objective, polish_adopted, merged_span_ids, model) = 'polish: {
+        if !options.polish {
+            polish_outcome.stop_reason = "disabled";
+            break 'polish (
+                final_params,
+                termination,
+                evaluations,
+                objective,
+                false,
+                no_merges,
+                model,
+            );
+        }
+        if final_params.is_empty() {
+            polish_outcome.stop_reason = "no_parameters";
+            break 'polish (
+                final_params,
+                termination,
+                evaluations,
+                objective,
+                false,
+                no_merges,
+                model,
+            );
+        }
+        if model.timeout_reached() {
+            polish_outcome.stop_reason = "timed_out";
+            break 'polish (
+                final_params,
+                termination,
+                evaluations,
+                objective,
+                false,
+                no_merges,
+                model,
+            );
         }
         let stage1_points = model.points_from_params(&final_params);
         let stage1_after = analyze_graph(input, &stage1_points, &model, &final_params, options);
@@ -305,19 +864,35 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
         )
         .is_empty();
         if !stage1_accepted {
-            break 'polish (final_params, termination, evaluations, objective, false);
+            polish_outcome.stop_reason = "stage1_rejected";
+            break 'polish (
+                final_params,
+                termination,
+                evaluations,
+                objective,
+                false,
+                no_merges,
+                model,
+            );
         }
         let mut current_params = final_params.clone();
         let mut current_kawasaki = stage1_after.max_kawasaki_residual_degrees;
+        let mut current_after = stage1_after;
         let mut polish_evaluations = 0usize;
         let mut rounds_adopted = 0usize;
+        polish_outcome.stop_reason = "max_rounds";
+        polish_outcome.kawasaki_before_degrees = Some(current_kawasaki);
+        polish_outcome.kawasaki_after_degrees = Some(current_kawasaki);
         for _round in 0..options.polish_rounds {
             if model.timeout_reached() {
+                polish_outcome.stop_reason = "timed_out";
                 break;
             }
             if current_kawasaki <= options.polish_target_kawasaki_degrees {
+                polish_outcome.stop_reason = "target_reached";
                 break;
             }
+            polish_outcome.rounds_attempted += 1;
             let polish_model = model.reanchored_for_polish(&current_params);
             let polish_start_energy = residual_energy(&polish_model.residuals_for(&current_params));
             let (polished_params, _polish_termination, polish_round_evaluations, _obj, _counters) =
@@ -343,30 +918,107 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
                 polish_final_energy,
                 options,
             );
-            let improved = polish_rejections.is_empty()
-                && polished_after.max_kawasaki_residual_degrees <= current_kawasaki;
+            let kawasaki_improved =
+                polished_after.max_kawasaki_residual_degrees <= current_kawasaki;
+            let improved = polish_rejections.is_empty() && kawasaki_improved;
             if !improved {
+                // Reporting only: record what this round would have reached and
+                // why it was thrown away, so a silently-refused polish is
+                // legible in `movement_report`. See [`PolishOutcome`].
+                polish_outcome.stop_reason = "round_refused";
+                polish_outcome.refused_round = Some(PolishRefusal {
+                    kawasaki_degrees: polished_after.max_kawasaki_residual_degrees,
+                    kawasaki_regressed: !kawasaki_improved,
+                    rejection_reasons: polish_rejections,
+                });
                 break;
             }
             current_params = polished_params;
             current_kawasaki = polished_after.max_kawasaki_residual_degrees;
+            current_after = polished_after;
             polish_evaluations += polish_round_evaluations;
             rounds_adopted += 1;
+            polish_outcome.rounds_adopted = rounds_adopted;
+            polish_outcome.kawasaki_after_degrees = Some(current_kawasaki);
         }
-        if rounds_adopted == 0 {
-            break 'polish (final_params, termination, evaluations, objective, false);
+        // Then the two judged rounds, after the loop and not as part of it,
+        // because a candidate that reached the Kawasaki target straight out of
+        // stage 1 skips the loop entirely — and that is exactly the clean
+        // designed pattern both rounds are for. The pin first; symmetry then
+        // runs on the pinned, merged state, where it is linear.
+        let mut active = model.clone();
+        let mut pinned_adopted = false;
+        let mut merged_span_ids = BTreeSet::new();
+        if let Some(round) = pin_to_angle_family(
+            &active,
+            input,
+            &before,
+            &current_params,
+            &current_after,
+            options,
+        ) {
+            if let Some(adoption) = round.adopted {
+                current_params = adoption.params;
+                current_kawasaki = adoption.after.max_kawasaki_residual_degrees;
+                current_after = adoption.after;
+                polish_evaluations += adoption.evaluations;
+                merged_span_ids = adoption.merged_span_ids;
+                active = active.with_merged_spans(&merged_span_ids);
+                active.frozen_params = adoption.frozen_params;
+                polish_outcome.kawasaki_after_degrees = Some(current_kawasaki);
+                pinned_adopted = true;
+            }
+            polish_outcome.pinned_family = Some(round.outcome);
         }
-        let polished_objective = residual_energy(&model.residuals_for(&current_params));
+        let mut symmetry_adopted = false;
+        if let Some(round) = symmetry_round(
+            &active,
+            input,
+            &before,
+            &current_params,
+            &current_after,
+            options,
+        ) {
+            if let Some(adoption) = round.adopted {
+                current_params = adoption.params;
+                current_kawasaki = adoption.after.max_kawasaki_residual_degrees;
+                current_after = adoption.after;
+                polish_evaluations += adoption.evaluations;
+                polish_outcome.kawasaki_after_degrees = Some(current_kawasaki);
+                active = active.with_symmetries_held();
+                symmetry_adopted = true;
+            }
+            polish_outcome.symmetry = Some(round.outcome);
+        }
+        let _ = &current_after;
+        if rounds_adopted == 0 && !symmetry_adopted && !pinned_adopted {
+            break 'polish (
+                final_params,
+                termination,
+                evaluations,
+                objective,
+                false,
+                merged_span_ids,
+                active,
+            );
+        }
+        let polished_objective = residual_energy(&active.residuals_for(&current_params));
+        let pinned = if pinned_adopted { ",pinned" } else { "" };
+        let symmetric = if symmetry_adopted { ",symmetric" } else { "" };
         (
             current_params,
-            format!("{termination}+polish(rounds={rounds_adopted})"),
+            format!("{termination}+polish(rounds={rounds_adopted}{pinned}{symmetric})"),
             evaluations + polish_evaluations,
             polished_objective,
             true,
+            merged_span_ids,
+            active,
         )
     };
+    // From here the answer is judged and described as the editor will hold it.
+    let model = model.with_merged_spans(&merged_span_ids);
 
-    let candidate_points = model.points_from_params(&final_params);
+    let candidate_points = model.placed_points(&final_params);
     let candidate_after = analyze_graph(input, &candidate_points, &model, &final_params, options);
     let candidate_status = classify_status(&before, &candidate_after, options);
     let timed_out = model.timeout_reached();
@@ -383,14 +1035,30 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
     } else if polish_adopted {
         Vec::new()
     } else {
-        exact_solution_rejection_reasons(
+        let mut reasons = exact_solution_rejection_reasons(
             &before,
             &candidate_after,
             candidate_status,
             initial_objective,
             objective,
             options,
-        )
+        );
+        // Refinement must not hand back worse angles than it was given. An
+        // input already at the bar — a pattern solved and accepted once — came
+        // back from a re-solve at 0.002° with 75 angle violations, accepted
+        // because its carriers had improved. Judged here, on the answer, and
+        // not on the geometry candidate inside refinement: that one is a basin
+        // search the polish and the pin start from, and refusing it there kept
+        // both from running. The geometry stage on its own is exempt for the
+        // same reason.
+        if options.polish
+            && before.max_kawasaki_residual_degrees <= options.solved_kawasaki_epsilon_degrees
+            && candidate_after.max_kawasaki_residual_degrees
+                > options.solved_kawasaki_epsilon_degrees
+        {
+            reasons.push("kawasaki_regressed_from_bar".to_owned());
+        }
+        reasons
     };
     let accepted = !timed_out && rejection_reasons.is_empty();
     let (vertices_exact, after, accepted_objective, status) = if accepted {
@@ -436,6 +1104,7 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
         &accepted_breakdown,
         &candidate_breakdown,
         &counters,
+        &polish_outcome,
     );
     let theorem_residual_report = theorem_report(
         &before,
@@ -454,6 +1123,7 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
             .iter()
             .map(|span| span.vertices)
             .collect(),
+        merged_vertices: model.merged_vertex_pairs(),
         movement_report,
         theorem_residual_report,
         status,
@@ -464,6 +1134,27 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
 struct SolveModel {
     vertex_params: Vec<VertexParameterization>,
     carrier_groups: Vec<CarrierGroup>,
+    /// Parameters the optimizer must not move, by index; empty means none. A
+    /// frozen parameter still shapes every residual it appears in, it just gets
+    /// no Jacobian column. See [`SolveModel::pinned_to_angle_family`].
+    frozen_params: Vec<bool>,
+    /// Spans the pinned round collapsed to a point and the solve adopted as
+    /// merges: their two endpoints are one vertex. See [`analyze_graph`].
+    merged_span_ids: BTreeSet<usize>,
+    /// Per vertex, the vertex that stands for it once merges are applied — its
+    /// own id outside any merge. Empty when there are no merges. See
+    /// [`merged_vertex_representatives`].
+    merged_representative: Vec<usize>,
+    /// The raster the input was detected from, in pixels per paper edge; what a
+    /// pixel of endpoint noise is worth in angle on a crease of a given length.
+    image_size_px: f64,
+    /// The mirror symmetries the input was found to have. See [`SymmetryMode`].
+    candidate_symmetries: Vec<DetectedSymmetry>,
+    /// The symmetries this model holds as residuals — empty until the symmetry
+    /// round adopts them; see [`symmetry_round`]. Holding them from the first
+    /// solve destabilised noisy detections (close_but went from 0 to 167 angle
+    /// violations), which is why they are a judged round, like the pin.
+    symmetries: Vec<DetectedSymmetry>,
     span_to_carrier_group: BTreeMap<usize, usize>,
     initial_params: OVector<f64, Dyn>,
     selected_spans: Vec<CandidateCreaseSpan>,
@@ -473,6 +1164,10 @@ struct SolveModel {
     deadline: ExactSolveDeadline,
     timed_out: Rc<Cell<bool>>,
     provenance: CandidateGraphProvenance,
+    /// Vertices excluded from the `max_vertex_movement` maximum; see
+    /// [`ExactSolveOptionsWithExemptions`]. Shared rather than cloned so the
+    /// per-round polish copies of this model stay free.
+    exempt_vertex_ids: Rc<BTreeSet<usize>>,
 }
 
 impl SolveModel {
@@ -480,9 +1175,20 @@ impl SolveModel {
         input: &ExactSolveInput,
         options: ExactSolveOptions,
         deadline: ExactSolveDeadline,
+        exempt_vertex_ids: Rc<BTreeSet<usize>>,
     ) -> Self {
         let mut params = Vec::new();
-        let corner_points = corner_points(&input.boundary);
+        let polygon = is_polygon_boundary(input);
+        let corner_points = if polygon {
+            polygon_corner_points(input)
+        } else {
+            corner_points(&input.boundary)
+        };
+        let side_segments = if polygon {
+            polygon_side_segments(input)
+        } else {
+            BTreeMap::new()
+        };
         let corner_ids = input
             .boundary
             .corners
@@ -503,7 +1209,15 @@ impl SolveModel {
                 });
                 continue;
             }
-            if let Some(side) = vertex.boundary_side {
+            if let Some(&(origin, vector)) = side_segments.get(&vertex.id) {
+                let index = params.len();
+                params.push(segment_param(vertex.point, origin, vector));
+                vertex_params.push(VertexParameterization::PolyBoundary {
+                    index,
+                    origin,
+                    vector,
+                });
+            } else if let Some(side) = vertex.boundary_side {
                 let index = params.len();
                 params.push(side_coord(side, vertex.point));
                 vertex_params.push(VertexParameterization::Boundary { index, side });
@@ -541,6 +1255,7 @@ impl SolveModel {
                     rho_index,
                     initial_theta: theta,
                     initial_rho: span.carrier.rho,
+                    pinned_step: None,
                 });
                 group_by_key.insert(key, index);
                 index
@@ -552,6 +1267,24 @@ impl SolveModel {
         Self {
             vertex_params,
             carrier_groups,
+            frozen_params: Vec::new(),
+            merged_span_ids: BTreeSet::new(),
+            merged_representative: Vec::new(),
+            image_size_px: input.image_size.map_or(1024.0, |size| size as f64),
+            // Only on the square: the axes are the square's, and a polygon's
+            // boundary vertices are parameterized along sides a reflection
+            // need not map onto each other.
+            candidate_symmetries: if options.symmetry == SymmetryMode::Auto && !polygon {
+                detect_symmetries(
+                    &input.vertices,
+                    &input.selected_spans,
+                    options.symmetry_match_tolerance,
+                    options.symmetry_min_fraction,
+                )
+            } else {
+                Vec::new()
+            },
+            symmetries: Vec::new(),
             span_to_carrier_group,
             initial_params: OVector::<f64, Dyn>::from_vec(params),
             selected_spans: input.selected_spans.clone(),
@@ -561,6 +1294,7 @@ impl SolveModel {
             deadline,
             timed_out: Rc::new(Cell::new(false)),
             provenance: input.provenance.clone(),
+            exempt_vertex_ids,
         }
     }
 
@@ -576,17 +1310,42 @@ impl SolveModel {
     }
 
     fn points_from_params(&self, params: &OVector<f64, Dyn>) -> Vec<Point2> {
-        self.vertex_params
+        let points: Vec<Point2> = self
+            .vertex_params
             .iter()
             .map(|param| match *param {
                 VertexParameterization::Fixed { point } => point,
                 VertexParameterization::Boundary { index, side } => side_point(side, params[index]),
+                VertexParameterization::PolyBoundary {
+                    index,
+                    origin,
+                    vector,
+                } => Point2::new(
+                    origin.x + params[index] * vector.x,
+                    origin.y + params[index] * vector.y,
+                ),
                 VertexParameterization::Free { x_index, y_index } => Point2::new(
                     params[x_index].clamp(-0.25, 1.25),
                     params[y_index].clamp(-0.25, 1.25),
                 ),
             })
-            .collect()
+            .collect();
+        points
+    }
+
+    /// The points the answer places: [`Self::points_from_params`] with every
+    /// merged pair at one point. The optimizer holds the two within ~1e-12 of
+    /// each other, and the answer makes that exact, because the editor and the
+    /// checker both group creases at a point by an epsilon and a pair that
+    /// straddled it would be two half-fans.
+    fn placed_points(&self, params: &OVector<f64, Dyn>) -> Vec<Point2> {
+        let mut points = self.points_from_params(params);
+        for (vertex, &representative) in self.merged_representative.iter().enumerate() {
+            if representative != vertex {
+                points[vertex] = points[representative];
+            }
+        }
+        points
     }
 
     /// A copy of this model whose movement/carrier priors anchor to the given
@@ -607,6 +1366,231 @@ impl SolveModel {
         polished.options.kawasaki_sigma_radians = self.options.polish_kawasaki_sigma_radians;
         polished.options.carrier_incidence_sigma = self.options.polish_carrier_incidence_sigma;
         polished
+    }
+
+    /// The polish model for a pinned round: re-anchored to `solved` like
+    /// [`Self::reanchored_for_polish`], with every carrier within `tolerance`
+    /// of the `step` lattice set to its exact lattice angle and frozen there —
+    /// less the ones [`Self::peel_inconsistent_pins`] lets go. Returns the
+    /// model, the parameters to start from (`solved` with those directions
+    /// snapped) and how many carriers were let go, or `None` when no carrier is
+    /// both on the lattice and off it by enough to be worth moving.
+    fn pinned_to_angle_family(
+        &self,
+        solved: &OVector<f64, Dyn>,
+        step: f64,
+        tolerance: f64,
+        short_crease_noise_px: Option<f64>,
+    ) -> Option<(Self, OVector<f64, Dyn>, usize)> {
+        let points = self.points_from_params(solved);
+        let mut pin: Vec<bool> = self
+            .carrier_groups
+            .iter()
+            .map(|group| {
+                let allowed = match short_crease_noise_px {
+                    None => tolerance,
+                    Some(noise_px) => {
+                        // The longest crease on the carrier is the best measure
+                        // of its direction; noise over that length is the angle
+                        // it may be off by.
+                        let longest_px = group
+                            .span_indices
+                            .iter()
+                            .map(|&index| {
+                                let [a, b] = self.selected_spans[index].vertices;
+                                distance(points[a], points[b]) * self.image_size_px
+                            })
+                            .fold(0.0_f64, f64::max);
+                        if longest_px > 0.0 {
+                            tolerance.max((noise_px / longest_px).atan())
+                        } else {
+                            tolerance
+                        }
+                    }
+                };
+                lattice_offset(solved[group.theta_index], step).abs() <= allowed
+            })
+            .collect();
+        let peeled = self.peel_inconsistent_pins(solved, step, &mut pin);
+        let mut pinned = self.reanchored_for_polish(solved);
+        pinned.frozen_params = vec![false; solved.len()];
+        let mut start = solved.clone();
+        let mut moved = 0usize;
+        for (group, &pin_this) in pinned.carrier_groups.iter_mut().zip(&pin) {
+            if !pin_this {
+                continue;
+            }
+            let theta = solved[group.theta_index];
+            let offset = lattice_offset(theta, step);
+            let snapped = theta - offset;
+            group.pinned_step = Some(step);
+            group.initial_theta = snapped;
+            start[group.theta_index] = snapped;
+            pinned.frozen_params[group.theta_index] = true;
+            if offset.abs() > 1e-12 {
+                moved += 1;
+            }
+        }
+        if moved == 0 {
+            return None;
+        }
+        pinned.initial_params = start.clone();
+        Some((pinned, start, peeled))
+    }
+
+    /// Let go, before any optimising, of what the lattice itself says cannot be
+    /// pinned. At a vertex whose every carrier is pinned, the sector angles are
+    /// fixed by the lattice alone, so Kawasaki there is arithmetic: if the
+    /// snapped directions fail it, no optimizer will pass it, and one of those
+    /// carriers was never on the lattice. The one furthest from it is let go and
+    /// the check repeats until every fully-pinned vertex passes. Returns how
+    /// many carriers were let go. Measured on pegasus-attempt at 1.5°: the
+    /// optimizer spent three seconds finding a 0.59° Kawasaki failure this
+    /// finds in microseconds.
+    fn peel_inconsistent_pins(
+        &self,
+        solved: &OVector<f64, Dyn>,
+        step: f64,
+        pin: &mut [bool],
+    ) -> usize {
+        use std::f64::consts::{FRAC_PI_2, PI};
+        let points = self.points_from_params(solved);
+        let boundary = boundary_vertex_ids(&self.selected_spans);
+        let mut incident: Vec<Vec<usize>> = vec![Vec::new(); self.vertices.len()];
+        for (index, span) in self.selected_spans.iter().enumerate() {
+            if !is_fold_span(span) || self.merged_span_ids.contains(&span.id) {
+                continue;
+            }
+            for vertex in span.vertices {
+                if let Some(list) = incident.get_mut(vertex) {
+                    list.push(index);
+                }
+            }
+        }
+        let mut peeled = 0usize;
+        loop {
+            let mut let_go: Option<usize> = None;
+            for vertex in &self.vertices {
+                if !is_interior_fold_vertex(vertex, &boundary) {
+                    continue;
+                }
+                let spans = &incident[vertex.id];
+                if spans.len() < 4 || !spans.len().is_multiple_of(2) {
+                    continue;
+                }
+                let mut rays = Vec::with_capacity(spans.len());
+                let mut furthest: Option<(usize, f64)> = None;
+                let mut fully_pinned = true;
+                for &span_index in spans {
+                    let span = &self.selected_spans[span_index];
+                    let Some(&group_index) = self.span_to_carrier_group.get(&span.id) else {
+                        fully_pinned = false;
+                        break;
+                    };
+                    if !pin[group_index] {
+                        fully_pinned = false;
+                        break;
+                    }
+                    let theta = solved[self.carrier_groups[group_index].theta_index];
+                    let offset = lattice_offset(theta, step);
+                    let [a, b] = span.vertices;
+                    let (from, to) = if a == vertex.id { (a, b) } else { (b, a) };
+                    let current = angle_radians(points[from], points[to]);
+                    // The pinned line's direction, in the sense this ray runs.
+                    let direction = theta - offset + FRAC_PI_2;
+                    let ray = if angle_delta(direction, current).abs() <= FRAC_PI_2 {
+                        direction
+                    } else {
+                        direction + PI
+                    };
+                    rays.push(ray.rem_euclid(TAU));
+                    if furthest.is_none_or(|(_, worst)| offset.abs() > worst) {
+                        furthest = Some((group_index, offset.abs()));
+                    }
+                }
+                if !fully_pinned {
+                    continue;
+                }
+                rays.sort_by(f64::total_cmp);
+                let mut alternating = 0.0;
+                for (k, ray) in rays.iter().enumerate() {
+                    let sector = (rays[(k + 1) % rays.len()] - ray).rem_euclid(TAU);
+                    alternating += if k % 2 == 0 { sector } else { -sector };
+                }
+                if alternating.abs() > LATTICE_KAWASAKI_TOLERANCE {
+                    let_go = furthest.map(|(group_index, _)| group_index);
+                    break;
+                }
+            }
+            match let_go {
+                Some(group_index) => {
+                    pin[group_index] = false;
+                    peeled += 1;
+                }
+                None => return peeled,
+            }
+        }
+    }
+
+    /// A copy on its own clock: `seconds` from now, with a timeout flag that is
+    /// its own. The shared flag would turn a round that ran out of its
+    /// allowance into a solve that timed out.
+    fn with_own_budget(&self, seconds: f64) -> Self {
+        let mut own = self.clone();
+        own.deadline = ExactSolveDeadline::start(seconds);
+        own.timed_out = Rc::new(Cell::new(false));
+        own
+    }
+
+    /// Seconds left on this model's clock, or `None` when it has no deadline.
+    fn remaining_seconds(&self) -> Option<f64> {
+        let deadline = &self.deadline;
+        (deadline.timeout_seconds.is_finite() && deadline.timeout_seconds >= 0.0)
+            .then(|| deadline.timeout_seconds - deadline.elapsed_seconds())
+    }
+
+    /// This model holding every symmetry it detected. See [`symmetry_round`].
+    fn with_symmetries_held(&self) -> Self {
+        let mut held = self.clone();
+        held.symmetries = self.candidate_symmetries.clone();
+        held
+    }
+
+    /// This model with `span_ids` read as merges. See [`analyze_graph`].
+    fn with_merged_spans(&self, span_ids: &BTreeSet<usize>) -> Self {
+        let mut merged = self.clone();
+        merged.merged_span_ids.extend(span_ids.iter().copied());
+        merged.merged_representative = if merged.merged_span_ids.is_empty() {
+            Vec::new()
+        } else {
+            merged_vertex_representatives(
+                self.vertices.len(),
+                &self.selected_spans,
+                &merged.merged_span_ids,
+                &boundary_vertex_ids(&self.selected_spans),
+            )
+        };
+        merged
+    }
+
+    /// The vertex that stands for `vertex` once merges are applied.
+    fn representative_of(&self, vertex: usize) -> usize {
+        self.merged_representative
+            .get(vertex)
+            .copied()
+            .unwrap_or(vertex)
+    }
+
+    /// The spans read as merges, in span order.
+    fn merged_spans(&self) -> impl Iterator<Item = &CandidateCreaseSpan> {
+        self.selected_spans
+            .iter()
+            .filter(|span| self.merged_span_ids.contains(&span.id))
+    }
+
+    /// The merged spans as vertex pairs, for the answer and its report.
+    fn merged_vertex_pairs(&self) -> Vec<[usize; 2]> {
+        self.merged_spans().map(|span| span.vertices).collect()
     }
 
     fn residuals_for(&self, params: &OVector<f64, Dyn>) -> Vec<f64> {
@@ -633,6 +1617,20 @@ impl SolveModel {
                     let original = vertex
                         .boundary_side
                         .map_or(vertex.point.x, |side| side_coord(side, vertex.point));
+                    let weight = movement_weight(vertex.support, source_weight);
+                    push_residual(
+                        &mut residuals,
+                        &mut breakdown,
+                        ResidualFamily::BoundaryMovement,
+                        weight * (params[index] - original) / self.options.boundary_movement_sigma,
+                    );
+                }
+                VertexParameterization::PolyBoundary {
+                    index,
+                    origin,
+                    vector,
+                } => {
+                    let original = segment_param(vertex.point, origin, vector);
                     let weight = movement_weight(vertex.support, source_weight);
                     push_residual(
                         &mut residuals,
@@ -678,6 +1676,9 @@ impl SolveModel {
             let normal = Point2::new(theta.cos(), theta.sin());
             for span_index in &group.span_indices {
                 let span = &self.selected_spans[*span_index];
+                if self.merged_span_ids.contains(&span.id) {
+                    continue;
+                }
                 for vertex_id in span.vertices {
                     let point = points[vertex_id];
                     push_residual(
@@ -691,7 +1692,52 @@ impl SolveModel {
             }
         }
 
-        for residual in kawasaki_residuals(&points, &self.vertices, &self.selected_spans) {
+        // A merged pair is one vertex: hold its members together as hard as a
+        // vertex is held to its carrier. See [`analyze_graph`].
+        for span in self.merged_spans() {
+            let [a, b] = span.vertices;
+            for (pa, pb) in [(points[a].x, points[b].x), (points[a].y, points[b].y)] {
+                push_residual(
+                    &mut residuals,
+                    &mut breakdown,
+                    ResidualFamily::Coincidence,
+                    (pa - pb) / self.options.carrier_incidence_sigma,
+                );
+            }
+        }
+
+        // A mirror-symmetric pattern is one answer, not two halves each exact
+        // on its own: each vertex is held to its partner's image and each axis
+        // vertex to the axis, as hard as a vertex is held to its carrier.
+        for symmetry in &self.symmetries {
+            for &[a, b] in &symmetry.pairs {
+                let image = symmetry.axis.reflect(points[a]);
+                for value in [image.x - points[b].x, image.y - points[b].y] {
+                    push_residual(
+                        &mut residuals,
+                        &mut breakdown,
+                        ResidualFamily::Symmetry,
+                        value / self.options.carrier_incidence_sigma,
+                    );
+                }
+            }
+            for &id in &symmetry.on_axis {
+                push_residual(
+                    &mut residuals,
+                    &mut breakdown,
+                    ResidualFamily::Symmetry,
+                    symmetry.axis.distance_from(points[id]) / self.options.carrier_incidence_sigma,
+                );
+            }
+        }
+
+        for residual in kawasaki_residuals(
+            &points,
+            &self.vertices,
+            &self.selected_spans,
+            &self.merged_span_ids,
+            &self.merged_representative,
+        ) {
             push_residual(
                 &mut residuals,
                 &mut breakdown,
@@ -705,8 +1751,13 @@ impl SolveModel {
 
     fn analytic_jacobian(&self, params: &OVector<f64, Dyn>) -> OMatrix<f64, Dyn, Dyn> {
         let points = self.points_from_params(params);
-        let kawasaki_entries =
-            kawasaki_residual_entries(&points, &self.vertices, &self.selected_spans);
+        let kawasaki_entries = kawasaki_residual_entries(
+            &points,
+            &self.vertices,
+            &self.selected_spans,
+            &self.merged_span_ids,
+            &self.merged_representative,
+        );
         let rows = self.analytic_residual_count(kawasaki_entries.len());
         let cols = params.len();
         let mut matrix = OMatrix::<f64, Dyn, Dyn>::zeros(rows, cols);
@@ -731,6 +1782,17 @@ impl SolveModel {
         kawasaki_entries: &[KawasakiResidualEntry],
         add: &mut dyn FnMut(usize, usize, f64),
     ) {
+        // A frozen parameter gets no column. Its gradient entry is then zero
+        // and its damped-step row is decoupled, so the step leaves it exactly
+        // where it is — on the sparse path (`solve_lm_step` floors the damping
+        // diagonal) and on the dense one (MINPACK scales a zero column by 1).
+        let frozen = &self.frozen_params;
+        let mut masked = |row: usize, col: usize, value: f64| {
+            if !frozen.get(col).copied().unwrap_or(false) {
+                add(row, col, value);
+            }
+        };
+        let add: &mut dyn FnMut(usize, usize, f64) = &mut masked;
         let source_weight = if self.provenance.source_adapter == CandidateSourceAdapter::Legacy {
             1.0
         } else {
@@ -742,6 +1804,11 @@ impl SolveModel {
             match *param {
                 VertexParameterization::Fixed { .. } => {}
                 VertexParameterization::Boundary { index, .. } => {
+                    let weight = movement_weight(vertex.support, source_weight);
+                    add(row, index, weight / self.options.boundary_movement_sigma);
+                    row += 1;
+                }
+                VertexParameterization::PolyBoundary { index, .. } => {
                     let weight = movement_weight(vertex.support, source_weight);
                     add(row, index, weight / self.options.boundary_movement_sigma);
                     row += 1;
@@ -771,6 +1838,9 @@ impl SolveModel {
 
             for span_index in &group.span_indices {
                 let span = &self.selected_spans[*span_index];
+                if self.merged_span_ids.contains(&span.id) {
+                    continue;
+                }
                 for vertex_id in span.vertices {
                     let point = points[vertex_id];
                     let scale = 1.0 / self.options.carrier_incidence_sigma;
@@ -793,6 +1863,37 @@ impl SolveModel {
             }
         }
 
+        for span in self.merged_spans() {
+            let [a, b] = span.vertices;
+            let scale = 1.0 / self.options.carrier_incidence_sigma;
+            self.add_point_derivative(add, row, a, scale, 0.0, params);
+            self.add_point_derivative(add, row, b, -scale, 0.0, params);
+            row += 1;
+            self.add_point_derivative(add, row, a, 0.0, scale, params);
+            self.add_point_derivative(add, row, b, 0.0, -scale, params);
+            row += 1;
+        }
+
+        for symmetry in &self.symmetries {
+            let scale = 1.0 / self.options.carrier_incidence_sigma;
+            // `image = M·p + c`, so the image's x row is M's first row and its
+            // y row the second; the partner enters each with -1.
+            let [[mxx, mxy], [myx, myy]] = symmetry.axis.reflection_matrix();
+            for &[a, b] in &symmetry.pairs {
+                self.add_point_derivative(add, row, a, mxx * scale, mxy * scale, params);
+                self.add_point_derivative(add, row, b, -scale, 0.0, params);
+                row += 1;
+                self.add_point_derivative(add, row, a, myx * scale, myy * scale, params);
+                self.add_point_derivative(add, row, b, 0.0, -scale, params);
+                row += 1;
+            }
+            let [gx, gy] = symmetry.axis.distance_gradient();
+            for &id in &symmetry.on_axis {
+                self.add_point_derivative(add, row, id, gx * scale, gy * scale, params);
+                row += 1;
+            }
+        }
+
         for entry in kawasaki_entries {
             for (index, ray) in entry.rays.iter().enumerate() {
                 let angle_weight = if index % 2 == 0 { -2.0 } else { 2.0 };
@@ -800,7 +1901,7 @@ impl SolveModel {
                 self.add_angle_derivative(
                     add,
                     row,
-                    entry.vertex_id,
+                    ray.origin_vertex_id,
                     ray.target_vertex_id,
                     scale,
                     points,
@@ -818,15 +1919,37 @@ impl SolveModel {
             .map(|param| match param {
                 VertexParameterization::Fixed { .. } => 0,
                 VertexParameterization::Boundary { .. } => 1,
+                VertexParameterization::PolyBoundary { .. } => 1,
                 VertexParameterization::Free { .. } => 2,
             })
             .sum::<usize>();
         let carrier_residuals = self
             .carrier_groups
             .iter()
-            .map(|group| 2 + group.span_indices.len() * 2)
+            .map(|group| {
+                let incident_spans = group
+                    .span_indices
+                    .iter()
+                    .filter(|index| {
+                        !self
+                            .merged_span_ids
+                            .contains(&self.selected_spans[**index].id)
+                    })
+                    .count();
+                2 + incident_spans * 2
+            })
             .sum::<usize>();
-        vertex_residuals + carrier_residuals + kawasaki_residual_count
+        let coincidence_residuals = self.merged_spans().count() * 2;
+        let symmetry_residuals = self
+            .symmetries
+            .iter()
+            .map(|symmetry| symmetry.pairs.len() * 2 + symmetry.on_axis.len())
+            .sum::<usize>();
+        vertex_residuals
+            + carrier_residuals
+            + coincidence_residuals
+            + symmetry_residuals
+            + kawasaki_residual_count
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -888,6 +2011,10 @@ impl SolveModel {
                     },
                 );
             }
+            VertexParameterization::PolyBoundary { index, vector, .. } => {
+                // point = origin + t·vector, so d(point)/dt = vector.
+                add(row, index, dx * vector.x + dy * vector.y);
+            }
             VertexParameterization::Free { x_index, y_index } => {
                 if params[x_index] > -0.25 && params[x_index] < 1.25 {
                     add(row, x_index, dx);
@@ -905,8 +2032,13 @@ impl SolveModel {
     fn build_normal_equations(&self, params: &OVector<f64, Dyn>, residuals: &[f64]) -> GaussNewton {
         let n = params.len();
         let points = self.points_from_params(params);
-        let kawasaki_entries =
-            kawasaki_residual_entries(&points, &self.vertices, &self.selected_spans);
+        let kawasaki_entries = kawasaki_residual_entries(
+            &points,
+            &self.vertices,
+            &self.selected_spans,
+            &self.merged_span_ids,
+            &self.merged_representative,
+        );
 
         // Jacobian entries, row-monotonic (emit order).
         let mut flat: Vec<(usize, usize, f64)> = Vec::new();
@@ -957,34 +2089,22 @@ impl SolveModel {
     /// Solve the damped LM step `(JᵀJ + lambda·diag(JᵀJ)) δ = -Jᵀr` via sparse
     /// Cholesky. Returns `None` if the (damped) system is not positive definite,
     /// signalling the caller to increase damping.
-    fn solve_lm_step(&self, gn: &GaussNewton, lambda: f64, n: usize) -> Option<OVector<f64, Dyn>> {
-        let mut rows = Vec::with_capacity(gn.jtj.len() * 2 + n);
-        let mut cols = Vec::with_capacity(gn.jtj.len() * 2 + n);
-        let mut vals = Vec::with_capacity(gn.jtj.len() * 2 + n);
-        for &(i, j, v) in &gn.jtj {
-            rows.push(i);
-            cols.push(j);
-            vals.push(v);
-            if i != j {
-                rows.push(j);
-                cols.push(i);
-                vals.push(v);
-            }
+    ///
+    /// `system` is the step's reusable half: the fill-reducing order, the
+    /// permuted pattern and its symbolic factorisation, built on the first call
+    /// and kept while the pattern holds. See [`SparseStepSystem`].
+    fn solve_lm_step(
+        &self,
+        gn: &GaussNewton,
+        lambda: f64,
+        n: usize,
+        system: &mut Option<SparseStepSystem>,
+    ) -> Option<OVector<f64, Dyn>> {
+        if system.as_ref().is_none_or(|ready| !ready.covers(gn)) {
+            *system = Some(SparseStepSystem::new(gn, n)?);
         }
-        for k in 0..n {
-            rows.push(k);
-            cols.push(k);
-            vals.push(lambda * gn.diagonal[k].max(1e-12));
-        }
-        let coo = CooMatrix::try_from_triplets(n, n, rows, cols, vals).ok()?;
-        let csc = CscMatrix::from(&coo);
-        let chol = CscCholesky::factor(&csc).ok()?;
-        let rhs = DMatrix::from_fn(n, 1, |i, _| -gn.gradient[i]);
-        let sol = chol.solve(&rhs);
-        Some(OVector::<f64, Dyn>::from_iterator(
-            n,
-            (0..n).map(|i| sol[(i, 0)]),
-        ))
+        let ready = system.as_mut()?;
+        ready.solve(gn, lambda)
     }
 
     /// Sparse Levenberg-Marquardt minimize. Mirrors the dense crate's role
@@ -1026,6 +2146,7 @@ impl SolveModel {
         let mut stall = 0usize;
         const MAX_OUTER: usize = 200;
         let mut termination = "sparse_max_iterations".to_owned();
+        let mut system: Option<SparseStepSystem> = None;
 
         'outer: for _iter in 0..MAX_OUTER {
             if self.timeout_reached() {
@@ -1053,7 +2174,7 @@ impl SolveModel {
                     termination = "sparse_timeout".to_owned();
                     break 'outer;
                 }
-                let Some(delta) = self.solve_lm_step(&gn, lambda, n) else {
+                let Some(delta) = self.solve_lm_step(&gn, lambda, n, &mut system) else {
                     lambda *= nu;
                     nu *= 2.0;
                     stall += 1;
@@ -1135,6 +2256,181 @@ struct GaussNewton {
     gradient_norm: f64,
 }
 
+/// The damped normal equations as the sparse Cholesky sees them, reused across
+/// the LM iterations of one minimize.
+///
+/// Two things made the old step slow, and both were the same every iteration.
+/// The system was factored in *parameter order* — detection order, a random
+/// walk over the sheet — and a planar mesh factored in a random order fills
+/// in until the factor is nearly dense: on a 382-vertex pattern one
+/// factorisation cost half a second, 96% of the solve's time. And the pattern
+/// was rebuilt, sorted and symbolically analysed from scratch each time, though
+/// nothing about it changes between iterations but the values.
+///
+/// So the parameters are renumbered once by reverse Cuthill–McKee, which keeps
+/// a planar graph's neighbours close in the ordering and its factor banded;
+/// the permuted pattern is built once; the symbolic factorisation is done
+/// once; and each iteration only writes the new values into their slots and
+/// refactors numerically. The arithmetic is the same system solved in a
+/// different order — the step is identical up to rounding.
+struct SparseStepSystem {
+    n: usize,
+    /// `perm[old] = new`: where parameter `old` sits in the factored system.
+    perm: Vec<usize>,
+    /// Value slot in the permuted CSC storage for each (row, col) it holds.
+    slots: HashMap<(usize, usize), usize>,
+    /// Slot of each parameter's diagonal entry, in parameter order.
+    diagonal_slots: Vec<usize>,
+    symbolic: CscSymbolicCholesky,
+    values: Vec<f64>,
+    factor: Option<CscCholesky<f64>>,
+    rhs: DMatrix<f64>,
+}
+
+impl SparseStepSystem {
+    fn new(gn: &GaussNewton, n: usize) -> Option<Self> {
+        let perm = reverse_cuthill_mckee(n, gn.jtj.iter().map(|&(i, j, _)| (i, j)));
+        let mut rows = Vec::with_capacity(gn.jtj.len() * 2 + n);
+        let mut cols = Vec::with_capacity(gn.jtj.len() * 2 + n);
+        for &(i, j, _) in &gn.jtj {
+            rows.push(perm[i]);
+            cols.push(perm[j]);
+            if i != j {
+                rows.push(perm[j]);
+                cols.push(perm[i]);
+            }
+        }
+        for &k in &perm {
+            rows.push(k);
+            cols.push(k);
+        }
+        let ones = vec![1.0; rows.len()];
+        let coo = CooMatrix::try_from_triplets(n, n, rows, cols, ones).ok()?;
+        let csc = CscMatrix::from(&coo);
+        let mut slots = HashMap::with_capacity(csc.nnz());
+        for (slot, (row, col, _)) in csc.triplet_iter().enumerate() {
+            slots.insert((row, col), slot);
+        }
+        let diagonal_slots = perm
+            .iter()
+            .map(|&k| slots.get(&(k, k)).copied())
+            .collect::<Option<Vec<_>>>()?;
+        let symbolic = CscSymbolicCholesky::factor(csc.pattern().clone());
+        Some(Self {
+            n,
+            perm,
+            slots,
+            diagonal_slots,
+            symbolic,
+            values: vec![0.0; csc.nnz()],
+            factor: None,
+            rhs: DMatrix::zeros(n, 1),
+        })
+    }
+
+    /// Whether every entry of `gn` has a slot here. The pattern is fixed for a
+    /// model, so this holds after the first call; it is checked rather than
+    /// assumed because a wrong slot would be a silently wrong step.
+    fn covers(&self, gn: &GaussNewton) -> bool {
+        gn.diagonal.len() == self.n
+            && gn.jtj.iter().all(|&(i, j, _)| {
+                i < self.n && j < self.n && self.slots.contains_key(&(self.perm[i], self.perm[j]))
+            })
+    }
+
+    fn solve(&mut self, gn: &GaussNewton, lambda: f64) -> Option<OVector<f64, Dyn>> {
+        self.values.iter_mut().for_each(|value| *value = 0.0);
+        for &(i, j, v) in &gn.jtj {
+            let (pi, pj) = (self.perm[i], self.perm[j]);
+            self.values[*self.slots.get(&(pi, pj))?] += v;
+            if i != j {
+                self.values[*self.slots.get(&(pj, pi))?] += v;
+            }
+        }
+        for k in 0..self.n {
+            self.values[self.diagonal_slots[k]] += lambda * gn.diagonal[k].max(1e-12);
+        }
+        match self.factor.as_mut() {
+            Some(factor) => {
+                if factor.refactor(&self.values).is_err() {
+                    // Not positive definite at this damping. Drop the factor so
+                    // the next attempt starts clean rather than from a half
+                    // written one.
+                    self.factor = None;
+                    return None;
+                }
+            }
+            None => {
+                self.factor =
+                    Some(CscCholesky::factor_numerical(self.symbolic.clone(), &self.values).ok()?);
+            }
+        }
+        let factor = self.factor.as_ref()?;
+        for k in 0..self.n {
+            self.rhs[(self.perm[k], 0)] = -gn.gradient[k];
+        }
+        let sol = factor.solve(&self.rhs);
+        Some(OVector::<f64, Dyn>::from_iterator(
+            self.n,
+            (0..self.n).map(|k| sol[(self.perm[k], 0)]),
+        ))
+    }
+}
+
+/// Reverse Cuthill–McKee: a renumbering of `n` nodes that keeps the neighbours
+/// of a sparse symmetric pattern close together, so its Cholesky factor stays
+/// banded. `pairs` are the pattern's off-diagonal couplings (either triangle;
+/// diagonal pairs are ignored). Returns `perm[old] = new`.
+///
+/// Each connected component is walked breadth-first from its lowest-degree
+/// node, neighbours taken in increasing degree, and the whole order reversed.
+/// Ties break on index, so the numbering is deterministic.
+fn reverse_cuthill_mckee(n: usize, pairs: impl Iterator<Item = (usize, usize)>) -> Vec<usize> {
+    let mut adjacency = vec![Vec::new(); n];
+    for (i, j) in pairs {
+        if i != j && i < n && j < n {
+            adjacency[i].push(j);
+            adjacency[j].push(i);
+        }
+    }
+    for list in &mut adjacency {
+        list.sort_unstable();
+        list.dedup();
+    }
+    let mut by_degree: Vec<usize> = (0..n).collect();
+    by_degree.sort_by_key(|&node| (adjacency[node].len(), node));
+
+    let mut order = Vec::with_capacity(n);
+    let mut visited = vec![false; n];
+    let mut queue = VecDeque::new();
+    for &start in &by_degree {
+        if visited[start] {
+            continue;
+        }
+        visited[start] = true;
+        queue.push_back(start);
+        while let Some(node) = queue.pop_front() {
+            order.push(node);
+            let mut next: Vec<usize> = adjacency[node]
+                .iter()
+                .copied()
+                .filter(|&other| !visited[other])
+                .collect();
+            next.sort_by_key(|&other| (adjacency[other].len(), other));
+            for other in next {
+                visited[other] = true;
+                queue.push_back(other);
+            }
+        }
+    }
+    order.reverse();
+    let mut perm = vec![0; n];
+    for (new, &old) in order.iter().enumerate() {
+        perm[old] = new;
+    }
+    perm
+}
+
 /// Run one LM minimize with the configured linear-solver backend, returning the
 /// fields `solve_exact` needs (params, termination, evaluations, objective,
 /// counters). Dense uses the `levenberg-marquardt` crate; sparse uses the
@@ -1182,6 +2478,10 @@ struct ResidualBreakdown {
     carrier_incidence_energy: f64,
     kawasaki_count: usize,
     kawasaki_energy: f64,
+    coincidence_count: usize,
+    coincidence_energy: f64,
+    symmetry_count: usize,
+    symmetry_energy: f64,
 }
 
 impl ResidualBreakdown {
@@ -1199,6 +2499,8 @@ impl ResidualBreakdown {
             + self.carrier_prior_energy
             + self.carrier_incidence_energy
             + self.kawasaki_energy
+            + self.coincidence_energy
+            + self.symmetry_energy
     }
 
     fn record(&mut self, family: ResidualFamily, residual: f64) {
@@ -1224,6 +2526,14 @@ impl ResidualBreakdown {
                 self.kawasaki_count += 1;
                 self.kawasaki_energy += energy;
             }
+            ResidualFamily::Coincidence => {
+                self.coincidence_count += 1;
+                self.coincidence_energy += energy;
+            }
+            ResidualFamily::Symmetry => {
+                self.symmetry_count += 1;
+                self.symmetry_energy += energy;
+            }
         }
     }
 }
@@ -1235,6 +2545,8 @@ enum ResidualFamily {
     CarrierPrior,
     CarrierIncidence,
     Kawasaki,
+    Coincidence,
+    Symmetry,
 }
 
 fn push_residual(
@@ -1249,9 +2561,24 @@ fn push_residual(
 
 #[derive(Debug, Clone)]
 enum VertexParameterization {
-    Fixed { point: Point2 },
-    Boundary { index: usize, side: BoundarySide },
-    Free { x_index: usize, y_index: usize },
+    Fixed {
+        point: Point2,
+    },
+    Boundary {
+        index: usize,
+        side: BoundarySide,
+    },
+    /// A boundary vertex on an arbitrary (non-axis-aligned) polygon side. The
+    /// single parameter is the position `t` along the segment `origin + t·vector`.
+    PolyBoundary {
+        index: usize,
+        origin: Point2,
+        vector: Point2,
+    },
+    Free {
+        x_index: usize,
+        y_index: usize,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -1288,6 +2615,9 @@ struct CarrierGroup {
     rho_index: usize,
     initial_theta: f64,
     initial_rho: f64,
+    /// The lattice step this carrier's direction is pinned to, in a pinned
+    /// polish round. See [`AngleFamilyMode`] and [`SolveModel::pinned_to_angle_family`].
+    pinned_step: Option<f64>,
 }
 
 #[derive(Debug, Clone)]
@@ -1366,6 +2696,9 @@ impl LeastSquaresProblem<f64, Dyn, Dyn> for ExactLeastSquaresProblem {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 struct GraphAnalysis {
     eligible_vertices: usize,
+    /// What the editor's own checker says about this geometry — `None` when the
+    /// graph could not be handed to it. See [`camv_violation_counts`].
+    camv: Option<CamvCounts>,
     odd_degree_vertices: Vec<usize>,
     degree_two_vertices: Vec<usize>,
     maekawa_failures: Vec<usize>,
@@ -1377,6 +2710,13 @@ struct GraphAnalysis {
     max_kawasaki_residual_degrees: f64,
     max_carrier_residual: f64,
     max_vertex_movement: f64,
+    /// `max_vertex_movement` restricted to the vertices the caller did *not*
+    /// exempt — the value the movement budget is actually enforced against.
+    /// Equal to `max_vertex_movement` whenever the exemption set is empty,
+    /// which is every automatic solve. Not reported: `analysis_json` keeps
+    /// publishing the unrestricted maximum.
+    #[serde(skip)]
+    max_budgeted_vertex_movement: f64,
     mean_vertex_movement: f64,
     degenerate_edges: Vec<[usize; 2]>,
     unmodeled_crossings: Vec<[usize; 2]>,
@@ -1394,6 +2734,61 @@ struct VertexAnalysis {
     maekawa_residual: Option<usize>,
 }
 
+/// Which vertex each vertex *is*, once the model's merged spans are read as
+/// merges: a vertex in no merge is its own; the members of a merge share one
+/// representative. A boundary member wins the role so the merged fan is judged
+/// the way the editor judges a boundary vertex — not by Kawasaki at all — and
+/// otherwise the lowest id does.
+fn merged_vertex_representatives(
+    count: usize,
+    spans: &[CandidateCreaseSpan],
+    merged_span_ids: &BTreeSet<usize>,
+    boundary_vertex_ids: &BTreeSet<usize>,
+) -> Vec<usize> {
+    let mut representative: Vec<usize> = (0..count).collect();
+    if merged_span_ids.is_empty() {
+        return representative;
+    }
+    let mut parent: Vec<usize> = (0..count).collect();
+    fn find(parent: &mut [usize], mut v: usize) -> usize {
+        while parent[v] != v {
+            parent[v] = parent[parent[v]];
+            v = parent[v];
+        }
+        v
+    }
+    for span in spans {
+        if !merged_span_ids.contains(&span.id) {
+            continue;
+        }
+        let [a, b] = span.vertices;
+        if a >= count || b >= count {
+            continue;
+        }
+        let (ra, rb) = (find(&mut parent, a), find(&mut parent, b));
+        if ra != rb {
+            parent[ra.max(rb)] = ra.min(rb);
+        }
+    }
+    let rank = |id: usize| (usize::from(!boundary_vertex_ids.contains(&id)), id);
+    let mut chosen: BTreeMap<usize, usize> = BTreeMap::new();
+    for v in 0..count {
+        let root = find(&mut parent, v);
+        chosen
+            .entry(root)
+            .and_modify(|best| {
+                if rank(v) < rank(*best) {
+                    *best = v;
+                }
+            })
+            .or_insert(v);
+    }
+    for (v, slot) in representative.iter_mut().enumerate() {
+        *slot = chosen[&find(&mut parent, v)];
+    }
+    representative
+}
+
 fn analyze_graph(
     input: &ExactSolveInput,
     points: &[Point2],
@@ -1406,20 +2801,27 @@ fn analyze_graph(
     let paper_boundary_span_ids = paper_boundary_span_ids(&input.selected_spans);
     let cut_boundary_span_ids = cut_boundary_span_ids(&input.selected_spans);
     let boundary_vertex_ids = boundary_vertex_ids(&input.selected_spans);
+    // A merged span is the one place this fan deliberately differs from the
+    // optimizer's (`kawasaki_residual_entries`): the solve keeps the stub as a
+    // crease whose direction its carrier still pins, while the answer the
+    // editor will hold has its two coincident ends as one vertex and the stub
+    // gone. The verdict is on the answer.
     for span in &input.selected_spans {
-        if is_boundary_like_span(span) {
+        if !is_fold_span(span) || model.merged_span_ids.contains(&span.id) {
             continue;
         }
         let [a, b] = span.vertices;
         if a >= points.len() || b >= points.len() {
             continue;
         }
-        incident[a].push(IncidentRay {
+        incident[model.representative_of(a)].push(IncidentRay {
+            origin_vertex_id: a,
             target_vertex_id: b,
             angle: angle_radians(points[a], points[b]),
             assignment: span.assignment_label(),
         });
-        incident[b].push(IncidentRay {
+        incident[model.representative_of(b)].push(IncidentRay {
+            origin_vertex_id: b,
             target_vertex_id: a,
             angle: angle_radians(points[b], points[a]),
             assignment: span.assignment_label(),
@@ -1490,6 +2892,11 @@ fn analyze_graph(
 
     let mut max_carrier_residual = 0.0_f64;
     for (span_id, group_index) in &model.span_to_carrier_group {
+        // A merged stub is gone from the answer and has no line to sit on;
+        // measuring it would fail a Solved pattern on a crease it no longer has.
+        if model.merged_span_ids.contains(span_id) {
+            continue;
+        }
         let Some(span) = input.selected_spans.iter().find(|span| span.id == *span_id) else {
             continue;
         };
@@ -1504,21 +2911,68 @@ fn analyze_graph(
         }
     }
 
+    // A merged vertex is judged against the stub it was one end of, not its own
+    // detected position: the detector put the junction somewhere along that
+    // stub, so landing anywhere on it is no drift, and only distance *from* it
+    // is. Measured from the own position, collapsing a 12 px stub whose lines
+    // meet at one end reads as 12 px of movement and fails a perfect answer.
+    let mut group_members: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
+    for (vertex, &representative) in model.merged_representative.iter().enumerate() {
+        group_members
+            .entry(representative)
+            .or_default()
+            .push(vertex);
+    }
     let movement = input
         .vertices
         .iter()
         .zip(points)
-        .map(|(vertex, point)| distance(vertex.point, *point))
+        .map(|(vertex, point)| {
+            let representative = model.representative_of(vertex.id);
+            match group_members.get(&representative) {
+                Some(members) if members.len() > 1 => members
+                    .iter()
+                    .flat_map(|&a| members.iter().map(move |&b| (a, b)))
+                    .filter(|(a, b)| a < b)
+                    .map(|(a, b)| {
+                        distance_to_segment(
+                            *point,
+                            input.vertices[a].point,
+                            input.vertices[b].point,
+                        )
+                    })
+                    .fold(f64::INFINITY, f64::min),
+                _ => distance(vertex.point, *point),
+            }
+        })
         .collect::<Vec<_>>();
     let max_vertex_movement = movement.iter().copied().fold(0.0_f64, f64::max);
+    let max_budgeted_vertex_movement = if model.exempt_vertex_ids.is_empty() {
+        max_vertex_movement
+    } else {
+        input
+            .vertices
+            .iter()
+            .zip(&movement)
+            .filter(|(vertex, _)| !model.exempt_vertex_ids.contains(&vertex.id))
+            .map(|(_, moved)| *moved)
+            .fold(0.0_f64, f64::max)
+    };
     let mean_vertex_movement = if movement.is_empty() {
         0.0
     } else {
         movement.iter().sum::<f64>() / movement.len() as f64
     };
+    let merged_edges: Vec<[usize; 2]> = input
+        .selected_spans
+        .iter()
+        .filter(|span| model.merged_span_ids.contains(&span.id))
+        .map(|span| span.vertices)
+        .collect();
 
     GraphAnalysis {
         eligible_vertices,
+        camv: camv_violation_counts(points, &input.selected_spans),
         odd_degree_vertices,
         degree_two_vertices,
         maekawa_failures,
@@ -1530,15 +2984,182 @@ fn analyze_graph(
         max_kawasaki_residual_degrees,
         max_carrier_residual,
         max_vertex_movement,
+        max_budgeted_vertex_movement,
         mean_vertex_movement,
-        degenerate_edges: degenerate_edges(input, points, options),
+        degenerate_edges: degenerate_edges(input, points, options)
+            .into_iter()
+            .filter(|edge| !merged_edges.contains(edge))
+            .collect(),
         unmodeled_crossings: unmodeled_crossings(input, points, options),
         boundary_failures: boundary_failures(input, points),
     }
 }
 
+const TOPOLOGY_DIAGNOSTICS_SCHEMA: &str = "oristudio/cp-compiler/topology-diagnostics-v1";
+
+/// Pre-solve topology findings for a candidate graph, split by whether the
+/// finding is a property of the *graph* or of its current *coordinates*.
+///
+/// The split is the point of this type. An unsolved candidate's Kawasaki
+/// residuals sit orders of magnitude above the flat-fold epsilon at nearly
+/// every interior vertex — that is what the solve is *for* — so the
+/// angle-dependent findings say nothing about whether the topology is right and
+/// make a useless repair worklist. The combinatorial findings survive moving
+/// the drawing around, and are what a user can act on.
+///
+/// Four of the six combinatorial fields (`odd_degree_vertices`,
+/// `degenerate_edges`, `unmodeled_crossings`, `boundary_failures`) are the gates
+/// `exact_solution_rejection_reasons` refuses on, so they double as "would the
+/// solver even accept this?". Maekawa is deliberately not one of those gates.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+pub struct TopologyDiagnostics {
+    pub schema: String,
+    /// Non-empty when the input is malformed enough that no analysis ran (a
+    /// span or corner referencing a missing vertex, or a vertex whose `id` is
+    /// not a valid index into `vertices`). Every other field is empty then.
+    pub blockers: Vec<String>,
+    pub combinatorial: CombinatorialTopologyFindings,
+    pub angle_dependent: AngleDependentTopologyFindings,
+    /// Per-vertex detail for the interior fold vertices the checks apply to,
+    /// in `vertices` order.
+    pub vertices: Vec<TopologyVertexDiagnostic>,
+}
+
+/// Findings that depend on the graph, not on where its vertices sit. Stable
+/// under a small change of coordinates, so they can be surfaced as a worklist
+/// while the user is still moving things.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+pub struct CombinatorialTopologyFindings {
+    /// Interior vertices with an odd number of incident folds — no flat-foldable
+    /// assignment exists. The highest-volume repair signal by a wide margin.
+    pub odd_degree_vertices: Vec<usize>,
+    /// Interior vertices with exactly two incident folds. Not an error on its
+    /// own; the repair is to dissolve the vertex and rejoin its two edges,
+    /// never to delete it.
+    pub degree_two_vertices: Vec<usize>,
+    /// Interior vertices where `|M - V| != 2` over a fully-assigned fan.
+    pub maekawa_failures: Vec<usize>,
+    /// Spans shorter than the degenerate-edge epsilon, as **vertex id pairs**.
+    /// One of these blocks the whole solve at preflight.
+    pub degenerate_edges: Vec<[usize; 2]>,
+    /// Pairs of non-boundary spans that cross without sharing a vertex, as
+    /// **span id pairs** (not vertex ids, unlike `degenerate_edges`). The
+    /// repair is to insert a vertex at the crossing.
+    pub unmodeled_crossings: Vec<[usize; 2]>,
+    /// Vertices whose boundary parameter has left its paper edge.
+    pub boundary_failures: Vec<usize>,
+}
+
+/// Findings that are a property of the current coordinates. On an unsolved
+/// candidate these are large by construction and say nothing about whether the
+/// topology is right.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+pub struct AngleDependentTopologyFindings {
+    pub max_kawasaki_residual_degrees: f64,
+    pub max_carrier_residual: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TopologyVertexDiagnostic {
+    pub vertex_id: usize,
+    pub degree: usize,
+    pub mountain_count: usize,
+    pub valley_count: usize,
+    pub unknown_count: usize,
+    /// `None` unless the fan has an even degree of at least four, where
+    /// Kawasaki applies.
+    pub kawasaki_residual_degrees: Option<f64>,
+    /// `None` while any incident crease is unassigned.
+    pub maekawa_residual: Option<usize>,
+}
+
+/// Analyze a candidate graph's topology without solving it.
+///
+/// Pure in `input`: it builds the same internal model and initial coordinates
+/// `solve_exact` would, and runs the same analysis pass that produces the
+/// solver's `before` report — so a finding here is the finding the solver will
+/// see. It never solves and never panics on malformed input (see
+/// [`TopologyDiagnostics::blockers`]). Measured 21 us at 36 spans to 171 us at
+/// 230 spans, release, native — cheap enough to run on every edit.
+pub fn analyze_candidate_topology(input: &ExactSolveInput) -> TopologyDiagnostics {
+    // Blockers first, and *then* normalise. A malformed graph — a vertex id that
+    // is not its own index, a span referencing a vertex that does not exist — is
+    // refused, not quietly repaired, and the normalisation below indexes by id
+    // so it must not run on one.
+    let blockers = topology_analysis_blockers(input);
+    if !blockers.is_empty() {
+        return TopologyDiagnostics {
+            schema: TOPOLOGY_DIAGNOSTICS_SCHEMA.to_owned(),
+            blockers,
+            ..TopologyDiagnostics::default()
+        };
+    }
+    let input = &normalized_input(input);
+    let options = ExactSolveOptions::default();
+    let model = SolveModel::new(
+        input,
+        options,
+        ExactSolveDeadline::start(-1.0),
+        Rc::new(BTreeSet::new()),
+    );
+    let params = model.initial_params.clone();
+    let points = model.points_from_params(&params);
+    let analysis = analyze_graph(input, &points, &model, &params, options);
+    TopologyDiagnostics {
+        schema: TOPOLOGY_DIAGNOSTICS_SCHEMA.to_owned(),
+        blockers,
+        combinatorial: CombinatorialTopologyFindings {
+            odd_degree_vertices: analysis.odd_degree_vertices,
+            degree_two_vertices: analysis.degree_two_vertices,
+            maekawa_failures: analysis.maekawa_failures,
+            degenerate_edges: analysis.degenerate_edges,
+            unmodeled_crossings: analysis.unmodeled_crossings,
+            boundary_failures: analysis.boundary_failures,
+        },
+        angle_dependent: AngleDependentTopologyFindings {
+            max_kawasaki_residual_degrees: analysis.max_kawasaki_residual_degrees,
+            max_carrier_residual: analysis.max_carrier_residual,
+        },
+        vertices: analysis
+            .vertex_diagnostics
+            .into_iter()
+            .map(|vertex| TopologyVertexDiagnostic {
+                vertex_id: vertex.vertex_id,
+                degree: vertex.degree,
+                mountain_count: vertex.mountain_count,
+                valley_count: vertex.valley_count,
+                unknown_count: vertex.unknown_count,
+                kawasaki_residual_degrees: vertex.kawasaki_residual_degrees,
+                maekawa_residual: vertex.maekawa_residual,
+            })
+            .collect(),
+    }
+}
+
+/// `validate_input` plus the `id == index` invariant that `analyze_graph`
+/// indexes by. `solve_exact` gets the invariant for free from its callers;
+/// a hand-edited graph arriving through the public analysis does not, and
+/// indexing by an out-of-range `id` would panic.
+fn topology_analysis_blockers(input: &ExactSolveInput) -> Vec<String> {
+    let mut blockers = validate_input(input);
+    for (index, vertex) in input.vertices.iter().enumerate() {
+        if vertex.id >= input.vertices.len() {
+            blockers.push(format!(
+                "vertex at index {index} has out-of-range id {}",
+                vertex.id
+            ));
+        }
+    }
+    blockers.sort();
+    blockers.dedup();
+    blockers
+}
+
 #[derive(Debug, Clone)]
 struct IncidentRay {
+    /// The vertex the ray actually starts at — its own position parameters —
+    /// which is the fan's vertex except for a ray folded into a merged fan.
+    origin_vertex_id: usize,
     target_vertex_id: usize,
     angle: f64,
     assignment: AssignmentLabel,
@@ -1546,7 +3167,6 @@ struct IncidentRay {
 
 #[derive(Debug, Clone)]
 struct KawasakiResidualEntry {
-    vertex_id: usize,
     rays: Vec<IncidentRay>,
 }
 
@@ -1554,8 +3174,10 @@ fn kawasaki_residuals(
     points: &[Point2],
     vertices: &[CandidateVertex],
     spans: &[CandidateCreaseSpan],
+    merged_span_ids: &BTreeSet<usize>,
+    representative: &[usize],
 ) -> Vec<f64> {
-    kawasaki_residual_entries(points, vertices, spans)
+    kawasaki_residual_entries(points, vertices, spans, merged_span_ids, representative)
         .iter()
         .map(|entry| signed_kawasaki_residual_radians(&entry.rays))
         .collect()
@@ -1565,23 +3187,32 @@ fn kawasaki_residual_entries(
     points: &[Point2],
     vertices: &[CandidateVertex],
     spans: &[CandidateCreaseSpan],
+    merged_span_ids: &BTreeSet<usize>,
+    representative: &[usize],
 ) -> Vec<KawasakiResidualEntry> {
     let mut incident = vec![Vec::<IncidentRay>::new(); vertices.len()];
     let boundary_vertices = boundary_vertex_ids(spans);
+    let fan_of = |vertex: usize| representative.get(vertex).copied().unwrap_or(vertex);
     for span in spans {
-        if is_boundary_like_span(span) {
+        // The same fan the analysis builds, and it has to be: this one is what
+        // the optimizer minimizes, and a residual over a different set of rays
+        // than the report describes is two answers to one question. Merges
+        // included: a merged pair is one fan here too, with the stub out of it.
+        if !is_fold_span(span) || merged_span_ids.contains(&span.id) {
             continue;
         }
         let [a, b] = span.vertices;
         if a >= points.len() || b >= points.len() {
             continue;
         }
-        incident[a].push(IncidentRay {
+        incident[fan_of(a)].push(IncidentRay {
+            origin_vertex_id: a,
             target_vertex_id: b,
             angle: angle_radians(points[a], points[b]),
             assignment: span.assignment_label(),
         });
-        incident[b].push(IncidentRay {
+        incident[fan_of(b)].push(IncidentRay {
+            origin_vertex_id: b,
             target_vertex_id: a,
             angle: angle_radians(points[b], points[a]),
             assignment: span.assignment_label(),
@@ -1594,10 +3225,7 @@ fn kawasaki_residual_entries(
             let mut rays = incident[vertex.id].clone();
             rays.sort_by(|left, right| left.angle.total_cmp(&right.angle));
             if rays.len() >= 4 && rays.len().is_multiple_of(2) {
-                Some(KawasakiResidualEntry {
-                    vertex_id: vertex.id,
-                    rays,
-                })
+                Some(KawasakiResidualEntry { rays })
             } else {
                 None
             }
@@ -1644,6 +3272,88 @@ fn validate_input(input: &ExactSolveInput) -> Vec<String> {
     blockers
 }
 
+/// The editor's foldability verdict on a solved geometry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CamvCounts {
+    /// Kawasaki (`FlatFoldabilityRule::Angles`) violations.
+    pub angle_violations: usize,
+    /// Everything else the check reports — Big-Little-Big and its kin.
+    pub big_little_big_violations: usize,
+}
+
+/// Run the editor's own CAMV checker on solver geometry.
+///
+/// This is deliberately the *checker* and not a re-derivation of it. The
+/// solver's Kawasaki residual and the checker's angle rule agree on a clean
+/// pattern, but Big-Little-Big is a crimp reduction over the whole fan
+/// (`oristudio-cp/src/checks.rs`), and a second implementation of it here would
+/// be a second answer to the question "will markers appear?". So the geometry
+/// is handed to the checker the way an import would hand it — as a FOLD on the
+/// ±200 sheet — and the counts come back from the same code that draws them.
+///
+/// `None` when the graph could not be built into a document at all.
+pub fn camv_violation_counts(
+    points: &[Point2],
+    spans: &[CandidateCreaseSpan],
+) -> Option<CamvCounts> {
+    use oristudio_cp::checks::{FlatFoldabilityRule, check_camv_task};
+
+    if points.is_empty() {
+        return None;
+    }
+    // Only spans with length: the editor drops a zero-length crease when the
+    // answer is written (`insert_line_segments`), and its two coincident ends
+    // become one vertex, so that is the pattern the check has to run on. The
+    // checker builds each fan from the segments touching a point, and a stub
+    // would otherwise add a ray of no direction to the merged vertex.
+    let spans: Vec<&CandidateCreaseSpan> = spans
+        .iter()
+        .filter(|span| {
+            let [a, b] = span.vertices;
+            match (points.get(a), points.get(b)) {
+                (Some(a), Some(b)) => distance(*a, *b) > COLLAPSED_SPAN_LENGTH,
+                _ => true,
+            }
+        })
+        .collect();
+    // Unit square -> the editor's ±200 sheet. The import normalizes to that
+    // sheet anyway; landing there already keeps its rescale a near-identity.
+    let mut fold = treemaker_fold::FoldDocument::new(
+        points
+            .iter()
+            .map(|p| vec![p.x * 400.0 - 200.0, p.y * 400.0 - 200.0])
+            .collect(),
+        spans.iter().map(|span| span.vertices).collect(),
+    );
+    fold.edges_assignment = spans
+        .iter()
+        .map(|span| crate::fold_export::fold_assignment(span.assignment_label()))
+        .collect();
+    fold.edges_fold_angle = vec![None; spans.len()];
+    let model = oristudio_cp::io::fold::import_fold_document(&fold).ok()?;
+    let violations = check_camv_task(&model).violations;
+    let angle_violations = violations
+        .iter()
+        .filter(|v| matches!(v.rule, FlatFoldabilityRule::Angles))
+        .count();
+    Some(CamvCounts {
+        angle_violations,
+        big_little_big_violations: violations.len() - angle_violations,
+    })
+}
+
+/// A span the pinned round has shrunk to no more than this — a tenth of a pixel
+/// at the detector's scale — is a collapse in progress: see the second pass in
+/// [`pin_to_angle_family`] for why the first pass stops short of a point.
+const COLLAPSE_CANDIDATE_LENGTH: f64 = 1e-4;
+
+/// A span no longer than this has collapsed to a point. The editor's own bar
+/// for dropping a crease on write is far coarser, so anything under this is
+/// gone the moment the answer lands; it is also the default
+/// `degenerate_edge_epsilon`, and the two have to agree for a collapse the
+/// solve sanctions as a merge to be the same collapse the editor performs.
+const COLLAPSED_SPAN_LENGTH: f64 = 1e-6;
+
 fn classify_status(
     before: &GraphAnalysis,
     after: &GraphAnalysis,
@@ -1652,25 +3362,757 @@ fn classify_status(
     if !after.degenerate_edges.is_empty()
         || !after.unmodeled_crossings.is_empty()
         || !after.boundary_failures.is_empty()
-        || after.max_vertex_movement > options.max_vertex_movement
+        || after.max_budgeted_vertex_movement > options.max_vertex_movement
     {
         return ExactSolvedGraphStatus::Failed;
     }
-    let topology_clean = after.odd_degree_vertices.is_empty();
+    // `Solved` is a promise that the editor's foldability check will pass, so it
+    // is made on the same terms the check uses. Kawasaki and odd degree were
+    // always here; Maekawa was computed and never consulted, and Big-Little-Big
+    // was not computed at all — so a pattern could be called solved with a
+    // canvas full of markers. Measured before this: 0 angle violations and 28
+    // Big-Little-Big on a `Solved` close_but_not_good_enough.osf.
+    let topology_clean = after.odd_degree_vertices.is_empty() && after.maekawa_failures.is_empty();
+    let checker_clean = after
+        .camv
+        .is_some_and(|camv| camv.angle_violations == 0 && camv.big_little_big_violations == 0);
     if topology_clean
+        && checker_clean
         && after.max_kawasaki_residual_degrees <= options.solved_kawasaki_epsilon_degrees
         && after.max_carrier_residual <= options.solved_carrier_epsilon
     {
         return ExactSolvedGraphStatus::Solved;
     }
+    // Angles that were already at the bar are not a failure to improve them.
+    // With Maekawa and Big-Little-Big in the verdict above, a pattern can be
+    // Kawasaki-exact and still not `Solved`; solving it moves nothing, and
+    // "nothing moved" used to fall through to `Failed`. That is `Ambiguous`: the
+    // geometry is as good as angles can make it, and what remains is not angles.
+    //
+    // Only over a fan Kawasaki actually judged: an odd-degree vertex is skipped
+    // by the Kawasaki pass, so its residual reads as zero without meaning it.
+    let at_the_bar = after.odd_degree_vertices.is_empty()
+        && after.max_kawasaki_residual_degrees <= options.solved_kawasaki_epsilon_degrees
+        && after.max_carrier_residual <= options.solved_carrier_epsilon;
     if after.odd_degree_vertices.len() <= before.odd_degree_vertices.len()
-        && (after.max_kawasaki_residual_degrees < before.max_kawasaki_residual_degrees
+        && (at_the_bar
+            || after.max_kawasaki_residual_degrees < before.max_kawasaki_residual_degrees
             || after.max_carrier_residual < before.max_carrier_residual)
     {
         ExactSolvedGraphStatus::Ambiguous
     } else {
         ExactSolvedGraphStatus::Failed
     }
+}
+
+/// What the polish stage did, for reporting only.
+///
+/// A refused polish used to be invisible: the only trace was the *absence* of a
+/// `+polish(rounds=N)` suffix on the termination string, and the rejection
+/// reasons computed for the refused round were dropped on the floor. On a real
+/// detected pattern those reasons are the whole story — e.g. a round that would
+/// have taken Kawasaki from 7.5e-3 deg to 8e-4 deg, refused with
+/// `["candidate_status_failed", "degenerate_edges_worsened",
+/// "movement_budget_exceeded"]`, because reaching that residual meant collapsing
+/// a close vertex pair into a degenerate edge and blowing the movement budget.
+///
+/// This struct records that, and nothing else: it never influences which
+/// candidate is adopted, accepted, or reported as solved.
+///
+/// **The gates that produce those reasons are correct — do not loosen them to
+/// "let polish through".** Two independent facts say so. First, a round that
+/// worsens degenerate edges corrupts the pattern; adopting it trades a
+/// foldability error for a geometry error. Second, and decisively: the editor's
+/// foldability checker (CAMV) compares its degree-valued angle sums against
+/// `Epsilon::FLAT` (`oristudio_cp::geometry::Epsilon`, `FACTOR * 1e-4` = `1e-6`
+/// degrees). On the pattern above, the refused polish would have reached `~8e-4`
+/// degrees — still ~800x above that bar, so adopting it would have corrupted the
+/// pattern *and* cleared none of its 70 violations. A candidate that needs
+/// topology repair cannot be polished into foldability; repair it first.
+#[derive(Debug, Clone)]
+struct PolishOutcome {
+    /// Why polishing stopped, or why it never started. One of: `not_run`,
+    /// `disabled`, `preflight_blocked`, `no_parameters`, `timed_out`,
+    /// `stage1_rejected`, `target_reached`, `round_refused`, `max_rounds`.
+    stop_reason: &'static str,
+    rounds_attempted: usize,
+    rounds_adopted: usize,
+    /// Max Kawasaki residual (degrees) of the stage-1 candidate polish started
+    /// from. `None` when polish never got far enough to measure it.
+    kawasaki_before_degrees: Option<f64>,
+    /// Max Kawasaki residual (degrees) after the adopted rounds. Equal to
+    /// `kawasaki_before_degrees` when no round was adopted.
+    kawasaki_after_degrees: Option<f64>,
+    /// The first round that was computed and then refused, if any.
+    refused_round: Option<PolishRefusal>,
+    /// The pinned round, when the pattern was read as having an angle family.
+    /// `None` when it has none, or when polish never got that far.
+    pinned_family: Option<PinnedFamilyOutcome>,
+    /// The symmetry round, when the pattern was read as mirror-symmetric.
+    symmetry: Option<SymmetryRoundOutcome>,
+}
+
+/// What the symmetry round did. See [`symmetry_round`].
+#[derive(Debug, Clone)]
+struct SymmetryRoundOutcome {
+    axes: Vec<crate::symmetry::SymmetryAxis>,
+    adopted: bool,
+    /// `adopted`, `refused`, or `out_of_time`.
+    stop_reason: &'static str,
+    kawasaki_degrees: f64,
+    camv: Option<CamvCounts>,
+    /// The worst departure from the symmetries before and after the round.
+    mirror_error_before: f64,
+    mirror_error_after: f64,
+    reanchored_rounds: usize,
+    evaluations: usize,
+    seconds: f64,
+    refusals: Vec<String>,
+}
+
+/// The symmetry round's result: the report, and the adopted state when it passed.
+struct SymmetryRound {
+    outcome: SymmetryRoundOutcome,
+    adopted: Option<PinnedAdoption>,
+}
+
+/// Hold the pattern to the mirror symmetries it was found to have, and judge
+/// the result the way the pinned round is judged: the acceptance gate, the
+/// Kawasaki bar, and the checker's own counts must all hold or improve. Runs
+/// after the pin: with the directions frozen and the merges made, what is left
+/// is linear in the positions, so the round converges in a step and a split
+/// junction cannot collapse under it into a stub it has no way to merge. (A
+/// mirrored pair of carriers snaps to mirrored angles under the pin on its
+/// own, since the mirror of a lattice angle is a lattice angle.)
+fn symmetry_round(
+    model: &SolveModel,
+    input: &ExactSolveInput,
+    before: &GraphAnalysis,
+    current_params: &OVector<f64, Dyn>,
+    current_after: &GraphAnalysis,
+    options: ExactSolveOptions,
+) -> Option<SymmetryRound> {
+    if model.candidate_symmetries.is_empty() || model.timeout_reached() {
+        return None;
+    }
+    let axes = model
+        .candidate_symmetries
+        .iter()
+        .map(|symmetry| symmetry.axis)
+        .collect();
+    let budget = model
+        .remaining_seconds()
+        .map(|seconds| seconds - PINNED_ROUND_RESERVE_SECONDS);
+    if budget.is_some_and(|seconds| seconds <= 0.0) {
+        return Some(SymmetryRound {
+            outcome: SymmetryRoundOutcome {
+                axes,
+                adopted: false,
+                stop_reason: "out_of_time",
+                kawasaki_degrees: current_after.max_kawasaki_residual_degrees,
+                camv: current_after.camv,
+                mirror_error_before: 0.0,
+                mirror_error_after: 0.0,
+                reanchored_rounds: 0,
+                evaluations: 0,
+                seconds: 0.0,
+                refusals: Vec::new(),
+            },
+            adopted: None,
+        });
+    }
+    let started = model.deadline.elapsed_seconds();
+    let held = model.with_symmetries_held();
+    let worst_mirror = |points: &[Point2]| {
+        held.symmetries
+            .iter()
+            .map(|symmetry| mirror_error(symmetry, points))
+            .fold(0.0_f64, f64::max)
+    };
+    let mirror_error_before = worst_mirror(&model.placed_points(current_params));
+    let mut solving = held.reanchored_for_polish(current_params);
+    if let Some(seconds) = budget {
+        solving = solving.with_own_budget(seconds);
+    }
+    let start_energy = residual_energy(&solving.residuals_for(current_params));
+    let (mut params, _termination, mut evaluations, _objective, _counters) =
+        run_lm_minimize(&solving, current_params, options);
+    let analyze = |params: &OVector<f64, Dyn>| {
+        let points = held.placed_points(params);
+        analyze_graph(input, &points, &held, params, options)
+    };
+    let mut after = analyze(&params);
+    let mut reanchored_rounds = 0usize;
+    for _round in 0..PINNED_REANCHOR_ROUNDS {
+        if after.max_kawasaki_residual_degrees <= options.solved_kawasaki_epsilon_degrees
+            || solving.timeout_reached()
+        {
+            break;
+        }
+        let reanchored = solving.reanchored_for_polish(&params);
+        let (next, _next_termination, more, _objective, _counters) =
+            run_lm_minimize(&reanchored, &params, options);
+        evaluations += more;
+        let next_after = analyze(&next);
+        if next_after.max_kawasaki_residual_degrees >= after.max_kawasaki_residual_degrees {
+            break;
+        }
+        params = next;
+        after = next_after;
+        solving = reanchored;
+        reanchored_rounds += 1;
+    }
+    let final_energy = residual_energy(&solving.residuals_for(&params));
+    let status = classify_status(before, &after, options);
+    let mut refusals = exact_solution_rejection_reasons(
+        before,
+        &after,
+        status,
+        start_energy,
+        final_energy,
+        options,
+    );
+    refusals.extend(pinned_round_regressions(current_after, &after, options));
+    let mirror_error_after = worst_mirror(&held.placed_points(&params));
+    let adopted = refusals.is_empty();
+    Some(SymmetryRound {
+        outcome: SymmetryRoundOutcome {
+            axes,
+            adopted,
+            stop_reason: if adopted { "adopted" } else { "refused" },
+            kawasaki_degrees: after.max_kawasaki_residual_degrees,
+            camv: after.camv,
+            mirror_error_before,
+            mirror_error_after,
+            reanchored_rounds,
+            evaluations,
+            seconds: model.deadline.elapsed_seconds() - started,
+            refusals: refusals.clone(),
+        },
+        adopted: adopted.then(|| PinnedAdoption {
+            params,
+            after,
+            evaluations,
+            merged_span_ids: model.merged_span_ids.clone(),
+            frozen_params: model.frozen_params.clone(),
+        }),
+    })
+}
+
+/// What the pinned round did. See [`AngleFamilyMode`] and [`pin_to_angle_family`].
+#[derive(Debug, Clone)]
+struct PinnedFamilyOutcome {
+    step_degrees: f64,
+    /// Carrier groups in the model, so `pinned_carriers` reads as a fraction.
+    carriers: usize,
+    /// Every attempt, widest tolerance first; the last one is the adopted one
+    /// when `adopted` is true.
+    attempts: Vec<PinnedAttempt>,
+    adopted: bool,
+    /// Why the attempts stopped: `adopted`, `refused` (every tolerance tried),
+    /// `nothing_to_pin`, or `out_of_time`.
+    stop_reason: &'static str,
+}
+
+/// One attempt at pinning, and why it was refused if it was.
+#[derive(Debug, Clone)]
+struct PinnedAttempt {
+    tolerance_degrees: f64,
+    /// `Some` for the short-crease attempt: the endpoint noise its tolerance
+    /// was widened for. See [`SHORT_CREASE_NOISE_PX`].
+    short_crease_noise_px: Option<f64>,
+    pinned_carriers: usize,
+    /// Carriers within tolerance that [`SolveModel::peel_inconsistent_pins`]
+    /// let go before optimising.
+    peeled_carriers: usize,
+    /// Re-anchored solves adopted after the first; see [`PINNED_REANCHOR_ROUNDS`].
+    reanchored_rounds: usize,
+    kawasaki_degrees: f64,
+    camv: Option<CamvCounts>,
+    /// Edges the lattice collapsed to a point that were not degenerate before:
+    /// two detected vertices the design has as one. Vertex id pairs, with the
+    /// edge's length in the input.
+    collapsed_edges: Vec<([usize; 2], f64)>,
+    /// The widest gap the optimizer left in a collapsed pair before the answer
+    /// closed it; zero when nothing collapsed.
+    lm_separation: f64,
+    /// How the optimizer stopped (the last pass, when there were two), and how
+    /// many residual evaluations both passes cost: a round refused at
+    /// `sparse_max_iterations` ran out of budget, not out of room.
+    termination: String,
+    evaluations: usize,
+    /// Interior vertices whose Kawasaki residual is above the solved bar, and
+    /// the worst five of them by (vertex id, degrees).
+    kawasaki_over_bar: usize,
+    worst_kawasaki: Vec<(usize, f64)>,
+    seconds: f64,
+    /// Reasons from [`exact_solution_rejection_reasons`] followed by those from
+    /// [`pinned_round_regressions`]; empty when adopted.
+    refusals: Vec<String>,
+}
+
+/// A pinned round's result: the report, plus the adopted attempt when one was.
+struct PinnedFamilyRound {
+    outcome: PinnedFamilyOutcome,
+    adopted: Option<PinnedAdoption>,
+}
+
+struct PinnedAdoption {
+    params: OVector<f64, Dyn>,
+    after: GraphAnalysis,
+    evaluations: usize,
+    /// Spans the round collapsed and the answer therefore reads as merges.
+    merged_span_ids: BTreeSet<usize>,
+    /// The directions the round froze, so a later round keeps them frozen.
+    frozen_params: Vec<bool>,
+}
+
+/// Pin the pattern to its angle family and judge the result. See
+/// [`AngleFamilyMode`] for why, [`SolveModel::pinned_to_angle_family`] for how.
+/// `None` when the mode is off, the budget is gone, or no family is present.
+fn pin_to_angle_family(
+    model: &SolveModel,
+    input: &ExactSolveInput,
+    before: &GraphAnalysis,
+    current_params: &OVector<f64, Dyn>,
+    current_after: &GraphAnalysis,
+    options: ExactSolveOptions,
+) -> Option<PinnedFamilyRound> {
+    if options.angle_family == AngleFamilyMode::Off || model.timeout_reached() {
+        return None;
+    }
+    let thetas: Vec<f64> = model
+        .carrier_groups
+        .iter()
+        .map(|group| current_params[group.theta_index])
+        .collect();
+    let step_degrees = infer_angle_family(
+        &thetas,
+        options.angle_family_snap_tolerance_radians,
+        options.angle_family_min_fraction,
+    )?;
+    let step = step_degrees.to_radians();
+    let mut outcome = PinnedFamilyOutcome {
+        step_degrees,
+        carriers: model.carrier_groups.len(),
+        attempts: Vec::new(),
+        adopted: false,
+        stop_reason: "refused",
+    };
+    let mut adopted: Option<PinnedAdoption> = None;
+    let mut tolerance = options.angle_family_snap_tolerance_radians;
+    for _attempt in 0..=ANGLE_FAMILY_RETRY_HALVINGS {
+        match pinned_attempt(
+            model,
+            input,
+            before,
+            current_params,
+            current_after,
+            step,
+            tolerance,
+            None,
+            options,
+        ) {
+            PinnedAttemptResult::Skipped(reason) => {
+                outcome.stop_reason = reason;
+                break;
+            }
+            PinnedAttemptResult::Judged { attempt, adoption } => {
+                outcome.attempts.push(*attempt);
+                if let Some(adoption) = adoption {
+                    adopted = Some(*adoption);
+                    break;
+                }
+            }
+        }
+        tolerance /= 2.0;
+    }
+    // On an adopted round, one more attempt for the short creases: a flat
+    // tolerance is the wrong shape for them, since a pixel of endpoint noise
+    // on a 17 px crease is 3°. Judged against the adopted state, so it can
+    // only keep it or improve it. See [`SHORT_CREASE_NOISE_PX`].
+    if let Some(base) = &adopted {
+        let base_model = model.with_merged_spans(&base.merged_span_ids);
+        if let PinnedAttemptResult::Judged { attempt, adoption } = pinned_attempt(
+            &base_model,
+            input,
+            before,
+            &base.params,
+            &base.after,
+            step,
+            tolerance * 2.0,
+            Some(SHORT_CREASE_NOISE_PX),
+            options,
+        ) {
+            outcome.attempts.push(*attempt);
+            if let Some(adoption) = adoption {
+                adopted = Some(*adoption);
+            }
+        }
+    }
+    if adopted.is_some() {
+        outcome.adopted = true;
+        outcome.stop_reason = "adopted";
+    }
+    Some(PinnedFamilyRound { outcome, adopted })
+}
+
+/// What one pinned attempt came to.
+enum PinnedAttemptResult {
+    /// Not run: no time left, or nothing on the lattice to move.
+    Skipped(&'static str),
+    /// Run and judged; the adoption is `Some` when it passed. Boxed: the
+    /// attempt record and the adopted parameters are large next to a `&str`.
+    Judged {
+        attempt: Box<PinnedAttempt>,
+        adoption: Option<Box<PinnedAdoption>>,
+    },
+}
+
+/// One pinned attempt, from `base_params` (already carrying `model`'s merges):
+/// pin, solve, merge what collapsed, re-anchor while over the bar, and judge
+/// against `base_after`. See [`pin_to_angle_family`] for the sequence of
+/// attempts this is one of.
+#[allow(clippy::too_many_arguments)]
+fn pinned_attempt(
+    model: &SolveModel,
+    input: &ExactSolveInput,
+    before: &GraphAnalysis,
+    base_params: &OVector<f64, Dyn>,
+    base_after: &GraphAnalysis,
+    step: f64,
+    tolerance: f64,
+    short_crease_noise_px: Option<f64>,
+    options: ExactSolveOptions,
+) -> PinnedAttemptResult {
+    // The attempt runs on its own clock, inside what is left of the solve's.
+    let budget = model
+        .remaining_seconds()
+        .map(|seconds| seconds - PINNED_ROUND_RESERVE_SECONDS);
+    if budget.is_some_and(|seconds| seconds <= 0.0) {
+        return PinnedAttemptResult::Skipped("out_of_time");
+    }
+    let Some((pinned_model, start, peeled_carriers)) =
+        model.pinned_to_angle_family(base_params, step, tolerance, short_crease_noise_px)
+    else {
+        return PinnedAttemptResult::Skipped("nothing_to_pin");
+    };
+    let pinned_model = match budget {
+        Some(seconds) => pinned_model.with_own_budget(seconds),
+        None => pinned_model,
+    };
+    let pinned_carriers = pinned_model
+        .carrier_groups
+        .iter()
+        .filter(|group| group.pinned_step.is_some())
+        .count();
+    let started = model.deadline.elapsed_seconds();
+    let (pinned_params, mut termination, mut evaluations, _objective, _counters) =
+        run_lm_minimize(&pinned_model, &start, options);
+    let raw_points = model.points_from_params(&pinned_params);
+    // A span the lattice collapsed is two detected vertices the design has
+    // as one: with every direction pinned, its ends meet only where the
+    // lines through them are concurrent, and that is the design's vertex.
+    // The editor merges them on write, so the round is judged on the
+    // merged pattern — and the merge has to pass every check below, which
+    // is what separates a design vertex from a stub that must not go.
+    let longest_merge = MERGE_STUB_BUDGET_MULTIPLE * options.max_vertex_movement;
+    let new_merges: BTreeSet<usize> = input
+        .selected_spans
+        .iter()
+        .filter(|span| {
+            let [a, b] = span.vertices;
+            !model.merged_span_ids.contains(&span.id)
+                && !base_after.degenerate_edges.contains(&[a, b])
+                && a < raw_points.len()
+                && b < raw_points.len()
+                && distance(raw_points[a], raw_points[b]) <= COLLAPSE_CANDIDATE_LENGTH
+                && distance(input.vertices[a].point, input.vertices[b].point) <= longest_merge
+        })
+        .map(|span| span.id)
+        .collect();
+    // Second pass for a collapse: with the pair held together and the stub
+    // out of the fans and off its carrier. The first pass cannot finish the
+    // job — a stub's direction, read from two points a hair apart, couples
+    // Kawasaki at both ends to their separation, and the optimizer settles
+    // a few millionths short of the intersection. This pass solves the
+    // merged vertex the round is about to be judged on.
+    let (mut judged_model, mut pinned_params) = if new_merges.is_empty() {
+        (pinned_model.clone(), pinned_params)
+    } else {
+        let merged_pinned = pinned_model.with_merged_spans(&new_merges);
+        let (params, merged_termination, more, _objective, _counters) =
+            run_lm_minimize(&merged_pinned, &pinned_params, options);
+        evaluations += more;
+        termination = merged_termination;
+        (merged_pinned, params)
+    };
+    let merged_model = model.with_merged_spans(&new_merges);
+    let analyze = |params: &OVector<f64, Dyn>| {
+        let points = merged_model.placed_points(params);
+        analyze_graph(input, &points, &merged_model, params, options)
+    };
+    let mut pinned_after = analyze(&pinned_params);
+    // Then re-anchor and solve again while Kawasaki is over the bar and
+    // still improving. See [`PINNED_REANCHOR_ROUNDS`].
+    let mut reanchored_rounds = 0usize;
+    for _round in 0..PINNED_REANCHOR_ROUNDS {
+        if pinned_after.max_kawasaki_residual_degrees <= options.solved_kawasaki_epsilon_degrees
+            || judged_model.timeout_reached()
+        {
+            break;
+        }
+        let reanchored = judged_model.reanchored_for_polish(&pinned_params);
+        let (params, round_termination, more, _objective, _counters) =
+            run_lm_minimize(&reanchored, &pinned_params, options);
+        evaluations += more;
+        let after = analyze(&params);
+        if after.max_kawasaki_residual_degrees >= pinned_after.max_kawasaki_residual_degrees {
+            break;
+        }
+        pinned_params = params;
+        pinned_after = after;
+        judged_model = reanchored;
+        termination = round_termination;
+        reanchored_rounds += 1;
+    }
+    // Objective progress is judged from the snapped start, where the pinned
+    // directions have just been moved out from under their vertices: that is
+    // the problem this round solves, and the only fair "before" for it.
+    let start_energy = residual_energy(&judged_model.residuals_for(&start));
+    let final_energy = residual_energy(&judged_model.residuals_for(&pinned_params));
+    let raw_points = model.points_from_params(&pinned_params);
+    // How far apart the optimizer actually left each collapsed pair, before
+    // the answer makes them one point: a diagnostic on the round's
+    // convergence, and the movement the snap is about to add.
+    let lm_separation = merged_model
+        .merged_spans()
+        .filter(|span| new_merges.contains(&span.id))
+        .map(|span| distance(raw_points[span.vertices[0]], raw_points[span.vertices[1]]))
+        .fold(0.0_f64, f64::max);
+    let pinned_status = classify_status(before, &pinned_after, options);
+    let mut refusals = exact_solution_rejection_reasons(
+        before,
+        &pinned_after,
+        pinned_status,
+        start_energy,
+        final_energy,
+        options,
+    );
+    refusals.extend(pinned_round_regressions(base_after, &pinned_after, options));
+    let collapsed_edges = input
+        .selected_spans
+        .iter()
+        .filter(|span| new_merges.contains(&span.id))
+        .map(|span| {
+            let [a, b] = span.vertices;
+            (
+                [a, b],
+                distance(input.vertices[a].point, input.vertices[b].point),
+            )
+        })
+        .collect();
+    let attempt = PinnedAttempt {
+        tolerance_degrees: tolerance.to_degrees(),
+        short_crease_noise_px,
+        pinned_carriers,
+        peeled_carriers,
+        reanchored_rounds,
+        kawasaki_degrees: pinned_after.max_kawasaki_residual_degrees,
+        camv: pinned_after.camv,
+        collapsed_edges,
+        lm_separation,
+        termination,
+        evaluations,
+        kawasaki_over_bar: pinned_after
+            .vertex_diagnostics
+            .iter()
+            .filter(|vertex| {
+                vertex
+                    .kawasaki_residual_degrees
+                    .is_some_and(|degrees| degrees > options.solved_kawasaki_epsilon_degrees)
+            })
+            .count(),
+        worst_kawasaki: {
+            let mut worst: Vec<(usize, f64)> = pinned_after
+                .vertex_diagnostics
+                .iter()
+                .filter_map(|vertex| {
+                    vertex
+                        .kawasaki_residual_degrees
+                        .map(|degrees| (vertex.vertex_id, degrees))
+                })
+                .collect();
+            worst.sort_by(|a, b| b.1.total_cmp(&a.1));
+            worst.truncate(5);
+            worst
+        },
+        seconds: model.deadline.elapsed_seconds() - started,
+        refusals: refusals.clone(),
+    };
+    let adoption = refusals.is_empty().then(|| {
+        let mut merged_span_ids = model.merged_span_ids.clone();
+        merged_span_ids.extend(new_merges);
+        Box::new(PinnedAdoption {
+            params: pinned_params,
+            after: pinned_after,
+            evaluations,
+            merged_span_ids,
+            frozen_params: judged_model.frozen_params.clone(),
+        })
+    });
+    PinnedAttemptResult::Judged {
+        attempt: Box::new(attempt),
+        adoption,
+    }
+}
+
+/// Why a pinned round must not land, over and above the ordinary acceptance
+/// gate. The round exists to make designed ties exact; one that reaches them by
+/// giving up a Kawasaki vertex, or by creating a Big-Little-Big violation, has
+/// pinned a carrier that was never on the lattice, and the answer is to pin
+/// fewer, not to keep it.
+fn pinned_round_regressions(
+    current: &GraphAnalysis,
+    pinned: &GraphAnalysis,
+    options: ExactSolveOptions,
+) -> Vec<String> {
+    let mut reasons = Vec::new();
+    let kawasaki_bar = current
+        .max_kawasaki_residual_degrees
+        .max(options.solved_kawasaki_epsilon_degrees);
+    if pinned.max_kawasaki_residual_degrees > kawasaki_bar {
+        reasons.push("pinned_kawasaki_regressed".to_owned());
+    }
+    match (current.camv, pinned.camv) {
+        (Some(was), Some(now)) => {
+            if now.angle_violations > was.angle_violations {
+                reasons.push("pinned_angle_violations_increased".to_owned());
+            }
+            if now.big_little_big_violations > was.big_little_big_violations {
+                reasons.push("pinned_big_little_big_increased".to_owned());
+            }
+        }
+        (Some(_), None) => reasons.push("pinned_checker_unavailable".to_owned()),
+        (None, _) => {}
+    }
+    reasons
+}
+
+/// A polish round that was computed, judged, and rejected.
+#[derive(Debug, Clone)]
+struct PolishRefusal {
+    /// Max Kawasaki residual (degrees) this round *would* have reached. This is
+    /// the number that makes the refusal legible: it is normally much better
+    /// than what was kept, which is exactly why the refusal needs explaining.
+    kawasaki_degrees: f64,
+    /// True when the round was refused only because it made Kawasaki worse, in
+    /// which case `rejection_reasons` is empty.
+    kawasaki_regressed: bool,
+    /// Reasons from [`exact_solution_rejection_reasons`], verbatim.
+    rejection_reasons: Vec<String>,
+}
+
+impl Default for PolishOutcome {
+    fn default() -> Self {
+        Self::not_run("not_run")
+    }
+}
+
+impl PolishOutcome {
+    fn not_run(stop_reason: &'static str) -> Self {
+        Self {
+            stop_reason,
+            rounds_attempted: 0,
+            rounds_adopted: 0,
+            kawasaki_before_degrees: None,
+            kawasaki_after_degrees: None,
+            refused_round: None,
+            pinned_family: None,
+            symmetry: None,
+        }
+    }
+
+    fn ran(&self) -> bool {
+        self.rounds_attempted > 0
+    }
+}
+
+fn polish_report_json(polish: &PolishOutcome, options: ExactSolveOptions) -> Value {
+    json!({
+        "enabled": options.polish,
+        "ran": polish.ran(),
+        "stop_reason": polish.stop_reason,
+        "rounds_attempted": polish.rounds_attempted,
+        "rounds_adopted": polish.rounds_adopted,
+        "max_rounds": options.polish_rounds,
+        "target_kawasaki_degrees": options.polish_target_kawasaki_degrees,
+        "kawasaki_before_degrees": polish.kawasaki_before_degrees.map(round12),
+        "kawasaki_after_degrees": polish.kawasaki_after_degrees.map(round12),
+        "refused_round": polish.refused_round.as_ref().map(|refusal| {
+            json!({
+                "kawasaki_degrees": round12(refusal.kawasaki_degrees),
+                "kawasaki_regressed": refusal.kawasaki_regressed,
+                "rejection_reasons": refusal.rejection_reasons,
+            })
+        }),
+        "symmetry_round": polish.symmetry.as_ref().map(|round| {
+            json!({
+                "axes": round.axes,
+                "adopted": round.adopted,
+                "stop_reason": round.stop_reason,
+                "kawasaki_degrees": round12(round.kawasaki_degrees),
+                "camv_angle_violations": round.camv.map(|camv| camv.angle_violations),
+                "big_little_big_violations": round.camv.map(|camv| camv.big_little_big_violations),
+                "mirror_error_before": round12(round.mirror_error_before),
+                "mirror_error_after": round12(round.mirror_error_after),
+                "reanchored_rounds": round.reanchored_rounds,
+                "evaluations": round.evaluations,
+                "seconds": round6(round.seconds),
+                "refusals": round.refusals,
+            })
+        }),
+        "pinned_family": polish.pinned_family.as_ref().map(|pinned| {
+            json!({
+                "step_degrees": pinned.step_degrees,
+                "carriers": pinned.carriers,
+                "adopted": pinned.adopted,
+                "stop_reason": pinned.stop_reason,
+                "attempts": pinned
+                    .attempts
+                    .iter()
+                    .map(|attempt| {
+                        json!({
+                            "tolerance_degrees": attempt.tolerance_degrees,
+                            "short_crease_noise_px": attempt.short_crease_noise_px,
+                            "pinned_carriers": attempt.pinned_carriers,
+                            "peeled_carriers": attempt.peeled_carriers,
+                            "reanchored_rounds": attempt.reanchored_rounds,
+                            "kawasaki_degrees": round12(attempt.kawasaki_degrees),
+                            "camv_angle_violations": attempt.camv.map(|camv| camv.angle_violations),
+                            "big_little_big_violations": attempt.camv.map(|camv| camv.big_little_big_violations),
+                            "collapsed_edges": attempt
+                                .collapsed_edges
+                                .iter()
+                                .map(|(edge, length)| json!({ "vertices": edge, "input_length": round6(*length) }))
+                                .collect::<Vec<_>>(),
+                            "lm_separation": attempt.lm_separation,
+                            "termination": attempt.termination,
+                            "evaluations": attempt.evaluations,
+                            "kawasaki_over_bar": attempt.kawasaki_over_bar,
+                            "worst_kawasaki": attempt
+                                .worst_kawasaki
+                                .iter()
+                                .map(|(vertex, degrees)| json!({ "vertex": vertex, "degrees": round12(*degrees) }))
+                                .collect::<Vec<_>>(),
+                            "seconds": round6(attempt.seconds),
+                            "refusals": attempt.refusals,
+                        })
+                    })
+                    .collect::<Vec<_>>(),
+            })
+        }),
+    })
 }
 
 fn exact_solution_rejection_reasons(
@@ -1685,7 +4127,7 @@ fn exact_solution_rejection_reasons(
     if candidate_status == ExactSolvedGraphStatus::Failed {
         reasons.push("candidate_status_failed".to_owned());
     }
-    if after.max_vertex_movement > options.max_vertex_movement {
+    if after.max_budgeted_vertex_movement > options.max_vertex_movement {
         reasons.push("movement_budget_exceeded".to_owned());
     }
     if after.odd_degree_vertices.len() > before.odd_degree_vertices.len() {
@@ -1700,7 +4142,15 @@ fn exact_solution_rejection_reasons(
     if after.boundary_failures.len() > before.boundary_failures.len() {
         reasons.push("boundary_failures_worsened".to_owned());
     }
+    // Only a defect when the optimizer had something to do. An input whose
+    // angles already sit at the bar leaves it nothing to improve, and a result
+    // short of `Solved` for a reason it does not optimise — Maekawa, Big-Little-
+    // Big — must not be thrown away as a failed solve.
+    let nothing_to_improve = before.odd_degree_vertices.is_empty()
+        && before.max_kawasaki_residual_degrees <= options.solved_kawasaki_epsilon_degrees
+        && before.max_carrier_residual <= options.solved_carrier_epsilon;
     if candidate_status != ExactSolvedGraphStatus::Solved
+        && !nothing_to_improve
         && candidate_objective + 1e-9 >= initial_objective
     {
         reasons.push("objective_not_improved".to_owned());
@@ -1740,6 +4190,7 @@ fn movement_report(
     accepted_breakdown: &ResidualBreakdown,
     candidate_breakdown: &ResidualBreakdown,
     counters: &SolveCounterSnapshot,
+    polish: &PolishOutcome,
 ) -> Value {
     let moved_vertices = input
         .vertices
@@ -1795,8 +4246,33 @@ fn movement_report(
         .zip(candidate_points)
         .map(|((_, before), after)| distance(*before, *after))
         .fold(0.0_f64, f64::max);
+    let merged_vertices = model.merged_vertex_pairs();
+    // The mirror symmetries held through the solve, and how far the input and
+    // the answer each depart from them: the "after" figure is what mirroring
+    // one half of the answer onto the other would miss by.
+    let symmetry: Vec<Value> = model
+        .candidate_symmetries
+        .iter()
+        .map(|symmetry| {
+            json!({
+                "axis": symmetry.axis,
+                "held": model.symmetries.contains(symmetry),
+                "pairs": symmetry.pairs,
+                "on_axis": symmetry.on_axis,
+                "vertex_fraction": round6(symmetry.vertex_fraction),
+                "crease_fraction": round6(symmetry.crease_fraction),
+                "mirror_error_before": round12(mirror_error(symmetry, before_points)),
+                "mirror_error_after": round12(mirror_error(symmetry, after_points)),
+            })
+        })
+        .collect();
     json!({
         "schema": "oristudio/cp-compiler/exact-solve-movement-report-v1",
+        "symmetry": symmetry,
+        // Vertex pairs the answer places at one point: the pinned round found
+        // the design has them as a single vertex, and the crease between them
+        // is gone once the answer is written. See `pin_to_angle_family`.
+        "merged_vertices": merged_vertices,
         "termination": termination,
         "timed_out": model.timed_out.get(),
         "timeout_seconds": options.timeout_seconds,
@@ -1812,6 +4288,7 @@ fn movement_report(
         "max_vertex_movement_budget": options.max_vertex_movement,
         "moved_vertices": moved_vertices,
         "attempted_moved_vertices": attempted_moved_vertices,
+        "polish": polish_report_json(polish, options),
         "trace": exact_solve_trace_json(
             input,
             model,
@@ -1872,7 +4349,13 @@ fn exact_solve_trace_json(
     let boundary_vertices = model
         .vertex_params
         .iter()
-        .filter(|param| matches!(param, VertexParameterization::Boundary { .. }))
+        .filter(|param| {
+            matches!(
+                param,
+                VertexParameterization::Boundary { .. }
+                    | VertexParameterization::PolyBoundary { .. }
+            )
+        })
         .count();
     let free_vertices = model
         .vertex_params
@@ -1921,6 +4404,14 @@ fn residual_breakdown_json(breakdown: &ResidualBreakdown) -> Value {
             "count": breakdown.kawasaki_count,
             "energy": round6(breakdown.kawasaki_energy),
         },
+        "coincidence": {
+            "count": breakdown.coincidence_count,
+            "energy": round6(breakdown.coincidence_energy),
+        },
+        "symmetry": {
+            "count": breakdown.symmetry_count,
+            "energy": round6(breakdown.symmetry_energy),
+        },
     })
 }
 
@@ -1935,6 +4426,8 @@ fn analysis_json(analysis: &GraphAnalysis) -> Value {
         "cut_boundary_span_ids": analysis.cut_boundary_span_ids,
         "boundary_vertices": analysis.boundary_vertices,
         "max_kawasaki_residual_degrees": round6(analysis.max_kawasaki_residual_degrees),
+        "camv_angle_violations": analysis.camv.map(|c| c.angle_violations),
+        "big_little_big_violations": analysis.camv.map(|c| c.big_little_big_violations),
         "max_carrier_residual": round6(analysis.max_carrier_residual),
         "max_vertex_movement": round6(analysis.max_vertex_movement),
         "mean_vertex_movement": round6(analysis.mean_vertex_movement),
@@ -1959,6 +4452,7 @@ fn failed_graph(
             .iter()
             .map(|span| span.vertices)
             .collect(),
+        merged_vertices: Vec::new(),
         movement_report,
         theorem_residual_report,
         status: ExactSolvedGraphStatus::Failed,
@@ -1976,8 +4470,186 @@ fn is_interior_fold_vertex(vertex: &CandidateVertex, boundary_vertices: &BTreeSe
         )
 }
 
+/// How far from straight two spans may turn and still count as one crease split
+/// in two.
+///
+/// Read off the data rather than picked. Turn angles at the degree-2 vertices of
+/// four saved detections, in degrees from straight:
+///
+/// ```text
+/// 0.51 0.54 0.56 0.64 0.69 0.72 1.42 1.48 1.57 1.60 1.78 1.97 | 11.10 11.19 | 110.03 112.67
+/// ```
+///
+/// A tight cluster under 2° — detector noise on a vertex that should not exist,
+/// every one of them with the same assignment on both sides — then a clear gap,
+/// then two at 11° and two unambiguous corners. 5° sits in the gap.
+///
+/// Erring low is the safe direction: refusing to merge leaves a real vertex
+/// visible as the defect it is, while merging too eagerly fabricates a straight
+/// crease the user never drew.
+const DEGREE_TWO_MERGE_TOLERANCE_DEGREES: f64 = 5.0;
+
+/// Dissolve degree-2 vertices whose two creases are one straight line.
+///
+/// The shipping candidate generator emits a crease crossed by nothing as two
+/// spans meeting at a degree-2 vertex — 24 of them on one saved detection, 26 of
+/// 30 across the four. That vertex is not information: it is one crease reported
+/// twice, and it costs the solve twice.
+///
+/// The first cost is the carrier. Two collinear spans carry two carrier
+/// geometries, and if the binning does not group them the solve is pinned to two
+/// nearly-parallel lines that cannot both be satisfied. The second is the
+/// **report**: a degree-2 vertex is `degree < 4`, so it is skipped by Kawasaki
+/// entirely and never appears in the residual — while the editor's CAMV calls a
+/// non-collinear one an `Angles` violation. So the solver silently ignores what
+/// the checker flags.
+///
+/// **Only collinear ones.** A degree-2 vertex whose creases genuinely turn is a
+/// corner, and merging it would fabricate geometry the user never drew — it is a
+/// real defect and it should stay visible. Upstream draws the same line:
+/// `del_v_all` merges only through a `Parallel*` intersection.
+///
+/// Vertices are **not renumbered**. A merged-away vertex simply stops being
+/// referenced, so `vertices_exact` stays index-aligned with `input.vertices` and
+/// every caller that maps a solved point back by id keeps working.
+pub fn merge_collinear_degree_two_spans(input: &mut ExactSolveInput) -> usize {
+    let cos_limit = -(DEGREE_TWO_MERGE_TOLERANCE_DEGREES.to_radians().cos());
+    let mut merged = 0usize;
+    while let Some((keep, drop, vertex)) = next_collinear_degree_two(input, cos_limit) {
+        let removed = input.selected_spans[drop].clone();
+        let far = other_end(&removed, vertex);
+        let span = &mut input.selected_spans[keep];
+        let near = other_end(span, vertex);
+        span.vertices = [near, far];
+        span.t_interval = [
+            span.t_interval[0].min(removed.t_interval[0]),
+            span.t_interval[1].max(removed.t_interval[1]),
+        ];
+        // The weaker half governs: a merged crease is only as well-evidenced as
+        // its worse piece, and claiming otherwise would let a merge launder a
+        // low-confidence span into a high-confidence one.
+        span.presence_probability = span.presence_probability.min(removed.presence_probability);
+        span.line_support_min = span.line_support_min.min(removed.line_support_min);
+        span.line_support_max = span.line_support_max.max(removed.line_support_max);
+        span.line_support_mean = 0.5 * (span.line_support_mean + removed.line_support_mean);
+        span.style_support = span.style_support.min(removed.style_support);
+        span.non_crease_support = span.non_crease_support.max(removed.non_crease_support);
+        span.collapsed_vertex_ids.push(vertex);
+        span.collapsed_vertex_ids
+            .extend(&removed.collapsed_vertex_ids);
+        span.source_edge_ids.extend(&removed.source_edge_ids);
+        span.source_atomic_edge_ids
+            .extend(&removed.source_atomic_edge_ids);
+        span.source_carrier_ids.extend(&removed.source_carrier_ids);
+        span.replaced_span_ids.push(removed.id);
+        span.replaced_span_ids.extend(&removed.replaced_span_ids);
+        span.replaced_atomic_edge_ids
+            .extend(&removed.replaced_atomic_edge_ids);
+        input.selected_spans.remove(drop);
+        merged += 1;
+    }
+    merged
+}
+
+fn other_end(span: &CandidateCreaseSpan, vertex: usize) -> usize {
+    if span.vertices[0] == vertex {
+        span.vertices[1]
+    } else {
+        span.vertices[0]
+    }
+}
+
+/// The next `(keep, drop, vertex)` to merge, or none when the graph is settled.
+fn next_collinear_degree_two(
+    input: &ExactSolveInput,
+    cos_limit: f64,
+) -> Option<(usize, usize, usize)> {
+    let boundary = boundary_vertex_ids(&input.selected_spans);
+    let mut incident: Vec<Vec<usize>> = vec![Vec::new(); input.vertices.len()];
+    for (index, span) in input.selected_spans.iter().enumerate() {
+        if !is_fold_span(span) {
+            continue;
+        }
+        for id in span.vertices {
+            if let Some(slot) = incident.get_mut(id) {
+                slot.push(index);
+            }
+        }
+    }
+    for vertex in &input.vertices {
+        if !is_interior_fold_vertex(vertex, &boundary) {
+            continue;
+        }
+        let [left, right] = match incident[vertex.id][..] {
+            [left, right] => [left, right],
+            _ => continue,
+        };
+        let a = &input.selected_spans[left];
+        let b = &input.selected_spans[right];
+        // Merging across an assignment change would invent a mountain where the
+        // user drew a valley, so a colour change is a real vertex.
+        if a.assignment_label() != b.assignment_label() {
+            continue;
+        }
+        let here = input.vertices[vertex.id].point;
+        let to = |span: &CandidateCreaseSpan| {
+            let far = input.vertices[other_end(span, vertex.id)].point;
+            let (dx, dy) = (far.x - here.x, far.y - here.y);
+            let length = (dx * dx + dy * dy).sqrt();
+            (dx / length, dy / length, length)
+        };
+        let (ax, ay, la) = to(a);
+        let (bx, by, lb) = to(b);
+        if la <= 0.0 || lb <= 0.0 || !la.is_finite() || !lb.is_finite() {
+            continue;
+        }
+        // The two rays must point opposite ways: straight through, not a corner.
+        if ax * bx + ay * by > cos_limit {
+            continue;
+        }
+        return Some((left, right, vertex.id));
+    }
+    None
+}
+
 fn is_boundary_like_span(span: &CandidateCreaseSpan) -> bool {
     span.boundary_role() != CandidateCreaseBoundaryRole::None
+}
+
+/// Whether this span is a **fold**, and so belongs in a vertex's fan.
+///
+/// Boundary spans are excluded because the paper edge is not a crease. `Flat` is
+/// excluded for the same reason: FOLD's `F` is an edge whose fold angle is zero,
+/// so the paper is continuous across it. Two things follow, and the solver used
+/// to get both wrong:
+///
+/// - **Kawasaki's alternating sum is over folds.** A flat edge splits one sector
+///   into two collinear halves, which flips the parity of every sector after it
+///   and makes the alternation meaningless.
+/// - **The odd-degree test is a count of folds.** Four folds plus one auxiliary
+///   line read as degree five, i.e. "cannot fold flat no matter where the
+///   vertices sit" — about a vertex that folds perfectly well.
+///
+/// Maekawa already excluded `Flat` (it counts Mountain and Valley only), so the
+/// analysis disagreed with itself; this is the half that was wrong. `Unknown` is
+/// the label for *a fold whose direction is undecided* and stays in the fan,
+/// which is what keeps it counted in the degree while correctly suppressing
+/// Maekawa.
+///
+/// Two other places already read `Flat` this way — `decode.rs`'s crease count
+/// and `compare_exact_solve_benchmark.rs`'s edge walk both group it with
+/// `Boundary` and skip — so this makes the compiler agree with its own callers.
+/// Oriedita agrees too: `is_folding_line()` is Black0|Red1|Blue2, and
+/// `point_line_map` skips Cyan3 outright, so an auxiliary line is not in its
+/// foldability graph at all.
+///
+/// Measured: detection attachments carry **zero** `Flat` spans, so this is a
+/// no-op on the shipped path. It matters for a graph rebuilt from a document the
+/// user has edited, where an auxiliary crease is an ordinary thing to draw — and
+/// for TreeMaker, whose `Flat` spans are all `UNFOLDED_HINGE`, upstream's own
+/// name for a crease that does not fold.
+fn is_fold_span(span: &CandidateCreaseSpan) -> bool {
+    !is_boundary_like_span(span) && span.assignment_label() != AssignmentLabel::Flat
 }
 
 fn boundary_span_ids(spans: &[CandidateCreaseSpan]) -> Vec<usize> {
@@ -2027,6 +4699,49 @@ fn corner_points(boundary: &BoundaryModel) -> BTreeMap<usize, Point2> {
     points
 }
 
+fn is_polygon_boundary(input: &ExactSolveInput) -> bool {
+    input.boundary.reconstruction_policy == BoundaryReconstructionPolicy::Polygon
+}
+
+/// Polygon-policy corners: pinned to their input positions rather than the unit
+/// square.
+fn polygon_corner_points(input: &ExactSolveInput) -> BTreeMap<usize, Point2> {
+    input
+        .boundary
+        .corners
+        .iter()
+        .filter_map(|&id| input.vertices.get(id).map(|v| (id, v.point)))
+        .collect()
+}
+
+/// Polygon-policy side segments keyed by boundary-vertex id: `(origin, vector)`
+/// so the vertex slides along `origin + t·vector` between its two corners.
+fn polygon_side_segments(input: &ExactSolveInput) -> BTreeMap<usize, (Point2, Point2)> {
+    let mut segments = BTreeMap::new();
+    for side in &input.boundary.sides {
+        let (Some(a), Some(b)) = (
+            input.vertices.get(side.corner_vertices[0]),
+            input.vertices.get(side.corner_vertices[1]),
+        ) else {
+            continue;
+        };
+        let vector = Point2::new(b.point.x - a.point.x, b.point.y - a.point.y);
+        for &vertex_id in &side.contact_vertices {
+            segments.insert(vertex_id, (a.point, vector));
+        }
+    }
+    segments
+}
+
+/// Position `t` of `point` projected onto the segment `origin + t·vector`.
+fn segment_param(point: Point2, origin: Point2, vector: Point2) -> f64 {
+    let denom = vector.x * vector.x + vector.y * vector.y;
+    if denom <= 0.0 {
+        return 0.0;
+    }
+    ((point.x - origin.x) * vector.x + (point.y - origin.y) * vector.y) / denom
+}
+
 fn movement_sigma(cost_model: &CostModel, options: ExactSolveOptions, support: f64) -> f64 {
     let support_scale = 1.0 - support.clamp(0.0, 1.0) * 0.35;
     options
@@ -2070,6 +4785,17 @@ fn distance(left: Point2, right: Point2) -> f64 {
     ((left.x - right.x).powi(2) + (left.y - right.y).powi(2)).sqrt()
 }
 
+/// Distance from `point` to the segment `a`–`b`.
+fn distance_to_segment(point: Point2, a: Point2, b: Point2) -> f64 {
+    let (dx, dy) = (b.x - a.x, b.y - a.y);
+    let length_squared = dx * dx + dy * dy;
+    if length_squared <= 0.0 {
+        return distance(point, a);
+    }
+    let t = (((point.x - a.x) * dx + (point.y - a.y) * dy) / length_squared).clamp(0.0, 1.0);
+    distance(point, Point2::new(a.x + t * dx, a.y + t * dy))
+}
+
 fn residual_energy(residuals: &[f64]) -> f64 {
     0.5 * residuals.iter().map(|value| value * value).sum::<f64>()
 }
@@ -2096,11 +4822,15 @@ fn unmodeled_crossings(
 ) -> Vec<[usize; 2]> {
     let mut crossings = Vec::new();
     for (left_index, left) in input.selected_spans.iter().enumerate() {
-        if is_boundary_like_span(left) {
+        // Folds only, for the same reason the fan is folds only. An auxiliary
+        // line crossing a crease is not a topology error — it is a guide drawn
+        // across the pattern, which is what guides are for — so counting it here
+        // makes the gate fire on a document the user drew correctly.
+        if !is_fold_span(left) {
             continue;
         }
         for right in input.selected_spans.iter().skip(left_index + 1) {
-            if is_boundary_like_span(right) {
+            if !is_fold_span(right) {
                 continue;
             }
             if left.vertices.iter().any(|id| right.vertices.contains(id)) {
@@ -2138,6 +4868,11 @@ fn cross(left: Point2, right: Point2) -> f64 {
 }
 
 fn boundary_failures(input: &ExactSolveInput, points: &[Point2]) -> Vec<usize> {
+    let side_segments = if is_polygon_boundary(input) {
+        polygon_side_segments(input)
+    } else {
+        BTreeMap::new()
+    };
     input
         .vertices
         .iter()
@@ -2145,9 +4880,12 @@ fn boundary_failures(input: &ExactSolveInput, points: &[Point2]) -> Vec<usize> {
             let point = points[vertex.id];
             let failed = if input.boundary.corners.contains(&vertex.id) {
                 false
-            } else if vertex.boundary_side.is_some() {
-                side_coord(vertex.boundary_side.unwrap(), point) < -1e-6
-                    || side_coord(vertex.boundary_side.unwrap(), point) > 1.0 + 1e-6
+            } else if let Some(&(origin, vector)) = side_segments.get(&vertex.id) {
+                let t = segment_param(point, origin, vector);
+                !(-1e-6..=1.0 + 1e-6).contains(&t)
+            } else if let Some(side) = vertex.boundary_side {
+                let coord = side_coord(side, point);
+                !(-1e-6..=1.0 + 1e-6).contains(&coord)
             } else {
                 false
             };
@@ -2158,6 +4896,127 @@ fn boundary_failures(input: &ExactSolveInput, points: &[Point2]) -> Vec<usize> {
 
 fn round6(value: f64) -> f64 {
     (value * 1_000_000.0).round() / 1_000_000.0
+}
+
+/// Polish-stage Kawasaki residuals live around 1e-3 to 1e-7 degrees, where
+/// [`round6`] would quantise the interesting digits (or flatten them to zero).
+fn round12(value: f64) -> f64 {
+    (value * 1e12).round() / 1e12
+}
+
+#[cfg(test)]
+mod request_and_cancellation_tests {
+    use super::*;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    #[test]
+    fn options_json_merges_over_defaults_and_refuses_unknown_keys() {
+        let defaults = ExactSolveOptionsWithExemptions::from(ExactSolveOptions::default());
+        assert_eq!(exact_solve_options_from_json(""), Ok(defaults.clone()));
+        assert_eq!(exact_solve_options_from_json("null"), Ok(defaults));
+        let parsed = exact_solve_options_from_json(r#"{"timeout_seconds": -1}"#).expect("parse");
+        assert_eq!(parsed.options.timeout_seconds, -1.0);
+        assert!(exact_solve_options_from_json(r#"{"timeout_secondz": 1}"#).is_err());
+    }
+
+    #[test]
+    fn a_raised_flag_reads_as_an_expired_deadline() {
+        let flag = Arc::new(AtomicBool::new(false));
+        let deadline = with_cancellation(flag.clone(), || ExactSolveDeadline::start(-1.0));
+        assert!(!deadline.expired(), "no deadline and no stop: not expired");
+        flag.store(true, Ordering::Relaxed);
+        assert!(deadline.expired(), "the stop is the deadline");
+        // Outside `with_cancellation` a deadline carries no flag.
+        let plain = ExactSolveDeadline::start(-1.0);
+        assert!(!plain.expired());
+    }
+}
+
+#[cfg(test)]
+mod sparse_step_tests {
+    use super::*;
+
+    #[test]
+    fn reverse_cuthill_mckee_is_a_permutation_that_bands_a_scrambled_path() {
+        // A path 0-1-2-…-9 given with its nodes shuffled: RCM must number
+        // neighbours adjacently again.
+        let path = [3, 7, 1, 9, 0, 5, 2, 8, 6, 4];
+        let pairs: Vec<(usize, usize)> = path.windows(2).map(|w| (w[0], w[1])).collect();
+        let perm = reverse_cuthill_mckee(10, pairs.iter().copied());
+        let mut seen = perm.clone();
+        seen.sort_unstable();
+        assert_eq!(seen, (0..10).collect::<Vec<_>>(), "a permutation: {perm:?}");
+        let bandwidth = pairs
+            .iter()
+            .map(|&(i, j)| perm[i].abs_diff(perm[j]))
+            .max()
+            .unwrap_or(0);
+        assert_eq!(bandwidth, 1, "{perm:?}");
+    }
+
+    #[test]
+    fn reverse_cuthill_mckee_numbers_every_node_of_a_disconnected_pattern() {
+        let perm = reverse_cuthill_mckee(5, [(0, 1), (3, 4)].into_iter());
+        let mut seen = perm.clone();
+        seen.sort_unstable();
+        assert_eq!(seen, vec![0, 1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn the_permuted_step_solves_the_same_system() {
+        // (JᵀJ + λ·diag) δ = −g on a small SPD system, against a direct dense
+        // solve; the reordering must not change the answer beyond rounding.
+        let n = 6;
+        let jtj = vec![
+            (0, 0, 4.0),
+            (1, 1, 5.0),
+            (2, 2, 6.0),
+            (3, 3, 7.0),
+            (4, 4, 8.0),
+            (5, 5, 9.0),
+            (0, 3, 1.0),
+            (1, 4, -1.5),
+            (2, 5, 0.5),
+            (0, 1, 0.25),
+            (3, 5, -0.75),
+        ];
+        let diagonal = vec![4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
+        let gradient = vec![1.0, -2.0, 3.0, -4.0, 5.0, -6.0];
+        let gn = GaussNewton {
+            jtj: jtj.clone(),
+            diagonal: diagonal.clone(),
+            gradient: gradient.clone(),
+            gradient_norm: 1.0,
+        };
+        let lambda = 0.1;
+        let mut system = SparseStepSystem::new(&gn, n).expect("system");
+        let delta = system.solve(&gn, lambda).expect("solve");
+        // Twice, to exercise the refactor path.
+        let again = system.solve(&gn, lambda).expect("solve again");
+
+        let mut dense = DMatrix::zeros(n, n);
+        for &(i, j, v) in &jtj {
+            dense[(i, j)] += v;
+            if i != j {
+                dense[(j, i)] += v;
+            }
+        }
+        for k in 0..n {
+            dense[(k, k)] += lambda * diagonal[k];
+        }
+        let rhs = DMatrix::from_fn(n, 1, |i, _| -gradient[i]);
+        let expected = dense.lu().solve(&rhs).expect("dense solve");
+        for k in 0..n {
+            assert!(
+                (delta[k] - expected[(k, 0)]).abs() < 1e-12,
+                "{k}: {} vs {}",
+                delta[k],
+                expected[(k, 0)]
+            );
+            assert!((again[k] - delta[k]).abs() < 1e-15);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -2173,7 +5032,10 @@ mod tests {
 
     #[test]
     fn valid_cp_remains_solved_and_stable() {
-        let input = four_ray_input(Point2::new(0.5, 0.5));
+        // `four_ray_input` is M,V,M,V — a Maekawa failure, as the sibling
+        // fixture's own comment says. It only ever passed as "valid" while the
+        // verdict ignored Maekawa.
+        let input = maekawa_clean_four_ray_input(Point2::new(0.5, 0.5));
         let solved = solve_exact(&input, ExactSolveOptions::default());
         assert_eq!(solved.status, ExactSolvedGraphStatus::Solved);
         assert!(distance(solved.vertices_exact[4], Point2::new(0.5, 0.5)) < 1e-8);
@@ -2251,6 +5113,594 @@ mod tests {
                 .unwrap()
                 .contains("polish"),
             "polish stage should be recorded in the termination string"
+        );
+    }
+
+    /// CAMV's flatness tolerance, the bar the editor's foldability checker
+    /// actually applies (`Epsilon::FLAT`, in degrees). Any Kawasaki residual
+    /// above this still reads as an "Incorrect angles" violation in the editor.
+    const CAMV_FLAT_EPSILON_DEGREES: f64 = 1e-6;
+
+    #[test]
+    fn lattice_offset_is_signed_distance_to_nearest_multiple() {
+        let step = 22.5_f64.to_radians();
+        for (theta_degrees, expected_degrees) in [
+            (45.0_f64, 0.0_f64),
+            (46.0, 1.0),
+            (44.0, -1.0),
+            (-22.5, 0.0),
+            (170.0, -10.0),
+            (0.3, 0.3),
+        ] {
+            let offset = lattice_offset(theta_degrees.to_radians(), step).to_degrees();
+            assert!(
+                (offset - expected_degrees).abs() < 1e-9,
+                "{theta_degrees}: expected {expected_degrees}, got {offset}"
+            );
+        }
+    }
+
+    #[test]
+    fn infer_angle_family_picks_the_lattice_most_carriers_sit_on() {
+        let tolerance = 1.5_f64.to_radians();
+        let degrees = |list: &[f64]| list.iter().map(|d| d.to_radians()).collect::<Vec<_>>();
+        let family = |list: &[f64]| infer_angle_family(&degrees(list), tolerance, 0.5);
+        // A 22.5° design, drawn with half a degree of noise. Its odd multiples
+        // are 7.5° from the 15° lattice, so that one only fits the 45° subset.
+        assert_eq!(family(&[0.4, 22.1, 45.3, 67.9, 90.0, 112.6]), Some(22.5));
+        // A 45° design fits every family and reads as the coarsest.
+        assert_eq!(family(&[0.0, 45.2, 90.1, 135.0]), Some(45.0));
+        // Hex pleating: 30° and 60° everywhere, which the square families miss.
+        assert_eq!(family(&[0.2, 29.8, 60.4, 90.0, 120.1, 149.7]), Some(30.0));
+        // A hex design that also uses 15° creases reads as 15°, not 30°.
+        assert_eq!(
+            family(&[0.0, 15.2, 30.1, 45.0, 60.3, 75.0, 90.0, 104.9]),
+            Some(15.0)
+        );
+        // Box-pleat diagonals at atan 2 are on none of them, and with them in
+        // the majority there is no family to pin to.
+        assert_eq!(family(&[26.57, 63.43, 116.57, 153.43, 0.0, 90.0]), None);
+        assert_eq!(infer_angle_family(&[], tolerance, 0.5), None);
+    }
+
+    /// The four-ray fan pinned to its family. Its rays run to the fixed
+    /// corners, so the only point where all four sit at exactly 45° is the
+    /// centre of the square, and the pinned round has to put the vertex there
+    /// — not near it — for the four right angles to tie within the checker's
+    /// 1e-6°.
+    fn assert_pinned_fan_lands_on_the_centre(options: ExactSolveOptions) {
+        let input = maekawa_clean_four_ray_input(Point2::new(0.505, 0.50));
+        let solved = solve_exact(&input, options);
+        let pinned = &solved.movement_report["polish"]["pinned_family"];
+        assert_eq!(
+            pinned["adopted"],
+            serde_json::Value::Bool(true),
+            "the fan is a 45° design and must be pinned: {pinned}"
+        );
+        // A fan of diagonals fits every family and reads as the coarsest.
+        assert_eq!(pinned["step_degrees"], serde_json::json!(45.0));
+        assert!(
+            solved.movement_report["termination"]
+                .as_str()
+                .unwrap()
+                .contains(",pinned"),
+            "{}",
+            solved.movement_report["termination"]
+        );
+        assert_eq!(solved.status, ExactSolvedGraphStatus::Solved);
+        let centre = solved.vertices_exact[4];
+        assert!(
+            (centre.x - 0.5).abs() < 1e-9 && (centre.y - 0.5).abs() < 1e-9,
+            "pinned directions through fixed corners meet at the centre, got {centre:?}"
+        );
+        for corner in 0..4 {
+            let to = solved.vertices_exact[corner];
+            let angle = (to.y - centre.y).atan2(to.x - centre.x).to_degrees();
+            let off_lattice = lattice_offset(angle, 45.0);
+            assert!(
+                off_lattice.abs() < 1e-7,
+                "ray to corner {corner} sits {off_lattice} degrees off the lattice"
+            );
+        }
+    }
+
+    #[test]
+    fn pinned_round_makes_designed_ties_exact() {
+        assert_pinned_fan_lands_on_the_centre(ExactSolveOptions::default());
+    }
+
+    #[test]
+    fn pinned_round_freezes_directions_on_the_dense_path_too() {
+        assert_pinned_fan_lands_on_the_centre(ExactSolveOptions {
+            linear_solver: LinearSolver::Dense,
+            ..ExactSolveOptions::default()
+        });
+    }
+
+    #[test]
+    fn angle_family_off_never_pins() {
+        let input = maekawa_clean_four_ray_input(Point2::new(0.505, 0.50));
+        let solved = solve_exact(
+            &input,
+            ExactSolveOptions {
+                angle_family: AngleFamilyMode::Off,
+                ..ExactSolveOptions::default()
+            },
+        );
+        assert!(solved.movement_report["polish"]["pinned_family"].is_null());
+        assert!(
+            !solved.movement_report["termination"]
+                .as_str()
+                .unwrap()
+                .contains("pinned")
+        );
+    }
+
+    /// A pinned round that would cost a Kawasaki vertex is refused, and the
+    /// solve keeps the unpinned answer. The fan's top ray is bent 4° off the
+    /// diagonal, which is outside every retry tolerance, so it is never pinned;
+    /// pinning the other three then forces Kawasaki at the centre onto a
+    /// direction the free ray cannot reach from where its far end is fixed.
+    #[test]
+    fn pinned_round_is_refused_rather_than_break_kawasaki() {
+        let mut input = maekawa_clean_four_ray_input(Point2::new(0.5, 0.5));
+        // Move corner 2 (the (1,1) end) off the diagonal so its ray is 4° off
+        // 45°; the corner is fixed, so nothing the solve does can put it back.
+        let bent = 49.0_f64.to_radians();
+        input.vertices[2].point = Point2::new(0.5 + 0.5 * bent.cos(), 0.5 + 0.5 * bent.sin());
+        let solved = solve_exact(&input, ExactSolveOptions::default());
+        let pinned = &solved.movement_report["polish"]["pinned_family"];
+        if pinned.is_null() {
+            // Three of six carriers on the lattice is exactly the fraction bar;
+            // either reading is fine, as long as nothing was pinned.
+            return;
+        }
+        assert_eq!(
+            pinned["adopted"],
+            serde_json::Value::Bool(false),
+            "{pinned}"
+        );
+        for attempt in pinned["attempts"].as_array().unwrap() {
+            assert!(
+                !attempt["refusals"].as_array().unwrap().is_empty(),
+                "every attempt must say why it was refused: {attempt}"
+            );
+        }
+    }
+
+    /// The design's centre vertex — eight creases at 45° — detected as two
+    /// vertices `a` and `b` a few pixels apart on the horizontal crease through
+    /// it, joined by a stub of that crease. Each half is a legal vertex on its
+    /// own (degree 6 and degree 4, Kawasaki- and Maekawa-clean, no
+    /// Big-Little-Big), so nothing but the lattice says they are one: pinned,
+    /// the lines through each are concurrent at the centre, the stub collapses,
+    /// and the answer holds one vertex.
+    fn split_junction_input() -> (ExactSolveInput, usize, usize, usize) {
+        split_junction_input_with(Point2::new(0.496, 0.5005), Point2::new(0.504, 0.4995))
+    }
+
+    /// [`split_junction_input`] with the two halves at `a` and `b`.
+    fn split_junction_input_with(
+        a_at: Point2,
+        b_at: Point2,
+    ) -> (ExactSolveInput, usize, usize, usize) {
+        let mut input = base_square_input();
+        // Boundary contacts for the horizontal and vertical creases. The base
+        // square's Top side is y = 0, corners 0 → 1.
+        for (id, point, side) in [
+            (4, Point2::new(0.5, 0.0), BoundarySide::Top),
+            (5, Point2::new(0.5, 1.0), BoundarySide::Bottom),
+            (6, Point2::new(0.0, 0.5), BoundarySide::Left),
+            (7, Point2::new(1.0, 0.5), BoundarySide::Right),
+        ] {
+            input.vertices.push(vertex(
+                id,
+                point,
+                CandidateVertexKind::BoundaryContact,
+                CandidateVertexMovementPolicy::Movable,
+                Some(side),
+            ));
+        }
+        let a = 8;
+        let b = 9;
+        input.vertices.push(vertex(
+            a,
+            a_at,
+            CandidateVertexKind::InteriorJunction,
+            CandidateVertexMovementPolicy::Movable,
+            None,
+        ));
+        input.vertices.push(vertex(
+            b,
+            b_at,
+            CandidateVertexKind::InteriorJunction,
+            CandidateVertexMovementPolicy::Movable,
+            None,
+        ));
+        // Split each of the Top and Bottom border spans at its contact, and the
+        // Left and Right ones likewise.
+        input.selected_spans.clear();
+        let border = [
+            (0, 0, 4),
+            (1, 4, 1),
+            (2, 1, 7),
+            (3, 7, 2),
+            (4, 3, 5),
+            (5, 5, 2),
+            (6, 0, 6),
+            (7, 6, 3),
+        ];
+        for (id, p, q) in border {
+            input.selected_spans.push(span(
+                id,
+                p,
+                q,
+                AssignmentLabel::Boundary,
+                id,
+                &input.vertices,
+            ));
+        }
+        input.boundary.sides[0].contact_vertices = vec![0, 4, 1];
+        input.boundary.sides[1].contact_vertices = vec![1, 7, 2];
+        input.boundary.sides[2].contact_vertices = vec![3, 5, 2];
+        input.boundary.sides[3].contact_vertices = vec![0, 6, 3];
+        input.boundary.generated_border_span_ids = (0..8).collect();
+        use AssignmentLabel::{Mountain as M, Valley as V};
+        // `a` keeps the left half of the fan plus both verticals; `b` the right
+        // half. Mirror images carry the same assignment, as a mirror-symmetric
+        // design's do, and Maekawa holds on each half with the stub counted and
+        // on the union without it: 3 mountains to 5 valleys.
+        let stub = 8;
+        let creases = [
+            (stub, a, b, V),
+            (9, a, 5, M),  // up (the Bottom side is y = 1 — image coordinates)
+            (10, a, 3, M), // (0, 1)
+            (11, a, 6, V), // left
+            (12, a, 0, V), // (0, 0)
+            (13, a, 4, V), // down
+            (14, b, 2, M), // (1, 1), the image of (0, 1)
+            (15, b, 7, V), // right, the image of left
+            (16, b, 1, V), // (1, 0), the image of (0, 0)
+        ];
+        for (id, p, q, label) in creases {
+            input
+                .selected_spans
+                .push(span(id, p, q, label, id, &input.vertices));
+        }
+        (input, a, b, stub)
+    }
+
+    #[test]
+    fn pinned_round_merges_a_split_junction() {
+        let (input, a, b, stub) = split_junction_input();
+        let solved = solve_exact(&input, ExactSolveOptions::default());
+        // The halves are each other's mirror image about the vertical midline,
+        // and the symmetry round holds them so before the pin merges them.
+        let symmetry = &solved.movement_report["polish"]["symmetry_round"];
+        assert_eq!(
+            symmetry["adopted"],
+            serde_json::Value::Bool(true),
+            "{symmetry}"
+        );
+        assert_eq!(symmetry["axes"], serde_json::json!(["vertical"]));
+        assert!(
+            symmetry["mirror_error_after"].as_f64().unwrap() < 1e-9,
+            "{symmetry}"
+        );
+        assert!(
+            solved.movement_report["termination"]
+                .as_str()
+                .unwrap()
+                .contains(",symmetric"),
+            "{}",
+            solved.movement_report["termination"]
+        );
+        let pinned = &solved.movement_report["polish"]["pinned_family"];
+        assert_eq!(pinned["adopted"], serde_json::Value::Bool(true), "{pinned}");
+        assert_eq!(
+            solved.merged_vertices,
+            vec![[a, b]],
+            "the stub's ends are the design's one vertex: {}",
+            solved.movement_report["polish"]
+        );
+        assert_eq!(
+            solved.movement_report["merged_vertices"],
+            serde_json::json!([[a, b]])
+        );
+        let (at_a, at_b) = (solved.vertices_exact[a], solved.vertices_exact[b]);
+        assert_eq!(at_a, at_b, "a merged pair is one point, exactly");
+        assert!(
+            (at_a.x - 0.5).abs() < 1e-9 && (at_a.y - 0.5).abs() < 1e-9,
+            "the pinned lines are concurrent at the centre, got {at_a:?}"
+        );
+        assert_eq!(
+            solved.status,
+            ExactSolvedGraphStatus::Solved,
+            "{}",
+            solved.movement_report
+        );
+        // The stub is still listed, index-paired with the input's spans, and is
+        // what the editor will drop.
+        assert_eq!(solved.edges_exact.len(), input.selected_spans.len());
+        assert_eq!(solved.edges_exact[stub], [a, b]);
+        // The FOLD the answer exports holds the merged pattern: one vertex
+        // fewer, the stub gone, and the checker clean on it.
+        let fold = crate::fold_export::export_exact_solved_to_fold_document(&input, &solved)
+            .expect("export");
+        assert_eq!(fold.edges_vertices.len(), input.selected_spans.len() - 1);
+        assert_eq!(fold.vertices_coords.len(), input.vertices.len() - 1);
+        assert_eq!(fold.edges_assignment.len(), fold.edges_vertices.len());
+        let model = oristudio_cp::io::fold::import_fold_document(&fold).expect("import");
+        let violations = oristudio_cp::checks::check_camv_task(&model).violations;
+        assert!(violations.is_empty(), "{violations:?}");
+    }
+
+    /// The junction detected at one end of the stub: `a` sits on the design's
+    /// vertex and `b` is 12 px along the crease. The pinned lines meet at `a`,
+    /// so merging moves `b` the whole 12 px — more than the 10 px budget when
+    /// measured from its own position, and nothing at all measured from the
+    /// stub it was one end of.
+    #[test]
+    fn merging_along_the_stub_is_not_movement() {
+        let (input, a, b, _stub) =
+            split_junction_input_with(Point2::new(0.5, 0.5), Point2::new(0.5 + 12.0 / 1024.0, 0.5));
+        let solved = solve_exact(&input, ExactSolveOptions::default());
+        assert_eq!(
+            solved.merged_vertices,
+            vec![[a, b]],
+            "{}",
+            solved.movement_report["polish"]
+        );
+        assert_eq!(
+            solved.status,
+            ExactSolvedGraphStatus::Solved,
+            "{}",
+            solved.movement_report
+        );
+        assert_eq!(solved.vertices_exact[a], solved.vertices_exact[b]);
+    }
+
+    /// A stub longer than the merge allowance is two vertices, whatever the
+    /// lattice says: the collapse is not a merge, and the round is refused.
+    #[test]
+    fn a_long_stub_is_not_merged() {
+        let (input, a, b, _stub) =
+            split_junction_input_with(Point2::new(0.5, 0.5), Point2::new(0.5 + 20.0 / 1024.0, 0.5));
+        let solved = solve_exact(&input, ExactSolveOptions::default());
+        assert!(
+            solved.merged_vertices.is_empty(),
+            "{}",
+            solved.movement_report["polish"]
+        );
+        assert_ne!(solved.vertices_exact[a], solved.vertices_exact[b]);
+    }
+
+    #[test]
+    fn split_junction_stays_split_without_the_pin() {
+        let (input, a, b, _stub) = split_junction_input();
+        let solved = solve_exact(
+            &input,
+            ExactSolveOptions {
+                angle_family: AngleFamilyMode::Off,
+                ..ExactSolveOptions::default()
+            },
+        );
+        assert!(solved.merged_vertices.is_empty());
+        assert_ne!(solved.vertices_exact[a], solved.vertices_exact[b]);
+    }
+
+    /// Mountains to the top corners, valleys to the bottom ones: mirror-symmetric
+    /// about the vertical midline and about nothing else, since every other
+    /// axis maps a mountain onto a valley.
+    #[test]
+    fn symmetry_detection_reads_assignments_as_well_as_positions() {
+        let input = four_ray_input_with_labels(
+            Point2::new(0.505, 0.5),
+            [
+                AssignmentLabel::Mountain,
+                AssignmentLabel::Mountain,
+                AssignmentLabel::Valley,
+                AssignmentLabel::Valley,
+            ],
+        );
+        let found = crate::symmetry::detect_symmetries(
+            &input.vertices,
+            &input.selected_spans,
+            ExactSolveOptions::default().symmetry_match_tolerance,
+            ExactSolveOptions::default().symmetry_min_fraction,
+        );
+        let axes: Vec<_> = found.iter().map(|symmetry| symmetry.axis).collect();
+        assert_eq!(
+            axes,
+            vec![crate::symmetry::SymmetryAxis::Vertical],
+            "{found:?}"
+        );
+        assert_eq!(found[0].on_axis, vec![4]);
+        assert_eq!(found[0].pairs, vec![[0, 1], [2, 3]]);
+    }
+
+    #[test]
+    fn symmetry_pairs_the_split_junction_halves() {
+        let (input, a, b, _stub) = split_junction_input();
+        let found = crate::symmetry::detect_symmetries(
+            &input.vertices,
+            &input.selected_spans,
+            ExactSolveOptions::default().symmetry_match_tolerance,
+            ExactSolveOptions::default().symmetry_min_fraction,
+        );
+        let candidates = crate::symmetry::symmetry_candidates(
+            &input.vertices,
+            &input.selected_spans,
+            ExactSolveOptions::default().symmetry_match_tolerance,
+        );
+        let vertical = found
+            .iter()
+            .find(|symmetry| symmetry.axis == crate::symmetry::SymmetryAxis::Vertical)
+            .unwrap_or_else(|| {
+                panic!("the split junction is mirror-symmetric about the vertical midline: {candidates:?}")
+            });
+        assert!(
+            vertical.pairs.contains(&[a.min(b), a.max(b)]),
+            "{vertical:?}"
+        );
+        assert_eq!(vertical.vertex_fraction, 1.0);
+        // The stub's halves split the vertical creases between them, so two of
+        // the nine creases have no image; the pair itself agrees on the rest.
+        assert!(vertical.crease_fraction > 0.75, "{vertical:?}");
+    }
+
+    #[test]
+    fn an_asymmetric_pattern_has_no_symmetry() {
+        let mut input = base_square_input();
+        input.vertices.push(vertex(
+            4,
+            Point2::new(0.3, 0.4),
+            CandidateVertexKind::InteriorJunction,
+            CandidateVertexMovementPolicy::Movable,
+            None,
+        ));
+        input
+            .selected_spans
+            .push(span(4, 4, 0, AssignmentLabel::Mountain, 4, &input.vertices));
+        input
+            .selected_spans
+            .push(span(5, 4, 1, AssignmentLabel::Valley, 5, &input.vertices));
+        let found =
+            crate::symmetry::detect_symmetries(&input.vertices, &input.selected_spans, 0.012, 0.9);
+        assert!(found.is_empty(), "{found:?}");
+    }
+
+    #[test]
+    fn polish_report_records_adopted_rounds() {
+        // Maekawa-clean, so the polish can actually reach `Solved`; the M,V,M,V
+        // fan never can, and a round that cannot improve past `Ambiguous` is
+        // refused on its objective — which is right, and not what this tests.
+        let input = maekawa_clean_four_ray_input(Point2::new(0.505, 0.50));
+        let solved = solve_exact(&input, ExactSolveOptions::default());
+        let polish = &solved.movement_report["polish"];
+        assert!(polish["enabled"].as_bool().unwrap());
+        assert!(polish["ran"].as_bool().unwrap());
+        assert!(
+            polish["rounds_adopted"].as_u64().unwrap() > 0,
+            "an adopted polish must report its round count, got {polish}"
+        );
+        // A round may be refused once progress stalls — on this fixture the
+        // polish bottoms out near 2e-5 degrees, and a third round that cannot
+        // lower the objective is rightly thrown away. What must never happen is
+        // a refusal that *regressed*, or no adopted round at all. (Under the old
+        // 1e-3 bar the stalled round counted as `Solved`, which hid the refusal
+        // rather than avoiding it.)
+        if !polish["refused_round"].is_null() {
+            assert_eq!(
+                polish["refused_round"]["kawasaki_regressed"],
+                serde_json::Value::Bool(false),
+                "a refused round must not have made Kawasaki worse: {polish}"
+            );
+        }
+        let before = polish["kawasaki_before_degrees"].as_f64().unwrap();
+        let after = polish["kawasaki_after_degrees"].as_f64().unwrap();
+        assert!(
+            after < before,
+            "adopted rounds should tighten Kawasaki ({after} vs {before})"
+        );
+        assert!(
+            solved.movement_report["termination"]
+                .as_str()
+                .unwrap()
+                .contains("polish"),
+            "the termination string and the polish report must agree"
+        );
+    }
+
+    #[test]
+    fn polish_report_records_why_a_refused_round_was_refused() {
+        // Same fixture as the adopted case, with the movement budget pinned to
+        // what stage 1 already spent. Stage 1 still passes (the gate is a strict
+        // `>`), but every polish round has to move further to tighten Kawasaki,
+        // so the first one is computed and then thrown away.
+        let input = four_ray_input(Point2::new(0.505, 0.50));
+        // Symmetry off: the M,V,M,V fan is mirror-symmetric about a diagonal,
+        // and holding its centre to that line is not the accounting under test.
+        let options = ExactSolveOptions {
+            symmetry: SymmetryMode::Off,
+            ..ExactSolveOptions::default()
+        };
+        let stage1_only = solve_exact(
+            &input,
+            ExactSolveOptions {
+                polish: false,
+                ..options
+            },
+        );
+        assert!(stage1_only.movement_report["accepted"].as_bool().unwrap());
+        // The reported movement is rounded to 6 decimals, so add back more than
+        // that rounding can hide to keep stage 1 comfortably inside the budget.
+        // A polish round needs orders of magnitude more room than this slack.
+        let budget = stage1_only.movement_report["max_vertex_movement"]
+            .as_f64()
+            .unwrap()
+            + 1e-6;
+
+        let solved = solve_exact(
+            &input,
+            ExactSolveOptions {
+                max_vertex_movement: budget,
+                ..options
+            },
+        );
+        assert!(
+            solved.movement_report["accepted"].as_bool().unwrap(),
+            "stage 1 must still be accepted, or this fixture is testing the wrong refusal"
+        );
+        assert!(
+            !solved.movement_report["termination"]
+                .as_str()
+                .unwrap()
+                .contains("polish"),
+            "no round was adopted, so the termination string carries no polish suffix -- \
+             which is exactly why the report has to say more"
+        );
+
+        let polish = &solved.movement_report["polish"];
+        assert!(polish["ran"].as_bool().unwrap());
+        assert_eq!(polish["stop_reason"], "round_refused");
+        assert_eq!(polish["rounds_attempted"], 1);
+        assert_eq!(polish["rounds_adopted"], 0);
+        assert_eq!(
+            polish["kawasaki_before_degrees"], polish["kawasaki_after_degrees"],
+            "nothing was adopted, so the kept residual is the stage-1 residual"
+        );
+
+        let refused = &polish["refused_round"];
+        assert!(
+            !refused["kawasaki_regressed"].as_bool().unwrap(),
+            "this round was refused by the gates, not for making Kawasaki worse"
+        );
+        let reasons = refused["rejection_reasons"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|reason| reason.as_str().unwrap().to_owned())
+            .collect::<Vec<_>>();
+        assert!(
+            reasons.contains(&"movement_budget_exceeded".to_owned()),
+            "the refusal reasons must survive into the report, got {reasons:?}"
+        );
+
+        let would_have_reached = refused["kawasaki_degrees"].as_f64().unwrap();
+        let kept = polish["kawasaki_after_degrees"].as_f64().unwrap();
+        assert!(
+            would_have_reached < kept,
+            "the refused round was better on Kawasaki alone ({would_have_reached} vs {kept}) -- \
+             that gap is the thing the report exists to explain"
+        );
+        // The fact that stops someone "fixing" this by loosening the gate: the
+        // refused round is still far above the checker's bar, so adopting it
+        // would corrupt geometry and clear no violation. See [`PolishOutcome`].
+        assert!(
+            would_have_reached > CAMV_FLAT_EPSILON_DEGREES,
+            "a refused round that already cleared CAMV would change this argument; \
+             got {would_have_reached} vs {CAMV_FLAT_EPSILON_DEGREES}"
         );
     }
 
@@ -2542,7 +5992,563 @@ mod tests {
         );
     }
 
+    /// The `right_small_fork` fixture's raster, used to talk about drift in the
+    /// pixels the plan's measurements are quoted in.
+    const FORK_IMAGE_SIZE: f64 = 1024.0;
+    /// An interior junction of `right_small_fork` whose 27px displacement the
+    /// default budget rejects. Verified below in both directions.
+    const FORK_MOVED_VERTEX: usize = 1;
+
+    #[test]
+    fn empty_exemption_set_reproduces_the_unexempted_solve_exactly() {
+        let input = load_fixture_input("right_small_fork");
+        let plain = solve_exact(&input, ExactSolveOptions::default());
+        let via_exemptions = solve_exact_with_exemptions(
+            &input,
+            &ExactSolveOptionsWithExemptions::from(ExactSolveOptions::default()),
+        );
+        assert_eq!(
+            plain.vertices_exact, via_exemptions.vertices_exact,
+            "an empty exemption set must be the solve that shipped"
+        );
+        assert_eq!(
+            comparable_solve_json(&plain),
+            comparable_solve_json(&via_exemptions),
+            "the whole report must match too, not just the coordinates"
+        );
+
+        // ...and that solve is still the committed golden, so the budget now
+        // reading a restricted maximum changed no accepted behavior.
+        let golden = load_golden_points("right_small_fork");
+        // `Solved`: the fixture is a 22.5° design, and the pinned round makes its
+        // designed ties exact — the one Big-Little-Big violation the Kawasaki-only
+        // solve left behind is gone with them.
+        assert_eq!(plain.status, ExactSolvedGraphStatus::Solved);
+        assert!(plain.movement_report["accepted"].as_bool().unwrap_or(false));
+        let drift = max_golden_drift_px(&plain.vertices_exact, &golden, 1.0);
+        assert!(
+            drift < 1e-6,
+            "default solve drifted {drift} from the committed golden"
+        );
+    }
+
+    #[test]
+    fn options_json_deserializes_into_the_exemption_wrapper_unchanged() {
+        // The wasm solve entry point takes an options object as JSON; the
+        // flattened wrapper has to accept exactly what `ExactSolveOptions`
+        // serializes today, and default the exemption set to empty.
+        let options = ExactSolveOptions::default();
+        let json = serde_json::to_string(&options).expect("serialize options");
+        let parsed: ExactSolveOptionsWithExemptions =
+            serde_json::from_str(&json).expect("parse options as wrapper");
+        assert_eq!(parsed.options, options);
+        assert!(parsed.exempt_vertex_ids.is_empty());
+
+        let with_exemptions = ExactSolveOptionsWithExemptions {
+            options,
+            exempt_vertex_ids: BTreeSet::from([3, 11]),
+        };
+        let round_tripped: ExactSolveOptionsWithExemptions =
+            serde_json::from_str(&serde_json::to_string(&with_exemptions).expect("serialize"))
+                .expect("parse");
+        assert_eq!(round_tripped, with_exemptions);
+    }
+
+    #[test]
+    fn exempting_a_hand_moved_vertex_admits_a_solve_the_budget_rejects() {
+        // ~27px at the fixture's 1024px raster, well past the 0.010 (~10.2px)
+        // budget, which is measured from the *input* coordinates — so a
+        // deliberate user edit reads exactly like solver drift.
+        let displacement = 27.0 / FORK_IMAGE_SIZE;
+        let input = load_fixture_input("right_small_fork");
+        let golden = load_golden_points("right_small_fork");
+        let mut edited = input.clone();
+        edited.vertices[FORK_MOVED_VERTEX].point = Point2::new(
+            input.vertices[FORK_MOVED_VERTEX].point.x + displacement * 0.6,
+            input.vertices[FORK_MOVED_VERTEX].point.y - displacement * 0.8,
+        );
+
+        let rejected = solve_exact(&edited, ExactSolveOptions::default());
+        assert_eq!(rejected.status, ExactSolvedGraphStatus::Failed);
+        assert!(
+            rejection_reasons(&rejected).contains(&"movement_budget_exceeded".to_owned()),
+            "expected the budget to be the rejection, got {:?}",
+            rejection_reasons(&rejected)
+        );
+        assert_eq!(
+            rejected.vertices_exact[FORK_MOVED_VERTEX], edited.vertices[FORK_MOVED_VERTEX].point,
+            "a rejected solve hands the user's unsolved edit straight back"
+        );
+
+        let accepted = solve_exact_with_exemptions(
+            &edited,
+            &ExactSolveOptionsWithExemptions {
+                options: ExactSolveOptions::default(),
+                exempt_vertex_ids: BTreeSet::from([FORK_MOVED_VERTEX]),
+            },
+        );
+        // Exemption is about acceptance, which is asserted next; the verdict is
+        // the pinned round's, as in
+        // `empty_exemption_set_reproduces_the_unexempted_solve_exactly`.
+        assert_eq!(accepted.status, ExactSolvedGraphStatus::Solved);
+        assert!(
+            accepted.movement_report["accepted"]
+                .as_bool()
+                .unwrap_or(false)
+        );
+        // The edited vertex is pulled most of the way back to the golden
+        // (measured 7.45px of the 27px injected), and nothing else is dragged
+        // far by admitting it (measured 3.94px).
+        let moved_drift = distance(
+            accepted.vertices_exact[FORK_MOVED_VERTEX],
+            golden[FORK_MOVED_VERTEX],
+        ) * FORK_IMAGE_SIZE;
+        assert!(
+            moved_drift < 9.0,
+            "exempted vertex landed {moved_drift}px from the golden"
+        );
+        let others_drift = accepted
+            .vertices_exact
+            .iter()
+            .zip(&golden)
+            .enumerate()
+            .filter(|(index, _)| *index != FORK_MOVED_VERTEX)
+            .map(|(_, (solved, golden))| distance(*solved, *golden) * FORK_IMAGE_SIZE)
+            .fold(0.0_f64, f64::max);
+        assert!(
+            others_drift < 5.0,
+            "unexempted vertices drifted {others_drift}px from the golden"
+        );
+    }
+
+    #[test]
+    fn exempting_a_different_vertex_does_not_raise_the_budget() {
+        // The exemption removes vertices from the maximum; it must not act as
+        // a blanket raise for the vertex that actually broke the budget.
+        let displacement = 27.0 / FORK_IMAGE_SIZE;
+        let input = load_fixture_input("right_small_fork");
+        let mut edited = input.clone();
+        edited.vertices[FORK_MOVED_VERTEX].point = Point2::new(
+            input.vertices[FORK_MOVED_VERTEX].point.x + displacement * 0.6,
+            input.vertices[FORK_MOVED_VERTEX].point.y - displacement * 0.8,
+        );
+
+        let bystander = solve_exact_with_exemptions(
+            &edited,
+            &ExactSolveOptionsWithExemptions {
+                options: ExactSolveOptions::default(),
+                exempt_vertex_ids: BTreeSet::from([FORK_MOVED_VERTEX + 1]),
+            },
+        );
+        assert_eq!(bystander.status, ExactSolvedGraphStatus::Failed);
+        assert!(
+            rejection_reasons(&bystander).contains(&"movement_budget_exceeded".to_owned()),
+            "exempting an unrelated vertex must leave the budget in force, got {:?}",
+            rejection_reasons(&bystander)
+        );
+    }
+
+    #[test]
+    fn topology_analysis_flags_an_odd_degree_vertex() {
+        let mut input = maekawa_clean_four_ray_input(Point2::new(0.53, 0.50));
+        input.selected_spans.retain(|span| span.id != 7);
+        let diagnostics = analyze_candidate_topology(&input);
+        assert!(diagnostics.blockers.is_empty());
+        assert_eq!(diagnostics.combinatorial.odd_degree_vertices, vec![4]);
+        let junction = interior_vertex(&diagnostics, 4);
+        assert_eq!(junction.degree, 3);
+        // Kawasaki does not apply to an odd fan, so the angle-dependent view
+        // of this vertex is silent while the combinatorial one is not.
+        assert_eq!(junction.kawasaki_residual_degrees, None);
+    }
+
+    #[test]
+    fn topology_analysis_flags_a_degree_two_vertex() {
+        let mut input = maekawa_clean_four_ray_input(Point2::new(0.53, 0.50));
+        input
+            .selected_spans
+            .retain(|span| span.id != 6 && span.id != 7);
+        let diagnostics = analyze_candidate_topology(&input);
+        assert!(diagnostics.blockers.is_empty());
+        assert_eq!(diagnostics.combinatorial.degree_two_vertices, vec![4]);
+        assert!(
+            diagnostics.combinatorial.odd_degree_vertices.is_empty(),
+            "degree two is even; it must not also read as a parity failure"
+        );
+        assert_eq!(interior_vertex(&diagnostics, 4).degree, 2);
+    }
+
+    #[test]
+    fn topology_analysis_flags_a_maekawa_failure() {
+        let clean =
+            analyze_candidate_topology(&maekawa_clean_four_ray_input(Point2::new(0.53, 0.50)));
+        assert!(clean.combinatorial.maekawa_failures.is_empty());
+        assert_eq!(interior_vertex(&clean, 4).maekawa_residual, Some(0));
+
+        // M,V,M,V is |M - V| = 0, two away from the required 2.
+        let failing = analyze_candidate_topology(&four_ray_input(Point2::new(0.53, 0.50)));
+        assert_eq!(failing.combinatorial.maekawa_failures, vec![4]);
+        let junction = interior_vertex(&failing, 4);
+        assert_eq!(junction.degree, 4);
+        assert_eq!(junction.mountain_count, 2);
+        assert_eq!(junction.valley_count, 2);
+        assert_eq!(junction.unknown_count, 0);
+        assert_eq!(junction.maekawa_residual, Some(2));
+        assert!(
+            failing.combinatorial.odd_degree_vertices.is_empty(),
+            "Maekawa must fire on its own, not only alongside a parity failure"
+        );
+    }
+
+    #[test]
+    fn topology_analysis_flags_a_degenerate_edge() {
+        let mut input = maekawa_clean_four_ray_input(Point2::new(0.53, 0.50));
+        let center = input.vertices[4].point;
+        let twin = input.vertices.len();
+        input.vertices.push(vertex(
+            twin,
+            center,
+            CandidateVertexKind::InteriorJunction,
+            CandidateVertexMovementPolicy::Movable,
+            None,
+        ));
+        let span_id = input.selected_spans.len();
+        input.selected_spans.push(span(
+            span_id,
+            4,
+            twin,
+            AssignmentLabel::Mountain,
+            82,
+            &input.vertices,
+        ));
+
+        let diagnostics = analyze_candidate_topology(&input);
+        assert!(diagnostics.blockers.is_empty());
+        // Vertex ids, not span ids.
+        assert_eq!(diagnostics.combinatorial.degenerate_edges, vec![[4, twin]]);
+    }
+
+    #[test]
+    fn topology_analysis_flags_an_unmodeled_crossing() {
+        let mut input = base_square_input();
+        for point in [
+            Point2::new(0.2, 0.2),
+            Point2::new(0.8, 0.8),
+            Point2::new(0.2, 0.8),
+            Point2::new(0.8, 0.2),
+        ] {
+            let id = input.vertices.len();
+            input.vertices.push(vertex(
+                id,
+                point,
+                CandidateVertexKind::InteriorJunction,
+                CandidateVertexMovementPolicy::Movable,
+                None,
+            ));
+        }
+        let first = input.selected_spans.len();
+        input.selected_spans.push(span(
+            first,
+            4,
+            5,
+            AssignmentLabel::Mountain,
+            80,
+            &input.vertices,
+        ));
+        input.selected_spans.push(span(
+            first + 1,
+            6,
+            7,
+            AssignmentLabel::Valley,
+            81,
+            &input.vertices,
+        ));
+
+        let diagnostics = analyze_candidate_topology(&input);
+        assert!(diagnostics.blockers.is_empty());
+        // Span ids, not vertex ids — the two `[usize; 2]` fields differ.
+        assert_eq!(
+            diagnostics.combinatorial.unmodeled_crossings,
+            vec![[first, first + 1]]
+        );
+    }
+
+    #[test]
+    fn topology_analysis_flags_a_vertex_off_its_paper_edge() {
+        let mut input = maekawa_clean_four_ray_input(Point2::new(0.53, 0.50));
+        let stray = input.vertices.len();
+        input.vertices.push(vertex(
+            stray,
+            Point2::new(1.2, 0.0),
+            CandidateVertexKind::BoundaryContact,
+            CandidateVertexMovementPolicy::BoundaryOnly,
+            Some(BoundarySide::Top),
+        ));
+        let span_id = input.selected_spans.len();
+        input.selected_spans.push(span(
+            span_id,
+            stray,
+            4,
+            AssignmentLabel::Mountain,
+            83,
+            &input.vertices,
+        ));
+
+        let diagnostics = analyze_candidate_topology(&input);
+        assert!(diagnostics.blockers.is_empty());
+        assert_eq!(diagnostics.combinatorial.boundary_failures, vec![stray]);
+    }
+
+    #[test]
+    fn topology_analysis_blocks_on_a_span_referencing_a_missing_vertex() {
+        let mut input = maekawa_clean_four_ray_input(Point2::new(0.53, 0.50));
+        let span_id = input.selected_spans.len();
+        input.selected_spans.push(span_with_carrier(
+            span_id,
+            4,
+            99,
+            AssignmentLabel::Mountain,
+            84,
+            Point2::new(0.0, 1.0),
+            0.5,
+            &input.vertices,
+        ));
+
+        let diagnostics = analyze_candidate_topology(&input);
+        assert_eq!(diagnostics.blockers.len(), 1);
+        assert!(
+            diagnostics.blockers[0].contains("missing vertex 99"),
+            "unexpected blocker: {}",
+            diagnostics.blockers[0]
+        );
+        assert_eq!(
+            diagnostics.combinatorial,
+            CombinatorialTopologyFindings::default(),
+            "a blocked analysis must report nothing rather than something partial"
+        );
+    }
+
+    #[test]
+    fn topology_analysis_blocks_on_a_vertex_id_that_is_not_its_index() {
+        // `analyze_graph` indexes by `vertex.id`; a hand-edited graph that
+        // broke the id == index invariant must block, not panic.
+        let mut input = maekawa_clean_four_ray_input(Point2::new(0.53, 0.50));
+        input.vertices[4].id = 99;
+        let diagnostics = analyze_candidate_topology(&input);
+        assert!(
+            diagnostics
+                .blockers
+                .iter()
+                .any(|blocker| blocker.contains("out-of-range id 99")),
+            "unexpected blockers: {:?}",
+            diagnostics.blockers
+        );
+    }
+
+    #[test]
+    fn combinatorial_findings_survive_a_small_coordinate_perturbation() {
+        let input = defect_laden_input();
+        let base = analyze_candidate_topology(&input);
+        let moved = analyze_candidate_topology(&perturbed(&input));
+        assert!(base.blockers.is_empty() && moved.blockers.is_empty());
+
+        // Every combinatorial category is actually exercised, so the equality
+        // below is not vacuous.
+        assert!(!base.combinatorial.odd_degree_vertices.is_empty());
+        assert!(!base.combinatorial.degree_two_vertices.is_empty());
+        assert!(!base.combinatorial.maekawa_failures.is_empty());
+        assert!(!base.combinatorial.degenerate_edges.is_empty());
+        assert!(!base.combinatorial.unmodeled_crossings.is_empty());
+        assert_eq!(
+            base.combinatorial, moved.combinatorial,
+            "combinatorial findings must not depend on where the drawing sits"
+        );
+
+        // The angle-dependent ones are populated, and they do move — which is
+        // exactly why they are useless as a repair worklist on a candidate.
+        assert!(base.angle_dependent.max_kawasaki_residual_degrees > 0.0);
+        assert_ne!(
+            base.angle_dependent.max_kawasaki_residual_degrees,
+            moved.angle_dependent.max_kawasaki_residual_degrees
+        );
+        assert_ne!(
+            base.angle_dependent.max_carrier_residual,
+            moved.angle_dependent.max_carrier_residual
+        );
+    }
+
+    /// One graph carrying every combinatorial finding at once: a noisy
+    /// four-ray junction (Maekawa failure, non-zero Kawasaki), a crossing pair,
+    /// a two-segment chain through a degree-two vertex, and a coincident pair.
+    fn defect_laden_input() -> ExactSolveInput {
+        let mut input = four_ray_input(Point2::new(0.53, 0.50));
+        fn push_vertex(input: &mut ExactSolveInput, point: Point2) -> usize {
+            let id = input.vertices.len();
+            input.vertices.push(vertex(
+                id,
+                point,
+                CandidateVertexKind::InteriorJunction,
+                CandidateVertexMovementPolicy::Movable,
+                None,
+            ));
+            id
+        }
+        let crossing = [
+            push_vertex(&mut input, Point2::new(0.2, 0.2)),
+            push_vertex(&mut input, Point2::new(0.8, 0.8)),
+            push_vertex(&mut input, Point2::new(0.2, 0.8)),
+            push_vertex(&mut input, Point2::new(0.8, 0.2)),
+        ];
+        let chain = [
+            push_vertex(&mut input, Point2::new(0.05, 0.30)),
+            push_vertex(&mut input, Point2::new(0.10, 0.35)),
+            push_vertex(&mut input, Point2::new(0.15, 0.42)),
+        ];
+        let coincident = Point2::new(0.85, 0.05);
+        let twins = [
+            push_vertex(&mut input, coincident),
+            push_vertex(&mut input, coincident),
+        ];
+        for (a, b) in [
+            (crossing[0], crossing[1]),
+            (crossing[2], crossing[3]),
+            (chain[0], chain[1]),
+            (chain[1], chain[2]),
+            (twins[0], twins[1]),
+        ] {
+            let id = input.selected_spans.len();
+            input.selected_spans.push(span(
+                id,
+                a,
+                b,
+                AssignmentLabel::Mountain,
+                id,
+                &input.vertices,
+            ));
+        }
+        input
+    }
+
+    /// A small, smooth near-identity displacement of every vertex. It is a
+    /// function of the point alone, so coincident vertices stay coincident and
+    /// a degenerate edge stays degenerate.
+    fn perturbed(input: &ExactSolveInput) -> ExactSolveInput {
+        let mut moved = input.clone();
+        for vertex in &mut moved.vertices {
+            let point = vertex.point;
+            vertex.point = Point2::new(
+                point.x + 3e-4 * (7.0 * point.y + 0.4).sin(),
+                point.y + 3e-4 * (5.0 * point.x + 0.9).cos(),
+            );
+        }
+        moved
+    }
+
+    fn interior_vertex(
+        diagnostics: &TopologyDiagnostics,
+        vertex_id: usize,
+    ) -> &TopologyVertexDiagnostic {
+        diagnostics
+            .vertices
+            .iter()
+            .find(|vertex| vertex.vertex_id == vertex_id)
+            .unwrap_or_else(|| panic!("no diagnostic for vertex {vertex_id}"))
+    }
+
+    /// A solve's full report minus the one field that is wall-clock and so
+    /// differs between two runs of the same solve.
+    fn comparable_solve_json(solved: &ExactSolvedGraph) -> Value {
+        let mut value = serde_json::to_value(solved).expect("serialize solve");
+        if let Some(report) = value
+            .get_mut("movement_report")
+            .and_then(Value::as_object_mut)
+        {
+            report.remove("elapsed_seconds");
+            if let Some(attempts) = report
+                .get_mut("polish")
+                .and_then(|polish| polish.get_mut("pinned_family"))
+                .and_then(|pinned| pinned.get_mut("attempts"))
+                .and_then(Value::as_array_mut)
+            {
+                for attempt in attempts.iter_mut().filter_map(Value::as_object_mut) {
+                    attempt.remove("seconds");
+                }
+            }
+            if let Some(round) = report
+                .get_mut("polish")
+                .and_then(|polish| polish.get_mut("symmetry_round"))
+                .and_then(Value::as_object_mut)
+            {
+                round.remove("seconds");
+            }
+        }
+        value
+    }
+
+    fn rejection_reasons(solved: &ExactSolvedGraph) -> Vec<String> {
+        solved.movement_report["rejection_reasons"]
+            .as_array()
+            .map(|reasons| {
+                reasons
+                    .iter()
+                    .filter_map(|reason| reason.as_str().map(str::to_owned))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    fn fixture_path(name: &str) -> std::path::PathBuf {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/exact_solve")
+            .join(name)
+    }
+
+    fn load_fixture_input(name: &str) -> ExactSolveInput {
+        let path = fixture_path(&format!("{name}.json"));
+        let bytes = std::fs::read(&path).expect("read fixture");
+        serde_json::from_slice(&bytes).expect("parse fixture")
+    }
+
+    fn load_golden_points(name: &str) -> Vec<Point2> {
+        let path = fixture_path(&format!("{name}.golden.json"));
+        let bytes = std::fs::read(&path).expect("read golden");
+        let golden: Value = serde_json::from_slice(&bytes).expect("parse golden");
+        golden["vertices"]
+            .as_array()
+            .expect("golden vertices")
+            .iter()
+            .map(|pair| {
+                Point2::new(
+                    pair[0].as_f64().unwrap_or(f64::NAN),
+                    pair[1].as_f64().unwrap_or(f64::NAN),
+                )
+            })
+            .collect()
+    }
+
+    fn max_golden_drift_px(solved: &[Point2], golden: &[Point2], image_size: f64) -> f64 {
+        solved
+            .iter()
+            .zip(golden)
+            .map(|(left, right)| distance(*left, *right) * image_size)
+            .fold(0.0_f64, f64::max)
+    }
+
     fn four_ray_input(center: Point2) -> ExactSolveInput {
+        four_ray_input_with_labels(
+            center,
+            [
+                AssignmentLabel::Mountain,
+                AssignmentLabel::Valley,
+                AssignmentLabel::Mountain,
+                AssignmentLabel::Valley,
+            ],
+        )
+    }
+
+    /// A single interior junction with one ray to each corner, ray `i` carrying
+    /// `labels[i]`.
+    fn four_ray_input_with_labels(center: Point2, labels: [AssignmentLabel; 4]) -> ExactSolveInput {
         let mut input = base_square_input();
         input.vertices.push(vertex(
             4,
@@ -2551,17 +6557,245 @@ mod tests {
             CandidateVertexMovementPolicy::Movable,
             None,
         ));
-        for (id, corner, label) in [
-            (4, 0, AssignmentLabel::Mountain),
-            (5, 1, AssignmentLabel::Valley),
-            (6, 2, AssignmentLabel::Mountain),
-            (7, 3, AssignmentLabel::Valley),
-        ] {
+        for (corner, label) in labels.into_iter().enumerate() {
+            let id = 4 + corner;
             input
                 .selected_spans
                 .push(span(id, 4, corner, label, id, &input.vertices));
         }
         input
+    }
+
+    /// [`four_ray_input_with_labels`] with a Maekawa-satisfying fan. The plain
+    /// [`four_ray_input`] fan is M,V,M,V — `|M - V| = 0`, so it is itself a
+    /// Maekawa failure and cannot be the baseline for one.
+    fn maekawa_clean_four_ray_input(center: Point2) -> ExactSolveInput {
+        four_ray_input_with_labels(
+            center,
+            [
+                AssignmentLabel::Mountain,
+                AssignmentLabel::Valley,
+                AssignmentLabel::Mountain,
+                AssignmentLabel::Mountain,
+            ],
+        )
+    }
+
+    /// A vertex with two collinear creases through it, plus their far ends.
+    /// `turn_degrees` bends the second away from straight.
+    fn degree_two_input(turn_degrees: f64, labels: [AssignmentLabel; 2]) -> ExactSolveInput {
+        let mut input = base_square_input();
+        let here = Point2::new(0.5, 0.5);
+        // Vertex 5 sits due -x of the junction, so its ray is at 180 deg.
+        // Straight through is therefore 0 deg, and the turn bends off that.
+        let angle = turn_degrees.to_radians();
+        for (id, point) in [
+            (4, here),
+            (5, Point2::new(0.2, 0.5)),
+            (
+                6,
+                Point2::new(0.5 + 0.3 * angle.cos(), 0.5 + 0.3 * angle.sin()),
+            ),
+        ] {
+            input.vertices.push(vertex(
+                id,
+                point,
+                CandidateVertexKind::InteriorJunction,
+                CandidateVertexMovementPolicy::Movable,
+                None,
+            ));
+        }
+        input
+            .selected_spans
+            .push(span(8, 4, 5, labels[0], 8, &input.vertices));
+        input
+            .selected_spans
+            .push(span(9, 4, 6, labels[1], 9, &input.vertices));
+        input
+    }
+
+    const MV: [AssignmentLabel; 2] = [AssignmentLabel::Mountain, AssignmentLabel::Mountain];
+
+    /// One crease reported as two is not information, and it costs the solve
+    /// twice: two carrier geometries for one line, and a `degree < 4` vertex the
+    /// Kawasaki pass skips while the editor's CAMV flags it.
+    #[test]
+    fn a_collinear_degree_two_vertex_is_dissolved() {
+        // 1.5 deg — inside the sub-2 deg noise cluster the four saved detections
+        // put every spurious split in.
+        let input = degree_two_input(1.5, MV);
+        let topology = analyze_candidate_topology(&input);
+        assert!(
+            topology.combinatorial.degree_two_vertices.is_empty(),
+            "a collinear split should be merged away, got {:?}",
+            topology.combinatorial.degree_two_vertices
+        );
+    }
+
+    /// A dissolved vertex is straightened after the movement report is built, so
+    /// the report has to be told — otherwise it undercounts, and callers that
+    /// read it as the answer never place the vertex at all.
+    ///
+    /// That is not hypothetical: placing from `moved_vertices` left every
+    /// dissolved vertex at its old, off-line coordinate while both neighbours
+    /// moved, and a degree-2 vertex is Kawasaki-clean only when exactly
+    /// collinear. Measured on `mid-solve_4`: 48 CAMV angle violations before,
+    /// 40 placing from the report, 2 placing from `vertices_exact`.
+    #[test]
+    fn a_dissolved_vertex_appears_in_the_movement_report() {
+        let input = degree_two_input(1.5, MV);
+        let solved = solve_exact(&input, ExactSolveOptions::default());
+
+        // It is straightened in the answer...
+        let straightened = solved.vertices_exact[4];
+        assert!(
+            distance(straightened, input.vertices[4].point) > 1e-10,
+            "the dissolved vertex should have been placed onto the solved crease"
+        );
+
+        // ...and the report says so, at the same coordinate.
+        let reported = solved.movement_report["moved_vertices"]
+            .as_array()
+            .expect("moved_vertices")
+            .iter()
+            .find(|entry| entry["vertex_id"] == 4)
+            .expect("the dissolved vertex must be reported as moved");
+        assert_eq!(reported["after"]["x"], json!(straightened.x));
+        assert_eq!(reported["after"]["y"], json!(straightened.y));
+
+        // Every vertex that moved is named. This is the invariant a caller needs
+        // in order to trust the report at all.
+        for (id, vertex) in input.vertices.iter().enumerate() {
+            if distance(solved.vertices_exact[id], vertex.point) <= 1e-10 {
+                continue;
+            }
+            assert!(
+                solved.movement_report["moved_vertices"]
+                    .as_array()
+                    .is_some_and(|list| list.iter().any(|e| e["vertex_id"] == id)),
+                "vertex {id} moved but is missing from the movement report"
+            );
+        }
+    }
+
+    /// A vertex whose creases genuinely turn is a corner. Merging it would
+    /// fabricate a straight crease the user never drew, so it stays — visible as
+    /// the defect it is.
+    #[test]
+    fn a_genuine_corner_is_not_dissolved() {
+        let input = degree_two_input(60.0, MV);
+        let topology = analyze_candidate_topology(&input);
+        assert_eq!(
+            topology.combinatorial.degree_two_vertices,
+            vec![4],
+            "a 60 deg corner is a real vertex"
+        );
+    }
+
+    /// Merging across an assignment change would invent a mountain where the
+    /// user drew a valley.
+    #[test]
+    fn a_mountain_meeting_a_valley_is_not_dissolved() {
+        let input = degree_two_input(0.5, [AssignmentLabel::Mountain, AssignmentLabel::Valley]);
+        let topology = analyze_candidate_topology(&input);
+        assert_eq!(topology.combinatorial.degree_two_vertices, vec![4]);
+    }
+
+    /// The merge must not renumber: `vertices_exact` is index-aligned with
+    /// `input.vertices`, and every caller that maps a solved point back by id
+    /// depends on that. A dissolved vertex stops being referenced, it does not
+    /// disappear.
+    #[test]
+    fn dissolving_a_vertex_keeps_the_vertex_array_aligned() {
+        let input = degree_two_input(1.5, MV);
+        let solved = solve_exact(&input, ExactSolveOptions::default());
+        assert_eq!(solved.vertices_exact.len(), input.vertices.len());
+    }
+
+    /// An auxiliary line is not a fold, and must not be counted as one.
+    ///
+    /// FOLD's `F` is an edge whose fold angle is zero — the paper is continuous
+    /// across it — and the CP kernel round-trips it as `Cyan3`, which CAMV skips
+    /// outright. So a vertex with four folds and one auxiliary line through it
+    /// has degree four, not five, and folds perfectly well.
+    #[test]
+    fn an_auxiliary_span_does_not_make_a_vertex_odd_degree() {
+        let mut input = four_ray_input(Point2::new(0.5, 0.5));
+        // A fifth ray to a new vertex, carrying `Flat`. Before this was fixed it
+        // pushed the junction to degree 5 and the pattern read as unfoldable at
+        // any coordinates.
+        input.vertices.push(vertex(
+            5,
+            Point2::new(0.5, 0.9),
+            CandidateVertexKind::InteriorJunction,
+            CandidateVertexMovementPolicy::Movable,
+            None,
+        ));
+        input
+            .selected_spans
+            .push(span(8, 4, 5, AssignmentLabel::Flat, 8, &input.vertices));
+
+        let topology = analyze_candidate_topology(&input);
+        assert!(
+            topology.combinatorial.odd_degree_vertices.is_empty(),
+            "an auxiliary line must not change a vertex's fold degree, got {:?}",
+            topology.combinatorial.odd_degree_vertices
+        );
+    }
+
+    /// `Unknown` is the opposite case and must stay in the fan: it means a fold
+    /// whose direction is undecided, not a non-fold. Keeping it counted is also
+    /// what leaves Maekawa correctly suppressed rather than failing.
+    #[test]
+    fn an_unknown_span_still_counts_as_a_fold() {
+        let mut input = four_ray_input(Point2::new(0.5, 0.5));
+        input.vertices.push(vertex(
+            5,
+            Point2::new(0.5, 0.9),
+            CandidateVertexKind::InteriorJunction,
+            CandidateVertexMovementPolicy::Movable,
+            None,
+        ));
+        input
+            .selected_spans
+            .push(span(8, 4, 5, AssignmentLabel::Unknown, 8, &input.vertices));
+
+        let topology = analyze_candidate_topology(&input);
+        // Vertex 5 is the span's loose far end and is odd at degree 1 either
+        // way; vertex 4 is the junction under test, odd only because the
+        // undecided fifth fold counts.
+        assert!(
+            topology.combinatorial.odd_degree_vertices.contains(&4),
+            "an undecided fold is still a fold, so five of them is odd degree, got {:?}",
+            topology.combinatorial.odd_degree_vertices
+        );
+    }
+
+    /// An auxiliary line crossing a crease is a guide drawn across the pattern,
+    /// which is what guides are for — not a topology error the solve caused.
+    #[test]
+    fn an_auxiliary_span_crossing_a_crease_is_not_an_unmodeled_crossing() {
+        let mut input = four_ray_input(Point2::new(0.5, 0.5));
+        // Two loose vertices whose span cuts clean across one of the four rays,
+        // sharing no vertex with it.
+        for (id, point) in [(5, Point2::new(0.1, 0.4)), (6, Point2::new(0.4, 0.1))] {
+            input.vertices.push(vertex(
+                id,
+                point,
+                CandidateVertexKind::InteriorJunction,
+                CandidateVertexMovementPolicy::Movable,
+                None,
+            ));
+        }
+        let crossing = span(8, 5, 6, AssignmentLabel::Flat, 8, &input.vertices);
+        input.selected_spans.push(crossing);
+
+        let topology = analyze_candidate_topology(&input);
+        assert!(
+            topology.combinatorial.unmodeled_crossings.is_empty(),
+            "an auxiliary crossing is not a modelling failure, got {:?}",
+            topology.combinatorial.unmodeled_crossings
+        );
     }
 
     fn assert_analytic_jacobian_matches_finite_difference(input: &ExactSolveInput) {
@@ -2612,7 +6846,12 @@ mod tests {
     }
 
     fn test_model(input: &ExactSolveInput, options: ExactSolveOptions) -> SolveModel {
-        SolveModel::new(input, options, ExactSolveDeadline::start(-1.0))
+        SolveModel::new(
+            input,
+            options,
+            ExactSolveDeadline::start(-1.0),
+            Rc::new(BTreeSet::new()),
+        )
     }
 
     fn central_finite_difference_jacobian(
@@ -2825,5 +7064,19 @@ mod tests {
             provenance: vec![Provenance::LegacyDecoder],
             reasons: Vec::new(),
         }
+    }
+    #[test]
+    fn a_request_naming_an_absent_exempt_vertex_is_refused() {
+        let input =
+            serde_json::to_string(&four_ray_input(Point2 { x: 0.5, y: 0.5 })).expect("json");
+        let error = parse_exact_solve_request(&input, r#"{"exempt_vertex_ids": [70]}"#)
+            .expect_err("unknown id");
+        assert!(
+            error.contains("exempt_vertex_ids names 1 vertex id(s)"),
+            "{error}"
+        );
+        let (_, options) =
+            parse_exact_solve_request(&input, r#"{"exempt_vertex_ids": [4]}"#).expect("known id");
+        assert!(options.exempt_vertex_ids.contains(&4));
     }
 }

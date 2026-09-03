@@ -129,6 +129,16 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
   SymmetricDraw: { model: 'point-sequence', pointCount: 2, snapPerStep: ['crease', 'crease'] },
   UnselectLineIntersecting: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
   VertexDeleteOnCrease: { model: 'point-sequence', pointCount: 1, snapPerStep: ['point'] },
+  // Insert vertex: one click, and the kernel splits every crease through it.
+  //
+  // Free point snap and not 'crease', which looks like the obvious choice and is
+  // the wrong one. A crease step projects the cursor onto the *nearest* crease;
+  // the kernel asks "is this point on this crease" at 1e-4 model units and
+  // splits at the supplied point rather than at its own projection, so a
+  // perpendicular foot onto one crease lands well off the other and splits half
+  // a crossing. What makes the point exact is the junction snap layered on the
+  // point step — see `snapsToCreaseCrossings` in tools/predicates.
+  VertexInsertOnCreases: { model: 'point-sequence', pointCount: 1, snapPerStep: ['point'] },
   // Foldable Line: vertex → one of the previewed candidates. Two steps, not
   // Oriedita's three — each candidate is drawn to whatever stops it and carries
   // that line along, so the kernel no longer needs a click naming the crease to
@@ -176,6 +186,16 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
   LineSegmentDelete: { model: 'drag-box' },
   // The operation frame is a rubber-band rectangle (two corners), not a freeform path.
   OperationFrameCreate: { model: 'drag-box' },
+  // Check-suppression region: the same rubber-band rectangle, and the reason it
+  // needs nothing else. `drag-box` already routes press / move / release and
+  // hands back the box's corners, so the whole tool is this entry plus the
+  // commit — no `ActiveToolMode` member and no canvas branch, which is the cost
+  // the Text tool paid and the one this deliberately does not.
+  //
+  // View-aligned like every box but the operation frame's: the four corners the
+  // engine returns are the rectangle the user actually dragged on screen, which
+  // is what a rotated view should produce. See `isModelAlignedBoxOperation`.
+  CheckSuppressionRegionCreate: { model: 'drag-box' },
 
   // DRAG-PATH (§4.C)
   FlatFoldableCheck: { model: 'drag-path' },
@@ -215,6 +235,9 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
   DeleteLineTypeSelect: { model: 'select-apply' },
   DeleteExtraVertices: { model: 'select-apply' },
   DeleteExtraVerticesIgnoreColor: { model: 'select-apply' },
+  // Reached only from an accepted solve, with its line ids in hand; no pointer
+  // input, but the registry covers every ready command.
+  DeleteExtraVerticesAmong: { model: 'select-apply' },
   Fix1: { model: 'select-apply' },
   Fix2: { model: 'select-apply' },
   FixInaccurate: { model: 'select-apply' },

@@ -3,6 +3,13 @@
     "failed": "无法完成该操作",
     "failedDetail": "未做任何更改。如果反复出现，请尝试重新加载。"
   },
+  "cpRegionSolve": {
+    "failed": "无法求解该折痕图",
+    "incompleteAction": "点击“重试”可修复拓扑后重新求解，或点击“仍然采用”保留这些坐标。",
+    "solvedAction": "点击“采用”保留结果，或点击“重试”返回修改拓扑。",
+    "timedOut": "求解超时",
+    "timedOutDetail_other": "它已放置 {{count}} 个顶点 — 可以采用已完成的部分，或继续编辑后重试。"
+  },
   "creasePattern": {
     "inlineSimulationCap": "最多可同时打开 {{max}} 个模拟窗口。请先关闭一个再打开新的。",
     "inlineSimulationRegionGone": "该区域已不在折痕图中，因此无法重建此窗口。",
@@ -20,7 +27,12 @@
     "foldStop": "取消",
     "foldStopped": "已取消折叠",
     "foldStopping": "正在取消…",
-    "saved": "已保存 {{name}}"
+    "saved": "已保存 {{name}}",
+    "solveStop": "取消",
+    "solveStopped": "已取消求解",
+    "solveStopping": "正在取消…",
+    "solving": "正在求解…",
+    "solvingLong": "仍在求解 — 这可能需要一段时间"
   },
   "simulatorExport": {
     "empty": "此模拟暂无可导出的内容",

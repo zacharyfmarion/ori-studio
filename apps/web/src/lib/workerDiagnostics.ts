@@ -19,7 +19,9 @@ export type WorkerName =
   | 'oristudio-bp'
   | 'oristudio-bp-optimizer'
   | 'simulator'
-  | 'cp-detect';
+  | 'cp-detect'
+  /** One exact solve, spawned per run and terminated to cancel it. */
+  | 'cp-exact-solve';
 
 export interface WorkerFailure {
   worker: WorkerName;

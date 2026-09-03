@@ -3,6 +3,11 @@ import type {
   OristudioCpDiagnosticEntry,
 } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
+import {
+  NO_CP_CHECK_SUPPRESSION,
+  partitionCpDiagnosticsBySuppression,
+  type CpCheckSuppressionRule,
+} from './checkSuppression';
 import { isDiagnosticResultOperation } from './hudStatus';
 import { sortedCpDiagnosticEntries } from './severity';
 
@@ -69,12 +74,50 @@ const SAME_VERTEX = 1e-6;
  * vertex order, which was fine while every entry was an error and became useless
  * the moment a mid-design pattern could contribute hundreds of informational
  * rows for the three errors to hide among.
+ *
+ * `rules` is the scoped check filter (`checkSuppression.ts`) — the document-wide
+ * per-class rule and any suppression regions. It is applied here because this is
+ * the chokepoint: a caller that filtered afterwards would leave the canvas
+ * markers, or the framing, or a jump-to-diagnostic showing what the HUD had
+ * already agreed to hide. Omitting it is the unfiltered behaviour, unchanged
+ * down to the returned array's identity.
  */
 export function visibleCpDiagnosticEntries(
   camvResult: OristudioCpCommandResult | null,
   lastCommandResult: OristudioCpCommandResult | null,
-  camvIssuesVisible: boolean
+  camvIssuesVisible: boolean,
+  rules: readonly CpCheckSuppressionRule[] = NO_CP_CHECK_SUPPRESSION
 ): readonly OristudioCpDiagnosticEntry[] {
+  return visibleCpDiagnostics(camvResult, lastCommandResult, camvIssuesVisible, rules).entries;
+}
+
+export interface VisibleCpDiagnostics {
+  /** What the canvas, the HUD list and a jump-to-diagnostic can reach. */
+  entries: readonly OristudioCpDiagnosticEntry[];
+  /**
+   * How many findings the scoped rules removed.
+   *
+   * Reported because a filter whose cost is invisible is how "no errors" comes to
+   * mean "no errors we told you about". Every suppressible rule is an
+   * error-severity entry, so this is a count of findings and not of
+   * informational rows.
+   */
+  hiddenCount: number;
+}
+
+/**
+ * {@link visibleCpDiagnosticEntries}, plus what the filter took away.
+ *
+ * One function rather than a second pass at the call site: the two numbers have
+ * to be computed from the same union, or the HUD's headline and its hidden count
+ * would be describing different documents.
+ */
+export function visibleCpDiagnostics(
+  camvResult: OristudioCpCommandResult | null,
+  lastCommandResult: OristudioCpCommandResult | null,
+  camvIssuesVisible: boolean,
+  rules: readonly CpCheckSuppressionRule[] = NO_CP_CHECK_SUPPRESSION
+): VisibleCpDiagnostics {
   const overlay = camvIssuesVisible ? (camvResult?.diagnostic_entries ?? NONE) : NONE;
   const isHiddenCamvCommand = !camvIssuesVisible && lastCommandResult?.operation === 'CheckCamv';
   const command =
@@ -86,10 +129,20 @@ export function visibleCpDiagnosticEntries(
 
   // A CheckCamv command result *is* the overlay recomputed, so showing both would
   // double every entry.
-  if (lastCommandResult?.operation === 'CheckCamv') return sortedCpDiagnosticEntries(command);
-  if (overlay.length === 0) return sortedCpDiagnosticEntries(command);
-  if (command.length === 0) return sortedCpDiagnosticEntries(overlay);
-  return sortedCpDiagnosticEntries([...overlay, ...command]);
+  const combined =
+    lastCommandResult?.operation === 'CheckCamv'
+      ? command
+      : overlay.length === 0
+        ? command
+        : command.length === 0
+          ? overlay
+          : [...overlay, ...command];
+
+  // Filtered before sorting, which is the same list either way, and before the
+  // count is taken — the union is the only set both numbers can honestly come
+  // from.
+  const { visible, hidden } = partitionCpDiagnosticsBySuppression(combined, rules);
+  return { entries: sortedCpDiagnosticEntries(visible), hiddenCount: hidden.length };
 }
 
 /** The visible entry with this id, or null — including when it is currently hidden. */

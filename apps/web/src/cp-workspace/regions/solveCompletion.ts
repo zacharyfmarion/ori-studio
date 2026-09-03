@@ -1,0 +1,378 @@
+/**
+ * What an *accepted* exact solve actually achieved, in the sentence a user can
+ * act on.
+ *
+ * # Why "accepted" is not "solved"
+ *
+ * Three different bars decide what the user sees, and they are ~1,000x apart:
+ *
+ * | bar | value | who holds it |
+ * | --- | --- | --- |
+ * | acceptance gate | movement / degeneracy / crossings | keep the answer at all |
+ * | `solved_kawasaki_epsilon_degrees` | **1e-3°** | the solver calls it `Solved` |
+ * | `Epsilon::FLAT` | **1e-6°** | the editor's foldability check |
+ *
+ * So an accepted solve can be a genuine 1,900x improvement and still leave every
+ * foldability marker standing. That is not hypothetical: on the file this module
+ * was written for, Kawasaki went 14.367° -> 0.00747°, the solver returned
+ * `Ambiguous`, and all 70 "Incorrect angles" markers survived — while the UI said
+ * "Solved". {@link classifyCpExactSolve} now separates acceptance from exactness;
+ * this separates exactness from *passing the check the user is looking at*.
+ *
+ * # The four endings, and why the odd-degree one comes first
+ *
+ * `analyze_graph` computes a Kawasaki residual only for even fans of degree >= 4,
+ * so an odd-degree vertex contributes **nothing** to `max_kawasaki_residual_degrees`.
+ * A pattern can therefore report a beautiful angle residual while carrying
+ * vertices that can never fold flat at any coordinates. Ordering the sentences by
+ * angle would then congratulate the user on a pattern that is structurally
+ * unfoldable, which is why {@link cpSolveCompletion} tests the topology first and
+ * why the detail sentence leads with it.
+ *
+ * # Two questions, two predicates
+ *
+ * Surfaces need both and they are not the same question:
+ *
+ * - {@link cpSolveMeetsFoldabilityCheck} — will the editor's markers clear? This
+ *   is what the *wording and the tone* follow, because it is what the user is
+ *   about to see with their own eyes.
+ * - {@link cpSolveIsExactVerdict} — did the solver call the answer exact? This is
+ *   what *button emphasis* follows, because accepting or re-running is a decision
+ *   about the solver's answer, and second-guessing its own verdict here would be
+ *   a second acceptance policy living in the UI.
+ */
+import type { TFunction } from 'i18next';
+
+import { cpExactSolveReasonLabel } from '../../engine/cpExactSolveMessages';
+import type {
+  CpExactSolveAcceptedOutcome,
+  CpExactSolveResiduals,
+  CpSolveAngleFamily,
+} from '../../engine/cpExactSolveTypes';
+
+/**
+ * The bar the editor's own flat-foldability check holds a vertex fan to, in
+ * degrees.
+ *
+ * Oriedita's `Epsilon::FLAT` — `FACTOR * 1E-4`, i.e. `0.01 * 1e-4` — which
+ * `checks.rs` compares an angle difference in degrees against. Spelled here
+ * because it is the number the *user's* verdict depends on, and it is three
+ * orders of magnitude below the solver's own `solved_kawasaki_epsilon_degrees`
+ * of 1e-3. Reusing the solver's epsilon instead is precisely the conflation this
+ * module exists to undo.
+ */
+export const CP_FOLDABILITY_CHECK_EPSILON_DEGREES = 1e-6;
+
+/**
+ * How far an accepted solve got, in the four endings that need different
+ * sentences.
+ *
+ * - `exact` — the solver called it solved and the residual is at or below the
+ *   check's own bar. The only ending that may claim the pattern is done.
+ * - `approximate` — the solver called it solved, but the measured residual is
+ *   above the check's bar, so markers can survive. Rare, and the honest reading
+ *   of the 1e-3 / 1e-6 gap rather than a failure.
+ * - `improved` — accepted and better, not exact; the topology is clean, so the
+ *   remaining error is angles alone.
+ * - `unfoldable` — accepted and better, and something no amount of solving
+ *   clears remains: vertices with an odd number of creases, or a Big-Little-Big
+ *   violation (the smallest angle at a vertex sits between two creases of the
+ *   same assignment).
+ */
+export type CpSolveCompletion = 'exact' | 'approximate' | 'improved' | 'unfoldable';
+
+/** The completion plus the numbers behind it, which every sentence needs. */
+export interface CpSolveCompletionFacts {
+  completion: CpSolveCompletion;
+  /** The solver's own before/after figures, or null when it reported none. */
+  residuals: CpExactSolveResiduals | null;
+  /** What the grid snap did, or null when there was no grid to snap to. */
+  angleFamily?: CpSolveAngleFamily | null;
+}
+
+/**
+ * Read an accepted outcome into one of the four endings.
+ *
+ * With no residuals there is nothing to qualify the solver's verdict with, so
+ * this falls back to that verdict alone — `exact` for `solved`, `improved` for
+ * `ambiguous`. It never invents a tier the numbers would not support, and it
+ * never fills the missing figures with zeroes: `0` is what a *perfect* solve
+ * reports, so a zeroed-in blank reads as the best possible outcome.
+ */
+export function cpSolveCompletion(outcome: CpExactSolveAcceptedOutcome): CpSolveCompletion {
+  const residuals = outcome.residuals;
+  if (!residuals) return outcome.kind === 'solved' ? 'exact' : 'improved';
+  // Topology first: an odd fan is skipped by the Kawasaki pass entirely, so the
+  // angle number below says nothing about it. Ordering next, for the same
+  // reason — Kawasaki can be exact on a fan that cannot fold. A null count is
+  // an older report that did not measure it, and is not read as a violation.
+  if (residuals.oddDegreeVerticesAfter > 0) return 'unfoldable';
+  if ((residuals.bigLittleBigViolationsAfter ?? 0) > 0) return 'unfoldable';
+  if (outcome.kind !== 'solved') return 'improved';
+  return residuals.maxKawasakiDegreesAfter <= CP_FOLDABILITY_CHECK_EPSILON_DEGREES
+    ? 'exact'
+    : 'approximate';
+}
+
+/** Facts in the shape the surfaces hold them, from one accepted outcome. */
+export function cpSolveCompletionFacts(
+  outcome: CpExactSolveAcceptedOutcome
+): CpSolveCompletionFacts {
+  return {
+    completion: cpSolveCompletion(outcome),
+    residuals: outcome.residuals,
+    angleFamily: outcome.angleFamily ?? null,
+  };
+}
+
+/**
+ * Whether the pattern will now pass the editor's foldability check.
+ *
+ * The predicate the **wording and the tone** follow. Only `exact` may be shown
+ * as success; the other three all leave markers on screen, and a green "Solved"
+ * over them tells the user the checker is broken.
+ */
+export function cpSolveMeetsFoldabilityCheck(completion: CpSolveCompletion): boolean {
+  return completion === 'exact';
+}
+
+/**
+ * Whether the **solver** called its answer exact.
+ *
+ * The predicate **button emphasis** follows. `approximate` is on this side of
+ * the line on purpose: the solver accepted it as solved and found no topology to
+ * repair, so pushing the user back into the repair flow would be inventing work
+ * that does not exist. What it must not do is claim the check passed — that is
+ * {@link cpSolveMeetsFoldabilityCheck}'s answer, and it is no.
+ */
+export function cpSolveIsExactVerdict(completion: CpSolveCompletion): boolean {
+  return completion === 'exact' || completion === 'approximate';
+}
+
+/**
+ * An angle in degrees, at a precision that neither lies nor prints noise.
+ *
+ * The values span eight orders of magnitude in one sentence — 14.367° before and
+ * 0.00747° after — so a fixed decimal count is either "14.4° to 0.0°" or
+ * "14.36700° to 0.00747°". This keeps roughly two significant figures by scaling
+ * the decimals to the magnitude, and never falls into exponent notation, which
+ * reads as an error message in a sentence about geometry.
+ */
+export function formatSolveAngleDegrees(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return '0';
+  // Below the last decimal this prints, "0" is the honest rendering rather than a
+  // row of zeroes that reads as a bug.
+  if (value < 1e-9) return '0';
+  const decimals = Math.min(9, Math.max(1, -Math.floor(Math.log10(value))));
+  return value.toFixed(decimals);
+}
+
+/** The one-line result, for a toast title or a heading. */
+export function cpSolveCompletionHeadline(t: TFunction, completion: CpSolveCompletion): string {
+  switch (completion) {
+    case 'exact':
+      return t('panels:cpRegion.completion.exact', 'Solved');
+    case 'approximate':
+      return t(
+        'panels:cpRegion.completion.approximate',
+        'Solved, though not to foldability-check precision'
+      );
+    case 'improved':
+      return t('panels:cpRegion.completion.improved', 'Improved, but not foldable yet');
+    case 'unfoldable':
+      return t(
+        'panels:cpRegion.completion.unfoldable',
+        'Improved, but this pattern cannot fold flat'
+      );
+  }
+}
+
+/**
+ * What changed, in numbers.
+ *
+ * With no figures to quote this defers to `above_fold_precision` in
+ * `cpExactSolveMessages` — the one shared table of solver sentences — rather
+ * than writing a second wordless version of the same idea here. So the rule is
+ * simply: **numbers when the solver reported them, the shared sentence when it
+ * did not.**
+ */
+export function cpSolveCompletionDetail(t: TFunction, facts: CpSolveCompletionFacts): string {
+  const { completion, residuals } = facts;
+  if (completion === 'exact') {
+    return t(
+      'panels:cpRegion.completion.exactDetail',
+      'The pattern now meets the foldability check.'
+    );
+  }
+  if (!residuals) return cpExactSolveReasonLabel(t, 'above_fold_precision');
+
+  // "…and the check needs it below the bar" is only a true sentence while the
+  // angle is still what fails. Once it passes, saying the bar next to a 0° reads
+  // as a contradiction, and the failing part is the topology named above it.
+  const anglePasses =
+    residuals.maxKawasakiDegreesAfter <= CP_FOLDABILITY_CHECK_EPSILON_DEGREES;
+  const angles = anglePasses
+    ? t('panels:cpRegion.completion.anglePassesDetail', {
+        before: formatSolveAngleDegrees(residuals.maxKawasakiDegreesBefore),
+        after: formatSolveAngleDegrees(residuals.maxKawasakiDegreesAfter),
+        defaultValue:
+          'The worst angle error went from {{before}}° to {{after}}°, which passes the check.',
+      })
+    : angleShortfallDetail(t, residuals);
+  if (completion !== 'unfoldable') return angles;
+
+  // Leading, not appended: these are the causes the user can act on, and they
+  // are true of the graph rather than of where its vertices happen to sit — so
+  // they survive any re-solve, which the angle number does not. Only the ones
+  // that apply are said; "0 vertices have an odd number of creases" is noise.
+  const causes: string[] = [];
+  if (residuals.oddDegreeVerticesAfter > 0) {
+    causes.push(
+      t('panels:cpRegion.completion.oddDegreeDetail', {
+        count: residuals.oddDegreeVerticesAfter,
+        defaultValue_one:
+          '1 vertex still has an odd number of creases, so this pattern cannot fold flat no matter where the vertices sit.',
+        defaultValue_other:
+          '{{count}} vertices still have an odd number of creases, so this pattern cannot fold flat no matter where the vertices sit.',
+      })
+    );
+  }
+  if ((residuals.bigLittleBigViolationsAfter ?? 0) > 0) {
+    causes.push(
+      t('panels:cpRegion.completion.bigLittleBigDetail', {
+        count: residuals.bigLittleBigViolationsAfter,
+        defaultValue_one:
+          'At 1 vertex the smallest angle sits between two creases folded the same way, so this pattern cannot fold flat.',
+        defaultValue_other:
+          'At {{count}} vertices the smallest angle sits between two creases folded the same way, so this pattern cannot fold flat.',
+      })
+    );
+    // The grid snap is what takes those away on a designed pattern, so when
+    // they remain, what it did is the next thing to say — and a snap that was
+    // tried and refused would otherwise be invisible.
+    causes.push(gridSnapDetail(t, facts.angleFamily));
+  }
+  return [...causes, angles].join(' ');
+}
+
+/** `22.5` and `45`, not `22.50` and `45.0`. */
+/**
+ * The angle sentence while the angle is what fails.
+ *
+ * With a count, it says how many vertices are still over the bar: that is the
+ * number of markers the user sees on accepting — a pattern 0.01° off at its
+ * worst is usually off at nearly every vertex, and "1 vertex" in the sentence
+ * before this one has been read as the whole of the problem. Without a count
+ * (a report predating the field), the worst residual and the bar alone.
+ */
+function angleShortfallDetail(t: TFunction, residuals: CpExactSolveResiduals): string {
+  const figures = {
+    before: formatSolveAngleDegrees(residuals.maxKawasakiDegreesBefore),
+    after: formatSolveAngleDegrees(residuals.maxKawasakiDegreesAfter),
+    bar: formatSolveAngleDegrees(CP_FOLDABILITY_CHECK_EPSILON_DEGREES),
+  };
+  const count = residuals.angleViolationsAfter;
+  if (count !== null && count > 0) {
+    return t('panels:cpRegion.completion.angleShortfallDetail', {
+      ...figures,
+      count,
+      defaultValue_one:
+        'The worst angle error went from {{before}}° to {{after}}°; the check needs it below {{bar}}°, which 1 vertex still misses.',
+      defaultValue_other:
+        'The worst angle error went from {{before}}° to {{after}}°; the check needs it below {{bar}}°, which {{count}} vertices still miss.',
+    });
+  }
+  return t('panels:cpRegion.completion.angleDetail', {
+    ...figures,
+    defaultValue:
+      'The worst angle error went from {{before}}° to {{after}}°, and the check needs it below {{bar}}°.',
+  });
+}
+
+function formatGridStep(degrees: number): string {
+  return Number.isInteger(degrees) ? String(degrees) : degrees.toFixed(1);
+}
+
+/**
+ * What the grid snap did, when Big-Little-Big violations remain.
+ *
+ * Four endings the user can tell apart: no grid to snap to, snapped (what is
+ * left is off the grid), refused for breaking vertices or moving too far, and
+ * out of time. Each is said as what happened, not as a solver token.
+ */
+function gridSnapDetail(t: TFunction, family: CpSolveAngleFamily | null | undefined): string {
+  if (!family) {
+    return t(
+      'panels:cpRegion.completion.gridSnapNoGridDetail',
+      'Fewer than half the creases sit near a 15°, 22.5°, 30° or 45° grid, so there was no grid to snap them to.'
+    );
+  }
+  const step = formatGridStep(family.stepDegrees);
+  if (family.adopted) {
+    return t('panels:cpRegion.completion.gridSnapAdoptedDetail', {
+      step,
+      defaultValue:
+        'The creases near the {{step}}° grid were snapped to it; what remains is at creases that are not on it.',
+    });
+  }
+  if (family.stopReason === 'nothing_to_pin') {
+    return t('panels:cpRegion.completion.gridSnapNothingToSnapDetail', {
+      step,
+      defaultValue: 'The creases already sit exactly on the {{step}}° grid, so snapping changed nothing.',
+    });
+  }
+  if (family.stopReason === 'out_of_time') {
+    return t('panels:cpRegion.completion.gridSnapOutOfTimeDetail', {
+      step,
+      defaultValue: 'Snapping the creases to the {{step}}° grid ran out of time.',
+    });
+  }
+  if (family.refusals.includes('movement_budget_exceeded')) {
+    return t('panels:cpRegion.completion.gridSnapMovedTooFarDetail', {
+      step,
+      defaultValue:
+        'Snapping the creases to the {{step}}° grid was tried and refused because it would have moved vertices too far.',
+    });
+  }
+  const count = family.verticesOverBar;
+  if (count !== null && count > 0) {
+    return t('panels:cpRegion.completion.gridSnapBrokeVerticesDetail', {
+      step,
+      count,
+      defaultValue_one:
+        'Snapping the creases to the {{step}}° grid was tried and refused because 1 vertex could not stay flat-foldable on it.',
+      defaultValue_other:
+        'Snapping the creases to the {{step}}° grid was tried and refused because {{count}} vertices could not stay flat-foldable on it.',
+    });
+  }
+  return t('panels:cpRegion.completion.gridSnapRefusedDetail', {
+    step,
+    defaultValue:
+      'Snapping the creases to the {{step}}° grid was tried and refused because it made the pattern worse.',
+  });
+}
+
+/** How many vertices the solve moved, and how far, for the surfaces that show it. */
+export interface CpSolveMovement {
+  movedVertices: number;
+  maxMovementPx: number;
+}
+
+/**
+ * How much the solve actually moved, as a sentence.
+ *
+ * Only worth saying for an `exact` ending. Everywhere else "45 vertices moved"
+ * is the least useful true thing available, because the question is no longer
+ * how much moved but whether it was enough — and there
+ * {@link cpSolveCompletionDetail} already quotes the residuals that answer it.
+ */
+export function cpSolveMovementSentence(t: TFunction, movement: CpSolveMovement): string {
+  return t('panels:cpRegion.completion.movementDetail', {
+    count: movement.movedVertices,
+    // Rounded **up**, so the sentence stays true: a 0.42 px worst case reads
+    // "< 1 px", never "< 0.4 px" that a later measurement could contradict.
+    max: Math.max(1, Math.ceil(movement.maxMovementPx)),
+    defaultValue_one: 'It moved 1 vertex, by under {{max}} px.',
+    defaultValue_other: 'It moved {{count}} vertices, each by under {{max}} px.',
+  });
+}

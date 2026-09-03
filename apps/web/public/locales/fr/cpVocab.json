@@ -199,6 +199,14 @@
         "0": "Choisissez un point"
       }
     },
+    "cp_action_vertex_insert_on_creases": {
+      "label": "Insérer un sommet",
+      "tooltip": "Diviser tous les plis passant par le point cliqué pour qu’ils se rejoignent en un seul sommet",
+      "disabledReason": "Prêt",
+      "steps": {
+        "0": "Cliquez à l’endroit où les plis doivent se rejoindre"
+      }
+    },
     "cp_action_delete_point": {
       "label": "Supprimer le point",
       "tooltip": "Fusionner les plis de même couleur se rejoignant au sommet choisi",
@@ -741,6 +749,14 @@
         "0": "Cliquez sur la position du texte"
       }
     },
+    "cp_action_check_suppression_region_create": {
+      "label": "Zone de suppression",
+      "tooltip": "Tracez un rectangle pour cesser d’y signaler les vérifications de pliabilité sélectionnées",
+      "disabledReason": "Prêt",
+      "steps": {
+        "0": "Tracez un rectangle sur la zone à ne plus vérifier"
+      }
+    },
     "cp_action_draw_blintz": {
       "label": "Base blintz",
       "tooltip": "Base blintz",
@@ -1016,6 +1032,11 @@
     "cp_action_delete_extra_vertices_ignore_color": {
       "label": "Supprimer les sommets superflus (ignorer le type)",
       "tooltip": "Fusionner les paires de plis colinéaires quel que soit le type : une montagne et une vallée fusionnent en bord",
+      "disabledReason": "Prêt"
+    },
+    "cp_action_delete_extra_vertices_among": {
+      "label": "Supprimer les sommets superflus du patron",
+      "tooltip": "Fusionner les paires de plis colinéaires de même type, uniquement parmi les plis fournis",
       "disabledReason": "Prêt"
     },
     "cp_action_organize_circles": {

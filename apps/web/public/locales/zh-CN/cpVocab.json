@@ -199,6 +199,14 @@
         "0": "选取点"
       }
     },
+    "cp_action_vertex_insert_on_creases": {
+      "label": "插入顶点",
+      "tooltip": "分割经过所点击位置的所有折痕，使它们在同一个顶点相交",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "点击折痕应当相交的位置"
+      }
+    },
     "cp_action_delete_point": {
       "label": "删除点",
       "tooltip": "合并在所选顶点相交的同色折痕",
@@ -741,6 +749,14 @@
         "0": "点击文本位置"
       }
     },
+    "cp_action_check_suppression_region_create": {
+      "label": "抑制区域",
+      "tooltip": "拖出一个方框，停止报告框内选定的可折叠性检查",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "拖出方框圈定要停止检查的区域"
+      }
+    },
     "cp_action_draw_blintz": {
       "label": "坐垫基",
       "tooltip": "坐垫基",
@@ -1016,6 +1032,11 @@
     "cp_action_delete_extra_vertices_ignore_color": {
       "label": "删除多余顶点（忽略类型）",
       "tooltip": "忽略类型合并共线折痕——山折与谷折合并为边界线",
+      "disabledReason": "就绪"
+    },
+    "cp_action_delete_extra_vertices_among": {
+      "label": "删除折痕图中的多余顶点",
+      "tooltip": "仅在给定的折痕之间合并类型相同的共线折痕",
       "disabledReason": "就绪"
     },
     "cp_action_organize_circles": {

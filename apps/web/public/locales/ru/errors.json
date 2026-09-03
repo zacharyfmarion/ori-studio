@@ -21,6 +21,7 @@
     "foldProducedNothing": "У этих складок нет плоской сложенной формы, которую можно было бы нарисовать"
   },
   "cpDetectImport": {
+    "addFailed": "Не удалось добавить распознанный паттерн складок.",
     "canvasUnavailable": "Canvas 2D недоступен",
     "unsupportedImage": "Используйте изображение PNG, JPEG или WebP."
   },
