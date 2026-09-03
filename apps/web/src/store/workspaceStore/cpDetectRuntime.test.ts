@@ -99,7 +99,7 @@ describe('cp-detect worker lifetime', () => {
 
     FakeWorker.instances[0].dispatchEvent(new Event('error'));
 
-    await expect(pending).resolves.toMatchObject({ code: 'cp_detect' });
+    await expect(pending).resolves.toMatchObject({ code: 'cp_detect_client_lost' });
   });
 
   it('stops listening once the call it was guarding settles', async () => {
