@@ -1034,6 +1034,11 @@
       "tooltip": "Mesclar pares de vincos colineares independentemente do tipo — uma montanha e um vale se mesclam em uma borda",
       "disabledReason": "Pronto"
     },
+    "cp_action_delete_extra_vertices_among": {
+      "label": "",
+      "tooltip": "",
+      "disabledReason": ""
+    },
     "cp_action_organize_circles": {
       "label": "Organizar círculos",
       "tooltip": "Remover círculos inválidos de raio zero usando as regras de limpeza do Oriedita",

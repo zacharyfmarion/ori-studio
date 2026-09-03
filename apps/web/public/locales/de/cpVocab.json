@@ -1034,6 +1034,11 @@
       "tooltip": "Kollineare Faltenpaare unabhängig vom Typ zusammenführen – Berg und Tal werden zu einem Rand",
       "disabledReason": "Bereit"
     },
+    "cp_action_delete_extra_vertices_among": {
+      "label": "",
+      "tooltip": "",
+      "disabledReason": ""
+    },
     "cp_action_organize_circles": {
       "label": "Kreise organisieren",
       "tooltip": "Ungültige Kreise mit Radius null mit Oriedita-Bereinigungsregeln entfernen",

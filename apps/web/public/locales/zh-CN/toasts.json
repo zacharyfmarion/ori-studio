@@ -1,4 +1,11 @@
 {
+  "cpRegionSolve": {
+    "failed": "",
+    "incompleteAction": "",
+    "solvedAction": "",
+    "timedOut": "",
+    "timedOutDetail_other": ""
+  },
   "creasePattern": {
     "inlineSimulationCap": "最多可同时打开 {{max}} 个模拟窗口。请先关闭一个再打开新的。",
     "inlineSimulationRegionGone": "该区域已不在折痕图中，因此无法重建此窗口。",
@@ -16,7 +23,12 @@
     "foldStop": "取消",
     "foldStopped": "已取消折叠",
     "foldStopping": "正在取消…",
-    "saved": "已保存 {{name}}"
+    "saved": "已保存 {{name}}",
+    "solveStop": "",
+    "solveStopped": "",
+    "solveStopping": "",
+    "solving": "",
+    "solvingLong": ""
   },
   "simulatorExport": {
     "empty": "此模拟暂无可导出的内容",

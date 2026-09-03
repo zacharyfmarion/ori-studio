@@ -1034,6 +1034,11 @@
       "tooltip": "種類に関係なく一直線上の折り線を統合します。山折りと谷折りは境界線になります",
       "disabledReason": "準備完了"
     },
+    "cp_action_delete_extra_vertices_among": {
+      "label": "",
+      "tooltip": "",
+      "disabledReason": ""
+    },
     "cp_action_organize_circles": {
       "label": "円を整理",
       "tooltip": "Oriedita のクリーンアップ規則を使って無効な半径ゼロの円を除去します",

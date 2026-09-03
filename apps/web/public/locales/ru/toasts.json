@@ -1,4 +1,14 @@
 {
+  "cpRegionSolve": {
+    "failed": "",
+    "incompleteAction": "",
+    "solvedAction": "",
+    "timedOut": "",
+    "timedOutDetail_one": "",
+    "timedOutDetail_few": "",
+    "timedOutDetail_many": "",
+    "timedOutDetail_other": ""
+  },
   "creasePattern": {
     "inlineSimulationCap": "Одновременно можно открыть до {{max}} окон симуляции. Закройте одно, чтобы открыть другое.",
     "inlineSimulationRegionGone": "Этой области больше нет в паттерне складок, поэтому окно нельзя перестроить.",
@@ -16,7 +26,12 @@
     "foldStop": "Отмена",
     "foldStopped": "Складывание отменено",
     "foldStopping": "Отмена…",
-    "saved": "{{name}} сохранён"
+    "saved": "{{name}} сохранён",
+    "solveStop": "",
+    "solveStopped": "",
+    "solveStopping": "",
+    "solving": "",
+    "solvingLong": ""
   },
   "simulatorExport": {
     "empty": "В этой симуляции пока нечего экспортировать",

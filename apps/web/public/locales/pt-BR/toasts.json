@@ -1,4 +1,13 @@
 {
+  "cpRegionSolve": {
+    "failed": "",
+    "incompleteAction": "",
+    "solvedAction": "",
+    "timedOut": "",
+    "timedOutDetail_one": "",
+    "timedOutDetail_many": "",
+    "timedOutDetail_other": ""
+  },
   "creasePattern": {
     "inlineSimulationCap": "Até {{max}} janelas de simulação por vez. Feche uma para abrir outra.",
     "inlineSimulationRegionGone": "Essa região não está mais no padrão de vincos, então esta janela não pode ser reconstruída.",
@@ -16,7 +25,12 @@
     "foldStop": "Cancelar",
     "foldStopped": "Dobra cancelada",
     "foldStopping": "Cancelando…",
-    "saved": "{{name}} salvo"
+    "saved": "{{name}} salvo",
+    "solveStop": "",
+    "solveStopped": "",
+    "solveStopping": "",
+    "solving": "",
+    "solvingLong": ""
   },
   "simulatorExport": {
     "empty": "Esta simulação ainda não tem nada para exportar",

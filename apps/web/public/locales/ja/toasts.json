@@ -1,4 +1,11 @@
 {
+  "cpRegionSolve": {
+    "failed": "",
+    "incompleteAction": "",
+    "solvedAction": "",
+    "timedOut": "",
+    "timedOutDetail_other": ""
+  },
   "creasePattern": {
     "inlineSimulationCap": "同時に開けるシミュレーションウィンドウは最大 {{max}} 個です。別のウィンドウを開くには、いずれかを閉じてください。",
     "inlineSimulationRegionGone": "その領域は展開図に存在しなくなったため、このウィンドウは再構築できません。",
@@ -16,7 +23,12 @@
     "foldStop": "キャンセル",
     "foldStopped": "折り上げをキャンセルしました",
     "foldStopping": "キャンセル中…",
-    "saved": "{{name}} を保存しました"
+    "saved": "{{name}} を保存しました",
+    "solveStop": "",
+    "solveStopped": "",
+    "solveStopping": "",
+    "solving": "",
+    "solvingLong": ""
   },
   "simulatorExport": {
     "empty": "このシミュレーションには書き出せるものがまだありません",

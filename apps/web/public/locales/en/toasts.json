@@ -1,4 +1,12 @@
 {
+  "cpRegionSolve": {
+    "failed": "Could not solve this pattern",
+    "incompleteAction": "Try again to repair the topology and solve again, or Accept anyway to keep these coordinates.",
+    "solvedAction": "Accept to keep it, or Try again to go back and change the topology.",
+    "timedOut": "The solve ran out of time",
+    "timedOutDetail_one": "It had placed 1 vertex — accept how far it got, or keep editing and try again.",
+    "timedOutDetail_other": "It had placed {{count}} vertices — accept how far it got, or keep editing and try again."
+  },
   "creasePattern": {
     "inlineSimulationCap": "Up to {{max}} simulation windows at once. Close one to open another.",
     "inlineSimulationRegionGone": "That region is no longer in the crease pattern, so this window cannot be rebuilt.",
@@ -16,7 +24,12 @@
     "foldStop": "Cancel",
     "foldStopped": "Fold cancelled",
     "foldStopping": "Cancelling…",
-    "saved": "{{name}} saved"
+    "saved": "{{name}} saved",
+    "solveStop": "Cancel",
+    "solveStopped": "Solve cancelled",
+    "solveStopping": "Cancelling…",
+    "solving": "Solving…",
+    "solvingLong": "Still solving — this can take a while"
   },
   "simulatorExport": {
     "empty": "This simulation has nothing to export yet",

@@ -1034,6 +1034,11 @@
       "tooltip": "유형과 관계없이 일직선 접힘선 쌍 병합 — 산과 골은 경계로 병합됨",
       "disabledReason": "준비됨"
     },
+    "cp_action_delete_extra_vertices_among": {
+      "label": "",
+      "tooltip": "",
+      "disabledReason": ""
+    },
     "cp_action_organize_circles": {
       "label": "원 정리",
       "tooltip": "Oriedita 정리 규칙을 사용하여 반지름이 0인 잘못된 원 정리",

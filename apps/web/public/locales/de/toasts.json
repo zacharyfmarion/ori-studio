@@ -1,4 +1,12 @@
 {
+  "cpRegionSolve": {
+    "failed": "",
+    "incompleteAction": "",
+    "solvedAction": "",
+    "timedOut": "",
+    "timedOutDetail_one": "",
+    "timedOutDetail_other": ""
+  },
   "creasePattern": {
     "inlineSimulationCap": "Bis zu {{max}} Simulationsfenster gleichzeitig. Schließe eines, um ein weiteres zu öffnen.",
     "inlineSimulationRegionGone": "Dieser Bereich ist nicht mehr im Faltmuster vorhanden, daher kann dieses Fenster nicht neu aufgebaut werden.",
@@ -16,7 +24,12 @@
     "foldStop": "Abbrechen",
     "foldStopped": "Falten abgebrochen",
     "foldStopping": "Wird abgebrochen…",
-    "saved": "{{name}} gespeichert"
+    "saved": "{{name}} gespeichert",
+    "solveStop": "",
+    "solveStopped": "",
+    "solveStopping": "",
+    "solving": "",
+    "solvingLong": ""
   },
   "simulatorExport": {
     "empty": "Diese Simulation hat noch nichts zu exportieren",

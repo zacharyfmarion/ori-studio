@@ -1034,6 +1034,11 @@
       "tooltip": "忽略类型合并共线折痕——山折与谷折合并为边界线",
       "disabledReason": "就绪"
     },
+    "cp_action_delete_extra_vertices_among": {
+      "label": "",
+      "tooltip": "",
+      "disabledReason": ""
+    },
     "cp_action_organize_circles": {
       "label": "整理圆",
       "tooltip": "使用 Oriedita 清理规则剪除无效的零半径圆",

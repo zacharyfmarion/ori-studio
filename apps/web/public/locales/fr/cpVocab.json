@@ -1034,6 +1034,11 @@
       "tooltip": "Fusionner les paires de plis colinéaires quel que soit le type : une montagne et une vallée fusionnent en bord",
       "disabledReason": "Prêt"
     },
+    "cp_action_delete_extra_vertices_among": {
+      "label": "",
+      "tooltip": "",
+      "disabledReason": ""
+    },
     "cp_action_organize_circles": {
       "label": "Organiser les cercles",
       "tooltip": "Élaguer les cercles invalides de rayon zéro selon les règles de nettoyage Oriedita",
