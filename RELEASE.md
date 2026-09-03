@@ -21,6 +21,35 @@ The Cloudflare Pages project name is `oristudio`; the production URL is
 `https://oristudio.pages.dev/`. Pull request previews are deployed from
 non-fork PRs to `https://pr-<number>.oristudio.pages.dev/`.
 
+## Detector models
+
+The crease-pattern detector's model (45 MB) is not in the build: Cloudflare
+Pages caps a static file at 25 MiB. It lives in the `oristudio-models` R2
+bucket at an immutable versioned key and is served from the site's origin by
+`apps/web/functions/models/[[path]].ts`; `registry.json` in the same bucket
+says which version is current. The app downloads a model once, verifies its
+sha256, and keeps it (Cache API on the web, the app data directory on desktop,
+listed under Settings ▸ Models).
+
+Publishing a new model, after updating `scripts/cp-detect/current-model.json`
+and copying the assets it names:
+
+```sh
+node scripts/cp-detect/publish-model.mjs --note "why this version"
+```
+
+It verifies the local sha, uploads the model and manifest if the key is new,
+appends the version to the registry, and moves `current` (`--no-promote` to
+publish without promoting; `--dry-run` to see what it would do). Rolling back
+is running it again for the previous pointer. It needs `wrangler` logged in;
+in CI, `CLOUDFLARE_API_TOKEN` must carry **Workers R2 Storage: Edit** for the
+account. The deploy's `Verify model store` step fails a deploy whose registry
+or model is unreachable.
+
+The desktop build links ONNX Runtime statically; `ort-sys` downloads the
+prebuilt binaries at build time, which a proxied shell may need `HTTPS_PROXY`
+unset for. Release runners are not proxied.
+
 ## Desktop App
 
 Desktop builds are produced by the **Desktop Build** workflow

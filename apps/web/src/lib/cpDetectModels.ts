@@ -16,6 +16,8 @@
  */
 
 import type { CpDetectModelManifest } from '../engine/cpDetectTypes';
+import { getRuntimeSurface } from '../platform/runtime';
+import { tauriModelStore } from './cpDetectModelsTauri';
 
 export const CP_DETECT_MODEL_REGISTRY_URL = '/models/registry.json';
 export const CP_DETECT_MODEL_FAMILY = 'cp-detector';
@@ -348,10 +350,13 @@ export interface CpDetectInstalledModel {
 /** Where downloaded models live; one implementation per surface. */
 export interface CpDetectModelStore {
   list(): Promise<CpDetectInstalledModel[]>;
+  /** The bytes, for a runtime that takes them; null when not installed or when the store only holds files a native runtime opens by path. */
   get(id: string): Promise<Uint8Array | null>;
   put(id: string, bytes: Uint8Array, meta: { sha256: string }): Promise<void>;
   /** True when something was removed. */
   remove(id: string): Promise<boolean>;
+  /** Whether `id` is installed with exactly this digest. */
+  installed(id: string, sha256: string): Promise<boolean>;
 }
 
 const MODEL_ID_HEADER = 'X-Model-Id';
@@ -417,6 +422,11 @@ export function cacheApiModelStore(
       const cache = await storage.open(cacheName);
       return cache.delete(cacheKey(id));
     },
+    async installed(id, sha256) {
+      const cache = await storage.open(cacheName);
+      const found = await entry(cache, new Request(cacheKey(id)));
+      return found !== null && found.sha256 === sha256;
+    },
   };
 }
 
@@ -439,15 +449,47 @@ export function memoryModelStore(): CpDetectModelStore {
     async remove(id) {
       return entries.delete(id);
     },
+    async installed(id, sha256) {
+      return entries.get(id)?.meta.sha256 === sha256;
+    },
   };
 }
 
 let sharedStore: CpDetectModelStore | null = null;
 
-/** This surface's store: the Cache API where there is one, memory where there is not. */
+/**
+ * This surface's store. The desktop shell's page keeps models as files in
+ * the app data directory, where the native runtime opens them by path; the
+ * web keeps them in the Cache API; a context with neither (jsdom, a worker on
+ * desktop, an old browser) keeps them in memory.
+ */
 export function defaultCpDetectModelStore(): CpDetectModelStore {
-  sharedStore ??= typeof caches === 'undefined' ? memoryModelStore() : cacheApiModelStore(caches);
+  if (!sharedStore) {
+    if (typeof window !== 'undefined' && getRuntimeSurface() === 'desktop') {
+      sharedStore = tauriModelStore();
+    } else if (typeof caches === 'undefined') {
+      sharedStore = memoryModelStore();
+    } else {
+      sharedStore = cacheApiModelStore(caches);
+    }
+  }
   return sharedStore;
+}
+
+/**
+ * Make sure `version` is on this device — installed with its digest, or
+ * downloaded, verified and stored — without handing its bytes back. What the
+ * desktop needs: its runtime opens the file itself.
+ */
+export async function ensureCpDetectModelOnDevice(
+  version: CpDetectModelVersion,
+  store: CpDetectModelStore,
+  options: DownloadCpDetectModelOptions = {}
+): Promise<'installed' | 'downloaded'> {
+  if (await store.installed(version.id, version.sha256)) return 'installed';
+  const bytes = await downloadCpDetectModel(version, options);
+  await store.put(version.id, bytes, { sha256: version.sha256 });
+  return 'downloaded';
 }
 
 export interface EnsureCpDetectModelOptions extends DownloadCpDetectModelOptions {

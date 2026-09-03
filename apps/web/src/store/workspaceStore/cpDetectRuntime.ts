@@ -18,6 +18,8 @@
  *   is how a caller consumes it: a promise that will never settle becomes a
  *   rejection the UI can report.
  */
+import { isDesktopRuntime } from '../../platform/runtime';
+import { nativeCpDetectClient } from '../../engine/cpDetectNativeClient';
 import { wrap, type Remote } from 'comlink';
 import type { WasmErrorEnvelope } from '../../engine/types';
 import type { CpDetectWorkerApi } from '../../workers/cpDetectWorker';
@@ -139,7 +141,14 @@ export async function getCpDetectClient(): Promise<CpDetectClient> {
     if (live?.worker !== worker) return;
     loseClient(failure);
   });
-  live = { worker, client: wrap<CpDetectWorkerApi>(worker), detachDiagnostics };
+  const client = wrap<CpDetectWorkerApi>(worker);
+  // Desktop keeps the worker for rectification and runs the model and the
+  // solve natively; the client's surface is the same either way.
+  live = {
+    worker,
+    client: isDesktopRuntime() ? nativeCpDetectClient(client) : client,
+    detachDiagnostics,
+  };
   return live.client;
 }
 

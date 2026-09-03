@@ -36,6 +36,8 @@
  * in there. It also buys isolation the registry needs: two regions can have live
  * solves at once, and stopping one must not be able to kill the other.
  */
+import { isDesktopRuntime } from '../platform/runtime';
+import { nativeCpExactSolveSession } from './cpDetectNativeClient';
 import { wrap } from 'comlink';
 import { attachWorkerDiagnostics, type WorkerFailure } from '../lib/workerDiagnostics';
 import type { CpExactSolveWorkerApi } from '../workers/cpExactSolveWorker';
@@ -112,7 +114,9 @@ export interface CpExactSolveSession {
  * could not have run in the first place.
  */
 export function cpExactSolveCancellationAvailable(): boolean {
-  return typeof Worker === 'function';
+  // Desktop stops a native solve through its cancellation flag; the web
+  // terminates a worker.
+  return isDesktopRuntime() || typeof Worker === 'function';
 }
 
 /** A session over a solver the caller supplied. Unstoppable, and says so. */
@@ -131,6 +135,7 @@ export function injectedCpExactSolveSession(
  * from being published as `cancellable` a tick before anything could stop it.
  */
 export function openCpExactSolveSession(): CpExactSolveSession {
+  if (isDesktopRuntime()) return nativeCpExactSolveSession();
   const worker = new Worker(new URL('../workers/cpExactSolveWorker.ts', import.meta.url), {
     type: 'module',
   });

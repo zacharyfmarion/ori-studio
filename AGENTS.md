@@ -392,6 +392,26 @@ checkout or re-export from the ML checkpoint named there. Then run
 `node scripts/cp-detect/check-local-model-assets.mjs`; it reads the pointer file
 and fails if the stable local model is missing or stale.
 
+### CP detection in production
+
+The detector runs on three transports behind one `CpDetectWorkerApi`: the wasm
+worker on the web (ONNX Runtime Web, WebGPU then wasm threads), the same worker
+for rectification on desktop, and `apps/tauri/src-tauri/src/cp_detect.rs` for
+inference and the exact solve on desktop (ONNX Runtime via the `ort` crate,
+CoreML on macOS, all cores elsewhere). `engine/cpDetectNativeClient.ts` wraps
+the worker with the native commands and `cpDetectRuntime.ts` picks it on
+desktop. Anything the worker's decode path does must be mirrored in the native
+`recognize`, or the two surfaces drift: the pure post-processing lives in
+`lib/cpDetectDecode.ts` for that reason, and the solve request parsing in the
+compiler crate.
+
+Models are downloaded, verified against the registry's sha256, and stored
+(`lib/cpDetectModels.ts`; the Cache API on the web, files under the app data
+directory on desktop through `cp_detect_model_*` commands). The registry and
+the objects are published to R2 by `scripts/cp-detect/publish-model.mjs`; see
+`RELEASE.md`. Building the desktop crate downloads ONNX Runtime once through
+`ort-sys`; behind a proxy, unset `HTTPS_PROXY` for that build.
+
 ### Release work
 
 Release notes and package workflow details live in `RELEASE.md`. Keep release

@@ -46,6 +46,9 @@ import { CreasePatternPanel } from './CreasePatternPanel';
  */
 const runCpExactSolve = vi.hoisted(() => vi.fn());
 vi.mock('../../engine/cpExactSolve', () => ({
+  // Negative disables the solver's deadline — the real constant, spelled here
+  // because the module is replaced wholesale.
+  CP_EXACT_SOLVE_NO_DEADLINE: -1,
   runCpExactSolve: (...args: unknown[]) => runCpExactSolve(...args),
 }));
 

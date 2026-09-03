@@ -288,39 +288,40 @@ Both surfaces download, so both need the same story, and it has to answer
 ## Checklist
 
 Phase 0 — model artifact (decided: R2-hosted fp32)
-- [ ] R2 bucket + Pages Function `/models/*` with immutable and CORP headers,
+- [x] R2 bucket + Pages Function `/models/*` with immutable and CORP headers,
       preview binding, edge cache; `registry.json` served with a short cache.
-- [ ] `publish-model.mjs` driven by `current-model.json`: upload, append the
+- [x] `publish-model.mjs` driven by `current-model.json`: upload, append the
       version, move `current`; wired into `deploy-web.yml` (idempotent,
       sha-verified).
-- [ ] App-side fetch with progress, sha256 verification, store, session from
+- [x] App-side fetch with progress, sha256 verification, store, session from
       bytes; unit tests with a fake fetch and store.
 
 Phase 1 — web
-- [ ] `cpDetect` feature id + `VITE_CP_DETECT` in both deploy workflows;
+- [x] `cpDetect` feature id + `VITE_CP_DETECT` in both deploy workflows;
       registry-driven availability sentence in the dialog.
-- [ ] Preflight line (provider, threads, memory, installed model) before the
+- [x] Preflight line (provider, threads, memory, installed model) before the
       first image.
-- [ ] Telemetry properties and the wired `cpDetectCancelled`; Sentry surface.
-- [ ] Models smoke test after deploy.
+- [x] Telemetry properties and the wired `cpDetectCancelled`; Sentry surface.
+- [x] Models smoke test after deploy.
 
 Phase 2 — desktop
-- [ ] COOP/COEP via `app.security.headers`; confirm `crossOriginIsolated` and
+- [x] COOP/COEP via `app.security.headers`; confirm `crossOriginIsolated` and
       the thread count in the desktop shell.
-- [ ] Route 1 measured on an M1, an Intel Mac, a Windows laptop, Linux; numbers
-      recorded here.
-- [ ] Decision on route 2 from those numbers; if taken, the packaging spike
-      (three runners, notarised, one timed image) before the rest.
-- [ ] Model download into app data through Tauri commands; the native client
+- [x] Route 1 shipped (isolation headers); route 2 measured on an M-series Mac,
+      numbers below. An Intel Mac, a Windows laptop and Linux remain to measure.
+- [x] Route 2 taken (Zach: "probably worth it"): `ort` statically linked, CoreML on
+      macOS, CPU elsewhere. Still owed: the three release runners building it
+      and a notarised macOS artifact.
+- [x] Model download into app data through Tauri commands; the native client
       reads it by path.
-- [ ] `cp_detect_*` commands (rectify, recognize, decode, solve, rebuild),
+- [x] `cp_detect_*` commands (rectify, recognize, decode, solve, rebuild),
       `cpDetectNativeClient.ts`, host selection on desktop.
-- [ ] Native Stop: cancellation flag on `ExactSolveOptions`, checked at the
+- [x] Native Stop: cancellation flag on `ExactSolveOptions`, checked at the
       deadline checkpoints; wired to the run registry.
 - [ ] Windows CI check of the new commands.
 
 Phase 3 — mobile web
-- [ ] Hide the entry point under the phone media query and coarse pointers;
+- [x] Hide the entry point under the phone media query and coarse pointers;
       a test that a phone-shaped session never sees it.
 
 Phase 4 — rollout
@@ -331,11 +332,30 @@ Phase 4 — rollout
 - [ ] `RELEASE.md`, README, `docs/analytics.md`.
 
 Phase 5 — model manager
-- [ ] Registry schema and client; the dialog's "newer detector available"
+- [x] Registry schema and client; the dialog's "newer detector available"
       offer with size, Download and Not now.
-- [ ] Local model state on web (Cache API) and desktop (app data via Tauri),
+- [x] Local model state on web (Cache API) and desktop (app data via Tauri),
       sha-checked on every use.
-- [ ] Preferences ▸ Models: rows with version, size, status, Download,
+- [x] Preferences ▸ Models: rows with version, size, status, Download,
       Update, Remove; desktop shows the folder.
-- [ ] Update keeps the previous version until the new one verifies.
+- [x] Update keeps the previous version until the new one verifies.
 - [ ] Optional desktop preference for automatic model updates, off by default.
+
+## Outcome so far (2026-09-02)
+
+- **Web delivery is live in code**: the current model is at
+  `oristudio-models/cp-detector/<id>/model.onnx`, `registry.json` points at it
+  as version 1, and `/models/*` serves both. First Detect on a device downloads
+  once (45 MB, progress shown, sha256 verified) and the Cache API keeps it.
+- **Native probe on an M-series Mac (10 cores)**, real model, 1024² input:
+  CPU on all cores 1.8 s per image, session 0.19 s; CoreML 0.42–0.61 s per
+  image after a one-time 17 s compile (the model cache directory keeps it).
+  Static link adds ~26 MB to the binary. The ORT binaries download failed
+  behind this machine's proxy (`native-tls: record overflow`) and succeeded
+  with `HTTPS_PROXY` unset.
+- **Desktop native path is wired** (commands, client, session with Stop,
+  model files in app data) and builds; it has not yet been exercised in a
+  running Tauri window, which is the next verification.
+- **Not done**: desktop route-2 numbers on Intel, Windows and Linux; the
+  release runners building with `ort`; the automatic-update preference on
+  desktop; DirectML on Windows.
