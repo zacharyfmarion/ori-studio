@@ -41,6 +41,7 @@ import type {
   CpExactSolvedGraph,
 } from '../engine/cpExactSolveTypes';
 import type { WasmErrorEnvelope } from '../engine/types';
+import type { CpDetectModelProgressListener } from '../engine/cpDetectTypes';
 import {
   DEFAULT_CP_DETECT_MODEL_MANIFEST_URL,
   CP_DETECT_OUTPUT_KEYS,
@@ -48,14 +49,23 @@ import {
   runCpDetectDenseInference,
   type CpDetectOnnxSession,
 } from '../lib/cpDetectInference';
+import {
+  currentCpDetectModel,
+  defaultCpDetectModelStore,
+  ensureCpDetectModelInstalled,
+  registryFromManifest,
+  type CpDetectModelStore,
+  type CpDetectModelVersion,
+} from '../lib/cpDetectModels';
+import { isCpDetectBuildEnabled } from '../platform/features';
 
 let wasmReady: Promise<void> | null = null;
 let sessionPromise: Promise<CpDetectSessionRuntime> | null = null;
 let manifestPromise: Promise<CpDetectModelManifest> | null = null;
 let manifestKey: string | null = null;
-let modelPresencePromise: Promise<void> | null = null;
-let modelPresenceKey: string | null = null;
 let sessionKey: string | null = null;
+/** Where installed models live on the web: the Cache API, shared with the page. */
+let modelStore: CpDetectModelStore | null = null;
 let ortPromise: Promise<OrtModule> | null = null;
 let ortWasmThreads = 1;
 // ORT WebGPU is not reliable when sessions compile or dispatch concurrently in one worker.
@@ -76,7 +86,7 @@ type OrtModule = typeof import('onnxruntime-web/webgpu');
  * out of the production module graph, so the runtime is neither bundled nor
  * emitted. Un-gating the menu means un-gating this too.
  */
-const CP_DETECT_RUNTIME_AVAILABLE = import.meta.env.DEV;
+const CP_DETECT_RUNTIME_AVAILABLE = isCpDetectBuildEnabled();
 
 interface CpDetectSessionRuntime {
   session: ort.InferenceSession;
@@ -108,24 +118,57 @@ async function ensureManifest(manifestUrl: string): Promise<CpDetectModelManifes
   return manifestPromise;
 }
 
+/**
+ * The model version a run is for: the registry's, as the caller resolved it,
+ * or else the manifest read as a one-version registry — a dev checkout, or a
+ * test handing over its own manifest URL.
+ */
+function resolveModelVersion(
+  manifest: CpDetectModelManifest,
+  manifestUrl: string,
+  options: CpDetectWorkerRunOptions
+): CpDetectModelVersion {
+  if (options.model) return options.model;
+  const local = currentCpDetectModel(registryFromManifest(manifest, manifestUrl));
+  if (!local) throw new Error('The CP detector manifest names no model');
+  return options.modelUrl ? { ...local, model_url: options.modelUrl } : local;
+}
+
+function store(): CpDetectModelStore {
+  modelStore ??= defaultCpDetectModelStore();
+  return modelStore;
+}
+
 async function ensureSession(
   manifest: CpDetectModelManifest,
   manifestUrl: string,
-  options: CpDetectWorkerRunOptions = {}
+  options: CpDetectWorkerRunOptions = {},
+  onModelProgress?: CpDetectModelProgressListener
 ): Promise<CpDetectSessionRuntime> {
   // Awaited before the cache key is built — the key covers `ortWasmThreads`,
   // which is not settled until the runtime has loaded.
   const ortModule = await loadOrt();
-  const modelUrl = options.modelUrl ?? resolveModelUrl(manifest.model.url, manifestUrl);
+  const version = resolveModelVersion(manifest, manifestUrl, options);
   const requestedProvider = options.executionProvider ?? 'auto';
   const key = JSON.stringify({
-    modelUrl,
+    modelId: version.id,
+    modelUrl: version.model_url,
     requestedProvider,
     wasmThreads: ortWasmThreads,
   });
   if (sessionPromise && sessionKey === key) return sessionPromise;
   sessionKey = key;
-  sessionPromise = createSessionRuntime(ortModule, modelUrl, requestedProvider).catch((error) => {
+  sessionPromise = (async () => {
+    // Installed once and verified every time; the bytes go to the runtime,
+    // which copies them, and are dropped here.
+    const installed = await ensureCpDetectModelInstalled(version, store(), {
+      onProgress: onModelProgress,
+    });
+    const runtime = await createSessionRuntime(ortModule, installed.bytes, requestedProvider);
+    runtime.runtime.model_id = version.id;
+    runtime.runtime.model_source = installed.source;
+    return runtime;
+  })().catch((error) => {
     if (sessionKey === key) {
       sessionKey = null;
       sessionPromise = null;
@@ -173,7 +216,7 @@ async function importOrt(): Promise<OrtModule> {
 
 async function createSessionRuntime(
   ortModule: OrtModule,
-  modelUrl: string,
+  modelBytes: Uint8Array,
   requestedProvider: CpDetectExecutionProvider
 ): Promise<CpDetectSessionRuntime> {
   const webgpuAvailable = hasWebGpu();
@@ -182,7 +225,7 @@ async function createSessionRuntime(
     const startedAt = performance.now();
     try {
       const session = await enqueueOrtOperation(() =>
-        ortModule.InferenceSession.create(modelUrl, sessionOptions(provider))
+        ortModule.InferenceSession.create(modelBytes, sessionOptions(provider))
       );
       return {
         session,
@@ -224,39 +267,6 @@ function providerCandidates(
   return webgpuAvailable ? ['webgpu', 'wasm'] : ['wasm'];
 }
 
-function resolveModelUrl(modelUrl: string, manifestUrl: string): string {
-  const manifestAbsoluteUrl = new URL(manifestUrl, self.location.href);
-  return new URL(modelUrl, manifestAbsoluteUrl).toString();
-}
-
-async function ensureModelPresent(
-  manifest: CpDetectModelManifest,
-  manifestUrl: string,
-  modelUrlOverride?: string
-): Promise<void> {
-  const modelUrl = modelUrlOverride ?? resolveModelUrl(manifest.model.url, manifestUrl);
-  if (modelPresencePromise && modelPresenceKey === modelUrl) return modelPresencePromise;
-  modelPresenceKey = modelUrl;
-  modelPresencePromise = fetchModelPresence(modelUrl).catch((error) => {
-    if (modelPresenceKey === modelUrl) {
-      modelPresenceKey = null;
-      modelPresencePromise = null;
-    }
-    throw error;
-  });
-  return modelPresencePromise;
-}
-
-async function fetchModelPresence(modelUrl: string): Promise<void> {
-  let response = await fetch(modelUrl, { method: 'HEAD' });
-  if (response.ok) return;
-  if (response.status === 405) {
-    response = await fetch(modelUrl, { headers: { Range: 'bytes=0-0' } });
-    if (response.ok || response.status === 206) return;
-  }
-  throw new Error(`Failed to load CP detector model: ${response.status} ${response.statusText}`);
-}
-
 function sessionOptions(provider: ActiveExecutionProvider): ort.InferenceSession.SessionOptions {
   return {
     executionProviders: provider === 'webgpu' ? ['webgpu', 'wasm'] : ['wasm'],
@@ -293,20 +303,31 @@ const api = {
   async packageInfo(): Promise<unknown> {
     return call(() => cp_detect_package_info());
   },
-  async loadModel(options: CpDetectWorkerRunOptions = {}): Promise<CpDetectModelManifest> {
+  async loadModel(
+    options: CpDetectWorkerRunOptions = {},
+    onModelProgress?: CpDetectModelProgressListener
+  ): Promise<CpDetectModelManifest> {
     return call(async () => {
       const manifestUrl = options.manifestUrl ?? DEFAULT_CP_DETECT_MODEL_MANIFEST_URL;
       const manifest = await ensureManifest(manifestUrl);
-      await ensureSession(manifest, manifestUrl, options);
+      await ensureSession(manifest, manifestUrl, options, onModelProgress);
       return manifest;
     });
   },
-  async verifyModelAssets(options: CpDetectWorkerRunOptions = {}): Promise<CpDetectModelManifest> {
+  /**
+   * The manifest of the model a run would use, and whether its bytes are
+   * already installed — what the dialog needs to say "45 MB, once" before
+   * the first Detect, without downloading anything.
+   */
+  async modelStatus(
+    options: CpDetectWorkerRunOptions = {}
+  ): Promise<{ manifest: CpDetectModelManifest; version: CpDetectModelVersion; installed: boolean }> {
     return call(async () => {
       const manifestUrl = options.manifestUrl ?? DEFAULT_CP_DETECT_MODEL_MANIFEST_URL;
       const manifest = await ensureManifest(manifestUrl);
-      await ensureModelPresent(manifest, manifestUrl, options.modelUrl);
-      return manifest;
+      const version = resolveModelVersion(manifest, manifestUrl, options);
+      const installed = (await store().list()).some((model) => model.id === version.id);
+      return { manifest, version, installed };
     });
   },
   async autoRectifyImage(image: ImageData, imageSize = 1024): Promise<CpDetectRectifiedImage> {
@@ -332,9 +353,10 @@ const api = {
   },
   async runDenseInference(
     image: ImageData,
-    options: CpDetectWorkerRunOptions = {}
+    options: CpDetectWorkerRunOptions = {},
+    onModelProgress?: CpDetectModelProgressListener
   ): Promise<CpDetectInferenceResult> {
-    return call(() => denseInferenceForImage(image, options));
+    return call(() => denseInferenceForImage(image, options, onModelProgress));
   },
   /**
    * Recognize **and** solve, in one call — the original fused decode.
@@ -348,10 +370,11 @@ const api = {
    */
   async detectRectifiedFold(
     image: ImageData,
-    options: CpDetectWorkerRunOptions = {}
+    options: CpDetectWorkerRunOptions = {},
+    onModelProgress?: CpDetectModelProgressListener
   ): Promise<CpDetectFoldResult> {
     return call(async () => {
-      const decoded = await decodeRectifiedImage(image, options, false);
+      const decoded = await decodeRectifiedImage(image, options, false, onModelProgress);
       return {
         status: decoded.report.status,
         foldJson: decoded.fold_json,
@@ -386,10 +409,11 @@ const api = {
    */
   async recognizeRectifiedFold(
     image: ImageData,
-    options: CpDetectWorkerRunOptions = {}
+    options: CpDetectWorkerRunOptions = {},
+    onModelProgress?: CpDetectModelProgressListener
   ): Promise<CpDetectRecognizeResult> {
     return call(async () => {
-      const decoded = await decodeRectifiedImage(image, options, true);
+      const decoded = await decodeRectifiedImage(image, options, true, onModelProgress);
       const solve = cpDetectSolveState(decoded.report);
       const candidateSource = cpDetectCandidateSourceFromFold(decoded.fold_json);
       if (decoded.report.status !== 'recognized' || !solve || solve.attempted) {
@@ -482,7 +506,8 @@ const api = {
 
 async function denseInferenceForImage(
   image: ImageData,
-  options: CpDetectWorkerRunOptions
+  options: CpDetectWorkerRunOptions,
+  onModelProgress?: CpDetectModelProgressListener
 ): Promise<CpDetectInferenceResult> {
   const manifestUrl = options.manifestUrl ?? DEFAULT_CP_DETECT_MODEL_MANIFEST_URL;
   const baseManifest = await ensureManifest(manifestUrl);
@@ -493,7 +518,7 @@ async function denseInferenceForImage(
       threshold: options.threshold ?? baseManifest.inference.threshold,
     },
   };
-  const sessionRuntime = await ensureSession(manifest, manifestUrl, options);
+  const sessionRuntime = await ensureSession(manifest, manifestUrl, options, onModelProgress);
   const ortModule = await loadOrt();
   const inference = await runCpDetectDenseInference(
     cpDetectSessionFromOrt(sessionRuntime.session),
@@ -537,11 +562,12 @@ interface DecodedRectifiedImage extends WasmDecodedFold {
 async function decodeRectifiedImage(
   image: ImageData,
   options: CpDetectWorkerRunOptions,
-  recognizeOnly: boolean
+  recognizeOnly: boolean,
+  onModelProgress?: CpDetectModelProgressListener
 ): Promise<DecodedRectifiedImage> {
   const requestedJunctionSource = options.junctionSource ?? CP_DETECT_DEFAULT_JUNCTION_SOURCE;
   const lineEvidenceSource = resolveLineEvidenceSource(options.lineEvidenceSource);
-  const inference = await denseInferenceForImage(image, options);
+  const inference = await denseInferenceForImage(image, options, onModelProgress);
   const requestedDecodeJunctionSource: CpDetectJunctionSource =
     requestedJunctionSource === 'line-arrangement' ? 'line-arrangement' : 'dense-model';
   const decoded = decodeFoldFromDenseOutputs(

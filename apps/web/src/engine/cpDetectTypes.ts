@@ -1,3 +1,12 @@
+import type { CpDetectModelDownloadProgress, CpDetectModelVersion } from '../lib/cpDetectModels';
+
+/**
+ * Download progress for the dialog's "downloading, 12 of 45 MB" line. Handed to
+ * the worker as its own argument, wrapped in comlink's `proxy()`: comlink
+ * proxies a function only at the top level of a call, never inside an options
+ * object, where it would be cloned and refused.
+ */
+export type CpDetectModelProgressListener = (progress: CpDetectModelDownloadProgress) => void;
 import {
   CP_DETECT_DEFAULT_JUNCTION_SOURCE as GENERATED_DEFAULT_JUNCTION_SOURCE,
   CP_DETECT_DEFAULT_LINE_EVIDENCE_SOURCE as GENERATED_DEFAULT_LINE_EVIDENCE_SOURCE,
@@ -61,6 +70,10 @@ export interface CpDetectRuntimeInfo {
   wasm_threads?: number;
   session_create_ms?: number;
   fallback_reason?: string;
+  /** The registry id of the model the session was built from. */
+  model_id?: string;
+  /** Whether the model's bytes were already installed or fetched for this session. */
+  model_source?: 'installed' | 'downloaded';
   preprocess_ms?: number;
   model_run_ms?: number;
   output_collect_ms?: number;
@@ -197,6 +210,12 @@ export interface CpVertexRefinerInferenceResult {
 export interface CpDetectWorkerRunOptions {
   manifestUrl?: string;
   modelUrl?: string;
+  /**
+   * Which published model to install and run — the registry's current one,
+   * as the dialog resolved it. Without it the worker reads `manifestUrl`
+   * (a dev checkout's local model) and treats that as the one version.
+   */
+  model?: CpDetectModelVersion;
   vertexRefinerManifestUrl?: string;
   vertexRefinerModelUrl?: string;
   vertexRefinerFrame?: CpDetectPaperFrame;

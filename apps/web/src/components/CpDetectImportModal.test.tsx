@@ -79,7 +79,8 @@ vi.mock('../store/workspaceStore/oristudioCpRuntime', () => ({
 vi.mock('../analytics', () => ({ track: (...args: unknown[]) => track(...args) }));
 
 const detectClient = {
-  verifyModelAssets: vi.fn(async () => manifest()),
+  modelStatus: vi.fn(async () => ({ manifest: manifest(), version: modelVersion(), installed: true })),
+  loadModel: vi.fn(async () => manifest()),
   autoRectifyImage: vi.fn(async () => rectifiedImage()),
   manualRectifyImage: vi.fn(async () => rectifiedImage()),
   recognizeRectifiedFold: vi.fn(async () => recognition(diagnostics(2))),
@@ -93,6 +94,23 @@ vi.mock('../store/workspaceStore/cpDetectRuntime', () => ({
     message: error instanceof Error ? error.message : String(error),
   }),
 }));
+
+vi.mock('./cpDetectModelState', async (importOriginal) => {
+  const original = await importOriginal<typeof import('./cpDetectModelState')>();
+  return {
+    ...original,
+    loadDetectorModel: vi.fn(async (client: { modelStatus: () => Promise<{ manifest: unknown; installed: boolean }> }) => {
+      const status = await client.modelStatus();
+      return {
+        registry: { schema: 'oristudio/cp-detect-model-registry/v1', families: {} },
+        active: modelVersion(),
+        manifest: status.manifest,
+        installed: status.installed,
+        update: null,
+      };
+    }),
+  };
+});
 
 vi.mock('../platform/fileService', () => ({
   getFileService: () => ({
@@ -129,6 +147,18 @@ const BUDGET_SECONDS = 25;
 
 function manifest() {
   return { id: 'test-model' } as never;
+}
+
+function modelVersion() {
+  return {
+    id: 'test-model',
+    version: 1,
+    released: '2026-07-08',
+    size_bytes: 45_206_364,
+    sha256: 'f'.repeat(64),
+    manifest_url: '/models/cp-detector-v3/manifest.json',
+    model_url: '/models/cp-detector-v3/model.onnx',
+  };
 }
 
 /** jsdom has no `ImageData`; the modal only reads `width`/`height` off one. */

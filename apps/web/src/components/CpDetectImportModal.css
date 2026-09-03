@@ -397,3 +397,18 @@
     overflow: auto;
   }
 }
+
+.cp-detect-modal__model-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.cp-detect-modal__model-update {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

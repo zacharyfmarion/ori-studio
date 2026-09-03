@@ -349,6 +349,8 @@ export const ANALYTICS_EVENTS = {
    * or the short ones.
    */
   cpDetectCancelled: 'cp detect cancelled',
+  /** A detector model's bytes arrived and verified — the first run's, or an offered update's. */
+  cpDetectModelDownloaded: 'cp detect model downloaded',
   foldSimulationRun: 'fold simulation run',
   foldedFormExported: 'folded form exported',
   foldWarningShown: 'fold warning shown',
@@ -630,6 +632,13 @@ export const DURATION_MS_BUCKETS = [50, 100, 250, 500, 1000, 2500, 5000, 10000] 
  * cap itself is the thing to revisit.
  */
 export const CP_EXACT_SOLVE_MS_BUCKETS = [250, 1000, 2500, 5000, 10000, 15000, 25000] as const;
+
+/**
+ * One detector inference, from tensor to outputs. Spans a GPU's quarter second
+ * to a single wasm thread's minute, which is the spread `cp detect completed`
+ * exists to measure across devices.
+ */
+export const CP_DETECT_INFERENCE_MS_BUCKETS = [250, 500, 1000, 2500, 5000, 10000, 30000, 60000] as const;
 
 /**
  * Threshold ladder for how long a fold ran, in milliseconds.

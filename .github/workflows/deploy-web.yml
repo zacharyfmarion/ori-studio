@@ -62,6 +62,11 @@ jobs:
           # silently, and that alone is enough to disable analytics entirely.
           VITE_PUBLIC_POSTHOG_KEY: ${{ secrets.VITE_PUBLIC_POSTHOG_KEY }}
           VITE_PUBLIC_POSTHOG_HOST: https://us.i.posthog.com
+          # Ships CP detection: the menu entry and the worker's runtime. The
+          # kill switch is removing this line and redeploying. The model itself
+          # is not in the build — it comes from R2 through `functions/models/`
+          # and is published by `scripts/cp-detect/publish-model.mjs`.
+          VITE_CP_DETECT: '1'
           # Sentry crash reporting, same firewall and same reasoning. A DSN is a
           # public value by design — it ships in the bundle and only permits
           # writes — but it lives in secrets to match the PostHog key above, so
@@ -114,3 +119,10 @@ jobs:
       # `--alias` keeps the public hostname covered, as a reachability probe.
       - name: Verify share endpoints
         run: node scripts/share-smoke.mjs "${{ steps.deploy.outputs.url }}" --alias https://oristudio.pages.dev
+
+      # The model store: the registry is served, names a current detector whose
+      # manifest is served, and the model's first byte comes back with the
+      # headers the page needs. A missing MODELS_R2 binding or an unpublished
+      # registry fails here, not in the first user's dialog.
+      - name: Verify model store
+        run: node scripts/models-smoke.mjs "${{ steps.deploy.outputs.url }}"

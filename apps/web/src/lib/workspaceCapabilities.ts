@@ -1,3 +1,5 @@
+import { isCpDetectBuildEnabled, isCpDetectSurfaceAvailable } from '../platform/features';
+import { isPhoneLayout } from '../platform/phoneLayout';
 import type { TFunction } from 'i18next';
 import { DESIGN_KINDS, designKindRegistry } from '../designKinds/registry';
 import type { DesignKindDescriptor } from '../designKinds/types';
@@ -169,6 +171,18 @@ export interface WorkspaceCapabilityInput {
   historyFutureCount: number;
   clipboard: unknown | null;
   selection: Selection;
+  /**
+   * Whether CP detection is offered on this surface. Defaults to the build
+   * flag and the layout of the window this runs in; tests pass it.
+   */
+  cpDetectAvailable?: boolean;
+}
+
+function cpDetectAvailableHere(): boolean {
+  return isCpDetectSurfaceAvailable({
+    buildEnabled: isCpDetectBuildEnabled(),
+    phone: isPhoneLayout(),
+  });
 }
 
 export function getWorkspaceCapabilities(
@@ -278,13 +292,18 @@ export function getWorkspaceCapabilities(
           ? busyReason(input.status, t)
           : t('common:capability.openEditableCpBeforeImporting', 'Open an editable crease pattern before importing')
     ),
-    'file.detectCpImage': capability(
-      !isBusy,
-      t('common:capability.detectCpFromImage', 'Detect CP from Image...'),
-      isBusy
-        ? busyReason(input.status, t)
-        : t('common:capability.detectSquareCpFromImage', 'Detect a square crease pattern from an image')
-    ),
+    'file.detectCpImage': {
+      ...capability(
+        !isBusy,
+        t('common:capability.detectCpFromImage', 'Detect CP from Image...'),
+        isBusy
+          ? busyReason(input.status, t)
+          : t('common:capability.detectSquareCpFromImage', 'Detect a square crease pattern from an image')
+      ),
+      // Hidden, not disabled: a build without the runtime has nothing to offer,
+      // and a phone has no layout for the dialog.
+      visible: input.cpDetectAvailable ?? cpDetectAvailableHere(),
+    },
     'file.save': capability(
       (input.canSaveDesign || canSaveEditableCreasePattern) && !isBusy,
       t('common:capability.save', 'Save'),

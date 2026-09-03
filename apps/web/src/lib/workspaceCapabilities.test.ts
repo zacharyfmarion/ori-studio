@@ -30,6 +30,7 @@ function capabilities({
   historyFutureCount = 0,
   clipboard = null,
   selection = treeSelection,
+  cpDetectAvailable,
 }: {
   documentMode?: DocumentMode;
   activeEditingContext?: EditingContext;
@@ -55,6 +56,7 @@ function capabilities({
   historyFutureCount?: number;
   clipboard?: unknown | null;
   selection?: Selection;
+  cpDetectAvailable?: boolean;
 } = {}) {
   return getWorkspaceCapabilities({
     activeEditingContext,
@@ -81,6 +83,7 @@ function capabilities({
     historyFutureCount,
     clipboard,
     selection,
+    cpDetectAvailable,
   });
 }
 
@@ -97,6 +100,13 @@ describe('workspace capabilities', () => {
     expect(state['cp.build'].enabled).toBe(false);
     expect(state['cp.build'].reason).toBe('Add tree edges, then optimize before building the crease pattern');
     expect(getNextDocumentAction(state)).toBe('optimize.scale');
+  });
+
+  it('hides Detect CP from Image on a phone, and where the build does not carry it', () => {
+    const shown = capabilities({ cpDetectAvailable: true });
+    expect(shown['file.detectCpImage'].visible).toBe(true);
+    const hidden = capabilities({ cpDetectAvailable: false });
+    expect(hidden['file.detectCpImage'].visible).toBe(false);
   });
 
   it('enables optimization before CP build and build after optimization', () => {

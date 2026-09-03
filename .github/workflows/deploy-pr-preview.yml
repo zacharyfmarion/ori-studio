@@ -113,6 +113,9 @@ jobs:
 
       - name: Build web app
         run: npm run build:web
+        env:
+          # Previews carry CP detection too, reading the production registry.
+          VITE_CP_DETECT: '1'
 
       # Capture the immutable per-deployment host so the checks below test *this* upload.
       # The `pr-N` alias is a new hostname on a branch's first deploy and serves
@@ -146,6 +149,9 @@ jobs:
         run: |
           node scripts/share-smoke.mjs "${{ steps.deploy.outputs.url }}" \
             --alias https://pr-${{ github.event.pull_request.number }}.oristudio.pages.dev
+
+      - name: Verify model store
+        run: node scripts/models-smoke.mjs "${{ steps.deploy.outputs.url }}"
 
   # Fork PRs get a read-only `GITHUB_TOKEN` no matter what `permissions:` above asks for, so
   # posting the comment 403s. The only comment a fork could get is the "skipped, no secrets"

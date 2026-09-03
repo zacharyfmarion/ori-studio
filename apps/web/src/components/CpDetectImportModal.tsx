@@ -12,11 +12,14 @@ import { Crop, ImagePlus, Loader2, Play, Square, Upload, Wrench, X } from 'lucid
 import { CpDetectCropEditor } from './CpDetectCropEditor';
 import { sourceSizeForRectification } from './cpDetectCropLoupe';
 import { track } from '../analytics';
+import { proxy } from 'comlink';
+import { CpDetectModelLine } from './CpDetectModelLine';
+import { detectRuntimeProperties, loadDetectorModel, type DetectorModelState } from './cpDetectModelState';
+import { defaultCpDetectModelStore, formatModelSize, type CpDetectModelDownloadProgress } from '../lib/cpDetectModels';
 import { identityOf } from '../lib/objectIdentity';
 import {
   cpDetectCompilerReport,
   type CpDetectDecodeReport,
-  type CpDetectModelManifest,
   type CpDetectQuad,
   type CpDetectRecognizeResult,
   type CpDetectRectifiedImage,
@@ -247,7 +250,9 @@ export function CpDetectImportModal() {
   const [rectified, setRectified] = useState<CpDetectRectifiedImage | null>(null);
   const [recognition, setRecognition] = useState<CpDetectRecognizeResult | null>(null);
   const [phase, setPhase] = useState<SolvePhase>(NOT_ATTEMPTED);
-  const [modelManifest, setModelManifest] = useState<CpDetectModelManifest | null>(null);
+  const [model, setModel] = useState<DetectorModelState | null>(null);
+  const [modelProgress, setModelProgress] = useState<CpDetectModelDownloadProgress | null>(null);
+  const [modelUpdating, setModelUpdating] = useState(false);
   const [busy, setBusy] = useState<BusyState>(null);
   const [error, setError] = useState<string | null>(null);
   const [dropActive, setDropActive] = useState(false);
@@ -287,15 +292,18 @@ export function CpDetectImportModal() {
     return () => window.removeEventListener('ori-studio:detect-cp-image', onOpen);
   }, []);
 
+  // What the registry points at, what is installed, whether an update is on
+  // offer — read on open, before any image, so the dialog can say what a
+  // Detect will download. Nothing is fetched but the registry and a manifest.
   useEffect(() => {
-    if (!open || modelManifest) return;
+    if (!open || model) return;
     let cancelled = false;
     setBusy((current) => current ?? 'loading_model');
     setError(null);
     getCpDetectClient()
-      .then((client) => whileCpDetectClientAlive(client.verifyModelAssets()))
-      .then((manifest) => {
-        if (!cancelled) setModelManifest(manifest);
+      .then((client) => whileCpDetectClientAlive(loadDetectorModel(client)))
+      .then((state) => {
+        if (!cancelled) setModel(state);
       })
       .catch((caught) => {
         if (!cancelled) setError(cpDetectError(caught).message);
@@ -308,7 +316,37 @@ export function CpDetectImportModal() {
     return () => {
       cancelled = true;
     };
-  }, [modelManifest, open]);
+  }, [model, open]);
+
+  /**
+   * Take the offered update: install the newer version through the worker (so
+   * its session is warm), switch to it, and only then drop the old bytes — an
+   * interrupted update leaves the previous detector in place, never nothing.
+   */
+  const updateModel = useCallback(async () => {
+    if (!model?.update || modelUpdating) return;
+    const next = model.update;
+    const previous = model.active;
+    setModelUpdating(true);
+    setError(null);
+    try {
+      const client = await getCpDetectClient();
+      const manifest = await whileCpDetectClientAlive(
+        client.loadModel(
+          { model: next, manifestUrl: next.manifest_url },
+          proxy((progress: CpDetectModelDownloadProgress) => setModelProgress(progress))
+        )
+      );
+      setModel({ ...model, active: next, manifest, installed: true, update: null });
+      if (previous.id !== next.id) await defaultCpDetectModelStore().remove(previous.id);
+      track('cp detect model downloaded', { source: 'update' });
+    } catch (caught) {
+      setError(cpDetectError(caught).message);
+    } finally {
+      setModelUpdating(false);
+      setModelProgress(null);
+    }
+  }, [model, modelUpdating]);
 
   useEffect(() => {
     return () => {
@@ -325,9 +363,8 @@ export function CpDetectImportModal() {
    * source blob and a 1024x1024 rectified `ImageData` alive for the whole
    * session, for a dialog that is shut.
    *
-   * `modelManifest` deliberately survives: it is the expensive asset
-   * verification, and the effect above is keyed on its absence, so clearing it
-   * would re-verify on every open.
+   * `model` deliberately survives: it is the registry read, and the effect
+   * above is keyed on its absence, so clearing it would re-read on every open.
    */
   const resetSession = useCallback(() => {
     setSource((previous) => {
@@ -528,11 +565,12 @@ export function CpDetectImportModal() {
    * worth handing to the solver, or is it worth handing to the user?
    */
   const runDetection = useCallback(async () => {
-    if (!rectified) return;
+    if (!rectified || !model) return;
     setBusy('detecting');
     setError(null);
     setRecognition(null);
     setPhase(NOT_ATTEMPTED);
+    setModelProgress(null);
     // Image→CP funnel start. No image data or filename is ever sent.
     track('cp detect started');
     let recognized: CpDetectRecognizeResult;
@@ -542,19 +580,35 @@ export function CpDetectImportModal() {
       // only when the worker answers: a wasm trap or an OOM mid-inference would
       // otherwise leave this dialog on "Running model" with nothing ever ending
       // it. The solve below has its own transport and its own version of this.
+      //
+      // The first run on a device is also the download: the worker installs
+      // the model the registry named, reporting progress here, before its
+      // session exists.
       recognized = await whileCpDetectClientAlive(
-        client.recognizeRectifiedFold(rectified.image, {
-          decoderBackend: DETECT_DECODER_BACKEND,
-          junctionSource: 'dense-model',
-        })
+        client.recognizeRectifiedFold(
+          rectified.image,
+          {
+            decoderBackend: DETECT_DECODER_BACKEND,
+            junctionSource: 'dense-model',
+            model: model.active,
+            manifestUrl: model.active.manifest_url,
+          },
+          proxy((progress: CpDetectModelDownloadProgress) => setModelProgress(progress))
+        )
       );
       setRecognition(recognized);
-      track('cp detect completed', { succeeded: true });
+      if (recognized.runtime?.model_source === 'downloaded') {
+        setModel((current) => (current ? { ...current, installed: true } : current));
+        track('cp detect model downloaded', { source: 'first-run' });
+      }
+      track('cp detect completed', { succeeded: true, ...detectRuntimeProperties(recognized.runtime) });
     } catch (caught) {
       setError(cpDetectError(caught).message);
       track('cp detect completed', { succeeded: false });
       setBusy(null);
       return;
+    } finally {
+      setModelProgress(null);
     }
     const topology = candidateTopology(recognized);
     if (topology.blocked || topology.repairSites > 0) {
@@ -563,7 +617,7 @@ export function CpDetectImportModal() {
       return;
     }
     await solveRecognized(recognized);
-  }, [rectified, solveRecognized, source]);
+  }, [model, rectified, solveRecognized, source]);
 
   const topology = useMemo(
     () => (recognition ? candidateTopology(recognition) : null),
@@ -740,11 +794,11 @@ export function CpDetectImportModal() {
     (event: ReactDragEvent<HTMLDivElement>) => {
       event.preventDefault();
       setDropActive(false);
-      if (busy !== null || !modelManifest) return;
+      if (busy !== null || !model) return;
       const file = event.dataTransfer.files?.[0];
       if (file) void chooseDroppedImage(file);
     },
-    [busy, chooseDroppedImage, modelManifest]
+    [busy, chooseDroppedImage, model]
   );
 
   const report = recognition?.detectorReport ?? null;
@@ -766,9 +820,18 @@ export function CpDetectImportModal() {
   }, [phase, recognition]);
   const stage: ModalStage =
     busy === 'detecting' ? 'detecting' : recognition ? 'review' : source ? 'crop' : 'upload';
-  const canChooseImage = modelManifest !== null && busy === null;
+  const canChooseImage = model !== null && busy === null && !modelUpdating;
   // The solve has its own row, which names the stage rather than saying "busy".
-  const status = busy && busy !== 'solving' ? busyLabel(t, busy) : null;
+  const downloading =
+    busy === 'detecting' && modelProgress !== null && modelProgress.total > 0 && modelProgress.loaded < modelProgress.total;
+  const status = downloading
+    ? t('dialogs:cpDetectImport.busy.downloadingModel', 'Downloading the detector — {{loaded}} of {{total}}', {
+        loaded: formatModelSize(modelProgress.loaded),
+        total: formatModelSize(modelProgress.total),
+      })
+    : busy && busy !== 'solving'
+      ? busyLabel(t, busy)
+      : null;
   const togglePreviewOverlay = useCallback((key: PreviewOverlayKey) => {
     setPreviewOverlays((previous) => ({ ...previous, [key]: !previous[key] }));
   }, []);
@@ -812,6 +875,7 @@ export function CpDetectImportModal() {
               {t('dialogs:cpDetectImport.chooseImage', 'Choose Image')}
             </Button>
             <div className="cp-detect-modal__drop-hint">{t('dialogs:cpDetectImport.dropImageHere', 'Drop image here')}</div>
+            <CpDetectModelLine model={model} progress={modelProgress} updating={modelUpdating} onUpdate={() => void updateModel()} />
             {status && (
               <div className="cp-detect-modal__inline-status">
                 <Loader2 size={14} className="cp-detect-modal__spinner" />
@@ -833,6 +897,8 @@ export function CpDetectImportModal() {
                 {t('dialogs:cpDetectImport.detect', 'Detect')}
               </Button>
             </div>
+
+            <CpDetectModelLine model={model} progress={modelProgress} updating={modelUpdating} onUpdate={() => void updateModel()} />
 
             {/* No "Rectifying crop" row here: it is over in a blink and a row
                 that appears above the grid shoves the crop and the result down
@@ -987,9 +1053,9 @@ export function CpDetectImportModal() {
         )}
 
         {stage !== 'upload' &&
-          (modelManifest || rectificationWarnings.length > 0 || detectorWarnings.length > 0 || report) && (
+          (model || rectificationWarnings.length > 0 || detectorWarnings.length > 0 || report) && (
             <div className="cp-detect-modal__report">
-              {modelManifest && <span>{modelManifest.id}</span>}
+              {model && <span>{model.active.id}</span>}
               {report && (
                 <span>
                   {t('dialogs:cpDetectImport.report.counts', '{{vertices}} vertices, {{edges}} edges', {
