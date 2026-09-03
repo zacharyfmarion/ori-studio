@@ -297,6 +297,25 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
     );
   });
 
+  it('with an in-progress vertex drag (endpoint-level move)', () => {
+    const selection: CpSelectionStyle = {
+      selected: new Set([2]),
+      color: [0.1, 0.8, 0.3, 1],
+      widthMul: 2,
+    };
+    // One end of several creases, including both a `a` and a `b` slot and a
+    // crease that is also selected — the combination a real drag produces.
+    const move: CpTransformPreview = {
+      ids: new Set(),
+      endpoints: new Set([0, 3, 4, 2 * 2 + 1]),
+      matrix: translationMatrix({ x: -7.75, y: 4.5 }),
+    };
+    expectStrokesEqual(
+      cpSnapshotToScene(segmentsInput(), appearanceFor, DASH_PATTERNS, selection, move).strokes,
+      cpGeometryStrokesToScene(transport, appearanceFor, DASH_PATTERNS, selection, move).strokes
+    );
+  });
+
   describe('the direction hint, drawn as a second stroke', () => {
     const segmentCount = () => structured.crease_pattern.line_segments.length;
 
