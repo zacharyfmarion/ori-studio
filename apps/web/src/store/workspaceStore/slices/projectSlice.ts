@@ -2956,9 +2956,15 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       if (!draft) return false;
       try {
         const created = await createCpShare({ payload: draft.payload, title, author });
-        set({
-          oristudioCpShareDraft: { ...get().oristudioCpShareDraft!, url: created.url },
-        });
+        // Only the draft we started on gets the URL. `createCpShare` is a round trip,
+        // and Escape or the close button can land while it is in flight -- spreading
+        // the *current* draft back in resurrected a dismissed one as `{url}`, which is
+        // truthy, so the modal reopened with no `fold` and no `segments` to render and
+        // threw on the first `draft.segments.find` (ORI-STUDIO-9). The share itself
+        // succeeded either way; a dismissed dialog just does not come back.
+        if (get().oristudioCpShareDraft === draft) {
+          set({ oristudioCpShareDraft: { ...draft, url: created.url } });
+        }
         if (author) rememberAuthor(author);
         // The published link and its geometry are never sent — only that a share
         // was created, a bucketed size, and whether it was titled/attributed.
