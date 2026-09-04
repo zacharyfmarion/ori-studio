@@ -23,7 +23,8 @@ Oriedita corpora.
 ```text
 $CP_DETECT_CURATED_CORPUS_DIR/
   <slug>/
-    source.png       the exact file given to the detect dialog
+    source.<ext>     the exact file given to the detect dialog, original bytes
+                     and format: source.png, source.jpg, source.webp
     detected.fold    what the detector produced, exported on accepting it
     topology.fold    the corrected pattern before solving: the decoder's truth,
                      and the solver's ground-truth input
@@ -67,9 +68,9 @@ topology, and becomes a solved case the day it can be solved.
 
 ### Producing `truth.fold`
 
-1. In the web app (or desktop), detect from `source.png` with the default
-   settings. Keep `source.png` as given, uncropped: rectification is part of
-   what is under test.
+1. In the web app (or desktop), detect from the source image with the default
+   settings. Keep it as given, uncropped and unconverted: rectification is
+   part of what is under test.
 2. Accept the detection into the document and File ▸ Export FOLD… to
    `detected.fold`, before touching anything.
 3. Review & Fix, then repair by hand until the topology is what the design
