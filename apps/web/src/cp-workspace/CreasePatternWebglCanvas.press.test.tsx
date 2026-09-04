@@ -2,6 +2,8 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cpSurfacePress } from './picking/cpSurfacePressRegistry';
+import { cpTransformPreviewStore } from './cpTransformPreviewStore';
+import type { ToolCommit } from './tools/types';
 import type { CreasePatternWebglCanvasProps } from './CreasePatternWebglCanvas';
 
 // Effects only flush inside `act` when React knows it is in a test environment,
@@ -351,5 +353,205 @@ describe('the canvas press pipeline the overlay hands presses back to', () => {
     // be taken by neither layer.
     mount();
     expect(cpSurfacePress()?.claimsPress(pressAt(clientOf(100, 104)))).toBe(true);
+  });
+});
+
+
+/**
+ * Move Vertex, at the wiring level. Its three rules all live in the pointer
+ * effect and none of them are reachable from a unit test of `dragVertexTool`,
+ * which never learns whether there was a vertex under the press at all.
+ *
+ * The cancel case is here because it shipped broken once: `feedTool`'s
+ * `kind === 'cancel'` arm returns before the drag-vertex block below it, so a
+ * cancelled gesture left the moved creases stranded at the dragged position with
+ * the document unchanged. `pointercancel` is routine on touch — iOS raises one
+ * whenever the system claims a touch — so this is a real state, not a corner.
+ */
+describe('the Move Vertex tool', () => {
+  /** A right angle meeting at (100, 100), plus its derived vertex dots. */
+  const JUNCTION = [
+    { a: { x: 100, y: 100 }, b: { x: 0, y: 100 }, color: 'Red1' },
+    { a: { x: 100, y: 100 }, b: { x: 100, y: 0 }, color: 'Red1' },
+  ];
+  const VERTICES = [
+    { x: 100, y: 100 },
+    { x: 0, y: 100 },
+    { x: 100, y: 0 },
+  ];
+
+  function mountVertexTool(onToolCommit: (commit: ToolCommit) => void = noop): HTMLCanvasElement {
+    act(() =>
+      root?.render(
+        <CreasePatternWebglCanvas
+          {...props()}
+          lineSegments={JUNCTION}
+          vertices={VERTICES}
+          activeToolInputMode="drag-vertex"
+          activeToolClickAction={null}
+          activeToolOperationId="VertexMove"
+          onToolCommit={onToolCommit}
+        />
+      )
+    );
+    return container!.querySelector('canvas')!;
+  }
+
+  /** Press, drag through one sample, release — the whole gesture. */
+  function drag(
+    canvas: HTMLCanvasElement,
+    from: { clientX: number; clientY: number },
+    to: { clientX: number; clientY: number },
+    end: 'pointerup' | 'pointercancel' = 'pointerup'
+  ): void {
+    // The canvas captures the pointer; jsdom has no active pointer to capture.
+    canvas.setPointerCapture = () => {};
+    canvas.releasePointerCapture = () => {};
+    canvas.hasPointerCapture = () => true;
+    act(() => {
+      canvas.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          pointerId: 1, pointerType: 'mouse', isPrimary: true, button: 0, buttons: 1, ...from,
+        })
+      );
+      canvas.dispatchEvent(
+        new PointerEvent('pointermove', { pointerId: 1, pointerType: 'mouse', buttons: 1, ...to })
+      );
+      canvas.dispatchEvent(
+        new PointerEvent(end, {
+          pointerId: 1, pointerType: 'mouse', isPrimary: true, button: 0, buttons: 0, ...to,
+        })
+      );
+    });
+  }
+
+  afterEach(() => cpTransformPreviewStore.set(null));
+
+  it('commits [vertex, destination] for a drag that starts on a vertex', () => {
+    const commits: ToolCommit[] = [];
+    const canvas = mountVertexTool((commit) => commits.push(commit));
+
+    drag(canvas, clientOf(100, 100), clientOf(140, 130));
+
+    expect(commits).toHaveLength(1);
+    expect(commits[0].points).toEqual([
+      { x: 100, y: 100 },
+      { x: 140, y: 130 },
+    ]);
+  });
+
+  it('anchors on the vertex, not on where inside its hit radius the press landed', () => {
+    // The rule a unit test of the engine cannot reach: the surface substitutes
+    // the resolved vertex for the press point. Pressing 3px off the junction must
+    // still pivot the star on the junction.
+    const commits: ToolCommit[] = [];
+    const canvas = mountVertexTool((commit) => commits.push(commit));
+
+    drag(canvas, clientOf(103, 100), clientOf(140, 130));
+
+    expect(commits[0]?.points?.[0]).toEqual({ x: 100, y: 100 });
+  });
+
+  it('starts nothing when the press misses every vertex', () => {
+    // And, critically, does not fall through to the marquee — which would clear
+    // the selection every time you reached for a junction and missed.
+    const commits: ToolCommit[] = [];
+    const selections: unknown[] = [];
+    act(() =>
+      root?.render(
+        <CreasePatternWebglCanvas
+          {...props()}
+          lineSegments={JUNCTION}
+          vertices={VERTICES}
+          activeToolInputMode="drag-vertex"
+          activeToolClickAction={null}
+          activeToolOperationId="VertexMove"
+          onToolCommit={(commit) => commits.push(commit)}
+          onSelect={(hit) => selections.push(hit)}
+          onBoxSelect={(...args) => selections.push(args)}
+        />
+      )
+    );
+    const canvas = container!.querySelector('canvas')!;
+
+    drag(canvas, clientOf(40, 40), clientOf(80, 70));
+
+    expect(commits).toEqual([]);
+    expect(selections).toEqual([]);
+  });
+
+  it('commits nothing for a click in place, and leaves no preview behind', () => {
+    const commits: ToolCommit[] = [];
+    const canvas = mountVertexTool((commit) => commits.push(commit));
+
+    drag(canvas, clientOf(100, 100), clientOf(100, 100));
+
+    expect(commits).toEqual([]);
+    expect(cpTransformPreviewStore.get()).toBeNull();
+  });
+
+  it('clears the live preview when the gesture is cancelled', () => {
+    const commits: ToolCommit[] = [];
+    const canvas = mountVertexTool((commit) => commits.push(commit));
+
+    drag(canvas, clientOf(100, 100), clientOf(140, 130), 'pointercancel');
+
+    expect(commits).toEqual([]);
+    // The regression: the moved creases must not stay drawn where the cancelled
+    // drag left them, because the document never changed.
+    expect(cpTransformPreviewStore.get()).toBeNull();
+  });
+
+  it('moves only the endpoints on the grabbed vertex, not whole creases', () => {
+    // Read off the live channel mid-drag, which is what both stroke builders
+    // consume. `endpointKey` is `segmentIndex * 2 + (0 for a, 1 for b)`, so both
+    // creases contribute their `a` end and neither contributes its `b`.
+    const canvas = mountVertexTool();
+    canvas.setPointerCapture = () => {};
+    canvas.hasPointerCapture = () => true;
+    act(() => {
+      canvas.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          pointerId: 1, pointerType: 'mouse', isPrimary: true, button: 0, buttons: 1,
+          ...clientOf(100, 100),
+        })
+      );
+      canvas.dispatchEvent(
+        new PointerEvent('pointermove', {
+          pointerId: 1, pointerType: 'mouse', buttons: 1, ...clientOf(140, 130),
+        })
+      );
+    });
+
+    const preview = cpTransformPreviewStore.get();
+    expect([...(preview?.ids ?? [])]).toEqual([]);
+    expect([...(preview?.endpoints ?? [])].sort((a, b) => a - b)).toEqual([0, 2]);
+    expect(preview?.matrix).toEqual([1, 0, 0, 1, 40, 30]);
+  });
+
+  it('offers a grab cursor over a vertex, and only over one', () => {
+    vi.useFakeTimers();
+    try {
+      const canvas = mountVertexTool();
+      const hover = (point: { clientX: number; clientY: number }) => {
+        act(() => {
+          canvas.dispatchEvent(
+            new PointerEvent('pointermove', { pointerId: 1, pointerType: 'mouse', ...point })
+          );
+          // The probe coalesces onto an animation frame, like the crease one.
+          vi.advanceTimersByTime(32);
+        });
+      };
+
+      hover(clientOf(100, 100));
+      expect(canvas.style.cursor).toBe('grab');
+
+      // On the crease but well away from either of its ends: draggable is about
+      // the junction, not the line.
+      hover(clientOf(50, 100));
+      expect(canvas.style.cursor).toBe('');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

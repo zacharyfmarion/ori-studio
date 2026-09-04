@@ -67,6 +67,14 @@ export interface CpCanvasCursorState {
    * tool owns its own cursor and hover preview, so this stays false under one.
    */
   creaseHovered?: boolean;
+  /**
+   * The pointer is over a vertex the Move Vertex tool would grab.
+   *
+   * Its own flag rather than folding into {@link creaseHovered}, because the two
+   * describe different presses — a crease under the cursor gets selected, a
+   * vertex under this tool gets dragged — and they take the glyphs that say so.
+   */
+  vertexGrabbable?: boolean;
 }
 
 /**
@@ -78,6 +86,10 @@ export function cpCanvasCursor(
   if (state.panDragging || state.foldedOrbitDragging) return 'grabbing';
   if (state.panToolActive || state.panModifierHeld) return 'grab';
   if (state.foldedOrbitHovered) return 'grab';
+  // Below pan and orbit for the same reason the crease hover is: a Cmd-drag pans
+  // whatever is under the cursor. Above the crease hover because it is the more
+  // specific claim — with Move Vertex armed, a press on a vertex drags it.
+  if (state.vertexGrabbable) return 'grab';
   // Last, so every pan and orbit affordance outranks it: those describe what a
   // press will *do*, and a crease under the cursor does not change that a
   // Cmd-drag pans.

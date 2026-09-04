@@ -22,6 +22,8 @@ export function supersetFeatureLabel(t: TFunction, id: SupersetFeatureId): strin
       return t('dialogs:exportLoss.feature.richText', 'Rich text formatting');
     case 'inlineSimulations':
       return t('dialogs:exportLoss.feature.inlineSimulations', 'Simulation windows');
+    case 'suppressionRegions':
+      return t('dialogs:exportLoss.feature.suppressionRegions', 'Check-suppression regions');
     case 'symmetry':
       return t('dialogs:exportLoss.feature.symmetry', 'Mirror symmetry');
     case 'foldAngles':

@@ -201,6 +201,26 @@ describe('CpFoldAngleLayer', () => {
       expect(badge.style.transform).toContain('translate(10px, 4px)');
     });
 
+    it('follows one end of a crease through a vertex drag', () => {
+      // A vertex drag moves the endpoints on the junction and leaves the far
+      // ends put, so unlike every other gesture here the two ends of one crease
+      // get different answers. Crease 1 runs (0,10)->(200,10); dragging its `a`
+      // end down by 100 puts the midpoint at (100, 60).
+      render([crease('Red1', 10, deg(90)), crease('Blue2', 20, deg(45))]);
+
+      act(() => {
+        cpTransformPreviewStore.set({
+          ids: new Set(),
+          endpoints: new Set([0]),
+          matrix: translationMatrix({ x: 0, y: 100 }),
+        });
+      });
+
+      expect(transforms()[0]).toContain('translate(100px, 60px)');
+      // Crease 2 has no endpoint in the gesture and does not move.
+      expect(transforms()[1]).toContain('translate(100px, 20px)');
+    });
+
     it('puts the badge back when the transform is cleared', () => {
       render([crease('Red1', 10, deg(90))]);
       setMove([1], translationMatrix({ x: 0, y: 60 }));

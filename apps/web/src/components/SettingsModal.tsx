@@ -22,6 +22,7 @@ import {
 import { OrieditaImportDialog } from './settings/OrieditaImportDialog';
 import { SettingsToggleRow } from './settings/SettingsToggleRow';
 import { UpdatesSection } from './settings/UpdatesSection';
+import { ModelsSection } from './settings/ModelsSection';
 import { ANALYTICS_EVENTS, track, useAnalytics } from '../analytics';
 import { detectSystemLocale, SUPPORTED_LOCALES, SYSTEM_LOCALE } from '../i18n/locales';
 import {
@@ -240,6 +241,7 @@ function GeneralTab() {
         />
       </section>
       <UpdatesSection />
+      <ModelsSection />
       <section className="settings-section">
         <h3 className="settings-section__title">
           {t('dialogs:settings.general.privacy', 'Privacy')}

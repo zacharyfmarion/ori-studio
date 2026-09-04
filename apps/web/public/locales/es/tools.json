@@ -82,6 +82,9 @@
     "foldDirectionValleyDescription": "Recordar que estos pliegues sin decidir se plegaban como valle",
     "from": "Desde",
     "index": "Índice",
+    "insertVertex": {
+      "noCreaseThroughPoint": "Ningún pliegue pasa por este punto, así que no hay ningún vértice que insertar. Apunta a una intersección o a un punto sobre un pliegue."
+    },
     "instructions": "Instrucciones",
     "left": "Izquierda",
     "leftSegmentRatio": "Proporción del segmento izquierdo",

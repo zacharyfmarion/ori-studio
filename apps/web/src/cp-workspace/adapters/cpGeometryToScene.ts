@@ -65,18 +65,25 @@ export function cpGeometryStrokesToScene(
   const hintAppearanceCache = new Map<number, CpLineAppearance>();
 
   const m = move?.matrix;
+  // See `cpSnapshotToScene`: whole segments and individual endpoints ride the
+  // same matrix, so the two sets are asked separately per end.
+  const movedIds = move?.ids;
+  const movedEnds = move?.endpoints;
 
   for (let i = 0; i < count; i++) {
     const e = i * 4;
-    const moved = m !== undefined && move !== undefined && move.ids.has(i + 1);
-    if (moved) {
+    const movesWhole = movedIds !== undefined && movedIds.has(i + 1);
+    if (m !== undefined && (movesWhole || movedEnds?.has(i * 2) === true)) {
       a[i * 2] = m[0] * endpoints[e] + m[1] * endpoints[e + 1] + m[4];
       a[i * 2 + 1] = m[2] * endpoints[e] + m[3] * endpoints[e + 1] + m[5];
-      b[i * 2] = m[0] * endpoints[e + 2] + m[1] * endpoints[e + 3] + m[4];
-      b[i * 2 + 1] = m[2] * endpoints[e + 2] + m[3] * endpoints[e + 3] + m[5];
     } else {
       a[i * 2] = endpoints[e];
       a[i * 2 + 1] = endpoints[e + 1];
+    }
+    if (m !== undefined && (movesWhole || movedEnds?.has(i * 2 + 1) === true)) {
+      b[i * 2] = m[0] * endpoints[e + 2] + m[1] * endpoints[e + 3] + m[4];
+      b[i * 2 + 1] = m[2] * endpoints[e + 2] + m[3] * endpoints[e + 3] + m[5];
+    } else {
       b[i * 2] = endpoints[e + 2];
       b[i * 2 + 1] = endpoints[e + 3];
     }

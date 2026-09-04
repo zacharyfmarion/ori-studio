@@ -16,6 +16,11 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 # Native desktop runs the fold with rayon-parallel condition generation.
 oristudio-cp = { workspace = true, features = ["parallel"] }
+# Native CP detection: the decoder, the exact solver, and the FOLD reader the
+# solve input comes from — the same crates the wasm worker wraps.
+oristudio-cp-detect = { path = "../../../crates/oristudio-cp-detect" }
+oristudio-cp-compiler = { path = "../../../crates/oristudio-cp-compiler" }
+treemaker-fold = { path = "../../../crates/treemaker-fold" }
 serde.workspace = true
 serde_json.workspace = true
 tauri = { version = "2", features = [] }
@@ -35,6 +40,17 @@ tauri-plugin-process = "2"
 # then race over the window-state plugin's single state file.
 [target.'cfg(any(target_os = "windows", target_os = "linux"))'.dependencies]
 tauri-plugin-single-instance = "2"
+
+# ONNX Runtime for native detection, statically linked from pyke's prebuilt
+# binaries (fetched by `ort-sys` at build time — a proxied shell may need
+# `HTTPS_PROXY` unset for that download). CoreML on macOS uses the GPU and
+# neural engine; elsewhere the CPU provider runs on all cores. `DirectML` on
+# Windows is the next step once it has been tried on a Windows machine.
+[target.'cfg(target_os = "macos")'.dependencies]
+ort = { version = "=2.0.0-rc.13", features = ["coreml"] }
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+ort = { version = "=2.0.0-rc.13" }
 
 [features]
 default = ["custom-protocol"]

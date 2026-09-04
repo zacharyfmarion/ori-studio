@@ -85,6 +85,7 @@ import {
 } from './tools/transformGhost';
 import type { CpGeometryTransport } from '../engine/oristudioCpGeometry';
 import type { CpImage } from './images/cpImage';
+import type { CpSuppressionRegion } from './annotations/suppressionRegion';
 import {
   cpContentBounds,
   cpPlacedObjectBounds,
@@ -114,6 +115,7 @@ import {
 import {
   cpVertexId,
   orieditaGridLinesForModelBounds,
+  type CpSnapTarget,
   type OristudioCpFoldAngleDisplay,
   type OristudioCpLineStyle,
   getOrieditaGridBasis,
@@ -121,6 +123,7 @@ import {
 import { toolEngineFor } from './tools/registry';
 import {
   cpPointerReleaseRoute,
+  toolModeArmsDrawStart,
   toolModeSnapsDrawPoint,
   type ActiveToolMode,
 } from './tools/pointerRelease';
@@ -128,6 +131,7 @@ import { createToolRuntime, type ToolRuntime } from './tools/runtime';
 import { createStepSequenceTool } from './tools/stepSequenceTool';
 import { createLinePickTool } from './tools/linePickTool';
 import type { ToolCommit, ToolPreviewSegment } from './tools/types';
+import { endpointKeys, vertexEndpointsAt } from './tools/vertexEndpoints';
 import {
   CP_LINE_HIT_MIN_CSS,
   CP_LINE_HIT_RATIO,
@@ -177,6 +181,8 @@ const MAX_DPR = 2;
 
 /** Stable empty image list so the upload effect doesn't re-run on every render. */
 const EMPTY_IMAGES: readonly CpImage[] = [];
+/** The same, for regions — an absent prop must not look like a changed one. */
+const EMPTY_REGIONS: readonly CpSuppressionRegion[] = [];
 /**
  * The editable SVG canvas is transparent, so the colour behind it is the panel
  * body background (`--bg-primary`). Clearing the WebGL surface to the same
@@ -458,6 +464,17 @@ export interface CreasePatternWebglCanvasProps {
    */
   images?: readonly CpImage[];
   /**
+   * Check-suppression regions, drawn above the grid and below the reference
+   * images, so a region reads as backdrop to everything it contains.
+   *
+   * Drawn in GL rather than in DOM for one reason: every DOM layer this surface
+   * carries sits above the whole canvas, so nothing placed there can be *behind*
+   * the creases — and a wash painted over the creases would recolour the thing
+   * the user is trying to read. Their chips are DOM (`CpRegionLayer`); only the
+   * fill is here.
+   */
+  regions?: readonly CpSuppressionRegion[];
+  /**
    * Boxes that live on their own DOM layer rather than being drawn here — text
    * annotations and inline simulation windows — folded into the framing bounds
    * so opening a document and fitting to view include them. Model coords.
@@ -656,7 +673,7 @@ export interface CreasePatternWebglCanvasProps {
     point: ModelPoint;
     snapped: boolean;
     /** What the point locked onto when it snapped; reported via {@link onToolSnapKind}. */
-    kind?: 'grid' | 'vertex' | 'point' | 'line';
+    kind?: CpSnapTarget['kind'];
   };
   /**
    * Snap a raw model draw point onto nearby geometry incl. creases (for crease
@@ -699,7 +716,7 @@ export interface CreasePatternWebglCanvasProps {
    * extra geometry scan. The measure tool uses it to say whether an endpoint is a
    * real vertex or a point that merely looks like one.
    */
-  onToolSnapKind: (kind: 'grid' | 'vertex' | 'point' | 'line' | null) => void;
+  onToolSnapKind: (kind: CpSnapTarget['kind'] | null) => void;
   /**
    * Kernel-computed candidate geometry for the active sequence tool -- what the
    * tool *would create*. Stroked in {@link toolPreviewColor}.
@@ -843,6 +860,7 @@ export function CreasePatternWebglCanvas({
   lineSegments,
   geometry,
   images,
+  regions,
   overlayBoxes,
   framingKey,
   modelToSvg,
@@ -947,6 +965,18 @@ export function CreasePatternWebglCanvas({
    */
   const [creaseHovered, setCreaseHovered] = useState(false);
   const creaseHoveredRef = useRef(false);
+  /**
+   * The vertex the Move Vertex tool would grab, as an index into `vertices`, or
+   * null.
+   *
+   * Same shape and same reasoning as `creaseHovered`: written from a pointer
+   * handler and mirrored in a ref, so it only re-renders when the answer flips —
+   * which is when the pointer crosses a vertex's hit radius, not every sample.
+   * The re-render is what drives the *cursor*; the highlighted dot itself is
+   * uploaded imperatively, so it lands on the frame the pointer moved.
+   */
+  const [grabbableVertex, setGrabbableVertex] = useState<number | null>(null);
+  const grabbableVertexRef = useRef<number | null>(null);
   // Cmd held offers a grab before the press, so the pan affordance is visible
   // rather than something you have to already know about.
   const panModifierHeld = usePanModifierHeld();
@@ -957,7 +987,9 @@ export function CreasePatternWebglCanvas({
   const buildStrokesRef = useRef<
     ((move?: CpTransformPreview, pickedLineIds?: readonly number[]) => StrokeGeometry) | null
   >(null);
-  const buildPointsRef = useRef<((move?: CpTransformPreview) => PointGeometry) | null>(null);
+  const buildPointsRef = useRef<
+    ((move?: CpTransformPreview, grabbableVertexIdx?: number | null) => PointGeometry) | null
+  >(null);
   // In-progress crease transform (Move / Copy): which variant is previewing, and
   // for a copy the ghost buffer plus the selection it snapshotted. Refs, not state:
   // a gesture updates these every pointer move and must not re-render React.
@@ -1183,8 +1215,7 @@ export function CreasePatternWebglCanvas({
   );
 
   // Spatial indices for click hit-testing. Points are indexed as zero-length
-  // segments so the same distance query applies (id = index + 1). Vertices are
-  // derived and not selectable, so they get no index.
+  // segments so the same distance query applies (id = index + 1).
   const hitIndex = useMemo(
     () => new LineHitIndex(lineSegments.map((s, i) => ({ id: i + 1, a: s.a, b: s.b }))),
     [lineSegments]
@@ -1192,6 +1223,15 @@ export function CreasePatternWebglCanvas({
   const pointIndex = useMemo(
     () => new LineHitIndex(points.map((p, i) => ({ id: i + 1, a: p, b: p }))),
     [points]
+  );
+  // Vertices are still not *selectable* — nothing puts one in the selection — but
+  // Move Vertex makes them draggable, so they need an index of their own. Built
+  // over the same derived dots the canvas draws, which is what makes the rule
+  // "you can grab what you can see" rather than a second opinion about where the
+  // junctions are.
+  const vertexIndex = useMemo(
+    () => new LineHitIndex(vertices.map((v, i) => ({ id: i + 1, a: v, b: v }))),
+    [vertices]
   );
   // Folded-figure pick boxes (SVG user coords) for cmd-drag move, in draw order.
   const foldedBounds = useMemo<FoldedFigureBounds[]>(
@@ -1303,7 +1343,7 @@ export function CreasePatternWebglCanvas({
   // through `move.matrix`; real points and circles do not move, matching the kernel
   // ops, which transform line segments only.
   const buildPoints = useCallback(
-    (move?: CpTransformPreview): PointGeometry => {
+    (move?: CpTransformPreview, grabbableVertexIdx?: number | null): PointGeometry => {
       const movedVertices =
         move === undefined
           ? vertices
@@ -1318,6 +1358,11 @@ export function CreasePatternWebglCanvas({
         {
           pointIdx: new Set(selectedPointIds.map((id) => id - 1)),
           circleIdx: new Set(selectedCircleIds.map((id) => id - 1)),
+          // The Move Vertex grab target. Passed in by the imperative caller for
+          // the same reason `buildStrokes` takes its picked ids that way — this
+          // runs on the render path, where a ref read would be a torn value.
+          vertexIdx:
+            grabbableVertexIdx == null ? undefined : new Set([grabbableVertexIdx]),
           color: readCssVarColor(document.documentElement, SELECTED_COLOR_VAR, SELECTED_FALLBACK),
         }
       );
@@ -1375,6 +1420,7 @@ export function CreasePatternWebglCanvas({
     pointSize,
     hitIndex,
     pointIndex,
+    vertexIndex,
     lineSegments,
     points,
     vertices,
@@ -1893,6 +1939,55 @@ export function CreasePatternWebglCanvas({
     };
 
     /**
+     * The vertex under a client point that Move Vertex would grab, as an index
+     * into `vertices` — or null.
+     *
+     * Deliberately *not* `resolveDrawPoint(...).kind === 'vertex'`, which is close
+     * but wrong twice: it is gated on the `snapToVertices` viewport setting, so
+     * the tool would stop working when snapping is off, and it also matches the
+     * four paper corners, which have no creases on them in an empty document.
+     * This asks the dots the canvas actually drew.
+     */
+    const vertexGrabAt = (clientX: number, clientY: number): number | null => {
+      const m = clientToModel(clientX, clientY);
+      if (!m) return null;
+      const id = liveRef.current.vertexIndex.query(m.x, m.y, pointHitTolerance());
+      return id > 0 ? id - 1 : null;
+    };
+    /**
+     * Mark the grab target: the cursor (via React state, which flips rarely) and
+     * the highlighted dot (uploaded here, so it lands on this frame).
+     */
+    const applyVertexGrab = (next: number | null) => {
+      if (grabbableVertexRef.current === next) return;
+      grabbableVertexRef.current = next;
+      setGrabbableVertex(next);
+      const renderer = rendererRef.current;
+      if (renderer) {
+        renderer.setPoints(liveRef.current.buildPoints(undefined, next));
+        renderNow();
+      }
+    };
+    // Coalesced per frame for the same reason `probeCreaseHover` is: a high-rate
+    // pointer reports several times per frame and this is a spatial query.
+    let vertexHoverFrame = 0;
+    let vertexHoverAt: { x: number; y: number } | null = null;
+    const probeVertexGrab = (clientX: number, clientY: number) => {
+      vertexHoverAt = { x: clientX, y: clientY };
+      if (vertexHoverFrame) return;
+      vertexHoverFrame = requestAnimationFrame(() => {
+        vertexHoverFrame = 0;
+        if (vertexHoverAt) applyVertexGrab(vertexGrabAt(vertexHoverAt.x, vertexHoverAt.y));
+      });
+    };
+    const clearVertexGrab = () => {
+      if (vertexHoverFrame) cancelAnimationFrame(vertexHoverFrame);
+      vertexHoverFrame = 0;
+      vertexHoverAt = null;
+      applyVertexGrab(null);
+    };
+
+    /**
      * Whether a press here turns the focused figure.
      *
      * Answered in user space and returning only a verdict, because the point the
@@ -2092,7 +2187,7 @@ export function CreasePatternWebglCanvas({
      * commit endpoint come from, which `feedTool` handles.
      */
     const drawRuntime = (): ToolRuntime | null => {
-      if (!toolModeSnapsDrawPoint(liveRef.current.activeToolInputMode)) return toolRuntime;
+      if (!toolModeArmsDrawStart(liveRef.current.activeToolInputMode)) return toolRuntime;
       armedDrawRuntimeRef.current ??= createToolRuntime(toolEngineFor('drag-line'));
       return armedDrawRuntimeRef.current;
     };
@@ -2161,6 +2256,15 @@ export function CreasePatternWebglCanvas({
         liveRef.current.onToolPreviewInput([], []);
       }
     };
+    /**
+     * The Move Vertex gesture's live state: the grabbed vertex and the crease
+     * endpoints sitting on it, resolved once at press time.
+     *
+     * Once per gesture rather than per sample, which is what keeps this the same
+     * cost as the selection move-drag: a pointer move only builds a new matrix.
+     */
+    let vertexDrag: { anchor: ModelPoint; endpoints: ReadonlySet<number> } | null = null;
+    const NO_LINE_IDS: ReadonlySet<number> = new Set();
     const feedTool = (kind: 'down' | 'move' | 'up' | 'cancel', clientX: number, clientY: number) => {
       const runtime = drawRuntime();
       if (!runtime) return;
@@ -2178,6 +2282,12 @@ export function CreasePatternWebglCanvas({
         setToolPreview(null);
         if (kernelPreviewed) publishAnglePreview(undefined, { x: 0, y: 0 });
         if (snaps) syncArmedDrawPoint(out.livePoints, null);
+        // Before the early return, not after the resolve below: a cancel carries
+        // no cursor to resolve. Leaving it to the drag-vertex block further down
+        // stranded the moved creases at the dragged position with the document
+        // unchanged — which a `pointercancel` makes routine, since iOS raises one
+        // whenever the system claims a touch.
+        if (mode === 'drag-vertex') liveRef.current.clearTransformPreview();
         renderNow();
         return;
       }
@@ -2186,6 +2296,15 @@ export function CreasePatternWebglCanvas({
       const resolved = snaps
         ? liveRef.current.resolveDrawPoint(raw, snapTolerance())
         : { point: raw, snapped: false };
+      // Move Vertex anchors on the *vertex*, not on wherever inside its hit radius
+      // the press landed — and not on `resolveDrawPoint`'s answer either, which
+      // would happily prefer a nearer grid point and pivot the whole star around a
+      // place no crease ends. Every later phase keeps the snapped cursor, so the
+      // engine's click-vs-drag test still compares snapped to snapped.
+      const point =
+        mode === 'drag-vertex' && kind === 'down' && vertexDrag
+          ? vertexDrag.anchor
+          : resolved.point;
       // Grid-restricted draw: an endpoint must land on a snapped grid/vertex point.
       // A drag that releases off-target is dropped, as upstream's release does. A
       // click-to-place draw instead ignores the miss and stays armed — losing the
@@ -2200,10 +2319,34 @@ export function CreasePatternWebglCanvas({
       }
       const out = runtime.feed({
         kind,
-        point: resolved.point,
+        point,
         tolerance: modelToleranceOf(CLICK_MOVE_THRESHOLD),
         viewTransform: liveRef.current.activeToolModelAlignedBox ? null : currentView(),
       });
+      if (mode === 'drag-vertex') {
+        // The real strokes move, exactly as the selection move-drag moves whole
+        // ones — no ghost, and the originals leave with them. Only the moved
+        // endpoints follow, through the transform channel's `endpoints` set.
+        if (vertexDrag && kind === 'move') {
+          const move = {
+            ids: NO_LINE_IDS,
+            endpoints: vertexDrag.endpoints,
+            matrix: translationMatrix({
+              x: resolved.point.x - vertexDrag.anchor.x,
+              y: resolved.point.y - vertexDrag.anchor.y,
+            }),
+          };
+          transformActiveRef.current = 'move';
+          renderer.setStrokes(liveRef.current.buildStrokes(move));
+          renderer.setPoints(liveRef.current.buildPoints(move));
+          cpTransformPreviewStore.set(move);
+        } else if (kind === 'up' && !out.commit) {
+          // A click in place: put the strokes back. A *commit* leaves them where
+          // the cursor left them, so the creases do not snap home for a frame
+          // before the document lands. (`cancel` returned above.)
+          liveRef.current.clearTransformPreview();
+        }
+      }
       const segment = out.preview?.segments[0];
       if (kernelPreviewed) publishAnglePreview(segment, raw);
       else setToolPreview(out.preview?.segments);
@@ -3168,6 +3311,26 @@ export function CreasePatternWebglCanvas({
         // here, so any press that lands here is on empty space.
         e.preventDefault();
         textPressStarted = true;
+      } else if (toolMode === 'drag-vertex') {
+        // Move Vertex: the press only starts something when there is a vertex
+        // under it. A miss starts *nothing* — deliberately not falling through to
+        // the marquee, which would wipe the selection every time you reached for a
+        // junction and missed.
+        const idx = vertexGrabAt(e.clientX, e.clientY);
+        const anchor = idx === null ? null : liveRef.current.vertices[idx];
+        if (anchor) {
+          e.preventDefault();
+          // Resolved against the same document the strokes were built from, so the
+          // preview moves exactly the endpoints the commit will.
+          vertexDrag = {
+            anchor,
+            endpoints: endpointKeys(vertexEndpointsAt(liveRef.current.lineSegments, anchor)),
+          };
+          drawing = true;
+          dragShift = e.shiftKey;
+          toolRuntime = createToolRuntime(toolEngineFor('drag-vertex'));
+          feedTool('down', e.clientX, e.clientY);
+        }
       } else if (toolMode) {
         // A drag draw tool is active: plain drag draws instead of selecting.
         e.preventDefault();
@@ -3185,7 +3348,7 @@ export function CreasePatternWebglCanvas({
           dragShift = e.shiftKey;
           // The crease-draw tools run on a persistent runtime (see drawRuntime); the
           // others open a fresh engine per gesture.
-          if (!toolModeSnapsDrawPoint(toolMode)) {
+          if (!toolModeArmsDrawStart(toolMode)) {
             toolRuntime = createToolRuntime(toolEngineFor(toolMode));
           }
           feedTool('down', e.clientX, e.clientY);
@@ -3254,6 +3417,14 @@ export function CreasePatternWebglCanvas({
         } else {
           clearCreaseHover();
         }
+        // Move Vertex's own affordance: the grab target lights up and the cursor
+        // says it can be dragged, so a junction reads as grabbable before the
+        // press that would otherwise silently do nothing.
+        if (liveRef.current.activeToolInputMode === 'drag-vertex' && !selecting) {
+          probeVertexGrab(e.clientX, e.clientY);
+        } else {
+          clearVertexGrab();
+        }
       }
       if (orbiting) {
         // The pointer is captured, so a drag that leaves the figure keeps
@@ -3295,7 +3466,7 @@ export function CreasePatternWebglCanvas({
         // Hover with an entity-pick tool active: highlight the crease under cursor.
         feedLinePick('move', e.clientX, e.clientY);
       } else if (
-        toolModeSnapsDrawPoint(liveRef.current.activeToolInputMode) &&
+        toolModeArmsDrawStart(liveRef.current.activeToolInputMode) &&
         !panning &&
         !movingSelection &&
         !selecting
@@ -3496,7 +3667,7 @@ export function CreasePatternWebglCanvas({
         } else {
           feedTool(cancelled ? 'cancel' : 'up', e.clientX, e.clientY);
         }
-        if (!toolModeSnapsDrawPoint(liveRef.current.activeToolInputMode)) {
+        if (!toolModeArmsDrawStart(liveRef.current.activeToolInputMode)) {
           toolRuntime = null;
           renderer.setOverlayPoints(null);
         }
@@ -3547,6 +3718,7 @@ export function CreasePatternWebglCanvas({
       erasing = false;
       eraseRuntime = null;
       textPressStarted = false;
+      vertexDrag = null;
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
     };
     // What a plain scroll does is the `wheelGesture` preference — zoom by
@@ -3894,6 +4066,15 @@ export function CreasePatternWebglCanvas({
     renderNowRef.current();
   }, [images, rendererGeneration]);
 
+  // Suppression-region wash. No texture and no theme dependency: the renderer
+  // resolves the fill and border from the canvas element's own `--status-warning`
+  // once per frame, so a theme switch repaints on the next draw with nothing to
+  // re-upload and nothing here to remember.
+  useEffect(() => {
+    rendererRef.current?.setRegions(regions ?? EMPTY_REGIONS);
+    renderNowRef.current();
+  }, [regions, rendererGeneration]);
+
   // Every camera verb shares this: the camera is seeded lazily on the first draw,
   // so before then there is nothing to move and the verb is a no-op. Redraws once,
   // here, so no verb has to remember to.
@@ -4012,6 +4193,7 @@ export function CreasePatternWebglCanvas({
     foldedOrbitHovered: foldedOrbitPointer === 'over',
     foldedOrbitDragging: foldedOrbitPointer === 'turning',
     creaseHovered,
+    vertexGrabbable: grabbableVertex !== null,
   });
 
   return (

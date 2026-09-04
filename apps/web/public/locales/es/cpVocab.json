@@ -199,6 +199,14 @@
         "0": "Elige el punto"
       }
     },
+    "cp_action_vertex_insert_on_creases": {
+      "label": "Insertar vértice",
+      "tooltip": "Dividir todos los pliegues que pasan por el punto marcado para que se encuentren en un solo vértice",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Haz clic donde deban encontrarse los pliegues"
+      }
+    },
     "cp_action_delete_point": {
       "label": "Eliminar punto",
       "tooltip": "Fusionar los pliegues del mismo color que se encuentran en el vértice elegido",
@@ -259,6 +267,14 @@
       "steps": {
         "0": "Elige el punto de origen",
         "1": "Elige el punto de destino"
+      }
+    },
+    "cp_action_vertex_move": {
+      "label": "Mover vértice",
+      "tooltip": "Arrastra un vértice: todos los pliegues que terminan allí lo siguen",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Arrastra un vértice para moverlo"
       }
     },
     "cp_action_crease_make_mountain": {
@@ -741,6 +757,14 @@
         "0": "Haz clic en la posición del texto"
       }
     },
+    "cp_action_check_suppression_region_create": {
+      "label": "Región de supresión",
+      "tooltip": "Arrastra un recuadro para dejar de informar dentro de él las comprobaciones de plegabilidad seleccionadas",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Arrastra un recuadro sobre el área que dejará de comprobarse"
+      }
+    },
     "cp_action_draw_blintz": {
       "label": "Base blintz",
       "tooltip": "Base blintz",
@@ -1016,6 +1040,11 @@
     "cp_action_delete_extra_vertices_ignore_color": {
       "label": "Eliminar vértices sobrantes (ignorar tipo)",
       "tooltip": "Fusionar pares de pliegues colineales sin importar el tipo: un monte y un valle se fusionan en un borde",
+      "disabledReason": "Listo"
+    },
+    "cp_action_delete_extra_vertices_among": {
+      "label": "Eliminar vértices sobrantes del patrón",
+      "tooltip": "Fusionar los pares de pliegues colineales del mismo tipo solo entre los pliegues indicados",
       "disabledReason": "Listo"
     },
     "cp_action_organize_circles": {

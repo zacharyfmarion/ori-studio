@@ -3,14 +3,24 @@ import type {
   OristudioCpCommandResult,
   OristudioCpDiagnosticEntry,
 } from '../../engine/oristudioCpTypes';
+import { cpCheckSuppressionRules } from './checkSuppression';
 import {
   cpDiagnosticEntryAt,
+  visibleCpDiagnostics,
   visibleCpDiagnosticEntries,
   visibleCpDiagnosticEntry,
 } from './visibleEntries';
 
 function entry(id: string): OristudioCpDiagnosticEntry {
   return { id, kind: 'CheckCamv', severity: 'error', message: id };
+}
+
+function ruleEntry(
+  id: string,
+  rule: string,
+  violationColor: string | null = 'Unknown'
+): OristudioCpDiagnosticEntry {
+  return { ...entry(id), rule, violation_color: violationColor, point: { x: 0, y: 0 } };
 }
 
 function result(
@@ -96,6 +106,58 @@ describe('visibleCpDiagnosticEntries', () => {
       'camv-1',
       'camv-2',
     ]);
+  });
+
+  it('is unchanged, identity included, when the rule list is empty', () => {
+    const rules = cpCheckSuppressionRules([]);
+    const withRules = visibleCpDiagnosticEntries(camv, null, true, rules);
+    expect(withRules).toBe(visibleCpDiagnosticEntries(camv, null, true));
+  });
+});
+
+describe('visibleCpDiagnostics with a scoped check filter', () => {
+  // What a detected, unsolved candidate actually looks like: Kawasaki firing at
+  // nearly every vertex, one masked parity fault among them, and the odd fan
+  // that localises the missing crease.
+  const candidate = {
+    ...result('CheckCamv', []),
+    diagnostic_entries: [
+      ruleEntry('kawasaki-1', 'Angles'),
+      ruleEntry('masked-parity', 'Angles', 'NotEnoughValley'),
+      ruleEntry('odd-fan', 'NumberOfFolds'),
+      ruleEntry('blb', 'BigLittleBig'),
+    ],
+  } as OristudioCpCommandResult;
+
+  const angleRules = cpCheckSuppressionRules(['kawasaki', 'bigLittleBig']);
+
+  it('leaves the worklist and reports what it took away', () => {
+    const { entries, hiddenCount } = visibleCpDiagnostics(candidate, null, true, angleRules);
+    expect(entries.map((e) => e.id)).toEqual(['masked-parity', 'odd-fan']);
+    expect(hiddenCount).toBe(2);
+  });
+
+  it('filters a check command’s findings too, not just the overlay', () => {
+    const check4 = {
+      ...result('Check4', []),
+      diagnostic_entries: [ruleEntry('check4-angles', 'Angles')],
+    } as OristudioCpCommandResult;
+    const { entries, hiddenCount } = visibleCpDiagnostics(null, check4, true, angleRules);
+    expect(entries).toEqual([]);
+    expect(hiddenCount).toBe(1);
+  });
+
+  it('counts nothing hidden when the overlay is already off', () => {
+    // The findings are not being filtered, they are not being collected.
+    const { entries, hiddenCount } = visibleCpDiagnostics(candidate, null, false, angleRules);
+    expect(entries).toEqual([]);
+    expect(hiddenCount).toBe(0);
+  });
+
+  it('hides nothing with no rules', () => {
+    const { entries, hiddenCount } = visibleCpDiagnostics(candidate, null, true);
+    expect(entries).toHaveLength(4);
+    expect(hiddenCount).toBe(0);
   });
 });
 

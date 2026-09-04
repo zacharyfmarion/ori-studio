@@ -1,0 +1,222 @@
+//! Run a region's solve exactly the way the product does: rebuild the input from
+//! the live document, then two stages on one 25s budget — geometry without
+//! polish, then refinement with it.
+//!
+//! Usage:
+//!   cargo run --release -p oristudio-cp-compiler --example replay_product_solve -- <file.osf>
+
+use oristudio_cp::io::fold::export_fold_document;
+use oristudio_cp::model::CreasePatternModel;
+use oristudio_cp_compiler::{
+    ExactSolveOptions, ExactSolvedGraph, analyze_candidate_topology, exact_solve_input_from_fold,
+    solve_exact,
+};
+use serde_json::Value;
+use std::time::Instant;
+
+/// The product's budget until the deadline was dropped; `BUDGET_SECONDS` in the
+/// environment overrides it, and a negative value is no deadline at all.
+fn budget_seconds() -> f64 {
+    std::env::var("BUDGET_SECONDS")
+        .ok()
+        .and_then(|value| value.parse::<f64>().ok())
+        .unwrap_or(25.0)
+}
+
+/// What stage 2 gets after stage 1 spent `spent`: the product's
+/// `remainingSolveBudget`, where a negative total passes through unchanged
+/// (it means no deadline) rather than clamping to "no time at all".
+fn remaining_budget(spent: f64) -> f64 {
+    let total = budget_seconds();
+    if total < 0.0 {
+        total
+    } else {
+        (total - spent).max(0.0)
+    }
+}
+
+fn main() {
+    let path = std::env::args().nth(1).expect("usage: <file.osf>");
+    let raw = std::fs::read_to_string(&path).expect("read");
+    let root: Value = serde_json::from_str(&raw).expect("json");
+    let cp = &root["workspace"]["creasePattern"]["creasePattern"];
+    let model: CreasePatternModel =
+        serde_json::from_value(cp["document"]["crease_pattern"].clone()).expect("model");
+    let region = &cp["suppressionRegions"][0];
+    let (cx, cy) = (
+        region["center"]["x"].as_f64().unwrap_or(0.0),
+        region["center"]["y"].as_f64().unwrap_or(0.0),
+    );
+    let hw = region["width"].as_f64().unwrap_or(0.0) / 2.0;
+    let hh = region["height"].as_f64().unwrap_or(0.0) / 2.0;
+    let inside = |x: f64, y: f64| x >= cx - hw && x <= cx + hw && y >= cy - hh && y <= cy + hh;
+
+    let mut owned = model.clone();
+    owned.line_segments = model
+        .line_segments
+        .iter()
+        .filter(|s| inside(s.a.x, s.a.y) && inside(s.b.x, s.b.y))
+        .cloned()
+        .collect();
+    let fold = export_fold_document(&owned, None);
+    let (input, _) = exact_solve_input_from_fold(&fold).expect("rebuild");
+
+    println!("== {} ==", path.rsplit('/').next().unwrap_or(&path));
+    println!(
+        "{} owned creases -> {} vertices, {} spans",
+        owned.line_segments.len(),
+        input.vertices.len(),
+        input.selected_spans.len()
+    );
+    let topology = analyze_candidate_topology(&input);
+    println!(
+        "topology: blockers {:?} odd {:?} maekawa {:?}",
+        topology.blockers,
+        topology.combinatorial.odd_degree_vertices,
+        topology.combinatorial.maekawa_failures
+    );
+
+    // The same two stages on the ATTACHMENT — the input a build that had not
+    // yet learned to rebuild would have solved instead.
+    if let Ok(attached) = serde_json::from_value::<oristudio_cp_compiler::ExactSolveInput>(
+        region["solveInput"].clone(),
+    ) {
+        let t = analyze_candidate_topology(&attached);
+        println!(
+            "\n########## ATTACHMENT ({} vertices, {} spans) ##########",
+            attached.vertices.len(),
+            attached.selected_spans.len()
+        );
+        println!(
+            "topology: blockers {:?} odd {:?} maekawa {:?}",
+            t.blockers, t.combinatorial.odd_degree_vertices, t.combinatorial.maekawa_failures
+        );
+        let a1 = Instant::now();
+        let s1 = solve_exact(
+            &attached,
+            ExactSolveOptions {
+                polish: false,
+                timeout_seconds: budget_seconds(),
+                ..Default::default()
+            },
+        );
+        let e1 = a1.elapsed().as_secs_f64();
+        report("attachment stage 1", &s1, e1);
+        let a2 = Instant::now();
+        let s2 = solve_exact(
+            &attached,
+            ExactSolveOptions {
+                polish: true,
+                timeout_seconds: remaining_budget(e1),
+                ..Default::default()
+            },
+        );
+        report("attachment stage 2", &s2, a2.elapsed().as_secs_f64());
+
+        // Is the saved document sitting at the ATTACHMENT's answer? Map both
+        // into document units and measure. This is the difference between "the
+        // solve ran on the stale input" and "the solve ran on the document".
+        let doc_pts: Vec<(f64, f64)> = {
+            let mut v: Vec<(f64, f64)> = Vec::new();
+            for seg in &owned.line_segments {
+                for p in [seg.a, seg.b] {
+                    if !v
+                        .iter()
+                        .any(|q| (q.0 - p.x).abs() < 1e-9 && (q.1 - p.y).abs() < 1e-9)
+                    {
+                        v.push((p.x, p.y));
+                    }
+                }
+            }
+            v
+        };
+        let nearest = |x: f64, y: f64| {
+            doc_pts
+                .iter()
+                .map(|(dx, dy)| ((dx - x).powi(2) + (dy - y).powi(2)).sqrt())
+                .fold(f64::INFINITY, f64::min)
+        };
+        for (label, pts) in [
+            (
+                "attachment INPUT  (as imported)",
+                attached
+                    .vertices
+                    .iter()
+                    .map(|v| v.point)
+                    .collect::<Vec<_>>(),
+            ),
+            ("attachment ANSWER (stage 2 out)", s2.vertices_exact.clone()),
+        ] {
+            let mut errs: Vec<f64> = pts
+                .iter()
+                .map(|p| nearest(p.x * 400.0 - 200.0, p.y * 400.0 - 200.0))
+                .collect();
+            errs.sort_by(f64::total_cmp);
+            let q = |f: f64| errs[((errs.len() - 1) as f64 * f) as usize];
+            println!(
+                "  {label}: distance to nearest document vertex -> median {:.6}  p90 {:.6}  max {:.6} (document units)",
+                q(0.5),
+                q(0.9),
+                q(1.0)
+            );
+        }
+        println!("\n########## DOCUMENT ##########");
+    }
+
+    let started = Instant::now();
+    let stage1 = solve_exact(
+        &input,
+        ExactSolveOptions {
+            polish: false,
+            timeout_seconds: budget_seconds(),
+            ..Default::default()
+        },
+    );
+    let stage1_secs = started.elapsed().as_secs_f64();
+    report("stage 1 (geometry, no polish)", &stage1, stage1_secs);
+
+    let remaining = remaining_budget(stage1_secs);
+    println!("\nbudget left for stage 2: {remaining:.3}s");
+    let started2 = Instant::now();
+    let stage2 = solve_exact(
+        &input,
+        ExactSolveOptions {
+            polish: true,
+            timeout_seconds: remaining,
+            ..Default::default()
+        },
+    );
+    report(
+        "stage 2 (refinement, polish)",
+        &stage2,
+        started2.elapsed().as_secs_f64(),
+    );
+}
+
+fn report(label: &str, solved: &ExactSolvedGraph, wall: f64) {
+    let mr = &solved.movement_report;
+    let tr = &solved.theorem_residual_report;
+    println!("\n-- {label} --");
+    println!("  status {:?}   wall {wall:.3}s", solved.status);
+    println!(
+        "  accepted {}   timed_out {}   termination {}   evaluations {}",
+        mr["accepted"], mr["timed_out"], mr["termination"], mr["evaluations"]
+    );
+    println!("  rejection_reasons {}", mr["rejection_reasons"]);
+    println!(
+        "  max_vertex_movement {}   budget {}",
+        mr["max_vertex_movement"], mr["max_vertex_movement_budget"]
+    );
+    println!("  polish {}", mr["polish"]);
+    for phase in ["before", "after"] {
+        println!(
+            "  {phase}: kawasaki {} deg, carrier {}, odd-degree {}, maekawa {}, camv angle violations {}, big-little-big {}",
+            tr[phase]["max_kawasaki_residual_degrees"],
+            tr[phase]["max_carrier_residual"],
+            tr[phase]["odd_degree_vertices"],
+            tr[phase]["maekawa_failures"],
+            tr[phase]["camv_angle_violations"],
+            tr[phase]["big_little_big_violations"]
+        );
+    }
+}

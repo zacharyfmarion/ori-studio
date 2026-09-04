@@ -49,9 +49,17 @@
     "yes": "Yes"
   },
   "cpDetectImport": {
+    "add": "Add",
+    "addAsIs": "Add as-is",
+    "addImproved": "Add improved result",
+    "addLabel": "Add detected crease pattern",
+    "addPartial": "Add partial result",
     "ariaLabel": "Detect CP from image",
+    "beta": "Beta",
+    "betaNote": "Works best on small and medium crease patterns. A solve guarantees a pattern that folds flat, not the one the designer drew: spacing that should be even can come out slightly uneven.",
     "busy": {
       "detecting": "Running model",
+      "downloadingModel": "Downloading the detector — {{loaded}} of {{total}}",
       "importing": "Importing crease pattern",
       "loadingModel": "Checking detector model",
       "opening": "Opening image",
@@ -63,27 +71,43 @@
     "detect": "Detect",
     "detected": "Detected",
     "dropImageHere": "Drop image here",
-    "import": "Import",
+    "editCrop": "Edit Crop",
     "inferred": "Inferred",
+    "model": {
+      "deviceGpu": "This device has a GPU, so detection takes seconds.",
+      "deviceSingle": "No GPU and a single thread here; expect about a minute.",
+      "deviceThreads": "No GPU here; detection runs on the CPU and can take a while.",
+      "download": "The detector is a {{size}} download, once.",
+      "installed": "Detector v{{version}} installed ({{size}}).",
+      "installedLocal": "Detector installed ({{size}}).",
+      "update": "Download",
+      "updateAvailable": "A newer detector is available (v{{version}}, {{size}}).",
+      "updating": "Downloading the newer detector — {{loaded}} of {{total}}",
+      "updatingStart": "Downloading the newer detector…"
+    },
     "mvChanges": "M/V changes",
     "openImageTitle": "Open Crease Pattern Image",
     "rectified": "Rectified",
-    "report": {
-      "ambiguous": "ambiguous",
-      "assignmentChange_one": "{{count}} assignment change",
-      "assignmentChange_other": "{{count}} assignment change",
-      "assignmentChanges_one": "{{count}} assignment changes",
-      "assignmentChanges_other": "{{count}} assignment changes",
-      "compilerFallback": "compiler fallback",
-      "counts": "{{vertices}} vertices, {{edges}} edges",
-      "topologyMove_one": "{{count}} topology move",
-      "topologyMove_other": "{{count}} topology move",
-      "topologyMoves_one": "{{count}} topology moves",
-      "topologyMoves_other": "{{count}} topology moves"
-    },
+    "regionLabel": "Detected crease pattern",
+    "repairLabel": "Add detected crease pattern to repair",
+    "reviewAndFix": "Review & Fix",
     "runningModel": "Running model",
+    "stopping": "Stopping…",
+    "stopSolve": "Stop",
     "title": "Detect CP from Image",
-    "updateCrop": "Update Crop"
+    "verdict": {
+      "afterFailure": "Review & Fix adds the candidate with the source image behind it and keeps the solver data, so you can repair it and solve again.",
+      "blocked": "The solver could not read this candidate graph, so there is nothing to repair by hand. You can still add it as-is.",
+      "cancelled": "You stopped the solve, so nothing was changed — this is the pattern exactly as it was recognized. Review & Fix adds it with the source image behind it and keeps the solver data, so you can solve it again in the document.",
+      "exact": "Adding it beside your work leaves the rest of the document untouched.",
+      "improved": "Review & Fix adds it with the source image behind it and keeps the solver data, so you can repair what is left and solve again — or add the improved result as it stands.",
+      "improvedNoFold": "Review & Fix adds it with the source image behind it and keeps the solver data, so you can repair what is left and solve again.",
+      "repairable_one": "Recognized, with 1 place to repair — so the solve was not run: it would have spent its whole budget on geometry you are about to change. Review & Fix adds the candidate with the source image behind it, so you can fix it and solve.",
+      "repairable_other": "Recognized, with {{count}} places to repair — so the solve was not run: it would have spent its whole budget on geometry you are about to change. Review & Fix adds the candidate with the source image behind it, so you can fix them and solve. Adding it as-is instead leaves every angle approximate.",
+      "solving": "Nothing is flagged in the topology, so the solve is running. Below is what was recognized — the creases move into place when it lands.",
+      "timeoutPartial_one": "It had moved 1 vertex into place before the clock ran out, and you can add that partial result instead of the raw candidate.",
+      "timeoutPartial_other": "It had moved {{count}} vertices into place before the clock ran out, and you can add that partial result instead of the raw candidate."
+    }
   },
   "export": {
     "allPatterns": "All patterns",
@@ -138,6 +162,7 @@
       "images": "Images",
       "inlineSimulations": "Simulation windows",
       "richText": "Rich text formatting",
+      "suppressionRegions": "Check-suppression regions",
       "symmetry": "Mirror symmetry",
       "unassignedCreases": "Unassigned creases"
     },
@@ -303,6 +328,25 @@
     "language": {
       "system": "System default",
       "title": "Language"
+    },
+    "models": {
+      "current": "Current",
+      "description": "The crease-pattern detector downloads its model once and keeps it on this device. A newer model is offered here and in the Detect dialog; nothing downloads without its size shown first.",
+      "download": "Download",
+      "downloading": "Downloading — {{loaded}} of {{total}}",
+      "downloadingStart": "Downloading…",
+      "installed": "Installed",
+      "loading": "Reading the model registry…",
+      "localRow": "Development detector",
+      "notInstalled": "Not downloaded",
+      "orphaned": "No longer published; never used.",
+      "orphanedLabel": "Retired detector",
+      "remove": "Remove",
+      "row": "Detector v{{version}}",
+      "title": "Models",
+      "unavailable": "The model registry could not be read: {{reason}}",
+      "update": "Update",
+      "updateAvailable": "Newer than what is installed"
     },
     "sections": "Settings sections",
     "shortcuts": {

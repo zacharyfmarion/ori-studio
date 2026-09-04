@@ -51,19 +51,28 @@ import {
  * through the gesture the surface is previewing.
  *
  * The same predicate and the same affine the stroke builder applies (see the
- * `moved` branch in `cpSnapshotToScene`), so a badge cannot land anywhere but on
+ * move branches in `cpSnapshotToScene`), so a badge cannot land anywhere but on
  * the stroke it labels — including under a four-point transform, where the
  * projected length changes and the plan is entitled to change with it. That is
  * why the matrix goes on the model point rather than on the finished badge: it
  * puts the transform *upstream* of every decision `planFoldAngleBadges` makes,
  * all of which are made on screen length.
+ *
+ * `slot` is which end of the crease this point is, because a vertex drag moves
+ * one end and leaves the other — so unlike every other gesture here, the two
+ * endpoints of one crease can get different answers.
  */
 function drawnAt(
   move: CpTransformPreview | null,
   lineId: number,
+  slot: 'a' | 'b',
   point: ModelPoint
 ): ModelPoint {
-  if (!move || !move.ids.has(lineId)) return point;
+  if (!move) return point;
+  const movesEnd =
+    move.ids.has(lineId) ||
+    move.endpoints?.has((lineId - 1) * 2 + (slot === 'a' ? 0 : 1)) === true;
+  if (!movesEnd) return point;
   return applyAffine(move.matrix, point.x, point.y);
 }
 
@@ -142,8 +151,8 @@ export function CpFoldAngleLayer({
       const lineId = index + 1;
       creases.push({
         lineId,
-        a: overlayModelToCss(view, drawnAt(move, lineId, segment.a)),
-        b: overlayModelToCss(view, drawnAt(move, lineId, segment.b)),
+        a: overlayModelToCss(view, drawnAt(move, lineId, 'a', segment.a)),
+        b: overlayModelToCss(view, drawnAt(move, lineId, 'b', segment.b)),
         degrees,
       });
     });

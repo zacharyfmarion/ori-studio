@@ -49,9 +49,17 @@
     "yes": "はい"
   },
   "cpDetectImport": {
+    "add": "追加",
+    "addAsIs": "そのまま追加",
+    "addImproved": "改善結果を追加",
+    "addLabel": "検出した展開図を追加",
+    "addPartial": "途中結果を追加",
     "ariaLabel": "画像から CP を検出",
+    "beta": "ベータ",
+    "betaNote": "小〜中規模の展開図で最もうまく機能します。解いて得られるのは平坦に折れる展開図であって、作者が描いた展開図そのものとは限りません。本来は等間隔のはずの部分が、わずかに不揃いになることがあります。",
     "busy": {
       "detecting": "モデルを実行中",
+      "downloadingModel": "検出モデルをダウンロード中 — {{loaded}} / {{total}}",
       "importing": "展開図をインポート中",
       "loadingModel": "検出モデルを確認中",
       "opening": "画像を開いています",
@@ -63,23 +71,41 @@
     "detect": "検出",
     "detected": "検出済み",
     "dropImageHere": "ここに画像をドロップ",
-    "import": "インポート",
+    "editCrop": "切り抜きを編集",
     "inferred": "推論済み",
+    "model": {
+      "deviceGpu": "この端末には GPU があるため、検出は数秒で終わります。",
+      "deviceSingle": "この端末は GPU がなくスレッドも 1 つのため、1 分ほどかかります。",
+      "deviceThreads": "この端末には GPU がないため、検出は CPU で実行され、時間がかかることがあります。",
+      "download": "検出モデルのダウンロードは初回のみで、{{size}} です。",
+      "installed": "検出モデル v{{version}} をインストール済み（{{size}}）。",
+      "installedLocal": "検出モデルをインストール済み（{{size}}）。",
+      "update": "ダウンロード",
+      "updateAvailable": "新しい検出モデルがあります（v{{version}}、{{size}}）。",
+      "updating": "新しい検出モデルをダウンロード中 — {{loaded}} / {{total}}",
+      "updatingStart": "新しい検出モデルをダウンロード中…"
+    },
     "mvChanges": "山折り／谷折りの変更",
     "openImageTitle": "展開図の画像を開く",
     "rectified": "補正済み",
-    "report": {
-      "ambiguous": "曖昧",
-      "assignmentChange_other": "{{count}} 件の割り当て変更",
-      "assignmentChanges_other": "{{count}} 件の割り当て変更",
-      "compilerFallback": "コンパイラーのフォールバック",
-      "counts": "{{vertices}} 頂点、{{edges}} 辺",
-      "topologyMove_other": "{{count}} 件のトポロジー変更",
-      "topologyMoves_other": "{{count}} 件のトポロジー変更"
-    },
+    "regionLabel": "検出した展開図",
+    "repairLabel": "修復用に検出した展開図を追加",
+    "reviewAndFix": "確認して修正",
     "runningModel": "モデルを実行中",
+    "stopping": "中止しています…",
+    "stopSolve": "中止",
     "title": "画像から CP を検出",
-    "updateCrop": "切り抜きを更新"
+    "verdict": {
+      "afterFailure": "「確認して修正」は候補と背景のソース画像を追加し、ソルバーのデータも保持するので、修正してからもう一度解くことができます。",
+      "blocked": "ソルバーがこの候補グラフを読み取れなかったため、手作業で修正できる箇所はありません。そのまま追加することはできます。",
+      "cancelled": "解くのを中止したので、何も変更されていません。これは認識されたままの展開図です。「確認して修正」は背景にソース画像を置いて追加し、ソルバーのデータも保持するので、ドキュメント上でもう一度解くことができます。",
+      "exact": "作業中の図の隣に追加され、ドキュメントの他の部分はそのままです。",
+      "improved": "「確認して修正」は背景にソース画像を置いて追加し、ソルバーのデータも保持するので、残った箇所を修復してからもう一度解けます。改善結果をそのまま追加することもできます。",
+      "improvedNoFold": "「確認して修正」は背景にソース画像を置いて追加し、ソルバーのデータも保持するので、残った箇所を修復してからもう一度解けます。",
+      "repairable_other": "認識しました — 修復箇所は {{count}} か所です。そのためソルバーは実行していません。これから変更する形状に予算をすべて使ってしまうためです。「確認して修正」は候補と背景のソース画像を追加するので、修正してから解くことができます。そのまま追加すると、すべての角度が近似のままになります。",
+      "solving": "トポロジーに指摘はないため、ソルバーを実行しています。下に表示されているのは認識された折り線で、解が求まると所定の位置へ移動します。",
+      "timeoutPartial_other": "時間切れまでに頂点 {{count}} 個を所定の位置へ動かしており、素の候補の代わりにその途中結果を追加できます。"
+    }
   },
   "export": {
     "allPatterns": "すべてのパターン",
@@ -133,6 +159,7 @@
       "images": "画像",
       "inlineSimulations": "シミュレーションウィンドウ",
       "richText": "リッチテキストの書式",
+      "suppressionRegions": "チェック抑制領域",
       "symmetry": "鏡映対称",
       "unassignedCreases": "未割り当ての折り線"
     },
@@ -293,6 +320,25 @@
     "language": {
       "system": "システムのデフォルト",
       "title": "言語"
+    },
+    "models": {
+      "current": "現行",
+      "description": "展開図の検出機能はモデルを一度だけダウンロードし、この端末に保存します。新しいモデルはここと検出ダイアログで案内されます。サイズを表示せずにダウンロードすることはありません。",
+      "download": "ダウンロード",
+      "downloading": "ダウンロード中 — {{loaded}} / {{total}}",
+      "downloadingStart": "ダウンロード中…",
+      "installed": "インストール済み",
+      "loading": "モデルレジストリを読み込み中…",
+      "localRow": "開発用検出モデル",
+      "notInstalled": "未ダウンロード",
+      "orphaned": "公開が終了しており、使用されません。",
+      "orphanedLabel": "廃止された検出モデル",
+      "remove": "削除",
+      "row": "検出モデル v{{version}}",
+      "title": "モデル",
+      "unavailable": "モデルレジストリを読み込めませんでした: {{reason}}",
+      "update": "更新",
+      "updateAvailable": "インストール済みより新しいバージョン"
     },
     "sections": "設定セクション",
     "shortcuts": {

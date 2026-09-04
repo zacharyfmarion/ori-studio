@@ -866,6 +866,9 @@ pub enum OperationId {
     // alongside their thematic neighbours, so this list keeps reading as
     // Oriedita's source map with our additions visible at the end.
     SquareGenerate,
+    VertexInsertOnCreases,
+    DeleteExtraVerticesAmong,
+    VertexMove,
 }
 
 /// Source-map descriptor for an Oriedita operation.
@@ -1920,6 +1923,30 @@ const OPERATION_DESCRIPTORS: &[OperationDescriptor] = &[
         8,
         UnitTested
     ),
+    descriptor!(
+        native VertexInsertOnCreases,
+        "OriStudioVertexInsertOnCreases",
+        "operations::native::vertex_insert::insert_vertex_on_creases",
+        Kernel,
+        8,
+        UnitTested
+    ),
+    descriptor!(
+        native DeleteExtraVerticesAmong,
+        "OriStudioDeleteExtraVerticesAmong",
+        "operations::arrangement::del_v_among_lines",
+        Kernel,
+        8,
+        UnitTested
+    ),
+    descriptor!(
+        native VertexMove,
+        "OriStudioVertexMove",
+        "operations::native::vertex::move_vertex",
+        Kernel,
+        8,
+        UnitTested
+    ),
 ];
 
 /// Return all source-mapped Oriedita operation descriptors.
@@ -2352,6 +2379,17 @@ fn dispatch_command(
                 );
             }
             corners.len()
+        }
+        OperationId::VertexMove => {
+            // [from, to]. A `from` with no vertex on it moves nothing and is not
+            // an error: the surface gates the press on a vertex being there, and
+            // a race between that gate and the document is a miss, not a failure.
+            let points = required_points(&command, 2)?;
+            operations::native::vertex::move_vertex(
+                &mut document.crease_pattern,
+                points[0],
+                points[1],
+            )
         }
         OperationId::DrawBlintz
         | OperationId::DrawFishBase
@@ -3011,6 +3049,18 @@ fn dispatch_command(
             );
             before.abs_diff(document.crease_pattern.line_segments.len())
         }
+        // The inverse of the operation above, and the reason it sits here: that
+        // one dissolves a vertex two creases share, this one inserts a vertex
+        // every crease through the point comes to share. It takes no selection
+        // distance — see `vertex_insert::ON_CREASE_TOLERANCE` for why the point
+        // is the answer and not a query.
+        OperationId::VertexInsertOnCreases => {
+            let points = required_points(&command, 1)?;
+            operations::native::vertex_insert::insert_vertex_on_creases(
+                &mut document.crease_pattern,
+                points[0],
+            )
+        }
         OperationId::OperationFrameCreate => {
             let points = required_points_at_least(&command, 2)?;
             let mut state = operations::transform::operation_frame_press(
@@ -3172,6 +3222,12 @@ fn dispatch_command(
         OperationId::DeleteExtraVerticesIgnoreColor => {
             let before = document.crease_pattern.line_segments.len();
             operations::arrangement::del_v_all_color_change(&mut document.crease_pattern);
+            before.abs_diff(document.crease_pattern.line_segments.len())
+        }
+        OperationId::DeleteExtraVerticesAmong => {
+            let line_indices = required_line_indices(&command)?;
+            let before = document.crease_pattern.line_segments.len();
+            operations::arrangement::del_v_among_lines(&mut document.crease_pattern, &line_indices);
             before.abs_diff(document.crease_pattern.line_segments.len())
         }
         OperationId::FixInaccurate => {
@@ -4047,6 +4103,27 @@ pub fn preview_command(
                 preview.segments =
                     operations::native::square::square_edges(&corners, active_line_color(&command))
                         .to_vec();
+            }
+        }
+        // The defect this repairs is invisible in ink: the strokes are already
+        // drawn and only the graph is wrong, so a preview that showed the
+        // resulting geometry would show no change at all. What it reports
+        // instead is *which* creases the click acts on — the halves, so the
+        // surface can light up the affected span — and the vertex itself, only
+        // when there is one to insert.
+        OperationId::VertexInsertOnCreases if !points.is_empty() => {
+            let splits = operations::native::vertex_insert::plan_vertex_insert(
+                &document.crease_pattern,
+                points[0],
+            );
+            if splits.is_empty() {
+                preview.unavailable = Some("NoCreaseThroughPoint".to_owned());
+            } else {
+                preview.points.push(points[0]);
+                preview.segments = splits
+                    .into_iter()
+                    .flat_map(|split| [split.first, split.second])
+                    .collect();
             }
         }
         OperationId::DrawBlintz
@@ -6925,6 +7002,85 @@ mod tests {
         assert_eq!(bounds(SquareOrientation::Diagonal), (10.0, 20.0));
     }
 
+    fn crossing_document() -> CreasePatternDocument {
+        let mut document = CreasePatternDocument::default();
+        document
+            .crease_pattern
+            .add_line_segment(LineSegment::with_color(
+                Point::new(-10.0, 0.0),
+                Point::new(10.0, 0.0),
+                LineColor::Red1,
+            ));
+        document
+            .crease_pattern
+            .add_line_segment(LineSegment::with_color(
+                Point::new(0.0, -10.0),
+                Point::new(0.0, 10.0),
+                LineColor::Blue2,
+            ));
+        document
+    }
+
+    fn insert_vertex_command(point: Point) -> CreasePatternCommand {
+        CreasePatternCommand::new(OperationId::VertexInsertOnCreases).with_payload(
+            CreasePatternCommandPayload {
+                points: vec![point],
+                ..CreasePatternCommandPayload::default()
+            },
+        )
+    }
+
+    /// The whole edit is one command, so it is one undo entry: a crossing that
+    /// splits half way is a worse document than the one it started from.
+    #[test]
+    fn inserting_a_vertex_splits_every_crease_through_it_in_one_command() {
+        let mut document = crossing_document();
+
+        let result = execute_command(&mut document, insert_vertex_command(Point::origin()))
+            .expect("vertex insert should execute through the command dispatcher");
+
+        assert_eq!(result.status, OperationStatus::UnitTested);
+        assert_eq!(document.crease_pattern.line_segments.len(), 4);
+        assert!(
+            document
+                .crease_pattern
+                .line_segments
+                .iter()
+                .all(|line| line.a == Point::origin() || line.b == Point::origin())
+        );
+    }
+
+    #[test]
+    fn inserting_a_vertex_where_no_crease_passes_reports_no_change() {
+        let mut document = crossing_document();
+        let before = document.crease_pattern.line_segments.clone();
+
+        let result = execute_command(&mut document, insert_vertex_command(Point::new(4.0, 4.0)))
+            .expect("a point on no crease is an ordinary answer, not an error");
+
+        assert_eq!(result.diagnostics, vec!["Changed 0 line(s)".to_string()]);
+        assert_eq!(document.crease_pattern.line_segments, before);
+    }
+
+    /// The defect is invisible in ink, so the preview has to name the creases
+    /// rather than draw the change — and has to say plainly when there is none.
+    #[test]
+    fn the_vertex_insert_preview_names_the_creases_the_click_would_split() {
+        let document = crossing_document();
+
+        let preview = preview_command(&document, insert_vertex_command(Point::origin()))
+            .expect("preview succeeds");
+        assert_eq!(preview.segments.len(), 4);
+        assert_eq!(preview.points, vec![Point::origin()]);
+        assert_eq!(preview.unavailable, None);
+
+        let empty = preview_command(&document, insert_vertex_command(Point::new(4.0, 4.0)))
+            .expect("preview succeeds");
+        assert!(empty.segments.is_empty());
+        assert!(empty.points.is_empty());
+        assert_eq!(empty.unavailable.as_deref(), Some("NoCreaseThroughPoint"));
+    }
+
     #[test]
     fn registry_has_no_duplicate_operation_ids() {
         let mut ids = HashSet::new();
@@ -8362,6 +8518,57 @@ mod tests {
         )
         .expect("a second sweep should execute");
         assert_eq!(repeat.diagnostics, vec!["Changed 0 line(s)"]);
+    }
+
+    #[test]
+    fn delete_extra_vertices_among_merges_only_the_listed_creases() {
+        let mut document = CreasePatternDocument::default();
+        // Two collinear same-colour pairs: one at x=10 among the listed
+        // creases, one at x=40 outside them.
+        document.crease_pattern.add_line(
+            Point::new(0.0, 0.0),
+            Point::new(10.0, 0.0),
+            LineColor::Red1,
+        );
+        document.crease_pattern.add_line(
+            Point::new(10.0, 0.0),
+            Point::new(20.0, 0.0),
+            LineColor::Red1,
+        );
+        document.crease_pattern.add_line(
+            Point::new(30.0, 0.0),
+            Point::new(40.0, 0.0),
+            LineColor::Red1,
+        );
+        document.crease_pattern.add_line(
+            Point::new(40.0, 0.0),
+            Point::new(50.0, 0.0),
+            LineColor::Red1,
+        );
+
+        let mut command = CreasePatternCommand::new(OperationId::DeleteExtraVerticesAmong);
+        command.payload.line_ids = vec![1, 2];
+        let result = execute_command(&mut document, command)
+            .expect("DeleteExtraVerticesAmong should execute");
+
+        assert_eq!(result.diagnostics, vec!["Changed 1 line(s)"]);
+        assert_eq!(document.crease_pattern.line_segments.len(), 3);
+        assert!(
+            document
+                .crease_pattern
+                .line_segments
+                .iter()
+                .any(|line| line.a == Point::new(0.0, 0.0) && line.b == Point::new(20.0, 0.0))
+        );
+
+        let unlisted = execute_command(
+            &mut document,
+            CreasePatternCommand::new(OperationId::DeleteExtraVerticesAmong),
+        );
+        assert!(
+            unlisted.is_err(),
+            "an empty line set is refused, not a whole-document sweep"
+        );
     }
 
     #[test]

@@ -15,7 +15,12 @@ export type OristudioCpActionKind = 'line-type' | 'command';
 export type OristudioCpActionId = `cp.action.${string}`;
 export type OristudioCpActionGroupId = 'line-type' | 'edit' | OristudioCpCommandGroupId;
 export type OristudioCpLineInputMode = 'fold-line' | 'aux-line';
-export type OristudioCpActionInputMode = 'point-sequence' | 'drag-path' | 'drag-line' | 'drag-box';
+export type OristudioCpActionInputMode =
+  | 'point-sequence'
+  | 'drag-path'
+  | 'drag-line'
+  | 'drag-box'
+  | 'drag-vertex';
 export const DEFAULT_ORISTUDIO_CP_ACTION_ID =
   'cp.action.crease-select' as const satisfies OristudioCpActionId;
 
@@ -345,6 +350,13 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
     upstreamAction: 'vertexAddAction',
     upstreamMouseMode: 'DRAW_POINT_14',
   },
+  // Ori Studio native, so no `upstreamMouseMode`: there is no Oriedita mouse
+  // mode to name, and leaving it unset keeps the tool out of the Oriedita hotkey
+  // import rather than offering a binding for a mode upstream does not have.
+  // `DRAW_POINT_14` belongs to Draw point above, which is a different operation.
+  VertexInsertOnCreases: {
+    upstreamAction: 'insertVertexOnCreasesAction',
+  },
   DrawCreaseSymmetric: {
     label: 'Reflect selection over line',
     group: 'transform',
@@ -366,6 +378,13 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
   CreaseCopy: {
     upstreamAction: 'copyAction',
     upstreamMouseMode: 'CREASE_COPY_22',
+  },
+  VertexMove: {
+    label: 'Move Vertex',
+    // Ori Studio native: Oriedita has no handler that edits a junction. It sits
+    // after Move and Copy, which is where someone looks after finding that those
+    // translate whole creases and tear a shared vertex apart.
+    upstreamAction: 'vertexMoveAction',
   },
   CreaseMove4p: {
     upstreamAction: 'move2p2pAction',
@@ -463,6 +482,13 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
   Text: {
     upstreamAction: 'textAction',
     upstreamMouseMode: 'TEXT',
+  },
+  // No `upstreamMouseMode`: there is no Oriedita mouse mode to name, so leaving
+  // it unset is what keeps this tool out of the Oriedita hotkey import rather
+  // than offering a binding for a mode upstream does not have.
+  CheckSuppressionRegionCreate: {
+    label: 'Suppression Region',
+    upstreamAction: 'checkSuppressionRegionCreateAction',
   },
   DrawBlintz: {
     upstreamAction: 'drawBlintzAction',

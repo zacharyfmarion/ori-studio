@@ -162,7 +162,13 @@ const OVERSIZED_PANELS = {
   // shaving either side's lines to fit a number neither branch chose is the
   // "make the count go down without making the code better" move this file
   // warns about.
-  'CreasePatternPanel.tsx': 2800,
+  // 2800 -> 2900: the merge of the crease-topology branch with main. Each side
+  // had grown the panel by about 150 lines for a feature the panel composes —
+  // main's canvas context menus and placement menu; this branch's region
+  // wiring, which chooses the region hooks that mount, the region layer and
+  // its two chips, and the diagnostic list they read. Neither is behavior that
+  // belongs elsewhere, and neither branch chose the number the other crossed.
+  'CreasePatternPanel.tsx': 2900,
   // 2085 -> 2095: the "no crease pattern" marking. The warning used to name an
   // internal class and point at nothing, so this adds the canvas layer that
   // shows which flaps it means, its Layers toggle, and the alert copy that

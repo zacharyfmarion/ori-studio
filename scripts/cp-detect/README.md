@@ -1,5 +1,14 @@
 # Browser CP Detector Assets
 
+Everything here is for developing and evaluating the detector against a local
+checkout. The **product** does not read these files: a deployed build
+downloads its model from the registry the site serves (`/models/registry.json`,
+backed by the `oristudio-models` R2 bucket), which `publish-model.mjs` in this
+directory maintains — see `RELEASE.md`, "Detector models". A dev server, which
+serves no registry, falls back to the local manifest under
+`apps/web/public/models`, which is why the assets below are still needed for
+local work.
+
 ## Fresh checkout prerequisites
 
 The browser-driven scripts in this directory (`run-browser-dense-cache.mjs`,

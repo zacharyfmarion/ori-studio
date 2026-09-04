@@ -3,7 +3,13 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import type { OristudioCpFoldRun } from '../store/workspaceStore/types';
-import { GlobalToasts } from './GlobalToasts';
+import {
+  bindCpExactSolveRunStop,
+  resetCpExactSolveRuns,
+  withCpExactSolveRun,
+} from '../engine/cpExactSolveRuns';
+import { CP_EXACT_SOLVE_LONG_RUN_MS } from '../cp-workspace/regions/useCpExactSolveRunIndicator';
+import { GlobalToasts, SOLVE_TOAST_DELAY_MS } from './GlobalToasts';
 
 /**
  * The Stop affordance, at the entry point.
@@ -68,6 +74,7 @@ function setRuns(...runs: OristudioCpFoldRun[]): void {
 
 beforeEach(() => {
   vi.useFakeTimers();
+  resetCpExactSolveRuns();
   loadingToasts.length = 0;
   messageToasts.length = 0;
   useWorkspaceStore.setState({ oristudioCpFoldRuns: {}, error: null });
@@ -157,5 +164,80 @@ describe('the folding toast', () => {
     // The other half of the vacuous predicate: it latched `stopRequested`, so a
     // fold nobody stopped announced that it had been stopped.
     expect(messageToasts).not.toContain('Fold cancelled');
+  });
+});
+
+describe('the solving toast', () => {
+  /** A solve that ends only when told to: finished by the test, or stopped. */
+  function liveSolve(cancellable = true): { finish: () => void; done: Promise<void> } {
+    let finish: () => void = () => undefined;
+    let done: Promise<void> = Promise.resolve();
+    act(() => {
+      done = withCpExactSolveRun({ kind: 'region', targetId: 'region-1', cancellable }, (live) => {
+        return new Promise<void>((resolve, reject) => {
+          finish = resolve;
+          if (cancellable) bindCpExactSolveRunStop(live.runId, () => reject(new Error('stopped')));
+        });
+      }).catch(() => undefined);
+    });
+    return { finish: () => finish(), done };
+  }
+
+  it('waits before appearing, then offers Cancel, and the press stops the run', async () => {
+    const live = liveSolve();
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_TOAST_DELAY_MS - 1);
+    });
+    // The chip has its own spinner; the toast is for the solve that goes on.
+    expect(latestToast()).toBeUndefined();
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(latestToast()?.message).toBe('Solving…');
+    expect(latestToast()?.options.dismissible).toBe(false);
+    expect(latestToast()?.options.action?.label).toBe('Cancel');
+
+    act(() => latestToast()?.options.action?.onClick());
+    expect(latestToast()?.message).toBe('Cancelling…');
+    expect(latestToast()?.options.action).toBeUndefined();
+
+    await act(async () => {
+      await live.done;
+    });
+    expect(messageToasts).toContain('Solve cancelled');
+  });
+
+  it('says nothing when a solve simply finishes', async () => {
+    const live = liveSolve();
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_TOAST_DELAY_MS);
+    });
+    expect(latestToast()?.message).toBe('Solving…');
+
+    live.finish();
+    await act(async () => {
+      await live.done;
+    });
+    expect(messageToasts).toEqual([]);
+  });
+
+  it('escalates its wording for a run that has outlasted reassurance', () => {
+    liveSolve();
+    act(() => {
+      vi.advanceTimersByTime(CP_EXACT_SOLVE_LONG_RUN_MS);
+    });
+    expect(latestToast()?.message).toBe('Still solving — this can take a while');
+    expect(latestToast()?.options.action?.label).toBe('Cancel');
+  });
+
+  it('shows no Cancel, and stays dismissable, when the run cannot be reached', () => {
+    liveSolve(false);
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_TOAST_DELAY_MS);
+    });
+    expect(latestToast()?.message).toBe('Solving…');
+    expect(latestToast()?.options.action).toBeUndefined();
+    expect(latestToast()?.options.dismissible).toBe(true);
   });
 });
