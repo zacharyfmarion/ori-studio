@@ -50,6 +50,13 @@ import {
 import { uprightRotationForView } from '../../../cp-workspace/annotations/annotationTransform';
 import { cpOverlayViewStore } from '../../../cp-workspace/cpOverlayViewStore';
 import {
+  EMPTY_CP_MEASURE_SESSION,
+  cpMeasureSessionIsEmpty,
+  redoCpMeasurement,
+  takeCpMeasurement,
+  undoCpMeasurement,
+} from '../../../cp-workspace/measureSession';
+import {
   cpCheckSuppressionRules,
   partitionCpDiagnosticsBySuppression,
 } from '../../../cp-workspace/diagnostics/checkSuppression';
@@ -1291,6 +1298,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     oristudioCpInlineSimulations: [],
     oristudioCpFocusedInlineSimulationId: null,
     oristudioCpFocusedFoldedFigureId: null,
+    oristudioCpMeasureSession: EMPTY_CP_MEASURE_SESSION,
     ...emptyFoldArtifactResourceState(),
 
     optimizeScale: async () => {
@@ -1668,6 +1676,31 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         dirty: true,
       });
       return 'added';
+    },
+
+    takeOristudioCpMeasurement: (measurement) => {
+      set({
+        oristudioCpMeasureSession: takeCpMeasurement(get().oristudioCpMeasureSession, measurement),
+      });
+    },
+
+    undoOristudioCpMeasurement: () => {
+      const next = undoCpMeasurement(get().oristudioCpMeasureSession);
+      if (!next) return false;
+      set({ oristudioCpMeasureSession: next });
+      return true;
+    },
+
+    redoOristudioCpMeasurement: () => {
+      const next = redoCpMeasurement(get().oristudioCpMeasureSession);
+      if (!next) return false;
+      set({ oristudioCpMeasureSession: next });
+      return true;
+    },
+
+    endOristudioCpMeasureSession: () => {
+      if (cpMeasureSessionIsEmpty(get().oristudioCpMeasureSession)) return;
+      set({ oristudioCpMeasureSession: EMPTY_CP_MEASURE_SESSION });
     },
 
     updateOristudioCpInlineSimulation: (id, patch) => {

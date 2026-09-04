@@ -172,6 +172,17 @@ export interface WorkspaceCapabilityInput {
   canSaveDesign: boolean;
   historyPastCount: number;
   historyFutureCount: number;
+  /**
+   * Readings the measure tool is holding, and readings Undo has taken back.
+   *
+   * Separate from the history counts because they are a separate stack that
+   * outranks it (see `cp-workspace/measureSession.ts`). Counted here so the Edit
+   * menu, the canvas history pills and Cmd+Z cannot disagree: with a reading on
+   * screen and an untouched document, Undo is live and it takes back the
+   * reading.
+   */
+  cpMeasurementsTaken: number;
+  cpMeasurementsUndone: number;
   clipboard: unknown | null;
   selection: Selection;
   /**
@@ -423,17 +434,23 @@ export function getWorkspaceCapabilities(
         ? busyOr(t('common:capability.exportCreasePatternPng', 'Export crease pattern PNG'), input.status, t)
         : t('common:capability.noCreasePatternToExport', 'No crease pattern to export')
     ),
+    // A reading is web-side state, so it is undoable whatever the engine is
+    // busy with — gating it on `isBusy` would leave a dead Cmd+Z during a fold.
     'edit.undo': capability(
-      input.historyPastCount > 0 && !isBusy,
+      input.cpMeasurementsTaken > 0 || (input.historyPastCount > 0 && !isBusy),
       t('common:capability.undo', 'Undo'),
-      activeCpSurface
+      input.cpMeasurementsTaken > 0
+        ? t('common:capability.undoLastMeasurement', 'Take back the last measurement')
+        : activeCpSurface
           ? t('common:capability.undoLastCpEdit', 'Undo the last crease-pattern edit')
           : t('common:capability.undoLastTreeEdit', 'Undo the last tree edit')
     ),
     'edit.redo': capability(
-      input.historyFutureCount > 0 && !isBusy,
+      input.cpMeasurementsUndone > 0 || (input.historyFutureCount > 0 && !isBusy),
       t('common:capability.redo', 'Redo'),
-      activeCpSurface
+      input.cpMeasurementsUndone > 0
+        ? t('common:capability.redoLastMeasurement', 'Put back the last measurement')
+        : activeCpSurface
           ? t('common:capability.redoNextCpEdit', 'Redo the next crease-pattern edit')
           : t('common:capability.redoNextTreeEdit', 'Redo the next tree edit')
     ),

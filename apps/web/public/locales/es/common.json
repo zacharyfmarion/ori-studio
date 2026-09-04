@@ -180,6 +180,7 @@
     "rebuildCp": "Regenerar CP",
     "rebuildCreasePattern": "Regenerar patrón de pliegues",
     "redo": "Rehacer",
+    "redoLastMeasurement": "Restaurar la última medición",
     "redoNextCpEdit": "Rehacer la siguiente edición del patrón de pliegues",
     "redoNextTreeEdit": "Rehacer la siguiente edición del árbol",
     "refresh": "Actualizar",
@@ -249,6 +250,7 @@
     "triangulateTree": "Triangular árbol",
     "undo": "Deshacer",
     "undoLastCpEdit": "Deshacer la última edición del patrón de pliegues",
+    "undoLastMeasurement": "Deshacer la última medición",
     "undoLastTreeEdit": "Deshacer la última edición del árbol"
   },
   "close": "Cerrar",

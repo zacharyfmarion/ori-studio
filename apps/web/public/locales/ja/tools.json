@@ -85,7 +85,7 @@
     "measure": "測定",
     "measureAngleUnitDeg": "度",
     "measureAngleUnitRad": "ラジアン",
-    "measureClearHint": "Backspace で直前を削除、Escape ですべて消去",
+    "measureClearHint": "元に戻す または Backspace で直前を削除、Escape ですべて消去",
     "measureCopied": "コピーしました",
     "measureCopy": "完全な精度の値をコピー",
     "measureCopyFailed": "コピーできません",

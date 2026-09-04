@@ -180,6 +180,7 @@
     "rebuildCp": "전개도 다시 생성",
     "rebuildCreasePattern": "전개도 다시 생성",
     "redo": "다시 실행",
+    "redoLastMeasurement": "마지막 측정 되돌리기",
     "redoNextCpEdit": "다음 전개도 편집 다시 실행",
     "redoNextTreeEdit": "다음 트리 편집 다시 실행",
     "refresh": "새로 고침",
@@ -249,6 +250,7 @@
     "triangulateTree": "트리 삼각분할",
     "undo": "실행 취소",
     "undoLastCpEdit": "마지막 전개도 편집 실행 취소",
+    "undoLastMeasurement": "마지막 측정 취소",
     "undoLastTreeEdit": "마지막 트리 편집 실행 취소"
   },
   "close": "닫기",

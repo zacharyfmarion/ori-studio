@@ -168,7 +168,19 @@ const OVERSIZED_PANELS = {
   // wiring, which chooses the region hooks that mount, the region layer and
   // its two chips, and the diagnostic list they read. Neither is behavior that
   // belongs elsewhere, and neither branch chose the number the other crossed.
-  'CreasePatternPanel.tsx': 2900,
+  //
+  // 2900 -> 2787: the measure tool's state moved out whole, to
+  // `cp-workspace/useCpMeasureSession` — the readings (now store-held, because
+  // undo and the Edit menu have to agree with the canvas about them), the pick
+  // in progress, the display preferences, the scale they convert against, and
+  // the one effect that ends the session when the tool is left. What is left is
+  // composition: one hook call, two mounts, and the commit arm that hands the
+  // kernel's answer to it. This is the direction the number is for.
+  //
+  // 2787 -> 2788: not a change to this file, a rebase. main's Move Vertex tool
+  // grew the panel by a line while the measure extraction was in flight, which
+  // is the "a merge where main grew the file" case named above.
+  'CreasePatternPanel.tsx': 2788,
   // 2085 -> 2095: the "no crease pattern" marking. The warning used to name an
   // internal class and point at nothing, so this adds the canvas layer that
   // shows which flaps it means, its Layers toggle, and the alert copy that

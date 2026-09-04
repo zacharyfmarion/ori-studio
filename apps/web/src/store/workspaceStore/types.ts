@@ -64,6 +64,8 @@ import type { CpLineClipboardPayload, CpSelectionTransform } from '../../lib/cre
 import type { OristudioCpLineage } from '../../lib/oristudioCpLineage';
 import type { CanvasAnnotation, AnnotationUpdate } from '../../cp-workspace/annotations/annotation';
 import type { UserCamera } from '../../cp-workspace/renderer/camera';
+import type { CpMeasurement } from '../../cp-workspace/measure';
+import type { CpMeasureSession } from '../../cp-workspace/measureSession';
 import type {
   AddInlineSimulationResult,
   InlineSimulation,
@@ -765,6 +767,22 @@ export interface CreasePatternSliceState {
   oristudioCpAnnotations: CanvasAnnotation[];
   oristudioCpSelectedAnnotationId: string | null;
   /**
+   * The measure tool's readings, and the ones Undo has taken back.
+   *
+   * Session-only and never persisted (see `measureSession.ts`), but held here
+   * rather than in the panel because three surfaces have to agree about it:
+   * `historySlice.undo/redo` decides whether Undo belongs to the reading or to
+   * the document, `workspaceCapabilities` decides whether Edit > Undo and the
+   * canvas history pills are live, and the panel draws it. All three read the
+   * store, so this is what makes them agree by construction.
+   *
+   * `taken` is non-empty **only while a measure tool is active** —
+   * `useCpMeasureSession` ends the session when the tool is left — which is what
+   * lets undo ownership be decided from the array alone, with the store knowing
+   * nothing about tool state.
+   */
+  oristudioCpMeasureSession: CpMeasureSession;
+  /**
    * Superset feature: live simulations of individual crease-pattern regions,
    * placed on the Edit canvas. Session-only — deliberately not persisted, since
    * a window is a scratch tool rather than document content. The heavy half (the
@@ -848,6 +866,27 @@ export interface CreasePatternSliceActions {
   removeOristudioCpInlineSimulation: (id: string) => void;
   /** Hand the solver to a window, or to none. */
   focusOristudioCpInlineSimulation: (id: string | null) => void;
+  /**
+   * Record a reading the measure tool just took. Clears the session's redo, as
+   * any new action does.
+   */
+  takeOristudioCpMeasurement: (measurement: CpMeasurement) => void;
+  /**
+   * Take back the newest reading. False when there is none, which is the signal
+   * for Undo to fall through to the document.
+   *
+   * Also what the Delete key removes a reading through, so the two doors onto
+   * the same stack cannot drift.
+   */
+  undoOristudioCpMeasurement: () => boolean;
+  /** Put back the most recently undone reading. False when there is none. */
+  redoOristudioCpMeasurement: () => boolean;
+  /**
+   * Discard the session — the measure tool was left. A no-op on an already empty
+   * session, so the lifetime effect that calls it writes no state on every
+   * unrelated tool change.
+   */
+  endOristudioCpMeasureSession: () => void;
   /**
    * Give canvas drags over a 3D folded figure to its camera, or take them back.
    *

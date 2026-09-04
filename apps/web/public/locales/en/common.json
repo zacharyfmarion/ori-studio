@@ -180,6 +180,7 @@
     "rebuildCp": "Rebuild CP",
     "rebuildCreasePattern": "Rebuild crease pattern",
     "redo": "Redo",
+    "redoLastMeasurement": "Put back the last measurement",
     "redoNextCpEdit": "Redo the next crease-pattern edit",
     "redoNextTreeEdit": "Redo the next tree edit",
     "refresh": "Refresh",
@@ -249,6 +250,7 @@
     "triangulateTree": "Triangulate Tree",
     "undo": "Undo",
     "undoLastCpEdit": "Undo the last crease-pattern edit",
+    "undoLastMeasurement": "Take back the last measurement",
     "undoLastTreeEdit": "Undo the last tree edit"
   },
   "close": "Close",

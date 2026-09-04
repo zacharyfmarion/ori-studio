@@ -142,6 +142,8 @@ function allVisibleCapabilities(): WorkspaceCapabilities {
     canSaveDesign: true,
     historyPastCount: 0,
     historyFutureCount: 0,
+    cpMeasurementsTaken: 0,
+    cpMeasurementsUndone: 0,
     clipboard: null,
     selection: { kind: 'tree' },
   });

@@ -28,6 +28,8 @@ function capabilities({
   canSaveDesign = activeEditingContext !== 'crease-pattern',
   historyPastCount = 0,
   historyFutureCount = 0,
+  cpMeasurementsTaken = 0,
+  cpMeasurementsUndone = 0,
   clipboard = null,
   selection = treeSelection,
   cpDetectAvailable,
@@ -54,6 +56,8 @@ function capabilities({
   canSaveDesign?: boolean;
   historyPastCount?: number;
   historyFutureCount?: number;
+  cpMeasurementsTaken?: number;
+  cpMeasurementsUndone?: number;
   clipboard?: unknown | null;
   selection?: Selection;
   cpDetectAvailable?: boolean;
@@ -81,6 +85,8 @@ function capabilities({
     canSaveDesign,
     historyPastCount,
     historyFutureCount,
+    cpMeasurementsTaken,
+    cpMeasurementsUndone,
     clipboard,
     selection,
     cpDetectAvailable,
@@ -399,6 +405,57 @@ describe('workspace capabilities', () => {
       enabled: true,
       reason: 'Redo the next crease-pattern edit',
     });
+  });
+
+  it('offers undo for a measurement with an untouched document', () => {
+    // The measure tool's readings are their own stack, ahead of the document's
+    // (see `cp-workspace/measureSession.ts`). Counted here so the Edit menu and
+    // the canvas history pills light up exactly when Cmd+Z would take one back —
+    // gating them on the document's history alone left a live keyboard Undo
+    // behind a dead menu item.
+    const measuring = capabilities({
+      documentMode: 'crease-pattern',
+      activeEditingContext: 'crease-pattern',
+      status: 'crease_pattern_ready',
+      hasEditableCreasePattern: true,
+      historyPastCount: 0,
+      historyFutureCount: 0,
+      cpMeasurementsTaken: 1,
+    });
+    expect(measuring['edit.undo']).toMatchObject({
+      enabled: true,
+      reason: 'Take back the last measurement',
+    });
+    expect(measuring['edit.redo'].enabled).toBe(false);
+
+    const undone = capabilities({
+      documentMode: 'crease-pattern',
+      activeEditingContext: 'crease-pattern',
+      status: 'crease_pattern_ready',
+      hasEditableCreasePattern: true,
+      historyPastCount: 0,
+      historyFutureCount: 0,
+      cpMeasurementsUndone: 1,
+    });
+    expect(undone['edit.redo']).toMatchObject({
+      enabled: true,
+      reason: 'Put back the last measurement',
+    });
+  });
+
+  it('keeps a measurement undoable while the engine is busy', () => {
+    // A reading is web-side state, so nothing the engine is doing can make
+    // taking it back unsafe. Gating it on `isBusy` would leave a dead Cmd+Z
+    // during a fold, which is exactly when someone is measuring.
+    const state = capabilities({
+      documentMode: 'crease-pattern',
+      activeEditingContext: 'crease-pattern',
+      status: 'optimizing',
+      hasEditableCreasePattern: true,
+      historyPastCount: 3,
+      cpMeasurementsTaken: 1,
+    });
+    expect(state['edit.undo'].enabled).toBe(true);
   });
 
   it('disables workflow actions while the engine is busy or unavailable', () => {

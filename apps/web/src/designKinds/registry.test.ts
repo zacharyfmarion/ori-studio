@@ -172,6 +172,8 @@ describe('extensibility: a third design kind', () => {
       canSaveDesign: true,
       historyPastCount: 0,
       historyFutureCount: 0,
+      cpMeasurementsTaken: 0,
+      cpMeasurementsUndone: 0,
       clipboard: null,
       selection: { kind: 'tree' as const },
     };
@@ -200,6 +202,8 @@ describe('extensibility: a third design kind', () => {
       canSaveDesign: true,
       historyPastCount: 0,
       historyFutureCount: 0,
+      cpMeasurementsTaken: 0,
+      cpMeasurementsUndone: 0,
       clipboard: null,
       selection: { kind: 'tree' },
     });

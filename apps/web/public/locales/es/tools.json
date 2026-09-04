@@ -93,7 +93,7 @@
     "measure": "Medir",
     "measureAngleUnitDeg": "Grados",
     "measureAngleUnitRad": "Radianes",
-    "measureClearHint": "Retroceso elimina la última, Escape las borra todas",
+    "measureClearHint": "Deshacer o Retroceso elimina la última, Escape las borra todas",
     "measureCopied": "Copiado",
     "measureCopy": "Copiar el valor con precisión completa",
     "measureCopyFailed": "Copia bloqueada",

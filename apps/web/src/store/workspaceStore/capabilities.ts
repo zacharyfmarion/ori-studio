@@ -130,6 +130,13 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
     canSaveDesign: anyDesignIsSavable(state),
     historyPastCount,
     historyFutureCount,
+    // Only the crease-pattern surface's own Undo answers for readings; see
+    // `undoCreasePatternSurface`. Reported as 0 elsewhere so the tree editor's
+    // Undo is never described as taking back a measurement.
+    cpMeasurementsTaken:
+      context === 'crease-pattern' ? state.oristudioCpMeasureSession.taken.length : 0,
+    cpMeasurementsUndone:
+      context === 'crease-pattern' ? state.oristudioCpMeasureSession.undone.length : 0,
     clipboard: state.clipboard,
     selection: selectSelection(state),
   };

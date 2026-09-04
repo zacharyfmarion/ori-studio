@@ -42,6 +42,7 @@ import type { OristudioCpFoldedFigureEntry } from '../../../engine/oristudioCpTy
 import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotation';
 import type { InlineSimulation } from '../../../cp-workspace/inlineSimulation/inlineSimulation';
 import { markGeneratedCpLineageStale } from '../../../lib/oristudioCpLineage';
+import { releasedCpMeasureRedo } from '../../../cp-workspace/measureSession';
 import {
   releaseFoldedFigureHandles,
   retainFoldedFigureHandles,
@@ -431,6 +432,31 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       return true;
     };
 
+    /**
+     * The Edit canvas's Undo: the measure tool's readings first, then the
+     * document.
+     *
+     * A reading outranks the document because of what the alternative does —
+     * Undo used to reach straight past the readout on screen and mutate
+     * geometry the user was not looking at, which is the one thing Undo must
+     * never do quietly. Only on the surface that took the reading, though:
+     * Undo in the tree editor is the tree's, whatever the Edit canvas holds.
+     *
+     * See `cp-workspace/measureSession.ts` for the whole rule.
+     */
+    const undoCreasePatternSurface = async () => {
+      if (get().activeEditingContext === 'crease-pattern' && get().undoOristudioCpMeasurement()) {
+        return true;
+      }
+      if (!(await undoCreasePattern())) return false;
+      // Reaching the document ends the session's redo, so the Redo after this
+      // one redoes the document rather than resurrecting a reading the user had
+      // already stepped past — the two stacks answering in different orders is
+      // the confusion this feature exists to remove.
+      set({ oristudioCpMeasureSession: releasedCpMeasureRedo(get().oristudioCpMeasureSession) });
+      return true;
+    };
+
     const context = get().activeEditingContext;
     if (context === 'bp-tree' || context === 'bp-packing') {
       await navigateBpHistory(undoSnapshot, 'Undid');
@@ -443,11 +469,11 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
     if (context === 'design-nux' || context === 'simulate') return;
 
     if (get().activeEditingContext === 'crease-pattern') {
-      if (await undoCreasePattern()) return;
+      if (await undoCreasePatternSurface()) return;
       await undoTree();
     } else {
       if (await undoTree()) return;
-      await undoCreasePattern();
+      await undoCreasePatternSurface();
     }
   },
 
@@ -586,6 +612,14 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       return true;
     };
 
+    /** The mirror of {@link undoCreasePatternSurface}: readings before the document. */
+    const redoCreasePatternSurface = async () => {
+      if (get().activeEditingContext === 'crease-pattern' && get().redoOristudioCpMeasurement()) {
+        return true;
+      }
+      return redoCreasePattern();
+    };
+
     const context = get().activeEditingContext;
     if (context === 'bp-tree' || context === 'bp-packing') {
       await navigateBpHistory(redoSnapshot, 'Redid');
@@ -598,11 +632,11 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
     if (context === 'design-nux' || context === 'simulate') return;
 
     if (get().activeEditingContext === 'crease-pattern') {
-      if (await redoCreasePattern()) return;
+      if (await redoCreasePatternSurface()) return;
       await redoTree();
     } else {
       if (await redoTree()) return;
-      await redoCreasePattern();
+      await redoCreasePatternSurface();
     }
   },
   };

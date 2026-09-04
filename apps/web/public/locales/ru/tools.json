@@ -97,7 +97,7 @@
     "measure": "Измерение",
     "measureAngleUnitDeg": "Градусы",
     "measureAngleUnitRad": "Радианы",
-    "measureClearHint": "Backspace удаляет последнее, Escape очищает все",
+    "measureClearHint": "Отменить или Backspace удаляет последнее, Escape очищает все",
     "measureCopied": "Скопировано",
     "measureCopy": "Копировать значение с полной точностью",
     "measureCopyFailed": "Копирование заблокировано",

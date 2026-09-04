@@ -180,6 +180,7 @@
     "rebuildCp": "Regénérer le patron de plis",
     "rebuildCreasePattern": "Regénérer le patron de plis",
     "redo": "Rétablir",
+    "redoLastMeasurement": "Rétablir la dernière mesure",
     "redoNextCpEdit": "Rétablir la prochaine modification du patron de plis",
     "redoNextTreeEdit": "Rétablir la prochaine modification de l'arbre",
     "refresh": "Actualiser",
@@ -249,6 +250,7 @@
     "triangulateTree": "Trianguler l'arbre",
     "undo": "Annuler",
     "undoLastCpEdit": "Annuler la dernière modification du patron de plis",
+    "undoLastMeasurement": "Annuler la dernière mesure",
     "undoLastTreeEdit": "Annuler la dernière modification de l'arbre"
   },
   "close": "Fermer",

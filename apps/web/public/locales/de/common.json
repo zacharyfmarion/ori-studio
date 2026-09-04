@@ -180,6 +180,7 @@
     "rebuildCp": "CP neu erstellen",
     "rebuildCreasePattern": "Faltmuster neu erstellen",
     "redo": "Wiederholen",
+    "redoLastMeasurement": "Letzte Messung wiederherstellen",
     "redoNextCpEdit": "Nächste Faltmuster-Bearbeitung wiederholen",
     "redoNextTreeEdit": "Nächste Baumbearbeitung wiederholen",
     "refresh": "Aktualisieren",
@@ -249,6 +250,7 @@
     "triangulateTree": "Baum triangulieren",
     "undo": "Rückgängig",
     "undoLastCpEdit": "Letzte Faltmuster-Bearbeitung rückgängig machen",
+    "undoLastMeasurement": "Letzte Messung zurücknehmen",
     "undoLastTreeEdit": "Letzte Baumbearbeitung rückgängig machen"
   },
   "close": "Schließen",
