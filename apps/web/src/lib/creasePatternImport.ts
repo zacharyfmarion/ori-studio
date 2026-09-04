@@ -874,7 +874,28 @@ function segmentIntersectionParams(
   const qmp = { x: q.x - p.x, y: q.y - p.y };
   const qmpxr = cross(qmp, r);
 
-  if (Math.abs(rxs) < EPSILON) {
+  // Collinearity is `sin(theta)` against EPSILON, not the raw cross product.
+  //
+  // `rxs` is `|r||s|sin(theta)`, so comparing it directly makes the threshold
+  // depend on how long the two segments happen to be — far too tight for long
+  // ones, and far too loose for short ones (the `EPSILON / length` the sweep
+  // above has to pad for). Measured on a real crease pattern: two creases
+  // meeting end to end at a *bit-identical* endpoint, collinear to 2e-9 of a
+  // degree, scored `rxs = 1.15e-8` on `|r||s| = 360` and so missed a 1e-8 bar.
+  // The general branch below then divided two equal-magnitude near-zero numbers
+  // (-1.149641e-08 / -1.149644e-08), reported the crossing at t = 0.999997528
+  // instead of 1, and cut the crease 4.6e-5 short of the vertex it ends on. That
+  // tail is shorter than the kernel's vertex-weld radius, so on the way back in
+  // it collapsed to a self-loop and cost the whole pattern its faces.
+  //
+  // `qmpxr` below keeps its raw comparison. It has the same shape and the same
+  // scale hazard, but it decides something else — whether two *parallel*
+  // segments share a line — and nothing measured here says what its tolerance
+  // should be, so it is left alone rather than changed on the strength of an
+  // analogy.
+  const angleScale = Math.hypot(r.x, r.y) * Math.hypot(s.x, s.y);
+
+  if (angleScale === 0 || Math.abs(rxs) / angleScale < EPSILON) {
     if (Math.abs(qmpxr) >= EPSILON) return { a: [], b: [] };
     return {
       a: [projectParam(a, b.a), projectParam(a, b.b)].filter(inUnit),
