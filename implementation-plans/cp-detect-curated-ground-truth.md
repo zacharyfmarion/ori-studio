@@ -29,9 +29,19 @@ $CP_DETECT_CURATED_CORPUS_DIR/
     topology.fold    the corrected pattern before solving: the decoder's truth,
                      and the solver's ground-truth input
     truth.fold       the solved pattern: the solver's truth
-    case.json        what the case is and what state truth.fold is in
     work.osf         optional: the editor document, for re-opening and refining
 ```
+
+No metadata file. Everything a metadata file would say is derived, so nothing
+has to be typed and nothing can go stale:
+
+| Fact | Derived from |
+| --- | --- |
+| Case status: todo, topology only, solved | which files exist, and the check below |
+| `solved` | `truth.fold` passes the editor's foldability check, run by the harness |
+| Failure tags: missed junction, spurious crease, wrong assignment, split or merged crease | `detected.fold` diffed against `topology.fold` with `strict_topology` |
+| Family (box-pleat, 22.5°, mixed), paper shape, crease count | the geometry of `topology.fold` |
+| Curation commit | the harness records its own build; the scaffold records the model and commit that produced `detected.fold` |
 
 Three patterns, because the pipeline has two stages and each needs its own
 reference. Repair fixes topology and assignments without moving vertices; the
@@ -44,46 +54,27 @@ correct topology whether or not the detector reached it on this case.
 `topology.fold` yields the failure tags without hand-labelling, and shows
 when a later model has changed the starting point.
 
-`case.json`:
+### Scaffolding
 
-```json
-{
-  "solved": true,
-  "paper": "square",
-  "source": "scan | screenshot | photo | render",
-  "family": "box-pleat | 22.5 | mixed | free",
-  "creases": 341,
-  "tags": ["missed-junction", "spurious-crease", "wrong-assignment", "split-crease"],
-  "notes": "what the detector got wrong and what was fixed",
-  "curated_at": "2026-09-04",
-  "curated_with": "commit or app version the truth was produced in"
-}
-```
+A scaffold pass creates every case folder from a source directory: copies the
+image in as `source.<ext>` and writes `detected.fold` from the native pipeline
+(`detect_folder`), plus a `README.md` index listing each case's crease count
+and detection outcome so the tractable cases are easy to pick out. The first
+pass over `real/` made 107 cases, 103 with a detected pattern.
 
-`solved: true` means `truth.fold` carries exact coordinates: the pattern passes
-the editor's foldability check with no markers. `solved: false` means the
-topology and assignments are right but the positions are only approximate,
-because the solver could not yet reach an exact state; such a case still gates
-topology, and becomes a solved case the day it can be solved.
-
-### Producing `truth.fold`
+### Producing the truth, per case
 
 1. In the web app (or desktop), detect from the source image with the default
-   settings. Keep it as given, uncropped and unconverted: rectification is
-   part of what is under test.
-2. Accept the detection into the document and File ▸ Export FOLD… to
-   `detected.fold`, before touching anything.
-3. Review & Fix, then repair by hand until the topology is what the design
+   settings, and accept. Keep the image as given, uncropped and unconverted:
+   rectification is part of what is under test.
+2. Review & Fix, then repair by hand until the topology is what the design
    has: every junction, every crease, every assignment. Fix the detection in
    place rather than redrawing, so the pattern stays in the frame the detector
    placed it in. Add nothing that is not a crease: no aux lines, no marks.
-   Export to `topology.fold` **before** solving.
-4. Solve. If the foldability check comes up clean, the case is `solved`. If
-   it does not, and the remaining markers are the solver's limit rather than a
-   topology error, stop there and mark the case `solved: false`, noting why.
-5. Export to `truth.fold`. Save the document as `work.osf` too.
-6. Write `case.json`. The tags are the failure taxonomy; the notes are what a
-   future reader needs to tell a regression from a known limitation.
+   File ▸ Export FOLD… to `topology.fold` **before** solving.
+3. Solve, then export to `truth.fold` whether or not the check came up clean;
+   the harness reads `solved` off the file. Save the document as `work.osf`
+   if it is worth coming back to.
 
 Do not "improve" the design: truth is the pattern as the designer drew it,
 including any asymmetry or unevenness that is really there. The pleat-spacing
@@ -148,7 +139,7 @@ Ten to twenty cases gate regressions; thirty or more support tuning. Cover:
 - Box-pleated designs with pleats (the frog), 22.5° designs (Markhor, Bali
   myna), and at least two mixed ones.
 - The size envelope the dialog says it handles well, small to medium, plus
-  two or three large ones as `solved: false` topology-only cases so growth is
+  two or three large ones as topology-only cases so growth is
   visible.
 - Every input kind: scan, screenshot, photo.
 - Two or three cases the pipeline currently gets wrong, with the truth it
@@ -169,7 +160,9 @@ Ten to twenty cases gate regressions; thirty or more support tuning. Cover:
 
 ## Checklist
 
-- [ ] Agree the case format above; curate the first three cases
+- [x] Case format agreed: files only, metadata derived
+- [x] Scaffold `real_benchmark/` from `real/` (107 cases, 103 with `detected.fold`)
+- [ ] Curate the first three cases
 - [ ] Harness: load a case, rectify, infer, decode, solve with dialog defaults
 - [ ] Harness: normalise frames and score strict topology, recovery, position error
 - [ ] Solver-only gate over `topology.fold` → `truth.fold` in the compiler crate
