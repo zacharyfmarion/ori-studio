@@ -318,6 +318,11 @@ fn worker(rx: Arc<Mutex<mpsc::Receiver<Job>>>, out: PathBuf, budget: f64, max_ed
                         "polish": exact.pointer("/movement_report/polish/stop_reason"),
                         "pinned_family": exact.pointer("/movement_report/polish/pinned_family/adopted"),
                         "pinned_step": exact.pointer("/movement_report/polish/pinned_family/step_degrees"),
+                        "pleats": exact.pointer("/movement_report/polish/pleat_runs/adopted"),
+                        "pleat_runs": exact.pointer("/movement_report/polish/pleat_runs/runs").and_then(|runs| runs.as_array()).map(|runs| runs.len()),
+                        "pleat_spread_before": exact.pointer("/movement_report/polish/pleat_runs/spread_before"),
+                        "pleat_spread_after": exact.pointer("/movement_report/polish/pleat_runs/spread_after"),
+                        "pleat_detail": exact.pointer("/movement_report/polish/pleat_runs"),
                     },
                     "warnings": report.get("warnings"),
                 });
