@@ -7,6 +7,9 @@
 use crate::candidate_graph::{
     BoundaryReconstructionPolicy, CandidateCreaseBoundaryRole, CandidateVertex,
 };
+use crate::pleat_runs::{
+    Obstacle, PleatLine, PleatRun, SpacingGroup, detect_pleat_runs, worst_group_spread,
+};
 use crate::symmetry::{DetectedSymmetry, detect_symmetries, mirror_error};
 use crate::{
     AssignmentLabel, BoundaryModel, BoundarySide, CandidateCreaseSpan, CandidateCreaseSpanKind,
@@ -124,6 +127,25 @@ pub struct ExactSolveOptions {
     /// image before an axis is believed. See [`default_symmetry_min_fraction`].
     #[serde(default = "default_symmetry_min_fraction")]
     pub symmetry_min_fraction: f64,
+    /// Whether to look for pleat runs — parallel creases stacked with clean
+    /// strips between them — and hold each run's equal spacings equal once the
+    /// solve has converged. See [`PleatSpacingMode`] and [`crate::pleat_runs`].
+    #[serde(default)]
+    pub pleat_spacing: PleatSpacingMode,
+}
+
+/// A detected box-pleated or pleated 22.5° design comes back from the solve
+/// foldable, with every pleat crease where pixel noise put it: nothing in the
+/// solve knows the design drew them at one pitch. `Auto` finds the pleat runs
+/// in the solved pattern ([`crate::pleat_runs`]) and holds each run's equal
+/// spacings equal, judged like the pin and the symmetry round: adopted only
+/// when nothing regresses. See [`pleat_round`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PleatSpacingMode {
+    #[default]
+    Auto,
+    Off,
 }
 
 /// Solved on its own, each half of a mirror-symmetric pattern converges to its
@@ -358,6 +380,7 @@ impl Default for ExactSolveOptions {
             symmetry: SymmetryMode::default(),
             symmetry_match_tolerance: default_symmetry_match_tolerance(),
             symmetry_min_fraction: default_symmetry_min_fraction(),
+            pleat_spacing: PleatSpacingMode::default(),
             polish_kawasaki_sigma_radians: default_polish_kawasaki_sigma_radians(),
             polish_carrier_incidence_sigma: default_polish_carrier_incidence_sigma(),
             polish_rounds: default_polish_rounds(),
@@ -990,8 +1013,28 @@ fn solve_exact_inner(
             }
             polish_outcome.symmetry = Some(round.outcome);
         }
+        let mut pleats_adopted = false;
+        if let Some(round) = pleat_round(
+            &active,
+            input,
+            &before,
+            &current_params,
+            &current_after,
+            options,
+        ) {
+            if let Some(adoption) = round.adopted {
+                current_params = adoption.params;
+                current_kawasaki = adoption.after.max_kawasaki_residual_degrees;
+                current_after = adoption.after;
+                polish_evaluations += adoption.evaluations;
+                polish_outcome.kawasaki_after_degrees = Some(current_kawasaki);
+                active = active.with_pleat_ties(&round.ties);
+                pleats_adopted = true;
+            }
+            polish_outcome.pleat_runs = Some(round.outcome);
+        }
         let _ = &current_after;
-        if rounds_adopted == 0 && !symmetry_adopted && !pinned_adopted {
+        if rounds_adopted == 0 && !symmetry_adopted && !pinned_adopted && !pleats_adopted {
             break 'polish (
                 final_params,
                 termination,
@@ -1005,9 +1048,10 @@ fn solve_exact_inner(
         let polished_objective = residual_energy(&active.residuals_for(&current_params));
         let pinned = if pinned_adopted { ",pinned" } else { "" };
         let symmetric = if symmetry_adopted { ",symmetric" } else { "" };
+        let pleated = if pleats_adopted { ",pleats" } else { "" };
         (
             current_params,
-            format!("{termination}+polish(rounds={rounds_adopted}{pinned}{symmetric})"),
+            format!("{termination}+polish(rounds={rounds_adopted}{pinned}{symmetric}{pleated})"),
             evaluations + polish_evaluations,
             polished_objective,
             true,
@@ -1130,6 +1174,17 @@ fn solve_exact_inner(
     }
 }
 
+/// What holds a pleat run's spacings equal, in a model's parameters. See
+/// [`SolveModel::pleat_ties_for`].
+#[derive(Debug, Clone, Default)]
+struct PleatTies {
+    /// Each a linear form over carrier `rho` parameters, `(index, coefficient)`
+    /// terms, that is zero when two spacings of one group are equal.
+    spacing: Vec<Vec<(usize, f64)>>,
+    /// Pairs of carrier `theta` parameters held parallel, modulo π.
+    direction: Vec<(usize, usize)>,
+}
+
 #[derive(Debug, Clone)]
 struct SolveModel {
     vertex_params: Vec<VertexParameterization>,
@@ -1155,6 +1210,9 @@ struct SolveModel {
     /// solve destabilised noisy detections (close_but went from 0 to 167 angle
     /// violations), which is why they are a judged round, like the pin.
     symmetries: Vec<DetectedSymmetry>,
+    /// The ties that hold the pleat runs' equal spacings equal; empty until the
+    /// pleat round adopts them. See [`pleat_round`].
+    pleat_ties: PleatTies,
     span_to_carrier_group: BTreeMap<usize, usize>,
     initial_params: OVector<f64, Dyn>,
     selected_spans: Vec<CandidateCreaseSpan>,
@@ -1285,6 +1343,7 @@ impl SolveModel {
                 Vec::new()
             },
             symmetries: Vec::new(),
+            pleat_ties: PleatTies::default(),
             span_to_carrier_group,
             initial_params: OVector::<f64, Dyn>::from_vec(params),
             selected_spans: input.selected_spans.clone(),
@@ -1549,6 +1608,100 @@ impl SolveModel {
             .then(|| deadline.timeout_seconds - deadline.elapsed_seconds())
     }
 
+    /// The pleat runs in this model at `params`: each carrier group as a line
+    /// with the live fold spans on it, and every live fold span as an obstacle.
+    /// See [`crate::pleat_runs`].
+    fn pleat_runs(&self, params: &OVector<f64, Dyn>) -> Vec<PleatRun> {
+        let points = self.placed_points(params);
+        let live = |index: usize| {
+            let span = &self.selected_spans[index];
+            is_fold_span(span) && !self.merged_span_ids.contains(&span.id)
+        };
+        let lines: Vec<PleatLine> = self
+            .carrier_groups
+            .iter()
+            .map(|group| PleatLine {
+                theta: params[group.theta_index],
+                rho: params[group.rho_index],
+                segments: group
+                    .span_indices
+                    .iter()
+                    .copied()
+                    .filter(|&index| live(index))
+                    .map(|index| {
+                        let [a, b] = self.selected_spans[index].vertices;
+                        (index, points[a], points[b])
+                    })
+                    .collect(),
+            })
+            .collect();
+        let obstacles: Vec<Obstacle> = (0..self.selected_spans.len())
+            .filter(|&index| live(index))
+            .map(|index| {
+                let [a, b] = self.selected_spans[index].vertices;
+                Obstacle {
+                    segment: index,
+                    a: points[a],
+                    b: points[b],
+                }
+            })
+            .collect();
+        detect_pleat_runs(&lines, &obstacles, self.image_size_px)
+    }
+
+    /// The ties that hold `runs`' equal groups equal, in this model's
+    /// parameters: for each pair of spacings in a group, the difference of the
+    /// two gaps between signed carrier offsets; and for each run held, its
+    /// neighbours' directions, unless the pin already froze both.
+    fn pleat_ties_for(&self, runs: &[PleatRun]) -> PleatTies {
+        let mut ties = PleatTies::default();
+        let frozen = |index: usize| self.frozen_params.get(index).copied().unwrap_or(false);
+        for run in runs {
+            if run.equal_groups().next().is_none() {
+                continue;
+            }
+            let rho = |k: usize| self.carrier_groups[run.members[k].line].rho_index;
+            let gap_terms = |k: usize| {
+                [
+                    (rho(k + 1), run.members[k + 1].sign),
+                    (rho(k), -run.members[k].sign),
+                ]
+            };
+            for group in run.equal_groups() {
+                for pair in group.gaps.windows(2) {
+                    let mut terms: BTreeMap<usize, f64> = BTreeMap::new();
+                    for (index, coefficient) in gap_terms(pair[1]) {
+                        *terms.entry(index).or_insert(0.0) += coefficient;
+                    }
+                    for (index, coefficient) in gap_terms(pair[0]) {
+                        *terms.entry(index).or_insert(0.0) -= coefficient;
+                    }
+                    ties.spacing.push(
+                        terms
+                            .into_iter()
+                            .filter(|(_, coefficient)| *coefficient != 0.0)
+                            .collect(),
+                    );
+                }
+            }
+            for pair in run.members.windows(2) {
+                let a = self.carrier_groups[pair[0].line].theta_index;
+                let b = self.carrier_groups[pair[1].line].theta_index;
+                if !(frozen(a) && frozen(b)) {
+                    ties.direction.push((a, b));
+                }
+            }
+        }
+        ties
+    }
+
+    /// This model holding `ties`. See [`pleat_round`].
+    fn with_pleat_ties(&self, ties: &PleatTies) -> Self {
+        let mut held = self.clone();
+        held.pleat_ties = ties.clone();
+        held
+    }
+
     /// This model holding every symmetry it detected. See [`symmetry_round`].
     fn with_symmetries_held(&self) -> Self {
         let mut held = self.clone();
@@ -1731,6 +1884,31 @@ impl SolveModel {
             }
         }
 
+        // A pleat run's equal spacings are one spacing: each tie is the
+        // difference of two gaps between carrier offsets, held as hard as a
+        // vertex is held to its carrier, and the run's directions are held
+        // parallel as hard as a fan is held to Kawasaki. See [`pleat_round`].
+        for tie in &self.pleat_ties.spacing {
+            let value: f64 = tie
+                .iter()
+                .map(|&(index, coefficient)| coefficient * params[index])
+                .sum();
+            push_residual(
+                &mut residuals,
+                &mut breakdown,
+                ResidualFamily::Pleat,
+                value / self.options.carrier_incidence_sigma,
+            );
+        }
+        for &(a, b) in &self.pleat_ties.direction {
+            push_residual(
+                &mut residuals,
+                &mut breakdown,
+                ResidualFamily::Pleat,
+                line_angle_delta(params[a], params[b]) / self.options.kawasaki_sigma_radians,
+            );
+        }
+
         for residual in kawasaki_residuals(
             &points,
             &self.vertices,
@@ -1894,6 +2072,20 @@ impl SolveModel {
             }
         }
 
+        for tie in &self.pleat_ties.spacing {
+            let scale = 1.0 / self.options.carrier_incidence_sigma;
+            for &(index, coefficient) in tie {
+                add(row, index, coefficient * scale);
+            }
+            row += 1;
+        }
+        for &(a, b) in &self.pleat_ties.direction {
+            let scale = 1.0 / self.options.kawasaki_sigma_radians;
+            add(row, a, scale);
+            add(row, b, -scale);
+            row += 1;
+        }
+
         for entry in kawasaki_entries {
             for (index, ray) in entry.rays.iter().enumerate() {
                 let angle_weight = if index % 2 == 0 { -2.0 } else { 2.0 };
@@ -1945,10 +2137,12 @@ impl SolveModel {
             .iter()
             .map(|symmetry| symmetry.pairs.len() * 2 + symmetry.on_axis.len())
             .sum::<usize>();
+        let pleat_residuals = self.pleat_ties.spacing.len() + self.pleat_ties.direction.len();
         vertex_residuals
             + carrier_residuals
             + coincidence_residuals
             + symmetry_residuals
+            + pleat_residuals
             + kawasaki_residual_count
     }
 
@@ -2482,6 +2676,8 @@ struct ResidualBreakdown {
     coincidence_energy: f64,
     symmetry_count: usize,
     symmetry_energy: f64,
+    pleat_count: usize,
+    pleat_energy: f64,
 }
 
 impl ResidualBreakdown {
@@ -2501,6 +2697,7 @@ impl ResidualBreakdown {
             + self.kawasaki_energy
             + self.coincidence_energy
             + self.symmetry_energy
+            + self.pleat_energy
     }
 
     fn record(&mut self, family: ResidualFamily, residual: f64) {
@@ -2534,6 +2731,10 @@ impl ResidualBreakdown {
                 self.symmetry_count += 1;
                 self.symmetry_energy += energy;
             }
+            ResidualFamily::Pleat => {
+                self.pleat_count += 1;
+                self.pleat_energy += energy;
+            }
         }
     }
 }
@@ -2547,6 +2748,7 @@ enum ResidualFamily {
     Kawasaki,
     Coincidence,
     Symmetry,
+    Pleat,
 }
 
 fn push_residual(
@@ -3450,6 +3652,8 @@ struct PolishOutcome {
     pinned_family: Option<PinnedFamilyOutcome>,
     /// The symmetry round, when the pattern was read as mirror-symmetric.
     symmetry: Option<SymmetryRoundOutcome>,
+    /// The pleat round, when the pattern was read as having pleat runs.
+    pleat_runs: Option<PleatRoundOutcome>,
 }
 
 /// What the symmetry round did. See [`symmetry_round`].
@@ -3589,6 +3793,241 @@ fn symmetry_round(
             seconds: model.deadline.elapsed_seconds() - started,
             refusals: refusals.clone(),
         },
+        adopted: adopted.then(|| PinnedAdoption {
+            params,
+            after,
+            evaluations,
+            merged_span_ids: model.merged_span_ids.clone(),
+            frozen_params: model.frozen_params.clone(),
+        }),
+    })
+}
+
+/// What the pleat round did. See [`PleatSpacingMode`] and [`pleat_round`].
+#[derive(Debug, Clone)]
+struct PleatRoundOutcome {
+    runs: Vec<PleatRunReport>,
+    /// Spacing ties held; zero when every run was already exact or unequal.
+    ties: usize,
+    adopted: bool,
+    /// `adopted`, `refused`, `nothing_to_tie`, or `out_of_time`.
+    stop_reason: &'static str,
+    kawasaki_degrees: f64,
+    camv: Option<CamvCounts>,
+    /// The worst departure of a held spacing from its group's mean, as a
+    /// fraction of the pitch, before and after the round.
+    spread_before: f64,
+    spread_after: f64,
+    reanchored_rounds: usize,
+    evaluations: usize,
+    seconds: f64,
+    refusals: Vec<String>,
+}
+
+/// One pleat run as the report describes it.
+#[derive(Debug, Clone)]
+struct PleatRunReport {
+    family_degrees: f64,
+    creases: usize,
+    strip_length: f64,
+    span_ids: Vec<usize>,
+    gaps_before: Vec<f64>,
+    gaps_after: Vec<f64>,
+    groups: Vec<PleatGroupReport>,
+}
+
+#[derive(Debug, Clone)]
+struct PleatGroupReport {
+    count: usize,
+    pitch: f64,
+    spread_before: f64,
+    spread_after: f64,
+}
+
+/// The pleat round's result: the report, the ties it held, and the adopted
+/// state when it passed.
+struct PleatRound {
+    outcome: PleatRoundOutcome,
+    ties: PleatTies,
+    adopted: Option<PinnedAdoption>,
+}
+
+/// A group's worst departure from its mean over `gaps`, as a fraction of it.
+fn group_spread(group: &SpacingGroup, gaps: &[f64]) -> f64 {
+    let values: Vec<f64> = group
+        .gaps
+        .iter()
+        .filter_map(|&k| gaps.get(k).copied())
+        .collect();
+    if values.is_empty() {
+        return 0.0;
+    }
+    let mean = values.iter().sum::<f64>() / values.len() as f64;
+    if mean.abs() <= f64::EPSILON {
+        return 0.0;
+    }
+    values
+        .iter()
+        .map(|value| (value - mean).abs())
+        .fold(0.0_f64, f64::max)
+        / mean.abs()
+}
+
+/// Find the pleat runs in the solved pattern and hold each run's equal
+/// spacings equal, judged the way the symmetry round is judged. Runs after the
+/// pin and the symmetry round: with the directions frozen the ties are linear
+/// in the offsets, and a symmetric pleat is held to one pitch and one mirror
+/// at once, which freezing the offsets could not do. The foldability gate
+/// cannot refuse a wrong spacing — an uneven pleat folds — so the criterion in
+/// [`crate::pleat_runs`] is the whole of the safety here.
+fn pleat_round(
+    model: &SolveModel,
+    input: &ExactSolveInput,
+    before: &GraphAnalysis,
+    current_params: &OVector<f64, Dyn>,
+    current_after: &GraphAnalysis,
+    options: ExactSolveOptions,
+) -> Option<PleatRound> {
+    if options.pleat_spacing == PleatSpacingMode::Off || model.timeout_reached() {
+        return None;
+    }
+    let runs = model.pleat_runs(current_params);
+    if runs.is_empty() {
+        return None;
+    }
+    let ties = model.pleat_ties_for(&runs);
+    let started = model.deadline.elapsed_seconds();
+    let gaps_at = |params: &OVector<f64, Dyn>, run: &PleatRun| {
+        run.gaps_from_offsets(|member| params[model.carrier_groups[member.line].rho_index])
+    };
+    let spread_at = |params: &OVector<f64, Dyn>| {
+        runs.iter()
+            .map(|run| worst_group_spread(run, &gaps_at(params, run)))
+            .fold(0.0_f64, f64::max)
+    };
+    let report = |params: &OVector<f64, Dyn>| -> Vec<PleatRunReport> {
+        runs.iter()
+            .map(|run| {
+                let gaps_before = gaps_at(current_params, run);
+                let gaps_after = gaps_at(params, run);
+                PleatRunReport {
+                    family_degrees: run.theta.to_degrees(),
+                    creases: run.members.len(),
+                    strip_length: run.strip_length,
+                    span_ids: run
+                        .members
+                        .iter()
+                        .flat_map(|member| member.segments.iter())
+                        .map(|&index| model.selected_spans[index].id)
+                        .collect(),
+                    groups: run
+                        .groups
+                        .iter()
+                        .map(|group| PleatGroupReport {
+                            count: group.gaps.len(),
+                            pitch: group.pitch,
+                            spread_before: group_spread(group, &gaps_before),
+                            spread_after: group_spread(group, &gaps_after),
+                        })
+                        .collect(),
+                    gaps_before,
+                    gaps_after,
+                }
+            })
+            .collect()
+    };
+    let spread_before = spread_at(current_params);
+    let not_run = |stop_reason: &'static str, ties: PleatTies| {
+        Some(PleatRound {
+            outcome: PleatRoundOutcome {
+                runs: report(current_params),
+                ties: ties.spacing.len(),
+                adopted: false,
+                stop_reason,
+                kawasaki_degrees: current_after.max_kawasaki_residual_degrees,
+                camv: current_after.camv,
+                spread_before,
+                spread_after: spread_before,
+                reanchored_rounds: 0,
+                evaluations: 0,
+                seconds: 0.0,
+                refusals: Vec::new(),
+            },
+            ties,
+            adopted: None,
+        })
+    };
+    if ties.spacing.is_empty() {
+        return not_run("nothing_to_tie", ties);
+    }
+    let budget = model
+        .remaining_seconds()
+        .map(|seconds| seconds - PINNED_ROUND_RESERVE_SECONDS);
+    if budget.is_some_and(|seconds| seconds <= 0.0) {
+        return not_run("out_of_time", ties);
+    }
+    let held = model.with_pleat_ties(&ties);
+    let mut solving = held.reanchored_for_polish(current_params);
+    if let Some(seconds) = budget {
+        solving = solving.with_own_budget(seconds);
+    }
+    let start_energy = residual_energy(&solving.residuals_for(current_params));
+    let (mut params, _termination, mut evaluations, _objective, _counters) =
+        run_lm_minimize(&solving, current_params, options);
+    let analyze = |params: &OVector<f64, Dyn>| {
+        let points = held.placed_points(params);
+        analyze_graph(input, &points, &held, params, options)
+    };
+    let mut after = analyze(&params);
+    let mut reanchored_rounds = 0usize;
+    for _round in 0..PINNED_REANCHOR_ROUNDS {
+        if after.max_kawasaki_residual_degrees <= options.solved_kawasaki_epsilon_degrees
+            || solving.timeout_reached()
+        {
+            break;
+        }
+        let reanchored = solving.reanchored_for_polish(&params);
+        let (next, _next_termination, more, _objective, _counters) =
+            run_lm_minimize(&reanchored, &params, options);
+        evaluations += more;
+        let next_after = analyze(&next);
+        if next_after.max_kawasaki_residual_degrees >= after.max_kawasaki_residual_degrees {
+            break;
+        }
+        params = next;
+        after = next_after;
+        solving = reanchored;
+        reanchored_rounds += 1;
+    }
+    let final_energy = residual_energy(&solving.residuals_for(&params));
+    let status = classify_status(before, &after, options);
+    let mut refusals = exact_solution_rejection_reasons(
+        before,
+        &after,
+        status,
+        start_energy,
+        final_energy,
+        options,
+    );
+    refusals.extend(pinned_round_regressions(current_after, &after, options));
+    let spread_after = spread_at(&params);
+    let adopted = refusals.is_empty();
+    Some(PleatRound {
+        outcome: PleatRoundOutcome {
+            runs: report(&params),
+            ties: ties.spacing.len(),
+            adopted,
+            stop_reason: if adopted { "adopted" } else { "refused" },
+            kawasaki_degrees: after.max_kawasaki_residual_degrees,
+            camv: after.camv,
+            spread_before,
+            spread_after,
+            reanchored_rounds,
+            evaluations,
+            seconds: model.deadline.elapsed_seconds() - started,
+            refusals: refusals.clone(),
+        },
+        ties,
         adopted: adopted.then(|| PinnedAdoption {
             params,
             after,
@@ -4030,6 +4469,7 @@ impl PolishOutcome {
             refused_round: None,
             pinned_family: None,
             symmetry: None,
+            pleat_runs: None,
         }
     }
 
@@ -4070,6 +4510,48 @@ fn polish_report_json(polish: &PolishOutcome, options: ExactSolveOptions) -> Val
                 "evaluations": round.evaluations,
                 "seconds": round6(round.seconds),
                 "refusals": round.refusals,
+            })
+        }),
+        "pleat_runs": polish.pleat_runs.as_ref().map(|round| {
+            json!({
+                "adopted": round.adopted,
+                "stop_reason": round.stop_reason,
+                "ties": round.ties,
+                "kawasaki_degrees": round12(round.kawasaki_degrees),
+                "camv_angle_violations": round.camv.map(|camv| camv.angle_violations),
+                "big_little_big_violations": round.camv.map(|camv| camv.big_little_big_violations),
+                "spread_before": round12(round.spread_before),
+                "spread_after": round12(round.spread_after),
+                "reanchored_rounds": round.reanchored_rounds,
+                "evaluations": round.evaluations,
+                "seconds": round6(round.seconds),
+                "refusals": round.refusals,
+                "runs": round
+                    .runs
+                    .iter()
+                    .map(|run| {
+                        json!({
+                            "family_degrees": round6(run.family_degrees),
+                            "creases": run.creases,
+                            "strip_length": round6(run.strip_length),
+                            "span_ids": run.span_ids,
+                            "gaps_before": run.gaps_before.iter().map(|gap| round12(*gap)).collect::<Vec<_>>(),
+                            "gaps_after": run.gaps_after.iter().map(|gap| round12(*gap)).collect::<Vec<_>>(),
+                            "groups": run
+                                .groups
+                                .iter()
+                                .map(|group| {
+                                    json!({
+                                        "count": group.count,
+                                        "pitch": round12(group.pitch),
+                                        "spread_before": round12(group.spread_before),
+                                        "spread_after": round12(group.spread_after),
+                                    })
+                                })
+                                .collect::<Vec<_>>(),
+                        })
+                    })
+                    .collect::<Vec<_>>(),
             })
         }),
         "pinned_family": polish.pinned_family.as_ref().map(|pinned| {
@@ -4411,6 +4893,10 @@ fn residual_breakdown_json(breakdown: &ResidualBreakdown) -> Value {
         "symmetry": {
             "count": breakdown.symmetry_count,
             "energy": round6(breakdown.symmetry_energy),
+        },
+        "pleat": {
+            "count": breakdown.pleat_count,
+            "energy": round6(breakdown.pleat_energy),
         },
     })
 }
@@ -4775,6 +5261,13 @@ fn angle_radians(origin: Point2, target: Point2) -> f64 {
     (target.y - origin.y)
         .atan2(target.x - origin.x)
         .rem_euclid(TAU)
+}
+
+/// The difference between two line directions read modulo π, in `[-π/2, π/2)`:
+/// a carrier's normal may point either way along the same line.
+fn line_angle_delta(left: f64, right: f64) -> f64 {
+    use std::f64::consts::{FRAC_PI_2, PI};
+    (left - right + FRAC_PI_2).rem_euclid(PI) - FRAC_PI_2
 }
 
 fn angle_delta(left: f64, right: f64) -> f64 {

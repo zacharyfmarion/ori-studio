@@ -41,14 +41,15 @@
  *   about the solver's answer, and second-guessing its own verdict here would be
  *   a second acceptance policy living in the UI.
  */
-import type { TFunction } from 'i18next';
+import type { TFunction } from "i18next";
 
-import { cpExactSolveReasonLabel } from '../../engine/cpExactSolveMessages';
+import { cpExactSolveReasonLabel } from "../../engine/cpExactSolveMessages";
 import type {
   CpExactSolveAcceptedOutcome,
   CpExactSolveResiduals,
   CpSolveAngleFamily,
-} from '../../engine/cpExactSolveTypes';
+  CpSolvePleats,
+} from "../../engine/cpExactSolveTypes";
 
 /**
  * The bar the editor's own flat-foldability check holds a vertex fan to, in
@@ -79,7 +80,8 @@ export const CP_FOLDABILITY_CHECK_EPSILON_DEGREES = 1e-6;
  *   violation (the smallest angle at a vertex sits between two creases of the
  *   same assignment).
  */
-export type CpSolveCompletion = 'exact' | 'approximate' | 'improved' | 'unfoldable';
+export type CpSolveCompletion =
+  "exact" | "approximate" | "improved" | "unfoldable";
 
 /** The completion plus the numbers behind it, which every sentence needs. */
 export interface CpSolveCompletionFacts {
@@ -88,6 +90,8 @@ export interface CpSolveCompletionFacts {
   residuals: CpExactSolveResiduals | null;
   /** What the grid snap did, or null when there was no grid to snap to. */
   angleFamily?: CpSolveAngleFamily | null;
+  /** What the pleat round did, or null when there was no pleat run. */
+  pleats?: CpSolvePleats | null;
 }
 
 /**
@@ -99,29 +103,33 @@ export interface CpSolveCompletionFacts {
  * never fills the missing figures with zeroes: `0` is what a *perfect* solve
  * reports, so a zeroed-in blank reads as the best possible outcome.
  */
-export function cpSolveCompletion(outcome: CpExactSolveAcceptedOutcome): CpSolveCompletion {
+export function cpSolveCompletion(
+  outcome: CpExactSolveAcceptedOutcome,
+): CpSolveCompletion {
   const residuals = outcome.residuals;
-  if (!residuals) return outcome.kind === 'solved' ? 'exact' : 'improved';
+  if (!residuals) return outcome.kind === "solved" ? "exact" : "improved";
   // Topology first: an odd fan is skipped by the Kawasaki pass entirely, so the
   // angle number below says nothing about it. Ordering next, for the same
   // reason — Kawasaki can be exact on a fan that cannot fold. A null count is
   // an older report that did not measure it, and is not read as a violation.
-  if (residuals.oddDegreeVerticesAfter > 0) return 'unfoldable';
-  if ((residuals.bigLittleBigViolationsAfter ?? 0) > 0) return 'unfoldable';
-  if (outcome.kind !== 'solved') return 'improved';
-  return residuals.maxKawasakiDegreesAfter <= CP_FOLDABILITY_CHECK_EPSILON_DEGREES
-    ? 'exact'
-    : 'approximate';
+  if (residuals.oddDegreeVerticesAfter > 0) return "unfoldable";
+  if ((residuals.bigLittleBigViolationsAfter ?? 0) > 0) return "unfoldable";
+  if (outcome.kind !== "solved") return "improved";
+  return residuals.maxKawasakiDegreesAfter <=
+    CP_FOLDABILITY_CHECK_EPSILON_DEGREES
+    ? "exact"
+    : "approximate";
 }
 
 /** Facts in the shape the surfaces hold them, from one accepted outcome. */
 export function cpSolveCompletionFacts(
-  outcome: CpExactSolveAcceptedOutcome
+  outcome: CpExactSolveAcceptedOutcome,
 ): CpSolveCompletionFacts {
   return {
     completion: cpSolveCompletion(outcome),
     residuals: outcome.residuals,
     angleFamily: outcome.angleFamily ?? null,
+    pleats: outcome.pleats ?? null,
   };
 }
 
@@ -132,8 +140,10 @@ export function cpSolveCompletionFacts(
  * as success; the other three all leave markers on screen, and a green "Solved"
  * over them tells the user the checker is broken.
  */
-export function cpSolveMeetsFoldabilityCheck(completion: CpSolveCompletion): boolean {
-  return completion === 'exact';
+export function cpSolveMeetsFoldabilityCheck(
+  completion: CpSolveCompletion,
+): boolean {
+  return completion === "exact";
 }
 
 /**
@@ -146,7 +156,7 @@ export function cpSolveMeetsFoldabilityCheck(completion: CpSolveCompletion): boo
  * {@link cpSolveMeetsFoldabilityCheck}'s answer, and it is no.
  */
 export function cpSolveIsExactVerdict(completion: CpSolveCompletion): boolean {
-  return completion === 'exact' || completion === 'approximate';
+  return completion === "exact" || completion === "approximate";
 }
 
 /**
@@ -159,30 +169,36 @@ export function cpSolveIsExactVerdict(completion: CpSolveCompletion): boolean {
  * reads as an error message in a sentence about geometry.
  */
 export function formatSolveAngleDegrees(value: number): string {
-  if (!Number.isFinite(value) || value <= 0) return '0';
+  if (!Number.isFinite(value) || value <= 0) return "0";
   // Below the last decimal this prints, "0" is the honest rendering rather than a
   // row of zeroes that reads as a bug.
-  if (value < 1e-9) return '0';
+  if (value < 1e-9) return "0";
   const decimals = Math.min(9, Math.max(1, -Math.floor(Math.log10(value))));
   return value.toFixed(decimals);
 }
 
 /** The one-line result, for a toast title or a heading. */
-export function cpSolveCompletionHeadline(t: TFunction, completion: CpSolveCompletion): string {
+export function cpSolveCompletionHeadline(
+  t: TFunction,
+  completion: CpSolveCompletion,
+): string {
   switch (completion) {
-    case 'exact':
-      return t('panels:cpRegion.completion.exact', 'Solved');
-    case 'approximate':
+    case "exact":
+      return t("panels:cpRegion.completion.exact", "Solved");
+    case "approximate":
       return t(
-        'panels:cpRegion.completion.approximate',
-        'Solved, though not to foldability-check precision'
+        "panels:cpRegion.completion.approximate",
+        "Solved, though not to foldability-check precision",
       );
-    case 'improved':
-      return t('panels:cpRegion.completion.improved', 'Improved, but not foldable yet');
-    case 'unfoldable':
+    case "improved":
       return t(
-        'panels:cpRegion.completion.unfoldable',
-        'Improved, but this pattern cannot fold flat'
+        "panels:cpRegion.completion.improved",
+        "Improved, but not foldable yet",
+      );
+    case "unfoldable":
+      return t(
+        "panels:cpRegion.completion.unfoldable",
+        "Improved, but this pattern cannot fold flat",
       );
   }
 }
@@ -196,15 +212,24 @@ export function cpSolveCompletionHeadline(t: TFunction, completion: CpSolveCompl
  * simply: **numbers when the solver reported them, the shared sentence when it
  * did not.**
  */
-export function cpSolveCompletionDetail(t: TFunction, facts: CpSolveCompletionFacts): string {
+export function cpSolveCompletionDetail(
+  t: TFunction,
+  facts: CpSolveCompletionFacts,
+): string {
+  const detail = completionDetail(t, facts);
+  const pleats = pleatDetail(t, facts.pleats);
+  return pleats ? `${detail} ${pleats}` : detail;
+}
+
+function completionDetail(t: TFunction, facts: CpSolveCompletionFacts): string {
   const { completion, residuals } = facts;
-  if (completion === 'exact') {
+  if (completion === "exact") {
     return t(
-      'panels:cpRegion.completion.exactDetail',
-      'The pattern now meets the foldability check.'
+      "panels:cpRegion.completion.exactDetail",
+      "The pattern now meets the foldability check.",
     );
   }
-  if (!residuals) return cpExactSolveReasonLabel(t, 'above_fold_precision');
+  if (!residuals) return cpExactSolveReasonLabel(t, "above_fold_precision");
 
   // "…and the check needs it below the bar" is only a true sentence while the
   // angle is still what fails. Once it passes, saying the bar next to a 0° reads
@@ -212,14 +237,14 @@ export function cpSolveCompletionDetail(t: TFunction, facts: CpSolveCompletionFa
   const anglePasses =
     residuals.maxKawasakiDegreesAfter <= CP_FOLDABILITY_CHECK_EPSILON_DEGREES;
   const angles = anglePasses
-    ? t('panels:cpRegion.completion.anglePassesDetail', {
+    ? t("panels:cpRegion.completion.anglePassesDetail", {
         before: formatSolveAngleDegrees(residuals.maxKawasakiDegreesBefore),
         after: formatSolveAngleDegrees(residuals.maxKawasakiDegreesAfter),
         defaultValue:
-          'The worst angle error went from {{before}}° to {{after}}°, which passes the check.',
+          "The worst angle error went from {{before}}° to {{after}}°, which passes the check.",
       })
     : angleShortfallDetail(t, residuals);
-  if (completion !== 'unfoldable') return angles;
+  if (completion !== "unfoldable") return angles;
 
   // Leading, not appended: these are the causes the user can act on, and they
   // are true of the graph rather than of where its vertices happen to sit — so
@@ -228,31 +253,31 @@ export function cpSolveCompletionDetail(t: TFunction, facts: CpSolveCompletionFa
   const causes: string[] = [];
   if (residuals.oddDegreeVerticesAfter > 0) {
     causes.push(
-      t('panels:cpRegion.completion.oddDegreeDetail', {
+      t("panels:cpRegion.completion.oddDegreeDetail", {
         count: residuals.oddDegreeVerticesAfter,
         defaultValue_one:
-          '1 vertex still has an odd number of creases, so this pattern cannot fold flat no matter where the vertices sit.',
+          "1 vertex still has an odd number of creases, so this pattern cannot fold flat no matter where the vertices sit.",
         defaultValue_other:
-          '{{count}} vertices still have an odd number of creases, so this pattern cannot fold flat no matter where the vertices sit.',
-      })
+          "{{count}} vertices still have an odd number of creases, so this pattern cannot fold flat no matter where the vertices sit.",
+      }),
     );
   }
   if ((residuals.bigLittleBigViolationsAfter ?? 0) > 0) {
     causes.push(
-      t('panels:cpRegion.completion.bigLittleBigDetail', {
+      t("panels:cpRegion.completion.bigLittleBigDetail", {
         count: residuals.bigLittleBigViolationsAfter,
         defaultValue_one:
-          'At 1 vertex the smallest angle sits between two creases folded the same way, so this pattern cannot fold flat.',
+          "At 1 vertex the smallest angle sits between two creases folded the same way, so this pattern cannot fold flat.",
         defaultValue_other:
-          'At {{count}} vertices the smallest angle sits between two creases folded the same way, so this pattern cannot fold flat.',
-      })
+          "At {{count}} vertices the smallest angle sits between two creases folded the same way, so this pattern cannot fold flat.",
+      }),
     );
     // The grid snap is what takes those away on a designed pattern, so when
     // they remain, what it did is the next thing to say — and a snap that was
     // tried and refused would otherwise be invisible.
     causes.push(gridSnapDetail(t, facts.angleFamily));
   }
-  return [...causes, angles].join(' ');
+  return [...causes, angles].join(" ");
 }
 
 /** `22.5` and `45`, not `22.50` and `45.0`. */
@@ -265,7 +290,10 @@ export function cpSolveCompletionDetail(t: TFunction, facts: CpSolveCompletionFa
  * before this one has been read as the whole of the problem. Without a count
  * (a report predating the field), the worst residual and the bar alone.
  */
-function angleShortfallDetail(t: TFunction, residuals: CpExactSolveResiduals): string {
+function angleShortfallDetail(
+  t: TFunction,
+  residuals: CpExactSolveResiduals,
+): string {
   const figures = {
     before: formatSolveAngleDegrees(residuals.maxKawasakiDegreesBefore),
     after: formatSolveAngleDegrees(residuals.maxKawasakiDegreesAfter),
@@ -273,19 +301,19 @@ function angleShortfallDetail(t: TFunction, residuals: CpExactSolveResiduals): s
   };
   const count = residuals.angleViolationsAfter;
   if (count !== null && count > 0) {
-    return t('panels:cpRegion.completion.angleShortfallDetail', {
+    return t("panels:cpRegion.completion.angleShortfallDetail", {
       ...figures,
       count,
       defaultValue_one:
-        'The worst angle error went from {{before}}° to {{after}}°; the check needs it below {{bar}}°, which 1 vertex still misses.',
+        "The worst angle error went from {{before}}° to {{after}}°; the check needs it below {{bar}}°, which 1 vertex still misses.",
       defaultValue_other:
-        'The worst angle error went from {{before}}° to {{after}}°; the check needs it below {{bar}}°, which {{count}} vertices still miss.',
+        "The worst angle error went from {{before}}° to {{after}}°; the check needs it below {{bar}}°, which {{count}} vertices still miss.",
     });
   }
-  return t('panels:cpRegion.completion.angleDetail', {
+  return t("panels:cpRegion.completion.angleDetail", {
     ...figures,
     defaultValue:
-      'The worst angle error went from {{before}}° to {{after}}°, and the check needs it below {{bar}}°.',
+      "The worst angle error went from {{before}}° to {{after}}°, and the check needs it below {{bar}}°.",
   });
 }
 
@@ -300,56 +328,100 @@ function formatGridStep(degrees: number): string {
  * left is off the grid), refused for breaking vertices or moving too far, and
  * out of time. Each is said as what happened, not as a solver token.
  */
-function gridSnapDetail(t: TFunction, family: CpSolveAngleFamily | null | undefined): string {
+function gridSnapDetail(
+  t: TFunction,
+  family: CpSolveAngleFamily | null | undefined,
+): string {
   if (!family) {
     return t(
-      'panels:cpRegion.completion.gridSnapNoGridDetail',
-      'Fewer than half the creases sit near a 15°, 22.5°, 30° or 45° grid, so there was no grid to snap them to.'
+      "panels:cpRegion.completion.gridSnapNoGridDetail",
+      "Fewer than half the creases sit near a 15°, 22.5°, 30° or 45° grid, so there was no grid to snap them to.",
     );
   }
   const step = formatGridStep(family.stepDegrees);
   if (family.adopted) {
-    return t('panels:cpRegion.completion.gridSnapAdoptedDetail', {
+    return t("panels:cpRegion.completion.gridSnapAdoptedDetail", {
       step,
       defaultValue:
-        'The creases near the {{step}}° grid were snapped to it; what remains is at creases that are not on it.',
+        "The creases near the {{step}}° grid were snapped to it; what remains is at creases that are not on it.",
     });
   }
-  if (family.stopReason === 'nothing_to_pin') {
-    return t('panels:cpRegion.completion.gridSnapNothingToSnapDetail', {
-      step,
-      defaultValue: 'The creases already sit exactly on the {{step}}° grid, so snapping changed nothing.',
-    });
-  }
-  if (family.stopReason === 'out_of_time') {
-    return t('panels:cpRegion.completion.gridSnapOutOfTimeDetail', {
-      step,
-      defaultValue: 'Snapping the creases to the {{step}}° grid ran out of time.',
-    });
-  }
-  if (family.refusals.includes('movement_budget_exceeded')) {
-    return t('panels:cpRegion.completion.gridSnapMovedTooFarDetail', {
+  if (family.stopReason === "nothing_to_pin") {
+    return t("panels:cpRegion.completion.gridSnapNothingToSnapDetail", {
       step,
       defaultValue:
-        'Snapping the creases to the {{step}}° grid was tried and refused because it would have moved vertices too far.',
+        "The creases already sit exactly on the {{step}}° grid, so snapping changed nothing.",
+    });
+  }
+  if (family.stopReason === "out_of_time") {
+    return t("panels:cpRegion.completion.gridSnapOutOfTimeDetail", {
+      step,
+      defaultValue:
+        "Snapping the creases to the {{step}}° grid ran out of time.",
+    });
+  }
+  if (family.refusals.includes("movement_budget_exceeded")) {
+    return t("panels:cpRegion.completion.gridSnapMovedTooFarDetail", {
+      step,
+      defaultValue:
+        "Snapping the creases to the {{step}}° grid was tried and refused because it would have moved vertices too far.",
     });
   }
   const count = family.verticesOverBar;
   if (count !== null && count > 0) {
-    return t('panels:cpRegion.completion.gridSnapBrokeVerticesDetail', {
+    return t("panels:cpRegion.completion.gridSnapBrokeVerticesDetail", {
       step,
       count,
       defaultValue_one:
-        'Snapping the creases to the {{step}}° grid was tried and refused because 1 vertex could not stay flat-foldable on it.',
+        "Snapping the creases to the {{step}}° grid was tried and refused because 1 vertex could not stay flat-foldable on it.",
       defaultValue_other:
-        'Snapping the creases to the {{step}}° grid was tried and refused because {{count}} vertices could not stay flat-foldable on it.',
+        "Snapping the creases to the {{step}}° grid was tried and refused because {{count}} vertices could not stay flat-foldable on it.",
     });
   }
-  return t('panels:cpRegion.completion.gridSnapRefusedDetail', {
+  return t("panels:cpRegion.completion.gridSnapRefusedDetail", {
     step,
     defaultValue:
-      'Snapping the creases to the {{step}}° grid was tried and refused because it made the pattern worse.',
+      "Snapping the creases to the {{step}}° grid was tried and refused because it made the pattern worse.",
   });
+}
+
+/**
+ * What the pleat round did, when it did anything worth a sentence.
+ *
+ * Said after the completion because it is true whatever the completion was: a
+ * pattern can be exact with its pleats evened out, or improved with them
+ * evened out. Silent when there was no pleat run and when every run was
+ * already exact, since "held 0 spacings" is noise; a refusal is said, because
+ * the user measuring uneven pleats afterwards deserves to know it was tried.
+ */
+function pleatDetail(
+  t: TFunction,
+  pleats: CpSolvePleats | null | undefined,
+): string | null {
+  if (!pleats || pleats.ties === 0) return null;
+  if (pleats.adopted) {
+    return t("panels:cpRegion.completion.pleatsHeldDetail", {
+      count: pleats.runs,
+      creases: pleats.creases,
+      defaultValue_one:
+        "The {{creases}} creases of 1 pleat run were held to equal spacing.",
+      defaultValue_other:
+        "The {{creases}} creases of {{count}} pleat runs were held to equal spacing.",
+    });
+  }
+  if (pleats.stopReason === "out_of_time") {
+    return t(
+      "panels:cpRegion.completion.pleatsOutOfTimeDetail",
+      "Evening out the pleat spacing ran out of time.",
+    );
+  }
+  if (pleats.stopReason === "refused") {
+    return t(
+      "panels:cpRegion.completion.pleatsRefusedDetail",
+      "Evening out the pleat spacing was tried and refused because it made the pattern worse.",
+    );
+  }
+  return null;
 }
 
 /** How many vertices the solve moved, and how far, for the surfaces that show it. */
@@ -366,13 +438,17 @@ export interface CpSolveMovement {
  * how much moved but whether it was enough — and there
  * {@link cpSolveCompletionDetail} already quotes the residuals that answer it.
  */
-export function cpSolveMovementSentence(t: TFunction, movement: CpSolveMovement): string {
-  return t('panels:cpRegion.completion.movementDetail', {
+export function cpSolveMovementSentence(
+  t: TFunction,
+  movement: CpSolveMovement,
+): string {
+  return t("panels:cpRegion.completion.movementDetail", {
     count: movement.movedVertices,
     // Rounded **up**, so the sentence stays true: a 0.42 px worst case reads
     // "< 1 px", never "< 0.4 px" that a later measurement could contradict.
     max: Math.max(1, Math.ceil(movement.maxMovementPx)),
-    defaultValue_one: 'It moved 1 vertex, by under {{max}} px.',
-    defaultValue_other: 'It moved {{count}} vertices, each by under {{max}} px.',
+    defaultValue_one: "It moved 1 vertex, by under {{max}} px.",
+    defaultValue_other:
+      "It moved {{count}} vertices, each by under {{max}} px.",
   });
 }

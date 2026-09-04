@@ -237,6 +237,10 @@
       "movementDetail_other": "It moved {{count}} vertices, each by under {{max}} px.",
       "oddDegreeDetail_one": "1 vertex still has an odd number of creases, so this pattern cannot fold flat no matter where the vertices sit.",
       "oddDegreeDetail_other": "{{count}} vertices still have an odd number of creases, so this pattern cannot fold flat no matter where the vertices sit.",
+      "pleatsHeldDetail_one": "The {{creases}} creases of 1 pleat run were held to equal spacing.",
+      "pleatsHeldDetail_other": "The {{creases}} creases of {{count}} pleat runs were held to equal spacing.",
+      "pleatsOutOfTimeDetail": "Evening out the pleat spacing ran out of time.",
+      "pleatsRefusedDetail": "Evening out the pleat spacing was tried and refused because it made the pattern worse.",
       "unfoldable": "Improved, but this pattern cannot fold flat"
     },
     "controls": "Check suppression region",

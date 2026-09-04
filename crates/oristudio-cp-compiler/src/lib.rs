@@ -19,6 +19,7 @@ pub mod exactize;
 pub mod fold_exactize;
 pub mod fold_export;
 pub mod optimizer;
+pub mod pleat_runs;
 pub mod repair;
 pub mod report;
 pub mod selection;

@@ -237,6 +237,10 @@
       "movementDetail_other": "Dabei wurden {{count}} Knoten um jeweils weniger als {{max}} px verschoben.",
       "oddDegreeDetail_one": "Ein Knoten hat weiterhin eine ungerade Anzahl an Falten, deshalb lässt sich dieses Muster nicht flach falten, egal wo die Knoten liegen.",
       "oddDegreeDetail_other": "{{count}} Knoten haben weiterhin eine ungerade Anzahl an Falten, deshalb lässt sich dieses Muster nicht flach falten, egal wo die Knoten liegen.",
+      "pleatsHeldDetail_one": "Die {{creases}} Falten von 1 Faltenreihe wurden auf gleichmäßige Abstände gebracht.",
+      "pleatsHeldDetail_other": "Die {{creases}} Falten von {{count}} Faltenreihen wurden auf gleichmäßige Abstände gebracht.",
+      "pleatsOutOfTimeDetail": "Das Ausgleichen der Faltenabstände hat das Zeitlimit überschritten.",
+      "pleatsRefusedDetail": "Das Ausgleichen der Faltenabstände wurde versucht und verworfen, weil es das Muster verschlechtert hat.",
       "unfoldable": "Verbessert, aber dieses Muster lässt sich nicht flach falten"
     },
     "controls": "Prüfungsfreier Bereich",

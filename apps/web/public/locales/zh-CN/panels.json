@@ -227,6 +227,9 @@
       "improved": "已改善，但尚不可折叠",
       "movementDetail_other": "共移动了 {{count}} 个顶点，每个的移动距离都小于 {{max}} px。",
       "oddDegreeDetail_other": "仍有 {{count}} 个顶点的折痕数为奇数，因此无论顶点位于何处，该折痕图都无法平折。",
+      "pleatsHeldDetail_other": "已将 {{count}} 组平行褶的 {{creases}} 条折痕调整为等间距。",
+      "pleatsOutOfTimeDetail": "调整褶皱间距的操作超时。",
+      "pleatsRefusedDetail": "已尝试调整褶皱间距，但结果未被采用：这会让折痕图变得更差。",
       "unfoldable": "已改善，但该折痕图无法平折"
     },
     "controls": "检查抑制区域",

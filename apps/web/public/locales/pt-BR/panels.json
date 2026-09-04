@@ -247,6 +247,11 @@
       "oddDegreeDetail_one": "1 vértice ainda tem um número ímpar de vincos, então este padrão não pode ser dobrado plano, não importa onde os vértices fiquem.",
       "oddDegreeDetail_many": "{{count}} vértices ainda têm um número ímpar de vincos, então este padrão não pode ser dobrado plano, não importa onde os vértices fiquem.",
       "oddDegreeDetail_other": "{{count}} vértices ainda têm um número ímpar de vincos, então este padrão não pode ser dobrado plano, não importa onde os vértices fiquem.",
+      "pleatsHeldDetail_one": "Os {{creases}} vincos de 1 sequência de pregas foram ajustados para um espaçamento uniforme.",
+      "pleatsHeldDetail_many": "Os {{creases}} vincos de {{count}} sequências de pregas foram ajustados para um espaçamento uniforme.",
+      "pleatsHeldDetail_other": "Os {{creases}} vincos de {{count}} sequências de pregas foram ajustados para um espaçamento uniforme.",
+      "pleatsOutOfTimeDetail": "O ajuste do espaçamento das pregas ficou sem tempo.",
+      "pleatsRefusedDetail": "O ajuste do espaçamento das pregas foi tentado e recusado porque piorou o padrão.",
       "unfoldable": "Melhorou, mas este padrão não pode ser dobrado plano"
     },
     "controls": "Região de supressão de verificações",

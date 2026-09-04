@@ -28,7 +28,10 @@ fn main() {
     );
     let hw = region["width"].as_f64().unwrap_or(0.0) / 2.0;
     let hh = region["height"].as_f64().unwrap_or(0.0) / 2.0;
-    let inside = |x: f64, y: f64| x >= cx - hw && x <= cx + hw && y >= cy - hh && y <= cy + hh;
+    // No region in the file means the whole pattern is the region.
+    let whole = region.is_null();
+    let inside =
+        |x: f64, y: f64| whole || (x >= cx - hw && x <= cx + hw && y >= cy - hh && y <= cy + hh);
 
     // `exportOristudioCpCreasesAsFold`: the model with only the owned lines and
     // no aux lines, circles, points or texts; exported the way the session does.
@@ -104,6 +107,37 @@ fn report(label: &str, solved: &ExactSolvedGraph) {
         mr["max_vertex_movement"],
         mr["max_vertex_movement_budget"]
     );
+    let pleats = &mr["polish"]["pleat_runs"];
+    if !pleats.is_null() {
+        println!(
+            "  pleats: {} ties {} spread {} -> {} refusals {}",
+            pleats["stop_reason"],
+            pleats["ties"],
+            pleats["spread_before"],
+            pleats["spread_after"],
+            pleats["refusals"]
+        );
+        for run in pleats["runs"].as_array().into_iter().flatten() {
+            let px = |gaps: &Value| {
+                gaps.as_array()
+                    .map(|gaps| {
+                        gaps.iter()
+                            .filter_map(Value::as_f64)
+                            .map(|gap| format!("{:.2}", gap * 1024.0))
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    })
+                    .unwrap_or_default()
+            };
+            println!(
+                "    {}° x{}: before [{}] after [{}]",
+                run["family_degrees"],
+                run["creases"],
+                px(&run["gaps_before"]),
+                px(&run["gaps_after"])
+            );
+        }
+    }
     for phase in ["before", "after", "candidate_after"] {
         let a = &tr[phase];
         println!(

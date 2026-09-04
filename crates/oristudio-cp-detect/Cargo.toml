@@ -37,5 +37,23 @@ rayon.workspace = true
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 js-sys.workspace = true
 
+# Native inference for the batch evaluation example, off by default so no
+# build, test or clippy run in CI links ONNX Runtime: `cargo test --workspace`
+# skips an example whose required feature is not enabled. The desktop shell
+# is the product's native path; `examples/detect_folder.rs` mirrors its
+# session and tensor plumbing to run the same pipeline over a folder.
+[features]
+native-inference = ["dep:ort"]
+
+[target.'cfg(target_os = "macos")'.dependencies]
+ort = { version = "=2.0.0-rc.13", features = ["coreml"], optional = true }
+
+[target.'cfg(all(not(target_os = "macos"), not(target_arch = "wasm32")))'.dependencies]
+ort = { version = "=2.0.0-rc.13", optional = true }
+
+[[example]]
+name = "detect_folder"
+required-features = ["native-inference"]
+
 [dev-dependencies]
 serde_json.workspace = true

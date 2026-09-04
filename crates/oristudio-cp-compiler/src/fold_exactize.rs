@@ -1099,4 +1099,103 @@ mod tests {
             );
         }
     }
+
+    /// Five vertical pleats across a square, each a pixel or two off an 80-unit
+    /// pitch. Not the noise the checker cares about — every vertex is on the
+    /// paper's edge, so the pattern folds as it is — which is exactly the case:
+    /// the solve has to read the pleats and hold their spacings equal on the
+    /// strength of the criterion alone.
+    fn noisy_pleated_square() -> FoldDocument {
+        let xs = [-160.0, -80.0 + 1.0, -0.6, 80.0 + 0.8, 160.0];
+        let mut coords = vec![
+            vec![-200.0, -200.0],
+            vec![200.0, -200.0],
+            vec![200.0, 200.0],
+            vec![-200.0, 200.0],
+        ];
+        coords.extend(xs.iter().map(|&x| vec![x, -200.0]));
+        coords.extend(xs.iter().map(|&x| vec![x, 200.0]));
+        let mut edges = vec![[0, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 1], [1, 2]];
+        edges.extend([
+            [2, 13],
+            [13, 12],
+            [12, 11],
+            [11, 10],
+            [10, 9],
+            [9, 3],
+            [3, 0],
+        ]);
+        let boundary = edges.len();
+        edges.extend((0..5).map(|k| [4 + k, 9 + k]));
+        let mut fold = FoldDocument::new(coords, edges);
+        fold.edges_assignment = (0..boundary)
+            .map(|_| Assignment::Boundary)
+            .chain((0..5).map(|k| {
+                if k % 2 == 0 {
+                    Assignment::Mountain
+                } else {
+                    Assignment::Valley
+                }
+            }))
+            .collect();
+        fold.edges_fold_angle = vec![None; boundary + 5];
+        fold
+    }
+
+    fn pleat_spacings(solved: &crate::ExactSolvedGraph) -> Vec<f64> {
+        (4..8)
+            .map(|id| solved.vertices_exact[id + 1].x - solved.vertices_exact[id].x)
+            .collect()
+    }
+
+    #[test]
+    fn the_pleat_round_holds_a_noisy_run_to_one_pitch() {
+        let (input, _) = exact_solve_input_from_fold(&noisy_pleated_square()).unwrap();
+        let solved = solve_exact(&input, options());
+        let round = &solved.movement_report["polish"]["pleat_runs"];
+        assert_eq!(round["adopted"], serde_json::json!(true), "{round}");
+        assert_eq!(round["ties"], serde_json::json!(3), "{round}");
+        assert_eq!(round["runs"][0]["creases"], serde_json::json!(5), "{round}");
+        assert!(
+            solved.movement_report["termination"]
+                .as_str()
+                .unwrap()
+                .contains(",pleats"),
+            "{}",
+            solved.movement_report["termination"]
+        );
+        let spacings = pleat_spacings(&solved);
+        let pitch = spacings.iter().sum::<f64>() / spacings.len() as f64;
+        for spacing in &spacings {
+            assert!(
+                (spacing - pitch).abs() < 1e-7,
+                "spacings {spacings:?} are not one pitch"
+            );
+        }
+        assert!(
+            (pitch - 0.2).abs() < 0.005,
+            "pitch {pitch} drifted from the design's"
+        );
+    }
+
+    #[test]
+    fn pleat_spacing_off_leaves_the_noise_alone() {
+        let (input, _) = exact_solve_input_from_fold(&noisy_pleated_square()).unwrap();
+        let solved = solve_exact(
+            &input,
+            ExactSolveOptions {
+                pleat_spacing: crate::exact_solve::PleatSpacingMode::Off,
+                ..options()
+            },
+        );
+        assert!(solved.movement_report["polish"]["pleat_runs"].is_null());
+        let spacings = pleat_spacings(&solved);
+        let pitch = spacings.iter().sum::<f64>() / spacings.len() as f64;
+        assert!(
+            spacings
+                .iter()
+                .any(|spacing| (spacing - pitch).abs() > 1e-4),
+            "without the round the noise should survive: {spacings:?}"
+        );
+    }
 }
