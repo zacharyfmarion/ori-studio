@@ -24,10 +24,24 @@ Oriedita corpora.
 $CP_DETECT_CURATED_CORPUS_DIR/
   <slug>/
     source.png       the exact file given to the detect dialog
-    truth.fold       the corrected pattern, exported from the editor (see below)
+    detected.fold    what the detector produced, exported on accepting it
+    topology.fold    the corrected pattern before solving: the decoder's truth,
+                     and the solver's ground-truth input
+    truth.fold       the solved pattern: the solver's truth
     case.json        what the case is and what state truth.fold is in
     work.osf         optional: the editor document, for re-opening and refining
 ```
+
+Three patterns, because the pipeline has two stages and each needs its own
+reference. Repair fixes topology and assignments without moving vertices; the
+solve then moves them, by up to its 1% budget. Scoring the decoder against
+solved positions would count that movement as decoder error, so the decoder
+is scored against `topology.fold`. And `topology.fold` is exactly the input
+the solver is meant to turn into `truth.fold`, so the solver can be judged on
+correct topology whether or not the detector reached it on this case.
+`detected.fold` is what the model did at curation time: diffing it against
+`topology.fold` yields the failure tags without hand-labelling, and shows
+when a later model has changed the starting point.
 
 `case.json`:
 
@@ -56,15 +70,18 @@ topology, and becomes a solved case the day it can be solved.
 1. In the web app (or desktop), detect from `source.png` with the default
    settings. Keep `source.png` as given, uncropped: rectification is part of
    what is under test.
-2. Review & Fix, then repair by hand until the topology is what the design
+2. Accept the detection into the document and File ▸ Export FOLD… to
+   `detected.fold`, before touching anything.
+3. Review & Fix, then repair by hand until the topology is what the design
    has: every junction, every crease, every assignment. Fix the detection in
    place rather than redrawing, so the pattern stays in the frame the detector
    placed it in. Add nothing that is not a crease: no aux lines, no marks.
-3. Solve. If the foldability check comes up clean, the case is `solved`. If
+   Export to `topology.fold` **before** solving.
+4. Solve. If the foldability check comes up clean, the case is `solved`. If
    it does not, and the remaining markers are the solver's limit rather than a
    topology error, stop there and mark the case `solved: false`, noting why.
-4. File ▸ Export FOLD… to `truth.fold`. Save the document as `work.osf` too.
-5. Write `case.json`. The tags are the failure taxonomy; the notes are what a
+5. Export to `truth.fold`. Save the document as `work.osf` too.
+6. Write `case.json`. The tags are the failure taxonomy; the notes are what a
    future reader needs to tell a regression from a known limitation.
 
 Do not "improve" the design: truth is the pattern as the designer drew it,
@@ -89,10 +106,12 @@ the same defaults the dialog uses. For each case:
 | Measure | Source |
 | --- | --- |
 | Rectified, paper found | `auto_rectify` report |
-| Strict topology vs truth at 4 px of 1024: vertex and edge precision/recall, exact topology, missing/extra/split/merged edges | `oristudio-cp-eval::strict_topology` |
+| Decoder: strict topology vs `topology.fold` at 4 px of 1024: vertex and edge precision/recall, exact topology, missing/extra/split/merged edges | `oristudio-cp-eval::strict_topology` |
 | Assignment accuracy on matched edges | same |
+| Model drift: the same comparison of today's decode against `detected.fold` | same |
 | Solve outcome: accepted / ambiguous / rejected / timed out, and the reasons | the solve report |
-| `recovered`: accepted **and** the solved fold reproduces truth topology and assignment at 2 px | as `compare_exact_solve_benchmark` defines it |
+| End to end `recovered`: accepted **and** the solved fold reproduces `truth.fold` topology and assignment at 2 px | as `compare_exact_solve_benchmark` defines it |
+| Solver on correct topology: the solve run from `topology.fold` reaches `truth.fold` at 2 px; needs no model, so it is the cheap gate after any compiler change | `exact_solve_input_from_fold`, the product path |
 | Position error of the solved state vs a solved truth: mean and max, px | vertex matching |
 | Foldability of the solved state: Kawasaki, angle violations, big-little-big | the solve report |
 | Pleat runs found and held, and the spacing spread after | the pleat round's report |
@@ -140,6 +159,8 @@ Ten to twenty cases gate regressions; thirty or more support tuning. Cover:
 - `crates/oristudio-cp-detect/src/bin/curated_benchmark.rs` (new, feature
   `native-inference`), with the session and rectification shared with
   `examples/detect_folder.rs` through a small module.
+- `crates/oristudio-cp-compiler/examples/curated_solve.rs` (new): the
+  solver-only gate, `topology.fold` → `truth.fold`, no model needed.
 - `crates/oristudio-cp-eval` — reuse of `strict_topology`; a frame normaliser
   for FOLD-to-FOLD comparison if one does not already exist.
 - `tests/corpus/README.md` and `tests/corpus/cp-detect-curated-baseline.json`.
@@ -150,6 +171,7 @@ Ten to twenty cases gate regressions; thirty or more support tuning. Cover:
 - [ ] Agree the case format above; curate the first three cases
 - [ ] Harness: load a case, rectify, infer, decode, solve with dialog defaults
 - [ ] Harness: normalise frames and score strict topology, recovery, position error
+- [ ] Solver-only gate over `topology.fold` → `truth.fold` in the compiler crate
 - [ ] Harness: `per_case.jsonl`, `summary.json`, `--compare`, provenance guard
 - [ ] First baseline committed with the run recorded in `tests/corpus/README.md`
 - [ ] README section and the PR rule written down
