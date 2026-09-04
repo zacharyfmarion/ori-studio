@@ -82,13 +82,29 @@ export function applyAffine(m: CpAffineMatrix, x: number, y: number): ModelPoint
 }
 
 /**
- * A live transform gesture: draw these 1-based line ids through `matrix` instead of
- * at their stored coordinates. Covers both the selection move-drag (a translation)
- * and the four-point move/copy tools (a similarity).
+ * A live transform gesture: draw these creases through `matrix` instead of at
+ * their stored coordinates. Covers the selection move-drag (a translation), the
+ * four-point move/copy tools (a similarity), and the vertex drag.
  */
 export interface CpTransformPreview {
+  /** 1-based line ids whose *whole* segment moves. */
   ids: ReadonlySet<number>;
   matrix: CpAffineMatrix;
+  /**
+   * Individual endpoints that move, keyed `segmentIndex * 2 + (0 for a, 1 for b)`
+   * — see `tools/vertexEndpoints.ts`.
+   *
+   * A vertex drag is not an affine on whole segments: the creases meeting at the
+   * junction each keep their far end. But it *is* an affine on the ends that sit
+   * on the vertex, so it rides this channel rather than needing a second one, and
+   * inherits the property that makes this one usable at pointer rate — the matrix
+   * is passed imperatively from inside the canvas's pointer handlers, so a
+   * gesture never re-renders React.
+   *
+   * Undefined for every other gesture, which then pays one absent-set check per
+   * endpoint per frame. The set itself is built once, at press time.
+   */
+  endpoints?: ReadonlySet<number>;
 }
 
 /**
@@ -154,18 +170,27 @@ export function cpSnapshotToScene(
   const hintAppearanceCache = new Map<number, CpLineAppearance>();
 
   const m = move?.matrix;
+  // Whole segments and individual endpoints move through the same matrix, so the
+  // two sets are asked separately per end. Hoisted out of the loop: with no
+  // gesture in flight both are undefined and every check below short-circuits on
+  // `m`.
+  const movedIds = move?.ids;
+  const movedEnds = move?.endpoints;
 
   for (let i = 0; i < count; i++) {
     const seg = lineSegments[i];
-    const moved = m !== undefined && move !== undefined && move.ids.has(i + 1);
-    if (moved) {
+    const movesWhole = movedIds !== undefined && movedIds.has(i + 1);
+    if (m !== undefined && (movesWhole || movedEnds?.has(i * 2) === true)) {
       a[i * 2] = m[0] * seg.a.x + m[1] * seg.a.y + m[4];
       a[i * 2 + 1] = m[2] * seg.a.x + m[3] * seg.a.y + m[5];
-      b[i * 2] = m[0] * seg.b.x + m[1] * seg.b.y + m[4];
-      b[i * 2 + 1] = m[2] * seg.b.x + m[3] * seg.b.y + m[5];
     } else {
       a[i * 2] = seg.a.x;
       a[i * 2 + 1] = seg.a.y;
+    }
+    if (m !== undefined && (movesWhole || movedEnds?.has(i * 2 + 1) === true)) {
+      b[i * 2] = m[0] * seg.b.x + m[1] * seg.b.y + m[4];
+      b[i * 2 + 1] = m[2] * seg.b.x + m[3] * seg.b.y + m[5];
+    } else {
       b[i * 2] = seg.b.x;
       b[i * 2 + 1] = seg.b.y;
     }

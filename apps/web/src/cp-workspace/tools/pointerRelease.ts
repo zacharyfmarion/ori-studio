@@ -44,6 +44,7 @@ const ALL_MODES: Record<ActiveToolMode, true> = {
   'drag-line': true,
   'drag-box': true,
   'drag-path': true,
+  'drag-vertex': true,
   sequence: true,
   'line-entity': true,
   lengthen: true,
@@ -55,10 +56,9 @@ export const CP_ACTIVE_TOOL_MODES = Object.keys(ALL_MODES) as readonly ActiveToo
 
 /**
  * Which modes resolve the cursor onto a grid point / vertex before feeding the draw
- * engine — and, because they share `dragLineTool`, which ones must do so on *every*
- * phase.
+ * engine — and which must therefore do so on *every* phase.
  *
- * That engine's click-vs-drag test measures the release against the start, so a
+ * Their engines' click-vs-drag test measures the release against the start, so a
  * phase left unsnapped makes the snap displacement itself read as pointer travel:
  * Angle Restricted Line snapped only its press, and a stationary click near a vertex
  * committed a crease from the vertex to the cursor. Stated once here, over the mode
@@ -69,6 +69,20 @@ export const CP_ACTIVE_TOOL_MODES = Object.keys(ALL_MODES) as readonly ActiveToo
  * rubber-band select doesn't jump to nearby points.
  */
 export function toolModeSnapsDrawPoint(mode: ActiveToolMode | null): boolean {
+  return mode === 'drag-line' || mode === 'angle-drag' || mode === 'drag-vertex';
+}
+
+/**
+ * Which modes park a start point *between* gestures, and therefore share one
+ * persistent `dragLineTool` runtime rather than opening a fresh engine per press.
+ *
+ * This was the same list as {@link toolModeSnapsDrawPoint} until Move Vertex, and
+ * the two questions only looked identical: that tool snaps its destination like a
+ * draw tool but has no click-to-place arming, so answering the snapping question
+ * for it would also have handed it the *drag-line engine* through `drawRuntime` and
+ * had it draw creases. One predicate per question.
+ */
+export function toolModeArmsDrawStart(mode: ActiveToolMode | null): boolean {
   return mode === 'drag-line' || mode === 'angle-drag';
 }
 

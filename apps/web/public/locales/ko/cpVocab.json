@@ -269,6 +269,14 @@
         "1": "대상 점 선택"
       }
     },
+    "cp_action_vertex_move": {
+      "label": "정점 이동",
+      "tooltip": "정점을 드래그하면 거기서 끝나는 모든 접힘선이 따라갑니다",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "정점을 드래그하여 이동"
+      }
+    },
     "cp_action_crease_make_mountain": {
       "label": "산으로 지정",
       "tooltip": "선택한 선을 산 접힘선으로 지정",

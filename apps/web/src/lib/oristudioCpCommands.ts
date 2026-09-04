@@ -110,7 +110,7 @@ export interface OristudioCpCommandDefinition {
   selectionRequirement?: string;
   shortcut?: string;
   toolSteps?: readonly string[];
-  inputMode?: 'point-sequence' | 'drag-path' | 'drag-line' | 'drag-box';
+  inputMode?: 'point-sequence' | 'drag-path' | 'drag-line' | 'drag-box' | 'drag-vertex';
 }
 
 type CommandOptionKeys =
@@ -331,6 +331,13 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   ready('CreaseCopy', 'Copy selected creases', 'transform', 'copy', 'MouseHandlerCreaseCopy', {
     selectionRequirement: 'selected creases',
     toolSteps: ['Pick source point', 'Pick destination point'],
+  }),
+  // Ori Studio native. Move/Copy translate whole creases, so a junction shared
+  // with an unselected crease tears apart; this edits the junction in place.
+  ready('VertexMove', 'Move vertex', 'transform', 'git-commit-vertical', 'OriStudioVertexMove', {
+    inputMode: 'drag-vertex',
+    toolSteps: ['Drag a vertex to move it'],
+    tooltip: 'Drag a vertex — every crease that ends there follows',
   }),
   ready('CreaseMakeMountain', 'Make mountain', 'color', 'mountain', 'MouseHandlerCreaseMakeMountain', {
     placement: 'menu',
@@ -1100,6 +1107,7 @@ export const ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS = [
   'SquareGenerate',
   'VertexInsertOnCreases',
   'DeleteExtraVerticesAmong',
+  'VertexMove',
 ] as const;
 
 export type OristudioCpOperationId = (typeof ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS)[number];

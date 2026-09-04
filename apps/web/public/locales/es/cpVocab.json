@@ -269,6 +269,14 @@
         "1": "Elige el punto de destino"
       }
     },
+    "cp_action_vertex_move": {
+      "label": "Mover vértice",
+      "tooltip": "Arrastra un vértice: todos los pliegues que terminan allí lo siguen",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Arrastra un vértice para moverlo"
+      }
+    },
     "cp_action_crease_make_mountain": {
       "label": "Marcar como monte",
       "tooltip": "Convertir las líneas seleccionadas en pliegues de monte",

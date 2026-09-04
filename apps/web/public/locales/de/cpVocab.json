@@ -269,6 +269,14 @@
         "1": "Zielpunkt wählen"
       }
     },
+    "cp_action_vertex_move": {
+      "label": "Knoten verschieben",
+      "tooltip": "Einen Knoten ziehen – alle dort endenden Falten folgen mit",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Knoten zum Verschieben ziehen"
+      }
+    },
     "cp_action_crease_make_mountain": {
       "label": "Als Berg festlegen",
       "tooltip": "Ausgewählte Linien zu Bergfalten machen",

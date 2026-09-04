@@ -127,4 +127,47 @@ describe('cpSnapshotToScene move preview', () => {
   it('translationMatrix round-trips through applyAffine', () => {
     expect(applyAffine(translationMatrix({ x: 2, y: -3 }), 10, 20)).toEqual({ x: 12, y: 17 });
   });
+
+  describe('endpoint moves (the vertex drag)', () => {
+    it('moves one end of a crease and leaves the other where it is', () => {
+      // Line 1's `a` and line 2's `a` sit on a shared vertex; line 3 does not.
+      const { strokes } = cpSnapshotToScene(segments, () => solid(RED), SOLID_PATTERNS, undefined, {
+        ids: new Set(),
+        endpoints: new Set([0 * 2, 1 * 2]),
+        matrix: translationMatrix({ x: 4, y: 7 }),
+      });
+      // line 1: `a` follows, `b` stays
+      expect(Array.from(strokes.a.slice(0, 2))).toEqual([4, 7]);
+      expect(Array.from(strokes.b.slice(0, 2))).toEqual([10, 0]);
+      // line 2: `a` follows, `b` stays
+      expect(Array.from(strokes.a.slice(2, 4))).toEqual([4, 12]);
+      expect(Array.from(strokes.b.slice(2, 4))).toEqual([0, 15]);
+      // line 3: untouched at both ends
+      expect(Array.from(strokes.a.slice(4, 6))).toEqual([20, 20]);
+      expect(Array.from(strokes.b.slice(4, 6))).toEqual([30, 30]);
+    });
+
+    it('moves a `b` endpoint through the odd key', () => {
+      const { strokes } = cpSnapshotToScene(segments, () => solid(RED), SOLID_PATTERNS, undefined, {
+        ids: new Set(),
+        endpoints: new Set([0 * 2 + 1]),
+        matrix: translationMatrix({ x: 1, y: 2 }),
+      });
+      expect(Array.from(strokes.a.slice(0, 2))).toEqual([0, 0]);
+      expect(Array.from(strokes.b.slice(0, 2))).toEqual([11, 2]);
+    });
+
+    it('moves both ends when a whole-segment id and an endpoint key overlap', () => {
+      // `ids` wins for the whole segment; the endpoint entry adds nothing. This
+      // is not a state the tools produce, but the two sets are independent and
+      // the union must not double-apply the matrix.
+      const { strokes } = cpSnapshotToScene(segments, () => solid(RED), SOLID_PATTERNS, undefined, {
+        ids: new Set([1]),
+        endpoints: new Set([0 * 2]),
+        matrix: translationMatrix({ x: 3, y: 3 }),
+      });
+      expect(Array.from(strokes.a.slice(0, 2))).toEqual([3, 3]);
+      expect(Array.from(strokes.b.slice(0, 2))).toEqual([13, 3]);
+    });
+  });
 });

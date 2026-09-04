@@ -15,7 +15,12 @@ export type OristudioCpActionKind = 'line-type' | 'command';
 export type OristudioCpActionId = `cp.action.${string}`;
 export type OristudioCpActionGroupId = 'line-type' | 'edit' | OristudioCpCommandGroupId;
 export type OristudioCpLineInputMode = 'fold-line' | 'aux-line';
-export type OristudioCpActionInputMode = 'point-sequence' | 'drag-path' | 'drag-line' | 'drag-box';
+export type OristudioCpActionInputMode =
+  | 'point-sequence'
+  | 'drag-path'
+  | 'drag-line'
+  | 'drag-box'
+  | 'drag-vertex';
 export const DEFAULT_ORISTUDIO_CP_ACTION_ID =
   'cp.action.crease-select' as const satisfies OristudioCpActionId;
 
@@ -373,6 +378,13 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
   CreaseCopy: {
     upstreamAction: 'copyAction',
     upstreamMouseMode: 'CREASE_COPY_22',
+  },
+  VertexMove: {
+    label: 'Move Vertex',
+    // Ori Studio native: Oriedita has no handler that edits a junction. It sits
+    // after Move and Copy, which is where someone looks after finding that those
+    // translate whole creases and tear a shared vertex apart.
+    upstreamAction: 'vertexMoveAction',
   },
   CreaseMove4p: {
     upstreamAction: 'move2p2pAction',

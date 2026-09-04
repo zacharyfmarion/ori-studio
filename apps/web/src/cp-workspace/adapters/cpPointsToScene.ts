@@ -24,12 +24,22 @@ export interface CpCircleInput {
 const TRANSPARENT: Rgba = [0, 0, 0, 0];
 
 /**
- * Selected instances (by their index within each group) are drawn in `color`.
- * Vertices have no entry — they are derived line endpoints, not selectable.
+ * Highlighted instances (by their index within each group) are drawn in `color`.
+ *
+ * Points and circles are here because they are *selectable*. Vertices are here
+ * for a different reason: they are derived line endpoints and still not
+ * selectable, but the Move Vertex tool makes them **draggable**, and the one
+ * under the cursor has to say so before the press. Draggable is not selectable —
+ * nothing puts a vertex in `oristudioCpSelection`.
  */
 export interface CpPointSelection {
   pointIdx: ReadonlySet<number>;
   circleIdx: ReadonlySet<number>;
+  /**
+   * Indices into `vertices` to draw highlighted — the grab target under the
+   * cursor. Optional because every caller but the vertex drag has none.
+   */
+  vertexIdx?: ReadonlySet<number>;
   color: Rgba;
 }
 
@@ -89,8 +99,17 @@ export function cpPointsToScene(
   }
   const vertexOffset = points.length;
   for (let j = 0; j < vertices.length; j++) {
-    // Vertices are derived line endpoints, never selected — always base style.
-    write(vertexOffset + j, vertices[j], vertexRadius, 1, style.vertexFill, style.vertexStroke);
+    // A vertex is never *selected*; it can be the Move Vertex tool's grab target,
+    // which is what `vertexIdx` marks.
+    const on = selection?.vertexIdx?.has(j);
+    write(
+      vertexOffset + j,
+      vertices[j],
+      vertexRadius,
+      1,
+      on && sel ? sel : style.vertexFill,
+      on && sel ? sel : style.vertexStroke
+    );
   }
   const circleOffset = vertexOffset + vertices.length;
   for (let k = 0; k < circles.length; k++) {

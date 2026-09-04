@@ -269,6 +269,14 @@
         "1": "Escolha o ponto de destino"
       }
     },
+    "cp_action_vertex_move": {
+      "label": "Mover vértice",
+      "tooltip": "Arraste um vértice: todos os vincos que terminam nele o acompanham",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Arraste um vértice para movê-lo"
+      }
+    },
     "cp_action_crease_make_mountain": {
       "label": "Definir como montanha",
       "tooltip": "Definir as linhas selecionadas como dobras de montanha",

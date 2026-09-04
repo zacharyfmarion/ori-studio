@@ -2160,6 +2160,7 @@ export function CreasePatternPanel() {
       | 'drag-line'
       | 'drag-box'
       | 'drag-path'
+      | 'drag-vertex'
       | 'sequence'
       | 'line-entity'
       | 'lengthen'
@@ -2186,7 +2187,7 @@ export function CreasePatternPanel() {
       return idle;
     }
     const im = activeCpCommand.inputMode;
-    if (im === 'drag-line' || im === 'drag-box' || im === 'drag-path') {
+    if (im === 'drag-line' || im === 'drag-box' || im === 'drag-path' || im === 'drag-vertex') {
       return { ...idle, mode: im };
     }
     // Mirror Line branches per first pick between a 3-point sequence and a 2-line

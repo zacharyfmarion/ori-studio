@@ -782,7 +782,12 @@ fn selected_line_segments(model: &CreasePatternModel) -> Vec<LineSegment> {
         .collect()
 }
 
-fn append_and_split(model: &mut CreasePatternModel, segments: Vec<LineSegment>) {
+/// Append segments and divide them against the existing pattern.
+///
+/// `pub(crate)` for `operations::native::vertex`, which re-inserts the creases of
+/// a dragged junction through exactly this path — the crossings a moved endpoint
+/// creates have to be split like any other inserted geometry.
+pub(crate) fn append_and_split(model: &mut CreasePatternModel, segments: Vec<LineSegment>) {
     let original_end = model.line_segments.len();
     model.line_segments.extend(segments);
     let added_end = model.line_segments.len();

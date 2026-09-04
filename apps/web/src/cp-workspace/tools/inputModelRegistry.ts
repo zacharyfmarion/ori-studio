@@ -34,6 +34,7 @@ export type CpInputModel =
   | 'drag-line'
   | 'drag-box'
   | 'drag-path'
+  | 'drag-vertex' // press on a vertex, drag it, its creases follow
   | 'bespoke' // per-tool state machine (SquareBisector, Voronoi, Text)
   | 'select-apply'; // no canvas interaction; operates on the selection via Apply
 
@@ -196,6 +197,11 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
   // engine returns are the rectangle the user actually dragged on screen, which
   // is what a rotated view should produce. See `isModelAlignedBoxOperation`.
   CheckSuppressionRegionCreate: { model: 'drag-box' },
+
+  // DRAG-VERTEX — Ori Studio native. Press resolves a vertex from the derived
+  // vertex dots (not from the snap settings, so the tool works with snapping
+  // off); the release commits [vertex, destination].
+  VertexMove: { model: 'drag-vertex' },
 
   // DRAG-PATH (§4.C)
   FlatFoldableCheck: { model: 'drag-path' },

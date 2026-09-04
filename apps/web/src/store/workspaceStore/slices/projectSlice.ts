@@ -347,6 +347,10 @@ const CLEAR_CP_SELECTION_AFTER_OPERATIONS = new Set<OristudioCpOperationId>([
   'ReplaceLineTypeSelect',
   'DeleteLineTypeSelect',
   'VertexDeleteOnCrease',
+  // A vertex drag re-inserts the creases it touched through the splitter, so
+  // every line id above the removed ones shifts. A preserved selection would
+  // name creases the user never picked.
+  'VertexMove',
 ]);
 
 const SYNC_CP_LINE_SELECTION_AFTER_OPERATIONS = new Set<OristudioCpOperationId>([
