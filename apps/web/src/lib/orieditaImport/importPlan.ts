@@ -1,6 +1,7 @@
 import {
   SHORTCUT_DEFINITIONS,
-  classifyReservedKey,
+  currentReservedKeyHost,
+  describeReservedKey,
   findShortcutShadowing,
   getResolvedShortcuts,
   getShortcutDefinition,
@@ -10,6 +11,8 @@ import {
   shortcutKeepsDefaultChords,
   shortcutMayDecline,
   type KeyChord,
+  type ReservedKeyHost,
+  type ReservedKeyReason,
   type ShortcutActionId,
   type ShortcutDefaultsSource,
   type ShortcutDefinition,
@@ -43,7 +46,12 @@ export type OrieditaImportSkipReason =
   | 'unmapped-action'
   /** `parseKeyStroke` rejected it; `detail.rejectReason` says which way. */
   | 'unparseable'
-  /** The browser owns the chord (`classifyReservedKey`). */
+  /**
+   * Something outside the app owns the chord on this host
+   * (`describeReservedKey`); `detail.reservedReason` says what. Host-dependent,
+   * and that is the point for an import — Oriedita is a desktop application, so
+   * its configs carry chords a browser eats and the desktop build does not.
+   */
   | 'reserved-chord'
   /** Another binding resolves to the same chord; `detail.shadowing` names it. */
   | 'shadowed'
@@ -113,6 +121,13 @@ export interface OrieditaImportRowDetail {
    * would be worse than the dead end it replaces.
    */
   readonly evictionOffer?: OrieditaImportEviction;
+  /**
+   * Only on `reserved-chord`: who takes the key here. Carried rather than
+   * recomputed, because the row does not keep its parsed chord and the dialog
+   * re-parsing the raw Java keystroke to ask again would be a second parser
+   * that can disagree with the one that made the decision.
+   */
+  readonly reservedReason?: ReservedKeyReason;
 }
 
 export interface OrieditaImportRow {
@@ -185,6 +200,16 @@ export interface OrieditaImportPlanInput {
    * user said yes to.
    */
   readonly allowEvictionFor?: ReadonlySet<ShortcutActionId>;
+  /**
+   * Which host the import lands on, deciding what counts as a reserved chord.
+   *
+   * Defaulted from the running surface, and a parameter because the answer
+   * genuinely differs: Oriedita is a desktop application, so an exported config
+   * carries chords a browser eats and the desktop build delivers. The same file
+   * therefore yields a different plan in each build, and the tests need to say
+   * which one they mean rather than inheriting jsdom's.
+   */
+  readonly host?: ReservedKeyHost;
 }
 
 /**
@@ -300,7 +325,11 @@ function settled(
  * `current` is needed for the already-matches check below: what counts as "no
  * change" is what the user resolves to *now*, not what the registry ships.
  */
-function draftRow(entry: OrieditaKeyStrokeEntry, current: PlanResolution): Draft {
+function draftRow(
+  entry: OrieditaKeyStrokeEntry,
+  current: PlanResolution,
+  host: ReservedKeyHost
+): Draft {
   const shortcutId = shortcutIdForOrieditaAction(entry.action);
   const definition = shortcutId ? getShortcutDefinition(shortcutId) : undefined;
   const base: RowBase = {
@@ -338,8 +367,9 @@ function draftRow(entry: OrieditaKeyStrokeEntry, current: PlanResolution): Draft
   const bindability = alreadyMatches ? null : bindabilityRejection(definition);
   if (bindability) return settled(base, bindability);
 
-  if (classifyReservedKey(parsed.chord) === 'hard-reserved') {
-    return settled(base, 'reserved-chord');
+  const reserved = describeReservedKey(parsed.chord, host);
+  if (reserved.classification === 'hard-reserved') {
+    return settled(base, 'reserved-chord', { reservedReason: reserved.reason ?? undefined });
   }
   if (definition.scope === 'global' && !isMenuAcceleratorExpressible(parsed.chord.key)) {
     return settled(base, 'menu-accelerator-unsupported');
@@ -686,7 +716,8 @@ export function buildOrieditaImportPlan(input: OrieditaImportPlanInput): Oriedit
     overrides: input.currentOverrides ?? {},
     defaultsSource: input.defaultsSource,
   };
-  const drafts = collectKeyStrokes(input.hotkeys).map((entry) => draftRow(entry, current));
+  const host = input.host ?? currentReservedKeyHost();
+  const drafts = collectKeyStrokes(input.hotkeys).map((entry) => draftRow(entry, current, host));
 
   const candidates = new Map<ShortcutActionId, KeyChord>();
   for (const draft of drafts) {

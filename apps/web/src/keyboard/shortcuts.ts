@@ -8,6 +8,7 @@ import {
 import { ORIEDITA_DEFAULT_HOTKEYS } from '../lib/orieditaImport/orieditaDefaultHotkeys.generated';
 import { parseOrieditaKeyStrokeStrict } from '../lib/orieditaImport/parseKeyStroke';
 import { isApplePlatform } from '../lib/platform';
+import { isDesktopRuntime, isWindowsPlatform } from '../platform/runtime';
 
 /**
  * Scopes are searched front-to-back, so a more specific one wins a chord it
@@ -796,7 +797,15 @@ export function getShortcutDefinition(
   return SHORTCUT_DEFINITION_BY_ID.get(id);
 }
 
-export function getShortcutRegistryDiagnostics(): ShortcutRegistryDiagnostics {
+/**
+ * `reservedDefaultChords` is the only host-dependent field, and the host has to
+ * be a parameter for the registry guard to mean anything: the invariant it
+ * checks ("no shipped default is unreachable") is true on one host and false on
+ * another, so a single answer would just be the answer for whoever ran it.
+ */
+export function getShortcutRegistryDiagnostics(
+  host: ReservedKeyHost = currentReservedKeyHost()
+): ShortcutRegistryDiagnostics {
   const mappedOrieditaActions = new Set(
     SHORTCUT_DEFINITIONS.map((definition) => definition.upstreamAction).filter(Boolean)
   );
@@ -810,7 +819,7 @@ export function getShortcutRegistryDiagnostics(): ShortcutRegistryDiagnostics {
         ...(duplicateBuckets.get(duplicateKey) ?? []),
         definition.id,
       ]);
-      const classification = classifyReservedKey(defaultChord);
+      const classification = classifyReservedKey(defaultChord, host);
       if (classification !== 'allowed') {
         reservedDefaultChords.push({
           actionId: definition.id,
@@ -1164,20 +1173,149 @@ export function formatKeyChord(
   return parts.join('+');
 }
 
-export function classifyReservedKey(chord: KeyChord): ReservedKeyClassification {
+/**
+ * Chords the browser's own chrome takes before the page sees them.
+ *
+ * `primary+n` is here on a user report: it opens a new browser window and the
+ * page never sees the keydown. Its neighbour `primary+,` is *not* — Chrome's
+ * Preferences does not claim it away from a focused page, verified by hand.
+ * Neither is guessable from the shape of the chord, so nothing else belongs here
+ * without the same check.
+ */
+const WEB_HARD_RESERVED = new Set([
+  'primary+l',
+  'primary+n',
+  'primary+w',
+  'primary+t',
+  'primary+shift+t',
+  'primary+shift+i',
+  'f5',
+]);
+
+/** Reload. Delivered to the page by some browsers and not others. */
+const WEB_SOFT_RESERVED = new Set(['primary+r', 'primary+shift+r']);
+
+/**
+ * The predefined items in the macOS app submenu (`menus/nativeMenu.ts`).
+ *
+ * Hard-reserved for the opposite reason to the web list: the chord *is*
+ * capturable, and capturing it is the problem. A page-level `preventDefault`
+ * beats a native menu key equivalent in WKWebView — measured — and the
+ * dispatcher preventDefaults every chord it claims, so binding Cmd+Q here would
+ * silently stop Quit working from the keyboard.
+ */
+const MAC_DESKTOP_HARD_RESERVED = new Set(['primary+q', 'primary+h', 'primary+alt+h']);
+
+/**
+ * WebView2's built-in accelerator keys, which Windows desktop still has because
+ * Tauri installs no native menu off macOS and nothing else claims them.
+ *
+ * Soft rather than hard, and this is a deliberate honesty about evidence: the
+ * macOS entries above were measured in a real WKWebView, these are read off
+ * Microsoft's `AreBrowserAcceleratorKeysEnabled` documentation and have not been
+ * run on Windows. A warning is the right strength for that. `primary+s` and
+ * `primary+o` are shipped defaults, so if the list is right they are already
+ * broken on Windows — see the plan for the escape hatch that would turn the
+ * whole set off.
+ */
+const WINDOWS_DESKTOP_SOFT_RESERVED = new Set([
+  'f5',
+  'f12',
+  'primary+r',
+  'primary+shift+r',
+  'primary+shift+i',
+  'primary+f',
+  'primary+o',
+  'primary+p',
+  'primary+s',
+  'primary+u',
+]);
+
+/**
+ * Which host is answering. Desktop is split by OS because the two desktop
+ * platforms reserve for unrelated reasons — our own menu on macOS, the webview
+ * engine on Windows — and neither list applies to the other.
+ */
+export type ReservedKeyHost = 'web' | 'desktop-macos' | 'desktop-windows' | 'desktop-other';
+
+export function currentReservedKeyHost(): ReservedKeyHost {
+  if (!isDesktopRuntime()) return 'web';
+  if (isApplePlatform()) return 'desktop-macos';
+  if (isWindowsPlatform()) return 'desktop-windows';
+  return 'desktop-other';
+}
+
+/**
+ * Whether a chord can be bound on a given host, and how strongly.
+ *
+ * The host is a parameter with a live default rather than a module-level
+ * constant: the settings capture and the Oriedita import both want the answer
+ * for wherever they are running, and the tests want to pin each host without
+ * touching globals.
+ *
+ * `desktop-other` (Linux/WebKitGTK) reserves nothing. It has no native menu, and
+ * WebKitGTK's own bindings are editing commands plus the inspector, which is
+ * only reachable when developer extras are on — a debug build.
+ */
+export function classifyReservedKey(
+  chord: KeyChord,
+  host: ReservedKeyHost = currentReservedKeyHost()
+): ReservedKeyClassification {
+  return describeReservedKey(chord, host).classification;
+}
+
+/**
+ * Who takes the chord. Four reasons rather than one, because the message a user
+ * needs is different in each case — "the desktop app can use this" is help on
+ * the web and nonsense on desktop.
+ *
+ * The reason lives here, beside the tables that know it, so the copy cannot
+ * drift: a settings dialog branching on the host itself would be a second
+ * implementation of the same question.
+ */
+export type ReservedKeyReason =
+  /** Browser chrome takes it before the page: new tab, address bar, DevTools. */
+  | 'browser-chrome'
+  /** Browser reload. Delivered by some browsers and not others. */
+  | 'browser-reload'
+  /** A predefined item in our own macOS app menu — Quit, Hide, Hide Others. */
+  | 'app-menu'
+  /** WebView2's built-in accelerator keys on Windows desktop. */
+  | 'webview-accelerator';
+
+export interface ReservedKeyDescription {
+  classification: ReservedKeyClassification;
+  /** Null exactly when the classification is `allowed`. */
+  reason: ReservedKeyReason | null;
+}
+
+const ALLOWED: ReservedKeyDescription = { classification: 'allowed', reason: null };
+
+export function describeReservedKey(
+  chord: KeyChord,
+  host: ReservedKeyHost = currentReservedKeyHost()
+): ReservedKeyDescription {
   const id = keyChordId(chord);
-  if (
-    id === 'primary+l' ||
-    id === 'primary+w' ||
-    id === 'primary+t' ||
-    id === 'primary+shift+t' ||
-    id === 'primary+shift+i' ||
-    id === 'f5'
-  ) {
-    return 'hard-reserved';
+  switch (host) {
+    case 'web':
+      if (WEB_HARD_RESERVED.has(id)) {
+        return { classification: 'hard-reserved', reason: 'browser-chrome' };
+      }
+      if (WEB_SOFT_RESERVED.has(id)) {
+        return { classification: 'soft-reserved', reason: 'browser-reload' };
+      }
+      return ALLOWED;
+    case 'desktop-macos':
+      return MAC_DESKTOP_HARD_RESERVED.has(id)
+        ? { classification: 'hard-reserved', reason: 'app-menu' }
+        : ALLOWED;
+    case 'desktop-windows':
+      return WINDOWS_DESKTOP_SOFT_RESERVED.has(id)
+        ? { classification: 'soft-reserved', reason: 'webview-accelerator' }
+        : ALLOWED;
+    case 'desktop-other':
+      return ALLOWED;
   }
-  if (id === 'primary+r' || id === 'primary+shift+r') return 'soft-reserved';
-  return 'allowed';
 }
 
 function normalizeKey(key: string): string {

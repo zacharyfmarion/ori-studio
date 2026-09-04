@@ -493,6 +493,105 @@ describe('SettingsModal', () => {
     expect(useShortcutStore.getState().overrides['file.save']).toBeUndefined();
   });
 
+  /*
+   * An armed capture installs a window-level keydown listener that consumes
+   * every key in the whole application. These three pin the ways out of it,
+   * because without them it was reachable and unescapable at once: clicking
+   * "Press keys" and then changing your mind left the keyboard dead app-wide,
+   * with the explanation rendered above a list you had scrolled away from.
+   */
+  it('stops capturing when the recorder loses focus', () => {
+    const rendered = renderModal('shortcuts');
+    const saveRow = shortcutRowFor('Save');
+    const capture = saveRow?.querySelector('.settings-shortcuts__capture') as HTMLButtonElement;
+
+    act(() => {
+      capture.focus();
+      capture.click();
+    });
+    expect(capture.textContent).toContain('Press keys');
+
+    act(() => {
+      capture.blur();
+    });
+    expect(capture.textContent).not.toContain('Press keys');
+
+    // The listener is gone with it: a key pressed now reaches the rest of the
+    // app instead of being swallowed, and binds nothing.
+    const stray = new KeyboardEvent('keydown', { key: 'j', bubbles: true, cancelable: true });
+    act(() => {
+      window.dispatchEvent(stray);
+    });
+    expect(stray.defaultPrevented).toBe(false);
+    expect(useShortcutStore.getState().overrides['file.save']).toBeUndefined();
+    expect(rendered.textContent).toContain('Save');
+  });
+
+  it('leaves a chord it refuses to the host that owns it', () => {
+    renderModal('shortcuts');
+    const saveRow = shortcutRowFor('Save');
+    const capture = saveRow?.querySelector('.settings-shortcuts__capture') as HTMLButtonElement;
+
+    act(() => {
+      capture.focus();
+      capture.click();
+    });
+
+    // Reserved, so the capture refuses it -- and must not preventDefault, or it
+    // takes the chord from the browser too and gives it to nobody. Cmd+Shift+I
+    // stopped opening devtools while any capture was armed.
+    const reserved = new KeyboardEvent('keydown', {
+      key: 'I',
+      metaKey: true,
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => {
+      window.dispatchEvent(reserved);
+    });
+    expect(reserved.defaultPrevented).toBe(false);
+
+    // A chord it *can* hold stays consumed, so the app never runs the action
+    // being rebound on the way past.
+    const bindable = new KeyboardEvent('keydown', {
+      key: 'j',
+      metaKey: true,
+      altKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => {
+      window.dispatchEvent(bindable);
+    });
+    expect(bindable.defaultPrevented).toBe(true);
+    expect(useShortcutStore.getState().overrides['file.save']).toEqual([
+      { primary: true, alt: true, key: 'j' },
+    ]);
+  });
+
+  it('answers a refused chord inside the row it was pressed on', () => {
+    renderModal('shortcuts');
+    const saveRow = shortcutRowFor('Save');
+    const capture = saveRow?.querySelector('.settings-shortcuts__capture') as HTMLButtonElement;
+
+    act(() => {
+      capture.focus();
+      capture.click();
+    });
+    act(() => {
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 't', metaKey: true, bubbles: true, cancelable: true })
+      );
+    });
+
+    // In the row, not in a status line above a list that scrolls: the row is
+    // where the user is looking, being the thing they just clicked.
+    const rowMessage = saveRow?.querySelector('.settings-shortcuts__rowMessage');
+    expect(rowMessage?.textContent).toContain('reserved');
+    expect(shortcutRowFor('Open...')?.querySelector('.settings-shortcuts__rowMessage')).toBeNull();
+  });
+
   it('offers to unbind the holder of a hard-taken chord, then does it', async () => {
     const rendered = renderModal('shortcuts');
     const saveRow = shortcutRowFor('Save');
