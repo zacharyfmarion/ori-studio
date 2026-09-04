@@ -126,6 +126,43 @@ are unchanged:
   `crates/oristudio-cp/tests/oriedita_io_oracle.rs` pins the divergence against
   the real `PointSet`, and asserts the vertices and edges still match exactly.
 
+- **Self-loops take no part in the arrangement.** `FoldGraph::calculate_faces`
+  skips a line whose two endpoints welded to the same graph vertex, both when
+  tracing faces and when counting `E`, and `FoldGraph::point_linking` keeps it
+  out of that vertex's neighbour list. `PointSet.calculateFaces` walks and counts
+  every line, and `searchPointLinking` (`PointSet.java:315`) links every line,
+  with no degenerate guard anywhere.
+
+  A line becomes a self-loop exactly when it is shorter than `Epsilon::POINT` —
+  a crease whose own endpoints `VertexIndex` cannot tell apart. It bounds no
+  face, so tracing it fabricates a ring that walks into itself and counting it
+  inflates `E`; either alone moves the Euler sum off 1. Upstream can afford that
+  because its non-1 arm is a warning it hopes never fires ("something wrong
+  caused by the rounding error"), and the faces survive it. Ours is a refusal
+  (see the entry below), so the same input costs the document every face it has
+  and the fold reports `fold_faces_unresolved`. That is how a shared crease
+  pattern came back unfoldable when the editor it left had folded it: the web
+  planarizer cut two creases 4.6e-5 and 1.1e-4 short of the vertex they end on,
+  and the tails made the round trip as creases.
+
+  The linking half is not optional and is not the same defect twice. `r_point`
+  ranks a vertex's neighbours by the angle *to* each of them, and a self-loop
+  offers the vertex itself — no direction at all, which the degenerate
+  measurement scores a flat 215°. That beats every turn sharper than 215°, so a
+  walk merely passing through such a vertex is diverted into a ring that leaves
+  and re-enters the same point. The reported share link still refused to fold
+  with only the tracing half in place, and folds with both.
+
+  The lines stay in `self.lines`. Callers address segments by index —
+  `exact_solve_input_from_fold` places by edge position, resting on
+  `from_segments` emitting one line per input segment — so removing them here
+  would silently misplace geometry elsewhere. Pinned by
+  `a_sub_tolerance_crease_does_not_discard_every_face` and
+  `a_self_loop_is_not_a_neighbour_of_its_own_vertex` in `fold_graph.rs`, and
+  `sub_tolerance_creases_do_not_stop_a_fold` in `tests/folding.rs`; no fixture
+  without a sub-tolerance crease changes, so the folding and FOLD-export oracles
+  see identical output.
+
 - **A failed Euler gate clears our faces; upstream keeps them.** *(Known gap, not
   a decision — predates the per-component work above and is not relied on by it.)*
   `FoldGraph::calculate_faces` sets `self.faces = Vec::new()` when the gate fails.

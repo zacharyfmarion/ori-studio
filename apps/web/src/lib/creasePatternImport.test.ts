@@ -675,3 +675,101 @@ describe('non-180 fold angles survive import', () => {
     }
   });
 });
+
+describe('creases meeting end to end at a shared vertex', () => {
+  /**
+   * The kernel's vertex-weld radius (`Epsilon::POINT`). Anything shorter than
+   * this welds both endpoints to one graph vertex on the way back in, so the
+   * crease becomes a self-loop -- which is why an edge below it is not merely
+   * untidy but unreadable by the engine that has to fold it.
+   */
+  const EPSILON_POINT = 0.00025;
+
+  /**
+   * Two creases from `source_save_issue.osf`, a detect+solve crease pattern that
+   * folded in the editor and refused to fold from its own share link.
+   *
+   * They are one straight line through a shared, *bit-identical* endpoint: 22.5°
+   * in and 22.5° out, agreeing to 2e-9 of a degree. The exact intersection is
+   * that shared endpoint, so the only correct answer is "no interior cut".
+   */
+  const inLine: [number, number][] = [
+    [-152.85138708195018, -121.8917613368011],
+    [-135.55317018842607, -114.7266052930574],
+  ];
+  const outLine: [number, number][] = [
+    [-117.80424627165543, -107.37476028692257],
+    [-135.55317018842607, -114.7266052930574],
+  ];
+
+  const sheetWith = (creases: [number, number][][]) => {
+    const corners: [number, number][] = [
+      [-200, -200],
+      [200, -200],
+      [200, 200],
+      [-200, 200],
+    ];
+    const coords: number[][] = corners.map(([x, y]) => [x, y]);
+    const index = new Map(corners.map(([x, y], i) => [`${x}|${y}`, i]));
+    const id = (point: [number, number]) => {
+      const key = `${point[0]}|${point[1]}`;
+      const seen = index.get(key);
+      if (seen !== undefined) return seen;
+      coords.push([point[0], point[1]]);
+      index.set(key, coords.length - 1);
+      return coords.length - 1;
+    };
+    const edges = [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 0],
+      ...creases.map(([a, b]) => [id(a!), id(b!)]),
+    ];
+    return {
+      vertices_coords: coords,
+      edges_vertices: edges,
+      edges_assignment: ['B', 'B', 'B', 'B', ...creases.map(() => 'M')],
+      faces_vertices: [],
+    } as unknown as Parameters<typeof segmentationFoldArtifactsFromFold>[0];
+  };
+
+  const edgeLengths = (fold: { vertices_coords?: number[][]; edges_vertices?: number[][] }) => {
+    const coords = fold.vertices_coords ?? [];
+    return (fold.edges_vertices ?? []).map(([a, b]) =>
+      Math.hypot(coords[a!]![0]! - coords[b!]![0]!, coords[a!]![1]! - coords[b!]![1]!)
+    );
+  };
+
+  it('does not cut a crease short of the vertex it ends on', () => {
+    // `segmentIntersectionParams` used to compare `EPSILON` against a *raw*
+    // cross product, `|r||s|sin(theta)`, so the collinear threshold tightened
+    // as the segments grew: here |r||s| = 360 lifts a sin(theta) of 3.2e-11 to
+    // an `rxs` of 1.15e-8, just past a 1e-8 bar. The general branch then divided
+    // two equal-magnitude near-zero numbers (-1.149641e-08 / -1.149644e-08) and
+    // reported the crossing at t = 0.999997528 instead of 1 -- cutting the
+    // crease 4.6e-5 short of the shared vertex and leaving the tail as an edge.
+    const inferred = segmentationFoldArtifactsFromFold(sheetWith([inLine, outLine])).fold;
+
+    // Four borders and two creases: the shared endpoint is a vertex, not a cut.
+    expect(inferred.edges_vertices).toHaveLength(6);
+    expect(edgeLengths(inferred).filter((length) => length < EPSILON_POINT)).toEqual([]);
+  });
+
+  it('still cuts a crease that genuinely crosses another', () => {
+    // The guard must not swing the other way: a real crossing at 45° to the
+    // creases above still has to split both segments.
+    const crossing: [number, number][] = [
+      [-160, -100],
+      [-120, -140],
+    ];
+    const inferred = segmentationFoldArtifactsFromFold(
+      sheetWith([inLine, outLine, crossing])
+    ).fold;
+
+    // The crossing cuts `inLine` and is cut by it: 4 borders + 2 halves of
+    // `inLine` + `outLine` + 2 halves of the crossing.
+    expect(inferred.edges_vertices).toHaveLength(9);
+    expect(edgeLengths(inferred).filter((length) => length < EPSILON_POINT)).toEqual([]);
+  });
+});
