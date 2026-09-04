@@ -10,6 +10,7 @@ pub mod assignments;
 pub mod border;
 pub mod candidate_graph;
 pub mod candidates;
+mod carrier_lines;
 pub mod carrier_reconcile;
 pub mod constraints;
 pub mod evidence;
