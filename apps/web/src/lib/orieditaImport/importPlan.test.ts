@@ -12,6 +12,7 @@ import {
   keyChordEquals,
   keyChordId,
   type KeyChord,
+  type ReservedKeyHost,
   type ShortcutActionId,
   type ShortcutDefaultsSource,
   type ShortcutOverrides,
@@ -37,6 +38,12 @@ interface PlanOptions {
   readonly defaultsSource?: ShortcutDefaultsSource;
   /** Rows the user pressed "Use anyway" on, by target id. */
   readonly allowEvictionFor?: readonly ShortcutActionId[];
+  /**
+   * Which build the import lands in. Pinned to `web` by default rather than
+   * inherited: jsdom happens to look like a browser, so every reserved-chord
+   * expectation below would otherwise be true by accident.
+   */
+  readonly host?: ReservedKeyHost;
 }
 
 function plan(
@@ -48,6 +55,7 @@ function plan(
     currentOverrides: options.currentOverrides ?? {},
     defaultsSource: options.defaultsSource,
     allowEvictionFor: new Set(options.allowEvictionFor ?? []),
+    host: options.host ?? 'web',
   });
 }
 
@@ -228,8 +236,28 @@ describe('chord-level rejections', () => {
   });
 
   it('refuses a chord the browser reserves', () => {
-    expect(outcomeOf(plan({ colRedAction: 'ctrl pressed W' }), 'colRedAction')).toBe(
-      'skip:reserved-chord'
+    const built = plan({ colRedAction: 'ctrl pressed W' });
+    expect(outcomeOf(built, 'colRedAction')).toBe('skip:reserved-chord');
+    expect(rowFor(built, 'colRedAction').detail.reservedReason).toBe('browser-chrome');
+  });
+
+  it('applies that same chord in the desktop build', () => {
+    // The reason this is worth a test of its own: Oriedita is a desktop
+    // application, so an exported config is full of chords only a browser
+    // objects to. Refusing them everywhere threw away the user's own edits in
+    // the one build that can honour them.
+    const built = plan({ colRedAction: 'ctrl pressed W' }, { host: 'desktop-macos' });
+    expect(outcomeOf(built, 'colRedAction')).toBe('apply:primary+w');
+  });
+
+  it('refuses a chord the macOS app menu owns, in the desktop build only', () => {
+    const desktop = plan({ colRedAction: 'ctrl pressed Q' }, { host: 'desktop-macos' });
+    expect(outcomeOf(desktop, 'colRedAction')).toBe('skip:reserved-chord');
+    expect(rowFor(desktop, 'colRedAction').detail.reservedReason).toBe('app-menu');
+    // Nothing outside the page owns Cmd+Q in a browser — it never arrives at
+    // all — so there is nothing for the import to refuse.
+    expect(outcomeOf(plan({ colRedAction: 'ctrl pressed Q' }), 'colRedAction')).toBe(
+      'apply:primary+q'
     );
   });
 

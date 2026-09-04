@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   classifyReservedKey,
+  describeReservedKey,
   findShortcutConflict,
   findShortcutShadowing,
   formatKeyChord,
@@ -18,6 +19,7 @@ import {
   shortcutLabelForAction,
   type KeyChord,
   type ShortcutActionId,
+  type ShortcutDefaultsSource,
   type ShortcutOverrides,
   type ShortcutScope,
 } from './shortcuts';
@@ -175,9 +177,63 @@ describe('shortcut registry', () => {
   });
 
   it('classifies high-risk browser shortcuts', () => {
-    expect(classifyReservedKey({ primary: true, key: 'l' })).toBe('hard-reserved');
-    expect(classifyReservedKey({ primary: true, key: 'r' })).toBe('soft-reserved');
-    expect(classifyReservedKey({ key: 'm' })).toBe('allowed');
+    expect(classifyReservedKey({ primary: true, key: 'l' }, 'web')).toBe('hard-reserved');
+    expect(classifyReservedKey({ primary: true, key: 'n' }, 'web')).toBe('hard-reserved');
+    expect(classifyReservedKey({ primary: true, key: 'r' }, 'web')).toBe('soft-reserved');
+    expect(classifyReservedKey({ key: 'm' }, 'web')).toBe('allowed');
+    // Sits next to Cmd+N in the File menu and is *not* taken: Chrome's
+    // Preferences does not claim it away from a focused page.
+    expect(classifyReservedKey({ primary: true, key: ',' }, 'web')).toBe('allowed');
+  });
+
+  it('reserves nothing on desktop that the browser reserved', () => {
+    for (const host of ['desktop-macos', 'desktop-windows', 'desktop-other'] as const) {
+      expect(classifyReservedKey({ primary: true, key: 't' }, host)).toBe('allowed');
+      expect(classifyReservedKey({ primary: true, key: 'w' }, host)).toBe('allowed');
+      expect(classifyReservedKey({ primary: true, key: 'l' }, host)).toBe('allowed');
+      expect(classifyReservedKey({ primary: true, key: 'n' }, host)).toBe('allowed');
+      expect(classifyReservedKey({ primary: true, shift: true, key: 't' }, host)).toBe('allowed');
+    }
+  });
+
+  it('reserves the macOS app-menu chords on desktop macOS only', () => {
+    // Capturable, and capturing them is the problem: a page preventDefault beats
+    // the native menu, so binding Cmd+Q stops Quit working.
+    expect(classifyReservedKey({ primary: true, key: 'q' }, 'desktop-macos')).toBe('hard-reserved');
+    expect(classifyReservedKey({ primary: true, key: 'h' }, 'desktop-macos')).toBe('hard-reserved');
+    expect(classifyReservedKey({ primary: true, alt: true, key: 'h' }, 'desktop-macos')).toBe(
+      'hard-reserved'
+    );
+    // Off macOS the app installs no native menu at all, so nothing claims them.
+    expect(classifyReservedKey({ primary: true, key: 'q' }, 'desktop-windows')).toBe('allowed');
+    expect(classifyReservedKey({ primary: true, key: 'q' }, 'desktop-other')).toBe('allowed');
+    // The browser owns Cmd+Q too, but there it never reaches the page, so
+    // nothing the app does with it matters.
+    expect(classifyReservedKey({ primary: true, key: 'q' }, 'web')).toBe('allowed');
+  });
+
+  it('names who takes the chord, so the copy can differ by host', () => {
+    // The four reasons carry four different messages. A settings dialog
+    // branching on the host itself would be a second copy of this table.
+    expect(describeReservedKey({ primary: true, key: 't' }, 'web').reason).toBe('browser-chrome');
+    expect(describeReservedKey({ primary: true, key: 'r' }, 'web').reason).toBe('browser-reload');
+    expect(describeReservedKey({ primary: true, key: 'q' }, 'desktop-macos').reason).toBe(
+      'app-menu'
+    );
+    expect(describeReservedKey({ key: 'f5' }, 'desktop-windows').reason).toBe(
+      'webview-accelerator'
+    );
+    expect(describeReservedKey({ key: 'm' }, 'web').reason).toBeNull();
+  });
+
+  it('warns about the WebView2 accelerator keys on Windows desktop', () => {
+    expect(classifyReservedKey({ key: 'f5' }, 'desktop-windows')).toBe('soft-reserved');
+    expect(classifyReservedKey({ primary: true, key: 's' }, 'desktop-windows')).toBe(
+      'soft-reserved'
+    );
+    // WebKitGTK binds neither in a release build.
+    expect(classifyReservedKey({ key: 'f5' }, 'desktop-other')).toBe('allowed');
+    expect(classifyReservedKey({ primary: true, key: 's' }, 'desktop-other')).toBe('allowed');
   });
 
   it('normalizes equivalent chords', () => {
@@ -269,7 +325,7 @@ describe('shortcut registry', () => {
   });
 
   it('reports import diagnostics for follow-up mapping work', () => {
-    const diagnostics = getShortcutRegistryDiagnostics();
+    const diagnostics = getShortcutRegistryDiagnostics('web');
 
     // Still deliberately unmapped: `exitAction` has no browser meaning, and
     // `gridConfigureAction` is G upstream — the key `foldAction` owns here, so
@@ -490,14 +546,19 @@ describe('Oriedita defaults source', () => {
     expect([...buckets].filter(([, ids]) => ids.length > 1)).toEqual([]);
   });
 
-  it('binds no hard-reserved browser chords', () => {
-    const reserved = SHORTCUT_DEFINITIONS.flatMap((definition) =>
-      getDefaultShortcutChords(definition.id, 'oriedita')
-        .filter((chord) => classifyReservedKey(chord) === 'hard-reserved')
-        .map((chord) => `${definition.id}=${keyChordId(chord)}`)
-    );
+  it('binds no hard-reserved browser chords the Ori Studio layout did not already', () => {
+    const reserved = (source: ShortcutDefaultsSource) =>
+      SHORTCUT_DEFINITIONS.flatMap((definition) =>
+        getDefaultShortcutChords(definition.id, source)
+          .filter((chord) => classifyReservedKey(chord, 'web') === 'hard-reserved')
+          .map((chord) => `${definition.id}=${keyChordId(chord)}`)
+      );
 
-    expect(reserved).toEqual([]);
+    // Switching layout must not *add* a chord the browser eats. `file.new` is
+    // the one that carries over — see `WEB_INERT_DEFAULTS` in
+    // `shortcutRegistry.test.ts` for why it is kept rather than moved.
+    expect(reserved('oriedita')).toEqual(reserved('ori-studio'));
+    expect(reserved('oriedita')).toEqual(['file.new=primary+n']);
   });
 
   it('binds no action the UI cannot run', () => {
