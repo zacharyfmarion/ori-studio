@@ -4,6 +4,13 @@
  * should do itself — the model's session on CoreML or all cores, and the
  * exact solve with a Stop. Same `CpDetectWorkerApi` surface, so the dialog
  * does not know which it holds. See `apps/tauri/src-tauri/src/cp_detect.rs`.
+ *
+ * Not every desktop build links ONNX Runtime: Intel macOS has no prebuilt, and
+ * the Linux one needs a newer libstdc++ than the release image carries. Those
+ * builds answer `cp_detect_native_inference_available` with false, and the four
+ * methods that need a model — inference and the model store, which move as a
+ * pair — fall through to the worker. The exact solver is pure Rust and stays
+ * native on every target.
  */
 import { invoke } from '@tauri-apps/api/core';
 import {
@@ -69,6 +76,8 @@ export interface NativeCpDetectClientDeps {
   invokeImpl?: typeof invoke;
   store?: CpDetectModelStore;
   fetchImpl?: typeof fetch;
+  /** Overrides the backend's own answer. Tests use it; nothing else should. */
+  nativeInferenceAvailable?: () => Promise<boolean>;
 }
 
 /** Build the client. The worker and every dependency are injectable for tests. */
@@ -79,6 +88,31 @@ export function nativeCpDetectClient(
   const invokeImpl = deps.invokeImpl ?? invoke;
   const store = deps.store ?? defaultCpDetectModelStore();
   const fetchImpl = deps.fetchImpl ?? fetch;
+
+  /**
+   * Whether this desktop build linked ONNX Runtime.
+   *
+   * Intel macOS and Linux do not — there is no prebuilt for the first and the
+   * Linux one wants a newer libstdc++ than the release image has, so `ort` is
+   * not compiled in on either (see `apps/tauri/src-tauri/build.rs`). Those
+   * builds keep the *native* model store and exact solver, which are pure Rust,
+   * and send inference to the worker instead.
+   *
+   * Asked once and remembered: the answer is a compile-time constant on the
+   * other side. A backend too old to know the command is treated as native, so
+   * that a version skew during development fails loudly at `cp_detect_recognize`
+   * rather than silently routing every desktop to the slower path.
+   */
+  let nativeInference: Promise<boolean> | null = null;
+  const nativeInferenceAvailable =
+    deps.nativeInferenceAvailable ??
+    (() => {
+      nativeInference ??= invokeImpl<boolean>('cp_detect_native_inference_available').then(
+        (available) => available !== false,
+        () => true
+      );
+      return nativeInference;
+    });
 
   async function install(
     options: CpDetectWorkerRunOptions,
@@ -131,11 +165,17 @@ export function nativeCpDetectClient(
     };
   }
 
+  // The model store and inference move together. Where inference is the
+  // worker's, the worker must also own acquiring the model — otherwise the
+  // download lands in the native store, which nothing on that build reads, and
+  // Settings ▸ Models reports a copy that is never used.
   const native = {
     async loadModel(options: CpDetectWorkerRunOptions = {}, onModelProgress?: CpDetectModelProgressListener) {
+      if (!(await nativeInferenceAvailable())) return worker.loadModel(options, onModelProgress);
       return (await install(options, onModelProgress)).manifest;
     },
     async modelStatus(options: CpDetectWorkerRunOptions = {}) {
+      if (!(await nativeInferenceAvailable())) return worker.modelStatus(options);
       const { manifest, version } = await manifestFor(options, fetchImpl);
       return { manifest, version, installed: await store.installed(version.id, version.sha256) };
     },
@@ -144,6 +184,9 @@ export function nativeCpDetectClient(
       options: CpDetectWorkerRunOptions = {},
       onModelProgress?: CpDetectModelProgressListener
     ): Promise<CpDetectFoldResult> {
+      if (!(await nativeInferenceAvailable())) {
+        return worker.detectRectifiedFold(image, options, onModelProgress);
+      }
       const decoded = await decode(image, options, false, onModelProgress);
       return {
         status: decoded.report.status,
@@ -161,6 +204,9 @@ export function nativeCpDetectClient(
       options: CpDetectWorkerRunOptions = {},
       onModelProgress?: CpDetectModelProgressListener
     ): Promise<CpDetectRecognizeResult> {
+      if (!(await nativeInferenceAvailable())) {
+        return worker.recognizeRectifiedFold(image, options, onModelProgress);
+      }
       const decoded = await decode(image, options, true, onModelProgress);
       const solve = cpDetectSolveState(decoded.report);
       const candidateSource = cpDetectCandidateSourceFromFold(decoded.fold_json);

@@ -11,7 +11,7 @@ Crease patterns read from images, and a tool for moving a vertex.
 
 ### Added
 
-- Add **Detect CP from Image**, in beta. Point Ori Studio at a photo, scan or screenshot of a crease pattern and get an editable pattern back. The model is downloaded once per device, verified, and kept; the desktop app runs it natively, and the browser uses the GPU where it can. Two limits worth knowing: it works best on small and medium crease patterns, and a solve guarantees a pattern that folds flat, not necessarily the one the designer drew.
+- Add **Detect CP from Image**, in beta. Point Ori Studio at a photo, scan or screenshot of a crease pattern and get an editable pattern back. The model is downloaded once per device, verified, and kept; the desktop app runs it natively on Apple Silicon and Windows, and everywhere else it runs in the browser engine, on the GPU where there is one. Two limits worth knowing: it works best on small and medium crease patterns, and a solve guarantees a pattern that folds flat, not necessarily the one the designer drew.
 - Add **Move Vertex**: grab a junction, drag it, and every crease that ends there follows. Creases that merely pass nearby are left alone, the destination snaps like any other draw point, and the whole drag is a single undo.
 - Repair a detected pattern before solving it. The pattern lands under a region that quiets the angle checks while its topology is fixed; Solve then runs the exact solver over the creases as drawn and offers Accept or Try again with a sentence saying what remains. A slow solve can be stopped, and a refused answer names what it would have broken.
 - Add Settings ▸ Models, which lists the detector versions on this device and can download, update or remove them.

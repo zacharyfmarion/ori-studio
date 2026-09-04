@@ -52,9 +52,25 @@ in CI, `CLOUDFLARE_API_TOKEN` must carry **Workers R2 Storage: Edit** for the
 account. The deploy's `Verify model store` step fails a deploy whose registry
 or model is unreachable.
 
-The desktop build links ONNX Runtime statically; `ort-sys` downloads the
-prebuilt binaries at build time, which a proxied shell may need `HTTPS_PROXY`
-unset for. Release runners are not proxied.
+The desktop build links ONNX Runtime statically **on Apple Silicon and Windows
+only**; `ort-sys` downloads the prebuilt binaries at build time, which a proxied
+shell may need `HTTPS_PROXY` unset for. Release runners are not proxied.
+
+The other two legs do not link it, and `apps/tauri/src-tauri/build.rs` carries
+the reasons in full. Both were found by a dispatch build of `main` before
+0.4.0 was tagged, and each fails the whole leg rather than degrading:
+
+| Leg | Why not |
+| --- | --- |
+| `x86_64-apple-darwin` | `ort-sys` has never listed an Intel macOS prebuilt, so the build dies at the download: *no prebuilt binaries available for target*. |
+| `x86_64`/`aarch64-unknown-linux-gnu` | The prebuilt wants GLIBCXX_3.4.32 (`_M_replace_cold`, `__cxa_call_terminate`); `ubuntu-22.04` tops out at 3.4.30, so it dies at the link. `ubuntu-24.04` would link, at the cost of raising the glibc floor on the `.deb` and `.AppImage`. |
+
+Those builds keep the native model store and the native exact solver — both
+pure Rust — and answer `cp_detect_native_inference_available` with false, which
+sends inference to the wasm worker. **Adding a platform to the release matrix
+means checking `ort` links there**, and a `cargo check -p ori-studio --target
+<triple>` is enough to find out; CI does not, because no CI job packages the
+desktop bundles.
 
 ### Testing the detector before merging
 
