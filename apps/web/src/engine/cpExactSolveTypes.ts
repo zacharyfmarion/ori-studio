@@ -30,7 +30,7 @@
  */
 
 /** `ExactSolvedGraphStatus`, verbatim. */
-export type CpExactSolveStatus = 'solved' | 'ambiguous' | 'failed';
+export type CpExactSolveStatus = "solved" | "ambiguous" | "failed";
 
 /**
  * One vertex the solver moved.
@@ -117,6 +117,36 @@ export interface CpExactSolvePolishReport {
   refused_round?: CpExactSolvePolishRefusal | null;
   /** What the grid snap did, or null when the solver saw no grid to snap to. */
   pinned_family?: CpExactSolvePinnedFamilyReport | null;
+  /** What the pleat round did, or null when the solver found no pleat run. */
+  pleat_runs?: CpExactSolvePleatRunsReport | null;
+  [key: string]: unknown;
+}
+
+/**
+ * `movement_report.polish.pleat_runs` — what the pleat round did.
+ *
+ * A pleat run is three or more parallel creases stacked with nothing in the
+ * strips between them (`crates/oristudio-cp-compiler/src/pleat_runs.rs`). The
+ * round holds each run's equal spacings equal and keeps the result only if
+ * nothing regresses; `spread_before` / `spread_after` are the worst departure
+ * of a held spacing from its group's mean, as a fraction of the pitch.
+ */
+export interface CpExactSolvePleatRunsReport {
+  adopted?: boolean;
+  /** `adopted` | `refused` | `nothing_to_tie` | `out_of_time`. */
+  stop_reason?: string;
+  ties?: number;
+  spread_before?: number;
+  spread_after?: number;
+  refusals?: string[];
+  runs?: CpExactSolvePleatRun[];
+  [key: string]: unknown;
+}
+
+export interface CpExactSolvePleatRun {
+  family_degrees?: number;
+  creases?: number;
+  span_ids?: number[];
   [key: string]: unknown;
 }
 
@@ -275,7 +305,7 @@ export interface CpSolveFrameTransform {
  */
 export function cpSolveFramePoint(
   transform: CpSolveFrameTransform,
-  point: { x: number; y: number }
+  point: { x: number; y: number },
 ): { x: number; y: number } {
   const fx = point.x * transform.side;
   const fy = transform.flip * point.y * transform.side;
@@ -317,18 +347,18 @@ export interface CpExactSolveFoldResult {
  * asserted rather than assumed.
  */
 export const CP_EXACT_SOLVE_PREFLIGHT_REASONS = [
-  'preflight_degenerate_edges',
-  'preflight_boundary_failures',
+  "preflight_degenerate_edges",
+  "preflight_boundary_failures",
 ] as const;
 
 export const CP_EXACT_SOLVE_GATE_REASONS = [
-  'candidate_status_failed',
-  'movement_budget_exceeded',
-  'odd_degree_vertices_worsened',
-  'degenerate_edges_worsened',
-  'unmodeled_crossings_worsened',
-  'boundary_failures_worsened',
-  'objective_not_improved',
+  "candidate_status_failed",
+  "movement_budget_exceeded",
+  "odd_degree_vertices_worsened",
+  "degenerate_edges_worsened",
+  "unmodeled_crossings_worsened",
+  "boundary_failures_worsened",
+  "objective_not_improved",
 ] as const;
 
 /**
@@ -350,9 +380,9 @@ export const CP_EXACT_SOLVE_GATE_REASONS = [
 export const CP_EXACT_SOLVE_REASONS = [
   ...CP_EXACT_SOLVE_PREFLIGHT_REASONS,
   ...CP_EXACT_SOLVE_GATE_REASONS,
-  'timeout',
-  'malformed_input',
-  'above_fold_precision',
+  "timeout",
+  "malformed_input",
+  "above_fold_precision",
 ] as const;
 
 export type CpExactSolveReason = (typeof CP_EXACT_SOLVE_REASONS)[number];
@@ -360,12 +390,14 @@ export type CpExactSolveReason = (typeof CP_EXACT_SOLVE_REASONS)[number];
 const KNOWN_REASONS = new Set<string>(CP_EXACT_SOLVE_REASONS);
 
 /** Whether `value` is one of the tokens this app knows how to explain. */
-export function isCpExactSolveReason(value: string): value is CpExactSolveReason {
+export function isCpExactSolveReason(
+  value: string,
+): value is CpExactSolveReason {
   return KNOWN_REASONS.has(value);
 }
 
 /** Which of the solver's two stages a run reached. */
-export type CpExactSolveStage = 'geometry' | 'refinement';
+export type CpExactSolveStage = "geometry" | "refinement";
 
 /**
  * How far a run moved the pattern toward foldable, in the numbers the solver
@@ -449,6 +481,11 @@ interface CpExactSolveAcceptedFields {
    */
   angleFamily?: CpSolveAngleFamily | null;
   /**
+   * What the pleat round did, or null when there was no pleat run. See
+   * {@link cpExactSolvePleats}.
+   */
+  pleats?: CpSolvePleats | null;
+  /**
    * Whether the refinement stage's polish loop kept any of its rounds.
    *
    * Read from `movement_report.polish.rounds_adopted`, which the solver reports
@@ -480,7 +517,7 @@ export type CpExactSolveOutcome =
        * Exact: `ExactSolvedGraphStatus::Solved`. No odd-degree vertices left and
        * the worst residual is inside `solved_kawasaki_epsilon_degrees`.
        */
-      kind: 'solved';
+      kind: "solved";
     } & CpExactSolveAcceptedFields)
   | ({
       /**
@@ -499,10 +536,10 @@ export type CpExactSolveOutcome =
        * for. {@link CpExactSolveAcceptedFields.residuals} carries both counts so
        * a surface can say so.
        */
-      kind: 'ambiguous';
+      kind: "ambiguous";
     } & CpExactSolveAcceptedFields)
   | {
-      kind: 'timeout';
+      kind: "timeout";
       stage: CpExactSolveStage;
       /**
        * How far the solver got. Non-empty in practice (median ~448 entries), and
@@ -516,7 +553,7 @@ export type CpExactSolveOutcome =
       elapsedSeconds: number;
     }
   | {
-      kind: 'rejected';
+      kind: "rejected";
       stage: CpExactSolveStage;
       status: CpExactSolveStatus;
       /** The tokens the solver wrote, in its own order, unknown ones dropped. */
@@ -526,7 +563,7 @@ export type CpExactSolveOutcome =
       elapsedSeconds: number;
     }
   | {
-      kind: 'malformed';
+      kind: "malformed";
       stage: CpExactSolveStage;
       /**
        * How many blockers the solver listed — a count, never the messages. Each
@@ -539,7 +576,7 @@ export type CpExactSolveOutcome =
 /** An accepted solve, of either exactness. */
 export type CpExactSolveAcceptedOutcome = Extract<
   CpExactSolveOutcome,
-  { kind: 'solved' | 'ambiguous' }
+  { kind: "solved" | "ambiguous" }
 >;
 
 /**
@@ -553,30 +590,30 @@ export type CpExactSolveAcceptedOutcome = Extract<
  * different sentences and only one of them is "Solved".
  */
 export function isCpExactSolveAccepted(
-  outcome: CpExactSolveOutcome
+  outcome: CpExactSolveOutcome,
 ): outcome is CpExactSolveAcceptedOutcome {
-  return outcome.kind === 'solved' || outcome.kind === 'ambiguous';
+  return outcome.kind === "solved" || outcome.kind === "ambiguous";
 }
 
 /** The single reason to show first, or null when there is nothing to explain. */
 export function primaryCpExactSolveReason(
-  outcome: CpExactSolveOutcome
+  outcome: CpExactSolveOutcome,
 ): CpExactSolveReason | null {
   switch (outcome.kind) {
-    case 'solved':
+    case "solved":
       return null;
-    case 'ambiguous':
+    case "ambiguous":
       // Not null. A caller reading null as "nothing went wrong" would print
       // nothing over a pattern that still fails every check it failed before;
       // one reading it as "no reason available" falls through to its own
       // fallback, which is how an ambiguous solve gets explained as malformed
       // input. The sentence for this token says what actually happened.
-      return 'above_fold_precision';
-    case 'timeout':
-      return 'timeout';
-    case 'malformed':
-      return 'malformed_input';
-    case 'rejected':
+      return "above_fold_precision";
+    case "timeout":
+      return "timeout";
+    case "malformed":
+      return "malformed_input";
+    case "rejected":
       // The solver sorts its reasons alphabetically, so "first" carries no
       // priority of its own; taking [0] is a presentation choice, and the whole
       // list stays on the outcome for a surface with room for it.
@@ -584,13 +621,16 @@ export function primaryCpExactSolveReason(
   }
 }
 
-function movedVertices(report: CpExactSolveMovementReport, key: 'moved_vertices' | 'attempted_moved_vertices') {
+function movedVertices(
+  report: CpExactSolveMovementReport,
+  key: "moved_vertices" | "attempted_moved_vertices",
+) {
   const value = report[key];
   return Array.isArray(value) ? (value as CpExactSolveMovedVertex[]) : [];
 }
 
 function finiteNumber(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
 /**
@@ -601,18 +641,19 @@ function finiteNumber(value: unknown): number {
  * inventing the other half is how a made-up number reaches a sentence.
  */
 function readAnalysis(analysis: CpExactSolveAnalysis | undefined) {
-  if (!analysis || typeof analysis !== 'object') return null;
+  if (!analysis || typeof analysis !== "object") return null;
   const kawasaki = analysis.max_kawasaki_residual_degrees;
   const oddDegree = analysis.odd_degree_vertices;
-  if (typeof kawasaki !== 'number' || !Number.isFinite(kawasaki)) return null;
+  if (typeof kawasaki !== "number" || !Number.isFinite(kawasaki)) return null;
   if (!Array.isArray(oddDegree)) return null;
   const blb = analysis.big_little_big_violations;
   const angles = analysis.camv_angle_violations;
   return {
     kawasaki,
     oddDegree: oddDegree.length,
-    bigLittleBig: typeof blb === 'number' && Number.isFinite(blb) ? blb : null,
-    angleViolations: typeof angles === 'number' && Number.isFinite(angles) ? angles : null,
+    bigLittleBig: typeof blb === "number" && Number.isFinite(blb) ? blb : null,
+    angleViolations:
+      typeof angles === "number" && Number.isFinite(angles) ? angles : null,
   };
 }
 
@@ -625,7 +666,7 @@ function readAnalysis(analysis: CpExactSolveAnalysis | undefined) {
  * the same name.
  */
 export function cpExactSolveResiduals(
-  solved: CpExactSolvedGraph
+  solved: CpExactSolvedGraph,
 ): CpExactSolveResiduals | null {
   const report = solved.theorem_residual_report;
   const before = readAnalysis(report?.before);
@@ -661,15 +702,19 @@ export interface CpSolveAngleFamily {
   verticesOverBar: number | null;
 }
 
-export function cpExactSolveAngleFamily(solved: CpExactSolvedGraph): CpSolveAngleFamily | null {
+export function cpExactSolveAngleFamily(
+  solved: CpExactSolvedGraph,
+): CpSolveAngleFamily | null {
   const pinned = solved.movement_report?.polish?.pinned_family;
-  if (!pinned || typeof pinned !== 'object') return null;
+  if (!pinned || typeof pinned !== "object") return null;
   const step = pinned.step_degrees;
-  if (typeof step !== 'number' || !Number.isFinite(step)) return null;
+  if (typeof step !== "number" || !Number.isFinite(step)) return null;
   const attempts = Array.isArray(pinned.attempts) ? pinned.attempts : [];
   const last = attempts.length > 0 ? attempts[attempts.length - 1] : undefined;
   const refusals = Array.isArray(last?.refusals)
-    ? last.refusals.filter((reason): reason is string => typeof reason === 'string')
+    ? last.refusals.filter(
+        (reason): reason is string => typeof reason === "string",
+      )
     : [];
   const adopted = pinned.adopted === true;
   const over = last?.kawasaki_over_bar;
@@ -677,13 +722,78 @@ export function cpExactSolveAngleFamily(solved: CpExactSolvedGraph): CpSolveAngl
     stepDegrees: step,
     adopted,
     stopReason:
-      typeof pinned.stop_reason === 'string'
+      typeof pinned.stop_reason === "string"
         ? pinned.stop_reason
         : adopted
-          ? 'adopted'
-          : 'refused',
+          ? "adopted"
+          : "refused",
     refusals,
-    verticesOverBar: typeof over === 'number' && Number.isFinite(over) ? over : null,
+    verticesOverBar:
+      typeof over === "number" && Number.isFinite(over) ? over : null,
+  };
+}
+
+/**
+ * What the pleat round did, in the fields a sentence needs.
+ *
+ * Read off `movement_report.polish.pleat_runs`. Null when the report has no
+ * such block — the solver found no pleat run, or predates the round — so a
+ * caller can tell "no pleats" from "tried and refused". A run without two
+ * equal spacings gives the round nothing to hold, which is `nothing_to_tie`.
+ */
+export interface CpSolvePleats {
+  adopted: boolean;
+  /** `adopted` | `refused` | `nothing_to_tie` | `out_of_time`. */
+  stopReason: string;
+  /** Pleat runs found, and the creases in them. */
+  runs: number;
+  creases: number;
+  /** Spacing ties the round held; zero when every run was already exact. */
+  ties: number;
+  /** The worst held spacing's departure from its pitch, as a percentage, before and after. */
+  spreadBeforePct: number | null;
+  spreadAfterPct: number | null;
+  /** The acceptance-gate tokens a refused round failed on; empty otherwise. */
+  refusals: string[];
+}
+
+export function cpExactSolvePleats(
+  solved: CpExactSolvedGraph,
+): CpSolvePleats | null {
+  const round = solved.movement_report?.polish?.pleat_runs;
+  if (!round || typeof round !== "object") return null;
+  const runs = Array.isArray(round.runs) ? round.runs : [];
+  const adopted = round.adopted === true;
+  const pct = (value: unknown) =>
+    typeof value === "number" && Number.isFinite(value) ? value * 100 : null;
+  return {
+    adopted,
+    stopReason:
+      typeof round.stop_reason === "string"
+        ? round.stop_reason
+        : adopted
+          ? "adopted"
+          : "refused",
+    runs: runs.length,
+    creases: runs.reduce(
+      (sum, run) =>
+        sum +
+        (typeof run.creases === "number" && Number.isFinite(run.creases)
+          ? run.creases
+          : 0),
+      0,
+    ),
+    ties:
+      typeof round.ties === "number" && Number.isFinite(round.ties)
+        ? round.ties
+        : 0,
+    spreadBeforePct: pct(round.spread_before),
+    spreadAfterPct: pct(round.spread_after),
+    refusals: Array.isArray(round.refusals)
+      ? round.refusals.filter(
+          (reason): reason is string => typeof reason === "string",
+        )
+      : [],
   };
 }
 
@@ -707,9 +817,10 @@ const POLISH_ROUNDS_PATTERN = /\+polish\(rounds=(\d+)\)/;
  */
 function polishWasAdopted(report: CpExactSolveMovementReport): boolean {
   const adopted = report.polish?.rounds_adopted;
-  if (typeof adopted === 'number' && Number.isFinite(adopted)) return adopted > 0;
+  if (typeof adopted === "number" && Number.isFinite(adopted))
+    return adopted > 0;
   const termination = report.termination;
-  if (typeof termination !== 'string') return false;
+  if (typeof termination !== "string") return false;
   const match = POLISH_ROUNDS_PATTERN.exec(termination);
   return match !== null && Number(match[1]) > 0;
 }
@@ -740,23 +851,26 @@ function polishWasAdopted(report: CpExactSolveMovementReport): boolean {
  */
 export function classifyCpExactSolve(
   solved: CpExactSolvedGraph,
-  stage: CpExactSolveStage
+  stage: CpExactSolveStage,
 ): CpExactSolveOutcome {
   const report = solved.movement_report ?? {};
   const elapsedSeconds = finiteNumber(report.elapsed_seconds);
 
-  if (report.status === 'not_run' || (!report.rejection_reasons && report.blockers)) {
+  if (
+    report.status === "not_run" ||
+    (!report.rejection_reasons && report.blockers)
+  ) {
     return {
-      kind: 'malformed',
+      kind: "malformed",
       stage,
       blockerCount: Array.isArray(report.blockers) ? report.blockers.length : 0,
     };
   }
 
   if (report.timed_out === true) {
-    const partial = movedVertices(report, 'attempted_moved_vertices');
+    const partial = movedVertices(report, "attempted_moved_vertices");
     return {
-      kind: 'timeout',
+      kind: "timeout",
       stage,
       partialMovedVertices: partial,
       partialMaxMovement: finiteNumber(report.attempted_max_vertex_movement),
@@ -767,21 +881,24 @@ export function classifyCpExactSolve(
 
   if (report.accepted === true) {
     return {
-      kind: solved.status === 'solved' ? 'solved' : 'ambiguous',
+      kind: solved.status === "solved" ? "solved" : "ambiguous",
       stage,
-      movedVertices: movedVertices(report, 'moved_vertices'),
-      verticesExact: Array.isArray(solved.vertices_exact) ? solved.vertices_exact : [],
+      movedVertices: movedVertices(report, "moved_vertices"),
+      verticesExact: Array.isArray(solved.vertices_exact)
+        ? solved.vertices_exact
+        : [],
       maxMovement: finiteNumber(report.max_vertex_movement),
       elapsedSeconds,
       residuals: cpExactSolveResiduals(solved),
       angleFamily: cpExactSolveAngleFamily(solved),
+      pleats: cpExactSolvePleats(solved),
       polishAdopted: polishWasAdopted(report),
     };
   }
 
   const reasons = (report.rejection_reasons ?? []).filter(isCpExactSolveReason);
   return {
-    kind: 'rejected',
+    kind: "rejected",
     stage,
     status: solved.status,
     reasons,
@@ -793,11 +910,12 @@ export function classifyCpExactSolve(
 /** See {@link CpExactSolveCandidateFindings}. Null when the report carries no `candidate_after`. */
 export function cpExactSolveCandidateFindings(
   solved: CpExactSolvedGraph,
-  reasons: readonly CpExactSolveReason[]
+  reasons: readonly CpExactSolveReason[],
 ): CpExactSolveCandidateFindings | null {
   const candidate = solved.theorem_residual_report?.candidate_after;
-  if (!candidate || typeof candidate !== 'object') return null;
-  const before = solved.theorem_residual_report?.before?.max_kawasaki_residual_degrees;
+  if (!candidate || typeof candidate !== "object") return null;
+  const before =
+    solved.theorem_residual_report?.before?.max_kawasaki_residual_degrees;
   const after = candidate.max_kawasaki_residual_degrees;
   return {
     degenerateEdges: arrayLength(candidate.degenerate_edges),
@@ -805,9 +923,12 @@ export function cpExactSolveCandidateFindings(
     boundaryFailures: arrayLength(candidate.boundary_failures),
     // The compiler writes this token whenever the answer's budgeted movement is
     // over the limit, whether or not the status gate also failed on it.
-    movedOverBudget: reasons.includes('movement_budget_exceeded'),
+    movedOverBudget: reasons.includes("movement_budget_exceeded"),
     improvedAngles:
-      typeof before === 'number' && typeof after === 'number' && Number.isFinite(before) && Number.isFinite(after)
+      typeof before === "number" &&
+      typeof after === "number" &&
+      Number.isFinite(before) &&
+      Number.isFinite(after)
         ? after < before
         : null,
   };

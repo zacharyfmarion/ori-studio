@@ -247,6 +247,11 @@
       "oddDegreeDetail_one": "{{count}} sommet a encore un nombre impair de plis : ce patron ne peut donc pas se plier à plat, où que soient les sommets.",
       "oddDegreeDetail_many": "{{count}} sommets ont encore un nombre impair de plis : ce patron ne peut donc pas se plier à plat, où que soient les sommets.",
       "oddDegreeDetail_other": "{{count}} sommets ont encore un nombre impair de plis : ce patron ne peut donc pas se plier à plat, où que soient les sommets.",
+      "pleatsHeldDetail_one": "Les {{creases}} plis de 1 série de plis parallèles ont été espacés uniformément.",
+      "pleatsHeldDetail_many": "Les {{creases}} plis de {{count}} séries de plis parallèles ont été espacés uniformément.",
+      "pleatsHeldDetail_other": "Les {{creases}} plis de {{count}} séries de plis parallèles ont été espacés uniformément.",
+      "pleatsOutOfTimeDetail": "L’égalisation de l’espacement des plis a dépassé le temps imparti.",
+      "pleatsRefusedDetail": "L’égalisation de l’espacement des plis a été tentée puis refusée, car elle dégradait le patron.",
       "unfoldable": "Amélioré, mais ce patron ne peut pas se plier à plat"
     },
     "controls": "Zone de suppression des vérifications",

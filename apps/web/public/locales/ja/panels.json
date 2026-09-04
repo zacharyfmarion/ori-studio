@@ -227,6 +227,9 @@
       "improved": "改善しましたが、まだ折り可能ではありません",
       "movementDetail_other": "頂点 {{count}} 個を、それぞれ {{max}} px 未満だけ動かしました。",
       "oddDegreeDetail_other": "折り線の本数が奇数の頂点が {{count}} 個残っているため、頂点をどこに置いてもこの展開図は平坦に折れません。",
+      "pleatsHeldDetail_other": "{{count}} 本のプリーツ列に含まれる折り線 {{creases}} 本を等間隔に揃えました。",
+      "pleatsOutOfTimeDetail": "プリーツの間隔を揃える処理が時間切れになりました。",
+      "pleatsRefusedDetail": "プリーツの間隔を揃えてみましたが、展開図が悪化するため取りやめました。",
       "unfoldable": "改善しましたが、この展開図は平坦に折れません"
     },
     "controls": "チェック抑制領域",

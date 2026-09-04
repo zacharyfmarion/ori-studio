@@ -2770,7 +2770,11 @@
     "dialogs:orieditaImport.reason.reservedAppMenu": "6e4ab68cd59a",
     "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f",
     "dialogs:settings.shortcuts.reservedAppMenu": "ad74c1b86244",
-    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34"
+    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34",
+    "panels:cpRegion.completion.pleatsHeldDetail_one": "957c604368ae",
+    "panels:cpRegion.completion.pleatsHeldDetail_other": "a5b82eaa07c6",
+    "panels:cpRegion.completion.pleatsOutOfTimeDetail": "685ab7659d8a",
+    "panels:cpRegion.completion.pleatsRefusedDetail": "a57dc74d82e3"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5543,7 +5547,11 @@
     "dialogs:orieditaImport.reason.reservedAppMenu": "6e4ab68cd59a",
     "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f",
     "dialogs:settings.shortcuts.reservedAppMenu": "ad74c1b86244",
-    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34"
+    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34",
+    "panels:cpRegion.completion.pleatsHeldDetail_one": "957c604368ae",
+    "panels:cpRegion.completion.pleatsHeldDetail_other": "a5b82eaa07c6",
+    "panels:cpRegion.completion.pleatsOutOfTimeDetail": "685ab7659d8a",
+    "panels:cpRegion.completion.pleatsRefusedDetail": "a57dc74d82e3"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8316,7 +8324,11 @@
     "dialogs:orieditaImport.reason.reservedAppMenu": "6e4ab68cd59a",
     "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f",
     "dialogs:settings.shortcuts.reservedAppMenu": "ad74c1b86244",
-    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34"
+    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34",
+    "panels:cpRegion.completion.pleatsHeldDetail_one": "957c604368ae",
+    "panels:cpRegion.completion.pleatsHeldDetail_other": "a5b82eaa07c6",
+    "panels:cpRegion.completion.pleatsOutOfTimeDetail": "685ab7659d8a",
+    "panels:cpRegion.completion.pleatsRefusedDetail": "a57dc74d82e3"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11039,7 +11051,10 @@
     "dialogs:orieditaImport.reason.reservedAppMenu": "6e4ab68cd59a",
     "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f",
     "dialogs:settings.shortcuts.reservedAppMenu": "ad74c1b86244",
-    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34"
+    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34",
+    "panels:cpRegion.completion.pleatsHeldDetail_other": "a5b82eaa07c6",
+    "panels:cpRegion.completion.pleatsOutOfTimeDetail": "685ab7659d8a",
+    "panels:cpRegion.completion.pleatsRefusedDetail": "a57dc74d82e3"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -13762,7 +13777,10 @@
     "dialogs:orieditaImport.reason.reservedAppMenu": "6e4ab68cd59a",
     "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f",
     "dialogs:settings.shortcuts.reservedAppMenu": "ad74c1b86244",
-    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34"
+    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34",
+    "panels:cpRegion.completion.pleatsHeldDetail_other": "a5b82eaa07c6",
+    "panels:cpRegion.completion.pleatsOutOfTimeDetail": "685ab7659d8a",
+    "panels:cpRegion.completion.pleatsRefusedDetail": "a57dc74d82e3"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -16535,7 +16553,11 @@
     "dialogs:orieditaImport.reason.reservedAppMenu": "6e4ab68cd59a",
     "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f",
     "dialogs:settings.shortcuts.reservedAppMenu": "ad74c1b86244",
-    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34"
+    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34",
+    "panels:cpRegion.completion.pleatsHeldDetail_one": "957c604368ae",
+    "panels:cpRegion.completion.pleatsHeldDetail_other": "a5b82eaa07c6",
+    "panels:cpRegion.completion.pleatsOutOfTimeDetail": "685ab7659d8a",
+    "panels:cpRegion.completion.pleatsRefusedDetail": "a57dc74d82e3"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -19308,7 +19330,11 @@
     "dialogs:orieditaImport.reason.reservedAppMenu": "6e4ab68cd59a",
     "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f",
     "dialogs:settings.shortcuts.reservedAppMenu": "ad74c1b86244",
-    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34"
+    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34",
+    "panels:cpRegion.completion.pleatsHeldDetail_one": "957c604368ae",
+    "panels:cpRegion.completion.pleatsHeldDetail_other": "a5b82eaa07c6",
+    "panels:cpRegion.completion.pleatsOutOfTimeDetail": "685ab7659d8a",
+    "panels:cpRegion.completion.pleatsRefusedDetail": "a57dc74d82e3"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -22031,6 +22057,9 @@
     "dialogs:orieditaImport.reason.reservedAppMenu": "6e4ab68cd59a",
     "dialogs:settings.shortcuts.inactiveHere": "9e15eacd6d8f",
     "dialogs:settings.shortcuts.reservedAppMenu": "ad74c1b86244",
-    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34"
+    "dialogs:settings.shortcuts.softReservedWebview": "530a8f73ca34",
+    "panels:cpRegion.completion.pleatsHeldDetail_other": "a5b82eaa07c6",
+    "panels:cpRegion.completion.pleatsOutOfTimeDetail": "685ab7659d8a",
+    "panels:cpRegion.completion.pleatsRefusedDetail": "a57dc74d82e3"
   }
 }

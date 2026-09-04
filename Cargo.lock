@@ -3164,6 +3164,7 @@ dependencies = [
  "js-sys",
  "oristudio-cp-compiler",
  "oristudio-cp-eval",
+ "ort",
  "rayon",
  "serde",
  "serde_json",

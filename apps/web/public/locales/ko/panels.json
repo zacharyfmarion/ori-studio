@@ -227,6 +227,9 @@
       "improved": "개선되었지만 아직 접을 수 없습니다",
       "movementDetail_other": "꼭짓점 {{count}}개를 각각 {{max}} px 미만으로 옮겼습니다.",
       "oddDegreeDetail_other": "꼭짓점 {{count}}개에 아직 접는 선이 홀수 개 있어, 꼭짓점을 어디에 두더라도 이 전개도는 평평하게 접을 수 없습니다.",
+      "pleatsHeldDetail_other": "플리츠 열 {{count}}개의 접는 선 {{creases}}개를 등간격으로 맞췄습니다.",
+      "pleatsOutOfTimeDetail": "플리츠 간격을 맞추는 작업이 시간 초과되었습니다.",
+      "pleatsRefusedDetail": "플리츠 간격을 맞춰 보았지만, 전개도가 더 나빠져 적용하지 않았습니다.",
       "unfoldable": "개선되었지만 이 전개도는 평평하게 접을 수 없습니다"
     },
     "controls": "검사 억제 영역",

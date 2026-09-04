@@ -247,6 +247,11 @@
       "oddDegreeDetail_one": "{{count}} vértice sigue teniendo un número impar de pliegues, así que este patrón no puede plegarse en plano estén donde estén los vértices.",
       "oddDegreeDetail_many": "{{count}} vértices siguen teniendo un número impar de pliegues, así que este patrón no puede plegarse en plano estén donde estén los vértices.",
       "oddDegreeDetail_other": "{{count}} vértices siguen teniendo un número impar de pliegues, así que este patrón no puede plegarse en plano estén donde estén los vértices.",
+      "pleatsHeldDetail_one": "Los {{creases}} pliegues de 1 serie de pliegues paralelos se ajustaron a una separación uniforme.",
+      "pleatsHeldDetail_many": "Los {{creases}} pliegues de {{count}} series de pliegues paralelos se ajustaron a una separación uniforme.",
+      "pleatsHeldDetail_other": "Los {{creases}} pliegues de {{count}} series de pliegues paralelos se ajustaron a una separación uniforme.",
+      "pleatsOutOfTimeDetail": "Se agotó el tiempo al igualar la separación de los pliegues.",
+      "pleatsRefusedDetail": "Se intentó igualar la separación de los pliegues y se descartó porque empeoraba el patrón.",
       "unfoldable": "Mejorado, pero este patrón no puede plegarse en plano"
     },
     "controls": "Región de supresión de comprobaciones",
