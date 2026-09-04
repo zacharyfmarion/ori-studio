@@ -453,6 +453,7 @@ describe('useCpRegionSolve', () => {
     expect(api.stateFor(REGION.id)).toEqual({
       status: 'solved',
       angleFamily: null,
+      pleats: null,
       movedVertices: 1,
       // 0.001 of a paper edge, on the 1024 px ruler the sentence uses.
       maxMovementPx: 1.024,
