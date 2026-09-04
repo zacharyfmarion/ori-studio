@@ -43,13 +43,21 @@ tauri-plugin-single-instance = "2"
 
 # ONNX Runtime for native detection, statically linked from pyke's prebuilt
 # binaries (fetched by `ort-sys` at build time — a proxied shell may need
-# `HTTPS_PROXY` unset for that download). CoreML on macOS uses the GPU and
-# neural engine; elsewhere the CPU provider runs on all cores. `DirectML` on
+# `HTTPS_PROXY` unset for that download). CoreML on Apple Silicon uses the GPU
+# and neural engine; elsewhere the CPU provider runs on all cores. `DirectML` on
 # Windows is the next step once it has been tried on a Windows machine.
-[target.'cfg(target_os = "macos")'.dependencies]
+#
+# Intel macOS and Linux are deliberately absent, for two different reasons that
+# build.rs sets out in full: Intel macOS has no prebuilt to download at all, and
+# the Linux prebuilts want a newer libstdc++ than the release image carries.
+# Both keep every other native command — the model store and the exact solver
+# are pure Rust — and take their inference from the wasm worker, the same one
+# the web uses. The `native_onnx` cfg in build.rs mirrors this gate exactly;
+# change one, change the other.
+[target.'cfg(all(target_os = "macos", target_arch = "aarch64"))'.dependencies]
 ort = { version = "=2.0.0-rc.13", features = ["coreml"] }
 
-[target.'cfg(not(target_os = "macos"))'.dependencies]
+[target.'cfg(target_os = "windows")'.dependencies]
 ort = { version = "=2.0.0-rc.13" }
 
 [features]

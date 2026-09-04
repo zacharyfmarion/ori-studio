@@ -409,7 +409,17 @@ The detector runs on three transports behind one `CpDetectWorkerApi`: the wasm
 worker on the web (ONNX Runtime Web, WebGPU then wasm threads), the same worker
 for rectification on desktop, and `apps/tauri/src-tauri/src/cp_detect.rs` for
 inference and the exact solve on desktop (ONNX Runtime via the `ort` crate,
-CoreML on macOS, all cores elsewhere). `engine/cpDetectNativeClient.ts` wraps
+CoreML on Apple Silicon, all cores on Windows).
+
+Native *inference* is not on every desktop target, and the `native_onnx` cfg in
+`apps/tauri/src-tauri/build.rs` is the single place that decides: Intel macOS
+has no `ort` prebuilt at all, and the Linux prebuilt needs a newer libstdc++
+than the release image carries, so neither links `ort`. Those builds answer
+`cp_detect_native_inference_available` with false and take inference from the
+worker; the model store and the exact solver are pure Rust and stay native
+everywhere. Cargo cannot expose a target-specific dependency to the source as a
+cfg, so that predicate is written in both `build.rs` and `Cargo.toml` — change
+one and you must change the other. `engine/cpDetectNativeClient.ts` wraps
 the worker with the native commands and `cpDetectRuntime.ts` picks it on
 desktop. Anything the worker's decode path does must be mirrored in the native
 `recognize`, or the two surfaces drift: the pure post-processing lives in

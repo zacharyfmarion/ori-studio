@@ -12,11 +12,19 @@
 //! Measured on an M-series Mac with the current 45 MB model: CPU on all cores
 //! 1.8 s per image, CoreML 0.45 s after a one-time 17 s compile that the model
 //! cache directory keeps.
+//!
+//! Inference is the one part of this that is not on every desktop target. Intel
+//! macOS has no prebuilt ONNX Runtime to link (see build.rs), so the `ort` code
+//! here is behind `native_onnx` and that target answers
+//! [`cp_detect_native_inference_available`] with false, which sends the page to
+//! the worker for inference alone. The model store and the exact solver are
+//! pure Rust and stay native everywhere.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+#[cfg(native_onnx)]
 use std::time::Instant;
 
 use oristudio_cp::session::EngineError;
@@ -24,8 +32,12 @@ use oristudio_cp_compiler::{
     ExactSolveInput, ExactSolveOptionsWithExemptions, ExactSolvedGraphStatus,
     parse_exact_solve_request, with_cancellation,
 };
-use oristudio_cp_detect::decode::{self, DecodeConfig, DecoderBackend, DenseOutputs};
+use oristudio_cp_detect::decode;
+#[cfg(native_onnx)]
+use oristudio_cp_detect::decode::{DecodeConfig, DecoderBackend, DenseOutputs};
+#[cfg(native_onnx)]
 use oristudio_cp_detect::evidence_extract::JunctionEvidenceSource;
+#[cfg(native_onnx)]
 use oristudio_cp_detect::source_image_evidence::{
     SourceImageLineEvidenceOptions, line_probability_from_rgba,
 };
@@ -37,6 +49,7 @@ use tauri::{AppHandle, Manager, State};
 // State
 // ---------------------------------------------------------------------------
 
+#[cfg(native_onnx)]
 struct NativeSession {
     model_id: String,
     provider: &'static str,
@@ -46,6 +59,7 @@ struct NativeSession {
 
 #[derive(Default)]
 pub struct DetectState {
+    #[cfg(native_onnx)]
     session: Mutex<Option<NativeSession>>,
     /// The Stop of each live solve, by the run id the web's registry minted.
     cancels: Mutex<HashMap<u32, Arc<AtomicBool>>>,
@@ -142,12 +156,17 @@ pub fn cp_detect_model_remove(
     if !dir.is_dir() {
         return Ok(false);
     }
-    // A session built from this model must not outlive its file.
+    // A session built from this model must not outlive its file. There is no
+    // session to drop where inference is not native; the model file is still
+    // ours to remove, because the page's store put it here either way.
+    #[cfg(native_onnx)]
     if let Ok(mut slot) = state.session.lock()
         && slot.as_ref().is_some_and(|live| live.model_id == id)
     {
         *slot = None;
     }
+    #[cfg(not(native_onnx))]
+    let _ = &state;
     std::fs::remove_dir_all(&dir).map_err(|e| error("model_remove", e.to_string()))?;
     Ok(true)
 }
@@ -237,6 +256,7 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
 /// What the page asks a recognition for — the manifest's inference block and
 /// the run options the worker would have taken.
 #[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(not(native_onnx), allow(dead_code))]
 pub struct RecognizeOptions {
     pub model_id: String,
     pub image_size: u32,
@@ -275,6 +295,7 @@ pub struct RecognizeResponse {
     pub runtime: NativeRuntimeInfo,
 }
 
+#[cfg(native_onnx)]
 fn parse_decoder_backend(value: &str) -> Result<DecoderBackend, EngineError> {
     match value {
         "legacy-v2" | "legacy_v2" | "legacy_v2_decoder" => Ok(DecoderBackend::LegacyV2),
@@ -294,6 +315,7 @@ fn parse_decoder_backend(value: &str) -> Result<DecoderBackend, EngineError> {
     }
 }
 
+#[cfg(native_onnx)]
 fn parse_junction_source(value: &str) -> Result<JunctionEvidenceSource, EngineError> {
     match value {
         "dense-model" | "model" | "dense_model" | "vertex-refiner-v3" | "vertex_refiner_v3" => {
@@ -309,6 +331,7 @@ fn parse_junction_source(value: &str) -> Result<JunctionEvidenceSource, EngineEr
 
 /// RGB, planar, 0..1 — the manifest's `rgb_chw_float32_0_1`, the same as the
 /// worker's `preprocessCpDetectImage`.
+#[cfg_attr(not(native_onnx), allow(dead_code))]
 fn preprocess(rgba: &[u8], size: usize) -> Vec<f32> {
     let pixels = size * size;
     let mut tensor = vec![0.0f32; 3 * pixels];
@@ -321,6 +344,7 @@ fn preprocess(rgba: &[u8], size: usize) -> Vec<f32> {
     tensor
 }
 
+#[cfg(native_onnx)]
 fn build_session(
     model_path: &Path,
     cache_dir: &Path,
@@ -347,7 +371,7 @@ fn build_session(
         .map_err(|e| error("onnx_session", e.to_string()))
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(native_onnx, target_os = "macos"))]
 fn coreml_session(model_path: &Path, cache_dir: &Path) -> ort::Result<ort::session::Session> {
     let _ = cache_dir;
     let session = ort::session::Session::builder()?
@@ -361,6 +385,7 @@ fn coreml_session(model_path: &Path, cache_dir: &Path) -> ort::Result<ort::sessi
     Ok(session)
 }
 
+#[cfg(native_onnx)]
 fn cpu_session(model_path: &Path, cores: usize) -> ort::Result<ort::session::Session> {
     let session = ort::session::Session::builder()?
         .with_execution_providers([ort::ep::CPU::default().build()])?
@@ -369,6 +394,7 @@ fn cpu_session(model_path: &Path, cores: usize) -> ort::Result<ort::session::Ses
     Ok(session)
 }
 
+#[cfg(native_onnx)]
 fn ensure_session<'a>(
     slot: &'a mut Option<NativeSession>,
     app: &AppHandle,
@@ -397,6 +423,7 @@ fn ensure_session<'a>(
         .ok_or_else(|| error("onnx_session", "no session"))
 }
 
+#[cfg(native_onnx)]
 fn output_named(
     outputs: &ort::session::SessionOutputs<'_>,
     name: &str,
@@ -410,6 +437,7 @@ fn output_named(
     Ok(Some(data.to_vec()))
 }
 
+#[cfg(native_onnx)]
 fn required<'a>(
     map: &'a HashMap<&'static str, Vec<f32>>,
     name: &'static str,
@@ -419,6 +447,7 @@ fn required<'a>(
         .ok_or_else(|| error("onnx_output", format!("model has no {name} output")))
 }
 
+#[cfg(native_onnx)]
 const OUTPUT_NAMES: [&str; 12] = [
     "line_logits",
     "angle",
@@ -434,6 +463,7 @@ const OUTPUT_NAMES: [&str; 12] = [
     "boundary_coord",
 ];
 
+#[cfg(native_onnx)]
 fn recognize(
     state: &DetectState,
     app: &AppHandle,
@@ -554,6 +584,36 @@ fn recognize(
             model_id: live.model_id.clone(),
         },
     })
+}
+
+/// Whether this build can run the model itself.
+///
+/// False only on Intel macOS, which has no prebuilt ONNX Runtime to link (see
+/// build.rs). The page asks once and routes inference to the wasm worker when
+/// the answer is no; everything else here — the model store, the exact solver —
+/// is native on every target, so this is a question about inference alone.
+#[tauri::command]
+pub fn cp_detect_native_inference_available() -> bool {
+    cfg!(native_onnx)
+}
+
+/// The stand-in for [`recognize`] where ONNX Runtime cannot be linked. The page
+/// is expected to have asked [`cp_detect_native_inference_available`] first and
+/// used the worker instead; this exists so that a caller which did not ask gets
+/// a named error rather than a missing command.
+#[cfg(not(native_onnx))]
+fn recognize(
+    _state: &DetectState,
+    _app: &AppHandle,
+    _rgba: &[u8],
+    _width: u32,
+    _height: u32,
+    _options: &RecognizeOptions,
+) -> Result<RecognizeResponse, EngineError> {
+    Err(error(
+        "native_inference_unavailable",
+        "this build has no native ONNX Runtime; run inference in the worker",
+    ))
 }
 
 /// Recognize a rectified image: raw RGBA in the body, `x-width`, `x-height`

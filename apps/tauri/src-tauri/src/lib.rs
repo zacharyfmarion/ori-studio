@@ -303,6 +303,7 @@ pub fn run() {
             cp_detect::cp_detect_model_path,
             cp_detect::cp_detect_model_store,
             cp_detect::cp_detect_model_remove,
+            cp_detect::cp_detect_native_inference_available,
             cp_detect::cp_detect_recognize,
             cp_detect::cp_detect_solve_exact,
             cp_detect::cp_detect_solve_exact_to_fold,

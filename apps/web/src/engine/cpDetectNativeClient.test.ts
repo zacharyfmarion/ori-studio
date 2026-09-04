@@ -87,7 +87,9 @@ describe('the native detect client', () => {
     expect((await store.list()).map((m) => m.id)).toEqual(['native-model']);
     expect(progress.at(-1)).toBe(MODEL.byteLength);
     // The command got pixels, not JSON, and the manifest's numbers as headers.
-    const [command, body, options] = invokeMock.mock.calls[0] as unknown as [string, Uint8Array, { headers: Record<string, string> }];
+    // Found rather than indexed: the client probes for native inference first.
+    const recognizeCall = invokeMock.mock.calls.find(([c]) => c === 'cp_detect_recognize');
+    const [command, body, options] = recognizeCall as unknown as [string, Uint8Array, { headers: Record<string, string> }];
     expect(command).toBe('cp_detect_recognize');
     expect(body).toBeInstanceOf(Uint8Array);
     expect(body.byteLength).toBe(4 * 4 * 4);
@@ -116,6 +118,101 @@ describe('the native detect client', () => {
     const worker = { autoRectifyImage: vi.fn(async () => 'rectified') } as unknown as CpDetectClient;
     const client = nativeCpDetectClient(worker, { invokeImpl: vi.fn() as never, store: memoryModelStore() });
     expect(await client.autoRectifyImage(image(2))).toBe('rectified');
+  });
+});
+
+/**
+ * Intel macOS and Linux ship without ONNX Runtime linked — no prebuilt for the
+ * first, too new a libstdc++ for the second — so those builds answer
+ * `cp_detect_native_inference_available` with false. Inference and the model
+ * store go to the worker there; the exact solver is pure Rust and does not.
+ */
+describe('a desktop build with no native inference', () => {
+  function unavailable(worker: CpDetectClient, invokeImpl = vi.fn()) {
+    return {
+      client: nativeCpDetectClient(worker, {
+        invokeImpl: invokeImpl as never,
+        store: memoryModelStore(),
+        nativeInferenceAvailable: async () => false,
+      }),
+      invokeImpl,
+    };
+  }
+
+  it('recognizes and detects in the worker rather than over the IPC', async () => {
+    const worker = {
+      recognizeRectifiedFold: vi.fn(async () => ({ status: 'recognized' })),
+      detectRectifiedFold: vi.fn(async () => ({ status: 'detected' })),
+    } as unknown as CpDetectClient;
+    const { client, invokeImpl } = unavailable(worker);
+
+    const pixels = image(4);
+    expect(await client.recognizeRectifiedFold(pixels, {})).toEqual({ status: 'recognized' });
+    expect(await client.detectRectifiedFold(pixels, {})).toEqual({ status: 'detected' });
+
+    expect(worker.recognizeRectifiedFold).toHaveBeenCalledWith(pixels, {}, undefined);
+    expect(worker.detectRectifiedFold).toHaveBeenCalledWith(pixels, {}, undefined);
+    // Never reached the native command, so it never needed a model on disk.
+    expect(invokeImpl).not.toHaveBeenCalled();
+  });
+
+  it('lets the worker own the model too, so nothing downloads into a store no one reads', async () => {
+    const worker = {
+      loadModel: vi.fn(async () => 'worker-manifest'),
+      modelStatus: vi.fn(async () => ({ installed: false })),
+    } as unknown as CpDetectClient;
+    const { client } = unavailable(worker);
+
+    expect(await client.loadModel({})).toBe('worker-manifest');
+    expect(await client.modelStatus({})).toEqual({ installed: false });
+    expect(worker.loadModel).toHaveBeenCalled();
+    expect(worker.modelStatus).toHaveBeenCalled();
+  });
+
+  it('still solves natively — the solver is pure Rust and links everywhere', async () => {
+    const invokeImpl = vi.fn(async () => ({ status: 'solved' }));
+    const worker = { solveExact: vi.fn() } as unknown as CpDetectClient;
+    const { client } = unavailable(worker, invokeImpl);
+
+    expect(await client.solveExact('{}')).toEqual({ status: 'solved' });
+    expect(invokeImpl).toHaveBeenCalledWith('cp_detect_solve_exact', {
+      args: { inputJson: '{}', optionsJson: '', runId: 0 },
+    });
+    expect(worker.solveExact).not.toHaveBeenCalled();
+  });
+
+  it('asks the backend once and remembers the answer', async () => {
+    const invokeImpl = vi.fn(async (command: string) =>
+      command === 'cp_detect_native_inference_available' ? false : undefined
+    );
+    const worker = {
+      recognizeRectifiedFold: vi.fn(async () => ({ status: 'recognized' })),
+    } as unknown as CpDetectClient;
+    const client = nativeCpDetectClient(worker, { invokeImpl: invokeImpl as never, store: memoryModelStore() });
+
+    await client.recognizeRectifiedFold(image(4), {});
+    await client.recognizeRectifiedFold(image(4), {});
+
+    const probes = invokeImpl.mock.calls.filter(([c]) => c === 'cp_detect_native_inference_available');
+    expect(probes).toHaveLength(1);
+    expect(worker.recognizeRectifiedFold).toHaveBeenCalledTimes(2);
+  });
+
+  it('treats a backend that does not know the command as native, so a skew fails loudly', async () => {
+    const invokeImpl = vi.fn(async (command: string) => {
+      if (command === 'cp_detect_native_inference_available') throw new Error('unknown command');
+      return recognizedResponse();
+    });
+    const worker = { recognizeRectifiedFold: vi.fn() } as unknown as CpDetectClient;
+    const client = nativeCpDetectClient(worker, {
+      invokeImpl: invokeImpl as never,
+      store: memoryModelStore(),
+      fetchImpl: fetchOf(await manifestText()),
+    });
+
+    await client.recognizeRectifiedFold(image(4), { manifestUrl: 'https://example.test/models/native/manifest.json' });
+    expect(invokeImpl.mock.calls.some(([c]) => c === 'cp_detect_recognize')).toBe(true);
+    expect(worker.recognizeRectifiedFold).not.toHaveBeenCalled();
   });
 });
 
