@@ -408,9 +408,40 @@ impl FoldGraph {
         let mut face_point_map = vec![Vec::<usize>::new(); self.points.len()];
         let mut faces = Vec::<Vec<usize>>::new();
 
+        // Self-loops take no part in the arrangement, in either term of the
+        // Euler check below.
+        //
+        // **Ori Studio native — a deliberate divergence.** Upstream
+        // `PointSet.calculateFaces` walks every line and counts every line, with
+        // no degenerate guard; it also treats a non-1 Euler as a warning it hopes
+        // never fires ("something wrong caused by the rounding error"), while we
+        // read it as a refusal. Under that reading a self-loop is not a warning
+        // but a document-wide loss, so it has to be excluded here.
+        //
+        // A line becomes a self-loop when its two endpoints weld to one point,
+        // which is to say when it is shorter than `Epsilon::POINT` — a crease
+        // whose own endpoints the engine cannot tell apart. It bounds no face,
+        // so tracing it fabricates one that walks into itself (`[2, 4, 4, 3]` in
+        // the test below) and counting it inflates `E`. Either alone is enough to
+        // put a sound pattern outside the gate's tolerance and discard every face
+        // it has. See PORTING.md.
+        //
+        // Deliberately *not* removed from `self.lines`: callers address segments
+        // by index — `exact_solve_input_from_fold` places by edge position,
+        // resting on `from_segments` emitting one line per input segment — so a
+        // renumbering here would silently misplace geometry elsewhere.
+        let degenerate = self
+            .lines
+            .iter()
+            .filter(|line| line.begin == line.end)
+            .count();
+
         for line in &self.lines {
             let begin = line.begin;
             let end = line.end;
+            if begin == end {
+                continue;
+            }
 
             let forward = self.face_request(begin, end, &point_linking);
             if self.should_add_face(&forward, begin, &faces, &face_point_map) {
@@ -423,7 +454,8 @@ impl FoldGraph {
             }
         }
 
-        let euler = faces.len() as isize - self.lines.len() as isize + self.points.len() as isize;
+        let edges = self.lines.len() - degenerate;
+        let euler = faces.len() as isize - edges as isize + self.points.len() as isize;
         let include_faces = euler == 1 || (euler - 1).abs() as f64 <= 0.005 * faces.len() as f64;
         // Divergence, predating this line's current form: upstream keeps the
         // faces here. `PointSet.calculateFaces` returns early with `faces[]` and
@@ -1394,5 +1426,66 @@ mod tests {
         let mut empty: Vec<usize> = Vec::new();
         align_face(&mut empty);
         assert!(empty.is_empty());
+    }
+
+    /// A crease shorter than the vertex-weld radius must not cost the pattern
+    /// its faces.
+    ///
+    /// From `source_save_issue.osf` by way of its share link: the web planarizer
+    /// cut two creases a few 1e-5 short of the vertex they end on, and each
+    /// leftover tail arrived as its own crease. `Epsilon::POINT` is 2.5e-4, so
+    /// `VertexIndex` welds such a tail's two endpoints into one graph vertex and
+    /// the crease becomes a **self-loop**: it bounds nothing, yet it used to be
+    /// walked for faces and counted in `E`, which put the Euler check out by one
+    /// per tail and discarded every face in the document. Folding then refused
+    /// with `fold_faces_unresolved` on a pattern that is otherwise sound.
+    #[test]
+    fn a_sub_tolerance_crease_does_not_discard_every_face() {
+        let seg = |ax: f64, ay: f64, bx: f64, by: f64, color| {
+            LineSegment::with_color(Point::new(ax, ay), Point::new(bx, by), color)
+        };
+        // A square with both diagonals: four border edges, four half-diagonals,
+        // four triangles.
+        let sound = vec![
+            seg(-200.0, -200.0, 200.0, -200.0, LineColor::Black0),
+            seg(200.0, -200.0, 200.0, 200.0, LineColor::Black0),
+            seg(200.0, 200.0, -200.0, 200.0, LineColor::Black0),
+            seg(-200.0, 200.0, -200.0, -200.0, LineColor::Black0),
+            seg(-200.0, -200.0, 0.0, 0.0, LineColor::Red1),
+            seg(0.0, 0.0, 200.0, 200.0, LineColor::Red1),
+            seg(200.0, -200.0, 0.0, 0.0, LineColor::Blue2),
+            seg(0.0, 0.0, -200.0, 200.0, LineColor::Blue2),
+        ];
+        let baseline = FoldGraph::from_segments(&sound, true);
+        assert!(baseline.include_faces);
+        assert_eq!(baseline.faces.len(), 4);
+
+        // The same pattern with one tail, an order of magnitude under
+        // `Epsilon::POINT`, hanging off the centre.
+        let tail = Epsilon::POINT / 10.0;
+        let mut with_tail = sound.clone();
+        with_tail.push(seg(0.0, 0.0, tail, tail, LineColor::Red1));
+
+        let graph = FoldGraph::from_segments(&with_tail, true);
+        assert_eq!(
+            graph.points.len(),
+            baseline.points.len(),
+            "the tail's endpoints weld to the centre, so it adds no vertex"
+        );
+        assert!(
+            graph.include_faces,
+            "one sub-tolerance crease must not clear the arrangement"
+        );
+        assert_eq!(graph.faces, baseline.faces, "and must not change it either");
+
+        // The self-loop is still line 8 of 9: dropping it from the arrangement
+        // must not renumber the lines, because callers address segments by index
+        // (`exact_solve_input_from_fold` places by edge position).
+        assert_eq!(graph.lines.len(), with_tail.len());
+        assert_eq!(
+            graph.line_face_border(8),
+            None,
+            "a self-loop borders nothing"
+        );
     }
 }

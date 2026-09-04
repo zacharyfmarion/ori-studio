@@ -1611,3 +1611,76 @@ fn the_same_sheet_with_the_hole_filled_in_folds_the_same_way() {
         .expect("the control folds");
     assert_eq!(session.estimate().outcome, FoldOutcome::Solved);
 }
+
+/// A crease pattern carrying sub-tolerance creases still folds.
+///
+/// The user-visible shape of the share-link bug: select every crease, press
+/// Fold, and get `fold_faces_unresolved` on a pattern that folds fine in the
+/// editor it was shared from. The two documents differed only by two creases of
+/// 4.6e-5 and 1.1e-4, minted by the web planarizer cutting a crease short of the
+/// vertex it ends on. Both are under `Epsilon::POINT`, so the kernel welds each
+/// one's endpoints into a single vertex and the crease arrives as a self-loop.
+///
+/// Two tails, as the reported document had, because the count decides which
+/// error surfaces: one leaves the Euler sum at 1 and smuggles a corrupt face
+/// through to a later check, while two put the sum out of range and clear the
+/// arrangement — which is the reported `fold_faces_unresolved`. The fix is the
+/// same for both, and the assertion worth making is that the fold happens.
+///
+/// Session-level on purpose: `fold_segments` is where a Step1 estimate becomes
+/// that error, and the fold is the verb the user actually pressed.
+#[test]
+fn sub_tolerance_creases_do_not_stop_a_fold() {
+    let seg = |ax: f64, ay: f64, bx: f64, by: f64, color| {
+        LineSegment::with_color(Point::new(ax, ay), Point::new(bx, by), color)
+    };
+    let sound = vec![
+        seg(-200.0, -200.0, 200.0, -200.0, LineColor::Black0),
+        seg(200.0, -200.0, 200.0, 200.0, LineColor::Black0),
+        seg(200.0, 200.0, -200.0, 200.0, LineColor::Black0),
+        seg(-200.0, 200.0, -200.0, -200.0, LineColor::Black0),
+        seg(-200.0, -200.0, 0.0, 0.0, LineColor::Red1),
+        seg(0.0, 0.0, 200.0, 200.0, LineColor::Red1),
+        seg(200.0, -200.0, 0.0, 0.0, LineColor::Blue2),
+        seg(0.0, 0.0, -200.0, 200.0, LineColor::Blue2),
+    ];
+
+    let fold_all = |segments: &[LineSegment]| {
+        let mut session = oristudio_cp::session::CpSession::default();
+        let handle = session.load_document(oristudio_cp::CreasePatternDocument {
+            crease_pattern: oristudio_cp::CreasePatternModel {
+                line_segments: segments.to_vec(),
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        // 1-based ids, every crease selected — what the panel sends for
+        // Select All then Fold.
+        let ids: Vec<usize> = (1..=segments.len()).collect();
+        session.folded_figure_fold_selected(
+            handle,
+            &ids,
+            1,
+            EstimationOrder::Order5,
+            FoldedFigureModel::default(),
+        )
+    };
+
+    assert!(fold_all(&sound).is_ok(), "the pattern folds to begin with");
+
+    let tail = oristudio_cp::geometry::Epsilon::POINT / 10.0;
+    let mut with_tail = sound.clone();
+    with_tail.push(seg(0.0, 0.0, tail, tail, LineColor::Red1));
+    with_tail.push(seg(
+        200.0,
+        200.0,
+        200.0 - tail,
+        200.0 - tail,
+        LineColor::Red1,
+    ));
+
+    match fold_all(&with_tail) {
+        Ok(_) => {}
+        Err(error) => panic!("sub-tolerance creases stopped the fold: {error}"),
+    }
+}

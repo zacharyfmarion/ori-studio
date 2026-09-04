@@ -126,6 +126,32 @@ are unchanged:
   `crates/oristudio-cp/tests/oriedita_io_oracle.rs` pins the divergence against
   the real `PointSet`, and asserts the vertices and edges still match exactly.
 
+- **Self-loops take no part in the Euler gate.** `FoldGraph::calculate_faces`
+  skips a line whose two endpoints welded to the same graph vertex, both when
+  tracing faces and when counting `E`. `PointSet.calculateFaces` walks every line
+  and counts every line, with no degenerate guard.
+
+  A line becomes a self-loop exactly when it is shorter than `Epsilon::POINT` —
+  a crease whose own endpoints `VertexIndex` cannot tell apart. It bounds no
+  face, so tracing it fabricates a ring that walks into itself and counting it
+  inflates `E`; either alone moves the Euler sum off 1. Upstream can afford that
+  because its non-1 arm is a warning it hopes never fires ("something wrong
+  caused by the rounding error"), and the faces survive it. Ours is a refusal
+  (see the entry below), so the same input costs the document every face it has
+  and the fold reports `fold_faces_unresolved`. That is how a shared crease
+  pattern came back unfoldable when the editor it left had folded it: the web
+  planarizer cut two creases 4.6e-5 and 1.1e-4 short of the vertex they end on,
+  and the tails made the round trip as creases.
+
+  The lines stay in `self.lines`. Callers address segments by index —
+  `exact_solve_input_from_fold` places by edge position, resting on
+  `from_segments` emitting one line per input segment — so removing them here
+  would silently misplace geometry elsewhere. Pinned by
+  `a_sub_tolerance_crease_does_not_discard_every_face` in `fold_graph.rs` and
+  `sub_tolerance_creases_do_not_stop_a_fold` in `tests/folding.rs`; no fixture
+  without a sub-tolerance crease changes, so the folding and FOLD-export oracles
+  see identical output.
+
 - **A failed Euler gate clears our faces; upstream keeps them.** *(Known gap, not
   a decision — predates the per-component work above and is not relied on by it.)*
   `FoldGraph::calculate_faces` sets `self.faces = Vec::new()` when the gate fails.
