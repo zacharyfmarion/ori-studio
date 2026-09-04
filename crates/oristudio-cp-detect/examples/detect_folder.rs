@@ -306,6 +306,9 @@ fn worker(rx: Arc<Mutex<mpsc::Receiver<Job>>>, out: PathBuf, budget: f64, max_ed
                     "provider": job.provider,
                     "inference_ms": job.inference_ms, "decode_solve_ms": decode_ms,
                     "vertex_count": report.get("vertex_count"), "edge_count": report.get("edge_count"),
+                    "compiler_seconds": report.pointer("/quality_report/compiler_report/timings/compiler_seconds"),
+                    "exact_solve_seconds": report.pointer("/quality_report/compiler_report/timings/exact_solve_seconds"),
+                    "evidence_extraction_seconds": report.pointer("/quality_report/compiler_report/timings/evidence_extraction_seconds"),
                     "status": report.get("status"),
                     "exact_solve": {
                         "status": exact.get("status"),
