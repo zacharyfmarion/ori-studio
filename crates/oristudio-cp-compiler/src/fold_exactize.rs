@@ -1198,4 +1198,99 @@ mod tests {
             "without the round the noise should survive: {spacings:?}"
         );
     }
+
+    /// Five creases through one vertex, drawn on the 11.25° lattice a 22.5°
+    /// design uses for its finer subdivisions, each a few tenths of a degree
+    /// off. Three of the five sit on the 22.5° lattice, so the pattern reads
+    /// as 22.5°, and the family pin alone would leave the two odd creases at
+    /// their detected 11.65° and 123.4°. Any odd number of lines through a
+    /// point satisfies Kawasaki, so the fan is exact for every choice of angle
+    /// and only the pin decides where the creases end up.
+    fn eleven_and_a_quarter_fan() -> FoldDocument {
+        let lines = [0.0_f64, 11.65, 22.8, 67.5, 123.4];
+        let labels = [
+            (Assignment::Mountain, Assignment::Mountain),
+            (Assignment::Valley, Assignment::Valley),
+            (Assignment::Mountain, Assignment::Mountain),
+            (Assignment::Mountain, Assignment::Mountain),
+            (Assignment::Valley, Assignment::Valley),
+        ];
+        // Boundary points by their position around the perimeter, so the
+        // border can be chained in order: side 0 is the right edge going up.
+        let perimeter = |x: f64, y: f64| -> f64 {
+            if (x - 200.0).abs() < 1e-9 {
+                y + 200.0
+            } else if (y - 200.0).abs() < 1e-9 {
+                400.0 + (200.0 - x)
+            } else if (x + 200.0).abs() < 1e-9 {
+                800.0 + (200.0 - y)
+            } else {
+                1200.0 + (x + 200.0)
+            }
+        };
+        let mut coords = vec![vec![0.0, 0.0]];
+        let mut creases: Vec<([usize; 2], Assignment)> = Vec::new();
+        let mut boundary: Vec<(f64, usize)> = Vec::new();
+        for (&degrees, (out_label, back_label)) in lines.iter().zip(labels) {
+            for (angle, label) in [(degrees, out_label), (degrees + 180.0, back_label)] {
+                let (dx, dy) = (angle.to_radians().cos(), angle.to_radians().sin());
+                let t = 200.0 / dx.abs().max(dy.abs());
+                let (x, y) = ((t * dx * 1e9).round() / 1e9, (t * dy * 1e9).round() / 1e9);
+                let id = coords.len();
+                coords.push(vec![x, y]);
+                creases.push(([0, id], label));
+                boundary.push((perimeter(x, y), id));
+            }
+        }
+        for (x, y) in [
+            (200.0, -200.0),
+            (200.0, 200.0),
+            (-200.0, 200.0),
+            (-200.0, -200.0),
+        ] {
+            let id = coords.len();
+            coords.push(vec![x, y]);
+            boundary.push((perimeter(x, y), id));
+        }
+        boundary.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let mut edges = Vec::new();
+        let mut assignments = Vec::new();
+        for k in 0..boundary.len() {
+            edges.push([boundary[k].1, boundary[(k + 1) % boundary.len()].1]);
+            assignments.push(Assignment::Boundary);
+        }
+        for (edge, label) in creases {
+            edges.push(edge);
+            assignments.push(label);
+        }
+        let count = edges.len();
+        let mut fold = FoldDocument::new(coords, edges);
+        fold.edges_assignment = assignments;
+        fold.edges_fold_angle = vec![None; count];
+        fold
+    }
+
+    #[test]
+    fn a_22_5_family_is_refined_to_its_half_step() {
+        let (input, _) = exact_solve_input_from_fold(&eleven_and_a_quarter_fan()).unwrap();
+        let solved = solve_exact(&input, options());
+        let pinned = &solved.movement_report["polish"]["pinned_family"];
+        assert_eq!(pinned["step_degrees"], serde_json::json!(22.5), "{pinned}");
+        assert_eq!(pinned["adopted"], serde_json::json!(true), "{pinned}");
+        let attempts = pinned["attempts"].as_array().unwrap();
+        let half = attempts
+            .iter()
+            .find(|attempt| attempt["step_degrees"] == serde_json::json!(11.25))
+            .unwrap_or_else(|| panic!("no half-step attempt in {pinned}"));
+        assert_eq!(half["refusals"], serde_json::json!([]), "{half}");
+        let centre = solved.vertices_exact[0];
+        for (id, point) in solved.vertices_exact.iter().enumerate().skip(1).take(10) {
+            let degrees = (point.y - centre.y).atan2(point.x - centre.x).to_degrees();
+            let off = degrees - (degrees / 11.25).round() * 11.25;
+            assert!(
+                off.abs() < 1e-7,
+                "crease to vertex {id} sits {off} degrees off the 11.25 lattice"
+            );
+        }
+    }
 }

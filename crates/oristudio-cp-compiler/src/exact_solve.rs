@@ -277,7 +277,19 @@ const LATTICE_KAWASAKI_TOLERANCE: f64 = 1e-9;
 /// distance from the 22.5° family's odd multiples (7.5°) as 11.25° is from
 /// nothing, and a 22.5° design fits it only at its multiples of 45°, so the
 /// fraction test keeps them apart: measured, 22.5° designs read as 22.5°.
+///
+/// 11.25° is reached another way. A 22.5° design uses it for its finer
+/// subdivisions, and those creases sit 11.25° off the family lattice, so the
+/// family pin leaves them where the detector put them: measured at ~11° on
+/// the curated real patterns. Once a 22.5° round is adopted, one more attempt
+/// pins the still-free carriers within tolerance of the 11.25° lattice, judged
+/// against the adopted state; see [`HALF_STEP_REFINEMENT_OF_DEGREES`].
 const ANGLE_FAMILY_STEPS_DEGREES: [f64; 4] = [45.0, 30.0, 22.5, 15.0];
+
+/// The family whose adopted round is followed by a half-step attempt. Only
+/// 22.5°: its half is a real design lattice, while 7.5° is not one, and the
+/// halves of 45° and 30° are candidate families already.
+const HALF_STEP_REFINEMENT_OF_DEGREES: f64 = 22.5;
 
 /// Signed distance from `theta` to the nearest multiple of `step`, in
 /// `(-step/2, step/2]`. A carrier's theta is its normal's angle, and every
@@ -4056,6 +4068,9 @@ struct PinnedFamilyOutcome {
 /// One attempt at pinning, and why it was refused if it was.
 #[derive(Debug, Clone)]
 struct PinnedAttempt {
+    /// The lattice this attempt pinned to: the family's step, or half of it
+    /// for the refinement attempt. See [`HALF_STEP_REFINEMENT_OF_DEGREES`].
+    step_degrees: f64,
     tolerance_degrees: f64,
     /// `Some` for the short-crease attempt: the endpoint noise its tolerance
     /// was widened for. See [`SHORT_CREASE_NOISE_PX`].
@@ -4181,6 +4196,32 @@ fn pin_to_angle_family(
             step,
             tolerance * 2.0,
             Some(SHORT_CREASE_NOISE_PX),
+            options,
+        ) {
+            outcome.attempts.push(*attempt);
+            if let Some(adoption) = adoption {
+                adopted = Some(*adoption);
+            }
+        }
+    }
+    // Then the half step, for a 22.5° family: its finer subdivisions are
+    // drawn at 11.25°, which the family lattice cannot express, so those
+    // creases are still where the detector put them. Judged against the
+    // adopted state like the attempt above, so it can only keep it or improve
+    // it; it is not a family of its own, see [`ANGLE_FAMILY_STEPS_DEGREES`].
+    if let Some(base) = &adopted
+        && (step_degrees - HALF_STEP_REFINEMENT_OF_DEGREES).abs() < 1e-9
+    {
+        let base_model = model.with_merged_spans(&base.merged_span_ids);
+        if let PinnedAttemptResult::Judged { attempt, adoption } = pinned_attempt(
+            &base_model,
+            input,
+            before,
+            &base.params,
+            &base.after,
+            (step_degrees / 2.0).to_radians(),
+            tolerance * 2.0,
+            None,
             options,
         ) {
             outcome.attempts.push(*attempt);
@@ -4352,6 +4393,7 @@ fn pinned_attempt(
         })
         .collect();
     let attempt = PinnedAttempt {
+        step_degrees: step.to_degrees(),
         tolerance_degrees: tolerance.to_degrees(),
         short_crease_noise_px,
         pinned_carriers,
@@ -4565,6 +4607,7 @@ fn polish_report_json(polish: &PolishOutcome, options: ExactSolveOptions) -> Val
                     .iter()
                     .map(|attempt| {
                         json!({
+                            "step_degrees": round12(attempt.step_degrees),
                             "tolerance_degrees": attempt.tolerance_degrees,
                             "short_crease_noise_px": attempt.short_crease_noise_px,
                             "pinned_carriers": attempt.pinned_carriers,
