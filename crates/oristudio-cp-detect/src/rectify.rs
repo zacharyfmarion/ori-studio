@@ -2,6 +2,35 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 const DEFAULT_BORDER_MARGIN_RATIO: f32 = 32.0 / 1024.0;
+
+/// Where the paper goes inside the rectified image: `[margin, image_size -
+/// margin]`, on **every** path.
+///
+/// This is not a preference, it is the one convention three separate things
+/// already agree on and rectification has to join:
+///
+/// - the **training renders** put the paper frame at exactly `32 .. 992` of 1024
+///   (`render_metadata.json`'s `v2_boundary.frame` in every eval pack sample),
+///   so this is the distribution the model learned;
+/// - the **decoder** reads it back the same way — `unit_from_px` maps `u = 0` to
+///   pixel `32` and `u = 1` to pixel `image_size - 32`
+///   (`candidate_generation/junction_carrier_v1.rs:1223`), never consulting the
+///   report;
+/// - the **repair underlay** is sized from that same constant, because the
+///   creases it registers with came out of the decoder.
+///
+/// Only `warp_detected_panel` used to land near it, and it was a pixel short —
+/// `image_size - 1 - margin` spans 959 rather than 960. `resize_full_frame` and
+/// `resize_without_panel` did not inset at all, so a clean already-cropped CP —
+/// the common case, and the one that takes those paths — was handed to the model
+/// with its paper filling the frame and then decoded as though it were inset:
+/// off-distribution going in, and 1024/960 ≈ 6.7% out of scale coming back.
+fn paper_target_span(image_size: u32) -> (f32, f32) {
+    let margin = (image_size as f32 * DEFAULT_BORDER_MARGIN_RATIO)
+        .round()
+        .clamp(2.0, (image_size.saturating_sub(2) / 2) as f32);
+    (margin, image_size as f32 - margin)
+}
 const MIN_PANEL_CONFIDENCE: f32 = 0.72;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -310,16 +339,93 @@ fn edge_mask(luma: &[f32], width: usize, height: usize) -> Vec<bool> {
 }
 
 fn detect_panel(analysis: &ImageAnalysis) -> Option<PanelCandidate> {
+    let ranked = ranked_panel_candidates(analysis);
+    let chosen = choose_panel(&ranked)?;
+    let mut chosen = chosen.clone();
+    if let Value::Object(ref mut map) = chosen.metrics {
+        map.insert("candidates".to_owned(), candidate_summaries(&ranked));
+    }
+    Some(chosen)
+}
+
+/// Every panel the finder considered, best first.
+///
+/// A full-frame border, when the image is one, outranks everything: the paper
+/// fills the image and there is nothing to crop. Otherwise the projection quads
+/// and the ink bounding box compete on confidence.
+fn ranked_panel_candidates(analysis: &ImageAnalysis) -> Vec<PanelCandidate> {
     if let Some(candidate) = frame_candidate(analysis) {
-        return Some(candidate);
+        return vec![candidate];
     }
     let mut candidates = projection_candidates(analysis);
     if let Some(candidate) = density_candidate(analysis) {
         candidates.push(candidate);
     }
+    candidates.sort_by(|left, right| right.confidence.total_cmp(&left.confidence));
     candidates
-        .into_iter()
-        .max_by(|left, right| left.confidence.total_cmp(&right.confidence))
+}
+
+/// The largest credible bordered square, not the best-scoring one.
+///
+/// A crease pattern is full of squares: a box-pleated grid, a preliminary
+/// base, a blintz all draw one inside the paper, bordered by creases as
+/// crisp as the paper's own edge. Scored on border support, squareness and
+/// ink density they tie with the paper — the size term saturates at a sixth
+/// of the image and a full frame is even marked down — and the tie broke on
+/// noise, cropping a turtle to its shell. The paper is the square that holds
+/// all the others, so among the bordered squares the finder believes in, the
+/// largest is the paper. The ink bounding box is not a bordered square and
+/// keeps to the ranking: a caption outside the paper stretches it.
+fn choose_panel(ranked: &[PanelCandidate]) -> Option<&PanelCandidate> {
+    let best = ranked.first()?;
+    ranked
+        .iter()
+        .filter(|candidate| {
+            candidate.method == "border_projection"
+                && candidate.confidence >= MIN_PANEL_CONFIDENCE
+                && candidate
+                    .metrics
+                    .get("square_score")
+                    .and_then(Value::as_f64)
+                    .is_some_and(|square| square >= 0.9)
+        })
+        .max_by(|left, right| {
+            left.quad
+                .area()
+                .total_cmp(&right.quad.area())
+                .then(left.confidence.total_cmp(&right.confidence))
+        })
+        .or(Some(best))
+}
+
+/// The ranked candidates as the report carries them: enough to see what
+/// competed and why it lost, without the per-candidate metric blobs.
+fn candidate_summaries(ranked: &[PanelCandidate]) -> Value {
+    Value::Array(
+        ranked
+            .iter()
+            .take(8)
+            .map(|candidate| {
+                let points = candidate.quad.points();
+                let xs = points.map(|point| point.x);
+                let ys = points.map(|point| point.y);
+                json!({
+                    "method": candidate.method,
+                    "confidence": candidate.confidence,
+                    "box": [
+                        xs.iter().copied().fold(f32::INFINITY, f32::min),
+                        ys.iter().copied().fold(f32::INFINITY, f32::min),
+                        xs.iter().copied().fold(f32::NEG_INFINITY, f32::max),
+                        ys.iter().copied().fold(f32::NEG_INFINITY, f32::max),
+                    ],
+                    "area_ratio": candidate.metrics.get("area_ratio").cloned().unwrap_or(Value::Null),
+                    "border_score": candidate.metrics.get("border_score").cloned().unwrap_or(Value::Null),
+                    "square_score": candidate.metrics.get("square_score").cloned().unwrap_or(Value::Null),
+                    "edge_density": candidate.metrics.get("edge_density").cloned().unwrap_or(Value::Null),
+                })
+            })
+            .collect(),
+    )
 }
 
 fn frame_candidate(analysis: &ImageAnalysis) -> Option<PanelCandidate> {
@@ -773,12 +879,25 @@ fn resize_without_panel(
         chunk[2] = analysis.padding_rgb[2];
         chunk[3] = 255;
     }
-    let scale =
-        (image_size as f32 / analysis.width as f32).min(image_size as f32 / analysis.height as f32);
-    let out_width = (analysis.width as f32 * scale).round().max(1.0) as u32;
-    let out_height = (analysis.height as f32 * scale).round().max(1.0) as u32;
-    let offset_x = (image_size - out_width) / 2;
-    let offset_y = (image_size - out_height) / 2;
+    // Fit inside the paper box, not the whole frame — see `paper_target_span`.
+    // The source's pixel *centres* span `w - 1`, and they have to land on a box
+    // of continuous width `hi - lo`, so the output is one pixel wider than the
+    // span: a square source fills 961 pixels, 32..=992, which is the frame the
+    // training renders and the decoder both use.
+    let (lo, hi) = paper_target_span(image_size);
+    let available = hi - lo;
+    let source_span_x = analysis.width.saturating_sub(1).max(1) as f32;
+    let source_span_y = analysis.height.saturating_sub(1).max(1) as f32;
+    let scale = (available / source_span_x).min(available / source_span_y);
+    let out_width = ((source_span_x * scale).round() as u32)
+        .saturating_add(1)
+        .max(1);
+    let out_height = ((source_span_y * scale).round() as u32)
+        .saturating_add(1)
+        .max(1);
+    // Centred inside the paper box, which is itself centred in the frame.
+    let offset_x = lo.round() as u32 + (available.round() as u32 + 1 - out_width) / 2;
+    let offset_y = lo.round() as u32 + (available.round() as u32 + 1 - out_height) / 2;
     for y in 0..out_height {
         for x in 0..out_width {
             let src_x = x as f32 / (out_width.saturating_sub(1).max(1) as f32)
@@ -873,10 +992,8 @@ fn warp_source_quad(
     warnings: Vec<RectificationWarning>,
 ) -> Result<RectifiedRgbaImage, RectificationError> {
     let source_quad = source_quad.clipped(analysis.width as u32, analysis.height as u32);
-    let margin = (image_size as f32 * DEFAULT_BORDER_MARGIN_RATIO)
-        .round()
-        .clamp(2.0, (image_size.saturating_sub(2) / 2) as f32);
-    let target_quad = Quad::square(margin, image_size.saturating_sub(1) as f32 - margin);
+    let (lo, hi) = paper_target_span(image_size);
+    let target_quad = Quad::square(lo, hi);
     let homography = homography_from_quad_to_quad(target_quad, source_quad)?;
     let mut rgba = vec![255; image_size as usize * image_size as usize * 4];
     for chunk in rgba.chunks_exact_mut(4) {
@@ -1250,6 +1367,45 @@ mod tests {
         assert!((detected.top_left.y - 28.0).abs() <= 6.0, "{detected:?}");
     }
 
+    /// A square drawn inside the paper — a preliminary base, a blintz, one
+    /// cell of a grid — is bordered by creases as crisp as the paper's edge and
+    /// scores as well as the paper does. The paper is the square that holds it.
+    #[test]
+    fn auto_rectifier_prefers_the_paper_over_a_square_drawn_inside_it() {
+        let mut image = white_rgba(400, 400);
+        // The paper.
+        draw_rect(&mut image, 400, 30, 30, 370, 370, [0, 0, 0], 3);
+        // A square of creases inside it, with its own diagonals.
+        draw_rect(&mut image, 400, 120, 120, 280, 280, [200, 0, 0], 3);
+        draw_line(&mut image, 400, 120, 120, 280, 280, [0, 0, 200], 2);
+        draw_line(&mut image, 400, 280, 120, 120, 280, [0, 0, 200], 2);
+        // Creases across the rest of the paper, so the paper is not empty.
+        draw_line(&mut image, 400, 30, 200, 370, 200, [200, 0, 0], 2);
+        draw_line(&mut image, 400, 200, 30, 200, 370, [0, 0, 200], 2);
+        draw_line(&mut image, 400, 30, 30, 370, 370, [200, 0, 0], 2);
+
+        let result = auto_rectify_rgba(&image, 400, 400, 256).expect("rectify");
+
+        assert_eq!(result.report.mode, "detect_quad_warp");
+        let detected = result.report.detected_source_quad.expect("detected quad");
+        assert!((detected.top_left.x - 30.0).abs() <= 6.0, "{detected:?}");
+        assert!((detected.top_left.y - 30.0).abs() <= 6.0, "{detected:?}");
+        assert!(
+            (detected.bottom_right.x - 370.0).abs() <= 6.0,
+            "{detected:?}"
+        );
+        assert!(
+            (detected.bottom_right.y - 370.0).abs() <= 6.0,
+            "{detected:?}"
+        );
+        // The inner square was a credible candidate, and the report says so.
+        let candidates = result.report.metrics["raw"]["candidates"]
+            .as_array()
+            .expect("candidates")
+            .clone();
+        assert!(candidates.len() >= 2, "{candidates:?}");
+    }
+
     #[test]
     fn auto_rectifier_preserves_full_frame_square_cp() {
         let mut image = white_rgba(128, 128);
@@ -1261,7 +1417,62 @@ mod tests {
 
         assert_eq!(result.report.mode, "full_frame_resize");
         assert_eq!(result.report.confidence, 1.0);
-        assert!(result.report.warnings.is_empty(), "{:?}", result.report);
+        // Only the density note, which this fixture earns: a 3 px black border on
+        // a 128 px frame is 5% of the image, so `infer_padding_rgb` medians the
+        // border ring to black and the margin it fills reads as ink. At the
+        // 1024 px the detector actually runs at, the same drawing is 0.3%.
+        assert_eq!(
+            result
+                .report
+                .warnings
+                .iter()
+                .map(|warning| warning.code.as_str())
+                .filter(|code| *code != "dense_input_evidence")
+                .count(),
+            0,
+            "{:?}",
+            result.report
+        );
+        // Inset like every other path — see `paper_target_span`. This is the
+        // assertion the full-frame path did not have, and its absence is why
+        // this path spent so long handing the model a frame-filling paper.
+        let target = result.report.target_quad.expect("target quad");
+        let margin = 128.0 * DEFAULT_BORDER_MARGIN_RATIO;
+        assert_eq!(target.top_left.x, margin);
+        assert_eq!(target.top_left.y, margin);
+        assert_eq!(target.bottom_right.x, 128.0 - margin);
+        assert_eq!(target.bottom_right.y, 128.0 - margin);
+    }
+
+    /// Every rectification path maps the paper onto the same box, because the
+    /// decoder assumes one (`unit_from_px` divides by `image_size - 64` and never
+    /// reads the report) and the training renders use it (`v2_boundary.frame` is
+    /// `32..992` of 1024 in every eval-pack sample).
+    #[test]
+    fn every_path_maps_the_paper_onto_the_same_box() {
+        let (lo, hi) = paper_target_span(1024);
+        assert_eq!((lo, hi), (32.0, 992.0));
+
+        // A CP that fills its frame — the already-cropped case, `resize_*`.
+        let mut full = white_rgba(256, 256);
+        draw_rect(&mut full, 256, 0, 0, 255, 255, [0, 0, 0], 2);
+        draw_line(&mut full, 256, 0, 0, 255, 255, [0, 0, 255], 2);
+        // The same CP with room around it — the photographed case, `warp_*`.
+        let mut inset = white_rgba(256, 256);
+        draw_rect(&mut inset, 256, 40, 40, 215, 215, [0, 0, 0], 2);
+        draw_line(&mut inset, 256, 40, 40, 215, 215, [0, 0, 255], 2);
+
+        for (label, image) in [("full frame", full), ("detected panel", inset)] {
+            let result = auto_rectify_rgba(&image, 256, 256, 256).expect("rectify");
+            let target = result.report.target_quad.expect("target quad");
+            let (lo, hi) = paper_target_span(256);
+            assert_eq!(
+                (target.top_left.x, target.bottom_right.x),
+                (lo, hi),
+                "{label} ({}) put the paper somewhere else",
+                result.report.mode
+            );
+        }
     }
 
     #[test]

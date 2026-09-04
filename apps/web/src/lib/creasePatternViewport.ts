@@ -1,3 +1,6 @@
+// `lib/` -> `cp-workspace/` for a type only, the direction `nativeProjectFile.ts`
+// and `supersetFeatures.ts` already take for the annotation kinds.
+import type { CpCheckClass } from '../cp-workspace/annotations/suppressionRegion';
 import type {
   OristudioCpDocumentSnapshot,
   OristudioCpGridMetadata,
@@ -113,6 +116,20 @@ export interface OristudioCpViewportOptions {
   snapToLines: boolean;
   camvIssuesVisible?: boolean;
   /**
+   * The **document-wide** check-suppression rule: which foldability classes are
+   * not reported anywhere in this document.
+   *
+   * The document default that suppression regions override —
+   * `cp-workspace/diagnostics/checkSuppression.ts` composes the two and owns the
+   * predicate. Absent or empty means everything is reported, so a file written
+   * before this existed reads as it always did.
+   *
+   * Distinct from {@link camvIssuesVisible}, which is not a per-class rule but
+   * the whole overlay's switch: with it off nothing is drawn regardless of what
+   * is listed here, which is exactly what it meant before.
+   */
+  suppressedCheckClasses?: readonly CpCheckClass[];
+  /**
    * Numeric fold-angle badges on the canvas. **Labels only** — crease colour
    * always distinguishes a non-180 crease and is not gated by this.
    */
@@ -225,7 +242,12 @@ export interface CpGridLine {
 
 export interface CpSnapTarget {
   point: Point;
-  kind: 'grid' | 'vertex' | 'point' | 'line';
+  /**
+   * `crossing` is where two creases cross and neither stops — a junction the
+   * document does not have a vertex for yet, as opposed to `vertex`, which is
+   * one it does. Only {@link nearestCpJunctionTarget} produces it.
+   */
+  kind: 'grid' | 'vertex' | 'point' | 'line' | 'crossing';
   label: string;
   distance: number;
 }
@@ -902,6 +924,92 @@ export function nearestOrieditaDrawPointTarget(
   }
 
   return best;
+}
+
+/**
+ * The nearest place a click could put a *junction*: an existing vertex, or a
+ * point where two creases cross and the document has no vertex yet.
+ *
+ * {@link nearestOrieditaDrawPointTarget} cannot answer the second half. It knows
+ * endpoints, bare points, circle centres, paper corners and grid points — every
+ * position something is already *at* — and a crossing is by definition none of
+ * those. That gap does not matter for the tools that draw: it matters for
+ * `VertexInsertOnCreases`, which splits at the point it is given, at 1e-4 model
+ * units, and whose dominant case is exactly a crossing with no vertex on it.
+ * Without this the tool degrades to Oriedita's Draw point — it would split the
+ * crease the cursor happened to be nearest and leave the other one whole.
+ *
+ * Crossings join the *vertex* class rather than outranking it: both compete at
+ * `POINT_SNAP_DISTANCE_MULTIPLIER × maxDistance` and the nearer wins, so a
+ * vertex one pixel away is not shouldered aside by a crossing eight away. Grid
+ * and line targets stay where they were, behind both.
+ *
+ * A pair that merely *touches* — one crease ending on another's interior, or two
+ * sharing an endpoint — is not a crossing: the meeting point is already an
+ * endpoint, so the vertex snap owns it and reporting it twice would only make
+ * the two answers race. Hence the strictly-interior test on both parameters.
+ *
+ * Cost is `O(n + k²)` where `k` is the creases within `maxDistance` of the
+ * cursor — a handful at any usable snap radius — because the pairwise pass runs
+ * only over those. A naive all-pairs sweep would be 2.7M pairs per pointer move
+ * on the hard bucket's 2,321 creases.
+ */
+export function nearestCpJunctionTarget(
+  document: OristudioCpDocumentSnapshot,
+  point: Point,
+  bounds: CpModelBounds,
+  options: OristudioCpViewportOptions,
+  maxDistance = Math.max(bounds.spanX, bounds.spanY) * 0.015
+): CpSnapTarget | null {
+  const best = nearestOrieditaDrawPointTarget(document, point, bounds, options, maxDistance);
+  if (!options.snapToVertices) return best;
+
+  const reach = maxDistance * POINT_SNAP_DISTANCE_MULTIPLIER;
+  const near: { index: number; segment: OristudioCpLineSegment }[] = [];
+  document.crease_pattern.line_segments.forEach((segment, index) => {
+    if (distance(closestPointOnSegment(point, segment), point) <= reach) {
+      near.push({ index, segment });
+    }
+  });
+
+  let crossing: CpSnapTarget | null = best;
+  for (let i = 0; i < near.length; i += 1) {
+    for (let j = i + 1; j < near.length; j += 1) {
+      const at = segmentCrossingPoint(near[i].segment, near[j].segment);
+      if (!at) continue;
+      const target = pointTarget(
+        at,
+        point,
+        'crossing',
+        `line ${near[i].index + 1} x line ${near[j].index + 1}`
+      );
+      if (target.distance > reach) continue;
+      if (!crossing || target.distance < crossing.distance) crossing = target;
+    }
+  }
+
+  return crossing;
+}
+
+/**
+ * Where two segments cross in both their interiors, or null when they are
+ * parallel, miss, or only touch at an end.
+ */
+function segmentCrossingPoint(
+  first: OristudioCpLineSegment,
+  second: OristudioCpLineSegment
+): Point | null {
+  const r = { x: first.b.x - first.a.x, y: first.b.y - first.a.y };
+  const s = { x: second.b.x - second.a.x, y: second.b.y - second.a.y };
+  const denominator = r.x * s.y - r.y * s.x;
+  if (denominator === 0) return null;
+
+  const offset = { x: second.a.x - first.a.x, y: second.a.y - first.a.y };
+  const t = (offset.x * s.y - offset.y * s.x) / denominator;
+  const u = (offset.x * r.y - offset.y * r.x) / denominator;
+  if (t <= 0 || t >= 1 || u <= 0 || u >= 1) return null;
+
+  return { x: first.a.x + r.x * t, y: first.a.y + r.y * t };
 }
 
 export function textCoordinate(value: number | { 0: number }): number {

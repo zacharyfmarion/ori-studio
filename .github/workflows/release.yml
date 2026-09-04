@@ -23,6 +23,14 @@ on:
         type: choice
         default: all
         options: [all, macos, windows, linux, windows+linux]
+      # A tester build of a branch whose model registry is not on the site yet
+      # can read it from that branch's PR preview instead, e.g.
+      # https://pr-123.oristudio.pages.dev/ — see RELEASE.md, "Testing the
+      # detector before merging". Empty means the site, which every release uses.
+      model_origin:
+        description: 'Where the build reads detector models from (empty = https://oristudio.dev/)'
+        type: string
+        default: ''
   push:
     tags: ['v*']
 
@@ -192,6 +200,11 @@ jobs:
       VITE_PUBLIC_POSTHOG_KEY: ${{ secrets.VITE_PUBLIC_POSTHOG_KEY }}
       VITE_PUBLIC_POSTHOG_HOST: https://us.i.posthog.com
       VITE_PUBLIC_SENTRY_DSN: ${{ secrets.VITE_PUBLIC_SENTRY_DSN }}
+      # The detector ships in the desktop build on the same switch as the web
+      # deploys; a build without it has no entry point and no runtime. The model
+      # is not in the bundle — the first Detect downloads it from `model_origin`.
+      VITE_CP_DETECT: '1'
+      VITE_CP_DETECT_MODEL_ORIGIN: ${{ inputs.model_origin }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
@@ -229,6 +242,11 @@ jobs:
       - name: Verify analytics were inlined
         if: env.VITE_PUBLIC_POSTHOG_KEY != ''
         run: node scripts/verify-analytics-build.mjs apps/web/dist
+
+      # Same terms as the web deploys: the detector's runtime must be in a
+      # build with the flag, and an installed version cannot be redeployed.
+      - name: Verify the detector runtime was built
+        run: node scripts/verify-cp-detect-build.mjs apps/web/dist
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

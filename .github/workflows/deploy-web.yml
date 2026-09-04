@@ -66,6 +66,11 @@ jobs:
           # silently, and that alone is enough to disable analytics entirely.
           VITE_PUBLIC_POSTHOG_KEY: ${{ secrets.VITE_PUBLIC_POSTHOG_KEY }}
           VITE_PUBLIC_POSTHOG_HOST: https://us.i.posthog.com
+          # Ships CP detection: the menu entry and the worker's runtime. The
+          # kill switch is removing this line and redeploying. The model itself
+          # is not in the build — it comes from R2 through `functions/models/`
+          # and is published by `scripts/cp-detect/publish-model.mjs`.
+          VITE_CP_DETECT: '1'
           # Sentry crash reporting, same firewall and same reasoning. A DSN is a
           # public value by design — it ships in the bundle and only permits
           # writes — but it lives in secrets to match the PostHog key above, so
@@ -83,6 +88,14 @@ jobs:
       # reports nothing. This is the only place that difference is observable —
       # assert it here rather than discovering it in an empty dashboard weeks
       # later.
+      # The detector's runtime is stubbed out of a build without the flag and
+      # must be present with it; the first flagged deploy shipped the dialog
+      # over a stub, and nothing before the first user's Detect noticed.
+      - name: Verify the detector runtime was built
+        run: node scripts/verify-cp-detect-build.mjs apps/web/dist
+        env:
+          VITE_CP_DETECT: '1'
+
       - name: Verify telemetry config was inlined
         run: node scripts/verify-analytics-build.mjs apps/web/dist
 
@@ -125,3 +138,10 @@ jobs:
       # host as the share checks, for the same reason.
       - name: Verify SEO files
         run: node scripts/seo-smoke.mjs "${{ steps.deploy.outputs.url }}"
+
+      # The model store: the registry is served, names a current detector whose
+      # manifest is served, and the model's first byte comes back with the
+      # headers the page needs. A missing MODELS_R2 binding or an unpublished
+      # registry fails here, not in the first user's dialog.
+      - name: Verify model store
+        run: node scripts/models-smoke.mjs "${{ steps.deploy.outputs.url }}"

@@ -159,6 +159,20 @@ export interface SendToEditPayload {
    * whenever {@link circles} is non-empty.
    */
   circleSourceBounds?: readonly [number, number, number, number];
+  /**
+   * Merge the collinear same-type crease pairs among the *added* creases once
+   * they are placed, inside the same undo entry. What an accepted solve asks
+   * for: detection split every crease at every junction it found, and the
+   * solve leaves the pieces where they are.
+   */
+  mergeExtraVertices?: boolean;
+  /**
+   * Recolour the added creases the file left unassigned as auxiliary lines,
+   * in the same undo entry. What a detection import asks for: a crease the
+   * model could not call mountain or valley is a guide for the user to decide
+   * on, not a crease the checks should count.
+   */
+  unassignedAsAuxiliary?: boolean;
 }
 
 /**

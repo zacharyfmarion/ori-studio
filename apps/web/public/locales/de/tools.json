@@ -78,6 +78,9 @@
     "foldDirectionValleyDescription": "Merken, dass diese unentschiedenen Falten Talfalten waren",
     "from": "Von",
     "index": "Index",
+    "insertVertex": {
+      "noCreaseThroughPoint": "Durch diesen Punkt verläuft keine Falte, es gibt also keinen Knoten einzufügen. Zielen Sie auf einen Schnittpunkt oder auf einen Punkt auf einer Falte."
+    },
     "instructions": "Anweisungen",
     "left": "Links",
     "leftSegmentRatio": "Verhältnis des linken Segments",

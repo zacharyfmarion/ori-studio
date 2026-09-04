@@ -3,6 +3,15 @@
     "failed": "Não foi possível concluir essa ação",
     "failedDetail": "Nada foi alterado. Se continuar acontecendo, tente recarregar."
   },
+  "cpRegionSolve": {
+    "failed": "Não foi possível resolver este padrão",
+    "incompleteAction": "Use Tentar novamente para reparar a topologia e resolver de novo, ou Aceitar mesmo assim para manter estas coordenadas.",
+    "solvedAction": "Use Aceitar para manter, ou Tentar novamente para voltar e alterar a topologia.",
+    "timedOut": "A resolução esgotou o tempo",
+    "timedOutDetail_one": "Ele já havia colocado 1 vértice — aceite o que ele conseguiu, ou continue editando e tente de novo.",
+    "timedOutDetail_many": "Ele já havia colocado {{count}} vértices — aceite o que ele conseguiu, ou continue editando e tente de novo.",
+    "timedOutDetail_other": "Ele já havia colocado {{count}} vértices — aceite o que ele conseguiu, ou continue editando e tente de novo."
+  },
   "creasePattern": {
     "inlineSimulationCap": "Até {{max}} janelas de simulação por vez. Feche uma para abrir outra.",
     "inlineSimulationRegionGone": "Essa região não está mais no padrão de vincos, então esta janela não pode ser reconstruída.",
@@ -20,7 +29,12 @@
     "foldStop": "Cancelar",
     "foldStopped": "Dobra cancelada",
     "foldStopping": "Cancelando…",
-    "saved": "{{name}} salvo"
+    "saved": "{{name}} salvo",
+    "solveStop": "Cancelar",
+    "solveStopped": "Resolução cancelada",
+    "solveStopping": "Cancelando…",
+    "solving": "Resolvendo…",
+    "solvingLong": "Ainda resolvendo — isso pode demorar um pouco"
   },
   "simulatorExport": {
     "empty": "Esta simulação ainda não tem nada para exportar",

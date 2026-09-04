@@ -19,6 +19,8 @@ import {
   type OristudioCpFoldAngleDisplay,
   type OristudioCpLineStyle,
 } from '../../lib/creasePatternViewport';
+import { CP_CHECK_CLASSES, type CpCheckClass } from '../../cp-workspace/annotations/suppressionRegion';
+import { cpCheckClassLabel } from '../../cp-workspace/diagnostics/checkSuppression';
 import { cpFoldAngleDisplayLabel, cpLineStyleLabel } from '../../i18n/enumLabels';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { NumberField } from '../ui/NumberField';
@@ -72,6 +74,14 @@ export function CpViewControlsPanel() {
             label={t('panels:cpViewControls.camvIssues', 'Foldability issues')}
             checked={camvVisible}
             onChange={(checked) => setViewportOption('camvIssuesVisible', checked)}
+          />
+          {/* The document-wide check-suppression rule. The master toggle above
+              keeps meaning exactly what it always meant — with it off nothing is
+              drawn, and every class row below reads off with it. */}
+          <CheckClassSection
+            overlayVisible={camvVisible}
+            suppressed={viewport.suppressedCheckClasses}
+            onSuppressedChange={(next) => setViewportOption('suppressedCheckClasses', next)}
           />
           {/* Which channel carries the angle — never whether one does, so there
               is no "off" here. */}
@@ -301,20 +311,130 @@ function LineStyleRow({
   );
 }
 
+/**
+ * The per-class half of the document-wide check-suppression rule.
+ *
+ * Each row is a **show** switch for one theorem, so the natural reading — on
+ * means "tell me about this" — matches what the stored list is the complement
+ * of. Named after the theorems rather than after the kernel's rule codes,
+ * because the decision the user is making is whether a condition applies to what
+ * they are doing, and "Angles" does not say "Kawasaki" to anyone who has not
+ * read `checks.rs`.
+ *
+ * There is no row for an odd fan (`NumberOfFolds`). It is combinatorial and is
+ * 74% of a repair worklist, so no state exists in which hiding it is right —
+ * see `cp-workspace/diagnostics/checkSuppression.ts`.
+ *
+ * Disabled and off while the overlay itself is off, so "everything here is off"
+ * is exactly the old boolean's `false` and there is no second, contradicting
+ * representation of it. Turning the overlay back on restores the class list the
+ * user had.
+ */
+/**
+ * The per-class rules, folded away behind a disclosure like the grid's.
+ *
+ * Four rows is enough to push everything below them off the fold, and the
+ * master "Foldability issues" toggle above is the control almost everyone
+ * wants — the classes are for the case where you need one theorem quiet while
+ * the rest keep working. Collapsed by default for the same reason
+ * {@link GridSettingsSection} is, and built the same way so the two disclosures
+ * behave identically.
+ */
+function CheckClassSection({
+  overlayVisible,
+  suppressed,
+  onSuppressedChange,
+}: {
+  overlayVisible: boolean;
+  suppressed: readonly CpCheckClass[] | undefined;
+  onSuppressedChange: (next: readonly CpCheckClass[]) => void;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="grid-settings" data-open={open || undefined}>
+      <button
+        type="button"
+        className="grid-settings__toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <ChevronRight size={14} className="grid-settings__chevron" aria-hidden="true" />
+        <span>
+          {t('panels:cpViewControls.moreFoldabilitySettings', 'More foldability settings')}
+        </span>
+      </button>
+      {open && (
+        <div
+          className="grid-settings__body"
+          role="group"
+          aria-label={t('panels:cpViewControls.foldabilityChecks', 'Foldability checks')}
+        >
+          <CheckClassRows
+            overlayVisible={overlayVisible}
+            suppressed={suppressed}
+            onSuppressedChange={onSuppressedChange}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CheckClassRows({
+  overlayVisible,
+  suppressed,
+  onSuppressedChange,
+}: {
+  overlayVisible: boolean;
+  suppressed: readonly CpCheckClass[] | undefined;
+  onSuppressedChange: (next: readonly CpCheckClass[]) => void;
+}) {
+  const { t } = useTranslation();
+  const suppressedList = suppressed ?? [];
+  return (
+    <>
+      {CP_CHECK_CLASSES.map((checkClass) => {
+        const label = cpCheckClassLabel(t, checkClass);
+        const shown = !suppressedList.includes(checkClass);
+        return (
+          <ToggleRow
+            key={checkClass}
+            label={label}
+            checked={overlayVisible && shown}
+            disabled={!overlayVisible}
+            onChange={(checked) =>
+              onSuppressedChange(
+                // Rebuilt from the canonical order rather than pushed/spliced, so
+                // two documents suppressing the same set hold the same array.
+                CP_CHECK_CLASSES.filter((candidate) =>
+                  candidate === checkClass ? !checked : suppressedList.includes(candidate)
+                )
+              )
+            }
+          />
+        );
+      })}
+    </>
+  );
+}
+
 function ToggleRow({
   label,
   checked,
+  disabled,
   onChange,
 }: {
   label: string;
   checked: boolean;
+  disabled?: boolean;
   onChange: (checked: boolean) => void;
 }) {
   return (
     <div className="control-row">
       <span className="control-row__label">{label}</span>
       <div className="control-row__value control-row__value--toggle">
-        <Toggle aria-label={label} checked={checked} onChange={onChange} />
+        <Toggle aria-label={label} checked={checked} disabled={disabled} onChange={onChange} />
       </div>
     </div>
   );

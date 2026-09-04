@@ -33,9 +33,17 @@ function keepTauriFrontendDistPath(): Plugin {
   };
 }
 
+/**
+ * ONNX Runtime's JS entry point — the only one of the three ids below that is a
+ * *module* rather than an asset URL, and so the only one the dev-time dependency
+ * optimizer has anything to say about. Named because {@link ORT_RUNTIME_IDS} and
+ * `optimizeDeps.include` must not be able to drift apart.
+ */
+const ORT_JS_ENTRY = 'onnxruntime-web/webgpu';
+
 /** Everything `workers/cpDetectWorker.ts` imports from ONNX Runtime. */
 const ORT_RUNTIME_IDS = new Set([
-  'onnxruntime-web/webgpu',
+  ORT_JS_ENTRY,
   'onnxruntime-web/ort-wasm-simd-threaded.asyncify.mjs?url',
   'onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url',
 ]);
@@ -45,10 +53,12 @@ const ORT_RUNTIME_STUB = '\0ori-ort-runtime-stub';
 /**
  * Keep ONNX Runtime out of builds that cannot reach the CP detector.
  *
- * `cpDetectWorker.ts` gates its ORT `import()` on `import.meta.env.DEV`, the
- * same gate the "Detect CP from Image..." menu entry uses, and Rollup does
- * tree-shake the JS back out of a production build. That is not enough on its
- * own, because assets are emitted while the graph is still being *built*:
+ * `cpDetectWorker.ts` gates its ORT `import()` on `isCpDetectBuildEnabled`
+ * (`platform/features.ts`): every dev build, and a production build only with
+ * `VITE_CP_DETECT=1` at build time — the same switch the "Detect CP from
+ * Image..." capability reads. Rollup does tree-shake the JS back out of a
+ * production build whose gate is shut. That is not enough on its own, because
+ * assets are emitted while the graph is still being *built*:
  * Rollup loads and transforms a module before deciding it is unreachable, and
  * anything `emitFile`d during that transform is written regardless. Two
  * separate things emitted the runtime that way — the worker's own `?url`
@@ -61,8 +71,13 @@ const ORT_RUNTIME_STUB = '\0ori-ort-runtime-stub';
  * has to cover the JS entry point as well as the two URLs — stubbing only the
  * URLs leaves ORT's own `new URL` to re-emit the `.wasm`.
  *
- * `isProduction` is the config-side spelling of `!import.meta.env.DEV`, so the
- * stub is in place for exactly the builds whose gate in the worker is shut.
+ * The stub is in place for exactly the builds whose gate in the worker is
+ * shut: `isProduction` is the config-side spelling of `!import.meta.env.DEV`,
+ * and `config.env.VITE_CP_DETECT` is the flag as the worker will see it. It
+ * used to read `isProduction` alone, from when the detector was dev-only, and
+ * the first deploy with the flag on shipped the dialog with a stubbed runtime
+ * behind it — "ONNX Runtime is excluded from this build" on the first Detect.
+ * `scripts/verify-cp-detect-build.mjs` fails a deploy on that shape now.
  */
 function dropUnreachableOrtRuntime(): Plugin {
   let gated = false;
@@ -72,7 +87,7 @@ function dropUnreachableOrtRuntime(): Plugin {
     // emit the assets before this hook ever sees them.
     enforce: 'pre',
     configResolved(config) {
-      gated = config.isProduction;
+      gated = config.isProduction && config.env.VITE_CP_DETECT !== '1';
     },
     resolveId(source) {
       return gated && ORT_RUNTIME_IDS.has(source) ? ORT_RUNTIME_STUB : null;
@@ -88,21 +103,23 @@ function dropUnreachableOrtRuntime(): Plugin {
 }
 
 /**
- * Emitted, but unreachable in production — so caching it would be pure cost.
+ * Emitted, but never precached: the detector, fetched on the first Detect.
  *
  * `cpDetectWorker` is only instantiated by `store/workspaceStore/cpDetectRuntime.ts`
- * behind the same `import.meta.env.DEV` gate as the menu entry, and it is what
- * references the detector wasm. Between them that is 2.3 MB nobody can fetch.
- * `dropUnreachableOrtRuntime` above already removed the far larger ONNX runtime;
- * this is the remainder, which is genuinely part of the graph and so cannot be
- * dropped the same way.
+ * when the user opens the detector, and it is what references the detector
+ * wasm (2.3 MB) and, in a build with `VITE_CP_DETECT=1`, ONNX Runtime — the
+ * WebGPU entry point and its threaded wasm, 22.6 MiB between them. None of it
+ * belongs in a precache that every visitor pays for on their first load; the
+ * browser's HTTP cache keeps it after the one Detect that needs it.
  *
- * Unlike the precache patterns these are allowed to match nothing: a build that
- * stops emitting the detector is a build with nothing to exclude.
+ * Unlike the precache patterns these are allowed to match nothing: a build
+ * without the flag stubs the runtime and has no ONNX assets to exclude.
  */
 const UNCACHEABLE_PATTERNS: readonly RegExp[] = [
   /^assets\/cpDetectWorker-[^/]+\.js$/,
   /^assets\/oristudio_cp_detect_wasm_bg-[^/]+\.wasm$/,
+  // `ort.webgpu.bundle.min-*.js`, `ort-wasm-simd-threaded.asyncify-*.{js,mjs,wasm}`.
+  /^assets\/ort[.-][^/]+$/,
 ];
 
 /** Where {@link simPerfLogSink} appends. Gitignored (`artifacts/`). */
@@ -387,6 +404,45 @@ export default defineConfig({
   define: {
     __APP_COMMIT__: JSON.stringify(appCommit()),
     __SENTRY_RELEASE__: JSON.stringify(sentryRelease()),
+  },
+  /**
+   * Pre-bundle ONNX Runtime at dev-server start instead of the first time the
+   * detector runs.
+   *
+   * Dev-only, and purely cosmetic — but the cosmetic failure is bad: opening
+   * "Detect CP from Image…" turned the page white and reloaded it, which reads
+   * as a crash rather than as a build step. What actually happened is in the dev
+   * server log:
+   *
+   *     ✨ new dependencies optimized: onnxruntime-web/webgpu
+   *     ✨ optimized dependencies changed. reloading
+   *
+   * Vite's dependency *scanner* is what missed it, and the reason is worth
+   * knowing before adding anything else to this list. The scanner walks the
+   * module graph from the HTML entry, following both static and dynamic
+   * `import()`s — it finds `@tauri-apps/plugin-updater` and the rest of the lazy
+   * platform imports perfectly well (verified: a forced re-optimize from a cold
+   * cache lists all four). What it cannot follow is `new Worker(new URL(…))`,
+   * which is a constructor call and not an import, so nothing inside
+   * `src/workers/` is ever scanned. ORT is imported *there*, and only there.
+   *
+   * So the rule this entry stands for is narrower than "lazy deps go here": it
+   * is **bare specifiers imported by a worker**. Of those there are exactly two
+   * — this and `comlink` — and `comlink` is also imported from `engines/`, on
+   * the main graph, so the scanner already has it. Adding deps the scanner
+   * finds on its own would only cost cold-start time.
+   *
+   * The pre-bundle itself is close to free — measured at ~1.45s for the whole
+   * dependency set with or without it, because ORT ships pre-built ESM and the
+   * 129 MB it occupies in `node_modules` is nearly all `.wasm`, which is an
+   * asset and not a dep. What lands in `.vite/deps` is 157 KB of glue.
+   *
+   * Dev-only by construction: `optimizeDeps` is the dev server's, and the
+   * production build still stubs this same id out through
+   * {@link dropUnreachableOrtRuntime}.
+   */
+  optimizeDeps: {
+    include: [ORT_JS_ENTRY],
   },
   // `cpDetectWorker.ts` is a worker, and Vite builds workers through their own
   // plugin container seeded from `worker.plugins` alone — a plugin registered

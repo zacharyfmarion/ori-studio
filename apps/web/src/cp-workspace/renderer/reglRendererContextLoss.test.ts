@@ -35,6 +35,7 @@ vi.mock('./programs/fillProgram', () => ({ createFillProgram: noopProgram }));
 vi.mock('./programs/markerProgram', () => ({ createMarkerProgram: noopProgram }));
 vi.mock('./programs/wedgeProgram', () => ({ createWedgeProgram: noopProgram }));
 vi.mock('./programs/imageProgram', () => ({ createImageProgram: noopProgram }));
+vi.mock('./programs/regionProgram', () => ({ createRegionProgram: noopProgram }));
 
 const { createReglRenderer } = await import('./reglRenderer');
 

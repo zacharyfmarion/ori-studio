@@ -30,3 +30,4 @@ js-sys.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true
+treemaker-core = { path = "../treemaker-core" }

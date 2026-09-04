@@ -49,9 +49,17 @@
     "yes": "Ja"
   },
   "cpDetectImport": {
+    "add": "Hinzufügen",
+    "addAsIs": "Unverändert hinzufügen",
+    "addImproved": "Verbessertes Ergebnis hinzufügen",
+    "addLabel": "Erkanntes Faltmuster hinzufügen",
+    "addPartial": "Teilergebnis hinzufügen",
     "ariaLabel": "CP aus Bild erkennen",
+    "beta": "Beta",
+    "betaNote": "Funktioniert am besten bei kleinen und mittleren Faltmustern. Das Lösen garantiert ein Muster, das sich flach falten lässt, nicht das ursprünglich entworfene: Abstände, die gleichmäßig sein sollten, können leicht ungleichmäßig ausfallen.",
     "busy": {
       "detecting": "Modell wird ausgeführt",
+      "downloadingModel": "Erkennungsmodell wird heruntergeladen — {{loaded}} von {{total}}",
       "importing": "Faltmuster wird importiert",
       "loadingModel": "Erkennungsmodell wird geprüft",
       "opening": "Bild wird geöffnet",
@@ -63,27 +71,43 @@
     "detect": "Erkennen",
     "detected": "Erkannt",
     "dropImageHere": "Bild hier ablegen",
-    "import": "Importieren",
+    "editCrop": "Zuschnitt bearbeiten",
     "inferred": "Abgeleitet",
+    "model": {
+      "deviceGpu": "Dieses Gerät hat eine GPU, die Erkennung dauert daher nur Sekunden.",
+      "deviceSingle": "Keine GPU und nur ein Thread; rechnen Sie mit etwa einer Minute.",
+      "deviceThreads": "Keine GPU; die Erkennung läuft auf der CPU und kann eine Weile dauern.",
+      "download": "Das Erkennungsmodell wird einmalig heruntergeladen ({{size}}).",
+      "installed": "Erkennungsmodell v{{version}} installiert ({{size}}).",
+      "installedLocal": "Erkennungsmodell installiert ({{size}}).",
+      "update": "Herunterladen",
+      "updateAvailable": "Ein neueres Erkennungsmodell ist verfügbar (v{{version}}, {{size}}).",
+      "updating": "Neueres Erkennungsmodell wird heruntergeladen — {{loaded}} von {{total}}",
+      "updatingStart": "Neueres Erkennungsmodell wird heruntergeladen…"
+    },
     "mvChanges": "Berg/Tal-Änderungen",
     "openImageTitle": "Faltmuster-Bild öffnen",
     "rectified": "Entzerrt",
-    "report": {
-      "ambiguous": "mehrdeutig",
-      "assignmentChange_one": "{{count}} Zuordnungsänderung",
-      "assignmentChange_other": "{{count}} Zuordnungsänderung",
-      "assignmentChanges_one": "{{count}} Zuordnungsänderungen",
-      "assignmentChanges_other": "{{count}} Zuordnungsänderungen",
-      "compilerFallback": "Compiler-Fallback",
-      "counts": "{{vertices}} Ecken, {{edges}} Kanten",
-      "topologyMove_one": "{{count}} Topologie-Verschiebung",
-      "topologyMove_other": "{{count}} Topologie-Verschiebung",
-      "topologyMoves_one": "{{count}} Topologie-Verschiebungen",
-      "topologyMoves_other": "{{count}} Topologie-Verschiebungen"
-    },
+    "regionLabel": "Erkanntes Faltmuster",
+    "repairLabel": "Erkanntes Faltmuster zum Korrigieren hinzufügen",
+    "reviewAndFix": "Prüfen und korrigieren",
     "runningModel": "Modell wird ausgeführt",
+    "stopping": "Wird gestoppt…",
+    "stopSolve": "Stoppen",
     "title": "CP aus Bild erkennen",
-    "updateCrop": "Zuschnitt aktualisieren"
+    "verdict": {
+      "afterFailure": "„Prüfen und korrigieren“ fügt den Kandidaten mit dem Quellbild dahinter ein und behält die Solver-Daten, damit Sie ihn korrigieren und erneut lösen können.",
+      "blocked": "Der Solver konnte diesen Kandidatengraphen nicht lesen, es gibt also nichts von Hand zu korrigieren. Unverändert hinzufügen ist weiterhin möglich.",
+      "cancelled": "Sie haben das Lösen gestoppt, daher wurde nichts geändert – das ist das Muster genau so, wie es erkannt wurde. „Prüfen und korrigieren“ fügt es mit dem Quellbild dahinter ein und behält die Solver-Daten, damit Sie es im Dokument erneut lösen können.",
+      "exact": "Wird es neben Ihrer Arbeit eingefügt, bleibt der Rest des Dokuments unverändert.",
+      "improved": "„Prüfen und korrigieren“ fügt es mit dem Quellbild dahinter ein und behält die Solver-Daten, damit Sie den Rest korrigieren und erneut lösen können – oder Sie fügen das verbesserte Ergebnis so hinzu, wie es ist.",
+      "improvedNoFold": "„Prüfen und korrigieren“ fügt es mit dem Quellbild dahinter ein und behält die Solver-Daten, damit Sie den Rest korrigieren und erneut lösen können.",
+      "repairable_one": "Erkannt, mit einer zu reparierenden Stelle – das Lösen wurde deshalb nicht ausgeführt: Es hätte sein ganzes Zeitbudget für Geometrie verbraucht, die Sie gleich ändern. „Prüfen und korrigieren“ fügt den Kandidaten mit dem Quellbild dahinter ein, damit Sie ihn korrigieren und lösen können.",
+      "repairable_other": "Erkannt, mit {{count}} zu reparierenden Stellen – das Lösen wurde deshalb nicht ausgeführt: Es hätte sein ganzes Zeitbudget für Geometrie verbraucht, die Sie gleich ändern. „Prüfen und korrigieren“ fügt den Kandidaten mit dem Quellbild dahinter ein, damit Sie sie korrigieren und lösen können. Unverändert hinzugefügt bleiben alle Winkel ungenau.",
+      "solving": "In der Topologie ist nichts markiert, daher läuft das Lösen. Unten sehen Sie, was erkannt wurde – die Falten rücken an ihre Plätze, sobald es fertig ist.",
+      "timeoutPartial_one": "Der Solver hatte einen Knoten an seinen Platz gerückt, bevor die Zeit ablief; Sie können dieses Teilergebnis statt des rohen Kandidaten hinzufügen.",
+      "timeoutPartial_other": "Der Solver hatte {{count}} Knoten an ihre Plätze gerückt, bevor die Zeit ablief; Sie können dieses Teilergebnis statt des rohen Kandidaten hinzufügen."
+    }
   },
   "export": {
     "allPatterns": "Alle Muster",
@@ -138,6 +162,7 @@
       "images": "Bilder",
       "inlineSimulations": "Simulationsfenster",
       "richText": "Rich-Text-Formatierung",
+      "suppressionRegions": "Prüfungsfreie Bereiche",
       "symmetry": "Spiegelsymmetrie",
       "unassignedCreases": "Nicht zugewiesene Falten"
     },
@@ -302,6 +327,25 @@
     "language": {
       "system": "Systemstandard",
       "title": "Sprache"
+    },
+    "models": {
+      "current": "Aktuell",
+      "description": "Die Faltmuster-Erkennung lädt ihr Modell einmalig herunter und behält es auf diesem Gerät. Ein neueres Modell wird hier und im Erkennen-Dialog angeboten; nichts wird heruntergeladen, ohne dass zuvor die Größe angezeigt wird.",
+      "download": "Herunterladen",
+      "downloading": "Wird heruntergeladen — {{loaded}} von {{total}}",
+      "downloadingStart": "Wird heruntergeladen…",
+      "installed": "Installiert",
+      "loading": "Modellverzeichnis wird gelesen…",
+      "localRow": "Erkennungsmodell (Entwicklung)",
+      "notInstalled": "Nicht heruntergeladen",
+      "orphaned": "Nicht mehr veröffentlicht; wird nicht verwendet.",
+      "orphanedLabel": "Erkennungsmodell (zurückgezogen)",
+      "remove": "Entfernen",
+      "row": "Erkennungsmodell v{{version}}",
+      "title": "Modelle",
+      "unavailable": "Das Modellverzeichnis konnte nicht gelesen werden: {{reason}}",
+      "update": "Aktualisieren",
+      "updateAvailable": "Neuer als das installierte Modell"
     },
     "sections": "Einstellungsbereiche",
     "shortcuts": {

@@ -159,6 +159,107 @@ export type FoldCycleDirection = 'next' | 'wrap';
 /** Where a foldability check was run from. */
 export type FoldabilityCheckSource = 'pre-fold';
 
+/** How a check-suppression region came to exist. */
+export type CpSuppressionRegionSource = 'tool' | 'selection' | 'detect';
+
+/**
+ * Which of the exact solver's two stages a run reached.
+ *
+ * They behave completely differently and merging them would hide the one fact
+ * that makes the wait tolerable: stage 1 fails fast (it is 4–21% of the wall)
+ * and stage 2 only runs at all on a solve that would be accepted. A run that
+ * ends in `geometry` is a refusal the user waited a moment for; one that ends in
+ * `refinement` is a success they waited seconds to minutes for.
+ */
+export type CpExactSolveStage = 'geometry' | 'refinement';
+
+/**
+ * How an exact solve ended.
+ *
+ * `timeout` is separate from `rejected` because they mean opposite things to the
+ * user: a rejection says the topology is wrong and editing is the way forward, a
+ * timeout says the solve was going fine and ran out of clock, and only the
+ * second one has a partial worth offering. They are told apart on
+ * `movement_report.timed_out`, never by reading the reason string — that string
+ * embeds a formatted number and is not a token.
+ *
+ * `malformed` is the shape with no `rejection_reasons` key at all: the solver
+ * refused before running and reported `{status: "not_run", blockers: [...]}`, so
+ * a UI reading only the reasons array would show "no reason".
+ *
+ * `ambiguous` is separate from `solved` because the two were the same number
+ * until they weren't, and the difference is the feature's real success rate: the
+ * solver accepted the answer but declined to call it exact, so the pattern still
+ * fails the foldability check and the user still has repair work. Counted as
+ * `solved` it made a run that cleared none of a file's seventy angle errors look
+ * like a win.
+ */
+export type CpExactSolveVerdict =
+  | 'solved'
+  | 'ambiguous'
+  | 'rejected'
+  | 'timeout'
+  | 'malformed'
+  | 'error';
+
+/**
+ * The solver's `rejection_reasons` vocabulary, verbatim, plus the three endings
+ * that carry no token — `timeout`, whose reason is a formatted string,
+ * `malformed_input`, which has no reasons key, and `above_fold_precision`, which
+ * is not a rejection at all but the explanation an `ambiguous` verdict needs.
+ *
+ * Sent as an enum because it is one: nine fixed tokens the compiler writes. The
+ * blocker *messages* accompanying a malformed input are prose containing span
+ * and vertex indices, and are never sent.
+ */
+export type CpExactSolveRejectionReason =
+  | 'preflight_degenerate_edges'
+  | 'preflight_boundary_failures'
+  | 'candidate_status_failed'
+  | 'movement_budget_exceeded'
+  | 'odd_degree_vertices_worsened'
+  | 'degenerate_edges_worsened'
+  | 'unmodeled_crossings_worsened'
+  | 'boundary_failures_worsened'
+  | 'objective_not_improved'
+  | 'timeout'
+  | 'malformed_input'
+  | 'above_fold_precision';
+
+/**
+ * What the user did with a finished solve.
+ *
+ * The question this exists to answer is whether the solve is *trusted*, which
+ * the completion event cannot see: a solve that lands and is then reverted is a
+ * failure of the feature however clean its residuals were. `accepted-partial` is
+ * its own value rather than an `accepted`, because taking a timed-out partial is
+ * a materially weaker endorsement than taking a completed solve, and merging
+ * them would make the timeout path look as healthy as the successful one.
+ */
+export type CpExactSolveResolution = 'accepted' | 'accepted-partial' | 'retried';
+
+/** How an image reached the Detect dialog. */
+export type CpDetectImageSource = 'picker' | 'drop';
+
+/** Where the Detect dialog stood when it was closed without importing. */
+export type CpDetectDismissStage = 'upload' | 'crop' | 'detecting' | 'review';
+
+/**
+ * Why a detection did not complete.
+ *
+ * The first four are the model store's own codes — the download half of a
+ * first run, which is where a CDN or a bucket problem shows up. `worker_lost`
+ * is the runtime dying under the inference (a wasm trap, an OOM), and
+ * `inference` is every other failure of the model run itself.
+ */
+export type CpDetectFailureReason =
+  | 'registry_unavailable'
+  | 'registry_invalid'
+  | 'download_failed'
+  | 'integrity'
+  | 'worker_lost'
+  | 'inference';
+
 /**
  * Where a simulator run was started from.
  *
@@ -281,10 +382,66 @@ export const ANALYTICS_EVENTS = {
   bpOptimizerRun: 'bp optimizer run',
   bpPatternNotFound: 'bp pattern not found',
   bpFlapResized: 'bp flap resized',
+  /**
+   * A check-suppression region was placed.
+   *
+   * Hand-placed because the `cp tool used` chokepoint cannot see it: that fires
+   * inside `executeOristudioCpCommand`, and this tool commits web-side and never
+   * reaches the kernel. `source` is the point — a region drawn by hand and one
+   * created by a detection import are the same object doing two different jobs,
+   * and only the first says anyone found the tool.
+   */
+  cpSuppressionRegionCreated: 'cp suppression region created',
+  /**
+   * An exact solve finished, however it finished.
+   *
+   * Distinct from the `command invoked` the chokepoint already captures for
+   * `cp.exactSolve`: that counts intent, this counts outcome, and the gap
+   * between the two is the feature's success rate. Carries the structured
+   * properties the chokepoint cannot express — verdict, stage, reason, and
+   * bucketed wall time.
+   */
+  cpExactSolveCompleted: 'cp exact solve completed',
+  /**
+   * The Accept / Try again gate was answered.
+   *
+   * The second half of the funnel. A solve that lands and is reverted is not a
+   * success, and nothing before this event can tell the two apart.
+   */
+  cpExactSolveResolved: 'cp exact solve resolved',
+  /**
+   * The Image→CP funnel, in order. `command invoked` (`file.detectCpImage`)
+   * opens the dialog; then an image is loaded, Detect is pressed, detection
+   * completes, and the pattern is imported. A close at any point before the
+   * import is a `cp detect dismissed` with the stage it happened at, so the
+   * drop-off between any two steps is a count, not an inference.
+   */
+  cpDetectImageLoaded: 'cp detect image loaded',
   cpDetectStarted: 'cp detect started',
   cpDetectCompleted: 'cp detect completed',
   cpDetectImported: 'cp detect imported',
+  cpDetectDismissed: 'cp detect dismissed',
+  /**
+   * A run the user stopped, on any of the three surfaces that start one.
+   *
+   * Deliberately **not** a sixth `verdict` on `cp exact solve completed`: that
+   * event counts the four endings the solver reaches, and a stopped run reached
+   * none of them — folding it in would put "the user pressed Stop" inside the
+   * feature's failure rate. Carries `kind` (which surface), `stage` (how far it
+   * got) and a bucketed wall time, which together answer the question the
+   * mechanism was chosen for: are people stopping the long hard-bucket solves,
+   * or the short ones.
+   */
   cpDetectCancelled: 'cp detect cancelled',
+  /** A detector model's bytes arrived and verified — the first run's, or an offered update's. */
+  cpDetectModelDownloaded: 'cp detect model downloaded',
+  /**
+   * A download that was asked for by hand — Settings ▸ Models, or the dialog's
+   * update offer — did not verify. A first run's download failing is a
+   * `cp detect completed` with `succeeded: false` and the same code as its
+   * reason, since that is the funnel step it broke.
+   */
+  cpDetectModelDownloadFailed: 'cp detect model download failed',
   foldSimulationRun: 'fold simulation run',
   foldedFormExported: 'folded form exported',
   foldWarningShown: 'fold warning shown',
@@ -570,6 +727,28 @@ export type UpdateFailureReason =
 export type UpdateDismissScope = 'skipped' | 'session' | 'revoked';
 
 export const DURATION_MS_BUCKETS = [50, 100, 250, 500, 1000, 2500, 5000, 10000] as const;
+
+/**
+ * Threshold ladder for how long an exact solve ran, in milliseconds.
+ *
+ * Shaped around the measured native population rather than around round numbers:
+ * easy solves sit at a p50 of 0.36 s, medium at 3.5 s with a p90 of 12.5 s, and
+ * the hard bucket essentially always hits the 25 s cap. {@link DURATION_MS_BUCKETS}
+ * tops out at ten seconds, which puts a healthy medium solve and a run that gave
+ * up in the same bucket — the one distinction this ladder exists to keep.
+ *
+ * The top threshold is the default timeout, so `>25000` should be empty. If it
+ * fills, the browser is slower than the native measurements by enough that the
+ * cap itself is the thing to revisit.
+ */
+export const CP_EXACT_SOLVE_MS_BUCKETS = [250, 1000, 2500, 5000, 10000, 15000, 25000] as const;
+
+/**
+ * One detector inference, from tensor to outputs. Spans a GPU's quarter second
+ * to a single wasm thread's minute, which is the spread `cp detect completed`
+ * exists to measure across devices.
+ */
+export const CP_DETECT_INFERENCE_MS_BUCKETS = [250, 500, 1000, 2500, 5000, 10000, 30000, 60000] as const;
 
 /**
  * Threshold ladder for how long a fold ran, in milliseconds.

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { historyCountForContext } from './capabilities';
+import { createCpSuppressionRegion } from '../../cp-workspace/annotations/suppressionRegion';
+import { cpSolvablePatternCount, historyCountForContext } from './capabilities';
+import type { WorkspaceState } from './types';
 import {
   singleBoxPleatDesignTab,
   singleDesignTab,
@@ -60,5 +62,46 @@ describe('historyCountForContext', () => {
     // design's pane. Answering with the *incoming* tab's history would enable
     // undo against a stack that is not there.
     expect(historyCountForContext('bp-tree', tabWith('explori', 9, 9), cp, 'past')).toBe(0);
+  });
+});
+
+/**
+ * Which regions count as a solvable pattern.
+ *
+ * `cp.exactSolve`'s whole gate hangs off this number, and getting it from the
+ * store is the step that turns the menu item from inert to live. It counts
+ * *attachments*, not paper squares: an `ExactSolveInput` arrives on the
+ * suppression region a detection import places, one per added candidate, and a
+ * hand-drawn CP has nothing to solve from until the cold-rebuild tier lands.
+ */
+describe('cpSolvablePatternCount', () => {
+  function stateWith(annotations: unknown[]): WorkspaceState {
+    return { oristudioCpAnnotations: annotations } as unknown as WorkspaceState;
+  }
+
+  const withSolve = createCpSuppressionRegion({
+    center: { x: 0.5, y: 0.5 },
+    width: 1,
+    height: 1,
+    solveInput: { spans: [] },
+  });
+  const withoutSolve = createCpSuppressionRegion({
+    center: { x: 0.5, y: 0.5 },
+    width: 1,
+    height: 1,
+  });
+
+  it('counts only regions carrying a solve input', () => {
+    expect(cpSolvablePatternCount(stateWith([]))).toBe(0);
+    expect(cpSolvablePatternCount(stateWith([withoutSolve]))).toBe(0);
+    expect(cpSolvablePatternCount(stateWith([withSolve]))).toBe(1);
+    expect(cpSolvablePatternCount(stateWith([withSolve, withoutSolve, withSolve]))).toBe(2);
+  });
+
+  it('ignores annotations of other kinds', () => {
+    // A reference image sits beside the region a detection import places, and it
+    // is not a pattern. Narrowing by kind first is what keeps it out.
+    const image = { kind: 'cpImage', id: 'img', solveInput: { spans: [] } };
+    expect(cpSolvablePatternCount(stateWith([image]))).toBe(0);
   });
 });

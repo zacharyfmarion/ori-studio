@@ -13,6 +13,7 @@ use tauri_plugin_window_state::StateFlags;
 ))]
 use std::path::{Path, PathBuf};
 
+mod cp_detect;
 mod cp_engine;
 mod updater;
 
@@ -245,6 +246,7 @@ pub fn run() {
         // mutex for its whole duration, so the cancel flag has to live somewhere
         // the stop command can reach without waiting for it.
         .manage(cp_engine::new_cancel_state())
+        .manage(cp_detect::new_state())
         .plugin(tauri_plugin_dialog::init())
         // Reopen the window where and how it was left. Narrowed from the
         // plugin's default of every flag: `FULLSCREEN` would relaunch into
@@ -296,6 +298,16 @@ pub fn run() {
             cp_engine::cp_document_summary,
             cp_engine::cp_free_document,
             cp_engine::cp_execute_command,
+            cp_detect::cp_detect_model_dir,
+            cp_detect::cp_detect_model_list,
+            cp_detect::cp_detect_model_path,
+            cp_detect::cp_detect_model_store,
+            cp_detect::cp_detect_model_remove,
+            cp_detect::cp_detect_recognize,
+            cp_detect::cp_detect_solve_exact,
+            cp_detect::cp_detect_solve_exact_to_fold,
+            cp_detect::cp_detect_solve_cancel,
+            cp_detect::cp_detect_exact_solve_input_from_fold,
             cp_engine::cp_preview_command,
             cp_engine::cp_insert_line_segments,
             cp_engine::cp_deselect_all,

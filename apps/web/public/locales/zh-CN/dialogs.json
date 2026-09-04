@@ -49,9 +49,17 @@
     "yes": "是"
   },
   "cpDetectImport": {
+    "add": "添加",
+    "addAsIs": "直接添加",
+    "addImproved": "添加改进后的结果",
+    "addLabel": "添加检测到的折痕图",
+    "addPartial": "添加部分结果",
     "ariaLabel": "从图像检测 CP",
+    "beta": "测试版",
+    "betaNote": "在中小型折痕图上效果最好。求解只能保证得到一个可平折的折痕图，而不是设计者原本画出的那一个：本应均匀的间距可能会略有不均。",
     "busy": {
       "detecting": "正在运行模型",
+      "downloadingModel": "正在下载检测器 — 已下载 {{loaded}}，共 {{total}}",
       "importing": "正在导入折痕图",
       "loadingModel": "正在检查检测器模型",
       "opening": "正在打开图像",
@@ -63,23 +71,41 @@
     "detect": "检测",
     "detected": "已检测",
     "dropImageHere": "将图像拖放到此处",
-    "import": "导入",
+    "editCrop": "编辑裁剪",
     "inferred": "已推断",
+    "model": {
+      "deviceGpu": "此设备有 GPU，因此检测只需几秒。",
+      "deviceSingle": "此设备没有 GPU，且只有单线程，预计需要一分钟左右。",
+      "deviceThreads": "此设备没有 GPU，检测将在 CPU 上运行，可能需要一段时间。",
+      "download": "检测器需要下载 {{size}}，仅需一次。",
+      "installed": "已安装检测器 v{{version}}（{{size}}）。",
+      "installedLocal": "已安装检测器（{{size}}）。",
+      "update": "下载",
+      "updateAvailable": "有更新的检测器可用（v{{version}}，{{size}}）。",
+      "updating": "正在下载更新的检测器 — 已下载 {{loaded}}，共 {{total}}",
+      "updatingStart": "正在下载更新的检测器…"
+    },
     "mvChanges": "山折/谷折更改",
     "openImageTitle": "打开折痕图图像",
     "rectified": "已校正",
-    "report": {
-      "ambiguous": "不明确",
-      "assignmentChange_other": "{{count}} 处分配更改",
-      "assignmentChanges_other": "{{count}} 处分配更改",
-      "compilerFallback": "编译器回退",
-      "counts": "{{vertices}} 个顶点，{{edges}} 条边",
-      "topologyMove_other": "{{count}} 处拓扑变动",
-      "topologyMoves_other": "{{count}} 处拓扑变动"
-    },
+    "regionLabel": "检测到的折痕图",
+    "repairLabel": "添加检测到的折痕图以便修复",
+    "reviewAndFix": "检查并修复",
     "runningModel": "正在运行模型",
+    "stopping": "正在停止…",
+    "stopSolve": "停止",
     "title": "从图像检测 CP",
-    "updateCrop": "更新裁剪"
+    "verdict": {
+      "afterFailure": "“检查并修复”会添加候选图案及其背景源图像，并保留求解器数据，便于你修复后再次求解。",
+      "blocked": "求解器无法读取该候选图，因此没有可手动修复的内容。你仍然可以直接添加它。",
+      "cancelled": "你停止了求解，因此没有任何改动——这就是刚识别出来的图案。“检查并修复”会把它连同背后的源图像一起添加，并保留求解器数据，便于你在文档中再次求解。",
+      "exact": "将它添加到你的作品旁边，不会改动文档的其余部分。",
+      "improved": "“检查并修复”会把它连同背后的源图像一起添加，并保留求解器数据，便于你修复剩余问题后再次求解——也可以直接添加当前改进后的结果。",
+      "improvedNoFold": "“检查并修复”会把它连同背后的源图像一起添加，并保留求解器数据，便于你修复剩余问题后再次求解。",
+      "repairable_other": "已识别 — 有 {{count}} 处需要修复，因此没有运行求解：它会把全部时间预算花在你即将修改的几何上。“检查并修复”会添加候选图案及其背景源图像，便于你修复后再求解。直接按原样添加则会让所有角度都保持近似值。",
+      "solving": "拓扑没有任何标记，因此正在求解。下方显示的是识别到的折痕，求解完成后它们会移动到位。",
+      "timeoutPartial_other": "超时前它已将 {{count}} 个顶点移动到位，你可以添加该部分结果，而不是原始候选图案。"
+    }
   },
   "export": {
     "allPatterns": "所有折痕图",
@@ -133,6 +159,7 @@
       "images": "图像",
       "inlineSimulations": "模拟窗口",
       "richText": "富文本格式",
+      "suppressionRegions": "检查抑制区域",
       "symmetry": "镜像对称",
       "unassignedCreases": "未指定折痕"
     },
@@ -292,6 +319,25 @@
     "language": {
       "system": "系统默认",
       "title": "语言"
+    },
+    "models": {
+      "current": "当前使用",
+      "description": "折痕图检测器只需下载一次模型，并将其保存在本设备上。有更新的模型时会在这里和“检测”对话框中提供；下载前一定会先显示大小。",
+      "download": "下载",
+      "downloading": "正在下载 — 已下载 {{loaded}}，共 {{total}}",
+      "downloadingStart": "正在下载…",
+      "installed": "已安装",
+      "loading": "正在读取模型清单…",
+      "localRow": "开发版检测器",
+      "notInstalled": "未下载",
+      "orphaned": "已不再发布；不会被使用。",
+      "orphanedLabel": "已停用的检测器",
+      "remove": "移除",
+      "row": "检测器 v{{version}}",
+      "title": "模型",
+      "unavailable": "无法读取模型清单：{{reason}}",
+      "update": "更新",
+      "updateAvailable": "比已安装的版本更新"
     },
     "sections": "设置分区",
     "shortcuts": {
