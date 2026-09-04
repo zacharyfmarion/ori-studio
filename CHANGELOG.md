@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-09-04
+
+Crease patterns read from images, and a tool for moving a vertex.
+
+### Added
+
+- Add **Detect CP from Image**, in beta. Point Ori Studio at a photo, scan or screenshot of a crease pattern and get an editable pattern back. The model is downloaded once per device, verified, and kept; the desktop app runs it natively, and the browser uses the GPU where it can. Two limits worth knowing: it works best on small and medium crease patterns, and a solve guarantees a pattern that folds flat, not necessarily the one the designer drew.
+- Add **Move Vertex**: grab a junction, drag it, and every crease that ends there follows. Creases that merely pass nearby are left alone, the destination snaps like any other draw point, and the whole drag is a single undo.
+- Repair a detected pattern before solving it. The pattern lands under a region that quiets the angle checks while its topology is fixed; Solve then runs the exact solver over the creases as drawn and offers Accept or Try again with a sentence saying what remains. A slow solve can be stopped, and a refused answer names what it would have broken.
+- Add Settings ▸ Models, which lists the detector versions on this device and can download, update or remove them.
+
+### Improved
+
+- Let the desktop app bind the chords only a browser reserves. `Mod+R`, `Mod+W`, `Mod+T`, `Mod+L`, `F5` and others were refused on every surface because the web cannot have them — the desktop app can. `Mod+R` in particular is a shipped default twice over, as Optimize Scale and as Reflect Through Lines, and the browser was eating both. An imported Oriedita configuration now keeps the chords only a browser objects to, instead of discarding them.
+- Hold a pleated design to one pitch. A detected box-pleated or 22.5° design came back foldable with every pleat crease wherever pixel noise had put it; equal spacings are now found and held, taking a 30-crease run from 1.1% spread to none.
+- Pin a designed pattern to its angle family, so a solved 22.5° or hex pattern keeps the angles it was drawn on rather than settling near them. 30° and 15° join the families.
+- Solve a hard pattern in a fraction of the time. Ordering the system by reverse Cuthill–McKee and reusing its symbolic factor takes a 7.7-second solve to 0.09 seconds.
+- Say when Big-Little-Big is what stands between a pattern and folding flat, rather than reporting a clean solve for a pattern that still will not fold.
+
+### Fixed
+
+- Stop the flat-foldability check answering differently depending on which way up the pattern is. The same pattern, rotated, reported between two and five violations that were not there, and no reported site survived every orientation.
+- Stop counting auxiliary lines as folds. A guide line through a vertex made its four folds read as degree five — "cannot fold flat wherever the vertices sit" — about a vertex that folds perfectly well.
+- Keep the app working on a page the browser has translated. Google Translate rewrites the text nodes React is holding, which took out whatever was on screen; the box-pleating optimizer dialog vanished every time it was run on a translated page.
+- Stop a `$` in a share title corrupting the link's preview card. The title was expanded as a replacement pattern, splicing the rest of the document into a meta tag.
+- Stop the share dialog reopening empty after a dismiss that lands while the link is still being created.
+- Stop an armed shortcut capture eating the whole keyboard.
+- Ask the renderer's own question when probing WebGL support, so a browser that matches extension names case-sensitively no longer yields a probe that says "supported" and a renderer that throws.
+- Stop File ▸ New advertising a `Mod+N` no browser will ever deliver.
+
 ## [0.3.1] - 2026-09-01
 
 The first release you can use on a tablet or a phone.
