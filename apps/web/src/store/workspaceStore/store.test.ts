@@ -33,6 +33,7 @@ import type {
 } from '../../engine/oristudioCpTypes';
 import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
 import type { InlineSimulation } from '../../cp-workspace/inlineSimulation/inlineSimulation';
+import type { CpMeasurement } from '../../cp-workspace/measure';
 import {
   inlineSimulationSourceCount,
   setInlineSimulationSource,
@@ -5557,6 +5558,115 @@ describe('workspace store slices', () => {
 
       await useWorkspaceStore.getState().undo();
       expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toHaveLength(1);
+    });
+  });
+
+  /**
+   * Undo used to reach straight past the readout on screen and mutate the crease
+   * pattern — the visible thing untouched, the invisible thing destroyed. See
+   * `cp-workspace/measureSession.ts` for the rule these pin down.
+   */
+  describe('measure readings in undo', () => {
+    const reading = (value: number): CpMeasurement => ({
+      kind: 'distance',
+      value,
+      points: [
+        { x: 0, y: 0 },
+        { x: value, y: 0 },
+      ],
+    });
+
+    /** A crease-pattern surface with one undoable document edit behind it. */
+    function seedMeasuringOverAnEdit() {
+      resetStores(seedSnapshot());
+      useWorkspaceStore.setState({
+        activePanelId: 'crease-pattern',
+        oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+        oristudioCpInlineSimulations: [inlineSimulationFixture()],
+        oristudioCpHistoryPast: [],
+        oristudioCpHistoryFuture: [],
+      });
+      expect(useWorkspaceStore.getState().activeEditingContext).toBe('crease-pattern');
+      // A real, undoable edit to fall through to.
+      useWorkspaceStore.getState().removeOristudioCpInlineSimulation('inline-sim-1');
+      expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(1);
+    }
+
+    const session = () => useWorkspaceStore.getState().oristudioCpMeasureSession;
+
+    it('takes back the last reading and leaves the crease pattern alone', async () => {
+      seedMeasuringOverAnEdit();
+      useWorkspaceStore.getState().takeOristudioCpMeasurement(reading(1));
+      useWorkspaceStore.getState().takeOristudioCpMeasurement(reading(2));
+
+      await useWorkspaceStore.getState().undo();
+
+      expect(session().taken.map((entry) => entry.value)).toEqual([1]);
+      // The document is exactly where it was: the deleted window is still gone.
+      expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toHaveLength(0);
+      expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(1);
+    });
+
+    it('falls through to the document once the readings run out', async () => {
+      seedMeasuringOverAnEdit();
+      useWorkspaceStore.getState().takeOristudioCpMeasurement(reading(1));
+
+      await useWorkspaceStore.getState().undo();
+      expect(session().taken).toHaveLength(0);
+      expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toHaveLength(0);
+
+      await useWorkspaceStore.getState().undo();
+      expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toHaveLength(1);
+    });
+
+    it('puts a reading back on redo, before the document', async () => {
+      seedMeasuringOverAnEdit();
+      useWorkspaceStore.getState().takeOristudioCpMeasurement(reading(1));
+      await useWorkspaceStore.getState().undo();
+
+      await useWorkspaceStore.getState().redo();
+      expect(session().taken.map((entry) => entry.value)).toEqual([1]);
+      // Redo went to the reading, so the document's own future is untouched.
+      expect(useWorkspaceStore.getState().oristudioCpHistoryFuture).toHaveLength(0);
+    });
+
+    it('drops the session redo once undo has reached the document', async () => {
+      // Otherwise the two stacks answer Undo and Redo in different orders: the
+      // user steps past a reading into the document, and Redo resurrects the
+      // reading instead of the edit they just undid.
+      seedMeasuringOverAnEdit();
+      useWorkspaceStore.getState().takeOristudioCpMeasurement(reading(1));
+      await useWorkspaceStore.getState().undo(); // the reading
+      await useWorkspaceStore.getState().undo(); // the document
+      expect(session().undone).toHaveLength(0);
+
+      await useWorkspaceStore.getState().redo();
+      expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toHaveLength(0);
+      expect(session().taken).toHaveLength(0);
+    });
+
+    it('is the crease-pattern surface\'s undo, not the tree editor\'s', async () => {
+      // A reading only exists while the measure tool is up on the Edit canvas.
+      // Undo in the tree editor is the tree's, whatever that canvas is holding —
+      // and the tree's undo falls through to the CP one, so without the surface
+      // check it would take a reading rather than doing nothing.
+      seedMeasuringOverAnEdit();
+      useWorkspaceStore.getState().takeOristudioCpMeasurement(reading(1));
+      loadSnapshotIntoStore(seedSnapshot());
+      useWorkspaceStore.setState({ activePanelId: 'design' });
+      expect(useWorkspaceStore.getState().activeEditingContext).toBe('treemaker-tree');
+
+      await useWorkspaceStore.getState().undo();
+      expect(session().taken).toHaveLength(1);
+    });
+
+    it('never marks the document dirty — a reading is not an edit', () => {
+      seedMeasuringOverAnEdit();
+      useWorkspaceStore.setState({ dirty: false });
+      useWorkspaceStore.getState().takeOristudioCpMeasurement(reading(1));
+      useWorkspaceStore.getState().undoOristudioCpMeasurement();
+      useWorkspaceStore.getState().redoOristudioCpMeasurement();
+      expect(useWorkspaceStore.getState().dirty).toBe(false);
     });
   });
 

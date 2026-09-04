@@ -93,7 +93,7 @@
     "measure": "Mesurer",
     "measureAngleUnitDeg": "Degrés",
     "measureAngleUnitRad": "Radians",
-    "measureClearHint": "Retour arrière supprime la dernière, Échap efface tout",
+    "measureClearHint": "Annuler ou Retour arrière supprime la dernière, Échap efface tout",
     "measureCopied": "Copié",
     "measureCopy": "Copier la valeur en pleine précision",
     "measureCopyFailed": "Copie bloquée",

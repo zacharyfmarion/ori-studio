@@ -180,6 +180,7 @@
     "rebuildCp": "CP を再作成",
     "rebuildCreasePattern": "展開図を再作成",
     "redo": "やり直し",
+    "redoLastMeasurement": "最後の測定を元に戻す",
     "redoNextCpEdit": "次の展開図の編集をやり直し",
     "redoNextTreeEdit": "次のツリーの編集をやり直し",
     "refresh": "更新",
@@ -249,6 +250,7 @@
     "triangulateTree": "ツリーを三角形分割",
     "undo": "元に戻す",
     "undoLastCpEdit": "最後の展開図の編集を元に戻す",
+    "undoLastMeasurement": "最後の測定を取り消す",
     "undoLastTreeEdit": "最後のツリーの編集を元に戻す"
   },
   "close": "閉じる",

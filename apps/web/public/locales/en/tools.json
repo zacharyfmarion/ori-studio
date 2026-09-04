@@ -89,7 +89,7 @@
     "measure": "Measure",
     "measureAngleUnitDeg": "Degrees",
     "measureAngleUnitRad": "Radians",
-    "measureClearHint": "Backspace removes the last, Escape clears all",
+    "measureClearHint": "Undo or Backspace removes the last, Escape clears all",
     "measureCopied": "Copied",
     "measureCopy": "Copy the full-precision value",
     "measureCopyFailed": "Copy blocked",

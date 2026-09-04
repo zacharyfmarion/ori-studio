@@ -2008,7 +2008,7 @@
     "tools:cpContext.measure": "ebf940f2b3ea",
     "tools:cpContext.measureAngleUnitDeg": "4b7e73642ab7",
     "tools:cpContext.measureAngleUnitRad": "30872f8c7407",
-    "tools:cpContext.measureClearHint": "92f7b6946363",
+    "tools:cpContext.measureClearHint": "b45e287fb77b",
     "tools:cpContext.measureCopied": "8d525e5f158b",
     "tools:cpContext.measureCopy": "e5e8616b503c",
     "tools:cpContext.measureCopyFailed": "b9b4b951fe34",
@@ -2767,7 +2767,9 @@
     "cpVocab:action.cp_action_vertex_move.label": "157afd051ff5",
     "cpVocab:action.cp_action_vertex_move.tooltip": "1925aca0e105",
     "cpVocab:action.cp_action_vertex_move.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_vertex_move.steps.0": "63ea1fa2c692"
+    "cpVocab:action.cp_action_vertex_move.steps.0": "63ea1fa2c692",
+    "common:capability.redoLastMeasurement": "b6a7a2a07106",
+    "common:capability.undoLastMeasurement": "7a37ce375e4c"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4778,7 +4780,7 @@
     "tools:cpContext.measure": "ebf940f2b3ea",
     "tools:cpContext.measureAngleUnitDeg": "4b7e73642ab7",
     "tools:cpContext.measureAngleUnitRad": "30872f8c7407",
-    "tools:cpContext.measureClearHint": "92f7b6946363",
+    "tools:cpContext.measureClearHint": "b45e287fb77b",
     "tools:cpContext.measureCopied": "8d525e5f158b",
     "tools:cpContext.measureCopy": "e5e8616b503c",
     "tools:cpContext.measureCopyFailed": "b9b4b951fe34",
@@ -5537,7 +5539,9 @@
     "cpVocab:action.cp_action_vertex_move.label": "157afd051ff5",
     "cpVocab:action.cp_action_vertex_move.tooltip": "1925aca0e105",
     "cpVocab:action.cp_action_vertex_move.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_vertex_move.steps.0": "63ea1fa2c692"
+    "cpVocab:action.cp_action_vertex_move.steps.0": "63ea1fa2c692",
+    "common:capability.redoLastMeasurement": "b6a7a2a07106",
+    "common:capability.undoLastMeasurement": "7a37ce375e4c"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7548,7 +7552,7 @@
     "tools:cpContext.measure": "ebf940f2b3ea",
     "tools:cpContext.measureAngleUnitDeg": "4b7e73642ab7",
     "tools:cpContext.measureAngleUnitRad": "30872f8c7407",
-    "tools:cpContext.measureClearHint": "92f7b6946363",
+    "tools:cpContext.measureClearHint": "b45e287fb77b",
     "tools:cpContext.measureCopied": "8d525e5f158b",
     "tools:cpContext.measureCopy": "e5e8616b503c",
     "tools:cpContext.measureCopyFailed": "b9b4b951fe34",
@@ -8307,7 +8311,9 @@
     "cpVocab:action.cp_action_vertex_move.label": "157afd051ff5",
     "cpVocab:action.cp_action_vertex_move.tooltip": "1925aca0e105",
     "cpVocab:action.cp_action_vertex_move.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_vertex_move.steps.0": "63ea1fa2c692"
+    "cpVocab:action.cp_action_vertex_move.steps.0": "63ea1fa2c692",
+    "common:capability.redoLastMeasurement": "b6a7a2a07106",
+    "common:capability.undoLastMeasurement": "7a37ce375e4c"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -10298,7 +10304,7 @@
     "tools:cpContext.measure": "ebf940f2b3ea",
     "tools:cpContext.measureAngleUnitDeg": "4b7e73642ab7",
     "tools:cpContext.measureAngleUnitRad": "30872f8c7407",
-    "tools:cpContext.measureClearHint": "92f7b6946363",
+    "tools:cpContext.measureClearHint": "b45e287fb77b",
     "tools:cpContext.measureCopied": "8d525e5f158b",
     "tools:cpContext.measureCopy": "e5e8616b503c",
     "tools:cpContext.measureCopyFailed": "b9b4b951fe34",
@@ -11027,7 +11033,9 @@
     "cpVocab:action.cp_action_vertex_move.label": "157afd051ff5",
     "cpVocab:action.cp_action_vertex_move.tooltip": "1925aca0e105",
     "cpVocab:action.cp_action_vertex_move.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_vertex_move.steps.0": "63ea1fa2c692"
+    "cpVocab:action.cp_action_vertex_move.steps.0": "63ea1fa2c692",
+    "common:capability.redoLastMeasurement": "b6a7a2a07106",
+    "common:capability.undoLastMeasurement": "7a37ce375e4c"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -13018,7 +13026,7 @@
     "tools:cpContext.measure": "ebf940f2b3ea",
     "tools:cpContext.measureAngleUnitDeg": "4b7e73642ab7",
     "tools:cpContext.measureAngleUnitRad": "30872f8c7407",
-    "tools:cpContext.measureClearHint": "92f7b6946363",
+    "tools:cpContext.measureClearHint": "b45e287fb77b",
     "tools:cpContext.measureCopied": "8d525e5f158b",
     "tools:cpContext.measureCopy": "e5e8616b503c",
     "tools:cpContext.measureCopyFailed": "b9b4b951fe34",
@@ -13747,7 +13755,9 @@
     "cpVocab:action.cp_action_vertex_move.label": "157afd051ff5",
     "cpVocab:action.cp_action_vertex_move.tooltip": "1925aca0e105",
     "cpVocab:action.cp_action_vertex_move.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_vertex_move.steps.0": "63ea1fa2c692"
+    "cpVocab:action.cp_action_vertex_move.steps.0": "63ea1fa2c692",
+    "common:capability.redoLastMeasurement": "b6a7a2a07106",
+    "common:capability.undoLastMeasurement": "7a37ce375e4c"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -15758,7 +15768,7 @@
     "tools:cpContext.measure": "ebf940f2b3ea",
     "tools:cpContext.measureAngleUnitDeg": "4b7e73642ab7",
     "tools:cpContext.measureAngleUnitRad": "30872f8c7407",
-    "tools:cpContext.measureClearHint": "92f7b6946363",
+    "tools:cpContext.measureClearHint": "b45e287fb77b",
     "tools:cpContext.measureCopied": "8d525e5f158b",
     "tools:cpContext.measureCopy": "e5e8616b503c",
     "tools:cpContext.measureCopyFailed": "b9b4b951fe34",
@@ -16517,7 +16527,9 @@
     "cpVocab:action.cp_action_vertex_move.label": "157afd051ff5",
     "cpVocab:action.cp_action_vertex_move.tooltip": "1925aca0e105",
     "cpVocab:action.cp_action_vertex_move.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_vertex_move.steps.0": "63ea1fa2c692"
+    "cpVocab:action.cp_action_vertex_move.steps.0": "63ea1fa2c692",
+    "common:capability.redoLastMeasurement": "b6a7a2a07106",
+    "common:capability.undoLastMeasurement": "7a37ce375e4c"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -18528,7 +18540,7 @@
     "tools:cpContext.measure": "ebf940f2b3ea",
     "tools:cpContext.measureAngleUnitDeg": "4b7e73642ab7",
     "tools:cpContext.measureAngleUnitRad": "30872f8c7407",
-    "tools:cpContext.measureClearHint": "92f7b6946363",
+    "tools:cpContext.measureClearHint": "b45e287fb77b",
     "tools:cpContext.measureCopied": "8d525e5f158b",
     "tools:cpContext.measureCopy": "e5e8616b503c",
     "tools:cpContext.measureCopyFailed": "b9b4b951fe34",
@@ -19287,7 +19299,9 @@
     "cpVocab:action.cp_action_vertex_move.label": "157afd051ff5",
     "cpVocab:action.cp_action_vertex_move.tooltip": "1925aca0e105",
     "cpVocab:action.cp_action_vertex_move.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_vertex_move.steps.0": "63ea1fa2c692"
+    "cpVocab:action.cp_action_vertex_move.steps.0": "63ea1fa2c692",
+    "common:capability.redoLastMeasurement": "b6a7a2a07106",
+    "common:capability.undoLastMeasurement": "7a37ce375e4c"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -21278,7 +21292,7 @@
     "tools:cpContext.measure": "ebf940f2b3ea",
     "tools:cpContext.measureAngleUnitDeg": "4b7e73642ab7",
     "tools:cpContext.measureAngleUnitRad": "30872f8c7407",
-    "tools:cpContext.measureClearHint": "92f7b6946363",
+    "tools:cpContext.measureClearHint": "b45e287fb77b",
     "tools:cpContext.measureCopied": "8d525e5f158b",
     "tools:cpContext.measureCopy": "e5e8616b503c",
     "tools:cpContext.measureCopyFailed": "b9b4b951fe34",
@@ -22007,6 +22021,8 @@
     "cpVocab:action.cp_action_vertex_move.label": "157afd051ff5",
     "cpVocab:action.cp_action_vertex_move.tooltip": "1925aca0e105",
     "cpVocab:action.cp_action_vertex_move.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_vertex_move.steps.0": "63ea1fa2c692"
+    "cpVocab:action.cp_action_vertex_move.steps.0": "63ea1fa2c692",
+    "common:capability.redoLastMeasurement": "b6a7a2a07106",
+    "common:capability.undoLastMeasurement": "7a37ce375e4c"
   }
 }

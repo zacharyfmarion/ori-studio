@@ -180,6 +180,7 @@
     "rebuildCp": "重新生成折痕图",
     "rebuildCreasePattern": "重新生成折痕图",
     "redo": "重做",
+    "redoLastMeasurement": "恢复最后一次测量",
     "redoNextCpEdit": "重做下一步折痕图编辑",
     "redoNextTreeEdit": "重做下一步树编辑",
     "refresh": "刷新",
@@ -249,6 +250,7 @@
     "triangulateTree": "对树进行三角剖分",
     "undo": "撤销",
     "undoLastCpEdit": "撤销上一步折痕图编辑",
+    "undoLastMeasurement": "撤销最后一次测量",
     "undoLastTreeEdit": "撤销上一步树编辑"
   },
   "close": "关闭",

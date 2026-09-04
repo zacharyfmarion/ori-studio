@@ -61,6 +61,20 @@ export function useWorkspaceCapabilities() {
   const activeDesign = useWorkspaceStore(activeDesignTab);
   const clipboard = useWorkspaceStore((state) => state.clipboard);
   const selection = useWorkspaceStore((state) => selectSelection(state));
+  // The measure tool's readings, which outrank the document's own history on the
+  // crease-pattern surface (see `cp-workspace/measureSession.ts`). Subscribed
+  // here so the Edit menu and the canvas history pills light up for a reading
+  // exactly when Cmd+Z would take one back.
+  const cpMeasurementsTaken = useWorkspaceStore((state) =>
+    state.activeEditingContext === 'crease-pattern'
+      ? state.oristudioCpMeasureSession.taken.length
+      : 0
+  );
+  const cpMeasurementsUndone = useWorkspaceStore((state) =>
+    state.activeEditingContext === 'crease-pattern'
+      ? state.oristudioCpMeasureSession.undone.length
+      : 0
+  );
   const historyPastCount = historyCountForContext(
     activeEditingContext,
     activeDesign,
@@ -100,6 +114,8 @@ export function useWorkspaceCapabilities() {
       canSaveDesign,
           historyPastCount,
           historyFutureCount,
+          cpMeasurementsTaken,
+          cpMeasurementsUndone,
           clipboard,
           selection,
         },
@@ -128,6 +144,8 @@ export function useWorkspaceCapabilities() {
       canSaveDesign,
       historyFutureCount,
       historyPastCount,
+      cpMeasurementsTaken,
+      cpMeasurementsUndone,
       selection,
       status,
       t,

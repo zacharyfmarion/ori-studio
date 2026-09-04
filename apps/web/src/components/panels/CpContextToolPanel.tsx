@@ -892,7 +892,10 @@ function CpContextToolGroup({
         )}
         {rows.length > 0 && (
           <div className="cp-context-panel__readout">
-            {t('tools:cpContext.measureClearHint', 'Backspace removes the last, Escape clears all')}
+            {t(
+              'tools:cpContext.measureClearHint',
+              'Undo or Backspace removes the last, Escape clears all'
+            )}
           </div>
         )}
       </div>

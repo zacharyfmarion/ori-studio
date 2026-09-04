@@ -180,6 +180,7 @@
     "rebuildCp": "Regerar padrão de vincos",
     "rebuildCreasePattern": "Regerar padrão de vincos",
     "redo": "Refazer",
+    "redoLastMeasurement": "Restaurar a última medição",
     "redoNextCpEdit": "Refazer a próxima edição do padrão de vincos",
     "redoNextTreeEdit": "Refazer a próxima edição da árvore",
     "refresh": "Atualizar",
@@ -249,6 +250,7 @@
     "triangulateTree": "Triangular árvore",
     "undo": "Desfazer",
     "undoLastCpEdit": "Desfazer a última edição do padrão de vincos",
+    "undoLastMeasurement": "Desfazer a última medição",
     "undoLastTreeEdit": "Desfazer a última edição da árvore"
   },
   "close": "Fechar",

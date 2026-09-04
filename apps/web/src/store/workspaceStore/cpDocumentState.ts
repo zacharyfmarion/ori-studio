@@ -1,4 +1,5 @@
 import { clearAllInlineSimulationSources } from '../../cp-workspace/inlineSimulation/inlineSimulationRuntime';
+import { EMPTY_CP_MEASURE_SESSION } from '../../cp-workspace/measureSession';
 import { emptyOristudioCpSelection } from '../../lib/creasePatternViewport';
 import type { WorkspaceState } from './types';
 
@@ -36,6 +37,7 @@ export const CP_DOCUMENT_SCOPED_KEYS = [
   'oristudioCpSelectedAnnotationId',
   'oristudioCpInlineSimulations',
   'oristudioCpFocusedInlineSimulationId',
+  'oristudioCpMeasureSession',
   'oristudioCpDocumentExtensions',
 ] as const;
 
@@ -87,6 +89,8 @@ export function discardCpDocumentState(): CpDocumentScopedState {
     oristudioCpSelectedAnnotationId: null,
     oristudioCpInlineSimulations: [],
     oristudioCpFocusedInlineSimulationId: null,
+    // A reading is taken *of* a document; the next one is not the same paper.
+    oristudioCpMeasureSession: EMPTY_CP_MEASURE_SESSION,
     oristudioCpDocumentExtensions: {},
   };
 }
