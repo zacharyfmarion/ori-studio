@@ -7,6 +7,7 @@
 use crate::candidate_graph::{
     BoundaryReconstructionPolicy, CandidateCreaseBoundaryRole, CandidateVertex,
 };
+use crate::carrier_lines::{SpanLine, carrier_from, shared_carrier_ids};
 use crate::pleat_runs::{
     Obstacle, PleatLine, PleatRun, SpacingGroup, detect_pleat_runs, worst_group_spread,
 };
@@ -132,6 +133,24 @@ pub struct ExactSolveOptions {
     /// solve has converged. See [`PleatSpacingMode`] and [`crate::pleat_runs`].
     #[serde(default)]
     pub pleat_spacing: PleatSpacingMode,
+    /// Whether to re-read which creases share a line off the geometry stage 1
+    /// straightened and re-solve on the joined lines. See [`CarrierJoinMode`].
+    #[serde(default)]
+    pub carrier_join: CarrierJoinMode,
+    /// How far a carrier round may move a vertex from the solution it is
+    /// judged against, as a fraction of the paper. A join reads creases the
+    /// detector bent a degree or so as one line, and straightening them costs
+    /// a pixel or two; a join that has to drag vertices half the acceptance
+    /// budget to hold is not reading the geometry but rewriting it. Measured
+    /// on the curated set: the joins that reproduced a truth moved at most
+    /// 3.9 px of 1024, the one that solved a design to the wrong exact
+    /// configuration moved 9.3 px. Half the movement budget sits between.
+    #[serde(default = "default_carrier_join_movement_budget")]
+    pub carrier_join_movement_budget: f64,
+}
+
+const fn default_carrier_join_movement_budget() -> f64 {
+    0.005
 }
 
 /// A detected box-pleated or pleated 22.5° design comes back from the solve
@@ -143,6 +162,20 @@ pub struct ExactSolveOptions {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PleatSpacingMode {
+    #[default]
+    Auto,
+    Off,
+}
+
+/// A detection's carriers come from geometry noise bent, so a crease the
+/// design draws straight through a vertex is two lines to the solve and stays
+/// bent. `Auto` re-reads which creases share a line off the geometry stage 1
+/// straightened and re-solves on the joined lines, judged like every other
+/// round: adopted only when nothing regresses. See
+/// [`join_pass_through_carriers`] and [`crate::carrier_lines`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CarrierJoinMode {
     #[default]
     Auto,
     Off,
@@ -393,6 +426,8 @@ impl Default for ExactSolveOptions {
             symmetry_match_tolerance: default_symmetry_match_tolerance(),
             symmetry_min_fraction: default_symmetry_min_fraction(),
             pleat_spacing: PleatSpacingMode::default(),
+            carrier_join: CarrierJoinMode::default(),
+            carrier_join_movement_budget: default_carrier_join_movement_budget(),
             polish_kawasaki_sigma_radians: default_polish_kawasaki_sigma_radians(),
             polish_carrier_incidence_sigma: default_polish_carrier_incidence_sigma(),
             polish_rounds: default_polish_rounds(),
@@ -842,6 +877,28 @@ fn solve_exact_inner(
         run_lm_minimize(&model, &initial_params, options)
     };
 
+    // Then the carrier round: which creases are one line, read off the
+    // geometry stage 1 straightened rather than the geometry the detector
+    // drew. See [`join_pass_through_carriers`].
+    let mut model = model;
+    let mut final_params = final_params;
+    let mut objective = objective;
+    let mut initial_objective = initial_objective;
+    let mut termination = termination;
+    let mut evaluations = evaluations;
+    let carrier_join = join_pass_through_carriers(
+        &mut model,
+        input,
+        &before,
+        &mut final_params,
+        &mut objective,
+        &mut initial_objective,
+        &mut termination,
+        &mut evaluations,
+        options,
+    );
+    let carriers_adopted = carrier_join.rounds.iter().any(|round| round.adopted);
+
     // Polish: the stage-1 priors anchor to noisy detected positions, so LM
     // equilibrates near ~3e-3 degrees Kawasaki — above the flat-folder's
     // ~1e-4 precision tolerance. Re-anchor the priors to the accepted stage-1
@@ -1046,7 +1103,14 @@ fn solve_exact_inner(
             polish_outcome.pleat_runs = Some(round.outcome);
         }
         let _ = &current_after;
-        if rounds_adopted == 0 && !symmetry_adopted && !pinned_adopted && !pleats_adopted {
+        // An adopted carrier round is a refinement too: judged like the
+        // others, so the answer is not re-judged against the original anchors.
+        if rounds_adopted == 0
+            && !symmetry_adopted
+            && !pinned_adopted
+            && !pleats_adopted
+            && !carriers_adopted
+        {
             break 'polish (
                 final_params,
                 termination,
@@ -1162,6 +1226,10 @@ fn solve_exact_inner(
         &counters,
         &polish_outcome,
     );
+    let mut movement_report = movement_report;
+    if let Some(report) = movement_report.as_object_mut() {
+        report.insert("carrier_join".to_owned(), carrier_join_json(&carrier_join));
+    }
     let theorem_residual_report = theorem_report(
         &before,
         &after,
@@ -3815,6 +3883,273 @@ fn symmetry_round(
     })
 }
 
+/// How many times the carrier round may join lines and re-solve before the
+/// polish. Each adopted round straightens more, and the next reads more
+/// lines off the result: measured 334 → 236 → 191 carriers on the hex design
+/// in [`crate::carrier_lines`], with the truth at 178.
+const CARRIER_JOIN_ROUNDS: usize = 3;
+
+/// What the carrier round did. See [`join_pass_through_carriers`].
+#[derive(Debug, Clone, Default)]
+struct CarrierJoinOutcome {
+    rounds: Vec<CarrierJoinRound>,
+}
+
+#[derive(Debug, Clone)]
+struct CarrierJoinRound {
+    carriers_before: usize,
+    carriers_after: usize,
+    adopted: bool,
+    kawasaki_degrees: f64,
+    max_vertex_movement: f64,
+    /// How far the joined solution sits from the solution it was judged
+    /// against, at the vertex that moved most: what the join itself cost,
+    /// as opposed to `max_vertex_movement`, which is measured from the input.
+    join_movement: f64,
+    evaluations: usize,
+    seconds: f64,
+    refusals: Vec<String>,
+}
+
+fn carrier_join_json(outcome: &CarrierJoinOutcome) -> Value {
+    json!({
+        "adopted_rounds": outcome.rounds.iter().filter(|round| round.adopted).count(),
+        "carriers_before": outcome.rounds.first().map(|round| round.carriers_before),
+        "carriers_after": outcome
+            .rounds
+            .iter()
+            .rev()
+            .find(|round| round.adopted)
+            .map(|round| round.carriers_after),
+        "rounds": outcome
+            .rounds
+            .iter()
+            .map(|round| {
+                json!({
+                    "carriers_before": round.carriers_before,
+                    "carriers_after": round.carriers_after,
+                    "adopted": round.adopted,
+                    "kawasaki_degrees": round12(round.kawasaki_degrees),
+                    "max_vertex_movement": round6(round.max_vertex_movement),
+                    "join_movement": round6(round.join_movement),
+                    "evaluations": round.evaluations,
+                    "seconds": round6(round.seconds),
+                    "refusals": round.refusals,
+                })
+            })
+            .collect::<Vec<_>>(),
+    })
+}
+
+/// Read which creases are one line off the current geometry and, when that
+/// joins carriers the input held apart, re-solve on the joined lines and
+/// judge the result.
+///
+/// A design draws a crease straight through the vertices it crosses;
+/// detection noise bends it a degree or so at each, and the input's carriers
+/// come from that bent geometry, so the solve holds the halves as two lines
+/// and has no reason to straighten them. Measured on a curated hex design
+/// with 178 lines: 334 carriers, 0.014° Kawasaki, and no amount of solving
+/// moved it, while re-exporting the answer and solving again — which is this
+/// round done by hand — reached the truth. See [`crate::carrier_lines`] for
+/// the rules that join creases and for why joining is not safe unjudged: an
+/// optimizer-drawn pattern really does meet at tiny angles, and holding those
+/// as one line made a TreeMaker square worse. So the joined model is judged by
+/// the acceptance gate against the original anchors and budget, plus the
+/// regressions test the other rounds use, and a refusal leaves the solve on
+/// the carriers it had.
+///
+/// The joined model starts where the current one stopped and keeps the
+/// current one's anchors, so the movement prior and the budget still measure
+/// from the input. Its objective is in its own units, so the caller's initial
+/// objective is reset to its start energy on adoption. Runs in the refinement
+/// stage only (`polish`), since it re-anchors and tightens the way a polish
+/// round does, and the geometry stage is the quick pass the caller shows
+/// while refinement runs.
+#[allow(clippy::too_many_arguments)]
+fn join_pass_through_carriers(
+    model: &mut SolveModel,
+    input: &ExactSolveInput,
+    before: &GraphAnalysis,
+    params: &mut OVector<f64, Dyn>,
+    objective: &mut f64,
+    initial_objective: &mut f64,
+    termination: &mut String,
+    evaluations: &mut usize,
+    options: ExactSolveOptions,
+) -> CarrierJoinOutcome {
+    let mut outcome = CarrierJoinOutcome::default();
+    // Refinement only: the round re-anchors and tightens like a polish, and
+    // the geometry stage is the quick equilibration the caller shows first.
+    if options.carrier_join == CarrierJoinMode::Off || !options.polish || params.is_empty() {
+        return outcome;
+    }
+    for _round in 0..CARRIER_JOIN_ROUNDS {
+        if model.timeout_reached() {
+            break;
+        }
+        let started = model.deadline.elapsed_seconds();
+        let points = model.placed_points(params);
+        let lines: Vec<SpanLine> = model
+            .selected_spans
+            .iter()
+            .map(|span| {
+                let crease = is_fold_span(span) && !model.merged_span_ids.contains(&span.id);
+                SpanLine::from_points(span.vertices, &points, crease)
+            })
+            .collect();
+        let ids = shared_carrier_ids(&lines, &points, true, model.image_size_px);
+        let carriers_after = ids.iter().flatten().collect::<BTreeSet<_>>().len();
+        let carriers_before = model.carrier_groups.len();
+        if carriers_after >= carriers_before {
+            break;
+        }
+        let mut joined_input = input.clone();
+        for (span, (line, id)) in joined_input
+            .selected_spans
+            .iter_mut()
+            .zip(lines.iter().zip(&ids))
+        {
+            if let Some(id) = id {
+                span.source_carrier_ids = vec![*id];
+                let (carrier, t_interval) =
+                    carrier_from(points[line.vertices[0]], points[line.vertices[1]]);
+                span.carrier = carrier;
+                span.t_interval = t_interval;
+            }
+        }
+        for (vertex, point) in joined_input.vertices.iter_mut().zip(&points) {
+            vertex.point = *point;
+        }
+        let mut joined = SolveModel::new(
+            &joined_input,
+            options,
+            model.deadline.clone(),
+            model.exempt_vertex_ids.clone(),
+        );
+        for (vertex, anchor) in joined.vertices.iter_mut().zip(&model.vertices) {
+            vertex.point = anchor.point;
+        }
+        let start = joined.initial_params.clone();
+        let start_energy = residual_energy(&joined.residuals_for(&start));
+        let (mut joined_params, mut joined_termination, mut more, _objective, _counters) =
+            run_lm_minimize(&joined, &start, options);
+        let analyze_joined = |params: &OVector<f64, Dyn>| {
+            analyze_graph(
+                input,
+                &joined.placed_points(params),
+                &joined,
+                params,
+                options,
+            )
+        };
+        let mut after = analyze_joined(&joined_params);
+        // At stage-1 sigmas the joined lines cost movement the prior resists,
+        // and the compromise can read as slightly worse Kawasaki than the
+        // unjoined state it is judged against. Re-anchor and tighten before
+        // judging, as the pinned and symmetry rounds do; the budget is still
+        // measured from the input.
+        let mut solving = joined.clone();
+        for _reanchor in 0..PINNED_REANCHOR_ROUNDS {
+            if after.max_kawasaki_residual_degrees <= options.solved_kawasaki_epsilon_degrees
+                || solving.timeout_reached()
+            {
+                break;
+            }
+            let reanchored = solving.reanchored_for_polish(&joined_params);
+            let (next, next_termination, next_more, _objective, _counters) =
+                run_lm_minimize(&reanchored, &joined_params, options);
+            more += next_more;
+            let next_after = analyze_joined(&next);
+            if next_after.max_kawasaki_residual_degrees >= after.max_kawasaki_residual_degrees {
+                break;
+            }
+            joined_params = next;
+            joined_termination = next_termination;
+            after = next_after;
+            solving = reanchored;
+        }
+        let final_energy = residual_energy(&joined.residuals_for(&joined_params));
+        let join_movement = joined
+            .placed_points(&joined_params)
+            .iter()
+            .zip(&points)
+            .map(|(after, before)| (after.x - before.x).hypot(after.y - before.y))
+            .fold(0.0_f64, f64::max);
+        let current_after = analyze_graph(input, &points, model, params, options);
+        let status = classify_status(before, &after, options);
+        let mut refusals = exact_solution_rejection_reasons(
+            before,
+            &after,
+            status,
+            start_energy,
+            final_energy,
+            options,
+        );
+        refusals.extend(carrier_round_regressions(&current_after, &after, options));
+        if join_movement > options.carrier_join_movement_budget {
+            refusals.push("join_moved_too_far".to_owned());
+        }
+        let adopted = refusals.is_empty();
+        *evaluations += more;
+        outcome.rounds.push(CarrierJoinRound {
+            carriers_before,
+            carriers_after,
+            adopted,
+            kawasaki_degrees: after.max_kawasaki_residual_degrees,
+            max_vertex_movement: after.max_vertex_movement,
+            join_movement,
+            evaluations: more,
+            seconds: model.deadline.elapsed_seconds() - started,
+            refusals,
+        });
+        if !adopted {
+            break;
+        }
+        *model = joined;
+        *params = joined_params;
+        *objective = final_energy;
+        *initial_objective = start_energy;
+        *termination = joined_termination;
+    }
+    let adopted_rounds = outcome.rounds.iter().filter(|round| round.adopted).count();
+    if adopted_rounds > 0 {
+        termination.push_str(&format!("+carriers({adopted_rounds})"));
+    }
+    outcome
+}
+
+/// Why a carrier round must not land, over and above the acceptance gate:
+/// Kawasaki and the checker's angle count must hold or improve. Big-Little-Big
+/// is not judged here, unlike in [`pinned_round_regressions`]: it is a tie
+/// between near-equal angles, exact only once the pin lands the directions
+/// on the lattice, and the pin runs after this round on the lines this round
+/// joined. Measured on the hex design: joined, polished, and refused for one
+/// Big-Little-Big the pin then cleared.
+fn carrier_round_regressions(
+    current: &GraphAnalysis,
+    joined: &GraphAnalysis,
+    options: ExactSolveOptions,
+) -> Vec<String> {
+    let mut reasons = Vec::new();
+    let kawasaki_bar = current
+        .max_kawasaki_residual_degrees
+        .max(options.solved_kawasaki_epsilon_degrees);
+    if joined.max_kawasaki_residual_degrees > kawasaki_bar {
+        reasons.push("joined_kawasaki_regressed".to_owned());
+    }
+    match (current.camv, joined.camv) {
+        (Some(was), Some(now)) => {
+            if now.angle_violations > was.angle_violations {
+                reasons.push("joined_angle_violations_increased".to_owned());
+            }
+        }
+        (Some(_), None) => reasons.push("joined_checker_unavailable".to_owned()),
+        (None, _) => {}
+    }
+    reasons
+}
+
 /// What the pleat round did. See [`PleatSpacingMode`] and [`pleat_round`].
 #[derive(Debug, Clone)]
 struct PleatRoundOutcome {
@@ -5708,18 +6043,22 @@ mod tests {
         let input = maekawa_clean_four_ray_input(Point2::new(0.505, 0.50));
         let solved = solve_exact(&input, options);
         let pinned = &solved.movement_report["polish"]["pinned_family"];
-        assert_eq!(
-            pinned["adopted"],
-            serde_json::Value::Bool(true),
-            "the fan is a 45° design and must be pinned: {pinned}"
+        // The carrier round may already have read the two diagonals as two
+        // lines and put the vertex where they cross, which leaves the pin
+        // nothing to move; either way the fan has to land on the centre.
+        let already_exact = pinned["stop_reason"] == serde_json::json!("nothing_to_pin");
+        assert!(
+            pinned["adopted"] == serde_json::Value::Bool(true) || already_exact,
+            "the fan is a 45° design and must be pinned or already exact: {pinned}"
         );
         // A fan of diagonals fits every family and reads as the coarsest.
         assert_eq!(pinned["step_degrees"], serde_json::json!(45.0));
         assert!(
-            solved.movement_report["termination"]
-                .as_str()
-                .unwrap()
-                .contains(",pinned"),
+            already_exact
+                || solved.movement_report["termination"]
+                    .as_str()
+                    .unwrap()
+                    .contains(",pinned"),
             "{}",
             solved.movement_report["termination"]
         );
@@ -6112,7 +6451,16 @@ mod tests {
         // fan never can, and a round that cannot improve past `Ambiguous` is
         // refused on its objective — which is right, and not what this tests.
         let input = maekawa_clean_four_ray_input(Point2::new(0.505, 0.50));
-        let solved = solve_exact(&input, ExactSolveOptions::default());
+        // The carrier round off: it reads the fan's diagonals as two lines and
+        // lands the vertex on the centre before any polish round runs, and the
+        // polish accounting is what this tests.
+        let solved = solve_exact(
+            &input,
+            ExactSolveOptions {
+                carrier_join: CarrierJoinMode::Off,
+                ..ExactSolveOptions::default()
+            },
+        );
         let polish = &solved.movement_report["polish"];
         assert!(polish["enabled"].as_bool().unwrap());
         assert!(polish["ran"].as_bool().unwrap());
@@ -6157,8 +6505,11 @@ mod tests {
         let input = four_ray_input(Point2::new(0.505, 0.50));
         // Symmetry off: the M,V,M,V fan is mirror-symmetric about a diagonal,
         // and holding its centre to that line is not the accounting under test.
+        // The carrier round off too: it would read the fan's diagonals as two
+        // lines and put the vertex on the centre before any polish ran.
         let options = ExactSolveOptions {
             symmetry: SymmetryMode::Off,
+            carrier_join: CarrierJoinMode::Off,
             ..ExactSolveOptions::default()
         };
         let stage1_only = solve_exact(
@@ -7016,6 +7367,15 @@ mod tests {
                 .and_then(Value::as_object_mut)
             {
                 round.remove("seconds");
+            }
+            if let Some(rounds) = report
+                .get_mut("carrier_join")
+                .and_then(|join| join.get_mut("rounds"))
+                .and_then(Value::as_array_mut)
+            {
+                for round in rounds.iter_mut().filter_map(Value::as_object_mut) {
+                    round.remove("seconds");
+                }
             }
         }
         value
