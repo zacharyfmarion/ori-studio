@@ -797,18 +797,26 @@ measurements.
 
 ### Phase 2 — planner crate A: frames, merge, exactness probe
 
-- [ ] `oristudio-precrease` (`MIT OR Apache-2.0`, three-tier header comment, LICENSE
+- [x] `oristudio-precrease` (`MIT OR Apache-2.0`, three-tier header comment, LICENSE
       files): `Frame`, canonical `Line`, tolerance-aware merge, border loop → rectangle in
       any orientation → sheet frame (rotation) → per-component split, no-border fallback,
       exactness probe (EXACT / SNAPPABLE / OFF-LATTICE with residuals and the snap).
-- [ ] `oristudio-precrease-wasm`: `sheet_frames(segments, colors) → [{component, rect,
+- [x] `oristudio-precrease-wasm`: `sheet_frames(segments, colors) → [{component, rect,
       to_sheet, from_sheet, exactness}]`, `to_rf` / `from_rf`; npm build script + `build:wasm`
       chain; TS-side argument validation; `wasm-pack test --node` for the JsValue round-trips;
       `LICENSING.md` rows for both crates + the "no LICENSE file of their own" paragraph
       update.
-- [ ] Tests: asymmetric-CP flip test, rotated-square sheet, hexagonal-sheet refusal,
+- [x] Tests: asymmetric-CP flip test, rotated-square sheet, hexagonal-sheet refusal,
       multi-component split on the iguana `.osf`, probe classification on the 12 off-lattice
       corpus designs (external, run locally) and the panel fixtures.
+
+Phase 2 outcomes (2026-09-05): the probe also admits **rational-slope directions** (coprime
+integer normals — `x13_diag_pair` and an iguana component contain slope-1/3 lines that are
+exactly constructible but in neither angle family), tests offsets in ℚ, ℤ[√2] **and ℤ[√3]**,
+and infers each component's odd grid factor from its axis lines instead of admitting every
+odd denominator globally; snapping is limited to the finest denominator whose candidate
+pitch keeps nearest-element snapping unambiguous. Wasm exports are `sheet_frames`,
+`model_to_rf(frame, x, y)`, `rf_to_model(frame, x, y)` and `precrease_tolerances`.
 
 ### Phase 3 — the References workspace (vertex and crease targets, bare-sheet queries)
 

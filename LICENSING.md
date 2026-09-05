@@ -156,6 +156,8 @@ still permissive on its own terms; it is the combined binary that is GPL.
 | `oristudio-cp-detect` | `oristudio-cp-compiler`, `oristudio-cp-eval`, + their closure | MIT OR Apache-2.0 |
 | `oristudio-cp-detect-inspector` | `oristudio-cp-detect`, `oristudio-cp-compiler`, `oristudio-cp-eval` | MIT OR Apache-2.0 |
 | `oristudio-cp-detect-wasm` | `oristudio-cp-detect`, `oristudio-cp-detect-inspector`, + their closure | MIT OR Apache-2.0 |
+| `oristudio-precrease` | none | MIT OR Apache-2.0 — original precrease planner; consumes ReferenceFinder's output at runtime, links none of its code |
+| `oristudio-precrease-wasm` | `oristudio-precrease` | MIT OR Apache-2.0 |
 | `oristudio-bp` | none | MIT |
 | `oristudio-bp-wasm` | `oristudio-bp` | MIT |
 | `ori-studio` (`apps/tauri/src-tauri`) | `oristudio-cp`, `treemaker-fold` | `GPL-2.0-or-later` (workspace) |
