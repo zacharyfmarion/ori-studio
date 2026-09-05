@@ -75,7 +75,9 @@ to itself.
 ## Affected Areas
 
 - `apps/web/src/platform/desktopDownload.ts` (new) — builds, matching, detection.
-- `apps/web/src/platform/useDesktopRelease.ts` (new) — fetch + cache + fallback.
+- `apps/web/src/platform/desktopRelease.ts` (new) — fetch, cache, and the
+  shared in-flight request.
+- `apps/web/src/platform/useDesktopDownloads.ts` (new) — what the controls read.
 - `apps/web/src/components/download/` (new) — the button and the toolbar menu.
 - `apps/web/src/components/StartScreen.tsx` — header row with the download.
 - `apps/web/src/components/WorkspaceShell.tsx` — the toolbar icon.
@@ -98,7 +100,7 @@ to itself.
 - [x] Read the release workflow and a live release to learn the real asset names
 - [x] Confirm `latest.json` cannot serve this (updater artifacts, not installers)
 - [x] `platform/desktopDownload.ts` + tests
-- [x] `platform/useDesktopRelease.ts` + tests
+- [x] `platform/desktopRelease.ts` + `useDesktopDownloads.ts` + tests
 - [x] `DesktopDownloadButton` and the toolbar menu
 - [x] Start screen header
 - [x] Workspace toolbar icon
