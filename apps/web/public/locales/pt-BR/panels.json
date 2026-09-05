@@ -526,6 +526,7 @@
       "exportSvg": "Imagem SVG",
       "fold": "Dobrar",
       "label": "Ações do padrão de vincos",
+      "references": "Referências de dobra",
       "saveImage": "Salvar como imagem",
       "share": "Criar link de compartilhamento",
       "simulate": "Simular",
@@ -816,6 +817,11 @@
     "x": "X",
     "y": "Y",
     "yes": "Sim"
+  },
+  "references": {
+    "empty": "Nenhum padrão de vincos. Abra ou desenhe um em Editar e volte.",
+    "title": "Referências",
+    "viewPending": "A visualização de referências está em construção."
   },
   "simulator": {
     "backendCpu": "CPU",

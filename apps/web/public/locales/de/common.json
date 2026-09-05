@@ -182,6 +182,7 @@
     "redo": "Wiederholen",
     "redoNextCpEdit": "Nächste Faltmuster-Bearbeitung wiederholen",
     "redoNextTreeEdit": "Nächste Baumbearbeitung wiederholen",
+    "references": "Referenzen",
     "refresh": "Aktualisieren",
     "refreshSimulatorModel": "Simulatormodell aktualisieren",
     "relieveAllStrain": "Gesamte Dehnung ausgleichen",
@@ -230,6 +231,7 @@
     "showConditionsPane": "Bedingungsbereich anzeigen",
     "showDesignWorkspace": "Design-Arbeitsbereich anzeigen",
     "showEditWorkspace": "Bearbeiten-Arbeitsbereich anzeigen",
+    "showReferencesWorkspace": "Referenzen-Arbeitsbereich anzeigen",
     "showSimulateWorkspace": "Simulieren-Arbeitsbereich anzeigen",
     "simulate": "Simulieren",
     "simulateBeforeExportingFolded": "Simuliere ein Faltmuster, bevor du seine gefaltete Form exportierst",
@@ -296,9 +298,11 @@
     "design": "Design-Arbeitsbereich",
     "edit": "Bearbeiten-Arbeitsbereich",
     "label": "Arbeitsbereiche",
+    "references": "Referenzen-Arbeitsbereich",
     "simulate": "Simulieren-Arbeitsbereich",
     "tabDesign": "Design",
     "tabEdit": "Bearbeiten",
+    "tabReferences": "Referenzen",
     "tabSimulate": "Simulieren"
   }
 }

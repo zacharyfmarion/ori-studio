@@ -64,6 +64,7 @@ export type WorkspaceCapabilityId =
   | 'view.creasePattern'
   | 'view.simulate'
   | 'view.simulator'
+  | 'view.references'
   | 'view.conditions'
   | 'view.resetLayout'
   | 'optimize.scale'
@@ -664,6 +665,11 @@ export function getWorkspaceCapabilities(
       t('common:capability.simulate', 'Simulate'),
       t('common:capability.showSimulateWorkspace', 'Show the simulate workspace')
     ),
+    'view.references': capability(
+      true,
+      t('common:capability.references', 'References'),
+      t('common:capability.showReferencesWorkspace', 'Show the references workspace')
+    ),
     'view.conditions': capability(
       true,
       t('common:capability.conditions', 'Conditions'),
@@ -1053,10 +1059,19 @@ export function getWorkspaceCapabilities(
 // Masking below reads them from the registry, so a third design kind declares
 // what it owns and hides without touching this file.
 
-// Undo/redo stay in the Edit menu while simulating (rendered inert — the
-// simulate context has no history stack, so the count is zero and they are
-// disabled). Every other `edit.*` command authors the tree and is hidden.
+// Undo/redo stay in the Edit menu while simulating or reading references
+// (rendered inert — neither context has a history stack, so the count is zero
+// and they are disabled). Every other `edit.*` command authors the tree and is
+// hidden.
 const SIMULATE_VISIBLE_EDIT = new Set<WorkspaceCapabilityId>(['edit.undo', 'edit.redo']);
+
+/**
+ * The contexts that only *read* the crease pattern. Both consume the model the
+ * Edit workspace authored and offer no authoring of their own, so they share one
+ * mask arm; a third read-only workspace joins here rather than growing a second
+ * `if`.
+ */
+const READ_ONLY_CONTEXTS: ReadonlySet<EditingContext> = new Set(['simulate', 'references']);
 
 export function maskCapabilitiesForContext(
   capabilities: WorkspaceCapabilities,
@@ -1071,7 +1086,7 @@ export function maskCapabilitiesForContext(
 
   const registry = designKindRegistry(kinds);
   // The design kind being authored, or null in the contexts no design owns —
-  // the CP editor, simulate, and the method chooser.
+  // the CP editor, simulate, references, and the method chooser.
   const activeKind = registry.forContext(context);
 
   // Each kind's `owned` commands only apply while that kind is being authored;
@@ -1094,10 +1109,10 @@ export function maskCapabilitiesForContext(
     }
   }
 
-  if (context === 'simulate') {
-    // Simulate is a read-only consumer of the folded model: only navigation
-    // (`view.*`), file operations, playback (`simulator.*`), and inert
-    // undo/redo apply. Every authoring command is hidden.
+  if (READ_ONLY_CONTEXTS.has(context)) {
+    // Simulate and References are read-only consumers of the crease pattern:
+    // only navigation (`view.*`), file operations, playback (`simulator.*`), and
+    // inert undo/redo apply. Every authoring command is hidden.
     for (const id of ids) {
       const isAuthoring =
         id.startsWith('cp.') ||

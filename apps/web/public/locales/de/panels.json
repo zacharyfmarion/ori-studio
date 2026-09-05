@@ -499,6 +499,7 @@
       "exportSvg": "SVG-Bild",
       "fold": "Falten",
       "label": "Aktionen für Faltmuster",
+      "references": "Faltreferenzen",
       "saveImage": "Als Bild speichern",
       "share": "Link zum Teilen erstellen",
       "simulate": "Simulieren",
@@ -783,6 +784,11 @@
     "x": "X",
     "y": "Y",
     "yes": "Ja"
+  },
+  "references": {
+    "empty": "Kein Faltmuster. Öffne oder zeichne eines unter Bearbeiten und komm dann zurück.",
+    "title": "Referenzen",
+    "viewPending": "Die Referenzansicht wird noch gebaut."
   },
   "simulator": {
     "backendCpu": "CPU",

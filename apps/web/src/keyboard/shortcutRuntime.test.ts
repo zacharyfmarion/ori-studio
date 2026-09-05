@@ -32,6 +32,30 @@ describe('shortcut runtime', () => {
     ).toEqual(['viewport', 'global']);
   });
 
+  it('pushes the references scope only while its panel holds an executor', () => {
+    // Behind a focused simulation, ahead of the viewport: an inline simulation
+    // window can be in hand while the References panel is mounted, and the
+    // simulation is the thing being looked at.
+    expect(
+      shortcutScopeStackForContext({
+        activeEditingContext: 'references',
+        referencesFocused: true,
+      })
+    ).toEqual(['references', 'viewport', 'global']);
+    expect(
+      shortcutScopeStackForContext({
+        activeEditingContext: 'references',
+        simulatorFocused: true,
+        referencesFocused: true,
+      })
+    ).toEqual(['simulator', 'references', 'viewport', 'global']);
+    expect(
+      shortcutScopeStackForContext({
+        activeEditingContext: 'references',
+      })
+    ).toEqual(['viewport', 'global']);
+  });
+
   it('lets viewport ownership differ from editing ownership', () => {
     const designViewport = vi.fn(() => true);
     const cpViewport = vi.fn(() => true);

@@ -182,6 +182,7 @@
     "redo": "다시 실행",
     "redoNextCpEdit": "다음 전개도 편집 다시 실행",
     "redoNextTreeEdit": "다음 트리 편집 다시 실행",
+    "references": "참조",
     "refresh": "새로 고침",
     "refreshSimulatorModel": "시뮬레이터 모델 새로 고침",
     "relieveAllStrain": "모든 장력 완화",
@@ -230,6 +231,7 @@
     "showConditionsPane": "조건 창 표시",
     "showDesignWorkspace": "디자인 작업 공간 표시",
     "showEditWorkspace": "편집 작업 공간 표시",
+    "showReferencesWorkspace": "참조 작업 공간 표시",
     "showSimulateWorkspace": "시뮬레이션 작업 공간 표시",
     "simulate": "시뮬레이션",
     "simulateBeforeExportingFolded": "접힌 형태를 내보내기 전에 접는 선 패턴을 시뮬레이션하세요",
@@ -296,9 +298,11 @@
     "design": "디자인 작업 공간",
     "edit": "편집 작업 공간",
     "label": "작업 공간",
+    "references": "참조 작업 공간",
     "simulate": "시뮬레이션 작업 공간",
     "tabDesign": "디자인",
     "tabEdit": "편집",
+    "tabReferences": "참조",
     "tabSimulate": "시뮬레이션"
   }
 }

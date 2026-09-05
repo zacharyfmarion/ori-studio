@@ -7,6 +7,7 @@ import {
   type ShortcutExecutors,
 } from './shortcutDispatcher';
 import type {
+  ReferencesShortcutId,
   ShortcutDefaultsSource,
   ShortcutOverrides,
   ShortcutScope,
@@ -21,6 +22,7 @@ type CpActionExecutor = (id: OristudioCpActionId) => unknown;
  */
 type ViewportExecutor = (id: ViewportShortcutId) => boolean;
 type SimulatorExecutor = (id: SimulatorShortcutId) => unknown;
+type ReferencesExecutor = (id: ReferencesShortcutId) => unknown;
 
 /**
  * Which viewport currently owns keyboard shortcuts. This is the document modes
@@ -39,12 +41,20 @@ let activeViewportSurface: ViewportSurface | null = null;
  * take precedence over the CP tools when a simulation is actually in hand.
  */
 let simulatorExecutor: SimulatorExecutor | null = null;
+/**
+ * Set while the References panel is mounted. Same mechanism as the simulator's:
+ * its presence pushes the `references` scope, so the step and zoom keys apply
+ * only while that workspace is on screen.
+ */
+let referencesExecutor: ReferencesExecutor | null = null;
 
 export interface ShortcutRuntimeContext {
   activeEditingContext: EditingContext;
   activeViewportSurface?: ViewportSurface | null;
   /** Overrides the registered-executor check; for tests. */
   simulatorFocused?: boolean;
+  /** Overrides the registered-executor check; for tests. */
+  referencesFocused?: boolean;
 }
 
 /** The viewport pane that owns shortcuts for a given editing context. */
@@ -87,6 +97,19 @@ export function registerSimulatorShortcutExecutor(executor: SimulatorExecutor): 
   };
 }
 
+/**
+ * Claim the keyboard for the References workspace. Returns an unregister; call
+ * it on unmount, or the scope outlives the panel.
+ */
+export function registerReferencesShortcutExecutor(executor: ReferencesExecutor): () => void {
+  referencesExecutor = executor;
+  return () => {
+    if (referencesExecutor === executor) {
+      referencesExecutor = null;
+    }
+  };
+}
+
 export function registerCpActionShortcutExecutor(executor: CpActionExecutor): () => void {
   cpActionExecutor = executor;
   return () => {
@@ -117,6 +140,9 @@ export function shortcutScopeStackForContext(
   if (context.simulatorFocused ?? simulatorExecutor !== null) {
     scopes.push('simulator');
   }
+  if (context.referencesFocused ?? referencesExecutor !== null) {
+    scopes.push('references');
+  }
   scopes.push('viewport');
   if (context.activeEditingContext === 'crease-pattern') {
     scopes.push('crease-pattern');
@@ -141,6 +167,10 @@ export function handleShortcutRuntimeKeyDown(
 
   if (simulatorExecutor) {
     executors.simulator = simulatorExecutor;
+  }
+
+  if (referencesExecutor) {
+    executors.references = referencesExecutor;
   }
 
   return handleShortcutKeyDown(event, {

@@ -9,6 +9,7 @@ import { emptyOristudioCpSelection } from '../lib/creasePatternViewport';
 import { resolveSelectedSegment } from '../lib/creasePatternSelectionSegment';
 import { TooltipProvider } from '../components/ui/Tooltip';
 import { CpSelectionToolbar } from './CpSelectionToolbar';
+import { selectionCoversEntireCp } from './references/useOpenReferences';
 
 // The toolbar reads segments-only artifacts from the module cache (populated via
 // the kernel export); stub that source so the test drives the resolver with a
@@ -327,6 +328,48 @@ describe('CpSelectionToolbar', () => {
         cpLineIds: expect.any(Array),
       });
       expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([]);
+    });
+  });
+
+  describe('the References button', () => {
+    it('is absent for a region that is not the whole pattern', async () => {
+      // References opens on the whole pattern and carries nothing over, so a
+      // button on a partial selection would promise a scope it does not deliver.
+      // The fixture's left region is five of the document's nine lines.
+      seedStore([1, 3, 5, 7, 8]);
+      await act(async () => renderToolbar(root, container));
+      expect(document.querySelector('[role="toolbar"]')).not.toBeNull();
+      expect(document.querySelector('button[aria-label="Folding references"]')).toBeNull();
+    });
+
+    it('is offered exactly when the matched segment covers every line', () => {
+      // The predicate the toolbar renders on, driven directly: the fixture has no
+      // single segment that is the whole document, so the positive case is a
+      // shape test rather than a render.
+      const cpDocument = {
+        crease_pattern: { line_segments: LINES.map((line) => makeLine(...line)) },
+      };
+      const everyLine = LINES.map((_, index) => index + 1);
+      expect(selectionCoversEntireCp({ cpLineIds: everyLine }, cpDocument)).toBe(true);
+      expect(selectionCoversEntireCp({ cpLineIds: [1, 3, 5, 7, 8] }, cpDocument)).toBe(false);
+      expect(selectionCoversEntireCp(null, cpDocument)).toBe(false);
+      expect(selectionCoversEntireCp({ cpLineIds: everyLine }, null)).toBe(false);
+    });
+
+    it('opens the References workspace through the store action', async () => {
+      const openReferencesWorkspace = vi.fn();
+      useWorkspaceStore.setState({ openReferencesWorkspace } as unknown as Partial<
+        ReturnType<typeof useWorkspaceStore.getState>
+      >);
+      const { useOpenReferences } = await import('./references/useOpenReferences');
+      let open: (() => void) | null = null;
+      function Probe() {
+        open = useOpenReferences();
+        return null;
+      }
+      await act(async () => root.render(<Probe />));
+      act(() => open!());
+      expect(openReferencesWorkspace).toHaveBeenCalledTimes(1);
     });
   });
 

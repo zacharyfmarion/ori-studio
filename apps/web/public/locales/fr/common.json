@@ -182,6 +182,7 @@
     "redo": "Rétablir",
     "redoNextCpEdit": "Rétablir la prochaine modification du patron de plis",
     "redoNextTreeEdit": "Rétablir la prochaine modification de l'arbre",
+    "references": "Références",
     "refresh": "Actualiser",
     "refreshSimulatorModel": "Actualiser le modèle du simulateur",
     "relieveAllStrain": "Soulager toute la tension",
@@ -230,6 +231,7 @@
     "showConditionsPane": "Afficher le panneau des conditions",
     "showDesignWorkspace": "Afficher l'espace de travail Conception",
     "showEditWorkspace": "Afficher l'espace de travail Édition",
+    "showReferencesWorkspace": "Afficher l'espace de travail Références",
     "showSimulateWorkspace": "Afficher l'espace de travail Simuler",
     "simulate": "Simuler",
     "simulateBeforeExportingFolded": "Simulez un patron de plis avant d’exporter sa forme pliée",
@@ -296,9 +298,11 @@
     "design": "Espace de travail Conception",
     "edit": "Espace de travail Édition",
     "label": "Espaces de travail",
+    "references": "Espace de travail Références",
     "simulate": "Espace de travail Simuler",
     "tabDesign": "Conception",
     "tabEdit": "Édition",
+    "tabReferences": "Références",
     "tabSimulate": "Simuler"
   }
 }

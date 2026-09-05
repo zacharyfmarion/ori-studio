@@ -182,6 +182,7 @@
     "redo": "重做",
     "redoNextCpEdit": "重做下一步折痕图编辑",
     "redoNextTreeEdit": "重做下一步树编辑",
+    "references": "参考",
     "refresh": "刷新",
     "refreshSimulatorModel": "刷新模拟器模型",
     "relieveAllStrain": "缓解所有张力",
@@ -230,6 +231,7 @@
     "showConditionsPane": "显示条件窗格",
     "showDesignWorkspace": "显示设计工作区",
     "showEditWorkspace": "显示编辑工作区",
+    "showReferencesWorkspace": "显示参考工作区",
     "showSimulateWorkspace": "显示模拟工作区",
     "simulate": "模拟",
     "simulateBeforeExportingFolded": "导出折叠结果前请先模拟折痕图",
@@ -296,9 +298,11 @@
     "design": "设计工作区",
     "edit": "编辑工作区",
     "label": "工作区",
+    "references": "参考工作区",
     "simulate": "模拟工作区",
     "tabDesign": "设计",
     "tabEdit": "编辑",
+    "tabReferences": "参考",
     "tabSimulate": "模拟"
   }
 }

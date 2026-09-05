@@ -185,6 +185,7 @@ export function getMenuBarDef(
         { type: 'action', id: 'view.design', label: t('menu:view.design', 'Design') },
         { type: 'action', id: 'view.edit', label: t('menu:view.edit', 'Edit') },
         { type: 'action', id: 'view.simulate', label: t('menu:view.simulate', 'Simulate') },
+        { type: 'action', id: 'view.references', label: t('menu:view.references', 'References') },
         { type: 'separator' },
         { type: 'action', id: 'view.resetLayout', label: t('menu:view.resetLayout', 'Reset Layout') },
       ],

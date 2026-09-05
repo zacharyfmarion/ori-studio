@@ -126,6 +126,7 @@
   "view": {
     "design": "Conception",
     "edit": "Édition",
+    "references": "Références",
     "resetLayout": "Réinitialiser la disposition",
     "simulate": "Simuler"
   }

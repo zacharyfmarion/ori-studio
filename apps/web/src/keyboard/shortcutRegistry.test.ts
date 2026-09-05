@@ -167,9 +167,11 @@ describe('adopted single-key layout', () => {
   // chord reaches the fold then and the CP tool the rest of the time. Asserting
   // global chord uniqueness would forbid exactly what the scope stack exists to
   // allow. The arbitration itself is covered in shortcutDispatcher.test.ts.
+  // `references` is the same kind of scope -- present only while its panel is
+  // mounted -- and shares the simulator's arrows and zoom keys.
   const byChord = new Map<string, string[]>();
   for (const definition of SHORTCUT_DEFINITIONS) {
-    if (definition.scope === 'simulator') continue;
+    if (definition.scope === 'simulator' || definition.scope === 'references') continue;
     for (const chord of definition.defaultChords) {
       const id = keyChordId(chord);
       byChord.set(id, [...(byChord.get(id) ?? []), definition.id]);
@@ -188,6 +190,26 @@ describe('adopted single-key layout', () => {
     expect(simulatorChords.has('f')).toBe(true);
     expect(simulatorChords.has('c')).toBe(true);
     expect(simulatorChords.has('r')).toBe(true);
+  });
+
+  it('keeps the references scope off the crease-pattern letters', () => {
+    // Unlike the simulator, References has no reason to take a CP tool's key:
+    // it is a separate workspace, never an inline window over the Edit canvas.
+    // Its chords may coincide with the simulator's (the two scopes are never in
+    // the stack together) and with a viewport binding that declines when it does
+    // not apply (the fold-angle arrows), but not with any binding that always
+    // claims its key.
+    const alwaysPresent = new Set(
+      SHORTCUT_DEFINITIONS.filter(
+        (d) => d.scope !== 'simulator' && d.scope !== 'references' && !shortcutMayDecline(d.id)
+      ).flatMap((d) => d.defaultChords.map(keyChordId))
+    );
+    const collisions = SHORTCUT_DEFINITIONS.filter((d) => d.scope === 'references').flatMap((d) =>
+      d.defaultChords.map(keyChordId).filter((chord) => alwaysPresent.has(chord)).map(
+        (chord) => `${d.id}=${chord}`
+      )
+    );
+    expect(collisions).toEqual([]);
   });
 
   it.each(EXPECTED_SINGLE_KEY_LAYOUT)('binds %s to %s', (chord, actionId) => {

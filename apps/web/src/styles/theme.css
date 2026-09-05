@@ -10669,3 +10669,38 @@ button.bp-packing-alert:focus-visible {
     width: calc(100% - var(--touch-target));
   }
 }
+
+/*
+ * References workspace. The same shell the simulator uses — a positioned body
+ * so the overlays can fill it, and an empty state copied from
+ * `.simulator-panel__empty` rather than shared with it, because the two panels
+ * will diverge (this one gains a sidebar and a transport strip).
+ */
+.references-panel__body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.references-panel__empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: var(--space-3);
+  justify-items: center;
+  background: var(--domain-overlay-bg);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 650;
+  text-align: center;
+}
+
+.references-panel__empty small {
+  max-width: min(52ch, 80%);
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1.4;
+}

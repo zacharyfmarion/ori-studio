@@ -126,6 +126,7 @@
   "view": {
     "design": "Design",
     "edit": "Bearbeiten",
+    "references": "Referenzen",
     "resetLayout": "Layout zurücksetzen",
     "simulate": "Simulieren"
   }

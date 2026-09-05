@@ -182,6 +182,7 @@
     "redo": "Rehacer",
     "redoNextCpEdit": "Rehacer la siguiente edición del patrón de pliegues",
     "redoNextTreeEdit": "Rehacer la siguiente edición del árbol",
+    "references": "Referencias",
     "refresh": "Actualizar",
     "refreshSimulatorModel": "Actualizar el modelo del simulador",
     "relieveAllStrain": "Aliviar toda la tensión",
@@ -230,6 +231,7 @@
     "showConditionsPane": "Mostrar el panel de condiciones",
     "showDesignWorkspace": "Mostrar el espacio de trabajo de diseño",
     "showEditWorkspace": "Mostrar el espacio de trabajo de edición",
+    "showReferencesWorkspace": "Mostrar el espacio de trabajo de referencias",
     "showSimulateWorkspace": "Mostrar el espacio de trabajo de simulación",
     "simulate": "Simular",
     "simulateBeforeExportingFolded": "Simula un patrón de pliegues antes de exportar su forma plegada",
@@ -296,9 +298,11 @@
     "design": "Espacio de trabajo de diseño",
     "edit": "Espacio de trabajo de edición",
     "label": "Espacios de trabajo",
+    "references": "Espacio de trabajo de referencias",
     "simulate": "Espacio de trabajo de simulación",
     "tabDesign": "Diseño",
     "tabEdit": "Editar",
+    "tabReferences": "Referencias",
     "tabSimulate": "Simular"
   }
 }

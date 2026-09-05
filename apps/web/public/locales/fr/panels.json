@@ -526,6 +526,7 @@
       "exportSvg": "Image SVG",
       "fold": "Plier",
       "label": "Actions du patron de plis",
+      "references": "Références de pliage",
       "saveImage": "Enregistrer en image",
       "share": "Créer un lien de partage",
       "simulate": "Simuler",
@@ -816,6 +817,11 @@
     "x": "X",
     "y": "Y",
     "yes": "Oui"
+  },
+  "references": {
+    "empty": "Aucun patron de pliage. Ouvrez-en ou dessinez-en un dans Édition, puis revenez.",
+    "title": "Références",
+    "viewPending": "La vue des références est en construction."
   },
   "simulator": {
     "backendCpu": "CPU",

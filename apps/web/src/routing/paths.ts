@@ -16,6 +16,7 @@ export const DESIGN_PATH = '/design';
 export const LEGACY_DESIGN_PATHS = ['/design/treemaker', '/design/bp'] as const;
 export const EDIT_PATH = '/edit';
 export const SIMULATE_PATH = '/simulate';
+export const REFERENCES_PATH = '/references';
 /**
  * Share links land here, hand their payload to the store, and redirect to Edit.
  *
@@ -37,6 +38,8 @@ export function workspacePath(workspace: WorkspaceId): string {
       return EDIT_PATH;
     case 'simulate':
       return SIMULATE_PATH;
+    case 'references':
+      return REFERENCES_PATH;
   }
 }
 
@@ -54,6 +57,8 @@ export function parseWorkspacePath(pathname: string): { workspace: WorkspaceId }
       return { workspace: 'edit' };
     case SIMULATE_PATH:
       return { workspace: 'simulate' };
+    case REFERENCES_PATH:
+      return { workspace: 'references' };
     case DESIGN_PATH:
       return { workspace: 'design' };
     default:

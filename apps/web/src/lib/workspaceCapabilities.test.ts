@@ -454,7 +454,7 @@ describe('workspace capabilities', () => {
     }
 
     // Everywhere else the toolbar button and the Design menu entry are absent.
-    for (const context of ['treemaker-tree', 'crease-pattern', 'simulate'] as const) {
+    for (const context of ['treemaker-tree', 'crease-pattern', 'simulate', 'references'] as const) {
       const other = capabilities({
         activeEditingContext: context,
         hasBoxPleatDocument: true,
@@ -548,7 +548,7 @@ describe('workspace capabilities', () => {
       expect(empty[id].reason).not.toBe(ready[id].reason);
     }
 
-    for (const context of ['treemaker-tree', 'crease-pattern', 'simulate'] as const) {
+    for (const context of ['treemaker-tree', 'crease-pattern', 'simulate', 'references'] as const) {
       const other = capabilities({ activeEditingContext: context, hasBoxPleatDocument: true });
       for (const id of transforms) expect(other[id].visible).toBe(false);
     }
@@ -559,7 +559,7 @@ describe('workspace capabilities', () => {
     expect(noDocument['bp.layout.subdivide'].visible).toBe(true);
     expect(noDocument['bp.layout.subdivide'].enabled).toBe(false);
 
-    for (const context of ['treemaker-tree', 'crease-pattern', 'simulate'] as const) {
+    for (const context of ['treemaker-tree', 'crease-pattern', 'simulate', 'references'] as const) {
       const other = capabilities({ activeEditingContext: context, hasBoxPleatDocument: true });
       expect(other['bp.layout.subdivide'].visible).toBe(false);
       expect(other['bp.layout.unsubdivide'].visible).toBe(false);
@@ -639,6 +639,8 @@ describe('workspace capabilities', () => {
 
     const sim = capabilities({ activeEditingContext: 'simulate' });
     for (const id of cpMenuIds) expect(sim[id].visible).toBe(false);
+    const refs = capabilities({ activeEditingContext: 'references' });
+    for (const id of cpMenuIds) expect(refs[id].visible).toBe(false);
   });
 
   it('enables Save and Export .bps for a loaded box-pleat design', () => {
@@ -690,6 +692,39 @@ describe('workspace capabilities', () => {
     expect(sim['edit.undo'].enabled).toBe(false);
     expect(sim['edit.redo'].visible).toBe(true);
     expect(sim['edit.redo'].enabled).toBe(false);
+  });
+
+  it('masks the References context like Simulate: read-only, with inert undo', () => {
+    // References reads the crease pattern and writes nothing back, so the
+    // authoring commands go and navigation, file operations and the inert
+    // undo/redo stay — the same arm as Simulate, which is the point.
+    const refs = capabilities({
+      activeEditingContext: 'references',
+      documentMode: 'tree',
+      edgeCount: 2,
+      historyPastCount: 0,
+      historyFutureCount: 0,
+    });
+    for (const id of [
+      'edit.delete',
+      'edit.copy',
+      'edit.selectAll',
+      'edit.triangulateTree',
+      'cp.build',
+      'cp.makeMountain',
+      'optimize.scale',
+    ] as const) {
+      expect(refs[id].visible).toBe(false);
+      expect(refs[id].enabled).toBe(false);
+    }
+    expect(refs['view.references'].visible).toBe(true);
+    expect(refs['view.references'].enabled).toBe(true);
+    expect(refs['view.edit'].visible).toBe(true);
+    expect(refs['file.open'].visible).toBe(true);
+    expect(refs['edit.undo'].visible).toBe(true);
+    expect(refs['edit.undo'].enabled).toBe(false);
+    expect(refs['edit.redo'].visible).toBe(true);
+    expect(refs['edit.redo'].enabled).toBe(false);
   });
 });
 

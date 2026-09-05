@@ -24,6 +24,7 @@ describe('panelComponents', () => {
     'explori-results',
     'explori-tree',
       'inspector',
+      'references',
       'simulator',
       'simulator-view-controls',
     ]);

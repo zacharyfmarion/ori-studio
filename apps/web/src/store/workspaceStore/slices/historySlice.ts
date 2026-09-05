@@ -440,7 +440,10 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       await get().undoExplori();
       return;
     }
-    if (context === 'design-nux' || context === 'simulate') return;
+    // Neither Simulate nor References has a history stack of its own, and
+    // falling through would run the undo against a document that is not on
+    // screen.
+    if (context === 'design-nux' || context === 'simulate' || context === 'references') return;
 
     if (get().activeEditingContext === 'crease-pattern') {
       if (await undoCreasePattern()) return;
@@ -595,7 +598,10 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       await get().redoExplori();
       return;
     }
-    if (context === 'design-nux' || context === 'simulate') return;
+    // Neither Simulate nor References has a history stack of its own, and
+    // falling through would run the undo against a document that is not on
+    // screen.
+    if (context === 'design-nux' || context === 'simulate' || context === 'references') return;
 
     if (get().activeEditingContext === 'crease-pattern') {
       if (await redoCreasePattern()) return;

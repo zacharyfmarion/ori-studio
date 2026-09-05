@@ -94,7 +94,14 @@ export function clearPersistedLayout(workspace: WorkspaceId): void {
  * workspace's old per-variant scoping produced. Kept in the *clear* list so an
  * upgrade does not strand them in local storage forever.
  */
-const ALL_LAYOUT_SCOPES = ['design', 'design:box-pleat', 'design:nux', 'edit', 'simulate'];
+const ALL_LAYOUT_SCOPES = [
+  'design',
+  'design:box-pleat',
+  'design:nux',
+  'edit',
+  'simulate',
+  'references',
+];
 
 /**
  * Drop every persisted layout, for the app-level error recovery path: when the
@@ -249,6 +256,9 @@ export function applyDefaultLayout(
     case 'simulate':
       applySimulateLayout(api, coarsePointer);
       return;
+    case 'references':
+      applyReferencesLayout(api);
+      return;
   }
 }
 
@@ -293,6 +303,22 @@ function applySimulateLayout(api: DockviewApi, coarsePointer: boolean): void {
   });
   if (!coarsePointer) addViewPanel(api, WORKSPACE_VIEW_PANELS.simulate);
   simulator.api.setActive();
+}
+
+/**
+ * One headerless panel and nothing beside it.
+ *
+ * The References workspace keeps its settings in its own toolbar popover, so it
+ * has no View pane — which is why it is absent from `WORKSPACE_VIEW_PANELS`,
+ * why `reconcileViewPanel` has nothing to do here, and why the pointer is not a
+ * parameter: the layout is the same on every device.
+ */
+function applyReferencesLayout(api: DockviewApi): void {
+  addHeaderlessPanel(api, {
+    id: 'references',
+    component: 'references',
+    title: 'References',
+  }).api.setActive();
 }
 
 interface LayoutState {

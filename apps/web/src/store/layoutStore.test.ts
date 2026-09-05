@@ -182,6 +182,25 @@ describe('layout store', () => {
     });
   });
 
+  it('builds the references workspace as one headerless pane with no View pane', () => {
+    // Its settings live in a toolbar popover, so there is nothing to dock beside
+    // it — on any pointer. The two builds are the same, and neither removes a
+    // pane it never added.
+    for (const coarsePointer of [false, true]) {
+      const api = createDockviewApi();
+      applyDefaultLayout(api, 'references', coarsePointer);
+      expect(api.addPanel.mock.calls.map(([options]) => options.id)).toEqual(['references']);
+      expect(api.addPanel.mock.calls[0][0]).toMatchObject({
+        id: 'references',
+        component: 'references',
+      });
+      expect(api.addGroup).toHaveBeenCalledWith({ direction: 'right', hideHeader: true });
+      expect(api.panelMap.get('references')?.group.hideHeader).toBe(true);
+      expect(api.removePanel).not.toHaveBeenCalled();
+      expect(viewPanelFor('references')).toBeNull();
+    }
+  });
+
   it('activates existing panels through the dockview api', () => {
     const api = createDockviewApi();
     applyDefaultLayout(api, 'edit');

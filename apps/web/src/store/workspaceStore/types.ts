@@ -1350,6 +1350,79 @@ export interface SimulatorSliceActions {
 
 export type SimulatorSlice = SimulatorSliceState & SimulatorSliceActions;
 
+/** What the References workspace is being asked about. */
+export type ReferencesTarget =
+  | { kind: 'whole'; component: number }
+  | { kind: 'crease'; component: number; lineId: number }
+  | { kind: 'vertex'; component: number; point: Point };
+
+/**
+ * A ranked ReferenceFinder answer for a picked vertex or crease. Opaque here:
+ * the worker client (a later phase) owns the wire shape and narrows it.
+ */
+export type ReferencesCandidate = Record<string, unknown>;
+
+/**
+ * A folding-sequence plan for the whole pattern or a crease. Opaque here for the
+ * same reason as {@link ReferencesCandidate}; `computedAtRevision` is what the
+ * staleness guard compares against `foldArtifactRevision`.
+ */
+export interface ReferencesPlan {
+  computedAtRevision: number;
+  steps: readonly Record<string, unknown>[];
+  groups: readonly Record<string, unknown>[];
+  totals: Record<string, unknown>;
+  findings: readonly Record<string, unknown>[];
+}
+
+export interface ReferencesView {
+  activeStep: number;
+  activeCandidate: number;
+  landmarksFirst: boolean;
+}
+
+export type ReferencesRun =
+  | { status: 'idle' }
+  | { status: 'running'; startedAt: number }
+  | { status: 'stopping'; startedAt: number }
+  | { status: 'stale' }
+  | { status: 'error'; message: string };
+
+export interface ReferencesSliceState {
+  /** The picked vertex or crease, or the whole pattern; null before any pick. */
+  referencesTarget: ReferencesTarget | null;
+  /** The planner's breakdown for the current target, once computed. */
+  referencesPlan: ReferencesPlan | null;
+  /** ReferenceFinder's ranked solutions for a vertex or crease target. */
+  referencesCandidates: readonly ReferencesCandidate[] | null;
+  /** Which step and candidate the view frames, and the landmarks-first toggle. */
+  referencesView: ReferencesView;
+  /** Whether a computation is in flight, stale, or failed. */
+  referencesRun: ReferencesRun;
+}
+
+export interface ReferencesSliceActions {
+  setReferencesTarget: (target: ReferencesTarget | null) => void;
+  setReferencesPlan: (plan: ReferencesPlan | null) => void;
+  setReferencesCandidates: (candidates: readonly ReferencesCandidate[] | null) => void;
+  setReferencesView: (view: Partial<ReferencesView>) => void;
+  setReferencesRun: (run: ReferencesRun) => void;
+  /**
+   * Switch to the References workspace on the whole pattern. Nothing carries
+   * over from the caller — no crease target, no selection — so the entry from
+   * the rail, the View menu and the selection toolbar all land in one place.
+   */
+  openReferencesWorkspace: () => void;
+}
+
+/**
+ * The References workspace's transient state. Never persisted: every field is
+ * derived from the crease pattern and recomputed on demand, and a plan saved
+ * across reloads would be stale against a document that changed while it was
+ * away.
+ */
+export type ReferencesSlice = ReferencesSliceState & ReferencesSliceActions;
+
 /**
  * The ExplOri design's actions.
  *
@@ -1391,7 +1464,8 @@ export type WorkspaceState =
   ConditionSlice &
   CreasePatternSlice &
   OristudioBpSlice &
-  SimulatorSlice;
+  SimulatorSlice &
+  ReferencesSlice;
 
 export type WorkspaceSliceCreator<T> = StateCreator<
   WorkspaceState,

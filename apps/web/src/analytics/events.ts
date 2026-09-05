@@ -16,8 +16,8 @@ export type AnalyticsProperties = Record<string, AnalyticsPropertyValue>;
 // Enum property values
 // ---------------------------------------------------------------------------
 
-/** The three top-level workspaces, plus the share screen. */
-export type WorkspaceScreen = 'design' | 'edit' | 'simulate' | 'share';
+/** The four top-level workspaces, plus the share screen. */
+export type WorkspaceScreen = 'design' | 'edit' | 'simulate' | 'references' | 'share';
 /**
  * A Design workspace's method, for the events that describe *one* design.
  *
@@ -298,7 +298,8 @@ export type ContextMenuSurface =
   | 'bp-packing'
   | 'tree'
   | 'design-tree'
-  | 'simulator';
+  | 'simulator'
+  | 'references';
 
 /**
  * What the menu was raised *on*, coarsely.

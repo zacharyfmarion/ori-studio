@@ -472,6 +472,7 @@
       "exportSvg": "SVG 图像",
       "fold": "折叠",
       "label": "折痕图操作",
+      "references": "折叠参考",
       "saveImage": "保存为图像",
       "share": "创建共享链接",
       "simulate": "模拟",
@@ -754,6 +755,11 @@
     "x": "X",
     "y": "Y",
     "yes": "是"
+  },
+  "references": {
+    "empty": "没有折痕图。请在“编辑”中打开或绘制一个，然后再回来。",
+    "title": "参考",
+    "viewPending": "参考视图正在构建中。"
   },
   "simulator": {
     "backendCpu": "CPU",

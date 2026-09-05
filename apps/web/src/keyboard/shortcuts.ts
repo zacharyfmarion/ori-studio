@@ -16,9 +16,12 @@ import { isDesktopRuntime, isWindowsPlatform } from '../platform/runtime';
  * pushed only while a simulation owns the keyboard — a focused inline window on
  * the Edit canvas, or the Simulate workspace. Without it, the simulator's bare
  * letters (F, C, R, L) and Space would fight the CP tools bound to the same
- * keys, and Space is already space-to-pan on the Edit canvas.
+ * keys, and Space is already space-to-pan on the Edit canvas. `references` is
+ * the same arrangement for the References workspace: pushed only while its
+ * panel has registered an executor, so its arrows and zoom keys never reach the
+ * Edit canvas.
  */
-export type ShortcutScope = 'global' | 'crease-pattern' | 'viewport' | 'simulator';
+export type ShortcutScope = 'global' | 'crease-pattern' | 'viewport' | 'simulator' | 'references';
 export type ViewportShortcutId =
   | 'viewport.zoomIn'
   | 'viewport.zoomOut'
@@ -49,12 +52,23 @@ export type SimulatorShortcutId =
   | 'simulator.toggleCreases'
   | 'simulator.toggleHiddenLines'
   | 'simulator.toggleLighting';
+export type ReferencesShortcutId =
+  | 'references.nextStep'
+  | 'references.previousStep'
+  | 'references.nextCandidate'
+  | 'references.previousCandidate'
+  | 'references.recompute'
+  | 'references.toggleLandmarksFirst'
+  | 'references.resetView'
+  | 'references.zoomIn'
+  | 'references.zoomOut';
 export type ShortcutActionId =
   | MenuActionId
   | OristudioCpActionId
   | ViewportShortcutId
-  | SimulatorShortcutId;
-export type ShortcutTarget = 'menu' | 'cp-action' | 'viewport' | 'simulator';
+  | SimulatorShortcutId
+  | ReferencesShortcutId;
+export type ShortcutTarget = 'menu' | 'cp-action' | 'viewport' | 'simulator' | 'references';
 export type ReservedKeyClassification = 'allowed' | 'soft-reserved' | 'hard-reserved';
 
 export interface KeyChord {
@@ -341,6 +355,59 @@ const SIMULATOR_SHORTCUTS: ShortcutDefinition[] = [
   simulatorShortcut('simulator.toggleLighting', 'Toggle Lighting', { key: 'l' }),
 ];
 
+function referencesShortcut(
+  id: ReferencesShortcutId,
+  label: string,
+  defaultChord: KeyChord | KeyChord[]
+): ShortcutDefinition {
+  const defaultChords = normalizeDefaultChords(defaultChord);
+  return {
+    id,
+    label,
+    category: 'References',
+    scope: 'references',
+    target: 'references',
+    defaultChord: defaultChords[0] ?? null,
+    defaultChords,
+  };
+}
+
+/**
+ * References-workspace bindings. Same arrangement as the simulator's: the scope
+ * is pushed only while the References panel holds an executor, so these chords
+ * are free to reuse the simulator's arrows and zoom keys (the two are never in
+ * the stack together) without touching the CP tools' bare letters —
+ * `toggleLandmarksFirst` takes Shift+L rather than the L the simulator uses,
+ * because L is a CP tool and the point of this scope is to shadow nothing.
+ */
+const REFERENCES_SHORTCUTS: ShortcutDefinition[] = [
+  referencesShortcut('references.nextStep', 'Next Step', { key: 'arrowright' }),
+  referencesShortcut('references.previousStep', 'Previous Step', { key: 'arrowleft' }),
+  referencesShortcut('references.nextCandidate', 'Next Candidate', {
+    shift: true,
+    key: 'arrowright',
+  }),
+  referencesShortcut('references.previousCandidate', 'Previous Candidate', {
+    shift: true,
+    key: 'arrowleft',
+  }),
+  referencesShortcut('references.recompute', 'Recompute References', {
+    primary: true,
+    shift: true,
+    key: 'r',
+  }),
+  referencesShortcut('references.toggleLandmarksFirst', 'Toggle Landmarks First', {
+    shift: true,
+    key: 'l',
+  }),
+  referencesShortcut('references.resetView', 'Reset References View', [
+    { key: '0' },
+    { key: 'home' },
+  ]),
+  referencesShortcut('references.zoomIn', 'Zoom In References', [{ key: '=' }, { key: '+' }]),
+  referencesShortcut('references.zoomOut', 'Zoom Out References', [{ key: '-' }, { key: '_' }]),
+];
+
 /**
  * The viewport verbs whose executor can answer `false` and let the chord fall
  * through to the next scope.
@@ -469,6 +536,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   ...MENU_SHORTCUTS,
   ...buildCpShortcutDefinitions(),
   ...SIMULATOR_SHORTCUTS,
+  ...REFERENCES_SHORTCUTS,
   ...VIEWPORT_SHORTCUTS,
 ];
 
@@ -935,12 +1003,12 @@ export interface ShortcutShadowing {
   /**
    * Whether the loser is dead outright, or merely deferred.
    *
-   * Two claimants defer rather than kill. `simulator` is the one scope that is
-   * not always in the stack — `shortcutScopeStackForContext` pushes it only while
-   * a simulation owns the keyboard. So a simulator binding over a non-simulator
-   * one takes the chord *while a simulation is focused* and gives it back
-   * otherwise, which is the documented intent at the top of this file rather than
-   * a collision. A viewport binding that {@link shortcutMayDecline} is the same
+   * Two claimants defer rather than kill. `simulator` and `references` are the
+   * scopes that are not always in the stack — `shortcutScopeStackForContext`
+   * pushes each only while its surface owns the keyboard. So a simulator binding
+   * over a non-simulator one takes the chord *while a simulation is focused* and
+   * gives it back otherwise, which is the documented intent at the top of this
+   * file rather than a collision. A viewport binding that {@link shortcutMayDecline} is the same
    * story by a different mechanism: always in the stack, but it answers `false`
    * when it does not apply and dispatch continues past it.
    *
@@ -964,10 +1032,27 @@ export interface ShortcutShadowing {
  */
 const SHORTCUT_SCOPE_PRECEDENCE: Record<ShortcutScope, number> = {
   simulator: 0,
-  viewport: 1,
-  'crease-pattern': 2,
-  global: 3,
+  references: 1,
+  viewport: 2,
+  'crease-pattern': 3,
+  global: 4,
 };
+
+/**
+ * The scopes `shortcutScopeStackForContext` pushes only while a surface has
+ * registered an executor. A claim from one of these is a deferral rather than a
+ * death for anything beneath it — see {@link ShortcutShadowing.kind}.
+ */
+const CONDITIONAL_SCOPES: ReadonlySet<ShortcutScope> = new Set(['simulator', 'references']);
+
+/**
+ * Whether bindings in `scope` are dispatched only while their surface owns the
+ * keyboard. A claim from such a scope defers a chord rather than killing it, so
+ * conflict rules treat it the way they treat a declining viewport binding.
+ */
+export function isConditionalShortcutScope(scope: ShortcutScope): boolean {
+  return CONDITIONAL_SCOPES.has(scope);
+}
 
 /** True when `a` is the definition `handleShortcutKeyDown` reaches first. */
 function shortcutDispatchPrecedes(a: ShortcutDefinition, b: ShortcutDefinition): boolean {
@@ -1019,11 +1104,11 @@ export function findShortcutShadowing(
    * A claimant that may not answer the chord, and so does not make `definition`
    * dead. Two kinds, for two different reasons:
    *
-   * - **`simulator` scope**, which is in the stack only while a simulation owns
-   *   the keyboard. This one is relative to `asked`: a simulator binding is never
-   *   dispatched from a stack without its own scope, so from its point of view
-   *   its own scope is always there and a sibling simulator claim is an ordinary
-   *   same-scope collision, not a deferral.
+   * - **A conditional scope** (`simulator`, `references`), which is in the stack
+   *   only while its surface owns the keyboard. This one is relative to `asked`:
+   *   a simulator binding is never dispatched from a stack without its own scope,
+   *   so from its point of view its own scope is always there and a sibling
+   *   simulator claim is an ordinary same-scope collision, not a deferral.
    * - **A declining viewport binding**, which is always in the stack but hands
    *   the chord on when it does not apply. Not relative to anything — it is a
    *   property of the candidate alone, so no `asked`-side exemption applies.
@@ -1033,7 +1118,7 @@ export function findShortcutShadowing(
    * is `edit.delete` underneath.
    */
   const mayNotAnswer = (candidate: ShortcutDefinition): boolean =>
-    (definition.scope !== 'simulator' && candidate.scope === 'simulator') ||
+    (candidate.scope !== definition.scope && isConditionalShortcutScope(candidate.scope)) ||
     shortcutMayDecline(candidate.id);
 
   for (const candidate of SHORTCUT_DEFINITIONS) {

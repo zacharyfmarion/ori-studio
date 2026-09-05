@@ -472,6 +472,7 @@
       "exportSvg": "SVG 이미지",
       "fold": "접기",
       "label": "접힘 패턴 작업",
+      "references": "접기 참조",
       "saveImage": "이미지로 저장",
       "share": "공유 링크 만들기",
       "simulate": "시뮬레이션",
@@ -754,6 +755,11 @@
     "x": "X",
     "y": "Y",
     "yes": "예"
+  },
+  "references": {
+    "empty": "전개도가 없습니다. 편집에서 열거나 그린 뒤 돌아오세요.",
+    "title": "참조",
+    "viewPending": "참조 보기를 준비하고 있습니다."
   },
   "simulator": {
     "backendCpu": "CPU",

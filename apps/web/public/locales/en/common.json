@@ -182,6 +182,7 @@
     "redo": "Redo",
     "redoNextCpEdit": "Redo the next crease-pattern edit",
     "redoNextTreeEdit": "Redo the next tree edit",
+    "references": "References",
     "refresh": "Refresh",
     "refreshSimulatorModel": "Refresh simulator model",
     "relieveAllStrain": "Relieve All Strain",
@@ -230,6 +231,7 @@
     "showConditionsPane": "Show the conditions pane",
     "showDesignWorkspace": "Show the design workspace",
     "showEditWorkspace": "Show the edit workspace",
+    "showReferencesWorkspace": "Show the references workspace",
     "showSimulateWorkspace": "Show the simulate workspace",
     "simulate": "Simulate",
     "simulateBeforeExportingFolded": "Simulate a crease pattern before exporting its folded form",
@@ -296,9 +298,11 @@
     "design": "Design workspace",
     "edit": "Edit workspace",
     "label": "Workspaces",
+    "references": "References workspace",
     "simulate": "Simulate workspace",
     "tabDesign": "Design",
     "tabEdit": "Edit",
+    "tabReferences": "References",
     "tabSimulate": "Simulate"
   }
 }

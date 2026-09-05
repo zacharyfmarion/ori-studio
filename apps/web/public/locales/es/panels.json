@@ -526,6 +526,7 @@
       "exportSvg": "Imagen SVG",
       "fold": "Plegar",
       "label": "Acciones del patrón de pliegues",
+      "references": "Referencias de plegado",
       "saveImage": "Guardar como imagen",
       "share": "Crear enlace para compartir",
       "simulate": "Simular",
@@ -816,6 +817,11 @@
     "x": "X",
     "y": "Y",
     "yes": "Sí"
+  },
+  "references": {
+    "empty": "No hay patrón de plegado. Abre o dibuja uno en Editar y vuelve.",
+    "title": "Referencias",
+    "viewPending": "La vista de referencias está en construcción."
   },
   "simulator": {
     "backendCpu": "CPU",

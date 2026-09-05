@@ -6,16 +6,18 @@ import {
 } from './workspaces';
 
 describe('workspace definitions', () => {
-  it('defines the three primary workspaces in rail order', () => {
+  it('defines the four primary workspaces in rail order', () => {
     expect(WORKSPACE_DEFINITIONS.map((workspace) => workspace.id)).toEqual([
       'edit',
       'design',
       'simulate',
+      'references',
     ]);
     expect(WORKSPACE_DEFINITIONS.map((workspace) => workspace.label)).toEqual([
       'Edit',
       'Design',
       'Simulate',
+      'References',
     ]);
   });
 
@@ -26,8 +28,10 @@ describe('workspace definitions', () => {
     expect(workspaceForPanelId('crease-pattern')).toBe('edit');
     expect(workspaceForPanelId('cp-view-controls')).toBe('edit');
     expect(workspaceForPanelId('simulator')).toBe('simulate');
+    expect(workspaceForPanelId('references')).toBe('references');
 
     expect(workspaceForCommandId('view.creasePattern')).toBe('edit');
     expect(workspaceForCommandId('view.simulator')).toBe('simulate');
+    expect(workspaceForCommandId('view.references')).toBe('references');
   });
 });

@@ -267,6 +267,19 @@
     "valley": "Linie V",
     "yellow": "Linie Gelb"
   },
+  "references": {
+    "categoryLabel": "Referenzen",
+    "nextCandidate": "Nächster Kandidat",
+    "nextStep": "Nächster Schritt",
+    "previousCandidate": "Vorheriger Kandidat",
+    "previousStep": "Vorheriger Schritt",
+    "recompute": "Referenzen neu berechnen",
+    "resetView": "Referenzansicht zurücksetzen",
+    "scopeLabel": "Referenzen",
+    "toggleLandmarksFirst": "Landmarken zuerst",
+    "zoomIn": "Referenzen vergrößern",
+    "zoomOut": "Referenzen verkleinern"
+  },
   "simulator": {
     "foldBackward": "Faltung rückwärts",
     "foldEnd": "Zum gefalteten Zustand",

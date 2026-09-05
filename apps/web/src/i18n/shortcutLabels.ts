@@ -53,6 +53,24 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:simulator.toggleHiddenLines', 'Hidden lines');
     case 'simulator.toggleLighting':
       return t('tools:simulator.toggleLighting', 'Lighting');
+    case 'references.nextStep':
+      return t('tools:references.nextStep', 'Next Step');
+    case 'references.previousStep':
+      return t('tools:references.previousStep', 'Previous Step');
+    case 'references.nextCandidate':
+      return t('tools:references.nextCandidate', 'Next Candidate');
+    case 'references.previousCandidate':
+      return t('tools:references.previousCandidate', 'Previous Candidate');
+    case 'references.recompute':
+      return t('tools:references.recompute', 'Recompute References');
+    case 'references.toggleLandmarksFirst':
+      return t('tools:references.toggleLandmarksFirst', 'Landmarks First');
+    case 'references.resetView':
+      return t('tools:references.resetView', 'Reset References View');
+    case 'references.zoomIn':
+      return t('tools:references.zoomIn', 'Zoom In References');
+    case 'references.zoomOut':
+      return t('tools:references.zoomOut', 'Zoom Out References');
     default:
       return definition.label;
   }
@@ -66,6 +84,8 @@ export function shortcutScopeLabel(t: TFunction, scope: ShortcutScope): string {
       return t('dialogs:settings.shortcuts.scopeCreasePattern', 'crease-pattern');
     case 'viewport':
       return t('dialogs:settings.shortcuts.scopeViewport', 'viewport');
+    case 'references':
+      return t('tools:references.scopeLabel', 'references');
     default:
       return scope;
   }
@@ -108,6 +128,8 @@ export function shortcutCategoryLabel(t: TFunction, category: string): string {
       return t('dialogs:settings.shortcuts.categoryCheckAndFix', 'Check And Fix');
     case 'Fold':
       return t('dialogs:settings.shortcuts.categoryFold', 'Fold');
+    case 'References':
+      return t('tools:references.categoryLabel', 'References');
     default:
       return category;
   }

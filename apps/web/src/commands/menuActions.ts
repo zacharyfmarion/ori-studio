@@ -85,6 +85,7 @@ export const MENU_ACTION_IDS = [
   'view.creasePattern',
   'view.simulate',
   'view.simulator',
+  'view.references',
   'view.conditions',
   'view.resetLayout',
   'optimize.scale',
@@ -349,6 +350,7 @@ const VIEW_PANEL_ACTIONS: Partial<Record<MenuActionId, string>> = {
   'view.creasePattern': 'crease-pattern',
   'view.simulate': 'simulator',
   'view.simulator': 'simulator',
+  'view.references': 'references',
   'view.conditions': 'conditions',
 };
 

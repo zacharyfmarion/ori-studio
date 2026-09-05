@@ -330,10 +330,10 @@ owned by `store/workspaceStore/referenceFinderRuntime.ts` mirroring `cpDetectRun
 (`getReferenceFinderClient`, `releaseReferenceFinderClient`,
 `whileReferenceFinderClientAlive`, `onReferenceFinderClientLost`, `referenceFinderError`).
 One command in flight at a time: `main.cpp` clears the stdin queue before printing
-`Ready`, so pipelined queries hang forever. **Cancellation**: `checkCancel` is polled only
-during the database build (`ConsoleDatabaseProgress`), so it cancels a lazy build — a
-`cancel` message resolves it `true`, as upstream `worker.ts` does; queries are uncancelable
-and a hung or timed-out query is handled by `terminate()` and rebuild, rejecting the
+`Ready`, so pipelined queries hang forever. **Cancellation**: the module polls `checkCancel`
+only inside the statistics command (`ConsoleStatisticsProgress`; `ConsoleDatabaseProgress`
+ignores its cancel flag — verified in Phase 1), so neither a build nor a query can be
+interrupted cooperatively: the only cancel is `terminate()` and rebuild, rejecting the
 orphaned comlink promises first (the `cpExactSolveSession` pattern). The UI models Stop
 exactly as `CpRegionSolveState` does (`stoppable` / `stopping`; render no Stop rather than a
 disabled one). No `SharedArrayBuffer`, so the COOP/COEP question between `tauri.conf.json`
@@ -775,20 +775,20 @@ measurements.
 
 ### Phase 1 — ReferenceFinder worker and client
 
-- [ ] `referenceFinderWorker.ts`: lazy module init (`locateFile` from `?url`,
+- [x] `referenceFinderWorker.ts`: lazy module init (`locateFile` from `?url`,
       `instantiateWasm`), numeric stdin queue, `Ready`-delimited JSON-line collection,
-      strict one-command FIFO (documented: `clear()` runs before `Ready`), `checkCancel` →
-      build cancellation only, terminate-and-rebuild on query timeout with orphaned promises
-      rejected first, `WasmErrorEnvelope` normalisation.
-- [ ] `referenceFinderRuntime.ts` mirroring `cpDetectRuntime.ts`'s exports plus
+      strict one-command FIFO (documented: `clear()` runs before `Ready`), no cooperative
+      cancel (`checkCancel` is statistics-only), terminate-and-rebuild on timeout with
+      orphaned promises rejected first, `WasmErrorEnvelope` normalisation.
+- [x] `referenceFinderRuntime.ts` mirroring `cpDetectRuntime.ts`'s exports plus
       `simulatorRuntime`'s retain/release; database registry keyed by the full
       configuration hash, LRU 2 with idle teardown, `useDatabase = 0`; separate planner
       instance; `WorkerName` + `humanizeError` cases + i18n.
-- [ ] Typed client: `solvePoint`, `solveLine`, `batch` with progress; extractor per the
+- [x] Typed client: `solvePoint`, `solveLine`, `batch` with progress; extractor per the
       rules in "ReferenceFinder client facts" (per-line-step diagram index, trailing mark
       diagram, originals, every axiom-0 step, pinch segment → line, one style-3/7 element
       asserted, final line equals target within tol); per-line cache.
-- [ ] Replay fixtures captured from the real module (line, mark, diagonal, centre,
+- [x] Replay fixtures captured from the real module (line, mark, diagonal, centre,
       consecutive marks); vitest for encoder/decoder/extractor/cache; Node cross-check on
       the `--node` variant as a `web-client` step.
 - [ ] WebKit check on the iOS simulator (module worker + ASYNCIFY); `npm run build:web &&
@@ -812,7 +812,7 @@ measurements.
 
 ### Phase 3 — the References workspace (vertex and crease targets, bare-sheet queries)
 
-- [ ] **Register the workspace** — every site, in one PR: `WorkspaceId` /
+- [x] **Register the workspace** — every site, in one PR: `WorkspaceId` /
       `WORKSPACE_DEFINITIONS` / `WORKSPACE_BY_PANEL_ID` / `workspaceForCommandId`
       (`workspaces.ts`); `EditingContext` + `STATIC_PANEL_CONTEXTS` (`editingContext.ts`);
       `REFERENCES_PATH` + `workspacePath` / `parseWorkspacePath` + the route
@@ -824,7 +824,7 @@ measurements.
       `view.references` capability + the **`context === 'references'` read-only mask arm**;
       the **`historySlice` bail-out**; `WorkspaceScreen` + `ContextMenuSurface`; then run
       typecheck and update the ~10 hard-coded tests intentionally; phone tab-bar width check.
-- [ ] `referencesSlice` (transient) + the selection floating toolbar's References button
+- [x] `referencesSlice` (transient) + the selection floating toolbar's References button
       (visible only when the entire CP is selected, beside Simulate; action-catalog entry +
       `useOpenReferences` hook) that activates the panel.
 - [ ] `ReferencesCpView.tsx`: regl renderer on the `CpRenderer` seam with WebGL probe and

@@ -182,6 +182,7 @@
     "redo": "Refazer",
     "redoNextCpEdit": "Refazer a próxima edição do padrão de vincos",
     "redoNextTreeEdit": "Refazer a próxima edição da árvore",
+    "references": "Referências",
     "refresh": "Atualizar",
     "refreshSimulatorModel": "Atualizar modelo do simulador",
     "relieveAllStrain": "Aliviar toda a tensão",
@@ -230,6 +231,7 @@
     "showConditionsPane": "Mostrar o painel de condições",
     "showDesignWorkspace": "Mostrar o workspace de Design",
     "showEditWorkspace": "Mostrar o workspace de Edição",
+    "showReferencesWorkspace": "Mostrar o workspace de referências",
     "showSimulateWorkspace": "Mostrar o workspace de Simulação",
     "simulate": "Simular",
     "simulateBeforeExportingFolded": "Simule um padrão de dobras antes de exportar sua forma dobrada",
@@ -296,9 +298,11 @@
     "design": "Workspace de Design",
     "edit": "Workspace de Edição",
     "label": "Workspaces",
+    "references": "Workspace de Referências",
     "simulate": "Workspace de Simulação",
     "tabDesign": "Design",
     "tabEdit": "Editar",
+    "tabReferences": "Referências",
     "tabSimulate": "Simular"
   }
 }

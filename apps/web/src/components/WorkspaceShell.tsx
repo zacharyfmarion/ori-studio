@@ -8,6 +8,7 @@ import type { DockviewReadyEvent } from 'dockview';
 import 'dockview/dist/styles/dockview.css';
 import {
   Box,
+  Compass,
   DraftingCompass,
   FilePlus,
   FolderOpen,
@@ -56,6 +57,7 @@ const workspaceIcons: Record<WorkspaceId, typeof DraftingCompass> = {
   design: DraftingCompass,
   edit: PenTool,
   simulate: Box,
+  references: Compass,
 };
 
 /**
@@ -75,6 +77,8 @@ function workspaceTooltip(t: TFunction, id: WorkspaceId): string {
       return t('common:workspaceRail.edit', 'Edit workspace');
     case 'simulate':
       return t('common:workspaceRail.simulate', 'Simulate workspace');
+    case 'references':
+      return t('common:workspaceRail.references', 'References workspace');
   }
 }
 
@@ -94,6 +98,8 @@ function workspaceTabLabel(t: TFunction, id: WorkspaceId): string {
       return t('common:workspaceRail.tabEdit', 'Edit');
     case 'simulate':
       return t('common:workspaceRail.tabSimulate', 'Simulate');
+    case 'references':
+      return t('common:workspaceRail.tabReferences', 'References');
   }
 }
 

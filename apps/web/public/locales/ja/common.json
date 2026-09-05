@@ -182,6 +182,7 @@
     "redo": "やり直し",
     "redoNextCpEdit": "次の展開図の編集をやり直し",
     "redoNextTreeEdit": "次のツリーの編集をやり直し",
+    "references": "リファレンス",
     "refresh": "更新",
     "refreshSimulatorModel": "シミュレーターモデルを更新",
     "relieveAllStrain": "すべてのひずみを緩和",
@@ -230,6 +231,7 @@
     "showConditionsPane": "条件ペインを表示",
     "showDesignWorkspace": "デザインワークスペースを表示",
     "showEditWorkspace": "編集ワークスペースを表示",
+    "showReferencesWorkspace": "リファレンスワークスペースを表示",
     "showSimulateWorkspace": "シミュレートワークスペースを表示",
     "simulate": "シミュレート",
     "simulateBeforeExportingFolded": "折り上がりを書き出す前に展開図をシミュレーションしてください",
@@ -296,9 +298,11 @@
     "design": "デザインワークスペース",
     "edit": "編集ワークスペース",
     "label": "ワークスペース",
+    "references": "リファレンスワークスペース",
     "simulate": "シミュレートワークスペース",
     "tabDesign": "デザイン",
     "tabEdit": "編集",
+    "tabReferences": "リファレンス",
     "tabSimulate": "シミュレート"
   }
 }

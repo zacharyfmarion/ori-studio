@@ -499,6 +499,7 @@
       "exportSvg": "SVG image",
       "fold": "Fold",
       "label": "Crease pattern actions",
+      "references": "Folding references",
       "saveImage": "Save to image",
       "share": "Create shareable link",
       "simulate": "Simulate",
@@ -783,6 +784,11 @@
     "x": "X",
     "y": "Y",
     "yes": "Yes"
+  },
+  "references": {
+    "empty": "No crease pattern. Open or draw one in Edit, then come back.",
+    "title": "References",
+    "viewPending": "The reference view is being built."
   },
   "simulator": {
     "backendCpu": "CPU",

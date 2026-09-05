@@ -18,6 +18,7 @@ const ALL_CONTEXTS: EditingContext[] = [
   'bp-packing',
   'crease-pattern',
   'simulate',
+  'references',
 ];
 
 /**
@@ -92,7 +93,9 @@ function legacyMask(
     }
   }
 
-  if (context === 'simulate') {
+  // References joined the read-only arm when the workspace was added: it reads
+  // the crease pattern exactly as Simulate does and authors nothing.
+  if (context === 'simulate' || context === 'references') {
     for (const id of ids) {
       const isAuthoring =
         id.startsWith('cp.') ||

@@ -704,6 +704,18 @@ describe('findShortcutShadowing', () => {
     });
   });
 
+  it('calls a loss between two conditional scopes conditional as well', () => {
+    // `references` and `simulator` share the arrows and the zoom keys on purpose:
+    // each scope is pushed only while its own surface is on screen, so neither
+    // binding is ever dead. A capture UI reading this as hard would offer to
+    // unbind a simulator key from inside the References workspace.
+    const shadowing = findShortcutShadowing('references.zoomIn', { key: '=' });
+    expect(shadowing).toMatchObject({
+      winnerId: 'simulator.zoomIn',
+      kind: 'conditional',
+    });
+  });
+
   it('does not call a simulator binding hard-shadowed by a crease-pattern one', () => {
     // The mirror image of the case above, and the one that used to come back
     // `hard`. `simulator` is the *top* of the scope stack, so nothing outside it

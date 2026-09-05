@@ -126,6 +126,7 @@
   "view": {
     "design": "设计",
     "edit": "编辑",
+    "references": "参考",
     "resetLayout": "重置布局",
     "simulate": "模拟"
   }

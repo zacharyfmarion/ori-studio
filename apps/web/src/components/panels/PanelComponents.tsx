@@ -10,6 +10,7 @@ import { CreasePatternPanel } from './CreasePatternPanel';
 import { CpViewControlsPanel } from './CpViewControlsPanel';
 import { SimulatorPanel } from './SimulatorPanel';
 import { SimulatorViewControlsPanel } from './SimulatorViewControlsPanel';
+import { ReferencesPanel } from './ReferencesPanel';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { ConditionsPanel } from './ConditionsPanel';
 import { withPanelErrorBoundary } from '../errors/withPanelErrorBoundary';
@@ -27,6 +28,7 @@ const panels: Record<string, FC<IDockviewPanelProps>> = {
   'cp-view-controls': CpViewControlsPanel,
   simulator: SimulatorPanel,
   'simulator-view-controls': SimulatorViewControlsPanel,
+  references: ReferencesPanel,
   diagnostics: DiagnosticsPanel,
   conditions: ConditionsPanel,
 };

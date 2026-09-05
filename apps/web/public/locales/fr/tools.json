@@ -275,6 +275,19 @@
     "valley": "Ligne V",
     "yellow": "Ligne jaune"
   },
+  "references": {
+    "categoryLabel": "Références",
+    "nextCandidate": "Candidat suivant",
+    "nextStep": "Étape suivante",
+    "previousCandidate": "Candidat précédent",
+    "previousStep": "Étape précédente",
+    "recompute": "Recalculer les références",
+    "resetView": "Réinitialiser la vue des références",
+    "scopeLabel": "références",
+    "toggleLandmarksFirst": "Repères d'abord",
+    "zoomIn": "Zoom avant sur les références",
+    "zoomOut": "Zoom arrière sur les références"
+  },
   "simulator": {
     "foldBackward": "Reculer le pliage",
     "foldEnd": "Aller au plié",

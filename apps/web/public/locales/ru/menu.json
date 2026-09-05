@@ -126,6 +126,7 @@
   "view": {
     "design": "Дизайн",
     "edit": "Правка",
+    "references": "Референсы",
     "resetLayout": "Сбросить макет",
     "simulate": "Симуляция"
   }
