@@ -137,6 +137,20 @@ pub struct ExactSolveOptions {
     /// straightened and re-solve on the joined lines. See [`CarrierJoinMode`].
     #[serde(default)]
     pub carrier_join: CarrierJoinMode,
+    /// How far a carrier round may move a vertex from the solution it is
+    /// judged against, as a fraction of the paper. A join reads creases the
+    /// detector bent a degree or so as one line, and straightening them costs
+    /// a pixel or two; a join that has to drag vertices half the acceptance
+    /// budget to hold is not reading the geometry but rewriting it. Measured
+    /// on the curated set: the joins that reproduced a truth moved at most
+    /// 3.9 px of 1024, the one that solved a design to the wrong exact
+    /// configuration moved 9.3 px. Half the movement budget sits between.
+    #[serde(default = "default_carrier_join_movement_budget")]
+    pub carrier_join_movement_budget: f64,
+}
+
+const fn default_carrier_join_movement_budget() -> f64 {
+    0.005
 }
 
 /// A detected box-pleated or pleated 22.5° design comes back from the solve
@@ -413,6 +427,7 @@ impl Default for ExactSolveOptions {
             symmetry_min_fraction: default_symmetry_min_fraction(),
             pleat_spacing: PleatSpacingMode::default(),
             carrier_join: CarrierJoinMode::default(),
+            carrier_join_movement_budget: default_carrier_join_movement_budget(),
             polish_kawasaki_sigma_radians: default_polish_kawasaki_sigma_radians(),
             polish_carrier_incidence_sigma: default_polish_carrier_incidence_sigma(),
             polish_rounds: default_polish_rounds(),
@@ -3887,6 +3902,10 @@ struct CarrierJoinRound {
     adopted: bool,
     kawasaki_degrees: f64,
     max_vertex_movement: f64,
+    /// How far the joined solution sits from the solution it was judged
+    /// against, at the vertex that moved most: what the join itself cost,
+    /// as opposed to `max_vertex_movement`, which is measured from the input.
+    join_movement: f64,
     evaluations: usize,
     seconds: f64,
     refusals: Vec<String>,
@@ -3912,6 +3931,7 @@ fn carrier_join_json(outcome: &CarrierJoinOutcome) -> Value {
                     "adopted": round.adopted,
                     "kawasaki_degrees": round12(round.kawasaki_degrees),
                     "max_vertex_movement": round6(round.max_vertex_movement),
+                    "join_movement": round6(round.join_movement),
                     "evaluations": round.evaluations,
                     "seconds": round6(round.seconds),
                     "refusals": round.refusals,
@@ -4050,6 +4070,12 @@ fn join_pass_through_carriers(
             solving = reanchored;
         }
         let final_energy = residual_energy(&joined.residuals_for(&joined_params));
+        let join_movement = joined
+            .placed_points(&joined_params)
+            .iter()
+            .zip(&points)
+            .map(|(after, before)| (after.x - before.x).hypot(after.y - before.y))
+            .fold(0.0_f64, f64::max);
         let current_after = analyze_graph(input, &points, model, params, options);
         let status = classify_status(before, &after, options);
         let mut refusals = exact_solution_rejection_reasons(
@@ -4061,6 +4087,9 @@ fn join_pass_through_carriers(
             options,
         );
         refusals.extend(carrier_round_regressions(&current_after, &after, options));
+        if join_movement > options.carrier_join_movement_budget {
+            refusals.push("join_moved_too_far".to_owned());
+        }
         let adopted = refusals.is_empty();
         *evaluations += more;
         outcome.rounds.push(CarrierJoinRound {
@@ -4069,6 +4098,7 @@ fn join_pass_through_carriers(
             adopted,
             kawasaki_degrees: after.max_kawasaki_residual_degrees,
             max_vertex_movement: after.max_vertex_movement,
+            join_movement,
             evaluations: more,
             seconds: model.deadline.elapsed_seconds() - started,
             refusals,
