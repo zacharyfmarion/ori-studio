@@ -18,8 +18,10 @@
 //!   `truth.fold`, the same way — the solver on correct topology, no model.
 //!
 //! Writes `per_case.jsonl`, `summary.json` (which is also the scorecard
-//! `--compare` reads) and `summary.md`. Refuses to run from a binary built at
-//! another commit unless `--allow-stale`.
+//! `--compare` reads), `summary.md`, and under `answers/` the pipeline's and
+//! the gate's solved patterns per case as FOLD files in the case's own frame,
+//! to open beside `truth.fold` when a bucket needs explaining. Refuses to run
+//! from a binary built at another commit unless `--allow-stale`.
 //!
 //!   cargo run --release -p oristudio-cp-detect --features native-inference \
 //!     --bin curated_benchmark -- --cases <dir> --out <dir> \
@@ -178,7 +180,10 @@ fn assert_fresh_binary(allow_stale: bool) -> String {
 struct Pattern {
     /// The JSON with `vertices_coords` rescaled, for `EvalGraph`.
     value: Value,
+    /// Vertices on the `0..PX` paper, by the boundary's bounding box.
     points: Vec<Point2>,
+    /// Vertices as the file holds them, for a frame the solver defines.
+    raw: Vec<Point2>,
     edges: Vec<([usize; 2], String)>,
 }
 
@@ -291,6 +296,7 @@ fn pattern_from_value(mut value: Value) -> Result<Pattern, String> {
     Ok(Pattern {
         value,
         points,
+        raw: coords.iter().map(|p| Point2::new(p[0], p[1])).collect(),
         edges: keep
             .iter()
             .map(|&i| (edges[i], assignments[i].clone()))
@@ -513,8 +519,14 @@ fn discover(cases: &Path, only: Option<&[String]>) -> Vec<Case> {
 }
 
 /// The solver's two stages on `topology.fold`, the product's option strings,
-/// against the truth by correspondence.
-fn solver_gate(topology: &Path, truth: Option<&Pattern>, budget: f64) -> Value {
+/// against the truth by correspondence. `dump` receives the answer as a FOLD
+/// in the case's own frame.
+fn solver_gate(
+    topology: &Path,
+    truth: Option<&Pattern>,
+    budget: f64,
+    dump: Option<&Path>,
+) -> Value {
     let started = Instant::now();
     let fold: treemaker_fold::FoldDocument = match std::fs::read_to_string(topology)
         .map_err(|e| e.to_string())
@@ -558,9 +570,20 @@ fn solver_gate(topology: &Path, truth: Option<&Pattern>, budget: f64) -> Value {
         "seconds": round(started.elapsed().as_secs_f64()),
     });
     if let Some(truth) = truth {
-        // The truth is in the case's document frame; the solve worked in the
-        // input's normalized frame. Both map onto the 0..PX paper.
-        let truth_points: Vec<Point2> = fold_points_in_solver_frame(truth, &xform);
+        // The truth and the topology share the case's document frame. The
+        // solve worked in the frame the topology's boundary plan defined,
+        // which is the unit paper up to a symmetry of the square: its first
+        // corner at the origin, reflected when the loop ran the other way.
+        // The paper's bounding box cannot tell one orientation from another,
+        // so the truth goes through the same transform the topology did.
+        let truth_points: Vec<Point2> = truth
+            .raw
+            .iter()
+            .map(|p| {
+                let q = xform.apply(*p);
+                Point2::new(q.x * PX, q.y * PX)
+            })
+            .collect();
         let answer: Vec<Point2> = solved
             .vertices_exact
             .iter()
@@ -568,21 +591,29 @@ fn solver_gate(topology: &Path, truth: Option<&Pattern>, budget: f64) -> Value {
             .collect();
         record["vs_truth"] = correspondence(&answer, &truth_points, &crease_degrees(truth));
     }
+    if let Some(path) = dump {
+        let mut answer = fold.clone();
+        for (coord, point) in answer
+            .vertices_coords
+            .iter_mut()
+            .zip(&solved.vertices_exact)
+        {
+            let p = xform.invert(*point);
+            coord[0] = p.x;
+            coord[1] = p.y;
+        }
+        if let Ok(text) = serde_json::to_string(&answer) {
+            let _ = std::fs::write(path, text);
+        }
+    }
     record
-}
-
-/// A truth's vertices in the solver's frame: the pattern is already on the
-/// `0..PX` paper, and the solver's frame is the same paper on `0..1`.
-fn fold_points_in_solver_frame(
-    truth: &Pattern,
-    _xform: &oristudio_cp_compiler::Similarity,
-) -> Vec<Point2> {
-    truth.points.clone()
 }
 
 fn run_case(session: &mut NativeSession, case: &Case, args: &Args) -> Value {
     let started = Instant::now();
     let mut record = json!({ "slug": case.slug });
+    let answers = args.out.join("answers");
+    let _ = std::fs::create_dir_all(&answers);
     let topology = case.topology.as_deref().map(read_pattern);
     let truth = case.truth.as_deref().map(read_pattern);
     let detected = case.detected.as_deref().map(read_pattern);
@@ -693,6 +724,10 @@ fn run_case(session: &mut NativeSession, case: &Case, args: &Args) -> Value {
                                         .pointer("/quality_report/compiler_report/timings/exact_solve_seconds")
                                         .cloned()
                                         .unwrap_or(Value::Null);
+                                    let _ = std::fs::write(
+                                        answers.join(format!("{}.pipeline.fold", case.slug)),
+                                        &decoded.fold_json,
+                                    );
                                     match serde_json::from_str::<Value>(&decoded.fold_json)
                                         .map_err(|e| e.to_string())
                                         .and_then(pattern_from_value)
@@ -745,7 +780,12 @@ fn run_case(session: &mut NativeSession, case: &Case, args: &Args) -> Value {
 
     // The solver on correct topology.
     if let Some(path) = &case.topology {
-        record["gate"] = solver_gate(path, truth.as_ref(), args.budget);
+        record["gate"] = solver_gate(
+            path,
+            truth.as_ref(),
+            args.budget,
+            Some(&answers.join(format!("{}.gate.fold", case.slug))),
+        );
     }
 
     record["buckets"] = json!({
@@ -853,6 +893,7 @@ fn summarize(records: &[Value], commit: &str, model: &Path) -> Value {
                     "gate": r["buckets"]["gate"],
                     "edge_f1": r["decoder"]["edge_f1"],
                     "gate_max_px": r["gate"]["vs_truth"]["max_px"],
+                    "gate_unpaired_junctions": r["gate"]["vs_truth"]["unpaired_junctions"],
                 }),
             )
         })
@@ -911,10 +952,10 @@ fn summary_markdown(summary: &Value, records: &[Value]) -> String {
         "- solver on correct topology: reproduced {} ; buckets {}\n\n",
         summary["gate"]["reproduced"], summary["gate"]["buckets"]
     ));
-    out.push_str("| case | status | decoder | edge F1 | missing / extra | end to end | gate | gate max px |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n");
+    out.push_str("| case | status | decoder | edge F1 | missing / extra | end to end | e2e max px / unpaired junctions | gate | gate max px / unpaired junctions |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n");
     for r in records {
         out.push_str(&format!(
-            "| `{}` | {} | {} | {} | {} / {} | {} | {} | {} |\n",
+            "| `{}` | {} | {} | {} | {} / {} | {} | {} / {} | {} | {} / {} |\n",
             r["slug"].as_str().unwrap_or(""),
             r["status"].as_str().unwrap_or(""),
             r["buckets"]["decoder"].as_str().unwrap_or(""),
@@ -922,8 +963,11 @@ fn summary_markdown(summary: &Value, records: &[Value]) -> String {
             r["decoder"]["missing_edges"],
             r["decoder"]["extra_edges"],
             r["buckets"]["end_to_end"].as_str().unwrap_or(""),
+            r["end_to_end"]["max_px"],
+            r["end_to_end"]["unpaired_junctions"],
             r["buckets"]["gate"].as_str().unwrap_or(""),
-            r["gate"]["vs_truth"]["max_px"]
+            r["gate"]["vs_truth"]["max_px"],
+            r["gate"]["vs_truth"]["unpaired_junctions"]
         ));
     }
     out
