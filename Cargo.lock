@@ -3140,6 +3140,8 @@ version = "0.3.1"
 dependencies = [
  "crc32fast",
  "encoding_rs",
+ "image",
+ "imageproc",
  "miniz_oxide",
  "rayon",
  "serde",

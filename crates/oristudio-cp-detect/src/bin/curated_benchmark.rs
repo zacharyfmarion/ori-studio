@@ -6,7 +6,10 @@
 //! was given), optionally `detected.fold` (what the detector produced when the
 //! case was curated), `topology.fold` (the repaired pattern before solving)
 //! and `truth.fold` (the solved pattern). Nothing else: every fact about a
-//! case is derived here.
+//! case is derived here. Cases sit either at the corpus root or one level
+//! down in a group directory (`curated/`, `cpoogle/`): a directory with a
+//! `source.<ext>` is a case, any other directory is a group, and a case is
+//! keyed `group/slug` in every output. `--group` restricts a run to one group.
 //!
 //! Per case, three scores:
 //!
@@ -26,7 +29,14 @@
 //!   cargo run --release -p oristudio-cp-detect --features native-inference \
 //!     --bin curated_benchmark -- --cases <dir> --out <dir> \
 //!     [--model <model.onnx>] [--compare <summary.json>] [--budget 25] \
-//!     [--max-edges 1500] [--only slug,slug] [--allow-stale]
+//!     [--max-edges 1500] [--only slug,slug] [--group name] [--allow-stale]
+//!     [--write-detected]
+//!
+//! `--write-detected` writes the pipeline's output as `detected.fold` into any
+//! case that has none, which is how a generated group gets its curation-time
+//! detection (`rendered_corpus` in `oristudio-cp` makes the cases, this fills
+//! that file). A pattern over the edge cap is still scored on the decoder from
+//! the recognise-only decode; only its solve is skipped.
 use oristudio_cp_compiler::{
     Point2, exact_solve_input_from_fold, parse_exact_solve_request, solve_exact_with_exemptions,
 };
@@ -55,7 +65,9 @@ struct Args {
     budget: f64,
     max_edges: usize,
     only: Option<Vec<String>>,
+    group: Option<String>,
     allow_stale: bool,
+    write_detected: bool,
 }
 
 fn parse_args() -> Args {
@@ -69,7 +81,9 @@ fn parse_args() -> Args {
         budget: 25.0,
         max_edges: 1500,
         only: None,
+        group: None,
         allow_stale: false,
+        write_detected: false,
     };
     let mut it = std::env::args().skip(1);
     while let Some(a) = it.next() {
@@ -95,7 +109,9 @@ fn parse_args() -> Args {
                         .collect(),
                 )
             }
+            "--group" => args.group = Some(it.next().expect("--group <name>")),
             "--allow-stale" => args.allow_stale = true,
+            "--write-detected" => args.write_detected = true,
             other => panic!("unknown argument {other}"),
         }
     }
@@ -472,48 +488,101 @@ fn strict_score(predicted: &EvalGraph, truth: &EvalGraph, tolerance_px: f64) -> 
 // ---------------------------------------------------------------------------
 
 struct Case {
+    /// The group directory's name, or empty for a case at the corpus root.
+    group: String,
     slug: String,
+    dir: PathBuf,
     source: PathBuf,
     detected: Option<PathBuf>,
     topology: Option<PathBuf>,
     truth: Option<PathBuf>,
 }
 
-fn discover(cases: &Path, only: Option<&[String]>) -> Vec<Case> {
-    let mut out = Vec::new();
-    let Ok(entries) = std::fs::read_dir(cases) else {
-        return out;
+impl Case {
+    /// `group/slug`, or the bare slug for a case at the root: the name every
+    /// record, table and scorecard uses.
+    fn key(&self) -> String {
+        if self.group.is_empty() {
+            self.slug.clone()
+        } else {
+            format!("{}/{}", self.group, self.slug)
+        }
+    }
+}
+
+fn source_image(dir: &Path) -> Option<PathBuf> {
+    ["png", "jpg", "jpeg", "webp"]
+        .iter()
+        .map(|ext| dir.join(format!("source.{ext}")))
+        .find(|p| p.is_file())
+}
+
+fn sorted_dirs(path: &Path) -> Vec<PathBuf> {
+    let Ok(entries) = std::fs::read_dir(path) else {
+        return Vec::new();
     };
     let mut dirs: Vec<PathBuf> = entries
         .flatten()
         .map(|e| e.path())
-        .filter(|p| p.is_dir())
+        .filter(|p| {
+            p.is_dir()
+                && !p
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .is_some_and(|n| n.starts_with('.'))
+        })
         .collect();
     dirs.sort();
-    for dir in dirs {
+    dirs
+}
+
+/// Every case under the corpus: a directory with a `source.<ext>` is a case,
+/// any other directory is a group of cases. `only` matches a key or a bare
+/// slug; `group` keeps one group.
+fn discover(cases: &Path, only: Option<&[String]>, group: Option<&str>) -> Vec<Case> {
+    let mut out = Vec::new();
+    let mut push = |group_name: &str, dir: PathBuf, source: PathBuf| {
         let slug = dir
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("")
             .to_owned();
-        if slug.starts_with('.') || only.is_some_and(|list| !list.iter().any(|s| s == &slug)) {
-            continue;
-        }
-        let source = ["png", "jpg", "jpeg", "webp"]
-            .iter()
-            .map(|ext| dir.join(format!("source.{ext}")))
-            .find(|p| p.is_file());
-        let Some(source) = source else {
-            continue;
-        };
         let file = |name: &str| Some(dir.join(name)).filter(|p| p.is_file());
-        out.push(Case {
+        let case = Case {
+            group: group_name.to_owned(),
             slug,
-            source,
             detected: file("detected.fold"),
             topology: file("topology.fold"),
             truth: file("truth.fold"),
-        });
+            source,
+            dir,
+        };
+        let wanted =
+            only.is_none_or(|list| list.iter().any(|s| s == &case.key() || s == &case.slug));
+        if wanted {
+            out.push(case);
+        }
+    };
+    for dir in sorted_dirs(cases) {
+        if let Some(source) = source_image(&dir) {
+            if group.is_none_or(|g| g.is_empty()) {
+                push("", dir, source);
+            }
+            continue;
+        }
+        let name = dir
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_owned();
+        if group.is_some_and(|g| g != name) {
+            continue;
+        }
+        for case_dir in sorted_dirs(&dir) {
+            if let Some(source) = source_image(&case_dir) {
+                push(&name, case_dir, source);
+            }
+        }
     }
     out
 }
@@ -592,6 +661,17 @@ fn solver_gate(
         record["vs_truth"] = correspondence(&answer, &truth_points, &crease_degrees(truth));
     }
     if let Some(path) = dump {
+        // The stage-2 reports beside the answer, for a diff against another
+        // build's when a bucket moves.
+        let _ = std::fs::write(
+            path.with_extension("report.json"),
+            serde_json::to_string_pretty(&json!({
+                "status": format!("{:?}", solved.status),
+                "movement_report": solved.movement_report,
+                "theorem_residual_report": solved.theorem_residual_report,
+            }))
+            .unwrap_or_default(),
+        );
         let mut answer = fold.clone();
         for (coord, point) in answer
             .vertices_coords
@@ -611,9 +691,10 @@ fn solver_gate(
 
 fn run_case(session: &mut NativeSession, case: &Case, args: &Args) -> Value {
     let started = Instant::now();
-    let mut record = json!({ "slug": case.slug });
+    let mut record = json!({ "slug": case.key(), "group": case.group });
     let answers = args.out.join("answers");
     let _ = std::fs::create_dir_all(&answers);
+    let answer_name = case.key().replace('/', "__");
     let topology = case.topology.as_deref().map(read_pattern);
     let truth = case.truth.as_deref().map(read_pattern);
     let detected = case.detected.as_deref().map(read_pattern);
@@ -658,6 +739,12 @@ fn run_case(session: &mut NativeSession, case: &Case, args: &Args) -> Value {
 
     // The pipeline.
     let mut pipeline: Option<Pattern> = None;
+    // The graph as recognised, before the compiler and the solve: the
+    // decoder's own output. The solve merges detector-split junctions and
+    // moves vertices, which scored as decoder error when the solved pattern
+    // was compared with the topology; the carrier round made three exact
+    // decodes read as near.
+    let mut recognised: Option<Pattern> = None;
     let mut detection = json!({});
     match image::open(&case.source) {
         Err(error) => detection["error"] = json!(format!("load: {error}")),
@@ -678,7 +765,7 @@ fn run_case(session: &mut NativeSession, case: &Case, args: &Args) -> Value {
                             // against, and the largest patterns are the
                             // skipped ones: recognise only, which records
                             // the size and takes a second, not minutes.
-                            let decoded = if topology.is_some() {
+                            let mut decoded = if topology.is_some() {
                                 native_inference::decode_bounded(
                                     &rectified.rgba,
                                     &heads,
@@ -688,6 +775,40 @@ fn run_case(session: &mut NativeSession, case: &Case, args: &Args) -> Value {
                             } else {
                                 native_inference::decode(&rectified.rgba, &heads, args.budget, true)
                             };
+                            // Over the edge cap the solve is skipped, not the
+                            // case: the recognise-only decode still scores
+                            // the decoder, and the record says why there is
+                            // no solve.
+                            let mut too_large = None;
+                            if let Err(error) = &decoded
+                                && error.starts_with("too_large:")
+                            {
+                                too_large = Some(error.clone());
+                                decoded = native_inference::decode(
+                                    &rectified.rgba,
+                                    &heads,
+                                    args.budget,
+                                    true,
+                                );
+                            }
+                            if topology.is_some() {
+                                recognised = native_inference::decode(
+                                    &rectified.rgba,
+                                    &heads,
+                                    args.budget,
+                                    true,
+                                )
+                                .ok()
+                                .and_then(|probe| {
+                                    let _ = std::fs::write(
+                                        answers.join(format!("{answer_name}.recognised.fold")),
+                                        &probe.fold_json,
+                                    );
+                                    serde_json::from_str::<Value>(&probe.fold_json)
+                                        .ok()
+                                        .and_then(|v| pattern_from_value(v).ok())
+                                });
+                            }
                             match decoded {
                                 Err(error) => detection["error"] = json!(error),
                                 Ok(decoded) => {
@@ -703,6 +824,10 @@ fn run_case(session: &mut NativeSession, case: &Case, args: &Args) -> Value {
                                     detection["vertex_count"] = report["vertex_count"].clone();
                                     detection["edge_count"] = report["edge_count"].clone();
                                     detection["solve_status"] = exact["status"].clone();
+                                    if let Some(reason) = too_large {
+                                        detection["solve_status"] = json!("skipped_too_large");
+                                        detection["too_large"] = json!(reason);
+                                    }
                                     detection["accepted"] =
                                         exact["movement_report"]["accepted"].clone();
                                     detection["rejection_reasons"] =
@@ -716,6 +841,9 @@ fn run_case(session: &mut NativeSession, case: &Case, args: &Args) -> Value {
                                     detection["pleats"] =
                                         exact["movement_report"]["polish"]["pleat_runs"]["adopted"]
                                             .clone();
+                                    detection["pinned_step_degrees"] = exact["movement_report"]
+                                        ["polish"]["pinned_family"]["step_degrees"]
+                                        .clone();
                                     detection["compiler_seconds"] = report
                                         .pointer("/quality_report/compiler_report/timings/compiler_seconds")
                                         .cloned()
@@ -725,9 +853,15 @@ fn run_case(session: &mut NativeSession, case: &Case, args: &Args) -> Value {
                                         .cloned()
                                         .unwrap_or(Value::Null);
                                     let _ = std::fs::write(
-                                        answers.join(format!("{}.pipeline.fold", case.slug)),
+                                        answers.join(format!("{answer_name}.pipeline.fold")),
                                         &decoded.fold_json,
                                     );
+                                    if args.write_detected && case.detected.is_none() {
+                                        let _ = std::fs::write(
+                                            case.dir.join("detected.fold"),
+                                            &decoded.fold_json,
+                                        );
+                                    }
                                     match serde_json::from_str::<Value>(&decoded.fold_json)
                                         .map_err(|e| e.to_string())
                                         .and_then(pattern_from_value)
@@ -749,7 +883,8 @@ fn run_case(session: &mut NativeSession, case: &Case, args: &Args) -> Value {
 
     // Decoder against the repaired topology, and drift against the detection
     // the case was curated from.
-    if let (Some(pipeline), Some(topology)) = (&pipeline, &topology) {
+    let decoder_graph = recognised.as_ref().or(pipeline.as_ref());
+    if let (Some(pipeline), Some(topology)) = (decoder_graph, &topology) {
         match (eval_graph(pipeline), eval_graph(topology)) {
             (Ok(predicted), Ok(gt)) => {
                 record["decoder"] = strict_score(&predicted, &gt, DECODER_VERTEX_TOLERANCE_PX)
@@ -757,7 +892,7 @@ fn run_case(session: &mut NativeSession, case: &Case, args: &Args) -> Value {
             (Err(error), _) | (_, Err(error)) => record["decoder"] = json!({ "error": error }),
         }
     }
-    if let (Some(pipeline), Some(detected)) = (&pipeline, &detected)
+    if let (Some(pipeline), Some(detected)) = (decoder_graph, &detected)
         && let (Ok(predicted), Ok(then)) = (eval_graph(pipeline), eval_graph(detected))
     {
         let drift = strict_score(&predicted, &then, DECODER_VERTEX_TOLERANCE_PX);
@@ -784,7 +919,7 @@ fn run_case(session: &mut NativeSession, case: &Case, args: &Args) -> Value {
             path,
             truth.as_ref(),
             args.budget,
-            Some(&answers.join(format!("{}.gate.fold", case.slug))),
+            Some(&answers.join(format!("{answer_name}.gate.fold"))),
         );
     }
 
@@ -862,6 +997,55 @@ fn gate_bucket(record: &Value) -> &'static str {
 // ---------------------------------------------------------------------------
 
 fn summarize(records: &[Value], commit: &str, model: &Path) -> Value {
+    let cases: BTreeMap<String, Value> = records
+        .iter()
+        .map(|r| {
+            (
+                r["slug"].as_str().unwrap_or("").to_owned(),
+                json!({
+                    "status": r["status"],
+                    "decoder": r["buckets"]["decoder"],
+                    "end_to_end": r["buckets"]["end_to_end"],
+                    "gate": r["buckets"]["gate"],
+                    "edge_f1": r["decoder"]["edge_f1"],
+                    "gate_max_px": r["gate"]["vs_truth"]["max_px"],
+                    "gate_unpaired_junctions": r["gate"]["vs_truth"]["unpaired_junctions"],
+                }),
+            )
+        })
+        .collect();
+    let mut groups: BTreeMap<String, Vec<&Value>> = BTreeMap::new();
+    for r in records {
+        groups
+            .entry(r["group"].as_str().unwrap_or("").to_owned())
+            .or_default()
+            .push(r);
+    }
+    let all: Vec<&Value> = records.iter().collect();
+    let mut summary = aggregate(&all);
+    summary["schema"] = json!("oristudio/cp-detect-curated-scorecard/v2");
+    summary["commit"] = json!(commit);
+    summary["model"] = json!(model.file_name().and_then(|n| n.to_str()).unwrap_or(""));
+    summary["model_dir"] = json!(
+        model
+            .parent()
+            .and_then(|p| p.file_name())
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+    );
+    summary["groups"] = json!(
+        groups
+            .iter()
+            .map(|(name, members)| (name.clone(), aggregate(members)))
+            .collect::<BTreeMap<_, _>>()
+    );
+    summary["cases"] = json!(cases);
+    summary
+}
+
+/// The counts and buckets over one set of records: the whole run, or one
+/// group of it.
+fn aggregate(records: &[&Value]) -> Value {
     let count = |key: &str, bucket: &str| {
         records
             .iter()
@@ -881,28 +1065,7 @@ fn summarize(records: &[Value], commit: &str, model: &Path) -> Value {
         .iter()
         .filter_map(|r| r["decoder"]["edge_f1"].as_f64())
         .collect();
-    let cases: BTreeMap<String, Value> = records
-        .iter()
-        .map(|r| {
-            (
-                r["slug"].as_str().unwrap_or("").to_owned(),
-                json!({
-                    "status": r["status"],
-                    "decoder": r["buckets"]["decoder"],
-                    "end_to_end": r["buckets"]["end_to_end"],
-                    "gate": r["buckets"]["gate"],
-                    "edge_f1": r["decoder"]["edge_f1"],
-                    "gate_max_px": r["gate"]["vs_truth"]["max_px"],
-                    "gate_unpaired_junctions": r["gate"]["vs_truth"]["unpaired_junctions"],
-                }),
-            )
-        })
-        .collect();
     json!({
-        "schema": "oristudio/cp-detect-curated-scorecard/v1",
-        "commit": commit,
-        "model": model.file_name().and_then(|n| n.to_str()).unwrap_or(""),
-        "model_dir": model.parent().and_then(|p| p.file_name()).and_then(|n| n.to_str()).unwrap_or(""),
         "cases_total": records.len(),
         "status": {
             "solved": records.iter().filter(|r| r["status"] == json!("solved")).count(),
@@ -917,7 +1080,6 @@ fn summarize(records: &[Value], commit: &str, model: &Path) -> Value {
         },
         "end_to_end": { "buckets": buckets("end_to_end"), "recovered": count("end_to_end", "recovered") },
         "gate": { "buckets": buckets("gate"), "reproduced": count("gate", "reproduced") },
-        "cases": cases,
     })
 }
 
@@ -952,6 +1114,26 @@ fn summary_markdown(summary: &Value, records: &[Value]) -> String {
         "- solver on correct topology: reproduced {} ; buckets {}\n\n",
         summary["gate"]["reproduced"], summary["gate"]["buckets"]
     ));
+    if let Some(groups) = summary["groups"].as_object()
+        && groups.len() > 1
+    {
+        for (name, g) in groups {
+            out.push_str(&format!(
+                "- `{}`: {} cases ({} solved, {} topology-only, {} skipped); decoder exact {} of {} (mean edge F1 {}); end to end recovered {}; gate reproduced {}\n",
+                if name.is_empty() { "(root)" } else { name },
+                g["cases_total"],
+                g["status"]["solved"],
+                g["status"]["topology"],
+                g["status"]["skipped"],
+                g["decoder"]["exact_topology"],
+                g["decoder"]["scored"],
+                g["decoder"]["mean_edge_f1"],
+                g["end_to_end"]["recovered"],
+                g["gate"]["reproduced"]
+            ));
+        }
+        out.push('\n');
+    }
     out.push_str("| case | status | decoder | edge F1 | missing / extra | end to end | e2e max px / unpaired junctions | gate | gate max px / unpaired junctions |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n");
     for r in records {
         out.push_str(&format!(
@@ -1007,17 +1189,39 @@ fn compare(previous: &Value, current: &Value) {
             println!("[compare] {slug}: no longer present");
         }
     }
-    for (label, path) in [
+    let aggregates = [
         ("decoder exact topology", "/decoder/exact_topology"),
         ("decoder mean edge F1", "/decoder/mean_edge_f1"),
         ("end to end recovered", "/end_to_end/recovered"),
         ("gate reproduced", "/gate/reproduced"),
-    ] {
+    ];
+    for (label, path) in aggregates {
         println!(
             "[compare] {label}: {} -> {}",
             previous.pointer(path).cloned().unwrap_or(Value::Null),
             current.pointer(path).cloned().unwrap_or(Value::Null)
         );
+    }
+    if let (Some(before), Some(after)) = (
+        previous["groups"].as_object(),
+        current["groups"].as_object(),
+    ) && after.len() > 1
+    {
+        for (name, now) in after {
+            let Some(was) = before.get(name) else {
+                println!("[compare] group {name}: new");
+                continue;
+            };
+            for (label, path) in aggregates {
+                let (a, b) = (
+                    was.pointer(path).cloned().unwrap_or(Value::Null),
+                    now.pointer(path).cloned().unwrap_or(Value::Null),
+                );
+                if a != b {
+                    println!("[compare] group {name}: {label} {a} -> {b}");
+                }
+            }
+        }
     }
     if changes == 0 {
         println!("[compare] no case changed bucket");
@@ -1028,7 +1232,7 @@ fn main() {
     let args = parse_args();
     let commit = assert_fresh_binary(args.allow_stale);
     std::fs::create_dir_all(&args.out).expect("out dir");
-    let cases = discover(&args.cases, args.only.as_deref());
+    let cases = discover(&args.cases, args.only.as_deref(), args.group.as_deref());
     eprintln!(
         "[curated] {} cases under {}",
         cases.len(),
@@ -1051,7 +1255,7 @@ fn main() {
             "[{}/{}] {:36} {:8} decoder {:12} e2e {:14} gate {:12} {:.1}s",
             index + 1,
             cases.len(),
-            case.slug,
+            case.key(),
             record["status"].as_str().unwrap_or(""),
             record["buckets"]["decoder"].as_str().unwrap_or(""),
             record["buckets"]["end_to_end"].as_str().unwrap_or(""),

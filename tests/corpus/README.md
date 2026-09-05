@@ -212,12 +212,15 @@ primitive.
 
 ## CP-detect curated corpus
 
-Real inputs to the detect dialog with truth a person established in the editor;
-other designers' patterns, so the corpus stays outside the repository. Point the
-harness at it with `CP_DETECT_CURATED_CORPUS_DIR` and compare against the
-committed scorecard, `cp-detect-curated-baseline.json` in this directory. Usage
-and the scoring are in `scripts/cp-detect/README.md`, the case format in
-`implementation-plans/cp-detect-curated-ground-truth.md`.
+Real inputs to the detect dialog with truth a person established in the editor
+(`curated/`), and native crease patterns rendered the way the editor exports
+them and filtered to the ones that fold flat (`cpoogle/`); other designers'
+patterns, so the corpus stays outside the repository. Point the harness at it
+with `CP_DETECT_CURATED_CORPUS_DIR` and compare against the committed
+scorecard, `cp-detect-curated-baseline.json` in this directory. Usage and the
+scoring are in `scripts/cp-detect/README.md`, the case format in
+`implementation-plans/cp-detect-curated-ground-truth.md` and the rendered
+group in `implementation-plans/cp-detect-rendered-corpus.md`.
 
 Last curated run on September 5, 2026 at `5db043c4`, with the model
 `scripts/cp-detect/current-model.json` named at that commit, on an Apple

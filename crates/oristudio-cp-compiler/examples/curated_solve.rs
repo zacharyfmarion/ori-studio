@@ -14,6 +14,8 @@
 //!                '{"max_vertex_movement":0.02}'
 //!   ANSWER_OUT=f write the final answer as a FOLD in the case's own frame, to
 //!                compare with the truth by correspondence rather than distance
+//!   REPORT_OUT=f write the final stage's reports as JSON, to diff against
+//!                another build's
 //!   REEXPORT=1   between rounds, rebuild the FOLD from the answer and derive
 //!                the input again, as the editor does: which creases share a
 //!                carrier is then read off the solved geometry, not the
@@ -117,6 +119,16 @@ fn main() {
         }
         solved = stage(&format!("solve again #{round}"), &current, true);
     }
+    if let Ok(path) = std::env::var("REPORT_OUT") {
+        let report = json!({
+            "status": format!("{:?}", solved.status),
+            "movement_report": solved.movement_report,
+            "theorem_residual_report": solved.theorem_residual_report,
+        });
+        std::fs::write(&path, serde_json::to_string_pretty(&report).expect("json"))
+            .expect("write report");
+        println!("  report written to {path}");
+    }
     if let Ok(path) = std::env::var("ANSWER_OUT") {
         let mut fold = topology.clone();
         for (coord, point) in fold.vertices_coords.iter_mut().zip(&solved.vertices_exact) {
@@ -196,7 +208,7 @@ fn report(label: &str, solved: &ExactSolvedGraph, truth: Option<&[Point2]>) {
             .flatten()
             .map(|round| {
                 format!(
-                    "{}→{} {} {}",
+                    "{}→{} {} {} (join moved {})",
                     round["carriers_before"],
                     round["carriers_after"],
                     if round["adopted"] == Value::Bool(true) {
@@ -204,7 +216,8 @@ fn report(label: &str, solved: &ExactSolvedGraph, truth: Option<&[Point2]>) {
                     } else {
                         "refused"
                     },
-                    round["refusals"]
+                    round["refusals"],
+                    px(&round["join_movement"])
                 )
             })
             .collect();

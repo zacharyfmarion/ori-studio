@@ -39,6 +39,10 @@ treemaker-fold.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true
+# `examples/rendered_corpus.rs` draws crease patterns the way the editor's
+# export does, to make benchmark cases out of native files.
+image.workspace = true
+imageproc.workspace = true
 # The Flat-Folder port, used by `tests/folding3d_census.rs` as the independent
 # oracle for the ordering-variable count on an all-180 document. It depends only
 # on `treemaker-fold`, so there is no cycle.
