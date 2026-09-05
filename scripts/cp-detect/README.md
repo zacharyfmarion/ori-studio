@@ -559,6 +559,59 @@ accepted-but-wrong 46→17). The committed parity fixtures in
 guardrail; regenerate goldens after intentional solver changes with
 `UPDATE_GOLDEN=1 cargo test -p oristudio-cp-compiler --test exact_solve_parity -- --include-ignored`.
 
+## Curated benchmark (real inputs, hand-established truth)
+
+The packs above render crease patterns and use the source FOLD as truth. The
+curated benchmark scores the pipeline on the *real* inputs users give the
+detect dialog — scans, screenshots, photographed diagrams — against truth a
+person established in the editor. The patterns are other designers' work, so
+the corpus never enters the repository and never runs in CI; what is committed
+is the harness and the scorecard it is measured against. Plan and format:
+`implementation-plans/cp-detect-curated-ground-truth.md`.
+
+A case is a directory: `source.<ext>`, the exact image the dialog was given;
+`detected.fold`, what the detector produced when the case was curated;
+`topology.fold`, the repaired pattern exported before solving; `truth.fold`,
+the solved pattern. No metadata file — status, exactness, failure tags, all
+of it is derived. Aux lines export as `F` edges and are ignored.
+
+```bash
+export CP_DETECT_CURATED_CORPUS_DIR=/path/to/real_benchmark
+cargo run --release -p oristudio-cp-detect --features native-inference \
+  --bin curated_benchmark -- --out artifacts/cp-detect-curated/$(date +%F) \
+  --compare tests/corpus/cp-detect-curated-baseline.json
+```
+
+The model comes from `scripts/cp-detect/current-model.json` when run from the
+repository root, or `--model <model.onnx>`. Inference is native (CoreML on
+macOS, the CPU elsewhere) through the same code the batch tool uses; behind a
+proxy, unset `HTTPS_PROXY` for the build that downloads ONNX Runtime.
+
+Per case, three scores:
+
+- **decoder** — the pipeline's graph against `topology.fold`, the strict
+  topology metric at 4 px of 1024: `exact` / `near` (edge F1 ≥ 0.95) / `off`.
+- **end to end** — the pipeline's solved answer against `truth.fold`, vertex
+  to vertex by mutual nearest-neighbour correspondence, so a hand-fixed
+  truth's split points and aux endpoints count as unpaired rather than as
+  error: `recovered` (accepted, every paired vertex within 2 px, no junction
+  unpaired) / `accepted_wrong` / `not_accepted`.
+- **gate** — `topology.fold` through the solver's two stages against
+  `truth.fold`, the same way; the solver on correct topology with no model
+  involved: `reproduced` (within 1 px) / `close` (within 5 px) / `off` /
+  `not_solved`.
+
+`per_case.jsonl` holds every number; `summary.json` is the scorecard and
+`summary.md` the table. `--compare` prints every case whose bucket changed,
+both directions. The binary refuses to run from another commit's build unless
+`--allow-stale`, the same footgun guard as the benchmark above.
+
+The rule: before merging a change under `crates/oristudio-cp-detect*`,
+`crates/oristudio-cp-compiler`, or the detect and repair surfaces in
+`apps/web`, run it and paste the comparison into the PR. A change that moves a
+case lands with `tests/corpus/cp-detect-curated-baseline.json` updated in the
+same PR and the flip explained.
+
 ## GPU-native dense cache (MPS/CUDA, no browser)
 
 `run-browser-dense-cache.mjs` exists for product parity (it runs the same

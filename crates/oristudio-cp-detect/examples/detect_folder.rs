@@ -13,35 +13,11 @@
 //!   cargo run --release -p oristudio-cp-detect --features native-inference \
 //!     --example detect_folder -- --model <model.onnx> --out <dir> \
 //!     [--budget 20] [--workers 4] [--limit N] <dir-or-png>...
-use oristudio_cp_detect::decode::{self, DecodeConfig, DecoderBackend, DenseOutputs};
-use oristudio_cp_detect::evidence_extract::JunctionEvidenceSource;
-use oristudio_cp_detect::rectify::auto_rectify_rgba;
-use oristudio_cp_detect::source_image_evidence::{
-    SourceImageLineEvidenceOptions, line_probability_from_rgba,
-};
-use std::collections::HashMap;
+use oristudio_cp_detect::native_inference::{self, Heads, IMAGE_SIZE, NativeSession};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
-
-const IMAGE_SIZE: u32 = 1024;
-const THRESHOLD: f32 = 0.65;
-const JUNCTION_OFFSET_RADIUS_PX: f32 = 3.0;
-const OUTPUT_NAMES: [&str; 12] = [
-    "line_logits",
-    "angle",
-    "junction_logits",
-    "junction_offset",
-    "assignment_logits",
-    "non_crease_logits",
-    "line_style_logits",
-    "boundary_contact_logits",
-    "vertex_type_logits",
-    "boundary_side_logits",
-    "boundary_offset",
-    "boundary_coord",
-];
 
 struct Args {
     model: PathBuf,
@@ -128,61 +104,6 @@ fn collect_pngs(paths: &[PathBuf]) -> Vec<PathBuf> {
     out
 }
 
-/// Mirrors the desktop shell's `build_session`: CoreML with a model cache on
-/// macOS, every core on the CPU otherwise. The builder's error type carries
-/// the builder, so each variant is its own function and `?` does the conversion.
-fn build_session(model: &Path, cache_dir: &Path) -> (&'static str, ort::session::Session) {
-    let cores = std::thread::available_parallelism()
-        .map(|n| n.get())
-        .unwrap_or(4);
-    #[cfg(target_os = "macos")]
-    {
-        use ort::ep::ExecutionProvider;
-        if ort::ep::CoreML::default().is_available().unwrap_or(false) {
-            let _ = std::fs::create_dir_all(cache_dir);
-            match coreml_session(model, cache_dir) {
-                Ok(session) => return ("coreml", session),
-                Err(reason) => eprintln!("[detect_folder] CoreML refused, using the CPU: {reason}"),
-            }
-        }
-    }
-    let _ = cache_dir;
-    ("cpu", cpu_session(model, cores).expect("CPU session"))
-}
-
-#[cfg(target_os = "macos")]
-fn coreml_session(model: &Path, cache_dir: &Path) -> ort::Result<ort::session::Session> {
-    let session = ort::session::Session::builder()?
-        .with_execution_providers([
-            ort::ep::CoreML::default()
-                .with_model_cache_dir(cache_dir.to_string_lossy().into_owned())
-                .build(),
-            ort::ep::CPU::default().build(),
-        ])?
-        .commit_from_file(model)?;
-    Ok(session)
-}
-
-fn cpu_session(model: &Path, cores: usize) -> ort::Result<ort::session::Session> {
-    let session = ort::session::Session::builder()?
-        .with_execution_providers([ort::ep::CPU::default().build()])?
-        .with_intra_threads(cores)?
-        .commit_from_file(model)?;
-    Ok(session)
-}
-
-fn preprocess(rgba: &[u8], size: usize) -> Vec<f32> {
-    let pixels = size * size;
-    let mut tensor = vec![0.0f32; 3 * pixels];
-    for pixel in 0..pixels {
-        let base = pixel * 4;
-        tensor[pixel] = f32::from(rgba[base]) / 255.0;
-        tensor[pixels + pixel] = f32::from(rgba[base + 1]) / 255.0;
-        tensor[2 * pixels + pixel] = f32::from(rgba[base + 2]) / 255.0;
-    }
-    tensor
-}
-
 /// What inference hands a worker: the rectified image and the model's heads,
 /// owned, so the worker can borrow them into a `DenseOutputs` of its own.
 struct Job {
@@ -192,7 +113,7 @@ struct Job {
     height: u32,
     rect_report: serde_json::Value,
     rgba: Vec<u8>,
-    heads: HashMap<&'static str, Vec<f32>>,
+    heads: Heads,
     inference_ms: f64,
     provider: &'static str,
 }
@@ -225,66 +146,7 @@ fn worker(rx: Arc<Mutex<mpsc::Receiver<Job>>>, out: PathBuf, budget: f64, max_ed
             &out.join(format!("{}.thumb.png", job.stem)),
         );
 
-        let required = |name: &'static str| -> Result<&[f32], String> {
-            job.heads
-                .get(name)
-                .map(Vec::as_slice)
-                .ok_or_else(|| format!("model has no {name} output"))
-        };
-        // Decode twice on purpose: recognize-only first, which stops before the
-        // compiler and the solve, so a pattern too large to solve in a batch is
-        // recorded as such in under a second instead of after minutes.
-        let decode_with = |recognize_only: bool| -> Result<decode::DecodedFold, String> {
-            let line_probability = line_probability_from_rgba(
-                &job.rgba,
-                IMAGE_SIZE,
-                IMAGE_SIZE,
-                SourceImageLineEvidenceOptions::default(),
-            )
-            .map_err(|e| e.to_string())?;
-            let dense = DenseOutputs::from_legacy_heads(
-                required("line_logits")?,
-                required("junction_logits")?,
-                required("assignment_logits")?,
-                required("non_crease_logits")?,
-                required("line_style_logits")?,
-                required("boundary_contact_logits")?,
-            )
-            .with_angle(job.heads.get("angle").map(Vec::as_slice))
-            .with_junction_offset(job.heads.get("junction_offset").map(Vec::as_slice))
-            .with_vertex_type_logits(job.heads.get("vertex_type_logits").map(Vec::as_slice))
-            .with_boundary_side_logits(job.heads.get("boundary_side_logits").map(Vec::as_slice))
-            .with_boundary_offset(job.heads.get("boundary_offset").map(Vec::as_slice))
-            .with_boundary_coord(job.heads.get("boundary_coord").map(Vec::as_slice))
-            .with_line_probability_override(Some(&line_probability));
-            decode::decode_dense_outputs_with_backend_junction_source_and_refined_vertices_in_regions(
-                dense,
-                DecodeConfig {
-                    image_size: IMAGE_SIZE,
-                    threshold: THRESHOLD,
-                    junction_offset_cluster_radius_px: JUNCTION_OFFSET_RADIUS_PX,
-                    exact_solve_timeout_seconds: budget,
-                    recognize_only,
-                    ..DecodeConfig::default()
-                },
-                DecoderBackend::LegacyCandidateExactSolveV1,
-                JunctionEvidenceSource::Model,
-                None,
-                None,
-            )
-            .map_err(|e| e.to_string())
-        };
-        let decoded = decode_with(true).and_then(|probe| {
-            let edges = serde_json::to_value(&probe.report)
-                .ok()
-                .and_then(|r| r.get("edge_count").and_then(|v| v.as_u64()))
-                .unwrap_or(0) as usize;
-            if edges > max_edges {
-                Err(format!("too_large: {edges} edges recognized, over --max-edges {max_edges}; solve skipped"))
-            } else {
-                decode_with(false)
-            }
-        });
+        let decoded = native_inference::decode_bounded(&job.rgba, &job.heads, budget, max_edges);
         let decode_ms = started.elapsed().as_secs_f64() * 1000.0;
 
         match decoded {
@@ -375,16 +237,13 @@ fn main() {
 
     let cache_dir = args.out.join(".coreml-cache");
     let started = Instant::now();
-    let (provider, mut session) = build_session(&args.model, &cache_dir);
+    let mut session =
+        NativeSession::open(&args.model, &cache_dir).unwrap_or_else(|e| panic!("session: {e}"));
+    let provider = session.provider;
     eprintln!(
         "[detect_folder] session on {provider} in {:.1}s",
         started.elapsed().as_secs_f64()
     );
-    let input_name = session
-        .inputs()
-        .first()
-        .map(|o| o.name().to_owned())
-        .expect("model input");
 
     let (tx, rx) = mpsc::sync_channel::<Job>(2);
     let rx = Arc::new(Mutex::new(rx));
@@ -409,7 +268,6 @@ fn main() {
         if json_path.exists() {
             continue; // resumable
         }
-        let started = Instant::now();
         let loaded = match image::open(&path) {
             Ok(img) => img.to_rgba8(),
             Err(e) => {
@@ -421,45 +279,27 @@ fn main() {
             }
         };
         let (width, height) = loaded.dimensions();
-        let rectified = match auto_rectify_rgba(loaded.as_raw(), width, height, IMAGE_SIZE) {
+        let rectified = match native_inference::rectify(loaded.as_raw(), width, height) {
             Ok(r) => r,
             Err(e) => {
                 write_json(
                     &json_path,
-                    &serde_json::json!({"source": path, "stem": stem, "error": format!("rectify: {e:?}")}),
+                    &serde_json::json!({"source": path, "stem": stem, "error": e}),
                 );
                 continue;
             }
         };
-        let rect_report = serde_json::json!({
-            "mode": rectified.report.mode, "confidence": rectified.report.confidence,
-            "panel_detected": rectified.report.detected_source_quad.is_some(),
-            "warnings": rectified.report.warnings.iter().map(|w| w.code.clone()).collect::<Vec<_>>(),
-        });
-        let n = IMAGE_SIZE as usize;
-        let input = preprocess(&rectified.rgba, n);
-        let tensor =
-            ort::value::Tensor::from_array(([1usize, 3, n, n], input)).expect("input tensor");
-        let outputs = match session.run(ort::inputs![input_name.as_str() => tensor.view()]) {
-            Ok(o) => o,
+        let rect_report = rectified.report.clone();
+        let (heads, inference_ms) = match session.infer(&rectified.rgba) {
+            Ok(v) => v,
             Err(e) => {
                 write_json(
                     &json_path,
-                    &serde_json::json!({"source": path, "stem": stem, "rectification": rect_report, "error": format!("onnx: {e}")}),
+                    &serde_json::json!({"source": path, "stem": stem, "rectification": rect_report, "error": e}),
                 );
                 continue;
             }
         };
-        let mut heads: HashMap<&'static str, Vec<f32>> = HashMap::new();
-        for name in OUTPUT_NAMES {
-            if let Some(value) = outputs.get(name)
-                && let Ok((_, data)) = value.try_extract_tensor::<f32>()
-            {
-                heads.insert(name, data.to_vec());
-            }
-        }
-        drop(outputs);
-        let inference_ms = started.elapsed().as_secs_f64() * 1000.0;
         eprintln!(
             "[infer {}/{}] {} {:.0}ms",
             index + 1,

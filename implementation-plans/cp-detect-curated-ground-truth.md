@@ -206,9 +206,10 @@ design, currently decide.
 - [x] Case format agreed: files only, metadata derived
 - [x] Scaffold `real_benchmark/` from `real/` (107 cases, 103 with `detected.fold`)
 - [x] Curate the first cases: 74 done, 41 with an exact truth
-- [ ] Harness: load a case, rectify, infer, decode, solve with dialog defaults
-- [ ] Harness: normalise frames and score strict topology, recovery, position error
-- [ ] Solver-only gate over `topology.fold` → `truth.fold` in the compiler crate
-- [ ] Harness: `per_case.jsonl`, `summary.json`, `--compare`, provenance guard
+- [x] Harness: load a case, rectify, infer, decode, solve with dialog defaults (`curated_benchmark`, native inference shared with `detect_folder`)
+- [x] Harness: normalise frames and score strict topology, recovery, position error
+- [x] Solver-only gate over `topology.fold` → `truth.fold`: `curated_solve` in the compiler
+      crate, one case at a time, with `ROUNDS` / `REEXPORT` to replay "solve again"
+- [x] Harness: `per_case.jsonl`, `summary.json`, `--compare`, provenance guard
 - [ ] First baseline committed with the run recorded in `tests/corpus/README.md`
-- [ ] README section and the PR rule written down
+- [x] README section and the PR rule written down

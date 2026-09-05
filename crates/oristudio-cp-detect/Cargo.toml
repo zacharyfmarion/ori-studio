@@ -21,6 +21,7 @@ image.workspace = true
 imageproc.workspace = true
 oristudio-cp-compiler.workspace = true
 oristudio-cp-eval.workspace = true
+treemaker-fold.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
@@ -50,6 +51,10 @@ ort = { version = "=2.0.0-rc.13", features = ["coreml"], optional = true }
 
 [target.'cfg(all(not(target_os = "macos"), not(target_arch = "wasm32")))'.dependencies]
 ort = { version = "=2.0.0-rc.13", optional = true }
+
+[[bin]]
+name = "curated_benchmark"
+required-features = ["native-inference"]
 
 [[example]]
 name = "detect_folder"

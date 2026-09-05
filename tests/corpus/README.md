@@ -209,3 +209,12 @@ Add `--csv` for machine-readable rows, `--flatcheck` to compare the placement
 against the shipped flat folder on all-classic documents, `--sweep` for the
 census under a plane-tolerance sweep, and `--selftest` for the polygon-overlap
 primitive.
+
+## CP-detect curated corpus
+
+Real inputs to the detect dialog with truth a person established in the editor;
+other designers' patterns, so the corpus stays outside the repository. Point the
+harness at it with `CP_DETECT_CURATED_CORPUS_DIR` and compare against the
+committed scorecard, `cp-detect-curated-baseline.json` in this directory. Usage
+and the scoring are in `scripts/cp-detect/README.md`, the case format in
+`implementation-plans/cp-detect-curated-ground-truth.md`.
