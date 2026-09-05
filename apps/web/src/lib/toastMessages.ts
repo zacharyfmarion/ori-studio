@@ -105,6 +105,11 @@ export function humanizeError(error: unknown, t: TFunction): string {
         'errors:worker.cpDetect',
         'Crease-pattern detection stopped unexpectedly. Try importing the image again.'
       );
+    case 'worker_reference_finder':
+      return t(
+        'errors:worker.referenceFinder',
+        'The reference finder stopped unexpectedly. Reopen the References workspace to restart it.'
+      );
     // Project files we read and rejected (see lib/projectFileError.ts). Their
     // own messages are precise but internal ("field workspace.documents must be
     // an array"); all the user can act on is which of these three it is.

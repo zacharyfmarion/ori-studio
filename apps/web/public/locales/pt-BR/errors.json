@@ -65,6 +65,7 @@
     "cpDetect": "A detecção de padrão de vincos parou inesperadamente. Tente importar a imagem novamente.",
     "oristudioBp": "O motor de box pleating parou inesperadamente. Recarregue o Ori Studio para continuar trabalhando neste design.",
     "oristudioCp": "O motor de padrões de vincos parou inesperadamente. Recarregue o Ori Studio — as edições feitas após o último salvamento podem ser perdidas.",
+    "referenceFinder": "O localizador de referências parou inesperadamente. Reabra o workspace de referências para reiniciá-lo.",
     "simulator": "O simulador parou inesperadamente. Reabra o workspace de simulação para reiniciá-lo.",
     "treemaker": "O motor de design parou inesperadamente. Recarregue o Ori Studio para continuar trabalhando nesta árvore."
   }

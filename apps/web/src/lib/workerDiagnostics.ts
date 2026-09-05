@@ -21,7 +21,9 @@ export type WorkerName =
   | 'simulator'
   | 'cp-detect'
   /** One exact solve, spawned per run and terminated to cancel it. */
-  | 'cp-exact-solve';
+  | 'cp-exact-solve'
+  /** One ReferenceFinder database per worker; see store/workspaceStore/referenceFinderRuntime.ts. */
+  | 'reference-finder';
 
 export interface WorkerFailure {
   worker: WorkerName;

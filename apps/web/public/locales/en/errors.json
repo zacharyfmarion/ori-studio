@@ -65,6 +65,7 @@
     "cpDetect": "Crease-pattern detection stopped unexpectedly. Try importing the image again.",
     "oristudioBp": "The box-pleating engine stopped unexpectedly. Reload Ori Studio to continue working on this design.",
     "oristudioCp": "The crease-pattern engine stopped unexpectedly. Reload Ori Studio — unsaved edits since the last save may be lost.",
+    "referenceFinder": "The reference finder stopped unexpectedly. Reopen the References workspace to restart it.",
     "simulator": "The simulator stopped unexpectedly. Reopen the Simulate workspace to restart it.",
     "treemaker": "The design engine stopped unexpectedly. Reload Ori Studio to continue working on this tree."
   }
