@@ -2360,7 +2360,7 @@
     "landing:get.discord": "895e7564fa79",
     "landing:get.eyebrow": "61e8d44ad423",
     "landing:get.github": "9d652fe51402",
-    "landing:get.lead": "59b8234cfe5c",
+    "landing:get.lead": "def9cb079745",
     "landing:get.title": "14f63cd1303a",
     "landing:scrollCue": "f2c623fb55d4",
     "landing:simulate.eyebrow": "66154a084145",
@@ -2794,8 +2794,7 @@
     "common:toolbar.downloadDesktop": "e0633aad817c",
     "common:toolbar.downloadDesktopVersion": "03fa8a0d2319",
     "dialogs:help.about.desktop": "7102842054a4",
-    "dialogs:help.about.desktopDetail": "5261404987d3",
-    "landing:get.note": "f569b8266936"
+    "dialogs:help.about.desktopDetail": "5261404987d3"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5158,7 +5157,7 @@
     "landing:get.discord": "895e7564fa79",
     "landing:get.eyebrow": "61e8d44ad423",
     "landing:get.github": "9d652fe51402",
-    "landing:get.lead": "59b8234cfe5c",
+    "landing:get.lead": "def9cb079745",
     "landing:get.title": "14f63cd1303a",
     "landing:scrollCue": "f2c623fb55d4",
     "landing:simulate.eyebrow": "66154a084145",
@@ -5592,8 +5591,7 @@
     "common:toolbar.downloadDesktop": "e0633aad817c",
     "common:toolbar.downloadDesktopVersion": "03fa8a0d2319",
     "dialogs:help.about.desktop": "7102842054a4",
-    "dialogs:help.about.desktopDetail": "5261404987d3",
-    "landing:get.note": "f569b8266936"
+    "dialogs:help.about.desktopDetail": "5261404987d3"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7956,7 +7954,7 @@
     "landing:get.discord": "895e7564fa79",
     "landing:get.eyebrow": "61e8d44ad423",
     "landing:get.github": "9d652fe51402",
-    "landing:get.lead": "59b8234cfe5c",
+    "landing:get.lead": "def9cb079745",
     "landing:get.title": "14f63cd1303a",
     "landing:scrollCue": "f2c623fb55d4",
     "landing:simulate.eyebrow": "66154a084145",
@@ -8390,8 +8388,7 @@
     "common:toolbar.downloadDesktop": "e0633aad817c",
     "common:toolbar.downloadDesktopVersion": "03fa8a0d2319",
     "dialogs:help.about.desktop": "7102842054a4",
-    "dialogs:help.about.desktopDetail": "5261404987d3",
-    "landing:get.note": "f569b8266936"
+    "dialogs:help.about.desktopDetail": "5261404987d3"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -10721,7 +10718,7 @@
     "landing:get.discord": "895e7564fa79",
     "landing:get.eyebrow": "61e8d44ad423",
     "landing:get.github": "9d652fe51402",
-    "landing:get.lead": "59b8234cfe5c",
+    "landing:get.lead": "def9cb079745",
     "landing:get.title": "14f63cd1303a",
     "landing:scrollCue": "f2c623fb55d4",
     "landing:simulate.eyebrow": "66154a084145",
@@ -11137,8 +11134,7 @@
     "common:toolbar.downloadDesktop": "e0633aad817c",
     "common:toolbar.downloadDesktopVersion": "03fa8a0d2319",
     "dialogs:help.about.desktop": "7102842054a4",
-    "dialogs:help.about.desktopDetail": "5261404987d3",
-    "landing:get.note": "f569b8266936"
+    "dialogs:help.about.desktopDetail": "5261404987d3"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -13468,7 +13464,7 @@
     "landing:get.discord": "895e7564fa79",
     "landing:get.eyebrow": "61e8d44ad423",
     "landing:get.github": "9d652fe51402",
-    "landing:get.lead": "59b8234cfe5c",
+    "landing:get.lead": "def9cb079745",
     "landing:get.title": "14f63cd1303a",
     "landing:scrollCue": "f2c623fb55d4",
     "landing:simulate.eyebrow": "66154a084145",
@@ -13884,8 +13880,7 @@
     "common:toolbar.downloadDesktop": "e0633aad817c",
     "common:toolbar.downloadDesktopVersion": "03fa8a0d2319",
     "dialogs:help.about.desktop": "7102842054a4",
-    "dialogs:help.about.desktopDetail": "5261404987d3",
-    "landing:get.note": "f569b8266936"
+    "dialogs:help.about.desktopDetail": "5261404987d3"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -16248,7 +16243,7 @@
     "landing:get.discord": "895e7564fa79",
     "landing:get.eyebrow": "61e8d44ad423",
     "landing:get.github": "9d652fe51402",
-    "landing:get.lead": "59b8234cfe5c",
+    "landing:get.lead": "def9cb079745",
     "landing:get.title": "14f63cd1303a",
     "landing:scrollCue": "f2c623fb55d4",
     "landing:simulate.eyebrow": "66154a084145",
@@ -16682,8 +16677,7 @@
     "common:toolbar.downloadDesktop": "e0633aad817c",
     "common:toolbar.downloadDesktopVersion": "03fa8a0d2319",
     "dialogs:help.about.desktop": "7102842054a4",
-    "dialogs:help.about.desktopDetail": "5261404987d3",
-    "landing:get.note": "f569b8266936"
+    "dialogs:help.about.desktopDetail": "5261404987d3"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -19046,7 +19040,7 @@
     "landing:get.discord": "895e7564fa79",
     "landing:get.eyebrow": "61e8d44ad423",
     "landing:get.github": "9d652fe51402",
-    "landing:get.lead": "59b8234cfe5c",
+    "landing:get.lead": "def9cb079745",
     "landing:get.title": "14f63cd1303a",
     "landing:scrollCue": "f2c623fb55d4",
     "landing:simulate.eyebrow": "66154a084145",
@@ -19480,8 +19474,7 @@
     "common:toolbar.downloadDesktop": "e0633aad817c",
     "common:toolbar.downloadDesktopVersion": "03fa8a0d2319",
     "dialogs:help.about.desktop": "7102842054a4",
-    "dialogs:help.about.desktopDetail": "5261404987d3",
-    "landing:get.note": "f569b8266936"
+    "dialogs:help.about.desktopDetail": "5261404987d3"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -21811,7 +21804,7 @@
     "landing:get.discord": "895e7564fa79",
     "landing:get.eyebrow": "61e8d44ad423",
     "landing:get.github": "9d652fe51402",
-    "landing:get.lead": "59b8234cfe5c",
+    "landing:get.lead": "def9cb079745",
     "landing:get.title": "14f63cd1303a",
     "landing:scrollCue": "f2c623fb55d4",
     "landing:simulate.eyebrow": "66154a084145",
@@ -22227,7 +22220,6 @@
     "common:toolbar.downloadDesktop": "e0633aad817c",
     "common:toolbar.downloadDesktopVersion": "03fa8a0d2319",
     "dialogs:help.about.desktop": "7102842054a4",
-    "dialogs:help.about.desktopDetail": "5261404987d3",
-    "landing:get.note": "f569b8266936"
+    "dialogs:help.about.desktopDetail": "5261404987d3"
   }
 }

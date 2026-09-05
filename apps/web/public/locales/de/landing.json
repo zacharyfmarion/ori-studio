@@ -67,8 +67,7 @@
     "discord": "Discord beitreten",
     "eyebrow": "Loslegen",
     "github": "Quellcode und Issues",
-    "lead": "Scrollen Sie wieder nach oben und beginnen Sie ein Faltmuster — im Browser ist das die gesamte Einrichtung, und ein Konto braucht es in beiden Fällen nicht. Die Desktop-App ist derselbe Arbeitsbereich mit nativen Menüs und Dateidialogen und öffnet Ihre Dateien direkt aus dem Finder oder Explorer.",
-    "note": "Die Desktop-Builds sind kostenlos und quelloffen, genau wie die Web-App: signiert und notarisiert für macOS auf Apple Silicon und Intel, ein Installer für Windows sowie .deb- und AppImage-Pakete für Linux.",
+    "lead": "Ori Studio läuft vollständig im Browser — wenn Sie möchten, können Sie es aber auch als Desktop-App installieren.",
     "title": "Tab öffnen — oder installieren"
   },
   "scrollCue": "Sieh, was es kann",

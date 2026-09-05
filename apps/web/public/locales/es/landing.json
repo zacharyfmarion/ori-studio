@@ -67,8 +67,7 @@
     "discord": "Únete al Discord",
     "eyebrow": "Empezar",
     "github": "Código y incidencias",
-    "lead": "Vuelve arriba y empieza un patrón de pliegues: en el navegador, eso es toda la configuración, y en ningún caso hace falta una cuenta. La aplicación de escritorio es el mismo espacio de trabajo con menús y diálogos de archivo nativos, y abre tus archivos directamente desde el Finder o el Explorador.",
-    "note": "Las versiones de escritorio son gratuitas y de código abierto, igual que la aplicación web: compilaciones firmadas y notarizadas para macOS en Apple Silicon e Intel, un instalador para Windows y paquetes .deb y AppImage para Linux.",
+    "lead": "Ori Studio funciona por completo en tu navegador, pero, si lo prefieres, puedes instalarlo como aplicación de escritorio.",
     "title": "Abre una pestaña o instálalo"
   },
   "scrollCue": "Mira lo que hace",

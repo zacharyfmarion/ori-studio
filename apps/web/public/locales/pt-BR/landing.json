@@ -67,8 +67,7 @@
     "discord": "Entrar no Discord",
     "eyebrow": "Começar",
     "github": "Código e issues",
-    "lead": "Volte ao topo e comece um padrão de vincos — no navegador, essa é toda a configuração, e em nenhum dos casos é preciso ter conta. O aplicativo para desktop é o mesmo espaço de trabalho com menus e caixas de diálogo nativos, e abre seus arquivos direto do Finder ou do Explorador de Arquivos.",
-    "note": "As versões para desktop são gratuitas e de código aberto, assim como o aplicativo web: builds assinados e autenticados para macOS em Apple Silicon e Intel, um instalador para Windows e pacotes .deb e AppImage para Linux.",
+    "lead": "O Ori Studio funciona inteiramente no seu navegador, mas, se preferir, você pode instalá-lo como aplicativo para desktop.",
     "title": "Abra uma aba ou instale"
   },
   "scrollCue": "Veja o que ele faz",

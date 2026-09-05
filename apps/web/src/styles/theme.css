@@ -485,9 +485,12 @@
 }
 
 /* An item that is genuinely an anchor — a download link, reached through Radix's
-   `asChild`. The class already paints the text, but the user-agent's underline
-   for `a` survives it, and an underlined row reads as prose inside a menu. */
+   `asChild`. Two things the item class does not cover: the user-agent's
+   underline for `a` survives it, and an underlined row reads as prose inside a
+   menu; and `cursor: default` above is right for a row that only selects, but
+   wrong for one that goes somewhere. */
 a.context-menu__item {
+  cursor: pointer;
   text-decoration: none;
 }
 

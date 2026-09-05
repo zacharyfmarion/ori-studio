@@ -239,7 +239,7 @@ export function WelcomeLanding() {
         title={t('landing:get.title', 'Open a tab, or install it')}
         lead={t(
           'landing:get.lead',
-          'Scroll back up and start a crease pattern — in the browser that is the whole setup, and no account is involved either way. The desktop app is the same workspace with native menus and file dialogs, and it opens your files straight from the Finder or Explorer.'
+          'Ori Studio runs entirely in your browser, but if you prefer, you can install it as a desktop app.'
         )}
       >
         <div className="landing-actions">
@@ -270,12 +270,6 @@ export function WelcomeLanding() {
             {t('landing:get.github', 'Source and issues')}
           </ButtonLink>
         </div>
-        <p className="landing-actions__note">
-          {t(
-            'landing:get.note',
-            'Desktop builds are free and open source, the same as the web app: signed and notarized for macOS on Apple Silicon and Intel, an installer for Windows, and .deb and AppImage packages for Linux.'
-          )}
-        </p>
       </LandingSection>
     </div>
   );

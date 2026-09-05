@@ -28,12 +28,12 @@ function poseAsMac(): void {
   });
 }
 
-async function render(): Promise<HTMLDivElement> {
+async function render(className?: string): Promise<HTMLDivElement> {
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
   await act(async () => {
-    root?.render(<DesktopDownloadButton surface="landing" />);
+    root?.render(<DesktopDownloadButton surface="landing" className={className} />);
   });
   return container;
 }
@@ -85,6 +85,17 @@ describe('DesktopDownloadButton', () => {
     // A `.dmg` answers with `Content-Disposition: attachment`, so the visitor
     // stays where they are; `_blank` would leave a dead tab behind.
     expect(primary()?.getAttribute('target')).toBeNull();
+  });
+
+  it('puts a caller’s class on its root, which is how it is placed', async () => {
+    // The start screen positions this in the corner of the screenful through
+    // that class alone — a wrapper would survive into the desktop build, where
+    // this renders nothing, and leave its own margin behind as an empty gap.
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => RELEASE }));
+
+    const rendered = await render('start-screen__download');
+
+    expect(rendered.querySelector('.ui-split-button.start-screen__download')).not.toBeNull();
   });
 
   it('renders nothing inside the desktop app', async () => {

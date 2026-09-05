@@ -27,10 +27,19 @@ export function DesktopDownloadButton({
   surface,
   size = 'lg',
   variant = 'primary',
+  className = '',
 }: {
   surface: DesktopDownloadSurface;
   size?: ButtonProps['size'];
   variant?: ButtonProps['variant'];
+  /**
+   * Placement, applied to the root.
+   *
+   * So a caller can position this without wrapping it: a wrapper would still be
+   * in the layout on desktop, where this renders nothing, and would leave its
+   * own margin behind as a gap with nothing in it.
+   */
+  className?: string;
 }) {
   const { t } = useTranslation();
   const { available, os, builds, recommended, fallbackUrl } = useDesktopDownloads();
@@ -43,7 +52,7 @@ export function DesktopDownloadButton({
   const isFallback = !recommended;
 
   return (
-    <div className="ui-split-button">
+    <div className={`ui-split-button ${className}`.trim()}>
       <ButtonLink
         variant={variant}
         size={size}
