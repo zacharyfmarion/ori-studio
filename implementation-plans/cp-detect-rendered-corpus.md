@@ -69,6 +69,22 @@ against an exact truth; and the solver gate on a few hundred designs that are
 flat-foldable by construction. It cannot measure rectification of real
 photographs or the repair flow, which is what the curated group is for.
 
+### What the first run taught (2026-09-05)
+
+563 cpoogle files made 484 cases in 40 seconds, all exact at the editor's
+bar; 33 do not fold (faces unresolved, contradictions, one timeout), 51 are
+duplicates. The harness over both groups, 558 cases, takes 647 s on 8
+workers once cases run in parallel and patterns over 4,000 creases are not
+put through the detector: the recognise stage takes three to seven minutes
+at that size, which is the product's problem, not the run's. On the rendered
+group the decoder is exact on 256 of 478 (mean edge F1 0.964), 297 recover
+end to end, and the solver reproduces 407 truths. Two things it holds in
+place for the solver: 7 already-exact patterns refused as
+`kawasaki_regressed_from_bar` with the answer at 0.0 px (the curated
+crocodile, seven more times), and 13 papers the input builder cannot frame
+(non-square, or not a four-corner quadrilateral). And one harness lesson:
+the recognise stage must run once per case; it was running three times.
+
 ## Affected Areas
 
 - `crates/oristudio-cp-detect/src/bin/curated_benchmark.rs`: groups, keys,
@@ -87,5 +103,5 @@ photographs or the repair flow, which is what the curated group is for.
 - [x] `rendered_corpus`: import, dedupe, fold filter with deadline, exactness
 - [x] `rendered_corpus`: render with the export palette
 - [x] `rendered_corpus`: FOLD export, group README; detection through the harness's `--write-detected`
-- [ ] Curated cases moved under `curated/`; cpoogle scaffolded under `cpoogle/`
-- [ ] Baseline re-measured over both groups and recorded
+- [x] Curated cases moved under `curated/`; cpoogle scaffolded under `cpoogle/`
+- [x] Baseline re-measured over both groups and recorded

@@ -222,14 +222,23 @@ scoring are in `scripts/cp-detect/README.md`, the case format in
 `implementation-plans/cp-detect-curated-ground-truth.md` and the rendered
 group in `implementation-plans/cp-detect-rendered-corpus.md`.
 
-Last curated run on September 5, 2026 at `5db043c4`, with the model
+Last curated run on September 5, 2026 at `8913ccc8`, with the model
 `scripts/cp-detect/current-model.json` named at that commit, on an Apple
-Silicon Mac with CoreML. 74 cases: 40 with an exact truth, 21 with a repaired
-topology only, 13 skipped as too complex to curate.
+Silicon Mac with CoreML, 647 s on 8 workers. 558 cases in two groups:
+`curated/`, 74 real images (40 with an exact truth, 21 topology only, 13
+skipped as too complex to curate), and `cpoogle/`, 484 native crease patterns
+rendered the way the editor exports them (all exact; 6 over the 4,000-crease
+recognition cap are topology-only rows).
 
 ```text
-curated benchmark: 74 cases | decoder exact 14 of 60 (mean edge F1 0.822) | end to end recovered 19 | gate reproduced 34 | 620s
-  decoder:    exact 14, near 22, off 24, no detection 1, n/a 13
-  end to end: recovered 19, accepted wrong 15, not accepted 6, n/a 34
-  gate:       reproduced 34, close 3, off 2, not solved 11, solved without a truth 11, n/a 13
+curated benchmark: 558 cases | decoder exact 274 of 539 (mean edge F1 0.948) | end to end recovered 317 | gate reproduced 441 | 647s
+  curated: decoder exact 18 of 61 (mean edge F1 0.819); end to end recovered 20, accepted wrong 14, not accepted 6; gate reproduced 34, close 3, off 2, not solved 10, skipped 1, solved without a truth 11
+  cpoogle: decoder exact 256 of 478 (mean edge F1 0.964); end to end recovered 297, accepted wrong 137, not accepted 42, skipped 6; gate reproduced 407, close 14, off 3, not solved 12, error 13, skipped 35
 ```
+
+The 13 gate errors are the solver's input builder refusing a paper it does
+not support (7 non-square, 5 not a four-corner quadrilateral, 1 degenerate
+edge). Seven of the rendered group's `not solved` gates are one solver
+target: an already-exact pattern refused as `kawasaki_regressed_from_bar`
+with its answer 0.0 px from the truth, the crocodile finding of the curated
+group, now with seven reproductions.
