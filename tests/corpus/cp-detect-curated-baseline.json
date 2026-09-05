@@ -1,0 +1,712 @@
+{
+  "cases": {
+    "axolotl-molecule": {
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "bali-myna": {
+      "decoder": "off",
+      "edge_f1": 0.936,
+      "end_to_end": "n/a",
+      "gate": "not_solved",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "topology"
+    },
+    "barbirusa": {
+      "decoder": "near",
+      "edge_f1": 0.956,
+      "end_to_end": "n/a",
+      "gate": "not_solved",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "topology"
+    },
+    "bat-naoki-terao": {
+      "decoder": "near",
+      "edge_f1": 0.974,
+      "end_to_end": "recovered",
+      "gate": "close",
+      "gate_max_px": 1.609,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "bird-of-paradise": {
+      "decoder": "n/a",
+      "edge_f1": null,
+      "end_to_end": "n/a",
+      "gate": "n/a",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "skipped"
+    },
+    "bowhead-whale": {
+      "decoder": "near",
+      "edge_f1": 0.964,
+      "end_to_end": "n/a",
+      "gate": "solved_no_truth",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "topology"
+    },
+    "cardinal-steps": {
+      "decoder": "n/a",
+      "edge_f1": null,
+      "end_to_end": "n/a",
+      "gate": "n/a",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "skipped"
+    },
+    "carndinal-final": {
+      "decoder": "n/a",
+      "edge_f1": null,
+      "end_to_end": "n/a",
+      "gate": "n/a",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "skipped"
+    },
+    "coconut-crab": {
+      "decoder": "no_detection",
+      "edge_f1": null,
+      "end_to_end": "n/a",
+      "gate": "not_solved",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "topology"
+    },
+    "common-wildebeest": {
+      "decoder": "off",
+      "edge_f1": 0.261,
+      "end_to_end": "accepted_wrong",
+      "gate": "reproduced",
+      "gate_max_px": 0.662,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "condor": {
+      "decoder": "near",
+      "edge_f1": 0.961,
+      "end_to_end": "n/a",
+      "gate": "not_solved",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "topology"
+    },
+    "condor-naoki-terao": {
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "cordyceps-ant": {
+      "decoder": "near",
+      "edge_f1": 0.994,
+      "end_to_end": "accepted_wrong",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "crocodile": {
+      "decoder": "off",
+      "edge_f1": 0.056,
+      "end_to_end": "not_accepted",
+      "gate": "not_solved",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "crocodile-naoki-terao": {
+      "decoder": "off",
+      "edge_f1": 0.879,
+      "end_to_end": "accepted_wrong",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "dragon-naoki-terao": {
+      "decoder": "near",
+      "edge_f1": 0.98,
+      "end_to_end": "recovered",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "earwig": {
+      "decoder": "off",
+      "edge_f1": 0.857,
+      "end_to_end": "not_accepted",
+      "gate": "reproduced",
+      "gate_max_px": 0.462,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "executioner": {
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
+      "gate": "close",
+      "gate_max_px": 1.119,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "frigate-bird": {
+      "decoder": "near",
+      "edge_f1": 0.975,
+      "end_to_end": "n/a",
+      "gate": "solved_no_truth",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "topology"
+    },
+    "frog-naoki-terao": {
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "frog-on-lilly": {
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "ghost-knifefish": {
+      "decoder": "near",
+      "edge_f1": 0.966,
+      "end_to_end": "n/a",
+      "gate": "solved_no_truth",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "topology"
+    },
+    "greater-bird-of-paradise": {
+      "decoder": "off",
+      "edge_f1": 0.809,
+      "end_to_end": "n/a",
+      "gate": "not_solved",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "topology"
+    },
+    "halibut": {
+      "decoder": "near",
+      "edge_f1": 0.984,
+      "end_to_end": "n/a",
+      "gate": "solved_no_truth",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "topology"
+    },
+    "helioprion": {
+      "decoder": "off",
+      "edge_f1": 0.949,
+      "end_to_end": "not_accepted",
+      "gate": "off",
+      "gate_max_px": 5.438,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "helmeted-hornbill": {
+      "decoder": "off",
+      "edge_f1": 0.08,
+      "end_to_end": "accepted_wrong",
+      "gate": "off",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 4,
+      "status": "solved"
+    },
+    "hex-tiger-naoki-terao": {
+      "decoder": "off",
+      "edge_f1": 0.925,
+      "end_to_end": "accepted_wrong",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "hp-thing": {
+      "decoder": "near",
+      "edge_f1": 0.994,
+      "end_to_end": "n/a",
+      "gate": "not_solved",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "topology"
+    },
+    "ibex": {
+      "decoder": "n/a",
+      "edge_f1": null,
+      "end_to_end": "n/a",
+      "gate": "n/a",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "skipped"
+    },
+    "indonesian-crane": {
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "japanese-spiny-lobster": {
+      "decoder": "n/a",
+      "edge_f1": null,
+      "end_to_end": "n/a",
+      "gate": "n/a",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "skipped"
+    },
+    "lamprey": {
+      "decoder": "n/a",
+      "edge_f1": null,
+      "end_to_end": "n/a",
+      "gate": "n/a",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "skipped"
+    },
+    "leafcutter-ant": {
+      "decoder": "near",
+      "edge_f1": 0.992,
+      "end_to_end": "accepted_wrong",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "leek": {
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "markhor": {
+      "decoder": "near",
+      "edge_f1": 0.991,
+      "end_to_end": "recovered",
+      "gate": "reproduced",
+      "gate_max_px": 0.005,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "markhor-detailed": {
+      "decoder": "near",
+      "edge_f1": 0.962,
+      "end_to_end": "accepted_wrong",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "matt-laboone-beetle": {
+      "decoder": "n/a",
+      "edge_f1": null,
+      "end_to_end": "n/a",
+      "gate": "n/a",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "skipped"
+    },
+    "mr-rocket-tintin-discord": {
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "neel-les-flours-dsicord": {
+      "decoder": "near",
+      "edge_f1": 0.978,
+      "end_to_end": "accepted_wrong",
+      "gate": "reproduced",
+      "gate_max_px": 0.4,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "okapi-naoki-terao": {
+      "decoder": "off",
+      "edge_f1": 0.931,
+      "end_to_end": "accepted_wrong",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "origami-for-the-win-gyrados-discord": {
+      "decoder": "off",
+      "edge_f1": 0.898,
+      "end_to_end": "recovered",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "origami-larper-discord": {
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "origami-larper-pachycephelasaurous": {
+      "decoder": "off",
+      "edge_f1": 0.913,
+      "end_to_end": "n/a",
+      "gate": "solved_no_truth",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "topology"
+    },
+    "palm-civet": {
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "peacock-spider": {
+      "decoder": "n/a",
+      "edge_f1": null,
+      "end_to_end": "n/a",
+      "gate": "n/a",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "skipped"
+    },
+    "pegasus-naoki-terao": {
+      "decoder": "near",
+      "edge_f1": 0.971,
+      "end_to_end": "recovered",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "poison-dart-frog": {
+      "decoder": "near",
+      "edge_f1": 0.964,
+      "end_to_end": "accepted_wrong",
+      "gate": "reproduced",
+      "gate_max_px": 0.034,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "pork-mozart-discord": {
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "proboscis-monkey": {
+      "decoder": "near",
+      "edge_f1": 0.976,
+      "end_to_end": "n/a",
+      "gate": "solved_no_truth",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "topology"
+    },
+    "remora": {
+      "decoder": "off",
+      "edge_f1": 0.945,
+      "end_to_end": "n/a",
+      "gate": "solved_no_truth",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "topology"
+    },
+    "reza": {
+      "decoder": "n/a",
+      "edge_f1": null,
+      "end_to_end": "n/a",
+      "gate": "n/a",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "skipped"
+    },
+    "reza-dreamworks-1": {
+      "decoder": "off",
+      "edge_f1": 0.949,
+      "end_to_end": "recovered",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "reza-dreamworks-2": {
+      "decoder": "off",
+      "edge_f1": 0.868,
+      "end_to_end": "n/a",
+      "gate": "solved_no_truth",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "topology"
+    },
+    "reza-nazuna-nanakusa-all": {
+      "decoder": "n/a",
+      "edge_f1": null,
+      "end_to_end": "n/a",
+      "gate": "n/a",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "skipped"
+    },
+    "reza-squirrel-1": {
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "reza-squirrel-2": {
+      "decoder": "near",
+      "edge_f1": 0.97,
+      "end_to_end": "n/a",
+      "gate": "not_solved",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "topology"
+    },
+    "roadrunner": {
+      "decoder": "off",
+      "edge_f1": 0.086,
+      "end_to_end": "accepted_wrong",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "salamander-naoki-terao": {
+      "decoder": "off",
+      "edge_f1": 0.643,
+      "end_to_end": "accepted_wrong",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "secretary-bird": {
+      "decoder": "near",
+      "edge_f1": 0.97,
+      "end_to_end": "accepted_wrong",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "simple-bear-naoki-terao": {
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "n/a",
+      "gate": "solved_no_truth",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "topology"
+    },
+    "snail": {
+      "decoder": "off",
+      "edge_f1": 0.817,
+      "end_to_end": "n/a",
+      "gate": "solved_no_truth",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "topology"
+    },
+    "swift-dragon": {
+      "decoder": "off",
+      "edge_f1": 0.006,
+      "end_to_end": "n/a",
+      "gate": "not_solved",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "topology"
+    },
+    "t-dex-mirablis": {
+      "decoder": "n/a",
+      "edge_f1": null,
+      "end_to_end": "n/a",
+      "gate": "n/a",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "skipped"
+    },
+    "tarantula-cordyceps": {
+      "decoder": "n/a",
+      "edge_f1": null,
+      "end_to_end": "n/a",
+      "gate": "n/a",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "skipped"
+    },
+    "trapdoor-spider": {
+      "decoder": "n/a",
+      "edge_f1": null,
+      "end_to_end": "n/a",
+      "gate": "n/a",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "skipped"
+    },
+    "turkey-vulture": {
+      "decoder": "off",
+      "edge_f1": 0.173,
+      "end_to_end": "not_accepted",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "turtle": {
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "u-waluigi001": {
+      "decoder": "off",
+      "edge_f1": 0.009,
+      "end_to_end": "n/a",
+      "gate": "not_solved",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "topology"
+    },
+    "ubu": {
+      "decoder": "off",
+      "edge_f1": 0.0,
+      "end_to_end": "not_accepted",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "ubu-2": {
+      "decoder": "off",
+      "edge_f1": 0.807,
+      "end_to_end": "n/a",
+      "gate": "not_solved",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "topology"
+    },
+    "volant-penguin": {
+      "decoder": "near",
+      "edge_f1": 0.984,
+      "end_to_end": "accepted_wrong",
+      "gate": "close",
+      "gate_max_px": 2.651,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "water-boatmen": {
+      "decoder": "off",
+      "edge_f1": 0.059,
+      "end_to_end": "not_accepted",
+      "gate": "reproduced",
+      "gate_max_px": 0.38,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    },
+    "weedy-sea-dragon": {
+      "decoder": "near",
+      "edge_f1": 0.985,
+      "end_to_end": "n/a",
+      "gate": "solved_no_truth",
+      "gate_max_px": null,
+      "gate_unpaired_junctions": null,
+      "status": "topology"
+    },
+    "zebra-naoki-terao": {
+      "decoder": "near",
+      "edge_f1": 0.983,
+      "end_to_end": "accepted_wrong",
+      "gate": "reproduced",
+      "gate_max_px": 0.0,
+      "gate_unpaired_junctions": 0,
+      "status": "solved"
+    }
+  },
+  "cases_total": 74,
+  "commit": "5db043c4774e2880b56bb70f19a6bbe732049b91",
+  "decoder": {
+    "buckets": {
+      "exact": 14,
+      "n/a": 13,
+      "near": 22,
+      "no_detection": 1,
+      "off": 24
+    },
+    "exact_topology": 14,
+    "mean_edge_f1": 0.822,
+    "scored": 60
+  },
+  "end_to_end": {
+    "buckets": {
+      "accepted_wrong": 15,
+      "n/a": 34,
+      "not_accepted": 6,
+      "recovered": 19
+    },
+    "recovered": 19
+  },
+  "gate": {
+    "buckets": {
+      "close": 3,
+      "n/a": 13,
+      "not_solved": 11,
+      "off": 2,
+      "reproduced": 34,
+      "solved_no_truth": 11
+    },
+    "reproduced": 34
+  },
+  "model": "model.onnx",
+  "model_dir": "cp-detector-v3-v5-bp-search225-step12000-20260708",
+  "schema": "oristudio/cp-detect-curated-scorecard/v1",
+  "status": {
+    "skipped": 13,
+    "solved": 40,
+    "topology": 21
+  }
+}

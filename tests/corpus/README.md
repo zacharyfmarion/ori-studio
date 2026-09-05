@@ -218,3 +218,15 @@ harness at it with `CP_DETECT_CURATED_CORPUS_DIR` and compare against the
 committed scorecard, `cp-detect-curated-baseline.json` in this directory. Usage
 and the scoring are in `scripts/cp-detect/README.md`, the case format in
 `implementation-plans/cp-detect-curated-ground-truth.md`.
+
+Last curated run on September 5, 2026 at `5db043c4`, with the model
+`scripts/cp-detect/current-model.json` named at that commit, on an Apple
+Silicon Mac with CoreML. 74 cases: 40 with an exact truth, 21 with a repaired
+topology only, 13 skipped as too complex to curate.
+
+```text
+curated benchmark: 74 cases | decoder exact 14 of 60 (mean edge F1 0.822) | end to end recovered 19 | gate reproduced 34 | 620s
+  decoder:    exact 14, near 22, off 24, no detection 1, n/a 13
+  end to end: recovered 19, accepted wrong 15, not accepted 6, n/a 34
+  gate:       reproduced 34, close 3, off 2, not solved 11, solved without a truth 11, n/a 13
+```

@@ -602,9 +602,18 @@ Per case, three scores:
   `not_solved`.
 
 `per_case.jsonl` holds every number; `summary.json` is the scorecard and
-`summary.md` the table. `--compare` prints every case whose bucket changed,
-both directions. The binary refuses to run from another commit's build unless
-`--allow-stale`, the same footgun guard as the benchmark above.
+`summary.md` the table. `answers/<slug>.pipeline.fold` and
+`answers/<slug>.gate.fold` are the two solved patterns in the case's own frame,
+to open beside `truth.fold` when a bucket needs explaining. `--compare` prints
+every case whose bucket changed, both directions. The binary refuses to run
+from another commit's build unless `--allow-stale`, the same footgun guard as
+the benchmark above.
+
+Two readings the buckets need: an `accepted_wrong` at 0 px with one unpaired
+junction is a junction the decoder never found, with the creases around it,
+that the solve accepted without (the pattern is still exact); a gate `off` at
+0 px is the solve merging or collapsing vertices the truth keeps. The unpaired
+junction count sits beside the max in the table for that reason.
 
 The rule: before merging a change under `crates/oristudio-cp-detect*`,
 `crates/oristudio-cp-compiler`, or the detect and repair surfaces in

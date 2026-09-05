@@ -211,5 +211,5 @@ design, currently decide.
 - [x] Solver-only gate over `topology.fold` → `truth.fold`: `curated_solve` in the compiler
       crate, one case at a time, with `ROUNDS` / `REEXPORT` to replay "solve again"
 - [x] Harness: `per_case.jsonl`, `summary.json`, `--compare`, provenance guard
-- [ ] First baseline committed with the run recorded in `tests/corpus/README.md`
+- [x] First baseline committed with the run recorded in `tests/corpus/README.md`
 - [x] README section and the PR rule written down
