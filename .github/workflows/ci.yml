@@ -91,6 +91,11 @@ jobs:
       - name: Install wasm-pack
         uses: ./.github/actions/install-wasm-pack
 
+      # ReferenceFinder is C++ compiled with em++ (scripts/build-reference-finder.mjs),
+      # so `build:wasm` needs Emscripten beside wasm-pack.
+      - name: Install Emscripten SDK
+        uses: ./.github/actions/install-emsdk
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -104,6 +109,17 @@ jobs:
       # skip their pre-hooks (which would rebuild these) via --ignore-scripts.
       - name: Build web assets (simulator + wasm)
         run: npm --workspace @treemaker/web run build:simulator && npm --workspace @treemaker/web run build:wasm
+        env:
+          # The ReferenceFinder build may fall back to upstream's committed binary
+          # when em++ is missing locally; a CI build must never accept that.
+          REFERENCE_FINDER_FORCE_SOURCE: '1'
+
+      # Same C++ as upstream, but our compiler and flags: the from-source wasm must
+      # answer every query exactly like the artifact upstream committed at the
+      # pinned commit (tools/reference-finder-oracle/README.md). Fetches that
+      # artifact once, SHA-256 checked; about five seconds end to end.
+      - name: ReferenceFinder parity oracle
+        run: node tools/reference-finder-oracle/equiv.mjs
 
       - name: Lint web client
         run: npm run lint:web

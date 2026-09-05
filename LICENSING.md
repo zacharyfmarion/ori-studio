@@ -23,13 +23,18 @@ can obtain the corresponding source code under the same GPL terms.
 
 ## Third-Party Ports
 
-Beyond TreeMaker, this repository contains Rust/TypeScript ports of several
-other origami tools. Every upstream is permissively licensed (MIT) and therefore
-GPL-compatible, so bundling them inside the GPL-2.0-or-later whole is allowed.
-Because the project is GPL v2 **or later**, Apache-2.0 components are compatible
-too (the combined work can be taken as GPLv3). The root `NOTICE` file reproduces
-each upstream copyright/permission notice; keep it in source and binary
-distributions.
+Beyond TreeMaker, this repository contains Rust/TypeScript ports of four other
+origami tools, and bundles a fifth upstream — ReferenceFinder — as a compiled
+GPL binary rather than a port (its own section below). The four ported upstreams
+are permissively licensed (MIT) and therefore GPL-compatible, so bundling them
+inside the GPL-2.0-or-later whole is allowed. ReferenceFinder is GPL itself, so
+it does not change what kind of whole this is; it is, however, the one component
+whose GPL *version* is not settled. Because the project is GPL v2 **or later**,
+Apache-2.0 components are compatible too (the combined work can be taken as
+GPLv3) — reasoning that holds only while every GPL component in the bundle
+admits the or-later reading, which is exactly what the ReferenceFinder question
+puts at stake. The root `NOTICE` file reproduces each upstream
+copyright/permission notice; keep it in source and binary distributions.
 
 | Upstream | Upstream license | Ported into | Crate/package license | Attribution |
 | --- | --- | --- | --- | --- |
@@ -69,6 +74,61 @@ deliberately not gated on the analytics opt-out.
 Permission to build the integration was given by theplantpsychologist; see
 `implementation-plans/explori-design-type.md` for that exchange and for what was
 agreed about the unversioned API.
+
+## ReferenceFinder (a Bundled GPL Binary Built From Vendored Source)
+
+ReferenceFinder is the third kind of upstream in this repository: neither a port
+nor a service, but a **third-party binary we build from vendored GPL source**.
+`third_party/reference-finder` vendors the C++ core (`src/core/**`) of Mu-Tsun
+Tsai's web build of Robert J. Lang's ReferenceFinder, together with the
+`makefile` that is the authoritative compiler-flag list, `LICENSE`,
+`package.json`, and the upstream README/CONTRIBUTING/CHANGELOG. The React app,
+locales, icons, and upstream's committed `src/lib/ref.{js,wasm}` are omitted.
+`scripts/build-reference-finder.mjs` compiles that source with the Emscripten
+version pinned in `scripts/reference-finder-emsdk.json` into the gitignored
+`apps/web/src/generated/reference-finder/`, so no binary is tracked and every
+shipping bundle rebuilds it from source.
+
+The result is consumed at arm's length. It runs in its own Web Worker and the
+app talks to it only over ReferenceFinder's console protocol — numbers on stdin
+(the database settings, then per-query search settings and coordinates) and JSON
+lines on stdout (progress objects, then one solution object per result with its
+`steps` and `diagrams`). No ReferenceFinder code is linked into, transcribed
+into, or generated for any Rust crate or TypeScript module; the wasm is a black
+box behind that protocol.
+
+**Which GPL version.** Lang's original is `GPL-2.0-or-later`: his
+`README_src.txt` grants "either version 2 of the License, or (at your option)
+any later version". Tsai's fork is less clear. Its `LICENSE` says only that
+ReferenceFinder "is distributed under the terms of the GNU GPL" and then
+reproduces the version 2 text, and its `package.json` declares `GPL-2.0`, which
+in SPDX means version 2 only. The modifications by Mu-Tsun Tsai and Omri Shavit
+(both named in the copyright line printed by `src/core/main.cpp`) therefore have
+**no reliable or-later grant yet**. GPLv2 §9's rule for a work that states no
+version does not rescue this, because a version *is* stated. The question is
+open with the maintainers; until they confirm or-later, treat the ReferenceFinder
+wasm as possibly GPL-2.0-only.
+
+Why that matters here rather than being a footnote: the section above admits the
+seven Apache-2.0-only runtime npm dependencies on the grounds that the whole can
+be taken as GPLv3. A GPL-2.0-only component cannot be taken as GPLv3, so if the
+modifications turn out to be v2-only, that reasoning no longer covers a bundle
+that contains this wasm, and those seven dependencies need a decision of their
+own (replace them, or obtain a compatible grant). Nothing else changes in kind —
+the whole was already GPL.
+
+The **corresponding source** for the shipped wasm is `third_party/reference-finder`
+plus `scripts/build-reference-finder.mjs` and `scripts/reference-finder-emsdk.json`
+— the exact source, the exact build recipe, and the exact toolchain pin. Publish
+all three with any artifact that contains the wasm.
+
+One more artifact exists and is deliberately not a distributed one. When `em++`
+is absent and no build output exists, the build script fetches upstream's
+committed `ref.{js,wasm}` from the pinned commit, verifies recorded SHA-256
+values, and installs it so `npm run dev` works without Emscripten. That fallback
+is a developer convenience only: CI sets `REFERENCE_FINDER_FORCE_SOURCE=1` so a
+fetched artifact can never satisfy a shipping build, and every deploy and release
+workflow installs the pinned Emscripten and builds from source.
 
 ## Which Crates Are Actually GPL
 
@@ -130,6 +190,9 @@ published on its own, give it the license text before it goes out.
 | `third_party/box-pleating-studio` | MIT (Mu-Tsun Tsai) | Vendored reference/oracle source for the BP port. Preserve `LICENSE.md`. |
 | `third_party/flat-folder` | MIT (Jason S. Ku) | Vendored reference/oracle source for the flat-fold port. Preserve `LICENSE`. |
 | `third_party/oriedita` | MIT (Oriedita / Orihime) | Vendored reference/oracle source for the CP-editing port. Preserve `LICENSE.md`. |
+| `third_party/reference-finder` | GPL — Lang: v2 or later; Tsai/Shavit modifications: v2, or-later unconfirmed | Vendored C++ core compiled to the bundled wasm; not a port. Preserve `LICENSE` and `package.json` (the only file stating a GPL version). See "ReferenceFinder" above. |
+| `apps/web/src/generated/reference-finder/` | Generated GPL wasm | Emscripten build of the vendored source by `scripts/build-reference-finder.mjs`. Ignored by git; distributing any bundle that contains it triggers the GPL source obligations. Corresponding source: the vendored tree, the build script, and `scripts/reference-finder-emsdk.json`. |
+| Upstream `ref.{js,wasm}` fetched by `scripts/build-reference-finder.mjs` (dev fallback) | Upstream's GPL build output | Fetched from the pinned commit and SHA-verified only when `em++` is absent, so `npm run dev` works without Emscripten. **Never deployed**: CI sets `REFERENCE_FINDER_FORCE_SOURCE=1`, so no shipping build can be satisfied by it. |
 | `packages/origami-simulator` | MIT (Amanda Ghassaei + port) | TypeScript port of the Origami Simulator solver. Preserve `LICENSE` and `NOTICE`. |
 | `third_party/treemaker-5.0.1/Source/tmModel/wnlib` | Unrestricted per TreeMaker's bundled license notice | The TreeMaker license file says the `wnlib` directory may be distributed with no restrictions. |
 | `tests/fixtures` | GPL-compatible TreeMaker fixture data | Fixtures are copied or generated from the TreeMaker parity workflow; keep them with the GPL source distribution. |
@@ -182,9 +245,14 @@ compatible license terms are provided. They are not required for TreeMaker
 
 Before publishing a repository, CLI binary, wasm package, or npm package:
 
-1. Keep `LICENSE.txt`, `LICENSING.md`, and the TreeMaker notices in
-   `third_party/treemaker-5.0.1`.
-2. Publish the corresponding source for any binary or wasm artifact.
+1. Keep `LICENSE.txt`, `LICENSING.md`, the TreeMaker notices in
+   `third_party/treemaker-5.0.1`, and the ReferenceFinder notices in
+   `third_party/reference-finder` (`LICENSE`, `package.json`, and the copyright
+   line in `src/core/main.cpp`), together with the root `NOTICE`.
+2. Publish the corresponding source for any binary or wasm artifact. For the
+   ReferenceFinder wasm that means `third_party/reference-finder`,
+   `scripts/build-reference-finder.mjs`, and `scripts/reference-finder-emsdk.json`
+   — the exact source, build recipe, and toolchain pin that produced it.
 3. Do not include CFSQP/RFSQP source or binaries unless you have a separate
    redistribution license that is compatible with the GPL.
 4. Make the *combined* artifact's metadata say `GPL-2.0-or-later`. Individual
@@ -390,5 +458,11 @@ Babel and `caniuse-lite` into the root's "production" tree. Scoping to
 - TreeMaker 5.0.1 bundled license: `third_party/treemaker-5.0.1/LICENSE.txt`
 - TreeMaker optimizer notes: `third_party/treemaker-5.0.1/Source/tmModel/tmNLCO/README.txt`
 - Enabled optimizer flags: `third_party/treemaker-5.0.1/Source/tmModel/tmNLCO/tmNLCO.h`
+- ReferenceFinder fork license and declared SPDX id:
+  `third_party/reference-finder/LICENSE`, `third_party/reference-finder/package.json`
+- ReferenceFinder copyright line (Lang, Tsai, Shavit):
+  `third_party/reference-finder/src/core/main.cpp`
+- Lang's ReferenceFinder distribution (its `README_src.txt` carries the
+  v2-or-later grant): <https://langorigami.com/article/referencefinder/>
 - FSF GPL v2 text: <https://www.gnu.org/licenses/old-licenses/gpl-2.0.html>
 - FSF Directory TreeMaker entry: <https://directory.fsf.org/wiki/TreeMaker>

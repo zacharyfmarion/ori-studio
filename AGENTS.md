@@ -99,6 +99,7 @@ prior behavior — is the canonical behavioral reference:
 | TreeMaker (`treemaker-*`) | `third_party/treemaker-5.0.1` | `tools/oracle` (C++) |
 | Box pleating (`oristudio-bp*`) | `third_party/box-pleating-studio` | `tools/bp-studio-oracle` |
 | Flat folding (`treemaker-flatfold`) | `third_party/flat-folder` | `tools/flat-folder-oracle` |
+| Reference finding (ReferenceFinder — not a port; the vendored C++ is compiled to wasm and consumed as a black box) | `third_party/reference-finder` | `tools/reference-finder-oracle` (build-equivalence, not parity) |
 
 General rules, which apply to every port:
 

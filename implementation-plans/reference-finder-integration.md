@@ -734,7 +734,7 @@ measurements.
   `apps/web/src/store/workspaceStore/referenceFinderRuntime.ts` (new),
   `apps/web/src/lib/workerDiagnostics.ts` (`WorkerName`).
 - Orphan cleanup: `crates/oracle-tests/tests/folding_sequence_phase0.rs` (its live
-  `solve_flat_fold` assertions move to `flat_folder_corpus.rs` first),
+  `solve_flat_fold` assertions moved to the new `flat_folder_controls.rs`),
   `tests/fixtures/folding-sequence/{expected,manifest.json,visual-review.html}` (the
   `fold/*.fold` inputs stay — live 3D tests use them).
 - `research/reference-finder-spike/` (prototype, RF driver with `RF_LIB`, panel probes and
@@ -750,27 +750,27 @@ measurements.
       the answer here. Only after a yes, and one or two at a time: the GPL version for the
       Tsai/Shavit modifications (the D3 decision), attribution wording, the `line`-on-steps
       and keyed-database-path PR offers, the two emcc-6 build notes.
-- [ ] Vendor `third_party/reference-finder/` at upstream `e2163f0` (v4.8.1) as a curated
+- [x] Vendor `third_party/reference-finder/` at upstream `e2163f0` (v4.8.1) as a curated
       subset incl. `package.json`, with `README.treemaker.md`; `upstream-sync.json` entry
       with every required field; upstream-drift reference note + `SKILL.md` row;
       porting-discipline row in `AGENTS.md`.
-- [ ] `scripts/build-reference-finder.mjs` + `scripts/reference-finder-emsdk.json` (6.0.9)
+- [x] `scripts/build-reference-finder.mjs` + `scripts/reference-finder-emsdk.json` (6.0.9)
       per D2 (flags, Safari floor, up-to-date check, object dir, `--node` variant,
       SHA-verified fallback fetch, `REFERENCE_FINDER_FORCE_SOURCE`), hand-written `ref.d.ts`
       incl. the `get/checkCancel/clear/print/printErr` hooks; `build:reference-finder-wasm`
       chained into `build:wasm`.
-- [ ] `.github/actions/install-emsdk` composite action (pinned version + SHA, cached SDK and
+- [x] `.github/actions/install-emsdk` composite action (pinned version + SHA, cached SDK and
       `EM_CACHE`) wired into the four bundle-building workflows before `build:wasm`.
-- [ ] `tools/reference-finder-oracle/equiv.mjs` + query set: from-source wasm vs upstream
+- [x] `tools/reference-finder-oracle/equiv.mjs` + query set: from-source wasm vs upstream
       artifact, identical solutions; `web-client` step.
-- [ ] `NOTICE` section 6 (Lang, Tsai, Shavit; pinned commit; ExplOri → 7) + intro rewrite;
+- [x] `NOTICE` section 6 (Lang, Tsai, Shavit; pinned commit; ExplOri → 7) + intro rewrite;
       `LICENSING.md`: rewrite the "every upstream is permissive" text, add the bundled-binary
       category and rows (vendored source, generated wasm, dev-only fallback), Publishing
       Checklist items 1–2 naming the RF corresponding source (planner crate rows land with
       the crates in Phase 2); `README.md` GPL sentence names both works; `PORTING.md`
       boundary entry.
-- [ ] Orphan cleanup: move `folding_sequence_phase0.rs`'s live `solve_flat_fold`
-      assertions into `flat_folder_corpus.rs` (or a small new test), then delete the
+- [x] Orphan cleanup: move `folding_sequence_phase0.rs`'s live `solve_flat_fold`
+      assertions into the new unconditional `flat_folder_controls.rs`, then delete the
       manifest/expected halves and `visual-review.html`; rewrite that README.
 
 ### Phase 1 — ReferenceFinder worker and client
