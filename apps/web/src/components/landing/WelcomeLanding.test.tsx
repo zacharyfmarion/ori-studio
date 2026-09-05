@@ -1,7 +1,9 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DISCORD_URL, REPOSITORY_URL } from '../../constants/release';
+import { RELEASES_LATEST_URL } from '../../platform/desktopDownload';
+import { resetDesktopReleaseCache } from '../../platform/desktopRelease';
 import {
   FIRST_LANDING_SECTION_ID,
   LANDING_SECTIONS,
@@ -29,11 +31,21 @@ function link(label: string): HTMLAnchorElement {
   return match as HTMLAnchorElement;
 }
 
+beforeEach(() => {
+  // The download button asks GitHub for the newest release on mount. Left alone
+  // it would make every case in this file a network test; refused, the button
+  // renders the state this suite is actually about — its fallback.
+  resetDesktopReleaseCache();
+  localStorage.clear();
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+});
+
 afterEach(() => {
   if (root) act(() => root?.unmount());
   container?.remove();
   root = null;
   container = null;
+  vi.unstubAllGlobals();
 });
 
 describe('WelcomeLanding', () => {
@@ -106,12 +118,24 @@ describe('WelcomeLanding', () => {
     expect(link('Source and issues').getAttribute('href')).toBe(REPOSITORY_URL);
   });
 
-  it('promises no desktop download, because there is not one yet', () => {
+  it('offers the desktop app, which is released', () => {
+    // The inverse of this used to be asserted here — the page withheld the claim
+    // while no build existed. It exists now (see
+    // implementation-plans/desktop-download-links.md), so the guard runs the
+    // other way: a page that stopped offering one would be the regression.
     const rendered = renderLanding();
-    const hrefs = Array.from(rendered.querySelectorAll('a')).map((a) => a.getAttribute('href'));
 
-    expect(rendered.textContent).not.toMatch(/download|install it|\.dmg|Apple Silicon/i);
-    expect(hrefs).not.toContain(`${REPOSITORY_URL}/releases`);
+    expect(link('Download').getAttribute('href')).toBeTruthy();
+    expect(rendered.textContent).toMatch(/desktop app/i);
+  });
+
+  it('links somewhere real before — and without — a resolved release', () => {
+    // The fetch is refused in this suite, which is the interesting case: a
+    // rate-limited or offline visitor must still get a working link, and the
+    // prerendered markup a crawler reads is rendered in exactly this state.
+    renderLanding();
+
+    expect(link('Download').getAttribute('href')).toBe(RELEASES_LATEST_URL);
   });
 
   it('does not advertise CP detection, which ships only in dev builds', () => {

@@ -2,6 +2,7 @@ import { DraftingCompass, FilePlus, FolderOpen, PenTool } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AppStatus } from '../lib/sampleProject';
+import { DesktopDownloadButton } from './download/DesktopDownloadButton';
 import { StartFigure } from './start/StartFigure';
 
 interface StartScreenProps {
@@ -38,10 +39,19 @@ export function StartScreen({
     // labelled region inside is still the section.
     <div className="start-screen" aria-busy={preparing || undefined}>
       <section className="start-screen__content" aria-labelledby="start-screen-title">
+        {/*
+          The brand mark and the one thing this page offers that the page itself
+          is not. The download renders nothing in the desktop app, which leaves
+          the header holding the mark alone — the layout it had before this row
+          existed, so nothing has to branch on the runtime.
+        */}
+        <header className="start-screen__header">
+          {/* eslint-disable-next-line i18next/no-literal-string -- brand name, never translated */}
+          <span className="start-screen__eyebrow">Ori Studio</span>
+          <DesktopDownloadButton surface="start-screen" size="sm" variant="secondary" />
+        </header>
         <div className="start-screen__hero">
           <div className="start-screen__copy">
-            {/* eslint-disable-next-line i18next/no-literal-string -- brand name, never translated */}
-            <span className="start-screen__eyebrow">Ori Studio</span>
             <h1 id="start-screen-title">{t('dialogs:startScreen.title', 'Start a new origami workspace')}</h1>
             <p>
               {t(

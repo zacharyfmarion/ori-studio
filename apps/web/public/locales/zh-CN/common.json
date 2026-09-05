@@ -256,6 +256,28 @@
     "reset": "重置为默认",
     "resetNamed": "将 {{label}} 重置为默认"
   },
+  "download": {
+    "allReleases": "GitHub 上的所有下载",
+    "build": {
+      "linuxAppImage": "x86-64 (.AppImage)",
+      "linuxAppImageArm": "ARM64 (.AppImage)",
+      "linuxDeb": "x86-64 (.deb)",
+      "linuxDebArm": "ARM64 (.deb)",
+      "macosArm": "Apple 芯片 (.dmg)",
+      "macosIntel": "Intel (.dmg)",
+      "windows": "安装程序 (.exe)"
+    },
+    "cta": "下载桌面应用",
+    "ctaLinux": "下载 Linux 版",
+    "ctaMacos": "下载 macOS 版",
+    "ctaWindows": "下载 Windows 版",
+    "os": {
+      "linux": "Linux",
+      "macos": "macOS",
+      "windows": "Windows"
+    },
+    "otherPlatforms": "其他平台"
+  },
   "fileDrop": {
     "open": "拖放以打开",
     "openOrImport": "拖放以打开或导入"
@@ -268,6 +290,8 @@
     "credit": "设计者：<2>Brandon Wong</2>"
   },
   "toolbar": {
+    "downloadDesktop": "获取桌面应用",
+    "downloadDesktopVersion": "获取桌面应用 ({{version}})",
     "new": "新建",
     "open": "打开",
     "optimizeLayout": "优化",

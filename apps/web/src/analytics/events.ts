@@ -49,12 +49,40 @@ export type LandingSectionId =
   | 'compatibility'
   | 'get';
 
+/** The landing page's calls to action. */
+export type LandingCta = 'discord' | 'github' | 'scroll' | 'download';
+
 /**
- * The landing page's calls to action.
+ * Which desktop build a download was started for.
  *
- * No download: the desktop build is not released, so the page does not offer one.
+ * `releases-page` is not a build: it is the fallback every control falls back to
+ * when the release could not be read (offline, rate-limited, blocked), and it is
+ * in the same enum so the failure is *counted* rather than invisible. A ratio of
+ * it against the real builds is the only signal that the GitHub fetch is not
+ * working for a population.
+ *
+ * These mirror `DesktopBuildId` in `platform/desktopDownload.ts`; `trackDesktopDownload`
+ * passes one straight through, so the two cannot drift without a type error.
  */
-export type LandingCta = 'discord' | 'github' | 'scroll';
+export type DesktopDownloadBuild =
+  | 'macos-arm64'
+  | 'macos-intel'
+  | 'windows-x64'
+  | 'linux-deb'
+  | 'linux-appimage'
+  | 'linux-deb-arm64'
+  | 'linux-appimage-arm64'
+  | 'releases-page';
+
+/**
+ * Where a download was started from.
+ *
+ * The question this exists to answer is whether the toolbar icon earns its place
+ * in the workspace chrome, which no other property can express: a download from
+ * `toolbar` came from somebody already using the app, and one from `landing`
+ * from somebody deciding whether to.
+ */
+export type DesktopDownloadSurface = 'start-screen' | 'landing' | 'toolbar' | 'about';
 
 /**
  * A feature slide in one of the landing carousels.
@@ -490,6 +518,14 @@ export const ANALYTICS_EVENTS = {
   landingSectionViewed: 'landing section viewed',
   landingFeatureOpened: 'landing feature opened',
   landingCtaClicked: 'landing cta clicked',
+  /**
+   * A desktop installer link was followed.
+   *
+   * "Started", not "completed": a link hand-off is the last thing the page can
+   * see. What happens after — GitHub's redirect, the transfer, the install — is
+   * off this origin entirely.
+   */
+  desktopDownloadStarted: 'desktop download started',
   orieditaShortcutsImported: 'oriedita shortcuts imported',
   orieditaShortcutsOverrideAll: 'oriedita shortcuts override all',
   shortcutDefaultsSourceChanged: 'shortcut defaults source changed',

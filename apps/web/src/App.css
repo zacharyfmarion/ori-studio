@@ -85,6 +85,17 @@
   gap: var(--space-5);
 }
 
+/* Brand mark left, download right. `space-between` rather than a two-column
+   grid so the row collapses to just the mark in the desktop app, where the
+   download renders nothing. */
+.start-screen__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
 .start-screen__hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(260px, 380px);

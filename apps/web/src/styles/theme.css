@@ -484,6 +484,13 @@
   background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-elevated));
 }
 
+/* An item that is genuinely an anchor — a download link, reached through Radix's
+   `asChild`. The class already paints the text, but the user-agent's underline
+   for `a` survives it, and an underlined row reads as prose inside a menu. */
+a.context-menu__item {
+  text-decoration: none;
+}
+
 .context-menu__item[data-disabled] {
   color: var(--text-disabled, var(--text-secondary));
   opacity: 0.5;
@@ -520,6 +527,18 @@
   height: 1px;
   margin: 4px 6px;
   background: var(--border-default);
+}
+
+/* A `DropdownMenu.Label` heading a group of items — an operating system over its
+   builds, say. Not focusable and not an item, so it takes none of the item
+   padding that would make it look like one. */
+.context-menu__group-label {
+  padding: 6px 8px 2px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 /* Trailing chevron on a submenu trigger; the leading slot stays the icon's. */
@@ -3038,6 +3057,19 @@
 
 .about-modal__section h3 {
   font-size: 0.88rem;
+}
+
+.about-modal__desktop-note {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+/* The section is a stretch grid, which would pull the split button the full
+   width of the dialog. It is a control, not a banner. */
+.about-modal__section .ui-split-button {
+  justify-self: start;
 }
 
 .about-modal__ack {

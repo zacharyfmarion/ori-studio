@@ -67,8 +67,9 @@
     "discord": "Entrar no Discord",
     "eyebrow": "Começar",
     "github": "Código e issues",
-    "lead": "Volte ao topo e comece um padrão de vinco — a preparação é essa. O Discord é o melhor lugar para relatar um problema ou sugerir algo, e é onde as novidades são anunciadas primeiro.",
-    "title": "Roda no navegador. Nada para instalar."
+    "lead": "Volte ao topo e comece um padrão de vincos — no navegador, essa é toda a configuração, e em nenhum dos casos é preciso ter conta. O aplicativo para desktop é o mesmo espaço de trabalho com menus e caixas de diálogo nativos, e abre seus arquivos direto do Finder ou do Explorador de Arquivos.",
+    "note": "As versões para desktop são gratuitas e de código aberto, assim como o aplicativo web: builds assinados e autenticados para macOS em Apple Silicon e Intel, um instalador para Windows e pacotes .deb e AppImage para Linux.",
+    "title": "Abra uma aba ou instale"
   },
   "scrollCue": "Veja o que ele faz",
   "simulate": {
@@ -80,7 +81,7 @@
   "what": {
     "eyebrow": "O que é",
     "figureAlt": "O espaço de trabalho do Ori Studio: um padrão de vinco na tela, com a barra de ferramentas e os painéis de inspeção ao redor.",
-    "lead": "Esboce uma base, desenhe o padrão de vinco e dobre para ver se funciona — tudo num lugar só, no navegador, sem nada para instalar e sem conta.",
+    "lead": "Esboce uma base, desenhe o padrão de vincos e dobre para ver se funciona — tudo em um só lugar e sem conta. Abra em uma aba do navegador ou instale o aplicativo para desktop.",
     "title": "Um espaço de trabalho livre e de código aberto para projeto de origami"
   }
 }

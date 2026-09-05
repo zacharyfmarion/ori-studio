@@ -30,7 +30,7 @@ export const SITE_TITLE =
 export const SITE_DESCRIPTION =
   'Ori Studio is a free, open-source workspace for origami design: draw and edit crease ' +
   'patterns, design from a tree structure or a box-pleating grid, and fold the result in ' +
-  'the simulator. Runs in the browser, nothing to install.';
+  'the simulator. Runs in your browser, or as a desktop app for macOS, Windows and Linux.';
 
 /** The social card. 1200×630 is what every platform asks for. */
 export const SITE_OG_IMAGE = `${SITE_ORIGIN}/og-default.png`;

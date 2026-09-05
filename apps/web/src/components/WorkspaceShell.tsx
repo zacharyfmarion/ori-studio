@@ -17,6 +17,7 @@ import {
   Settings,
   Sparkles,
 } from 'lucide-react';
+import { ToolbarDownloadButton } from './download/ToolbarDownloadButton';
 import { MenuBar } from './MenuBar';
 import { CanvasHistoryPills } from './CanvasHistoryPills';
 import { CanvasPillLane } from './CanvasPillLane';
@@ -262,6 +263,13 @@ function Toolbar() {
         {(optimizeScale.visible || buildCp.visible || isBpContext) && (
           <span className="toolbar__separator" />
         )}
+        {/*
+          Renders nothing on desktop, where the app is already the thing it
+          offers — so this is the browser build's one piece of chrome the
+          desktop build does not have, and it sits beside Settings rather than
+          among the file icons the phone layout drops.
+        */}
+        <ToolbarDownloadButton />
         <IconButton size="sm" title={t('common:toolbar.settings', 'Settings')} tooltipSide="bottom" onClick={() => openSettings()}>
           <Settings size={15} />
         </IconButton>

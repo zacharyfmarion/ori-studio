@@ -208,6 +208,8 @@
   "help": {
     "about": {
       "acknowledgements": "Danksagungen",
+      "desktop": "Desktop-App",
+      "desktopDetail": "Derselbe Arbeitsbereich als native App, mit Systemmenüs, Dateidialogen und Dateien, die sich direkt aus dem Finder oder Explorer öffnen lassen.",
       "intro": "Ori Studio möchte der ultimative Arbeitsbereich für Origami-Design und -Analyse sein. Es stützt sich stark auf Portierungen bestehender Origami-Werkzeuge, die von der Community erstellt wurden — der Bearbeiten-Arbeitsbereich ist zum Beispiel eine Portierung von Oriedita nach Rust, mit Fokus auf Benutzerfreundlichkeit und Leistung. Wenn Sie Vorschläge haben, können Sie gerne <2>ein Issue auf GitHub eröffnen</2>.",
       "subtitle": "Ein moderner gemeinsamer Arbeitsbereich zum Entwerfen, Bearbeiten und Falten von Origami-Faltmustern.",
       "title": "Über Ori Studio"

@@ -67,8 +67,9 @@
     "discord": "Rejoindre le Discord",
     "eyebrow": "Commencer",
     "github": "Code source et tickets",
-    "lead": "Remontez et commencez un patron de pliage : voilà toute la mise en route. Discord est le meilleur endroit pour signaler un bug ou proposer une idée, et c’est là que les nouveautés sont annoncées en premier.",
-    "title": "Ça tourne dans le navigateur. Rien à installer."
+    "lead": "Remontez et commencez un patron de pliage : dans le navigateur, c’est toute la mise en route, et aucun compte n’est requis dans un cas comme dans l’autre. L’application de bureau est le même espace de travail, avec des menus et des boîtes de dialogue natifs, et elle ouvre vos fichiers directement depuis le Finder ou l’Explorateur.",
+    "note": "Les versions de bureau sont gratuites et open source, comme l’application web : des builds signés et notariés pour macOS sur Apple Silicon et Intel, un programme d’installation pour Windows, et des paquets .deb et AppImage pour Linux.",
+    "title": "Ouvrez un onglet, ou installez-le"
   },
   "scrollCue": "Voir ce qu’il fait",
   "simulate": {
@@ -80,7 +81,7 @@
   "what": {
     "eyebrow": "De quoi s’agit-il",
     "figureAlt": "L’espace de travail d’Ori Studio : un patron de pliage sur le plan de travail, entouré de la barre d’outils et des panneaux d’inspection.",
-    "lead": "Esquissez une base, dessinez le patron de pliage, puis pliez-le pour voir s’il fonctionne — au même endroit, dans le navigateur, sans rien à installer ni compte à créer.",
+    "lead": "Esquissez une base, dessinez le patron de pliage, puis pliez-le pour voir s’il fonctionne — le tout au même endroit, sans compte. Ouvrez-le dans un onglet de navigateur, ou installez l’application de bureau.",
     "title": "Un espace de travail libre et open source pour la conception d’origami"
   }
 }

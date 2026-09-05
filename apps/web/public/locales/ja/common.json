@@ -256,6 +256,28 @@
     "reset": "既定に戻す",
     "resetNamed": "{{label}} を既定に戻す"
   },
+  "download": {
+    "allReleases": "GitHub のすべてのダウンロード",
+    "build": {
+      "linuxAppImage": "x86-64 (.AppImage)",
+      "linuxAppImageArm": "ARM64 (.AppImage)",
+      "linuxDeb": "x86-64 (.deb)",
+      "linuxDebArm": "ARM64 (.deb)",
+      "macosArm": "Apple Silicon (.dmg)",
+      "macosIntel": "Intel (.dmg)",
+      "windows": "インストーラー (.exe)"
+    },
+    "cta": "デスクトップアプリをダウンロード",
+    "ctaLinux": "Linux 版をダウンロード",
+    "ctaMacos": "macOS 版をダウンロード",
+    "ctaWindows": "Windows 版をダウンロード",
+    "os": {
+      "linux": "Linux",
+      "macos": "macOS",
+      "windows": "Windows"
+    },
+    "otherPlatforms": "その他のプラットフォーム"
+  },
   "fileDrop": {
     "open": "ドロップして開く",
     "openOrImport": "ドロップして開く／インポート"
@@ -268,6 +290,8 @@
     "credit": "デザイン: <2>Brandon Wong</2>"
   },
   "toolbar": {
+    "downloadDesktop": "デスクトップアプリを入手",
+    "downloadDesktopVersion": "デスクトップアプリを入手 ({{version}})",
     "new": "新規",
     "open": "開く",
     "optimizeLayout": "最適化",

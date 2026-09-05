@@ -256,6 +256,28 @@
     "reset": "기본값으로 재설정",
     "resetNamed": "{{label}}을(를) 기본값으로 재설정"
   },
+  "download": {
+    "allReleases": "GitHub의 모든 다운로드",
+    "build": {
+      "linuxAppImage": "x86-64 (.AppImage)",
+      "linuxAppImageArm": "ARM64 (.AppImage)",
+      "linuxDeb": "x86-64 (.deb)",
+      "linuxDebArm": "ARM64 (.deb)",
+      "macosArm": "Apple Silicon (.dmg)",
+      "macosIntel": "Intel (.dmg)",
+      "windows": "설치 프로그램 (.exe)"
+    },
+    "cta": "데스크톱 앱 다운로드",
+    "ctaLinux": "Linux용 다운로드",
+    "ctaMacos": "macOS용 다운로드",
+    "ctaWindows": "Windows용 다운로드",
+    "os": {
+      "linux": "Linux",
+      "macos": "macOS",
+      "windows": "Windows"
+    },
+    "otherPlatforms": "다른 플랫폼"
+  },
   "fileDrop": {
     "open": "놓아서 열기",
     "openOrImport": "놓아서 열거나 가져오기"
@@ -268,6 +290,8 @@
     "credit": "디자인: <2>Brandon Wong</2>"
   },
   "toolbar": {
+    "downloadDesktop": "데스크톱 앱 받기",
+    "downloadDesktopVersion": "데스크톱 앱 받기 ({{version}})",
     "new": "새로 만들기",
     "open": "열기",
     "optimizeLayout": "최적화",

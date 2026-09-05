@@ -25,6 +25,8 @@ export type {
   DesignMethod,
   DesignTabSource,
   DesignVariant,
+  DesktopDownloadBuild,
+  DesktopDownloadSurface,
   ExportFormat,
   FoldabilityCheckSource,
   FoldCycleDirection,
@@ -61,6 +63,7 @@ export {
   trackCpToolFavoritesReordered,
 } from './trackCpToolFavorites';
 export { trackDesignSentToEdit } from './trackSendToEdit';
+export { trackDesktopDownload } from './trackDesktopDownload';
 
 export { useAppOpenedEvent } from './useAppOpenedEvent';
 export { useBpPatternNotFoundEvent } from './useBpPatternNotFoundEvent';

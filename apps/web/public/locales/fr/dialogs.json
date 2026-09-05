@@ -211,6 +211,8 @@
   "help": {
     "about": {
       "acknowledgements": "Remerciements",
+      "desktop": "Application de bureau",
+      "desktopDetail": "Le même espace de travail sous forme d’application native, avec les menus système, les boîtes de dialogue de fichiers, et des fichiers qui s’ouvrent directement depuis le Finder ou l’Explorateur.",
       "intro": "Ori Studio a pour ambition d'être l'espace de travail ultime pour la conception et l'analyse d'origami. Il repose largement sur des portages d'outils d'origami existants créés par la communauté — l'espace de travail Édition, par exemple, est un portage d'Oriedita vers Rust, axé sur la convivialité et les performances. Si vous avez des suggestions, n'hésitez pas à <2>ouvrir un ticket sur GitHub</2>.",
       "subtitle": "Un espace de travail partagé et moderne pour concevoir, modifier et plier des patrons de plis d'origami.",
       "title": "À propos d'Ori Studio"

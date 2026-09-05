@@ -208,6 +208,8 @@
   "help": {
     "about": {
       "acknowledgements": "Acknowledgements",
+      "desktop": "Desktop app",
+      "desktopDetail": "The same workspace as a native app, with system menus, file dialogs, and files that open straight from the Finder or Explorer.",
       "intro": "Ori Studio aims to be the ultimate workspace for origami design and analysis. It leans heavily on ports of existing origami tools created by the community — the Edit workspace, for instance, is a port of Oriedita to Rust, focused on usability and performance. If you have any suggestions, feel free to <2>open an issue on GitHub</2>.",
       "subtitle": "A modern shared workspace for designing, editing, and folding origami crease patterns.",
       "title": "About Ori Studio"

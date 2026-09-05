@@ -22,8 +22,10 @@ export function landingJsonLd(): Record<string, unknown> {
     url: `${SITE_ORIGIN}/`,
     image: SITE_OG_IMAGE,
     applicationCategory: 'DesignApplication',
-    // Runs in any modern browser; the desktop build is a shell around the same app.
-    operatingSystem: 'Web browser, macOS',
+    // Runs in any modern browser; the desktop builds are a shell around the same
+    // app, and every platform the release workflow ships is named here — this is
+    // the field a "download for Windows" query is matched against.
+    operatingSystem: 'Web browser, macOS, Windows, Linux',
     isAccessibleForFree: true,
     offers: {
       '@type': 'Offer',
