@@ -1,0 +1,37 @@
+[package]
+name = "oristudio-precrease"
+version.workspace = true
+publish.workspace = true
+edition.workspace = true
+# Not the workspace GPL default: the precrease planner is original work (sheet
+# frames, line canonicalisation, the exactness probe, and later the closure
+# planner). No dependency edge from here reaches the TreeMaker port, and no
+# code is ported from ReferenceFinder's `src/core` — the planner consumes
+# ReferenceFinder's JSON at runtime from a separate worker and links none of it.
+# The three licensing tiers are stated in src/lib.rs; see LICENSING.md.
+license = "MIT OR Apache-2.0"
+description = "Precrease planner geometry for Ori Studio: sheet frames, collinear merge and the exactness probe"
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["origami", "crease-pattern", "geometry", "folding"]
+categories = ["algorithms", "mathematics"]
+include = [
+    "Cargo.toml",
+    "LICENSE-APACHE",
+    "LICENSE-MIT",
+    "README.md",
+    "src/**",
+    "tests/**",
+]
+
+[lints]
+workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
