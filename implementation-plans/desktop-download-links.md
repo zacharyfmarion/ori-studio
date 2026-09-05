@@ -110,4 +110,4 @@ to itself.
 - [x] `i18n:extract`, translate 8 locales, `i18n:stamp`, `i18n:check`
 - [x] lint, typecheck, unit tests, `build:web`
 - [x] Verify in the browser (fetch under COEP, menu, links)
-- [x] Draft PR
+- [x] Draft PR — https://github.com/zacharyfmarion/ori-studio/pull/350
