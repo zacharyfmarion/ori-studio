@@ -211,6 +211,8 @@
   "help": {
     "about": {
       "acknowledgements": "Agradecimentos",
+      "desktop": "Aplicativo para desktop",
+      "desktopDetail": "O mesmo espaço de trabalho como aplicativo nativo, com menus do sistema, caixas de diálogo de arquivo e arquivos que abrem direto do Finder ou do Explorador de Arquivos.",
       "intro": "O Ori Studio busca ser o espaço de trabalho definitivo para o design e a análise de origami. Ele se apoia fortemente em portes de ferramentas de origami existentes criadas pela comunidade — o workspace de Edição, por exemplo, é um porte do Oriedita para Rust, focado em usabilidade e desempenho. Se você tiver alguma sugestão, sinta-se à vontade para <2>abrir uma issue no GitHub</2>.",
       "subtitle": "Um espaço de trabalho compartilhado moderno para projetar, editar e dobrar padrões de vincos de origami.",
       "title": "Sobre o Ori Studio"

@@ -67,8 +67,8 @@
     "discord": "Únete al Discord",
     "eyebrow": "Empezar",
     "github": "Código y incidencias",
-    "lead": "Vuelve arriba y empieza un patrón de pliegues: esa es toda la preparación. Discord es el mejor sitio para informar de un error o proponer algo, y donde primero se anuncian las novedades.",
-    "title": "Funciona en el navegador. Nada que instalar."
+    "lead": "Ori Studio funciona por completo en tu navegador, pero, si lo prefieres, puedes instalarlo como aplicación de escritorio.",
+    "title": "Abre una pestaña o instálalo"
   },
   "scrollCue": "Mira lo que hace",
   "simulate": {
@@ -80,7 +80,7 @@
   "what": {
     "eyebrow": "Qué es",
     "figureAlt": "El espacio de trabajo de Ori Studio: un patrón de pliegues en el lienzo, con la barra de herramientas y los paneles del inspector alrededor.",
-    "lead": "Esboza una base, dibuja el patrón de pliegues y pliégalo para ver si funciona: todo en un mismo sitio, en el navegador, sin nada que instalar y sin cuenta.",
+    "lead": "Esboza una base, dibuja el patrón de pliegues y dóblalo para ver si funciona: todo en un mismo lugar y sin cuenta. Ábrelo en una pestaña del navegador o instala la aplicación de escritorio.",
     "title": "Un espacio de trabajo libre y de código abierto para el diseño de origami"
   }
 }

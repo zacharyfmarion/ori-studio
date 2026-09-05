@@ -67,8 +67,8 @@
     "discord": "Join the Discord",
     "eyebrow": "Get started",
     "github": "Source and issues",
-    "lead": "Scroll back up and start a crease pattern — that is the whole setup. Discord is the best place to report a bug or suggest something, and where new work is announced first.",
-    "title": "It runs in the browser. Nothing to install."
+    "lead": "Ori Studio runs entirely in your browser, but if you prefer, you can install it as a desktop app.",
+    "title": "Open a tab, or install it"
   },
   "scrollCue": "See what it does",
   "simulate": {
@@ -80,7 +80,7 @@
   "what": {
     "eyebrow": "What it is",
     "figureAlt": "The Ori Studio workspace: a crease pattern on the canvas with the tool rail and inspector panels around it.",
-    "lead": "Sketch a base, draw the crease pattern, and fold it to see whether it works — in one place, in the browser, with nothing to install and no account.",
+    "lead": "Sketch a base, draw the crease pattern, and fold it to see whether it works — all in one place, with no account. Open it in a browser tab, or install the desktop app.",
     "title": "A free, open-source workspace for origami design"
   }
 }

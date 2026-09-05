@@ -30,14 +30,20 @@ Decisions taken up front (asked and answered before planning):
 Both were in the first draft and both were wrong. They are recorded here because
 each is the kind of thing that reads as a feature list and ships as a lie:
 
-- **There is no desktop download.** The desktop build is not released. The "Get
-  it" section is about the browser, and the CTA is the Discord.
-- **There is no crease-pattern detection from an image.** "Detect CP from
-  Image…" is behind `import.meta.env.DEV` in `menus/menuDefinition.ts`, so it
-  exists in dev builds only.
+- **There is no desktop download.** ~~The desktop build is not released.~~
+  **No longer true, and the page now makes this claim on purpose.** `v0.4.0`
+  publishes signed macOS DMGs, a Windows installer and Linux packages, and the
+  "Get started" section leads with a download that resolves the real asset for
+  the visitor's platform. See
+  [desktop-download-links.md](desktop-download-links.md).
+- **There is no crease-pattern detection from an image.** Still withheld, though
+  the reason has moved: the gate is `isCpDetectBuildEnabled` in
+  `platform/features.ts` (`DEV` **or** `VITE_CP_DETECT=1`, which the deploy
+  workflows set), not `import.meta.env.DEV`. So it does ship — whether to sell it
+  on the landing page is a separate call, and it has not been made.
 
-`WelcomeLanding.test.tsx` asserts against both, so re-adding either by accident
-fails the suite rather than the reader.
+`WelcomeLanding.test.tsx` still asserts against the detector claim. Its download
+guard was inverted rather than deleted: the page must now *offer* one.
 
 ## Approach
 

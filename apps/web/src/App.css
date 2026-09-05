@@ -83,6 +83,22 @@
   display: grid;
   width: min(1040px, 100%);
   gap: var(--space-5);
+  /* Takes the free space the download does not, which is what puts the download
+     at the top of the screenful and still centres the content in what is left.
+     Under `justify-content: safe center` alone the two would centre together,
+     and the download would float just above the headline. Auto margins resolve
+     to zero when the content overflows, so a short window stacks from the top
+     the way it did before there was anything above it. */
+  margin-block: auto;
+}
+
+/* The corner of the screenful. Cross-axis in a column flex container, so
+   `flex-end` is the right-hand edge — inset only by the page's own padding. */
+.start-screen__download {
+  align-self: flex-end;
+  /* Only ever seen when the content overflows and the auto margins above go to
+     zero; on a tall window the free space is the gap. */
+  margin-bottom: var(--space-5);
 }
 
 .start-screen__hero {

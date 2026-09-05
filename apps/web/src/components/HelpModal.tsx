@@ -3,7 +3,9 @@ import { Trans, useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { BookOpen, ExternalLink, X } from 'lucide-react';
 import { ISSUES_URL } from '../constants/release';
+import { useDesktopDownloads } from '../platform/useDesktopDownloads';
 import { useHelpStore, type HelpModalKind } from '../store/helpStore';
+import { DesktopDownloadButton } from './download/DesktopDownloadButton';
 import { IconButton } from './ui/IconButton';
 
 function acknowledgements(t: TFunction): Array<{ title: string; href: string; detail: string }> {
@@ -148,6 +150,10 @@ function AboutModal() {
           </p>
         </div>
       </div>
+      {/* Renders nothing on desktop, taking its heading and blurb with it —
+          there is no version of this dialog that offers someone the app they
+          already have open. */}
+      <AboutDownloadSection />
       <section className="about-modal__section">
         <h3>{t('dialogs:help.about.acknowledgements', 'Acknowledgements')}</h3>
         <div className="about-modal__ack-list">
@@ -169,6 +175,32 @@ function AboutModal() {
         </div>
       </section>
     </ModalShell>
+  );
+}
+
+/**
+ * The desktop-app offer inside About.
+ *
+ * Its own component so the whole section — heading, blurb and control — is
+ * absent together in the desktop build. Asking `available` at the call site
+ * instead would leave a heading over nothing.
+ */
+function AboutDownloadSection() {
+  const { t } = useTranslation();
+  const { available } = useDesktopDownloads();
+  if (!available) return null;
+
+  return (
+    <section className="about-modal__section">
+      <h3>{t('dialogs:help.about.desktop', 'Desktop app')}</h3>
+      <p className="about-modal__desktop-note">
+        {t(
+          'dialogs:help.about.desktopDetail',
+          'The same workspace as a native app, with system menus, file dialogs, and files that open straight from the Finder or Explorer.'
+        )}
+      </p>
+      <DesktopDownloadButton surface="about" size="sm" variant="secondary" />
+    </section>
   );
 }
 

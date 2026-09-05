@@ -67,8 +67,8 @@
     "discord": "Discord beitreten",
     "eyebrow": "Loslegen",
     "github": "Quellcode und Issues",
-    "lead": "Scrolle nach oben und fang ein Faltmuster an — mehr Einrichtung gibt es nicht. Discord ist der beste Ort, um einen Fehler zu melden oder etwas vorzuschlagen, und dort werden Neuigkeiten zuerst angekündigt.",
-    "title": "Läuft im Browser. Nichts zu installieren."
+    "lead": "Ori Studio läuft vollständig im Browser — wenn Sie möchten, können Sie es aber auch als Desktop-App installieren.",
+    "title": "Tab öffnen — oder installieren"
   },
   "scrollCue": "Sieh, was es kann",
   "simulate": {
@@ -80,7 +80,7 @@
   "what": {
     "eyebrow": "Was es ist",
     "figureAlt": "Der Ori-Studio-Arbeitsbereich: ein Faltmuster auf der Fläche, darum herum die Werkzeugleiste und die Inspektor-Panels.",
-    "lead": "Skizziere eine Basis, zeichne das Faltmuster und falte es, um zu sehen, ob es aufgeht — an einem Ort, im Browser, ohne Installation und ohne Konto.",
+    "lead": "Skizzieren Sie eine Basis, zeichnen Sie das Faltmuster und falten Sie es, um zu sehen, ob es funktioniert — alles an einem Ort, ohne Konto. Im Browser-Tab öffnen oder die Desktop-App installieren.",
     "title": "Ein freier, quelloffener Arbeitsbereich für Origami-Entwurf"
   }
 }

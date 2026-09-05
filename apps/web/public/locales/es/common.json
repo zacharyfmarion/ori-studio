@@ -256,6 +256,28 @@
     "reset": "Restablecer",
     "resetNamed": "Restablecer {{label}}"
   },
+  "download": {
+    "allReleases": "Todas las descargas en GitHub",
+    "build": {
+      "linuxAppImage": "x86-64 (.AppImage)",
+      "linuxAppImageArm": "ARM64 (.AppImage)",
+      "linuxDeb": "x86-64 (.deb)",
+      "linuxDebArm": "ARM64 (.deb)",
+      "macosArm": "Apple Silicon (.dmg)",
+      "macosIntel": "Intel (.dmg)",
+      "windows": "Instalador (.exe)"
+    },
+    "cta": "Descargar la aplicación de escritorio",
+    "ctaLinux": "Descargar para Linux",
+    "ctaMacos": "Descargar para macOS",
+    "ctaWindows": "Descargar para Windows",
+    "os": {
+      "linux": "Linux",
+      "macos": "macOS",
+      "windows": "Windows"
+    },
+    "otherPlatforms": "Otras plataformas"
+  },
   "fileDrop": {
     "open": "Suelta para abrir",
     "openOrImport": "Suelta para abrir o importar"
@@ -268,6 +290,8 @@
     "credit": "Diseñado por <2>Brandon Wong</2>"
   },
   "toolbar": {
+    "downloadDesktop": "Obtener la aplicación de escritorio",
+    "downloadDesktopVersion": "Obtener la aplicación de escritorio ({{version}})",
     "new": "Nuevo",
     "open": "Abrir",
     "optimizeLayout": "Optimizar",

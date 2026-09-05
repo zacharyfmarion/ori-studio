@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { track, type LandingCta, type LandingSectionId } from '../../analytics';
 import { DISCORD_URL, REPOSITORY_URL } from '../../constants/release';
 import { ButtonLink } from '../ui/Button';
+import { DesktopDownloadButton } from '../download/DesktopDownloadButton';
 import { LandingFeatureList } from './LandingFeatureList';
 import { LandingSwipeCarousel, type LandingSwipeItem } from './LandingSwipeCarousel';
 import { LandingFigure } from './LandingFigure';
@@ -34,9 +35,13 @@ export const LANDING_SECTIONS = [
  * (the bulk of the app, and the thing that decides whether someone stays), then
  * the design workspace and the simulator, then compatibility, then how to get in.
  *
- * Two claims it deliberately does **not** make, because neither has shipped: a
- * desktop download, and reading a crease pattern out of an image. The detector is
- * behind `import.meta.env.DEV` and the desktop build is not released.
+ * One claim it deliberately does **not** make: reading a crease pattern out of an
+ * image. The detector ships only where `isCpDetectBuildEnabled` says so, and
+ * whether to sell it is a separate decision from whether it builds.
+ *
+ * The desktop download used to be withheld the same way. It is not any more —
+ * the builds are published, and {@link DesktopDownloadButton} resolves the real
+ * asset for the visitor's platform.
  *
  * The same content serves the desktop page and the phone one; only what sits
  * above it differs (the desktop start screen, or the phone masthead).
@@ -54,7 +59,7 @@ export function WelcomeLanding() {
         title={t('landing:what.title', 'A free, open-source workspace for origami design')}
         lead={t(
           'landing:what.lead',
-          'Sketch a base, draw the crease pattern, and fold it to see whether it works — in one place, in the browser, with nothing to install and no account.'
+          'Sketch a base, draw the crease pattern, and fold it to see whether it works — all in one place, with no account. Open it in a browser tab, or install the desktop app.'
         )}
       >
         <LandingFigure
@@ -231,15 +236,21 @@ export function WelcomeLanding() {
         id="landing-get"
         tone="raised"
         eyebrow={t('landing:get.eyebrow', 'Get started')}
-        title={t('landing:get.title', 'It runs in the browser. Nothing to install.')}
+        title={t('landing:get.title', 'Open a tab, or install it')}
         lead={t(
           'landing:get.lead',
-          'Scroll back up and start a crease pattern — that is the whole setup. Discord is the best place to report a bug or suggest something, and where new work is announced first.'
+          'Ori Studio runs entirely in your browser, but if you prefer, you can install it as a desktop app.'
         )}
       >
         <div className="landing-actions">
+          {/*
+            Renders nothing in the desktop app. That leaves Discord as the
+            leading control there, which is the right one to lead with in a
+            build whose reader has already installed this.
+          */}
+          <DesktopDownloadButton surface="landing" />
           <ButtonLink
-            variant="primary"
+            variant="secondary"
             size="lg"
             href={DISCORD_URL}
             rel="noreferrer"
