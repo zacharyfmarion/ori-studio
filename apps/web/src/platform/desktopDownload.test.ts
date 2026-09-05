@@ -136,15 +136,22 @@ describe('detectDownloadOs', () => {
     expect(detectDownloadOs({ platform: 'Linux armv8l', userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36' })).toBeNull();
   });
 
-  it('recommends nothing for an unknown host or no probe at all', () => {
+  it('recommends nothing for an unknown host', () => {
     expect(detectDownloadOs({ platform: '', userAgent: '' })).toBeNull();
-    expect(detectDownloadOs(undefined)).toBeNull();
   });
+
+  // No case here calls `detectDownloadOs(undefined)`. It looks like "no probe"
+  // and is not: an omitted argument resolves to the default, which under jsdom
+  // is jsdom's own `navigator` — and jsdom builds its user agent out of
+  // `process.platform`, so it reads `Mozilla/5.0 (darwin)` on a Mac and
+  // `Mozilla/5.0 (linux)` on the CI runner. An assertion written that way
+  // passes locally and fails in CI, which is how it was found.
 
   it('reads nothing off Node, whose navigator answers this question wrongly', () => {
     // Node reports `platform: 'MacIntel'` under macOS. The prerender runs there,
     // so a probe taken from it would bake the *build machine's* platform into
-    // the one copy of the page every crawler and every first paint reads.
+    // the one copy of the page every crawler and every first paint reads. This
+    // is the real "no probe" case: `defaultProbe()` keys on `window`.
     const realWindow = globalThis.window;
     // @ts-expect-error -- deleting the DOM is the whole scenario under test.
     delete globalThis.window;

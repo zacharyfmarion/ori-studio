@@ -38,6 +38,14 @@ beforeEach(() => {
   resetDesktopReleaseCache();
   localStorage.clear();
   vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+  // Pinned, because jsdom's user agent is built from `process.platform` — so an
+  // unpinned run reads the *runner's* OS, and the button is labelled "Download
+  // for macOS" here and "Download for Linux" in CI.
+  vi.stubGlobal('navigator', {
+    platform: 'MacIntel',
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15',
+    maxTouchPoints: 0,
+  });
 });
 
 afterEach(() => {
