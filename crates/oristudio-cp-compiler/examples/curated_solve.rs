@@ -12,6 +12,10 @@
 //!                written into the document and the next solve starts from it
 //!   OPTIONS=json fields merged into every stage's options, e.g.
 //!                '{"max_vertex_movement":0.02}'
+//!   ANSWER_OUT=f write the final answer as a FOLD in the case's own frame, to
+//!                compare with the truth by correspondence rather than distance
+//!   REPORT_OUT=f write the final stage's reports as JSON, to diff against
+//!                another build's
 //!   REEXPORT=1   between rounds, rebuild the FOLD from the answer and derive
 //!                the input again, as the editor does: which creases share a
 //!                carrier is then read off the solved geometry, not the
@@ -115,6 +119,26 @@ fn main() {
         }
         solved = stage(&format!("solve again #{round}"), &current, true);
     }
+    if let Ok(path) = std::env::var("REPORT_OUT") {
+        let report = json!({
+            "status": format!("{:?}", solved.status),
+            "movement_report": solved.movement_report,
+            "theorem_residual_report": solved.theorem_residual_report,
+        });
+        std::fs::write(&path, serde_json::to_string_pretty(&report).expect("json"))
+            .expect("write report");
+        println!("  report written to {path}");
+    }
+    if let Ok(path) = std::env::var("ANSWER_OUT") {
+        let mut fold = topology.clone();
+        for (coord, point) in fold.vertices_coords.iter_mut().zip(&solved.vertices_exact) {
+            let p = xform.invert(*point);
+            coord[0] = p.x;
+            coord[1] = p.y;
+        }
+        std::fs::write(&path, serde_json::to_string(&fold).expect("json")).expect("write answer");
+        println!("  answer written to {path}");
+    }
 }
 
 fn read_fold(path: &Path) -> FoldDocument {
@@ -160,6 +184,22 @@ fn report(label: &str, solved: &ExactSolvedGraph, truth: Option<&[Point2]>) {
             polish["pleat_runs"]["adopted"]
         );
     }
+    let merges = solved.merged_vertices.len();
+    let collapsed = polish["pinned_family"]["attempts"]
+        .as_array()
+        .map(|attempts| {
+            attempts
+                .iter()
+                .filter_map(|attempt| attempt["collapsed_edges"].as_array().map(Vec::len))
+                .max()
+                .unwrap_or(0)
+        })
+        .unwrap_or(0);
+    if merges > 0 || collapsed > 0 {
+        println!(
+            "  merges: {merges} vertex pairs made one (pin collapsed up to {collapsed} edges in an attempt)"
+        );
+    }
     let join = &mr["carrier_join"];
     if !join.is_null() {
         let rounds: Vec<String> = join["rounds"]
@@ -168,7 +208,7 @@ fn report(label: &str, solved: &ExactSolvedGraph, truth: Option<&[Point2]>) {
             .flatten()
             .map(|round| {
                 format!(
-                    "{}→{} {} {}",
+                    "{}→{} {} {} (join moved {})",
                     round["carriers_before"],
                     round["carriers_after"],
                     if round["adopted"] == Value::Bool(true) {
@@ -176,7 +216,8 @@ fn report(label: &str, solved: &ExactSolvedGraph, truth: Option<&[Point2]>) {
                     } else {
                         "refused"
                     },
-                    round["refusals"]
+                    round["refusals"],
+                    px(&round["join_movement"])
                 )
             })
             .collect();
@@ -203,22 +244,52 @@ fn px(value: &Value) -> String {
         .map_or_else(|| value.to_string(), |v| format!("{:.2}px", v * PX))
 }
 
+/// How far the answer sits from the truth, vertex to vertex.
+///
+/// Correspondence, not nearest distance: each truth vertex is paired with the
+/// answer vertex that is its mutual nearest neighbour within a generous
+/// radius, and only paired vertices are measured. A hand-corrected truth can
+/// carry split points on creases and the endpoints of aux lines, which have no
+/// counterpart in the answer at all; measured by nearest distance they read
+/// as tens of pixels of error where the solve was within five. The unpaired
+/// count is reported separately.
 fn distance_summary(points: &[Point2], truth: &[Point2]) -> String {
-    if points.len() != truth.len() {
+    if points.is_empty() || truth.is_empty() {
         return format!("? ({} vs {} vertices)", points.len(), truth.len());
     }
-    let mut d: Vec<f64> = points
-        .iter()
-        .zip(truth)
-        .map(|(a, b)| ((a.x - b.x).powi(2) + (a.y - b.y).powi(2)).sqrt() * PX)
-        .collect();
+    let nearest = |p: Point2, set: &[Point2]| {
+        set.iter()
+            .enumerate()
+            .map(|(k, q)| (k, ((p.x - q.x).powi(2) + (p.y - q.y).powi(2)).sqrt()))
+            .min_by(|a, b| a.1.total_cmp(&b.1))
+            .map(|(k, _)| k)
+            .unwrap_or(0)
+    };
+    let radius = 40.0 / 400.0;
+    let mut d: Vec<f64> = Vec::new();
+    let mut unpaired = 0usize;
+    for (j, t) in truth.iter().enumerate() {
+        let i = nearest(*t, points);
+        let back = nearest(points[i], truth);
+        let dist = ((points[i].x - t.x).powi(2) + (points[i].y - t.y).powi(2)).sqrt();
+        if back == j && dist <= radius {
+            d.push(dist * PX);
+        } else {
+            unpaired += 1;
+        }
+    }
+    if d.is_empty() {
+        return format!("no vertex correspondence ({} truth vertices)", truth.len());
+    }
     d.sort_by(|a, b| a.total_cmp(b));
     let n = d.len();
     format!(
-        "max {:.2}px  p90 {:.2}px  median {:.2}px  over 1px {}",
+        "max {:.2}px  p90 {:.2}px  median {:.2}px  over 1px {} of {} paired; {} truth vertices unpaired",
         d[n - 1],
         d[n * 9 / 10],
         d[n / 2],
-        d.iter().filter(|&&x| x > 1.0).count()
+        d.iter().filter(|&&x| x > 1.0).count(),
+        n,
+        unpaired
     )
 }

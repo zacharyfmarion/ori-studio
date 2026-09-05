@@ -209,3 +209,36 @@ Add `--csv` for machine-readable rows, `--flatcheck` to compare the placement
 against the shipped flat folder on all-classic documents, `--sweep` for the
 census under a plane-tolerance sweep, and `--selftest` for the polygon-overlap
 primitive.
+
+## CP-detect curated corpus
+
+Real inputs to the detect dialog with truth a person established in the editor
+(`curated/`), and native crease patterns rendered the way the editor exports
+them and filtered to the ones that fold flat (`cpoogle/`); other designers'
+patterns, so the corpus stays outside the repository. Point the harness at it
+with `CP_DETECT_CURATED_CORPUS_DIR` and compare against the committed
+scorecard, `cp-detect-curated-baseline.json` in this directory. Usage and the
+scoring are in `scripts/cp-detect/README.md`, the case format in
+`implementation-plans/cp-detect-curated-ground-truth.md` and the rendered
+group in `implementation-plans/cp-detect-rendered-corpus.md`.
+
+Last curated run on September 5, 2026 at `8913ccc8`, with the model
+`scripts/cp-detect/current-model.json` named at that commit, on an Apple
+Silicon Mac with CoreML, 647 s on 8 workers. 558 cases in two groups:
+`curated/`, 74 real images (40 with an exact truth, 21 topology only, 13
+skipped as too complex to curate), and `cpoogle/`, 484 native crease patterns
+rendered the way the editor exports them (all exact; 6 over the 4,000-crease
+recognition cap are topology-only rows).
+
+```text
+curated benchmark: 558 cases | decoder exact 274 of 539 (mean edge F1 0.948) | end to end recovered 317 | gate reproduced 441 | 647s
+  curated: decoder exact 18 of 61 (mean edge F1 0.819); end to end recovered 20, accepted wrong 14, not accepted 6; gate reproduced 34, close 3, off 2, not solved 10, skipped 1, solved without a truth 11
+  cpoogle: decoder exact 256 of 478 (mean edge F1 0.964); end to end recovered 297, accepted wrong 137, not accepted 42, skipped 6; gate reproduced 407, close 14, off 3, not solved 12, error 13, skipped 35
+```
+
+The 13 gate errors are the solver's input builder refusing a paper it does
+not support (7 non-square, 5 not a four-corner quadrilateral, 1 degenerate
+edge). Seven of the rendered group's `not solved` gates are one solver
+target: an already-exact pattern refused as `kawasaki_regressed_from_bar`
+with its answer 0.0 px from the truth, the crocodile finding of the curated
+group, now with seven reproductions.

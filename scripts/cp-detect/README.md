@@ -559,6 +559,138 @@ accepted-but-wrong 46→17). The committed parity fixtures in
 guardrail; regenerate goldens after intentional solver changes with
 `UPDATE_GOLDEN=1 cargo test -p oristudio-cp-compiler --test exact_solve_parity -- --include-ignored`.
 
+## Curated benchmark (real inputs, hand-established truth)
+
+The packs above render crease patterns and use the source FOLD as truth. The
+curated benchmark scores the pipeline on the *real* inputs users give the
+detect dialog — scans, screenshots, photographed diagrams — against truth a
+person established in the editor. The patterns are other designers' work, so
+the corpus never enters the repository and never runs in CI; what is committed
+is the harness and the scorecard it is measured against. Plan and format:
+`implementation-plans/cp-detect-curated-ground-truth.md`.
+
+A case is a directory: `source.<ext>`, the exact image the dialog was given;
+`detected.fold`, what the detector produced when the case was curated;
+`topology.fold`, the repaired pattern exported before solving; `truth.fold`,
+the solved pattern. No metadata file — status, exactness, failure tags, all
+of it is derived. Aux lines export as `F` edges and are ignored.
+
+Cases sit in groups, one directory each under the corpus root: `curated/`,
+the hand-established truths, and `cpoogle/`, native crease patterns rendered
+and filtered by `rendered_corpus` (below). A directory with a `source.<ext>`
+is a case, any other directory is a group, and every record, table and
+scorecard keys a case `group/slug`. `--group curated` runs one group, which
+is the ten-minute gate; the full run also covers the rendered group.
+
+```bash
+export CP_DETECT_CURATED_CORPUS_DIR=/path/to/real_benchmark
+cargo run --release -p oristudio-cp-detect --features native-inference \
+  --bin curated_benchmark -- --out artifacts/cp-detect-curated/$(date +%F) \
+  --compare tests/corpus/cp-detect-curated-baseline.json
+```
+
+The model comes from `scripts/cp-detect/current-model.json` when run from the
+repository root, or `--model <model.onnx>`. Inference is native (CoreML on
+macOS, the CPU elsewhere) through the same code the batch tool uses; behind a
+proxy, unset `HTTPS_PROXY` for the build that downloads ONNX Runtime.
+
+Per case, three scores:
+
+- **decoder** — the pipeline's graph against `topology.fold`, the strict
+  topology metric at 4 px of 1024: `exact` / `near` (edge F1 ≥ 0.95) / `off`.
+- **end to end** — the pipeline's solved answer against `truth.fold`, vertex
+  to vertex by mutual nearest-neighbour correspondence, so a hand-fixed
+  truth's split points and aux endpoints count as unpaired rather than as
+  error: `recovered` (accepted, every paired vertex within 2 px, no junction
+  unpaired) / `accepted_wrong` / `not_accepted`.
+- **gate** — `topology.fold` through the solver's refinement stage against
+  `truth.fold`, the same way; the solver on correct topology with no model
+  involved: `reproduced` (within 1 px) / `close` (within 5 px) / `off` /
+  `not_solved` / `skipped` (over `--max-edges`, where one solver step outlasts
+  the budget by minutes).
+
+`per_case.jsonl` holds every number; `summary.json` is the scorecard, with
+the aggregates overall and per group, and `summary.md` the table.
+`answers/<group>__<slug>.recognised.fold` is the graph as recognised before
+the compiler and the solve, `.pipeline.fold` the pipeline's solved answer,
+`.gate.fold` the gate's, all in the case's own frame, and `.gate.report.json`
+the gate's stage-2 reports, to open beside `truth.fold` or diff against
+another build's when a bucket needs explaining. `--compare` prints every
+case whose bucket changed, both directions, and every group aggregate that
+moved. The binary refuses to run from another commit's build unless
+`--allow-stale`, the same footgun guard as the benchmark above.
+
+The decoder is scored on the recognised graph, not the solved one: the solve
+merges detector-split junctions and moves vertices, and scored on its output
+three exact decodes read as near the moment the carrier round landed. A
+pattern over `--max-edges` is scored on the decoder the same way and only
+its solve is skipped (`solve_status: skipped_too_large`).
+
+`--write-detected` writes the pipeline's output as `detected.fold` into any
+case that has none: how a generated group gets the curation-time detection
+its drift and failure tags are measured against.
+
+Cases run on `--jobs` worker threads (every core but two): inference is the
+one serial stage, and the decode, the solve, the scoring and the gate run
+beside the other workers'. A pattern whose topology has more creases than
+`--max-recognise-creases` (4,000) is not put through the detector at all
+(decoder and end to end `skipped`): the recognise stage takes three to seven
+minutes on a 4,000 to 6,000-crease design, the case keeps its gate, and the
+cap can be raised for a full measurement.
+
+Two readings the buckets need: an `accepted_wrong` at 0 px with one unpaired
+junction is a junction the decoder never found, with the creases around it,
+that the solve accepted without (the pattern is still exact); a gate `off` at
+0 px is the solve merging or collapsing vertices the truth keeps. The unpaired
+junction count sits beside the max in the table for that reason.
+
+The rule: before merging a change under `crates/oristudio-cp-detect*`,
+`crates/oristudio-cp-compiler`, or the detect and repair surfaces in
+`apps/web`, run it and paste the comparison into the PR. A change that moves a
+case lands with `tests/corpus/cp-detect-curated-baseline.json` updated in the
+same PR and the flip explained.
+
+Two flips are not evidence. A design with a free slide, a pleat group or a
+boundary vertex the priors rather than the design place, can solve to points
+a few pixels apart under two builds of the same solver, because the last
+digits of the arithmetic differ between binaries and the objective is flat
+along the slide: the penguin and the bat of the curated set read `close` or
+`reproduced` at 0 px or 2.65 px depending on which binary solved them, with
+identical solver code. Read a flip with `curated_solve` at both commits in
+one build before attributing it, and treat a case that moves under a change
+that cannot have touched it as this noise until shown otherwise.
+
+### The rendered group
+
+`rendered_corpus`, an example in `oristudio-cp`, makes cases out of native
+crease patterns (`.cp`, `.ori`): each file imported with the kernel's own
+readers, folded with the editor's Fold (`FoldingEstimateSession` to
+`Order5`) under a per-case deadline, and, when a layer ordering exists,
+rendered as `source.png` the way the editor's Export PNG draws it (the light
+export palette: paper `#f8f5ec` inset 48 on a 1024 page, mountain `#ff4d5d`,
+valley `#60a5fa`, border `#111417`, aux `#64c8c8`, the export's stroke width,
+drawn at 3× and downsampled) and exported through `export_fold_document` as
+`topology.fold` and `truth.fold`, one pattern that is its own truth, aux lines
+as `F` edges. The group's `README.md` lists every case with its segment count,
+exactness at the editor's bar and fold time, the files excluded with the
+reason, and the duplicates set aside (files sharing a cpoogle drive id or a
+segment set).
+
+```bash
+cargo run --release -p oristudio-cp --example rendered_corpus -- \
+  --from /path/to/scraped/native/raw/cpoogle \
+  --into $CP_DETECT_CURATED_CORPUS_DIR/cpoogle
+cargo run --release -p oristudio-cp-detect --features native-inference \
+  --bin curated_benchmark -- --group cpoogle --write-detected \
+  --out artifacts/cp-detect-curated/$(date +%F)
+```
+
+What the rendered group measures: the decoder on clean renders across the
+whole size range with exact topology known, end to end against an exact
+truth, and the solver gate on a few hundred designs that fold flat by
+construction. It cannot measure rectification of photographs or the repair
+flow; that is the curated group.
+
 ## GPU-native dense cache (MPS/CUDA, no browser)
 
 `run-browser-dense-cache.mjs` exists for product parity (it runs the same
