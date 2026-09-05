@@ -159,7 +159,17 @@ complex. Four things the harness has to read correctly, learned from them:
   detector-split stubs**, which is expected (11 cases); a truth with *more* is
   repair that continued after the topology export (6 cases), and the topology
   should be re-exported.
-- **Match vertices by geometry, never by index**, for the same reason.
+- **Match vertices by correspondence, never by index and never by nearest
+  distance.** The solve merges detector-split junctions, so indices shift;
+  and a hand-corrected truth carries split points on creases and aux-line
+  endpoints that no answer vertex corresponds to, so nearest distance reads
+  tens of pixels of error where the solve was within five (helioprion read
+  78 px by nearest distance and 5.4 px by correspondence). Pair mutual
+  nearest neighbours within a radius and count the unpaired separately.
+- **Compare graphs the same way.** The same split points made a hand-fixed
+  truth look like a different drawing under an endpoint-tolerance diff. Pair
+  vertices first, then compare connectivity; a degree-2 vertex on a crease is
+  a split, not topology.
 - **`solved` is the editor's bar, 1e-6°, not the solver's 1e-3°.** Three
   truths were exported at 1e-4° residuals and read as exact at the looser
   bar. They showed no markers in the editor because the detect import's
@@ -171,10 +181,13 @@ complex. Four things the harness has to read correctly, learned from them:
 
 First baseline, solver-only gate with the carrier round: 50 of the 61
 repaired topologies solve, 37 of the 41 exact truths are reproduced within a
-pixel, and 7 of the 17 the editor could not solve now solve. Three findings
-worth their own cases: `crocodile`, an already-exact topology the solve makes
-worse and then refuses; `helioprion` and `helmeted-hornbill`, accepted answers
-that are exact but 43 px and 21 px from the truth.
+pixel at every vertex, and 7 of the 17 the editor could not solve now solve.
+Two findings worth their own cases: `crocodile`, an already-exact topology
+the solve makes worse and then refuses; and `helioprion`, a hand-corrected
+truth the solve misses by up to 5.4 px at 73 vertices, a whole boundary pleat
+group slid 1.7 units along both edges into an equally exact configuration —
+the freedom a pleat group has to slide is something the priors, not the
+design, currently decide.
 
 ## Affected Areas
 
