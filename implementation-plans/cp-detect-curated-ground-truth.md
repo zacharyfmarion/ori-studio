@@ -148,9 +148,9 @@ Ten to twenty cases gate regressions; thirty or more support tuning. Cover:
 
 ### What the first curation pass taught (2026-09-04)
 
-74 cases were curated from the real set: 44 with an exact truth, 17 with a
-repaired topology whose solve did not reach the truth, 13 skipped as too
-complex. Three things the harness has to read correctly, learned from them:
+74 cases were curated from the real set: 41 with an exact truth, 20 with a
+repaired topology whose solve did not reach an exact truth, 13 skipped as too
+complex. Four things the harness has to read correctly, learned from them:
 
 - **Aux lines are exported as `F` edges and must be ignored.** 23 cases carry
   them. Counted as creases they make a dozen exact truths look unfoldable, with
@@ -160,9 +160,17 @@ complex. Three things the harness has to read correctly, learned from them:
   repair that continued after the topology export (6 cases), and the topology
   should be re-exported.
 - **Match vertices by geometry, never by index**, for the same reason.
+- **`solved` is the editor's bar, 1e-6°, not the solver's 1e-3°.** Three
+  truths were exported at 1e-4° residuals and read as exact at the looser
+  bar. They showed no markers in the editor because the detect import's
+  suppression region hides the two angle classes inside it, and a FOLD does
+  not carry the region, so the markers appear on reopening the file. That is
+  the region doing its job; the harness must run the check itself
+  (`fold_check_roundtrip` in `oristudio-cp` does, and confirmed the import
+  path is faithful: a round trip moves nothing).
 
 First baseline, solver-only gate with the carrier round: 50 of the 61
-repaired topologies solve, 37 of the 44 exact truths are reproduced within a
+repaired topologies solve, 37 of the 41 exact truths are reproduced within a
 pixel, and 7 of the 17 the editor could not solve now solve. Three findings
 worth their own cases: `crocodile`, an already-exact topology the solve makes
 worse and then refuses; `helioprion` and `helmeted-hornbill`, accepted answers
@@ -184,7 +192,7 @@ that are exact but 43 px and 21 px from the truth.
 
 - [x] Case format agreed: files only, metadata derived
 - [x] Scaffold `real_benchmark/` from `real/` (107 cases, 103 with `detected.fold`)
-- [x] Curate the first cases: 74 done, 44 with an exact truth
+- [x] Curate the first cases: 74 done, 41 with an exact truth
 - [ ] Harness: load a case, rectify, infer, decode, solve with dialog defaults
 - [ ] Harness: normalise frames and score strict topology, recovery, position error
 - [ ] Solver-only gate over `topology.fold` → `truth.fold` in the compiler crate
