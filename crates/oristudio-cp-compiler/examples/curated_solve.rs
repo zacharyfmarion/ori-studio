@@ -203,22 +203,32 @@ fn px(value: &Value) -> String {
         .map_or_else(|| value.to_string(), |v| format!("{:.2}px", v * PX))
 }
 
+/// How far the answer sits from the truth: for every truth vertex, the nearest
+/// answer vertex. Matched by geometry rather than index because a solve merges
+/// detector-split junctions, so the answer can have fewer vertices than the
+/// topology it started from, and the truth exported after that solve has fewer
+/// still.
 fn distance_summary(points: &[Point2], truth: &[Point2]) -> String {
-    if points.len() != truth.len() {
+    if points.is_empty() || truth.is_empty() {
         return format!("? ({} vs {} vertices)", points.len(), truth.len());
     }
-    let mut d: Vec<f64> = points
+    let mut d: Vec<f64> = truth
         .iter()
-        .zip(truth)
-        .map(|(a, b)| ((a.x - b.x).powi(2) + (a.y - b.y).powi(2)).sqrt() * PX)
+        .map(|t| {
+            points
+                .iter()
+                .map(|p| ((p.x - t.x).powi(2) + (p.y - t.y).powi(2)).sqrt() * PX)
+                .fold(f64::INFINITY, f64::min)
+        })
         .collect();
     d.sort_by(|a, b| a.total_cmp(b));
     let n = d.len();
     format!(
-        "max {:.2}px  p90 {:.2}px  median {:.2}px  over 1px {}",
+        "max {:.2}px  p90 {:.2}px  median {:.2}px  over 1px {} of {}",
         d[n - 1],
         d[n * 9 / 10],
         d[n / 2],
-        d.iter().filter(|&&x| x > 1.0).count()
+        d.iter().filter(|&&x| x > 1.0).count(),
+        n
     )
 }

@@ -146,6 +146,28 @@ Ten to twenty cases gate regressions; thirty or more support tuning. Cover:
   should reach. Those are the targets; they will read as "not recovered" in
   the baseline until they are fixed, which is the point.
 
+### What the first curation pass taught (2026-09-04)
+
+74 cases were curated from the real set: 44 with an exact truth, 17 with a
+repaired topology whose solve did not reach the truth, 13 skipped as too
+complex. Three things the harness has to read correctly, learned from them:
+
+- **Aux lines are exported as `F` edges and must be ignored.** 23 cases carry
+  them. Counted as creases they make a dozen exact truths look unfoldable, with
+  odd-degree vertices where an aux line ends.
+- **A truth with fewer creases than its topology is the solve merging
+  detector-split stubs**, which is expected (11 cases); a truth with *more* is
+  repair that continued after the topology export (6 cases), and the topology
+  should be re-exported.
+- **Match vertices by geometry, never by index**, for the same reason.
+
+First baseline, solver-only gate with the carrier round: 50 of the 61
+repaired topologies solve, 37 of the 44 exact truths are reproduced within a
+pixel, and 7 of the 17 the editor could not solve now solve. Three findings
+worth their own cases: `crocodile`, an already-exact topology the solve makes
+worse and then refuses; `helioprion` and `helmeted-hornbill`, accepted answers
+that are exact but 43 px and 21 px from the truth.
+
 ## Affected Areas
 
 - `crates/oristudio-cp-detect/src/bin/curated_benchmark.rs` (new, feature
@@ -162,7 +184,7 @@ Ten to twenty cases gate regressions; thirty or more support tuning. Cover:
 
 - [x] Case format agreed: files only, metadata derived
 - [x] Scaffold `real_benchmark/` from `real/` (107 cases, 103 with `detected.fold`)
-- [ ] Curate the first three cases
+- [x] Curate the first cases: 74 done, 44 with an exact truth
 - [ ] Harness: load a case, rectify, infer, decode, solve with dialog defaults
 - [ ] Harness: normalise frames and score strict topology, recovery, position error
 - [ ] Solver-only gate over `topology.fold` → `truth.fold` in the compiler crate

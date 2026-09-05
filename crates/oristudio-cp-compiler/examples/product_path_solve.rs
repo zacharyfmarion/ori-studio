@@ -61,6 +61,11 @@ fn main() {
     if let Ok(out) = std::env::var("FOLD_OUT") {
         std::fs::write(&out, &fold_json).expect("write fold");
         println!("fold written to {out}");
+        // `EXPORT_ONLY=1` stops here: the document's pattern as a FOLD, for a
+        // curated case that was left as a document because its solve failed.
+        if std::env::var("EXPORT_ONLY").is_ok() {
+            return;
+        }
     }
     let input_json = serde_json::to_string(&input_value).expect("json");
     // `INPUT_OUT=<path>` writes the input the frontend would send, for feeding
