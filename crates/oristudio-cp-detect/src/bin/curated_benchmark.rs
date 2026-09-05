@@ -29,8 +29,18 @@
 //!   cargo run --release -p oristudio-cp-detect --features native-inference \
 //!     --bin curated_benchmark -- --cases <dir> --out <dir> \
 //!     [--model <model.onnx>] [--compare <summary.json>] [--budget 25] \
-//!     [--max-edges 1500] [--only slug,slug] [--group name] [--allow-stale]
-//!     [--write-detected]
+//!     [--max-edges 1500] [--max-recognise-creases 4000] [--jobs n]
+//!     [--only slug,slug] [--group name] [--allow-stale] [--write-detected]
+//!
+//! Cases run on `--jobs` worker threads (every core but two): inference is
+//! the one serial stage, one image at a time on one session, and the decode,
+//! the solve, the scoring and the gate run beside the other workers'. A
+//! pattern whose topology has more creases than `--max-recognise-creases` is
+//! not put through the detector at all (bucket `skipped`): the recognise
+//! stage takes three to seven minutes on a 4,000 to 6,000-crease design,
+//! which is the product's problem to fix, not the run's to pay for; the case
+//! stays in the set, its gate is measured, and the cap can be raised for a
+//! full measurement.
 //!
 //! `--write-detected` writes the pipeline's output as `detected.fold` into any
 //! case that has none, which is how a generated group gets its curation-time
@@ -47,6 +57,8 @@ use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
 const PX: f64 = 1024.0;
@@ -65,6 +77,8 @@ struct Args {
     compare: Option<PathBuf>,
     budget: f64,
     max_edges: usize,
+    max_recognise_creases: usize,
+    jobs: usize,
     only: Option<Vec<String>>,
     group: Option<String>,
     allow_stale: bool,
@@ -81,6 +95,10 @@ fn parse_args() -> Args {
         compare: None,
         budget: 25.0,
         max_edges: 1500,
+        max_recognise_creases: 4000,
+        jobs: std::thread::available_parallelism()
+            .map(|n| n.get().saturating_sub(2).max(1))
+            .unwrap_or(4),
         only: None,
         group: None,
         allow_stale: false,
@@ -101,6 +119,14 @@ fn parse_args() -> Args {
                     .parse()
                     .expect("max-edges")
             }
+            "--max-recognise-creases" => {
+                args.max_recognise_creases = it
+                    .next()
+                    .expect("--max-recognise-creases <n>")
+                    .parse()
+                    .expect("max-recognise-creases")
+            }
+            "--jobs" => args.jobs = it.next().expect("--jobs <n>").parse().expect("jobs"),
             "--only" => {
                 args.only = Some(
                     it.next()
@@ -698,7 +724,7 @@ fn solver_gate(
     record
 }
 
-fn run_case(session: &mut NativeSession, case: &Case, args: &Args) -> Value {
+fn run_case(session: &Mutex<NativeSession>, case: &Case, args: &Args) -> Value {
     let started = Instant::now();
     let mut record = json!({ "slug": case.key(), "group": case.group });
     let answers = args.out.join("answers");
@@ -755,8 +781,23 @@ fn run_case(session: &mut NativeSession, case: &Case, args: &Args) -> Value {
     // decodes read as near.
     let mut recognised: Option<Pattern> = None;
     let mut detection = json!({});
-    match image::open(&case.source) {
-        Err(error) => detection["error"] = json!(format!("load: {error}")),
+    let creases = topology
+        .as_ref()
+        .map(|t| t.edges.iter().filter(|(_, a)| a != "B").count())
+        .unwrap_or(0);
+    let source = if creases > args.max_recognise_creases {
+        Err(format!(
+            "too_large_to_recognise: {creases} creases, over the {} cap",
+            args.max_recognise_creases
+        ))
+    } else {
+        image::open(&case.source).map_err(|e| format!("load: {e}"))
+    };
+    match source {
+        Err(error) if error.starts_with("too_large_to_recognise") => {
+            detection["skipped"] = json!(error)
+        }
+        Err(error) => detection["error"] = json!(error),
         Ok(img) => {
             let rgba = img.to_rgba8();
             let (width, height) = rgba.dimensions();
@@ -764,11 +805,18 @@ fn run_case(session: &mut NativeSession, case: &Case, args: &Args) -> Value {
                 Err(error) => detection["error"] = json!(error),
                 Ok(rectified) => {
                     detection["rectification"] = rectified.report.clone();
-                    match session.infer(&rectified.rgba) {
+                    // Inference is the one serial stage: one session, one
+                    // image at a time. Everything after it runs beside the
+                    // other workers' decodes.
+                    let (inferred, provider) = {
+                        let mut session = session.lock().unwrap_or_else(|e| e.into_inner());
+                        (session.infer(&rectified.rgba), session.provider)
+                    };
+                    match inferred {
                         Err(error) => detection["error"] = json!(error),
                         Ok((heads, inference_ms)) => {
                             detection["inference_ms"] = json!(round(inference_ms));
-                            detection["provider"] = json!(session.provider);
+                            detection["provider"] = json!(provider);
                             let decode_started = Instant::now();
                             // Recognise once: the graph before the compiler
                             // and the solve, which scores the decoder, sizes
@@ -950,6 +998,9 @@ fn decoder_bucket(record: &Value) -> &'static str {
     if record["status"] == json!("skipped") {
         return "n/a";
     }
+    if record["detection"].get("skipped").is_some() {
+        return "skipped";
+    }
     if record["detection"].get("error").is_some() || record["decoder"].is_null() {
         return "no_detection";
     }
@@ -965,6 +1016,9 @@ fn decoder_bucket(record: &Value) -> &'static str {
 fn end_to_end_bucket(record: &Value) -> &'static str {
     if record["status"] != json!("solved") {
         return "n/a";
+    }
+    if record["detection"].get("skipped").is_some() {
+        return "skipped";
     }
     if record["end_to_end"].is_null() {
         return "no_detection";
@@ -1256,41 +1310,64 @@ fn main() {
         args.cases.display()
     );
     let started = Instant::now();
-    let mut session = NativeSession::open(&args.model, &args.out.join(".coreml-cache"))
+    let session = NativeSession::open(&args.model, &args.out.join(".coreml-cache"))
         .unwrap_or_else(|e| panic!("session: {e}"));
     eprintln!(
         "[curated] session on {} in {:.1}s",
         session.provider,
         started.elapsed().as_secs_f64()
     );
-    let mut records = Vec::new();
+    let session = Mutex::new(session);
     let jsonl = args.out.join("per_case.jsonl");
     let _ = std::fs::remove_file(&jsonl);
-    for (index, case) in cases.iter().enumerate() {
-        let record = run_case(&mut session, case, &args);
-        eprintln!(
-            "[{}/{}] {:36} {:8} decoder {:12} e2e {:14} gate {:12} {:.1}s",
-            index + 1,
-            cases.len(),
-            case.key(),
-            record["status"].as_str().unwrap_or(""),
-            record["buckets"]["decoder"].as_str().unwrap_or(""),
-            record["buckets"]["end_to_end"].as_str().unwrap_or(""),
-            record["buckets"]["gate"].as_str().unwrap_or(""),
-            record["seconds"].as_f64().unwrap_or(0.0)
-        );
-        if let Ok(line) = serde_json::to_string(&record) {
-            use std::io::Write;
-            if let Ok(mut file) = std::fs::OpenOptions::new()
-                .append(true)
-                .create(true)
-                .open(&jsonl)
-            {
-                let _ = writeln!(file, "{line}");
-            }
+    let jsonl = Mutex::new(
+        std::fs::OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(&jsonl)
+            .expect("per_case.jsonl"),
+    );
+    let next = AtomicUsize::new(0);
+    let done = AtomicUsize::new(0);
+    let records: Mutex<Vec<(usize, Value)>> = Mutex::new(Vec::new());
+    std::thread::scope(|scope| {
+        for _ in 0..args.jobs.max(1) {
+            scope.spawn(|| {
+                loop {
+                    let index = next.fetch_add(1, Ordering::SeqCst);
+                    let Some(case) = cases.get(index) else {
+                        break;
+                    };
+                    let record = run_case(&session, case, &args);
+                    let finished = done.fetch_add(1, Ordering::SeqCst) + 1;
+                    eprintln!(
+                        "[{}/{}] {:36} {:8} decoder {:12} e2e {:14} gate {:12} {:.1}s",
+                        finished,
+                        cases.len(),
+                        case.key(),
+                        record["status"].as_str().unwrap_or(""),
+                        record["buckets"]["decoder"].as_str().unwrap_or(""),
+                        record["buckets"]["end_to_end"].as_str().unwrap_or(""),
+                        record["buckets"]["gate"].as_str().unwrap_or(""),
+                        record["seconds"].as_f64().unwrap_or(0.0)
+                    );
+                    if let Ok(line) = serde_json::to_string(&record)
+                        && let Ok(mut file) = jsonl.lock()
+                    {
+                        use std::io::Write;
+                        let _ = writeln!(file, "{line}");
+                    }
+                    records
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .push((index, record));
+                }
+            });
         }
-        records.push(record);
-    }
+    });
+    let mut records = records.into_inner().unwrap_or_else(|e| e.into_inner());
+    records.sort_by_key(|(index, _)| *index);
+    let records: Vec<Value> = records.into_iter().map(|(_, record)| record).collect();
     let summary = summarize(&records, &commit, &args.model);
     let _ = std::fs::write(
         args.out.join("summary.json"),

@@ -630,6 +630,14 @@ its solve is skipped (`solve_status: skipped_too_large`).
 case that has none: how a generated group gets the curation-time detection
 its drift and failure tags are measured against.
 
+Cases run on `--jobs` worker threads (every core but two): inference is the
+one serial stage, and the decode, the solve, the scoring and the gate run
+beside the other workers'. A pattern whose topology has more creases than
+`--max-recognise-creases` (4,000) is not put through the detector at all
+(decoder and end to end `skipped`): the recognise stage takes three to seven
+minutes on a 4,000 to 6,000-crease design, the case keeps its gate, and the
+cap can be raised for a full measurement.
+
 Two readings the buckets need: an `accepted_wrong` at 0 px with one unpaired
 junction is a junction the decoder never found, with the creases around it,
 that the solve accepted without (the pattern is still exact); a gate `off` at
