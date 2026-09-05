@@ -170,6 +170,8 @@ export interface CpExactSolvePinnedFamilyReport {
 }
 
 export interface CpExactSolvePinnedAttempt {
+  /** The lattice this attempt pinned to: the family's step, or half of it for the 11.25° refinement of a 22.5° round. */
+  step_degrees?: number;
   tolerance_degrees?: number;
   pinned_carriers?: number;
   /** Vertices this attempt left over the flat-fold bar. */
