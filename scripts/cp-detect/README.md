@@ -603,10 +603,11 @@ Per case, three scores:
   truth's split points and aux endpoints count as unpaired rather than as
   error: `recovered` (accepted, every paired vertex within 2 px, no junction
   unpaired) / `accepted_wrong` / `not_accepted`.
-- **gate** — `topology.fold` through the solver's two stages against
+- **gate** — `topology.fold` through the solver's refinement stage against
   `truth.fold`, the same way; the solver on correct topology with no model
   involved: `reproduced` (within 1 px) / `close` (within 5 px) / `off` /
-  `not_solved`.
+  `not_solved` / `skipped` (over `--max-edges`, where one solver step outlasts
+  the budget by minutes).
 
 `per_case.jsonl` holds every number; `summary.json` is the scorecard, with
 the aggregates overall and per group, and `summary.md` the table.

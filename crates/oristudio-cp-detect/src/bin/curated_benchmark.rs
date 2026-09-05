@@ -36,7 +36,8 @@
 //! case that has none, which is how a generated group gets its curation-time
 //! detection (`rendered_corpus` in `oristudio-cp` makes the cases, this fills
 //! that file). A pattern over the edge cap is still scored on the decoder from
-//! the recognise-only decode; only its solve is skipped.
+//! the recognise-only decode; its solve is skipped, in the pipeline and in the
+//! gate alike.
 use oristudio_cp_compiler::{
     Point2, exact_solve_input_from_fold, parse_exact_solve_request, solve_exact_with_exemptions,
 };
@@ -594,6 +595,7 @@ fn solver_gate(
     topology: &Path,
     truth: Option<&Pattern>,
     budget: f64,
+    max_edges: usize,
     dump: Option<&Path>,
 ) -> Value {
     let started = Instant::now();
@@ -608,21 +610,28 @@ fn solver_gate(
         Ok(v) => v,
         Err(error) => return json!({ "error": format!("rebuild: {error}") }),
     };
+    // The solve's LM step is not preemptible, and on thousands of spans one
+    // step outlasts the budget by minutes; the pipeline skips such a solve,
+    // and so does the gate.
+    if input.selected_spans.len() > max_edges {
+        return json!({
+            "status": "skipped_too_large",
+            "spans": input.selected_spans.len(),
+            "seconds": round(started.elapsed().as_secs_f64()),
+        });
+    }
     let input_json = match serde_json::to_string(&input) {
         Ok(v) => v,
         Err(error) => return json!({ "error": format!("json: {error}") }),
     };
-    let mut last = None;
-    for polish in [false, true] {
-        let options = json!({ "polish": polish, "timeout_seconds": budget }).to_string();
-        let Ok((parsed, options)) = parse_exact_solve_request(&input_json, &options) else {
-            return json!({ "error": "request" });
-        };
-        last = Some(solve_exact_with_exemptions(&parsed, &options));
-    }
-    let Some(solved) = last else {
-        return json!({ "error": "no stage ran" });
+    // Stage 2 alone: the refinement re-runs the geometry stage inside it, so
+    // the product's separate stage-1 call is a preview the gate has no use
+    // for, and running it doubled the gate's time.
+    let options = json!({ "polish": true, "timeout_seconds": budget }).to_string();
+    let Ok((parsed, options)) = parse_exact_solve_request(&input_json, &options) else {
+        return json!({ "error": "request" });
     };
+    let solved = solve_exact_with_exemptions(&parsed, &options);
     let mr = &solved.movement_report;
     let polish = &mr["polish"];
     let mut record = json!({
@@ -761,54 +770,58 @@ fn run_case(session: &mut NativeSession, case: &Case, args: &Args) -> Value {
                             detection["inference_ms"] = json!(round(inference_ms));
                             detection["provider"] = json!(session.provider);
                             let decode_started = Instant::now();
-                            // A skipped case has no truth to score a solve
-                            // against, and the largest patterns are the
-                            // skipped ones: recognise only, which records
-                            // the size and takes a second, not minutes.
-                            let mut decoded = if topology.is_some() {
-                                native_inference::decode_bounded(
-                                    &rectified.rgba,
-                                    &heads,
-                                    args.budget,
-                                    args.max_edges,
-                                )
-                            } else {
-                                native_inference::decode(&rectified.rgba, &heads, args.budget, true)
-                            };
-                            // Over the edge cap the solve is skipped, not the
-                            // case: the recognise-only decode still scores
-                            // the decoder, and the record says why there is
-                            // no solve.
-                            let mut too_large = None;
-                            if let Err(error) = &decoded
-                                && error.starts_with("too_large:")
-                            {
-                                too_large = Some(error.clone());
-                                decoded = native_inference::decode(
-                                    &rectified.rgba,
-                                    &heads,
-                                    args.budget,
-                                    true,
-                                );
-                            }
-                            if topology.is_some() {
-                                recognised = native_inference::decode(
-                                    &rectified.rgba,
-                                    &heads,
-                                    args.budget,
-                                    true,
-                                )
+                            // Recognise once: the graph before the compiler
+                            // and the solve, which scores the decoder, sizes
+                            // the pattern, and stands in for the solve over
+                            // the edge cap. On a 6,000-crease pattern this
+                            // stage alone takes two minutes, so it runs one
+                            // time, not once per use.
+                            let probe = native_inference::decode(
+                                &rectified.rgba,
+                                &heads,
+                                args.budget,
+                                true,
+                            );
+                            let recognised_edges = probe
+                                .as_ref()
                                 .ok()
-                                .and_then(|probe| {
-                                    let _ = std::fs::write(
-                                        answers.join(format!("{answer_name}.recognised.fold")),
-                                        &probe.fold_json,
-                                    );
-                                    serde_json::from_str::<Value>(&probe.fold_json)
-                                        .ok()
-                                        .and_then(|v| pattern_from_value(v).ok())
-                                });
+                                .and_then(|p| serde_json::to_value(&p.report).ok())
+                                .and_then(|r| r.get("edge_count").and_then(Value::as_u64))
+                                .unwrap_or(0)
+                                as usize;
+                            if topology.is_some()
+                                && let Ok(probe) = &probe
+                            {
+                                let _ = std::fs::write(
+                                    answers.join(format!("{answer_name}.recognised.fold")),
+                                    &probe.fold_json,
+                                );
+                                recognised = serde_json::from_str::<Value>(&probe.fold_json)
+                                    .ok()
+                                    .and_then(|v| pattern_from_value(v).ok());
                             }
+                            // A case without a topology has no truth to score
+                            // a solve against, and over the edge cap the solve
+                            // is skipped, not the case: the recognised graph
+                            // stands in, and the record says why there is no
+                            // solve.
+                            let mut too_large = None;
+                            let decoded = if topology.is_none() {
+                                probe
+                            } else if recognised_edges > args.max_edges {
+                                too_large = Some(format!(
+                                    "too_large: {recognised_edges} edges recognized, over the {} edge cap; solve skipped",
+                                    args.max_edges
+                                ));
+                                probe
+                            } else {
+                                native_inference::decode(
+                                    &rectified.rgba,
+                                    &heads,
+                                    args.budget,
+                                    false,
+                                )
+                            };
                             match decoded {
                                 Err(error) => detection["error"] = json!(error),
                                 Ok(decoded) => {
@@ -919,6 +932,7 @@ fn run_case(session: &mut NativeSession, case: &Case, args: &Args) -> Value {
             path,
             truth.as_ref(),
             args.budget,
+            args.max_edges,
             Some(&answers.join(format!("{answer_name}.gate.fold"))),
         );
     }
@@ -970,6 +984,9 @@ fn gate_bucket(record: &Value) -> &'static str {
     }
     if record["gate"].get("error").is_some() {
         return "error";
+    }
+    if record["gate"]["status"] == json!("skipped_too_large") {
+        return "skipped";
     }
     if record["gate"]["status"] != json!("solved") {
         return "not_solved";
