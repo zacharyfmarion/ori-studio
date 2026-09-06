@@ -4,6 +4,7 @@ import {
   REFERENCES_DIM_ALPHA,
   planVisibility,
   targetVisibility,
+  unreadVisibility,
 } from './referencesCreaseVisibility';
 import type { ReferencesFlatStep } from './referencesBreakdown';
 import type { ReferencesPlanVariant } from './referencesResults';
@@ -113,6 +114,25 @@ describe('targetVisibility', () => {
   it('falls back to the whole document when no sheet is resolved', () => {
     expect(
       targetVisibility({ sheetLineIds: null, borderLineIds: null, activeLineIds: new Set() })
+    ).toBe(REFERENCES_ALL_CREASES);
+  });
+});
+
+describe('unreadVisibility', () => {
+  it('shows the selected sheet whole when there is no step to be at', () => {
+    const at = unreadVisibility({
+      sheetLineIds: SHEET,
+      borderLineIds: BORDER,
+      activeLineIds: new Set(),
+    });
+    expect(at.visible).toBe(SHEET);
+    expect(at.dimmed).toBeNull();
+    expect(at.dimAlpha).toBe(1);
+  });
+
+  it('draws the whole document when no sheet is resolved', () => {
+    expect(
+      unreadVisibility({ sheetLineIds: null, borderLineIds: null, activeLineIds: new Set() })
     ).toBe(REFERENCES_ALL_CREASES);
   });
 });

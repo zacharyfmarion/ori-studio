@@ -10824,10 +10824,6 @@ button.bp-packing-alert:focus-visible {
   list-style: none;
 }
 
-.references-sheets__item {
-  margin: 0;
-}
-
 .references-sheet {
   display: flex;
   flex-direction: column;
@@ -10933,23 +10929,6 @@ button.bp-packing-alert:focus-visible {
   white-space: nowrap;
 }
 
-.references-list {
-  display: flex;
-  flex: 0 1 auto;
-  flex-direction: column;
-  gap: var(--space-2);
-  max-height: 45%;
-  overflow: auto;
-  margin: 0;
-  padding: var(--space-2);
-  border-bottom: 1px solid var(--border-subtle);
-  list-style: none;
-}
-
-.references-list__item {
-  margin: 0;
-}
-
 .references-card {
   position: relative;
   display: block;
@@ -10998,37 +10977,8 @@ button.bp-packing-alert:focus-visible {
   height: 100%;
 }
 
-.references-card__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px var(--space-2);
-  align-items: center;
-  min-width: 0;
-  font-size: 0.7rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.references-card__rank {
-  color: var(--text-primary);
-  font-weight: 700;
-}
-
-.references-card__error {
-  color: var(--text-tertiary);
-}
-
-.references-steps {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-height: 0;
-  overflow: auto;
-  margin: 0;
-  padding: var(--space-2);
-  list-style: none;
-}
-
+/* Still used: `ReferencesBreakdownList` reuses this grid for the rows an
+   expanded group opens into. */
 .references-steps__item {
   margin: 0;
 }
@@ -11071,12 +11021,6 @@ button.bp-packing-alert:focus-visible {
   display: block;
   width: 44px;
   height: 44px;
-}
-
-.references-steps__note {
-  padding: var(--space-1) var(--space-2);
-  color: var(--text-tertiary);
-  font-size: 0.68rem;
 }
 
 /*

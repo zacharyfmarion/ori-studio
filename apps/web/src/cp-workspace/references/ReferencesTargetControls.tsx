@@ -26,6 +26,8 @@ export interface ReferencesTargetControlsProps {
   /** From the action catalog, so the keymap and the menu agree with these. */
   previousLabel: string;
   nextLabel: string;
+  previousDisabled: boolean;
+  nextDisabled: boolean;
 }
 
 export const ReferencesTargetControls = memo(function ReferencesTargetControls({
@@ -38,6 +40,8 @@ export const ReferencesTargetControls = memo(function ReferencesTargetControls({
   onClear,
   previousLabel,
   nextLabel,
+  previousDisabled,
+  nextDisabled,
 }: ReferencesTargetControlsProps) {
   const { t } = useTranslation();
   return (
@@ -53,7 +57,7 @@ export const ReferencesTargetControls = memo(function ReferencesTargetControls({
             size="sm"
             variant="toolbar"
             title={previousLabel}
-            disabled={activeCandidate <= 0}
+            disabled={previousDisabled}
             onClick={onPreviousCandidate}
           >
             <ChevronsLeft size={14} />
@@ -68,11 +72,20 @@ export const ReferencesTargetControls = memo(function ReferencesTargetControls({
             size="sm"
             variant="toolbar"
             title={nextLabel}
-            disabled={activeCandidate >= candidateCount - 1}
+            disabled={nextDisabled}
             onClick={onNextCandidate}
           >
             <ChevronsRight size={14} />
           </IconButton>
+        </span>
+      )}
+      {active && (
+        <span className="references-target__readout">
+          {t('panels:references.card.folds', {
+            defaultValue_one: '{{count}} fold',
+            defaultValue_other: '{{count}} folds',
+            count: active.solution.steps.length + active.solution.freeDiagonals.length,
+          })}
         </span>
       )}
       {active && (

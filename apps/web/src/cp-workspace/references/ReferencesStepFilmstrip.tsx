@@ -42,6 +42,15 @@ export interface ReferencesStepFilmstripProps {
    */
   previousLabel: string;
   nextLabel: string;
+  /**
+   * Whether each chevron is dead, from the same catalog the labels come from.
+   *
+   * Derived here once and it drifted: "is there a previous step" is one
+   * question, and `buildReferencesActions` already answers it for the keymap and
+   * the context menu (AGENTS.md > "One predicate per question").
+   */
+  previousDisabled: boolean;
+  nextDisabled: boolean;
 }
 
 export const ReferencesStepFilmstrip = memo(function ReferencesStepFilmstrip({
@@ -54,6 +63,8 @@ export const ReferencesStepFilmstrip = memo(function ReferencesStepFilmstrip({
   note,
   previousLabel,
   nextLabel,
+  previousDisabled,
+  nextDisabled,
 }: ReferencesStepFilmstripProps) {
   const { t } = useTranslation();
   const listRef = useRef<HTMLOListElement | null>(null);
@@ -78,7 +89,7 @@ export const ReferencesStepFilmstrip = memo(function ReferencesStepFilmstrip({
           size="sm"
           variant="toolbar"
           title={previousLabel}
-          disabled={steps.length === 0 || activeStep <= 0}
+          disabled={previousDisabled}
           onClick={onPrevious}
         >
           <ChevronLeft size={16} />
@@ -99,6 +110,10 @@ export const ReferencesStepFilmstrip = memo(function ReferencesStepFilmstrip({
                 aria-current={index === activeStep ? 'step' : undefined}
                 className={`references-card${index === activeStep ? ' references-card--selected' : ''}`}
                 onClick={() => onSelectStep(index)}
+                // Named by its number, described by its sentence: `title` loses
+                // the accessible-name competition to the visible number and
+                // becomes the description, which is what a screen reader should
+                // read second. The sentence itself is on screen in the caption.
                 title={step.sentence}
               >
                 <span className="references-card__number">{step.number}</span>
@@ -117,7 +132,7 @@ export const ReferencesStepFilmstrip = memo(function ReferencesStepFilmstrip({
           size="sm"
           variant="toolbar"
           title={nextLabel}
-          disabled={steps.length === 0 || activeStep >= steps.length - 1}
+          disabled={nextDisabled}
           onClick={onNext}
         >
           <ChevronRight size={16} />

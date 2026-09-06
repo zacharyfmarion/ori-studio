@@ -17,6 +17,28 @@ import type {
   PrecreaseStepKind,
   PrecreaseTotals,
 } from './precreaseSequence';
+import type { ReferencesPlanRecord } from './referencesResults';
+
+/**
+ * Whether a plan describes the sheet the workspace is showing.
+ *
+ * A plan belongs to a document revision **and** to a sheet, and only the first
+ * of those was ever checked. Switching sheets changes neither the document nor
+ * its revision, so the side table's last plan stayed "fresh" and the filmstrip,
+ * the outline and the crease build-up all went on describing a pattern that was
+ * no longer selected — against a canvas showing the new one, where the old
+ * plan's crease ids name nothing and the build-up draws a bare sheet.
+ *
+ * A refused sheet counts as described: the run recorded why it would not plan
+ * that sheet, and that answer is this sheet's too.
+ */
+export function planIsForSheet(plan: ReferencesPlanRecord, selected: number | null): boolean {
+  if (selected === null) return true;
+  return (
+    plan.components.some((entry) => entry.component === selected) ||
+    plan.refused.some((entry) => entry.component === selected)
+  );
+}
 
 /** One collapsed row: a group of consecutive steps folded the same way. */
 export interface ReferencesBreakdownRow {

@@ -796,7 +796,8 @@
     },
     "canvasAriaLabel": "展開図。頂点や折り線をクリックすると基準点の折り方を探します。ドラッグで移動、スクロールでズーム。",
     "card": {
-      "error": "誤差 {{value}}"
+      "error": "誤差 {{value}}",
+      "folds_other": "{{count}} 回の折り"
     },
     "direction": {
       "angle": "{{deg}}° の向きで",

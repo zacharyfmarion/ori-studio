@@ -33,6 +33,7 @@ import {
   breakdownSections,
   breakdownTotals,
   flatPlanSteps,
+  planIsForSheet,
   type ReferencesBreakdownSection,
   type ReferencesFlatStep,
 } from './referencesBreakdown';
@@ -264,7 +265,11 @@ export function useReferencesBreakdown(
 ): ReferencesBreakdownController {
   const { t } = useTranslation();
   const viewState = useWorkspaceStore((state) => state.referencesView);
-  const summary = useWorkspaceStore((state) => state.referencesPlan);
+  // The summary is derived from the record below, not read from the store.
+  // `referencesPlan` is one slot for a whole document and is cleared on every
+  // sheet switch, so switching away and back left the toolbar blank over a plan
+  // the filmstrip was still showing. The record already says which sheet has a
+  // plan; the store keeps its own copy for the analytics descriptor.
   const analysisSummary = useWorkspaceStore((state) => state.referencesAnalysis);
   const progress = useWorkspaceStore((state) => state.referencesProgress);
   const setReferencesPlan = useWorkspaceStore((state) => state.setReferencesPlan);
@@ -275,9 +280,28 @@ export function useReferencesBreakdown(
   const toggleLandmarks = useWorkspaceStore((state) => state.toggleReferencesLandmarksFirst);
 
   const side = useSyncExternalStore(subscribeReferencesResults, referencesResultsSnapshot);
-  const record = side.plan?.revision === revision ? side.plan : null;
-  const stale = side.plan !== null && side.plan.revision !== revision;
-  const analysisRecord = side.analysis?.revision === revision ? side.analysis : null;
+  // A plan belongs to a revision *and* to a sheet. The side table keeps the last
+  // one computed, and switching sheets changes neither the document nor its
+  // revision — so keyed on the revision alone the workspace went on serving the
+  // previous sheet's plan against the new sheet's canvas, where its crease ids
+  // name nothing and the build-up draws an empty page.
+  //
+  // Keyed rather than cleared, so switching back to a sheet already planned
+  // costs nothing. A plan for another sheet is not *stale*, either: nothing
+  // about it is out of date, it simply is not this sheet's, and offering
+  // Recompute for it would be answering a question nobody asked.
+  const record = side.plan?.revision === revision && planIsForSheet(side.plan, selectedSheet)
+    ? side.plan
+    : null;
+  const stale =
+    side.plan !== null && planIsForSheet(side.plan, selectedSheet) && side.plan.revision !== revision;
+  // Same rule for the CP-wide analysis, whose own `analysis.component` records
+  // the sheet it read.
+  const analysisRecord =
+    side.analysis?.revision === revision &&
+    (selectedSheet === null || side.analysis.analysis.component === selectedSheet)
+      ? side.analysis
+      : null;
 
   // The values the async runs read after an await, and the abort they answer
   // to. A run belongs to one revision; the document moving on drops it.
@@ -608,7 +632,7 @@ export function useReferencesBreakdown(
     variants,
     refused: record?.refused ?? [],
     stale,
-    summary: summary?.computedAtRevision === revision ? summary : null,
+    summary: record ? summaryOf(record) : null,
     analysis: analysisSummary?.computedAtRevision === revision ? analysisSummary : null,
     analysisRecord: analysisRecord?.analysis ?? null,
     flatSteps,

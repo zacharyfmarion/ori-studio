@@ -825,7 +825,9 @@
     },
     "canvasAriaLabel": "Crease pattern. Click a vertex or crease to find its references; drag to pan, scroll to zoom.",
     "card": {
-      "error": "err {{value}}"
+      "error": "err {{value}}",
+      "folds_one": "{{count}} fold",
+      "folds_other": "{{count}} folds"
     },
     "direction": {
       "angle": "at {{deg}}°",

@@ -7,9 +7,12 @@
  * the step's own crease in three hundred others and makes the sequence
  * unreadable.
  *
- * Three rules, and they are all here rather than in the hook so they can be
+ * Four rules, and they are all here rather than in the panel so they can be
  * tested without a store:
  *
+ * - **A sheet nobody is reading is shown whole.** Before a plan is worked out
+ *   and with nothing picked, there is no step to be at, so nothing is held back
+ *   and nothing is dimmed.
  * - **Only the selected sheet is drawn.** The workspace answers for one crease
  *   pattern at a time (plan D12); another sheet's creases are not context, they
  *   are a different problem.
@@ -46,6 +49,16 @@ export interface ReferencesVisibilityInput {
   borderLineIds: ReadonlySet<number> | null;
   /** The creases the active step is about — the picked crease, or the step's. */
   activeLineIds: ReadonlySet<number>;
+}
+
+/**
+ * The sheet as it is, at full strength: no plan yet and nothing picked, so
+ * there is no step to be at.
+ */
+export function unreadVisibility(input: ReferencesVisibilityInput): ReferencesCreaseVisibility {
+  const { sheetLineIds } = input;
+  if (!sheetLineIds) return REFERENCES_ALL_CREASES;
+  return { visible: sheetLineIds, dimmed: null, dimAlpha: 1 };
 }
 
 /** The whole sheet, with everything but `activeLineIds` dimmed. */

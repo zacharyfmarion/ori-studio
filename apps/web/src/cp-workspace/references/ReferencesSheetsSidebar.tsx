@@ -45,6 +45,8 @@ export interface ReferencesSheetsSidebarProps {
   busy: boolean;
   /** There is a crease pattern to answer for; without one there is nothing to run. */
   hasDocument: boolean;
+  /** A vertex or crease is picked, so the whole-pattern affordances do not apply. */
+  targeted: boolean;
   hint: string;
   warnings: readonly string[];
 }
@@ -59,6 +61,7 @@ export const ReferencesSheetsSidebar = memo(function ReferencesSheetsSidebar({
   analysis,
   busy,
   hasDocument,
+  targeted,
   hint,
   warnings,
 }: ReferencesSheetsSidebarProps) {
@@ -76,8 +79,11 @@ export const ReferencesSheetsSidebar = memo(function ReferencesSheetsSidebar({
         {sheets.length > 0 && <span className="references-sidebar__count">{sheets.length}</span>}
       </div>
 
+      {/* A plain container, not a list: a `listbox` may own only `option` and
+          `group`, and wrapping each option in an `li` puts something between
+          them. */}
       {sheets.length > 0 && geometry && (
-        <ul
+        <div
           className="references-sheets"
           role="listbox"
           aria-label={t('panels:references.sheets.label', 'Crease patterns')}
@@ -93,7 +99,7 @@ export const ReferencesSheetsSidebar = memo(function ReferencesSheetsSidebar({
               onSelect={() => onSelect(sheet.id)}
             />
           ))}
-        </ul>
+        </div>
       )}
 
       {planned && (
@@ -108,7 +114,7 @@ export const ReferencesSheetsSidebar = memo(function ReferencesSheetsSidebar({
       )}
 
       <div className="references-sidebar__notes">
-        {!planned && hasDocument && (
+        {!planned && hasDocument && !targeted && (
           <div className="references-sidebar__hint">
             <p>
               {busy
@@ -125,7 +131,7 @@ export const ReferencesSheetsSidebar = memo(function ReferencesSheetsSidebar({
             )}
           </div>
         )}
-        {hint && planned && <p className="references-sidebar__hint">{hint}</p>}
+        {hint && (planned || targeted) && <p className="references-sidebar__hint">{hint}</p>}
         {warnings.map((warning) => (
           <p key={warning} className="references-sidebar__warning">
             {warning}
@@ -160,49 +166,47 @@ function SheetCard({ sheet, index, component, geometry, selected, onSelect }: Sh
     [component, geometry]
   );
   return (
-    <li className="references-sheets__item">
-      <button
-        type="button"
-        role="option"
-        aria-selected={selected}
-        className={`references-sheet${selected ? ' references-sheet--selected' : ''}${
-          sheet.plannable ? '' : ' references-sheet--refused'
-        }`}
-        onClick={onSelect}
-        title={t('panels:references.sheets.cardTitle', {
-          defaultValue_one: 'Pattern {{n}}: {{count}} crease',
-          defaultValue_other: 'Pattern {{n}}: {{count}} creases',
-          n: index + 1,
-          count: sheet.creaseCount,
-        })}
-      >
-        <span className="references-sheet__thumb">
-          {thumbnail && (
-            <svg viewBox={thumbnail.viewBox} aria-hidden="true" className="references-sheet__svg">
-              {thumbnail.strokes.map((stroke, i) => (
-                <line
-                  key={i}
-                  className={`references-sheet__stroke references-sheet__stroke--${stroke.kind}`}
-                  x1={stroke.x1}
-                  y1={stroke.y1}
-                  x2={stroke.x2}
-                  y2={stroke.y2}
-                />
-              ))}
-            </svg>
-          )}
+    <button
+      type="button"
+      role="option"
+      aria-selected={selected}
+      className={`references-sheet${selected ? ' references-sheet--selected' : ''}${
+        sheet.plannable ? '' : ' references-sheet--refused'
+      }`}
+      onClick={onSelect}
+      title={t('panels:references.sheets.cardTitle', {
+        defaultValue_one: 'Pattern {{n}}: {{count}} crease',
+        defaultValue_other: 'Pattern {{n}}: {{count}} creases',
+        n: index + 1,
+        count: sheet.creaseCount,
+      })}
+    >
+      <span className="references-sheet__thumb">
+        {thumbnail && (
+          <svg viewBox={thumbnail.viewBox} aria-hidden="true" className="references-sheet__svg">
+            {thumbnail.strokes.map((stroke, i) => (
+              <line
+                key={i}
+                className={`references-sheet__stroke references-sheet__stroke--${stroke.kind}`}
+                x1={stroke.x1}
+                y1={stroke.y1}
+                x2={stroke.x2}
+                y2={stroke.y2}
+              />
+            ))}
+          </svg>
+        )}
+      </span>
+      <span className="references-sheet__meta">
+        <span className="references-sheet__index">{index + 1}</span>
+        <span className="references-sheet__count">
+          {t('panels:references.sheets.creases', {
+            defaultValue_one: '{{count}} crease',
+            defaultValue_other: '{{count}} creases',
+            count: sheet.creaseCount,
+          })}
         </span>
-        <span className="references-sheet__meta">
-          <span className="references-sheet__index">{index + 1}</span>
-          <span className="references-sheet__count">
-            {t('panels:references.sheets.creases', {
-              defaultValue_one: '{{count}} crease',
-              defaultValue_other: '{{count}} creases',
-              count: sheet.creaseCount,
-            })}
-          </span>
-        </span>
-      </button>
-    </li>
+      </span>
+    </button>
   );
 }

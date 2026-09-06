@@ -9,7 +9,7 @@ import {
 import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
 import type { Point } from '../../lib/geometry';
-import { cpModelToSvg, type OristudioCpLineStyle } from '../../lib/creasePatternViewport';
+import { cpModelToSvg, cpVertexId, type OristudioCpLineStyle } from '../../lib/creasePatternViewport';
 import { cpLineStyleDashPatterns } from '../../lib/oristudioCpLineStyle';
 import { CP_DEFAULT_SNAP_RADIUS } from '../../lib/cpSnapRadiusSetting';
 import { resolveWheelGesture, type WheelGesturePreference } from '../../lib/wheelGesture';
@@ -257,18 +257,22 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
      */
     const sheetVertexIdx = useMemo<Set<number> | null>(() => {
       if (!sheetLineIds) return null;
+      // Keyed through `cpVertexId`, which is the same 1e-9 quantisation
+      // `vertexPointsFromTransport` de-duplicates by. Keyed on the raw floats
+      // instead, a vertex whose sheet segment carries a different sub-1e-9
+      // coordinate than the first-seen one would miss its own bucket and drop
+      // out of the sheet — invisible, and unpickable.
       const index = new Map<string, number>();
-      vertices.forEach((point, i) => index.set(`${point.x},${point.y}`, i));
+      vertices.forEach((point, i) => index.set(cpVertexId(point), i));
       const endpoints = geometry.segEndpoints;
       const kept = new Set<number>();
       for (const id of sheetLineIds) {
         const base = (id - 1) * 4;
         if (base < 0 || base + 3 >= endpoints.length) continue;
-        for (const [x, y] of [
-          [endpoints[base], endpoints[base + 1]],
-          [endpoints[base + 2], endpoints[base + 3]],
+        for (const at of [
+          index.get(cpVertexId({ x: endpoints[base], y: endpoints[base + 1] })),
+          index.get(cpVertexId({ x: endpoints[base + 2], y: endpoints[base + 3] })),
         ]) {
-          const at = index.get(`${x},${y}`);
           if (at !== undefined) kept.add(at);
         }
       }

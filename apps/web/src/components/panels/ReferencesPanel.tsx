@@ -36,6 +36,7 @@ import { referencesMenuItems } from '../../cp-workspace/references/referencesCon
 import {
   planVisibility,
   targetVisibility,
+  unreadVisibility,
   REFERENCES_ALL_CREASES,
 } from '../../cp-workspace/references/referencesCreaseVisibility';
 import {
@@ -110,6 +111,16 @@ export function ReferencesPanel() {
   // can name a component that no longer exists.
   const sheets = useMemo(() => referencesSheets(controller.frames), [controller.frames]);
   const selectedSheet = resolveSelectedSheet(sheets, storedSheet);
+  // Against the *resolved* sheet, not the stored one. The store holds null until
+  // the first press, so a press on the card the sidebar already draws as
+  // selected would otherwise read as a change and wipe the plan and the pick.
+  const selectSheet = useCallback(
+    (component: number) => {
+      if (component === selectedSheet) return;
+      setSelectedSheet(component);
+    },
+    [selectedSheet, setSelectedSheet]
+  );
   const component =
     controller.frames?.components.find((entry) => entry.id === selectedSheet) ?? null;
   const sheetIds = useMemo(() => (component ? sheetLineIds(component) : null), [component]);
@@ -241,11 +252,7 @@ export function ReferencesPanel() {
       activeLineIds: highlights.highlightLineIds,
     };
     if (targeted) return targetVisibility(input);
-    if (breakdown.variants.length === 0) {
-      // No plan yet: the pattern is not being read step by step, so it is shown
-      // whole rather than dimmed to nothing.
-      return { visible: sheetIds, dimmed: null, dimAlpha: 1 };
-    }
+    if (breakdown.variants.length === 0) return unreadVisibility(input);
     return planVisibility(breakdown.variants, breakdown.flatSteps, breakdown.activeStep, input);
   }, [
     sheetIds,
@@ -314,7 +321,12 @@ export function ReferencesPanel() {
   // A *finding* frames itself, because it is the only way to see where an
   // unreached line is. A step deliberately does not: walking the sequence used
   // to walk the pattern around the viewport, which made it unreadable.
-  const findingBounds = breakdown.activeFinding !== null ? highlights.stepBounds : null;
+  // `activeFinding` is one store field shared by both modes, so it can still be
+  // set from a breakdown when a vertex is picked — and without the `targeted`
+  // half of this gate, framing came back for every step of a *target*, which is
+  // the behaviour the gate exists to remove.
+  const findingBounds =
+    !targeted && breakdown.activeFinding !== null ? highlights.stepBounds : null;
   useEffect(() => {
     if (findingBounds) viewRef.current?.frameModelBounds(findingBounds);
   }, [findingBounds]);
@@ -349,11 +361,12 @@ export function ReferencesPanel() {
         components={controller.frames?.components ?? []}
         geometry={view.geometry}
         selected={selectedSheet}
-        onSelect={setSelectedSheet}
+        onSelect={selectSheet}
         breakdown={breakdown}
         analysis={breakdown.analysisRecord}
         busy={busy}
         hasDocument={view.hasDocument}
+        targeted={targeted}
         hint={controller.hint}
         warnings={controller.warnings}
       />
@@ -373,6 +386,8 @@ export function ReferencesPanel() {
                 onClear={controller.clear}
                 previousLabel={commandById('previous-candidate')?.label ?? ''}
                 nextLabel={commandById('next-candidate')?.label ?? ''}
+                previousDisabled={commandById('previous-candidate')?.disabled ?? true}
+                nextDisabled={commandById('next-candidate')?.disabled ?? true}
               />
             )}
             {!targeted && <ReferencesSummaryStrip summary={breakdown.summary} />}
@@ -423,6 +438,8 @@ export function ReferencesPanel() {
           onNext={nextStep}
           previousLabel={commandById('previous-step')?.label ?? ''}
           nextLabel={commandById('next-step')?.label ?? ''}
+          previousDisabled={commandById('previous-step')?.disabled ?? true}
+          nextDisabled={commandById('next-step')?.disabled ?? true}
           placeholder={filmstripPlaceholder}
           note={filmstripNote}
         />

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { plannerSequenceFixture } from './__fixtures__/plannerSequence';
-import { planVariant, type ReferencesPlanComponent } from './referencesResults';
+import {
+  planVariant,
+  type ReferencesPlanComponent,
+  type ReferencesPlanRecord,
+} from './referencesResults';
 import {
   breakdownSections,
   breakdownTotals,
@@ -9,6 +13,7 @@ import {
   flatIndexOf,
   flatPlanSteps,
   isPinched,
+  planIsForSheet,
   rowForStep,
   stepsById,
 } from './referencesBreakdown';
@@ -129,5 +134,35 @@ describe('planVariant', () => {
     } as unknown as ReferencesPlanComponent;
     expect(planVariant(component, false)).toBe(plain);
     expect(planVariant(component, true)).toBe(hoisted);
+  });
+});
+
+describe('planIsForSheet', () => {
+  const plan = (components: number[], refused: number[] = []) =>
+    ({
+      revision: 'r1',
+      components: components.map((component) => ({ component })),
+      refused: refused.map((component) => ({ component, kind: null })),
+      durationMs: 1,
+      plannerToken: null,
+    }) as unknown as ReferencesPlanRecord;
+
+  it('accepts the sheet it planned', () => {
+    expect(planIsForSheet(plan([2]), 2)).toBe(true);
+  });
+
+  // The bug this exists for: switching sheets changes neither the document nor
+  // its revision, so a revision-only freshness test kept serving the old
+  // sheet's plan against the new sheet's canvas.
+  it('rejects a plan for a different sheet', () => {
+    expect(planIsForSheet(plan([2]), 5)).toBe(false);
+  });
+
+  it('counts a refused sheet as described — the refusal is that sheet’s answer', () => {
+    expect(planIsForSheet(plan([], [7]), 7)).toBe(true);
+  });
+
+  it('accepts anything when no sheet is resolved', () => {
+    expect(planIsForSheet(plan([2]), null)).toBe(true);
   });
 });

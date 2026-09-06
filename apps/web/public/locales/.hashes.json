@@ -2947,7 +2947,9 @@
     "panels:references.sheets.title": "160a13d94fb0",
     "panels:references.alreadyOnSheet": "6cd59fdbaa66",
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
-    "panels:references.freeDiagonals": "5c210dbe552b"
+    "panels:references.freeDiagonals": "5c210dbe552b",
+    "panels:references.card.folds_one": "25ca08d34e54",
+    "panels:references.card.folds_other": "9c8e30c45cdd"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5897,7 +5899,9 @@
     "panels:references.sheets.title": "160a13d94fb0",
     "panels:references.alreadyOnSheet": "6cd59fdbaa66",
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
-    "panels:references.freeDiagonals": "5c210dbe552b"
+    "panels:references.freeDiagonals": "5c210dbe552b",
+    "panels:references.card.folds_one": "25ca08d34e54",
+    "panels:references.card.folds_other": "9c8e30c45cdd"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8847,7 +8851,9 @@
     "panels:references.sheets.title": "160a13d94fb0",
     "panels:references.alreadyOnSheet": "6cd59fdbaa66",
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
-    "panels:references.freeDiagonals": "5c210dbe552b"
+    "panels:references.freeDiagonals": "5c210dbe552b",
+    "panels:references.card.folds_one": "25ca08d34e54",
+    "panels:references.card.folds_other": "9c8e30c45cdd"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11744,7 +11750,8 @@
     "panels:references.sheets.title": "160a13d94fb0",
     "panels:references.alreadyOnSheet": "6cd59fdbaa66",
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
-    "panels:references.freeDiagonals": "5c210dbe552b"
+    "panels:references.freeDiagonals": "5c210dbe552b",
+    "panels:references.card.folds_other": "9c8e30c45cdd"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14641,7 +14648,8 @@
     "panels:references.sheets.title": "160a13d94fb0",
     "panels:references.alreadyOnSheet": "6cd59fdbaa66",
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
-    "panels:references.freeDiagonals": "5c210dbe552b"
+    "panels:references.freeDiagonals": "5c210dbe552b",
+    "panels:references.card.folds_other": "9c8e30c45cdd"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -17591,7 +17599,9 @@
     "panels:references.sheets.title": "160a13d94fb0",
     "panels:references.alreadyOnSheet": "6cd59fdbaa66",
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
-    "panels:references.freeDiagonals": "5c210dbe552b"
+    "panels:references.freeDiagonals": "5c210dbe552b",
+    "panels:references.card.folds_one": "25ca08d34e54",
+    "panels:references.card.folds_other": "9c8e30c45cdd"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -20541,7 +20551,9 @@
     "panels:references.sheets.title": "160a13d94fb0",
     "panels:references.alreadyOnSheet": "6cd59fdbaa66",
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
-    "panels:references.freeDiagonals": "5c210dbe552b"
+    "panels:references.freeDiagonals": "5c210dbe552b",
+    "panels:references.card.folds_one": "25ca08d34e54",
+    "panels:references.card.folds_other": "9c8e30c45cdd"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -23438,6 +23450,7 @@
     "panels:references.sheets.title": "160a13d94fb0",
     "panels:references.alreadyOnSheet": "6cd59fdbaa66",
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
-    "panels:references.freeDiagonals": "5c210dbe552b"
+    "panels:references.freeDiagonals": "5c210dbe552b",
+    "panels:references.card.folds_other": "9c8e30c45cdd"
   }
 }

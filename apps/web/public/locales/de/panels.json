@@ -825,7 +825,9 @@
     },
     "canvasAriaLabel": "Faltmuster. Klicke auf einen Scheitelpunkt oder eine Falte, um ihre Referenzen zu finden; ziehen zum Verschieben, scrollen zum Zoomen.",
     "card": {
-      "error": "Fehler {{value}}"
+      "error": "Fehler {{value}}",
+      "folds_one": "{{count}} Faltung",
+      "folds_other": "{{count}} Faltungen"
     },
     "direction": {
       "angle": "bei {{deg}}°",
