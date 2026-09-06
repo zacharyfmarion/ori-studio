@@ -221,15 +221,22 @@ generated-dir copy rules unchanged. The new `.wasm` is **warmed** by the service
 like every other kernel (~500 KB on cold start against the 7.4 MB already shipped); it is
 not added to the `uncacheable` list.
 
-**D3 — Licence posture.** Lang's original is `GPL-2.0-or-later` by his `README_src.txt`
+**D3 — Licence posture. Approved by Mu-Tsun Tsai, 2026-09-05:** asked whether vendoring
+`src/core` and building the wasm ourselves was acceptable, he answered "as far as the
+license goes, that sounds perfectly acceptable" and asked in return whether we would prefer
+a published package. So D2's vendored-and-built-from-source path is settled; a package
+remains open and would change only D2. The version question below is still worth asking as
+a follow-up, but it no longer gates the work.
+
+Lang's original is `GPL-2.0-or-later` by his `README_src.txt`
 ("either version 2 … or (at your option) any later version"). Tsai's fork ships the bare
 GPLv2 text under "distributed under the terms of the GNU GPL" and its `package.json` says
 `GPL-2.0` (SPDX v2-only semantics); the modifications by Tsai and Shavit therefore have **no
 reliable or-later grant**. Until they confirm or-later, treat the RF wasm as possibly
 GPL-2.0-only. That matters because `LICENSING.md` admits the seven Apache-2.0-only runtime
 npm dependencies only because the whole "can be taken as GPLv3"; a v2-only component breaks
-that reasoning. **This question is punted until Tsai answers the packaging question**; the
-follow-up list in the outreach draft carries it. GPLv2 §9's "no version stated" clause does
+that reasoning. Tsai has approved the vendoring; **the version question is now a
+follow-up to ask him and Shavit**, carried by the outreach draft's follow-up list. GPLv2 §9's "no version stated" clause does
 not apply, since a version is stated.
 
 The whole is already GPL, so distribution terms do not change in kind, but two things do:
@@ -687,10 +694,11 @@ polynomial algorithm is claimed. The summary strip shows "N folds = M creases + 
 
 ### Open questions for Zach
 
-None blocking. Punted until Tsai replies: whether he prefers to publish a package (changes only D2), and
-the GPL version for his and Shavit's modifications (D3; if v2-only, the seven Apache-2.0-only
-runtime dependencies need a decision). Desktop database rank is decided from the Phase 4
-measurements.
+None blocking. Settled 2026-09-05: Tsai approved vendoring and building from source. Still open with him,
+as follow-ups rather than blockers: whether he would rather publish a package (changes only
+D2), and the GPL version for his and Shavit's modifications (D3; if v2-only, the seven
+Apache-2.0-only runtime dependencies need a decision). Desktop database rank is decided from
+the Phase 4 measurements.
 
 ## Affected Areas
 
@@ -750,11 +758,13 @@ measurements.
 
 ### Phase 0 — prerequisites (no product code)
 
-- [ ] Ask Mu-Tsun Tsai the one question first: is he okay with vendoring `src/core` and
-      building the wasm ourselves, or would he rather publish the core as a package? Record
-      the answer here. Only after a yes, and one or two at a time: the GPL version for the
-      Tsai/Shavit modifications (the D3 decision), attribution wording, the `line`-on-steps
-      and keyed-database-path PR offers, the two emcc-6 build notes.
+- [x] Ask Mu-Tsun Tsai the one question first: is he okay with vendoring `src/core` and
+      building the wasm ourselves? **Yes — 2026-09-05, "as far as the license goes, that
+      sounds perfectly acceptable."** He asked whether a published package would be
+      preferred; answered that vendoring already works and publishing would be his burden,
+      so it is his call. Still to raise, one or two at a time: the GPL version for the
+      Tsai/Shavit modifications (D3), attribution wording, the `line`-on-steps and
+      keyed-database-path PR offers, the two emcc-6 build notes.
 - [x] Vendor `third_party/reference-finder/` at upstream `e2163f0` (v4.8.1) as a curated
       subset incl. `package.json`, with `README.treemaker.md`; `upstream-sync.json` entry
       with every required field; upstream-drift reference note + `SKILL.md` row;
