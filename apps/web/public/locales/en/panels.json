@@ -789,6 +789,8 @@
     "actions": {
       "noTargetHint": "Pick a vertex or crease first"
     },
+    "alreadyOnSheet": "This point is already on the paper — no folds needed.",
+    "alreadyOnSheetLine": "This line is already on the paper — no folds needed.",
     "analysis": {
       "approximate": "approximate, off by {{err}}",
       "badge": "{{closure}}/{{lines}} from the sheet",
@@ -848,6 +850,7 @@
       "title": "Lines with no exact fold",
       "unsolved": "No construction found"
     },
+    "freeDiagonals": "Also needs the sheet diagonal(s): {{names}}.",
     "hint": {
       "pick": "Click a vertex or crease to see how to fold it."
     },

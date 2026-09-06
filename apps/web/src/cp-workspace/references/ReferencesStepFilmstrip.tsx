@@ -28,6 +28,14 @@ export interface ReferencesStepFilmstripProps {
   /** Shown in place of the sentence when there are no steps yet. */
   placeholder: string;
   /**
+   * A standing note under the caption, or empty.
+   *
+   * The sheet diagonals ReferenceFinder treats as free are the case this exists
+   * for: they never appear as a step, but the folder still has to make them, so
+   * a sequence that does not say so undercounts the folds.
+   */
+  note?: string;
+  /**
    * The chevrons' labels, from the action catalog — the same strings the
    * context menu and the keymap show, so the three cannot name one verb three
    * ways.
@@ -43,6 +51,7 @@ export const ReferencesStepFilmstrip = memo(function ReferencesStepFilmstrip({
   onPrevious,
   onNext,
   placeholder,
+  note,
   previousLabel,
   nextLabel,
 }: ReferencesStepFilmstripProps) {
@@ -123,6 +132,7 @@ export const ReferencesStepFilmstrip = memo(function ReferencesStepFilmstrip({
         ) : (
           <span className="references-filmstrip__caption-empty">{placeholder}</span>
         )}
+        {note && <span className="references-filmstrip__note">{note}</span>}
       </p>
     </div>
   );

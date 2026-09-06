@@ -2944,7 +2944,10 @@
     "panels:references.sheets.creases_other": "059cbfda69b1",
     "panels:references.sheets.label": "f66a64c16ad8",
     "panels:references.sheets.noPlan": "4a95e9fa27e8",
-    "panels:references.sheets.title": "160a13d94fb0"
+    "panels:references.sheets.title": "160a13d94fb0",
+    "panels:references.alreadyOnSheet": "6cd59fdbaa66",
+    "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
+    "panels:references.freeDiagonals": "5c210dbe552b"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5891,7 +5894,10 @@
     "panels:references.sheets.creases_other": "059cbfda69b1",
     "panels:references.sheets.label": "f66a64c16ad8",
     "panels:references.sheets.noPlan": "4a95e9fa27e8",
-    "panels:references.sheets.title": "160a13d94fb0"
+    "panels:references.sheets.title": "160a13d94fb0",
+    "panels:references.alreadyOnSheet": "6cd59fdbaa66",
+    "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
+    "panels:references.freeDiagonals": "5c210dbe552b"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8838,7 +8844,10 @@
     "panels:references.sheets.creases_other": "059cbfda69b1",
     "panels:references.sheets.label": "f66a64c16ad8",
     "panels:references.sheets.noPlan": "4a95e9fa27e8",
-    "panels:references.sheets.title": "160a13d94fb0"
+    "panels:references.sheets.title": "160a13d94fb0",
+    "panels:references.alreadyOnSheet": "6cd59fdbaa66",
+    "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
+    "panels:references.freeDiagonals": "5c210dbe552b"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11732,7 +11741,10 @@
     "panels:references.sheets.creases_other": "059cbfda69b1",
     "panels:references.sheets.label": "f66a64c16ad8",
     "panels:references.sheets.noPlan": "4a95e9fa27e8",
-    "panels:references.sheets.title": "160a13d94fb0"
+    "panels:references.sheets.title": "160a13d94fb0",
+    "panels:references.alreadyOnSheet": "6cd59fdbaa66",
+    "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
+    "panels:references.freeDiagonals": "5c210dbe552b"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14626,7 +14638,10 @@
     "panels:references.sheets.creases_other": "059cbfda69b1",
     "panels:references.sheets.label": "f66a64c16ad8",
     "panels:references.sheets.noPlan": "4a95e9fa27e8",
-    "panels:references.sheets.title": "160a13d94fb0"
+    "panels:references.sheets.title": "160a13d94fb0",
+    "panels:references.alreadyOnSheet": "6cd59fdbaa66",
+    "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
+    "panels:references.freeDiagonals": "5c210dbe552b"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -17573,7 +17588,10 @@
     "panels:references.sheets.creases_other": "059cbfda69b1",
     "panels:references.sheets.label": "f66a64c16ad8",
     "panels:references.sheets.noPlan": "4a95e9fa27e8",
-    "panels:references.sheets.title": "160a13d94fb0"
+    "panels:references.sheets.title": "160a13d94fb0",
+    "panels:references.alreadyOnSheet": "6cd59fdbaa66",
+    "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
+    "panels:references.freeDiagonals": "5c210dbe552b"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -20520,7 +20538,10 @@
     "panels:references.sheets.creases_other": "059cbfda69b1",
     "panels:references.sheets.label": "f66a64c16ad8",
     "panels:references.sheets.noPlan": "4a95e9fa27e8",
-    "panels:references.sheets.title": "160a13d94fb0"
+    "panels:references.sheets.title": "160a13d94fb0",
+    "panels:references.alreadyOnSheet": "6cd59fdbaa66",
+    "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
+    "panels:references.freeDiagonals": "5c210dbe552b"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -23414,6 +23435,9 @@
     "panels:references.sheets.creases_other": "059cbfda69b1",
     "panels:references.sheets.label": "f66a64c16ad8",
     "panels:references.sheets.noPlan": "4a95e9fa27e8",
-    "panels:references.sheets.title": "160a13d94fb0"
+    "panels:references.sheets.title": "160a13d94fb0",
+    "panels:references.alreadyOnSheet": "6cd59fdbaa66",
+    "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
+    "panels:references.freeDiagonals": "5c210dbe552b"
   }
 }

@@ -760,6 +760,8 @@
     "actions": {
       "noTargetHint": "먼저 꼭짓점이나 접는 선을 선택하세요"
     },
+    "alreadyOnSheet": "이 점은 이미 종이 위에 있습니다. 접을 필요가 없습니다.",
+    "alreadyOnSheetLine": "이 선은 이미 종이 위에 있습니다. 접을 필요가 없습니다.",
     "analysis": {
       "approximate": "근사, 오차 {{err}}",
       "badge": "{{closure}}/{{lines}} 종이에서",
@@ -819,6 +821,7 @@
       "title": "정확히 접을 수 없는 선",
       "unsolved": "작도 방법을 찾지 못함"
     },
+    "freeDiagonals": "종이의 대각선도 필요합니다: {{names}}.",
     "hint": {
       "pick": "꼭짓점이나 접는 선을 클릭하면 접는 방법이 표시됩니다."
     },

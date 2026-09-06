@@ -760,6 +760,8 @@
     "actions": {
       "noTargetHint": "先に頂点または折り線を選んでください"
     },
+    "alreadyOnSheet": "この点はすでに紙の上にあります。折る必要はありません。",
+    "alreadyOnSheetLine": "この線はすでに紙の上にあります。折る必要はありません。",
     "analysis": {
       "approximate": "近似、誤差 {{err}}",
       "badge": "{{closure}}/{{lines}} が紙から",
@@ -819,6 +821,7 @@
       "title": "厳密に折れない線",
       "unsolved": "作図方法が見つかりません"
     },
+    "freeDiagonals": "用紙の対角線も必要です: {{names}}。",
     "hint": {
       "pick": "頂点または折り線をクリックすると、折り方が表示されます。"
     },

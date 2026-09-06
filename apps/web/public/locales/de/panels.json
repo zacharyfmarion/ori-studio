@@ -789,6 +789,8 @@
     "actions": {
       "noTargetHint": "Wähle zuerst einen Scheitelpunkt oder eine Falte"
     },
+    "alreadyOnSheet": "Dieser Punkt liegt bereits auf dem Papier – keine Faltung nötig.",
+    "alreadyOnSheetLine": "Diese Linie liegt bereits auf dem Papier – keine Faltung nötig.",
     "analysis": {
       "approximate": "näherungsweise, Abweichung {{err}}",
       "badge": "{{closure}}/{{lines}} aus dem Blatt",
@@ -848,6 +850,7 @@
       "title": "Linien ohne exakte Faltung",
       "unsolved": "Keine Konstruktion gefunden"
     },
+    "freeDiagonals": "Benötigt außerdem die Bogendiagonale(n): {{names}}.",
     "hint": {
       "pick": "Klicke auf einen Scheitelpunkt oder eine Falte, um zu sehen, wie man sie faltet."
     },

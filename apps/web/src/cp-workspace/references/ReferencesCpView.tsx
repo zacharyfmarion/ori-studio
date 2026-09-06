@@ -115,6 +115,17 @@ export interface ReferencesCpViewProps {
   /** Marks: input rings and the new mark's disc. */
   markers?: readonly ReferencesMarker[];
   /**
+   * The sheet in scope: the 1-based crease ids of the pattern being read.
+   *
+   * Everything outside it is not this problem — the workspace answers for one
+   * crease pattern at a time — so those creases and the vertices that only they
+   * touch are neither drawn nor pickable. Without the picking half, a crease
+   * hidden with its sheet still answered a click, and the workspace would
+   * quietly start describing a pattern that is not on screen. Null scopes to
+   * the whole document.
+   */
+  sheetLineIds?: ReadonlySet<number> | null;
+  /**
    * Which of the document's creases this step shows, and how faintly.
    *
    * The sheet as it stands at the active step: creases a later step makes are
@@ -206,6 +217,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       ghostSegments = EMPTY_GHOSTS,
       markers = EMPTY_MARKERS,
       selected,
+      sheetLineIds = null,
       creaseVisibility = ALL_CREASES,
       onPick,
       framingKey,
@@ -234,6 +246,38 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
     const hoveredRef = useRef(false);
 
     const vertices = useMemo(() => vertexPointsFromTransport(geometry), [geometry]);
+    /**
+     * The vertices the sheet in scope actually touches, 0-based into
+     * `vertices`.
+     *
+     * A mask rather than a filtered list, because a vertex's index into the
+     * full list is its identity everywhere else — `highlightVertexIdx` and
+     * `selected` are both indices into it (`useReferencesView`), so compacting
+     * the array here would silently renumber them.
+     */
+    const sheetVertexIdx = useMemo<Set<number> | null>(() => {
+      if (!sheetLineIds) return null;
+      const index = new Map<string, number>();
+      vertices.forEach((point, i) => index.set(`${point.x},${point.y}`, i));
+      const endpoints = geometry.segEndpoints;
+      const kept = new Set<number>();
+      for (const id of sheetLineIds) {
+        const base = (id - 1) * 4;
+        if (base < 0 || base + 3 >= endpoints.length) continue;
+        for (const [x, y] of [
+          [endpoints[base], endpoints[base + 1]],
+          [endpoints[base + 2], endpoints[base + 3]],
+        ]) {
+          const at = index.get(`${x},${y}`);
+          if (at !== undefined) kept.add(at);
+        }
+      }
+      return kept;
+    }, [geometry, vertices, sheetLineIds]);
+    const sheetVertices = useMemo(
+      () => (sheetVertexIdx ? vertices.filter((_, i) => sheetVertexIdx.has(i)) : vertices),
+      [vertices, sheetVertexIdx]
+    );
     // What the vertex crowding ramp measures against — the same strided median
     // the editor uses, so the two surfaces fade at the same point.
     const vertexSpacingModel = useMemo(() => {
@@ -243,13 +287,26 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         endpoints.length / 4
       );
     }, [geometry]);
-    const contentBounds = useMemo(() => transportUserBounds(geometry), [geometry]);
+    // The sheet in scope is what the camera fits and what `frameModelBounds`
+    // clamps against; another pattern's extent is not this pattern's context.
+    const contentBounds = useMemo(
+      () => transportUserBounds(geometry, sheetLineIds),
+      [geometry, sheetLineIds]
+    );
     const hitIndexes = useMemo<ReferencesHitIndexes>(
       () => ({
-        vertices: new LineHitIndex(vertices.map((v, i) => ({ id: i + 1, a: v, b: v }))),
-        lines: new LineHitIndex(lineSegmentsOf(geometry)),
+        vertices: new LineHitIndex(
+          vertices
+            .map((v, i) => ({ id: i + 1, a: v, b: v }))
+            .filter((entry) => sheetVertexIdx === null || sheetVertexIdx.has(entry.id - 1))
+        ),
+        lines: new LineHitIndex(
+          lineSegmentsOf(geometry).filter(
+            (segment) => sheetLineIds === null || sheetLineIds.has(segment.id)
+          )
+        ),
       }),
-      [geometry, vertices]
+      [geometry, vertices, sheetVertexIdx, sheetLineIds]
     );
 
     const liveRef = useRef<LiveProps>({
@@ -641,7 +698,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       const canvas = canvasRef.current;
       if (!renderer || !canvas) return;
       renderer.setPoints(
-        cpPointsToScene([], vertices, [], resolveCpPointStyle(canvas, pointSize), {
+        cpPointsToScene([], sheetVertices, [], resolveCpPointStyle(canvas, pointSize), {
           pointIdx: new Set(),
           circleIdx: new Set(),
           vertexIdx: new Set(),
@@ -649,7 +706,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         })
       );
       renderNowRef.current();
-    }, [vertices, pointSize, themeKey, rendererGeneration]);
+    }, [sheetVertices, pointSize, themeKey, rendererGeneration]);
 
     // The step's lines that the pattern does not contain, over the creases.
     useEffect(() => {

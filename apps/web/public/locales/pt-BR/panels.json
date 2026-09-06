@@ -822,6 +822,8 @@
     "actions": {
       "noTargetHint": "Escolha primeiro um vértice ou uma dobra"
     },
+    "alreadyOnSheet": "Este ponto já está no papel — nenhuma dobra é necessária.",
+    "alreadyOnSheetLine": "Esta linha já está no papel — nenhuma dobra é necessária.",
     "analysis": {
       "approximate": "aproximado, erro {{err}}",
       "badge": "{{closure}}/{{lines}} da folha",
@@ -881,6 +883,7 @@
       "title": "Linhas sem dobra exata",
       "unsolved": "Nenhuma construção encontrada"
     },
+    "freeDiagonals": "Também precisa da(s) diagonal(is) da folha: {{names}}.",
     "hint": {
       "pick": "Clique em um vértice ou dobra para ver como dobrá-lo."
     },

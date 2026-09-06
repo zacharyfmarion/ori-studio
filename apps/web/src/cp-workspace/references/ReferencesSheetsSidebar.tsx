@@ -43,6 +43,8 @@ export interface ReferencesSheetsSidebarProps {
   breakdown: ReferencesBreakdownController;
   analysis: ReferencesAnalysis | null;
   busy: boolean;
+  /** There is a crease pattern to answer for; without one there is nothing to run. */
+  hasDocument: boolean;
   hint: string;
   warnings: readonly string[];
 }
@@ -56,6 +58,7 @@ export const ReferencesSheetsSidebar = memo(function ReferencesSheetsSidebar({
   breakdown,
   analysis,
   busy,
+  hasDocument,
   hint,
   warnings,
 }: ReferencesSheetsSidebarProps) {
@@ -105,7 +108,7 @@ export const ReferencesSheetsSidebar = memo(function ReferencesSheetsSidebar({
       )}
 
       <div className="references-sidebar__notes">
-        {!planned && (
+        {!planned && hasDocument && (
           <div className="references-sidebar__hint">
             <p>
               {busy

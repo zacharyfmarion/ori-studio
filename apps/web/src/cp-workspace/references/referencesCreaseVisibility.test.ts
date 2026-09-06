@@ -62,11 +62,13 @@ describe('planVisibility', () => {
     expect(at.visible?.has(12)).toBe(false);
   });
 
-  it('dims everything but the step being read', () => {
+  it('dims the creases earlier steps made, and never the paper', () => {
     const at = planVisibility(variants, flat, 1, input);
     expect(at.dimmed?.has(11)).toBe(false);
     expect(at.dimmed?.has(10)).toBe(true);
-    expect(at.dimmed?.has(1)).toBe(true);
+    // The border is the paper the folds are drawn on, not one of them.
+    expect(at.dimmed?.has(1)).toBe(false);
+    expect(at.visible?.has(1)).toBe(true);
     expect(at.dimAlpha).toBe(REFERENCES_DIM_ALPHA);
   });
 
@@ -96,7 +98,7 @@ describe('planVisibility', () => {
 });
 
 describe('targetVisibility', () => {
-  it('keeps the whole sheet, dimming all but the picked crease', () => {
+  it('keeps the whole sheet, dimming all but the picked crease and the paper', () => {
     const at = targetVisibility({
       sheetLineIds: SHEET,
       borderLineIds: BORDER,
@@ -105,6 +107,7 @@ describe('targetVisibility', () => {
     expect(at.visible).toBe(SHEET);
     expect(at.dimmed?.has(11)).toBe(false);
     expect(at.dimmed?.has(10)).toBe(true);
+    expect(at.dimmed?.has(1)).toBe(false);
   });
 
   it('falls back to the whole document when no sheet is resolved', () => {

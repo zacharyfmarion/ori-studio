@@ -10896,16 +10896,34 @@ button.bp-packing-alert:focus-visible {
 
 .references-sheet__meta {
   display: flex;
-  gap: var(--space-1);
-  align-items: baseline;
+  gap: 5px;
+  align-items: center;
   min-width: 0;
   font-size: 0.68rem;
   font-variant-numeric: tabular-nums;
 }
 
+/* A chip, not a bare digit: beside "8 creases" a plain 1 reads as part of the
+   number ("18 creases"), which is what it did. */
 .references-sheet__index {
+  display: inline-flex;
+  flex: 0 0 auto;
+  justify-content: center;
+  align-items: center;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 4px;
+  background: var(--bg-tertiary);
   color: var(--text-primary);
+  font-size: 0.62rem;
   font-weight: 700;
+  line-height: 1;
+}
+
+.references-sheet--selected .references-sheet__index {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
 }
 
 .references-sheet__count {
@@ -10935,7 +10953,7 @@ button.bp-packing-alert:focus-visible {
 .references-card {
   position: relative;
   display: block;
-  width: 108px;
+  width: 128px;
   padding: var(--space-1);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md, 6px);
@@ -11354,6 +11372,14 @@ button.bp-packing-alert:focus-visible {
 
 .references-filmstrip__caption-empty {
   color: var(--text-tertiary);
+}
+
+/* Its own line, because it qualifies the whole sequence rather than the step
+   the sentence above is about. */
+.references-filmstrip__note {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
 }
 
 /* The picked target, and the way back out of it. */

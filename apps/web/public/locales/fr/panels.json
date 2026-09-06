@@ -822,6 +822,8 @@
     "actions": {
       "noTargetHint": "Choisissez d’abord un sommet ou un pli"
     },
+    "alreadyOnSheet": "Ce point est déjà sur le papier : aucun pli nécessaire.",
+    "alreadyOnSheetLine": "Cette ligne est déjà sur le papier : aucun pli nécessaire.",
     "analysis": {
       "approximate": "approché, écart {{err}}",
       "badge": "{{closure}}/{{lines}} depuis la feuille",
@@ -881,6 +883,7 @@
       "title": "Lignes sans pli exact",
       "unsolved": "Aucune construction trouvée"
     },
+    "freeDiagonals": "Nécessite aussi la ou les diagonales de la feuille : {{names}}.",
     "hint": {
       "pick": "Cliquez sur un sommet ou un pli pour voir comment le plier."
     },

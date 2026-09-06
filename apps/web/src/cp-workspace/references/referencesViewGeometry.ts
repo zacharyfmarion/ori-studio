@@ -30,7 +30,11 @@ export type ReferencesPick =
  * for an empty transport. The transport equivalent of `cpContentBounds` for a
  * surface that draws creases and nothing else.
  */
-export function transportUserBounds(geometry: CpGeometryTransport): UserBounds | null {
+export function transportUserBounds(
+  geometry: CpGeometryTransport,
+  /** 1-based crease ids to measure; omit for the whole document. */
+  ids: ReadonlySet<number> | null = null
+): UserBounds | null {
   const endpoints = geometry.segEndpoints;
   let minX = Infinity;
   let minY = Infinity;
@@ -38,6 +42,9 @@ export function transportUserBounds(geometry: CpGeometryTransport): UserBounds |
   let maxY = -Infinity;
   let has = false;
   for (let i = 0; i + 1 < endpoints.length; i += 2) {
+    // Two coordinates per endpoint, four per segment: the segment this endpoint
+    // belongs to is `i >> 2`, and its 1-based id is one more.
+    if (ids !== null && !ids.has((i >> 2) + 1)) continue;
     const u = cpModelToSvg({ x: endpoints[i], y: endpoints[i + 1] });
     if (!Number.isFinite(u.x) || !Number.isFinite(u.y)) continue;
     if (u.x < minX) minX = u.x;

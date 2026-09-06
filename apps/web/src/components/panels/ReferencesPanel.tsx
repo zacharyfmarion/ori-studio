@@ -173,7 +173,57 @@ export function ReferencesPanel() {
   const nextStep = useCallback(() => selectStep(activeStep + 1), [selectStep, activeStep]);
   const previousStep = useCallback(() => selectStep(activeStep - 1), [selectStep, activeStep]);
 
+  const busy = run.status === 'running' || run.status === 'stopping';
   const active = controller.active;
+  /**
+   * What the caption says when the strip is empty, which is three different
+   * things. A solution with no steps is the one worth telling apart: a corner
+   * or an edge midpoint is already on the paper, so "no construction found"
+   * would be exactly wrong about an answer that is both found and free.
+   */
+  const filmstripPlaceholder = busy
+    ? targeted
+      ? t('panels:references.searching', 'Finding references…')
+      : t('panels:references.planning', 'Working out the folding sequence…')
+    : targeted
+      ? active
+        ? controller.target?.kind === 'crease'
+          ? t(
+              'panels:references.alreadyOnSheetLine',
+              'This line is already on the paper — no folds needed.'
+            )
+          : t(
+              'panels:references.alreadyOnSheet',
+              'This point is already on the paper — no folds needed.'
+            )
+        : t(
+            'panels:references.sidebar.none',
+            'ReferenceFinder found no construction for this target at the current settings.'
+          )
+      : t(
+          'panels:references.sheets.noPlan',
+          'Work out how to fold this pattern, or click a vertex or crease for one reference.'
+        );
+  /**
+   * The free sheet diagonals a solution leans on.
+   *
+   * ReferenceFinder treats both as rank-1 originals, so they never appear as a
+   * step — but they are creases the folder still has to make, and a sequence
+   * that does not mention them undercounts its own folds.
+   */
+  const filmstripNote = useMemo(() => {
+    const free = targeted ? (active?.solution.freeDiagonals ?? []) : [];
+    if (free.length === 0) return '';
+    return t('panels:references.freeDiagonals', 'Also needs the sheet diagonal(s): {{names}}.', {
+      names: free
+        .map((name) =>
+          name === 'sw_ne'
+            ? t('panels:references.ref.diagonalSwNe', 'the bottom-left to top-right diagonal')
+            : t('panels:references.ref.diagonalNwSe', 'the top-left to bottom-right diagonal')
+        )
+        .join(', '),
+    });
+  }, [targeted, active, t]);
   const filmstrip = useMemo(
     () =>
       targeted
@@ -246,7 +296,6 @@ export function ReferencesPanel() {
     []
   );
 
-  const busy = run.status === 'running' || run.status === 'stopping';
   const canRecompute = !busy && (targeted ? controller.target !== null : view.hasDocument);
   const actions = buildReferencesActions(
     {
@@ -304,6 +353,7 @@ export function ReferencesPanel() {
         breakdown={breakdown}
         analysis={breakdown.analysisRecord}
         busy={busy}
+        hasDocument={view.hasDocument}
         hint={controller.hint}
         warnings={controller.warnings}
       />
@@ -373,21 +423,8 @@ export function ReferencesPanel() {
           onNext={nextStep}
           previousLabel={commandById('previous-step')?.label ?? ''}
           nextLabel={commandById('next-step')?.label ?? ''}
-          placeholder={
-            busy
-              ? targeted
-                ? t('panels:references.searching', 'Finding references…')
-                : t('panels:references.planning', 'Working out the folding sequence…')
-              : targeted
-                ? t(
-                    'panels:references.sidebar.none',
-                    'ReferenceFinder found no construction for this target at the current settings.'
-                  )
-                : t(
-                    'panels:references.sheets.noPlan',
-                    'Work out how to fold this pattern, or click a vertex or crease for one reference.'
-                  )
-          }
+          placeholder={filmstripPlaceholder}
+          note={filmstripNote}
         />
 
         <div className="panel-body references-panel__body" onContextMenu={onBodyContextMenu}>
@@ -406,6 +443,7 @@ export function ReferencesPanel() {
               ghostSegments={highlights.ghostSegments}
               markers={highlights.markers}
               selected={highlights.selected}
+              sheetLineIds={sheetIds}
               creaseVisibility={creaseVisibility}
               onPick={controller.pick}
               framingKey={`${view.framingKey}-sheet-${selectedSheet ?? 'none'}`}

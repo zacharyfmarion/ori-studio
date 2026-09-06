@@ -822,6 +822,8 @@
     "actions": {
       "noTargetHint": "Elige primero un vértice o un pliegue"
     },
+    "alreadyOnSheet": "Este punto ya está en el papel: no hace falta doblar.",
+    "alreadyOnSheetLine": "Esta línea ya está en el papel: no hace falta doblar.",
     "analysis": {
       "approximate": "aproximado, error {{err}}",
       "badge": "{{closure}}/{{lines}} desde la hoja",
@@ -881,6 +883,7 @@
       "title": "Líneas sin doblez exacto",
       "unsolved": "No se encontró construcción"
     },
+    "freeDiagonals": "También necesita la(s) diagonal(es) de la hoja: {{names}}.",
     "hint": {
       "pick": "Haz clic en un vértice o pliegue para ver cómo doblarlo."
     },

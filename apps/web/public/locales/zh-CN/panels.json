@@ -760,6 +760,8 @@
     "actions": {
       "noTargetHint": "请先选择一个顶点或折痕"
     },
+    "alreadyOnSheet": "这个点已经在纸上了，无需折叠。",
+    "alreadyOnSheetLine": "这条线已经在纸上了，无需折叠。",
     "analysis": {
       "approximate": "近似，误差 {{err}}",
       "badge": "{{closure}}/{{lines}} 来自纸张",
@@ -819,6 +821,7 @@
       "title": "无法精确折出的线",
       "unsolved": "未找到作图方法"
     },
+    "freeDiagonals": "还需要纸的对角线：{{names}}。",
     "hint": {
       "pick": "点击顶点或折痕，查看如何折出它。"
     },

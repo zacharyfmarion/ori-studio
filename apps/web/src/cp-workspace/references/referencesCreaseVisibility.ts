@@ -21,8 +21,9 @@
  *   there is no "so far" to build up — the pattern goes quiet instead, and the
  *   construction ghosts read over it.
  *
- * The border is always visible. A sheet with no edges is not a sheet, and the
- * first steps of most sequences fold the paper in half against them.
+ * The border is always visible, and never dimmed. A sheet with no edges is not
+ * a sheet; the paper's outline is the thing the folds are drawn on rather than
+ * one of them, and a diagram that fades it out reads as an empty page.
  */
 import type { ReferencesFlatStep } from './referencesBreakdown';
 import type { ReferencesPlanVariant } from './referencesResults';
@@ -56,7 +57,10 @@ export function targetVisibility(input: ReferencesVisibilityInput): ReferencesCr
       : { visible: null, dimmed: null, dimAlpha: 1 };
   }
   const dimmed = new Set<number>();
-  for (const id of sheetLineIds) if (!activeLineIds.has(id)) dimmed.add(id);
+  for (const id of sheetLineIds) {
+    if (activeLineIds.has(id) || input.borderLineIds?.has(id)) continue;
+    dimmed.add(id);
+  }
   return { visible: sheetLineIds, dimmed, dimAlpha: REFERENCES_DIM_ALPHA };
 }
 
@@ -92,6 +96,9 @@ export function planVisibility(
     }
   }
   const dimmed = new Set<number>();
-  for (const id of visible) if (!active.has(id)) dimmed.add(id);
+  for (const id of visible) {
+    if (active.has(id) || borderLineIds?.has(id)) continue;
+    dimmed.add(id);
+  }
   return { visible, dimmed, dimAlpha: REFERENCES_DIM_ALPHA };
 }
