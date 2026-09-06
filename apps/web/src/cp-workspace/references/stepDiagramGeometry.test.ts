@@ -5,7 +5,9 @@ import {
   arcPathData,
   arrowheadPoints,
   createDiagramProjector,
+  foldArrowArc,
   labelPlacement,
+  type DiagramArc,
 } from './stepDiagramGeometry';
 
 const UNIT = { width: 1, height: 1 };
@@ -121,5 +123,61 @@ describe('labelPlacement', () => {
     const placement = labelPlacement([0.5, 0.2], UNIT, project);
     expect(placement.anchor).toBe('middle');
     expect(placement.dx).toBe(0);
+  });
+});
+
+describe('foldArrowArc', () => {
+  const sheet = { width: 1, height: 1 };
+  const on = (arc: DiagramArc, angle: number) => [
+    arc.center[0] + arc.radius * Math.cos(angle),
+    arc.center[1] + arc.radius * Math.sin(angle),
+  ];
+
+  it('passes through both points and subtends 60°, as CalcArrow builds it', () => {
+    const arc = foldArrowArc([0, 1], [1, 1], sheet);
+    expect(arc).not.toBeNull();
+    if (!arc) return;
+    expect(on(arc, arc.from)[0]).toBeCloseTo(0, 9);
+    expect(on(arc, arc.from)[1]).toBeCloseTo(1, 9);
+    expect(on(arc, arc.to)[0]).toBeCloseTo(1, 9);
+    expect(on(arc, arc.to)[1]).toBeCloseTo(1, 9);
+    // 2 * ha, with ha = 30° — upstream's fixed arc half-angle.
+    expect(arcExtent(arc)).toBeCloseTo(Math.PI / 3, 9);
+  });
+
+  /**
+   * "We'll want the bulge of the arc to always be toward the inside of the
+   * square … so we pick the value of the center that's farther away"
+   * (refDgmr.cpp:37-44).
+   */
+  it('puts the centre on the far side of the chord from the sheet middle', () => {
+    const middle = [0.5, 0.5];
+    for (const [from, to] of [
+      [
+        [0, 1],
+        [1, 1],
+      ],
+      [
+        [0, 0],
+        [0, 1],
+      ],
+      [
+        [1, 0],
+        [0, 0.5],
+      ],
+    ] as const) {
+      const arc = foldArrowArc(from, to, sheet);
+      expect(arc).not.toBeNull();
+      if (!arc) continue;
+      const mid = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2];
+      const toCentre = [arc.center[0] - mid[0], arc.center[1] - mid[1]];
+      const toMiddle = [middle[0] - mid[0], middle[1] - mid[1]];
+      // Opposite sides of the chord: the arc bulges toward the sheet's middle.
+      expect(toCentre[0] * toMiddle[0] + toCentre[1] * toMiddle[1]).toBeLessThanOrEqual(1e-9);
+    }
+  });
+
+  it('draws nothing for a fold that moves a point onto itself', () => {
+    expect(foldArrowArc([0.25, 0.25], [0.25, 0.25], sheet)).toBeNull();
   });
 });

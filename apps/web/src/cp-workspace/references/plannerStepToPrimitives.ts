@@ -6,18 +6,35 @@
  * `referenceFinderDiagramToPrimitives.ts` only translates the style codes. The
  * planner ships *witnesses* instead, so the picture is synthesised here from
  * the typed references: the sheet, the lines and marks the fold is made
- * against, and the crease it produces — drawn as short spans when the pinch
- * pass reduced it to marks, which is the one thing a thumbnail must get right
- * because a pinch and a full crease are different instructions.
+ * against, the motion arrow, and the crease it produces — drawn as short spans
+ * when the pinch pass reduced it to marks, which is the one thing a thumbnail
+ * must get right because a pinch and a full crease are different instructions.
+ *
+ * Two things make it read like a diagram rather than a diagram-shaped picture:
+ *
+ * - **The arrow is upstream's.** `who_moves` already records which inputs move,
+ *   per axiom (`crates/oristudio-precrease/src/predicates.rs`); its image is its
+ *   reflection across the step's own line, and the arc between them is
+ *   `RefDgmr::CalcArrow` ported verbatim (`stepDiagramGeometry.foldArrowArc`).
+ *   An empty `who_moves` — O1 and O4, where nothing is brought onto anything —
+ *   draws no arrow, which is honest rather than invented.
+ * - **The inputs are lettered.** ReferenceFinder labels lines `A B C…` and marks
+ *   `P Q R…`, and the sentence beside the picture uses those letters. The
+ *   planner's sentences name references in words ("the top-left corner"), so the
+ *   letters here are the picture's own index — assigned in the axiom's input
+ *   order, which is the order the sentence reads them in.
  *
  * Coordinates stay in the planner's unit frame, y up, exactly as the RF
  * adapter's are, so one projector (`stepDiagramGeometry.ts`) serves both.
  */
+import { foldArrowArc } from './stepDiagramGeometry';
 import type { StepDiagramModel, StepDiagramPrimitive } from './referenceFinderDiagramToPrimitives';
 import {
   chosenWitness,
   type PrecreaseEdgeSide,
+  type PrecreasePlanLine,
   type PrecreasePlanSegment,
+  type PrecreaseRef,
   type PrecreaseSequence,
   type PrecreaseStep,
 } from './precreaseSequence';
@@ -58,6 +75,49 @@ function stepForLine(sequence: PrecreaseSequence, id: number): PrecreaseStep | n
   return sequence.steps.find((step) => step.id === entry.step) ?? null;
 }
 
+/** Reflect a point across `n · p = d`, `|n| = 1`. */
+function reflect(
+  line: PrecreasePlanLine,
+  p: readonly [number, number]
+): [number, number] {
+  const signed = line.n[0] * p[0] + line.n[1] * p[1] - line.d;
+  return [p[0] - 2 * signed * line.n[0], p[1] - 2 * signed * line.n[1]];
+}
+
+/** The in-paper segment an input reference stands for, if it is a line at all. */
+function segmentOfRef(
+  sequence: PrecreaseSequence,
+  ref: PrecreaseRef
+): PrecreasePlanSegment | null {
+  if (ref.kind === 'edge') return edgeSegment(sequence.sheet, ref.side);
+  if (ref.kind === 'line') return stepForLine(sequence, ref.id)?.segment ?? null;
+  return null;
+}
+
+/** Where an input sits, as the one point an arrow can be drawn from. */
+function anchorOfRef(
+  sequence: PrecreaseSequence,
+  ref: PrecreaseRef
+): [number, number] | null {
+  if (ref.kind === 'point' || ref.kind === 'corner') {
+    const point = sequence.points.find((entry) => entry.id === ref.id);
+    return point ? [point.p[0], point.p[1]] : null;
+  }
+  const segment = segmentOfRef(sequence, ref);
+  // A moving *line* has no single position, so the arrow is drawn from the
+  // midpoint of its chord — the same place upstream's line-to-line arrows sit.
+  return segment
+    ? [(segment[0][0] + segment[1][0]) / 2, (segment[0][1] + segment[1][1]) / 2]
+    : null;
+}
+
+/** `A B C…` for lines and edges, `P Q R…` for marks — ReferenceFinder's scheme. */
+function refLetter(ref: PrecreaseRef, lineIndex: number, pointIndex: number): string {
+  return ref.kind === 'point' || ref.kind === 'corner'
+    ? String.fromCharCode('P'.charCodeAt(0) + (pointIndex % 11))
+    : String.fromCharCode('A'.charCodeAt(0) + (lineIndex % 15));
+}
+
 /**
  * The thumbnail for `sequence.steps[index]`.
  *
@@ -78,35 +138,42 @@ export function plannerStepDiagram(
   ];
 
   const witness = chosenWitness(step);
-  for (const ref of witness?.inputs ?? []) {
-    switch (ref.kind) {
-      case 'edge': {
-        const [from, to] = edgeSegment(sheet, ref.side);
-        primitives.push({ kind: 'line', from, to, style: 'highlight' });
-        break;
-      }
-      case 'line': {
-        const source = stepForLine(sequence, ref.id);
-        if (!source) break;
-        primitives.push({
-          kind: 'line',
-          from: source.segment[0],
-          to: source.segment[1],
-          style: 'highlight',
-        });
-        break;
-      }
-      case 'corner':
-      case 'point': {
-        const point = sequence.points.find((entry) => entry.id === ref.id);
-        if (!point) break;
-        primitives.push({ kind: 'point', at: point.p, style: 'highlight' });
-        break;
-      }
+  const inputs = witness?.inputs ?? [];
+  const labels: StepDiagramPrimitive[] = [];
+  let lineIndex = 0;
+  let pointIndex = 0;
+  inputs.forEach((ref) => {
+    const letter = refLetter(ref, lineIndex, pointIndex);
+    if (ref.kind === 'point' || ref.kind === 'corner') {
+      const point = sequence.points.find((entry) => entry.id === ref.id);
+      if (!point) return;
+      pointIndex += 1;
+      primitives.push({ kind: 'point', at: point.p, style: 'highlight' });
+      labels.push({ kind: 'label', at: point.p, text: letter, style: 'highlight' });
+      return;
     }
+    const segment = segmentOfRef(sequence, ref);
+    if (!segment) return;
+    lineIndex += 1;
+    primitives.push({ kind: 'line', from: segment[0], to: segment[1], style: 'highlight' });
+    const mid: [number, number] = [
+      (segment[0][0] + segment[1][0]) / 2,
+      (segment[0][1] + segment[1][1]) / 2,
+    ];
+    labels.push({ kind: 'label', at: mid, text: letter, style: 'highlight' });
+  });
+
+  // The motion: each moving input to its image across the new crease.
+  for (const which of witness?.who_moves ?? []) {
+    const ref = inputs[which];
+    if (!ref) continue;
+    const anchor = anchorOfRef(sequence, ref);
+    if (!anchor) continue;
+    const arc = foldArrowArc(anchor, reflect(step.line, anchor), sheet);
+    if (arc) primitives.push({ ...arc, kind: 'arc', style: 'arrow' });
   }
 
-  // The crease this step makes, last so it draws over its references.
+  // The crease this step makes, then the letters, both over the references.
   if (step.extent.kind === 'pinches') {
     for (const span of step.extent.spans) {
       primitives.push({ kind: 'line', from: span[0], to: span[1], style: 'pinch' });
@@ -119,6 +186,7 @@ export function plannerStepDiagram(
       style: 'valley',
     });
   }
+  primitives.push(...labels);
 
   return { sheet: { width: sheet.width, height: sheet.height }, primitives };
 }

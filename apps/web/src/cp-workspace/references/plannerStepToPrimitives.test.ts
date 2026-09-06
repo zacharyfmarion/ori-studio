@@ -49,6 +49,35 @@ describe('plannerStepDiagram', () => {
     expect(diagram?.primitives.filter((primitive) => primitive.kind === 'point')).toHaveLength(2);
   });
 
+  it('draws the motion as an arc from the moving input to its image', () => {
+    // The fixture's witnesses all move input 0. The arc is upstream's
+    // `CalcArrow`; what matters here is that one is drawn at all and that it
+    // starts where the moving input is.
+    const diagram = plannerStepDiagram(sequence, 1);
+    const arcs = diagram?.primitives.filter((primitive) => primitive.kind === 'arc') ?? [];
+    expect(arcs).toHaveLength(1);
+    const arc = arcs[0];
+    if (arc.kind !== 'arc') throw new Error('not an arc');
+    expect(arc.style).toBe('arrow');
+    expect(arc.radius).toBeGreaterThan(0);
+  });
+
+  it('letters the inputs the way ReferenceFinder does: A… for lines, P… for marks', () => {
+    const diagram = plannerStepDiagram(sequence, 4);
+    const labels = (diagram?.primitives ?? []).filter(
+      (primitive) => primitive.kind === 'label'
+    );
+    const text = labels.map((label) => (label.kind === 'label' ? label.text : ''));
+    // Step 5 is O3 on two lines.
+    expect(text).toEqual(['A', 'B']);
+  });
+
+  it('draws the letters last, so a crease cannot cover them', () => {
+    const diagram = plannerStepDiagram(sequence, 4);
+    const kinds = (diagram?.primitives ?? []).map((primitive) => primitive.kind);
+    expect(kinds[kinds.length - 1]).toBe('label');
+  });
+
   it('is null for an index that names no step', () => {
     expect(plannerStepDiagram(sequence, 42)).toBeNull();
   });

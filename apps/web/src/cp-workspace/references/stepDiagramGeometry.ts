@@ -106,6 +106,60 @@ export function arcEndDirection(arc: DiagramArc): SvgPoint {
 }
 
 /**
+ * The arc's direction of travel at its start, reversed — the direction an
+ * arrowhead placed at `from` points in. Upstream's `fromDir`.
+ */
+export function arcStartDirection(arc: DiagramArc): SvgPoint {
+  const tangent = arc.ccw
+    ? { x: -Math.sin(arc.from), y: Math.cos(arc.from) }
+    : { x: Math.sin(arc.from), y: -Math.cos(arc.from) };
+  return { x: -tangent.x, y: tangent.y };
+}
+
+/** Half-angle of a fold arrow's arc — upstream's `ha`, 30°. */
+const ARROW_HALF_ANGLE = Math.PI / 6;
+
+/**
+ * The arc of a fold arrow from `fromPt` to its image `toPt`.
+ *
+ * A port of `RefDgmr::CalcArrow` (`third_party/reference-finder/src/core/class/
+ * refDgmr.cpp:29`), verbatim including its choice of centre: the arc subtends
+ * 60°, and of the two centres that give that, the one *farther* from the sheet's
+ * middle is taken so the arrow bulges inward. ReferenceFinder's own steps arrive
+ * with the arc already computed and are not routed through this; the planner
+ * ships witnesses instead, so its arrows are drawn here — and drawn by upstream's
+ * construction rather than a nearby one, so the two picture languages match.
+ *
+ * Null when the two points coincide, which is a fold that moves nothing.
+ */
+export function foldArrowArc(
+  fromPt: readonly [number, number],
+  toPt: readonly [number, number],
+  sheet: DiagramSheet
+): DiagramArc | null {
+  const dx = toPt[0] - fromPt[0];
+  const dy = toPt[1] - fromPt[1];
+  if (Math.hypot(dx, dy) <= 1e-9) return null;
+  const mid: [number, number] = [(fromPt[0] + toPt[0]) / 2, (fromPt[1] + toPt[1]) / 2];
+  // `0.5 * mu.Rotate90() / tan(ha)`: the offset from the midpoint to either
+  // centre of curvature. Rotate90 is (x, y) -> (-y, x).
+  const tana = Math.tan(ARROW_HALF_ANGLE);
+  const mup: [number, number] = [(0.5 * -dy) / tana, (0.5 * dx) / tana];
+  const target: [number, number] = [sheet.width / 2, sheet.height / 2];
+  const c1: [number, number] = [mid[0] + mup[0], mid[1] + mup[1]];
+  const c2: [number, number] = [mid[0] - mup[0], mid[1] - mup[1]];
+  const far = (c: [number, number]) => Math.hypot(c[0] - target[0], c[1] - target[1]);
+  const center = far(c1) > far(c2) ? c1 : c2;
+  const radius = Math.hypot(toPt[0] - center[0], toPt[1] - center[1]);
+  const from = Math.atan2(fromPt[1] - center[1], fromPt[0] - center[0]);
+  const to = Math.atan2(toPt[1] - center[1], toPt[0] - center[0]);
+  let ra = to - from;
+  while (ra < 0) ra += TWO_PI;
+  while (ra > TWO_PI) ra -= TWO_PI;
+  return { center, radius, from, to, ccw: ra < Math.PI };
+}
+
+/**
  * A filled arrowhead as SVG polygon `points`: the tip at `tip`, pointing along
  * `direction`, `size` long and two thirds as wide.
  */

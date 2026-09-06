@@ -7,6 +7,7 @@ import {
 import {
   arcEndDirection,
   arcPathData,
+  arcStartDirection,
   arrowheadPoints,
   createDiagramProjector,
   labelPlacement,
@@ -128,16 +129,29 @@ export function StepDiagram({
                 />
               );
             }
-            const tip = project([
-              primitive.center[0] + primitive.radius * Math.cos(primitive.to),
-              primitive.center[1] + primitive.radius * Math.sin(primitive.to),
-            ]);
+            const at = (angle: number) =>
+              project([
+                primitive.center[0] + primitive.radius * Math.cos(angle),
+                primitive.center[1] + primitive.radius * Math.sin(angle),
+              ]);
+            // A head at each end. `CalcArrow` computes `fromDir` and `toDir`
+            // and `DrawArrow` throws both away (`refDgmr.cpp:70-74, 89-90`), so
+            // upstream's picture shows a bare arc; drawn one-ended it reads as
+            // a one-way motion, which a fold is not.
             return (
               <g key={index} className="step-diagram__arrow">
                 <path className="step-diagram__arc step-diagram__line--arrow" d={path} />
                 <polygon
                   className="step-diagram__arrowhead"
-                  points={arrowheadPoints(tip, arcEndDirection(primitive), arrowSize)}
+                  points={arrowheadPoints(at(primitive.to), arcEndDirection(primitive), arrowSize)}
+                />
+                <polygon
+                  className="step-diagram__arrowhead"
+                  points={arrowheadPoints(
+                    at(primitive.from),
+                    arcStartDirection(primitive),
+                    arrowSize
+                  )}
                 />
               </g>
             );
