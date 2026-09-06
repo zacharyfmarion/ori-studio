@@ -10,7 +10,7 @@ edition.workspace = true
 # ReferenceFinder's JSON at runtime from a separate worker and links none of it.
 # The three licensing tiers are stated in src/lib.rs; see LICENSING.md.
 license = "MIT OR Apache-2.0"
-description = "Precrease planner geometry for Ori Studio: sheet frames, collinear merge and the exactness probe"
+description = "Precrease planner for Ori Studio: sheet frames, collinear merge, the exactness probe, and the closure planner"
 repository.workspace = true
 homepage.workspace = true
 readme = "README.md"
@@ -23,6 +23,7 @@ include = [
     "README.md",
     "src/**",
     "tests/**",
+    "examples/**",
 ]
 
 [lints]
@@ -32,6 +33,12 @@ workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+
+# Browser-only: `std::time::Instant` panics on wasm32-unknown-unknown, so the
+# planner's default clock reads `Date.now()` there (the `oristudio-cp-detect`
+# pattern). Native builds never link js-sys.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true

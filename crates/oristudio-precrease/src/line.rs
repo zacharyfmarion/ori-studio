@@ -117,6 +117,22 @@ impl Line {
         self.n[0] * other.n[0] + self.n[1] * other.n[1]
     }
 
+    /// Mirror image of `other` across this line: the line through the
+    /// reflections of two of its points. `None` only for a degenerate input.
+    pub fn reflect_line(&self, other: &Line) -> Option<Line> {
+        let a = other.point_at(0.0);
+        let b = other.point_at(1.0);
+        Line::from_points(self.reflect_point(a), self.reflect_point(b))
+    }
+
+    /// The perpendicular bisector of `p` and `q`: the unique fold carrying
+    /// `p` onto `q`. `None` when the points are closer than `TOL`.
+    pub fn perpendicular_bisector(p: [f64; 2], q: [f64; 2]) -> Option<Line> {
+        let n = [q[0] - p[0], q[1] - p[1]];
+        let mid = [(p[0] + q[0]) / 2.0, (p[1] + q[1]) / 2.0];
+        Line::new(n, n[0] * mid[0] + n[1] * mid[1])
+    }
+
     /// Intersection point, or `None` when `|det| < TOL` (parallel within
     /// tolerance, which includes coincident lines).
     pub fn intersect(&self, other: &Line) -> Option<[f64; 2]> {
@@ -339,6 +355,18 @@ mod tests {
         let diag = Line::from_points([0.0, 0.0], [1.0, 1.0]).expect("line");
         let r = diag.reflect_point([1.0, 0.0]);
         assert!(r[0].abs() < 1e-12 && (r[1] - 1.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn reflect_line_and_perpendicular_bisector() {
+        let axis = line([0.0, 1.0], 0.5); // y = 0.5
+        let m = Line::from_points([0.0, 0.0], [1.0, 0.25]).expect("line");
+        let r = axis.reflect_line(&m).expect("line");
+        let expected = Line::from_points([0.0, 1.0], [1.0, 0.75]).expect("line");
+        assert!(r.approx_eq(&expected));
+        let b = Line::perpendicular_bisector([0.0, 0.0], [1.0, 1.0]).expect("line");
+        assert!(b.approx_eq(&Line::from_points([1.0, 0.0], [0.0, 1.0]).expect("line")));
+        assert!(Line::perpendicular_bisector([0.3, 0.3], [0.3, 0.3]).is_none());
     }
 
     #[test]

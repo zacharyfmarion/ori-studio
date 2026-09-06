@@ -121,6 +121,21 @@ jobs:
       - name: ReferenceFinder parity oracle
         run: node tools/reference-finder-oracle/equiv.mjs
 
+      # The precrease planner derives O1–O7 from the axioms and transcribes no
+      # ReferenceFinder code (plan decision D3), which is why it can be
+      # MIT OR Apache-2.0 inside a GPL whole. This is the evidence: every line
+      # its closure folds, whose witnesses pass ReferenceFinder's own
+      # legibility rules, must be exact in ReferenceFinder too
+      # (tools/precrease-rf-crosscheck/README.md). The `--node` link reuses the
+      # objects `build:wasm` just compiled, so it only relinks; the planner
+      # side is a native `cargo run` of an example.
+      - name: Precrease planner vs ReferenceFinder cross-check
+        run: |
+          node scripts/build-reference-finder.mjs --node
+          node tools/precrease-rf-crosscheck/crosscheck.mjs --strict
+        env:
+          REFERENCE_FINDER_FORCE_SOURCE: '1'
+
       - name: Lint web client
         run: npm run lint:web
 

@@ -1,0 +1,631 @@
+//! The closure: fold every constructible CP line, repeat to a fixpoint.
+//!
+//! # Monotonicity, and why the fixpoint set is order-independent
+//!
+//! Constructibility of a target ℓ in a state `(L, P)` is *existential* over
+//! witnesses drawn from `(L, P)`: some axiom application with inputs in
+//! `L ∪ P` reproduces ℓ. Folding a line only ever **adds** to `L` and `P` —
+//! nothing is removed, incidence only grows ([`State::add_line`]) — so every
+//! witness that exists in a state exists in every later state. Hence
+//! `constructible(ℓ, S)` is monotone in `S`, the operator "fold every
+//! constructible target" is monotone and inflationary on a finite lattice of
+//! line sets, and its least fixpoint from the bare sheet is unique: whatever
+//! order the targets are folded in, the *set* of folded lines at the fixpoint
+//! is the same (Knaster–Tarski). The *axiom labels* are not order-invariant —
+//! the same line may be O2-constructible in one order and only O1 in another
+//! — so the closure records **every** certified witness at fold time and the
+//! presentation chooses among them in a later pass.
+//!
+//! The same argument covers resumability and the two tiers below: facts about
+//! a target only accumulate, so a budgeted `close` that stops mid-sweep and a
+//! later call that continues from the cursors compute exactly the facts a
+//! single uninterrupted run would have.
+//!
+//! # Two tiers, incremental
+//!
+//! Every remaining target keeps a [`Facts`] record plus three cursors into
+//! the state's line and point vectors. The **worklist** is implicit in the
+//! cursors: each `(target, new line)` pair is examined once (points on the
+//! target through the crossing, perpendiculars, O3 mirror pairs) and each
+//! `(target, new point)` pair once (O2 mirror pairs) — O(1) work per pair,
+//! and the O2 lookup goes through the point grid (the plan's
+//! "direction-bucketed" cost class: a reflection and one grid probe, never a
+//! scan of `P`). Tier 1 (O1–O4) is evaluated every sweep. Only when a sweep
+//! folds nothing and targets remain does tier 2 run: **lander** facts for
+//! O5/O6/O7, computed by the line-pair formulation — `(p, m₁)` is a lander
+//! iff `p` lies on `reflect_ℓ(m₁)`, so the points on that mirror line are
+//! found through its crossings with the state lines, `O(|L|)` grid probes per
+//! `m₁`, again incremental over the lines added since the target's last
+//! lander scan.
+//!
+//! # Rounds
+//!
+//! One sweep collects every target constructible in the *current* state and
+//! folds them together as one round. Witnesses computed against the state at
+//! the start of the round stay valid after the round's other folds
+//! (monotonicity), so the order within a round is free — the ordering pass
+//! uses that.
+
+use serde::{Deserialize, Serialize};
+
+use crate::clock::Deadline;
+use crate::error::PrecreaseError;
+use crate::line::{Line, LineIndex};
+use crate::predicates::{
+    Facts, Witness, all_witnesses, choose, scan_landers, scan_lines, scan_points, witnesses,
+};
+use crate::sheet::Sheet;
+use crate::state::{LineTag, State};
+use crate::tol::TOL;
+
+/// A CP line to construct, with the editor segments it realises.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Target {
+    pub line: Line,
+    /// The editor's 1-based crease ids on this line.
+    pub cp_line_ids: Vec<u32>,
+}
+
+#[derive(Debug, Clone, Default)]
+struct TargetFacts {
+    facts: Facts,
+    lines_scanned: usize,
+    points_scanned: usize,
+    lander_lines_scanned: usize,
+}
+
+/// One folded line with everything the closure knew when it folded it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FoldedLine {
+    /// State line id.
+    pub line_id: usize,
+    pub line: Line,
+    pub tag: LineTag,
+    /// Index into the closure's targets for a CP line.
+    pub target: Option<usize>,
+    /// Closure round (1-based; auxiliary folds get their own round).
+    pub round: u32,
+    /// Every certified witness at fold time (capped per axiom).
+    pub witnesses: Vec<Witness>,
+    /// Index of the presentation witness in `witnesses`.
+    pub chosen: Option<usize>,
+    /// Whether the lander tier was evaluated for this line's witnesses.
+    pub witnesses_complete: bool,
+}
+
+impl FoldedLine {
+    /// The presentation witness.
+    pub fn chosen_witness(&self) -> Option<&Witness> {
+        self.chosen.map(|i| &self.witnesses[i])
+    }
+}
+
+/// What one `close` call did.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CloseOutcome {
+    /// Lines folded by this call.
+    pub folded: usize,
+    /// Targets still unfolded.
+    pub remaining: usize,
+    /// The fixpoint was reached (nothing remaining is constructible).
+    pub fixpoint: bool,
+    /// The call stopped on its deadline; call again to resume.
+    pub budget_hit: bool,
+}
+
+/// What folding an externally supplied line did.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum FoldOutcome {
+    /// Folded; `line_id` is the state id, `cp_target` the target it realised.
+    Folded {
+        line_id: usize,
+        cp_target: Option<usize>,
+    },
+    /// An equal line is already folded.
+    AlreadyFolded { line_id: usize },
+    /// No axiom application in the current state reproduces the line.
+    NotConstructible,
+    /// The line does not cross the sheet.
+    OffSheet,
+}
+
+/// Counters for diagnostics.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ClosureStats {
+    pub rounds: u32,
+    pub tier1_sweeps: u32,
+    pub tier2_sweeps: u32,
+    pub target_evaluations: u64,
+}
+
+/// Lines beyond which a tier-1 fold by O1/O4 alone is **not** enriched with
+/// lander witnesses for presentation (the lander scan is `O(|L|²)` per line).
+pub const LANDER_ENRICH_MAX_LINES: usize = 400;
+
+/// The closure over one component.
+#[derive(Debug, Clone)]
+pub struct Closure {
+    state: State,
+    targets: Vec<Target>,
+    target_index: LineIndex,
+    /// Target index per `target_index` id.
+    target_ids: Vec<usize>,
+    remaining: Vec<usize>,
+    facts: Vec<TargetFacts>,
+    folded: Vec<FoldedLine>,
+    /// Targets that coincide with a sheet edge: free, never folded.
+    free: Vec<usize>,
+    round: u32,
+    stats: ClosureStats,
+}
+
+impl Closure {
+    /// A closure over `targets` from the bare `sheet`. Targets equal to a
+    /// sheet edge are recorded as free.
+    pub fn new(sheet: Sheet, targets: Vec<Target>, point_cap: usize) -> Closure {
+        let state = State::new(sheet, point_cap);
+        let mut target_index = LineIndex::new(TOL);
+        let mut target_ids = Vec::new();
+        let mut remaining = Vec::new();
+        let mut free = Vec::new();
+        let mut kept: Vec<Target> = Vec::new();
+        for t in targets {
+            if state.has_line(&t.line) {
+                free.push(kept.len());
+                kept.push(t);
+                continue;
+            }
+            let (_, inserted) = target_index.insert(t.line);
+            if !inserted {
+                // Duplicate target lines (a merge at TOL should prevent this);
+                // keep the record, plan it once.
+                kept.push(t);
+                continue;
+            }
+            target_ids.push(kept.len());
+            remaining.push(kept.len());
+            kept.push(t);
+        }
+        let facts = vec![TargetFacts::default(); kept.len()];
+        Closure {
+            state,
+            targets: kept,
+            target_index,
+            target_ids,
+            remaining,
+            facts,
+            folded: Vec::new(),
+            free,
+            round: 0,
+            stats: ClosureStats::default(),
+        }
+    }
+
+    /// The state.
+    pub fn state(&self) -> &State {
+        &self.state
+    }
+
+    /// Every target, in input order.
+    pub fn targets(&self) -> &[Target] {
+        &self.targets
+    }
+
+    /// Indices of the targets not yet folded.
+    pub fn remaining(&self) -> &[usize] {
+        &self.remaining
+    }
+
+    /// Indices of the targets that coincide with sheet edges.
+    pub fn free_targets(&self) -> &[usize] {
+        &self.free
+    }
+
+    /// Every folded line in fold order.
+    pub fn folded(&self) -> &[FoldedLine] {
+        &self.folded
+    }
+
+    /// The current round counter.
+    pub fn round(&self) -> u32 {
+        self.round
+    }
+
+    /// Counters.
+    pub fn stats(&self) -> &ClosureStats {
+        &self.stats
+    }
+
+    /// Whether any target remains.
+    pub fn is_complete(&self) -> bool {
+        self.remaining.is_empty()
+    }
+
+    /// The target index of a line equal to a target, if any.
+    pub fn target_of(&self, line: &Line) -> Option<usize> {
+        let id = self.target_index.find(line)?;
+        Some(self.target_ids[id])
+    }
+
+    /// Whether `line` equals a target that is still remaining.
+    pub fn is_remaining_target(&self, line: &Line) -> bool {
+        self.target_of(line)
+            .is_some_and(|t| self.remaining.contains(&t))
+    }
+
+    fn update_tier1(&mut self, t: usize) {
+        let target = self.targets[t].line;
+        let tf = &mut self.facts[t];
+        if tf.lines_scanned < self.state.line_count() {
+            scan_lines(&self.state, &target, &mut tf.facts, tf.lines_scanned);
+            tf.lines_scanned = self.state.line_count();
+        }
+        if tf.points_scanned < self.state.point_count() {
+            scan_points(&self.state, &target, &mut tf.facts, tf.points_scanned);
+            tf.points_scanned = self.state.point_count();
+        }
+    }
+
+    fn update_landers(&mut self, t: usize) {
+        let target = self.targets[t].line;
+        let tf = &mut self.facts[t];
+        if !tf.facts.landers_computed || tf.lander_lines_scanned < self.state.line_count() {
+            scan_landers(&self.state, &target, &mut tf.facts, tf.lander_lines_scanned);
+            tf.lander_lines_scanned = self.state.line_count();
+        }
+    }
+
+    fn evaluate(&mut self, t: usize) -> Vec<Witness> {
+        self.stats.target_evaluations += 1;
+        witnesses(&self.state, &self.targets[t].line, &self.facts[t].facts)
+    }
+
+    /// Run the closure until the fixpoint or the deadline. Resumable: a call
+    /// that hits its deadline leaves every accumulated fact in place.
+    pub fn close(&mut self, deadline: &Deadline) -> Result<CloseOutcome, PrecreaseError> {
+        let mut folded_now = 0usize;
+        loop {
+            if self.remaining.is_empty() {
+                return Ok(self.outcome(folded_now, true, false));
+            }
+            if deadline.expired() {
+                return Ok(self.outcome(folded_now, false, true));
+            }
+
+            // Tier 1 sweep.
+            self.stats.tier1_sweeps += 1;
+            let mut constructible: Vec<(usize, Vec<Witness>)> = Vec::new();
+            let remaining = self.remaining.clone();
+            for (k, &t) in remaining.iter().enumerate() {
+                if k % 64 == 63 && deadline.expired() {
+                    return Ok(self.outcome(folded_now, false, true));
+                }
+                self.update_tier1(t);
+                let ws = self.evaluate(t);
+                if !ws.is_empty() {
+                    constructible.push((t, ws));
+                }
+            }
+
+            if constructible.is_empty() {
+                // Tier 2: landers.
+                self.stats.tier2_sweeps += 1;
+                for (k, &t) in remaining.iter().enumerate() {
+                    if k % 16 == 15 && deadline.expired() {
+                        return Ok(self.outcome(folded_now, false, true));
+                    }
+                    self.update_landers(t);
+                    let ws = self.evaluate(t);
+                    if !ws.is_empty() {
+                        constructible.push((t, ws));
+                    }
+                }
+                if constructible.is_empty() {
+                    return Ok(self.outcome(folded_now, true, false));
+                }
+            } else if self.state.line_count() <= LANDER_ENRICH_MAX_LINES {
+                // Presentation quality: a line folded by O1/O4 alone may have
+                // an easier O5/O6/O7 reading; look for it while the state is
+                // small enough for the lander scan to be cheap.
+                for (t, ws) in &mut constructible {
+                    let best = choose(ws).map(|i| ws[i].axiom);
+                    if matches!(best, Some(1 | 4)) {
+                        self.update_landers(*t);
+                        *ws = self.evaluate(*t);
+                    }
+                }
+            }
+
+            self.round += 1;
+            self.stats.rounds += 1;
+            let round = self.round;
+            let mut folded_targets: Vec<usize> = Vec::with_capacity(constructible.len());
+            for (t, ws) in constructible {
+                self.fold_target(t, ws, round)?;
+                folded_targets.push(t);
+                folded_now += 1;
+            }
+            self.remaining.retain(|t| !folded_targets.contains(t));
+        }
+    }
+
+    fn outcome(&self, folded: usize, fixpoint: bool, budget_hit: bool) -> CloseOutcome {
+        CloseOutcome {
+            folded,
+            remaining: self.remaining.len(),
+            fixpoint,
+            budget_hit,
+        }
+    }
+
+    fn fold_target(
+        &mut self,
+        t: usize,
+        ws: Vec<Witness>,
+        round: u32,
+    ) -> Result<usize, PrecreaseError> {
+        let line = self.targets[t].line;
+        let outcome = self.state.add_line(line, LineTag::Cp)?;
+        let chosen = choose(&ws);
+        let complete = self.facts[t].facts.landers_computed;
+        self.folded.push(FoldedLine {
+            line_id: outcome.id,
+            line,
+            tag: LineTag::Cp,
+            target: Some(t),
+            round,
+            witnesses: ws,
+            chosen,
+            witnesses_complete: complete,
+        });
+        // Release the facts of a folded target.
+        self.facts[t] = TargetFacts::default();
+        Ok(outcome.id)
+    }
+
+    /// Fold an externally chosen line (an auxiliary fold from the stuck
+    /// search or a ReferenceFinder solution) if — and only if — some axiom
+    /// application in the current state reproduces it. A line equal to a
+    /// remaining target is folded as that target.
+    pub fn fold_line(&mut self, line: Line, tag: LineTag) -> Result<FoldOutcome, PrecreaseError> {
+        if !self.state.sheet().crosses(&line) {
+            return Ok(FoldOutcome::OffSheet);
+        }
+        if let Some(id) = self.state.find_line(&line) {
+            return Ok(FoldOutcome::AlreadyFolded { line_id: id });
+        }
+        let ws = all_witnesses(&self.state, &line);
+        if ws.is_empty() {
+            return Ok(FoldOutcome::NotConstructible);
+        }
+        self.round += 1;
+        let round = self.round;
+        if let Some(t) = self.target_of(&line)
+            && self.remaining.contains(&t)
+        {
+            let id = self.fold_target(t, ws, round)?;
+            self.remaining.retain(|&x| x != t);
+            return Ok(FoldOutcome::Folded {
+                line_id: id,
+                cp_target: Some(t),
+            });
+        }
+        let outcome = self.state.add_line(line, tag)?;
+        let chosen = choose(&ws);
+        self.folded.push(FoldedLine {
+            line_id: outcome.id,
+            line,
+            tag,
+            target: None,
+            round,
+            witnesses: ws,
+            chosen,
+            witnesses_complete: true,
+        });
+        Ok(FoldOutcome::Folded {
+            line_id: outcome.id,
+            cp_target: None,
+        })
+    }
+
+    /// The folded record of state line `id`, if the closure folded it.
+    pub fn folded_by_line_id(&self, id: usize) -> Option<&FoldedLine> {
+        self.folded.iter().find(|f| f.line_id == id)
+    }
+
+    /// Every certified witness for `line` against the **current** state
+    /// (all tiers), whether or not it is folded.
+    pub fn witnesses_now(&self, line: &Line) -> Vec<Witness> {
+        all_witnesses(&self.state, line)
+    }
+
+    /// The remaining targets' lines.
+    pub fn remaining_lines(&self) -> Vec<(usize, Line)> {
+        self.remaining
+            .iter()
+            .map(|&t| (t, self.targets[t].line))
+            .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::clock::{Deadline, frozen_clock};
+    use crate::state::DEFAULT_POINT_CAP;
+
+    fn targets(lines: &[Line]) -> Vec<Target> {
+        lines
+            .iter()
+            .enumerate()
+            .map(|(i, l)| Target {
+                line: *l,
+                cp_line_ids: vec![i as u32 + 1],
+            })
+            .collect()
+    }
+
+    fn v(x: f64) -> Line {
+        Line::new([1.0, 0.0], x).expect("line")
+    }
+
+    fn h(y: f64) -> Line {
+        Line::new([0.0, 1.0], y).expect("line")
+    }
+
+    fn unbounded() -> Deadline {
+        Deadline::unbounded(frozen_clock())
+    }
+
+    #[test]
+    fn halves_and_quarters_close_in_two_rounds() {
+        let mut c = Closure::new(
+            Sheet::unit_square(),
+            targets(&[v(0.25), v(0.5), v(0.75), h(0.5)]),
+            DEFAULT_POINT_CAP,
+        );
+        let out = c.close(&unbounded()).expect("close");
+        assert_eq!(out.folded, 4);
+        assert!(out.fixpoint && !out.budget_hit);
+        assert!(c.is_complete());
+        // x = ½ and y = ½ in round 1, the quarters in round 2.
+        let round_of = |x: f64| {
+            c.folded()
+                .iter()
+                .find(|f| f.line.approx_eq(&v(x)))
+                .map(|f| f.round)
+        };
+        assert_eq!(round_of(0.5), Some(1));
+        assert_eq!(round_of(0.25), Some(2));
+        assert_eq!(round_of(0.75), Some(2));
+        // Every folded line has a chosen witness with a tiny residual.
+        for f in c.folded() {
+            let w = f.chosen_witness().expect("witness");
+            assert!(w.err < 1e-12);
+            assert_eq!(w.axiom, 2, "{f:?}"); // corner/mark onto mark
+        }
+    }
+
+    #[test]
+    fn a_third_is_stuck_from_the_bare_sheet_and_frees_after_a_landmark() {
+        let diag = Line::from_points([0.0, 0.0], [1.0, 1.0]).expect("line");
+        let anti = Line::from_points([1.0, 0.0], [0.0, 1.0]).expect("line");
+        let mut c = Closure::new(
+            Sheet::unit_square(),
+            targets(&[v(1.0 / 3.0), v(2.0 / 3.0), diag, anti]),
+            DEFAULT_POINT_CAP,
+        );
+        let out = c.close(&unbounded()).expect("close");
+        assert_eq!(out.folded, 2); // the diagonals
+        assert!(out.fixpoint);
+        assert_eq!(c.remaining(), &[0, 1]);
+        // The landmark: x = ½ (auxiliary), then y = 2x through the corner and
+        // (½, 1); it meets the anti-diagonal at (⅓, ⅔).
+        let mid = c.fold_line(v(0.5), LineTag::Aux).expect("fold");
+        assert!(matches!(
+            mid,
+            FoldOutcome::Folded {
+                cp_target: None,
+                ..
+            }
+        ));
+        let y2x = Line::from_points([0.0, 0.0], [0.5, 1.0]).expect("line");
+        let aux = c.fold_line(y2x, LineTag::Aux).expect("fold");
+        assert!(matches!(aux, FoldOutcome::Folded { .. }), "{aux:?}");
+        assert!(c.state().has_point([1.0 / 3.0, 2.0 / 3.0]));
+        let out = c.close(&unbounded()).expect("close");
+        assert_eq!(out.folded, 2, "{:?}", c.remaining());
+        assert!(c.is_complete());
+        // x = ⅓ came first (O4 through the new mark), x = ⅔ after it (O2).
+        let third = c
+            .folded()
+            .iter()
+            .find(|f| f.line.approx_eq(&v(1.0 / 3.0)))
+            .expect("third");
+        let two_thirds = c
+            .folded()
+            .iter()
+            .find(|f| f.line.approx_eq(&v(2.0 / 3.0)))
+            .expect("two thirds");
+        assert!(third.round < two_thirds.round);
+        assert_eq!(two_thirds.chosen_witness().expect("w").axiom, 2);
+    }
+
+    #[test]
+    fn fold_line_refuses_what_nothing_constructs_and_recognises_targets() {
+        let mut c = Closure::new(Sheet::unit_square(), targets(&[v(0.5)]), DEFAULT_POINT_CAP);
+        assert_eq!(
+            c.fold_line(v(1.0 / 3.0), LineTag::RfAux).expect("fold"),
+            FoldOutcome::NotConstructible
+        );
+        assert_eq!(
+            c.fold_line(Line::new([0.0, 1.0], 1.5).expect("l"), LineTag::Aux)
+                .expect("fold"),
+            FoldOutcome::OffSheet
+        );
+        // Folding the target itself through fold_line counts as the CP fold.
+        let out = c.fold_line(v(0.5), LineTag::RfAux).expect("fold");
+        assert!(matches!(
+            out,
+            FoldOutcome::Folded {
+                cp_target: Some(0),
+                ..
+            }
+        ));
+        assert!(c.is_complete());
+        assert_eq!(c.folded()[0].tag, LineTag::Cp);
+        assert!(matches!(
+            c.fold_line(v(0.5), LineTag::Aux).expect("fold"),
+            FoldOutcome::AlreadyFolded { .. }
+        ));
+    }
+
+    #[test]
+    fn edge_targets_are_free() {
+        let c = Closure::new(
+            Sheet::unit_square(),
+            targets(&[v(0.0), h(1.0), v(0.5)]),
+            DEFAULT_POINT_CAP,
+        );
+        assert_eq!(c.free_targets(), &[0, 1]);
+        assert_eq!(c.remaining(), &[2]);
+    }
+
+    #[test]
+    fn a_budget_hit_mid_closure_resumes_to_the_same_fixpoint() {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        fn ticking() -> f64 {
+            static T: AtomicU64 = AtomicU64::new(0);
+            T.fetch_add(1, Ordering::Relaxed) as f64
+        }
+        let mut c = Closure::new(
+            Sheet::unit_square(),
+            targets(&[v(0.25), v(0.5)]),
+            DEFAULT_POINT_CAP,
+        );
+        // Expires on the second read: round 1 folds x = ½, then the next
+        // loop iteration sees the deadline.
+        let short = Deadline::after(ticking, 2.0);
+        let out = c.close(&short).expect("close");
+        assert!(out.budget_hit && !out.fixpoint, "{out:?}");
+        assert_eq!(out.folded, 1);
+        assert_eq!(c.remaining().len(), 1);
+        let out = c.close(&unbounded()).expect("close");
+        assert!(out.fixpoint && c.is_complete(), "{out:?}");
+        assert_eq!(c.folded().len(), 2);
+    }
+
+    #[test]
+    fn duplicate_targets_are_planned_once() {
+        let mut c = Closure::new(
+            Sheet::unit_square(),
+            targets(&[v(0.5), v(0.5 + 1e-9)]),
+            DEFAULT_POINT_CAP,
+        );
+        assert_eq!(c.remaining().len(), 1);
+        c.close(&unbounded()).expect("close");
+        assert!(c.is_complete());
+        assert_eq!(c.folded().len(), 1);
+    }
+}

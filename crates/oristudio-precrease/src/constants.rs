@@ -19,8 +19,11 @@ pub const SKINNY_FLAP_ASPECT: f64 = 0.1;
 pub const VISIBILITY_MATTERS: bool = true;
 
 /// The trivial Haga case of O5 — folding a point onto a line it already
-/// touches, or a construction that reproduces an existing line — carries no
-/// information and is excluded when enumerating candidate folds.
+/// touches — carries no information, so it is **enforced** by the O5
+/// constructor rather than scored: no such construction is produced, and no
+/// witness can name one. (It is the one legibility rule that is enforced;
+/// visibility and the skinny flap are scored, because a crease-pattern line
+/// has to be folded whether or not it is legible.)
 pub const EXCLUDE_TRIVIAL_HAGA_O5: bool = true;
 
 /// Axiom ease order, most accurate by hand first: O2 (point onto point),
