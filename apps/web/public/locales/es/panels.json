@@ -819,9 +819,100 @@
     "yes": "Sí"
   },
   "references": {
+    "actions": {
+      "noTargetHint": "Elige primero un vértice o un pliegue"
+    },
+    "approximate": "Aprox.",
+    "canvasAriaLabel": "Patrón de pliegues. Haz clic en un vértice o pliegue para hallar sus referencias; arrastra para desplazar, desplaza la rueda para hacer zoom.",
+    "card": {
+      "error": "err {{value}}",
+      "folds_one": "{{count}} pliegue",
+      "folds_many": "{{count}} pliegues",
+      "folds_other": "{{count}} pliegues",
+      "rank": "#{{n}}",
+      "title": "Candidato {{n}}: {{folds}} dobleces, rango {{rank}}"
+    },
+    "controls": "Controles de pasos",
+    "dismiss": "Descartar",
     "empty": "No hay patrón de plegado. Abre o dibuja uno en Editar y vuelve.",
+    "errorTitle": "Referencias no disponibles",
+    "exact": "Exacto",
+    "hint": {
+      "pick": "Haz clic en un vértice o pliegue para ver cómo doblarlo.",
+      "pickDecidesSheet": "Haz clic en un vértice o pliegue para ver cómo doblarlo. Este patrón tiene {{n}} hojas; el clic decide cuál se usa."
+    },
+    "meta": {
+      "candidates": "{{n}} candidatos",
+      "crease": "Pliegue",
+      "vertex": "Vértice"
+    },
+    "noCreasePattern": "Sin patrón de pliegues",
+    "nonRectangular": "Esta hoja no es un rectángulo. Por ahora solo se pueden hallar referencias en hojas rectangulares.",
+    "noSteps": "—",
+    "openOutline": "Los pliegues de borde alrededor de esta selección no cierran una hoja.",
+    "outOfDate": "Desactualizado",
+    "outOfDateHint": "El patrón de pliegues cambió desde que se hallaron estas referencias.",
+    "outsideSheet": "Esta selección no está dentro de ninguna hoja.",
+    "readout": {
+      "duration": "{{ms}} ms",
+      "error": "err {{value}}",
+      "idle": "Elige un vértice o un pliegue"
+    },
+    "recompute": "Recalcular",
+    "ref": {
+      "bottomEdge": "el borde inferior",
+      "cornerNe": "la esquina superior derecha",
+      "cornerNw": "la esquina superior izquierda",
+      "cornerSe": "la esquina inferior derecha",
+      "cornerSw": "la esquina inferior izquierda",
+      "diagonalNwSe": "la diagonal de arriba a la izquierda a abajo a la derecha",
+      "diagonalSwNe": "la diagonal de abajo a la izquierda a arriba a la derecha",
+      "leftEdge": "el borde izquierdo",
+      "line": "la línea {{name}}",
+      "point": "el punto {{name}}",
+      "rightEdge": "el borde derecho",
+      "topEdge": "el borde superior"
+    },
+    "refusedSheet": "La hoja alrededor de esta selección no pudo leerse como un rectángulo.",
+    "searching": "Buscando referencias…",
+    "settings": {
+      "candidateCount": "{{n}} soluciones",
+      "candidates": "Candidatos",
+      "includeApproximate": "Incluir soluciones aproximadas",
+      "trigger": "Ajustes de referencias"
+    },
+    "sidebar": {
+      "candidates": "Construcciones candidatas",
+      "freeDiagonals": "También necesita la(s) diagonal(es) de la hoja: {{names}}.",
+      "label": "Referencias de plegado",
+      "none": "ReferenceFinder no halló ninguna construcción para este objetivo con los ajustes actuales.",
+      "searching": "Buscando referencias…",
+      "steps": "Pasos de plegado",
+      "title": "Pasos"
+    },
+    "step": {
+      "axiom1": "Dobla {{x}} pasando por {{p0}} y {{p1}}.",
+      "axiom2": "Dobla {{x}} llevando {{p0}} sobre {{p1}}.",
+      "axiom3": "Dobla {{x}} llevando {{l0}} sobre {{l1}}.",
+      "axiom4": "Dobla {{x}} pasando por {{p0}}, plegando {{l0}} sobre sí misma.",
+      "axiom5": "Dobla {{x}} pasando por {{p1}}, llevando {{p0}} sobre {{l0}}.",
+      "axiom6": "Dobla {{x}} llevando {{p0}} sobre {{l0}} y {{p1}} sobre {{l1}}.",
+      "axiom7": "Dobla {{x}} plegando {{l0}} sobre sí misma de modo que {{p0}} caiga sobre {{l1}}.",
+      "mark": "Marca {{x}} donde {{l0}} se cruza con {{l1}}.",
+      "pinch": "Solo un pellizco: basta con la marca.",
+      "unknown": "Dobla {{x}} usando {{inputs}}."
+    },
+    "stepLabel": "Paso",
+    "stepReadout": "{{n}} / {{total}}",
+    "stepScrubber": "Paso",
+    "stop": "Detener",
+    "stopping": "Cancelando…",
+    "targetGone": "El pliegue elegido ya no está en el patrón.",
     "title": "Referencias",
-    "viewPending": "La vista de referencias está en construcción."
+    "warning": {
+      "noBorder": "Sin pliegues de borde: se toma el papel predeterminado como hoja.",
+      "refusedSheets": "{{n}} hoja(s) no son rectángulos y se omiten."
+    }
   },
   "simulator": {
     "backendCpu": "CPU",

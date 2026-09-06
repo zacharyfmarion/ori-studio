@@ -835,26 +835,26 @@ pitch keeps nearest-element snapping unambiguous. Wasm exports are `sheet_frames
 - [x] `referencesSlice` (transient) + the selection floating toolbar's References button
       (visible only when the entire CP is selected, beside Simulate; action-catalog entry +
       `useOpenReferences` hook) that activates the panel.
-- [ ] `ReferencesCpView.tsx`: regl renderer on the `CpRenderer` seam with WebGL probe and
+- [x] `ReferencesCpView.tsx`: regl renderer on the `CpRenderer` seam with WebGL probe and
       context-loss rebuild, `UserCamera` fit/pan/zoom/pinch, scene upload through the
       existing adapters with the user's line style, click-only hit test (vertex before
       crease), highlight / ghost / marker props via existing renderer channels, imperative
       `{zoomIn, zoomOut, fit, frameModelBounds}`; no `cp-webgl-layer` class, no global
       camera/press/transform registrations; tests per "Testing strategy".
-- [ ] `ReferencesPanel.tsx` (composition only): sidebar + panel shell + toolbar (with the
+- [x] `ReferencesPanel.tsx` (composition only): sidebar + panel shell + toolbar (with the
       settings popover) + view + overlay states + transport strip + context menu;
       `.references-*` CSS copied from the `.simulator-*` / `.segments-*` rules; reference
       colour tokens.
-- [ ] Hooks and modules in `cp-workspace/references/`: `referencesActions.ts` catalog +
+- [x] Hooks and modules in `cp-workspace/references/`: `referencesActions.ts` catalog +
       tests, `useReferencesView`, `useReferencesTarget` (pick → ReferenceFinder point/line
       query, cards, candidate/step navigation, framing), `useReferencesRun` (`running` /
       `stoppable` / `stopping`, long-run toast, Stop = terminate + rebuild),
       `useReferencesShortcuts` + the `references` shortcut scope wiring, staleness on
       `foldArtifactRevision` / `loadSerial` with "Out of date — Recompute" and never
       auto-recompute, empty state, worker retain/release on enter/leave.
-- [ ] `StepDiagram` SVG component + `stepDiagramGeometry.ts` (DOM-free, tested) +
+- [x] `StepDiagram` SVG component + `stepDiagramGeometry.ts` (DOM-free, tested) +
       `referenceFinderDiagramToPrimitives` adapter for the sidebar thumbnails.
-- [ ] Analytics events per the contract (fired from the view hooks); i18n sequence;
+- [x] Analytics events per the contract (fired from the view hooks); i18n sequence;
       `docs/analytics.md`; browser verification list from "Testing strategy".
 
 ### Phase 4 — planner crate B: closure, certificates, stuck search, pinch pass, orchestration

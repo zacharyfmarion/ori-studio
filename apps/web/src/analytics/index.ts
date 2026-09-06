@@ -38,6 +38,8 @@ export type {
   LandingSurface,
   OptimizerKind,
   ProjectOpenSource,
+  ReferenceQueryOutcome,
+  ReferenceTargetKind,
   UpdateCheckResult,
   UpdateDismissScope,
   UpdateFailureReason,

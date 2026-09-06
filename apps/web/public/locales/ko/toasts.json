@@ -34,6 +34,13 @@
     "solving": "푸는 중…",
     "solvingLong": "아직 푸는 중입니다 — 시간이 걸릴 수 있습니다"
   },
+  "references": {
+    "searching": "기준점을 찾는 중…",
+    "searchingLong": "아직 기준점을 찾는 중 — 첫 검색은 테이블을 만듭니다",
+    "stop": "취소",
+    "stopped": "검색이 취소되었습니다",
+    "stopping": "취소 중…"
+  },
   "simulatorExport": {
     "empty": "이 시뮬레이션에는 아직 내보낼 것이 없습니다",
     "failed": "이 보기를 내보낼 수 없습니다",

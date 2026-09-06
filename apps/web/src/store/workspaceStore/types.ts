@@ -1357,10 +1357,33 @@ export type ReferencesTarget =
   | { kind: 'vertex'; component: number; point: Point };
 
 /**
- * A ranked ReferenceFinder answer for a picked vertex or crease. Opaque here:
- * the worker client (a later phase) owns the wire shape and narrows it.
+ * A ranked ReferenceFinder answer for a picked vertex or crease, as the sidebar
+ * cards summarise it. The construction itself — steps, diagrams, model-space
+ * geometry — lives in the References result side table
+ * (`cp-workspace/references/referencesResults.ts`), keyed on the document
+ * revision; this is only what a card and the transport readout print.
  */
-export type ReferencesCandidate = Record<string, unknown>;
+export interface ReferencesCandidate {
+  rank: number;
+  /** Line steps plus the free diagonals the construction relies on. */
+  foldCount: number;
+  stepCount: number;
+  err: number;
+  /** `err <= 1e-9`: the construction lands on the target, not near it. */
+  exact: boolean;
+}
+
+/** The toolbar popover's settings. Transient like the rest of the slice. */
+export interface ReferencesSettings {
+  /** How many ranked solutions ReferenceFinder is asked for (`count`). */
+  candidateCount: number;
+  /**
+   * Accept approximate constructions: `goodEnoughError` 0.005 (upstream's
+   * default) instead of the exact-only 1e-9. Off by default, because at 0.005 a
+   * rank-3 approximation sorts above an exact rank-4 solution.
+   */
+  includeApproximate: boolean;
+}
 
 /**
  * A folding-sequence plan for the whole pattern or a crease. Opaque here for the
@@ -1399,6 +1422,7 @@ export interface ReferencesSliceState {
   referencesView: ReferencesView;
   /** Whether a computation is in flight, stale, or failed. */
   referencesRun: ReferencesRun;
+  referencesSettings: ReferencesSettings;
 }
 
 export interface ReferencesSliceActions {
@@ -1407,6 +1431,7 @@ export interface ReferencesSliceActions {
   setReferencesCandidates: (candidates: readonly ReferencesCandidate[] | null) => void;
   setReferencesView: (view: Partial<ReferencesView>) => void;
   setReferencesRun: (run: ReferencesRun) => void;
+  setReferencesSettings: (settings: Partial<ReferencesSettings>) => void;
   /**
    * Switch to the References workspace on the whole pattern. Nothing carries
    * over from the caller — no crease target, no selection — so the entry from

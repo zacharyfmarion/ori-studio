@@ -786,9 +786,99 @@
     "yes": "Yes"
   },
   "references": {
+    "actions": {
+      "noTargetHint": "Pick a vertex or crease first"
+    },
+    "approximate": "Approx.",
+    "canvasAriaLabel": "Crease pattern. Click a vertex or crease to find its references; drag to pan, scroll to zoom.",
+    "card": {
+      "error": "err {{value}}",
+      "folds_one": "{{count}} fold",
+      "folds_other": "{{count}} folds",
+      "rank": "#{{n}}",
+      "title": "Candidate {{n}}: {{folds}} folds, rank {{rank}}"
+    },
+    "controls": "Step controls",
+    "dismiss": "Dismiss",
     "empty": "No crease pattern. Open or draw one in Edit, then come back.",
+    "errorTitle": "References unavailable",
+    "exact": "Exact",
+    "hint": {
+      "pick": "Click a vertex or crease to see how to fold it.",
+      "pickDecidesSheet": "Click a vertex or crease to see how to fold it. This pattern has {{n}} sheets; the pick decides which one is used."
+    },
+    "meta": {
+      "candidates": "{{n}} candidates",
+      "crease": "Crease",
+      "vertex": "Vertex"
+    },
+    "noCreasePattern": "No crease pattern",
+    "nonRectangular": "This sheet is not a rectangle. References can only be found on rectangular sheets for now.",
+    "noSteps": "—",
+    "openOutline": "The border creases around this pick do not close into a sheet.",
+    "outOfDate": "Out of date",
+    "outOfDateHint": "The crease pattern changed since these references were found.",
+    "outsideSheet": "This pick is not inside any sheet.",
+    "readout": {
+      "duration": "{{ms}} ms",
+      "error": "err {{value}}",
+      "idle": "Pick a vertex or crease"
+    },
+    "recompute": "Recompute",
+    "ref": {
+      "bottomEdge": "the bottom edge",
+      "cornerNe": "the top-right corner",
+      "cornerNw": "the top-left corner",
+      "cornerSe": "the bottom-right corner",
+      "cornerSw": "the bottom-left corner",
+      "diagonalNwSe": "the top-left to bottom-right diagonal",
+      "diagonalSwNe": "the bottom-left to top-right diagonal",
+      "leftEdge": "the left edge",
+      "line": "line {{name}}",
+      "point": "point {{name}}",
+      "rightEdge": "the right edge",
+      "topEdge": "the top edge"
+    },
+    "refusedSheet": "The sheet around this pick could not be read as a rectangle.",
+    "searching": "Finding references…",
+    "settings": {
+      "candidateCount": "{{n}} solutions",
+      "candidates": "Candidates",
+      "includeApproximate": "Include approximate solutions",
+      "trigger": "Reference settings"
+    },
+    "sidebar": {
+      "candidates": "Candidate constructions",
+      "freeDiagonals": "Also needs the sheet diagonal(s): {{names}}.",
+      "label": "Folding references",
+      "none": "ReferenceFinder found no construction for this target at the current settings.",
+      "searching": "Finding references…",
+      "steps": "Folding steps",
+      "title": "Steps"
+    },
+    "step": {
+      "axiom1": "Fold {{x}} through {{p0}} and {{p1}}.",
+      "axiom2": "Fold {{x}}, bringing {{p0}} onto {{p1}}.",
+      "axiom3": "Fold {{x}}, bringing {{l0}} onto {{l1}}.",
+      "axiom4": "Fold {{x}} through {{p0}}, folding {{l0}} onto itself.",
+      "axiom5": "Fold {{x}} through {{p1}}, bringing {{p0}} onto {{l0}}.",
+      "axiom6": "Fold {{x}}, bringing {{p0}} onto {{l0}} and {{p1}} onto {{l1}}.",
+      "axiom7": "Fold {{x}}, folding {{l0}} onto itself so that {{p0}} lands on {{l1}}.",
+      "mark": "Mark {{x}} where {{l0}} meets {{l1}}.",
+      "pinch": "Pinch only — just the mark is needed.",
+      "unknown": "Fold {{x}} using {{inputs}}."
+    },
+    "stepLabel": "Step",
+    "stepReadout": "{{n}} / {{total}}",
+    "stepScrubber": "Step",
+    "stop": "Stop",
+    "stopping": "Cancelling…",
+    "targetGone": "The picked crease is no longer in the pattern.",
     "title": "References",
-    "viewPending": "The reference view is being built."
+    "warning": {
+      "noBorder": "No border creases: the default paper is taken as the sheet.",
+      "refusedSheets": "{{n}} sheet(s) are not rectangles and are left out."
+    }
   },
   "simulator": {
     "backendCpu": "CPU",

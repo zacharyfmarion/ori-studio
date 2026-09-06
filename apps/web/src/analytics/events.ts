@@ -325,6 +325,16 @@ export type ContextMenuTargetKind =
   | 'node'
   | 'edge';
 
+/** What a picked reference was, on the References workspace's events. */
+export type ReferenceTargetKind = 'vertex' | 'crease';
+
+/**
+ * How a ReferenceFinder query ended. `exact` when any construction lands on
+ * the target (`err <= 1e-9`), `approximate` when only near ones came back,
+ * `none` for an empty answer, `error` for a worker or extractor failure.
+ */
+export type ReferenceQueryOutcome = 'exact' | 'approximate' | 'none' | 'error';
+
 /** Where an error was surfaced, for `app error` bucketing. */
 export type AnalyticsErrorDomain =
   | 'bootstrap'
@@ -365,6 +375,18 @@ export const ANALYTICS_EVENTS = {
   contextMenuOpened: 'context menu opened',
   cpToolUsed: 'cp tool used',
   workspaceViewed: 'workspace viewed',
+  /**
+   * References workspace (`implementation-plans/reference-finder-integration.md`).
+   * `reference target picked` is the pick itself — a vertex or a crease in the
+   * References view; `reference query completed` is ReferenceFinder's answer
+   * to it, with the outcome and a bucketed duration; `folding steps opened` is
+   * a step list actually being shown for a target. All carry `target_kind`
+   * (`vertex` / `crease`; Phase 5 adds `whole_cp`). Nothing about *which*
+   * vertex or crease — a coordinate is the user's geometry.
+   */
+  referenceTargetPicked: 'reference target picked',
+  referenceQueryCompleted: 'reference query completed',
+  foldingStepsOpened: 'folding steps opened',
   creasePatternBuilt: 'crease pattern built',
   optimizerRun: 'optimizer run',
   projectOpened: 'project opened',

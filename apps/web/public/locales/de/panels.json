@@ -786,9 +786,99 @@
     "yes": "Ja"
   },
   "references": {
+    "actions": {
+      "noTargetHint": "Wähle zuerst einen Scheitelpunkt oder eine Falte"
+    },
+    "approximate": "Näherung",
+    "canvasAriaLabel": "Faltmuster. Klicke auf einen Scheitelpunkt oder eine Falte, um ihre Referenzen zu finden; ziehen zum Verschieben, scrollen zum Zoomen.",
+    "card": {
+      "error": "Fehler {{value}}",
+      "folds_one": "{{count}} Faltung",
+      "folds_other": "{{count}} Faltungen",
+      "rank": "#{{n}}",
+      "title": "Kandidat {{n}}: {{folds}} Faltungen, Rang {{rank}}"
+    },
+    "controls": "Schrittsteuerung",
+    "dismiss": "Schließen",
     "empty": "Kein Faltmuster. Öffne oder zeichne eines unter Bearbeiten und komm dann zurück.",
+    "errorTitle": "Referenzen nicht verfügbar",
+    "exact": "Exakt",
+    "hint": {
+      "pick": "Klicke auf einen Scheitelpunkt oder eine Falte, um zu sehen, wie man sie faltet.",
+      "pickDecidesSheet": "Klicke auf einen Scheitelpunkt oder eine Falte, um zu sehen, wie man sie faltet. Dieses Muster hat {{n}} Bögen; der Klick entscheidet, welcher verwendet wird."
+    },
+    "meta": {
+      "candidates": "{{n}} Kandidaten",
+      "crease": "Falte",
+      "vertex": "Scheitelpunkt"
+    },
+    "noCreasePattern": "Kein Faltmuster",
+    "nonRectangular": "Dieser Bogen ist kein Rechteck. Referenzen lassen sich derzeit nur auf rechteckigen Bögen finden.",
+    "noSteps": "—",
+    "openOutline": "Die Randfalten um diese Auswahl schließen sich nicht zu einem Bogen.",
+    "outOfDate": "Veraltet",
+    "outOfDateHint": "Das Faltmuster hat sich geändert, seit diese Referenzen gefunden wurden.",
+    "outsideSheet": "Diese Auswahl liegt in keinem Bogen.",
+    "readout": {
+      "duration": "{{ms}} ms",
+      "error": "Fehler {{value}}",
+      "idle": "Wähle einen Scheitelpunkt oder eine Falte"
+    },
+    "recompute": "Neu berechnen",
+    "ref": {
+      "bottomEdge": "die untere Kante",
+      "cornerNe": "die obere rechte Ecke",
+      "cornerNw": "die obere linke Ecke",
+      "cornerSe": "die untere rechte Ecke",
+      "cornerSw": "die untere linke Ecke",
+      "diagonalNwSe": "die Diagonale von oben links nach unten rechts",
+      "diagonalSwNe": "die Diagonale von unten links nach oben rechts",
+      "leftEdge": "die linke Kante",
+      "line": "Linie {{name}}",
+      "point": "Punkt {{name}}",
+      "rightEdge": "die rechte Kante",
+      "topEdge": "die obere Kante"
+    },
+    "refusedSheet": "Der Bogen um diese Auswahl konnte nicht als Rechteck gelesen werden.",
+    "searching": "Referenzen werden gesucht…",
+    "settings": {
+      "candidateCount": "{{n}} Lösungen",
+      "candidates": "Kandidaten",
+      "includeApproximate": "Näherungslösungen einbeziehen",
+      "trigger": "Referenzeinstellungen"
+    },
+    "sidebar": {
+      "candidates": "Kandidatenkonstruktionen",
+      "freeDiagonals": "Benötigt außerdem die Bogendiagonale(n): {{names}}.",
+      "label": "Faltreferenzen",
+      "none": "ReferenceFinder hat mit den aktuellen Einstellungen keine Konstruktion für dieses Ziel gefunden.",
+      "searching": "Referenzen werden gesucht…",
+      "steps": "Faltschritte",
+      "title": "Schritte"
+    },
+    "step": {
+      "axiom1": "Falte {{x}} durch {{p0}} und {{p1}}.",
+      "axiom2": "Falte {{x}}, indem du {{p0}} auf {{p1}} legst.",
+      "axiom3": "Falte {{x}}, indem du {{l0}} auf {{l1}} legst.",
+      "axiom4": "Falte {{x}} durch {{p0}} und lege dabei {{l0}} auf sich selbst.",
+      "axiom5": "Falte {{x}} durch {{p1}} und lege dabei {{p0}} auf {{l0}}.",
+      "axiom6": "Falte {{x}}, indem du {{p0}} auf {{l0}} und {{p1}} auf {{l1}} legst.",
+      "axiom7": "Falte {{x}}, indem du {{l0}} auf sich selbst legst, sodass {{p0}} auf {{l1}} landet.",
+      "mark": "Markiere {{x}}, wo {{l0}} auf {{l1}} trifft.",
+      "pinch": "Nur anknicken — nur die Markierung wird gebraucht.",
+      "unknown": "Falte {{x}} mit {{inputs}}."
+    },
+    "stepLabel": "Schritt",
+    "stepReadout": "{{n}} / {{total}}",
+    "stepScrubber": "Schritt",
+    "stop": "Stopp",
+    "stopping": "Wird abgebrochen…",
+    "targetGone": "Die gewählte Falte ist nicht mehr im Muster.",
     "title": "Referenzen",
-    "viewPending": "Die Referenzansicht wird noch gebaut."
+    "warning": {
+      "noBorder": "Keine Randfalten: das Standardpapier wird als Bogen genommen.",
+      "refusedSheets": "{{n}} Bogen/Bögen sind keine Rechtecke und werden ausgelassen."
+    }
   },
   "simulator": {
     "backendCpu": "CPU",

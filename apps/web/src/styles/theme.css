@@ -105,6 +105,12 @@
      confusable with a fold colour -- red is mountain, blue is valley. One-dark's
      accent is blue, so it overrides to its gold; see themes/applyTheme. */
   --cp-selection: #e5c07b;
+  /* References workspace: the references a folding step uses, and the crease
+     it makes. Hues in the two gaps the crease palette leaves (a pink between
+     magenta and mountain red, a lime between yellow and green), so neither
+     reads as a crease type; see themes/applyTheme. */
+  --cp-reference-input: #f25ab8;
+  --cp-reference-new: #a3e635;
   /* Hue a shallower crease shifts toward: mountains run red -> magenta, valleys
      blue -> violet. Magenta is the only anchor where both halves take the short
      way round the wheel, so neither desaturates into grey. See
@@ -10671,11 +10677,24 @@ button.bp-packing-alert:focus-visible {
 }
 
 /*
- * References workspace. The same shell the simulator uses — a positioned body
- * so the overlays can fill it, and an empty state copied from
- * `.simulator-panel__empty` rather than shared with it, because the two panels
- * will diverge (this one gains a sidebar and a transport strip).
+ * References workspace. The simulator's shape under its own prefix — a sidebar,
+ * a positioned body the overlays fill, a transport strip — copied rather than
+ * shared because the two panels diverge (candidate cards and step rows here, a
+ * fold slider there). The generic `.panel-shell` / `.panel-toolbar` /
+ * `.panel-body` / `.ui-badge` classes are reused as they are.
  */
+.references-workspace {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.references-workspace .references-panel {
+  flex: 1;
+  min-width: 0;
+}
+
 .references-panel__body {
   position: relative;
   flex: 1;
@@ -10683,7 +10702,26 @@ button.bp-packing-alert:focus-visible {
   overflow: hidden;
 }
 
-.references-panel__empty {
+.references-view {
+  position: absolute;
+  inset: 0;
+}
+
+/* No `cp-webgl-layer` here on purpose: the editor's floating toolbars forward
+   wheel events to the first canvas carrying that class. */
+.references-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+
+.references-canvas:active {
+  cursor: grabbing;
+}
+
+.references-panel__overlay {
   position: absolute;
   inset: 0;
   display: grid;
@@ -10697,10 +10735,360 @@ button.bp-packing-alert:focus-visible {
   text-align: center;
 }
 
-.references-panel__empty small {
+/* A running query keeps the pattern readable underneath: the user just
+   clicked something and is waiting to see it explained, not hidden. */
+.references-panel__overlay--loading {
+  background: color-mix(in srgb, var(--bg-primary) 40%, transparent);
+}
+
+.references-panel__overlay small {
   max-width: min(52ch, 80%);
   color: var(--text-tertiary);
   font-size: 0.68rem;
   font-weight: 500;
   line-height: 1.4;
+}
+
+.references-panel__overlay-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.references-sidebar {
+  display: flex;
+  flex: 0 0 260px;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--border-subtle);
+  background: var(--bg-secondary);
+}
+
+.references-sidebar__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 36px;
+  padding: 0 var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+}
+
+.references-sidebar__count {
+  margin-left: auto;
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.references-sidebar__hint {
+  padding: var(--space-3);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.references-sidebar__hint p {
+  margin: 0 0 var(--space-2);
+}
+
+.references-sidebar__warning {
+  color: var(--status-warning);
+  font-size: 0.7rem;
+}
+
+.references-list {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 45%;
+  overflow: auto;
+  margin: 0;
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+  list-style: none;
+}
+
+.references-list__item {
+  margin: 0;
+}
+
+.references-card {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: center;
+  width: 100%;
+  padding: var(--space-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md, 6px);
+  background: var(--bg-canvas, #0c0f12);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.references-card:hover {
+  border-color: var(--border-strong, var(--border-subtle));
+}
+
+.references-card--selected {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
+.references-card__thumb {
+  display: block;
+  width: 56px;
+  aspect-ratio: 1 / 1;
+}
+
+.references-card__thumb svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.references-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--space-2);
+  align-items: center;
+  min-width: 0;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.references-card__rank {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.references-card__error {
+  color: var(--text-tertiary);
+}
+
+.references-steps {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-height: 0;
+  overflow: auto;
+  margin: 0;
+  padding: var(--space-2);
+  list-style: none;
+}
+
+.references-steps__item {
+  margin: 0;
+}
+
+.references-step {
+  display: grid;
+  grid-template-columns: 18px 44px minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: start;
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.references-step:hover {
+  background: var(--bg-tertiary);
+}
+
+.references-step--active {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  color: var(--text-primary);
+}
+
+.references-step__number {
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.references-step__thumb {
+  display: block;
+  width: 44px;
+  height: 44px;
+}
+
+.references-steps__note {
+  padding: var(--space-1) var(--space-2);
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+}
+
+.references-controls {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) auto;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+}
+
+.references-transport {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.references-scrubber {
+  display: grid;
+  grid-template-columns: auto minmax(100px, 1fr) auto;
+  gap: var(--space-2);
+  align-items: center;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-weight: 650;
+}
+
+.references-scrubber input {
+  min-width: 0;
+  accent-color: var(--accent-primary);
+}
+
+.references-scrubber output {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.references-readout {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.references-readout[data-state='error'] {
+  color: var(--status-danger);
+}
+
+.references-readout[data-state='stale'] {
+  color: var(--status-warning);
+}
+
+/*
+ * Step diagrams: ReferenceFinder's picture of one fold, as a small SVG. Every
+ * style code the core emits (`RefDgmr::LineStyle` / `PointStyle`) is a class
+ * here, and every colour is a token — the `--fold-*` inks the crease pattern
+ * itself draws with, plus the two References highlight colours — so the
+ * thumbnails follow the theme like the view they sit beside.
+ */
+.step-diagram {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.step-diagram__sheet {
+  fill: var(--bg-paper);
+  stroke: var(--paper-stroke);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.step-diagram__line,
+.step-diagram__arc {
+  fill: none;
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.step-diagram__line--crease {
+  stroke: var(--fold-unassigned);
+  stroke-width: 1;
+}
+
+.step-diagram__line--edge {
+  stroke: var(--fold-border);
+}
+
+.step-diagram__line--highlight {
+  stroke: var(--cp-reference-input);
+  stroke-width: 2;
+}
+
+.step-diagram__line--valley {
+  stroke: var(--fold-valley);
+  stroke-dasharray: 4 3;
+  stroke-width: 1.6;
+}
+
+.step-diagram__line--mountain {
+  stroke: var(--fold-mountain);
+  stroke-dasharray: 6 2 1 2;
+  stroke-width: 1.6;
+}
+
+.step-diagram__line--arrow {
+  stroke: var(--cp-reference-new);
+  stroke-width: 1.4;
+}
+
+.step-diagram__line--dotted {
+  stroke: var(--fold-unassigned);
+  stroke-dasharray: 1.5 2.5;
+}
+
+.step-diagram__line--pinch {
+  stroke: var(--cp-reference-new);
+  stroke-width: 2.4;
+}
+
+.step-diagram__arrowhead {
+  fill: var(--cp-reference-new);
+}
+
+.step-diagram__point {
+  fill: var(--fold-border);
+}
+
+.step-diagram__point--highlight {
+  fill: var(--cp-reference-input);
+}
+
+.step-diagram__point--action {
+  fill: var(--cp-reference-new);
+}
+
+.step-diagram__label {
+  fill: var(--text-secondary);
+  font-family: inherit;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.step-diagram__label--highlight {
+  fill: var(--cp-reference-input);
+}
+
+.step-diagram__label--action {
+  fill: var(--cp-reference-new);
 }

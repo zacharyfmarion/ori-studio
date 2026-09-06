@@ -819,9 +819,100 @@
     "yes": "Sim"
   },
   "references": {
+    "actions": {
+      "noTargetHint": "Escolha primeiro um vértice ou uma dobra"
+    },
+    "approximate": "Aprox.",
+    "canvasAriaLabel": "Padrão de dobras. Clique em um vértice ou dobra para encontrar suas referências; arraste para mover, rode a roda para dar zoom.",
+    "card": {
+      "error": "erro {{value}}",
+      "folds_one": "{{count}} dobra",
+      "folds_many": "{{count}} dobras",
+      "folds_other": "{{count}} dobras",
+      "rank": "#{{n}}",
+      "title": "Candidato {{n}}: {{folds}} dobras, rank {{rank}}"
+    },
+    "controls": "Controles de passos",
+    "dismiss": "Fechar",
     "empty": "Nenhum padrão de vincos. Abra ou desenhe um em Editar e volte.",
+    "errorTitle": "Referências indisponíveis",
+    "exact": "Exato",
+    "hint": {
+      "pick": "Clique em um vértice ou dobra para ver como dobrá-lo.",
+      "pickDecidesSheet": "Clique em um vértice ou dobra para ver como dobrá-lo. Este padrão tem {{n}} folhas; o clique decide qual é usada."
+    },
+    "meta": {
+      "candidates": "{{n}} candidatos",
+      "crease": "Dobra",
+      "vertex": "Vértice"
+    },
+    "noCreasePattern": "Sem padrão de dobras",
+    "nonRectangular": "Esta folha não é um retângulo. Por enquanto, referências só podem ser encontradas em folhas retangulares.",
+    "noSteps": "—",
+    "openOutline": "As dobras de borda ao redor desta seleção não fecham uma folha.",
+    "outOfDate": "Desatualizado",
+    "outOfDateHint": "O padrão de dobras mudou desde que estas referências foram encontradas.",
+    "outsideSheet": "Esta seleção não está dentro de nenhuma folha.",
+    "readout": {
+      "duration": "{{ms}} ms",
+      "error": "erro {{value}}",
+      "idle": "Escolha um vértice ou uma dobra"
+    },
+    "recompute": "Recalcular",
+    "ref": {
+      "bottomEdge": "a borda inferior",
+      "cornerNe": "o canto superior direito",
+      "cornerNw": "o canto superior esquerdo",
+      "cornerSe": "o canto inferior direito",
+      "cornerSw": "o canto inferior esquerdo",
+      "diagonalNwSe": "a diagonal do canto superior esquerdo ao inferior direito",
+      "diagonalSwNe": "a diagonal do canto inferior esquerdo ao superior direito",
+      "leftEdge": "a borda esquerda",
+      "line": "a linha {{name}}",
+      "point": "o ponto {{name}}",
+      "rightEdge": "a borda direita",
+      "topEdge": "a borda superior"
+    },
+    "refusedSheet": "A folha ao redor desta seleção não pôde ser lida como um retângulo.",
+    "searching": "Procurando referências…",
+    "settings": {
+      "candidateCount": "{{n}} soluções",
+      "candidates": "Candidatos",
+      "includeApproximate": "Incluir soluções aproximadas",
+      "trigger": "Configurações de referências"
+    },
+    "sidebar": {
+      "candidates": "Construções candidatas",
+      "freeDiagonals": "Também precisa da(s) diagonal(is) da folha: {{names}}.",
+      "label": "Referências de dobra",
+      "none": "O ReferenceFinder não encontrou nenhuma construção para este alvo com as configurações atuais.",
+      "searching": "Procurando referências…",
+      "steps": "Passos de dobra",
+      "title": "Passos"
+    },
+    "step": {
+      "axiom1": "Dobre {{x}} passando por {{p0}} e {{p1}}.",
+      "axiom2": "Dobre {{x}} levando {{p0}} sobre {{p1}}.",
+      "axiom3": "Dobre {{x}} levando {{l0}} sobre {{l1}}.",
+      "axiom4": "Dobre {{x}} passando por {{p0}}, dobrando {{l0}} sobre si mesma.",
+      "axiom5": "Dobre {{x}} passando por {{p1}}, levando {{p0}} sobre {{l0}}.",
+      "axiom6": "Dobre {{x}} levando {{p0}} sobre {{l0}} e {{p1}} sobre {{l1}}.",
+      "axiom7": "Dobre {{x}} dobrando {{l0}} sobre si mesma de modo que {{p0}} caia sobre {{l1}}.",
+      "mark": "Marque {{x}} onde {{l0}} encontra {{l1}}.",
+      "pinch": "Só um beliscão — apenas a marca é necessária.",
+      "unknown": "Dobre {{x}} usando {{inputs}}."
+    },
+    "stepLabel": "Passo",
+    "stepReadout": "{{n}} / {{total}}",
+    "stepScrubber": "Passo",
+    "stop": "Parar",
+    "stopping": "Cancelando…",
+    "targetGone": "A dobra escolhida não está mais no padrão.",
     "title": "Referências",
-    "viewPending": "A visualização de referências está em construção."
+    "warning": {
+      "noBorder": "Sem dobras de borda: o papel padrão é usado como folha.",
+      "refusedSheets": "{{n}} folha(s) não são retângulos e ficam de fora."
+    }
   },
   "simulator": {
     "backendCpu": "CPU",

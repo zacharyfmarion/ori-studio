@@ -110,6 +110,11 @@ export function humanizeError(error: unknown, t: TFunction): string {
         'errors:worker.referenceFinder',
         'The reference finder stopped unexpectedly. Reopen the References workspace to restart it.'
       );
+    case 'worker_precrease':
+      return t(
+        'errors:worker.precrease',
+        'The precrease planner stopped unexpectedly. Reopen the References workspace to restart it.'
+      );
     // Project files we read and rejected (see lib/projectFileError.ts). Their
     // own messages are precise but internal ("field workspace.documents must be
     // an array"); all the user can act on is which of these three it is.

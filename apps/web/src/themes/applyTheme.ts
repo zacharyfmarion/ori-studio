@@ -55,6 +55,22 @@ const MOUNTAIN_VALLEY_COLORS = {
   },
 } as const;
 
+/**
+ * The References workspace's two highlight colours: the references a step uses
+ * (`input`) and the crease it makes (`new`). Neither may be a crease hue —
+ * every hue the palette gives a crease (red, blue, cyan, orange, magenta,
+ * green, yellow, purple, teal) is spoken for, and `--cp-selection` is a theme's
+ * gold — so these sit in the two gaps the wheel has left: a lime at ~83°
+ * (35° from yellow, 59° from green) and a pink at ~323° (31° from magenta, 32°
+ * from mountain red), each ≥ 28° from every fold hue, which is the distance
+ * `selectionColor.test.ts` holds selections to. Light variants are the same
+ * hues darkened to read on a light canvas.
+ */
+const REFERENCE_COLORS = {
+  dark: { input: '#f25ab8', new: '#a3e635' },
+  light: { input: '#c91d87', new: '#4d7c0f' },
+} as const;
+
 function colorMix(color: string, amount: number): string {
   return `color-mix(in srgb, ${color} ${amount}%, transparent)`;
 }
@@ -91,6 +107,8 @@ function applyTreeMakerDerivedTokens(theme: TreeMakerTheme, setVar: (name: strin
   // red is mountain, blue is valley, and a selected crease is painted this outright,
   // so either would be read as its assignment. See `selection.cp` in themes/types.
   setVar('--cp-selection', colors['selection.cp'] ?? colors['accent.primary']);
+  setVar('--cp-reference-input', REFERENCE_COLORS[theme.type].input);
+  setVar('--cp-reference-new', REFERENCE_COLORS[theme.type].new);
   setVar(
     '--fold-monochrome-valley',
     mixHexColors(colors['text.primary'], colors['bg.canvas'], MONOCHROME_VALLEY_INK_RATIO)

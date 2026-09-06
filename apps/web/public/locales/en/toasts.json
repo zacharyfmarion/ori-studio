@@ -35,6 +35,13 @@
     "solving": "Solving…",
     "solvingLong": "Still solving — this can take a while"
   },
+  "references": {
+    "searching": "Finding references…",
+    "searchingLong": "Still finding references — the first search builds a table",
+    "stop": "Cancel",
+    "stopped": "Search cancelled",
+    "stopping": "Cancelling…"
+  },
   "simulatorExport": {
     "empty": "This simulation has nothing to export yet",
     "failed": "Could not export this view",

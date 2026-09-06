@@ -35,6 +35,13 @@
     "solving": "Wird gelöst…",
     "solvingLong": "Wird noch gelöst – das kann eine Weile dauern"
   },
+  "references": {
+    "searching": "Referenzen werden gesucht…",
+    "searchingLong": "Referenzen werden noch gesucht — die erste Suche baut eine Tabelle auf",
+    "stop": "Abbrechen",
+    "stopped": "Suche abgebrochen",
+    "stopping": "Wird abgebrochen…"
+  },
   "simulatorExport": {
     "empty": "Diese Simulation hat noch nichts zu exportieren",
     "failed": "Diese Ansicht konnte nicht exportiert werden",

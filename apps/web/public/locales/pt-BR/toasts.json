@@ -36,6 +36,13 @@
     "solving": "Resolvendo…",
     "solvingLong": "Ainda resolvendo — isso pode demorar um pouco"
   },
+  "references": {
+    "searching": "Procurando referências…",
+    "searchingLong": "Ainda procurando referências — a primeira busca monta uma tabela",
+    "stop": "Cancelar",
+    "stopped": "Busca cancelada",
+    "stopping": "Cancelando…"
+  },
   "simulatorExport": {
     "empty": "Esta simulação ainda não tem nada para exportar",
     "failed": "Não foi possível exportar esta visualização",

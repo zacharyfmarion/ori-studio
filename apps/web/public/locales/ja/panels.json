@@ -757,9 +757,98 @@
     "yes": "はい"
   },
   "references": {
+    "actions": {
+      "noTargetHint": "先に頂点または折り線を選んでください"
+    },
+    "approximate": "近似",
+    "canvasAriaLabel": "展開図。頂点や折り線をクリックすると基準点の折り方を探します。ドラッグで移動、スクロールでズーム。",
+    "card": {
+      "error": "誤差 {{value}}",
+      "folds_other": "{{count}} 回の折り",
+      "rank": "#{{n}}",
+      "title": "候補 {{n}}: {{folds}} 回折る、ランク {{rank}}"
+    },
+    "controls": "ステップ操作",
+    "dismiss": "閉じる",
     "empty": "展開図がありません。編集で開くか描いてから戻ってください。",
+    "errorTitle": "リファレンスを利用できません",
+    "exact": "厳密",
+    "hint": {
+      "pick": "頂点または折り線をクリックすると、折り方が表示されます。",
+      "pickDecidesSheet": "頂点または折り線をクリックすると、折り方が表示されます。この展開図には {{n}} 枚の用紙があり、クリックした場所で使う用紙が決まります。"
+    },
+    "meta": {
+      "candidates": "{{n}} 件の候補",
+      "crease": "折り線",
+      "vertex": "頂点"
+    },
+    "noCreasePattern": "展開図がありません",
+    "nonRectangular": "この用紙は長方形ではありません。現在、基準点は長方形の用紙でのみ探せます。",
+    "noSteps": "—",
+    "openOutline": "この選択の周りの端の線が閉じた用紙になっていません。",
+    "outOfDate": "古い結果",
+    "outOfDateHint": "これらの基準点を探した後に展開図が変更されました。",
+    "outsideSheet": "この選択はどの用紙の内側にもありません。",
+    "readout": {
+      "duration": "{{ms}} ms",
+      "error": "誤差 {{value}}",
+      "idle": "頂点または折り線を選んでください"
+    },
+    "recompute": "再計算",
+    "ref": {
+      "bottomEdge": "下の辺",
+      "cornerNe": "右上の角",
+      "cornerNw": "左上の角",
+      "cornerSe": "右下の角",
+      "cornerSw": "左下の角",
+      "diagonalNwSe": "左上から右下への対角線",
+      "diagonalSwNe": "左下から右上への対角線",
+      "leftEdge": "左の辺",
+      "line": "線 {{name}}",
+      "point": "点 {{name}}",
+      "rightEdge": "右の辺",
+      "topEdge": "上の辺"
+    },
+    "refusedSheet": "この選択の周りの用紙を長方形として読み取れませんでした。",
+    "searching": "基準点を探しています…",
+    "settings": {
+      "candidateCount": "{{n}} 件の解",
+      "candidates": "候補数",
+      "includeApproximate": "近似解も含める",
+      "trigger": "リファレンス設定"
+    },
+    "sidebar": {
+      "candidates": "候補の作図",
+      "freeDiagonals": "用紙の対角線も必要です: {{names}}。",
+      "label": "折りの基準点",
+      "none": "現在の設定では、この対象の作図は見つかりませんでした。",
+      "searching": "基準点を探しています…",
+      "steps": "折り手順",
+      "title": "手順"
+    },
+    "step": {
+      "axiom1": "{{p0}} と {{p1}} を通るように {{x}} を折ります。",
+      "axiom2": "{{p0}} を {{p1}} に合わせて {{x}} を折ります。",
+      "axiom3": "{{l0}} を {{l1}} に合わせて {{x}} を折ります。",
+      "axiom4": "{{l0}} を自身に重ねながら、{{p0}} を通るように {{x}} を折ります。",
+      "axiom5": "{{p0}} を {{l0}} に合わせながら、{{p1}} を通るように {{x}} を折ります。",
+      "axiom6": "{{p0}} を {{l0}} に、{{p1}} を {{l1}} に合わせて {{x}} を折ります。",
+      "axiom7": "{{l0}} を自身に重ね、{{p0}} が {{l1}} に来るように {{x}} を折ります。",
+      "mark": "{{l0}} と {{l1}} の交点に {{x}} の印を付けます。",
+      "pinch": "軽くつまむだけ — 印だけが必要です。",
+      "unknown": "{{inputs}} を使って {{x}} を折ります。"
+    },
+    "stepLabel": "ステップ",
+    "stepReadout": "{{n}} / {{total}}",
+    "stepScrubber": "ステップ",
+    "stop": "停止",
+    "stopping": "キャンセル中…",
+    "targetGone": "選んだ折り線は展開図にもうありません。",
     "title": "リファレンス",
-    "viewPending": "リファレンスビューは準備中です。"
+    "warning": {
+      "noBorder": "端の線がないため、既定の用紙を用紙として使います。",
+      "refusedSheets": "{{n}} 枚の用紙は長方形ではないため除外されます。"
+    }
   },
   "simulator": {
     "backendCpu": "CPU",

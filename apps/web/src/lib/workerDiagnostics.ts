@@ -23,7 +23,9 @@ export type WorkerName =
   /** One exact solve, spawned per run and terminated to cancel it. */
   | 'cp-exact-solve'
   /** One ReferenceFinder database per worker; see store/workspaceStore/referenceFinderRuntime.ts. */
-  | 'reference-finder';
+  | 'reference-finder'
+  /** The precrease planner bridge; see store/workspaceStore/precreaseRuntime.ts. */
+  | 'precrease';
 
 export interface WorkerFailure {
   worker: WorkerName;
