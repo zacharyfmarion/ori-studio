@@ -982,7 +982,7 @@
       "axiom4": "Dobre {{x}} passando por {{p0}}, dobrando {{l0}} sobre si mesma.",
       "axiom5": "Dobre {{x}} passando por {{p1}}, levando {{p0}} sobre {{l0}}.",
       "axiom6": "Dobre {{x}} levando {{p0}} sobre {{l0}} e {{p1}} sobre {{l1}}.",
-      "axiom7": "Dobre {{x}} dobrando {{l0}} sobre si mesma de modo que {{p0}} caia sobre {{l1}}.",
+      "axiom7": "Dobre {{x}} dobrando {{lSelf}} sobre si mesma de modo que {{p0}} caia sobre {{lLand}}.",
       "mark": "Marque {{x}} onde {{l0}} encontra {{l1}}.",
       "pinch": "Só um beliscão — apenas a marca é necessária.",
       "unknown": "Dobre {{x}} usando {{inputs}}."
@@ -1005,8 +1005,12 @@
     "targetGone": "A dobra escolhida não está mais no padrão.",
     "title": "Referências",
     "warning": {
+      "degenerateBorderSegments": "{{n}} vinco(s) de borda têm extremidades coincidentes e foram ignorados.",
       "noBorder": "Sem dobras de borda: o papel padrão é usado como folha.",
-      "refusedSheets": "{{n}} folha(s) não são retângulos e ficam de fora."
+      "overlappingSheets": "{{n}} vinco(s) estão dentro de mais de uma folha e foram atribuídos à primeira.",
+      "refusedSheets": "{{n}} folha(s) não são retângulos e ficam de fora.",
+      "unassignedSegments": "{{n}} vinco(s) ficam fora de todas as folhas e são deixados de fora.",
+      "zeroLengthSegments": "{{n}} vinco(s) são curtos demais para medir e foram ignorados."
     }
   },
   "simulator": {

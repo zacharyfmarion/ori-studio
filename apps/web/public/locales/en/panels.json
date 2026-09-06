@@ -948,7 +948,7 @@
       "axiom4": "Fold {{x}} through {{p0}}, folding {{l0}} onto itself.",
       "axiom5": "Fold {{x}} through {{p1}}, bringing {{p0}} onto {{l0}}.",
       "axiom6": "Fold {{x}}, bringing {{p0}} onto {{l0}} and {{p1}} onto {{l1}}.",
-      "axiom7": "Fold {{x}}, folding {{l0}} onto itself so that {{p0}} lands on {{l1}}.",
+      "axiom7": "Fold {{x}}, folding {{lSelf}} onto itself so that {{p0}} lands on {{lLand}}.",
       "mark": "Mark {{x}} where {{l0}} meets {{l1}}.",
       "pinch": "Pinch only — just the mark is needed.",
       "unknown": "Fold {{x}} using {{inputs}}."
@@ -971,8 +971,12 @@
     "targetGone": "The picked crease is no longer in the pattern.",
     "title": "References",
     "warning": {
+      "degenerateBorderSegments": "{{n}} border crease(s) have coincident ends and were ignored.",
       "noBorder": "No border creases: the default paper is taken as the sheet.",
-      "refusedSheets": "{{n}} sheet(s) are not rectangles and are left out."
+      "overlappingSheets": "{{n}} crease(s) lie inside more than one sheet and were given to the first.",
+      "refusedSheets": "{{n}} sheet(s) are not rectangles and are left out.",
+      "unassignedSegments": "{{n}} crease(s) fall outside every sheet and are left out.",
+      "zeroLengthSegments": "{{n}} crease(s) are too short to measure and were skipped."
     }
   },
   "simulator": {

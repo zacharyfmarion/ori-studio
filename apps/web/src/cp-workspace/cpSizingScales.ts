@@ -7,6 +7,7 @@
  * drawn primitive at once, which is exactly what happened (see
  * {@link CP_MAX_WIDTH_BOOST}).
  */
+import { VERTEX_RADIUS_FACTOR } from './adapters/cpPointsToScene';
 
 /**
  * Crease width + markers are essentially constant screen size, but grow *very*
@@ -107,5 +108,118 @@ export function cpSizingScales({ camZoom, fitZoom, ratio }: CpSizingScalesInput)
     widthBoost,
     markerScalePx: safeRatio * widthBoost * markerShrink,
     pointScalePx: safeRatio * widthBoost * vertexShrink,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Vertex crowding
+// ---------------------------------------------------------------------------
+//
+// Shared by both CP surfaces on purpose. The References view is where picking a
+// vertex *is* the interaction, so a pattern that reads as a field of dots there
+// is worse than in Edit — and the ramp is only trustworthy if the two surfaces
+// cannot drift apart on its constants.
+
+/**
+ * Crease point/vertex visibility, in units of *crowding*: a dot's diameter as a
+ * fraction of the on-screen distance between neighbouring vertices. 0.1 means
+ * dots take up a tenth of the gap between them; 1.0 means they touch and the
+ * pattern reads as a field of dots rather than as creases.
+ *
+ * Vertices are an up-close editing affordance (snap and hit targets). Surveying
+ * a dense pattern, they are noise over the creases they annotate, so they fade
+ * out entirely rather than shrinking forever.
+ *
+ * Crowding is a ratio of two CSS-px lengths, which is what makes it behave the
+ * same everywhere: on any display density, at any `Point size`, at any document
+ * coordinate scale. An earlier version keyed this to `cam.zoom / fitZoom`, which
+ * measures zoom against the bounding box of the *whole document* — on a sheet
+ * holding several patterns spread over thousands of units that reads as "zoomed
+ * way in" while you look at one small pattern, and every fade stayed off.
+ */
+export const VERTEX_CROWD_FULL_AT = 0.15;
+export const VERTEX_CROWD_GONE_AT = 0.45;
+/**
+ * Where the outline ring collapses into the fill, same units. It goes first: a
+ * ring reads as a target, and a plain dot is quieter at the same size.
+ */
+export const VERTEX_RING_FULL_AT = 0.12;
+export const VERTEX_RING_GONE_AT = 0.3;
+
+/** Creases sampled when estimating vertex spacing. See {@link cpVertexSpacingModel}. */
+export const VERTEX_SPACING_SAMPLE_CAP = 2048;
+
+/** Hermite ramp between two edges, clamped — the GLSL `smoothstep`. */
+export function smoothstep(edge0: number, edge1: number, x: number): number {
+  const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
+/**
+ * Median crease length in model units — the stand-in for "how far apart are
+ * neighbouring vertices".
+ *
+ * Exhaustive on a 10k-crease pattern this is a sort per edit, so it is a strided
+ * sample bounded to a fixed ~0.1 ms. Not an approximation worth worrying about:
+ * on a real 7.4k-edge pattern even a 512-sample stride reproduces the exhaustive
+ * median exactly. `fallback` is what an all-degenerate pattern gets (the editor
+ * passes its grid width).
+ */
+export function cpVertexSpacingModel(
+  lengthAt: (index: number) => number,
+  count: number,
+  fallback = 0
+): number {
+  if (count <= 0) return fallback;
+  const stride = Math.max(1, Math.ceil(count / VERTEX_SPACING_SAMPLE_CAP));
+  const lengths: number[] = [];
+  for (let i = 0; i < count; i += stride) {
+    const length = lengthAt(i);
+    if (length > 1e-9) lengths.push(length);
+  }
+  if (lengths.length === 0) return fallback;
+  lengths.sort((a, b) => a - b);
+  return lengths[lengths.length >> 1];
+}
+
+export interface CpVertexCrowdingInput {
+  /** Median crease length, model units ({@link cpVertexSpacingModel}). */
+  vertexSpacingModel: number;
+  /** The `--cp-point-size` setting. */
+  pointSize: number;
+  /** Length of the model→device basis vector, i.e. device px per model unit. */
+  modelPxPerUnit: number;
+  /** Device pixel ratio, i.e. device px per CSS px. */
+  ratio: number;
+}
+
+export interface CpVertexCrowding {
+  /** Dot diameter over vertex spacing, both CSS px. */
+  crowding: number;
+  /** Whole-layer opacity for the crease-point/vertex channel. */
+  pointOpacity: number;
+  /** Multiplier on the vertex dot's outline width. */
+  pointRingScale: number;
+}
+
+/**
+ * The vertex fade for one frame. Both terms are CSS px, so `crowding` is a pure
+ * ratio: independent of display density, of the document's coordinate scale, and
+ * of how far apart several patterns happen to sit on one sheet.
+ */
+export function cpVertexCrowding({
+  vertexSpacingModel,
+  pointSize,
+  modelPxPerUnit,
+  ratio,
+}: CpVertexCrowdingInput): CpVertexCrowding {
+  const safeRatio = Number.isFinite(ratio) && ratio > 0 ? ratio : 1;
+  const vertexDiameterCss = 2 * VERTEX_RADIUS_FACTOR * pointSize;
+  const spacingCss = (vertexSpacingModel * modelPxPerUnit) / safeRatio;
+  const crowding = Number.isFinite(spacingCss) && spacingCss > 1e-6 ? vertexDiameterCss / spacingCss : 0;
+  return {
+    crowding,
+    pointOpacity: 1 - smoothstep(VERTEX_CROWD_FULL_AT, VERTEX_CROWD_GONE_AT, crowding),
+    pointRingScale: 1 - smoothstep(VERTEX_RING_FULL_AT, VERTEX_RING_GONE_AT, crowding),
   };
 }

@@ -19,7 +19,8 @@ import { createCpLineAppearanceResolver } from '../adapters/cpLineStyle';
 import { cpPointsToScene } from '../adapters/cpPointsToScene';
 import { resolveCpPointStyle } from '../adapters/cpPointStyle';
 import { CpRendererUnavailable, type CpRendererStatus } from '../CpRendererUnavailable';
-import { cpSizingScales } from '../cpSizingScales';
+import { cpDpr } from '../cpDpr';
+import { cpSizingScales, cpVertexCrowding, cpVertexSpacingModel } from '../cpSizingScales';
 import { applyPinchToCamera } from '../gestures/pinchCamera';
 import { contactCentroid, pinchTransform, type GesturePoint } from '../gestures/pinchTransform';
 import { LineHitIndex, type IndexedSegment } from '../picking/lineHitIndex';
@@ -50,6 +51,8 @@ import type { ModelBounds, ReferencesGhostSegment, ReferencesMarker } from './re
 import {
   ghostSegmentsToStrokes,
   isClick,
+  concatOverlayPoints,
+  highlightedVerticesToOverlayPoints,
   markersToOverlayPoints,
   modelBoundsToUser,
   resolveReferencesPick,
@@ -139,9 +142,8 @@ const FOLDED_ALPHA = 0.55;
 const EMPTY_GHOSTS: readonly ReferencesGhostSegment[] = [];
 const EMPTY_MARKERS: readonly ReferencesMarker[] = [];
 
-function dpr(): number {
-  return typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
-}
+/** The shared CP policy — see `cpDpr.ts`; the editor renders under the same cap. */
+const dpr = cpDpr;
 
 function lineSegmentsOf(geometry: CpGeometryTransport): IndexedSegment[] {
   const endpoints = geometry.segEndpoints;
@@ -165,11 +167,14 @@ function withAlpha(color: Rgba, alpha: number): Rgba {
 /** Everything the imperative handlers read, refreshed every render without re-binding them. */
 interface LiveProps {
   lineWidth: number;
+  pointSize: number;
   wheelGesture: WheelGesturePreference;
   snapRadius: number;
   onPick: (hit: ReferencesPick | null) => void;
   contentBounds: UserBounds | null;
   vertices: readonly Point[];
+  /** Median crease length, for the vertex crowding ramp. */
+  vertexSpacingModel: number;
   hitIndexes: ReferencesHitIndexes;
 }
 
@@ -207,6 +212,15 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
     const [rendererGeneration, setRendererGeneration] = useState(0);
 
     const vertices = useMemo(() => vertexPointsFromTransport(geometry), [geometry]);
+    // What the vertex crowding ramp measures against — the same strided median
+    // the editor uses, so the two surfaces fade at the same point.
+    const vertexSpacingModel = useMemo(() => {
+      const endpoints = geometry.segEndpoints;
+      return cpVertexSpacingModel(
+        (i) => Math.hypot(endpoints[i * 4 + 2] - endpoints[i * 4], endpoints[i * 4 + 3] - endpoints[i * 4 + 1]),
+        endpoints.length / 4
+      );
+    }, [geometry]);
     const contentBounds = useMemo(() => transportUserBounds(geometry), [geometry]);
     const hitIndexes = useMemo<ReferencesHitIndexes>(
       () => ({
@@ -218,11 +232,13 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
 
     const liveRef = useRef<LiveProps>({
       lineWidth,
+      pointSize,
       wheelGesture,
       snapRadius,
       onPick,
       contentBounds,
       vertices,
+      vertexSpacingModel,
       hitIndexes,
     });
     // Declared before every effect below, so within one commit the handlers
@@ -230,11 +246,13 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
     useEffect(() => {
       liveRef.current = {
         lineWidth,
+        pointSize,
         wheelGesture,
         snapRadius,
         onPick,
         contentBounds,
         vertices,
+        vertexSpacingModel,
         hitIndexes,
       };
     });
@@ -314,6 +332,17 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           fitZoom,
           ratio,
         });
+        // The editor's vertex fade, ported rather than re-decided: on a dense
+        // pattern (a 9.4k-segment CP has a ~5 CSS px vertex pitch) a field of
+        // full-opacity dots buries the creases the user is trying to pick.
+        // The picked and step-highlighted vertices ride the overlay channel
+        // instead, which is never faded — see the overlay upload below.
+        const { pointOpacity, pointRingScale } = cpVertexCrowding({
+          vertexSpacingModel: liveRef.current.vertexSpacingModel,
+          pointSize: liveRef.current.pointSize,
+          modelPxPerUnit: Math.hypot(view.ex[0], view.ex[1]),
+          ratio,
+        });
         renderer.render({
           clearColor: readCssVarColor(canvas, CANVAS_BG_VAR, FALLBACK_CLEAR),
           view,
@@ -324,8 +353,8 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           pointScalePx,
           constantOutlinePx: POINT_OUTLINE_CSS * ratio,
           markerOutlinePx: POINT_OUTLINE_CSS * markerScalePx,
-          pointOutlinePx: POINT_OUTLINE_CSS * pointScalePx,
-          pointOpacity: 1,
+          pointOutlinePx: POINT_OUTLINE_CSS * pointScalePx * pointRingScale,
+          pointOpacity,
         });
       };
       renderNowRef.current = renderNow;
@@ -521,23 +550,23 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       renderNowRef.current();
     }, [geometry, lineStyle, mode, highlightLineIds, selected, themeKey, rendererGeneration]);
 
-    // Vertex dots, with the highlighted ones (and the picked one) in the same colour.
+    // Vertex dots. Deliberately *without* the highlighted ones: this layer rides
+    // the crowding ramp (`renderNow`) and fades to nothing on a dense pattern,
+    // so the picked vertex is drawn on the overlay channel below instead.
     useEffect(() => {
       const renderer = rendererRef.current;
       const canvas = canvasRef.current;
       if (!renderer || !canvas) return;
-      const highlighted = new Set(highlightVertexIdx);
-      if (selected?.kind === 'vertex') highlighted.add(selected.idx);
       renderer.setPoints(
         cpPointsToScene([], vertices, [], resolveCpPointStyle(canvas, pointSize), {
           pointIdx: new Set(),
           circleIdx: new Set(),
-          vertexIdx: highlighted,
+          vertexIdx: new Set(),
           color: readCssVarColor(canvas, NEW_COLOR_VAR, NEW_FALLBACK),
         })
       );
       renderNowRef.current();
-    }, [vertices, pointSize, highlightVertexIdx, selected, themeKey, rendererGeneration]);
+    }, [vertices, pointSize, themeKey, rendererGeneration]);
 
     // The step's lines that the pattern does not contain, over the creases.
     useEffect(() => {
@@ -554,19 +583,38 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       renderNowRef.current();
     }, [ghostSegments, themeKey, rendererGeneration]);
 
-    // Input rings and the new mark, on top of everything.
+    // Input rings, the new mark, and the picked/highlighted vertices, on top of
+    // everything. This channel draws at full opacity whatever the crowding, which
+    // is why the vertex marks live here rather than in the point layer.
     useEffect(() => {
       const renderer = rendererRef.current;
       const canvas = canvasRef.current;
       if (!renderer || !canvas) return;
+      const newColor = readCssVarColor(canvas, NEW_COLOR_VAR, NEW_FALLBACK);
+      const highlighted = new Set(highlightVertexIdx);
+      if (selected?.kind === 'vertex') highlighted.add(selected.idx);
+      const picked = [...highlighted]
+        .map((idx) => vertices[idx])
+        .filter((point): point is Point => point !== undefined);
       renderer.setOverlayPoints(
-        markersToOverlayPoints(markers, {
-          input: readCssVarColor(canvas, INPUT_COLOR_VAR, INPUT_FALLBACK),
-          new: readCssVarColor(canvas, NEW_COLOR_VAR, NEW_FALLBACK),
-        })
+        concatOverlayPoints(
+          markersToOverlayPoints(markers, {
+            input: readCssVarColor(canvas, INPUT_COLOR_VAR, INPUT_FALLBACK),
+            new: newColor,
+          }),
+          highlightedVerticesToOverlayPoints(picked, newColor, pointSize)
+        )
       );
       renderNowRef.current();
-    }, [markers, themeKey, rendererGeneration]);
+    }, [
+      markers,
+      highlightVertexIdx,
+      selected,
+      vertices,
+      pointSize,
+      themeKey,
+      rendererGeneration,
+    ]);
 
     // Width is a per-frame parameter; a change only needs a redraw.
     useEffect(() => {

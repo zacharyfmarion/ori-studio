@@ -72,8 +72,32 @@ export function requestReferencesStop(): boolean {
   return true;
 }
 
+/**
+ * Monotonic id of the *pick*, which is not the same thing as the run.
+ *
+ * A run only begins once the frames and the resolve are done — hundreds of ms
+ * on a large pattern, all of it before `beginReferencesRun`. Dismissing a pick
+ * in that window (clicking empty canvas) leaves the original `query()` sitting
+ * on its awaits, and nothing in the run registry can express "abandoned":
+ * `runId` is kept by `endReferencesRun`, so a guard on it passes for a run that
+ * was cleared. This is what the async flows compare instead, the way they
+ * compare `revisionRef` — captured before the first await, checked after each.
+ */
+let pickGeneration = 0;
+
+/** A new pick, a Recompute, or a dismissal. Returns the generation it starts. */
+export function beginReferencesPick(): number {
+  pickGeneration += 1;
+  return pickGeneration;
+}
+
+export function referencesPickGeneration(): number {
+  return pickGeneration;
+}
+
 /** Tests only. */
 export function resetReferencesRun(): void {
   state = IDLE;
   nextRunId = 1;
+  pickGeneration = 0;
 }

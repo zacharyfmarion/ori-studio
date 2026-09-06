@@ -84,6 +84,22 @@ export interface ReferencesFrames {
 }
 
 /**
+ * The pick that is being asked about, published before the query runs.
+ *
+ * `results` is nulled the moment a query starts and only repopulated when the
+ * answer lands — 70 ms on a warm database, a 2-6 s cold build otherwise, and
+ * *never* if the query errors or is stopped. Highlights derived only from
+ * `results` therefore left the crease the user just clicked unmarked for the
+ * whole wait, and permanently on both terminal paths. This is the same record,
+ * available from the pick onwards, so the canvas can say what was picked before
+ * anything is known about it.
+ */
+export interface ReferencesPendingTarget {
+  revision: string;
+  record: ReferencesTargetRecord;
+}
+
+/**
  * One presentation order of a plan: the crate's `sequence()` for a given
  * `landmarks_first`, plus its geometry already mapped into model space so the
  * view can draw a step without a round trip.
@@ -151,6 +167,8 @@ export interface ReferencesAnalysisRecord {
 export interface ReferencesResultsState {
   frames: ReferencesFrames | null;
   results: ReferencesResults | null;
+  /** The picked target while there is no answer for it; see {@link ReferencesPendingTarget}. */
+  pending: ReferencesPendingTarget | null;
   plan: ReferencesPlanRecord | null;
   analysis: ReferencesAnalysisRecord | null;
 }
@@ -158,6 +176,7 @@ export interface ReferencesResultsState {
 let state: ReferencesResultsState = {
   frames: null,
   results: null,
+  pending: null,
   plan: null,
   analysis: null,
 };
@@ -190,6 +209,12 @@ export function setReferencesResults(results: ReferencesResults | null): void {
   emit();
 }
 
+export function setReferencesPendingTarget(pending: ReferencesPendingTarget | null): void {
+  if (state.pending === pending) return;
+  state = { ...state, pending };
+  emit();
+}
+
 export function setReferencesPlanRecord(plan: ReferencesPlanRecord | null): void {
   if (state.plan === plan) return;
   state = { ...state, plan };
@@ -207,11 +232,12 @@ export function clearReferencesResults(): void {
   if (
     state.frames === null &&
     state.results === null &&
+    state.pending === null &&
     state.plan === null &&
     state.analysis === null
   ) {
     return;
   }
-  state = { frames: null, results: null, plan: null, analysis: null };
+  state = { frames: null, results: null, pending: null, plan: null, analysis: null };
   emit();
 }

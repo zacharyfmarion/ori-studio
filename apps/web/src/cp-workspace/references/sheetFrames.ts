@@ -107,11 +107,21 @@ export interface PrecreaseComponent {
   refused: PrecreaseRefusal | null;
 }
 
+/**
+ * `crates/oristudio-precrease/src/components.rs`'s `Warning`, serialised
+ * `#[serde(tag = "kind", rename_all = "snake_case")]`.
+ *
+ * Kept exhaustive on purpose: a variant missing from this union does not fail a
+ * build — every consumer matches on `kind` — it just makes the signal
+ * unreachable, which is how `unassigned_segments` (creases inside no sheet at
+ * all) went unsurfaced.
+ */
 export type PrecreaseWarning =
   | { kind: 'no_border_fallback'; paper: [number, number, number, number] }
   | { kind: 'overlapping_sheets'; segments: number }
   | { kind: 'zero_length_segments'; count: number }
-  | { kind: 'degenerate_border_segments'; count: number };
+  | { kind: 'degenerate_border_segments'; count: number }
+  | { kind: 'unassigned_segments'; count: number };
 
 export interface SheetAnalysis {
   components: PrecreaseComponent[];

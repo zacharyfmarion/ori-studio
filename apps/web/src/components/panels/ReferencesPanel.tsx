@@ -93,6 +93,7 @@ export function ReferencesPanel() {
     view.geometry,
     controller.results,
     !controller.stale,
+    controller.picked,
     controller.activeCandidate,
     controller.activeStep
   );

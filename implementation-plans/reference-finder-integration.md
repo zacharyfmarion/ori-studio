@@ -542,9 +542,14 @@ polynomial algorithm is claimed. The summary strip shows "N folds = M creases + 
   the user's line style, mode, line width and point size from the store. Planner and
   ReferenceFinder input is a FOLD: `parseFoldProjection(await exportOristudioCpDocumentAsFold())`,
   or `foldArtifacts.fold` when `ensureFoldArtifacts()` has already resolved — never the
-  simulation-model path, which infers faces and triangulates. Staleness: subscribe to
-  `foldArtifactRevision` (bumped by every CP mutation through
-  `staleFoldArtifactResourceState`); on change mark results stale, show "Out of date —
+  simulation-model path, which infers faces and triangulates. Staleness: key results on
+  `creaseFingerprint(oristudioCpDocument.document)` (`cp-workspace/cpSegmentationArtifacts.ts`)
+  plus `loadSerial`, **not** on `foldArtifactRevision`. That counter is not "every CP
+  mutation": a box-, lasso- or polygon-select bumps it while changing no crease
+  (`SYNC_CP_LINE_SELECTION_AFTER_OPERATIONS` in `projectSlice`), so keyed on it, selecting
+  in Edit marked a valid answer stale; and CP undo/redo bumps it *alone*, so dropping it for
+  `oristudioCpRevision` would miss an undo. A content hash covers both.
+  On change mark results stale, show "Out of date —
   Recompute" in the panel-body overlay and enable the toolbar Recompute, **never
   auto-recompute** (runs cost seconds); re-check on mount because the dock is rebuilt on
   every switch. Empty state ("No crease pattern") when `oristudioCpDocument` is null, on the

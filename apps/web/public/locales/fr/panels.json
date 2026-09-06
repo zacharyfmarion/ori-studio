@@ -982,7 +982,7 @@
       "axiom4": "Pliez {{x}} en passant par {{p0}}, en rabattant {{l0}} sur elle-même.",
       "axiom5": "Pliez {{x}} en passant par {{p1}}, en amenant {{p0}} sur {{l0}}.",
       "axiom6": "Pliez {{x}} en amenant {{p0}} sur {{l0}} et {{p1}} sur {{l1}}.",
-      "axiom7": "Pliez {{x}} en rabattant {{l0}} sur elle-même de sorte que {{p0}} tombe sur {{l1}}.",
+      "axiom7": "Pliez {{x}} en rabattant {{lSelf}} sur elle-même de sorte que {{p0}} tombe sur {{lLand}}.",
       "mark": "Marquez {{x}} là où {{l0}} rencontre {{l1}}.",
       "pinch": "Simple pincement : seule la marque est nécessaire.",
       "unknown": "Pliez {{x}} à l’aide de {{inputs}}."
@@ -1005,8 +1005,12 @@
     "targetGone": "Le pli choisi n’est plus dans le patron.",
     "title": "Références",
     "warning": {
+      "degenerateBorderSegments": "{{n}} pli(s) de bord ont des extrémités confondues et ont été ignorés.",
       "noBorder": "Aucun pli de bord : le papier par défaut sert de feuille.",
-      "refusedSheets": "{{n}} feuille(s) ne sont pas des rectangles et sont laissées de côté."
+      "overlappingSheets": "{{n}} pli(s) se trouvent dans plusieurs feuilles et ont été attribués à la première.",
+      "refusedSheets": "{{n}} feuille(s) ne sont pas des rectangles et sont laissées de côté.",
+      "unassignedSegments": "{{n}} pli(s) se trouvent en dehors de toute feuille et sont ignorés.",
+      "zeroLengthSegments": "{{n}} pli(s) sont trop courts pour être mesurés et ont été ignorés."
     }
   },
   "simulator": {

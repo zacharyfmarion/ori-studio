@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import markFixture from './referenceFinder/__fixtures__/mark.json';
+import markCentreFixture from './referenceFinder/__fixtures__/mark-centre.json';
 import lineFixture from './referenceFinder/__fixtures__/line-exact.json';
 import { extractSolution } from './referenceFinder/extractor';
 import type { ReferenceFinderReplayFixture } from './referenceFinder/replayClient';
@@ -12,6 +13,7 @@ import {
 } from './referenceFinderDiagramToPrimitives';
 
 const mark = markFixture as unknown as ReferenceFinderReplayFixture;
+const markCentre = markCentreFixture as unknown as ReferenceFinderReplayFixture;
 const line = lineFixture as unknown as ReferenceFinderReplayFixture;
 const sheet = { width: mark.database.width, height: mark.database.height };
 
@@ -131,5 +133,31 @@ describe('stepDiagram / candidateDiagram', () => {
     const lines = lineSolution.steps.filter((s) => s.diagramIndex !== null).length;
     expect(lines).toBeGreaterThan(0);
     expect(candidateDiagram(lineRaw, lineSolution)).toBe(lineRaw.diagrams[lines - 1]);
+  });
+
+  it('skips the action-free placeholder for a mark made only of originals', () => {
+    // The sheet centre: one O0 step over the two diagonals, no action line, so
+    // `BuildDiagrams` (refBase.cpp:172) emits a `(0, 0)` placeholder ahead of
+    // the final-mark diagram and `diagrams[lineStepCount] === diagrams[0]` is
+    // the placeholder. Assert on the drawn mark, not on an index, so a change
+    // to the upstream placeholder rule still trips this.
+    const centreRaw = markCentre.solutions[0];
+    const centre = extractSolution(centreRaw, markCentre.query, {
+      width: markCentre.database.width,
+      height: markCentre.database.height,
+    });
+    expect(centre.steps.filter((s) => s.diagramIndex !== null)).toHaveLength(0);
+    const markPoint = { kind: 'point', at: [0.5, 0.5], style: 'action' };
+    for (const diagram of [stepDiagram(centreRaw, centre, 0), candidateDiagram(centreRaw, centre)]) {
+      expect(diagram).not.toBeNull();
+      const model = referenceFinderDiagramToPrimitives(diagram as Diagram);
+      expect(model.primitives).toContainEqual(markPoint);
+      expect(model.primitives).toContainEqual({
+        kind: 'label',
+        at: [0.5, 0.5],
+        text: 'P',
+        style: 'action',
+      });
+    }
   });
 });

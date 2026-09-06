@@ -66,7 +66,10 @@
     "oristudioBp": "Die Box-Pleating-Engine wurde unerwartet beendet. Lade Ori Studio neu, um an diesem Entwurf weiterzuarbeiten.",
     "oristudioCp": "Die Faltmuster-Engine wurde unerwartet beendet. Lade Ori Studio neu – Änderungen seit dem letzten Speichern können verloren gehen.",
     "precrease": "Der Precrease-Planer wurde unerwartet beendet. Öffne den Referenzen-Arbeitsbereich erneut, um ihn neu zu starten.",
+    "precreaseLost": "Der Precrease-Planer wurde beendet, bevor er antworten konnte. Versuche die Suche erneut.",
     "referenceFinder": "Der Referenzfinder wurde unerwartet beendet. Öffne den Referenzen-Arbeitsbereich erneut, um ihn neu zu starten.",
+    "referenceFinderLost": "Der Referenzfinder wurde beendet, bevor er antworten konnte. Versuche die Suche erneut.",
+    "referenceFinderTimeout": "Der Referenzfinder hat zu lange gebraucht und wurde neu gestartet. Versuche die Suche erneut.",
     "simulator": "Der Simulator wurde unerwartet beendet. Öffne den Simulieren-Arbeitsbereich erneut, um ihn neu zu starten.",
     "treemaker": "Die Design-Engine wurde unerwartet beendet. Lade Ori Studio neu, um an diesem Baum weiterzuarbeiten."
   }

@@ -9,6 +9,7 @@ import {
   getPrecreaseClient,
   releasePrecreaseClient,
   retainPrecreaseClient,
+  whilePrecreaseClientAlive,
 } from '../../store/workspaceStore/precreaseRuntime';
 import {
   getReferenceFinderClient,
@@ -34,6 +35,7 @@ import {
   clearReferencesResults,
   referencesResultsSnapshot,
   setReferencesFrames,
+  setReferencesPendingTarget,
   setReferencesResults,
   subscribeReferencesResults,
   type ReferencesCandidateResult,
@@ -43,10 +45,13 @@ import {
   type ReferencesTargetRecord,
 } from './referencesResults';
 import {
+  beginReferencesPick,
   beginReferencesRun,
   endReferencesRun,
+  referencesPickGeneration,
   referencesRunSnapshot,
 } from './referencesRun';
+import { referencesSidebarText } from './referencesSidebarText';
 import { clampStepIndex } from './referencesStepGeometry';
 import type { ReferencesPick } from './referencesViewGeometry';
 import {
@@ -91,6 +96,11 @@ export interface ReferencesTargetController {
   candidates: readonly ReferencesCandidate[] | null;
   /** The construction behind the cards, when it describes the current geometry. */
   results: ReferencesResults | null;
+  /**
+   * What was picked, for the geometry on screen — available from the pick
+   * onwards, so the canvas can mark the crease before (and without) an answer.
+   */
+  picked: ReferencesTargetRecord | null;
   frames: SheetAnalysis | null;
   /** The results were computed for an earlier revision of the pattern. */
   stale: boolean;
@@ -260,6 +270,13 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
   const results = side.results;
   const current = results !== null && results.revision === revision;
   const stale = results !== null && !current;
+  // The pick, for the geometry on screen: the answered target when there is a
+  // current answer, otherwise the record published at pick time.
+  const picked: ReferencesTargetRecord | null = current
+    ? (results?.target ?? null)
+    : side.pending?.revision === revision
+      ? side.pending.record
+      : null;
 
   // The latest values the async flows read after an await. Store reads after an
   // await must name what they are about; these refs are how the flows know
@@ -276,18 +293,38 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
   // Workers: the planner bridge is retained for the panel's life, the
   // ReferenceFinder window instance is spawned by the first query and killed
   // on leaving (plan D7: the only cancel is terminate).
+  //
+  // The generation bump comes *first*, and is load-bearing. Releasing either
+  // worker rejects whatever it is running with the same envelope a crash would
+  // produce — `lostError` does not carry the reason — so nothing downstream can
+  // tell a deliberate teardown from a failure except a flag the releaser sets.
+  // Without it, switching to Edit mid-query reported an ordinary navigation to
+  // Sentry and left a red "References unavailable" overlay waiting for the next
+  // visit. Resetting the run has to happen here too rather than in the
+  // rejection handler: the `await` continuations are microtasks, so they run
+  // strictly after this cleanup returns.
   useEffect(() => {
     retainPrecreaseClient();
     return () => {
+      beginReferencesPick();
+      endReferencesRun(referencesRunSnapshot().runId);
+      setReferencesRun({ status: 'idle' });
       releasePrecreaseClient();
       releaseReferenceFinderClient('window');
     };
-  }, []);
+  }, [setReferencesRun]);
 
   // Frames: recomputed on mount and on every revision (cheap), and the first
   // sheet's ReferenceFinder database warmed so the first pick does not pay for
   // the build. Results are *not* recomputed here — that is Recompute's job.
+  //
+  // Keyed on `revision`, deliberately *not* on the transport's identity: the
+  // kernel returns a fresh transport object after every command, including the
+  // selection-only ones that leave the creases byte-identical, and re-running
+  // `sheetFrames` for those was a worker round trip per box-select. The
+  // geometry is read through its ref, which this render has already updated.
   useEffect(() => {
+    const geometry = geometryRef.current;
     if (!geometry) {
       setReferencesFrames(null);
       return;
@@ -315,7 +352,7 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
     return () => {
       cancelled = true;
     };
-  }, [geometry, revision, setReferencesRun, t]);
+  }, [revision, setReferencesRun, t]);
 
   // Staleness: results for another revision are marked, never replaced.
   useEffect(() => {
@@ -363,12 +400,24 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
     [t]
   );
 
+  /**
+   * Dismiss the pick, and with it any query still resolving for it.
+   *
+   * The generation bump is what makes the dismissal stick: `query()` spends its
+   * first hundreds of ms in `framesFor` and `resolve` with the registry still
+   * idle, so without it the flow simply resumed past its awaits and re-published
+   * the pick the user had just dismissed. The worker call itself is *not*
+   * cancelled — `requestReferencesStop` would throw away a 2-6 s database build
+   * for a pick that may be re-made a second later — its answer is just dropped.
+   */
   const clear = useCallback(() => {
+    beginReferencesPick();
+    endReferencesRun(referencesRunSnapshot().runId);
     setReferencesTarget(null);
     setReferencesCandidates(null);
     setReferencesResults(null);
+    setReferencesPendingTarget(null);
     setReferencesView({ activeCandidate: 0, activeStep: 0 });
-    if (referencesRunSnapshot().running) return;
     setReferencesRun({ status: 'idle' });
   }, [setReferencesCandidates, setReferencesRun, setReferencesTarget, setReferencesView]);
 
@@ -405,12 +454,31 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
   );
 
   /**
+   * Whether the answer this flow is about to publish is still wanted: the
+   * document has not moved, the run has not been superseded, and the pick has
+   * not been dismissed or replaced. All three are read after an await, so all
+   * three are read from a ref or a module snapshot rather than from a closure.
+   */
+  const superseded = useCallback(
+    (forRevision: string, runId: number, generation: number) =>
+      revisionRef.current !== forRevision ||
+      referencesRunSnapshot().runId !== runId ||
+      referencesPickGeneration() !== generation,
+    []
+  );
+
+  /**
    * Ask ReferenceFinder about `record` on `component`'s sheet, then map the
    * answer into model space and publish it — unless the document moved on
    * while the worker was busy, in which case the answer is dropped.
    */
   const runQuery = useCallback(
-    async (record: ReferencesTargetRecord, component: PrecreaseComponent, forRevision: string) => {
+    async (
+      record: ReferencesTargetRecord,
+      component: PrecreaseComponent,
+      forRevision: string,
+      generation: number
+    ) => {
       const frame = component.frame;
       const rect = component.rf_rect;
       if (!frame || !rect) return;
@@ -439,6 +507,9 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
       try {
         solutions = await whileReferenceFinderClientAlive(
           'window',
+          // Scoped to *this* sheet's database: another sheet's idle teardown or
+          // eviction is not this query's problem.
+          client.databaseKey,
           record.kind === 'vertex'
             ? client.solvePoint(record.rf)
             : client.solveLine(record.rf[0], record.rf[1])
@@ -446,7 +517,10 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
       } catch (error) {
         const wasStopping = referencesRunSnapshot().stopping;
         endReferencesRun(runId);
-        if (revisionRef.current !== forRevision) return;
+        // A superseded, dismissed or unmounted flow is a cancellation, not a
+        // failure: no Sentry event, no error overlay, and — for parity with the
+        // Stop branch below, which returns before it — no `outcome: 'error'`.
+        if (superseded(forRevision, runId, generation)) return;
         if (wasStopping) {
           setReferencesRun({ status: 'idle' });
           return;
@@ -461,8 +535,9 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
         return;
       }
 
-      if (revisionRef.current !== forRevision || referencesRunSnapshot().runId !== runId) {
-        // The document changed under the query, or a newer pick superseded it.
+      if (superseded(forRevision, runId, generation)) {
+        // The document changed under the query, a newer pick superseded it, or
+        // the pick was dismissed.
         endReferencesRun(runId);
         return;
       }
@@ -476,8 +551,10 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
       solutions = reorder(solutions, order);
 
       try {
-        const { modelSteps, originals } = await mapSolutionsToModel(frame, rect, solutions);
-        if (revisionRef.current !== forRevision || referencesRunSnapshot().runId !== runId) {
+        const { modelSteps, originals } = await whilePrecreaseClientAlive(
+          mapSolutionsToModel(frame, rect, solutions)
+        );
+        if (superseded(forRevision, runId, generation)) {
           endReferencesRun(runId);
           return;
         }
@@ -494,6 +571,7 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
           candidates: mapped,
           durationMs: performance.now() - started,
         });
+        setReferencesPendingTarget(null);
         setReferencesCandidates(solutions.map(summarize));
         setReferencesView({ activeCandidate: 0, activeStep: 0 });
         setReferencesRun({ status: 'idle' });
@@ -512,12 +590,12 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
         }
       } catch (error) {
         endReferencesRun(runId);
-        if (revisionRef.current !== forRevision) return;
+        if (superseded(forRevision, runId, generation)) return;
         reportError(error, { surface: 'references:map' });
         setReferencesRun({ status: 'error', message: humanizeError(error, t) });
       }
     },
-    [orderFromPlan, setReferencesCandidates, setReferencesRun, setReferencesView, t]
+    [orderFromPlan, setReferencesCandidates, setReferencesRun, setReferencesView, superseded, t]
   );
 
   /** The frames for `forRevision`, from the side table or computed now. */
@@ -604,31 +682,41 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
   );
 
   const query = useCallback(
-    async (hit: TargetRequest, forRevision: string, picked: boolean) => {
+    async (hit: TargetRequest, forRevision: string, fromPick: boolean) => {
       const geometry = geometryRef.current;
       if (!geometry) return;
+      // Captured before the first await: `framesFor` and `resolve` both run
+      // with the registry still idle, so this is the only thing that can tell a
+      // dismissal in that window from a query nobody touched.
+      const generation = referencesPickGeneration();
+      const abandoned = () =>
+        revisionRef.current !== forRevision || referencesPickGeneration() !== generation;
       try {
         const analysis = await framesFor(geometry, forRevision);
-        if (revisionRef.current !== forRevision) return;
+        if (abandoned()) return;
         const resolved = await resolve(hit, geometry, analysis);
-        if (revisionRef.current !== forRevision) return;
+        if (abandoned()) return;
         if (!resolved.ok) {
           setReferencesTarget(null);
           setReferencesCandidates(null);
           setReferencesResults(null);
+          setReferencesPendingTarget(null);
           setReferencesRun({ status: 'error', message: resolved.message });
           return;
         }
         const { record, component } = resolved;
+        // Published before the query so the canvas marks the pick during the
+        // wait, and keeps marking it if the query errors or is stopped.
+        setReferencesPendingTarget({ revision: forRevision, record });
         setReferencesTarget(
           record.kind === 'vertex'
             ? { kind: 'vertex', component: record.component, point: record.point }
             : { kind: 'crease', component: record.component, lineId: record.lineId }
         );
-        if (picked) track(ANALYTICS_EVENTS.referenceTargetPicked, { target_kind: record.kind });
-        await runQuery(record, component, forRevision);
+        if (fromPick) track(ANALYTICS_EVENTS.referenceTargetPicked, { target_kind: record.kind });
+        await runQuery(record, component, forRevision, generation);
       } catch (error) {
-        if (revisionRef.current !== forRevision) return;
+        if (abandoned()) return;
         reportError(error, { surface: 'references:resolve' });
         setReferencesRun({ status: 'error', message: humanizeError(error, t) });
       }
@@ -642,6 +730,7 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
         clear();
         return;
       }
+      beginReferencesPick();
       void query(
         hit.kind === 'vertex' ? { kind: 'vertex', point: hit.point } : { kind: 'line', id: hit.id },
         revisionRef.current,
@@ -660,6 +749,7 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
     const geometry = geometryRef.current;
     const record = referencesResultsSnapshot().results?.target;
     if (!geometry) return;
+    beginReferencesPick();
     if (!record) {
       // No prior answer to repeat (an error cleared it); the store target, if
       // any, cannot be re-run without its coordinates.
@@ -681,6 +771,7 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
       setReferencesTarget(null);
       setReferencesCandidates(null);
       setReferencesResults(null);
+      setReferencesPendingTarget(null);
       return;
     }
     void query({ kind: 'line', id: index + 1 }, revisionRef.current, false);
@@ -719,47 +810,13 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
   );
 
   // --- Hint and warnings ---------------------------------------------------
-  const { hint, warnings } = useMemo(() => {
-    const warnings: string[] = [];
-    let hint = t(
-      'panels:references.hint.pick',
-      'Click a vertex or crease to see how to fold it.'
-    );
-    if (frames) {
-      const sheets = frames.components.filter((c) => c.frame);
-      const refused = frames.components.filter((c) => c.refused);
-      if (sheets.length > 1) {
-        hint = t(
-          'panels:references.hint.pickDecidesSheet',
-          'Click a vertex or crease to see how to fold it. This pattern has {{n}} sheets; the pick decides which one is used.',
-          { n: sheets.length }
-        );
-      }
-      if (frames.warnings.some((w) => w.kind === 'no_border_fallback')) {
-        warnings.push(
-          t(
-            'panels:references.warning.noBorder',
-            'No border creases: the default paper is taken as the sheet.'
-          )
-        );
-      }
-      if (refused.length > 0) {
-        warnings.push(
-          t(
-            'panels:references.warning.refusedSheets',
-            '{{n}} sheet(s) are not rectangles and are left out.',
-            { n: refused.length }
-          )
-        );
-      }
-    }
-    return { hint, warnings };
-  }, [frames, t]);
+  const { hint, warnings } = useMemo(() => referencesSidebarText(t, frames), [frames, t]);
 
   return {
     target,
     candidates,
     results: current ? results : null,
+    picked,
     frames,
     stale,
     activeCandidate,

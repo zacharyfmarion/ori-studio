@@ -23,6 +23,8 @@ import markCentreJson from './__fixtures__/mark-centre.json';
 import linePinchJson from './__fixtures__/line-pinch.json';
 import lineApproximateJson from './__fixtures__/line-approximate.json';
 import consecutiveMarksJson from './__fixtures__/consecutive-marks.json';
+import lineAxiom7Json from './__fixtures__/line-axiom7.json';
+import markAxiom4Json from './__fixtures__/mark-axiom4.json';
 
 const fixtures = {
   lineExact: lineExactJson as unknown as ReferenceFinderReplayFixture,
@@ -32,6 +34,8 @@ const fixtures = {
   linePinch: linePinchJson as unknown as ReferenceFinderReplayFixture,
   lineApproximate: lineApproximateJson as unknown as ReferenceFinderReplayFixture,
   consecutiveMarks: consecutiveMarksJson as unknown as ReferenceFinderReplayFixture,
+  lineAxiom7: lineAxiom7Json as unknown as ReferenceFinderReplayFixture,
+  markAxiom4: markAxiom4Json as unknown as ReferenceFinderReplayFixture,
 };
 
 const sheet = { width: 1, height: 1 };
@@ -226,6 +230,28 @@ describe('extractSolution on captured module output', () => {
     const o3 = solutions[1].steps.find((s) => s.axiom === 3);
     expect(o3?.bisectorHint).toEqual([0, 0.377319402557146]);
     expect(o3?.inputs).toEqual(['s', 'D']);
+  });
+
+  // O4 and O7 appear in no other fixture, and O7 is the one axiom whose
+  // serialised line slots run the other way (`refLineL2LP2L.cpp:146-148`), so
+  // the flattening order is worth pinning on real output rather than only on a
+  // synthetic step.
+  it('flattens an O7 step as p0, l0, l1 in the wire order', () => {
+    const solutions = extractAll(fixtures.lineAxiom7);
+    const o7 = solutions.flatMap((s) => s.steps).find((s) => s.axiom === 7);
+    expect(o7).toBeDefined();
+    expect(o7!.inputs).toEqual(['P', 'e', 'C']);
+    expect(o7!.order).toBe('l0,p0');
+    expect(o7!.line).toBeDefined();
+  });
+
+  it('flattens an O4 step as p0, l0', () => {
+    const solutions = extractAll(fixtures.markAxiom4);
+    const o4 = solutions.flatMap((s) => s.steps).find((s) => s.axiom === 4);
+    expect(o4).toBeDefined();
+    expect(o4!.inputs).toEqual(['Q', 'e']);
+    expect(o4!.pinch).toBe(true);
+    expect(o4!.line).toBeDefined();
   });
 });
 

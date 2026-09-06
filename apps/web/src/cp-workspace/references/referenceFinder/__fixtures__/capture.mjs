@@ -19,6 +19,8 @@
  *   consecutive-marks.json a solution whose steps contain two adjacent axiom-0 entries
  *   line-pinch.json        a line target whose solution renders an earlier line as a pinch
  *   line-approximate.json  a line target with no exact solution at rank 6 (err > 1e-9)
+ *   line-axiom7.json       a line target one of whose solutions uses axiom 7 (O7)
+ *   mark-axiom4.json       a point target one of whose solutions uses axiom 4 (O4)
  *
  * The consecutive-marks case is found by scanning deterministic pseudo-random targets; the
  * file records which target hit so the scan does not need to be repeated.
@@ -87,6 +89,20 @@ const approximate = await capture('line', [
   [0.789, 1],
 ]);
 fixtures.push(['line-approximate.json', approximate]);
+
+// O7 and O4 are rare enough that no other fixture contains one, and O7 is the
+// single axiom whose `Serialize` puts the self-folded line in `l1` and the
+// landing line in `l0` — the reverse of every other. Both targets were found by
+// the same LCG scan as the consecutive-marks case and are recorded here so the
+// capture stays deterministic.
+const axiom7 = await capture('line', [
+  [0.34375, 0],
+  [0.84375, 1],
+]);
+fixtures.push(['line-axiom7.json', axiom7]);
+
+const axiom4 = await capture('point', [0.34375, 0.3125]);
+fixtures.push(['mark-axiom4.json', axiom4]);
 
 const consecutive = await scanForConsecutiveMarks();
 fixtures.push(['consecutive-marks.json', consecutive]);

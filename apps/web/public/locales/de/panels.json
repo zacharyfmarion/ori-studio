@@ -948,7 +948,7 @@
       "axiom4": "Falte {{x}} durch {{p0}} und lege dabei {{l0}} auf sich selbst.",
       "axiom5": "Falte {{x}} durch {{p1}} und lege dabei {{p0}} auf {{l0}}.",
       "axiom6": "Falte {{x}}, indem du {{p0}} auf {{l0}} und {{p1}} auf {{l1}} legst.",
-      "axiom7": "Falte {{x}}, indem du {{l0}} auf sich selbst legst, sodass {{p0}} auf {{l1}} landet.",
+      "axiom7": "Falte {{x}}, indem du {{lSelf}} auf sich selbst legst, sodass {{p0}} auf {{lLand}} landet.",
       "mark": "Markiere {{x}}, wo {{l0}} auf {{l1}} trifft.",
       "pinch": "Nur anknicken — nur die Markierung wird gebraucht.",
       "unknown": "Falte {{x}} mit {{inputs}}."
@@ -971,8 +971,12 @@
     "targetGone": "Die gewählte Falte ist nicht mehr im Muster.",
     "title": "Referenzen",
     "warning": {
+      "degenerateBorderSegments": "{{n}} Randlinie(n) haben zusammenfallende Enden und wurden ignoriert.",
       "noBorder": "Keine Randfalten: das Standardpapier wird als Bogen genommen.",
-      "refusedSheets": "{{n}} Bogen/Bögen sind keine Rechtecke und werden ausgelassen."
+      "overlappingSheets": "{{n}} Faltlinie(n) liegen in mehr als einem Papier und wurden dem ersten zugeordnet.",
+      "refusedSheets": "{{n}} Bogen/Bögen sind keine Rechtecke und werden ausgelassen.",
+      "unassignedSegments": "{{n}} Faltlinie(n) liegen außerhalb jedes Papiers und werden ausgelassen.",
+      "zeroLengthSegments": "{{n}} Faltlinie(n) sind zu kurz zum Messen und wurden übersprungen."
     }
   },
   "simulator": {

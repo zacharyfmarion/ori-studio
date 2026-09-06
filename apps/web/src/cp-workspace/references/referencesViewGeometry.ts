@@ -9,6 +9,7 @@ import type { Point } from '../../lib/geometry';
 import { cpModelToSvg } from '../../lib/creasePatternViewport';
 import type { UserBounds } from '../renderer/camera';
 import type { ModelPoint, PointGeometry, Rgba, StrokeGeometry } from '../renderer/types';
+import { VERTEX_RADIUS_FACTOR } from '../adapters/cpPointsToScene';
 import { previewGroupsToStrokes, type PreviewStrokeGroup } from '../renderer/previewStrokes';
 import type { LineHitIndex } from '../picking/lineHitIndex';
 import type { ModelBounds, ReferencesGhostSegment, ReferencesMarker } from './referencesStepGeometry';
@@ -153,6 +154,61 @@ export function markersToOverlayPoints(
     fill.set(marker.kind === 'new' ? color : [color[0], color[1], color[2], 0], i * 4);
   });
   return { center, radius, screenSpace, fill, stroke, count };
+}
+
+/**
+ * The picked vertex, and the vertices a step names, as overlay points.
+ *
+ * They ride the overlay channel rather than the crease-point layer because that
+ * layer carries a whole-layer `pointOpacity` — the vertex crowding ramp — and on
+ * a dense pattern it fades to zero. Picking a vertex is this workspace's primary
+ * interaction, so the mark for the one that *was* picked has to survive the fade
+ * that makes the pattern readable. Same CSS radius as an ordinary vertex dot, so
+ * nothing changes on a sparse pattern where the layer is at full opacity.
+ */
+export function highlightedVerticesToOverlayPoints(
+  points: readonly Point[],
+  color: Rgba,
+  pointSize: number
+): PointGeometry | null {
+  const count = points.length;
+  if (count === 0) return null;
+  const center = new Float32Array(count * 2);
+  const radius = new Float32Array(count).fill(VERTEX_RADIUS_FACTOR * pointSize);
+  const screenSpace = new Float32Array(count).fill(1);
+  const fill = new Float32Array(count * 4);
+  const stroke = new Float32Array(count * 4);
+  points.forEach((point, i) => {
+    center[i * 2] = point.x;
+    center[i * 2 + 1] = point.y;
+    fill.set(color, i * 4);
+    stroke.set(color, i * 4);
+  });
+  return { center, radius, screenSpace, fill, stroke, count };
+}
+
+/** Two overlay-point uploads as one buffer; null when both are empty. */
+export function concatOverlayPoints(
+  a: PointGeometry | null,
+  b: PointGeometry | null
+): PointGeometry | null {
+  if (!a) return b;
+  if (!b) return a;
+  const count = a.count + b.count;
+  const join = (x: Float32Array, y: Float32Array): Float32Array => {
+    const out = new Float32Array(x.length + y.length);
+    out.set(x, 0);
+    out.set(y, x.length);
+    return out;
+  };
+  return {
+    center: join(a.center, b.center),
+    radius: join(a.radius, b.radius),
+    screenSpace: join(a.screenSpace, b.screenSpace),
+    fill: join(a.fill, b.fill),
+    stroke: join(a.stroke, b.stroke),
+    count,
+  };
 }
 
 /** The movement below which a press-and-release counts as a click, CSS px. */

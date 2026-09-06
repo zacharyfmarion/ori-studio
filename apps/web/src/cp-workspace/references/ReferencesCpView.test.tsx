@@ -15,7 +15,13 @@ import type { ReferencesCpViewHandle, ReferencesCpViewProps } from './References
  * bears on either. The stub records the uploads so a test can see that the
  * highlight props reach the renderer's channels.
  */
-const uploads = vi.hoisted(() => ({ setStrokes: vi.fn(), setPreview: vi.fn(), setOverlayPoints: vi.fn() }));
+const uploads = vi.hoisted(() => ({
+  setStrokes: vi.fn(),
+  setPreview: vi.fn(),
+  setOverlayPoints: vi.fn(),
+  setPoints: vi.fn(),
+  render: vi.fn(),
+}));
 vi.mock('../renderer/reglRenderer', () => ({
   createReglRenderer: () =>
     new Proxy(
@@ -90,6 +96,8 @@ afterEach(() => {
   uploads.setStrokes.mockClear();
   uploads.setPreview.mockClear();
   uploads.setOverlayPoints.mockClear();
+  uploads.setPoints.mockClear();
+  uploads.render.mockClear();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -213,6 +221,71 @@ describe('ReferencesCpView picking', () => {
       );
     });
     expect(onPick).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * A dense pattern: 200 short creases spread over the same extent as `GEOMETRY`,
+ * so the fit camera puts neighbouring vertices a couple of CSS px apart — the
+ * shape of a real 9k-segment CP, where the editor fades its vertex dots out.
+ */
+const DENSE_GEOMETRY = (() => {
+  const endpoints: number[] = [];
+  for (let i = 0; i < 200; i += 1) {
+    const x = i;
+    endpoints.push(x, 0, x + 0.5, 0.5);
+  }
+  return {
+    segEndpoints: Float64Array.from(endpoints),
+    segAttr: new Int32Array(200 * 5),
+  } as unknown as CpGeometryTransport;
+})();
+
+describe('ReferencesCpView vertex crowding', () => {
+  beforeEach(stubWebgl);
+
+  it('keeps every vertex dot on a sparse pattern', () => {
+    mount();
+    expect(uploads.render.mock.calls.at(-1)?.[0].pointOpacity).toBe(1);
+  });
+
+  it('fades the vertex layer out on a dense one, as the editor does', () => {
+    mount({ geometry: DENSE_GEOMETRY });
+    const frame = uploads.render.mock.calls.at(-1)?.[0];
+    expect(frame.pointOpacity).toBeLessThan(1);
+    expect(frame.pointOpacity).toBe(0);
+    // The outline ring collapses first, so it is gone too.
+    expect(frame.pointOutlinePx).toBe(0);
+  });
+
+  it('still marks the picked vertex when the layer under it has faded', () => {
+    // The whole point of the workspace: picking a vertex must leave a visible
+    // mark on exactly the patterns where the dots had to be faded away.
+    mount({ geometry: DENSE_GEOMETRY, selected: { kind: 'vertex', idx: 0 } });
+    expect(uploads.render.mock.calls.at(-1)?.[0].pointOpacity).toBe(0);
+    const overlay = uploads.setOverlayPoints.mock.calls.at(-1)?.[0];
+    expect(overlay?.count).toBe(1);
+    expect([overlay.center[0], overlay.center[1]]).toEqual([0, 0]);
+    // Drawn opaque: the overlay channel carries no per-instance alpha ramp.
+    expect(overlay.fill[3]).toBeGreaterThan(0);
+  });
+
+  it('marks the step-highlighted vertices there too', () => {
+    mount({ geometry: DENSE_GEOMETRY, highlightVertexIdx: new Set([0, 1]) });
+    expect(uploads.setOverlayPoints.mock.calls.at(-1)?.[0]?.count).toBe(2);
+  });
+});
+
+describe('ReferencesCpView device pixel ratio', () => {
+  beforeEach(stubWebgl);
+
+  it('caps the drawing buffer at the shared CP DPR policy', () => {
+    // The editor caps at 2 for the fill budget; a second surface on the same
+    // renderer must not quietly take the other side of that decision.
+    vi.stubGlobal('devicePixelRatio', 3);
+    const canvas = mount();
+    expect(canvas.width).toBe(Math.round(VIEWPORT.width * 2));
+    expect(canvas.height).toBe(Math.round(VIEWPORT.height * 2));
   });
 });
 

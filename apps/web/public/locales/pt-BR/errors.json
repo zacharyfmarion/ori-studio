@@ -66,7 +66,10 @@
     "oristudioBp": "O motor de box pleating parou inesperadamente. Recarregue o Ori Studio para continuar trabalhando neste design.",
     "oristudioCp": "O motor de padrões de vincos parou inesperadamente. Recarregue o Ori Studio — as edições feitas após o último salvamento podem ser perdidas.",
     "precrease": "O planejador de pré-dobras parou inesperadamente. Reabra o workspace de referências para reiniciá-lo.",
+    "precreaseLost": "O planejador de pré-vincos parou antes de responder. Tente a busca novamente.",
     "referenceFinder": "O localizador de referências parou inesperadamente. Reabra o workspace de referências para reiniciá-lo.",
+    "referenceFinderLost": "O localizador de referências parou antes de responder. Tente a busca novamente.",
+    "referenceFinderTimeout": "O localizador de referências demorou demais e foi reiniciado. Tente a busca novamente.",
     "simulator": "O simulador parou inesperadamente. Reabra o workspace de simulação para reiniciá-lo.",
     "treemaker": "O motor de design parou inesperadamente. Recarregue o Ori Studio para continuar trabalhando nesta árvore."
   }

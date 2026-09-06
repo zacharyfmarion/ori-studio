@@ -2852,7 +2852,7 @@
     "panels:references.step.axiom4": "4349b183b96e",
     "panels:references.step.axiom5": "a9ec7e85ddb8",
     "panels:references.step.axiom6": "7ae81b3dc2fe",
-    "panels:references.step.axiom7": "677351b67ae4",
+    "panels:references.step.axiom7": "1a0164030154",
     "panels:references.step.mark": "ddf65e2feab6",
     "panels:references.step.pinch": "6287f4ea52f7",
     "panels:references.step.unknown": "10c901df3982",
@@ -2951,7 +2951,14 @@
     "panels:references.summary.offLattice": "9a7c60d5ff90",
     "panels:references.summary.partial": "a4d50fb85403",
     "panels:references.summary.snapped": "3c64eaef0462",
-    "panels:references.summary.unsolved": "831e483a112d"
+    "panels:references.summary.unsolved": "831e483a112d",
+    "panels:references.warning.degenerateBorderSegments": "fa24965df5b3",
+    "panels:references.warning.overlappingSheets": "d979774e65db",
+    "panels:references.warning.unassignedSegments": "6540dac6cf1e",
+    "panels:references.warning.zeroLengthSegments": "c09d5c737d45",
+    "errors:worker.precreaseLost": "cbc28a1a6223",
+    "errors:worker.referenceFinderLost": "0b365182ccde",
+    "errors:worker.referenceFinderTimeout": "a0afb00f58f4"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5806,7 +5813,7 @@
     "panels:references.step.axiom4": "4349b183b96e",
     "panels:references.step.axiom5": "a9ec7e85ddb8",
     "panels:references.step.axiom6": "7ae81b3dc2fe",
-    "panels:references.step.axiom7": "677351b67ae4",
+    "panels:references.step.axiom7": "1a0164030154",
     "panels:references.step.mark": "ddf65e2feab6",
     "panels:references.step.pinch": "6287f4ea52f7",
     "panels:references.step.unknown": "10c901df3982",
@@ -5905,7 +5912,14 @@
     "panels:references.summary.offLattice": "9a7c60d5ff90",
     "panels:references.summary.partial": "a4d50fb85403",
     "panels:references.summary.snapped": "3c64eaef0462",
-    "panels:references.summary.unsolved": "831e483a112d"
+    "panels:references.summary.unsolved": "831e483a112d",
+    "panels:references.warning.degenerateBorderSegments": "fa24965df5b3",
+    "panels:references.warning.overlappingSheets": "d979774e65db",
+    "panels:references.warning.unassignedSegments": "6540dac6cf1e",
+    "panels:references.warning.zeroLengthSegments": "c09d5c737d45",
+    "errors:worker.precreaseLost": "cbc28a1a6223",
+    "errors:worker.referenceFinderLost": "0b365182ccde",
+    "errors:worker.referenceFinderTimeout": "a0afb00f58f4"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8760,7 +8774,7 @@
     "panels:references.step.axiom4": "4349b183b96e",
     "panels:references.step.axiom5": "a9ec7e85ddb8",
     "panels:references.step.axiom6": "7ae81b3dc2fe",
-    "panels:references.step.axiom7": "677351b67ae4",
+    "panels:references.step.axiom7": "1a0164030154",
     "panels:references.step.mark": "ddf65e2feab6",
     "panels:references.step.pinch": "6287f4ea52f7",
     "panels:references.step.unknown": "10c901df3982",
@@ -8859,7 +8873,14 @@
     "panels:references.summary.offLattice": "9a7c60d5ff90",
     "panels:references.summary.partial": "a4d50fb85403",
     "panels:references.summary.snapped": "3c64eaef0462",
-    "panels:references.summary.unsolved": "831e483a112d"
+    "panels:references.summary.unsolved": "831e483a112d",
+    "panels:references.warning.degenerateBorderSegments": "fa24965df5b3",
+    "panels:references.warning.overlappingSheets": "d979774e65db",
+    "panels:references.warning.unassignedSegments": "6540dac6cf1e",
+    "panels:references.warning.zeroLengthSegments": "c09d5c737d45",
+    "errors:worker.precreaseLost": "cbc28a1a6223",
+    "errors:worker.referenceFinderLost": "0b365182ccde",
+    "errors:worker.referenceFinderTimeout": "a0afb00f58f4"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11663,7 +11684,7 @@
     "panels:references.step.axiom4": "4349b183b96e",
     "panels:references.step.axiom5": "a9ec7e85ddb8",
     "panels:references.step.axiom6": "7ae81b3dc2fe",
-    "panels:references.step.axiom7": "677351b67ae4",
+    "panels:references.step.axiom7": "1a0164030154",
     "panels:references.step.mark": "ddf65e2feab6",
     "panels:references.step.pinch": "6287f4ea52f7",
     "panels:references.step.unknown": "10c901df3982",
@@ -11761,7 +11782,14 @@
     "panels:references.summary.offLattice": "9a7c60d5ff90",
     "panels:references.summary.partial": "a4d50fb85403",
     "panels:references.summary.snapped": "3c64eaef0462",
-    "panels:references.summary.unsolved": "831e483a112d"
+    "panels:references.summary.unsolved": "831e483a112d",
+    "panels:references.warning.degenerateBorderSegments": "fa24965df5b3",
+    "panels:references.warning.overlappingSheets": "d979774e65db",
+    "panels:references.warning.unassignedSegments": "6540dac6cf1e",
+    "panels:references.warning.zeroLengthSegments": "c09d5c737d45",
+    "errors:worker.precreaseLost": "cbc28a1a6223",
+    "errors:worker.referenceFinderLost": "0b365182ccde",
+    "errors:worker.referenceFinderTimeout": "a0afb00f58f4"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14565,7 +14593,7 @@
     "panels:references.step.axiom4": "4349b183b96e",
     "panels:references.step.axiom5": "a9ec7e85ddb8",
     "panels:references.step.axiom6": "7ae81b3dc2fe",
-    "panels:references.step.axiom7": "677351b67ae4",
+    "panels:references.step.axiom7": "1a0164030154",
     "panels:references.step.mark": "ddf65e2feab6",
     "panels:references.step.pinch": "6287f4ea52f7",
     "panels:references.step.unknown": "10c901df3982",
@@ -14663,7 +14691,14 @@
     "panels:references.summary.offLattice": "9a7c60d5ff90",
     "panels:references.summary.partial": "a4d50fb85403",
     "panels:references.summary.snapped": "3c64eaef0462",
-    "panels:references.summary.unsolved": "831e483a112d"
+    "panels:references.summary.unsolved": "831e483a112d",
+    "panels:references.warning.degenerateBorderSegments": "fa24965df5b3",
+    "panels:references.warning.overlappingSheets": "d979774e65db",
+    "panels:references.warning.unassignedSegments": "6540dac6cf1e",
+    "panels:references.warning.zeroLengthSegments": "c09d5c737d45",
+    "errors:worker.precreaseLost": "cbc28a1a6223",
+    "errors:worker.referenceFinderLost": "0b365182ccde",
+    "errors:worker.referenceFinderTimeout": "a0afb00f58f4"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -17518,7 +17553,7 @@
     "panels:references.step.axiom4": "4349b183b96e",
     "panels:references.step.axiom5": "a9ec7e85ddb8",
     "panels:references.step.axiom6": "7ae81b3dc2fe",
-    "panels:references.step.axiom7": "677351b67ae4",
+    "panels:references.step.axiom7": "1a0164030154",
     "panels:references.step.mark": "ddf65e2feab6",
     "panels:references.step.pinch": "6287f4ea52f7",
     "panels:references.step.unknown": "10c901df3982",
@@ -17617,7 +17652,14 @@
     "panels:references.summary.offLattice": "9a7c60d5ff90",
     "panels:references.summary.partial": "a4d50fb85403",
     "panels:references.summary.snapped": "3c64eaef0462",
-    "panels:references.summary.unsolved": "831e483a112d"
+    "panels:references.summary.unsolved": "831e483a112d",
+    "panels:references.warning.degenerateBorderSegments": "fa24965df5b3",
+    "panels:references.warning.overlappingSheets": "d979774e65db",
+    "panels:references.warning.unassignedSegments": "6540dac6cf1e",
+    "panels:references.warning.zeroLengthSegments": "c09d5c737d45",
+    "errors:worker.precreaseLost": "cbc28a1a6223",
+    "errors:worker.referenceFinderLost": "0b365182ccde",
+    "errors:worker.referenceFinderTimeout": "a0afb00f58f4"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -20472,7 +20514,7 @@
     "panels:references.step.axiom4": "4349b183b96e",
     "panels:references.step.axiom5": "a9ec7e85ddb8",
     "panels:references.step.axiom6": "7ae81b3dc2fe",
-    "panels:references.step.axiom7": "677351b67ae4",
+    "panels:references.step.axiom7": "1a0164030154",
     "panels:references.step.mark": "ddf65e2feab6",
     "panels:references.step.pinch": "6287f4ea52f7",
     "panels:references.step.unknown": "10c901df3982",
@@ -20571,7 +20613,14 @@
     "panels:references.summary.offLattice": "9a7c60d5ff90",
     "panels:references.summary.partial": "a4d50fb85403",
     "panels:references.summary.snapped": "3c64eaef0462",
-    "panels:references.summary.unsolved": "831e483a112d"
+    "panels:references.summary.unsolved": "831e483a112d",
+    "panels:references.warning.degenerateBorderSegments": "fa24965df5b3",
+    "panels:references.warning.overlappingSheets": "d979774e65db",
+    "panels:references.warning.unassignedSegments": "6540dac6cf1e",
+    "panels:references.warning.zeroLengthSegments": "c09d5c737d45",
+    "errors:worker.precreaseLost": "cbc28a1a6223",
+    "errors:worker.referenceFinderLost": "0b365182ccde",
+    "errors:worker.referenceFinderTimeout": "a0afb00f58f4"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -23375,7 +23424,7 @@
     "panels:references.step.axiom4": "4349b183b96e",
     "panels:references.step.axiom5": "a9ec7e85ddb8",
     "panels:references.step.axiom6": "7ae81b3dc2fe",
-    "panels:references.step.axiom7": "677351b67ae4",
+    "panels:references.step.axiom7": "1a0164030154",
     "panels:references.step.mark": "ddf65e2feab6",
     "panels:references.step.pinch": "6287f4ea52f7",
     "panels:references.step.unknown": "10c901df3982",
@@ -23473,6 +23522,13 @@
     "panels:references.summary.offLattice": "9a7c60d5ff90",
     "panels:references.summary.partial": "a4d50fb85403",
     "panels:references.summary.snapped": "3c64eaef0462",
-    "panels:references.summary.unsolved": "831e483a112d"
+    "panels:references.summary.unsolved": "831e483a112d",
+    "panels:references.warning.degenerateBorderSegments": "fa24965df5b3",
+    "panels:references.warning.overlappingSheets": "d979774e65db",
+    "panels:references.warning.unassignedSegments": "6540dac6cf1e",
+    "panels:references.warning.zeroLengthSegments": "c09d5c737d45",
+    "errors:worker.precreaseLost": "cbc28a1a6223",
+    "errors:worker.referenceFinderLost": "0b365182ccde",
+    "errors:worker.referenceFinderTimeout": "a0afb00f58f4"
   }
 }

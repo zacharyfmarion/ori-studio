@@ -12,6 +12,21 @@ describe('toast message helpers', () => {
     expect(formatUnknownError('plain failure')).toBe('plain failure');
   });
 
+  // The runtimes' loss envelopes carry an internal English sentence written for
+  // the caller ("The reference finder was released while it was running."),
+  // which used to render verbatim and untranslated in the References panel.
+  it('humanizes the worker-loss envelopes rather than repeating their internal message', () => {
+    for (const code of [
+      'reference_finder_client_lost',
+      'reference_finder_timeout',
+      'precrease_client_lost',
+    ]) {
+      const message = humanizeError({ code, message: 'was released while it was running.' }, t);
+      expect(message).not.toContain('was released while it was running');
+      expect(message).toContain('Try the search again.');
+    }
+  });
+
   it('humanizes structural fold error codes', () => {
     expect(
       humanizeError({ code: 'fold_same_parity', message: 'InitialHierarchy(...)' }, t)

@@ -66,7 +66,10 @@
     "oristudioBp": "Le moteur de pliage en boîte s'est arrêté de façon inattendue. Rechargez Ori Studio pour continuer à travailler sur ce modèle.",
     "oristudioCp": "Le moteur de patrons de plis s'est arrêté de façon inattendue. Rechargez Ori Studio — les modifications postérieures à la dernière sauvegarde peuvent être perdues.",
     "precrease": "Le planificateur de pré-pliage s’est arrêté de façon inattendue. Rouvrez l’espace de travail Références pour le relancer.",
+    "precreaseLost": "Le planificateur de préplis s'est arrêté avant de pouvoir répondre. Relancez la recherche.",
     "referenceFinder": "Le chercheur de références s'est arrêté de façon inattendue. Rouvrez l'espace de travail Références pour le relancer.",
+    "referenceFinderLost": "Le chercheur de références s'est arrêté avant de pouvoir répondre. Relancez la recherche.",
+    "referenceFinderTimeout": "Le chercheur de références a mis trop de temps et a été redémarré. Relancez la recherche.",
     "simulator": "Le simulateur s'est arrêté de façon inattendue. Rouvrez l'espace de travail Simuler pour le relancer.",
     "treemaker": "Le moteur de conception s'est arrêté de façon inattendue. Rechargez Ori Studio pour continuer à travailler sur cet arbre."
   }

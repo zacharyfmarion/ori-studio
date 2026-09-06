@@ -918,7 +918,7 @@
       "axiom4": "经过 {{p0}} 折出 {{x}}，同时使 {{l0}} 与自身重合。",
       "axiom5": "经过 {{p1}} 折出 {{x}}，同时将 {{p0}} 对齐到 {{l0}}。",
       "axiom6": "将 {{p0}} 对齐到 {{l0}}、{{p1}} 对齐到 {{l1}}，折出 {{x}}。",
-      "axiom7": "使 {{l0}} 与自身重合并让 {{p0}} 落在 {{l1}} 上，折出 {{x}}。",
+      "axiom7": "使 {{lSelf}} 与自身重合并让 {{p0}} 落在 {{lLand}} 上，折出 {{x}}。",
       "mark": "在 {{l0}} 与 {{l1}} 相交处标记 {{x}}。",
       "pinch": "只需轻捏——只需要一个标记。",
       "unknown": "使用 {{inputs}} 折出 {{x}}。"
@@ -941,8 +941,12 @@
     "targetGone": "所选折痕已不在折痕图中。",
     "title": "参考",
     "warning": {
+      "degenerateBorderSegments": "有 {{n}} 条边界折线两端重合，已忽略。",
       "noBorder": "没有边缘折痕：以默认纸张作为纸。",
-      "refusedSheets": "{{n}} 张纸不是矩形，已被排除。"
+      "overlappingSheets": "有 {{n}} 条折线同时位于多张纸内，已归入第一张。",
+      "refusedSheets": "{{n}} 张纸不是矩形，已被排除。",
+      "unassignedSegments": "有 {{n}} 条折线不在任何纸张内，已被排除。",
+      "zeroLengthSegments": "有 {{n}} 条折线过短无法测量，已跳过。"
     }
   },
   "simulator": {

@@ -168,20 +168,32 @@ function lostError(loss: ReferenceFinderClientLoss): WasmErrorEnvelope {
 }
 
 /**
- * Settle with `pending`, or reject as soon as any client of `instance` goes away.
+ * Settle with `pending`, or reject as soon as the client at `(instance, key)`
+ * goes away.
  *
  * The runtime already rejects the calls it dispatched itself; this is for a
  * caller holding a longer promise over several of them (a batch), which
- * otherwise has no way to hear that its transport is gone.
+ * otherwise has no way to hear that its transport is gone. Because arguments
+ * evaluate before this is called, a loss during the call's own synchronous
+ * prefix is never seen here — the runtime's in-flight rejection stays the
+ * primary channel and this is the batch-level backstop.
+ *
+ * Scoped by *key*, not just by instance: one instance holds up to
+ * {@link REFERENCE_FINDER_DATABASES_PER_INSTANCE} databases (a pattern with
+ * sheets of different aspect ratios gives two), and the idle teardown of an
+ * unrelated one must not reject a healthy query. Key rather than client
+ * identity, because a respawn under the same key is still the caller's
+ * transport.
  */
 export function whileReferenceFinderClientAlive<T>(
   instance: ReferenceFinderInstance,
+  key: string,
   pending: Promise<T>
 ): Promise<T> {
   let unsubscribe: (() => void) | null = null;
   const lost = new Promise<never>((_resolve, reject) => {
     unsubscribe = onReferenceFinderClientLost((loss) => {
-      if (loss.instance === instance) reject(lostError(loss));
+      if (loss.instance === instance && loss.key === key) reject(lostError(loss));
     });
   });
   return Promise.race([pending, lost]).finally(() => unsubscribe?.());

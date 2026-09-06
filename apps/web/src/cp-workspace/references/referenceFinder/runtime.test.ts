@@ -148,15 +148,45 @@ describe('reference-finder query guard', () => {
     expect(runtime.isReferenceFinderClientConnected('window')).toBe(false);
   });
 
-  it('whileReferenceFinderClientAlive rejects when a client of that instance is lost', async () => {
+  it('whileReferenceFinderClientAlive rejects when its own client is lost', async () => {
     const runtime = await freshRuntime();
-    runtime.getReferenceFinderClient('window');
+    const window = runtime.getReferenceFinderClient('window');
     runtime.getReferenceFinderClient('planner');
     const guarded = runtime
-      .whileReferenceFinderClientAlive('window', new Promise<string>(() => {}))
+      .whileReferenceFinderClientAlive('window', window.key, new Promise<string>(() => {}))
       .catch((e: unknown) => e);
     // A planner loss is not a window loss.
     runtime.releaseReferenceFinderClient('planner');
+    runtime.releaseReferenceFinderClient('window');
+    await expect(guarded).resolves.toMatchObject({ code: 'reference_finder_client_lost' });
+  });
+
+  it('whileReferenceFinderClientAlive ignores a sibling database of the same instance', async () => {
+    // One instance holds two databases when a pattern has sheets of different
+    // aspect ratios. The warm-up sheet's 60 s idle teardown must not reject a
+    // query running against the sheet the user actually picked on.
+    const runtime = await freshRuntime();
+    const warmed = runtime.getReferenceFinderClient('window');
+    const picked = runtime.getReferenceFinderClient('window', other);
+    expect(picked.key).not.toBe(warmed.key);
+
+    let settled: unknown = 'pending';
+    const guarded = runtime
+      .whileReferenceFinderClientAlive('window', picked.key, new Promise<string>(() => {}))
+      .catch((e: unknown) => e);
+    void guarded.then((value) => {
+      settled = value;
+    });
+
+    // Keep the picked client fresh (a query would `touch` it), then let the
+    // warmed one's 60 s idle timer fire underneath the guarded promise.
+    await vi.advanceTimersByTimeAsync(runtime.REFERENCE_FINDER_IDLE_TEARDOWN_MS - 1);
+    expect(runtime.getReferenceFinderClient('window', other)).toBe(picked);
+    await vi.advanceTimersByTimeAsync(2);
+    expect(runtime.getReferenceFinderClient('window', other)).toBe(picked);
+    expect(settled).toBe('pending');
+
+    // Losing the picked client itself still rejects.
     runtime.releaseReferenceFinderClient('window');
     await expect(guarded).resolves.toMatchObject({ code: 'reference_finder_client_lost' });
   });

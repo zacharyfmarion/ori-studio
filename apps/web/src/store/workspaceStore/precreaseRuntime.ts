@@ -1,8 +1,11 @@
 import { wrap, type Remote } from 'comlink';
 import type { PrecreaseWorkerApi } from '../../workers/precreaseWorker';
+import type { WasmErrorEnvelope } from '../../engine/types';
 import { attachWorkerDiagnostics } from '../../lib/workerDiagnostics';
 
 export type PrecreaseClient = Remote<PrecreaseWorkerApi>;
+
+export type PrecreaseClientLossReason = 'crashed' | 'released';
 
 // Owns the precrease planner worker, following `simulatorRuntime.ts`: a
 // reference-counted singleton that the References workspace retains on entry
@@ -21,6 +24,47 @@ let worker: Worker | null = null;
 let client: PrecreaseClient | null = null;
 let detachDiagnostics: (() => void) | null = null;
 let refCount = 0;
+const lossListeners = new Set<(reason: PrecreaseClientLossReason) => void>();
+
+/** Called when the worker goes away, for whatever reason. */
+export function onPrecreaseClientLost(
+  listener: (reason: PrecreaseClientLossReason) => void
+): () => void {
+  lossListeners.add(listener);
+  return () => {
+    lossListeners.delete(listener);
+  };
+}
+
+function lostError(reason: PrecreaseClientLossReason): WasmErrorEnvelope {
+  return {
+    code: 'precrease_client_lost',
+    message:
+      reason === 'crashed'
+        ? 'The precrease planner stopped while it was running.'
+        : 'The precrease planner was released while it was running.',
+  };
+}
+
+/**
+ * Settle with `pending`, or reject as soon as the worker behind it goes away.
+ *
+ * `terminate()` does not reject comlink's outstanding promises — they simply
+ * never settle — so without this a crash (or a release) between a call and its
+ * answer leaves the caller awaiting forever. That is not a hypothetical: the
+ * References query awaits `rfToModelMany` *inside a begun run*, and an orphaned
+ * promise there meant the run never ended, the panel kept its "Finding
+ * references…" overlay across a workspace switch, and Stop had nothing left to
+ * reject. Rejecting is the whole fix; a `finally` cannot help a promise that
+ * never settles.
+ */
+export function whilePrecreaseClientAlive<T>(pending: Promise<T>): Promise<T> {
+  let unsubscribe: (() => void) | null = null;
+  const lost = new Promise<never>((_resolve, reject) => {
+    unsubscribe = onPrecreaseClientLost((reason) => reject(lostError(reason)));
+  });
+  return Promise.race([pending, lost]).finally(() => unsubscribe?.());
+}
 
 function spawn(): PrecreaseClient {
   const spawned = new Worker(new URL('../../workers/precreaseWorker.ts', import.meta.url), {
@@ -29,12 +73,12 @@ function spawn(): PrecreaseClient {
   worker = spawned;
   detachDiagnostics = attachWorkerDiagnostics(spawned, 'precrease', () => {
     // A dead worker must not be handed out again: drop it so the next
-    // `getPrecreaseClient` spawns a replacement. Holders learn of the loss
-    // through the app's failure sink (the error toast); their in-flight calls
-    // never settle, which is why callers key results on the document revision
-    // and re-ask rather than wait. Guarded on identity so a late event from a
-    // worker already replaced cannot drop the replacement.
-    if (worker === spawned) dropWorker();
+    // `getPrecreaseClient` spawns a replacement. Callers inside a run wrap
+    // their call in `whilePrecreaseClientAlive` so the loss reaches them as a
+    // rejection; everything else keys results on the document revision and
+    // re-asks. Guarded on identity so a late event from a worker already
+    // replaced cannot drop the replacement.
+    if (worker === spawned) dropWorker('crashed');
   });
   client = wrap<PrecreaseWorkerApi>(spawned);
   return client;
@@ -69,15 +113,22 @@ export function getPrecreaseClient(): PrecreaseClient {
 export function releasePrecreaseClient(): void {
   refCount = Math.max(0, refCount - 1);
   if (refCount > 0) return;
-  dropWorker();
+  dropWorker('released');
 }
 
-function dropWorker(): void {
+/**
+ * The one place the worker goes away. Order matters, as in
+ * `referenceFinderRuntime`'s `loseClient`: terminate, then announce, so a
+ * listener that immediately re-asks gets a fresh worker rather than the corpse.
+ */
+function dropWorker(reason: PrecreaseClientLossReason): void {
+  const had = worker !== null;
   detachDiagnostics?.();
   detachDiagnostics = null;
   client = null;
   worker?.terminate();
   worker = null;
+  if (had) for (const listener of [...lossListeners]) listener(reason);
 }
 
 /** The running worker, or null when nothing holds a reference. */

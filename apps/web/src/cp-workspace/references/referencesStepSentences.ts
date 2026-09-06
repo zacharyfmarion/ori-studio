@@ -14,7 +14,12 @@
  * - O4 `L2LC2P`: bring l0 to itself so the crease goes through p0.
  * - O5 `P2LC2P`: bring p0 to l0 so the crease passes through p1.
  * - O6 `P2LP2L`: bring p0 to l0 and p1 to l1.
- * - O7 `L2LP2L`: bring l0 onto itself so that p0 falls on l1.
+ * - O7 `L2LP2L`: bring **l1** onto itself so that p0 falls on **l0** (note: O7
+ *   is the one axiom whose serialised slots run the other way — `Serialize`
+ *   emits `rl2` as `l1` and `rl1` as `l0`, see
+ *   `third_party/reference-finder/src/core/class/refLine/refLineL2LP2L.cpp:146-148`.
+ *   The class comment above that constructor names its arguments `l1`/`l2` in
+ *   the abstract, which is *not* the slot order on the wire).
  *
  * React-free; literal `t()` keys so the extractor sees them.
  */
@@ -158,10 +163,13 @@ export function describeStep(t: TFunction, step: ExtractedStep): string {
       );
       break;
     case 7:
+      // O7 alone serialises its lines the other way round: the self-folded
+      // line arrives in `l1` and the landing line in `l0`. The placeholders are
+      // named by role so a translator cannot re-plant the swap.
       sentence = t(
         'panels:references.step.axiom7',
-        'Fold {{x}}, folding {{l0}} onto itself so that {{p0}} lands on {{l1}}.',
-        { x, p0, l0, l1 }
+        'Fold {{x}}, folding {{lSelf}} onto itself so that {{p0}} lands on {{lLand}}.',
+        { x, p0, lSelf: l1, lLand: l0 }
       );
       break;
     default:

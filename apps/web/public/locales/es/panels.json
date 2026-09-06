@@ -982,7 +982,7 @@
       "axiom4": "Dobla {{x}} pasando por {{p0}}, plegando {{l0}} sobre sí misma.",
       "axiom5": "Dobla {{x}} pasando por {{p1}}, llevando {{p0}} sobre {{l0}}.",
       "axiom6": "Dobla {{x}} llevando {{p0}} sobre {{l0}} y {{p1}} sobre {{l1}}.",
-      "axiom7": "Dobla {{x}} plegando {{l0}} sobre sí misma de modo que {{p0}} caiga sobre {{l1}}.",
+      "axiom7": "Dobla {{x}} plegando {{lSelf}} sobre sí misma de modo que {{p0}} caiga sobre {{lLand}}.",
       "mark": "Marca {{x}} donde {{l0}} se cruza con {{l1}}.",
       "pinch": "Solo un pellizco: basta con la marca.",
       "unknown": "Dobla {{x}} usando {{inputs}}."
@@ -1005,8 +1005,12 @@
     "targetGone": "El pliegue elegido ya no está en el patrón.",
     "title": "Referencias",
     "warning": {
+      "degenerateBorderSegments": "{{n}} pliegue(s) del borde tienen extremos coincidentes y se ignoraron.",
       "noBorder": "Sin pliegues de borde: se toma el papel predeterminado como hoja.",
-      "refusedSheets": "{{n}} hoja(s) no son rectángulos y se omiten."
+      "overlappingSheets": "{{n}} pliegue(s) están dentro de más de una hoja y se asignaron a la primera.",
+      "refusedSheets": "{{n}} hoja(s) no son rectángulos y se omiten.",
+      "unassignedSegments": "{{n}} pliegue(s) quedan fuera de todas las hojas y se dejan fuera.",
+      "zeroLengthSegments": "{{n}} pliegue(s) son demasiado cortos para medirlos y se omitieron."
     }
   },
   "simulator": {

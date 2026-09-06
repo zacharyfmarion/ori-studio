@@ -210,6 +210,22 @@ function lineStepCount(solution: ExtractedSolution): number {
 }
 
 /**
+ * The trailing standalone diagram a point query ends on — the one that draws
+ * the finished mark.
+ *
+ * This is the *last* diagram, not `diagrams[lineStepCount]`: `BuildDiagrams`
+ * (`third_party/reference-finder/src/core/class/refBase.cpp:172-177`) pushes a
+ * `DgmInfo(0, 0)` placeholder ahead of everything when the sequence contains no
+ * action line at all, so a mark made only of originals (the sheet centre, whose
+ * one step is the O0 intersection of the two diagonals) has
+ * `[placeholder, final-mark]` and index `lineStepCount === 0` is the
+ * placeholder, not the mark.
+ */
+function finalMarkDiagram(raw: RawSolution): Diagram | null {
+  return raw.diagrams[raw.diagrams.length - 1] ?? null;
+}
+
+/**
  * The diagram to show for step `index`.
  *
  * A line step has its own. A mark step has none (`extractor.ts`), so it borrows
@@ -229,7 +245,10 @@ export function stepDiagram(
     const later = solution.steps[i].diagramIndex;
     if (later !== null) return raw.diagrams[later] ?? null;
   }
-  return raw.diagrams[lineStepCount(solution)] ?? null;
+  // Only reachable for a point solution: `resolveLineTarget` refuses a line
+  // solution whose last step is not a line step, so the scan above always finds
+  // one there.
+  return finalMarkDiagram(raw);
 }
 
 /**
@@ -238,8 +257,8 @@ export function stepDiagram(
  * line step's, otherwise whatever action-free diagram an original carries.
  */
 export function candidateDiagram(raw: RawSolution, solution: ExtractedSolution): Diagram | null {
+  if (solution.target.kind === 'point') return finalMarkDiagram(raw);
   const lines = lineStepCount(solution);
-  if (solution.target.kind === 'point' && raw.diagrams[lines]) return raw.diagrams[lines];
   if (lines > 0) return raw.diagrams[lines - 1] ?? null;
-  return raw.diagrams[raw.diagrams.length - 1] ?? null;
+  return finalMarkDiagram(raw);
 }
