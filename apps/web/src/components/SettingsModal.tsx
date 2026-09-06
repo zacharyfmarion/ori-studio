@@ -52,6 +52,7 @@ import {
   keyChordId,
   SHORTCUT_DEFINITIONS,
   shortcutKeepsDefaultChords,
+  isConditionalShortcutScope,
   shortcutMayDecline,
   shortcutLabelForAction,
   type KeyChord,
@@ -438,8 +439,10 @@ interface DefaultsSourceDiff {
  * same warning — so the co-claimant is looked up directly.
  *
  * Claimants that may not answer the chord are excluded, because they leave
- * nothing dead: `simulator` is in the stack only while a simulation owns the
- * keyboard, so `C`, `L` and `R` coexist with CP tools by design, and a viewport
+ * nothing dead: a conditional scope (`simulator`, `references`) is in the stack
+ * only while its panel owns the keyboard, so its chords coexist with CP tools by
+ * design — but only across scopes, since within one the first match still wins
+ * and the loser is dead. Likewise a viewport
  * binding that {@link shortcutMayDecline} hands the chord on when it does not
  * apply. Skipping the latter is what makes `Delete` name `edit.delete` — the
  * global binding a crease-pattern capture really costs — instead of
@@ -453,9 +456,21 @@ function findChordCoClaimant(
   chord: KeyChord,
   resolution: ShortcutResolution
 ): ShortcutDefinition | null {
-  if (definition.scope === 'simulator') return null;
   for (const candidate of SHORTCUT_DEFINITIONS) {
-    if (candidate.id === definition.id || candidate.scope === 'simulator') continue;
+    if (candidate.id === definition.id) continue;
+    // A conditional scope is a deferral only *across* scopes: `simulator` and
+    // `references` sit in the stack solely while their panel owns the keyboard,
+    // so their chords coexist with everyone else's. Within one such scope the
+    // dispatcher still takes the first match, so the loser's chord is dead and
+    // the collision is real — which is why this is scope-relative rather than a
+    // blanket skip. Mirrors `mayNotAnswer` in findShortcutShadowing.
+    if (
+      candidate.scope !== definition.scope &&
+      (isConditionalShortcutScope(definition.scope) ||
+        isConditionalShortcutScope(candidate.scope))
+    ) {
+      continue;
+    }
     if (shortcutMayDecline(candidate.id)) continue;
     if (definition.upstreamAction && definition.upstreamAction === candidate.upstreamAction) {
       continue;
@@ -609,8 +624,9 @@ type CaptureDecision =
  * directions alike (`blockedBy` in `importPlan.ts`: "if the import wins, the
  * blocker's chord is dead instead ... the fix is the same"). So a `conditional`
  * answer is re-asked as {@link findChordCoClaimant}, which ignores direction and
- * excludes the two non-collisions — a `simulator` claimant, in the stack only
- * while a simulation owns the keyboard, and one verb wearing two ids.
+ * excludes the two non-collisions — a conditional-scope claimant in another
+ * scope (`simulator`, `references`), in the stack only while its own panel owns
+ * the keyboard, and one verb wearing two ids.
  */
 /**
  * What to tell the user about a chord someone else owns.
