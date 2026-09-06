@@ -122,8 +122,7 @@ fn iguana_canvas_splits_into_thirty_one_rectangular_sheets() {
 
 #[test]
 fn spike_grid6_is_exact_with_fourteen_lines() {
-    let analysis =
-        analyze_fold_file(&repo_root().join("research/reference-finder-spike/grid6.fold"));
+    let analysis = analyze_fold_file(&repo_root().join("tests/fixtures/precrease/grid6.fold"));
     assert_eq!(analysis.components.len(), 1);
     let c = &analysis.components[0];
     assert!(c.refused.is_none());
@@ -134,12 +133,22 @@ fn spike_grid6_is_exact_with_fourteen_lines() {
 }
 
 #[test]
-fn spike_panel_fixtures_are_exact() {
-    let dir = repo_root().join("research/reference-finder-spike/panel-fixtures");
+fn panel_counterexample_fixtures_are_exact() {
+    // The design panel's counterexample crease patterns, kept beside the planner's
+    // own fixtures. grid6 has its own test above, and iguana-c0 is a real design
+    // rather than a counterexample, so both are skipped here.
+    let dir = repo_root().join("tests/fixtures/precrease");
     let mut seen = 0;
-    for entry in std::fs::read_dir(&dir).expect("panel-fixtures") {
+    for entry in std::fs::read_dir(&dir).expect("precrease fixtures") {
         let path = entry.expect("entry").path();
         if path.extension().and_then(|e| e.to_str()) != Some("fold") {
+            continue;
+        }
+        let name = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or_default();
+        if name == "grid6" || name == "iguana-c0" {
             continue;
         }
         seen += 1;

@@ -72,9 +72,11 @@ over · settings live in the toolbar, no View pane · default chords as proposed
 ### Evidence this plan rests on
 
 Measured 2026-09-05 by (a) driving the committed `ref.wasm` from Node, (b) a JavaScript
-prototype of the planner (`research/reference-finder-spike/spike-closure.mjs`), (c) a
+prototype of the planner (a Node script, since removed — see the commit that deleted
+`research/reference-finder-spike/`), (c) a
 design panel of four reviewers plus seven adversarial verifiers who built their own probes
-(`research/reference-finder-spike/panel-probes/`, fixtures in `panel-fixtures/`), (d) a
+(their probes are in that same removed directory; the counterexample crease patterns they
+built live on in `tests/fixtures/precrease/`), (d) a
 four-lens review of the earlier plan against the codebase, and (e) a three-reader
 reconnaissance of the Simulate workspace's wiring. The prototype has defects the panel
 found (listed below), so its counts are **upper bounds** on auxiliary creases; the panel's
@@ -162,7 +164,7 @@ closure or ReferenceFinder pass runs unbounded).
 | Stuck events | 0: 74 · 1: 28 · 2: 7 · 4: 1 · 5: 2 — 91 % need at most one |
 | Auxiliary folds (prototype upper bound) | 0: 74 · 1: 13 · 2: 8 · 3: 5 · 4: 6 · 6: 1 · 8: 3 · 9: 1 · 16: 1 — **100 / 112 needed ≤ 3**; the tail (4–16) is unmeasured because 10 of those 12 ran through the deleted approx branch (as did 2 designs in the ≤ 3 group) |
 | Designs whose plan was fully exact | **100 / 112 (89 %)** |
-| Designs with lines ReferenceFinder could not construct exactly | 12 / 112 — all off-lattice by a residual probe (`research/reference-finder-spike/classify_off_lattice.py`; Phase 2's probe re-derives this classification): 7 have angles off the 22.5°/15° families, 5 have 22.5° angles with offsets off the ℤ[√2]/2ᵏ lattice (hand-placed vertices or a richer lattice). None was a clean 22.5° design that RF failed on. Under D8 these get a partial plan with off-lattice findings, so ~11 % of real designs would not receive a complete exact sequence |
+| Designs with lines ReferenceFinder could not construct exactly | 12 / 112 — all off-lattice by a residual probe written for the spike (removed with it; Phase 2's probe in `oristudio-precrease` re-derives this classification): 7 have angles off the 22.5°/15° families, 5 have 22.5° angles with offsets off the ℤ[√2]/2ᵏ lattice (hand-placed vertices or a richer lattice). None was a clean 22.5° design that RF failed on. Under D8 these get a partial plan with off-lattice findings, so ~11 % of real designs would not receive a complete exact sequence |
 | ReferenceFinder used | 38 / 112 designs; 3,757 line queries total |
 | Prototype wall time | p50 0.3 s; **Scale-Shaping** (1,600 lines, \|P\| = 424,534, 0 stuck) took **960 s in closure alone**; Chinese Dragon (401 lines) 96 s |
 
@@ -755,9 +757,9 @@ the Phase 4 measurements.
   `solve_flat_fold` assertions moved to the new `flat_folder_controls.rs`),
   `tests/fixtures/folding-sequence/{expected,manifest.json,visual-review.html}` (the
   `fold/*.fold` inputs stay — live 3D tests use them).
-- `research/reference-finder-spike/` (prototype, RF driver with `RF_LIB`, panel probes and
-  fixtures; fixtures graduate to `tests/fixtures/precrease/` in Phase 4 and the directory is
-  then removed).
+- `research/reference-finder-spike/` — the prototype, the RF driver and the design panel's
+  probes. Its crease-pattern fixtures graduated to `tests/fixtures/precrease/` in Phase 4 and
+  the directory was then removed; the evidence it produced is recorded in this plan.
 
 ## Checklist
 
@@ -904,11 +906,11 @@ pitch keeps nearest-element snapping unambiguous. Wasm exports are `sheet_frames
       solution_sample_1 1, g3d_x19 2, x13_x38 3, x13_diag_pair 3, g3d_x112 2,
       claim7-cand9 2, {x = 1/5} 3, thirds_and_fifths 3, iguana c0 ≤ 2 (panel values; the
       crate's re-derived value is recorded beside them); fixtures moved from
-      `research/reference-finder-spike/` to `tests/fixtures/precrease/` (noting c1/c4 were
+      the spike directory to `tests/fixtures/precrease/` (noting c1/c4 were
       extracted in the canvas frame); Node cross-check against the vendored wasm.
 - [x] `precreaseWorker.ts` + orchestrator: chunked `close()`, stuck loop (forward search →
       cached RF fallback → unsolved), budgets, cancel, partial results, results keyed on
-      `computedAtRevision`. (`research/reference-finder-spike/` is still to delete.)
+      `computedAtRevision`; `research/reference-finder-spike/` removed.
 
 ### Phase 5 — whole-pattern breakdown, CP-wide analysis, sequence-state queries
 
