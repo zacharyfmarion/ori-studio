@@ -1069,9 +1069,23 @@ a head, matching `CalcArrow`'s `fromDir`/`toDir`.
 
 ### Revision 2 checklist
 
-- [ ] Phase R1 — picking: the frame fix, the input-side clamp, hover cursor
-- [ ] Phase R2 — the sheets sidebar and one-sheet scoping
-- [ ] Phase R3 — per-step crease build-up, and no camera jump on step change
-- [ ] Phase R4 — the filmstrip, the caption bar and the way out of a pick
-- [ ] Phase R5 — arrows and labels for planner steps
-- [ ] Phase R6 — validation and browser verification
+- [x] Phase R1 — picking: the frame fix, the input-side clamp, hover cursor
+- [x] Phase R2 — the sheets sidebar and one-sheet scoping
+- [x] Phase R3 — per-step crease build-up, and no camera jump on step change
+- [x] Phase R4 — the filmstrip, the caption bar and the way out of a pick
+- [x] Phase R5 — arrows and labels for planner steps
+- [x] Phase R6 — validation and browser verification
+
+### What Revision 2 did not verify
+
+- **The hover cursor, in a browser.** The Browser pane runs with
+  `document.visibilityState === 'hidden'`, where `requestAnimationFrame` never
+  fires — and the hover probe is rAF-coalesced, on the Edit canvas's precedent,
+  because `LineHitIndex` falls back to a linear scan at fit zoom. The decision
+  itself is unit-tested through `cpCanvasCursor` (`ReferencesCpView.test.tsx`);
+  what is untested is that a real pointer moving over a real canvas reaches it.
+- **Desktop / WebKit**, which Revision 1 also left open.
+- The strip is a single scrolling row. A hundred-step sequence is a hundred
+  cards wide; the sidebar's grouped outline is the answer for that shape today,
+  and whether the strip needs its own grouping is a question for a real
+  hundred-step pattern rather than for this plan.
