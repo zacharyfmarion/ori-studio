@@ -11,6 +11,7 @@ export const REFERENCES_SHORTCUT_IDS: readonly ReferencesShortcutId[] = [
   'references.resetView',
   'references.zoomIn',
   'references.zoomOut',
+  'references.clearTarget',
 ];
 
 /**
@@ -27,6 +28,8 @@ export interface ReferencesShortcutActions {
   resetView: () => void;
   zoomIn: () => void;
   zoomOut: () => void;
+  /** Stop asking about the picked vertex or crease (`Escape`). */
+  clearTarget: () => void;
 }
 
 /**
@@ -68,6 +71,9 @@ export function runReferencesShortcut(
       return;
     case 'references.zoomOut':
       actions.zoomOut();
+      return;
+    case 'references.clearTarget':
+      actions.clearTarget();
       return;
   }
 }

@@ -50,6 +50,7 @@ import {
 } from '../snapRadius';
 import type { ModelBounds, ReferencesGhostSegment, ReferencesMarker } from './referencesStepGeometry';
 import {
+  applyCreaseVisibility,
   ghostSegmentsToStrokes,
   isClick,
   concatOverlayPoints,
@@ -58,6 +59,7 @@ import {
   modelBoundsToUser,
   resolveReferencesPick,
   transportUserBounds,
+  type ReferencesCreaseVisibility,
   type ReferencesHitIndexes,
   type ReferencesPick,
 } from './referencesViewGeometry';
@@ -112,6 +114,14 @@ export interface ReferencesCpViewProps {
   ghostSegments?: readonly ReferencesGhostSegment[];
   /** Marks: input rings and the new mark's disc. */
   markers?: readonly ReferencesMarker[];
+  /**
+   * Which of the document's creases this step shows, and how faintly.
+   *
+   * The sheet as it stands at the active step: creases a later step makes are
+   * not drawn at all, and creases an earlier step made are dimmed behind the
+   * ones this step is about. Omit to draw the whole document at full strength.
+   */
+  creaseVisibility?: ReferencesCreaseVisibility;
   selected: ReferencesSelection | null;
   onPick: (hit: ReferencesPick | null) => void;
   /** The camera refits when this changes (a new document), never on an edit. */
@@ -142,6 +152,8 @@ const FOLDED_ALPHA = 0.55;
 
 const EMPTY_GHOSTS: readonly ReferencesGhostSegment[] = [];
 const EMPTY_MARKERS: readonly ReferencesMarker[] = [];
+/** No step filter: the whole document, at full strength. */
+const ALL_CREASES: ReferencesCreaseVisibility = { visible: null, dimmed: null, dimAlpha: 1 };
 
 /** The shared CP policy — see `cpDpr.ts`; the editor renders under the same cap. */
 const dpr = cpDpr;
@@ -194,6 +206,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       ghostSegments = EMPTY_GHOSTS,
       markers = EMPTY_MARKERS,
       selected,
+      creaseVisibility = ALL_CREASES,
       onPick,
       framingKey,
       themeKey,
@@ -605,9 +618,20 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           widthMul: HIGHLIGHT_WIDTH_MUL,
         }
       );
-      renderer.setStrokes(strokes);
+      renderer.setStrokes(
+        applyCreaseVisibility(strokes, geometry.segEndpoints.length / 4, creaseVisibility)
+      );
       renderNowRef.current();
-    }, [geometry, lineStyle, mode, highlightLineIds, selected, themeKey, rendererGeneration]);
+    }, [
+      geometry,
+      lineStyle,
+      mode,
+      highlightLineIds,
+      selected,
+      creaseVisibility,
+      themeKey,
+      rendererGeneration,
+    ]);
 
     // Vertex dots. Deliberately *without* the highlighted ones: this layer rides
     // the crowding ramp (`renderNow`) and fades to nothing on a dense pattern,

@@ -1503,6 +1503,15 @@ export interface ReferencesSliceState {
   referencesProgress: ReferencesProgress | null;
   /** ReferenceFinder's ranked solutions for a vertex or crease target. */
   referencesCandidates: readonly ReferencesCandidate[] | null;
+  /**
+   * Which sheet the workspace is working on — a precrease component id.
+   *
+   * The References workspace answers for one crease pattern at a time: a
+   * document holding several disjoint sheets is several separate folding
+   * problems, and nobody folds them at once. Null until the frames analysis
+   * lands and the first plannable sheet is chosen; the sidebar sets it.
+   */
+  referencesSelectedSheet: number | null;
   /** Which step and candidate the view frames, and the landmarks-first toggle. */
   referencesView: ReferencesView;
   /** Whether a computation is in flight, stale, or failed. */
@@ -1523,6 +1532,12 @@ export interface ReferencesSliceActions {
   setReferencesAnalysis: (analysis: ReferencesAnalysisSummaryState | null) => void;
   setReferencesProgress: (progress: ReferencesProgress | null) => void;
   setReferencesCandidates: (candidates: readonly ReferencesCandidate[] | null) => void;
+  /**
+   * Work on a different sheet. Everything keyed on the old one is dropped —
+   * the plan, the pick and the step index all name geometry that belongs to a
+   * sheet, so carrying any of them across would describe the wrong pattern.
+   */
+  setReferencesSelectedSheet: (component: number | null) => void;
   setReferencesView: (view: Partial<ReferencesView>) => void;
   setReferencesRun: (run: ReferencesRun) => void;
   setReferencesSettings: (settings: Partial<ReferencesSettings>) => void;

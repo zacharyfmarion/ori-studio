@@ -51,7 +51,7 @@ import {
   referencesPickGeneration,
   referencesRunSnapshot,
 } from './referencesRun';
-import { referencesSidebarText } from './referencesSidebarText';
+import { referencesSidebarText, refusalMessageFor } from './referencesSidebarText';
 import { clampStepIndex } from './referencesStepGeometry';
 import type { ReferencesPick } from './referencesViewGeometry';
 import {
@@ -378,25 +378,7 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
   ]);
 
   const refusalMessage = useCallback(
-    (component: PrecreaseComponent): string => {
-      switch (component.refused?.kind) {
-        case 'non_rectangular':
-          return t(
-            'panels:references.nonRectangular',
-            'This sheet is not a rectangle. References can only be found on rectangular sheets for now.'
-          );
-        case 'open_outline':
-          return t(
-            'panels:references.openOutline',
-            'The border creases around this pick do not close into a sheet.'
-          );
-        default:
-          return t(
-            'panels:references.refusedSheet',
-            'The sheet around this pick could not be read as a rectangle.'
-          );
-      }
-    },
+    (component: PrecreaseComponent): string => refusalMessageFor(t, component),
     [t]
   );
 

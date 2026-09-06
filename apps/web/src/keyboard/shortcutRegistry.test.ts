@@ -196,12 +196,24 @@ describe('adopted single-key layout', () => {
     // Unlike the simulator, References has no reason to take a CP tool's key:
     // it is a separate workspace, never an inline window over the Edit canvas.
     // Its chords may coincide with the simulator's (the two scopes are never in
-    // the stack together) and with a viewport binding that declines when it does
-    // not apply (the fold-angle arrows), but not with any binding that always
-    // claims its key.
+    // the stack together), but not with a `global` or `crease-pattern` binding
+    // that always claims its key.
+    //
+    // The `viewport` scope is excluded, and that is a claim about the runtime
+    // rather than a softened rule: a viewport chord is dispatched through
+    // `executors.viewport`, which is registered by whichever panel owns the
+    // active viewport surface — and the References workspace mounts none, so
+    // `executeShortcut` finds no executor and every `viewport.*` binding already
+    // falls straight through there. Shadowing one costs nothing. That is why
+    // `references.clearTarget` may take Escape, which `viewport.cancel` claims
+    // in the Edit workspace and cannot claim here.
     const alwaysPresent = new Set(
       SHORTCUT_DEFINITIONS.filter(
-        (d) => d.scope !== 'simulator' && d.scope !== 'references' && !shortcutMayDecline(d.id)
+        (d) =>
+          d.scope !== 'simulator' &&
+          d.scope !== 'references' &&
+          d.scope !== 'viewport' &&
+          !shortcutMayDecline(d.id)
       ).flatMap((d) => d.defaultChords.map(keyChordId))
     );
     const collisions = SHORTCUT_DEFINITIONS.filter((d) => d.scope === 'references').flatMap((d) =>

@@ -770,7 +770,6 @@
       "title": "参照分析",
       "unsolved": "未找到作图方法"
     },
-    "approximate": "近似",
     "axiom": {
       "free": "已经在纸上",
       "o1": "通过两点",
@@ -781,6 +780,7 @@
       "o6": "两点分别落到两线上",
       "o7": "点落到线上，且垂直"
     },
+    "backToPattern": "返回整个折痕图",
     "breakdown": {
       "aux": "基准",
       "landmarks": "基准点",
@@ -794,12 +794,8 @@
     },
     "canvasAriaLabel": "折痕图。点击顶点或折痕以查找其参考点；拖动平移，滚动缩放。",
     "card": {
-      "error": "误差 {{value}}",
-      "folds_other": "{{count}} 次折叠",
-      "rank": "#{{n}}",
-      "title": "候选 {{n}}：{{folds}} 次折叠，等级 {{rank}}"
+      "error": "误差 {{value}}"
     },
-    "controls": "步骤控制",
     "direction": {
       "angle": "在 {{deg}}° 方向",
       "diagonalDown": "沿下降对角线",
@@ -811,6 +807,9 @@
     "empty": "没有折痕图。请在“编辑”中打开或绘制一个，然后再回来。",
     "errorTitle": "参考不可用",
     "exact": "精确",
+    "filmstrip": {
+      "label": "折叠步骤"
+    },
     "findings": {
       "approximation": "最接近：{{folds}} 次折叠，误差 {{err}}",
       "noApproximation": "未找到作图方法",
@@ -821,18 +820,16 @@
       "unsolved": "未找到作图方法"
     },
     "hint": {
-      "pick": "点击顶点或折痕，查看如何折出它。",
-      "pickDecidesSheet": "点击顶点或折痕，查看如何折出它。此图有 {{n}} 张纸；点击的位置决定使用哪一张。"
+      "pick": "点击顶点或折痕，查看如何折出它。"
     },
     "meta": {
-      "candidates": "{{n}} 个候选",
       "crease": "折痕",
+      "solution": "第 {{n}} / {{total}} 个解",
       "vertex": "顶点"
     },
     "noCreasePattern": "没有折痕图",
     "nonRectangular": "这张纸不是矩形。目前只能在矩形纸上查找参考点。",
     "noRectangularSheet": "没有矩形纸张：目前只能在矩形纸张上查找参照。",
-    "noSteps": "—",
     "openOutline": "所选位置周围的边缘折痕没有闭合成一张纸。",
     "outOfDate": "已过期",
     "outOfDateHint": "找到这些参考点之后，折痕图发生了变化。",
@@ -854,12 +851,6 @@
     "progress": {
       "closing": "已折叠 {{total}} 条线中的 {{done}} 条",
       "querying": "正在搜索 {{total}} 条线中的 {{done}} 条"
-    },
-    "readout": {
-      "duration": "{{ms}} 毫秒",
-      "error": "误差 {{value}}",
-      "idle": "选择一个顶点或折痕",
-      "noPlan": "尚无折叠顺序"
     },
     "recompute": "重新计算",
     "ref": {
@@ -898,18 +889,17 @@
       "startFromPlan": "从此顺序开始",
       "trigger": "参考设置"
     },
+    "sheets": {
+      "cardTitle_other": "图样 {{n}}：{{count}} 条折痕",
+      "creases_other": "{{count}} 条折痕",
+      "label": "折痕图",
+      "noPlan": "计算这个折痕图的折叠方法，或点击顶点或折痕查找单个参照。",
+      "title": "图样"
+    },
     "sidebar": {
-      "breakdownTitle": "折叠顺序",
-      "candidates": "候选作图",
-      "freeDiagonals": "还需要纸的对角线：{{names}}。",
-      "label": "折叠参考",
       "none": "在当前设置下，ReferenceFinder 没有为此目标找到作图。",
-      "noPlan": "计算整个折痕图的折叠方法，或点击顶点或折痕查找单个参照。",
       "plan": "计算折叠",
-      "planning": "正在计算折叠顺序…",
-      "searching": "正在查找参考点…",
-      "steps": "折叠步骤",
-      "title": "步骤"
+      "planning": "正在计算折叠顺序…"
     },
     "step": {
       "axiom1": "经过 {{p0}} 和 {{p1}} 折出 {{x}}。",
@@ -923,9 +913,6 @@
       "pinch": "只需轻捏——只需要一个标记。",
       "unknown": "使用 {{inputs}} 折出 {{x}}。"
     },
-    "stepLabel": "步骤",
-    "stepReadout": "{{n}} / {{total}}",
-    "stepScrubber": "步骤",
     "stop": "停止",
     "stopping": "正在取消…",
     "summary": {

@@ -40,12 +40,14 @@ function analysis(warnings: PrecreaseWarning[], components = [component()]): She
 }
 
 describe('referencesSidebarText', () => {
-  it('asks for a pick, and says the pick decides the sheet when there are several', () => {
+  it('asks for a pick, whatever the document holds', () => {
+    // No longer varies with the sheet count: the sidebar's pattern picker says
+    // which sheet is being read, so the hint has nothing left to disambiguate.
     expect(referencesSidebarText(t, null).hint).toBe(
       'Click a vertex or crease to see how to fold it.'
     );
-    expect(referencesSidebarText(t, analysis([], [component(), component({ id: 1 })])).hint).toContain(
-      'This pattern has 2 sheets'
+    expect(referencesSidebarText(t, analysis([], [component(), component({ id: 1 })])).hint).toBe(
+      'Click a vertex or crease to see how to fold it.'
     );
   });
 

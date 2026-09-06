@@ -10,7 +10,35 @@
  * React-free; literal `t()` keys so the extractor sees them.
  */
 import type { TFunction } from 'i18next';
-import type { SheetAnalysis } from './sheetFrames';
+import type { PrecreaseComponent, SheetAnalysis } from './sheetFrames';
+
+/**
+ * Why the planner would not take a sheet.
+ *
+ * One implementation for both callers: the target hook says it about the sheet
+ * around a pick, and the breakdown says it about the sheet the sidebar has
+ * selected, and the two must not be able to disagree about what a refusal
+ * means.
+ */
+export function refusalMessageFor(t: TFunction, component: PrecreaseComponent): string {
+  switch (component.refused?.kind) {
+    case 'non_rectangular':
+      return t(
+        'panels:references.nonRectangular',
+        'This sheet is not a rectangle. References can only be found on rectangular sheets for now.'
+      );
+    case 'open_outline':
+      return t(
+        'panels:references.openOutline',
+        'The border creases around this pick do not close into a sheet.'
+      );
+    default:
+      return t(
+        'panels:references.refusedSheet',
+        'The sheet around this pick could not be read as a rectangle.'
+      );
+  }
+}
 
 export interface ReferencesSidebarText {
   hint: string;
@@ -22,18 +50,10 @@ export function referencesSidebarText(
   frames: SheetAnalysis | null
 ): ReferencesSidebarText {
   const warnings: string[] = [];
-  let hint = t('panels:references.hint.pick', 'Click a vertex or crease to see how to fold it.');
+  const hint = t('panels:references.hint.pick', 'Click a vertex or crease to see how to fold it.');
   if (!frames) return { hint, warnings };
 
-  const sheets = frames.components.filter((c) => c.frame);
   const refused = frames.components.filter((c) => c.refused);
-  if (sheets.length > 1) {
-    hint = t(
-      'panels:references.hint.pickDecidesSheet',
-      'Click a vertex or crease to see how to fold it. This pattern has {{n}} sheets; the pick decides which one is used.',
-      { n: sheets.length }
-    );
-  }
   for (const warning of frames.warnings) {
     switch (warning.kind) {
       case 'no_border_fallback':

@@ -3,7 +3,9 @@ import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
 import { cpModelToSvg } from '../../lib/creasePatternViewport';
 import { LineHitIndex } from '../picking/lineHitIndex';
+import type { StrokeGeometry } from '../renderer/types';
 import {
+  applyCreaseVisibility,
   ghostSegmentsToStrokes,
   isClick,
   markersToOverlayPoints,
@@ -160,5 +162,45 @@ describe('isClick', () => {
   it('counts movement under the threshold as a click', () => {
     expect(isClick({ x: 10, y: 10 }, { x: 12, y: 13 })).toBe(true);
     expect(isClick({ x: 10, y: 10 }, { x: 14, y: 10 })).toBe(false);
+  });
+});
+
+describe('applyCreaseVisibility', () => {
+  /** Four opaque strokes plus one appended hint overlay. */
+  function strokes(): StrokeGeometry {
+    const count = 5;
+    return {
+      a: new Float32Array(count * 2),
+      b: new Float32Array(count * 2),
+      color: Float32Array.from(Array.from({ length: count }, () => [1, 1, 1, 1]).flat()),
+      widthMul: new Float32Array(count).fill(1),
+      dashSlot: new Float32Array(count),
+      dashPatterns: [],
+      count,
+    } as unknown as StrokeGeometry;
+  }
+  const alphaOf = (geometry: StrokeGeometry) =>
+    Array.from({ length: geometry.count }, (_, i) => geometry.color[i * 4 + 3]);
+
+  it('returns the buffer untouched when nothing is filtered', () => {
+    const input = strokes();
+    expect(applyCreaseVisibility(input, 4, { visible: null, dimmed: null, dimAlpha: 1 })).toBe(input);
+  });
+
+  it('zeroes a crease no step has reached and scales a dimmed one', () => {
+    const out = applyCreaseVisibility(strokes(), 4, {
+      visible: new Set([1, 2]),
+      dimmed: new Set([2]),
+      dimAlpha: 0.25,
+    });
+    // Crease 1 full, crease 2 dimmed, creases 3-4 hidden, and the appended hint
+    // overlay (index 4, past the document's segments) dropped with them.
+    expect(alphaOf(out)).toEqual([1, 0.25, 0, 0, 0]);
+  });
+
+  it('does not mutate the buffer it was given', () => {
+    const input = strokes();
+    applyCreaseVisibility(input, 4, { visible: new Set([1]), dimmed: null, dimAlpha: 0.5 });
+    expect(alphaOf(input)).toEqual([1, 1, 1, 1, 1]);
   });
 });

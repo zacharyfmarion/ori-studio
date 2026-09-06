@@ -10783,6 +10783,15 @@ button.bp-packing-alert:focus-visible {
   font-weight: 650;
 }
 
+.references-sidebar__notes {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  border-top: 1px solid var(--border-subtle);
+}
+
 .references-sidebar__hint {
   padding: var(--space-3);
   color: var(--text-secondary);
@@ -10797,6 +10806,113 @@ button.bp-packing-alert:focus-visible {
 .references-sidebar__warning {
   color: var(--status-warning);
   font-size: 0.7rem;
+}
+
+/* The document's crease patterns. Two columns rather than the simulator's one:
+   this rail is 260px because it also carries the sequence outline, and a
+   full-width thumbnail there would push everything else off the screen. */
+.references-sheets {
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: var(--space-2);
+  max-height: 40%;
+  overflow: auto;
+  margin: 0;
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+  list-style: none;
+}
+
+.references-sheets__item {
+  margin: 0;
+}
+
+.references-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: var(--space-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md, 6px);
+  background: var(--bg-canvas, #0c0f12);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.references-sheet:hover {
+  border-color: var(--border-strong, var(--border-subtle));
+}
+
+.references-sheet--selected {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
+/* A sheet the planner will not take still gets a row: it is a pattern the user
+   can see on the canvas, and a row that quietly vanished would read as a bug. */
+.references-sheet--refused {
+  opacity: 0.55;
+}
+
+.references-sheet__thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+}
+
+.references-sheet__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.references-sheet__stroke {
+  fill: none;
+  stroke-width: 1.1;
+  vector-effect: non-scaling-stroke;
+}
+
+.references-sheet__stroke--border {
+  stroke: var(--text-tertiary);
+  stroke-width: 1.6;
+}
+
+.references-sheet__stroke--mountain {
+  stroke: var(--fold-mountain);
+}
+
+.references-sheet__stroke--valley {
+  stroke: var(--fold-valley);
+}
+
+.references-sheet__stroke--other {
+  stroke: var(--fold-unassigned);
+}
+
+.references-sheet__meta {
+  display: flex;
+  gap: var(--space-1);
+  align-items: baseline;
+  min-width: 0;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.references-sheet__index {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.references-sheet__count {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .references-list {
@@ -10817,11 +10933,9 @@ button.bp-packing-alert:focus-visible {
 }
 
 .references-card {
-  display: grid;
-  grid-template-columns: 56px minmax(0, 1fr);
-  gap: var(--space-2);
-  align-items: center;
-  width: 100%;
+  position: relative;
+  display: block;
+  width: 108px;
   padding: var(--space-1);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md, 6px);
@@ -10844,8 +10958,20 @@ button.bp-packing-alert:focus-visible {
 
 .references-card__thumb {
   display: block;
-  width: 56px;
+  width: 100%;
   aspect-ratio: 1 / 1;
+}
+
+/* Over the picture rather than beside it: the card is the diagram, and a
+   separate column for one or two digits would halve the drawing. */
+.references-card__number {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
 }
 
 .references-card__thumb svg {
@@ -11169,62 +11295,107 @@ button.bp-packing-alert:focus-visible {
   color: var(--text-secondary);
 }
 
-.references-controls {
-  display: grid;
-  grid-template-columns: auto minmax(180px, 1fr) auto;
-  gap: var(--space-2);
-  align-items: center;
-  padding: var(--space-2) var(--space-3);
-  border-top: 1px solid var(--border-subtle);
+/*
+  The step filmstrip: the sequence read left to right, above the pattern.
+
+  It replaced a scrubber and a transport strip along the bottom. A slider and a
+  "4 / 17" readout say where you are in a list; a row of numbered pictures says
+  what the folds *are*, which is what a diagram is for.
+*/
+.references-filmstrip {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-2) var(--space-1);
+  border-bottom: 1px solid var(--border-subtle);
   background: var(--bg-primary);
 }
 
-.references-transport {
-  display: flex;
-  align-items: center;
+.references-filmstrip__strip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: var(--space-1);
-  min-width: 0;
+  align-items: center;
 }
 
-.references-scrubber {
-  display: grid;
-  grid-template-columns: auto minmax(100px, 1fr) auto;
+.references-filmstrip__list {
+  display: flex;
+  gap: var(--space-2);
+  align-items: stretch;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 0;
+  padding: 2px;
+  list-style: none;
+  scroll-behavior: smooth;
+}
+
+.references-filmstrip__item {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.references-filmstrip__caption {
+  min-height: 2.6em;
+  margin: 0;
+  padding: 0 var(--space-2);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.references-filmstrip__caption-number {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.references-filmstrip__caption-empty {
+  color: var(--text-tertiary);
+}
+
+/* The picked target, and the way back out of it. */
+.references-target {
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
   align-items: center;
   min-width: 0;
+}
+
+.references-target__candidates {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.references-target__readout {
   color: var(--text-secondary);
-  font-size: 0.74rem;
-  font-weight: 650;
-}
-
-.references-scrubber input {
-  min-width: 0;
-  accent-color: var(--accent-primary);
-}
-
-.references-scrubber output {
-  color: var(--text-primary);
+  font-size: 0.7rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.references-readout {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+.references-target__exit {
+  display: inline-flex;
+  gap: 4px;
   align-items: center;
-  gap: var(--space-2);
-  color: var(--text-tertiary);
+  padding: 2px var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
   font-size: 0.7rem;
-  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.references-readout[data-state='error'] {
-  color: var(--status-danger);
-}
-
-.references-readout[data-state='stale'] {
-  color: var(--status-warning);
+.references-target__exit:hover {
+  border-color: var(--border-strong, var(--border-subtle));
+  color: var(--text-primary);
 }
 
 /*
@@ -11234,11 +11405,14 @@ button.bp-packing-alert:focus-visible {
  * itself draws with, plus the two References highlight colours — so the
  * thumbnails follow the theme like the view they sit beside.
  */
+/* `visible` was safe while every diagram sat alone in a row. Side by side in
+   the filmstrip, an arc or a label that leaves the sheet would paint over the
+   neighbouring step, so the box clips. */
 .step-diagram {
   display: block;
   width: 100%;
   height: 100%;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .step-diagram__sheet {
@@ -11313,11 +11487,22 @@ button.bp-packing-alert:focus-visible {
   fill: var(--cp-reference-new);
 }
 
+/*
+  In user units, so it scales with the drawing — and sized against the sheet,
+  not against a guess at the box. The `viewBox` is the sheet plus 10% padding
+  (`stepDiagramGeometry.createDiagramProjector`), so 9 units is about 7.5% of the
+  picture: legible on a 108px filmstrip card, and still a letter rather than a
+  block on a 44px outline row.
+*/
 .step-diagram__label {
   fill: var(--text-secondary);
   font-family: inherit;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 700;
+  paint-order: stroke;
+  stroke: var(--bg-paper);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
 }
 
 .step-diagram__label--highlight {

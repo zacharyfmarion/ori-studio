@@ -832,7 +832,6 @@
       "title": "Analyse des références",
       "unsolved": "aucune construction trouvée"
     },
-    "approximate": "Approx.",
     "axiom": {
       "free": "déjà sur la feuille",
       "o1": "par deux points",
@@ -843,6 +842,7 @@
       "o6": "deux points sur deux lignes",
       "o7": "point sur une ligne, perpendiculaire"
     },
+    "backToPattern": "Revenir au patron entier",
     "breakdown": {
       "aux": "Repère",
       "landmarks": "Repères",
@@ -856,14 +856,8 @@
     },
     "canvasAriaLabel": "Patron de pliage. Cliquez sur un sommet ou un pli pour trouver ses références ; glissez pour déplacer, faites défiler pour zoomer.",
     "card": {
-      "error": "err {{value}}",
-      "folds_one": "{{count}} pli",
-      "folds_many": "{{count}} plis",
-      "folds_other": "{{count}} plis",
-      "rank": "n° {{n}}",
-      "title": "Candidat {{n}} : {{folds}} plis, rang {{rank}}"
+      "error": "err {{value}}"
     },
-    "controls": "Commandes des étapes",
     "direction": {
       "angle": "à {{deg}}°",
       "diagonalDown": "sur la diagonale descendante",
@@ -875,6 +869,9 @@
     "empty": "Aucun patron de pliage. Ouvrez-en ou dessinez-en un dans Édition, puis revenez.",
     "errorTitle": "Références indisponibles",
     "exact": "Exact",
+    "filmstrip": {
+      "label": "Étapes de pliage"
+    },
     "findings": {
       "approximation": "au plus près : {{folds}} plis, écart {{err}}",
       "noApproximation": "aucune construction trouvée",
@@ -885,18 +882,16 @@
       "unsolved": "Aucune construction trouvée"
     },
     "hint": {
-      "pick": "Cliquez sur un sommet ou un pli pour voir comment le plier.",
-      "pickDecidesSheet": "Cliquez sur un sommet ou un pli pour voir comment le plier. Ce patron compte {{n}} feuilles ; le clic décide de celle utilisée."
+      "pick": "Cliquez sur un sommet ou un pli pour voir comment le plier."
     },
     "meta": {
-      "candidates": "{{n}} candidats",
       "crease": "Pli",
+      "solution": "Solution {{n}} sur {{total}}",
       "vertex": "Sommet"
     },
     "noCreasePattern": "Aucun patron de pliage",
     "nonRectangular": "Cette feuille n’est pas un rectangle. Pour l’instant, les références ne se trouvent que sur des feuilles rectangulaires.",
     "noRectangularSheet": "Aucune feuille rectangulaire : pour l’instant, les références ne peuvent être trouvées que sur des feuilles rectangulaires.",
-    "noSteps": "—",
     "openOutline": "Les plis de bord autour de cette sélection ne ferment pas une feuille.",
     "outOfDate": "Obsolète",
     "outOfDateHint": "Le patron de pliage a changé depuis que ces références ont été trouvées.",
@@ -918,12 +913,6 @@
     "progress": {
       "closing": "{{done}} lignes pliées sur {{total}}",
       "querying": "Recherche de {{done}} lignes sur {{total}}"
-    },
-    "readout": {
-      "duration": "{{ms}} ms",
-      "error": "err {{value}}",
-      "idle": "Choisissez un sommet ou un pli",
-      "noPlan": "Pas encore de séquence de pliage"
     },
     "recompute": "Recalculer",
     "ref": {
@@ -962,18 +951,21 @@
       "startFromPlan": "Partir de cette séquence",
       "trigger": "Réglages des références"
     },
+    "sheets": {
+      "cardTitle_one": "Patron {{n}} : {{count}} pli",
+      "cardTitle_many": "Patron {{n}} : {{count}} plis",
+      "cardTitle_other": "Patron {{n}} : {{count}} plis",
+      "creases_one": "{{count}} pli",
+      "creases_many": "{{count}} plis",
+      "creases_other": "{{count}} plis",
+      "label": "Patrons de plis",
+      "noPlan": "Calculez comment plier ce patron, ou cliquez sur un sommet ou un pli pour une seule référence.",
+      "title": "Patrons"
+    },
     "sidebar": {
-      "breakdownTitle": "Séquence de pliage",
-      "candidates": "Constructions candidates",
-      "freeDiagonals": "Nécessite aussi la ou les diagonales de la feuille : {{names}}.",
-      "label": "Références de pliage",
       "none": "ReferenceFinder n’a trouvé aucune construction pour cette cible avec les réglages actuels.",
-      "noPlan": "Calculez comment plier tout le patron, ou cliquez sur un sommet ou un pli pour une seule référence.",
       "plan": "Calculer les plis",
-      "planning": "Calcul de la séquence de pliage…",
-      "searching": "Recherche des références…",
-      "steps": "Étapes de pliage",
-      "title": "Étapes"
+      "planning": "Calcul de la séquence de pliage…"
     },
     "step": {
       "axiom1": "Pliez {{x}} en passant par {{p0}} et {{p1}}.",
@@ -987,9 +979,6 @@
       "pinch": "Simple pincement : seule la marque est nécessaire.",
       "unknown": "Pliez {{x}} à l’aide de {{inputs}}."
     },
-    "stepLabel": "Étape",
-    "stepReadout": "{{n}} / {{total}}",
-    "stepScrubber": "Étape",
     "stop": "Arrêter",
     "stopping": "Annulation…",
     "summary": {

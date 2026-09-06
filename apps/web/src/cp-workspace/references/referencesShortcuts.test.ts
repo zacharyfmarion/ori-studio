@@ -17,6 +17,7 @@ function mockActions(): ReferencesShortcutActions {
     resetView: vi.fn(),
     zoomIn: vi.fn(),
     zoomOut: vi.fn(),
+    clearTarget: vi.fn(),
   };
 }
 
@@ -31,6 +32,7 @@ describe('runReferencesShortcut', () => {
     ['references.resetView', 'resetView'],
     ['references.zoomIn', 'zoomIn'],
     ['references.zoomOut', 'zoomOut'],
+    ['references.clearTarget', 'clearTarget'],
   ] as const)('routes %s to exactly %s', (id, verb) => {
     const actions = mockActions();
     runReferencesShortcut(id, actions);

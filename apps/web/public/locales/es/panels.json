@@ -832,7 +832,6 @@
       "title": "Análisis de referencias",
       "unsolved": "no se encontró construcción"
     },
-    "approximate": "Aprox.",
     "axiom": {
       "free": "ya está en la hoja",
       "o1": "por dos puntos",
@@ -843,6 +842,7 @@
       "o6": "dos puntos sobre dos líneas",
       "o7": "punto sobre una línea, perpendicular"
     },
+    "backToPattern": "Volver al patrón completo",
     "breakdown": {
       "aux": "Referencia",
       "landmarks": "Referencias",
@@ -856,14 +856,8 @@
     },
     "canvasAriaLabel": "Patrón de pliegues. Haz clic en un vértice o pliegue para hallar sus referencias; arrastra para desplazar, desplaza la rueda para hacer zoom.",
     "card": {
-      "error": "err {{value}}",
-      "folds_one": "{{count}} pliegue",
-      "folds_many": "{{count}} pliegues",
-      "folds_other": "{{count}} pliegues",
-      "rank": "#{{n}}",
-      "title": "Candidato {{n}}: {{folds}} dobleces, rango {{rank}}"
+      "error": "err {{value}}"
     },
-    "controls": "Controles de pasos",
     "direction": {
       "angle": "a {{deg}}°",
       "diagonalDown": "en la diagonal descendente",
@@ -875,6 +869,9 @@
     "empty": "No hay patrón de plegado. Abre o dibuja uno en Editar y vuelve.",
     "errorTitle": "Referencias no disponibles",
     "exact": "Exacto",
+    "filmstrip": {
+      "label": "Pasos de plegado"
+    },
     "findings": {
       "approximation": "más cercano: {{folds}} dobleces, error {{err}}",
       "noApproximation": "no se encontró construcción",
@@ -885,18 +882,16 @@
       "unsolved": "No se encontró construcción"
     },
     "hint": {
-      "pick": "Haz clic en un vértice o pliegue para ver cómo doblarlo.",
-      "pickDecidesSheet": "Haz clic en un vértice o pliegue para ver cómo doblarlo. Este patrón tiene {{n}} hojas; el clic decide cuál se usa."
+      "pick": "Haz clic en un vértice o pliegue para ver cómo doblarlo."
     },
     "meta": {
-      "candidates": "{{n}} candidatos",
       "crease": "Pliegue",
+      "solution": "Solución {{n}} de {{total}}",
       "vertex": "Vértice"
     },
     "noCreasePattern": "Sin patrón de pliegues",
     "nonRectangular": "Esta hoja no es un rectángulo. Por ahora solo se pueden hallar referencias en hojas rectangulares.",
     "noRectangularSheet": "No hay hoja rectangular: por ahora solo se pueden hallar referencias en hojas rectangulares.",
-    "noSteps": "—",
     "openOutline": "Los pliegues de borde alrededor de esta selección no cierran una hoja.",
     "outOfDate": "Desactualizado",
     "outOfDateHint": "El patrón de pliegues cambió desde que se hallaron estas referencias.",
@@ -918,12 +913,6 @@
     "progress": {
       "closing": "Dobladas {{done}} de {{total}} líneas",
       "querying": "Buscando {{done}} de {{total}} líneas"
-    },
-    "readout": {
-      "duration": "{{ms}} ms",
-      "error": "err {{value}}",
-      "idle": "Elige un vértice o un pliegue",
-      "noPlan": "Aún no hay secuencia de plegado"
     },
     "recompute": "Recalcular",
     "ref": {
@@ -962,18 +951,21 @@
       "startFromPlan": "Partir de esta secuencia",
       "trigger": "Ajustes de referencias"
     },
+    "sheets": {
+      "cardTitle_one": "Patrón {{n}}: {{count}} pliegue",
+      "cardTitle_many": "Patrón {{n}}: {{count}} pliegues",
+      "cardTitle_other": "Patrón {{n}}: {{count}} pliegues",
+      "creases_one": "{{count}} pliegue",
+      "creases_many": "{{count}} pliegues",
+      "creases_other": "{{count}} pliegues",
+      "label": "Patrones de pliegues",
+      "noPlan": "Calcula cómo doblar este patrón, o haz clic en un vértice o pliegue para una sola referencia.",
+      "title": "Patrones"
+    },
     "sidebar": {
-      "breakdownTitle": "Secuencia de plegado",
-      "candidates": "Construcciones candidatas",
-      "freeDiagonals": "También necesita la(s) diagonal(es) de la hoja: {{names}}.",
-      "label": "Referencias de plegado",
       "none": "ReferenceFinder no halló ninguna construcción para este objetivo con los ajustes actuales.",
-      "noPlan": "Calcula cómo doblar todo el patrón, o haz clic en un vértice o pliegue para una sola referencia.",
       "plan": "Calcular los dobleces",
-      "planning": "Calculando la secuencia de plegado…",
-      "searching": "Buscando referencias…",
-      "steps": "Pasos de plegado",
-      "title": "Pasos"
+      "planning": "Calculando la secuencia de plegado…"
     },
     "step": {
       "axiom1": "Dobla {{x}} pasando por {{p0}} y {{p1}}.",
@@ -987,9 +979,6 @@
       "pinch": "Solo un pellizco: basta con la marca.",
       "unknown": "Dobla {{x}} usando {{inputs}}."
     },
-    "stepLabel": "Paso",
-    "stepReadout": "{{n}} / {{total}}",
-    "stepScrubber": "Paso",
     "stop": "Detener",
     "stopping": "Cancelando…",
     "summary": {

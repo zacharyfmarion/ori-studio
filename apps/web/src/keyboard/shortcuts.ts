@@ -61,7 +61,8 @@ export type ReferencesShortcutId =
   | 'references.toggleLandmarksFirst'
   | 'references.resetView'
   | 'references.zoomIn'
-  | 'references.zoomOut';
+  | 'references.zoomOut'
+  | 'references.clearTarget';
 export type ShortcutActionId =
   | MenuActionId
   | OristudioCpActionId
@@ -406,6 +407,10 @@ const REFERENCES_SHORTCUTS: ShortcutDefinition[] = [
   ]),
   referencesShortcut('references.zoomIn', 'Zoom In References', [{ key: '=' }, { key: '+' }]),
   referencesShortcut('references.zoomOut', 'Zoom Out References', [{ key: '-' }, { key: '_' }]),
+  // Escape is `viewport.cancel` elsewhere, and the two scopes are never in the
+  // stack together — References has no selection, no tool and no drag to cancel,
+  // so the one thing Escape can mean here is "stop asking about this vertex".
+  referencesShortcut('references.clearTarget', 'Clear Reference Target', { key: 'escape' }),
 ];
 
 /**

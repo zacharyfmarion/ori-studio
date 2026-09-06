@@ -48,6 +48,7 @@ import {
   type ReferencesPlanVariant,
 } from './referencesResults';
 import { beginReferencesRun, endReferencesRun, referencesRunSnapshot } from './referencesRun';
+import { refusalMessageFor } from './referencesSidebarText';
 import type {
   PrecreaseComponent,
   PrecreaseRefusalKind,
@@ -154,11 +155,28 @@ function plannerClients(rect: PrecreaseRfRect) {
   };
 }
 
-/** The sheets worth planning: every component with a frame, largest first. */
-function plannableComponents(analysis: SheetAnalysis): PrecreaseComponent[] {
-  return analysis.components
+/**
+ * The sheet to plan: the selected one, or the largest plannable one when the
+ * selection names nothing.
+ *
+ * A list rather than one component because the run loop below still walks it —
+ * the workspace answers for one sheet at a time (plan D12), and planning one
+ * sheet is what makes `planned.length === 1` true on every document, so the
+ * planner survives a run and `startFromPlan` has a state to score against.
+ */
+function plannableComponents(
+  analysis: SheetAnalysis,
+  selected: number | null
+): PrecreaseComponent[] {
+  const plannable = analysis.components
     .filter((component) => component.frame !== null && component.rf_rect !== null)
     .sort((a, b) => b.segment_indices.length - a.segment_indices.length);
+  // A named sheet is answered for as named: falling back to another one when
+  // the selection is refused would plan a pattern the user is not looking at
+  // and label it as theirs.
+  const chosen =
+    selected === null ? plannable[0] : plannable.find((component) => component.id === selected);
+  return chosen ? [chosen] : [];
 }
 
 /** The plan's counts, as the store's summary descriptor. */
@@ -240,7 +258,9 @@ function progressOf(progress: PrecreasePlanProgress): ReferencesProgress {
 export function useReferencesBreakdown(
   geometry: CpGeometryTransport | null,
   revision: string,
-  frames: SheetAnalysis | null
+  frames: SheetAnalysis | null,
+  /** The sheet the sidebar has selected; null falls back to the largest. */
+  selectedSheet: number | null
 ): ReferencesBreakdownController {
   const { t } = useTranslation();
   const viewState = useWorkspaceStore((state) => state.referencesView);
@@ -261,9 +281,9 @@ export function useReferencesBreakdown(
 
   // The values the async runs read after an await, and the abort they answer
   // to. A run belongs to one revision; the document moving on drops it.
-  const latest = useRef({ geometry, revision, frames });
+  const latest = useRef({ geometry, revision, frames, selectedSheet });
   useEffect(() => {
-    latest.current = { geometry, revision, frames };
+    latest.current = { geometry, revision, frames, selectedSheet };
   });
   const abortRef = useRef<AbortController | null>(null);
   // The planner bridge is retained here in its own right rather than leaning on
@@ -347,14 +367,21 @@ export function useReferencesBreakdown(
     if (!current.geometry || !current.frames) return;
     if (referencesRunSnapshot().running) return;
     const forRevision = current.revision;
-    const sheets = plannableComponents(current.frames);
+    const sheets = plannableComponents(current.frames, current.selectedSheet);
     if (sheets.length === 0) {
+      const refusal =
+        current.selectedSheet === null
+          ? null
+          : (current.frames.components.find((entry) => entry.id === current.selectedSheet) ?? null);
       setReferencesRun({
         status: 'error',
-        message: t(
-          'panels:references.noRectangularSheet',
-          'No rectangular sheet: references can only be found on rectangular sheets for now.'
-        ),
+        message:
+          refusal && refusal.frame === null
+            ? refusalMessageFor(t, refusal)
+            : t(
+                'panels:references.noRectangularSheet',
+                'No rectangular sheet: references can only be found on rectangular sheets for now.'
+              ),
       });
       return;
     }
@@ -395,10 +422,6 @@ export function useReferencesBreakdown(
             lastToken = outcome.token;
           }
           if (performance.now() - started >= totalBudgetMs) break;
-        }
-        for (const component of current.frames?.components ?? []) {
-          if (component.frame || refused.some((entry) => entry.component === component.id)) continue;
-          refused.push({ component: component.id, kind: component.refused?.kind ?? null });
         }
       } catch (error) {
         endReferencesRun(runId);
@@ -442,7 +465,7 @@ export function useReferencesBreakdown(
     const current = latest.current;
     if (!current.geometry || !current.frames) return;
     if (referencesRunSnapshot().running) return;
-    const sheets = plannableComponents(current.frames);
+    const sheets = plannableComponents(current.frames, current.selectedSheet);
     const sheet = sheets[0];
     const rect = sheet?.rf_rect ?? null;
     if (!sheet || !rect) {

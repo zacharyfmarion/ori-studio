@@ -770,7 +770,6 @@
       "title": "참조 분석",
       "unsolved": "작도 방법을 찾지 못함"
     },
-    "approximate": "근사",
     "axiom": {
       "free": "이미 종이에 있음",
       "o1": "두 점을 지나",
@@ -781,6 +780,7 @@
       "o6": "두 점을 두 선 위로",
       "o7": "점을 선 위로, 수직으로"
     },
+    "backToPattern": "패턴 전체로 돌아가기",
     "breakdown": {
       "aux": "기준점",
       "landmarks": "기준점",
@@ -794,12 +794,8 @@
     },
     "canvasAriaLabel": "전개도. 꼭짓점이나 접는 선을 클릭하면 기준점을 찾습니다. 드래그로 이동, 스크롤로 확대/축소.",
     "card": {
-      "error": "오차 {{value}}",
-      "folds_other": "{{count}}번 접기",
-      "rank": "#{{n}}",
-      "title": "후보 {{n}}: {{folds}}번 접기, 랭크 {{rank}}"
+      "error": "오차 {{value}}"
     },
-    "controls": "단계 조작",
     "direction": {
       "angle": "{{deg}}° 방향으로",
       "diagonalDown": "오른쪽 아래로 향하는 대각선으로",
@@ -811,6 +807,9 @@
     "empty": "전개도가 없습니다. 편집에서 열거나 그린 뒤 돌아오세요.",
     "errorTitle": "참조를 사용할 수 없음",
     "exact": "정확",
+    "filmstrip": {
+      "label": "접기 단계"
+    },
     "findings": {
       "approximation": "가장 가까움: 접기 {{folds}}회, 오차 {{err}}",
       "noApproximation": "작도 방법을 찾지 못함",
@@ -821,18 +820,16 @@
       "unsolved": "작도 방법을 찾지 못함"
     },
     "hint": {
-      "pick": "꼭짓점이나 접는 선을 클릭하면 접는 방법이 표시됩니다.",
-      "pickDecidesSheet": "꼭짓점이나 접는 선을 클릭하면 접는 방법이 표시됩니다. 이 전개도에는 종이가 {{n}}장 있으며, 클릭한 위치에 따라 사용할 종이가 정해집니다."
+      "pick": "꼭짓점이나 접는 선을 클릭하면 접는 방법이 표시됩니다."
     },
     "meta": {
-      "candidates": "후보 {{n}}개",
       "crease": "접는 선",
+      "solution": "해답 {{n}} / {{total}}",
       "vertex": "꼭짓점"
     },
     "noCreasePattern": "전개도 없음",
     "nonRectangular": "이 종이는 직사각형이 아닙니다. 현재는 직사각형 종이에서만 기준점을 찾을 수 있습니다.",
     "noRectangularSheet": "직사각형 시트가 없습니다. 지금은 직사각형 시트에서만 참조를 찾을 수 있습니다.",
-    "noSteps": "—",
     "openOutline": "이 선택 주변의 테두리 선이 닫힌 종이를 이루지 않습니다.",
     "outOfDate": "오래된 결과",
     "outOfDateHint": "이 기준점을 찾은 뒤 전개도가 바뀌었습니다.",
@@ -854,12 +851,6 @@
     "progress": {
       "closing": "{{total}}개 중 {{done}}개 선을 접었습니다",
       "querying": "{{total}}개 중 {{done}}개 선 탐색 중"
-    },
-    "readout": {
-      "duration": "{{ms}} ms",
-      "error": "오차 {{value}}",
-      "idle": "꼭짓점이나 접는 선을 선택하세요",
-      "noPlan": "아직 접기 순서가 없습니다"
     },
     "recompute": "다시 계산",
     "ref": {
@@ -898,18 +889,17 @@
       "startFromPlan": "이 순서에서 시작",
       "trigger": "참조 설정"
     },
+    "sheets": {
+      "cardTitle_other": "패턴 {{n}}: 접힘선 {{count}}개",
+      "creases_other": "접힘선 {{count}}개",
+      "label": "접힘선 패턴",
+      "noPlan": "이 패턴을 접는 방법을 계산하거나, 꼭짓점이나 접힘선을 클릭해 참조 하나를 찾으세요.",
+      "title": "패턴"
+    },
     "sidebar": {
-      "breakdownTitle": "접기 순서",
-      "candidates": "후보 작도",
-      "freeDiagonals": "종이의 대각선도 필요합니다: {{names}}.",
-      "label": "접기 기준점",
       "none": "현재 설정으로는 이 대상에 대한 작도를 찾지 못했습니다.",
-      "noPlan": "패턴 전체를 접는 방법을 계산하거나, 꼭짓점이나 접힘선을 클릭해 참조 하나를 찾으세요.",
       "plan": "접기 계산",
-      "planning": "접기 순서를 계산하는 중…",
-      "searching": "기준점을 찾는 중…",
-      "steps": "접기 단계",
-      "title": "단계"
+      "planning": "접기 순서를 계산하는 중…"
     },
     "step": {
       "axiom1": "{{p0}}과(와) {{p1}}을(를) 지나도록 {{x}}을(를) 접습니다.",
@@ -923,9 +913,6 @@
       "pinch": "살짝 꼬집기만 — 표시만 필요합니다.",
       "unknown": "{{inputs}}을(를) 사용해 {{x}}을(를) 접습니다."
     },
-    "stepLabel": "단계",
-    "stepReadout": "{{n}} / {{total}}",
-    "stepScrubber": "단계",
     "stop": "중지",
     "stopping": "취소 중…",
     "summary": {

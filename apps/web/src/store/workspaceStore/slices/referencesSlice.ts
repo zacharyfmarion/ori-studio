@@ -40,6 +40,7 @@ export const createReferencesSlice: WorkspaceSliceCreator<ReferencesSlice> = (se
   referencesAnalysis: null,
   referencesProgress: null,
   referencesCandidates: null,
+  referencesSelectedSheet: null,
   referencesView: DEFAULT_REFERENCES_VIEW,
   referencesRun: { status: 'idle' },
   referencesSettings: DEFAULT_REFERENCES_SETTINGS,
@@ -50,6 +51,23 @@ export const createReferencesSlice: WorkspaceSliceCreator<ReferencesSlice> = (se
   setReferencesAnalysis: (analysis) => set({ referencesAnalysis: analysis }),
   setReferencesProgress: (progress) => set({ referencesProgress: progress }),
   setReferencesCandidates: (candidates) => set({ referencesCandidates: candidates }),
+
+  // The plan, the pick and the step index all name geometry inside one sheet,
+  // so switching sheets drops all three rather than reinterpreting them against
+  // the new one. The plan itself lives in the module side table; the panel
+  // clears that alongside this, which is why only the store's own fields are
+  // reset here.
+  setReferencesSelectedSheet: (component) => {
+    if (get().referencesSelectedSheet === component) return;
+    set({
+      referencesSelectedSheet: component,
+      referencesTarget: null,
+      referencesCandidates: null,
+      referencesPlan: null,
+      referencesRun: { status: 'idle' },
+      referencesView: DEFAULT_REFERENCES_VIEW,
+    });
+  },
   setReferencesView: (view) => set({ referencesView: { ...get().referencesView, ...view } }),
   setReferencesRun: (run) => set({ referencesRun: run }),
   setReferencesSettings: (settings) => {

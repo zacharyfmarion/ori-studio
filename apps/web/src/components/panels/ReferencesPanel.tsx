@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type MouseEvent as ReactMouseEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type MouseEvent as ReactMouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ChevronLeft,
@@ -11,7 +11,6 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
-import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { ContextMenu } from '../ui/ContextMenu';
 import { IconButton } from '../ui/IconButton';
@@ -24,14 +23,31 @@ import {
   type ReferencesCpViewHandle,
 } from '../../cp-workspace/references/ReferencesCpView';
 import { ReferencesSettingsMenu } from '../../cp-workspace/references/ReferencesSettingsMenu';
-import { ReferencesStepsSidebar } from '../../cp-workspace/references/ReferencesStepsSidebar';
+import { ReferencesSheetsSidebar } from '../../cp-workspace/references/ReferencesSheetsSidebar';
+import { ReferencesStepFilmstrip } from '../../cp-workspace/references/ReferencesStepFilmstrip';
 import { ReferencesSummaryStrip } from '../../cp-workspace/references/ReferencesSummaryStrip';
+import { ReferencesTargetControls } from '../../cp-workspace/references/ReferencesTargetControls';
 import {
   buildReferencesActions,
   referencesCommands,
   type ReferencesActionIcon,
 } from '../../cp-workspace/references/referencesActions';
 import { referencesMenuItems } from '../../cp-workspace/references/referencesContextMenu';
+import {
+  planVisibility,
+  targetVisibility,
+  REFERENCES_ALL_CREASES,
+} from '../../cp-workspace/references/referencesCreaseVisibility';
+import {
+  candidateFilmstrip,
+  planFilmstrip,
+} from '../../cp-workspace/references/referencesFilmstrip';
+import {
+  referencesSheets,
+  resolveSelectedSheet,
+  sheetBorderLineIds,
+  sheetLineIds,
+} from '../../cp-workspace/references/referencesSheets';
 import {
   runReferencesShortcut,
   type ReferencesShortcutActions,
@@ -48,18 +64,23 @@ import {
 import { NextDocumentAction } from './NextDocumentAction';
 
 /**
- * The References workspace's dock panel: a composition site. The sidebar, the
- * crease-pattern view, the toolbar and the transport strip are mounted here and
- * wired to each other; every behaviour lives in `cp-workspace/references/` —
- * the store bindings in `useReferencesView` / `useReferencesTarget` /
+ * The References workspace's dock panel: a composition site. The sheet picker,
+ * the step filmstrip, the crease-pattern view and the toolbar are mounted here
+ * and wired to each other; every behaviour lives in `cp-workspace/references/`
+ * — the store bindings in `useReferencesView` / `useReferencesTarget` /
  * `useReferencesBreakdown`, the verbs in the action catalog, the keys in the
  * `references` shortcut scope. No keyboard handling here (AGENTS.md > Panel
  * components).
  *
- * Two modes share one set of surfaces: with a vertex or crease picked the
- * sidebar, transport and view describe ReferenceFinder's candidates; with
- * nothing picked they describe the whole-pattern breakdown. Choosing between
- * the two is this file's only real decision, and it is one `targeted` flag.
+ * The workspace reads top to bottom like a diagram: the steps as a strip of
+ * numbered cards, the active step's sentence under it, and the crease pattern
+ * below showing the sheet as it stands at that step. The left rail is the
+ * document's patterns, one of which is being folded.
+ *
+ * Two modes share those surfaces: with a vertex or crease picked they describe
+ * ReferenceFinder's candidates; with nothing picked they describe the
+ * whole-pattern breakdown. Choosing between the two is this file's only real
+ * decision, and it is one `targeted` flag.
  */
 
 const ACTION_ICONS: Record<ReferencesActionIcon, typeof ChevronLeft> = {
@@ -73,12 +94,7 @@ const ACTION_ICONS: Record<ReferencesActionIcon, typeof ChevronLeft> = {
   'zoom-out': ZoomOut,
 };
 
-const TRANSPORT_ACTIONS: readonly ReferencesActionIcon[] = [
-  'previous-candidate',
-  'previous-step',
-  'next-step',
-  'next-candidate',
-];
+const VIEW_ACTIONS: readonly ReferencesActionIcon[] = ['zoom-out', 'zoom-in', 'reset-view'];
 
 export function ReferencesPanel() {
   const { t } = useTranslation();
@@ -86,7 +102,25 @@ export function ReferencesPanel() {
   const controller = useReferencesTarget(view);
   const settings = useWorkspaceStore((state) => state.referencesSettings);
   const setReferencesSettings = useWorkspaceStore((state) => state.setReferencesSettings);
-  const breakdown = useReferencesBreakdown(view.geometry, view.revision, controller.frames);
+  const storedSheet = useWorkspaceStore((state) => state.referencesSelectedSheet);
+  const setSelectedSheet = useWorkspaceStore((state) => state.setReferencesSelectedSheet);
+
+  // Which crease pattern the workspace is answering for. Resolved rather than
+  // read: the frames analysis is recomputed on every revision, so a stored id
+  // can name a component that no longer exists.
+  const sheets = useMemo(() => referencesSheets(controller.frames), [controller.frames]);
+  const selectedSheet = resolveSelectedSheet(sheets, storedSheet);
+  const component =
+    controller.frames?.components.find((entry) => entry.id === selectedSheet) ?? null;
+  const sheetIds = useMemo(() => (component ? sheetLineIds(component) : null), [component]);
+  const borderIds = useMemo(() => (component ? sheetBorderLineIds(component) : null), [component]);
+
+  const breakdown = useReferencesBreakdown(
+    view.geometry,
+    view.revision,
+    controller.frames,
+    selectedSheet
+  );
   const targeted = controller.target !== null && controller.target.kind !== 'whole';
 
   const targetHighlights = useReferencesHighlights(
@@ -132,14 +166,48 @@ export function ReferencesPanel() {
     runAnalysisRef.current();
   }, [analysisRequest, consumeAnalysisRequest]);
 
-  // Transport and scrubber address whichever mode is showing.
+  // Transport and filmstrip address whichever mode is showing.
   const stepCount = targeted ? controller.stepCount : breakdown.flatSteps.length;
   const activeStep = targeted ? controller.activeStep : breakdown.activeStep;
   const selectStep = targeted ? controller.selectStep : breakdown.selectStep;
   const nextStep = useCallback(() => selectStep(activeStep + 1), [selectStep, activeStep]);
   const previousStep = useCallback(() => selectStep(activeStep - 1), [selectStep, activeStep]);
 
-  /** Recompute re-runs whatever the sidebar is showing. */
+  const active = controller.active;
+  const filmstrip = useMemo(
+    () =>
+      targeted
+        ? candidateFilmstrip(t, active)
+        : planFilmstrip(t, breakdown.variants, breakdown.flatSteps),
+    [targeted, t, active, breakdown.variants, breakdown.flatSteps]
+  );
+
+  // The sheet as it stands at the active step — see `referencesCreaseVisibility`.
+  const creaseVisibility = useMemo(() => {
+    if (!sheetIds) return REFERENCES_ALL_CREASES;
+    const input = {
+      sheetLineIds: sheetIds,
+      borderLineIds: borderIds,
+      activeLineIds: highlights.highlightLineIds,
+    };
+    if (targeted) return targetVisibility(input);
+    if (breakdown.variants.length === 0) {
+      // No plan yet: the pattern is not being read step by step, so it is shown
+      // whole rather than dimmed to nothing.
+      return { visible: sheetIds, dimmed: null, dimAlpha: 1 };
+    }
+    return planVisibility(breakdown.variants, breakdown.flatSteps, breakdown.activeStep, input);
+  }, [
+    sheetIds,
+    borderIds,
+    targeted,
+    highlights.highlightLineIds,
+    breakdown.variants,
+    breakdown.flatSteps,
+    breakdown.activeStep,
+  ]);
+
+  /** Recompute re-runs whatever the workspace is showing. */
   const recompute = useCallback(() => {
     if (targeted) {
       controller.recompute();
@@ -152,8 +220,8 @@ export function ReferencesPanel() {
     breakdown.run();
   }, [breakdown, controller, targeted]);
 
-  // One set of verbs, three surfaces: the keymap, the transport strip and the
-  // context menu all dispatch through `runReferencesShortcut` against these.
+  // One set of verbs, three surfaces: the keymap, the chevrons and the context
+  // menu all dispatch through `runReferencesShortcut` against these.
   const shortcutActions: ReferencesShortcutActions = {
     nextStep,
     previousStep,
@@ -164,9 +232,9 @@ export function ReferencesPanel() {
     resetView: fitView,
     zoomIn,
     zoomOut,
+    clearTarget: controller.clear,
   };
   useReferencesShortcuts(shortcutActions, view.hasDocument);
-  // The strip and the menu run verbs through the same executor the keys do.
   // Read through a ref refreshed after each commit rather than closed over, so
   // building the descriptors during render passes no ref-holding closures.
   const shortcutActionsRef = useRef(shortcutActions);
@@ -194,11 +262,13 @@ export function ReferencesPanel() {
   const commands = referencesCommands(actions);
   const commandById = (id: ReferencesActionIcon) => commands.find((command) => command.id === id);
 
-  // Selecting a step frames it: a jump toward its references, never a zoom out.
-  const stepBounds = highlights.stepBounds;
+  // A *finding* frames itself, because it is the only way to see where an
+  // unreached line is. A step deliberately does not: walking the sequence used
+  // to walk the pattern around the viewport, which made it unreadable.
+  const findingBounds = breakdown.activeFinding !== null ? highlights.stepBounds : null;
   useEffect(() => {
-    if (stepBounds) viewRef.current?.frameModelBounds(stepBounds);
-  }, [stepBounds]);
+    if (findingBounds) viewRef.current?.frameModelBounds(findingBounds);
+  }, [findingBounds]);
 
   const contextMenu = useContextMenuController('references');
   const onBodyContextMenu = (event: ReactMouseEvent<HTMLDivElement>) => {
@@ -213,7 +283,6 @@ export function ReferencesPanel() {
     });
   };
 
-  const active = controller.active;
   const readoutState = !view.hasDocument
     ? 'empty'
     : busy
@@ -222,29 +291,21 @@ export function ReferencesPanel() {
         ? 'error'
         : controller.stale || (!targeted && breakdown.stale)
           ? 'stale'
-          : targeted
-            ? active
-              ? 'ready'
-              : 'idle'
-            : breakdown.record || breakdown.analysisRecord
-              ? 'ready'
-              : 'idle';
+          : 'ready';
 
   return (
     <div className="references-workspace">
-      <ReferencesStepsSidebar
-        target={controller.target}
-        candidates={controller.candidates}
-        results={controller.results}
-        activeCandidate={controller.activeCandidate}
-        activeStep={controller.activeStep}
-        status={run.status}
-        hint={controller.hint}
-        warnings={controller.warnings}
-        onSelectCandidate={controller.selectCandidate}
-        onSelectStep={controller.selectStep}
+      <ReferencesSheetsSidebar
+        sheets={sheets}
+        components={controller.frames?.components ?? []}
+        geometry={view.geometry}
+        selected={selectedSheet}
+        onSelect={setSelectedSheet}
         breakdown={breakdown}
         analysis={breakdown.analysisRecord}
+        busy={busy}
+        hint={controller.hint}
+        warnings={controller.warnings}
       />
       <section className="panel-shell references-panel">
         <div className="panel-toolbar">
@@ -252,19 +313,38 @@ export function ReferencesPanel() {
             <Compass size={14} />
             <span className="panel-title">{t('panels:references.title', 'References')}</span>
             {targeted && controller.target && (
-              <span className="panel-toolbar__meta">
-                {controller.target.kind === 'vertex'
-                  ? t('panels:references.meta.vertex', 'Vertex')
-                  : t('panels:references.meta.crease', 'Crease')}
-                {controller.candidates &&
-                  ` · ${t('panels:references.meta.candidates', '{{n}} candidates', {
-                    n: controller.candidates.length,
-                  })}`}
-              </span>
+              <ReferencesTargetControls
+                target={controller.target}
+                candidateCount={controller.candidates?.length ?? 0}
+                activeCandidate={controller.activeCandidate}
+                active={active}
+                onPreviousCandidate={controller.previousCandidate}
+                onNextCandidate={controller.nextCandidate}
+                onClear={controller.clear}
+                previousLabel={commandById('previous-candidate')?.label ?? ''}
+                nextLabel={commandById('next-candidate')?.label ?? ''}
+              />
             )}
             {!targeted && <ReferencesSummaryStrip summary={breakdown.summary} />}
           </div>
           <div className="panel-toolbar__group">
+            {VIEW_ACTIONS.map((id) => {
+              const command = commandById(id);
+              if (!command) return null;
+              const Icon = ACTION_ICONS[id];
+              return (
+                <IconButton
+                  key={id}
+                  size="sm"
+                  variant="toolbar"
+                  title={command.label}
+                  disabled={command.disabled}
+                  onClick={() => runShortcut(command.shortcutId)}
+                >
+                  <Icon size={14} />
+                </IconButton>
+              );
+            })}
             <ReferencesSettingsMenu
               settings={settings}
               onChange={setReferencesSettings}
@@ -285,6 +365,31 @@ export function ReferencesPanel() {
           </div>
         </div>
 
+        <ReferencesStepFilmstrip
+          steps={filmstrip}
+          activeStep={activeStep}
+          onSelectStep={selectStep}
+          onPrevious={previousStep}
+          onNext={nextStep}
+          previousLabel={commandById('previous-step')?.label ?? ''}
+          nextLabel={commandById('next-step')?.label ?? ''}
+          placeholder={
+            busy
+              ? targeted
+                ? t('panels:references.searching', 'Finding references…')
+                : t('panels:references.planning', 'Working out the folding sequence…')
+              : targeted
+                ? t(
+                    'panels:references.sidebar.none',
+                    'ReferenceFinder found no construction for this target at the current settings.'
+                  )
+                : t(
+                    'panels:references.sheets.noPlan',
+                    'Work out how to fold this pattern, or click a vertex or crease for one reference.'
+                  )
+          }
+        />
+
         <div className="panel-body references-panel__body" onContextMenu={onBodyContextMenu}>
           {view.geometry && (
             <ReferencesCpView
@@ -301,8 +406,9 @@ export function ReferencesPanel() {
               ghostSegments={highlights.ghostSegments}
               markers={highlights.markers}
               selected={highlights.selected}
+              creaseVisibility={creaseVisibility}
               onPick={controller.pick}
-              framingKey={view.framingKey}
+              framingKey={`${view.framingKey}-sheet-${selectedSheet ?? 'none'}`}
               themeKey={view.themeKey}
               ariaLabel={t(
                 'panels:references.canvasAriaLabel',
@@ -389,99 +495,6 @@ export function ReferencesPanel() {
               </div>
             </div>
           )}
-        </div>
-
-        <div className="references-controls">
-          <div
-            className="references-transport"
-            aria-label={t('panels:references.controls', 'Step controls')}
-          >
-            {TRANSPORT_ACTIONS.map((id) => {
-              const command = commandById(id);
-              if (!command) return null;
-              const Icon = ACTION_ICONS[id];
-              return (
-                <IconButton
-                  key={id}
-                  size="sm"
-                  title={command.label}
-                  tooltipSide="top"
-                  disabled={command.disabled}
-                  onClick={() => runShortcut(command.shortcutId)}
-                >
-                  <Icon size={14} />
-                </IconButton>
-              );
-            })}
-          </div>
-          <label className="references-scrubber">
-            <span>{t('panels:references.stepLabel', 'Step')}</span>
-            <input
-              aria-label={t('panels:references.stepScrubber', 'Step')}
-              type="range"
-              min="0"
-              max={Math.max(0, stepCount - 1)}
-              step="1"
-              value={activeStep}
-              onChange={(event) => selectStep(Number(event.currentTarget.value))}
-              disabled={stepCount === 0}
-            />
-            <output>
-              {stepCount > 0
-                ? t('panels:references.stepReadout', '{{n}} / {{total}}', {
-                    n: activeStep + 1,
-                    total: stepCount,
-                  })
-                : t('panels:references.noSteps', '—')}
-            </output>
-          </label>
-          <div className="references-readout" data-state={readoutState}>
-            {targeted && active && (
-              <Badge tone={active.solution.exact ? 'accent' : 'neutral'}>
-                {active.solution.exact
-                  ? t('panels:references.exact', 'Exact')
-                  : t('panels:references.approximate', 'Approx.')}
-              </Badge>
-            )}
-            {targeted && active && !active.solution.exact && (
-              <span>
-                {t('panels:references.readout.error', 'err {{value}}', {
-                  value: active.solution.err.toExponential(1),
-                })}
-              </span>
-            )}
-            {targeted && active && controller.results && (
-              <span>
-                {t('panels:references.readout.duration', '{{ms}} ms', {
-                  ms: Math.round(controller.results.durationMs),
-                })}
-              </span>
-            )}
-            {!targeted && breakdown.summary && (
-              <span>
-                {t('panels:references.readout.duration', '{{ms}} ms', {
-                  ms: Math.round(breakdown.summary.durationMs),
-                })}
-              </span>
-            )}
-            {readoutState === 'idle' && (
-              <span>
-                {targeted
-                  ? t('panels:references.readout.idle', 'Pick a vertex or crease')
-                  : t('panels:references.readout.noPlan', 'No folding sequence yet')}
-              </span>
-            )}
-            {readoutState === 'stale' && (
-              <span>{t('panels:references.outOfDate', 'Out of date')}</span>
-            )}
-            {readoutState === 'running' && (
-              <span>
-                {targeted
-                  ? t('panels:references.searching', 'Finding references…')
-                  : t('panels:references.planning', 'Working out the folding sequence…')}
-              </span>
-            )}
-          </div>
         </div>
       </section>
     </div>

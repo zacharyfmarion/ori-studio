@@ -222,3 +222,58 @@ export function isClick(
 ): boolean {
   return Math.hypot(release.x - press.x, release.y - press.y) < threshold;
 }
+
+/** What a step does to each of the document's creases. */
+export interface ReferencesCreaseVisibility {
+  /**
+   * The 1-based ids drawn at all. `null` means every crease — the sheet is not
+   * being read step by step, so nothing is held back.
+   */
+  visible: ReadonlySet<number> | null;
+  /** Ids drawn faintly: made by an earlier step, or simply not this step's. */
+  dimmed: ReadonlySet<number> | null;
+  /** Multiplier on a dimmed crease's alpha. */
+  dimAlpha: number;
+}
+
+/**
+ * The document's creases as one step of a sequence sees them: what has been
+ * folded so far, with this step's own creases at full strength.
+ *
+ * An alpha pass over the finished stroke buffer rather than another channel on
+ * `cpGeometryStrokesToScene`. That adapter is parity-gated byte-for-byte against
+ * `cpSnapshotToScene` (its own doc comment calls that the Phase 2 gate), so a
+ * fourth id-set option there would have to be added to both and kept in step for
+ * a treatment only this workspace wants. Alpha is also exactly the right knob:
+ * hidden is alpha 0, dimmed is a fraction, and the buffer is already per-segment
+ * RGBA.
+ *
+ * `count` may exceed the document's segment count — the adapter appends a
+ * direction-hint overlay stroke per hinted crease, past the creases, with no way
+ * back to the id it belongs to. Those are dropped wholesale while a filter is
+ * on: a hint is an editing affordance about a crease whose direction is
+ * undecided, and it has no business outliving the crease it annotates in a
+ * read-only diagram.
+ */
+export function applyCreaseVisibility(
+  strokes: StrokeGeometry,
+  segmentCount: number,
+  visibility: ReferencesCreaseVisibility
+): StrokeGeometry {
+  const { visible, dimmed, dimAlpha } = visibility;
+  if (visible === null && (dimmed === null || dimmed.size === 0)) return strokes;
+  const color = new Float32Array(strokes.color);
+  for (let i = 0; i < strokes.count; i += 1) {
+    if (i >= segmentCount) {
+      color[i * 4 + 3] = 0;
+      continue;
+    }
+    const id = i + 1;
+    if (visible !== null && !visible.has(id)) {
+      color[i * 4 + 3] = 0;
+      continue;
+    }
+    if (dimmed !== null && dimmed.has(id)) color[i * 4 + 3] *= dimAlpha;
+  }
+  return { ...strokes, color };
+}

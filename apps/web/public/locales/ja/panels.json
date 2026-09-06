@@ -770,7 +770,6 @@
       "title": "参照の分析",
       "unsolved": "作図方法が見つかりません"
     },
-    "approximate": "近似",
     "axiom": {
       "free": "すでに紙の上にあります",
       "o1": "2 点を通る",
@@ -781,6 +780,7 @@
       "o6": "2 点を 2 本の線に重ねる",
       "o7": "点を線に重ね、垂直に"
     },
+    "backToPattern": "パターン全体に戻る",
     "breakdown": {
       "aux": "目印",
       "landmarks": "目印",
@@ -794,12 +794,8 @@
     },
     "canvasAriaLabel": "展開図。頂点や折り線をクリックすると基準点の折り方を探します。ドラッグで移動、スクロールでズーム。",
     "card": {
-      "error": "誤差 {{value}}",
-      "folds_other": "{{count}} 回の折り",
-      "rank": "#{{n}}",
-      "title": "候補 {{n}}: {{folds}} 回折る、ランク {{rank}}"
+      "error": "誤差 {{value}}"
     },
-    "controls": "ステップ操作",
     "direction": {
       "angle": "{{deg}}° の向きで",
       "diagonalDown": "右下がりの対角線で",
@@ -811,6 +807,9 @@
     "empty": "展開図がありません。編集で開くか描いてから戻ってください。",
     "errorTitle": "リファレンスを利用できません",
     "exact": "厳密",
+    "filmstrip": {
+      "label": "折り手順"
+    },
     "findings": {
       "approximation": "最も近い方法: {{folds}} 回の折り、誤差 {{err}}",
       "noApproximation": "作図方法が見つかりません",
@@ -821,18 +820,16 @@
       "unsolved": "作図方法が見つかりません"
     },
     "hint": {
-      "pick": "頂点または折り線をクリックすると、折り方が表示されます。",
-      "pickDecidesSheet": "頂点または折り線をクリックすると、折り方が表示されます。この展開図には {{n}} 枚の用紙があり、クリックした場所で使う用紙が決まります。"
+      "pick": "頂点または折り線をクリックすると、折り方が表示されます。"
     },
     "meta": {
-      "candidates": "{{n}} 件の候補",
       "crease": "折り線",
+      "solution": "解 {{n}} / {{total}}",
       "vertex": "頂点"
     },
     "noCreasePattern": "展開図がありません",
     "nonRectangular": "この用紙は長方形ではありません。現在、基準点は長方形の用紙でのみ探せます。",
     "noRectangularSheet": "長方形のシートがありません。今のところ参照は長方形のシートでしか見つけられません。",
-    "noSteps": "—",
     "openOutline": "この選択の周りの端の線が閉じた用紙になっていません。",
     "outOfDate": "古い結果",
     "outOfDateHint": "これらの基準点を探した後に展開図が変更されました。",
@@ -854,12 +851,6 @@
     "progress": {
       "closing": "{{total}} 本中 {{done}} 本を折りました",
       "querying": "{{total}} 本中 {{done}} 本を探索中"
-    },
-    "readout": {
-      "duration": "{{ms}} ms",
-      "error": "誤差 {{value}}",
-      "idle": "頂点または折り線を選んでください",
-      "noPlan": "折り手順はまだありません"
     },
     "recompute": "再計算",
     "ref": {
@@ -898,18 +889,17 @@
       "startFromPlan": "この手順から始める",
       "trigger": "リファレンス設定"
     },
+    "sheets": {
+      "cardTitle_other": "パターン {{n}}: 折り線 {{count}} 本",
+      "creases_other": "折り線 {{count}} 本",
+      "label": "折り紙パターン",
+      "noPlan": "このパターンの折り方を計算するか、頂点または折り線をクリックして 1 つの参照を調べます。",
+      "title": "パターン"
+    },
     "sidebar": {
-      "breakdownTitle": "折り手順",
-      "candidates": "候補の作図",
-      "freeDiagonals": "用紙の対角線も必要です: {{names}}。",
-      "label": "折りの基準点",
       "none": "現在の設定では、この対象の作図は見つかりませんでした。",
-      "noPlan": "パターン全体の折り方を計算するか、頂点または折り線をクリックして 1 つの参照を調べます。",
       "plan": "折り方を計算",
-      "planning": "折り手順を計算しています…",
-      "searching": "基準点を探しています…",
-      "steps": "折り手順",
-      "title": "手順"
+      "planning": "折り手順を計算しています…"
     },
     "step": {
       "axiom1": "{{p0}} と {{p1}} を通るように {{x}} を折ります。",
@@ -923,9 +913,6 @@
       "pinch": "軽くつまむだけ — 印だけが必要です。",
       "unknown": "{{inputs}} を使って {{x}} を折ります。"
     },
-    "stepLabel": "ステップ",
-    "stepReadout": "{{n}} / {{total}}",
-    "stepScrubber": "ステップ",
     "stop": "停止",
     "stopping": "キャンセル中…",
     "summary": {
