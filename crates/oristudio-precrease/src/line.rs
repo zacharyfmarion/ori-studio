@@ -166,9 +166,15 @@ impl Line {
     }
 
     /// Normal angle folded into `[0, π)` with the offset sign adjusted, so a
-    /// line and its `(−n, −d)` twin map to the same pair. Angles within
-    /// `TOL/2` of `π` wrap to `0` so the seam there is an ordinary quantum
-    /// boundary rather than a jump.
+    /// line and its `(−n, −d)` twin map to the same pair.
+    ///
+    /// Angles within `TOL/2` of `π` wrap to `0`, which keeps a near-vertical
+    /// line and its twin on **one** side of the quantum grid at `θ ≈ 0`
+    /// instead of splitting them across `0` and `π`. It does not remove the
+    /// discontinuity — it moves it to `θ = π − TOL/2`, where two lines equal
+    /// within `TOL` still land on opposite ends of the fold. That is why
+    /// [`Self::key`] is a hash hint and [`LineIndex`], which probes its
+    /// neighbouring buckets and wraps, is the tolerance-aware structure.
     pub(crate) fn folded_angle_offset(&self) -> (f64, f64) {
         let mut theta = self.normal_angle();
         let mut d = self.d;
@@ -200,8 +206,13 @@ impl Line {
 }
 
 /// A tolerance-aware index of distinct lines: angle buckets mod π (with
-/// wrap) of pitch `4 · tol`, probed over the neighbouring buckets, with the
-/// final decision made by [`Line::approx_eq_within`].
+/// wrap) of pitch **at least** `4 · tol`, probed over the neighbouring
+/// buckets, with the final decision made by [`Line::approx_eq_within`].
+///
+/// `π` is divided into a whole number of equal buckets rather than sliced at
+/// a fixed pitch: a fixed pitch leaves a short remainder bucket at the wrap,
+/// and a line inside the bucket before it never probes bucket `0`, so two
+/// lines equal within `tol` across the seam get two ids.
 #[derive(Debug, Clone)]
 pub struct LineIndex {
     tol: f64,
@@ -214,8 +225,10 @@ pub struct LineIndex {
 impl LineIndex {
     /// An empty index deciding equality at `tol`.
     pub fn new(tol: f64) -> Self {
-        let pitch = 4.0 * tol.max(f64::MIN_POSITIVE);
-        let bucket_count = (std::f64::consts::PI / pitch).ceil().max(1.0) as i64;
+        let bucket_count = (std::f64::consts::PI / (4.0 * tol.max(f64::MIN_POSITIVE)))
+            .floor()
+            .max(1.0) as i64;
+        let pitch = std::f64::consts::PI / bucket_count as f64;
         Self {
             tol,
             pitch,
@@ -405,5 +418,49 @@ mod tests {
         assert!(!new_f);
         assert_eq!(ei, fi);
         assert_eq!(index.len(), 3);
+    }
+
+    #[test]
+    fn index_dedupes_all_the_way_across_the_vertical_wrap() {
+        // The seam probes above use ±1e-9, which is inside the `TOL/2` guard
+        // band of `folded_angle_offset` and so never reaches the last bucket.
+        // With a fixed `4·tol` pitch that bucket was only `π mod 4·tol` wide
+        // (6.5e-7 rad at TOL) and its `−1`/`+1` probes could not see bucket
+        // 0, so an approx-equal partner of the exactly vertical line got a
+        // fresh id from eps = 6.54e-7 upwards.
+        let base = line([1.0, 0.0], 0.3);
+        let mut eps: f64 = 1e-9;
+        let mut checked = 0;
+        while eps < 2e-6 {
+            let other = line([(-eps).cos(), (-eps).sin()], 0.3);
+            if base.approx_eq(&other) {
+                let mut index = LineIndex::new(TOL);
+                let (a, _) = index.insert(base);
+                let (b, inserted) = index.insert(other);
+                assert!(
+                    !inserted && a == b,
+                    "eps {eps:e}: approx-equal lines got ids {a} and {b}"
+                );
+                checked += 1;
+            }
+            eps *= 1.05;
+        }
+        assert!(checked > 100, "swept only {checked} approx-equal partners");
+    }
+
+    #[test]
+    fn every_bucket_is_at_least_four_tolerances_wide() {
+        for &tol in &[TOL, 1e-9, 1e-3, 0.5, 1.0, 4.0] {
+            let index = LineIndex::new(tol);
+            assert!(index.bucket_count >= 1);
+            assert!(
+                index.pitch >= 4.0 * tol || index.bucket_count == 1,
+                "tol {tol:e}: pitch {} < 4·tol",
+                index.pitch
+            );
+            // The partition is exact: no short remainder bucket at the wrap.
+            let spanned = index.pitch * index.bucket_count as f64;
+            assert!((spanned - std::f64::consts::PI).abs() < 1e-12);
+        }
     }
 }

@@ -9,7 +9,10 @@
 //!
 //! Endpoint chaining happens in model space before any frame exists, so its
 //! radius is `TOL × canvas side` (the longest side of the border segments'
-//! bounding box) — the only scale available at that point. The rectangle
+//! bounding box) — the only scale available at that point. The same radius is
+//! the perpendicular deviation [`simplify_corners`] tolerates, so dropping a
+//! collinear split vertex is a distance test at the chaining tolerance rather
+//! than an angle test that tightens with every extra split. The rectangle
 //! tests are then dimensionless (unit directions, side ratios) so they carry
 //! `TOL` regardless of the sheet's size.
 
@@ -209,7 +212,7 @@ pub fn detect_border_loops(
                 break;
             }
         }
-        let corners = simplify_corners(&ordered);
+        let corners = simplify_corners(&ordered, radius);
         let sheet = rectangle_frame(&corners, radius);
         loops.push(BorderLoop {
             vertices: ordered,
@@ -226,18 +229,28 @@ pub fn detect_border_loops(
     }
 }
 
-fn unit(v: [f64; 2]) -> Option<[f64; 2]> {
+fn unit(v: [f64; 2]) -> Option<([f64; 2], f64)> {
     let len = (v[0] * v[0] + v[1] * v[1]).sqrt();
     if len > 0.0 {
-        Some([v[0] / len, v[1] / len])
+        Some(([v[0] / len, v[1] / len], len))
     } else {
         None
     }
 }
 
-/// Drop every loop vertex whose incoming and outgoing directions agree within
-/// `TOL` radians (border segments are split wherever a crease ends).
-pub fn simplify_corners(vertices: &[[f64; 2]]) -> Vec<[f64; 2]> {
+/// Drop every loop vertex that sits within `min_deviation` **model units** of
+/// the straight line through its neighbours (border segments are split
+/// wherever a crease ends, so an edited outline has many such vertices).
+///
+/// The test is a distance, not an angle. Comparing the turn angle against
+/// `TOL` tolerated a perpendicular deviation of only `TOL · L / 2`, which
+/// shrinks as the border is split more finely: on a 400-unit square split six
+/// ways per side a vertex 3.34e-5 model units off its own edge — 8e-8 of the
+/// sheet, far below the crate's own point tolerance — became a fifth corner,
+/// and `rectangle_frame` then refused the sheet outright. `min(|ab|, |bc|) ·
+/// sin θ` is within a factor of two of the true perpendicular distance
+/// `|ab||bc| sin θ / |ac|`, which is well inside this tolerance.
+pub fn simplify_corners(vertices: &[[f64; 2]], min_deviation: f64) -> Vec<[f64; 2]> {
     let n = vertices.len();
     if n < 3 {
         return vertices.to_vec();
@@ -247,7 +260,7 @@ pub fn simplify_corners(vertices: &[[f64; 2]]) -> Vec<[f64; 2]> {
         let a = vertices[(i + n - 1) % n];
         let b = vertices[i];
         let c = vertices[(i + 1) % n];
-        let (Some(d1), Some(d2)) = (
+        let (Some((d1, len1)), Some((d2, len2))) = (
             unit([b[0] - a[0], b[1] - a[1]]),
             unit([c[0] - b[0], c[1] - b[1]]),
         ) else {
@@ -255,7 +268,9 @@ pub fn simplify_corners(vertices: &[[f64; 2]]) -> Vec<[f64; 2]> {
         };
         let cross = d1[0] * d2[1] - d1[1] * d2[0];
         let dot = d1[0] * d2[0] + d1[1] * d2[1];
-        if cross.abs() > TOL || dot < 0.0 {
+        // `dot < 0` is a fold-back: the loop doubles over itself, which is a
+        // corner however small the turn measures.
+        if cross.abs() * len1.min(len2) > min_deviation || dot < 0.0 {
             corners.push(b);
         }
     }
@@ -421,6 +436,68 @@ mod tests {
         assert_eq!(sheet.frame.x_axis, [1.0, 0.0]);
         assert_eq!(sheet.frame.y_axis, [0.0, -1.0]);
         assert_eq!(l.border_segment_indices.len(), 24);
+    }
+
+    /// `square_segments`, with the shared vertex between the first two pieces
+    /// of the top side pushed `h` model units off that side.
+    fn square_with_a_nudged_border_vertex(size: f64, splits: usize, h: f64) -> Vec<[f64; 4]> {
+        let mut segments = square_segments(size, splits);
+        let x = size / splits as f64;
+        for s in &mut segments {
+            for k in [0, 2] {
+                if (s[k] - x).abs() < 1e-12 && s[k + 1] == 0.0 {
+                    s[k + 1] = h;
+                }
+            }
+        }
+        segments
+    }
+
+    #[test]
+    fn a_border_vertex_a_hair_off_its_edge_is_not_a_corner() {
+        // The angle test tolerated only `TOL·L/2` of perpendicular deviation,
+        // so with six pieces per side (L = 66.67) a vertex 3.334e-5 model
+        // units — 8.3e-8 of the sheet, 7x below Oriedita's own point epsilon —
+        // off its edge became a fifth corner and `rectangle_frame` refused
+        // the whole sheet. Splitting the border more finely made it worse.
+        for splits in [6, 12, 24, 32] {
+            for h in [3.334e-5, 1e-4, 1.53e-5] {
+                let segments = square_with_a_nudged_border_vertex(400.0, splits, h);
+                let indices: Vec<u32> = (0..segments.len() as u32).collect();
+                let result = detect_border_loops(&segments, &indices, 400.0);
+                let l = &result.loops[0];
+                assert_eq!(
+                    l.corners.len(),
+                    4,
+                    "splits {splits}, h {h:e}: corners {:?}",
+                    l.corners
+                );
+                assert!(l.sheet.is_ok(), "splits {splits}, h {h:e}: {:?}", l.sheet);
+            }
+        }
+    }
+
+    #[test]
+    fn a_border_vertex_genuinely_off_its_edge_is_still_a_corner() {
+        // The rule is a distance at the chaining radius (TOL × canvas = 4e-4
+        // model units on a 400 sheet), reached at h ≈ 2e-4 because the turn
+        // spans two pieces; a real dent is refused as before.
+        for h in [1e-3, 0.1, 4.0] {
+            let segments = square_with_a_nudged_border_vertex(400.0, 6, h);
+            let indices: Vec<u32> = (0..segments.len() as u32).collect();
+            let result = detect_border_loops(&segments, &indices, 400.0);
+            let l = &result.loops[0];
+            // The dent turns the border twice, so it shows as two corners.
+            assert!(l.corners.len() > 4, "h {h:e}: corners {:?}", l.corners);
+            assert!(matches!(l.sheet, Err(RefusalReason::NonRectangular { .. })));
+        }
+    }
+
+    #[test]
+    fn a_fold_back_is_a_corner_however_small_the_turn() {
+        // Zero turn angle but the loop doubles over itself: `dot < 0` keeps it.
+        let spike = [[0.0, 0.0], [100.0, 0.0], [50.0, 0.0], [50.0, 100.0]];
+        assert_eq!(simplify_corners(&spike, 1.0).len(), 4);
     }
 
     #[test]

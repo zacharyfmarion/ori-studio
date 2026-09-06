@@ -5,8 +5,12 @@
 //!
 //! - **merge**: the largest distance of a segment endpoint from the line it
 //!   was merged into;
-//! - **vertex**: the largest distance between two endpoints that nearly
-//!   coincide (closer than [`SNAP_RADIUS`] but not identical);
+//! - **vertex**: the largest distance from a segment endpoint to where the
+//!   lines it lies on actually cross — the merged lines within [`TOL`] of it,
+//!   plus any sheet edge within `TOL`. Measured per endpoint, never between
+//!   two of them: two junctions closer than [`SNAP_RADIUS`] are two vertices,
+//!   not a near-coincidence, and box pleating's rational connectors put
+//!   lattice junctions as close as 1/8192 of the sheet;
 //! - **angle**: the largest distance of a line's normal angle from the
 //!   nearest `k·π/8` or `k·π/12`;
 //! - **offset**: the largest distance of a line's ring offset from the dense
@@ -38,8 +42,13 @@
 //! line split at jittered vertices (consecutive pieces, no overlap) collapse
 //! legitimately; two overlapping lines that close cannot be told apart from
 //! a designed pair and refuse the snap.
-
-use std::collections::HashMap;
+//!
+//! An endpoint belongs to the vertex its own lines cross at, and two such
+//! crossings are two vertices however close they sit; only endpoints with no
+//! crossing to name — the jittered case the snap is for — are grouped by
+//! proximity, and then around a seed rather than by single-link chaining, so
+//! no cluster is wider than the radius the snap is allowed to move a point.
+//! [`SNAP_RADIUS`] is a cap on movement, never a definition of sameness.
 
 use serde::{Deserialize, Serialize};
 
@@ -47,9 +56,9 @@ use crate::components::{Component, local_index};
 use crate::error::PrecreaseError;
 use crate::frame::Frame;
 use crate::lattice::{
-    DENSE_SLOPE_BOUND, LatticeDirection, LatticeOffset, Ring, SNAP_RING_VARIANTS, SNAP_SLOPE_BOUND,
-    SnapFamily, dense_offset_residual, dense_rational_denominator, infer_grid_factor,
-    nearest_direction, snap_families,
+    ComponentGrid, DENSE_SLOPE_BOUND, LatticeDirection, LatticeOffset, Ring, SNAP_RING_VARIANTS,
+    SNAP_SLOPE_BOUND, SnapFamily, dense_offset_residual, dense_rational_denominator,
+    infer_grid_factor, infer_rational_denominator, nearest_direction, snap_families,
 };
 use crate::line::{Line, LineIndex};
 use crate::merge::MergedLine;
@@ -141,8 +150,8 @@ struct Context<'a> {
     /// Snap-tier direction and ring offset per line (fewer rational slopes).
     snap_dirs: Vec<LatticeDirection>,
     snap_ring_offsets: Vec<f64>,
-    /// The odd grid factor the component's rational offsets reveal.
-    grid_factor: Option<u32>,
+    /// The lattice the component's own lines reveal, beyond the shared tiers.
+    grid: ComponentGrid,
     endpoints: Vec<Endpoint>,
     clusters: Vec<Vec<usize>>,
     edges: [Line; 4],
@@ -151,14 +160,6 @@ struct Context<'a> {
 
 fn distance(a: [f64; 2], b: [f64; 2]) -> f64 {
     ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2)).sqrt()
-}
-
-fn find_root(parent: &mut [usize], mut i: usize) -> usize {
-    while parent[i] != i {
-        parent[i] = parent[parent[i]];
-        i = parent[i];
-    }
-    i
 }
 
 fn build_context<'a>(component: &'a Component, frame: &'a Frame) -> Context<'a> {
@@ -203,13 +204,23 @@ fn build_context<'a>(component: &'a Component, frame: &'a Frame) -> Context<'a> 
     let ring_offsets: Vec<f64> = (0..lines.len())
         .map(|li| ring_offset_for(li, &angles[li].0))
         .collect();
-    // The sheet's grid, read off the lines whose offsets are plainly
-    // rational, lets the ring tiers admit that grid's denominators too.
-    let grid_factor = infer_grid_factor(
-        (0..lines.len())
-            .filter(|&li| angles[li].0.ring == Ring::Rational)
-            .filter_map(|li| dense_rational_denominator(ring_offsets[li])),
-    );
+    // The sheet's grid, read off its rational-direction lines: the odd factor
+    // lets the ring tiers admit that grid's denominators too, and the lines
+    // the dense tier cannot express reveal a finer rational denominator (a
+    // 320-, 416- or 768-grid box pleat) that this component alone may use.
+    let rational_denominators: Vec<(usize, Option<u32>)> = (0..lines.len())
+        .filter(|&li| angles[li].0.ring == Ring::Rational)
+        .map(|li| (li, dense_rational_denominator(ring_offsets[li])))
+        .collect();
+    let component_grid = ComponentGrid {
+        odd_factor: infer_grid_factor(rational_denominators.iter().filter_map(|&(_, d)| d)),
+        rational_denominator: infer_rational_denominator(
+            rational_denominators
+                .iter()
+                .filter(|(_, d)| d.is_none())
+                .map(|&(li, _)| ring_offsets[li]),
+        ),
+    };
     let snap_dirs: Vec<LatticeDirection> = lines
         .iter()
         .map(|ml| nearest_direction(ml.line.n, SNAP_SLOPE_BOUND).0)
@@ -218,32 +229,31 @@ fn build_context<'a>(component: &'a Component, frame: &'a Frame) -> Context<'a> 
         .map(|li| ring_offset_for(li, &snap_dirs[li]))
         .collect();
 
-    // Endpoint clusters within SNAP_RADIUS, and the vertex residual.
-    let mut grid = PointGrid::new(SNAP_RADIUS);
-    for e in &endpoints {
-        grid.insert(e.p);
-    }
-    let mut parent: Vec<usize> = (0..endpoints.len()).collect();
+    // The junction each endpoint sits on, and the vertex residual: how far
+    // the endpoint is from where its own lines actually cross. Measured per
+    // endpoint — never as the distance between two endpoints, which counts a
+    // designed pair of junctions closer than SNAP_RADIUS (box-pleat
+    // connectors put lattice junctions as close as 1/8192 of the sheet) as a
+    // near-coincidence and so denies an exactly drawn design its `Exact`.
+    let edges = frame.edge_lines();
     let mut vertex_max = 0.0f64;
-    for (i, e) in endpoints.iter().enumerate() {
-        for j in grid.within(e.p, SNAP_RADIUS) {
-            if j == i {
-                continue;
-            }
-            vertex_max = vertex_max.max(distance(e.p, endpoints[j].p));
-            let (ri, rj) = (find_root(&mut parent, i), find_root(&mut parent, j));
-            if ri != rj {
-                parent[ri.max(rj)] = ri.min(rj);
+    let mut anchors: Vec<Option<[f64; 2]>> = Vec::with_capacity(endpoints.len());
+    let mut through: Vec<Line> = Vec::new();
+    for e in &endpoints {
+        through.clear();
+        for candidate in lines.iter().map(|ml| &ml.line).chain(edges.iter()) {
+            if candidate.distance_to_point(e.p) <= TOL
+                && !through.iter().any(|t| t.approx_eq(candidate))
+            {
+                through.push(*candidate);
             }
         }
+        let (anchor, residual) = junction_of(&through, e.p);
+        vertex_max = vertex_max.max(residual);
+        anchors.push(anchor);
     }
-    let mut by_root: HashMap<usize, Vec<usize>> = HashMap::new();
-    for i in 0..endpoints.len() {
-        let r = find_root(&mut parent, i);
-        by_root.entry(r).or_default().push(i);
-    }
-    let mut clusters: Vec<Vec<usize>> = by_root.into_values().collect();
-    clusters.sort_by_key(|c| c[0]);
+
+    let clusters = cluster_endpoints(&endpoints, &anchors);
 
     Context {
         frame,
@@ -252,12 +262,116 @@ fn build_context<'a>(component: &'a Component, frame: &'a Frame) -> Context<'a> 
         ring_offsets,
         snap_dirs,
         snap_ring_offsets,
-        grid_factor,
+        grid: component_grid,
         endpoints,
         clusters,
-        edges: frame.edge_lines(),
+        edges,
         vertex_max,
     }
+}
+
+/// Where the lines `through` a point cross, and how far `p` is from it.
+///
+/// The best-conditioned pair decides, as it does in [`evaluate`]. When no
+/// pair crosses — one line, or all of them parallel within `TOL` — or the
+/// crossing is further than the snap radius (an ill-conditioned pair whose
+/// intersection is nowhere near this endpoint), the point has no junction and
+/// the residual is simply how far it is from the lines it lies on.
+fn junction_of(through: &[Line], p: [f64; 2]) -> (Option<[f64; 2]>, f64) {
+    let mut best: Option<(f64, usize, usize)> = None;
+    for i in 0..through.len() {
+        for j in (i + 1)..through.len() {
+            let c = through[i].cross(&through[j]).abs();
+            if best.is_none_or(|(bc, _, _)| c > bc) {
+                best = Some((c, i, j));
+            }
+        }
+    }
+    if let Some((c, i, j)) = best
+        && c >= TOL
+        && let Some(q) = through[i].intersect(&through[j])
+    {
+        let d = distance(p, q);
+        if d < SNAP_RADIUS {
+            return (Some(q), d);
+        }
+    }
+    let residual = through
+        .iter()
+        .map(|l| l.distance_to_point(p))
+        .fold(0.0, f64::max);
+    (None, residual)
+}
+
+/// Group endpoints into the vertices the snap will move them to.
+///
+/// One cluster per **junction**: endpoints whose lines cross at the same
+/// point (within `TOL`) are one vertex, and two junctions further apart than
+/// that are two vertices however close they sit. Endpoints the geometry gives
+/// no junction for — the jittered case the snap exists for — join the nearest
+/// junction within half the snap radius, or else cluster around a seed at the
+/// same distance, so no cluster is wider than the radius the snap is allowed
+/// to move a point.
+///
+/// The single-link pass this replaces chained clusters transitively: on a
+/// real design (cpoogle Scale-Shaping) 291 distinct grid vertices became one
+/// cluster 0.19 unit across, whose forced single target reported a maximum
+/// displacement of 0.177 against a design that is exact to 1e-9.
+fn cluster_endpoints(endpoints: &[Endpoint], anchors: &[Option<[f64; 2]>]) -> Vec<Vec<usize>> {
+    // Cell `SNAP_RADIUS` because the grid is queried at both radii: `TOL` to
+    // decide whether two anchors are the same junction, and half the snap
+    // radius to attach a loose endpoint to one.
+    let mut junctions = PointGrid::new(SNAP_RADIUS);
+    let mut cluster_of: Vec<Option<usize>> = vec![None; endpoints.len()];
+    let mut clusters: Vec<Vec<usize>> = Vec::new();
+    let mut junction_cluster: Vec<usize> = Vec::new();
+    for (i, anchor) in anchors.iter().enumerate() {
+        let Some(a) = *anchor else { continue };
+        let (jid, fresh) = junctions.find_or_insert(a, TOL);
+        if fresh {
+            junction_cluster.push(clusters.len());
+            clusters.push(Vec::new());
+        }
+        let cluster = junction_cluster[jid];
+        clusters[cluster].push(i);
+        cluster_of[i] = Some(cluster);
+    }
+
+    let loose_ids: Vec<usize> = (0..endpoints.len())
+        .filter(|&i| cluster_of[i].is_none())
+        .collect();
+    let mut loose = PointGrid::new(SNAP_RADIUS);
+    for &i in &loose_ids {
+        loose.insert(endpoints[i].p);
+    }
+    let reach = SNAP_RADIUS / 2.0;
+    for &i in &loose_ids {
+        if cluster_of[i].is_some() {
+            continue;
+        }
+        let p = endpoints[i].p;
+        if let Some(jid) = junctions.nearest_within(p, reach) {
+            let cluster = junction_cluster[jid];
+            clusters[cluster].push(i);
+            cluster_of[i] = Some(cluster);
+            continue;
+        }
+        let cluster = clusters.len();
+        clusters.push(Vec::new());
+        for hit in loose.within(p, reach) {
+            let j = loose_ids[hit];
+            if cluster_of[j].is_none() {
+                cluster_of[j] = Some(cluster);
+                clusters[cluster].push(j);
+            }
+        }
+    }
+
+    for cluster in &mut clusters {
+        cluster.sort_unstable();
+    }
+    clusters.sort_by_key(|c| c[0]);
+    clusters
 }
 
 struct Evaluation {
@@ -526,7 +640,7 @@ fn identity_evaluation(ctx: &Context<'_>) -> Evaluation {
         .enumerate()
         .map(|(li, ml)| {
             let (offset, _) =
-                dense_offset_residual(ctx.ring_offsets[li], &ctx.angles[li].0, ctx.grid_factor);
+                dense_offset_residual(ctx.ring_offsets[li], &ctx.angles[li].0, ctx.grid);
             Some((ml.line, offset))
         })
         .collect();
@@ -563,9 +677,7 @@ pub fn probe(component: &Component) -> Result<Exactness, PrecreaseError> {
         .lines
         .iter()
         .enumerate()
-        .map(|(li, _)| {
-            dense_offset_residual(ctx.ring_offsets[li], &ctx.angles[li].0, ctx.grid_factor).1
-        })
+        .map(|(li, _)| dense_offset_residual(ctx.ring_offsets[li], &ctx.angles[li].0, ctx.grid).1)
         .fold(0.0, f64::max);
     let residuals = Residuals {
         merge_max,
@@ -646,4 +758,124 @@ pub fn probe(component: &Component) -> Result<Exactness, PrecreaseError> {
 /// otherwise (`complete == false` for an off-lattice component).
 pub fn snap(component: &Component) -> Result<SnappedComponent, PrecreaseError> {
     probe(component).map(|e| e.snapped)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn endpoints_at(points: &[[f64; 2]]) -> Vec<Endpoint> {
+        points
+            .iter()
+            .enumerate()
+            .map(|(line, &p)| Endpoint { p, line })
+            .collect()
+    }
+
+    #[test]
+    fn junctions_a_hair_apart_stay_separate_clusters() {
+        // Twenty junctions in a row, each 1.5e-3 apart — every neighbouring
+        // pair inside SNAP_RADIUS. Single-link chaining made them one cluster
+        // 2.85e-2 across, whose one forced target then reported a
+        // displacement of half that for a design that needed none.
+        let points: Vec<[f64; 2]> = (0..20).map(|k| [f64::from(k) * 1.5e-3, 0.5]).collect();
+        let endpoints = endpoints_at(&points);
+        let anchors: Vec<Option<[f64; 2]>> = points.iter().map(|&p| Some(p)).collect();
+        let clusters = cluster_endpoints(&endpoints, &anchors);
+        assert_eq!(clusters.len(), 20);
+        assert!(clusters.iter().all(|c| c.len() == 1));
+    }
+
+    #[test]
+    fn endpoints_on_one_junction_are_one_cluster() {
+        // Four segments meeting at a vertex, each endpoint resolving to the
+        // same crossing: one cluster however the endpoints themselves sit.
+        let points = [
+            [0.25, 0.5],
+            [0.25, 0.5],
+            [0.25 + 4e-7, 0.5],
+            [0.25, 0.5 - 3e-7],
+        ];
+        let endpoints = endpoints_at(&points);
+        let anchors = vec![Some([0.25, 0.5]); 4];
+        let clusters = cluster_endpoints(&endpoints, &anchors);
+        assert_eq!(clusters, vec![vec![0, 1, 2, 3]]);
+    }
+
+    #[test]
+    fn endpoints_with_no_junction_cluster_by_proximity_within_half_the_radius() {
+        // The jittered case the snap exists for: nothing resolves to a
+        // crossing, so proximity decides — but around a seed, so no cluster
+        // is wider than the radius the snap may move a point.
+        let points = [
+            [0.5, 0.5],
+            [0.5 + 5e-4, 0.5],
+            [0.5, 0.5 + 5e-4],
+            // Beyond the seed's reach, and beyond a chain from it.
+            [0.5 + 1.6e-3, 0.5],
+            [0.5 + 3.1e-3, 0.5],
+        ];
+        let endpoints = endpoints_at(&points);
+        let anchors = vec![None; points.len()];
+        let clusters = cluster_endpoints(&endpoints, &anchors);
+        assert_eq!(clusters, vec![vec![0, 1, 2], vec![3], vec![4]]);
+        for cluster in &clusters {
+            for &i in cluster {
+                for &j in cluster {
+                    assert!(distance(points[i], points[j]) <= SNAP_RADIUS);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_loose_endpoint_joins_the_junction_it_belongs_to() {
+        let points = [[0.25, 0.5], [0.25 + 6e-4, 0.5], [0.9, 0.9]];
+        let endpoints = endpoints_at(&points);
+        let anchors = vec![Some([0.25, 0.5]), None, None];
+        let clusters = cluster_endpoints(&endpoints, &anchors);
+        assert_eq!(clusters, vec![vec![0, 1], vec![2]]);
+    }
+
+    #[test]
+    fn every_endpoint_lands_in_exactly_one_cluster() {
+        let points: Vec<[f64; 2]> = (0..50)
+            .map(|k| {
+                let t = f64::from(k);
+                [0.1 + t * 7.0e-4, 0.2 + (t * 0.37).fract() * 0.5]
+            })
+            .collect();
+        let endpoints = endpoints_at(&points);
+        let anchors: Vec<Option<[f64; 2]>> = points
+            .iter()
+            .enumerate()
+            .map(|(i, &p)| (i % 3 == 0).then_some(p))
+            .collect();
+        let clusters = cluster_endpoints(&endpoints, &anchors);
+        let mut seen: Vec<usize> = clusters.iter().flatten().copied().collect();
+        seen.sort_unstable();
+        assert_eq!(seen, (0..points.len()).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn a_junction_is_where_the_lines_cross_not_where_the_point_is() {
+        let x = Line::new([1.0, 0.0], 0.25).expect("line");
+        let y = Line::new([0.0, 1.0], 0.5).expect("line");
+        let (anchor, residual) = junction_of(&[x, y], [0.25, 0.5]);
+        assert_eq!(anchor, Some([0.25, 0.5]));
+        assert!(residual < 1e-15);
+        // Off the crossing by 4e-4: that displacement is the residual.
+        let (_, residual) = junction_of(&[x, y], [0.25 + 4e-4, 0.5]);
+        assert!((residual - 4e-4).abs() < 1e-15);
+        // One line: the residual is the distance to it, and there is no
+        // junction to cluster on.
+        let (anchor, residual) = junction_of(&[x], [0.25 + 3e-7, 0.9]);
+        assert_eq!(anchor, None);
+        assert!((residual - 3e-7).abs() < 1e-15);
+        // Parallel lines never make a junction.
+        let far = Line::new([1.0, 0.0], 0.75).expect("line");
+        assert_eq!(junction_of(&[x, far], [0.25, 0.5]).0, None);
+        // Nothing through the point at all: nothing to measure.
+        assert_eq!(junction_of(&[], [0.25, 0.5]), (None, 0.0));
+    }
 }

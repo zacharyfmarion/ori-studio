@@ -74,7 +74,10 @@ impl PointGrid {
 
     fn cell_of(&self, p: [f64; 2]) -> (i64, i64) {
         // Coordinates are finite by construction (validated at the API
-        // boundary); the casts saturate rather than trap on anything else.
+        // boundary); a coordinate large enough to overflow the cast saturates
+        // to `i64::MIN`/`i64::MAX` rather than trapping. Every neighbour step
+        // taken off a cell index must therefore saturate too — see
+        // `for_each_within`.
         (
             (p[0] / self.cell).floor() as i64,
             (p[1] / self.cell).floor() as i64,
@@ -123,13 +126,28 @@ impl PointGrid {
         let fy = p[1] / self.cell - cy as f64;
         let r = radius / self.cell;
         // Each axis probes its own cell plus whichever neighbours the query
-        // circle reaches — both when the radius equals the cell.
-        let span = |f: f64| -> [Option<i64>; 3] {
-            [Some(0), (f < r).then_some(-1), (f > 1.0 - r).then_some(1)]
+        // circle reaches — both when the radius equals the cell. The step is
+        // saturating because `cell_of` saturates: a plain `+` traps in an
+        // overflow-checked build once a coordinate is large enough to clamp
+        // the cast. A clamped step lands back on the cell it started from,
+        // and is dropped so no point is visited twice.
+        let span = |c: i64, f: f64| -> ([i64; 3], usize) {
+            let mut cells = [c; 3];
+            let mut count = 1;
+            for (reaches, step) in [(f < r, -1), (f > 1.0 - r, 1)] {
+                let neighbour = c.saturating_add(step);
+                if reaches && neighbour != c {
+                    cells[count] = neighbour;
+                    count += 1;
+                }
+            }
+            (cells, count)
         };
-        for dx in span(fx).into_iter().flatten() {
-            for dy in span(fy).into_iter().flatten() {
-                if let Some(ids) = self.cells.get(&(cx + dx, cy + dy)) {
+        let (xs, x_count) = span(cx, fx);
+        let (ys, y_count) = span(cy, fy);
+        for &x in &xs[..x_count] {
+            for &y in &ys[..y_count] {
+                if let Some(ids) = self.cells.get(&(x, y)) {
                     for &id in ids {
                         let q = self.points[id];
                         let dist = ((q[0] - p[0]).powi(2) + (q[1] - p[1]).powi(2)).sqrt();
@@ -212,6 +230,27 @@ mod tests {
         // the right neighbour is within the radius too.
         let hits = grid.within([0.001, 0.5], 1e-3);
         assert!(hits.contains(&left) && hits.contains(&right), "{hits:?}");
+    }
+
+    #[test]
+    fn a_coordinate_that_saturates_the_cell_cast_does_not_trap() {
+        // `analyze` grids model-space border endpoints at `TOL × canvas`, so
+        // a 400-unit sheet placed at x = 1e16 asks for cell 2.5e19 — past
+        // `i64::MAX`, where the cast clamps. The neighbour probe used to add
+        // to the clamped index and panic with "attempt to add with overflow"
+        // in any overflow-checked build (`cargo test`, debug, Tauri dev).
+        let mut grid = PointGrid::new(4e-4);
+        let a = grid.insert([1e16, 0.0]);
+        let b = grid.insert([1e16 + 1e-4, 0.0]);
+        let hits = grid.within([1e16, 0.0], 4e-4);
+        assert!(hits.contains(&a) && hits.contains(&b), "{hits:?}");
+        // The negative end clamps to `i64::MIN`, where the `dx = -1` probe
+        // is the trap.
+        let c = grid.insert([-1e16, 0.0]);
+        assert_eq!(grid.within([-1e16, 0.0], 4e-4), vec![c]);
+        assert!(grid.any_within([1e16, 0.0], 4e-4));
+        assert_eq!(grid.nearest_within([-1e16, 0.0], 4e-4), Some(c));
+        assert_eq!(grid.find_or_insert([1e16, 0.0], 4e-4), (a, false));
     }
 
     #[test]

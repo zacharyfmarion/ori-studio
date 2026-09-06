@@ -187,7 +187,13 @@ fn no_border_falls_back_to_the_paper_with_a_warning() {
 
     let paper = [-200.0, -200.0, 200.0, 200.0];
     let analysis = analyze(&cp.segments, &cp.colors, Some(paper)).expect("analysis");
-    assert_eq!(analysis.warnings, vec![Warning::NoBorderFallback { paper }]);
+    assert_eq!(
+        analysis.warnings,
+        vec![
+            Warning::NoBorderFallback { paper },
+            Warning::UnassignedSegments { count: 1 }
+        ]
+    );
     assert_eq!(analysis.components.len(), 1);
     let c = &analysis.components[0];
     assert!(c.is_fallback);
@@ -214,6 +220,15 @@ fn disjoint_sheets_are_split_and_strays_are_unassigned() {
     assert_eq!(analysis.components[0].segment_indices, vec![left]);
     assert_eq!(analysis.components[1].segment_indices, vec![right]);
     assert_eq!(analysis.unassigned_segments, vec![stray]);
+    // A segment in no sheet used to be dropped in silence: the caller got a
+    // per-sheet exactness class computed over a short list with nothing said.
+    assert!(
+        analysis
+            .warnings
+            .contains(&Warning::UnassignedSegments { count: 1 }),
+        "{:?}",
+        analysis.warnings
+    );
     assert_eq!(
         analysis.components[0].border_segment_indices,
         vec![0, 1, 2, 3]
@@ -393,6 +408,164 @@ fn jittered_grid_is_snappable_with_a_sensible_displacement() {
             snapped.line
         );
     }
+}
+
+/// A 400-unit square, the unit-frame lines `y = 1/2` and `x = 1/2`, and one
+/// line per `gap` with integer normal `(8, 1)` whose junction with `y = 1/2`
+/// sits `gap` (unit units) to the right of the junction of `x = 1/2` with
+/// `y = 1/2`. Every offset is an exact dyadic rational, and every line is
+/// split at its crossings, the way Oriedita stores an edited CP.
+fn close_junctions(gaps: &[f64]) -> Cp {
+    let side = 400.0;
+    // Unit `8x + y = c` is model `8x − y = 400·(c − 1)`, and a junction at
+    // `x = 1/2 + gap` needs `c = 4.5 + 8·gap`.
+    let model_c: Vec<f64> = gaps.iter().map(|g| side * (3.5 + 8.0 * g)).collect();
+    let y_of = |x: f64, c: f64| 8.0 * x - c;
+    let x_of = |y: f64, c: f64| (y + c) / 8.0;
+
+    let mut cp = Cp::new();
+    cp.polygon_border(&[[0.0, 0.0], [side, 0.0], [side, side], [0.0, side]]);
+
+    // The vertical and the horizontal, split at every crossing.
+    let mut vertical: Vec<f64> = vec![0.0, side / 2.0, side];
+    let mut horizontal: Vec<f64> = vec![0.0, side / 2.0, side];
+    for &c in &model_c {
+        vertical.push(y_of(side / 2.0, c));
+        horizontal.push(x_of(side / 2.0, c));
+    }
+    vertical.sort_by(f64::total_cmp);
+    horizontal.sort_by(f64::total_cmp);
+    for w in vertical.windows(2) {
+        cp.seg(1, [side / 2.0, w[0]], [side / 2.0, w[1]]);
+    }
+    for w in horizontal.windows(2) {
+        cp.seg(2, [w[0], side / 2.0], [w[1], side / 2.0]);
+    }
+    // Each slanted line, split where it meets the two midlines.
+    for &c in &model_c {
+        let mut xs = [x_of(0.0, c), side / 2.0, x_of(side / 2.0, c), x_of(side, c)];
+        xs.sort_by(f64::total_cmp);
+        for w in xs.windows(2) {
+            cp.seg(1, [w[0], y_of(w[0], c)], [w[1], y_of(w[1], c)]);
+        }
+    }
+    cp
+}
+
+#[test]
+fn two_lattice_junctions_a_hair_apart_are_two_vertices() {
+    // Identical constructions, one with its second junction 1/128 of the
+    // sheet from the first and one with it 1/2048 — both exactly on the
+    // lattice. The vertex residual used to be the distance between two
+    // endpoints, so the 1/2048 pair (below SNAP_RADIUS) read as a
+    // near-coincidence: `vertex_max = 4.88e-4`, no `Exact`, and the snap then
+    // re-snapped an already exact line 0.195 model units to collapse the two
+    // junctions into one.
+    for gap in [1.0 / 128.0, 1.0 / 2048.0] {
+        let cp = close_junctions(&[gap]);
+        let analysis = analyze(&cp.segments, &cp.colors, None).expect("analysis");
+        let c = &analysis.components[0];
+        assert_eq!(c.merged_lines.len(), 3, "gap 1/{}", 1.0 / gap);
+        let e = c.exactness.as_ref().expect("exactness");
+        assert_eq!(
+            e.class,
+            ExactnessClass::Exact,
+            "gap 1/{}: {:?}",
+            1.0 / gap,
+            e.residuals
+        );
+        assert!(e.residuals.vertex_max < TOL, "{:?}", e.residuals);
+        assert_eq!(e.snapped.max_displacement_unit, 0.0);
+        // Nothing moved: every snapped line is one of the design's own.
+        for snapped in &e.snapped.lines {
+            assert!(
+                c.merged_lines
+                    .iter()
+                    .any(|m| m.line.approx_eq_within(&snapped.line, 1e-12)),
+                "gap 1/{}: {:?} is not a line of the design",
+                1.0 / gap,
+                snapped.line
+            );
+        }
+    }
+}
+
+#[test]
+fn a_row_of_close_junctions_does_not_chain_into_one_cluster() {
+    // Twenty lattice junctions along `y = 1/2`, each 1/2048 of the sheet from
+    // the last. Every neighbouring pair is inside SNAP_RADIUS, so a
+    // single-link pass chained all twenty into one cluster 9.3e-3 across —
+    // the mechanism that turned 291 distinct vertices of a real design into
+    // one cluster 0.19 unit wide and reported a 0.177 displacement for a
+    // design exact to 1e-9.
+    let gaps: Vec<f64> = (0..20).map(|k| f64::from(k) / 2048.0).collect();
+    let cp = close_junctions(&gaps);
+    let analysis = analyze(&cp.segments, &cp.colors, None).expect("analysis");
+    let c = &analysis.components[0];
+    let e = c.exactness.as_ref().expect("exactness");
+    assert_eq!(e.class, ExactnessClass::Exact, "{:?}", e.residuals);
+    assert_eq!(e.snapped.max_displacement_unit, 0.0);
+    // Two midlines and twenty slanted lines, none of them collapsed.
+    assert_eq!(c.merged_lines.len(), 22);
+    assert_eq!(e.snapped.lines.len(), 22);
+}
+
+/// A 400-unit square with axis creases at `k/grid` of the sheet, numerators
+/// coprime to `grid` so nothing reduces to a coarser denominator.
+fn fine_axis_grid(grid: u32) -> Cp {
+    let side = 400.0;
+    let mut cp = Cp::new();
+    cp.polygon_border(&[[0.0, 0.0], [side, 0.0], [side, side], [0.0, side]]);
+    for k in [1u32, 5, 7, 11, 13] {
+        if (2..=k.min(grid)).any(|d| k.is_multiple_of(d) && grid.is_multiple_of(d)) {
+            continue;
+        }
+        let t = side * f64::from(k) / f64::from(grid);
+        cp.seg(1, [t, 0.0], [t, side]);
+        cp.seg(2, [0.0, t], [side, t]);
+    }
+    cp
+}
+
+#[test]
+fn a_fine_grid_design_is_measured_against_its_own_denominator() {
+    // 320-, 384-, 416- and 768-grids are ordinary box-pleat grids and four
+    // real cpoogle designs use them, but no denominator ≤ 256 expresses one,
+    // so every offset read as off the lattice however exactly it was drawn.
+    // The dense cap stays at 256 for everyone; the component's own lines buy
+    // it one more denominator.
+    for grid in [320u32, 384, 416, 512, 768] {
+        let cp = fine_axis_grid(grid);
+        let analysis = analyze(&cp.segments, &cp.colors, None).expect("analysis");
+        let c = &analysis.components[0];
+        let e = c.exactness.as_ref().expect("exactness");
+        assert!(
+            e.residuals.offset_max < TOL,
+            "grid {grid}: offset_max {:e}",
+            e.residuals.offset_max
+        );
+        assert_eq!(
+            e.class,
+            ExactnessClass::Exact,
+            "grid {grid}: {:?}",
+            e.residuals
+        );
+    }
+    // A design whose offsets are arbitrary is still off the lattice: the
+    // inference explains a grid, it does not widen the tier.
+    let side = 400.0;
+    let mut cp = Cp::new();
+    cp.polygon_border(&[[0.0, 0.0], [side, 0.0], [side, side], [0.0, side]]);
+    for t in [0.318_209_886_2, 0.131_2, 0.712_349_1] {
+        cp.seg(1, [side * t, 0.0], [side * t, side]);
+    }
+    let analysis = analyze(&cp.segments, &cp.colors, None).expect("analysis");
+    let e = analysis.components[0]
+        .exactness
+        .as_ref()
+        .expect("exactness");
+    assert!(e.residuals.offset_max > TOL, "{:?}", e.residuals);
+    assert_ne!(e.class, ExactnessClass::Exact);
 }
 
 #[test]

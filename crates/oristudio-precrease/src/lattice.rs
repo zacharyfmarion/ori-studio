@@ -48,8 +48,12 @@ pub const SQRT2: f64 = std::f64::consts::SQRT_2;
 /// √3.
 pub const SQRT3: f64 = 1.732_050_807_568_877_2;
 
-/// Largest denominator the dense rational tier accepts.
+/// Largest denominator the dense rational tier accepts for every component.
 pub const DENSE_MAX_DENOMINATOR: u32 = 256;
+/// Ceiling on the one extra rational denominator a component's own lines may
+/// reveal ([`infer_rational_denominator`]): [`SNAP_MAX_ODD`] halved as deep
+/// as [`DENSE_MAX_DENOMINATOR`] goes.
+pub const INFERRED_MAX_DENOMINATOR: u32 = SNAP_MAX_ODD * DENSE_MAX_DENOMINATOR;
 /// Largest `|q|` the dense ring tier searches: `(17 − 12√2)/16`, the
 /// fourth power of `√2 − 1`, is the deepest landmark real designs reach.
 pub const DENSE_MAX_Q: i64 = 12;
@@ -291,8 +295,10 @@ pub fn nearest_offset(c: f64, ring: Ring, denominator: u32, q_max: i64) -> (Latt
 }
 
 /// Denominators of the dense ring tier, ascending: `m · 2ᵏ` for
-/// `(m, k) ≤ (1, 6), (3, 4), (5, 3), (7, 3)` — the powers of two 22.5°
+/// `(m, k) ≤ (1, 6), (3, 4), (5, 2), (7, 1)` — the powers of two 22.5°
 /// designs halve into, and the odd grids box-pleating sheets put them on.
+/// (The bounds live in [`DENSE_RING_DENOMINATOR_BOUNDS`]; this list is
+/// derived from them.)
 pub fn dense_ring_denominators() -> &'static [u32] {
     static DENOMINATORS: OnceLock<Vec<u32>> = OnceLock::new();
     DENOMINATORS.get_or_init(|| {
@@ -319,10 +325,107 @@ fn offset_rings(direction: &LatticeDirection) -> &'static [Ring] {
     }
 }
 
+/// The smallest denominator ≤ `max` whose rationals hold `c` within `TOL`,
+/// if any.
+pub fn rational_denominator_within(c: f64, max: u32) -> Option<u32> {
+    (1..=max).find(|&d| nearest_offset(c, Ring::Rational, d, 0).1 < TOL)
+}
+
 /// The smallest denominator ≤ [`DENSE_MAX_DENOMINATOR`] whose rationals hold
 /// `c` within `TOL`, if any.
 pub fn dense_rational_denominator(c: f64) -> Option<u32> {
-    (1..=DENSE_MAX_DENOMINATOR).find(|&d| nearest_offset(c, Ring::Rational, d, 0).1 < TOL)
+    rational_denominator_within(c, DENSE_MAX_DENOMINATOR)
+}
+
+/// The one rational denominator a component's own offsets agree on, when it
+/// is finer than [`DENSE_MAX_DENOMINATOR`].
+///
+/// `offsets` are the ring offsets the dense tier could **not** express (the
+/// caller filters those — passing an expressible offset only wastes a
+/// search). Each is given its smallest denominator up to
+/// [`INFERRED_MAX_DENOMINATOR`], and the winner is the denominator that
+/// **explains the most of them** — a design's grid divides every one of its
+/// own offsets — smallest first on a tie.
+///
+/// A design drawn on a 320-, 416- or 768-grid is exactly constructible but
+/// invisible to a tier that stops at 256, so its offsets read as off-lattice.
+/// Raising [`DENSE_MAX_DENOMINATOR`] instead is not an option: the share of
+/// arbitrary offsets that land within `TOL` of *some* `p/d` grows as `d²`
+/// (4 % at 256, 36 % at 768 — measured), which would make "off the lattice"
+/// meaningless. Admitting one denominator the component's own lines agree on
+/// costs one denominator's worth of false positives.
+///
+/// The candidate has to look like a grid, not merely fit: `odd · 2ᵏ` with the
+/// odd part no coarser than the snap tier's ([`SNAP_MAX_ODD`]). Every real
+/// fine grid measured on the corpus has that shape (320 = 5·2⁶, 384 = 3·2⁷,
+/// 416 = 13·2⁵, 512 = 2⁹, 768 = 3·2⁸), while an arbitrary offset's smallest
+/// denominator within `TOL` clusters around `√(π²/6·TOL) ≈ 1300` with an
+/// arbitrary factorisation. Without this rule a real design (cpoogle
+/// Dragon-by-Lorbeer) was measured taking `Exact` on a denominator of
+/// 1121 = 19·59.
+///
+/// The agreement has to be real too: `None` unless the winner explains at
+/// least two offsets and at least a quarter of them. A grid explains nearly
+/// all of what missed the tier (328 of 346 on the design this was measured
+/// against); a handful of hand-placed offsets explain only themselves, so the
+/// inference fails closed to the dense tier. Taking the lcm of every missing
+/// offset instead would let a single stray line disable the inference for a
+/// whole grid, which is exactly what that design does.
+pub fn infer_rational_denominator(offsets: impl IntoIterator<Item = f64>) -> Option<u32> {
+    let mut total = 0usize;
+    let denominators: Vec<u32> = offsets
+        .into_iter()
+        .inspect(|_| total += 1)
+        .filter_map(|c| rational_denominator_within(c, INFERRED_MAX_DENOMINATOR))
+        .collect();
+    let mut best: Option<(usize, u32)> = None;
+    for &d in &denominators {
+        if d <= DENSE_MAX_DENOMINATOR || !is_grid_shaped(d) {
+            continue;
+        }
+        let support = denominators
+            .iter()
+            .filter(|&&e| d.is_multiple_of(e))
+            .count();
+        if best.is_none_or(|(bs, bd)| support > bs || (support == bs && d < bd)) {
+            best = Some((support, d));
+        }
+    }
+    let (support, denominator) = best?;
+    (support >= 2 && support * 4 >= total).then_some(denominator)
+}
+
+/// `odd · 2ᵏ` with `odd ≤ SNAP_MAX_ODD`, within [`INFERRED_MAX_DENOMINATOR`].
+fn is_grid_shaped(denominator: u32) -> bool {
+    denominator > 0
+        && denominator <= INFERRED_MAX_DENOMINATOR
+        && (denominator >> denominator.trailing_zeros()) <= SNAP_MAX_ODD
+}
+
+/// The lattice a component's own lines reveal, beyond the tiers every
+/// component gets.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ComponentGrid {
+    /// The odd grid factor of the rational offsets ([`infer_grid_factor`]);
+    /// the ring tiers also admit `odd · 2ᵏ`, `k ≤ 2`.
+    pub odd_factor: Option<u32>,
+    /// The rational denominator the component's own offsets share when it is
+    /// finer than [`DENSE_MAX_DENOMINATOR`] ([`infer_rational_denominator`]);
+    /// the rational tier also admits it and its divisors.
+    pub rational_denominator: Option<u32>,
+}
+
+impl ComponentGrid {
+    /// Divisors of [`Self::rational_denominator`] the dense rational tier
+    /// does not already scan, ascending.
+    fn extra_rational_denominators(&self) -> Vec<u32> {
+        let Some(d) = self.rational_denominator else {
+            return Vec::new();
+        };
+        (DENSE_MAX_DENOMINATOR + 1..=d)
+            .filter(|k| d.is_multiple_of(*k))
+            .collect()
+    }
 }
 
 /// The odd grid factor a component's rational offsets reveal: the least
@@ -345,15 +448,16 @@ pub fn infer_grid_factor(denominators: impl IntoIterator<Item = u32>) -> Option<
 
 /// Dense-tier nearest element and residual for a line's ring offset `c` in
 /// `direction`: the smallest denominator (rationals first, then the design
-/// rings) that fits within `TOL`, else the best fit overall. `grid_factor`
-/// is the component's odd grid factor from [`infer_grid_factor`]; when given,
-/// the ring tiers also admit `grid · 2ᵏ` (k ≤ 2) so a 22.5° accent on a
-/// 13-grid sheet is recognised without admitting every odd denominator for
-/// every sheet.
+/// rings) that fits within `TOL`, else the best fit overall. `grid` is what
+/// the component's own lines revealed: its odd grid factor lets the ring
+/// tiers also admit `grid · 2ᵏ` (k ≤ 2), so a 22.5° accent on a 13-grid sheet
+/// is recognised without admitting every odd denominator for every sheet, and
+/// its rational denominator lets the rational tier reach past
+/// [`DENSE_MAX_DENOMINATOR`] for that component alone.
 pub fn dense_offset_residual(
     c: f64,
     direction: &LatticeDirection,
-    grid_factor: Option<u32>,
+    grid: ComponentGrid,
 ) -> (LatticeOffset, f64) {
     let mut best: Option<(LatticeOffset, f64)> = None;
     let mut consider = |candidate: (LatticeOffset, f64)| -> bool {
@@ -364,15 +468,18 @@ pub fn dense_offset_residual(
         }
         exact
     };
-    let grid_denominators: Vec<u32> = grid_factor
+    let grid_denominators: Vec<u32> = grid
+        .odd_factor
         .into_iter()
         .flat_map(|g| (0..=2).map(move |k| g << k))
         .filter(|&d| d <= DENSE_MAX_DENOMINATOR && !dense_ring_denominators().contains(&d))
         .collect();
+    let extra_rational = grid.extra_rational_denominators();
     'rings: for &ring in offset_rings(direction) {
         match ring {
             Ring::Rational => {
-                for denominator in 1..=DENSE_MAX_DENOMINATOR {
+                for denominator in (1..=DENSE_MAX_DENOMINATOR).chain(extra_rational.iter().copied())
+                {
                     if consider(nearest_offset(c, ring, denominator, 0)) {
                         break 'rings;
                     }
@@ -582,7 +689,7 @@ mod tests {
         // x + y = 1/2 on the unit square: ring normal (1, 1), offset 1/2.
         let (diag, _) = nearest_family_angle(PI / 4.0);
         let c = diag.ring_offset([0.5, 0.0]);
-        let (off, res) = dense_offset_residual(c, &diag, None);
+        let (off, res) = dense_offset_residual(c, &diag, ComponentGrid::default());
         assert!(res < 1e-15);
         assert_eq!((off.p, off.q, off.denominator), (1, 0, 2));
         // A line with normal angle 22.5° (ring normal (1, √2−1)) through the
@@ -591,31 +698,41 @@ mod tests {
         assert_eq!(dir.kind, DirectionKind::Family { index_24: 3 });
         assert!(res_ang < 1e-12);
         let c = dir.ring_offset([1.0, -(SQRT2 - 1.0)]);
-        let (off, res) = dense_offset_residual(c, &dir, None);
+        let (off, res) = dense_offset_residual(c, &dir, ComponentGrid::default());
         assert!(res < 1e-12, "residual {res}");
         assert_eq!((off.p, off.q, off.denominator), (-2, 2, 1));
         // (17 − 12√2)/16, a fourth-generation 22.5° landmark.
-        let (off, res) = dense_offset_residual((17.0 - 12.0 * SQRT2) / 16.0, &dir, None);
+        let (off, res) =
+            dense_offset_residual((17.0 - 12.0 * SQRT2) / 16.0, &dir, ComponentGrid::default());
         assert!(res < 1e-12);
         assert_eq!((off.p, off.q, off.denominator), (17, -12, 16));
         // The offset ring belongs to the design: a 45° line and an axis line
         // in a 22.5° design laid out on thirds (iguana component 14).
-        let (off, res) = dense_offset_residual((12.0 - SQRT2) / 6.0, &diag, None);
+        let (off, res) =
+            dense_offset_residual((12.0 - SQRT2) / 6.0, &diag, ComponentGrid::default());
         assert!(res < 1e-12);
         assert_eq!(
             (off.p, off.q, off.denominator, off.ring),
             (12, -1, 6, Ring::Sqrt2)
         );
         let (axis, _) = nearest_family_angle(0.0);
-        let (off, res) = dense_offset_residual((1.0 + 2.0 * SQRT2) / 3.0, &axis, None);
+        let (off, res) =
+            dense_offset_residual((1.0 + 2.0 * SQRT2) / 3.0, &axis, ComponentGrid::default());
         assert!(res < 1e-12);
         assert_eq!((off.p, off.q, off.denominator), (1, 2, 3));
         // A 22.5° accent on a 13-grid sheet (iguana component 15) needs the
         // component's grid factor; without it the offset is off the lattice.
         let accent = (25.0 - 12.0 * SQRT2) / 13.0;
-        let (_, res) = dense_offset_residual(accent, &dir, None);
+        let (_, res) = dense_offset_residual(accent, &dir, ComponentGrid::default());
         assert!(res > TOL);
-        let (off, res) = dense_offset_residual(accent, &dir, Some(13));
+        let (off, res) = dense_offset_residual(
+            accent,
+            &dir,
+            ComponentGrid {
+                odd_factor: Some(13),
+                ..Default::default()
+            },
+        );
         assert!(res < 1e-12);
         assert_eq!((off.p, off.q, off.denominator), (25, -12, 13));
         assert_eq!(infer_grid_factor([13, 13, 1, 2]), Some(13));
@@ -624,24 +741,26 @@ mod tests {
         assert_eq!(infer_grid_factor([13, 7, 5]), None);
         // A rational-slope connector gets the rationals only.
         let (conn, _) = nearest_direction([1.0 / 10f64.sqrt(), -3.0 / 10f64.sqrt()], 32);
-        let (_, res) = dense_offset_residual((1.0 + 2.0 * SQRT2) / 3.0, &conn, None);
+        let (_, res) =
+            dense_offset_residual((1.0 + 2.0 * SQRT2) / 3.0, &conn, ComponentGrid::default());
         assert!(res > TOL);
     }
 
     #[test]
     fn dense_rational_tier_prefers_the_smallest_denominator() {
         let (axis, _) = nearest_family_angle(0.0);
-        let (off, res) = dense_offset_residual(1.0 / 6.0, &axis, None);
+        let (off, res) = dense_offset_residual(1.0 / 6.0, &axis, ComponentGrid::default());
         assert!(res < 1e-15);
         assert_eq!((off.p, off.denominator), (1, 6));
         assert_eq!(dense_rational_denominator(1.0 / 6.0), Some(6));
-        let (off, res) = dense_offset_residual(5.0 / 24.0, &axis, None);
+        let (off, res) = dense_offset_residual(5.0 / 24.0, &axis, ComponentGrid::default());
         assert!(res < 1e-15);
         assert_eq!((off.p, off.denominator), (5, 24));
         // 1/π has no rational approximation with denominator ≤ 256 closer
         // than ~5e-5 (its convergents jump from 7/22 to 106/333), and no
         // near coincidence in the bounded ring tiers either.
-        let (_, res) = dense_offset_residual(std::f64::consts::FRAC_1_PI, &axis, None);
+        let (_, res) =
+            dense_offset_residual(std::f64::consts::FRAC_1_PI, &axis, ComponentGrid::default());
         assert!(res > TOL, "an arbitrary offset is off the dense lattice");
         assert_eq!(
             dense_rational_denominator(std::f64::consts::FRAC_1_PI),
@@ -652,6 +771,117 @@ mod tests {
         assert!(dense_ring_denominators().contains(&14));
         assert!(!dense_ring_denominators().contains(&56));
         assert_eq!(*dense_ring_denominators().last().expect("set"), 64);
+    }
+
+    #[test]
+    fn a_components_own_grid_reaches_past_the_dense_denominator_cap() {
+        let (axis, _) = nearest_family_angle(0.0);
+        // Real cpoogle box pleats are drawn on 320-, 416- and 768-grids, none
+        // of which any denominator ≤ 256 expresses, so their offsets read as
+        // off-lattice however exactly they were drawn.
+        for grid in [320u32, 384, 416, 512, 768] {
+            // Numerators coprime to the grid, so the offsets do not reduce
+            // to a denominator the dense tier already reaches.
+            let offsets: Vec<f64> = [1u32, 5, 7, 11, 13]
+                .iter()
+                .filter(|&&k| gcd(i64::from(k), i64::from(grid)) == 1)
+                .map(|&k| f64::from(k) / f64::from(grid))
+                .collect();
+            assert!(offsets.len() >= 2);
+            for &c in &offsets {
+                assert_eq!(dense_rational_denominator(c), None, "grid {grid}, c {c}");
+                let (_, res) = dense_offset_residual(c, &axis, ComponentGrid::default());
+                assert!(res > TOL, "grid {grid}: {res:e} is inside TOL already");
+            }
+            let inferred = infer_rational_denominator(offsets.iter().copied());
+            assert_eq!(inferred, Some(grid), "grid {grid}");
+            let component = ComponentGrid {
+                rational_denominator: inferred,
+                ..Default::default()
+            };
+            for &c in &offsets {
+                let (off, res) = dense_offset_residual(c, &axis, component);
+                assert!(res < 1e-12, "grid {grid}, c {c}: residual {res:e}");
+                assert!(
+                    grid.is_multiple_of(off.denominator),
+                    "grid {grid}: denominator {}",
+                    off.denominator
+                );
+            }
+        }
+        // A 257-grid is not a grid this admits: 257 is prime, so it fails the
+        // `odd · 2ᵏ` shape however consistently its own lines agree, and its
+        // offsets stay off the lattice.
+        let offsets: Vec<f64> = [1u32, 5, 7, 11, 13]
+            .iter()
+            .map(|&k| f64::from(k) / 257.0)
+            .collect();
+        assert_eq!(infer_rational_denominator(offsets.iter().copied()), None);
+        let (_, res) = dense_offset_residual(offsets[0], &axis, ComponentGrid::default());
+        assert!(res > TOL, "1/257 is off the dense lattice: {res:e}");
+    }
+
+    #[test]
+    fn the_inferred_denominator_is_one_grid_not_a_wider_cap() {
+        // One line is not a grid: a single unexplained offset must not buy
+        // itself a denominator.
+        assert_eq!(infer_rational_denominator([1.0 / 384.0]), None);
+        // Arbitrary offsets explain only themselves: no denominator divides
+        // more than one of them, so nothing is admitted.
+        assert_eq!(
+            infer_rational_denominator([
+                std::f64::consts::FRAC_1_PI,
+                std::f64::consts::LN_2 / 3.0,
+                0.318_281_7,
+                0.712_349_1,
+            ]),
+            None
+        );
+        // Nothing is admitted when the component's own grid is already inside
+        // the dense tier.
+        assert_eq!(infer_rational_denominator([1.0 / 6.0, 5.0 / 24.0]), None);
+        // A real grid survives a minority of hand-placed offsets — the shape
+        // of the design this was measured against, where 18 of 346 offsets
+        // that missed the tier are genuinely off the 768 grid. Taking the lcm
+        // of all of them would have thrown the grid away.
+        let mut offsets: Vec<f64> = (1..=12).map(|k| f64::from(k) * 5.0 / 768.0).collect();
+        offsets.extend([std::f64::consts::FRAC_1_PI, 0.712_349_1]);
+        assert_eq!(infer_rational_denominator(offsets), Some(768));
+        // But a grid may not be read off a handful against a crowd.
+        let mut offsets: Vec<f64> = vec![5.0 / 768.0, 7.0 / 768.0];
+        offsets.extend((1..=20).map(|k| 0.318_281_7 + f64::from(k) * 0.031_477_3));
+        assert_eq!(infer_rational_denominator(offsets), None);
+        // A denominator that fits but is not shaped like a grid is refused
+        // however well its lines agree: 1121 = 19·59 took a real design to
+        // `Exact` before this rule.
+        let offsets: Vec<f64> = (1..=12).map(|k| f64::from(k) * 5.0 / 1121.0).collect();
+        assert_eq!(infer_rational_denominator(offsets), None);
+        // The real fine grids all have the shape, and nothing past the
+        // ceiling is even searched for.
+        assert_eq!(INFERRED_MAX_DENOMINATOR, 6400);
+        for grid in [320u32, 384, 416, 512, 768] {
+            assert!(is_grid_shaped(grid), "{grid}");
+        }
+        for other in [1121u32, 883, 985, 1189, 3787, 12800] {
+            assert!(!is_grid_shaped(other), "{other}");
+        }
+        assert_eq!(
+            rational_denominator_within(1.0 / 12800.0, INFERRED_MAX_DENOMINATOR),
+            None
+        );
+        // The cap itself is untouched, so an arbitrary offset stays off the
+        // lattice for a component with no inferred grid.
+        assert_eq!(DENSE_MAX_DENOMINATOR, 256);
+        let (axis, _) = nearest_family_angle(0.0);
+        let (_, res) = dense_offset_residual(
+            std::f64::consts::FRAC_1_PI,
+            &axis,
+            ComponentGrid {
+                rational_denominator: Some(768),
+                ..Default::default()
+            },
+        );
+        assert!(res > TOL, "one extra denominator, not a wider tier");
     }
 
     #[test]

@@ -182,6 +182,32 @@ mod tests {
     }
 
     #[test]
+    fn a_near_vertical_pair_across_the_wrap_is_one_line() {
+        // Two mountain creases at x = 0.3, the second's top endpoint moved
+        // 5.232e-7 unit (2.1e-4 in the 400-unit editor space, under
+        // Oriedita's own `Epsilon::POINT`). They are `approx_eq`, but their
+        // folded angles sit either side of the π wrap: the index used to put
+        // them in the short remainder bucket and bucket 0, which its ±1
+        // probe could not bridge, so the planner saw two distinct lines.
+        let segments = [[0.3, 0.1, 0.3, 0.9], [0.3, 0.1, 0.3 + 0.8 * 6.54e-7, 0.9]];
+        let a = Line::from_points(
+            [segments[0][0], segments[0][1]],
+            [segments[0][2], segments[0][3]],
+        )
+        .expect("line");
+        let b = Line::from_points(
+            [segments[1][0], segments[1][1]],
+            [segments[1][2], segments[1][3]],
+        )
+        .expect("line");
+        assert!(a.approx_eq(&b), "the two lines are equal within TOL");
+        let kinds = [LineKind::Mountain, LineKind::Mountain];
+        let result = merge_segments(&segments, &kinds, None);
+        assert_eq!(result.lines.len(), 1, "{:?}", result.lines);
+        assert_eq!(result.lines[0].segment_indices, vec![0, 1]);
+    }
+
+    #[test]
     fn parallel_lines_a_hair_apart_stay_distinct() {
         let segments = [[0.0, 0.5, 1.0, 0.5], [0.0, 0.5 + 5e-6, 1.0, 0.5 + 5e-6]];
         let kinds = [LineKind::Mountain, LineKind::Mountain];

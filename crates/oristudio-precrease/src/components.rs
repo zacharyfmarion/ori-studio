@@ -30,6 +30,9 @@ pub enum Warning {
     ZeroLengthSegments { count: u32 },
     /// Border segments whose endpoints coincide, ignored by the chaining.
     DegenerateBorderSegments { count: u32 },
+    /// Non-border segments that lie inside no sheet and no refused loop, and
+    /// so are in no component's exactness or plan.
+    UnassignedSegments { count: u32 },
 }
 
 /// One border loop and everything inside it.
@@ -271,6 +274,20 @@ pub fn analyze(
     if overlapping > 0 {
         warnings.push(Warning::OverlappingSheets {
             segments: overlapping,
+        });
+    }
+    if !unassigned.is_empty() {
+        // The pad stays what it is — `outline_residual` already tracks corner
+        // displacement closely enough that it flips to `SNAP_RADIUS` before a
+        // `TOL` pad could drop a crease ending at a jittered corner, and a
+        // `SNAP_RADIUS` pad on every sheet would start attaching geometry
+        // that is genuinely off the paper (0.8 model units on a 400 sheet,
+        // and neighbouring sheets on a packed canvas are closer than that).
+        // What was missing is that the caller was told nothing: a whole-
+        // pattern breakdown would report an exactness class over a silently
+        // short line list.
+        warnings.push(Warning::UnassignedSegments {
+            count: unassigned.len() as u32,
         });
     }
 
