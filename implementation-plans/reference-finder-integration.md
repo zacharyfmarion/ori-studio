@@ -428,11 +428,16 @@ applicable axioms with witnesses and presentation is a separate pass. Implementa
 incremental and two-tier: a worklist of new-line / new-point events updates per-target facts
 for O1/O2/O3/O4 in O(1) per pair (O2 direction-bucketed); lander facts for O5/O6/O7 are
 recomputed only when that worklist drains with targets remaining. The fixpoint is the same
-in either order (monotonicity). **Cost is unmeasured**: the only large-state data point is
-the prototype's 960 s at 1,600 lines / 424 k points, and the plan's working targets (1 k
-lines / 200 k points → ~1–2 s in wasm; 2.5 k → 5–10 s; 5 k → 30–90 s as a background job)
-are estimates to be replaced by the Phase 4 measurements before the `|P|` cap (working
-value 4 M points, ~64 MB) and the default budget are fixed.
+in either order (monotonicity). **Measured in Phase 4** (release, M-series), superseding the
+earlier estimates: the Scale-Shaping design that took the JS prototype 960 s (7,536 segments
+→ 1,575 lines) closes in **1.91 s** at `|P| = 397,491` and 186 MB peak RSS — about 500×
+faster. The iguana component 0 plans fully in **0.94 s** (2 auxiliary, one depth-2 stuck
+event); all 31 components of `iguana_24.osf` take **3.27 s** together, the slowest single one
+1.93 s. From those numbers: a point costs ~450 bytes in practice (stored twice, with an
+incidence `Vec` and its own grid cell), not the 16 assumed, so the **`|P|` cap is 600,000**
+(~270 MB native, about half that in wasm, with 50 % headroom over the largest design in the
+563-design corpus) and the **per-stuck-event budget is 4 s** (twice the measured worst case,
+so a real search is never truncated non-deterministically); the overall plan budget stays 30 s.
 
 **Stuck handler** (remaining CP lines, none constructible):
 
@@ -544,8 +549,8 @@ polynomial algorithm is claimed. The summary strip shows "N folds = M creases + 
   segments. Used only for the small sidebar thumbnails; the CP view itself is the diagram.
 - **Budgets.** ReferenceFinder per-query timeout 10 s (covers a lazy 2–6 s build on first
   query); database LRU 2 with 60 s idle teardown; planner overall default 30 s
-  (configurable), ~2 s per stuck event; `|P|` cap working value 4 M points (desktop value
-  after the Phase 4 measurements). Stop on the CP-wide analysis takes effect after the
+  (configurable), 4 s per stuck event (measured); `|P|` cap 600,000 points (measured; desktop value
+  after the Phase 4 memory measurements). Stop on the CP-wide analysis takes effect after the
   current uncancelable query and keeps partial findings. Long runs surface as a
   `toast.loading` with Cancel (the exact-solve pattern: `createDelayedProgress({delayMs:
   3000, minVisibleMs: 1000})`) and inline in the readout.
@@ -859,26 +864,26 @@ pitch keeps nearest-element snapping unambiguous. Wasm exports are `sheet_frames
 
 ### Phase 4 — planner crate B: closure, certificates, stuck search, pinch pass, orchestration
 
-- [ ] State with grid-hash points, angle-bucket lines, incidence lists, conditioning
+- [x] State with grid-hash points, angle-bucket lines, incidence lists, conditioning
       floor; inverse predicates returning all witnesses; forward constructors O1–O7 derived
       from the axioms (O6 cubic with polished roots) with the executability checks; two-tier
       incremental closure with the written monotonicity argument; `close(budget_ms)`
       (resumable), `order()`, `explain()`; typed status
       (`complete | partial_unsolved | partial_off_lattice | refused_sheet | invalid_input`)
       and diagnostics.
-- [ ] Forward candidate generator (full and goal-directed, capped) and the forward-first
+- [x] Forward candidate generator (full and goal-directed, capped) and the forward-first
       stuck search (IDDFS depth ≤ 2, depth 3 when candidates ≤ ~60, lexicographic score with
       visible-auxiliary as the second key, per-event time cap); `score(lines)` /
       `fold(lines, tags)` for ReferenceFinder-supplied candidates.
-- [ ] Pinch pass (downstream-use analysis → `extent` per auxiliary step; visible-auxiliary
+- [x] Pinch pass (downstream-use analysis → `extent` per auxiliary step; visible-auxiliary
       count) with the property tests above; ordering and grouping passes with stability
       tests; `sequence()` JSON per the `Step` contract incl. `cpLineIds`.
-- [ ] **Measure before fixing budgets:** Rust closure on the iguana component 0, on a
+- [x] **Measure before fixing budgets:** Rust closure on the iguana component 0, on a
       Scale-Shaping-class design (~1,600 lines / 400 k points — external corpus, run
       locally) and on the 1,036-line canvas; memory on desktop (WKWebView) for rank 6 vs
       rank 5 plus the point store; set the `|P|` cap, default budget and desktop rank from
       the measurements; release-mode time ceiling test for the iguana closure.
-- [ ] Tests: properties (completeness, soundness, permutation invariance, pinch pass),
+- [x] Tests: properties (completeness, soundness, permutation invariance, pinch pass),
       regressions listed in "Testing strategy", fixture manifest (prototype upper bound,
       panel best-found, crate-derived expected) for bird 0, frog 1, grid6 1, kabuto 1,
       solution_sample_1 1, g3d_x19 2, x13_x38 3, x13_diag_pair 3, g3d_x112 2,
