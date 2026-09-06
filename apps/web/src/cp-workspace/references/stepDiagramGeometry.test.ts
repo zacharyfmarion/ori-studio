@@ -4,6 +4,7 @@ import {
   arcExtent,
   arcPathData,
   arrowheadPoints,
+  arrowheadSize,
   createDiagramProjector,
   foldArrowArc,
   labelPlacement,
@@ -179,5 +180,25 @@ describe('foldArrowArc', () => {
 
   it('draws nothing for a fold that moves a point onto itself', () => {
     expect(foldArrowArc([0.25, 0.25], [0.25, 0.25], sheet)).toBeNull();
+  });
+});
+
+describe('arrowheadSize', () => {
+  const sheet = { width: 1, height: 1 };
+
+  it('takes 0.15 of the paper’s shorter side for a long arrow', () => {
+    const arc = foldArrowArc([0, 0], [1, 1], sheet);
+    expect(arc && arrowheadSize(arc, sheet)).toBeCloseTo(0.15, 9);
+    // …the shorter side, on a 2:1 sheet.
+    const wide = { width: 1, height: 0.5 };
+    const wideArc = foldArrowArc([0, 0], [1, 0.5], wide);
+    expect(wideArc && arrowheadSize(wideArc, wide)).toBeCloseTo(0.075, 9);
+  });
+
+  // Upstream's cap, and the reason a small arc did not end up two overlapping
+  // triangles: `if (ahSize > ah1) ahSize = ah1` with `ah1 = 0.4 * |to - from|`.
+  it('caps at 0.4 of the chord for a short one', () => {
+    const arc = foldArrowArc([0.5, 0.5], [0.6, 0.5], sheet);
+    expect(arc && arrowheadSize(arc, sheet)).toBeCloseTo(0.04, 9);
   });
 });

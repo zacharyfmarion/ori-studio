@@ -160,6 +160,26 @@ export function foldArrowArc(
 }
 
 /**
+ * How long an arrow's heads should be, in sheet units — upstream's rule, ported
+ * from the tail of `CalcArrow` (`refDgmr.cpp:60-67`).
+ *
+ * `0.15` of the paper's shorter side, capped at `0.4` of the chord the arrow
+ * spans so a short arrow does not become two touching triangles. We had a flat
+ * `0.05` of the viewBox instead, which is a third of upstream's head on a square
+ * sheet and does not shrink on a short arrow at all — the two ends of a small
+ * arc overlapped, and every head was too faint to read at thumbnail size.
+ *
+ * The chord is recovered from the arc rather than passed in, because that is
+ * what the drawing has: an arc is stored by centre, radius and two angles.
+ */
+export function arrowheadSize(arc: DiagramArc, sheet: DiagramSheet): number {
+  const from = pointOnArc(arc, arc.from);
+  const to = pointOnArc(arc, arc.to);
+  const chord = Math.hypot(to[0] - from[0], to[1] - from[1]);
+  return Math.min(Math.min(sheet.width, sheet.height) * 0.15, 0.4 * chord);
+}
+
+/**
  * A filled arrowhead as SVG polygon `points`: the tip at `tip`, pointing along
  * `direction`, `size` long and two thirds as wide.
  */

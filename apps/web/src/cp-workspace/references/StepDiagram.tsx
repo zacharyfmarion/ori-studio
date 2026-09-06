@@ -9,6 +9,7 @@ import {
   arcPathData,
   arcStartDirection,
   arrowheadPoints,
+  arrowheadSize,
   createDiagramProjector,
   labelPlacement,
 } from './stepDiagramGeometry';
@@ -78,8 +79,6 @@ export function StepDiagram({
     );
   }
 
-  const arrowSize = size * 0.05;
-
   return (
     <svg
       className={['step-diagram', className].filter(Boolean).join(' ')}
@@ -129,6 +128,9 @@ export function StepDiagram({
                 />
               );
             }
+            // Sheet units through the projector's scale, so the head keeps
+            // upstream's proportion to the paper at any thumbnail size.
+            const head = arrowheadSize(primitive, model.sheet) * project.scale;
             const at = (angle: number) =>
               project([
                 primitive.center[0] + primitive.radius * Math.cos(angle),
@@ -143,14 +145,14 @@ export function StepDiagram({
                 <path className="step-diagram__arc step-diagram__line--arrow" d={path} />
                 <polygon
                   className="step-diagram__arrowhead"
-                  points={arrowheadPoints(at(primitive.to), arcEndDirection(primitive), arrowSize)}
+                  points={arrowheadPoints(at(primitive.to), arcEndDirection(primitive), head)}
                 />
                 <polygon
                   className="step-diagram__arrowhead"
                   points={arrowheadPoints(
                     at(primitive.from),
                     arcStartDirection(primitive),
-                    arrowSize
+                    head
                   )}
                 />
               </g>
