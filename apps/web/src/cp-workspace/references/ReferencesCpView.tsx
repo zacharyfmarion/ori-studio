@@ -19,6 +19,7 @@ import { createCpLineAppearanceResolver } from '../adapters/cpLineStyle';
 import { cpPointsToScene } from '../adapters/cpPointsToScene';
 import { resolveCpPointStyle } from '../adapters/cpPointStyle';
 import { CpRendererUnavailable, type CpRendererStatus } from '../CpRendererUnavailable';
+import { cpCanvasCursor } from '../cpCanvasCursor';
 import { cpDpr } from '../cpDpr';
 import { cpSizingScales, cpVertexCrowding, cpVertexSpacingModel } from '../cpSizingScales';
 import { applyPinchToCamera } from '../gestures/pinchCamera';
@@ -210,6 +211,14 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
     // Bumped when a lost context comes back, so the lifecycle effect rebuilds
     // the renderer and every upload effect below re-runs against it.
     const [rendererGeneration, setRendererGeneration] = useState(0);
+    // What the pointer is over, and whether it is dragging — the two inputs the
+    // cursor needs. Both are mirrored in refs the raw handlers read and write,
+    // and only pushed into state when the answer flips, so a pointermove over
+    // unchanged ground re-renders nothing (the Edit canvas's `applyCreaseHover`
+    // shape, `CreasePatternWebglCanvas.tsx`).
+    const [hovered, setHovered] = useState(false);
+    const [dragging, setDragging] = useState(false);
+    const hoveredRef = useRef(false);
 
     const vertices = useMemo(() => vertexPointsFromTransport(geometry), [geometry]);
     // What the vertex crowding ramp measures against — the same strided median
@@ -411,6 +420,36 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         );
       };
 
+      // Hover, for the cursor. Coalesced to a frame because `LineHitIndex`
+      // falls back to a linear scan at fit zoom (~2 ms at 50k segments), which
+      // is fine once per frame and not fine once per pointermove sample.
+      let hoverProbe = 0;
+      let hoverAt: { x: number; y: number } | null = null;
+      const applyHover = (next: boolean) => {
+        if (next === hoveredRef.current) return;
+        hoveredRef.current = next;
+        setHovered(next);
+      };
+      const probeHover = (clientX: number, clientY: number) => {
+        hoverAt = { x: clientX, y: clientY };
+        if (hoverProbe !== 0) return;
+        hoverProbe = requestAnimationFrame(() => {
+          hoverProbe = 0;
+          const at = hoverAt;
+          if (!at) return;
+          applyHover(hitTest(at.x, at.y) !== null);
+        });
+      };
+      const cancelHover = () => {
+        hoverAt = null;
+        if (hoverProbe !== 0) {
+          cancelAnimationFrame(hoverProbe);
+          hoverProbe = 0;
+        }
+        applyHover(false);
+      };
+
+
       const onPointerDown = (e: PointerEvent) => {
         // The right button is the panel's context menu; nothing to do here.
         if (e.button !== 0) return;
@@ -420,6 +459,8 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         if (pointers.size === 1) {
           press = { pointerId: e.pointerId, x: e.clientX, y: e.clientY };
           moved = false;
+          setDragging(true);
+          cancelHover();
         } else {
           // A second finger turns the gesture into a camera gesture; no click
           // can come out of it.
@@ -428,7 +469,13 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       };
 
       const onPointerMove = (e: PointerEvent) => {
-        if (!pointers.has(e.pointerId)) return;
+        // No contact down: the pointer is only passing over, so all this does is
+        // decide the cursor. `pointers` is empty then, which is why the hover
+        // probe sits above the guard the gesture handling starts with.
+        if (!pointers.has(e.pointerId)) {
+          if (pointers.size === 0) probeHover(e.clientX, e.clientY);
+          return;
+        }
         const cam = cameraRef.current;
         const prev = [...pointers.values()];
         pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -471,12 +518,21 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           liveRef.current.onPick(hitTest(e.clientX, e.clientY));
         }
         if (wasPress) press = null;
+        if (pointers.size === 0) {
+          setDragging(false);
+          // The pointer has not moved, but what is under it may have: a click
+          // that picked a crease leaves the cursor where the press left it.
+          probeHover(e.clientX, e.clientY);
+        }
       };
 
       const onPointerCancel = (e: PointerEvent) => {
         pointers.delete(e.pointerId);
         if (press?.pointerId === e.pointerId) press = null;
+        if (pointers.size === 0) setDragging(false);
       };
+
+      const onPointerLeave = () => cancelHover();
 
       const onWheel = (e: WheelEvent) => {
         const cam = cameraRef.current;
@@ -506,6 +562,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       canvas.addEventListener('pointermove', onPointerMove);
       canvas.addEventListener('pointerup', onPointerUp);
       canvas.addEventListener('pointercancel', onPointerCancel);
+      canvas.addEventListener('pointerleave', onPointerLeave);
       canvas.addEventListener('wheel', onWheel, { passive: false });
 
       return () => {
@@ -514,7 +571,9 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         canvas.removeEventListener('pointermove', onPointerMove);
         canvas.removeEventListener('pointerup', onPointerUp);
         canvas.removeEventListener('pointercancel', onPointerCancel);
+        canvas.removeEventListener('pointerleave', onPointerLeave);
         canvas.removeEventListener('wheel', onWheel);
+        cancelHover();
         renderNowRef.current = () => undefined;
         rendererRef.current = null;
         renderer.dispose();
@@ -661,6 +720,17 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       []
     );
 
+    // The shared predicate, not a second copy of the rule. Both a vertex and a
+    // crease report as `creaseHovered`: here they are the same press — a click
+    // that selects what is under the cursor — where in the editor a vertex under
+    // Move Vertex is dragged, which is what `vertexGrabbable` is for.
+    const cursor = cpCanvasCursor({
+      panToolActive: false,
+      panModifierHeld: false,
+      panDragging: dragging,
+      creaseHovered: hovered,
+    });
+
     return (
       <div className={['references-view', className].filter(Boolean).join(' ')}>
         <canvas
@@ -669,6 +739,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           role="img"
           aria-label={ariaLabel}
           data-testid="references-cp-view"
+          style={cursor ? { cursor } : undefined}
         />
         {rendererStatus && <CpRendererUnavailable status={rendererStatus} />}
       </div>

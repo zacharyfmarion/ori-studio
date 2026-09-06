@@ -161,6 +161,55 @@ describe('ReferencesCpView without WebGL', () => {
 describe('ReferencesCpView picking', () => {
   beforeEach(stubWebgl);
 
+  /**
+   * The cursor has to say a click will do something. Hover is coalesced to a
+   * frame, so these drive `requestAnimationFrame` synchronously rather than
+   * waiting on jsdom's ~16 ms timer.
+   */
+  function hover(canvas: HTMLCanvasElement, point: { clientX: number; clientY: number }): void {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    act(() => {
+      canvas.dispatchEvent(pointer('pointermove', point));
+    });
+    act(() => {
+      for (const frame of frames.splice(0)) frame(0);
+    });
+  }
+
+  it('shows a pointer cursor over a crease and over a vertex, and grab over bare paper', () => {
+    const canvas = mount();
+    expect(canvas.style.cursor).toBe('');
+
+    hover(canvas, clientOf(100, 50));
+    expect(canvas.style.cursor).toBe('pointer');
+
+    hover(canvas, clientOf(40, 50));
+    expect(canvas.style.cursor).toBe('pointer');
+
+    // Far from both creases: back to the resting grab, which is the CSS default
+    // and so is spelled by *not* setting an inline cursor.
+    hover(canvas, clientOf(180, 10));
+    expect(canvas.style.cursor).toBe('');
+  });
+
+  it('shows grabbing while a drag is in progress, whatever is under the pointer', () => {
+    const canvas = mount();
+    hover(canvas, clientOf(100, 50));
+    expect(canvas.style.cursor).toBe('pointer');
+    act(() => {
+      canvas.dispatchEvent(pointer('pointerdown', clientOf(100, 50)));
+    });
+    expect(canvas.style.cursor).toBe('grabbing');
+    act(() => {
+      canvas.dispatchEvent(pointer('pointerup', clientOf(100, 50)));
+    });
+    expect(canvas.style.cursor).not.toBe('grabbing');
+  });
+
   it('never carries the editor canvas class that floating toolbars forward wheel events to', () => {
     const canvas = mount();
     expect(canvas.classList.contains('cp-webgl-layer')).toBe(false);

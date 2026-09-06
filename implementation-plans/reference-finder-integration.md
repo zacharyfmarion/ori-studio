@@ -973,3 +973,105 @@ Phase 5 outcomes (2026-09-05):
 - Approximate mode with constructed-geometry state and per-step error.
 - Cost toggles ("+1 fold for easier axioms"); beam over stuck events; 5k-line scaling.
 - Fold-through-layers model; folded intermediate previews via `folding3d`.
+
+---
+
+## Revision 2 — the workspace reads as a diagram
+
+Seven pieces of feedback from the first browser session, all on the References workspace's
+presentation rather than on the planner or the ReferenceFinder bridge. The engine work in
+this plan stands; what follows replaces the workspace's layout, its picking feedback and
+its per-step rendering.
+
+### What was wrong
+
+1. **Multiple crease patterns at once.** `run()` planned every plannable sheet in the
+   document and `flatPlanSteps` concatenated them into one scrubber. There is no reason to
+   ask for references for several patterns at once, and the concatenation made the step
+   numbering meaningless.
+2. **Clicking a vertex failed** with ReferenceFinder's `y coordinate should lie between 0
+   and 1`, and the cursor never changed over a click target.
+3. **Selecting a step moved the camera**, so reading the sequence walked the pattern around
+   the viewport.
+4. **Every crease drew at full strength in every step**, so a step's own crease was lost in
+   the finished pattern behind it.
+5. **The steps were a vertical sidebar list of 44 px thumbnails**, not a diagram.
+6. **No visible way out of a vertex/crease pick** — clicking empty paper cleared it, which
+   nothing said.
+7. **No pointer cursor over a crease either.**
+
+### D11 — the vertex bug is a one-ULP frame inconsistency, not a mis-picked sheet
+
+`ReferenceFinder::ValidateMark` (`third_party/reference-finder/src/core/ReferenceFinder.cpp:358`)
+tests `ap.y < 0 || ap.y > sPaper.mHeight` with **no epsilon**, and only the point command is
+validated — `ValidateLine` checks distinctness only. That is why a vertex pick failed while
+a crease pick and the whole-pattern breakdown (all line queries) did not.
+
+`outline.rs::rectangle_frame` measures the sheet's `width`/`height` by projecting the loop's
+corners onto `units[longest]`, then hands that axis to `Frame::new`, which **re-normalises
+it**. For a rotated sheet the pre-normalised vector has a float norm of `0.9999999999999999`,
+so the frame maps with a very slightly longer axis than the one its own extents were measured
+with, and every projection comes out one ULP large. Measured on a 45° diamond sheet: 9 of 16
+border vertices map to `1.0000000000000002`; the same pattern drawn axis-aligned rejects none.
+Multi-component documents are a red herring — `componentForVertex` attributes by segment
+ownership and was verified correct on a two-sheet document.
+
+Two fixes, both wanted:
+
+- **Rust**: normalise the axis *before* measuring, so a frame is self-consistent. Removes the
+  systematic inflation.
+- **TypeScript**: clamp on the *input* side of the ReferenceFinder boundary, in
+  `protocol.ts`, where the paper rectangle is already known. `extractor.ts` has clamped the
+  *output* side since Phase 1 for exactly this class of overshoot; the input side had no
+  counterpart. Round-off is not the only way a point can land a hair outside, so the clamp
+  is the invariant and the Rust fix is the cause removed.
+
+### D12 — one sheet at a time, chosen in a sidebar
+
+The left sidebar becomes the pattern picker, on the Simulate workspace's shape
+(`SimulatorSegmentsSidebar`): one card per plannable sheet, a thumbnail and a 1-based badge,
+`selectedSheet` in the workspace store. The breakdown plans **only** the selected sheet, the
+CP view draws only that sheet, and the camera fits it.
+
+Unlike the simulator's, this sidebar stays mounted for a single sheet: it is also where the
+run affordance and the notes (hint, warnings, unreached lines) live, so hiding it would leave
+them homeless.
+
+### D13 — the steps are a filmstrip, the CP is the stage
+
+Above the CP view, a horizontally scrolling strip of numbered step cards with a chevron at
+each end; below it, one caption line carrying the active step's sentence. The CP view fills
+the rest. Selecting a step scrolls the strip, never the camera.
+
+### D14 — a step shows the sheet as it stands
+
+At step *k* the view draws the sheet outline always, the creases made by steps 0…*k* and
+nothing later. The current step's creases take the reference colour at full strength;
+everything earlier is dimmed. Implemented as an alpha pass over the stroke buffer
+(`applyStepVisibility`) rather than a new channel on the shared adapter, which is
+parity-gated against `cpSnapshotToScene`.
+
+In targeted mode the document's creases are dimmed uniformly so ReferenceFinder's
+construction reads over them; nothing is hidden, because an RF solution's steps are folds on
+a blank sheet and have no relation to the pattern's creases.
+
+### D15 — planner steps get upstream's arrow
+
+`plannerStepToPrimitives` drew no arrow and no letter labels, so the breakdown's thumbnails
+had no way to show motion. `RefDgmr::CalcArrow` (`refDgmr.cpp:29`) is ~20 lines and is ported
+verbatim, so a synthesised arrow is geometrically the same construction Tsai's app draws. The
+moving input comes from the witness's own `who_moves`, which the crate already computes per
+axiom (`predicates.rs:216`); its image is its reflection across the step's line. An empty
+`who_moves` (O1, O4) draws no arrow, which is honest rather than invented.
+
+Upstream computes two arrowhead directions and draws neither; we drew one. Both ends now get
+a head, matching `CalcArrow`'s `fromDir`/`toDir`.
+
+### Revision 2 checklist
+
+- [ ] Phase R1 — picking: the frame fix, the input-side clamp, hover cursor
+- [ ] Phase R2 — the sheets sidebar and one-sheet scoping
+- [ ] Phase R3 — per-step crease build-up, and no camera jump on step change
+- [ ] Phase R4 — the filmstrip, the caption bar and the way out of a pick
+- [ ] Phase R5 — arrows and labels for planner steps
+- [ ] Phase R6 — validation and browser verification

@@ -208,6 +208,39 @@ function requireCoordinate(name: string, value: number): number {
   return value;
 }
 
+/**
+ * How far outside the paper a mark may land and still be taken as on it.
+ *
+ * Comfortably above the round-off a model → sheet → unit projection accumulates
+ * (a few ULP of 1, so ~1e-16) and far below the planner's own `TOL`, so nothing
+ * a user could see moves.
+ */
+export const PAPER_SNAP_TOLERANCE = 1e-9;
+
+/**
+ * A mark coordinate snapped onto `[0, extent]`.
+ *
+ * `ReferenceFinder::ValidateMark` bounds the paper with `ap.y < 0 || ap.y >
+ * sPaper.mHeight` and **no epsilon** (`ReferenceFinder.cpp:358`), and only the
+ * point command is validated — `ValidateLine` checks distinctness alone. So a
+ * mark one ULP outside is a hard refusal ("y coordinate should lie between 0 and
+ * 1") while the same overshoot on a line query passes unnoticed. A vertex reaches
+ * us through a chain of projections and a division, so landing a few ULP outside
+ * a sheet it is genuinely on the edge of is ordinary arithmetic, not bad input.
+ *
+ * Beyond {@link PAPER_SNAP_TOLERANCE} the value is passed through untouched: a
+ * mark that really is off the paper should get the core's own error rather than
+ * a silently relocated answer.
+ *
+ * The mirror of `extendToSheet`'s clamp, which has done this on the way *out*
+ * since the bridge landed; this is the missing counterpart on the way in.
+ */
+export function snapMarkToPaper(value: number, extent: number): number {
+  if (value < 0) return value >= -PAPER_SNAP_TOLERANCE ? 0 : value;
+  if (value > extent) return value <= extent + PAPER_SNAP_TOLERANCE ? extent : value;
+  return value;
+}
+
 /** Command 1: `[1, goodEnoughError, count, worstCase, x, y]`. */
 export function encodePointQuery(
   x: number,

@@ -350,7 +350,17 @@ pub fn rectangle_frame(corners: &[[f64; 2]], min_side: f64) -> Result<RectSheet,
         .copied()
         .min_by(|a, b| a[1].total_cmp(&b[1]))
         .unwrap_or(e);
-    let y_axis = [x_axis[1], -x_axis[0]];
+    // Settle the axes *before* measuring. `units[longest]` is only a unit vector
+    // to within an ULP, and `Frame::new` normalises its own copy — so measuring
+    // the sides against the vector here and mapping with the frame's would make
+    // the frame inconsistent with its own extents, and the sheet's far edge would
+    // map to 1.0000000000000002 instead of 1. See `Frame::with_axes`.
+    let axes =
+        Frame::new(corners[0], x_axis, 1.0, 1.0).map_err(|_| RefusalReason::DegenerateOutline {
+            vertices: corners.to_vec(),
+        })?;
+    let x_axis = axes.x_axis;
+    let y_axis = axes.y_axis;
     let proj = |p: [f64; 2], axis: [f64; 2]| p[0] * axis[0] + p[1] * axis[1];
     let origin = corners
         .iter()
@@ -367,7 +377,7 @@ pub fn rectangle_frame(corners: &[[f64; 2]], min_side: f64) -> Result<RectSheet,
         .iter()
         .map(|p| proj([p[0] - origin[0], p[1] - origin[1]], y_axis))
         .fold(0.0, f64::max);
-    let frame = Frame::new(origin, x_axis, width, height).map_err(|_| {
+    let frame = Frame::with_axes(origin, x_axis, y_axis, width, height).map_err(|_| {
         RefusalReason::DegenerateOutline {
             vertices: corners.to_vec(),
         }
@@ -546,6 +556,40 @@ mod tests {
             rectangle_frame(&corners, 1e-4),
             Err(RefusalReason::NonRectangular { .. })
         ));
+    }
+
+    /// A rotated sheet must map its own corners *inside* the unit rectangle.
+    ///
+    /// `ReferenceFinder::ValidateMark` bounds the paper with no epsilon, so a
+    /// corner arriving as `1.0000000000000002` is a rejected query and a vertex
+    /// the user cannot ask about. Before `Frame::with_axes` the frame measured
+    /// its sides against one vector and mapped with another an ULP apart, which
+    /// pushed every point on the two far edges of a 45° sheet just outside.
+    #[test]
+    fn a_rotated_sheet_maps_its_own_outline_inside_the_unit_rectangle() {
+        for corners in [
+            // 45°: the worst case, and the one that shipped broken.
+            [[200.0, 0.0], [400.0, 200.0], [200.0, 400.0], [0.0, 200.0]],
+            // An arbitrary angle, and a non-square aspect.
+            [[30.0, 0.0], [430.0, 300.0], [310.0, 460.0], [-90.0, 160.0]],
+        ] {
+            let sheet = rectangle_frame(&corners, 1e-4).expect("a rectangle");
+            let rect = sheet.frame.rf_rect();
+            // The corners themselves, and every edge midpoint.
+            let mut probes: Vec<[f64; 2]> = corners.to_vec();
+            for i in 0..4 {
+                let a = corners[i];
+                let b = corners[(i + 1) % 4];
+                probes.push([(a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0]);
+            }
+            for p in probes {
+                let [x, y] = sheet.frame.model_to_rf(p);
+                assert!(
+                    (0.0..=rect.width).contains(&x) && (0.0..=rect.height).contains(&y),
+                    "{p:?} maps to ({x}, {y}), outside {rect:?}"
+                );
+            }
+        }
     }
 
     #[test]

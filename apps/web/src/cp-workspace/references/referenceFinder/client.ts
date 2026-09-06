@@ -30,6 +30,7 @@ import {
   DEFAULT_QUERY_SETTINGS,
   databaseKey,
   querySettingsKey,
+  snapMarkToPaper,
   type ReferenceFinderDatabaseSettings,
   type ReferenceFinderQuerySettings,
 } from './protocol';
@@ -133,7 +134,15 @@ export function createReferenceFinderClient(options: ReferenceFinderClientOption
     database,
     query,
 
-    async solvePoint(point, options) {
+    async solvePoint(unsnapped, options) {
+      // Snapped before the cache key so the key names the point actually asked
+      // about. Only marks are snapped: the core validates only those, and
+      // moving a line's two endpoints independently would tilt the line it
+      // stands for. See `snapMarkToPaper`.
+      const point: RfPoint = [
+        snapMarkToPaper(unsnapped[0], sheet.width),
+        snapMarkToPaper(unsnapped[1], sheet.height),
+      ];
       const key = cacheKeyFor(options?.key ?? coordinateKey('point', point));
       const hit = cache.get(key);
       if (hit) return hit;

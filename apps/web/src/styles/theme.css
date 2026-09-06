@@ -10709,16 +10709,17 @@ button.bp-packing-alert:focus-visible {
 
 /* No `cp-webgl-layer` here on purpose: the editor's floating toolbars forward
    wheel events to the first canvas carrying that class. */
+/* The resting cursor only. Hover and drag are decided in JS through the shared
+   `cpCanvasCursor` and applied inline, because a click here selects what is
+   under the pointer and the canvas has to say so — and an inline `pointer`
+   would beat an `:active { grabbing }` rule, so the drag state is set inline
+   too rather than left half in CSS. */
 .references-canvas {
   display: block;
   width: 100%;
   height: 100%;
   touch-action: none;
   cursor: grab;
-}
-
-.references-canvas:active {
-  cursor: grabbing;
 }
 
 .references-panel__overlay {

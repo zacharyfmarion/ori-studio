@@ -84,6 +84,41 @@ impl Frame {
         })
     }
 
+    /// A frame whose axes are already settled: `x_axis` and `y_axis` are taken
+    /// as given rather than derived, and only the sides are validated.
+    ///
+    /// Measuring a sheet's sides and mapping points into it must use the *same*
+    /// axis. [`Self::new`] normalises its own copy, so a caller that measures
+    /// its extents by projecting onto the vector it passed in ends up with a
+    /// frame a hair inconsistent with those extents — and normalising twice does
+    /// not settle it, since `‖normalise(v)‖` is itself only 1 to within an ULP.
+    /// One ULP is enough: on a 45° sheet the far edge then maps to
+    /// `1.0000000000000002`, and `ReferenceFinder::ValidateMark` bounds the
+    /// paper with no epsilon at all, so every vertex on that edge is rejected.
+    ///
+    /// So `rectangle_frame` settles the axes once through [`Self::new`],
+    /// measures against the answer, and rebuilds here.
+    pub fn with_axes(
+        origin: [f64; 2],
+        x_axis: [f64; 2],
+        y_axis: [f64; 2],
+        width: f64,
+        height: f64,
+    ) -> Result<Frame, PrecreaseError> {
+        if !width.is_finite() || !height.is_finite() || width <= 0.0 || height <= 0.0 {
+            return Err(PrecreaseError::DegenerateFrame {
+                reason: "sides must be positive",
+            });
+        }
+        Ok(Frame {
+            origin,
+            x_axis,
+            y_axis,
+            width,
+            height,
+        })
+    }
+
     /// An axis-aligned sheet from a model-space rectangle `[x0, y0, x1, y1]`.
     /// The origin is the on-screen bottom-left corner `(x0, y1)` because
     /// model space is y-down.

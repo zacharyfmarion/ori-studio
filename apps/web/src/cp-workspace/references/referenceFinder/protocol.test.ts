@@ -12,6 +12,8 @@ import {
   parseProgressLine,
   parseSolutionLine,
   querySettingsKey,
+  snapMarkToPaper,
+  PAPER_SNAP_TOLERANCE,
 } from './protocol';
 import lineExact from './__fixtures__/line-exact.json';
 
@@ -164,5 +166,28 @@ describe('databaseKey', () => {
   it('keys query settings separately', () => {
     expect(querySettingsKey(DEFAULT_QUERY_SETTINGS)).toBe('e=1e-9|n=5|wc=1');
     expect(querySettingsKey(lineExact.search)).toBe(querySettingsKey(DEFAULT_QUERY_SETTINGS));
+  });
+});
+
+describe('snapMarkToPaper', () => {
+  // The bug this exists for: a 45° sheet's own corner arriving as 1 + 2ulp,
+  // which `ReferenceFinder::ValidateMark` refuses outright.
+  it('snaps a round-off overshoot onto the edge', () => {
+    expect(snapMarkToPaper(1.0000000000000002, 1)).toBe(1);
+    expect(snapMarkToPaper(-2.8e-17, 1)).toBe(0);
+    expect(snapMarkToPaper(0.5000000000000001, 0.5)).toBe(0.5);
+  });
+
+  it('leaves a mark that is genuinely on the paper alone', () => {
+    expect(snapMarkToPaper(0, 1)).toBe(0);
+    expect(snapMarkToPaper(1, 1)).toBe(1);
+    expect(snapMarkToPaper(0.25, 1)).toBe(0.25);
+  });
+
+  // A real excursion keeps the core's own error rather than being relocated.
+  it('passes a mark that is really off the paper through untouched', () => {
+    expect(snapMarkToPaper(1.75, 1)).toBe(1.75);
+    expect(snapMarkToPaper(-0.5, 1)).toBe(-0.5);
+    expect(snapMarkToPaper(1 + 10 * PAPER_SNAP_TOLERANCE, 1)).toBe(1 + 10 * PAPER_SNAP_TOLERANCE);
   });
 });
