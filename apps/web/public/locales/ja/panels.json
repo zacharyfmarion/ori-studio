@@ -760,7 +760,38 @@
     "actions": {
       "noTargetHint": "先に頂点または折り線を選んでください"
     },
+    "analysis": {
+      "approximate": "近似、誤差 {{err}}",
+      "badge": "{{closure}}/{{lines}} が紙から",
+      "closure": "紙そのものから折れます",
+      "exact": "ランク {{rank}} で厳密、{{folds}} 回の折り",
+      "line": "線 {{n}}",
+      "summary": "{{lines}} 本のうち {{closure}} 本は紙そのものから折れます。{{queried}} 本は探索が必要でした。",
+      "title": "参照の分析",
+      "unsolved": "作図方法が見つかりません"
+    },
     "approximate": "近似",
+    "axiom": {
+      "free": "すでに紙の上にあります",
+      "o1": "2 点を通る",
+      "o2": "点を点に重ねる",
+      "o3": "辺を辺に重ねる",
+      "o4": "点を通る垂線",
+      "o5": "点を線に重ね、点を通す",
+      "o6": "2 点を 2 本の線に重ねる",
+      "o7": "点を線に重ね、垂直に"
+    },
+    "breakdown": {
+      "aux": "目印",
+      "landmarks": "目印",
+      "pinch": "つまみ折り",
+      "round": "ラウンド {{n}}",
+      "sectionCount": "{{n}} 回の折り",
+      "sheet": "シート {{n}}",
+      "sheetId": "シート {{n}}",
+      "unlocks": "{{n}} 回の折りを可能にします",
+      "visible": "見える"
+    },
     "canvasAriaLabel": "展開図。頂点や折り線をクリックすると基準点の折り方を探します。ドラッグで移動、スクロールでズーム。",
     "card": {
       "error": "誤差 {{value}}",
@@ -769,10 +800,26 @@
       "title": "候補 {{n}}: {{folds}} 回折る、ランク {{rank}}"
     },
     "controls": "ステップ操作",
+    "direction": {
+      "angle": "{{deg}}° の向きで",
+      "diagonalDown": "右下がりの対角線で",
+      "diagonalUp": "右上がりの対角線で",
+      "horizontal": "水平に",
+      "vertical": "垂直に"
+    },
     "dismiss": "閉じる",
     "empty": "展開図がありません。編集で開くか描いてから戻ってください。",
     "errorTitle": "リファレンスを利用できません",
     "exact": "厳密",
+    "findings": {
+      "approximation": "最も近い方法: {{folds}} 回の折り、誤差 {{err}}",
+      "noApproximation": "作図方法が見つかりません",
+      "note": "報告するだけで折りません。近似は以降のすべての手順の基準になってしまうからです。",
+      "offLattice": "格子から外れています",
+      "refusedTitle": "対象外のシート",
+      "title": "厳密に折れない線",
+      "unsolved": "作図方法が見つかりません"
+    },
     "hint": {
       "pick": "頂点または折り線をクリックすると、折り方が表示されます。",
       "pickDecidesSheet": "頂点または折り線をクリックすると、折り方が表示されます。この展開図には {{n}} 枚の用紙があり、クリックした場所で使う用紙が決まります。"
@@ -784,15 +831,35 @@
     },
     "noCreasePattern": "展開図がありません",
     "nonRectangular": "この用紙は長方形ではありません。現在、基準点は長方形の用紙でのみ探せます。",
+    "noRectangularSheet": "長方形のシートがありません。今のところ参照は長方形のシートでしか見つけられません。",
     "noSteps": "—",
     "openOutline": "この選択の周りの端の線が閉じた用紙になっていません。",
     "outOfDate": "古い結果",
     "outOfDateHint": "これらの基準点を探した後に展開図が変更されました。",
     "outsideSheet": "この選択はどの用紙の内側にもありません。",
+    "planning": "折り手順を計算しています…",
+    "planStep": {
+      "axiom1": "{{a}} と {{b}} を通るように折ります。",
+      "axiom2": "{{a}} を {{b}} に重ねて折ります。",
+      "axiom3": "{{a}} を {{b}} に重ねて折ります。",
+      "axiom4": "{{b}} を自身に重ねながら {{a}} を通るように折ります。",
+      "axiom5": "{{a}} を通しつつ {{b}} を {{c}} に重ねて折ります。",
+      "axiom6": "{{a}} を {{b}} に、{{c}} を {{d}} に重ねて折ります。",
+      "axiom7": "{{b}} を自身に重ねて折り、{{a}} が {{c}} に載るようにします。",
+      "free": "この線はすでに紙の上にあります。",
+      "pinch": "つまむだけ — 印だけがあれば十分です。",
+      "unknown": "{{inputs}} を使って折ります。",
+      "visibleAux": "この折り線は完成した作品に残ります。"
+    },
+    "progress": {
+      "closing": "{{total}} 本中 {{done}} 本を折りました",
+      "querying": "{{total}} 本中 {{done}} 本を探索中"
+    },
     "readout": {
       "duration": "{{ms}} ms",
       "error": "誤差 {{value}}",
-      "idle": "頂点または折り線を選んでください"
+      "idle": "頂点または折り線を選んでください",
+      "noPlan": "折り手順はまだありません"
     },
     "recompute": "再計算",
     "ref": {
@@ -803,25 +870,43 @@
       "cornerSw": "左下の角",
       "diagonalNwSe": "左上から右下への対角線",
       "diagonalSwNe": "左下から右上への対角線",
+      "existingCrease": "既存の折り線",
+      "intersection": "{{a}} と {{b}} が交わる点",
       "leftEdge": "左の辺",
       "line": "線 {{name}}",
+      "mark": "その印",
+      "markOn": "{{a}} 上の印",
       "point": "点 {{name}}",
       "rightEdge": "右の辺",
+      "stepCrease": "手順 {{n}} の折り線",
       "topEdge": "上の辺"
     },
     "refusedSheet": "この選択の周りの用紙を長方形として読み取れませんでした。",
+    "row": {
+      "aux": "目印の折り線を {{direction}} 折ります",
+      "auxPinch": "目印を {{direction}} つまみます",
+      "cp": "{{direction}} 折ります"
+    },
     "searching": "基準点を探しています…",
     "settings": {
       "candidateCount": "{{n}} 件の解",
       "candidates": "候補数",
       "includeApproximate": "近似解も含める",
+      "landmarksFirst": "目印を先に",
+      "sequence": "折り手順",
+      "showPinches": "つまみ折りを表示",
+      "startFromPlan": "この手順から始める",
       "trigger": "リファレンス設定"
     },
     "sidebar": {
+      "breakdownTitle": "折り手順",
       "candidates": "候補の作図",
       "freeDiagonals": "用紙の対角線も必要です: {{names}}。",
       "label": "折りの基準点",
       "none": "現在の設定では、この対象の作図は見つかりませんでした。",
+      "noPlan": "パターン全体の折り方を計算するか、頂点または折り線をクリックして 1 つの参照を調べます。",
+      "plan": "折り方を計算",
+      "planning": "折り手順を計算しています…",
       "searching": "基準点を探しています…",
       "steps": "折り手順",
       "title": "手順"
@@ -843,6 +928,16 @@
     "stepScrubber": "ステップ",
     "stop": "停止",
     "stopping": "キャンセル中…",
+    "summary": {
+      "atLowerBound": "補助の折りは不要です",
+      "folds": "{{folds}} 回の折り = 折り線 {{creases}} 本 + 補助線 {{aux}} 本（うち {{visible}} 本が見えます）",
+      "free": "{{n}} 本は紙の端です",
+      "lowerBound": "下限 {{n}}",
+      "offLattice": "格子外",
+      "partial": "部分的",
+      "snapped": "スナップ済み、最大 {{d}}",
+      "unsolved": "{{n}} 本が未解決"
+    },
     "targetGone": "選んだ折り線は展開図にもうありません。",
     "title": "リファレンス",
     "warning": {

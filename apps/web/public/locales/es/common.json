@@ -15,6 +15,8 @@
     "addTreeEdgesThenOptimize": "Añadir aristas de árbol y luego optimizar antes de generar el patrón de pliegues",
     "advanceCreaseType": "Avanzar tipo de pliegue",
     "advanceSelectedCpLineTypes": "Avanzar los tipos de línea del patrón de pliegues seleccionados",
+    "analyzeReferences": "Analizar referencias",
+    "analyzeReferencesHint": "Descubre qué líneas de este patrón son difíciles de localizar plegando",
     "bpFlipHorizontal": "Voltear horizontalmente",
     "bpFlipHorizontalReason": "Refleja el diseño de izquierda a derecha",
     "bpFlipVertical": "Voltear verticalmente",

@@ -15,6 +15,8 @@
     "addTreeEdgesThenOptimize": "Добавьте рёбра дерева, затем выполните оптимизацию перед построением паттерна складок",
     "advanceCreaseType": "Следующий тип складки",
     "advanceSelectedCpLineTypes": "Перейти к следующему типу для выбранных линий паттерна складок",
+    "analyzeReferences": "Анализ опор",
+    "analyzeReferencesHint": "Узнать, какие линии этого узора трудно найти складыванием",
     "bpFlipHorizontal": "Отразить по горизонтали",
     "bpFlipHorizontalReason": "Отражает проект слева направо",
     "bpFlipVertical": "Отразить по вертикали",

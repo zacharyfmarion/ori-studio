@@ -10,6 +10,7 @@
   },
   "cp": {
     "advanceCreaseType": "Avançar tipo de vinco",
+    "analyzeReferences": "Analisar referências",
     "annotations": "Anotações",
     "build": "Gerar padrão de vincos",
     "changeCircleColor": "Alterar cor do círculo...",

@@ -822,7 +822,38 @@
     "actions": {
       "noTargetHint": "Choisissez d’abord un sommet ou un pli"
     },
+    "analysis": {
+      "approximate": "approché, écart {{err}}",
+      "badge": "{{closure}}/{{lines}} depuis la feuille",
+      "closure": "se plie à partir de la feuille elle-même",
+      "exact": "exact au rang {{rank}}, {{folds}} plis",
+      "line": "Ligne {{n}}",
+      "summary": "{{closure}} lignes sur {{lines}} se plient à partir de la feuille elle-même ; {{queried}} ont nécessité une recherche.",
+      "title": "Analyse des références",
+      "unsolved": "aucune construction trouvée"
+    },
     "approximate": "Approx.",
+    "axiom": {
+      "free": "déjà sur la feuille",
+      "o1": "par deux points",
+      "o2": "point sur point",
+      "o3": "bord sur bord",
+      "o4": "perpendiculaire par un point",
+      "o5": "point sur une ligne, par un point",
+      "o6": "deux points sur deux lignes",
+      "o7": "point sur une ligne, perpendiculaire"
+    },
+    "breakdown": {
+      "aux": "Repère",
+      "landmarks": "Repères",
+      "pinch": "Pincement",
+      "round": "Tour {{n}}",
+      "sectionCount": "{{n}} plis",
+      "sheet": "Feuille {{n}}",
+      "sheetId": "Feuille {{n}}",
+      "unlocks": "débloque {{n}} plis",
+      "visible": "Visible"
+    },
     "canvasAriaLabel": "Patron de pliage. Cliquez sur un sommet ou un pli pour trouver ses références ; glissez pour déplacer, faites défiler pour zoomer.",
     "card": {
       "error": "err {{value}}",
@@ -833,10 +864,26 @@
       "title": "Candidat {{n}} : {{folds}} plis, rang {{rank}}"
     },
     "controls": "Commandes des étapes",
+    "direction": {
+      "angle": "à {{deg}}°",
+      "diagonalDown": "sur la diagonale descendante",
+      "diagonalUp": "sur la diagonale montante",
+      "horizontal": "à l’horizontale",
+      "vertical": "à la verticale"
+    },
     "dismiss": "Fermer",
     "empty": "Aucun patron de pliage. Ouvrez-en ou dessinez-en un dans Édition, puis revenez.",
     "errorTitle": "Références indisponibles",
     "exact": "Exact",
+    "findings": {
+      "approximation": "au plus près : {{folds}} plis, écart {{err}}",
+      "noApproximation": "aucune construction trouvée",
+      "note": "Elles sont signalées, jamais pliées : une approximation deviendrait la référence de toutes les étapes suivantes.",
+      "offLattice": "Hors du réseau",
+      "refusedTitle": "Feuilles écartées",
+      "title": "Lignes sans pli exact",
+      "unsolved": "Aucune construction trouvée"
+    },
     "hint": {
       "pick": "Cliquez sur un sommet ou un pli pour voir comment le plier.",
       "pickDecidesSheet": "Cliquez sur un sommet ou un pli pour voir comment le plier. Ce patron compte {{n}} feuilles ; le clic décide de celle utilisée."
@@ -848,15 +895,35 @@
     },
     "noCreasePattern": "Aucun patron de pliage",
     "nonRectangular": "Cette feuille n’est pas un rectangle. Pour l’instant, les références ne se trouvent que sur des feuilles rectangulaires.",
+    "noRectangularSheet": "Aucune feuille rectangulaire : pour l’instant, les références ne peuvent être trouvées que sur des feuilles rectangulaires.",
     "noSteps": "—",
     "openOutline": "Les plis de bord autour de cette sélection ne ferment pas une feuille.",
     "outOfDate": "Obsolète",
     "outOfDateHint": "Le patron de pliage a changé depuis que ces références ont été trouvées.",
     "outsideSheet": "Cette sélection n’est dans aucune feuille.",
+    "planning": "Calcul de la séquence de pliage…",
+    "planStep": {
+      "axiom1": "Pliez par {{a}} et {{b}}.",
+      "axiom2": "Pliez {{a}} sur {{b}}.",
+      "axiom3": "Pliez {{a}} sur {{b}}.",
+      "axiom4": "Pliez par {{a}}, en repliant {{b}} sur elle-même.",
+      "axiom5": "Pliez par {{a}}, en amenant {{b}} sur {{c}}.",
+      "axiom6": "Pliez {{a}} sur {{b}} et {{c}} sur {{d}}.",
+      "axiom7": "Repliez {{b}} sur elle-même de sorte que {{a}} tombe sur {{c}}.",
+      "free": "Cette ligne est déjà sur la feuille.",
+      "pinch": "Pincez seulement : seul le repère est nécessaire.",
+      "unknown": "Pliez en utilisant {{inputs}}.",
+      "visibleAux": "Ce pli sera visible sur le modèle fini."
+    },
+    "progress": {
+      "closing": "{{done}} lignes pliées sur {{total}}",
+      "querying": "Recherche de {{done}} lignes sur {{total}}"
+    },
     "readout": {
       "duration": "{{ms}} ms",
       "error": "err {{value}}",
-      "idle": "Choisissez un sommet ou un pli"
+      "idle": "Choisissez un sommet ou un pli",
+      "noPlan": "Pas encore de séquence de pliage"
     },
     "recompute": "Recalculer",
     "ref": {
@@ -867,25 +934,43 @@
       "cornerSw": "le coin inférieur gauche",
       "diagonalNwSe": "la diagonale du haut à gauche au bas à droite",
       "diagonalSwNe": "la diagonale du bas à gauche au haut à droite",
+      "existingCrease": "un pli existant",
+      "intersection": "où {{a}} rencontre {{b}}",
       "leftEdge": "le bord gauche",
       "line": "la ligne {{name}}",
+      "mark": "le repère",
+      "markOn": "le repère sur {{a}}",
       "point": "le point {{name}}",
       "rightEdge": "le bord droit",
+      "stepCrease": "le pli de l’étape {{n}}",
       "topEdge": "le bord supérieur"
     },
     "refusedSheet": "La feuille autour de cette sélection n’a pas pu être lue comme un rectangle.",
+    "row": {
+      "aux": "Pliez un repère {{direction}}",
+      "auxPinch": "Pincez un repère {{direction}}",
+      "cp": "Pliez {{direction}}"
+    },
     "searching": "Recherche des références…",
     "settings": {
       "candidateCount": "{{n}} solutions",
       "candidates": "Candidats",
       "includeApproximate": "Inclure les solutions approximatives",
+      "landmarksFirst": "Repères d’abord",
+      "sequence": "Séquence de pliage",
+      "showPinches": "Afficher les pincements",
+      "startFromPlan": "Partir de cette séquence",
       "trigger": "Réglages des références"
     },
     "sidebar": {
+      "breakdownTitle": "Séquence de pliage",
       "candidates": "Constructions candidates",
       "freeDiagonals": "Nécessite aussi la ou les diagonales de la feuille : {{names}}.",
       "label": "Références de pliage",
       "none": "ReferenceFinder n’a trouvé aucune construction pour cette cible avec les réglages actuels.",
+      "noPlan": "Calculez comment plier tout le patron, ou cliquez sur un sommet ou un pli pour une seule référence.",
+      "plan": "Calculer les plis",
+      "planning": "Calcul de la séquence de pliage…",
       "searching": "Recherche des références…",
       "steps": "Étapes de pliage",
       "title": "Étapes"
@@ -907,6 +992,16 @@
     "stepScrubber": "Étape",
     "stop": "Arrêter",
     "stopping": "Annulation…",
+    "summary": {
+      "atLowerBound": "aucun pli auxiliaire nécessaire",
+      "folds": "{{folds}} plis = {{creases}} plis du patron + {{aux}} auxiliaires ({{visible}} visibles)",
+      "free": "{{n}} sur le bord de la feuille",
+      "lowerBound": "borne inférieure {{n}}",
+      "offLattice": "Hors réseau",
+      "partial": "Partiel",
+      "snapped": "Aligné, jusqu’à {{d}}",
+      "unsolved": "{{n}} non résolues"
+    },
     "targetGone": "Le pli choisi n’est plus dans le patron.",
     "title": "Références",
     "warning": {

@@ -10,12 +10,16 @@ export const DEFAULT_REFERENCES_VIEW: ReferencesView = {
   activeStep: 0,
   activeCandidate: 0,
   landmarksFirst: false,
+  expandedRow: null,
+  activeFinding: null,
 };
 
 /** Upstream's `count`, and exact-only answers (plan decision D8). */
 export const DEFAULT_REFERENCES_SETTINGS: ReferencesSettings = {
   candidateCount: 5,
   includeApproximate: false,
+  showPinches: true,
+  startFromPlan: false,
 };
 
 /** The candidate counts the settings popover offers. */
@@ -33,13 +37,18 @@ function clampCandidateCount(value: number): number {
 export const createReferencesSlice: WorkspaceSliceCreator<ReferencesSlice> = (set, get) => ({
   referencesTarget: null,
   referencesPlan: null,
+  referencesAnalysis: null,
+  referencesProgress: null,
   referencesCandidates: null,
   referencesView: DEFAULT_REFERENCES_VIEW,
   referencesRun: { status: 'idle' },
   referencesSettings: DEFAULT_REFERENCES_SETTINGS,
+  referencesAnalysisRequest: 0,
 
   setReferencesTarget: (target) => set({ referencesTarget: target }),
   setReferencesPlan: (plan) => set({ referencesPlan: plan }),
+  setReferencesAnalysis: (analysis) => set({ referencesAnalysis: analysis }),
+  setReferencesProgress: (progress) => set({ referencesProgress: progress }),
   setReferencesCandidates: (candidates) => set({ referencesCandidates: candidates }),
   setReferencesView: (view) => set({ referencesView: { ...get().referencesView, ...view } }),
   setReferencesRun: (run) => set({ referencesRun: run }),
@@ -51,6 +60,26 @@ export const createReferencesSlice: WorkspaceSliceCreator<ReferencesSlice> = (se
         candidateCount: clampCandidateCount(next.candidateCount),
       },
     });
+  },
+
+  // A toggle rather than a setter so the chord, the settings popover and the
+  // context menu cannot disagree about what "on" means. Selecting a step is
+  // reset with it: the hoisted order renumbers every step, so an index kept
+  // across the flip would frame a different fold.
+  toggleReferencesLandmarksFirst: () => {
+    const view = get().referencesView;
+    set({
+      referencesView: { ...view, landmarksFirst: !view.landmarksFirst, activeStep: 0, expandedRow: null },
+    });
+  },
+
+  requestReferencesAnalysis: () =>
+    set({ referencesAnalysisRequest: get().referencesAnalysisRequest + 1 }),
+
+  consumeReferencesAnalysisRequest: () => {
+    if (get().referencesAnalysisRequest === 0) return false;
+    set({ referencesAnalysisRequest: 0 });
+    return true;
   },
 
   openReferencesWorkspace: () => {

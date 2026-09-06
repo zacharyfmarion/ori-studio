@@ -10,6 +10,7 @@
   },
   "cp": {
     "advanceCreaseType": "Avancer le type de pli",
+    "analyzeReferences": "Analyser les références",
     "annotations": "Annotations",
     "build": "Générer le patron de plis",
     "changeCircleColor": "Changer la couleur du cercle...",

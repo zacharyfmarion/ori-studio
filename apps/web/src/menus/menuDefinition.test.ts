@@ -118,6 +118,7 @@ describe('web menu definition', () => {
       'cp.check2',
       'cp.check3',
       'cp.check4',
+      'cp.analyzeReferences',
       'cp.fix1',
       'cp.fix2',
       'cp.deleteExtraVertices',

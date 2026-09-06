@@ -1383,25 +1383,106 @@ export interface ReferencesSettings {
    * rank-3 approximation sorts above an exact rank-4 solution.
    */
   includeApproximate: boolean;
+  /**
+   * Draw an auxiliary crease the pinch pass reduced as its short spans rather
+   * than as a full line. On by default: a pinch and a full crease are
+   * different instructions, and the difference is the point of the pass.
+   */
+  showPinches: boolean;
+  /**
+   * Rank a crease target's candidates by the folds still needed *given the
+   * breakdown's state*, rather than from the bare sheet. Off by default, and
+   * only meaningful once a breakdown exists (plan, Phase 5).
+   */
+  startFromPlan: boolean;
 }
 
+/** How the exactness policy classified the component being planned (D8). */
+export type ReferencesExactnessClass = 'exact' | 'snappable' | 'off_lattice';
+
 /**
- * A folding-sequence plan for the whole pattern or a crease. Opaque here for the
- * same reason as {@link ReferencesCandidate}; `computedAtRevision` is what the
- * staleness guard compares against `foldArtifactRevision`.
+ * What the summary strip and the staleness guard need from a breakdown. The
+ * plan itself — steps, groups, witnesses, model geometry — lives in the
+ * References result side table for the same reason
+ * {@link ReferencesCandidate}'s construction does: it is large, it changes
+ * wholesale, and no field inside it should re-render anything.
+ *
+ * `computedAtRevision` is the revision string the guard compares against the
+ * live one; a mismatch means stale, never "recompute automatically".
  */
-export interface ReferencesPlan {
-  computedAtRevision: number;
-  steps: readonly Record<string, unknown>[];
-  groups: readonly Record<string, unknown>[];
-  totals: Record<string, unknown>;
-  findings: readonly Record<string, unknown>[];
+export interface ReferencesPlanSummary {
+  computedAtRevision: string;
+  component: number;
+  /** The crate's own status for the plan. */
+  status:
+    | 'complete'
+    | 'partial_unsolved'
+    | 'partial_off_lattice'
+    | 'refused_sheet'
+    | 'invalid_input';
+  /** Why the orchestrator's loop ended. */
+  stopReason: string;
+  /** The plan does not cover every line of the component. */
+  partial: boolean;
+  /** `"best_found_to_depth_<d>"` or `"heuristic"` — never a claimed minimum. */
+  certification: string;
+  folds: number;
+  cpLines: number;
+  aux: number;
+  visibleAux: number;
+  /** Distinct CP lines off the outline: the flat-sheet model's lower bound. */
+  lowerBound: number;
+  freeLines: number;
+  unsolved: number;
+  stepCount: number;
+  findingCount: number;
+  approximateCount: number;
+  exactnessClass: ReferencesExactnessClass | null;
+  /** Snappable only: the largest distance a line moved, in model units. */
+  maxDisplacementModel: number;
+  durationMs: number;
+}
+
+/** The CP-wide analysis's counts, for the summary strip. */
+export interface ReferencesAnalysisSummaryState {
+  computedAtRevision: string;
+  component: number;
+  lines: number;
+  closure: number;
+  exact: number;
+  approximate: number;
+  unsolved: number;
+  free: number;
+  /** A Stop landed or the budget ran out; the list is what was reached. */
+  partial: boolean;
+  durationMs: number;
+}
+
+/** What a long run is doing, for the panel-body overlay. */
+export interface ReferencesProgress {
+  phase: 'closing' | 'searching' | 'querying' | 'approximating' | 'done';
+  /** Steps folded, or lines queried, depending on the phase. */
+  done: number;
+  total: number;
 }
 
 export interface ReferencesView {
+  /**
+   * Which step the view frames: an index into the active candidate's steps in
+   * target mode, and into the breakdown's steps in whole-pattern mode.
+   */
   activeStep: number;
   activeCandidate: number;
+  /**
+   * Hoist every auxiliary fold to a phase 0. Valid by monotonicity only for
+   * the landmarks that certify from the bare sheet; the crate decides which,
+   * so the toggle re-reads `sequence(landmarksFirst)` rather than reordering.
+   */
   landmarksFirst: boolean;
+  /** The breakdown row expanded to its individual steps; null for none. */
+  expandedRow: string | null;
+  /** The analysis finding the view frames; null for none. */
+  activeFinding: number | null;
 }
 
 export type ReferencesRun =
@@ -1414,8 +1495,12 @@ export type ReferencesRun =
 export interface ReferencesSliceState {
   /** The picked vertex or crease, or the whole pattern; null before any pick. */
   referencesTarget: ReferencesTarget | null;
-  /** The planner's breakdown for the current target, once computed. */
-  referencesPlan: ReferencesPlan | null;
+  /** The planner's breakdown for the whole pattern, once computed. */
+  referencesPlan: ReferencesPlanSummary | null;
+  /** The CP-wide analysis's counts, once computed. */
+  referencesAnalysis: ReferencesAnalysisSummaryState | null;
+  /** What a run in flight is doing; null when nothing is running. */
+  referencesProgress: ReferencesProgress | null;
   /** ReferenceFinder's ranked solutions for a vertex or crease target. */
   referencesCandidates: readonly ReferencesCandidate[] | null;
   /** Which step and candidate the view frames, and the landmarks-first toggle. */
@@ -1423,15 +1508,35 @@ export interface ReferencesSliceState {
   /** Whether a computation is in flight, stale, or failed. */
   referencesRun: ReferencesRun;
   referencesSettings: ReferencesSettings;
+  /**
+   * Bumped by `cp.analyzeReferences`. A counter rather than a boolean because
+   * the panel is not mounted when the menu action runs — switching workspaces
+   * rebuilds the dock — so the request has to survive until something can act
+   * on it, and asking twice has to be two runs.
+   */
+  referencesAnalysisRequest: number;
 }
 
 export interface ReferencesSliceActions {
   setReferencesTarget: (target: ReferencesTarget | null) => void;
-  setReferencesPlan: (plan: ReferencesPlan | null) => void;
+  setReferencesPlan: (plan: ReferencesPlanSummary | null) => void;
+  setReferencesAnalysis: (analysis: ReferencesAnalysisSummaryState | null) => void;
+  setReferencesProgress: (progress: ReferencesProgress | null) => void;
   setReferencesCandidates: (candidates: readonly ReferencesCandidate[] | null) => void;
   setReferencesView: (view: Partial<ReferencesView>) => void;
   setReferencesRun: (run: ReferencesRun) => void;
   setReferencesSettings: (settings: Partial<ReferencesSettings>) => void;
+  /** Hoist every auxiliary fold to a phase 0 (`references.toggleLandmarksFirst`). */
+  toggleReferencesLandmarksFirst: () => void;
+  /** Ask the References workspace for a CP-wide analysis (`cp.analyzeReferences`). */
+  requestReferencesAnalysis: () => void;
+  /**
+   * Take the pending analysis request, if there is one. The panel consumes it
+   * rather than remembering what it has seen: it is unmounted and remounted on
+   * every workspace switch, and a request it merely *remembered* would either
+   * be lost on the switch that delivers it or replayed on the next one.
+   */
+  consumeReferencesAnalysisRequest: () => boolean;
   /**
    * Switch to the References workspace on the whole pattern. Nothing carries
    * over from the caller — no crease target, no selection — so the entry from

@@ -789,7 +789,38 @@
     "actions": {
       "noTargetHint": "Pick a vertex or crease first"
     },
+    "analysis": {
+      "approximate": "approximate, off by {{err}}",
+      "badge": "{{closure}}/{{lines}} from the sheet",
+      "closure": "folds from the sheet itself",
+      "exact": "exact at rank {{rank}}, {{folds}} folds",
+      "line": "Line {{n}}",
+      "summary": "{{closure}} of {{lines}} lines fold from the sheet itself; {{queried}} needed a search.",
+      "title": "Reference analysis",
+      "unsolved": "no construction found"
+    },
     "approximate": "Approx.",
+    "axiom": {
+      "free": "already on the sheet",
+      "o1": "through two points",
+      "o2": "point onto point",
+      "o3": "edge onto edge",
+      "o4": "perpendicular through a point",
+      "o5": "point onto a line, through a point",
+      "o6": "two points onto two lines",
+      "o7": "point onto a line, perpendicular"
+    },
+    "breakdown": {
+      "aux": "Landmark",
+      "landmarks": "Landmarks",
+      "pinch": "Pinch",
+      "round": "Round {{n}}",
+      "sectionCount": "{{n}} folds",
+      "sheet": "Sheet {{n}}",
+      "sheetId": "Sheet {{n}}",
+      "unlocks": "unlocks {{n}} folds",
+      "visible": "Shows"
+    },
     "canvasAriaLabel": "Crease pattern. Click a vertex or crease to find its references; drag to pan, scroll to zoom.",
     "card": {
       "error": "err {{value}}",
@@ -799,10 +830,26 @@
       "title": "Candidate {{n}}: {{folds}} folds, rank {{rank}}"
     },
     "controls": "Step controls",
+    "direction": {
+      "angle": "at {{deg}}°",
+      "diagonalDown": "on the falling diagonal",
+      "diagonalUp": "on the rising diagonal",
+      "horizontal": "horizontally",
+      "vertical": "vertically"
+    },
     "dismiss": "Dismiss",
     "empty": "No crease pattern. Open or draw one in Edit, then come back.",
     "errorTitle": "References unavailable",
     "exact": "Exact",
+    "findings": {
+      "approximation": "closest: {{folds}} folds, off by {{err}}",
+      "noApproximation": "no construction found",
+      "note": "These are reported, never folded: an approximation would become a reference for every later step.",
+      "offLattice": "Off the lattice",
+      "refusedTitle": "Sheets left out",
+      "title": "Lines with no exact fold",
+      "unsolved": "No construction found"
+    },
     "hint": {
       "pick": "Click a vertex or crease to see how to fold it.",
       "pickDecidesSheet": "Click a vertex or crease to see how to fold it. This pattern has {{n}} sheets; the pick decides which one is used."
@@ -814,15 +861,35 @@
     },
     "noCreasePattern": "No crease pattern",
     "nonRectangular": "This sheet is not a rectangle. References can only be found on rectangular sheets for now.",
+    "noRectangularSheet": "No rectangular sheet: references can only be found on rectangular sheets for now.",
     "noSteps": "—",
     "openOutline": "The border creases around this pick do not close into a sheet.",
     "outOfDate": "Out of date",
     "outOfDateHint": "The crease pattern changed since these references were found.",
     "outsideSheet": "This pick is not inside any sheet.",
+    "planning": "Working out the folding sequence…",
+    "planStep": {
+      "axiom1": "Fold through {{a}} and {{b}}.",
+      "axiom2": "Fold {{a}} onto {{b}}.",
+      "axiom3": "Fold {{a}} onto {{b}}.",
+      "axiom4": "Fold through {{a}}, folding {{b}} onto itself.",
+      "axiom5": "Fold through {{a}}, bringing {{b}} onto {{c}}.",
+      "axiom6": "Fold {{a}} onto {{b}} and {{c}} onto {{d}}.",
+      "axiom7": "Fold {{b}} onto itself so that {{a}} lands on {{c}}.",
+      "free": "This line is already on the sheet.",
+      "pinch": "Pinch only — just the mark is needed.",
+      "unknown": "Fold using {{inputs}}.",
+      "visibleAux": "This crease will show in the finished model."
+    },
+    "progress": {
+      "closing": "Folded {{done}} of {{total}} lines",
+      "querying": "Searching {{done}} of {{total}} lines"
+    },
     "readout": {
       "duration": "{{ms}} ms",
       "error": "err {{value}}",
-      "idle": "Pick a vertex or crease"
+      "idle": "Pick a vertex or crease",
+      "noPlan": "No folding sequence yet"
     },
     "recompute": "Recompute",
     "ref": {
@@ -833,25 +900,43 @@
       "cornerSw": "the bottom-left corner",
       "diagonalNwSe": "the top-left to bottom-right diagonal",
       "diagonalSwNe": "the bottom-left to top-right diagonal",
+      "existingCrease": "an existing crease",
+      "intersection": "where {{a}} meets {{b}}",
       "leftEdge": "the left edge",
       "line": "line {{name}}",
+      "mark": "the mark",
+      "markOn": "the mark on {{a}}",
       "point": "point {{name}}",
       "rightEdge": "the right edge",
+      "stepCrease": "the crease from step {{n}}",
       "topEdge": "the top edge"
     },
     "refusedSheet": "The sheet around this pick could not be read as a rectangle.",
+    "row": {
+      "aux": "Fold a landmark crease {{direction}}",
+      "auxPinch": "Pinch a landmark {{direction}}",
+      "cp": "Fold {{direction}}"
+    },
     "searching": "Finding references…",
     "settings": {
       "candidateCount": "{{n}} solutions",
       "candidates": "Candidates",
       "includeApproximate": "Include approximate solutions",
+      "landmarksFirst": "Landmarks first",
+      "sequence": "Folding sequence",
+      "showPinches": "Show pinches",
+      "startFromPlan": "Start from this sequence",
       "trigger": "Reference settings"
     },
     "sidebar": {
+      "breakdownTitle": "Folding sequence",
       "candidates": "Candidate constructions",
       "freeDiagonals": "Also needs the sheet diagonal(s): {{names}}.",
       "label": "Folding references",
       "none": "ReferenceFinder found no construction for this target at the current settings.",
+      "noPlan": "Work out how to fold the whole pattern, or click a vertex or crease for one reference.",
+      "plan": "Work out the folds",
+      "planning": "Working out the folding sequence…",
       "searching": "Finding references…",
       "steps": "Folding steps",
       "title": "Steps"
@@ -873,6 +958,16 @@
     "stepScrubber": "Step",
     "stop": "Stop",
     "stopping": "Cancelling…",
+    "summary": {
+      "atLowerBound": "no auxiliary folds needed",
+      "folds": "{{folds}} folds = {{creases}} creases + {{aux}} auxiliary ({{visible}} visible)",
+      "free": "{{n}} on the sheet edge",
+      "lowerBound": "lower bound {{n}}",
+      "offLattice": "Off-lattice",
+      "partial": "Partial",
+      "snapped": "Snapped, up to {{d}}",
+      "unsolved": "{{n}} not solved"
+    },
     "targetGone": "The picked crease is no longer in the pattern.",
     "title": "References",
     "warning": {

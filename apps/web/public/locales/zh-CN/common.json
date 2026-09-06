@@ -15,6 +15,8 @@
     "addTreeEdgesThenOptimize": "先添加树的边，然后优化，再生成折痕图",
     "advanceCreaseType": "递进折痕类型",
     "advanceSelectedCpLineTypes": "递进所选折痕图线型",
+    "analyzeReferences": "分析参照",
+    "analyzeReferencesHint": "找出此折痕图中哪些线难以通过折叠定位",
     "bpFlipHorizontal": "水平翻转",
     "bpFlipHorizontalReason": "将设计左右镜像",
     "bpFlipVertical": "垂直翻转",

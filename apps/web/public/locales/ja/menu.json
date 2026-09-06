@@ -10,6 +10,7 @@
   },
   "cp": {
     "advanceCreaseType": "折り線の種類を進める",
+    "analyzeReferences": "参照を分析",
     "annotations": "注釈",
     "build": "展開図を作成",
     "changeCircleColor": "円の色を変更...",

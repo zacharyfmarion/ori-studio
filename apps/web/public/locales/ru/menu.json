@@ -10,6 +10,7 @@
   },
   "cp": {
     "advanceCreaseType": "Следующий тип складки",
+    "analyzeReferences": "Анализ опор",
     "annotations": "Аннотации",
     "build": "Построить паттерн складок",
     "changeCircleColor": "Изменить цвет круга...",

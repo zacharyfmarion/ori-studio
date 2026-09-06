@@ -10,6 +10,7 @@
   },
   "cp": {
     "advanceCreaseType": "접힘선 종류 다음으로",
+    "analyzeReferences": "참조 분석",
     "annotations": "주석",
     "build": "전개도 생성",
     "changeCircleColor": "원 색상 변경...",

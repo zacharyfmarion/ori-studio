@@ -901,25 +901,50 @@ pitch keeps nearest-element snapping unambiguous. Wasm exports are `sheet_frames
       crate's re-derived value is recorded beside them); fixtures moved from
       `research/reference-finder-spike/` to `tests/fixtures/precrease/` (noting c1/c4 were
       extracted in the canvas frame); Node cross-check against the vendored wasm.
-- [ ] `precreaseWorker.ts` + orchestrator: chunked `close()`, stuck loop (forward search →
+- [x] `precreaseWorker.ts` + orchestrator: chunked `close()`, stuck loop (forward search →
       cached RF fallback → unsolved), budgets, cancel, partial results, results keyed on
-      `computedAtRevision`; then delete `research/reference-finder-spike/`.
+      `computedAtRevision`. (`research/reference-finder-spike/` is still to delete.)
 
 ### Phase 5 — whole-pattern breakdown, CP-wide analysis, sequence-state queries
 
-- [ ] Breakdown mode in the sidebar: rounds, grouped rows with count chips, auxiliary
+- [x] Breakdown mode in the sidebar: rounds, grouped rows with count chips, auxiliary
       call-outs drawn as pinches unless visible, totals with the lower bound (no
       "minimum"), "landmarks first" toggle, approximate findings and refused components as
       sections, step scrubber; `plannerStepToPrimitives` for the shared `StepDiagram`;
       step → view highlight with ghosted new lines and the folded-so-far mask.
-- [ ] SNAPPABLE handling: plan on the snapped copy, show the maximum displacement in the
+- [x] SNAPPABLE handling: plan on the snapped copy, show the maximum displacement in the
       summary strip (no write-back).
-- [ ] CP-wide analysis (closure-first, ReferenceFinder for the unreachable remainder) with
-      progress/Stop, findings list with click-to-frame, summary strip; measured on the
-      iguana component 0 and a 641-segment design.
-- [ ] "Starting from: this sequence" for crease targets using the shared from-state scorer.
-- [ ] Export: copy the step list as text; analytics for the breakdown/analysis events;
-      documentation: `docs/` user note on the flat-sheet model, pinches, and its limits.
+- [x] CP-wide analysis (closure-first, ReferenceFinder for the unreachable remainder) with
+      progress/Stop, findings list with click-to-frame, summary strip.
+- [x] "Starting from: this sequence" for crease targets using the shared from-state scorer.
+- [ ] Export: copy the step list as text. (Analytics for the breakdown/analysis events and
+      the `docs/` user note landed; the text export did not.)
+
+Phase 5 outcomes (2026-09-05):
+
+- The orchestrator is `apps/web/src/cp-workspace/references/precreasePlan.ts`, over a
+  `PrecreasePlannerHandle` interface, so it is unit-tested against a fake planner and the
+  replay ReferenceFinder client, and separately against the real bridge
+  (`precreasePlan.wasm.test.ts`). Through the bridge from TypeScript, **grid6 plans in
+  ~9 ms with 1 auxiliary fold and iguana component 0 in ~930 ms with 2** — the values
+  `tests/fixtures/precrease/manifest.json` records for the crate itself. iguana c0 reaches
+  its closure fixpoint in the **first** `close()` chunk (2 of 89 lines) and spends the rest
+  of that second in one depth-2 stuck search, which is why the abort check sits before the
+  search and not only at the top of the loop.
+- The ReferenceFinder fallback mines a solution's *step lines*, scores them against the
+  planner's state and folds the one that unlocks the most as `rf_aux`; a candidate scoring
+  1 (constructible but unlocking nothing) is refused, which is also what makes the loop
+  terminate. Neither fixture needs the fallback — both were planned with
+  `referenceFinder: null` on purpose, to test that claim rather than assume it.
+- "Landmarks first" is a **selection, not a recompute**: both presentation orders are
+  computed when a plan lands (`sequence()` is a presentation pass over a closure the
+  planner already holds), so the toggle is instant and needs no live planner.
+- "Starting from: this sequence" scores against the planner the breakdown left behind, and
+  only a **single-sheet** plan keeps one — after several sheets the surviving planner would
+  be the last one planned rather than the one a target belongs to. It falls back to
+  ReferenceFinder's own ranking whenever the planner is gone.
+- Not measured: the CP-wide analysis on a 641-segment design (only iguana c0's plan was
+  timed), and no browser or desktop verification was run in this phase.
 
 ### V1.1 (planned, not in this plan's checklist)
 

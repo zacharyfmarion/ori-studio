@@ -28,6 +28,8 @@ import {
   type ReferenceFinderQuerySettings,
 } from './referenceFinder/protocol';
 import type { RawSolution, RfPoint } from './referenceFinder/solution';
+import { createWorkerPlannerHandle } from './precreasePlan';
+import { candidateCosts, orderByCost, reorder } from './referencesFromPlan';
 import {
   clearReferencesResults,
   referencesResultsSnapshot,
@@ -371,6 +373,38 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
   }, [setReferencesCandidates, setReferencesRun, setReferencesTarget, setReferencesView]);
 
   /**
+   * The order to show a crease target's candidates in, given the breakdown.
+   *
+   * Off by default (`startFromPlan`), and only for a crease: a vertex is a
+   * mark, and the plan folds lines. The planner the breakdown left behind is
+   * the state being scored against, so a plan for another sheet, another
+   * revision, or one whose planner has since been replaced falls back to
+   * ReferenceFinder's own ranking rather than to a state we cannot see.
+   */
+  const orderFromPlan = useCallback(
+    async (
+      solutions: readonly ExtractedSolution[],
+      componentId: number,
+      forRevision: string,
+      kind: TargetKind
+    ): Promise<number[]> => {
+      const identity = solutions.map((_, index) => index);
+      if (!settingsRef.current.startFromPlan || kind !== 'crease') return identity;
+      const plan = referencesResultsSnapshot().plan;
+      if (!plan || plan.revision !== forRevision || plan.plannerToken === null) return identity;
+      if (!plan.components.some((entry) => entry.component === componentId)) return identity;
+      try {
+        const handle = createWorkerPlannerHandle(getPrecreaseClient(), plan.plannerToken);
+        return orderByCost(await candidateCosts(handle, solutions));
+      } catch (error) {
+        reportError(error, { surface: 'references:startFromPlan' });
+        return identity;
+      }
+    },
+    []
+  );
+
+  /**
    * Ask ReferenceFinder about `record` on `component`'s sheet, then map the
    * answer into model space and publish it — unless the document moved on
    * while the worker was busy, in which case the answer is dropped.
@@ -401,7 +435,7 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
       const durationBucket = () =>
         bucketCount(Math.round(performance.now() - started), DURATION_MS_BUCKETS);
 
-      let solutions: ExtractedSolution[];
+      let solutions: readonly ExtractedSolution[];
       try {
         solutions = await whileReferenceFinderClientAlive(
           'window',
@@ -433,6 +467,14 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
         return;
       }
 
+      // "Starting from: this sequence": ReferenceFinder always answers from
+      // the bare sheet, so when a breakdown exists its state is a better
+      // ranking of the same answers. The core's raw output is parallel to the
+      // extracted list, so the order is applied to both or to neither.
+      const order = await orderFromPlan(solutions, component.id, forRevision, record.kind);
+      const raws = order.map((index) => transport.raw[index]);
+      solutions = reorder(solutions, order);
+
       try {
         const { modelSteps, originals } = await mapSolutionsToModel(frame, rect, solutions);
         if (revisionRef.current !== forRevision || referencesRunSnapshot().runId !== runId) {
@@ -441,7 +483,7 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
         }
         const mapped: ReferencesCandidateResult[] = solutions.map((solution, i) => ({
           solution,
-          raw: transport.raw[i],
+          raw: raws[i],
           modelSteps: modelSteps[i],
         }));
         setReferencesResults({
@@ -475,7 +517,7 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
         setReferencesRun({ status: 'error', message: humanizeError(error, t) });
       }
     },
-    [setReferencesCandidates, setReferencesRun, setReferencesView, t]
+    [orderFromPlan, setReferencesCandidates, setReferencesRun, setReferencesView, t]
   );
 
   /** The frames for `forRevision`, from the side table or computed now. */

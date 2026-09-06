@@ -10,6 +10,7 @@
   },
   "cp": {
     "advanceCreaseType": "递进折痕类型",
+    "analyzeReferences": "分析参照",
     "annotations": "标注",
     "build": "生成折痕图",
     "changeCircleColor": "更改圆的颜色...",

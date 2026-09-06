@@ -822,7 +822,38 @@
     "actions": {
       "noTargetHint": "Escolha primeiro um vértice ou uma dobra"
     },
+    "analysis": {
+      "approximate": "aproximado, erro {{err}}",
+      "badge": "{{closure}}/{{lines}} da folha",
+      "closure": "sai da própria folha",
+      "exact": "exato no rank {{rank}}, {{folds}} dobras",
+      "line": "Linha {{n}}",
+      "summary": "{{closure}} de {{lines}} linhas saem da própria folha; {{queried}} exigiram uma busca.",
+      "title": "Análise de referências",
+      "unsolved": "nenhuma construção encontrada"
+    },
     "approximate": "Aprox.",
+    "axiom": {
+      "free": "já está na folha",
+      "o1": "por dois pontos",
+      "o2": "ponto sobre ponto",
+      "o3": "borda sobre borda",
+      "o4": "perpendicular por um ponto",
+      "o5": "ponto sobre uma linha, por um ponto",
+      "o6": "dois pontos sobre duas linhas",
+      "o7": "ponto sobre uma linha, perpendicular"
+    },
+    "breakdown": {
+      "aux": "Marco",
+      "landmarks": "Marcos",
+      "pinch": "Beliscão",
+      "round": "Rodada {{n}}",
+      "sectionCount": "{{n}} dobras",
+      "sheet": "Folha {{n}}",
+      "sheetId": "Folha {{n}}",
+      "unlocks": "libera {{n}} dobras",
+      "visible": "Visível"
+    },
     "canvasAriaLabel": "Padrão de dobras. Clique em um vértice ou dobra para encontrar suas referências; arraste para mover, rode a roda para dar zoom.",
     "card": {
       "error": "erro {{value}}",
@@ -833,10 +864,26 @@
       "title": "Candidato {{n}}: {{folds}} dobras, rank {{rank}}"
     },
     "controls": "Controles de passos",
+    "direction": {
+      "angle": "a {{deg}}°",
+      "diagonalDown": "na diagonal descendente",
+      "diagonalUp": "na diagonal ascendente",
+      "horizontal": "na horizontal",
+      "vertical": "na vertical"
+    },
     "dismiss": "Fechar",
     "empty": "Nenhum padrão de vincos. Abra ou desenhe um em Editar e volte.",
     "errorTitle": "Referências indisponíveis",
     "exact": "Exato",
+    "findings": {
+      "approximation": "mais próximo: {{folds}} dobras, erro {{err}}",
+      "noApproximation": "nenhuma construção encontrada",
+      "note": "São apenas relatadas, nunca dobradas: uma aproximação viraria referência para todos os passos seguintes.",
+      "offLattice": "Fora da malha",
+      "refusedTitle": "Folhas deixadas de fora",
+      "title": "Linhas sem dobra exata",
+      "unsolved": "Nenhuma construção encontrada"
+    },
     "hint": {
       "pick": "Clique em um vértice ou dobra para ver como dobrá-lo.",
       "pickDecidesSheet": "Clique em um vértice ou dobra para ver como dobrá-lo. Este padrão tem {{n}} folhas; o clique decide qual é usada."
@@ -848,15 +895,35 @@
     },
     "noCreasePattern": "Sem padrão de dobras",
     "nonRectangular": "Esta folha não é um retângulo. Por enquanto, referências só podem ser encontradas em folhas retangulares.",
+    "noRectangularSheet": "Nenhuma folha retangular: por enquanto, só é possível encontrar referências em folhas retangulares.",
     "noSteps": "—",
     "openOutline": "As dobras de borda ao redor desta seleção não fecham uma folha.",
     "outOfDate": "Desatualizado",
     "outOfDateHint": "O padrão de dobras mudou desde que estas referências foram encontradas.",
     "outsideSheet": "Esta seleção não está dentro de nenhuma folha.",
+    "planning": "Calculando a sequência de dobras…",
+    "planStep": {
+      "axiom1": "Dobre passando por {{a}} e {{b}}.",
+      "axiom2": "Dobre {{a}} sobre {{b}}.",
+      "axiom3": "Dobre {{a}} sobre {{b}}.",
+      "axiom4": "Dobre passando por {{a}}, dobrando {{b}} sobre si mesma.",
+      "axiom5": "Dobre passando por {{a}}, levando {{b}} até {{c}}.",
+      "axiom6": "Dobre {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+      "axiom7": "Dobre {{b}} sobre si mesma de modo que {{a}} caia em {{c}}.",
+      "free": "Esta linha já está na folha.",
+      "pinch": "Apenas belisque: só a marca é necessária.",
+      "unknown": "Dobre usando {{inputs}}.",
+      "visibleAux": "Este vinco aparecerá no modelo pronto."
+    },
+    "progress": {
+      "closing": "Dobradas {{done}} de {{total}} linhas",
+      "querying": "Buscando {{done}} de {{total}} linhas"
+    },
     "readout": {
       "duration": "{{ms}} ms",
       "error": "erro {{value}}",
-      "idle": "Escolha um vértice ou uma dobra"
+      "idle": "Escolha um vértice ou uma dobra",
+      "noPlan": "Ainda sem sequência de dobras"
     },
     "recompute": "Recalcular",
     "ref": {
@@ -867,25 +934,43 @@
       "cornerSw": "o canto inferior esquerdo",
       "diagonalNwSe": "a diagonal do canto superior esquerdo ao inferior direito",
       "diagonalSwNe": "a diagonal do canto inferior esquerdo ao superior direito",
+      "existingCrease": "um vinco existente",
+      "intersection": "onde {{a}} encontra {{b}}",
       "leftEdge": "a borda esquerda",
       "line": "a linha {{name}}",
+      "mark": "a marca",
+      "markOn": "a marca em {{a}}",
       "point": "o ponto {{name}}",
       "rightEdge": "a borda direita",
+      "stepCrease": "o vinco do passo {{n}}",
       "topEdge": "a borda superior"
     },
     "refusedSheet": "A folha ao redor desta seleção não pôde ser lida como um retângulo.",
+    "row": {
+      "aux": "Dobre um vinco de referência {{direction}}",
+      "auxPinch": "Belisque um marco {{direction}}",
+      "cp": "Dobre {{direction}}"
+    },
     "searching": "Procurando referências…",
     "settings": {
       "candidateCount": "{{n}} soluções",
       "candidates": "Candidatos",
       "includeApproximate": "Incluir soluções aproximadas",
+      "landmarksFirst": "Marcos primeiro",
+      "sequence": "Sequência de dobras",
+      "showPinches": "Mostrar beliscões",
+      "startFromPlan": "Partir desta sequência",
       "trigger": "Configurações de referências"
     },
     "sidebar": {
+      "breakdownTitle": "Sequência de dobras",
       "candidates": "Construções candidatas",
       "freeDiagonals": "Também precisa da(s) diagonal(is) da folha: {{names}}.",
       "label": "Referências de dobra",
       "none": "O ReferenceFinder não encontrou nenhuma construção para este alvo com as configurações atuais.",
+      "noPlan": "Calcule como dobrar o padrão inteiro, ou clique em um vértice ou vinco para uma única referência.",
+      "plan": "Calcular as dobras",
+      "planning": "Calculando a sequência de dobras…",
       "searching": "Procurando referências…",
       "steps": "Passos de dobra",
       "title": "Passos"
@@ -907,6 +992,16 @@
     "stepScrubber": "Passo",
     "stop": "Parar",
     "stopping": "Cancelando…",
+    "summary": {
+      "atLowerBound": "nenhuma dobra auxiliar necessária",
+      "folds": "{{folds}} dobras = {{creases}} vincos + {{aux}} auxiliares ({{visible}} visíveis)",
+      "free": "{{n}} na borda da folha",
+      "lowerBound": "limite inferior {{n}}",
+      "offLattice": "Fora da malha",
+      "partial": "Parcial",
+      "snapped": "Ajustado, até {{d}}",
+      "unsolved": "{{n}} sem solução"
+    },
     "targetGone": "A dobra escolhida não está mais no padrão.",
     "title": "Referências",
     "warning": {

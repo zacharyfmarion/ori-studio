@@ -822,7 +822,38 @@
     "actions": {
       "noTargetHint": "Elige primero un vértice o un pliegue"
     },
+    "analysis": {
+      "approximate": "aproximado, error {{err}}",
+      "badge": "{{closure}}/{{lines}} desde la hoja",
+      "closure": "se obtiene de la propia hoja",
+      "exact": "exacto en el rango {{rank}}, {{folds}} dobleces",
+      "line": "Línea {{n}}",
+      "summary": "{{closure}} de {{lines}} líneas se obtienen de la propia hoja; {{queried}} requirieron una búsqueda.",
+      "title": "Análisis de referencias",
+      "unsolved": "no se encontró construcción"
+    },
     "approximate": "Aprox.",
+    "axiom": {
+      "free": "ya está en la hoja",
+      "o1": "por dos puntos",
+      "o2": "punto sobre punto",
+      "o3": "borde sobre borde",
+      "o4": "perpendicular por un punto",
+      "o5": "punto sobre una línea, por un punto",
+      "o6": "dos puntos sobre dos líneas",
+      "o7": "punto sobre una línea, perpendicular"
+    },
+    "breakdown": {
+      "aux": "Referencia",
+      "landmarks": "Referencias",
+      "pinch": "Pellizco",
+      "round": "Ronda {{n}}",
+      "sectionCount": "{{n}} dobleces",
+      "sheet": "Hoja {{n}}",
+      "sheetId": "Hoja {{n}}",
+      "unlocks": "habilita {{n}} dobleces",
+      "visible": "Visible"
+    },
     "canvasAriaLabel": "Patrón de pliegues. Haz clic en un vértice o pliegue para hallar sus referencias; arrastra para desplazar, desplaza la rueda para hacer zoom.",
     "card": {
       "error": "err {{value}}",
@@ -833,10 +864,26 @@
       "title": "Candidato {{n}}: {{folds}} dobleces, rango {{rank}}"
     },
     "controls": "Controles de pasos",
+    "direction": {
+      "angle": "a {{deg}}°",
+      "diagonalDown": "en la diagonal descendente",
+      "diagonalUp": "en la diagonal ascendente",
+      "horizontal": "en horizontal",
+      "vertical": "en vertical"
+    },
     "dismiss": "Descartar",
     "empty": "No hay patrón de plegado. Abre o dibuja uno en Editar y vuelve.",
     "errorTitle": "Referencias no disponibles",
     "exact": "Exacto",
+    "findings": {
+      "approximation": "más cercano: {{folds}} dobleces, error {{err}}",
+      "noApproximation": "no se encontró construcción",
+      "note": "Se informan, nunca se doblan: una aproximación se convertiría en referencia para todos los pasos posteriores.",
+      "offLattice": "Fuera de la retícula",
+      "refusedTitle": "Hojas omitidas",
+      "title": "Líneas sin doblez exacto",
+      "unsolved": "No se encontró construcción"
+    },
     "hint": {
       "pick": "Haz clic en un vértice o pliegue para ver cómo doblarlo.",
       "pickDecidesSheet": "Haz clic en un vértice o pliegue para ver cómo doblarlo. Este patrón tiene {{n}} hojas; el clic decide cuál se usa."
@@ -848,15 +895,35 @@
     },
     "noCreasePattern": "Sin patrón de pliegues",
     "nonRectangular": "Esta hoja no es un rectángulo. Por ahora solo se pueden hallar referencias en hojas rectangulares.",
+    "noRectangularSheet": "No hay hoja rectangular: por ahora solo se pueden hallar referencias en hojas rectangulares.",
     "noSteps": "—",
     "openOutline": "Los pliegues de borde alrededor de esta selección no cierran una hoja.",
     "outOfDate": "Desactualizado",
     "outOfDateHint": "El patrón de pliegues cambió desde que se hallaron estas referencias.",
     "outsideSheet": "Esta selección no está dentro de ninguna hoja.",
+    "planning": "Calculando la secuencia de plegado…",
+    "planStep": {
+      "axiom1": "Dobla por {{a}} y {{b}}.",
+      "axiom2": "Dobla {{a}} sobre {{b}}.",
+      "axiom3": "Dobla {{a}} sobre {{b}}.",
+      "axiom4": "Dobla por {{a}}, doblando {{b}} sobre sí misma.",
+      "axiom5": "Dobla por {{a}}, llevando {{b}} sobre {{c}}.",
+      "axiom6": "Dobla {{a}} sobre {{b}} y {{c}} sobre {{d}}.",
+      "axiom7": "Dobla {{b}} sobre sí misma de modo que {{a}} caiga en {{c}}.",
+      "free": "Esta línea ya está en la hoja.",
+      "pinch": "Solo pellizca: basta con la marca.",
+      "unknown": "Dobla usando {{inputs}}.",
+      "visibleAux": "Este pliegue se verá en el modelo terminado."
+    },
+    "progress": {
+      "closing": "Dobladas {{done}} de {{total}} líneas",
+      "querying": "Buscando {{done}} de {{total}} líneas"
+    },
     "readout": {
       "duration": "{{ms}} ms",
       "error": "err {{value}}",
-      "idle": "Elige un vértice o un pliegue"
+      "idle": "Elige un vértice o un pliegue",
+      "noPlan": "Aún no hay secuencia de plegado"
     },
     "recompute": "Recalcular",
     "ref": {
@@ -867,25 +934,43 @@
       "cornerSw": "la esquina inferior izquierda",
       "diagonalNwSe": "la diagonal de arriba a la izquierda a abajo a la derecha",
       "diagonalSwNe": "la diagonal de abajo a la izquierda a arriba a la derecha",
+      "existingCrease": "un pliegue existente",
+      "intersection": "donde {{a}} corta a {{b}}",
       "leftEdge": "el borde izquierdo",
       "line": "la línea {{name}}",
+      "mark": "la marca",
+      "markOn": "la marca en {{a}}",
       "point": "el punto {{name}}",
       "rightEdge": "el borde derecho",
+      "stepCrease": "el pliegue del paso {{n}}",
       "topEdge": "el borde superior"
     },
     "refusedSheet": "La hoja alrededor de esta selección no pudo leerse como un rectángulo.",
+    "row": {
+      "aux": "Dobla un pliegue de referencia {{direction}}",
+      "auxPinch": "Pellizca una referencia {{direction}}",
+      "cp": "Dobla {{direction}}"
+    },
     "searching": "Buscando referencias…",
     "settings": {
       "candidateCount": "{{n}} soluciones",
       "candidates": "Candidatos",
       "includeApproximate": "Incluir soluciones aproximadas",
+      "landmarksFirst": "Referencias primero",
+      "sequence": "Secuencia de plegado",
+      "showPinches": "Mostrar pellizcos",
+      "startFromPlan": "Partir de esta secuencia",
       "trigger": "Ajustes de referencias"
     },
     "sidebar": {
+      "breakdownTitle": "Secuencia de plegado",
       "candidates": "Construcciones candidatas",
       "freeDiagonals": "También necesita la(s) diagonal(es) de la hoja: {{names}}.",
       "label": "Referencias de plegado",
       "none": "ReferenceFinder no halló ninguna construcción para este objetivo con los ajustes actuales.",
+      "noPlan": "Calcula cómo doblar todo el patrón, o haz clic en un vértice o pliegue para una sola referencia.",
+      "plan": "Calcular los dobleces",
+      "planning": "Calculando la secuencia de plegado…",
       "searching": "Buscando referencias…",
       "steps": "Pasos de plegado",
       "title": "Pasos"
@@ -907,6 +992,16 @@
     "stepScrubber": "Paso",
     "stop": "Detener",
     "stopping": "Cancelando…",
+    "summary": {
+      "atLowerBound": "no hacen falta dobleces auxiliares",
+      "folds": "{{folds}} dobleces = {{creases}} pliegues + {{aux}} auxiliares ({{visible}} visibles)",
+      "free": "{{n}} en el borde de la hoja",
+      "lowerBound": "cota inferior {{n}}",
+      "offLattice": "Fuera de la retícula",
+      "partial": "Parcial",
+      "snapped": "Ajustado, hasta {{d}}",
+      "unsolved": "{{n}} sin resolver"
+    },
     "targetGone": "El pliegue elegido ya no está en el patrón.",
     "title": "Referencias",
     "warning": {

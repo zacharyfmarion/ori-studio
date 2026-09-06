@@ -789,7 +789,38 @@
     "actions": {
       "noTargetHint": "Wähle zuerst einen Scheitelpunkt oder eine Falte"
     },
+    "analysis": {
+      "approximate": "näherungsweise, Abweichung {{err}}",
+      "badge": "{{closure}}/{{lines}} aus dem Blatt",
+      "closure": "ergibt sich aus dem Blatt selbst",
+      "exact": "exakt bei Rang {{rank}}, {{folds}} Faltungen",
+      "line": "Linie {{n}}",
+      "summary": "{{closure}} von {{lines}} Linien ergeben sich aus dem Blatt selbst; {{queried}} erforderten eine Suche.",
+      "title": "Referenzanalyse",
+      "unsolved": "keine Konstruktion gefunden"
+    },
     "approximate": "Näherung",
+    "axiom": {
+      "free": "bereits auf dem Blatt",
+      "o1": "durch zwei Punkte",
+      "o2": "Punkt auf Punkt",
+      "o3": "Kante auf Kante",
+      "o4": "Senkrechte durch einen Punkt",
+      "o5": "Punkt auf eine Linie, durch einen Punkt",
+      "o6": "zwei Punkte auf zwei Linien",
+      "o7": "Punkt auf eine Linie, senkrecht"
+    },
+    "breakdown": {
+      "aux": "Orientierungspunkt",
+      "landmarks": "Orientierungspunkte",
+      "pinch": "Kniff",
+      "round": "Runde {{n}}",
+      "sectionCount": "{{n}} Faltungen",
+      "sheet": "Blatt {{n}}",
+      "sheetId": "Blatt {{n}}",
+      "unlocks": "ermöglicht {{n}} Faltungen",
+      "visible": "Sichtbar"
+    },
     "canvasAriaLabel": "Faltmuster. Klicke auf einen Scheitelpunkt oder eine Falte, um ihre Referenzen zu finden; ziehen zum Verschieben, scrollen zum Zoomen.",
     "card": {
       "error": "Fehler {{value}}",
@@ -799,10 +830,26 @@
       "title": "Kandidat {{n}}: {{folds}} Faltungen, Rang {{rank}}"
     },
     "controls": "Schrittsteuerung",
+    "direction": {
+      "angle": "bei {{deg}}°",
+      "diagonalDown": "auf der fallenden Diagonale",
+      "diagonalUp": "auf der steigenden Diagonale",
+      "horizontal": "waagerecht",
+      "vertical": "senkrecht"
+    },
     "dismiss": "Schließen",
     "empty": "Kein Faltmuster. Öffne oder zeichne eines unter Bearbeiten und komm dann zurück.",
     "errorTitle": "Referenzen nicht verfügbar",
     "exact": "Exakt",
+    "findings": {
+      "approximation": "am nächsten: {{folds}} Faltungen, Abweichung {{err}}",
+      "noApproximation": "keine Konstruktion gefunden",
+      "note": "Sie werden nur gemeldet, nie gefaltet: eine Näherung würde zur Referenz für jeden späteren Schritt.",
+      "offLattice": "Außerhalb des Gitters",
+      "refusedTitle": "Ausgelassene Blätter",
+      "title": "Linien ohne exakte Faltung",
+      "unsolved": "Keine Konstruktion gefunden"
+    },
     "hint": {
       "pick": "Klicke auf einen Scheitelpunkt oder eine Falte, um zu sehen, wie man sie faltet.",
       "pickDecidesSheet": "Klicke auf einen Scheitelpunkt oder eine Falte, um zu sehen, wie man sie faltet. Dieses Muster hat {{n}} Bögen; der Klick entscheidet, welcher verwendet wird."
@@ -814,15 +861,35 @@
     },
     "noCreasePattern": "Kein Faltmuster",
     "nonRectangular": "Dieser Bogen ist kein Rechteck. Referenzen lassen sich derzeit nur auf rechteckigen Bögen finden.",
+    "noRectangularSheet": "Kein rechteckiges Blatt: Referenzen können vorerst nur auf rechteckigen Blättern gefunden werden.",
     "noSteps": "—",
     "openOutline": "Die Randfalten um diese Auswahl schließen sich nicht zu einem Bogen.",
     "outOfDate": "Veraltet",
     "outOfDateHint": "Das Faltmuster hat sich geändert, seit diese Referenzen gefunden wurden.",
     "outsideSheet": "Diese Auswahl liegt in keinem Bogen.",
+    "planning": "Faltfolge wird berechnet…",
+    "planStep": {
+      "axiom1": "Falte durch {{a}} und {{b}}.",
+      "axiom2": "Falte {{a}} auf {{b}}.",
+      "axiom3": "Falte {{a}} auf {{b}}.",
+      "axiom4": "Falte durch {{a}}, sodass {{b}} auf sich selbst fällt.",
+      "axiom5": "Falte durch {{a}} und bringe {{b}} auf {{c}}.",
+      "axiom6": "Falte {{a}} auf {{b}} und {{c}} auf {{d}}.",
+      "axiom7": "Falte {{b}} auf sich selbst, sodass {{a}} auf {{c}} landet.",
+      "free": "Diese Linie ist bereits auf dem Blatt.",
+      "pinch": "Nur kneifen – es wird nur die Markierung gebraucht.",
+      "unknown": "Falte mit {{inputs}}.",
+      "visibleAux": "Diese Faltlinie ist im fertigen Modell sichtbar."
+    },
+    "progress": {
+      "closing": "{{done}} von {{total}} Linien gefaltet",
+      "querying": "{{done}} von {{total}} Linien werden durchsucht"
+    },
     "readout": {
       "duration": "{{ms}} ms",
       "error": "Fehler {{value}}",
-      "idle": "Wähle einen Scheitelpunkt oder eine Falte"
+      "idle": "Wähle einen Scheitelpunkt oder eine Falte",
+      "noPlan": "Noch keine Faltfolge"
     },
     "recompute": "Neu berechnen",
     "ref": {
@@ -833,25 +900,43 @@
       "cornerSw": "die untere linke Ecke",
       "diagonalNwSe": "die Diagonale von oben links nach unten rechts",
       "diagonalSwNe": "die Diagonale von unten links nach oben rechts",
+      "existingCrease": "eine vorhandene Faltlinie",
+      "intersection": "wo {{a}} auf {{b}} trifft",
       "leftEdge": "die linke Kante",
       "line": "Linie {{name}}",
+      "mark": "die Markierung",
+      "markOn": "die Markierung auf {{a}}",
       "point": "Punkt {{name}}",
       "rightEdge": "die rechte Kante",
+      "stepCrease": "die Faltlinie aus Schritt {{n}}",
       "topEdge": "die obere Kante"
     },
     "refusedSheet": "Der Bogen um diese Auswahl konnte nicht als Rechteck gelesen werden.",
+    "row": {
+      "aux": "Eine Hilfsfaltlinie {{direction}} falten",
+      "auxPinch": "Einen Orientierungspunkt {{direction}} kneifen",
+      "cp": "{{direction}} falten"
+    },
     "searching": "Referenzen werden gesucht…",
     "settings": {
       "candidateCount": "{{n}} Lösungen",
       "candidates": "Kandidaten",
       "includeApproximate": "Näherungslösungen einbeziehen",
+      "landmarksFirst": "Orientierungspunkte zuerst",
+      "sequence": "Faltfolge",
+      "showPinches": "Kniffe anzeigen",
+      "startFromPlan": "Von dieser Folge ausgehen",
       "trigger": "Referenzeinstellungen"
     },
     "sidebar": {
+      "breakdownTitle": "Faltfolge",
       "candidates": "Kandidatenkonstruktionen",
       "freeDiagonals": "Benötigt außerdem die Bogendiagonale(n): {{names}}.",
       "label": "Faltreferenzen",
       "none": "ReferenceFinder hat mit den aktuellen Einstellungen keine Konstruktion für dieses Ziel gefunden.",
+      "noPlan": "Berechne, wie das ganze Muster gefaltet wird, oder klicke auf einen Punkt oder eine Faltlinie für eine einzelne Referenz.",
+      "plan": "Faltungen berechnen",
+      "planning": "Faltfolge wird berechnet…",
       "searching": "Referenzen werden gesucht…",
       "steps": "Faltschritte",
       "title": "Schritte"
@@ -873,6 +958,16 @@
     "stepScrubber": "Schritt",
     "stop": "Stopp",
     "stopping": "Wird abgebrochen…",
+    "summary": {
+      "atLowerBound": "keine Hilfsfaltungen nötig",
+      "folds": "{{folds}} Faltungen = {{creases}} Faltlinien + {{aux}} Hilfslinien ({{visible}} sichtbar)",
+      "free": "{{n}} auf der Blattkante",
+      "lowerBound": "untere Schranke {{n}}",
+      "offLattice": "Außerhalb des Gitters",
+      "partial": "Teilweise",
+      "snapped": "Eingerastet, bis zu {{d}}",
+      "unsolved": "{{n}} ungelöst"
+    },
     "targetGone": "Die gewählte Falte ist nicht mehr im Muster.",
     "title": "Referenzen",
     "warning": {

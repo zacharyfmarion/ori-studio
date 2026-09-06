@@ -12,7 +12,13 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { useThemeStore } from '../../store/themeStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { ReferencesSelection } from './ReferencesCpView';
-import type { ReferencesCandidateResult, ReferencesResults } from './referencesResults';
+import type {
+  ReferencesCandidateResult,
+  ReferencesPlanVariant,
+  ReferencesResults,
+} from './referencesResults';
+import type { ReferencesFlatStep } from './referencesBreakdown';
+import { findingBounds, planStepOverlay } from './referencesPlanGeometry';
 import {
   clampStepIndex,
   referencesStepOverlay,
@@ -153,4 +159,78 @@ export function useReferencesHighlights(
     markers: overlay?.markers ?? EMPTY_MARKERS,
     stepBounds: overlay?.bounds ?? null,
   };
+}
+
+const NO_HIGHLIGHTS: ReferencesHighlights = {
+  highlightLineIds: EMPTY_IDS,
+  highlightVertexIdx: EMPTY_IDS,
+  selected: null,
+  ghostSegments: EMPTY_GHOSTS,
+  markers: EMPTY_MARKERS,
+  stepBounds: null,
+};
+
+/**
+ * The selection itself, outside the hook so the memo below is a single call
+ * the React compiler can keep: a memo whose body branches and returns early
+ * cannot be preserved, and the branching is what this does.
+ */
+function planHighlights(
+  variants: readonly ReferencesPlanVariant[],
+  flatSteps: readonly ReferencesFlatStep[],
+  activeStep: number,
+  activeFinding: number | null,
+  showPinches: boolean
+): ReferencesHighlights {
+  if (variants.length === 0) return NO_HIGHLIGHTS;
+  if (activeFinding !== null) {
+    // A finding has no step to show: frame the line and highlight the creases
+    // on it, so "which line is this?" has an answer on the view. Findings are
+    // the same whichever order the steps are presented in.
+    for (const variant of variants) {
+      const finding = variant.sequence.findings[activeFinding];
+      if (!finding) continue;
+      return {
+        ...NO_HIGHLIGHTS,
+        highlightLineIds: new Set(finding.cp_line_ids),
+        stepBounds: findingBounds(variant.model, activeFinding),
+      };
+    }
+  }
+  const target = flatSteps[activeStep];
+  const entry = target ? variants[target.component] : undefined;
+  if (!target || !entry) return NO_HIGHLIGHTS;
+  const overlay = planStepOverlay(entry.sequence, entry.model, target.step, {
+    showPinches,
+  });
+  return {
+    highlightLineIds: new Set(overlay.highlightLineIds),
+    highlightVertexIdx: EMPTY_IDS,
+    selected: null,
+    ghostSegments: overlay.ghosts,
+    markers: overlay.markers,
+    stepBounds: overlay.bounds,
+  };
+}
+
+/**
+ * The same highlight props, derived from a whole-pattern breakdown instead of
+ * a ReferenceFinder candidate.
+ *
+ * The plan's geometry is already in model space (`useReferencesBreakdown` maps
+ * it once, when the plan lands), so this is pure selection: which step, or
+ * which finding, and what it draws. Stale plans draw nothing for the same
+ * reason stale candidates do — their crease ids may now name other creases.
+ */
+export function useReferencesPlanHighlights(
+  variants: readonly ReferencesPlanVariant[],
+  flatSteps: readonly ReferencesFlatStep[],
+  activeStep: number,
+  activeFinding: number | null,
+  showPinches: boolean
+): ReferencesHighlights {
+  return useMemo(
+    () => planHighlights(variants, flatSteps, activeStep, activeFinding, showPinches),
+    [variants, flatSteps, activeStep, activeFinding, showPinches]
+  );
 }

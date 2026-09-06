@@ -10,6 +10,7 @@
   },
   "cp": {
     "advanceCreaseType": "Advance Crease Type",
+    "analyzeReferences": "Analyze References",
     "annotations": "Annotations",
     "build": "Build Crease Pattern",
     "changeCircleColor": "Change Circle Color...",

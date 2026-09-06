@@ -10,6 +10,7 @@
   },
   "cp": {
     "advanceCreaseType": "Avanzar tipo de pliegue",
+    "analyzeReferences": "Analizar referencias",
     "annotations": "Anotaciones",
     "build": "Generar patrón de pliegues",
     "changeCircleColor": "Cambiar color del círculo...",

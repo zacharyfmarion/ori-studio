@@ -15,6 +15,8 @@
     "addTreeEdgesThenOptimize": "Add tree edges, then optimize before building the crease pattern",
     "advanceCreaseType": "Advance Crease Type",
     "advanceSelectedCpLineTypes": "Advance selected crease-pattern line types",
+    "analyzeReferences": "Analyze References",
+    "analyzeReferencesHint": "Find which of this pattern’s lines are hard to locate by folding",
     "bpFlipHorizontal": "Horizontal Flip",
     "bpFlipHorizontalReason": "Mirror the design left to right",
     "bpFlipVertical": "Vertical Flip",

@@ -17,7 +17,11 @@
 import type { Point } from '../../lib/geometry';
 import type { ExtractedSolution } from './referenceFinder/extractor';
 import type { RawSolution, RfPoint } from './referenceFinder/solution';
-import type { PrecreaseFrame, SheetAnalysis } from './sheetFrames';
+import type { PrecreasePlanResult } from './precreasePlan';
+import type { PrecreaseSequence } from './precreaseSequence';
+import type { ReferencesPlanModel } from './referencesPlanGeometry';
+import type { ReferencesAnalysis } from './referencesAnalysis';
+import type { PrecreaseFrame, PrecreaseRefusalKind, SheetAnalysis } from './sheetFrames';
 
 /** One step of a candidate in model space, parallel to `ExtractedSolution.steps`. */
 export interface ReferencesModelStep {
@@ -79,12 +83,84 @@ export interface ReferencesFrames {
   analysis: SheetAnalysis;
 }
 
+/**
+ * One presentation order of a plan: the crate's `sequence()` for a given
+ * `landmarks_first`, plus its geometry already mapped into model space so the
+ * view can draw a step without a round trip.
+ */
+export interface ReferencesPlanVariant {
+  sequence: PrecreaseSequence;
+  model: ReferencesPlanModel;
+}
+
+/**
+ * One planned sheet, in both presentation orders.
+ *
+ * Both are computed when the plan lands rather than on demand, because
+ * `sequence()` is a presentation pass over a closure the planner already has
+ * — microseconds — while re-deriving one later would need the planner still
+ * alive on that sheet's state. "Landmarks first" is a toggle, and a toggle
+ * that needed a Recompute would not be one.
+ */
+export interface ReferencesPlanComponent {
+  component: number;
+  /** The run itself: status, findings, approximations, budgets. */
+  result: PrecreasePlanResult;
+  frame: PrecreaseFrame;
+  plain: ReferencesPlanVariant;
+  hoisted: ReferencesPlanVariant;
+}
+
+/** The order to show, given the toggle. */
+export function planVariant(
+  component: ReferencesPlanComponent,
+  landmarksFirst: boolean
+): ReferencesPlanVariant {
+  return landmarksFirst ? component.hoisted : component.plain;
+}
+
+/**
+ * A whole-pattern breakdown.
+ *
+ * One entry per rectangular sheet, in turn (D10) — a BP Studio canvas can hold
+ * several disjoint patterns, and each is its own folding problem. Sheets the
+ * planner refuses are listed rather than planned, so the sidebar can say which
+ * and why instead of silently covering less than the pattern.
+ */
+export interface ReferencesPlanRecord {
+  revision: string;
+  components: ReferencesPlanComponent[];
+  refused: { component: number; kind: PrecreaseRefusalKind | null }[];
+  durationMs: number;
+  /**
+   * The worker planner still sitting on this plan's final state, when there is
+   * one — what "Starting from: this sequence" scores against. Only a
+   * single-sheet plan keeps it: the worker holds one planner at a time, so
+   * after several sheets the survivor would be the last one planned rather
+   * than the one a target belongs to, and a wrong state is worse than none.
+   */
+  plannerToken: number | null;
+}
+
+/** A CP-wide analysis and the revision it describes. */
+export interface ReferencesAnalysisRecord {
+  revision: string;
+  analysis: ReferencesAnalysis;
+}
+
 export interface ReferencesResultsState {
   frames: ReferencesFrames | null;
   results: ReferencesResults | null;
+  plan: ReferencesPlanRecord | null;
+  analysis: ReferencesAnalysisRecord | null;
 }
 
-let state: ReferencesResultsState = { frames: null, results: null };
+let state: ReferencesResultsState = {
+  frames: null,
+  results: null,
+  plan: null,
+  analysis: null,
+};
 const listeners = new Set<() => void>();
 
 function emit(): void {
@@ -114,9 +190,28 @@ export function setReferencesResults(results: ReferencesResults | null): void {
   emit();
 }
 
+export function setReferencesPlanRecord(plan: ReferencesPlanRecord | null): void {
+  if (state.plan === plan) return;
+  state = { ...state, plan };
+  emit();
+}
+
+export function setReferencesAnalysisRecord(analysis: ReferencesAnalysisRecord | null): void {
+  if (state.analysis === analysis) return;
+  state = { ...state, analysis };
+  emit();
+}
+
 /** Forget everything — leaving the workspace, or a document swap. */
 export function clearReferencesResults(): void {
-  if (state.frames === null && state.results === null) return;
-  state = { frames: null, results: null };
+  if (
+    state.frames === null &&
+    state.results === null &&
+    state.plan === null &&
+    state.analysis === null
+  ) {
+    return;
+  }
+  state = { frames: null, results: null, plan: null, analysis: null };
   emit();
 }

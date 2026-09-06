@@ -21,20 +21,37 @@ import {
  * The geometry (projection, arc sweeps, arrowheads, label anchors) is
  * `stepDiagramGeometry.ts`, which has the tests; this only lays it out.
  */
-export function StepDiagram({
-  diagram,
-  size = 100,
-  className,
-  label,
-}: {
-  diagram: Diagram;
+export type StepDiagramProps = {
   /** The viewBox side; the element itself scales to its box. */
   size?: number;
   className?: string;
   /** Accessible name; the drawing is otherwise decorative. */
   label?: string;
-}) {
+} & (
+  | {
+      /** A ReferenceFinder diagram, adapted here. */
+      diagram: Diagram;
+      primitives?: undefined;
+    }
+  | {
+      /**
+       * Primitives built elsewhere — the planner's steps, which ship
+       * witnesses rather than diagrams (`plannerStepToPrimitives.ts`).
+       */
+      primitives: StepDiagramModel | null;
+      diagram?: undefined;
+    }
+);
+
+export function StepDiagram({
+  diagram,
+  primitives,
+  size = 100,
+  className,
+  label,
+}: StepDiagramProps) {
   const model = useMemo<StepDiagramModel | null>(() => {
+    if (diagram === undefined) return primitives ?? null;
     try {
       return referenceFinderDiagramToPrimitives(diagram);
     } catch {
@@ -42,7 +59,7 @@ export function StepDiagram({
       // sentence and simply shows no picture rather than a wrong one.
       return null;
     }
-  }, [diagram]);
+  }, [diagram, primitives]);
   const project = useMemo(
     () => createDiagramProjector(model?.sheet ?? { width: 1, height: 1 }, size),
     [model, size]

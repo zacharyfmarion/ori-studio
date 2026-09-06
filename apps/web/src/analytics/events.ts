@@ -325,8 +325,20 @@ export type ContextMenuTargetKind =
   | 'node'
   | 'edge';
 
-/** What a picked reference was, on the References workspace's events. */
-export type ReferenceTargetKind = 'vertex' | 'crease';
+/**
+ * What a picked reference was, on the References workspace's events.
+ * `whole_cp` is the breakdown, which is not picked but asked for.
+ */
+export type ReferenceTargetKind = 'vertex' | 'crease' | 'whole_cp';
+
+/** How the exactness probe classified the pattern a breakdown was made of. */
+export type ReferenceExactnessClass = 'exact' | 'snappable' | 'off_lattice';
+
+/**
+ * Why a breakdown produced no sequence. `non_rectangular` is D10's refusal,
+ * `point_cap` the `|P|` ceiling, `budget` the run's own clock.
+ */
+export type ReferenceRefusalReason = 'non_rectangular' | 'point_cap' | 'budget' | 'error';
 
 /**
  * How a ReferenceFinder query ended. `exact` when any construction lands on
@@ -387,6 +399,27 @@ export const ANALYTICS_EVENTS = {
   referenceTargetPicked: 'reference target picked',
   referenceQueryCompleted: 'reference query completed',
   foldingStepsOpened: 'folding steps opened',
+  /**
+   * A whole-pattern breakdown run, however it ended: `completed` when the
+   * planner produced a sequence, `cancelled` when a Stop landed, `refused`
+   * when it could not (a non-rectangular sheet, the point cap, the budget).
+   *
+   * Carries only enums and bucketed counts: `target_kind`, `lines_bucket`,
+   * `aux_bucket`, `visible_aux_bucket`, `duration_bucket`, `exactness_class`
+   * and, on a refusal, `refusal_reason`. Never a fold count, a line, a
+   * coordinate or anything else derived from the user's geometry — the shape
+   * of a design is the design.
+   */
+  foldingStepsCompleted: 'folding steps completed',
+  foldingStepsCancelled: 'folding steps cancelled',
+  foldingStepsRefused: 'folding steps refused',
+  /**
+   * A CP-wide analysis finished. `unreachable_bucket` is how many of the
+   * pattern's distinct lines the closure could not reach and ReferenceFinder
+   * was asked about — the number that says whether the closure-first ordering
+   * is doing the work the plan claims it does.
+   */
+  referenceBatchCompleted: 'reference batch completed',
   creasePatternBuilt: 'crease pattern built',
   optimizerRun: 'optimizer run',
   projectOpened: 'project opened',

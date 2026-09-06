@@ -20,10 +20,18 @@ export function ReferencesSettingsMenu({
   settings,
   onChange,
   disabled = false,
+  landmarksFirst,
+  onToggleLandmarksFirst,
+  hasPlan,
 }: {
   settings: ReferencesSettings;
   onChange: (settings: Partial<ReferencesSettings>) => void;
   disabled?: boolean;
+  /** Whole-pattern mode: auxiliary folds hoisted to a phase 0. */
+  landmarksFirst: boolean;
+  onToggleLandmarksFirst: () => void;
+  /** A breakdown exists, so the sequence-relative options mean something. */
+  hasPlan: boolean;
 }) {
   const { t } = useTranslation();
   const label = t('panels:references.settings.trigger', 'Reference settings');
@@ -83,6 +91,53 @@ export function ReferencesSettingsMenu({
             </span>
             <span className="context-menu__label">
               {t('panels:references.settings.includeApproximate', 'Include approximate solutions')}
+            </span>
+          </DropdownMenu.CheckboxItem>
+          <DropdownMenu.CheckboxItem
+            className="context-menu__item"
+            checked={settings.startFromPlan}
+            disabled={!hasPlan}
+            onCheckedChange={(checked) => onChange({ startFromPlan: checked === true })}
+          >
+            <span className="context-menu__icon">
+              <DropdownMenu.ItemIndicator>
+                <Check size={12} />
+              </DropdownMenu.ItemIndicator>
+            </span>
+            <span className="context-menu__label">
+              {t('panels:references.settings.startFromPlan', 'Start from this sequence')}
+            </span>
+          </DropdownMenu.CheckboxItem>
+          <DropdownMenu.Separator className="context-menu__separator" />
+          <DropdownMenu.Label className="context-menu__item context-menu__heading">
+            {t('panels:references.settings.sequence', 'Folding sequence')}
+          </DropdownMenu.Label>
+          <DropdownMenu.CheckboxItem
+            className="context-menu__item"
+            checked={landmarksFirst}
+            onCheckedChange={() => onToggleLandmarksFirst()}
+          >
+            <span className="context-menu__icon">
+              <DropdownMenu.ItemIndicator>
+                <Check size={12} />
+              </DropdownMenu.ItemIndicator>
+            </span>
+            <span className="context-menu__label">
+              {t('panels:references.settings.landmarksFirst', 'Landmarks first')}
+            </span>
+          </DropdownMenu.CheckboxItem>
+          <DropdownMenu.CheckboxItem
+            className="context-menu__item"
+            checked={settings.showPinches}
+            onCheckedChange={(checked) => onChange({ showPinches: checked === true })}
+          >
+            <span className="context-menu__icon">
+              <DropdownMenu.ItemIndicator>
+                <Check size={12} />
+              </DropdownMenu.ItemIndicator>
+            </span>
+            <span className="context-menu__label">
+              {t('panels:references.settings.showPinches', 'Show pinches')}
             </span>
           </DropdownMenu.CheckboxItem>
         </DropdownMenu.Content>

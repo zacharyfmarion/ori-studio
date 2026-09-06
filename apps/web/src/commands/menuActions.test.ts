@@ -94,6 +94,7 @@ function createDeps() {
         faces: [],
       } as OristudioCpSelection,
       setOristudioCpSelection: vi.fn(),
+      requestReferencesAnalysis: vi.fn(),
       clearOristudioCpSelection: vi.fn(),
       requestOristudioCpAction: vi.fn(),
       requestOristudioCpSurface: vi.fn(),

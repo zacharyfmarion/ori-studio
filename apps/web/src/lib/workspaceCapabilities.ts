@@ -105,6 +105,7 @@ export type WorkspaceCapabilityId =
   | 'cp.deleteExtraVerticesIgnoreColor'
   | 'cp.fixInaccurate'
   | 'cp.exactSolve'
+  | 'cp.analyzeReferences'
   | 'cp.changeCircleColor'
   | 'cp.organizeCircles'
   | 'cp.setActiveCreaseAngle'
@@ -995,6 +996,16 @@ export function getWorkspaceCapabilities(
               'common:capability.detectCpBeforeExactSolve',
               'Exact solve needs a detected crease pattern; run Detect CP from Image first'
             )
+        : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
+    ),
+    'cp.analyzeReferences': capability(
+      canEditCp,
+      t('common:capability.analyzeReferences', 'Analyze References'),
+      canEditCp
+        ? t(
+            'common:capability.analyzeReferencesHint',
+            'Find which of this pattern\u2019s lines are hard to locate by folding'
+          )
         : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
     ),
     'cp.changeCircleColor': capability(

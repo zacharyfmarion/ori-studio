@@ -10,6 +10,7 @@
   },
   "cp": {
     "advanceCreaseType": "Faltentyp weiterschalten",
+    "analyzeReferences": "Referenzen analysieren",
     "annotations": "Anmerkungen",
     "build": "Faltmuster erstellen",
     "changeCircleColor": "Kreisfarbe ändern...",

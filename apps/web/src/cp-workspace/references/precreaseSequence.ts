@@ -1,0 +1,330 @@
+/**
+ * The precrease planner's wire shapes, as TypeScript sees them.
+ *
+ * Mirrors the serde types in `crates/oristudio-precrease/src/sequence.rs`,
+ * `predicates.rs`, `pinch.rs`, `planner.rs` and `closure.rs`, serialised
+ * `json_compatible` by the wasm bridge: `Option<T>` is `T | null`, `Ref` and
+ * `Extent` are `kind`-tagged, every other enum is a `snake_case` string.
+ *
+ * Nothing is computed here. The planner owns all the geometry (plan decision
+ * D6) and this module only names what crosses, so the orchestrator, the
+ * sidebar and the diagrams all read one description of the contract instead of
+ * three inline `any`s.
+ */
+
+/** A line `n · p = d`, `|n| = 1`, in the planner unit frame (= the RF frame). */
+export interface PrecreasePlanLine {
+  n: [number, number];
+  d: number;
+}
+
+/** An in-paper segment: two endpoints in the planner unit frame. */
+export type PrecreasePlanSegment = [[number, number], [number, number]];
+
+export type PrecreaseEdgeSide = 'left' | 'right' | 'bottom' | 'top';
+export type PrecreaseCornerName = 'sw' | 'se' | 'nw' | 'ne';
+
+/** A typed reference into the planner's state, as a step sentence names it. */
+export type PrecreaseRef =
+  | { kind: 'edge'; id: number; side: PrecreaseEdgeSide }
+  | { kind: 'corner'; id: number; corner: PrecreaseCornerName }
+  | { kind: 'line'; id: number }
+  | { kind: 'point'; id: number };
+
+/** One certified axiom application reproducing a target line. */
+export interface PrecreaseWitness {
+  /** 1–7. */
+  axiom: number;
+  /**
+   * Inputs in the axiom's own order: O1/O2 `[p, q]`; O3 `[m1, m2]`; O4
+   * `[p, m]`; O5 `[pivot, p, m1]`; O6 `[p1, m1, p2, m2]`; O7 `[p, m1, m2]`.
+   */
+  inputs: PrecreaseRef[];
+  root: number;
+  who_moves: number[];
+  hard: boolean;
+  visible: boolean;
+  skinny: boolean;
+  ease: number;
+  err: number;
+}
+
+/** How much of a folded line is creased. */
+export type PrecreaseExtent =
+  | { kind: 'full' }
+  | { kind: 'pinches'; spans: PrecreasePlanSegment[] };
+
+export type PrecreaseStepKind = 'cp' | 'aux';
+export type PrecreaseLineTag = 'edge' | 'cp' | 'aux' | 'rf_aux';
+
+/** One fold in the presentation order. */
+export interface PrecreaseStep {
+  /** 1-based position in the presentation order. */
+  id: number;
+  kind: PrecreaseStepKind;
+  tag: PrecreaseLineTag;
+  line: PrecreasePlanLine;
+  /** State line id — what `{ kind: 'line', id }` in a witness points at. */
+  line_id: number;
+  segment: PrecreasePlanSegment;
+  extent: PrecreaseExtent;
+  /** Presentation round; 0 is the hoisted landmark phase. */
+  round: number;
+  witnesses: PrecreaseWitness[];
+  /** Index of the presentation witness in `witnesses`. */
+  chosen: number | null;
+  ease: number;
+  hard: boolean;
+  err: number;
+  /** For an auxiliary step, the ids of the CP steps it unlocks. */
+  unlocks: number[];
+  /** The editor's 1-based crease ids this step realises. */
+  cp_line_ids: number[];
+  /** An auxiliary crease that stays full-length after the pinch pass. */
+  visible: boolean;
+  witnesses_complete: boolean;
+  hoisted: boolean;
+}
+
+/** Consecutive steps of one round, direction, axiom and input pattern. */
+export interface PrecreaseGroup {
+  round: number;
+  kind: PrecreaseStepKind;
+  /** Normal angle of the direction cluster, radians in `[0, π)`. */
+  direction_angle: number;
+  axiom: number;
+  /** `"O2:cp"`-style pattern: axiom and input kinds, `!` when hard. */
+  pattern: string;
+  step_ids: number[];
+  count: number;
+}
+
+/** The summary strip's counts. Never "minimum" — the search is bounded. */
+export interface PrecreaseTotals {
+  folds: number;
+  cp_lines: number;
+  aux: number;
+  visible_aux: number;
+  /** The exact lower bound within the flat-sheet model. */
+  lower_bound: number;
+  free_lines: number;
+  unsolved: number;
+}
+
+export type PrecreaseStatus =
+  | 'complete'
+  | 'partial_unsolved'
+  | 'partial_off_lattice'
+  | 'refused_sheet'
+  | 'invalid_input';
+
+export type PrecreaseFindingReason = 'unsolved' | 'off_lattice';
+
+export interface PrecreaseFactsSummary {
+  points_on: number;
+  perpendiculars: number;
+  o2_pairs: number;
+  o3_pairs: number;
+  landers: number;
+  landers_computed: boolean;
+}
+
+/** A CP line the plan does not fold. */
+export interface PrecreaseFinding {
+  line: PrecreasePlanLine;
+  segment: PrecreasePlanSegment | null;
+  cp_line_ids: number[];
+  reason: PrecreaseFindingReason;
+  facts: PrecreaseFactsSummary;
+}
+
+export interface PrecreasePointEntry {
+  id: number;
+  p: [number, number];
+  lines: number[];
+  on_boundary: boolean;
+}
+
+export interface PrecreaseLineEntry {
+  id: number;
+  tag: PrecreaseLineTag;
+  /** The step that folds it; null for a sheet edge. */
+  step: number | null;
+}
+
+export type PrecreaseExactnessClass = 'exact' | 'snappable' | 'off_lattice';
+
+/** What the exactness policy did (plan decision D8). */
+export interface PrecreaseExactnessSummary {
+  class: PrecreaseExactnessClass;
+  family: string | null;
+  max_displacement_unit: number;
+  max_displacement_model: number;
+  off_lattice_lines: number;
+  off_lattice_vertices: number;
+}
+
+export interface PrecreaseClosureStats {
+  rounds: number;
+  tier1_sweeps: number;
+  tier2_sweeps: number;
+  target_evaluations: number;
+}
+
+export interface PrecreaseDiagnostics {
+  closure: PrecreaseClosureStats;
+  stuck_events: number;
+  candidates_evaluated: number;
+  closures_run: number;
+  points: number;
+  lines: number;
+  elapsed_ms: number;
+  budget_hit: boolean;
+  point_cap_hit: boolean;
+  max_depth_searched: number;
+  search_exhausted: boolean;
+  witnesses_incomplete_steps: number;
+  rf_lines_folded: number;
+}
+
+export interface PrecreaseSheet {
+  width: number;
+  height: number;
+}
+
+/** The whole plan, as `PrecreasePlanner.sequence()` returns it. */
+export interface PrecreaseSequence {
+  status: PrecreaseStatus;
+  /** `"best_found_to_depth_<d>"` or `"heuristic"`; never a claimed minimum. */
+  certification: string;
+  sheet: PrecreaseSheet;
+  landmarks_first: boolean;
+  steps: PrecreaseStep[];
+  groups: PrecreaseGroup[];
+  totals: PrecreaseTotals;
+  findings: PrecreaseFinding[];
+  points: PrecreasePointEntry[];
+  lines: PrecreaseLineEntry[];
+  exactness: PrecreaseExactnessSummary | null;
+  diagnostics: PrecreaseDiagnostics;
+}
+
+/** `PrecreasePlanner.info()`. */
+export interface PrecreasePlannerInfo {
+  component: number;
+  status: PrecreaseStatus;
+  sheet: PrecreaseSheet | null;
+  exactness: PrecreaseExactnessSummary | null;
+  refused: boolean;
+  off_lattice: boolean;
+  targets: number;
+  free_targets: number;
+  remaining: number;
+  point_cap: number;
+}
+
+/** `PrecreasePlanner.close()`. */
+export interface PrecreaseCloseReport {
+  folded: number;
+  remaining: number;
+  /** The fixpoint was reached without hitting the deadline. */
+  exhausted: boolean;
+  fixpoint: boolean;
+  budget_hit: boolean;
+}
+
+/** `PrecreasePlanner.stuck_search()`, when it finds something. */
+export interface PrecreaseStuckSummary {
+  aux: PrecreasePlanLine[];
+  aux_folds: number;
+  visible_aux: number;
+  unlocked: number;
+  ease_sum: number;
+  depth_reached: number;
+  exhausted: boolean;
+  complete: boolean;
+  root_candidates: number;
+  candidates_evaluated: number;
+  closures_run: number;
+}
+
+/** One entry of `PrecreasePlanner.fold()`. */
+export type PrecreaseFoldOutcome =
+  | { kind: 'folded'; line_id: number; cp_target: number | null }
+  | { kind: 'already_folded'; line_id: number }
+  | { kind: 'not_constructible' }
+  | { kind: 'off_sheet' };
+
+/** `PrecreasePlanner.explain()`. */
+export interface PrecreaseExplanation {
+  line: PrecreasePlanLine;
+  folded: boolean;
+  line_id: number | null;
+  tag: PrecreaseLineTag | null;
+  round: number | null;
+  is_target: boolean;
+  remaining: boolean;
+  cp_line_ids: number[];
+  witnesses: PrecreaseWitness[];
+  chosen: number | null;
+  facts: PrecreaseFactsSummary;
+}
+
+/** Optional planner knobs; the bridge takes them as a JSON string. */
+export interface PrecreasePlannerOptions {
+  point_cap?: number;
+  max_depth?: number;
+  depth3_threshold?: number;
+  max_candidates?: number;
+  stuck_budget_ms?: number;
+  total_budget_ms?: number;
+}
+
+/** Values per remaining line in `remaining()`: `nx, ny, d, ax, ay, bx, by`. */
+export const PRECREASE_REMAINING_STRIDE = 7;
+
+/** `fold(lines, tags)`'s tag codes. */
+export const PRECREASE_TAG = { cp: 0, aux: 1, rfAux: 2 } as const;
+
+/** The chosen witness of a step, or null when it has none (a free line). */
+export function chosenWitness(step: PrecreaseStep): PrecreaseWitness | null {
+  if (step.chosen === null) return null;
+  return step.witnesses[step.chosen] ?? null;
+}
+
+/** Unpack `remaining()`'s flat array into one entry per line. */
+export function decodeRemaining(
+  values: Float64Array
+): { line: PrecreasePlanLine; segment: PrecreasePlanSegment }[] {
+  const out: { line: PrecreasePlanLine; segment: PrecreasePlanSegment }[] = [];
+  for (let i = 0; i + PRECREASE_REMAINING_STRIDE <= values.length; i += PRECREASE_REMAINING_STRIDE) {
+    out.push({
+      line: { n: [values[i], values[i + 1]], d: values[i + 2] },
+      segment: [
+        [values[i + 3], values[i + 4]],
+        [values[i + 5], values[i + 6]],
+      ],
+    });
+  }
+  return out;
+}
+
+/** Pack `[nx, ny, d]` triples for `score()` / `fold()` / `to_rf()`. */
+export function encodeLines(lines: readonly PrecreasePlanLine[]): Float64Array {
+  const out = new Float64Array(lines.length * 3);
+  lines.forEach((line, i) => {
+    out[i * 3] = line.n[0];
+    out[i * 3 + 1] = line.n[1];
+    out[i * 3 + 2] = line.d;
+  });
+  return out;
+}
+
+/** Unpack `from_rf()`'s `[nx, ny, d]` triples. */
+export function decodeLines(values: Float64Array): PrecreasePlanLine[] {
+  const out: PrecreasePlanLine[] = [];
+  for (let i = 0; i + 3 <= values.length; i += 3) {
+    out.push({ n: [values[i], values[i + 1]], d: values[i + 2] });
+  }
+  return out;
+}
