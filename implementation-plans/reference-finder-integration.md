@@ -1123,6 +1123,9 @@ chord cannot produce both.
 
 ### D17 — one front pass, then reverse the mountains from the back
 
+> **Superseded by Revision 4.** Reversing at the end is not a step a folder can make;
+> D20–D25 replace it with a side-grouped schedule.
+
 That measurement rules out the obvious designs. Folding each step from the side that gives its
 direction is impossible for a mixed step and, with 64% mixed, would flip the paper on nearly
 every step. Grouping the sequence by side is also not available: the order is a topological
@@ -1211,122 +1214,203 @@ one place that knows how long it is.
 
 ## Revision 4 — mountain and valley, done properly (PLAN ONLY, not implemented)
 
-Revision 3 shipped a mountain/valley pass that is wrong in the way that matters: it
-turns a single fold into a line that is red along part of its length and blue along
-another, and it ends a 82-step sequence with "reverse 107 creases". This section is the
-plan for replacing it. **Nothing here is built yet.**
+Revision 3's mountain/valley pass is wrong in the way that matters. It creases one
+line red along part of its length and blue along another — which is not a fold anyone
+can make — and it ends an 82-step sequence with "reverse 107 creases". D16–D18 above
+are **superseded by everything in this section.**
+
+This is the plan for replacing it. **Nothing here is built yet.**
 
 ### Measured first
 
-A throwaway probe over `runPrecreasePlan`, on markhor (`real_benchmark/curated/markhor`)
-and two fixtures:
+Revision 4's first draft generalised from three patterns. This one is measured over the
+benchmark corpus at
+`~/Documents/datasets/create-pattern-detector/real_benchmark`, through a throwaway
+`.wasm.test.ts` harness driving `runPrecreasePlan` with the ReferenceFinder disabled and
+an 8 s per-design budget.
 
-| | markhor | iguana-c0 | grid6 |
-| --- | --- | --- | --- |
-| steps | 82 | 91 | 15 |
-| pure mountain | 38 | 16 | 7 |
-| pure valley | 14 | 16 | 7 |
-| **mixed along the chord** | **30** | **57** | 0 |
-| axioms chosen | O2×72, O3×9, O4×1 | O2×70, O3×5, O4×10, O5×1, O7×5 | O2×10, O4×5 |
-| **an O1 witness was available** | 31 | 38 | 3 |
-| corner-to-corner chords | 2 | 0 | 2 |
-| axis-parallel chords | 14 | 65 | 10 |
-| runs of one direction, mixed steps | 2:11, 3:6, 4:10, 5:2, 9:1 | 2:8, 9:3, **17:46** | — |
-| majority share by length, mixed steps | median **0.59**, 17 of 30 below 0.6 | median 0.84, 8 below 0.6 | — |
+**Sample.** 442 designs attempted — all 42 under `curated/`, plus the first 400 of
+`cpoogle/` by name. **395 planned and were profiled**, covering **35,169 steps**. The 47
+that did not: 27 over a 1,600-edge harness cap, 10 `refused_sheet` (the outline is not a
+rectangle — hex paper and friends), 10 `partial_off_lattice` (corpus coordinate
+precision, cf. `fold-corpus-precision-cleanup`). None of the 47 failed for a reason that
+has anything to do with mountain and valley.
 
-Four things follow, and three of them cut against the obvious design.
+| over 395 designs / 35,169 steps | | |
+| --- | --- | --- |
+| pure mountain | 13,142 | 37.4% |
+| pure valley | 10,790 | 30.7% |
+| **mixed along the chord** | **11,159** | **31.7%** |
+| no CP segments (auxiliary) | 78 | 0.2% |
+| axiom chosen: O2 | 25,374 | 72.1% |
+| O7 / O3 / O4 | 3,557 / 3,189 / 2,049 | 10.1 / 9.1 / 5.8% |
+| O5 / O6 / **O1** | 347 / 223 / **430** | 1.0 / 0.6 / **1.2%** |
+| an O1 witness was *available* | 19,062 | 54.2% |
+| corner-to-corner chords | 661 | 1.9% |
+| axis-parallel chords | 10,603 | 30.1% |
+| mixed chords with one M/V boundary | 5,072 | 45% of mixed |
+| … 3–4 alternations | 3,539 | 32% |
+| … 5–8 | 1,710 | 15% |
+| … 9–16 | 644 | 6% |
+| … 17 or more | 194 | 2% |
+| mixed chords under 60% one way | 4,650 | 41.7% of mixed |
+| creased length that ends up the wrong way | | **14.8%** |
 
-1. **The planner never chooses O1.** Not once, on any of the three. Every step it emits
-   is an alignment fold — bring a point onto a point, or a line onto a line. So the rule
-   "a fold that just connects two points can go either way" has *no purchase on the plan
-   as emitted*. It has purchase on the plan as it *could* be emitted: an O1 witness is
-   available for 31 of markhor's 82 steps and 38 of iguana's 91. `PrecreaseStep.witnesses`
-   already carries every certified witness and `chosen` says which one is presented, so
-   preferring O1 where one exists is a presentation change, not a search change.
-2. **Splitting a mixed line is out of the question on real designs.** 46 of iguana's 91
-   steps alternate direction **seventeen times** along one chord. Splitting those is the
-   "fold a tiny segment, turn over, fold the next tiny segment" failure exactly.
-3. **The majority rule is nearly a coin flip on markhor.** The median mixed step is only
-   59% one direction, and 17 of 30 are below 60%. "Crease whichever is more than 50%
-   correct" is true but thin: it leaves ~40% of that line's length pointing the wrong way.
-   It is still the right call — but the UI has to say so rather than imply the pattern is
-   finished.
-4. **Corner-to-corner is rare** (2, 0, 2) and axis-parallel is common (14, 65, 10). The
-   "special-case the basic starting folds" rule therefore has to be about *which* chords,
-   not about how many.
+And the number that decides the architecture — turn-overs, if a mountain is creased from
+the back and a valley from the front:
+
+| scheduling policy | total flips | median / design | p90 | max |
+| --- | --- | --- | --- | --- |
+| the emitted order, majority direction per step | 15,417 | 28 | 67 | 172 |
+| the emitted order, weak majorities float | 13,063 | 28 | 67 | 172 |
+| **reorder inside each round, grouped by side** | **1,552** | **4** | **6** | **12** |
+| reorder globally, grouped by side | 1,199 | 3 | 4 | 9 |
+
+The reorder model is the crate's own dependency predicate: a line is available once its
+step is folded, a point once two of its lines are, a step once every input of its chosen
+witness is available. That is `order.rs::witness_available` transcribed, minus its
+`MIN_ANGLE_SINE` conditioning floor — which cannot matter here, since two distinct
+folded lines through one point are never parallel. All 395 designs scheduled to
+completion under it, which is the model checking out.
+
+### What the measurements settle
+
+1. **O2 dominance is correct, not a gap.** The planner picks a point-to-point alignment
+   72% of the time, and that is the preferred precreasing action. The first draft's idea
+   of *preferring* O1 to buy direction freedom is dropped: O1 is what you reach for when
+   there is no clean point-to-point reference, not a lever to pull.
+2. **The flips are an ordering problem, and only an ordering problem.** Choosing
+   directions better is worth almost nothing — freeing the 41.7% of mixed chords that are
+   near coin-flips moves 15,417 flips to 13,063, still ~28 per design. Reordering moves
+   it to 4. Every direction policy below is a rounding error next to the schedule.
+3. **Round-local reordering is the right stopping point.** Global reordering is one flip
+   per design better and costs the thing Revision 2 was about: `order_round` sweeps
+   direction clusters across the sheet in the order a folder works, and a global regroup
+   shreds that. 4 flips instead of 3, with the sweep intact, is the trade.
+4. **Two of the three proposed heuristics are subsumed.** "Many tight alternations ⇒
+   crease one way" and "special-case the basic starting folds" both fall out of the
+   never-split constraint plus majority-by-length; neither needs its own rule. The 838
+   chords that alternate 9 or more times are exactly the box-pleated axial/hinge lines,
+   and the constraint already creases them one way.
+5. **14.8% of creased length ends up the wrong direction, and the UI has to say so.**
+   That is what precreasing *is* — the diagram's job is to put the crease in the right
+   place with a direction that makes the collapse natural — but the workspace may not
+   imply the finished assignment falls out of the precrease sequence.
 
 ### D20 — a step never carries two directions
 
-The hard rule, and the one the current build breaks: **the crease a step makes has one
-direction.** Everything below is how that direction is chosen.
+The hard constraint, and the one Revision 3 breaks: **the crease a step makes has exactly
+one direction along its whole creased extent.** There is no step that says "crease this
+line in multiple directions". Nothing below may relax this.
 
-### D21 — three kinds of step, decided in this order
+### D21 — direction by creased length, never by count
 
-1. **Direction-free.** The step's line already passes through two constructed points, so
-   the fold is "crease through these two marks" and can be made either way without
-   turning the paper. Realised by preferring an O1 witness in `chosenWitness` when one
-   exists — available on ~38–42% of steps. These take the direction the pattern wants and
-   force no flip.
-2. **Basic.** The chord is one of the folds you make on blank paper: a diagonal
-   (corner to opposite corner) or a book fold (parallel to an edge). These get one
-   direction by majority and are never split, because the marks that would justify a
-   split do not exist yet — which is exactly what goes wrong on markhor's step 1 today.
-3. **Alignment.** Everything else. The fold is a valley on the face you are working from,
-   so its direction decides which side the paper must be on.
+A step's direction is the majority of its CP segments' **length**, not their number.
+Where the majority is under 60% — 41.7% of mixed chords — the direction is not decided
+here; the step is marked `Either` and the scheduler decides it. That is worth ~9% of the
+remaining flips (1,552 → measured 1,199 globally, same shape round-local) and costs one
+branch, so it is in, but it is a tie-break and not a policy.
 
-### D22 — the direction of a mixed line
+Splitting a mixed chord into per-direction sub-steps is **out**, by D20. It is also
+unbuildable: the marks that would justify a split are the crossings of creases the plan
+has not made yet.
 
-One direction, chosen by **length**, never by count. If the minority share is under a
-threshold (start at 0.35) the majority simply wins. Above it, the line is genuinely
-half-and-half — 17 of markhor's 30 mixed steps — and the honest move is to say so in
-the sentence ("the marked spans reverse when you collapse") rather than to pretend.
+### D22 — only O1 is direction-free
 
-**Never split on alternation.** A line with more than two runs is creased one way, full
-stop; the histogram says the alternative is 46 steps becoming ~800.
+An alignment fold — bring a point to a point, a line to a line, a line onto itself — is
+made as a valley on the face you are working from. So a step whose crease must end up a
+mountain has to be made with the sheet turned over, and the side a step needs is forced:
 
-A two-run line whose split point is an already-constructed vertex *may* become two steps,
-one per side — but that is an optimisation to measure, not a starting position.
+| chosen axiom | side |
+| --- | --- |
+| O1 (crease through two marks) | either — no alignment to sight |
+| O2, O3, O4, O5, O6, O7 | the face the crease's direction wants |
 
-### D23 — flips are an ordering problem, and ordering belongs to the crate
+O1 is 1.2% of steps, so in practice the direction decides the side for essentially every
+step. That is the whole reason the schedule matters.
 
-This is the part Revision 3 got structurally wrong, and the reason "reverse 107 creases"
-appeared at all: it deferred every mountain to one closing step because the sequence
-could not be reordered to group them.
+### D23 — the schedule belongs to `order.rs`
 
-Walking markhor's emitted order and flipping whenever the required side changes would
-cost roughly one flip per step — useless. Grouping by side needs a reorder, and a
-consumer cannot reorder: `extent` (the pinch pass), `visible`, `unlocks`, `Step.id` and
-`LineEntry.step` are all computed from the emitted order, and the pinch pass in
-particular is only valid for the order it ran against.
+A consumer cannot fix this. `extent` (the pinch pass), `visible`, `unlocks`, `Step.id`
+and `LineEntry.step` are all computed *from* the presentation order, and the pinch pass
+is only valid for the order it ran against. Reordering in TypeScript would invalidate
+every one of them — which is exactly why Revision 3 deferred the mountains to one closing
+step instead.
 
-So doing this properly means **`order.rs` learns a secondary objective**: among the
-topological orders its dependency graph allows, prefer one that groups steps by required
-side. The crate already has the M/V assignment it needs — `MergedLine.kinds` — and
-already drops it at `Planner::new`; it would carry it onto `Target` instead.
+So: `order()` grows a side-grouping pass, run after the round skeleton is laid out and
+before `pinch`/`sequence` consume it.
 
-That is a real crate change and should be sized before it is started. Until it is:
+```
+for each round, in round order:
+    while steps remain in the round:
+        ready  := steps whose chosen witness is available (witness_available)
+        take   := ready whose required side is the side already up
+                  (Either steps always qualify)
+        if take is empty: turn the sheet over; recompute take
+        emit take in order_round order; mark their lines available
+```
 
-**Interim (presentation only).** Emit no flips at all. Precrease every line, each in one
-direction, and end on the finished pattern with its true mountain/valley assignment and a
-sentence that says the assignment is what you fold *to* when you collapse — which is what
-a folder does with a 200-crease design anyway. That is honest, it removes the unusable
-closing step, and it is a strictly smaller change than what is there now.
+Taking the whole ready set before turning over is what makes the blocks maximal, and
+emitting in `order_round` order inside a block is what keeps the sweep. The loop
+terminates because the emitted order is itself feasible.
 
-### Open questions for Zach
+### D24 — what the crate carries
 
-1. **Interim or the crate change?** The interim (no flips, direction per line, honest
-   final statement) is a day; the reorder in `order.rs` is a real piece of work and I
-   would want to size it first. Which do you want first?
-2. **Is a 59%-majority line worth a sentence?** On markhor, 17 of 30 mixed lines are
-   under 60% one way. I would say so on those steps rather than silently pick.
-3. **Should preferring O1 change what the *diagram* shows?** An O1 step is drawn as
-   "crease through these two marks" with no motion arrow, which is a different and
-   quieter picture than the arrow-and-alignment ones. It is more honest and it reads
-   less like a fold — worth checking against your taste before I lean on it.
+Direction is dropped today at `Planner::new`. It comes back as **evidence in `merge.rs`,
+policy in `closure.rs`, decision in `order.rs`** — three separate places on purpose.
+
+| where | change |
+| --- | --- |
+| `merge.rs` | `MergedLine` gains `mountain_length: f64`, `valley_length: f64` — raw, no policy. `kinds` (a sorted set) cannot express a majority and stays as it is. |
+| `closure.rs` | `Target` gains `direction: Direction` (`Mountain` / `Valley` / `Either` / `None`) and `direction_share: f64`, from one policy function over those two lengths. `Either` is the sub-60% case, `None` an auxiliary line with no CP segments. |
+| `order.rs` | the D23 pass. `Placed` gains `side: Side`; `Either` and `None` steps record the side they were folded on. |
+| `sequence.rs` | `Step` gains `direction: Direction` (**resolved** — never `Either`) and `direction_share: f64`. Side changes between consecutive steps are the turn-overs; no separate step type. |
+| `oristudio-precrease-wasm` | nothing — serde carries it. |
+
+`group()` groups *consecutive* steps, so side-grouping will split some rounds into more,
+smaller groups. Since Revision 3 removed the sequence outline from the sidebar, nothing
+reads `groups` today; this is a note, not a task.
+
+### D25 — the diagram
+
+- A turn-over card appears wherever `Step.side` changes, drawn with the standard
+  turn-over symbol (`plannerTurnOverDiagram`, already written). The `reverse` step kind
+  and everything that renders it are **deleted** — `referencesSequenceView.ts` loses its
+  `reverse` variant.
+- If the last block is on the back, one closing turn-over is appended, so the finished
+  pattern is always viewed from the front.
+- Back-side steps render mirrored — `ReferencesCpView`'s `mirrored` prop, already
+  implemented as a reflection folded into `modelToSvg`.
+- An **O1** step draws the crease between the two marks, with no motion arrow. Every
+  other axiom keeps the `CalcArrow` arc.
+- The crease is drawn in the Edit tab's own mountain/valley ink at full strength; the
+  uncreased remainder of the chord stays that same ink at lower opacity. No third colour.
+
+### D26 — say what the plan is
+
+The workspace states, once and plainly, that these are precreases: the sequence puts
+every crease in the right place, and the direction shown is the one that step is made
+in. On a step whose majority is under 60% the sentence says the line reverses in part
+when the model collapses. The summary strip never implies the finished assignment is
+what the sequence produces.
+
+### Open questions
+
+None outstanding. Zach's answers, folded in above: O2-preferred (D-list item 1);
+never-splitting is a constraint, not a preference (D20); sub-60% resolved by whatever
+minimises flipping (D21 + D23); O1 drawn as a plain crease between its two marks, no
+arrows (D25).
 
 ### Revision 4 checklist
 
-- [ ] Agree the shape above (interim vs. crate reorder)
-- [ ] D20/D21/D22 — one direction per step, chosen by kind and by length
-- [ ] D23 — either the interim honest ending, or `order.rs` grouping by side
-- [ ] Browser verification on markhor
+- [ ] `merge.rs` — `mountain_length` / `valley_length` on `MergedLine`, with tests
+- [ ] `closure.rs` — `Direction`, `Target.direction` / `direction_share`, one policy fn
+- [ ] `order.rs` — the D23 round-local side pass, over `witness_available`
+- [ ] `sequence.rs` — `Step.direction` / `direction_share`; regression that no step is `Either`
+- [ ] Rust test: no design in the fixture set exceeds its measured flip count
+- [ ] `precreaseSequence.ts` — the two new fields
+- [ ] Delete the `reverse` step kind and `referencesFoldDirection.ts`'s inference
+- [ ] Turn-over cards from `side` changes; closing turn-over when the last block is back
+- [ ] O1 steps drawn without an arrow
+- [ ] D26 sentences, translated for all 8 locales
+- [ ] Browser verification on markhor (3 flips expected) and iguana (12)
