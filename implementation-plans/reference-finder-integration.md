@@ -1206,3 +1206,127 @@ One defect the DOM check found and this revision fixes: the step index was clamp
 planner's fold count, so the three closing cards were unreachable — every press on one landed
 back on the last fold. The presentation list now lives in `useReferencesBreakdown`, which is the
 one place that knows how long it is.
+
+---
+
+## Revision 4 — mountain and valley, done properly (PLAN ONLY, not implemented)
+
+Revision 3 shipped a mountain/valley pass that is wrong in the way that matters: it
+turns a single fold into a line that is red along part of its length and blue along
+another, and it ends a 82-step sequence with "reverse 107 creases". This section is the
+plan for replacing it. **Nothing here is built yet.**
+
+### Measured first
+
+A throwaway probe over `runPrecreasePlan`, on markhor (`real_benchmark/curated/markhor`)
+and two fixtures:
+
+| | markhor | iguana-c0 | grid6 |
+| --- | --- | --- | --- |
+| steps | 82 | 91 | 15 |
+| pure mountain | 38 | 16 | 7 |
+| pure valley | 14 | 16 | 7 |
+| **mixed along the chord** | **30** | **57** | 0 |
+| axioms chosen | O2×72, O3×9, O4×1 | O2×70, O3×5, O4×10, O5×1, O7×5 | O2×10, O4×5 |
+| **an O1 witness was available** | 31 | 38 | 3 |
+| corner-to-corner chords | 2 | 0 | 2 |
+| axis-parallel chords | 14 | 65 | 10 |
+| runs of one direction, mixed steps | 2:11, 3:6, 4:10, 5:2, 9:1 | 2:8, 9:3, **17:46** | — |
+| majority share by length, mixed steps | median **0.59**, 17 of 30 below 0.6 | median 0.84, 8 below 0.6 | — |
+
+Four things follow, and three of them cut against the obvious design.
+
+1. **The planner never chooses O1.** Not once, on any of the three. Every step it emits
+   is an alignment fold — bring a point onto a point, or a line onto a line. So the rule
+   "a fold that just connects two points can go either way" has *no purchase on the plan
+   as emitted*. It has purchase on the plan as it *could* be emitted: an O1 witness is
+   available for 31 of markhor's 82 steps and 38 of iguana's 91. `PrecreaseStep.witnesses`
+   already carries every certified witness and `chosen` says which one is presented, so
+   preferring O1 where one exists is a presentation change, not a search change.
+2. **Splitting a mixed line is out of the question on real designs.** 46 of iguana's 91
+   steps alternate direction **seventeen times** along one chord. Splitting those is the
+   "fold a tiny segment, turn over, fold the next tiny segment" failure exactly.
+3. **The majority rule is nearly a coin flip on markhor.** The median mixed step is only
+   59% one direction, and 17 of 30 are below 60%. "Crease whichever is more than 50%
+   correct" is true but thin: it leaves ~40% of that line's length pointing the wrong way.
+   It is still the right call — but the UI has to say so rather than imply the pattern is
+   finished.
+4. **Corner-to-corner is rare** (2, 0, 2) and axis-parallel is common (14, 65, 10). The
+   "special-case the basic starting folds" rule therefore has to be about *which* chords,
+   not about how many.
+
+### D20 — a step never carries two directions
+
+The hard rule, and the one the current build breaks: **the crease a step makes has one
+direction.** Everything below is how that direction is chosen.
+
+### D21 — three kinds of step, decided in this order
+
+1. **Direction-free.** The step's line already passes through two constructed points, so
+   the fold is "crease through these two marks" and can be made either way without
+   turning the paper. Realised by preferring an O1 witness in `chosenWitness` when one
+   exists — available on ~38–42% of steps. These take the direction the pattern wants and
+   force no flip.
+2. **Basic.** The chord is one of the folds you make on blank paper: a diagonal
+   (corner to opposite corner) or a book fold (parallel to an edge). These get one
+   direction by majority and are never split, because the marks that would justify a
+   split do not exist yet — which is exactly what goes wrong on markhor's step 1 today.
+3. **Alignment.** Everything else. The fold is a valley on the face you are working from,
+   so its direction decides which side the paper must be on.
+
+### D22 — the direction of a mixed line
+
+One direction, chosen by **length**, never by count. If the minority share is under a
+threshold (start at 0.35) the majority simply wins. Above it, the line is genuinely
+half-and-half — 17 of markhor's 30 mixed steps — and the honest move is to say so in
+the sentence ("the marked spans reverse when you collapse") rather than to pretend.
+
+**Never split on alternation.** A line with more than two runs is creased one way, full
+stop; the histogram says the alternative is 46 steps becoming ~800.
+
+A two-run line whose split point is an already-constructed vertex *may* become two steps,
+one per side — but that is an optimisation to measure, not a starting position.
+
+### D23 — flips are an ordering problem, and ordering belongs to the crate
+
+This is the part Revision 3 got structurally wrong, and the reason "reverse 107 creases"
+appeared at all: it deferred every mountain to one closing step because the sequence
+could not be reordered to group them.
+
+Walking markhor's emitted order and flipping whenever the required side changes would
+cost roughly one flip per step — useless. Grouping by side needs a reorder, and a
+consumer cannot reorder: `extent` (the pinch pass), `visible`, `unlocks`, `Step.id` and
+`LineEntry.step` are all computed from the emitted order, and the pinch pass in
+particular is only valid for the order it ran against.
+
+So doing this properly means **`order.rs` learns a secondary objective**: among the
+topological orders its dependency graph allows, prefer one that groups steps by required
+side. The crate already has the M/V assignment it needs — `MergedLine.kinds` — and
+already drops it at `Planner::new`; it would carry it onto `Target` instead.
+
+That is a real crate change and should be sized before it is started. Until it is:
+
+**Interim (presentation only).** Emit no flips at all. Precrease every line, each in one
+direction, and end on the finished pattern with its true mountain/valley assignment and a
+sentence that says the assignment is what you fold *to* when you collapse — which is what
+a folder does with a 200-crease design anyway. That is honest, it removes the unusable
+closing step, and it is a strictly smaller change than what is there now.
+
+### Open questions for Zach
+
+1. **Interim or the crate change?** The interim (no flips, direction per line, honest
+   final statement) is a day; the reorder in `order.rs` is a real piece of work and I
+   would want to size it first. Which do you want first?
+2. **Is a 59%-majority line worth a sentence?** On markhor, 17 of 30 mixed lines are
+   under 60% one way. I would say so on those steps rather than silently pick.
+3. **Should preferring O1 change what the *diagram* shows?** An O1 step is drawn as
+   "crease through these two marks" with no motion arrow, which is a different and
+   quieter picture than the arrow-and-alignment ones. It is more honest and it reads
+   less like a fold — worth checking against your taste before I lean on it.
+
+### Revision 4 checklist
+
+- [ ] Agree the shape above (interim vs. crate reorder)
+- [ ] D20/D21/D22 — one direction per step, chosen by kind and by length
+- [ ] D23 — either the interim honest ending, or `order.rs` grouping by side
+- [ ] Browser verification on markhor
