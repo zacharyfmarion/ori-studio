@@ -16,11 +16,8 @@
  * the thing the planner actually plans.
  */
 import { SEG_ATTR_STRIDE, type CpGeometryTransport } from '../../engine/oristudioCpGeometry';
+import { directionOfColor } from './referencesFoldDirection';
 import type { PrecreaseComponent, SheetAnalysis } from './sheetFrames';
-
-/** `Red1` and `Blue2` from `LINE_COLOR_BY_NUMBER` — Oriedita's own codes. */
-const CP_MOUNTAIN = 1;
-const CP_VALLEY = 2;
 
 /** One row of the sheet picker. */
 export interface ReferencesSheet {
@@ -99,15 +96,13 @@ export interface ReferencesSheetThumbnail {
 }
 
 /**
- * Numeric rather than through `lineColorName`, which throws on a code outside
- * its table. A thumbnail that cannot be drawn should be a plain-looking sheet,
- * never a thrown error in the sidebar.
+ * The same mountain/valley reading `referencesFoldDirection` does, on a raw
+ * colour number rather than a crease id, so the two cannot disagree about what
+ * a colour means.
  */
 function strokeKind(colorNumber: number, isBorder: boolean): ReferencesThumbnailStroke['kind'] {
   if (isBorder) return 'border';
-  if (colorNumber === CP_MOUNTAIN) return 'mountain';
-  if (colorNumber === CP_VALLEY) return 'valley';
-  return 'other';
+  return directionOfColor(colorNumber) ?? 'other';
 }
 
 /**

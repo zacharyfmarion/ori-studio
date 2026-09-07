@@ -878,6 +878,13 @@
       "title": "Linhas sem dobra exata",
       "unsolved": "Nenhuma construção encontrada"
     },
+    "flip": {
+      "finished": "Vire o papel de volta. O padrão de vincos está completo, com montanhas e vales como desenhados.",
+      "reverse_one": "Inverta {{count}} vinco para que ele seja uma montanha vista pela frente. Deste lado ele dobra na sua direção, como todos os outros vincos aqui.",
+      "reverse_many": "Inverta {{count}} vincos para que sejam montanhas vistas pela frente. Deste lado eles dobram na sua direção, como todos os outros vincos aqui.",
+      "reverse_other": "Inverta {{count}} vincos para que sejam montanhas vistas pela frente. Deste lado eles dobram na sua direção, como todos os outros vincos aqui.",
+      "turnOver": "Vire o papel, da esquerda para a direita."
+    },
     "freeDiagonals": "Também precisa da(s) diagonal(is) da folha: {{names}}.",
     "hint": {
       "pick": "Clique em um vértice ou dobra para ver como dobrá-lo."

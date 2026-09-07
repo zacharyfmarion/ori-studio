@@ -2937,7 +2937,11 @@
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
     "panels:references.freeDiagonals": "5c210dbe552b",
     "panels:references.card.folds_one": "25ca08d34e54",
-    "panels:references.card.folds_other": "9c8e30c45cdd"
+    "panels:references.card.folds_other": "9c8e30c45cdd",
+    "panels:references.flip.finished": "7e15fa9a7b11",
+    "panels:references.flip.reverse_one": "ee21632c27f1",
+    "panels:references.flip.reverse_other": "59e030b0fb71",
+    "panels:references.flip.turnOver": "3a57d964493f"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5877,7 +5881,11 @@
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
     "panels:references.freeDiagonals": "5c210dbe552b",
     "panels:references.card.folds_one": "25ca08d34e54",
-    "panels:references.card.folds_other": "9c8e30c45cdd"
+    "panels:references.card.folds_other": "9c8e30c45cdd",
+    "panels:references.flip.finished": "7e15fa9a7b11",
+    "panels:references.flip.reverse_one": "ee21632c27f1",
+    "panels:references.flip.reverse_other": "59e030b0fb71",
+    "panels:references.flip.turnOver": "3a57d964493f"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8817,7 +8825,11 @@
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
     "panels:references.freeDiagonals": "5c210dbe552b",
     "panels:references.card.folds_one": "25ca08d34e54",
-    "panels:references.card.folds_other": "9c8e30c45cdd"
+    "panels:references.card.folds_other": "9c8e30c45cdd",
+    "panels:references.flip.finished": "7e15fa9a7b11",
+    "panels:references.flip.reverse_one": "ee21632c27f1",
+    "panels:references.flip.reverse_other": "59e030b0fb71",
+    "panels:references.flip.turnOver": "3a57d964493f"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11703,7 +11715,10 @@
     "panels:references.alreadyOnSheet": "6cd59fdbaa66",
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
     "panels:references.freeDiagonals": "5c210dbe552b",
-    "panels:references.card.folds_other": "9c8e30c45cdd"
+    "panels:references.card.folds_other": "9c8e30c45cdd",
+    "panels:references.flip.finished": "7e15fa9a7b11",
+    "panels:references.flip.reverse_other": "59e030b0fb71",
+    "panels:references.flip.turnOver": "3a57d964493f"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14589,7 +14604,10 @@
     "panels:references.alreadyOnSheet": "6cd59fdbaa66",
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
     "panels:references.freeDiagonals": "5c210dbe552b",
-    "panels:references.card.folds_other": "9c8e30c45cdd"
+    "panels:references.card.folds_other": "9c8e30c45cdd",
+    "panels:references.flip.finished": "7e15fa9a7b11",
+    "panels:references.flip.reverse_other": "59e030b0fb71",
+    "panels:references.flip.turnOver": "3a57d964493f"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -17529,7 +17547,11 @@
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
     "panels:references.freeDiagonals": "5c210dbe552b",
     "panels:references.card.folds_one": "25ca08d34e54",
-    "panels:references.card.folds_other": "9c8e30c45cdd"
+    "panels:references.card.folds_other": "9c8e30c45cdd",
+    "panels:references.flip.finished": "7e15fa9a7b11",
+    "panels:references.flip.reverse_one": "ee21632c27f1",
+    "panels:references.flip.reverse_other": "59e030b0fb71",
+    "panels:references.flip.turnOver": "3a57d964493f"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -20469,7 +20491,11 @@
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
     "panels:references.freeDiagonals": "5c210dbe552b",
     "panels:references.card.folds_one": "25ca08d34e54",
-    "panels:references.card.folds_other": "9c8e30c45cdd"
+    "panels:references.card.folds_other": "9c8e30c45cdd",
+    "panels:references.flip.finished": "7e15fa9a7b11",
+    "panels:references.flip.reverse_one": "ee21632c27f1",
+    "panels:references.flip.reverse_other": "59e030b0fb71",
+    "panels:references.flip.turnOver": "3a57d964493f"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -23355,6 +23381,9 @@
     "panels:references.alreadyOnSheet": "6cd59fdbaa66",
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
     "panels:references.freeDiagonals": "5c210dbe552b",
-    "panels:references.card.folds_other": "9c8e30c45cdd"
+    "panels:references.card.folds_other": "9c8e30c45cdd",
+    "panels:references.flip.finished": "7e15fa9a7b11",
+    "panels:references.flip.reverse_other": "59e030b0fb71",
+    "panels:references.flip.turnOver": "3a57d964493f"
   }
 }

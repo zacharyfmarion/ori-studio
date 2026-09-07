@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { plannerSequenceFixture } from './__fixtures__/plannerSequence';
-import { plannerGroupDiagram, plannerStepDiagram } from './plannerStepToPrimitives';
+import {
+  plannerFinishedDiagram,
+  plannerReverseDiagram,
+  plannerStepDiagram,
+  plannerTurnOverDiagram,
+} from './plannerStepToPrimitives';
 
 describe('plannerStepDiagram', () => {
   const sequence = plannerSequenceFixture();
@@ -83,23 +88,38 @@ describe('plannerStepDiagram', () => {
   });
 });
 
-describe('plannerGroupDiagram', () => {
+describe('the closing steps', () => {
   const sequence = plannerSequenceFixture();
 
-  it('shows a row of three parallel creases as three lines', () => {
-    const diagram = plannerGroupDiagram(sequence, [2, 3, 4]);
-    const creases = diagram?.primitives.filter(
-      (primitive) =>
-        primitive.kind === 'line' && (primitive.style === 'valley' || primitive.style === 'crease')
+  it('draws the whole sheet plus a turn-over arrow', () => {
+    const diagram = plannerTurnOverDiagram(sequence);
+    expect(diagram.primitives[0]).toEqual({ kind: 'sheet', width: 1, height: 1 });
+    expect(diagram.primitives.filter((p) => p.kind === 'arc')).toHaveLength(1);
+    // Every crease made, as context: none of them is the instruction.
+    expect(
+      diagram.primitives.every((p) => p.kind !== 'line' || p.style === 'crease')
+    ).toBe(true);
+  });
+
+  it('draws the creases to reverse as valleys, because from the back they are', () => {
+    const diagram = plannerReverseDiagram(sequence, new Set([1]));
+    const valleys = diagram.primitives.filter((p) => p.kind === 'line' && p.style === 'valley');
+    const creases = diagram.primitives.filter((p) => p.kind === 'line' && p.style === 'crease');
+    expect(valleys.length).toBeGreaterThan(0);
+    expect(creases.length).toBeGreaterThan(0);
+    // No arrow: the instruction is to reverse, not to fold something new.
+    expect(diagram.primitives.some((p) => p.kind === 'arc')).toBe(false);
+  });
+
+  it('draws the finished pattern in the directions it ends up with', () => {
+    const directions = sequence.steps.map((_, i) =>
+      i === 0 ? ('mountain' as const) : i === 1 ? ('valley' as const) : ('none' as const)
     );
-    expect(creases).toHaveLength(3);
-  });
-
-  it('falls back to the single step’s own picture for a row of one', () => {
-    expect(plannerGroupDiagram(sequence, [5])).toEqual(plannerStepDiagram(sequence, 4));
-  });
-
-  it('is null for an empty row', () => {
-    expect(plannerGroupDiagram(sequence, [])).toBeNull();
+    const diagram = plannerFinishedDiagram(sequence, directions);
+    const styles = diagram.primitives.flatMap((p) => (p.kind === 'line' ? [p.style] : []));
+    expect(styles).toContain('mountain');
+    expect(styles).toContain('valley');
+    // A step with no crease in the pattern has no direction to state.
+    expect(styles).toContain('crease');
   });
 });

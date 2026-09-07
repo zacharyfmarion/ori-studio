@@ -132,6 +132,16 @@ export interface ReferencesCpViewProps {
    * ones this step is about. Omit to draw the whole document at full strength.
    */
   creaseVisibility?: ReferencesCreaseVisibility;
+  /**
+   * Draw the pattern as seen from the back of the paper.
+   *
+   * A reflection about the sheet's own vertical centre line, folded into the
+   * `modelToSvg` the camera is built from — so it costs one negation and the
+   * inverse comes back for free, which means picking mirrors with the drawing
+   * rather than needing its own case. The folded figure does the same thing
+   * with `mirror: -1`.
+   */
+  mirrored?: boolean;
   selected: ReferencesSelection | null;
   onPick: (hit: ReferencesPick | null) => void;
   /** The camera refits when this changes (a new document), never on an edit. */
@@ -186,12 +196,30 @@ function lineSegmentsOf(geometry: CpGeometryTransport): IndexedSegment[] {
   return segments;
 }
 
+/** The mid-x of the sheet in scope, in model space, for the back-view mirror. */
+function sheetCentreX(
+  geometry: CpGeometryTransport,
+  ids: ReadonlySet<number> | null
+): number | null {
+  const endpoints = geometry.segEndpoints;
+  let min = Infinity;
+  let max = -Infinity;
+  for (let i = 0; i + 3 < endpoints.length; i += 4) {
+    if (ids !== null && !ids.has(i / 4 + 1)) continue;
+    min = Math.min(min, endpoints[i], endpoints[i + 2]);
+    max = Math.max(max, endpoints[i], endpoints[i + 2]);
+  }
+  return Number.isFinite(min) && Number.isFinite(max) ? (min + max) / 2 : null;
+}
+
 function withAlpha(color: Rgba, alpha: number): Rgba {
   return [color[0], color[1], color[2], color[3] * alpha];
 }
 
 /** Everything the imperative handlers read, refreshed every render without re-binding them. */
 interface LiveProps {
+  /** Model → SVG, mirrored about the sheet when the paper is on its back. */
+  modelToSvg: (point: Point) => Point;
   lineWidth: number;
   pointSize: number;
   wheelGesture: WheelGesturePreference;
@@ -220,6 +248,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       selected,
       sheetLineIds = null,
       creaseVisibility = ALL_CREASES,
+      mirrored = false,
       onPick,
       framingKey,
       themeKey,
@@ -294,6 +323,22 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       () => transportUserBounds(geometry, sheetLineIds),
       [geometry, sheetLineIds]
     );
+    /**
+     * Model → SVG, reflected about the sheet's own vertical centre when the
+     * paper is on its back.
+     *
+     * Folded into the map the camera is built from rather than applied to the
+     * scene, so the camera, the hit test and every overlay channel see one
+     * consistent space — and `unprojectDevicePoint` inverts the reflected
+     * transform, so a click on the mirrored drawing lands on the crease it
+     * looks like it is on.
+     */
+    const modelToSvg = useMemo(() => {
+      if (!mirrored) return cpModelToSvg;
+      const centre = sheetCentreX(geometry, sheetLineIds);
+      if (centre === null) return cpModelToSvg;
+      return (point: Point) => cpModelToSvg({ x: 2 * centre - point.x, y: point.y });
+    }, [mirrored, geometry, sheetLineIds]);
     const hitIndexes = useMemo<ReferencesHitIndexes>(
       () => ({
         vertices: new LineHitIndex(
@@ -311,6 +356,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
     );
 
     const liveRef = useRef<LiveProps>({
+      modelToSvg,
       lineWidth,
       pointSize,
       wheelGesture,
@@ -325,6 +371,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
     // and uploads read this render's values.
     useEffect(() => {
       liveRef.current = {
+        modelToSvg,
         lineWidth,
         pointSize,
         wheelGesture,
@@ -403,7 +450,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         if (viewport.width === 0 || viewport.height === 0) return;
         const cam = ensureCamera(viewport);
         if (!cam) return;
-        const view = modelViewFromCamera(cam, viewport, cpModelToSvg);
+        const view = modelViewFromCamera(cam, viewport, liveRef.current.modelToSvg);
         const userView = userCameraToView(cam, viewport);
         const bounds = liveRef.current.contentBounds;
         const fitZoom = bounds ? fitUserCamera(bounds, viewport).zoom : cam.zoom;
@@ -470,7 +517,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         if (!cam) return null;
         const ratio = dpr();
         const rect = canvas.getBoundingClientRect();
-        const view = modelViewFromCamera(cam, viewportOf(ratio), cpModelToSvg);
+        const view = modelViewFromCamera(cam, viewportOf(ratio), liveRef.current.modelToSvg);
         const model = unprojectDevicePoint(
           view,
           (clientX - rect.left) * ratio,
@@ -656,6 +703,12 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       fitRequestedRef.current = true;
       renderNowRef.current();
     }, [framingKey]);
+
+    // Turning the paper over changes the map, not the camera: the pattern
+    // reflects in place rather than refitting.
+    useEffect(() => {
+      renderNowRef.current();
+    }, [modelToSvg]);
 
     // --- Scene uploads -------------------------------------------------------
     // Creases, with the highlighted ones in the "new crease" colour. Theme

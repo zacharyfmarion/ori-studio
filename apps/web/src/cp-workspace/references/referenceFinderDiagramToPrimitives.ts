@@ -23,7 +23,9 @@ export type DiagramLineStyleName =
   | 'mountain'
   | 'arrow'
   | 'dotted'
-  | 'pinch';
+  | 'pinch'
+  /** The rest of a fold that is not creased — ours, never on the RF wire. */
+  | 'unfolded';
 
 export type DiagramPointStyleName = 'normal' | 'highlight' | 'action';
 

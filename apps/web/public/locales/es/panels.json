@@ -878,6 +878,13 @@
       "title": "Líneas sin doblez exacto",
       "unsolved": "No se encontró construcción"
     },
+    "flip": {
+      "finished": "Vuelve a dar la vuelta al papel. El patrón de pliegues está completo, con las montañas y los valles tal como se dibujan.",
+      "reverse_one": "Invierte {{count}} pliegue para que sea una montaña vista desde el frente. Desde este lado se dobla hacia ti, como todos los demás pliegues de aquí.",
+      "reverse_many": "Invierte {{count}} pliegues para que sean montañas vistas desde el frente. Desde este lado se doblan hacia ti, como todos los demás pliegues de aquí.",
+      "reverse_other": "Invierte {{count}} pliegues para que sean montañas vistas desde el frente. Desde este lado se doblan hacia ti, como todos los demás pliegues de aquí.",
+      "turnOver": "Da la vuelta al papel, de izquierda a derecha."
+    },
     "freeDiagonals": "También necesita la(s) diagonal(es) de la hoja: {{names}}.",
     "hint": {
       "pick": "Haz clic en un vértice o pliegue para ver cómo doblarlo."

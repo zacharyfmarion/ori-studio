@@ -50,6 +50,10 @@ import {
   sheetLineIds,
 } from '../../cp-workspace/references/referencesSheets';
 import {
+  referencesViewSteps,
+  sideAt,
+} from '../../cp-workspace/references/referencesSequenceView';
+import {
   runReferencesShortcut,
   type ReferencesShortcutActions,
 } from '../../cp-workspace/references/referencesShortcuts';
@@ -143,9 +147,17 @@ export function ReferencesPanel() {
     controller.activeCandidate,
     controller.activeStep
   );
+  /**
+   * The steps as they are *read*: the planner's folds, then the two flips that
+   * settle mountain from valley. See `referencesSequenceView`.
+   */
+  const viewSteps = useMemo(
+    () => referencesViewSteps(view.geometry, breakdown.variants, breakdown.flatSteps),
+    [view.geometry, breakdown.variants, breakdown.flatSteps]
+  );
   const planHighlights = useReferencesPlanHighlights(
     breakdown.variants,
-    breakdown.flatSteps,
+    viewSteps,
     breakdown.activeStep,
     breakdown.activeFinding,
     settings.showPinches
@@ -179,7 +191,7 @@ export function ReferencesPanel() {
   }, [analysisRequest, consumeAnalysisRequest]);
 
   // Transport and filmstrip address whichever mode is showing.
-  const stepCount = targeted ? controller.stepCount : breakdown.flatSteps.length;
+  const stepCount = targeted ? controller.stepCount : viewSteps.length;
   const activeStep = targeted ? controller.activeStep : breakdown.activeStep;
   const selectStep = targeted ? controller.selectStep : breakdown.selectStep;
   const nextStep = useCallback(() => selectStep(activeStep + 1), [selectStep, activeStep]);
@@ -240,8 +252,8 @@ export function ReferencesPanel() {
     () =>
       targeted
         ? candidateFilmstrip(t, active)
-        : planFilmstrip(t, breakdown.variants, breakdown.flatSteps),
-    [targeted, t, active, breakdown.variants, breakdown.flatSteps]
+        : planFilmstrip(t, view.geometry, breakdown.variants, viewSteps),
+    [targeted, t, active, view.geometry, breakdown.variants, viewSteps]
   );
 
   // The sheet as it stands at the active step — see `referencesCreaseVisibility`.
@@ -254,16 +266,22 @@ export function ReferencesPanel() {
     };
     if (targeted) return targetVisibility(input);
     if (breakdown.variants.length === 0) return unreadVisibility(input);
-    return planVisibility(breakdown.variants, breakdown.flatSteps, breakdown.activeStep, input);
+    return planVisibility(breakdown.variants, viewSteps, breakdown.activeStep, input);
   }, [
     sheetIds,
     borderIds,
     targeted,
     highlights.highlightLineIds,
     breakdown.variants,
-    breakdown.flatSteps,
+    viewSteps,
     breakdown.activeStep,
   ]);
+
+  // Which face of the paper the reader is looking at. While the sheet is on its
+  // back the view mirrors, because that is what they would see — and the last
+  // step turns it back, so the pattern is read from the side its mountain and
+  // valley assignment is stated in.
+  const mirrored = !targeted && sideAt(viewSteps, breakdown.activeStep) === 'back';
 
   // The sequence is what the workspace is for, so it runs on arrival rather
   // than behind a button — see `useReferencesAutoPlan` for what stops that
@@ -478,6 +496,7 @@ export function ReferencesPanel() {
               selected={highlights.selected}
               sheetLineIds={sheetIds}
               creaseVisibility={creaseVisibility}
+              mirrored={mirrored}
               onPick={controller.pick}
               framingKey={`${view.framingKey}-sheet-${selectedSheet ?? 'none'}`}
               themeKey={view.themeKey}

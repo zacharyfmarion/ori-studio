@@ -23,13 +23,17 @@
  *   are folds on a blank sheet and have no relation to the pattern's creases, so
  *   there is no "so far" to build up — the pattern goes quiet instead, and the
  *   construction ghosts read over it.
+ * - **The closing steps show the whole sheet.** Turning the paper over, reversing
+ *   the mountains and reading the finished pattern all happen after every crease
+ *   is made, so nothing is held back; the reverse step picks out the creases it
+ *   is about instead.
  *
  * The border is always visible, and never dimmed. A sheet with no edges is not
  * a sheet; the paper's outline is the thing the folds are drawn on rather than
  * one of them, and a diagram that fades it out reads as an empty page.
  */
-import type { ReferencesFlatStep } from './referencesBreakdown';
 import type { ReferencesPlanVariant } from './referencesResults';
+import type { ReferencesViewStep } from './referencesSequenceView';
 import type { ReferencesCreaseVisibility } from './referencesViewGeometry';
 
 /** How much of its colour a crease keeps once an earlier step made it. */
@@ -93,27 +97,36 @@ export function targetVisibility(input: ReferencesVisibilityInput): ReferencesCr
 /**
  * The sheet as it stands at `activeStep` of a plan.
  *
- * Steps of other sheets in `flatSteps` are skipped rather than folded in: the
- * flat list is the one the scrubber walks, and with one sheet planned it holds
- * only that sheet's steps anyway — but a plan carried over from a multi-sheet
- * run must not leak another pattern's creases into this one's build-up.
+ * Steps of other sheets are skipped rather than folded in: with one sheet
+ * planned the list holds only that sheet's steps anyway — but a plan carried
+ * over from a multi-sheet run must not leak another pattern's creases into this
+ * one's build-up.
  */
 export function planVisibility(
   variants: readonly ReferencesPlanVariant[],
-  flatSteps: readonly ReferencesFlatStep[],
+  viewSteps: readonly ReferencesViewStep[],
   activeStep: number,
   input: ReferencesVisibilityInput
 ): ReferencesCreaseVisibility {
   const { sheetLineIds, borderLineIds } = input;
-  const target = flatSteps[activeStep];
+  const target = viewSteps[activeStep];
   if (!target) return targetVisibility({ ...input, activeLineIds: new Set() });
+
+  // A closing step comes after every fold, so the pattern is whole. `reverse`
+  // says which creases it is about; the other two are about the sheet.
+  if (target.kind !== 'fold') {
+    const activeLineIds = new Set(target.kind === 'reverse' ? target.lineIds : []);
+    return activeLineIds.size === 0
+      ? unreadVisibility(input)
+      : targetVisibility({ ...input, activeLineIds });
+  }
 
   const visible = new Set<number>(borderLineIds ?? []);
   const active = new Set<number>();
-  for (let i = 0; i <= activeStep && i < flatSteps.length; i += 1) {
-    const flat = flatSteps[i];
-    if (flat.component !== target.component) continue;
-    const step = variants[flat.component]?.sequence.steps[flat.step];
+  for (let i = 0; i <= activeStep && i < viewSteps.length; i += 1) {
+    const view = viewSteps[i];
+    if (view.kind !== 'fold' || view.component !== target.component) continue;
+    const step = variants[view.component]?.sequence.steps[view.step];
     if (!step) continue;
     for (const id of step.cp_line_ids) {
       if (sheetLineIds && !sheetLineIds.has(id)) continue;

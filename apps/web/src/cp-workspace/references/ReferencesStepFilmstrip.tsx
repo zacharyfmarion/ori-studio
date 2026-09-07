@@ -116,7 +116,9 @@ export const ReferencesStepFilmstrip = memo(function ReferencesStepFilmstrip({
                 // read second. The sentence itself is on screen in the caption.
                 title={step.sentence}
               >
-                <span className="references-card__number">{step.number}</span>
+                {step.number !== null && (
+                  <span className="references-card__number">{step.number}</span>
+                )}
                 <span className="references-card__thumb">
                   {step.diagram ? (
                     <StepDiagram diagram={step.diagram} size={100} />
@@ -141,7 +143,9 @@ export const ReferencesStepFilmstrip = memo(function ReferencesStepFilmstrip({
       <p className="references-filmstrip__caption">
         {active ? (
           <>
-            <span className="references-filmstrip__caption-number">{active.number}.</span>{' '}
+            {active.number !== null && (
+              <span className="references-filmstrip__caption-number">{active.number}.</span>
+            )}{' '}
             {active.sentence}
           </>
         ) : (

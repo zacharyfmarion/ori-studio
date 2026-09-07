@@ -7,7 +7,7 @@ import {
   targetVisibility,
   unreadVisibility,
 } from './referencesCreaseVisibility';
-import type { ReferencesFlatStep } from './referencesBreakdown';
+import type { ReferencesViewStep } from './referencesSequenceView';
 import type { ReferencesPlanVariant } from './referencesResults';
 import type { PrecreaseSequence, PrecreaseStep } from './precreaseSequence';
 
@@ -45,16 +45,19 @@ function variant(steps: PrecreaseStep[]): ReferencesPlanVariant {
   };
 }
 
+const fold = (step: number, component = 0): ReferencesViewStep => ({
+  kind: 'fold',
+  side: 'front',
+  component,
+  step,
+});
+
 const SHEET = new Set([1, 2, 3, 4, 10, 11, 12]);
 const BORDER = new Set([1, 2, 3, 4]);
 
 describe('planVisibility', () => {
   const variants = [variant([step(1, [10]), step(2, [11]), step(3, [12])])];
-  const flat: ReferencesFlatStep[] = [
-    { component: 0, step: 0 },
-    { component: 0, step: 1 },
-    { component: 0, step: 2 },
-  ];
+  const flat: ReferencesViewStep[] = [fold(0), fold(1), fold(2)];
   const input = { sheetLineIds: SHEET, borderLineIds: BORDER, activeLineIds: new Set<number>() };
 
   it('shows the border plus the creases made so far, and nothing later', () => {
@@ -81,7 +84,7 @@ describe('planVisibility', () => {
 
   it('never leaks a crease that is not on the selected sheet', () => {
     const withStranger = [variant([step(1, [10, 99])])];
-    const at = planVisibility(withStranger, [{ component: 0, step: 0 }], 0, input);
+    const at = planVisibility(withStranger, [fold(0)], 0, input);
     expect(at.visible?.has(99)).toBe(false);
   });
 
@@ -89,10 +92,7 @@ describe('planVisibility', () => {
   // pattern's creases into this one.
   it('ignores steps belonging to another component', () => {
     const two = [variant([step(1, [10])]), variant([step(1, [11])])];
-    const flatTwo: ReferencesFlatStep[] = [
-      { component: 1, step: 0 },
-      { component: 0, step: 0 },
-    ];
+    const flatTwo: ReferencesViewStep[] = [fold(0, 1), fold(0, 0)];
     const at = planVisibility(two, flatTwo, 1, input);
     expect(at.visible?.has(11)).toBe(false);
     expect(at.visible?.has(10)).toBe(true);
@@ -142,10 +142,7 @@ describe('emphasis', () => {
   it('widens the step’s own creases instead of recolouring them', () => {
     const at = planVisibility(
       [variant([step(1, [10]), step(2, [11])])],
-      [
-        { component: 0, step: 0 },
-        { component: 0, step: 1 },
-      ],
+      [fold(0), fold(1)],
       1,
       { sheetLineIds: SHEET, borderLineIds: BORDER, activeLineIds: new Set() }
     );

@@ -844,6 +844,12 @@
       "title": "Lines with no exact fold",
       "unsolved": "No construction found"
     },
+    "flip": {
+      "finished": "Turn the paper back over. The crease pattern is complete, mountains and valleys as drawn.",
+      "reverse_one": "Reverse {{count}} crease so it becomes a mountain from the front. From this side it folds towards you, like every other crease here.",
+      "reverse_other": "Reverse {{count}} creases so they become mountains from the front. From this side they fold towards you, like every other crease here.",
+      "turnOver": "Turn the paper over, left to right."
+    },
     "freeDiagonals": "Also needs the sheet diagonal(s): {{names}}.",
     "hint": {
       "pick": "Click a vertex or crease to see how to fold it."

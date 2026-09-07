@@ -11198,9 +11198,21 @@ button.bp-packing-alert:focus-visible {
   overflow: hidden;
 }
 
+/*
+  The sheet is drawn on the *canvas's* ground, not on `--bg-paper`.
+
+  `--bg-paper` is one of two near-whites — `applyTheme` branches on theme type
+  and picks between #fffdf7 and #f2f0e7 — while `--fold-border` is the theme's
+  own `text.primary`. In a dark theme that pairing is light ink on a near-white
+  square: 1.07:1 in dracula and monokai, 1.87:1 in the default one-dark. The
+  filmstrip sits directly above the crease pattern, and a card that does not
+  look like the pattern below it reads as a different drawing rather than the
+  same one at another moment.
+*/
 .step-diagram__sheet {
-  fill: var(--bg-paper);
-  stroke: var(--paper-stroke);
+  fill: var(--bg-primary);
+  stroke: var(--fold-border);
+  stroke-opacity: 0.55;
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
@@ -11213,9 +11225,13 @@ button.bp-packing-alert:focus-visible {
   vector-effect: non-scaling-stroke;
 }
 
+/* The template's "Crease Lines": solid, and a third the weight of a fold line
+   (`origami_house_template.svg` — 2.52 against 7.56). An already-made crease is
+   context, not an instruction. */
 .step-diagram__line--crease {
   stroke: var(--fold-unassigned);
-  stroke-width: 1;
+  stroke-opacity: 0.75;
+  stroke-width: 0.75;
 }
 
 .step-diagram__line--edge {
@@ -11227,15 +11243,20 @@ button.bp-packing-alert:focus-visible {
   stroke-width: 2;
 }
 
+/* Dash ratios from the standard diagramming template: valley 8:4, mountain
+   4:2:1:2, hidden 1:3, all in units of the stroke width. `butt` caps because
+   `round` inflates every mark until the mountain reads as a solid line. */
 .step-diagram__line--valley {
   stroke: var(--fold-valley);
-  stroke-dasharray: 4 3;
+  stroke-dasharray: 12.8 6.4;
+  stroke-linecap: butt;
   stroke-width: 1.6;
 }
 
 .step-diagram__line--mountain {
   stroke: var(--fold-mountain);
-  stroke-dasharray: 6 2 1 2;
+  stroke-dasharray: 6.4 3.2 1.6 3.2;
+  stroke-linecap: butt;
   stroke-width: 1.6;
 }
 
@@ -11246,12 +11267,20 @@ button.bp-packing-alert:focus-visible {
 
 .step-diagram__line--dotted {
   stroke: var(--fold-unassigned);
-  stroke-dasharray: 1.5 2.5;
+  stroke-dasharray: 1.2 3.6;
+  stroke-linecap: butt;
 }
 
 .step-diagram__line--pinch {
   stroke: var(--cp-reference-new);
   stroke-width: 2.4;
+}
+
+/* The rest of the fold, which is not creased: the same line, barely there. */
+.step-diagram__line--unfolded {
+  stroke: var(--fold-unassigned);
+  stroke-opacity: 0.3;
+  stroke-width: 1;
 }
 
 .step-diagram__arrowhead {
@@ -11274,16 +11303,20 @@ button.bp-packing-alert:focus-visible {
   In user units, so it scales with the drawing — and sized against the sheet,
   not against a guess at the box. The `viewBox` is the sheet plus 10% padding
   (`stepDiagramGeometry.createDiagramProjector`), so 9 units is about 7.5% of the
-  picture: legible on a 108px filmstrip card, and still a letter rather than a
-  block on a 44px outline row.
+  picture: legible on a filmstrip card, and still a letter rather than a block at
+  thumbnail size.
+
+  The halo is the ground the label sits on. `labelPlacement` pushes a label off
+  the sheet into the padding band on purpose, so a halo painted in `--bg-paper`
+  was a near-white ring floating on the dark card — which is what it looked like.
 */
 .step-diagram__label {
-  fill: var(--text-secondary);
+  fill: var(--text-primary);
   font-family: inherit;
   font-size: 9px;
   font-weight: 700;
   paint-order: stroke;
-  stroke: var(--bg-paper);
+  stroke: var(--bg-primary);
   stroke-width: 2.5;
   stroke-linejoin: round;
 }

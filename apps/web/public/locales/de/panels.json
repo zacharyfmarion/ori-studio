@@ -844,6 +844,12 @@
       "title": "Linien ohne exakte Faltung",
       "unsolved": "Keine Konstruktion gefunden"
     },
+    "flip": {
+      "finished": "Wende das Papier zurück. Das Faltmuster ist fertig, Berg- und Talfalten wie gezeichnet.",
+      "reverse_one": "Kehre {{count}} Faltlinie um, damit sie von vorn eine Bergfalte ist. Von dieser Seite faltet sie zu dir hin, wie jede andere Faltlinie hier.",
+      "reverse_other": "Kehre {{count}} Faltlinien um, damit sie von vorn Bergfalten sind. Von dieser Seite falten sie zu dir hin, wie jede andere Faltlinie hier.",
+      "turnOver": "Wende das Papier, von links nach rechts."
+    },
     "freeDiagonals": "Benötigt außerdem die Bogendiagonale(n): {{names}}.",
     "hint": {
       "pick": "Klicke auf einen Scheitelpunkt oder eine Falte, um zu sehen, wie man sie faltet."

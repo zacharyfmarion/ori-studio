@@ -20,7 +20,7 @@ import type {
   ReferencesResults,
   ReferencesTargetRecord,
 } from './referencesResults';
-import type { ReferencesFlatStep } from './referencesBreakdown';
+import type { ReferencesViewStep } from './referencesSequenceView';
 import { findingBounds, planStepOverlay } from './referencesPlanGeometry';
 import {
   clampStepIndex,
@@ -211,7 +211,7 @@ const NO_HIGHLIGHTS: ReferencesHighlights = {
  */
 function planHighlights(
   variants: readonly ReferencesPlanVariant[],
-  flatSteps: readonly ReferencesFlatStep[],
+  viewSteps: readonly ReferencesViewStep[],
   activeStep: number,
   activeFinding: number | null,
   showPinches: boolean
@@ -231,9 +231,12 @@ function planHighlights(
       };
     }
   }
-  const target = flatSteps[activeStep];
-  const entry = target ? variants[target.component] : undefined;
-  if (!target || !entry) return NO_HIGHLIGHTS;
+  const target = viewSteps[activeStep];
+  // A closing step is not a fold, so it has no references and no new crease to
+  // overlay; the pattern itself is the picture.
+  if (!target || target.kind !== 'fold') return NO_HIGHLIGHTS;
+  const entry = variants[target.component];
+  if (!entry) return NO_HIGHLIGHTS;
   const overlay = planStepOverlay(entry.sequence, entry.model, target.step, {
     showPinches,
   });
@@ -258,13 +261,13 @@ function planHighlights(
  */
 export function useReferencesPlanHighlights(
   variants: readonly ReferencesPlanVariant[],
-  flatSteps: readonly ReferencesFlatStep[],
+  viewSteps: readonly ReferencesViewStep[],
   activeStep: number,
   activeFinding: number | null,
   showPinches: boolean
 ): ReferencesHighlights {
   return useMemo(
-    () => planHighlights(variants, flatSteps, activeStep, activeFinding, showPinches),
-    [variants, flatSteps, activeStep, activeFinding, showPinches]
+    () => planHighlights(variants, viewSteps, activeStep, activeFinding, showPinches),
+    [variants, viewSteps, activeStep, activeFinding, showPinches]
   );
 }

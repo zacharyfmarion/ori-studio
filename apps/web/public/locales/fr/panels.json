@@ -878,6 +878,13 @@
       "title": "Lignes sans pli exact",
       "unsolved": "Aucune construction trouvée"
     },
+    "flip": {
+      "finished": "Retournez le papier. Le patron de plis est complet, montagnes et vallées comme dessinées.",
+      "reverse_one": "Inversez {{count}} pli pour qu’il devienne une montagne vue de face. De ce côté, il se plie vers vous, comme tous les autres plis ici.",
+      "reverse_many": "Inversez {{count}} plis pour qu’ils deviennent des montagnes vues de face. De ce côté, ils se plient vers vous, comme tous les autres plis ici.",
+      "reverse_other": "Inversez {{count}} plis pour qu’ils deviennent des montagnes vues de face. De ce côté, ils se plient vers vous, comme tous les autres plis ici.",
+      "turnOver": "Retournez le papier, de gauche à droite."
+    },
     "freeDiagonals": "Nécessite aussi la ou les diagonales de la feuille : {{names}}.",
     "hint": {
       "pick": "Cliquez sur un sommet ou un pli pour voir comment le plier."
