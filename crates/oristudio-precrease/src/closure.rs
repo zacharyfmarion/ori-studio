@@ -49,6 +49,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::clock::Deadline;
+use crate::direction::{Direction, Side, majority};
 use crate::error::PrecreaseError;
 use crate::line::{Line, LineIndex};
 use crate::predicates::{
@@ -64,6 +65,53 @@ pub struct Target {
     pub line: Line,
     /// The editor's 1-based crease ids on this line.
     pub cp_line_ids: Vec<u32>,
+    /// Which way this line's creases mostly fold — the policy applied once to
+    /// the evidence [`crate::merge::MergedLine`] carries. `Unassigned` for a
+    /// line with no mountain or valley creases.
+    pub direction: Direction,
+    /// The share of the line's creased length `direction` covers, in `[0, 1]`;
+    /// `0.0` when `direction` is `Unassigned`. Under
+    /// [`crate::direction::FIRM_MAJORITY`] the line does not force a side.
+    pub direction_share: f64,
+}
+
+impl Target {
+    /// A target whose direction is settled by the majority of its creases.
+    pub fn new(
+        line: Line,
+        cp_line_ids: Vec<u32>,
+        mountain_length: f64,
+        valley_length: f64,
+    ) -> Target {
+        let (direction, direction_share) = majority(mountain_length, valley_length);
+        Target {
+            line,
+            cp_line_ids,
+            direction,
+            direction_share,
+        }
+    }
+
+    /// A target with no direction evidence: the caller supplied bare lines, so
+    /// the finished pattern assigns them nothing and the ordering pass folds
+    /// them on whichever side is already up.
+    pub fn unassigned(line: Line, cp_line_ids: Vec<u32>) -> Target {
+        Target {
+            line,
+            cp_line_ids,
+            direction: Direction::Unassigned,
+            direction_share: 0.0,
+        }
+    }
+
+    /// Whether this line's majority is strong enough to force a turn-over.
+    pub fn forces_side(&self) -> Option<Side> {
+        if self.direction.is_firm(self.direction_share) {
+            self.direction.side()
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -459,10 +507,7 @@ mod tests {
         lines
             .iter()
             .enumerate()
-            .map(|(i, l)| Target {
-                line: *l,
-                cp_line_ids: vec![i as u32 + 1],
-            })
+            .map(|(i, l)| Target::unassigned(*l, vec![i as u32 + 1]))
             .collect()
     }
 

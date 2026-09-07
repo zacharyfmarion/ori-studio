@@ -412,10 +412,7 @@ mod tests {
             Sheet::unit_square(),
             [v(1.0 / 3.0), diag, anti, v(0.5)]
                 .iter()
-                .map(|l| Target {
-                    line: *l,
-                    cp_line_ids: vec![],
-                })
+                .map(|l| Target::unassigned(*l, vec![]))
                 .collect(),
             DEFAULT_POINT_CAP,
         );

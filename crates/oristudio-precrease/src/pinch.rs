@@ -185,10 +185,7 @@ mod tests {
             Sheet::unit_square(),
             [v(1.0 / 3.0), v(2.0 / 3.0), diag, anti]
                 .iter()
-                .map(|l| Target {
-                    line: *l,
-                    cp_line_ids: vec![],
-                })
+                .map(|l| Target::unassigned(*l, vec![]))
                 .collect(),
             DEFAULT_POINT_CAP,
         );
@@ -251,10 +248,10 @@ mod tests {
         // hand-built order where the aux line is referenced as a line.
         let mut c = Closure::new(
             Sheet::unit_square(),
-            vec![Target {
-                line: Line::new([1.0, 0.0], 0.75).expect("l"),
-                cp_line_ids: vec![],
-            }],
+            vec![Target::unassigned(
+                Line::new([1.0, 0.0], 0.75).expect("l"),
+                vec![],
+            )],
             DEFAULT_POINT_CAP,
         );
         let unbounded = Deadline::unbounded(frozen_clock());

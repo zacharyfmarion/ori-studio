@@ -26,6 +26,7 @@
 
 use crate::closure::Closure;
 use crate::constants::MIN_ANGLE_SINE;
+use crate::direction::Side;
 use crate::predicates::{Ref, Witness};
 use crate::sequence::{Group, StepKind};
 use crate::state::LineTag;
@@ -42,8 +43,12 @@ pub struct Placed {
     /// a hoisted line).
     pub chosen: Option<usize>,
     pub hoisted: bool,
-    /// Normal angle of the direction cluster, `[0, π)`.
+    /// Normal angle of the direction cluster, `[0, π)`. A crease's
+    /// *orientation*, unrelated to mountain and valley.
     pub direction_angle: f64,
+    /// The face of the sheet this fold is made from. Changes between
+    /// consecutive entries are the turn-overs.
+    pub side: Side,
 }
 
 fn folded_angle(line: &crate::line::Line) -> f64 {
@@ -108,11 +113,68 @@ fn order_round(closure: &Closure, members: &[usize]) -> Vec<(usize, f64)> {
     out
 }
 
+/// The face a fold has to be made from, or `None` when it does not care.
+///
+/// An auxiliary line has no target and so no direction; a line whose majority
+/// is under [`crate::direction::FIRM_MAJORITY`] has one but is not allowed to
+/// spend a turn-over on it.
+fn forced_side(closure: &Closure, folded_index: usize) -> Option<Side> {
+    let target = closure.folded()[folded_index].target?;
+    closure.targets().get(target)?.forces_side()
+}
+
+/// Split one round's folds into at most two side-blocks and emit them.
+///
+/// Every fold in a round was certified against the state as it stood *before*
+/// the round began (`closure.rs`, "# Rounds"), so any order inside a round is
+/// executable and the split needs no dependency check at all — it is a
+/// partition, not a schedule.
+///
+/// Returns the side the sheet is left on.
+fn emit_round(
+    ordered: Vec<(usize, f64)>,
+    round: u32,
+    closure: &Closure,
+    side: Side,
+    placed: &mut Vec<Placed>,
+) -> Side {
+    let other = side.flipped();
+    // Whichever side is already up leads, so a round that needs only one side
+    // — the common case — never turns the sheet over at all. A fold that does
+    // not force a side joins the leading block, where it costs nothing.
+    let (turn, stay): (Vec<_>, Vec<_>) = ordered
+        .into_iter()
+        .partition(|&(i, _)| forced_side(closure, i) == Some(other));
+
+    let mut at = side;
+    for (block, block_side) in [(stay, side), (turn, other)] {
+        if block.is_empty() {
+            continue;
+        }
+        at = block_side;
+        for (i, angle) in block {
+            placed.push(Placed {
+                folded: i,
+                round,
+                chosen: closure.folded()[i].chosen,
+                hoisted: false,
+                direction_angle: angle,
+                side: at,
+            });
+        }
+    }
+    at
+}
+
 /// Place every folded line. Returns the presentation order.
 pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
     let folded = closure.folded();
     let state = closure.state();
     let mut placed: Vec<Placed> = Vec::new();
+
+    // The sheet starts front side up and stays where the previous round left
+    // it — a per-round reset would turn it over at every boundary.
+    let mut side = Side::Front;
 
     // Phase 0: hoisted landmarks.
     let mut hoisted = vec![false; folded.len()];
@@ -137,6 +199,7 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
                     chosen: Some(k),
                     hoisted: true,
                     direction_angle: folded_angle(&f.line),
+                    side,
                 });
             }
         }
@@ -164,15 +227,7 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
                 .map(|&i| (i, folded_angle(&folded[i].line)))
                 .collect()
         };
-        for (i, angle) in ordered {
-            placed.push(Placed {
-                folded: i,
-                round: k as u32 + 1,
-                chosen: folded[i].chosen,
-                hoisted: false,
-                direction_angle: angle,
-            });
-        }
+        side = emit_round(ordered, k as u32 + 1, closure, side, &mut placed);
     }
     placed
 }
@@ -188,7 +243,7 @@ pub fn pattern(w: Option<&Witness>) -> String {
     }
 }
 
-/// Group consecutive placed steps with the same round, kind, direction,
+/// Group consecutive placed steps with the same round, side, kind, direction,
 /// axiom and pattern. `step_ids` are 1-based positions in `placed`.
 pub fn group(closure: &Closure, placed: &[Placed]) -> Vec<Group> {
     let folded = closure.folded();
@@ -207,6 +262,7 @@ pub fn group(closure: &Closure, placed: &[Placed]) -> Vec<Group> {
         match groups.last_mut() {
             Some(g)
                 if g.round == p.round
+                    && g.side == p.side
                     && g.kind == kind
                     && (g.direction_angle - p.direction_angle).abs() <= TOL
                     && g.axiom == axiom
@@ -217,6 +273,7 @@ pub fn group(closure: &Closure, placed: &[Placed]) -> Vec<Group> {
             }
             _ => groups.push(Group {
                 round: p.round,
+                side: p.side,
                 kind,
                 direction_angle: p.direction_angle,
                 axiom,
@@ -251,10 +308,7 @@ mod tests {
             Sheet::unit_square(),
             lines
                 .iter()
-                .map(|l| Target {
-                    line: *l,
-                    cp_line_ids: vec![],
-                })
+                .map(|l| Target::unassigned(*l, vec![]))
                 .collect(),
             DEFAULT_POINT_CAP,
         );

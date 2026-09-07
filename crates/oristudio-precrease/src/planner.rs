@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use crate::clock::{Clock, Deadline, default_clock};
 use crate::closure::{CloseOutcome, Closure, FoldOutcome, FoldedLine, Target};
 use crate::components::Component;
+use crate::direction::{Direction, share_of};
 use crate::error::PrecreaseError;
 use crate::exactness::ExactnessClass;
 use crate::line::Line;
@@ -214,18 +215,33 @@ impl Planner {
             ExactnessClass::Exact | ExactnessClass::OffLattice => component
                 .merged_lines
                 .iter()
-                .map(|ml| Target {
-                    line: ml.line,
-                    cp_line_ids: ml.segment_indices.iter().map(|&i| i + 1).collect(),
+                .map(|ml| {
+                    Target::new(
+                        ml.line,
+                        ml.segment_indices.iter().map(|&i| i + 1).collect(),
+                        ml.mountain_length,
+                        ml.valley_length,
+                    )
                 })
                 .collect(),
             ExactnessClass::Snappable => exactness
                 .snapped
                 .lines
                 .iter()
-                .map(|sl| Target {
-                    line: sl.line,
-                    cp_line_ids: sl.segment_indices.iter().map(|&i| i + 1).collect(),
+                .map(|sl| {
+                    let (mountain, valley) =
+                        sl.source_lines.iter().fold((0.0, 0.0), |(m, v), &li| {
+                            match component.merged_lines.get(li as usize) {
+                                Some(ml) => (m + ml.mountain_length, v + ml.valley_length),
+                                None => (m, v),
+                            }
+                        });
+                    Target::new(
+                        sl.line,
+                        sl.segment_indices.iter().map(|&i| i + 1).collect(),
+                        mountain,
+                        valley,
+                    )
                 })
                 .collect(),
         };
@@ -251,10 +267,7 @@ impl Planner {
         let targets = lines
             .iter()
             .enumerate()
-            .map(|(i, l)| Target {
-                line: *l,
-                cp_line_ids: vec![i as u32 + 1],
-            })
+            .map(|(i, l)| Target::unassigned(*l, vec![i as u32 + 1]))
             .collect();
         Planner {
             opts,
@@ -609,10 +622,22 @@ impl Planner {
             } else {
                 StepKind::Aux
             };
-            let cp_line_ids = f
-                .target
-                .map(|t| closure.targets()[t].cp_line_ids.clone())
-                .unwrap_or_default();
+            let target = f.target.map(|t| &closure.targets()[t]);
+            let cp_line_ids = target.map(|t| t.cp_line_ids.clone()).unwrap_or_default();
+            // The direction the fold is actually made in. A line with a firm
+            // majority forced the side it is on, so the two agree; a weak one
+            // took whichever side was already up, and the share is then the
+            // share of its length that side gets right.
+            let majority = target.map_or(Direction::Unassigned, |t| t.direction);
+            let direction = match majority {
+                Direction::Unassigned => Direction::Unassigned,
+                _ => p.side.direction(),
+            };
+            let direction_share = share_of(
+                majority,
+                target.map_or(0.0, |t| t.direction_share),
+                direction,
+            );
             steps.push(Step {
                 id: k as u32 + 1,
                 kind,
@@ -627,6 +652,9 @@ impl Planner {
                 ease: chosen.map_or(0, |w| w.ease),
                 hard: chosen.is_some_and(|w| w.hard),
                 err: chosen.map_or(0.0, |w| w.err),
+                direction,
+                direction_share,
+                side: p.side,
                 unlocks: Vec::new(),
                 cp_line_ids,
                 visible: verdict.visible,

@@ -49,8 +49,19 @@ pub struct MergedLine {
     pub segment_indices: Vec<u32>,
     /// Every segment on the line is a border segment.
     pub is_border: bool,
-    /// Distinct kinds among the segments, sorted.
+    /// Distinct kinds among the segments, sorted. A set, so it cannot say
+    /// which way the line mostly folds — that is what the two lengths below
+    /// are for.
     pub kinds: Vec<LineKind>,
+    /// Total length of the mountain segments on this line, unit-sheet units.
+    ///
+    /// Raw evidence, with no policy applied: overlapping collinear segments
+    /// each contribute, because the merge does not know which of them the
+    /// editor considers duplicates. [`crate::direction::majority`] turns the
+    /// pair into a direction and a share.
+    pub mountain_length: f64,
+    /// Total length of the valley segments on this line, unit-sheet units.
+    pub valley_length: f64,
     /// Largest distance of any of its segments' endpoints from `line`.
     pub merge_residual: f64,
     /// The line coincides with one of the sheet's four edges (set by the
@@ -100,6 +111,8 @@ pub fn merge_segments(
                 segment_indices: Vec::new(),
                 is_border: true,
                 kinds: Vec::new(),
+                mountain_length: 0.0,
+                valley_length: 0.0,
                 merge_residual: 0.0,
                 on_outline: false,
                 longest_segment: 0.0,
@@ -110,6 +123,11 @@ pub fn merge_segments(
         group.is_border &= kind == LineKind::Border;
         if !group.kinds.contains(&kind) {
             group.kinds.push(kind);
+        }
+        match kind {
+            LineKind::Mountain => group.mountain_length += length,
+            LineKind::Valley => group.valley_length += length,
+            _ => {}
         }
         if length > group.longest_segment {
             group.longest_segment = length;
@@ -179,6 +197,45 @@ mod tests {
         assert!(!line.is_border);
         assert!(line.merge_residual < 1e-13);
         assert!((line.longest_segment - 0.5).abs() < 1e-12);
+        // Raw summed length, not covered length: segment 3 (0.75 → 0.6) lies
+        // inside segment 2 (0.5 → 1.0) and contributes its 0.15 again. The
+        // direction policy only ever reads the ratio, and a duplicate cannot
+        // move the majority off the direction it duplicates.
+        assert!((line.mountain_length - 0.90).abs() < 1e-12, "{line:?}");
+        assert!((line.valley_length - 0.25).abs() < 1e-12, "{line:?}");
+    }
+
+    #[test]
+    fn only_mountains_and_valleys_count_towards_the_lengths() {
+        let segments = [
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0, 0.25, 1.0, 0.25],
+            [0.0, 0.5, 1.0, 0.5],
+            [0.0, 0.75, 1.0, 0.75],
+        ];
+        let kinds = [
+            LineKind::Border,
+            LineKind::Auxiliary,
+            LineKind::Unassigned,
+            LineKind::Valley,
+        ];
+        let result = merge_segments(&segments, &kinds, None);
+        assert_eq!(result.lines.len(), 4);
+        for line in result.lines.iter().take(3) {
+            assert_eq!(line.mountain_length, 0.0, "{line:?}");
+            assert_eq!(line.valley_length, 0.0, "{line:?}");
+        }
+        assert!((result.lines[3].valley_length - 1.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn a_zero_length_segment_contributes_no_direction_evidence() {
+        let segments = [[0.5, 0.5, 0.5, 0.5], [0.0, 0.0, 1.0, 0.0]];
+        let kinds = [LineKind::Mountain, LineKind::Mountain];
+        let result = merge_segments(&segments, &kinds, None);
+        assert_eq!(result.skipped_zero_length, vec![0]);
+        assert_eq!(result.lines.len(), 1);
+        assert!((result.lines[0].mountain_length - 1.0).abs() < 1e-12);
     }
 
     #[test]

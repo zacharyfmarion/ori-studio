@@ -47,6 +47,55 @@ pub fn plan_component(component: &Component, opts: PlannerOptions) -> (Planner, 
     (planner, seq)
 }
 
+/// Nudge every crease off the lattice by about `amount` of the paper, leaving
+/// the sheet's own outline exactly where it was.
+///
+/// Each non-border segment is translated as a rigid piece — so a crease stays
+/// straight — and any endpoint coordinate that sat on the paper boundary is
+/// put back, so the creases still run edge to edge. The offset is scaled by an
+/// irrational factor to keep the result off any finer rational lattice, which
+/// would make the design exact again. The recipe is `hand_built.rs`'s jittered
+/// grid, generalised so a snappable component can be built out of a fixture's
+/// real crease colours.
+pub fn jitter_creases(segments: &[f64], colors: &[i32], amount: f64) -> Vec<f64> {
+    let bound = |pick: fn(f64, f64) -> f64, k: usize| {
+        segments
+            .chunks(4)
+            .flat_map(|s| [s[k], s[k + 2]])
+            .fold(f64::NAN, |a, b| if a.is_nan() { b } else { pick(a, b) })
+    };
+    let (x0, x1) = (bound(f64::min, 0), bound(f64::max, 0));
+    let (y0, y1) = (bound(f64::min, 1), bound(f64::max, 1));
+    let span = (x1 - x0).max(y1 - y0);
+    let scale = amount * span * std::f64::consts::PI / 3.0;
+    let on = |v: f64, edge: f64| (v - edge).abs() < 1e-9;
+
+    let mut out = Vec::with_capacity(segments.len());
+    for (i, seg) in segments.chunks(4).enumerate() {
+        let mut piece = [seg[0], seg[1], seg[2], seg[3]];
+        if colors.get(i).copied().unwrap_or(0) != 0 {
+            let mut rng = Rng((i as u64 + 1).wrapping_mul(0x9e37_79b9_7f4a_7c15) | 1);
+            rng.next_u64();
+            let dx = (rng.unit() - 0.5) * 2.0 * scale;
+            let dy = (rng.unit() - 0.5) * 2.0 * scale;
+            for k in [0usize, 2] {
+                piece[k] = if on(seg[k], x0) || on(seg[k], x1) {
+                    seg[k]
+                } else {
+                    seg[k] + dx
+                };
+                piece[k + 1] = if on(seg[k + 1], y0) || on(seg[k + 1], y1) {
+                    seg[k + 1]
+                } else {
+                    seg[k + 1] + dy
+                };
+            }
+        }
+        out.extend_from_slice(&piece);
+    }
+    out
+}
+
 /// A small deterministic xorshift generator for the property tests.
 pub struct Rng(pub u64);
 

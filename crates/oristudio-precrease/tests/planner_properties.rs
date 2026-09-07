@@ -219,9 +219,13 @@ fn closure_fixpoint(cp: &oristudio_precrease::fixture_io::LoadedCp) -> (Vec<Line
     let targets: Vec<Target> = c
         .merged_lines
         .iter()
-        .map(|ml| Target {
-            line: ml.line,
-            cp_line_ids: ml.segment_indices.iter().map(|&i| i + 1).collect(),
+        .map(|ml| {
+            Target::new(
+                ml.line,
+                ml.segment_indices.iter().map(|&i| i + 1).collect(),
+                ml.mountain_length,
+                ml.valley_length,
+            )
         })
         .collect();
     let mut closure = Closure::new(sheet, targets, DEFAULT_POINT_CAP);

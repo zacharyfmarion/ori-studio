@@ -104,6 +104,8 @@ fn main() {
                     "line": line_json(&t.line),
                     "segment": segment_json(&sheet, &t.line),
                     "cp_line_ids": t.cp_line_ids,
+                    "direction": t.direction,
+                    "direction_share": t.direction_share,
                 })
             })
             .collect();

@@ -7,6 +7,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::closure::ClosureStats;
+use crate::direction::{Direction, Side};
 use crate::exactness::ExactnessClass;
 use crate::line::Line;
 use crate::pinch::Extent;
@@ -48,6 +49,17 @@ pub struct Step {
     pub hard: bool,
     /// Certificate residual of the chosen witness.
     pub err: f64,
+    /// Which way this crease is made — **resolved**, so a step never carries
+    /// two directions (plan decision D20). `Unassigned` for an auxiliary line,
+    /// which the finished pattern does not assign either way.
+    pub direction: Direction,
+    /// The share of this line's creased length that `direction` gets right, in
+    /// `[0, 1]`. Below 1 the line reverses in part when the model collapses;
+    /// `0.0` when `direction` is `Unassigned`.
+    pub direction_share: f64,
+    /// The face of the sheet this fold is made from. Changes between
+    /// consecutive steps are where the folder turns the paper over.
+    pub side: Side,
     /// For an auxiliary step, the ids of the CP steps whose chosen witness
     /// uses this line (directly or through a mark on it).
     pub unlocks: Vec<u32>,
@@ -61,11 +73,14 @@ pub struct Step {
     pub hoisted: bool,
 }
 
-/// Consecutive steps of one round, direction, axiom and input pattern.
+/// Consecutive steps of one round, side, direction, axiom and input pattern.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Group {
     pub round: u32,
     pub kind: StepKind,
+    /// The face the group is folded from. A round split into two side-blocks
+    /// never merges across the turn-over between them.
+    pub side: Side,
     /// Normal angle of the direction cluster, radians in `[0, π)`.
     pub direction_angle: f64,
     pub axiom: u8,
