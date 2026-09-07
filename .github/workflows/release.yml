@@ -456,6 +456,19 @@ jobs:
           printf '%s' "$APPLE_API_KEY_CONTENT" > "$RUNNER_TEMP/asc.p8"
           echo "APPLE_API_KEY_PATH=$RUNNER_TEMP/asc.p8" >> "$GITHUB_ENV"
 
+      # The AppImage must not carry its own GLib: it would be the runner's 2.72,
+      # and the host's GIO modules — gvfs, dconf — then fail to load against it
+      # on every distro newer than this runner. tauri-bundler downloads
+      # linuxdeploy's GTK plugin only when the file is *absent* from its tools
+      # directory, so writing our patched copy there first is what makes it ours.
+      #
+      # After rust-cache rather than beside the apt step, so nothing about a
+      # restored `target/` can be suspected of removing it. See
+      # implementation-plans/appimage-host-glib.md.
+      - name: Install the patched AppImage tooling
+        if: startsWith(matrix.name, 'linux')
+        run: scripts/appimage/install-appimage-tools.sh
+
       # Pinned to action-v1.0.0. The `v0` tag is old enough to predate
       # `uploadWorkflowArtifacts`, and silently downgrades it to a warning rather
       # than an error — so the one-off tester build would produce no artifacts at
@@ -505,6 +518,24 @@ jobs:
           # before it is armed. See RELEASE.md, and the unchecked `manifest` /
           # `publish` items in implementation-plans/desktop-auto-update.md.
           uploadUpdaterJson: false
+
+      # Every link in the chain above fails silently — a renamed config key, a
+      # different tools path, a linuxdeploy that runs plugins earlier — and the
+      # symptom is an AppImage that looks identical and prints an undefined
+      # symbol on the user's machine. So assert it on the artifact.
+      #
+      # This cannot run before the upload: on a tag, tauri-action builds and
+      # attaches to the draft release in one step. What it does is fail the job,
+      # which skips `Upload installers` — so a dispatch build hands back nothing
+      # — and leaves a red leg beside a draft that only a human ever publishes.
+      - name: Verify the AppImage leaves GLib to the host
+        if: startsWith(matrix.name, 'linux')
+        run: |
+          set -euo pipefail
+          appimage="$(find "target/${{ matrix.target }}/release/bundle/appimage" \
+            -maxdepth 1 -name '*.AppImage' -print -quit)"
+          [ -n "$appimage" ] || { echo "::error::no AppImage produced"; exit 1; }
+          node scripts/verify-appimage-bundle.mjs "$appimage"
 
       # One artifact per platform, globbed explicitly. Deliberately not the
       # action's uploader — see the note above. The `.app` is left out: it is
