@@ -53,6 +53,12 @@ function step(partial: Partial<PrecreaseStep> & Pick<PrecreaseStep, 'id' | 'line
     ease: 0,
     hard: false,
     err: 0,
+    // Deliberately the neutral value, so a test about mountain or valley ink
+    // has to say which it means rather than inheriting a default that happens
+    // to match.
+    direction: 'unassigned',
+    direction_share: 0,
+    side: 'front',
     unlocks: [],
     cp_line_ids: [],
     visible: false,
@@ -175,6 +181,7 @@ export function plannerSequenceFixture(): PrecreaseSequence {
       {
         round: 1,
         kind: 'aux',
+        side: 'front',
         direction_angle: Math.PI / 2,
         axiom: 2,
         pattern: 'O2:cc',
@@ -184,6 +191,7 @@ export function plannerSequenceFixture(): PrecreaseSequence {
       {
         round: 2,
         kind: 'cp',
+        side: 'front',
         direction_angle: 0,
         axiom: 2,
         pattern: 'O2:cp',
@@ -193,6 +201,7 @@ export function plannerSequenceFixture(): PrecreaseSequence {
       {
         round: 3,
         kind: 'cp',
+        side: 'front',
         direction_angle: Math.PI / 2,
         axiom: 3,
         pattern: 'O3:el',

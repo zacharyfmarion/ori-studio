@@ -815,8 +815,7 @@
       "unsolved": "未找到作图方法"
     },
     "flip": {
-      "finished": "把纸翻回正面。折痕图完成，山线和谷线与图示一致。",
-      "reverse_other": "把 {{count}} 条折痕翻折过来，使它们从正面看是山折。从这一面看，它们和其他折痕一样是朝自己折。",
+      "finished": "所有折痕都已折好。从这里开始收拢，需要反向的折痕会在收拢时翻转。",
       "turnOver": "把纸左右翻面。"
     },
     "freeDiagonals": "还需要纸的对角线：{{names}}。",
@@ -845,6 +844,7 @@
       "axiom6": "将 {{a}} 折到 {{b}} 上，同时将 {{c}} 折到 {{d}} 上。",
       "axiom7": "将 {{b}} 折到自身上，使 {{a}} 落在 {{c}} 上。",
       "free": "这条线已经在纸上了。",
+      "partlyReversed": "这条线在折痕图中山谷混合，其余部分会在收拢时翻转。",
       "pinch": "只需捏一下——只要有标记就够了。",
       "unknown": "使用 {{inputs}} 折叠。",
       "visibleAux": "这条折痕会留在完成的作品上。"
@@ -915,9 +915,11 @@
       "folds": "{{folds}} 次折叠 = {{creases}} 条折痕 + {{aux}} 条辅助线（{{visible}} 条可见）",
       "free": "{{n}} 条位于纸张边缘",
       "lowerBound": "下界 {{n}}",
+      "mixed_other": "{{count}} 条线在图中山谷混合",
       "offLattice": "不在格点上",
       "partial": "部分",
       "snapped": "已吸附，最大 {{d}}",
+      "turnOvers_other": "翻面 {{count}} 次",
       "unsolved": "{{n}} 条未解决"
     },
     "targetGone": "所选折痕已不在折痕图中。",

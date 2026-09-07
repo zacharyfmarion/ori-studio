@@ -49,9 +49,7 @@ import {
   sheetBorderLineIds,
   sheetLineIds,
 } from '../../cp-workspace/references/referencesSheets';
-import { sequenceDirections } from '../../cp-workspace/references/referencesFoldDirection';
 import { sideAt } from '../../cp-workspace/references/referencesSequenceView';
-import type { ReferencesGhostDirection } from '../../cp-workspace/references/referencesStepGeometry';
 import {
   runReferencesShortcut,
   type ReferencesShortcutActions,
@@ -146,24 +144,14 @@ export function ReferencesPanel() {
     controller.activeCandidate,
     controller.activeStep
   );
-  // The planner's folds, then the two flips that settle mountain from valley.
+  // The planner's folds, the turn-overs between them, and the finished pattern.
   const viewSteps = breakdown.viewSteps;
-  // Each planner step's direction, so the overlay draws a crease in the ink
-  // that says which way it folds rather than in a colour of its own.
-  const stepDirections = useMemo<ReferencesGhostDirection[]>(() => {
-    const sequence = breakdown.variants[0]?.sequence;
-    if (!view.geometry || !sequence) return [];
-    return sequenceDirections(view.geometry, sequence).map((direction) =>
-      direction === 'mountain' || direction === 'valley' ? direction : 'unassigned'
-    );
-  }, [view.geometry, breakdown.variants]);
   const planHighlights = useReferencesPlanHighlights(
     breakdown.variants,
     viewSteps,
     breakdown.activeStep,
     breakdown.activeFinding,
-    settings.showPinches,
-    stepDirections
+    settings.showPinches
   );
   const highlights = targeted ? targetHighlights : planHighlights;
 
@@ -255,8 +243,8 @@ export function ReferencesPanel() {
     () =>
       targeted
         ? candidateFilmstrip(t, active)
-        : planFilmstrip(t, view.geometry, breakdown.variants, viewSteps),
-    [targeted, t, active, view.geometry, breakdown.variants, viewSteps]
+        : planFilmstrip(t, breakdown.variants, viewSteps),
+    [targeted, t, active, breakdown.variants, viewSteps]
   );
 
   // The sheet as it stands at the active step — see `referencesCreaseVisibility`.

@@ -29,6 +29,11 @@ export type StepDiagramProps = {
   className?: string;
   /** Accessible name; the drawing is otherwise decorative. */
   label?: string;
+  /**
+   * Draw the paper's back, mirrored, as the view beside the strip does. A card
+   * for a fold made after a turn-over shows what the folder is looking at.
+   */
+  mirrored?: boolean;
 } & (
   | {
       /** A ReferenceFinder diagram, adapted here. */
@@ -51,6 +56,7 @@ export function StepDiagram({
   size = 100,
   className,
   label,
+  mirrored = false,
 }: StepDiagramProps) {
   const model = useMemo<StepDiagramModel | null>(() => {
     if (diagram === undefined) return primitives ?? null;
@@ -63,8 +69,8 @@ export function StepDiagram({
     }
   }, [diagram, primitives]);
   const project = useMemo(
-    () => createDiagramProjector(model?.sheet ?? { width: 1, height: 1 }, size),
-    [model, size]
+    () => createDiagramProjector(model?.sheet ?? { width: 1, height: 1 }, size, mirrored),
+    [model, size, mirrored]
   );
 
   if (!model) {
@@ -145,13 +151,13 @@ export function StepDiagram({
                 <path className="step-diagram__arc step-diagram__line--arrow" d={path} />
                 <polygon
                   className="step-diagram__arrowhead"
-                  points={arrowheadPoints(at(primitive.to), arcEndDirection(primitive), head)}
+                  points={arrowheadPoints(at(primitive.to), arcEndDirection(primitive, mirrored), head)}
                 />
                 <polygon
                   className="step-diagram__arrowhead"
                   points={arrowheadPoints(
                     at(primitive.from),
-                    arcStartDirection(primitive),
+                    arcStartDirection(primitive, mirrored),
                     head
                   )}
                 />

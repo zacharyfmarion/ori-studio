@@ -12,6 +12,12 @@ import type { ReferencesPlanSummary } from '../../store/workspaceStore/types';
  * sequence would have to beat. When the two coincide it says so — "no
  * auxiliary folds needed" is a fact about this plan, not a claim about all
  * plans. (Implementation plan, "Honest statement".)
+ *
+ * It also never implies the finished mountain/valley assignment falls out of
+ * the sequence. These are precreases: each step puts a crease in the right
+ * place, made the way most of that line wants, and a line the pattern creases
+ * both ways reverses in part as the model collapses (plan D26). The strip says
+ * how many lines that is rather than leaving the reader to assume none.
  */
 export function ReferencesSummaryStrip({ summary }: { summary: ReferencesPlanSummary | null }) {
   const { t } = useTranslation();
@@ -43,6 +49,22 @@ export function ReferencesSummaryStrip({ summary }: { summary: ReferencesPlanSum
         <span className="references-summary__free">
           {t('panels:references.summary.free', '{{n}} on the sheet edge', {
             n: summary.freeLines,
+          })}
+        </span>
+      )}
+      <span className="references-summary__turns">
+        {t('panels:references.summary.turnOvers', {
+          defaultValue_one: '{{count}} turn-over',
+          defaultValue_other: '{{count}} turn-overs',
+          count: summary.turnOvers,
+        })}
+      </span>
+      {summary.mixedSteps > 0 && (
+        <span className="references-summary__mixed">
+          {t('panels:references.summary.mixed', {
+            defaultValue_one: '{{count}} line creased both ways in the pattern',
+            defaultValue_other: '{{count}} lines creased both ways in the pattern',
+            count: summary.mixedSteps,
           })}
         </span>
       )}

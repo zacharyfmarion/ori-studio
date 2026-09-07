@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   arcEndDirection,
   arcExtent,
+  arcStartDirection,
   arcPathData,
   arrowheadPoints,
   arrowheadSize,
@@ -200,5 +201,49 @@ describe('arrowheadSize', () => {
   it('caps at 0.4 of the chord for a short one', () => {
     const arc = foldArrowArc([0.5, 0.5], [0.6, 0.5], sheet);
     expect(arc && arrowheadSize(arc, sheet)).toBeCloseTo(0.04, 9);
+  });
+});
+
+describe('a mirrored projector', () => {
+  const sheet = { width: 1, height: 1 };
+
+  it('reflects x about the sheet and leaves y alone', () => {
+    const front = createDiagramProjector(sheet, 100);
+    const back = createDiagramProjector(sheet, 100, true);
+    // The sheet's corners swap sides; a point's height does not move.
+    expect(back([0, 0.25])).toEqual(front([1, 0.25]));
+    expect(back([1, 0.25])).toEqual(front([0, 0.25]));
+    expect(back([0.5, 0.9])).toEqual(front([0.5, 0.9]));
+    expect(back.viewBox).toBe(front.viewBox);
+    expect(back.scale).toBe(front.scale);
+  });
+
+  // A reflection reverses handedness, so an arc drawn with the same sweep flag
+  // would bow the wrong way — the arrow would say "fold the other direction".
+  it('flips the arc sweep flag, not just the endpoints', () => {
+    const arc = {
+      center: [0.5, 0.5] as const,
+      radius: 0.25,
+      from: 0,
+      to: Math.PI / 2,
+      ccw: true,
+    };
+    const front = arcPathData(arc, createDiagramProjector(sheet, 100));
+    const back = arcPathData(arc, createDiagramProjector(sheet, 100, true));
+    const sweepOf = (d: string) => d.split(' ').at(-3);
+    expect(sweepOf(front)).not.toBe(sweepOf(back));
+  });
+
+  it('turns the arrowhead round with the picture', () => {
+    const arc = {
+      center: [0.5, 0.5] as const,
+      radius: 0.25,
+      from: 0,
+      to: Math.PI / 2,
+      ccw: true,
+    };
+    expect(arcEndDirection(arc, true).x).toBeCloseTo(-arcEndDirection(arc).x, 12);
+    expect(arcEndDirection(arc, true).y).toBeCloseTo(arcEndDirection(arc).y, 12);
+    expect(arcStartDirection(arc, true).x).toBeCloseTo(-arcStartDirection(arc).x, 12);
   });
 });

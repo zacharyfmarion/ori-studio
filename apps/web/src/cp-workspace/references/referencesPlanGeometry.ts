@@ -24,6 +24,7 @@ import type {
 import {
   chosenWitness,
   type PrecreaseEdgeSide,
+  type PrecreaseRef,
   type PrecreaseSequence,
 } from './precreaseSequence';
 
@@ -169,7 +170,29 @@ export interface ReferencesPlanOverlayOptions {
  * - **Except on the step being made**, where the rest of the chord is drawn
  *   faintly: the fold does run the width of the sheet, and the instruction is to
  *   bring the references together and press only where the mark is wanted.
+ * - **An O1 fold is drawn between its two marks.** "Crease through these two
+ *   points" is what the step says, nothing moves, and there is no arrow — so the
+ *   marks are the instruction and the crease is drawn between them, with the
+ *   rest of the chord faint like any other unpressed span.
  */
+/**
+ * The span between an axiom's two point inputs, in model space, or null when it
+ * does not have exactly two.
+ */
+function markSpan(
+  sequence: PrecreaseSequence,
+  model: ReferencesPlanModel,
+  inputs: readonly PrecreaseRef[]
+): { a: Point; b: Point } | null {
+  const points = inputs.flatMap((ref) => {
+    if (ref.kind !== 'point' && ref.kind !== 'corner') return [];
+    const at = sequence.points.findIndex((entry) => entry.id === ref.id);
+    const point = at >= 0 ? model.points[at] : undefined;
+    return point ? [point] : [];
+  });
+  return points.length === 2 ? { a: points[0]!, b: points[1]! } : null;
+}
+
 export function planStepOverlay(
   sequence: PrecreaseSequence,
   model: ReferencesPlanModel,
@@ -239,7 +262,8 @@ export function planStepOverlay(
     // and, worse, drew it right across the sheet where the pattern only gains
     // part of the chord.
     if (step.cp_line_ids.length === 0) {
-      const spans = pinched ? made.pinches : [made.segment];
+      const marks = witness?.axiom === 1 ? markSpan(sequence, model, witness.inputs) : null;
+      const spans = pinched ? made.pinches : [marks ?? made.segment];
       for (const span of spans) ghosts.push({ a: span.a, b: span.b, kind: 'new', direction });
     } else if (pinched) {
       for (const span of made.pinches) {

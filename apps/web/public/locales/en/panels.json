@@ -845,9 +845,7 @@
       "unsolved": "No construction found"
     },
     "flip": {
-      "finished": "Turn the paper back over. The crease pattern is complete, mountains and valleys as drawn.",
-      "reverse_one": "Reverse {{count}} crease so it becomes a mountain from the front. From this side it folds towards you, like every other crease here.",
-      "reverse_other": "Reverse {{count}} creases so they become mountains from the front. From this side they fold towards you, like every other crease here.",
+      "finished": "Every crease is made. The pattern collapses from here, and the creases it wants the other way reverse as it does.",
       "turnOver": "Turn the paper over, left to right."
     },
     "freeDiagonals": "Also needs the sheet diagonal(s): {{names}}.",
@@ -876,6 +874,7 @@
       "axiom6": "Fold {{a}} onto {{b}} and {{c}} onto {{d}}.",
       "axiom7": "Fold {{b}} onto itself so that {{a}} lands on {{c}}.",
       "free": "This line is already on the sheet.",
+      "partlyReversed": "This line is creased both ways in the pattern — the rest reverses as the model collapses.",
       "pinch": "Pinch only — just the mark is needed.",
       "unknown": "Fold using {{inputs}}.",
       "visibleAux": "This crease will show in the finished model."
@@ -948,9 +947,13 @@
       "folds": "{{folds}} folds = {{creases}} creases + {{aux}} auxiliary ({{visible}} visible)",
       "free": "{{n}} on the sheet edge",
       "lowerBound": "lower bound {{n}}",
+      "mixed_one": "{{count}} line creased both ways in the pattern",
+      "mixed_other": "{{count}} lines creased both ways in the pattern",
       "offLattice": "Off-lattice",
       "partial": "Partial",
       "snapped": "Snapped, up to {{d}}",
+      "turnOvers_one": "{{count}} turn-over",
+      "turnOvers_other": "{{count}} turn-overs",
       "unsolved": "{{n}} not solved"
     },
     "targetGone": "The picked crease is no longer in the pattern.",

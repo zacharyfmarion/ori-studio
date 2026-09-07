@@ -879,10 +879,7 @@
       "unsolved": "Aucune construction trouvée"
     },
     "flip": {
-      "finished": "Retournez le papier. Le patron de plis est complet, montagnes et vallées comme dessinées.",
-      "reverse_one": "Inversez {{count}} pli pour qu’il devienne une montagne vue de face. De ce côté, il se plie vers vous, comme tous les autres plis ici.",
-      "reverse_many": "Inversez {{count}} plis pour qu’ils deviennent des montagnes vues de face. De ce côté, ils se plient vers vous, comme tous les autres plis ici.",
-      "reverse_other": "Inversez {{count}} plis pour qu’ils deviennent des montagnes vues de face. De ce côté, ils se plient vers vous, comme tous les autres plis ici.",
+      "finished": "Tous les plis sont marqués. Le modèle se referme à partir d’ici, et les plis qui doivent aller dans l’autre sens s’inversent alors.",
       "turnOver": "Retournez le papier, de gauche à droite."
     },
     "freeDiagonals": "Nécessite aussi la ou les diagonales de la feuille : {{names}}.",
@@ -911,6 +908,7 @@
       "axiom6": "Pliez {{a}} sur {{b}} et {{c}} sur {{d}}.",
       "axiom7": "Repliez {{b}} sur elle-même de sorte que {{a}} tombe sur {{c}}.",
       "free": "Cette ligne est déjà sur la feuille.",
+      "partlyReversed": "Dans le patron, cette ligne est pliée dans les deux sens ; le reste s’inverse lorsque le modèle se referme.",
       "pinch": "Pincez seulement : seul le repère est nécessaire.",
       "unknown": "Pliez en utilisant {{inputs}}.",
       "visibleAux": "Ce pli sera visible sur le modèle fini."
@@ -985,9 +983,15 @@
       "folds": "{{folds}} plis = {{creases}} plis du patron + {{aux}} auxiliaires ({{visible}} visibles)",
       "free": "{{n}} sur le bord de la feuille",
       "lowerBound": "borne inférieure {{n}}",
+      "mixed_one": "{{count}} ligne pliée dans les deux sens dans le patron",
+      "mixed_many": "{{count}} lignes pliées dans les deux sens dans le patron",
+      "mixed_other": "{{count}} lignes pliées dans les deux sens dans le patron",
       "offLattice": "Hors réseau",
       "partial": "Partiel",
       "snapped": "Aligné, jusqu’à {{d}}",
+      "turnOvers_one": "{{count}} retournement",
+      "turnOvers_many": "{{count}} retournements",
+      "turnOvers_other": "{{count}} retournements",
       "unsolved": "{{n}} non résolues"
     },
     "targetGone": "Le pli choisi n’est plus dans le patron.",

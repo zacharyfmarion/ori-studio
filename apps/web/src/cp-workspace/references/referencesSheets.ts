@@ -16,7 +16,6 @@
  * the thing the planner actually plans.
  */
 import { SEG_ATTR_STRIDE, type CpGeometryTransport } from '../../engine/oristudioCpGeometry';
-import { directionOfColor } from './referencesFoldDirection';
 import type { PrecreaseComponent, SheetAnalysis } from './sheetFrames';
 
 /** One row of the sheet picker. */
@@ -95,14 +94,25 @@ export interface ReferencesSheetThumbnail {
   strokes: ReferencesThumbnailStroke[];
 }
 
+/** `Red1` and `Blue2` from `LINE_COLOR_BY_NUMBER` — Oriedita's own codes. */
+const CP_MOUNTAIN = 1;
+const CP_VALLEY = 2;
+
 /**
- * The same mountain/valley reading `referencesFoldDirection` does, on a raw
- * colour number rather than a crease id, so the two cannot disagree about what
- * a colour means.
+ * Which way a thumbnail's stroke folds.
+ *
+ * Read from the raw colour number rather than through `lineColorName`, which
+ * throws on a code outside its table: a thumbnail that cannot read a colour
+ * should draw a plain line, not take the sidebar down. The planner's own steps
+ * do not come through here — the crate settles their direction and `Step`
+ * carries it (plan D24). This is the picker's own reading of a raw pattern,
+ * which has no plan yet.
  */
 function strokeKind(colorNumber: number, isBorder: boolean): ReferencesThumbnailStroke['kind'] {
   if (isBorder) return 'border';
-  return directionOfColor(colorNumber) ?? 'other';
+  if (colorNumber === CP_MOUNTAIN) return 'mountain';
+  if (colorNumber === CP_VALLEY) return 'valley';
+  return 'other';
 }
 
 /**

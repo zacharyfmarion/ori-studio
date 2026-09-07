@@ -5,22 +5,20 @@
  * picked vertex or crease, and the planner's breakdown of a whole sheet — and
  * they arrive in different shapes: RF ships a diagram per step and its own
  * labelled sentence, the planner ships witnesses that we draw and describe
- * ourselves, and the planner's list also carries the two flips and the finished
- * pattern (`referencesSequenceView.ts`). The strip should not know any of that.
+ * ourselves, and the planner's list also carries the turn-overs and the
+ * finished pattern (`referencesSequenceView.ts`). The strip should not know any
+ * of that.
  * This flattens it all into one list of numbered cards.
  */
 import type { TFunction } from 'i18next';
-import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import {
   plannerFinishedDiagram,
-  plannerReverseDiagram,
   plannerStepDiagram,
   plannerTurnOverDiagram,
 } from './plannerStepToPrimitives';
 import type { Diagram } from './referenceFinder/solution';
 import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
 import { stepDiagram } from './referenceFinderDiagramToPrimitives';
-import { creaseDirection, sequenceDirections } from './referencesFoldDirection';
 import type { ReferencesCandidateResult, ReferencesPlanVariant } from './referencesResults';
 import type { ReferencesViewStep } from './referencesSequenceView';
 import { describePlannerStep, describeStep, plannerRefIndex } from './referencesStepSentences';
@@ -40,6 +38,8 @@ export interface ReferencesFilmstripStep {
   diagram: Diagram | null;
   /** Primitives we built, when it came from the planner. */
   primitives: StepDiagramModel | null;
+  /** The card draws the paper's back, as the view does on that side. */
+  mirrored: boolean;
   sentence: string;
 }
 
@@ -54,29 +54,27 @@ export function candidateFilmstrip(
     number: index + 1,
     diagram: stepDiagram(candidate.raw, candidate.solution, index),
     primitives: null,
+    mirrored: false,
     sentence: describeStep(t, step),
   }));
 }
 
 /**
- * The planner's steps for the sheet being read, plus the closing flips.
+ * The planner's steps for the sheet being read, plus the turn-overs between
+ * them and the finished pattern at the end.
  *
- * The ref index and the direction list are built once per variant rather than
- * per step: each is a scan of the whole sequence, and doing either inside the
- * map would make the strip quadratic.
+ * The ref index is built once per variant rather than per step: it is a scan of
+ * the whole sequence, and doing it inside the map would make the strip
+ * quadratic.
  */
 export function planFilmstrip(
   t: TFunction,
-  geometry: CpGeometryTransport | null,
   variants: readonly ReferencesPlanVariant[],
   viewSteps: readonly ReferencesViewStep[]
 ): ReferencesFilmstripStep[] {
   const indexes = variants.map((variant) => plannerRefIndex(variant.sequence));
-  const directions = variants.map((variant) =>
-    geometry ? sequenceDirections(geometry, variant.sequence) : []
-  );
   let folds = 0;
-  return viewSteps.flatMap((view): ReferencesFilmstripStep[] => {
+  return viewSteps.flatMap((view, viewIndex): ReferencesFilmstripStep[] => {
     const variant = variants[view.component];
     if (!variant) return [];
     const sequence = variant.sequence;
@@ -90,9 +88,8 @@ export function planFilmstrip(
             key: `plan-${view.component}-${view.step}`,
             number: folds,
             diagram: null,
-            primitives: plannerStepDiagram(sequence, view.step, {
-              directions: directions[view.component],
-            }),
+            primitives: plannerStepDiagram(sequence, view.step),
+            mirrored: view.side === 'back',
             sentence: describePlannerStep(t, sequence, index, view.step),
           },
         ];
@@ -100,50 +97,27 @@ export function planFilmstrip(
       case 'turn-over':
         return [
           {
-            key: `turn-over-${view.component}`,
+            // A sequence turns the paper over a handful of times, so the key
+            // has to name the card and not just the sheet.
+            key: `turn-over-${view.component}-${viewIndex}`,
             number: null,
             diagram: null,
-            primitives: plannerTurnOverDiagram(sequence),
-            sentence: t(
-              'panels:references.flip.turnOver',
-              'Turn the paper over, left to right.'
-            ),
+            primitives: plannerTurnOverDiagram(sequence, view.after),
+            mirrored: view.side === 'back',
+            sentence: t('panels:references.flip.turnOver', 'Turn the paper over, left to right.'),
           },
         ];
-      case 'reverse': {
-        const reversed = new Set<number>();
-        sequence.steps.forEach((step, index) => {
-          if (!geometry) return;
-          if (step.cp_line_ids.some((id) => creaseDirection(geometry, id) === 'mountain')) {
-            reversed.add(index);
-          }
-        });
-        return [
-          {
-            key: `reverse-${view.component}`,
-            number: null,
-            diagram: null,
-            primitives: plannerReverseDiagram(sequence, reversed),
-            sentence: t('panels:references.flip.reverse', {
-              defaultValue_one:
-                'Reverse {{count}} crease so it becomes a mountain from the front. From this side it folds towards you, like every other crease here.',
-              defaultValue_other:
-                'Reverse {{count}} creases so they become mountains from the front. From this side they fold towards you, like every other crease here.',
-              count: view.lineIds.length,
-            }),
-          },
-        ];
-      }
       case 'done':
         return [
           {
             key: `done-${view.component}`,
             number: null,
             diagram: null,
-            primitives: plannerFinishedDiagram(sequence, directions[view.component] ?? []),
+            primitives: plannerFinishedDiagram(sequence),
+            mirrored: false,
             sentence: t(
               'panels:references.flip.finished',
-              'Turn the paper back over. The crease pattern is complete, mountains and valleys as drawn.'
+              'Every crease is made. The pattern collapses from here, and the creases it wants the other way reverse as it does.'
             ),
           },
         ];

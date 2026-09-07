@@ -27,7 +27,12 @@ import {
   type PrecreasePlanProgress,
   type PrecreasePlanResult,
 } from './precreasePlan';
-import type { PrecreasePlannerInfo, PrecreaseSequence } from './precreaseSequence';
+import type {
+  PrecreasePlannerInfo,
+  PrecreaseSequence,
+  PrecreaseSide,
+  PrecreaseStep,
+} from './precreaseSequence';
 import { analyzeReferences, type ReferencesAnalysis } from './referencesAnalysis';
 import {
   breakdownTotals,
@@ -178,6 +183,25 @@ function plannableComponents(
   return chosen ? [chosen] : [];
 }
 
+/**
+ * How many times the folder turns the paper over.
+ *
+ * The sheet starts front side up, so a plan whose first step is on the back
+ * opens with one; the closing turn-over that puts the pattern back on the front
+ * is counted too, since the folder performs it.
+ */
+function turnOversOf(steps: readonly PrecreaseStep[]): number {
+  let side: PrecreaseSide = 'front';
+  let count = 0;
+  for (const step of steps) {
+    if (step.side !== side) {
+      count += 1;
+      side = step.side;
+    }
+  }
+  return side === 'front' ? count : count + 1;
+}
+
 /** The plan's counts, as the store's summary descriptor. */
 function summaryOf(record: ReferencesPlanRecord): ReferencesPlanSummary | null {
   const first = record.components[0];
@@ -196,6 +220,12 @@ function summaryOf(record: ReferencesPlanRecord): ReferencesPlanSummary | null {
         stepCount: acc.stepCount + entry.result.sequence.steps.length,
         findingCount: acc.findingCount + entry.result.sequence.findings.length,
         approximateCount: acc.approximateCount + entry.result.approximate.length,
+        turnOvers: acc.turnOvers + turnOversOf(entry.result.sequence.steps),
+        mixedSteps:
+          acc.mixedSteps +
+          entry.result.sequence.steps.filter(
+            (step) => step.direction !== 'unassigned' && step.direction_share < 1
+          ).length,
       };
     },
     {
@@ -209,6 +239,8 @@ function summaryOf(record: ReferencesPlanRecord): ReferencesPlanSummary | null {
       stepCount: 0,
       findingCount: 0,
       approximateCount: 0,
+      turnOvers: 0,
+      mixedSteps: 0,
     }
   );
   // The worst class across sheets, because the summary strip speaks for the
@@ -597,8 +629,8 @@ export function useReferencesBreakdown(
    * of their cards landed back on the last fold.
    */
   const viewSteps = useMemo(
-    () => referencesViewSteps(geometry, variants, flatSteps),
-    [geometry, variants, flatSteps]
+    () => referencesViewSteps(variants, flatSteps),
+    [variants, flatSteps]
   );
 
   const activeStep = Math.max(0, Math.min(viewSteps.length - 1, viewState.activeStep));
@@ -678,6 +710,10 @@ function trackPlan(
     visible_aux_bucket: bucketCount(summary.visibleAux, COUNT_BUCKETS),
     duration_bucket,
     exactness_class: summary.exactnessClass ?? 'exact',
+    // The whole architecture of the schedule was chosen on this number, so it
+    // is the one to watch: a median of 4 was what the corpus predicted.
+    turn_overs_bucket: bucketCount(summary.turnOvers, COUNT_BUCKETS),
+    mixed_steps_bucket: bucketCount(summary.mixedSteps, COUNT_BUCKETS),
   };
   if (aborted) {
     track(ANALYTICS_EVENTS.foldingStepsCancelled, properties);

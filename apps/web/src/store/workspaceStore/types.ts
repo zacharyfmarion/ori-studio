@@ -1437,6 +1437,10 @@ export interface ReferencesPlanSummary {
   stepCount: number;
   findingCount: number;
   approximateCount: number;
+  /** How many times the folder turns the paper over to make these folds. */
+  turnOvers: number;
+  /** Steps whose line is creased both ways in the pattern (plan D21). */
+  mixedSteps: number;
   exactnessClass: ReferencesExactnessClass | null;
   /** Snappable only: the largest distance a line moved, in model units. */
   maxDisplacementModel: number;

@@ -2938,10 +2938,13 @@
     "panels:references.freeDiagonals": "5c210dbe552b",
     "panels:references.card.folds_one": "25ca08d34e54",
     "panels:references.card.folds_other": "9c8e30c45cdd",
-    "panels:references.flip.finished": "7e15fa9a7b11",
-    "panels:references.flip.reverse_one": "ee21632c27f1",
-    "panels:references.flip.reverse_other": "59e030b0fb71",
-    "panels:references.flip.turnOver": "3a57d964493f"
+    "panels:references.flip.finished": "11ba4a9f695d",
+    "panels:references.flip.turnOver": "3a57d964493f",
+    "panels:references.planStep.partlyReversed": "63a3176b00c5",
+    "panels:references.summary.mixed_one": "3ad882300bd2",
+    "panels:references.summary.mixed_other": "37d5a5a4defc",
+    "panels:references.summary.turnOvers_one": "1b4be288663c",
+    "panels:references.summary.turnOvers_other": "ee2395a203d8"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5882,10 +5885,13 @@
     "panels:references.freeDiagonals": "5c210dbe552b",
     "panels:references.card.folds_one": "25ca08d34e54",
     "panels:references.card.folds_other": "9c8e30c45cdd",
-    "panels:references.flip.finished": "7e15fa9a7b11",
-    "panels:references.flip.reverse_one": "ee21632c27f1",
-    "panels:references.flip.reverse_other": "59e030b0fb71",
-    "panels:references.flip.turnOver": "3a57d964493f"
+    "panels:references.flip.finished": "11ba4a9f695d",
+    "panels:references.flip.turnOver": "3a57d964493f",
+    "panels:references.planStep.partlyReversed": "63a3176b00c5",
+    "panels:references.summary.mixed_one": "3ad882300bd2",
+    "panels:references.summary.mixed_other": "37d5a5a4defc",
+    "panels:references.summary.turnOvers_one": "1b4be288663c",
+    "panels:references.summary.turnOvers_other": "ee2395a203d8"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8826,10 +8832,13 @@
     "panels:references.freeDiagonals": "5c210dbe552b",
     "panels:references.card.folds_one": "25ca08d34e54",
     "panels:references.card.folds_other": "9c8e30c45cdd",
-    "panels:references.flip.finished": "7e15fa9a7b11",
-    "panels:references.flip.reverse_one": "ee21632c27f1",
-    "panels:references.flip.reverse_other": "59e030b0fb71",
-    "panels:references.flip.turnOver": "3a57d964493f"
+    "panels:references.flip.finished": "11ba4a9f695d",
+    "panels:references.flip.turnOver": "3a57d964493f",
+    "panels:references.planStep.partlyReversed": "63a3176b00c5",
+    "panels:references.summary.mixed_one": "3ad882300bd2",
+    "panels:references.summary.mixed_other": "37d5a5a4defc",
+    "panels:references.summary.turnOvers_one": "1b4be288663c",
+    "panels:references.summary.turnOvers_other": "ee2395a203d8"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11716,9 +11725,11 @@
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
     "panels:references.freeDiagonals": "5c210dbe552b",
     "panels:references.card.folds_other": "9c8e30c45cdd",
-    "panels:references.flip.finished": "7e15fa9a7b11",
-    "panels:references.flip.reverse_other": "59e030b0fb71",
-    "panels:references.flip.turnOver": "3a57d964493f"
+    "panels:references.flip.finished": "11ba4a9f695d",
+    "panels:references.flip.turnOver": "3a57d964493f",
+    "panels:references.planStep.partlyReversed": "63a3176b00c5",
+    "panels:references.summary.mixed_other": "37d5a5a4defc",
+    "panels:references.summary.turnOvers_other": "ee2395a203d8"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14605,9 +14616,11 @@
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
     "panels:references.freeDiagonals": "5c210dbe552b",
     "panels:references.card.folds_other": "9c8e30c45cdd",
-    "panels:references.flip.finished": "7e15fa9a7b11",
-    "panels:references.flip.reverse_other": "59e030b0fb71",
-    "panels:references.flip.turnOver": "3a57d964493f"
+    "panels:references.flip.finished": "11ba4a9f695d",
+    "panels:references.flip.turnOver": "3a57d964493f",
+    "panels:references.planStep.partlyReversed": "63a3176b00c5",
+    "panels:references.summary.mixed_other": "37d5a5a4defc",
+    "panels:references.summary.turnOvers_other": "ee2395a203d8"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -17548,10 +17561,13 @@
     "panels:references.freeDiagonals": "5c210dbe552b",
     "panels:references.card.folds_one": "25ca08d34e54",
     "panels:references.card.folds_other": "9c8e30c45cdd",
-    "panels:references.flip.finished": "7e15fa9a7b11",
-    "panels:references.flip.reverse_one": "ee21632c27f1",
-    "panels:references.flip.reverse_other": "59e030b0fb71",
-    "panels:references.flip.turnOver": "3a57d964493f"
+    "panels:references.flip.finished": "11ba4a9f695d",
+    "panels:references.flip.turnOver": "3a57d964493f",
+    "panels:references.planStep.partlyReversed": "63a3176b00c5",
+    "panels:references.summary.mixed_one": "3ad882300bd2",
+    "panels:references.summary.mixed_other": "37d5a5a4defc",
+    "panels:references.summary.turnOvers_one": "1b4be288663c",
+    "panels:references.summary.turnOvers_other": "ee2395a203d8"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -20492,10 +20508,13 @@
     "panels:references.freeDiagonals": "5c210dbe552b",
     "panels:references.card.folds_one": "25ca08d34e54",
     "panels:references.card.folds_other": "9c8e30c45cdd",
-    "panels:references.flip.finished": "7e15fa9a7b11",
-    "panels:references.flip.reverse_one": "ee21632c27f1",
-    "panels:references.flip.reverse_other": "59e030b0fb71",
-    "panels:references.flip.turnOver": "3a57d964493f"
+    "panels:references.flip.finished": "11ba4a9f695d",
+    "panels:references.flip.turnOver": "3a57d964493f",
+    "panels:references.planStep.partlyReversed": "63a3176b00c5",
+    "panels:references.summary.mixed_one": "3ad882300bd2",
+    "panels:references.summary.mixed_other": "37d5a5a4defc",
+    "panels:references.summary.turnOvers_one": "1b4be288663c",
+    "panels:references.summary.turnOvers_other": "ee2395a203d8"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -23382,8 +23401,10 @@
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
     "panels:references.freeDiagonals": "5c210dbe552b",
     "panels:references.card.folds_other": "9c8e30c45cdd",
-    "panels:references.flip.finished": "7e15fa9a7b11",
-    "panels:references.flip.reverse_other": "59e030b0fb71",
-    "panels:references.flip.turnOver": "3a57d964493f"
+    "panels:references.flip.finished": "11ba4a9f695d",
+    "panels:references.flip.turnOver": "3a57d964493f",
+    "panels:references.planStep.partlyReversed": "63a3176b00c5",
+    "panels:references.summary.mixed_other": "37d5a5a4defc",
+    "panels:references.summary.turnOvers_other": "ee2395a203d8"
   }
 }

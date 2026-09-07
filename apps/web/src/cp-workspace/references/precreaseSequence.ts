@@ -55,6 +55,25 @@ export type PrecreaseExtent =
   | { kind: 'pinches'; spans: PrecreasePlanSegment[] };
 
 export type PrecreaseStepKind = 'cp' | 'aux';
+
+/**
+ * Which way a crease folds in the finished pattern.
+ *
+ * `unassigned` is an auxiliary line the pattern says nothing about. There is no
+ * "mixed": the crate decides one direction per line, by creased length, because
+ * a step that creased part of a line one way and part the other is not a fold
+ * anyone can make (plan D20).
+ */
+export type PrecreaseDirection = 'mountain' | 'valley' | 'unassigned';
+
+/**
+ * Which face of the sheet a fold is made from.
+ *
+ * An alignment fold is a valley on the face you work from, so a mountain is
+ * made with the paper turned over. Changes between consecutive steps are where
+ * the folder turns it.
+ */
+export type PrecreaseSide = 'front' | 'back';
 export type PrecreaseLineTag = 'edge' | 'cp' | 'aux' | 'rf_aux';
 
 /** One fold in the presentation order. */
@@ -76,6 +95,16 @@ export interface PrecreaseStep {
   ease: number;
   hard: boolean;
   err: number;
+  /** Which way this crease is made. Resolved — never two directions. */
+  direction: PrecreaseDirection;
+  /**
+   * The share of this line's creased length `direction` gets right, in `[0, 1]`.
+   * Below 1 the line reverses in part when the model collapses; `0` when
+   * `direction` is `unassigned`.
+   */
+  direction_share: number;
+  /** The face of the sheet this fold is made from. */
+  side: PrecreaseSide;
   /** For an auxiliary step, the ids of the CP steps it unlocks. */
   unlocks: number[];
   /** The editor's 1-based crease ids this step realises. */
@@ -86,10 +115,12 @@ export interface PrecreaseStep {
   hoisted: boolean;
 }
 
-/** Consecutive steps of one round, direction, axiom and input pattern. */
+/** Consecutive steps of one round, side, direction, axiom and input pattern. */
 export interface PrecreaseGroup {
   round: number;
   kind: PrecreaseStepKind;
+  /** A group never spans a turn-over. */
+  side: PrecreaseSide;
   /** Normal angle of the direction cluster, radians in `[0, π)`. */
   direction_angle: number;
   axiom: number;

@@ -2,10 +2,24 @@ import { describe, expect, it } from 'vitest';
 import { plannerSequenceFixture } from './__fixtures__/plannerSequence';
 import {
   plannerFinishedDiagram,
-  plannerReverseDiagram,
   plannerStepDiagram,
   plannerTurnOverDiagram,
 } from './plannerStepToPrimitives';
+import type { PrecreaseDirection, PrecreaseSequence } from './precreaseSequence';
+
+/** The fixture with a direction on each step, since the fixture's is neutral. */
+function directed(...directions: PrecreaseDirection[]): PrecreaseSequence {
+  const sequence = plannerSequenceFixture();
+  return {
+    ...sequence,
+    steps: sequence.steps.map((step, i) => ({
+      ...step,
+      direction: directions[i] ?? 'unassigned',
+      direction_share: directions[i] && directions[i] !== 'unassigned' ? 1 : 0,
+      side: directions[i] === 'mountain' ? ('back' as const) : ('front' as const),
+    })),
+  };
+}
 
 describe('plannerStepDiagram', () => {
   const sequence = plannerSequenceFixture();
@@ -31,13 +45,24 @@ describe('plannerStepDiagram', () => {
     ).toBe(false);
   });
 
-  it('draws a full crease as the valley style', () => {
-    const diagram = plannerStepDiagram(sequence, 1);
+  it('draws a full crease in the direction the crate settled', () => {
+    const valley = plannerStepDiagram(directed('unassigned', 'valley'), 1);
     expect(
-      diagram?.primitives.filter(
-        (primitive) => primitive.kind === 'line' && primitive.style === 'valley'
-      )
+      valley?.primitives.filter((p) => p.kind === 'line' && p.style === 'valley')
     ).toHaveLength(1);
+    const mountain = plannerStepDiagram(directed('unassigned', 'mountain'), 1);
+    expect(
+      mountain?.primitives.filter((p) => p.kind === 'line' && p.style === 'mountain')
+    ).toHaveLength(1);
+  });
+
+  // An auxiliary line is creased, but the pattern assigns it nothing — so it
+  // takes the neutral ink rather than borrowing a direction it does not have.
+  it('draws an unassigned crease in neither direction', () => {
+    const diagram = plannerStepDiagram(directed('unassigned', 'unassigned'), 1);
+    const styles = diagram?.primitives.flatMap((p) => (p.kind === 'line' ? [p.style] : []));
+    expect(styles).not.toContain('valley');
+    expect(styles).not.toContain('mountain');
   });
 
   it('draws the references the fold is made against', () => {
@@ -88,34 +113,28 @@ describe('plannerStepDiagram', () => {
   });
 });
 
-describe('the closing steps', () => {
+describe('the cards that are not folds', () => {
   const sequence = plannerSequenceFixture();
 
-  it('draws the whole sheet plus a turn-over arrow', () => {
-    const diagram = plannerTurnOverDiagram(sequence);
+  it('draws the build-up so far plus a turn-over arrow', () => {
+    const diagram = plannerTurnOverDiagram(sequence, sequence.steps.length - 1);
     expect(diagram.primitives[0]).toEqual({ kind: 'sheet', width: 1, height: 1 });
     expect(diagram.primitives.filter((p) => p.kind === 'arc')).toHaveLength(1);
     // Every crease made, as context: none of them is the instruction.
-    expect(
-      diagram.primitives.every((p) => p.kind !== 'line' || p.style === 'crease')
-    ).toBe(true);
+    expect(diagram.primitives.every((p) => p.kind !== 'line' || p.style === 'crease')).toBe(true);
   });
 
-  it('draws the creases to reverse as valleys, because from the back they are', () => {
-    const diagram = plannerReverseDiagram(sequence, new Set([1]));
-    const valleys = diagram.primitives.filter((p) => p.kind === 'line' && p.style === 'valley');
-    const creases = diagram.primitives.filter((p) => p.kind === 'line' && p.style === 'crease');
-    expect(valleys.length).toBeGreaterThan(0);
-    expect(creases.length).toBeGreaterThan(0);
-    // No arrow: the instruction is to reverse, not to fold something new.
-    expect(diagram.primitives.some((p) => p.kind === 'arc')).toBe(false);
+  // A turn-over happens between folds, so it must not show creases the folder
+  // has not made yet — which is what drawing the whole sequence would do.
+  it('draws only the creases folded by the time it is reached', () => {
+    const lines = (after: number | null) =>
+      plannerTurnOverDiagram(sequence, after).primitives.filter((p) => p.kind === 'line').length;
+    expect(lines(null)).toBe(0);
+    expect(lines(0)).toBeLessThan(lines(sequence.steps.length - 1));
   });
 
-  it('draws the finished pattern in the directions it ends up with', () => {
-    const directions = sequence.steps.map((_, i) =>
-      i === 0 ? ('mountain' as const) : i === 1 ? ('valley' as const) : ('none' as const)
-    );
-    const diagram = plannerFinishedDiagram(sequence, directions);
+  it('draws the finished pattern in the directions its steps were made in', () => {
+    const diagram = plannerFinishedDiagram(directed('mountain', 'valley'));
     const styles = diagram.primitives.flatMap((p) => (p.kind === 'line' ? [p.style] : []));
     expect(styles).toContain('mountain');
     expect(styles).toContain('valley');

@@ -1,22 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import type { ReferencesFlatStep } from './referencesBreakdown';
-import { mountainLineIds, sequenceDirections, stepDirection } from './referencesFoldDirection';
-import type { PrecreaseSequence, PrecreaseStep } from './precreaseSequence';
+import type { PrecreaseSequence, PrecreaseSide, PrecreaseStep } from './precreaseSequence';
 import type { ReferencesPlanVariant } from './referencesResults';
-import { planStepOf, referencesViewSteps, sideAt } from './referencesSequenceView';
+import {
+  planStepOf,
+  referencesViewSteps,
+  sideAt,
+  turnOverCount,
+} from './referencesSequenceView';
 
-/** Border, mountain, valley, mountain, aux — Oriedita's codes, stride 5. */
-const GEOMETRY = {
-  segEndpoints: Float64Array.from([
-    0, 0, 1, 0, 0, 1, 1, 1, 0, 2, 1, 2, 0, 3, 1, 3, 0, 4, 1, 4,
-  ]),
-  segAttr: Int32Array.from([
-    0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0, 0, 0, 0, 3, 0, 0, 0, 0,
-  ]),
-} as unknown as CpGeometryTransport;
-
-function step(id: number, cpLineIds: number[]): PrecreaseStep {
+function step(id: number, side: PrecreaseSide): PrecreaseStep {
   return {
     id,
     kind: 'cp',
@@ -34,112 +27,110 @@ function step(id: number, cpLineIds: number[]): PrecreaseStep {
     ease: 0,
     hard: false,
     err: 0,
+    direction: side === 'back' ? 'mountain' : 'valley',
+    direction_share: 1,
+    side,
     unlocks: [],
-    cp_line_ids: cpLineIds,
+    cp_line_ids: [id],
     visible: true,
     witnesses_complete: true,
     hoisted: false,
   };
 }
 
-function variantOf(steps: PrecreaseStep[]): ReferencesPlanVariant {
-  return {
-    sequence: { steps, sheet: { width: 1, height: 1 } } as unknown as PrecreaseSequence,
-    model: { steps: [], points: [], edges: {}, findings: [] } as unknown as
-      ReferencesPlanVariant['model'],
-  };
+/** A plan whose steps run through the given sides: `'FFBF'`. */
+function planOf(sides: string): {
+  variants: ReferencesPlanVariant[];
+  flat: ReferencesFlatStep[];
+} {
+  const steps = [...sides].map((c, i) => step(i + 1, c === 'B' ? 'back' : 'front'));
+  const variants = [
+    {
+      sequence: { steps, sheet: { width: 1, height: 1 } } as unknown as PrecreaseSequence,
+      model: { steps: [], points: [], edges: {}, findings: [] } as unknown as
+        ReferencesPlanVariant['model'],
+    },
+  ];
+  return { variants, flat: steps.map((_, index) => ({ component: 0, step: index })) };
 }
 
-const flat = (steps: PrecreaseStep[]): ReferencesFlatStep[] =>
-  steps.map((_, index) => ({ component: 0, step: index }));
-
-describe('stepDirection', () => {
-  it('reads mountain, valley and neither from the pattern', () => {
-    expect(stepDirection(GEOMETRY, step(1, [2]))).toBe('mountain');
-    expect(stepDirection(GEOMETRY, step(1, [3]))).toBe('valley');
-    expect(stepDirection(GEOMETRY, step(1, [1]))).toBe('none');
-    expect(stepDirection(GEOMETRY, step(1, [5]))).toBe('none');
-    expect(stepDirection(GEOMETRY, step(1, []))).toBe('none');
-  });
-
-  // The case the whole design turns on: one chord, both directions along it.
-  // Measured at 57 of iguana-c0's 91 steps.
-  it('calls a chord that is both mixed', () => {
-    expect(stepDirection(GEOMETRY, step(1, [2, 3]))).toBe('mixed');
-  });
-
-  it('reads a whole sequence in order', () => {
-    const steps = [step(1, [2]), step(2, [3]), step(3, [])];
-    expect(sequenceDirections(GEOMETRY, { steps } as unknown as PrecreaseSequence)).toEqual([
-      'mountain',
-      'valley',
-      'none',
-    ]);
-  });
-});
-
-describe('mountainLineIds', () => {
-  it('lists the creases to reverse, once each, in step order', () => {
-    const steps = [step(1, [2, 3]), step(2, [4]), step(3, [2])];
-    expect(mountainLineIds(GEOMETRY, { steps } as unknown as PrecreaseSequence)).toEqual([2, 4]);
-  });
-
-  it('is empty for a pattern with no mountains', () => {
-    const steps = [step(1, [3]), step(2, [1])];
-    expect(mountainLineIds(GEOMETRY, { steps } as unknown as PrecreaseSequence)).toEqual([]);
-  });
-});
+const view = (sides: string) => {
+  const { variants, flat } = planOf(sides);
+  return referencesViewSteps(variants, flat);
+};
 
 describe('referencesViewSteps', () => {
-  it('adds turn over, reverse and the finished pattern when there are mountains', () => {
-    const steps = [step(1, [3]), step(2, [2])];
-    const view = referencesViewSteps(GEOMETRY, [variantOf(steps)], flat(steps));
-    expect(view.map((s) => s.kind)).toEqual(['fold', 'fold', 'turn-over', 'reverse', 'done']);
-  });
-
-  it('reads the reverse step from the back and ends on the front', () => {
-    const steps = [step(1, [2])];
-    const view = referencesViewSteps(GEOMETRY, [variantOf(steps)], flat(steps));
-    expect(view.map((s) => s.side)).toEqual(['front', 'front', 'back', 'front']);
-    expect(sideAt(view, 2)).toBe('back');
-    expect(view[view.length - 1].side).toBe('front');
-  });
-
-  it('names the creases the reverse step turns over', () => {
-    const steps = [step(1, [2, 3])];
-    const view = referencesViewSteps(GEOMETRY, [variantOf(steps)], flat(steps));
-    const reverse = view.find((s) => s.kind === 'reverse');
-    expect(reverse?.kind === 'reverse' && reverse.lineIds).toEqual([2]);
-  });
-
-  // A pattern of valleys is already finished when the last fold is made.
-  it('adds nothing when the pattern has no mountains', () => {
-    const steps = [step(1, [3])];
-    const view = referencesViewSteps(GEOMETRY, [variantOf(steps)], flat(steps));
-    expect(view.map((s) => s.kind)).toEqual(['fold']);
-  });
-
-  it('adds nothing without geometry to read the directions from', () => {
-    const steps = [step(1, [2])];
-    expect(referencesViewSteps(null, [variantOf(steps)], flat(steps)).map((s) => s.kind)).toEqual([
-      'fold',
-    ]);
-  });
-
   it('is empty for a plan with no steps', () => {
-    expect(referencesViewSteps(GEOMETRY, [], [])).toEqual([]);
+    expect(referencesViewSteps([], [])).toEqual([]);
+  });
+
+  it('adds no turn-over to a plan folded entirely from the front', () => {
+    expect(view('FFF').map((s) => s.kind)).toEqual(['fold', 'fold', 'fold', 'done']);
+    expect(turnOverCount(view('FFF'))).toBe(0);
+  });
+
+  // The sheet starts front side up, so a plan that opens with a mountain opens
+  // by turning the paper over.
+  it('opens with a turn-over when the first fold is on the back', () => {
+    const steps = view('BB');
+    expect(steps.map((s) => s.kind)).toEqual(['turn-over', 'fold', 'fold', 'turn-over', 'done']);
+    expect(steps.map((s) => s.side)).toEqual(['front', 'back', 'back', 'back', 'front']);
+  });
+
+  it('turns over between blocks, not once at the end', () => {
+    const steps = view('FFBBFF');
+    expect(steps.map((s) => s.kind)).toEqual([
+      'fold',
+      'fold',
+      'turn-over',
+      'fold',
+      'fold',
+      'turn-over',
+      'fold',
+      'fold',
+      'done',
+    ]);
+    expect(turnOverCount(steps)).toBe(2);
+  });
+
+  // The pattern's assignment is stated from the front, so that is the side it
+  // is read from however the folding ended.
+  it('closes on the front when the last block is on the back', () => {
+    const steps = view('FFB');
+    expect(steps.map((s) => s.kind)).toEqual(['fold', 'fold', 'turn-over', 'fold', 'turn-over', 'done']);
+    expect(steps[steps.length - 1]?.side).toBe('front');
+  });
+
+  it('shows a turn-over on the face it is leaving', () => {
+    const steps = view('FB');
+    const turn = steps.find((s) => s.kind === 'turn-over');
+    expect(turn?.side).toBe('front');
+    expect(sideAt(steps, steps.indexOf(turn!) + 1)).toBe('back');
+  });
+
+  // The card draws the build-up so far, so it has to know where "so far" ends.
+  it('says which planner step the build-up has reached', () => {
+    const steps = view('FFB');
+    const turns = steps.filter((s) => s.kind === 'turn-over');
+    expect(turns.map((s) => (s.kind === 'turn-over' ? s.after : null))).toEqual([1, 2]);
+  });
+
+  it('opens with a turn-over that has nothing folded behind it', () => {
+    const first = view('B')[0];
+    expect(first?.kind).toBe('turn-over');
+    expect(first?.kind === 'turn-over' && first.after).toBeNull();
   });
 });
 
 describe('planStepOf', () => {
   it('addresses the planner only for a fold', () => {
-    const steps = [step(1, [2])];
-    const view = referencesViewSteps(GEOMETRY, [variantOf(steps)], flat(steps));
-    expect(planStepOf(view[0])).toEqual({ component: 0, step: 0 });
-    // The closing steps name no planner step: they are not folds, and a caller
-    // that indexed `sequence.steps` with them would read the wrong one.
-    expect(planStepOf(view[1])).toBeNull();
-    expect(planStepOf(view[2])).toBeNull();
-    expect(planStepOf(view[3])).toBeNull();
+    const steps = view('FB');
+    expect(planStepOf(steps[0]!)).toEqual({ component: 0, step: 0 });
+    // A turn-over and the finished card name no planner step: they are not
+    // folds, and a caller that indexed `sequence.steps` with them would read
+    // the wrong one.
+    for (const s of steps.filter((s) => s.kind !== 'fold')) {
+      expect(planStepOf(s)).toBeNull();
+    }
   });
 });

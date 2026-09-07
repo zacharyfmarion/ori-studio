@@ -879,10 +879,7 @@
       "unsolved": "Nenhuma construção encontrada"
     },
     "flip": {
-      "finished": "Vire o papel de volta. O padrão de vincos está completo, com montanhas e vales como desenhados.",
-      "reverse_one": "Inverta {{count}} vinco para que ele seja uma montanha vista pela frente. Deste lado ele dobra na sua direção, como todos os outros vincos aqui.",
-      "reverse_many": "Inverta {{count}} vincos para que sejam montanhas vistas pela frente. Deste lado eles dobram na sua direção, como todos os outros vincos aqui.",
-      "reverse_other": "Inverta {{count}} vincos para que sejam montanhas vistas pela frente. Deste lado eles dobram na sua direção, como todos os outros vincos aqui.",
+      "finished": "Todos os vincos estão feitos. A partir daqui o modelo se fecha, e os vincos que vão no outro sentido se invertem nesse momento.",
       "turnOver": "Vire o papel, da esquerda para a direita."
     },
     "freeDiagonals": "Também precisa da(s) diagonal(is) da folha: {{names}}.",
@@ -911,6 +908,7 @@
       "axiom6": "Dobre {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
       "axiom7": "Dobre {{b}} sobre si mesma de modo que {{a}} caia em {{c}}.",
       "free": "Esta linha já está na folha.",
+      "partlyReversed": "No padrão, esta linha é vincada nos dois sentidos; o restante se inverte quando o modelo se fecha.",
       "pinch": "Apenas belisque: só a marca é necessária.",
       "unknown": "Dobre usando {{inputs}}.",
       "visibleAux": "Este vinco aparecerá no modelo pronto."
@@ -985,9 +983,15 @@
       "folds": "{{folds}} dobras = {{creases}} vincos + {{aux}} auxiliares ({{visible}} visíveis)",
       "free": "{{n}} na borda da folha",
       "lowerBound": "limite inferior {{n}}",
+      "mixed_one": "{{count}} linha vincada nos dois sentidos no padrão",
+      "mixed_many": "{{count}} linhas vincadas nos dois sentidos no padrão",
+      "mixed_other": "{{count}} linhas vincadas nos dois sentidos no padrão",
       "offLattice": "Fora da malha",
       "partial": "Parcial",
       "snapped": "Ajustado, até {{d}}",
+      "turnOvers_one": "{{count}} virada do papel",
+      "turnOvers_many": "{{count}} viradas do papel",
+      "turnOvers_other": "{{count}} viradas do papel",
       "unsolved": "{{n}} sem solução"
     },
     "targetGone": "A dobra escolhida não está mais no padrão.",

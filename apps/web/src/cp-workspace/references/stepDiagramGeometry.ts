@@ -26,6 +26,8 @@ export interface DiagramProjector {
   /** The `viewBox` attribute for the whole diagram. */
   viewBox: string;
   size: number;
+  /** The picture is of the paper's back, so x runs the other way. */
+  mirrored: boolean;
 }
 
 /** Margin round the sheet as a fraction of the viewBox side, so labels at a corner fit. */
@@ -34,20 +36,31 @@ export const DIAGRAM_PADDING = 0.1;
 /**
  * A projector that fits `sheet` into a square `size × size` viewBox, centred,
  * y flipped so the sheet's bottom edge is at the bottom of the picture.
+ *
+ * `mirrored` draws the paper's back: x runs the other way, exactly as
+ * `ReferencesCpView` reflects the canvas, so a card and the view beside it show
+ * the same thing. It is a mirror in the *projection* rather than a transform on
+ * the SVG so that labels stay the right way round — mirrored text is not a
+ * diagram, it is a mistake.
  */
-export function createDiagramProjector(sheet: DiagramSheet, size = 100): DiagramProjector {
+export function createDiagramProjector(
+  sheet: DiagramSheet,
+  size = 100,
+  mirrored = false
+): DiagramProjector {
   const longer = Math.max(sheet.width, sheet.height, Number.EPSILON);
   const pad = size * DIAGRAM_PADDING;
   const scale = (size - 2 * pad) / longer;
   const offsetX = pad + ((longer - sheet.width) * scale) / 2;
   const offsetY = pad + ((longer - sheet.height) * scale) / 2;
   const project = ((point: readonly [number, number]): SvgPoint => ({
-    x: offsetX + point[0] * scale,
+    x: offsetX + (mirrored ? sheet.width - point[0] : point[0]) * scale,
     y: offsetY + (sheet.height - point[1]) * scale,
   })) as DiagramProjector;
   project.scale = scale;
   project.viewBox = `0 0 ${size} ${size}`;
   project.size = size;
+  project.mirrored = mirrored;
   return project;
 }
 
@@ -88,7 +101,8 @@ export function arcPathData(arc: DiagramArc, project: DiagramProjector): string 
   const end = project(pointOnArc(arc, arc.to));
   const r = arc.radius * project.scale;
   const large = arcExtent(arc) > Math.PI ? 1 : 0;
-  const sweep = arc.ccw ? 0 : 1;
+  // A mirror reverses handedness, so the sweep flag flips with it.
+  const sweep = arc.ccw === project.mirrored ? 1 : 0;
   return `M ${fmt(start.x)} ${fmt(start.y)} A ${fmt(r)} ${fmt(r)} 0 ${large} ${sweep} ${fmt(end.x)} ${fmt(end.y)}`;
 }
 
@@ -96,24 +110,25 @@ export function arcPathData(arc: DiagramArc, project: DiagramProjector): string 
  * The arc's direction of travel at its end, in SVG space (unit length). For
  * the arrowhead: RF's arrows are arcs with the head at `to`.
  */
-export function arcEndDirection(arc: DiagramArc): SvgPoint {
+export function arcEndDirection(arc: DiagramArc, mirrored = false): SvgPoint {
   const tangent = arc.ccw
     ? { x: -Math.sin(arc.to), y: Math.cos(arc.to) }
     : { x: Math.sin(arc.to), y: -Math.cos(arc.to) };
-  // y flips with the projection; the radius scales both components equally so
-  // the direction is unchanged otherwise.
-  return { x: tangent.x, y: -tangent.y };
+  // y flips with the projection, and x flips again when it draws the back; the
+  // radius scales both components equally so the direction is unchanged
+  // otherwise.
+  return { x: mirrored ? -tangent.x : tangent.x, y: -tangent.y };
 }
 
 /**
  * The arc's direction of travel at its start, reversed — the direction an
  * arrowhead placed at `from` points in. Upstream's `fromDir`.
  */
-export function arcStartDirection(arc: DiagramArc): SvgPoint {
+export function arcStartDirection(arc: DiagramArc, mirrored = false): SvgPoint {
   const tangent = arc.ccw
     ? { x: -Math.sin(arc.from), y: Math.cos(arc.from) }
     : { x: Math.sin(arc.from), y: -Math.cos(arc.from) };
-  return { x: -tangent.x, y: tangent.y };
+  return { x: mirrored ? tangent.x : -tangent.x, y: tangent.y };
 }
 
 /** Half-angle of a fold arrow's arc — upstream's `ha`, 30°. */

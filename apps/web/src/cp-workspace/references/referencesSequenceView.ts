@@ -2,49 +2,43 @@
  * The sequence as it is *read*, which is not quite the sequence the planner
  * emits.
  *
- * The planner answers a geometry question — which folds construct these lines,
- * in an order where every reference already exists. It says nothing about which
- * way a crease folds, and a fold made by bringing paper up and over makes a
- * valley on the face you are looking at. So a plan followed literally leaves a
- * sheet of valleys, and a crease pattern that wanted mountains is not folded.
+ * The planner's steps are folds. A folder also turns the paper over, and looks
+ * at the finished thing — neither is a fold, but both are cards in the strip.
+ * This is where those cards come from.
  *
- * **Why the fix is at the end and not throughout.** Measured on the planner's
- * own fixtures, 57 of iguana-c0's 91 steps make a chord that is mountain along
- * some spans and valley along others; one fold along that chord cannot produce
- * both. Nor can the sequence be regrouped by side: the order is a topological
- * order over "the chosen witness's inputs must already be folded", and `extent`,
- * `visible`, `unlocks`, `Step.id` and `LineEntry.step` are all computed from the
- * emitted order, so a consumer cannot reorder even within a round.
+ * **Turn-overs are not decided here.** An alignment fold is a valley on the
+ * face you are working from, so a crease that must end up a mountain is made
+ * with the sheet turned over, and the direction a step wants decides the side
+ * it is on. That decision belongs to the planner — `extent`, `visible`,
+ * `unlocks`, `Step.id` and `LineEntry.step` are all computed from the emitted
+ * order, so a consumer that regrouped the steps would invalidate every one of
+ * them. The crate groups by side inside each round (plan D23) and hands each
+ * step its `side`; all this module does is notice where that changes.
  *
- * What makes it tractable is that **a reference needs the crease to exist, not
- * to point a particular way**. So the construction runs unchanged from the
- * front, and the directions are settled afterwards, in one pass from the back:
+ * Two consequences worth stating, because they read as bugs otherwise:
  *
- * 1. the planner's steps, folded from the front — every crease a valley;
- * 2. turn the paper over;
- * 3. reverse the creases the pattern wants as mountains, which from the back are
- *    valleys, which is why this is one operation and not a fight;
- * 4. turn it back, so the pattern is read from the side its assignment is
- *    stated in.
- *
- * Two flips, whatever the pattern, and it is what a folder does anyway. Steps
- * 2–4 appear only when the sheet actually has mountain creases (plan D17).
+ * - A plan whose first step is a mountain **opens** with a turn-over. The sheet
+ *   starts front side up, and the first thing the folder does is flip it.
+ * - A plan whose last block is on the back **closes** with one, so the finished
+ *   pattern is always read from the front — the side its assignment is stated
+ *   in.
  */
-import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import type { ReferencesFlatStep } from './referencesBreakdown';
-import { mountainLineIds } from './referencesFoldDirection';
+import type { PrecreaseSide } from './precreaseSequence';
 import type { ReferencesPlanVariant } from './referencesResults';
 
 /** Which face of the paper is up while a step is performed. */
-export type ReferencesPaperSide = 'front' | 'back';
+export type ReferencesPaperSide = PrecreaseSide;
 
 export type ReferencesViewStep =
-  /** One of the planner's folds. */
-  | { kind: 'fold'; side: 'front'; component: number; step: number }
-  /** The finished front pattern, with the turn-over arrow on it. */
-  | { kind: 'turn-over'; side: 'front'; component: number }
-  /** Seen from the back: the creases to reverse. */
-  | { kind: 'reverse'; side: 'back'; component: number; lineIds: number[] }
+  /** One of the planner's folds, on the side the crate put it. */
+  | { kind: 'fold'; side: ReferencesPaperSide; component: number; step: number }
+  /**
+   * Turn the paper over. `side` is the face you are looking at while you do it
+   * — the one you are leaving — and `after` is the planner step the build-up
+   * has reached, or null when nothing is folded yet.
+   */
+  | { kind: 'turn-over'; side: ReferencesPaperSide; component: number; after: number | null }
   /** The finished pattern, read from the front. */
   | { kind: 'done'; side: 'front'; component: number };
 
@@ -61,31 +55,38 @@ export function planStepOf(step: ReferencesViewStep): ReferencesFlatStep | null 
  * downstream has to learn that a step index might not name a fold.
  */
 export function referencesViewSteps(
-  geometry: CpGeometryTransport | null,
   variants: readonly ReferencesPlanVariant[],
   flatSteps: readonly ReferencesFlatStep[]
 ): ReferencesViewStep[] {
-  const steps: ReferencesViewStep[] = flatSteps.map((flat) => ({
-    kind: 'fold',
-    side: 'front',
-    component: flat.component,
-    step: flat.step,
-  }));
-  if (!geometry || steps.length === 0) return steps;
+  const steps: ReferencesViewStep[] = [];
+  let side: ReferencesPaperSide = 'front';
+  let last: ReferencesFlatStep | null = null;
 
-  // One sheet is planned at a time, so the closing steps belong to whichever
+  for (const flat of flatSteps) {
+    const step = variants[flat.component]?.sequence.steps[flat.step];
+    const wants: ReferencesPaperSide = step?.side ?? 'front';
+    if (wants !== side) {
+      steps.push({
+        kind: 'turn-over',
+        side,
+        component: last?.component ?? flat.component,
+        after: last?.step ?? null,
+      });
+      side = wants;
+    }
+    steps.push({ kind: 'fold', side, component: flat.component, step: flat.step });
+    last = flat;
+  }
+
+  if (!last) return steps;
+  // One sheet is planned at a time, so the closing cards belong to whichever
   // component the folds did. A plan carried over from a multi-sheet run would
-  // have more; taking the last fold's component keeps the closing steps with the
-  // pattern the reader ends on.
-  const component = flatSteps[flatSteps.length - 1]?.component ?? 0;
-  const variant = variants[component];
-  if (!variant) return steps;
-
-  const mountains = mountainLineIds(geometry, variant.sequence);
-  if (mountains.length === 0) return steps;
-
-  steps.push({ kind: 'turn-over', side: 'front', component });
-  steps.push({ kind: 'reverse', side: 'back', component, lineIds: mountains });
+  // have more; taking the last fold's component keeps them with the pattern the
+  // reader ends on.
+  const component = last.component;
+  if (side === 'back') {
+    steps.push({ kind: 'turn-over', side, component, after: last.step });
+  }
   steps.push({ kind: 'done', side: 'front', component });
   return steps;
 }
@@ -93,4 +94,9 @@ export function referencesViewSteps(
 /** Which face is up at `index`, for the view to mirror on. */
 export function sideAt(steps: readonly ReferencesViewStep[], index: number): ReferencesPaperSide {
   return steps[index]?.side ?? 'front';
+}
+
+/** How many times the folder turns the paper over to read this sequence. */
+export function turnOverCount(steps: readonly ReferencesViewStep[]): number {
+  return steps.filter((step) => step.kind === 'turn-over').length;
 }

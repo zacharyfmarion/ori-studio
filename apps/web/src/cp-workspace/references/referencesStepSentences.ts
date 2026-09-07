@@ -387,6 +387,14 @@ export function describePlannerStep(
   if (step.kind === 'aux' && step.visible) {
     return `${sentence} ${t('panels:references.planStep.visibleAux', 'This crease will show in the finished model.')}`;
   }
+  // A line whose creases are not all one way is creased whichever way most of
+  // its length wants (plan D21). Say so whenever that is true — not only when
+  // it is close — rather than let the card imply the finished assignment falls
+  // out of the precrease. An 84%-mountain line is dishonest in the same way a
+  // 55% one is, just less often.
+  if (step.direction !== 'unassigned' && step.direction_share < 1) {
+    return `${sentence} ${t('panels:references.planStep.partlyReversed', 'This line is creased both ways in the pattern — the rest reverses as the model collapses.')}`;
+  }
   return sentence;
 }
 

@@ -879,10 +879,7 @@
       "unsolved": "No se encontró construcción"
     },
     "flip": {
-      "finished": "Vuelve a dar la vuelta al papel. El patrón de pliegues está completo, con las montañas y los valles tal como se dibujan.",
-      "reverse_one": "Invierte {{count}} pliegue para que sea una montaña vista desde el frente. Desde este lado se dobla hacia ti, como todos los demás pliegues de aquí.",
-      "reverse_many": "Invierte {{count}} pliegues para que sean montañas vistas desde el frente. Desde este lado se doblan hacia ti, como todos los demás pliegues de aquí.",
-      "reverse_other": "Invierte {{count}} pliegues para que sean montañas vistas desde el frente. Desde este lado se doblan hacia ti, como todos los demás pliegues de aquí.",
+      "finished": "Todos los pliegues están hechos. A partir de aquí el patrón se colapsa, y los pliegues que van al revés se invierten al hacerlo.",
       "turnOver": "Da la vuelta al papel, de izquierda a derecha."
     },
     "freeDiagonals": "También necesita la(s) diagonal(es) de la hoja: {{names}}.",
@@ -911,6 +908,7 @@
       "axiom6": "Dobla {{a}} sobre {{b}} y {{c}} sobre {{d}}.",
       "axiom7": "Dobla {{b}} sobre sí misma de modo que {{a}} caiga en {{c}}.",
       "free": "Esta línea ya está en la hoja.",
+      "partlyReversed": "En el patrón esta línea se pliega en ambos sentidos; el resto se invierte al colapsar el modelo.",
       "pinch": "Solo pellizca: basta con la marca.",
       "unknown": "Dobla usando {{inputs}}.",
       "visibleAux": "Este pliegue se verá en el modelo terminado."
@@ -985,9 +983,15 @@
       "folds": "{{folds}} dobleces = {{creases}} pliegues + {{aux}} auxiliares ({{visible}} visibles)",
       "free": "{{n}} en el borde de la hoja",
       "lowerBound": "cota inferior {{n}}",
+      "mixed_one": "{{count}} línea plegada en ambos sentidos en el patrón",
+      "mixed_many": "{{count}} líneas plegadas en ambos sentidos en el patrón",
+      "mixed_other": "{{count}} líneas plegadas en ambos sentidos en el patrón",
       "offLattice": "Fuera de la retícula",
       "partial": "Parcial",
       "snapped": "Ajustado, hasta {{d}}",
+      "turnOvers_one": "{{count}} vuelta del papel",
+      "turnOvers_many": "{{count}} vueltas del papel",
+      "turnOvers_other": "{{count}} vueltas del papel",
       "unsolved": "{{n}} sin resolver"
     },
     "targetGone": "El pliegue elegido ya no está en el patrón.",

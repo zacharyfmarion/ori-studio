@@ -845,9 +845,7 @@
       "unsolved": "Keine Konstruktion gefunden"
     },
     "flip": {
-      "finished": "Wende das Papier zurück. Das Faltmuster ist fertig, Berg- und Talfalten wie gezeichnet.",
-      "reverse_one": "Kehre {{count}} Faltlinie um, damit sie von vorn eine Bergfalte ist. Von dieser Seite faltet sie zu dir hin, wie jede andere Faltlinie hier.",
-      "reverse_other": "Kehre {{count}} Faltlinien um, damit sie von vorn Bergfalten sind. Von dieser Seite falten sie zu dir hin, wie jede andere Faltlinie hier.",
+      "finished": "Alle Falten sind gemacht. Von hier aus wird das Modell zusammengelegt, und die Falten, die andersherum sollen, kehren sich dabei um.",
       "turnOver": "Wende das Papier, von links nach rechts."
     },
     "freeDiagonals": "Benötigt außerdem die Bogendiagonale(n): {{names}}.",
@@ -876,6 +874,7 @@
       "axiom6": "Falte {{a}} auf {{b}} und {{c}} auf {{d}}.",
       "axiom7": "Falte {{b}} auf sich selbst, sodass {{a}} auf {{c}} landet.",
       "free": "Diese Linie ist bereits auf dem Blatt.",
+      "partlyReversed": "Diese Linie ist im Muster in beide Richtungen gefaltet; der Rest kehrt sich beim Zusammenlegen um.",
       "pinch": "Nur kneifen – es wird nur die Markierung gebraucht.",
       "unknown": "Falte mit {{inputs}}.",
       "visibleAux": "Diese Faltlinie ist im fertigen Modell sichtbar."
@@ -948,9 +947,13 @@
       "folds": "{{folds}} Faltungen = {{creases}} Faltlinien + {{aux}} Hilfslinien ({{visible}} sichtbar)",
       "free": "{{n}} auf der Blattkante",
       "lowerBound": "untere Schranke {{n}}",
+      "mixed_one": "{{count}} Linie im Muster in beide Richtungen gefaltet",
+      "mixed_other": "{{count}} Linien im Muster in beide Richtungen gefaltet",
       "offLattice": "Außerhalb des Gitters",
       "partial": "Teilweise",
       "snapped": "Eingerastet, bis zu {{d}}",
+      "turnOvers_one": "{{count}}-mal wenden",
+      "turnOvers_other": "{{count}}-mal wenden",
       "unsolved": "{{n}} ungelöst"
     },
     "targetGone": "Die gewählte Falte ist nicht mehr im Muster.",

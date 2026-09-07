@@ -23,10 +23,10 @@
  *   are folds on a blank sheet and have no relation to the pattern's creases, so
  *   there is no "so far" to build up — the pattern goes quiet instead, and the
  *   construction ghosts read over it.
- * - **The closing steps show the whole sheet.** Turning the paper over, reversing
- *   the mountains and reading the finished pattern all happen after every crease
- *   is made, so nothing is held back; the reverse step picks out the creases it
- *   is about instead.
+ * - **A turn-over shows the build-up too.** Turning the paper over happens
+ *   between folds, not only at the end, so it holds back the creases that are
+ *   not made yet exactly as a fold card does — it just picks nothing out. The
+ *   finished card comes after every fold, so its build-up is the whole sheet.
  *
  * The border is always visible, and never dimmed. A sheet with no edges is not
  * a sheet; the paper's outline is the thing the folds are drawn on rather than
@@ -112,26 +112,22 @@ export function planVisibility(
   const target = viewSteps[activeStep];
   if (!target) return targetVisibility({ ...input, activeLineIds: new Set() });
 
-  // A closing step comes after every fold, so the pattern is whole. `reverse`
-  // says which creases it is about; the other two are about the sheet.
-  if (target.kind !== 'fold') {
-    const activeLineIds = new Set(target.kind === 'reverse' ? target.lineIds : []);
-    return activeLineIds.size === 0
-      ? unreadVisibility(input)
-      : targetVisibility({ ...input, activeLineIds });
-  }
+  // A card that is not a fold — a turn-over, or the finished pattern — picks
+  // nothing out, but still shows only what has been folded by the time it is
+  // reached, exactly as a fold card does.
+  const { component } = target;
 
   const visible = new Set<number>(borderLineIds ?? []);
   const active = new Set<number>();
   for (let i = 0; i <= activeStep && i < viewSteps.length; i += 1) {
     const view = viewSteps[i];
-    if (view.kind !== 'fold' || view.component !== target.component) continue;
+    if (view.kind !== 'fold' || view.component !== component) continue;
     const step = variants[view.component]?.sequence.steps[view.step];
     if (!step) continue;
     for (const id of step.cp_line_ids) {
       if (sheetLineIds && !sheetLineIds.has(id)) continue;
       visible.add(id);
-      if (i === activeStep) active.add(id);
+      if (i === activeStep && target.kind === 'fold') active.add(id);
     }
   }
   const dimmed = new Set<number>();

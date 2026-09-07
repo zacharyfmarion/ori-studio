@@ -123,7 +123,7 @@ export const ReferencesStepFilmstrip = memo(function ReferencesStepFilmstrip({
                   {step.diagram ? (
                     <StepDiagram diagram={step.diagram} size={100} />
                   ) : (
-                    <StepDiagram primitives={step.primitives} size={100} />
+                    <StepDiagram primitives={step.primitives} size={100} mirrored={step.mirrored} />
                   )}
                 </span>
               </button>

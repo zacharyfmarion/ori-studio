@@ -33,12 +33,18 @@
  *   fold on it, which said nothing about where in the sequence you were. They
  *   take the template's "Crease Lines" weight — solid, a third of a fold line —
  *   because they are context, not the instruction.
- * - **The new crease is drawn in the direction it will end up.** The planner
- *   knows the line but not which way it folds; the caller resolves that from the
- *   crease pattern (`referencesFoldDirection.ts`) and hands it in.
+ * - **The new crease is drawn in the direction it is made.** The crate settles
+ *   that — one direction per step, by the majority of the line's creased length
+ *   (plan D21) — so `Step.direction` is read straight off the step.
+ *
+ * An **O1** step is the one exception to drawing the full chord: it is a crease
+ * *through two marks* and nothing moves, so there is no arrow to draw and the
+ * crease runs between the marks. Every alignment fold keeps its chord and, when
+ * the crate says something moves, its arc. O4 also moves nothing (a
+ * perpendicular is sighted, not swung), so it too draws without an arrow —
+ * that comes from `who_moves` being empty and needs no special case here.
  */
 import { foldArrowArc } from './stepDiagramGeometry';
-import type { PrecreaseFoldDirection } from './referencesFoldDirection';
 import type {
   DiagramLineStyleName,
   StepDiagramModel,
@@ -46,6 +52,7 @@ import type {
 } from './referenceFinderDiagramToPrimitives';
 import {
   chosenWitness,
+  type PrecreaseDirection,
   type PrecreaseEdgeSide,
   type PrecreasePlanLine,
   type PrecreasePlanSegment,
@@ -109,6 +116,22 @@ function segmentOfRef(
   return null;
 }
 
+/**
+ * The segment between an axiom's two point inputs, or null when it does not
+ * have exactly two.
+ */
+function markSegment(
+  sequence: PrecreaseSequence,
+  inputs: readonly PrecreaseRef[]
+): PrecreasePlanSegment | null {
+  const points = inputs.flatMap((ref) => {
+    if (ref.kind !== 'point' && ref.kind !== 'corner') return [];
+    const point = sequence.points.find((entry) => entry.id === ref.id);
+    return point ? [[point.p[0], point.p[1]] as [number, number]] : [];
+  });
+  return points.length === 2 ? [points[0]!, points[1]!] : null;
+}
+
 /** Where an input sits, as the one point an arrow can be drawn from. */
 function anchorOfRef(
   sequence: PrecreaseSequence,
@@ -142,14 +165,18 @@ function refLetter(ref: PrecreaseRef, lineIndex: number, pointIndex: number): st
  * view itself is the diagram"). Null when the index names no step.
  */
 export interface PlannerStepDiagramOptions {
-  /**
-   * Which way each step's crease folds, parallel to `sequence.steps`. Omit for
-   * a sequence whose directions are unknown; every crease is then drawn as a
-   * valley, which is what a precrease made from the front actually is.
-   */
-  directions?: readonly PrecreaseFoldDirection[];
   /** Draw the creases earlier steps made, as context. Default true. */
   showEarlier?: boolean;
+}
+
+/** The style a crease of `direction` draws in, made or already made. */
+function styleOf(direction: PrecreaseDirection, made: boolean): DiagramLineStyleName {
+  if (!made) return 'crease';
+  if (direction === 'mountain') return 'mountain';
+  if (direction === 'valley') return 'valley';
+  // An auxiliary line: creased, but the pattern assigns it nothing, so it takes
+  // the neutral ink rather than borrowing a direction it does not have.
+  return 'crease';
 }
 
 export function plannerStepDiagram(
@@ -214,11 +241,10 @@ export function plannerStepDiagram(
     if (arc) primitives.push({ ...arc, kind: 'arc', style: 'arrow' });
   }
 
-  // The crease this step makes, then the letters, both over the references.
-  // A precrease made from the front is a valley; `directions` says when the
-  // pattern wants the other one.
-  const direction = options.directions?.[index];
-  const made: DiagramLineStyleName = direction === 'mountain' ? 'mountain' : 'valley';
+  // The crease this step makes, then the letters, both over the references. The
+  // crate settled the direction (plan D21) — one per step, never two.
+  const direction = step.direction;
+  const made = styleOf(direction, true);
   if (step.extent.kind === 'pinches') {
     // The fold runs the width of the sheet either way — the pinch is where it
     // is pressed. Drawing only the spans would say "fold this short line".
@@ -240,10 +266,14 @@ export function plannerStepDiagram(
       primitives.push({ kind: 'line', from: span[0], to: span[1], style: pinch });
     }
   } else {
+    // O1 is "crease through these two marks": the marks are the instruction, so
+    // the crease is drawn between them rather than across the whole sheet.
+    const through = witness?.axiom === 1 ? markSegment(sequence, inputs) : null;
+    const segment = through ?? step.segment;
     primitives.push({
       kind: 'line',
-      from: step.segment[0],
-      to: step.segment[1],
+      from: segment[0],
+      to: segment[1],
       style: made,
     });
   }
@@ -259,22 +289,28 @@ export function plannerStepDiagram(
  * Standard diagramming draws the turn-over as a hooked arrow passing around the
  * paper's edge. Here it is one arc across the sheet with a head at each end,
  * which is the same gesture and survives being 128px wide.
+ *
+ * `after` is the last planner step folded by this point, or null when nothing
+ * is — a plan that opens with a mountain turns the paper over before its first
+ * fold. Drawing every step's crease regardless would show the finished pattern
+ * on a card the folder reaches a third of the way through.
  */
 export function plannerTurnOverDiagram(
   sequence: PrecreaseSequence,
-  options: PlannerStepDiagramOptions = {}
+  after: number | null
 ): StepDiagramModel {
   const sheet = sequence.sheet;
   const primitives: StepDiagramPrimitive[] = [
     { kind: 'sheet', width: sheet.width, height: sheet.height },
   ];
-  for (const step of sequence.steps) {
+  for (let i = 0; after !== null && i <= after && i < sequence.steps.length; i += 1) {
+    const step = sequence.steps[i];
+    if (!step) continue;
     const spans = step.extent.kind === 'pinches' ? step.extent.spans : [step.segment];
     for (const span of spans) {
       primitives.push({ kind: 'line', from: span[0], to: span[1], style: 'crease' });
     }
   }
-  void options;
   const mid = sheet.height / 2;
   const arc = foldArrowArc([0, mid], [sheet.width, mid], sheet);
   if (arc) primitives.push({ ...arc, kind: 'arc', style: 'arrow' });
@@ -282,49 +318,23 @@ export function plannerTurnOverDiagram(
 }
 
 /**
- * The reverse card: the sheet from the back, with the creases to turn over
- * picked out.
+ * The finished pattern, each crease in the direction it was made.
  *
- * `lineIds` are the editor's, so the geometry comes from the steps that made
- * them rather than from the document — the diagram works in the planner's unit
- * frame and the document does not.
+ * Which is not, on a mixed line, the direction the pattern ends up assigning
+ * every one of its creases — a precrease sequence puts the crease in the right
+ * place, and the collapse settles the rest (plan D26).
  */
-export function plannerReverseDiagram(
-  sequence: PrecreaseSequence,
-  reversedStepIndices: ReadonlySet<number>
-): StepDiagramModel {
+export function plannerFinishedDiagram(sequence: PrecreaseSequence): StepDiagramModel {
   const sheet = sequence.sheet;
   const primitives: StepDiagramPrimitive[] = [
     { kind: 'sheet', width: sheet.width, height: sheet.height },
   ];
-  sequence.steps.forEach((step, index) => {
+  for (const step of sequence.steps) {
     const spans = step.extent.kind === 'pinches' ? step.extent.spans : [step.segment];
-    // From the back, a crease the front wants as a mountain is a valley.
-    const style: DiagramLineStyleName = reversedStepIndices.has(index) ? 'valley' : 'crease';
+    const style = styleOf(step.direction, true);
     for (const span of spans) {
       primitives.push({ kind: 'line', from: span[0], to: span[1], style });
     }
-  });
-  return { sheet: { width: sheet.width, height: sheet.height }, primitives };
-}
-
-/** The finished pattern, in the directions it ends up with. */
-export function plannerFinishedDiagram(
-  sequence: PrecreaseSequence,
-  directions: readonly PrecreaseFoldDirection[]
-): StepDiagramModel {
-  const sheet = sequence.sheet;
-  const primitives: StepDiagramPrimitive[] = [
-    { kind: 'sheet', width: sheet.width, height: sheet.height },
-  ];
-  sequence.steps.forEach((step, index) => {
-    const spans = step.extent.kind === 'pinches' ? step.extent.spans : [step.segment];
-    const direction = directions[index];
-    const style: DiagramLineStyleName =
-      direction === 'mountain' ? 'mountain' : direction === 'valley' ? 'valley' : 'crease';
-    for (const span of spans) {
-      primitives.push({ kind: 'line', from: span[0], to: span[1], style });
-    }
-  });
+  }
   return { sheet: { width: sheet.width, height: sheet.height }, primitives };
 }
