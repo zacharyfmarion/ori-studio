@@ -528,8 +528,8 @@ polynomial algorithm is claimed. The summary strip shows "N folds = M creases + 
   argument types are validated at the worker API boundary in TS (a wrong-typed typed-array
   argument traps opaquely).
 - **`Step`** `{ id, kind: cp | aux, line, extent: full | [[a, b], …] (pinch spans), round,
-  witnesses: [{axiom, inputs: Ref[], root, who_moves}], chosen, ease, hard, err, unlocks,
-  cpLineIds }`, `Ref ∈ {Edge, Corner, Line(id), Point(id)}`; typed refs so sentences resolve
+  witnesses: [{axiom, inputs: Ref[], root, who_moves}], chosen, ease, hard, err, direction:
+  mountain | valley | unassigned, direction_share, side: front | back, unlocks, cpLineIds }`, `Ref ∈ {Edge, Corner, Line(id), Point(id)}`; typed refs so sentences resolve
   to "the crease from step 12" / "the intersection of steps 3 and 12"; `cpLineIds` are the
   editor's 1-based crease ids the step realises, for the view's highlight and for
   "click a step → highlight its creases".
@@ -1212,14 +1212,16 @@ one place that knows how long it is.
 
 ---
 
-## Revision 4 — mountain and valley, done properly (PLAN ONLY, not implemented)
+## Revision 4 — mountain and valley, done properly
 
 Revision 3's mountain/valley pass is wrong in the way that matters. It creases one
 line red along part of its length and blue along another — which is not a fold anyone
 can make — and it ends an 82-step sequence with "reverse 107 creases". D16–D18 above
 are **superseded by everything in this section.**
 
-This is the plan for replacing it. **Nothing here is built yet.**
+This is the plan for replacing it. **Built**, in `0f37bcb9` (the crate) and
+`5197c615` (the workspace); the notes below record where the plan was wrong and
+what was done instead.
 
 ### Measured first
 
@@ -1329,6 +1331,12 @@ mountain has to be made with the sheet turned over, and the side a step needs is
 O1 is 1.2% of steps, so in practice the direction decides the side for essentially every
 step. That is the whole reason the schedule matters.
 
+A related claim in the first draft of D25 was already false: "every other axiom
+keeps the arc". **O4 has no arrow either** — `predicates.rs::who_moves_and_visible`
+returns an empty `who_moves` for axioms 1 *and* 4, because a perpendicular is
+sighted rather than swung. That is 5.8% of steps, it was correct before this
+revision, and the diagram needed no change for it.
+
 ### D23 — the schedule belongs to `order.rs`
 
 A consumer cannot fix this. `extent` (the pinch pass), `visible`, `unlocks`, `Step.id`
@@ -1340,19 +1348,26 @@ step instead.
 So: `order()` grows a side-grouping pass, run after the round skeleton is laid out and
 before `pinch`/`sequence` consume it.
 
+**And it is a partition, not a schedule.** The pseudocode this section first
+carried ran a readiness loop over `witness_available`, which is unnecessary:
+`closure.rs`'s "# Rounds" note says every fold in a round was certified against
+the state *before* the round began, so any order inside a round is executable.
+`Closure::close` proves it — the tier-1 sweep and the lander enrichment both run
+before `self.round += 1` and before any fold. So:
+
 ```
 for each round, in round order:
-    while steps remain in the round:
-        ready  := steps whose chosen witness is available (witness_available)
-        take   := ready whose required side is the side already up
-                  (Either steps always qualify)
-        if take is empty: turn the sheet over; recompute take
-        emit take in order_round order; mark their lines available
+    turn := the round's steps that need the other side
+    stay := everything else — the ones that want this side, and the ones that
+            do not care, which cost nothing by going first
+    emit stay on the side already up, in order_round's sweep
+    if turn is non-empty: turn the sheet over and emit it, same sweep
 ```
 
-Taking the whole ready set before turning over is what makes the blocks maximal, and
-emitting in `order_round` order inside a block is what keeps the sweep. The loop
-terminates because the emitted order is itself feasible.
+At most one turn-over per round, the sweep intact inside each block, and no
+availability array. The running side is declared above phase 0 and threaded
+through every round: resetting it per round would turn the paper over at every
+boundary.
 
 ### D24 — what the crate carries
 
@@ -1362,14 +1377,15 @@ policy in `closure.rs`, decision in `order.rs`** — three separate places on pu
 | where | change |
 | --- | --- |
 | `merge.rs` | `MergedLine` gains `mountain_length: f64`, `valley_length: f64` — raw, no policy. `kinds` (a sorted set) cannot express a majority and stays as it is. |
-| `closure.rs` | `Target` gains `direction: Direction` (`Mountain` / `Valley` / `Either` / `None`) and `direction_share: f64`, from one policy function over those two lengths. `Either` is the sub-60% case, `None` an auxiliary line with no CP segments. |
-| `order.rs` | the D23 pass. `Placed` gains `side: Side`; `Either` and `None` steps record the side they were folded on. |
-| `sequence.rs` | `Step` gains `direction: Direction` (**resolved** — never `Either`) and `direction_share: f64`. Side changes between consecutive steps are the turn-overs; no separate step type. |
-| `oristudio-precrease-wasm` | nothing — serde carries it. |
+| `direction.rs` (new) | the policy, and the whole of it: `Direction`, `Side`, `FIRM_MAJORITY`, `majority()` and `share_of()`. It depends on nothing, so `merge`, `closure`, `order` and `sequence` can all name it. |
+| `closure.rs` | `Target` gains `direction: Direction` and `direction_share: f64`, through `Target::new` / `Target::unassigned` / `Target::forces_side`. Two production construction sites, not one — the **snappable** arm builds from `SnappedLine`, which carries no kinds, so the evidence sums over its `source_lines`. Nine more are test helpers. |
+| `order.rs` | the D23 pass. `Placed` gains `side: Side`; weak and unassigned steps record the side they were folded on. `group()`'s merge test gains `side`, so a group never spans a turn-over. |
+| `sequence.rs` | `Step` gains `direction: Direction` (**resolved**), `direction_share: f64` — the share of the line *that direction* gets right, so a weak line creased the other way reports `1 − share` — and `side: Side`. `Step.side` is carried rather than derived, because an `Unassigned` step has a side but no direction. |
+| `oristudio-precrease-wasm` | nothing — serde carries it. Verified by hand against a real `sequence()`, since the generated `.d.ts` says `sequence(): any` and nothing downstream would catch a renamed field. |
 
-`group()` groups *consecutive* steps, so side-grouping will split some rounds into more,
-smaller groups. Since Revision 3 removed the sequence outline from the sidebar, nothing
-reads `groups` today; this is a note, not a task.
+`group()` groups *consecutive* steps, so side-grouping splits some rounds into more,
+smaller groups. It also has to gain `side` in its merge test, or the last step of
+one block and the first of the next merge into one group across the turn-over.
 
 ### D25 — the diagram
 
@@ -1381,8 +1397,17 @@ reads `groups` today; this is a note, not a task.
   pattern is always viewed from the front.
 - Back-side steps render mirrored — `ReferencesCpView`'s `mirrored` prop, already
   implemented as a reflection folded into `modelToSvg`.
-- An **O1** step draws the crease between the two marks, with no motion arrow. Every
-  other axiom keeps the `CalcArrow` arc.
+- An **O1** step draws the crease between the two marks, with no motion arrow — on
+  the card *and* on the canvas, or the two disagree. (The no-arrow half was already
+  true, and true of O4 as well; see D22.)
+- A turn-over card shows the **build-up as of the fold before it**, not the finished
+  pattern. `plannerTurnOverDiagram` took the whole sequence, which was right when the
+  only turn-over came last; now it takes the step index. The same applies to
+  `referencesCreaseVisibility`, which had one rule for folds and another for the
+  closing cards and now has one for both.
+- Cards on the back are **mirrored**, like the canvas beside them. The mirror is in
+  `createDiagramProjector` rather than a transform on the SVG, so the labels stay the
+  right way round, and the arc sweep flag flips with it.
 - The crease is drawn in the Edit tab's own mountain/valley ink at full strength; the
   uncreased remainder of the chord stays that same ink at lower opacity. No third colour.
 
@@ -1390,9 +1415,14 @@ reads `groups` today; this is a note, not a task.
 
 The workspace states, once and plainly, that these are precreases: the sequence puts
 every crease in the right place, and the direction shown is the one that step is made
-in. On a step whose majority is under 60% the sentence says the line reverses in part
-when the model collapses. The summary strip never implies the finished assignment is
-what the sequence produces.
+in. The summary strip never implies the finished assignment is what the sequence
+produces — it states the turn-over count and how many lines are creased both ways.
+
+**The step sentence fires whenever `direction_share < 1`, not only under 60%.**
+An 84%-mountain line is dishonest in the same way a 55% one is, just less often,
+and the statement is true exactly when the share is below 1. Both counts also
+ship as bucketed analytics: the whole schedule was chosen on the turn-over
+count, so it is the number to watch in the field.
 
 ### Open questions
 
@@ -1403,14 +1433,46 @@ arrows (D25).
 
 ### Revision 4 checklist
 
-- [ ] `merge.rs` — `mountain_length` / `valley_length` on `MergedLine`, with tests
-- [ ] `closure.rs` — `Direction`, `Target.direction` / `direction_share`, one policy fn
-- [ ] `order.rs` — the D23 round-local side pass, over `witness_available`
-- [ ] `sequence.rs` — `Step.direction` / `direction_share`; regression that no step is `Either`
-- [ ] Rust test: no design in the fixture set exceeds its measured flip count
-- [ ] `precreaseSequence.ts` — the two new fields
-- [ ] Delete the `reverse` step kind and `referencesFoldDirection.ts`'s inference
-- [ ] Turn-over cards from `side` changes; closing turn-over when the last block is back
-- [ ] O1 steps drawn without an arrow
-- [ ] D26 sentences, translated for all 8 locales
-- [ ] Browser verification on markhor (3 flips expected) and iguana (12)
+- [x] `merge.rs` — `mountain_length` / `valley_length` on `MergedLine`, with tests
+- [x] `direction.rs` — `Direction`, `Side`, `FIRM_MAJORITY`, `majority`, `share_of`
+- [x] `closure.rs` — `Target.direction` / `direction_share`, including the snappable arm
+- [x] `order.rs` — the D23 round-local side partition; `Placed.side`; `Group.side`
+- [x] `sequence.rs` — `Step.direction` / `direction_share` / `side`
+- [x] Rust regression: exact per-step sides, not a bound — see below
+- [x] `precreaseSequence.ts` — the three new fields
+- [x] Delete the `reverse` step kind and `referencesFoldDirection.ts`
+- [x] Turn-over cards from `side` changes, opening and closing ones included
+- [x] Cards mirrored on the back
+- [x] O1 steps drawn between their marks, card and canvas
+- [x] D26 sentences and summary counts, translated for all 8 locales
+- [x] Analytics: `turn_overs_bucket`, `mixed_steps_bucket`
+- [x] Browser verification on markhor
+
+### The regression is two-sided on purpose
+
+Every way of getting this wrong makes the turn-over count go **down** — a path
+that forgets to read the evidence, an inverted mountain-is-the-back convention, a
+majority taken by count instead of length. A `flips <= measured` bound would pass
+on every one of them. So `tests/planner_direction.rs` pins the exact side of
+every step: `grid6` (7 M / 7 V, no mixed line, one right answer),
+`claim7-cand9` (the minimal two-block case), `bird_base` (all mountain, so it
+turns over once and stays), `iguana-c0` (91 steps, 6 turn-overs), and a
+**snapped** component — nothing in the repo planned one before, and the snappable
+arm is the one place the evidence has to be summed rather than read.
+
+Checked by mutation: inverting mountain/back fails 5 of the 8, dropping the
+snappable path's evidence fails exactly the test written for it, and never
+forcing a side fails 5.
+
+### What the browser showed, on markhor
+
+82 folds, **4 turn-overs**, 30 lines creased both ways. The turn-over cards draw
+12, 56, 75 and 82 creases — each the build-up as of that point, not the finished
+pattern. The closing card is the mirror image of the finished one across all 82
+lines, which is the card mirroring end to end. And step 1, the one that started
+this revision, now reads:
+
+> Fold the bottom-left corner onto the bottom-right corner. This line is creased
+> both ways in the pattern — the rest reverses as the model collapses.
+
+One fold, one direction, and the diagram says what it is not doing.
