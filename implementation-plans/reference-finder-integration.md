@@ -1089,3 +1089,100 @@ a head, matching `CalcArrow`'s `fromDir`/`toDir`.
   cards wide; the sidebar's grouped outline is the answer for that shape today,
   and whether the strip needs its own grouping is a question for a real
   hundred-step pattern rather than for this plan.
+
+---
+
+## Revision 3 — the sequence is a fold sequence, not a line-drawing order
+
+Eight more from a second browser session. Seven are presentation; the eighth changes what the
+sequence *is*.
+
+### D16 — a crease's direction is recoverable, and most lines carry both
+
+The crate reads Oriedita's colour codes once, to split border from non-border, and keeps the
+assignment only on `MergedLine.kinds`. `Planner::new` builds its `Target` from a merged line and
+never reads them, so from `Target` onward — `FoldedLine`, `Placed`, `Step`, `Sequence` — the
+assignment is gone; `LineTag` is provenance (`edge`/`cp`/`aux`/`rf_aux`), not mountain/valley.
+
+It is recoverable by the consumer in one hop: `Step.cp_line_ids` are 1-based indices into the
+same `segEndpoints`/`segAttr` the sheet thumbnails already colour from. So this is a
+presentation change, not a crate change.
+
+**Measured, on the planner's own fixtures** (a throwaway probe over `runPrecreasePlan`):
+
+| fixture | mountain | valley | **mixed** | no CP crease | steps |
+| --- | --- | --- | --- | --- | --- |
+| `grid6.fold` | 7 | 7 | **0** | 1 | 15 |
+| `iguana-c0.fold` | 16 | 16 | **57** | 2 | 91 |
+| `x13_x38.fold` | 2 | 0 | **0** | 3 | 5 |
+| `g3d_x19.fold` | 7 | 0 | **0** | 2 | 9 |
+
+On a real design, **most steps make a chord that is mountain along some spans and valley along
+others** — 57 of 91 on iguana, and step 1 alone is both over 20 crease ids. One fold along that
+chord cannot produce both.
+
+### D17 — one front pass, then reverse the mountains from the back
+
+That measurement rules out the obvious designs. Folding each step from the side that gives its
+direction is impossible for a mixed step and, with 64% mixed, would flip the paper on nearly
+every step. Grouping the sequence by side is also not available: the order is a topological
+order over "the chosen witness's inputs must already be folded", and `extent`, `visible`,
+`unlocks`, `Step.id` and `LineEntry.step` are all computed from the emitted order, so a consumer
+cannot reorder even within a round.
+
+What makes this tractable is that **a reference needs the crease to exist, not to point a
+particular way**. So:
+
+1. The planner's sequence, unchanged, folded from the front. Bringing paper up and over makes a
+   valley on the face you are looking at, so every crease lands as a valley.
+2. **Turn the paper over.**
+3. **Reverse the creases that must be mountains** — from the back they are valleys, which is why
+   this is one operation rather than a fight.
+4. **Turn it back over**, so the pattern is read from the front, which is the side its
+   mountain/valley assignment is stated in.
+
+Two flips, whatever the pattern, and it is what a folder does anyway. Steps 2–4 appear only when
+the sheet actually has mountain creases.
+
+The presentation list therefore stops being `{component, step}` and becomes a tagged union
+(`referencesSequenceView.ts`): a fold, a turn-over, or a reverse. The filmstrip, the caption, the
+crease visibility and the chords all address that list; `flatPlanSteps` still describes the
+planner's own steps underneath it.
+
+While the paper is on its back the canvas draws the pattern **mirrored**, because that is what
+you would see. The folded figure already does this (`mirror: -1` plus a `flipped` parity flag);
+here it is one x-negation folded into the `modelToSvg` the camera is built from, so picking
+inverts with it for free.
+
+### D18 — the step's crease keeps its own ink
+
+The canvas drew a step's crease twice: once as a document crease recoloured to
+`--cp-reference-new` at 2.6× width through the `selection` channel — which also discards its dash
+slot, fold-angle ramp and direction hint — and again as a full-chord green ghost over it. That is
+where the green came from, and the ghost is why a crease that was only pinched still showed as a
+line across the sheet on every later step.
+
+Now: a step's creases keep the Edit canvas's own mountain/valley ink and are emphasised by
+**width and opacity** instead of by hue. `selection` is left to the *picked* crease, which is a
+different question. Earlier steps' auxiliary lines are the only ghosts that survive, and only
+over the spans that were actually creased.
+
+### D19 — the step diagram was light ink on white paper
+
+`--bg-paper` is `#f2f0e7` in every dark theme (`applyTheme.ts` branches on theme *type* and picks
+between two near-whites), while `--fold-border` is the theme's `text.primary`. In a dark theme
+that pairing is light ink on a near-white sheet: 1.07:1 in dracula and monokai, 1.87:1 in the
+default one-dark. And `.step-diagram__label`'s halo is `--bg-paper`, painted into the 10% padding
+band `labelPlacement` deliberately pushes labels into — a near-white ring on the dark card.
+
+The diagram now draws on the canvas's own ground so it matches the pattern below it, and the halo
+follows the ground it sits on. Earlier steps' creases are drawn grey in the diagram too, so a card
+shows the sheet as it stands rather than a bare square.
+
+### Revision 3 checklist
+
+- [ ] Phase S1 — the step's own ink, pinch extents, and vertices that build up
+- [ ] Phase S2 — the rail is only a pattern picker, and the plan runs on arrival
+- [ ] Phase S3 — the step diagram: theme, earlier creases, mountain/valley
+- [ ] Phase S4 — turn over, reverse the mountains, turn back
+- [ ] Phase S5 — validation and browser verification
