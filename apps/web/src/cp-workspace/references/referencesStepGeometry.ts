@@ -27,10 +27,20 @@ import type { ReferencesModelStep, ReferencesOriginals } from './referencesResul
  */
 export type ReferencesGhostKind = 'folded' | 'input' | 'new' | 'unfolded';
 
+/** Which ink a ghost takes when it stands for a crease. */
+export type ReferencesGhostDirection = 'mountain' | 'valley' | 'unassigned';
+
 export interface ReferencesGhostSegment {
   a: Point;
   b: Point;
   kind: ReferencesGhostKind;
+  /**
+   * The crease's own direction, for the `new` and `unfolded` kinds.
+   *
+   * A crease is drawn in the ink that says which way it folds, never in a
+   * colour of its own — that is the one thing the reader is looking for.
+   */
+  direction?: ReferencesGhostDirection;
 }
 
 export type ReferencesMarkerKind = 'input' | 'new';

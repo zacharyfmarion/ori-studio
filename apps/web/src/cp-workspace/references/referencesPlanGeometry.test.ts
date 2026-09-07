@@ -66,12 +66,25 @@ describe('planStepOverlay', () => {
   const sequence = plannerSequenceFixture();
   const model = decodePlanModel(sequence, mapToModel(planModelPoints(sequence)));
 
-  it('draws the sheet as it stands before the fold, plus the fold', () => {
+  it('draws the fold across the sheet, and creases only what the pattern gains', () => {
     const overlay = planStepOverlay(sequence, model, 2);
     const kinds = overlay.ghosts.map((ghost) => ghost.kind);
-    expect(kinds.filter((kind) => kind === 'new')).toHaveLength(1);
+    // The whole chord, faintly: the fold runs the width of the paper whatever
+    // is pressed along it.
+    expect(kinds.filter((kind) => kind === 'unfolded')).toHaveLength(1);
+    // …and no `new` ghost, because this step puts creases in the pattern and
+    // the pattern draws them. Ghosting them too drew each crease twice, and
+    // drew it right across the sheet where the pattern gains only part of it.
+    expect(kinds.filter((kind) => kind === 'new')).toHaveLength(0);
     // Steps 1 and 2 came earlier; nothing after step 3 is drawn.
-    expect(overlay.ghosts.length).toBeLessThanOrEqual(5);
+    expect(overlay.ghosts.length).toBeLessThanOrEqual(6);
+  });
+
+  it('ghosts an auxiliary step, which has no crease in the pattern to draw it', () => {
+    const auxIndex = sequence.steps.findIndex((step) => step.cp_line_ids.length === 0);
+    expect(auxIndex).toBeGreaterThanOrEqual(0);
+    const overlay = planStepOverlay(sequence, model, auxIndex);
+    expect(overlay.ghosts.filter((ghost) => ghost.kind === 'new').length).toBeGreaterThan(0);
   });
 
   it('picks out the lines the step is made against', () => {

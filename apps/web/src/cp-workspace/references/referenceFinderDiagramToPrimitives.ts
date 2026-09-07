@@ -24,6 +24,9 @@ export type DiagramLineStyleName =
   | 'arrow'
   | 'dotted'
   | 'pinch'
+  /** A pinch in a known direction — ours; the wire's `pinch` carries none. */
+  | 'pinch-mountain'
+  | 'pinch-valley'
   /** The rest of a fold that is not creased — ours, never on the RF wire. */
   | 'unfolded';
 

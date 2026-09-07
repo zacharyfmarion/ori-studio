@@ -49,7 +49,9 @@ import {
   sheetBorderLineIds,
   sheetLineIds,
 } from '../../cp-workspace/references/referencesSheets';
+import { sequenceDirections } from '../../cp-workspace/references/referencesFoldDirection';
 import { sideAt } from '../../cp-workspace/references/referencesSequenceView';
+import type { ReferencesGhostDirection } from '../../cp-workspace/references/referencesStepGeometry';
 import {
   runReferencesShortcut,
   type ReferencesShortcutActions,
@@ -146,12 +148,22 @@ export function ReferencesPanel() {
   );
   // The planner's folds, then the two flips that settle mountain from valley.
   const viewSteps = breakdown.viewSteps;
+  // Each planner step's direction, so the overlay draws a crease in the ink
+  // that says which way it folds rather than in a colour of its own.
+  const stepDirections = useMemo<ReferencesGhostDirection[]>(() => {
+    const sequence = breakdown.variants[0]?.sequence;
+    if (!view.geometry || !sequence) return [];
+    return sequenceDirections(view.geometry, sequence).map((direction) =>
+      direction === 'mountain' || direction === 'valley' ? direction : 'unassigned'
+    );
+  }, [view.geometry, breakdown.variants]);
   const planHighlights = useReferencesPlanHighlights(
     breakdown.variants,
     viewSteps,
     breakdown.activeStep,
     breakdown.activeFinding,
-    settings.showPinches
+    settings.showPinches,
+    stepDirections
   );
   const highlights = targeted ? targetHighlights : planHighlights;
 

@@ -61,6 +61,7 @@ import {
   transportUserBounds,
   verticesOfLines,
   type ReferencesCreaseVisibility,
+  type ReferencesOverlayColors,
   type ReferencesHitIndexes,
   type ReferencesPick,
 } from './referencesViewGeometry';
@@ -161,8 +162,12 @@ const POINT_OUTLINE_CSS = 1.4;
 const HIGHLIGHT_WIDTH_MUL = 2.6;
 const ZOOM_STEP = 1.25;
 
-const NEW_COLOR_VAR = '--cp-reference-new';
-const NEW_FALLBACK: Rgba = [0.639, 0.902, 0.208, 1];
+const MOUNTAIN_COLOR_VAR = '--fold-mountain';
+const MOUNTAIN_FALLBACK: Rgba = [1, 0.302, 0.365, 1];
+const VALLEY_COLOR_VAR = '--fold-valley';
+const VALLEY_FALLBACK: Rgba = [0.376, 0.647, 0.98, 1];
+const INK_COLOR_VAR = '--fold-border';
+const INK_FALLBACK: Rgba = [0.067, 0.078, 0.09, 1];
 const INPUT_COLOR_VAR = '--cp-reference-input';
 const INPUT_FALLBACK: Rgba = [0.949, 0.353, 0.722, 1];
 const FOLDED_COLOR_VAR = '--fold-unassigned';
@@ -214,6 +219,26 @@ function sheetCentreX(
 
 function withAlpha(color: Rgba, alpha: number): Rgba {
   return [color[0], color[1], color[2], color[3] * alpha];
+}
+
+/**
+ * The overlay's inks, resolved from the canvas's own theme.
+ *
+ * A crease is drawn in the colour that says which way it folds — the one thing
+ * the reader is looking for — so the overlay has no "new crease" hue of its
+ * own. Marks and arrows take the ink the paper's edge is drawn in, the way a
+ * printed diagram does.
+ */
+function overlayColors(canvas: HTMLCanvasElement): ReferencesOverlayColors {
+  return {
+    folded: withAlpha(readCssVarColor(canvas, FOLDED_COLOR_VAR, FOLDED_FALLBACK), FOLDED_ALPHA),
+    input: readCssVarColor(canvas, INPUT_COLOR_VAR, INPUT_FALLBACK),
+    mark: readCssVarColor(canvas, INK_COLOR_VAR, INK_FALLBACK),
+    mountain: readCssVarColor(canvas, MOUNTAIN_COLOR_VAR, MOUNTAIN_FALLBACK),
+    valley: readCssVarColor(canvas, VALLEY_COLOR_VAR, VALLEY_FALLBACK),
+    unassigned: readCssVarColor(canvas, FOLDED_COLOR_VAR, FOLDED_FALLBACK),
+    unfoldedAlpha: UNFOLDED_ALPHA,
+  };
 }
 
 /** Everything the imperative handlers read, refreshed every render without re-binding them. */
@@ -750,7 +775,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           pointIdx: new Set(),
           circleIdx: new Set(),
           vertexIdx: new Set(),
-          color: readCssVarColor(canvas, NEW_COLOR_VAR, NEW_FALLBACK),
+          color: readCssVarColor(canvas, INK_COLOR_VAR, INK_FALLBACK),
         })
       );
       renderNowRef.current();
@@ -762,15 +787,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       const canvas = canvasRef.current;
       if (!renderer || !canvas) return;
       renderer.setPreview(
-        ghostSegmentsToStrokes(ghostSegments, {
-          folded: withAlpha(readCssVarColor(canvas, FOLDED_COLOR_VAR, FOLDED_FALLBACK), FOLDED_ALPHA),
-          input: readCssVarColor(canvas, INPUT_COLOR_VAR, INPUT_FALLBACK),
-          new: readCssVarColor(canvas, NEW_COLOR_VAR, NEW_FALLBACK),
-          unfolded: withAlpha(
-            readCssVarColor(canvas, NEW_COLOR_VAR, NEW_FALLBACK),
-            UNFOLDED_ALPHA
-          ),
-        })
+        ghostSegmentsToStrokes(ghostSegments, overlayColors(canvas))
       );
       renderNowRef.current();
     }, [ghostSegments, themeKey, rendererGeneration]);
@@ -782,7 +799,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       const renderer = rendererRef.current;
       const canvas = canvasRef.current;
       if (!renderer || !canvas) return;
-      const newColor = readCssVarColor(canvas, NEW_COLOR_VAR, NEW_FALLBACK);
+      const newColor = readCssVarColor(canvas, INK_COLOR_VAR, INK_FALLBACK);
       const highlighted = new Set(highlightVertexIdx);
       if (selected?.kind === 'vertex') highlighted.add(selected.idx);
       const picked = [...highlighted]
@@ -792,7 +809,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         concatOverlayPoints(
           markersToOverlayPoints(markers, {
             input: readCssVarColor(canvas, INPUT_COLOR_VAR, INPUT_FALLBACK),
-            new: newColor,
+            mark: newColor,
           }),
           highlightedVerticesToOverlayPoints(picked, newColor, pointSize)
         )

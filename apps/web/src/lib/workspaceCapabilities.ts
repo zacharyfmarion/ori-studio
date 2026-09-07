@@ -1124,10 +1124,16 @@ export function maskCapabilitiesForContext(
     // Simulate and References are read-only consumers of the crease pattern:
     // only navigation (`view.*`), file operations, playback (`simulator.*`), and
     // inert undo/redo apply. Every authoring command is hidden.
+    //
+    // `insert.*` is authoring too — it places an image or a text box *on the
+    // crease pattern* — and was the one family this list missed, so the Insert
+    // menu stood open over both read-only workspaces offering to edit a document
+    // neither of them can touch.
     for (const id of ids) {
       const isAuthoring =
         id.startsWith('cp.') ||
         id.startsWith('optimize.') ||
+        id.startsWith('insert.') ||
         (id.startsWith('edit.') && !SIMULATE_VISIBLE_EDIT.has(id));
       if (isAuthoring) hide(id);
     }

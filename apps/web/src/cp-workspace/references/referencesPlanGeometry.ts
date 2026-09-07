@@ -16,6 +16,7 @@
 import type { Point } from '../../lib/geometry';
 import type {
   ModelBounds,
+  ReferencesGhostDirection,
   ReferencesGhostSegment,
   ReferencesMarker,
   ReferencesStepOverlay,
@@ -148,6 +149,8 @@ export interface ReferencesPlanOverlay extends ReferencesStepOverlay {
 export interface ReferencesPlanOverlayOptions {
   /** Draw pinched auxiliary creases as their short spans rather than in full. */
   showPinches?: boolean;
+  /** Which way this step's crease folds, for the ink its ghost takes. */
+  direction?: ReferencesGhostDirection;
 }
 
 /**
@@ -224,12 +227,25 @@ export function planStepOverlay(
 
   const made = model.steps[index];
   if (made) {
+    const direction = options.direction ?? 'unassigned';
     const pinched = showPinches && made.pinches.length > 0;
-    if (pinched) {
-      ghosts.push({ a: made.segment.a, b: made.segment.b, kind: 'unfolded' });
+    // The whole chord, faintly: the fold runs the width of the sheet whatever
+    // is pressed along it, and the instruction is to bring the references
+    // together and crease only where the pattern wants a crease.
+    ghosts.push({ a: made.segment.a, b: made.segment.b, kind: 'unfolded', direction });
+    // What the pattern actually gains. A step that puts creases in the pattern
+    // is already drawn by the pattern — emphasised, in its own ink, by
+    // `referencesCreaseVisibility` — so ghosting it again drew the crease twice
+    // and, worse, drew it right across the sheet where the pattern only gains
+    // part of the chord.
+    if (step.cp_line_ids.length === 0) {
+      const spans = pinched ? made.pinches : [made.segment];
+      for (const span of spans) ghosts.push({ a: span.a, b: span.b, kind: 'new', direction });
+    } else if (pinched) {
+      for (const span of made.pinches) {
+        ghosts.push({ a: span.a, b: span.b, kind: 'new', direction });
+      }
     }
-    const spans = pinched ? made.pinches : [made.segment];
-    for (const span of spans) ghosts.push({ a: span.a, b: span.b, kind: 'new' });
     bounds = extend(extend(bounds, made.segment.a), made.segment.b);
   }
 

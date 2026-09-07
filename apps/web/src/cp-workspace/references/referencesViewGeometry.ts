@@ -12,7 +12,12 @@ import type { ModelPoint, PointGeometry, Rgba, StrokeGeometry } from '../rendere
 import { VERTEX_RADIUS_FACTOR } from '../adapters/cpPointsToScene';
 import { previewGroupsToStrokes, type PreviewStrokeGroup } from '../renderer/previewStrokes';
 import type { LineHitIndex } from '../picking/lineHitIndex';
-import type { ModelBounds, ReferencesGhostSegment, ReferencesMarker } from './referencesStepGeometry';
+import type {
+  ModelBounds,
+  ReferencesGhostKind,
+  ReferencesGhostSegment,
+  ReferencesMarker,
+} from './referencesStepGeometry';
 
 /**
  * What the view lets the user pick. Ids follow the editor's conventions so the
@@ -109,9 +114,14 @@ export function resolveReferencesPick(
 export interface ReferencesOverlayColors {
   folded: Rgba;
   input: Rgba;
-  new: Rgba;
-  /** The part of the fold that is not creased — the same ink, nearly transparent. */
-  unfolded: Rgba;
+  /** The mark a step constructs — ink, not a hue: it is a point, not a crease. */
+  mark: Rgba;
+  /** A crease's own ink, by direction. `new` and `unfolded` pick from these. */
+  mountain: Rgba;
+  valley: Rgba;
+  unassigned: Rgba;
+  /** How much of its ink the uncreased part of a fold keeps. */
+  unfoldedAlpha: number;
 }
 
 /**
@@ -126,16 +136,34 @@ export function ghostSegmentsToStrokes(
 ): StrokeGeometry | null {
   if (ghosts.length === 0) return null;
   const groups: PreviewStrokeGroup[] = [];
+  const inkOf = (ghost: ReferencesGhostSegment): Rgba =>
+    ghost.direction === 'mountain'
+      ? colors.mountain
+      : ghost.direction === 'valley'
+        ? colors.valley
+        : colors.unassigned;
+  const byInk = (kind: ReferencesGhostKind, alpha: number) => {
+    for (const ink of ['mountain', 'valley', 'unassigned'] as const) {
+      const segments = ghosts.filter(
+        (g) => g.kind === kind && (g.direction ?? 'unassigned') === ink
+      );
+      if (!segments.length) continue;
+      const color = inkOf(segments[0]);
+      groups.push({
+        segments,
+        color: alpha === 1 ? color : withAlpha(color, alpha),
+        dashed: false,
+      });
+    }
+  };
   const folded = ghosts.filter((g) => g.kind === 'folded');
-  const unfolded = ghosts.filter((g) => g.kind === 'unfolded');
   const inputs = ghosts.filter((g) => g.kind === 'input');
-  const made = ghosts.filter((g) => g.kind === 'new');
   // Faintest first: the part of the fold that is not creased sits under
-  // everything, including the spans that are.
-  if (unfolded.length) groups.push({ segments: unfolded, color: colors.unfolded, dashed: false });
+  // everything, including the parts that are.
+  byInk('unfolded', colors.unfoldedAlpha);
   if (folded.length) groups.push({ segments: folded, color: colors.folded, dashed: true });
   if (inputs.length) groups.push({ segments: inputs, color: colors.input, dashed: false });
-  if (made.length) groups.push({ segments: made, color: colors.new, dashed: false });
+  byInk('new', 1);
   return previewGroupsToStrokes(groups);
 }
 
@@ -149,7 +177,7 @@ export const REFERENCES_NEW_MARK_RADIUS_CSS = 4.5;
  */
 export function markersToOverlayPoints(
   markers: readonly ReferencesMarker[],
-  colors: Pick<ReferencesOverlayColors, 'input' | 'new'>
+  colors: Pick<ReferencesOverlayColors, 'input' | 'mark'>
 ): PointGeometry | null {
   const count = markers.length;
   if (count === 0) return null;
@@ -161,7 +189,7 @@ export function markersToOverlayPoints(
   markers.forEach((marker, i) => {
     center[i * 2] = marker.at.x;
     center[i * 2 + 1] = marker.at.y;
-    const color = marker.kind === 'new' ? colors.new : colors.input;
+    const color = marker.kind === 'new' ? colors.mark : colors.input;
     radius[i] = marker.kind === 'new' ? REFERENCES_NEW_MARK_RADIUS_CSS : REFERENCES_INPUT_RING_RADIUS_CSS;
     stroke.set(color, i * 4);
     fill.set(marker.kind === 'new' ? color : [color[0], color[1], color[2], 0], i * 4);
@@ -343,4 +371,9 @@ export function verticesOfLines(
     }
   }
   return kept;
+}
+
+/** `color` with its alpha scaled — for the uncreased part of a fold. */
+function withAlpha(color: Rgba, alpha: number): Rgba {
+  return [color[0], color[1], color[2], color[3] * alpha];
 }

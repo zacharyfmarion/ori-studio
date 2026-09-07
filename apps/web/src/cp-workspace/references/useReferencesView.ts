@@ -26,6 +26,7 @@ import {
   clampStepIndex,
   referencesStepOverlay,
   type ModelBounds,
+  type ReferencesGhostDirection,
   type ReferencesGhostSegment,
   type ReferencesMarker,
 } from './referencesStepGeometry';
@@ -214,7 +215,8 @@ function planHighlights(
   viewSteps: readonly ReferencesViewStep[],
   activeStep: number,
   activeFinding: number | null,
-  showPinches: boolean
+  showPinches: boolean,
+  directions: readonly ReferencesGhostDirection[]
 ): ReferencesHighlights {
   if (variants.length === 0) return NO_HIGHLIGHTS;
   if (activeFinding !== null) {
@@ -239,6 +241,7 @@ function planHighlights(
   if (!entry) return NO_HIGHLIGHTS;
   const overlay = planStepOverlay(entry.sequence, entry.model, target.step, {
     showPinches,
+    direction: directions[target.step],
   });
   return {
     highlightLineIds: new Set(overlay.highlightLineIds),
@@ -264,10 +267,12 @@ export function useReferencesPlanHighlights(
   viewSteps: readonly ReferencesViewStep[],
   activeStep: number,
   activeFinding: number | null,
-  showPinches: boolean
+  showPinches: boolean,
+  /** Each planner step's direction, for the ink its ghost takes. */
+  directions: readonly ReferencesGhostDirection[]
 ): ReferencesHighlights {
   return useMemo(
-    () => planHighlights(variants, viewSteps, activeStep, activeFinding, showPinches),
-    [variants, viewSteps, activeStep, activeFinding, showPinches]
+    () => planHighlights(variants, viewSteps, activeStep, activeFinding, showPinches, directions),
+    [variants, viewSteps, activeStep, activeFinding, showPinches, directions]
   );
 }

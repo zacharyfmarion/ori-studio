@@ -713,6 +713,11 @@ describe('workspace capabilities', () => {
       'cp.build',
       'cp.makeMountain',
       'optimize.scale',
+      // Insert places an image or a text box *on the crease pattern*, so it is
+      // authoring like the rest — and it was the one family the read-only arm
+      // missed, leaving the Insert menu open over both read-only workspaces.
+      'insert.image',
+      'insert.text',
     ] as const) {
       expect(refs[id].visible).toBe(false);
       expect(refs[id].enabled).toBe(false);

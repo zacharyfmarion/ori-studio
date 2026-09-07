@@ -106,8 +106,11 @@ describe('resolveReferencesPick', () => {
 const COLORS: ReferencesOverlayColors = {
   folded: [0.5, 0.5, 0.5, 1],
   input: [0, 1, 0, 1],
-  new: [1, 0, 1, 1],
-  unfolded: [1, 0, 1, 0.2],
+  mark: [1, 1, 1, 1],
+  mountain: [1, 0, 0, 1],
+  valley: [0, 0, 1, 1],
+  unassigned: [0.25, 0.25, 0.25, 1],
+  unfoldedAlpha: 0.25,
 };
 
 describe('ghostSegmentsToStrokes', () => {
@@ -125,8 +128,30 @@ describe('ghostSegmentsToStrokes', () => {
     expect(Array.from(strokes!.a)).toEqual([0, 1, 0, 2, 0, 0]);
     expect(Array.from(strokes!.color.slice(0, 4))).toEqual(COLORS.folded);
     expect(Array.from(strokes!.color.slice(4, 8))).toEqual(COLORS.input);
-    expect(Array.from(strokes!.color.slice(8, 12))).toEqual(COLORS.new);
+    expect(Array.from(strokes!.color.slice(8, 12))).toEqual(COLORS.unassigned);
     expect(Array.from(strokes!.dashSlot ?? [])).toEqual([1, 0, 0]);
+  });
+
+  it('draws a crease in the ink that says which way it folds', () => {
+    const strokes = ghostSegmentsToStrokes(
+      [
+        { a: { x: 0, y: 0 }, b: { x: 1, y: 0 }, kind: 'new', direction: 'mountain' },
+        { a: { x: 0, y: 1 }, b: { x: 1, y: 1 }, kind: 'new', direction: 'valley' },
+      ],
+      COLORS
+    );
+    expect(Array.from(strokes!.color.slice(0, 4))).toEqual(COLORS.mountain);
+    expect(Array.from(strokes!.color.slice(4, 8))).toEqual(COLORS.valley);
+  });
+
+  it('draws the uncreased part in the same ink, faintly', () => {
+    const strokes = ghostSegmentsToStrokes(
+      [{ a: { x: 0, y: 0 }, b: { x: 1, y: 0 }, kind: 'unfolded', direction: 'mountain' }],
+      COLORS
+    );
+    const [r, g, b, a] = Array.from(strokes!.color.slice(0, 4));
+    expect([r, g, b]).toEqual(COLORS.mountain.slice(0, 3));
+    expect(a).toBeCloseTo(COLORS.mountain[3] * COLORS.unfoldedAlpha, 5);
   });
 
   it('is null with nothing to draw', () => {
@@ -149,8 +174,9 @@ describe('markersToOverlayPoints', () => {
     // Ring: transparent fill, coloured stroke.
     expect(Array.from(points!.fill.slice(0, 4))).toEqual([0, 1, 0, 0]);
     expect(Array.from(points!.stroke.slice(0, 4))).toEqual(COLORS.input);
-    // Disc: filled.
-    expect(Array.from(points!.fill.slice(4, 8))).toEqual(COLORS.new);
+    // Disc: filled, in the diagram's ink — a mark is a point, not a crease, so
+    // it takes no fold colour.
+    expect(Array.from(points!.fill.slice(4, 8))).toEqual(COLORS.mark);
     expect(points!.radius[0]).toBeGreaterThan(points!.radius[1]);
   });
 

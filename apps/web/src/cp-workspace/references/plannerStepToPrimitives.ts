@@ -217,8 +217,8 @@ export function plannerStepDiagram(
   // The crease this step makes, then the letters, both over the references.
   // A precrease made from the front is a valley; `directions` says when the
   // pattern wants the other one.
-  const made: DiagramLineStyleName =
-    options.directions?.[index] === 'mountain' ? 'mountain' : 'valley';
+  const direction = options.directions?.[index];
+  const made: DiagramLineStyleName = direction === 'mountain' ? 'mountain' : 'valley';
   if (step.extent.kind === 'pinches') {
     // The fold runs the width of the sheet either way — the pinch is where it
     // is pressed. Drawing only the spans would say "fold this short line".
@@ -228,8 +228,16 @@ export function plannerStepDiagram(
       to: step.segment[1],
       style: 'unfolded',
     });
+    // A pinch is a crease, so it carries its own direction rather than a colour
+    // of its own.
+    const pinch: DiagramLineStyleName =
+      direction === 'mountain'
+        ? 'pinch-mountain'
+        : direction === 'valley'
+          ? 'pinch-valley'
+          : 'pinch';
     for (const span of step.extent.spans) {
-      primitives.push({ kind: 'line', from: span[0], to: span[1], style: 'pinch' });
+      primitives.push({ kind: 'line', from: span[0], to: span[1], style: pinch });
     }
   } else {
     primitives.push({

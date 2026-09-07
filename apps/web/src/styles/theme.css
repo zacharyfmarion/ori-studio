@@ -11260,8 +11260,11 @@ button.bp-packing-alert:focus-visible {
   stroke-width: 1.6;
 }
 
+/* Arrows are ink, not colour. A printed diagram draws the motion in the same
+   black as the paper's edge; giving it a hue makes it compete with the two
+   hues that carry meaning here, mountain and valley. */
 .step-diagram__line--arrow {
-  stroke: var(--cp-reference-new);
+  stroke: var(--fold-border);
   stroke-width: 1.4;
 }
 
@@ -11271,20 +11274,36 @@ button.bp-packing-alert:focus-visible {
   stroke-linecap: butt;
 }
 
-.step-diagram__line--pinch {
-  stroke: var(--cp-reference-new);
+/* A pinch is a crease, so it takes its direction's own colour — the two pinch
+   classes below carry it. Only the weight is shared: a pinch is pressed harder
+   than the crease it is part of, which is what makes it a mark. */
+.step-diagram__line--pinch,
+.step-diagram__line--pinch-mountain,
+.step-diagram__line--pinch-valley {
   stroke-width: 2.4;
+}
+
+.step-diagram__line--pinch {
+  stroke: var(--fold-unassigned);
+}
+
+.step-diagram__line--pinch-mountain {
+  stroke: var(--fold-mountain);
+}
+
+.step-diagram__line--pinch-valley {
+  stroke: var(--fold-valley);
 }
 
 /* The rest of the fold, which is not creased: the same line, barely there. */
 .step-diagram__line--unfolded {
   stroke: var(--fold-unassigned);
-  stroke-opacity: 0.3;
+  stroke-opacity: 0.28;
   stroke-width: 1;
 }
 
 .step-diagram__arrowhead {
-  fill: var(--cp-reference-new);
+  fill: var(--fold-border);
 }
 
 .step-diagram__point {
@@ -11296,7 +11315,7 @@ button.bp-packing-alert:focus-visible {
 }
 
 .step-diagram__point--action {
-  fill: var(--cp-reference-new);
+  fill: var(--fold-border);
 }
 
 /*
@@ -11326,5 +11345,5 @@ button.bp-packing-alert:focus-visible {
 }
 
 .step-diagram__label--action {
-  fill: var(--cp-reference-new);
+  fill: var(--fold-border);
 }
