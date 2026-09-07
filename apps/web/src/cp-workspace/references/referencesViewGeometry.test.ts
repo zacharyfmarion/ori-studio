@@ -107,6 +107,7 @@ const COLORS: ReferencesOverlayColors = {
   folded: [0.5, 0.5, 0.5, 1],
   input: [0, 1, 0, 1],
   new: [1, 0, 1, 1],
+  unfolded: [1, 0, 1, 0.2],
 };
 
 describe('ghostSegmentsToStrokes', () => {

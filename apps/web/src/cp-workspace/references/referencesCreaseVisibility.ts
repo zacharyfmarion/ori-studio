@@ -34,6 +34,13 @@ import type { ReferencesCreaseVisibility } from './referencesViewGeometry';
 
 /** How much of its colour a crease keeps once an earlier step made it. */
 export const REFERENCES_DIM_ALPHA = 0.26;
+/**
+ * How much wider the step's own creases draw.
+ *
+ * Width and opacity carry the emphasis, not hue: a crease's colour already says
+ * which way it folds, and that is the one thing the folder is reading it for.
+ */
+export const REFERENCES_EMPHASIS_WIDTH = 2.6;
 
 /** Everything at full strength: no sheet chosen, and nothing being read. */
 export const REFERENCES_ALL_CREASES: ReferencesCreaseVisibility = {
@@ -74,7 +81,13 @@ export function targetVisibility(input: ReferencesVisibilityInput): ReferencesCr
     if (activeLineIds.has(id) || input.borderLineIds?.has(id)) continue;
     dimmed.add(id);
   }
-  return { visible: sheetLineIds, dimmed, dimAlpha: REFERENCES_DIM_ALPHA };
+  return {
+    visible: sheetLineIds,
+    dimmed,
+    dimAlpha: REFERENCES_DIM_ALPHA,
+    emphasis: activeLineIds,
+    emphasisWidth: REFERENCES_EMPHASIS_WIDTH,
+  };
 }
 
 /**
@@ -113,5 +126,11 @@ export function planVisibility(
     if (active.has(id) || borderLineIds?.has(id)) continue;
     dimmed.add(id);
   }
-  return { visible, dimmed, dimAlpha: REFERENCES_DIM_ALPHA };
+  return {
+    visible,
+    dimmed,
+    dimAlpha: REFERENCES_DIM_ALPHA,
+    emphasis: active,
+    emphasisWidth: REFERENCES_EMPHASIS_WIDTH,
+  };
 }

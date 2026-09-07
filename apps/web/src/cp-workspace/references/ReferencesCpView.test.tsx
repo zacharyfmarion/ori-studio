@@ -110,7 +110,6 @@ function props(overrides: Partial<ReferencesCpViewProps> = {}): ReferencesCpView
     lineWidth: 1,
     pointSize: 1,
     wheelGesture: 'zoom',
-    highlightLineIds: new Set(),
     highlightVertexIdx: new Set(),
     selected: null,
     onPick: () => undefined,
@@ -358,13 +357,42 @@ describe('ReferencesCpView overlays', () => {
     expect(uploads.setOverlayPoints.mock.calls.at(-1)?.[0]).toBeNull();
   });
 
-  it('draws highlighted and picked creases in the highlight slot', () => {
-    mount({ highlightLineIds: new Set([2]), selected: { kind: 'line', id: 1 } });
+  it('gives the picked crease the highlight slot and the step’s creases the emphasis width', () => {
+    // Two different questions, and they used to share one channel: the picked
+    // crease is recoloured, while a step's creases keep their own mountain or
+    // valley ink and are widened instead.
+    mount({
+      selected: { kind: 'line', id: 1 },
+      creaseVisibility: {
+        visible: new Set([1, 2]),
+        dimmed: null,
+        dimAlpha: 1,
+        emphasis: new Set([2]),
+        emphasisWidth: 2.6,
+      },
+    });
     const strokes = uploads.setStrokes.mock.calls.at(-1)?.[0];
-    // Both creases take the highlight width multiplier (a Float32 buffer).
     expect(strokes.widthMul).toHaveLength(2);
     expect(strokes.widthMul[0]).toBeCloseTo(2.6, 5);
     expect(strokes.widthMul[1]).toBeCloseTo(2.6, 5);
+  });
+
+  it('leaves an unemphasised crease its own ink and width', () => {
+    mount({
+      creaseVisibility: {
+        visible: new Set([1, 2]),
+        dimmed: new Set([1]),
+        dimAlpha: 0.25,
+        emphasis: new Set([2]),
+        emphasisWidth: 2.6,
+      },
+    });
+    const strokes = uploads.setStrokes.mock.calls.at(-1)?.[0];
+    expect(strokes.widthMul[0]).toBeCloseTo(1, 5);
+    expect(strokes.widthMul[1]).toBeCloseTo(2.6, 5);
+    // Dimmed, not recoloured: alpha alone moves.
+    expect(strokes.color[3]).toBeCloseTo(0.25, 5);
+    expect(strokes.color[7]).toBeCloseTo(1, 5);
   });
 
   it('exposes zoom, fit and framing on its handle', () => {

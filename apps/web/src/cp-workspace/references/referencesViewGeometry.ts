@@ -6,7 +6,7 @@
  */
 import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import type { Point } from '../../lib/geometry';
-import { cpModelToSvg } from '../../lib/creasePatternViewport';
+import { cpModelToSvg, cpVertexId } from '../../lib/creasePatternViewport';
 import type { UserBounds } from '../renderer/camera';
 import type { ModelPoint, PointGeometry, Rgba, StrokeGeometry } from '../renderer/types';
 import { VERTEX_RADIUS_FACTOR } from '../adapters/cpPointsToScene';
@@ -110,6 +110,8 @@ export interface ReferencesOverlayColors {
   folded: Rgba;
   input: Rgba;
   new: Rgba;
+  /** The part of the fold that is not creased — the same ink, nearly transparent. */
+  unfolded: Rgba;
 }
 
 /**
@@ -125,8 +127,12 @@ export function ghostSegmentsToStrokes(
   if (ghosts.length === 0) return null;
   const groups: PreviewStrokeGroup[] = [];
   const folded = ghosts.filter((g) => g.kind === 'folded');
+  const unfolded = ghosts.filter((g) => g.kind === 'unfolded');
   const inputs = ghosts.filter((g) => g.kind === 'input');
   const made = ghosts.filter((g) => g.kind === 'new');
+  // Faintest first: the part of the fold that is not creased sits under
+  // everything, including the spans that are.
+  if (unfolded.length) groups.push({ segments: unfolded, color: colors.unfolded, dashed: false });
   if (folded.length) groups.push({ segments: folded, color: colors.folded, dashed: true });
   if (inputs.length) groups.push({ segments: inputs, color: colors.input, dashed: false });
   if (made.length) groups.push({ segments: made, color: colors.new, dashed: false });
@@ -233,6 +239,18 @@ export function isClick(
 /** What a step does to each of the document's creases. */
 export interface ReferencesCreaseVisibility {
   /**
+   * Ids drawn thicker: the creases the active step makes.
+   *
+   * Emphasis by *width*, not by hue. The step's creases used to be recoloured
+   * to `--cp-reference-new` through the adapter's `selection` channel, which
+   * threw away the mountain/valley ink the Edit canvas gives them — so the one
+   * thing the folder needs to know about a crease, which way it folds, was the
+   * thing the highlight erased.
+   */
+  emphasis?: ReadonlySet<number> | null;
+  /** Width multiplier for an emphasised crease. */
+  emphasisWidth?: number;
+  /**
    * The 1-based ids drawn at all. `null` means every crease — the sheet is not
    * being read step by step, so nothing is held back.
    */
@@ -267,9 +285,12 @@ export function applyCreaseVisibility(
   segmentCount: number,
   visibility: ReferencesCreaseVisibility
 ): StrokeGeometry {
-  const { visible, dimmed, dimAlpha } = visibility;
-  if (visible === null && (dimmed === null || dimmed.size === 0)) return strokes;
+  const { visible, dimmed, dimAlpha, emphasis = null, emphasisWidth = 1 } = visibility;
+  const filters =
+    visible !== null || (dimmed !== null && dimmed.size > 0) || (emphasis !== null && emphasis.size > 0);
+  if (!filters) return strokes;
   const color = new Float32Array(strokes.color);
+  const widthMul = new Float32Array(strokes.widthMul);
   for (let i = 0; i < strokes.count; i += 1) {
     if (i >= segmentCount) {
       color[i * 4 + 3] = 0;
@@ -280,7 +301,46 @@ export function applyCreaseVisibility(
       color[i * 4 + 3] = 0;
       continue;
     }
+    if (emphasis !== null && emphasis.has(id)) {
+      widthMul[i] *= emphasisWidth;
+      continue;
+    }
     if (dimmed !== null && dimmed.has(id)) color[i * 4 + 3] *= dimAlpha;
   }
-  return { ...strokes, color };
+  return { ...strokes, color, widthMul };
+}
+
+/**
+ * The vertices touched by a set of creases, as indices into
+ * `vertexPointsFromTransport`'s output.
+ *
+ * Keyed through `cpVertexId`, which is the same 1e-9 quantisation that function
+ * de-duplicates by. Keyed on the raw floats instead, a vertex whose crease
+ * carries a different sub-1e-9 coordinate than the first-seen one would miss
+ * its own bucket and vanish.
+ *
+ * One implementation for two questions that must not be able to disagree:
+ * which vertices belong to the sheet in scope, and which of them the steps so
+ * far have actually made.
+ */
+export function verticesOfLines(
+  geometry: CpGeometryTransport,
+  vertices: readonly Point[],
+  lineIds: ReadonlySet<number>
+): Set<number> {
+  const index = new Map<string, number>();
+  vertices.forEach((point, i) => index.set(cpVertexId(point), i));
+  const endpoints = geometry.segEndpoints;
+  const kept = new Set<number>();
+  for (const id of lineIds) {
+    const base = (id - 1) * 4;
+    if (base < 0 || base + 3 >= endpoints.length) continue;
+    for (const at of [
+      index.get(cpVertexId({ x: endpoints[base], y: endpoints[base + 1] })),
+      index.get(cpVertexId({ x: endpoints[base + 2], y: endpoints[base + 3] })),
+    ]) {
+      if (at !== undefined) kept.add(at);
+    }
+  }
+  return kept;
 }

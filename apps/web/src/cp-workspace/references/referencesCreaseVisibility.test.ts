@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   REFERENCES_ALL_CREASES,
   REFERENCES_DIM_ALPHA,
+  REFERENCES_EMPHASIS_WIDTH,
   planVisibility,
   targetVisibility,
   unreadVisibility,
@@ -134,5 +135,32 @@ describe('unreadVisibility', () => {
     expect(
       unreadVisibility({ sheetLineIds: null, borderLineIds: null, activeLineIds: new Set() })
     ).toBe(REFERENCES_ALL_CREASES);
+  });
+});
+
+describe('emphasis', () => {
+  it('widens the step’s own creases instead of recolouring them', () => {
+    const at = planVisibility(
+      [variant([step(1, [10]), step(2, [11])])],
+      [
+        { component: 0, step: 0 },
+        { component: 0, step: 1 },
+      ],
+      1,
+      { sheetLineIds: SHEET, borderLineIds: BORDER, activeLineIds: new Set() }
+    );
+    expect([...(at.emphasis ?? [])]).toEqual([11]);
+    expect(at.emphasisWidth).toBe(REFERENCES_EMPHASIS_WIDTH);
+    // …and the same crease is therefore not in the dimmed set.
+    expect(at.dimmed?.has(11)).toBe(false);
+  });
+
+  it('emphasises the picked crease when one reference is being read', () => {
+    const at = targetVisibility({
+      sheetLineIds: SHEET,
+      borderLineIds: BORDER,
+      activeLineIds: new Set([11]),
+    });
+    expect([...(at.emphasis ?? [])]).toEqual([11]);
   });
 });

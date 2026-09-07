@@ -15,9 +15,17 @@ import type { ReferencesModelStep, ReferencesOriginals } from './referencesResul
 /**
  * How a ghost line reads on the view: `folded` is a crease an earlier step made
  * and this one does not use, `input` is a reference this step folds through or
- * onto, `new` is the crease this step makes.
+ * onto, `new` is the crease this step makes, and `unfolded` is the rest of the
+ * chord a pinched step does *not* crease.
+ *
+ * `unfolded` is drawn faintly rather than left out because the fold itself runs
+ * the whole width of the paper — the folder brings the two references together
+ * across the sheet and presses only where the mark is wanted. Showing the span
+ * alone would say "fold this short line", which is not the instruction. It is
+ * only ever drawn for the step being made: on a later step the parts that were
+ * never creased are not on the paper, so they are not drawn at all.
  */
-export type ReferencesGhostKind = 'folded' | 'input' | 'new';
+export type ReferencesGhostKind = 'folded' | 'input' | 'new' | 'unfolded';
 
 export interface ReferencesGhostSegment {
   a: Point;

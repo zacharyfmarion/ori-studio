@@ -9,7 +9,7 @@ import {
 import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
 import type { Point } from '../../lib/geometry';
-import { cpModelToSvg, cpVertexId, type OristudioCpLineStyle } from '../../lib/creasePatternViewport';
+import { cpModelToSvg, type OristudioCpLineStyle } from '../../lib/creasePatternViewport';
 import { cpLineStyleDashPatterns } from '../../lib/oristudioCpLineStyle';
 import { CP_DEFAULT_SNAP_RADIUS } from '../../lib/cpSnapRadiusSetting';
 import { resolveWheelGesture, type WheelGesturePreference } from '../../lib/wheelGesture';
@@ -59,6 +59,7 @@ import {
   modelBoundsToUser,
   resolveReferencesPick,
   transportUserBounds,
+  verticesOfLines,
   type ReferencesCreaseVisibility,
   type ReferencesHitIndexes,
   type ReferencesPick,
@@ -106,8 +107,6 @@ export interface ReferencesCpViewProps {
   wheelGesture: WheelGesturePreference;
   /** The user's snap radius, model units; sets the click radii at the live zoom. */
   snapRadius?: number;
-  /** 1-based crease ids drawn in the "new crease" colour (the step's CP creases). */
-  highlightLineIds: ReadonlySet<number>;
   /** 0-based vertex indices drawn in the "new crease" colour. */
   highlightVertexIdx: ReadonlySet<number>;
   /** Lines that do not (yet) exist in the pattern, drawn over it. */
@@ -160,7 +159,10 @@ const FOLDED_COLOR_VAR = '--fold-unassigned';
 const FOLDED_FALLBACK: Rgba = [0.604, 0.643, 0.678, 1];
 /** Ghosted "folded so far" lines sit back from the pattern. */
 const FOLDED_ALPHA = 0.55;
+/** The part of a fold that is not creased: present, but barely. */
+const UNFOLDED_ALPHA = 0.22;
 
+const EMPTY_IDS: ReadonlySet<number> = new Set();
 const EMPTY_GHOSTS: readonly ReferencesGhostSegment[] = [];
 const EMPTY_MARKERS: readonly ReferencesMarker[] = [];
 /** No step filter: the whole document, at full strength. */
@@ -212,7 +214,6 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       pointSize,
       wheelGesture,
       snapRadius = CP_DEFAULT_SNAP_RADIUS,
-      highlightLineIds,
       highlightVertexIdx,
       ghostSegments = EMPTY_GHOSTS,
       markers = EMPTY_MARKERS,
@@ -255,33 +256,29 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
      * `selected` are both indices into it (`useReferencesView`), so compacting
      * the array here would silently renumber them.
      */
-    const sheetVertexIdx = useMemo<Set<number> | null>(() => {
-      if (!sheetLineIds) return null;
-      // Keyed through `cpVertexId`, which is the same 1e-9 quantisation
-      // `vertexPointsFromTransport` de-duplicates by. Keyed on the raw floats
-      // instead, a vertex whose sheet segment carries a different sub-1e-9
-      // coordinate than the first-seen one would miss its own bucket and drop
-      // out of the sheet — invisible, and unpickable.
-      const index = new Map<string, number>();
-      vertices.forEach((point, i) => index.set(cpVertexId(point), i));
-      const endpoints = geometry.segEndpoints;
-      const kept = new Set<number>();
-      for (const id of sheetLineIds) {
-        const base = (id - 1) * 4;
-        if (base < 0 || base + 3 >= endpoints.length) continue;
-        for (const at of [
-          index.get(cpVertexId({ x: endpoints[base], y: endpoints[base + 1] })),
-          index.get(cpVertexId({ x: endpoints[base + 2], y: endpoints[base + 3] })),
-        ]) {
-          if (at !== undefined) kept.add(at);
-        }
-      }
-      return kept;
-    }, [geometry, vertices, sheetLineIds]);
+    const sheetVertexIdx = useMemo<Set<number> | null>(
+      () => (sheetLineIds ? verticesOfLines(geometry, vertices, sheetLineIds) : null),
+      [geometry, vertices, sheetLineIds]
+    );
     const sheetVertices = useMemo(
       () => (sheetVertexIdx ? vertices.filter((_, i) => sheetVertexIdx.has(i)) : vertices),
       [vertices, sheetVertexIdx]
     );
+    /**
+     * The vertices the *step* has made, which is not the same set.
+     *
+     * A vertex is where creases cross, so one whose creases are all still to be
+     * folded does not exist yet on the paper — drawing it gave away where later
+     * folds land and made the sheet look finished from step one. Picking is
+     * deliberately left on the whole sheet: asking "how do I get this point"
+     * before reaching its step is the question the workspace is for.
+     */
+    const drawnVertices = useMemo(() => {
+      const visible = creaseVisibility.visible;
+      if (!visible) return sheetVertices;
+      const kept = verticesOfLines(geometry, vertices, visible);
+      return vertices.filter((_, i) => kept.has(i));
+    }, [geometry, vertices, sheetVertices, creaseVisibility]);
     // What the vertex crowding ramp measures against — the same strided median
     // the editor uses, so the two surfaces fade at the same point.
     const vertexSpacingModel = useMemo(() => {
@@ -667,15 +664,18 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       const renderer = rendererRef.current;
       const canvas = canvasRef.current;
       if (!renderer || !canvas) return;
-      const highlighted = new Set(highlightLineIds);
-      if (selected?.kind === 'line') highlighted.add(selected.id);
+      // Only the *picked* crease is recoloured. The active step's creases are
+      // emphasised by width in `applyCreaseVisibility` instead, so they keep the
+      // mountain/valley ink the Edit canvas gives them — see
+      // `ReferencesCreaseVisibility.emphasis`.
+      const picked = selected?.kind === 'line' ? new Set([selected.id]) : EMPTY_IDS;
       const { strokes } = cpGeometryStrokesToScene(
         geometry,
         createCpLineAppearanceResolver(lineStyle, mode, canvas),
         cpLineStyleDashPatterns(lineStyle),
         {
-          selected: highlighted,
-          color: readCssVarColor(canvas, NEW_COLOR_VAR, NEW_FALLBACK),
+          selected: picked,
+          color: readCssVarColor(canvas, INPUT_COLOR_VAR, INPUT_FALLBACK),
           widthMul: HIGHLIGHT_WIDTH_MUL,
         }
       );
@@ -683,16 +683,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         applyCreaseVisibility(strokes, geometry.segEndpoints.length / 4, creaseVisibility)
       );
       renderNowRef.current();
-    }, [
-      geometry,
-      lineStyle,
-      mode,
-      highlightLineIds,
-      selected,
-      creaseVisibility,
-      themeKey,
-      rendererGeneration,
-    ]);
+    }, [geometry, lineStyle, mode, selected, creaseVisibility, themeKey, rendererGeneration]);
 
     // Vertex dots. Deliberately *without* the highlighted ones: this layer rides
     // the crowding ramp (`renderNow`) and fades to nothing on a dense pattern,
@@ -702,7 +693,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       const canvas = canvasRef.current;
       if (!renderer || !canvas) return;
       renderer.setPoints(
-        cpPointsToScene([], sheetVertices, [], resolveCpPointStyle(canvas, pointSize), {
+        cpPointsToScene([], drawnVertices, [], resolveCpPointStyle(canvas, pointSize), {
           pointIdx: new Set(),
           circleIdx: new Set(),
           vertexIdx: new Set(),
@@ -710,7 +701,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         })
       );
       renderNowRef.current();
-    }, [sheetVertices, pointSize, themeKey, rendererGeneration]);
+    }, [drawnVertices, pointSize, themeKey, rendererGeneration]);
 
     // The step's lines that the pattern does not contain, over the creases.
     useEffect(() => {
@@ -722,6 +713,10 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           folded: withAlpha(readCssVarColor(canvas, FOLDED_COLOR_VAR, FOLDED_FALLBACK), FOLDED_ALPHA),
           input: readCssVarColor(canvas, INPUT_COLOR_VAR, INPUT_FALLBACK),
           new: readCssVarColor(canvas, NEW_COLOR_VAR, NEW_FALLBACK),
+          unfolded: withAlpha(
+            readCssVarColor(canvas, NEW_COLOR_VAR, NEW_FALLBACK),
+            UNFOLDED_ALPHA
+          ),
         })
       );
       renderNowRef.current();

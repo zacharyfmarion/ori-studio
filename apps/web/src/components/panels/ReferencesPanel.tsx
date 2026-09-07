@@ -455,7 +455,6 @@ export function ReferencesPanel() {
               pointSize={view.pointSize}
               wheelGesture={view.wheelGesture}
               snapRadius={view.snapRadius}
-              highlightLineIds={highlights.highlightLineIds}
               highlightVertexIdx={highlights.highlightVertexIdx}
               ghostSegments={highlights.ghostSegments}
               markers={highlights.markers}

@@ -153,11 +153,19 @@ export interface ReferencesPlanOverlayOptions {
 /**
  * What the view draws at step `index` (0-based into `sequence.steps`).
  *
- * The sheet as it stands *before* this fold plus the fold itself: earlier
- * steps drawn folded, this step's own inputs picked out, its new crease
- * ghosted. A pinched auxiliary crease is drawn as its spans, which is the
- * whole point of the pinch pass — the folder should see a mark, not a line
- * that will show in the finished model.
+ * The fold itself, over the sheet as it stands. Three rules earn their keep:
+ *
+ * - **An earlier step is ghosted only if it left no crease in the pattern.**
+ *   A step that made CP creases is already on the canvas as those creases,
+ *   dimmed by the build-up (`referencesCreaseVisibility`), so ghosting it again
+ *   drew every crease twice — and drew it as a full chord across the sheet even
+ *   when only a pinch was made. Auxiliary steps have no CP crease to stand in
+ *   for them, so they keep their ghost.
+ * - **A ghost never spans more than was creased.** The parts of a fold that were
+ *   never pressed are not on the paper.
+ * - **Except on the step being made**, where the rest of the chord is drawn
+ *   faintly: the fold does run the width of the sheet, and the instruction is to
+ *   bring the references together and press only where the mark is wanted.
  */
 export function planStepOverlay(
   sequence: PrecreaseSequence,
@@ -182,7 +190,10 @@ export function planStepOverlay(
 
   const drawStep = (at: number, kind: 'folded' | 'input') => {
     const geometry = model.steps[at];
-    if (!geometry) return;
+    const earlier = sequence.steps[at];
+    if (!geometry || !earlier) return;
+    // A step that put creases in the pattern is drawn by the pattern.
+    if (kind === 'folded' && earlier.cp_line_ids.length > 0) return;
     const spans =
       showPinches && geometry.pinches.length > 0 ? geometry.pinches : [geometry.segment];
     for (const span of spans) ghosts.push({ a: span.a, b: span.b, kind });
@@ -213,7 +224,11 @@ export function planStepOverlay(
 
   const made = model.steps[index];
   if (made) {
-    const spans = showPinches && made.pinches.length > 0 ? made.pinches : [made.segment];
+    const pinched = showPinches && made.pinches.length > 0;
+    if (pinched) {
+      ghosts.push({ a: made.segment.a, b: made.segment.b, kind: 'unfolded' });
+    }
+    const spans = pinched ? made.pinches : [made.segment];
     for (const span of spans) ghosts.push({ a: span.a, b: span.b, kind: 'new' });
     bounds = extend(extend(bounds, made.segment.a), made.segment.b);
   }
