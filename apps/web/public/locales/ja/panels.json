@@ -784,15 +784,7 @@
     },
     "backToPattern": "パターン全体に戻る",
     "breakdown": {
-      "aux": "目印",
-      "landmarks": "目印",
-      "pinch": "つまみ折り",
-      "round": "ラウンド {{n}}",
-      "sectionCount": "{{n}} 回の折り",
-      "sheet": "シート {{n}}",
-      "sheetId": "シート {{n}}",
-      "unlocks": "{{n}} 回の折りを可能にします",
-      "visible": "見える"
+      "sheetId": "シート {{n}}"
     },
     "canvasAriaLabel": "展開図。頂点や折り線をクリックすると基準点の折り方を探します。ドラッグで移動、スクロールでズーム。",
     "card": {
@@ -877,11 +869,6 @@
       "topEdge": "上の辺"
     },
     "refusedSheet": "この選択の周りの用紙を長方形として読み取れませんでした。",
-    "row": {
-      "aux": "目印の折り線を {{direction}} 折ります",
-      "auxPinch": "目印を {{direction}} つまみます",
-      "cp": "{{direction}} 折ります"
-    },
     "searching": "基準点を探しています…",
     "settings": {
       "candidateCount": "{{n}} 件の解",
@@ -902,7 +889,6 @@
     },
     "sidebar": {
       "none": "現在の設定では、この対象の作図は見つかりませんでした。",
-      "plan": "折り方を計算",
       "planning": "折り手順を計算しています…"
     },
     "step": {

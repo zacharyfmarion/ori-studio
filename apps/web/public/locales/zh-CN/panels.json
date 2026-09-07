@@ -784,15 +784,7 @@
     },
     "backToPattern": "返回整个折痕图",
     "breakdown": {
-      "aux": "基准",
-      "landmarks": "基准点",
-      "pinch": "捏折",
-      "round": "第 {{n}} 轮",
-      "sectionCount": "{{n}} 次折叠",
-      "sheet": "纸张 {{n}}",
-      "sheetId": "纸张 {{n}}",
-      "unlocks": "解锁 {{n}} 次折叠",
-      "visible": "可见"
+      "sheetId": "纸张 {{n}}"
     },
     "canvasAriaLabel": "折痕图。点击顶点或折痕以查找其参考点；拖动平移，滚动缩放。",
     "card": {
@@ -877,11 +869,6 @@
       "topEdge": "上边"
     },
     "refusedSheet": "无法将所选位置周围的纸读取为矩形。",
-    "row": {
-      "aux": "{{direction}}折出一条基准折痕",
-      "auxPinch": "{{direction}}捏出一个基准点",
-      "cp": "{{direction}}折叠"
-    },
     "searching": "正在查找参考点…",
     "settings": {
       "candidateCount": "{{n}} 个解",
@@ -902,7 +889,6 @@
     },
     "sidebar": {
       "none": "在当前设置下，ReferenceFinder 没有为此目标找到作图。",
-      "plan": "计算折叠",
       "planning": "正在计算折叠顺序…"
     },
     "step": {

@@ -813,15 +813,7 @@
     },
     "backToPattern": "Zurück zum ganzen Muster",
     "breakdown": {
-      "aux": "Orientierungspunkt",
-      "landmarks": "Orientierungspunkte",
-      "pinch": "Kniff",
-      "round": "Runde {{n}}",
-      "sectionCount": "{{n}} Faltungen",
-      "sheet": "Blatt {{n}}",
-      "sheetId": "Blatt {{n}}",
-      "unlocks": "ermöglicht {{n}} Faltungen",
-      "visible": "Sichtbar"
+      "sheetId": "Blatt {{n}}"
     },
     "canvasAriaLabel": "Faltmuster. Klicke auf einen Scheitelpunkt oder eine Falte, um ihre Referenzen zu finden; ziehen zum Verschieben, scrollen zum Zoomen.",
     "card": {
@@ -907,11 +899,6 @@
       "topEdge": "die obere Kante"
     },
     "refusedSheet": "Der Bogen um diese Auswahl konnte nicht als Rechteck gelesen werden.",
-    "row": {
-      "aux": "Eine Hilfsfaltlinie {{direction}} falten",
-      "auxPinch": "Einen Orientierungspunkt {{direction}} kneifen",
-      "cp": "{{direction}} falten"
-    },
     "searching": "Referenzen werden gesucht…",
     "settings": {
       "candidateCount": "{{n}} Lösungen",
@@ -934,7 +921,6 @@
     },
     "sidebar": {
       "none": "ReferenceFinder hat mit den aktuellen Einstellungen keine Konstruktion für dieses Ziel gefunden.",
-      "plan": "Faltungen berechnen",
       "planning": "Faltfolge wird berechnet…"
     },
     "step": {

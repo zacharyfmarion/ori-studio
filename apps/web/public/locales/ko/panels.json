@@ -784,15 +784,7 @@
     },
     "backToPattern": "패턴 전체로 돌아가기",
     "breakdown": {
-      "aux": "기준점",
-      "landmarks": "기준점",
-      "pinch": "집기",
-      "round": "라운드 {{n}}",
-      "sectionCount": "접기 {{n}}회",
-      "sheet": "시트 {{n}}",
-      "sheetId": "시트 {{n}}",
-      "unlocks": "접기 {{n}}회를 가능하게 함",
-      "visible": "보임"
+      "sheetId": "시트 {{n}}"
     },
     "canvasAriaLabel": "전개도. 꼭짓점이나 접는 선을 클릭하면 기준점을 찾습니다. 드래그로 이동, 스크롤로 확대/축소.",
     "card": {
@@ -877,11 +869,6 @@
       "topEdge": "위쪽 변"
     },
     "refusedSheet": "이 선택 주변의 종이를 직사각형으로 읽을 수 없었습니다.",
-    "row": {
-      "aux": "기준 접힘선을 {{direction}} 접습니다",
-      "auxPinch": "기준점을 {{direction}} 집습니다",
-      "cp": "{{direction}} 접습니다"
-    },
     "searching": "기준점을 찾는 중…",
     "settings": {
       "candidateCount": "해 {{n}}개",
@@ -902,7 +889,6 @@
     },
     "sidebar": {
       "none": "현재 설정으로는 이 대상에 대한 작도를 찾지 못했습니다.",
-      "plan": "접기 계산",
       "planning": "접기 순서를 계산하는 중…"
     },
     "step": {

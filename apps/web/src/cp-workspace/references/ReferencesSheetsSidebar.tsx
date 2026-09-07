@@ -1,9 +1,7 @@
 import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Shapes } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
 import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
-import { ReferencesBreakdownList } from './ReferencesBreakdownList';
 import { ReferencesFindingsList } from './ReferencesFindingsList';
 import type { ReferencesAnalysis } from './referencesAnalysis';
 import { sheetThumbnail, type ReferencesSheet } from './referencesSheets';
@@ -24,11 +22,11 @@ import type { ReferencesBreakdownController } from './useReferencesBreakdown';
  * leave both homeless; a lone row still says which sheet the workspace found
  * and whether it can be planned.
  *
- * Under the pattern list it carries the sequence *outline* — the crate's own
- * grouping of consecutive steps that share a round, direction, axiom and input
- * pattern, so "seven parallel creases" is one row. The filmstrip above the
- * canvas shows every step in turn; this is the table of contents for it, and
- * the two drive the same active-step index.
+ * Under the pattern list it carries only the notes: what the frames analysis
+ * warned about, and the lines no exact fold reaches. It deliberately does *not*
+ * carry a second view of the sequence — the filmstrip above the canvas is where
+ * the steps are read, and a rail that also listed them made the workspace two
+ * things at once.
  *
  * Presentation only: what to show and which row is active are props, and a
  * press reports back.
@@ -102,34 +100,14 @@ export const ReferencesSheetsSidebar = memo(function ReferencesSheetsSidebar({
         </div>
       )}
 
-      {planned && (
-        <ReferencesBreakdownList
-          components={breakdown.components}
-          flatSteps={breakdown.flatSteps}
-          activeStep={breakdown.activeStep}
-          expandedRow={breakdown.expandedRow}
-          onSelectStep={breakdown.selectStep}
-          onSelectRow={breakdown.selectRow}
-        />
-      )}
-
       <div className="references-sidebar__notes">
-        {!planned && hasDocument && !targeted && (
-          <div className="references-sidebar__hint">
-            <p>
-              {busy
-                ? t('panels:references.sidebar.planning', 'Working out the folding sequence…')
-                : t(
-                    'panels:references.sheets.noPlan',
-                    'Work out how to fold this pattern, or click a vertex or crease for one reference.'
-                  )}
-            </p>
-            {!busy && (
-              <Button variant="primary" size="sm" onClick={breakdown.run}>
-                {t('panels:references.sidebar.plan', 'Work out the folds')}
-              </Button>
-            )}
-          </div>
+        {/* No "work it out" button: the sequence is what the workspace is for,
+            so it runs on arrival (`useReferencesAutoPlan`) the way Simulate
+            folds on arrival. Recompute in the toolbar is the way to ask again. */}
+        {hasDocument && !targeted && !planned && busy && (
+          <p className="references-sidebar__hint">
+            {t('panels:references.sidebar.planning', 'Working out the folding sequence…')}
+          </p>
         )}
         {hint && (planned || targeted) && <p className="references-sidebar__hint">{hint}</p>}
         {warnings.map((warning) => (

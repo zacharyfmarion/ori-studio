@@ -53,6 +53,7 @@ import {
   runReferencesShortcut,
   type ReferencesShortcutActions,
 } from '../../cp-workspace/references/referencesShortcuts';
+import { useReferencesAutoPlan } from '../../cp-workspace/references/useReferencesAutoPlan';
 import { useReferencesBreakdown } from '../../cp-workspace/references/useReferencesBreakdown';
 import { useReferencesRun, useReferencesRunToast } from '../../cp-workspace/references/useReferencesRun';
 import { useReferencesShortcuts } from '../../cp-workspace/references/useReferencesShortcuts';
@@ -263,6 +264,22 @@ export function ReferencesPanel() {
     breakdown.flatSteps,
     breakdown.activeStep,
   ]);
+
+  // The sequence is what the workspace is for, so it runs on arrival rather
+  // than behind a button — see `useReferencesAutoPlan` for what stops that
+  // becoming a loop.
+  useReferencesAutoPlan(
+    {
+      hasDocument: view.hasDocument,
+      revision: view.revision,
+      sheet: selectedSheet,
+      ready: controller.frames !== null,
+      planned: breakdown.record !== null,
+      busy,
+      targeted,
+    },
+    breakdown.run
+  );
 
   /** Recompute re-runs whatever the workspace is showing. */
   const recompute = useCallback(() => {

@@ -25,7 +25,7 @@
  */
 import type { TFunction } from 'i18next';
 import type { ExtractedStep } from './referenceFinder/extractor';
-import { directionOfGroup, type ReferencesBreakdownRow, type ReferencesDirection } from './referencesBreakdown';
+import type { ReferencesDirection } from './referencesBreakdown';
 import {
   chosenWitness,
   type PrecreaseCornerName,
@@ -404,21 +404,6 @@ export function describeDirection(t: TFunction, direction: ReferencesDirection):
     case 'angle':
       return t('panels:references.direction.angle', 'at {{deg}}°', { deg: direction.degrees });
   }
-}
-
-/**
- * A collapsed row's headline: what is folded, which way, and how many. The
- * count is the chip, so the sentence names the direction and the row's kind
- * and leaves the number to the chip.
- */
-export function describeBreakdownRow(t: TFunction, row: ReferencesBreakdownRow): string {
-  const direction = describeDirection(t, directionOfGroup(row.directionAngle));
-  if (row.kind === 'aux') {
-    return row.pinched
-      ? t('panels:references.row.auxPinch', 'Pinch a landmark {{direction}}', { direction })
-      : t('panels:references.row.aux', 'Fold a landmark crease {{direction}}', { direction });
-  }
-  return t('panels:references.row.cp', 'Fold {{direction}}', { direction });
 }
 
 /** The axiom a row's steps use, as a folder would name the move. */

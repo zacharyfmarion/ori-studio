@@ -30,11 +30,9 @@ import {
 import type { PrecreasePlannerInfo, PrecreaseSequence } from './precreaseSequence';
 import { analyzeReferences, type ReferencesAnalysis } from './referencesAnalysis';
 import {
-  breakdownSections,
   breakdownTotals,
   flatPlanSteps,
   planIsForSheet,
-  type ReferencesBreakdownSection,
   type ReferencesFlatStep,
 } from './referencesBreakdown';
 import { decodePlanModel, planModelPoints } from './referencesPlanGeometry';
@@ -78,7 +76,6 @@ export interface ReferencesBreakdownComponent {
   component: number;
   /** The presentation order the "landmarks first" toggle selected. */
   sequence: PrecreaseSequence;
-  sections: ReferencesBreakdownSection[];
   totals: ReturnType<typeof breakdownTotals>;
   result: PrecreasePlanResult;
 }
@@ -101,7 +98,6 @@ export interface ReferencesBreakdownController {
   flatSteps: ReferencesFlatStep[];
   activeStep: number;
   landmarksFirst: boolean;
-  expandedRow: string | null;
   activeFinding: number | null;
   running: boolean;
   progress: ReferencesProgress | null;
@@ -110,7 +106,6 @@ export interface ReferencesBreakdownController {
   /** Compute (or recompute) the CP-wide analysis. */
   runAnalysis: () => void;
   selectStep: (index: number) => void;
-  selectRow: (rowId: string | null, firstStep: number | null) => void;
   selectFinding: (index: number | null) => void;
   toggleLandmarksFirst: () => void;
 }
@@ -479,7 +474,7 @@ export function useReferencesBreakdown(
       setReferencesPlanRecord(record);
       const nextSummary = summaryOf(record);
       setReferencesPlan(nextSummary);
-      setReferencesView({ activeStep: 0, expandedRow: null, activeFinding: null });
+      setReferencesView({ activeStep: 0, activeFinding: null });
       setReferencesRun({ status: 'idle' });
       trackPlan(record, nextSummary, controller.signal.aborted);
     })();
@@ -577,7 +572,6 @@ export function useReferencesBreakdown(
         return {
           component: entry.component,
           sequence,
-          sections: breakdownSections(sequence),
           totals: breakdownTotals(sequence.totals),
           result: entry.result,
         };
@@ -601,16 +595,6 @@ export function useReferencesBreakdown(
       });
     },
     [flatSteps.length, setReferencesView]
-  );
-
-  const selectRow = useCallback(
-    (rowId: string | null, firstStep: number | null) => {
-      setReferencesView({
-        expandedRow: rowId,
-        ...(firstStep === null ? {} : { activeStep: firstStep, activeFinding: null }),
-      });
-    },
-    [setReferencesView]
   );
 
   const selectFinding = useCallback(
@@ -638,14 +622,12 @@ export function useReferencesBreakdown(
     flatSteps,
     activeStep,
     landmarksFirst,
-    expandedRow: viewState.expandedRow,
     activeFinding: viewState.activeFinding,
     running: progress !== null,
     progress,
     run,
     runAnalysis,
     selectStep,
-    selectRow,
     selectFinding,
     toggleLandmarksFirst,
   };

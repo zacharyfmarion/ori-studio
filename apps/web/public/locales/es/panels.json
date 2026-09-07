@@ -846,15 +846,7 @@
     },
     "backToPattern": "Volver al patrón completo",
     "breakdown": {
-      "aux": "Referencia",
-      "landmarks": "Referencias",
-      "pinch": "Pellizco",
-      "round": "Ronda {{n}}",
-      "sectionCount": "{{n}} dobleces",
-      "sheet": "Hoja {{n}}",
-      "sheetId": "Hoja {{n}}",
-      "unlocks": "habilita {{n}} dobleces",
-      "visible": "Visible"
+      "sheetId": "Hoja {{n}}"
     },
     "canvasAriaLabel": "Patrón de pliegues. Haz clic en un vértice o pliegue para hallar sus referencias; arrastra para desplazar, desplaza la rueda para hacer zoom.",
     "card": {
@@ -941,11 +933,6 @@
       "topEdge": "el borde superior"
     },
     "refusedSheet": "La hoja alrededor de esta selección no pudo leerse como un rectángulo.",
-    "row": {
-      "aux": "Dobla un pliegue de referencia {{direction}}",
-      "auxPinch": "Pellizca una referencia {{direction}}",
-      "cp": "Dobla {{direction}}"
-    },
     "searching": "Buscando referencias…",
     "settings": {
       "candidateCount": "{{n}} soluciones",
@@ -970,7 +957,6 @@
     },
     "sidebar": {
       "none": "ReferenceFinder no halló ninguna construcción para este objetivo con los ajustes actuales.",
-      "plan": "Calcular los dobleces",
       "planning": "Calculando la secuencia de plegado…"
     },
     "step": {

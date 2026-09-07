@@ -846,15 +846,7 @@
     },
     "backToPattern": "Voltar ao padrão inteiro",
     "breakdown": {
-      "aux": "Marco",
-      "landmarks": "Marcos",
-      "pinch": "Beliscão",
-      "round": "Rodada {{n}}",
-      "sectionCount": "{{n}} dobras",
-      "sheet": "Folha {{n}}",
-      "sheetId": "Folha {{n}}",
-      "unlocks": "libera {{n}} dobras",
-      "visible": "Visível"
+      "sheetId": "Folha {{n}}"
     },
     "canvasAriaLabel": "Padrão de dobras. Clique em um vértice ou dobra para encontrar suas referências; arraste para mover, rode a roda para dar zoom.",
     "card": {
@@ -941,11 +933,6 @@
       "topEdge": "a borda superior"
     },
     "refusedSheet": "A folha ao redor desta seleção não pôde ser lida como um retângulo.",
-    "row": {
-      "aux": "Dobre um vinco de referência {{direction}}",
-      "auxPinch": "Belisque um marco {{direction}}",
-      "cp": "Dobre {{direction}}"
-    },
     "searching": "Procurando referências…",
     "settings": {
       "candidateCount": "{{n}} soluções",
@@ -970,7 +957,6 @@
     },
     "sidebar": {
       "none": "O ReferenceFinder não encontrou nenhuma construção para este alvo com as configurações atuais.",
-      "plan": "Calcular as dobras",
       "planning": "Calculando a sequência de dobras…"
     },
     "step": {

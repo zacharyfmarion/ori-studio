@@ -813,15 +813,7 @@
     },
     "backToPattern": "Back to the whole pattern",
     "breakdown": {
-      "aux": "Landmark",
-      "landmarks": "Landmarks",
-      "pinch": "Pinch",
-      "round": "Round {{n}}",
-      "sectionCount": "{{n}} folds",
-      "sheet": "Sheet {{n}}",
-      "sheetId": "Sheet {{n}}",
-      "unlocks": "unlocks {{n}} folds",
-      "visible": "Shows"
+      "sheetId": "Sheet {{n}}"
     },
     "canvasAriaLabel": "Crease pattern. Click a vertex or crease to find its references; drag to pan, scroll to zoom.",
     "card": {
@@ -907,11 +899,6 @@
       "topEdge": "the top edge"
     },
     "refusedSheet": "The sheet around this pick could not be read as a rectangle.",
-    "row": {
-      "aux": "Fold a landmark crease {{direction}}",
-      "auxPinch": "Pinch a landmark {{direction}}",
-      "cp": "Fold {{direction}}"
-    },
     "searching": "Finding references…",
     "settings": {
       "candidateCount": "{{n}} solutions",
@@ -934,7 +921,6 @@
     },
     "sidebar": {
       "none": "ReferenceFinder found no construction for this target at the current settings.",
-      "plan": "Work out the folds",
       "planning": "Working out the folding sequence…"
     },
     "step": {

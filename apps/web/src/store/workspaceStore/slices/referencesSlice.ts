@@ -10,7 +10,6 @@ export const DEFAULT_REFERENCES_VIEW: ReferencesView = {
   activeStep: 0,
   activeCandidate: 0,
   landmarksFirst: false,
-  expandedRow: null,
   activeFinding: null,
 };
 
@@ -87,7 +86,7 @@ export const createReferencesSlice: WorkspaceSliceCreator<ReferencesSlice> = (se
   toggleReferencesLandmarksFirst: () => {
     const view = get().referencesView;
     set({
-      referencesView: { ...view, landmarksFirst: !view.landmarksFirst, activeStep: 0, expandedRow: null },
+      referencesView: { ...view, landmarksFirst: !view.landmarksFirst, activeStep: 0 },
     });
   },
 

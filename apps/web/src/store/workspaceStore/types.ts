@@ -1479,8 +1479,6 @@ export interface ReferencesView {
    * so the toggle re-reads `sequence(landmarksFirst)` rather than reordering.
    */
   landmarksFirst: boolean;
-  /** The breakdown row expanded to its individual steps; null for none. */
-  expandedRow: string | null;
   /** The analysis finding the view frames; null for none. */
   activeFinding: number | null;
 }

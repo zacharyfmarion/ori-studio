@@ -846,15 +846,7 @@
     },
     "backToPattern": "Revenir au patron entier",
     "breakdown": {
-      "aux": "Repère",
-      "landmarks": "Repères",
-      "pinch": "Pincement",
-      "round": "Tour {{n}}",
-      "sectionCount": "{{n}} plis",
-      "sheet": "Feuille {{n}}",
-      "sheetId": "Feuille {{n}}",
-      "unlocks": "débloque {{n}} plis",
-      "visible": "Visible"
+      "sheetId": "Feuille {{n}}"
     },
     "canvasAriaLabel": "Patron de pliage. Cliquez sur un sommet ou un pli pour trouver ses références ; glissez pour déplacer, faites défiler pour zoomer.",
     "card": {
@@ -941,11 +933,6 @@
       "topEdge": "le bord supérieur"
     },
     "refusedSheet": "La feuille autour de cette sélection n’a pas pu être lue comme un rectangle.",
-    "row": {
-      "aux": "Pliez un repère {{direction}}",
-      "auxPinch": "Pincez un repère {{direction}}",
-      "cp": "Pliez {{direction}}"
-    },
     "searching": "Recherche des références…",
     "settings": {
       "candidateCount": "{{n}} solutions",
@@ -970,7 +957,6 @@
     },
     "sidebar": {
       "none": "ReferenceFinder n’a trouvé aucune construction pour cette cible avec les réglages actuels.",
-      "plan": "Calculer les plis",
       "planning": "Calcul de la séquence de pliage…"
     },
     "step": {

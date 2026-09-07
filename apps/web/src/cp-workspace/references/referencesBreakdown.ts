@@ -11,10 +11,8 @@
  * React, no store.
  */
 import type {
-  PrecreaseGroup,
   PrecreaseSequence,
   PrecreaseStep,
-  PrecreaseStepKind,
   PrecreaseTotals,
 } from './precreaseSequence';
 import type { ReferencesPlanRecord } from './referencesResults';
@@ -38,42 +36,6 @@ export function planIsForSheet(plan: ReferencesPlanRecord, selected: number | nu
     plan.components.some((entry) => entry.component === selected) ||
     plan.refused.some((entry) => entry.component === selected)
   );
-}
-
-/** One collapsed row: a group of consecutive steps folded the same way. */
-export interface ReferencesBreakdownRow {
-  /** Stable across re-renders and re-plans of the same sequence. */
-  id: string;
-  kind: PrecreaseStepKind;
-  /** Presentation ids of the steps the row stands for. */
-  stepIds: number[];
-  count: number;
-  axiom: number;
-  round: number;
-  /** Normal angle of the direction cluster, radians in `[0, π)`. */
-  directionAngle: number;
-  pattern: string;
-  /** The chosen witness trips a legibility rule. */
-  hard: boolean;
-  /** Auxiliary rows only: the crease stays full-length and will show. */
-  visible: boolean;
-  /** Auxiliary rows only: every step in the row is reduced to pinches. */
-  pinched: boolean;
-  /** Auxiliary rows only: presentation ids of the CP steps this unlocks. */
-  unlocks: number[];
-}
-
-export type ReferencesBreakdownSectionKind = 'landmarks' | 'round';
-
-export interface ReferencesBreakdownSection {
-  id: string;
-  kind: ReferencesBreakdownSectionKind;
-  round: number;
-  rows: ReferencesBreakdownRow[];
-  stepCount: number;
-  /** Steps in this section that fold a crease-pattern line. */
-  cpCount: number;
-  auxCount: number;
 }
 
 /** Which way a group's creases run, for its sentence. */
@@ -116,59 +78,6 @@ function near(a: number, b: number): boolean {
 export function isPinched(step: PrecreaseStep): boolean {
   return step.extent.kind === 'pinches';
 }
-
-function rowFor(group: PrecreaseGroup, index: number, steps: Map<number, PrecreaseStep>): ReferencesBreakdownRow {
-  const members = group.step_ids.map((id) => steps.get(id)).filter((s): s is PrecreaseStep => !!s);
-  const unlocks = new Set<number>();
-  for (const step of members) for (const id of step.unlocks) unlocks.add(id);
-  return {
-    id: `r${group.round}-${index}-${group.step_ids[0] ?? 0}`,
-    kind: group.kind,
-    stepIds: [...group.step_ids],
-    count: group.count,
-    axiom: group.axiom,
-    round: group.round,
-    directionAngle: group.direction_angle,
-    pattern: group.pattern,
-    hard: members.some((step) => step.hard),
-    visible: members.some((step) => step.visible),
-    pinched: members.length > 0 && members.every(isPinched),
-    unlocks: [...unlocks].sort((a, b) => a - b),
-  };
-}
-
-/**
- * The breakdown's sections, in presentation order. Round 0 is the landmarks
- * phase the "landmarks first" toggle creates; without the toggle there is
- * none, and the auxiliary rows sit in their own rounds between the CP rounds —
- * which is what attaches each to the step it unlocks.
- */
-export function breakdownSections(sequence: PrecreaseSequence): ReferencesBreakdownSection[] {
-  const steps = new Map(sequence.steps.map((step) => [step.id, step]));
-  const sections = new Map<number, ReferencesBreakdownSection>();
-  sequence.groups.forEach((group, index) => {
-    let section = sections.get(group.round);
-    if (!section) {
-      section = {
-        id: group.round === 0 ? 'landmarks' : `round-${group.round}`,
-        kind: group.round === 0 ? 'landmarks' : 'round',
-        round: group.round,
-        rows: [],
-        stepCount: 0,
-        cpCount: 0,
-        auxCount: 0,
-      };
-      sections.set(group.round, section);
-    }
-    const row = rowFor(group, index, steps);
-    section.rows.push(row);
-    section.stepCount += row.count;
-    if (row.kind === 'cp') section.cpCount += row.count;
-    else section.auxCount += row.count;
-  });
-  return [...sections.values()].sort((a, b) => a.round - b.round);
-}
-
 /** Every step by its presentation id, for a row press. */
 export function stepsById(sequence: PrecreaseSequence): Map<number, PrecreaseStep> {
   return new Map(sequence.steps.map((step) => [step.id, step]));
@@ -225,34 +134,4 @@ export function flatPlanSteps(sequences: readonly PrecreaseSequence[]): Referenc
     sequence.steps.forEach((_, step) => out.push({ component, step }));
   });
   return out;
-}
-
-/** Where a component's step sits in the flat list, or -1. */
-export function flatIndexOf(
-  flat: readonly ReferencesFlatStep[],
-  component: number,
-  step: number
-): number {
-  return flat.findIndex((entry) => entry.component === component && entry.step === step);
-}
-
-/** The step a row press should frame: its first member. */
-export function firstStepOf(row: ReferencesBreakdownRow): number | null {
-  return row.stepIds[0] ?? null;
-}
-
-/**
- * The row containing a step, for driving the sidebar from the transport strip
- * and the `references.nextStep` chord.
- */
-export function rowForStep(
-  sections: readonly ReferencesBreakdownSection[],
-  stepId: number
-): ReferencesBreakdownRow | null {
-  for (const section of sections) {
-    for (const row of section.rows) {
-      if (row.stepIds.includes(stepId)) return row;
-    }
-  }
-  return null;
 }
