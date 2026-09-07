@@ -49,10 +49,7 @@ import {
   sheetBorderLineIds,
   sheetLineIds,
 } from '../../cp-workspace/references/referencesSheets';
-import {
-  referencesViewSteps,
-  sideAt,
-} from '../../cp-workspace/references/referencesSequenceView';
+import { sideAt } from '../../cp-workspace/references/referencesSequenceView';
 import {
   runReferencesShortcut,
   type ReferencesShortcutActions,
@@ -147,14 +144,8 @@ export function ReferencesPanel() {
     controller.activeCandidate,
     controller.activeStep
   );
-  /**
-   * The steps as they are *read*: the planner's folds, then the two flips that
-   * settle mountain from valley. See `referencesSequenceView`.
-   */
-  const viewSteps = useMemo(
-    () => referencesViewSteps(view.geometry, breakdown.variants, breakdown.flatSteps),
-    [view.geometry, breakdown.variants, breakdown.flatSteps]
-  );
+  // The planner's folds, then the two flips that settle mountain from valley.
+  const viewSteps = breakdown.viewSteps;
   const planHighlights = useReferencesPlanHighlights(
     breakdown.variants,
     viewSteps,

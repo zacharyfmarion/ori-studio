@@ -1181,8 +1181,28 @@ shows the sheet as it stands rather than a bare square.
 
 ### Revision 3 checklist
 
-- [ ] Phase S1 — the step's own ink, pinch extents, and vertices that build up
-- [ ] Phase S2 — the rail is only a pattern picker, and the plan runs on arrival
-- [ ] Phase S3 — the step diagram: theme, earlier creases, mountain/valley
-- [ ] Phase S4 — turn over, reverse the mountains, turn back
-- [ ] Phase S5 — validation and browser verification
+- [x] Phase S1 — the step's own ink, pinch extents, and vertices that build up
+- [x] Phase S2 — the rail is only a pattern picker, and the plan runs on arrival
+- [x] Phase S3 — the step diagram: theme, earlier creases, mountain/valley
+- [x] Phase S4 — turn over, reverse the mountains, turn back
+- [x] Phase S5 — validation and browser verification
+
+### What Revision 3 did not verify
+
+The **crease-pattern canvas** could not be checked in a browser this session. The Browser pane
+stopped delivering layout: `dv-groupview` measures 100 × 0, so Dockview never sized its panes,
+`ResizeObserver` never fired, and `applySize` ran against a zero rect — `renderNow` reports a
+1 × 1 viewport and draws nothing, on a fresh tab as much as on the working one. It is the whole
+app, not this workspace (the Edit canvas is equally blank once the pane is in that state), and
+nothing in the page can force a layout pass from JavaScript.
+
+So the per-step build-up, the mountain/valley ink on the canvas, the faint uncreased remainder
+and the mirrored back view rest on their unit tests and on the DOM, which *was* checked: the
+plan runs on arrival with no button, the strip carries the four folds and then Turn over /
+Reverse 3 creases / Turn back, each card is reachable, and the diagrams draw on the theme's own
+ground with earlier creases in grey and the new crease in its own direction.
+
+One defect the DOM check found and this revision fixes: the step index was clamped to the
+planner's fold count, so the three closing cards were unreachable — every press on one landed
+back on the last fold. The presentation list now lives in `useReferencesBreakdown`, which is the
+one place that knows how long it is.

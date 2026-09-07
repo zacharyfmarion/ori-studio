@@ -47,6 +47,7 @@ import {
   type ReferencesPlanVariant,
 } from './referencesResults';
 import { beginReferencesRun, endReferencesRun, referencesRunSnapshot } from './referencesRun';
+import { referencesViewSteps, type ReferencesViewStep } from './referencesSequenceView';
 import { refusalMessageFor } from './referencesSidebarText';
 import type {
   PrecreaseComponent,
@@ -96,6 +97,8 @@ export interface ReferencesBreakdownController {
   analysisRecord: ReferencesAnalysis | null;
   /** Steps of every planned sheet, in order; what the scrubber walks. */
   flatSteps: ReferencesFlatStep[];
+  /** The steps the reader walks: the folds, then the closing flips. */
+  viewSteps: ReferencesViewStep[];
   activeStep: number;
   landmarksFirst: boolean;
   activeFinding: number | null;
@@ -584,17 +587,31 @@ export function useReferencesBreakdown(
     [variants]
   );
 
-  const activeStep = Math.max(0, Math.min(flatSteps.length - 1, viewState.activeStep));
+  /**
+   * The steps as they are *read*, which is longer than the planner's own list:
+   * turning the paper over and reversing the mountains are steps the reader
+   * walks, and the step index addresses this list.
+   *
+   * Derived here rather than in the panel so one place owns the length. Clamped
+   * against `flatSteps`, the closing steps were unreachable — every press on one
+   * of their cards landed back on the last fold.
+   */
+  const viewSteps = useMemo(
+    () => referencesViewSteps(geometry, variants, flatSteps),
+    [geometry, variants, flatSteps]
+  );
+
+  const activeStep = Math.max(0, Math.min(viewSteps.length - 1, viewState.activeStep));
 
   const selectStep = useCallback(
     (index: number) => {
-      if (flatSteps.length === 0) return;
+      if (viewSteps.length === 0) return;
       setReferencesView({
-        activeStep: Math.max(0, Math.min(flatSteps.length - 1, index)),
+        activeStep: Math.max(0, Math.min(viewSteps.length - 1, index)),
         activeFinding: null,
       });
     },
-    [flatSteps.length, setReferencesView]
+    [viewSteps.length, setReferencesView]
   );
 
   const selectFinding = useCallback(
@@ -620,6 +637,7 @@ export function useReferencesBreakdown(
     analysis: analysisSummary?.computedAtRevision === revision ? analysisSummary : null,
     analysisRecord: analysisRecord?.analysis ?? null,
     flatSteps,
+    viewSteps,
     activeStep,
     landmarksFirst,
     activeFinding: viewState.activeFinding,

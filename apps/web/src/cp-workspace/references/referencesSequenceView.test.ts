@@ -4,7 +4,7 @@ import type { ReferencesFlatStep } from './referencesBreakdown';
 import { mountainLineIds, sequenceDirections, stepDirection } from './referencesFoldDirection';
 import type { PrecreaseSequence, PrecreaseStep } from './precreaseSequence';
 import type { ReferencesPlanVariant } from './referencesResults';
-import { referencesViewSteps, sideAt } from './referencesSequenceView';
+import { planStepOf, referencesViewSteps, sideAt } from './referencesSequenceView';
 
 /** Border, mountain, valley, mountain, aux — Oriedita's codes, stride 5. */
 const GEOMETRY = {
@@ -128,5 +128,18 @@ describe('referencesViewSteps', () => {
 
   it('is empty for a plan with no steps', () => {
     expect(referencesViewSteps(GEOMETRY, [], [])).toEqual([]);
+  });
+});
+
+describe('planStepOf', () => {
+  it('addresses the planner only for a fold', () => {
+    const steps = [step(1, [2])];
+    const view = referencesViewSteps(GEOMETRY, [variantOf(steps)], flat(steps));
+    expect(planStepOf(view[0])).toEqual({ component: 0, step: 0 });
+    // The closing steps name no planner step: they are not folds, and a caller
+    // that indexed `sequence.steps` with them would read the wrong one.
+    expect(planStepOf(view[1])).toBeNull();
+    expect(planStepOf(view[2])).toBeNull();
+    expect(planStepOf(view[3])).toBeNull();
   });
 });
