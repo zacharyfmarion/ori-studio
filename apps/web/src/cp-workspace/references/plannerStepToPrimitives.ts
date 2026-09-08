@@ -44,7 +44,7 @@
  * perpendicular is sighted, not swung), so it too draws without an arrow —
  * that comes from `who_moves` being empty and needs no special case here.
  */
-import { foldArrowArc } from './stepDiagramGeometry';
+import { dashRulerAlong, foldArrowArc } from './stepDiagramGeometry';
 import type {
   DiagramLineStyleName,
   StepDiagramModel,
@@ -251,6 +251,26 @@ function creasedSpans(step: PrecreaseStep): PrecreasePlanSegment[] {
   return [step.segment];
 }
 
+/**
+ * A span as a drawable line, put on its own line's dash ruler.
+ *
+ * Every piece of one crease then measures its pattern from the same zero, so a
+ * crease split at four crossings reads as one dashed line rather than four.
+ */
+function spanLine(
+  span: PrecreasePlanSegment,
+  style: DiagramLineStyleName
+): StepDiagramPrimitive {
+  const ruler = dashRulerAlong(span[0][0], span[0][1], span[1][0], span[1][1]);
+  return {
+    kind: 'line',
+    from: [ruler.ax, ruler.ay],
+    to: [ruler.bx, ruler.by],
+    style,
+    dashPhase: ruler.phase,
+  };
+}
+
 /** The style a crease of `direction` draws in, made or already made. */
 function styleOf(direction: PrecreaseDirection, made: boolean): DiagramLineStyleName {
   if (!made) return 'crease';
@@ -280,7 +300,7 @@ export function plannerStepDiagram(
       const earlier = sequence.steps[i];
       if (!earlier) continue;
       for (const span of creasedSpans(earlier)) {
-        primitives.push({ kind: 'line', from: span[0], to: span[1], style: 'crease' });
+        primitives.push(spanLine(span, 'crease'));
       }
     }
   }
@@ -352,7 +372,7 @@ export function plannerStepDiagram(
           ? 'pinch-valley'
           : 'pinch';
     for (const span of step.extent.spans) {
-      primitives.push({ kind: 'line', from: span[0], to: span[1], style: pinch });
+      primitives.push(spanLine(span, pinch));
     }
   } else if (step.cp_spans.length > 0) {
     // The fold crosses the sheet, but the pattern only wants creases where its
@@ -365,7 +385,7 @@ export function plannerStepDiagram(
       style: 'unfolded',
     });
     for (const span of step.cp_spans) {
-      primitives.push({ kind: 'line', from: span[0], to: span[1], style: made });
+      primitives.push(spanLine(span, made));
     }
   } else {
     // An auxiliary fold leaves no crease in the pattern, so the whole chord is
@@ -412,7 +432,7 @@ export function plannerTurnOverDiagram(
     const step = sequence.steps[i];
     if (!step) continue;
     for (const span of creasedSpans(step)) {
-      primitives.push({ kind: 'line', from: span[0], to: span[1], style: 'crease' });
+      primitives.push(spanLine(span, 'crease'));
     }
   }
   primitives.push(...turnOverSymbol(sheet));
@@ -455,7 +475,7 @@ export function plannerFinishedDiagram(sequence: PrecreaseSequence): StepDiagram
   for (const step of sequence.steps) {
     const style = styleOf(step.direction, true);
     for (const span of creasedSpans(step)) {
-      primitives.push({ kind: 'line', from: span[0], to: span[1], style });
+      primitives.push(spanLine(span, style));
     }
   }
   return { sheet: { width: sheet.width, height: sheet.height }, primitives };

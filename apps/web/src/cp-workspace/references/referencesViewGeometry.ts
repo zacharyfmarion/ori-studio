@@ -12,6 +12,7 @@ import type { ModelPoint, PointGeometry, Rgba, StrokeGeometry } from '../rendere
 import { VERTEX_RADIUS_FACTOR } from '../adapters/cpPointsToScene';
 import { previewGroupsToStrokes, type PreviewStrokeGroup } from '../renderer/previewStrokes';
 import type { LineHitIndex } from '../picking/lineHitIndex';
+import { dashRulerAlong } from './stepDiagramGeometry';
 import type {
   ModelBounds,
   ReferencesGhostKind,
@@ -393,46 +394,14 @@ export function applyCreaseVisibility(
     if (dimmed !== null && dimmed.has(id)) color[i * 4 + 3] *= dimAlpha;
   }
   for (let i = 0; i < strokes.count; i += 1) {
-    dashPhase[i] = shareDashAlongLine(a, b, i);
+    const ruler = dashRulerAlong(a[i * 2], a[i * 2 + 1], b[i * 2], b[i * 2 + 1]);
+    a[i * 2] = ruler.ax;
+    a[i * 2 + 1] = ruler.ay;
+    b[i * 2] = ruler.bx;
+    b[i * 2 + 1] = ruler.by;
+    dashPhase[i] = ruler.phase;
   }
   return { ...strokes, a, b, color, widthMul, dashPhase };
-}
-
-/**
- * Put segment `i` on its line's own axis, and return how far along it starts.
- *
- * Two collinear segments only agree about a dash pattern if they agree about
- * which way the line runs and where its zero is. The direction is canonicalised
- * (the half-turn that makes `x` positive, or `y` when it is vertical) and the
- * endpoints swapped to match, so the phase can simply be the projection of the
- * start onto that axis. Any two segments of one line then land on the same
- * ruler, whatever order the document happens to store them in.
- */
-function shareDashAlongLine(a: Float32Array, b: Float32Array, i: number): number {
-  const ax = a[i * 2];
-  const ay = a[i * 2 + 1];
-  const bx = b[i * 2];
-  const by = b[i * 2 + 1];
-  let dx = bx - ax;
-  let dy = by - ay;
-  const length = Math.hypot(dx, dy);
-  if (length === 0) return 0;
-  dx /= length;
-  dy /= length;
-  // The canonical half-turn, so a segment stored the other way round still
-  // measures from the same end of the line.
-  const flip = dx < 0 || (dx === 0 && dy < 0);
-  if (flip) {
-    a[i * 2] = bx;
-    a[i * 2 + 1] = by;
-    b[i * 2] = ax;
-    b[i * 2 + 1] = ay;
-    dx = -dx;
-    dy = -dy;
-  }
-  const sx = flip ? bx : ax;
-  const sy = flip ? by : ay;
-  return sx * dx + sy * dy;
 }
 
 /**
@@ -446,29 +415,69 @@ function shareDashAlongLine(a: Float32Array, b: Float32Array, i: number): number
  *
  * One implementation for two questions that must not be able to disagree:
  * which vertices belong to the sheet in scope, and which of them the steps so
- * far have actually made.
+ * far have actually made. They differ in one respect only, and it is an
+ * argument: see `dropCollinear`.
  */
 export function verticesOfLines(
   geometry: CpGeometryTransport,
   vertices: readonly Point[],
-  lineIds: ReadonlySet<number>
+  lineIds: ReadonlySet<number>,
+  options: { dropCollinear?: boolean } = {}
 ): Set<number> {
   const index = new Map<string, number>();
   vertices.forEach((point, i) => index.set(cpVertexId(point), i));
   const endpoints = geometry.segEndpoints;
   const kept = new Set<number>();
+  // Directions of the creases meeting each vertex, so a point where a line
+  // merely changes colour can be told from one where creases actually cross.
+  const meeting = new Map<number, { x: number; y: number }[]>();
   for (const id of lineIds) {
     const base = (id - 1) * 4;
     if (base < 0 || base + 3 >= endpoints.length) continue;
+    const dx = endpoints[base + 2] - endpoints[base];
+    const dy = endpoints[base + 3] - endpoints[base + 1];
+    const length = Math.hypot(dx, dy) || 1;
+    const direction = { x: dx / length, y: dy / length };
     for (const at of [
       index.get(cpVertexId({ x: endpoints[base], y: endpoints[base + 1] })),
       index.get(cpVertexId({ x: endpoints[base + 2], y: endpoints[base + 3] })),
     ]) {
-      if (at !== undefined) kept.add(at);
+      if (at === undefined) continue;
+      kept.add(at);
+      const seen = meeting.get(at);
+      if (seen) seen.push(direction);
+      else meeting.set(at, [direction]);
+    }
+  }
+  // A vertex where one straight line simply continues is not a landmark. The
+  // pattern splits a crease wherever its assignment changes, and the plan folds
+  // the whole line one way (plan D20) — so those splits are invisible in the
+  // fold and a dot there marks nothing the folder can use.
+  //
+  // Only for *drawing*. It is still a real point of the pattern, and asking
+  // "how do I get here" is the question the workspace exists to answer, so the
+  // set that scopes picking keeps it.
+  if (options.dropCollinear) {
+    for (const [at, directions] of meeting) {
+      if (directions.length === 2 && collinear(directions[0], directions[1])) kept.delete(at);
     }
   }
   return kept;
 }
+
+/** Whether two unit directions lie along one line, either way round. */
+function collinear(a: { x: number; y: number }, b: { x: number; y: number }): boolean {
+  return Math.abs(a.x * b.y - a.y * b.x) <= COLLINEAR_SINE;
+}
+
+/**
+ * How far from straight two creases may be and still count as one line.
+ *
+ * The document's own merge tolerance is far tighter than this; the slack is for
+ * a pattern whose coordinates arrived through a lossy file, where a line's two
+ * halves can differ by a hair.
+ */
+const COLLINEAR_SINE = 1e-6;
 
 /** `color` with its alpha scaled — for the uncreased part of a fold. */
 function withAlpha(color: Rgba, alpha: number): Rgba {

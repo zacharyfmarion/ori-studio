@@ -261,6 +261,38 @@ export const TURN_OVER_HEAD = { at: [25.282, 4.923] as const, angle: 0.872, size
  */
 export const ARROWHEAD_ASPECT = 2.5;
 
+/**
+ * Put a segment on its line's own axis, and say how far along it starts.
+ *
+ * A crease is stored as a segment per crossing, and each one restarts its dash
+ * — so a dashed line reads as a row of unrelated dashes with a reset at every
+ * vertex. Two collinear segments only agree about a pattern if they agree about
+ * which way the line runs and where its zero is, so the direction is
+ * canonicalised (the half-turn that makes `x` positive, or `y` when it is
+ * vertical), the endpoints swapped to match, and the phase is the projection of
+ * the start onto that axis. Any two segments of one line then land on the same
+ * ruler, whatever order the document happens to store them in.
+ *
+ * One implementation for two surfaces: the card sets `stroke-dashoffset` from
+ * it and the canvas uploads it as `dashPhase`, and the two must not be able to
+ * disagree about where a dash begins.
+ */
+export function dashRulerAlong(
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number
+): { ax: number; ay: number; bx: number; by: number; phase: number } {
+  const length = Math.hypot(bx - ax, by - ay);
+  if (length === 0) return { ax, ay, bx, by, phase: 0 };
+  const dx = (bx - ax) / length;
+  const dy = (by - ay) / length;
+  if (dx < 0 || (dx === 0 && dy < 0)) {
+    return { ax: bx, ay: by, bx: ax, by: ay, phase: bx * -dx + by * -dy };
+  }
+  return { ax, ay, bx, by, phase: ax * dx + ay * dy };
+}
+
 export type LabelAnchor = 'start' | 'middle' | 'end';
 
 /**

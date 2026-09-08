@@ -12,6 +12,7 @@ import {
   modelBoundsToUser,
   resolveReferencesPick,
   transportUserBounds,
+  verticesOfLines,
   type ReferencesOverlayColors,
 } from './referencesViewGeometry';
 
@@ -288,5 +289,63 @@ describe('dash continuity along one line', () => {
     const phases = [...(out.dashPhase ?? [])];
     expect(phases[0]).toBeCloseTo(0, 6);
     expect(phases[1]).toBeCloseTo(1, 6);
+  });
+});
+
+describe('vertices worth marking', () => {
+  const transport = (segs: [number, number, number, number][]) =>
+    ({ segEndpoints: Float64Array.from(segs.flat()) }) as unknown as CpGeometryTransport;
+  const ids = (n: number) => new Set(Array.from({ length: n }, (_, i) => i + 1));
+
+  // The pattern splits a crease wherever its assignment changes. The plan folds
+  // the whole line one way, so that split is invisible in the fold — a dot
+  // there marks nothing the folder can use.
+  it('drops a point where one straight line merely continues', () => {
+    const geometry = transport([
+      [0, 0, 5, 0],
+      [5, 0, 9, 0],
+    ]);
+    const vertices = [
+      { x: 0, y: 0 },
+      { x: 5, y: 0 },
+      { x: 9, y: 0 },
+    ];
+    expect(
+      [...verticesOfLines(geometry, vertices, ids(2), { dropCollinear: true })].sort()
+    ).toEqual([0, 2]);
+    // …but it is still a real point of the pattern, so picking keeps it.
+    expect([...verticesOfLines(geometry, vertices, ids(2))].sort()).toEqual([0, 1, 2]);
+  });
+
+  it('keeps a point where two creases actually cross', () => {
+    const geometry = transport([
+      [0, 0, 5, 0],
+      [5, 0, 5, 5],
+    ]);
+    const vertices = [
+      { x: 0, y: 0 },
+      { x: 5, y: 0 },
+      { x: 5, y: 5 },
+    ];
+    expect(
+      [...verticesOfLines(geometry, vertices, ids(2), { dropCollinear: true })].sort()
+    ).toEqual([0, 1, 2]);
+  });
+
+  it('keeps a point where three creases meet, collinear pair or not', () => {
+    const geometry = transport([
+      [0, 0, 5, 0],
+      [5, 0, 9, 0],
+      [5, 0, 5, 4],
+    ]);
+    const vertices = [
+      { x: 0, y: 0 },
+      { x: 5, y: 0 },
+      { x: 9, y: 0 },
+      { x: 5, y: 4 },
+    ];
+    expect(
+      [...verticesOfLines(geometry, vertices, ids(3), { dropCollinear: true })].sort()
+    ).toEqual([0, 1, 2, 3]);
   });
 });

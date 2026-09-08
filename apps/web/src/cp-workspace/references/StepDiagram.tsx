@@ -123,6 +123,13 @@ export function StepDiagram({
           case 'line': {
             const from = project(primitive.from);
             const to = project(primitive.to);
+            // Sheet units through the projector's scale: the dash arrays in
+            // `theme.css` are in the viewBox's own units, so the offset has to
+            // be too. Negative because SVG counts a positive offset as skipping
+            // pattern, and the phase says how much has already gone by.
+            const dashOffset = primitive.dashPhase
+              ? -primitive.dashPhase * project.scale
+              : undefined;
             return (
               <line
                 key={index}
@@ -131,6 +138,7 @@ export function StepDiagram({
                 y1={from.y}
                 x2={to.x}
                 y2={to.y}
+                strokeDashoffset={dashOffset}
               />
             );
           }

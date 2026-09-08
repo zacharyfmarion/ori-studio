@@ -350,7 +350,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       for (const id of visible) {
         if (!creaseVisibility.borderLineIds?.has(id)) creases.add(id);
       }
-      const kept = verticesOfLines(geometry, vertices, creases);
+      const kept = verticesOfLines(geometry, vertices, creases, { dropCollinear: true });
       return vertices.filter((_, i) => kept.has(i));
     }, [geometry, vertices, sheetVertices, creaseVisibility]);
     // What the vertex crowding ramp measures against — the same strided median

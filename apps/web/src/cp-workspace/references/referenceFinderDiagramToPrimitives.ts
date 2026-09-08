@@ -39,6 +39,16 @@ export type StepDiagramPrimitive =
       from: readonly [number, number];
       to: readonly [number, number];
       style: DiagramLineStyleName;
+      /**
+       * Where this piece starts along its line's own axis, in sheet units.
+       *
+       * A crease drawn as several pieces restarts its dash at each one, which
+       * is a row of unrelated dashes rather than a dashed line. Set from
+       * `dashRulerAlong` so every piece of one line measures from the same
+       * zero. Omitted leaves the pattern starting at `from`, which is right for
+       * a line drawn whole.
+       */
+      dashPhase?: number;
     }
   | {
       kind: 'arc';
