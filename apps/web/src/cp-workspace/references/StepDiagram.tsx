@@ -96,16 +96,19 @@ export function StepDiagram({
       {model.primitives.map((primitive, index) => {
         switch (primitive.kind) {
           case 'sheet': {
-            const lo = project([0, primitive.height]);
-            const hi = project([primitive.width, 0]);
+            // Two opposite corners, not a top-left and a size: a mirrored
+            // projector swaps which of them is on the left, and an SVG rect
+            // with a negative width is invalid — the paper simply vanishes.
+            const a = project([0, primitive.height]);
+            const b = project([primitive.width, 0]);
             return (
               <rect
                 key={index}
                 className="step-diagram__sheet"
-                x={lo.x}
-                y={lo.y}
-                width={hi.x - lo.x}
-                height={hi.y - lo.y}
+                x={Math.min(a.x, b.x)}
+                y={Math.min(a.y, b.y)}
+                width={Math.abs(b.x - a.x)}
+                height={Math.abs(b.y - a.y)}
               />
             );
           }

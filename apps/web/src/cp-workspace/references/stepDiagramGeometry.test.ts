@@ -234,6 +234,20 @@ describe('a mirrored projector', () => {
     expect(sweepOf(front)).not.toBe(sweepOf(back));
   });
 
+  // The offset is applied in SVG units, so reading the side off the SHEET puts
+  // every back-side label inside the drawing and leaves the margin empty.
+  it('pushes a label into the margin it is actually next to', () => {
+    const back = createDiagramProjector(sheet, 100, true);
+    // A mark on the sheet's left edge is drawn at the picture's RIGHT edge.
+    expect(back([0, 0.5]).x).toBeGreaterThan(back([0.5, 0.5]).x);
+    const placed = labelPlacement([0, 0.5], sheet, back);
+    expect(placed.anchor).toBe('start');
+    expect(placed.dx).toBeGreaterThan(0);
+    // Unmirrored, the same mark goes the other way.
+    const front = createDiagramProjector(sheet, 100);
+    expect(labelPlacement([0, 0.5], sheet, front).anchor).toBe('end');
+  });
+
   it('turns the arrowhead round with the picture', () => {
     const arc = {
       center: [0.5, 0.5] as const,

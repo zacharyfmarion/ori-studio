@@ -260,9 +260,36 @@ function cornerName(t: TFunction, corner: PrecreaseCornerName): string {
 }
 
 /** How a state line reads in a sentence: an edge by name, a crease by its step. */
-function plannerLineName(t: TFunction, index: PlannerRefIndex, id: number): string {
+/**
+ * A sheet side as the reader sees it.
+ *
+ * A step made on the back is drawn mirrored about the sheet's vertical centre,
+ * on the card and on the canvas alike, so the sentence beside it has to name
+ * the *left* of the picture and not the left of the pattern. Only handedness
+ * turns over; top and bottom stay where they are.
+ */
+function seenSide(side: PrecreaseEdgeSide, mirrored: boolean): PrecreaseEdgeSide {
+  if (!mirrored) return side;
+  if (side === 'left') return 'right';
+  if (side === 'right') return 'left';
+  return side;
+}
+
+/** The same, for a corner. */
+function seenCorner(corner: PrecreaseCornerName, mirrored: boolean): PrecreaseCornerName {
+  if (!mirrored) return corner;
+  const swapped = { sw: 'se', se: 'sw', nw: 'ne', ne: 'nw' } as const;
+  return swapped[corner];
+}
+
+function plannerLineName(
+  t: TFunction,
+  index: PlannerRefIndex,
+  id: number,
+  mirrored: boolean
+): string {
   const side = index.edgeSides.get(id);
-  if (side) return edgeName(t, side);
+  if (side) return edgeName(t, seenSide(side, mirrored));
   const step = index.stepOfLine.get(id);
   if (step !== undefined) {
     return t('panels:references.ref.stepCrease', 'the crease from step {{n}}', { n: step });
@@ -278,28 +305,29 @@ function plannerLineName(t: TFunction, index: PlannerRefIndex, id: number): stri
 export function plannerReferenceName(
   t: TFunction,
   index: PlannerRefIndex,
-  ref: PrecreaseRef
+  ref: PrecreaseRef,
+  mirrored = false
 ): string {
   switch (ref.kind) {
     case 'edge':
-      return edgeName(t, ref.side);
+      return edgeName(t, seenSide(ref.side, mirrored));
     case 'corner':
-      return cornerName(t, ref.corner);
+      return cornerName(t, seenCorner(ref.corner, mirrored));
     case 'line':
-      return plannerLineName(t, index, ref.id);
+      return plannerLineName(t, index, ref.id, mirrored);
     case 'point': {
       const corner = index.corners.get(ref.id);
-      if (corner) return cornerName(t, corner);
+      if (corner) return cornerName(t, seenCorner(corner, mirrored));
       const lines = index.linesOfPoint.get(ref.id) ?? [];
       if (lines.length >= 2) {
         return t('panels:references.ref.intersection', 'where {{a}} meets {{b}}', {
-          a: plannerLineName(t, index, lines[0]),
-          b: plannerLineName(t, index, lines[1]),
+          a: plannerLineName(t, index, lines[0], mirrored),
+          b: plannerLineName(t, index, lines[1], mirrored),
         });
       }
       if (lines.length === 1) {
         return t('panels:references.ref.markOn', 'the mark on {{a}}', {
-          a: plannerLineName(t, index, lines[0]),
+          a: plannerLineName(t, index, lines[0], mirrored),
         });
       }
       return t('panels:references.ref.mark', 'the mark');
@@ -325,8 +353,11 @@ export function describePlannerStep(
   if (!witness) {
     return t('panels:references.planStep.free', 'This line is already on the sheet.');
   }
+  // Everything the sentence names is named as the reader sees it: a step on
+  // the back is drawn mirrored, so its "left edge" is the pattern's right one.
+  const mirrored = step.side === 'back';
   const name = (ref: PrecreaseRef | undefined) =>
-    ref ? plannerReferenceName(t, index, ref) : '?';
+    ref ? plannerReferenceName(t, index, ref, mirrored) : '?';
   const [i0, i1, i2, i3] = witness.inputs;
   let sentence: string;
   switch (witness.axiom) {
@@ -378,7 +409,9 @@ export function describePlannerStep(
       break;
     default:
       sentence = t('panels:references.planStep.unknown', 'Fold using {{inputs}}.', {
-        inputs: witness.inputs.map((ref) => plannerReferenceName(t, index, ref)).join(', '),
+        inputs: witness.inputs
+          .map((ref) => plannerReferenceName(t, index, ref, mirrored))
+          .join(', '),
       });
   }
   if (step.extent.kind === 'pinches') {

@@ -164,3 +164,37 @@ describe('emphasis', () => {
     expect([...(at.emphasis ?? [])]).toEqual([11]);
   });
 });
+
+describe('a card that is not a fold', () => {
+  const variants = [variant([step(1, [10]), step(2, [11]), step(3, [12])])];
+  const input = { sheetLineIds: SHEET, borderLineIds: BORDER, activeLineIds: new Set<number>() };
+
+  // Dimming is what makes one crease stand out. A turn-over and the finished
+  // pattern have no crease of their own, so a dimmed build-up would just be a
+  // faded picture with nothing picked out of it.
+  it('shows its build-up at full strength', () => {
+    const views: ReferencesViewStep[] = [
+      fold(0),
+      fold(1),
+      { kind: 'turn-over', side: 'front', component: 0, after: 1 },
+      fold(2),
+      { kind: 'done', side: 'front', component: 0 },
+    ];
+    const turn = planVisibility(variants, views, 2, input);
+    expect(turn.dimAlpha).toBe(1);
+    expect(turn.dimmed).toBeNull();
+    // …and still holds back the crease that is not made yet.
+    expect([...(turn.visible ?? [])].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 10, 11]);
+
+    const done = planVisibility(variants, views, 4, input);
+    expect(done.dimAlpha).toBe(1);
+    expect([...(done.visible ?? [])].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 10, 11, 12]);
+  });
+
+  it('still dims behind a fold', () => {
+    const views: ReferencesViewStep[] = [fold(0), fold(1)];
+    const at = planVisibility(variants, views, 1, input);
+    expect(at.dimAlpha).toBe(REFERENCES_DIM_ALPHA);
+    expect([...(at.dimmed ?? [])]).toEqual([10]);
+  });
+});

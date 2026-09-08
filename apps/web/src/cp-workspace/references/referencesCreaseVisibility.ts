@@ -25,8 +25,11 @@
  *   construction ghosts read over it.
  * - **A turn-over shows the build-up too.** Turning the paper over happens
  *   between folds, not only at the end, so it holds back the creases that are
- *   not made yet exactly as a fold card does — it just picks nothing out. The
- *   finished card comes after every fold, so its build-up is the whole sheet.
+ *   not made yet exactly as a fold card does. It picks nothing out, and so it
+ *   dims nothing either: dimming is what makes one crease stand out from the
+ *   rest, and a card with no crease of its own has nothing to stand out. The
+ *   finished card is the same rule at the end — its build-up is the whole
+ *   sheet, at full strength, which is the point of it.
  *
  * The border is always visible, and never dimmed. A sheet with no edges is not
  * a sheet; the paper's outline is the thing the folds are drawn on rather than
@@ -129,6 +132,9 @@ export function planVisibility(
       visible.add(id);
       if (i === activeStep && target.kind === 'fold') active.add(id);
     }
+  }
+  if (target.kind !== 'fold') {
+    return { visible, dimmed: null, dimAlpha: 1 };
   }
   const dimmed = new Set<number>();
   for (const id of visible) {

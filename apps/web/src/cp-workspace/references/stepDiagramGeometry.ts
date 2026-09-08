@@ -215,6 +215,12 @@ export type LabelAnchor = 'start' | 'middle' | 'end';
  * Where a label's text sits relative to its point: pushed away from the sheet's
  * centre so it does not cover the reference it names, and anchored so it does
  * not run off the near edge. Offsets are SVG user units.
+ *
+ * Decided in **projected** space, not sheet space. The offset is applied in SVG
+ * user units, and a mirrored projector gives the two spaces opposite
+ * handedness — reading the side off the sheet would push every label on a
+ * back-side card inward, over the drawing, and leave the margin it was aimed at
+ * empty.
  */
 export function labelPlacement(
   at: readonly [number, number],
@@ -222,22 +228,22 @@ export function labelPlacement(
   project: DiagramProjector
 ): { anchor: LabelAnchor; dx: number; dy: number } {
   const offset = project.size * 0.035;
-  const cx = sheet.width / 2;
-  const cy = sheet.height / 2;
-  const edge = 1e-6;
+  const centre = project([sheet.width / 2, sheet.height / 2]);
+  const point = project(at);
+  const edge = 1e-6 * project.scale;
   let anchor: LabelAnchor = 'middle';
   let dx = 0;
-  if (at[0] <= cx - edge) {
+  if (point.x <= centre.x - edge) {
     anchor = 'end';
     dx = -offset;
-  } else if (at[0] >= cx + edge) {
+  } else if (point.x >= centre.x + edge) {
     anchor = 'start';
     dx = offset;
   }
   // Above the point when it sits in the top half (screen up is smaller y),
   // below it otherwise; a text baseline sits above the point by default so the
   // downward offset is larger to clear the glyphs.
-  const dy = at[1] >= cy ? -offset * 0.8 : offset * 1.6;
+  const dy = point.y <= centre.y ? -offset * 0.8 : offset * 1.6;
   return { anchor, dx, dy };
 }
 

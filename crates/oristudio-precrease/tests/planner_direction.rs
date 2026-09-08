@@ -122,6 +122,66 @@ fn a_pure_line_gets_all_of_itself_right() {
     );
 }
 
+/// `direction_share` is the share of the line's creased length the step's own
+/// direction gets right — recomputed here from the fixture's raw colours, so a
+/// call site that passed the wrong majority in cannot pass.
+///
+/// This is the one number that goes wrong *silently*: swapping the arguments to
+/// `share_of` leaves every side, every direction and every turn-over count
+/// exactly as it was, and only misreports a weak line that the schedule creased
+/// the other way — which is precisely the line D26's sentence exists for.
+#[test]
+fn the_share_is_the_share_that_direction_gets_right() {
+    let mut reversed_seen = 0;
+    for file in EVERY_FIXTURE {
+        let cp = load(file);
+        let seq = plan_component(&component_of(&cp), unbounded_options()).1;
+        for step in seq.steps.iter().filter(|s| s.kind == StepKind::Cp) {
+            let (mut mountain, mut valley) = (0.0, 0.0);
+            for &id in &step.cp_line_ids {
+                let base = (id as usize - 1) * 4;
+                let Some(seg) = cp.segments.get(base..base + 4) else {
+                    panic!("{file}: crease id {id} is not in the input")
+                };
+                let length = ((seg[2] - seg[0]).powi(2) + (seg[3] - seg[1]).powi(2)).sqrt();
+                match cp.colors.get(id as usize - 1) {
+                    Some(1) => mountain += length,
+                    Some(2) => valley += length,
+                    _ => {}
+                }
+            }
+            let total = mountain + valley;
+            if total <= 0.0 {
+                continue;
+            }
+            let mine = match step.direction {
+                Direction::Mountain => mountain / total,
+                Direction::Valley => valley / total,
+                Direction::Unassigned => continue,
+            };
+            // Model-space lengths, not unit-sheet ones: the crate measures in
+            // the unit frame, but a share is a ratio and the frame's scale is
+            // isotropic, so the two agree.
+            assert!(
+                (mine - step.direction_share).abs() < 1e-9,
+                "{file}: step {} says {} of its length folds {:?}, the pattern says {mine}",
+                step.id,
+                step.direction_share,
+                step.direction
+            );
+            if step.direction_share < 0.5 {
+                reversed_seen += 1;
+            }
+        }
+    }
+    // The fixtures must actually contain a line the schedule creased against its
+    // own majority, or the assertion above never exercises the branch.
+    assert!(
+        reversed_seen > 0,
+        "no fixture has a weak line creased the other way"
+    );
+}
+
 /// grid6 is the fully determined case: seven mountains, seven valleys, and no
 /// line carrying both, so exactly one schedule is correct.
 #[test]

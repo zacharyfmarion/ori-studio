@@ -3,9 +3,12 @@ import type { TFunction } from 'i18next';
 import axiom7Fixture from './referenceFinder/__fixtures__/line-axiom7.json';
 import { extractSolution, type ExtractedStep } from './referenceFinder/extractor';
 import type { ReferenceFinderReplayFixture } from './referenceFinder/replayClient';
+import { plannerSequenceFixture } from './__fixtures__/plannerSequence';
 import {
+  describePlannerStep,
   describeStep,
   isLineLabel,
+  plannerRefIndex,
   referenceName,
   splitStepInputs,
 } from './referencesStepSentences';
@@ -161,5 +164,35 @@ describe("O7's slots, against a captured solution", () => {
     const sentence = describeStep(t, step!);
     expect(sentence).toContain(`${referenceName(t, lines[1])} onto itself`);
     expect(sentence).toContain(`lands on ${referenceName(t, lines[0])}`);
+  });
+});
+
+describe('a step made on the back', () => {
+  const sequence = plannerSequenceFixture();
+  const index = plannerRefIndex(sequence);
+  const onSide = (side: 'front' | 'back', stepIndex: number) => {
+    const steps = sequence.steps.map((s, i) => (i === stepIndex ? { ...s, side } : s));
+    return describePlannerStep(t, { ...sequence, steps }, index, stepIndex);
+  };
+  // Find a step whose sentence names a side of the sheet at all.
+  const at = sequence.steps.findIndex((_, i) => /left|right/i.test(onSide('front', i)));
+
+  it('names the sheet as the reader sees it, not as the pattern states it', () => {
+    expect(at, 'the fixture should have a step naming an edge or corner').toBeGreaterThanOrEqual(0);
+    const front = onSide('front', at);
+    const back = onSide('back', at);
+    // The card and the canvas are both mirrored on the back, so every left
+    // becomes a right and the sentence has to follow.
+    expect(back).not.toBe(front);
+    expect(back).toBe(front.replace(/left|right/g, (word) => (word === 'left' ? 'right' : 'left')));
+  });
+
+  it('leaves top and bottom alone — only handedness turns over', () => {
+    const withTop = sequence.steps.findIndex((_, i) => /top|bottom/i.test(onSide('front', i)));
+    if (withTop < 0) return;
+    const front = onSide('front', withTop);
+    const back = onSide('back', withTop);
+    const strip = (s: string) => s.replace(/left|right/g, '·');
+    expect(strip(back)).toBe(strip(front));
   });
 });
