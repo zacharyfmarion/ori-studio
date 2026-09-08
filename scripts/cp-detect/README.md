@@ -660,6 +660,33 @@ identical solver code. Read a flip with `curated_solve` at both commits in
 one build before attributing it, and treat a case that moves under a change
 that cannot have touched it as this noise until shown otherwise.
 
+### What the curated group cannot judge: contact placement
+
+The curated truths are the detection fixed up by eye in the editor, so a
+boundary contact's position in them is wherever the contact head put it, to
+a tenth of a pixel; the solve then holds it there. A change that moves
+contacts toward the ink therefore reads as *worse* on that group (`end to
+end recovered` is, for contacts, a regression test against main's own
+placement), and the solver's slide from the recognised position is anchored
+to the same positions. Judge contacts against the ink instead:
+
+```bash
+export MODEL=$(node -p "const m = require('./scripts/cp-detect/current-model.json'); m.versioned_model_asset_dir + '/' + m.model_filename")
+CONTACT_RELOCALIZE=0 cargo run --release -p oristudio-cp-detect --features native-inference \
+  --example dump_candidate_pool -- $MODEL /tmp/pool-off $CP_DETECT_CURATED_CORPUS_DIR/curated/<case>...
+cargo run --release -p oristudio-cp-detect --features native-inference \
+  --example dump_candidate_pool -- $MODEL /tmp/pool-on $CP_DETECT_CURATED_CORPUS_DIR/curated/<case>...
+python3 scripts/cp-detect/contact_ink_referee.py /tmp/pool-off /tmp/pool-on
+```
+
+For every contact the second dump moved, the referee fits the crease's ink
+centreline on the rectified grayscale from 12 to 90 px inside the edge and
+extrapolates it to the paper edge, then reports how far the head's position
+and the moved one sit from that crossing, by the crease's angle to the edge,
+with the moves that went furthest from the ink listed. Run it on a few
+rendered cases too: there the crossing sits about half a pixel from the
+design's contact, which is the calibration.
+
 ### The rendered group
 
 `rendered_corpus`, an example in `oristudio-cp`, makes cases out of native

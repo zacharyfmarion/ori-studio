@@ -1,6 +1,7 @@
 use std::fmt;
 use std::str::FromStr;
 
+mod contact_relocalize;
 mod junction_carrier_v1;
 mod junction_first_v1;
 mod legacy_topology_v2;
@@ -158,6 +159,9 @@ pub struct JunctionCarrierV1StrategyOptions {
     /// background pixels between the 4px sample steps cannot dilute the M/V/B
     /// channel means into an Unknown label (see `sample_span_stats`).
     pub ink_weighted_assignment: bool,
+    /// Override for the boundary-contact peak threshold (see
+    /// `EvidenceExtractionConfig::boundary_contact_threshold`).
+    pub boundary_contact_threshold: Option<f32>,
 }
 
 impl Default for JunctionCarrierV1StrategyOptions {
@@ -181,6 +185,7 @@ impl Default for JunctionCarrierV1StrategyOptions {
             junction_cluster_keep_rule: JunctionClusterKeepRule::default(),
             junction_evidence_source: JunctionEvidenceSource::Model,
             ink_weighted_assignment: false,
+            boundary_contact_threshold: None,
         }
     }
 }
@@ -223,6 +228,22 @@ pub struct JunctionFirstV1StrategyOptions {
     pub junction_evidence_source: JunctionEvidenceSource,
     /// See [`JunctionCarrierV1StrategyOptions::ink_weighted_assignment`].
     pub ink_weighted_assignment: bool,
+    /// Move each boundary contact onto the ink centreline of its incident
+    /// spans and merge the contacts that then coincide (see
+    /// `contact_relocalize`). The contact head fires where the crease stroke
+    /// meets the border stroke, up to 3 px along the edge from the crease's
+    /// true crossing at shallow angles.
+    pub contact_relocalize: bool,
+    /// After re-localisation, two contacts on one side closer than this (px),
+    /// at least one of which the re-localisation moved, are one contact: two
+    /// creases from a V that decoded as two ink corners 6–8 px apart and were
+    /// both corrected onto the same crossing, where each fit lands within a
+    /// pixel or so of it. Unmoved contacts never merge, so two close but
+    /// distinct contacts survive.
+    pub contact_merge_px: f64,
+    /// Override for the boundary-contact peak threshold. `None` keeps the
+    /// shared default (`line_threshold.max(0.50)`). For sweeps.
+    pub boundary_contact_threshold: Option<f32>,
 }
 
 impl Default for JunctionFirstV1StrategyOptions {
@@ -251,6 +272,9 @@ impl Default for JunctionFirstV1StrategyOptions {
             junction_cluster_keep_rule: JunctionClusterKeepRule::default(),
             junction_evidence_source: JunctionEvidenceSource::Model,
             ink_weighted_assignment: false,
+            contact_relocalize: true,
+            contact_merge_px: 3.0,
+            boundary_contact_threshold: None,
         }
     }
 }

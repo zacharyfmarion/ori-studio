@@ -2579,6 +2579,7 @@ fn evidence_config_from_decode(config: &DecodeConfig) -> EvidenceExtractionConfi
         junction_cluster_keep_rule: config.junction_cluster_keep_rule,
         junction_evidence_source: JunctionEvidenceSource::Model,
         junction_peak_threshold: None,
+        boundary_contact_threshold: None,
     }
 }
 

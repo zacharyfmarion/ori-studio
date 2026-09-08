@@ -78,6 +78,7 @@ pub(super) fn evidence_config(
         junction_cluster_keep_rule: options.junction_cluster_keep_rule,
         junction_evidence_source: options.junction_evidence_source,
         junction_peak_threshold: config.junction_peak_threshold,
+        boundary_contact_threshold: options.boundary_contact_threshold,
     }
 }
 

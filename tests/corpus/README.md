@@ -222,19 +222,44 @@ scoring are in `scripts/cp-detect/README.md`, the case format in
 `implementation-plans/cp-detect-curated-ground-truth.md` and the rendered
 group in `implementation-plans/cp-detect-rendered-corpus.md`.
 
-Last curated run on September 5, 2026 at `8913ccc8`, with the model
-`scripts/cp-detect/current-model.json` named at that commit, on an Apple
-Silicon Mac with CoreML, 647 s on 8 workers. 558 cases in two groups:
-`curated/`, 74 real images (40 with an exact truth, 21 topology only, 13
-skipped as too complex to curate), and `cpoogle/`, 484 native crease patterns
-rendered the way the editor exports them (all exact; 6 over the 4,000-crease
-recognition cap are topology-only rows).
+Last curated run on September 8, 2026 at the commit that landed the
+boundary-contact re-localisation with its real-image hardening
+(`crates/oristudio-cp-detect/src/candidate_generation/contact_relocalize.rs`),
+with the model `scripts/cp-detect/current-model.json` named at that commit,
+on an Apple Silicon Mac with CoreML, 681 s on 8 workers. 558 cases in two
+groups: `curated/`, 74 real images (40 with an exact truth, 21 topology only,
+13 skipped as too complex to curate), and `cpoogle/`, 484 native crease
+patterns rendered the way the editor exports them (all exact; 6 over the
+4,000-crease recognition cap are topology-only rows).
 
 ```text
-curated benchmark: 558 cases | decoder exact 274 of 539 (mean edge F1 0.948) | end to end recovered 317 | gate reproduced 441 | 647s
-  curated: decoder exact 18 of 61 (mean edge F1 0.819); end to end recovered 20, accepted wrong 14, not accepted 6; gate reproduced 34, close 3, off 2, not solved 10, skipped 1, solved without a truth 11
-  cpoogle: decoder exact 256 of 478 (mean edge F1 0.964); end to end recovered 297, accepted wrong 137, not accepted 42, skipped 6; gate reproduced 407, close 14, off 3, not solved 12, error 13, skipped 35
+curated benchmark: 558 cases | decoder exact 313 of 539 (mean edge F1 0.95) | end to end recovered 335 | gate reproduced 441 | 681s
+  curated: decoder exact 15 of 61 (mean edge F1 0.818); end to end recovered 18, accepted wrong 15, not accepted 7; gate reproduced 34, close 3, off 2, not solved 10, skipped 1, solved without a truth 11
+  cpoogle: decoder exact 298 of 478 (mean edge F1 0.967); end to end recovered 317, accepted wrong 115, not accepted 44, skipped 6; gate reproduced 407, close 14, off 3, not solved 12, error 13, skipped 35
 ```
+
+Against the September 5 baseline (decoder exact 274, recovered 317): the
+re-localisation of boundary contacts onto the crease's ink centreline moved 42
+rendered cases (40 from near, two from off) and one real image to an exact
+decode and 27 rendered cases from accepted-wrong to a strict, topology-exact
+convergence, and gave back five. Four are the solver landing on another
+exact configuration — wind-dragon, e-e-by-birb, nazgul-8-1 and
+velociraptor, each with the same or an exact recognised topology whose
+vertices moved under 1.2 px and a solve 2 px away across a sliding group,
+the noise described below — and on reza-squirrel-1 a correct merge of a
+doubled contact makes selection keep three auxiliary-line creases the
+baseline had left out, so the solve is refused. Four real images (halibut,
+markhor, volant-penguin, reza-squirrel-1) read `near` instead of `exact` at
+the decoder and zebra-naoki-terao `off` instead of `near`, all with their
+solved answer unchanged: their truths are the detection fixed up by eye and
+carry the contact head's own positions, which the change moves by 2–3 px on
+shallow creases. For contact placement this group is a regression test
+against main's output, not a truth; the check that can judge it reads the
+ink (`scripts/cp-detect/contact_ink_referee.py`, in
+`scripts/cp-detect/README.md`), and on the real images the corrected
+contacts sit 0.24 px from the crease's centreline against the head's 0.95.
+The mechanism and the measurements are in
+`implementation-plans/cp-detect-boundary-contact-decode.md`.
 
 The 13 gate errors are the solver's input builder refusing a paper it does
 not support (7 non-square, 5 not a four-corner quadrilateral, 1 degenerate

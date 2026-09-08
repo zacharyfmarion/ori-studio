@@ -305,7 +305,7 @@ pub(super) fn extract_evidence(
 
 /// The vertex builder and segment sampler are shared with `junction-carrier-v1`
 /// and take its options struct; only the fields used by those helpers matter.
-fn carrier_equivalent_options(
+pub(super) fn carrier_equivalent_options(
     options: JunctionFirstV1StrategyOptions,
 ) -> JunctionCarrierV1StrategyOptions {
     JunctionCarrierV1StrategyOptions {
@@ -316,6 +316,7 @@ fn carrier_equivalent_options(
         junction_cluster_keep_rule: options.junction_cluster_keep_rule,
         junction_evidence_source: options.junction_evidence_source,
         ink_weighted_assignment: options.ink_weighted_assignment,
+        boundary_contact_threshold: options.boundary_contact_threshold,
         ..JunctionCarrierV1StrategyOptions::default()
     }
 }
@@ -337,10 +338,28 @@ fn graph_from_evidence_with_vertices(
     mut vertices: Vec<CandidateVertex>,
 ) -> CandidateGraph {
     assign_vertex_ids(&mut vertices);
+    // Adjacency spans first: they give each boundary contact the crease
+    // direction its re-localisation needs, and the border spans are built
+    // from the contacts' final positions afterwards.
+    let mut crease_spans = Vec::new();
+    add_adjacent_pair_spans(
+        &vertices,
+        evidence,
+        config.image_size,
+        options,
+        &mut crease_spans,
+    );
+    let relocalized = relocalize_if_enabled(
+        &mut vertices,
+        &mut crease_spans,
+        evidence,
+        config.image_size,
+        options,
+    );
     let boundary = boundary_model(&vertices, [0, 1, 2, 3]);
     let mut spans = Vec::new();
     add_locked_border_spans(&vertices, &boundary, &mut spans);
-    add_adjacent_pair_spans(&vertices, evidence, config.image_size, options, &mut spans);
+    spans.append(&mut crease_spans);
     assign_span_ids(&mut spans);
     let mut graph = CandidateGraph {
         schema: "oristudio/cp-compiler/candidate-graph-v1".to_owned(),
@@ -358,6 +377,10 @@ fn graph_from_evidence_with_vertices(
             notes: vec![
                 "junction-first-v1 adjacency-constrained dense strategy; no Hough carrier gate"
                     .to_owned(),
+                format!(
+                    "boundary contacts re-localised from the ink: {} moved, {} merged",
+                    relocalized.moved, relocalized.merged
+                ),
             ],
         },
         report: CandidateGraphReport {
@@ -375,6 +398,21 @@ fn graph_from_evidence_with_vertices(
     graph.alternatives = graph.conflicts.clone();
     graph.report = graph_report(&graph);
     graph
+}
+
+/// `contact_relocalize::relocalize_contacts` when the option is on; a report
+/// of nothing done otherwise.
+pub(super) fn relocalize_if_enabled(
+    vertices: &mut Vec<CandidateVertex>,
+    spans: &mut Vec<CandidateCreaseSpan>,
+    evidence: &CompilerEvidence,
+    image_size: u32,
+    options: JunctionFirstV1StrategyOptions,
+) -> super::contact_relocalize::ContactRelocalizeReport {
+    if !options.contact_relocalize {
+        return super::contact_relocalize::ContactRelocalizeReport::default();
+    }
+    super::contact_relocalize::relocalize_contacts(vertices, spans, evidence, image_size, options)
 }
 
 fn add_adjacent_pair_spans(
@@ -503,7 +541,7 @@ fn pair_supported(stats: SpanStats, options: JunctionFirstV1StrategyOptions) -> 
         && stats.non_crease_mean <= options.max_non_crease_support
 }
 
-fn span_from_adjacent_pair(
+pub(super) fn span_from_adjacent_pair(
     id: usize,
     vertices: [usize; 2],
     a: Point2,
