@@ -1476,3 +1476,78 @@ this revision, now reads:
 > both ways in the pattern — the rest reverses as the model collapses.
 
 One fold, one direction, and the diagram says what it is not doing.
+
+---
+
+## Revision 5 — the card has to be the same diagram as the canvas
+
+Five things Zach found reading Revision 4 on markhor. Four of them are one
+theme: **the step card and the CP view disagreed**, and the card was the one
+lying. All are built.
+
+### D27 — a card draws what is on the paper, never the whole chord
+
+A fold crosses the sheet; the pattern usually wants creases along only part of
+it. The canvas already drew the pattern's own segments and the card drew the
+full chord, because the chord was all the crate told it — `Extent` is about how
+much of an *auxiliary* fold is pressed, and `pinch.rs` short-circuits every CP
+step to `Full` before it is computed.
+
+So the crate says where. `Target` and `Step` carry **`cp_spans`**: the pattern's
+segments on that line, in the unit frame, projected onto the fold's own line so
+a drawn span always lies on the drawn chord — which a raw endpoint need not
+within `TOL`, and need not at all on the snappable path, where the line moved.
+They come from `Component.unit_segments`, which was already carried and already
+parallel to `segment_indices`.
+
+The card then draws the spans, with the rest of the chord faint: "the fold runs
+the width, crease it here". Earlier steps, turn-over cards and the finished card
+all read the same spans, so nothing in the strip claims a crease that is not on
+the paper.
+
+### D28 — the active step's creases take the step's direction
+
+markhor's step 1 was drawn red along part of its length and blue along the rest:
+the line's creases in the finished pattern disagreeing with each other, which is
+the thing D20 exists to resolve. A step folds one way, so its creases take that
+one direction while it is active, through `ReferencesCreaseVisibility.
+emphasisDirection` → the view's own ink. The pattern's assignment comes back the
+moment the step is not active, and emphasis is still by width — the recolour is
+the step's *own* direction, not an accent hue, so D18 still holds.
+
+### D29 — the two faces of the paper look different
+
+The house template's legend: white side white, colour side 30% grey.
+`--paper-back` is mixed 30% toward the ink rather than hard-coded, so a dark
+theme's colour side is *lighter* than its paper the way a light theme's is
+darker. It fills the sheet rect on a card. On the canvas it is the ground:
+the camera fits the sheet, and there is no sheet quad in the renderer to fill —
+a filled outline is a renderer change, and a real one, not a line of CSS.
+
+### D30 — a turn-over reads as a step
+
+It always was one, but it makes no crease, so it had no number — and a numbered
+run with silent gaps in it reads as a rendering bug rather than as an
+instruction. Non-fold cards carry a badge where a fold carries its number, and
+a class of their own.
+
+### Revision 5 checklist
+
+- [x] `Target.spans` / `Step.cp_spans` from `Component.unit_segments`, projected
+- [x] Rust test: spans lie on the fold's line, inside the sheet, and cover no more than its chord
+- [x] Cards draw the spans plus the faint chord — the step's, the earlier ones, the turn-overs, the finish
+- [x] `emphasisDirection` through the visibility rule to the view's ink
+- [x] `--paper-back` on the card sheet and the canvas ground
+- [x] Turn-over and finished badges, translated for all 8 locales
+- [x] Browser verification on markhor
+
+### Still open
+
+- The canvas has **no filled sheet**, so D29 tints the ground rather than the
+  paper. Giving the renderer a sheet quad would let the paper itself carry the
+  colour side, with the margin around it staying the panel's own background.
+- A back-side card is mirrored but its creases are drawn in the *pattern's*
+  assignment, not in what the folder sees — from the back, a crease the pattern
+  wants as a mountain is a valley to the hand making it. Revision 3 asked for
+  the Edit tab's ink, and that is what this is; the alternative reading is worth
+  a decision rather than a silent change.
