@@ -240,9 +240,9 @@ export function MenuBar() {
     [shortcutOverrides, shortcutDefaultsSource, t]
   );
   const capabilities = useWorkspaceCapabilities();
-  // Hiding New/Open/Save from the toolbar (App.css, the phone block) made this
-  // bar the only way to reach them, which made its 28px rows the smallest
-  // targets on the surface built for fingertips.
+  // Dropping New/Open/Save from the toolbar made this bar the only way to reach
+  // them, which made its 28px rows the smallest targets on the surface built for
+  // fingertips.
   const phone = useIsPhoneLayout();
   // Layout is a phone question (inline submenus, a scroll cap); dismissal is a
   // pointer question. See `onTouchOutside`.

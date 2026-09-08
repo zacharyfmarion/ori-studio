@@ -241,6 +241,7 @@ the person chose it or is following their OS. Two things it is deliberately not:
 | `crease pattern shared` | `crease_count_bucket`, `had_title`, `had_author` | A share link is published |
 | `share link copied` | — | The share URL is copied |
 | `share link opened` | `succeeded`, `source` | A shared link is opened |
+| `community link opened` | `surface` (`toolbar`) | A link out to the community Discord is followed. The landing page's own Discord button is counted as `landing cta clicked` instead, so the two never double-count; this one exists because nothing in the workspace chrome dispatches through `handleMenuAction`, and whether an icon there is ever pressed is the only thing that says it earned its slot |
 | `theme changed` | `theme` | The theme is changed |
 | `locale changed` | `locale` | The language is changed |
 | `oriedita shortcuts imported` | `mode`, `applied_count`, `skipped_count` | An Oriedita `.oriconfig` keymap is applied |

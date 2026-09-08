@@ -290,13 +290,11 @@
     "credit": "Diseñado por <2>Brandon Wong</2>"
   },
   "toolbar": {
+    "discord": "Únete al Discord",
     "downloadDesktop": "Obtener la aplicación de escritorio",
     "downloadDesktopVersion": "Obtener la aplicación de escritorio ({{version}})",
-    "new": "Nuevo",
-    "open": "Abrir",
     "optimizeLayout": "Optimizar",
     "optimizeScale": "Optimizar escala",
-    "save": "Guardar",
     "sendToEdit": "Enviar a Editar",
     "sendToEditMore": "Más opciones de Enviar a Editar",
     "sendToEditTooltip": "Enviar el patrón de pliegues de este diseño al lienzo de edición",

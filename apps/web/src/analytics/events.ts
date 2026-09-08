@@ -53,6 +53,17 @@ export type LandingSectionId =
 export type LandingCta = 'discord' | 'github' | 'scroll' | 'download';
 
 /**
+ * Where a link out to the community Discord was followed from.
+ *
+ * One value, because the landing page's own Discord link is already counted as a
+ * `landing cta clicked` with `cta: 'discord'` and must not be counted twice. This
+ * event exists for the links the landing page's funnel cannot see — today the
+ * workspace toolbar, which is somebody already inside the app going looking for
+ * other people, a different act entirely from a visitor deciding to.
+ */
+export type CommunityLinkSurface = 'toolbar';
+
+/**
  * Which desktop build a download was started for.
  *
  * `releases-page` is not a build: it is the fallback every control falls back to
@@ -526,6 +537,15 @@ export const ANALYTICS_EVENTS = {
    * off this origin entirely.
    */
   desktopDownloadStarted: 'desktop download started',
+  /**
+   * A link out to the community Discord was followed.
+   *
+   * Nothing here dispatches through `handleMenuAction`, so the `command invoked`
+   * chokepoint cannot see it — and "does anyone press this" is the only question
+   * that decides whether an icon keeps a slot in the workspace chrome. Same
+   * argument as `desktop download started`'s `toolbar` surface.
+   */
+  communityLinkOpened: 'community link opened',
   orieditaShortcutsImported: 'oriedita shortcuts imported',
   orieditaShortcutsOverrideAll: 'oriedita shortcuts override all',
   shortcutDefaultsSourceChanged: 'shortcut defaults source changed',

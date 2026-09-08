@@ -31,6 +31,7 @@ vi.mock('./panels/SimulatorViewControlsPanel', () => ({
   SimulatorViewControlsPanel: () => null,
 }));
 
+import { DISCORD_URL } from '../constants/release';
 import { useLayoutStore } from '../store/layoutStore';
 import { TooltipProvider } from './ui/Tooltip';
 import { WorkspaceShell } from './WorkspaceShell';
@@ -206,5 +207,42 @@ describe('the workspace dock under a coarse pointer', () => {
     expect(dockviewApi.addPanel).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'cp-view-controls', initialWidth: 260 })
     );
+  });
+});
+
+describe('the toolbar', () => {
+  it('links out to the community Discord, as a link', () => {
+    // An anchor with a real `href`, not a button that opens a window: seeing
+    // where an outbound control goes before committing to it is the whole reason
+    // it is a link, and only the DOM node can say which one this is.
+    stubPointer(false);
+
+    renderShell();
+
+    const link = container?.querySelector('.toolbar__actions a[href*="discord"]');
+    expect(link?.getAttribute('href')).toBe(DISCORD_URL);
+    expect(link?.getAttribute('target')).toBe('_blank');
+    // `_blank` without this hands the opened tab a live handle back into the app.
+    expect(link?.getAttribute('rel')).toContain('noopener');
+  });
+
+  it('leaves New, Open and Save to the menus', () => {
+    // They were three unconditional File-menu entries duplicated as icons — the
+    // phone layout had already hidden them in CSS. Asserted by their labels
+    // because that is what a user looking for them would see; the menu bar in
+    // the same header is where they live now.
+    stubPointer(false);
+
+    renderShell();
+
+    const labels = [...(container?.querySelectorAll('.toolbar__actions [aria-label]') ?? [])].map(
+      (node) => node.getAttribute('aria-label')
+    );
+    // The row is read, not merely missed: without this the assertions below pass
+    // just as well against a selector that matched nothing.
+    expect(labels).toContain('Settings');
+    expect(labels).not.toContain('New');
+    expect(labels).not.toContain('Open');
+    expect(labels).not.toContain('Save');
   });
 });

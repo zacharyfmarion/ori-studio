@@ -1,6 +1,7 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useIsPhoneLayout } from '../../platform/phoneLayout';
 import { useDesktopDownloads } from '../../platform/useDesktopDownloads';
 import { MenuIconButton } from '../ui/MenuIconButton';
 import { DesktopDownloadMenuItems } from './DesktopDownloadMenuItems';
@@ -14,9 +15,21 @@ import { DesktopDownloadMenuItems } from './DesktopDownloadMenuItems';
  * starting from an unlabelled click is not a thing to do to somebody mid-edit —
  * so every path from here goes through a list that names the file first.
  *
- * Renders nothing in the desktop app, which is already the thing this offers.
+ * Renders nothing in the desktop app, which is already the thing this offers,
+ * and nothing on a phone, which cannot run any of the builds it lists. Both
+ * refusals happen before {@link DownloadMenu} mounts, which is the reason this
+ * is split in two: a phone that never mounts the body never calls
+ * `useDesktopDownloads`, so it never spends a request asking GitHub about
+ * installers it has no way to use. `display: none` would have hidden the icon
+ * and paid for the fetch anyway.
  */
 export function ToolbarDownloadButton() {
+  const phone = useIsPhoneLayout();
+  if (phone) return null;
+  return <DownloadMenu />;
+}
+
+function DownloadMenu() {
   const { t } = useTranslation();
   const { available, builds, fallbackUrl, version } = useDesktopDownloads();
 

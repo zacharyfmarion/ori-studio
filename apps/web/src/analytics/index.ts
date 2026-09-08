@@ -19,6 +19,7 @@ export type {
   AnalyticsPropertyValue,
   AnalyticsErrorDomain,
   CommandGroup,
+  CommunityLinkSurface,
   ContextMenuSurface,
   ContextMenuTargetKind,
   CpFavoriteSurface,
@@ -62,6 +63,7 @@ export {
   trackCpToolFavorited,
   trackCpToolFavoritesReordered,
 } from './trackCpToolFavorites';
+export { trackCommunityLink } from './trackCommunityLink';
 export { trackDesignSentToEdit } from './trackSendToEdit';
 export { trackDesktopDownload } from './trackDesktopDownload';
 

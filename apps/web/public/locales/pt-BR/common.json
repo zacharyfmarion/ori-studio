@@ -290,13 +290,11 @@
     "credit": "Criado por <2>Brandon Wong</2>"
   },
   "toolbar": {
+    "discord": "Entrar no Discord",
     "downloadDesktop": "Obter o aplicativo para desktop",
     "downloadDesktopVersion": "Obter o aplicativo para desktop ({{version}})",
-    "new": "Novo",
-    "open": "Abrir",
     "optimizeLayout": "Otimizar",
     "optimizeScale": "Otimizar escala",
-    "save": "Salvar",
     "sendToEdit": "Enviar para Edição",
     "sendToEditMore": "Mais opções de Enviar para Edição",
     "sendToEditTooltip": "Enviar o padrão de vincos deste design para o canvas de Edição",

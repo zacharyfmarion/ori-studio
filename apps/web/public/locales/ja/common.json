@@ -290,13 +290,11 @@
     "credit": "デザイン: <2>Brandon Wong</2>"
   },
   "toolbar": {
+    "discord": "Discord に参加",
     "downloadDesktop": "デスクトップアプリを入手",
     "downloadDesktopVersion": "デスクトップアプリを入手 ({{version}})",
-    "new": "新規",
-    "open": "開く",
     "optimizeLayout": "最適化",
     "optimizeScale": "スケールを最適化",
-    "save": "保存",
     "sendToEdit": "編集に送る",
     "sendToEditMore": "「編集に送る」のその他のオプション",
     "sendToEditTooltip": "このデザインの展開図を編集キャンバスに送る",

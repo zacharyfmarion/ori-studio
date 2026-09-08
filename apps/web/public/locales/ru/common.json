@@ -290,13 +290,11 @@
     "credit": "Дизайн: <2>Brandon Wong</2>"
   },
   "toolbar": {
+    "discord": "Присоединиться к Discord",
     "downloadDesktop": "Получить приложение для компьютера",
     "downloadDesktopVersion": "Получить приложение для компьютера ({{version}})",
-    "new": "Создать",
-    "open": "Открыть",
     "optimizeLayout": "Оптимизировать",
     "optimizeScale": "Оптимизировать масштаб",
-    "save": "Сохранить",
     "sendToEdit": "Отправить в Правку",
     "sendToEditMore": "Другие варианты отправки в Правку",
     "sendToEditTooltip": "Отправить паттерн складок этого дизайна на холст Правки",

@@ -1086,9 +1086,8 @@
  */
 @media (pointer: coarse) and (max-width: 600px), (pointer: coarse) and (max-height: 600px) {
   /*
-   * Back to two columns. The single-column rule at 680px is what actually put the
-   * toolbar on two lines — the icons always fit on one row — so hiding three of
-   * them only pays off once the menu bar and the actions share a row again.
+   * Back to two columns. The single-column rule at 680px is what put the toolbar
+   * on two lines; here the menu bar and the actions share a row again.
    *
    * The *menu bar* is the intrinsic track and the actions are the flexible one,
    * which is the opposite of the desktop rule and the whole reason this fits.
@@ -1119,28 +1118,6 @@
   }
 
   /*
-   * New, Open and Save. All three are unconditional File-menu entries, and
-   * `capability()` hard-codes `visible: true` for every capability it builds — so
-   * they can be disabled but never hidden, and the icons are pure duplication at
-   * a width that cannot afford them. Settings stays: on macOS it has no menu
-   * entry at all (see the note in `WorkspaceShell`).
-   *
-   * A class rather than `:nth-child`, because the actions row's contents are
-   * conditional — an index would start hiding Optimize the moment a capability
-   * flipped.
-   *
-   * The `:has()` half is not belt and braces. `IconButton` wraps a *disabled*
-   * button in `.ui-button-tooltip-trigger`, because a disabled control receives
-   * no pointer events and could otherwise never show its reason — so hiding the
-   * button alone would leave three empty flex items and their gaps behind, and
-   * Save is disabled whenever nothing is open.
-   */
-  .toolbar__action--file,
-  .ui-button-tooltip-trigger:has(> .toolbar__action--file) {
-    display: none;
-  }
-
-  /*
    * `nowrap` is the rule that keeps the promise: the Design workspace also puts
    * Optimize Scale and a Send split button in here, and wrapping is what would
    * re-create the second line. They scroll instead — safe to scroll, because the
@@ -1166,9 +1143,10 @@
    * there is not, so the row sits right when it fits and scrolls when it does
    * not.
    *
-   * A pseudo-element and not `:first-child`, because the first three children are
-   * the File icons this block hides and an auto margin on `display: none` moves
-   * nothing.
+   * A pseudo-element and not `:first-child`, because the row's real first child
+   * is conditional — Optimize Scale and Send come and go with the workspace, so
+   * the margin would move between elements as the user navigates, and land on a
+   * `display: none` one the moment anything here is hidden again.
    */
   .toolbar__actions::before {
     content: '';
@@ -1185,8 +1163,8 @@
   /*
    * The menu bar shrinks by truncating its widest trigger rather than by
    * scrolling. A scroll container would clip the dropdown — it is an absolutely
-   * positioned child of the trigger's wrapper — and the File menu is now the only
-   * way to reach New/Open/Save, so clipping it is the one failure this change
+   * positioned child of the trigger's wrapper — and the File menu is the only way
+   * to reach New/Open/Save at any width, so clipping it is the one failure this
    * must not have. Truncation happens on the button's own text, which the
    * dropdown is a sibling of.
    *
