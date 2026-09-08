@@ -129,6 +129,10 @@ pub struct EvidenceExtractionConfig {
     /// currently 0.40). Set only for threshold sweeps; does not affect line or
     /// boundary-contact thresholds.
     pub junction_peak_threshold: Option<f32>,
+    /// Override for the boundary-contact peak-extraction threshold. `None`
+    /// uses the shared default (`line_threshold.max(0.50)`). Set for sweeps.
+    #[serde(default)]
+    pub boundary_contact_threshold: Option<f32>,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -372,7 +376,9 @@ pub fn extract_compiler_evidence(
     let boundary_contact_primitives = local_maxima_primitives(
         &boundary_contact_probability,
         size,
-        config.line_threshold.max(0.50),
+        config
+            .boundary_contact_threshold
+            .unwrap_or_else(|| config.line_threshold.max(BOUNDARY_CONTACT_THRESHOLD_FLOOR)),
         config.primitive_nms_radius_px,
         config.max_boundary_contact_primitives,
     )
@@ -725,6 +731,16 @@ fn local_maxima_primitives(
     candidates.truncate(max_count);
     candidates
 }
+
+/// Default floor for the boundary-contact peak-extraction threshold. On the
+/// curated benchmark's renders 1.8% of the truth's contacts peak between 0.25
+/// and 0.50 with no candidate, and 0.30 recovers most of them (contact recall
+/// 94.2% -> 95.7%), but on real scans and tiny patterns the extra peaks land
+/// beside an existing contact or a corner and their spans break the solve
+/// (reza-dreamworks-1, hirasawa, 2026-09-08), so the floor stays at 0.50 until
+/// a spurious-contact guard exists. Sweep it through
+/// `EvidenceExtractionConfig::boundary_contact_threshold`.
+const BOUNDARY_CONTACT_THRESHOLD_FLOOR: f32 = 0.50;
 
 /// Default floor for the junction peak-extraction threshold, shared by every
 /// surface (product wasm, benchmark, inspector). Lowered 0.50 -> 0.40 after a
@@ -1258,6 +1274,7 @@ mod tests {
             junction_cluster_keep_rule: JunctionClusterKeepRule::default(),
             junction_evidence_source: JunctionEvidenceSource::Model,
             junction_peak_threshold: None,
+            boundary_contact_threshold: None,
         }
     }
 
