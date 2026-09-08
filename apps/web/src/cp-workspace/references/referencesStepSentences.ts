@@ -298,6 +298,33 @@ function plannerLineName(
 }
 
 /**
+ * The two lines that locate a mark, as of `beforeStep`.
+ *
+ * A point in the planner's state carries *every* line through it, including
+ * ones folded much later — naming a mark by those tells the folder to find it
+ * with a crease that does not exist yet. So the list is cut to what has been
+ * made, and ordered for legibility: a sheet edge first, then the earliest
+ * crease, because "where the left edge meets the crease from step 7" is a place
+ * you can put a finger on and "where step 60 meets step 64" is not.
+ */
+export function definingLines(
+  index: PlannerRefIndex,
+  pointId: number,
+  beforeStep: number
+): number[] {
+  const made = (index.linesOfPoint.get(pointId) ?? []).filter((id) => {
+    const step = index.stepOfLine.get(id);
+    return step === undefined || step < beforeStep;
+  });
+  return made.sort((a, b) => {
+    const sa = index.stepOfLine.get(a);
+    const sb = index.stepOfLine.get(b);
+    if (sa === undefined || sb === undefined) return (sa === undefined ? 0 : 1) - (sb === undefined ? 0 : 1);
+    return sa - sb;
+  });
+}
+
+/**
  * A planner reference in a sentence. A mark is named by what makes it — "where
  * the left edge meets the crease from step 12" — because a folder can find
  * that and cannot find "point 47".
@@ -306,7 +333,8 @@ export function plannerReferenceName(
   t: TFunction,
   index: PlannerRefIndex,
   ref: PrecreaseRef,
-  mirrored = false
+  mirrored = false,
+  beforeStep = Number.POSITIVE_INFINITY
 ): string {
   switch (ref.kind) {
     case 'edge':
@@ -318,7 +346,7 @@ export function plannerReferenceName(
     case 'point': {
       const corner = index.corners.get(ref.id);
       if (corner) return cornerName(t, seenCorner(corner, mirrored));
-      const lines = index.linesOfPoint.get(ref.id) ?? [];
+      const lines = definingLines(index, ref.id, beforeStep);
       if (lines.length >= 2) {
         return t('panels:references.ref.intersection', 'where {{a}} meets {{b}}', {
           a: plannerLineName(t, index, lines[0], mirrored),
@@ -357,7 +385,7 @@ export function describePlannerStep(
   // the back is drawn mirrored, so its "left edge" is the pattern's right one.
   const mirrored = step.side === 'back';
   const name = (ref: PrecreaseRef | undefined) =>
-    ref ? plannerReferenceName(t, index, ref, mirrored) : '?';
+    ref ? plannerReferenceName(t, index, ref, mirrored, step.id) : '?';
   const [i0, i1, i2, i3] = witness.inputs;
   let sentence: string;
   switch (witness.axiom) {
@@ -410,7 +438,7 @@ export function describePlannerStep(
     default:
       sentence = t('panels:references.planStep.unknown', 'Fold using {{inputs}}.', {
         inputs: witness.inputs
-          .map((ref) => plannerReferenceName(t, index, ref, mirrored))
+          .map((ref) => plannerReferenceName(t, index, ref, mirrored, step.id))
           .join(', '),
       });
   }

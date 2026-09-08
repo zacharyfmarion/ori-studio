@@ -341,7 +341,16 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
     const drawnVertices = useMemo(() => {
       const visible = creaseVisibility.visible;
       if (!visible) return sheetVertices;
-      const kept = verticesOfLines(geometry, vertices, visible);
+      // The border is always drawn, but its own vertices are not landmarks
+      // until something reaches them: on a blank sheet the outline carries a
+      // dot at every place a crease will *later* arrive, which is both a
+      // giveaway and a lot of dots. So the point layer follows the creases,
+      // and the border rides along only where one of them lands.
+      const creases = new Set<number>();
+      for (const id of visible) {
+        if (!creaseVisibility.borderLineIds?.has(id)) creases.add(id);
+      }
+      const kept = verticesOfLines(geometry, vertices, creases);
       return vertices.filter((_, i) => kept.has(i));
     }, [geometry, vertices, sheetVertices, creaseVisibility]);
     // What the vertex crowding ramp measures against — the same strided median
@@ -774,20 +783,14 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           widthMul: HIGHLIGHT_WIDTH_MUL,
         }
       );
-      // The step's own direction, in this canvas's ink. Resolved here because
-      // this is the one place that owns the palette; the rule that says *which*
-      // direction lives in `referencesCreaseVisibility`.
-      const ink = overlayColors(canvas);
-      const emphasisColor =
-        creaseVisibility.emphasisDirection === 'mountain'
-          ? ink.mountain
-          : creaseVisibility.emphasisDirection === 'valley'
-            ? ink.valley
-            : null;
+      // The directions the crate settled, in this canvas's ink. Resolved here
+      // because this is the one place that owns the palette; the rule that says
+      // *which* direction lives in `referencesCreaseVisibility`.
+      const palette = overlayColors(canvas);
       renderer.setStrokes(
         applyCreaseVisibility(strokes, geometry.segEndpoints.length / 4, {
           ...creaseVisibility,
-          emphasisColor,
+          ink: { mountain: palette.mountain, valley: palette.valley },
         })
       );
       renderNowRef.current();

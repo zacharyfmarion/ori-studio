@@ -199,3 +199,47 @@ describe('a card that is not a fold', () => {
     expect([...(at.dimmed ?? [])]).toEqual([10]);
   });
 });
+
+describe('the direction a crease keeps', () => {
+  const withDirection = (id: number, ids: number[], direction: 'mountain' | 'valley') => ({
+    ...step(id, ids),
+    direction,
+  });
+  const input = { sheetLineIds: SHEET, borderLineIds: BORDER, activeLineIds: new Set<number>() };
+
+  // A step folds one line one way (plan D20). Left to the pattern's own
+  // assignment, a line whose creases disagree goes back to reading red here and
+  // blue there the moment its step stops being active.
+  it('is the one its step folded, for every step so far and not just the active one', () => {
+    const variants = [
+      variant([
+        withDirection(1, [10], 'mountain'),
+        withDirection(2, [11], 'valley'),
+        withDirection(3, [12], 'mountain'),
+      ]),
+    ];
+    const views: ReferencesViewStep[] = [fold(0), fold(1), fold(2)];
+    const at = planVisibility(variants, views, 1, input);
+    expect([...(at.directions ?? [])]).toEqual([
+      [10, 'mountain'],
+      [11, 'valley'],
+    ]);
+    // Nothing folded yet is nothing coloured — the build-up still holds it back.
+    expect(at.directions?.has(12)).toBe(false);
+  });
+
+  it('says nothing about an auxiliary line, which the pattern does not assign', () => {
+    const variants = [variant([{ ...step(1, [10]), direction: 'unassigned' as const }])];
+    const at = planVisibility(variants, [fold(0)], 0, input);
+    expect(at.directions?.size).toBe(0);
+  });
+
+  // The point layer needs to tell the outline from the folds: a dot at every
+  // place a crease will one day meet the border is a giveaway and a crowd.
+  it('names the border so the point layer can leave its bare vertices alone', () => {
+    const variants = [variant([step(1, [10])])];
+    expect(planVisibility(variants, [fold(0)], 0, input).borderLineIds).toBe(BORDER);
+    const views: ReferencesViewStep[] = [fold(0), { kind: 'done', side: 'front', component: 0 }];
+    expect(planVisibility(variants, views, 1, input).borderLineIds).toBe(BORDER);
+  });
+});

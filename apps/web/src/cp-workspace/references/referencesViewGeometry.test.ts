@@ -231,3 +231,62 @@ describe('applyCreaseVisibility', () => {
     expect(alphaOf(input)).toEqual([1, 1, 1, 1, 1]);
   });
 });
+
+describe('dash continuity along one line', () => {
+  const strokes = (pairs: [number, number, number, number][]) => ({
+    a: Float32Array.from(pairs.flatMap(([ax, ay]) => [ax, ay])),
+    b: Float32Array.from(pairs.flatMap(([, , bx, by]) => [bx, by])),
+    color: new Float32Array(pairs.length * 4).fill(1),
+    widthMul: new Float32Array(pairs.length).fill(1),
+    count: pairs.length,
+  });
+  const visible = (n: number) => new Set(Array.from({ length: n }, (_, i) => i + 1));
+
+  // A crease is split at every crossing. Each piece restarting the pattern is
+  // what made a dashed line read as a row of unrelated dashes.
+  it('measures collinear pieces on one ruler', () => {
+    const out = applyCreaseVisibility(
+      strokes([
+        [0, 0, 3, 0],
+        [3, 0, 7, 0],
+        [7, 0, 9, 0],
+      ]),
+      3,
+      { visible: visible(3), dimmed: null, dimAlpha: 1 }
+    );
+    expect([...(out.dashPhase ?? [])]).toEqual([0, 3, 7]);
+  });
+
+  // The document stores a segment either way round; the ruler must not care.
+  it('is the same ruler for a piece stored backwards', () => {
+    const forward = applyCreaseVisibility(strokes([[3, 0, 7, 0]]), 1, {
+      visible: visible(1),
+      dimmed: null,
+      dimAlpha: 1,
+    });
+    const backward = applyCreaseVisibility(strokes([[7, 0, 3, 0]]), 1, {
+      visible: visible(1),
+      dimmed: null,
+      dimAlpha: 1,
+    });
+    expect([...(backward.dashPhase ?? [])]).toEqual([...(forward.dashPhase ?? [])]);
+    // …and the segment is reoriented to match, so the pattern runs the same way.
+    expect([...backward.a]).toEqual([...forward.a]);
+    expect([...backward.b]).toEqual([...forward.b]);
+  });
+
+  it('measures a diagonal along its own axis, not along x', () => {
+    const k = Math.SQRT1_2;
+    const out = applyCreaseVisibility(
+      strokes([
+        [0, 0, k, k],
+        [k, k, 2 * k, 2 * k],
+      ]),
+      2,
+      { visible: visible(2), dimmed: null, dimAlpha: 1 }
+    );
+    const phases = [...(out.dashPhase ?? [])];
+    expect(phases[0]).toBeCloseTo(0, 6);
+    expect(phases[1]).toBeCloseTo(1, 6);
+  });
+});

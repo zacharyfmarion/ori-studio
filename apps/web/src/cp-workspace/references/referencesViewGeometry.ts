@@ -279,23 +279,26 @@ export interface ReferencesCreaseVisibility {
   /** Width multiplier for an emphasised crease. */
   emphasisWidth?: number;
   /**
-   * Which way the active step folds, for the ink its creases take.
+   * Which way each crease was *folded*, by the step that made it.
+   *
+   * Not the pattern's own assignment: a step folds one line one way (plan D20),
+   * and a line whose creases disagree with each other would otherwise go back
+   * to reading red here and blue there the moment the step stopped being
+   * active. It stays the way it was made, for the rest of the sequence.
    *
    * The rule that decides this lives with the other visibility rules; the view
    * turns it into a colour, because the palette is the view's.
    */
-  emphasisDirection?: 'mountain' | 'valley' | null;
+  directions?: ReadonlyMap<number, 'mountain' | 'valley'> | null;
   /**
-   * The ink the emphasised creases take, overriding each crease's own.
+   * The ink a folded crease takes, by direction, overriding the crease's own.
    *
-   * A step folds **one** line in **one** direction (plan D20), but the line's
-   * creases in the finished pattern often disagree with each other — 31.7% of
-   * steps, measured. Left in their own colours the fold you are being told to
-   * make reads as red here and blue there, which is not a fold. So the active
-   * step's creases take the direction the crate resolved, and the pattern's own
-   * assignment comes back the moment the step is no longer active.
+   * Resolved by the view from {@link ReferencesCreaseVisibility.directions}.
    */
-  emphasisColor?: readonly [number, number, number, number] | null;
+  ink?: {
+    mountain: readonly [number, number, number, number];
+    valley: readonly [number, number, number, number];
+  } | null;
   /**
    * The 1-based ids drawn at all. `null` means every crease — the sheet is not
    * being read step by step, so nothing is held back.
@@ -303,6 +306,14 @@ export interface ReferencesCreaseVisibility {
   visible: ReadonlySet<number> | null;
   /** Ids drawn faintly: made by an earlier step, or simply not this step's. */
   dimmed: ReadonlySet<number> | null;
+  /**
+   * The sheet's border creases, which are always drawn.
+   *
+   * Carried so the point layer can tell them apart: the outline is the paper
+   * rather than one of the folds, and a dot at every place a crease will one
+   * day meet it is a giveaway and a crowd.
+   */
+  borderLineIds?: ReadonlySet<number> | null;
   /** Multiplier on a dimmed crease's alpha. */
   dimAlpha: number;
 }
@@ -337,13 +348,25 @@ export function applyCreaseVisibility(
     dimAlpha,
     emphasis = null,
     emphasisWidth = 1,
-    emphasisColor = null,
+    directions = null,
+    ink = null,
   } = visibility;
   const filters =
-    visible !== null || (dimmed !== null && dimmed.size > 0) || (emphasis !== null && emphasis.size > 0);
+    visible !== null ||
+    (dimmed !== null && dimmed.size > 0) ||
+    (emphasis !== null && emphasis.size > 0) ||
+    (directions !== null && directions.size > 0 && ink !== null);
   if (!filters) return strokes;
   const color = new Float32Array(strokes.color);
   const widthMul = new Float32Array(strokes.widthMul);
+  // A crease is split into a segment per crossing, and each one restarts its
+  // dash — so a dashed line reads as a row of unrelated dashes with a reset at
+  // every vertex. Giving collinear segments a shared parameterisation makes
+  // them dash as the one line they are. It is measured along the line's own
+  // axis from the origin, so no two segments have to know about each other.
+  const a = new Float32Array(strokes.a);
+  const b = new Float32Array(strokes.b);
+  const dashPhase = new Float32Array(strokes.count);
   for (let i = 0; i < strokes.count; i += 1) {
     if (i >= segmentCount) {
       color[i * 4 + 3] = 0;
@@ -354,19 +377,62 @@ export function applyCreaseVisibility(
       color[i * 4 + 3] = 0;
       continue;
     }
+    // The direction the fold was made in, for every crease a step has made —
+    // not only the active one. Alpha is left alone: it carries the build-up.
+    const folded = directions?.get(id);
+    if (folded && ink) {
+      const rgba = folded === 'mountain' ? ink.mountain : ink.valley;
+      color[i * 4] = rgba[0];
+      color[i * 4 + 1] = rgba[1];
+      color[i * 4 + 2] = rgba[2];
+    }
     if (emphasis !== null && emphasis.has(id)) {
       widthMul[i] *= emphasisWidth;
-      if (emphasisColor) {
-        // Alpha is left alone: it carries the build-up, not the direction.
-        color[i * 4] = emphasisColor[0];
-        color[i * 4 + 1] = emphasisColor[1];
-        color[i * 4 + 2] = emphasisColor[2];
-      }
       continue;
     }
     if (dimmed !== null && dimmed.has(id)) color[i * 4 + 3] *= dimAlpha;
   }
-  return { ...strokes, color, widthMul };
+  for (let i = 0; i < strokes.count; i += 1) {
+    dashPhase[i] = shareDashAlongLine(a, b, i);
+  }
+  return { ...strokes, a, b, color, widthMul, dashPhase };
+}
+
+/**
+ * Put segment `i` on its line's own axis, and return how far along it starts.
+ *
+ * Two collinear segments only agree about a dash pattern if they agree about
+ * which way the line runs and where its zero is. The direction is canonicalised
+ * (the half-turn that makes `x` positive, or `y` when it is vertical) and the
+ * endpoints swapped to match, so the phase can simply be the projection of the
+ * start onto that axis. Any two segments of one line then land on the same
+ * ruler, whatever order the document happens to store them in.
+ */
+function shareDashAlongLine(a: Float32Array, b: Float32Array, i: number): number {
+  const ax = a[i * 2];
+  const ay = a[i * 2 + 1];
+  const bx = b[i * 2];
+  const by = b[i * 2 + 1];
+  let dx = bx - ax;
+  let dy = by - ay;
+  const length = Math.hypot(dx, dy);
+  if (length === 0) return 0;
+  dx /= length;
+  dy /= length;
+  // The canonical half-turn, so a segment stored the other way round still
+  // measures from the same end of the line.
+  const flip = dx < 0 || (dx === 0 && dy < 0);
+  if (flip) {
+    a[i * 2] = bx;
+    a[i * 2 + 1] = by;
+    b[i * 2] = ax;
+    b[i * 2 + 1] = ay;
+    dx = -dx;
+    dy = -dy;
+  }
+  const sx = flip ? bx : ax;
+  const sy = flip ? by : ay;
+  return sx * dx + sy * dy;
 }
 
 /**

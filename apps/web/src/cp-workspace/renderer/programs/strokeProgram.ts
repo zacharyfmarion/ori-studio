@@ -23,13 +23,18 @@ type Buffer = ReturnType<Regl['buffer']>;
  * non-constant expression in the fragment stage — and the fragment stage
  * discards whatever lands in a gap.
  *
- * There is no dash *phase*: every segment's pattern starts at its own `a`
- * endpoint, because `vDist` is distance from that endpoint and nothing offsets
- * it. Patterns are written to want none — a pattern whose first ink is `d` px
- * along inks nothing whatsoever on a segment shorter than `d`, and most
- * segments are short, so a phase here is a pattern that vanishes rather than a
- * pattern that shifts. See `alternateDashRuns` in `lib/oristudioCpLineStyle`,
- * which is where that was learned.
+ * A segment's pattern starts at its own `a` endpoint unless the geometry
+ * supplies `dashPhase`, which offsets it by that many **model units** — scaled
+ * to device px here, so the offset holds at any zoom. Collinear segments given
+ * a shared parameterisation then dash as one line instead of restarting at
+ * every crossing, which is what a crease pattern's split creases need.
+ *
+ * Absent, the phase is zero and nothing moves. Patterns are otherwise written
+ * to want none: a pattern whose first ink is `d` px along inks nothing at all
+ * on a segment shorter than `d`, and most segments are short, so a phase
+ * applied blindly is a pattern that vanishes rather than one that shifts. See
+ * `alternateDashRuns` in `lib/oristudioCpLineStyle`, which is where that was
+ * learned.
  */
 const VERT = `
 precision highp float;
@@ -39,6 +44,7 @@ attribute vec2 aB;       // segment end, model coords
 attribute vec4 aColor;
 attribute float aWidthMul; // per-segment width multiplier
 attribute float aDashSlot; // per-segment dash slot (0 = solid)
+attribute float aDashPhase; // model units of pattern before this segment's start
 // Draw order in [0, 1], 0 farthest. Zero without depth ordering, where every
 // segment lands at the same z and plain painter order survives.
 attribute float aDepth;
@@ -74,7 +80,11 @@ void main() {
   // Nearer segments get smaller z, which is what LEQUAL wants.
   gl_Position = vec4(clip, 1.0 - 2.0 * aDepth, 1.0);
   vColor = aColor;
-  vDist = corner.x * len;
+  // The phase arrives in model units so it survives zoom; len over modelLen is
+  // this segment's own model-to-device scale.
+  float modelLen = length(aB - aA);
+  float pxPerModel = modelLen > 0.0 ? len / modelLen : 0.0;
+  vDist = corner.x * len + aDashPhase * pxPerModel;
   if (aDashSlot > 3.5) {
     vDashOn = u_dashOn4;
     vDashOff = u_dashOff4;
@@ -201,6 +211,7 @@ interface StrokeDrawParams {
   widthMulBuf: Buffer;
   depthBuf: Buffer;
   dashSlotBuf: Buffer;
+  dashPhaseBuf: Buffer;
   instanceCount: number;
 }
 
@@ -229,6 +240,7 @@ interface StrokeAttributes {
   aColor: unknown;
   aWidthMul: unknown;
   aDashSlot: unknown;
+  aDashPhase: unknown;
   aDepth: unknown;
 }
 
@@ -266,6 +278,7 @@ export function createStrokeProgram(
   let widthMulBuf: Buffer | null = null;
   let depthBuf: Buffer | null = null;
   let dashSlotBuf: Buffer | null = null;
+  let dashPhaseBuf: Buffer | null = null;
   let count = 0;
   let dashPatterns: readonly (readonly number[])[] | undefined;
 
@@ -280,6 +293,10 @@ export function createStrokeProgram(
       aWidthMul: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.widthMulBuf, divisor: 1 },
       aDepth: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.depthBuf, divisor: 1 },
       aDashSlot: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.dashSlotBuf, divisor: 1 },
+      aDashPhase: {
+        buffer: (_ctx: unknown, props: StrokeDrawParams) => props.dashPhaseBuf,
+        divisor: 1,
+      },
     },
     uniforms: {
       u_origin: (_ctx, props) => props.originArr,
@@ -319,6 +336,7 @@ export function createStrokeProgram(
       widthMulBuf?.destroy();
       depthBuf?.destroy();
       dashSlotBuf?.destroy();
+      dashPhaseBuf?.destroy();
       aBuf = regl.buffer(geometry.a);
       bBuf = regl.buffer(geometry.b);
       colorBuf = regl.buffer(geometry.color);
@@ -327,9 +345,19 @@ export function createStrokeProgram(
       // exactly to the painter order this program had before.
       depthBuf = regl.buffer(geometry.depth ?? new Float32Array(geometry.count));
       dashSlotBuf = regl.buffer(dashSlots(geometry));
+      dashPhaseBuf = regl.buffer(geometry.dashPhase ?? new Float32Array(geometry.count));
     },
     draw({ view, viewport, widthPx }) {
-      if (count === 0 || !aBuf || !bBuf || !colorBuf || !widthMulBuf || !dashSlotBuf || !depthBuf)
+      if (
+        count === 0 ||
+        !aBuf ||
+        !bBuf ||
+        !colorBuf ||
+        !widthMulBuf ||
+        !dashSlotBuf ||
+        !dashPhaseBuf ||
+        !depthBuf
+      )
         return;
       const [slot1, slot2, slot3, slot4] = dashTableUniforms(dashPatterns, viewport.dpr);
       draw({
@@ -352,6 +380,7 @@ export function createStrokeProgram(
         widthMulBuf,
         depthBuf,
         dashSlotBuf,
+        dashPhaseBuf,
         instanceCount: count,
       });
     },
@@ -363,6 +392,7 @@ export function createStrokeProgram(
       widthMulBuf?.destroy();
       depthBuf?.destroy();
       dashSlotBuf?.destroy();
+      dashPhaseBuf?.destroy();
     }),
   };
 }

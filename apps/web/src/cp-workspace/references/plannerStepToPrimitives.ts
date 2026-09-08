@@ -56,6 +56,7 @@ import {
   type PrecreaseEdgeSide,
   type PrecreasePlanLine,
   type PrecreasePlanSegment,
+  type PrecreasePointEntry,
   type PrecreaseRef,
   type PrecreaseSequence,
   type PrecreaseStep,
@@ -114,6 +115,73 @@ function segmentOfRef(
   if (ref.kind === 'edge') return edgeSegment(sequence.sheet, ref.side);
   if (ref.kind === 'line') return stepForLine(sequence, ref.id)?.segment ?? null;
   return null;
+}
+
+/**
+ * Which sheet edge each edge line is, and which step folded each crease.
+ *
+ * The witnesses are the only place the *side* of an edge is written down, and
+ * scanning them is a whole-sequence walk — memoised per sequence so drawing a
+ * card stays proportional to the card.
+ */
+const sequenceLineIndex = new WeakMap<
+  PrecreaseSequence,
+  { edgeSides: Map<number, PrecreaseEdgeSide>; stepOfLine: Map<number, number> }
+>();
+
+function lineIndexOf(sequence: PrecreaseSequence) {
+  const cached = sequenceLineIndex.get(sequence);
+  if (cached) return cached;
+  const edgeSides = new Map<number, PrecreaseEdgeSide>();
+  const stepOfLine = new Map<number, number>();
+  for (const entry of sequence.lines) {
+    if (entry.step !== null) stepOfLine.set(entry.id, entry.step);
+  }
+  for (const step of sequence.steps) {
+    for (const witness of step.witnesses) {
+      for (const ref of witness.inputs) {
+        if (ref.kind === 'edge') edgeSides.set(ref.id, ref.side);
+      }
+    }
+  }
+  const built = { edgeSides, stepOfLine };
+  sequenceLineIndex.set(sequence, built);
+  return built;
+}
+
+/**
+ * The chords of the (at most two) creases that locate a mark, as of this step.
+ *
+ * A point in the planner's state carries every line through it, including ones
+ * folded much later; drawing those would show the folder a crease that does not
+ * exist yet. Cut to what has been made and ordered edge-first, then earliest,
+ * so the picture agrees with the sentence.
+ */
+function locatingSpans(
+  sequence: PrecreaseSequence,
+  step: PrecreaseStep,
+  point: PrecreasePointEntry
+): PrecreasePlanSegment[] {
+  const { edgeSides, stepOfLine } = lineIndexOf(sequence);
+  const made = point.lines.filter((id) => {
+    const at = stepOfLine.get(id);
+    return at === undefined || at < step.id;
+  });
+  made.sort((a, b) => {
+    const sa = stepOfLine.get(a);
+    const sb = stepOfLine.get(b);
+    if (sa === undefined || sb === undefined) {
+      return (sa === undefined ? 0 : 1) - (sb === undefined ? 0 : 1);
+    }
+    return sa - sb;
+  });
+  return made
+    .slice(0, 2)
+    .map((id) => {
+      const side = edgeSides.get(id);
+      return segmentOfRef(sequence, side ? { kind: 'edge', id, side } : { kind: 'line', id });
+    })
+    .filter((span): span is PrecreasePlanSegment => span !== null);
 }
 
 /**
@@ -228,6 +296,15 @@ export function plannerStepDiagram(
       const point = sequence.points.find((entry) => entry.id === ref.id);
       if (!point) return;
       pointIndex += 1;
+      // The two creases that put the mark there, picked out. Without them a
+      // mark on an edge is a dot with nothing determining it, and the sentence
+      // says "where the left edge meets the crease from step 7" over a picture
+      // that shows neither. A corner needs no such help.
+      if (ref.kind === 'point') {
+        for (const span of locatingSpans(sequence, step, point)) {
+          primitives.push({ kind: 'line', from: span[0], to: span[1], style: 'highlight' });
+        }
+      }
       primitives.push({ kind: 'point', at: point.p, style: 'highlight' });
       labels.push({ kind: 'label', at: point.p, text: letter, style: 'highlight' });
       return;
