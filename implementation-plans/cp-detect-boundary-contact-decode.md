@@ -178,6 +178,92 @@ fit.
   designs already flip between builds of one solver (the penguin and the bat);
   this is the solver prior, not the contact fix.
 
+## Real images, judged against the ink (2026-09-08)
+
+The full run's curated group read `recovered 20 → 18`, and the concern that
+raised — a correction tuned on our own renders that does not hold on real
+scans — cannot be settled by that group. Its truths are the detection fixed
+up by eye in the editor: on the seven real cases replayed with
+`dump_candidate_pool`, the truth's contacts sit a median **0.07 px** from
+where the contact head put them, and the solve holds them there. For contact
+placement the curated `recovered` is a regression test against main's own
+output, and the solver-slide check is anchored to the same positions. Neither
+can tell a contact that moved toward the crease from one that moved away.
+
+So the referee is the ink (`scripts/cp-detect/contact_ink_referee.py`): the
+crease's centreline fitted on the rectified grayscale 12–90 px inside the
+edge, by a different estimator than the correction's (bilinear samples every
+pixel, a Theil–Sen line), extrapolated to the paper edge. On renders that
+crossing sits 0.5 px from the design's contact, which calibrates it. Over the
+102 contacts the shipped correction moved on the seven real cases:
+
+| | head | corrected | corrected closer |
+| --- | --- | --- | --- |
+| all 86 with a readable centreline | 0.93 px | 0.28 px | 70 |
+| creases at 0–35° to the edge (32) | 1.77 px | 0.32 px | 30 |
+| 35–60° (21) | 0.98 px | 0.28 px | 18 |
+| 60–90° (33) | 0.66 px | 0.26 px | 22 |
+
+The corrections track the ink on real strokes as they do on renders — the
+snail's three contacts at 22–25° were 4.5–5.8 px off in main's output and
+in its "truth". The failures were all in one image, greater-bird-of-paradise,
+whose creases run into a thick black band: 14 moves of 1–3.4 px the referee
+could not verify and one of 6.4 px it put at 0.5, every one at a contact
+where a *second* incident span had been refused (crowded, or no line fits)
+while one span passed and drove the move. Hence the rule now in
+`relocalize_contacts`: an incident span whose ink is unreadable — too little
+of it, a second stroke in the window, a track no line fits — vetoes the
+move, whatever the other spans say. A track that *slopes* onto the span is
+not that: it is the other arm of a V converging on the same contact, whose
+own span places the crossing, and letting it veto cost a V merge on the
+renders (spiderman). On the seven real cases the veto drops the moves from
+102 to 72, removes every unverified move over 1 px (6 unverifiable remain,
+all under 1 px), and leaves 57 of 66 closer to the ink (22 of 23 at 0–35°);
+on the renders it touches 43 of 2,038 moves.
+
+The eye test on those crops turned up one more thing (pegasus, right edge):
+a contact whose two spans cross the edge 4.4 px apart — a 67° crease at
+752.4 and a 22° crease at 747.9 — had been put at their ink-mass-weighted
+mean, so the shallow crease was bent onto a shared junction. On the renders
+a contact whose spans disagree by 2–6 px is one design vertex 333 times and
+two contacts 3 times, so one contact is right; but the crossing is an
+extrapolation whose along-edge error grows as 1/sin(angle), so each span's
+crossing is now weighted by sin² of its angle to the edge. On the renders'
+multi-span contacts that takes the share over 1 px from the truth from 5.4%
+to 3.6% and over 2 px from 0.6% to 0.1%; the pegasus contact lands at 751.7.
+
+Decoder sweep, the 169 near cases, against the baseline: 41 near → exact
+(the same 41), 57 cases with fewer defects and 7 with more (10 before),
+missing edges 1,652 → 1,432 (1,444 before), extra 913 → 683 (692). One
+case moves a bucket against the shipped configuration, hornytoad, a
+38-defect `near` that gains two defects and reads `off`.
+
+Full curated run with both changes (681 s): decoder exact 313 (312 before
+the veto; weedy-sea-dragon, a real image, `near → exact`), gate 441
+unchanged, strict convergence 288 renders and 16 real images, harness
+`recovered` 335. The three rendered strict losses against the first full
+run — e-e-by-birb, nazgul-8-1, velociraptor — are solver-side: their
+recognised graphs are the same topology with vertices moved at most 0.27,
+0.54 and 1.12 px, and the solve lands on a different exact configuration
+2 px away across a sliding group (43, 59 and 229 vertices moved), the
+noise class `tests/corpus/README.md` describes. The curated group is
+unchanged at 16 strict / 18 harness.
+
+Two things tried on the way and dropped: an angle gate (no correction below
+35°) keeps 4 of the 41 rendered decoder conversions, because the shallow
+creases are where the head's bias is largest and the correction matters most;
+and a per-contact "solver slide" comparison, which reads the head as better
+on real images at every angle only because the solver's priors return
+contacts to where they started.
+
+Of the two curated cases the full run lost: bat-naoki-terao's twelve moved
+contacts all agree with the ink referee within 0.3 px (the largest, 5.8 px at
+a 23° crease by the right corner, the ink puts at 6.3), and its "truth" is
+main's placement; the design also has a free slide (`tests/corpus/README.md`).
+reza-squirrel-1 is a correct merge of a doubled contact — the ink shows one
+V apex — after which selection keeps three auxiliary-line creases the
+baseline had dropped; the aux-ink gap is pre-existing.
+
 ## Checklist
 
 - [x] Diagnosis: raw-peak vs primitive position for the displaced / doubled /
@@ -202,3 +288,10 @@ fit.
       strict convergence renders 265 → 291, real images 17 → 16; solver slide at
       contacts (renders) median 0.53 → 0.37 px, over 2 px 5.1% → 1.6%
 - [x] Baseline scorecard and README updated, flips explained
+- [x] The curated group's `recovered 20 → 18` traced to its truths inheriting
+      the head's positions; contacts judged against the ink instead
+      (`contact_ink_referee.py`): corrected 0.28 px from the crease's centreline
+      vs the head's 0.93, 70 of 86 closer
+- [x] Unreadable-span veto and precision-weighted combination: decoder sweep
+      41 near → exact with 7 regressions (10 before); full run decoder exact
+      313, strict 288 / 16; scorecard and README updated

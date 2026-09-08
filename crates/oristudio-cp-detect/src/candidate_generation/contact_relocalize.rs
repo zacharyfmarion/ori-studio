@@ -152,6 +152,7 @@ pub(super) fn relocalize_contacts(
         let contact_px = px_from_unit(vertices[index].point, image_size);
         let contact_px = [f64::from(contact_px[0]), f64::from(contact_px[1])];
         let mut estimates: Vec<(f64, f64, f64)> = Vec::new();
+        let mut unreadable = false;
         for &span_index in &incident[index] {
             let [a, b] = spans[span_index].vertices;
             let other = if a == index { b } else { a };
@@ -160,9 +161,20 @@ pub(super) fn relocalize_contacts(
             };
             let other_px = px_from_unit(other_vertex.point, image_size);
             let other_px = [f64::from(other_px[0]), f64::from(other_px[1])];
-            if let Some(estimate) = centreline_contact(line, size, contact_px, other_px, side) {
-                estimates.push(estimate);
+            match centreline_contact(line, size, contact_px, other_px, side) {
+                SpanFit::Crossing(along, mass, max_shift) => {
+                    estimates.push((along, mass, max_shift));
+                }
+                SpanFit::Unreadable => unreadable = true,
+                SpanFit::Inapplicable => {}
             }
+        }
+        // One span's ink too crowded or too broken to read means the contact
+        // sits in ink the fit cannot be trusted on, whatever the other spans
+        // say: on real scans that is where a lone passing span moved
+        // contacts 2–6 px the ink did not support.
+        if unreadable {
+            continue;
         }
         let Some((along_px, max_shift)) = combine_estimates(&estimates) else {
             continue;
@@ -331,35 +343,52 @@ pub(super) fn relocalize_contacts(
     report
 }
 
-/// Where the crease's ink centreline crosses the paper edge, in pixels along
-/// the side, with the ink mass that supports it and the largest shift the
-/// crease's lean makes plausible. `contact_px` is the contact's current
-/// position on the edge and `other_px` the span's far endpoint; both in
-/// canvas pixels.
+/// What one span's ink says about where its contact belongs.
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum SpanFit {
+    /// The crease's ink centreline crosses the paper edge here: pixels along
+    /// the side, the weight its precision earns it, and the largest shift
+    /// the crease's lean makes plausible. The crossing is an extrapolation,
+    /// and a perpendicular error in the fitted line lands along the edge
+    /// divided by sin(angle), so the weight is sin² of the crease's angle to
+    /// the edge: a steep crease's crossing counts, a shallow one's is a hint.
+    Crossing(f64, f64, f64),
+    /// The span is too short or too flat to fit, or a neighbouring crease
+    /// converges onto it; it says nothing either way.
+    Inapplicable,
+    /// The ink along the span does not read as one straight stroke: too
+    /// little of it, a neighbouring stroke in the window, a bend, or a track
+    /// no line fits.
+    Unreadable,
+}
+
+/// The crossing of the crease's ink centreline with the paper edge.
+/// `contact_px` is the contact's current position on the edge and
+/// `other_px` the span's far endpoint; both in canvas pixels.
 fn centreline_contact(
     line: &[f32],
     size: usize,
     contact_px: [f64; 2],
     other_px: [f64; 2],
     side: BoundarySide,
-) -> Option<(f64, f64, f64)> {
+) -> SpanFit {
     let (tangent, inward) = side_axes(side);
     let dx = other_px[0] - contact_px[0];
     let dy = other_px[1] - contact_px[1];
     let length = (dx * dx + dy * dy).sqrt();
     if length < MIN_SPAN_LENGTH_PX {
-        return None;
+        return SpanFit::Inapplicable;
     }
     let u = [dx / length, dy / length];
     let n = [-u[1], u[0]];
     let sin_angle = (u[0] * inward[0] + u[1] * inward[1]).abs();
     if sin_angle < MIN_SIN_ANGLE {
-        return None;
+        return SpanFit::Inapplicable;
     }
     let r_min = (HALF_WINDOW_PX + BORDER_CLEARANCE_PX) / sin_angle;
     let r_max = (length - FAR_END_MARGIN_PX).min(r_min + MAX_FIT_LENGTH_PX);
     if r_max - r_min < MIN_FIT_LENGTH_PX {
-        return None;
+        return SpanFit::Inapplicable;
     }
     let half = HALF_WINDOW_PX as i32;
     let mut samples: Vec<(f64, f64, f64)> = Vec::with_capacity(FIT_SAMPLES);
@@ -407,7 +436,7 @@ fn centreline_contact(
         samples = kept;
     }
     if samples.len() < 4 || crowded > MAX_CROWDED_SAMPLES {
-        return None;
+        return SpanFit::Unreadable;
     }
     // The fitted line X(r) = contact + r u + (a + b r) n crosses the edge where
     // its inward component vanishes.
@@ -428,9 +457,17 @@ fn centreline_contact(
         let along = crossing[0] * tangent[0] + crossing[1] * tangent[1];
         along.is_finite().then_some(along)
     };
-    let (a, b, residual) = fit_offsets(&samples)?;
-    if residual > MAX_FIT_RESIDUAL_PX || b.abs() > MAX_TRACK_SLOPE {
-        return None;
+    let Some((a, b, residual)) = fit_offsets(&samples) else {
+        return SpanFit::Unreadable;
+    };
+    if residual > MAX_FIT_RESIDUAL_PX {
+        return SpanFit::Unreadable;
+    }
+    // A track sloping onto the span is the other arm of a V converging on
+    // the same contact: this span cannot place the crossing, but the other
+    // arm's can, and the ink is not in doubt.
+    if b.abs() > MAX_TRACK_SLOPE {
+        return SpanFit::Inapplicable;
     }
     // The centroid track must be straight: no bend between the halves.
     let mid = samples.len() / 2;
@@ -444,14 +481,15 @@ fn centreline_contact(
     if (mean_residual(&samples[..mid]) - mean_residual(&samples[mid..])).abs()
         > MAX_HALF_RESIDUAL_BIAS_PX
     {
-        return None;
+        return SpanFit::Unreadable;
     }
-    let along = crossing_along(&samples)?;
-    let total: f64 = samples.iter().map(|s| s.2).sum();
+    let Some(along) = crossing_along(&samples) else {
+        return SpanFit::Unreadable;
+    };
     // How far the head's corner can sit from the crossing at this lean.
     let cos_angle = (u[0] * tangent[0] + u[1] * tangent[1]).abs();
     let max_shift = (SHIFT_BASE_PX + SHIFT_LEAN_PX * cos_angle / sin_angle).min(MAX_SHIFT_PX);
-    along.is_finite().then_some((along, total, max_shift))
+    SpanFit::Crossing(along, sin_angle * sin_angle, max_shift)
 }
 
 /// Weighted least squares of the perpendicular offset against the radius,
@@ -560,8 +598,11 @@ fn nearest_stroke_centroid(profile: &[f64], half: i32) -> Option<StrokeSample> {
 }
 
 /// One position from several spans' estimates, with the largest shift any of
-/// them allows: their mass-weighted mean when they agree, nothing when they
-/// do not.
+/// them allows: their precision-weighted mean when they agree, nothing when
+/// they do not. Two creases meeting the edge at one vertex give crossings a
+/// pixel or two apart (on the renders, 333 such contacts against 3 where the
+/// design really has two), and the steep crease's crossing is the one to
+/// trust.
 fn combine_estimates(estimates: &[(f64, f64, f64)]) -> Option<(f64, f64)> {
     if estimates.is_empty() {
         return None;
@@ -809,15 +850,16 @@ mod tests {
         paint_segment(&mut evidence, truth, interior);
         // The head's corner sits 3.2 px along the edge in the lean direction.
         let biased = [truth[0] + 3.2, INSET];
-        let (along, mass, max_shift) = centreline_contact(
+        let SpanFit::Crossing(along, weight, max_shift) = centreline_contact(
             &evidence.dense.line_probability,
             SIZE as usize,
             biased,
             interior,
             BoundarySide::Top,
-        )
-        .expect("a fit");
-        assert!(mass > 0.0);
+        ) else {
+            panic!("expected a crossing");
+        };
+        assert!(weight > 0.0);
         assert!(
             max_shift > 3.2,
             "a 22.5° crease may shift by more than its bias"
@@ -954,6 +996,74 @@ mod tests {
         for (index, vertex) in vertices.iter().enumerate() {
             assert_eq!(vertex.id, index, "ids follow the compacted list");
         }
+    }
+
+    #[test]
+    fn an_unreadable_span_vetoes_the_move() {
+        // A clean shallow crease whose fit would move the contact, and a
+        // second crease from the same contact with a parallel stroke 4 px
+        // beside it inside the fit window. The second span's ink is
+        // unreadable, so the contact stays where the head put it.
+        let truth = [128.0, INSET];
+        let clean = interior_end(truth, 22.5);
+        let steep = [truth[0] - 40.0, truth[1] + 69.3];
+        let mut evidence = empty_evidence();
+        paint_top_border(&mut evidence);
+        paint_segment(&mut evidence, truth, clean);
+        paint_segment(&mut evidence, truth, steep);
+        // The neighbour runs parallel to the steep crease, offset along the
+        // edge so it stays 4 px from it perpendicularly.
+        let offset = 4.0 / (60.0f64).to_radians().sin();
+        paint_segment(
+            &mut evidence,
+            [truth[0] - offset, truth[1]],
+            [steep[0] - offset, steep[1]],
+        );
+        let biased = [truth[0] + 3.2, INSET];
+        let mut vertices = corners();
+        vertices.push(vertex(
+            4,
+            unit(biased),
+            CandidateVertexKind::BoundaryContact,
+            Some(BoundarySide::Top),
+        ));
+        vertices.push(vertex(
+            5,
+            unit(clean),
+            CandidateVertexKind::InteriorJunction,
+            None,
+        ));
+        vertices.push(vertex(
+            6,
+            unit(steep),
+            CandidateVertexKind::InteriorJunction,
+            None,
+        ));
+        assert_eq!(
+            centreline_contact(
+                &evidence.dense.line_probability,
+                SIZE as usize,
+                biased,
+                steep,
+                BoundarySide::Top,
+            ),
+            SpanFit::Unreadable,
+            "the steep span's window holds two strokes"
+        );
+        let mut spans = vec![
+            span(0, &vertices, 4, 5, &evidence),
+            span(1, &vertices, 4, 6, &evidence),
+        ];
+        let before = vertices[4].point;
+        let report = relocalize_contacts(
+            &mut vertices,
+            &mut spans,
+            &evidence,
+            SIZE,
+            JunctionFirstV1StrategyOptions::default(),
+        );
+        assert_eq!(report, ContactRelocalizeReport::default());
+        assert_eq!(vertices[4].point, before);
     }
 
     #[test]

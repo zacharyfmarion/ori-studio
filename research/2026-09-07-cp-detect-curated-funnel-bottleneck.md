@@ -237,18 +237,31 @@ Details, guards and the sweep table are in
 | | baseline | with re-localisation |
 | --- | --- | --- |
 | rendered decoder exact | 256 | 298 |
-| rendered strict convergence | 265 | 291 |
+| rendered strict convergence | 265 | 288 |
 | rendered contacts the solver still slides over 2 px | 5.1% | 1.6% |
 | real-image strict convergence | 17 | 16 |
-| harness recovered, both groups | 317 | 338 |
+| harness recovered, both groups | 317 | 335 |
 
 The one real-image loss (reza-squirrel-1) is a correct V merge after which
 selection keeps three auxiliary-line creases the harness ignores in the
 truth; the rendered loss (wind-dragon) is a solver slide on a design whose
-gate reproduces. Five real images now read `near` at the decoder with an
-unchanged solved answer because their truths carry the detector's own contact
-positions, which is the caveat for lever 2: on real images the curated
-truths cannot judge contact placement below about 3 px.
+gate reproduces. The full run's curated `recovered 20 → 18` (bat and the
+squirrel) raised the right question — a correction tuned on our renders
+that fails on real scans — and the curated group cannot answer it. Its
+truths are the detection fixed up by eye, and on the seven real cases
+replayed their contacts sit a median 0.07 px from the contact head's
+position: for contact placement, `recovered` on that group is a regression
+test against main's own output, and the solver-slide check is anchored to
+the same positions. Judged against the ink instead
+(`scripts/cp-detect/contact_ink_referee.py`, an independent centreline fit
+on the rectified grayscale, 0.5 px from the design truth on renders), the
+corrected contacts sit 0.28 px from the crease's crossing against the
+head's 0.93, closer in 70 of 86, and 30 of 32 at creases under 35° — the
+same picture as the renders. The exceptions were one image with creases
+running into a thick black band, where a lone passing span moved contacts
+the referee could not verify; an unreadable incident span now vetoes the
+move (the plan has the numbers). An angle gate was tried and dropped: no
+correction below 35° keeps 4 of the 41 rendered decoder conversions.
 
 ## Harness findings to fix alongside
 
@@ -261,6 +274,9 @@ truths cannot judge contact placement below about 3 px.
 - The harness's 25 s solve budget ends 16 large solves `ambiguous` at the
   buzzer; the product has no deadline since 2026-09-02.
 - The 1,500-recognised-edge cap skips 30 giants the product would attempt.
+- The curated group's contact positions are the detector's; a change to
+  contact placement has to be judged against the ink (above), or the two
+  affected cases re-curated from the corrected detection.
 
 ## Tools added (uncommitted on `claude/crease-pattern-bottleneck-592cda`)
 
@@ -272,5 +288,11 @@ truths cannot judge contact placement below about 3 px.
   candidate vertices and spans, conflicts, selection verdict, the three dense
   maps as PNGs and every junction / contact peak down to 0.10.
   `JUNCTION_PEAK_THRESHOLD` and `VERTEX_MERGE_RADIUS_PX` env overrides for
-  sweeps. Its selection reproduces the harness's decoder buckets on 101 of
-  102 checked cases.
+  sweeps (and `CONTACT_THRESHOLD`, `CONTACT_RELOCALIZE=0`, `CONTACT_MERGE_PX`
+  for the contact decode); the rectified input goes beside the maps as
+  `<case>.rect.png`. Its selection reproduces the harness's decoder buckets
+  on 101 of 102 checked cases.
+- `scripts/cp-detect/contact_ink_referee.py`: judges moved boundary
+  contacts against the crease's ink centreline on the rectified grayscale,
+  from two dumps (re-localisation off and on); the check the curated truths
+  cannot make.

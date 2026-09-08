@@ -4,7 +4,9 @@
 //! per case with every candidate vertex and span (pixel coordinates on the
 //! unit paper scaled to 1024), the conflicts, and the selected / rejected ids.
 //! An analysis can then ask, for a crease the recognised graph lost, whether it
-//! was ever proposed and what removed it.
+//! was ever proposed and what removed it. Beside the JSON go the rectified
+//! input (`<case>.rect.png`), the dense maps and the raw boundary heads as
+//! PNGs, so a question about the ink can be asked of the ink.
 //!
 //!   cargo run --release -p oristudio-cp-detect --features native-inference \
 //!     --example dump_candidate_pool -- <model.onnx> <out dir> <case dir>...
@@ -136,6 +138,15 @@ fn main() {
             ExactProbeOptions::default(),
         );
         let px = |v: f64| v * 1024.0;
+        // The rectified input itself, so an analysis can read the ink the line
+        // evidence was computed from.
+        if let Some(img) =
+            image::RgbaImage::from_raw(IMAGE_SIZE, IMAGE_SIZE, rectified.rgba.clone())
+        {
+            let _ = image::DynamicImage::ImageRgba8(img)
+                .to_luma8()
+                .save(out.join(format!("{slug}.rect.png")));
+        }
         // The dense maps as 8-bit PNGs, and every local maximum of the junction
         // and boundary-contact maps down to 0.10, so an analysis can tell a head
         // that never fired from one that fired under the threshold.

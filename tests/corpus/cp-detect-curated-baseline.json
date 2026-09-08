@@ -75,7 +75,7 @@
     "cpoogle/aknosom-monster-hunter-aknosom-monster-hunter-by-rei-sueoka-1": {
       "decoder": "near",
       "edge_f1": 0.991,
-      "end_to_end": "recovered",
+      "end_to_end": "not_accepted",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -1370,7 +1370,7 @@
     },
     "cpoogle/dog-dog-by-zhao-yanjie": {
       "decoder": "near",
-      "edge_f1": 0.973,
+      "edge_f1": 0.988,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -1469,7 +1469,7 @@
     },
     "cpoogle/dragon-dragon-by-takuro-kashiwamura": {
       "decoder": "near",
-      "edge_f1": 0.982,
+      "edge_f1": 0.986,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -1478,7 +1478,7 @@
     },
     "cpoogle/dragon-dragon-by-tera-origami": {
       "decoder": "near",
-      "edge_f1": 0.955,
+      "edge_f1": 0.957,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -1964,7 +1964,7 @@
     },
     "cpoogle/giraffe-giraffe-by-bodo-haag": {
       "decoder": "off",
-      "edge_f1": 0.919,
+      "edge_f1": 0.913,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -2260,8 +2260,8 @@
       "status": "solved"
     },
     "cpoogle/hornytoad-horny-toad-by-jesse-barr": {
-      "decoder": "near",
-      "edge_f1": 0.952,
+      "decoder": "off",
+      "edge_f1": 0.949,
       "end_to_end": "accepted_wrong",
       "gate": "error",
       "gate_max_px": null,
@@ -2549,7 +2549,7 @@
     },
     "cpoogle/kirigamist-lang-kirigami-lang": {
       "decoder": "off",
-      "edge_f1": 0.598,
+      "edge_f1": 0.596,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -2964,7 +2964,7 @@
     "cpoogle/nazgul-8-1-nazgul-8-1-by-jason-ku": {
       "decoder": "exact",
       "edge_f1": 1.0,
-      "end_to_end": "recovered",
+      "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -4161,7 +4161,7 @@
     "cpoogle/velociraptor-velociraptor-by-tkg-origami": {
       "decoder": "exact",
       "edge_f1": 1.0,
-      "end_to_end": "recovered",
+      "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -4556,7 +4556,7 @@
     },
     "curated/greater-bird-of-paradise": {
       "decoder": "off",
-      "edge_f1": 0.808,
+      "edge_f1": 0.815,
       "end_to_end": "n/a",
       "gate": "not_solved",
       "gate_max_px": null,
@@ -4583,7 +4583,7 @@
     },
     "curated/helmeted-hornbill": {
       "decoder": "off",
-      "edge_f1": 0.099,
+      "edge_f1": 0.105,
       "end_to_end": "accepted_wrong",
       "gate": "off",
       "gate_max_px": 0.0,
@@ -4592,7 +4592,7 @@
     },
     "curated/hex-tiger-naoki-terao": {
       "decoder": "off",
-      "edge_f1": 0.893,
+      "edge_f1": 0.895,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -4817,7 +4817,7 @@
     },
     "curated/reza-dreamworks-1": {
       "decoder": "off",
-      "edge_f1": 0.904,
+      "edge_f1": 0.883,
       "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -4826,7 +4826,7 @@
     },
     "curated/reza-dreamworks-2": {
       "decoder": "off",
-      "edge_f1": 0.907,
+      "edge_f1": 0.898,
       "end_to_end": "n/a",
       "gate": "solved_no_truth",
       "gate_max_px": null,
@@ -4853,7 +4853,7 @@
     },
     "curated/reza-squirrel-2": {
       "decoder": "near",
-      "edge_f1": 0.962,
+      "edge_f1": 0.966,
       "end_to_end": "n/a",
       "gate": "not_solved",
       "gate_max_px": null,
@@ -4898,7 +4898,7 @@
     },
     "curated/snail": {
       "decoder": "off",
-      "edge_f1": 0.772,
+      "edge_f1": 0.776,
       "end_to_end": "n/a",
       "gate": "solved_no_truth",
       "gate_max_px": null,
@@ -5005,8 +5005,8 @@
       "status": "solved"
     },
     "curated/weedy-sea-dragon": {
-      "decoder": "near",
-      "edge_f1": 0.987,
+      "decoder": "exact",
+      "edge_f1": 1.0,
       "end_to_end": "n/a",
       "gate": "solved_no_truth",
       "gate_max_px": null,
@@ -5024,28 +5024,28 @@
     }
   },
   "cases_total": 558,
-  "commit": "93e34ffd68efc58a6f3a9a8a78c26f7d4624ae14",
+  "commit": "3f4d90a80f16c8a577f10c61358deffe0cd60b74",
   "decoder": {
     "buckets": {
-      "exact": 312,
+      "exact": 313,
       "n/a": 13,
-      "near": 159,
-      "off": 68,
+      "near": 157,
+      "off": 69,
       "skipped": 6
     },
-    "exact_topology": 312,
+    "exact_topology": 313,
     "mean_edge_f1": 0.95,
     "scored": 539
   },
   "end_to_end": {
     "buckets": {
-      "accepted_wrong": 128,
+      "accepted_wrong": 130,
       "n/a": 36,
-      "not_accepted": 50,
-      "recovered": 338,
+      "not_accepted": 51,
+      "recovered": 335,
       "skipped": 6
     },
-    "recovered": 338
+    "recovered": 335
   },
   "gate": {
     "buckets": {
@@ -5066,8 +5066,8 @@
       "decoder": {
         "buckets": {
           "exact": 298,
-          "near": 138,
-          "off": 42,
+          "near": 137,
+          "off": 43,
           "skipped": 6
         },
         "exact_topology": 298,
@@ -5076,13 +5076,13 @@
       },
       "end_to_end": {
         "buckets": {
-          "accepted_wrong": 113,
+          "accepted_wrong": 115,
           "n/a": 2,
-          "not_accepted": 43,
-          "recovered": 320,
+          "not_accepted": 44,
+          "recovered": 317,
           "skipped": 6
         },
-        "recovered": 320
+        "recovered": 317
       },
       "gate": {
         "buckets": {
@@ -5105,12 +5105,12 @@
       "cases_total": 74,
       "decoder": {
         "buckets": {
-          "exact": 14,
+          "exact": 15,
           "n/a": 13,
-          "near": 21,
+          "near": 20,
           "off": 26
         },
-        "exact_topology": 14,
+        "exact_topology": 15,
         "mean_edge_f1": 0.818,
         "scored": 61
       },
