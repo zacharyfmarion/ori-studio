@@ -31,7 +31,7 @@ import {
 import { registerCpCamera, type CpCameraHandle } from './renderer/cpCameraRegistry';
 import { LineHitIndex } from './picking/lineHitIndex';
 import { registerCpSurfacePress } from './picking/cpSurfacePressRegistry';
-import { surfaceClaimsPress } from './picking/surfaceClaimsPress';
+import { surfacePressClaim } from './picking/surfacePressClaim';
 import {
   circleRingIntersectsConvexQuad,
   pointInConvexQuad,
@@ -1915,7 +1915,7 @@ export function CreasePatternWebglCanvas({
      *
      * Coalesced because this is a hit test and a high-rate pointer reports
      * several times per frame — the same rule the canvas-object overlay's cursor
-     * probe follows, and the one stated on `claimsPress`. A query costs ~2 µs on
+     * probe follows, and the one stated on `pressClaim`. A query costs ~2 µs on
      * a 5k-crease pattern at fit zoom and ~500 µs in the worst case that can
      * occur, which is affordable per frame and would not be per sample.
      */
@@ -3256,20 +3256,17 @@ export function CreasePatternWebglCanvas({
         e.preventDefault();
         panning = true;
         setPanDragging(true);
-      } else if (orbitClaims) {
-        // A focused 3D folded figure turns instead of anything else happening.
-        // Above the tool branches because a tool must not draw through a figure
-        // the user is turning, and below the right/middle-button ones because
-        // erase and pan are unclaimable by design — the same precedence the
-        // overlay gives a focused simulation window.
-        e.preventDefault();
-        orbiting =
-          liveRef.current.foldedOrbit?.begin({ x: e.clientX, y: e.clientY }) ?? false;
-        if (orbiting) setOrbitPointer('turning');
       } else if (e.metaKey || liveRef.current.panToolActive) {
         // Meta+drag pans, as does a plain drag while the hand tool is on. Folded
         // figures are grabbed through the canvas-object overlay now, which sits
         // above this canvas and takes the press first.
+        //
+        // Above the orbit branch, not below it: pan is unclaimable by design, and
+        // `cpCanvasCursor` has always ranked it that way — it shows `grab` over a
+        // focused figure the moment Meta goes down. While this branch sat below,
+        // that cursor was a promise the press did not keep, and the figure turned
+        // instead. Every other layer over this canvas now yields a pan press too
+        // (see `surfacePressClaim`), so this is the same rule end to end.
         //
         // `metaKey`, not the platform accel. This is upstream's rule verbatim --
         // `Canvas.java:267` maps `isMetaDown()` to BUTTON2, whose handler pans --
@@ -3282,6 +3279,16 @@ export function CreasePatternWebglCanvas({
         e.preventDefault();
         panning = true;
         setPanDragging(true);
+      } else if (orbitClaims) {
+        // A focused 3D folded figure turns instead of anything else happening.
+        // Above the tool branches because a tool must not draw through a figure
+        // the user is turning, and below the erase and pan ones because those are
+        // unclaimable by design — the same precedence the overlay gives a focused
+        // simulation window.
+        e.preventDefault();
+        orbiting =
+          liveRef.current.foldedOrbit?.begin({ x: e.clientX, y: e.clientY }) ?? false;
+        if (orbiting) setOrbitPointer('turning');
       } else if (toolMode === 'sequence') {
         // Click-based tool: place a point / pick a crease (no drag). Hover previews.
         e.preventDefault();
@@ -3820,18 +3827,18 @@ export function CreasePatternWebglCanvas({
      * sits above it as a sibling and so takes presses that were meant for the
      * creases under a reference image.
      *
-     * `claimsPress` runs the *same* `hitTest` `onPointerDown` runs — not a
+     * `pressClaim` runs the *same* `hitTest` `onPointerDown` runs — not a
      * reimplementation. A second notion of "on a crease" would drift from this
      * one, and the gap would be a ring around every crease where the overlay
      * declines and the canvas picks nothing either.
      */
     const detachSurfacePress = registerCpSurfacePress({
-      claimsPress: (event) =>
-        surfaceClaimsPress({
+      pressClaim: (event) =>
+        surfacePressClaim({
           button: event.button,
           metaKey: event.metaKey,
           panToolActive: liveRef.current.panToolActive,
-          hit: hitTest(event.clientX, event.clientY),
+          hit: () => hitTest(event.clientX, event.clientY),
         }),
       press: onPointerDown,
       /**
@@ -3841,20 +3848,22 @@ export function CreasePatternWebglCanvas({
        * so its own cursor is not an answer to anything.
        */
       hoverCursor: (point) => {
-        const hit = hitTest(point.clientX, point.clientY);
-        const claimed = surfaceClaimsPress({
+        const claim = surfacePressClaim({
           button: point.button,
           metaKey: point.metaKey,
           panToolActive: liveRef.current.panToolActive,
-          hit,
+          hit: () => hitTest(point.clientX, point.clientY),
         });
-        if (!claimed) return null;
+        if (!claim) return null;
         return (
           cpCanvasCursor({
             panToolActive: liveRef.current.panToolActive,
             panModifierHeld: point.metaKey || isPanModifierHeld(),
             panDragging: false,
-            creaseHovered: hit !== null && clickSelectsUnderCursor(),
+            // The claim already carries the hit test's answer, so a `'pan'`
+            // verdict reaches this without one having run — which is the common
+            // case while the modifier is held, once per probe frame.
+            creaseHovered: claim === 'crease' && clickSelectsUnderCursor(),
           }) ?? 'default'
         );
       },

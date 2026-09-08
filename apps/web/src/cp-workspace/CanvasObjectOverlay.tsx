@@ -29,9 +29,11 @@ import { cpSurfaceGestures } from './gestures/cpSurfaceGestures';
 import type { CpGesturePointer } from './gestures/cpTouchArbiter';
 import type { TransformableCanvasObject } from './canvasObjects/transformableObject';
 import {
+  cpSurfacePanPress,
   cpSurfacePress,
   type CpSurfacePressHandle,
 } from './picking/cpSurfacePressRegistry';
+import { usePanModifierHeld } from './cpCanvasCursor';
 
 /**
  * DOM overlay for direct-manipulating canvas objects — reference images, text
@@ -115,12 +117,19 @@ type ContactRef = MutableRefObject<Map<number, CpGesturePointer>>;
  * The crease pattern, when this press is its business rather than the object's —
  * null when the object keeps it.
  *
- * Only asked for an object you can see the crease pattern through — a reference
- * image, drawn under the pattern so you can trace on top of it, or a text box,
- * whose bounds are mostly empty. Either way the body polygon sits above the
- * canvas and is handed the press first, which is why a crease crossing one used
- * to be unselectable: this layer took the press and the canvas' hit test never
- * ran at all.
+ * Two separate grounds, and which apply depends on the object:
+ *
+ * - **A camera press is nobody's.** Meta, the middle button and the hand tool
+ *   all pan, and pan is unclaimable by design upstream. It is handed over for
+ *   every object, opaque ones included: a folded figure or a simulation window
+ *   used to swallow a Cmd+drag and *move itself* instead, which is a pan that
+ *   dies over part of the canvas.
+ * - **A crease press outranks only what you can see the pattern through** — a
+ *   reference image, drawn under the pattern so you can trace on top of it, or a
+ *   text box, whose bounds are mostly empty. Either way the body polygon sits
+ *   above the canvas and is handed the press first, which is why a crease
+ *   crossing one used to be unselectable: this layer took the press and the
+ *   canvas' hit test never ran at all.
  *
  * Nothing registered means no crease pattern is mounted, or WebGL was
  * unavailable; behaving exactly as before this existed is then the right answer.
@@ -129,9 +138,25 @@ function surfaceClaiming(
   event: ReactPointerEvent<SVGElement> | ReactMouseEvent<SVGElement>,
   object: TransformableCanvasObject
 ): CpSurfacePressHandle | null {
-  if (!object.yieldsPressToCreases) return null;
   const surface = cpSurfacePress();
-  return surface?.claimsPress(event.nativeEvent) ? surface : null;
+  if (!surface) return null;
+  const claim = surface.pressClaim(event.nativeEvent);
+  if (claim === 'pan') return surface;
+  return claim === 'crease' && object.yieldsPressToCreases ? surface : null;
+}
+
+/**
+ * The crease pattern, when this press pans it — the half of
+ * {@link surfaceClaiming} that holds for chrome.
+ *
+ * The resize and rotate handles are small, deliberate and drawn on top, so a
+ * crease beneath one does not take its press or an object over a dense pattern
+ * could not be sized at all. A pan is different in kind: it is not a claim on
+ * what is underneath, it is the camera moving, and nothing on this surface may
+ * refuse it.
+ */
+function cameraClaiming(event: ReactPointerEvent<SVGElement>): CpSurfacePressHandle | null {
+  return cpSurfacePanPress(event.nativeEvent);
 }
 
 /**
@@ -192,6 +217,7 @@ export function CanvasObjectOverlay({
   suppressedId,
   inertBodyIds,
   interactive,
+  panToolActive,
   onSelect,
   onUpdate,
   onCropUpdate,
@@ -217,6 +243,13 @@ export function CanvasObjectOverlay({
    */
   inertBodyIds?: ReadonlySet<string>;
   interactive: boolean;
+  /**
+   * The hand tool is on, so a drag anywhere pans. **Cursor only** — where a
+   * press is routed is decided by asking the surface (see `cameraClaiming`), so
+   * forgetting this prop can dress a body wrongly but can never move an object
+   * that should have panned.
+   */
+  panToolActive?: boolean;
   onSelect: (id: string | null) => void;
   onUpdate: (id: string, patch: CanvasObjectBoxUpdate) => void;
   /**
@@ -242,6 +275,19 @@ export function CanvasObjectOverlay({
 }) {
   // Live camera, subscribed directly so only this overlay re-renders per frame.
   const views = useCpOverlayViews();
+  /**
+   * A pan press is armed, so every body and handle here says `grab` and none of
+   * them promise what they normally do.
+   *
+   * Read as *state* rather than off the last pointer event, because that is what
+   * it is: pressing Cmd with the pointer already still over an image has to
+   * change the cursor, and no pointer event fires for it. The surface's
+   * `hoverCursor` cannot answer this half — see the note on that method.
+   *
+   * Cursor only. Nothing routes a press on it; the surface is asked for that, so
+   * the two cannot disagree about where a press goes.
+   */
+  const panArmed = usePanModifierHeld() || (panToolActive ?? false);
   const dragRef = useRef<Drag | null>(null);
   /**
    * The contacts this overlay has reported to the surface arbiter and not yet
@@ -286,7 +332,7 @@ export function CanvasObjectOverlay({
    * Bounding it matters because the probe is a hit test, and a high-rate pointer
    * reports far more often than the screen redraws. One per frame costs tens of
    * microseconds at a working zoom and stays under a millisecond in the worst
-   * case measured (50k creases at 0.1× zoom) — see `surfaceClaimsPress`.
+   * case measured (50k creases at 0.1× zoom) — see `surfacePressClaim`.
    */
   const cursorProbeRef = useRef<{
     frame: number;
@@ -393,7 +439,19 @@ export function CanvasObjectOverlay({
       object: TransformableCanvasObject,
       handle: AnnotationResizeHandle
     ) => {
-      if (!interactive || object.locked || event.button !== 0) return;
+      if (!interactive || object.locked) return;
+      // Before the button check, and before anything else: a handle is chrome
+      // that outranks the creases under it, but it does not outrank the camera.
+      // Meta, the middle button and the hand tool pan from here as they do from
+      // anywhere else on the surface — and since the button check below only ever
+      // let the primary button through, a middle-button pan started on a handle
+      // used to do nothing at all.
+      const surface = cameraClaiming(event);
+      if (surface) {
+        surface.press(event.nativeEvent);
+        return;
+      }
+      if (event.button !== 0) return;
       if (!claimPress(event)) return;
       onGestureStart?.(object.id);
       dragRef.current = {
@@ -410,7 +468,14 @@ export function CanvasObjectOverlay({
 
   const handleRotateDown = useCallback(
     (event: ReactPointerEvent<SVGCircleElement>, object: TransformableCanvasObject) => {
-      if (!interactive || object.locked || event.button !== 0) return;
+      if (!interactive || object.locked) return;
+      // Same as the resize handles: chrome outranks the creases, not the camera.
+      const surface = cameraClaiming(event);
+      if (surface) {
+        surface.press(event.nativeEvent);
+        return;
+      }
+      if (event.button !== 0) return;
       if (!claimPress(event)) return;
       onGestureStart?.(object.id);
       const pointer = pointerToObject(event, object.space);
@@ -665,7 +730,14 @@ export function CanvasObjectOverlay({
               pointerEvents: interactive && !object.locked && !bodyInert ? 'auto' : 'none',
               // `move` is a promise that a drag here moves this object, so it has
               // to come off wherever the press would go to the creases instead.
-              cursor: !interactive || bodyInert ? 'default' : yieldsCursor ? yieldedCursor.cursor : 'move',
+              cursor:
+                !interactive || bodyInert
+                  ? 'default'
+                  : panArmed
+                    ? 'grab'
+                    : yieldsCursor
+                      ? yieldedCursor.cursor
+                      : 'move',
               vectorEffect: 'non-scaling-stroke',
             }}
             onPointerDown={(event) => handleBodyDown(event, object)}
@@ -710,6 +782,7 @@ export function CanvasObjectOverlay({
         <SelectionHandles
           object={selected}
           views={views}
+          panArmed={panArmed}
           cropMode={cropMode && (canCrop?.(selected.id) ?? false)}
           onResizeDown={handleResizeDown}
           onRotateDown={handleRotateDown}
@@ -726,6 +799,7 @@ export function CanvasObjectOverlay({
 function SelectionHandles({
   object,
   views,
+  panArmed,
   cropMode,
   onResizeDown,
   onRotateDown,
@@ -735,6 +809,8 @@ function SelectionHandles({
 }: {
   object: TransformableCanvasObject;
   views: { model: CpOverlayView; user: CpOverlayView };
+  /** A pan press is armed, so these squares would pan rather than size. */
+  panArmed: boolean;
   cropMode: boolean;
   onResizeDown: (
     event: ReactPointerEvent<SVGRectElement>,
@@ -822,7 +898,11 @@ function SelectionHandles({
           fill="var(--bg-primary, #202430)"
           stroke={handleStroke}
           strokeWidth={1.5}
-          style={{ pointerEvents: 'auto', cursor: 'pointer', vectorEffect: 'non-scaling-stroke' }}
+          style={{
+            pointerEvents: 'auto',
+            cursor: panArmed ? 'grab' : 'pointer',
+            vectorEffect: 'non-scaling-stroke',
+          }}
           onPointerDown={(event) => onResizeDown(event, object, handle)}
           onPointerMove={(event) => onPointerMove(event, object)}
           onPointerUp={onPointerUp}

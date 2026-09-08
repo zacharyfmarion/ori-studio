@@ -32,6 +32,7 @@
 import { useCallback, useRef, type PointerEvent as ReactPointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCpOverlayViews } from '../cpOverlayViewStore';
+import { cpSurfacePanPress } from '../picking/cpSurfacePressRegistry';
 import { overlayCssDeltaToModel, type Vec2 } from '../annotations/annotationTransform';
 
 /**
@@ -101,6 +102,19 @@ export function useCpRegionChipDrag({
 
   const onPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLElement>) => {
+      // Before the selection, and before the button check: Meta, the middle
+      // button and the hand tool pan the crease pattern, and pan is unclaimable
+      // by design — a bar floating over the canvas may not be the one place it
+      // dies. Handed over as the *native* event, since the canvas takes pointer
+      // capture on it to redirect the rest of the gesture to itself.
+      //
+      // This bar is portalled out of the viewport, so the press registry is not
+      // merely the tidy channel to the canvas — it is the only one.
+      const surface = cpSurfacePanPress(event.nativeEvent);
+      if (surface) {
+        surface.press(event.nativeEvent);
+        return;
+      }
       onSelect();
       if (event.button !== 0 || isChipControl(event.target)) return;
       // Optional because the bar moves *with* the region it is dragging, so the

@@ -3413,6 +3413,7 @@ export function CreasePatternPanel() {
                     suppressedId={editingTextId}
                     inertBodyIds={inertBodyIds}
                     interactive={annotationsInteractive}
+                    panToolActive={panToolActive}
                     onSelect={selectCanvasObject}
                     onUpdate={handleCanvasObjectUpdate}
                     onCropUpdate={annotations.applyCrop}
