@@ -81,6 +81,9 @@ function colorMix(color: string, amount: number): string {
  * that *relationship* against the theme's own ink and canvas rather than the
  * literal colour, so the style stays legible whichever way the theme runs.
  */
+/** How much of the paper survives in its colour side: the legend's 30% grey. */
+const PAPER_BACK_RATIO = 0.7;
+
 const MONOCHROME_VALLEY_INK_RATIO = 0.365;
 
 function applyTreeMakerDerivedTokens(theme: TreeMakerTheme, setVar: (name: string, value: string) => void) {
@@ -92,6 +95,12 @@ function applyTreeMakerDerivedTokens(theme: TreeMakerTheme, setVar: (name: strin
   setVar('--bg-paper', isLight ? '#fffdf7' : '#f2f0e7');
   setVar('--paper-shadow', colorMix(colors['text.primary'], isLight ? 18 : 28));
   setVar('--paper-stroke', colorMix(colors['text.primary'], isLight ? 70 : 62));
+  // The paper's other face, following the origami house's own legend: white
+  // side is the paper, colour side a 30% grey against it. Mixed here rather
+  // than with `color-mix()` in the stylesheet because a WebGL canvas reads it
+  // through `parseCssColor`, which understands hex and rgb() and nothing else —
+  // the same reason `--fold-monochrome-valley` below is mixed in JS.
+  setVar('--paper-back', mixHexColors(colors['bg.primary'], colors['text.primary'], PAPER_BACK_RATIO));
 
   setVar('--tree-edge', colors['text.primary']);
   setVar('--tree-node', colors['bg.tertiary']);

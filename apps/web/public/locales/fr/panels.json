@@ -910,6 +910,7 @@
       "axiom6": "Pliez {{a}} sur {{b}} et {{c}} sur {{d}}.",
       "axiom7": "Repliez {{b}} sur elle-même de sorte que {{a}} tombe sur {{c}}.",
       "free": "Cette ligne est déjà sur la feuille.",
+      "markFirst": "L’une de ces marques est là où deux plis se croiseraient s’ils allaient plus loin : pincez-la d’abord.",
       "partlyReversed": "Dans le patron, cette ligne est pliée dans les deux sens ; le reste s’inverse lorsque le modèle se referme.",
       "pinch": "Pincez seulement : seul le repère est nécessaire.",
       "unknown": "Pliez en utilisant {{inputs}}.",

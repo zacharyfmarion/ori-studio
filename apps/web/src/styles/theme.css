@@ -40,11 +40,18 @@
   /*
    * The two faces of a sheet, as an origami diagram draws them: the white side
    * is the paper itself, the colour side a 30% grey against it (the house
-   * template's own legend). Mixed toward the ink rather than hard-coded, so a
-   * dark theme's "colour side" is lighter than its paper the way a light
-   * theme's is darker.
+   * template's own legend).
+   *
+   * The value here is only the default-dark fallback; `applyTheme` mixes the
+   * real one per theme, so a dark theme's colour side comes out lighter than
+   * its paper the way a light theme's comes out darker. It is a flat hex and
+   * not a `color-mix()` on purpose: the References canvas reads this token from
+   * JS to clear a WebGL surface, and `parseCssColor` understands hex and rgb()
+   * and nothing else — a `color-mix()` parses to null and falls back to a
+   * hard-coded near-black, which is exactly how this token looked implemented
+   * and did nothing.
    */
-  --paper-back: color-mix(in srgb, var(--bg-primary) 70%, var(--text-primary));
+  --paper-back: #515558;
   /* Two-tone origami paper in the simulator: yellow front, light back. The
      yellow matches a generated folded figure in the edit pane (the CP engine's
      default front colour, RgbColor(255,255,50)); the blue valley and red
@@ -10954,6 +10961,21 @@ button.bp-packing-alert:focus-visible {
 
 .references-card:hover {
   border-color: var(--border-strong, var(--border-subtle));
+}
+
+/*
+ * The card owns its focus ring, or the user agent draws its own in its own
+ * colour — which, next to the selected card's, reads as a second competing
+ * selection. `outline: none` is safe only because the shadow replaces it; the
+ * same trade `.ui-button` makes.
+ */
+.references-card:focus {
+  outline: none;
+}
+
+.references-card:focus-visible {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--accent-primary);
 }
 
 .references-card--selected {

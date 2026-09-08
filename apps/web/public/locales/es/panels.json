@@ -910,6 +910,7 @@
       "axiom6": "Dobla {{a}} sobre {{b}} y {{c}} sobre {{d}}.",
       "axiom7": "Dobla {{b}} sobre sí misma de modo que {{a}} caiga en {{c}}.",
       "free": "Esta línea ya está en la hoja.",
+      "markFirst": "Una de estas marcas está donde se cruzarían dos pliegues si siguieran: haz primero un pellizco ahí.",
       "partlyReversed": "En el patrón esta línea se pliega en ambos sentidos; el resto se invierte al colapsar el modelo.",
       "pinch": "Solo pellizca: basta con la marca.",
       "unknown": "Dobla usando {{inputs}}.",

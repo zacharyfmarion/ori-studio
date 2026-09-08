@@ -678,6 +678,7 @@ impl Planner {
                 cp_spans,
                 visible: verdict.visible,
                 witnesses_complete: f.witnesses_complete,
+                marks_exist: p.marks_exist,
                 hoisted: p.hoisted,
             });
         }

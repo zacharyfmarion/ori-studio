@@ -876,6 +876,7 @@
       "axiom6": "Falte {{a}} auf {{b}} und {{c}} auf {{d}}.",
       "axiom7": "Falte {{b}} auf sich selbst, sodass {{a}} auf {{c}} landet.",
       "free": "Diese Linie ist bereits auf dem Blatt.",
+      "markFirst": "Eine dieser Markierungen liegt dort, wo sich zwei Falten kreuzen würden, wenn sie weiterliefen — kneife sie zuerst.",
       "partlyReversed": "Diese Linie ist im Muster in beide Richtungen gefaltet; der Rest kehrt sich beim Zusammenlegen um.",
       "pinch": "Nur kneifen – es wird nur die Markierung gebraucht.",
       "unknown": "Falte mit {{inputs}}.",

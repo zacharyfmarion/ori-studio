@@ -76,6 +76,13 @@ pub struct Step {
     pub visible: bool,
     /// The lander tier was evaluated when the witnesses were recorded.
     pub witnesses_complete: bool,
+    /// Every mark the presentation witness sights is on the paper.
+    ///
+    /// A fold runs the width of the sheet, but the pattern usually wants only
+    /// part of it, so the crossing of two *chords* need not be a crease
+    /// crossing. When this is false the step is still correct, but the folder
+    /// has to be told to make the mark rather than shown where it already is.
+    pub marks_exist: bool,
     /// Hoisted to phase 0 by `landmarks_first`.
     pub hoisted: bool,
 }

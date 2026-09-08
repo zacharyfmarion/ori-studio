@@ -121,6 +121,15 @@ export interface PrecreaseStep {
   /** An auxiliary crease that stays full-length after the pinch pass. */
   visible: boolean;
   witnesses_complete: boolean;
+  /**
+   * Every mark this step is sighted from is on the paper.
+   *
+   * A fold runs the width of the sheet, but the pattern usually wants only part
+   * of it — so the crossing of two *chords* need not be a crease crossing. When
+   * this is false the fold is still right, but the folder has to be told to
+   * make the mark rather than shown where it already is.
+   */
+  marks_exist: boolean;
   hoisted: boolean;
 }
 

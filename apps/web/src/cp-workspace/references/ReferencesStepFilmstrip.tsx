@@ -72,12 +72,28 @@ export const ReferencesStepFilmstrip = memo(function ReferencesStepFilmstrip({
 
   // Keep the active card in view however it was selected — a card press, a
   // chevron, the `references.nextStep` chord, or the transport strip.
+  //
+  // And keep DOM focus on it, so there is one highlighted card rather than two.
+  // Clicking focuses a card as well as selecting it, while the arrow chords go
+  // through the focus-independent shortcut runtime and only select — so the
+  // browser's own focus ring stayed on the last card clicked while the
+  // selection moved away from it, in a different colour. Worse than untidy: the
+  // stale card was still the Enter/Space target, so activating it snapped the
+  // selection backwards.
+  //
+  // Only when the strip already owns focus. Moving it unconditionally would
+  // pull focus off the canvas every time the active step changes for a reason
+  // that is not the reader's keystroke — a fresh plan resets it to 0.
   useEffect(() => {
     const card = activeRef.current;
     const list = listRef.current;
     if (!card || !list) return;
     // jsdom implements neither; the strip is correct without them.
     card.scrollIntoView?.({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+    if (list.contains(document.activeElement)) {
+      // The line above is already scrolling; `focus()` would jump-scroll first.
+      card.querySelector('button')?.focus({ preventScroll: true });
+    }
   }, [activeStep, steps]);
 
   const active = steps[activeStep] ?? null;

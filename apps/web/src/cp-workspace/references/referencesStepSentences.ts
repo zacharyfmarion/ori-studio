@@ -442,6 +442,13 @@ export function describePlannerStep(
           .join(', '),
       });
   }
+  // A reference the paper does not carry yet. The planner prefers a witness it
+  // can sight, so this is the residue where none of the recorded ones works —
+  // and saying nothing would be telling the folder to bring a corner to a point
+  // that is not there.
+  if (!step.marks_exist) {
+    sentence = `${sentence} ${t('panels:references.planStep.markFirst', 'One of these marks is where two creases would cross if they ran further — pinch it in first.')}`;
+  }
   if (step.extent.kind === 'pinches') {
     return `${sentence} ${t('panels:references.planStep.pinch', 'Pinch only — just the mark is needed.')}`;
   }

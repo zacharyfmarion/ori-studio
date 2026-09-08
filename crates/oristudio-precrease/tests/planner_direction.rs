@@ -12,6 +12,9 @@
 mod common;
 
 use common::*;
+use std::collections::{HashMap, HashSet};
+
+use oristudio_precrease::predicates::Ref;
 use oristudio_precrease::sequence::{Sequence, StepKind};
 use oristudio_precrease::{Component, Direction, ExactnessClass, Side, analyze};
 
@@ -252,6 +255,98 @@ fn a_cp_step_says_where_on_its_chord_the_creases_are() {
             );
         }
     }
+}
+
+/// A step is described by marks that are actually on the paper.
+///
+/// A fold runs the width of the sheet, but the pattern usually wants only part
+/// of it — so the crossing of two *chords* need not be a crease crossing, and
+/// telling a folder to bring a corner to a point that is not there is not an
+/// instruction. `State` cannot see this: it records a point at every in-sheet
+/// crossing of two infinite lines, which is the right model for whether a fold
+/// is constructible and the wrong one for whether it can be sighted.
+///
+/// The ordering pass prefers a recorded witness whose marks exist, and flags
+/// the step when none does. Recompute both here from `cp_spans`, so a pass that
+/// stopped checking cannot pass.
+#[test]
+fn a_step_is_sighted_from_marks_that_are_on_the_paper() {
+    for file in EVERY_FIXTURE {
+        let seq = plan(file);
+        // Where the paper is creased, line by line, as the sequence proceeds.
+        let mut creased: HashMap<usize, Vec<Span>> = HashMap::new();
+        let mut whole: HashSet<usize> = HashSet::new();
+        for entry in &seq.lines {
+            if entry.step.is_none() {
+                whole.insert(entry.id);
+            }
+        }
+        let mut flagged = 0;
+        for step in &seq.steps {
+            let witness = step.chosen.and_then(|c| step.witnesses.get(c));
+            if let Some(w) = witness {
+                for input in &w.inputs {
+                    let Ref::Point { id } = input else { continue };
+                    let point = seq
+                        .points
+                        .iter()
+                        .find(|p| p.id == *id)
+                        .unwrap_or_else(|| panic!("{file}: step {} names point {id}", step.id));
+                    let reach = |line: usize| {
+                        if whole.contains(&line) {
+                            return true;
+                        }
+                        creased.get(&line).is_some_and(|spans| {
+                            spans.iter().any(|(a, b)| on_span(*a, *b, point.p))
+                        })
+                    };
+                    let here = point.lines.iter().filter(|&&l| reach(l)).count();
+                    if here < 2 {
+                        assert!(
+                            !step.marks_exist,
+                            "{file}: step {} sights a mark that is not on the paper, unflagged",
+                            step.id
+                        );
+                        flagged += 1;
+                    }
+                }
+            }
+            // Now this step's own crease is on the paper.
+            if step.cp_spans.is_empty() {
+                whole.insert(step.line_id);
+            } else {
+                creased
+                    .entry(step.line_id)
+                    .or_default()
+                    .extend(step.cp_spans.iter().map(|[a, b]| (*a, *b)));
+            }
+        }
+        // A flag that never fires is a flag nobody can trust.
+        if file.contains("iguana") {
+            assert!(
+                flagged > 0,
+                "{file}: expected some steps to need a mark made"
+            );
+        }
+    }
+}
+
+/// One creased piece of a line: its two endpoints.
+type Span = ([f64; 2], [f64; 2]);
+
+/// Whether `p` lies on the segment `a`–`b`.
+fn on_span(a: [f64; 2], b: [f64; 2], p: [f64; 2]) -> bool {
+    let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
+    let length = dx.hypot(dy);
+    if length <= 0.0 {
+        return false;
+    }
+    let t = ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (length * length);
+    if !(-1e-9..=1.0 + 1e-9).contains(&t) {
+        return false;
+    }
+    let (qx, qy) = (a[0] + t * dx, a[1] + t * dy);
+    (p[0] - qx).hypot(p[1] - qy) < 1e-9
 }
 
 /// grid6 is the fully determined case: seven mountains, seven valleys, and no

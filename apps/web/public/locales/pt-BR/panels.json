@@ -910,6 +910,7 @@
       "axiom6": "Dobre {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
       "axiom7": "Dobre {{b}} sobre si mesma de modo que {{a}} caia em {{c}}.",
       "free": "Esta linha já está na folha.",
+      "markFirst": "Uma destas marcas está onde dois vincos se cruzariam se seguissem adiante: faça primeiro um beliscão ali.",
       "partlyReversed": "No padrão, esta linha é vincada nos dois sentidos; o restante se inverte quando o modelo se fecha.",
       "pinch": "Apenas belisque: só a marca é necessária.",
       "unknown": "Dobre usando {{inputs}}.",

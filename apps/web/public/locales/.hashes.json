@@ -2946,7 +2946,8 @@
     "panels:references.summary.turnOvers_one": "1b4be288663c",
     "panels:references.summary.turnOvers_other": "ee2395a203d8",
     "panels:references.flip.doneBadge": "7804f7a79a9e",
-    "panels:references.flip.turnOverBadge": "b6bfcfb7bb52"
+    "panels:references.flip.turnOverBadge": "b6bfcfb7bb52",
+    "panels:references.planStep.markFirst": "d42a18b140cf"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5895,7 +5896,8 @@
     "panels:references.summary.turnOvers_one": "1b4be288663c",
     "panels:references.summary.turnOvers_other": "ee2395a203d8",
     "panels:references.flip.doneBadge": "7804f7a79a9e",
-    "panels:references.flip.turnOverBadge": "b6bfcfb7bb52"
+    "panels:references.flip.turnOverBadge": "b6bfcfb7bb52",
+    "panels:references.planStep.markFirst": "d42a18b140cf"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8844,7 +8846,8 @@
     "panels:references.summary.turnOvers_one": "1b4be288663c",
     "panels:references.summary.turnOvers_other": "ee2395a203d8",
     "panels:references.flip.doneBadge": "7804f7a79a9e",
-    "panels:references.flip.turnOverBadge": "b6bfcfb7bb52"
+    "panels:references.flip.turnOverBadge": "b6bfcfb7bb52",
+    "panels:references.planStep.markFirst": "d42a18b140cf"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11737,7 +11740,8 @@
     "panels:references.summary.mixed_other": "37d5a5a4defc",
     "panels:references.summary.turnOvers_other": "ee2395a203d8",
     "panels:references.flip.doneBadge": "7804f7a79a9e",
-    "panels:references.flip.turnOverBadge": "b6bfcfb7bb52"
+    "panels:references.flip.turnOverBadge": "b6bfcfb7bb52",
+    "panels:references.planStep.markFirst": "d42a18b140cf"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14630,7 +14634,8 @@
     "panels:references.summary.mixed_other": "37d5a5a4defc",
     "panels:references.summary.turnOvers_other": "ee2395a203d8",
     "panels:references.flip.doneBadge": "7804f7a79a9e",
-    "panels:references.flip.turnOverBadge": "b6bfcfb7bb52"
+    "panels:references.flip.turnOverBadge": "b6bfcfb7bb52",
+    "panels:references.planStep.markFirst": "d42a18b140cf"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -17579,7 +17584,8 @@
     "panels:references.summary.turnOvers_one": "1b4be288663c",
     "panels:references.summary.turnOvers_other": "ee2395a203d8",
     "panels:references.flip.doneBadge": "7804f7a79a9e",
-    "panels:references.flip.turnOverBadge": "b6bfcfb7bb52"
+    "panels:references.flip.turnOverBadge": "b6bfcfb7bb52",
+    "panels:references.planStep.markFirst": "d42a18b140cf"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -20528,7 +20534,8 @@
     "panels:references.summary.turnOvers_one": "1b4be288663c",
     "panels:references.summary.turnOvers_other": "ee2395a203d8",
     "panels:references.flip.doneBadge": "7804f7a79a9e",
-    "panels:references.flip.turnOverBadge": "b6bfcfb7bb52"
+    "panels:references.flip.turnOverBadge": "b6bfcfb7bb52",
+    "panels:references.planStep.markFirst": "d42a18b140cf"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -23421,6 +23428,7 @@
     "panels:references.summary.mixed_other": "37d5a5a4defc",
     "panels:references.summary.turnOvers_other": "ee2395a203d8",
     "panels:references.flip.doneBadge": "7804f7a79a9e",
-    "panels:references.flip.turnOverBadge": "b6bfcfb7bb52"
+    "panels:references.flip.turnOverBadge": "b6bfcfb7bb52",
+    "panels:references.planStep.markFirst": "d42a18b140cf"
   }
 }

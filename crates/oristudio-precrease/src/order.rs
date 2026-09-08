@@ -43,6 +43,12 @@ pub struct Placed {
     /// a hoisted line).
     pub chosen: Option<usize>,
     pub hoisted: bool,
+    /// Every mark the presentation witness sights is on the paper.
+    ///
+    /// False when no recorded witness could be sighted from creases that
+    /// actually reach their crossing — the fold is still constructible, but the
+    /// folder has to be told to make the mark rather than shown where it is.
+    pub marks_exist: bool,
     /// Normal angle of the direction cluster, `[0, π)`. A crease's
     /// *orientation*, unrelated to mountain and valley.
     pub direction_angle: f64,
@@ -113,6 +119,111 @@ fn order_round(closure: &Closure, members: &[usize]) -> Vec<(usize, f64)> {
     out
 }
 
+/// Where each state line is actually creased, by the time the pass reaches it.
+///
+/// A fold runs the width of the sheet, but the *pattern* usually only wants
+/// part of that chord — so the crossing of two chords is not necessarily a mark
+/// on the paper. `State` knows nothing about this: `add_line` records a point
+/// at every in-sheet crossing of two infinite lines (`state.rs`), which is the
+/// right model for constructibility and the wrong one for "can the folder find
+/// this".
+///
+/// Line parameters along each line's own direction, as `Line::project_point`
+/// measures them. An empty entry means the line is not creased at all yet; a
+/// `None` entry means it is creased everywhere it exists — an edge, or an
+/// auxiliary fold, which the pinch pass may later narrow but only ever to the
+/// marks that are used.
+#[derive(Debug, Clone)]
+struct Creased {
+    spans: Vec<Option<Vec<(f64, f64)>>>,
+}
+
+impl Creased {
+    fn new(closure: &Closure) -> Creased {
+        let state = closure.state();
+        let mut spans = vec![Some(Vec::new()); state.line_count()];
+        for (id, l) in state.lines().iter().enumerate() {
+            if l.tag == LineTag::Edge {
+                spans[id] = None;
+            }
+        }
+        Creased { spans }
+    }
+
+    /// Record that `folded_index` has now been made.
+    fn add(&mut self, closure: &Closure, folded_index: usize) {
+        let f = &closure.folded()[folded_index];
+        let Some(entry) = self.spans.get_mut(f.line_id) else {
+            return;
+        };
+        let Some(target) = f.target.and_then(|t| closure.targets().get(t)) else {
+            // An auxiliary fold leaves a crease along its whole chord. The
+            // pinch pass may cut it down later, but only to the marks that are
+            // used — this one included, if a witness names it.
+            *entry = None;
+            return;
+        };
+        if target.spans.is_empty() {
+            *entry = None;
+            return;
+        }
+        let line = &f.line;
+        let runs: Vec<(f64, f64)> = target
+            .spans
+            .iter()
+            .map(|[a, b]| {
+                let (u, v) = (line.parameter_of(*a), line.parameter_of(*b));
+                if u <= v { (u, v) } else { (v, u) }
+            })
+            .collect();
+        *entry = Some(runs);
+    }
+
+    /// Whether the crease on `line_id` reaches `p`.
+    fn reaches(&self, closure: &Closure, line_id: usize, p: [f64; 2]) -> bool {
+        match self.spans.get(line_id) {
+            None => false,
+            Some(None) => true,
+            Some(Some(runs)) => {
+                let t = closure.state().line(line_id).parameter_of(p);
+                runs.iter().any(|&(u, v)| t >= u - TOL && t <= v + TOL)
+            }
+        }
+    }
+}
+
+/// Whether the mark at point `id` is on the paper, not merely in the state.
+///
+/// Two creases have to actually meet there — both made, and both pressed at
+/// that spot — and they have to cross squarely enough to locate it, which is
+/// the same conditioning floor [`witness_available`] applies.
+fn mark_exists(closure: &Closure, creased: &Creased, id: usize) -> bool {
+    let state = closure.state();
+    let p = state.points()[id].p;
+    let present: Vec<usize> = state.points()[id]
+        .lines
+        .iter()
+        .copied()
+        .filter(|&l| creased.reaches(closure, l, p))
+        .collect();
+    present.iter().enumerate().any(|(i, &a)| {
+        present[i + 1..]
+            .iter()
+            .any(|&b| state.line(a).cross(state.line(b)).abs() >= MIN_ANGLE_SINE)
+    })
+}
+
+/// Whether every mark this witness sights is on the paper.
+///
+/// Corners are the sheet's own and always are; a line input is a whole crease
+/// rather than a spot on one, so only points are asked about.
+fn witness_marks_exist(closure: &Closure, creased: &Creased, w: &Witness) -> bool {
+    w.inputs.iter().all(|r| match r {
+        Ref::Point { id } => mark_exists(closure, creased, *id),
+        _ => true,
+    })
+}
+
 /// The face a fold has to be made from, or `None` when it does not care.
 ///
 /// An auxiliary line has no target and so no direction; a line whose majority
@@ -136,6 +247,8 @@ fn emit_round(
     round: u32,
     closure: &Closure,
     side: Side,
+    chosen: &[Option<usize>],
+    marks: &[bool],
     placed: &mut Vec<Placed>,
 ) -> Side {
     let other = side.flipped();
@@ -156,10 +269,11 @@ fn emit_round(
             placed.push(Placed {
                 folded: i,
                 round,
-                chosen: closure.folded()[i].chosen,
+                chosen: chosen[i],
                 hoisted: false,
                 direction_angle: angle,
                 side: at,
+                marks_exist: marks[i],
             });
         }
     }
@@ -175,6 +289,9 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
     // The sheet starts front side up and stays where the previous round left
     // it — a per-round reset would turn it over at every boundary.
     let mut side = Side::Front;
+
+    // What the paper actually carries, grown fold by fold — see `Creased`.
+    let mut creased = Creased::new(closure);
 
     // Phase 0: hoisted landmarks.
     let mut hoisted = vec![false; folded.len()];
@@ -200,7 +317,9 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
                     hoisted: true,
                     direction_angle: folded_angle(&f.line),
                     side,
+                    marks_exist: witness_marks_exist(closure, &creased, &f.witnesses[k]),
                 });
+                creased.add(closure, i);
             }
         }
     }
@@ -214,10 +333,30 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
         .collect();
     rounds.sort_unstable();
     rounds.dedup();
+    let mut chosen: Vec<Option<usize>> = folded.iter().map(|f| f.chosen).collect();
+    let mut marks = vec![true; folded.len()];
     for (k, &r) in rounds.iter().enumerate() {
         let members: Vec<usize> = (0..folded.len())
             .filter(|&i| !hoisted[i] && folded[i].round == r)
             .collect();
+        // Prefer a witness the folder can actually sight. Every witness on a
+        // round-r line was certified against the state as it stood before the
+        // round began, so they all see the same paper and the choice does not
+        // depend on the order inside the round.
+        for &i in &members {
+            let f = &folded[i];
+            let sightable = (0..f.witnesses.len())
+                .filter(|&w| witness_marks_exist(closure, &creased, &f.witnesses[w]))
+                .min_by_key(|&w| f.witnesses[w].preference());
+            match sightable {
+                Some(w) => chosen[i] = Some(w),
+                // Nothing recorded can be sighted. Keep the closure's own
+                // choice — the fold is still correct — and say so, so the
+                // consumer can tell the folder to mark the point rather than
+                // pretending it is already there.
+                None => marks[i] = f.witnesses.is_empty(),
+            }
+        }
         let is_cp_round = members.iter().all(|&i| folded[i].tag == LineTag::Cp);
         let ordered: Vec<(usize, f64)> = if is_cp_round {
             order_round(closure, &members)
@@ -227,7 +366,18 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
                 .map(|&i| (i, folded_angle(&folded[i].line)))
                 .collect()
         };
-        side = emit_round(ordered, k as u32 + 1, closure, side, &mut placed);
+        side = emit_round(
+            ordered,
+            k as u32 + 1,
+            closure,
+            side,
+            &chosen,
+            &marks,
+            &mut placed,
+        );
+        for &i in &members {
+            creased.add(closure, i);
+        }
     }
     placed
 }

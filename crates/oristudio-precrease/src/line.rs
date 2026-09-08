@@ -72,6 +72,16 @@ impl Line {
         self.signed_distance(p).abs()
     }
 
+    /// How far along the line `p` sits, measured from its foot in the
+    /// direction [`Line::direction`] returns.
+    ///
+    /// Two points on one line compare directly, which is what an extent test
+    /// needs: a crease covers an interval of this parameter.
+    pub fn parameter_of(&self, p: [f64; 2]) -> f64 {
+        let d = self.direction();
+        p[0] * d[0] + p[1] * d[1]
+    }
+
     /// Nearest point of the line to `p`.
     pub fn project_point(&self, p: [f64; 2]) -> [f64; 2] {
         let s = self.signed_distance(p);
