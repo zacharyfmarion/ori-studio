@@ -19,7 +19,7 @@ import type { CreasePatternWebglCanvasProps } from './CreasePatternWebglCanvas';
  * effect with no other coverage — cut it and every other test in the suite stays
  * green while creases under a reference image silently become unclickable again.
  *
- * It also guards the sharper failure: `claimsPress` reusing the canvas' own
+ * It also guards the sharper failure: `pressClaim` reusing the canvas' own
  * `hitTest` rather than recomputing proximity. A second radius would drift from
  * the first and open a ring around every crease where the overlay declines and
  * the canvas picks nothing either. Asserting *true on a crease, false on empty
@@ -239,14 +239,27 @@ describe('the canvas press pipeline the overlay hands presses back to', () => {
 
   it('claims a press on a crease, so the crease wins over an image beneath it', () => {
     mount();
-    expect(cpSurfacePress()?.claimsPress(pressAt(clientOf(100, 100)))).toBe(true);
+    expect(cpSurfacePress()?.pressClaim(pressAt(clientOf(100, 100)))).toBe('crease');
   });
 
   it('declines a press on empty space, so the image keeps it and stays movable', () => {
     mount();
     // Well clear of the crease at y = 100 — far outside any plausible hit radius,
     // so this is not a boundary case in disguise.
-    expect(cpSurfacePress()?.claimsPress(pressAt(clientOf(100, 180)))).toBe(false);
+    expect(cpSurfacePress()?.pressClaim(pressAt(clientOf(100, 180)))).toBeNull();
+  });
+
+  it('calls a modified press a pan, wherever it lands', () => {
+    // The verdict every layer above this canvas has to honour — a body, a resize
+    // handle, a region's chip bar. Reported as 'pan' rather than as a bare "yes"
+    // precisely so those layers can tell it apart from the crease claim, which
+    // most of them decline.
+    mount();
+    const surface = cpSurfacePress()!;
+    expect(surface.pressClaim({ ...pressAt(clientOf(100, 180)), metaKey: true })).toBe('pan');
+    // Over a crease too: pan outranks the pick rather than losing to it.
+    expect(surface.pressClaim({ ...pressAt(clientOf(100, 100)), metaKey: true })).toBe('pan');
+    expect(surface.pressClaim({ ...pressAt(clientOf(100, 180)), button: 1 })).toBe('pan');
   });
 
   /**
@@ -348,11 +361,98 @@ describe('the canvas press pipeline the overlay hands presses back to', () => {
   it('uses the canvas own hit radius, not a second one of its own', () => {
     // A few pixels off the crease still counts as on it: `CP_LINE_HIT_MIN_CSS`
     // floors the line radius at 8 CSS px so a crease stays clickable. If
-    // `claimsPress` ever recomputed proximity instead of reusing `hitTest`, this
+    // `pressClaim` ever recomputed proximity instead of reusing `hitTest`, this
     // is the band the two would disagree about — and a press landing in it would
     // be taken by neither layer.
     mount();
-    expect(cpSurfacePress()?.claimsPress(pressAt(clientOf(100, 104)))).toBe(true);
+    expect(cpSurfacePress()?.pressClaim(pressAt(clientOf(100, 104)))).toBe('crease');
+  });
+});
+
+/**
+ * Pan against the one thing on this canvas that used to outrank it.
+ *
+ * A focused 3D folded figure has no element of its own — the overlay makes its
+ * body inert and the press lands on the canvas — so the orbit branch of
+ * `onPointerDown` is where a Cmd+drag over one was being spent. `cpCanvasCursor`
+ * has always ranked pan above the orbit and showed `grab` there, so this was a
+ * cursor promising a gesture the press did not perform.
+ */
+describe('pan against a focused folded figure', () => {
+  /** An orbit that claims every point, as a focused figure under the pointer does. */
+  function orbitStub() {
+    const begun: { x: number; y: number }[] = [];
+    return {
+      begun,
+      orbit: {
+        focusedId: 'figure-1',
+        claimsPress: () => true,
+        begin: (point: { x: number; y: number }) => {
+          begun.push(point);
+          return true;
+        },
+        advance: noop,
+        commit: noop,
+        claimsWheel: () => false,
+        zoom: noop,
+      },
+    };
+  }
+
+  function mountWithOrbit(orbit: ReturnType<typeof orbitStub>['orbit']): HTMLCanvasElement {
+    act(() => root?.render(<CreasePatternWebglCanvas {...props()} foldedOrbit={orbit} />));
+    return container!.querySelector('canvas')!;
+  }
+
+  function pressCanvas(canvas: HTMLCanvasElement, init: PointerEventInit): void {
+    // The pan branch ends by taking pointer capture, which jsdom does not
+    // implement — and an unhandled throw there would leave the assertion below
+    // green while the branch it is about never finished.
+    const target = canvas as unknown as Record<string, unknown>;
+    target.setPointerCapture = () => {};
+    target.hasPointerCapture = () => false;
+    target.releasePointerCapture = () => {};
+    act(() => {
+      canvas.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          pointerId: 1,
+          pointerType: 'mouse',
+          isPrimary: true,
+          button: 0,
+          buttons: 1,
+          cancelable: true,
+          ...clientOf(100, 180),
+          ...init,
+        })
+      );
+    });
+  }
+
+  it('turns the figure on a plain drag', () => {
+    const { begun, orbit } = orbitStub();
+    pressCanvas(mountWithOrbit(orbit), {});
+    expect(begun).toHaveLength(1);
+  });
+
+  it('pans instead when Meta is held, matching the cursor it already shows', () => {
+    const { begun, orbit } = orbitStub();
+    pressCanvas(mountWithOrbit(orbit), { metaKey: true });
+    expect(begun).toEqual([]);
+  });
+
+  it('pans on the middle button too, which no gesture may claim', () => {
+    const { begun, orbit } = orbitStub();
+    pressCanvas(mountWithOrbit(orbit), { button: 1, buttons: 4 });
+    expect(begun).toEqual([]);
+  });
+
+  it('pans with the hand tool on, which is the same branch', () => {
+    const { begun, orbit } = orbitStub();
+    act(() =>
+      root?.render(<CreasePatternWebglCanvas {...props()} foldedOrbit={orbit} panToolActive />)
+    );
+    pressCanvas(container!.querySelector('canvas')!, {});
+    expect(begun).toEqual([]);
   });
 });
 
