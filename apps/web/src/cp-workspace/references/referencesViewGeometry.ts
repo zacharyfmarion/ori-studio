@@ -8,7 +8,13 @@ import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import type { Point } from '../../lib/geometry';
 import { cpModelToSvg, cpVertexId } from '../../lib/creasePatternViewport';
 import type { UserBounds } from '../renderer/camera';
-import type { ModelPoint, PointGeometry, Rgba, StrokeGeometry } from '../renderer/types';
+import type {
+  FillGeometry,
+  ModelPoint,
+  PointGeometry,
+  Rgba,
+  StrokeGeometry,
+} from '../renderer/types';
 import { VERTEX_RADIUS_FACTOR } from '../adapters/cpPointsToScene';
 import { previewGroupsToStrokes, type PreviewStrokeGroup } from '../renderer/previewStrokes';
 import type { LineHitIndex } from '../picking/lineHitIndex';
@@ -478,6 +484,65 @@ function collinear(a: { x: number; y: number }, b: { x: number; y: number }): bo
  * halves can differ by a hair.
  */
 const COLLINEAR_SINE = 1e-6;
+
+/**
+ * The paper as a filled shape: the sheet's outline, triangulated.
+ *
+ * Taken as the convex hull of the border creases' endpoints rather than by
+ * walking the loop — a rectangle's hull *is* its outline, whichever order the
+ * document happens to store its edges in, and the planner refuses anything that
+ * is not a rectangle. Returns null when there is no border to fill.
+ */
+export function sheetFillGeometry(
+  geometry: CpGeometryTransport,
+  borderLineIds: ReadonlySet<number> | null,
+  color: Rgba
+): FillGeometry | null {
+  if (!borderLineIds || borderLineIds.size === 0) return null;
+  const endpoints = geometry.segEndpoints;
+  const corners: Point[] = [];
+  for (const id of borderLineIds) {
+    const base = (id - 1) * 4;
+    if (base < 0 || base + 3 >= endpoints.length) continue;
+    corners.push({ x: endpoints[base], y: endpoints[base + 1] });
+    corners.push({ x: endpoints[base + 2], y: endpoints[base + 3] });
+  }
+  const hull = convexHull(corners);
+  if (hull.length < 3) return null;
+
+  // Fan from the first vertex: a convex polygon needs nothing cleverer.
+  const triangles = hull.length - 2;
+  const position = new Float32Array(triangles * 6);
+  const colors = new Float32Array(triangles * 12);
+  for (let i = 0; i < triangles; i += 1) {
+    const trio = [hull[0], hull[i + 1], hull[i + 2]];
+    trio.forEach((point, k) => {
+      position[i * 6 + k * 2] = point.x;
+      position[i * 6 + k * 2 + 1] = point.y;
+      colors.set(color, i * 12 + k * 4);
+    });
+  }
+  return { position, color: colors, count: triangles * 3 };
+}
+
+/** Andrew's monotone chain, counter-clockwise. */
+function convexHull(points: readonly Point[]): Point[] {
+  if (points.length < 3) return [...points];
+  const sorted = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
+  const cross = (o: Point, a: Point, b: Point) =>
+    (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const half = (source: readonly Point[]) => {
+    const out: Point[] = [];
+    for (const p of source) {
+      while (out.length >= 2 && cross(out[out.length - 2], out[out.length - 1], p) <= 0) out.pop();
+      out.push(p);
+    }
+    return out;
+  };
+  const lower = half(sorted);
+  const upper = half([...sorted].reverse());
+  return [...lower.slice(0, -1), ...upper.slice(0, -1)];
+}
 
 /** `color` with its alpha scaled — for the uncreased part of a fold. */
 function withAlpha(color: Rgba, alpha: number): Rgba {

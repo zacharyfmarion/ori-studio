@@ -125,10 +125,15 @@ export function StepDiagram({
             const to = project(primitive.to);
             // Sheet units through the projector's scale: the dash arrays in
             // `theme.css` are in the viewBox's own units, so the offset has to
-            // be too. Negative because SVG counts a positive offset as skipping
-            // pattern, and the phase says how much has already gone by.
+            // be too.
+            //
+            // Positive. `stroke-dashoffset` is "start this far *into* the
+            // pattern", which is exactly what the phase says — how much of the
+            // line has already gone by. Negating it lands at `period - phase`
+            // instead, a different place in the pattern for every span, which
+            // is the same broken picture the offset was added to fix.
             const dashOffset = primitive.dashPhase
-              ? -primitive.dashPhase * project.scale
+              ? primitive.dashPhase * project.scale
               : undefined;
             return (
               <line

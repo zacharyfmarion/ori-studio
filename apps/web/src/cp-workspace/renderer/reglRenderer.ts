@@ -162,6 +162,7 @@ export function createReglRenderer(
   // Diagnostic overlays (CAMV / check-fix markers + sector wedges + operation
   // frame): sparse, on top of the crease pattern.
   const diagnosticFills = createFillProgram(regl);
+  const sheetFill = createFillProgram(regl);
   const diagnosticMarkers = createMarkerProgram(regl);
   // Big-little-big sector wedges: screen-scaled fills at a vertex.
   const diagnosticWedges = createWedgeProgram(regl);
@@ -173,6 +174,7 @@ export function createReglRenderer(
   let hasPreview = false;
   let hasOverlayPoints = false;
   let hasDiagnosticFills = false;
+  let hasSheetFill = false;
   let hasDiagnosticMarkers = false;
   let hasDiagnosticWedges = false;
   let hasOverlayFrame = false;
@@ -329,6 +331,12 @@ export function createReglRenderer(
       if (next) overlayPoints.setData(next);
     },
 
+    setSheetFill(next) {
+      if (disposed) return;
+      hasSheetFill = next !== null && next.count > 0;
+      if (next) sheetFill.setData(next);
+    },
+
     setDiagnosticFills(next) {
       if (disposed) return;
       hasDiagnosticFills = next !== null && next.count > 0;
@@ -364,6 +372,12 @@ export function createReglRenderer(
       regl.poll();
       const [r, g, b, a] = frame.clearColor;
       regl.clear({ color: [r, g, b, a], depth: 1 });
+      // The paper, before anything drawn on it. The clear colour is the ground
+      // the sheet lies on; this is the sheet, and they differ as soon as the
+      // paper has a face of its own.
+      if (hasSheetFill) {
+        sheetFill.draw({ view: frame.view, viewport });
+      }
       // Grid sits behind everything as the coordinate backdrop.
       if (hasGrid) {
         gridStrokes.draw({ view: frame.view, viewport, widthPx: GRID_WIDTH_CSS * viewport.dpr });
@@ -489,6 +503,7 @@ export function createReglRenderer(
       points.dispose();
       overlayPoints.dispose();
       diagnosticFills.dispose();
+      sheetFill.dispose();
       diagnosticMarkers.dispose();
       diagnosticWedges.dispose();
       overlayFrame.dispose();

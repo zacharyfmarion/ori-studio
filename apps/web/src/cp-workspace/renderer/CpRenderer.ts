@@ -69,6 +69,17 @@ export interface CpRenderer {
    */
   setRegions(regions: readonly CpSuppressionRegion[]): void;
   /**
+   * The paper itself, in model coordinates, drawn before anything else.
+   *
+   * The clear colour is the *ground* the sheet sits on; this is the sheet. The
+   * two are different the moment the paper has a colour of its own — an origami
+   * diagram draws the two faces differently (white side, colour side), and
+   * tinting the whole canvas to say "you are looking at the back" claims the
+   * table turned over as well. `null` clears it, which is the common case:
+   * a sheet the same colour as its ground needs no quad.
+   */
+  setSheetFill(fill: FillGeometry | null): void;
+  /**
    * Imported `.fold` folded-form frames (fills + strokes in SVG user coordinates),
    * placed reference figures drawn with the folded figures. `null` clears them.
    */

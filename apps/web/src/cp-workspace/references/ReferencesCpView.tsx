@@ -59,6 +59,7 @@ import {
   modelBoundsToUser,
   resolveReferencesPick,
   transportUserBounds,
+  sheetFillGeometry,
   verticesOfLines,
   type ReferencesCreaseVisibility,
   type ReferencesOverlayColors,
@@ -155,14 +156,14 @@ export interface ReferencesCpViewProps {
 
 const CANVAS_BG_VAR = '--bg-primary';
 /**
- * The ground when the paper is on its back.
+ * The paper's other face, filled as a shape under the creases.
  *
- * The camera fits the sheet, so the canvas ground *is* the paper for all but a
- * margin — there is no filled sheet quad in the renderer to colour instead. It
- * follows the same house convention the step cards do (`--paper-back`), so the
- * strip and the view agree about which face you are looking at.
+ * The clear colour is the ground the sheet lies on, not the sheet — tinting the
+ * whole canvas to say "you are looking at the back" claims the table turned
+ * over too. Same token the step cards use, so the strip and the view agree
+ * about which face is up.
  */
-const CANVAS_BACK_BG_VAR = '--paper-back';
+const PAPER_BACK_VAR = '--paper-back';
 const FALLBACK_CLEAR: Rgba = [0.157, 0.172, 0.204, 1];
 /** Matches the editor's crease width law so the pattern looks the same here. */
 const CREASE_WIDTH_FACTOR = 1.5;
@@ -518,11 +519,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           ratio,
         });
         renderer.render({
-          clearColor: readCssVarColor(
-            canvas,
-            liveRef.current.mirrored ? CANVAS_BACK_BG_VAR : CANVAS_BG_VAR,
-            FALLBACK_CLEAR
-          ),
+          clearColor: readCssVarColor(canvas, CANVAS_BG_VAR, FALLBACK_CLEAR),
           view,
           userView,
           strokeWidthPx: CREASE_WIDTH_FACTOR * liveRef.current.lineWidth * ratio * widthBoost,
@@ -793,8 +790,29 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           ink: { mountain: palette.mountain, valley: palette.valley },
         })
       );
+      // Only when the paper is on its back: the front face is the same colour
+      // as the ground it lies on, so filling it would draw nothing and cost a
+      // buffer upload per theme change.
+      renderer.setSheetFill(
+        mirrored
+          ? sheetFillGeometry(
+              geometry,
+              creaseVisibility.borderLineIds ?? null,
+              readCssVarColor(canvas, PAPER_BACK_VAR, FALLBACK_CLEAR)
+            )
+          : null
+      );
       renderNowRef.current();
-    }, [geometry, lineStyle, mode, selected, creaseVisibility, themeKey, rendererGeneration]);
+    }, [
+      geometry,
+      lineStyle,
+      mode,
+      selected,
+      creaseVisibility,
+      mirrored,
+      themeKey,
+      rendererGeneration,
+    ]);
 
     // Vertex dots. Deliberately *without* the highlighted ones: this layer rides
     // the crowding ramp (`renderNow`) and fades to nothing on a dense pattern,

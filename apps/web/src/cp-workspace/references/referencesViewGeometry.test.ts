@@ -3,7 +3,7 @@ import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
 import { cpModelToSvg } from '../../lib/creasePatternViewport';
 import { LineHitIndex } from '../picking/lineHitIndex';
-import type { StrokeGeometry } from '../renderer/types';
+import type { Rgba, StrokeGeometry } from '../renderer/types';
 import {
   applyCreaseVisibility,
   ghostSegmentsToStrokes,
@@ -11,6 +11,7 @@ import {
   markersToOverlayPoints,
   modelBoundsToUser,
   resolveReferencesPick,
+  sheetFillGeometry,
   transportUserBounds,
   verticesOfLines,
   type ReferencesOverlayColors,
@@ -347,5 +348,53 @@ describe('vertices worth marking', () => {
     expect(
       [...verticesOfLines(geometry, vertices, ids(3), { dropCollinear: true })].sort()
     ).toEqual([0, 1, 2, 3]);
+  });
+});
+
+describe('the paper as a shape', () => {
+  const transport = (segs: [number, number, number, number][]) =>
+    ({ segEndpoints: Float64Array.from(segs.flat()) }) as unknown as CpGeometryTransport;
+  // Exactly representable in f32, so the buffer round-trip is not the test.
+  const GREY: Rgba = [0.25, 0.5, 0.75, 1];
+  const square: [number, number, number, number][] = [
+    [0, 0, 10, 0],
+    [10, 0, 10, 10],
+    [10, 10, 0, 10],
+    [0, 10, 0, 0],
+  ];
+
+  // The clear colour is the ground the sheet lies on. Tinting the whole canvas
+  // to say "you are looking at the back" claims the table turned over too.
+  it('covers the sheet and nothing else', () => {
+    const fill = sheetFillGeometry(transport(square), new Set([1, 2, 3, 4]), GREY);
+    expect(fill).not.toBeNull();
+    expect(fill!.count).toBe(6);
+    const xs = [...fill!.position].filter((_, i) => i % 2 === 0);
+    const ys = [...fill!.position].filter((_, i) => i % 2 === 1);
+    expect(Math.min(...xs)).toBe(0);
+    expect(Math.max(...xs)).toBe(10);
+    expect(Math.min(...ys)).toBe(0);
+    expect(Math.max(...ys)).toBe(10);
+    // Two triangles of the same colour, one per vertex.
+    expect([...fill!.color.slice(0, 4)]).toEqual([...GREY]);
+    expect(fill!.color).toHaveLength(fill!.count * 4);
+  });
+
+  // A rotated sheet is still a rectangle; the hull does not care which order
+  // the document stored its edges in.
+  it('fills a sheet that is not axis-aligned', () => {
+    const diamond: [number, number, number, number][] = [
+      [5, 0, 10, 5],
+      [10, 5, 5, 10],
+      [5, 10, 0, 5],
+      [0, 5, 5, 0],
+    ];
+    const fill = sheetFillGeometry(transport(diamond), new Set([1, 2, 3, 4]), GREY);
+    expect(fill!.count).toBe(6);
+  });
+
+  it('is nothing at all without a border', () => {
+    expect(sheetFillGeometry(transport(square), null, GREY)).toBeNull();
+    expect(sheetFillGeometry(transport(square), new Set(), GREY)).toBeNull();
   });
 });
