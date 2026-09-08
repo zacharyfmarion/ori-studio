@@ -41,8 +41,17 @@ function DownloadMenu() {
 
   return (
     <DropdownMenu.Root>
+      {/*
+        `default`, not `MenuIconButton`'s own `toolbar` default, which draws a
+        filled box. The header's icons are Discord, this, and Settings, and the
+        other two are plain `IconButton`s — a raised one in the middle reads as
+        pressed or as the primary action rather than as a peer, which none of the
+        three is. The `toolbar` variant is for the canvas toolbars, where an icon
+        sits over the drawing surface and needs a box to be legible against it.
+      */}
       <MenuIconButton
         label={label}
+        variant="default"
         tooltipSide="bottom"
         icon={<Download size={15} />}
       />
