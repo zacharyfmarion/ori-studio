@@ -879,8 +879,10 @@
       "unsolved": "Aucune construction trouvée"
     },
     "flip": {
+      "doneBadge": "Terminé",
       "finished": "Tous les plis sont marqués. Le modèle se referme à partir d’ici, et les plis qui doivent aller dans l’autre sens s’inversent alors.",
-      "turnOver": "Retournez le papier, de gauche à droite."
+      "turnOver": "Retournez le papier, de gauche à droite.",
+      "turnOverBadge": "Retourner"
     },
     "freeDiagonals": "Nécessite aussi la ou les diagonales de la feuille : {{names}}.",
     "hint": {

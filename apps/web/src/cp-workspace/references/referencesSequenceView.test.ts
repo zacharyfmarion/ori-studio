@@ -32,6 +32,7 @@ function step(id: number, side: PrecreaseSide): PrecreaseStep {
     side,
     unlocks: [],
     cp_line_ids: [id],
+    cp_spans: [],
     visible: true,
     witnesses_complete: true,
     hoisted: false,

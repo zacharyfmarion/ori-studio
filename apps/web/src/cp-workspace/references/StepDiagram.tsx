@@ -104,7 +104,9 @@ export function StepDiagram({
             return (
               <rect
                 key={index}
-                className="step-diagram__sheet"
+                className={
+                  mirrored ? 'step-diagram__sheet step-diagram__sheet--back' : 'step-diagram__sheet'
+                }
                 x={Math.min(a.x, b.x)}
                 y={Math.min(a.y, b.y)}
                 width={Math.abs(b.x - a.x)}

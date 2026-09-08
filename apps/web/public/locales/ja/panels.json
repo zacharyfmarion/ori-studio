@@ -815,8 +815,10 @@
       "unsolved": "作図方法が見つかりません"
     },
     "flip": {
+      "doneBadge": "完成",
       "finished": "すべての折り目がつきました。ここからたたみ込むと、逆向きにしたい折り目はその過程で反転します。",
-      "turnOver": "紙を左右に裏返します。"
+      "turnOver": "紙を左右に裏返します。",
+      "turnOverBadge": "裏返す"
     },
     "freeDiagonals": "用紙の対角線も必要です: {{names}}。",
     "hint": {

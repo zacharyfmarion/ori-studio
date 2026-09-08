@@ -815,8 +815,10 @@
       "unsolved": "작도 방법을 찾지 못함"
     },
     "flip": {
+      "doneBadge": "완성",
       "finished": "모든 접힘선을 만들었습니다. 여기서부터 접어 나가면, 반대 방향이어야 할 접힘선은 그 과정에서 뒤집힙니다.",
-      "turnOver": "종이를 좌우로 뒤집으세요."
+      "turnOver": "종이를 좌우로 뒤집으세요.",
+      "turnOverBadge": "뒤집기"
     },
     "freeDiagonals": "종이의 대각선도 필요합니다: {{names}}.",
     "hint": {

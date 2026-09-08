@@ -211,6 +211,21 @@ impl Planner {
             return planner;
         };
         let sheet = Sheet::from_frame(frame);
+        // The caller's segment numbering is sparse over a component, so index
+        // back into the component's own parallel `unit_segments`.
+        let mut unit_of_segment: std::collections::HashMap<u32, [f64; 4]> =
+            std::collections::HashMap::with_capacity(component.segment_indices.len());
+        for (i, &id) in component.segment_indices.iter().enumerate() {
+            if let Some(&seg) = component.unit_segments.get(i) {
+                unit_of_segment.insert(id, seg);
+            }
+        }
+        let spans_of = |ids: &[u32]| -> Vec<[[f64; 2]; 2]> {
+            ids.iter()
+                .filter_map(|id| unit_of_segment.get(id))
+                .map(|s| [[s[0], s[1]], [s[2], s[3]]])
+                .collect()
+        };
         let targets: Vec<Target> = match exactness.class {
             ExactnessClass::Exact | ExactnessClass::OffLattice => component
                 .merged_lines
@@ -219,6 +234,7 @@ impl Planner {
                     Target::new(
                         ml.line,
                         ml.segment_indices.iter().map(|&i| i + 1).collect(),
+                        spans_of(&ml.segment_indices),
                         ml.mountain_length,
                         ml.valley_length,
                     )
@@ -239,6 +255,7 @@ impl Planner {
                     Target::new(
                         sl.line,
                         sl.segment_indices.iter().map(|&i| i + 1).collect(),
+                        spans_of(&sl.segment_indices),
                         mountain,
                         valley,
                     )
@@ -624,6 +641,7 @@ impl Planner {
             };
             let target = f.target.map(|t| &closure.targets()[t]);
             let cp_line_ids = target.map(|t| t.cp_line_ids.clone()).unwrap_or_default();
+            let cp_spans = target.map(|t| t.spans.clone()).unwrap_or_default();
             // The direction the fold is actually made in. A line with a firm
             // majority forced the side it is on, so the two agree; a weak one
             // took whichever side was already up, and the share is then the
@@ -657,6 +675,7 @@ impl Planner {
                 side: p.side,
                 unlocks: Vec::new(),
                 cp_line_ids,
+                cp_spans,
                 visible: verdict.visible,
                 witnesses_complete: f.witnesses_complete,
                 hoisted: p.hoisted,

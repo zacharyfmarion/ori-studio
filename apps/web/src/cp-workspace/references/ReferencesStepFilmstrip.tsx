@@ -108,7 +108,13 @@ export const ReferencesStepFilmstrip = memo(function ReferencesStepFilmstrip({
               <button
                 type="button"
                 aria-current={index === activeStep ? 'step' : undefined}
-                className={`references-card${index === activeStep ? ' references-card--selected' : ''}`}
+                className={[
+                  'references-card',
+                  `references-card--${step.kind}`,
+                  index === activeStep ? 'references-card--selected' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
                 onClick={() => onSelectStep(index)}
                 // Named by its number, described by its sentence: `title` loses
                 // the accessible-name competition to the visible number and
@@ -119,6 +125,7 @@ export const ReferencesStepFilmstrip = memo(function ReferencesStepFilmstrip({
                 {step.number !== null && (
                   <span className="references-card__number">{step.number}</span>
                 )}
+                {step.badge !== '' && <span className="references-card__badge">{step.badge}</span>}
                 <span className="references-card__thumb">
                   {step.diagram ? (
                     <StepDiagram diagram={step.diagram} size={100} />

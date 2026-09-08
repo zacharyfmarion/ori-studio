@@ -34,6 +34,7 @@ function step(id: number, cpLineIds: number[]): PrecreaseStep {
     side: 'front',
     unlocks: [],
     cp_line_ids: cpLineIds,
+    cp_spans: [],
     visible: true,
     witnesses_complete: true,
     hoisted: false,

@@ -269,15 +269,33 @@ export interface ReferencesCreaseVisibility {
   /**
    * Ids drawn thicker: the creases the active step makes.
    *
-   * Emphasis by *width*, not by hue. The step's creases used to be recoloured
-   * to `--cp-reference-new` through the adapter's `selection` channel, which
-   * threw away the mountain/valley ink the Edit canvas gives them — so the one
-   * thing the folder needs to know about a crease, which way it folds, was the
-   * thing the highlight erased.
+   * Emphasis by *width*, not by an accent hue. The step's creases were once
+   * recoloured to `--cp-reference-new` through the adapter's `selection`
+   * channel, which threw away the mountain/valley ink the Edit canvas gives
+   * them — so the one thing the folder needs to know about a crease, which way
+   * it folds, was the thing the highlight erased.
    */
   emphasis?: ReadonlySet<number> | null;
   /** Width multiplier for an emphasised crease. */
   emphasisWidth?: number;
+  /**
+   * Which way the active step folds, for the ink its creases take.
+   *
+   * The rule that decides this lives with the other visibility rules; the view
+   * turns it into a colour, because the palette is the view's.
+   */
+  emphasisDirection?: 'mountain' | 'valley' | null;
+  /**
+   * The ink the emphasised creases take, overriding each crease's own.
+   *
+   * A step folds **one** line in **one** direction (plan D20), but the line's
+   * creases in the finished pattern often disagree with each other — 31.7% of
+   * steps, measured. Left in their own colours the fold you are being told to
+   * make reads as red here and blue there, which is not a fold. So the active
+   * step's creases take the direction the crate resolved, and the pattern's own
+   * assignment comes back the moment the step is no longer active.
+   */
+  emphasisColor?: readonly [number, number, number, number] | null;
   /**
    * The 1-based ids drawn at all. `null` means every crease — the sheet is not
    * being read step by step, so nothing is held back.
@@ -313,7 +331,14 @@ export function applyCreaseVisibility(
   segmentCount: number,
   visibility: ReferencesCreaseVisibility
 ): StrokeGeometry {
-  const { visible, dimmed, dimAlpha, emphasis = null, emphasisWidth = 1 } = visibility;
+  const {
+    visible,
+    dimmed,
+    dimAlpha,
+    emphasis = null,
+    emphasisWidth = 1,
+    emphasisColor = null,
+  } = visibility;
   const filters =
     visible !== null || (dimmed !== null && dimmed.size > 0) || (emphasis !== null && emphasis.size > 0);
   if (!filters) return strokes;
@@ -331,6 +356,12 @@ export function applyCreaseVisibility(
     }
     if (emphasis !== null && emphasis.has(id)) {
       widthMul[i] *= emphasisWidth;
+      if (emphasisColor) {
+        // Alpha is left alone: it carries the build-up, not the direction.
+        color[i * 4] = emphasisColor[0];
+        color[i * 4 + 1] = emphasisColor[1];
+        color[i * 4 + 2] = emphasisColor[2];
+      }
       continue;
     }
     if (dimmed !== null && dimmed.has(id)) color[i * 4 + 3] *= dimAlpha;

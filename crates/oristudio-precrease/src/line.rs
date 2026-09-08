@@ -72,6 +72,12 @@ impl Line {
         self.signed_distance(p).abs()
     }
 
+    /// Nearest point of the line to `p`.
+    pub fn project_point(&self, p: [f64; 2]) -> [f64; 2] {
+        let s = self.signed_distance(p);
+        [p[0] - s * self.n[0], p[1] - s * self.n[1]]
+    }
+
     /// Mirror image of `p` across the line.
     pub fn reflect_point(&self, p: [f64; 2]) -> [f64; 2] {
         let s = self.signed_distance(p);

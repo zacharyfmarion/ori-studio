@@ -815,8 +815,10 @@
       "unsolved": "未找到作图方法"
     },
     "flip": {
+      "doneBadge": "完成",
       "finished": "所有折痕都已折好。从这里开始收拢，需要反向的折痕会在收拢时翻转。",
-      "turnOver": "把纸左右翻面。"
+      "turnOver": "把纸左右翻面。",
+      "turnOverBadge": "翻面"
     },
     "freeDiagonals": "还需要纸的对角线：{{names}}。",
     "hint": {

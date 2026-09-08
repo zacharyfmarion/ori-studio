@@ -35,6 +35,7 @@
  * a sheet; the paper's outline is the thing the folds are drawn on rather than
  * one of them, and a diagram that fades it out reads as an empty page.
  */
+import type { PrecreaseStep } from './precreaseSequence';
 import type { ReferencesPlanVariant } from './referencesResults';
 import type { ReferencesViewStep } from './referencesSequenceView';
 import type { ReferencesCreaseVisibility } from './referencesViewGeometry';
@@ -122,12 +123,14 @@ export function planVisibility(
 
   const visible = new Set<number>(borderLineIds ?? []);
   const active = new Set<number>();
+  let step: PrecreaseStep | undefined;
   for (let i = 0; i <= activeStep && i < viewSteps.length; i += 1) {
     const view = viewSteps[i];
     if (view.kind !== 'fold' || view.component !== component) continue;
-    const step = variants[view.component]?.sequence.steps[view.step];
-    if (!step) continue;
-    for (const id of step.cp_line_ids) {
+    const entry = variants[view.component]?.sequence.steps[view.step];
+    if (!entry) continue;
+    if (i === activeStep) step = entry;
+    for (const id of entry.cp_line_ids) {
       if (sheetLineIds && !sheetLineIds.has(id)) continue;
       visible.add(id);
       if (i === activeStep && target.kind === 'fold') active.add(id);
@@ -147,5 +150,10 @@ export function planVisibility(
     dimAlpha: REFERENCES_DIM_ALPHA,
     emphasis: active,
     emphasisWidth: REFERENCES_EMPHASIS_WIDTH,
+    // One step, one direction (plan D20). A line whose creases disagree is
+    // still folded one way, and the picture has to say which — left in their
+    // own colours the fold reads as red here and blue there.
+    emphasisDirection:
+      step?.direction === 'mountain' || step?.direction === 'valley' ? step.direction : null,
   };
 }

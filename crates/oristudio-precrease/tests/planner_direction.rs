@@ -182,6 +182,78 @@ fn the_share_is_the_share_that_direction_gets_right() {
     );
 }
 
+/// A CP step knows *where* on its chord the pattern wants creases.
+///
+/// The fold crosses the whole sheet, but a diagram that draws the whole chord
+/// tells the folder to crease more than the pattern asks for — which is what
+/// the step cards did before this. Every span has to lie on the fold's own line
+/// and inside the sheet, or the card draws somewhere the paper is not.
+#[test]
+fn a_cp_step_says_where_on_its_chord_the_creases_are() {
+    for file in EVERY_FIXTURE {
+        let seq = plan(file);
+        let sheet = seq.sheet;
+        let mut partial = 0;
+        for step in &seq.steps {
+            if step.kind == StepKind::Aux {
+                assert!(
+                    step.cp_spans.is_empty(),
+                    "{file}: aux step {} has spans",
+                    step.id
+                );
+                continue;
+            }
+            assert_eq!(
+                step.cp_spans.len(),
+                step.cp_line_ids.len(),
+                "{file}: step {} has {} spans for {} creases",
+                step.id,
+                step.cp_spans.len(),
+                step.cp_line_ids.len()
+            );
+            let mut covered = 0.0;
+            for [a, b] in &step.cp_spans {
+                for p in [a, b] {
+                    assert!(
+                        step.line.distance_to_point(*p) < 1e-9,
+                        "{file}: step {} has a span off its own line",
+                        step.id
+                    );
+                    assert!(
+                        p[0] >= -1e-9
+                            && p[0] <= sheet.width + 1e-9
+                            && p[1] >= -1e-9
+                            && p[1] <= sheet.height + 1e-9,
+                        "{file}: step {} has a span off the sheet: {p:?}",
+                        step.id
+                    );
+                }
+                covered += ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2)).sqrt();
+            }
+            let chord = {
+                let [a, b] = step.segment;
+                ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2)).sqrt()
+            };
+            assert!(
+                covered <= chord + 1e-9,
+                "{file}: step {} creases more than its chord",
+                step.id
+            );
+            if covered < chord - 1e-6 {
+                partial += 1;
+            }
+        }
+        // If every step creased its whole chord there would be nothing to fix,
+        // and this test would be watching nothing.
+        if file.contains("markhor") || file.contains("iguana") {
+            assert!(
+                partial > 0,
+                "{file}: no step creases only part of its chord"
+            );
+        }
+    }
+}
+
 /// grid6 is the fully determined case: seven mountains, seven valleys, and no
 /// line carrying both, so exactly one schedule is correct.
 #[test]

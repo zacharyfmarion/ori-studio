@@ -845,8 +845,10 @@
       "unsolved": "No construction found"
     },
     "flip": {
+      "doneBadge": "Finished",
       "finished": "Every crease is made. The pattern collapses from here, and the creases it wants the other way reverse as it does.",
-      "turnOver": "Turn the paper over, left to right."
+      "turnOver": "Turn the paper over, left to right.",
+      "turnOverBadge": "Turn over"
     },
     "freeDiagonals": "Also needs the sheet diagonal(s): {{names}}.",
     "hint": {

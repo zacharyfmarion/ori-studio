@@ -879,8 +879,10 @@
       "unsolved": "Nenhuma construção encontrada"
     },
     "flip": {
+      "doneBadge": "Concluído",
       "finished": "Todos os vincos estão feitos. A partir daqui o modelo se fecha, e os vincos que vão no outro sentido se invertem nesse momento.",
-      "turnOver": "Vire o papel, da esquerda para a direita."
+      "turnOver": "Vire o papel, da esquerda para a direita.",
+      "turnOverBadge": "Virar"
     },
     "freeDiagonals": "Também precisa da(s) diagonal(is) da folha: {{names}}.",
     "hint": {

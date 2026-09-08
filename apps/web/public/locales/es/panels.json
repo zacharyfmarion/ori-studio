@@ -879,8 +879,10 @@
       "unsolved": "No se encontró construcción"
     },
     "flip": {
+      "doneBadge": "Terminado",
       "finished": "Todos los pliegues están hechos. A partir de aquí el patrón se colapsa, y los pliegues que van al revés se invierten al hacerlo.",
-      "turnOver": "Da la vuelta al papel, de izquierda a derecha."
+      "turnOver": "Da la vuelta al papel, de izquierda a derecha.",
+      "turnOverBadge": "Dar la vuelta"
     },
     "freeDiagonals": "También necesita la(s) diagonal(es) de la hoja: {{names}}.",
     "hint": {

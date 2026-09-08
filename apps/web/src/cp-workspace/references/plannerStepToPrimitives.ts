@@ -169,6 +169,20 @@ export interface PlannerStepDiagramOptions {
   showEarlier?: boolean;
 }
 
+/**
+ * What a step actually left on the paper: the CP creases it made, the spans it
+ * pinched, or — for an auxiliary fold pressed in full — its whole chord.
+ *
+ * Never the whole chord of a CP step. The parts of a fold the pattern does not
+ * crease are not on the paper, and drawing them is the difference between a
+ * diagram and a picture of a line.
+ */
+function creasedSpans(step: PrecreaseStep): PrecreasePlanSegment[] {
+  if (step.cp_spans.length > 0) return step.cp_spans;
+  if (step.extent.kind === 'pinches') return step.extent.spans;
+  return [step.segment];
+}
+
 /** The style a crease of `direction` draws in, made or already made. */
 function styleOf(direction: PrecreaseDirection, made: boolean): DiagramLineStyleName {
   if (!made) return 'crease';
@@ -197,9 +211,7 @@ export function plannerStepDiagram(
     for (let i = 0; i < index; i += 1) {
       const earlier = sequence.steps[i];
       if (!earlier) continue;
-      const spans =
-        earlier.extent.kind === 'pinches' ? earlier.extent.spans : [earlier.segment];
-      for (const span of spans) {
+      for (const span of creasedSpans(earlier)) {
         primitives.push({ kind: 'line', from: span[0], to: span[1], style: 'crease' });
       }
     }
@@ -265,9 +277,23 @@ export function plannerStepDiagram(
     for (const span of step.extent.spans) {
       primitives.push({ kind: 'line', from: span[0], to: span[1], style: pinch });
     }
+  } else if (step.cp_spans.length > 0) {
+    // The fold crosses the sheet, but the pattern only wants creases where its
+    // own segments are — the same thing the canvas draws. Show the rest of the
+    // chord faintly, so the picture still says the fold runs the full width.
+    primitives.push({
+      kind: 'line',
+      from: step.segment[0],
+      to: step.segment[1],
+      style: 'unfolded',
+    });
+    for (const span of step.cp_spans) {
+      primitives.push({ kind: 'line', from: span[0], to: span[1], style: made });
+    }
   } else {
-    // O1 is "crease through these two marks": the marks are the instruction, so
-    // the crease is drawn between them rather than across the whole sheet.
+    // An auxiliary fold leaves no crease in the pattern, so the whole chord is
+    // the instruction. O1 is the exception: "crease through these two marks"
+    // means the marks are, so the crease is drawn between them.
     const through = witness?.axiom === 1 ? markSegment(sequence, inputs) : null;
     const segment = through ?? step.segment;
     primitives.push({
@@ -306,8 +332,7 @@ export function plannerTurnOverDiagram(
   for (let i = 0; after !== null && i <= after && i < sequence.steps.length; i += 1) {
     const step = sequence.steps[i];
     if (!step) continue;
-    const spans = step.extent.kind === 'pinches' ? step.extent.spans : [step.segment];
-    for (const span of spans) {
+    for (const span of creasedSpans(step)) {
       primitives.push({ kind: 'line', from: span[0], to: span[1], style: 'crease' });
     }
   }
@@ -330,9 +355,8 @@ export function plannerFinishedDiagram(sequence: PrecreaseSequence): StepDiagram
     { kind: 'sheet', width: sheet.width, height: sheet.height },
   ];
   for (const step of sequence.steps) {
-    const spans = step.extent.kind === 'pinches' ? step.extent.spans : [step.segment];
     const style = styleOf(step.direction, true);
-    for (const span of spans) {
+    for (const span of creasedSpans(step)) {
       primitives.push({ kind: 'line', from: span[0], to: span[1], style });
     }
   }

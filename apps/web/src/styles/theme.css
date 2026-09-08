@@ -37,6 +37,14 @@
   --bg-canvas: #0c0f12;
   --bg-canvas-grid: #1d2a31;
   --bg-paper: #f2f0e7;
+  /*
+   * The two faces of a sheet, as an origami diagram draws them: the white side
+   * is the paper itself, the colour side a 30% grey against it (the house
+   * template's own legend). Mixed toward the ink rather than hard-coded, so a
+   * dark theme's "colour side" is lighter than its paper the way a light
+   * theme's is darker.
+   */
+  --paper-back: color-mix(in srgb, var(--bg-primary) 70%, var(--text-primary));
   /* Two-tone origami paper in the simulator: yellow front, light back. The
      yellow matches a generated folded figure in the edit pane (the CP engine's
      default front colour, RgbColor(255,255,50)); the blue valley and red
@@ -10971,6 +10979,28 @@ button.bp-packing-alert:focus-visible {
   font-weight: 700;
 }
 
+/*
+ * A card that is not a fold. Turning the paper over is a step the folder
+ * performs, so it is a card like any other — but it makes no crease, so it
+ * carries a badge where a fold carries its number rather than leaving an
+ * unexplained gap in the numbering.
+ */
+.references-card__badge {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  color: var(--text-secondary);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.references-card--turn-over,
+.references-card--done {
+  border-style: dashed;
+}
+
 .references-card__thumb svg {
   display: block;
   width: 100%;
@@ -11215,6 +11245,11 @@ button.bp-packing-alert:focus-visible {
   stroke-opacity: 0.55;
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
+}
+
+/* The paper seen from its other face — see `--paper-back`. */
+.step-diagram__sheet--back {
+  fill: var(--paper-back);
 }
 
 .step-diagram__line,

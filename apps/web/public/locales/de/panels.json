@@ -845,8 +845,10 @@
       "unsolved": "Keine Konstruktion gefunden"
     },
     "flip": {
+      "doneBadge": "Fertig",
       "finished": "Alle Falten sind gemacht. Von hier aus wird das Modell zusammengelegt, und die Falten, die andersherum sollen, kehren sich dabei um.",
-      "turnOver": "Wende das Papier, von links nach rechts."
+      "turnOver": "Wende das Papier, von links nach rechts.",
+      "turnOverBadge": "Wenden"
     },
     "freeDiagonals": "Benötigt außerdem die Bogendiagonale(n): {{names}}.",
     "hint": {

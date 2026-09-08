@@ -223,6 +223,7 @@ fn closure_fixpoint(cp: &oristudio_precrease::fixture_io::LoadedCp) -> (Vec<Line
             Target::new(
                 ml.line,
                 ml.segment_indices.iter().map(|&i| i + 1).collect(),
+                Vec::new(),
                 ml.mountain_length,
                 ml.valley_length,
             )

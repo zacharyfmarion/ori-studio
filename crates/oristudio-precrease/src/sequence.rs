@@ -65,6 +65,13 @@ pub struct Step {
     pub unlocks: Vec<u32>,
     /// The editor's 1-based crease ids this step realises.
     pub cp_line_ids: Vec<u32>,
+    /// Where those creases are on the fold's chord, parallel to `cp_line_ids`.
+    ///
+    /// The fold crosses the whole sheet; the pattern usually wants only part of
+    /// it, and a diagram that draws the full chord tells the folder to crease
+    /// more than the pattern asks for. Empty for an auxiliary step, whose own
+    /// [`Extent`] already says how much of it is pressed.
+    pub cp_spans: Vec<[[f64; 2]; 2]>,
     /// An auxiliary crease that stays full-length after the pinch pass.
     pub visible: bool,
     /// The lander tier was evaluated when the witnesses were recorded.

@@ -109,6 +109,15 @@ export interface PrecreaseStep {
   unlocks: number[];
   /** The editor's 1-based crease ids this step realises. */
   cp_line_ids: number[];
+  /**
+   * Where those creases sit on the fold's chord, parallel to `cp_line_ids`.
+   *
+   * The fold crosses the whole sheet; the pattern usually wants only part of
+   * it, and a diagram that draws the full chord tells the folder to crease more
+   * than the pattern asks. Empty for an auxiliary step, whose own `extent`
+   * already says how much is pressed.
+   */
+  cp_spans: PrecreasePlanSegment[];
   /** An auxiliary crease that stays full-length after the pinch pass. */
   visible: boolean;
   witnesses_complete: boolean;

@@ -154,6 +154,15 @@ export interface ReferencesCpViewProps {
 }
 
 const CANVAS_BG_VAR = '--bg-primary';
+/**
+ * The ground when the paper is on its back.
+ *
+ * The camera fits the sheet, so the canvas ground *is* the paper for all but a
+ * margin — there is no filled sheet quad in the renderer to colour instead. It
+ * follows the same house convention the step cards do (`--paper-back`), so the
+ * strip and the view agree about which face you are looking at.
+ */
+const CANVAS_BACK_BG_VAR = '--paper-back';
 const FALLBACK_CLEAR: Rgba = [0.157, 0.172, 0.204, 1];
 /** Matches the editor's crease width law so the pattern looks the same here. */
 const CREASE_WIDTH_FACTOR = 1.5;
@@ -245,6 +254,8 @@ function overlayColors(canvas: HTMLCanvasElement): ReferencesOverlayColors {
 interface LiveProps {
   /** Model → SVG, mirrored about the sheet when the paper is on its back. */
   modelToSvg: (point: Point) => Point;
+  /** The paper is on its back, so the ground takes the colour side's tint. */
+  mirrored: boolean;
   lineWidth: number;
   pointSize: number;
   wheelGesture: WheelGesturePreference;
@@ -382,6 +393,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
 
     const liveRef = useRef<LiveProps>({
       modelToSvg,
+      mirrored,
       lineWidth,
       pointSize,
       wheelGesture,
@@ -397,6 +409,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
     useEffect(() => {
       liveRef.current = {
         modelToSvg,
+        mirrored,
         lineWidth,
         pointSize,
         wheelGesture,
@@ -496,7 +509,11 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           ratio,
         });
         renderer.render({
-          clearColor: readCssVarColor(canvas, CANVAS_BG_VAR, FALLBACK_CLEAR),
+          clearColor: readCssVarColor(
+            canvas,
+            liveRef.current.mirrored ? CANVAS_BACK_BG_VAR : CANVAS_BG_VAR,
+            FALLBACK_CLEAR
+          ),
           view,
           userView,
           strokeWidthPx: CREASE_WIDTH_FACTOR * liveRef.current.lineWidth * ratio * widthBoost,
@@ -742,10 +759,10 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       const renderer = rendererRef.current;
       const canvas = canvasRef.current;
       if (!renderer || !canvas) return;
-      // Only the *picked* crease is recoloured. The active step's creases are
-      // emphasised by width in `applyCreaseVisibility` instead, so they keep the
-      // mountain/valley ink the Edit canvas gives them — see
-      // `ReferencesCreaseVisibility.emphasis`.
+      // Only the *picked* crease takes the selection accent here. The active
+      // step's creases are recoloured in `applyCreaseVisibility` instead, to the
+      // one direction the step folds — see
+      // `ReferencesCreaseVisibility.emphasisColor`.
       const picked = selected?.kind === 'line' ? new Set([selected.id]) : EMPTY_IDS;
       const { strokes } = cpGeometryStrokesToScene(
         geometry,
@@ -757,8 +774,21 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           widthMul: HIGHLIGHT_WIDTH_MUL,
         }
       );
+      // The step's own direction, in this canvas's ink. Resolved here because
+      // this is the one place that owns the palette; the rule that says *which*
+      // direction lives in `referencesCreaseVisibility`.
+      const ink = overlayColors(canvas);
+      const emphasisColor =
+        creaseVisibility.emphasisDirection === 'mountain'
+          ? ink.mountain
+          : creaseVisibility.emphasisDirection === 'valley'
+            ? ink.valley
+            : null;
       renderer.setStrokes(
-        applyCreaseVisibility(strokes, geometry.segEndpoints.length / 4, creaseVisibility)
+        applyCreaseVisibility(strokes, geometry.segEndpoints.length / 4, {
+          ...creaseVisibility,
+          emphasisColor,
+        })
       );
       renderNowRef.current();
     }, [geometry, lineStyle, mode, selected, creaseVisibility, themeKey, rendererGeneration]);

@@ -65,6 +65,13 @@ pub struct Target {
     pub line: Line,
     /// The editor's 1-based crease ids on this line.
     pub cp_line_ids: Vec<u32>,
+    /// Where those creases actually are, unit frame, projected onto `line` and
+    /// parallel to `cp_line_ids`.
+    ///
+    /// A fold runs the width of the sheet, but the *pattern* usually only wants
+    /// part of that chord — a diagram that draws the whole line says "crease
+    /// all of this", which is not the instruction. Empty for an auxiliary line.
+    pub spans: Vec<[[f64; 2]; 2]>,
     /// Which way this line's creases mostly fold — the policy applied once to
     /// the evidence [`crate::merge::MergedLine`] carries. `Unassigned` for a
     /// line with no mountain or valley creases.
@@ -77,9 +84,15 @@ pub struct Target {
 
 impl Target {
     /// A target whose direction is settled by the majority of its creases.
+    ///
+    /// `spans` are the creases' own endpoints in the unit frame; they are
+    /// projected onto `line` so a drawn span always lies on the drawn chord,
+    /// which a raw endpoint need not within `TOL` — and need not at all on the
+    /// snappable path, where the line itself moved.
     pub fn new(
         line: Line,
         cp_line_ids: Vec<u32>,
+        spans: Vec<[[f64; 2]; 2]>,
         mountain_length: f64,
         valley_length: f64,
     ) -> Target {
@@ -87,6 +100,10 @@ impl Target {
         Target {
             line,
             cp_line_ids,
+            spans: spans
+                .into_iter()
+                .map(|[a, b]| [line.project_point(a), line.project_point(b)])
+                .collect(),
             direction,
             direction_share,
         }
@@ -99,6 +116,7 @@ impl Target {
         Target {
             line,
             cp_line_ids,
+            spans: Vec::new(),
             direction: Direction::Unassigned,
             direction_share: 0.0,
         }
