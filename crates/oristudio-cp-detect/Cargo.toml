@@ -63,3 +63,7 @@ required-features = ["native-inference"]
 
 [dev-dependencies]
 serde_json.workspace = true
+
+[[example]]
+name = "dump_candidate_pool"
+required-features = ["native-inference"]
