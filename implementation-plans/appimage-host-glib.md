@@ -31,9 +31,10 @@ from the download.
 
 Bundling GLib is the mistake. Everything else the AppImage ships was built
 against GLib 2.72 and binds forward to a newer host copy without complaint —
-measured, not assumed: of the 2,559 GLib symbols the other 158 bundled shared
-objects and the app binary import, **0** are missing from Ubuntu 24.04's GLib
-2.80.0 or Ubuntu 26.04's 2.88.0.
+measured, not assumed: of the 2,559 GLib symbols the other 162 bundled ELF files
+import — every shared object, the app binary, and WebKit's own
+`WebKitWebProcess` and `WebKitNetworkProcess` helpers — **0** are missing from
+Ubuntu 24.04's GLib 2.80.0 or Ubuntu 26.04's 2.88.0.
 
 The AppImage excludelist does *not* list `libglib-2.0.so.0` and friends, so
 linuxdeploy deploys them as ordinary dependencies of the app binary. Dropping
@@ -84,7 +85,32 @@ libraries that must be there are not.
 - [x] Wire both steps into the Linux legs of the release workflow
 - [x] Document provenance and how to re-sync the vendored plugin
 - [ ] Run a `workflow_dispatch` Linux build and confirm the verifier passes
-- [ ] Have the reporter run the resulting AppImage on Ubuntu 26.04
+- [ ] Have the reporter run the resulting AppImage on Ubuntu 26.04 — to confirm
+      the GLib error is gone, which is *not* the same as the app working
+
+## This does not fix the reported blank window
+
+The reporter has since said the window opens but renders blank. That confirms
+the half of the diagnosis this plan rests on — a failed GIO module load is not
+fatal, the process survives it — and it also means **the error message was never
+their actual problem**. This plan removes a real packaging defect and a
+frightening line of stderr. It will not put pixels in that window.
+
+The blank window is a second, independent failure and needs its own evidence.
+The discriminating experiment is the `.deb`: it uses the host's WebKitGTK 2.52.6
+rather than the AppImage's bundled copy, so if it renders, the fault is in what
+the AppImage carries; if it is blank too, the fault is in the app.
+
+Note for whoever picks that up: the bundled `libwebkit2gtk-4.1.so.0` honours
+`WEBKIT_DISABLE_DMABUF_RENDERER`, `WEBKIT_DMABUF_RENDERER_FORCE_SHM`,
+`WEBKIT_DMABUF_RENDERER_DISABLE_GBM`, `WEBKIT_SKIA_ENABLE_CPU_RENDERING` and
+`WEBKIT_DISABLE_COMPOSITING_MODE` — checked against the shipped binary, whose
+`WEBKIT_SKIA_*` knobs place it at WebKitGTK 2.46 or newer, a modern WebKit
+backported into 22.04 rather than the 2.36 that release originally shipped. So
+every standard blank-window knob is available to try, cheapest first, and
+`implementation-plans/desktop-platform-parity.md` already carries the open
+decision about setting one of them in the build — deliberately deferred until
+there was evidence. There is now evidence, but not yet a cause.
 
 ## Not in scope
 
