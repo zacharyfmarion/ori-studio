@@ -5,7 +5,6 @@ import {
   plannerStepDiagram,
   plannerTurnOverDiagram,
 } from './plannerStepToPrimitives';
-import { arcExtent } from './stepDiagramGeometry';
 import type { PrecreaseDirection, PrecreaseSequence } from './precreaseSequence';
 
 /** The fixture with a direction on each step, since the fixture's is neutral. */
@@ -117,35 +116,28 @@ describe('plannerStepDiagram', () => {
 describe('the cards that are not folds', () => {
   const sequence = plannerSequenceFixture();
 
-  // The turn-over symbol is a ring with an arrow looping over it, not a chord
-  // across the sheet with a head at each end — that is a *fold* arrow, and it
-  // said the wrong thing.
-  it('draws the standard turn-over symbol, one-headed, on the sheet', () => {
+  // The turn-over symbol is the house's own glyph — a stroke that loops once —
+  // not a chord across the sheet with a head at each end, which is a *fold*
+  // arrow and said the wrong thing.
+  it('draws the house turn-over glyph on the sheet', () => {
     const diagram = plannerTurnOverDiagram(sequence, null);
-    const ring = diagram.primitives.filter((p) => p.kind === 'circle');
-    const arcs = diagram.primitives.filter((p) => p.kind === 'arc');
-    expect(ring).toHaveLength(1);
-    expect(arcs).toHaveLength(1);
-    const [loop] = arcs;
-    if (loop.kind !== 'arc' || ring[0]?.kind !== 'circle') throw new Error('shape');
-    // One head: a turn-over is a one-way motion, unlike a fold.
-    expect(loop.heads).toBe('end');
-    // The arrow clears the ring it loops over, and both sit on the sheet.
-    expect(loop.radius).toBeGreaterThan(ring[0].radius);
-    expect(ring[0].at).toEqual([0.5, 0.5]);
-    expect(loop.center).toEqual([0.5, 0.5]);
-    expect(loop.radius).toBeLessThan(0.5);
-    // Left, over the top, down to the right: the arrow starts on the far side
-    // from where it ends, and passes above the centre on the way.
-    expect(Math.cos(loop.from)).toBeLessThan(0);
-    expect(Math.cos(loop.to)).toBeGreaterThan(0);
-    expect(arcExtent(loop)).toBeGreaterThan(Math.PI);
+    const glyphs = diagram.primitives.filter((p) => p.kind === 'turn-over');
+    expect(glyphs).toHaveLength(1);
+    const [glyph] = glyphs;
+    if (glyph.kind !== 'turn-over') throw new Error('shape');
+    expect(glyph.at).toEqual([0.5, 0.5]);
+    // It sits on the paper rather than spanning it.
+    expect(glyph.size).toBeGreaterThan(0);
+    expect(glyph.size).toBeLessThan(Math.min(sequence.sheet.width, sequence.sheet.height));
+    // And it is the only thing on a card with nothing folded yet.
+    expect(diagram.primitives.filter((p) => p.kind === 'arc')).toHaveLength(0);
+    expect(diagram.primitives.filter((p) => p.kind === 'line')).toHaveLength(0);
   });
 
-  it('draws the build-up so far plus a turn-over arrow', () => {
+  it('draws the build-up so far under the glyph', () => {
     const diagram = plannerTurnOverDiagram(sequence, sequence.steps.length - 1);
     expect(diagram.primitives[0]).toEqual({ kind: 'sheet', width: 1, height: 1 });
-    expect(diagram.primitives.filter((p) => p.kind === 'arc')).toHaveLength(1);
+    expect(diagram.primitives.filter((p) => p.kind === 'turn-over')).toHaveLength(1);
     // Every crease made, as context: none of them is the instruction.
     expect(diagram.primitives.every((p) => p.kind !== 'line' || p.style === 'crease')).toBe(true);
   });

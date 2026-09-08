@@ -55,8 +55,8 @@ export type StepDiagramPrimitive =
        */
       heads?: 'both' | 'end';
     }
-  /** A closed ring — the loop of the turn-over symbol. */
-  | { kind: 'circle'; at: readonly [number, number]; radius: number; style: DiagramLineStyleName }
+  /** The turn-over glyph, centred on `at` and `size` wide in sheet units. */
+  | { kind: 'turn-over'; at: readonly [number, number]; size: number }
   | { kind: 'point'; at: readonly [number, number]; style: DiagramPointStyleName }
   | { kind: 'label'; at: readonly [number, number]; text: string; style: DiagramPointStyleName };
 

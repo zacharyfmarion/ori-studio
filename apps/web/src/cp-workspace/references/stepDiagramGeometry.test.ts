@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ARROWHEAD_ASPECT,
   arcEndDirection,
   arcExtent,
   arcStartDirection,
+  arrowheadBase,
   arcPathData,
   arrowheadPoints,
   arrowheadSize,
@@ -99,11 +101,36 @@ describe('arcEndDirection', () => {
 describe('arrowheadPoints', () => {
   it('puts the tip first and the base behind it, symmetric about the direction', () => {
     const points = arrowheadPoints({ x: 10, y: 10 }, { x: 1, y: 0 }, 6);
-    expect(points).toBe('10,10 4,12 4,8');
+    expect(points).toBe('10,10 4,12.4 4,7.6');
   });
 
   it('normalises the direction', () => {
-    expect(arrowheadPoints({ x: 0, y: 0 }, { x: 0, y: 3 }, 6)).toBe('0,0 -2,-6 2,-6');
+    expect(arrowheadPoints({ x: 0, y: 0 }, { x: 0, y: 3 }, 6)).toBe('0,0 -2.4,-6 2.4,-6');
+  });
+
+  // `images/arrow_head.svg` is 5.7005 long on a half-base of 2.2805 — exactly
+  // 2.5 : 1. Drawn at 3 : 1 it reads as a dart rather than an arrowhead.
+  it('is the reference head, 2.5 to 1', () => {
+    const size = 10;
+    const points = arrowheadPoints({ x: 0, y: 0 }, { x: 1, y: 0 }, size)
+      .split(' ')
+      .map((p) => p.split(',').map(Number));
+    const [tip, left, right] = points;
+    const half = Math.abs(left[1] - right[1]) / 2;
+    expect(Math.abs(tip[0] - left[0]) / half).toBeCloseTo(ARROWHEAD_ASPECT, 12);
+    expect(ARROWHEAD_ASPECT).toBeCloseTo(5.7005 / 2.2805, 3);
+  });
+
+  // A stroke that stops at the base meets a perpendicular edge; one that runs
+  // to the tip crosses the head and reads skewed.
+  it('reports a base the stroke can stop at, square to the direction', () => {
+    const tip = { x: 10, y: 4 };
+    const dir = { x: 3, y: 4 };
+    const base = arrowheadBase(tip, dir, 5);
+    expect(Math.hypot(tip.x - base.x, tip.y - base.y)).toBeCloseTo(5, 12);
+    // Base → tip is parallel to the direction, so the base edge is square to it.
+    const along = (tip.x - base.x) * dir.y - (tip.y - base.y) * dir.x;
+    expect(along).toBeCloseTo(0, 12);
   });
 });
 

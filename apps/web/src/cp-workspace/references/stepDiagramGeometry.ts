@@ -199,15 +199,67 @@ export function arrowheadSize(arc: DiagramArc, sheet: DiagramSheet): number {
  * `direction`, `size` long and two thirds as wide.
  */
 export function arrowheadPoints(tip: SvgPoint, direction: SvgPoint, size: number): string {
+  const back = arrowheadBase(tip, direction, size);
   const length = Math.hypot(direction.x, direction.y) || 1;
   const ux = direction.x / length;
   const uy = direction.y / length;
-  const back = { x: tip.x - ux * size, y: tip.y - uy * size };
-  const half = size / 3;
+  const half = size / ARROWHEAD_ASPECT;
   const left = { x: back.x - uy * half, y: back.y + ux * half };
   const right = { x: back.x + uy * half, y: back.y - ux * half };
   return [tip, left, right].map((p) => `${fmt(p.x)},${fmt(p.y)}`).join(' ');
 }
+
+/**
+ * Where an arrowhead's base sits: `size` back from the tip along `direction`.
+ *
+ * The base is perpendicular to `direction` by construction, so a stroke that
+ * stops here meets the head square on rather than running through it to the
+ * point. Exported so the arc can be trimmed to exactly this spot.
+ */
+export function arrowheadBase(tip: SvgPoint, direction: SvgPoint, size: number): SvgPoint {
+  const length = Math.hypot(direction.x, direction.y) || 1;
+  return {
+    x: tip.x - (direction.x / length) * size,
+    y: tip.y - (direction.y / length) * size,
+  };
+}
+
+/**
+ * The turn-over symbol, verbatim from `images/turn_over_symbol.svg`: a stroke
+ * that comes in from the left, loops once, and leaves to the right, where the
+ * arrowhead is. Its own box is 29 × 14.
+ *
+ * Transcribed rather than re-derived — an arc-and-circle approximation of a
+ * hand-drawn loop is not the same glyph, and this one is the house's.
+ */
+export const TURN_OVER_PATH =
+  'M 25.282 4.923 C 21.103 -0.049 13.926 1.855 13.926 1.855 ' +
+  'C 8.533 2.887 8.711 7.191 8.711 7.191 ' +
+  'C 8.698 9.071 9.698 10.738 11.328 11.674 ' +
+  'C 12.958 12.610 14.966 12.596 16.583 11.638 ' +
+  'C 18.200 10.679 19.176 8.925 19.138 7.046 ' +
+  'C 19.138 7.046 19.318 2.887 13.925 1.855 ' +
+  'C 13.925 1.855 5.675 0.094 1.496 5.066';
+/** The symbol's own coordinate box, and where the arrowhead sits on it. */
+export const TURN_OVER_BOX = { width: 29, height: 14 } as const;
+/**
+ * The stroke's arrowhead end, the direction it points, and how long the head
+ * is — all in the symbol's own box.
+ *
+ * The angle is the reverse of the path's opening tangent: the stroke leaves
+ * (25.282, 4.923) toward its first control point at (21.103, −0.049), so the
+ * head points back the other way. The length is set to give the reference
+ * glyph's base width at this file's 2.5 : 1 aspect.
+ */
+export const TURN_OVER_HEAD = { at: [25.282, 4.923] as const, angle: 0.872, size: 4.1 };
+
+/**
+ * How long an arrowhead is against its half-width.
+ *
+ * `images/arrow_head.svg` is a triangle 5.7005 long on a half-base of 2.2805 —
+ * exactly 2.5 : 1. The head drawn here was 3 : 1, which reads as a dart.
+ */
+export const ARROWHEAD_ASPECT = 2.5;
 
 export type LabelAnchor = 'start' | 'middle' | 'end';
 

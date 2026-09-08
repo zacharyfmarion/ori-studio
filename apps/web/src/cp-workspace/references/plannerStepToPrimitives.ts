@@ -342,37 +342,23 @@ export function plannerTurnOverDiagram(
   return { sheet: { width: sheet.width, height: sheet.height }, primitives };
 }
 
-/** How much of the sheet's shorter side the turn-over ring takes. */
-const TURN_OVER_RING = 0.11;
-/** The looping arrow's radius, as a multiple of the ring's. */
-const TURN_OVER_LOOP = 1.55;
+/** How wide the turn-over glyph is, as a share of the sheet's shorter side. */
+const TURN_OVER_SIZE = 0.42;
 
 /**
- * The turn-over symbol: a ring with an arrow looping over it, centred on the
- * sheet.
+ * The turn-over symbol, centred on the sheet.
  *
- * The arrow starts left of the ring, passes over the top and comes down on the
- * right with the head — the gesture of picking the paper up and putting it back
- * down the other way round. It is drawn in the sheet's own coordinates so it
- * scales with the card.
+ * The glyph itself is transcribed from the house's own drawing
+ * (`stepDiagramGeometry.ts`, `TURN_OVER_PATH`): a stroke that comes in from one
+ * side, loops once, and leaves the other with the arrowhead. Sized against the
+ * shorter side so it reads the same on a square and on a long rectangle.
  */
 function turnOverSymbol(sheet: { width: number; height: number }): StepDiagramPrimitive[] {
-  const centre: [number, number] = [sheet.width / 2, sheet.height / 2];
-  const radius = Math.min(sheet.width, sheet.height) * TURN_OVER_RING;
   return [
-    { kind: 'circle', at: centre, radius, style: 'arrow' },
     {
-      kind: 'arc',
-      center: centre,
-      radius: radius * TURN_OVER_LOOP,
-      // Sheet coordinates are y-up, so the arrow travels from just below the
-      // ring's left, over the top, to just below its right: anticlockwise in
-      // this frame is clockwise on the screen.
-      from: Math.PI * 1.08,
-      to: -Math.PI * 0.08,
-      ccw: false,
-      style: 'arrow',
-      heads: 'end',
+      kind: 'turn-over',
+      at: [sheet.width / 2, sheet.height / 2],
+      size: Math.min(sheet.width, sheet.height) * TURN_OVER_SIZE,
     },
   ];
 }

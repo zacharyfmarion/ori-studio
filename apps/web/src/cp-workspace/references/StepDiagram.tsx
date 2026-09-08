@@ -5,6 +5,9 @@ import {
   type StepDiagramModel,
 } from './referenceFinderDiagramToPrimitives';
 import {
+  TURN_OVER_BOX,
+  TURN_OVER_HEAD,
+  TURN_OVER_PATH,
   arcEndDirection,
   arcPathData,
   arcStartDirection,
@@ -49,6 +52,9 @@ export type StepDiagramProps = {
       diagram?: undefined;
     }
 );
+
+/** Four decimals is under a device pixel at any thumbnail size. */
+const round = (value: number) => Number(value.toFixed(4));
 
 export function StepDiagram({
   diagram,
@@ -129,8 +135,8 @@ export function StepDiagram({
             );
           }
           case 'arc': {
-            const path = arcPathData(primitive, project);
             if (primitive.style !== 'arrow') {
+              const path = arcPathData(primitive, project);
               return (
                 <path
                   key={index}
@@ -142,6 +148,21 @@ export function StepDiagram({
             // Sheet units through the projector's scale, so the head keeps
             // upstream's proportion to the paper at any thumbnail size.
             const head = arrowheadSize(primitive, model.sheet) * project.scale;
+            // Stop the stroke at each head's base rather than running it to the
+            // tip: a line that crosses its own arrowhead reads as meeting it at
+            // an angle. The head is `head` px long, so back the arc off by that
+            // much of arc — the two ends move opposite ways round the circle.
+            const backOff = head / Math.max(primitive.radius * project.scale, 1e-6);
+            const towards = primitive.ccw ? -1 : 1;
+            const both = (primitive.heads ?? 'both') === 'both';
+            const path = arcPathData(
+              {
+                ...primitive,
+                to: primitive.to + backOff * towards,
+                from: both ? primitive.from - backOff * towards : primitive.from,
+              },
+              project
+            );
             const at = (angle: number) =>
               project([
                 primitive.center[0] + primitive.radius * Math.cos(angle),
@@ -172,17 +193,29 @@ export function StepDiagram({
               </g>
             );
           }
-          case 'circle': {
+          case 'turn-over': {
             const at = project(primitive.at);
+            const scale = (primitive.size * project.scale) / TURN_OVER_BOX.width;
+            // Drawn in screen space, not mirrored with the paper: it is a
+            // symbol for what the folder does, not part of the pattern.
+            const x = at.x - (TURN_OVER_BOX.width / 2) * scale;
+            const y = at.y - (TURN_OVER_BOX.height / 2) * scale;
             return (
-              <circle
+              <g
                 key={index}
-                className={`step-diagram__line step-diagram__line--${primitive.style}`}
-                fill="none"
-                cx={at.x}
-                cy={at.y}
-                r={primitive.radius * project.scale}
-              />
+                className="step-diagram__turn-over"
+                transform={`translate(${round(x)} ${round(y)}) scale(${round(scale)})`}
+              >
+                <path className="step-diagram__arc step-diagram__line--arrow" d={TURN_OVER_PATH} />
+                <polygon
+                  className="step-diagram__arrowhead"
+                  points={arrowheadPoints(
+                    { x: TURN_OVER_HEAD.at[0], y: TURN_OVER_HEAD.at[1] },
+                    { x: Math.cos(TURN_OVER_HEAD.angle), y: Math.sin(TURN_OVER_HEAD.angle) },
+                    TURN_OVER_HEAD.size
+                  )}
+                />
+              </g>
             );
           }
           case 'point': {
