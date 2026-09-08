@@ -48,7 +48,15 @@ export type StepDiagramPrimitive =
       to: number;
       ccw: boolean;
       style: DiagramLineStyleName;
+      /**
+       * Where the arrowheads go. A fold arrow gets one at each end, because a
+       * fold is a two-way motion; a turn-over gets one, because it is not.
+       * Default `both`.
+       */
+      heads?: 'both' | 'end';
     }
+  /** A closed ring — the loop of the turn-over symbol. */
+  | { kind: 'circle'; at: readonly [number, number]; radius: number; style: DiagramLineStyleName }
   | { kind: 'point'; at: readonly [number, number]; style: DiagramPointStyleName }
   | { kind: 'label'; at: readonly [number, number]; text: string; style: DiagramPointStyleName };
 

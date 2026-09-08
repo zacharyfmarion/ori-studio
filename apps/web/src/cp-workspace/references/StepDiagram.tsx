@@ -147,10 +147,11 @@ export function StepDiagram({
                 primitive.center[0] + primitive.radius * Math.cos(angle),
                 primitive.center[1] + primitive.radius * Math.sin(angle),
               ]);
-            // A head at each end. `CalcArrow` computes `fromDir` and `toDir`
-            // and `DrawArrow` throws both away (`refDgmr.cpp:70-74, 89-90`), so
-            // upstream's picture shows a bare arc; drawn one-ended it reads as
-            // a one-way motion, which a fold is not.
+            // A fold arrow gets a head at each end. `CalcArrow` computes
+            // `fromDir` and `toDir` and `DrawArrow` throws both away
+            // (`refDgmr.cpp:70-74, 89-90`), so upstream's picture shows a bare
+            // arc; drawn one-ended it reads as a one-way motion, which a fold
+            // is not. A turn-over *is* one-way, and says so.
             return (
               <g key={index} className="step-diagram__arrow">
                 <path className="step-diagram__arc step-diagram__line--arrow" d={path} />
@@ -158,15 +159,30 @@ export function StepDiagram({
                   className="step-diagram__arrowhead"
                   points={arrowheadPoints(at(primitive.to), arcEndDirection(primitive, mirrored), head)}
                 />
-                <polygon
-                  className="step-diagram__arrowhead"
-                  points={arrowheadPoints(
-                    at(primitive.from),
-                    arcStartDirection(primitive, mirrored),
-                    head
-                  )}
-                />
+                {(primitive.heads ?? 'both') === 'both' && (
+                  <polygon
+                    className="step-diagram__arrowhead"
+                    points={arrowheadPoints(
+                      at(primitive.from),
+                      arcStartDirection(primitive, mirrored),
+                      head
+                    )}
+                  />
+                )}
               </g>
+            );
+          }
+          case 'circle': {
+            const at = project(primitive.at);
+            return (
+              <circle
+                key={index}
+                className={`step-diagram__line step-diagram__line--${primitive.style}`}
+                fill="none"
+                cx={at.x}
+                cy={at.y}
+                r={primitive.radius * project.scale}
+              />
             );
           }
           case 'point': {

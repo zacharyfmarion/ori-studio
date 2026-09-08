@@ -309,12 +309,14 @@ export function plannerStepDiagram(
 }
 
 /**
- * The turn-over card: the sheet as it stands, with the arrow that says to flip
+ * The turn-over card: the sheet as it stands, with the symbol that says to flip
  * it.
  *
- * Standard diagramming draws the turn-over as a hooked arrow passing around the
- * paper's edge. Here it is one arc across the sheet with a head at each end,
- * which is the same gesture and survives being 128px wide.
+ * The symbol is the standard one — a ring with an arrow looping over it, as the
+ * house template draws it — rather than a chord across the sheet with a head at
+ * each end, which is a *fold* arrow and said the wrong thing. It sits on the
+ * paper at a fixed fraction of the shorter side, so it reads the same on a
+ * square and on a long rectangle.
  *
  * `after` is the last planner step folded by this point, or null when nothing
  * is — a plan that opens with a mountain turns the paper over before its first
@@ -336,10 +338,43 @@ export function plannerTurnOverDiagram(
       primitives.push({ kind: 'line', from: span[0], to: span[1], style: 'crease' });
     }
   }
-  const mid = sheet.height / 2;
-  const arc = foldArrowArc([0, mid], [sheet.width, mid], sheet);
-  if (arc) primitives.push({ ...arc, kind: 'arc', style: 'arrow' });
+  primitives.push(...turnOverSymbol(sheet));
   return { sheet: { width: sheet.width, height: sheet.height }, primitives };
+}
+
+/** How much of the sheet's shorter side the turn-over ring takes. */
+const TURN_OVER_RING = 0.11;
+/** The looping arrow's radius, as a multiple of the ring's. */
+const TURN_OVER_LOOP = 1.55;
+
+/**
+ * The turn-over symbol: a ring with an arrow looping over it, centred on the
+ * sheet.
+ *
+ * The arrow starts left of the ring, passes over the top and comes down on the
+ * right with the head — the gesture of picking the paper up and putting it back
+ * down the other way round. It is drawn in the sheet's own coordinates so it
+ * scales with the card.
+ */
+function turnOverSymbol(sheet: { width: number; height: number }): StepDiagramPrimitive[] {
+  const centre: [number, number] = [sheet.width / 2, sheet.height / 2];
+  const radius = Math.min(sheet.width, sheet.height) * TURN_OVER_RING;
+  return [
+    { kind: 'circle', at: centre, radius, style: 'arrow' },
+    {
+      kind: 'arc',
+      center: centre,
+      radius: radius * TURN_OVER_LOOP,
+      // Sheet coordinates are y-up, so the arrow travels from just below the
+      // ring's left, over the top, to just below its right: anticlockwise in
+      // this frame is clockwise on the screen.
+      from: Math.PI * 1.08,
+      to: -Math.PI * 0.08,
+      ccw: false,
+      style: 'arrow',
+      heads: 'end',
+    },
+  ];
 }
 
 /**

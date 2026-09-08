@@ -5,6 +5,7 @@ import {
   plannerStepDiagram,
   plannerTurnOverDiagram,
 } from './plannerStepToPrimitives';
+import { arcExtent } from './stepDiagramGeometry';
 import type { PrecreaseDirection, PrecreaseSequence } from './precreaseSequence';
 
 /** The fixture with a direction on each step, since the fixture's is neutral. */
@@ -115,6 +116,31 @@ describe('plannerStepDiagram', () => {
 
 describe('the cards that are not folds', () => {
   const sequence = plannerSequenceFixture();
+
+  // The turn-over symbol is a ring with an arrow looping over it, not a chord
+  // across the sheet with a head at each end — that is a *fold* arrow, and it
+  // said the wrong thing.
+  it('draws the standard turn-over symbol, one-headed, on the sheet', () => {
+    const diagram = plannerTurnOverDiagram(sequence, null);
+    const ring = diagram.primitives.filter((p) => p.kind === 'circle');
+    const arcs = diagram.primitives.filter((p) => p.kind === 'arc');
+    expect(ring).toHaveLength(1);
+    expect(arcs).toHaveLength(1);
+    const [loop] = arcs;
+    if (loop.kind !== 'arc' || ring[0]?.kind !== 'circle') throw new Error('shape');
+    // One head: a turn-over is a one-way motion, unlike a fold.
+    expect(loop.heads).toBe('end');
+    // The arrow clears the ring it loops over, and both sit on the sheet.
+    expect(loop.radius).toBeGreaterThan(ring[0].radius);
+    expect(ring[0].at).toEqual([0.5, 0.5]);
+    expect(loop.center).toEqual([0.5, 0.5]);
+    expect(loop.radius).toBeLessThan(0.5);
+    // Left, over the top, down to the right: the arrow starts on the far side
+    // from where it ends, and passes above the centre on the way.
+    expect(Math.cos(loop.from)).toBeLessThan(0);
+    expect(Math.cos(loop.to)).toBeGreaterThan(0);
+    expect(arcExtent(loop)).toBeGreaterThan(Math.PI);
+  });
 
   it('draws the build-up so far plus a turn-over arrow', () => {
     const diagram = plannerTurnOverDiagram(sequence, sequence.steps.length - 1);
