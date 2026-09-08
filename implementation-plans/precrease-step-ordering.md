@@ -1,189 +1,176 @@
 # Precrease step ordering
 
+## What is changing, in plain English
+
+**Today**, the planner works out a folding order by asking one question over and
+over: *of all the lines in this pattern, which could I fold right now?* A line is
+foldable when you can line it up against something already on the paper — bring
+a corner onto a corner, an edge onto a crease. It folds everything it can, which
+puts new creases on the paper, which makes more lines foldable, and so on until
+the pattern is finished.
+
+That question has a gap in it. It asks whether you can find the fold **line**. It
+never asks whether you can find where the crease is supposed to **start and
+stop**.
+
+Most creases run right across the paper, edge to edge, and there is nothing to
+find — you crease the whole fold. But plenty of creases stop partway, somewhere
+in the middle of the sheet. To stop in the right place you need a landmark there:
+a point where two creases already cross. Without one, the instruction is "crease
+along here and stop… somewhere", and you are guessing.
+
+On the markhor pattern this happens immediately. Step 2 says to fold the
+diagonal — but the pattern only wants the two ends of it, so you are meant to
+stop a quarter of the way in, at a spot where nothing exists yet. Steps 4 and 5
+are creases that run the full width of the paper, and they cross the diagonal at
+exactly the points you needed. They just happen to come four steps too late.
+
+**The change is to ask the missing half of the question.** Before folding
+anything, the planner will now ask: *can I find the line, **and** can I find
+where each crease on it begins and ends?* Folds that pass both go first. Folds
+that pass only the first wait a while, in case something folded in the meantime
+gives them the landmark they were missing.
+
+On markhor that reorders the opening to 1, 4, 5, 2, 3 on its own. The two
+full-width creases go first because both their ends are on the paper's edge, and
+by the time the diagonals come round, all four of the points they need to stop
+at exist.
+
+**When no landmark is possible, the fold happens anyway and you stop by eye** —
+exactly what the plan does today. Some patterns genuinely contain creases that
+can only end in mid-air, and the alternative — creasing further than the pattern
+asks in order to reach an edge — would put a crease in the paper that the design
+does not have. An eyeballed endpoint is imprecise. An extra crease is wrong.
+
+So this can only improve a plan or leave it alone. No fold is dropped, none is
+added, no pattern becomes unplannable. The only thing that moves is the order,
+and only where a better order exists.
+
 ## Goal
 
-Order a precrease sequence so that a folder can perform every step: each fold
-sighted from marks that are on the paper, each crease ending somewhere they can
-find, and the paper turned over as seldom as the pattern allows.
+Every step sighted from marks that are on the paper, and every crease ending
+somewhere the folder can find — as often as the pattern allows, and never at the
+cost of creasing something the pattern does not contain.
 
-And say what the order is *for*. Today the order comes out of the closure's
-sweep structure, which is a search artifact, and the qualities above are things
-it happens to produce rather than things it is asked for.
+## Why the current order is wrong
 
-## The question this plan answers
+The planner's test for "can I fold this yet" is about the infinite line. The
+thing the folder actually performs is a crease of finite length. Those are
+different, and the gap between them is where the unfollowable instructions live.
 
-Zach, on markhor: steps 2 and 3 crease part of a line and stop in mid-paper with
-no reference for where; steps 4 and 5 create exactly those references. Ordering
-`1, 4, 5, 2, 3` would fix it. `order.rs` cannot: 2 and 3 are closure round 1, 4
-and 5 are round 2, and the pass permutes only *inside* a round.
+It is not a presentation problem. Two earlier attempts treated it as one —
+reordering the finished plan — and both were wrong:
 
-The proposal was to replace the round with a dependency DAG for correctness and
-an explicit objective for legibility. **Measurement says do not.** What follows
-is why, and what to do instead.
+- A general dependency-graph reshuffle regressed the crate's own
+  reference-quality measure by 60% (230 → 367 steps sighted from marks that are
+  not on the paper), worse on 24 of 38 designs and better on 1. The plan's early
+  folds are the long ones, they lay down the grid of crossings everything later
+  sights from, and promoting short folds to fix endpoints destroys that grid.
+- A narrower "delay a step until its endpoints are referenced" repair had the
+  same shape and the same risk, and it repaired the symptom in the presentation
+  while the plan itself stayed wrong.
 
-## Measured
+Fixing the test instead is smaller than either, and it fixes the cause.
 
-Baseline over the 38 `curated/` designs of `real_benchmark` that plan (4 plan
-nothing — `partial_off_lattice` with an empty closure), verified directly
-against the crate:
+## The change
+
+### D1 — the constructibility test gains an endpoint condition
+
+A target is **fully constructible** when its line can be sighted *and* every
+crease the pattern wants on that line has both ends findable: on the sheet's
+edge, or at a point where two already-folded creases physically cross.
+
+"Physically cross" is the existing notion, not a new one — a crease covers only
+the parts of its line the pattern asks for, so two chords meeting is not the same
+as two creases meeting. That distinction is already implemented and tested.
+
+### D2 — it is a preference, applied per sweep, never a requirement
+
+Each sweep folds the fully constructible targets if there are any, and otherwise
+falls back to the current test and folds what it can sight.
+
+Per sweep rather than per target, so a fold waits only while something else is
+making progress. And the fallback admits exactly what today's test admits, which
+gives the property the whole design rests on: **the closure can never stall on
+this, and no pattern that plans today stops planning.**
+
+### D3 — no crease is ever extended
+
+A crease that cannot find its end is made anyway, ending by eye. Creasing past
+what the pattern wants — to reach an edge and gain a landmark — is out. It puts a
+crease in the paper the design does not have, which is a change to the model
+rather than an imprecision in performing it.
+
+This is also what makes D2's fallback safe: there is always something to fall
+back *to*.
+
+### D4 — the sweep index stops being called a round
+
+There is no round in a crease pattern; there are steps, numbered from one. The
+sweep index is bookkeeping that leaked into the output — nothing outside the
+ordering pass reads it, not the workspace, not the bridge — so it comes off the
+step and out of the wire type.
+
+It stays inside the ordering pass, under a name that says what it is, with the
+measurement below recorded beside it: it is a proxy for "fold long lines before
+short ones", and that proxy is currently what makes marks exist.
+
+## What this is measured against
+
+Baseline over the 38 `curated/` designs of `real_benchmark` that plan, taken
+from the crate directly:
 
 | | |
 | --- | --- |
 | designs / steps | 38 / 2,344 |
-| steps sighted from a mark not on the paper (`marks_exist == false`) | **281 (12.0%)** |
-| turn-overs | 127 |
-| `cp_span` endpoints with no reference (corrected definition) | **19.6%** |
-| steps with at least one such endpoint | **30.9%** |
-| of those endpoints, referenced by a fold the plan makes *later* | 78.3% (89.1% on `complete` plans) |
+| steps sighted from a mark not on the paper | **281** |
+| turn-overs | **127** |
+| crease ends with no landmark | **19.6%** of ends, on 30.9% of steps |
 
-The last row is the one that made the reorder look obviously right: four fifths
-of the unreferenced endpoints have a reference the plan already builds, just
-afterwards.
+The change must move the third row down without moving the first two up. The
+first is the one that matters: it is the measure a reordering approach already
+broke once, and freezing it out of the comparison is how that nearly shipped.
 
-### What a dependency schedule actually does
+It cannot be measured by simulating a reorder of an existing plan, because
+changing what folds first changes what is constructible next — the plan itself
+differs. So it is implemented behind an option and both are run.
 
-A greedy over the true dependency DAG — a step runs as soon as its chosen
-witness's inputs exist, preferring the side already up, then referenced
-endpoints — with **the presentation witness recomputed the way `order.rs`
-recomputes it**:
+## Risks
 
-| | baseline | greedy |
-| --- | ---: | ---: |
-| phantom-mark steps | 230 | **367 (+60%)** |
-| designs improved / regressed on phantom marks | — | **1 / 24** |
-| unreferenced endpoints | 996 | 984 |
-| designs regressed on endpoints | — | 4 |
-
-`markhor-detailed`, the largest design in the corpus at 197 steps: unreferenced
-65 → 67 **and** phantom 25 → 35. Strictly worse on both, for two turn-overs.
-
-The first study missed this because it held the witness frozen, "so the
-comparison is schedule-only". It is not schedule-only: `order.rs` re-picks each
-step's presentation witness against the creases that physically exist by then,
-so a scheduler upstream of that changes which witnesses are sightable at all.
-
-### Why — and this is the part that matters
-
-`Creased` is order-dependent in the **opposite direction** to the endpoint
-objective.
-
-The closure's early rounds fold long lines that cross the whole sheet. Those lay
-down a dense grid of real crossings, and the later, finer folds sight from that
-grid. A scheduler that promotes short-span folds early presses only short spans,
-so the crossing a later O2 or O3 witness needs is not a physical mark, the
-re-pick falls through, and the step ships as a phantom.
-
-**Coarse-before-fine is not an aesthetic side-effect of the round. It is the
-mechanism that makes marks exist.** Optimising for endpoint references fights
-it directly, and on this corpus the fight is lost 24 designs to 1.
-
-### Two more things the round is quietly doing
-
-- **It makes the witness pick order-independent.** Every witness of a round-*r*
-  fold was certified against the pre-round state — 0 of 40,920 recorded
-  witnesses names a same-or-later-round line — so every member of a round sees
-  the same paper and the choice does not depend on the order within it. Break
-  the barrier and `marks_exist` becomes order-dependent, and the plan stops
-  being a stable artifact.
-- **It is the unit of grouping.** `order::group` merges consecutive steps
-  sharing round, side, kind, direction, axiom and pattern into "fold the
-  sixteenths horizontally: 7 creases". Grouping needs those runs consecutive,
-  and the greedy moves 88% of steps.
-
-## The decision
-
-**Do not replace the round with a general scheduler.** The evidence does not
-support it, and the failure it produces — a fold told to stop at a mark that is
-no longer on the paper — is the same class of defect the reorder was meant to
-cure, moved from the end of the crease to the start of the fold.
-
-But two things are still wrong, and both get fixed.
-
-### D1 — `round` leaves the model
-
-There is no round in an origami crease pattern; there are steps, numbered from
-one. `Step.round` is a closure sweep index wearing a domain word, and nothing
-outside `order.rs` reads it — not the workspace, not the wasm bridge, not the
-sequence consumers. It goes from `Step`, from the TypeScript type, and from
-`Group`.
-
-Inside `order.rs` the sweep index stays, because it is load-bearing, and it gets
-named for the thing it actually is: `frontier` — which fold of the closure first
-made this line constructible. The doc says what it is a proxy for (fold long
-lines before short ones, so that later folds have marks to sight) and what
-breaks if it is removed (the numbers above).
-
-This is not a rename for its own sake. The field is currently an invitation to
-reason about rounds as though a folder had them.
-
-### D2 — markhor's case, narrowly and without the general rewrite
-
-markhor is not a counter-example to the finding; it is a genuine local win. The
-same greedy emits `1, 4, 5, 2, 3, 6, 7, …` and improves markhor on every axis:
-unreferenced endpoints 27 → 17, turn-overs 4 → 2, phantom marks 9 → 9.
-
-What distinguishes it: steps 2 and 3 are **delayed**, not promoted. Nothing is
-pulled forward into a state that has fewer creases in it, so `Creased` is never
-made poorer — which is exactly the mechanism that breaks the general case.
-
-So: **delay only, and only past folds that make the delayed step's own endpoints
-referenced.** A step may be emitted later than its frontier when
-
-1. no later-emitted step depends on it (the DAG edge, from
-   `pinch.rs::downstream_uses`'s relation), and
-2. the steps it is delayed past give at least one of its span endpoints a
-   reference it did not have, and
-3. it does not cross a turn-over — the delay stays inside its side block, so
-   Revision 4's turn-over counts are untouched by construction.
-
-Condition 2 makes this a targeted repair rather than a scheduler: it fires only
-where the defect is, and it can only add creases before the delayed step, never
-remove them, so `marks_exist` cannot regress.
-
-### D3 — the objective is named, whether or not it is optimised
-
-Whatever the ordering does, the file should say what it is trying to achieve,
-in priority order, so the next request lands as a term and not as an argument:
-
-1. every step sighted from marks that are on the paper (`marks_exist`);
-2. as few turn-overs as the pattern allows;
-3. as few creases as possible ending in mid-paper with no reference;
-4. a readable sweep across the sheet.
-
-Today 1 is served by coarse-before-fine, 2 by the side partition, 3 not at all,
-4 by `order_round`. Writing that down is most of the value of the original
-proposal, and it costs nothing.
+- **The order could get worse where it is currently fine.** Deferring a fold
+  changes which marks exist when later folds are chosen. Expected to help here,
+  because it defers *short, broken* creases and lets *full-width* ones go first
+  — the same effect the sweep structure was producing by accident — but that is
+  a prediction, and the measurement above is what decides it.
+- **A mutual wait.** Several creases that all end on each other with no
+  full-width line among them — a rabbit ear. D2's per-sweep fallback resolves it
+  by folding them all with eyeballed ends, which is what a diagram does.
+- **A pattern where almost nothing is fully constructible** gains nothing and
+  costs a second sweep per round. Cheap, and visible in the timings.
 
 ## Affected areas
 
-- `crates/oristudio-precrease/src/order.rs` — `Placed.round` → `frontier`, the
-  D2 delay pass, the D3 objective doc.
-- `crates/oristudio-precrease/src/sequence.rs` — `Step.round` and `Group.round`
-  removed.
-- `crates/oristudio-precrease/src/planner.rs` — the step assembly.
+- `crates/oristudio-precrease/src/closure.rs` — the sweep's partition, and the
+  endpoint condition.
+- `crates/oristudio-precrease/src/order.rs` — the sweep index renamed; the
+  ordering objective written down.
+- `crates/oristudio-precrease/src/sequence.rs`, `planner.rs` — `round` off the
+  step and the group.
 - `apps/web/src/cp-workspace/references/precreaseSequence.ts` — the wire type.
 - `crates/oristudio-precrease/tests/planner_direction.rs` — the regression.
 
 ## Checklist
 
-- [ ] D1 — `round` out of `Step`, `Group` and the TS type; `frontier` inside
-      `order.rs`, documented as a proxy with the measurement that justifies it
-- [ ] D3 — the objective, written down in `order.rs`'s module doc
-- [ ] D2 — the delay pass, under all three conditions
-- [ ] Corpus regression: phantom-mark steps must not rise on any of the 38
-      curated designs, and turn-overs must not rise on any
-- [ ] markhor: `1, 4, 5, 2, 3` in the emitted order, unreferenced endpoints down
-- [ ] A crate test that fails if a delay ever makes `marks_exist` worse
-
-## What would change this decision
-
-The measurement is of *one* greedy with *one* objective ordering. A scheduler
-that put `marks_exist` first — preferring folds that press long spans early,
-with endpoint references as a tie-break rather than the driver — might beat the
-proxy rather than fight it. That is a real experiment and it is worth running
-before anyone concludes the round is irreplaceable.
-
-What it must beat, on all 38 curated designs: **281 phantom-mark steps and 127
-turn-overs**, with the presentation witness recomputed as `order.rs` recomputes
-it. Freezing the witness makes any scheduler look good and is how this proposal
-nearly shipped.
+- [ ] D1 — the endpoint condition, using the existing physical-crease test
+- [ ] D2 — per-sweep preference with the fallback, behind an option so both
+      orders can be measured
+- [ ] Corpus run: crease ends with no landmark **down**; steps sighted from a
+      mark that is not on the paper **not up on any design**; turn-overs **not
+      up on any design**; every design that plans today still plans
+- [ ] markhor emits 1, 4, 5, 2, 3
+- [ ] A crate test that fails if the preference ever makes either of the two
+      quality measures worse
+- [ ] D3 — a test that no step's creases exceed what the pattern contains
+- [ ] D4 — `round` off the step, the group and the TS type
+- [ ] Option removed once the measurement decides; the losing order does not
+      stay behind a flag
