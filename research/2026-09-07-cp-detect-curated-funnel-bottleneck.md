@@ -334,6 +334,88 @@ against 63. Two conversions the floor alone made are given back by the weak
 merge (fox-girl, rhino-beetle: a real close pair with a weak member) and one
 by the border rule (horse-1-1); those are the known cost.
 
+## Lever 4, landed (2026-09-09): the box-pleat grid as a prior for the border
+
+Of the 69 box-pleated cases (65 renders, 4 real images; the family read
+from the truth's crease angles, at least 97% at multiples of 45°), 31 have
+a thousand creases or more, and those giants are where the rendered losses
+concentrate: 1,131 missing creases over 49,078, 719 of them the last cell
+of a grid line from the first interior junction to the paper edge. The
+line evidence sees them (median support 0.88 along a lost border crease,
+the same as along a found one) and the contact head does not (median peak
+0.28 against 0.89 at a found contact; 1% over the 0.50 floor); 93% sit on
+a grid position. Lowering the floor for everyone had already failed (the
+0.30 sweep: three cases gained, two real-image solves broken by contacts
+beside a corner), so the admission is restricted to where a box-pleat
+design licenses it.
+
+The prior is read from the candidate graph after span proposal and contact
+re-localisation (`candidate_generation/grid_prior.rs`): the family from
+the proposed spans' angles (spans of 12 px or more that pass the line
+gate, at least 85% within 5° of a multiple of 45°), the grid from the
+interior junctions, and its hold on the border from the contacts the head
+found. The grid fit needs a chance correction: with a 1 px band either
+side of every line, a 160-cell grid covers a third of the edge by chance
+and the raw fit picks the top of the range on every design; the corrected
+score (fit above chance, rescaled) with a 0.02 margin for the coarser
+grid finds the truth's grid or a divisor of it on 48 of 52 pool cases. At
+every empty grid position on each side, a crease may leave the edge along
+the grid line or either diagonal: the line evidence along the first cell
+must average 0.5 and be a **ridge** — 0.15 above the same reading 3 px to
+either side along the edge, which is what separates a crease from the
+solid ink between two strokes of a 7.5 px pleat (without it, 29 spurious
+contacts on dwarf, basilisk and mantis-shrimp, every one with a ridge of
+0.03 or less against 0.31 at the true completions' tenth percentile) —
+must reach a candidate vertex within 3 px of the ray between half a cell
+and four cells in, and the span to it must pass the adjacency gate. The
+contact head's peak is recorded, not required: a floor of 0.05 gave up a
+third of the true completions for nothing.
+
+On the candidate pools of the box-pleated cases (the selected spans against
+the truth, strict at 2 px, tokyo-skytree excluded as over the cap):
+
+| 68 cases | grid prior off | grid prior on |
+| --- | --- | --- |
+| rendered decoder exact / near / off | 32 / 27 / 2 | 40 / 20 / 1 |
+| real images exact / near | 2 / 2 | 2 / 2 |
+| cases to exact / lost exact | | 8 / 0 |
+| cases with fewer / more defects | | 24 / 0 |
+| missing creases / unmatched truth vertices | 7,391 / 2,614 | 6,305 / 2,164 |
+| cases with a prior; contacts completed, of them within 2 px of a truth contact | | 60; 443 / 443 |
+
+The eight conversions: centaur-3-0, diamond-sword, earwig, genos, girl-6,
+origami-by-xiao-dai, rat-skeleton, skeleton-shrimp. The largest defect
+reductions are the giants: arowana 181 → 19, batmobile 145 → 8, carp 155 →
+60, tank-girl 107 → 32, dark-magician 187 → 114. The four extra unmatched
+predicted vertices (basilisk-1-2, dwarf) are not the completed contacts,
+which all match; they are selection changes downstream on two 128-grids.
+
+On the full curated benchmark (run `2026-09-09-bp-grid-prior`, scored
+strictly against the work-budget run):
+
+| | after lever 3 | after lever 4 |
+| --- | --- | --- |
+| rendered decoder exact / strict convergence | 328 / 314 | 338 / 319 |
+| curated decoder exact / strict convergence | 18 / 18 | 18 / 18 |
+| decoder cases moved the wrong way | | 0 |
+| strict conversions gained / lost | | 5 / 0 |
+
+Ten rendered cases went near → exact and one off → near (dark-magician,
+131 → 82 missing creases). Five of the exact decodes converge strictly
+(centaur-3-0, dorcus-titanus, genos, girl-6, rat-skeleton). Four are over
+the solve's crease cap (diamond-sword, earwig, origami-by-xiao-dai,
+skeleton-shrimp): exact graphs waiting on the compute lever. One,
+wizard-by-ryo7262 — a hybrid whose diagonals run at 1:2, family vote 0.90
+— decodes exactly and its solve rejects its first stage where it had
+accepted a wrong answer on the near graph: the start has an 8.6° Kawasaki
+error at the junction one cell inside the top-left corner, identical in
+both runs (the same six creases at the same angles), and the exact graph
+leaves the solver no unconstrained vertex to absorb it. Not a regression
+in `recovered`; an honest failure where there was a wrong answer. The
+real images are untouched: three of the four box-pleated ones show no
+prior (too few spans to vote, or a grid the junctions do not confirm) and
+executioner's 28-cell grid finds nothing to complete.
+
 ## Harness findings to fix alongside
 
 - `end_to_end.recovered` scores strict topology and assignment on

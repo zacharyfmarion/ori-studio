@@ -700,6 +700,9 @@ cargo run --release -p oristudio-cp-detect --features native-inference \
 python3 scripts/cp-detect/contact_ink_referee.py /tmp/pool-off /tmp/pool-on
 ```
 
+`GRID_PRIOR=0` switches off the box-pleat grid completion of the border in
+the same tool, for an A/B of that lever on the candidate pools.
+
 For every contact the second dump moved, the referee fits the crease's ink
 centreline on the rectified grayscale from 12 to 90 px inside the edge and
 extrapolates it to the paper edge, then reports how far the head's position

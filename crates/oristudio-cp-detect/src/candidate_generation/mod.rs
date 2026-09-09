@@ -2,6 +2,7 @@ use std::fmt;
 use std::str::FromStr;
 
 mod contact_relocalize;
+mod grid_prior;
 mod junction_carrier_v1;
 mod junction_first_v1;
 mod legacy_topology_v2;
@@ -259,6 +260,10 @@ pub struct JunctionFirstV1StrategyOptions {
     /// Override for the boundary-contact peak threshold. `None` keeps the
     /// shared default (`line_threshold.max(0.50)`). For sweeps.
     pub boundary_contact_threshold: Option<f32>,
+    /// When the proposed graph shows a box-pleat grid, complete the border at
+    /// the grid positions where the ink shows a crease leaving the edge and
+    /// the contact head fired under its floor (see `grid_prior`).
+    pub grid_prior: bool,
 }
 
 impl Default for JunctionFirstV1StrategyOptions {
@@ -301,6 +306,7 @@ impl Default for JunctionFirstV1StrategyOptions {
             contact_relocalize: true,
             contact_merge_px: 3.0,
             boundary_contact_threshold: None,
+            grid_prior: true,
         }
     }
 }

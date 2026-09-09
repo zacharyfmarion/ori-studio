@@ -222,21 +222,24 @@ scoring are in `scripts/cp-detect/README.md`, the case format in
 `implementation-plans/cp-detect-curated-ground-truth.md` and the rendered
 group in `implementation-plans/cp-detect-rendered-corpus.md`.
 
-Last curated run on September 9, 2026 at the commit that put the solve on
-a work budget (`--budget-work`, below), on top of the junction lever — the
-junction peak floor at 0.25 with the weak-peak guards in
+Last curated run on September 9, 2026 at the commit that reads a box-pleat
+grid from the candidate graph and completes the paper border on it
+(`crates/oristudio-cp-detect/src/candidate_generation/grid_prior.rs`), on
+top of the solve's work budget (`--budget-work`, below), the junction lever
+— the junction peak floor at 0.25 with the weak-peak guards in
 `crates/oristudio-cp-detect/src/candidate_generation/junction_carrier_v1.rs`
 — the strict `recovered`, the paper-quad fix in the auto-rectifier
 (`crates/oristudio-cp-detect/src/rectify.rs`) and the boundary-contact
 re-localisation with its real-image hardening
 (`crates/oristudio-cp-detect/src/candidate_generation/contact_relocalize.rs`),
 with the model `scripts/cp-detect/current-model.json` named at that commit,
-on an Apple Silicon Mac with CoreML, 608 s on 8 workers with nothing else
-running. 558 cases in two
+on an Apple Silicon Mac with CoreML, 993 s on 8 workers on a machine
+carrying other load (the verdicts do not depend on it; the previous run took
+608 s alone). 558 cases in two
 ```text
-curated benchmark: 558 cases | decoder exact 346 of 539 (mean edge F1 0.966) | end to end recovered 332 | gate reproduced 441 | 608s
+curated benchmark: 558 cases | decoder exact 356 of 539 (mean edge F1 0.967) | end to end recovered 337 | gate reproduced 441 | 993s
   curated: decoder exact 18 of 61 (mean edge F1 0.944); end to end recovered 18, accepted wrong 16, not accepted 6; gate reproduced 34, close 3, off 2, not solved 10, skipped 1, solved without a truth 11
-  cpoogle: decoder exact 328 of 478 (mean edge F1 0.969); end to end recovered 314, accepted wrong 120, not accepted 42, skipped 6; gate reproduced 407, close 14, off 3, not solved 12, error 13, skipped 35
+  cpoogle: decoder exact 338 of 478 (mean edge F1 0.970); end to end recovered 319, accepted wrong 114, not accepted 43, skipped 6; gate reproduced 407, close 14, off 3, not solved 12, error 13, skipped 35
 ```
 
 `recovered` is strict since September 9, 2026: accepted **and** the strict
@@ -292,6 +295,26 @@ land elsewhere (ambiguous, and a different exact configuration 22 creases
 apart) — the free-slide noise below, set off by the sub-pixel shift the
 lower vote threshold gives every junction's centroid. The sweeps that chose
 the guards are in `implementation-plans/cp-detect-junction-weak-peaks.md`.
+
+The box-pleat grid prior then took the decoder from 346 to 356 exact (10
+near → exact, 1 off → near, none the other way) and strict `recovered`
+from 332 to 337, five conversions against no loss: after span proposal and
+contact re-localisation, a graph whose proposed spans run at multiples of
+45°, whose interior junctions sit on one square grid and whose contacts do
+not contradict it gets a boundary contact at every empty grid position
+where the ink shows a crease leaving the edge along the grid line or a
+diagonal — a ridge of line evidence, not the solid ink of a dense pleat —
+to a candidate vertex on that ray. On the 68 box-pleated cases' candidate
+pools it completed 443 contacts, every one within 2 px of a truth contact,
+and took 8 cases to an exact decode with none the other way. Four of the
+new exact decodes (diamond-sword, earwig, origami-by-xiao-dai,
+skeleton-shrimp) are over the solve's crease cap and stay `not_accepted`;
+wizard-by-ryo7262 decodes exactly and its solve, which had accepted a
+wrong answer on the near graph, now rejects its first stage — the start
+carries an 8.6° Kawasaki error at a junction one cell inside the corner
+that is the same in both runs, and the exact graph leaves the solver
+nowhere else to go. The sweep that set the gates is in
+`implementation-plans/cp-detect-box-pleat-grid-prior.md`.
 
 The solve runs on a work budget, not a clock, since September 9, 2026:
 5·10⁸ vertex²·checks by default (`--budget-work`), the 25 s the old clock

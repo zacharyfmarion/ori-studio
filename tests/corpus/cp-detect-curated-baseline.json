@@ -74,7 +74,7 @@
     },
     "cpoogle/aknosom-monster-hunter-aknosom-monster-hunter-by-rei-sueoka-1": {
       "decoder": "near",
-      "edge_f1": 0.991,
+      "edge_f1": 0.995,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -83,7 +83,7 @@
     },
     "cpoogle/alice-margatroid-touhou-alice-margatroid-touhou-by-dhujsi-er-1": {
       "decoder": "near",
-      "edge_f1": 0.973,
+      "edge_f1": 0.989,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -155,7 +155,7 @@
     },
     "cpoogle/ankylosaurus-ankylosaurus-by-tkg-origami": {
       "decoder": "near",
-      "edge_f1": 0.987,
+      "edge_f1": 0.994,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -254,7 +254,7 @@
     },
     "cpoogle/armadillo-lizard-armadillo-lizard-by-ikuno-riku": {
       "decoder": "near",
-      "edge_f1": 0.986,
+      "edge_f1": 0.998,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -263,7 +263,7 @@
     },
     "cpoogle/arowana-arowana-by-arisawa-yuga": {
       "decoder": "near",
-      "edge_f1": 0.974,
+      "edge_f1": 0.997,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -389,7 +389,7 @@
     },
     "cpoogle/basilisk-1-2-basilisk-1-2-by-bodo-haag": {
       "decoder": "near",
-      "edge_f1": 0.983,
+      "edge_f1": 0.987,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -434,7 +434,7 @@
     },
     "cpoogle/batmobile-batmobile-by-bodo-haag": {
       "decoder": "near",
-      "edge_f1": 0.975,
+      "edge_f1": 0.999,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -479,7 +479,7 @@
     },
     "cpoogle/beetle-larva-beetle-larva-by-kota-imai": {
       "decoder": "near",
-      "edge_f1": 0.997,
+      "edge_f1": 0.998,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -569,7 +569,7 @@
     },
     "cpoogle/black-rock-black-rock-by-xiao-dai": {
       "decoder": "near",
-      "edge_f1": 0.977,
+      "edge_f1": 0.999,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -596,7 +596,7 @@
     },
     "cpoogle/bodojin-32-bodojin-32-by-bodo-haag": {
       "decoder": "off",
-      "edge_f1": 0.935,
+      "edge_f1": 0.947,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -785,7 +785,7 @@
     },
     "cpoogle/carp-v1-1-carp-v1-1-by-kota-imai": {
       "decoder": "near",
-      "edge_f1": 0.973,
+      "edge_f1": 0.99,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -937,9 +937,9 @@
       "status": "solved"
     },
     "cpoogle/centaur-3-0-centaur-3-0-by-akihiro-kosuge": {
-      "decoder": "near",
-      "edge_f1": 0.994,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -1127,7 +1127,7 @@
     },
     "cpoogle/coconut-crab-2-0-coconut-crab-2-0-by-akihiro-kosuge": {
       "decoder": "near",
-      "edge_f1": 0.97,
+      "edge_f1": 0.978,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -1163,7 +1163,7 @@
     },
     "cpoogle/crane-crane-by-jordan-langerak": {
       "decoder": "near",
-      "edge_f1": 0.97,
+      "edge_f1": 0.981,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -1252,8 +1252,8 @@
       "status": "solved"
     },
     "cpoogle/dark-magician-dark-magician-by-walla-padoum": {
-      "decoder": "off",
-      "edge_f1": 0.937,
+      "decoder": "near",
+      "edge_f1": 0.96,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -1306,8 +1306,8 @@
       "status": "solved"
     },
     "cpoogle/diamond-sword-diamond-sword-v2-3-29-24": {
-      "decoder": "near",
-      "edge_f1": 0.979,
+      "decoder": "exact",
+      "edge_f1": 1.0,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -1405,9 +1405,9 @@
       "status": "solved"
     },
     "cpoogle/dorcus-titanus-dorcus-titanus-by-nguy-n-ng-c-th-nh": {
-      "decoder": "near",
-      "edge_f1": 0.987,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -1550,7 +1550,7 @@
     },
     "cpoogle/dwarf-dwarf-by-bodo-haag": {
       "decoder": "near",
-      "edge_f1": 0.97,
+      "edge_f1": 0.984,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -1603,8 +1603,8 @@
       "status": "solved"
     },
     "cpoogle/earwig-earwig-by-david-wismath": {
-      "decoder": "near",
-      "edge_f1": 0.982,
+      "decoder": "exact",
+      "edge_f1": 1.0,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -1936,9 +1936,9 @@
       "status": "solved"
     },
     "cpoogle/genos-genos-by-folder951hekai": {
-      "decoder": "near",
-      "edge_f1": 0.993,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -2000,7 +2000,7 @@
     },
     "cpoogle/girl-4-girl-4-by-dhujsi-er": {
       "decoder": "near",
-      "edge_f1": 0.987,
+      "edge_f1": 0.991,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -2017,9 +2017,9 @@
       "status": "solved"
     },
     "cpoogle/girl-6-girl-6-by-dhujsi-er": {
-      "decoder": "near",
-      "edge_f1": 0.988,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -2558,7 +2558,7 @@
     },
     "cpoogle/kirin-kirin": {
       "decoder": "near",
-      "edge_f1": 0.986,
+      "edge_f1": 0.99,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -2747,7 +2747,7 @@
     },
     "cpoogle/lucanus-bright-lucanus-bright-by-matt-laboone": {
       "decoder": "near",
-      "edge_f1": 0.976,
+      "edge_f1": 0.99,
       "end_to_end": "not_accepted",
       "gate": "error",
       "gate_max_px": null,
@@ -2765,7 +2765,7 @@
     },
     "cpoogle/maid-maid-by-dhujsi-er": {
       "decoder": "near",
-      "edge_f1": 0.974,
+      "edge_f1": 0.995,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -2864,7 +2864,7 @@
     },
     "cpoogle/megumin-megumin-by-dhujsi-er": {
       "decoder": "near",
-      "edge_f1": 0.988,
+      "edge_f1": 0.999,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -3016,8 +3016,8 @@
       "status": "solved"
     },
     "cpoogle/origami-origami-by-xiao-dai": {
-      "decoder": "near",
-      "edge_f1": 0.984,
+      "decoder": "exact",
+      "edge_f1": 1.0,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -3161,7 +3161,7 @@
     },
     "cpoogle/platynus-livens-platynus-livens-by-samuel-nhoung": {
       "decoder": "near",
-      "edge_f1": 0.975,
+      "edge_f1": 0.985,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -3322,9 +3322,9 @@
       "status": "solved"
     },
     "cpoogle/rat-skeleton-rat-skeleton-by-bodo-haag": {
-      "decoder": "near",
-      "edge_f1": 0.991,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -3637,8 +3637,8 @@
       "status": "solved"
     },
     "cpoogle/skeleton-shrimp-skeleton-shrimp-by-samuel-nhoung": {
-      "decoder": "near",
-      "edge_f1": 0.985,
+      "decoder": "exact",
+      "edge_f1": 1.0,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -3845,7 +3845,7 @@
     },
     "cpoogle/sun-wukong-sun-wukong-by-zhu9002": {
       "decoder": "near",
-      "edge_f1": 0.98,
+      "edge_f1": 0.996,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -3917,7 +3917,7 @@
     },
     "cpoogle/tank-girl-tank-girl-by-dhujsi-er": {
       "decoder": "near",
-      "edge_f1": 0.974,
+      "edge_f1": 0.992,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -4205,7 +4205,7 @@
     },
     "cpoogle/wasp-wasp-by-nguy-n-ng-c-th-nh": {
       "decoder": "near",
-      "edge_f1": 0.976,
+      "edge_f1": 0.991,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -4286,7 +4286,7 @@
     },
     "cpoogle/wizard-girl-wizard-girl-by-zhu9002": {
       "decoder": "near",
-      "edge_f1": 0.978,
+      "edge_f1": 0.987,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -4294,9 +4294,9 @@
       "status": "solved"
     },
     "cpoogle/wizard-wizard-by-ryo7262": {
-      "decoder": "near",
-      "edge_f1": 0.986,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "not_accepted",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -5024,28 +5024,28 @@
     }
   },
   "cases_total": 558,
-  "commit": "27f4b765ab748c0fe3368a80d3348f86558668f8",
+  "commit": "ded3c562ca7f98bbb043fe084b030a73d9032cc2",
   "decoder": {
     "buckets": {
-      "exact": 346,
+      "exact": 356,
       "n/a": 13,
-      "near": 133,
-      "off": 60,
+      "near": 124,
+      "off": 59,
       "skipped": 6
     },
-    "exact_topology": 346,
-    "mean_edge_f1": 0.966,
+    "exact_topology": 356,
+    "mean_edge_f1": 0.967,
     "scored": 539
   },
   "end_to_end": {
     "buckets": {
-      "accepted_wrong": 136,
+      "accepted_wrong": 130,
       "n/a": 36,
-      "not_accepted": 48,
-      "recovered": 332,
+      "not_accepted": 49,
+      "recovered": 337,
       "skipped": 6
     },
-    "recovered": 332
+    "recovered": 337
   },
   "gate": {
     "buckets": {
@@ -5065,24 +5065,24 @@
       "cases_total": 484,
       "decoder": {
         "buckets": {
-          "exact": 328,
-          "near": 112,
-          "off": 38,
+          "exact": 338,
+          "near": 103,
+          "off": 37,
           "skipped": 6
         },
-        "exact_topology": 328,
-        "mean_edge_f1": 0.969,
+        "exact_topology": 338,
+        "mean_edge_f1": 0.97,
         "scored": 478
       },
       "end_to_end": {
         "buckets": {
-          "accepted_wrong": 120,
+          "accepted_wrong": 114,
           "n/a": 2,
-          "not_accepted": 42,
-          "recovered": 314,
+          "not_accepted": 43,
+          "recovered": 319,
           "skipped": 6
         },
-        "recovered": 314
+        "recovered": 319
       },
       "gate": {
         "buckets": {

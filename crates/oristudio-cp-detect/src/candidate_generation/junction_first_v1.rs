@@ -358,6 +358,26 @@ fn graph_from_evidence_with_vertices(
         config.image_size,
         options,
     );
+    // A box-pleat grid, when the graph shows one, completes the border at
+    // the grid positions the contact head under-read. After the
+    // re-localisation: the grid's hold on the border is read from the
+    // contacts' corrected positions (the head's along-edge bias hides it),
+    // and a completed contact sits on its grid position, which is the ink's.
+    let grid = if options.grid_prior {
+        super::grid_prior::detect_grid_prior(&vertices, &crease_spans, config.image_size, options)
+    } else {
+        None
+    };
+    let completed = grid.map_or_else(Default::default, |prior| {
+        super::grid_prior::complete_border_on_grid(
+            &mut vertices,
+            &mut crease_spans,
+            &prior,
+            evidence,
+            config.image_size,
+            options,
+        )
+    });
     let boundary = boundary_model(&vertices, [0, 1, 2, 3]);
     let mut spans = Vec::new();
     add_locked_border_spans(&vertices, &boundary, &mut spans);
@@ -383,6 +403,18 @@ fn graph_from_evidence_with_vertices(
                     "boundary contacts re-localised from the ink: {} moved, {} merged",
                     relocalized.moved, relocalized.merged
                 ),
+                match grid {
+                    Some(prior) => format!(
+                        "box-pleat grid prior: {} cells (family {:.3}, grid {:.3}, contacts {:.3}); border completed with {} contacts, {} spans",
+                        prior.cells,
+                        prior.family_fraction,
+                        prior.grid_score,
+                        prior.contact_score,
+                        completed.contacts,
+                        completed.spans
+                    ),
+                    None => "box-pleat grid prior: none".to_owned(),
+                },
             ],
         },
         report: CandidateGraphReport {
@@ -536,7 +568,7 @@ fn has_intermediate_vertex(
     false
 }
 
-fn pair_supported(stats: SpanStats, options: JunctionFirstV1StrategyOptions) -> bool {
+pub(super) fn pair_supported(stats: SpanStats, options: JunctionFirstV1StrategyOptions) -> bool {
     stats.line_mean >= options.min_span_line_support
         && (stats.line_min >= options.min_span_line_min_support
             || stats.line_mean >= options.strong_span_line_support)

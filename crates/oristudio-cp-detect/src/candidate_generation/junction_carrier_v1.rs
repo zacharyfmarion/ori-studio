@@ -438,7 +438,7 @@ pub(super) fn vertices_from_unit_points(points: &[Point2]) -> Vec<CandidateVerte
     vertices
 }
 
-fn vertex(
+pub(super) fn vertex(
     id: usize,
     point: Point2,
     kind: CandidateVertexKind,
@@ -980,7 +980,7 @@ fn assignment_from_sums(
     }
 }
 
-fn unknown_assignment() -> AssignmentEvidence {
+pub(super) fn unknown_assignment() -> AssignmentEvidence {
     AssignmentEvidence {
         mountain: 0.05,
         valley: 0.05,
