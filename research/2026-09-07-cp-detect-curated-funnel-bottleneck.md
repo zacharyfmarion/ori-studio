@@ -263,6 +263,40 @@ the referee could not verify; an unreadable incident span now vetoes the
 move (the plan has the numbers). An angle gate was tried and dropped: no
 correction below 35° keeps 4 of the 41 rendered decoder conversions.
 
+## Lever 2, landed (2026-09-08)
+
+The nine frame errors were the panel finder's choice, not its search: in
+every `detect_quad_warp` case the true paper was the finder's first-ranked
+candidate (confidence 0.977–0.994, square to 0.994 or better, all four
+sides on an edge) and `choose_panel`'s "largest bordered square with
+`square_score ≥ 0.9`" took a box one edge wider — a title, a legend, an aux
+line off the paper, a page rule — 4–8% off square, or the same-size square
+shifted onto the title (swift-dragon). u-waluigi001's paper, found exactly,
+was swallowed by `is_full_frame_panel`'s 2.5% tolerance (23 px on 1566);
+ubu's by `frame_candidate` firing on mean border support 0.25 from a single
+dark image edge. The rules now: the largest bordered box gives way to a
+genuine square (within a percent) only when it fills 85% of the box; two
+genuine squares within 2% in area tie on their weakest side; the frame needs
+every side half on an edge; the full-frame tolerance is 0.5%. Two simpler
+forms failed on the renders — a per-side gate (a border crossed by creases
+reads 0.74) and a same-size band by confidence (dense grids have a
+corner-anchored square a cell inside the far edges) — and the rendered group
+caught both. Plan and tables:
+`implementation-plans/cp-detect-rectify-paper-quad.md`.
+
+| | after lever 1 | after lever 2 |
+| --- | --- | --- |
+| curated decoder exact / mean edge F1 | 15 / 0.818 | 16 / 0.943 |
+| curated strict convergence | 16 | 18 |
+| curated harness recovered | 18 | 21 |
+| rendered decoder exact / strict convergence | 298 / 288 | 298 / 288 |
+
+The nine cases' decoder edge F1 went from 0.01–0.24 to 0.82–1.00.
+common-wildebeest is exact and converges, ubu converges, roadrunner is
+recovered by the harness (3 missing / 2 extra edges at 2 px, strictly), and
+the rest are ordinary detection cases now — the border-contact class again
+(crocodile 8 missing / 23 extra, water-boatmen 17 / 28).
+
 ## Harness findings to fix alongside
 
 - `end_to_end.recovered` should score strict topology and assignment on
@@ -290,8 +324,10 @@ correction below 35° keeps 4 of the 41 rendered decoder conversions.
   `JUNCTION_PEAK_THRESHOLD` and `VERTEX_MERGE_RADIUS_PX` env overrides for
   sweeps (and `CONTACT_THRESHOLD`, `CONTACT_RELOCALIZE=0`, `CONTACT_MERGE_PX`
   for the contact decode); the rectified input goes beside the maps as
-  `<case>.rect.png`. Its selection reproduces the harness's decoder buckets
-  on 101 of 102 checked cases.
+  `<case>.rect.png`, and the full rectification report — mode, chosen quad,
+  every ranked panel candidate with its per-side border support — as
+  `<case>.rectify.json`. Its selection reproduces the harness's decoder
+  buckets on 101 of 102 checked cases.
 - `scripts/cp-detect/contact_ink_referee.py`: judges moved boundary
   contacts against the crease's ink centreline on the rectified grayscale,
   from two dumps (re-localisation off and on); the check the curated truths

@@ -75,7 +75,7 @@
     "cpoogle/aknosom-monster-hunter-aknosom-monster-hunter-by-rei-sueoka-1": {
       "decoder": "near",
       "edge_f1": 0.991,
-      "end_to_end": "not_accepted",
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -2783,7 +2783,7 @@
     },
     "cpoogle/mammoth-v2-fishfolder-mammoth": {
       "decoder": "off",
-      "edge_f1": 0.001,
+      "edge_f1": 0.002,
       "end_to_end": "not_accepted",
       "gate": "close",
       "gate_max_px": 1.288,
@@ -3432,7 +3432,7 @@
     "cpoogle/rooster-pd-rooster-by-mineo-shotaro": {
       "decoder": "near",
       "edge_f1": 0.993,
-      "end_to_end": "not_accepted",
+      "end_to_end": "accepted_wrong",
       "gate": "not_solved",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -3710,7 +3710,7 @@
     },
     "cpoogle/spider-spider-by-tera-origami": {
       "decoder": "off",
-      "edge_f1": 0.0,
+      "edge_f1": 0.002,
       "end_to_end": "accepted_wrong",
       "gate": "error",
       "gate_max_px": null,
@@ -4438,9 +4438,9 @@
       "status": "topology"
     },
     "curated/common-wildebeest": {
-      "decoder": "off",
-      "edge_f1": 0.243,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.662,
       "gate_unpaired_junctions": 0,
@@ -4475,7 +4475,7 @@
     },
     "curated/crocodile": {
       "decoder": "off",
-      "edge_f1": 0.056,
+      "edge_f1": 0.873,
       "end_to_end": "not_accepted",
       "gate": "not_solved",
       "gate_max_px": 0.0,
@@ -4583,7 +4583,7 @@
     },
     "curated/helmeted-hornbill": {
       "decoder": "off",
-      "edge_f1": 0.105,
+      "edge_f1": 0.944,
       "end_to_end": "accepted_wrong",
       "gate": "off",
       "gate_max_px": 0.0,
@@ -4861,9 +4861,9 @@
       "status": "topology"
     },
     "curated/roadrunner": {
-      "decoder": "off",
-      "edge_f1": 0.081,
-      "end_to_end": "accepted_wrong",
+      "decoder": "near",
+      "edge_f1": 0.959,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -4907,7 +4907,7 @@
     },
     "curated/swift-dragon": {
       "decoder": "off",
-      "edge_f1": 0.009,
+      "edge_f1": 0.895,
       "end_to_end": "n/a",
       "gate": "not_solved",
       "gate_max_px": null,
@@ -4942,8 +4942,8 @@
       "status": "skipped"
     },
     "curated/turkey-vulture": {
-      "decoder": "off",
-      "edge_f1": 0.182,
+      "decoder": "near",
+      "edge_f1": 0.976,
       "end_to_end": "not_accepted",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -4961,7 +4961,7 @@
     },
     "curated/u-waluigi001": {
       "decoder": "off",
-      "edge_f1": 0.018,
+      "edge_f1": 0.949,
       "end_to_end": "n/a",
       "gate": "not_solved",
       "gate_max_px": null,
@@ -4969,9 +4969,9 @@
       "status": "topology"
     },
     "curated/ubu": {
-      "decoder": "off",
-      "edge_f1": 0.0,
-      "end_to_end": "not_accepted",
+      "decoder": "near",
+      "edge_f1": 0.987,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -4997,7 +4997,7 @@
     },
     "curated/water-boatmen": {
       "decoder": "off",
-      "edge_f1": 0.059,
+      "edge_f1": 0.819,
       "end_to_end": "not_accepted",
       "gate": "reproduced",
       "gate_max_px": 0.38,
@@ -5024,28 +5024,28 @@
     }
   },
   "cases_total": 558,
-  "commit": "3f4d90a80f16c8a577f10c61358deffe0cd60b74",
+  "commit": "67c24d349b81ce578563d8aa9f9ecbd50427f4e9",
   "decoder": {
     "buckets": {
-      "exact": 313,
+      "exact": 314,
       "n/a": 13,
-      "near": 157,
-      "off": 69,
+      "near": 160,
+      "off": 65,
       "skipped": 6
     },
-    "exact_topology": 313,
-    "mean_edge_f1": 0.95,
+    "exact_topology": 314,
+    "mean_edge_f1": 0.965,
     "scored": 539
   },
   "end_to_end": {
     "buckets": {
-      "accepted_wrong": 130,
+      "accepted_wrong": 129,
       "n/a": 36,
-      "not_accepted": 51,
-      "recovered": 335,
+      "not_accepted": 48,
+      "recovered": 339,
       "skipped": 6
     },
-    "recovered": 335
+    "recovered": 339
   },
   "gate": {
     "buckets": {
@@ -5076,13 +5076,13 @@
       },
       "end_to_end": {
         "buckets": {
-          "accepted_wrong": 115,
+          "accepted_wrong": 116,
           "n/a": 2,
-          "not_accepted": 44,
-          "recovered": 317,
+          "not_accepted": 42,
+          "recovered": 318,
           "skipped": 6
         },
-        "recovered": 317
+        "recovered": 318
       },
       "gate": {
         "buckets": {
@@ -5105,23 +5105,23 @@
       "cases_total": 74,
       "decoder": {
         "buckets": {
-          "exact": 15,
+          "exact": 16,
           "n/a": 13,
-          "near": 20,
-          "off": 26
+          "near": 23,
+          "off": 22
         },
-        "exact_topology": 15,
-        "mean_edge_f1": 0.818,
+        "exact_topology": 16,
+        "mean_edge_f1": 0.943,
         "scored": 61
       },
       "end_to_end": {
         "buckets": {
-          "accepted_wrong": 15,
+          "accepted_wrong": 13,
           "n/a": 34,
-          "not_accepted": 7,
-          "recovered": 18
+          "not_accepted": 6,
+          "recovered": 21
         },
-        "recovered": 18
+        "recovered": 21
       },
       "gate": {
         "buckets": {

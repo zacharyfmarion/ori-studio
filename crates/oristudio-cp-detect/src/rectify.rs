@@ -32,6 +32,22 @@ fn paper_target_span(image_size: u32) -> (f32, f32) {
     (margin, image_size as f32 - margin)
 }
 const MIN_PANEL_CONFIDENCE: f32 = 0.72;
+/// A bordered square the finder may prefer for its size over a better-scoring
+/// one: square to within about a percent (`square_score` is
+/// `1 - |ln aspect| / ln 1.8`).
+const GENUINE_SQUARE_SCORE: f64 = 0.985;
+/// Two genuine squares whose areas are within this ratio are one paper seen
+/// twice, the second shifted onto a title or a crease row (0.4–1.1% larger
+/// on the curated scans); the better-supported one is the paper.
+const SAME_SIZE_AREA_RATIO: f32 = 0.98;
+/// A genuine square replaces the largest bordered box only when it fills
+/// this much of it: the box is then the paper plus one extension (0.95–0.97
+/// on the curated scans), not a paper with a square drawn inside.
+const PAPER_OF_BOX_AREA_RATIO: f32 = 0.85;
+/// A full-frame border needs every side of the frame on an edge at least this
+/// far, not only the mean: a scan with one dark edge is not a paper filling
+/// the frame.
+const FRAME_MIN_SIDE_SUPPORT: f32 = 0.5;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Point {
@@ -376,26 +392,101 @@ fn ranked_panel_candidates(analysis: &ImageAnalysis) -> Vec<PanelCandidate> {
 /// all the others, so among the bordered squares the finder believes in, the
 /// largest is the paper. The ink bounding box is not a bordered square and
 /// keeps to the ranking: a caption outside the paper stretches it.
+///
+/// "Square" has to mean it. A title, a legend, an auxiliary line running off
+/// the paper, or the page's own edge gives the finder a box one edge wider
+/// than the paper, 3–7% off square, and a gate at `square_score ≥ 0.9` (6%)
+/// let it win on area on six of the curated benchmark's real images while
+/// the paper itself sat first in the ranking. So the largest bordered box
+/// gives way to the largest *genuine* square — square to within a percent —
+/// when that square fills most of the box: the paper plus one extension.
+/// A square drawn well inside the box is not that, and the box stays (a
+/// shell inside a turtle, on a scan a little off square). Two genuine
+/// squares of the same size are one paper seen twice, the second shifted
+/// onto a title or a crease row; the one with every side on an edge wins.
 fn choose_panel(ranked: &[PanelCandidate]) -> Option<&PanelCandidate> {
     let best = ranked.first()?;
+    let loose = largest(&bordered_squares(ranked, 0.9));
+    let genuine = paper_among(&bordered_squares(ranked, GENUINE_SQUARE_SCORE));
+    match (loose, genuine) {
+        (Some(bordered), Some(square))
+            if square.quad.area() >= bordered.quad.area() * PAPER_OF_BOX_AREA_RATIO =>
+        {
+            Some(square)
+        }
+        (Some(bordered), _) => Some(bordered),
+        (None, Some(square)) => Some(square),
+        (None, None) => Some(best),
+    }
+}
+
+/// The largest of the squares, where those within `SAME_SIZE_AREA_RATIO` of
+/// the largest are the same square: the best-supported of them, then the
+/// most confident.
+fn paper_among<'a>(squares: &[&'a PanelCandidate]) -> Option<&'a PanelCandidate> {
+    let largest_area = squares
+        .iter()
+        .map(|candidate| candidate.quad.area())
+        .fold(0.0_f32, f32::max);
+    squares
+        .iter()
+        .filter(|candidate| candidate.quad.area() >= largest_area * SAME_SIZE_AREA_RATIO)
+        .max_by(|left, right| {
+            min_side_support(left)
+                .total_cmp(&min_side_support(right))
+                .then(left.confidence.total_cmp(&right.confidence))
+                .then(left.quad.area().total_cmp(&right.quad.area()))
+        })
+        .copied()
+}
+
+fn square_score(candidate: &PanelCandidate) -> f64 {
+    candidate
+        .metrics
+        .get("square_score")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0)
+}
+
+/// A candidate's least-supported side, from the metrics `score_quad` wrote.
+fn min_side_support(candidate: &PanelCandidate) -> f64 {
+    candidate
+        .metrics
+        .get("border_sides")
+        .and_then(Value::as_array)
+        .map(|sides| {
+            sides
+                .iter()
+                .filter_map(Value::as_f64)
+                .fold(f64::INFINITY, f64::min)
+        })
+        .filter(|value| value.is_finite())
+        .unwrap_or(0.0)
+}
+
+/// The credible projection candidates at least `square_floor` square.
+fn bordered_squares(ranked: &[PanelCandidate], square_floor: f64) -> Vec<&PanelCandidate> {
     ranked
         .iter()
         .filter(|candidate| {
             candidate.method == "border_projection"
                 && candidate.confidence >= MIN_PANEL_CONFIDENCE
-                && candidate
-                    .metrics
-                    .get("square_score")
-                    .and_then(Value::as_f64)
-                    .is_some_and(|square| square >= 0.9)
+                && square_score(candidate) >= square_floor
         })
+        .collect()
+}
+
+/// The largest candidate, the more confident of two the same size.
+fn largest<'a>(candidates: &[&'a PanelCandidate]) -> Option<&'a PanelCandidate> {
+    candidates
+        .iter()
         .max_by(|left, right| {
             left.quad
                 .area()
                 .total_cmp(&right.quad.area())
                 .then(left.confidence.total_cmp(&right.confidence))
         })
-        .or(Some(best))
+        .copied()
 }
 
 /// The ranked candidates as the report carries them: enough to see what
@@ -420,6 +511,7 @@ fn candidate_summaries(ranked: &[PanelCandidate]) -> Value {
                     ],
                     "area_ratio": candidate.metrics.get("area_ratio").cloned().unwrap_or(Value::Null),
                     "border_score": candidate.metrics.get("border_score").cloned().unwrap_or(Value::Null),
+                    "border_sides": candidate.metrics.get("border_sides").cloned().unwrap_or(Value::Null),
                     "square_score": candidate.metrics.get("square_score").cloned().unwrap_or(Value::Null),
                     "edge_density": candidate.metrics.get("edge_density").cloned().unwrap_or(Value::Null),
                 })
@@ -434,9 +526,11 @@ fn frame_candidate(analysis: &ImageAnalysis) -> Option<PanelCandidate> {
         return None;
     }
     let quad = Quad::frame(analysis.width as u32, analysis.height as u32);
-    let border_score = border_support(analysis, quad);
+    let border_sides = border_support_sides(analysis, quad);
+    let border_score = border_sides.iter().sum::<f32>() / 4.0;
+    let weakest_side = border_sides.iter().copied().fold(f32::INFINITY, f32::min);
     let interior_density = interior_edge_density(analysis, quad);
-    if border_score < 0.24 || interior_density < 0.002 {
+    if border_score < 0.24 || weakest_side < FRAME_MIN_SIDE_SUPPORT || interior_density < 0.002 {
         return None;
     }
     Some(PanelCandidate {
@@ -446,6 +540,7 @@ fn frame_candidate(analysis: &ImageAnalysis) -> Option<PanelCandidate> {
         metrics: json!({
             "method": "full_frame_border",
             "border_score": border_score,
+            "border_sides": border_sides,
             "edge_density": interior_density,
         }),
     })
@@ -662,7 +757,8 @@ fn score_quad(analysis: &ImageAnalysis, quad: Quad, method: &'static str) -> (f3
     } else {
         clamp01(area_ratio / 0.16)
     };
-    let border_support = border_support(analysis, quad);
+    let border_sides = border_support_sides(analysis, quad);
+    let border_support = border_sides.iter().sum::<f32>() / 4.0;
     let interior_density = interior_edge_density(analysis, quad);
     let density_score = clamp01(interior_density / 0.045);
     let confidence = clamp01(
@@ -681,6 +777,7 @@ fn score_quad(analysis: &ImageAnalysis, quad: Quad, method: &'static str) -> (f3
             "square_score": square_score,
             "size_score": size_score,
             "border_score": border_support,
+            "border_sides": border_sides,
             "edge_density": interior_density,
             "density_score": density_score,
             "coverage_score": coverage_score(analysis, quad),
@@ -688,14 +785,16 @@ fn score_quad(analysis: &ImageAnalysis, quad: Quad, method: &'static str) -> (f3
     )
 }
 
-fn border_support(analysis: &ImageAnalysis, quad: Quad) -> f32 {
+/// The share of each side (top, right, bottom, left) that runs along an
+/// edge in the image.
+fn border_support_sides(analysis: &ImageAnalysis, quad: Quad) -> [f32; 4] {
     let p = quad.points();
     let samples = quad.mean_side().round().clamp(24.0, 512.0) as usize;
-    let mut active = 0usize;
-    let mut total = 0usize;
-    for side in 0..4 {
+    let mut sides = [0.0; 4];
+    for (side, support) in sides.iter_mut().enumerate() {
         let a = p[side];
         let b = p[(side + 1) % 4];
+        let mut active = 0usize;
         for step in 0..=samples {
             let t = step as f32 / samples as f32;
             let point = a.lerp(b, t);
@@ -707,10 +806,10 @@ fn border_support(analysis: &ImageAnalysis, quad: Quad) -> f32 {
             ) {
                 active += 1;
             }
-            total += 1;
         }
+        *support = active as f32 / (samples + 1) as f32;
     }
-    active as f32 / total.max(1) as f32
+    sides
 }
 
 fn interior_edge_density(analysis: &ImageAnalysis, quad: Quad) -> f32 {
@@ -811,7 +910,10 @@ fn is_full_frame_panel(width: u32, height: u32, quad: Quad) -> bool {
         return false;
     }
     let area_ratio = quad.area() / ((width - 1).max(1) * (height - 1).max(1)) as f32;
-    let tolerance = (width.min(height) as f32 * 0.025).max(6.0);
+    // A bordered square a few pixels inside the frame is the frame; one 1.5%
+    // inside is a paper with a margin, and resizing the frame would hand the
+    // decoder that margin as a scale error (u-waluigi001: 23 px on 1566).
+    let tolerance = (width.min(height) as f32 * 0.005).max(3.0);
     let points = quad.points();
     let min_x = points
         .iter()
@@ -1404,6 +1506,163 @@ mod tests {
             .expect("candidates")
             .clone();
         assert!(candidates.len() >= 2, "{candidates:?}");
+    }
+
+    /// A caption rule, a legend, an auxiliary line running off the paper or
+    /// the page's own edge gives the finder a box one edge wider than the
+    /// paper. It is bordered on every side and only a few percent off
+    /// square, and it is larger; the paper still wins.
+    #[test]
+    fn auto_rectifier_prefers_the_paper_over_a_wider_box_a_few_percent_off_square() {
+        let mut image = white_rgba(400, 400);
+        // The paper, 280 px square.
+        draw_rect(&mut image, 400, 60, 60, 340, 340, [0, 0, 0], 3);
+        // A full-height rule 12 px outside its left edge: with the paper's
+        // top and bottom it makes a 292 x 280 box, square to 4%.
+        draw_line(&mut image, 400, 48, 60, 48, 340, [0, 0, 0], 3);
+        draw_line(&mut image, 400, 48, 60, 60, 60, [0, 0, 0], 3);
+        draw_line(&mut image, 400, 48, 340, 60, 340, [0, 0, 0], 3);
+        // Creases, so the paper is not empty.
+        draw_line(&mut image, 400, 60, 200, 340, 200, [200, 0, 0], 2);
+        draw_line(&mut image, 400, 200, 60, 200, 340, [0, 0, 200], 2);
+        draw_line(&mut image, 400, 60, 60, 340, 340, [200, 0, 0], 2);
+        draw_line(&mut image, 400, 340, 60, 60, 340, [0, 0, 200], 2);
+
+        let result = auto_rectify_rgba(&image, 400, 400, 256).expect("rectify");
+
+        assert_eq!(result.report.mode, "detect_quad_warp");
+        let detected = result.report.detected_source_quad.expect("detected quad");
+        assert!((detected.top_left.x - 60.0).abs() <= 6.0, "{detected:?}");
+        assert!(
+            (detected.bottom_right.x - 340.0).abs() <= 6.0,
+            "{detected:?}"
+        );
+        // The wider box was a credible candidate.
+        let candidates = result.report.metrics["raw"]["candidates"]
+            .as_array()
+            .expect("candidates")
+            .clone();
+        assert!(
+            candidates.iter().any(|candidate| {
+                candidate["box"][0]
+                    .as_f64()
+                    .is_some_and(|x| (x - 48.0).abs() <= 6.0)
+                    && candidate["confidence"].as_f64().is_some_and(|c| c >= 0.72)
+            }),
+            "{candidates:?}"
+        );
+    }
+
+    /// A square the paper's size, shifted so that its top edge runs along the
+    /// title and its bottom along a crease, is the same size as the paper;
+    /// the paper, bordered on every side, is the one to keep.
+    #[test]
+    fn auto_rectifier_prefers_the_paper_over_a_square_of_its_size_shifted_onto_the_title() {
+        let mut image = white_rgba(400, 400);
+        // The paper, 280 px square, with creases.
+        draw_rect(&mut image, 400, 60, 60, 340, 340, [0, 0, 0], 3);
+        draw_line(&mut image, 400, 60, 200, 340, 200, [200, 0, 0], 2);
+        draw_line(&mut image, 400, 200, 60, 200, 340, [0, 0, 200], 2);
+        draw_line(&mut image, 400, 60, 60, 340, 340, [200, 0, 0], 2);
+        // A crease 20 px above the bottom edge, and a title 20 px above the
+        // paper spanning most of its width: a 280 px square shifted up by 20.
+        draw_line(&mut image, 400, 60, 320, 340, 320, [200, 0, 0], 2);
+        draw_line(&mut image, 400, 70, 40, 300, 40, [0, 0, 0], 3);
+
+        let result = auto_rectify_rgba(&image, 400, 400, 256).expect("rectify");
+
+        assert_eq!(result.report.mode, "detect_quad_warp");
+        let detected = result.report.detected_source_quad.expect("detected quad");
+        assert!((detected.top_left.y - 60.0).abs() <= 6.0, "{detected:?}");
+        assert!(
+            (detected.bottom_right.y - 340.0).abs() <= 6.0,
+            "{detected:?}"
+        );
+    }
+
+    /// A paper whose border is crossed by creases every few pixels reads a
+    /// weak border on that side; it is still the largest square, and beats
+    /// the fully bordered square drawn inside it.
+    #[test]
+    fn auto_rectifier_prefers_a_paper_with_a_busy_border_over_a_clean_square_inside_it() {
+        let mut image = white_rgba(400, 400);
+        // The paper, its right border broken every 20 px.
+        draw_rect(&mut image, 400, 30, 30, 370, 370, [0, 0, 0], 3);
+        for gap in (40..360).step_by(20) {
+            draw_line(&mut image, 400, 366, gap, 374, gap + 4, [255, 255, 255], 9);
+        }
+        // A clean square inside it, with its diagonals.
+        draw_rect(&mut image, 400, 60, 60, 180, 180, [200, 0, 0], 3);
+        draw_line(&mut image, 400, 60, 60, 180, 180, [0, 0, 200], 2);
+        draw_line(&mut image, 400, 180, 60, 60, 180, [0, 0, 200], 2);
+        // Creases across the rest of the paper.
+        draw_line(&mut image, 400, 30, 250, 370, 250, [200, 0, 0], 2);
+        draw_line(&mut image, 400, 250, 30, 250, 370, [0, 0, 200], 2);
+        draw_line(&mut image, 400, 30, 370, 370, 30, [200, 0, 0], 2);
+
+        let result = auto_rectify_rgba(&image, 400, 400, 256).expect("rectify");
+
+        assert_eq!(result.report.mode, "detect_quad_warp");
+        let detected = result.report.detected_source_quad.expect("detected quad");
+        assert!((detected.top_left.x - 30.0).abs() <= 6.0, "{detected:?}");
+        assert!(
+            (detected.bottom_right.x - 370.0).abs() <= 6.0,
+            "{detected:?}"
+        );
+    }
+
+    /// A paper whose border sits a percent or two inside the image is a
+    /// paper with a margin, not the frame: it is warped to the paper box,
+    /// or the decoder reads the margin as a scale error.
+    #[test]
+    fn auto_rectifier_warps_a_paper_a_little_inside_the_frame() {
+        let mut image = white_rgba(400, 400);
+        draw_rect(&mut image, 400, 6, 6, 393, 393, [0, 0, 0], 3);
+        draw_line(&mut image, 400, 6, 6, 393, 393, [0, 0, 255], 2);
+        draw_line(&mut image, 400, 393, 6, 6, 393, [255, 0, 0], 2);
+        draw_line(&mut image, 400, 6, 200, 393, 200, [255, 0, 0], 2);
+
+        let result = auto_rectify_rgba(&image, 400, 400, 256).expect("rectify");
+
+        assert_eq!(
+            result.report.mode, "detect_quad_warp",
+            "{:?}",
+            result.report
+        );
+        let detected = result.report.detected_source_quad.expect("detected quad");
+        assert!((detected.top_left.x - 6.0).abs() <= 3.0, "{detected:?}");
+        assert!(
+            (detected.bottom_right.y - 393.0).abs() <= 3.0,
+            "{detected:?}"
+        );
+    }
+
+    /// A scan with one dark image edge is not a paper filling the frame: the
+    /// frame's mean border support clears the bar on that side alone, and the
+    /// bordered square inside it is the paper.
+    #[test]
+    fn auto_rectifier_ignores_a_frame_with_one_dark_edge() {
+        let mut image = white_rgba(400, 400);
+        draw_rect(&mut image, 400, 30, 30, 370, 370, [0, 0, 0], 3);
+        draw_line(&mut image, 400, 30, 30, 370, 370, [0, 0, 255], 2);
+        draw_line(&mut image, 400, 370, 30, 30, 370, [255, 0, 0], 2);
+        draw_line(&mut image, 400, 30, 200, 370, 200, [255, 0, 0], 2);
+        // The right edge of the image is dark.
+        draw_rect(&mut image, 400, 394, 0, 399, 399, [0, 0, 0], 3);
+
+        let result = auto_rectify_rgba(&image, 400, 400, 256).expect("rectify");
+
+        assert_eq!(
+            result.report.mode, "detect_quad_warp",
+            "{:?}",
+            result.report
+        );
+        let detected = result.report.detected_source_quad.expect("detected quad");
+        assert!((detected.top_left.x - 30.0).abs() <= 6.0, "{detected:?}");
+        assert!(
+            (detected.bottom_right.x - 370.0).abs() <= 6.0,
+            "{detected:?}"
+        );
     }
 
     #[test]
