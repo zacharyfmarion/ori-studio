@@ -137,7 +137,7 @@ fn main() {
         let rounds0 = planner.closure_ref().map_or(0, |cl| cl.round());
         let t1 = Instant::now();
         if run_stuck {
-            planner.plan().expect("plan");
+            planner.plan_without_reference_finder().expect("plan");
         }
         let search_ms = t1.elapsed().as_secs_f64() * 1000.0;
         let seq = planner.sequence(false);

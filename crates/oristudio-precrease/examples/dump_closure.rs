@@ -89,7 +89,7 @@ fn main() {
             continue;
         }
         if plan {
-            planner.plan().expect("plan");
+            planner.plan_without_reference_finder().expect("plan");
         } else {
             planner.close(0.0).expect("close");
         }

@@ -40,7 +40,7 @@ fn iguana_component_0_closure_stays_under_three_seconds_in_release() {
 
     // Measured, not asserted: the full plan.
     let started = Instant::now();
-    planner.plan().expect("plan");
+    planner.plan_without_reference_finder().expect("plan");
     let seq = planner.sequence(false);
     let aux = seq.steps.iter().filter(|s| s.kind == StepKind::Aux).count();
     println!(
@@ -67,7 +67,7 @@ fn every_iguana_component_is_measured() {
     for c in &analysis.components {
         let started = Instant::now();
         let mut planner = Planner::new(c, unbounded_options());
-        planner.plan().expect("plan");
+        planner.plan_without_reference_finder().expect("plan");
         let seq = planner.sequence(false);
         let secs = started.elapsed().as_secs_f64();
         total += secs;

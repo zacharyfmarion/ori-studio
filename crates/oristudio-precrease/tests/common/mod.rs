@@ -42,7 +42,7 @@ pub fn unbounded_options() -> PlannerOptions {
 /// Plan one component fully and return the planner and its sequence.
 pub fn plan_component(component: &Component, opts: PlannerOptions) -> (Planner, Sequence) {
     let mut planner = Planner::new(component, opts);
-    planner.plan().expect("plan");
+    planner.plan_without_reference_finder().expect("plan");
     let seq = planner.sequence(false);
     (planner, seq)
 }

@@ -124,7 +124,7 @@ fn plan_lines(lines: &[Line]) -> (usize, Status, u32) {
         lines,
         unbounded_options(),
     );
-    let status = p.plan().expect("plan");
+    let status = p.plan_without_reference_finder().expect("plan");
     let seq = p.sequence(false);
     (
         seq.totals.aux as usize,

@@ -16,6 +16,7 @@ use crate::clock::{Clock, Deadline, default_clock};
 use crate::closure::{CloseOutcome, Closure, FoldOutcome, FoldedLine, Target};
 use crate::components::Component;
 use crate::direction::{Direction, share_of};
+use crate::drive::{self, DriverState, LastStep, PlanAction, PlanState, StopReason};
 use crate::error::PrecreaseError;
 use crate::exactness::ExactnessClass;
 use crate::line::Line;
@@ -523,27 +524,77 @@ impl Planner {
         Ok(outcomes)
     }
 
-    /// Closure → stuck search → repeat, until complete, unsolved, off-lattice
-    /// or out of budget (`total_budget_ms`, 0 = unbounded).
-    pub fn plan(&mut self) -> Result<Status, PrecreaseError> {
-        if self.refused {
-            return Ok(Status::RefusedSheet);
+    /// What the plan itself says, for the shared rules in [`crate::drive`].
+    pub fn plan_state(&self) -> PlanState {
+        PlanState {
+            refused: self.refused,
+            complete: self.closure.as_ref().is_some_and(|c| c.is_complete()),
+            off_lattice: self.off_lattice,
+            point_cap_hit: self.point_cap_hit,
         }
+    }
+
+    /// What a driver should do next. See [`crate::drive`] for why the rules
+    /// live there and the loop does not.
+    pub fn next_action(&self, driver: DriverState) -> PlanAction {
+        drive::next_action(self.plan_state(), driver)
+    }
+
+    /// Plan **without ReferenceFinder**: close, search, repeat, and stop when
+    /// the search runs out of ideas.
+    ///
+    /// This is not how Ori Studio plans, and the name says so because the old
+    /// one (`plan`) did not and cost a wrong measurement. The wasm bridge does
+    /// not export this; the shipping driver is the browser's own loop, which has
+    /// an arm this cannot have — when the search fails, it asks ReferenceFinder.
+    /// So a plan produced here gives up one step earlier than the product's, and
+    /// **any corpus number measured through it is a ceiling on defects, not a
+    /// measurement of them.**
+    ///
+    /// It exists so tests, examples and benchmarks can plan a crease pattern
+    /// without a browser. It runs the same rules
+    /// ([`crate::drive::next_action`]) as the real driver, declaring
+    /// `reference_finder: false` — so its one difference is a stated fact rather
+    /// than a branch that silently is not there.
+    pub fn plan_without_reference_finder(&mut self) -> Result<Status, PrecreaseError> {
         let total = self.deadline(self.opts.total_budget_ms);
+        let mut driver = DriverState::default();
         loop {
-            self.close(self.opts.total_budget_ms)?;
-            if self.closure()?.is_complete() || self.off_lattice {
-                break;
-            }
-            if total.expired() {
-                self.budget_hit = true;
-                break;
-            }
-            let depth = self.opts.stuck.max_depth;
-            let budget = self.opts.stuck_budget_ms;
-            match self.stuck_search(depth, budget)? {
-                Some(_) => continue,
-                None => break,
+            driver.out_of_time = total.expired();
+            match self.next_action(driver) {
+                PlanAction::Close => {
+                    // To a fixpoint, or until a budgeted call stops advancing —
+                    // the same thing the browser's `closeToFixpoint` does, minus
+                    // the chunking, which is a UI concern and not a rule.
+                    let stalled = loop {
+                        let out = self.close(self.opts.total_budget_ms)?;
+                        if out.fixpoint || out.remaining == 0 {
+                            break false;
+                        }
+                        if out.folded == 0 {
+                            break true;
+                        }
+                    };
+                    driver.last = LastStep::Closed { stalled };
+                }
+                PlanAction::StuckSearch => {
+                    let depth = self.opts.stuck.max_depth;
+                    let budget = self.opts.stuck_budget_ms;
+                    let found = self.stuck_search(depth, budget)?.is_some();
+                    driver.last = LastStep::Searched { found };
+                }
+                // Unreachable: `reference_finder` is false for this driver, so
+                // the rules stop instead. Answered rather than `unreachable!()`
+                // so a future rule change cannot panic the headless path.
+                PlanAction::AskReferenceFinder => {
+                    driver.last = LastStep::AskedReferenceFinder { folded: false };
+                }
+                PlanAction::Stop(reason) => {
+                    if reason == StopReason::Budget {
+                        self.budget_hit = true;
+                    }
+                    break;
+                }
             }
         }
         self.tick();
@@ -948,7 +999,10 @@ mod tests {
             &[v(0.25), v(0.5), v(0.75), h(0.5), v(0.0)],
             opts(),
         );
-        assert_eq!(p.plan().expect("plan"), Status::Complete);
+        assert_eq!(
+            p.plan_without_reference_finder().expect("plan"),
+            Status::Complete
+        );
         let seq = p.sequence(false);
         assert_eq!(seq.status, Status::Complete);
         assert_eq!(seq.totals.cp_lines, 4);
@@ -985,7 +1039,10 @@ mod tests {
             ],
             opts(),
         );
-        assert_eq!(p.plan().expect("plan"), Status::Complete);
+        assert_eq!(
+            p.plan_without_reference_finder().expect("plan"),
+            Status::Complete
+        );
         let seq = p.sequence(false);
         assert_eq!(seq.totals.cp_lines, 6);
         assert!(
@@ -1031,7 +1088,7 @@ mod tests {
         o.stuck.depth3_threshold = 0;
         o.stuck.candidates.max_candidates = 4;
         let mut p = Planner::from_lines(Sheet::unit_square(), &[v(1.0 / 7.0), v(0.5)], o);
-        let status = p.plan().expect("plan");
+        let status = p.plan_without_reference_finder().expect("plan");
         assert_eq!(status, Status::PartialUnsolved);
         let seq = p.sequence(false);
         assert_eq!(seq.findings.len(), 1);

@@ -109,7 +109,7 @@ fn plan_file(path: &Path, prefer: bool) -> Option<Tally> {
         };
         let point_cap = opts.point_cap;
         let mut planner = Planner::new(component, opts);
-        if planner.plan().is_err() {
+        if planner.plan_without_reference_finder().is_err() {
             return None;
         }
         let sheet = *planner.sheet()?;
@@ -162,6 +162,18 @@ fn main() {
     let mut planned = 0;
     // better / worse, per design, for each measure.
     let mut score = [[0usize; 2]; 3];
+    // Say what these numbers are, in the output, every time. They are measured
+    // through `plan_without_reference_finder`, which is not the driver Ori
+    // Studio ships: the browser's loop asks ReferenceFinder when the stuck
+    // search fails, and this cannot. So a plan here gives up one step earlier
+    // than a real one, and every count below is a ceiling on defects rather
+    // than a measurement of them. Quoting one as the product's behaviour has
+    // already happened once.
+    println!(
+        "NOTE: measured WITHOUT the ReferenceFinder fallback \
+         (`Planner::plan_without_reference_finder`), which the shipping driver \
+         has and this does not. Defect counts below are CEILINGS."
+    );
     println!("design\tsteps\tphantom on/off\tturns on/off\tlost ends on/off");
     for path in &paths {
         let (a, b) = (plan_file(path, true), plan_file(path, false));
