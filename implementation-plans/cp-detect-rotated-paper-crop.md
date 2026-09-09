@@ -149,43 +149,65 @@ finds enough lines there to starve the cap. Not a regression against `main`,
 but not the improvement it briefly was.
 
 
-## The curated benchmark, and why three cases read as failures (2026-09-09)
+## The curated benchmark, and the frame the truth is in (2026-09-09)
 
-`tests/corpus/cp-detect-curated-baseline.json` (558 cases, commit
-`27f4b765`) re-run in full with `--compare`: **555 cases byte-identical**.
-The three that differ are exactly the three whose crop changed — nothing else
-moved, which is the expected consequence of an unchanged quad giving a
-bit-identical rectified image.
+Re-run in full against `tests/corpus/cp-detect-curated-baseline.json`. Only
+the cases whose crop changed differ — an unchanged quad gives a bit-identical
+rectified image, so nothing else can move.
 
-| | baseline | now |
-| --- | --- | --- |
-| decoder exact / mean edge F1 | 346 / 0.966 | 346 / 0.966 |
-| gate reproduced | 441 | 441 |
-| end to end recovered | 332 | 332 |
-| end to end buckets | `not_accepted` 48, `accepted_wrong` 136 | 47, 137 |
+Three of the benchmark's 558 cases have a changed crop, and all three read
+`decoder: off` at edge F1 ~0.00 both before and after. Fitting the pipeline's
+graph onto each `topology.fold` under a similarity transform says why — and
+says something different for each, which is why the fit has to be scored in
+**both** directions. A one-sided recall of the pipeline's vertices against
+the truth's is 1.000 for a partial detection that happens to sit on true
+vertices, and that mistake was made here first:
 
-All three cases stay `decoder: off`, and `mammoth-v2` moves `not_accepted` →
-`accepted_wrong`, which reads as a small regression. **It is the opposite.**
-An iterated nearest-neighbour + similarity fit of the pipeline's graph onto
-each case's `topology.fold`:
-
-| case | at curation | now | frame differs by |
+| case | pipeline → truth | truth → pipeline | what it is |
 | --- | --- | --- | --- |
-| `mammoth-v2` | 0.232 recall, 8.73 px | **0.975, 0.31 px** | 71.50° ≡ −18.5° |
-| `rabbit` | 0.059 recall, 81.78 px | **1.000, 0.61 px** | 44.85° |
-| `swallow-swallow` | 0.095 recall, 14.94 px | **1.000, 0.44 px** | 45.00° |
+| `mammoth-v2` | 0.975 | 0.921 | the same pattern, frame off by 18.43° |
+| `swallow-swallow` | 1.000 | 0.942 | the same pattern, frame off by 45° |
+| `rabbit` | 1.000 | **0.558** | 24 of 43 vertices — a partial detection |
 
-The rotation is exactly the angle the crop now applies. These three are the
-change's *best* results — two of them perfect — and the metric cannot see it,
-because each case's `topology.fold` and `truth.fold` store the paper in its
-original diamond or tilted orientation while the pipeline now rectifies it
-upright. A strict 4 px of 1024 comparison reads a pure rotation as total
-failure, and `mammoth-v2`'s solver "accepting a wrong answer" is the same
-artefact: it now receives a near-perfect graph, converges, and is scored
-against a truth in another frame.
+`mammoth-v2` and `swallow-swallow` are the change working: their
+`topology.fold` and `truth.fold` keep the paper as it was drawn — a diamond,
+or a scan 18° off square — because until now the crop could not rectify one,
+and the strict 4 px of 1024 comparison reads a pure rotation as total
+failure. `scripts/cp-detect/upright-curated-paper.py` rotates those two cases'
+truth rigidly about the paper's own centre, by the angle of the paper's own
+boundary edges taken into (-45, 45]. Nothing is regenerated and nothing is
+fitted to the detector: every crease, assignment, fold angle and face is the
+curated one, and only the frame changes. Verified after the fact — the
+residual rotation between pipeline and truth is 0.06° and 0.00°, so the
+minimal-rotation rule and the crop's own corner naming agree without the
+truth ever being fitted to the pipeline's answer.
 
-**So the baseline should not be re-recorded as it stands** — that would fix
-`off/off/off` in place as the expected result for three cases that are now
-solved. What those three need is their ground truth expressed in the frame
-the pipeline produces, which is a mechanical rotation of curated data rather
-than a code change.
+`rabbit` is **not** rotated. Its paper is upright already, and it is not a
+square: the curated boundary is a square with one corner cut off, which the
+square-only pipeline cannot represent. Its 45° "frame difference" was an
+artefact of the one-sided fit.
+
+### What the corrected truth measures
+
+Full 558-case run on top of `main` (baseline `ded3c562`, decoder exact 356),
+re-recorded into `tests/corpus/cp-detect-curated-baseline.json`. Three cases
+differ and nothing else does:
+
+| case | edge F1 before | after |
+| --- | --- | --- |
+| `mammoth-v2` | 0.002 | **0.938** |
+| `swallow-swallow` | 0.000 | **0.740** |
+| `rabbit` (crop only, truth untouched) | 0.000 | **0.138** |
+
+Mean edge F1 across the benchmark, 0.967 → **0.970**. The bucket counts do
+not move: `decoder_bucket` calls anything under an edge F1 of 0.95 `off`, and
+`mammoth-v2` lands at 0.938 — a hair short, on a decode that finds 448 of the
+truth's 483 vertices. `gate` and `status` are untouched, and `end to end`
+moves one case, `mammoth-v2` from `not_accepted` to `accepted_wrong`: with
+the truth now in the right frame that is a real reading rather than an
+artefact, and it says the solver accepts an answer that a 0.938 decode does
+not make right.
+
+So the crop change is worth about three points of edge F1 on the two cases
+whose paper it can now find, and the benchmark's headline numbers are
+unchanged because both land below the `near` threshold.
