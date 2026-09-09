@@ -156,6 +156,10 @@ fn main() {
         {
             generation_options.junction_first_v1.contact_merge_px = merge;
         }
+        // `GRID_PRIOR=0`: no box-pleat grid completion of the border.
+        if std::env::var("GRID_PRIOR").ok().as_deref() == Some("0") {
+            generation_options.junction_first_v1.grid_prior = false;
+        }
         let strategy = JunctionFirstV1Strategy::new(generation_options.junction_first_v1);
         let evidence = strategy.extract_evidence(dense, &config).expect("evidence");
         let generation = strategy.generate_from_evidence(&evidence, &config);
@@ -280,6 +284,7 @@ fn main() {
             "junction_low_maxima": low_maxima(&evidence.dense.junction_probability),
             "contact_low_maxima": low_maxima(&evidence.dense.boundary_contact_probability),
             "selection_seconds": started.elapsed().as_secs_f64(),
+            "notes": graph.provenance.notes,
             "vertices": graph.vertices.iter().map(|v| json!({
                 "id": v.id, "x": px(v.point.x), "y": px(v.point.y),
                 "kind": format!("{:?}", v.kind), "support": v.support,
