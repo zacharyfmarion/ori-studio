@@ -147,3 +147,45 @@ One case, `dpa-sword-and-shield`, loses the diamond it found before these
 fixes and falls back to the upright crop `main` already gives it: `PerPeak`
 finds enough lines there to starve the cap. Not a regression against `main`,
 but not the improvement it briefly was.
+
+
+## The curated benchmark, and why three cases read as failures (2026-09-09)
+
+`tests/corpus/cp-detect-curated-baseline.json` (558 cases, commit
+`27f4b765`) re-run in full with `--compare`: **555 cases byte-identical**.
+The three that differ are exactly the three whose crop changed — nothing else
+moved, which is the expected consequence of an unchanged quad giving a
+bit-identical rectified image.
+
+| | baseline | now |
+| --- | --- | --- |
+| decoder exact / mean edge F1 | 346 / 0.966 | 346 / 0.966 |
+| gate reproduced | 441 | 441 |
+| end to end recovered | 332 | 332 |
+| end to end buckets | `not_accepted` 48, `accepted_wrong` 136 | 47, 137 |
+
+All three cases stay `decoder: off`, and `mammoth-v2` moves `not_accepted` →
+`accepted_wrong`, which reads as a small regression. **It is the opposite.**
+An iterated nearest-neighbour + similarity fit of the pipeline's graph onto
+each case's `topology.fold`:
+
+| case | at curation | now | frame differs by |
+| --- | --- | --- | --- |
+| `mammoth-v2` | 0.232 recall, 8.73 px | **0.975, 0.31 px** | 71.50° ≡ −18.5° |
+| `rabbit` | 0.059 recall, 81.78 px | **1.000, 0.61 px** | 44.85° |
+| `swallow-swallow` | 0.095 recall, 14.94 px | **1.000, 0.44 px** | 45.00° |
+
+The rotation is exactly the angle the crop now applies. These three are the
+change's *best* results — two of them perfect — and the metric cannot see it,
+because each case's `topology.fold` and `truth.fold` store the paper in its
+original diamond or tilted orientation while the pipeline now rectifies it
+upright. A strict 4 px of 1024 comparison reads a pure rotation as total
+failure, and `mammoth-v2`'s solver "accepting a wrong answer" is the same
+artefact: it now receives a near-perfect graph, converges, and is scored
+against a truth in another frame.
+
+**So the baseline should not be re-recorded as it stands** — that would fix
+`off/off/off` in place as the expected result for three cases that are now
+solved. What those three need is their ground truth expressed in the frame
+the pipeline produces, which is a mechanical rotation of curated data rather
+than a code change.
