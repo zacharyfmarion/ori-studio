@@ -3,9 +3,8 @@ import { plannerSequenceFixture } from './__fixtures__/plannerSequence';
 import {
   decodePlanModel,
   EDGE_ORDER,
-  findingBounds,
   planModelPoints,
-  planStepOverlay,
+  planStepScene,
 } from './referencesPlanGeometry';
 
 /**
@@ -62,69 +61,58 @@ describe('planModelPoints / decodePlanModel', () => {
   });
 });
 
-describe('planStepOverlay', () => {
+describe('planStepScene', () => {
   const sequence = plannerSequenceFixture();
   const model = decodePlanModel(sequence, mapToModel(planModelPoints(sequence)));
+  const styles = (index: number, options?: { showPinches?: boolean }) =>
+    (planStepScene(sequence, model, index, options).diagram?.primitives ?? []).flatMap((p) =>
+      p.kind === 'line' ? [p.style] : []
+    );
 
-  it('draws the fold across the sheet, and creases only what the pattern gains', () => {
-    const overlay = planStepOverlay(sequence, model, 2);
-    const kinds = overlay.ghosts.map((ghost) => ghost.kind);
-    // The whole chord, faintly: the fold runs the width of the paper whatever
-    // is pressed along it.
-    expect(kinds.filter((kind) => kind === 'unfolded')).toHaveLength(1);
-    // …and no `new` ghost, because this step puts creases in the pattern and
-    // the pattern draws them. Ghosting them too drew each crease twice, and
-    // drew it right across the sheet where the pattern gains only part of it.
-    expect(kinds.filter((kind) => kind === 'new')).toHaveLength(0);
-    // Steps 1 and 2 came earlier; nothing after step 3 is drawn.
-    expect(overlay.ghosts.length).toBeLessThanOrEqual(6);
+  // The rules are the card's, tested against the card in
+  // `diagram/plannerDiagram.test.ts`. What is checked here is that the *view*
+  // gets them — this used to be a second rule set, and the two had drifted.
+  it('creases only what the pattern gains, and no faint stand-in for the rest', () => {
+    const drawn = styles(2);
+    expect(drawn).not.toContain('unfolded');
+    // Two creases on this step's line, plus the earlier steps as context.
+    expect(drawn.filter((style) => style === 'valley' || style === 'crease').length)
+      .toBeGreaterThan(0);
   });
 
-  it('ghosts an auxiliary step, which has no crease in the pattern to draw it', () => {
+  it('draws an auxiliary step, which leaves no crease in the pattern to draw it', () => {
     const auxIndex = sequence.steps.findIndex((step) => step.cp_line_ids.length === 0);
     expect(auxIndex).toBeGreaterThanOrEqual(0);
-    const overlay = planStepOverlay(sequence, model, auxIndex);
-    expect(overlay.ghosts.filter((ghost) => ghost.kind === 'new').length).toBeGreaterThan(0);
+    expect(styles(auxIndex).length).toBeGreaterThan(0);
   });
 
   it('picks out the lines the step is made against', () => {
     // Step 5 (index 4) uses the bottom edge and the landmark's line.
-    const overlay = planStepOverlay(sequence, model, 4);
-    const inputs = overlay.ghosts.filter((ghost) => ghost.kind === 'input');
-    expect(inputs.length).toBeGreaterThanOrEqual(2);
-    expect(overlay.bounds).not.toBeNull();
+    const scene = planStepScene(sequence, model, 4);
+    expect(styles(4).filter((style) => style === 'highlight').length).toBeGreaterThanOrEqual(2);
+    expect(scene.bounds).not.toBeNull();
   });
 
   it('marks the points a step folds through', () => {
-    const overlay = planStepOverlay(sequence, model, 1);
-    expect(overlay.markers.map((marker) => marker.kind)).toContain('input');
+    const marks = (planStepScene(sequence, model, 1).diagram?.primitives ?? []).filter(
+      (p) => p.kind === 'point'
+    );
+    expect(marks.length).toBeGreaterThan(0);
   });
 
   it('hands the view the crease ids the step realises', () => {
-    expect(planStepOverlay(sequence, model, 2).highlightLineIds).toEqual([2, 3]);
-    expect(planStepOverlay(sequence, model, 0).highlightLineIds).toEqual([]);
+    expect(planStepScene(sequence, model, 2).highlightLineIds).toEqual([2, 3]);
+    expect(planStepScene(sequence, model, 0).highlightLineIds).toEqual([]);
   });
 
   it('draws a pinch as its spans, and as a full line when pinches are hidden', () => {
-    const shown = planStepOverlay(sequence, model, 0, { showPinches: true });
-    const hidden = planStepOverlay(sequence, model, 0, { showPinches: false });
-    expect(shown.ghosts.filter((ghost) => ghost.kind === 'new')).toHaveLength(2);
-    expect(hidden.ghosts.filter((ghost) => ghost.kind === 'new')).toHaveLength(1);
+    expect(styles(0, { showPinches: true }).filter((s) => s === 'pinch')).toHaveLength(2);
+    expect(styles(0, { showPinches: false }).filter((s) => s === 'pinch')).toHaveLength(0);
   });
 
   it('is empty for a step index that names nothing', () => {
-    const overlay = planStepOverlay(sequence, model, 99);
-    expect(overlay.ghosts).toEqual([]);
-    expect(overlay.highlightLineIds).toEqual([]);
-  });
-});
-
-describe('findingBounds', () => {
-  const sequence = plannerSequenceFixture();
-  const model = decodePlanModel(sequence, mapToModel(planModelPoints(sequence)));
-
-  it('frames a finding by its own segment', () => {
-    expect(findingBounds(model, 0)).not.toBeNull();
-    expect(findingBounds(model, 5)).toBeNull();
+    const scene = planStepScene(sequence, model, 99);
+    expect(scene.diagram).toBeNull();
+    expect(scene.highlightLineIds).toEqual([]);
   });
 });

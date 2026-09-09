@@ -10,7 +10,7 @@ import {
   arrowheadSize,
   foldArrowTrim,
   labelPlacement,
-  MARK_RING_RADIUS,
+  markRingRadius,
 } from '../stepDiagramGeometry';
 import type {
   DiagramLineStyleName,
@@ -135,7 +135,7 @@ export function diagramPrimitiveShape(
     out: { ...primitive.out, radius: primitive.out.radius * project.scale },
     back: { ...primitive.back, radius: primitive.back.radius * project.scale },
   };
-  const trimmed = foldArrowTrim(scaled, head, MARK_RING_RADIUS * project.scale);
+  const trimmed = foldArrowTrim(scaled, head, markRingRadius(sheet) * project.scale);
   const tipArc = { ...primitive.back, to: trimmed.tip };
   const tip = project([
     primitive.back.center[0] + primitive.back.radius * Math.cos(trimmed.tip),
@@ -197,7 +197,7 @@ export function diagramPrimitiveShape(
       className={`step-diagram__point step-diagram__point--${primitive.style}`}
       cx={at.x}
       cy={at.y}
-      r={project.scale * MARK_RING_RADIUS}
+      r={project.scale * markRingRadius(sheet)}
       strokeWidth={DIAGRAM_MARK_INK.width * project.ink}
     />
   );

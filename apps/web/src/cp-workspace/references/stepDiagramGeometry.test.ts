@@ -13,7 +13,7 @@ import {
   foldArrowArc,
   foldArrowTrim,
   labelPlacement,
-  MARK_RING_RADIUS,
+  markRingRadius,
   type DiagramArc,
 } from './stepDiagramGeometry';
 
@@ -313,7 +313,7 @@ describe('foldArrowTrim', () => {
     const arrow = foldAndUnfoldArrow([1, 0.5], [0, 0.5], sheet);
     if (!arrow) throw new Error('no arrow');
     const head = arrowheadSize(arrow.out, sheet);
-    const rim = MARK_RING_RADIUS;
+    const rim = markRingRadius(sheet);
     const trimmed = foldArrowTrim(arrow, head, rim);
 
     const mark = at(arrow.out, arrow.out.from);
@@ -349,5 +349,18 @@ describe('foldArrowTrim', () => {
       expect(ratio).toBeGreaterThan(0.85);
       expect(ratio).toBeLessThan(1.2);
     }
+  });
+});
+
+describe('markRingRadius', () => {
+  // The same picture is drawn in the planner's unit square and in the
+  // document's own coordinates, where the paper is hundreds of units across. As
+  // a bare fraction the ring was 4% of the paper on a card and four hundredths
+  // of one unit on the canvas, which is to say gone.
+  it('is a share of the paper, not a length', () => {
+    expect(markRingRadius({ width: 1, height: 1 })).toBeCloseTo(0.04, 9);
+    expect(markRingRadius({ width: 400, height: 400 })).toBeCloseTo(16, 9);
+    // The shorter side, so it fits on a long rectangle.
+    expect(markRingRadius({ width: 400, height: 200 })).toBeCloseTo(8, 9);
   });
 });

@@ -39,7 +39,8 @@ import {
 import type { CpRenderer } from '../renderer/CpRenderer';
 import { readCssVarColor } from '../renderer/cssColor';
 import { createReglRenderer } from '../renderer/reglRenderer';
-import type { Rgba, Viewport } from '../renderer/types';
+import type { Rgba, StrokeGeometry, Viewport } from '../renderer/types';
+import type { CpOverlayView } from '../CreasePatternWebglCanvas';
 import { classifyCpWebglFailure, cpWebglSupport, describeCpWebglGap } from '../renderer/webglSupport';
 import {
   CP_LINE_HIT_MIN_CSS,
@@ -48,14 +49,11 @@ import {
   CP_POINT_HIT_RATIO,
   cpHitRadiusModel,
 } from '../snapRadius';
-import type { ModelBounds, ReferencesGhostSegment, ReferencesMarker } from './referencesStepGeometry';
+import type { ModelBounds } from './referencesStepGeometry';
 import {
   applyCreaseVisibility,
-  ghostSegmentsToStrokes,
   isClick,
-  concatOverlayPoints,
   highlightedVerticesToOverlayPoints,
-  markersToOverlayPoints,
   modelBoundsToUser,
   resolveReferencesPick,
   transportUserBounds,
@@ -97,6 +95,19 @@ export interface ReferencesCpViewHandle {
   frameModelBounds: (bounds: ModelBounds) => void;
 }
 
+/**
+ * The canvas's camera, as the layer drawn over it needs to see it.
+ *
+ * `view` is model space → CSS pixels of the canvas box. `cssPerModelAtFit` is
+ * what one model unit would measure with the whole pattern framed — the scale
+ * the diagram's *pen* is set from, so the ink stays put while the geometry it
+ * draws moves with the zoom.
+ */
+export interface ReferencesDiagramView {
+  view: CpOverlayView;
+  cssPerModelAtFit: number;
+}
+
 /** What the view draws as picked. Ids as {@link ReferencesPick}: 1-based crease, 0-based vertex. */
 export type ReferencesSelection = { kind: 'line'; id: number } | { kind: 'vertex'; idx: number };
 
@@ -111,10 +122,17 @@ export interface ReferencesCpViewProps {
   snapRadius?: number;
   /** 0-based vertex indices drawn in the "new crease" colour. */
   highlightVertexIdx: ReadonlySet<number>;
-  /** Lines that do not (yet) exist in the pattern, drawn over it. */
-  ghostSegments?: readonly ReferencesGhostSegment[];
-  /** Marks: input rings and the new mark's disc. */
-  markers?: readonly ReferencesMarker[];
+  /**
+   * The step's own lines, already packed for the preview channel.
+   *
+   * Built from the same primitives the filmstrip card draws
+   * (`diagram/diagramToScene.ts`), so the two pictures cannot disagree about
+   * what a step contains. The symbols that go with them — arcs, arrowheads,
+   * the turn-over glyph, letters, the rings round the marks — are drawn by
+   * `ReferencesDiagramLayer` over this canvas, because this renderer has no
+   * vocabulary for any of them.
+   */
+  diagramStrokes?: StrokeGeometry | null;
   /**
    * The sheet in scope: the 1-based crease ids of the pattern being read.
    *
@@ -146,6 +164,15 @@ export interface ReferencesCpViewProps {
   mirrored?: boolean;
   selected: ReferencesSelection | null;
   onPick: (hit: ReferencesPick | null) => void;
+  /**
+   * The live camera, reported every frame it changes.
+   *
+   * Deliberately not a store: this canvas publishes into none of the editor's
+   * singletons (see the note at the top of this file), and the layer that reads
+   * it is its own sibling. De-duped here, so a redraw that does not move the
+   * camera does not wake it.
+   */
+  onViewChange?: (view: ReferencesDiagramView) => void;
   /** The camera refits when this changes (a new document), never on an edit. */
   framingKey: string;
   /** Theme-resolved colours are re-read when this changes. */
@@ -188,8 +215,6 @@ const FOLDED_ALPHA = 0.55;
 const UNFOLDED_ALPHA = 0.22;
 
 const EMPTY_IDS: ReadonlySet<number> = new Set();
-const EMPTY_GHOSTS: readonly ReferencesGhostSegment[] = [];
-const EMPTY_MARKERS: readonly ReferencesMarker[] = [];
 /** No step filter: the whole document, at full strength. */
 const ALL_CREASES: ReferencesCreaseVisibility = { visible: null, dimmed: null, dimAlpha: 1 };
 
@@ -262,6 +287,7 @@ interface LiveProps {
   wheelGesture: WheelGesturePreference;
   snapRadius: number;
   onPick: (hit: ReferencesPick | null) => void;
+  onViewChange?: (view: ReferencesDiagramView) => void;
   contentBounds: UserBounds | null;
   vertices: readonly Point[];
   /** Median crease length, for the vertex crowding ramp. */
@@ -280,8 +306,8 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       wheelGesture,
       snapRadius = CP_DEFAULT_SNAP_RADIUS,
       highlightVertexIdx,
-      ghostSegments = EMPTY_GHOSTS,
-      markers = EMPTY_MARKERS,
+      diagramStrokes = null,
+      onViewChange,
       selected,
       sheetLineIds = null,
       creaseVisibility = ALL_CREASES,
@@ -409,11 +435,13 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       wheelGesture,
       snapRadius,
       onPick,
+      onViewChange,
       contentBounds,
       vertices,
       vertexSpacingModel,
       hitIndexes,
     });
+    const lastViewRef = useRef<ReferencesDiagramView | null>(null);
     // Declared before every effect below, so within one commit the handlers
     // and uploads read this render's values.
     useEffect(() => {
@@ -425,6 +453,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         wheelGesture,
         snapRadius,
         onPick,
+        onViewChange,
         contentBounds,
         vertices,
         vertexSpacingModel,
@@ -492,6 +521,23 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         return cameraRef.current;
       };
 
+      const reportView = (view: CpOverlayView, cssPerModelAtFit: number) => {
+        const seen = lastViewRef.current;
+        const same =
+          seen !== null &&
+          seen.cssPerModelAtFit === cssPerModelAtFit &&
+          seen.view.origin[0] === view.origin[0] &&
+          seen.view.origin[1] === view.origin[1] &&
+          seen.view.ex[0] === view.ex[0] &&
+          seen.view.ex[1] === view.ex[1] &&
+          seen.view.ey[0] === view.ey[0] &&
+          seen.view.ey[1] === view.ey[1];
+        if (same) return;
+        const next = { view, cssPerModelAtFit };
+        lastViewRef.current = next;
+        liveRef.current.onViewChange?.(next);
+      };
+
       const renderNow = () => {
         const ratio = dpr();
         const viewport = viewportOf(ratio);
@@ -518,6 +564,17 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           modelPxPerUnit: Math.hypot(view.ex[0], view.ex[1]),
           ratio,
         });
+        // The layer over this canvas needs the same camera, in CSS pixels, and
+        // the scale the paper would have at fit — which is what sizes its pen,
+        // so a ten-times zoom does not arrive with a ten-times nib.
+        reportView(
+          {
+            origin: [view.origin[0] / ratio, view.origin[1] / ratio],
+            ex: [view.ex[0] / ratio, view.ex[1] / ratio],
+            ey: [view.ey[0] / ratio, view.ey[1] / ratio],
+          },
+          (Math.hypot(view.ex[0], view.ex[1]) / ratio) * (fitZoom / Math.max(cam.zoom, 1e-9))
+        );
         renderer.render({
           clearColor: readCssVarColor(canvas, CANVAS_BG_VAR, FALLBACK_CLEAR),
           view,
@@ -837,11 +894,9 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       const renderer = rendererRef.current;
       const canvas = canvasRef.current;
       if (!renderer || !canvas) return;
-      renderer.setPreview(
-        ghostSegmentsToStrokes(ghostSegments, overlayColors(canvas))
-      );
+      renderer.setPreview(diagramStrokes);
       renderNowRef.current();
-    }, [ghostSegments, themeKey, rendererGeneration]);
+    }, [diagramStrokes, rendererGeneration]);
 
     // Input rings, the new mark, and the picked/highlighted vertices, on top of
     // everything. This channel draws at full opacity whatever the crowding, which
@@ -857,17 +912,10 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         .map((idx) => vertices[idx])
         .filter((point): point is Point => point !== undefined);
       renderer.setOverlayPoints(
-        concatOverlayPoints(
-          markersToOverlayPoints(markers, {
-            input: readCssVarColor(canvas, INPUT_COLOR_VAR, INPUT_FALLBACK),
-            mark: newColor,
-          }),
-          highlightedVerticesToOverlayPoints(picked, newColor, pointSize)
-        )
+        highlightedVerticesToOverlayPoints(picked, newColor, pointSize)
       );
       renderNowRef.current();
     }, [
-      markers,
       highlightVertexIdx,
       selected,
       vertices,

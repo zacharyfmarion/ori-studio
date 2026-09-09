@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, type MouseEvent as ReactMouseEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ChevronLeft,
@@ -21,7 +28,10 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import {
   ReferencesCpView,
   type ReferencesCpViewHandle,
+  type ReferencesDiagramView,
 } from '../../cp-workspace/references/ReferencesCpView';
+import { ReferencesDiagramLayer } from '../../cp-workspace/references/ReferencesDiagramLayer';
+import { useReferencesDiagramScene } from '../../cp-workspace/references/useReferencesDiagramScene';
 import { ReferencesSettingsMenu } from '../../cp-workspace/references/ReferencesSettingsMenu';
 import { ReferencesSheetsSidebar } from '../../cp-workspace/references/ReferencesSheetsSidebar';
 import { ReferencesStepFilmstrip } from '../../cp-workspace/references/ReferencesStepFilmstrip';
@@ -154,6 +164,10 @@ export function ReferencesPanel() {
     settings.showPinches
   );
   const highlights = targeted ? targetHighlights : planHighlights;
+  // The step's picture, once: straight lines packed for the GPU, symbols for the
+  // layer over it. Both off the same primitives the filmstrip card draws.
+  const [diagramCamera, setDiagramCamera] = useState<ReferencesDiagramView | null>(null);
+  const scene = useReferencesDiagramScene(highlights.diagram, view.themeKey);
 
   const run = useWorkspaceStore((state) => state.referencesRun);
   const shortcutOverrides = useShortcutStore((store) => store.overrides);
@@ -482,9 +496,9 @@ export function ReferencesPanel() {
               wheelGesture={view.wheelGesture}
               snapRadius={view.snapRadius}
               highlightVertexIdx={highlights.highlightVertexIdx}
-              ghostSegments={highlights.ghostSegments}
-              markers={highlights.markers}
+              diagramStrokes={scene.strokes}
               selected={highlights.selected}
+              onViewChange={setDiagramCamera}
               sheetLineIds={sheetIds}
               creaseVisibility={creaseVisibility}
               mirrored={mirrored}
@@ -497,6 +511,10 @@ export function ReferencesPanel() {
               )}
             />
           )}
+          <ReferencesDiagramLayer
+            model={scene.symbols}
+            camera={diagramCamera}
+          />
           <ContextMenu
             open={contextMenu.open}
             x={contextMenu.x}

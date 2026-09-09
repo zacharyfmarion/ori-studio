@@ -21,13 +21,13 @@ import type {
   ReferencesTargetRecord,
 } from './referencesResults';
 import type { ReferencesViewStep } from './referencesSequenceView';
-import { findingBounds, planStepOverlay } from './referencesPlanGeometry';
+import { findingBounds, planStepScene } from './referencesPlanGeometry';
+import { referencesStepPrimitives } from './referencesStepGeometry';
+import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
 import {
   clampStepIndex,
   referencesStepOverlay,
   type ModelBounds,
-  type ReferencesGhostSegment,
-  type ReferencesMarker,
 } from './referencesStepGeometry';
 
 /**
@@ -106,16 +106,18 @@ export function useReferencesView(): ReferencesViewState {
 }
 
 const EMPTY_IDS: ReadonlySet<number> = new Set();
-const EMPTY_GHOSTS: readonly ReferencesGhostSegment[] = [];
-const EMPTY_MARKERS: readonly ReferencesMarker[] = [];
 
 /** Everything the view draws beyond the document, for the active candidate and step. */
 export interface ReferencesHighlights {
   highlightLineIds: ReadonlySet<number>;
   highlightVertexIdx: ReadonlySet<number>;
   selected: ReferencesSelection | null;
-  ghostSegments: readonly ReferencesGhostSegment[];
-  markers: readonly ReferencesMarker[];
+  /**
+   * The step as diagram primitives, in model space — the same list the
+   * filmstrip card draws, so the two pictures cannot disagree about what a step
+   * contains. Split into GPU lines and DOM symbols by `diagramToScene`.
+   */
+  diagram: StepDiagramModel | null;
   /** The active step's references, for framing. */
   stepBounds: ModelBounds | null;
 }
@@ -189,8 +191,7 @@ export function useReferencesHighlights(
     highlightLineIds,
     highlightVertexIdx,
     selected,
-    ghostSegments: overlay?.ghosts ?? EMPTY_GHOSTS,
-    markers: overlay?.markers ?? EMPTY_MARKERS,
+    diagram: overlay && results ? referencesStepPrimitives(overlay, results.originals) : null,
     stepBounds: overlay?.bounds ?? null,
   };
 }
@@ -199,8 +200,7 @@ const NO_HIGHLIGHTS: ReferencesHighlights = {
   highlightLineIds: EMPTY_IDS,
   highlightVertexIdx: EMPTY_IDS,
   selected: null,
-  ghostSegments: EMPTY_GHOSTS,
-  markers: EMPTY_MARKERS,
+  diagram: null,
   stepBounds: null,
 };
 
@@ -237,16 +237,12 @@ function planHighlights(
   if (!target || target.kind !== 'fold') return NO_HIGHLIGHTS;
   const entry = variants[target.component];
   if (!entry) return NO_HIGHLIGHTS;
-  const overlay = planStepOverlay(entry.sequence, entry.model, target.step, {
-    showPinches,
-    direction: entry.sequence.steps[target.step]?.direction,
-  });
+  const overlay = planStepScene(entry.sequence, entry.model, target.step, { showPinches });
   return {
     highlightLineIds: new Set(overlay.highlightLineIds),
     highlightVertexIdx: EMPTY_IDS,
     selected: null,
-    ghostSegments: overlay.ghosts,
-    markers: overlay.markers,
+    diagram: overlay.diagram,
     stepBounds: overlay.bounds,
   };
 }

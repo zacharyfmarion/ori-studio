@@ -340,15 +340,20 @@ describe('ReferencesCpView device pixel ratio', () => {
 describe('ReferencesCpView overlays', () => {
   beforeEach(stubWebgl);
 
-  it('uploads ghost lines and markers through the preview and overlay channels', () => {
+  // The step's lines arrive already packed — built once from the same
+  // primitives the filmstrip card draws — so this channel hands them straight
+  // to the renderer rather than deciding anything about them.
+  it('uploads the step’s packed lines through the preview channel', () => {
     mount({
-      ghostSegments: [{ a: { x: 0, y: 0 }, b: { x: 200, y: 100 }, kind: 'new' }],
-      markers: [{ at: { x: 100, y: 50 }, kind: 'input' }],
+      diagramStrokes: {
+        a: new Float32Array([0, 0]),
+        b: new Float32Array([200, 100]),
+        color: new Float32Array([1, 1, 1, 1]),
+        widthMul: new Float32Array([1]),
+        count: 1,
+      },
     });
-    const preview = uploads.setPreview.mock.calls.at(-1)?.[0];
-    expect(preview?.count).toBe(1);
-    const overlay = uploads.setOverlayPoints.mock.calls.at(-1)?.[0];
-    expect(overlay?.count).toBe(1);
+    expect(uploads.setPreview.mock.calls.at(-1)?.[0]?.count).toBe(1);
   });
 
   it('clears both channels when the step has nothing to draw', () => {

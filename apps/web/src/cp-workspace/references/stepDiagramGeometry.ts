@@ -213,13 +213,23 @@ const RETURN_HALF_ANGLE = Math.PI / 4;
 const RETURN_OFFSET_HEADS = 1;
 
 /**
- * The ring drawn round a reference mark, in sheet units.
+ * The ring drawn round a reference mark, as a share of the paper's shorter side.
+ *
+ * A share, not a length: the same picture is drawn in the planner's unit square
+ * and in the document's own coordinates, where the paper is hundreds of units
+ * across. As a bare `0.04` the ring was 4% of the paper on a card and four
+ * hundredths of one unit on the canvas, which is to say invisible.
  *
  * Here rather than in the component because two things need it: the circle
  * itself, and the arrow, whose shaft starts on the ring's *rim* — a shaft that
  * begins inside the circle it is pointing at hides the mark under its own line.
  */
-export const MARK_RING_RADIUS = 0.04;
+export const MARK_RING_OF_SHEET = 0.04;
+
+/** The ring's radius in a sheet's own units. */
+export function markRingRadius(sheet: DiagramSheet): number {
+  return Math.min(sheet.width, sheet.height) * MARK_RING_OF_SHEET;
+}
 
 /** The arc between two points and the centre it turns about. */
 function arcThrough(

@@ -95,8 +95,23 @@ function unitEdge(
   }
 }
 
+/**
+ * What a frame may be asked to leave out.
+ *
+ * `showPinches` is a reader's setting: a pinched auxiliary fold is drawn as the
+ * short marks it actually leaves, or as the whole chord it was made along. Both
+ * frames honour it, or the two pictures would differ on exactly the steps the
+ * setting is about.
+ */
+export interface DiagramFrameOptions {
+  showPinches?: boolean;
+}
+
 /** The planner's own unit square: the card's frame, and the sequence as given. */
-export function unitFrame(sequence: PrecreaseSequence): DiagramFrame {
+export function unitFrame(
+  sequence: PrecreaseSequence,
+  options: DiagramFrameOptions = {}
+): DiagramFrame {
   const sheet = sequence.sheet;
   const sides: PrecreaseEdgeSide[] = ['left', 'right', 'bottom', 'top'];
   return {
@@ -105,7 +120,9 @@ export function unitFrame(sequence: PrecreaseSequence): DiagramFrame {
     outline: sides.map((side) => unitEdge(sheet, side)),
     chord: (step) => pair(step.segment),
     pinches: (step) =>
-      step.extent.kind === 'pinches' ? step.extent.spans.map(pair) : [],
+      (options.showPinches ?? true) && step.extent.kind === 'pinches'
+        ? step.extent.spans.map(pair)
+        : [],
     creases: (step) => step.cp_spans.map(pair),
     point: (id) => {
       const found = sequence.points.find((entry) => entry.id === id);
@@ -142,7 +159,8 @@ const along = (a: Point, b: Point, t: number): Point => ({
  */
 export function modelFrame(
   sequence: PrecreaseSequence,
-  model: ReferencesPlanModel
+  model: ReferencesPlanModel,
+  options: DiagramFrameOptions = {}
 ): DiagramFrame {
   const indexOfStep = new Map(sequence.steps.map((step, i) => [step.id, i]));
   const at = (step: PrecreaseStep) => model.steps[indexOfStep.get(step.id) ?? -1] ?? null;
@@ -174,7 +192,7 @@ export function modelFrame(
       return geometry ? [geometry.segment.a, geometry.segment.b] : null;
     },
     pinches: (step) =>
-      step.extent.kind === 'pinches'
+      (options.showPinches ?? true) && step.extent.kind === 'pinches'
         ? (at(step)?.pinches ?? []).map((span) => [span.a, span.b] as DiagramSegment)
         : [],
     creases: (step) => {

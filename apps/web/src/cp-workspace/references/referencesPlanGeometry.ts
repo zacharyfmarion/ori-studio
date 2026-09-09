@@ -14,17 +14,14 @@
  * view takes one set of props whichever mode the sidebar is in.
  */
 import type { Point } from '../../lib/geometry';
+import { modelFrame } from './diagram/diagramFrames';
+import { plannerStepDiagram } from './diagram/plannerDiagram';
+import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
 import type {
   ModelBounds,
-  ReferencesGhostDirection,
-  ReferencesGhostSegment,
-  ReferencesMarker,
-  ReferencesStepOverlay,
 } from './referencesStepGeometry';
 import {
-  chosenWitness,
   type PrecreaseEdgeSide,
-  type PrecreaseRef,
   type PrecreaseSequence,
 } from './precreaseSequence';
 
@@ -140,141 +137,41 @@ function extend(bounds: ModelBounds | null, point: Point): ModelBounds {
   };
 }
 
-const EMPTY: ReferencesStepOverlay = { ghosts: [], markers: [], bounds: null };
-
-export interface ReferencesPlanOverlay extends ReferencesStepOverlay {
+/**
+ * A step of a plan as the view draws it: the same primitives the filmstrip card
+ * is built from, in the document's own coordinates.
+ *
+ * This used to be a second rule set — ghosts and markers, decided here — and by
+ * the time the two were compared they had drifted in six places, the loudest
+ * being whether the un-creased rest of a fold's chord is drawn at all. There is
+ * one rule set now (`diagram/plannerDiagram.ts`) and two frames; this is the
+ * model frame's caller.
+ */
+export interface ReferencesPlanScene {
+  /** The step's primitives in model space, or null when the index names no step. */
+  diagram: StepDiagramModel | null;
+  /** The active step's own chord, for framing a finding. */
+  bounds: ModelBounds | null;
   /** The editor's 1-based crease ids the active step realises. */
   highlightLineIds: number[];
 }
 
-export interface ReferencesPlanOverlayOptions {
-  /** Draw pinched auxiliary creases as their short spans rather than in full. */
-  showPinches?: boolean;
-  /** Which way this step's crease folds, for the ink its ghost takes. */
-  direction?: ReferencesGhostDirection;
-}
-
-/**
- * What the view draws at step `index` (0-based into `sequence.steps`).
- *
- * The fold itself, over the sheet as it stands. Three rules earn their keep:
- *
- * - **An earlier step is ghosted only if it left no crease in the pattern.**
- *   A step that made CP creases is already on the canvas as those creases,
- *   dimmed by the build-up (`referencesCreaseVisibility`), so ghosting it again
- *   drew every crease twice — and drew it as a full chord across the sheet even
- *   when only a pinch was made. Auxiliary steps have no CP crease to stand in
- *   for them, so they keep their ghost.
- * - **A ghost never spans more than was creased.** The parts of a fold that were
- *   never pressed are not on the paper.
- * - **Except on the step being made**, where the rest of the chord is drawn
- *   faintly: the fold does run the width of the sheet, and the instruction is to
- *   bring the references together and press only where the mark is wanted.
- * - **An O1 fold is drawn between its two marks.** "Crease through these two
- *   points" is what the step says, nothing moves, and there is no arrow — so the
- *   marks are the instruction and the crease is drawn between them, with the
- *   rest of the chord faint like any other unpressed span.
- */
-/**
- * The span between an axiom's two point inputs, in model space, or null when it
- * does not have exactly two.
- */
-function markSpan(
-  sequence: PrecreaseSequence,
-  model: ReferencesPlanModel,
-  inputs: readonly PrecreaseRef[]
-): { a: Point; b: Point } | null {
-  const points = inputs.flatMap((ref) => {
-    if (ref.kind !== 'point' && ref.kind !== 'corner') return [];
-    const at = sequence.points.findIndex((entry) => entry.id === ref.id);
-    const point = at >= 0 ? model.points[at] : undefined;
-    return point ? [point] : [];
-  });
-  return points.length === 2 ? { a: points[0]!, b: points[1]! } : null;
-}
-
-export function planStepOverlay(
+export function planStepScene(
   sequence: PrecreaseSequence,
   model: ReferencesPlanModel,
   index: number,
-  options: ReferencesPlanOverlayOptions = {}
-): ReferencesPlanOverlay {
+  options: { showPinches?: boolean } = {}
+): ReferencesPlanScene {
   const step = sequence.steps[index];
-  if (!step) return { ...EMPTY, highlightLineIds: [] };
-  const showPinches = options.showPinches ?? true;
-  const witness = chosenWitness(step);
-  const inputLineIds = new Set<number>();
-  const inputPointIds = new Set<number>();
-  for (const ref of witness?.inputs ?? []) {
-    if (ref.kind === 'line' || ref.kind === 'edge') inputLineIds.add(ref.id);
-    else inputPointIds.add(ref.id);
-  }
-
-  const ghosts: ReferencesGhostSegment[] = [];
-  const markers: ReferencesMarker[] = [];
-  let bounds: ModelBounds | null = null;
-
-  const drawStep = (at: number, kind: 'folded' | 'input') => {
-    const geometry = model.steps[at];
-    const earlier = sequence.steps[at];
-    if (!geometry || !earlier) return;
-    // A step that put creases in the pattern is drawn by the pattern.
-    if (kind === 'folded' && earlier.cp_line_ids.length > 0) return;
-    const spans =
-      showPinches && geometry.pinches.length > 0 ? geometry.pinches : [geometry.segment];
-    for (const span of spans) ghosts.push({ a: span.a, b: span.b, kind });
-    if (kind === 'input') bounds = extend(extend(bounds, geometry.segment.a), geometry.segment.b);
-  };
-
-  for (let i = 0; i < index; i += 1) {
-    drawStep(i, inputLineIds.has(sequence.steps[i].line_id) ? 'input' : 'folded');
-  }
-
-  // Sheet edges the step names. They are not steps, so they are drawn from the
-  // frame's own rectangle rather than from an earlier row.
-  for (const ref of witness?.inputs ?? []) {
-    if (ref.kind !== 'edge') continue;
-    const edge = model.edges[ref.side];
-    if (!edge) continue;
-    ghosts.push({ a: edge.a, b: edge.b, kind: 'input' });
-    bounds = extend(extend(bounds, edge.a), edge.b);
-  }
-
-  for (const pointId of inputPointIds) {
-    const at = sequence.points.findIndex((entry) => entry.id === pointId);
-    const point = at >= 0 ? model.points[at] : undefined;
-    if (!point) continue;
-    markers.push({ at: point, kind: 'input' });
-    bounds = extend(bounds, point);
-  }
-
-  const made = model.steps[index];
-  if (made) {
-    const direction = options.direction ?? 'unassigned';
-    const pinched = showPinches && made.pinches.length > 0;
-    // The whole chord, faintly: the fold runs the width of the sheet whatever
-    // is pressed along it, and the instruction is to bring the references
-    // together and crease only where the pattern wants a crease.
-    ghosts.push({ a: made.segment.a, b: made.segment.b, kind: 'unfolded', direction });
-    // What the pattern actually gains. A step that puts creases in the pattern
-    // is already drawn by the pattern — emphasised, in its own ink, by
-    // `referencesCreaseVisibility` — so ghosting it again drew the crease twice
-    // and, worse, drew it right across the sheet where the pattern only gains
-    // part of the chord.
-    if (step.cp_line_ids.length === 0) {
-      const marks = witness?.axiom === 1 ? markSpan(sequence, model, witness.inputs) : null;
-      const spans = pinched ? made.pinches : [marks ?? made.segment];
-      for (const span of spans) ghosts.push({ a: span.a, b: span.b, kind: 'new', direction });
-    } else if (pinched) {
-      for (const span of made.pinches) {
-        ghosts.push({ a: span.a, b: span.b, kind: 'new', direction });
-      }
-    }
-    bounds = extend(extend(bounds, made.segment.a), made.segment.b);
-  }
-
-  return { ghosts, markers, bounds, highlightLineIds: step.cp_line_ids };
+  if (!step) return { diagram: null, bounds: null, highlightLineIds: [] };
+  const diagram = plannerStepDiagram(sequence, modelFrame(sequence, model, options), index);
+  const geometry = model.steps[index];
+  const bounds = geometry
+    ? extend(extend(null, geometry.segment.a), geometry.segment.b)
+    : null;
+  return { diagram, bounds, highlightLineIds: step.cp_line_ids };
 }
+
 
 /** The model-space bounds of a finding, for click-to-frame in the findings list. */
 export function findingBounds(model: ReferencesPlanModel, index: number): ModelBounds | null {

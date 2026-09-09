@@ -11265,6 +11265,18 @@ button.bp-packing-alert:focus-visible {
 /* `visible` was safe while every diagram sat alone in a row. Side by side in
    the filmstrip, an arc or a label that leaves the sheet would paint over the
    neighbouring step, so the box clips. */
+/*
+  The half of a step's diagram the crease-pattern renderer cannot draw: arcs,
+  arrowheads, the turn-over glyph, the rings round the marks, the letters. Same
+  classes as the card below, so the two pictures cannot be styled apart.
+
+  z-index 7: above the WebGL canvas, below anything the reader can click — the
+  same band `CpMeasureLayer` uses, and for the same reason.
+*/
+.references-diagram-layer {
+  z-index: 7;
+}
+
 .step-diagram {
   display: block;
   width: 100%;
