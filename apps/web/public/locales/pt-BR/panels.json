@@ -270,7 +270,7 @@
       "graphMismatch": "O resultado resolvido não descreve os vincos desta região, então nada foi alterado. Tente resolver de novo.",
       "noPattern": "Não há vincos dentro desta região, então não há nada a resolver. Mova a região sobre o padrão detectado e tente de novo."
     },
-    "repairTools": "",
+    "repairTools": "Ferramentas de reparo",
     "solve": "Resolver",
     "solveError": "Não foi possível executar a resolução — {{message}}",
     "solveErrorUnknown": "Não foi possível executar a resolução.",

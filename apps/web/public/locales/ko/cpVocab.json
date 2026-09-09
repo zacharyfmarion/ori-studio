@@ -278,11 +278,11 @@
       }
     },
     "cp_action_vertex_pin": {
-      "label": "",
-      "tooltip": "",
-      "disabledReason": "",
+      "label": "정점 고정",
+      "tooltip": "정점을 클릭하면 제자리에 고정됩니다. 솔버와 모든 변형이 그 정점을 건드리지 않습니다",
+      "disabledReason": "준비됨",
       "steps": {
-        "0": ""
+        "0": "정점을 클릭하여 고정하거나 해제"
       }
     },
     "cp_action_crease_make_mountain": {

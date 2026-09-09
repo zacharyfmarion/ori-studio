@@ -278,11 +278,11 @@
       }
     },
     "cp_action_vertex_pin": {
-      "label": "",
-      "tooltip": "",
-      "disabledReason": "",
+      "label": "Fixar vértice",
+      "tooltip": "Clique em um vértice para mantê-lo no lugar: o solucionador e todas as transformações não o movem",
+      "disabledReason": "Pronto",
       "steps": {
-        "0": ""
+        "0": "Clique em um vértice para fixá-lo ou soltá-lo"
       }
     },
     "cp_action_crease_make_mountain": {

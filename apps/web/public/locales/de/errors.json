@@ -19,7 +19,7 @@
   },
   "cp": {
     "foldProducedNothing": "Diese Faltlinien haben keine flache Faltform, die sich zeichnen ließe",
-    "pinnedVertex": ""
+    "pinnedVertex": "Diese Falte beginnt an einem fixierten Knoten und kann daher nicht verlängert werden. Lösen Sie zuerst die Fixierung des Knotens, oder verlängern Sie eine andere Falte."
   },
   "cpDetectImport": {
     "addFailed": "Das erkannte Faltmuster konnte nicht hinzugefügt werden.",

@@ -2792,7 +2792,13 @@
     "common:toolbar.downloadDesktopVersion": "03fa8a0d2319",
     "dialogs:help.about.desktop": "7102842054a4",
     "dialogs:help.about.desktopDetail": "5261404987d3",
-    "common:toolbar.discord": "895e7564fa79"
+    "common:toolbar.discord": "895e7564fa79",
+    "panels:cpRegion.repairTools": "3ecf489d4104",
+    "errors:cp.pinnedVertex": "3b4d3a9374da",
+    "cpVocab:action.cp_action_vertex_pin.label": "9a1d4823a841",
+    "cpVocab:action.cp_action_vertex_pin.tooltip": "9c5186463586",
+    "cpVocab:action.cp_action_vertex_pin.disabledReason": "5fa7aac5375c",
+    "cpVocab:action.cp_action_vertex_pin.steps.0": "9dc8c56b6e56"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5587,7 +5593,13 @@
     "common:toolbar.downloadDesktopVersion": "03fa8a0d2319",
     "dialogs:help.about.desktop": "7102842054a4",
     "dialogs:help.about.desktopDetail": "5261404987d3",
-    "common:toolbar.discord": "895e7564fa79"
+    "common:toolbar.discord": "895e7564fa79",
+    "panels:cpRegion.repairTools": "3ecf489d4104",
+    "errors:cp.pinnedVertex": "3b4d3a9374da",
+    "cpVocab:action.cp_action_vertex_pin.label": "9a1d4823a841",
+    "cpVocab:action.cp_action_vertex_pin.tooltip": "9c5186463586",
+    "cpVocab:action.cp_action_vertex_pin.disabledReason": "5fa7aac5375c",
+    "cpVocab:action.cp_action_vertex_pin.steps.0": "9dc8c56b6e56"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8382,7 +8394,13 @@
     "common:toolbar.downloadDesktopVersion": "03fa8a0d2319",
     "dialogs:help.about.desktop": "7102842054a4",
     "dialogs:help.about.desktopDetail": "5261404987d3",
-    "common:toolbar.discord": "895e7564fa79"
+    "common:toolbar.discord": "895e7564fa79",
+    "panels:cpRegion.repairTools": "3ecf489d4104",
+    "errors:cp.pinnedVertex": "3b4d3a9374da",
+    "cpVocab:action.cp_action_vertex_pin.label": "9a1d4823a841",
+    "cpVocab:action.cp_action_vertex_pin.tooltip": "9c5186463586",
+    "cpVocab:action.cp_action_vertex_pin.disabledReason": "5fa7aac5375c",
+    "cpVocab:action.cp_action_vertex_pin.steps.0": "9dc8c56b6e56"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11126,7 +11144,13 @@
     "common:toolbar.downloadDesktopVersion": "03fa8a0d2319",
     "dialogs:help.about.desktop": "7102842054a4",
     "dialogs:help.about.desktopDetail": "5261404987d3",
-    "common:toolbar.discord": "895e7564fa79"
+    "common:toolbar.discord": "895e7564fa79",
+    "panels:cpRegion.repairTools": "3ecf489d4104",
+    "errors:cp.pinnedVertex": "3b4d3a9374da",
+    "cpVocab:action.cp_action_vertex_pin.label": "9a1d4823a841",
+    "cpVocab:action.cp_action_vertex_pin.tooltip": "9c5186463586",
+    "cpVocab:action.cp_action_vertex_pin.disabledReason": "5fa7aac5375c",
+    "cpVocab:action.cp_action_vertex_pin.steps.0": "9dc8c56b6e56"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -13870,7 +13894,13 @@
     "common:toolbar.downloadDesktopVersion": "03fa8a0d2319",
     "dialogs:help.about.desktop": "7102842054a4",
     "dialogs:help.about.desktopDetail": "5261404987d3",
-    "common:toolbar.discord": "895e7564fa79"
+    "common:toolbar.discord": "895e7564fa79",
+    "panels:cpRegion.repairTools": "3ecf489d4104",
+    "errors:cp.pinnedVertex": "3b4d3a9374da",
+    "cpVocab:action.cp_action_vertex_pin.label": "9a1d4823a841",
+    "cpVocab:action.cp_action_vertex_pin.tooltip": "9c5186463586",
+    "cpVocab:action.cp_action_vertex_pin.disabledReason": "5fa7aac5375c",
+    "cpVocab:action.cp_action_vertex_pin.steps.0": "9dc8c56b6e56"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -16665,7 +16695,13 @@
     "common:toolbar.downloadDesktopVersion": "03fa8a0d2319",
     "dialogs:help.about.desktop": "7102842054a4",
     "dialogs:help.about.desktopDetail": "5261404987d3",
-    "common:toolbar.discord": "895e7564fa79"
+    "common:toolbar.discord": "895e7564fa79",
+    "panels:cpRegion.repairTools": "3ecf489d4104",
+    "errors:cp.pinnedVertex": "3b4d3a9374da",
+    "cpVocab:action.cp_action_vertex_pin.label": "9a1d4823a841",
+    "cpVocab:action.cp_action_vertex_pin.tooltip": "9c5186463586",
+    "cpVocab:action.cp_action_vertex_pin.disabledReason": "5fa7aac5375c",
+    "cpVocab:action.cp_action_vertex_pin.steps.0": "9dc8c56b6e56"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -19460,7 +19496,13 @@
     "common:toolbar.downloadDesktopVersion": "03fa8a0d2319",
     "dialogs:help.about.desktop": "7102842054a4",
     "dialogs:help.about.desktopDetail": "5261404987d3",
-    "common:toolbar.discord": "895e7564fa79"
+    "common:toolbar.discord": "895e7564fa79",
+    "panels:cpRegion.repairTools": "3ecf489d4104",
+    "errors:cp.pinnedVertex": "3b4d3a9374da",
+    "cpVocab:action.cp_action_vertex_pin.label": "9a1d4823a841",
+    "cpVocab:action.cp_action_vertex_pin.tooltip": "9c5186463586",
+    "cpVocab:action.cp_action_vertex_pin.disabledReason": "5fa7aac5375c",
+    "cpVocab:action.cp_action_vertex_pin.steps.0": "9dc8c56b6e56"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -22204,6 +22246,12 @@
     "common:toolbar.downloadDesktopVersion": "03fa8a0d2319",
     "dialogs:help.about.desktop": "7102842054a4",
     "dialogs:help.about.desktopDetail": "5261404987d3",
-    "common:toolbar.discord": "895e7564fa79"
+    "common:toolbar.discord": "895e7564fa79",
+    "panels:cpRegion.repairTools": "3ecf489d4104",
+    "errors:cp.pinnedVertex": "3b4d3a9374da",
+    "cpVocab:action.cp_action_vertex_pin.label": "9a1d4823a841",
+    "cpVocab:action.cp_action_vertex_pin.tooltip": "9c5186463586",
+    "cpVocab:action.cp_action_vertex_pin.disabledReason": "5fa7aac5375c",
+    "cpVocab:action.cp_action_vertex_pin.steps.0": "9dc8c56b6e56"
   }
 }

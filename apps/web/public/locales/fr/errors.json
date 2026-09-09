@@ -19,7 +19,7 @@
   },
   "cp": {
     "foldProducedNothing": "Ces plis n’ont aucune forme pliée à plat à dessiner",
-    "pinnedVertex": ""
+    "pinnedVertex": "Ce pli part d’un sommet épinglé, il ne peut donc pas être prolongé. Détachez d’abord le sommet ou prolongez un autre pli."
   },
   "cpDetectImport": {
     "addFailed": "Le patron de plis détecté n'a pas pu être ajouté.",

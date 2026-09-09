@@ -278,11 +278,11 @@
       }
     },
     "cp_action_vertex_pin": {
-      "label": "",
-      "tooltip": "",
-      "disabledReason": "",
+      "label": "Knoten fixieren",
+      "tooltip": "Einen Knoten anklicken, um ihn festzuhalten – der Löser und jede Transformation lassen ihn unverändert",
+      "disabledReason": "Bereit",
       "steps": {
-        "0": ""
+        "0": "Knoten anklicken, um ihn zu fixieren oder zu lösen"
       }
     },
     "cp_action_crease_make_mountain": {

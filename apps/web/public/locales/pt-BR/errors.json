@@ -19,7 +19,7 @@
   },
   "cp": {
     "foldProducedNothing": "Estes vincos não têm nenhuma forma dobrada em plano para desenhar",
-    "pinnedVertex": ""
+    "pinnedVertex": "Esse vinco começa em um vértice fixado, então não pode ser estendido. Solte o vértice primeiro ou estenda outro vinco."
   },
   "cpDetectImport": {
     "addFailed": "Não foi possível adicionar o padrão de vincos detectado.",

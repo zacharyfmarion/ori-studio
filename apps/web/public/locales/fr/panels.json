@@ -270,7 +270,7 @@
       "graphMismatch": "Le résultat de la résolution ne décrit pas les plis de cette région : rien n’a été modifié. Relancez la résolution.",
       "noPattern": "Cette région ne contient aucun pli, il n’y a donc rien à résoudre. Déplacez la région sur le patron détecté puis réessayez."
     },
-    "repairTools": "",
+    "repairTools": "Outils de réparation",
     "solve": "Résoudre",
     "solveError": "Impossible de lancer la résolution — {{message}}",
     "solveErrorUnknown": "Impossible de lancer la résolution.",

@@ -278,11 +278,11 @@
       }
     },
     "cp_action_vertex_pin": {
-      "label": "",
-      "tooltip": "",
-      "disabledReason": "",
+      "label": "Épingler le sommet",
+      "tooltip": "Cliquez sur un sommet pour le maintenir en place : le solveur et toutes les transformations le laissent intact",
+      "disabledReason": "Prêt",
       "steps": {
-        "0": ""
+        "0": "Cliquez sur un sommet pour l’épingler ou le détacher"
       }
     },
     "cp_action_crease_make_mountain": {
