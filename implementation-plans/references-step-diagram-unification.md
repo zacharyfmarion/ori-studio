@@ -123,10 +123,19 @@ test guards by value, not by location.
 ### D4 — the back face is capped by contrast, not by a fixed ratio
 
 `paperBackFor(bg, ink)` returns the largest ink fraction ≤ 0.30 whose WCAG step
-against the ground is ≤ 1.8 — the light branch's own range, which reads
-correctly today. It must emit flat hex: `renderer/cssColor.ts` parses only hex
-and `rgb()`, and a `color-mix()` there falls back to an invisible back face,
-which has shipped before (`cssColor.test.ts:33-38`).
+against the ground is ≤ **1.9** — just above the light themes' own measured band
+(1.43 solarized-light to 1.88 github-light), so the rule that exists for the
+dark themes cannot disturb the light ones it copies and does not hinge on one
+preset's exact bytes.
+
+It emits flat hex: `renderer/cssColor.ts` parses only hex and `rgb()`, and a
+`color-mix()` there falls back to an invisible back face, which has shipped
+before (`cssColor.test.ts:33-38`).
+
+Measured after: every dark theme is inside 1.90, and **mountain on the back face
+goes from a worst case of 1.54:1 (cobalt2) to 2.04:1**. Fourteen dark themes
+move; four (solarized-dark, palenight, one-dark, tokyo-night) and all five light
+themes are untouched.
 
 This is a legibility fix, not a WCAG one. 3:1 for mountain on the back face is
 unreachable by any luminance step in a dark theme, and light mode does not
@@ -162,9 +171,9 @@ reach it today either.
       **9 cards and 117 SVG elements mounted** instead of 200 cards, with the
       track reporting the full 27,200 px so the scrollbar is still the plan's
       length. The window follows the scroll (cards 92–105 at 13,000 px).
-- [ ] **Phase 1 — the dark-mode back face.** `paperBackFor` + a test that runs
-      the cap over all 23 built-in themes, so the rule is checked in CI rather
-      than trusted from a table. Ships alone.
+- [x] **Phase 1 — the dark-mode back face.** `paperBackFor` + a test that runs
+      the rule over all 23 built-in themes, so it is checked in CI rather than
+      trusted from a table. Worst mountain-on-back 1.54:1 → 2.04:1.
 - [ ] **Phase 2 — the ink unit and the scale law.** Card-only, and should be
       visually near-identical, which is why it ships before anything moves. A
       test renders one model at 100 and at 800 and asserts every numeric
@@ -175,9 +184,23 @@ reach it today either.
       sequence through both frames and asserts identical primitives.
 - [ ] **Phase 4 — the main view gets the picture.** Scene adapter, the overlay
       layer, `previewWidthPx`, per-instance overlay store.
-- [ ] **Phase 5 (separate PR) — the ReferenceFinder candidate path.** Blocked on
-      getting RF's own arcs into model space; until it lands, plan mode has
-      arrows and target mode does not.
+- [ ] **Phase 5 (separate PR) — arrows in target mode.** After Phase 4 the plan
+      view has arrows and the *targeted* view — what a first vertex click lands
+      you on — does not. Its overlay is built from mapped **points**
+      (`referencesStepGeometry.ts:100`), and an arrow is an arc: centre, radius,
+      two angles, none of which a point map carries.
+
+      Not blocked, and not the D6 fork an earlier draft claimed. `unit_to_model`
+      is a **similarity**: `frame.rs:80` sets `y_axis = [x[1], −x[0]]` against a
+      unit `x`, so the basis is orthonormal with determinant −1 and the map is a
+      uniform scale, a rotation and a flip. A similarity takes circles to
+      circles exactly, so three mapped points on the arc determine its image —
+      and `rfToModelMany` already maps points in a batch. No new Rust, no wasm
+      rebuild, no matrix crossing the bridge. (`Frame::affines()` exists and
+      would also serve, but it is not exported over wasm today, so the "export
+      the affine" and "do it in Rust" options cost the same and neither is
+      needed.)
+
 
 ## Flagged, not fixed
 
@@ -189,6 +212,10 @@ reach it today either.
 
 ## Settled
 
+- **Dark mode matches light mode's outcome** (D4), on the author's call. If the
+  complaint was ever "I can't tell which face I'm on" rather than "the back face
+  washes out the creases", this moves the wrong way and the lever is chroma at
+  matched luminance instead.
 - **The main view stays on WebGL**, for the folding simulation it will host
   rather than for element counts. The drift that buys is named under "What was
   measured first" and is the thing to watch.
@@ -200,13 +227,6 @@ reach it today either.
 
 ## Still open
 
-- **Which reading of the dark-mode complaint?** "The back face washes out the
-  creases" and "I can't tell which face I'm on" want opposite changes — the cap
-  in D4 helps the first and hurts the second. Light mode reads correctly today
-  and sits at a step of 1.74, so matching it is the defensible default and is
-  what D4 does; if the complaint is really the second reading, the only lever
-  that serves both is chroma at matched luminance, which is a per-theme hue
-  decision not made here.
 - **The pink is now inconsistent.** A reference mark is a ring in the drawing's
   own ink; the letter beside it and the input lines it names are still
   `--cp-reference-input`. That is defensible — the circling picks out a point,

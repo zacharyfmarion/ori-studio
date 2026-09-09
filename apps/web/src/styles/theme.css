@@ -50,8 +50,12 @@
    * and nothing else — a `color-mix()` parses to null and falls back to a
    * hard-coded near-black, which is exactly how this token looked implemented
    * and did nothing.
+   *
+   * Computed by the same rule `themes/paperBack.ts` applies, against the
+   * fallback ground and ink above, so the checked-in default and every applied
+   * theme agree. It was `#515558`, a 2.46 step, before that rule existed.
    */
-  --paper-back: #515558;
+  --paper-back: #404447;
   /* Two-tone origami paper in the simulator: yellow front, light back. The
      yellow matches a generated folded figure in the edit pane (the CP engine's
      default front colour, RgbColor(255,255,50)); the blue valley and red
