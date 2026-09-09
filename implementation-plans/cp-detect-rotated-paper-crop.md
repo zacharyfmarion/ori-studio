@@ -106,4 +106,44 @@ paper's 0.78, but the 8° box reads 0.38 and `lotus`'s octagon bbox 0.43. What
 separates them is which square holds the pattern.
 
 Final state: **608/648 identical to the baseline, 40 changed, every one of
-them a rotated paper verified by eye.**
+them a rotated paper.**
+
+## Landing on the paper, not near it (2026-09-09)
+
+Counting a crop "right" by eye at thumbnail size was too coarse. `angry-cat`
+passed that check while sitting 14–20 px inside two of the paper's four
+edges, which distorts every angle and is fatal downstream. The honest measure
+is already in the report: **a correctly found paper has all four sides at
+1.000 border support**, and on the first version only 22 of 40 did.
+
+Two causes, both now fixed, taking it to **38 of 40**:
+
+1. **The refinement was reading a subsample.** Striding the raster samples a
+   sublattice, and how much of a line it catches depends on that line's
+   angle, so the support curve is lumpy at a scale that swamps the quarter
+   degree being resolved: on `angry-cat` stride 4 makes 45.25° beat the true
+   45.00° by 257 to 256. A quarter degree is enough to smear the paper's own
+   edge across enough buckets that `top_clusters` drops it for a crease.
+   Refinement is a dozen projections, not ninety, so it now reads every
+   pixel.
+2. **A run of buckets above the threshold is not one line.** Where a paper's
+   edge runs alongside a band of creases parallel to it — at 45°, most of a
+   crease pattern — they stay above the threshold together and the weighted
+   centre of the whole run lands in the middle of the band. On `hawk` that
+   is a run 132 buckets wide with the paper's edge at its far end, reported
+   55 px inside. `Lines::PerPeak` reads one line per local maximum instead.
+
+`PerPeak` is scoped to the rotated search deliberately. It is the better line
+finder on any axis and the upright path has the same defect —
+`samurai-v4`'s and `falcon-2-0`'s papers are inset today for exactly this
+reason — but it turns 12 lines into 53–61, and `MAX_AXIS_CLUSTERS` then keeps
+the tallest rather than the outermost, moving 22 upright crops. Keeping the
+outermost two through the cap fixes those but costs more than it gains on the
+rotated side (36/41 instead of 38/40, regressing `swallow` and
+`crested-ibis`). **Fixing the upright path needs its own corpus review and is
+not in this change.**
+
+One case, `dpa-sword-and-shield`, loses the diamond it found before these
+fixes and falls back to the upright crop `main` already gives it: `PerPeak`
+finds enough lines there to starve the cap. Not a regression against `main`,
+but not the improvement it briefly was.

@@ -54,12 +54,25 @@ const FRAME_MIN_SIDE_SUPPORT: f32 = 0.5;
 /// How far apart two projection peaks must be, as a fraction of the image's
 /// smaller side, to be opposite sides of a panel rather than one thick line.
 const MIN_PANEL_SPAN_RATIO: f32 = 0.12;
+/// How many lines an axis offers the panel search. The search is every pair
+/// against every pair, so this is a fourth-power cost.
+const MAX_AXIS_CLUSTERS: usize = 12;
 /// How many angles the sweep looks at across the square's 90° of symmetry.
 const ANGLE_SWEEP_STEPS: usize = 90;
 /// Roughly how many pixels one projection in the sweep looks at, whatever the
 /// image's size. The sweep is ninety projections per axis and has to stay
 /// cheap on a photograph as well as on a diagram.
 const ANGLE_SWEEP_PIXEL_BUDGET: usize = 250_000;
+/// The same for the refinement, which is a dozen projections rather than a
+/// hundred and so can afford every pixel of any ordinary image.
+///
+/// It has to. Striding the raster samples a sublattice, and how much of a
+/// line that sublattice happens to catch depends on the line's angle, so the
+/// support curve comes out lumpy at a scale that swamps the quarter-degree
+/// the refinement is trying to resolve. On `angry-cat` a stride of 4 makes
+/// 45.25° beat the true 45.00° by 257 to 256, and at stride 1 the same curve
+/// is smooth and symmetric about 45.00°.
+const ANGLE_REFINE_PIXEL_BUDGET: usize = 4_000_000;
 /// How many rotated angles the finder searches besides the image's own.
 const MAX_ROTATED_ANGLES: usize = 2;
 /// A rotated angle is worth the full search when its straight-edge support is
@@ -81,6 +94,14 @@ const ROTATED_MIN_INK_SHARE: f32 = 0.40;
 /// `calico-cat`'s sides cross blank page at 0.15 while its corners happen to
 /// come out square; the weakest true rotated paper reads 0.23.
 const ROTATED_MIN_SIDE_SUPPORT: f64 = 0.20;
+/// How far outside a quad its own outline's ink still counts as held.
+///
+/// The Sobel mask answers a line with a band a couple of pixels to each
+/// side, so a panel drawn exactly on the paper's edge leaves the outer half
+/// of that band outside itself. Measured against an undilated quad the true
+/// paper scores *below* a slightly larger box that contains all of it, which
+/// is the wrong way round for the one comparison `prefer_rotated` makes.
+const QUAD_INK_MARGIN_PX: f32 = 3.0;
 /// How much larger a rotated square must be to displace an upright one.
 /// Comparing areas across angles is not like-for-like — see `prefer_rotated`.
 const CROSS_ANGLE_AREA_MARGIN: f32 = 1.15;
@@ -691,8 +712,13 @@ fn ink_share(candidate: &PanelCandidate) -> f32 {
 
 fn projection_candidates_at(analysis: &ImageAnalysis, angle_deg: f32) -> Vec<PanelCandidate> {
     let (u_axis, v_axis) = ProjectionAxis::pair(angle_deg, analysis.width, analysis.height);
-    let u_clusters = axis_clusters(analysis, u_axis, 1);
-    let v_clusters = axis_clusters(analysis, v_axis, 1);
+    let lines = if angle_deg == 0.0 {
+        Lines::PerRun
+    } else {
+        Lines::PerPeak
+    };
+    let u_clusters = axis_clusters(analysis, u_axis, 1, lines);
+    let v_clusters = axis_clusters(analysis, v_axis, 1, lines);
     let min_span = analysis.width.min(analysis.height) as f32 * MIN_PANEL_SPAN_RATIO;
     let mut candidates = Vec::new();
     for (left_idx, left) in u_clusters.iter().enumerate() {
@@ -769,7 +795,7 @@ fn quad_inside_image(quad: Quad, width: usize, height: usize) -> bool {
 /// The image's own angle is never dropped — an axis-aligned reading is the
 /// prior, and every panel the finder used to propose is still proposed.
 fn candidate_angles(analysis: &ImageAnalysis) -> Vec<f32> {
-    let stride = sweep_stride(analysis);
+    let stride = budget_stride(analysis, ANGLE_SWEEP_PIXEL_BUDGET);
     let support: Vec<f32> = (0..ANGLE_SWEEP_STEPS)
         .map(|step| angle_support(analysis, sweep_angle(step), stride))
         .collect();
@@ -803,7 +829,7 @@ fn candidate_angles(analysis: &ImageAnalysis) -> Vec<f32> {
         {
             continue;
         }
-        angles.push(refine_angle(analysis, angle, stride));
+        angles.push(refine_angle(analysis, angle));
     }
     angles
 }
@@ -819,12 +845,17 @@ fn angle_separation(left: f32, right: f32) -> f32 {
     delta.min(90.0 - delta)
 }
 
-/// The coarse peak to a quarter of a degree.
+/// The coarse peak to a quarter of a degree, over every pixel.
 ///
-/// A degree of error walks the sampled border 8 px off a 500 px side, and
-/// `border_support_sides` looks only 2 px around each sample, so the panel
-/// the sweep found would score as though it had no border at all.
-fn refine_angle(analysis: &ImageAnalysis, angle_deg: f32, stride: usize) -> f32 {
+/// The angle has to be this good twice over. A degree of error walks the
+/// sampled border 8 px off a 500 px side and `border_support_sides` looks
+/// only 2 px around each sample, so the panel would score as though it had
+/// no border. And well before that, a quarter of a degree is enough to smear
+/// the paper's own edge across enough buckets that `top_clusters` drops it
+/// for a crease — on `angry-cat` at 45.25° the two upper edges of the paper
+/// are simply not among the peaks, and the crop lands 14–20 px inside them.
+fn refine_angle(analysis: &ImageAnalysis, angle_deg: f32) -> f32 {
+    let stride = budget_stride(analysis, ANGLE_REFINE_PIXEL_BUDGET);
     let coarse_step = 90.0 / ANGLE_SWEEP_STEPS as f32;
     (-4..=4)
         .map(|offset| angle_deg + offset as f32 * coarse_step * 0.25)
@@ -846,7 +877,12 @@ fn angle_support(analysis: &ImageAnalysis, angle_deg: f32, stride: usize) -> f32
     let min_span = analysis.width.min(analysis.height) as f32 * MIN_PANEL_SPAN_RATIO;
     [u_axis, v_axis]
         .into_iter()
-        .map(|axis| opposite_pair_support(&axis_clusters(analysis, axis, stride), min_span))
+        .map(|axis| {
+            opposite_pair_support(
+                &axis_clusters(analysis, axis, stride, Lines::PerPeak),
+                min_span,
+            )
+        })
         .fold(f32::INFINITY, f32::min)
 }
 
@@ -864,15 +900,15 @@ fn opposite_pair_support(clusters: &[Cluster], min_span: f32) -> f32 {
     best
 }
 
-/// One pixel in every `stride`, chosen so a big photograph costs the sweep
-/// what a small diagram does.
+/// One pixel in every `stride`, chosen so a projection costs about `budget`
+/// however big the image is.
 ///
 /// The stride walks the raster, so it must not share a factor with the row
 /// length: a stride of 2 on an even-width image sees only even columns, and
 /// a border one column over disappears entirely.
-fn sweep_stride(analysis: &ImageAnalysis) -> usize {
+fn budget_stride(analysis: &ImageAnalysis, budget: usize) -> usize {
     let pixels = analysis.width * analysis.height;
-    let mut stride = pixels.div_ceil(ANGLE_SWEEP_PIXEL_BUDGET).max(1);
+    let mut stride = pixels.div_ceil(budget).max(1);
     while stride > 1 && gcd(stride, analysis.width) > 1 {
         stride += 1;
     }
@@ -961,9 +997,18 @@ impl ProjectionAxis {
 }
 
 /// The smoothed peaks of the edge pixels projected onto an axis.
-fn axis_clusters(analysis: &ImageAnalysis, axis: ProjectionAxis, stride: usize) -> Vec<Cluster> {
+fn axis_clusters(
+    analysis: &ImageAnalysis,
+    axis: ProjectionAxis,
+    stride: usize,
+    lines: Lines,
+) -> Vec<Cluster> {
     let scores = smooth_scores(&project_edges(analysis, axis, stride));
-    top_clusters(&scores, axis.mean_chord(analysis.width, analysis.height))
+    top_clusters(
+        &scores,
+        axis.mean_chord(analysis.width, analysis.height),
+        lines,
+    )
 }
 
 /// The edge pixels' histogram along an axis, one pixel in every `stride`
@@ -982,8 +1027,14 @@ fn project_edges(analysis: &ImageAnalysis, axis: ProjectionAxis, stride: usize) 
     scores
 }
 
+/// How far a single line's ink spreads along the projection once smoothed:
+/// two peaks nearer than this are one line, not two.
+fn smoothing_radius(len: usize) -> usize {
+    (len / 300).clamp(1, 5)
+}
+
 fn smooth_scores(scores: &[f32]) -> Vec<f32> {
-    let radius = (scores.len() / 300).clamp(1, 5);
+    let radius = smoothing_radius(scores.len());
     let mut out = vec![0.0; scores.len()];
     for (idx, value) in out.iter_mut().enumerate() {
         let start = idx.saturating_sub(radius);
@@ -993,7 +1044,32 @@ fn smooth_scores(scores: &[f32]) -> Vec<f32> {
     out
 }
 
-fn top_clusters(scores: &[f32], cross_len: f32) -> Vec<Cluster> {
+/// How many lines the finder reads out of one run of buckets above the
+/// threshold.
+///
+/// A run is not always one line. Where a paper's edge runs alongside a band
+/// of creases parallel to it — which at 45° is most of a crease pattern —
+/// the two stay above the threshold together, and `PerRun` reports the whole
+/// band as a single line at its weighted centre: on `hawk` a run 132 buckets
+/// wide, holding the paper's lower-right edge at its far end, comes back 55
+/// px inside the paper and the crop is short by that much. `PerPeak` reads
+/// one line per local maximum instead.
+///
+/// `PerPeak` is the better line finder on any axis, and the upright search
+/// has the same defect — `samurai-v4`'s and `falcon-2-0`'s papers are inset
+/// today for exactly this reason. But it also multiplies the lines an axis
+/// offers, from 12 to 53–61 on those two, and `MAX_AXIS_CLUSTERS` then keeps
+/// the tallest rather than the outermost, which moves 22 of the corpus's
+/// upright crops. Rotation needs the fix now and the upright path needs its
+/// own review to take it, so the two are separated here rather than
+/// entangled. See `implementation-plans/cp-detect-rotated-paper-crop.md`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Lines {
+    PerRun,
+    PerPeak,
+}
+
+fn top_clusters(scores: &[f32], cross_len: f32, lines: Lines) -> Vec<Cluster> {
     if scores.is_empty() {
         return Vec::new();
     }
@@ -1002,6 +1078,10 @@ fn top_clusters(scores: &[f32], cross_len: f32) -> Vec<Cluster> {
         .copied()
         .fold(0.0_f32, |best, value| best.max(value));
     let threshold = (max_score * 0.45).max(cross_len * 0.08).max(8.0);
+    let separation = match lines {
+        Lines::PerRun => usize::MAX,
+        Lines::PerPeak => 2 * smoothing_radius(scores.len()) + 1,
+    };
     let mut clusters = Vec::new();
     let mut idx = 0;
     while idx < scores.len() {
@@ -1010,33 +1090,87 @@ fn top_clusters(scores: &[f32], cross_len: f32) -> Vec<Cluster> {
             continue;
         }
         let start = idx;
-        let mut weighted = 0.0;
-        let mut total = 0.0;
-        let mut best = (idx, scores[idx]);
         while idx < scores.len() && scores[idx] >= threshold {
-            let score = scores[idx];
-            weighted += idx as f32 * score;
-            total += score;
-            if score > best.1 {
-                best = (idx, score);
-            }
             idx += 1;
         }
-        let end = idx;
-        let center = if total > 0.0 {
-            (weighted / total).round() as usize
-        } else {
-            (start + end) / 2
-        };
-        clusters.push(Cluster {
-            center,
-            score: best.1,
-        });
+        clusters.extend(split_run(&scores[start..idx], start, separation));
     }
     clusters.sort_by(|left, right| right.score.total_cmp(&left.score));
-    clusters.truncate(12);
+    clusters.truncate(MAX_AXIS_CLUSTERS);
     clusters.sort_by_key(|cluster| cluster.center);
     clusters
+}
+
+/// One cluster per line in a run of buckets above the threshold.
+///
+/// A run is not always one line. Where a paper's edge runs alongside a band
+/// of creases parallel to it — which at 45° is most of a crease pattern —
+/// the two stay above the threshold together, and collapsing the run to a
+/// single weighted centroid puts the line in the middle of the band. On
+/// `hawk` that is a run 132 buckets wide holding the paper's lower-right
+/// edge at its far end, reported 55 px inside the paper, and the crop is
+/// short by that much.
+///
+/// A run with one maximum still gives exactly one cluster at exactly the
+/// centroid it always did, so this only ever splits a run that held more
+/// than one line to begin with.
+fn split_run(run: &[f32], offset: usize, separation: usize) -> Vec<Cluster> {
+    let peaks = run_peaks(run, separation);
+    let bounds: Vec<usize> = std::iter::once(0)
+        .chain(
+            peaks
+                .windows(2)
+                // The run parts at the low point between two lines.
+                .map(|pair| {
+                    (pair[0]..=pair[1])
+                        .min_by(|left, right| run[*left].total_cmp(&run[*right]))
+                        .unwrap_or(pair[0])
+                }),
+        )
+        .chain(std::iter::once(run.len()))
+        .collect();
+    bounds
+        .windows(2)
+        .map(|pair| {
+            let segment = &run[pair[0]..pair[1]];
+            let total: f32 = segment.iter().sum();
+            let weighted: f32 = segment
+                .iter()
+                .enumerate()
+                .map(|(idx, score)| (offset + pair[0] + idx) as f32 * score)
+                .sum();
+            Cluster {
+                center: if total > 0.0 {
+                    (weighted / total).round() as usize
+                } else {
+                    offset + (pair[0] + pair[1]) / 2
+                },
+                score: segment.iter().copied().fold(0.0_f32, f32::max),
+            }
+        })
+        .collect()
+}
+
+/// The local maxima of a run, keeping the stronger of any two closer than
+/// `separation` — which is one line's own width, so two peaks that close are
+/// one line read twice.
+fn run_peaks(run: &[f32], separation: usize) -> Vec<usize> {
+    let mut peaks: Vec<usize> = (0..run.len())
+        .filter(|idx| {
+            let rising = *idx == 0 || run[*idx] > run[idx - 1];
+            let falling = *idx + 1 == run.len() || run[*idx] >= run[idx + 1];
+            rising && falling
+        })
+        .collect();
+    peaks.sort_by(|left, right| run[*right].total_cmp(&run[*left]));
+    let mut kept: Vec<usize> = Vec::new();
+    for peak in peaks {
+        if kept.iter().all(|other| peak.abs_diff(*other) >= separation) {
+            kept.push(peak);
+        }
+    }
+    kept.sort_unstable();
+    kept
 }
 
 fn density_candidate(analysis: &ImageAnalysis) -> Option<PanelCandidate> {
@@ -1195,7 +1329,15 @@ fn quad_interior(analysis: &ImageAnalysis, quad: Quad) -> QuadInterior {
     let pad = (span_u.min(span_v) * 0.08).round();
     let inner = inset_quad(quad, pad / span_u, pad / span_v);
     let (active, total) = quad_edge_counts(analysis, inner);
-    let (held, _) = quad_edge_counts(analysis, quad);
+    let held = quad_edge_counts(
+        analysis,
+        inset_quad(
+            quad,
+            -QUAD_INK_MARGIN_PX / span_u,
+            -QUAD_INK_MARGIN_PX / span_v,
+        ),
+    )
+    .0;
     let ink = analysis.edge_density * (analysis.width * analysis.height) as f32;
     QuadInterior {
         density: active as f32 / total.max(1) as f32,
@@ -1265,10 +1407,11 @@ fn quad_row_span(quad: Quad, y: f32, width: usize) -> Option<(usize, usize)> {
     (low.is_finite() && start < end).then_some((start, end.min(width)))
 }
 
-/// The quad pulled in from each of its own sides by a fraction of that side.
+/// The quad pulled in from each of its own sides by a fraction of that side,
+/// or pushed out by one when the ratio is negative.
 fn inset_quad(quad: Quad, u_ratio: f32, v_ratio: f32) -> Quad {
-    let (u0, u1) = (u_ratio.clamp(0.0, 0.49), 1.0 - u_ratio.clamp(0.0, 0.49));
-    let (v0, v1) = (v_ratio.clamp(0.0, 0.49), 1.0 - v_ratio.clamp(0.0, 0.49));
+    let (u0, u1) = (u_ratio.clamp(-0.25, 0.49), 1.0 - u_ratio.clamp(-0.25, 0.49));
+    let (v0, v1) = (v_ratio.clamp(-0.25, 0.49), 1.0 - v_ratio.clamp(-0.25, 0.49));
     Quad {
         top_left: quad_point(quad, u0, v0),
         top_right: quad_point(quad, u1, v0),
@@ -2434,6 +2577,41 @@ mod tests {
             let expected = (0..48).filter(|y| analysis.edges[y * 64 + x]).count() as f32;
             assert_eq!(*count, expected, "column {x}");
         }
+    }
+
+    /// `hawk`'s mechanism, in miniature: a paper edge at one end of a band
+    /// of creases parallel to it, all of them above the threshold together.
+    #[test]
+    fn a_run_holding_a_band_and_an_edge_reads_as_separate_lines() {
+        // A dense band, a gap too small to fall below threshold, then the
+        // paper's own edge — one run of buckets, two lines.
+        let mut run = vec![200.0, 260.0, 210.0, 250.0, 205.0];
+        run.extend([150.0, 140.0, 135.0, 140.0, 150.0]);
+        run.extend([190.0, 240.0, 279.0, 230.0, 180.0]);
+
+        let one = split_run(&run, 0, usize::MAX);
+        let many = split_run(&run, 0, 3);
+
+        assert_eq!(one.len(), 1, "a run must still read as one line on demand");
+        assert!(
+            (5..=9).contains(&one[0].center),
+            "the whole run averages to its middle: {:?}",
+            one[0].center
+        );
+        assert!(many.len() >= 2, "{many:?}");
+        let outermost = many.last().expect("a line");
+        assert!(
+            (11..=13).contains(&outermost.center),
+            "the edge at the far end is its own line: {:?}",
+            many.iter().map(|c| c.center).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn two_peaks_within_one_lines_width_are_one_line() {
+        let run = vec![100.0, 180.0, 120.0, 170.0, 90.0];
+        assert_eq!(run_peaks(&run, 5).len(), 1);
+        assert_eq!(run_peaks(&run, 2).len(), 2);
     }
 
     #[test]
