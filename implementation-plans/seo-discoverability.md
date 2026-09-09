@@ -384,6 +384,51 @@ and Search Console shows the English page indexed and ranking for something.
 - [ ] Confirm via Search Console URL Inspection that Googlebot sees the copy *(needs Zach,
       after deploy)*
 
+### Phase 2a — The rendered title (found in the wild 2026-09-09)
+
+Google's result for the site read **"Ori Studio: Untitled"**.
+
+Nothing in the shipped bytes says that. `index.html`, `dist/index.html` and
+`dist/welcome/index.html` all serve `SITE_TITLE`, and `seo-smoke.mjs` confirms
+it against the deploy. The defect is one layer further on: **crawling and
+rendering are separate passes, and the title Google indexes comes from the
+second one.** Googlebot rendered the SPA, `App` mounted, `useWindowTitle` ran —
+and it titles the window after the open project, which on `/welcome` is the
+blank one the store holds, called `Untitled`. The prerendered title survived
+exactly as long as it took React to boot.
+
+This is the failure mode Phase 2 was written to avoid, arriving through the door
+Phase 2 left open. Prerendering removes the *dependency* on the render pass; it
+does not stop that pass overwriting what the crawler already read. Anything the
+app mutates in `<head>` at runtime is still, effectively, published metadata.
+
+The fix is to say that the landing page is not a document:
+
+- `isLandingPath` in `routing/paths.ts` — `/` and `/welcome`, trailing slash
+  included, because Pages 308s `/welcome` → `/welcome/` (the prerender writes a
+  real directory index for it).
+- `formatWindowTitle` takes a `landing` flag and answers `SITE_TITLE` on the web,
+  `SITE_NAME` on desktop. The web answer has to be *exactly* what `index.html`
+  serves, or a crawler is back to watching the title change under it; a title bar
+  is not a search result, so the desktop shell takes the name alone.
+- `useWindowTitle` reads the route to decide.
+
+Guards, since the original had none:
+
+- [x] `useWindowTitle` tested at `/welcome`, `/welcome/` and a workspace route,
+      with a *named* project in the store — what makes the landing not a document
+      is the route, not an empty store
+- [x] `formatWindowTitle` tested on both surfaces
+- [x] A test asserting `index.html`'s `<title>` is `SITE_TITLE`. The string is
+      duplicated there because `index.html` is Vite's entry and is read before any
+      of our code runs; that duplication is now load-bearing and nothing else
+      compared them
+- [ ] Request re-indexing in Search Console once this deploys *(needs Zach)*
+
+**Still true of every other route.** `/edit` and friends keep naming the open
+document, which is what a document window is for, and `canonical → /` folds them
+into the landing regardless.
+
 **`noindex` on the app routes was dropped, deliberately.** Every route serves the same
 `dist/index.html`, so `/edit` now carries the prerendered landing copy too. The fix is not
 a runtime `<meta robots>` — that only exists after the render pass, which is the pass we

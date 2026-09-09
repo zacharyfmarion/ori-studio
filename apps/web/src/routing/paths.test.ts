@@ -5,6 +5,7 @@ import {
   LEGACY_DESIGN_PATHS,
   SIMULATE_PATH,
   WELCOME_PATH,
+  isLandingPath,
   parseWorkspacePath,
   workspacePath,
 } from './paths';
@@ -48,5 +49,35 @@ describe('parseWorkspacePath', () => {
     for (const workspace of ['design', 'edit', 'simulate'] as const) {
       expect(parseWorkspacePath(workspacePath(workspace))).toEqual({ workspace });
     }
+  });
+});
+
+/**
+ * What separates the marketing page from a document, which is what decides
+ * whether the tab is titled for the site or for the open project. Getting this
+ * wrong is not a cosmetic bug — the title the app renders is the one Google
+ * indexes, so a `/welcome` that answers `false` here shows up in the result.
+ */
+describe('isLandingPath', () => {
+  it('matches both paths that hold the landing page', () => {
+    expect(isLandingPath('/')).toBe(true);
+    expect(isLandingPath(WELCOME_PATH)).toBe(true);
+  });
+
+  it('matches the trailing-slash form the deploy redirects to', () => {
+    // Pages 308s `/welcome` to `/welcome/`, because the prerender writes a real
+    // `dist/welcome/index.html` for it — so this is the URL a crawler fetching
+    // that path directly actually lands on, and what the router then reports.
+    expect(isLandingPath('/welcome/')).toBe(true);
+  });
+
+  it('does not match a workspace, which has a document to be named after', () => {
+    expect(isLandingPath(EDIT_PATH)).toBe(false);
+    expect(isLandingPath(DESIGN_PATH)).toBe(false);
+    expect(isLandingPath(SIMULATE_PATH)).toBe(false);
+  });
+
+  it('does not match a path that merely starts with one', () => {
+    expect(isLandingPath('/welcome-back')).toBe(false);
   });
 });

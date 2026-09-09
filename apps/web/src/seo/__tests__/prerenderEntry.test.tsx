@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { LANDING_SECTIONS } from '../../components/landing/WelcomeLanding';
 import { escapeForScriptTag, landingJsonLd, landingJsonLdScript } from '../jsonLd';
@@ -58,6 +60,25 @@ describe('site metadata', () => {
     // A drift here is the silent failure: the app would boot with the crawler copy still
     // on the page, underneath the real one.
     expect(SEO_CONTENT_ID).toBe('seo-content');
+  });
+
+  /**
+   * The crawler must never see the title change under it.
+   *
+   * It saw exactly that until `useWindowTitle` learned about the landing route:
+   * `index.html` served this sentence, Googlebot's render pass replaced it with
+   * the blank project's name, and "Ori Studio: Untitled" is what got indexed.
+   * The runtime title on the landing is now `SITE_TITLE`, so the two agree —
+   * which makes this duplicated string load-bearing rather than cosmetic, and
+   * nothing else compares them.
+   *
+   * Asserted rather than generated because `index.html` is Vite's entry: it is
+   * read before any of our code runs, and the dev server serves it directly.
+   */
+  it('serves the same title from index.html that the app sets at runtime', () => {
+    const here = dirname(new URL(import.meta.url).pathname);
+    const html = readFileSync(join(here, '../../../index.html'), 'utf8');
+    expect(html).toContain(`<title>${SITE_TITLE}</title>`);
   });
 
   it('builds absolute sitemap URLs on the canonical origin', () => {
