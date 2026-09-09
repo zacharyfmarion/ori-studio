@@ -132,7 +132,12 @@ import { createStepSequenceTool } from './tools/stepSequenceTool';
 import { createLinePickTool } from './tools/linePickTool';
 import type { ToolCommit, ToolPreviewSegment } from './tools/types';
 import { endpointKeys, vertexEndpointsAt } from './tools/vertexEndpoints';
-import { isCpVertexPinned, pinnedVertexIndices, type CpVertexPin } from './pins/vertexPins';
+import {
+  heldEndpointKeys,
+  isCpVertexPinned,
+  pinnedVertexIndices,
+  type CpVertexPin,
+} from './pins/vertexPins';
 import {
   CP_LINE_HIT_MIN_CSS,
   CP_LINE_HIT_RATIO,
@@ -1364,6 +1369,10 @@ export function CreasePatternWebglCanvas({
     () => pinnedVertexIndices(vertices, pinnedVertices),
     [vertices, pinnedVertices]
   );
+  const heldEndpoints = useMemo(
+    () => heldEndpointKeys(lineSegments, pinnedVertices),
+    [lineSegments, pinnedVertices]
+  );
   // Build the point buffer (crease points, derived vertices, circles). During a
   // move-drag or transform gesture the derived vertices of the moved lines follow
   // through `move.matrix`; real points and circles do not move, matching the kernel
@@ -1456,6 +1465,7 @@ export function CreasePatternWebglCanvas({
     points,
     vertices,
     pinnedVertices,
+    heldEndpoints,
     circles,
     circleRadiusToSvg,
     foldedFigures,
@@ -2438,7 +2448,11 @@ export function CreasePatternWebglCanvas({
       }
       if (transform.kind === 'move') {
         transformActiveRef.current = 'move';
-        const move = { ids, matrix };
+        // The pinned ends sit the transform out, so the preview stretches
+        // exactly where the commit will — the kernel applies the same rule at
+        // `PinnedPoints::hold`, and `transform_preview_golden.rs` pins the two
+        // together. Copy takes no held set: it moves nothing.
+        const move = { ids, matrix, heldEndpoints: liveRef.current.heldEndpoints };
         renderer.setStrokes(liveRef.current.buildStrokes(move));
         renderer.setPoints(liveRef.current.buildPoints(move));
         // The DOM overlays draw the same creases from the document, which still
@@ -3558,6 +3572,7 @@ export function CreasePatternWebglCanvas({
             const move = {
               ids: liveRef.current.selectedLineSet,
               matrix: translationMatrix(moveDelta),
+              heldEndpoints: liveRef.current.heldEndpoints,
             };
             renderer.setStrokes(liveRef.current.buildStrokes(move));
             renderer.setPoints(liveRef.current.buildPoints(move));

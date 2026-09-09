@@ -557,6 +557,41 @@ same preview path, same wasm bridge. The boundary is about provenance and what a
 future porting session owes the upstream, not about how the code runs. Nothing in
 `native/` needs an oracle, and no oracle sweep should expect to find one.
 
+#### A native *constraint* on ported operations: pinned vertices
+
+`operations::native::pinned` is not an operation at all. It is a set of positions
+that the ported transforms must leave alone — the user has pinned those vertices,
+and a crease with one pinned end **stretches** instead of translating, one with
+both pinned does not move, and a lengthen that would build onto one is refused.
+Oriedita has no notion of a held vertex; every transform there moves whatever is
+selected, whole.
+
+This is a divergence only when a caller asks for one. `PinnedPoints::holds`
+short-circuits on an empty slice, every call site reduces to the expression it
+replaced, and the payload field defaults to empty — so an oracle comparison, and
+every caller that is not the CP editor with pins on screen, sees the port
+unchanged. `an_empty_pin_set_is_the_move_that_shipped` is the test that says so.
+
+Three things a future change here should know:
+
+- **The constraint has to be applied where the new coordinates are computed**,
+  not afterwards. `move_selected_lines` deletes the selection, transforms it,
+  and re-splits it against what it now crosses; a stretched crease crosses
+  different creases than a translated one, so a fix-up after the split would
+  produce geometry the splitter never saw.
+- **Copy takes no pinned set, deliberately.** It moves nothing, and its output
+  is new geometry that inherits no constraint. `mirror_selected_lines` (Reflect
+  selection over line) is a copy too, and is exempt for the same reason.
+- **A pinned transform can collapse a crease, and a plain one cannot.** A
+  similarity never shortens a crease to nothing; holding one end while the other
+  travels onto it does. `append_and_split` has no zero-length guard, and one
+  sub-epsilon self-loop makes the Euler check discard every face on export — so
+  the pinned path drops collapsed segments explicitly.
+
+The exact solver has its own, separate pin (`pinned_vertex_ids` in
+`oristudio-cp-compiler`), which names vertex *ids* rather than positions because
+it addresses one solve input rather than a document that moves under it.
+
 Whole *modules* can be native too, and `crates/oristudio-cp/src/folding3d/` is
 one: the computed 3D folded state. Upstream folds by reflecting each face across
 its crease, which is only correct at ±180, so there is no `WireFrame_Worker`

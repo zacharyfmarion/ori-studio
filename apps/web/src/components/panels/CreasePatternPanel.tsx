@@ -46,6 +46,7 @@ import {
 } from '../../lib/oristudioCpActions';
 import {
   cpCommandCommitsWebSide,
+  cpCommandHoldsPinnedVertices,
   cpCommandSnapsKernelSide,
   cpCommandUsesActiveCreaseAngle,
   cpCommandUsesActiveLineColor,
@@ -1405,6 +1406,13 @@ export function CreasePatternPanel() {
         cpKernelSnapPolicy,
         activeCpCreaseAngle
       ),
+      // The pins the operation must hold, sent for every command that reads them
+      // and harmlessly ignored by the rest. Omitted when there are none, so a
+      // document with no pins produces the payload it always did — which is what
+      // keeps the Oriedita parity oracle looking at the same call.
+      ...(pinnedVertices.length > 0 && cpCommandHoldsPinnedVertices(command.operationId)
+        ? { pinned_points: pinnedVertices.map((pin) => ({ x: pin.x, y: pin.y })) }
+        : {}),
       ...payload,
     }),
     [
@@ -1413,6 +1421,7 @@ export function CreasePatternPanel() {
       cpToolOptions,
       editableCpGridWidth,
       activeCpCreaseAngle,
+      pinnedVertices,
     ]
   );
 

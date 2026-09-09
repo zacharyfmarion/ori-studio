@@ -105,6 +105,20 @@ export interface CpTransformPreview {
    * endpoint per frame. The set itself is built once, at press time.
    */
   endpoints?: ReadonlySet<number>;
+  /**
+   * Endpoints that must **not** move even though their segment does — the
+   * pinned vertices, keyed the same way {@link endpoints} is.
+   *
+   * Applied *after* the two sets above rather than by removing ids from them,
+   * because a whole-segment move names segment ids and a pin names endpoints:
+   * a crease with one pinned end is in `ids` and must still be drawn moving at
+   * its other end. Holding per end is what makes the preview *stretch*, which
+   * is what the commit does (`PinnedPoints::hold` in the kernel).
+   *
+   * Kept in step with that commit by `transform_preview_golden.rs`, whose
+   * `pinnedCases` this side reproduces.
+   */
+  heldEndpoints?: ReadonlySet<number>;
 }
 
 /**
@@ -176,18 +190,27 @@ export function cpSnapshotToScene(
   // `m`.
   const movedIds = move?.ids;
   const movedEnds = move?.endpoints;
+  const heldEnds = move?.heldEndpoints;
 
   for (let i = 0; i < count; i++) {
     const seg = lineSegments[i];
     const movesWhole = movedIds !== undefined && movedIds.has(i + 1);
-    if (m !== undefined && (movesWhole || movedEnds?.has(i * 2) === true)) {
+    if (
+      m !== undefined &&
+      (movesWhole || movedEnds?.has(i * 2) === true) &&
+      heldEnds?.has(i * 2) !== true
+    ) {
       a[i * 2] = m[0] * seg.a.x + m[1] * seg.a.y + m[4];
       a[i * 2 + 1] = m[2] * seg.a.x + m[3] * seg.a.y + m[5];
     } else {
       a[i * 2] = seg.a.x;
       a[i * 2 + 1] = seg.a.y;
     }
-    if (m !== undefined && (movesWhole || movedEnds?.has(i * 2 + 1) === true)) {
+    if (
+      m !== undefined &&
+      (movesWhole || movedEnds?.has(i * 2 + 1) === true) &&
+      heldEnds?.has(i * 2 + 1) !== true
+    ) {
       b[i * 2] = m[0] * seg.b.x + m[1] * seg.b.y + m[4];
       b[i * 2 + 1] = m[2] * seg.b.x + m[3] * seg.b.y + m[5];
     } else {

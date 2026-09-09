@@ -7,6 +7,8 @@ import {
   segmentAngleDeg,
   similarityFromPointPairs,
 } from './creaseTransform';
+import { heldEndpointKeys } from '../pins/vertexPins';
+import { endpointKey } from './vertexEndpoints';
 
 interface GoldenCase {
   sourceA: [number, number];
@@ -14,6 +16,10 @@ interface GoldenCase {
   targetA: [number, number];
   targetB: [number, number];
   transformed: [number, number, number, number][];
+}
+
+interface PinnedGoldenCase extends GoldenCase {
+  pins: [number, number][];
 }
 
 const point = ([x, y]: [number, number]) => ({ x, y });
@@ -44,6 +50,55 @@ describe('creaseTransform golden parity with the kernel', () => {
         // Tolerance, not equality: the matrix form re-associates the kernel's
         // per-point arithmetic, so the two agree to well inside a ulp-scale slack
         // but not bit-for-bit. The commit still comes from the kernel.
+        const close = (actual: number, expected: number) =>
+          expect(Math.abs(actual - expected)).toBeLessThanOrEqual(
+            1e-12 * (1 + Math.abs(expected))
+          );
+        close(a.x, expectedAx);
+        close(a.y, expectedAy);
+        close(b.x, expectedBx);
+        close(b.y, expectedBy);
+      });
+    }
+  );
+
+  /**
+   * The pinned half, and the reason it is worth a golden of its own.
+   *
+   * A pin makes the preview and the commit disagree in a way a plain matrix
+   * cannot express: the commit *stretches* a crease with one held end while a
+   * rigid preview translates it, so the creases jump on release. The browser's
+   * answer is `heldEndpointKeys` plus one condition per end in the scene
+   * adapters; this asserts that answer reproduces the kernel's `PinnedPoints`
+   * exactly, over the same segments and transform.
+   */
+  it.each((golden.pinnedCases as PinnedGoldenCase[]).map((c, i) => [i, c] as const))(
+    'pinned case %i reproduces the kernel-held endpoints',
+    (_index, testCase) => {
+      const matrix = matrixFromPointPairs(
+        point(testCase.sourceA),
+        point(testCase.sourceB),
+        point(testCase.targetA),
+        point(testCase.targetB)
+      );
+      expect(matrix).not.toBeNull();
+      if (matrix === null) return;
+
+      const held = heldEndpointKeys(
+        segments.map(([ax, ay, bx, by]) => ({ a: { x: ax, y: ay }, b: { x: bx, y: by } })),
+        testCase.pins.map(point)
+      );
+
+      segments.forEach(([ax, ay, bx, by], segmentIndex) => {
+        const [expectedAx, expectedAy, expectedBx, expectedBy] =
+          testCase.transformed[segmentIndex];
+        // Exactly what the scene adapters do per end: move it unless it is held.
+        const a = held.has(endpointKey(segmentIndex, 'a'))
+          ? { x: ax, y: ay }
+          : applyAffine(matrix, ax, ay);
+        const b = held.has(endpointKey(segmentIndex, 'b'))
+          ? { x: bx, y: by }
+          : applyAffine(matrix, bx, by);
         const close = (actual: number, expected: number) =>
           expect(Math.abs(actual - expected)).toBeLessThanOrEqual(
             1e-12 * (1 + Math.abs(expected))

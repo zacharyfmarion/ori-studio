@@ -18,6 +18,10 @@
 
 pub mod direction_hint;
 pub mod fold_propagation;
+/// A constraint rather than an operation: pinned positions, applied *inside* the
+/// ported transforms. See the module header for why that does not make them
+/// divergences.
+pub mod pinned;
 pub mod square;
 pub mod unassign;
 pub mod vertex;

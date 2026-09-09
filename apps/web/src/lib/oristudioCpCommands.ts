@@ -1324,6 +1324,35 @@ const CP_KERNEL_SNAPPED_OPERATIONS = new Set<OristudioCpOperationId>([
 ]);
 
 /** Whether `operationId` snaps its own endpoint kernel-side. */
+/**
+ * Operations that read `pinned_points` — the ones that move an existing crease
+ * endpoint, or would build onto one.
+ *
+ * Listed rather than sent everywhere, because the payload is what a bug report
+ * quotes and a pin set riding on a command that ignores it is noise that reads
+ * like a cause. The kernel's own arms are the authority
+ * (`operations::transform`); this is the frontend's view of the same set.
+ *
+ * Absent by design: **Copy** and **Copy by four points**, which move nothing —
+ * so there is nothing to hold — and whose output is new geometry that inherits
+ * no constraint the originals carried. `DrawCreaseSymmetric` is a copy too (it
+ * adds mirrored creases and leaves the originals), so it is absent for the same
+ * reason.
+ */
+const CP_PINNED_VERTEX_OPERATIONS = new Set<OristudioCpOperationId>([
+  'CreaseMove',
+  'CreaseMove4p',
+  'LengthenCrease',
+  'LengthenCreaseSameColor',
+]);
+
+/** Whether `operationId` must hold pinned vertices where they are. */
+export function cpCommandHoldsPinnedVertices(
+  operationId: OristudioCpOperationId | null | undefined
+): boolean {
+  return operationId ? CP_PINNED_VERTEX_OPERATIONS.has(operationId) : false;
+}
+
 export function cpCommandSnapsKernelSide(
   operationId: OristudioCpOperationId | undefined
 ): boolean {

@@ -18,7 +18,8 @@
     "stripTitle": "Diese Symbolleiste funktioniert nicht mehr"
   },
   "cp": {
-    "foldProducedNothing": "Diese Faltlinien haben keine flache Faltform, die sich zeichnen ließe"
+    "foldProducedNothing": "Diese Faltlinien haben keine flache Faltform, die sich zeichnen ließe",
+    "pinnedVertex": ""
   },
   "cpDetectImport": {
     "addFailed": "Das erkannte Faltmuster konnte nicht hinzugefügt werden.",

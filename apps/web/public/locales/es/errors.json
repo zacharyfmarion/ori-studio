@@ -18,7 +18,8 @@
     "stripTitle": "Esta barra de herramientas ha dejado de funcionar"
   },
   "cp": {
-    "foldProducedNothing": "Estos pliegues no tienen ninguna forma plegada en plano que dibujar"
+    "foldProducedNothing": "Estos pliegues no tienen ninguna forma plegada en plano que dibujar",
+    "pinnedVertex": ""
   },
   "cpDetectImport": {
     "addFailed": "No se pudo añadir el patrón de pliegues detectado.",
