@@ -258,6 +258,7 @@
       "graphMismatch": "Das Lösungsergebnis beschreibt nicht die Falten in diesem Bereich, deshalb wurde nichts geändert. Versuchen Sie, erneut zu lösen.",
       "noPattern": "In diesem Bereich liegen keine Falten, es gibt also nichts zu lösen. Schieben Sie den Bereich über das erkannte Faltmuster und versuchen Sie es erneut."
     },
+    "repairTools": "",
     "solve": "Lösen",
     "solveError": "Das Lösen konnte nicht ausgeführt werden — {{message}}",
     "solveErrorUnknown": "Das Lösen konnte nicht ausgeführt werden.",

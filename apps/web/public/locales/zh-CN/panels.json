@@ -246,6 +246,7 @@
       "graphMismatch": "求解结果与该区域内的折痕不匹配，因此未做任何更改。请重新求解。",
       "noPattern": "该区域内没有折痕，因此没有可求解的内容。请将区域移到检测到的折痕图上再试一次。"
     },
+    "repairTools": "",
     "solve": "求解",
     "solveError": "无法运行求解 — {{message}}",
     "solveErrorUnknown": "无法运行求解。",

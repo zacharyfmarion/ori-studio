@@ -246,6 +246,7 @@
       "graphMismatch": "풀이 결과가 이 영역의 접는 선과 맞지 않아 아무것도 바뀌지 않았습니다. 다시 풀어 보세요.",
       "noPattern": "이 영역 안에 접는 선이 없어 풀 것이 없습니다. 영역을 감지된 전개도 위로 옮긴 뒤 다시 시도하세요."
     },
+    "repairTools": "",
     "solve": "풀기",
     "solveError": "풀이를 실행할 수 없습니다 — {{message}}",
     "solveErrorUnknown": "풀이를 실행할 수 없습니다.",

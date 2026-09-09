@@ -215,6 +215,7 @@ export function useCpRegionActions(): UseCpRegionActions {
   const removeAnnotation = useWorkspaceStore((state) => state.removeAnnotation);
   const setSelectedAnnotation = useWorkspaceStore((state) => state.setSelectedAnnotation);
   const recordAnnotationHistory = useWorkspaceStore((state) => state.recordAnnotationHistory);
+  const clearPinsIn = useWorkspaceStore((state) => state.clearOristudioCpVertexPinsIn);
 
   const preGestureRef = useRef<readonly CanvasAnnotation[] | null>(null);
   const beginGesture = useCallback(() => {
@@ -281,6 +282,14 @@ export function useCpRegionActions(): UseCpRegionActions {
   const removeRegion = useCallback(
     (id: string) => {
       const imageId = ownedImageId(id);
+      // Read imperatively, like every other mutation here, so this hook keeps
+      // subscribing to no store slice at all — see the note on the hook.
+      const region = useWorkspaceStore
+        .getState()
+        .oristudioCpAnnotations.find(
+          (annotation): annotation is CpSuppressionRegion =>
+            annotation.id === id && isSuppressionRegionAnnotation(annotation)
+        );
       beginGesture();
       removeAnnotation(id);
       // After the region, not before: `removeAnnotation` clears the canvas
@@ -288,8 +297,15 @@ export function useCpRegionActions(): UseCpRegionActions {
       // holding it.
       if (imageId) removeAnnotation(imageId);
       commitGesture(t('panels:cpRegion.delete', 'Delete region'));
+      // Outside the gesture bracket, deliberately: pins are not annotations and
+      // record no history entry, so folding them into the undo snapshot would
+      // claim a restore this cannot make. Deleting a region abandons the repair
+      // it was for, which is exactly when its scaffolding should go.
+      if (region) {
+        clearPinsIn({ contains: (point) => boxContainsModelPoint(region, point) });
+      }
     },
-    [beginGesture, commitGesture, removeAnnotation, t]
+    [beginGesture, clearPinsIn, commitGesture, removeAnnotation, t]
   );
 
   const toggleRegionImageHidden = useCallback(

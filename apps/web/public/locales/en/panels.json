@@ -258,6 +258,7 @@
       "graphMismatch": "The solved answer does not describe the creases in this region, so nothing was changed. Try solving again.",
       "noPattern": "There are no creases inside this region, so there is nothing to solve. Move the region over the detected pattern and try again."
     },
+    "repairTools": "Repair tools",
     "solve": "Solve",
     "solveError": "The solve could not run — {{message}}",
     "solveErrorUnknown": "The solve could not run.",
