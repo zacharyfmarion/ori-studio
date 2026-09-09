@@ -14,6 +14,7 @@
  */
 import type { ExtractedSolution } from './referenceFinder/extractor';
 import type { Diagram, RawSolution } from './referenceFinder/solution';
+import { returnStroke, type FoldUnfoldArrow } from './stepDiagramGeometry';
 
 export type DiagramLineStyleName =
   | 'crease'
@@ -58,13 +59,12 @@ export type StepDiagramPrimitive =
       to: number;
       ccw: boolean;
       style: DiagramLineStyleName;
-      /**
-       * Where the arrowheads go. A fold arrow gets one at each end, because a
-       * fold is a two-way motion; a turn-over gets one, because it is not.
-       * Default `both`.
-       */
-      heads?: 'both' | 'end';
     }
+  /**
+   * The path the paper takes over a crease and back — one stroke out, one
+   * back, one head. See {@link foldAndUnfoldArrow}.
+   */
+  | ({ kind: 'fold-arrow' } & FoldUnfoldArrow)
   /** The turn-over glyph, centred on `at` and `size` wide in sheet units. */
   | { kind: 'turn-over'; at: readonly [number, number]; size: number }
   | { kind: 'point'; at: readonly [number, number]; style: DiagramPointStyleName }
@@ -184,18 +184,25 @@ export function referenceFinderDiagramToPrimitives(diagram: Diagram): StepDiagra
           style: lineStyleName(raw.style, index),
         });
         return;
-      case 2:
-        primitives.push({
-          kind: 'arc',
+      case 2: {
+        const arc = {
           center: point(raw.center, index, 'center'),
           radius: finite(raw.radius, index, 'radius'),
           from: finite(raw.from, index, 'from'),
           to: finite(raw.to, index, 'to'),
           // The core prints `0` / `1` for the flag; the type says boolean.
           ccw: Boolean(raw.ccw),
-          style: lineStyleName(raw.style, index),
-        });
+        };
+        const style = lineStyleName(raw.style, index);
+        // Upstream draws a bare arc and throws its two directions away
+        // (`refDgmr.cpp:70-74, 89-90`), so its arrows carry no head at all.
+        // Every fold ReferenceFinder describes is made and released, so the
+        // symbol for it is the one a diagram uses for that: out and back, with
+        // a single head where the paper comes to rest.
+        const back = style === 'arrow' ? returnStroke(arc) : null;
+        primitives.push(back ? { kind: 'fold-arrow', out: arc, back } : { kind: 'arc', ...arc, style });
         return;
+      }
       case 0:
         primitives.push({
           kind: 'point',

@@ -135,36 +135,33 @@ export function arcStartDirection(arc: DiagramArc, mirrored = false): SvgPoint {
 const ARROW_HALF_ANGLE = Math.PI / 6;
 
 /**
- * The arc of a fold arrow from `fromPt` to its image `toPt`.
+ * Half-angle of the stroke that comes back, so the two separate into a loop
+ * rather than retracing one line.
  *
- * A port of `RefDgmr::CalcArrow` (`third_party/reference-finder/src/core/class/
- * refDgmr.cpp:29`), verbatim including its choice of centre: the arc subtends
- * 60°, and of the two centres that give that, the one *farther* from the sheet's
- * middle is taken so the arrow bulges inward. ReferenceFinder's own steps arrive
- * with the arc already computed and are not routed through this; the planner
- * ships witnesses instead, so its arrows are drawn here — and drawn by upstream's
- * construction rather than a nearby one, so the two picture languages match.
- *
- * Null when the two points coincide, which is a fold that moves nothing.
+ * Wider than the outgoing stroke's, so the return bulges further: the arc a
+ * half-angle subtends is `2 · ha`, and a fatter arc over the same chord stands
+ * off the flatter one in the middle while still meeting it at both ends. The
+ * one number worth tuning if the loop reads too fat or too thin.
  */
-export function foldArrowArc(
+const RETURN_HALF_ANGLE = Math.PI / 4;
+
+/**
+ * How far past the mark the returning head's base sits, in arrowheads.
+ *
+ * The shaft *starts* on the reference point — that is what says which point the
+ * paper is being brought to — and the head, coming back, is spaced clear of it
+ * so the two do not pile up on the one spot the reader is looking at. Both
+ * halves of that are the convention: a head landing exactly on the mark buries
+ * it, and a shaft starting away from it points at nothing.
+ */
+const ARROW_HEAD_CLEARANCE = 0.45;
+
+/** The arc between two points and the centre it turns about. */
+function arcThrough(
   fromPt: readonly [number, number],
   toPt: readonly [number, number],
-  sheet: DiagramSheet
-): DiagramArc | null {
-  const dx = toPt[0] - fromPt[0];
-  const dy = toPt[1] - fromPt[1];
-  if (Math.hypot(dx, dy) <= 1e-9) return null;
-  const mid: [number, number] = [(fromPt[0] + toPt[0]) / 2, (fromPt[1] + toPt[1]) / 2];
-  // `0.5 * mu.Rotate90() / tan(ha)`: the offset from the midpoint to either
-  // centre of curvature. Rotate90 is (x, y) -> (-y, x).
-  const tana = Math.tan(ARROW_HALF_ANGLE);
-  const mup: [number, number] = [(0.5 * -dy) / tana, (0.5 * dx) / tana];
-  const target: [number, number] = [sheet.width / 2, sheet.height / 2];
-  const c1: [number, number] = [mid[0] + mup[0], mid[1] + mup[1]];
-  const c2: [number, number] = [mid[0] - mup[0], mid[1] - mup[1]];
-  const far = (c: [number, number]) => Math.hypot(c[0] - target[0], c[1] - target[1]);
-  const center = far(c1) > far(c2) ? c1 : c2;
+  center: readonly [number, number]
+): DiagramArc {
   const radius = Math.hypot(toPt[0] - center[0], toPt[1] - center[1]);
   const from = Math.atan2(fromPt[1] - center[1], fromPt[0] - center[0]);
   const to = Math.atan2(toPt[1] - center[1], toPt[0] - center[0]);
@@ -175,14 +172,148 @@ export function foldArrowArc(
 }
 
 /**
- * How long an arrow's heads should be, in sheet units — upstream's rule, ported
- * from the tail of `CalcArrow` (`refDgmr.cpp:60-67`).
+ * The two centres of curvature that make an arc of half-angle `ha` over the
+ * chord `fromPt → toPt`, or null when the chord is a point.
  *
- * `0.15` of the paper's shorter side, capped at `0.4` of the chord the arrow
- * spans so a short arrow does not become two touching triangles. We had a flat
- * `0.05` of the viewBox instead, which is a third of upstream's head on a square
- * sheet and does not shrink on a short arrow at all — the two ends of a small
- * arc overlapped, and every head was too faint to read at thumbnail size.
+ * `0.5 * mu.Rotate90() / tan(ha)`: the offset from the midpoint to either
+ * centre. Rotate90 is (x, y) -> (-y, x).
+ */
+function curvatureCentres(
+  fromPt: readonly [number, number],
+  toPt: readonly [number, number],
+  halfAngle: number
+): [[number, number], [number, number]] | null {
+  const dx = toPt[0] - fromPt[0];
+  const dy = toPt[1] - fromPt[1];
+  if (Math.hypot(dx, dy) <= 1e-9) return null;
+  const mid: [number, number] = [(fromPt[0] + toPt[0]) / 2, (fromPt[1] + toPt[1]) / 2];
+  const tana = Math.tan(halfAngle);
+  const mup: [number, number] = [(0.5 * -dy) / tana, (0.5 * dx) / tana];
+  return [
+    [mid[0] + mup[0], mid[1] + mup[1]],
+    [mid[0] - mup[0], mid[1] - mup[1]],
+  ];
+}
+
+/**
+ * The arc of a fold arrow from `fromPt` to its image `toPt`.
+ *
+ * A port of `RefDgmr::CalcArrow` (`third_party/reference-finder/src/core/class/
+ * refDgmr.cpp:29`), verbatim including its choice of centre: the arc subtends
+ * 60°, and of the two centres that give that, the one *farther* from the sheet's
+ * middle is taken so the arrow bulges inward.
+ *
+ * Null when the two points coincide, which is a fold that moves nothing.
+ */
+export function foldArrowArc(
+  fromPt: readonly [number, number],
+  toPt: readonly [number, number],
+  sheet: DiagramSheet
+): DiagramArc | null {
+  const centres = curvatureCentres(fromPt, toPt, ARROW_HALF_ANGLE);
+  if (!centres) return null;
+  const target: [number, number] = [sheet.width / 2, sheet.height / 2];
+  const far = (c: readonly [number, number]) => Math.hypot(c[0] - target[0], c[1] - target[1]);
+  return arcThrough(fromPt, toPt, far(centres[0]) > far(centres[1]) ? centres[0] : centres[1]);
+}
+
+/**
+ * A fold-and-unfold arrow: the path the paper takes over the crease and back.
+ *
+ * Both strokes run between the same two points — where the paper starts and
+ * where it lands — and bulge the same way by different amounts, so together
+ * they read as one journey out and back rather than two folds. The single head
+ * is at the end of `back`, on the paper's *starting* position, because that is
+ * where a precrease leaves it. An arrow with a head at each end says the paper
+ * ends up somewhere; this one says it ends up where it was.
+ */
+export interface FoldUnfoldArrow {
+  /** The paper going over: upstream's arc, `from` at the mark that moves. */
+  out: DiagramArc;
+  /** The paper coming back, ending where `out` began. Carries the head. */
+  back: DiagramArc;
+}
+
+/**
+ * The return stroke for an outgoing one: the same chord, bulging the same way,
+ * further out, travelled the other way.
+ *
+ * Derived from the arc rather than from the two points so it serves both
+ * sources — the planner's arrows, built by {@link foldArrowArc}, and
+ * ReferenceFinder's own, which arrive off the wire with the centre already
+ * chosen. Whichever side upstream bulged to, the return goes with it.
+ */
+export function returnStroke(out: DiagramArc): DiagramArc | null {
+  const a = pointOnArc(out, out.from);
+  const b = pointOnArc(out, out.to);
+  const centres = curvatureCentres(a, b, RETURN_HALF_ANGLE);
+  if (!centres) return null;
+  const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] as const;
+  const side = (c: readonly [number, number]) =>
+    (c[0] - mid[0]) * (out.center[0] - mid[0]) + (c[1] - mid[1]) * (out.center[1] - mid[1]);
+  return arcThrough(b, a, side(centres[0]) > side(centres[1]) ? centres[0] : centres[1]);
+}
+
+/** The whole symbol for a fold that is made and released, or null if nothing moves. */
+export function foldAndUnfoldArrow(
+  fromPt: readonly [number, number],
+  toPt: readonly [number, number],
+  sheet: DiagramSheet
+): FoldUnfoldArrow | null {
+  const out = foldArrowArc(fromPt, toPt, sheet);
+  if (!out) return null;
+  const back = returnStroke(out);
+  return back ? { out, back } : null;
+}
+
+/**
+ * The two strokes as drawn, and where the head's tip goes.
+ *
+ * The outgoing stroke is untouched: it begins on the reference point. The
+ * return carries *past* that point by {@link ARROW_HEAD_CLEARANCE} and stops
+ * there, at the head's base, so the head stands clear of the mark rather than
+ * on top of it.
+ *
+ * `head` is the arrowhead's length in the same units as the radii, so the
+ * caller passes both in whichever space it is drawing.
+ */
+export function foldArrowTrim(
+  arrow: FoldUnfoldArrow,
+  head: number
+): { out: DiagramArc; back: DiagramArc; tip: number } {
+  const onward = (arc: DiagramArc, by: number) =>
+    (by / Math.max(arc.radius, 1e-6)) * (arc.ccw ? 1 : -1);
+  const base = arrow.back.to + onward(arrow.back, head * ARROW_HEAD_CLEARANCE);
+  return {
+    out: arrow.out,
+    back: { ...arrow.back, to: base },
+    tip: base + onward(arrow.back, head),
+  };
+}
+
+/**
+ * How long an arrow's head is, as a share of the paper's shorter side.
+ *
+ * Upstream's `CalcArrow` (`refDgmr.cpp:60-67`) uses `0.15`, for an arc with a
+ * head at each end. Measured off the reference diagrams this workspace is
+ * copying, a head is a tenth to an eighth of the paper's side — so `0.15` is
+ * half again too long, and the difference shows the moment the picture is drawn
+ * at any size worth reading.
+ */
+const ARROWHEAD_OF_SHEET = 0.11;
+
+/**
+ * The cap for a short arrow, as a share of the chord it spans.
+ *
+ * Upstream's `0.4` leaves a head that is most of the arrow. The same reference
+ * diagrams put the shortest heads at about a quarter of their chord, which is
+ * what a head looks like when the motion is small but still a head rather than
+ * a blob.
+ */
+const ARROWHEAD_OF_CHORD = 0.26;
+
+/**
+ * How long an arrow's head should be, in sheet units.
  *
  * The chord is recovered from the arc rather than passed in, because that is
  * what the drawing has: an arc is stored by centre, radius and two angles.
@@ -191,7 +322,10 @@ export function arrowheadSize(arc: DiagramArc, sheet: DiagramSheet): number {
   const from = pointOnArc(arc, arc.from);
   const to = pointOnArc(arc, arc.to);
   const chord = Math.hypot(to[0] - from[0], to[1] - from[1]);
-  return Math.min(Math.min(sheet.width, sheet.height) * 0.15, 0.4 * chord);
+  return Math.min(
+    Math.min(sheet.width, sheet.height) * ARROWHEAD_OF_SHEET,
+    ARROWHEAD_OF_CHORD * chord
+  );
 }
 
 /**

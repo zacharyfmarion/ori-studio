@@ -23,7 +23,7 @@ describe('referenceFinderDiagramToPrimitives', () => {
     expect(model.sheet).toEqual({ width: 1, height: 1 });
     expect(model.primitives[0]).toEqual({ kind: 'sheet', width: 1, height: 1 });
     const kinds = new Set(model.primitives.map((p) => p.kind));
-    expect(kinds).toEqual(new Set(['sheet', 'line', 'point', 'arc', 'label']));
+    expect(kinds).toEqual(new Set(['sheet', 'line', 'point', 'fold-arrow', 'label']));
     // The pinch element the extractor reads as the new crease keeps its name.
     expect(model.primitives).toContainEqual({
       kind: 'line',
@@ -42,10 +42,31 @@ describe('referenceFinderDiagramToPrimitives', () => {
     });
   });
 
-  it('reads the arrow arc with its 0/1 flag as a boolean', () => {
+  // Upstream's arc arrives whole and is the *outgoing* half of the symbol: a
+  // ReferenceFinder step is a crease made and released, so the picture is the
+  // round trip, and the flag has to survive into it unchanged.
+  it('reads the arrow arc with its 0/1 flag as a boolean, as the stroke that goes out', () => {
     const model = referenceFinderDiagramToPrimitives(mark.solutions[0].diagrams[0]);
-    const arc = model.primitives.find((p) => p.kind === 'arc');
-    expect(arc).toMatchObject({ kind: 'arc', style: 'arrow', ccw: false, radius: 1 });
+    const arrow = model.primitives.find((p) => p.kind === 'fold-arrow');
+    expect(arrow).toMatchObject({ kind: 'fold-arrow', out: { ccw: false, radius: 1 } });
+  });
+
+  // The return stroke ends where the paper started, which is where the one
+  // arrowhead goes; drawn the other way round the symbol says the paper stays
+  // folded.
+  it('brings the return stroke back to the start of the outgoing one', () => {
+    const model = referenceFinderDiagramToPrimitives(mark.solutions[0].diagrams[0]);
+    const arrow = model.primitives.find((p) => p.kind === 'fold-arrow');
+    if (arrow?.kind !== 'fold-arrow') throw new Error('no fold arrow');
+    const at = (arc: typeof arrow.out, angle: number) => [
+      arc.center[0] + arc.radius * Math.cos(angle),
+      arc.center[1] + arc.radius * Math.sin(angle),
+    ];
+    const [ox, oy] = at(arrow.out, arrow.out.from);
+    const [bx, by] = at(arrow.back, arrow.back.to);
+    expect(Math.hypot(bx - ox, by - oy)).toBeLessThan(1e-9);
+    // …and it bulges further, or the two strokes would lie on top of each other.
+    expect(arrow.back.radius).toBeLessThan(arrow.out.radius);
   });
 
   it('names every line style by its code', () => {

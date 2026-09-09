@@ -74,22 +74,63 @@ describe('plannerStepDiagram', () => {
     expect(highlights).toHaveLength(2);
   });
 
+  // The ring around a mark says where it is. Picking out the two creases that
+  // put it there as well turned a step with one landmark into a picture with
+  // three highlighted things in it, and the extra two are not what the sentence
+  // is pointing at.
+  it('marks a point input with its ring alone, not the creases that locate it', () => {
+    // Step 2's inputs are the SW corner and the mark where the left edge meets
+    // the auxiliary crease from step 1 — both of those lines are already made.
+    const diagram = plannerStepDiagram(sequence, 1);
+    const highlights = (diagram?.primitives ?? []).filter(
+      (primitive) => primitive.kind === 'line' && primitive.style === 'highlight'
+    );
+    expect(highlights).toHaveLength(0);
+    expect(
+      (diagram?.primitives ?? []).filter(
+        (primitive) => primitive.kind === 'point' && primitive.style === 'highlight'
+      )
+    ).toHaveLength(2);
+  });
+
+  // A crease pattern's line is not an instruction to crease all of it. The rest
+  // of the chord used to be drawn faintly to say the fold still runs the full
+  // width, and the faint stand-in read as one more thing to fold.
+  it('draws only what the step actually creases', () => {
+    for (const index of [0, 1, 2, 3, 4]) {
+      const styles = (plannerStepDiagram(sequence, index)?.primitives ?? []).flatMap((p) =>
+        p.kind === 'line' ? [p.style] : []
+      );
+      expect(styles).not.toContain('unfolded');
+    }
+  });
+
   it('draws a corner input as a point', () => {
     const diagram = plannerStepDiagram(sequence, 0);
     expect(diagram?.primitives.filter((primitive) => primitive.kind === 'point')).toHaveLength(2);
   });
 
-  it('draws the motion as an arc from the moving input to its image', () => {
-    // The fixture's witnesses all move input 0. The arc is upstream's
-    // `CalcArrow`; what matters here is that one is drawn at all and that it
-    // starts where the moving input is.
+  // Every step here is a precrease: folded, then released. The symbol for that
+  // is the path the paper takes over the crease and back — one stroke out, one
+  // back, one head — not an arc with a head at each end, which says the paper
+  // ends up somewhere it does not.
+  it('draws the motion as the path out to the image and back', () => {
+    // The fixture's witnesses all move input 0. The outgoing arc is upstream's
+    // `CalcArrow`; what matters here is that the round trip is drawn and that
+    // it begins and ends where the moving input is.
     const diagram = plannerStepDiagram(sequence, 1);
-    const arcs = diagram?.primitives.filter((primitive) => primitive.kind === 'arc') ?? [];
-    expect(arcs).toHaveLength(1);
-    const arc = arcs[0];
-    if (arc.kind !== 'arc') throw new Error('not an arc');
-    expect(arc.style).toBe('arrow');
-    expect(arc.radius).toBeGreaterThan(0);
+    const arrows = diagram?.primitives.filter((primitive) => primitive.kind === 'fold-arrow') ?? [];
+    expect(arrows).toHaveLength(1);
+    const arrow = arrows[0];
+    if (arrow.kind !== 'fold-arrow') throw new Error('not a fold arrow');
+    expect(arrow.out.radius).toBeGreaterThan(0);
+    const at = (arc: typeof arrow.out, angle: number) => [
+      arc.center[0] + arc.radius * Math.cos(angle),
+      arc.center[1] + arc.radius * Math.sin(angle),
+    ];
+    const start = at(arrow.out, arrow.out.from);
+    const end = at(arrow.back, arrow.back.to);
+    expect(Math.hypot(end[0] - start[0], end[1] - start[1])).toBeLessThan(1e-9);
   });
 
   it('letters the inputs the way ReferenceFinder does: A… for lines, P… for marks', () => {

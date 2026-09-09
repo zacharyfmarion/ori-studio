@@ -10944,10 +10944,18 @@ button.bp-packing-alert:focus-visible {
   white-space: nowrap;
 }
 
+/* One number for the card's box, because the strip is windowed: the cards are
+   positioned rather than laid out, so the track has to be told how tall a row
+   of them is, and a second literal would be a second thing to keep in step. */
+.references-filmstrip,
+.references-card {
+  --references-card-size: 128px;
+}
+
 .references-card {
   position: relative;
   display: block;
-  width: 128px;
+  width: var(--references-card-size);
   padding: var(--space-1);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md, 6px);
@@ -11147,21 +11155,31 @@ button.bp-packing-alert:focus-visible {
 }
 
 .references-filmstrip__list {
-  display: flex;
-  gap: var(--space-2);
-  align-items: stretch;
   min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
   margin: 0;
   padding: 2px;
-  list-style: none;
   scroll-behavior: smooth;
 }
 
+/* The strip is windowed, so its width is the virtualizer's total rather than
+   the sum of what happens to be mounted — otherwise the scrollbar would report
+   a dozen cards and the reader could not reach the rest. */
+.references-filmstrip__track {
+  position: relative;
+  height: var(--references-card-size);
+}
+
+/* The gap belongs to the item, not to the list: the cards are positioned by
+   the virtualizer rather than laid out by flex, so a `gap` would have nothing
+   to act on and each card must carry its own trailing space to be measured
+   with it. */
 .references-filmstrip__item {
-  flex: 0 0 auto;
-  margin: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding-right: var(--space-2);
 }
 
 .references-filmstrip__caption {
@@ -11363,16 +11381,19 @@ button.bp-packing-alert:focus-visible {
   fill: var(--fold-border);
 }
 
+/*
+  A mark is *circled*, not blotted out — the way a diagram picks out the point a
+  fold is read from. A filled disc covers the very crossing the reader is being
+  sent to look at, and colouring it made it a third thing competing with
+  mountain and valley for attention; the ring does the job in the drawing's own
+  ink. The letter beside it keeps the reference colour, because a letter is an
+  annotation rather than part of the picture.
+*/
 .step-diagram__point {
-  fill: var(--fold-border);
-}
-
-.step-diagram__point--highlight {
-  fill: var(--cp-reference-input);
-}
-
-.step-diagram__point--action {
-  fill: var(--fold-border);
+  fill: none;
+  stroke: var(--fold-border);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
 }
 
 /*

@@ -10,10 +10,10 @@ import {
   TURN_OVER_PATH,
   arcEndDirection,
   arcPathData,
-  arcStartDirection,
   arrowheadPoints,
   arrowheadSize,
   createDiagramProjector,
+  foldArrowTrim,
   labelPlacement,
 } from './stepDiagramGeometry';
 
@@ -52,6 +52,16 @@ export type StepDiagramProps = {
       diagram?: undefined;
     }
 );
+
+/**
+ * The radius of the ring round a reference mark, in sheet units.
+ *
+ * A diagram circles the points a step is read from rather than blotting them
+ * out, so this is the ring's own size on the paper — 4% of the sheet, which is
+ * what the reference diagrams draw — and it goes through the projector like
+ * every other length rather than being a fraction of the box.
+ */
+const POINT_RING_RADIUS = 0.04;
 
 /** Four decimals is under a device pixel at any thumbnail size. */
 const round = (value: number) => Number(value.toFixed(4));
@@ -148,61 +158,44 @@ export function StepDiagram({
             );
           }
           case 'arc': {
-            if (primitive.style !== 'arrow') {
-              const path = arcPathData(primitive, project);
-              return (
-                <path
-                  key={index}
-                  className={`step-diagram__arc step-diagram__line--${primitive.style}`}
-                  d={path}
-                />
-              );
-            }
-            // Sheet units through the projector's scale, so the head keeps
-            // upstream's proportion to the paper at any thumbnail size.
-            const head = arrowheadSize(primitive, model.sheet) * project.scale;
-            // Stop the stroke at each head's base rather than running it to the
-            // tip: a line that crosses its own arrowhead reads as meeting it at
-            // an angle. The head is `head` px long, so back the arc off by that
-            // much of arc — the two ends move opposite ways round the circle.
-            const backOff = head / Math.max(primitive.radius * project.scale, 1e-6);
-            const towards = primitive.ccw ? -1 : 1;
-            const both = (primitive.heads ?? 'both') === 'both';
-            const path = arcPathData(
-              {
-                ...primitive,
-                to: primitive.to + backOff * towards,
-                from: both ? primitive.from - backOff * towards : primitive.from,
-              },
-              project
+            return (
+              <path
+                key={index}
+                className={`step-diagram__arc step-diagram__line--${primitive.style}`}
+                d={arcPathData(primitive, project)}
+              />
             );
-            const at = (angle: number) =>
-              project([
-                primitive.center[0] + primitive.radius * Math.cos(angle),
-                primitive.center[1] + primitive.radius * Math.sin(angle),
-              ]);
-            // A fold arrow gets a head at each end. `CalcArrow` computes
-            // `fromDir` and `toDir` and `DrawArrow` throws both away
-            // (`refDgmr.cpp:70-74, 89-90`), so upstream's picture shows a bare
-            // arc; drawn one-ended it reads as a one-way motion, which a fold
-            // is not. A turn-over *is* one-way, and says so.
+          }
+          case 'fold-arrow': {
+            // Sheet units through the projector's scale, so the head keeps
+            // upstream's proportion to the paper at any size. The trim is done
+            // on radii in the same projected units and the angles it returns
+            // then apply to the sheet-unit arcs unchanged.
+            const head = arrowheadSize(primitive.out, model.sheet) * project.scale;
+            const scaled = {
+              out: { ...primitive.out, radius: primitive.out.radius * project.scale },
+              back: { ...primitive.back, radius: primitive.back.radius * project.scale },
+            };
+            const trimmed = foldArrowTrim(scaled, head);
+            const tipArc = { ...primitive.back, to: trimmed.tip };
+            const tip = project([
+              primitive.back.center[0] + primitive.back.radius * Math.cos(trimmed.tip),
+              primitive.back.center[1] + primitive.back.radius * Math.sin(trimmed.tip),
+            ]);
             return (
               <g key={index} className="step-diagram__arrow">
-                <path className="step-diagram__arc step-diagram__line--arrow" d={path} />
+                <path
+                  className="step-diagram__arc step-diagram__line--arrow"
+                  d={arcPathData(primitive.out, project)}
+                />
+                <path
+                  className="step-diagram__arc step-diagram__line--arrow"
+                  d={arcPathData({ ...primitive.back, to: trimmed.back.to }, project)}
+                />
                 <polygon
                   className="step-diagram__arrowhead"
-                  points={arrowheadPoints(at(primitive.to), arcEndDirection(primitive, mirrored), head)}
+                  points={arrowheadPoints(tip, arcEndDirection(tipArc, mirrored), head)}
                 />
-                {(primitive.heads ?? 'both') === 'both' && (
-                  <polygon
-                    className="step-diagram__arrowhead"
-                    points={arrowheadPoints(
-                      at(primitive.from),
-                      arcStartDirection(primitive, mirrored),
-                      head
-                    )}
-                  />
-                )}
               </g>
             );
           }
@@ -239,7 +232,7 @@ export function StepDiagram({
                 className={`step-diagram__point step-diagram__point--${primitive.style}`}
                 cx={at.x}
                 cy={at.y}
-                r={size * 0.025}
+                r={project.scale * POINT_RING_RADIUS}
               />
             );
           }

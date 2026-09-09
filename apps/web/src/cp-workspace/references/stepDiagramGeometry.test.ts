@@ -9,7 +9,9 @@ import {
   arrowheadPoints,
   arrowheadSize,
   createDiagramProjector,
+  foldAndUnfoldArrow,
   foldArrowArc,
+  foldArrowTrim,
   labelPlacement,
   type DiagramArc,
 } from './stepDiagramGeometry';
@@ -214,20 +216,25 @@ describe('foldArrowArc', () => {
 describe('arrowheadSize', () => {
   const sheet = { width: 1, height: 1 };
 
-  it('takes 0.15 of the paper’s shorter side for a long arrow', () => {
+  // Upstream's `0.15` is for an arc with a head at each end. This symbol has
+  // one, and the reference diagrams it copies draw it a tenth to an eighth of
+  // the paper's side.
+  it('takes a share of the paper’s shorter side for a long arrow', () => {
     const arc = foldArrowArc([0, 0], [1, 1], sheet);
-    expect(arc && arrowheadSize(arc, sheet)).toBeCloseTo(0.15, 9);
+    expect(arc && arrowheadSize(arc, sheet)).toBeCloseTo(0.11, 9);
     // …the shorter side, on a 2:1 sheet.
     const wide = { width: 1, height: 0.5 };
     const wideArc = foldArrowArc([0, 0], [1, 0.5], wide);
-    expect(wideArc && arrowheadSize(wideArc, wide)).toBeCloseTo(0.075, 9);
+    expect(wideArc && arrowheadSize(wideArc, wide)).toBeCloseTo(0.055, 9);
   });
 
-  // Upstream's cap, and the reason a small arc did not end up two overlapping
-  // triangles: `if (ahSize > ah1) ahSize = ah1` with `ah1 = 0.4 * |to - from|`.
-  it('caps at 0.4 of the chord for a short one', () => {
+  // The reason a small arc does not end up mostly arrowhead: upstream's
+  // `if (ahSize > ah1) ahSize = ah1`, with a cap taken from the same reference
+  // diagrams rather than upstream's `0.4`, which leaves a head that is most of
+  // the arrow.
+  it('caps at a share of the chord for a short one', () => {
     const arc = foldArrowArc([0.5, 0.5], [0.6, 0.5], sheet);
-    expect(arc && arrowheadSize(arc, sheet)).toBeCloseTo(0.04, 9);
+    expect(arc && arrowheadSize(arc, sheet)).toBeCloseTo(0.026, 9);
   });
 });
 
@@ -286,5 +293,37 @@ describe('a mirrored projector', () => {
     expect(arcEndDirection(arc, true).x).toBeCloseTo(-arcEndDirection(arc).x, 12);
     expect(arcEndDirection(arc, true).y).toBeCloseTo(arcEndDirection(arc).y, 12);
     expect(arcStartDirection(arc, true).x).toBeCloseTo(-arcStartDirection(arc).x, 12);
+  });
+});
+
+describe('foldArrowTrim', () => {
+  const sheet = { width: 1, height: 1 };
+
+  // The shaft is what points at the reference: it starts on the mark, and the
+  // head — coming back — is spaced clear so the two do not pile up on the one
+  // spot the reader is being sent to look at.
+  it('leaves the outgoing stroke on the mark and carries the head past it', () => {
+    const arrow = foldAndUnfoldArrow([1, 0.5], [0, 0.5], sheet);
+    if (!arrow) throw new Error('no arrow');
+    const head = arrowheadSize(arrow.out, sheet);
+    const trimmed = foldArrowTrim(arrow, head);
+
+    expect(trimmed.out.from).toBe(arrow.out.from);
+    expect(trimmed.out.to).toBe(arrow.out.to);
+
+    const at = (arc: typeof arrow.back, angle: number) => [
+      arc.center[0] + arc.radius * Math.cos(angle),
+      arc.center[1] + arc.radius * Math.sin(angle),
+    ];
+    const mark = at(arrow.out, arrow.out.from);
+    const base = at(arrow.back, trimmed.back.to);
+    const tip = at(arrow.back, trimmed.tip);
+    const away = (p: number[]) => Math.hypot(p[0] - mark[0], p[1] - mark[1]);
+
+    // The stroke stops short of the head, and both are clear of the mark, in
+    // that order along the arc.
+    expect(away(base)).toBeGreaterThan(0);
+    expect(away(tip)).toBeGreaterThan(away(base));
+    expect(away(tip) - away(base)).toBeCloseTo(head, 2);
   });
 });
