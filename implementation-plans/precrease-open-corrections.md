@@ -97,17 +97,52 @@ is *why* the closure certified it), one of them is creased through the spot, and
 the pair crosses at ≥ `MIN_ANGLE_SINE` because that is the same test that minted
 the point in the first place (`state.rs:268-271`).
 
-### The hard case
+### Which route actually works — measured, not assumed
 
-**27.8% of phantom marks have no crease running through the spot at all**, so
-there is nothing to sight the pinch against — markhor step 24 is one of them.
-Marking those needs a construction that does not come from the point's own two
-lines. ReferenceFinder is the obvious source: `referenceFinder/client.ts:85`
-already exposes `solvePoint`, and `precreasePlan.ts` already feeds RF answers
-back into the crate as `RfAux` folds and certifies them — today for lines only.
-**This half is unvalidated.** The gating question is whether RF returns
-constructions for these points at the depth we run it at, and that is cheap to
-answer before building anything.
+Two ways to make a mark, and the cheap one turns out not to cover the case that
+prompted this.
+
+**Route A — press a pinch during a fold already scheduled.** To press a crease on
+line B the paper must be folded along B, and that happens once, at B's own step.
+So a mark at `P = A ∩ B` can only be pressed if, at B's step, A's crease already
+runs through P. That makes it an **ordering** test, not just an availability one:
+
+```
+∃ B ∈ lines(P) folded before the step that needs P,
+∃ A ∈ lines(P), A ≠ B, folded before B, whose creases cover P,
+crossing squarely enough to locate it.
+```
+
+Over 148 designs and 4,094 phantom marks:
+
+| | |
+|---|---|
+| pressable during a fold already scheduled | 2,501 (61.1%) |
+| a sighting line exists but is folded **too late** to press against | 694 (17.0%) |
+| no line is ever creased through the spot at all | 899 (22.0%) |
+
+**On markhor it covers nothing: 0 of 4.** Three have their sighting line folded
+after the line that would have to be pressed; the fourth has none. So Route A is
+an optimisation for other patterns, not the fix for the reported bug.
+
+**Route B — ask ReferenceFinder to construct the mark.** Measured directly by
+driving the RF wasm under Node at the database and query settings the app uses
+(`DEFAULT_DATABASE_SETTINGS`, `DEFAULT_QUERY_SETTINGS`, rank 6):
+
+| point | step | result |
+|---|---|---|
+| 28 `(0.646447, 0.646447)` | 15, 26 | **exact**, rank 4, 4 steps |
+| 31 `(0.353554, 0.646447)` | 21 | **exact**, rank 4, 4 steps |
+| 23 `(0.707107, 0.292893)` | 24 | **exact**, rank 3, **2 steps** |
+
+All three exact, and the one I had called the hard case is the *cheapest*. Two of
+the constructions are already `"pinch": 1` steps, and all three end on
+`{"axiom": 0}` — the mark is the crossing of two constructed lines. Two use a
+sheet diagonal, which RF treats as free and the workspace already handles
+(`panels:references.freeDiagonals`).
+
+**So Route B is the fix and Route A is a later optimisation.** Route B also
+subsumes A: it works regardless of what the point's own lines are doing.
 
 ### One thing this dissolves
 
@@ -238,19 +273,24 @@ fallback.
 
 **Correction 1 — marks that exist**
 
-- [ ] Measure first: can ReferenceFinder construct markhor's points 23, 28 and 31
-      at the depth we run it at? This gates the hard case and costs nothing to
-      answer.
+- [x] Measure first: can ReferenceFinder construct markhor's points 23, 28 and
+      31 at the depth we run it at? **Yes — all three exact, rank ≤ 4.** And
+      Route A covers 0 of markhor's 4, so Route B is the fix.
 - [ ] Lift `witness_marks_exist` into `marks.rs` so the closure and the ordering
       pass cannot disagree about what is on the paper.
-- [ ] Emit a mark step: a pinch at the crossing on the uncreased line, sighted
-      against the line already creased there. Decide its `Step` shape
-      deliberately — three existing verifiers read `cp_spans.is_empty()` as
-      "creased whole" (`planner_direction.rs:352`, `:602`,
-      `measure_ends.rs:89`), so a CP step with empty spans would corrupt the
-      harness that measures this work.
-- [ ] Handle the 27.8% with no sighting line, or record explicitly that they
-      stay flagged.
+- [ ] Surface *which* marks are missing: `Step.missing_marks`, the sighted points
+      that are not on the paper, so a driver can ask RF about them.
+      `Step.marks_exist` becomes its emptiness.
+- [ ] The driver asks RF for each missing mark and folds the constructions as
+      `rf_aux` — the same shape as today's line fallback
+      (`precreasePlan.ts::referenceFinderFallback`), and a new `PlanAction` once
+      Correction 2 lands.
+- [ ] Route A as an optimisation afterwards, if the extra aux folds prove
+      expensive: press the pinch during a fold already scheduled, where the
+      ordering allows (61.1%). Decide its `Step` shape deliberately — three
+      verifiers read `cp_spans.is_empty()` as "creased whole"
+      (`planner_direction.rs:352`, `:602`, `measure_ends.rs:89`), so the extra
+      press needs its own field, not a `cp_spans` entry.
 - [ ] Re-measure. Watch turn-overs: the last tightening of this test cost
       130 → 168, and `iguana-c0` is the pinned clean loss.
 - [ ] Remove the "Still open" entry in
@@ -282,10 +322,14 @@ Over 148 corpus designs, 17,998 steps:
 
 **Every one of these is a ceiling, not a measurement.** They were taken through
 `Planner::plan()`, which is the weaker driver — it gives up one step before the
-real one, because it cannot ask ReferenceFinder. And there is no headless way to
-fix that: RF only exists in the browser. Correction 2 does not remove this
-limitation; it only makes it visible. Any claim about how often this bites real
-users has to come from the browser.
+real one, because it cannot ask ReferenceFinder.
+
+That is fixable, and I had said it was not. **ReferenceFinder runs perfectly well
+under Node** — `tools/reference-finder-oracle/equiv.mjs` has driven it that way
+all along, and the measurements above were taken the same way. What cannot call
+RF is the *Rust crate*; a Node harness can drive the wasm bridge and RF together
+and reproduce the shipping loop exactly. Worth building once the driver rules are
+shared, because then there is one loop to reproduce rather than two.
 
 ## Not in scope
 
