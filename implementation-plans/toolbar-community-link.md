@@ -17,7 +17,14 @@ the space for something the menus do not carry.
 
 ## Approach
 
-- **Phone gate.** `ToolbarDownloadButton` becomes a two-part component: an outer
+- **Phone gate.** Two controls offer the desktop build to a browser, and both
+  now stop at the phone: the toolbar icon and the start screen's corner button.
+  `useIsPhoneLayout` decides in both, so "is this a phone, for the purpose of not
+  offering a desktop build" has one answer. The landing page's own download call
+  to action is deliberately left alone — that is the body of a section about
+  installing the app, not a control in the corner of a working surface.
+
+  `ToolbarDownloadButton` becomes a two-part component: an outer
   gate that asks `useIsPhoneLayout()`, and an inner body holding the hook and
   the menu. Gating on the outside means the phone never mounts
   `useDesktopDownloads` at all, so it never makes the GitHub release request —
@@ -37,6 +44,7 @@ the space for something the menus do not carry.
 ## Affected Areas
 
 - `apps/web/src/components/WorkspaceShell.tsx`
+- `apps/web/src/components/StartScreen.tsx`
 - `apps/web/src/components/download/ToolbarDownloadButton.tsx`
 - `apps/web/src/components/ui/IconButton.tsx`
 - `apps/web/src/components/MenuBar.tsx` (a comment that names the CSS rule)
@@ -48,11 +56,12 @@ the space for something the menus do not carry.
 ## Checklist
 
 - [x] Gate `ToolbarDownloadButton` on the phone layout, without mounting the fetch
+- [x] Gate the start screen's corner download on the phone layout
 - [x] Remove New / Open / Save and their leading separator from the toolbar
 - [x] Add `IconButtonLink` to the `ui` primitives
 - [x] Add the Discord link to the toolbar
 - [x] Add the `community link opened` event and document it
 - [x] Drop the dead `.toolbar__action--file` rules; correct the comments that cite them
-- [x] Tests: the phone gate, and the toolbar's link
+- [x] Tests: both phone gates, and the toolbar's link
 - [x] i18n: extract, translate the new key into all eight targets, stamp
 - [x] Validate: lint, i18n check, typecheck, unit tests
