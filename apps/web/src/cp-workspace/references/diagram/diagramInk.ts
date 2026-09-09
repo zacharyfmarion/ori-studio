@@ -75,8 +75,51 @@ export const DIAGRAM_LINE_INK: Record<DiagramLineStyleName, DiagramStrokeInk> = 
 /** The paper's own outline. */
 export const DIAGRAM_SHEET_INK = { width: 1, opacity: 0.55 } as const;
 
-/** The ring round a reference mark: its stroke. The radius is in sheet units. */
-export const DIAGRAM_MARK_INK = { width: 1.2 } as const;
+/**
+ * The ring round a reference mark.
+ *
+ * `3.84` is 4% of the paper on a card — `0.04 × 96` — which is what the
+ * reference diagrams draw. In ink rather than as a share of the sheet because
+ * the same picture is also drawn over the crease pattern, where the "paper" is
+ * whatever the camera is showing and a share of it is a ring that inflates as
+ * you zoom in.
+ */
+export const DIAGRAM_MARK_INK = { width: 1.2, radius: 3.84 } as const;
+
+/**
+ * An arrowhead: its length, and the cap for a short arrow as a share of the
+ * chord it spans.
+ *
+ * `10.56` is upstream's `0.11` of the paper on a card. The cap stays a share of
+ * the arrow's own chord — it is about that arrow, not about the pen — so a
+ * short motion still gets a head rather than a blob.
+ */
+export const DIAGRAM_ARROWHEAD_INK = { length: 10.56, ofChord: 0.26 } as const;
+
+/** The turn-over glyph's width: 42% of the paper's shorter side on a card. */
+export const DIAGRAM_TURN_OVER_INK = 40.32;
+
+/**
+ * The pen a diagram is drawn with **over the crease pattern**, in CSS pixels.
+ *
+ * Not a share of the paper, which is the law the card uses and the wrong one
+ * here. A card is a printed figure: everything in it, the paper included, is
+ * the picture, so sizing the pen by the paper keeps the drawing coherent at any
+ * size. The canvas is a camera onto a pattern that may be four hundred model
+ * units across and any number of pixels on screen — size the pen by the paper
+ * there and a fit view gets a ten-pixel arrow beside a one-pixel crease, and
+ * zooming in makes it worse.
+ *
+ * So it is the crease pen instead: one ink is what a plain diagram line would
+ * have to be to match a crease. The reader's own line-width setting therefore
+ * moves both together, and the arrow can never be fatter than the creases it is
+ * drawn among. Deliberately *without* the zoom-dependent `widthBoost` the
+ * creases carry, so the dash patterns uploaded with the geometry stay put.
+ */
+export function canvasDiagramInk(lineWidth: number): number {
+  const CREASE_WIDTH_FACTOR = 1.5;
+  return (CREASE_WIDTH_FACTOR * lineWidth) / DIAGRAM_LINE_INK.edge.width;
+}
 
 /**
  * A reference letter.

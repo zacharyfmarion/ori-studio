@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { returnStroke } from '../stepDiagramGeometry';
 import { unitFrame } from './diagramFrames';
 import { plannerSequenceFixture } from '../__fixtures__/plannerSequence';
 import {
@@ -130,12 +131,13 @@ describe('plannerStepDiagram', () => {
       arc.center[1] + arc.radius * Math.sin(angle),
     ];
     // The return comes back *beside* the mark, not onto it: that is where the
-    // one arrowhead goes, and a head landing on the mark buries it.
+    // one arrowhead goes, and a head landing on the mark buries it. Derived
+    // where the picture is drawn, so this asks for it by the same offset.
+    const back = returnStroke(arrow.out, 0.1);
+    expect(back).not.toBeNull();
     const start = at(arrow.out, arrow.out.from);
-    const end = at(arrow.back, arrow.back.to);
-    const apart = Math.hypot(end[0] - start[0], end[1] - start[1]);
-    expect(apart).toBeGreaterThan(0);
-    expect(apart).toBeLessThan(0.2);
+    const end = at(back!, back!.to);
+    expect(Math.hypot(end[0] - start[0], end[1] - start[1])).toBeCloseTo(0.1, 9);
   });
 
   it('letters the inputs the way ReferenceFinder does: A… for lines, P… for marks', () => {
@@ -172,9 +174,6 @@ describe('the cards that are not folds', () => {
     const [glyph] = glyphs;
     if (glyph.kind !== 'turn-over') throw new Error('shape');
     expect(glyph.at).toEqual([0.5, 0.5]);
-    // It sits on the paper rather than spanning it.
-    expect(glyph.size).toBeGreaterThan(0);
-    expect(glyph.size).toBeLessThan(Math.min(sequence.sheet.width, sequence.sheet.height));
     // And it is the only thing on a card with nothing folded yet.
     expect(diagram.primitives.filter((p) => p.kind === 'arc')).toHaveLength(0);
     expect(diagram.primitives.filter((p) => p.kind === 'line')).toHaveLength(0);

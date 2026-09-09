@@ -178,7 +178,7 @@ describe('one model at two sizes', () => {
     sheet: { width: 1, height: 1 },
     primitives: [
       { kind: 'sheet', width: 1, height: 1 },
-      { kind: 'turn-over', at: [0.5, 0.8], size: 0.4 },
+      { kind: 'turn-over', at: [0.5, 0.8] },
     ],
   };
 

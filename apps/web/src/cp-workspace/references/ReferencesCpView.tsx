@@ -98,14 +98,12 @@ export interface ReferencesCpViewHandle {
 /**
  * The canvas's camera, as the layer drawn over it needs to see it.
  *
- * `view` is model space → CSS pixels of the canvas box. `cssPerModelAtFit` is
- * what one model unit would measure with the whole pattern framed — the scale
- * the diagram's *pen* is set from, so the ink stays put while the geometry it
- * draws moves with the zoom.
+ * Model space → CSS pixels of the canvas box. The pen the layer draws with is
+ * not here: it comes from the reader's crease width, so the diagram and the
+ * creases under it are the same weight whatever the camera is doing.
  */
 export interface ReferencesDiagramView {
   view: CpOverlayView;
-  cssPerModelAtFit: number;
 }
 
 /** What the view draws as picked. Ids as {@link ReferencesPick}: 1-based crease, 0-based vertex. */
@@ -521,11 +519,10 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         return cameraRef.current;
       };
 
-      const reportView = (view: CpOverlayView, cssPerModelAtFit: number) => {
+      const reportView = (view: CpOverlayView) => {
         const seen = lastViewRef.current;
         const same =
           seen !== null &&
-          seen.cssPerModelAtFit === cssPerModelAtFit &&
           seen.view.origin[0] === view.origin[0] &&
           seen.view.origin[1] === view.origin[1] &&
           seen.view.ex[0] === view.ex[0] &&
@@ -533,7 +530,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           seen.view.ey[0] === view.ey[0] &&
           seen.view.ey[1] === view.ey[1];
         if (same) return;
-        const next = { view, cssPerModelAtFit };
+        const next = { view };
         lastViewRef.current = next;
         liveRef.current.onViewChange?.(next);
       };
@@ -564,17 +561,13 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           modelPxPerUnit: Math.hypot(view.ex[0], view.ex[1]),
           ratio,
         });
-        // The layer over this canvas needs the same camera, in CSS pixels, and
-        // the scale the paper would have at fit — which is what sizes its pen,
-        // so a ten-times zoom does not arrive with a ten-times nib.
-        reportView(
-          {
-            origin: [view.origin[0] / ratio, view.origin[1] / ratio],
-            ex: [view.ex[0] / ratio, view.ex[1] / ratio],
-            ey: [view.ey[0] / ratio, view.ey[1] / ratio],
-          },
-          (Math.hypot(view.ex[0], view.ex[1]) / ratio) * (fitZoom / Math.max(cam.zoom, 1e-9))
-        );
+        // The layer over this canvas draws through the same camera, in CSS
+        // pixels rather than device ones.
+        reportView({
+          origin: [view.origin[0] / ratio, view.origin[1] / ratio],
+          ex: [view.ex[0] / ratio, view.ex[1] / ratio],
+          ey: [view.ey[0] / ratio, view.ey[1] / ratio],
+        });
         renderer.render({
           clearColor: readCssVarColor(canvas, CANVAS_BG_VAR, FALLBACK_CLEAR),
           view,

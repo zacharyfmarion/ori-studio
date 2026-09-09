@@ -8,7 +8,11 @@
  * two.
  */
 
-import { DIAGRAM_INK_PER_SHEET, DIAGRAM_LABEL_INK } from './diagram/diagramInk';
+import {
+  DIAGRAM_ARROWHEAD_INK,
+  DIAGRAM_INK_PER_SHEET,
+  DIAGRAM_LABEL_INK,
+} from './diagram/diagramInk';
 
 export interface DiagramSheet {
   width: number;
@@ -25,6 +29,17 @@ export interface DiagramProjector {
   (point: readonly [number, number]): SvgPoint;
   /** SVG user units per sheet unit. */
   scale: number;
+  /**
+   * The projection's linear part: where the source's unit x and y axes land.
+   *
+   * A direction is not a point and does not survive `project(a) - project(b)`
+   * bookkeeping in the caller — an arc's tangent has to be pushed through this,
+   * or an arrowhead built for a projector that flips y points backwards under
+   * one that does not. That is exactly what happened the first time this
+   * drawing was put over a camera.
+   */
+  ex: SvgPoint;
+  ey: SvgPoint;
   /**
    * One ink, in SVG user units — the pen this drawing is made with.
    *
@@ -74,6 +89,8 @@ export function createOverlayProjector(
   })) as DiagramProjector;
   // A similarity, so one number is the whole scale.
   project.scale = Math.sqrt(Math.abs(ex.x * ey.y - ex.y * ey.x));
+  project.ex = ex;
+  project.ey = ey;
   project.ink = ink;
   project.viewBox = '';
   project.size = 0;
@@ -109,13 +126,12 @@ export function createDiagramProjector(
     y: offsetY + (sheet.height - point[1]) * scale,
   })) as DiagramProjector;
   project.scale = scale;
+  project.ex = { x: mirrored ? -scale : scale, y: 0 };
+  project.ey = { x: 0, y: -scale };
   project.ink = longer * scale * DIAGRAM_INK_PER_SHEET;
   project.viewBox = `0 0 ${size} ${size}`;
   project.size = size;
-  project.mirrored = mirrors(
-    { x: mirrored ? -scale : scale, y: 0 },
-    { x: 0, y: -scale }
-  );
+  project.mirrored = mirrors(project.ex, project.ey);
   return project;
 }
 
@@ -165,25 +181,39 @@ export function arcPathData(arc: DiagramArc, project: DiagramProjector): string 
  * The arc's direction of travel at its end, in SVG space (unit length). For
  * the arrowhead: RF's arrows are arcs with the head at `to`.
  */
-export function arcEndDirection(arc: DiagramArc, mirrored = false): SvgPoint {
-  const tangent = arc.ccw
-    ? { x: -Math.sin(arc.to), y: Math.cos(arc.to) }
-    : { x: Math.sin(arc.to), y: -Math.cos(arc.to) };
-  // y flips with the projection, and x flips again when it draws the back; the
-  // radius scales both components equally so the direction is unchanged
-  // otherwise.
-  return { x: mirrored ? -tangent.x : tangent.x, y: -tangent.y };
+export function arcEndDirection(arc: DiagramArc, project: DiagramProjector): SvgPoint {
+  return through(
+    project,
+    arc.ccw
+      ? { x: -Math.sin(arc.to), y: Math.cos(arc.to) }
+      : { x: Math.sin(arc.to), y: -Math.cos(arc.to) }
+  );
+}
+
+/**
+ * A direction from the source space into the projector's, unit length.
+ *
+ * Through the basis, not by assuming which axes a projector flips. Every
+ * projector here is a similarity, so a direction maps to a direction and only
+ * the length has to be put back.
+ */
+function through(project: DiagramProjector, v: SvgPoint): SvgPoint {
+  const x = v.x * project.ex.x + v.y * project.ey.x;
+  const y = v.x * project.ex.y + v.y * project.ey.y;
+  const length = Math.hypot(x, y) || 1;
+  return { x: x / length, y: y / length };
 }
 
 /**
  * The arc's direction of travel at its start, reversed — the direction an
  * arrowhead placed at `from` points in. Upstream's `fromDir`.
  */
-export function arcStartDirection(arc: DiagramArc, mirrored = false): SvgPoint {
+export function arcStartDirection(arc: DiagramArc, project: DiagramProjector): SvgPoint {
   const tangent = arc.ccw
     ? { x: -Math.sin(arc.from), y: Math.cos(arc.from) }
     : { x: Math.sin(arc.from), y: -Math.cos(arc.from) };
-  return { x: mirrored ? tangent.x : -tangent.x, y: tangent.y };
+  // Reversed: an arrowhead at the start points back the way the arc came.
+  return through(project, { x: -tangent.x, y: -tangent.y });
 }
 
 /** Half-angle of a fold arrow's arc — upstream's `ha`, 30°. */
@@ -211,25 +241,6 @@ const RETURN_HALF_ANGLE = Math.PI / 4;
  * and stops level with the mark, offset by this much.
  */
 const RETURN_OFFSET_HEADS = 1;
-
-/**
- * The ring drawn round a reference mark, as a share of the paper's shorter side.
- *
- * A share, not a length: the same picture is drawn in the planner's unit square
- * and in the document's own coordinates, where the paper is hundreds of units
- * across. As a bare `0.04` the ring was 4% of the paper on a card and four
- * hundredths of one unit on the canvas, which is to say invisible.
- *
- * Here rather than in the component because two things need it: the circle
- * itself, and the arrow, whose shaft starts on the ring's *rim* — a shaft that
- * begins inside the circle it is pointing at hides the mark under its own line.
- */
-export const MARK_RING_OF_SHEET = 0.04;
-
-/** The ring's radius in a sheet's own units. */
-export function markRingRadius(sheet: DiagramSheet): number {
-  return Math.min(sheet.width, sheet.height) * MARK_RING_OF_SHEET;
-}
 
 /** The arc between two points and the centre it turns about. */
 function arcThrough(
@@ -404,10 +415,13 @@ export function returnStroke(out: DiagramArc, offset: number): DiagramArc | null
  * angles already chosen.
  *
  * The one place the side-step is decided, so an arrow built from a witness and
- * one read off the wire cannot end up with different symbols.
+ * one read off the wire cannot end up with different symbols. `offset` is how
+ * far to the side the return ends, in the arc's own units — an arrowhead's
+ * length, which the *drawing* decides, because a card sizes its head by the
+ * paper and a camera view sizes it by the pen.
  */
-export function foldAndUnfoldFromArc(out: DiagramArc, sheet: DiagramSheet): FoldUnfoldArrow | null {
-  const back = returnStroke(out, arrowheadSize(out, sheet) * RETURN_OFFSET_HEADS);
+export function foldAndUnfoldFromArc(out: DiagramArc, offset: number): FoldUnfoldArrow | null {
+  const back = returnStroke(out, offset * RETURN_OFFSET_HEADS);
   return back ? { out, back } : null;
 }
 
@@ -415,11 +429,11 @@ export function foldAndUnfoldFromArc(out: DiagramArc, sheet: DiagramSheet): Fold
 export function foldAndUnfoldArrow(
   fromPt: readonly [number, number],
   toPt: readonly [number, number],
-  sheet: DiagramSheet,
-  centre: readonly [number, number] = [sheet.width / 2, sheet.height / 2]
+  centre: readonly [number, number],
+  offset: number
 ): FoldUnfoldArrow | null {
   const out = foldArrowArc(fromPt, toPt, centre);
-  return out ? foldAndUnfoldFromArc(out, sheet) : null;
+  return out ? foldAndUnfoldFromArc(out, offset) : null;
 }
 
 /**
@@ -447,39 +461,21 @@ export function foldArrowTrim(
 }
 
 /**
- * How long an arrow's head is, as a share of the paper's shorter side.
+ * How long an arrow's head should be, in the projector's own units.
  *
- * Upstream's `CalcArrow` (`refDgmr.cpp:60-67`) uses `0.15`, for an arc with a
- * head at each end. Measured off the reference diagrams this workspace is
- * copying, a head is a tenth to an eighth of the paper's side — so `0.15` is
- * half again too long, and the difference shows the moment the picture is drawn
- * at any size worth reading.
+ * From the pen rather than from the paper, because the same picture is drawn
+ * over a camera as well as into a box: a share of the paper is a head that
+ * grows to eighty pixels on a fit view and keeps growing as you zoom. Capped at
+ * a share of the chord the arrow spans, which *is* about that arrow, so a short
+ * motion still gets a head rather than a blob.
  */
-const ARROWHEAD_OF_SHEET = 0.11;
-
-/**
- * The cap for a short arrow, as a share of the chord it spans.
- *
- * Upstream's `0.4` leaves a head that is most of the arrow. The same reference
- * diagrams put the shortest heads at about a quarter of their chord, which is
- * what a head looks like when the motion is small but still a head rather than
- * a blob.
- */
-const ARROWHEAD_OF_CHORD = 0.26;
-
-/**
- * How long an arrow's head should be, in sheet units.
- *
- * The chord is recovered from the arc rather than passed in, because that is
- * what the drawing has: an arc is stored by centre, radius and two angles.
- */
-export function arrowheadSize(arc: DiagramArc, sheet: DiagramSheet): number {
+export function arrowheadSize(arc: DiagramArc, project: DiagramProjector): number {
   const from = pointOnArc(arc, arc.from);
   const to = pointOnArc(arc, arc.to);
-  const chord = Math.hypot(to[0] - from[0], to[1] - from[1]);
+  const chord = Math.hypot(to[0] - from[0], to[1] - from[1]) * project.scale;
   return Math.min(
-    Math.min(sheet.width, sheet.height) * ARROWHEAD_OF_SHEET,
-    ARROWHEAD_OF_CHORD * chord
+    DIAGRAM_ARROWHEAD_INK.length * project.ink,
+    DIAGRAM_ARROWHEAD_INK.ofChord * chord
   );
 }
 

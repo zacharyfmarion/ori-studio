@@ -8,9 +8,9 @@ import {
   arcPathData,
   arrowheadPoints,
   arrowheadSize,
+  foldAndUnfoldFromArc,
   foldArrowTrim,
   labelPlacement,
-  markRingRadius,
 } from '../stepDiagramGeometry';
 import type {
   DiagramLineStyleName,
@@ -21,6 +21,7 @@ import {
   DIAGRAM_LINE_INK,
   DIAGRAM_MARK_INK,
   DIAGRAM_SHEET_INK,
+  DIAGRAM_TURN_OVER_INK,
 } from './diagramInk';
 
 /**
@@ -127,42 +128,47 @@ export function diagramPrimitiveShape(
     }
     case 'fold-arrow': {
   // Sheet units through the projector's scale, so the head keeps
-  // upstream's proportion to the paper at any size. The trim is done
-  // on radii in the same projected units and the angles it returns
+  // Sized by the pen, not by the paper — see `arrowheadSize`. The trim is
+  // done on radii in the same projected units, and the angles it returns
   // then apply to the sheet-unit arcs unchanged.
-  const head = arrowheadSize(primitive.out, sheet) * project.scale;
+  const head = arrowheadSize(primitive.out, project);
+  // The return, derived here rather than carried: how far to the side it ends
+  // is an arrowhead's length, and that is the drawing's business — see the
+  // primitive's own note.
+  const arrow = foldAndUnfoldFromArc(primitive.out, head / project.scale);
+  if (!arrow) return null;
   const scaled = {
-    out: { ...primitive.out, radius: primitive.out.radius * project.scale },
-    back: { ...primitive.back, radius: primitive.back.radius * project.scale },
+    out: { ...arrow.out, radius: arrow.out.radius * project.scale },
+    back: { ...arrow.back, radius: arrow.back.radius * project.scale },
   };
-  const trimmed = foldArrowTrim(scaled, head, markRingRadius(sheet) * project.scale);
-  const tipArc = { ...primitive.back, to: trimmed.tip };
+  const trimmed = foldArrowTrim(scaled, head, DIAGRAM_MARK_INK.radius * project.ink);
+  const tipArc = { ...arrow.back, to: trimmed.tip };
   const tip = project([
-    primitive.back.center[0] + primitive.back.radius * Math.cos(trimmed.tip),
-    primitive.back.center[1] + primitive.back.radius * Math.sin(trimmed.tip),
+    arrow.back.center[0] + arrow.back.radius * Math.cos(trimmed.tip),
+    arrow.back.center[1] + arrow.back.radius * Math.sin(trimmed.tip),
   ]);
   return (
     <g key={index} className="step-diagram__arrow">
       <path
         className="step-diagram__arc step-diagram__line--arrow"
-        d={arcPathData({ ...primitive.out, from: trimmed.out.from }, project)}
+        d={arcPathData({ ...arrow.out, from: trimmed.out.from }, project)}
         {...strokeAttributes('arrow', project.ink)}
       />
       <path
         className="step-diagram__arc step-diagram__line--arrow"
-        d={arcPathData({ ...primitive.back, to: trimmed.back.to }, project)}
+        d={arcPathData({ ...arrow.back, to: trimmed.back.to }, project)}
         {...strokeAttributes('arrow', project.ink)}
       />
       <polygon
         className="step-diagram__arrowhead"
-        points={arrowheadPoints(tip, arcEndDirection(tipArc, mirrored), head)}
+        points={arrowheadPoints(tip, arcEndDirection(tipArc, project), head)}
       />
     </g>
   );
     }
     case 'turn-over': {
   const at = project(primitive.at);
-  const scale = (primitive.size * project.scale) / TURN_OVER_BOX.width;
+  const scale = (DIAGRAM_TURN_OVER_INK * project.ink) / TURN_OVER_BOX.width;
   // Drawn in screen space, not mirrored with the paper: it is a
   // symbol for what the folder does, not part of the pattern.
   const x = at.x - (TURN_OVER_BOX.width / 2) * scale;
@@ -197,7 +203,7 @@ export function diagramPrimitiveShape(
       className={`step-diagram__point step-diagram__point--${primitive.style}`}
       cx={at.x}
       cy={at.y}
-      r={project.scale * markRingRadius(sheet)}
+      r={DIAGRAM_MARK_INK.radius * project.ink}
       strokeWidth={DIAGRAM_MARK_INK.width * project.ink}
     />
   );

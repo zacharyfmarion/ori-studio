@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
 import type { ReferencesDiagramView } from './ReferencesCpView';
 import { diagramPrimitiveShape } from './diagram/DiagramPrimitives';
-import { DIAGRAM_INK_PER_SHEET } from './diagram/diagramInk';
+import { canvasDiagramInk } from './diagram/diagramInk';
 import { createOverlayProjector } from './stepDiagramGeometry';
 
 /**
@@ -28,18 +28,20 @@ export interface ReferencesDiagramLayerProps {
   model: StepDiagramModel | null;
   /** The canvas's live camera, or null before the first frame. */
   camera: ReferencesDiagramView | null;
+  /** The reader's crease width, which is also this drawing's pen. */
+  lineWidth: number;
 }
 
-export function ReferencesDiagramLayer({ model, camera }: ReferencesDiagramLayerProps) {
-  const project = useMemo(() => {
-    if (!camera || !model) return null;
-    // The pen is set by the paper at fit, not by the live camera: the geometry
-    // it draws — an arrowhead, a mark's ring — is a share of the paper and must
-    // grow with the zoom, while the pen itself must not.
-    const paper = Math.max(model.sheet.width, model.sheet.height);
-    const ink = paper * camera.cssPerModelAtFit * DIAGRAM_INK_PER_SHEET;
-    return createOverlayProjector(camera.view, ink);
-  }, [camera, model]);
+export function ReferencesDiagramLayer({
+  model,
+  camera,
+  lineWidth,
+}: ReferencesDiagramLayerProps) {
+  const project = useMemo(
+    () =>
+      camera ? createOverlayProjector(camera.view, canvasDiagramInk(lineWidth)) : null,
+    [camera, lineWidth]
+  );
 
   if (!model || !project || model.primitives.length === 0) return null;
 

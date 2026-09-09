@@ -14,7 +14,7 @@ import type {
   StepDiagramModel,
   StepDiagramPrimitive,
 } from './referenceFinderDiagramToPrimitives';
-import { dashRulerAlong, foldAndUnfoldFromArc, type DiagramArc } from './stepDiagramGeometry';
+import { dashRulerAlong, type DiagramArc } from './stepDiagramGeometry';
 import type { ExtractedSolution, ExtractedStep } from './referenceFinder/extractor';
 import type { ReferencesModelStep, ReferencesOriginals } from './referencesResults';
 
@@ -226,10 +226,7 @@ export function referencesStepPrimitives(
   // and back, one head where the paper comes to rest. Upstream ships the
   // outgoing arc and throws its directions away, so the return is derived here
   // exactly as it is for a witness-built arrow — one place decides the symbol.
-  if (overlay.arc) {
-    const arrow = foldAndUnfoldFromArc(overlay.arc, sheet);
-    if (arrow) primitives.push({ kind: 'fold-arrow', ...arrow });
-  }
+  if (overlay.arc) primitives.push({ kind: 'fold-arrow', out: overlay.arc });
   for (const marker of overlay.markers) {
     primitives.push({
       kind: 'point',

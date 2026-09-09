@@ -48,7 +48,7 @@
  * perpendicular is sighted, not swung), so it too draws without an arrow —
  * that comes from `who_moves` being empty and needs no special case here.
  */
-import { dashRulerAlong, foldAndUnfoldArrow } from '../stepDiagramGeometry';
+import { dashRulerAlong, foldArrowArc } from '../stepDiagramGeometry';
 import type { DiagramFrame, DiagramSegment } from './diagramFrames';
 import type {
   DiagramLineStyleName,
@@ -261,8 +261,8 @@ export function plannerStepDiagram(
     if (!ref || !chord) continue;
     const anchor = anchorOfRef(sequence, frame, ref);
     if (!anchor) continue;
-    const arrow = foldAndUnfoldArrow(anchor, reflectAcross(chord, anchor), sheet, xy(frame.centre));
-    if (arrow) primitives.push({ kind: 'fold-arrow', ...arrow });
+    const out = foldArrowArc(anchor, reflectAcross(chord, anchor), xy(frame.centre));
+    if (out) primitives.push({ kind: 'fold-arrow', out });
   }
 
   // The crease this step makes, then the letters, both over the references. The
@@ -341,25 +341,16 @@ export function plannerTurnOverDiagram(
   return { sheet: { width: sheet.width, height: sheet.height }, primitives };
 }
 
-/** How wide the turn-over glyph is, as a share of the sheet's shorter side. */
-const TURN_OVER_SIZE = 0.42;
-
 /**
  * The turn-over symbol, centred on the sheet.
  *
  * The glyph itself is transcribed from the house's own drawing
  * (`stepDiagramGeometry.ts`, `TURN_OVER_PATH`): a stroke that comes in from one
- * side, loops once, and leaves the other with the arrowhead. Sized against the
- * shorter side so it reads the same on a square and on a long rectangle.
+ * side, loops once, and leaves the other with the arrowhead. How big it is
+ * belongs to the drawing, not to the paper — see the primitive.
  */
 function turnOverSymbol(frame: DiagramFrame): StepDiagramPrimitive[] {
-  return [
-    {
-      kind: 'turn-over',
-      at: xy(frame.centre),
-      size: Math.min(frame.sheet.width, frame.sheet.height) * TURN_OVER_SIZE,
-    },
-  ];
+  return [{ kind: 'turn-over', at: xy(frame.centre) }];
 }
 
 /**

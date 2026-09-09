@@ -14,7 +14,7 @@
  */
 import type { ExtractedSolution } from './referenceFinder/extractor';
 import type { Diagram, RawSolution } from './referenceFinder/solution';
-import { foldAndUnfoldFromArc, type FoldUnfoldArrow } from './stepDiagramGeometry';
+import type { DiagramArc } from './stepDiagramGeometry';
 
 export type DiagramLineStyleName =
   | 'crease'
@@ -61,12 +61,22 @@ export type StepDiagramPrimitive =
       style: DiagramLineStyleName;
     }
   /**
-   * The path the paper takes over a crease and back — one stroke out, one
-   * back, one head. See {@link foldAndUnfoldArrow}.
+   * The path the paper takes over a crease and back.
+   *
+   * Only the outgoing arc: the return that makes it a round trip is the *same*
+   * arc bulged further and stopped beside the mark, and how far beside is an
+   * arrowhead's length — which a card measures against the paper and a camera
+   * view against the pen. So it is derived where the picture is drawn, and this
+   * stays the one thing both surfaces agree on.
    */
-  | ({ kind: 'fold-arrow' } & FoldUnfoldArrow)
-  /** The turn-over glyph, centred on `at` and `size` wide in sheet units. */
-  | { kind: 'turn-over'; at: readonly [number, number]; size: number }
+  | { kind: 'fold-arrow'; out: DiagramArc }
+  /**
+   * The turn-over glyph, centred on `at`.
+   *
+   * Its size is the drawing's, not the model's — the same reason a fold arrow
+   * carries only its outgoing arc.
+   */
+  | { kind: 'turn-over'; at: readonly [number, number] }
   | { kind: 'point'; at: readonly [number, number]; style: DiagramPointStyleName }
   | { kind: 'label'; at: readonly [number, number]; text: string; style: DiagramPointStyleName };
 
@@ -199,8 +209,9 @@ export function referenceFinderDiagramToPrimitives(diagram: Diagram): StepDiagra
         // Every fold ReferenceFinder describes is made and released, so the
         // symbol for it is the one a diagram uses for that: out and back, with
         // a single head where the paper comes to rest.
-        const arrow = style === 'arrow' && sheet ? foldAndUnfoldFromArc(arc, sheet) : null;
-        primitives.push(arrow ? { kind: 'fold-arrow', ...arrow } : { kind: 'arc', ...arc, style });
+        primitives.push(
+          style === 'arrow' ? { kind: 'fold-arrow', out: arc } : { kind: 'arc', ...arc, style }
+        );
         return;
       }
       case 0:

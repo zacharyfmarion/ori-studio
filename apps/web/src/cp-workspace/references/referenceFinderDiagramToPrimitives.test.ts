@@ -3,7 +3,7 @@ import markFixture from './referenceFinder/__fixtures__/mark.json';
 import markCentreFixture from './referenceFinder/__fixtures__/mark-centre.json';
 import lineFixture from './referenceFinder/__fixtures__/line-exact.json';
 import { extractSolution } from './referenceFinder/extractor';
-import { arrowheadSize } from './stepDiagramGeometry';
+import { arrowheadSize, createDiagramProjector, returnStroke } from './stepDiagramGeometry';
 import type { ReferenceFinderReplayFixture } from './referenceFinder/replayClient';
 import type { Diagram } from './referenceFinder/solution';
 import {
@@ -52,25 +52,20 @@ describe('referenceFinderDiagramToPrimitives', () => {
     expect(arrow).toMatchObject({ kind: 'fold-arrow', out: { ccw: false, radius: 1 } });
   });
 
-  // The return comes back beside where the paper started — the head goes there,
-  // and it must not land on the mark or carry past it. Upstream's arrows get the
-  // side-step from the same place the planner's do, or the two picture languages
-  // drift on the one symbol they share.
-  it('brings the return stroke back beside the start of the outgoing one', () => {
+  // Upstream's arc is the *outgoing* stroke and nothing else: the return that
+  // makes it a round trip is derived where the picture is drawn, because how
+  // far beside the mark it ends is an arrowhead's length and only the drawing
+  // knows how big that is.
+  it('keeps upstream\u2019s arc as the outgoing stroke, whole', () => {
     const model = referenceFinderDiagramToPrimitives(mark.solutions[0].diagrams[0]);
     const arrow = model.primitives.find((p) => p.kind === 'fold-arrow');
     if (arrow?.kind !== 'fold-arrow') throw new Error('no fold arrow');
-    const at = (arc: typeof arrow.out, angle: number) => [
-      arc.center[0] + arc.radius * Math.cos(angle),
-      arc.center[1] + arc.radius * Math.sin(angle),
-    ];
-    const [ox, oy] = at(arrow.out, arrow.out.from);
-    const [bx, by] = at(arrow.back, arrow.back.to);
-    const apart = Math.hypot(bx - ox, by - oy);
-    expect(apart).toBeGreaterThan(0);
-    expect(apart).toBeCloseTo(arrowheadSize(arrow.out, sheet), 6);
-    // …and it bulges further, or the two strokes would lie on top of each other.
-    expect(arrow.back.radius).toBeLessThan(arrow.out.radius);
+    const card = createDiagramProjector(sheet, 100);
+    // The offset is in the arc's own units, so the projected head comes back.
+    const back = returnStroke(arrow.out, arrowheadSize(arrow.out, card) / card.scale);
+    expect(back).not.toBeNull();
+    // It bulges further, or the two strokes would lie on top of each other.
+    expect(back!.radius).toBeLessThan(arrow.out.radius);
   });
 
   it('names every line style by its code', () => {

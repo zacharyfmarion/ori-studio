@@ -167,7 +167,7 @@ export function ReferencesPanel() {
   // The step's picture, once: straight lines packed for the GPU, symbols for the
   // layer over it. Both off the same primitives the filmstrip card draws.
   const [diagramCamera, setDiagramCamera] = useState<ReferencesDiagramView | null>(null);
-  const scene = useReferencesDiagramScene(highlights.diagram, view.themeKey);
+  const scene = useReferencesDiagramScene(highlights.diagram, view.lineWidth, view.themeKey);
 
   const run = useWorkspaceStore((state) => state.referencesRun);
   const shortcutOverrides = useShortcutStore((store) => store.overrides);
@@ -514,6 +514,7 @@ export function ReferencesPanel() {
           <ReferencesDiagramLayer
             model={scene.symbols}
             camera={diagramCamera}
+            lineWidth={view.lineWidth}
           />
           <ContextMenu
             open={contextMenu.open}

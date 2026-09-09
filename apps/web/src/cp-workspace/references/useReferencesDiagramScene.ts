@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
 import { diagramInkColors } from './diagram/diagramColors';
 import { diagramToScene, type DiagramScene } from './diagram/diagramToScene';
-import { DIAGRAM_INK_PER_SHEET } from './diagram/diagramInk';
+import { canvasDiagramInk } from './diagram/diagramInk';
 
 /**
  * A step's picture, split between the renderer and the layer over it.
@@ -26,18 +26,19 @@ const EMPTY: ReferencesDiagramScene = { strokes: null, symbols: null };
 
 export function useReferencesDiagramScene(
   diagram: StepDiagramModel | null,
+  lineWidth: number,
   themeKey: string | undefined
 ): ReferencesDiagramScene {
   return useMemo(() => {
     if (!diagram) return EMPTY;
-    // The pen, in model units. The canvas's own ink is settled per frame from
-    // the camera at fit; this one only has to be the same *ratio*, because it
-    // is scaling a dash pattern the program then reads in screen pixels.
-    const paper = Math.max(diagram.sheet.width, diagram.sheet.height);
+    // The same pen the layer over the canvas uses, so the lines and the symbols
+    // are one drawing. It scales the dash runs, which the stroke program reads
+    // in screen pixels — and it deliberately excludes the zoom-dependent boost
+    // the creases carry, or every zoom frame would have to re-upload them.
     const scene = diagramToScene(
       diagram.primitives,
       diagramInkColors(document.documentElement),
-      paper * DIAGRAM_INK_PER_SHEET
+      canvasDiagramInk(lineWidth)
     );
     return {
       strokes: scene.strokes,
@@ -45,5 +46,5 @@ export function useReferencesDiagramScene(
     };
     // `themeKey` is a real dependency: the colours above are read from the DOM.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [diagram, themeKey]);
+  }, [diagram, lineWidth, themeKey]);
 }

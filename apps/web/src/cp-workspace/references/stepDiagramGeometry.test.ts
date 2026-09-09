@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DIAGRAM_MARK_INK } from './diagram/diagramInk';
 import {
   ARROWHEAD_ASPECT,
   arcEndDirection,
@@ -10,17 +11,19 @@ import {
   arrowheadSize,
   createDiagramProjector,
   foldAndUnfoldArrow,
+  foldAndUnfoldFromArc,
   arcSamplePoints,
   arcThroughPoints,
   foldArrowArc,
   foldArrowTrim,
   labelPlacement,
-  markRingRadius,
   type DiagramArc,
 } from './stepDiagramGeometry';
 
 const UNIT = { width: 1, height: 1 };
 const CENTRE: readonly [number, number] = [0.5, 0.5];
+/** A card's own projector, for the things that need one. */
+const CARD = createDiagramProjector(UNIT, 100);
 
 /** Pull the numbers back out of a path string. */
 function numbers(path: string): number[] {
@@ -93,12 +96,18 @@ describe('arcEndDirection', () => {
   it('points along the travel direction at the end, in screen space', () => {
     // Counter-clockwise from 0 to π/2 ends at the top of the circle travelling
     // toward −x; the screen tangent is leftward with no vertical component.
-    const ccw = arcEndDirection({ center: [0, 0], radius: 1, from: 0, to: Math.PI / 2, ccw: true });
+    const ccw = arcEndDirection(
+      { center: [0, 0], radius: 1, from: 0, to: Math.PI / 2, ccw: true },
+      CARD
+    );
     expect(ccw.x).toBeCloseTo(-1);
     expect(ccw.y).toBeCloseTo(0);
     // Clockwise from π/2 down to 0 ends at the right, travelling toward −y in
     // sheet space, which is +y (down) on screen.
-    const cw = arcEndDirection({ center: [0, 0], radius: 1, from: Math.PI / 2, to: 0, ccw: false });
+    const cw = arcEndDirection(
+      { center: [0, 0], radius: 1, from: Math.PI / 2, to: 0, ccw: false },
+      CARD
+    );
     expect(cw.x).toBeCloseTo(0);
     expect(cw.y).toBeCloseTo(1);
   });
@@ -218,27 +227,24 @@ describe('foldArrowArc', () => {
 });
 
 describe('arrowheadSize', () => {
-  const sheet = { width: 1, height: 1 };
-
-  // Upstream's `0.15` is for an arc with a head at each end. This symbol has
-  // one, and the reference diagrams it copies draw it a tenth to an eighth of
-  // the paper's side.
-  it('takes a share of the paper’s shorter side for a long arrow', () => {
+  // From the pen, not from the paper: the same picture is drawn over a camera,
+  // where a share of the paper is a head that grows to eighty pixels on a fit
+  // view and keeps growing as you zoom.
+  it('is a fixed number of the drawing’s own units for a long arrow', () => {
     const arc = foldArrowArc([0, 0], [1, 1], CENTRE);
-    expect(arc && arrowheadSize(arc, sheet)).toBeCloseTo(0.11, 9);
-    // …the shorter side, on a 2:1 sheet.
-    const wide = { width: 1, height: 0.5 };
-    const wideArc = foldArrowArc([0, 0], [1, 0.5], [0.5, 0.25]);
-    expect(wideArc && arrowheadSize(wideArc, wide)).toBeCloseTo(0.055, 9);
+    if (!arc) throw new Error('no arc');
+    expect(arrowheadSize(arc, CARD)).toBeCloseTo(10.56 * CARD.ink, 9);
+    // …and the card's ink is a share of its paper, so this reproduces exactly
+    // what a share of the paper used to give: 0.11 of the sheet.
+    expect(arrowheadSize(arc, CARD)).toBeCloseTo(0.11 * CARD.scale, 9);
   });
 
-  // The reason a small arc does not end up mostly arrowhead: upstream's
-  // `if (ahSize > ah1) ahSize = ah1`, with a cap taken from the same reference
-  // diagrams rather than upstream's `0.4`, which leaves a head that is most of
-  // the arrow.
+  // The reason a small arc does not end up mostly arrowhead. The cap is a share
+  // of the chord because it is about that arrow, not about the pen.
   it('caps at a share of the chord for a short one', () => {
     const arc = foldArrowArc([0.5, 0.5], [0.6, 0.5], CENTRE);
-    expect(arc && arrowheadSize(arc, sheet)).toBeCloseTo(0.026, 9);
+    if (!arc) throw new Error('no arc');
+    expect(arrowheadSize(arc, CARD)).toBeCloseTo(0.26 * 0.1 * CARD.scale, 9);
   });
 });
 
@@ -294,14 +300,14 @@ describe('a mirrored projector', () => {
       to: Math.PI / 2,
       ccw: true,
     };
-    expect(arcEndDirection(arc, true).x).toBeCloseTo(-arcEndDirection(arc).x, 12);
-    expect(arcEndDirection(arc, true).y).toBeCloseTo(arcEndDirection(arc).y, 12);
-    expect(arcStartDirection(arc, true).x).toBeCloseTo(-arcStartDirection(arc).x, 12);
+    const back = createDiagramProjector(UNIT, 100, true);
+    expect(arcEndDirection(arc, back).x).toBeCloseTo(-arcEndDirection(arc, CARD).x, 12);
+    expect(arcEndDirection(arc, back).y).toBeCloseTo(arcEndDirection(arc, CARD).y, 12);
+    expect(arcStartDirection(arc, back).x).toBeCloseTo(-arcStartDirection(arc, CARD).x, 12);
   });
 });
 
 describe('foldArrowTrim', () => {
-  const sheet = { width: 1, height: 1 };
   const at = (arc: DiagramArc, angle: number): [number, number] => [
     arc.center[0] + arc.radius * Math.cos(angle),
     arc.center[1] + arc.radius * Math.sin(angle),
@@ -312,10 +318,12 @@ describe('foldArrowTrim', () => {
   // ends up past the mark and across the shaft that starts there, which reads
   // as a tangle rather than a journey.
   it('starts the shaft on the ring and leaves the head beside the mark', () => {
-    const arrow = foldAndUnfoldArrow([1, 0.5], [0, 0.5], sheet);
+    const out = foldArrowArc([1, 0.5], [0, 0.5], CENTRE);
+    if (!out) throw new Error('no arc');
+    const head = arrowheadSize(out, CARD) / CARD.scale;
+    const arrow = foldAndUnfoldFromArc(out, head);
     if (!arrow) throw new Error('no arrow');
-    const head = arrowheadSize(arrow.out, sheet);
-    const rim = markRingRadius(sheet);
+    const rim = (DIAGRAM_MARK_INK.radius * CARD.ink) / CARD.scale;
     const trimmed = foldArrowTrim(arrow, head, rim);
 
     const mark = at(arrow.out, arrow.out.from);
@@ -344,26 +352,13 @@ describe('foldArrowTrim', () => {
       [[0.5, 0.08], [0.5, 0.52]],
       [[1, 0], [0, 1]],
     ] as const) {
-      const arrow = foldAndUnfoldArrow(from, to, sheet);
+      const arrow = foldAndUnfoldArrow(from, to, CENTRE, 0.05);
       if (!arrow) throw new Error('no arrow');
       const length = (arc: DiagramArc) => arc.radius * arcExtent(arc);
       const ratio = length(arrow.back) / length(arrow.out);
       expect(ratio).toBeGreaterThan(0.85);
       expect(ratio).toBeLessThan(1.2);
     }
-  });
-});
-
-describe('markRingRadius', () => {
-  // The same picture is drawn in the planner's unit square and in the
-  // document's own coordinates, where the paper is hundreds of units across. As
-  // a bare fraction the ring was 4% of the paper on a card and four hundredths
-  // of one unit on the canvas, which is to say gone.
-  it('is a share of the paper, not a length', () => {
-    expect(markRingRadius({ width: 1, height: 1 })).toBeCloseTo(0.04, 9);
-    expect(markRingRadius({ width: 400, height: 400 })).toBeCloseTo(16, 9);
-    // The shorter side, so it fits on a long rectangle.
-    expect(markRingRadius({ width: 400, height: 200 })).toBeCloseTo(8, 9);
   });
 });
 

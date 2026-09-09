@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DIAGRAM_ARROWHEAD_INK,
   DIAGRAM_INK_PER_SHEET,
   DIAGRAM_LABEL_INK,
   DIAGRAM_LINE_INK,
   DIAGRAM_MARK_INK,
   DIAGRAM_SHEET_INK,
+  DIAGRAM_TURN_OVER_INK,
 } from './diagramInk';
 
 /**
@@ -39,7 +41,7 @@ describe('the diagram’s pen', () => {
       unfolded: { width: 1, cap: 'round', opacity: 0.28 },
     });
     expect(DIAGRAM_SHEET_INK).toEqual({ width: 1, opacity: 0.55 });
-    expect(DIAGRAM_MARK_INK).toEqual({ width: 1.2 });
+    expect(DIAGRAM_MARK_INK).toEqual({ width: 1.2, radius: 3.84 });
   });
 
   // The template's ratios, in units of the stroke width: valley 8:4, mountain
@@ -50,6 +52,16 @@ describe('the diagram’s pen', () => {
       DIAGRAM_LINE_INK[style].dash!.map((run) => run / DIAGRAM_LINE_INK[style].width);
     expect(runs('valley')).toEqual([8, 4]);
     expect(runs('mountain')).toEqual([4, 2, 1, 2]);
+  });
+
+  // Every annotation size is in ink too, so the same drawing over a camera can
+  // set its pen from the crease width instead of from the paper. On a card
+  // these reproduce exactly the shares of the paper they replace.
+  it('keeps the card’s own proportions for the annotations', () => {
+    const perSheet = 1 / DIAGRAM_INK_PER_SHEET;
+    expect(DIAGRAM_MARK_INK.radius / perSheet).toBeCloseTo(0.04, 9);
+    expect(DIAGRAM_ARROWHEAD_INK.length / perSheet).toBeCloseTo(0.11, 9);
+    expect(DIAGRAM_TURN_OVER_INK / perSheet).toBeCloseTo(0.42, 9);
   });
 
   // A letter and its halo already scaled with the viewBox, unlike the strokes,
