@@ -32,6 +32,9 @@ fn paper_target_span(image_size: u32) -> (f32, f32) {
     (margin, image_size as f32 - margin)
 }
 const MIN_PANEL_CONFIDENCE: f32 = 0.72;
+/// The floor for calling a candidate a bordered square at all: square to
+/// within about 6%, which a scan or a photograph of one still is.
+const LOOSE_SQUARE_SCORE: f64 = 0.9;
 /// A bordered square the finder may prefer for its size over a better-scoring
 /// one: square to within about a percent (`square_score` is
 /// `1 - |ln aspect| / ln 1.8`).
@@ -48,6 +51,39 @@ const PAPER_OF_BOX_AREA_RATIO: f32 = 0.85;
 /// far, not only the mean: a scan with one dark edge is not a paper filling
 /// the frame.
 const FRAME_MIN_SIDE_SUPPORT: f32 = 0.5;
+/// How far apart two projection peaks must be, as a fraction of the image's
+/// smaller side, to be opposite sides of a panel rather than one thick line.
+const MIN_PANEL_SPAN_RATIO: f32 = 0.12;
+/// How many angles the sweep looks at across the square's 90° of symmetry.
+const ANGLE_SWEEP_STEPS: usize = 90;
+/// Roughly how many pixels one projection in the sweep looks at, whatever the
+/// image's size. The sweep is ninety projections per axis and has to stay
+/// cheap on a photograph as well as on a diagram.
+const ANGLE_SWEEP_PIXEL_BUDGET: usize = 250_000;
+/// How many rotated angles the finder searches besides the image's own.
+const MAX_ROTATED_ANGLES: usize = 2;
+/// A rotated angle is worth the full search when its straight-edge support is
+/// at least this much of the best angle's.
+const ROTATION_SUPPORT_RATIO: f32 = 0.5;
+/// Two angles closer than this are one border found twice: an edge still
+/// half-registers a degree or two off its own angle.
+const MIN_ANGLE_SEPARATION_DEG: f32 = 6.0;
+/// How far a candidate's corner may fall outside the image. A rotated quad
+/// built from two projection pairs can land its corner past the image's own,
+/// and clipping one deforms it into something that is no longer a square.
+const QUAD_OUTSIDE_MARGIN_PX: f32 = 2.0;
+/// How much of the image's ink a rotated panel has to hold. A paper holds
+/// its pattern; the rotated squares that beat the paper on `at-at` and
+/// `carnotaurus-v1` hold 18% and 13% of it, against 0.44 for the weakest
+/// rotated paper the corpus actually contains.
+const ROTATED_MIN_INK_SHARE: f32 = 0.40;
+/// How far along an edge every side of a rotated panel has to run. Two of
+/// `calico-cat`'s sides cross blank page at 0.15 while its corners happen to
+/// come out square; the weakest true rotated paper reads 0.23.
+const ROTATED_MIN_SIDE_SUPPORT: f64 = 0.20;
+/// How much larger a rotated square must be to displace an upright one.
+/// Comparing areas across angles is not like-for-like — see `prefer_rotated`.
+const CROSS_ANGLE_AREA_MARGIN: f32 = 1.15;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Point {
@@ -205,7 +241,16 @@ struct PanelCandidate {
     quad: Quad,
     confidence: f32,
     method: &'static str,
+    /// The projection angle this panel was found at. Zero for the ink
+    /// bounding box and the full frame, which have no angle of their own.
+    angle_deg: f32,
     metrics: Value,
+}
+
+impl PanelCandidate {
+    fn is_rotated(&self) -> bool {
+        self.angle_deg != 0.0
+    }
 }
 
 pub fn auto_rectify_rgba(
@@ -404,10 +449,62 @@ fn ranked_panel_candidates(analysis: &ImageAnalysis) -> Vec<PanelCandidate> {
 /// shell inside a turtle, on a scan a little off square). Two genuine
 /// squares of the same size are one paper seen twice, the second shifted
 /// onto a title or a crease row; the one with every side on an edge wins.
+/// Rotation is decided separately from all of that, because the rule above
+/// compares areas and areas are not comparable across angles.
 fn choose_panel(ranked: &[PanelCandidate]) -> Option<&PanelCandidate> {
-    let best = ranked.first()?;
-    let loose = largest(&bordered_squares(ranked, 0.9));
-    let genuine = paper_among(&bordered_squares(ranked, GENUINE_SQUARE_SCORE));
+    let upright: Vec<&PanelCandidate> = ranked
+        .iter()
+        .filter(|candidate| !candidate.is_rotated())
+        .collect();
+    let rotated: Vec<&PanelCandidate> = ranked
+        .iter()
+        .filter(|candidate| candidate.is_rotated())
+        .collect();
+    // The upright reading is what the finder answers with when nothing is
+    // rotated, so it keeps the fallback to the best-scoring candidate. A
+    // rotated reading that is not a credible bordered square is not a
+    // reading at all.
+    let upright = largest_square_among(&upright).or_else(|| upright.first().copied());
+    let rotated = largest_square_among(&rotated);
+    match (upright, rotated) {
+        (Some(upright), Some(rotated)) if prefer_rotated(upright, rotated) => Some(rotated),
+        (Some(upright), _) => Some(upright),
+        (None, rotated) => rotated,
+    }
+}
+
+/// Whether the rotated reading of the image replaces the upright one.
+///
+/// When the upright pick is the ink bounding box or a padded frame there is
+/// no rival square, only the absence of one, and a credible rotated panel
+/// stands on its own — `cat`'s diamond is half the area of the ink box that
+/// used to win there, and is the paper.
+///
+/// When the upright pick *is* a bordered square the two are rival readings
+/// of the same paper, and "the largest square wins" stops being
+/// like-for-like: the rotated search offers ninety times the squares, so it
+/// turns up a larger one on noise alone. Nor can size settle it, because
+/// both ways it can go look the same by area — on `armadillo-girdled-lizard`
+/// crease fragments at 38.75° form a square 3% larger than the paper, and a
+/// paper photographed 8° off square leaves an upright box 3% smaller than
+/// itself. What settles it is the same thing that makes a square a paper at
+/// all: which of the two holds the pattern. The tilted paper holds all of
+/// its own ink and the box across it does not, while the fragments hold less
+/// than the upright paper they sit inside — as does the square inscribed in
+/// `lotus`'s octagon, which is not a square paper at any angle.
+fn prefer_rotated(upright: &PanelCandidate, rotated: &PanelCandidate) -> bool {
+    if !is_bordered_square(upright, LOOSE_SQUARE_SCORE) {
+        return true;
+    }
+    ink_share(rotated) > ink_share(upright)
+        || rotated.quad.area() >= upright.quad.area() * CROSS_ANGLE_AREA_MARGIN
+}
+
+/// The largest credible bordered square among these candidates, by the rule
+/// above. `None` when none of them is one.
+fn largest_square_among<'a>(candidates: &[&'a PanelCandidate]) -> Option<&'a PanelCandidate> {
+    let loose = largest(&bordered_squares(candidates, LOOSE_SQUARE_SCORE));
+    let genuine = paper_among(&bordered_squares(candidates, GENUINE_SQUARE_SCORE));
     match (loose, genuine) {
         (Some(bordered), Some(square))
             if square.quad.area() >= bordered.quad.area() * PAPER_OF_BOX_AREA_RATIO =>
@@ -415,8 +512,7 @@ fn choose_panel(ranked: &[PanelCandidate]) -> Option<&PanelCandidate> {
             Some(square)
         }
         (Some(bordered), _) => Some(bordered),
-        (None, Some(square)) => Some(square),
-        (None, None) => Some(best),
+        (None, square) => square,
     }
 }
 
@@ -465,15 +561,21 @@ fn min_side_support(candidate: &PanelCandidate) -> f64 {
 }
 
 /// The credible projection candidates at least `square_floor` square.
-fn bordered_squares(ranked: &[PanelCandidate], square_floor: f64) -> Vec<&PanelCandidate> {
+fn bordered_squares<'a>(
+    ranked: &[&'a PanelCandidate],
+    square_floor: f64,
+) -> Vec<&'a PanelCandidate> {
     ranked
         .iter()
-        .filter(|candidate| {
-            candidate.method == "border_projection"
-                && candidate.confidence >= MIN_PANEL_CONFIDENCE
-                && square_score(candidate) >= square_floor
-        })
+        .copied()
+        .filter(|candidate| is_bordered_square(candidate, square_floor))
         .collect()
+}
+
+fn is_bordered_square(candidate: &PanelCandidate, square_floor: f64) -> bool {
+    candidate.method == "border_projection"
+        && candidate.confidence >= MIN_PANEL_CONFIDENCE
+        && square_score(candidate) >= square_floor
 }
 
 /// The largest candidate, the more confident of two the same size.
@@ -514,6 +616,9 @@ fn candidate_summaries(ranked: &[PanelCandidate]) -> Value {
                     "border_sides": candidate.metrics.get("border_sides").cloned().unwrap_or(Value::Null),
                     "square_score": candidate.metrics.get("square_score").cloned().unwrap_or(Value::Null),
                     "edge_density": candidate.metrics.get("edge_density").cloned().unwrap_or(Value::Null),
+                    "ink_share": candidate.metrics.get("ink_share").cloned().unwrap_or(Value::Null),
+                    "angle_deg": candidate.metrics.get("angle_deg").cloned().unwrap_or(json!(0.0)),
+                    "corners": points.map(|point| [point.x, point.y]),
                 })
             })
             .collect(),
@@ -529,7 +634,7 @@ fn frame_candidate(analysis: &ImageAnalysis) -> Option<PanelCandidate> {
     let border_sides = border_support_sides(analysis, quad);
     let border_score = border_sides.iter().sum::<f32>() / 4.0;
     let weakest_side = border_sides.iter().copied().fold(f32::INFINITY, f32::min);
-    let interior_density = interior_edge_density(analysis, quad);
+    let interior_density = quad_interior(analysis, quad).density;
     if border_score < 0.24 || weakest_side < FRAME_MIN_SIDE_SUPPORT || interior_density < 0.002 {
         return None;
     }
@@ -537,6 +642,7 @@ fn frame_candidate(analysis: &ImageAnalysis) -> Option<PanelCandidate> {
         quad,
         confidence: 1.0,
         method: "full_frame_border",
+        angle_deg: 0.0,
         metrics: json!({
             "method": "full_frame_border",
             "border_score": border_score,
@@ -546,48 +652,239 @@ fn frame_candidate(analysis: &ImageAnalysis) -> Option<PanelCandidate> {
     })
 }
 
+/// The panels found at the image's own angle and at any rotation the image
+/// gives evidence for.
+///
+/// A crease pattern is often drawn as a diamond, and a photographed one is
+/// never quite square. Both are the same problem: the paper's edges project
+/// onto nothing in a per-column and per-row histogram, so the finder used to
+/// see only whichever interior creases happened to be axis-aligned — on
+/// `blackbuck-simplified`, a 75x112 box in the middle of the pattern.
 fn projection_candidates(analysis: &ImageAnalysis) -> Vec<PanelCandidate> {
-    let col_scores = smooth_scores(&axis_scores(analysis, true));
-    let row_scores = smooth_scores(&axis_scores(analysis, false));
-    let x_clusters = top_clusters(&col_scores, analysis.height);
-    let y_clusters = top_clusters(&row_scores, analysis.width);
+    candidate_angles(analysis)
+        .into_iter()
+        .flat_map(|angle| projection_candidates_at(analysis, angle))
+        .collect()
+}
+
+/// Whether a rotated panel looks enough like a paper to be offered at all.
+///
+/// Rotation multiplies the squares on offer — a crease pattern is full of
+/// them at 45°, and the finder's own preference for the largest square then
+/// has ninety times as many ways to be wrong. So a rotated panel has to look
+/// like a paper rather than merely like a square: it must hold the pattern,
+/// and every one of its sides must run along a line.
+fn rotated_panel_is_credible(candidate: &PanelCandidate) -> bool {
+    ink_share(candidate) >= ROTATED_MIN_INK_SHARE
+        && min_side_support(candidate) >= ROTATED_MIN_SIDE_SUPPORT
+}
+
+/// How much of the image's ink a candidate holds, from the metrics
+/// `score_quad` wrote.
+fn ink_share(candidate: &PanelCandidate) -> f32 {
+    candidate
+        .metrics
+        .get("ink_share")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0) as f32
+}
+
+fn projection_candidates_at(analysis: &ImageAnalysis, angle_deg: f32) -> Vec<PanelCandidate> {
+    let (u_axis, v_axis) = ProjectionAxis::pair(angle_deg, analysis.width, analysis.height);
+    let u_clusters = axis_clusters(analysis, u_axis, 1);
+    let v_clusters = axis_clusters(analysis, v_axis, 1);
+    let min_span = analysis.width.min(analysis.height) as f32 * MIN_PANEL_SPAN_RATIO;
     let mut candidates = Vec::new();
-    for (left_idx, left) in x_clusters.iter().enumerate() {
-        for right in x_clusters.iter().skip(left_idx + 1) {
-            let x0 = left.center.min(right.center) as f32;
-            let x1 = left.center.max(right.center) as f32;
-            let panel_width = x1 - x0;
-            if panel_width < analysis.width.min(analysis.height) as f32 * 0.12 {
+    for (left_idx, left) in u_clusters.iter().enumerate() {
+        for right in u_clusters.iter().skip(left_idx + 1) {
+            let u0 = u_axis.coord(left.center.min(right.center));
+            let u1 = u_axis.coord(left.center.max(right.center));
+            if u1 - u0 < min_span {
                 continue;
             }
-            for (top_idx, top) in y_clusters.iter().enumerate() {
-                for bottom in y_clusters.iter().skip(top_idx + 1) {
-                    let y0 = top.center.min(bottom.center) as f32;
-                    let y1 = top.center.max(bottom.center) as f32;
-                    let panel_height = y1 - y0;
-                    if panel_height < analysis.width.min(analysis.height) as f32 * 0.12 {
+            for (top_idx, top) in v_clusters.iter().enumerate() {
+                for bottom in v_clusters.iter().skip(top_idx + 1) {
+                    let v0 = v_axis.coord(top.center.min(bottom.center));
+                    let v1 = v_axis.coord(top.center.max(bottom.center));
+                    if v1 - v0 < min_span {
                         continue;
                     }
+                    // Named from the `u`/`v` corners, which for the swept
+                    // range of angles run clockwise from the panel's most
+                    // top-left corner exactly as `Quad::frame` does — so the
+                    // warp that follows is a rotation and never a mirror.
                     let quad = Quad {
-                        top_left: Point { x: x0, y: y0 },
-                        top_right: Point { x: x1, y: y0 },
-                        bottom_right: Point { x: x1, y: y1 },
-                        bottom_left: Point { x: x0, y: y1 },
+                        top_left: u_axis.point(v_axis, u0, v0),
+                        top_right: u_axis.point(v_axis, u1, v0),
+                        bottom_right: u_axis.point(v_axis, u1, v1),
+                        bottom_left: u_axis.point(v_axis, u0, v1),
                     };
-                    let (confidence, metrics) = score_quad(analysis, quad, "border_projection");
-                    if confidence >= 0.42 {
-                        candidates.push(PanelCandidate {
-                            quad,
-                            confidence,
-                            method: "border_projection",
-                            metrics,
-                        });
+                    if !quad_inside_image(quad, analysis.width, analysis.height) {
+                        continue;
                     }
+                    let (confidence, mut metrics) = score_quad(analysis, quad, "border_projection");
+                    if confidence < 0.42 {
+                        continue;
+                    }
+                    if let Value::Object(ref mut map) = metrics {
+                        map.insert("angle_deg".to_owned(), json!(angle_deg));
+                    }
+                    let candidate = PanelCandidate {
+                        quad,
+                        confidence,
+                        method: "border_projection",
+                        angle_deg,
+                        metrics,
+                    };
+                    if candidate.is_rotated() && !rotated_panel_is_credible(&candidate) {
+                        continue;
+                    }
+                    candidates.push(candidate);
                 }
             }
         }
     }
     candidates
+}
+
+/// Every corner inside the image, give or take `QUAD_OUTSIDE_MARGIN_PX`.
+///
+/// Two projection pairs always meet inside the image's *projections*, which
+/// for a rotated axis is not the same as inside the image: a corner can land
+/// out past one of the image's own.
+fn quad_inside_image(quad: Quad, width: usize, height: usize) -> bool {
+    let max_x = width.saturating_sub(1) as f32 + QUAD_OUTSIDE_MARGIN_PX;
+    let max_y = height.saturating_sub(1) as f32 + QUAD_OUTSIDE_MARGIN_PX;
+    quad.points().iter().all(|point| {
+        point.x >= -QUAD_OUTSIDE_MARGIN_PX
+            && point.y >= -QUAD_OUTSIDE_MARGIN_PX
+            && point.x <= max_x
+            && point.y <= max_y
+    })
+}
+
+/// The angles the full panel search runs at: the image's own, always, plus
+/// the rotations its edges give evidence for.
+///
+/// The image's own angle is never dropped — an axis-aligned reading is the
+/// prior, and every panel the finder used to propose is still proposed.
+fn candidate_angles(analysis: &ImageAnalysis) -> Vec<f32> {
+    let stride = sweep_stride(analysis);
+    let support: Vec<f32> = (0..ANGLE_SWEEP_STEPS)
+        .map(|step| angle_support(analysis, sweep_angle(step), stride))
+        .collect();
+    let best = support.iter().copied().fold(0.0_f32, f32::max);
+    if best <= 0.0 {
+        return vec![0.0];
+    }
+    // The sweep is circular: a square at -45° is the same square at +45°.
+    let mut peaks: Vec<(f32, f32)> = (0..ANGLE_SWEEP_STEPS)
+        .filter(|step| {
+            let previous = support[(step + ANGLE_SWEEP_STEPS - 1) % ANGLE_SWEEP_STEPS];
+            let next = support[(step + 1) % ANGLE_SWEEP_STEPS];
+            support[*step] >= previous && support[*step] >= next
+        })
+        .map(|step| (sweep_angle(step), support[step]))
+        .collect();
+    peaks.sort_by(|left, right| right.1.total_cmp(&left.1));
+
+    let mut angles = vec![0.0_f32];
+    for (angle, peak) in peaks {
+        // `angles` already holds the image's own, so this counts rotations.
+        if angles.len() > MAX_ROTATED_ANGLES {
+            break;
+        }
+        if peak < best * ROTATION_SUPPORT_RATIO {
+            break;
+        }
+        if angles
+            .iter()
+            .any(|chosen| angle_separation(*chosen, angle) < MIN_ANGLE_SEPARATION_DEG)
+        {
+            continue;
+        }
+        angles.push(refine_angle(analysis, angle, stride));
+    }
+    angles
+}
+
+/// The `step`th angle of the sweep, over the 90° a square is symmetric under.
+fn sweep_angle(step: usize) -> f32 {
+    -45.0 + (step + 1) as f32 * (90.0 / ANGLE_SWEEP_STEPS as f32)
+}
+
+/// How far apart two angles are, given that a square repeats every 90°.
+fn angle_separation(left: f32, right: f32) -> f32 {
+    let delta = (left - right).rem_euclid(90.0);
+    delta.min(90.0 - delta)
+}
+
+/// The coarse peak to a quarter of a degree.
+///
+/// A degree of error walks the sampled border 8 px off a 500 px side, and
+/// `border_support_sides` looks only 2 px around each sample, so the panel
+/// the sweep found would score as though it had no border at all.
+fn refine_angle(analysis: &ImageAnalysis, angle_deg: f32, stride: usize) -> f32 {
+    let coarse_step = 90.0 / ANGLE_SWEEP_STEPS as f32;
+    (-4..=4)
+        .map(|offset| angle_deg + offset as f32 * coarse_step * 0.25)
+        .map(|angle| (angle, angle_support(analysis, angle, stride)))
+        .max_by(|left, right| left.1.total_cmp(&right.1))
+        .map(|(angle, _)| angle)
+        .unwrap_or(angle_deg)
+}
+
+/// How strongly a pair of straight opposite borders shows at this angle.
+///
+/// An edge of length L lands its whole length in one projection bucket at its
+/// own angle and smears over `L·sin δ` of them δ away, so a peak's height
+/// falls off sharply within a degree — which is what makes a projection
+/// sweep able to find the paper's angle at all. A panel needs two such peaks
+/// on each axis, so score the angle by its weakest of the four.
+fn angle_support(analysis: &ImageAnalysis, angle_deg: f32, stride: usize) -> f32 {
+    let (u_axis, v_axis) = ProjectionAxis::pair(angle_deg, analysis.width, analysis.height);
+    let min_span = analysis.width.min(analysis.height) as f32 * MIN_PANEL_SPAN_RATIO;
+    [u_axis, v_axis]
+        .into_iter()
+        .map(|axis| opposite_pair_support(&axis_clusters(analysis, axis, stride), min_span))
+        .fold(f32::INFINITY, f32::min)
+}
+
+/// The strength of the best pair of peaks at least `min_span` apart, where a
+/// pair is worth only its weaker half: a panel has two sides, not one.
+fn opposite_pair_support(clusters: &[Cluster], min_span: f32) -> f32 {
+    let mut best = 0.0_f32;
+    for (idx, left) in clusters.iter().enumerate() {
+        for right in clusters.iter().skip(idx + 1) {
+            if right.center.abs_diff(left.center) as f32 >= min_span {
+                best = best.max(left.score.min(right.score));
+            }
+        }
+    }
+    best
+}
+
+/// One pixel in every `stride`, chosen so a big photograph costs the sweep
+/// what a small diagram does.
+///
+/// The stride walks the raster, so it must not share a factor with the row
+/// length: a stride of 2 on an even-width image sees only even columns, and
+/// a border one column over disappears entirely.
+fn sweep_stride(analysis: &ImageAnalysis) -> usize {
+    let pixels = analysis.width * analysis.height;
+    let mut stride = pixels.div_ceil(ANGLE_SWEEP_PIXEL_BUDGET).max(1);
+    while stride > 1 && gcd(stride, analysis.width) > 1 {
+        stride += 1;
+    }
+    stride
+}
+
+fn gcd(left: usize, right: usize) -> usize {
+    if right == 0 {
+        left
+    } else {
+        gcd(right, left % right)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -596,31 +893,91 @@ struct Cluster {
     score: f32,
 }
 
-fn axis_scores(analysis: &ImageAnalysis, vertical: bool) -> Vec<f32> {
-    let len = if vertical {
-        analysis.width
-    } else {
-        analysis.height
-    };
-    let cross = if vertical {
-        analysis.height
-    } else {
-        analysis.width
-    };
-    let mut scores = vec![0.0; len];
-    for (outer, score_slot) in scores.iter_mut().enumerate().take(len) {
-        let mut score = 0.0;
-        for inner in 0..cross {
-            let idx = if vertical {
-                inner * analysis.width + outer
-            } else {
-                outer * analysis.width + inner
-            };
-            if analysis.edges[idx] {
-                score += 1.0;
-            }
+/// The direction edge pixels are projected onto, with the offset that puts
+/// the whole image at a non-negative bucket.
+///
+/// At 0° the `u` axis is the image's x and its buckets are its columns, so a
+/// projection along it is exactly the per-column edge count the finder always
+/// used; every other angle is the same measurement taken diagonally.
+#[derive(Debug, Clone, Copy)]
+struct ProjectionAxis {
+    cos: f32,
+    sin: f32,
+    offset: f32,
+    len: usize,
+}
+
+impl ProjectionAxis {
+    /// The axis at `angle_deg` from the image's x axis, and its perpendicular.
+    fn pair(angle_deg: f32, width: usize, height: usize) -> (ProjectionAxis, ProjectionAxis) {
+        let (sin, cos) = angle_deg.to_radians().sin_cos();
+        (
+            ProjectionAxis::new(cos, sin, width, height),
+            ProjectionAxis::new(-sin, cos, width, height),
+        )
+    }
+
+    fn new(cos: f32, sin: f32, width: usize, height: usize) -> ProjectionAxis {
+        let max_x = width.saturating_sub(1) as f32;
+        let max_y = height.saturating_sub(1) as f32;
+        let projections = [(0.0, 0.0), (max_x, 0.0), (max_x, max_y), (0.0, max_y)]
+            .map(|(x, y): (f32, f32)| x * cos + y * sin);
+        let low = projections.iter().copied().fold(f32::INFINITY, f32::min);
+        let high = projections
+            .iter()
+            .copied()
+            .fold(f32::NEG_INFINITY, f32::max);
+        ProjectionAxis {
+            cos,
+            sin,
+            offset: -low,
+            len: (high - low).round() as usize + 1,
         }
-        *score_slot = score;
+    }
+
+    fn bucket(&self, x: f32, y: f32) -> usize {
+        ((x * self.cos + y * self.sin + self.offset).round().max(0.0) as usize).min(self.len - 1)
+    }
+
+    /// The coordinate along this axis that a bucket stands for.
+    fn coord(&self, bucket: usize) -> f32 {
+        bucket as f32 - self.offset
+    }
+
+    /// The image point at `u` along this axis and `v` along its perpendicular.
+    fn point(&self, perpendicular: ProjectionAxis, u: f32, v: f32) -> Point {
+        Point {
+            x: u * self.cos + v * perpendicular.cos,
+            y: u * self.sin + v * perpendicular.sin,
+        }
+    }
+
+    /// The average length of a line at this axis's angle through the image —
+    /// what a peak's height is worth measuring against. For one of the
+    /// image's own axes it is exactly the cross dimension.
+    fn mean_chord(&self, width: usize, height: usize) -> f32 {
+        (width as f64 * height as f64 / self.len.max(1) as f64) as f32
+    }
+}
+
+/// The smoothed peaks of the edge pixels projected onto an axis.
+fn axis_clusters(analysis: &ImageAnalysis, axis: ProjectionAxis, stride: usize) -> Vec<Cluster> {
+    let scores = smooth_scores(&project_edges(analysis, axis, stride));
+    top_clusters(&scores, axis.mean_chord(analysis.width, analysis.height))
+}
+
+/// The edge pixels' histogram along an axis, one pixel in every `stride`
+/// weighted back up to a full count so the peaks read the same either way.
+fn project_edges(analysis: &ImageAnalysis, axis: ProjectionAxis, stride: usize) -> Vec<f32> {
+    let mut scores = vec![0.0; axis.len];
+    let weight = stride as f32;
+    for idx in (0..analysis.edges.len()).step_by(stride) {
+        if !analysis.edges[idx] {
+            continue;
+        }
+        let x = (idx % analysis.width) as f32;
+        let y = (idx / analysis.width) as f32;
+        scores[axis.bucket(x, y)] += weight;
     }
     scores
 }
@@ -636,7 +993,7 @@ fn smooth_scores(scores: &[f32]) -> Vec<f32> {
     out
 }
 
-fn top_clusters(scores: &[f32], cross_len: usize) -> Vec<Cluster> {
+fn top_clusters(scores: &[f32], cross_len: f32) -> Vec<Cluster> {
     if scores.is_empty() {
         return Vec::new();
     }
@@ -644,7 +1001,7 @@ fn top_clusters(scores: &[f32], cross_len: usize) -> Vec<Cluster> {
         .iter()
         .copied()
         .fold(0.0_f32, |best, value| best.max(value));
-    let threshold = (max_score * 0.45).max(cross_len as f32 * 0.08).max(8.0);
+    let threshold = (max_score * 0.45).max(cross_len * 0.08).max(8.0);
     let mut clusters = Vec::new();
     let mut idx = 0;
     while idx < scores.len() {
@@ -741,6 +1098,7 @@ fn density_candidate(analysis: &ImageAnalysis) -> Option<PanelCandidate> {
         quad,
         confidence: (base_confidence + 0.08).min(0.86),
         method: "density_bbox",
+        angle_deg: 0.0,
         metrics,
     })
 }
@@ -759,7 +1117,8 @@ fn score_quad(analysis: &ImageAnalysis, quad: Quad, method: &'static str) -> (f3
     };
     let border_sides = border_support_sides(analysis, quad);
     let border_support = border_sides.iter().sum::<f32>() / 4.0;
-    let interior_density = interior_edge_density(analysis, quad);
+    let interior = quad_interior(analysis, quad);
+    let interior_density = interior.density;
     let density_score = clamp01(interior_density / 0.045);
     let confidence = clamp01(
         0.38 * border_support
@@ -780,6 +1139,7 @@ fn score_quad(analysis: &ImageAnalysis, quad: Quad, method: &'static str) -> (f3
             "border_sides": border_sides,
             "edge_density": interior_density,
             "density_score": density_score,
+            "ink_share": interior.ink_share,
             "coverage_score": coverage_score(analysis, quad),
         }),
     )
@@ -812,21 +1172,44 @@ fn border_support_sides(analysis: &ImageAnalysis, quad: Quad) -> [f32; 4] {
     sides
 }
 
-fn interior_edge_density(analysis: &ImageAnalysis, quad: Quad) -> f32 {
-    let xs = quad.points().map(|point| point.x);
+/// What a quad holds: how dense its interior is, and how much of the image's
+/// ink is inside it at all.
+#[derive(Debug, Clone, Copy)]
+struct QuadInterior {
+    /// The share of the quad's interior that sits on an edge, inset from its
+    /// own border so the panel's edge does not count as its content.
+    density: f32,
+    /// The share of the image's edge pixels that fall inside the quad.
+    ink_share: f32,
+}
+
+/// What the quad holds, measured inside the quad rather than inside its
+/// bounding box — which for an axis-aligned quad is the same rectangle and
+/// for a rotated one is not: half of a diamond's bounding box is outside the
+/// paper, and on `blackbuck-simplified` that half holds the folded model
+/// drawn beside the crease pattern.
+fn quad_interior(analysis: &ImageAnalysis, quad: Quad) -> QuadInterior {
+    let sides = quad.side_lengths();
+    let span_u = ((sides[0] + sides[2]) * 0.5).max(1e-6);
+    let span_v = ((sides[1] + sides[3]) * 0.5).max(1e-6);
+    let pad = (span_u.min(span_v) * 0.08).round();
+    let inner = inset_quad(quad, pad / span_u, pad / span_v);
+    let (active, total) = quad_edge_counts(analysis, inner);
+    let (held, _) = quad_edge_counts(analysis, quad);
+    let ink = analysis.edge_density * (analysis.width * analysis.height) as f32;
+    QuadInterior {
+        density: active as f32 / total.max(1) as f32,
+        ink_share: if ink > 0.0 {
+            (held as f32 / ink).min(1.0)
+        } else {
+            0.0
+        },
+    }
+}
+
+/// The edge pixels inside a convex quad, and how many pixels it covers.
+fn quad_edge_counts(analysis: &ImageAnalysis, quad: Quad) -> (usize, usize) {
     let ys = quad.points().map(|point| point.y);
-    let min_x = xs
-        .iter()
-        .copied()
-        .fold(f32::INFINITY, f32::min)
-        .floor()
-        .max(0.0) as usize;
-    let max_x = xs
-        .iter()
-        .copied()
-        .fold(f32::NEG_INFINITY, f32::max)
-        .ceil()
-        .min((analysis.width - 1) as f32) as usize;
     let min_y = ys
         .iter()
         .copied()
@@ -839,18 +1222,66 @@ fn interior_edge_density(analysis: &ImageAnalysis, quad: Quad) -> f32 {
         .fold(f32::NEG_INFINITY, f32::max)
         .ceil()
         .min((analysis.height - 1) as f32) as usize;
-    let pad = ((max_x - min_x).min(max_y - min_y) as f32 * 0.08).round() as usize;
     let mut active = 0usize;
     let mut total = 0usize;
-    for y in (min_y + pad).min(max_y)..max_y.saturating_sub(pad) {
-        for x in (min_x + pad).min(max_x)..max_x.saturating_sub(pad) {
-            if analysis.edges[y * analysis.width + x] {
-                active += 1;
-            }
-            total += 1;
-        }
+    for y in min_y..max_y {
+        let Some((start, end)) = quad_row_span(quad, y as f32, analysis.width) else {
+            continue;
+        };
+        let row = &analysis.edges[y * analysis.width + start..y * analysis.width + end];
+        active += row.iter().filter(|edge| **edge).count();
+        total += row.len();
     }
-    active as f32 / total.max(1) as f32
+    (active, total)
+}
+
+/// Where a row crosses a convex quad, as a half-open range of columns inside
+/// the image.
+///
+/// This is what keeps the density scan a straight walk of the edge mask: the
+/// quad decides the row's bounds once, not each pixel in it.
+fn quad_row_span(quad: Quad, y: f32, width: usize) -> Option<(usize, usize)> {
+    let points = quad.points();
+    let mut low = f32::INFINITY;
+    let mut high = f32::NEG_INFINITY;
+    for idx in 0..4 {
+        let a = points[idx];
+        let b = points[(idx + 1) % 4];
+        if (a.y - b.y).abs() < 1e-6 {
+            // A horizontal side lies in the row or misses it entirely; the
+            // two sides meeting it give the same bounds either way.
+            continue;
+        }
+        let t = (y - a.y) / (b.y - a.y);
+        if !(0.0..=1.0).contains(&t) {
+            continue;
+        }
+        let x = a.x + (b.x - a.x) * t;
+        low = low.min(x);
+        high = high.max(x);
+    }
+    let start = low.ceil().max(0.0) as usize;
+    let end = (high.floor().min(width.saturating_sub(1) as f32) as usize).saturating_add(1);
+    (low.is_finite() && start < end).then_some((start, end.min(width)))
+}
+
+/// The quad pulled in from each of its own sides by a fraction of that side.
+fn inset_quad(quad: Quad, u_ratio: f32, v_ratio: f32) -> Quad {
+    let (u0, u1) = (u_ratio.clamp(0.0, 0.49), 1.0 - u_ratio.clamp(0.0, 0.49));
+    let (v0, v1) = (v_ratio.clamp(0.0, 0.49), 1.0 - v_ratio.clamp(0.0, 0.49));
+    Quad {
+        top_left: quad_point(quad, u0, v0),
+        top_right: quad_point(quad, u1, v0),
+        bottom_right: quad_point(quad, u1, v1),
+        bottom_left: quad_point(quad, u0, v1),
+    }
+}
+
+/// The point at `(u, v)` of the quad's own unit square.
+fn quad_point(quad: Quad, u: f32, v: f32) -> Point {
+    quad.top_left
+        .lerp(quad.top_right, u)
+        .lerp(quad.bottom_left.lerp(quad.bottom_right, u), v)
 }
 
 fn coverage_score(analysis: &ImageAnalysis, quad: Quad) -> f32 {
@@ -867,9 +1298,7 @@ fn coverage_score(analysis: &ImageAnalysis, quad: Quad) -> f32 {
                 for sx in 0..4 {
                     let u = u0 + (u1 - u0) * (sx as f32 + 0.5) / 4.0;
                     let v = v0 + (v1 - v0) * (sy as f32 + 0.5) / 4.0;
-                    let top = quad.top_left.lerp(quad.top_right, u);
-                    let bottom = quad.bottom_left.lerp(quad.bottom_right, u);
-                    let point = top.lerp(bottom, v);
+                    let point = quad_point(quad, u, v);
                     if local_edge(
                         analysis,
                         point.x.round() as isize,
@@ -1814,6 +2243,204 @@ mod tests {
                 .iter()
                 .any(|warning| warning.code == "cp_panel_not_detected")
         );
+    }
+
+    /// A square paper rotated by `angle_deg` about `(cx, cy)`, drawn with the
+    /// creases a crease pattern has: its two diagonals and its two midlines,
+    /// which is what gives the projection sweep something to confuse the
+    /// paper with.
+    fn draw_rotated_paper(
+        image: &mut [u8],
+        width: usize,
+        (cx, cy): (f32, f32),
+        half: f32,
+        angle_deg: f32,
+    ) -> [Point; 4] {
+        let (sin, cos) = angle_deg.to_radians().sin_cos();
+        let at = |u: f32, v: f32| Point {
+            x: cx + u * cos - v * sin,
+            y: cy + u * sin + v * cos,
+        };
+        let corners = [
+            at(-half, -half),
+            at(half, -half),
+            at(half, half),
+            at(-half, half),
+        ];
+        let line = |image: &mut [u8], a: Point, b: Point, rgb: [u8; 3], thickness: usize| {
+            draw_line(
+                image,
+                width,
+                a.x.round().max(0.0) as usize,
+                a.y.round().max(0.0) as usize,
+                b.x.round().max(0.0) as usize,
+                b.y.round().max(0.0) as usize,
+                rgb,
+                thickness,
+            );
+        };
+        for idx in 0..4 {
+            line(image, corners[idx], corners[(idx + 1) % 4], [0, 0, 0], 3);
+        }
+        line(image, corners[0], corners[2], [255, 0, 0], 2);
+        line(image, corners[1], corners[3], [255, 0, 0], 2);
+        line(image, at(-half, 0.0), at(half, 0.0), [0, 0, 255], 2);
+        line(image, at(0.0, -half), at(0.0, half), [0, 0, 255], 2);
+        corners
+    }
+
+    /// How far the detected quad's corners are from the paper's, matched by
+    /// the rotation the finder is free to choose: a square has four namings
+    /// and every one of them is the same crop.
+    fn corner_error(detected: Quad, paper: [Point; 4]) -> f32 {
+        let found = detected.points();
+        (0..4)
+            .map(|shift| {
+                (0..4)
+                    .map(|idx| distance(found[idx], paper[(idx + shift) % 4]))
+                    .fold(0.0_f32, f32::max)
+            })
+            .fold(f32::INFINITY, f32::min)
+    }
+
+    #[test]
+    fn auto_rectifier_finds_a_paper_drawn_as_a_diamond() {
+        let mut image = white_rgba(320, 320);
+        let paper = draw_rotated_paper(&mut image, 320, (160.0, 160.0), 105.0, 45.0);
+
+        let result = auto_rectify_rgba(&image, 320, 320, 128).expect("rectify");
+
+        assert_eq!(result.report.mode, "detect_quad_warp");
+        let detected = result.report.detected_source_quad.expect("detected quad");
+        assert!(
+            corner_error(detected, paper) <= 6.0,
+            "{detected:?} against {paper:?}"
+        );
+    }
+
+    #[test]
+    fn auto_rectifier_finds_a_paper_photographed_a_few_degrees_off_square() {
+        let mut image = white_rgba(320, 320);
+        let paper = draw_rotated_paper(&mut image, 320, (160.0, 160.0), 128.0, 8.0);
+
+        let result = auto_rectify_rgba(&image, 320, 320, 128).expect("rectify");
+
+        let detected = result.report.detected_source_quad.expect("detected quad");
+        assert!(
+            corner_error(detected, paper) <= 6.0,
+            "{detected:?} against {paper:?}"
+        );
+    }
+
+    /// The `blackbuck-simplified` shape: the folded model drawn beside the
+    /// crease pattern sits inside the diamond's bounding box, so a finder
+    /// that measures a quad by its bounding box reads it as the paper's own
+    /// content.
+    #[test]
+    fn auto_rectifier_ignores_a_model_drawn_beside_a_diamond() {
+        let mut image = white_rgba(440, 320);
+        let paper = draw_rotated_paper(&mut image, 440, (150.0, 160.0), 105.0, 45.0);
+        for offset in 0..40 {
+            draw_line(
+                &mut image,
+                440,
+                330,
+                120 + offset,
+                420,
+                160 + offset,
+                [90, 90, 90],
+                2,
+            );
+        }
+
+        let result = auto_rectify_rgba(&image, 440, 320, 128).expect("rectify");
+
+        let detected = result.report.detected_source_quad.expect("detected quad");
+        assert!(
+            corner_error(detected, paper) <= 6.0,
+            "{detected:?} against {paper:?}"
+        );
+    }
+
+    /// A diamond drawn inside a square paper is a crease, not the paper —
+    /// and it is the shape a blintz or a preliminary base puts there. The
+    /// upright paper holds it, so the upright paper wins.
+    #[test]
+    fn auto_rectifier_prefers_the_paper_over_a_diamond_creased_inside_it() {
+        let mut image = white_rgba(320, 320);
+        draw_rect(&mut image, 320, 40, 40, 280, 280, [0, 0, 0], 3);
+        let diamond = [(160, 40), (280, 160), (160, 280), (40, 160)];
+        for idx in 0..4 {
+            let (x0, y0) = diamond[idx];
+            let (x1, y1) = diamond[(idx + 1) % 4];
+            draw_line(&mut image, 320, x0, y0, x1, y1, [255, 0, 0], 2);
+        }
+        draw_line(&mut image, 320, 40, 160, 280, 160, [0, 0, 255], 2);
+        draw_line(&mut image, 320, 160, 40, 160, 280, [0, 0, 255], 2);
+
+        let result = auto_rectify_rgba(&image, 320, 320, 128).expect("rectify");
+
+        let detected = result.report.detected_source_quad.expect("detected quad");
+        assert!(
+            (detected.top_left.x - 40.0).abs() <= 6.0
+                && (detected.top_left.y - 40.0).abs() <= 6.0
+                && (detected.bottom_right.x - 280.0).abs() <= 6.0,
+            "took the inscribed diamond instead of the paper: {detected:?}"
+        );
+    }
+
+    /// The crop of a rotated paper is a rotation, never a mirror: the corners
+    /// keep the winding `Quad::frame` has, so the warp cannot flip the
+    /// pattern left for right.
+    #[test]
+    fn a_rotated_panel_keeps_the_frames_winding() {
+        let mut image = white_rgba(320, 320);
+        draw_rotated_paper(&mut image, 320, (160.0, 160.0), 105.0, 45.0);
+
+        let result = auto_rectify_rgba(&image, 320, 320, 128).expect("rectify");
+        let detected = result.report.detected_source_quad.expect("detected quad");
+
+        assert!(
+            signed_area(detected) > 0.0 && signed_area(Quad::frame(320, 320)) > 0.0,
+            "{detected:?}"
+        );
+    }
+
+    fn signed_area(quad: Quad) -> f32 {
+        let p = quad.points();
+        0.5 * (0..4)
+            .map(|idx| {
+                let (a, b) = (p[idx], p[(idx + 1) % 4]);
+                a.x * b.y - b.x * a.y
+            })
+            .sum::<f32>()
+    }
+
+    /// A projection along the image's own x axis is the per-column edge count
+    /// the finder always used, which is what keeps every upright panel it
+    /// used to find exactly where it was.
+    #[test]
+    fn the_upright_projection_is_a_column_histogram() {
+        let mut image = white_rgba(64, 48);
+        draw_line(&mut image, 64, 20, 4, 20, 43, [0, 0, 0], 1);
+        let analysis = analyze_rgba(&image, 64, 48).expect("analyze");
+        let (u_axis, v_axis) = ProjectionAxis::pair(0.0, 64, 48);
+
+        assert_eq!(u_axis.len, 64);
+        assert_eq!(v_axis.len, 48);
+        assert_eq!(u_axis.mean_chord(64, 48), 48.0);
+        let columns = project_edges(&analysis, u_axis, 1);
+        for (x, count) in columns.iter().enumerate() {
+            let expected = (0..48).filter(|y| analysis.edges[y * 64 + x]).count() as f32;
+            assert_eq!(*count, expected, "column {x}");
+        }
+    }
+
+    #[test]
+    fn angles_are_separated_around_the_squares_symmetry() {
+        assert_eq!(angle_separation(44.0, -45.0), 1.0);
+        assert_eq!(angle_separation(0.0, 45.0), 45.0);
+        assert_eq!(angle_separation(-3.0, 3.0), 6.0);
     }
 
     fn white_rgba(width: usize, height: usize) -> Vec<u8> {
