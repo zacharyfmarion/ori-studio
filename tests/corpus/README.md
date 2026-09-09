@@ -230,16 +230,16 @@ junction lever — the junction peak floor at 0.25 with the weak-peak guards in
 re-localisation with its real-image hardening
 (`crates/oristudio-cp-detect/src/candidate_generation/contact_relocalize.rs`),
 with the model `scripts/cp-detect/current-model.json` named at that commit,
-on an Apple Silicon Mac with CoreML, 918 s on 8 workers. 558 cases in two
+on an Apple Silicon Mac with CoreML, 611 s on 8 workers and nothing else running. 558 cases in two
 groups: `curated/`, 74 real images (40 with an exact truth, 21 topology only,
 13 skipped as too complex to curate), and `cpoogle/`, 484 native crease
 patterns rendered the way the editor exports them (all exact; 6 over the
 4,000-crease recognition cap are topology-only rows).
 
 ```text
-curated benchmark: 558 cases | decoder exact 346 of 539 (mean edge F1 0.966) | end to end recovered 331 | gate reproduced 441 | 918s
+curated benchmark: 558 cases | decoder exact 346 of 539 (mean edge F1 0.966) | end to end recovered 332 | gate reproduced 441 | 611s
   curated: decoder exact 18 of 61 (mean edge F1 0.944); end to end recovered 18, accepted wrong 16, not accepted 6; gate reproduced 34, close 3, off 2, not solved 10, skipped 1, solved without a truth 11
-  cpoogle: decoder exact 328 of 478 (mean edge F1 0.969); end to end recovered 313, accepted wrong 115, not accepted 48, skipped 6; gate reproduced 407, close 14, off 3, not solved 12, error 13, skipped 35
+  cpoogle: decoder exact 328 of 478 (mean edge F1 0.969); end to end recovered 314, accepted wrong 119, not accepted 43, skipped 6; gate reproduced 407, close 14, off 3, not solved 12, error 13, skipped 35
 ```
 
 `recovered` is strict since September 9, 2026: accepted **and** the strict
@@ -287,15 +287,21 @@ rendered group rejected are in
 
 The junction lever then took the decoder from 314 to 346 exact (29 near →
 exact, 3 off → exact, 2 off → near, none the other way) and strict
-`recovered` from 306 to 331: 29 conversions, cordyceps-ant among them,
-against four losses. pegasus-naoki-terao's caption text under the paper
-now yields two junction peaks and its solve ends ambiguous; pseudoscorpion,
-squid and tabby-cat have recognised graphs unchanged to the vertex and
-solves that land elsewhere (failed, ambiguous, and a different exact
-configuration 22 creases apart) — the free-slide noise below, set off by the
-sub-pixel shift the lower vote threshold gives every junction's centroid.
-Five accepted-wrong solves are now refused instead. The sweeps that chose
+`recovered` from 306 to 332: 29 conversions, cordyceps-ant among them,
+against three losses. pegasus-naoki-terao's caption text under the paper
+now yields two junction peaks and its solve ends ambiguous; squid and
+tabby-cat have recognised graphs unchanged to the vertex and solves that
+land elsewhere (ambiguous, and a different exact configuration 22 creases
+apart) — the free-slide noise below, set off by the sub-pixel shift the
+lower vote threshold gives every junction's centroid. The sweeps that chose
 the guards are in `implementation-plans/cp-detect-junction-weak-peaks.md`.
+
+Run the benchmark with nothing else on the machine. Its wall time follows
+the load (the same code ran in 568 s alone and 918 s beside a wasm build),
+and so do its verdicts: the harness's 25 s solve budget turned a contended
+run's pseudoscorpion into `failed` where the same input solves and is
+recovered alone. A slowdown is real only if `detection.inference_ms`, the
+same work every run, has not moved with it.
 
 The 13 gate errors are the solver's input builder refusing a paper it does
 not support (7 non-square, 5 not a four-corner quadrilateral, 1 degenerate

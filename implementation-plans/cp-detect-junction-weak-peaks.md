@@ -82,9 +82,11 @@ the edge) for the blow-up.
       unit-tested, swept (table above)
 - [x] Product defaults set (floor 0.25, weak merge 8 px, border 6 px under
       0.50); the crate's tests (110) and clippy pass
-- [x] Full curated benchmark against the strict scorecard: decoder exact
-      314 → 346 (none the other way), strict `recovered` 306 → 331 (29 gained,
-      4 lost: pegasus's caption text, three solver flips on an unchanged
-      graph); scorecard and README updated
+- [x] Full curated benchmark against the strict scorecard, run alone:
+      decoder exact 314 → 346 (none the other way), strict `recovered`
+      306 → 332 (29 gained, 3 lost: pegasus's caption text, two solver flips
+      on an unchanged graph); no time cost (compiler 396 → 321 s and exact
+      solve 63 → 57 s on sixteen cases run one at a time); scorecard and
+      README updated
 - [x] Before/after crops of the cases that changed (decoder stage, one site
       per case; ten conversions and the four regressions)

@@ -317,16 +317,20 @@ more. Plan and sweep table: `implementation-plans/cp-detect-junction-weak-peaks.
 
 | | after lever 2 | after lever 3 |
 | --- | --- | --- |
-| rendered decoder exact / strict convergence | 298 / 288 | 328 / 313 |
+| rendered decoder exact / strict convergence | 298 / 288 | 328 / 314 |
 | curated decoder exact / strict convergence | 16 / 18 | 18 / 18 |
 | decoder cases moved the wrong way | | 0 |
-| strict conversions gained / lost | | 29 / 4 |
+| strict conversions gained / lost | | 29 / 3 |
 
-The four losses: pegasus, whose caption text under the paper now yields
-two junction peaks, and three renders whose recognised graph is unchanged
+The three losses: pegasus, whose caption text under the paper now yields
+two junction peaks, and two renders whose recognised graph is unchanged
 to the vertex and whose solve lands elsewhere — the free-slide noise, set
 off by the sub-pixel shift the lower vote threshold gives every junction's
-centroid. Two conversions the floor alone made are given back by the weak
+centroid. (A contended first run also read pseudoscorpion `failed`; alone
+it solves and is recovered — the harness's 25 s solve budget under load.)
+The lever costs no time: on sixteen cases run alone with one worker, the
+compiler stage took 321 s against 396 before and the exact solve 57 s
+against 63. Two conversions the floor alone made are given back by the weak
 merge (fox-girl, rhino-beetle: a real close pair with a weak member) and one
 by the border rule (horse-1-1); those are the known cost.
 
