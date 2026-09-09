@@ -174,32 +174,27 @@ reach it today either.
 - [x] **Phase 1 — the dark-mode back face.** `paperBackFor` + a test that runs
       the rule over all 23 built-in themes, so it is checked in CI rather than
       trusted from a table. Worst mountain-on-back 1.54:1 → 2.04:1.
-- [ ] **Phase 2 — the ink unit and the scale law.** Card-only, and should be
+- [x] **Phase 2 — the ink unit and the scale law.** Card-only, and should be
       visually near-identical, which is why it ships before anything moves. A
       test renders one model at 100 and at 800 and asserts every numeric
       attribute scales by exactly 8 — that is the definition of "any size", and
       it fails today for all of them.
-- [ ] **Phase 3 — the shared content model.** No visible change. Four existing
+- [x] **Phase 3 — the shared content model.** No visible change. Four existing
       drifts get resolved explicitly, and an anti-drift test runs the same
       sequence through both frames and asserts identical primitives.
-- [ ] **Phase 4 — the main view gets the picture.** Scene adapter, the overlay
+- [x] **Phase 4 — the main view gets the picture.** Scene adapter, the overlay
       layer, `previewWidthPx`, per-instance overlay store.
-- [ ] **Phase 5 (separate PR) — arrows in target mode.** After Phase 4 the plan
+- [x] **Phase 5 — arrows in target mode.** After Phase 4 the plan
       view has arrows and the *targeted* view — what a first vertex click lands
       you on — does not. Its overlay is built from mapped **points**
       (`referencesStepGeometry.ts:100`), and an arrow is an arc: centre, radius,
       two angles, none of which a point map carries.
 
-      Not blocked, and not the D6 fork an earlier draft claimed. `unit_to_model`
-      is a **similarity**: `frame.rs:80` sets `y_axis = [x[1], −x[0]]` against a
-      unit `x`, so the basis is orthonormal with determinant −1 and the map is a
-      uniform scale, a rotation and a flip. A similarity takes circles to
-      circles exactly, so three mapped points on the arc determine its image —
-      and `rfToModelMany` already maps points in a batch. No new Rust, no wasm
-      rebuild, no matrix crossing the bridge. (`Frame::affines()` exists and
-      would also serve, but it is not exported over wasm today, so the "export
-      the affine" and "do it in Rust" options cost the same and neither is
-      needed.)
+      Done exactly that way, and it needed no Rust: `arcSamplePoints` puts three
+      points on the arc into the batch `rfToModelMany` already sends, and
+      `arcThroughPoints` fits the image circle back out of them. The middle
+      sample is load-bearing — it carries the direction, which the two ends
+      cannot, and the reflection in the frame map reverses it.
 
 
 ## Flagged, not fixed

@@ -15,6 +15,7 @@
  * is ever recomputed on its own (plan: "never auto-recompute").
  */
 import type { Point } from '../../lib/geometry';
+import type { DiagramArc } from './stepDiagramGeometry';
 import type { ExtractedSolution } from './referenceFinder/extractor';
 import type { RawSolution, RfPoint } from './referenceFinder/solution';
 import type { PrecreasePlanResult } from './precreasePlan';
@@ -29,6 +30,15 @@ export interface ReferencesModelStep {
   line?: { a: Point; b: Point };
   /** Mark steps: where the two input lines cross. */
   point?: Point;
+  /**
+   * The motion, in model space: ReferenceFinder's own arc for this step.
+   *
+   * Carried across as three points on it and refitted, because a circle's
+   * centre and angles are not points and no point map moves them — see
+   * `stepDiagramGeometry.arcSamplePoints`. Absent for a step whose diagram
+   * draws no arrow, which is O1 and O4: nothing is brought onto anything.
+   */
+  arc?: DiagramArc;
 }
 
 /**

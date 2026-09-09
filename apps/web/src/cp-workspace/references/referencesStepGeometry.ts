@@ -14,7 +14,7 @@ import type {
   StepDiagramModel,
   StepDiagramPrimitive,
 } from './referenceFinderDiagramToPrimitives';
-import { dashRulerAlong } from './stepDiagramGeometry';
+import { dashRulerAlong, foldAndUnfoldFromArc, type DiagramArc } from './stepDiagramGeometry';
 import type { ExtractedSolution, ExtractedStep } from './referenceFinder/extractor';
 import type { ReferencesModelStep, ReferencesOriginals } from './referencesResults';
 
@@ -69,9 +69,21 @@ export interface ReferencesStepOverlay {
   markers: ReferencesMarker[];
   /** The step's new reference and its inputs, or null when nothing is drawn. */
   bounds: ModelBounds | null;
+  /**
+   * ReferenceFinder's own motion arc for this step, in model space.
+   *
+   * Null for O1 and O4, where nothing is brought onto anything and upstream's
+   * diagram draws no arrow either.
+   */
+  arc?: DiagramArc | null;
 }
 
-const EMPTY_OVERLAY: ReferencesStepOverlay = { ghosts: [], markers: [], bounds: null };
+const EMPTY_OVERLAY: ReferencesStepOverlay = {
+  ghosts: [],
+  markers: [],
+  bounds: null,
+  arc: null,
+};
 
 /**
  * Clamp a step index into a solution's range, so a stale `activeStep` (from a
@@ -116,6 +128,9 @@ export function referencesStepOverlay(
   const ghosts: ReferencesGhostSegment[] = [];
   const markers: ReferencesMarker[] = [];
   let bounds: ModelBounds | null = null;
+  // ReferenceFinder's own arrow for this step, carried into model space as
+  // three points and refitted — see `ReferencesModelStep.arc`.
+  let overlay_arc: DiagramArc | null = null;
 
   const byLabel = new Map<string, { step: ExtractedStep; model: ReferencesModelStep }>();
   for (let i = 0; i < active; i += 1) {
@@ -153,6 +168,7 @@ export function referencesStepOverlay(
   }
 
   const made = modelSteps[active];
+  if (made?.arc) overlay_arc = made.arc;
   if (made?.line) {
     ghosts.push({ ...made.line, kind: 'new' });
     bounds = extend(extend(bounds, made.line.a), made.line.b);
@@ -162,7 +178,7 @@ export function referencesStepOverlay(
     bounds = extend(bounds, made.point);
   }
 
-  return { ghosts, markers, bounds };
+  return { ghosts, markers, bounds, arc: overlay_arc };
 }
 
 /**
@@ -205,6 +221,14 @@ export function referencesStepPrimitives(
       style,
       dashPhase: ruler.phase,
     });
+  }
+  // The motion, the same symbol the planner's steps get: out over the crease
+  // and back, one head where the paper comes to rest. Upstream ships the
+  // outgoing arc and throws its directions away, so the return is derived here
+  // exactly as it is for a witness-built arrow — one place decides the symbol.
+  if (overlay.arc) {
+    const arrow = foldAndUnfoldFromArc(overlay.arc, sheet);
+    if (arrow) primitives.push({ kind: 'fold-arrow', ...arrow });
   }
   for (const marker of overlay.markers) {
     primitives.push({

@@ -10,6 +10,8 @@ import {
   arrowheadSize,
   createDiagramProjector,
   foldAndUnfoldArrow,
+  arcSamplePoints,
+  arcThroughPoints,
   foldArrowArc,
   foldArrowTrim,
   labelPlacement,
@@ -362,5 +364,50 @@ describe('markRingRadius', () => {
     expect(markRingRadius({ width: 400, height: 400 })).toBeCloseTo(16, 9);
     // The shorter side, so it fits on a long rectangle.
     expect(markRingRadius({ width: 400, height: 200 })).toBeCloseTo(8, 9);
+  });
+});
+
+describe('an arc across a change of coordinates', () => {
+  /** A similarity: scale, rotate, flip — what a real frame map is. */
+  const map = (p: readonly [number, number]): [number, number] => {
+    const [c, s] = [Math.cos(0.7), Math.sin(0.7)];
+    const [x, y] = [p[0] * 37, -p[1] * 37];
+    return [x * c - y * s + 11, x * s + y * c - 4];
+  };
+
+  // A centre, a radius and two angles are not points, and no point map moves
+  // them. Three points on the arc are — and because the map is a similarity, a
+  // circle's image is a circle, so the three images determine it exactly.
+  it('survives as three points and comes back the same arc', () => {
+    for (const arc of [
+      foldArrowArc([0, 0], [1, 1], CENTRE),
+      foldArrowArc([1, 0.5], [0, 0.5], CENTRE),
+      foldArrowArc([0.5, 0.1], [0.5, 0.9], CENTRE),
+    ]) {
+      if (!arc) throw new Error('no arc');
+      const [a, m, b] = arcSamplePoints(arc).map(map) as [
+        [number, number],
+        [number, number],
+        [number, number],
+      ];
+      const back = arcThroughPoints(a, m, b);
+      expect(back).not.toBeNull();
+      if (!back) continue;
+
+      // The image circle: centre mapped, radius scaled by the similarity.
+      const centre = map(arc.center);
+      expect(back.center[0]).toBeCloseTo(centre[0], 6);
+      expect(back.center[1]).toBeCloseTo(centre[1], 6);
+      expect(back.radius).toBeCloseTo(arc.radius * 37, 6);
+      // The same sweep, and the ends in the same order — the direction is what
+      // the middle sample is for, and the reflection in the map reverses it.
+      expect(arcExtent(back)).toBeCloseTo(arcExtent(arc), 6);
+      expect(back.ccw).toBe(!arc.ccw);
+    }
+  });
+
+  it('refuses three points on a line rather than inventing a circle', () => {
+    expect(arcThroughPoints([0, 0], [1, 1], [2, 2])).toBeNull();
+    expect(arcThroughPoints([0, 0], [0, 0], [0, 0])).toBeNull();
   });
 });

@@ -101,6 +101,8 @@ describe('referencesStepOverlay', () => {
       ghosts: [],
       markers: [],
       bounds: null,
+      // No step, so no motion to draw — and O1 and O4 carry none either.
+      arc: null,
     });
   });
 

@@ -294,6 +294,58 @@ export function foldArrowArc(
 }
 
 /**
+ * Three points on an arc — its start, its middle and its end, in travel order.
+ *
+ * How an arc crosses a coordinate change. A circle's centre, radius and two
+ * angles are not points, and no point map moves them; three points on it are,
+ * and because every frame map here is a **similarity** — a uniform scale, a
+ * rotation and possibly a flip — a circle's image is a circle, so the three
+ * images determine it exactly. {@link arcThroughPoints} is the way back.
+ */
+export function arcSamplePoints(
+  arc: DiagramArc
+): [[number, number], [number, number], [number, number]] {
+  const half = (arcExtent(arc) / 2) * (arc.ccw ? 1 : -1);
+  return [pointOnArc(arc, arc.from), pointOnArc(arc, arc.from + half), pointOnArc(arc, arc.to)];
+}
+
+/**
+ * The arc through three points, or null when they are collinear.
+ *
+ * The circle is where two perpendicular bisectors meet; the middle sample says
+ * which of the two arcs between the ends was the one sampled, which is the
+ * whole of the direction information and cannot be had from the ends alone.
+ */
+export function arcThroughPoints(
+  from: readonly [number, number],
+  middle: readonly [number, number],
+  to: readonly [number, number]
+): DiagramArc | null {
+  const [ax, ay] = from;
+  const [bx, by] = middle;
+  const [cx, cy] = to;
+  const d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
+  if (Math.abs(d) <= 1e-12) return null;
+  const sa = ax * ax + ay * ay;
+  const sb = bx * bx + by * by;
+  const sc = cx * cx + cy * cy;
+  const center: [number, number] = [
+    (sa * (by - cy) + sb * (cy - ay) + sc * (ay - by)) / d,
+    (sa * (cx - bx) + sb * (ax - cx) + sc * (bx - ax)) / d,
+  ];
+  const radius = Math.hypot(ax - center[0], ay - center[1]);
+  if (!Number.isFinite(radius) || radius <= 0) return null;
+  const angle = (p: readonly [number, number]) => Math.atan2(p[1] - center[1], p[0] - center[0]);
+  const start = angle(from);
+  const end = angle(to);
+  const wrap = (v: number) => ((v % TWO_PI) + TWO_PI) % TWO_PI;
+  // Counter-clockwise iff the middle sample falls inside the counter-clockwise
+  // sweep from one end to the other.
+  const ccw = wrap(angle(middle) - start) < wrap(end - start);
+  return { center, radius, from: start, to: end, ccw };
+}
+
+/**
  * A fold-and-unfold arrow: the path the paper takes over the crease and back.
  *
  * Both strokes run between the same two points — where the paper starts and

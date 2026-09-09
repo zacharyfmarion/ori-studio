@@ -22,7 +22,12 @@ import {
   createReferenceFinderClient,
   type ReferenceFinderTransport,
 } from './referenceFinder/client';
-import type { ExtractedSolution } from './referenceFinder/extractor';
+import type { ExtractedSolution, ExtractedStep } from './referenceFinder/extractor';
+import {
+  arcSamplePoints,
+  arcThroughPoints,
+  type DiagramArc,
+} from './stepDiagramGeometry';
 import {
   DEFAULT_DATABASE_SETTINGS,
   type ReferenceFinderDatabaseSettings,
@@ -180,26 +185,67 @@ function rfOriginals(rect: PrecreaseRfRect): { lines: [string, RfPoint, RfPoint]
 }
 
 /**
+ * ReferenceFinder's own arrow for a step, if its diagram draws one.
+ *
+ * O1 and O4 draw none — nothing is brought onto anything — and the core emits
+ * the arc as a plain element among the rest, so this looks for it rather than
+ * assuming a position.
+ */
+function stepArc(raw: RawSolution | undefined, step: ExtractedStep): DiagramArc | null {
+  if (!raw || step.diagramIndex === null) return null;
+  const diagram = raw.diagrams[step.diagramIndex];
+  for (const element of diagram ?? []) {
+    const e = element as unknown as Record<string, unknown>;
+    if (e.type !== 2) continue;
+    const at = (v: unknown) => (Array.isArray(v) ? ([v[0], v[1]] as [number, number]) : null);
+    const center = at(e.center);
+    if (!center || typeof e.radius !== 'number') continue;
+    return {
+      center,
+      radius: e.radius,
+      from: Number(e.from),
+      to: Number(e.to),
+      ccw: Boolean(e.ccw),
+    };
+  }
+  return null;
+}
+
+/**
  * Map every sheet point a set of solutions mentions into model space in one
- * bridge call: each step's line chord or mark, then the sheet's own references.
+ * bridge call: each step's line chord or mark and its arrow, then the sheet's
+ * own references.
+ *
+ * The request and the read-back below are one positional contract — anything
+ * pushed has to be taken back in the same order — which is why the arc's three
+ * samples go in immediately after their own step's points.
  */
 async function mapSolutionsToModel(
   frame: PrecreaseFrame,
   rect: PrecreaseRfRect,
-  solutions: readonly ExtractedSolution[]
+  solutions: readonly ExtractedSolution[],
+  raws: readonly (RawSolution | undefined)[]
 ): Promise<{ modelSteps: ReferencesModelStep[][]; originals: ReferencesOriginals }> {
   const coords: number[] = [];
   const push = (p: RfPoint) => {
     coords.push(p[0], p[1]);
   };
-  for (const solution of solutions) {
-    for (const step of solution.steps) {
+  // An arc is not a point, and no point map moves a centre or an angle. Three
+  // points on it are, and the frame map is a similarity, so a circle's image is
+  // a circle and the three images determine it exactly.
+  const arcs = solutions.map((solution, s) =>
+    solution.steps.map((step) => stepArc(raws[s], step))
+  );
+  for (const [s, solution] of solutions.entries()) {
+    for (const [i, step] of solution.steps.entries()) {
       if (step.line) {
         push(step.line.a);
         push(step.line.b);
       } else if (step.point) {
         push(step.point);
       }
+      const arc = arcs[s][i];
+      if (arc) for (const sample of arcSamplePoints(arc)) push(sample);
     }
   }
   const originals = rfOriginals(rect);
@@ -216,11 +262,21 @@ async function mapSolutionsToModel(
     cursor += 2;
     return point;
   };
-  const modelSteps = solutions.map((solution) =>
-    solution.steps.map((step): ReferencesModelStep => {
-      if (step.line) return { line: { a: next(), b: next() } };
-      if (step.point) return { point: next() };
-      return {};
+  const modelSteps = solutions.map((solution, s) =>
+    solution.steps.map((step, i): ReferencesModelStep => {
+      const mapped: ReferencesModelStep = step.line
+        ? { line: { a: next(), b: next() } }
+        : step.point
+          ? { point: next() }
+          : {};
+      if (arcs[s][i]) {
+        const [from, middle, to] = [next(), next(), next()];
+        const arc = arcThroughPoints([from.x, from.y], [middle.x, middle.y], [to.x, to.y]);
+        // Null only for three collinear samples, which is a degenerate arc and
+        // has no arrow to draw.
+        if (arc) mapped.arc = arc;
+      }
+      return mapped;
     })
   );
   const lines: ReferencesOriginals['lines'] = {};
@@ -534,7 +590,7 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
 
       try {
         const { modelSteps, originals } = await whilePrecreaseClientAlive(
-          mapSolutionsToModel(frame, rect, solutions)
+          mapSolutionsToModel(frame, rect, solutions, raws)
         );
         if (superseded(forRevision, runId, generation)) {
           endReferencesRun(runId);
