@@ -83,6 +83,7 @@ pub mod fixture_io;
 pub mod frame;
 pub mod lattice;
 pub mod line;
+pub mod marks;
 pub mod merge;
 pub mod order;
 pub mod outline;
@@ -107,6 +108,9 @@ pub use exactness::{
 pub use frame::{Frame, FrameAffines, RfRect};
 pub use lattice::{LatticeOffset, Ring};
 pub use line::{Line, LineIndex};
+pub use marks::{
+    Creased, crease_runs, end_is_found, ends_are_found, mark_exists, point_mark_exists, runs_reach,
+};
 pub use merge::{LineKind, MergedLine};
 pub use outline::RefusalReason;
 pub use pinch::Extent;

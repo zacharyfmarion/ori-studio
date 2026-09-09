@@ -21,7 +21,6 @@ function step(id: number, side: PrecreaseSide): PrecreaseStep {
       [1, 0],
     ],
     extent: { kind: 'full' },
-    round: 1,
     witnesses: [],
     chosen: null,
     ease: 0,

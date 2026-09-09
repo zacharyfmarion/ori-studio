@@ -14,8 +14,11 @@ mod common;
 use common::*;
 use std::collections::{HashMap, HashSet};
 
+use oristudio_precrease::marks::{Creased, crease_runs, end_is_found};
+use oristudio_precrease::planner::PlannerOptions;
 use oristudio_precrease::predicates::Ref;
 use oristudio_precrease::sequence::{Sequence, StepKind};
+use oristudio_precrease::state::{DEFAULT_POINT_CAP, State};
 use oristudio_precrease::{Component, Direction, ExactnessClass, Side, analyze};
 
 /// The side of every step in order: `"FFBBF"`.
@@ -132,10 +135,12 @@ fn a_pure_line_gets_all_of_itself_right() {
 /// This is the one number that goes wrong *silently*: swapping the arguments to
 /// `share_of` leaves every side, every direction and every turn-over count
 /// exactly as it was, and only misreports a weak line that the schedule creased
-/// the other way — which is precisely the line D26's sentence exists for.
+/// the other way — which is precisely the line D26's sentence exists for. That
+/// branch is covered by
+/// [`a_weak_line_reports_the_share_the_side_it_was_folded_on_gets_right`]; this
+/// sweep checks the agreement everywhere else.
 #[test]
 fn the_share_is_the_share_that_direction_gets_right() {
-    let mut reversed_seen = 0;
     for file in EVERY_FIXTURE {
         let cp = load(file);
         let seq = plan_component(&component_of(&cp), unbounded_options()).1;
@@ -172,16 +177,48 @@ fn the_share_is_the_share_that_direction_gets_right() {
                 step.direction_share,
                 step.direction
             );
-            if step.direction_share < 0.5 {
-                reversed_seen += 1;
-            }
         }
     }
-    // The fixtures must actually contain a line the schedule creased against its
-    // own majority, or the assertion above never exercises the branch.
+}
+
+/// A weak line folded against its own majority reports the share the side it
+/// was *made from* gets right — not the majority's share.
+///
+/// Built here rather than loaded, because no committed fixture reaches this
+/// branch: they are small and their sweeps are single-sided. Real designs reach
+/// it constantly — 151 steps over the 39 `curated/` designs that plan — which is
+/// why the branch has to be covered at all.
+#[test]
+fn a_weak_line_reports_the_share_the_side_it_was_folded_on_gets_right() {
+    // A square, a firmly-valley vertical midline, and a horizontal midline that
+    // is 55% mountain — a weak majority, so it does not get to turn the sheet
+    // over and is folded on whichever face the valley line put up.
+    let (lo, hi) = (-200.0, 200.0);
+    let segments = vec![
+        lo, lo, hi, lo, // border
+        hi, lo, hi, hi, //
+        hi, hi, lo, hi, //
+        lo, hi, lo, lo, //
+        0.0, lo, 0.0, hi, // the valley midline
+        lo, 0.0, 20.0, 0.0, // 220 of mountain
+        20.0, 0.0, hi, 0.0, // 180 of valley
+    ];
+    let colors = vec![0, 0, 0, 0, 2, 1, 2];
+    let cp = oristudio_precrease::fixture_io::LoadedCp { segments, colors };
+    let seq = plan_component(&component_of(&cp), unbounded_options()).1;
+
+    let weak = seq
+        .steps
+        .iter()
+        .find(|s| s.line.n[1].abs() > 0.5)
+        .expect("the horizontal midline");
+    assert_eq!(weak.side, Side::Front, "{weak:?}");
+    assert_eq!(weak.direction, Direction::Valley, "{weak:?}");
+    // 220 of 400 is mountain, so the valley it is folded as gets 45% right.
     assert!(
-        reversed_seen > 0,
-        "no fixture has a weak line creased the other way"
+        (weak.direction_share - 0.45).abs() < 1e-9,
+        "{}",
+        weak.direction_share
     );
 }
 
@@ -386,15 +423,23 @@ fn an_all_mountain_pattern_turns_over_once_and_stays_there() {
     assert_eq!(turn_overs(&seq), 1, "bird base turn-overs");
 }
 
-/// An 89-line real design. The corpus this schedule was designed against
-/// measured a median of 4 turn-overs per design and a p90 of 6; pin the exact
-/// count rather than a bound, so a regression that stops reading the evidence
-/// is loud rather than quietly cheaper.
+/// An 89-line real design. Pin the exact count rather than a bound, so a
+/// regression that stops reading the evidence is loud rather than quietly
+/// cheaper.
+///
+/// It was 6 before the closure learned to wait for a crease's ends to become
+/// findable. Waiting costs sweeps — iguana goes from 7 to 13 — and a sweep
+/// boundary is where the sheet gets turned over. This design is one that pays
+/// without being paid: its 16 unfindable ends are unfindable either way, and
+/// the wait costs it 3 turn-overs and 3 more steps sighted from a mark that is
+/// not on the paper. The corpus as a whole goes the other way (see
+/// `implementation-plans/precrease-step-ordering.md`), which is why the trade is
+/// taken — but not everywhere, and this is the fixture that says so.
 #[test]
 fn a_real_design_turns_over_a_handful_of_times() {
     let seq = plan("tests/fixtures/precrease/iguana-c0.fold");
     assert_eq!(seq.steps.len(), 91, "iguana-c0 steps");
-    assert_eq!(turn_overs(&seq), 6, "iguana-c0 turn-overs");
+    assert_eq!(turn_overs(&seq), 9, "iguana-c0 turn-overs");
 }
 
 /// The snappable path builds its targets from `SnappedLine`, which carries no
@@ -443,4 +488,122 @@ fn a_group_is_all_one_side() {
             assert_eq!(group.side, first, "{file}: group {group:?}");
         }
     }
+}
+
+/// No crease is ever longer than the pattern asks for.
+///
+/// The closure may wait for a crease's ends to become findable; it may never
+/// buy a landmark by creasing past what the design contains. That would be a
+/// change to the model rather than an imprecision in performing it, and it is
+/// the one repair this ordering work explicitly refuses.
+///
+/// Frame-agnostic: every step's creased length is compared to the length of the
+/// input segments it names, and the ratio of the two is the component's frame
+/// scale — one number for the whole plan. A step that creased further would
+/// show up as a ratio of its own.
+#[test]
+fn no_step_creases_more_than_the_pattern_contains() {
+    for file in EVERY_FIXTURE {
+        let cp = load(file);
+        let seq = plan_component(&component_of(&cp), unbounded_options()).1;
+        let mut scales: Vec<(u32, f64)> = Vec::new();
+        for step in seq.steps.iter().filter(|s| s.kind == StepKind::Cp) {
+            let creased: f64 = step
+                .cp_spans
+                .iter()
+                .map(|[a, b]| ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2)).sqrt())
+                .sum();
+            let wanted: f64 =
+                step.cp_line_ids
+                    .iter()
+                    .map(|&id| {
+                        let base = (id as usize - 1) * 4;
+                        let s = cp.segments.get(base..base + 4).unwrap_or_else(|| {
+                            panic!("{file}: crease id {id} is not in the input")
+                        });
+                        ((s[2] - s[0]).powi(2) + (s[3] - s[1]).powi(2)).sqrt()
+                    })
+                    .sum();
+            if wanted > 0.0 {
+                scales.push((step.id, creased / wanted));
+            }
+        }
+        let Some(&(_, first)) = scales.first() else {
+            continue;
+        };
+        for (id, scale) in &scales {
+            assert!(
+                (scale - first).abs() < 1e-9,
+                "{file}: step {id} creases {scale} of its pattern length where the rest crease {first}"
+            );
+        }
+    }
+}
+
+/// Waiting for findable ends never leaves *more* creases stopping nowhere, and
+/// never changes which lines get folded.
+///
+/// The second half is the closure's own guarantee — the fixpoint is
+/// order-independent (`closure.rs`, "# Monotonicity") — and it is what makes
+/// the preference safe to apply at all: it can move a fold, never drop or add
+/// one. The first half is the reason it exists.
+#[test]
+fn waiting_for_findable_ends_never_loses_a_landmark_or_a_line() {
+    for file in EVERY_FIXTURE {
+        let component = component_of(&load(file));
+        let plans: Vec<Sequence> = [true, false]
+            .into_iter()
+            .map(|prefer| {
+                let opts = PlannerOptions {
+                    prefer_findable_ends: prefer,
+                    ..unbounded_options()
+                };
+                plan_component(&component, opts).1
+            })
+            .collect();
+        let [on, off] = [&plans[0], &plans[1]];
+        assert_eq!(on.steps.len(), off.steps.len(), "{file}: step count");
+        let lines = |seq: &Sequence| {
+            let mut keys: Vec<String> = seq
+                .steps
+                .iter()
+                .map(|s| format!("{:.9},{:.9},{:.9}", s.line.n[0], s.line.n[1], s.line.d))
+                .collect();
+            keys.sort();
+            keys
+        };
+        assert_eq!(lines(on), lines(off), "{file}: the set of folded lines");
+        assert!(
+            unfound_ends(on) <= unfound_ends(off),
+            "{file}: {} crease ends with no landmark, up from {}",
+            unfound_ends(on),
+            unfound_ends(off)
+        );
+    }
+}
+
+/// Crease ends the folder cannot find, replaying the plan onto a bare sheet.
+fn unfound_ends(seq: &Sequence) -> usize {
+    let mut state = State::new(seq.sheet, DEFAULT_POINT_CAP);
+    let mut creased = Creased::new(&state);
+    let mut lost = 0;
+    for step in &seq.steps {
+        let ends: Vec<[f64; 2]> = crease_runs(&step.line, &step.cp_spans)
+            .into_iter()
+            .flat_map(|(a, b)| [a, b])
+            .collect();
+        lost += ends
+            .iter()
+            .filter(|e| !end_is_found(&state, &creased, &step.line, **e))
+            .count();
+        let Ok(outcome) = state.add_line(step.line, step.tag) else {
+            continue;
+        };
+        if step.cp_spans.is_empty() {
+            creased.add_whole(&state, outcome.id);
+        } else {
+            creased.add_spans(&state, outcome.id, &step.line, &step.cp_spans);
+        }
+    }
+    lost
 }

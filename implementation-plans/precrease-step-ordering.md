@@ -117,36 +117,65 @@ short ones", and that proxy is currently what makes marks exist.
 
 ## What this is measured against
 
-Baseline over the 38 `curated/` designs of `real_benchmark` that plan, taken
-from the crate directly:
+Over the 39 `curated/` designs of `real_benchmark` that plan, taken from the
+crate directly (`cargo run --release -p oristudio-precrease --example
+measure_ends -- <corpus dir>`; a crease end counts once per *merged* run, since
+a CP splits a line at every change of assignment and those joints are not ends):
 
-| | |
-| --- | --- |
-| designs / steps | 38 / 2,344 |
-| steps sighted from a mark not on the paper | **281** |
-| turn-overs | **127** |
-| crease ends with no landmark | **19.6%** of ends, on 30.9% of steps |
+| | before | after |
+| --- | --- | --- |
+| designs / steps | 39 / 2,366 | 39 / 2,366 |
+| sweeps | 164 | 250 |
+| steps sighted from a mark not on the paper | 281 | **185** |
+| crease ends with no landmark | 1,223 of 6,058 (20.2%) | **985 (16.3%)** |
+| turn-overs | 130 | **168** |
 
-The change must move the third row down without moving the first two up. The
-first is the one that matters: it is the measure a reordering approach already
-broke once, and freezing it out of the comparison is how that nearly shipped.
+The two quality measures both move the right way — a third of the phantom marks
+and a fifth of the unfindable ends are gone — and markhor, the design this
+started from, opens with every end of every crease found, where before its two
+diagonals each had two ends in mid-air.
 
-It cannot be measured by simulating a reorder of an existing plan, because
-changing what folds first changes what is constructible next — the plan itself
-differs. So it is implemented behind an option and both are run.
+**Turn-overs move the wrong way, by 29%**, and that was a stated bar. The
+mechanism is exact and not a tuning accident: waiting costs sweeps (164 → 250),
+a sweep boundary is where the ordering pass may turn the sheet over, and a
+plan's turn-overs are close to a count of the sweeps that need both faces. No
+reordering *within* the sweep structure can recover them — an exact two-state
+dynamic program over the per-sweep block choice was written and measured, and it
+matched the existing greedy rule to the fold, so it was removed again.
+
+Per design: ends improve on 27 and worsen on 2; phantom marks improve on 17 and
+worsen on 9; turn-overs improve on 4 and worsen on 21. `iguana-c0` is the clean
+loss — three more turn-overs, three more phantom marks and not one end
+recovered — and it is pinned as a fixture so the trade stays visible.
+
+The comparison cannot be made by simulating a reorder of an existing plan,
+because changing what folds first changes what is constructible next — the plan
+itself differs. So it is implemented behind `PlannerOptions::prefer_findable_ends`
+and both are run. **The flag stays until the turn-over trade is ruled on**; it is
+the only reason it exists, and the losing order does not get to live behind it.
+
+### The turn-over cost is recoverable, but not here
+
+A fold may always be presented *later* than its sweep, provided nothing later
+sights it — that is monotonicity read in the other direction, and it is the
+missing degree of freedom. A pass that delays a lone minority-side fold into the
+next sweep's block of the same face, with that dependency check, would collapse
+the extra boundaries without touching what the closure decided. It needs its own
+measurement (delaying can only *help* the two quality measures, since more paper
+is creased by then, but that has to be shown rather than argued), so it is
+written down here rather than smuggled in.
 
 ## Risks
 
-- **The order could get worse where it is currently fine.** Deferring a fold
-  changes which marks exist when later folds are chosen. Expected to help here,
-  because it defers *short, broken* creases and lets *full-width* ones go first
-  — the same effect the sweep structure was producing by accident — but that is
-  a prediction, and the measurement above is what decides it.
+- **The order could get worse where it is currently fine.** Measured: it does,
+  on 9 designs for phantom marks and 21 for turn-overs, against gains on the
+  corpus as a whole. The per-design table above is the record.
 - **A mutual wait.** Several creases that all end on each other with no
   full-width line among them — a rabbit ear. D2's per-sweep fallback resolves it
   by folding them all with eyeballed ends, which is what a diagram does.
 - **A pattern where almost nothing is fully constructible** gains nothing and
-  costs a second sweep per round. Cheap, and visible in the timings.
+  costs a second pass over the sweep's targets. Cheap, and the sweep counts
+  above are what it looks like when it happens.
 
 ## Affected areas
 
@@ -161,16 +190,21 @@ differs. So it is implemented behind an option and both are run.
 
 ## Checklist
 
-- [ ] D1 — the endpoint condition, using the existing physical-crease test
-- [ ] D2 — per-sweep preference with the fallback, behind an option so both
+- [x] D1 — the endpoint condition, using the existing physical-crease test
+      (`marks.rs`, shared with the ordering pass so the two cannot disagree)
+- [x] D2 — per-sweep preference with the fallback, behind an option so both
       orders can be measured
-- [ ] Corpus run: crease ends with no landmark **down**; steps sighted from a
-      mark that is not on the paper **not up on any design**; turn-overs **not
-      up on any design**; every design that plans today still plans
-- [ ] markhor emits 1, 4, 5, 2, 3
-- [ ] A crate test that fails if the preference ever makes either of the two
-      quality measures worse
-- [ ] D3 — a test that no step's creases exceed what the pattern contains
-- [ ] D4 — `round` off the step, the group and the TS type
-- [ ] Option removed once the measurement decides; the losing order does not
-      stay behind a flag
+- [x] Corpus run: crease ends with no landmark **down** (20.2% → 16.3%); steps
+      sighted from a mark that is not on the paper **down** (281 → 185, up on 9
+      designs); every design that plans today still plans (39/39)
+- [ ] Turn-overs **up**, 130 → 168 — the one bar the change does not clear; see
+      "The turn-over cost is recoverable, but not here"
+- [x] markhor opens with every crease end found; its two diagonals move behind
+      the full-width creases that give them their stopping points
+- [x] A crate test that pins the preference never losing a landmark and never
+      changing which lines get folded
+- [x] D3 — a test that no step's creases exceed what the pattern contains
+- [x] D4 — `round` off the step, the group and the TS type; `sweep` inside the
+      ordering pass
+- [ ] Option removed once the turn-over trade is ruled on; the losing order does
+      not stay behind a flag

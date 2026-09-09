@@ -68,15 +68,19 @@ start() {
   # reading a stale tab. Fail loudly instead.
   #
   # Detached in two ways, because one is not enough and macOS has no `setsid`:
-  # `nohup` so a hangup on the parent's terminal does not reach it, and a
-  # subshell that exits immediately so the server is re-parented away from this
-  # script's process group. Whatever kills the caller then has nothing to kill.
+  # `nohup`, so a hangup on the caller's terminal does not reach it, and a
+  # subshell that exits immediately, so the server is re-parented to init and
+  # belongs to no process group this script's caller can kill.
+  #
+  # Nothing is waited on. An earlier version reaped the subshell with
+  # `wait $!` — but `$!` here is the server, not the subshell, so the script
+  # sat on a `wait` that only returns when the dev server stops, and every
+  # caller that read its output blocked with it. The readiness loop below is
+  # what tells us the server came up; there is nothing else to wait for.
   ( cd "$ROOT" \
       && nohup npx vite apps/web --port "$PORT" --strictPort >"$LOG" 2>&1 < /dev/null &
     echo $! > "$PID_FILE"
     disown 2>/dev/null || true ) &
-  # Reap the subshell, not the server.
-  wait $! 2>/dev/null || true
 
   for _ in $(seq 1 120); do
     if healthy; then

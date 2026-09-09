@@ -45,6 +45,11 @@ pub struct PlannerOptions {
     /// Overall budget for `plan`, milliseconds (plan: 30 s default; the whole
     /// iguana canvas, all 31 components, plans in 3.3 s).
     pub total_budget_ms: f64,
+    /// Whether the closure prefers targets whose creases have findable ends
+    /// ([`Closure::set_prefer_findable_ends`]). Measurement scaffolding: the
+    /// off state exists so the two orders can be compared on the corpus, and
+    /// comes out once that comparison is recorded.
+    pub prefer_findable_ends: bool,
     pub clock: Clock,
 }
 
@@ -55,6 +60,7 @@ impl Default for PlannerOptions {
             stuck: StuckOptions::default(),
             stuck_budget_ms: 4000.0,
             total_budget_ms: 30_000.0,
+            prefer_findable_ends: true,
             clock: default_clock(),
         }
     }
@@ -272,7 +278,9 @@ impl Planner {
         });
         planner.off_lattice = exactness.class == ExactnessClass::OffLattice;
         planner.refused = false;
-        planner.closure = Some(Closure::new(sheet, targets, opts.point_cap));
+        let mut closure = Closure::new(sheet, targets, opts.point_cap);
+        closure.set_prefer_findable_ends(opts.prefer_findable_ends);
+        planner.closure = Some(closure);
         planner.sheet = Some(sheet);
         planner
     }
@@ -290,7 +298,11 @@ impl Planner {
             opts,
             component_id: 0,
             sheet: Some(sheet),
-            closure: Some(Closure::new(sheet, targets, opts.point_cap)),
+            closure: Some({
+                let mut closure = Closure::new(sheet, targets, opts.point_cap);
+                closure.set_prefer_findable_ends(opts.prefer_findable_ends);
+                closure
+            }),
             exactness: None,
             off_lattice: false,
             refused: false,
@@ -664,7 +676,6 @@ impl Planner {
                 line_id: f.line_id,
                 segment: segment_of(sheet, &f.line).unwrap_or([[0.0; 2]; 2]),
                 extent: verdict.extent.clone(),
-                round: p.round,
                 witnesses: f.witnesses.clone(),
                 chosen: p.chosen,
                 ease: chosen.map_or(0, |w| w.ease),

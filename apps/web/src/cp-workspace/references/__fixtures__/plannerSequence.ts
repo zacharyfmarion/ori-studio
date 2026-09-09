@@ -47,7 +47,6 @@ function step(partial: Partial<PrecreaseStep> & Pick<PrecreaseStep, 'id' | 'line
       [0.5, 1],
     ],
     extent: { kind: 'full' },
-    round: 1,
     witnesses: [],
     chosen: null,
     ease: 0,
@@ -105,7 +104,6 @@ export function plannerSequenceFixture(): PrecreaseSequence {
           ],
         ],
       },
-      round: 1,
       witnesses: [witness(2, cornerRefs)],
       chosen: 0,
       unlocks: [2, 3, 4],
@@ -116,7 +114,6 @@ export function plannerSequenceFixture(): PrecreaseSequence {
     step({
       id: 2,
       line_id: 5,
-      round: 2,
       line: { n: VERTICAL, d: 0.25 },
       segment: [
         [0.25, 0],
@@ -129,7 +126,6 @@ export function plannerSequenceFixture(): PrecreaseSequence {
     step({
       id: 3,
       line_id: 6,
-      round: 2,
       line: { n: VERTICAL, d: 0.5 },
       segment: [
         [0.5, 0],
@@ -142,7 +138,6 @@ export function plannerSequenceFixture(): PrecreaseSequence {
     step({
       id: 4,
       line_id: 7,
-      round: 2,
       line: { n: VERTICAL, d: 0.75 },
       segment: [
         [0.75, 0],
@@ -156,7 +151,6 @@ export function plannerSequenceFixture(): PrecreaseSequence {
     step({
       id: 5,
       line_id: 8,
-      round: 3,
       line: { n: HORIZONTAL, d: 0.25 },
       segment: [
         [0, 0.25],
@@ -181,7 +175,6 @@ export function plannerSequenceFixture(): PrecreaseSequence {
     steps,
     groups: [
       {
-        round: 1,
         kind: 'aux',
         side: 'front',
         direction_angle: Math.PI / 2,
@@ -191,7 +184,6 @@ export function plannerSequenceFixture(): PrecreaseSequence {
         count: 1,
       },
       {
-        round: 2,
         kind: 'cp',
         side: 'front',
         direction_angle: 0,
@@ -201,7 +193,6 @@ export function plannerSequenceFixture(): PrecreaseSequence {
         count: 3,
       },
       {
-        round: 3,
         kind: 'cp',
         side: 'front',
         direction_angle: Math.PI / 2,

@@ -87,8 +87,6 @@ export interface PrecreaseStep {
   line_id: number;
   segment: PrecreasePlanSegment;
   extent: PrecreaseExtent;
-  /** Presentation round; 0 is the hoisted landmark phase. */
-  round: number;
   witnesses: PrecreaseWitness[];
   /** Index of the presentation witness in `witnesses`. */
   chosen: number | null;
@@ -133,9 +131,8 @@ export interface PrecreaseStep {
   hoisted: boolean;
 }
 
-/** Consecutive steps of one round, side, direction, axiom and input pattern. */
+/** Consecutive steps of one side, direction, axiom and input pattern. */
 export interface PrecreaseGroup {
-  round: number;
   kind: PrecreaseStepKind;
   /** A group never spans a turn-over. */
   side: PrecreaseSide;

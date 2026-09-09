@@ -23,7 +23,6 @@ function step(id: number, cpLineIds: number[]): PrecreaseStep {
       [1, 0],
     ],
     extent: { kind: 'full' },
-    round: 1,
     witnesses: [],
     chosen: null,
     ease: 0,

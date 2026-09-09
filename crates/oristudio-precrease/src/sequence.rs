@@ -37,8 +37,6 @@ pub struct Step {
     /// The in-paper segment of the line, for drawing.
     pub segment: [[f64; 2]; 2],
     pub extent: Extent,
-    /// Presentation round; 0 is the hoisted landmark phase.
-    pub round: u32,
     /// Every certified witness recorded at fold time.
     pub witnesses: Vec<Witness>,
     /// Index of the presentation witness in `witnesses`.
@@ -87,12 +85,11 @@ pub struct Step {
     pub hoisted: bool,
 }
 
-/// Consecutive steps of one round, side, direction, axiom and input pattern.
+/// Consecutive steps of one side, direction, axiom and input pattern.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Group {
-    pub round: u32,
     pub kind: StepKind,
-    /// The face the group is folded from. A round split into two side-blocks
+    /// The face the group is folded from. A sweep split into two side-blocks
     /// never merges across the turn-over between them.
     pub side: Side,
     /// Normal angle of the direction cluster, radians in `[0, π)`.

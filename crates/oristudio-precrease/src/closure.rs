@@ -52,6 +52,7 @@ use crate::clock::Deadline;
 use crate::direction::{Direction, Side, majority};
 use crate::error::PrecreaseError;
 use crate::line::{Line, LineIndex};
+use crate::marks::{Creased, ends_are_found};
 use crate::predicates::{
     Facts, Witness, all_witnesses, choose, scan_landers, scan_lines, scan_points, witnesses,
 };
@@ -223,6 +224,10 @@ pub struct Closure {
     /// Targets that coincide with a sheet edge: free, never folded.
     free: Vec<usize>,
     round: u32,
+    /// Where the paper is actually creased, grown one fold at a time — the
+    /// input to the endpoint half of the constructibility test.
+    creased: Creased,
+    prefer_findable_ends: bool,
     stats: ClosureStats,
 }
 
@@ -254,6 +259,7 @@ impl Closure {
             kept.push(t);
         }
         let facts = vec![TargetFacts::default(); kept.len()];
+        let creased = Creased::new(&state);
         Closure {
             state,
             targets: kept,
@@ -264,6 +270,8 @@ impl Closure {
             folded: Vec::new(),
             free,
             round: 0,
+            creased,
+            prefer_findable_ends: true,
             stats: ClosureStats::default(),
         }
     }
@@ -296,6 +304,30 @@ impl Closure {
     /// The current round counter.
     pub fn round(&self) -> u32 {
         self.round
+    }
+
+    /// Whether a sweep prefers targets whose creases have findable ends.
+    ///
+    /// On by default. The off state exists to measure the two orders against
+    /// each other and comes out once that measurement has been taken.
+    pub fn set_prefer_findable_ends(&mut self, on: bool) {
+        self.prefer_findable_ends = on;
+    }
+
+    /// Every remaining target whose line can be sighted *and* whose creases
+    /// both begin and end somewhere the folder can find, out of `constructible`.
+    ///
+    /// Judged against the paper as it stood when the sweep began, so it does
+    /// not depend on the order the sweep's own folds are made in — the same
+    /// footing the witnesses are certified on.
+    fn ends_findable(&self, constructible: &[(usize, Vec<Witness>)]) -> Vec<bool> {
+        constructible
+            .iter()
+            .map(|(t, _)| {
+                let target = &self.targets[*t];
+                ends_are_found(&self.state, &self.creased, &target.line, &target.spans)
+            })
+            .collect()
     }
 
     /// Counters.
@@ -403,6 +435,23 @@ impl Closure {
                 }
             }
 
+            // Fold the ones the folder could finish, and let the rest wait a
+            // sweep in the hope that these give them the landmark they lack.
+            // Never a requirement: a sweep with nothing fully constructible
+            // folds what it can sight, exactly as it always did, so the closure
+            // cannot stall on this and no pattern stops planning.
+            if self.prefer_findable_ends {
+                let findable = self.ends_findable(&constructible);
+                if findable.iter().any(|&f| f) {
+                    constructible = constructible
+                        .into_iter()
+                        .zip(findable)
+                        .filter(|(_, f)| *f)
+                        .map(|(c, _)| c)
+                        .collect();
+                }
+            }
+
             self.round += 1;
             self.stats.rounds += 1;
             let round = self.round;
@@ -413,6 +462,24 @@ impl Closure {
                 folded_now += 1;
             }
             self.remaining.retain(|t| !folded_targets.contains(t));
+        }
+    }
+
+    /// Record what a fold just laid down on the paper.
+    ///
+    /// A fold runs the width of the sheet, but the *pattern* usually only wants
+    /// part of that chord. An auxiliary line has no target and creases whole —
+    /// [`crate::pinch`] may cut it back later, but only to marks that are used.
+    fn record_crease(&mut self, line_id: usize, line: &Line, target: Option<usize>) {
+        let Closure {
+            creased,
+            state,
+            targets,
+            ..
+        } = self;
+        match target.map(|t| &targets[t].spans) {
+            Some(spans) if !spans.is_empty() => creased.add_spans(state, line_id, line, spans),
+            _ => creased.add_whole(state, line_id),
         }
     }
 
@@ -435,6 +502,7 @@ impl Closure {
         let outcome = self.state.add_line(line, LineTag::Cp)?;
         let chosen = choose(&ws);
         let complete = self.facts[t].facts.landers_computed;
+        self.record_crease(outcome.id, &line, Some(t));
         self.folded.push(FoldedLine {
             line_id: outcome.id,
             line,
@@ -479,6 +547,7 @@ impl Closure {
         }
         let outcome = self.state.add_line(line, tag)?;
         let chosen = choose(&ws);
+        self.record_crease(outcome.id, &line, None);
         self.folded.push(FoldedLine {
             line_id: outcome.id,
             line,
