@@ -323,68 +323,68 @@ only their error-code branch widened.
 ## Checklist
 
 ### Phase 1 — the solver holds a pin (Rust only, no UI)
-- [ ] `pinned_vertex_ids` on `ExactSolveOptionsWithExemptions`, validated in
+- [x] `pinned_vertex_ids` on `ExactSolveOptionsWithExemptions`, validated in
       `parse_exact_solve_request` with its own error message.
-- [ ] Threaded into `SolveModel`; the `Fixed` branch consults it.
-- [ ] `next_collinear_degree_two` refuses to dissolve a pinned vertex.
-- [ ] Test: a pinned interior junction is **bit-identical** in `vertices_exact`.
-- [ ] Test: a pinned *collinear degree-2* vertex is bit-identical while its
+- [x] Threaded into `SolveModel`; the `Fixed` branch consults it.
+- [x] `next_collinear_degree_two` refuses to dissolve a pinned vertex.
+- [x] Test: a pinned interior junction is **bit-identical** in `vertices_exact`.
+- [x] Test: a pinned *collinear degree-2* vertex is bit-identical while its
       neighbours move (the dissolution guard).
-- [ ] Test: pinning a vertex the user dragged does not trip the movement budget.
-- [ ] Test: an unknown id is refused, not ignored.
-- [ ] Both bridges' error-code branch widened.
+- [x] Test: pinning a vertex the user dragged does not trip the movement budget.
+- [x] Test: an unknown id is refused, not ignored.
+- [x] Both bridges' error-code branch widened.
 
 ### Phase 2 — pins as state, and on screen
-- [ ] `oristudioCpPinnedVertices` on the slice + `CP_DOCUMENT_SCOPED_KEYS`.
-- [ ] `cp-workspace/pins/useCpVertexPins.ts` — toggle, clear-in-box, and the
+- [x] `oristudioCpPinnedVertices` on the slice + `CP_DOCUMENT_SCOPED_KEYS`.
+- [x] `cp-workspace/pins/useCpVertexPins.ts` — toggle, clear-in-box, and the
       derived pinned-index set; unit-tested.
-- [ ] `cpPointsToScene` `pinnedIdx` + pin colour; adapter test.
-- [ ] Pinned dots render; verified in the browser.
+- [x] `cpPointsToScene` `pinnedIdx` + pin colour; adapter test.
+- [x] Pinned dots render; verified in the browser.
 
 ### Phase 3 — the tool
-- [ ] `pickVertexTool` engine + test.
-- [ ] `VertexPin` command/action, rail placement next to Move Vertex,
+- [x] `pickVertexTool` engine + test.
+- [x] `VertexPin` command/action, rail placement next to Move Vertex,
       `pick-vertex` registry entry, `pointerRelease` mode.
-- [ ] Canvas press branch + cursor; `drag-vertex` refuses a pinned vertex.
-- [ ] Panel web-side commit arm; a panel test in the shape of
+- [x] Canvas press branch + cursor; `drag-vertex` refuses a pinned vertex.
+- [x] Panel web-side commit arm; a panel test in the shape of
       `regionToolCommit.test.tsx` (both the commit *and* the preview early
       return — the preview one fails silently).
-- [ ] `npm run i18n:extract`.
+- [x] `npm run i18n:extract`.
 
 ### Phase 4 — the solve window
-- [ ] Pencil dropdown on `SolveRegionChip`, ticking the active tool.
-- [ ] `foldVerticesCoords` + pin→solver-id resolution, unit-tested against a
+- [x] Pencil dropdown on `SolveRegionChip`, ticking the active tool.
+- [x] `foldVerticesCoords` + pin→solver-id resolution, unit-tested against a
       fixture FOLD.
-- [ ] `pinnedVertexIds` through `runCpExactSolve` into both stage option strings.
-- [ ] Pins inside the region cleared on Accept and on delete.
-- [ ] Analytics event + solve property.
+- [x] `pinnedVertexIds` through `runCpExactSolve` into both stage option strings.
+- [x] Pins inside the region cleared on Accept and on delete.
+- [x] Analytics event + solve property.
 
 ### Phase 5 — pins constrain transforms
-- [ ] `PinnedPoints` + the hold rule at both kernel seams; move ops pass it,
+- [x] `PinnedPoints` + the hold rule at both kernel seams; move ops pass it,
       copy ops do not.
-- [ ] Collapsed-segment drop in the pinned path (`append_and_split` has no
+- [x] Collapsed-segment drop in the pinned path (`append_and_split` has no
       zero-length guard, and a sub-epsilon self-loop discards every face).
-- [ ] `move_vertex` refuses a pinned source.
-- [ ] `lengthen_crease` refuses all-or-nothing when any candidate anchors on a
+- [x] `move_vertex` refuses a pinned source.
+- [x] `lengthen_crease` refuses all-or-nothing when any candidate anchors on a
       pin; `CommandError::Refused` + the `pinned_vertex` sentence in
       `humanizeError`, so the toast is translated rather than a raw Rust string.
-- [ ] Payload reader + `buildCpCommandPayload`.
-- [ ] Rust tests: one end pinned stretches; both ends pinned is unchanged; copy
+- [x] Payload reader + `buildCpCommandPayload`.
+- [x] Rust tests: one end pinned stretches; both ends pinned is unchanged; copy
       ignores pins; a collapsed stretch is dropped; **an empty set is
       byte-identical to today** (the parity guard).
-- [ ] `CpTransformPreview.heldEndpoints` in both stroke adapters and
+- [x] `CpTransformPreview.heldEndpoints` in both stroke adapters and
       `buildPoints`; adapter tests.
-- [ ] Wire it into `updateTransformPreview` and the vertex-drag preview.
-- [ ] A pinned case in the transform golden fixture, so preview and commit
+- [x] Wire it into `updateTransformPreview` and the vertex-drag preview.
+- [x] A pinned case in the transform golden fixture, so preview and commit
       cannot drift.
-- [ ] PORTING.md note.
+- [x] PORTING.md note.
 
 ### Phase 6 — validation
-- [ ] `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
+- [x] `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
       `cargo test --workspace`.
-- [ ] `npm --workspace @treemaker/web run build:oristudio-cp-detect-wasm`
+- [x] `npm --workspace @treemaker/web run build:oristudio-cp-detect-wasm`
       (the kernel change does not reach the browser without it).
-- [ ] `npm run lint:web`, `i18n:check`, `typecheck:web`, `test:web`.
+- [x] `npm run lint:web`, `i18n:check`, `typecheck:web`, `test:web`.
 - [ ] Browser: pin a junction in a detected region, solve, confirm the pinned
       dot did not move and the pattern around it did; Accept and confirm the pin
       is gone.
