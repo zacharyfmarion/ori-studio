@@ -299,9 +299,10 @@ the rest are ordinary detection cases now — the border-contact class again
 
 ## Harness findings to fix alongside
 
-- `end_to_end.recovered` should score strict topology and assignment on
-  `pipeline.fold` at 2 px: 34 cases are recovered with a different topology
-  and 8 with a wrong M/V today.
+- `end_to_end.recovered` scores strict topology and assignment on
+  `pipeline.fold` at 2 px since 2026-09-09; the vertex-correspondence
+  verdict it replaced had 34 cases recovered with a different topology and
+  8 with a wrong M/V.
 - 38 of the 317 harness-recovered solves are `ambiguous`; the product does not
   auto-apply those (Review & Fix is primary, "add improved" secondary), so the
   product converts fewer than the harness says.

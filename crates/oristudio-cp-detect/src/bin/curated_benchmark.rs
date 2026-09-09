@@ -15,8 +15,9 @@
 //!
 //! - **decoder**: the pipeline's graph against `topology.fold`, the strict
 //!   topology metric from `oristudio-cp-eval` at 4 px of 1024;
-//! - **end to end**: the pipeline's solved answer against `truth.fold`, vertex
-//!   to vertex by mutual nearest-neighbour correspondence;
+//! - **end to end**: the pipeline's solved answer against `truth.fold`, the
+//!   strict topology metric at 2 px with assignments, beside a vertex-to-vertex
+//!   correspondence kept as a distance readout;
 //! - **gate**: `topology.fold` through the solver's two stages against
 //!   `truth.fold`, the same way — the solver on correct topology, no model.
 //!
@@ -66,6 +67,9 @@ const PX: f64 = 1024.0;
 const EXACT_KAWASAKI_DEGREES: f64 = 1e-6;
 /// Decoder vertices match a topology vertex within this, in pixels of 1024.
 const DECODER_VERTEX_TOLERANCE_PX: f64 = 4.0;
+/// The end-to-end verdict compares the solved answer with the solved truth,
+/// both exact patterns, so the vertex tolerance is tighter than the decoder's.
+const END_TO_END_VERTEX_TOLERANCE_PX: f64 = 2.0;
 /// How far apart two vertices may be and still be read as the same one when
 /// an answer is compared with a truth: a tenth of the paper.
 const CORRESPONDENCE_RADIUS: f64 = 0.1;
@@ -963,15 +967,26 @@ fn run_case(session: &Mutex<NativeSession>, case: &Case, args: &Args) -> Value {
         });
     }
 
-    // End to end: the pipeline's solved answer against the truth.
+    // End to end: the pipeline's solved answer against the truth. Recovered
+    // means the product's answer *is* the truth: accepted, and the strict
+    // topology metric at 2 px finds the same vertices, the same creases and
+    // the same assignments. The vertex correspondence stays beside it as a
+    // distance readout; it is not the verdict, since a pairing at 2 px with
+    // every junction found still admits a different crease set (34 cases
+    // and 8 wrong assignments in the September 8 run).
     if let (Some(pipeline), Some(truth)) = (&pipeline, &truth) {
-        let vs = correspondence(&pipeline.points, &truth.points, &crease_degrees(truth));
+        let mut vs = correspondence(&pipeline.points, &truth.points, &crease_degrees(truth));
         let accepted = record["detection"]["accepted"] == Value::Bool(true);
-        let recovered = accepted
-            && vs["max_px"].as_f64().unwrap_or(f64::INFINITY) <= 2.0
-            && vs["unpaired_junctions"].as_u64().unwrap_or(1) == 0;
+        let strict = match (eval_graph(pipeline), eval_graph(truth)) {
+            (Ok(predicted), Ok(gt)) => {
+                strict_score(&predicted, &gt, END_TO_END_VERTEX_TOLERANCE_PX)
+            }
+            (Err(error), _) | (_, Err(error)) => json!({ "error": error }),
+        };
+        let recovered = accepted && strict["exact_topology_and_assignment"] == Value::Bool(true);
+        vs["strict"] = strict;
+        vs["recovered"] = json!(recovered);
         record["end_to_end"] = vs;
-        record["end_to_end"]["recovered"] = json!(recovered);
     }
 
     // The solver on correct topology.

@@ -598,11 +598,14 @@ Per case, three scores:
 
 - **decoder** — the pipeline's graph against `topology.fold`, the strict
   topology metric at 4 px of 1024: `exact` / `near` (edge F1 ≥ 0.95) / `off`.
-- **end to end** — the pipeline's solved answer against `truth.fold`, vertex
-  to vertex by mutual nearest-neighbour correspondence, so a hand-fixed
-  truth's split points and aux endpoints count as unpaired rather than as
-  error: `recovered` (accepted, every paired vertex within 2 px, no junction
-  unpaired) / `accepted_wrong` / `not_accepted`.
+- **end to end** — the pipeline's solved answer against `truth.fold`:
+  `recovered` (accepted, **and** the strict topology metric at 2 px finds the
+  same vertices, creases and assignments) / `accepted_wrong` /
+  `not_accepted`. The vertex-to-vertex correspondence (mutual nearest
+  neighbour, so a hand-fixed truth's split points and aux endpoints count as
+  unpaired rather than as error) stays in the record as a distance readout;
+  it was the verdict until September 9, 2026, and over-counted by 34 cases
+  paired within 2 px on a different crease set and 8 with wrong assignments.
 - **gate** — `topology.fold` through the solver's refinement stage against
   `truth.fold`, the same way; the solver on correct topology with no model
   involved: `reproduced` (within 1 px) / `close` (within 5 px) / `off` /
