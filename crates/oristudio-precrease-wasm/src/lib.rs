@@ -91,8 +91,8 @@
 use std::sync::Once;
 
 use oristudio_precrease::clock::default_clock;
-use oristudio_precrease::drive::DriverState;
 use oristudio_precrease::closure::FoldOutcome;
+use oristudio_precrease::drive::DriverState;
 use oristudio_precrease::planner::{Planner, PlannerOptions};
 use oristudio_precrease::sequence::{ExactnessSummary, Status};
 use oristudio_precrease::state::LineTag;
