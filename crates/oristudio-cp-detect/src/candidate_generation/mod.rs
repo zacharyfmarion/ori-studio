@@ -136,6 +136,13 @@ impl Default for LegacyTopologyV2StrategyOptions {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct JunctionCarrierV1StrategyOptions {
     pub vertex_merge_radius_px: f64,
+    /// Merge radius for a junction peak below the product's old floor (0.40):
+    /// such a peak within this distance of a vertex already placed is a second
+    /// firing of that junction, not a junction of its own.
+    pub weak_junction_merge_radius_px: f64,
+    /// A junction peak this close to the paper edge is a crease meeting the
+    /// border, which the contact head owns; it becomes no interior vertex.
+    pub junction_border_exclusion_px: f64,
     pub carrier_angle_tolerance_degrees: f64,
     pub carrier_rho_tolerance_px: f64,
     pub carrier_extent_padding_px: f64,
@@ -168,6 +175,8 @@ impl Default for JunctionCarrierV1StrategyOptions {
     fn default() -> Self {
         Self {
             vertex_merge_radius_px: 6.0,
+            weak_junction_merge_radius_px: 6.0,
+            junction_border_exclusion_px: 6.0,
             carrier_angle_tolerance_degrees: 2.5,
             carrier_rho_tolerance_px: 8.0,
             carrier_extent_padding_px: 16.0,
@@ -194,6 +203,12 @@ impl Default for JunctionCarrierV1StrategyOptions {
 pub struct JunctionFirstV1StrategyOptions {
     /// Vertex merge radius forwarded to dense evidence vertex building.
     pub vertex_merge_radius_px: f64,
+    /// Merge radius for junction peaks below the old 0.40 floor; see
+    /// `JunctionCarrierV1StrategyOptions::weak_junction_merge_radius_px`.
+    pub weak_junction_merge_radius_px: f64,
+    /// Junction peaks closer than this to the paper edge become no vertex; see
+    /// `JunctionCarrierV1StrategyOptions::junction_border_exclusion_px`.
+    pub junction_border_exclusion_px: f64,
     /// Minimum proposed span length.
     pub min_span_length_px: f64,
     /// A pair (A, B) is rejected when a third vertex sits within this
@@ -253,6 +268,17 @@ impl Default for JunctionFirstV1StrategyOptions {
         // pairs and tiny creases that the previous 6/8/4 defaults destroyed.
         Self {
             vertex_merge_radius_px: 3.0,
+            // A peak under 0.40 within 8 px of a stronger vertex is that
+            // junction firing twice; 3 px would keep it and select 3-6 px stub
+            // spans between the pair (2026-09-09, 21 of 28 regressions of the
+            // 0.25 floor). Strong peaks keep 3 px so real close pairs survive.
+            weak_junction_merge_radius_px: 8.0,
+            // A peak under 0.50 within 6 px of the paper edge is a crease
+            // meeting the border (the contact head's), not a junction: the
+            // 0.25 floor's one blow-up (cat-in-grass, 14 -> 82 defects) was
+            // three such peaks 3 px inside the bottom edge. Real junctions
+            // that close to the edge fire at 0.49 or more and keep 3 px.
+            junction_border_exclusion_px: 6.0,
             // 1px (not the old 3px) so genuine sub-3px creases between close
             // junction pairs are proposable once junction detection resolves
             // them; harmless with the production model (its junction head merges

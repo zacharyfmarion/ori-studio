@@ -310,6 +310,8 @@ pub(super) fn carrier_equivalent_options(
 ) -> JunctionCarrierV1StrategyOptions {
     JunctionCarrierV1StrategyOptions {
         vertex_merge_radius_px: options.vertex_merge_radius_px,
+        weak_junction_merge_radius_px: options.weak_junction_merge_radius_px,
+        junction_border_exclusion_px: options.junction_border_exclusion_px,
         strong_span_line_support: options.strong_span_line_support,
         max_line_endpoint_vertices: 0,
         junction_offset_cluster_radius_px: options.junction_offset_cluster_radius_px,

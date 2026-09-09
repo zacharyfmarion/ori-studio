@@ -297,6 +297,43 @@ recovered by the harness (3 missing / 2 extra edges at 2 px, strictly), and
 the rest are ordinary detection cases now — the border-contact class again
 (crocodile 8 missing / 23 extra, water-boatmen 17 / 28).
 
+## Lever 3, landed (2026-09-09)
+
+With the border and the frame fixed, the rendered near cases' defects had
+moved inside: 1,175 missing interior creases in 93 of 136 cases, 181
+missed junctions in 70, and 126 of those junctions on a crease the decoder
+already drew through the point — the head firing there under the 0.40
+floor. Four sweeps on the 137 near cases separated the August re-tune into
+its halves: the floor at 0.25 converts 28 (with 28 regressions), the merge
+radius at 5 px converts 1 and worsens 26 (it merges real close pairs), so
+the radius stays at 3 px. The floor's regressions were two mechanisms read
+off the dumps: a junction firing twice — a 0.26–0.32 peak 3.6–6.6 px from
+the real 0.8–0.95 vertex, with 3–6 px stub spans selected between the pair
+— and peaks 3 px inside the paper edge at 0.26–0.45 where a crease meets the
+border (one case went from 14 to 82 defects). A peak under 0.40 now merges
+into any vertex within 8 px, and a peak under 0.50 within 6 px of the edge
+makes no vertex; real junctions that close to the edge all fire at 0.49 or
+more. Plan and sweep table: `implementation-plans/cp-detect-junction-weak-peaks.md`.
+
+| | after lever 2 | after lever 3 |
+| --- | --- | --- |
+| rendered decoder exact / strict convergence | 298 / 288 | 328 / 314 |
+| curated decoder exact / strict convergence | 16 / 18 | 18 / 18 |
+| decoder cases moved the wrong way | | 0 |
+| strict conversions gained / lost | | 29 / 3 |
+
+The three losses: pegasus, whose caption text under the paper now yields
+two junction peaks, and two renders whose recognised graph is unchanged
+to the vertex and whose solve lands elsewhere — the free-slide noise, set
+off by the sub-pixel shift the lower vote threshold gives every junction's
+centroid. (A contended first run also read pseudoscorpion `failed`; alone
+it solves and is recovered — the harness's 25 s solve budget under load.)
+The lever costs no time: on sixteen cases run alone with one worker, the
+compiler stage took 321 s against 396 before and the exact solve 57 s
+against 63. Two conversions the floor alone made are given back by the weak
+merge (fox-girl, rhino-beetle: a real close pair with a weak member) and one
+by the border rule (horse-1-1); those are the known cost.
+
 ## Harness findings to fix alongside
 
 - `end_to_end.recovered` scores strict topology and assignment on

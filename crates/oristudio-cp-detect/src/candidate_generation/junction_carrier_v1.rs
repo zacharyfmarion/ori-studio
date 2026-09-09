@@ -271,14 +271,30 @@ pub(super) fn build_vertices(
         ));
     }
 
+    let weak_merge_tol =
+        (options.weak_junction_merge_radius_px / unit_scale(image_size)).max(merge_tol);
+    let border_tol = (options.junction_border_exclusion_px / unit_scale(image_size)).max(merge_tol);
     let mut junctions = evidence.junction_primitives.clone();
     junctions.sort_by(|left, right| right.support.total_cmp(&left.support));
     for junction in junctions {
         let point = unit_from_px(junction.point, image_size);
-        if near_unit_boundary(point, merge_tol) {
+        // A crease meeting the border fires the junction head a few pixels
+        // inside the edge, weakly; a real junction that close to the edge
+        // fires strongly (every one in the curated benchmark's renders at
+        // 0.49 or more, the border firings at 0.26–0.50).
+        let border_zone = if f64::from(junction.support) < STRONG_JUNCTION_SUPPORT {
+            border_tol
+        } else {
+            merge_tol
+        };
+        if near_unit_boundary(point, border_zone) {
             continue;
         }
-        if let Some(existing) = nearest_mergeable_vertex(&vertices, point, merge_tol) {
+        // Strongest first, so a weak peak meets every stronger vertex already
+        // placed: within its wider radius it is that junction firing twice.
+        let weak = f64::from(junction.support) < WEAK_JUNCTION_SUPPORT;
+        let radius = if weak { weak_merge_tol } else { merge_tol };
+        if let Some(existing) = nearest_mergeable_vertex(&vertices, point, radius) {
             if vertices[existing].kind == CandidateVertexKind::InteriorJunction
                 && junction.support as f64 > vertices[existing].support
             {
@@ -456,6 +472,13 @@ fn nearest_vertex_distance(vertices: &[CandidateVertex], point: Point2) -> f64 {
         .map(|vertex| distance(vertex.point, point))
         .fold(f64::INFINITY, f64::min)
 }
+
+/// The junction peak floor the product ran at through September 2026; a peak
+/// below it is admitted only as a second look, with the wider merge radius.
+const WEAK_JUNCTION_SUPPORT: f64 = 0.40;
+/// A peak at least this strong near the paper edge is a junction, not a
+/// crease meeting the border.
+const STRONG_JUNCTION_SUPPORT: f64 = 0.50;
 
 fn nearest_mergeable_vertex(
     vertices: &[CandidateVertex],
@@ -1327,6 +1350,102 @@ mod tests {
                 .filter(|vertex| vertex.kind == CandidateVertexKind::InteriorJunction)
                 .count(),
             1
+        );
+    }
+
+    /// A peak under the old 0.40 floor a few pixels from a strong junction is
+    /// that junction firing twice; a second strong peak the same distance
+    /// away is a close pair and stays.
+    #[test]
+    fn a_weak_peak_near_a_strong_junction_is_absorbed_and_a_strong_pair_is_kept() {
+        let junction = |x: f32, support: f32| crate::evidence_extract::JunctionPrimitive {
+            point: [x, 64.0],
+            support,
+            source: PrimitiveSource::ObservedStrong,
+        };
+        let evidence = |second: f32| CompilerEvidence {
+            image_size: 128,
+            dense: empty_dense(128),
+            line_primitives: Vec::new(),
+            junction_primitives: vec![junction(64.0, 0.9), junction(69.0, second)],
+            boundary_contact_primitives: Vec::new(),
+            report: dummy_report(128),
+        };
+        let interior = |evidence: &CompilerEvidence, weak_radius: f64| {
+            build_vertices(
+                evidence,
+                128,
+                JunctionCarrierV1StrategyOptions {
+                    vertex_merge_radius_px: 3.0,
+                    weak_junction_merge_radius_px: weak_radius,
+                    max_line_endpoint_vertices: 8,
+                    ..JunctionCarrierV1StrategyOptions::default()
+                },
+            )
+            .iter()
+            .filter(|vertex| vertex.kind == CandidateVertexKind::InteriorJunction)
+            .count()
+        };
+        assert_eq!(
+            interior(&evidence(0.3), 8.0),
+            1,
+            "the weak peak is absorbed"
+        );
+        assert_eq!(interior(&evidence(0.3), 3.0), 2, "the old radius keeps it");
+        assert_eq!(
+            interior(&evidence(0.85), 8.0),
+            2,
+            "a strong pair is a close pair"
+        );
+    }
+
+    /// A weak junction peak a few pixels inside the paper edge is a crease
+    /// meeting the border; the contact head owns it, and no interior vertex
+    /// is made. A strong peak there is a junction.
+    #[test]
+    fn a_weak_junction_peak_near_the_edge_is_left_to_the_contact_head() {
+        // Paper 32..96 of 128: a peak 5 px inside the bottom edge.
+        let evidence = |support: f32| CompilerEvidence {
+            image_size: 128,
+            dense: empty_dense(128),
+            line_primitives: Vec::new(),
+            junction_primitives: vec![crate::evidence_extract::JunctionPrimitive {
+                point: [64.0, 91.0],
+                support,
+                source: PrimitiveSource::ObservedStrong,
+            }],
+            boundary_contact_primitives: Vec::new(),
+            report: dummy_report(128),
+        };
+        let interior = |evidence: &CompilerEvidence, exclusion: f64| {
+            build_vertices(
+                evidence,
+                128,
+                JunctionCarrierV1StrategyOptions {
+                    vertex_merge_radius_px: 3.0,
+                    junction_border_exclusion_px: exclusion,
+                    max_line_endpoint_vertices: 8,
+                    ..JunctionCarrierV1StrategyOptions::default()
+                },
+            )
+            .iter()
+            .filter(|vertex| vertex.kind == CandidateVertexKind::InteriorJunction)
+            .count()
+        };
+        assert_eq!(
+            interior(&evidence(0.45), 3.0),
+            1,
+            "5 px in clears a 3 px exclusion"
+        );
+        assert_eq!(
+            interior(&evidence(0.45), 6.0),
+            0,
+            "a weak peak is left to the contact head at 6 px"
+        );
+        assert_eq!(
+            interior(&evidence(0.9), 6.0),
+            1,
+            "a strong peak there is a junction"
         );
     }
 

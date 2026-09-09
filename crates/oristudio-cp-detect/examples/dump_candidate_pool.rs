@@ -117,6 +117,25 @@ fn main() {
         if let Some(radius) = merge_radius {
             generation_options.junction_first_v1.vertex_merge_radius_px = radius;
         }
+        // `JUNCTION_BORDER_PX`: no interior vertex from a junction peak this
+        // close to the paper edge.
+        if let Some(radius) = std::env::var("JUNCTION_BORDER_PX")
+            .ok()
+            .and_then(|v| v.parse::<f64>().ok())
+        {
+            generation_options
+                .junction_first_v1
+                .junction_border_exclusion_px = radius;
+        }
+        // `WEAK_MERGE_PX`: the merge radius for junction peaks under 0.40.
+        if let Some(radius) = std::env::var("WEAK_MERGE_PX")
+            .ok()
+            .and_then(|v| v.parse::<f64>().ok())
+        {
+            generation_options
+                .junction_first_v1
+                .weak_junction_merge_radius_px = radius;
+        }
         // Boundary-contact sweep hooks: `CONTACT_THRESHOLD` (product 0.50),
         // `CONTACT_RELOCALIZE=0` to switch the ink re-localisation off, and
         // `CONTACT_MERGE_PX` (product 2.5).

@@ -745,8 +745,14 @@ const BOUNDARY_CONTACT_THRESHOLD_FLOOR: f32 = 0.50;
 /// Default floor for the junction peak-extraction threshold, shared by every
 /// surface (product wasm, benchmark, inspector). Lowered 0.50 -> 0.40 after a
 /// threshold sweep showed 0.40 recovers more CPs end-to-end (easy/medium) with
-/// no precision loss; below ~0.40 spurious peaks start breaking exact topology.
-const JUNCTION_PEAK_THRESHOLD_FLOOR: f32 = 0.40;
+/// no precision loss, and 0.40 -> 0.25 on 2026-09-09: the junctions the
+/// decoder still missed sat on creases it already drew, with the head firing
+/// there under 0.40, and the spurious peaks that stopped the earlier sweep
+/// at 0.40 were a junction firing twice (a weak peak 4-7 px from a strong
+/// one) and peaks a few pixels inside the paper edge — both handled where
+/// candidate vertices are built (`junction_carrier_v1::build_vertices`), not
+/// by the floor.
+const JUNCTION_PEAK_THRESHOLD_FLOOR: f32 = 0.25;
 
 fn model_junction_primitives(
     junction_peak_probability: &[f32],
