@@ -132,6 +132,7 @@ import { createStepSequenceTool } from './tools/stepSequenceTool';
 import { createLinePickTool } from './tools/linePickTool';
 import type { ToolCommit, ToolPreviewSegment } from './tools/types';
 import { endpointKeys, vertexEndpointsAt } from './tools/vertexEndpoints';
+import { isCpVertexPinned, pinnedVertexIndices, type CpVertexPin } from './pins/vertexPins';
 import {
   CP_LINE_HIT_MIN_CSS,
   CP_LINE_HIT_RATIO,
@@ -809,6 +810,16 @@ export interface CreasePatternWebglCanvasProps {
   points: readonly ModelPoint[];
   /** Vertices (line-endpoint markers) in model coordinates. */
   vertices: readonly ModelPoint[];
+  /**
+   * Vertices the user has pinned, as model-space positions rather than indices
+   * — see `pins/vertexPins.ts` for why a pin cannot be an id.
+   *
+   * The surface resolves them against {@link vertices} itself: it already holds
+   * the spatial index that answers "is there a vertex here", the resolution has
+   * to happen again on every document revision anyway, and the alternative is
+   * the panel computing indices into an array the surface owns.
+   */
+  pinnedVertices: readonly CpVertexPin[];
   /** `--cp-point-size` value driving point/vertex radius. */
   pointSize: number;
   /** Circle-packing circles in model coordinates (radius in model units). */
@@ -927,6 +938,7 @@ export function CreasePatternWebglCanvas({
   lineWidth,
   points,
   vertices,
+  pinnedVertices,
   pointSize,
   circles,
   circleRadiusToSvg,
@@ -1338,6 +1350,20 @@ export function CreasePatternWebglCanvas({
     buildStrokesRef.current = buildStrokes;
   }, [buildStrokes]);
 
+  /**
+   * The pinned vertices, as indices into `vertices`, and the crease endpoints
+   * that sit on them.
+   *
+   * Both are derived once per document revision rather than per frame: they feed
+   * the point buffer and the transform preview, which are rebuilt on every
+   * pointer sample during a drag. Pins are a handful by construction, so the
+   * scan is cheap; doing it inside `buildPoints` would repeat it thousands of
+   * times per gesture for an answer that cannot have changed.
+   */
+  const pinnedVertexIdx = useMemo(
+    () => pinnedVertexIndices(vertices, pinnedVertices),
+    [vertices, pinnedVertices]
+  );
   // Build the point buffer (crease points, derived vertices, circles). During a
   // move-drag or transform gesture the derived vertices of the moved lines follow
   // through `move.matrix`; real points and circles do not move, matching the kernel
@@ -1348,7 +1374,9 @@ export function CreasePatternWebglCanvas({
         move === undefined
           ? vertices
           : vertices.map((v) =>
-              selectedEndpointKeys.has(cpVertexId(v)) ? applyAffine(move.matrix, v.x, v.y) : v
+              selectedEndpointKeys.has(cpVertexId(v)) && !isCpVertexPinned(pinnedVertices, v)
+                ? applyAffine(move.matrix, v.x, v.y)
+                : v
             );
       return cpPointsToScene(
         points,
@@ -1363,6 +1391,7 @@ export function CreasePatternWebglCanvas({
           // runs on the render path, where a ref read would be a torn value.
           vertexIdx:
             grabbableVertexIdx == null ? undefined : new Set([grabbableVertexIdx]),
+          pinnedIdx: pinnedVertexIdx,
           color: readCssVarColor(document.documentElement, SELECTED_COLOR_VAR, SELECTED_FALLBACK),
         }
       );
@@ -1377,6 +1406,8 @@ export function CreasePatternWebglCanvas({
       selectedPointIds,
       selectedCircleIds,
       selectedEndpointKeys,
+      pinnedVertexIdx,
+      pinnedVertices,
       currentTheme,
     ]
   );

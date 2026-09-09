@@ -1,5 +1,10 @@
 import { patchTreemakerDesign, selectDesignViewportFitRequestId, selectProject } from '../designTabs';
 import {
+  NO_CP_VERTEX_PINS,
+  removeCpVertexPinsInBox,
+  toggleCpVertexPin,
+} from '../../../cp-workspace/pins/vertexPins';
+import {
   ANALYTICS_EVENTS,
   bucketCount,
   COUNT_BUCKETS,
@@ -1290,6 +1295,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     oristudioCpSelectedAnnotationId: null,
     oristudioCpInlineSimulations: [],
     oristudioCpFocusedInlineSimulationId: null,
+    oristudioCpPinnedVertices: NO_CP_VERTEX_PINS,
     oristudioCpFocusedFoldedFigureId: null,
     ...emptyFoldArtifactResourceState(),
 
@@ -1874,6 +1880,19 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     },
 
     setOristudioCpActiveToolId: (id) => set({ oristudioCpActiveToolId: id }),
+
+    // Pins are not document state and record no history entry: a pin changes
+    // nothing about the pattern, so an undo after one should walk back the last
+    // crease edit rather than the marker. See `pins/vertexPins.ts`.
+    toggleOristudioCpVertexPin: (point) =>
+      set({ oristudioCpPinnedVertices: toggleCpVertexPin(get().oristudioCpPinnedVertices, point) }),
+
+    clearOristudioCpVertexPinsIn: (box) => {
+      const pins = get().oristudioCpPinnedVertices;
+      const remaining = removeCpVertexPinsInBox(pins, box);
+      // Identity-compared, so a region with no pins in it costs no re-render.
+      if (remaining !== pins) set({ oristudioCpPinnedVertices: remaining });
+    },
 
     clearOristudioCpActionRequest: (id) =>
       set({

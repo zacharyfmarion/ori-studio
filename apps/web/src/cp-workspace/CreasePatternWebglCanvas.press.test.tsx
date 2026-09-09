@@ -155,6 +155,7 @@ function props(): CreasePatternWebglCanvasProps {
     lineWidth: 1,
     points: [],
     vertices: [],
+    pinnedVertices: [],
     pointSize: 3,
     circles: [],
     circleRadiusToSvg: (radius) => radius,

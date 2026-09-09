@@ -1,4 +1,5 @@
 import { clearAllInlineSimulationSources } from '../../cp-workspace/inlineSimulation/inlineSimulationRuntime';
+import { NO_CP_VERTEX_PINS } from '../../cp-workspace/pins/vertexPins';
 import { emptyOristudioCpSelection } from '../../lib/creasePatternViewport';
 import type { WorkspaceState } from './types';
 
@@ -36,6 +37,7 @@ export const CP_DOCUMENT_SCOPED_KEYS = [
   'oristudioCpSelectedAnnotationId',
   'oristudioCpInlineSimulations',
   'oristudioCpFocusedInlineSimulationId',
+  'oristudioCpPinnedVertices',
   'oristudioCpDocumentExtensions',
 ] as const;
 
@@ -87,6 +89,9 @@ export function discardCpDocumentState(): CpDocumentScopedState {
     oristudioCpSelectedAnnotationId: null,
     oristudioCpInlineSimulations: [],
     oristudioCpFocusedInlineSimulationId: null,
+    // A pin names a position in *this* document's coordinates; carried into the
+    // next one it would hold a junction of a pattern it was never placed on.
+    oristudioCpPinnedVertices: NO_CP_VERTEX_PINS,
     oristudioCpDocumentExtensions: {},
   };
 }

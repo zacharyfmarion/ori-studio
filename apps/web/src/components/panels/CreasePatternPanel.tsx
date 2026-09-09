@@ -172,6 +172,7 @@ import { useCpAnnotations } from '../../cp-workspace/annotations/useCpAnnotation
 import { CpRegionLayer } from '../../cp-workspace/regions/CpRegionLayer';
 import { useCpRegionActions } from '../../cp-workspace/regions/useCpRegions';
 import { useCpRegionSolve } from '../../cp-workspace/regions/useCpRegionSolve';
+import { useCpVertexPins } from '../../cp-workspace/pins/useCpVertexPins';
 import { cpSuppressionBoxFromCommitPoints } from '../../cp-workspace/regions/suppressionBox';
 import { CpContextToolPanel, cpLineTypeStatusLabel } from './CpContextToolPanel';
 import {
@@ -824,6 +825,10 @@ export function CreasePatternPanel() {
     (state) => state.oristudioCpActiveFoldedFigureId
   );
   const oristudioCpViewport = useWorkspaceStore((state) => state.oristudioCpViewport);
+  // Pinned vertices: held by the solver and by every transform. The verbs live
+  // in `pins/useCpVertexPins`; what is here is the composition.
+  const vertexPins = useCpVertexPins();
+  const pinnedVertices = vertexPins.pins;
   const projectLoadId = useWorkspaceStore((state) => state.projectLoadId);
   // Crease lines always use Oriedita's default M/V/flat/border coloring; the
   // color-by toggle has been removed from the CP panel header.
@@ -3328,6 +3333,7 @@ export function CreasePatternPanel() {
                   lineWidth={oristudioCpViewport.lineWidth ?? 1}
                   points={editableCp.crease_pattern.points}
                   vertices={editableCpVertexPoints}
+                  pinnedVertices={pinnedVertices}
                   pointSize={oristudioCpViewport.pointSize ?? 1}
                   circles={editableCp.crease_pattern.circles}
                   circleRadiusToSvg={editableCircleRadiusToSvg}
