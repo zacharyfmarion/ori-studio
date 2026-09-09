@@ -27,7 +27,7 @@
 use crate::closure::Closure;
 use crate::constants::MIN_ANGLE_SINE;
 use crate::direction::Side;
-use crate::marks::{Creased, point_mark_exists};
+use crate::marks::{Creased, witness_marks_exist, witness_missing_marks};
 use crate::predicates::{Ref, Witness};
 use crate::sequence::{Group, StepKind};
 use crate::state::LineTag;
@@ -58,6 +58,14 @@ pub struct Placed {
     /// actually reach their crossing — the fold is still constructible, but the
     /// folder has to be told to make the mark rather than shown where it is.
     pub marks_exist: bool,
+    /// *Which* of the presentation witness's marks are not on the paper, by
+    /// state point id.
+    ///
+    /// Saying only that a mark is missing leaves the driver nothing to act on.
+    /// With the ids it can ask ReferenceFinder to construct each one and fold
+    /// the answer, which is the difference between flagging the step and fixing
+    /// it. Empty exactly when `marks_exist`.
+    pub missing: Vec<usize>,
     /// Normal angle of the direction cluster, `[0, π)`. A crease's
     /// *orientation*, unrelated to mountain and valley.
     pub direction_angle: f64,
@@ -145,17 +153,6 @@ fn record(creased: &mut Creased, closure: &Closure, folded_index: usize) {
     }
 }
 
-/// Whether every mark this witness sights is on the paper.
-///
-/// Corners are the sheet's own and always are; a line input is a whole crease
-/// rather than a spot on one, so only points are asked about.
-fn witness_marks_exist(closure: &Closure, creased: &Creased, w: &Witness) -> bool {
-    w.inputs.iter().all(|r| match r {
-        Ref::Point { id } => point_mark_exists(closure.state(), creased, *id),
-        _ => true,
-    })
-}
-
 /// The face a fold has to be made from, or `None` when it does not care.
 ///
 /// An auxiliary line has no target and so no direction; a line whose majority
@@ -164,6 +161,22 @@ fn witness_marks_exist(closure: &Closure, creased: &Creased, w: &Witness) -> boo
 fn forced_side(closure: &Closure, folded_index: usize) -> Option<Side> {
     let target = closure.folded()[folded_index].target?;
     closure.targets().get(target)?.forces_side()
+}
+
+/// What the sightability pass settled about each fold, parallel to
+/// [`Closure::folded`].
+///
+/// One struct rather than three slices threaded side by side: they are three
+/// answers to one question — *which witness does the folder use, and can they
+/// see what it names* — and a caller that had to keep them aligned by hand
+/// would eventually not.
+struct Sighting {
+    /// Presentation witness index, which may differ from the closure's pick.
+    chosen: Vec<Option<usize>>,
+    /// Every mark that witness sights is on the paper.
+    marks_exist: Vec<bool>,
+    /// The state point ids of the marks that are not.
+    missing: Vec<Vec<usize>>,
 }
 
 /// Split one round's folds into at most two side-blocks and emit them.
@@ -179,8 +192,7 @@ fn emit_round(
     sweep: u32,
     closure: &Closure,
     side: Side,
-    chosen: &[Option<usize>],
-    marks: &[bool],
+    sighting: &Sighting,
     placed: &mut Vec<Placed>,
 ) -> Side {
     let other = side.flipped();
@@ -201,11 +213,12 @@ fn emit_round(
             placed.push(Placed {
                 folded: i,
                 sweep,
-                chosen: chosen[i],
+                chosen: sighting.chosen[i],
                 hoisted: false,
                 direction_angle: angle,
                 side: at,
-                marks_exist: marks[i],
+                marks_exist: sighting.marks_exist[i],
+                missing: sighting.missing[i].clone(),
             });
         }
     }
@@ -249,7 +262,8 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
                     hoisted: true,
                     direction_angle: folded_angle(&f.line),
                     side,
-                    marks_exist: witness_marks_exist(closure, &creased, &f.witnesses[k]),
+                    marks_exist: witness_marks_exist(state, &creased, &f.witnesses[k]),
+                    missing: witness_missing_marks(state, &creased, &f.witnesses[k]),
                 });
                 record(&mut creased, closure, i);
             }
@@ -265,8 +279,11 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
         .collect();
     rounds.sort_unstable();
     rounds.dedup();
-    let mut chosen: Vec<Option<usize>> = folded.iter().map(|f| f.chosen).collect();
-    let mut marks = vec![true; folded.len()];
+    let mut sighting = Sighting {
+        chosen: folded.iter().map(|f| f.chosen).collect(),
+        marks_exist: vec![true; folded.len()],
+        missing: vec![Vec::new(); folded.len()],
+    };
     for (k, &r) in rounds.iter().enumerate() {
         let members: Vec<usize> = (0..folded.len())
             .filter(|&i| !hoisted[i] && folded[i].round == r)
@@ -278,15 +295,20 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
         for &i in &members {
             let f = &folded[i];
             let sightable = (0..f.witnesses.len())
-                .filter(|&w| witness_marks_exist(closure, &creased, &f.witnesses[w]))
+                .filter(|&w| witness_marks_exist(state, &creased, &f.witnesses[w]))
                 .min_by_key(|&w| f.witnesses[w].preference());
             match sightable {
-                Some(w) => chosen[i] = Some(w),
+                Some(w) => sighting.chosen[i] = Some(w),
                 // Nothing recorded can be sighted. Keep the closure's own
-                // choice — the fold is still correct — and say so, so the
-                // consumer can tell the folder to mark the point rather than
-                // pretending it is already there.
-                None => marks[i] = f.witnesses.is_empty(),
+                // choice — the fold is still correct — and say so, naming the
+                // marks that are missing, so the driver can construct them
+                // rather than the card pretending they are already there.
+                None => {
+                    sighting.marks_exist[i] = f.witnesses.is_empty();
+                    if let Some(w) = sighting.chosen[i].and_then(|w| f.witnesses.get(w)) {
+                        sighting.missing[i] = witness_missing_marks(state, &creased, w);
+                    }
+                }
             }
         }
         let is_cp_round = members.iter().all(|&i| folded[i].tag == LineTag::Cp);
@@ -298,15 +320,7 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
                 .map(|&i| (i, folded_angle(&folded[i].line)))
                 .collect()
         };
-        side = emit_round(
-            ordered,
-            k as u32 + 1,
-            closure,
-            side,
-            &chosen,
-            &marks,
-            &mut placed,
-        );
+        side = emit_round(ordered, k as u32 + 1, closure, side, &sighting, &mut placed);
         for &i in &members {
             record(&mut creased, closure, i);
         }

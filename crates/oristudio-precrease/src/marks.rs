@@ -21,6 +21,7 @@
 
 use crate::constants::MIN_ANGLE_SINE;
 use crate::line::Line;
+use crate::predicates::{Ref, Witness};
 use crate::state::{LineTag, State};
 use crate::tol::TOL;
 
@@ -122,6 +123,33 @@ pub fn mark_exists(state: &State, creased: &Creased, p: [f64; 2], lines: &[usize
         present[i + 1..]
             .iter()
             .any(|&b| state.line(a).cross(state.line(b)).abs() >= MIN_ANGLE_SINE)
+    })
+}
+
+/// The marks a witness sights that are **not** on the paper, by point id.
+///
+/// Corners are the sheet's own and are always there; a line input is a whole
+/// crease rather than a spot on one, so only points are asked about.
+///
+/// This lives here rather than in the pass that happens to need it, because two
+/// passes need it and they must not be able to disagree — the closure asks
+/// whether a fold can be *performed* now, the ordering pass asks how to describe
+/// it, and one answer has to serve both. See the module header.
+pub fn witness_missing_marks(state: &State, creased: &Creased, w: &Witness) -> Vec<usize> {
+    w.inputs
+        .iter()
+        .filter_map(|r| match r {
+            Ref::Point { id } if !point_mark_exists(state, creased, *id) => Some(*id),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Whether every mark this witness sights is on the paper.
+pub fn witness_marks_exist(state: &State, creased: &Creased, w: &Witness) -> bool {
+    w.inputs.iter().all(|r| match r {
+        Ref::Point { id } => point_mark_exists(state, creased, *id),
+        _ => true,
     })
 }
 

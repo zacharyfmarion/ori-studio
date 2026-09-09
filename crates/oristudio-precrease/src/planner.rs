@@ -690,6 +690,11 @@ impl Planner {
                 visible: verdict.visible,
                 witnesses_complete: f.witnesses_complete,
                 marks_exist: p.marks_exist,
+                missing_marks: p
+                    .missing
+                    .iter()
+                    .filter_map(|&id| state.points().get(id).map(|pt| pt.p))
+                    .collect(),
                 hoisted: p.hoisted,
             });
         }

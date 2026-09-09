@@ -306,6 +306,59 @@ fn a_cp_step_says_where_on_its_chord_the_creases_are() {
 /// The ordering pass prefers a recorded witness whose marks exist, and flags
 /// the step when none does. Recompute both here from `cp_spans`, so a pass that
 /// stopped checking cannot pass.
+/// A flagged step says *which* marks it cannot find, and where they are.
+///
+/// `marks_exist` alone is a complaint with nothing to act on. The coordinates
+/// are what a driver hands to ReferenceFinder to get a construction for the
+/// mark, so the plan can gain the fold that puts it on the paper — and a
+/// coordinate that does not match a point the witness actually names would send
+/// it looking for the wrong thing.
+#[test]
+fn a_flagged_step_says_where_the_marks_it_cannot_find_are() {
+    for file in EVERY_FIXTURE {
+        let seq = plan(file);
+        for step in &seq.steps {
+            assert_eq!(
+                step.marks_exist,
+                step.missing_marks.is_empty(),
+                "{file}: step {} disagrees with itself about whether it can be sighted",
+                step.id
+            );
+            if step.missing_marks.is_empty() {
+                continue;
+            }
+            let witness = step
+                .chosen
+                .and_then(|c| step.witnesses.get(c))
+                .unwrap_or_else(|| panic!("{file}: step {} is flagged with no witness", step.id));
+            // Every coordinate is one of the points this witness sights.
+            let sighted: Vec<[f64; 2]> = witness
+                .inputs
+                .iter()
+                .filter_map(|r| match r {
+                    Ref::Point { id } => seq.points.iter().find(|p| p.id == *id).map(|p| p.p),
+                    _ => None,
+                })
+                .collect();
+            for mark in &step.missing_marks {
+                assert!(
+                    sighted
+                        .iter()
+                        .any(|p| (p[0] - mark[0]).abs() < 1e-9 && (p[1] - mark[1]).abs() < 1e-9),
+                    "{file}: step {} reports a missing mark at {mark:?} that its witness \
+                     does not sight",
+                    step.id
+                );
+            }
+            assert!(
+                step.missing_marks.len() <= sighted.len(),
+                "{file}: step {} reports more missing marks than it sights",
+                step.id
+            );
+        }
+    }
+}
+
 #[test]
 fn a_step_is_sighted_from_marks_that_are_on_the_paper() {
     for file in EVERY_FIXTURE {

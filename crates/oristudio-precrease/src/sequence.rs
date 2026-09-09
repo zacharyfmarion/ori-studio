@@ -81,6 +81,16 @@ pub struct Step {
     /// crossing. When this is false the step is still correct, but the folder
     /// has to be told to make the mark rather than shown where it already is.
     pub marks_exist: bool,
+    /// Where the marks this step sights but cannot find actually are, in the
+    /// planner's unit frame. Empty exactly when `marks_exist`.
+    ///
+    /// `marks_exist` alone says a step is unperformable and leaves nothing to
+    /// do about it. These are the coordinates a driver hands to ReferenceFinder
+    /// to get a construction for each one, so the plan can gain the fold that
+    /// puts the mark on the paper instead of the card asking for a point that
+    /// is not there.
+    #[serde(default)]
+    pub missing_marks: Vec<[f64; 2]>,
     /// Hoisted to phase 0 by `landmarks_first`.
     pub hoisted: bool,
 }
