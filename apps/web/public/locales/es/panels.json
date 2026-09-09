@@ -270,6 +270,7 @@
       "graphMismatch": "El resultado de la resolución no describe los pliegues de esta región, así que no se cambió nada. Prueba a resolver de nuevo.",
       "noPattern": "No hay pliegues dentro de esta región, así que no hay nada que resolver. Mueve la región sobre el patrón detectado e inténtalo de nuevo."
     },
+    "repairTools": "Herramientas de reparación",
     "solve": "Resolver",
     "solveError": "No se pudo ejecutar la resolución — {{message}}",
     "solveErrorUnknown": "No se pudo ejecutar la resolución.",

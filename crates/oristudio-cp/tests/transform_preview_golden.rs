@@ -20,6 +20,7 @@
 use std::path::PathBuf;
 
 use oristudio_cp::geometry::{LineColor, LineSegment, Point};
+use oristudio_cp::operations::native::pinned::PinnedPoints;
 use oristudio_cp::operations::transform::transform_segments_by_points;
 use serde_json::{Value, json};
 
@@ -92,6 +93,7 @@ fn build_golden() -> Value {
                 Point::new(case.source_b[0], case.source_b[1]),
                 Point::new(case.target_a[0], case.target_a[1]),
                 Point::new(case.target_b[0], case.target_b[1]),
+                PinnedPoints::none(),
             );
             json!({
                 "sourceA": case.source_a,
@@ -114,7 +116,65 @@ fn build_golden() -> Value {
             .map(|s| json!([s.a.x, s.a.y, s.b.x, s.b.y]))
             .collect::<Vec<_>>(),
         "cases": entries,
+        "pinnedCases": pinned_entries(),
     })
+}
+
+/// The pins each pinned case holds, chosen to cover the three shapes that
+/// matter: one end of a crease (a stretch), both ends of one (it does not move),
+/// and a junction two probe segments share (both must hold it, or the pattern
+/// tears at the pin).
+fn pinned_cases() -> Vec<Vec<[f64; 2]>> {
+    vec![
+        vec![[0.0, 0.0]],
+        vec![[1.0, 0.0], [0.0, 1.0]],
+        vec![[100.0, 100.0]],
+        vec![],
+    ]
+}
+
+/// The same transform under each pin set.
+///
+/// This is what stops the *preview* from drifting: without it the browser draws
+/// a rigid translation while the commit stretches, which is the preview/commit
+/// disagreement `vertexEndpoints.ts` exists to prevent — visible as creases that
+/// jump on release.
+fn pinned_entries() -> Vec<Value> {
+    let segments = probe_segments();
+    // One transform for every pin set: a rotate-and-scale off the origin, so a
+    // held endpoint is distinguishable from an unheld one on every axis.
+    let case = TransformCase {
+        source_a: [0.0, 0.0],
+        source_b: [1.0, 0.0],
+        target_a: [2.0, 2.0],
+        target_b: [4.5, 5.75],
+    };
+    pinned_cases()
+        .into_iter()
+        .map(|pins| {
+            let points: Vec<Point> = pins.iter().map(|p| Point::new(p[0], p[1])).collect();
+            let mut transformed = segments.clone();
+            transform_segments_by_points(
+                &mut transformed,
+                Point::new(case.source_a[0], case.source_a[1]),
+                Point::new(case.source_b[0], case.source_b[1]),
+                Point::new(case.target_a[0], case.target_a[1]),
+                Point::new(case.target_b[0], case.target_b[1]),
+                PinnedPoints::new(&points),
+            );
+            json!({
+                "sourceA": case.source_a,
+                "sourceB": case.source_b,
+                "targetA": case.target_a,
+                "targetB": case.target_b,
+                "pins": pins,
+                "transformed": transformed
+                    .iter()
+                    .map(|s| json!([s.a.x, s.a.y, s.b.x, s.b.y]))
+                    .collect::<Vec<_>>(),
+            })
+        })
+        .collect()
 }
 
 #[test]

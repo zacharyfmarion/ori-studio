@@ -277,6 +277,14 @@
         "0": "頂点をドラッグして移動"
       }
     },
+    "cp_action_vertex_pin": {
+      "label": "頂点を固定",
+      "tooltip": "頂点をクリックして固定します。ソルバーとすべての変形が、その頂点を動かしません",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "頂点をクリックして固定または解除"
+      }
+    },
     "cp_action_crease_make_mountain": {
       "label": "山折りにする",
       "tooltip": "選択した線を山折りにします",

@@ -75,6 +75,15 @@ export interface CpCanvasCursorState {
    * vertex under this tool gets dragged — and they take the glyphs that say so.
    */
   vertexGrabbable?: boolean;
+  /**
+   * The pointer is over a vertex the Pin Vertex tool would toggle.
+   *
+   * Its own flag, and its own glyph, for the reason the two above are separate:
+   * the cursor says what the press will *do*, and a click that pins is not a
+   * drag that moves. It also covers the case `vertexGrabbable` cannot — a vertex
+   * that is already pinned, which Move Vertex refuses and this tool does not.
+   */
+  vertexPickable?: boolean;
 }
 
 /**
@@ -90,6 +99,10 @@ export function cpCanvasCursor(
   // whatever is under the cursor. Above the crease hover because it is the more
   // specific claim — with Move Vertex armed, a press on a vertex drags it.
   if (state.vertexGrabbable) return 'grab';
+  // Beside the grab, ranked the same way against pan and orbit, and above the
+  // crease hover for the same reason: with Pin Vertex armed, a press on a vertex
+  // toggles it, which is the more specific claim.
+  if (state.vertexPickable) return 'pointer';
   // Last, so every pan and orbit affordance outranks it: those describe what a
   // press will *do*, and a crease under the cursor does not change that a
   // Cmd-drag pans.

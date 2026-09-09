@@ -18,7 +18,8 @@
     "stripTitle": "Cette barre d'outils ne fonctionne plus"
   },
   "cp": {
-    "foldProducedNothing": "Ces plis n’ont aucune forme pliée à plat à dessiner"
+    "foldProducedNothing": "Ces plis n’ont aucune forme pliée à plat à dessiner",
+    "pinnedVertex": "Ce pli part d’un sommet épinglé, il ne peut donc pas être prolongé. Détachez d’abord le sommet ou prolongez un autre pli."
   },
   "cpDetectImport": {
     "addFailed": "Le patron de plis détecté n'a pas pu être ajouté.",

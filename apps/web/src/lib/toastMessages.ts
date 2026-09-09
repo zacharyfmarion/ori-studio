@@ -45,6 +45,16 @@ export function humanizeError(error: unknown, t: TFunction): string {
     // ("payload is too short: need at least 16 bytes"); what the user needs is
     // which of the two things went wrong, because only one of them is fixable
     // by them.
+    // The kernel refused an operation that would have built onto a pinned
+    // vertex. It travels as a *code* rather than a sentence precisely so it can
+    // be translated — `CommandError::Refused` carries a token, and its `Display`
+    // form ("Oriedita operation LengthenCrease refused: pinned_vertex") is a log
+    // line, not something to show anyone.
+    case 'pinned_vertex':
+      return t(
+        'errors:cp.pinnedVertex',
+        'That crease starts at a pinned vertex, so it cannot be lengthened. Unpin the vertex first, or extend a different crease.'
+      );
     case 'share_link_invalid':
       return t(
         'errors:shareLink.invalid',

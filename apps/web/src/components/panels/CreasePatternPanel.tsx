@@ -46,6 +46,7 @@ import {
 } from '../../lib/oristudioCpActions';
 import {
   cpCommandCommitsWebSide,
+  cpCommandHoldsPinnedVertices,
   cpCommandSnapsKernelSide,
   cpCommandUsesActiveCreaseAngle,
   cpCommandUsesActiveLineColor,
@@ -172,6 +173,7 @@ import { useCpAnnotations } from '../../cp-workspace/annotations/useCpAnnotation
 import { CpRegionLayer } from '../../cp-workspace/regions/CpRegionLayer';
 import { useCpRegionActions } from '../../cp-workspace/regions/useCpRegions';
 import { useCpRegionSolve } from '../../cp-workspace/regions/useCpRegionSolve';
+import { useCpVertexPins } from '../../cp-workspace/pins/useCpVertexPins';
 import { cpSuppressionBoxFromCommitPoints } from '../../cp-workspace/regions/suppressionBox';
 import { CpContextToolPanel, cpLineTypeStatusLabel } from './CpContextToolPanel';
 import {
@@ -824,6 +826,10 @@ export function CreasePatternPanel() {
     (state) => state.oristudioCpActiveFoldedFigureId
   );
   const oristudioCpViewport = useWorkspaceStore((state) => state.oristudioCpViewport);
+  // Pinned vertices: held by the solver and by every transform. The verbs live
+  // in `pins/useCpVertexPins`; what is here is the composition.
+  const vertexPins = useCpVertexPins();
+  const pinnedVertices = vertexPins.pins;
   const projectLoadId = useWorkspaceStore((state) => state.projectLoadId);
   // Crease lines always use Oriedita's default M/V/flat/border coloring; the
   // color-by toggle has been removed from the CP panel header.
@@ -1400,6 +1406,13 @@ export function CreasePatternPanel() {
         cpKernelSnapPolicy,
         activeCpCreaseAngle
       ),
+      // The pins the operation must hold, sent for every command that reads them
+      // and harmlessly ignored by the rest. Omitted when there are none, so a
+      // document with no pins produces the payload it always did — which is what
+      // keeps the Oriedita parity oracle looking at the same call.
+      ...(pinnedVertices.length > 0 && cpCommandHoldsPinnedVertices(command.operationId)
+        ? { pinned_points: pinnedVertices.map((pin) => ({ x: pin.x, y: pin.y })) }
+        : {}),
       ...payload,
     }),
     [
@@ -1408,6 +1421,7 @@ export function CreasePatternPanel() {
       cpToolOptions,
       editableCpGridWidth,
       activeCpCreaseAngle,
+      pinnedVertices,
     ]
   );
 
@@ -1954,10 +1968,16 @@ export function CreasePatternPanel() {
       // region; `addRegion` places it under the annotation stack and records the
       // undo entry itself.
       if (cpCommandCommitsWebSide(command.operationId)) {
-        const box = cpSuppressionBoxFromCommitPoints(points, webglOverlayView);
-        if (box) {
-          regionActions.addRegion(box);
-          track(ANALYTICS_EVENTS.cpSuppressionRegionCreated, { source: 'tool' });
+        if (command.operationId === 'VertexPin') {
+          // The surface resolved the press to a vertex and committed its exact
+          // position, so this is a toggle at a known point rather than a hit test.
+          if (points[0]) vertexPins.toggle(points[0]);
+        } else {
+          const box = cpSuppressionBoxFromCommitPoints(points, webglOverlayView);
+          if (box) {
+            regionActions.addRegion(box);
+            track(ANALYTICS_EVENTS.cpSuppressionRegionCreated, { source: 'tool' });
+          }
         }
         setCpToolState((state) =>
           state.activeOperationId === command.operationId
@@ -2069,6 +2089,7 @@ export function CreasePatternPanel() {
       t,
       vertexSolve,
       webglOverlayView,
+      vertexPins,
     ]
   );
 
@@ -2161,6 +2182,7 @@ export function CreasePatternPanel() {
       | 'drag-box'
       | 'drag-path'
       | 'drag-vertex'
+      | 'pick-vertex'
       | 'sequence'
       | 'line-entity'
       | 'lengthen'
@@ -2187,7 +2209,13 @@ export function CreasePatternPanel() {
       return idle;
     }
     const im = activeCpCommand.inputMode;
-    if (im === 'drag-line' || im === 'drag-box' || im === 'drag-path' || im === 'drag-vertex') {
+    if (
+      im === 'drag-line' ||
+      im === 'drag-box' ||
+      im === 'drag-path' ||
+      im === 'drag-vertex' ||
+      im === 'pick-vertex'
+    ) {
       return { ...idle, mode: im };
     }
     // Mirror Line branches per first pick between a 3-point sequence and a 2-line
@@ -3328,6 +3356,7 @@ export function CreasePatternPanel() {
                   lineWidth={oristudioCpViewport.lineWidth ?? 1}
                   points={editableCp.crease_pattern.points}
                   vertices={editableCpVertexPoints}
+                  pinnedVertices={pinnedVertices}
                   pointSize={oristudioCpViewport.pointSize ?? 1}
                   circles={editableCp.crease_pattern.circles}
                   circleRadiusToSvg={editableCircleRadiusToSvg}

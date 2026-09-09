@@ -1144,6 +1144,16 @@ export interface OristudioCpCommandPayload {
   circle_ids?: number[];
   text_ids?: number[];
   points?: Point[];
+  /**
+   * Vertices the user has pinned, in model space: positions the operation must
+   * leave exactly where they are.
+   *
+   * A constraint rather than an operand, and read by only the operations that
+   * move an existing crease endpoint — see `cpCommandHoldsPinnedVertices`.
+   * Omitted when there are no pins, which keeps every other document's payload
+   * exactly what it was.
+   */
+  pinned_points?: Point[];
   line_color?: OristudioCpLineColor;
   /**
    * `|ρ|` in degrees for `CreaseSetFoldAngle`, `0..=180`. Not a signed angle —

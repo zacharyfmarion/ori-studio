@@ -61,6 +61,8 @@ import {
   type CpSolveFrameTransform,
 } from '../../engine/cpExactSolveTypes';
 import type { OristudioCpLineSegment } from '../../engine/oristudioCpTypes';
+import type { ModelPoint } from '../renderer/types';
+import { VERTEX_COINCIDENCE } from '../tools/vertexEndpoints';
 import { boxContainsModelPoint } from '../annotations/annotationTransform';
 import type { CpSuppressionRegion } from '../annotations/suppressionRegion';
 
@@ -217,6 +219,69 @@ export function solvedRegionSegments(
     });
   });
   return { ok: true, segments, rewrittenEndpoints };
+}
+
+/**
+ * Which of the FOLD's vertices the user has pinned, as **solver vertex ids**.
+ *
+ * The mapping is exact rather than heuristic, and two facts make it so:
+ *
+ * - `FoldGraph::from_segments` interns crease endpoints into `vertices_coords`
+ *   using the kernel's own coincidence rule, and `export_fold_document` writes
+ *   document coordinates verbatim — no normalisation on the way out. So a pin,
+ *   which is a document-space position, is comparable to that table directly.
+ * - `exact_solve_input_from_fold` numbers `CandidateVertex.id` as `0..n` over
+ *   that same table. So the index a pin lands on *is* the id the solver wants.
+ *
+ * A pin that matches nothing is simply not returned: it is outside the region,
+ * or on a vertex an edit has since removed. Sending it anyway would be refused
+ * by `parse_exact_solve_request`, which is the right behaviour for a caller that
+ * believes its ids and the wrong outcome for one that knows some may be stale.
+ */
+export function pinnedFoldVertexIds(
+  verticesCoords: readonly (readonly [number, number])[],
+  pins: readonly ModelPoint[]
+): number[] {
+  const ids = new Set<number>();
+  for (const pin of pins) {
+    for (let id = 0; id < verticesCoords.length; id++) {
+      const [x, y] = verticesCoords[id];
+      if (Math.hypot(x - pin.x, y - pin.y) <= VERTEX_COINCIDENCE) {
+        ids.add(id);
+        break;
+      }
+    }
+  }
+  return [...ids].sort((a, b) => a - b);
+}
+
+/**
+ * The `vertices_coords` of a FOLD produced by `exportOristudioCpCreasesAsFold`.
+ *
+ * Read as defensively as {@link foldEdgesVertices} next door, and for the same
+ * reason: it crossed a JSON boundary, and a malformed one has to come back as a
+ * refusal rather than an exception.
+ */
+export function foldVerticesCoords(
+  foldJson: string
+): (readonly [number, number])[] | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(foldJson);
+  } catch {
+    return null;
+  }
+  const coords = (parsed as { vertices_coords?: unknown } | null)?.vertices_coords;
+  if (!Array.isArray(coords)) return null;
+  const out: (readonly [number, number])[] = [];
+  for (const vertex of coords) {
+    if (!Array.isArray(vertex) || vertex.length < 2) return null;
+    const [x, y] = vertex;
+    if (typeof x !== 'number' || typeof y !== 'number') return null;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    out.push([x, y]);
+  }
+  return out;
 }
 
 /**

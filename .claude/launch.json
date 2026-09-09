@@ -3,15 +3,13 @@
   "configurations": [
     {
       "name": "web",
-      "runtimeExecutable": "npx",
+      "runtimeExecutable": "sh",
       "runtimeArgs": [
-        "vite",
-        "apps/web",
-        "--port",
-        "5224"
+        "-c",
+        "VITE_CP_DETECT=1 exec npx vite apps/web --port 5241 --strictPort"
       ],
-      "port": 5224,
-      "autoPort": true
+      "port": 5241,
+      "autoPort": false
     },
     {
       "name": "web-prod",

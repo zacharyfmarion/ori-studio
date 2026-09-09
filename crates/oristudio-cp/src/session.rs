@@ -135,6 +135,13 @@ impl From<CommandError> for EngineError {
                 "not_implemented",
                 CommandError::NotImplemented { operation }.to_string(),
             ),
+            // The code *is* the message here, which is the point: the frontend
+            // translates it, so what travels is a token rather than a sentence.
+            // The `Display` form goes along as the fallback for a surface that
+            // has no case for this code yet.
+            CommandError::Refused { operation, code } => {
+                Self::new(code, CommandError::Refused { operation, code }.to_string())
+            }
         }
     }
 }

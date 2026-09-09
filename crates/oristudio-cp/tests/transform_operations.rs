@@ -1,7 +1,8 @@
 use oristudio_cp::geometry::{Circle, LineColor, LineSegment, Point};
 use oristudio_cp::model::CreasePatternModel;
+use oristudio_cp::operations::native::pinned::PinnedPoints;
 use oristudio_cp::operations::transform::{
-    LengthenColorMode, OperationFrame, OperationFrameMode, copy_selected_lines,
+    LengthenColorMode, LengthenRefusal, OperationFrame, OperationFrameMode, copy_selected_lines,
     copy_selected_lines_by_points, extend_to_intersection_point_2, insert_line_segments,
     lengthen_crease, move_selected_lines, move_selected_lines_by_points, operation_frame_drag,
     operation_frame_press, operation_frame_release, operation_frame_reset, replace_line_segments,
@@ -32,7 +33,7 @@ fn move_selected_lines_deletes_originals_appends_moved_lines_and_unselects() {
         segment(0.0, 2.0, 1.0, 2.0, LineColor::Blue2),
     ]);
 
-    let moved = move_selected_lines(&mut model, Point::new(0.0, 1.0));
+    let moved = move_selected_lines(&mut model, Point::new(0.0, 1.0), PinnedPoints::none());
 
     assert_eq!(moved, 1);
     assert_eq!(model.line_segments.len(), 2);
@@ -90,8 +91,14 @@ fn four_point_selected_move_and_copy_apply_oriedita_scale_rotate_translate() {
 
     let mut move_model =
         model_from_segments(&[segment(1.0, 0.0, 1.0, 1.0, LineColor::Red1).with_selected(2)]);
-    let moved =
-        move_selected_lines_by_points(&mut move_model, original_a, original_b, target_a, target_b);
+    let moved = move_selected_lines_by_points(
+        &mut move_model,
+        original_a,
+        original_b,
+        target_a,
+        target_b,
+        PinnedPoints::none(),
+    );
     assert_eq!(moved, 1);
     assert_segment_close(
         &move_model.line_segments[0],
@@ -213,7 +220,9 @@ fn lengthen_crease_extends_selected_candidate_to_target_line() {
         Point::new(2.0, 0.25),
         1.0,
         LengthenColorMode::Current(LineColor::Blue2),
-    );
+        PinnedPoints::none(),
+    )
+    .expect("no pins, so no refusal");
 
     assert_eq!(added, 1);
     assert!(
@@ -239,7 +248,9 @@ fn lengthen_crease_same_color_uses_original_color_and_same_line_mode() {
         Point::new(0.25, 0.0),
         1.0,
         LengthenColorMode::SameAsOriginal,
-    );
+        PinnedPoints::none(),
+    )
+    .expect("no pins, so no refusal");
 
     assert_eq!(added, 1);
     assert!(
@@ -386,4 +397,197 @@ fn assert_segment_close(segment: &LineSegment, a: Point, b: Point, color: LineCo
     assert!((segment.b.x - b.x).abs() < 1e-12);
     assert!((segment.b.y - b.y).abs() < 1e-12);
     assert_eq!(segment.color, color);
+}
+
+// --- pinned vertices ---------------------------------------------------------
+//
+// A pin is a constraint on the geometry, not a veto on the operation: a crease
+// with one pinned end *stretches* rather than refusing, which is what keeps it
+// connected to the junction the user held. See `operations::native::pinned`.
+
+/// The two horizontal creases meeting at (1, 0), both selected.
+fn chain_at_origin() -> CreasePatternModel {
+    model_from_segments(&[
+        segment(0.0, 0.0, 1.0, 0.0, LineColor::Red1).with_selected(2),
+        segment(1.0, 0.0, 2.0, 0.0, LineColor::Blue2).with_selected(2),
+    ])
+}
+
+fn endpoints(model: &CreasePatternModel) -> Vec<(Point, Point)> {
+    let mut ends: Vec<(Point, Point)> = model
+        .line_segments
+        .iter()
+        .map(|segment| (segment.a, segment.b))
+        .collect();
+    ends.sort_by(|left, right| {
+        (left.0.x, left.0.y, left.1.x, left.1.y)
+            .partial_cmp(&(right.0.x, right.0.y, right.1.x, right.1.y))
+            .expect("finite coordinates")
+    });
+    ends
+}
+
+#[test]
+fn a_move_with_one_end_pinned_stretches_the_crease() {
+    let mut model = chain_at_origin();
+    let pins = [Point::new(1.0, 0.0)];
+
+    move_selected_lines(&mut model, Point::new(0.0, 3.0), PinnedPoints::new(&pins));
+
+    // Both creases keep the held junction and take the delta at their free end,
+    // so the two still meet — which is the whole point of stretching rather than
+    // refusing.
+    assert_eq!(
+        endpoints(&model),
+        vec![
+            (Point::new(0.0, 3.0), Point::new(1.0, 0.0)),
+            (Point::new(1.0, 0.0), Point::new(2.0, 3.0)),
+        ]
+    );
+}
+
+#[test]
+fn a_move_with_both_ends_pinned_moves_nothing() {
+    let mut model = chain_at_origin();
+    let pins = [
+        Point::new(0.0, 0.0),
+        Point::new(1.0, 0.0),
+        Point::new(2.0, 0.0),
+    ];
+    let before = endpoints(&model);
+
+    move_selected_lines(&mut model, Point::new(0.0, 3.0), PinnedPoints::new(&pins));
+
+    assert_eq!(endpoints(&model), before);
+}
+
+#[test]
+fn an_empty_pin_set_is_the_move_that_shipped() {
+    // The parity guard. Every caller with no pins — which is every caller
+    // outside the CP editor — must get the Oriedita port unchanged.
+    let mut pinned_call = chain_at_origin();
+    let mut plain = chain_at_origin();
+
+    move_selected_lines(&mut pinned_call, Point::new(0.5, 3.0), PinnedPoints::none());
+    move_selected_lines(&mut plain, Point::new(0.5, 3.0), PinnedPoints::none());
+
+    assert_eq!(endpoints(&pinned_call), endpoints(&plain));
+    assert_eq!(
+        endpoints(&plain),
+        vec![
+            (Point::new(0.5, 3.0), Point::new(1.5, 3.0)),
+            (Point::new(1.5, 3.0), Point::new(2.5, 3.0)),
+        ]
+    );
+}
+
+#[test]
+fn a_stretch_that_collapses_a_crease_drops_it_rather_than_writing_a_self_loop() {
+    // Only reachable with a pin: a similarity cannot shorten a crease to
+    // nothing, but holding one end while the other travels onto it can. It must
+    // not reach the model — `append_and_split` has no zero-length guard, and one
+    // sub-epsilon self-loop makes the Euler check discard every face on export.
+    let mut model =
+        model_from_segments(&[segment(0.0, 0.0, 1.0, 0.0, LineColor::Red1).with_selected(2)]);
+    let pins = [Point::new(1.0, 0.0)];
+
+    move_selected_lines(&mut model, Point::new(1.0, 0.0), PinnedPoints::new(&pins));
+
+    assert!(
+        model.line_segments.is_empty(),
+        "a collapsed crease must be dropped, got {:?}",
+        endpoints(&model)
+    );
+}
+
+#[test]
+fn a_four_point_move_holds_pinned_ends_too() {
+    let mut model = chain_at_origin();
+    let pins = [Point::new(1.0, 0.0)];
+
+    move_selected_lines_by_points(
+        &mut model,
+        Point::new(0.0, 0.0),
+        Point::new(1.0, 0.0),
+        Point::new(0.0, 5.0),
+        Point::new(1.0, 5.0),
+        PinnedPoints::new(&pins),
+    );
+
+    assert_eq!(
+        endpoints(&model),
+        vec![
+            (Point::new(0.0, 5.0), Point::new(1.0, 0.0)),
+            (Point::new(1.0, 0.0), Point::new(2.0, 5.0)),
+        ]
+    );
+}
+
+#[test]
+fn a_copy_ignores_pins_and_leaves_the_originals_alone() {
+    // A copy moves nothing, so there is nothing to hold; and what it makes is
+    // new geometry, which inherits no constraint the originals carried. The
+    // copy's own function takes no pinned set at all — this asserts the
+    // behaviour that follows.
+    let mut model = chain_at_origin();
+
+    let copied = copy_selected_lines(&mut model, Point::new(0.0, 3.0));
+
+    assert_eq!(copied, 2);
+    let ends = endpoints(&model);
+    assert!(ends.contains(&(Point::new(0.0, 0.0), Point::new(1.0, 0.0))));
+    assert!(ends.contains(&(Point::new(0.0, 3.0), Point::new(1.0, 3.0))));
+}
+
+#[test]
+fn lengthening_onto_a_pinned_vertex_is_refused_before_anything_is_written() {
+    // A lengthen never *moves* the vertex — it appends a crease running outward
+    // from it — but it does change the vertex's topology from a chain end to a
+    // pass-through, which is what holding it means here.
+    let mut model = model_from_segments(&[
+        segment(0.0, 0.0, 1.0, 0.0, LineColor::Red1),
+        segment(2.0, -1.0, 2.0, 1.0, LineColor::Black0),
+    ]);
+    let before = endpoints(&model);
+    // (1, 0) is the end the extension would grow from.
+    let pins = [Point::new(1.0, 0.0)];
+
+    let refusal = lengthen_crease(
+        &mut model,
+        segment(0.5, -1.0, 0.5, 1.0, LineColor::Magenta5),
+        Point::new(2.0, 0.25),
+        1.0,
+        LengthenColorMode::Current(LineColor::Blue2),
+        PinnedPoints::new(&pins),
+    );
+
+    assert_eq!(refusal, Err(LengthenRefusal::PinnedVertex));
+    assert_eq!(
+        endpoints(&model),
+        before,
+        "a refused lengthen must not have written anything"
+    );
+}
+
+#[test]
+fn lengthening_away_from_a_pinned_vertex_still_works() {
+    // The pin is on the *other* end, which the extension does not build onto.
+    // Refusing here would make a pin anywhere on a crease block extending it.
+    let mut model = model_from_segments(&[
+        segment(0.0, 0.0, 1.0, 0.0, LineColor::Red1),
+        segment(2.0, -1.0, 2.0, 1.0, LineColor::Black0),
+    ]);
+    let pins = [Point::new(0.0, 0.0)];
+
+    let added = lengthen_crease(
+        &mut model,
+        segment(0.5, -1.0, 0.5, 1.0, LineColor::Magenta5),
+        Point::new(2.0, 0.25),
+        1.0,
+        LengthenColorMode::Current(LineColor::Blue2),
+        PinnedPoints::new(&pins),
+    )
+    .expect("the pinned end is not the one being built onto");
+
+    assert_eq!(added, 1);
 }

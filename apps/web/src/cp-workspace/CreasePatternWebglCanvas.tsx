@@ -133,6 +133,12 @@ import { createLinePickTool } from './tools/linePickTool';
 import type { ToolCommit, ToolPreviewSegment } from './tools/types';
 import { endpointKeys, vertexEndpointsAt } from './tools/vertexEndpoints';
 import {
+  heldEndpointKeys,
+  isCpVertexPinned,
+  pinnedVertexIndices,
+  type CpVertexPin,
+} from './pins/vertexPins';
+import {
   CP_LINE_HIT_MIN_CSS,
   CP_LINE_HIT_RATIO,
   CP_POINT_HIT_MIN_CSS,
@@ -809,6 +815,16 @@ export interface CreasePatternWebglCanvasProps {
   points: readonly ModelPoint[];
   /** Vertices (line-endpoint markers) in model coordinates. */
   vertices: readonly ModelPoint[];
+  /**
+   * Vertices the user has pinned, as model-space positions rather than indices
+   * — see `pins/vertexPins.ts` for why a pin cannot be an id.
+   *
+   * The surface resolves them against {@link vertices} itself: it already holds
+   * the spatial index that answers "is there a vertex here", the resolution has
+   * to happen again on every document revision anyway, and the alternative is
+   * the panel computing indices into an array the surface owns.
+   */
+  pinnedVertices: readonly CpVertexPin[];
   /** `--cp-point-size` value driving point/vertex radius. */
   pointSize: number;
   /** Circle-packing circles in model coordinates (radius in model units). */
@@ -927,6 +943,7 @@ export function CreasePatternWebglCanvas({
   lineWidth,
   points,
   vertices,
+  pinnedVertices,
   pointSize,
   circles,
   circleRadiusToSvg,
@@ -1338,6 +1355,24 @@ export function CreasePatternWebglCanvas({
     buildStrokesRef.current = buildStrokes;
   }, [buildStrokes]);
 
+  /**
+   * The pinned vertices, as indices into `vertices`, and the crease endpoints
+   * that sit on them.
+   *
+   * Both are derived once per document revision rather than per frame: they feed
+   * the point buffer and the transform preview, which are rebuilt on every
+   * pointer sample during a drag. Pins are a handful by construction, so the
+   * scan is cheap; doing it inside `buildPoints` would repeat it thousands of
+   * times per gesture for an answer that cannot have changed.
+   */
+  const pinnedVertexIdx = useMemo(
+    () => pinnedVertexIndices(vertices, pinnedVertices),
+    [vertices, pinnedVertices]
+  );
+  const heldEndpoints = useMemo(
+    () => heldEndpointKeys(lineSegments, pinnedVertices),
+    [lineSegments, pinnedVertices]
+  );
   // Build the point buffer (crease points, derived vertices, circles). During a
   // move-drag or transform gesture the derived vertices of the moved lines follow
   // through `move.matrix`; real points and circles do not move, matching the kernel
@@ -1348,7 +1383,9 @@ export function CreasePatternWebglCanvas({
         move === undefined
           ? vertices
           : vertices.map((v) =>
-              selectedEndpointKeys.has(cpVertexId(v)) ? applyAffine(move.matrix, v.x, v.y) : v
+              selectedEndpointKeys.has(cpVertexId(v)) && !isCpVertexPinned(pinnedVertices, v)
+                ? applyAffine(move.matrix, v.x, v.y)
+                : v
             );
       return cpPointsToScene(
         points,
@@ -1363,6 +1400,7 @@ export function CreasePatternWebglCanvas({
           // runs on the render path, where a ref read would be a torn value.
           vertexIdx:
             grabbableVertexIdx == null ? undefined : new Set([grabbableVertexIdx]),
+          pinnedIdx: pinnedVertexIdx,
           color: readCssVarColor(document.documentElement, SELECTED_COLOR_VAR, SELECTED_FALLBACK),
         }
       );
@@ -1377,6 +1415,8 @@ export function CreasePatternWebglCanvas({
       selectedPointIds,
       selectedCircleIds,
       selectedEndpointKeys,
+      pinnedVertexIdx,
+      pinnedVertices,
       currentTheme,
     ]
   );
@@ -1424,6 +1464,8 @@ export function CreasePatternWebglCanvas({
     lineSegments,
     points,
     vertices,
+    pinnedVertices,
+    heldEndpoints,
     circles,
     circleRadiusToSvg,
     foldedFigures,
@@ -2406,7 +2448,11 @@ export function CreasePatternWebglCanvas({
       }
       if (transform.kind === 'move') {
         transformActiveRef.current = 'move';
-        const move = { ids, matrix };
+        // The pinned ends sit the transform out, so the preview stretches
+        // exactly where the commit will — the kernel applies the same rule at
+        // `PinnedPoints::hold`, and `transform_preview_golden.rs` pins the two
+        // together. Copy takes no held set: it moves nothing.
+        const move = { ids, matrix, heldEndpoints: liveRef.current.heldEndpoints };
         renderer.setStrokes(liveRef.current.buildStrokes(move));
         renderer.setPoints(liveRef.current.buildPoints(move));
         // The DOM overlays draw the same creases from the document, which still
@@ -3318,13 +3364,31 @@ export function CreasePatternWebglCanvas({
         // here, so any press that lands here is on empty space.
         e.preventDefault();
         textPressStarted = true;
+      } else if (toolMode === 'pick-vertex') {
+        // Pin Vertex: a click, committed on press. Same vertex resolution and
+        // the same "a miss starts nothing" rule as Move Vertex below — reaching
+        // for a junction and missing must not wipe the selection.
+        const idx = vertexGrabAt(e.clientX, e.clientY);
+        const vertex = idx === null ? null : liveRef.current.vertices[idx];
+        if (vertex) {
+          e.preventDefault();
+          const runtime = createToolRuntime(toolEngineFor('pick-vertex'));
+          const out = runtime.feed({ kind: 'down', point: vertex });
+          if (out.commit) liveRef.current.onToolCommit(out.commit);
+        }
       } else if (toolMode === 'drag-vertex') {
         // Move Vertex: the press only starts something when there is a vertex
         // under it. A miss starts *nothing* — deliberately not falling through to
         // the marquee, which would wipe the selection every time you reached for a
         // junction and missed.
         const idx = vertexGrabAt(e.clientX, e.clientY);
-        const anchor = idx === null ? null : liveRef.current.vertices[idx];
+        const grabbed = idx === null ? null : liveRef.current.vertices[idx];
+        // A pinned vertex is not grabbable. Refused here rather than at the
+        // commit so the gesture never starts: a drag that previews four creases
+        // following the cursor and then puts them back is worse feedback than no
+        // drag at all, and the cursor has already said so.
+        const anchor =
+          grabbed && !isCpVertexPinned(liveRef.current.pinnedVertices, grabbed) ? grabbed : null;
         if (anchor) {
           e.preventDefault();
           // Resolved against the same document the strokes were built from, so the
@@ -3427,7 +3491,14 @@ export function CreasePatternWebglCanvas({
         // Move Vertex's own affordance: the grab target lights up and the cursor
         // says it can be dragged, so a junction reads as grabbable before the
         // press that would otherwise silently do nothing.
-        if (liveRef.current.activeToolInputMode === 'drag-vertex' && !selecting) {
+        // Both vertex tools light the target under the cursor, so a junction
+        // reads as actionable before the press that would otherwise silently do
+        // nothing. Which glyph that becomes is the cursor's business.
+        if (
+          (liveRef.current.activeToolInputMode === 'drag-vertex' ||
+            liveRef.current.activeToolInputMode === 'pick-vertex') &&
+          !selecting
+        ) {
           probeVertexGrab(e.clientX, e.clientY);
         } else {
           clearVertexGrab();
@@ -3501,6 +3572,7 @@ export function CreasePatternWebglCanvas({
             const move = {
               ids: liveRef.current.selectedLineSet,
               matrix: translationMatrix(moveDelta),
+              heldEndpoints: liveRef.current.heldEndpoints,
             };
             renderer.setStrokes(liveRef.current.buildStrokes(move));
             renderer.setPoints(liveRef.current.buildPoints(move));
@@ -4202,7 +4274,14 @@ export function CreasePatternWebglCanvas({
     foldedOrbitHovered: foldedOrbitPointer === 'over',
     foldedOrbitDragging: foldedOrbitPointer === 'turning',
     creaseHovered,
-    vertexGrabbable: grabbableVertex !== null,
+    // One probe, two tools, told apart here: Move Vertex refuses a pinned
+    // vertex, so an already-pinned target under that tool is neither grabbable
+    // nor pickable and takes no cursor of its own.
+    vertexGrabbable:
+      grabbableVertex !== null &&
+      activeToolInputMode === 'drag-vertex' &&
+      !pinnedVertexIdx.has(grabbableVertex),
+    vertexPickable: grabbableVertex !== null && activeToolInputMode === 'pick-vertex',
   });
 
   return (

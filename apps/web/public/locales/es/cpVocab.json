@@ -277,6 +277,14 @@
         "0": "Arrastra un vértice para moverlo"
       }
     },
+    "cp_action_vertex_pin": {
+      "label": "Fijar vértice",
+      "tooltip": "Haz clic en un vértice para mantenerlo en su sitio: el solucionador y todas las transformaciones lo dejan intacto",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Haz clic en un vértice para fijarlo o soltarlo"
+      }
+    },
     "cp_action_crease_make_mountain": {
       "label": "Marcar como monte",
       "tooltip": "Convertir las líneas seleccionadas en pliegues de monte",

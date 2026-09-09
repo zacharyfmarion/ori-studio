@@ -7,6 +7,7 @@ import {
   type SuppressionRegionChipProps,
 } from './SuppressionRegionChip';
 import { cpSolveIsExactVerdict, type CpSolveCompletionFacts } from './solveCompletion';
+import { RegionRepairToolMenu } from './RegionRepairToolMenu';
 
 /**
  * A suppression region that also carries an attached `ExactSolveInput`, and so
@@ -146,6 +147,10 @@ export function SolveRegionChip({
         onAccept={onAccept}
         onTryAgain={onTryAgain}
       />
+      {/* Right of Solve, left of the image and checks menus. Steering a solve is
+          a loop — run, look, pin, run again — and the rail is at the other side
+          of the window from the button that runs it. */}
+      <RegionRepairToolMenu />
     </SuppressionRegionChip>
   );
 }

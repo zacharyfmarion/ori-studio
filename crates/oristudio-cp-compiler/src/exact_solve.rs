@@ -480,6 +480,29 @@ pub struct ExactSolveOptionsWithExemptions {
     /// default, in which case the budget behaves exactly as it always has.
     #[serde(default)]
     pub exempt_vertex_ids: BTreeSet<usize>,
+    /// Vertices the caller has **pinned**: held exactly where the input puts
+    /// them, with no degrees of freedom at all.
+    ///
+    /// Not a strong prior and not an exemption — a pinned vertex is
+    /// parameterized [`VertexParameterization::Fixed`], the same treatment the
+    /// four paper corners get, so no residual, polish round, grid snap or
+    /// symmetry tie can move it. That is the point: the solver has several valid
+    /// answers for most detected patterns and this is how a user says which one,
+    /// by nailing down the junctions they already know the position of and
+    /// letting everything else re-equilibrate around them.
+    ///
+    /// Two consequences worth knowing:
+    ///
+    /// - A pin **subsumes** an exemption. The movement budget is measured from
+    ///   the input coordinates and a pinned vertex has zero movement by
+    ///   construction, so it can never be the one that trips
+    ///   `movement_budget_exceeded`.
+    /// - It also has to survive [`merge_collinear_degree_two_spans`], which runs
+    ///   *before* the solve and would otherwise dissolve a pinned degree-2
+    ///   vertex and re-place it along the solved chord — moving it after all.
+    ///   See [`next_collinear_degree_two`].
+    #[serde(default)]
+    pub pinned_vertex_ids: BTreeSet<usize>,
 }
 
 impl From<ExactSolveOptions> for ExactSolveOptionsWithExemptions {
@@ -487,6 +510,7 @@ impl From<ExactSolveOptions> for ExactSolveOptionsWithExemptions {
         Self {
             options,
             exempt_vertex_ids: BTreeSet::new(),
+            pinned_vertex_ids: BTreeSet::new(),
         }
     }
 }
@@ -616,8 +640,14 @@ impl ExactSolveDeadline {
 }
 
 pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> ExactSolvedGraph {
-    let normalized = normalized_input(input);
-    let mut solved = solve_exact_inner(&normalized, options, Rc::new(BTreeSet::new()));
+    let no_pins = Rc::new(BTreeSet::new());
+    let normalized = normalized_input(input, &no_pins);
+    let mut solved = solve_exact_inner(
+        &normalized,
+        options,
+        Rc::new(BTreeSet::new()),
+        Rc::clone(&no_pins),
+    );
     place_dissolved_vertices(&normalized, input, &mut solved.vertices_exact);
     report_dissolved_movement(&normalized, input, &mut solved);
     restore_original_edges(input, &mut solved);
@@ -669,33 +699,50 @@ pub fn parse_exact_solve_request(
         serde_json::from_str(input_json.trim()).map_err(|error| error.to_string())?;
     let options = exact_solve_options_from_json(options_json)?;
     let known: BTreeSet<usize> = input.vertices.iter().map(|vertex| vertex.id).collect();
-    let unknown: Vec<usize> = options
-        .exempt_vertex_ids
+    check_known_vertex_ids("exempt_vertex_ids", &options.exempt_vertex_ids, &known)?;
+    check_known_vertex_ids("pinned_vertex_ids", &options.pinned_vertex_ids, &known)?;
+    Ok((input, options))
+}
+
+/// Refuse a vertex-id set naming vertices the input does not have.
+///
+/// Refused rather than filtered, for both sets, because a silently-dropped id is
+/// a lie in the direction that costs the user work: a lost exemption comes back
+/// as `movement_budget_exceeded` with nothing pointing at the cause, and a lost
+/// pin comes back as a solve that moved the one vertex the user had said not to.
+fn check_known_vertex_ids(
+    field: &str,
+    ids: &BTreeSet<usize>,
+    known: &BTreeSet<usize>,
+) -> Result<(), String> {
+    let unknown: Vec<usize> = ids
         .iter()
         .copied()
         .filter(|id| !known.contains(id))
         .collect();
-    if !unknown.is_empty() {
-        let shown: Vec<String> = unknown.iter().take(8).map(|id| id.to_string()).collect();
-        let suffix = if unknown.len() > 8 { ", …" } else { "" };
-        return Err(format!(
-            "exempt_vertex_ids names {} vertex id(s) absent from the solve input: {}{suffix}",
-            unknown.len(),
-            shown.join(", ")
-        ));
+    if unknown.is_empty() {
+        return Ok(());
     }
-    Ok((input, options))
+    let shown: Vec<String> = unknown.iter().take(8).map(|id| id.to_string()).collect();
+    let suffix = if unknown.len() > 8 { ", …" } else { "" };
+    Err(format!(
+        "{field} names {} vertex id(s) absent from the solve input: {}{suffix}",
+        unknown.len(),
+        shown.join(", ")
+    ))
 }
 
 pub fn solve_exact_with_exemptions(
     input: &ExactSolveInput,
     options: &ExactSolveOptionsWithExemptions,
 ) -> ExactSolvedGraph {
-    let normalized = normalized_input(input);
+    let pinned = Rc::new(options.pinned_vertex_ids.clone());
+    let normalized = normalized_input(input, &pinned);
     let mut solved = solve_exact_inner(
         &normalized,
         options.options,
         Rc::new(options.exempt_vertex_ids.clone()),
+        Rc::clone(&pinned),
     );
     place_dissolved_vertices(&normalized, input, &mut solved.vertices_exact);
     report_dissolved_movement(&normalized, input, &mut solved);
@@ -780,9 +827,18 @@ fn report_dissolved_movement(
 /// about what the graph is. A gate that routes the user to Review & Fix over a
 /// vertex the solve would have merged anyway is the failure this placement
 /// prevents.
-fn normalized_input(input: &ExactSolveInput) -> Cow<'_, ExactSolveInput> {
+///
+/// `pinned` is passed through because dissolving a pinned vertex would move it:
+/// the merge takes it out of the constraint system and
+/// [`place_dissolved_vertices`] then puts it back at its parameter along the
+/// *solved* chord, which is wherever its two neighbours ended up. A pin has to
+/// survive that, so a pinned vertex is never a merge candidate.
+fn normalized_input<'a>(
+    input: &'a ExactSolveInput,
+    pinned: &BTreeSet<usize>,
+) -> Cow<'a, ExactSolveInput> {
     let mut owned = input.clone();
-    if merge_collinear_degree_two_spans(&mut owned) > 0 {
+    if merge_collinear_degree_two_spans_except(&mut owned, pinned) > 0 {
         Cow::Owned(owned)
     } else {
         Cow::Borrowed(input)
@@ -861,6 +917,7 @@ fn solve_exact_inner(
     input: &ExactSolveInput,
     options: ExactSolveOptions,
     exempt_vertex_ids: Rc<BTreeSet<usize>>,
+    pinned_vertex_ids: Rc<BTreeSet<usize>>,
 ) -> ExactSolvedGraph {
     let deadline = ExactSolveDeadline::start(options.timeout_seconds, options.work_budget);
     let validation = validate_input(input);
@@ -879,7 +936,13 @@ fn solve_exact_inner(
         );
     }
 
-    let model = SolveModel::new(input, options, deadline, exempt_vertex_ids);
+    let model = SolveModel::new(
+        input,
+        options,
+        deadline,
+        exempt_vertex_ids,
+        pinned_vertex_ids,
+    );
     let initial_params = model.initial_params.clone();
     let before_points = model.points_from_params(&initial_params);
     let before = analyze_graph(input, &before_points, &model, &initial_params, options);
@@ -1381,6 +1444,10 @@ struct SolveModel {
     /// [`ExactSolveOptionsWithExemptions`]. Shared rather than cloned so the
     /// per-round polish copies of this model stay free.
     exempt_vertex_ids: Rc<BTreeSet<usize>>,
+    /// Vertices the caller pinned. Parameterized `Fixed`, exactly like a corner;
+    /// see [`ExactSolveOptionsWithExemptions::pinned_vertex_ids`]. Shared for the
+    /// same reason as the set above.
+    pinned_vertex_ids: Rc<BTreeSet<usize>>,
 }
 
 impl SolveModel {
@@ -1389,6 +1456,7 @@ impl SolveModel {
         options: ExactSolveOptions,
         deadline: ExactSolveDeadline,
         exempt_vertex_ids: Rc<BTreeSet<usize>>,
+        pinned_vertex_ids: Rc<BTreeSet<usize>>,
     ) -> Self {
         let mut params = Vec::new();
         let polygon = is_polygon_boundary(input);
@@ -1414,8 +1482,14 @@ impl SolveModel {
                 vertex_params.push(VertexParameterization::Fixed { point });
                 continue;
             }
+            // A pin lands here, beside `Locked` and the corners, because it means
+            // exactly what they mean: no parameters, so nothing downstream — not
+            // a residual, not a polish round, not the grid snap or a symmetry tie
+            // — has a handle to move it by. Held at the coordinate the *input*
+            // carries, which is the position the user pinned.
             if vertex.movement_policy == CandidateVertexMovementPolicy::Locked
                 || corner_ids.contains(&vertex.id)
+                || pinned_vertex_ids.contains(&vertex.id)
             {
                 vertex_params.push(VertexParameterization::Fixed {
                     point: vertex.point,
@@ -1509,6 +1583,7 @@ impl SolveModel {
             timed_out: Rc::new(Cell::new(false)),
             provenance: input.provenance.clone(),
             exempt_vertex_ids,
+            pinned_vertex_ids,
         }
     }
 
@@ -3472,12 +3547,13 @@ pub fn analyze_candidate_topology(input: &ExactSolveInput) -> TopologyDiagnostic
             ..TopologyDiagnostics::default()
         };
     }
-    let input = &normalized_input(input);
+    let input = &normalized_input(input, &BTreeSet::new());
     let options = ExactSolveOptions::default();
     let model = SolveModel::new(
         input,
         options,
         ExactSolveDeadline::start(-1.0, None),
+        Rc::new(BTreeSet::new()),
         Rc::new(BTreeSet::new()),
     );
     let params = model.initial_params.clone();
@@ -4117,6 +4193,7 @@ fn join_pass_through_carriers(
             options,
             model.deadline.clone(),
             model.exempt_vertex_ids.clone(),
+            model.pinned_vertex_ids.clone(),
         );
         for (vertex, anchor) in joined.vertices.iter_mut().zip(&model.vertices) {
             vertex.point = anchor.point;
@@ -5460,9 +5537,24 @@ const DEGREE_TWO_MERGE_TOLERANCE_DEGREES: f64 = 5.0;
 /// referenced, so `vertices_exact` stays index-aligned with `input.vertices` and
 /// every caller that maps a solved point back by id keeps working.
 pub fn merge_collinear_degree_two_spans(input: &mut ExactSolveInput) -> usize {
+    merge_collinear_degree_two_spans_except(input, &BTreeSet::new())
+}
+
+/// [`merge_collinear_degree_two_spans`], holding back the vertices in `pinned`.
+///
+/// A dissolved vertex is placed back along the *solved* chord afterwards
+/// ([`place_dissolved_vertices`]), so dissolving a pinned one would move it to
+/// wherever its neighbours ended up — the pin honoured by the optimizer and then
+/// undone by the normalisation that ran before it. Detection splits creases at
+/// every junction it finds, so collinear degree-2 vertices are common in exactly
+/// the patterns pinning is for.
+pub fn merge_collinear_degree_two_spans_except(
+    input: &mut ExactSolveInput,
+    pinned: &BTreeSet<usize>,
+) -> usize {
     let cos_limit = -(DEGREE_TWO_MERGE_TOLERANCE_DEGREES.to_radians().cos());
     let mut merged = 0usize;
-    while let Some((keep, drop, vertex)) = next_collinear_degree_two(input, cos_limit) {
+    while let Some((keep, drop, vertex)) = next_collinear_degree_two(input, cos_limit, pinned) {
         let removed = input.selected_spans[drop].clone();
         let far = other_end(&removed, vertex);
         let span = &mut input.selected_spans[keep];
@@ -5510,6 +5602,7 @@ fn other_end(span: &CandidateCreaseSpan, vertex: usize) -> usize {
 fn next_collinear_degree_two(
     input: &ExactSolveInput,
     cos_limit: f64,
+    pinned: &BTreeSet<usize>,
 ) -> Option<(usize, usize, usize)> {
     let boundary = boundary_vertex_ids(&input.selected_spans);
     let mut incident: Vec<Vec<usize>> = vec![Vec::new(); input.vertices.len()];
@@ -5525,6 +5618,11 @@ fn next_collinear_degree_two(
     }
     for vertex in &input.vertices {
         if !is_interior_fold_vertex(vertex, &boundary) {
+            continue;
+        }
+        // A pinned vertex is not a merge candidate — see
+        // `merge_collinear_degree_two_spans_except`.
+        if pinned.contains(&vertex.id) {
             continue;
         }
         let [left, right] = match incident[vertex.id][..] {
@@ -7017,6 +7115,7 @@ mod tests {
         let with_exemptions = ExactSolveOptionsWithExemptions {
             options,
             exempt_vertex_ids: BTreeSet::from([3, 11]),
+            pinned_vertex_ids: BTreeSet::from([7]),
         };
         let round_tripped: ExactSolveOptionsWithExemptions =
             serde_json::from_str(&serde_json::to_string(&with_exemptions).expect("serialize"))
@@ -7054,6 +7153,7 @@ mod tests {
             &edited,
             &ExactSolveOptionsWithExemptions {
                 options: ExactSolveOptions::default(),
+                pinned_vertex_ids: BTreeSet::new(),
                 exempt_vertex_ids: BTreeSet::from([FORK_MOVED_VERTEX]),
             },
         );
@@ -7107,6 +7207,7 @@ mod tests {
             &edited,
             &ExactSolveOptionsWithExemptions {
                 options: ExactSolveOptions::default(),
+                pinned_vertex_ids: BTreeSet::new(),
                 exempt_vertex_ids: BTreeSet::from([FORK_MOVED_VERTEX + 1]),
             },
         );
@@ -7116,6 +7217,185 @@ mod tests {
             "exempting an unrelated vertex must leave the budget in force, got {:?}",
             rejection_reasons(&bystander)
         );
+    }
+
+    // --- pinned vertices ----------------------------------------------------
+    //
+    // A pin is not a strong prior. Every test below asserts **bit-exactness**
+    // against the input coordinate rather than a tolerance, because that is the
+    // only assertion that catches a path which moves a pinned vertex a little:
+    // the parameterization gives it no degrees of freedom, so any drift at all
+    // means something outside the optimizer wrote to it.
+
+    fn pinning(ids: [usize; 1]) -> ExactSolveOptionsWithExemptions {
+        ExactSolveOptionsWithExemptions {
+            options: ExactSolveOptions::default(),
+            exempt_vertex_ids: BTreeSet::new(),
+            pinned_vertex_ids: BTreeSet::from(ids),
+        }
+    }
+
+    #[test]
+    fn empty_pin_set_reproduces_the_unpinned_solve_exactly() {
+        // The parity guard for every caller that does not pin anything, which is
+        // every automatic solve: pinning must be inert when nobody asked for it.
+        let input = load_fixture_input("right_small_fork");
+        let plain = solve_exact(&input, ExactSolveOptions::default());
+        let via_pins = solve_exact_with_exemptions(
+            &input,
+            &ExactSolveOptionsWithExemptions::from(ExactSolveOptions::default()),
+        );
+        assert_eq!(
+            comparable_solve_json(&plain),
+            comparable_solve_json(&via_pins),
+            "an empty pin set must be the solve that shipped"
+        );
+    }
+
+    #[test]
+    fn a_pinned_interior_junction_is_bit_identical_in_the_answer() {
+        let input = load_fixture_input("right_small_fork");
+        let plain = solve_exact(&input, ExactSolveOptions::default());
+        let was = input.vertices[FORK_MOVED_VERTEX].point;
+        // The premise: this vertex is one the solver does move, so holding it is
+        // an observable difference rather than a no-op that would pass anyway.
+        assert!(
+            distance(plain.vertices_exact[FORK_MOVED_VERTEX], was) > 1e-9,
+            "fixture premise: the unpinned solve moves this vertex"
+        );
+
+        let pinned = solve_exact_with_exemptions(&input, &pinning([FORK_MOVED_VERTEX]));
+        assert_eq!(
+            pinned.vertices_exact[FORK_MOVED_VERTEX], was,
+            "a pinned vertex must come back at exactly the coordinate it went in at"
+        );
+    }
+
+    #[test]
+    fn a_pinned_collinear_degree_two_vertex_survives_dissolution() {
+        // The path `Fixed` alone does not cover. `merge_collinear_degree_two_spans`
+        // runs *before* the solve and takes this vertex out of the constraint
+        // system; `place_dissolved_vertices` then puts it back at its parameter
+        // along the solved chord — which is a move, done by code the
+        // parameterization never sees. Without the guard in
+        // `next_collinear_degree_two` this test fails while every other pin test
+        // passes.
+        let mut input = base_square_input();
+        let a = input.vertices.len();
+        input.vertices.push(vertex(
+            a,
+            Point2::new(0.0, 0.5),
+            CandidateVertexKind::BoundaryContact,
+            CandidateVertexMovementPolicy::BoundaryOnly,
+            Some(BoundarySide::Left),
+        ));
+        let b = input.vertices.len();
+        input.vertices.push(vertex(
+            b,
+            Point2::new(0.5, 0.515),
+            CandidateVertexKind::InteriorJunction,
+            CandidateVertexMovementPolicy::Movable,
+            None,
+        ));
+        let c = input.vertices.len();
+        input.vertices.push(vertex(
+            c,
+            Point2::new(1.0, 0.5),
+            CandidateVertexKind::BoundaryContact,
+            CandidateVertexMovementPolicy::BoundaryOnly,
+            Some(BoundarySide::Right),
+        ));
+        for (from, to) in [(a, b), (b, c)] {
+            input.selected_spans.push(span_with_carrier(
+                input.selected_spans.len(),
+                from,
+                to,
+                AssignmentLabel::Mountain,
+                99,
+                Point2::new(0.0, 1.0),
+                0.5,
+                &input.vertices,
+            ));
+        }
+        input.vertices[b].point = Point2::new(0.5, 0.504);
+        let was = input.vertices[b].point;
+
+        // `shared_carrier_incidence_straightens_noisy_split_vertex` is the
+        // unpinned half of this: left alone, the solver straightens it onto the
+        // carrier.
+        let straightened = solve_exact(&input, ExactSolveOptions::default());
+        assert!(
+            (straightened.vertices_exact[b].y - 0.5).abs() < 0.002,
+            "fixture premise: the unpinned solve straightens this vertex"
+        );
+
+        let pinned = solve_exact_with_exemptions(&input, &pinning([b]));
+        assert_eq!(
+            pinned.vertices_exact[b], was,
+            "a pinned degree-2 vertex must not be dissolved and re-placed"
+        );
+    }
+
+    #[test]
+    fn a_pinned_vertex_reports_no_movement_at_all() {
+        // A pin subsumes an exemption *for the pinned vertex*: the budget is
+        // measured from the input coordinates and a pinned vertex has zero
+        // movement by construction, so it can never be the one that trips
+        // `movement_budget_exceeded`. It does **not** protect its neighbours —
+        // measured on the same 27px edit `exempting_a_hand_moved_vertex_…` uses,
+        // holding vertex 1 pushes the displacement into vertex 8, which then
+        // breaks the budget itself. Pinning is a statement about one vertex, not
+        // a licence for the pattern around it.
+        let displacement = 27.0 / FORK_IMAGE_SIZE;
+        let input = load_fixture_input("right_small_fork");
+        let mut edited = input.clone();
+        edited.vertices[FORK_MOVED_VERTEX].point = Point2::new(
+            input.vertices[FORK_MOVED_VERTEX].point.x + displacement * 0.6,
+            input.vertices[FORK_MOVED_VERTEX].point.y - displacement * 0.8,
+        );
+        let was = edited.vertices[FORK_MOVED_VERTEX].point;
+
+        let rejected = solve_exact(&edited, ExactSolveOptions::default());
+        assert!(
+            rejection_reasons(&rejected).contains(&"movement_budget_exceeded".to_owned()),
+            "fixture premise: the un-pinned solve is rejected on the budget"
+        );
+
+        let pinned = solve_exact_with_exemptions(&edited, &pinning([FORK_MOVED_VERTEX]));
+        assert_eq!(
+            pinned.vertices_exact[FORK_MOVED_VERTEX], was,
+            "a pinned vertex is held exactly where the user put it"
+        );
+        // The report is the budget's own view, so this is the assertion that says
+        // the budget cannot see it: absent from the attempted set means it never
+        // moved, which is not the same as moving within tolerance.
+        let attempted = pinned.movement_report["attempted_moved_vertices"]
+            .as_array()
+            .expect("attempted_moved_vertices");
+        assert!(
+            !attempted
+                .iter()
+                .any(|entry| entry["vertex_id"].as_u64() == Some(FORK_MOVED_VERTEX as u64)),
+            "a pinned vertex must not appear in the movement report at all"
+        );
+    }
+
+    #[test]
+    fn a_pin_naming_an_absent_vertex_is_refused_rather_than_dropped() {
+        // Refused, not filtered: a silently-lost pin comes back as a solve that
+        // moved the one vertex the caller said not to, with nothing saying why.
+        let input = serde_json::to_string(&load_fixture_input("right_small_fork"))
+            .expect("serialize fixture");
+        let error = parse_exact_solve_request(&input, r#"{"pinned_vertex_ids": [99999]}"#)
+            .expect_err("unknown pinned id");
+        assert!(
+            error.contains("pinned_vertex_ids names 1 vertex id(s)"),
+            "unexpected message: {error}"
+        );
+
+        let (_, options) =
+            parse_exact_solve_request(&input, r#"{"pinned_vertex_ids": [4]}"#).expect("known id");
+        assert!(options.pinned_vertex_ids.contains(&4));
     }
 
     #[test]
@@ -7829,6 +8109,7 @@ mod tests {
             input,
             options,
             ExactSolveDeadline::start(-1.0, None),
+            Rc::new(BTreeSet::new()),
             Rc::new(BTreeSet::new()),
         )
     }

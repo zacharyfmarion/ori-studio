@@ -18,7 +18,8 @@
     "stripTitle": "此工具栏已停止工作"
   },
   "cp": {
-    "foldProducedNothing": "这些折痕没有可绘制的平折成品形状"
+    "foldProducedNothing": "这些折痕没有可绘制的平折成品形状",
+    "pinnedVertex": "该折痕起始于已固定的顶点，因此无法延长。请先取消该顶点的固定，或延长其他折痕。"
   },
   "cpDetectImport": {
     "addFailed": "无法添加检测到的折痕图。",

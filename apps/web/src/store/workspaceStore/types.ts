@@ -7,6 +7,7 @@ import type {
   WasmErrorEnvelope,
 } from '../../engine/types';
 import type { Point } from '../../lib/geometry';
+import type { CpVertexPin } from '../../cp-workspace/pins/vertexPins';
 import type { SerializedDockview } from 'dockview';
 import type { DesignTab } from './designTabs';
 import type { EditingContext } from '../../workspaces/editingContext';
@@ -772,6 +773,15 @@ export interface CreasePatternSliceState {
    */
   oristudioCpInlineSimulations: InlineSimulation[];
   /**
+   * Vertices the user has pinned: held exactly where they are by the exact
+   * solver and by every transform. See `cp-workspace/pins/vertexPins.ts` for why
+   * a pin is a *position* rather than an id, and why it is session state —
+   * a pin says what should happen to the pattern next, not what the pattern is,
+   * so it is deliberately absent from `.osf`, from share links and from history
+   * entries.
+   */
+  oristudioCpPinnedVertices: readonly CpVertexPin[];
+  /**
    * The window that currently owns the solver. At most one runs at a time: the
    * rest hold their last rendered frame, which costs nothing, and keeps the
    * worker to a single live session.
@@ -907,6 +917,13 @@ export interface CreasePatternSliceActions {
   requestOristudioCpAction: (operationId: OristudioCpOperationId) => void;
   requestOristudioCpSurface: (kind: OristudioCpSurfaceRequestKind) => void;
   setOristudioCpActiveToolId: (id: OristudioCpActionId | null) => void;
+  /** Pin the vertex at `point`, or unpin the one already there. */
+  toggleOristudioCpVertexPin: (point: { x: number; y: number }) => void;
+  /**
+   * Drop every pin inside `box` — what accepting or deleting a solve region
+   * does. Scoped rather than a clear-all, so pins outside it survive.
+   */
+  clearOristudioCpVertexPinsIn: (box: { contains: (point: { x: number; y: number }) => boolean }) => void;
   clearOristudioCpActionRequest: (id: number) => void;
   clearOristudioCpSurfaceRequest: (id: number) => void;
   setOristudioCpActiveDiagnostic: (id: string | null) => void;
