@@ -18,6 +18,7 @@ import {
 } from './stepDiagramGeometry';
 
 const UNIT = { width: 1, height: 1 };
+const CENTRE: readonly [number, number] = [0.5, 0.5];
 
 /** Pull the numbers back out of a path string. */
 function numbers(path: string): number[] {
@@ -159,14 +160,14 @@ describe('labelPlacement', () => {
 });
 
 describe('foldArrowArc', () => {
-  const sheet = { width: 1, height: 1 };
+
   const on = (arc: DiagramArc, angle: number) => [
     arc.center[0] + arc.radius * Math.cos(angle),
     arc.center[1] + arc.radius * Math.sin(angle),
   ];
 
   it('passes through both points and subtends 60°, as CalcArrow builds it', () => {
-    const arc = foldArrowArc([0, 1], [1, 1], sheet);
+    const arc = foldArrowArc([0, 1], [1, 1], CENTRE);
     expect(arc).not.toBeNull();
     if (!arc) return;
     expect(on(arc, arc.from)[0]).toBeCloseTo(0, 9);
@@ -198,7 +199,7 @@ describe('foldArrowArc', () => {
         [0, 0.5],
       ],
     ] as const) {
-      const arc = foldArrowArc(from, to, sheet);
+      const arc = foldArrowArc(from, to, CENTRE);
       expect(arc).not.toBeNull();
       if (!arc) continue;
       const mid = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2];
@@ -210,7 +211,7 @@ describe('foldArrowArc', () => {
   });
 
   it('draws nothing for a fold that moves a point onto itself', () => {
-    expect(foldArrowArc([0.25, 0.25], [0.25, 0.25], sheet)).toBeNull();
+    expect(foldArrowArc([0.25, 0.25], [0.25, 0.25], CENTRE)).toBeNull();
   });
 });
 
@@ -221,11 +222,11 @@ describe('arrowheadSize', () => {
   // one, and the reference diagrams it copies draw it a tenth to an eighth of
   // the paper's side.
   it('takes a share of the paper’s shorter side for a long arrow', () => {
-    const arc = foldArrowArc([0, 0], [1, 1], sheet);
+    const arc = foldArrowArc([0, 0], [1, 1], CENTRE);
     expect(arc && arrowheadSize(arc, sheet)).toBeCloseTo(0.11, 9);
     // …the shorter side, on a 2:1 sheet.
     const wide = { width: 1, height: 0.5 };
-    const wideArc = foldArrowArc([0, 0], [1, 0.5], wide);
+    const wideArc = foldArrowArc([0, 0], [1, 0.5], [0.5, 0.25]);
     expect(wideArc && arrowheadSize(wideArc, wide)).toBeCloseTo(0.055, 9);
   });
 
@@ -234,7 +235,7 @@ describe('arrowheadSize', () => {
   // diagrams rather than upstream's `0.4`, which leaves a head that is most of
   // the arrow.
   it('caps at a share of the chord for a short one', () => {
-    const arc = foldArrowArc([0.5, 0.5], [0.6, 0.5], sheet);
+    const arc = foldArrowArc([0.5, 0.5], [0.6, 0.5], CENTRE);
     expect(arc && arrowheadSize(arc, sheet)).toBeCloseTo(0.026, 9);
   });
 });

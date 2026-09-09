@@ -36,8 +36,49 @@ export interface DiagramProjector {
   /** The `viewBox` attribute for the whole diagram. */
   viewBox: string;
   size: number;
-  /** The picture is of the paper's back, so x runs the other way. */
+  /**
+   * The projection reverses handedness — the picture is of the paper's back.
+   *
+   * Read off the basis rather than carried as a flag, because a projector may
+   * arrive from a camera rather than from a fit: an arc's sweep and an
+   * arrowhead's tangent are the two things that go wrong when a mirror is
+   * assumed instead of measured. A plain fit already flips y, so the *even*
+   * determinant is the mirrored one.
+   */
   mirrored: boolean;
+}
+
+/** Whether a basis reverses handedness relative to a plain y-flip fit. */
+function mirrors(ex: SvgPoint, ey: SvgPoint): boolean {
+  return ex.x * ey.y - ex.y * ey.x > 0;
+}
+
+/**
+ * A projector onto a live camera's own pixels, for a diagram drawn over the
+ * crease pattern rather than into a box of its own.
+ *
+ * `view` is the canvas's model → CSS affine, so `scale` moves with the zoom —
+ * an arrowhead and a mark's ring are shares of the paper and have to. `ink` does
+ * not: it is the pen, fixed by the paper at fit, or a ten-times zoom would
+ * arrive with a ten-times nib.
+ */
+export function createOverlayProjector(
+  view: { origin: readonly [number, number]; ex: readonly [number, number]; ey: readonly [number, number] },
+  ink: number
+): DiagramProjector {
+  const ex = { x: view.ex[0], y: view.ex[1] };
+  const ey = { x: view.ey[0], y: view.ey[1] };
+  const project = ((point: readonly [number, number]): SvgPoint => ({
+    x: view.origin[0] + point[0] * ex.x + point[1] * ey.x,
+    y: view.origin[1] + point[0] * ex.y + point[1] * ey.y,
+  })) as DiagramProjector;
+  // A similarity, so one number is the whole scale.
+  project.scale = Math.sqrt(Math.abs(ex.x * ey.y - ex.y * ey.x));
+  project.ink = ink;
+  project.viewBox = '';
+  project.size = 0;
+  project.mirrored = mirrors(ex, ey);
+  return project;
 }
 
 /** Margin round the sheet as a fraction of the viewBox side, so labels at a corner fit. */
@@ -71,7 +112,10 @@ export function createDiagramProjector(
   project.ink = longer * scale * DIAGRAM_INK_PER_SHEET;
   project.viewBox = `0 0 ${size} ${size}`;
   project.size = size;
-  project.mirrored = mirrored;
+  project.mirrored = mirrors(
+    { x: mirrored ? -scale : scale, y: 0 },
+    { x: 0, y: -scale }
+  );
   return project;
 }
 
@@ -222,19 +266,20 @@ function curvatureCentres(
  * A port of `RefDgmr::CalcArrow` (`third_party/reference-finder/src/core/class/
  * refDgmr.cpp:29`), verbatim including its choice of centre: the arc subtends
  * 60°, and of the two centres that give that, the one *farther* from the sheet's
- * middle is taken so the arrow bulges inward.
+ * middle is taken so the arrow bulges inward. `centre` is the paper's middle —
+ * a point rather than a `width/2, height/2`, because in the document's own
+ * space the paper is wherever it is and at whatever angle.
  *
  * Null when the two points coincide, which is a fold that moves nothing.
  */
 export function foldArrowArc(
   fromPt: readonly [number, number],
   toPt: readonly [number, number],
-  sheet: DiagramSheet
+  centre: readonly [number, number]
 ): DiagramArc | null {
   const centres = curvatureCentres(fromPt, toPt, ARROW_HALF_ANGLE);
   if (!centres) return null;
-  const target: [number, number] = [sheet.width / 2, sheet.height / 2];
-  const far = (c: readonly [number, number]) => Math.hypot(c[0] - target[0], c[1] - target[1]);
+  const far = (c: readonly [number, number]) => Math.hypot(c[0] - centre[0], c[1] - centre[1]);
   return arcThrough(fromPt, toPt, far(centres[0]) > far(centres[1]) ? centres[0] : centres[1]);
 }
 
@@ -308,9 +353,10 @@ export function foldAndUnfoldFromArc(out: DiagramArc, sheet: DiagramSheet): Fold
 export function foldAndUnfoldArrow(
   fromPt: readonly [number, number],
   toPt: readonly [number, number],
-  sheet: DiagramSheet
+  sheet: DiagramSheet,
+  centre: readonly [number, number] = [sheet.width / 2, sheet.height / 2]
 ): FoldUnfoldArrow | null {
-  const out = foldArrowArc(fromPt, toPt, sheet);
+  const out = foldArrowArc(fromPt, toPt, centre);
   return out ? foldAndUnfoldFromArc(out, sheet) : null;
 }
 

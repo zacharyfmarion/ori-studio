@@ -48,76 +48,36 @@
  * perpendicular is sighted, not swung), so it too draws without an arrow —
  * that comes from `who_moves` being empty and needs no special case here.
  */
-import { dashRulerAlong, foldAndUnfoldArrow } from './stepDiagramGeometry';
+import { dashRulerAlong, foldAndUnfoldArrow } from '../stepDiagramGeometry';
+import type { DiagramFrame, DiagramSegment } from './diagramFrames';
 import type {
   DiagramLineStyleName,
   StepDiagramModel,
   StepDiagramPrimitive,
-} from './referenceFinderDiagramToPrimitives';
+} from '../referenceFinderDiagramToPrimitives';
 import {
   chosenWitness,
   type PrecreaseDirection,
-  type PrecreaseEdgeSide,
-  type PrecreasePlanLine,
-  type PrecreasePlanSegment,
   type PrecreaseRef,
   type PrecreaseSequence,
   type PrecreaseStep,
-} from './precreaseSequence';
+} from '../precreaseSequence';
 
-function edgeSegment(
-  sheet: { width: number; height: number },
-  side: PrecreaseEdgeSide
-): PrecreasePlanSegment {
-  const { width: w, height: h } = sheet;
-  switch (side) {
-    case 'left':
-      return [
-        [0, 0],
-        [0, h],
-      ];
-    case 'right':
-      return [
-        [w, 0],
-        [w, h],
-      ];
-    case 'bottom':
-      return [
-        [0, 0],
-        [w, 0],
-      ];
-    case 'top':
-      return [
-        [0, h],
-        [w, h],
-      ];
-  }
-}
-
-/** The step that folded state line `id`, if any. */
-function stepForLine(sequence: PrecreaseSequence, id: number): PrecreaseStep | null {
-  const entry = sequence.lines.find((line) => line.id === id);
-  if (!entry || entry.step === null) return null;
-  return sequence.steps.find((step) => step.id === entry.step) ?? null;
-}
-
-/** Reflect a point across `n · p = d`, `|n| = 1`. */
-function reflect(
-  line: PrecreasePlanLine,
-  p: readonly [number, number]
-): [number, number] {
-  const signed = line.n[0] * p[0] + line.n[1] * p[1] - line.d;
-  return [p[0] - 2 * signed * line.n[0], p[1] - 2 * signed * line.n[1]];
-}
+/** A frame segment as the primitives' own tuples. */
+const xy = (p: { x: number; y: number }): [number, number] => [p.x, p.y];
 
 /** The in-paper segment an input reference stands for, if it is a line at all. */
 function segmentOfRef(
   sequence: PrecreaseSequence,
+  frame: DiagramFrame,
   ref: PrecreaseRef
-): PrecreasePlanSegment | null {
-  if (ref.kind === 'edge') return edgeSegment(sequence.sheet, ref.side);
-  if (ref.kind === 'line') return stepForLine(sequence, ref.id)?.segment ?? null;
-  return null;
+): DiagramSegment | null {
+  if (ref.kind === 'edge') return frame.edge(ref.side);
+  if (ref.kind !== 'line') return null;
+  const entry = sequence.lines.find((line) => line.id === ref.id);
+  if (!entry || entry.step === null) return null;
+  const step = sequence.steps.find((s) => s.id === entry.step);
+  return step ? frame.chord(step) : null;
 }
 
 /**
@@ -125,13 +85,13 @@ function segmentOfRef(
  * have exactly two.
  */
 function markSegment(
-  sequence: PrecreaseSequence,
+  frame: DiagramFrame,
   inputs: readonly PrecreaseRef[]
-): PrecreasePlanSegment | null {
+): DiagramSegment | null {
   const points = inputs.flatMap((ref) => {
     if (ref.kind !== 'point' && ref.kind !== 'corner') return [];
-    const point = sequence.points.find((entry) => entry.id === ref.id);
-    return point ? [[point.p[0], point.p[1]] as [number, number]] : [];
+    const point = frame.point(ref.id);
+    return point ? [point] : [];
   });
   return points.length === 2 ? [points[0]!, points[1]!] : null;
 }
@@ -139,18 +99,38 @@ function markSegment(
 /** Where an input sits, as the one point an arrow can be drawn from. */
 function anchorOfRef(
   sequence: PrecreaseSequence,
+  frame: DiagramFrame,
   ref: PrecreaseRef
 ): [number, number] | null {
   if (ref.kind === 'point' || ref.kind === 'corner') {
-    const point = sequence.points.find((entry) => entry.id === ref.id);
-    return point ? [point.p[0], point.p[1]] : null;
+    const point = frame.point(ref.id);
+    return point ? xy(point) : null;
   }
-  const segment = segmentOfRef(sequence, ref);
+  const segment = segmentOfRef(sequence, frame, ref);
   // A moving *line* has no single position, so the arrow is drawn from the
   // midpoint of its chord — the same place upstream's line-to-line arrows sit.
   return segment
-    ? [(segment[0][0] + segment[1][0]) / 2, (segment[0][1] + segment[1][1]) / 2]
+    ? [(segment[0].x + segment[1].x) / 2, (segment[0].y + segment[1].y) / 2]
     : null;
+}
+
+/**
+ * Reflect `p` across the line through a segment.
+ *
+ * Taken from the drawn chord rather than from `step.line`, because the chord is
+ * the one thing every frame supplies and the line's `n · p = d` form is only
+ * written down in the planner's own units. A similarity carries a reflection to
+ * a reflection, so the two agree wherever both exist.
+ */
+function reflectAcross(segment: DiagramSegment, p: readonly [number, number]): [number, number] {
+  const dx = segment[1].x - segment[0].x;
+  const dy = segment[1].y - segment[0].y;
+  const length = Math.hypot(dx, dy);
+  if (length === 0) return [p[0], p[1]];
+  const n: [number, number] = [-dy / length, dx / length];
+  const d = n[0] * segment[0].x + n[1] * segment[0].y;
+  const signed = n[0] * p[0] + n[1] * p[1] - d;
+  return [p[0] - 2 * signed * n[0], p[1] - 2 * signed * n[1]];
 }
 
 /** `A B C…` for lines and edges, `P Q R…` for marks — ReferenceFinder's scheme. */
@@ -181,10 +161,13 @@ export interface PlannerStepDiagramOptions {
  * crease are not on the paper, and drawing them is the difference between a
  * diagram and a picture of a line.
  */
-function creasedSpans(step: PrecreaseStep): PrecreasePlanSegment[] {
-  if (step.cp_spans.length > 0) return step.cp_spans;
-  if (step.extent.kind === 'pinches') return step.extent.spans;
-  return [step.segment];
+function creasedSpans(frame: DiagramFrame, step: PrecreaseStep): readonly DiagramSegment[] {
+  const creases = frame.creases(step);
+  if (creases.length > 0) return creases;
+  const pinches = frame.pinches(step);
+  if (pinches.length > 0) return pinches;
+  const chord = frame.chord(step);
+  return chord ? [chord] : [];
 }
 
 /**
@@ -193,11 +176,8 @@ function creasedSpans(step: PrecreaseStep): PrecreasePlanSegment[] {
  * Every piece of one crease then measures its pattern from the same zero, so a
  * crease split at four crossings reads as one dashed line rather than four.
  */
-function spanLine(
-  span: PrecreasePlanSegment,
-  style: DiagramLineStyleName
-): StepDiagramPrimitive {
-  const ruler = dashRulerAlong(span[0][0], span[0][1], span[1][0], span[1][1]);
+function spanLine(span: DiagramSegment, style: DiagramLineStyleName): StepDiagramPrimitive {
+  const ruler = dashRulerAlong(span[0].x, span[0].y, span[1].x, span[1].y);
   return {
     kind: 'line',
     from: [ruler.ax, ruler.ay],
@@ -219,15 +199,17 @@ function styleOf(direction: PrecreaseDirection, made: boolean): DiagramLineStyle
 
 export function plannerStepDiagram(
   sequence: PrecreaseSequence,
+  frame: DiagramFrame,
   index: number,
   options: PlannerStepDiagramOptions = {}
 ): StepDiagramModel | null {
   const step = sequence.steps[index];
   if (!step) return null;
-  const sheet = sequence.sheet;
-  const primitives: StepDiagramPrimitive[] = [
-    { kind: 'sheet', width: sheet.width, height: sheet.height },
-  ];
+  const sheet = frame.sheet;
+  const primitives: StepDiagramPrimitive[] = [];
+  if (frame.outline) {
+    primitives.push({ kind: 'sheet', width: sheet.width, height: sheet.height });
+  }
 
   // The sheet as it stands: everything folded so far, over the paper and under
   // this step's own references.
@@ -235,7 +217,7 @@ export function plannerStepDiagram(
     for (let i = 0; i < index; i += 1) {
       const earlier = sequence.steps[i];
       if (!earlier) continue;
-      for (const span of creasedSpans(earlier)) {
+      for (const span of creasedSpans(frame, earlier)) {
         primitives.push(spanLine(span, 'crease'));
       }
     }
@@ -249,31 +231,37 @@ export function plannerStepDiagram(
   inputs.forEach((ref) => {
     const letter = refLetter(ref, lineIndex, pointIndex);
     if (ref.kind === 'point' || ref.kind === 'corner') {
-      const point = sequence.points.find((entry) => entry.id === ref.id);
+      const point = frame.point(ref.id);
       if (!point) return;
       pointIndex += 1;
-      primitives.push({ kind: 'point', at: point.p, style: 'highlight' });
-      labels.push({ kind: 'label', at: point.p, text: letter, style: 'highlight' });
+      primitives.push({ kind: 'point', at: xy(point), style: 'highlight' });
+      labels.push({ kind: 'label', at: xy(point), text: letter, style: 'highlight' });
       return;
     }
-    const segment = segmentOfRef(sequence, ref);
+    const segment = segmentOfRef(sequence, frame, ref);
     if (!segment) return;
     lineIndex += 1;
-    primitives.push({ kind: 'line', from: segment[0], to: segment[1], style: 'highlight' });
+    primitives.push({
+      kind: 'line',
+      from: xy(segment[0]),
+      to: xy(segment[1]),
+      style: 'highlight',
+    });
     const mid: [number, number] = [
-      (segment[0][0] + segment[1][0]) / 2,
-      (segment[0][1] + segment[1][1]) / 2,
+      (segment[0].x + segment[1].x) / 2,
+      (segment[0].y + segment[1].y) / 2,
     ];
     labels.push({ kind: 'label', at: mid, text: letter, style: 'highlight' });
   });
 
   // The motion: each moving input to its image across the new crease.
+  const chord = frame.chord(step);
   for (const which of witness?.who_moves ?? []) {
     const ref = inputs[which];
-    if (!ref) continue;
-    const anchor = anchorOfRef(sequence, ref);
+    if (!ref || !chord) continue;
+    const anchor = anchorOfRef(sequence, frame, ref);
     if (!anchor) continue;
-    const arrow = foldAndUnfoldArrow(anchor, reflect(step.line, anchor), sheet);
+    const arrow = foldAndUnfoldArrow(anchor, reflectAcross(chord, anchor), sheet, xy(frame.centre));
     if (arrow) primitives.push({ kind: 'fold-arrow', ...arrow });
   }
 
@@ -281,7 +269,9 @@ export function plannerStepDiagram(
   // crate settled the direction (plan D21) — one per step, never two.
   const direction = step.direction;
   const made = styleOf(direction, true);
-  if (step.extent.kind === 'pinches') {
+  const pinches = frame.pinches(step);
+  const creases = frame.creases(step);
+  if (pinches.length > 0) {
     // A pinch is a crease, so it carries its own direction rather than a colour
     // of its own.
     const pinch: DiagramLineStyleName =
@@ -290,27 +280,23 @@ export function plannerStepDiagram(
         : direction === 'valley'
           ? 'pinch-valley'
           : 'pinch';
-    for (const span of step.extent.spans) {
-      primitives.push(spanLine(span, pinch));
-    }
-  } else if (step.cp_spans.length > 0) {
+    for (const span of pinches) primitives.push(spanLine(span, pinch));
+  } else if (creases.length > 0) {
     // The pattern only wants creases where its own segments are, so that is all
     // the picture draws. The rest of the chord used to be shown faintly, to say
     // the fold still runs the full width — but a crease pattern's line is not
     // an instruction to crease all of it, and the faint stand-in read as one.
-    for (const span of step.cp_spans) {
-      primitives.push(spanLine(span, made));
-    }
-  } else {
+    for (const span of creases) primitives.push(spanLine(span, made));
+  } else if (chord) {
     // An auxiliary fold leaves no crease in the pattern, so the whole chord is
     // the instruction. O1 is the exception: "crease through these two marks"
     // means the marks are, so the crease is drawn between them.
-    const through = witness?.axiom === 1 ? markSegment(sequence, inputs) : null;
-    const segment = through ?? step.segment;
+    const through = witness?.axiom === 1 ? markSegment(frame, inputs) : null;
+    const segment = through ?? chord;
     primitives.push({
       kind: 'line',
-      from: segment[0],
-      to: segment[1],
+      from: xy(segment[0]),
+      to: xy(segment[1]),
       style: made,
     });
   }
@@ -336,20 +322,22 @@ export function plannerStepDiagram(
  */
 export function plannerTurnOverDiagram(
   sequence: PrecreaseSequence,
+  frame: DiagramFrame,
   after: number | null
 ): StepDiagramModel {
-  const sheet = sequence.sheet;
-  const primitives: StepDiagramPrimitive[] = [
-    { kind: 'sheet', width: sheet.width, height: sheet.height },
-  ];
+  const sheet = frame.sheet;
+  const primitives: StepDiagramPrimitive[] = [];
+  if (frame.outline) {
+    primitives.push({ kind: 'sheet', width: sheet.width, height: sheet.height });
+  }
   for (let i = 0; after !== null && i <= after && i < sequence.steps.length; i += 1) {
     const step = sequence.steps[i];
     if (!step) continue;
-    for (const span of creasedSpans(step)) {
+    for (const span of creasedSpans(frame, step)) {
       primitives.push(spanLine(span, 'crease'));
     }
   }
-  primitives.push(...turnOverSymbol(sheet));
+  primitives.push(...turnOverSymbol(frame));
   return { sheet: { width: sheet.width, height: sheet.height }, primitives };
 }
 
@@ -364,12 +352,12 @@ const TURN_OVER_SIZE = 0.42;
  * side, loops once, and leaves the other with the arrowhead. Sized against the
  * shorter side so it reads the same on a square and on a long rectangle.
  */
-function turnOverSymbol(sheet: { width: number; height: number }): StepDiagramPrimitive[] {
+function turnOverSymbol(frame: DiagramFrame): StepDiagramPrimitive[] {
   return [
     {
       kind: 'turn-over',
-      at: [sheet.width / 2, sheet.height / 2],
-      size: Math.min(sheet.width, sheet.height) * TURN_OVER_SIZE,
+      at: xy(frame.centre),
+      size: Math.min(frame.sheet.width, frame.sheet.height) * TURN_OVER_SIZE,
     },
   ];
 }
@@ -381,14 +369,18 @@ function turnOverSymbol(sheet: { width: number; height: number }): StepDiagramPr
  * every one of its creases — a precrease sequence puts the crease in the right
  * place, and the collapse settles the rest (plan D26).
  */
-export function plannerFinishedDiagram(sequence: PrecreaseSequence): StepDiagramModel {
-  const sheet = sequence.sheet;
-  const primitives: StepDiagramPrimitive[] = [
-    { kind: 'sheet', width: sheet.width, height: sheet.height },
-  ];
+export function plannerFinishedDiagram(
+  sequence: PrecreaseSequence,
+  frame: DiagramFrame
+): StepDiagramModel {
+  const sheet = frame.sheet;
+  const primitives: StepDiagramPrimitive[] = [];
+  if (frame.outline) {
+    primitives.push({ kind: 'sheet', width: sheet.width, height: sheet.height });
+  }
   for (const step of sequence.steps) {
     const style = styleOf(step.direction, true);
-    for (const span of creasedSpans(step)) {
+    for (const span of creasedSpans(frame, step)) {
       primitives.push(spanLine(span, style));
     }
   }

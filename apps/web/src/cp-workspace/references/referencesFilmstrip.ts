@@ -15,7 +15,8 @@ import {
   plannerFinishedDiagram,
   plannerStepDiagram,
   plannerTurnOverDiagram,
-} from './plannerStepToPrimitives';
+} from './diagram/plannerDiagram';
+import { unitFrame } from './diagram/diagramFrames';
 import type { Diagram } from './referenceFinder/solution';
 import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
 import { stepDiagram } from './referenceFinderDiagramToPrimitives';
@@ -100,7 +101,7 @@ export function planFilmstrip(
             badge: '',
             number: folds,
             diagram: null,
-            primitives: plannerStepDiagram(sequence, view.step),
+            primitives: plannerStepDiagram(sequence, unitFrame(sequence), view.step),
             mirrored: view.side === 'back',
             sentence: describePlannerStep(t, sequence, index, view.step),
           },
@@ -116,7 +117,7 @@ export function planFilmstrip(
             badge: t('panels:references.flip.turnOverBadge', 'Turn over'),
             number: null,
             diagram: null,
-            primitives: plannerTurnOverDiagram(sequence, view.after),
+            primitives: plannerTurnOverDiagram(sequence, unitFrame(sequence), view.after),
             mirrored: view.side === 'back',
             sentence: t('panels:references.flip.turnOver', 'Turn the paper over, left to right.'),
           },
@@ -129,7 +130,7 @@ export function planFilmstrip(
             badge: t('panels:references.flip.doneBadge', 'Finished'),
             number: null,
             diagram: null,
-            primitives: plannerFinishedDiagram(sequence),
+            primitives: plannerFinishedDiagram(sequence, unitFrame(sequence)),
             mirrored: false,
             sentence: t(
               'panels:references.flip.finished',
