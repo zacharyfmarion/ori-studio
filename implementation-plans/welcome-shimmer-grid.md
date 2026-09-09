@@ -22,7 +22,7 @@ and the accessibility tree. No new adoption event is needed for passive decorati
 - [x] Inspect welcome layout, theme patterns, and checkout readiness.
 - [x] Implement the grid and reduced-motion fallback.
 - [x] Validate web lint, types, tests, and browser appearance/interaction.
-- [ ] Open a draft PR against main and provide a local preview.
+- [x] Open a draft PR against main and provide a local preview.
 
 ## Validation notes
 
@@ -33,3 +33,7 @@ mobile layout, reduced motion, and opening a CP. WebKit verified decoration and
 reduced motion; editor readiness timed out there. No new unit tests are needed
 for CSS decoration. Rust/oracle/native checks were skipped because their behavior
 is unchanged; standard web hooks rebuilt all WASM bridges.
+
+Draft PR: https://github.com/zacharyfmarion/ori-studio/pull/357
+
+Local preview: http://127.0.0.1:5174/welcome
