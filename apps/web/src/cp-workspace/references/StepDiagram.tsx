@@ -15,6 +15,7 @@ import {
   createDiagramProjector,
   foldArrowTrim,
   labelPlacement,
+  MARK_RING_RADIUS,
 } from './stepDiagramGeometry';
 
 /**
@@ -52,16 +53,6 @@ export type StepDiagramProps = {
       diagram?: undefined;
     }
 );
-
-/**
- * The radius of the ring round a reference mark, in sheet units.
- *
- * A diagram circles the points a step is read from rather than blotting them
- * out, so this is the ring's own size on the paper — 4% of the sheet, which is
- * what the reference diagrams draw — and it goes through the projector like
- * every other length rather than being a fraction of the box.
- */
-const POINT_RING_RADIUS = 0.04;
 
 /** Four decimals is under a device pixel at any thumbnail size. */
 const round = (value: number) => Number(value.toFixed(4));
@@ -176,7 +167,7 @@ export function StepDiagram({
               out: { ...primitive.out, radius: primitive.out.radius * project.scale },
               back: { ...primitive.back, radius: primitive.back.radius * project.scale },
             };
-            const trimmed = foldArrowTrim(scaled, head);
+            const trimmed = foldArrowTrim(scaled, head, MARK_RING_RADIUS * project.scale);
             const tipArc = { ...primitive.back, to: trimmed.tip };
             const tip = project([
               primitive.back.center[0] + primitive.back.radius * Math.cos(trimmed.tip),
@@ -186,7 +177,7 @@ export function StepDiagram({
               <g key={index} className="step-diagram__arrow">
                 <path
                   className="step-diagram__arc step-diagram__line--arrow"
-                  d={arcPathData(primitive.out, project)}
+                  d={arcPathData({ ...primitive.out, from: trimmed.out.from }, project)}
                 />
                 <path
                   className="step-diagram__arc step-diagram__line--arrow"
@@ -232,7 +223,7 @@ export function StepDiagram({
                 className={`step-diagram__point step-diagram__point--${primitive.style}`}
                 cx={at.x}
                 cy={at.y}
-                r={project.scale * POINT_RING_RADIUS}
+                r={project.scale * MARK_RING_RADIUS}
               />
             );
           }

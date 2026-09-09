@@ -14,7 +14,7 @@
  */
 import type { ExtractedSolution } from './referenceFinder/extractor';
 import type { Diagram, RawSolution } from './referenceFinder/solution';
-import { returnStroke, type FoldUnfoldArrow } from './stepDiagramGeometry';
+import { foldAndUnfoldFromArc, type FoldUnfoldArrow } from './stepDiagramGeometry';
 
 export type DiagramLineStyleName =
   | 'crease'
@@ -199,8 +199,8 @@ export function referenceFinderDiagramToPrimitives(diagram: Diagram): StepDiagra
         // Every fold ReferenceFinder describes is made and released, so the
         // symbol for it is the one a diagram uses for that: out and back, with
         // a single head where the paper comes to rest.
-        const back = style === 'arrow' ? returnStroke(arc) : null;
-        primitives.push(back ? { kind: 'fold-arrow', out: arc, back } : { kind: 'arc', ...arc, style });
+        const arrow = style === 'arrow' && sheet ? foldAndUnfoldFromArc(arc, sheet) : null;
+        primitives.push(arrow ? { kind: 'fold-arrow', ...arrow } : { kind: 'arc', ...arc, style });
         return;
       }
       case 0:

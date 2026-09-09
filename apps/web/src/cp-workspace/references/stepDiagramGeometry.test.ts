@@ -13,6 +13,7 @@ import {
   foldArrowArc,
   foldArrowTrim,
   labelPlacement,
+  MARK_RING_RADIUS,
   type DiagramArc,
 } from './stepDiagramGeometry';
 
@@ -298,32 +299,54 @@ describe('a mirrored projector', () => {
 
 describe('foldArrowTrim', () => {
   const sheet = { width: 1, height: 1 };
+  const at = (arc: DiagramArc, angle: number): [number, number] => [
+    arc.center[0] + arc.radius * Math.cos(angle),
+    arc.center[1] + arc.radius * Math.sin(angle),
+  ];
 
-  // The shaft is what points at the reference: it starts on the mark, and the
-  // head — coming back — is spaced clear so the two do not pile up on the one
-  // spot the reader is being sent to look at.
-  it('leaves the outgoing stroke on the mark and carries the head past it', () => {
+  // Two rules, and both were wrong in turn. A shaft that begins inside the ring
+  // hides the mark under its own line; a head that carries on round the circle
+  // ends up past the mark and across the shaft that starts there, which reads
+  // as a tangle rather than a journey.
+  it('starts the shaft on the ring and leaves the head beside the mark', () => {
     const arrow = foldAndUnfoldArrow([1, 0.5], [0, 0.5], sheet);
     if (!arrow) throw new Error('no arrow');
     const head = arrowheadSize(arrow.out, sheet);
-    const trimmed = foldArrowTrim(arrow, head);
+    const rim = MARK_RING_RADIUS;
+    const trimmed = foldArrowTrim(arrow, head, rim);
 
-    expect(trimmed.out.from).toBe(arrow.out.from);
-    expect(trimmed.out.to).toBe(arrow.out.to);
-
-    const at = (arc: typeof arrow.back, angle: number) => [
-      arc.center[0] + arc.radius * Math.cos(angle),
-      arc.center[1] + arc.radius * Math.sin(angle),
-    ];
     const mark = at(arrow.out, arrow.out.from);
-    const base = at(arrow.back, trimmed.back.to);
+    const image = at(arrow.out, arrow.out.to);
+    const start = at(trimmed.out, trimmed.out.from);
     const tip = at(arrow.back, trimmed.tip);
-    const away = (p: number[]) => Math.hypot(p[0] - mark[0], p[1] - mark[1]);
 
-    // The stroke stops short of the head, and both are clear of the mark, in
-    // that order along the arc.
-    expect(away(base)).toBeGreaterThan(0);
-    expect(away(tip)).toBeGreaterThan(away(base));
-    expect(away(tip) - away(base)).toBeCloseTo(head, 2);
+    // On the rim, not at the centre.
+    expect(Math.hypot(start[0] - mark[0], start[1] - mark[1])).toBeCloseTo(rim, 3);
+
+    // Beside the mark: the head is offset across the fold's travel, and level
+    // with the mark along it rather than beyond it.
+    const span = Math.hypot(image[0] - mark[0], image[1] - mark[1]);
+    const along = [(image[0] - mark[0]) / span, (image[1] - mark[1]) / span];
+    const off = [tip[0] - mark[0], tip[1] - mark[1]];
+    const beyond = off[0] * along[0] + off[1] * along[1];
+    const aside = Math.abs(off[0] * along[1] - off[1] * along[0]);
+    expect(aside).toBeGreaterThan(Math.abs(beyond) * 4);
+    expect(aside).toBeCloseTo(head, 3);
+  });
+
+  // "Back" should read as the same journey returned, not a longer one.
+  it('comes back about as far as it went', () => {
+    for (const [from, to] of [
+      [[1, 0.5], [0, 0.5]],
+      [[0.5, 0.08], [0.5, 0.52]],
+      [[1, 0], [0, 1]],
+    ] as const) {
+      const arrow = foldAndUnfoldArrow(from, to, sheet);
+      if (!arrow) throw new Error('no arrow');
+      const length = (arc: DiagramArc) => arc.radius * arcExtent(arc);
+      const ratio = length(arrow.back) / length(arrow.out);
+      expect(ratio).toBeGreaterThan(0.85);
+      expect(ratio).toBeLessThan(1.2);
+    }
   });
 });

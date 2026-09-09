@@ -128,9 +128,13 @@ describe('plannerStepDiagram', () => {
       arc.center[0] + arc.radius * Math.cos(angle),
       arc.center[1] + arc.radius * Math.sin(angle),
     ];
+    // The return comes back *beside* the mark, not onto it: that is where the
+    // one arrowhead goes, and a head landing on the mark buries it.
     const start = at(arrow.out, arrow.out.from);
     const end = at(arrow.back, arrow.back.to);
-    expect(Math.hypot(end[0] - start[0], end[1] - start[1])).toBeLessThan(1e-9);
+    const apart = Math.hypot(end[0] - start[0], end[1] - start[1]);
+    expect(apart).toBeGreaterThan(0);
+    expect(apart).toBeLessThan(0.2);
   });
 
   it('letters the inputs the way ReferenceFinder does: A… for lines, P… for marks', () => {

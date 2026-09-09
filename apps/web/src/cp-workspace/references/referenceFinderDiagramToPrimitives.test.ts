@@ -3,6 +3,7 @@ import markFixture from './referenceFinder/__fixtures__/mark.json';
 import markCentreFixture from './referenceFinder/__fixtures__/mark-centre.json';
 import lineFixture from './referenceFinder/__fixtures__/line-exact.json';
 import { extractSolution } from './referenceFinder/extractor';
+import { arrowheadSize } from './stepDiagramGeometry';
 import type { ReferenceFinderReplayFixture } from './referenceFinder/replayClient';
 import type { Diagram } from './referenceFinder/solution';
 import {
@@ -51,10 +52,11 @@ describe('referenceFinderDiagramToPrimitives', () => {
     expect(arrow).toMatchObject({ kind: 'fold-arrow', out: { ccw: false, radius: 1 } });
   });
 
-  // The return stroke ends where the paper started, which is where the one
-  // arrowhead goes; drawn the other way round the symbol says the paper stays
-  // folded.
-  it('brings the return stroke back to the start of the outgoing one', () => {
+  // The return comes back beside where the paper started — the head goes there,
+  // and it must not land on the mark or carry past it. Upstream's arrows get the
+  // side-step from the same place the planner's do, or the two picture languages
+  // drift on the one symbol they share.
+  it('brings the return stroke back beside the start of the outgoing one', () => {
     const model = referenceFinderDiagramToPrimitives(mark.solutions[0].diagrams[0]);
     const arrow = model.primitives.find((p) => p.kind === 'fold-arrow');
     if (arrow?.kind !== 'fold-arrow') throw new Error('no fold arrow');
@@ -64,7 +66,9 @@ describe('referenceFinderDiagramToPrimitives', () => {
     ];
     const [ox, oy] = at(arrow.out, arrow.out.from);
     const [bx, by] = at(arrow.back, arrow.back.to);
-    expect(Math.hypot(bx - ox, by - oy)).toBeLessThan(1e-9);
+    const apart = Math.hypot(bx - ox, by - oy);
+    expect(apart).toBeGreaterThan(0);
+    expect(apart).toBeCloseTo(arrowheadSize(arrow.out, sheet), 6);
     // …and it bulges further, or the two strokes would lie on top of each other.
     expect(arrow.back.radius).toBeLessThan(arrow.out.radius);
   });

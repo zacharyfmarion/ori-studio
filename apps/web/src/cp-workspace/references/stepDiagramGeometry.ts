@@ -146,15 +146,25 @@ const ARROW_HALF_ANGLE = Math.PI / 6;
 const RETURN_HALF_ANGLE = Math.PI / 4;
 
 /**
- * How far past the mark the returning head's base sits, in arrowheads.
+ * How far to the side the returning stroke ends, in arrowheads.
  *
- * The shaft *starts* on the reference point — that is what says which point the
- * paper is being brought to — and the head, coming back, is spaced clear of it
- * so the two do not pile up on the one spot the reader is looking at. Both
- * halves of that are the convention: a head landing exactly on the mark buries
- * it, and a shaft starting away from it points at nothing.
+ * The paper comes back to where it started, so the head belongs *beside* that
+ * point rather than on it or past it. Carrying the return on round its own
+ * circle instead put the head beyond the mark and across the shaft that starts
+ * there — the two ends of one loop crossing, which reads as a tangle rather
+ * than a journey. So the return simply stays out on its own side of the loop
+ * and stops level with the mark, offset by this much.
  */
-const ARROW_HEAD_CLEARANCE = 0.45;
+const RETURN_OFFSET_HEADS = 1;
+
+/**
+ * The ring drawn round a reference mark, in sheet units.
+ *
+ * Here rather than in the component because two things need it: the circle
+ * itself, and the arrow, whose shaft starts on the ring's *rim* — a shaft that
+ * begins inside the circle it is pointing at hides the mark under its own line.
+ */
+export const MARK_RING_RADIUS = 0.04;
 
 /** The arc between two points and the centre it turns about. */
 function arcThrough(
@@ -235,23 +245,52 @@ export interface FoldUnfoldArrow {
 }
 
 /**
- * The return stroke for an outgoing one: the same chord, bulging the same way,
- * further out, travelled the other way.
+ * The return stroke for an outgoing one: the same journey the other way, bowing
+ * further out, and ending `offset` to the side of where the outgoing one began.
  *
  * Derived from the arc rather than from the two points so it serves both
  * sources — the planner's arrows, built by {@link foldArrowArc}, and
  * ReferenceFinder's own, which arrive off the wire with the centre already
- * chosen. Whichever side upstream bulged to, the return goes with it.
+ * chosen. Whichever side upstream bulged to, the return goes with it, and the
+ * offset goes further that way still: the loop then opens where the head is and
+ * closes at the far end, which is the shape a diagram draws.
  */
-export function returnStroke(out: DiagramArc): DiagramArc | null {
+export function returnStroke(out: DiagramArc, offset: number): DiagramArc | null {
   const a = pointOnArc(out, out.from);
   const b = pointOnArc(out, out.to);
-  const centres = curvatureCentres(a, b, RETURN_HALF_ANGLE);
+  const span = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  if (span <= 1e-9) return null;
+  const mid: [number, number] = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  // The side the outgoing arc bulges to is the side away from its centre.
+  const normal: [number, number] = [-(b[1] - a[1]) / span, (b[0] - a[0]) / span];
+  const towardsCentre =
+    normal[0] * (out.center[0] - mid[0]) + normal[1] * (out.center[1] - mid[1]);
+  const bulge = towardsCentre > 0 ? -1 : 1;
+  const end: [number, number] = [
+    a[0] + normal[0] * bulge * offset,
+    a[1] + normal[1] * bulge * offset,
+  ];
+
+  const centres = curvatureCentres(b, end, RETURN_HALF_ANGLE);
   if (!centres) return null;
-  const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] as const;
+  const endMid: [number, number] = [(b[0] + end[0]) / 2, (b[1] + end[1]) / 2];
   const side = (c: readonly [number, number]) =>
-    (c[0] - mid[0]) * (out.center[0] - mid[0]) + (c[1] - mid[1]) * (out.center[1] - mid[1]);
-  return arcThrough(b, a, side(centres[0]) > side(centres[1]) ? centres[0] : centres[1]);
+    (c[0] - endMid[0]) * (out.center[0] - endMid[0]) +
+    (c[1] - endMid[1]) * (out.center[1] - endMid[1]);
+  return arcThrough(b, end, side(centres[0]) > side(centres[1]) ? centres[0] : centres[1]);
+}
+
+/**
+ * The whole symbol around an arc that is already the outgoing stroke —
+ * ReferenceFinder's own arrows, which arrive off the wire with their centre and
+ * angles already chosen.
+ *
+ * The one place the side-step is decided, so an arrow built from a witness and
+ * one read off the wire cannot end up with different symbols.
+ */
+export function foldAndUnfoldFromArc(out: DiagramArc, sheet: DiagramSheet): FoldUnfoldArrow | null {
+  const back = returnStroke(out, arrowheadSize(out, sheet) * RETURN_OFFSET_HEADS);
+  return back ? { out, back } : null;
 }
 
 /** The whole symbol for a fold that is made and released, or null if nothing moves. */
@@ -261,33 +300,30 @@ export function foldAndUnfoldArrow(
   sheet: DiagramSheet
 ): FoldUnfoldArrow | null {
   const out = foldArrowArc(fromPt, toPt, sheet);
-  if (!out) return null;
-  const back = returnStroke(out);
-  return back ? { out, back } : null;
+  return out ? foldAndUnfoldFromArc(out, sheet) : null;
 }
 
 /**
  * The two strokes as drawn, and where the head's tip goes.
  *
- * The outgoing stroke is untouched: it begins on the reference point. The
- * return carries *past* that point by {@link ARROW_HEAD_CLEARANCE} and stops
- * there, at the head's base, so the head stands clear of the mark rather than
- * on top of it.
+ * The shaft starts on the rim of the ring round the mark rather than at its
+ * centre, and the return stops a head short of its own end, which is where the
+ * tip goes — beside the mark, not on it and not past it.
  *
- * `head` is the arrowhead's length in the same units as the radii, so the
- * caller passes both in whichever space it is drawing.
+ * `head` and `rim` are lengths in the same units as the radii, so the caller
+ * passes all three in whichever space it is drawing.
  */
 export function foldArrowTrim(
   arrow: FoldUnfoldArrow,
-  head: number
+  head: number,
+  rim = 0
 ): { out: DiagramArc; back: DiagramArc; tip: number } {
   const onward = (arc: DiagramArc, by: number) =>
     (by / Math.max(arc.radius, 1e-6)) * (arc.ccw ? 1 : -1);
-  const base = arrow.back.to + onward(arrow.back, head * ARROW_HEAD_CLEARANCE);
   return {
-    out: arrow.out,
-    back: { ...arrow.back, to: base },
-    tip: base + onward(arrow.back, head),
+    out: { ...arrow.out, from: arrow.out.from + onward(arrow.out, rim) },
+    back: { ...arrow.back, to: arrow.back.to - onward(arrow.back, head) },
+    tip: arrow.back.to,
   };
 }
 
