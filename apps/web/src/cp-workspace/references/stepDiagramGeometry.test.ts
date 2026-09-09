@@ -10,6 +10,7 @@ import {
   arrowheadPoints,
   arrowheadSize,
   createDiagramProjector,
+  dashRulerAlong,
   foldAndUnfoldArrow,
   foldAndUnfoldFromArc,
   arcSamplePoints,
@@ -404,5 +405,29 @@ describe('an arc across a change of coordinates', () => {
   it('refuses three points on a line rather than inventing a circle', () => {
     expect(arcThroughPoints([0, 0], [1, 1], [2, 2])).toBeNull();
     expect(arcThroughPoints([0, 0], [0, 0], [0, 0])).toBeNull();
+  });
+});
+
+describe('the dash ruler on a line that is only nearly axis-aligned', () => {
+  // One crease drawn twice — once from the document, once recovered by
+  // interpolating along its own chord — is the case this exists for. The
+  // recovered copy carries about 1e-16 of drift, and an exact `dx === 0` test
+  // canonicalised it the opposite way: the two dashed copies then landed half a
+  // period apart and filled each other's gaps, so the line read solid.
+  it('agrees with the exact line about which way it runs', () => {
+    const exact = dashRulerAlong(0, 200, 0, 150);
+    for (const drift of [1e-16, -1e-16, 1e-13, -1e-13]) {
+      const nearly = dashRulerAlong(drift, 200, drift, 150);
+      expect(nearly.ay, `drift ${drift}`).toBeCloseTo(exact.ay, 9);
+      expect(nearly.by, `drift ${drift}`).toBeCloseTo(exact.by, 9);
+      expect(nearly.phase, `drift ${drift}`).toBeCloseTo(exact.phase, 6);
+    }
+  });
+
+  it('still tells a real slope from vertical', () => {
+    // A line a reader could see is not vertical keeps its own direction.
+    const sloped = dashRulerAlong(0, 0, -1, 1);
+    expect(sloped.ax).toBeCloseTo(-1, 9);
+    expect(sloped.ay).toBeCloseTo(1, 9);
   });
 });

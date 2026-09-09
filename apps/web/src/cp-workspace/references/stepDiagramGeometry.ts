@@ -562,6 +562,14 @@ export const ARROWHEAD_ASPECT = 2.5;
  * it and the canvas uploads it as `dashPhase`, and the two must not be able to
  * disagree about where a dash begins.
  */
+/**
+ * How far a unit direction's `x` may sit from zero and still count as vertical.
+ *
+ * Generous against floating-point noise — a lerp along a chord leaves about
+ * 1e-16 — and far tighter than any line a reader could tell from vertical.
+ */
+const AXIS_TOLERANCE = 1e-9;
+
 export function dashRulerAlong(
   ax: number,
   ay: number,
@@ -572,7 +580,14 @@ export function dashRulerAlong(
   if (length === 0) return { ax, ay, bx, by, phase: 0 };
   const dx = (bx - ax) / length;
   const dy = (by - ay) / length;
-  if (dx < 0 || (dx === 0 && dy < 0)) {
+  // The tolerance is the whole point, and an exact `dx === 0` here was a real
+  // bug: a vertical crease read off the document has `dx` of exactly zero,
+  // while the same crease recovered by interpolating along its own chord has
+  // `dx` of about 1e-16. The two then canonicalise the *opposite* way, land
+  // half a period apart, and fill each other's gaps — one line drawn twice,
+  // reading solid.
+  const backwards = dx < -AXIS_TOLERANCE || (dx <= AXIS_TOLERANCE && dy < 0);
+  if (backwards) {
     return { ax: bx, ay: by, bx: ax, by: ay, phase: bx * -dx + by * -dy };
   }
   return { ax, ay, bx, by, phase: ax * dx + ay * dy };
