@@ -72,13 +72,33 @@ function loadFold(name: string): { segments: Float64Array; colors: Int32Array } 
   return { segments, colors };
 }
 
-function expectedAux(file: string): number {
+function fixtureEntry(file: string) {
   const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8')) as {
-    fixtures: { file: string; crate: number | null }[];
+    fixtures: { file: string; crate: number | null; status: string }[];
   };
   const entry = manifest.fixtures.find((fixture) => fixture.file.endsWith(file));
-  if (!entry || entry.crate === null) throw new Error(`no crate value for ${file} in the manifest`);
-  return entry.crate;
+  if (!entry) throw new Error(`no manifest entry for ${file}`);
+  return entry;
+}
+
+function expectedAux(file: string): number {
+  const { crate } = fixtureEntry(file);
+  if (crate === null) throw new Error(`no crate value for ${file} in the manifest`);
+  return crate;
+}
+
+/**
+ * The status the manifest records, which `planner_fixtures.rs` asserts the
+ * headless driver reaches.
+ *
+ * Read from the same file rather than written here, because that is what makes
+ * this an agreement test: with `referenceFinder: null` this driver and
+ * `Planner::plan_without_reference_finder` are supposed to be the same planner,
+ * and two hard-coded copies of the answer could not tell you when they stopped
+ * being one.
+ */
+function expectedStatus(file: string): string {
+  return fixtureEntry(file).status;
 }
 
 /** The wasm planner as the loop's handle: every call is already synchronous. */
@@ -200,8 +220,9 @@ describe.skipIf(!available)('runPrecreasePlan over the real planner bridge', () 
 
   it('plans grid6 with the auxiliary count the manifest records', async () => {
     const { result } = await plan('grid6.fold');
-    expect(result.stopReason).toBe('complete');
-    expect(result.sequence.status).toBe('complete');
+    // The same manifest entry the Rust driver is held to.
+    expect(result.stopReason).toBe(expectedStatus('grid6.fold'));
+    expect(result.sequence.status).toBe(expectedStatus('grid6.fold'));
     expect(result.sequence.totals.aux).toBe(expectedAux('grid6.fold'));
     expect(result.sequence.totals.unsolved).toBe(0);
     expect(result.rfAuxFolded).toBe(0);
@@ -210,7 +231,8 @@ describe.skipIf(!available)('runPrecreasePlan over the real planner bridge', () 
   it('plans the iguana component 0 with the auxiliary count the manifest records', async () => {
     const { result, wallMs } = await plan('iguana-c0.fold');
     // 1,774 segments merging to 89 distinct lines, one depth-2 stuck event.
-    expect(result.stopReason).toBe('complete');
+    expect(result.stopReason).toBe(expectedStatus('iguana-c0.fold'));
+    expect(result.sequence.status).toBe(expectedStatus('iguana-c0.fold'));
     expect(result.sequence.totals.aux).toBe(expectedAux('iguana-c0.fold'));
     expect(result.sequence.totals.unsolved).toBe(0);
     expect(result.rfQueries).toBe(0);
