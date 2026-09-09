@@ -84,6 +84,20 @@ contact head fires weakly.
   looked worth 42 fixes. Re-dumped, its contacts are within 0.4 px: the
   snap is not needed.
 
+## What the Rust port added to the prototype
+
+- The prior runs after the contact re-localisation, not before: the
+  contacts' grid score read from the head's raw positions is far lower
+  (almond 0.53 against 1.0 after), and a completed contact sits on its
+  grid position, which on a render is the ink's.
+- The chance-corrected grid score with a 1 px band; the contact floor at
+  0.5 (0.8 excluded four giants whose crowded ink the re-localisation
+  declines to read); the contact head's peak recorded but not required;
+  the ridge at 0.15.
+- The `pool/` dumps from the earliest sweeps predate the re-localisation;
+  the A/B was re-dumped both ways at this commit (`GRID_PRIOR=0` in
+  `dump_candidate_pool`).
+
 ## Affected Areas
 
 - `crates/oristudio-cp-detect/src/candidate_generation/junction_first_v1.rs`
@@ -101,6 +115,14 @@ contact head fires weakly.
 - [x] Giants' dump: the same measurement on the 31 giants (the prototype
       sweep above ran on them)
 - [x] `GridPrior` detection and border completion, unit-tested
-- [ ] Rust port swept on the 69 box-pleat cases (A/B on the candidate
-      pools, strict metric)
-- [ ] Full curated benchmark; scorecard and README; before/after crops
+- [x] Rust port swept on the box-pleat cases (A/B on the candidate pools,
+      strict metric): 68 cases (tokyo-skytree is over the cap), 60 with a
+      prior, 443 contacts completed and every one within 2 px of a truth
+      contact; 8 cases near → exact, 0 lost, 24 with fewer defects, 0 with
+      more; missing creases 7,391 → 6,305
+- [x] Full curated benchmark (`2026-09-09-bp-grid-prior`): decoder exact
+      346 → 356, strict `recovered` 332 → 337, nothing the other way;
+      scorecard and README updated; before/after crops in the PR
+- [ ] Later: the compute lever for the four exact decodes over the solve's
+      crease cap, and the solver's first-stage rejection on wizard (an exact
+      graph with an 8.6° Kawasaki error in its start)
