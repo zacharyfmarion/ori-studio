@@ -38,6 +38,7 @@ import {
 } from '../renderer/camera';
 import type { CpRenderer } from '../renderer/CpRenderer';
 import { readCssVarColor } from '../renderer/cssColor';
+import { canvasDiagramInk } from './diagram/diagramInk';
 import { createReglRenderer } from '../renderer/reglRenderer';
 import type { Rgba, StrokeGeometry, Viewport } from '../renderer/types';
 import type { CpOverlayView } from '../CreasePatternWebglCanvas';
@@ -835,10 +836,12 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       // *which* direction lives in `referencesCreaseVisibility`.
       const palette = overlayColors(canvas);
       renderer.setStrokes(
-        applyCreaseVisibility(strokes, geometry.segEndpoints.length / 4, {
-          ...creaseVisibility,
-          ink: { mountain: palette.mountain, valley: palette.valley },
-        })
+        applyCreaseVisibility(
+          strokes,
+          geometry.segEndpoints.length / 4,
+          { ...creaseVisibility, ink: { mountain: palette.mountain, valley: palette.valley } },
+          canvasDiagramInk(lineWidth)
+        )
       );
       // Only when the paper is on its back: the front face is the same colour
       // as the ground it lies on, so filling it would draw nothing and cost a
@@ -854,6 +857,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       );
       renderNowRef.current();
     }, [
+      lineWidth,
       geometry,
       lineStyle,
       mode,

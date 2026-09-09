@@ -164,10 +164,19 @@ export function ReferencesPanel() {
     settings.showPinches
   );
   const highlights = targeted ? targetHighlights : planHighlights;
+  // Which face the reader is on. Everything the picture says about direction is
+  // said from it — a mountain seen from the front is a valley seen from the
+  // back — so it reaches the card, the overlay and the pattern's own creases.
+  const mirrored = !targeted && sideAt(viewSteps, breakdown.activeStep) === 'back';
   // The step's picture, once: straight lines packed for the GPU, symbols for the
   // layer over it. Both off the same primitives the filmstrip card draws.
   const [diagramCamera, setDiagramCamera] = useState<ReferencesDiagramView | null>(null);
-  const scene = useReferencesDiagramScene(highlights.diagram, view.lineWidth, view.themeKey);
+  const scene = useReferencesDiagramScene(
+    highlights.diagram,
+    view.lineWidth,
+    mirrored,
+    view.themeKey
+  );
 
   const run = useWorkspaceStore((state) => state.referencesRun);
   const shortcutOverrides = useShortcutStore((store) => store.overrides);
@@ -268,6 +277,7 @@ export function ReferencesPanel() {
       sheetLineIds: sheetIds,
       borderLineIds: borderIds,
       activeLineIds: highlights.highlightLineIds,
+      mirrored,
     };
     if (targeted) return targetVisibility(input);
     if (breakdown.variants.length === 0) return unreadVisibility(input);
@@ -276,6 +286,7 @@ export function ReferencesPanel() {
     sheetIds,
     borderIds,
     targeted,
+    mirrored,
     highlights.highlightLineIds,
     breakdown.variants,
     viewSteps,
@@ -286,7 +297,6 @@ export function ReferencesPanel() {
   // back the view mirrors, because that is what they would see — and the last
   // step turns it back, so the pattern is read from the side its mountain and
   // valley assignment is stated in.
-  const mirrored = !targeted && sideAt(viewSteps, breakdown.activeStep) === 'back';
 
   // The sequence is what the workspace is for, so it runs on arrival rather
   // than behind a button — see `useReferencesAutoPlan` for what stops that

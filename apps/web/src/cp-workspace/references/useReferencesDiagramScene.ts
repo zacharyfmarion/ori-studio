@@ -3,6 +3,7 @@ import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
 import { diagramInkColors } from './diagram/diagramColors';
 import { diagramToScene, type DiagramScene } from './diagram/diagramToScene';
 import { canvasDiagramInk } from './diagram/diagramInk';
+import { seenFromTheBack } from './diagram/diagramModel';
 
 /**
  * A step's picture, split between the renderer and the layer over it.
@@ -27,16 +28,19 @@ const EMPTY: ReferencesDiagramScene = { strokes: null, symbols: null };
 export function useReferencesDiagramScene(
   diagram: StepDiagramModel | null,
   lineWidth: number,
+  mirrored: boolean,
   themeKey: string | undefined
 ): ReferencesDiagramScene {
   return useMemo(() => {
     if (!diagram) return EMPTY;
+    // A mountain seen from the front is a valley seen from the back.
+    const primitives = mirrored ? seenFromTheBack(diagram.primitives) : diagram.primitives;
     // The same pen the layer over the canvas uses, so the lines and the symbols
     // are one drawing. It scales the dash runs, which the stroke program reads
     // in screen pixels — and it deliberately excludes the zoom-dependent boost
     // the creases carry, or every zoom frame would have to re-upload them.
     const scene = diagramToScene(
-      diagram.primitives,
+      primitives,
       diagramInkColors(document.documentElement),
       canvasDiagramInk(lineWidth)
     );
@@ -46,5 +50,5 @@ export function useReferencesDiagramScene(
     };
     // `themeKey` is a real dependency: the colours above are read from the DOM.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [diagram, lineWidth, themeKey]);
+  }, [diagram, lineWidth, mirrored, themeKey]);
 }

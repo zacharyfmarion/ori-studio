@@ -131,3 +131,35 @@ export function canvasDiagramInk(lineWidth: number): number {
  * on purpose, so it has to carry its own background out there.
  */
 export const DIAGRAM_LABEL_INK = { size: 10.8, halo: 3, offset: 4.2 } as const;
+
+/**
+ * The dash slots a diagram uses, and the patterns that fill them.
+ *
+ * Three of the four the stroke program offers. The crease pattern's own table
+ * (`lib/oristudioCpLineStyle`) spends all four on Oriedita's shape-coded style,
+ * and this surface replaces it rather than sharing it: the References workspace
+ * is a diagram, and a diagram says mountain and valley with a *pattern* — the
+ * one thing that still reads when the paper is turned over and the colours
+ * change meaning.
+ *
+ * Runs are in CSS pixels, which is what the program wants, so the pen decides
+ * them. Every pattern here is at most two on/off pairs, inside the three the
+ * shader walks.
+ */
+export const DIAGRAM_DASH_SLOTS: readonly DiagramLineStyleName[] = [
+  'valley',
+  'mountain',
+  'dotted',
+];
+
+/** The slot a style takes; 0 is solid. */
+export function diagramDashSlot(style: DiagramLineStyleName): number {
+  return DIAGRAM_DASH_SLOTS.indexOf(style) + 1;
+}
+
+/** The slot table, with every run scaled by the pen. */
+export function diagramDashPatterns(inkCss: number): number[][] {
+  return DIAGRAM_DASH_SLOTS.map((style) =>
+    (DIAGRAM_LINE_INK[style].dash ?? []).map((run) => run * inkCss)
+  );
+}

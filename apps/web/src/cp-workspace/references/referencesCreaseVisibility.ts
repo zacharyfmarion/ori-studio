@@ -35,6 +35,7 @@
  * a sheet; the paper's outline is the thing the folds are drawn on rather than
  * one of them, and a diagram that fades it out reads as an empty page.
  */
+import { flipDirection } from './diagram/diagramModel';
 import type { ReferencesPlanVariant } from './referencesResults';
 import type { ReferencesViewStep } from './referencesSequenceView';
 import type { ReferencesCreaseVisibility } from './referencesViewGeometry';
@@ -57,6 +58,11 @@ export const REFERENCES_ALL_CREASES: ReferencesCreaseVisibility = {
 };
 
 export interface ReferencesVisibilityInput {
+  /**
+   * The reader is looking at the paper's back, so a crease's direction is named
+   * from that face — see `diagram/diagramModel.flipDirection`.
+   */
+  mirrored?: boolean;
   /** The selected sheet's creases, border included; null draws the document. */
   sheetLineIds: ReadonlySet<number> | null;
   /** The selected sheet's border loop, never hidden. */
@@ -111,7 +117,7 @@ export function planVisibility(
   activeStep: number,
   input: ReferencesVisibilityInput
 ): ReferencesCreaseVisibility {
-  const { sheetLineIds, borderLineIds } = input;
+  const { sheetLineIds, borderLineIds, mirrored = false } = input;
   const target = viewSteps[activeStep];
   if (!target) return targetVisibility({ ...input, activeLineIds: new Set() });
 
@@ -131,7 +137,11 @@ export function planVisibility(
     for (const id of entry.cp_line_ids) {
       if (sheetLineIds && !sheetLineIds.has(id)) continue;
       visible.add(id);
-      if (entry.direction !== 'unassigned') directions.set(id, entry.direction);
+      if (entry.direction !== 'unassigned') {
+        // Named from the face the reader is on, like everything else in the
+        // picture — see `diagram/diagramModel.flipDirection`.
+        directions.set(id, mirrored ? flipDirection(entry.direction) : entry.direction);
+      }
       if (i === activeStep && target.kind === 'fold') active.add(id);
     }
   }

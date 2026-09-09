@@ -17,7 +17,7 @@ import type {
   DiagramLineStyleName,
   StepDiagramPrimitive,
 } from '../referenceFinderDiagramToPrimitives';
-import { DIAGRAM_LINE_INK } from './diagramInk';
+import { DIAGRAM_LINE_INK, diagramDashPatterns, diagramDashSlot } from './diagramInk';
 
 export interface DiagramScene {
   /** The straight lines, ready for the preview channel. */
@@ -28,16 +28,6 @@ export interface DiagramScene {
 
 /** One colour per line style, resolved from the theme by the caller. */
 export type DiagramInkColors = Record<DiagramLineStyleName, Rgba>;
-
-/**
- * Which dash slot each pattern takes.
- *
- * Three of the four the stroke program offers, and none shared with the crease
- * channel: the preview channel is its own program instance with its own slot
- * table (`reglRenderer.ts` builds a second `createStrokeProgram`). Every pattern
- * here is at most two on/off pairs, inside the three the shader walks.
- */
-const DASHED: readonly DiagramLineStyleName[] = ['valley', 'mountain', 'dotted'];
 
 /**
  * Split a step's primitives, and pack the lines for upload.
@@ -91,7 +81,7 @@ function pack(
     // step is about.
     color[i * 4 + 3] = ink[3] * (pen.opacity ?? 1);
     widthMul[i] = pen.width;
-    dashSlot[i] = DASHED.indexOf(line.style) + 1;
+    dashSlot[i] = diagramDashSlot(line.style);
     dashPhase[i] = line.dashPhase ?? 0;
   });
   return {
@@ -100,9 +90,7 @@ function pack(
     color,
     widthMul,
     count,
-    dashPatterns: DASHED.map((style) =>
-      (DIAGRAM_LINE_INK[style].dash ?? []).map((run) => run * inkCss)
-    ),
+    dashPatterns: diagramDashPatterns(inkCss),
     dashSlot,
     dashPhase,
   };

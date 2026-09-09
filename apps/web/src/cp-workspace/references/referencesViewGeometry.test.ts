@@ -213,7 +213,7 @@ describe('applyCreaseVisibility', () => {
 
   it('returns the buffer untouched when nothing is filtered', () => {
     const input = strokes();
-    expect(applyCreaseVisibility(input, 4, { visible: null, dimmed: null, dimAlpha: 1 })).toBe(input);
+    expect(applyCreaseVisibility(input, 4, { visible: null, dimmed: null, dimAlpha: 1 }, 1.25)).toBe(input);
   });
 
   it('zeroes a crease no step has reached and scales a dimmed one', () => {
@@ -221,7 +221,7 @@ describe('applyCreaseVisibility', () => {
       visible: new Set([1, 2]),
       dimmed: new Set([2]),
       dimAlpha: 0.25,
-    });
+    }, 1.25);
     // Crease 1 full, crease 2 dimmed, creases 3-4 hidden, and the appended hint
     // overlay (index 4, past the document's segments) dropped with them.
     expect(alphaOf(out)).toEqual([1, 0.25, 0, 0, 0]);
@@ -229,7 +229,7 @@ describe('applyCreaseVisibility', () => {
 
   it('does not mutate the buffer it was given', () => {
     const input = strokes();
-    applyCreaseVisibility(input, 4, { visible: new Set([1]), dimmed: null, dimAlpha: 0.5 });
+    applyCreaseVisibility(input, 4, { visible: new Set([1]), dimmed: null, dimAlpha: 0.5 }, 1.25);
     expect(alphaOf(input)).toEqual([1, 1, 1, 1, 1]);
   });
 });
@@ -255,7 +255,7 @@ describe('dash continuity along one line', () => {
       ]),
       3,
       { visible: visible(3), dimmed: null, dimAlpha: 1 }
-    );
+    , 1.25);
     expect([...(out.dashPhase ?? [])]).toEqual([0, 3, 7]);
   });
 
@@ -265,12 +265,12 @@ describe('dash continuity along one line', () => {
       visible: visible(1),
       dimmed: null,
       dimAlpha: 1,
-    });
+    }, 1.25);
     const backward = applyCreaseVisibility(strokes([[7, 0, 3, 0]]), 1, {
       visible: visible(1),
       dimmed: null,
       dimAlpha: 1,
-    });
+    }, 1.25);
     expect([...(backward.dashPhase ?? [])]).toEqual([...(forward.dashPhase ?? [])]);
     // …and the segment is reoriented to match, so the pattern runs the same way.
     expect([...backward.a]).toEqual([...forward.a]);
@@ -286,7 +286,7 @@ describe('dash continuity along one line', () => {
       ]),
       2,
       { visible: visible(2), dimmed: null, dimAlpha: 1 }
-    );
+    , 1.25);
     const phases = [...(out.dashPhase ?? [])];
     expect(phases[0]).toBeCloseTo(0, 6);
     expect(phases[1]).toBeCloseTo(1, 6);

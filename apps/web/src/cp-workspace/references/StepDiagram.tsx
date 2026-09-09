@@ -5,6 +5,7 @@ import {
   type StepDiagramModel,
 } from './referenceFinderDiagramToPrimitives';
 import { diagramPrimitiveShape } from './diagram/DiagramPrimitives';
+import { seenFromTheBack } from './diagram/diagramModel';
 import { createDiagramProjector } from './stepDiagramGeometry';
 
 export type StepDiagramProps = {
@@ -77,8 +78,8 @@ export function StepDiagram({
       aria-label={label}
       aria-hidden={label ? undefined : true}
     >
-      {model.primitives.map((primitive, index) =>
-        diagramPrimitiveShape(primitive, index, project, model.sheet)
+      {(mirrored ? seenFromTheBack(model.primitives) : model.primitives).map(
+        (primitive, index) => diagramPrimitiveShape(primitive, index, project, model.sheet)
       )}
     </svg>
   );

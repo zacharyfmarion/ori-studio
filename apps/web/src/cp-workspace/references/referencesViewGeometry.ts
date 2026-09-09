@@ -19,6 +19,7 @@ import { VERTEX_RADIUS_FACTOR } from '../adapters/cpPointsToScene';
 import { previewGroupsToStrokes, type PreviewStrokeGroup } from '../renderer/previewStrokes';
 import type { LineHitIndex } from '../picking/lineHitIndex';
 import { dashRulerAlong } from './stepDiagramGeometry';
+import { diagramDashPatterns, diagramDashSlot } from './diagram/diagramInk';
 import type {
   ModelBounds,
   ReferencesGhostKind,
@@ -347,7 +348,9 @@ export interface ReferencesCreaseVisibility {
 export function applyCreaseVisibility(
   strokes: StrokeGeometry,
   segmentCount: number,
-  visibility: ReferencesCreaseVisibility
+  visibility: ReferencesCreaseVisibility,
+  /** The diagram's pen, for the dash runs — see `diagram/diagramInk`. */
+  inkCss: number
 ): StrokeGeometry {
   const {
     visible,
@@ -374,6 +377,11 @@ export function applyCreaseVisibility(
   const a = new Float32Array(strokes.a);
   const b = new Float32Array(strokes.b);
   const dashPhase = new Float32Array(strokes.count);
+  // A diagram says mountain and valley with a *pattern*, not only a colour —
+  // which is the half that still reads when the paper is turned over and the
+  // two colours swap meaning. The crease pattern's own table only dashes under
+  // Oriedita's shape-coded line style, so this surface brings its own.
+  const dashSlot = new Float32Array(strokes.count);
   for (let i = 0; i < strokes.count; i += 1) {
     if (i >= segmentCount) {
       color[i * 4 + 3] = 0;
@@ -387,11 +395,14 @@ export function applyCreaseVisibility(
     // The direction the fold was made in, for every crease a step has made —
     // not only the active one. Alpha is left alone: it carries the build-up.
     const folded = directions?.get(id);
-    if (folded && ink) {
-      const rgba = folded === 'mountain' ? ink.mountain : ink.valley;
-      color[i * 4] = rgba[0];
-      color[i * 4 + 1] = rgba[1];
-      color[i * 4 + 2] = rgba[2];
+    if (folded) {
+      dashSlot[i] = diagramDashSlot(folded);
+      if (ink) {
+        const rgba = folded === 'mountain' ? ink.mountain : ink.valley;
+        color[i * 4] = rgba[0];
+        color[i * 4 + 1] = rgba[1];
+        color[i * 4 + 2] = rgba[2];
+      }
     }
     if (emphasis !== null && emphasis.has(id)) {
       widthMul[i] *= emphasisWidth;
@@ -407,7 +418,16 @@ export function applyCreaseVisibility(
     b[i * 2 + 1] = ruler.by;
     dashPhase[i] = ruler.phase;
   }
-  return { ...strokes, a, b, color, widthMul, dashPhase };
+  return {
+    ...strokes,
+    a,
+    b,
+    color,
+    widthMul,
+    dashPhase,
+    dashSlot,
+    dashPatterns: diagramDashPatterns(inkCss),
+  };
 }
 
 /**
