@@ -1,3 +1,5 @@
+import { nextActionDouble } from './driveRulesDouble';
+import type { PrecreaseLastStep, PrecreasePlanAction } from './precreaseSequence';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -89,12 +91,14 @@ function handleFor(planner: {
   score(lines: Float64Array): Uint32Array;
   fold(lines: Float64Array, tags: Uint8Array, budget: number): unknown;
   sequence(landmarksFirst: boolean): unknown;
+  next_action(driver: unknown): unknown;
   explain(line: Float64Array): unknown;
   to_rf(lines: Float64Array): Float64Array;
   from_rf(points: Float64Array): Float64Array;
 }): PrecreasePlannerHandle {
   return {
     info: async () => planner.info() as PrecreasePlannerInfo,
+    nextAction: async (driver) => planner.next_action(driver) as PrecreasePlanAction,
     close: async (budgetMs) => planner.close(budgetMs) as PrecreaseCloseReport,
     remaining: async () => planner.remaining(),
     lineKeys: async () => planner.line_keys(),
@@ -130,6 +134,69 @@ describe.skipIf(!available)('runPrecreasePlan over the real planner bridge', () 
       planner.free();
     }
   }
+
+  // The unit tests drive the loop against a fake, and a fake has to answer
+  // "what next?" — so `driveRulesDouble.ts` is a second copy of rules whose
+  // whole purpose is to exist once. This is what keeps that honest: every
+  // combination of inputs, through the double and through the crate, asserted
+  // equal. A rule changed in Rust and not in the double turns this red.
+  it('the unit tests’ rules double answers exactly as the crate does', async () => {
+    const wasm = await import('../../generated/oristudio-precrease-wasm/oristudio_precrease_wasm');
+    wasm.initSync({ module: readFileSync(WASM) });
+    const { segments, colors } = loadFold('grid6.fold');
+    const planner = new wasm.PrecreasePlanner(segments, colors, undefined, 0, '');
+    try {
+      // A fresh planner: nothing folded, nothing refused, on a lattice — so
+      // `PlanState` is all false and the double can be handed the same.
+      const plan = {
+        refused: false,
+        complete: false,
+        off_lattice: false,
+        point_cap_hit: false,
+      };
+      const lasts: PrecreaseLastStep[] = [
+        { kind: 'nothing' },
+        { kind: 'closed', stalled: false },
+        { kind: 'closed', stalled: true },
+        { kind: 'searched', found: false },
+        { kind: 'searched', found: true },
+        { kind: 'asked_reference_finder', folded: false },
+        { kind: 'asked_reference_finder', folded: true },
+      ];
+      let checked = 0;
+      for (const last of lasts) {
+        for (const out_of_time of [false, true]) {
+          for (const aborted of [false, true]) {
+            for (const reference_finder of [false, true]) {
+              for (const [rf_events, max_rf_events] of [
+                [0, 0],
+                [0, 3],
+                [3, 3],
+                [4, 3],
+              ]) {
+                const driver = {
+                  last,
+                  out_of_time,
+                  aborted,
+                  reference_finder,
+                  rf_events,
+                  max_rf_events,
+                };
+                expect(nextActionDouble(plan, driver)).toEqual(
+                  planner.next_action(driver) as PrecreasePlanAction
+                );
+                checked += 1;
+              }
+            }
+          }
+        }
+      }
+      // A loop that silently checked nothing would pass too.
+      expect(checked).toBe(lasts.length * 2 * 2 * 2 * 4);
+    } finally {
+      planner.free();
+    }
+  });
 
   it('plans grid6 with the auxiliary count the manifest records', async () => {
     const { result } = await plan('grid6.fold');

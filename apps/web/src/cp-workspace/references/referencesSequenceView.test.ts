@@ -35,6 +35,7 @@ function step(id: number, side: PrecreaseSide): PrecreaseStep {
     visible: true,
     witnesses_complete: true,
     marks_exist: true,
+    missing_marks: [],
     hoisted: false,
   };
 }

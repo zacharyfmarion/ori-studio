@@ -55,6 +55,10 @@
 //!   close(budget_ms: number): { folded: number; remaining: number;
 //!                               exhausted: boolean; fixpoint: boolean;
 //!                               budget_hit: boolean };
+//!   /** What to do next, by the rules in `oristudio_precrease::drive` — the
+//!    *  one copy of them, so a driver's loop cannot drift from this crate's.
+//!    *  The caller reports what it just did and the facts only it knows. */
+//!   next_action(driver: DriverState): PlanAction;
 //!   /** Seven numbers per remaining CP line: `nx, ny, d` then two in-frame
 //!    *  points `ax, ay, bx, by` (its in-paper segment), for a ReferenceFinder
 //!    *  line query. Same order as `line_keys()`. */
@@ -87,6 +91,7 @@
 use std::sync::Once;
 
 use oristudio_precrease::clock::default_clock;
+use oristudio_precrease::drive::DriverState;
 use oristudio_precrease::closure::FoldOutcome;
 use oristudio_precrease::planner::{Planner, PlannerOptions};
 use oristudio_precrease::sequence::{ExactnessSummary, Status};
@@ -259,6 +264,23 @@ impl PrecreasePlanner {
             fixpoint: outcome.fixpoint,
             budget_hit: outcome.budget_hit,
         })
+    }
+
+    /// What to do next, by the rules in `oristudio_precrease::drive`.
+    ///
+    /// The driver passes what it just did and the facts only it knows —
+    /// whether it is out of time, whether the caller asked it to stop, whether
+    /// it can reach ReferenceFinder and how many times it has. It gets back one
+    /// of `close`, `stuck_search`, `ask_reference_finder` or `stop`.
+    ///
+    /// The point of routing the loop through here is that the rules exist once.
+    /// They used to be written both in this crate and in the browser's own
+    /// loop, and the two drifted until the same pattern could stop for
+    /// different reasons depending on which ran it.
+    pub fn next_action(&self, driver: JsValue) -> Result<JsValue, JsValue> {
+        let driver: DriverState = serde_wasm_bindgen::from_value(driver)
+            .map_err(|e| JsValue::from_str(&format!("invalid driver state: {e}")))?;
+        to_js_value(&self.inner.next_action(driver))
     }
 
     /// Seven numbers per remaining CP line: `nx, ny, d` then its in-paper

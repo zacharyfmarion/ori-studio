@@ -27,6 +27,10 @@ function fakePlanner(options: {
     get closes() {
       return closes;
     },
+    // Never reached: nothing here runs the planning loop.
+    async nextAction() {
+      return { kind: 'stop' as const, reason: 'unsolved' as const };
+    },
     async info() {
       return {
         component: 2,

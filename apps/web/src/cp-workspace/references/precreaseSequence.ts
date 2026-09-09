@@ -76,6 +76,46 @@ export type PrecreaseDirection = 'mountain' | 'valley' | 'unassigned';
 export type PrecreaseSide = 'front' | 'back';
 export type PrecreaseLineTag = 'edge' | 'cp' | 'aux' | 'rf_aux';
 
+/**
+ * Why a plan run ended — the crate's own `drive::StopReason`, mirrored.
+ *
+ * One vocabulary for both drivers. `budget`, `aborted` and `point_cap` used to
+ * exist only here, which is how the same pattern came to stop for different
+ * reasons depending on whether the browser or a headless harness ran it.
+ */
+export type PrecreaseStopReason =
+  | 'complete'
+  | 'unsolved'
+  | 'off_lattice'
+  | 'budget'
+  | 'aborted'
+  | 'refused_sheet'
+  | 'point_cap';
+
+/** What the driver just finished doing — the crate's `drive::LastStep`. */
+export type PrecreaseLastStep =
+  | { kind: 'nothing' }
+  | { kind: 'closed'; stalled: boolean }
+  | { kind: 'searched'; found: boolean }
+  | { kind: 'asked_reference_finder'; folded: boolean };
+
+/** The facts only the driver knows — the crate's `drive::DriverState`. */
+export interface PrecreaseDriverState {
+  last: PrecreaseLastStep;
+  out_of_time: boolean;
+  aborted: boolean;
+  reference_finder: boolean;
+  rf_events: number;
+  max_rf_events: number;
+}
+
+/** What to do next — the crate's `drive::PlanAction`. */
+export type PrecreasePlanAction =
+  | { kind: 'close' }
+  | { kind: 'stuck_search' }
+  | { kind: 'ask_reference_finder' }
+  | { kind: 'stop'; reason: PrecreaseStopReason };
+
 /** One fold in the presentation order. */
 export interface PrecreaseStep {
   /** 1-based position in the presentation order. */
@@ -128,6 +168,15 @@ export interface PrecreaseStep {
    * make the mark rather than shown where it already is.
    */
   marks_exist: boolean;
+  /**
+   * Where the marks this step sights but cannot find actually are, in the
+   * planner's unit frame. Empty exactly when `marks_exist`.
+   *
+   * `marks_exist` alone says the step is unperformable and leaves nothing to do
+   * about it; these are the coordinates to hand ReferenceFinder for a
+   * construction, so the plan can gain the fold that puts the mark on the paper.
+   */
+  missing_marks: [number, number][];
   hoisted: boolean;
 }
 

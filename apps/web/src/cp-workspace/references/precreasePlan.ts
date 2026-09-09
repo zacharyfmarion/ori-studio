@@ -42,6 +42,10 @@ import {
   type PrecreasePlannerInfo,
   type PrecreaseSequence,
   type PrecreaseStuckSummary,
+  type PrecreaseLastStep,
+  type PrecreaseStopReason,
+  type PrecreasePlanAction,
+  type PrecreaseDriverState,
 } from './precreaseSequence';
 
 /** The planner handle the loop drives; the worker's bound to one token. */
@@ -50,6 +54,8 @@ export interface PrecreasePlannerHandle {
   close(budgetMs: number): Promise<PrecreaseCloseReport>;
   remaining(): Promise<Float64Array>;
   lineKeys(): Promise<string[]>;
+  /** The crate's `drive::next_action` — the one copy of the loop's rules. */
+  nextAction(driver: PrecreaseDriverState): Promise<PrecreasePlanAction>;
   stuckSearch(depth: number, budgetMs: number): Promise<PrecreaseStuckSummary | null>;
   score(lines: Float64Array): Promise<Uint32Array>;
   fold(lines: Float64Array, tags: Uint8Array, budgetMs: number): Promise<PrecreaseFoldOutcome[]>;
@@ -71,6 +77,7 @@ export interface PrecreasePlannerWorkerApi {
   plannerClose(token: number, budgetMs: number): Promise<PrecreaseCloseReport>;
   plannerRemaining(token: number): Promise<Float64Array>;
   plannerLineKeys(token: number): Promise<string[]>;
+  plannerNextAction(token: number, driver: PrecreaseDriverState): Promise<PrecreasePlanAction>;
   plannerStuckSearch(
     token: number,
     depth: number,
@@ -99,6 +106,7 @@ export function createWorkerPlannerHandle(
     close: (budgetMs) => api.plannerClose(token, budgetMs),
     remaining: () => api.plannerRemaining(token),
     lineKeys: () => api.plannerLineKeys(token),
+    nextAction: (driver) => api.plannerNextAction(token, driver),
     stuckSearch: (depth, budgetMs) => api.plannerStuckSearch(token, depth, budgetMs),
     score: (lines) => api.plannerScore(token, lines),
     fold: (lines, tags, budgetMs) => api.plannerFold(token, lines, tags, budgetMs),
@@ -169,14 +177,15 @@ export interface PrecreasePlanOptions {
  * Why the loop stopped. `complete` and `off_lattice` are the two ends the
  * algorithm reaches on purpose; every other value means the answer is partial.
  */
-export type PrecreasePlanStopReason =
-  | 'complete'
-  | 'off_lattice'
-  | 'unsolved'
-  | 'budget'
-  | 'aborted'
-  | 'refused_sheet'
-  | 'point_cap';
+/**
+ * Why a plan run ended.
+ *
+ * The crate's `drive::StopReason`, not a second list. This was that second
+ * list — it had grown `budget`, `aborted` and `point_cap`, which the crate
+ * could not express, so the same pattern could stop for different reasons
+ * depending on which driver ran it.
+ */
+export type PrecreasePlanStopReason = PrecreaseStopReason;
 
 /** ReferenceFinder's best approximation of a line the plan cannot construct. */
 export interface PrecreaseApproximateFinding {
@@ -289,61 +298,66 @@ export async function runPrecreasePlan(
   // Assigned by every arm of the loop below, including the abort handler.
   let stop: PrecreasePlanStopReason;
   try {
-    // Closure → stuck search → fallback, until nothing remains or something
-    // stops us. Every arm of the loop re-enters through `closeToFixpoint`, so
-    // the invariant "the state is closed before we decide anything" holds
-    // wherever the loop branches.
+    // The loop BODY is here because it has to be: it awaits ReferenceFinder,
+    // it chunks the closure so a large pattern does not freeze the UI, and it
+    // checks for abort between chunks. None of that can be a synchronous Rust
+    // loop, which is why this function exists at all.
+    //
+    // The DECISIONS are not here, and that is the point. `planner.nextAction`
+    // is the crate's `drive::next_action` — the one copy of the rules. This was
+    // a hand-written ladder of exits, and it had drifted from the Rust one:
+    // separate arms for stalling, off-lattice patterns and the RF cap, and
+    // three stop reasons the crate had never heard of. The same pattern could
+    // stop for different reasons depending on which driver ran it.
+    let last: PrecreaseLastStep = { kind: 'nothing' };
     for (;;) {
       checkAbort();
-      const closed = await closeToFixpoint();
-      folded += closed.folded;
-      remaining = closed.remaining;
-      if (remaining === 0) {
-        stop = 'complete';
-        break;
-      }
-      if (closed.stalled) {
-        // The closure could not finish inside the budget and stopped
-        // advancing: nothing further is honest to try.
-        stop = 'budget';
-        break;
-      }
-      if (info.off_lattice) {
-        // D8: the closure runs, the rest are findings. The stuck search never
-        // does, because an off-lattice line has no exact construction to find.
-        stop = 'off_lattice';
-        break;
-      }
-      if (outOfTime()) {
-        stop = 'budget';
+      const action = await planner.nextAction({
+        last,
+        out_of_time: outOfTime(),
+        // Abort is a throw here, not a state: `checkAbort` above has already
+        // unwound if the signal fired. The field exists for a driver that
+        // polls rather than throws.
+        aborted: false,
+        reference_finder: Boolean(referenceFinder),
+        rf_events: rfEvents,
+        max_rf_events: maxRfEvents,
+      });
+
+      if (action.kind === 'stop') {
+        stop = action.reason;
         break;
       }
 
-      // Before the search, not only at the top of the loop: `stuckSearch` is
-      // the one call that cannot be interrupted once it starts, and it has a
-      // four-second budget. A Stop pressed during the closure must not buy
-      // four more seconds of searching.
-      checkAbort();
-      report('searching', { folded, remaining });
-      const summary = await planner.stuckSearch(stuckDepth, stuckBudgetMs);
-      if (summary) {
-        stuckEvents += 1;
+      if (action.kind === 'close') {
+        const closed = await closeToFixpoint();
+        folded += closed.folded;
+        remaining = closed.remaining;
+        last = { kind: 'closed', stalled: closed.stalled };
         continue;
       }
 
-      if (!referenceFinder || rfEvents >= maxRfEvents || outOfTime()) {
-        stop = rfEvents >= maxRfEvents ? 'budget' : 'unsolved';
-        break;
+      if (action.kind === 'stuck_search') {
+        // Before the search, not only at the top of the loop: `stuckSearch` is
+        // the one call that cannot be interrupted once it starts, and it has a
+        // four-second budget. A Stop pressed during the closure must not buy
+        // four more seconds of searching.
+        checkAbort();
+        report('searching', { folded, remaining });
+        const summary = await planner.stuckSearch(stuckDepth, stuckBudgetMs);
+        if (summary) stuckEvents += 1;
+        last = { kind: 'searched', found: Boolean(summary) };
+        continue;
       }
+
+      // `ask_reference_finder`, which the rules only ever return because we
+      // told them we have one.
       rfEvents += 1;
       const fallback = await referenceFinderFallback();
       rfQueries += fallback.queries;
-      if (!fallback.folded) {
-        stop = fallback.aborted ? 'aborted' : 'unsolved';
-        if (fallback.aborted) checkAbort();
-        break;
-      }
-      rfAuxFolded += 1;
+      if (fallback.aborted) checkAbort();
+      if (fallback.folded) rfAuxFolded += 1;
+      last = { kind: 'asked_reference_finder', folded: fallback.folded };
     }
   } catch (error) {
     if (!(error instanceof PlanAborted)) throw error;

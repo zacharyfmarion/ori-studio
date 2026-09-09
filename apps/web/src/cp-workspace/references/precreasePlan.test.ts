@@ -1,3 +1,8 @@
+import { nextActionDouble } from './driveRulesDouble';
+import type {
+  PrecreaseDriverState,
+  PrecreasePlanAction,
+} from './precreaseSequence';
 import { describe, expect, it, vi } from 'vitest';
 import lineExact from './referenceFinder/__fixtures__/line-exact.json';
 import lineApproximate from './referenceFinder/__fixtures__/line-approximate.json';
@@ -102,6 +107,22 @@ class FakePlanner implements PrecreasePlannerHandle {
       remaining: this.remainingKeys.size,
       point_cap: 600_000,
     };
+  }
+
+  /**
+   * The rules, from the test double — see `driveRulesDouble.ts` for why that is
+   * not simply a second implementation left lying about.
+   */
+  async nextAction(driver: PrecreaseDriverState): Promise<PrecreasePlanAction> {
+    return nextActionDouble(
+      {
+        refused: this.spec.refused ?? false,
+        complete: this.remainingKeys.size === 0,
+        off_lattice: this.spec.offLattice ?? false,
+        point_cap_hit: false,
+      },
+      driver
+    );
   }
 
   async close(): Promise<PrecreaseCloseReport> {

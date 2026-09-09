@@ -104,7 +104,10 @@ pub enum PlanAction {
     /// that said it has one.
     AskReferenceFinder,
     /// Stop, for this reason.
-    Stop(StopReason),
+    ///
+    /// A struct variant, not a newtype: an internally tagged enum cannot carry
+    /// a bare string as its content, and this crosses the wasm boundary as JSON.
+    Stop { reason: StopReason },
 }
 
 /// What the plan itself says, independent of the driver — supplied by the
@@ -121,13 +124,19 @@ pub struct PlanState {
 pub fn next_action(plan: PlanState, driver: DriverState) -> PlanAction {
     // Three answers that do not depend on where in the loop we are.
     if plan.refused {
-        return PlanAction::Stop(StopReason::RefusedSheet);
+        return PlanAction::Stop {
+            reason: StopReason::RefusedSheet,
+        };
     }
     if driver.aborted {
-        return PlanAction::Stop(StopReason::Aborted);
+        return PlanAction::Stop {
+            reason: StopReason::Aborted,
+        };
     }
     if plan.point_cap_hit {
-        return PlanAction::Stop(StopReason::PointCap);
+        return PlanAction::Stop {
+            reason: StopReason::PointCap,
+        };
     }
 
     match driver.last {
@@ -135,16 +144,24 @@ pub fn next_action(plan: PlanState, driver: DriverState) -> PlanAction {
 
         LastStep::Closed { stalled } => {
             if plan.complete {
-                PlanAction::Stop(StopReason::Complete)
+                PlanAction::Stop {
+                    reason: StopReason::Complete,
+                }
             } else if stalled {
-                PlanAction::Stop(StopReason::Budget)
+                PlanAction::Stop {
+                    reason: StopReason::Budget,
+                }
             } else if plan.off_lattice {
                 // The closure runs on an off-lattice component; the search does
                 // not, because an off-lattice line has no exact construction to
                 // find. Its targets become findings.
-                PlanAction::Stop(StopReason::OffLattice)
+                PlanAction::Stop {
+                    reason: StopReason::OffLattice,
+                }
             } else if driver.out_of_time {
-                PlanAction::Stop(StopReason::Budget)
+                PlanAction::Stop {
+                    reason: StopReason::Budget,
+                }
             } else {
                 PlanAction::StuckSearch
             }
@@ -156,16 +173,22 @@ pub fn next_action(plan: PlanState, driver: DriverState) -> PlanAction {
         LastStep::Searched { found: true } => PlanAction::Close,
         LastStep::Searched { found: false } => {
             if !driver.reference_finder {
-                PlanAction::Stop(StopReason::Unsolved)
+                PlanAction::Stop {
+                    reason: StopReason::Unsolved,
+                }
             } else if driver.rf_events >= driver.max_rf_events || driver.out_of_time {
-                PlanAction::Stop(StopReason::Budget)
+                PlanAction::Stop {
+                    reason: StopReason::Budget,
+                }
             } else {
                 PlanAction::AskReferenceFinder
             }
         }
 
         LastStep::AskedReferenceFinder { folded: true } => PlanAction::Close,
-        LastStep::AskedReferenceFinder { folded: false } => PlanAction::Stop(StopReason::Unsolved),
+        LastStep::AskedReferenceFinder { folded: false } => PlanAction::Stop {
+            reason: StopReason::Unsolved,
+        },
     }
 }
 
@@ -187,6 +210,57 @@ mod tests {
         }
     }
 
+    /// The wasm bridge sends these across as JSON, and an internally tagged
+    /// enum cannot carry a bare string as its content — `Stop(StopReason)`
+    /// would compile and then fail at the boundary, where only the browser
+    /// would see it.
+    #[test]
+    fn every_action_survives_the_json_the_bridge_sends_it_as() {
+        for action in [
+            PlanAction::Close,
+            PlanAction::StuckSearch,
+            PlanAction::AskReferenceFinder,
+            PlanAction::Stop {
+                reason: StopReason::Complete,
+            },
+            PlanAction::Stop {
+                reason: StopReason::PointCap,
+            },
+        ] {
+            let json = serde_json::to_string(&action).expect("serialize");
+            assert_eq!(
+                serde_json::from_str::<PlanAction>(&json).expect("round trip"),
+                action,
+                "{json}"
+            );
+        }
+        assert_eq!(
+            serde_json::to_string(&PlanAction::Stop {
+                reason: StopReason::Budget
+            })
+            .expect("serialize"),
+            r#"{"kind":"stop","reason":"budget"}"#
+        );
+    }
+
+    #[test]
+    fn a_driver_state_survives_the_same_trip() {
+        let ds = DriverState {
+            last: LastStep::Searched { found: false },
+            out_of_time: true,
+            aborted: false,
+            reference_finder: true,
+            rf_events: 2,
+            max_rf_events: 5,
+        };
+        let json = serde_json::to_string(&ds).expect("serialize");
+        assert_eq!(
+            serde_json::from_str::<DriverState>(&json).expect("round trip"),
+            ds,
+            "{json}"
+        );
+    }
+
     #[test]
     fn a_run_starts_by_closing() {
         assert_eq!(
@@ -203,7 +277,9 @@ mod tests {
         let ds = after(LastStep::Searched { found: false });
         assert_eq!(
             next_action(RUNNING, ds),
-            PlanAction::Stop(StopReason::Unsolved)
+            PlanAction::Stop {
+                reason: StopReason::Unsolved
+            }
         );
         let with_rf = DriverState {
             reference_finder: true,
@@ -227,7 +303,9 @@ mod tests {
         };
         assert_eq!(
             next_action(RUNNING, ds),
-            PlanAction::Stop(StopReason::Budget)
+            PlanAction::Stop {
+                reason: StopReason::Budget
+            }
         );
     }
 
@@ -259,7 +337,9 @@ mod tests {
         };
         assert_eq!(
             next_action(plan, ds),
-            PlanAction::Stop(StopReason::Complete)
+            PlanAction::Stop {
+                reason: StopReason::Complete
+            }
         );
     }
 
@@ -271,7 +351,9 @@ mod tests {
         };
         assert_eq!(
             next_action(RUNNING, ds),
-            PlanAction::Stop(StopReason::Aborted)
+            PlanAction::Stop {
+                reason: StopReason::Aborted
+            }
         );
         let refused = PlanState {
             refused: true,
@@ -279,7 +361,9 @@ mod tests {
         };
         assert_eq!(
             next_action(refused, ds),
-            PlanAction::Stop(StopReason::RefusedSheet)
+            PlanAction::Stop {
+                reason: StopReason::RefusedSheet
+            }
         );
     }
 
@@ -291,7 +375,9 @@ mod tests {
         };
         assert_eq!(
             next_action(plan, after(LastStep::Closed { stalled: false })),
-            PlanAction::Stop(StopReason::OffLattice)
+            PlanAction::Stop {
+                reason: StopReason::OffLattice
+            }
         );
     }
 
@@ -303,7 +389,9 @@ mod tests {
         };
         assert_eq!(
             next_action(plan, after(LastStep::Closed { stalled: true })),
-            PlanAction::Stop(StopReason::Budget)
+            PlanAction::Stop {
+                reason: StopReason::Budget
+            }
         );
     }
 }

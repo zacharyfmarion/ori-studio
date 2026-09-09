@@ -589,7 +589,7 @@ impl Planner {
                 PlanAction::AskReferenceFinder => {
                     driver.last = LastStep::AskedReferenceFinder { folded: false };
                 }
-                PlanAction::Stop(reason) => {
+                PlanAction::Stop { reason } => {
                     if reason == StopReason::Budget {
                         self.budget_hit = true;
                     }

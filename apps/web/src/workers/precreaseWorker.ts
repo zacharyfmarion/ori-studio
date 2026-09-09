@@ -36,6 +36,8 @@ import type {
 } from '../cp-workspace/references/sheetFrames';
 import type {
   PrecreaseCloseReport,
+  PrecreaseDriverState,
+  PrecreasePlanAction,
   PrecreaseExplanation,
   PrecreaseFoldOutcome,
   PrecreasePlannerInfo,
@@ -341,6 +343,20 @@ const api = {
   async plannerLineKeys(token: number): Promise<string[]> {
     const id = requireFinite('token', token);
     return call(() => requirePlanner(id).line_keys());
+  },
+
+  /**
+   * What to do next, by the crate's `drive::next_action`.
+   *
+   * The rules live there so this driver's loop and the headless one cannot
+   * drift; see `precreasePlan.ts` for what stays on this side and why.
+   */
+  async plannerNextAction(
+    token: number,
+    driver: PrecreaseDriverState
+  ): Promise<PrecreasePlanAction> {
+    const id = requireFinite('token', token);
+    return call(() => requirePlanner(id).next_action(driver) as PrecreasePlanAction);
   },
 
   /** Forward-first search from the stuck state; applies what it chooses. */

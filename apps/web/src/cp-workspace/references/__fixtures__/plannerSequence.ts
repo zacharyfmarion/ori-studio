@@ -64,6 +64,7 @@ function step(partial: Partial<PrecreaseStep> & Pick<PrecreaseStep, 'id' | 'line
     visible: false,
     witnesses_complete: true,
     marks_exist: true,
+    missing_marks: [],
     hoisted: false,
     ...partial,
   };
