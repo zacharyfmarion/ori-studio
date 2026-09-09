@@ -222,22 +222,24 @@ scoring are in `scripts/cp-detect/README.md`, the case format in
 `implementation-plans/cp-detect-curated-ground-truth.md` and the rendered
 group in `implementation-plans/cp-detect-rendered-corpus.md`.
 
-Last curated run on September 9, 2026 at the commit that made `recovered`
-strict, on top of the paper-quad fix in the auto-rectifier
+Last curated run on September 9, 2026 at the commit that landed the
+junction lever — the junction peak floor at 0.25 with the weak-peak guards in
+`crates/oristudio-cp-detect/src/candidate_generation/junction_carrier_v1.rs`
+— on top of the strict `recovered`, the paper-quad fix in the auto-rectifier
 (`crates/oristudio-cp-detect/src/rectify.rs`) and the boundary-contact
 re-localisation with its real-image hardening
 (`crates/oristudio-cp-detect/src/candidate_generation/contact_relocalize.rs`),
 with the model `scripts/cp-detect/current-model.json` named at that commit,
-on an Apple Silicon Mac with CoreML, 743 s on 8 workers. 558 cases in two
+on an Apple Silicon Mac with CoreML, 918 s on 8 workers. 558 cases in two
 groups: `curated/`, 74 real images (40 with an exact truth, 21 topology only,
 13 skipped as too complex to curate), and `cpoogle/`, 484 native crease
 patterns rendered the way the editor exports them (all exact; 6 over the
 4,000-crease recognition cap are topology-only rows).
 
 ```text
-curated benchmark: 558 cases | decoder exact 314 of 539 (mean edge F1 0.965) | end to end recovered 306 | gate reproduced 441 | 743s
-  curated: decoder exact 16 of 61 (mean edge F1 0.943); end to end recovered 18, accepted wrong 16, not accepted 6; gate reproduced 34, close 3, off 2, not solved 10, skipped 1, solved without a truth 11
-  cpoogle: decoder exact 298 of 478 (mean edge F1 0.967); end to end recovered 288, accepted wrong 144, not accepted 44, skipped 6; gate reproduced 407, close 14, off 3, not solved 12, error 13, skipped 35
+curated benchmark: 558 cases | decoder exact 346 of 539 (mean edge F1 0.966) | end to end recovered 331 | gate reproduced 441 | 918s
+  curated: decoder exact 18 of 61 (mean edge F1 0.944); end to end recovered 18, accepted wrong 16, not accepted 6; gate reproduced 34, close 3, off 2, not solved 10, skipped 1, solved without a truth 11
+  cpoogle: decoder exact 328 of 478 (mean edge F1 0.969); end to end recovered 313, accepted wrong 115, not accepted 48, skipped 6; gate reproduced 407, close 14, off 3, not solved 12, error 13, skipped 35
 ```
 
 `recovered` is strict since September 9, 2026: accepted **and** the strict
@@ -282,6 +284,18 @@ decoder edge F1 went 0.818 → 0.943 and its `recovered` 18 → 21, with no
 rendered case touched; the diagnosis and the two forms of the rule the
 rendered group rejected are in
 `implementation-plans/cp-detect-rectify-paper-quad.md`.
+
+The junction lever then took the decoder from 314 to 346 exact (29 near →
+exact, 3 off → exact, 2 off → near, none the other way) and strict
+`recovered` from 306 to 331: 29 conversions, cordyceps-ant among them,
+against four losses. pegasus-naoki-terao's caption text under the paper
+now yields two junction peaks and its solve ends ambiguous; pseudoscorpion,
+squid and tabby-cat have recognised graphs unchanged to the vertex and
+solves that land elsewhere (failed, ambiguous, and a different exact
+configuration 22 creases apart) — the free-slide noise below, set off by the
+sub-pixel shift the lower vote threshold gives every junction's centroid.
+Five accepted-wrong solves are now refused instead. The sweeps that chose
+the guards are in `implementation-plans/cp-detect-junction-weak-peaks.md`.
 
 The 13 gate errors are the solver's input builder refusing a paper it does
 not support (7 non-square, 5 not a four-corner quadrilateral, 1 degenerate

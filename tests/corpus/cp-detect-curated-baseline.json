@@ -10,9 +10,9 @@
       "status": "solved"
     },
     "cpoogle/2d-tiger-2d-tiger-by-kiyotaka-1": {
-      "decoder": "near",
-      "edge_f1": 0.985,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -75,7 +75,7 @@
     "cpoogle/aknosom-monster-hunter-aknosom-monster-hunter-by-rei-sueoka-1": {
       "decoder": "near",
       "edge_f1": 0.991,
-      "end_to_end": "not_accepted",
+      "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -236,7 +236,7 @@
     },
     "cpoogle/archer-on-horse-archer-on-horse-by-ikuno-riku": {
       "decoder": "near",
-      "edge_f1": 0.992,
+      "edge_f1": 0.995,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -307,9 +307,9 @@
       "status": "solved"
     },
     "cpoogle/axolotl-axolotl-by-ikuno-riku": {
-      "decoder": "near",
-      "edge_f1": 0.994,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "close",
       "gate_max_px": 2.875,
       "gate_unpaired_junctions": 0,
@@ -389,7 +389,7 @@
     },
     "cpoogle/basilisk-1-2-basilisk-1-2-by-bodo-haag": {
       "decoder": "near",
-      "edge_f1": 0.985,
+      "edge_f1": 0.983,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -596,7 +596,7 @@
     },
     "cpoogle/bodojin-32-bodojin-32-by-bodo-haag": {
       "decoder": "off",
-      "edge_f1": 0.928,
+      "edge_f1": 0.935,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -668,7 +668,7 @@
     },
     "cpoogle/butterfly-butterfly-by-birb": {
       "decoder": "near",
-      "edge_f1": 0.99,
+      "edge_f1": 0.98,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.715,
@@ -713,7 +713,7 @@
     },
     "cpoogle/camel-cricket-camel-cricket-by-kota-imai": {
       "decoder": "near",
-      "edge_f1": 0.992,
+      "edge_f1": 0.991,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -785,7 +785,7 @@
     },
     "cpoogle/carp-v1-1-carp-v1-1-by-kota-imai": {
       "decoder": "near",
-      "edge_f1": 0.972,
+      "edge_f1": 0.973,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -793,9 +793,9 @@
       "status": "solved"
     },
     "cpoogle/cartoon-crab-cartoon-crab-by-tao-qinggen": {
-      "decoder": "off",
-      "edge_f1": 0.943,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -955,18 +955,18 @@
       "status": "solved"
     },
     "cpoogle/chameleon-chameleon-by-hiroaki-kobayashi": {
-      "decoder": "near",
-      "edge_f1": 0.957,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
       "status": "solved"
     },
     "cpoogle/chameleon-chameleon-by-yoo-tae-yong": {
-      "decoder": "near",
-      "edge_f1": 0.984,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -974,7 +974,7 @@
     },
     "cpoogle/cheems-cheems-by-birb": {
       "decoder": "off",
-      "edge_f1": 0.874,
+      "edge_f1": 0.868,
       "end_to_end": "accepted_wrong",
       "gate": "not_solved",
       "gate_max_px": 3.132,
@@ -982,9 +982,9 @@
       "status": "solved"
     },
     "cpoogle/cheetah-cheetah-by-david-llanque": {
-      "decoder": "near",
-      "edge_f1": 0.983,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -1153,9 +1153,9 @@
       "status": "solved"
     },
     "cpoogle/cow-cow-by-gen-hagiwara": {
-      "decoder": "off",
-      "edge_f1": 0.928,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -1189,9 +1189,9 @@
       "status": "solved"
     },
     "cpoogle/cursed-cats-cursed-cat-2-by-bodo-haag": {
-      "decoder": "near",
-      "edge_f1": 0.972,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -1208,7 +1208,7 @@
     },
     "cpoogle/cyberman-coin-v1-1-cyberman-coin-by-crascodyllea": {
       "decoder": "off",
-      "edge_f1": 0.863,
+      "edge_f1": 0.865,
       "end_to_end": "not_accepted",
       "gate": "not_solved",
       "gate_max_px": 1.451,
@@ -1262,7 +1262,7 @@
     },
     "cpoogle/deer-deer-by-ikuno-riku": {
       "decoder": "near",
-      "edge_f1": 0.993,
+      "edge_f1": 1.0,
       "end_to_end": "accepted_wrong",
       "gate": "not_solved",
       "gate_max_px": 0.0,
@@ -1486,9 +1486,9 @@
       "status": "solved"
     },
     "cpoogle/dragon-dragon-by-zhao-yanjie": {
-      "decoder": "near",
-      "edge_f1": 0.987,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -1496,7 +1496,7 @@
     },
     "cpoogle/dragonfly-dragonfly-by-bodo-haag": {
       "decoder": "near",
-      "edge_f1": 0.96,
+      "edge_f1": 0.961,
       "end_to_end": "accepted_wrong",
       "gate": "off",
       "gate_max_px": 7.243,
@@ -1550,7 +1550,7 @@
     },
     "cpoogle/dwarf-dwarf-by-bodo-haag": {
       "decoder": "near",
-      "edge_f1": 0.966,
+      "edge_f1": 0.97,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -1568,7 +1568,7 @@
     },
     "cpoogle/eagle-2024-eagle-2024-by-ikuno-riku": {
       "decoder": "off",
-      "edge_f1": 0.915,
+      "edge_f1": 0.912,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -1577,7 +1577,7 @@
     },
     "cpoogle/eagle-eagle-by-lorbeer": {
       "decoder": "off",
-      "edge_f1": 0.864,
+      "edge_f1": 0.934,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -1900,9 +1900,9 @@
       "status": "solved"
     },
     "cpoogle/frog-frog-by-mineo-shotaro": {
-      "decoder": "near",
-      "edge_f1": 0.99,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -1955,7 +1955,7 @@
     },
     "cpoogle/gigantura-chuni-gigantura-chuni-by-samuel-nhoung": {
       "decoder": "off",
-      "edge_f1": 0.936,
+      "edge_f1": 0.939,
       "end_to_end": "accepted_wrong",
       "gate": "not_solved",
       "gate_max_px": 0.0,
@@ -1964,7 +1964,7 @@
     },
     "cpoogle/giraffe-giraffe-by-bodo-haag": {
       "decoder": "off",
-      "edge_f1": 0.913,
+      "edge_f1": 0.914,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -2080,9 +2080,9 @@
       "status": "solved"
     },
     "cpoogle/goldfish-goldfish-by-obelisk": {
-      "decoder": "near",
-      "edge_f1": 0.98,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -2107,18 +2107,18 @@
       "status": "solved"
     },
     "cpoogle/grasshopper-grasshopper-by-lorbeer": {
-      "decoder": "near",
-      "edge_f1": 0.99,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
       "status": "solved"
     },
     "cpoogle/guinea-pig-guinea-pig-by-busi12341": {
-      "decoder": "near",
-      "edge_f1": 0.958,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -2216,8 +2216,8 @@
     },
     "cpoogle/hippo-hippo-by-birb": {
       "decoder": "near",
-      "edge_f1": 0.969,
-      "end_to_end": "accepted_wrong",
+      "edge_f1": 0.974,
+      "end_to_end": "not_accepted",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -2242,8 +2242,8 @@
       "status": "solved"
     },
     "cpoogle/honeybee-bodo-s-honeybee-by-bodo-haag-and-lorbeer": {
-      "decoder": "off",
-      "edge_f1": 0.949,
+      "decoder": "near",
+      "edge_f1": 0.954,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -2287,9 +2287,9 @@
       "status": "solved"
     },
     "cpoogle/horse-1-6-horse-1-6-by-ikuno-riku": {
-      "decoder": "near",
-      "edge_f1": 0.992,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -2341,9 +2341,9 @@
       "status": "solved"
     },
     "cpoogle/horse-horse-by-zhao-yanjie": {
-      "decoder": "near",
-      "edge_f1": 0.991,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -2359,9 +2359,9 @@
       "status": "solved"
     },
     "cpoogle/horse-pd-horse-by-kosuge-akihiro": {
-      "decoder": "near",
-      "edge_f1": 0.993,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -2404,9 +2404,9 @@
       "status": "solved"
     },
     "cpoogle/impara-impara-by-ikuno-riku": {
-      "decoder": "near",
-      "edge_f1": 0.993,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -2539,9 +2539,9 @@
       "status": "solved"
     },
     "cpoogle/kingfisher-kingfisher-by-sh-saku-uto": {
-      "decoder": "off",
-      "edge_f1": 0.948,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -2549,7 +2549,7 @@
     },
     "cpoogle/kirigamist-lang-kirigami-lang": {
       "decoder": "off",
-      "edge_f1": 0.596,
+      "edge_f1": 0.59,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -2558,7 +2558,7 @@
     },
     "cpoogle/kirin-kirin": {
       "decoder": "near",
-      "edge_f1": 0.983,
+      "edge_f1": 0.986,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -2603,7 +2603,7 @@
     },
     "cpoogle/leopard-frog-leapord-frog-by-bodo-haag": {
       "decoder": "off",
-      "edge_f1": 0.938,
+      "edge_f1": 0.936,
       "end_to_end": "accepted_wrong",
       "gate": "close",
       "gate_max_px": 1.104,
@@ -2683,9 +2683,9 @@
       "status": "solved"
     },
     "cpoogle/lizard-lizard-by-noah": {
-      "decoder": "near",
-      "edge_f1": 0.966,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -2712,7 +2712,7 @@
     "cpoogle/lobster-lobster-by-jesse-barr": {
       "decoder": "near",
       "edge_f1": 0.998,
-      "end_to_end": "accepted_wrong",
+      "end_to_end": "not_accepted",
       "gate": "error",
       "gate_max_px": null,
       "gate_unpaired_junctions": null,
@@ -2728,9 +2728,9 @@
       "status": "solved"
     },
     "cpoogle/longhorn-cowfish-longhord-cowfish-by-busi12341": {
-      "decoder": "near",
-      "edge_f1": 0.982,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -2747,7 +2747,7 @@
     },
     "cpoogle/lucanus-bright-lucanus-bright-by-matt-laboone": {
       "decoder": "near",
-      "edge_f1": 0.973,
+      "edge_f1": 0.976,
       "end_to_end": "not_accepted",
       "gate": "error",
       "gate_max_px": null,
@@ -2755,9 +2755,9 @@
       "status": "solved"
     },
     "cpoogle/mai-22-5-modified-mai-22-5-modified-by-obelisk": {
-      "decoder": "near",
-      "edge_f1": 0.995,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -2766,7 +2766,7 @@
     "cpoogle/maid-maid-by-dhujsi-er": {
       "decoder": "near",
       "edge_f1": 0.974,
-      "end_to_end": "accepted_wrong",
+      "end_to_end": "not_accepted",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -2936,7 +2936,7 @@
     },
     "cpoogle/mosquito-mosquito-by-mineo-shotaro": {
       "decoder": "near",
-      "edge_f1": 0.988,
+      "edge_f1": 0.993,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -2989,8 +2989,8 @@
       "status": "solved"
     },
     "cpoogle/octopus-octopus-by-hiroaki-kobayashi": {
-      "decoder": "near",
-      "edge_f1": 0.994,
+      "decoder": "exact",
+      "edge_f1": 1.0,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -3044,7 +3044,7 @@
     },
     "cpoogle/ox-ox-by-zhao-yanjie": {
       "decoder": "near",
-      "edge_f1": 0.962,
+      "edge_f1": 0.98,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -3207,7 +3207,7 @@
     "cpoogle/psuedoscorpion-pseudoscorpion-by-bodo-haag": {
       "decoder": "exact",
       "edge_f1": 1.0,
-      "end_to_end": "recovered",
+      "end_to_end": "not_accepted",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -3324,7 +3324,7 @@
     "cpoogle/rat-skeleton-rat-skeleton-by-bodo-haag": {
       "decoder": "near",
       "edge_f1": 0.991,
-      "end_to_end": "accepted_wrong",
+      "end_to_end": "not_accepted",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -3349,9 +3349,9 @@
       "status": "solved"
     },
     "cpoogle/reindeer-reindeer-by-lorbeer": {
-      "decoder": "near",
-      "edge_f1": 0.987,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -3368,7 +3368,7 @@
     },
     "cpoogle/relicanth-relicanth-by-kakami-hitoshi": {
       "decoder": "near",
-      "edge_f1": 0.966,
+      "edge_f1": 0.985,
       "end_to_end": "accepted_wrong",
       "gate": "close",
       "gate_max_px": 4.932,
@@ -3378,7 +3378,7 @@
     "cpoogle/rem-ram-rem-ram-by-folder951hekai": {
       "decoder": "near",
       "edge_f1": 0.997,
-      "end_to_end": "accepted_wrong",
+      "end_to_end": "not_accepted",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -3386,7 +3386,7 @@
     },
     "cpoogle/reze-reze-by-birb": {
       "decoder": "near",
-      "edge_f1": 0.996,
+      "edge_f1": 0.995,
       "end_to_end": "accepted_wrong",
       "gate": "close",
       "gate_max_px": 3.379,
@@ -3448,9 +3448,9 @@
       "status": "solved"
     },
     "cpoogle/rooster-rooster-by-obelisk": {
-      "decoder": "near",
-      "edge_f1": 0.992,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -3539,7 +3539,7 @@
     },
     "cpoogle/shark-shark-by-birb": {
       "decoder": "off",
-      "edge_f1": 0.903,
+      "edge_f1": 0.905,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.323,
@@ -3619,9 +3619,9 @@
       "status": "solved"
     },
     "cpoogle/sitting-okapi-sitting-okapi-by-ms-255ori": {
-      "decoder": "near",
-      "edge_f1": 0.996,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -3700,9 +3700,9 @@
       "status": "solved"
     },
     "cpoogle/spider-spider-by-lorbeer": {
-      "decoder": "near",
-      "edge_f1": 0.985,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -3736,8 +3736,8 @@
       "status": "solved"
     },
     "cpoogle/spiny-dragon-v3-eichi-origami-spiny-dragon-v3": {
-      "decoder": "off",
-      "edge_f1": 0.949,
+      "decoder": "near",
+      "edge_f1": 0.95,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -3747,7 +3747,7 @@
     "cpoogle/squid-squid-by-birb": {
       "decoder": "exact",
       "edge_f1": 1.0,
-      "end_to_end": "recovered",
+      "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -3764,7 +3764,7 @@
     },
     "cpoogle/stag-beetle-stag-beetle-by-kiyotaka": {
       "decoder": "off",
-      "edge_f1": 0.947,
+      "edge_f1": 0.945,
       "end_to_end": "accepted_wrong",
       "gate": "error",
       "gate_max_px": null,
@@ -3827,7 +3827,7 @@
     },
     "cpoogle/styracosaurus-styracosaurus-by-birb": {
       "decoder": "off",
-      "edge_f1": 0.85,
+      "edge_f1": 0.872,
       "end_to_end": "accepted_wrong",
       "gate": "close",
       "gate_max_px": 3.36,
@@ -3853,9 +3853,9 @@
       "status": "solved"
     },
     "cpoogle/susumu-hirasawa-susumu-hirasawa-by-dmc-origami": {
-      "decoder": "near",
-      "edge_f1": 0.978,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -3864,7 +3864,7 @@
     "cpoogle/swallow-swallow-by-ikuno-riku": {
       "decoder": "off",
       "edge_f1": 0.0,
-      "end_to_end": "not_accepted",
+      "end_to_end": "accepted_wrong",
       "gate": "not_solved",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -3880,9 +3880,9 @@
       "status": "solved"
     },
     "cpoogle/sweetfish-sweetfish-by-ikuno-riku": {
-      "decoder": "near",
-      "edge_f1": 0.965,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -3900,7 +3900,7 @@
     "cpoogle/tabby-cat-tabby-cat-by-ikuno-riku": {
       "decoder": "exact",
       "edge_f1": 1.0,
-      "end_to_end": "recovered",
+      "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -3953,7 +3953,7 @@
     },
     "cpoogle/tiger-tiger-by-birb": {
       "decoder": "near",
-      "edge_f1": 0.956,
+      "edge_f1": 0.958,
       "end_to_end": "accepted_wrong",
       "gate": "off",
       "gate_max_px": 5.929,
@@ -3962,7 +3962,7 @@
     },
     "cpoogle/tiger-tiger-by-bodo-haag": {
       "decoder": "off",
-      "edge_f1": 0.937,
+      "edge_f1": 0.931,
       "end_to_end": "accepted_wrong",
       "gate": "not_solved",
       "gate_max_px": 4.562,
@@ -3971,7 +3971,7 @@
     },
     "cpoogle/tiger-tiger-by-ikuno-riku": {
       "decoder": "near",
-      "edge_f1": 0.961,
+      "edge_f1": 0.973,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -4078,9 +4078,9 @@
       "status": "solved"
     },
     "cpoogle/triceratops-triceratops-by-obelisk": {
-      "decoder": "near",
-      "edge_f1": 0.984,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -4105,8 +4105,8 @@
       "status": "solved"
     },
     "cpoogle/tundra-swan-tundra-swan-by-akihiro-kosuge": {
-      "decoder": "near",
-      "edge_f1": 0.957,
+      "decoder": "exact",
+      "edge_f1": 1.0,
       "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -4133,7 +4133,7 @@
     },
     "cpoogle/tyrannosaurus-tyrannosaurus-by-tkg-origami": {
       "decoder": "off",
-      "edge_f1": 0.907,
+      "edge_f1": 0.902,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -4304,7 +4304,7 @@
     },
     "cpoogle/wolf-wolf-by-tera-origami": {
       "decoder": "near",
-      "edge_f1": 0.956,
+      "edge_f1": 0.953,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -4331,7 +4331,7 @@
     },
     "cpoogle/xenomorph-xenomorph-by-bodo-haag": {
       "decoder": "off",
-      "edge_f1": 0.907,
+      "edge_f1": 0.913,
       "end_to_end": "not_accepted",
       "gate": "skipped",
       "gate_max_px": null,
@@ -4430,7 +4430,7 @@
     },
     "curated/coconut-crab": {
       "decoder": "off",
-      "edge_f1": 0.633,
+      "edge_f1": 0.63,
       "end_to_end": "n/a",
       "gate": "skipped",
       "gate_max_px": null,
@@ -4448,7 +4448,7 @@
     },
     "curated/condor": {
       "decoder": "near",
-      "edge_f1": 0.965,
+      "edge_f1": 0.969,
       "end_to_end": "n/a",
       "gate": "not_solved",
       "gate_max_px": null,
@@ -4465,9 +4465,9 @@
       "status": "solved"
     },
     "curated/cordyceps-ant": {
-      "decoder": "near",
-      "edge_f1": 0.994,
-      "end_to_end": "accepted_wrong",
+      "decoder": "exact",
+      "edge_f1": 1.0,
+      "end_to_end": "recovered",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -4502,7 +4502,7 @@
     },
     "curated/earwig": {
       "decoder": "off",
-      "edge_f1": 0.857,
+      "edge_f1": 0.862,
       "end_to_end": "not_accepted",
       "gate": "reproduced",
       "gate_max_px": 0.462,
@@ -4556,7 +4556,7 @@
     },
     "curated/greater-bird-of-paradise": {
       "decoder": "off",
-      "edge_f1": 0.815,
+      "edge_f1": 0.813,
       "end_to_end": "n/a",
       "gate": "not_solved",
       "gate_max_px": null,
@@ -4592,7 +4592,7 @@
     },
     "curated/hex-tiger-naoki-terao": {
       "decoder": "off",
-      "edge_f1": 0.895,
+      "edge_f1": 0.903,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -4645,8 +4645,8 @@
       "status": "skipped"
     },
     "curated/leafcutter-ant": {
-      "decoder": "near",
-      "edge_f1": 0.992,
+      "decoder": "exact",
+      "edge_f1": 1.0,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -4709,7 +4709,7 @@
     },
     "curated/okapi-naoki-terao": {
       "decoder": "off",
-      "edge_f1": 0.935,
+      "edge_f1": 0.946,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -4763,8 +4763,8 @@
     },
     "curated/pegasus-naoki-terao": {
       "decoder": "near",
-      "edge_f1": 0.967,
-      "end_to_end": "recovered",
+      "edge_f1": 0.953,
+      "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -4772,7 +4772,7 @@
     },
     "curated/poison-dart-frog": {
       "decoder": "near",
-      "edge_f1": 0.986,
+      "edge_f1": 0.987,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.034,
@@ -4799,7 +4799,7 @@
     },
     "curated/remora": {
       "decoder": "off",
-      "edge_f1": 0.945,
+      "edge_f1": 0.941,
       "end_to_end": "n/a",
       "gate": "solved_no_truth",
       "gate_max_px": null,
@@ -4871,7 +4871,7 @@
     },
     "curated/salamander-naoki-terao": {
       "decoder": "off",
-      "edge_f1": 0.714,
+      "edge_f1": 0.705,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -4880,7 +4880,7 @@
     },
     "curated/secretary-bird": {
       "decoder": "near",
-      "edge_f1": 0.971,
+      "edge_f1": 0.978,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -4979,7 +4979,7 @@
     },
     "curated/ubu-2": {
       "decoder": "off",
-      "edge_f1": 0.807,
+      "edge_f1": 0.812,
       "end_to_end": "n/a",
       "gate": "not_solved",
       "gate_max_px": null,
@@ -4997,7 +4997,7 @@
     },
     "curated/water-boatmen": {
       "decoder": "off",
-      "edge_f1": 0.819,
+      "edge_f1": 0.805,
       "end_to_end": "not_accepted",
       "gate": "reproduced",
       "gate_max_px": 0.38,
@@ -5015,7 +5015,7 @@
     },
     "curated/zebra-naoki-terao": {
       "decoder": "off",
-      "edge_f1": 0.94,
+      "edge_f1": 0.948,
       "end_to_end": "accepted_wrong",
       "gate": "reproduced",
       "gate_max_px": 0.0,
@@ -5024,28 +5024,28 @@
     }
   },
   "cases_total": 558,
-  "commit": "1e770447bfbe2bbdf2276602e0c36d478e6e4bb5",
+  "commit": "e0d76a3e141564536a789772b44868d861c482b2",
   "decoder": {
     "buckets": {
-      "exact": 314,
+      "exact": 346,
       "n/a": 13,
-      "near": 160,
-      "off": 65,
+      "near": 133,
+      "off": 60,
       "skipped": 6
     },
-    "exact_topology": 314,
-    "mean_edge_f1": 0.965,
+    "exact_topology": 346,
+    "mean_edge_f1": 0.966,
     "scored": 539
   },
   "end_to_end": {
     "buckets": {
-      "accepted_wrong": 160,
+      "accepted_wrong": 131,
       "n/a": 36,
-      "not_accepted": 50,
-      "recovered": 306,
+      "not_accepted": 54,
+      "recovered": 331,
       "skipped": 6
     },
-    "recovered": 306
+    "recovered": 331
   },
   "gate": {
     "buckets": {
@@ -5065,24 +5065,24 @@
       "cases_total": 484,
       "decoder": {
         "buckets": {
-          "exact": 298,
-          "near": 137,
-          "off": 43,
+          "exact": 328,
+          "near": 112,
+          "off": 38,
           "skipped": 6
         },
-        "exact_topology": 298,
-        "mean_edge_f1": 0.967,
+        "exact_topology": 328,
+        "mean_edge_f1": 0.969,
         "scored": 478
       },
       "end_to_end": {
         "buckets": {
-          "accepted_wrong": 144,
+          "accepted_wrong": 115,
           "n/a": 2,
-          "not_accepted": 44,
-          "recovered": 288,
+          "not_accepted": 48,
+          "recovered": 313,
           "skipped": 6
         },
-        "recovered": 288
+        "recovered": 313
       },
       "gate": {
         "buckets": {
@@ -5105,13 +5105,13 @@
       "cases_total": 74,
       "decoder": {
         "buckets": {
-          "exact": 16,
+          "exact": 18,
           "n/a": 13,
-          "near": 23,
+          "near": 21,
           "off": 22
         },
-        "exact_topology": 16,
-        "mean_edge_f1": 0.943,
+        "exact_topology": 18,
+        "mean_edge_f1": 0.944,
         "scored": 61
       },
       "end_to_end": {
