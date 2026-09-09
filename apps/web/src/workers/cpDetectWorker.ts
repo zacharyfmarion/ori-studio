@@ -626,7 +626,7 @@ function decodeFoldFromDenseOutputs(
   lineEvidenceSource: CpDetectLineEvidenceSource = 'source-image',
   recognizeOnly = false
 ): WasmDecodedFold {
-  const decoderBackend = options.decoderBackend ?? 'legacy_v2_decoder';
+  const decoderBackend = options.decoderBackend ?? 'legacy_candidate_exact_solve_v1';
   const outputBundle = Object.fromEntries(
     CP_DETECT_OUTPUT_KEYS
       .filter((key) => outputs[key])

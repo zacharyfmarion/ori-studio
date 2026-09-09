@@ -171,6 +171,23 @@ pub fn rectify(rgba: &[u8], width: u32, height: u32) -> Result<Rectified, String
     })
 }
 
+/// What the exact solve may spend: a wall clock, and optionally a count of
+/// the solver's deadline checks, which stops at the same place on any machine.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SolveBudget {
+    pub seconds: f64,
+    pub work: Option<u64>,
+}
+
+impl SolveBudget {
+    pub fn seconds(seconds: f64) -> Self {
+        Self {
+            seconds,
+            work: None,
+        }
+    }
+}
+
 /// The dialog's decode: the fused candidate/exact-solve backend on the model's
 /// heads plus the source image's own line evidence. `recognize_only` stops
 /// before the compiler and the solve, which is how a pattern too large to
@@ -179,6 +196,21 @@ pub fn decode(
     rgba: &[u8],
     heads: &Heads,
     solve_budget_seconds: f64,
+    recognize_only: bool,
+) -> Result<decode::DecodedFold, String> {
+    decode_with_budget(
+        rgba,
+        heads,
+        SolveBudget::seconds(solve_budget_seconds),
+        recognize_only,
+    )
+}
+
+/// [`decode`] with the full solve budget, work count included.
+pub fn decode_with_budget(
+    rgba: &[u8],
+    heads: &Heads,
+    budget: SolveBudget,
     recognize_only: bool,
 ) -> Result<decode::DecodedFold, String> {
     let required = |name: &'static str| -> Result<&[f32], String> {
@@ -215,7 +247,8 @@ pub fn decode(
             image_size: IMAGE_SIZE,
             threshold: THRESHOLD,
             junction_offset_cluster_radius_px: JUNCTION_OFFSET_RADIUS_PX,
-            exact_solve_timeout_seconds: solve_budget_seconds,
+            exact_solve_timeout_seconds: budget.seconds,
+            exact_solve_work_budget: budget.work,
             recognize_only,
             ..DecodeConfig::default()
         },

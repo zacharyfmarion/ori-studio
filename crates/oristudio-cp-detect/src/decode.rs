@@ -649,6 +649,7 @@ fn solve_recognized_candidate(
         &exact_input,
         oristudio_cp_compiler::ExactSolveOptions {
             timeout_seconds: config.exact_solve_timeout_seconds,
+            work_budget: config.exact_solve_work_budget,
             ..oristudio_cp_compiler::ExactSolveOptions::default()
         },
     );
@@ -975,6 +976,7 @@ fn solve_not_attempted_report(config: &DecodeConfig) -> serde_json::Value {
         "budget": {
             "total_seconds": config.exact_solve_timeout_seconds,
             "spent_seconds": 0.0,
+            "total_work": config.exact_solve_work_budget,
             "policy": "shared_total_across_staged_solve_calls"
         }
     })

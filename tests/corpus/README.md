@@ -222,24 +222,21 @@ scoring are in `scripts/cp-detect/README.md`, the case format in
 `implementation-plans/cp-detect-curated-ground-truth.md` and the rendered
 group in `implementation-plans/cp-detect-rendered-corpus.md`.
 
-Last curated run on September 9, 2026 at the commit that landed the
-junction lever — the junction peak floor at 0.25 with the weak-peak guards in
+Last curated run on September 9, 2026 at the commit that put the solve on
+a work budget (`--budget-work`, below), on top of the junction lever — the
+junction peak floor at 0.25 with the weak-peak guards in
 `crates/oristudio-cp-detect/src/candidate_generation/junction_carrier_v1.rs`
-— on top of the strict `recovered`, the paper-quad fix in the auto-rectifier
+— the strict `recovered`, the paper-quad fix in the auto-rectifier
 (`crates/oristudio-cp-detect/src/rectify.rs`) and the boundary-contact
 re-localisation with its real-image hardening
 (`crates/oristudio-cp-detect/src/candidate_generation/contact_relocalize.rs`),
 with the model `scripts/cp-detect/current-model.json` named at that commit,
-on an Apple Silicon Mac with CoreML, 611 s on 8 workers and nothing else running. 558 cases in two
-groups: `curated/`, 74 real images (40 with an exact truth, 21 topology only,
-13 skipped as too complex to curate), and `cpoogle/`, 484 native crease
-patterns rendered the way the editor exports them (all exact; 6 over the
-4,000-crease recognition cap are topology-only rows).
-
+on an Apple Silicon Mac with CoreML, 608 s on 8 workers with nothing else
+running. 558 cases in two
 ```text
-curated benchmark: 558 cases | decoder exact 346 of 539 (mean edge F1 0.966) | end to end recovered 332 | gate reproduced 441 | 611s
+curated benchmark: 558 cases | decoder exact 346 of 539 (mean edge F1 0.966) | end to end recovered 332 | gate reproduced 441 | 608s
   curated: decoder exact 18 of 61 (mean edge F1 0.944); end to end recovered 18, accepted wrong 16, not accepted 6; gate reproduced 34, close 3, off 2, not solved 10, skipped 1, solved without a truth 11
-  cpoogle: decoder exact 328 of 478 (mean edge F1 0.969); end to end recovered 314, accepted wrong 119, not accepted 43, skipped 6; gate reproduced 407, close 14, off 3, not solved 12, error 13, skipped 35
+  cpoogle: decoder exact 328 of 478 (mean edge F1 0.969); end to end recovered 314, accepted wrong 120, not accepted 42, skipped 6; gate reproduced 407, close 14, off 3, not solved 12, error 13, skipped 35
 ```
 
 `recovered` is strict since September 9, 2026: accepted **and** the strict
@@ -296,12 +293,17 @@ apart) — the free-slide noise below, set off by the sub-pixel shift the
 lower vote threshold gives every junction's centroid. The sweeps that chose
 the guards are in `implementation-plans/cp-detect-junction-weak-peaks.md`.
 
-Run the benchmark with nothing else on the machine. Its wall time follows
-the load (the same code ran in 568 s alone and 918 s beside a wasm build),
-and so do its verdicts: the harness's 25 s solve budget turned a contended
-run's pseudoscorpion into `failed` where the same input solves and is
-recovered alone. A slowdown is real only if `detection.inference_ms`, the
-same work every run, has not moved with it.
+The solve runs on a work budget, not a clock, since September 9, 2026:
+5·10⁸ vertex²·checks by default (`--budget-work`), the 25 s the old clock
+allowed at the corpus's median rate, so the same input stops at the same
+place on any machine under any load. The clock had made the verdicts follow
+the load — a contended run turned pseudoscorpion's 6 s solve into `failed`
+where the same input solves and is recovered alone. The wall time still
+follows the load (the same code ran in 568 s alone and 918 s beside a wasm
+build), so run alone when the seconds matter, and read a slowdown against
+`detection.inference_ms`, the same work every run. The product's own solve
+has no deadline (it toasts a long solve and offers Stop), so a solve the
+harness ends `ambiguous` at the budget may finish for a user.
 
 The 13 gate errors are the solver's input builder refusing a paper it does
 not support (7 non-square, 5 not a four-corner quadrilateral, 1 degenerate

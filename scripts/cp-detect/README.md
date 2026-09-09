@@ -589,6 +589,10 @@ cargo run --release -p oristudio-cp-detect --features native-inference \
   --compare tests/corpus/cp-detect-curated-baseline.json
 ```
 
+Run it with nothing else building or sweeping on the machine: the solve's
+verdicts no longer depend on the load (see the work budget below), but the
+wall time and the gate's seconds do.
+
 The model comes from `scripts/cp-detect/current-model.json` when run from the
 repository root, or `--model <model.onnx>`. Inference is native (CoreML on
 macOS, the CPU elsewhere) through the same code the batch tool uses; behind a
@@ -611,6 +615,20 @@ Per case, three scores:
   involved: `reproduced` (within 1 px) / `close` (within 5 px) / `off` /
   `not_solved` / `skipped` (over `--max-edges`, where one solver step outlasts
   the budget by minutes).
+
+The solve runs on a **work budget**, not a clock: `--budget-work 500000000`
+(the default) is 5·10⁸ vertex²·checks, where every deadline check the solver
+makes costs the square of the model's vertex count — a check's cost grows
+that way (seconds per check ∝ vertices^2.2 over the corpus, R² 0.88), so the
+unit tracks wall time within a factor of three across pattern sizes, and the
+default is the 25 s the old clock allowed at the corpus's median rate of
+1.9·10⁷ units per second on one Apple Silicon core. The same input then stops
+at the same place on any machine under any load; the clock (`--budget <s>`,
+off by default) had turned a contended run's 6 s solve into a `failed`.
+Wall time still follows the load, so run alone when the seconds matter. The
+product keeps its wall clock (`DecodeConfig::exact_solve_timeout_seconds`,
+25 s by default), and `detection.exact_solve_work` in `per_case.jsonl` says
+what each solve spent.
 
 `per_case.jsonl` holds every number; `summary.json` is the scorecard, with
 the aggregates overall and per group, and `summary.md` the table.
