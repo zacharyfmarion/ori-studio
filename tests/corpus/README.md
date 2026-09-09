@@ -222,22 +222,31 @@ scoring are in `scripts/cp-detect/README.md`, the case format in
 `implementation-plans/cp-detect-curated-ground-truth.md` and the rendered
 group in `implementation-plans/cp-detect-rendered-corpus.md`.
 
-Last curated run on September 8, 2026 at the commit that landed the
-paper-quad fix in the auto-rectifier (`crates/oristudio-cp-detect/src/rectify.rs`),
-on top of the boundary-contact re-localisation with its real-image hardening
+Last curated run on September 9, 2026 at the commit that made `recovered`
+strict, on top of the paper-quad fix in the auto-rectifier
+(`crates/oristudio-cp-detect/src/rectify.rs`) and the boundary-contact
+re-localisation with its real-image hardening
 (`crates/oristudio-cp-detect/src/candidate_generation/contact_relocalize.rs`),
 with the model `scripts/cp-detect/current-model.json` named at that commit,
-on an Apple Silicon Mac with CoreML, 568 s on 8 workers. 558 cases in two
+on an Apple Silicon Mac with CoreML, 743 s on 8 workers. 558 cases in two
 groups: `curated/`, 74 real images (40 with an exact truth, 21 topology only,
 13 skipped as too complex to curate), and `cpoogle/`, 484 native crease
 patterns rendered the way the editor exports them (all exact; 6 over the
 4,000-crease recognition cap are topology-only rows).
 
 ```text
-curated benchmark: 558 cases | decoder exact 314 of 539 (mean edge F1 0.965) | end to end recovered 339 | gate reproduced 441 | 568s
-  curated: decoder exact 16 of 61 (mean edge F1 0.943); end to end recovered 21, accepted wrong 13, not accepted 6; gate reproduced 34, close 3, off 2, not solved 10, skipped 1, solved without a truth 11
-  cpoogle: decoder exact 298 of 478 (mean edge F1 0.967); end to end recovered 318, accepted wrong 116, not accepted 42, skipped 6; gate reproduced 407, close 14, off 3, not solved 12, error 13, skipped 35
+curated benchmark: 558 cases | decoder exact 314 of 539 (mean edge F1 0.965) | end to end recovered 306 | gate reproduced 441 | 743s
+  curated: decoder exact 16 of 61 (mean edge F1 0.943); end to end recovered 18, accepted wrong 16, not accepted 6; gate reproduced 34, close 3, off 2, not solved 10, skipped 1, solved without a truth 11
+  cpoogle: decoder exact 298 of 478 (mean edge F1 0.967); end to end recovered 288, accepted wrong 144, not accepted 44, skipped 6; gate reproduced 407, close 14, off 3, not solved 12, error 13, skipped 35
 ```
+
+`recovered` is strict since September 9, 2026: accepted **and** the strict
+topology metric at 2 px finds the truth's vertices, creases and assignments
+in the solved answer. The vertex-correspondence verdict it replaces (every
+paired vertex within 2 px, no junction unpaired) read 339 on this same run,
+32 rendered cases and 3 real images of them accepted on a different crease
+set or with wrong assignments; the numbers below from before that date are
+in the old verdict where they say `recovered`.
 
 Against the September 5 baseline (decoder exact 274, recovered 317): the
 re-localisation of boundary contacts onto the crease's ink centreline moved 42
