@@ -9,9 +9,21 @@ import { dragLineTool } from './dragLineTool';
 import { dragBoxTool } from './dragBoxTool';
 import { dragPathTool } from './dragPathTool';
 import { dragVertexTool } from './dragVertexTool';
+import { pickVertexTool } from './pickVertexTool';
 
-/** Drag input modes handled by a local-preview engine. */
-export type ToolInputMode = 'drag-line' | 'drag-box' | 'drag-path' | 'drag-vertex';
+/**
+ * Input modes handled by a local engine.
+ *
+ * `pick-vertex` is the one that is not a drag: it commits on press and has no
+ * gesture to preview. It lives here anyway because everything else about it is
+ * the same — one engine, looked up by mode, fed by the surface adapter.
+ */
+export type ToolInputMode =
+  | 'drag-line'
+  | 'drag-box'
+  | 'drag-path'
+  | 'drag-vertex'
+  | 'pick-vertex';
 
 // State shapes differ per engine; the runtime type-erases them, so the registry
 // holds engines by their common interface.
@@ -21,6 +33,7 @@ const ENGINES: Record<ToolInputMode, ToolEngine<any>> = {
   'drag-box': dragBoxTool,
   'drag-path': dragPathTool,
   'drag-vertex': dragVertexTool,
+  'pick-vertex': pickVertexTool,
 };
 
 export function toolEngineFor(mode: ToolInputMode): ToolEngine<unknown> {

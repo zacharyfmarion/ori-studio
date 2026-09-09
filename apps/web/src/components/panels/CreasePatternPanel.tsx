@@ -1959,10 +1959,16 @@ export function CreasePatternPanel() {
       // region; `addRegion` places it under the annotation stack and records the
       // undo entry itself.
       if (cpCommandCommitsWebSide(command.operationId)) {
-        const box = cpSuppressionBoxFromCommitPoints(points, webglOverlayView);
-        if (box) {
-          regionActions.addRegion(box);
-          track(ANALYTICS_EVENTS.cpSuppressionRegionCreated, { source: 'tool' });
+        if (command.operationId === 'VertexPin') {
+          // The surface resolved the press to a vertex and committed its exact
+          // position, so this is a toggle at a known point rather than a hit test.
+          if (points[0]) vertexPins.toggle(points[0]);
+        } else {
+          const box = cpSuppressionBoxFromCommitPoints(points, webglOverlayView);
+          if (box) {
+            regionActions.addRegion(box);
+            track(ANALYTICS_EVENTS.cpSuppressionRegionCreated, { source: 'tool' });
+          }
         }
         setCpToolState((state) =>
           state.activeOperationId === command.operationId
@@ -2074,6 +2080,7 @@ export function CreasePatternPanel() {
       t,
       vertexSolve,
       webglOverlayView,
+      vertexPins,
     ]
   );
 
@@ -2166,6 +2173,7 @@ export function CreasePatternPanel() {
       | 'drag-box'
       | 'drag-path'
       | 'drag-vertex'
+      | 'pick-vertex'
       | 'sequence'
       | 'line-entity'
       | 'lengthen'
@@ -2192,7 +2200,13 @@ export function CreasePatternPanel() {
       return idle;
     }
     const im = activeCpCommand.inputMode;
-    if (im === 'drag-line' || im === 'drag-box' || im === 'drag-path' || im === 'drag-vertex') {
+    if (
+      im === 'drag-line' ||
+      im === 'drag-box' ||
+      im === 'drag-path' ||
+      im === 'drag-vertex' ||
+      im === 'pick-vertex'
+    ) {
       return { ...idle, mode: im };
     }
     // Mirror Line branches per first pick between a 3-point sequence and a 2-line

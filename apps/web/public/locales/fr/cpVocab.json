@@ -277,6 +277,14 @@
         "0": "Faites glisser un sommet pour le déplacer"
       }
     },
+    "cp_action_vertex_pin": {
+      "label": "",
+      "tooltip": "",
+      "disabledReason": "",
+      "steps": {
+        "0": ""
+      }
+    },
     "cp_action_crease_make_mountain": {
       "label": "Définir comme montagne",
       "tooltip": "Définir les lignes sélectionnées comme plis montagne",

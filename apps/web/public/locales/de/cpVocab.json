@@ -277,6 +277,14 @@
         "0": "Knoten zum Verschieben ziehen"
       }
     },
+    "cp_action_vertex_pin": {
+      "label": "",
+      "tooltip": "",
+      "disabledReason": "",
+      "steps": {
+        "0": ""
+      }
+    },
     "cp_action_crease_make_mountain": {
       "label": "Als Berg festlegen",
       "tooltip": "Ausgewählte Linien zu Bergfalten machen",

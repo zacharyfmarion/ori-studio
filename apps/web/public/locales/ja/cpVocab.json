@@ -277,6 +277,14 @@
         "0": "頂点をドラッグして移動"
       }
     },
+    "cp_action_vertex_pin": {
+      "label": "",
+      "tooltip": "",
+      "disabledReason": "",
+      "steps": {
+        "0": ""
+      }
+    },
     "cp_action_crease_make_mountain": {
       "label": "山折りにする",
       "tooltip": "選択した線を山折りにします",

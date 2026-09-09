@@ -277,6 +277,14 @@
         "0": "Перетащите вершину, чтобы переместить её"
       }
     },
+    "cp_action_vertex_pin": {
+      "label": "",
+      "tooltip": "",
+      "disabledReason": "",
+      "steps": {
+        "0": ""
+      }
+    },
     "cp_action_crease_make_mountain": {
       "label": "Сделать горной",
       "tooltip": "Сделать выбранные линии горными складками",

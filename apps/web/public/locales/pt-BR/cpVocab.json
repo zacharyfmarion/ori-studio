@@ -277,6 +277,14 @@
         "0": "Arraste um vértice para movê-lo"
       }
     },
+    "cp_action_vertex_pin": {
+      "label": "",
+      "tooltip": "",
+      "disabledReason": "",
+      "steps": {
+        "0": ""
+      }
+    },
     "cp_action_crease_make_mountain": {
       "label": "Definir como montanha",
       "tooltip": "Definir as linhas selecionadas como dobras de montanha",

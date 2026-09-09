@@ -303,6 +303,7 @@ describe('Ori Studio native operations', () => {
       'SquareGenerate',
       'VertexInsertOnCreases',
       'VertexMove',
+      'VertexPin',
       'VertexSolveFoldAngles',
     ]);
   });

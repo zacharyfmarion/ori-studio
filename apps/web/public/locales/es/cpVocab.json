@@ -277,6 +277,14 @@
         "0": "Arrastra un vértice para moverlo"
       }
     },
+    "cp_action_vertex_pin": {
+      "label": "",
+      "tooltip": "",
+      "disabledReason": "",
+      "steps": {
+        "0": ""
+      }
+    },
     "cp_action_crease_make_mountain": {
       "label": "Marcar como monte",
       "tooltip": "Convertir las líneas seleccionadas en pliegues de monte",
