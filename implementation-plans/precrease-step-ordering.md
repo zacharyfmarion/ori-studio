@@ -40,7 +40,9 @@ at exist.
 exactly what the plan does today. Some patterns genuinely contain creases that
 can only end in mid-air, and the alternative — creasing further than the pattern
 asks in order to reach an edge — would put a crease in the paper that the design
-does not have. An eyeballed endpoint is imprecise. An extra crease is wrong.
+does not have. An eyeballed endpoint is imprecise; an extra crease bought only
+to make it precise is wrong. Here there is a choice, and imprecision is the
+cheaper half of it.
 
 So this can only improve a plan or leave it alone. No fold is dropped, none is
 added, no pattern becomes unplannable. The only thing that moves is the order,
@@ -49,8 +51,8 @@ and only where a better order exists.
 ## Goal
 
 Every step sighted from marks that are on the paper, and every crease ending
-somewhere the folder can find — as often as the pattern allows, and never at the
-cost of creasing something the pattern does not contain.
+somewhere the folder can find — as often as the pattern allows, and never
+creasing more of the paper than correctness requires.
 
 ## Why the current order is wrong
 
@@ -94,12 +96,21 @@ making progress. And the fallback admits exactly what today's test admits, which
 gives the property the whole design rests on: **the closure can never stall on
 this, and no pattern that plans today stops planning.**
 
-### D3 — no crease is ever extended
+### D3 — never crease more than correctness requires
 
 A crease that cannot find its end is made anyway, ending by eye. Creasing past
-what the pattern wants — to reach an edge and gain a landmark — is out. It puts a
-crease in the paper the design does not have, which is a change to the model
-rather than an imprecision in performing it.
+what the pattern wants — to reach an edge and gain a landmark — is out *in that
+case*, because there is an alternative: the fold gets made either way, and the
+extra crease buys only precision. A change to the model is the dearer of the
+two, so it loses.
+
+**This is a minimum, not a ban**, and reading it as a ban is a mistake this
+paragraph has already caused once. Where there is no alternative, the extra
+crease is what correctness costs and it gets made. The case that proves it: a
+step sighted from a mark that is not on the paper cannot be performed at all —
+you cannot stop by eye at a point that is not there — so a pinch is pressed to
+put the mark where the fold needs it. What is never allowed is creasing *more*
+than that: a pinch where a pinch will do, never a crease run out to an edge.
 
 This is also what makes D2's fallback safe: there is always something to fall
 back *to*.
