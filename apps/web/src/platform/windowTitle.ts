@@ -1,3 +1,4 @@
+import { SITE_NAME, SITE_TITLE } from '../seo/siteMeta';
 import { getRuntimeSurface, type RuntimeSurface } from './runtime';
 
 export interface WindowTitleInput {
@@ -20,6 +21,16 @@ export interface WindowTitleInput {
    * dialog, so the browser tab keeps naming the project.
    */
   filePath?: string | null;
+  /**
+   * True while the app is showing the landing page rather than a document.
+   *
+   * There is no document to name there, and the store still holds one — a blank
+   * project called `Untitled`. Titling the landing after it is what put
+   * "Ori Studio: Untitled" in Google's result for the site: the prerendered HTML
+   * carries {@link SITE_TITLE}, Googlebot's render pass then ran this and
+   * replaced it, and the rendered title is the one that gets indexed.
+   */
+  landing?: boolean;
   surface?: RuntimeSurface;
 }
 
@@ -28,13 +39,21 @@ export function formatWindowTitle({
   dirty,
   fileName,
   filePath = null,
-  surface: _surface = getRuntimeSurface(),
+  landing = false,
+  surface = getRuntimeSurface(),
 }: WindowTitleInput): string {
+  // Two different answers on purpose, because the string lands in two different
+  // places. In a browser it is the tab *and* the search result, so it is the
+  // sentence written for the query — and it has to match the `<title>` in
+  // `index.html` exactly, or a crawler is back to seeing the title change under
+  // it. Desktop has neither a tab nor a crawler, just a title bar that a
+  // seventy-character sentence would be absurd in.
+  if (landing) return surface === 'desktop' ? SITE_NAME : SITE_TITLE;
+
   const fromFile = filePath ? (fileName?.trim() ?? '') : '';
   const title = fromFile || projectTitle.trim() || 'Untitled';
   const dirtyMark = dirty ? '*' : '';
-  const suffix = 'Ori Studio';
-  return `${dirtyMark}${title} - ${suffix}`;
+  return `${dirtyMark}${title} - ${SITE_NAME}`;
 }
 
 export async function applyWindowTitle(title: string, surface: RuntimeSurface = getRuntimeSurface()) {

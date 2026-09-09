@@ -384,6 +384,105 @@ and Search Console shows the English page indexed and ranking for something.
 - [ ] Confirm via Search Console URL Inspection that Googlebot sees the copy *(needs Zach,
       after deploy)*
 
+### Phase 2a — The rendered title (found in the wild 2026-09-09)
+
+Google's result for the site read **"Ori Studio: Untitled"**.
+
+Nothing in the shipped bytes says that. `index.html`, `dist/index.html` and
+`dist/welcome/index.html` all serve `SITE_TITLE`, and `seo-smoke.mjs` confirms
+it against the deploy. The defect is one layer further on: **crawling and
+rendering are separate passes, and the title Google indexes comes from the
+second one.** Googlebot rendered the SPA, `App` mounted, `useWindowTitle` ran —
+and it titles the window after the open project, which on `/welcome` is the
+blank one the store holds, called `Untitled`. The prerendered title survived
+exactly as long as it took React to boot.
+
+This is the failure mode Phase 2 was written to avoid, arriving through the door
+Phase 2 left open. Prerendering removes the *dependency* on the render pass; it
+does not stop that pass overwriting what the crawler already read. Anything the
+app mutates in `<head>` at runtime is still, effectively, published metadata.
+
+The fix is to say that the landing page is not a document:
+
+- `isLandingPath` in `routing/paths.ts` — `/` and `/welcome`, trailing slash
+  included, because Pages 308s `/welcome` → `/welcome/` (the prerender writes a
+  real directory index for it).
+- `formatWindowTitle` takes a `landing` flag and answers `SITE_TITLE` on the web,
+  `SITE_NAME` on desktop. The web answer has to be *exactly* what `index.html`
+  serves, or a crawler is back to watching the title change under it; a title bar
+  is not a search result, so the desktop shell takes the name alone.
+- `useWindowTitle` reads the route to decide.
+
+Guards, since the original had none:
+
+- [x] `useWindowTitle` tested at `/welcome`, `/welcome/` and a workspace route,
+      with a *named* project in the store — what makes the landing not a document
+      is the route, not an empty store
+- [x] `formatWindowTitle` tested on both surfaces
+- [x] A test asserting `index.html`'s `<title>` is `SITE_TITLE`. The string is
+      duplicated there because `index.html` is Vite's entry and is read before any
+      of our code runs; that duplication is now load-bearing and nothing else
+      compared them
+- [ ] Request re-indexing in Search Console once this deploys *(needs Zach)*
+
+**Still true of every other route.** `/edit` and friends keep naming the open
+document, which is what a document window is for, and `canonical → /` folds them
+into the landing regardless.
+
+### Phase 2b — The title's length, and the site name
+
+Two things the result in Phase 2a showed that the copy had not been graded on.
+
+**The title was 76 characters.** A result gives a title roughly 600px, near
+enough 60 characters, so `Ori Studio — free online origami crease pattern editor
+and folding simulator` was cut mid-phrase every time it displayed — and a title
+long enough to cut is also one Google is more likely to replace with something we
+did not choose. Phase 2 wrote it for the query, which was the right instinct
+applied to the wrong field: the title gets one line, the description and the body
+copy do not.
+
+It is now **`Ori Studio — Origami Design Workspace`** (37 characters). "Origami"
+still carries the whole disambiguation job — the two contested names in finding 7
+are commercial *design studios*, and that word is what separates us from them.
+"Crease pattern", the term with the actual search demand, moves to
+`SITE_DESCRIPTION`, `og:title` and the landing copy, where it is not competing
+for the one line. `og:title` stays long on purpose: a social card is a different
+surface with a different budget.
+
+- [x] Shorten `SITE_TITLE`; `index.html` and the landing `<h1>` follow it
+- [x] Test that `SITE_TITLE` is ≤ 60 characters, so the next rewrite is graded
+
+**The result printed `oristudio.dev` where a named site prints its name.**
+Compare Oriedita, which prints "Oriedita": it declares `og:site_name`. We
+declared nothing Google reads for a site name — the landing JSON-LD carried
+`SoftwareApplication` and no `WebSite` node, and `index.html` had no
+`og:site_name`. Both are inputs to the same feature; Google reads both and still
+chooses, so this sends the signal rather than promising the outcome.
+
+- [x] `og:site_name` in `index.html`
+- [x] A `WebSite` node in the landing graph, `publisher` → the `SoftwareApplication`
+      (`landingJsonLd` now returns an `@graph`, because the prerender replaces every
+      `ld+json` block with the one it injects — two `<script>` tags would leave one)
+- [x] Strip the whole `ld+json` block on `/s/*`, beside the existing `#seo-content`
+      strip. `WebSite` is homepage-only by definition and a share is not the homepage;
+      the `SoftwareApplication` had been leaking there since Phase 2 regardless
+- [ ] Confirm the site name in Search Console once this deploys *(needs Zach)*
+
+### Sitelinks are not a metadata problem
+
+Worth writing down, because the Oriedita result is the obvious thing to want and
+the obvious thing to misdiagnose. Its Download / Getting Started / Orihime / FAQ
+sub-links are **sitelinks**: chosen algorithmically, requestable by no markup,
+and drawn from pages Google has indexed. `oriedita.github.io/sitemap.xml` lists
+8 URLs. Ours lists 1, by design — every route serves the same `dist/index.html`
+under `canonical → /`, which is what Phase 1 chose in order to consolidate.
+
+So the gap is not a tag. It is that there is nothing to link to. Earning that
+layout means real, separately-crawlable content — a guide, a download page, file
+format notes, an FAQ — which is a docs site, not an SEO change, and is not
+planned here. Phase 6's localised variants are the only other multi-URL work in
+this plan and were deliberately deferred.
+
 **`noindex` on the app routes was dropped, deliberately.** Every route serves the same
 `dist/index.html`, so `/edit` now carries the prerendered landing copy too. The fix is not
 a runtime `<meta robots>` — that only exists after the render pass, which is the pass we

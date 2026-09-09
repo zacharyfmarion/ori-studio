@@ -28,6 +28,30 @@ export const SIMULATE_PATH = '/simulate';
  */
 export const SHARE_PATH = '/s';
 
+/**
+ * Strip a trailing slash so `/welcome/` and `/welcome` are the same path.
+ *
+ * Cloudflare Pages 308s `/welcome` to `/welcome/`, because the prerender writes a
+ * real `dist/welcome/index.html` for it. So the trailing form is not hypothetical:
+ * it is what a crawler that fetches that URL directly ends up on, and what the
+ * router then reports.
+ */
+function withoutTrailingSlash(pathname: string): string {
+  return pathname.length > 1 ? pathname.replace(/\/+$/, '') || '/' : pathname;
+}
+
+/**
+ * True for the paths that hold the landing page rather than a document.
+ *
+ * `/` is included even though its loader redirects before anything renders: the
+ * static HTML served at `/` *is* the landing, and a caller asking this question
+ * during that tick should not be told otherwise.
+ */
+export function isLandingPath(pathname: string): boolean {
+  const path = withoutTrailingSlash(pathname);
+  return path === '/' || path === WELCOME_PATH;
+}
+
 /** Canonical path for a workspace. */
 export function workspacePath(workspace: WorkspaceId): string {
   switch (workspace) {
