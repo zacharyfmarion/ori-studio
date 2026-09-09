@@ -2,6 +2,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useTranslation } from 'react-i18next';
 import { Check, Pencil } from 'lucide-react';
 import { MenuIconButton } from '../../components/ui/MenuIconButton';
+import { CpToolGlyph } from '../toolCatalog/cpToolGlyph';
 import { cpActionLabel } from '../../i18n/cpVocab';
 import {
   cpActionByOperation,
@@ -94,10 +95,19 @@ export function RegionRepairToolMenu() {
               // armed tool is waiting to be used on.
               onSelect={() => requestAction(action.operationId)}
             >
+              {/* The tool's own glyph leads, and the tick moves to the trailing
+                  edge rather than sharing the slot with it (the pattern
+                  `ViewportToolbarOverflowMenu` uses). Sharing would hide the
+                  glyph on exactly the tool that is armed — and the glyph is what
+                  ties this row to the rail button for the same tool, which is
+                  the thing someone is looking for when they open this menu. */}
               <span className="context-menu__icon">
-                {action.id === activeToolId && <Check size={12} />}
+                <CpToolGlyph action={action} size={14} />
               </span>
               <span className="context-menu__label">{cpActionLabel(t, action)}</span>
+              <span className="context-menu__icon" aria-hidden="true">
+                {action.id === activeToolId && <Check size={12} />}
+              </span>
             </DropdownMenu.CheckboxItem>
           ))}
         </DropdownMenu.Content>
