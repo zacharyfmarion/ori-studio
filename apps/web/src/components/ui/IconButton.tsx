@@ -1,4 +1,4 @@
-import { forwardRef, type ButtonHTMLAttributes } from 'react';
+import { forwardRef, type AnchorHTMLAttributes, type ButtonHTMLAttributes } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { Tooltip, TooltipContent, TooltipTrigger } from './Tooltip';
 import { useTouchLabel } from './useTouchLabel';
@@ -90,3 +90,71 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
 );
 
 IconButton.displayName = 'IconButton';
+
+export interface IconButtonLinkProps
+  extends AnchorHTMLAttributes<HTMLAnchorElement>,
+    VariantProps<typeof iconButton> {
+  tooltipSide?: 'top' | 'right' | 'bottom' | 'left';
+}
+
+/**
+ * An icon-only link wearing {@link IconButton}'s shape — the `ButtonLink` of the
+ * icon controls, and made for the same reason.
+ *
+ * An anchor rather than a button that calls `window.open`: opening in a new tab,
+ * copying the address and seeing the destination before you commit all come from
+ * the control actually being a link, and an icon that leaves the app is exactly
+ * where somebody wants to know where it goes first.
+ *
+ * `title` is the tooltip *and* the accessible name, as on {@link IconButton} —
+ * an icon has no other text. There is no disabled branch, because a disabled
+ * link is not a thing: what an anchor cannot do it simply does not offer.
+ */
+export const IconButtonLink = forwardRef<HTMLAnchorElement, IconButtonLinkProps>(
+  (
+    {
+      variant,
+      size,
+      className = '',
+      title,
+      tooltipSide,
+      'aria-label': ariaLabel,
+      onClick,
+      ...props
+    },
+    ref
+  ) => {
+    const accessibleLabel = ariaLabel ?? (typeof title === 'string' ? title : undefined);
+    const hold = useTouchLabel();
+    const link = (
+      <a
+        ref={ref}
+        className={iconButton({ variant, size, className })}
+        aria-label={accessibleLabel}
+        onClick={(event) => {
+          // The press that summoned the label is not also an activation — and on
+          // an anchor that takes a `preventDefault` as well, since the thing to
+          // suppress is the browser's own navigation rather than a handler.
+          if (hold.consumeClick()) {
+            event.preventDefault();
+            return;
+          }
+          onClick?.(event);
+        }}
+        {...(title ? hold.handlers : null)}
+        {...props}
+      />
+    );
+
+    if (!title) return link;
+
+    return (
+      <Tooltip open={hold.open}>
+        <TooltipTrigger asChild>{link}</TooltipTrigger>
+        <TooltipContent side={tooltipSide}>{title}</TooltipContent>
+      </Tooltip>
+    );
+  }
+);
+
+IconButtonLink.displayName = 'IconButtonLink';

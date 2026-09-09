@@ -272,7 +272,18 @@
   align-items: stretch;
 }
 
+/*
+ * `flex: 1 1 auto` so a stretched split button is actually filled.
+ *
+ * A no-op wherever the container shrink-wraps, which is every toolbar use of
+ * this: `inline-flex` sizes to its content, so there is no free space for a
+ * grow factor to claim. It earns its place where something else sets the
+ * width — the landing page's phone block stretches every call to action to the
+ * column, and without this the fill stopped 55px short of the plain buttons
+ * above and below it while the box itself ran the full width.
+ */
 .ui-split-button__primary {
+  flex: 1 1 auto;
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }

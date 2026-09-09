@@ -230,11 +230,8 @@
     "common:fileDrop.openOrImport": "0dbd045ca82b",
     "common:numberField.decrease": "46cf4efa2af9",
     "common:numberField.increase": "c7158356e9b7",
-    "common:toolbar.new": "18fdd549b2ed",
-    "common:toolbar.open": "ed077f3d8125",
     "common:toolbar.optimizeLayout": "aa5f530acb50",
     "common:toolbar.optimizeScale": "836cfffad8e7",
-    "common:toolbar.save": "1509f561f241",
     "common:toolbar.sendToEdit": "44624ef4b964",
     "common:toolbar.sendToEditTooltip": "5871b962692a",
     "common:toolbar.settings": "74a883a037bc",
@@ -2794,7 +2791,8 @@
     "common:toolbar.downloadDesktop": "e0633aad817c",
     "common:toolbar.downloadDesktopVersion": "03fa8a0d2319",
     "dialogs:help.about.desktop": "7102842054a4",
-    "dialogs:help.about.desktopDetail": "5261404987d3"
+    "dialogs:help.about.desktopDetail": "5261404987d3",
+    "common:toolbar.discord": "895e7564fa79"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -3027,11 +3025,8 @@
     "common:fileDrop.openOrImport": "0dbd045ca82b",
     "common:numberField.decrease": "46cf4efa2af9",
     "common:numberField.increase": "c7158356e9b7",
-    "common:toolbar.new": "18fdd549b2ed",
-    "common:toolbar.open": "ed077f3d8125",
     "common:toolbar.optimizeLayout": "aa5f530acb50",
     "common:toolbar.optimizeScale": "836cfffad8e7",
-    "common:toolbar.save": "1509f561f241",
     "common:toolbar.sendToEdit": "44624ef4b964",
     "common:toolbar.sendToEditTooltip": "5871b962692a",
     "common:toolbar.settings": "74a883a037bc",
@@ -5591,7 +5586,8 @@
     "common:toolbar.downloadDesktop": "e0633aad817c",
     "common:toolbar.downloadDesktopVersion": "03fa8a0d2319",
     "dialogs:help.about.desktop": "7102842054a4",
-    "dialogs:help.about.desktopDetail": "5261404987d3"
+    "dialogs:help.about.desktopDetail": "5261404987d3",
+    "common:toolbar.discord": "895e7564fa79"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -5824,11 +5820,8 @@
     "common:fileDrop.openOrImport": "0dbd045ca82b",
     "common:numberField.decrease": "46cf4efa2af9",
     "common:numberField.increase": "c7158356e9b7",
-    "common:toolbar.new": "18fdd549b2ed",
-    "common:toolbar.open": "ed077f3d8125",
     "common:toolbar.optimizeLayout": "aa5f530acb50",
     "common:toolbar.optimizeScale": "836cfffad8e7",
-    "common:toolbar.save": "1509f561f241",
     "common:toolbar.sendToEdit": "44624ef4b964",
     "common:toolbar.sendToEditTooltip": "5871b962692a",
     "common:toolbar.settings": "74a883a037bc",
@@ -8388,7 +8381,8 @@
     "common:toolbar.downloadDesktop": "e0633aad817c",
     "common:toolbar.downloadDesktopVersion": "03fa8a0d2319",
     "dialogs:help.about.desktop": "7102842054a4",
-    "dialogs:help.about.desktopDetail": "5261404987d3"
+    "dialogs:help.about.desktopDetail": "5261404987d3",
+    "common:toolbar.discord": "895e7564fa79"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -8621,11 +8615,8 @@
     "common:fileDrop.openOrImport": "0dbd045ca82b",
     "common:numberField.decrease": "46cf4efa2af9",
     "common:numberField.increase": "c7158356e9b7",
-    "common:toolbar.new": "18fdd549b2ed",
-    "common:toolbar.open": "ed077f3d8125",
     "common:toolbar.optimizeLayout": "aa5f530acb50",
     "common:toolbar.optimizeScale": "836cfffad8e7",
-    "common:toolbar.save": "1509f561f241",
     "common:toolbar.sendToEdit": "44624ef4b964",
     "common:toolbar.sendToEditTooltip": "5871b962692a",
     "common:toolbar.settings": "74a883a037bc",
@@ -11134,7 +11125,8 @@
     "common:toolbar.downloadDesktop": "e0633aad817c",
     "common:toolbar.downloadDesktopVersion": "03fa8a0d2319",
     "dialogs:help.about.desktop": "7102842054a4",
-    "dialogs:help.about.desktopDetail": "5261404987d3"
+    "dialogs:help.about.desktopDetail": "5261404987d3",
+    "common:toolbar.discord": "895e7564fa79"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -11367,11 +11359,8 @@
     "common:fileDrop.openOrImport": "0dbd045ca82b",
     "common:numberField.decrease": "46cf4efa2af9",
     "common:numberField.increase": "c7158356e9b7",
-    "common:toolbar.new": "18fdd549b2ed",
-    "common:toolbar.open": "ed077f3d8125",
     "common:toolbar.optimizeLayout": "aa5f530acb50",
     "common:toolbar.optimizeScale": "836cfffad8e7",
-    "common:toolbar.save": "1509f561f241",
     "common:toolbar.sendToEdit": "44624ef4b964",
     "common:toolbar.sendToEditTooltip": "5871b962692a",
     "common:toolbar.settings": "74a883a037bc",
@@ -13880,7 +13869,8 @@
     "common:toolbar.downloadDesktop": "e0633aad817c",
     "common:toolbar.downloadDesktopVersion": "03fa8a0d2319",
     "dialogs:help.about.desktop": "7102842054a4",
-    "dialogs:help.about.desktopDetail": "5261404987d3"
+    "dialogs:help.about.desktopDetail": "5261404987d3",
+    "common:toolbar.discord": "895e7564fa79"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -14113,11 +14103,8 @@
     "common:fileDrop.openOrImport": "0dbd045ca82b",
     "common:numberField.decrease": "46cf4efa2af9",
     "common:numberField.increase": "c7158356e9b7",
-    "common:toolbar.new": "18fdd549b2ed",
-    "common:toolbar.open": "ed077f3d8125",
     "common:toolbar.optimizeLayout": "aa5f530acb50",
     "common:toolbar.optimizeScale": "836cfffad8e7",
-    "common:toolbar.save": "1509f561f241",
     "common:toolbar.sendToEdit": "44624ef4b964",
     "common:toolbar.sendToEditTooltip": "5871b962692a",
     "common:toolbar.settings": "74a883a037bc",
@@ -16677,7 +16664,8 @@
     "common:toolbar.downloadDesktop": "e0633aad817c",
     "common:toolbar.downloadDesktopVersion": "03fa8a0d2319",
     "dialogs:help.about.desktop": "7102842054a4",
-    "dialogs:help.about.desktopDetail": "5261404987d3"
+    "dialogs:help.about.desktopDetail": "5261404987d3",
+    "common:toolbar.discord": "895e7564fa79"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -16910,11 +16898,8 @@
     "common:fileDrop.openOrImport": "0dbd045ca82b",
     "common:numberField.decrease": "46cf4efa2af9",
     "common:numberField.increase": "c7158356e9b7",
-    "common:toolbar.new": "18fdd549b2ed",
-    "common:toolbar.open": "ed077f3d8125",
     "common:toolbar.optimizeLayout": "aa5f530acb50",
     "common:toolbar.optimizeScale": "836cfffad8e7",
-    "common:toolbar.save": "1509f561f241",
     "common:toolbar.sendToEdit": "44624ef4b964",
     "common:toolbar.sendToEditTooltip": "5871b962692a",
     "common:toolbar.settings": "74a883a037bc",
@@ -19474,7 +19459,8 @@
     "common:toolbar.downloadDesktop": "e0633aad817c",
     "common:toolbar.downloadDesktopVersion": "03fa8a0d2319",
     "dialogs:help.about.desktop": "7102842054a4",
-    "dialogs:help.about.desktopDetail": "5261404987d3"
+    "dialogs:help.about.desktopDetail": "5261404987d3",
+    "common:toolbar.discord": "895e7564fa79"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -19707,11 +19693,8 @@
     "common:fileDrop.openOrImport": "0dbd045ca82b",
     "common:numberField.decrease": "46cf4efa2af9",
     "common:numberField.increase": "c7158356e9b7",
-    "common:toolbar.new": "18fdd549b2ed",
-    "common:toolbar.open": "ed077f3d8125",
     "common:toolbar.optimizeLayout": "aa5f530acb50",
     "common:toolbar.optimizeScale": "836cfffad8e7",
-    "common:toolbar.save": "1509f561f241",
     "common:toolbar.sendToEdit": "44624ef4b964",
     "common:toolbar.sendToEditTooltip": "5871b962692a",
     "common:toolbar.settings": "74a883a037bc",
@@ -22220,6 +22203,7 @@
     "common:toolbar.downloadDesktop": "e0633aad817c",
     "common:toolbar.downloadDesktopVersion": "03fa8a0d2319",
     "dialogs:help.about.desktop": "7102842054a4",
-    "dialogs:help.about.desktopDetail": "5261404987d3"
+    "dialogs:help.about.desktopDetail": "5261404987d3",
+    "common:toolbar.discord": "895e7564fa79"
   }
 }

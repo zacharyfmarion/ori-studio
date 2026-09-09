@@ -290,13 +290,11 @@
     "credit": "Designed by <2>Brandon Wong</2>"
   },
   "toolbar": {
+    "discord": "Join the Discord",
     "downloadDesktop": "Get the desktop app",
     "downloadDesktopVersion": "Get the desktop app ({{version}})",
-    "new": "New",
-    "open": "Open",
     "optimizeLayout": "Optimize",
     "optimizeScale": "Optimize Scale",
-    "save": "Save",
     "sendToEdit": "Send to Edit",
     "sendToEditMore": "More Send to Edit options",
     "sendToEditTooltip": "Send this design's crease pattern to the Edit canvas",

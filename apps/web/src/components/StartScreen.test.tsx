@@ -2,6 +2,7 @@ import { act } from 'react';
 import type { ComponentProps } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { PHONE_MEDIA_QUERY } from '../platform/phoneLayout';
 import { StartScreen } from './StartScreen';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -38,6 +39,22 @@ function button(label: string): HTMLButtonElement {
   return match as HTMLButtonElement;
 }
 
+/**
+ * Answer the phone query on its own, not through the plain coarse-pointer one it
+ * contains: a tablet is coarse and is not a phone, and this screen treats the
+ * two differently.
+ */
+function stubViewport(phone: boolean) {
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn((query: string) => ({
+      matches: query === PHONE_MEDIA_QUERY ? phone : false,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+  );
+}
+
 afterEach(() => {
   if (root) {
     act(() => {
@@ -47,9 +64,31 @@ afterEach(() => {
   container?.remove();
   root = null;
   container = null;
+  vi.unstubAllGlobals();
 });
 
 describe('StartScreen', () => {
+  it('offers the desktop app in the corner of a viewport that could run one', () => {
+    stubViewport(false);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 403 }));
+
+    const rendered = renderStartScreen().container;
+
+    expect(rendered.querySelector('.start-screen__download')).not.toBeNull();
+  });
+
+  it('offers no desktop download on a phone, which cannot run one', () => {
+    stubViewport(true);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 403 }));
+
+    const rendered = renderStartScreen().container;
+
+    // The whole control, not merely its icon: it is positioned by its own root
+    // class, so anything left behind would still hold the corner's margin.
+    expect(rendered.querySelector('.start-screen__download')).toBeNull();
+    expect(rendered.querySelector('.ui-split-button')).toBeNull();
+  });
+
   it('renders the three NUX choices with supported file formats', () => {
     const rendered = renderStartScreen().container;
 

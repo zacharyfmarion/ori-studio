@@ -290,13 +290,11 @@
     "credit": "设计者：<2>Brandon Wong</2>"
   },
   "toolbar": {
+    "discord": "加入 Discord",
     "downloadDesktop": "获取桌面应用",
     "downloadDesktopVersion": "获取桌面应用 ({{version}})",
-    "new": "新建",
-    "open": "打开",
     "optimizeLayout": "优化",
     "optimizeScale": "优化比例",
-    "save": "保存",
     "sendToEdit": "发送到编辑",
     "sendToEditMore": "“发送到编辑”的更多选项",
     "sendToEditTooltip": "将此设计的折痕图发送到编辑画布",

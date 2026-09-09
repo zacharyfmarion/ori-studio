@@ -290,13 +290,11 @@
     "credit": "Entworfen von <2>Brandon Wong</2>"
   },
   "toolbar": {
+    "discord": "Discord beitreten",
     "downloadDesktop": "Desktop-App holen",
     "downloadDesktopVersion": "Desktop-App holen ({{version}})",
-    "new": "Neu",
-    "open": "Öffnen",
     "optimizeLayout": "Optimieren",
     "optimizeScale": "Skalierung optimieren",
-    "save": "Speichern",
     "sendToEdit": "An Bearbeiten senden",
     "sendToEditMore": "Weitere Optionen für „An Bearbeiten senden“",
     "sendToEditTooltip": "Das Faltmuster dieses Designs an die Bearbeiten-Leinwand senden",

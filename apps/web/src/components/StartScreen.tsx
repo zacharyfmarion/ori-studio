@@ -2,6 +2,7 @@ import { DraftingCompass, FilePlus, FolderOpen, PenTool } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AppStatus } from '../lib/sampleProject';
+import { useIsPhoneLayout } from '../platform/phoneLayout';
 import { DesktopDownloadButton } from './download/DesktopDownloadButton';
 import { StartFigure } from './start/StartFigure';
 
@@ -25,6 +26,12 @@ export function StartScreen({
   onToggleShowWelcomeOnStartup,
 }: StartScreenProps) {
   const { t } = useTranslation();
+  // The same predicate the workspace toolbar's download icon uses, so "is this a
+  // phone, for the purpose of not offering a desktop build" has one answer.
+  // Deliberately not `useIsPhoneSurface`, which `WelcomeRoute` uses a few lines
+  // up: that one asks whether the app should refuse to open here and exempts the
+  // Tauri shell, and this control is already absent there.
+  const phone = useIsPhoneLayout();
   const preparing = status === 'loading_engine';
   const disabled = preparing || status === 'optimizing' || status === 'building_crease_pattern';
   const statusMessage = preparing
@@ -44,13 +51,21 @@ export function StartScreen({
         reads at does not push it hundreds of pixels in from the right on a wide
         window. Renders nothing in the desktop app, and being unwrapped is what
         makes that leave no gap behind.
+
+        Absent on a phone, which cannot run any of the builds it offers — the
+        same reason the workspace toolbar's download icon is. The landing page's
+        own download call to action below is untouched: this is a corner control
+        on the screenful somebody came here to start work from, and that one is
+        the body of a section about installing the app.
       */}
-      <DesktopDownloadButton
-        className="start-screen__download"
-        surface="start-screen"
-        size="sm"
-        variant="secondary"
-      />
+      {!phone && (
+        <DesktopDownloadButton
+          className="start-screen__download"
+          surface="start-screen"
+          size="sm"
+          variant="secondary"
+        />
+      )}
       <section className="start-screen__content" aria-labelledby="start-screen-title">
         <div className="start-screen__hero">
           <div className="start-screen__copy">
