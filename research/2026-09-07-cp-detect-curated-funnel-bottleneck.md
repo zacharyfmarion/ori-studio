@@ -343,8 +343,11 @@ by the border rule (horse-1-1); those are the known cost.
 - 38 of the 317 harness-recovered solves are `ambiguous`; the product does not
   auto-apply those (Review & Fix is primary, "add improved" secondary), so the
   product converts fewer than the harness says.
-- The harness's 25 s solve budget ends 16 large solves `ambiguous` at the
-  buzzer; the product has no deadline since 2026-09-02.
+- The harness's solve budget is a work count since 2026-09-09 (5·10⁸
+  vertex²·checks, the 25 s the clock used to allow), so its verdicts no
+  longer move with the machine's load; it still ends the largest solves
+  `ambiguous` at the budget, where the product, which has had no deadline
+  since 2026-09-02, keeps going.
 - The 1,500-recognised-edge cap skips 30 giants the product would attempt.
 - The curated group's contact positions are the detector's; a change to
   contact placement has to be judged against the ink (above), or the two

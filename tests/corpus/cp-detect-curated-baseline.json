@@ -3432,7 +3432,7 @@
     "cpoogle/rooster-pd-rooster-by-mineo-shotaro": {
       "decoder": "near",
       "edge_f1": 0.993,
-      "end_to_end": "not_accepted",
+      "end_to_end": "accepted_wrong",
       "gate": "not_solved",
       "gate_max_px": 0.0,
       "gate_unpaired_junctions": 0,
@@ -5024,7 +5024,7 @@
     }
   },
   "cases_total": 558,
-  "commit": "323c21f598fd3a6963706fef5009d335fa093298",
+  "commit": "27f4b765ab748c0fe3368a80d3348f86558668f8",
   "decoder": {
     "buckets": {
       "exact": 346,
@@ -5039,9 +5039,9 @@
   },
   "end_to_end": {
     "buckets": {
-      "accepted_wrong": 135,
+      "accepted_wrong": 136,
       "n/a": 36,
-      "not_accepted": 49,
+      "not_accepted": 48,
       "recovered": 332,
       "skipped": 6
     },
@@ -5076,9 +5076,9 @@
       },
       "end_to_end": {
         "buckets": {
-          "accepted_wrong": 119,
+          "accepted_wrong": 120,
           "n/a": 2,
-          "not_accepted": 43,
+          "not_accepted": 42,
           "recovered": 314,
           "skipped": 6
         },

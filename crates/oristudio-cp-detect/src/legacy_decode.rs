@@ -84,6 +84,12 @@ pub struct DecodeConfig {
     /// disables the timeout; zero times out immediately.
     #[serde(default = "default_exact_solve_timeout_seconds")]
     pub exact_solve_timeout_seconds: f64,
+    /// Work budget for the product exact-solve backend, in the solver's
+    /// vertex²·check units (`ExactSolveOptions::work_budget`): the stop a
+    /// benchmark can reproduce on any machine under any load. `None` leaves
+    /// only the wall clock, which is what the product runs with.
+    #[serde(default)]
+    pub exact_solve_work_budget: Option<u64>,
     /// Optional override for the junction peak-extraction threshold (for sweeps).
     /// `None` keeps the production default (`line_threshold.max(0.50)`).
     #[serde(default)]
@@ -147,6 +153,7 @@ impl Default for DecodeConfig {
             junction_offset_cluster_radius_px: 0.0,
             junction_cluster_keep_rule: crate::evidence_extract::JunctionClusterKeepRule::default(),
             exact_solve_timeout_seconds: default_exact_solve_timeout_seconds(),
+            exact_solve_work_budget: None,
             junction_peak_threshold: None,
             recognize_only: false,
         }

@@ -78,6 +78,20 @@ pub struct ExactSolveOptions {
     /// timeout; zero times out immediately.
     #[serde(default = "default_timeout_seconds")]
     pub timeout_seconds: f64,
+    /// Work budget for the full exact solve, counted where `timeout_seconds`
+    /// is timed: every deadline check between residual and Jacobian
+    /// evaluations spends the square of the model's vertex count, which is
+    /// how a check's cost grows (seconds per check ∝ vertices^2.2 over the
+    /// curated benchmark, R² 0.88), so a budget in these units tracks wall
+    /// time within a factor of three across patterns of every size, and 2·10⁷
+    /// units is about a second of solving on one Apple Silicon core (2026-09).
+    /// The same input stops at the same place on any machine under any load,
+    /// which is what a benchmark needs and a wall clock cannot give (a
+    /// contended run turned a 6 s solve into a timeout). `None` leaves only
+    /// the wall clock; the two budgets combine, and the first to run out ends
+    /// the solve.
+    #[serde(default)]
+    pub work_budget: Option<u64>,
     /// Linear-algebra backend for the LM step (dense vs sparse). Defaults to
     /// sparse (verified parity + ~1.7× faster); `Dense` is selectable for A/B.
     #[serde(default)]
@@ -272,6 +286,9 @@ const PINNED_REANCHOR_ROUNDS: usize = 3;
 /// follow it. A round that runs out of its own allowance is refused; it must
 /// never turn an accepted solve into one that timed out.
 const PINNED_ROUND_RESERVE_SECONDS: f64 = 0.5;
+/// The work-budget counterpart: deadline checks' worth of work kept back for
+/// the steps after a round.
+const PINNED_ROUND_RESERVE_CHECKS: u64 = 50;
 
 /// Endpoint noise a detected crease is allowed, in pixels, when the pinned
 /// round widens its tolerance for short creases: a crease of length `L` px may
@@ -417,6 +434,7 @@ impl Default for ExactSolveOptions {
             degenerate_edge_epsilon: COLLAPSED_SPAN_LENGTH,
             crossing_epsilon: 1e-7,
             timeout_seconds: default_timeout_seconds(),
+            work_budget: None,
             linear_solver: LinearSolver::Sparse,
             polish: default_polish(),
             angle_family: AngleFamilyMode::default(),
@@ -501,10 +519,28 @@ struct ExactSolveDeadline {
     #[cfg(target_arch = "wasm32")]
     started_at_ms: f64,
     cancel: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
+    /// Deadline checks made so far, shared by every clock of one solve: a
+    /// round on its own clock still spends the solve's work.
+    evaluations: Rc<Cell<u64>>,
+    /// Work spent so far, in vertex²·checks, shared the same way.
+    work: Rc<Cell<u64>>,
+    /// What one deadline check costs on this model: its vertex count squared.
+    check_cost: u64,
+    /// The work at which this clock reads as expired, if it has a budget.
+    work_cap: Option<u64>,
+}
+
+/// What a round may spend of the solve's remaining budgets: seconds on a
+/// clock of its own, and work against the shared count. A `None` is a budget
+/// the solve does not have.
+#[derive(Debug, Clone, Copy)]
+struct RoundAllowance {
+    seconds: Option<f64>,
+    work: Option<u64>,
 }
 
 impl ExactSolveDeadline {
-    fn start(timeout_seconds: f64) -> Self {
+    fn start(timeout_seconds: f64, work_budget: Option<u64>) -> Self {
         Self {
             timeout_seconds,
             #[cfg(not(target_arch = "wasm32"))]
@@ -512,7 +548,45 @@ impl ExactSolveDeadline {
             #[cfg(target_arch = "wasm32")]
             started_at_ms: js_sys::Date::now(),
             cancel: CANCEL_FLAG.with(|slot| slot.borrow().clone()),
+            evaluations: Rc::new(Cell::new(0)),
+            work: Rc::new(Cell::new(0)),
+            check_cost: 1,
+            work_cap: work_budget,
         }
+    }
+
+    /// The clock priced for a model of `vertices` vertices.
+    fn priced(mut self, vertices: usize) -> Self {
+        let n = vertices.max(1) as u64;
+        self.check_cost = n.saturating_mul(n);
+        self
+    }
+
+    /// A clock for one round: `seconds` from now, and `work` more of the
+    /// shared count, the solve's own stop still honoured.
+    fn for_round(&self, allowance: RoundAllowance) -> Self {
+        let mut own = Self::start(allowance.seconds.unwrap_or(-1.0), None);
+        own.cancel = self.cancel.clone();
+        own.evaluations = Rc::clone(&self.evaluations);
+        own.work = Rc::clone(&self.work);
+        own.check_cost = self.check_cost;
+        own.work_cap = allowance
+            .work
+            .map(|more| self.work.get().saturating_add(more))
+            .or(self.work_cap);
+        own
+    }
+
+    /// One deadline check: one of the count, `check_cost` of the work.
+    fn tick(&self) {
+        self.evaluations
+            .set(self.evaluations.get().saturating_add(1));
+        self.work
+            .set(self.work.get().saturating_add(self.check_cost));
+    }
+
+    fn work_left(&self) -> Option<u64> {
+        self.work_cap.map(|cap| cap.saturating_sub(self.work.get()))
     }
 
     fn cancelled(&self) -> bool {
@@ -537,6 +611,7 @@ impl ExactSolveDeadline {
             || (self.timeout_seconds.is_finite()
                 && self.timeout_seconds >= 0.0
                 && self.elapsed_seconds() >= self.timeout_seconds)
+            || self.work_cap.is_some_and(|cap| self.work.get() >= cap)
     }
 }
 
@@ -787,7 +862,7 @@ fn solve_exact_inner(
     options: ExactSolveOptions,
     exempt_vertex_ids: Rc<BTreeSet<usize>>,
 ) -> ExactSolvedGraph {
-    let deadline = ExactSolveDeadline::start(options.timeout_seconds);
+    let deadline = ExactSolveDeadline::start(options.timeout_seconds, options.work_budget);
     let validation = validate_input(input);
     if !validation.is_empty() {
         return failed_graph(
@@ -1430,7 +1505,7 @@ impl SolveModel {
             vertices: input.vertices.clone(),
             cost_model: input.cost_model.clone(),
             options,
-            deadline,
+            deadline: deadline.priced(input.vertices.len()),
             timed_out: Rc::new(Cell::new(false)),
             provenance: input.provenance.clone(),
             exempt_vertex_ids,
@@ -1441,6 +1516,7 @@ impl SolveModel {
         if self.timed_out.get() {
             return true;
         }
+        self.deadline.tick();
         if self.deadline.expired() {
             self.timed_out.set(true);
             return true;
@@ -1671,12 +1747,12 @@ impl SolveModel {
         }
     }
 
-    /// A copy on its own clock: `seconds` from now, with a timeout flag that is
-    /// its own. The shared flag would turn a round that ran out of its
-    /// allowance into a solve that timed out.
-    fn with_own_budget(&self, seconds: f64) -> Self {
+    /// A copy on its own clock, with a timeout flag that is its own. The
+    /// shared flag would turn a round that ran out of its allowance into a
+    /// solve that timed out.
+    fn with_own_budget(&self, allowance: RoundAllowance) -> Self {
         let mut own = self.clone();
-        own.deadline = ExactSolveDeadline::start(seconds);
+        own.deadline = self.deadline.for_round(allowance);
         own.timed_out = Rc::new(Cell::new(false));
         own
     }
@@ -1686,6 +1762,26 @@ impl SolveModel {
         let deadline = &self.deadline;
         (deadline.timeout_seconds.is_finite() && deadline.timeout_seconds >= 0.0)
             .then(|| deadline.timeout_seconds - deadline.elapsed_seconds())
+    }
+
+    /// What a round may spend, keeping the pinned round's reserve of each
+    /// budget the solve has; `None` when either is already spent.
+    fn round_allowance(&self) -> Option<RoundAllowance> {
+        let seconds = self
+            .remaining_seconds()
+            .map(|seconds| seconds - PINNED_ROUND_RESERVE_SECONDS);
+        if seconds.is_some_and(|seconds| seconds <= 0.0) {
+            return None;
+        }
+        let reserve = PINNED_ROUND_RESERVE_CHECKS.saturating_mul(self.deadline.check_cost);
+        let work = self
+            .deadline
+            .work_left()
+            .map(|left| left.saturating_sub(reserve));
+        if work.is_some_and(|left| left == 0) {
+            return None;
+        }
+        Some(RoundAllowance { seconds, work })
     }
 
     /// The pleat runs in this model at `params`: each carrier group as a line
@@ -3381,7 +3477,7 @@ pub fn analyze_candidate_topology(input: &ExactSolveInput) -> TopologyDiagnostic
     let model = SolveModel::new(
         input,
         options,
-        ExactSolveDeadline::start(-1.0),
+        ExactSolveDeadline::start(-1.0, None),
         Rc::new(BTreeSet::new()),
     );
     let params = model.initial_params.clone();
@@ -3784,10 +3880,7 @@ fn symmetry_round(
         .iter()
         .map(|symmetry| symmetry.axis)
         .collect();
-    let budget = model
-        .remaining_seconds()
-        .map(|seconds| seconds - PINNED_ROUND_RESERVE_SECONDS);
-    if budget.is_some_and(|seconds| seconds <= 0.0) {
+    let Some(budget) = model.round_allowance() else {
         return Some(SymmetryRound {
             outcome: SymmetryRoundOutcome {
                 axes,
@@ -3804,7 +3897,7 @@ fn symmetry_round(
             },
             adopted: None,
         });
-    }
+    };
     let started = model.deadline.elapsed_seconds();
     let held = model.with_symmetries_held();
     let worst_mirror = |points: &[Point2]| {
@@ -3815,9 +3908,7 @@ fn symmetry_round(
     };
     let mirror_error_before = worst_mirror(&model.placed_points(current_params));
     let mut solving = held.reanchored_for_polish(current_params);
-    if let Some(seconds) = budget {
-        solving = solving.with_own_budget(seconds);
-    }
+    solving = solving.with_own_budget(budget);
     let start_energy = residual_energy(&solving.residuals_for(current_params));
     let (mut params, _termination, mut evaluations, _objective, _counters) =
         run_lm_minimize(&solving, current_params, options);
@@ -4307,17 +4398,12 @@ fn pleat_round(
     if ties.spacing.is_empty() {
         return not_run("nothing_to_tie", ties);
     }
-    let budget = model
-        .remaining_seconds()
-        .map(|seconds| seconds - PINNED_ROUND_RESERVE_SECONDS);
-    if budget.is_some_and(|seconds| seconds <= 0.0) {
+    let Some(budget) = model.round_allowance() else {
         return not_run("out_of_time", ties);
-    }
+    };
     let held = model.with_pleat_ties(&ties);
     let mut solving = held.reanchored_for_polish(current_params);
-    if let Some(seconds) = budget {
-        solving = solving.with_own_budget(seconds);
-    }
+    solving = solving.with_own_budget(budget);
     let start_energy = residual_energy(&solving.residuals_for(current_params));
     let (mut params, _termination, mut evaluations, _objective, _counters) =
         run_lm_minimize(&solving, current_params, options);
@@ -4601,21 +4687,15 @@ fn pinned_attempt(
     options: ExactSolveOptions,
 ) -> PinnedAttemptResult {
     // The attempt runs on its own clock, inside what is left of the solve's.
-    let budget = model
-        .remaining_seconds()
-        .map(|seconds| seconds - PINNED_ROUND_RESERVE_SECONDS);
-    if budget.is_some_and(|seconds| seconds <= 0.0) {
+    let Some(budget) = model.round_allowance() else {
         return PinnedAttemptResult::Skipped("out_of_time");
-    }
+    };
     let Some((pinned_model, start, peeled_carriers)) =
         model.pinned_to_angle_family(base_params, step, tolerance, short_crease_noise_px)
     else {
         return PinnedAttemptResult::Skipped("nothing_to_pin");
     };
-    let pinned_model = match budget {
-        Some(seconds) => pinned_model.with_own_budget(seconds),
-        None => pinned_model,
-    };
+    let pinned_model = pinned_model.with_own_budget(budget);
     let pinned_carriers = pinned_model
         .carrier_groups
         .iter()
@@ -5137,6 +5217,9 @@ fn movement_report(
         "timed_out": model.timed_out.get(),
         "timeout_seconds": options.timeout_seconds,
         "elapsed_seconds": round6(model.deadline.elapsed_seconds()),
+        "work_budget": options.work_budget,
+        "work_spent": model.deadline.work.get(),
+        "deadline_evaluations": model.deadline.evaluations.get(),
         "accepted": accepted,
         "rejection_reasons": rejection_reasons,
         "evaluations": evaluations,
@@ -5794,12 +5877,12 @@ mod request_and_cancellation_tests {
     #[test]
     fn a_raised_flag_reads_as_an_expired_deadline() {
         let flag = Arc::new(AtomicBool::new(false));
-        let deadline = with_cancellation(flag.clone(), || ExactSolveDeadline::start(-1.0));
+        let deadline = with_cancellation(flag.clone(), || ExactSolveDeadline::start(-1.0, None));
         assert!(!deadline.expired(), "no deadline and no stop: not expired");
         flag.store(true, Ordering::Relaxed);
         assert!(deadline.expired(), "the stop is the deadline");
         // Outside `with_cancellation` a deadline carries no flag.
-        let plain = ExactSolveDeadline::start(-1.0);
+        let plain = ExactSolveDeadline::start(-1.0, None);
         assert!(!plain.expired());
     }
 }
@@ -7745,7 +7828,7 @@ mod tests {
         SolveModel::new(
             input,
             options,
-            ExactSolveDeadline::start(-1.0),
+            ExactSolveDeadline::start(-1.0, None),
             Rc::new(BTreeSet::new()),
         )
     }

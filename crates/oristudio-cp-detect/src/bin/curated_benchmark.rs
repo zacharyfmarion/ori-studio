@@ -29,7 +29,8 @@
 //!
 //!   cargo run --release -p oristudio-cp-detect --features native-inference \
 //!     --bin curated_benchmark -- --cases <dir> --out <dir> \
-//!     [--model <model.onnx>] [--compare <summary.json>] [--budget 25] \
+//!     [--model <model.onnx>] [--compare <summary.json>] \
+//!     [--budget-work 500000000] [--budget <s>] \
 //!     [--max-edges 1500] [--max-recognise-creases 4000] [--jobs n]
 //!     [--only slug,slug] [--group name] [--allow-stale] [--write-detected]
 //!
@@ -80,12 +81,16 @@ struct Args {
     model: PathBuf,
     compare: Option<PathBuf>,
     budget: f64,
+    budget_work: Option<u64>,
     max_edges: usize,
     max_recognise_creases: usize,
     jobs: usize,
     only: Option<Vec<String>>,
     group: Option<String>,
     allow_stale: bool,
+    /// Write each case's decode report beside its answers, for reading a
+    /// solve's rounds and budget.
+    write_reports: bool,
     write_detected: bool,
 }
 
@@ -97,7 +102,14 @@ fn parse_args() -> Args {
         out: PathBuf::from("artifacts/cp-detect-curated/latest"),
         model: PathBuf::new(),
         compare: None,
-        budget: 25.0,
+        // The scorecard is produced on the work budget alone: the same input
+        // stops at the same place on any machine under any load, which a
+        // wall clock cannot promise (a contended run turned a 6 s solve into
+        // a `failed`). 5·10⁸ vertex²·checks is the 25 s the clock used to
+        // allow, at the corpus's median rate of 1.9·10⁷ per second on one
+        // Apple Silicon core (2026-09-09). `--budget <s>` puts a clock back.
+        budget: -1.0,
+        budget_work: Some(500_000_000),
         max_edges: 1500,
         max_recognise_creases: 4000,
         jobs: std::thread::available_parallelism()
@@ -106,6 +118,7 @@ fn parse_args() -> Args {
         only: None,
         group: None,
         allow_stale: false,
+        write_reports: false,
         write_detected: false,
     };
     let mut it = std::env::args().skip(1);
@@ -116,6 +129,14 @@ fn parse_args() -> Args {
             "--model" => args.model = it.next().expect("--model <path>").into(),
             "--compare" => args.compare = Some(it.next().expect("--compare <summary.json>").into()),
             "--budget" => args.budget = it.next().expect("--budget <s>").parse().expect("budget"),
+            "--budget-work" => {
+                args.budget_work = Some(
+                    it.next()
+                        .expect("--budget-work <units>")
+                        .parse()
+                        .expect("budget-work"),
+                )
+            }
             "--max-edges" => {
                 args.max_edges = it
                     .next()
@@ -142,6 +163,7 @@ fn parse_args() -> Args {
             }
             "--group" => args.group = Some(it.next().expect("--group <name>")),
             "--allow-stale" => args.allow_stale = true,
+            "--write-reports" => args.write_reports = true,
             "--write-detected" => args.write_detected = true,
             other => panic!("unknown argument {other}"),
         }
@@ -621,10 +643,22 @@ fn discover(cases: &Path, only: Option<&[String]>, group: Option<&str>) -> Vec<C
 /// The solver's two stages on `topology.fold`, the product's option strings,
 /// against the truth by correspondence. `dump` receives the answer as a FOLD
 /// in the case's own frame.
+/// The first value under `key` anywhere in `value`, depth first.
+fn find_key<'a>(value: &'a Value, key: &str) -> Option<&'a Value> {
+    match value {
+        Value::Object(map) => map
+            .get(key)
+            .or_else(|| map.values().find_map(|child| find_key(child, key))),
+        Value::Array(items) => items.iter().find_map(|child| find_key(child, key)),
+        _ => None,
+    }
+}
+
 fn solver_gate(
     topology: &Path,
     truth: Option<&Pattern>,
     budget: f64,
+    budget_work: Option<u64>,
     max_edges: usize,
     dump: Option<&Path>,
 ) -> Value {
@@ -657,7 +691,12 @@ fn solver_gate(
     // Stage 2 alone: the refinement re-runs the geometry stage inside it, so
     // the product's separate stage-1 call is a preview the gate has no use
     // for, and running it doubled the gate's time.
-    let options = json!({ "polish": true, "timeout_seconds": budget }).to_string();
+    let options = json!({
+        "polish": true,
+        "timeout_seconds": budget,
+        "work_budget": budget_work,
+    })
+    .to_string();
     let Ok((parsed, options)) = parse_exact_solve_request(&input_json, &options) else {
         return json!({ "error": "request" });
     };
@@ -828,10 +867,14 @@ fn run_case(session: &Mutex<NativeSession>, case: &Case, args: &Args) -> Value {
                             // the edge cap. On a 6,000-crease pattern this
                             // stage alone takes two minutes, so it runs one
                             // time, not once per use.
-                            let probe = native_inference::decode(
+                            let budget = native_inference::SolveBudget {
+                                seconds: args.budget,
+                                work: args.budget_work,
+                            };
+                            let probe = native_inference::decode_with_budget(
                                 &rectified.rgba,
                                 &heads,
-                                args.budget,
+                                budget,
                                 true,
                             );
                             let recognised_edges = probe
@@ -867,10 +910,10 @@ fn run_case(session: &Mutex<NativeSession>, case: &Case, args: &Args) -> Value {
                                 ));
                                 probe
                             } else {
-                                native_inference::decode(
+                                native_inference::decode_with_budget(
                                     &rectified.rgba,
                                     &heads,
-                                    args.budget,
+                                    budget,
                                     false,
                                 )
                             };
@@ -911,6 +954,22 @@ fn run_case(session: &Mutex<NativeSession>, case: &Case, args: &Args) -> Value {
                                         .clone();
                                     detection["compiler_seconds"] = report
                                         .pointer("/quality_report/compiler_report/timings/compiler_seconds")
+                                        .cloned()
+                                        .unwrap_or(Value::Null);
+                                    detection["exact_solve_evaluations"] =
+                                        find_key(&report, "deadline_evaluations")
+                                            .cloned()
+                                            .unwrap_or(Value::Null);
+                                    if args.write_reports {
+                                        let _ = std::fs::write(
+                                            answers.join(format!(
+                                                "{answer_name}.pipeline.report.json"
+                                            )),
+                                            serde_json::to_string_pretty(&report)
+                                                .unwrap_or_default(),
+                                        );
+                                    }
+                                    detection["exact_solve_work"] = find_key(&report, "work_spent")
                                         .cloned()
                                         .unwrap_or(Value::Null);
                                     detection["exact_solve_seconds"] = report
@@ -995,6 +1054,7 @@ fn run_case(session: &Mutex<NativeSession>, case: &Case, args: &Args) -> Value {
             path,
             truth.as_ref(),
             args.budget,
+            args.budget_work,
             args.max_edges,
             Some(&answers.join(format!("{answer_name}.gate.fold"))),
         );
