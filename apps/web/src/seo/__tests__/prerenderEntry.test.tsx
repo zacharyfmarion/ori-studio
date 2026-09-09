@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { LANDING_SECTIONS } from '../../components/landing/WelcomeLanding';
 import { escapeForScriptTag, landingJsonLd, landingJsonLdScript } from '../jsonLd';
 import { renderLandingMarkup } from '../prerenderEntry';
-import { SEO_CONTENT_ID, SITE_ORIGIN, SITE_TITLE, SITEMAP_PATHS } from '../siteMeta';
+import { SEO_CONTENT_ID, SITE_NAME, SITE_ORIGIN, SITE_TITLE, SITEMAP_PATHS } from '../siteMeta';
 
 /**
  * The PR-time gate on the prerender.
@@ -55,6 +55,11 @@ describe('landing prerender', () => {
   });
 });
 
+/** `apps/web/index.html` — Vite's entry, read before any of our code runs. */
+function indexHtml(): string {
+  return readFileSync(join(dirname(new URL(import.meta.url).pathname), '../../../index.html'), 'utf8');
+}
+
 describe('site metadata', () => {
   it('keeps the id the prerender writes and main.tsx removes in one place', () => {
     // A drift here is the silent failure: the app would boot with the crawler copy still
@@ -76,9 +81,21 @@ describe('site metadata', () => {
    * read before any of our code runs, and the dev server serves it directly.
    */
   it('serves the same title from index.html that the app sets at runtime', () => {
-    const here = dirname(new URL(import.meta.url).pathname);
-    const html = readFileSync(join(here, '../../../index.html'), 'utf8');
-    expect(html).toContain(`<title>${SITE_TITLE}</title>`);
+    expect(indexHtml()).toContain(`<title>${SITE_TITLE}</title>`);
+  });
+
+  it('declares the site name in the markup as well as the graph', () => {
+    // Google takes the site name from either, and `index.html` is the copy a crawler that
+    // renders nothing receives. Same drift risk as the title above: nothing else compares
+    // this string to `SITE_NAME`.
+    expect(indexHtml()).toContain(`<meta property="og:site_name" content="${SITE_NAME}" />`);
+  });
+
+  it('keeps the title short enough for a result to print it whole', () => {
+    // Google gives a title roughly 600px, near enough 60 characters. The previous title ran
+    // to 76 and was cut mid-phrase; a title long enough to cut is also one Google is more
+    // likely to replace with something we did not choose.
+    expect(SITE_TITLE.length).toBeLessThanOrEqual(60);
   });
 
   it('builds absolute sitemap URLs on the canonical origin', () => {
@@ -88,18 +105,37 @@ describe('site metadata', () => {
 });
 
 describe('landing JSON-LD', () => {
-  const data = landingJsonLd();
+  const graph = landingJsonLd()['@graph'] as Record<string, unknown>[];
+  const node = (type: string) => graph.find((entry) => entry['@type'] === type);
+  const app = node('SoftwareApplication') as Record<string, unknown>;
+  const site = node('WebSite') as Record<string, unknown>;
 
   it('declares a free SoftwareApplication Google can resolve to an entity', () => {
-    expect(data['@type']).toBe('SoftwareApplication');
-    expect(data.isAccessibleForFree).toBe(true);
-    expect(data.offers).toMatchObject({ price: '0' });
+    expect(app).toBeDefined();
+    expect(app.isAccessibleForFree).toBe(true);
+    expect(app.offers).toMatchObject({ price: '0' });
+  });
+
+  /**
+   * The node behind the site name — the line above the URL in a result, which printed
+   * `oristudio.dev` while nothing declared one. `og:site_name` is the other input, and
+   * `index.html` carries it; Google reads both and still picks what it shows, so this
+   * asserts the signal is sent, not the outcome.
+   */
+  it('names the site, so a result has something to print above the URL', () => {
+    expect(site).toBeDefined();
+    expect(site.name).toBe(SITE_NAME);
+    expect(site.url).toBe(`${SITE_ORIGIN}/`);
+  });
+
+  it('ties the two nodes together rather than leaving two unrelated entities', () => {
+    expect(site.publisher).toEqual({ '@id': app['@id'] });
   });
 
   it('links the entity to the repository and chat', () => {
     // `sameAs` is what ties this page to the GitHub project Google already indexes —
     // the strongest available disambiguation from the two design studios of the same name.
-    expect(data.sameAs).toEqual(
+    expect(app.sameAs).toEqual(
       expect.arrayContaining([expect.stringContaining('github.com')])
     );
   });

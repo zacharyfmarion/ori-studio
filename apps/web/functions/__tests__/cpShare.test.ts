@@ -441,6 +441,22 @@ describe('GET /s/[[shareId]]', () => {
     expect(html).toContain('<div id="root"></div>');
   });
 
+  it('strips the landing structured data a share must not publish', () => {
+    // The other half of the same problem. A share page carrying the landing's graph
+    // publishes a `WebSite` node claiming to be the site — from a URL that is not the
+    // site, and `WebSite` is homepage-only by definition — plus a `SoftwareApplication`
+    // describing Ori Studio while the card above it advertises someone's crease pattern.
+    const prerendered = INDEX_HTML.replace(
+      '</head>',
+      '  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ori Studio"}]}</script>\n  </head>'
+    );
+    const html = renderSharedCpHtml(prerendered, meta, VALID_PAYLOAD);
+    expect(html).not.toContain('application/ld+json');
+    expect(html).not.toContain('"@type":"WebSite"');
+    // The payload script is a different `type` and must survive.
+    expect(html).toContain('application/json');
+  });
+
   it('leaves a build with no prerendered block untouched', () => {
     const html = renderSharedCpHtml(INDEX_HTML, meta, VALID_PAYLOAD);
     expect(html).toContain('<div id="root"></div>');

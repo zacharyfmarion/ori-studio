@@ -45,6 +45,14 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Ori Studio" />
+    <!--
+      One of the inputs to the site name Google prints above the URL — the line
+      that reads `oristudio.dev` rather than `Ori Studio` when nothing declares
+      one. The `WebSite` node in the landing JSON-LD is the other; Google reads
+      both and still picks what it shows. Not the same field as `og:title`, which
+      names this *page* for a social card.
+    -->
+    <meta property="og:site_name" content="Ori Studio" />
     <meta property="og:title" content="Ori Studio — origami crease pattern editor and folding simulator" />
     <meta
       property="og:description"
@@ -65,7 +73,7 @@
       content="Draw and edit crease patterns, design from a tree structure or a box-pleating grid, and fold the result — in the browser."
     />
     <meta name="twitter:image" content="https://oristudio.dev/og-default.png" />
-    <title>Ori Studio — free online origami crease pattern editor and folding simulator</title>
+    <title>Ori Studio — Origami Design Workspace</title>
   </head>
   <body>
     <div id="root"></div>
