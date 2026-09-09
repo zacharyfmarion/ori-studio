@@ -276,15 +276,29 @@ fallback.
 - [x] Measure first: can ReferenceFinder construct markhor's points 23, 28 and
       31 at the depth we run it at? **Yes — all three exact, rank ≤ 4.** And
       Route A covers 0 of markhor's 4, so Route B is the fix.
-- [ ] Lift `witness_marks_exist` into `marks.rs` so the closure and the ordering
-      pass cannot disagree about what is on the paper.
-- [ ] Surface *which* marks are missing: `Step.missing_marks`, the sighted points
-      that are not on the paper, so a driver can ask RF about them.
-      `Step.marks_exist` becomes its emptiness.
-- [ ] The driver asks RF for each missing mark and folds the constructions as
-      `rf_aux` — the same shape as today's line fallback
-      (`precreasePlan.ts::referenceFinderFallback`), and a new `PlanAction` once
-      Correction 2 lands.
+- [x] Lift `witness_marks_exist` into `marks.rs` so the closure and the ordering
+      pass cannot disagree about what is on the paper. Done in `53d041b5`, with
+      `witness_missing_marks` beside it.
+- [x] Surface *which* marks are missing: `Step.missing_marks`, the sighted points
+      that are not on the paper, in the planner's unit frame — which
+      `Planner::line_to_rf` notes **is** the ReferenceFinder frame, so they need
+      no conversion before a query. `Step.marks_exist` is its emptiness, pinned
+      by a test.
+- [ ] **The driver asks RF for each missing mark and folds the constructions.**
+      Not started, and it needs a measurement first — see below. The shape is
+      settled: `DriverState` gains `missing_marks`, the rules gain
+      `AskReferenceFinderForMarks` after a complete close, and the driver reuses
+      `candidateLinesFrom` / `score` / `bestCandidate` / `fold` exactly as the
+      line fallback does. What is *not* settled is whether it should run at all.
+
+      **The risk that gates it.** RF's constructions for markhor's three points
+      are rank 3–4, so two to four folds each, and the corpus carries roughly
+      twenty phantom marks per design. Taken naively that is forty to eighty
+      extra auxiliary folds on a hundred-step plan — a plan two or three times
+      longer, to fix steps that are individually correct. Constructions share
+      lines and one aux fold can make several marks real at once, so the true
+      cost is certainly lower, but nobody knows by how much. Measuring it needs
+      the shipping loop, which means RF, which means the harness below.
 - [ ] Route A as an optimisation afterwards, if the extra aux folds prove
       expensive: press the pinch during a fold already scheduled, where the
       ordering allows (61.1%). Decide its `Step` shape deliberately — three
@@ -296,16 +310,31 @@ fallback.
 - [ ] Remove the "Still open" entry in
       `references-step-diagram-unification.md` once `marks_exist` is honest.
 
-**Correction 2 — one set of rules**
+**Correction 2 — one set of rules.** Done, in `d7e23280`, `a80008dc`, `8ebcb252`.
 
-- [ ] `StopReason` in the crate, covering budget, abort and the point cap.
-- [ ] `PlanAction` / `DriverState` / `next_action`, with the rules moved in.
-- [ ] `Planner::plan()` rebuilt on it, and renamed so nothing mistakes it for the
-      shipping path.
-- [ ] Export `next_action` from the wasm bridge; `precreasePlan.ts` becomes an
-      executor.
-- [ ] The agreement test over grid6 and iguana c0 with `referenceFinder: null`.
-- [ ] The honesty banner on `measure_ends.rs`.
+- [x] `StopReason` in the crate, covering budget, abort and the point cap.
+- [x] `PlanAction` / `DriverState` / `LastStep` / `next_action`, with the rules
+      moved in as a pure function and unit-tested there.
+- [x] `Planner::plan` rebuilt on it and renamed `plan_without_reference_finder`,
+      declaring `reference_finder: false` so its one difference from the real
+      driver is a stated fact rather than a missing branch.
+- [x] `next_action` exported from the wasm bridge; `precreasePlan.ts` is an
+      executor. `PrecreasePlanStopReason` is now the crate's `StopReason`
+      instead of a second list of the same idea.
+- [x] Agreement: both drivers answer to the same fixture manifest for grid6 and
+      iguana-c0, and a wasm test runs all 224 combinations of driver inputs
+      through the unit tests' rules double and the real crate and asserts they
+      match — so the double cannot quietly drift either.
+- [x] The honesty banner on `measure_ends.rs`.
+
+**Still to build — the harness that makes a corpus number real**
+
+- [ ] Drive the *shipping* loop headlessly: the precrease bridge and
+      ReferenceFinder together, under Node. This was thought impossible and is
+      not — `tools/reference-finder-oracle/equiv.mjs` has driven RF under Node
+      all along, and the planner's unit frame is already RF's frame. Until this
+      exists every corpus figure in this document is a ceiling, and the mark
+      construction above cannot be sized at all.
 
 ## Measured, and what the numbers are worth
 
