@@ -67,6 +67,8 @@
  * browser's collapsing URL bar makes `vh` taller than what is actually visible.
  */
 .start-screen {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   align-items: center;
