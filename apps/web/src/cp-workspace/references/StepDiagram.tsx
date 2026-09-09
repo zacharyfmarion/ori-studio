@@ -1,9 +1,16 @@
 import { useMemo } from 'react';
 import type { Diagram } from './referenceFinder/solution';
+import type { DiagramLineStyleName } from './referenceFinderDiagramToPrimitives';
 import {
   referenceFinderDiagramToPrimitives,
   type StepDiagramModel,
 } from './referenceFinderDiagramToPrimitives';
+import {
+  DIAGRAM_LABEL_INK,
+  DIAGRAM_LINE_INK,
+  DIAGRAM_MARK_INK,
+  DIAGRAM_SHEET_INK,
+} from './diagram/diagramInk';
 import {
   TURN_OVER_BOX,
   TURN_OVER_HEAD,
@@ -53,6 +60,23 @@ export type StepDiagramProps = {
       diagram?: undefined;
     }
 );
+
+/**
+ * A line style's geometry as SVG attributes, in the drawing's own units.
+ *
+ * `ink` is the pen — see `diagram/diagramInk.ts`. Emitted here rather than left
+ * in the stylesheet because a stylesheet cannot know how big the drawing is,
+ * and that is exactly what these numbers depend on.
+ */
+function strokeAttributes(style: DiagramLineStyleName, ink: number) {
+  const pen = DIAGRAM_LINE_INK[style];
+  return {
+    strokeWidth: pen.width * ink,
+    strokeDasharray: pen.dash?.map((run) => run * ink).join(' '),
+    strokeLinecap: pen.cap,
+    strokeOpacity: pen.opacity,
+  };
+}
 
 /** Four decimals is under a device pixel at any thumbnail size. */
 const round = (value: number) => Number(value.toFixed(4));
@@ -118,21 +142,24 @@ export function StepDiagram({
                 y={Math.min(a.y, b.y)}
                 width={Math.abs(b.x - a.x)}
                 height={Math.abs(b.y - a.y)}
+                strokeWidth={DIAGRAM_SHEET_INK.width * project.ink}
+                strokeOpacity={DIAGRAM_SHEET_INK.opacity}
               />
             );
           }
           case 'line': {
             const from = project(primitive.from);
             const to = project(primitive.to);
-            // Sheet units through the projector's scale: the dash arrays in
-            // `theme.css` are in the viewBox's own units, so the offset has to
-            // be too.
-            //
             // Positive. `stroke-dashoffset` is "start this far *into* the
             // pattern", which is exactly what the phase says — how much of the
             // line has already gone by. Negating it lands at `period - phase`
             // instead, a different place in the pattern for every span, which
             // is the same broken picture the offset was added to fix.
+            //
+            // In user units, like the dash array it indexes into. Those two
+            // were on different rulers until the pen moved out of the
+            // stylesheet: the offset scaled with the viewBox and the pattern
+            // did not, so they only agreed at one size.
             const dashOffset = primitive.dashPhase
               ? primitive.dashPhase * project.scale
               : undefined;
@@ -145,6 +172,7 @@ export function StepDiagram({
                 x2={to.x}
                 y2={to.y}
                 strokeDashoffset={dashOffset}
+                {...strokeAttributes(primitive.style, project.ink)}
               />
             );
           }
@@ -154,6 +182,7 @@ export function StepDiagram({
                 key={index}
                 className={`step-diagram__arc step-diagram__line--${primitive.style}`}
                 d={arcPathData(primitive, project)}
+                {...strokeAttributes(primitive.style, project.ink)}
               />
             );
           }
@@ -178,10 +207,12 @@ export function StepDiagram({
                 <path
                   className="step-diagram__arc step-diagram__line--arrow"
                   d={arcPathData({ ...primitive.out, from: trimmed.out.from }, project)}
+                  {...strokeAttributes('arrow', project.ink)}
                 />
                 <path
                   className="step-diagram__arc step-diagram__line--arrow"
                   d={arcPathData({ ...primitive.back, to: trimmed.back.to }, project)}
+                  {...strokeAttributes('arrow', project.ink)}
                 />
                 <polygon
                   className="step-diagram__arrowhead"
@@ -203,7 +234,11 @@ export function StepDiagram({
                 className="step-diagram__turn-over"
                 transform={`translate(${round(x)} ${round(y)}) scale(${round(scale)})`}
               >
-                <path className="step-diagram__arc step-diagram__line--arrow" d={TURN_OVER_PATH} />
+                <path
+                  className="step-diagram__arc step-diagram__line--arrow"
+                  d={TURN_OVER_PATH}
+                  {...strokeAttributes('arrow', project.ink / scale)}
+                />
                 <polygon
                   className="step-diagram__arrowhead"
                   points={arrowheadPoints(
@@ -224,6 +259,7 @@ export function StepDiagram({
                 cx={at.x}
                 cy={at.y}
                 r={project.scale * MARK_RING_RADIUS}
+                strokeWidth={DIAGRAM_MARK_INK.width * project.ink}
               />
             );
           }
@@ -237,6 +273,8 @@ export function StepDiagram({
                 x={at.x + placement.dx}
                 y={at.y + placement.dy}
                 textAnchor={placement.anchor}
+                fontSize={DIAGRAM_LABEL_INK.size * project.ink}
+                strokeWidth={DIAGRAM_LABEL_INK.halo * project.ink}
               >
                 {primitive.text}
               </text>

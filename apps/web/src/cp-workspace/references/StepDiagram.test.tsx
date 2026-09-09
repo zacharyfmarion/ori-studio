@@ -145,3 +145,91 @@ describe('a crease split into spans still dashes as one line', () => {
     expect(Math.max(...jumps)).toBeGreaterThan(1);
   });
 });
+
+/**
+ * The definition of "drawable at any size", and the thing that was not true
+ * before the pen moved out of the stylesheet.
+ *
+ * Every stroke carried `vector-effect: non-scaling-stroke` and every dash array
+ * was a screen-pixel literal, so the same model at eight times the size came
+ * out with the same hairline strokes and the same short dashes — a picture of a
+ * card, blown up, rather than the same drawing larger.
+ */
+describe('one model at two sizes', () => {
+  const everything: StepDiagramModel = {
+    sheet: { width: 1, height: 1 },
+    primitives: [
+      { kind: 'sheet', width: 1, height: 1 },
+      { kind: 'line', from: [0, 0.2], to: [1, 0.2], style: 'valley', dashPhase: 0.13 },
+      { kind: 'line', from: [0, 0.4], to: [1, 0.4], style: 'mountain' },
+      { kind: 'line', from: [0, 0.6], to: [1, 0.6], style: 'crease' },
+      { kind: 'point', at: [0.5, 0.5], style: 'highlight' },
+      { kind: 'label', at: [0.5, 0.5], text: 'P', style: 'highlight' },
+    ],
+  };
+
+  /**
+   * The turn-over is drawn from its own transcribed box through a `scale()`, so
+   * its attributes are in that box's units and deliberately do *not* grow with
+   * the picture — the group they sit in does it for them. Kept out of the sweep
+   * below and checked on its rendered size instead.
+   */
+  const turnOver: StepDiagramModel = {
+    sheet: { width: 1, height: 1 },
+    primitives: [
+      { kind: 'sheet', width: 1, height: 1 },
+      { kind: 'turn-over', at: [0.5, 0.8], size: 0.4 },
+    ],
+  };
+
+  /** Every numeric attribute in the markup, tagged by element and name. */
+  const numbers = (markup: string) => {
+    const found = new Map<string, number[]>();
+    for (const [i, tag] of [...markup.matchAll(/<[a-z]+[^>]*>/g)].entries()) {
+      for (const attr of tag[0].matchAll(/([a-zA-Z-]+)="([^"]*)"/g)) {
+        const values = attr[2].trim().split(/[\s,]+/).map(Number);
+        // A ratio is not a length and must not grow with the box.
+        if (attr[1] === 'viewBox' || /opacity$/.test(attr[1])) continue;
+        if (values.some((v) => !Number.isFinite(v))) continue;
+        found.set(`${i}:${attr[1]}`, values);
+      }
+    }
+    return found;
+  };
+
+  it('scales every number by exactly the size ratio', () => {
+    const small = numbers(renderToStaticMarkup(<StepDiagram primitives={everything} size={100} />));
+    const large = numbers(renderToStaticMarkup(<StepDiagram primitives={everything} size={800} />));
+    expect([...large.keys()]).toEqual([...small.keys()]);
+    for (const [key, values] of small) {
+      const grown = large.get(key)!;
+      expect(grown.length, key).toBe(values.length);
+      for (const [i, value] of values.entries()) {
+        // `transform` carries a scale factor as well as a translation, and a
+        // scale does not grow with the box — the glyph it scales is already in
+        // user units. Everything else is a length.
+        if (key.endsWith(':transform') && i >= 2) continue;
+        expect(grown[i], `${key}[${i}]`).toBeCloseTo(value * 8, 6);
+      }
+    }
+  });
+
+  it('grows the turn-over glyph and the pen it is drawn with', () => {
+    const drawn = (size: number) => {
+      const whole = renderToStaticMarkup(<StepDiagram primitives={turnOver} size={size} />);
+      // The glyph's own group — the sheet's outline is a stroke too, and comes
+      // first.
+      const markup = whole.slice(whole.indexOf('step-diagram__turn-over'));
+      const scale = Number(markup.match(/scale\(([\d.]+)\)/)?.[1]);
+      const width = Number(markup.match(/stroke-width="([\d.]+)"/)?.[1]);
+      // What the glyph actually measures on screen: its own box through the
+      // group's scale.
+      return { glyph: scale, stroke: width * scale };
+    };
+    const [small, large] = [drawn(100), drawn(800)];
+    // Three decimals: the transform is emitted rounded, so eight times a
+    // rounded number is not the rounding of eight times it.
+    expect(large.glyph).toBeCloseTo(small.glyph * 8, 3);
+    expect(large.stroke).toBeCloseTo(small.stroke * 8, 3);
+  });
+});

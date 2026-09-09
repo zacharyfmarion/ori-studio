@@ -8,6 +8,8 @@
  * two.
  */
 
+import { DIAGRAM_INK_PER_SHEET, DIAGRAM_LABEL_INK } from './diagram/diagramInk';
+
 export interface DiagramSheet {
   width: number;
   height: number;
@@ -23,6 +25,14 @@ export interface DiagramProjector {
   (point: readonly [number, number]): SvgPoint;
   /** SVG user units per sheet unit. */
   scale: number;
+  /**
+   * One ink, in SVG user units — the pen this drawing is made with.
+   *
+   * Every weight, dash run and letter is a multiple of it, so the picture
+   * scales with its box instead of being pinned to screen pixels. See
+   * `diagram/diagramInk.ts`.
+   */
+  ink: number;
   /** The `viewBox` attribute for the whole diagram. */
   viewBox: string;
   size: number;
@@ -58,6 +68,7 @@ export function createDiagramProjector(
     y: offsetY + (sheet.height - point[1]) * scale,
   })) as DiagramProjector;
   project.scale = scale;
+  project.ink = longer * scale * DIAGRAM_INK_PER_SHEET;
   project.viewBox = `0 0 ${size} ${size}`;
   project.size = size;
   project.mirrored = mirrored;
@@ -481,7 +492,10 @@ export function labelPlacement(
   sheet: DiagramSheet,
   project: DiagramProjector
 ): { anchor: LabelAnchor; dx: number; dy: number } {
-  const offset = project.size * 0.035;
+  // In ink, like the glyph it moves. Taken from the box instead, a letter and
+  // the distance it stands off its mark were measured on different rulers, and
+  // only agreed at one size.
+  const offset = project.ink * DIAGRAM_LABEL_INK.offset;
   const centre = project([sheet.width / 2, sheet.height / 2]);
   const point = project(at);
   const edge = 1e-6 * project.scale;
