@@ -91,19 +91,34 @@ The rules that decide *what* a step draws are written once, against the frame.
 (`crates/oristudio-precrease/src/closure.rs:106`) — so recovering a span's
 position along the model chord by its parameter is exact, not an approximation.
 
-### D2 — a line says where it came from, and nothing is dropped
+### D2 — a line says where it came from, and each line is drawn once
 
-The big view has the real crease pattern under it, in real ink, dimmed by
-`creaseVisibility`, so it *could* skip the card's own stand-in for those creases
-and let the document draw them. It will not: the two surfaces are meant to be
-the same picture, and a rule that makes one of them quietly draw a different set
-of lines is the drift this whole change exists to end.
+Both surfaces show the same *lines*. What differs is which channel draws them,
+and the rule is that **no line is drawn twice**:
+
+- **The step's own crease belongs to the step, never to the pattern.** It has
+  not been folded yet — that is the whole content of the card — so the crease
+  pattern has no business drawing it. `planVisibility` therefore builds up to
+  step *k*−1 on a fold card, and the diagram draws the crease as the dashed fold
+  line it is.
+- **Earlier creases belong to the pattern, wherever the pattern is present.**
+  The card has no pattern under it and draws them itself; the canvas has the
+  document's own creases in the document's own ink, so the step there draws only
+  what a crease pattern cannot hold — the pinches, and the auxiliary folds that
+  leave no crease (`PlannerStepDiagramOptions.earlier`).
+
+This was originally decided the other way — both channels drawing everything,
+"a rule that makes one surface draw a different set of lines is the drift this
+change exists to end" — and that was wrong on its own terms. Two copies of one
+line are not a heavier line: they land a floating-point hair apart, and on a
+dashed crease each copy fills the other's gaps, which is how the defect was
+found (markhor step 1, commit `fe674906`). Drawing each line once *is* the
+anti-drift rule; the check that the surfaces agree belongs in the tests, not in
+overdrawing.
 
 `cpLineIds` on the `line` primitive is still worth carrying — it is how a
 consumer knows which creases a primitive stands for, and the visibility pass
-needs exactly that — but it selects *emphasis*, not existence. If the doubled
-ink reads badly on screen, the fix is which one is dimmed, decided in one place,
-not one surface silently drawing fewer lines than the other.
+needs exactly that.
 
 ### D3 — ink is a share of the paper, set at fit
 
@@ -214,8 +229,9 @@ reach it today either.
 - **The main view stays on WebGL**, for the folding simulation it will host
   rather than for element counts. The drift that buys is named under "What was
   measured first" and is the thing to watch.
-- **Both surfaces draw the same lines** (D2). No surface skips primitives the
-  other draws.
+- **Both surfaces draw the same lines, and each line once** (D2). Which channel
+  draws a given line depends on whether that surface already has the crease
+  pattern beneath it; what is drawn does not.
 - **The big view draws the letters.** They are part of "the same picture". The
   caption still names references in words, so a reader gets a legend with no
   key until the sentence learns the letters — worth doing, and not in this plan.

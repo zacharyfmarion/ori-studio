@@ -16,20 +16,24 @@
  * - **Only the selected sheet is drawn.** The workspace answers for one crease
  *   pattern at a time (plan D12); another sheet's creases are not context, they
  *   are a different problem.
- * - **Reading a plan builds up.** At step *k* the sheet's border plus the
- *   creases of steps 0…*k*, with step *k*'s own at full strength and everything
- *   earlier dimmed.
+ * - **Reading a plan builds up, and stops one step short.** At step *k* the
+ *   sheet's border plus the creases of steps 0…*k*−1, dimmed. Step *k*'s own
+ *   crease is deliberately absent: it has not been folded yet, and the pattern
+ *   is what the paper already has on it. The step draws that crease itself, as
+ *   the dashed fold line it is — so it is drawn once, by the thing that is
+ *   asking for it, and the dimmed build-up is what it stands out from.
  * - **Reading one reference dims, but hides nothing.** ReferenceFinder's steps
  *   are folds on a blank sheet and have no relation to the pattern's creases, so
  *   there is no "so far" to build up — the pattern goes quiet instead, and the
  *   construction ghosts read over it.
- * - **A turn-over shows the build-up too.** Turning the paper over happens
- *   between folds, not only at the end, so it holds back the creases that are
- *   not made yet exactly as a fold card does. It picks nothing out, and so it
- *   dims nothing either: dimming is what makes one crease stand out from the
- *   rest, and a card with no crease of its own has nothing to stand out. The
- *   finished card is the same rule at the end — its build-up is the whole
- *   sheet, at full strength, which is the point of it.
+ * - **A turn-over shows the build-up too, and one more step of it.** Turning
+ *   the paper over happens between folds, not only at the end, so it holds back
+ *   the creases that are not made yet exactly as a fold card does — but the
+ *   fold it comes after *is* made, so its crease is on the paper. It picks
+ *   nothing out, and so it dims nothing either: dimming is what a fold's own
+ *   line stands out from, and a card with no line of its own has nothing to
+ *   stand out. The finished card is the same rule at the end — its build-up is
+ *   the whole sheet, at full strength, which is the point of it.
  *
  * The border is always visible, and never dimmed. A sheet with no edges is not
  * a sheet; the paper's outline is the thing the folds are drawn on rather than
@@ -43,10 +47,12 @@ import type { ReferencesCreaseVisibility } from './referencesViewGeometry';
 /** How much of its colour a crease keeps once an earlier step made it. */
 export const REFERENCES_DIM_ALPHA = 0.26;
 /**
- * How much wider the step's own creases draw.
+ * How much wider the picked crease draws while one reference is being read.
  *
  * Width and opacity carry the emphasis, not hue: a crease's colour already says
  * which way it folds, and that is the one thing the folder is reading it for.
+ * A *plan* step needs none of this — the crease it is about is not in this
+ * channel at all, because it has not been folded yet.
  */
 export const REFERENCES_EMPHASIS_WIDTH = 2.6;
 
@@ -127,9 +133,12 @@ export function planVisibility(
   const { component } = target;
 
   const visible = new Set<number>(borderLineIds ?? []);
-  const active = new Set<number>();
   const directions = new Map<number, 'mountain' | 'valley'>();
-  for (let i = 0; i <= activeStep && i < viewSteps.length; i += 1) {
+  // A fold card stops one short of itself: its crease is the instruction, not
+  // the paper, and the step's own diagram is what draws it. Any other card is
+  // read *after* the fold it follows, so that fold's crease is on the paper.
+  const folded = target.kind === 'fold' ? activeStep - 1 : activeStep;
+  for (let i = 0; i <= folded && i < viewSteps.length; i += 1) {
     const view = viewSteps[i];
     if (view.kind !== 'fold' || view.component !== component) continue;
     const entry = variants[view.component]?.sequence.steps[view.step];
@@ -142,7 +151,6 @@ export function planVisibility(
         // picture — see `diagram/diagramModel.flipDirection`.
         directions.set(id, mirrored ? flipDirection(entry.direction) : entry.direction);
       }
-      if (i === activeStep && target.kind === 'fold') active.add(id);
     }
   }
   if (target.kind !== 'fold') {
@@ -150,7 +158,7 @@ export function planVisibility(
   }
   const dimmed = new Set<number>();
   for (const id of visible) {
-    if (active.has(id) || borderLineIds?.has(id)) continue;
+    if (borderLineIds?.has(id)) continue;
     dimmed.add(id);
   }
   return {
@@ -158,8 +166,6 @@ export function planVisibility(
     dimmed,
     dimAlpha: REFERENCES_DIM_ALPHA,
     borderLineIds,
-    emphasis: active,
-    emphasisWidth: REFERENCES_EMPHASIS_WIDTH,
     // One step, one direction (plan D20), and it stays that way afterwards —
     // a line whose creases disagree would otherwise go back to reading red
     // here and blue there the moment its step stopped being active.

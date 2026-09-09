@@ -7,7 +7,11 @@ import {
   plannerStepDiagram,
   plannerTurnOverDiagram,
 } from './plannerDiagram';
-import type { PrecreaseDirection, PrecreaseSequence } from '../precreaseSequence';
+import type {
+  PrecreaseDirection,
+  PrecreasePlanSegment,
+  PrecreaseSequence,
+} from '../precreaseSequence';
 
 /** The fixture with a direction on each step, since the fixture's is neutral. */
 function directed(...directions: PrecreaseDirection[]): PrecreaseSequence {
@@ -158,6 +162,70 @@ describe('plannerStepDiagram', () => {
 
   it('is null for an index that names no step', () => {
     expect(plannerStepDiagram(sequence, unitFrame(sequence), 42)).toBeNull();
+  });
+});
+
+// The canvas draws the document's own creases under this, so a step that drew
+// them again would be putting two copies of one line a hair apart — each one
+// filling the other's dash gaps, which is how it was found.
+describe('a surface that already has the crease pattern under it', () => {
+  /**
+   * The fixture with every step folded as a valley — so the step's own crease
+   * is told apart from the build-up by its style — and the first two of them
+   * creasing something the pattern holds.
+   */
+  function patterned(inPattern = 2): PrecreaseSequence {
+    const sequence = plannerSequenceFixture();
+    return {
+      ...sequence,
+      steps: sequence.steps.map((step, i) => ({
+        ...step,
+        direction: 'valley' as const,
+        direction_share: 1,
+        ...(i < inPattern
+          ? {
+              extent: { kind: 'full' as const },
+              cp_spans: [
+                [
+                  [0, 0.2 * (i + 1)],
+                  [1, 0.2 * (i + 1)],
+                ],
+              ] as PrecreasePlanSegment[],
+            }
+          : {}),
+      })),
+    };
+  }
+
+  const creaseLines = (sequence: PrecreaseSequence, earlier?: 'all' | 'unpatterned') =>
+    (
+      plannerStepDiagram(sequence, unitFrame(sequence), 3, earlier ? { earlier } : {})
+        ?.primitives ?? []
+    ).filter((p) => p.kind === 'line' && p.style === 'crease');
+
+  it('leaves out the earlier creases the pattern is drawing', () => {
+    const sequence = patterned();
+    expect(creaseLines(sequence, 'all')).toHaveLength(3);
+    // Steps 0 and 1 are in the pattern; step 2's auxiliary chord is not.
+    expect(creaseLines(sequence, 'unpatterned')).toHaveLength(1);
+  });
+
+  it('still draws the marks no crease pattern records', () => {
+    // A pinch and an auxiliary fold leave nothing behind for the pattern to
+    // hold, so dropping them here would drop them from the picture entirely.
+    const sequence = patterned(0);
+    expect(creaseLines(sequence, 'unpatterned')).toEqual(creaseLines(sequence, 'all'));
+    expect(creaseLines(sequence, 'unpatterned').length).toBeGreaterThan(0);
+  });
+
+  it('never touches the crease the step is about, which is the point of it', () => {
+    const sequence = patterned();
+    const own = (earlier: 'all' | 'unpatterned') =>
+      (
+        plannerStepDiagram(sequence, unitFrame(sequence), 1, { earlier })?.primitives ?? []
+      ).filter((p) => p.kind === 'line' && p.style !== 'crease' && p.style !== 'highlight');
+    expect(own('unpatterned')).toEqual(own('all'));
+    expect(own('unpatterned').length).toBeGreaterThan(0);
   });
 });
 

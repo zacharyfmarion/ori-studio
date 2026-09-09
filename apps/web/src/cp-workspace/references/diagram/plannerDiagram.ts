@@ -36,7 +36,9 @@
  * - **Earlier creases are drawn.** A card used to be a bare square with one
  *   fold on it, which said nothing about where in the sequence you were. They
  *   take the template's "Crease Lines" weight — solid, a third of a fold line —
- *   because they are context, not the instruction.
+ *   because they are context, not the instruction. On a surface that already
+ *   has the crease pattern under it, only the marks the pattern does not hold
+ *   are drawn; see `PlannerStepDiagramOptions.earlier`.
  * - **The new crease is drawn in the direction it is made.** The crate settles
  *   that — one direction per step, by the majority of the line's creased length
  *   (plan D21) — so `Step.direction` is read straight off the step.
@@ -149,8 +151,18 @@ function refLetter(ref: PrecreaseRef, lineIndex: number, pointIndex: number): st
  * view itself is the diagram"). Null when the index names no step.
  */
 export interface PlannerStepDiagramOptions {
-  /** Draw the creases earlier steps made, as context. Default true. */
-  showEarlier?: boolean;
+  /**
+   * How much of the sheet as it stands to draw under the step.
+   *
+   * `all` is a card: it is the entire picture, so it carries every mark the
+   * earlier steps left. `unpatterned` is the canvas, which has the document's
+   * own creases beneath it in the document's own ink — so the only earlier
+   * marks left to draw there are the ones the pattern does not contain: the
+   * pinches, and the auxiliary folds that leave no crease behind. Drawing the
+   * rest a second time is not a heavier line, it is two lines a fraction apart,
+   * each filling the other's dash gaps.
+   */
+  earlier?: 'all' | 'unpatterned';
 }
 
 /**
@@ -161,9 +173,16 @@ export interface PlannerStepDiagramOptions {
  * crease are not on the paper, and drawing them is the difference between a
  * diagram and a picture of a line.
  */
-function creasedSpans(frame: DiagramFrame, step: PrecreaseStep): readonly DiagramSegment[] {
+function creasedSpans(
+  frame: DiagramFrame,
+  step: PrecreaseStep,
+  patterned = true
+): readonly DiagramSegment[] {
   const creases = frame.creases(step);
-  if (creases.length > 0) return creases;
+  // `patterned` false means something else is already drawing exactly these,
+  // out of the crease pattern itself. The two branches below are not in the
+  // pattern by definition, so they are drawn either way.
+  if (creases.length > 0) return patterned ? creases : [];
   const pinches = frame.pinches(step);
   if (pinches.length > 0) return pinches;
   const chord = frame.chord(step);
@@ -213,13 +232,12 @@ export function plannerStepDiagram(
 
   // The sheet as it stands: everything folded so far, over the paper and under
   // this step's own references.
-  if (options.showEarlier ?? true) {
-    for (let i = 0; i < index; i += 1) {
-      const earlier = sequence.steps[i];
-      if (!earlier) continue;
-      for (const span of creasedSpans(frame, earlier)) {
-        primitives.push(spanLine(span, 'crease'));
-      }
+  const patterned = (options.earlier ?? 'all') === 'all';
+  for (let i = 0; i < index; i += 1) {
+    const earlier = sequence.steps[i];
+    if (!earlier) continue;
+    for (const span of creasedSpans(frame, earlier, patterned)) {
+      primitives.push(spanLine(span, 'crease'));
     }
   }
 

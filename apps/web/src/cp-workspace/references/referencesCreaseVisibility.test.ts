@@ -66,14 +66,22 @@ describe('planVisibility', () => {
 
   it('shows the border plus the creases made so far, and nothing later', () => {
     const at = planVisibility(variants, flat, 1, input);
-    expect([...(at.visible ?? [])].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 10, 11]);
+    expect([...(at.visible ?? [])].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 10]);
     // Step 3's crease has not been folded yet.
     expect(at.visible?.has(12)).toBe(false);
   });
 
+  // The one the step is asking for is not on the paper yet, so the pattern is
+  // not where it comes from — the step's own diagram draws it, once.
+  it('leaves out the crease the step is about', () => {
+    const at = planVisibility(variants, flat, 1, input);
+    expect(at.visible?.has(11)).toBe(false);
+    expect(planVisibility(variants, flat, 0, input).visible?.has(10)).toBe(false);
+    expect(planVisibility(variants, flat, 2, input).visible?.has(12)).toBe(false);
+  });
+
   it('dims the creases earlier steps made, and never the paper', () => {
     const at = planVisibility(variants, flat, 1, input);
-    expect(at.dimmed?.has(11)).toBe(false);
     expect(at.dimmed?.has(10)).toBe(true);
     // The border is the paper the folds are drawn on, not one of them.
     expect(at.dimmed?.has(1)).toBe(false);
@@ -81,8 +89,12 @@ describe('planVisibility', () => {
     expect(at.dimAlpha).toBe(REFERENCES_DIM_ALPHA);
   });
 
-  it('shows the finished pattern at the last step', () => {
-    const at = planVisibility(variants, flat, 2, input);
+  it('shows the finished pattern on the card that follows the last fold', () => {
+    const views: ReferencesViewStep[] = [
+      ...flat,
+      { kind: 'done', side: 'front', component: 0 },
+    ];
+    const at = planVisibility(variants, views, 3, input);
     expect([...(at.visible ?? [])].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 10, 11, 12]);
   });
 
@@ -95,9 +107,13 @@ describe('planVisibility', () => {
   // A plan carried over from a multi-sheet run must not build up another
   // pattern's creases into this one.
   it('ignores steps belonging to another component', () => {
-    const two = [variant([step(1, [10])]), variant([step(1, [11])])];
-    const flatTwo: ReferencesViewStep[] = [fold(0, 1), fold(0, 0)];
-    const at = planVisibility(two, flatTwo, 1, input);
+    const two = [
+      variant([step(1, [10]), step(2, [12])]),
+      variant([step(1, [11])]),
+    ];
+    const flatTwo: ReferencesViewStep[] = [fold(0, 1), fold(0, 0), fold(1, 0)];
+    const at = planVisibility(two, flatTwo, 2, input);
+    // Component 1's step 0 came earlier in the list; it is another sheet's.
     expect(at.visible?.has(11)).toBe(false);
     expect(at.visible?.has(10)).toBe(true);
   });
@@ -143,26 +159,29 @@ describe('unreadVisibility', () => {
 });
 
 describe('emphasis', () => {
-  it('widens the step’s own creases instead of recolouring them', () => {
+  // A plan step has nothing to emphasise here: the crease it is about is not
+  // in this channel, because the paper does not have it yet.
+  it('is not how a plan step picks its crease out', () => {
     const at = planVisibility(
       [variant([step(1, [10]), step(2, [11])])],
       [fold(0), fold(1)],
       1,
       { sheetLineIds: SHEET, borderLineIds: BORDER, activeLineIds: new Set() }
     );
-    expect([...(at.emphasis ?? [])]).toEqual([11]);
-    expect(at.emphasisWidth).toBe(REFERENCES_EMPHASIS_WIDTH);
-    // …and the same crease is therefore not in the dimmed set.
-    expect(at.dimmed?.has(11)).toBe(false);
+    expect(at.emphasis).toBeUndefined();
+    expect(at.visible?.has(11)).toBe(false);
   });
 
-  it('emphasises the picked crease when one reference is being read', () => {
+  it('widens the picked crease when one reference is being read', () => {
     const at = targetVisibility({
       sheetLineIds: SHEET,
       borderLineIds: BORDER,
       activeLineIds: new Set([11]),
     });
     expect([...(at.emphasis ?? [])]).toEqual([11]);
+    // Width, not hue: the crease's colour is already saying which way it folds.
+    expect(at.emphasisWidth).toBe(REFERENCES_EMPHASIS_WIDTH);
+    expect(at.dimmed?.has(11)).toBe(false);
   });
 });
 
@@ -184,7 +203,8 @@ describe('a card that is not a fold', () => {
     const turn = planVisibility(variants, views, 2, input);
     expect(turn.dimAlpha).toBe(1);
     expect(turn.dimmed).toBeNull();
-    // …and still holds back the crease that is not made yet.
+    // …and still holds back the crease that is not made yet. The fold it comes
+    // after *is* made, unlike on a fold card, which stops short of its own.
     expect([...(turn.visible ?? [])].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 10, 11]);
 
     const done = planVisibility(variants, views, 4, input);
@@ -197,6 +217,7 @@ describe('a card that is not a fold', () => {
     const at = planVisibility(variants, views, 1, input);
     expect(at.dimAlpha).toBe(REFERENCES_DIM_ALPHA);
     expect([...(at.dimmed ?? [])]).toEqual([10]);
+    expect(at.visible?.has(11)).toBe(false);
   });
 });
 
@@ -219,12 +240,13 @@ describe('the direction a crease keeps', () => {
       ]),
     ];
     const views: ReferencesViewStep[] = [fold(0), fold(1), fold(2)];
-    const at = planVisibility(variants, views, 1, input);
+    const at = planVisibility(variants, views, 2, input);
     expect([...(at.directions ?? [])]).toEqual([
       [10, 'mountain'],
       [11, 'valley'],
     ]);
-    // Nothing folded yet is nothing coloured — the build-up still holds it back.
+    // Step 3's line is the one being folded, so the pattern is not drawing it
+    // at all — its own diagram is, in the direction the step names.
     expect(at.directions?.has(12)).toBe(false);
   });
 
