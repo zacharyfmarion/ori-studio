@@ -20,6 +20,7 @@ use oristudio_cp_detect::evidence_extract::JunctionEvidenceSource;
 use oristudio_cp_detect::native_inference::{
     self, IMAGE_SIZE, JUNCTION_OFFSET_RADIUS_PX, NativeSession, THRESHOLD,
 };
+use oristudio_cp_detect::rectify::auto_rectify_rgba;
 use oristudio_cp_detect::source_image_evidence::{
     SourceImageLineEvidenceOptions, line_probability_from_rgba,
 };
@@ -52,6 +53,15 @@ fn main() {
         let img = image::open(&source).expect("load").to_rgba8();
         let (w, h) = img.dimensions();
         let rectified = native_inference::rectify(img.as_raw(), w, h).expect("rectify");
+        // The full rectification report — mode, chosen and detected quads,
+        // every panel candidate the finder ranked — so a frame error can be
+        // read against the truth without re-running the finder by hand.
+        if let Some(text) = auto_rectify_rgba(img.as_raw(), w, h, IMAGE_SIZE)
+            .ok()
+            .and_then(|full| serde_json::to_string_pretty(&full.report).ok())
+        {
+            let _ = std::fs::write(out.join(format!("{slug}.rectify.json")), text);
+        }
         let (heads, _ms) = session.infer(&rectified.rgba).expect("infer");
         let required = |name: &'static str| heads.get(name).map(Vec::as_slice).expect(name);
         let line_probability = line_probability_from_rgba(

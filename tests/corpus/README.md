@@ -223,19 +223,20 @@ scoring are in `scripts/cp-detect/README.md`, the case format in
 group in `implementation-plans/cp-detect-rendered-corpus.md`.
 
 Last curated run on September 8, 2026 at the commit that landed the
-boundary-contact re-localisation with its real-image hardening
+paper-quad fix in the auto-rectifier (`crates/oristudio-cp-detect/src/rectify.rs`),
+on top of the boundary-contact re-localisation with its real-image hardening
 (`crates/oristudio-cp-detect/src/candidate_generation/contact_relocalize.rs`),
 with the model `scripts/cp-detect/current-model.json` named at that commit,
-on an Apple Silicon Mac with CoreML, 681 s on 8 workers. 558 cases in two
+on an Apple Silicon Mac with CoreML, 568 s on 8 workers. 558 cases in two
 groups: `curated/`, 74 real images (40 with an exact truth, 21 topology only,
 13 skipped as too complex to curate), and `cpoogle/`, 484 native crease
 patterns rendered the way the editor exports them (all exact; 6 over the
 4,000-crease recognition cap are topology-only rows).
 
 ```text
-curated benchmark: 558 cases | decoder exact 313 of 539 (mean edge F1 0.95) | end to end recovered 335 | gate reproduced 441 | 681s
-  curated: decoder exact 15 of 61 (mean edge F1 0.818); end to end recovered 18, accepted wrong 15, not accepted 7; gate reproduced 34, close 3, off 2, not solved 10, skipped 1, solved without a truth 11
-  cpoogle: decoder exact 298 of 478 (mean edge F1 0.967); end to end recovered 317, accepted wrong 115, not accepted 44, skipped 6; gate reproduced 407, close 14, off 3, not solved 12, error 13, skipped 35
+curated benchmark: 558 cases | decoder exact 314 of 539 (mean edge F1 0.965) | end to end recovered 339 | gate reproduced 441 | 568s
+  curated: decoder exact 16 of 61 (mean edge F1 0.943); end to end recovered 21, accepted wrong 13, not accepted 6; gate reproduced 34, close 3, off 2, not solved 10, skipped 1, solved without a truth 11
+  cpoogle: decoder exact 298 of 478 (mean edge F1 0.967); end to end recovered 318, accepted wrong 116, not accepted 42, skipped 6; gate reproduced 407, close 14, off 3, not solved 12, error 13, skipped 35
 ```
 
 Against the September 5 baseline (decoder exact 274, recovered 317): the
@@ -260,6 +261,18 @@ ink (`scripts/cp-detect/contact_ink_referee.py`, in
 contacts sit 0.24 px from the crease's centreline against the head's 0.95.
 The mechanism and the measurements are in
 `implementation-plans/cp-detect-boundary-contact-decode.md`.
+
+The paper-quad fix then took the nine real images whose auto-rectified
+frame had one edge 3–7% out (the panel finder had ranked the true paper
+first and preferred a larger box one edge wider; two more were the
+full-frame shortcuts swallowing a 1.5–2.5% inset) from a decoder edge F1 of
+0.01–0.24 to 0.82–1.00: common-wildebeest to an exact decode and a strict
+convergence, ubu to a convergence, roadrunner to `recovered`, turkey-vulture
+to `near`, the rest to ordinary detection cases. The curated group's mean
+decoder edge F1 went 0.818 → 0.943 and its `recovered` 18 → 21, with no
+rendered case touched; the diagnosis and the two forms of the rule the
+rendered group rejected are in
+`implementation-plans/cp-detect-rectify-paper-quad.md`.
 
 The 13 gate errors are the solver's input builder refusing a paper it does
 not support (7 non-square, 5 not a four-corner quadrilateral, 1 degenerate
