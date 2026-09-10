@@ -75,10 +75,14 @@ describe('plannerStepDiagram', () => {
   it('draws the references the fold is made against', () => {
     // Step 5 (index 4) is O3 on the bottom edge and the landmark's crease.
     const diagram = plannerStepDiagram(sequence, unitFrame(sequence), 4);
-    const highlights = diagram?.primitives.filter(
+    // Two inputs, two letters. The landmark's crease is two pinches on the
+    // paper, so it is drawn as two pieces — the crease as it is, not its chord.
+    const labels = (diagram?.primitives ?? []).filter((p) => p.kind === 'label');
+    expect(labels.map((l) => (l.kind === 'label' ? l.text : ''))).toEqual(['A', 'B']);
+    const highlights = (diagram?.primitives ?? []).filter(
       (primitive) => primitive.kind === 'line' && primitive.style === 'highlight'
     );
-    expect(highlights).toHaveLength(2);
+    expect(highlights).toHaveLength(3);
   });
 
   // The ring around a mark says where it is. Picking out the two creases that
@@ -375,9 +379,81 @@ describe('a line folded onto a line', () => {
     expect(highlights.some((l) => isSeg(l, [0, 0], [1, 0]))).toBe(false);
   });
 
-  it('highlights only the stretch of the midline it lands on', () => {
-    expect(highlights.some((l) => isSeg(l, [0.5, 0], [0.5, 0.5]))).toBe(true);
-    expect(highlights.some((l) => isSeg(l, [0.5, 0], [0.5, 1]))).toBe(false);
+  // The edge lands on the midline's lower half, but the folder lines up
+  // against the whole crease from step 1, and that runs the full height. So
+  // the arm is shown as far as the crease goes on that side — all of it — not
+  // cut off where the edge happens to reach.
+  it('highlights the midline as far as its crease runs on the side the edge lands', () => {
+    expect(highlights.some((l) => isSeg(l, [0.5, 0], [0.5, 1]))).toBe(true);
+    expect(highlights.some((l) => isSeg(l, [0.5, 0], [0.5, 0.5]))).toBe(false);
+  });
+
+  // markhor step 11: the top edge folded onto a line whose chord runs from
+  // (1, 0.5) to (0.5, 1) but whose crease is only the upper half of that. The
+  // arm must stop where the crease stops, not run on down the chord.
+  it('stops a receiving line where its crease stops, not where its chord does', () => {
+    // A made line, creased on half its chord, and a top-edge fold onto it. The
+    // fold bisects the top edge and the line at (0.5, 1), along x = y... the
+    // bisector from (0.5, 1) toward the interior.
+    const seq = plannerSequenceFixture();
+    const partial = {
+      ...seq.steps[2]!, // reuse a CP step shell
+      id: 97,
+      line_id: 42,
+      line: { n: [Math.SQRT1_2, Math.SQRT1_2] as [number, number], d: 1.5 * Math.SQRT1_2 },
+      segment: [
+        [1, 0.5],
+        [0.5, 1],
+      ] as [[number, number], [number, number]],
+      cp_spans: [
+        [
+          [0.75, 0.75],
+          [0.5, 1],
+        ],
+      ] as [[number, number], [number, number]][],
+      extent: { kind: 'full' as const },
+    };
+    const fold = {
+      ...seq.steps[4]!,
+      id: 96,
+      // The bisector of the top edge (y = 1) and the partial line, at their
+      // meeting point (0.5, 1): the edge runs at 0°, the line at −45°, so the
+      // fold runs at −22.5° and reaches the right edge at y = 1 − ½·tan 22.5°.
+      line: {
+        n: [Math.sin(Math.PI / 8), Math.cos(Math.PI / 8)] as [number, number],
+        d: 0.5 * Math.sin(Math.PI / 8) + Math.cos(Math.PI / 8),
+      },
+      segment: [
+        [0.5, 1],
+        [1, 1 - 0.5 * Math.tan(Math.PI / 8)],
+      ] as [[number, number], [number, number]],
+      cp_spans: [] as [[number, number], [number, number]][],
+      witnesses: [
+        {
+          ...seq.steps[4]!.witnesses[0]!,
+          axiom: 3,
+          inputs: [
+            { kind: 'edge' as const, id: 3, side: 'top' as const },
+            { kind: 'line' as const, id: 42 },
+          ],
+          who_moves: [0],
+        },
+      ],
+      chosen: 0,
+    };
+    const withBoth = {
+      ...seq,
+      steps: [...seq.steps, partial, fold],
+      lines: [...seq.lines, { id: 42, tag: 'cp' as const, step: 97 }],
+    };
+    const d = plannerStepDiagram(withBoth, unitFrame(withBoth), withBoth.steps.length - 1);
+    const lines = (d?.primitives ?? []).filter(
+      (p): p is Extract<StepDiagramPrimitive, { kind: 'line' }> =>
+        p.kind === 'line' && p.style === 'highlight'
+    );
+    // The receiving arm is the crease, (0.75, 0.75)–(0.5, 1), and no more.
+    expect(lines.some((l) => isSeg(l, [0.75, 0.75], [0.5, 1]))).toBe(true);
+    expect(lines.some((l) => isSeg(l, [1, 0.5], [0.5, 1]))).toBe(false);
   });
 
   it('leaves a line the fold does not cross whole', () => {

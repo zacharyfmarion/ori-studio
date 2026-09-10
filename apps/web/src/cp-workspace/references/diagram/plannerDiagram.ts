@@ -189,6 +189,55 @@ function movingPortion(
   return halves.find(lands) ?? segment;
 }
 
+/**
+ * What is actually creased along an input line: an edge whole, a made line
+ * wherever the pattern (or the pinch pass) pressed it. The chord is the wrong
+ * thing to highlight — the folder lines up against the crease that is there.
+ */
+function spansOfRef(
+  sequence: PrecreaseSequence,
+  frame: DiagramFrame,
+  ref: PrecreaseRef
+): DiagramSegment[] {
+  if (ref.kind === 'edge') {
+    const edge = frame.edge(ref.side);
+    return edge ? [edge] : [];
+  }
+  if (ref.kind !== 'line') return [];
+  const entry = sequence.lines.find((line) => line.id === ref.id);
+  if (!entry || entry.step === null) return [];
+  const made = sequence.steps.find((s) => s.id === entry.step);
+  return made ? [...creasedSpans(frame, made)] : [];
+}
+
+const length = (seg: DiagramSegment): number =>
+  Math.hypot(seg[1].x - seg[0].x, seg[1].y - seg[0].y);
+
+/** Which side of `chord` the point is on: +1, −1, or 0 on the line. */
+function sideOf(chord: DiagramSegment, p: Point): number {
+  const [a, b] = chord;
+  const cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+  const scale = Math.hypot(b.x - a.x, b.y - a.y);
+  return Math.abs(cross) <= 1e-9 * scale ? 0 : Math.sign(cross);
+}
+
+/**
+ * The part of a segment on one side of `chord`: all of it, none of it, or the
+ * piece from the crossing outward. A point on the fold itself belongs to both
+ * sides, so an arm that starts at the fold keeps its whole length.
+ */
+function clipToSide(chord: DiagramSegment, side: number, seg: DiagramSegment): DiagramSegment | null {
+  const s0 = sideOf(chord, seg[0]);
+  const s1 = sideOf(chord, seg[1]);
+  const on = (v: number) => v === 0 || v === side;
+  if (on(s0) && on(s1)) return s0 === 0 && s1 === 0 ? null : seg;
+  if (!on(s0) && !on(s1)) return null;
+  const t = crossingParameter(seg, chord);
+  if (t === null) return on(s0) ? seg : null;
+  const at = lerp(seg[0], seg[1], t);
+  return on(s0) ? [seg[0], at] : [at, seg[1]];
+}
+
 /** `A B C…` for lines and edges, `P Q R…` for marks — ReferenceFinder's scheme. */
 function refLetter(ref: PrecreaseRef, lineIndex: number, pointIndex: number): string {
   return ref.kind === 'point' || ref.kind === 'corner'
@@ -305,22 +354,31 @@ export function plannerStepDiagram(
       : (witness?.inputs ?? []);
   const labels: StepDiagramPrimitive[] = [];
   const chord = frame.chord(step);
-  // O3 folds one line onto another. Only part of each takes part: the half of
-  // the moving line that swings over, and the stretch of the other it lands
-  // on. The rest of both stays put and is not an input to anything.
+  // O3 folds one line onto another, and the fold bisects the angle between
+  // them. Only the arms of that angle take part: the moving line's half that
+  // swings over, and the receiving line on the side it lands. The other arms
+  // stay put and are not inputs to anything. Each arm is shown to the full
+  // extent of the crease actually on the paper — not just to where the edge
+  // happens to land on it — because that crease is the thing the folder lines
+  // up against.
   const moving = new Set(witness?.who_moves ?? []);
-  const shown = (which: number, segment: DiagramSegment): DiagramSegment => {
-    if (witness?.axiom !== 3 || !chord) return segment;
-    if (moving.has(which)) return movingPortion(frame, chord, segment);
-    const other = witness.inputs.findIndex((_, i) => moving.has(i));
-    const source = other >= 0 ? segmentOfRef(sequence, frame, witness.inputs[other]!) : null;
-    if (!source) return segment;
-    const swung = movingPortion(frame, chord, source);
-    const land = (q: Point): Point => {
-      const r = reflectAcross(chord, [q.x, q.y]);
-      return { x: r[0], y: r[1] };
-    };
-    return [land(swung[0]), land(swung[1])];
+  const interior = (() => {
+    if (witness?.axiom !== 3 || !chord) return null;
+    const which = witness.inputs.findIndex((_, i) => moving.has(i));
+    const source = which >= 0 ? segmentOfRef(sequence, frame, witness.inputs[which]!) : null;
+    if (!source) return null;
+    // The side of the fold the moving half is on, and the side its image is.
+    const swung = midpoint(movingPortion(frame, chord, source));
+    const side = sideOf(chord, swung);
+    return side === 0 ? null : { moving: side, receiving: -side };
+  })();
+  const shown = (which: number, spans: readonly DiagramSegment[]): DiagramSegment[] => {
+    if (!interior || !chord) return [...spans];
+    const side = moving.has(which) ? interior.moving : interior.receiving;
+    return spans.flatMap((span) => {
+      const kept = clipToSide(chord, side, span);
+      return kept ? [kept] : [];
+    });
   };
   let lineIndex = 0;
   let pointIndex = 0;
@@ -334,17 +392,24 @@ export function plannerStepDiagram(
       labels.push({ kind: 'label', at: xy(point), text: letter, style: 'highlight' });
       return;
     }
-    const whole = segmentOfRef(sequence, frame, ref);
-    if (!whole) return;
-    const segment = shown(which, whole);
+    const segments = shown(which, spansOfRef(sequence, frame, ref));
+    if (segments.length === 0) return;
     lineIndex += 1;
-    primitives.push({
-      kind: 'line',
-      from: xy(segment[0]),
-      to: xy(segment[1]),
-      style: 'highlight',
-    });
-    labels.push({ kind: 'label', at: xy(midpoint(segment)), text: letter, style: 'highlight' });
+    for (const segment of segments) {
+      primitives.push({
+        kind: 'line',
+        from: xy(segment[0]),
+        to: xy(segment[1]),
+        style: 'highlight',
+      });
+    }
+    // The letter sits on the longest piece. Ties go to the first, and a tie is
+    // judged with slack: two equal pinches must pick the same one in both
+    // frames, and model-space rounding would otherwise split them.
+    const longest = segments.reduce((a, b) =>
+      length(b) > length(a) * (1 + 1e-6) ? b : a
+    );
+    labels.push({ kind: 'label', at: xy(midpoint(longest)), text: letter, style: 'highlight' });
   });
 
   // The motion: each moving input to its image across the new crease.
