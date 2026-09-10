@@ -19,8 +19,27 @@ use crate::state::LineTag;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StepKind {
+    /// Realises crease the pattern contains, on a new line.
     Cp,
+    /// A new auxiliary line the pattern does not contain.
     Aux,
+    /// More crease on a line already made, to put a reference mark on the
+    /// paper where a later step needs one. Not a fold: the folder refolds
+    /// along a crease that is already there and presses a little further.
+    Press,
+}
+
+/// What a [`StepKind::Press`] step is for.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct StepPress {
+    /// The mark being made, in the planner's unit frame.
+    pub at: [f64; 2],
+    /// Its state point id.
+    pub point: usize,
+    /// The already-creased line the press is located by — the pinch goes
+    /// where that crease crosses this step's line. `None` for a press that
+    /// runs to a findable end and needs no sighting.
+    pub sighted_from: Option<usize>,
 }
 
 /// One fold in the presentation order.
@@ -91,6 +110,9 @@ pub struct Step {
     /// is not there.
     #[serde(default)]
     pub missing_marks: Vec<[f64; 2]>,
+    /// Present exactly when `kind` is [`StepKind::Press`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub press: Option<StepPress>,
     /// Hoisted to phase 0 by `landmarks_first`.
     pub hoisted: bool,
 }
@@ -116,10 +138,16 @@ pub struct Group {
 /// visible)", never "minimum".
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct Totals {
+    /// CP folds plus auxiliary folds. A press is not a fold and is not here.
     pub folds: u32,
     pub cp_lines: u32,
     pub aux: u32,
     pub visible_aux: u32,
+    /// Press steps: extra crease the pattern does not contain, made so a later
+    /// step can be sighted. Counted apart from `aux` so "what the design asks
+    /// for" and "what correctness cost" never blur.
+    #[serde(default)]
+    pub presses: u32,
     /// The exact lower bound within the flat-sheet model: distinct CP lines
     /// off the outline.
     pub lower_bound: u32,

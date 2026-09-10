@@ -413,7 +413,8 @@ fn solution_sample_1_closure_exercises_o3_through_o7() {
     let mut chosen: Vec<u8> = seq
         .steps
         .iter()
-        .map(|s| s.witnesses[s.chosen.expect("w")].axiom)
+        // A press has no witness; it is a pinch, not a construction.
+        .filter_map(|s| s.chosen.map(|c| s.witnesses[c].axiom))
         .collect();
     chosen.sort_unstable();
     chosen.dedup();

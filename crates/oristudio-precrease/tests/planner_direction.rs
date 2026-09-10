@@ -15,9 +15,10 @@ use common::*;
 use std::collections::{HashMap, HashSet};
 
 use oristudio_precrease::marks::{Creased, crease_runs, end_is_found};
+use oristudio_precrease::pinch::Extent;
 use oristudio_precrease::planner::PlannerOptions;
 use oristudio_precrease::predicates::Ref;
-use oristudio_precrease::sequence::{Sequence, StepKind};
+use oristudio_precrease::sequence::{Sequence, Step, StepKind};
 use oristudio_precrease::state::{DEFAULT_POINT_CAP, State};
 use oristudio_precrease::{Component, Direction, ExactnessClass, Side, analyze};
 
@@ -359,8 +360,25 @@ fn a_flagged_step_says_where_the_marks_it_cannot_find_are() {
     }
 }
 
+/// **Every step is sighted from marks that are on the paper.** Not most — all,
+/// on every fixture.
+///
+/// A fold runs the width of the sheet, but the pattern usually wants only part
+/// of it, so the crossing of two *chords* need not be a crease crossing, and
+/// telling a folder to bring a corner to a point that is not there is not an
+/// instruction. `State` cannot see this: it records a point at every in-sheet
+/// crossing of two infinite lines, which is the right model for whether a fold
+/// is constructible and the wrong one for whether it can be sighted.
+///
+/// The ordering pass now puts a **press** step ahead of any fold whose marks
+/// are missing — more crease on a line already made, at the crossing — so the
+/// mark is there by the time it is needed. This replays the finished plan onto
+/// a bare sheet, using each step's *pressed* extent (a press's pinch, an
+/// auxiliary line's pinches, a CP step's pattern spans), and recomputes mark
+/// existence from that, so a pass that stopped checking cannot pass and a
+/// press that pressed the wrong place cannot either.
 #[test]
-fn a_step_is_sighted_from_marks_that_are_on_the_paper() {
+fn every_step_is_sighted_from_marks_that_are_on_the_paper() {
     for file in EVERY_FIXTURE {
         let seq = plan(file);
         // Where the paper is creased, line by line, as the sequence proceeds.
@@ -371,7 +389,6 @@ fn a_step_is_sighted_from_marks_that_are_on_the_paper() {
                 whole.insert(entry.id);
             }
         }
-        let mut flagged = 0;
         for step in &seq.steps {
             let witness = step.chosen.and_then(|c| step.witnesses.get(c));
             if let Some(w) = witness {
@@ -391,33 +408,158 @@ fn a_step_is_sighted_from_marks_that_are_on_the_paper() {
                         })
                     };
                     let here = point.lines.iter().filter(|&&l| reach(l)).count();
-                    if here < 2 {
-                        assert!(
-                            !step.marks_exist,
-                            "{file}: step {} sights a mark that is not on the paper, unflagged",
-                            step.id
-                        );
-                        flagged += 1;
-                    }
+                    assert!(
+                        here >= 2,
+                        "{file}: step {} sights point {id} at {:?}, which has {here} crease(s) \
+                         through it on the paper as it stands",
+                        step.id,
+                        point.p
+                    );
+                    assert!(
+                        step.marks_exist && step.missing_marks.is_empty(),
+                        "{file}: step {} sights marks that are on the paper but says otherwise",
+                        step.id
+                    );
                 }
             }
-            // Now this step's own crease is on the paper.
-            if step.cp_spans.is_empty() {
-                whole.insert(step.line_id);
-            } else {
-                creased
-                    .entry(step.line_id)
-                    .or_default()
-                    .extend(step.cp_spans.iter().map(|[a, b]| (*a, *b)));
+            // Now this step's own crease is on the paper — what it actually
+            // pressed, which for a CP step is the pattern's spans and for a
+            // press or a pinched auxiliary line is its extent.
+            match pressed_spans(step) {
+                None => {
+                    whole.insert(step.line_id);
+                }
+                Some(spans) => {
+                    creased.entry(step.line_id).or_default().extend(spans);
+                }
             }
         }
-        // A flag that never fires is a flag nobody can trust.
-        if file.contains("iguana") {
+        // And the crate's own verdict agrees with the replay everywhere.
+        assert!(
+            seq.steps.iter().all(|s| s.marks_exist),
+            "{file}: a step is still flagged as sighted from a mark that is not on the paper"
+        );
+    }
+}
+
+/// A press step is exactly a pinch on a line an earlier step made, placed
+/// right before the step that needs the mark, and never claims pattern crease.
+#[test]
+fn a_press_is_a_pinch_on_a_line_already_made_and_claims_no_pattern_crease() {
+    let mut seen_one = false;
+    for file in EVERY_FIXTURE {
+        let seq = plan(file);
+        let made_at = |line: usize| seq.lines.iter().find(|l| l.id == line).and_then(|l| l.step);
+        for (k, step) in seq.steps.iter().enumerate() {
+            if step.kind != StepKind::Press {
+                continue;
+            }
+            seen_one = true;
+            let press = step
+                .press
+                .as_ref()
+                .unwrap_or_else(|| panic!("{file}: press step {} carries no press", step.id));
             assert!(
-                flagged > 0,
-                "{file}: expected some steps to need a mark made"
+                step.cp_spans.is_empty(),
+                "{file}: step {} claims pattern crease",
+                step.id
+            );
+            assert!(
+                step.cp_line_ids.is_empty(),
+                "{file}: step {} claims a CP line",
+                step.id
+            );
+            assert!(
+                matches!(step.extent, Extent::Pinches { .. }),
+                "{file}: step {} is not a pinch",
+                step.id
+            );
+            let made = made_at(step.line_id)
+                .unwrap_or_else(|| panic!("{file}: step {} presses a line nobody made", step.id));
+            assert!(
+                made < step.id,
+                "{file}: step {} presses a line made later",
+                step.id
+            );
+            // A press that runs out to an end (no sighting line) must run to one
+            // the folder can find — otherwise the defect has only moved from the
+            // mark to the crease end. Replay up to here and ask.
+            if press.sighted_from.is_none() {
+                let Extent::Pinches { spans } = &step.extent else {
+                    unreachable!()
+                };
+                let mut state = State::new(seq.sheet, DEFAULT_POINT_CAP);
+                let mut creased = Creased::new(&state);
+                for earlier in &seq.steps[..k] {
+                    let Ok(o) = state.add_line(earlier.line, earlier.tag) else {
+                        continue;
+                    };
+                    match pressed_spans(earlier) {
+                        None => creased.add_whole(&state, o.id),
+                        Some(v) => {
+                            let v: Vec<[[f64; 2]; 2]> =
+                                v.into_iter().map(|(a, b)| [a, b]).collect();
+                            creased.add_spans(&state, o.id, &earlier.line, &v);
+                        }
+                    }
+                }
+                let _ = state.add_line(step.line, step.tag);
+                let far = spans[0]
+                    .iter()
+                    .copied()
+                    .max_by(|a, b| {
+                        let d = |q: &[f64; 2]| (q[0] - press.at[0]).hypot(q[1] - press.at[1]);
+                        d(a).total_cmp(&d(b))
+                    })
+                    .expect("a span has two ends");
+                assert!(
+                    end_is_found(&state, &creased, &step.line, far),
+                    "{file}: step {} presses out to {far:?}, which the folder cannot find",
+                    step.id
+                );
+            }
+            // The step that needs this mark follows, and the mark is what it sights.
+            let needed_by = seq.steps[k + 1..].iter().find(|later| {
+                later
+                    .chosen
+                    .and_then(|c| later.witnesses.get(c))
+                    .is_some_and(|w| {
+                        w.inputs
+                            .iter()
+                            .any(|r| matches!(r, Ref::Point { id } if *id == press.point))
+                    })
+            });
+            assert!(
+                needed_by.is_some(),
+                "{file}: step {} presses a mark no later step sights",
+                step.id
             );
         }
+        assert_eq!(
+            seq.totals.presses as usize,
+            seq.steps
+                .iter()
+                .filter(|s| s.kind == StepKind::Press)
+                .count(),
+            "{file}: totals.presses"
+        );
+    }
+    assert!(
+        seen_one,
+        "no fixture needed a press, so nothing above was exercised"
+    );
+}
+
+/// What a step actually leaves on the paper, as spans; `None` for the whole
+/// chord.
+fn pressed_spans(step: &Step) -> Option<Vec<Span>> {
+    match (&step.kind, &step.extent) {
+        (StepKind::Cp, _) if !step.cp_spans.is_empty() => {
+            Some(step.cp_spans.iter().map(|[a, b]| (*a, *b)).collect())
+        }
+        (StepKind::Cp, _) => None,
+        (_, Extent::Pinches { spans }) => Some(spans.iter().map(|[a, b]| (*a, *b)).collect()),
+        (_, Extent::Full) => None,
     }
 }
 
@@ -491,7 +633,16 @@ fn an_all_mountain_pattern_turns_over_once_and_stays_there() {
 #[test]
 fn a_real_design_turns_over_a_handful_of_times() {
     let seq = plan("tests/fixtures/precrease/iguana-c0.fold");
-    assert_eq!(seq.steps.len(), 91, "iguana-c0 steps");
+    let folds = seq
+        .steps
+        .iter()
+        .filter(|s| s.kind != StepKind::Press)
+        .count();
+    assert_eq!(folds, 91, "iguana-c0 folds");
+    // Thirteen of those folds were sighted from marks that were not on the
+    // paper; each now gets the press that puts its mark there first.
+    assert_eq!(seq.totals.presses, 13, "iguana-c0 presses");
+    assert_eq!(seq.steps.len(), 104, "iguana-c0 steps");
     assert_eq!(turn_overs(&seq), 9, "iguana-c0 turn-overs");
 }
 
@@ -615,11 +766,15 @@ fn waiting_for_findable_ends_never_loses_a_landmark_or_a_line() {
             })
             .collect();
         let [on, off] = [&plans[0], &plans[1]];
-        assert_eq!(on.steps.len(), off.steps.len(), "{file}: step count");
+        // Folds, not presses: a press is the cost of making a fold sightable,
+        // and the two orders may need different ones. What must not differ is
+        // what gets folded.
+        fn folds(seq: &Sequence) -> impl Iterator<Item = &Step> {
+            seq.steps.iter().filter(|s| s.kind != StepKind::Press)
+        }
+        assert_eq!(folds(on).count(), folds(off).count(), "{file}: fold count");
         let lines = |seq: &Sequence| {
-            let mut keys: Vec<String> = seq
-                .steps
-                .iter()
+            let mut keys: Vec<String> = folds(seq)
                 .map(|s| format!("{:.9},{:.9},{:.9}", s.line.n[0], s.line.n[1], s.line.d))
                 .collect();
             keys.sort();
@@ -641,21 +796,34 @@ fn unfound_ends(seq: &Sequence) -> usize {
     let mut creased = Creased::new(&state);
     let mut lost = 0;
     for step in &seq.steps {
-        let ends: Vec<[f64; 2]> = crease_runs(&step.line, &step.cp_spans)
-            .into_iter()
-            .flat_map(|(a, b)| [a, b])
-            .collect();
-        lost += ends
-            .iter()
-            .filter(|e| !end_is_found(&state, &creased, &step.line, **e))
-            .count();
+        let spans: Vec<[[f64; 2]; 2]> = pressed_spans(step)
+            .map(|v| v.into_iter().map(|(a, b)| [a, b]).collect())
+            .unwrap_or_default();
+        // A pinch has no ends a folder must find: it is pressed *at* a mark,
+        // and where it peters out is incidental. A press's far end is findable
+        // by construction (checked in its own test) and its near end is an
+        // existing crease's end, already counted by the step that made it. So
+        // only a crease has ends: a CP step's pattern spans, or a full
+        // auxiliary line.
+        let is_pinch =
+            step.kind == StepKind::Press || matches!(step.extent, Extent::Pinches { .. });
+        if !is_pinch {
+            let ends: Vec<[f64; 2]> = crease_runs(&step.line, &spans)
+                .into_iter()
+                .flat_map(|(a, b)| [a, b])
+                .collect();
+            lost += ends
+                .iter()
+                .filter(|e| !end_is_found(&state, &creased, &step.line, **e))
+                .count();
+        }
         let Ok(outcome) = state.add_line(step.line, step.tag) else {
             continue;
         };
-        if step.cp_spans.is_empty() {
+        if spans.is_empty() {
             creased.add_whole(&state, outcome.id);
         } else {
-            creased.add_spans(&state, outcome.id, &step.line, &step.cp_spans);
+            creased.add_spans(&state, outcome.id, &step.line, &spans);
         }
     }
     lost

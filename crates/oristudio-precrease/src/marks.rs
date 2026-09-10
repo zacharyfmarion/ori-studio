@@ -94,6 +94,22 @@ impl Creased {
         }
     }
 
+    /// Whether `line_id` has been folded at all — creased somewhere, or
+    /// everywhere. A sheet edge always has.
+    pub fn is_folded(&self, line_id: usize) -> bool {
+        match self.runs.get(line_id) {
+            None => false,
+            Some(None) => true,
+            Some(Some(runs)) => !runs.is_empty(),
+        }
+    }
+
+    /// The creased runs on `line_id` as parameter intervals along the line,
+    /// or `None` when it is creased everywhere (or unknown).
+    pub fn runs_of(&self, line_id: usize) -> Option<&[(f64, f64)]> {
+        self.runs.get(line_id).and_then(|r| r.as_deref())
+    }
+
     /// Whether the crease on `line_id` reaches `p`.
     pub fn reaches(&self, state: &State, line_id: usize, p: [f64; 2]) -> bool {
         match self.runs.get(line_id) {

@@ -110,6 +110,45 @@ impl Target {
         }
     }
 
+    /// The same target with each span endpoint moved along the line to the
+    /// sheet's boundary, or to a crossing with one of `lines`, when it lies
+    /// within `radius` of one.
+    ///
+    /// For the snappable path. The line has been put back on the lattice; its
+    /// creases' endpoints have not, and still carry the file's rounding — a
+    /// crease that ends at the edge arrives as one that stops half a thousandth
+    /// short of it. `Creased::reaches` tests at `TOL`, so that crease would not
+    /// reach the mark where it meets the edge, and a press would be made to
+    /// close a gap that exists in the file and not in the design.
+    pub fn with_spans_snapped(mut self, sheet: &Sheet, lines: &[Line], radius: f64) -> Target {
+        let Some((t0, t1)) = sheet.clip_parameters(&self.line) else {
+            return self;
+        };
+        let mut anchors: Vec<f64> = vec![t0, t1];
+        for other in lines {
+            if let Some(x) = other.intersect(&self.line) {
+                let t = self.line.parameter_of(x);
+                if t >= t0 - TOL && t <= t1 + TOL {
+                    anchors.push(t);
+                }
+            }
+        }
+        for span in &mut self.spans {
+            for end in span.iter_mut() {
+                let t = self.line.parameter_of(*end);
+                let nearest = anchors
+                    .iter()
+                    .copied()
+                    .filter(|a| (a - t).abs() <= radius)
+                    .min_by(|a, b| (a - t).abs().total_cmp(&(b - t).abs()));
+                if let Some(a) = nearest {
+                    *end = self.line.point_at(a);
+                }
+            }
+        }
+        self
+    }
+
     /// A target with no direction evidence: the caller supplied bare lines, so
     /// the finished pattern assigns them nothing and the ordering pass folds
     /// them on whichever side is already up.

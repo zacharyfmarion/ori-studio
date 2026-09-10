@@ -5,7 +5,7 @@
 mod common;
 
 use common::*;
-use oristudio_precrease::sequence::{Status, StepKind};
+use oristudio_precrease::sequence::{Status, StepKind, Totals};
 use oristudio_precrease::{Line, Sheet};
 use serde_json::Value;
 
@@ -89,9 +89,28 @@ fn every_manifest_fixture_plans_to_its_recorded_auxiliary_count() {
             seq.totals.lower_bound,
             "{file}"
         );
-        assert_eq!(seq.steps.len() as u32, seq.totals.folds, "{file}");
+        // A press is a step but not a fold: it puts a mark on the paper for a
+        // fold that follows, on a line already made.
+        assert_eq!(
+            seq.steps.len() as u32,
+            seq.totals.folds + seq.totals.presses,
+            "{file}"
+        );
         for (k, step) in seq.steps.iter().enumerate() {
             assert_eq!(step.id as usize, k + 1);
+            if step.kind == StepKind::Press {
+                assert!(
+                    step.press.is_some(),
+                    "{file}: step {} is a press of nothing",
+                    step.id
+                );
+                assert!(
+                    step.chosen.is_none(),
+                    "{file}: step {} is a press with a witness",
+                    step.id
+                );
+                continue;
+            }
             assert!(
                 step.chosen.is_some(),
                 "{file}: step {} has no witness",
@@ -107,9 +126,11 @@ fn every_manifest_fixture_plans_to_its_recorded_auxiliary_count() {
                 assert!(!step.cp_line_ids.is_empty(), "{file}: step {}", step.id);
             }
         }
-        // Landmarks-first keeps the totals.
+        // Landmarks-first keeps the totals — the folds, that is. A different
+        // order can leave different marks short and so need different presses.
         let lf = planner.sequence(true);
-        assert_eq!(lf.totals, seq.totals, "{file}");
+        let folds_only = |t: &Totals| Totals { presses: 0, ..*t };
+        assert_eq!(folds_only(&lf.totals), folds_only(&seq.totals), "{file}");
     }
     assert!(failures.is_empty(), "\n{}", failures.join("\n"));
 }

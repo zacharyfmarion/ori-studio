@@ -25,11 +25,12 @@ use crate::pinch::{Extent, pinch_pass};
 use crate::predicates::{Ref, Witness, full_facts, witnesses};
 use crate::sequence::{
     Diagnostics, ExactnessSummary, FactsSummary, Finding, FindingReason, LineEntry, PointEntry,
-    Sequence, Status, Step, StepKind, Totals,
+    Sequence, Status, Step, StepKind, StepPress, Totals,
 };
 use crate::sheet::Sheet;
 use crate::state::{DEFAULT_POINT_CAP, LineTag};
 use crate::stuck::{StuckOptions, stuck_search};
+use crate::tol::SNAP_RADIUS;
 
 /// Planner knobs. The JSON form ([`PlannerOptionsJson`]) is what crosses the
 /// wasm boundary; every field is optional there.
@@ -233,42 +234,52 @@ impl Planner {
                 .map(|s| [[s[0], s[1]], [s[2], s[3]]])
                 .collect()
         };
-        let targets: Vec<Target> = match exactness.class {
-            ExactnessClass::Exact | ExactnessClass::OffLattice => component
-                .merged_lines
-                .iter()
-                .map(|ml| {
-                    Target::new(
-                        ml.line,
-                        ml.segment_indices.iter().map(|&i| i + 1).collect(),
-                        spans_of(&ml.segment_indices),
-                        ml.mountain_length,
-                        ml.valley_length,
-                    )
-                })
-                .collect(),
-            ExactnessClass::Snappable => exactness
-                .snapped
-                .lines
-                .iter()
-                .map(|sl| {
-                    let (mountain, valley) =
-                        sl.source_lines.iter().fold((0.0, 0.0), |(m, v), &li| {
-                            match component.merged_lines.get(li as usize) {
-                                Some(ml) => (m + ml.mountain_length, v + ml.valley_length),
-                                None => (m, v),
-                            }
-                        });
-                    Target::new(
-                        sl.line,
-                        sl.segment_indices.iter().map(|&i| i + 1).collect(),
-                        spans_of(&sl.segment_indices),
-                        mountain,
-                        valley,
-                    )
-                })
-                .collect(),
-        };
+        let targets: Vec<Target> =
+            match exactness.class {
+                ExactnessClass::Exact | ExactnessClass::OffLattice => component
+                    .merged_lines
+                    .iter()
+                    .map(|ml| {
+                        Target::new(
+                            ml.line,
+                            ml.segment_indices.iter().map(|&i| i + 1).collect(),
+                            spans_of(&ml.segment_indices),
+                            ml.mountain_length,
+                            ml.valley_length,
+                        )
+                    })
+                    .collect(),
+                ExactnessClass::Snappable => {
+                    let snapped_lines: Vec<Line> =
+                        exactness.snapped.lines.iter().map(|sl| sl.line).collect();
+                    exactness
+                        .snapped
+                        .lines
+                        .iter()
+                        .map(|sl| {
+                            let (mountain, valley) =
+                                sl.source_lines.iter().fold((0.0, 0.0), |(m, v), &li| {
+                                    match component.merged_lines.get(li as usize) {
+                                        Some(ml) => (m + ml.mountain_length, v + ml.valley_length),
+                                        None => (m, v),
+                                    }
+                                });
+                            Target::new(
+                                sl.line,
+                                sl.segment_indices.iter().map(|&i| i + 1).collect(),
+                                spans_of(&sl.segment_indices),
+                                mountain,
+                                valley,
+                            )
+                            .with_spans_snapped(
+                                &sheet,
+                                &snapped_lines,
+                                SNAP_RADIUS,
+                            )
+                        })
+                        .collect()
+                }
+            };
         planner.exactness = Some(ExactnessSummary {
             class: exactness.class,
             family: exactness.family.clone(),
@@ -679,10 +690,14 @@ impl Planner {
         let folded = closure.folded();
         let state = closure.state();
 
-        // Step id per state line id, for `unlocks`.
+        // Step id per state line id, for `unlocks` and `LineEntry::step`: the
+        // step that MADE the line. A press refolds a line an earlier step made
+        // and does not take its place here.
         let mut step_of_line: Vec<Option<u32>> = vec![None; state.line_count()];
         for (k, p) in placed.iter().enumerate() {
-            step_of_line[folded[p.folded].line_id] = Some(k as u32 + 1);
+            if p.press.is_none() {
+                step_of_line[folded[p.folded].line_id] = Some(k as u32 + 1);
+            }
         }
 
         let mut steps: Vec<Step> = Vec::with_capacity(placed.len());
@@ -698,14 +713,31 @@ impl Planner {
                 }
             }
             let verdict = &verdicts[k];
-            let kind = if f.tag == LineTag::Cp {
+            let kind = if p.press.is_some() {
+                StepKind::Press
+            } else if f.tag == LineTag::Cp {
                 StepKind::Cp
             } else {
                 StepKind::Aux
             };
             let target = f.target.map(|t| &closure.targets()[t]);
-            let cp_line_ids = target.map(|t| t.cp_line_ids.clone()).unwrap_or_default();
-            let cp_spans = target.map(|t| t.spans.clone()).unwrap_or_default();
+            // A press realises nothing the pattern contains: its crease is the
+            // cost of making a later step performable, and it must stay
+            // countable as exactly that.
+            let (cp_line_ids, cp_spans) = if p.press.is_some() {
+                (Vec::new(), Vec::new())
+            } else {
+                (
+                    target.map(|t| t.cp_line_ids.clone()).unwrap_or_default(),
+                    target.map(|t| t.spans.clone()).unwrap_or_default(),
+                )
+            };
+            let extent = match &p.press {
+                Some(press) => Extent::Pinches {
+                    spans: vec![press.span],
+                },
+                None => verdict.extent.clone(),
+            };
             // The direction the fold is actually made in. A line with a firm
             // majority forced the side it is on, so the two agree; a weak one
             // took whichever side was already up, and the share is then the
@@ -727,8 +759,12 @@ impl Planner {
                 line: f.line,
                 line_id: f.line_id,
                 segment: segment_of(sheet, &f.line).unwrap_or([[0.0; 2]; 2]),
-                extent: verdict.extent.clone(),
-                witnesses: f.witnesses.clone(),
+                extent,
+                witnesses: if p.press.is_some() {
+                    Vec::new()
+                } else {
+                    f.witnesses.clone()
+                },
                 chosen: p.chosen,
                 ease: chosen.map_or(0, |w| w.ease),
                 hard: chosen.is_some_and(|w| w.hard),
@@ -739,7 +775,7 @@ impl Planner {
                 unlocks: Vec::new(),
                 cp_line_ids,
                 cp_spans,
-                visible: verdict.visible,
+                visible: p.press.is_none() && verdict.visible,
                 witnesses_complete: f.witnesses_complete,
                 marks_exist: p.marks_exist,
                 missing_marks: p
@@ -748,6 +784,11 @@ impl Planner {
                     .filter_map(|&id| state.points().get(id).map(|pt| pt.p))
                     .collect(),
                 hoisted: p.hoisted,
+                press: p.press.as_ref().map(|press| StepPress {
+                    at: state.points()[press.point].p,
+                    point: press.point,
+                    sighted_from: press.sighted_from,
+                }),
             });
         }
 
@@ -830,6 +871,7 @@ impl Planner {
 
         let cp_lines = steps.iter().filter(|s| s.kind == StepKind::Cp).count() as u32;
         let aux = steps.iter().filter(|s| s.kind == StepKind::Aux).count() as u32;
+        let presses = steps.iter().filter(|s| s.kind == StepKind::Press).count() as u32;
         let visible_aux = steps.iter().filter(|s| s.visible).count() as u32;
         let free_lines = closure.free_targets().len() as u32;
         let unsolved = closure.remaining().len() as u32;
@@ -838,6 +880,7 @@ impl Planner {
             cp_lines,
             aux,
             visible_aux,
+            presses,
             lower_bound: cp_lines + unsolved,
             free_lines,
             unsolved,
