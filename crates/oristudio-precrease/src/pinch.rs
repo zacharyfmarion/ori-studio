@@ -49,20 +49,29 @@ pub struct PinchVerdict {
     pub used_as_line: bool,
 }
 
-/// How later steps use folded line `line_id`, reading the chosen witnesses of
-/// the steps after position `from` in `order`.
+/// How later steps use folded line `line_id`, reading the **presented**
+/// witnesses of the steps after position `from` in `order`.
+///
+/// Presented, not the closure's own pick. The closure chooses a witness once,
+/// at fold time, by preference alone; the ordering pass may then choose a
+/// different one that the folder can actually sight (`order.rs`), and that is
+/// the one the plan shows. Reading the closure's here meant an auxiliary line
+/// could be pinched at points no shown step uses and left unpinched at the
+/// points the shown steps sight — and the two disagree exactly on the steps
+/// whose first choice named a mark that is not on the paper.
 fn downstream_uses(
     closure: &Closure,
     order: &[usize],
+    chosen: &[Option<usize>],
     from: usize,
     line_id: usize,
 ) -> (bool, Vec<usize>) {
     let state = closure.state();
     let mut as_line = false;
     let mut at_points: Vec<usize> = Vec::new();
-    for &j in &order[from + 1..] {
+    for (k, &j) in order.iter().enumerate().skip(from + 1) {
         let step: &FoldedLine = &closure.folded()[j];
-        let Some(w) = step.chosen_witness() else {
+        let Some(w) = chosen[k].and_then(|c| step.witnesses.get(c)) else {
             continue;
         };
         for r in &w.inputs {
@@ -115,8 +124,14 @@ fn spans(closure: &Closure, line_id: usize, points: &[usize]) -> Vec<[[f64; 2]; 
 }
 
 /// Run the pass over the steps `order` (indices into `closure.folded()`, in
-/// presentation order). Returns one verdict per entry of `order`.
-pub fn pinch_pass(closure: &Closure, order: &[usize]) -> Vec<PinchVerdict> {
+/// presentation order), with `chosen[k]` the witness the plan presents for
+/// `order[k]`. Returns one verdict per entry of `order`.
+pub fn pinch_pass(
+    closure: &Closure,
+    order: &[usize],
+    chosen: &[Option<usize>],
+) -> Vec<PinchVerdict> {
+    debug_assert_eq!(order.len(), chosen.len());
     order
         .iter()
         .enumerate()
@@ -130,7 +145,7 @@ pub fn pinch_pass(closure: &Closure, order: &[usize]) -> Vec<PinchVerdict> {
                     used_as_line: false,
                 };
             }
-            let (as_line, at_points) = downstream_uses(closure, order, k, step.line_id);
+            let (as_line, at_points) = downstream_uses(closure, order, chosen, k, step.line_id);
             if as_line || at_points.is_empty() {
                 PinchVerdict {
                     extent: Extent::Full,
@@ -155,8 +170,11 @@ pub fn pinch_pass(closure: &Closure, order: &[usize]) -> Vec<PinchVerdict> {
 /// Number of auxiliary lines that stay full-length in the closure's own fold
 /// order — the stuck search's secondary objective.
 pub fn visible_aux_count(closure: &Closure) -> usize {
+    // The closure's own order and its own witness choice: this scores a state
+    // the search is considering, not a plan anyone will be shown.
     let order: Vec<usize> = (0..closure.folded().len()).collect();
-    pinch_pass(closure, &order)
+    let chosen: Vec<Option<usize>> = closure.folded().iter().map(|f| f.chosen).collect();
+    pinch_pass(closure, &order, &chosen)
         .iter()
         .filter(|v| v.visible)
         .count()
@@ -200,7 +218,8 @@ mod tests {
         c.close(&unbounded).expect("close");
         assert!(c.is_complete());
         let order: Vec<usize> = (0..c.folded().len()).collect();
-        let verdicts = pinch_pass(&c, &order);
+        let chosen: Vec<Option<usize>> = c.folded().iter().map(|f| f.chosen).collect();
+        let verdicts = pinch_pass(&c, &order, &chosen);
         assert_eq!(verdicts.len(), c.folded().len());
         let y2x_index = c
             .folded()
@@ -261,7 +280,8 @@ mod tests {
         c.close(&unbounded).expect("close");
         assert!(c.is_complete());
         let order: Vec<usize> = (0..c.folded().len()).collect();
-        let verdicts = pinch_pass(&c, &order);
+        let chosen: Vec<Option<usize>> = c.folded().iter().map(|f| f.chosen).collect();
+        let verdicts = pinch_pass(&c, &order, &chosen);
         let aux = &verdicts[0];
         // x = ¾'s chosen witness is O2 ((½,0) → (1,0)), a point use of x = ½.
         let chosen = c.folded()[1].chosen_witness().expect("w");

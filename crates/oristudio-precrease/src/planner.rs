@@ -674,7 +674,8 @@ impl Planner {
         };
         let placed: Vec<Placed> = order(closure, landmarks_first);
         let fold_order: Vec<usize> = placed.iter().map(|p| p.folded).collect();
-        let verdicts = pinch_pass(closure, &fold_order);
+        let presented: Vec<Option<usize>> = placed.iter().map(|p| p.chosen).collect();
+        let verdicts = pinch_pass(closure, &fold_order, &presented);
         let folded = closure.folded();
         let state = closure.state();
 

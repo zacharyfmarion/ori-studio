@@ -249,10 +249,25 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
             if !matches!(f.tag, LineTag::Aux | LineTag::RfAux) {
                 continue;
             }
-            let usable = (0..f.witnesses.len())
+            let usable: Vec<usize> = (0..f.witnesses.len())
                 .filter(|&k| witness_available(closure, &f.witnesses[k], &available))
-                .min_by_key(|&k| f.witnesses[k].preference());
-            if let Some(k) = usable {
+                .collect();
+            // Prefer a witness the folder can sight, exactly as the round loop
+            // does below. Taking the cheapest available one regardless left a
+            // hoisted step flagged as unsightable while a sightable witness sat
+            // unused in its own list.
+            let pick = usable
+                .iter()
+                .copied()
+                .filter(|&k| witness_marks_exist(state, &creased, &f.witnesses[k]))
+                .min_by_key(|&k| f.witnesses[k].preference())
+                .or_else(|| {
+                    usable
+                        .iter()
+                        .copied()
+                        .min_by_key(|&k| f.witnesses[k].preference())
+                });
+            if let Some(k) = pick {
                 hoisted[i] = true;
                 available[f.line_id] = true;
                 placed.push(Placed {

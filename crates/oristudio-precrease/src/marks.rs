@@ -60,7 +60,15 @@ impl Creased {
         }
     }
 
-    /// Record a fold that creases `line` only along `spans`.
+    /// Record that `line` is creased along `spans` — **in addition to** whatever
+    /// it was creased along before.
+    ///
+    /// A union, not a replacement. The first version replaced, which was
+    /// invisible while every line was recorded exactly once, and would have
+    /// been the first thing to break the moment a press step recorded a second
+    /// run on a line: the pattern's own creases would vanish and only the pinch
+    /// remain. A line already creased everywhere stays so. Empty `spans` add
+    /// nothing; a whole-chord fold is [`Creased::add_whole`], said out loud.
     pub fn add_spans(
         &mut self,
         state: &State,
@@ -69,22 +77,13 @@ impl Creased {
         spans: &[[[f64; 2]; 2]],
     ) {
         self.widen(state);
-        let Some(entry) = self.runs.get_mut(line_id) else {
+        let Some(Some(runs)) = self.runs.get_mut(line_id) else {
             return;
         };
-        if spans.is_empty() {
-            *entry = None;
-            return;
-        }
-        *entry = Some(
-            spans
-                .iter()
-                .map(|[a, b]| {
-                    let (u, v) = (line.parameter_of(*a), line.parameter_of(*b));
-                    if u <= v { (u, v) } else { (v, u) }
-                })
-                .collect(),
-        );
+        runs.extend(spans.iter().map(|[a, b]| {
+            let (u, v) = (line.parameter_of(*a), line.parameter_of(*b));
+            if u <= v { (u, v) } else { (v, u) }
+        }));
     }
 
     /// Record a fold creased along its whole chord.
@@ -237,4 +236,63 @@ pub fn end_is_found(state: &State, creased: &Creased, line: &Line, end: [f64; 2]
                 && l.cross(line).abs() >= MIN_ANGLE_SINE
                 && creased.reaches(state, id, end)
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::sheet::Sheet;
+
+    fn state_with(lines: &[Line]) -> State {
+        let mut state = State::new(Sheet::unit_square(), 10_000);
+        for l in lines {
+            state.add_line(*l, LineTag::Cp).expect("line");
+        }
+        state
+    }
+
+    /// The first press on a line must not erase the creases the pattern put
+    /// there. This is the bug that would have bitten first.
+    #[test]
+    fn a_second_run_on_a_line_joins_the_first_rather_than_replacing_it() {
+        let diagonal = Line::from_points([0.0, 0.0], [1.0, 1.0]).expect("line");
+        let state = state_with(&[diagonal]);
+        let id = state.line_count() - 1;
+        let mut creased = Creased::new(&state);
+        // The pattern: creased at both ends, blank in the middle.
+        creased.add_spans(
+            &state,
+            id,
+            &diagonal,
+            &[[[0.0, 0.0], [0.25, 0.25]], [[0.75, 0.75], [1.0, 1.0]]],
+        );
+        assert!(creased.reaches(&state, id, [0.1, 0.1]));
+        assert!(!creased.reaches(&state, id, [0.5, 0.5]));
+        // A press in the middle.
+        creased.add_spans(&state, id, &diagonal, &[[[0.45, 0.45], [0.55, 0.55]]]);
+        assert!(
+            creased.reaches(&state, id, [0.5, 0.5]),
+            "the press is there"
+        );
+        assert!(
+            creased.reaches(&state, id, [0.1, 0.1]),
+            "and the pattern's crease still is"
+        );
+        assert!(creased.reaches(&state, id, [0.9, 0.9]));
+        assert!(
+            !creased.reaches(&state, id, [0.35, 0.35]),
+            "and nothing was invented"
+        );
+    }
+
+    #[test]
+    fn a_line_creased_everywhere_stays_so() {
+        let diagonal = Line::from_points([0.0, 0.0], [1.0, 1.0]).expect("line");
+        let state = state_with(&[diagonal]);
+        let id = state.line_count() - 1;
+        let mut creased = Creased::new(&state);
+        creased.add_whole(&state, id);
+        creased.add_spans(&state, id, &diagonal, &[[[0.1, 0.1], [0.2, 0.2]]]);
+        assert!(creased.reaches(&state, id, [0.9, 0.9]));
+    }
 }
