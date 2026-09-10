@@ -3,12 +3,13 @@ import type { TFunction } from 'i18next';
 import axiom7Fixture from './referenceFinder/__fixtures__/line-axiom7.json';
 import { extractSolution, type ExtractedStep } from './referenceFinder/extractor';
 import type { ReferenceFinderReplayFixture } from './referenceFinder/replayClient';
+import { unitFrame } from './diagram/diagramFrames';
+import { plannerStepDiagram } from './diagram/plannerDiagram';
 import { plannerSequenceFixture } from './__fixtures__/plannerSequence';
 import {
   describePlannerStep,
   describeStep,
   isLineLabel,
-  plannerRefIndex,
   referenceName,
   splitStepInputs,
 } from './referencesStepSentences';
@@ -167,33 +168,38 @@ describe("O7's slots, against a captured solution", () => {
   });
 });
 
-describe('a step made on the back', () => {
+// The planner's sentence names every reference by the letter the card gives
+// it, from the same function — so what the sentence calls P is the ring
+// labelled P, and there is nothing to remember from an earlier step.
+describe('a planner step', () => {
   const sequence = plannerSequenceFixture();
-  const index = plannerRefIndex(sequence);
-  const onSide = (side: 'front' | 'back', stepIndex: number) => {
-    const steps = sequence.steps.map((s, i) => (i === stepIndex ? { ...s, side } : s));
-    return describePlannerStep(t, { ...sequence, steps }, index, stepIndex);
-  };
-  // Find a step whose sentence names a side of the sheet at all.
-  const at = sequence.steps.findIndex((_, i) => /left|right/i.test(onSide('front', i)));
 
-  it('names the sheet as the reader sees it, not as the pattern states it', () => {
-    expect(at, 'the fixture should have a step naming an edge or corner').toBeGreaterThanOrEqual(0);
-    const front = onSide('front', at);
-    const back = onSide('back', at);
-    // The card and the canvas are both mirrored on the back, so every left
-    // becomes a right and the sentence has to follow.
-    expect(back).not.toBe(front);
-    expect(back).toBe(front.replace(/left|right/g, (word) => (word === 'left' ? 'right' : 'left')));
+  it('names its references by the card’s letters, in the axiom’s input order', () => {
+    // Step 2 (index 1) is O2 on the SW corner and a mark: P onto Q.
+    expect(describePlannerStep(t, sequence, 1)).toBe('Fold P onto Q.');
+    // Step 5 (index 4) is O3 on the bottom edge and the landmark's crease.
+    expect(describePlannerStep(t, sequence, 4)).toContain('Fold A onto B.');
   });
 
-  it('leaves top and bottom alone — only handedness turns over', () => {
-    const withTop = sequence.steps.findIndex((_, i) => /top|bottom/i.test(onSide('front', i)));
-    if (withTop < 0) return;
-    const front = onSide('front', withTop);
-    const back = onSide('back', withTop);
-    const strip = (s: string) => s.replace(/left|right/g, '·');
-    expect(strip(back)).toBe(strip(front));
+  it('uses exactly the letters the card draws', () => {
+    for (let i = 0; i < sequence.steps.length; i += 1) {
+      const sentence = describePlannerStep(t, sequence, i);
+      const card = plannerStepDiagram(sequence, unitFrame(sequence), i);
+      const drawn = (card?.primitives ?? [])
+        .filter((p) => p.kind === 'label')
+        .map((l) => (l.kind === 'label' ? l.text : ''));
+      for (const letter of drawn) {
+        expect(sentence, `step ${i + 1}: ${sentence}`).toMatch(new RegExp(`\\b${letter}\\b`));
+      }
+    }
+  });
+
+  it('says the same thing on the back as on the front — letters do not mirror', () => {
+    const steps = sequence.steps.map((s) => ({ ...s, side: 'back' as const }));
+    const flipped = { ...sequence, steps };
+    for (let i = 0; i < sequence.steps.length; i += 1) {
+      expect(describePlannerStep(t, flipped, i)).toBe(describePlannerStep(t, sequence, i));
+    }
   });
 });
 
@@ -214,20 +220,17 @@ describe('a press step', () => {
     press: { at: [0.5, 0.5] as [number, number], point: 4, sighted_from: 6 },
   };
   const withPress = { ...sequence, steps: [...sequence.steps, press] };
-  const index = plannerRefIndex(withPress);
 
-  it('says which crease to refold and which crossing to pinch at', () => {
-    const sentence = describePlannerStep(t, withPress, index, withPress.steps.length - 1);
-    expect(sentence).toBe(
-      'Refold the crease from step 2 and pinch it where the crease from step 3 crosses it.'
-    );
+  it('says which crease to refold and which crossing to pinch at, by letter', () => {
+    const sentence = describePlannerStep(t, withPress, withPress.steps.length - 1);
+    expect(sentence).toBe('Refold A and pinch it where B crosses it.');
   });
 
   it('says to run the crease out when nothing sights it yet', () => {
     const out = { ...press, press: { ...press.press, sighted_from: null } };
     const seq = { ...sequence, steps: [...sequence.steps, out] };
-    const sentence = describePlannerStep(t, seq, plannerRefIndex(seq), seq.steps.length - 1);
-    expect(sentence).toContain('Refold the crease from step 2 and crease it further');
+    const sentence = describePlannerStep(t, seq, seq.steps.length - 1);
+    expect(sentence).toContain('Refold A and crease it further');
     expect(sentence).toContain('the edge');
   });
 });

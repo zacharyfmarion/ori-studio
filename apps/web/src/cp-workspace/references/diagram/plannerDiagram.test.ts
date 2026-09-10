@@ -304,13 +304,16 @@ describe('a press step', () => {
     expect(lines.some((l) => l.style === 'valley' || l.style === 'mountain')).toBe(false);
   });
 
-  it('shows the crease the pinch is located by, lettered', () => {
+  it('letters the pressed line A and the crease the pinch is located by B', () => {
+    // A press card shows the line being refolded (its existing crease, A) and
+    // the crease that says where to pinch (B) — the two things the sentence
+    // "refold A and pinch it where B crosses it" names.
+    const labels = (diagram?.primitives ?? []).filter((p) => p.kind === 'label');
+    expect(labels.map((l) => (l.kind === 'label' ? l.text : ''))).toEqual(['A', 'B']);
     const highlights = (diagram?.primitives ?? []).filter(
       (p) => p.kind === 'line' && p.style === 'highlight'
     );
-    expect(highlights).toHaveLength(1);
-    const labels = (diagram?.primitives ?? []).filter((p) => p.kind === 'label');
-    expect(labels.map((l) => (l.kind === 'label' ? l.text : ''))).toEqual(['A']);
+    expect(highlights.length).toBeGreaterThanOrEqual(2);
   });
 
   it('draws no arrow — nothing moves', () => {

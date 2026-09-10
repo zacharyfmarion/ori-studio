@@ -26,13 +26,10 @@
 import type { TFunction } from 'i18next';
 import type { ExtractedStep } from './referenceFinder/extractor';
 import type { ReferencesDirection } from './referencesBreakdown';
-import {
-  chosenWitness,
-  type PrecreaseCornerName,
-  type PrecreaseEdgeSide,
-  type PrecreaseRef,
-  type PrecreaseSequence,
-} from './precreaseSequence';
+import { unitFrame } from './diagram/diagramFrames';
+import { inputLetters } from './diagram/inputLetters';
+import { perpendicularMotion, pressInputs } from './diagram/plannerDiagram';
+import { chosenWitness, type PrecreaseSequence } from './precreaseSequence';
 
 /** How many point and line inputs each axiom serialises, in that order. */
 export const STEP_INPUT_ARITY: Readonly<Record<number, { points: number; lines: number }>> = {
@@ -196,266 +193,110 @@ export function describeStep(t: TFunction, step: ExtractedStep): string {
 // and an edge's side and a corner's name are carried only on the refs
 // themselves — so the lookups are built once per sequence.
 
-/** Cross-references a sequence's typed refs need, built once. */
-export interface PlannerRefIndex {
-  /** State line id → which sheet edge it is. */
-  edgeSides: Map<number, PrecreaseEdgeSide>;
-  /** State point id → which sheet corner it is. */
-  corners: Map<number, PrecreaseCornerName>;
-  /** State line id → the presentation id of the step that folds it. */
-  stepOfLine: Map<number, number>;
-  /** State point id → the state lines through it. */
-  linesOfPoint: Map<number, number[]>;
-}
-
 /**
- * Build the index. Edge sides and corner names come from the refs rather than
- * from `sequence.lines`, which records a line's tag but not which edge it is;
- * any sequence that names an edge at all therefore names its side.
- */
-export function plannerRefIndex(sequence: PrecreaseSequence): PlannerRefIndex {
-  const edgeSides = new Map<number, PrecreaseEdgeSide>();
-  const corners = new Map<number, PrecreaseCornerName>();
-  const stepOfLine = new Map<number, number>();
-  const linesOfPoint = new Map<number, number[]>();
-  for (const entry of sequence.lines) {
-    if (entry.step !== null) stepOfLine.set(entry.id, entry.step);
-  }
-  for (const point of sequence.points) linesOfPoint.set(point.id, point.lines);
-  for (const step of sequence.steps) {
-    for (const witness of step.witnesses) {
-      for (const ref of witness.inputs) {
-        if (ref.kind === 'edge') edgeSides.set(ref.id, ref.side);
-        else if (ref.kind === 'corner') corners.set(ref.id, ref.corner);
-      }
-    }
-  }
-  return { edgeSides, corners, stepOfLine, linesOfPoint };
-}
-
-function edgeName(t: TFunction, side: PrecreaseEdgeSide): string {
-  switch (side) {
-    case 'bottom':
-      return t('panels:references.ref.bottomEdge', 'the bottom edge');
-    case 'top':
-      return t('panels:references.ref.topEdge', 'the top edge');
-    case 'left':
-      return t('panels:references.ref.leftEdge', 'the left edge');
-    case 'right':
-      return t('panels:references.ref.rightEdge', 'the right edge');
-  }
-}
-
-function cornerName(t: TFunction, corner: PrecreaseCornerName): string {
-  switch (corner) {
-    case 'sw':
-      return t('panels:references.ref.cornerSw', 'the bottom-left corner');
-    case 'se':
-      return t('panels:references.ref.cornerSe', 'the bottom-right corner');
-    case 'nw':
-      return t('panels:references.ref.cornerNw', 'the top-left corner');
-    case 'ne':
-      return t('panels:references.ref.cornerNe', 'the top-right corner');
-  }
-}
-
-/** How a state line reads in a sentence: an edge by name, a crease by its step. */
-/**
- * A sheet side as the reader sees it.
+ * The instruction for one planner step, from its chosen witness.
  *
- * A step made on the back is drawn mirrored about the sheet's vertical centre,
- * on the card and on the canvas alike, so the sentence beside it has to name
- * the *left* of the picture and not the left of the pattern. Only handedness
- * turns over; top and bottom stay where they are.
- */
-function seenSide(side: PrecreaseEdgeSide, mirrored: boolean): PrecreaseEdgeSide {
-  if (!mirrored) return side;
-  if (side === 'left') return 'right';
-  if (side === 'right') return 'left';
-  return side;
-}
-
-/** The same, for a corner. */
-function seenCorner(corner: PrecreaseCornerName, mirrored: boolean): PrecreaseCornerName {
-  if (!mirrored) return corner;
-  const swapped = { sw: 'se', se: 'sw', nw: 'ne', ne: 'nw' } as const;
-  return swapped[corner];
-}
-
-function plannerLineName(
-  t: TFunction,
-  index: PlannerRefIndex,
-  id: number,
-  mirrored: boolean
-): string {
-  const side = index.edgeSides.get(id);
-  if (side) return edgeName(t, seenSide(side, mirrored));
-  const step = index.stepOfLine.get(id);
-  if (step !== undefined) {
-    return t('panels:references.ref.stepCrease', 'the crease from step {{n}}', { n: step });
-  }
-  return t('panels:references.ref.existingCrease', 'an existing crease');
-}
-
-/**
- * The two lines that locate a mark, as of `beforeStep`.
+ * Every reference is named by the **letter the card gives it** — lines and
+ * edges `A B C…`, marks and corners `P Q R…`, in the axiom's own input order —
+ * from the same function the card uses (`diagram/inputLetters`), so a letter
+ * here is the letter on the picture by construction. It used to say things
+ * like "where the crease from step 3 meets the crease from step 10", which
+ * asks the reader to remember two earlier steps; a letter asks them to look.
  *
- * A point in the planner's state carries *every* line through it, including
- * ones folded much later — naming a mark by those tells the folder to find it
- * with a crease that does not exist yet. So the list is cut to what has been
- * made, and ordered for legibility: a sheet edge first, then the earliest
- * crease, because "where the left edge meets the crease from step 7" is a place
- * you can put a finger on and "where step 60 meets step 64" is not.
- */
-export function definingLines(
-  index: PlannerRefIndex,
-  pointId: number,
-  beforeStep: number
-): number[] {
-  const made = (index.linesOfPoint.get(pointId) ?? []).filter((id) => {
-    const step = index.stepOfLine.get(id);
-    return step === undefined || step < beforeStep;
-  });
-  return made.sort((a, b) => {
-    const sa = index.stepOfLine.get(a);
-    const sb = index.stepOfLine.get(b);
-    if (sa === undefined || sb === undefined) return (sa === undefined ? 0 : 1) - (sb === undefined ? 0 : 1);
-    return sa - sb;
-  });
-}
-
-/**
- * A planner reference in a sentence. A mark is named by what makes it — "where
- * the left edge meets the crease from step 12" — because a folder can find
- * that and cannot find "point 47".
- */
-export function plannerReferenceName(
-  t: TFunction,
-  index: PlannerRefIndex,
-  ref: PrecreaseRef,
-  mirrored = false,
-  beforeStep = Number.POSITIVE_INFINITY
-): string {
-  switch (ref.kind) {
-    case 'edge':
-      return edgeName(t, seenSide(ref.side, mirrored));
-    case 'corner':
-      return cornerName(t, seenCorner(ref.corner, mirrored));
-    case 'line':
-      return plannerLineName(t, index, ref.id, mirrored);
-    case 'point': {
-      const corner = index.corners.get(ref.id);
-      if (corner) return cornerName(t, seenCorner(corner, mirrored));
-      const lines = definingLines(index, ref.id, beforeStep);
-      if (lines.length >= 2) {
-        return t('panels:references.ref.intersection', 'where {{a}} meets {{b}}', {
-          a: plannerLineName(t, index, lines[0], mirrored),
-          b: plannerLineName(t, index, lines[1], mirrored),
-        });
-      }
-      if (lines.length === 1) {
-        return t('panels:references.ref.markOn', 'the mark on {{a}}', {
-          a: plannerLineName(t, index, lines[0], mirrored),
-        });
-      }
-      return t('panels:references.ref.mark', 'the mark');
-    }
-  }
-}
-
-/**
- * The instruction for one planner step, from its chosen witness. The witness's
- * `inputs` are in the axiom's own order (`predicates.rs`), which is not
- * ReferenceFinder's, so this is a separate reading rather than a reuse of
- * {@link describeStep}: O5 is `[pivot, p, m]` here and `[p, pivot, m]` there.
+ * The witness's `inputs` are in the axiom's own order (`predicates.rs`), which
+ * is not ReferenceFinder's, so this is a separate reading rather than a reuse
+ * of {@link describeStep}: O5 is `[pivot, p, m]` here and `[p, pivot, m]` there.
  */
 export function describePlannerStep(
   t: TFunction,
   sequence: PrecreaseSequence,
-  index: PlannerRefIndex,
   stepIndex: number
 ): string {
   const step = sequence.steps[stepIndex];
   if (!step) return '';
-  // Everything the sentence names is named as the reader sees it: a step on
-  // the back is drawn mirrored, so its "left edge" is the pattern's right one.
-  const mirrored = step.side === 'back';
   // A press has no witness: it is a pinch on a crease already made, not a
-  // construction. What it needs to say is which crease, and where on it.
+  // construction. Its card letters the pressed line A and the crease the pinch
+  // is located by B.
   if (step.kind === 'press' && step.press) {
-    const along = plannerLineName(t, index, step.line_id, mirrored);
+    const [a, b] = inputLetters(pressInputs(step)).byInput;
     return step.press.sighted_from === null
       ? t(
           'panels:references.planStep.pressOut',
-          'Refold {{along}} and crease it further, out to where it meets the next crease or the edge.',
-          { along }
+          'Refold {{a}} and crease it further, out to where it meets the next crease or the edge.',
+          { a }
         )
-      : t(
-          'panels:references.planStep.pressAt',
-          'Refold {{along}} and pinch it where {{across}} crosses it.',
-          { along, across: plannerLineName(t, index, step.press.sighted_from, mirrored) }
-        );
+      : t('panels:references.planStep.pressAt', 'Refold {{a}} and pinch it where {{b}} crosses it.', {
+          a,
+          b,
+        });
   }
   const witness = chosenWitness(step);
   if (!witness) {
     return t('panels:references.planStep.free', 'This line is already on the sheet.');
   }
-  const name = (ref: PrecreaseRef | undefined) =>
-    ref ? plannerReferenceName(t, index, ref, mirrored, step.id) : '?';
-  const [i0, i1, i2, i3] = witness.inputs;
+  const letters = inputLetters(witness.inputs);
+  const name = (which: number) => letters.byInput[which] ?? '?';
   let sentence: string;
   switch (witness.axiom) {
     case 1:
       sentence = t('panels:references.planStep.axiom1', 'Fold through {{a}} and {{b}}.', {
-        a: name(i0),
-        b: name(i1),
+        a: name(0),
+        b: name(1),
       });
       break;
     case 2:
       sentence = t('panels:references.planStep.axiom2', 'Fold {{a}} onto {{b}}.', {
-        a: name(i0),
-        b: name(i1),
+        a: name(0),
+        b: name(1),
       });
       break;
     case 3:
       sentence = t('panels:references.planStep.axiom3', 'Fold {{a}} onto {{b}}.', {
-        a: name(i0),
-        b: name(i1),
+        a: name(0),
+        b: name(1),
       });
       break;
-    case 4:
-      sentence = t(
-        'panels:references.planStep.axiom4',
-        'Fold through {{a}}, folding {{b}} onto itself.',
-        { a: name(i0), b: name(i1) }
-      );
+    case 4: {
+      // The card draws a perpendicular as a folder makes one — hold the mark,
+      // swing a corner onto the line's other arm — when it can find that
+      // corner, and letters it. Say the same thing it shows.
+      const corner = perpendicularMotion(sequence, unitFrame(sequence), step, witness);
+      sentence = corner
+        ? t(
+            'panels:references.planStep.axiom4Corner',
+            'Fold through {{p}}, bringing {{q}} onto {{a}}.',
+            { p: name(0), q: letters.nextPoint, a: name(corner.lineAt) }
+          )
+        : t('panels:references.planStep.axiom4', 'Fold through {{a}}, folding {{b}} onto itself.', {
+            a: name(0),
+            b: name(1),
+          });
       break;
+    }
     case 5:
       sentence = t(
         'panels:references.planStep.axiom5',
         'Fold through {{a}}, bringing {{b}} onto {{c}}.',
-        { a: name(i0), b: name(i1), c: name(i2) }
+        { a: name(0), b: name(1), c: name(2) }
       );
       break;
     case 6:
       sentence = t(
         'panels:references.planStep.axiom6',
         'Fold {{a}} onto {{b}} and {{c}} onto {{d}}.',
-        { a: name(i0), b: name(i1), c: name(i2), d: name(i3) }
+        { a: name(0), b: name(1), c: name(2), d: name(3) }
       );
       break;
     case 7:
       sentence = t(
         'panels:references.planStep.axiom7',
         'Fold {{b}} onto itself so that {{a}} lands on {{c}}.',
-        { a: name(i0), b: name(i1), c: name(i2) }
+        { a: name(0), b: name(1), c: name(2) }
       );
       break;
     default:
       sentence = t('panels:references.planStep.unknown', 'Fold using {{inputs}}.', {
-        inputs: witness.inputs
-          .map((ref) => plannerReferenceName(t, index, ref, mirrored, step.id))
-          .join(', '),
+        inputs: letters.byInput.join(', '),
       });
   }
   // A reference the paper does not carry yet. The planner prefers a witness it

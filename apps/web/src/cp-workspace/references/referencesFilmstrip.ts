@@ -22,7 +22,7 @@ import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
 import { stepDiagram } from './referenceFinderDiagramToPrimitives';
 import type { ReferencesCandidateResult, ReferencesPlanVariant } from './referencesResults';
 import type { ReferencesViewStep } from './referencesSequenceView';
-import { describePlannerStep, describeStep, plannerRefIndex } from './referencesStepSentences';
+import { describePlannerStep, describeStep } from './referencesStepSentences';
 
 /** One card: a picture and the sentence under the strip when it is active. */
 export interface ReferencesFilmstripStep {
@@ -83,7 +83,6 @@ export function planFilmstrip(
   variants: readonly ReferencesPlanVariant[],
   viewSteps: readonly ReferencesViewStep[]
 ): ReferencesFilmstripStep[] {
-  const indexes = variants.map((variant) => plannerRefIndex(variant.sequence));
   let folds = 0;
   return viewSteps.flatMap((view, viewIndex): ReferencesFilmstripStep[] => {
     const variant = variants[view.component];
@@ -91,8 +90,6 @@ export function planFilmstrip(
     const sequence = variant.sequence;
     switch (view.kind) {
       case 'fold': {
-        const index = indexes[view.component];
-        if (!index) return [];
         folds += 1;
         return [
           {
@@ -103,7 +100,7 @@ export function planFilmstrip(
             diagram: null,
             primitives: plannerStepDiagram(sequence, unitFrame(sequence), view.step),
             mirrored: view.side === 'back',
-            sentence: describePlannerStep(t, sequence, index, view.step),
+            sentence: describePlannerStep(t, sequence, view.step),
           },
         ];
       }

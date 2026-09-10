@@ -2898,11 +2898,6 @@
     "panels:references.planStep.visibleAux": "3b22e6e61c00",
     "panels:references.progress.closing": "62fc64f5cb23",
     "panels:references.progress.querying": "9304f08ee3df",
-    "panels:references.ref.existingCrease": "420f70b90df2",
-    "panels:references.ref.intersection": "67b6da415ee6",
-    "panels:references.ref.mark": "95b8985ac1df",
-    "panels:references.ref.markOn": "0be0172e8c70",
-    "panels:references.ref.stepCrease": "5965ee7f1ef3",
     "panels:references.settings.landmarksFirst": "8fb7a0f2841b",
     "panels:references.settings.sequence": "fd0333c1a664",
     "panels:references.settings.showPinches": "55b2acc9d0ce",
@@ -2948,8 +2943,9 @@
     "panels:references.flip.doneBadge": "7804f7a79a9e",
     "panels:references.flip.turnOverBadge": "b6bfcfb7bb52",
     "panels:references.planStep.markFirst": "d42a18b140cf",
-    "panels:references.planStep.pressAt": "a762c1e32db3",
-    "panels:references.planStep.pressOut": "e6a0893eed0e"
+    "panels:references.planStep.pressAt": "e1ab22e03f0e",
+    "panels:references.planStep.pressOut": "4f81b0f6bde4",
+    "panels:references.planStep.axiom4Corner": "923cddafa8c9"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5850,11 +5846,6 @@
     "panels:references.planStep.visibleAux": "3b22e6e61c00",
     "panels:references.progress.closing": "62fc64f5cb23",
     "panels:references.progress.querying": "9304f08ee3df",
-    "panels:references.ref.existingCrease": "420f70b90df2",
-    "panels:references.ref.intersection": "67b6da415ee6",
-    "panels:references.ref.mark": "95b8985ac1df",
-    "panels:references.ref.markOn": "0be0172e8c70",
-    "panels:references.ref.stepCrease": "5965ee7f1ef3",
     "panels:references.settings.landmarksFirst": "8fb7a0f2841b",
     "panels:references.settings.sequence": "fd0333c1a664",
     "panels:references.settings.showPinches": "55b2acc9d0ce",
@@ -5900,8 +5891,9 @@
     "panels:references.flip.doneBadge": "7804f7a79a9e",
     "panels:references.flip.turnOverBadge": "b6bfcfb7bb52",
     "panels:references.planStep.markFirst": "d42a18b140cf",
-    "panels:references.planStep.pressAt": "a762c1e32db3",
-    "panels:references.planStep.pressOut": "e6a0893eed0e"
+    "panels:references.planStep.pressAt": "e1ab22e03f0e",
+    "panels:references.planStep.pressOut": "4f81b0f6bde4",
+    "panels:references.planStep.axiom4Corner": "923cddafa8c9"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8802,11 +8794,6 @@
     "panels:references.planStep.visibleAux": "3b22e6e61c00",
     "panels:references.progress.closing": "62fc64f5cb23",
     "panels:references.progress.querying": "9304f08ee3df",
-    "panels:references.ref.existingCrease": "420f70b90df2",
-    "panels:references.ref.intersection": "67b6da415ee6",
-    "panels:references.ref.mark": "95b8985ac1df",
-    "panels:references.ref.markOn": "0be0172e8c70",
-    "panels:references.ref.stepCrease": "5965ee7f1ef3",
     "panels:references.settings.landmarksFirst": "8fb7a0f2841b",
     "panels:references.settings.sequence": "fd0333c1a664",
     "panels:references.settings.showPinches": "55b2acc9d0ce",
@@ -8852,8 +8839,9 @@
     "panels:references.flip.doneBadge": "7804f7a79a9e",
     "panels:references.flip.turnOverBadge": "b6bfcfb7bb52",
     "panels:references.planStep.markFirst": "d42a18b140cf",
-    "panels:references.planStep.pressAt": "a762c1e32db3",
-    "panels:references.planStep.pressOut": "e6a0893eed0e"
+    "panels:references.planStep.pressAt": "e1ab22e03f0e",
+    "panels:references.planStep.pressOut": "4f81b0f6bde4",
+    "panels:references.planStep.axiom4Corner": "923cddafa8c9"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11703,11 +11691,6 @@
     "panels:references.planStep.visibleAux": "3b22e6e61c00",
     "panels:references.progress.closing": "62fc64f5cb23",
     "panels:references.progress.querying": "9304f08ee3df",
-    "panels:references.ref.existingCrease": "420f70b90df2",
-    "panels:references.ref.intersection": "67b6da415ee6",
-    "panels:references.ref.mark": "95b8985ac1df",
-    "panels:references.ref.markOn": "0be0172e8c70",
-    "panels:references.ref.stepCrease": "5965ee7f1ef3",
     "panels:references.settings.landmarksFirst": "8fb7a0f2841b",
     "panels:references.settings.sequence": "fd0333c1a664",
     "panels:references.settings.showPinches": "55b2acc9d0ce",
@@ -11748,8 +11731,9 @@
     "panels:references.flip.doneBadge": "7804f7a79a9e",
     "panels:references.flip.turnOverBadge": "b6bfcfb7bb52",
     "panels:references.planStep.markFirst": "d42a18b140cf",
-    "panels:references.planStep.pressAt": "a762c1e32db3",
-    "panels:references.planStep.pressOut": "e6a0893eed0e"
+    "panels:references.planStep.pressAt": "e1ab22e03f0e",
+    "panels:references.planStep.pressOut": "4f81b0f6bde4",
+    "panels:references.planStep.axiom4Corner": "923cddafa8c9"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14599,11 +14583,6 @@
     "panels:references.planStep.visibleAux": "3b22e6e61c00",
     "panels:references.progress.closing": "62fc64f5cb23",
     "panels:references.progress.querying": "9304f08ee3df",
-    "panels:references.ref.existingCrease": "420f70b90df2",
-    "panels:references.ref.intersection": "67b6da415ee6",
-    "panels:references.ref.mark": "95b8985ac1df",
-    "panels:references.ref.markOn": "0be0172e8c70",
-    "panels:references.ref.stepCrease": "5965ee7f1ef3",
     "panels:references.settings.landmarksFirst": "8fb7a0f2841b",
     "panels:references.settings.sequence": "fd0333c1a664",
     "panels:references.settings.showPinches": "55b2acc9d0ce",
@@ -14644,8 +14623,9 @@
     "panels:references.flip.doneBadge": "7804f7a79a9e",
     "panels:references.flip.turnOverBadge": "b6bfcfb7bb52",
     "panels:references.planStep.markFirst": "d42a18b140cf",
-    "panels:references.planStep.pressAt": "a762c1e32db3",
-    "panels:references.planStep.pressOut": "e6a0893eed0e"
+    "panels:references.planStep.pressAt": "e1ab22e03f0e",
+    "panels:references.planStep.pressOut": "4f81b0f6bde4",
+    "panels:references.planStep.axiom4Corner": "923cddafa8c9"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -17546,11 +17526,6 @@
     "panels:references.planStep.visibleAux": "3b22e6e61c00",
     "panels:references.progress.closing": "62fc64f5cb23",
     "panels:references.progress.querying": "9304f08ee3df",
-    "panels:references.ref.existingCrease": "420f70b90df2",
-    "panels:references.ref.intersection": "67b6da415ee6",
-    "panels:references.ref.mark": "95b8985ac1df",
-    "panels:references.ref.markOn": "0be0172e8c70",
-    "panels:references.ref.stepCrease": "5965ee7f1ef3",
     "panels:references.settings.landmarksFirst": "8fb7a0f2841b",
     "panels:references.settings.sequence": "fd0333c1a664",
     "panels:references.settings.showPinches": "55b2acc9d0ce",
@@ -17596,8 +17571,9 @@
     "panels:references.flip.doneBadge": "7804f7a79a9e",
     "panels:references.flip.turnOverBadge": "b6bfcfb7bb52",
     "panels:references.planStep.markFirst": "d42a18b140cf",
-    "panels:references.planStep.pressAt": "a762c1e32db3",
-    "panels:references.planStep.pressOut": "e6a0893eed0e"
+    "panels:references.planStep.pressAt": "e1ab22e03f0e",
+    "panels:references.planStep.pressOut": "4f81b0f6bde4",
+    "panels:references.planStep.axiom4Corner": "923cddafa8c9"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -20498,11 +20474,6 @@
     "panels:references.planStep.visibleAux": "3b22e6e61c00",
     "panels:references.progress.closing": "62fc64f5cb23",
     "panels:references.progress.querying": "9304f08ee3df",
-    "panels:references.ref.existingCrease": "420f70b90df2",
-    "panels:references.ref.intersection": "67b6da415ee6",
-    "panels:references.ref.mark": "95b8985ac1df",
-    "panels:references.ref.markOn": "0be0172e8c70",
-    "panels:references.ref.stepCrease": "5965ee7f1ef3",
     "panels:references.settings.landmarksFirst": "8fb7a0f2841b",
     "panels:references.settings.sequence": "fd0333c1a664",
     "panels:references.settings.showPinches": "55b2acc9d0ce",
@@ -20548,8 +20519,9 @@
     "panels:references.flip.doneBadge": "7804f7a79a9e",
     "panels:references.flip.turnOverBadge": "b6bfcfb7bb52",
     "panels:references.planStep.markFirst": "d42a18b140cf",
-    "panels:references.planStep.pressAt": "a762c1e32db3",
-    "panels:references.planStep.pressOut": "e6a0893eed0e"
+    "panels:references.planStep.pressAt": "e1ab22e03f0e",
+    "panels:references.planStep.pressOut": "4f81b0f6bde4",
+    "panels:references.planStep.axiom4Corner": "923cddafa8c9"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -23399,11 +23371,6 @@
     "panels:references.planStep.visibleAux": "3b22e6e61c00",
     "panels:references.progress.closing": "62fc64f5cb23",
     "panels:references.progress.querying": "9304f08ee3df",
-    "panels:references.ref.existingCrease": "420f70b90df2",
-    "panels:references.ref.intersection": "67b6da415ee6",
-    "panels:references.ref.mark": "95b8985ac1df",
-    "panels:references.ref.markOn": "0be0172e8c70",
-    "panels:references.ref.stepCrease": "5965ee7f1ef3",
     "panels:references.settings.landmarksFirst": "8fb7a0f2841b",
     "panels:references.settings.sequence": "fd0333c1a664",
     "panels:references.settings.showPinches": "55b2acc9d0ce",
@@ -23444,7 +23411,8 @@
     "panels:references.flip.doneBadge": "7804f7a79a9e",
     "panels:references.flip.turnOverBadge": "b6bfcfb7bb52",
     "panels:references.planStep.markFirst": "d42a18b140cf",
-    "panels:references.planStep.pressAt": "a762c1e32db3",
-    "panels:references.planStep.pressOut": "e6a0893eed0e"
+    "panels:references.planStep.pressAt": "e1ab22e03f0e",
+    "panels:references.planStep.pressOut": "4f81b0f6bde4",
+    "panels:references.planStep.axiom4Corner": "923cddafa8c9"
   }
 }

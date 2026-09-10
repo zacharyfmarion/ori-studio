@@ -51,6 +51,7 @@
  * that comes from `who_moves` being empty and needs no special case here.
  */
 import { dashRulerAlong, foldArrowArc } from '../stepDiagramGeometry';
+import { inputLetters } from './inputLetters';
 import type { Point } from '../../../lib/geometry';
 import type { DiagramFrame, DiagramSegment } from './diagramFrames';
 import type {
@@ -170,6 +171,57 @@ const lerp = (a: Point, b: Point, t: number): Point => ({
 const midpoint = (seg: DiagramSegment): Point => lerp(seg[0], seg[1], 0.5);
 
 /**
+ * The references a press card shows: the line being pressed, then the crease
+ * the pinch is located by. Lettered `A` and `B` in that order, so the sentence
+ * can say "refold A and pinch it where B crosses it".
+ */
+export function pressInputs(step: PrecreaseStep): PrecreaseRef[] {
+  const along: PrecreaseRef = { kind: 'line', id: step.line_id };
+  return step.press?.sighted_from != null
+    ? [along, { kind: 'line', id: step.press.sighted_from }]
+    : [along];
+}
+
+/**
+ * How an O4 is performed, when it can be drawn as a motion at all.
+ *
+ * The crate says nothing moves — a perpendicular is sighted, not swung — but a
+ * folder makes one by folding the line onto itself with the mark as the hinge:
+ * the corner at the far end of the line's shorter arm swings over and lands on
+ * the other arm. `corner` is that point; `moving` and `receiving` are the
+ * fold's two sides. Null when the picture has no such corner to offer.
+ */
+export function perpendicularMotion(
+  sequence: PrecreaseSequence,
+  frame: DiagramFrame,
+  step: PrecreaseStep,
+  witness: { axiom: number; inputs: readonly PrecreaseRef[] }
+): { lineAt: number; corner: Point; moving: number; receiving: number } | null {
+  const chord = frame.chord(step);
+  if (witness.axiom !== 4 || !chord) return null;
+  const lineAt = witness.inputs.findIndex((r) => r.kind === 'line' || r.kind === 'edge');
+  if (lineAt < 0) return null;
+  const ref = witness.inputs[lineAt]!;
+  const whole = segmentOfRef(sequence, frame, ref);
+  const foot = whole ? linesMeet(whole, chord) : null;
+  if (!whole || !foot) return null;
+  const reach = (q: Point) => Math.hypot(q.x - foot.x, q.y - foot.y);
+  // The shorter arm is the one to swing: less paper to move.
+  const end = reach(whole[0]) <= reach(whole[1]) ? whole[0] : whole[1];
+  const side = sideOf(chord, end);
+  if (side === 0) return null;
+  // The corner that moves is the far end of the crease on that arm.
+  const runs = spansOfRef(sequence, frame, ref).flatMap((span) => {
+    const kept = clipToSide(chord, side, span);
+    return kept ? [kept] : [];
+  });
+  const corner = runs
+    .flatMap((r) => [...r])
+    .reduce<Point | null>((far, q) => (far === null || reach(q) > reach(far) ? q : far), null);
+  return corner ? { lineAt, corner, moving: side, receiving: -side } : null;
+}
+
+/**
  * The part of a line a fold actually moves.
  *
  * A fold along `chord` swings one side of the paper over; a line crossing the
@@ -250,12 +302,6 @@ function clipToSide(chord: DiagramSegment, side: number, seg: DiagramSegment): D
   return on(s0) ? [seg[0], at] : [at, seg[1]];
 }
 
-/** `A B C…` for lines and edges, `P Q R…` for marks — ReferenceFinder's scheme. */
-function refLetter(ref: PrecreaseRef, lineIndex: number, pointIndex: number): string {
-  return ref.kind === 'point' || ref.kind === 'corner'
-    ? String.fromCharCode('P'.charCodeAt(0) + (pointIndex % 11))
-    : String.fromCharCode('A'.charCodeAt(0) + (lineIndex % 15));
-}
 
 /**
  * The thumbnail for `sequence.steps[index]`.
@@ -361,10 +407,11 @@ export function plannerStepDiagram(
   // located by a crease, and that crease is the one thing the card must show:
   // "pinch here" means nothing without the crossing that says where here is.
   const inputs: PrecreaseRef[] =
-    step.kind === 'press' && step.press?.sighted_from != null
-      ? [{ kind: 'line', id: step.press.sighted_from }]
+    step.kind === 'press'
+      ? pressInputs(step)
       : (witness?.inputs ?? []);
   const labels: StepDiagramPrimitive[] = [];
+  const letters = inputLetters(inputs);
   const chord = frame.chord(step);
   // O3 folds one line onto another, and the fold bisects the angle between
   // them. Only the arms of that angle take part: the moving line's half that
@@ -381,29 +428,7 @@ export function plannerStepDiagram(
   // other arm. So the picture shows the mark, that corner, and the arm it
   // lands on, with the motion drawn — and nothing else, because that is all
   // a folder needs.
-  const perpendicular = (() => {
-    if (witness?.axiom !== 4 || !chord) return null;
-    const lineAt = witness.inputs.findIndex((r) => r.kind === 'line' || r.kind === 'edge');
-    if (lineAt < 0) return null;
-    const ref = witness.inputs[lineAt]!;
-    const whole = segmentOfRef(sequence, frame, ref);
-    const foot = whole ? linesMeet(whole, chord) : null;
-    if (!whole || !foot) return null;
-    const reach = (q: Point) => Math.hypot(q.x - foot.x, q.y - foot.y);
-    // The shorter arm is the one to swing: less paper to move.
-    const end = reach(whole[0]) <= reach(whole[1]) ? whole[0] : whole[1];
-    const side = sideOf(chord, end);
-    if (side === 0) return null;
-    // The corner that moves is the far end of the crease on that arm.
-    const runs = spansOfRef(sequence, frame, ref).flatMap((span) => {
-      const kept = clipToSide(chord, side, span);
-      return kept ? [kept] : [];
-    });
-    const corner = runs
-      .flatMap((r) => [...r])
-      .reduce<Point | null>((far, q) => (far === null || reach(q) > reach(far) ? q : far), null);
-    return corner ? { lineAt, corner, moving: side, receiving: -side } : null;
-  })();
+  const perpendicular = witness ? perpendicularMotion(sequence, frame, step, witness) : null;
   const interior = (() => {
     if (perpendicular) return { moving: perpendicular.moving, receiving: perpendicular.receiving };
     if (witness?.axiom !== 3 || !chord) return null;
@@ -439,21 +464,17 @@ export function plannerStepDiagram(
       Math.min(...seg.map((q) => Math.hypot(q.x - vertex.x, q.y - vertex.y)));
     return [arm.reduce((a, b) => (gap(b) < gap(a) ? b : a))];
   };
-  let lineIndex = 0;
-  let pointIndex = 0;
   inputs.forEach((ref, which) => {
-    const letter = refLetter(ref, lineIndex, pointIndex);
+    const letter = letters.byInput[which]!;
     if (ref.kind === 'point' || ref.kind === 'corner') {
       const point = frame.point(ref.id);
       if (!point) return;
-      pointIndex += 1;
       primitives.push({ kind: 'point', at: xy(point), style: 'highlight' });
       labels.push({ kind: 'label', at: xy(point), text: letter, style: 'highlight' });
       return;
     }
     const segments = shown(which, ref, spansOfRef(sequence, frame, ref));
     if (segments.length === 0) return;
-    lineIndex += 1;
     for (const segment of segments) {
       primitives.push({
         kind: 'line',
@@ -476,13 +497,7 @@ export function plannerStepDiagram(
     const { corner } = perpendicular;
     const at = xy(corner);
     primitives.push({ kind: 'point', at, style: 'highlight' });
-    labels.push({
-      kind: 'label',
-      at,
-      text: refLetter({ kind: 'point', id: -1 }, lineIndex, pointIndex),
-      style: 'highlight',
-    });
-    pointIndex += 1;
+    labels.push({ kind: 'label', at, text: letters.nextPoint, style: 'highlight' });
     const out = foldArrowArc(at, reflectAcross(chord, at), xy(frame.centre));
     if (out) primitives.push({ kind: 'fold-arrow', out });
   }
