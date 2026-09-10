@@ -1067,6 +1067,9 @@ fn solve_exact_inner(
 
     // A design already on its lattice is solved by the lattice: snapped and
     // judged, with no optimisation. See [`LatticeSnapMode`].
+    // Under the cap the solve is there to be run: the input's own geometry
+    // stands in for it only when every vertex is on the lattice. Over the
+    // cap, where nothing else can answer, a few strays are tolerated.
     let lattice_quick = lattice_round(
         &model,
         input,
@@ -1074,7 +1077,14 @@ fn solve_exact_inner(
         &initial_params,
         &before,
         options,
-        "input",
+        LatticeStage {
+            name: "input",
+            outliers: if lattice_only {
+                crate::lattice::Outliers::Few
+            } else {
+                crate::lattice::Outliers::None
+            },
+        },
     );
     let lattice_exact = lattice_quick
         .as_ref()
@@ -1378,7 +1388,10 @@ fn solve_exact_inner(
             &current_params,
             &current_after,
             options,
-            "polish",
+            LatticeStage {
+                name: "polish",
+                outliers: crate::lattice::Outliers::None,
+            },
         ) {
             if let Some(adoption) = round.adopted {
                 current_params = adoption.params;
@@ -4834,6 +4847,14 @@ struct LatticeRound {
     adopted: Option<PinnedAdoption>,
 }
 
+/// Where a lattice round runs and what it may forgive.
+#[derive(Debug, Clone, Copy)]
+struct LatticeStage {
+    /// `input` when the round stands in for the solve, `polish` after it.
+    name: &'static str,
+    outliers: crate::lattice::Outliers,
+}
+
 fn lattice_round_json(outcome: &LatticeRoundOutcome) -> Value {
     json!({
         "stage": outcome.stage,
@@ -4872,8 +4893,12 @@ fn lattice_round(
     current_params: &OVector<f64, Dyn>,
     current_after: &GraphAnalysis,
     options: ExactSolveOptions,
-    stage: &'static str,
+    stage: LatticeStage,
 ) -> Option<LatticeRound> {
+    let LatticeStage {
+        name: stage,
+        outliers,
+    } = stage;
     if options.lattice_snap == LatticeSnapMode::Off || model.timeout_reached() {
         return None;
     }
@@ -4914,9 +4939,12 @@ fn lattice_round(
         }
     }
     let tolerance = options.lattice_snap_tolerance_px / model.image_size_px;
-    let Some(lattice) =
-        crate::lattice::detect_square_lattice(&coordinates, tolerance, model.image_size_px)
-    else {
+    let Some(lattice) = crate::lattice::detect_square_lattice(
+        &coordinates,
+        tolerance,
+        model.image_size_px,
+        outliers,
+    ) else {
         return Some(LatticeRound {
             outcome: LatticeRoundOutcome::of(stage, current_after, current_status),
             adopted: None,
@@ -4977,6 +5005,15 @@ fn lattice_round(
     {
         refusals.push("lattice_status_regressed".to_owned());
     }
+    // On the lattice the answer is exact or it is wrong: every angle a
+    // multiple of the family's step, so Kawasaki holds to the last digit or
+    // misses by degrees. The carrier residual is the one bar not asked — a
+    // carrier group the join built from creases not quite on one lattice
+    // line still measures against a single line (skeleton-shrimp, 5.3e-4
+    // against a bar of 5e-4, every vertex on its 64-grid).
+    if !lattice_exact(&after, options) {
+        refusals.push("lattice_not_exact".to_owned());
+    }
     refusals.sort();
     refusals.dedup();
     let adopted = refusals.is_empty();
@@ -4999,6 +5036,21 @@ fn lattice_round(
             frozen_params: model.frozen_params.clone(),
         }),
     })
+}
+
+/// Whether a snapped answer is exact by everything but the carrier residual:
+/// the topology clean, the checker clean, Kawasaki at the bar, nothing
+/// degenerate, crossing or off its boundary.
+fn lattice_exact(after: &GraphAnalysis, options: ExactSolveOptions) -> bool {
+    after.odd_degree_vertices.is_empty()
+        && after.maekawa_failures.is_empty()
+        && after.degenerate_edges.is_empty()
+        && after.unmodeled_crossings.is_empty()
+        && after.boundary_failures.is_empty()
+        && after
+            .camv
+            .is_some_and(|camv| camv.angle_violations == 0 && camv.big_little_big_violations == 0)
+        && after.max_kawasaki_residual_degrees <= options.solved_kawasaki_epsilon_degrees
 }
 
 /// Set every carrier group's line to the one through its spans' snapped

@@ -33,15 +33,28 @@ const MAX_BAND: f64 = 0.5;
 const MIN_CELL_PX: f64 = 6.0;
 /// Fewer distinct coordinates than this are not evidence of a lattice.
 const MIN_COORDINATES: usize = 8;
-/// The share of coordinates allowed further than the tolerance from the
-/// lattice — a junction the detector placed a couple of pixels off among
-/// hundreds it placed well (diamond sword: one vertex 3.0 px off its
-/// 112-grid, the next 1.5) — provided every one is within
-/// [`MAX_OUTLIER_TOLERANCES`] tolerances of it, where the nearest lattice
-/// point is still unambiguous (a cell is at least [`MIN_CELL_PX`]). The
-/// lattice's significance is counted on the coordinates within tolerance
-/// alone.
-const MAX_OUTLIER_FRACTION: f64 = 0.02;
+/// How far off the lattice a reading may sit and still be read as on it.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Outliers {
+    /// Every coordinate within the tolerance: what a converged solve of a
+    /// design on the lattice looks like, and what a detection has to look
+    /// like when a solve could still be run instead.
+    None,
+    /// A few readings further off — a junction the detector placed a couple
+    /// of pixels off among hundreds it placed well (diamond sword: one vertex
+    /// 3.0 px off its 112-grid, the next 1.5) — for a detection nothing else
+    /// can solve. At most [`MAX_OUTLIER_FRACTION`] of the coordinates, and
+    /// never fewer than [`MIN_OUTLIERS_ALLOWED`], each within
+    /// [`MAX_OUTLIER_TOLERANCES`] tolerances and a third of a cell, where the
+    /// nearest lattice point is still the right one. Hybrids with a few
+    /// off-grid vertices sit at 1.3–1.8% (ant, ladybug, swan on the curated
+    /// benchmark, whose truths are off the lattice read); designs on their
+    /// grid at 0.1–0.4%.
+    Few,
+}
+
+const MAX_OUTLIER_FRACTION: f64 = 0.005;
+const MIN_OUTLIERS_ALLOWED: usize = 2;
 const MAX_OUTLIER_TOLERANCES: f64 = 2.5;
 /// Two coordinates closer than this, in the unit square, are one reading.
 const DISTINCT_COORDINATE_EPSILON: f64 = 1e-6;
@@ -74,14 +87,14 @@ pub fn snap_to(coordinate: f64, cells: u32) -> f64 {
 
 /// The coarsest square lattice, from [`MIN_CELLS`] cells up to a cell of
 /// [`MIN_CELL_PX`] at `pixels_per_unit`, that `coordinates` (unit-square
-/// values) sit within `tolerance` of — all but a share of
-/// [`MAX_OUTLIER_FRACTION`], which may sit up to twice as far — provided
-/// that could not have happened by chance. `None` when there is no such
-/// lattice.
+/// values) sit within `tolerance` of — all of them, or all but the few
+/// [`Outliers::Few`] allows — provided that could not have happened by
+/// chance. `None` when there is no such lattice.
 pub fn detect_square_lattice(
     coordinates: &[f64],
     tolerance: f64,
     pixels_per_unit: f64,
+    outliers: Outliers,
 ) -> Option<SquareLattice> {
     let positive = |value: f64| value.is_finite() && value > 0.0;
     if !positive(tolerance) || !positive(pixels_per_unit) {
@@ -98,28 +111,35 @@ pub fn detect_square_lattice(
     // design mostly on 56 cells with a few dozen vertices on the 112 half-grid
     // earns it, one stray vertex that some fine lattice happens to pass near
     // does not.
+    let allowed_outliers = match outliers {
+        Outliers::None => 0,
+        Outliers::Few => ((MAX_OUTLIER_FRACTION * coordinates.len() as f64).floor() as usize)
+            .max(MIN_OUTLIERS_ALLOWED),
+    };
     let mut unexplained: Option<Vec<f64>> = None;
     for cells in MIN_CELLS..=max_cells {
         let band = 2.0 * tolerance * f64::from(cells);
         if band >= MAX_BAND {
             break;
         }
+        let reach = (tolerance * MAX_OUTLIER_TOLERANCES).min(1.0 / f64::from(cells) / 3.0);
         let mut max_offset = 0.0_f64;
-        let mut outliers = 0usize;
+        let mut off = 0usize;
         let mut far = Vec::new();
         for &coordinate in coordinates {
             let offset = (coordinate - snap_to(coordinate, cells)).abs();
             if offset > tolerance {
-                outliers += 1;
+                off += 1;
             }
-            if offset > tolerance * MAX_OUTLIER_TOLERANCES {
+            if offset > tolerance.max(reach) {
                 far.push(coordinate);
             }
             max_offset = max_offset.max(offset);
         }
-        if outliers as f64 > MAX_OUTLIER_FRACTION * coordinates.len() as f64 {
+        if off > allowed_outliers {
             continue;
         }
+        let outliers = off;
         if !far.is_empty() {
             if unexplained.is_none() {
                 unexplained = Some(far);
@@ -210,7 +230,8 @@ mod tests {
     #[test]
     fn reads_the_grid_a_noisy_design_sits_on() {
         let coordinates = grid_coordinates(16, 60, 0.4 / PX);
-        let lattice = detect_square_lattice(&coordinates, 1.5 / PX, PX).expect("lattice");
+        let lattice =
+            detect_square_lattice(&coordinates, 1.5 / PX, PX, Outliers::None).expect("lattice");
         assert_eq!(lattice.cells, 16);
         assert!(lattice.max_offset <= 0.4 / PX + 1e-12);
         assert!(lattice.chance < 1e-6);
@@ -222,7 +243,8 @@ mod tests {
         let mut coordinates = grid_coordinates(8, 30, 0.0);
         coordinates.push(1.0 / 16.0);
         coordinates.push(5.0 / 16.0);
-        let lattice = detect_square_lattice(&coordinates, 1.0 / PX, PX).expect("lattice");
+        let lattice =
+            detect_square_lattice(&coordinates, 1.0 / PX, PX, Outliers::None).expect("lattice");
         assert_eq!(lattice.cells, 16);
     }
 
@@ -230,28 +252,29 @@ mod tests {
     fn scattered_coordinates_have_no_lattice() {
         // Random positions: none within a pixel of a coarse grid, and a fine
         // grid that would catch them all is not believed.
-        assert!(detect_square_lattice(&scattered(40), 1.0 / PX, PX).is_none());
-        assert!(detect_square_lattice(&scattered(400), 1.5 / PX, PX).is_none());
+        assert!(detect_square_lattice(&scattered(40), 1.0 / PX, PX, Outliers::Few).is_none());
+        assert!(detect_square_lattice(&scattered(400), 1.5 / PX, PX, Outliers::Few).is_none());
     }
 
     #[test]
     fn repeated_coordinates_count_once() {
         // Twelve vertices on three lines are three readings: not enough.
         let coordinates: Vec<f64> = (0..12).map(|i| f64::from(i % 3) / 8.0).collect();
-        assert!(detect_square_lattice(&coordinates, 1.0 / PX, PX).is_none());
+        assert!(detect_square_lattice(&coordinates, 1.0 / PX, PX, Outliers::None).is_none());
     }
 
     #[test]
     fn too_few_coordinates_are_no_evidence() {
         let coordinates = grid_coordinates(8, 6, 0.0);
-        assert!(detect_square_lattice(&coordinates, 1.0 / PX, PX).is_none());
+        assert!(detect_square_lattice(&coordinates, 1.0 / PX, PX, Outliers::None).is_none());
     }
 
     #[test]
     fn a_vertex_off_the_grid_refuses_the_lattice() {
         let mut coordinates = grid_coordinates(16, 60, 0.0);
         coordinates.push(3.0 / 16.0 + 4.3 / PX);
-        assert!(detect_square_lattice(&coordinates, 1.0 / PX, PX).is_none());
+        assert!(detect_square_lattice(&coordinates, 1.0 / PX, PX, Outliers::Few).is_none());
+        assert!(detect_square_lattice(&coordinates, 1.0 / PX, PX, Outliers::None).is_none());
     }
 
     #[test]
@@ -262,24 +285,28 @@ mod tests {
         for k in [1, 3, 5, 7, 9, 11] {
             coordinates.push(k as f64 / 16.0);
         }
-        let lattice = detect_square_lattice(&coordinates, 1.0 / PX, PX).expect("lattice");
+        let lattice =
+            detect_square_lattice(&coordinates, 1.0 / PX, PX, Outliers::None).expect("lattice");
         assert_eq!(lattice.cells, 16);
     }
 
     #[test]
     fn a_few_vertices_a_little_further_off_are_tolerated() {
         // One coordinate in a hundred at 1.8 px, within the outlier reach:
-        // the lattice is read, and the reading reports it.
+        // the lattice is read when a few outliers are allowed, and the
+        // reading reports it; not when none are.
         let mut coordinates = grid_coordinates(16, 100, 0.3 / PX);
         coordinates.push(5.0 / 16.0 + 1.8 / PX);
-        let lattice = detect_square_lattice(&coordinates, 1.0 / PX, PX).expect("lattice");
+        let lattice =
+            detect_square_lattice(&coordinates, 1.0 / PX, PX, Outliers::Few).expect("lattice");
         assert_eq!(lattice.cells, 16);
         assert!((lattice.max_offset - 1.8 / PX).abs() < 1e-12);
-        // Five in a hundred is more than the share the lattice tolerates.
-        for k in 1..5 {
+        assert!(detect_square_lattice(&coordinates, 1.0 / PX, PX, Outliers::None).is_none());
+        // Three in a hundred is more than the few the lattice tolerates.
+        for k in 1..3 {
             coordinates.push(k as f64 / 16.0 + 1.7 / PX);
         }
-        assert!(detect_square_lattice(&coordinates, 1.0 / PX, PX).is_none());
+        assert!(detect_square_lattice(&coordinates, 1.0 / PX, PX, Outliers::Few).is_none());
     }
 
     #[test]
