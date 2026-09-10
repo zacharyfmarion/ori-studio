@@ -377,13 +377,29 @@ export function describePlannerStep(
 ): string {
   const step = sequence.steps[stepIndex];
   if (!step) return '';
+  // Everything the sentence names is named as the reader sees it: a step on
+  // the back is drawn mirrored, so its "left edge" is the pattern's right one.
+  const mirrored = step.side === 'back';
+  // A press has no witness: it is a pinch on a crease already made, not a
+  // construction. What it needs to say is which crease, and where on it.
+  if (step.kind === 'press' && step.press) {
+    const along = plannerLineName(t, index, step.line_id, mirrored);
+    return step.press.sighted_from === null
+      ? t(
+          'panels:references.planStep.pressOut',
+          'Refold {{along}} and crease it further, out to where it meets the next crease or the edge.',
+          { along }
+        )
+      : t(
+          'panels:references.planStep.pressAt',
+          'Refold {{along}} and pinch it where {{across}} crosses it.',
+          { along, across: plannerLineName(t, index, step.press.sighted_from, mirrored) }
+        );
+  }
   const witness = chosenWitness(step);
   if (!witness) {
     return t('panels:references.planStep.free', 'This line is already on the sheet.');
   }
-  // Everything the sentence names is named as the reader sees it: a step on
-  // the back is drawn mirrored, so its "left edge" is the pattern's right one.
-  const mirrored = step.side === 'back';
   const name = (ref: PrecreaseRef | undefined) =>
     ref ? plannerReferenceName(t, index, ref, mirrored, step.id) : '?';
   const [i0, i1, i2, i3] = witness.inputs;

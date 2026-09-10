@@ -196,3 +196,38 @@ describe('a step made on the back', () => {
     expect(strip(back)).toBe(strip(front));
   });
 });
+
+describe('a press step', () => {
+  // A press on the fixture's second step's line (line id 5, made at step 2),
+  // located by the crease from step 3 (line id 6).
+  const sequence = plannerSequenceFixture();
+  const made = sequence.steps[1]!;
+  const press = {
+    ...made,
+    id: 99,
+    kind: 'press' as const,
+    witnesses: [],
+    chosen: null,
+    cp_line_ids: [],
+    cp_spans: [],
+    extent: { kind: 'pinches' as const, spans: [[[0.47, 0.5], [0.53, 0.5]] as [[number, number], [number, number]]] },
+    press: { at: [0.5, 0.5] as [number, number], point: 4, sighted_from: 6 },
+  };
+  const withPress = { ...sequence, steps: [...sequence.steps, press] };
+  const index = plannerRefIndex(withPress);
+
+  it('says which crease to refold and which crossing to pinch at', () => {
+    const sentence = describePlannerStep(t, withPress, index, withPress.steps.length - 1);
+    expect(sentence).toBe(
+      'Refold the crease from step 2 and pinch it where the crease from step 3 crosses it.'
+    );
+  });
+
+  it('says to run the crease out when nothing sights it yet', () => {
+    const out = { ...press, press: { ...press.press, sighted_from: null } };
+    const seq = { ...sequence, steps: [...sequence.steps, out] };
+    const sentence = describePlannerStep(t, seq, plannerRefIndex(seq), seq.steps.length - 1);
+    expect(sentence).toContain('Refold the crease from step 2 and crease it further');
+    expect(sentence).toContain('the edge');
+  });
+});

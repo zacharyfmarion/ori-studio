@@ -879,6 +879,8 @@
       "markFirst": "Eine dieser Markierungen liegt dort, wo sich zwei Falten kreuzen würden, wenn sie weiterliefen — kneife sie zuerst.",
       "partlyReversed": "Diese Linie ist im Muster in beide Richtungen gefaltet; der Rest kehrt sich beim Zusammenlegen um.",
       "pinch": "Nur kneifen – es wird nur die Markierung gebraucht.",
+      "pressAt": "Falte {{along}} erneut und kniffe sie dort, wo {{across}} sie kreuzt.",
+      "pressOut": "Falte {{along}} erneut und ziehe die Falte weiter, bis zur nächsten Falte oder zum Rand.",
       "unknown": "Falte mit {{inputs}}.",
       "visibleAux": "Diese Faltlinie ist im fertigen Modell sichtbar."
     },

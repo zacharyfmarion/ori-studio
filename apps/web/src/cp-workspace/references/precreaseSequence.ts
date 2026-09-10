@@ -54,7 +54,27 @@ export type PrecreaseExtent =
   | { kind: 'full' }
   | { kind: 'pinches'; spans: PrecreasePlanSegment[] };
 
-export type PrecreaseStepKind = 'cp' | 'aux';
+/**
+ * `cp` realises crease the pattern contains; `aux` is a helper line it does
+ * not; `press` is more crease on a line already made — a pinch put on the paper
+ * so a later step has a mark to sight. A press is not a fold: the folder refolds
+ * a crease that is already there.
+ */
+export type PrecreaseStepKind = 'cp' | 'aux' | 'press';
+
+/** What a `press` step is for. */
+export interface PrecreaseStepPress {
+  /** The mark being made, in the planner's unit frame. */
+  at: [number, number];
+  /** Its state point id. */
+  point: number;
+  /**
+   * The already-creased line the press is located by — the pinch goes where
+   * that crease crosses this step's line. `null` for a press that runs out to
+   * a findable end and needs no sighting.
+   */
+  sighted_from: number | null;
+}
 
 /**
  * Which way a crease folds in the finished pattern.
@@ -177,6 +197,8 @@ export interface PrecreaseStep {
    * construction, so the plan can gain the fold that puts the mark on the paper.
    */
   missing_marks: [number, number][];
+  /** Present exactly when `kind` is `press`. */
+  press?: PrecreaseStepPress;
   hoisted: boolean;
 }
 
@@ -200,6 +222,12 @@ export interface PrecreaseTotals {
   cp_lines: number;
   aux: number;
   visible_aux: number;
+  /**
+   * Press steps: extra crease the pattern does not contain, made so a later
+   * step can be sighted. Apart from `aux` so "what the design asks for" and
+   * "what correctness cost" never blur. Absent from plans older than this.
+   */
+  presses?: number;
   /** The exact lower bound within the flat-sheet model. */
   lower_bound: number;
   free_lines: number;

@@ -274,3 +274,41 @@ describe('the cards that are not folds', () => {
     expect(styles).toContain('crease');
   });
 });
+
+describe('a press step', () => {
+  const sequence = plannerSequenceFixture();
+  const made = sequence.steps[1]!;
+  const press = {
+    ...made,
+    id: 99,
+    kind: 'press' as const,
+    witnesses: [],
+    chosen: null,
+    cp_line_ids: [],
+    cp_spans: [],
+    direction: 'valley' as const,
+    extent: { kind: 'pinches' as const, spans: [[[0.47, 0.5], [0.53, 0.5]] as [[number, number], [number, number]]] },
+    press: { at: [0.5, 0.5] as [number, number], point: 4, sighted_from: 6 },
+  };
+  const withPress = { ...sequence, steps: [...sequence.steps, press] };
+  const diagram = plannerStepDiagram(withPress, unitFrame(withPress), withPress.steps.length - 1);
+
+  it('draws its pinch, and nothing that claims to be pattern crease', () => {
+    const lines = (diagram?.primitives ?? []).filter((p) => p.kind === 'line');
+    expect(lines.some((l) => l.style === 'pinch-valley')).toBe(true);
+    expect(lines.some((l) => l.style === 'valley' || l.style === 'mountain')).toBe(false);
+  });
+
+  it('shows the crease the pinch is located by, lettered', () => {
+    const highlights = (diagram?.primitives ?? []).filter(
+      (p) => p.kind === 'line' && p.style === 'highlight'
+    );
+    expect(highlights).toHaveLength(1);
+    const labels = (diagram?.primitives ?? []).filter((p) => p.kind === 'label');
+    expect(labels.map((l) => (l.kind === 'label' ? l.text : ''))).toEqual(['A']);
+  });
+
+  it('draws no arrow — nothing moves', () => {
+    expect((diagram?.primitives ?? []).some((p) => p.kind === 'fold-arrow')).toBe(false);
+  });
+});

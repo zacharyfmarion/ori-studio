@@ -2947,7 +2947,9 @@
     "panels:references.summary.turnOvers_other": "ee2395a203d8",
     "panels:references.flip.doneBadge": "7804f7a79a9e",
     "panels:references.flip.turnOverBadge": "b6bfcfb7bb52",
-    "panels:references.planStep.markFirst": "d42a18b140cf"
+    "panels:references.planStep.markFirst": "d42a18b140cf",
+    "panels:references.planStep.pressAt": "a762c1e32db3",
+    "panels:references.planStep.pressOut": "e6a0893eed0e"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5897,7 +5899,9 @@
     "panels:references.summary.turnOvers_other": "ee2395a203d8",
     "panels:references.flip.doneBadge": "7804f7a79a9e",
     "panels:references.flip.turnOverBadge": "b6bfcfb7bb52",
-    "panels:references.planStep.markFirst": "d42a18b140cf"
+    "panels:references.planStep.markFirst": "d42a18b140cf",
+    "panels:references.planStep.pressAt": "a762c1e32db3",
+    "panels:references.planStep.pressOut": "e6a0893eed0e"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8847,7 +8851,9 @@
     "panels:references.summary.turnOvers_other": "ee2395a203d8",
     "panels:references.flip.doneBadge": "7804f7a79a9e",
     "panels:references.flip.turnOverBadge": "b6bfcfb7bb52",
-    "panels:references.planStep.markFirst": "d42a18b140cf"
+    "panels:references.planStep.markFirst": "d42a18b140cf",
+    "panels:references.planStep.pressAt": "a762c1e32db3",
+    "panels:references.planStep.pressOut": "e6a0893eed0e"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11741,7 +11747,9 @@
     "panels:references.summary.turnOvers_other": "ee2395a203d8",
     "panels:references.flip.doneBadge": "7804f7a79a9e",
     "panels:references.flip.turnOverBadge": "b6bfcfb7bb52",
-    "panels:references.planStep.markFirst": "d42a18b140cf"
+    "panels:references.planStep.markFirst": "d42a18b140cf",
+    "panels:references.planStep.pressAt": "a762c1e32db3",
+    "panels:references.planStep.pressOut": "e6a0893eed0e"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14635,7 +14643,9 @@
     "panels:references.summary.turnOvers_other": "ee2395a203d8",
     "panels:references.flip.doneBadge": "7804f7a79a9e",
     "panels:references.flip.turnOverBadge": "b6bfcfb7bb52",
-    "panels:references.planStep.markFirst": "d42a18b140cf"
+    "panels:references.planStep.markFirst": "d42a18b140cf",
+    "panels:references.planStep.pressAt": "a762c1e32db3",
+    "panels:references.planStep.pressOut": "e6a0893eed0e"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -17585,7 +17595,9 @@
     "panels:references.summary.turnOvers_other": "ee2395a203d8",
     "panels:references.flip.doneBadge": "7804f7a79a9e",
     "panels:references.flip.turnOverBadge": "b6bfcfb7bb52",
-    "panels:references.planStep.markFirst": "d42a18b140cf"
+    "panels:references.planStep.markFirst": "d42a18b140cf",
+    "panels:references.planStep.pressAt": "a762c1e32db3",
+    "panels:references.planStep.pressOut": "e6a0893eed0e"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -20535,7 +20547,9 @@
     "panels:references.summary.turnOvers_other": "ee2395a203d8",
     "panels:references.flip.doneBadge": "7804f7a79a9e",
     "panels:references.flip.turnOverBadge": "b6bfcfb7bb52",
-    "panels:references.planStep.markFirst": "d42a18b140cf"
+    "panels:references.planStep.markFirst": "d42a18b140cf",
+    "panels:references.planStep.pressAt": "a762c1e32db3",
+    "panels:references.planStep.pressOut": "e6a0893eed0e"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -23429,6 +23443,8 @@
     "panels:references.summary.turnOvers_other": "ee2395a203d8",
     "panels:references.flip.doneBadge": "7804f7a79a9e",
     "panels:references.flip.turnOverBadge": "b6bfcfb7bb52",
-    "panels:references.planStep.markFirst": "d42a18b140cf"
+    "panels:references.planStep.markFirst": "d42a18b140cf",
+    "panels:references.planStep.pressAt": "a762c1e32db3",
+    "panels:references.planStep.pressOut": "e6a0893eed0e"
   }
 }

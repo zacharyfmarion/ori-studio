@@ -913,6 +913,8 @@
       "markFirst": "L’une de ces marques est là où deux plis se croiseraient s’ils allaient plus loin : pincez-la d’abord.",
       "partlyReversed": "Dans le patron, cette ligne est pliée dans les deux sens ; le reste s’inverse lorsque le modèle se referme.",
       "pinch": "Pincez seulement : seul le repère est nécessaire.",
+      "pressAt": "Repliez {{along}} et pincez-le là où {{across}} le croise.",
+      "pressOut": "Repliez {{along}} et prolongez le pli jusqu'au pli suivant ou jusqu'au bord.",
       "unknown": "Pliez en utilisant {{inputs}}.",
       "visibleAux": "Ce pli sera visible sur le modèle fini."
     },

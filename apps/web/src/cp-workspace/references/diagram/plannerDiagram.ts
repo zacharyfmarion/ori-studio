@@ -242,7 +242,13 @@ export function plannerStepDiagram(
   }
 
   const witness = chosenWitness(step);
-  const inputs = witness?.inputs ?? [];
+  // A press has no witness — it is a pinch, not a construction — but it is
+  // located by a crease, and that crease is the one thing the card must show:
+  // "pinch here" means nothing without the crossing that says where here is.
+  const inputs: PrecreaseRef[] =
+    step.kind === 'press' && step.press?.sighted_from != null
+      ? [{ kind: 'line', id: step.press.sighted_from }]
+      : (witness?.inputs ?? []);
   const labels: StepDiagramPrimitive[] = [];
   let lineIndex = 0;
   let pointIndex = 0;

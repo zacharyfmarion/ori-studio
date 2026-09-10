@@ -913,6 +913,8 @@
       "markFirst": "Uma destas marcas está onde dois vincos se cruzariam se seguissem adiante: faça primeiro um beliscão ali.",
       "partlyReversed": "No padrão, esta linha é vincada nos dois sentidos; o restante se inverte quando o modelo se fecha.",
       "pinch": "Apenas belisque: só a marca é necessária.",
+      "pressAt": "Redobre {{along}} e belisque-a onde {{across}} a cruza.",
+      "pressOut": "Redobre {{along}} e prolongue o vinco até encontrar o próximo vinco ou a borda.",
       "unknown": "Dobre usando {{inputs}}.",
       "visibleAux": "Este vinco aparecerá no modelo pronto."
     },
