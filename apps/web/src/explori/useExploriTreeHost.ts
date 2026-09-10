@@ -65,6 +65,10 @@ function exploriTreeCopy(t: TFunction): TreeEditorCopy {
     unpair: t('panels:explori.unpair', 'Unpair from mirror'),
     pair: t('panels:explori.pair', 'Pair with mirror'),
     pairAll: t('panels:explori.pairAll', 'Pair all mirrored'),
+    pairAllNone: t(
+      'panels:treeEditor.contextMenu.pairAllNone',
+      'No unpaired nodes sit opposite each other.'
+    ),
     layers: t('panels:explori.layers', 'Layers'),
     layerLabels: t('panels:explori.layerLabels', 'Labels'),
     length: t('panels:explori.length', 'Length'),

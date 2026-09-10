@@ -116,6 +116,8 @@ export interface TreeEditorCopy {
   unpair: string;
   pair: string;
   pairAll: string;
+  /** Why Pair all is disabled: nothing unpaired sits opposite anything. */
+  pairAllNone: string;
   layers: string;
   layerLabels: string;
   length: string;

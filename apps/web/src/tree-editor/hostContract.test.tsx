@@ -59,6 +59,7 @@ const COPY: TreeEditorCopy = {
   unpair: 'Unpair',
   pair: 'Pair',
   pairAll: 'Pair all',
+  pairAllNone: 'Nothing to pair',
   layers: 'Layers',
   layerLabels: 'Labels',
   length: 'Length',

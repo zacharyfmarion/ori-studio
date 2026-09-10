@@ -1,4 +1,4 @@
-import { Link, Tag, Unlink } from 'lucide-react';
+import { Link, Link2, Tag, Unlink } from 'lucide-react';
 import {
   ViewportToolbar,
   viewportLayerItems,
@@ -71,6 +71,20 @@ export function TreeEditorToolbar({
                   icon: <Link size={14} />,
                   onSelect: onPair,
                 },
+              // Always present, so the verb is discoverable; disabled with the
+              // reason when nothing would pair. The tooltip carries the count.
+              {
+                kind: 'action' as const,
+                id: 'pair-all',
+                label: copy.pairAll,
+                title:
+                  symmetry.pairAllCount === 0
+                    ? copy.pairAllNone
+                    : `${copy.pairAll} (${symmetry.pairAllCount})`,
+                icon: <Link2 size={14} />,
+                disabled: symmetry.pairAllCount === 0,
+                onSelect: symmetry.pairAll,
+              },
             ],
           },
         ]

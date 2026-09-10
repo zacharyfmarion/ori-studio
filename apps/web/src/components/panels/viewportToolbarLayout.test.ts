@@ -65,6 +65,7 @@ function surfaceGroups(options: {
               action('symmetry', { only: 'coarse', checked: false }),
               options.pairSlot === 'unpair' && action('unpair'),
               options.pairSlot === 'pair' && action('pair'),
+              action('pair-all'),
             ],
           },
         ]
