@@ -197,6 +197,17 @@ describe('moveOristudioBpLayoutFlapWithSymmetry', () => {
     expect(singleMoves()).toEqual([]);
   });
 
+  it('leaves the partner alone once the pair is broken', async () => {
+    // Unpair moves nothing, so flaps 1 and 2 still sit at reflected positions
+    // when the next drag starts. That must not count: a pair exists because the
+    // user made one, and Unpair is how they say these two are not partners.
+    setUp({ enabled: true, pairs: [{ v1: 1, v2: 2 }] });
+    useWorkspaceStore.getState().unpairOristudioBpTreeSymmetry(1);
+    await useWorkspaceStore.getState().moveOristudioBpLayoutFlapWithSymmetry(1, { x: 3, y: 9 });
+    expect(groupMoves()).toEqual([[[1], { x: 3, y: 9 }]]);
+    expect(singleMoves()).toEqual([]);
+  });
+
   it('still carries the partner after mirror draw is switched off', async () => {
     // Mirror draw decides whether a *new* node is drawn with a twin. A pair that
     // already exists belongs to the design, so moving one member still moves the

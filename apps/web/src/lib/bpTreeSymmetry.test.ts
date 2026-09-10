@@ -6,6 +6,7 @@ import {
   addBpTreeSymmetryPair,
   buildMirroredBpTreeUpdates,
   bpTreeDeleteIdsWithSymmetry,
+  bpTreeMirrorHeldIds,
   filterBpTreeSymmetryPairs,
   mirrorBpTreeVertexId,
   removeBpTreeSymmetryPair,
@@ -167,5 +168,33 @@ describe('mirror pairing', () => {
     // On-axis is read from the drawing, not declared: a flap drawn on the mirror
     // line snaps onto it and is inferred as its own mirror.
     expect(addBpTreeSymmetryPair([], 5, 5)).toEqual([]);
+  });
+});
+
+/**
+ * Unpair moves nothing, so the two vertices are still reflections of each other
+ * the moment the pair is gone. Position must not pair them again: a pair exists
+ * because the user made one, and Unpair is how they say these two are not
+ * partners.
+ */
+describe('after Unpair', () => {
+  const t = tree([vertex(0, 4, 4), vertex(1, 2, 6), vertex(2, 6, 6)]);
+  const pairs = removeBpTreeSymmetryPair(addBpTreeSymmetryPair([], 1, 2), 1);
+
+  it('resolves no mirror from position alone', () => {
+    expect(pairs).toEqual([]);
+    expect(mirrorBpTreeVertexId(t, pairs, axis, 1)).toBeNull();
+    expect(mirrorBpTreeVertexId(t, pairs, axis, 2)).toBeNull();
+  });
+
+  it('still reads an on-axis vertex as its own mirror', () => {
+    expect(mirrorBpTreeVertexId(t, pairs, axis, 0)).toBe(0);
+  });
+
+  it('moves, holds and deletes one vertex', () => {
+    const moved = [{ id: 1, loc: { x: 1, y: 7 } }];
+    expect(buildMirroredBpTreeUpdates(t, pairs, axis, moved)).toEqual([]);
+    expect(bpTreeMirrorHeldIds(t, pairs, axis, [1]).size).toBe(0);
+    expect(bpTreeDeleteIdsWithSymmetry(t, pairs, axis, 1)).toEqual([1]);
   });
 });

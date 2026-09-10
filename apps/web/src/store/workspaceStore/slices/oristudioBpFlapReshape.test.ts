@@ -177,6 +177,15 @@ describe('reshapeOristudioBpFlap', () => {
     expect(reshapes().map(([id]) => id)).toEqual([3]);
   });
 
+  it('reshapes one flap once the pair is broken', async () => {
+    // Unpair moves nothing, so 1 and 2 are still reflections of each other. A
+    // pair exists because the user made one, not because of where two flaps sit.
+    setUp({ pairs: [{ v1: 1, v2: 2 }] });
+    useWorkspaceStore.getState().unpairOristudioBpTreeSymmetry(1);
+    await useWorkspaceStore.getState().reshapeOristudioBpFlap(1, FOOTPRINT, true);
+    expect(reshapes().map(([id]) => id)).toEqual([1]);
+  });
+
   it('leaves the tree drawing alone mid-drag and corrects it on release', async () => {
     setUp();
     await useWorkspaceStore.getState().reshapeOristudioBpFlap(1, FOOTPRINT, true);

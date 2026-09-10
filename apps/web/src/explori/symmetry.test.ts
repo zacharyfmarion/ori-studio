@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { snapPointToSymmetryAxis } from '../lib/symmetryGeometry';
+import { createExploriDocument, type ExploriDocument } from './document';
 import {
   EXPLORI_SYMMETRY_AXIS,
   EXPLORI_SYMMETRY_TOLERANCE,
+  addExploriPair,
   exploriLeafPlacement,
+  exploriMirrorHeldIds,
+  mirrorExploriNodeId,
+  removeExploriPair,
 } from './symmetry';
 
 /**
@@ -49,5 +54,45 @@ describe('exploriLeafPlacement', () => {
       const { placed } = exploriLeafPlacement(true, point, tol);
       expect(placed).toEqual(ghost.snapped ? ghost.point : point);
     }
+  });
+});
+
+/**
+ * Same rule as box-pleat's: Unpair moves nothing, so the two nodes are still
+ * reflections of each other when the pair is gone, and that must not pair them
+ * again.
+ */
+describe('mirrorExploriNodeId after Unpair', () => {
+  //   0 (root, on the axis)
+  //   ├─ 1 (left)   ── reflection of 2
+  //   └─ 2 (right)  ── reflection of 1
+  function unpaired(): ExploriDocument {
+    return {
+      ...createExploriDocument(),
+      nodes: [
+        { id: 0, loc: { x: 0, y: 0 }, name: '' },
+        { id: 1, loc: { x: -2, y: 1 }, name: '' },
+        { id: 2, loc: { x: 2, y: 1 }, name: '' },
+      ],
+      edges: [
+        { id: 10, vertices: [0, 1], length: 1 },
+        { id: 11, vertices: [0, 2], length: 1 },
+      ],
+      symmetry: { enabled: true, pairs: removeExploriPair(addExploriPair([], 1, 2), 1) },
+    };
+  }
+
+  it('resolves no partner from position alone', () => {
+    expect(unpaired().symmetry.pairs).toEqual([]);
+    expect(mirrorExploriNodeId(unpaired(), 1)).toBeNull();
+    expect(mirrorExploriNodeId(unpaired(), 2)).toBeNull();
+  });
+
+  it('still reads a node on the axis as its own mirror', () => {
+    expect(mirrorExploriNodeId(unpaired(), 0)).toBe(0);
+  });
+
+  it('holds nothing in its half', () => {
+    expect(exploriMirrorHeldIds(unpaired(), [1]).size).toBe(0);
   });
 });

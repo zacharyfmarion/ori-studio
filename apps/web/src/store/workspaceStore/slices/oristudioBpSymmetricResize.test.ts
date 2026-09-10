@@ -145,6 +145,15 @@ describe('resizeOristudioBpLayoutFlap under symmetry', () => {
     ]);
   });
 
+  it('resizes one flap once the pair is broken', async () => {
+    // Unpair moves nothing, so 1 and 2 are still reflections of each other. A
+    // pair exists because the user made one, not because of where two flaps sit.
+    setUp({ enabled: true, pairs: [{ v1: 1, v2: 2 }] });
+    useWorkspaceStore.getState().unpairOristudioBpTreeSymmetry(1);
+    await useWorkspaceStore.getState().resizeOristudioBpLayoutFlap(1, 4, 0);
+    expect(resizes()).toEqual([[1, 4, 0]]);
+  });
+
   it('exchanges width and height when the mirror lands on a diagonal', async () => {
     // Diagonal fold on a rectangular sheet cuts across the grid at 45 degrees,
     // so the partner is this flap turned a quarter turn.
