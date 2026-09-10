@@ -515,18 +515,18 @@ fn a_press_is_a_pinch_on_a_line_already_made_and_claims_no_pattern_crease() {
                         }
                     }
                 }
-                let _ = state.add_line(step.line, step.tag);
-                let far = spans[0]
-                    .iter()
-                    .copied()
-                    .max_by(|a, b| {
-                        let d = |q: &[f64; 2]| (q[0] - press.at[0]).hypot(q[1] - press.at[1]);
-                        d(a).total_cmp(&d(b))
-                    })
-                    .expect("a span has two ends");
+                let id = state.add_line(step.line, step.tag).map(|o| o.id).ok();
+                // The press starts at an end of crease already on this line
+                // and runs to an end the folder can find. Which is which is
+                // not "nearer the mark": the mark can sit a hair from the
+                // findable end.
+                let [p, q] = spans[0];
+                let existing = |e: [f64; 2]| id.is_some_and(|l| creased.reaches(&state, l, e));
+                let findable = |e: [f64; 2]| end_is_found(&state, &creased, &step.line, e);
                 assert!(
-                    end_is_found(&state, &creased, &step.line, far),
-                    "{file}: step {} presses out to {far:?}, which the folder cannot find",
+                    (existing(p) && findable(q)) || (existing(q) && findable(p)),
+                    "{file}: step {} presses {p:?}–{q:?}; one end must be crease already there \
+                     and the other somewhere the folder can find",
                     step.id
                 );
             }
@@ -536,14 +536,17 @@ fn a_press_is_a_pinch_on_a_line_already_made_and_claims_no_pattern_crease() {
                     .chosen
                     .and_then(|c| later.witnesses.get(c))
                     .is_some_and(|w| {
-                        w.inputs
-                            .iter()
-                            .any(|r| matches!(r, Ref::Point { id } if *id == press.point))
+                        // The mark it makes, or the line it carries out.
+                        w.inputs.iter().any(|r| match (r, press.point) {
+                            (Ref::Point { id }, Some(point)) => *id == point,
+                            (Ref::Line { id }, None) => *id == step.line_id,
+                            _ => false,
+                        })
                     })
             });
             assert!(
                 needed_by.is_some(),
-                "{file}: step {} presses a mark no later step sights",
+                "{file}: step {} presses something no later step uses",
                 step.id
             );
         }
@@ -653,8 +656,10 @@ fn a_real_design_turns_over_a_handful_of_times() {
     assert_eq!(folds, 91, "iguana-c0 folds");
     // Thirteen of those folds were sighted from marks that were not on the
     // paper; each now gets the press that puts its mark there first.
-    assert_eq!(seq.totals.presses, 13, "iguana-c0 presses");
-    assert_eq!(seq.steps.len(), 104, "iguana-c0 steps");
+    // Thirteen for marks that were not on the paper, and two for lines whose
+    // crease did not reach where a fold used them.
+    assert_eq!(seq.totals.presses, 15, "iguana-c0 presses");
+    assert_eq!(seq.steps.len(), 106, "iguana-c0 steps");
     assert_eq!(turn_overs(&seq), 9, "iguana-c0 turn-overs");
 }
 

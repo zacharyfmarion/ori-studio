@@ -32,10 +32,11 @@ pub enum StepKind {
 /// What a [`StepKind::Press`] step is for.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StepPress {
-    /// The mark being made, in the planner's unit frame.
+    /// Where on the paper the press is for, in the planner's unit frame.
     pub at: [f64; 2],
-    /// Its state point id.
-    pub point: usize,
+    /// The state point being made, when the press is for a mark. A press that
+    /// carries a line out to where a fold uses it has none.
+    pub point: Option<usize>,
     /// The already-creased line the press is located by — the pinch goes
     /// where that crease crosses this step's line. `None` for a press that
     /// runs to a findable end and needs no sighting.

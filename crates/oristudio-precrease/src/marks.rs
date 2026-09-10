@@ -168,6 +168,109 @@ pub fn witness_marks_exist(state: &State, creased: &Creased, w: &Witness) -> boo
     })
 }
 
+/// The creased runs of `line_id` as parameter intervals along its line — the
+/// whole in-paper chord when it is creased everywhere.
+fn creased_intervals(state: &State, creased: &Creased, line_id: usize) -> Vec<(f64, f64)> {
+    match creased.runs_of(line_id) {
+        Some(runs) => runs.to_vec(),
+        None => state
+            .sheet()
+            .clip_parameters(state.line(line_id))
+            .map(|(t0, t1)| vec![(t0, t1)])
+            .unwrap_or_default(),
+    }
+}
+
+/// Whether some creased part of `line_id`, carried across `fold`, lands on
+/// some creased part of `onto`.
+///
+/// This is what makes a line usable as a reference: the folder aligns crease
+/// to crease, and a line that is only creased where the fold does not take it
+/// cannot be aligned to anything. `onto` may be `line_id` itself — folding a
+/// line onto itself — in which case the question is whether the crease on one
+/// side of the fold reaches across to crease on the other. Reflection is its
+/// own inverse, so which of the two lines actually moves does not change the
+/// answer.
+pub fn crease_lands_on(
+    state: &State,
+    creased: &Creased,
+    fold: &Line,
+    line_id: usize,
+    onto: usize,
+) -> bool {
+    let from = state.line(line_id);
+    let to = state.line(onto);
+    let landing: Vec<(f64, f64)> = creased_intervals(state, creased, line_id)
+        .into_iter()
+        .map(|(u, v)| {
+            let a = fold.reflect_point(from.point_at(u));
+            let b = fold.reflect_point(from.point_at(v));
+            let (x, y) = (to.parameter_of(a), to.parameter_of(b));
+            if x <= y { (x, y) } else { (y, x) }
+        })
+        .collect();
+    creased_intervals(state, creased, onto)
+        .into_iter()
+        .any(|(p, q)| landing.iter().any(|&(x, y)| x <= q + TOL && p <= y + TOL))
+}
+
+/// Whether a mark, carried across `fold`, lands on a creased part of `line_id`.
+pub fn point_lands_on(
+    state: &State,
+    creased: &Creased,
+    fold: &Line,
+    point: usize,
+    line_id: usize,
+) -> bool {
+    let Some(p) = state.points().get(point) else {
+        return false;
+    };
+    let r = fold.reflect_point(p.p);
+    state.line(line_id).distance_to_point(r) <= TOL && creased.reaches(state, line_id, r)
+}
+
+/// Whether every alignment `w` asks the folder to make is between creases
+/// that are on the paper — the line-input counterpart of
+/// [`witness_marks_exist`].
+///
+/// `State` certified the witness against infinite lines; this asks whether
+/// the creases the pattern actually put on those lines reach the places the
+/// fold uses them. A perpendicular to a line whose crease stops short of the
+/// foot is constructible and cannot be folded, because there is nothing there
+/// to fold onto itself.
+pub fn witness_aligns(state: &State, creased: &Creased, fold: &Line, w: &Witness) -> bool {
+    let id = |i: usize| w.inputs.get(i).map(|r| r.id());
+    match w.axiom {
+        3 => match (id(0), id(1)) {
+            (Some(a), Some(b)) => crease_lands_on(state, creased, fold, a, b),
+            _ => true,
+        },
+        4 => id(1).is_none_or(|l| crease_lands_on(state, creased, fold, l, l)),
+        // [pivot, p, m]: p lands on m.
+        5 => match (id(1), id(2)) {
+            (Some(p), Some(m)) => point_lands_on(state, creased, fold, p, m),
+            _ => true,
+        },
+        // [p1, m1, p2, m2].
+        6 => match (id(0), id(1), id(2), id(3)) {
+            (Some(p1), Some(m1), Some(p2), Some(m2)) => {
+                point_lands_on(state, creased, fold, p1, m1)
+                    && point_lands_on(state, creased, fold, p2, m2)
+            }
+            _ => true,
+        },
+        // [p, m, l]: p lands on m, l folds onto itself.
+        7 => match (id(0), id(1), id(2)) {
+            (Some(p), Some(m), Some(l)) => {
+                point_lands_on(state, creased, fold, p, m)
+                    && crease_lands_on(state, creased, fold, l, l)
+            }
+            _ => true,
+        },
+        _ => true,
+    }
+}
+
 /// The mark at a state point, by its id.
 pub fn point_mark_exists(state: &State, creased: &Creased, id: usize) -> bool {
     let Some(point) = state.points().get(id) else {

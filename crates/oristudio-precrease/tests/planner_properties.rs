@@ -305,10 +305,22 @@ fn pinch_pass_keeps_fold_count_and_confines_point_uses_to_spans() {
         let chosen: Vec<Option<usize>> = closure.folded().iter().map(|f| f.chosen).collect();
         let verdicts = pinch_pass(closure, &order, &chosen);
         assert_eq!(verdicts.len(), closure.folded().len(), "{file}");
-        assert_eq!(seq.steps.len(), closure.folded().len(), "{file}");
-        // Every pinched step: later steps use it only through points inside
-        // its spans.
+        // One step per fold. A press is a step but not a fold — it re-presses
+        // a line a fold already made — so it is not counted here.
+        let folds = seq
+            .steps
+            .iter()
+            .filter(|s| s.kind != StepKind::Press)
+            .count();
+        assert_eq!(folds, closure.folded().len(), "{file}");
+        // Every pinched auxiliary line: later steps use it only through points
+        // inside its spans. A press is pinched too, and is exactly the opposite
+        // case — a CP line pressed so a later step CAN use it — so it is not
+        // subject to this.
         for (k, step) in seq.steps.iter().enumerate() {
+            if step.kind == StepKind::Press {
+                continue;
+            }
             let Extent::Pinches { spans } = &step.extent else {
                 continue;
             };

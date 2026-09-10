@@ -794,7 +794,7 @@ impl Planner {
                     .collect(),
                 hoisted: p.hoisted,
                 press: p.press.as_ref().map(|press| StepPress {
-                    at: state.points()[press.point].p,
+                    at: press.at,
                     point: press.point,
                     sighted_from: press.sighted_from,
                 }),

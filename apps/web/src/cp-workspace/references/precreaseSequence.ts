@@ -64,10 +64,13 @@ export type PrecreaseStepKind = 'cp' | 'aux' | 'press';
 
 /** What a `press` step is for. */
 export interface PrecreaseStepPress {
-  /** The mark being made, in the planner's unit frame. */
+  /** Where on the paper the press is for, in the planner's unit frame. */
   at: [number, number];
-  /** Its state point id. */
-  point: number;
+  /**
+   * The state point being made, when the press is for a mark. A press that
+   * carries a line out to where a fold uses it has none.
+   */
+  point: number | null;
   /**
    * The already-creased line the press is located by — the pinch goes where
    * that crease crosses this step's line. `null` for a press that runs out to
