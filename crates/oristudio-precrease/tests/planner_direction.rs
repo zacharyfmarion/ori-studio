@@ -80,26 +80,23 @@ fn a_step_is_made_from_the_side_its_direction_needs() {
         let seq = plan(file);
         assert!(!seq.steps.is_empty(), "{file}: no steps");
         for step in &seq.steps {
-            // A press refolds a crease the way it already goes, from whatever
-            // face the folder is on: its direction is the fold's, and its side
-            // is the moment's. The rule below is about making a crease.
-            if step.kind == StepKind::Press {
-                let made = seq
-                    .steps
-                    .iter()
-                    .find(|s| s.line_id == step.line_id && s.kind != StepKind::Press)
-                    .unwrap_or_else(|| panic!("{file}: press on a line nobody made"));
-                assert_eq!(step.direction, made.direction, "{file}: {step:?}");
-                continue;
-            }
             match step.direction {
                 // A crease made from the front is a valley, one made from the
-                // back is a mountain, and there is no third case.
+                // back is a mountain, and there is no third case. A press
+                // included: it is made toward the folder from whichever face
+                // is up when its mark is needed, so a crease first made from
+                // the other face is then creased both ways — as precreasing
+                // does — and the card never shows a mountain under "fold P
+                // onto Q".
                 Direction::Mountain => assert_eq!(step.side, Side::Back, "{file}: {step:?}"),
                 Direction::Valley => assert_eq!(step.side, Side::Front, "{file}: {step:?}"),
-                // Only a line the finished pattern assigns nothing.
+                // Only a line the finished pattern assigns nothing, or a press
+                // on one.
                 Direction::Unassigned => {
-                    assert_eq!(step.kind, StepKind::Aux, "{file}: {step:?}");
+                    assert!(
+                        matches!(step.kind, StepKind::Aux | StepKind::Press),
+                        "{file}: {step:?}"
+                    );
                     assert_eq!(step.direction_share, 0.0, "{file}: {step:?}");
                 }
             }

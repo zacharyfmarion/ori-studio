@@ -709,10 +709,9 @@ impl Planner {
             let f: &FoldedLine = &folded[p.folded];
             // A press is the fold that made this line, done again for a little
             // more of it: same construction, same references, same motion, a
-            // pinch for an extent. So it presents the making step's witness
-            // and is made from the face that step was. Reading either off the
-            // press itself made it look like a different fold, and a press
-            // from the other face like a reversal.
+            // pinch for an extent. So it presents the making step's witness.
+            // Reading that off the press itself made it look like a different
+            // fold.
             let original = p.press.as_ref().and_then(|_| {
                 placed
                     .iter()
@@ -767,12 +766,16 @@ impl Planner {
             // The direction the fold is actually made in. A line with a firm
             // majority forced the side it is on, so the two agree; a weak one
             // took whichever side was already up, and the share is then the
-            // share of its length that side gets right.
+            // share of its length that side gets right. A press is made from
+            // whichever face is up when its mark is needed, and toward the
+            // folder like every other fold — "fold P onto Q" is a valley on
+            // the face it is said on. Giving it the making fold's direction
+            // instead drew a mountain under that sentence whenever the two
+            // faces differed.
             let majority = target.map_or(Direction::Unassigned, |t| t.direction);
-            let made_from = original.map_or(p.side, |q| q.side);
             let direction = match majority {
                 Direction::Unassigned => Direction::Unassigned,
-                _ => made_from.direction(),
+                _ => p.side.direction(),
             };
             let direction_share = share_of(
                 majority,

@@ -400,23 +400,6 @@ function spanLine(span: DiagramSegment, style: DiagramLineStyleName): StepDiagra
   };
 }
 
-/**
- * A step's direction as seen from the face it is made on.
- *
- * `direction` is the pattern's, read from the front. The card and the view
- * show the face the folder is working on, and every fold is made toward
- * them — the plan turns the sheet over so that it is — so a mountain in the
- * pattern, made from the back, is a valley on the face shown. Drawing it as
- * a mountain there put a mountain's dashes under "fold P onto Q", a motion
- * that can only be a valley.
- */
-function directionFromFace(step: PrecreaseStep): PrecreaseDirection {
-  if (step.side !== 'back') return step.direction;
-  if (step.direction === 'mountain') return 'valley';
-  if (step.direction === 'valley') return 'mountain';
-  return step.direction;
-}
-
 /** The style a crease of `direction` draws in, made or already made. */
 function styleOf(direction: PrecreaseDirection, made: boolean): DiagramLineStyleName {
   if (!made) return 'crease';
@@ -561,7 +544,10 @@ export function plannerStepDiagram(
 
   // The crease this step makes, then the letters, both over the references. The
   // crate settled the direction (plan D21) — one per step, never two.
-  const direction = directionFromFace(step);
+  // The pattern's direction, read from the front. A card of the paper's
+  // back renames every line for that face in one place, `seenFromTheBack`
+  // — never here, or a mirrored card renames it twice.
+  const direction = step.direction;
   const made = styleOf(direction, true);
   const pinches = frame.pinches(step);
   const creases = frame.creases(step);

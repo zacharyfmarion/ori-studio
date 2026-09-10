@@ -412,9 +412,12 @@ hex grid, read as a folder would:
       there is.
 - [x] A crease no longer than `SHORT_CREASE` (0.1) with a mark at each end is
       creased between them (O1 through its own ends, `crease_between_marks`).
-- [x] The card draws a step's crease as seen from the face it is made on: a
-      mountain in the pattern, made from the back, is a valley there
-      (`directionFromFace`). The finished card keeps the pattern's directions.
+- [x] A press is made toward the folder from whichever face is up when its
+      mark is needed (`direction = side.direction()`), so a card never shows a
+      mountain under "fold P onto Q". The back-face card already renames every
+      direction once, at render time (`seenFromTheBack`); a first attempt
+      renamed it in the model as well and showed the whole back as mountains
+      — no test composed the two halves, and now one does.
 - [x] Measured (122 designs): presses 3,869 → 2,748, flagged 13 → 4,
       turn-overs 755 → 755. Markhor: O1 2, O2 53, O3 27, O5 4, no O6/O7, 3
       presses. Iguana-c0: presses 16 → 6, O1 9 (short creases). hex-14: O6 4 →

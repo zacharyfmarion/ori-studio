@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { returnStroke } from '../stepDiagramGeometry';
+import { seenFromTheBack } from './diagramModel';
 import { unitFrame } from './diagramFrames';
 import type { StepDiagramPrimitive } from '../referenceFinderDiagramToPrimitives';
 import { plannerSequenceFixture } from '../__fixtures__/plannerSequence';
@@ -52,37 +53,31 @@ describe('plannerStepDiagram', () => {
     ).toBe(false);
   });
 
-  it('draws a full crease as the folder sees it: a valley from the face it is made on', () => {
+  it('draws a full crease in the direction the crate settled', () => {
     const valley = plannerStepDiagram(directed('unassigned', 'valley'), unitFrame(directed('unassigned', 'valley')), 1);
     expect(
       valley?.primitives.filter((p) => p.kind === 'line' && p.style === 'valley')
     ).toHaveLength(1);
-    // A mountain in the pattern is made from the back, where it is a valley:
-    // "fold P onto Q" cannot be a mountain on the face the folder is looking
-    // at, and the card shows that face.
     const mountain = plannerStepDiagram(directed('unassigned', 'mountain'), unitFrame(directed('unassigned', 'mountain')), 1);
     expect(
-      mountain?.primitives.filter((p) => p.kind === 'line' && p.style === 'valley')
-    ).toHaveLength(1);
-    expect(
-      mountain?.primitives.some((p) => p.kind === 'line' && p.style === 'mountain')
-    ).toBe(false);
-    // Only a press refolds a crease from whichever face is up: a valley
-    // pressed again from the back is a mountain there.
-    const seq = directed('unassigned', 'valley');
-    const pressed = {
-      ...seq,
-      steps: seq.steps.map((s, i) => (i === 1 ? { ...s, side: 'back' as const } : s)),
-    };
-    expect(
-      plannerStepDiagram(pressed, unitFrame(pressed), 1)?.primitives.filter(
-        (p) => p.kind === 'line' && p.style === 'mountain'
-      )
+      mountain?.primitives.filter((p) => p.kind === 'line' && p.style === 'mountain')
     ).toHaveLength(1);
   });
 
-  // An auxiliary line is creased, but the pattern assigns it nothing — so it
-  // takes the neutral ink rather than borrowing a direction it does not have.
+  // The model names directions from the front, as the pattern does; the card
+  // of the paper's back renames them once, at render time. A mountain made
+  // from the back is a valley on the face that card shows — "fold P onto Q"
+  // — and renaming it anywhere else as well would show a mountain there
+  // again. This is the composition, which no test of either half covers.
+  it('shows a mountain made from the back as a valley on the back-face card', () => {
+    const seq = directed('unassigned', 'mountain');
+    const model = plannerStepDiagram(seq, unitFrame(seq), 1);
+    expect(seq.steps[1]!.side).toBe('back');
+    const shown = seenFromTheBack(model?.primitives ?? []);
+    expect(shown.filter((p) => p.kind === 'line' && p.style === 'valley')).toHaveLength(1);
+    expect(shown.some((p) => p.kind === 'line' && p.style === 'mountain')).toBe(false);
+  });
+
   it('draws an unassigned crease in neither direction', () => {
     const diagram = plannerStepDiagram(directed('unassigned', 'unassigned'), unitFrame(directed('unassigned', 'unassigned')), 1);
     const styles = diagram?.primitives.flatMap((p) => (p.kind === 'line' ? [p.style] : []));
