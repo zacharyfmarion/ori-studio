@@ -238,17 +238,6 @@ reach it today either.
 
 ## Still open
 
-- **A mark that is not on the paper is drawn as if it were.** `Step.marks_exist`
-  is false when no recorded witness could be sighted, and the sidebar sentence
-  says so ("pinch it in first") — but `plannerDiagram` rings and letters every
-  point input of the chosen witness without asking, so the picture contradicts
-  the caption. Measured on markhor: steps 15, 21, 24 and 26. Step 15's Q is the
-  crossing of CP lines 14 and 8 where only 14 is creased through it; step 24's Q
-  is the crossing of lines 13, 7 and 39 where **none** of the three is creased
-  through it, which is why it reads as a point in empty space. The fix is the
-  one thing Phase 0 removed for marks that *do* exist: draw the two spans whose
-  crossing locates it, because for a mark with nothing under it they are the
-  only thing that says where it is.
 
 - **The pink is now inconsistent.** A reference mark is a ring in the drawing's
   own ink; the letter beside it and the input lines it names are still

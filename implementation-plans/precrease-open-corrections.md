@@ -131,10 +131,15 @@ The one piece of plumbing: `Placed.folded` indexes a `FoldedLine`, and a press
 has no fold of its own. `Placed` has to be able to say *a press of this line at
 this point* as well as *this fold*.
 
-### What it costs is not yet known
+### What it costs — measured after the fact
 
-**The 8.13% figure previously in this document is withdrawn.** It was wrong three
-ways, all confirmed against the harness:
+Same 122 corpus designs, shipping setting, before → after: 2,646 presses at
+246.6 sheet-sides against 4,213 sheet-sides of pattern crease — **5.9% more
+creased length**, almost all of it 0.06-long pinches. Turn-overs unchanged.
+
+**The 8.13% figure previously in this document was withdrawn** before that
+measurement existed; it was wrong three ways, all confirmed against the
+harness:
 
 1. **The pinch was never priced** — the whole "order is already right, one pinch"
    case scored zero, and the pinch is that case's entire cost. Up to
@@ -305,27 +310,34 @@ fallback.
 
 ## Checklist
 
-**Correction 1 — every step sighted from marks that exist**
+**Correction 1 — every step sighted from marks that exist.** Done, in
+`75e8d3f3`, `522b2e4c`, `c884cdf3`, `1001e9b9`.
 
-- [x] Surface which marks are missing and where: `Step.missing_marks` (`53d041b5`),
-      with `witness_marks_exist` / `witness_missing_marks` shared out of
-      `marks.rs` so the closure and the ordering pass cannot disagree.
-- [ ] Fix the prerequisites: `pinch_pass`'s stale witness index, `add_spans`
-      replacing rather than unioning, the hoist branch's missing sightability
-      search.
-- [ ] `StepKind::Press` and a `Placed` that can carry one. `cp_spans` stays
-      empty on a press; `Totals.press` counts them. The diagram already draws a
-      pinched step; it should draw a press in its own ink so extra crease reads
-      as extra.
-- [ ] Implement the rule: case (c) nothing, case (a) a pinch at a visible
-      crossing, case (b) a press through `P` to a findable end, then (a).
-- [ ] The invariant test: zero `marks_exist == false` over every fixture, and
-      every run end findable in the same replay. Fixed-point check.
-- [ ] Re-measure honestly — press length and pinch length separately, both
-      `landmarks_first` settings, all components — and reconcile D3's prose with
-      the exception this takes.
-- [ ] Watch turn-overs. The last change in this area cost 130 → 168, and
-      `iguana-c0` is the pinned clean loss.
+- [x] Surface which marks are missing and where: `Step.missing_marks` (`53d041b5`).
+- [x] The prerequisites: `add_spans` is a union, `pinch_pass` reads the
+      presented witness, the hoist branch prefers a sightable one.
+- [x] `StepKind::Press` and a `Placed` that carries one; empty `cp_spans`;
+      `Totals.presses`. On the wire, in the sentence, on the card.
+- [x] The rule: (a) a pinch at a visible crossing; (b) a press through `P` to a
+      findable end, then (a). Unit tests pin both cases and that (b) stops at
+      the nearest findable end rather than always the edge.
+- [x] **The invariant test.** Every fixture's plan replayed onto a bare sheet
+      using each step's *pressed* extent; every mark every step sights has two
+      creases through it; zero exceptions. A second test pins what a press is.
+- [x] Re-measured, before → after on the same 122 corpus designs, shipping
+      setting: **phantom 2,319 → 0**, turn-overs 755 → 755, lost ends
+      8,610 → 8,491, 2,646 presses at 246.6 sheet-sides (mostly 0.06 pinches).
+      Iguana-c0: 13 presses, turn-overs 9 → 9.
+- [x] Watched turn-overs: unchanged. Presses take the moment's side and never
+      advance it.
+- [x] Found and fixed on the way: the snappable path put the line back on the
+      lattice but not its crease endpoints, so a crease ending at the edge
+      arrived stopping 5 × 10⁻⁴ short, and a press would have been made to close
+      a gap in the file rather than the design. Endpoints now snap to the
+      boundary or a crossing within `SNAP_RADIUS`.
+- [ ] Reconcile D3's prose in `precrease-step-ordering.md` with the exception
+      case (b) takes — it still names "a crease run out to an edge" as never
+      allowed, and that is exactly what a press to a findable end may do.
 
 **Correction 2 — one set of rules.** Done, in `d7e23280`, `a80008dc`, `8ebcb252`.
 
