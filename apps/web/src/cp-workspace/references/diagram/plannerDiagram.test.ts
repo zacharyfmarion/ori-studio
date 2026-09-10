@@ -613,6 +613,67 @@ describe('a line folded onto a line', () => {
     expect(near(at(to), [k - 1, k - 1])).toBe(true);
   });
 
+  // markhor steps 4 and 8: the midline from step 1 is one crease the folder
+  // made in one go, but the pattern cuts it into four pieces where its
+  // mountain/valley assignment changes. Those cuts are not where the crease
+  // stops; the whole line is the reference.
+  it('treats a crease the pattern cuts at its M/V changes as one run', () => {
+    const seq = plannerSequenceFixture();
+    const cut = {
+      ...seq.steps[2]!, // x = 0.5, line id 6, made at step 3
+      cp_spans: [
+        [
+          [0.5, 0],
+          [0.5, 0.25],
+        ],
+        [
+          [0.5, 0.25],
+          [0.5, 0.5],
+        ],
+        [
+          [0.5, 0.5],
+          [0.5, 0.75],
+        ],
+        [
+          [0.5, 0.75],
+          [0.5, 1],
+        ],
+      ] as [[number, number], [number, number]][],
+    };
+    const fold = {
+      ...seq.steps[4]!,
+      id: 92,
+      line: { n: [Math.SQRT1_2, Math.SQRT1_2] as [number, number], d: 0.5 * Math.SQRT1_2 },
+      segment: [
+        [0.5, 0],
+        [0, 0.5],
+      ] as [[number, number], [number, number]],
+      cp_spans: [] as [[number, number], [number, number]][],
+      witnesses: [
+        {
+          ...seq.steps[4]!.witnesses[0]!,
+          axiom: 3,
+          inputs: [
+            { kind: 'edge' as const, id: 2, side: 'bottom' as const },
+            { kind: 'line' as const, id: 6 },
+          ],
+          who_moves: [0],
+        },
+      ],
+      chosen: 0,
+    };
+    const steps = seq.steps.map((st, i) => (i === 2 ? cut : st));
+    const withFold = { ...seq, steps: [...steps, fold] };
+    const d = plannerStepDiagram(withFold, unitFrame(withFold), withFold.steps.length - 1);
+    const lines = (d?.primitives ?? []).filter(
+      (p): p is Extract<StepDiagramPrimitive, { kind: 'line' }> =>
+        p.kind === 'line' && p.style === 'highlight'
+    );
+    // The whole midline, as one piece — not the bottom quarter alone.
+    expect(lines.some((l) => isSeg(l, [0.5, 0], [0.5, 1]))).toBe(true);
+    expect(lines.some((l) => isSeg(l, [0.5, 0], [0.5, 0.25]))).toBe(false);
+  });
+
   it('leaves a line the fold does not cross whole', () => {
     // The fixture's own O3: bottom edge onto y = 0.5 along y = 0.25. Parallel
     // to the fold, so all of it moves and all of it is shown.

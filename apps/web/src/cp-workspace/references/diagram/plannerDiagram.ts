@@ -271,7 +271,47 @@ function spansOfRef(
   const entry = sequence.lines.find((line) => line.id === ref.id);
   if (!entry || entry.step === null) return [];
   const made = sequence.steps.find((s) => s.id === entry.step);
-  return made ? [...creasedSpans(frame, made)] : [];
+  return made ? mergeRuns(creasedSpans(frame, made)) : [];
+}
+
+/**
+ * Collinear spans that touch, merged into the runs a folder actually made.
+ *
+ * A crease pattern splits a line wherever its assignment changes, so one
+ * crease that runs the width of the sheet arrives as several pieces meeting at
+ * interior points — and those points are not places the crease stops, they
+ * are places it changes colour. The step that made it made it in one go, and
+ * everything here is relative to what the folder folded, not to how the file
+ * cut it up. The crate's `crease_runs` does the same merge for the same
+ * reason.
+ */
+function mergeRuns(spans: readonly DiagramSegment[]): DiagramSegment[] {
+  if (spans.length < 2) return [...spans];
+  // Parameterise along the first span's direction; every span is collinear.
+  const [a, b] = spans[0]!;
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const scale = Math.hypot(dx, dy) || 1;
+  const ux = dx / scale;
+  const uy = dy / scale;
+  const at = (p: Point) => (p.x - a.x) * ux + (p.y - a.y) * uy;
+  const runs = spans
+    .map((span): [number, number] => {
+      const [u, v] = [at(span[0]), at(span[1])];
+      return u <= v ? [u, v] : [v, u];
+    })
+    .sort((p, q) => p[0] - q[0]);
+  const slack = 1e-9 * Math.max(scale, 1);
+  const merged: [number, number][] = [];
+  for (const [u, v] of runs) {
+    const last = merged[merged.length - 1];
+    if (last && u <= last[1] + slack) last[1] = Math.max(last[1], v);
+    else merged.push([u, v]);
+  }
+  return merged.map(([u, v]) => [
+    { x: a.x + ux * u, y: a.y + uy * u },
+    { x: a.x + ux * v, y: a.y + uy * v },
+  ]);
 }
 
 const length = (seg: DiagramSegment): number =>
