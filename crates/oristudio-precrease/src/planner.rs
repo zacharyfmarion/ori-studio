@@ -688,7 +688,7 @@ impl Planner {
         let folded = closure.folded();
         let presented: Vec<Option<&Witness>> = placed
             .iter()
-            .map(|p| p.chosen.and_then(|c| folded[p.folded].witnesses.get(c)))
+            .map(|p| p.presented(&folded[p.folded]))
             .collect();
         let verdicts = pinch_pass(closure, &fold_order, &presented);
         let state = closure.state();
@@ -718,8 +718,19 @@ impl Planner {
                     .iter()
                     .find(|q| q.folded == p.folded && q.press.is_none())
             });
-            let chosen_index = original.map_or(p.chosen, |q| q.chosen);
-            let chosen = chosen_index.map(|c| &f.witnesses[c]);
+            let presenting = original.unwrap_or(p);
+            let chosen_index = presenting.chosen;
+            // The recorded witnesses, plus the one the ordering pass found
+            // against the paper when none of them was clean; `chosen`
+            // indexes the whole.
+            let witnesses: Vec<Witness> = f
+                .witnesses
+                .iter()
+                .chain(presenting.found.as_ref())
+                .cloned()
+                .collect();
+            let chosen = chosen_index.and_then(|c| witnesses.get(c)).cloned();
+            let chosen = chosen.as_ref();
             if let Some(w) = chosen {
                 for r in &w.inputs {
                     if r.is_point() && !referenced_points.contains(&r.id()) {
@@ -776,7 +787,7 @@ impl Planner {
                 line_id: f.line_id,
                 segment: segment_of(sheet, &f.line).unwrap_or([[0.0; 2]; 2]),
                 extent,
-                witnesses: f.witnesses.clone(),
+                witnesses,
                 chosen: chosen_index,
                 ease: chosen.map_or(0, |w| w.ease),
                 hard: chosen.is_some_and(|w| w.hard),
@@ -959,7 +970,7 @@ impl Planner {
             },
             None => {
                 let ws = witnesses(state, line, &facts);
-                let chosen = crate::predicates::choose(&ws);
+                let chosen = crate::predicates::choose_for_card(&ws);
                 Explanation {
                     line: *line,
                     folded: state.has_line(line),

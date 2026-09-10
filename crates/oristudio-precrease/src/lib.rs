@@ -33,7 +33,7 @@
 //!    `minAngleSine = 0.342`; the skinny-flap aspect ratio `0.1`; the
 //!    visibility rule (a fold is legible when at least one of its inputs is
 //!    a sheet edge or a mark on one); the trivial-Haga O5 exclusion; the
-//!    axiom-ease order `O2 < O3 < O7 < O6 < O5 < O4 < O1`; and the pinch
+//!    axiom-ease order `O2 < O3 < O5 < O7 < O6 < O4 < O1`; and the pinch
 //!    convention (a line consumed only through the marks it creates is
 //!    rendered as a pinch). Two of these are scored, never enforced —
 //!    visibility and the skinny flap, because a crease-pattern line has to be

@@ -26,10 +26,28 @@ pub const VISIBILITY_MATTERS: bool = true;
 /// has to be folded whether or not it is legible.)
 pub const EXCLUDE_TRIVIAL_HAGA_O5: bool = true;
 
-/// Axiom ease order, most accurate by hand first: O2 (point onto point),
-/// O3 (line onto line), O7, O6, O5, O4, O1 (crease through two points is
-/// the least accurate). The index in this array is the ease penalty.
-pub const AXIOM_EASE_ORDER: [u8; 7] = [2, 3, 7, 6, 5, 4, 1];
+/// Axiom ease order, easiest by hand first: O2 (point onto point), O3 (line
+/// onto line), O5 (swing a point onto a line about a pivot), then the folds
+/// with two things to line up at once — O7 (a line onto itself while a point
+/// lands on a line), O6 (two points onto two lines) — then the folds nothing
+/// moves in: O4 (a perpendicular through a point) and O1 (a crease through
+/// two points, the least accurate). The index in this array is the ease
+/// penalty.
+///
+/// ReferenceFinder's default order has O7 and O6 ahead of O5. Read off a
+/// card, "fold P onto A and Q onto B" is two motions to hold at once where
+/// "fold through P, bringing Q onto A" is one, and the one-motion fold is the
+/// clearer instruction for the same crease; so O5 comes first here. This is
+/// the order the card's choice is made in; the stuck search breaks its ties
+/// on [`AXIOM_SEARCH_ORDER`].
+pub const AXIOM_EASE_ORDER: [u8; 7] = [2, 3, 5, 7, 6, 4, 1];
+
+/// ReferenceFinder's default axiom order, `O2 < O3 < O7 < O6 < O5 < O4 < O1`:
+/// the tie-break the stuck search sums over an auxiliary set's witnesses.
+/// Kept apart from [`AXIOM_EASE_ORDER`] so that which auxiliary lines the
+/// search takes does not move with how a card words a fold — it is a
+/// tie-break among equal candidate sets, and the fixtures pin what it picks.
+pub const AXIOM_SEARCH_ORDER: [u8; 7] = [2, 3, 7, 6, 5, 4, 1];
 
 /// Pinch convention: an auxiliary line that later steps consume only through
 /// the marks it creates is rendered as a pinch around each consumed mark,
@@ -47,18 +65,28 @@ pub fn axiom_ease(axiom: u8) -> Option<usize> {
     AXIOM_EASE_ORDER.iter().position(|&a| a == axiom)
 }
 
+/// The search's penalty for an axiom under [`AXIOM_SEARCH_ORDER`].
+pub fn axiom_search_ease(axiom: u8) -> Option<usize> {
+    AXIOM_SEARCH_ORDER.iter().position(|&a| a == axiom)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn ease_order_lists_every_axiom_once() {
-        let mut seen = [false; 8];
-        for &a in &AXIOM_EASE_ORDER {
-            assert!(!seen[a as usize], "axiom {a} listed twice");
-            seen[a as usize] = true;
+        for order in [AXIOM_EASE_ORDER, AXIOM_SEARCH_ORDER] {
+            let mut seen = [false; 8];
+            for &a in &order {
+                assert!(!seen[a as usize], "axiom {a} listed twice");
+                seen[a as usize] = true;
+            }
+            assert!(
+                seen[1..].iter().all(|&s| s),
+                "an axiom is missing from {order:?}"
+            );
         }
-        assert!(seen[1..].iter().all(|&s| s));
         assert_eq!(axiom_ease(2), Some(0));
         assert_eq!(axiom_ease(1), Some(6));
         assert_eq!(axiom_ease(8), None);

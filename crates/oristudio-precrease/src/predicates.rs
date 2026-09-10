@@ -39,7 +39,7 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::constants::{SKINNY_FLAP_ASPECT, axiom_ease};
+use crate::constants::{SKINNY_FLAP_ASPECT, axiom_ease, axiom_search_ease};
 use crate::construct::{Construction, Pt};
 use crate::line::Line;
 use crate::sheet::{CornerName, EdgeSide};
@@ -134,9 +134,23 @@ impl Witness {
         (self.ease, self.hard, (self.err / 1e-18) as u64)
     }
 
-    /// Cost contribution to the stuck search's ease sum.
+    /// Ordering key for the closure's own pick, under the search's axiom
+    /// order ([`crate::constants::AXIOM_SEARCH_ORDER`]) rather than the
+    /// card's: the stuck search scores candidate auxiliary sets by what the
+    /// closure chose, and which lines it takes must not move with how a card
+    /// words a fold.
+    pub fn search_preference(&self) -> (u8, bool, u64) {
+        (
+            axiom_search_ease(self.axiom).unwrap_or(6) as u8,
+            self.hard,
+            (self.err / 1e-18) as u64,
+        )
+    }
+
+    /// Cost contribution to the stuck search's ease sum — under the search's
+    /// own axiom order, not the card's ([`crate::constants::AXIOM_SEARCH_ORDER`]).
     pub fn ease_cost(&self) -> u32 {
-        u32::from(self.ease) + if self.hard { 7 } else { 0 }
+        axiom_search_ease(self.axiom).unwrap_or(6) as u32 + if self.hard { 7 } else { 0 }
     }
 }
 
@@ -667,9 +681,19 @@ pub fn all_witnesses(state: &State, target: &Line) -> Vec<Witness> {
     witnesses(state, target, &facts)
 }
 
-/// The presentation witness: the ease order `O2 < O3 < O7 < O6 < O5 < O4 < O1`
-/// first, then non-hard, then the smallest residual.
+/// The closure's own witness for a line, under the search's order
+/// ([`Witness::search_preference`]): the stuck search reads it, and so must
+/// not see the card's order. The witness a card presents is chosen in
+/// `order.rs`, against the paper as it stands, by [`Witness::preference`].
 pub fn choose(witnesses: &[Witness]) -> Option<usize> {
+    (0..witnesses.len()).min_by_key(|&i| witnesses[i].search_preference())
+}
+
+/// The witness a card would present for `witnesses` on a bare reading — the
+/// ease order `O2 < O3 < O5 < O7 < O6 < O4 < O1` first, then non-hard, then
+/// the smallest residual — for an explanation of a line the plan has not
+/// placed.
+pub fn choose_for_card(witnesses: &[Witness]) -> Option<usize> {
     (0..witnesses.len()).min_by_key(|&i| witnesses[i].preference())
 }
 

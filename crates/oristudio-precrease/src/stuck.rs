@@ -151,12 +151,14 @@ impl Search<'_> {
         let complete = closure.is_complete();
         let mut key: Vec<u64> = chosen.iter().map(Line::key).collect();
         key.sort_unstable();
+        // Each auxiliary line at the cost of its easiest witness under the
+        // search's own order — not the witness the card will present, whose
+        // choice follows the card's order and must not steer the search.
         let ease_sum: u32 = closure
             .folded()
             .iter()
             .filter(|f| f.tag == LineTag::Aux || f.tag == LineTag::RfAux)
-            .filter_map(|f| f.chosen_witness())
-            .map(|w| w.ease_cost())
+            .filter_map(|f| f.witnesses.iter().map(|w| w.ease_cost()).min())
             .sum();
         let score = Score {
             aux_folds: aux_count(closure).saturating_sub(self.base_aux),

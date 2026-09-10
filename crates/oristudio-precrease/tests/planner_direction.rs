@@ -657,13 +657,13 @@ fn a_real_design_turns_over_a_handful_of_times() {
         .filter(|s| s.kind != StepKind::Press)
         .count();
     assert_eq!(folds, 91, "iguana-c0 folds");
-    // Thirteen of those folds were sighted from marks that were not on the
-    // paper; each now gets the press that puts its mark there first.
-    // For marks that were not on the paper and lines whose crease did not
-    // reach where a fold used them — and one more since a pinch may buy a
-    // two-point fold over a perpendicular.
-    assert_eq!(seq.totals.presses, 16, "iguana-c0 presses");
-    assert_eq!(seq.steps.len(), 107, "iguana-c0 steps");
+    // Presses for marks that were not on the paper and lines whose crease did
+    // not reach where a fold used them. Sixteen while every fold was sighted
+    // against the paper as its round began; six now that each is sighted at
+    // its own place in the order, where the same round's earlier folds have
+    // left their marks too.
+    assert_eq!(seq.totals.presses, 6, "iguana-c0 presses");
+    assert_eq!(seq.steps.len(), 97, "iguana-c0 steps");
     // 9 while hardness sorted before the ease order. The presentation
     // preference also feeds the stuck search's ease term, so changing it can
     // change which auxiliary fold the search takes and everything after it;
