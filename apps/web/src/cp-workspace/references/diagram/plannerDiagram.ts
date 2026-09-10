@@ -374,7 +374,38 @@ export function plannerStepDiagram(
   // happens to land on it — because that crease is the thing the folder lines
   // up against.
   const moving = new Set(witness?.who_moves ?? []);
+  // O4 is a perpendicular to a line through a mark. The crate says nothing
+  // moves — the fold is sighted, not swung — but a folder makes one by folding
+  // the line onto itself with the mark as the hinge: hold the mark, bring the
+  // corner at the end of the line's shorter arm over, and it lands on the
+  // other arm. So the picture shows the mark, that corner, and the arm it
+  // lands on, with the motion drawn — and nothing else, because that is all
+  // a folder needs.
+  const perpendicular = (() => {
+    if (witness?.axiom !== 4 || !chord) return null;
+    const lineAt = witness.inputs.findIndex((r) => r.kind === 'line' || r.kind === 'edge');
+    if (lineAt < 0) return null;
+    const ref = witness.inputs[lineAt]!;
+    const whole = segmentOfRef(sequence, frame, ref);
+    const foot = whole ? linesMeet(whole, chord) : null;
+    if (!whole || !foot) return null;
+    const reach = (q: Point) => Math.hypot(q.x - foot.x, q.y - foot.y);
+    // The shorter arm is the one to swing: less paper to move.
+    const end = reach(whole[0]) <= reach(whole[1]) ? whole[0] : whole[1];
+    const side = sideOf(chord, end);
+    if (side === 0) return null;
+    // The corner that moves is the far end of the crease on that arm.
+    const runs = spansOfRef(sequence, frame, ref).flatMap((span) => {
+      const kept = clipToSide(chord, side, span);
+      return kept ? [kept] : [];
+    });
+    const corner = runs
+      .flatMap((r) => [...r])
+      .reduce<Point | null>((far, q) => (far === null || reach(q) > reach(far) ? q : far), null);
+    return corner ? { lineAt, corner, moving: side, receiving: -side } : null;
+  })();
   const interior = (() => {
+    if (perpendicular) return { moving: perpendicular.moving, receiving: perpendicular.receiving };
     if (witness?.axiom !== 3 || !chord) return null;
     const which = witness.inputs.findIndex((_, i) => moving.has(i));
     const source = which >= 0 ? segmentOfRef(sequence, frame, witness.inputs[which]!) : null;
@@ -390,7 +421,8 @@ export function plannerStepDiagram(
     spans: readonly DiagramSegment[]
   ): DiagramSegment[] => {
     if (!interior || !chord) return [...spans];
-    const side = moving.has(which) ? interior.moving : interior.receiving;
+    const side =
+      moving.has(which) && !perpendicular ? interior.moving : interior.receiving;
     const arm = spans.flatMap((span) => {
       const kept = clipToSide(chord, side, span);
       return kept ? [kept] : [];
@@ -438,6 +470,22 @@ export function plannerStepDiagram(
     );
     labels.push({ kind: 'label', at: xy(midpoint(longest)), text: letter, style: 'highlight' });
   });
+
+  // O4: the corner that swings, and its motion onto the other arm.
+  if (perpendicular && chord) {
+    const { corner } = perpendicular;
+    const at = xy(corner);
+    primitives.push({ kind: 'point', at, style: 'highlight' });
+    labels.push({
+      kind: 'label',
+      at,
+      text: refLetter({ kind: 'point', id: -1 }, lineIndex, pointIndex),
+      style: 'highlight',
+    });
+    pointIndex += 1;
+    const out = foldArrowArc(at, reflectAcross(chord, at), xy(frame.centre));
+    if (out) primitives.push({ kind: 'fold-arrow', out });
+  }
 
   // The motion: each moving input to its image across the new crease.
   for (const which of witness?.who_moves ?? []) {

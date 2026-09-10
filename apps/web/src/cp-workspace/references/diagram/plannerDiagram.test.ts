@@ -525,6 +525,91 @@ describe('a line folded onto a line', () => {
     expect(lines.some((l) => isSeg(l, [1, 0], [1, 1]))).toBe(true);
   });
 
+  // markhor step 16: a perpendicular to the main diagonal through P at
+  // (0.75, 0.396). The crate says nothing moves; a folder holds P and swings
+  // the (1, 1) corner over until it lies on the diagonal's other arm, landing
+  // at (0.146, 0.146). The picture is that: P, the corner, the arm it lands
+  // on, and the motion.
+  it('draws a perpendicular as a hinge, a corner, and the arm it lands on', () => {
+    const seq = plannerSequenceFixture();
+    const diagonal = {
+      ...seq.steps[2]!,
+      id: 95,
+      line_id: 43,
+      line: { n: [Math.SQRT1_2, -Math.SQRT1_2] as [number, number], d: 0 },
+      segment: [
+        [0, 0],
+        [1, 1],
+      ] as [[number, number], [number, number]],
+      cp_spans: [
+        [
+          [0, 0],
+          [0.25, 0.25],
+        ],
+        [
+          [0.75, 0.75],
+          [1, 1],
+        ],
+      ] as [[number, number], [number, number]][],
+      extent: { kind: 'full' as const },
+    };
+    const P: [number, number] = [0.75, 0.3964466];
+    // The perpendicular through P: x + y = 0.75 + 0.3964 = 1.1464.
+    const k = P[0] + P[1];
+    const fold = {
+      ...seq.steps[4]!,
+      id: 93,
+      line: { n: [Math.SQRT1_2, Math.SQRT1_2] as [number, number], d: k * Math.SQRT1_2 },
+      segment: [
+        [1, k - 1],
+        [k - 1, 1],
+      ] as [[number, number], [number, number]],
+      cp_spans: [] as [[number, number], [number, number]][],
+      witnesses: [
+        {
+          ...seq.steps[4]!.witnesses[0]!,
+          axiom: 4,
+          inputs: [
+            { kind: 'point' as const, id: 50 },
+            { kind: 'line' as const, id: 43 },
+          ],
+          who_moves: [],
+        },
+      ],
+      chosen: 0,
+    };
+    const withBoth = {
+      ...seq,
+      steps: [...seq.steps, diagonal, fold],
+      lines: [...seq.lines, { id: 43, tag: 'cp' as const, step: 95 }],
+      points: [...seq.points, { id: 50, p: P, lines: [43], on_boundary: false }],
+    };
+    const d = plannerStepDiagram(withBoth, unitFrame(withBoth), withBoth.steps.length - 1);
+    const prims = d?.primitives ?? [];
+    const lines = prims.filter(
+      (p): p is Extract<StepDiagramPrimitive, { kind: 'line' }> =>
+        p.kind === 'line' && p.style === 'highlight'
+    );
+    const points = prims.filter((p) => p.kind === 'point');
+    const labels = prims.filter((p) => p.kind === 'label').map((l) => (l.kind === 'label' ? l.text : ''));
+    // The hinge and the corner, lettered P and Q; the receiving arm, lettered A.
+    expect(points.some((p) => p.kind === 'point' && near(p.at, P))).toBe(true);
+    expect(points.some((p) => p.kind === 'point' && near(p.at, [1, 1]))).toBe(true);
+    expect(labels.sort()).toEqual(['A', 'P', 'Q']);
+    // Only the arm the corner lands on — the run out of the fold on that side.
+    expect(lines.some((l) => isSeg(l, [0, 0], [0.25, 0.25]))).toBe(true);
+    expect(lines.some((l) => isSeg(l, [0.75, 0.75], [1, 1]))).toBe(false);
+    // And the motion, corner to where it lands.
+    const arrows = prims.filter((p) => p.kind === 'fold-arrow');
+    expect(arrows).toHaveLength(1);
+    const arrow = arrows[0]!;
+    if (arrow.kind !== 'fold-arrow') throw new Error('unreachable');
+    const { center, radius, from, to } = arrow.out;
+    const at = (angle: number) => [center[0] + radius * Math.cos(angle), center[1] + radius * Math.sin(angle)];
+    expect(near(at(from), [1, 1])).toBe(true);
+    expect(near(at(to), [k - 1, k - 1])).toBe(true);
+  });
+
   it('leaves a line the fold does not cross whole', () => {
     // The fixture's own O3: bottom edge onto y = 0.5 along y = 0.25. Parallel
     // to the fold, so all of it moves and all of it is shown.
