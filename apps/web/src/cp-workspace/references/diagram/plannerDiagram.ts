@@ -51,6 +51,7 @@
  * that comes from `who_moves` being empty and needs no special case here.
  */
 import { dashRulerAlong, foldArrowArc } from '../stepDiagramGeometry';
+import type { Point } from '../../../lib/geometry';
 import type { DiagramFrame, DiagramSegment } from './diagramFrames';
 import type {
   DiagramLineStyleName,
@@ -102,6 +103,7 @@ function markSegment(
 function anchorOfRef(
   sequence: PrecreaseSequence,
   frame: DiagramFrame,
+  chord: DiagramSegment,
   ref: PrecreaseRef
 ): [number, number] | null {
   if (ref.kind === 'point' || ref.kind === 'corner') {
@@ -110,10 +112,11 @@ function anchorOfRef(
   }
   const segment = segmentOfRef(sequence, frame, ref);
   // A moving *line* has no single position, so the arrow is drawn from the
-  // midpoint of its chord — the same place upstream's line-to-line arrows sit.
-  return segment
-    ? [(segment[0].x + segment[1].x) / 2, (segment[0].y + segment[1].y) / 2]
-    : null;
+  // midpoint of the part of it that moves — the same place upstream's
+  // line-to-line arrows sit. Not the whole chord's midpoint: for an edge folded
+  // onto the midline that is the very point the fold passes through, which
+  // reflects to itself and leaves nothing to draw.
+  return segment ? xy(midpoint(movingPortion(frame, chord, segment))) : null;
 }
 
 /**
@@ -133,6 +136,57 @@ function reflectAcross(segment: DiagramSegment, p: readonly [number, number]): [
   const d = n[0] * segment[0].x + n[1] * segment[0].y;
   const signed = n[0] * p[0] + n[1] * p[1] - d;
   return [p[0] - 2 * signed * n[0], p[1] - 2 * signed * n[1]];
+}
+
+/** Where a segment crosses a line, as a fraction along the segment, or null. */
+function crossingParameter(segment: DiagramSegment, chord: DiagramSegment): number | null {
+  const [a, b] = segment;
+  const [c, d] = chord;
+  const r = { x: b.x - a.x, y: b.y - a.y };
+  const s = { x: d.x - c.x, y: d.y - c.y };
+  const denom = r.x * s.y - r.y * s.x;
+  if (Math.abs(denom) < 1e-12) return null;
+  const t = ((c.x - a.x) * s.y - (c.y - a.y) * s.x) / denom;
+  return t > 1e-9 && t < 1 - 1e-9 ? t : null;
+}
+
+const lerp = (a: Point, b: Point, t: number): Point => ({
+  x: a.x + (b.x - a.x) * t,
+  y: a.y + (b.y - a.y) * t,
+});
+
+const midpoint = (seg: DiagramSegment): Point => lerp(seg[0], seg[1], 0.5);
+
+/**
+ * The part of a line a fold actually moves.
+ *
+ * A fold along `chord` swings one side of the paper over; a line crossing the
+ * fold has one half on each side, and only the half whose reflection lands on
+ * the sheet goes anywhere. The other half stays where it is, and painting it
+ * as an input — or anchoring the motion arrow on the whole line's midpoint,
+ * which for an edge folded onto the midline sits *on* the fold and reflects
+ * to itself, so no arrow is drawn at all — tells the folder to move something
+ * that does not move. Where the fold does not cross the segment, all of it
+ * moves.
+ */
+function movingPortion(
+  frame: DiagramFrame,
+  chord: DiagramSegment,
+  segment: DiagramSegment
+): DiagramSegment {
+  const t = crossingParameter(segment, chord);
+  if (t === null) return segment;
+  const at = lerp(segment[0], segment[1], t);
+  const halves: DiagramSegment[] = [
+    [segment[0], at],
+    [at, segment[1]],
+  ];
+  const lands = (half: DiagramSegment) => {
+    const m = midpoint(half);
+    const r = reflectAcross(chord, [m.x, m.y]);
+    return frame.inPaper({ x: r[0], y: r[1] });
+  };
+  return halves.find(lands) ?? segment;
 }
 
 /** `A B C…` for lines and edges, `P Q R…` for marks — ReferenceFinder's scheme. */
@@ -250,9 +304,27 @@ export function plannerStepDiagram(
       ? [{ kind: 'line', id: step.press.sighted_from }]
       : (witness?.inputs ?? []);
   const labels: StepDiagramPrimitive[] = [];
+  const chord = frame.chord(step);
+  // O3 folds one line onto another. Only part of each takes part: the half of
+  // the moving line that swings over, and the stretch of the other it lands
+  // on. The rest of both stays put and is not an input to anything.
+  const moving = new Set(witness?.who_moves ?? []);
+  const shown = (which: number, segment: DiagramSegment): DiagramSegment => {
+    if (witness?.axiom !== 3 || !chord) return segment;
+    if (moving.has(which)) return movingPortion(frame, chord, segment);
+    const other = witness.inputs.findIndex((_, i) => moving.has(i));
+    const source = other >= 0 ? segmentOfRef(sequence, frame, witness.inputs[other]!) : null;
+    if (!source) return segment;
+    const swung = movingPortion(frame, chord, source);
+    const land = (q: Point): Point => {
+      const r = reflectAcross(chord, [q.x, q.y]);
+      return { x: r[0], y: r[1] };
+    };
+    return [land(swung[0]), land(swung[1])];
+  };
   let lineIndex = 0;
   let pointIndex = 0;
-  inputs.forEach((ref) => {
+  inputs.forEach((ref, which) => {
     const letter = refLetter(ref, lineIndex, pointIndex);
     if (ref.kind === 'point' || ref.kind === 'corner') {
       const point = frame.point(ref.id);
@@ -262,8 +334,9 @@ export function plannerStepDiagram(
       labels.push({ kind: 'label', at: xy(point), text: letter, style: 'highlight' });
       return;
     }
-    const segment = segmentOfRef(sequence, frame, ref);
-    if (!segment) return;
+    const whole = segmentOfRef(sequence, frame, ref);
+    if (!whole) return;
+    const segment = shown(which, whole);
     lineIndex += 1;
     primitives.push({
       kind: 'line',
@@ -271,19 +344,14 @@ export function plannerStepDiagram(
       to: xy(segment[1]),
       style: 'highlight',
     });
-    const mid: [number, number] = [
-      (segment[0].x + segment[1].x) / 2,
-      (segment[0].y + segment[1].y) / 2,
-    ];
-    labels.push({ kind: 'label', at: mid, text: letter, style: 'highlight' });
+    labels.push({ kind: 'label', at: xy(midpoint(segment)), text: letter, style: 'highlight' });
   });
 
   // The motion: each moving input to its image across the new crease.
-  const chord = frame.chord(step);
   for (const which of witness?.who_moves ?? []) {
     const ref = inputs[which];
     if (!ref || !chord) continue;
-    const anchor = anchorOfRef(sequence, frame, ref);
+    const anchor = anchorOfRef(sequence, frame, chord, ref);
     if (!anchor) continue;
     const out = foldArrowArc(anchor, reflectAcross(chord, anchor), xy(frame.centre));
     if (out) primitives.push({ kind: 'fold-arrow', out });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { returnStroke } from '../stepDiagramGeometry';
 import { unitFrame } from './diagramFrames';
+import type { StepDiagramPrimitive } from '../referenceFinderDiagramToPrimitives';
 import { plannerSequenceFixture } from '../__fixtures__/plannerSequence';
 import {
   plannerFinishedDiagram,
@@ -310,5 +311,83 @@ describe('a press step', () => {
 
   it('draws no arrow — nothing moves', () => {
     expect((diagram?.primitives ?? []).some((p) => p.kind === 'fold-arrow')).toBe(false);
+  });
+});
+
+// markhor step 4: the bottom edge folded onto the vertical midline, along the
+// diagonal from (0.5, 0) to (0, 0.5). Only the left half of the edge swings up,
+// onto the lower half of the midline; the right half of the edge and the upper
+// half of the midline stay where they are. And the edge's own midpoint is the
+// very point the fold passes through — anchoring the arrow there gave an arc of
+// zero length and no arrow at all.
+describe('a line folded onto a line', () => {
+  const sequence = plannerSequenceFixture();
+  const midline = sequence.steps[2]!; // x = 0.5, line id 6, made at step 3
+  const step = {
+    ...sequence.steps[4]!,
+    id: 98,
+    line: { n: [Math.SQRT1_2, Math.SQRT1_2] as [number, number], d: 0.5 * Math.SQRT1_2 },
+    segment: [
+      [0.5, 0],
+      [0, 0.5],
+    ] as [[number, number], [number, number]],
+    cp_spans: [] as [[number, number], [number, number]][],
+    witnesses: [
+      {
+        ...sequence.steps[4]!.witnesses[0]!,
+        axiom: 3,
+        inputs: [
+          { kind: 'edge' as const, id: 2, side: 'bottom' as const },
+          { kind: 'line' as const, id: midline.line_id },
+        ],
+        who_moves: [0],
+      },
+    ],
+    chosen: 0,
+  };
+  const withStep = { ...sequence, steps: [...sequence.steps, step] };
+  const diagram = plannerStepDiagram(withStep, unitFrame(withStep), withStep.steps.length - 1);
+  const highlights = (diagram?.primitives ?? []).filter(
+    (p): p is Extract<StepDiagramPrimitive, { kind: 'line' }> =>
+      p.kind === 'line' && p.style === 'highlight'
+  );
+  const near = (a: readonly number[], b: readonly number[]) =>
+    Math.hypot(a[0]! - b[0]!, a[1]! - b[1]!) < 1e-9;
+  const isSeg = (l: (typeof highlights)[number], a: number[], b: number[]) =>
+    (near(l.from, a) && near(l.to, b)) || (near(l.from, b) && near(l.to, a));
+
+  it('draws an arrow, from the half of the edge that moves', () => {
+    const arrows = (diagram?.primitives ?? []).filter((p) => p.kind === 'fold-arrow');
+    expect(arrows).toHaveLength(1);
+    const arrow = arrows[0]!;
+    if (arrow.kind !== 'fold-arrow') throw new Error('unreachable');
+    // From the midpoint of the moving half, (0.25, 0), to its image on the
+    // midline, (0.5, 0.25) — not from (0.5, 0), which is on the fold. The arc
+    // is stored as centre, radius and two angles; read its ends back.
+    const { center, radius, from, to } = arrow.out;
+    const at = (angle: number) => [center[0] + radius * Math.cos(angle), center[1] + radius * Math.sin(angle)];
+    expect(near(at(from), [0.25, 0])).toBe(true);
+    expect(near(at(to), [0.5, 0.25])).toBe(true);
+  });
+
+  it('highlights only the half of the edge that moves', () => {
+    expect(highlights.some((l) => isSeg(l, [0, 0], [0.5, 0]))).toBe(true);
+    expect(highlights.some((l) => isSeg(l, [0, 0], [1, 0]))).toBe(false);
+  });
+
+  it('highlights only the stretch of the midline it lands on', () => {
+    expect(highlights.some((l) => isSeg(l, [0.5, 0], [0.5, 0.5]))).toBe(true);
+    expect(highlights.some((l) => isSeg(l, [0.5, 0], [0.5, 1]))).toBe(false);
+  });
+
+  it('leaves a line the fold does not cross whole', () => {
+    // The fixture's own O3: bottom edge onto y = 0.5 along y = 0.25. Parallel
+    // to the fold, so all of it moves and all of it is shown.
+    const plain = plannerStepDiagram(sequence, unitFrame(sequence), 4);
+    const lines = (plain?.primitives ?? []).filter(
+      (p): p is Extract<StepDiagramPrimitive, { kind: 'line' }> =>
+        p.kind === 'line' && p.style === 'highlight'
+    );
+    expect(lines.some((l) => isSeg(l, [0, 0], [1, 0]))).toBe(true);
   });
 });

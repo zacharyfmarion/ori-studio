@@ -59,6 +59,15 @@ export interface DiagramFrame {
   point(id: number): Point | null;
   /** One of the sheet's four edges. */
   edge(side: PrecreaseEdgeSide): DiagramSegment | null;
+  /**
+   * Whether a point is on the sheet.
+   *
+   * What decides which half of a line a fold actually moves: the half whose
+   * reflection lands on the paper. The other half is not carried anywhere,
+   * and painting it as an input tells the folder to move something that stays
+   * put.
+   */
+  inPaper(p: Point): boolean;
 }
 
 const pair = (s: PrecreasePlanSegment): DiagramSegment => [
@@ -129,7 +138,47 @@ export function unitFrame(
       return found ? { x: found.p[0], y: found.p[1] } : null;
     },
     edge: (side) => unitEdge(sheet, side),
+    inPaper: (p) =>
+      p.x >= -PAPER_TOLERANCE &&
+      p.x <= sheet.width + PAPER_TOLERANCE &&
+      p.y >= -PAPER_TOLERANCE &&
+      p.y <= sheet.height + PAPER_TOLERANCE,
   };
+}
+
+/** A hair of slack on the sheet's boundary, so an edge is on the paper. */
+const PAPER_TOLERANCE = 1e-9;
+
+/**
+ * Whether `p` is inside the convex quadrilateral with these corners, in any
+ * order. The sheet in model space is the unit square under a similarity, so it
+ * is convex and this is exact.
+ */
+function inConvexQuad(all: readonly Point[], p: Point): boolean {
+  // Each edge contributes both its ends, so every corner arrives twice.
+  const corners = all.filter(
+    (c, i) => all.findIndex((d) => Math.hypot(d.x - c.x, d.y - c.y) < 1e-9) === i
+  );
+  if (corners.length < 3) return false;
+  const cx = corners.reduce((sum, c) => sum + c.x, 0) / corners.length;
+  const cy = corners.reduce((sum, c) => sum + c.y, 0) / corners.length;
+  const ring = [...corners].sort(
+    (a, b) => Math.atan2(a.y - cy, a.x - cx) - Math.atan2(b.y - cy, b.x - cx)
+  );
+  // The scale of the sheet, so the boundary slack is a hair and not a fixed
+  // number of model units.
+  const scale = Math.max(...ring.map((c) => Math.hypot(c.x - cx, c.y - cy)));
+  let sign = 0;
+  for (let i = 0; i < ring.length; i += 1) {
+    const a = ring[i]!;
+    const b = ring[(i + 1) % ring.length]!;
+    const cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+    const side = cross / Math.hypot(b.x - a.x, b.y - a.y);
+    if (Math.abs(side) <= PAPER_TOLERANCE * scale) continue;
+    if (sign === 0) sign = Math.sign(side);
+    else if (Math.sign(side) !== sign) return false;
+  }
+  return true;
 }
 
 /** How far along `[a, b]` the point `p` sits, as a fraction. */
@@ -223,5 +272,6 @@ export function modelFrame(
       const found = model.edges[side];
       return found ? [found.a, found.b] : null;
     },
+    inPaper: (p) => inConvexQuad(corners, p),
   };
 }
