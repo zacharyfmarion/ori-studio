@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { snapPointToSymmetryAxis } from '../lib/symmetryGeometry';
 import { createExploriDocument, type ExploriDocument } from './document';
+import type { TreeSymmetryPair } from '../tree-editor/host';
 import {
   EXPLORI_SYMMETRY_AXIS,
   EXPLORI_SYMMETRY_TOLERANCE,
   addExploriPair,
   exploriLeafPlacement,
   exploriMirrorHeldIds,
+  inferExploriPairs,
+  inferExploriPartner,
   mirrorExploriNodeId,
   removeExploriPair,
 } from './symmetry';
@@ -94,5 +97,51 @@ describe('mirrorExploriNodeId after Unpair', () => {
 
   it('holds nothing in its half', () => {
     expect(exploriMirrorHeldIds(unpaired(), [1]).size).toBe(0);
+  });
+});
+
+/**
+ * The Pair verbs: position proposes a pair here, on request, and nowhere else.
+ */
+describe('the Pair verbs', () => {
+  //   0 (root, on the axis)
+  //   ├─ 1 (left)   ── reflection of 2
+  //   ├─ 2 (right)  ── reflection of 1
+  //   └─ 3 (left, nothing opposite)
+  function drawing(pairs: TreeSymmetryPair[] = []): ExploriDocument {
+    return {
+      ...createExploriDocument(),
+      nodes: [
+        { id: 0, loc: { x: 0, y: 0 }, name: '' },
+        { id: 1, loc: { x: -2, y: 1 }, name: '' },
+        { id: 2, loc: { x: 2, y: 1 }, name: '' },
+        { id: 3, loc: { x: -1, y: 3 }, name: '' },
+      ],
+      edges: [
+        { id: 10, vertices: [0, 1], length: 1 },
+        { id: 11, vertices: [0, 2], length: 1 },
+        { id: 12, vertices: [0, 3], length: 1 },
+      ],
+      symmetry: { enabled: true, pairs },
+    };
+  }
+
+  it('offers the node at the reflected spot, and nothing to the rest', () => {
+    expect(inferExploriPartner(drawing(), 1)).toBe(2);
+    expect(inferExploriPartner(drawing(), 2)).toBe(1);
+    expect(inferExploriPartner(drawing(), 3)).toBeNull();
+    expect(inferExploriPartner(drawing(), 0)).toBeNull();
+  });
+
+  it('offers nothing to or from a node that is already paired', () => {
+    const paired = drawing(addExploriPair([], 2, 3));
+    expect(inferExploriPartner(paired, 1)).toBeNull();
+    expect(inferExploriPartner(paired, 2)).toBeNull();
+  });
+
+  it('pairs everything mirrored at once, and returns the same list when nothing pairs', () => {
+    expect(inferExploriPairs(drawing())).toEqual([{ v1: 1, v2: 2 }]);
+    const done = drawing(addExploriPair([], 1, 2));
+    expect(inferExploriPairs(done)).toBe(done.symmetry.pairs);
   });
 });

@@ -538,7 +538,8 @@ describe('buildMirroredBpFlapMoves', () => {
     const [width, height] = options.sheetSize ?? [16, 16];
     return buildMirroredBpFlapMoves({
       tree: tree(),
-      pairs: [],
+      // Flaps 1 and 2 are paired; 3 is not. Position pairs nothing.
+      pairs: [{ v1: 1, v2: 2 }],
       treeAxis: TREE_AXIS,
       sheet: sheet('rectangular', width, height),
       mirror: options.mirror ?? BOOK,
@@ -561,7 +562,7 @@ describe('buildMirroredBpFlapMoves', () => {
     ]);
   });
 
-  it('honours an explicit pair over the geometric guess', () => {
+  it('follows the explicit pair, not the vertex at the reflected spot', () => {
     const mirrored = buildMirroredBpFlapMoves({
       tree: tree(),
       pairs: [{ v1: 1, v2: 3 }],

@@ -87,7 +87,9 @@ function setUp(symmetry: { enabled: boolean; pairs?: { v1: number; v2: number }[
         fold: 'book',
         quarterTurn: false,
         sidesSwapped: false,
-        pairs: symmetry.pairs ?? [],
+        // The fixture's mirrored pair, declared: a pair exists because the user made
+        // one, and nothing pairs vertices by where they sit.
+        pairs: symmetry.pairs ?? [{ v1: 1, v2: 2 }],
       }
       })},
     true
@@ -123,7 +125,7 @@ describe('deleteOristudioBpTreeNode under symmetry', () => {
     expect(deletedIds()).toEqual([2, 1]);
   });
 
-  it('honours an explicit pair over the geometric guess', async () => {
+  it('follows the explicit pair, not the vertex at the reflected spot', async () => {
     setUp({ enabled: true, pairs: [{ v1: 1, v2: 3 }] });
     await useWorkspaceStore.getState().deleteOristudioBpTreeNode(1);
     expect(deletedIds()).toEqual([1, 3]);

@@ -10,14 +10,22 @@ import { paperCenter } from './symmetryPresets';
 /**
  * Box-Pleating tree adapter for symmetry authoring. Reuses the model-agnostic math in
  * {@link ./symmetryGeometry} and adds the pieces specific to the BP metric tree:
- * an axis derived from the sheet, ephemeral vertex pairing, and — because a BP drag
+ * an axis derived from the sheet, the vertex pairing, and — because a BP drag
  * rotates a whole subtree — building the mirrored set of vertex moves from a primary
- * set. Pure and side-effect free; the store slice owns the ephemeral state and calls
- * these to compute mirrored edits.
+ * set. Pure and side-effect free; the store slice owns the state and calls these to
+ * compute mirrored edits.
+ *
+ * **A pair exists because one of three verbs made it** — mirror-add, Pair with
+ * mirror, Pair all mirrored — **and stops existing through Unpair, delete-pruning
+ * or load-pruning.** Nothing at edit time reads where vertices sit to decide who
+ * mirrors whom; the one positional fact is that a vertex *on* the axis is its own
+ * mirror. Matching by position exists solely as the pair-creation tool behind the
+ * two Pair verbs — {@link inferBpTreeSymmetryPartner} and
+ * {@link inferBpTreeSymmetryPairs} — and never runs unless the user asks.
  */
 
-// Match tolerance in tree units (leaves are unit length). Governs "is on the axis"
-// and "which vertex is the reflection of this one" for geometric pair inference.
+// Match tolerance in tree units (leaves are unit length). Governs "is on the axis",
+// and how close to the reflected spot a vertex must sit for the Pair verbs to offer it.
 export const BP_TREE_SYMMETRY_TOLERANCE = 0.02;
 
 /**
@@ -245,10 +253,18 @@ export function explicitBpTreePairId(pairs: BpTreeSymmetryPair[], vertexId: numb
 }
 
 /**
- * The mirror of a vertex across the axis: an explicit ephemeral pair first, else
- * geometric inference — a vertex on the axis mirrors to itself, otherwise the nearest
- * vertex sitting at the reflected position (within tolerance). Returns null when no
- * counterpart resolves (the caller then leaves that vertex un-mirrored — partial mirror).
+ * The mirror of a vertex: its explicit pair, else itself when it sits on the axis,
+ * else `null` — the caller then leaves that vertex un-mirrored (partial mirror).
+ *
+ * Nothing here reads where *other* vertices sit. Position used to be a third
+ * branch ("the vertex at the reflected spot is the partner"), and that made
+ * Unpair a no-op: it moves nothing, so the two vertices were still reflections
+ * and the fallback found the partner straight back. Matching by position now
+ * lives in {@link inferBpTreeSymmetryPartner}, which only runs when the user asks.
+ *
+ * The on-axis self-mirror stays positional on purpose. It is a fact about where a
+ * vertex *is*, not a relationship with another vertex, and the mirror-draw toggle
+ * is the documented way to move such a vertex off the line.
  */
 export function mirrorBpTreeVertexId(
   tree: OristudioBpTreeView,
@@ -261,11 +277,73 @@ export function mirrorBpTreeVertexId(
   if (explicit != null && vertexExists(tree, explicit)) return explicit;
   const loc = vertexLoc(tree, vertexId);
   if (!loc) return null;
-  if (symmetrySide(loc, axis, tolerance) === 0) return vertexId; // on the axis → self-mirror
+  return symmetrySide(loc, axis, tolerance) === 0 ? vertexId : null;
+}
+
+/**
+ * The vertex *Pair with mirror* would pair `vertexId` with, or `null`.
+ *
+ * Both must be unpaired and off the axis, the candidate must sit within
+ * `tolerance` of `vertexId`'s reflection, and the match must be **mutual**: the
+ * candidate's own nearest reflection has to be `vertexId`. Mutual-best is what
+ * turns an ambiguous drawing — two vertices near the same reflected spot — into a
+ * refusal rather than a guess. The user can still move one and pair again.
+ */
+export function inferBpTreeSymmetryPartner(
+  tree: OristudioBpTreeView,
+  pairs: BpTreeSymmetryPair[],
+  axis: SymmetryAxis,
+  vertexId: number,
+  tolerance = BP_TREE_SYMMETRY_TOLERANCE
+): number | null {
+  const candidate = nearestUnpairedReflection(tree, pairs, axis, vertexId, tolerance);
+  if (candidate === null) return null;
+  return nearestUnpairedReflection(tree, pairs, axis, candidate, tolerance) === vertexId
+    ? candidate
+    : null;
+}
+
+/**
+ * *Pair all mirrored*: every pair {@link inferBpTreeSymmetryPartner} would make,
+ * applied at once. Returns the new pair list — the same array when nothing pairs,
+ * so a caller can tell a no-op by identity.
+ */
+export function inferBpTreeSymmetryPairs(
+  tree: OristudioBpTreeView,
+  pairs: BpTreeSymmetryPair[],
+  axis: SymmetryAxis,
+  tolerance = BP_TREE_SYMMETRY_TOLERANCE
+): BpTreeSymmetryPair[] {
+  let next = pairs;
+  for (const vertex of tree.vertices) {
+    if (explicitBpTreePairId(next, vertex.id) !== null) continue;
+    const partner = inferBpTreeSymmetryPartner(tree, next, axis, vertex.id, tolerance);
+    if (partner !== null) next = addBpTreeSymmetryPair(next, vertex.id, partner);
+  }
+  return next;
+}
+
+/**
+ * The nearest unpaired, off-axis vertex within `tolerance` of `vertexId`'s
+ * reflection, or `null` — including when `vertexId` is itself paired or on the
+ * axis, which have nothing to offer a Pair verb.
+ */
+function nearestUnpairedReflection(
+  tree: OristudioBpTreeView,
+  pairs: BpTreeSymmetryPair[],
+  axis: SymmetryAxis,
+  vertexId: number,
+  tolerance: number
+): number | null {
+  if (explicitBpTreePairId(pairs, vertexId) !== null) return null;
+  const loc = vertexLoc(tree, vertexId);
+  if (!loc || symmetrySide(loc, axis, tolerance) === 0) return null;
   const target = reflectPointAcrossSymmetryAxis(loc, axis);
   let best: { id: number; distance: number } | null = null;
   for (const vertex of tree.vertices) {
     if (vertex.id === vertexId) continue;
+    if (explicitBpTreePairId(pairs, vertex.id) !== null) continue;
+    if (symmetrySide(vertex.loc, axis, tolerance) === 0) continue;
     const distance = Math.hypot(vertex.loc.x - target.x, vertex.loc.y - target.y);
     if (distance <= tolerance && (!best || distance < best.distance)) {
       best = { id: vertex.id, distance };

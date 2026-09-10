@@ -74,7 +74,9 @@ function symmetryState(overrides: Partial<Parameters<typeof resolveOptimizerSymm
     fold: 'book' as const,
     quarterTurn: false,
     sidesSwapped: false,
-    pairs: [],
+    // Leaves 1 and 2 of `bugTree()` are paired; leaf 3 sits on the axis. A pair
+    // exists because the user made one, so the fixture declares it.
+    pairs: [{ v1: 1, v2: 2 }],
     ...overrides,
   };
 }
@@ -146,13 +148,19 @@ describe('resolveOptimizerSymmetry', () => {
     expect(result.inconsistentPairs).toEqual([]);
   });
 
-  it('infers a partner from where the flap is drawn', () => {
-    // Read from the tree drawing, which random-layout mode leaves alone — it
-    // discards the packing, not the tree.
+  it('reads the pair the user made', () => {
     const result = resolveOptimizerSymmetry(bugTree(), symmetryState());
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(new Map(result.payload.partners).get(1)).toBe(2);
+  });
+
+  it('does not pair flaps by where they are drawn', () => {
+    // Leaves 1 and 2 are reflections of each other, and that is not a pair.
+    // Unpair moves nothing, so if position counted it could never take effect
+    // here — the optimizer would keep mirroring a pair the user broke.
+    const result = resolveOptimizerSymmetry(bugTree(), symmetryState({ pairs: [] }));
+    expect(result.ok).toBe(false);
   });
 
   it('reads a flap drawn on the mirror line as its own mirror', () => {

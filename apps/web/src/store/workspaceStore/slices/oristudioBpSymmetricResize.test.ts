@@ -90,7 +90,9 @@ function setUp(options: {
         fold: options.fold ?? 'book',
         quarterTurn: options.quarterTurn ?? false,
         sidesSwapped: false,
-        pairs: options.pairs ?? [],
+        // The fixture's mirrored pair, declared: a pair exists because the user made
+        // one, and nothing pairs vertices by where they sit.
+        pairs: options.pairs ?? [{ v1: 1, v2: 2 }],
       }
       })},
     true
@@ -136,7 +138,7 @@ describe('resizeOristudioBpLayoutFlap under symmetry', () => {
     ]);
   });
 
-  it('honours an explicit pair over the geometric guess', async () => {
+  it('follows the explicit pair, not the vertex at the reflected spot', async () => {
     setUp({ enabled: true, pairs: [{ v1: 1, v2: 3 }] });
     await useWorkspaceStore.getState().resizeOristudioBpLayoutFlap(1, 4, 0);
     expect(resizes()).toEqual([

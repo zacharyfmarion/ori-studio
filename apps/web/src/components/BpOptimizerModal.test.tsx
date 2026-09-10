@@ -266,7 +266,9 @@ describe('symmetry row', () => {
         sidesSwapped: false,
         angle: 90,
         loc: { x: 10, y: 10 },
-        pairs: [],
+        // Leaves a and b are paired; a pair exists because the user made one, so
+        // the fixture declares it rather than relying on where the two sit.
+        pairs: [{ v1: 1, v2: 2 }],
         ...symmetry,
       },
       document: {
