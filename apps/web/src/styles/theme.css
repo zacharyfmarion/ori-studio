@@ -52,10 +52,12 @@
    * and did nothing.
    *
    * Computed by the same rule `themes/paperBack.ts` applies, against the
-   * fallback ground and ink above, so the checked-in default and every applied
-   * theme agree. It was `#515558`, a 2.46 step, before that rule existed.
+   * fallback ground above, so the checked-in default and every applied theme
+   * agree: a dark ground shades 30% toward black, because the other side of
+   * paper is the darker side. It was `#515558` and then `#404447` — both
+   * lighter than the ground, a glow rather than a turn-over.
    */
-  --paper-back: #404447;
+  --paper-back: #0b0e10;
   /* Two-tone origami paper in the simulator: yellow front, light back. The
      yellow matches a generated folded figure in the edit pane (the CP engine's
      default front colour, RgbColor(255,255,50)); the blue valley and red

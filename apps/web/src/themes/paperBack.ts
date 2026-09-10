@@ -19,6 +19,13 @@
  * So the rule here is the light branch's *outcome* rather than its arithmetic —
  * as much of the legend's 30% as a theme can take without the back face
  * standing further from its ground than a light theme's does.
+ *
+ * And on a dark theme the mix runs the other way. The legend's "colour side" is
+ * the darker side of the paper: 30% of the ink into a light ground is a darker
+ * grey. Mixing 30% of a dark theme's ink — which is light — into its dark
+ * ground gives a *lighter* slab, which is the opposite of turning the paper
+ * over. So a dark theme mixes toward black instead, and the back face is
+ * darker than the front on every theme, as the other side of paper is.
  */
 import { mixHexColors } from '../lib/rgbColor';
 
@@ -84,12 +91,17 @@ export function wcagContrast(a: string, b: string): number {
  * one that ships.
  */
 export function paperBackFor(background: string, ink: string): string {
+  // A theme whose ink is lighter than its ground is a dark theme, and its
+  // paper's other side is darker still — so the shade comes from black, not
+  // from the ink, which would lighten it.
+  const dark = relativeLuminance(ink) > relativeLuminance(background);
+  const toward = dark ? '#000000' : ink;
   for (let inkShare = PAPER_BACK_INK; inkShare > 0; inkShare -= SEARCH_STEP) {
-    const candidate = mixHexColors(background, ink, 1 - inkShare);
+    const candidate = mixHexColors(background, toward, 1 - inkShare);
     if (wcagContrast(candidate, background) <= PAPER_BACK_MAX_STEP) return candidate;
   }
   // Unreachable for any real pair — a vanishing ink share is the ground itself,
   // whose step is 1 — but a theme is user-supplied data, so it has an answer
   // rather than a loop that can fall out of the bottom.
-  return mixHexColors(background, ink, 1);
+  return mixHexColors(background, toward, 1);
 }
