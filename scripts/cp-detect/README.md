@@ -711,6 +711,37 @@ with the moves that went furthest from the ink listed. Run it on a few
 rendered cases too: there the crossing sits about half a pixel from the
 design's contact, which is the calibration.
 
+### What the curated group cannot judge: the paper's frame
+
+A curated truth is also in whatever *frame* the pipeline produced at curation
+time, and until the auto-crop could find a rotated paper that frame kept the
+paper as it was drawn — a diamond, or a scan a few degrees off square. The
+crop now rectifies such a paper upright, so the pipeline's answer and the
+curated truth differ by a rigid rotation, and the strict 4 px of 1024
+comparison reads that as total failure: `mammoth-v2` and `swallow-swallow`
+scored `decoder: off` at edge F1 0.00 while matching their truth at
+0.92-1.00 both ways once a rotation was allowed.
+
+Re-express such a case's truth in the frame the pipeline now produces:
+
+```bash
+scripts/cp-detect/upright-curated-paper.py $CP_DETECT_CURATED_CORPUS_DIR/cpoogle/<case> --apply
+```
+
+It rotates `topology.fold` and `truth.fold` rigidly about the paper's own
+centre, by the angle of the paper's own `B` edges taken into (-45, 45] — the
+same range the crop searches, so the two agree without the truth ever being
+fitted to the detector's answer. Nothing is regenerated: every crease,
+assignment, fold angle and face stays the curated one. Without `--apply` it
+only reports. A paper already upright is left alone.
+
+**Score such a fit in both directions.** A one-sided recall of the pipeline's
+vertices against the truth's reads 1.000 for a partial detection that happens
+to sit on true vertices — `rabbit` scores 1.000 forward and 0.558 back, being
+24 of 43 vertices of a paper that is a square with one corner cut off, which
+the square-only pipeline cannot represent at any angle. Only a case that
+matches both ways is a frame problem.
+
 ### The rendered group
 
 `rendered_corpus`, an example in `oristudio-cp`, makes cases out of native

@@ -2783,8 +2783,8 @@
     },
     "cpoogle/mammoth-v2-fishfolder-mammoth": {
       "decoder": "off",
-      "edge_f1": 0.002,
-      "end_to_end": "not_accepted",
+      "edge_f1": 0.938,
+      "end_to_end": "accepted_wrong",
       "gate": "close",
       "gate_max_px": 1.288,
       "gate_unpaired_junctions": 0,
@@ -3251,7 +3251,7 @@
     },
     "cpoogle/rabbit-rabbit-by-juanfran-carrillo": {
       "decoder": "off",
-      "edge_f1": 0.0,
+      "edge_f1": 0.138,
       "end_to_end": "accepted_wrong",
       "gate": "error",
       "gate_max_px": null,
@@ -3863,7 +3863,7 @@
     },
     "cpoogle/swallow-swallow-by-ikuno-riku": {
       "decoder": "off",
-      "edge_f1": 0.0,
+      "edge_f1": 0.74,
       "end_to_end": "accepted_wrong",
       "gate": "not_solved",
       "gate_max_px": 0.0,
@@ -5024,7 +5024,7 @@
     }
   },
   "cases_total": 558,
-  "commit": "ded3c562ca7f98bbb043fe084b030a73d9032cc2",
+  "commit": "8d8778dae7096d6161fd897bc8cacedbef5e2fb5",
   "decoder": {
     "buckets": {
       "exact": 356,
@@ -5034,14 +5034,14 @@
       "skipped": 6
     },
     "exact_topology": 356,
-    "mean_edge_f1": 0.967,
+    "mean_edge_f1": 0.97,
     "scored": 539
   },
   "end_to_end": {
     "buckets": {
-      "accepted_wrong": 130,
+      "accepted_wrong": 131,
       "n/a": 36,
-      "not_accepted": 49,
+      "not_accepted": 48,
       "recovered": 337,
       "skipped": 6
     },
@@ -5071,14 +5071,14 @@
           "skipped": 6
         },
         "exact_topology": 338,
-        "mean_edge_f1": 0.97,
+        "mean_edge_f1": 0.974,
         "scored": 478
       },
       "end_to_end": {
         "buckets": {
-          "accepted_wrong": 114,
+          "accepted_wrong": 115,
           "n/a": 2,
-          "not_accepted": 43,
+          "not_accepted": 42,
           "recovered": 319,
           "skipped": 6
         },
