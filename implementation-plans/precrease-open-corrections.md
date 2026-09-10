@@ -97,52 +97,60 @@ is *why* the closure certified it), one of them is creased through the spot, and
 the pair crosses at ≥ `MIN_ANGLE_SINE` because that is the same test that minted
 the point in the first place (`state.rs:268-271`).
 
-### Which route actually works — measured, not assumed
+### Which route actually works — measured, and measured wrong the first time
 
-Two ways to make a mark, and the cheap one turns out not to cover the case that
-prompted this.
-
-**Route A — press a pinch during a fold already scheduled.** To press a crease on
-line B the paper must be folded along B, and that happens once, at B's own step.
-So a mark at `P = A ∩ B` can only be pressed if, at B's step, A's crease already
-runs through P. That makes it an **ordering** test, not just an availability one:
+**The ReferenceFinder figures below the fold are answering the wrong question.**
+I asked RF to construct each point *from a bare sheet*, which of course costs
+rank 3–4 and two to four folds. The plan has already folded most of the
+construction. Asked what is missing *given the state*, the answer for markhor's
+step 15 is: **nothing**.
 
 ```
-∃ B ∈ lines(P) folded before the step that needs P,
-∃ A ∈ lines(P), A ≠ B, folded before B, whose creases cover P,
-crossing squarely enough to locate it.
+fold  7  line #8   (0,0)-(1,1)          creased (0,0)-(0.25,0.25) and (0.75,0.75)-(1,1)
+fold 10  line #14  (0.9142,0)-(0.5,1)   creased (0.75,0.3964)-(0.5,1)
+
+            they cross at (0.646447, 0.646447)   <- exactly Q
+            step 7  crease STOPS SHORT OF the crossing
+            step 10 crease REACHES the crossing
 ```
+
+Q is the sheet's main diagonal crossed with step 10's line. Both are folded
+before step 15. The diagonal is creased at both *ends* and Q sits in its
+uncreased middle. Every one of these points is on the 22.5° lattice and is the
+crossing of two lines the plan already contains — that is *why* the closure
+certified the fold.
+
+So the three routes, cheapest first:
+
+**Ordering.** To press a mark at `P = A ∩ B` you fold along B and press where you
+can see A's crease, so A must be creased through P before B is folded. When the
+plan folds B first, that is often incidental rather than forced. markhor's step
+10 (line 14) depends only on lines 4 and 11 — not on the diagonal — so folding it
+before step 7 is legal, and then the diagonal's fold can pinch at the visible
+crossing. **Three of markhor's four phantom marks need only this. No extra
+crease at all.**
+
+**A pinch**, where the order is already right: press `2 × PINCH_HALF_LENGTH` =
+6% of the sheet's side at the crossing, during a fold already scheduled.
+
+**A construction**, for the rest.
 
 Over 148 designs and 4,094 phantom marks:
 
-| | |
-|---|---|
-| pressable during a fold already scheduled | 2,501 (61.1%) |
-| a sighting line exists but is folded **too late** to press against | 694 (17.0%) |
-| no line is ever creased through the spot at all | 899 (22.0%) |
-
-**On markhor it covers nothing: 0 of 4.** Three have their sighting line folded
-after the line that would have to be pressed; the fourth has none. So Route A is
-an optimisation for other patterns, not the fix for the reported bug.
-
-**Route B — ask ReferenceFinder to construct the mark.** Measured directly by
-driving the RF wasm under Node at the database and query settings the app uses
-(`DEFAULT_DATABASE_SETTINGS`, `DEFAULT_QUERY_SETTINGS`, rank 6):
-
-| point | step | result |
+| what the mark needs | | |
 |---|---|---|
-| 28 `(0.646447, 0.646447)` | 15, 26 | **exact**, rank 4, 4 steps |
-| 31 `(0.353554, 0.646447)` | 21 | **exact**, rank 4, 4 steps |
-| 23 `(0.707107, 0.292893)` | 24 | **exact**, rank 3, **2 steps** |
+| the crossing gets creased later anyway | 321 | 7.8% |
+| a pinch at a crossing already visible | 2,283 | 55.8% |
+| swap the two folds, then pinch — no extra crease | 345 | 8.4% |
+| a genuine construction | 1,145 | 28.0% |
 
-All three exact, and the one I had called the hard case is the *cheapest*. Two of
-the constructions are already `"pinch": 1` steps, and all three end on
-`{"axiom": 0}` — the mark is the crossing of two constructed lines. Two use a
-sheet diagonal, which RF treats as free and the workspace already handles
-(`panels:references.freeDiagonals`).
+markhor's step 24 is in that last 28%: its Q lies on lines 13, 7 and 39, and none
+of the three is ever creased through it.
 
-**So Route B is the fix and Route A is a later optimisation.** Route B also
-subsumes A: it works regardless of what the point's own lines are doing.
+**Caveat on the swap column.** "A does not transitively depend on B" is a
+*necessary* condition for trading their places, not a sufficient one — steps
+between them may depend on the current order. Proving it needs an actual reorder
+and replan, which is the first thing to build.
 
 ### One thing this dissolves
 
@@ -284,21 +292,29 @@ fallback.
       `Planner::line_to_rf` notes **is** the ReferenceFinder frame, so they need
       no conversion before a query. `Step.marks_exist` is its emptiness, pinned
       by a test.
-- [ ] **The driver asks RF for each missing mark and folds the constructions.**
+- [ ] **Order the folds so the sighting line comes first.** The cheapest fix and
+      the one that covers markhor: no extra crease, no construction, just a
+      different order. Needs a real reorder-and-replan to confirm the swap is
+      safe, not the necessary-condition proxy measured above.
+- [ ] **Press a mark-pinch during a fold already scheduled**, where the order is
+      already right (55.8%). Its `Step` shape needs its own field — three
+      verifiers read `cp_spans.is_empty()` as "creased whole"
+      (`planner_direction.rs:352`, `:602`, `measure_ends.rs:89`), so the extra
+      press must not be a `cp_spans` entry.
+- [ ] **The driver asks RF for each missing mark and folds the constructions**,
+      for the 28% that neither of the above reaches.
       Not started, and it needs a measurement first — see below. The shape is
       settled: `DriverState` gains `missing_marks`, the rules gain
       `AskReferenceFinderForMarks` after a complete close, and the driver reuses
       `candidateLinesFrom` / `score` / `bestCandidate` / `fold` exactly as the
       line fallback does. What is *not* settled is whether it should run at all.
 
-      **The risk that gates it.** RF's constructions for markhor's three points
-      are rank 3–4, so two to four folds each, and the corpus carries roughly
-      twenty phantom marks per design. Taken naively that is forty to eighty
-      extra auxiliary folds on a hundred-step plan — a plan two or three times
-      longer, to fix steps that are individually correct. Constructions share
-      lines and one aux fold can make several marks real at once, so the true
-      cost is certainly lower, but nobody knows by how much. Measuring it needs
-      the shipping loop, which means RF, which means the harness below.
+      **What that costs is still unmeasured**, and the earlier estimate here
+      (forty to eighty extra folds per design) was wrong because it priced every
+      phantom mark at a from-scratch construction. Only 28% need one at all, and
+      even those should be asked what is missing *given the state* rather than
+      from a bare sheet. Sizing it honestly needs the shipping loop, which means
+      RF, which means the harness below.
 - [ ] Route A as an optimisation afterwards, if the extra aux folds prove
       expensive: press the pinch during a fold already scheduled, where the
       ordering allows (61.1%). Decide its `Step` shape deliberately — three
