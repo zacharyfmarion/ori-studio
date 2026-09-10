@@ -52,14 +52,32 @@ describe('plannerStepDiagram', () => {
     ).toBe(false);
   });
 
-  it('draws a full crease in the direction the crate settled', () => {
+  it('draws a full crease as the folder sees it: a valley from the face it is made on', () => {
     const valley = plannerStepDiagram(directed('unassigned', 'valley'), unitFrame(directed('unassigned', 'valley')), 1);
     expect(
       valley?.primitives.filter((p) => p.kind === 'line' && p.style === 'valley')
     ).toHaveLength(1);
+    // A mountain in the pattern is made from the back, where it is a valley:
+    // "fold P onto Q" cannot be a mountain on the face the folder is looking
+    // at, and the card shows that face.
     const mountain = plannerStepDiagram(directed('unassigned', 'mountain'), unitFrame(directed('unassigned', 'mountain')), 1);
     expect(
-      mountain?.primitives.filter((p) => p.kind === 'line' && p.style === 'mountain')
+      mountain?.primitives.filter((p) => p.kind === 'line' && p.style === 'valley')
+    ).toHaveLength(1);
+    expect(
+      mountain?.primitives.some((p) => p.kind === 'line' && p.style === 'mountain')
+    ).toBe(false);
+    // Only a press refolds a crease from whichever face is up: a valley
+    // pressed again from the back is a mountain there.
+    const seq = directed('unassigned', 'valley');
+    const pressed = {
+      ...seq,
+      steps: seq.steps.map((s, i) => (i === 1 ? { ...s, side: 'back' as const } : s)),
+    };
+    expect(
+      plannerStepDiagram(pressed, unitFrame(pressed), 1)?.primitives.filter(
+        (p) => p.kind === 'line' && p.style === 'mountain'
+      )
     ).toHaveLength(1);
   });
 
@@ -527,12 +545,12 @@ describe('a line folded onto a line', () => {
     expect(lines.some((l) => isSeg(l, [1, 0], [1, 1]))).toBe(true);
   });
 
-  // markhor step 89: the vertical x = 0.25 folded onto a diagonal whose
-  // pattern crease sits far down the sheet, and which a later step pinched at
-  // the crossing. The pinch is the crease the vertical actually lands on — the
-  // one the folder lines up against — and it was made after the diagonal, so
-  // the making step alone does not know about it.
-  it('lines a receiving line up against a pinch pressed on it after it was made', () => {
+  // The vertical x = 0.25 folded onto a diagonal whose pattern crease sits
+  // far down the sheet, and which a later step pressed out to the crossing.
+  // That press is the crease the vertical actually lands on — the one the
+  // folder lines up against — and it was made after the diagonal, so the
+  // making step alone does not know about it.
+  it('lines a receiving line up against a press made on it after it was made', () => {
     const seq = plannerSequenceFixture();
     // x + y = 1.15, creased from (1, 0.15) to (0.5, 0.65) by the pattern.
     const diagonal = {
@@ -552,7 +570,8 @@ describe('a line folded onto a line', () => {
       ] as [[number, number], [number, number]][],
       extent: { kind: 'full' as const },
     };
-    // A pinch on it, straddling its crossing with x = 0.25 at (0.25, 0.9).
+    // A press on it, out to its crossing with x = 0.25 at (0.25, 0.9) and a
+    // little past, located by its end rather than a sighting.
     const pinch = {
       ...diagonal,
       id: 92,
@@ -568,7 +587,7 @@ describe('a line folded onto a line', () => {
           ],
         ] as [[number, number], [number, number]][],
       },
-      press: { at: [0.25, 0.9] as [number, number], point: 4, sighted_from: 6 },
+      press: { at: [0.25, 0.9] as [number, number], point: null, sighted_from: null },
     };
     // The vertical, creased edge to edge.
     const vertical = {
@@ -632,7 +651,7 @@ describe('a line folded onto a line', () => {
       (p): p is Extract<StepDiagramPrimitive, { kind: 'line' }> =>
         p.kind === 'line' && p.style === 'highlight'
     );
-    // The receiving arm is the pinch's lower-right half, out of the vertex.
+    // The receiving arm is the press's lower-right half, out of the vertex.
     expect(lines.some((l) => isSeg(l, [0.25, 0.9], [0.28, 0.87]))).toBe(true);
     expect(lines.some((l) => isSeg(l, [1, 0.15], [0.5, 0.65]))).toBe(false);
     // The moving arm is the vertical above the vertex.

@@ -31,9 +31,17 @@ use crate::tol::TOL;
 /// measures them. `None` means creased everywhere it exists — a sheet edge, or
 /// an auxiliary fold, which the pinch pass may narrow later but only ever to
 /// the marks that are used. An empty run list means not creased at all yet.
+///
+/// A **pinch** is kept apart from the creases. It is a crease a pinch-length
+/// long, made to put a mark on the paper, and it is a mark: something a
+/// fold can be sighted *at*, never something a fold can be lined up *along*
+/// — too short to lay another crease against. So [`Creased::reaches`], which
+/// asks whether a spot is marked, sees pinches, and [`Creased::crease_reaches`]
+/// and [`Creased::runs_of`], which ask where the crease is, do not.
 #[derive(Debug, Clone, Default)]
 pub struct Creased {
     runs: Vec<Option<Vec<(f64, f64)>>>,
+    pinches: Vec<Vec<(f64, f64)>>,
 }
 
 impl Creased {
@@ -45,7 +53,10 @@ impl Creased {
                 runs[id] = None;
             }
         }
-        Creased { runs }
+        Creased {
+            pinches: vec![Vec::new(); runs.len()],
+            runs,
+        }
     }
 
     /// Grow to cover a state that has gained lines since this was built.
@@ -57,6 +68,7 @@ impl Creased {
                 .get(id)
                 .is_some_and(|l| l.tag == LineTag::Edge);
             self.runs.push(if edge { None } else { Some(Vec::new()) });
+            self.pinches.push(Vec::new());
         }
     }
 
@@ -101,6 +113,17 @@ impl Creased {
         *runs = merged;
     }
 
+    /// Record a pinch on `line` along `span`: a mark, not a crease — see the
+    /// type's doc.
+    pub fn add_pinch(&mut self, state: &State, line_id: usize, line: &Line, span: [[f64; 2]; 2]) {
+        self.widen(state);
+        let Some(pinches) = self.pinches.get_mut(line_id) else {
+            return;
+        };
+        let (u, v) = (line.parameter_of(span[0]), line.parameter_of(span[1]));
+        pinches.push(if u <= v { (u, v) } else { (v, u) });
+    }
+
     /// Record a fold creased along its whole chord.
     pub fn add_whole(&mut self, state: &State, line_id: usize) {
         self.widen(state);
@@ -110,23 +133,43 @@ impl Creased {
     }
 
     /// Whether `line_id` has been folded at all — creased somewhere, or
-    /// everywhere. A sheet edge always has.
+    /// everywhere, or pinched. A sheet edge always has.
     pub fn is_folded(&self, line_id: usize) -> bool {
         match self.runs.get(line_id) {
             None => false,
             Some(None) => true,
-            Some(Some(runs)) => !runs.is_empty(),
+            Some(Some(runs)) => {
+                !runs.is_empty() || self.pinches.get(line_id).is_some_and(|p| !p.is_empty())
+            }
         }
     }
 
-    /// The creased runs on `line_id` as parameter intervals along the line,
-    /// or `None` when it is creased everywhere (or unknown).
+    /// The creased runs on `line_id` as parameter intervals along the line —
+    /// pinches not among them — or `None` when it is creased everywhere (or
+    /// unknown).
     pub fn runs_of(&self, line_id: usize) -> Option<&[(f64, f64)]> {
         self.runs.get(line_id).and_then(|r| r.as_deref())
     }
 
-    /// Whether the crease on `line_id` reaches `p`.
+    /// The pinches on `line_id` as parameter intervals along the line.
+    pub fn pinches_of(&self, line_id: usize) -> &[(f64, f64)] {
+        self.pinches.get(line_id).map_or(&[], Vec::as_slice)
+    }
+
+    /// Whether `p` is marked on `line_id`: the crease reaches it, or a pinch
+    /// does. The question for a mark.
     pub fn reaches(&self, state: &State, line_id: usize, p: [f64; 2]) -> bool {
+        self.crease_reaches(state, line_id, p) || {
+            let t = state.line(line_id).parameter_of(p);
+            self.pinches_of(line_id)
+                .iter()
+                .any(|&(u, v)| t >= u - TOL && t <= v + TOL)
+        }
+    }
+
+    /// Whether the crease proper on `line_id` reaches `p` — a pinch does not
+    /// count. The question for a line to be aligned along.
+    pub fn crease_reaches(&self, state: &State, line_id: usize, p: [f64; 2]) -> bool {
         match self.runs.get(line_id) {
             None => false,
             Some(None) => true,
@@ -335,6 +378,32 @@ pub fn witness_aligns(state: &State, creased: &Creased, fold: &Line, w: &Witness
 pub fn witness_aligns_at_all(state: &State, creased: &Creased, fold: &Line, w: &Witness) -> bool {
     witness_landings_exist(state, creased, fold, w)
         && witness_alignment(state, creased, fold, w).is_none_or(|l| l > TOL)
+}
+
+/// Whether the two lines a bisector `w` folds onto each other meet on the
+/// paper: their creases both reach their crossing. True for every other
+/// axiom, and for two parallel lines, which have no crossing to reach.
+///
+/// A line-onto-line fold is the bisector of an angle, and the folder finds
+/// the angle at its vertex. Two creases that would cross somewhere neither
+/// of them goes — a diagonal that stops at the sheet's centre, folded onto
+/// the edge it would meet a hand further on — leave nothing to see the angle
+/// by, and lining them up is guesswork even where they overlap once folded.
+pub fn witness_lines_meet(state: &State, creased: &Creased, w: &Witness) -> bool {
+    if w.axiom != 3 {
+        return true;
+    }
+    let (Some(a), Some(b)) = (w.inputs.first(), w.inputs.get(1)) else {
+        return true;
+    };
+    let (a, b) = (a.id(), b.id());
+    let Some(x) = state.line(a).intersect(state.line(b)) else {
+        return true;
+    };
+    if !state.in_paper(x) {
+        return false;
+    }
+    creased.crease_reaches(state, a, x) && creased.crease_reaches(state, b, x)
 }
 
 /// The mark at a state point, by its id.

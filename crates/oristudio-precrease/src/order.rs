@@ -29,11 +29,12 @@ use crate::constants::MIN_ANGLE_SINE;
 use crate::direction::Side;
 use crate::line::Line;
 use crate::marks::{
-    Creased, MIN_ALIGNMENT, crease_overlap, point_mark_exists, witness_alignment, witness_aligns,
-    witness_aligns_at_all, witness_marks_exist, witness_missing_marks,
+    Creased, MIN_ALIGNMENT, crease_overlap, crease_runs, point_mark_exists, witness_alignment,
+    witness_aligns, witness_aligns_at_all, witness_lines_meet, witness_marks_exist,
+    witness_missing_marks,
 };
 use crate::pinch::PINCH_HALF_LENGTH;
-use crate::predicates::{Ref, Witness, all_witnesses};
+use crate::predicates::{Ref, Witness, all_witnesses, crease_through};
 use crate::sequence::{Group, StepKind};
 use crate::state::{LineTag, State};
 use crate::tol::TOL;
@@ -125,6 +126,25 @@ pub struct Press {
     pub sighted_from: Option<usize>,
 }
 
+impl Press {
+    /// Whether this press is a pinch — a mark, not a crease to be lined up
+    /// along. A press located by a crossing is a pinch there; one that runs
+    /// from a run end to a findable end is more crease.
+    pub fn is_pinch(&self) -> bool {
+        self.sighted_from.is_some()
+    }
+
+    /// Put this press on the paper.
+    pub fn record(&self, state: &State, creased: &mut Creased) {
+        let line = state.line(self.line);
+        if self.is_pinch() {
+            creased.add_pinch(state, self.line, line, self.span);
+        } else {
+            creased.add_spans(state, self.line, line, &[self.span]);
+        }
+    }
+}
+
 fn folded_angle(line: &crate::line::Line) -> f64 {
     line.folded_angle_offset().0
 }
@@ -210,7 +230,9 @@ fn record(creased: &mut Creased, closure: &Closure, folded_index: usize) {
 /// closure certified against the geometry also on the paper — asked of points
 /// and of lines.
 fn sightable(state: &State, creased: &Creased, line: &Line, w: &Witness) -> bool {
-    witness_marks_exist(state, creased, w) && witness_aligns(state, creased, line, w)
+    witness_marks_exist(state, creased, w)
+        && witness_aligns(state, creased, line, w)
+        && witness_lines_meet(state, creased, w)
 }
 
 /// Where along `line` to press so that its crease covers `t_p`, starting from
@@ -234,7 +256,14 @@ fn press_span(
     t_p: f64,
 ) -> Option<([[f64; 2]; 2], f64)> {
     let line = state.line(line_id);
-    let runs = creased.runs_of(line_id)?;
+    // A pinch is an anchor to press from as much as a run is: the line is
+    // creased there, however briefly.
+    let runs: Vec<(f64, f64)> = creased
+        .runs_of(line_id)?
+        .iter()
+        .chain(creased.pinches_of(line_id))
+        .copied()
+        .collect();
     if runs.is_empty() {
         return None;
     }
@@ -453,7 +482,7 @@ fn line_targets(
     }
     // Only lines that are lines: a corner or mark input has no crease to press.
     out.retain(|(l, _)| w.inputs.iter().any(|r| r.is_line() && r.id() == *l));
-    out.retain(|(l, at)| !creased.reaches(state, *l, *at));
+    out.retain(|(l, at)| !creased.crease_reaches(state, *l, *at));
     out
 }
 
@@ -524,7 +553,7 @@ fn pair_targets(
         let targets = [(a, la.point_at(ua)), (b, lb.point_at(ub))];
         let unreached: Vec<(usize, [f64; 2])> = targets
             .into_iter()
-            .filter(|&(l, at)| !creased.reaches(state, l, at))
+            .filter(|&(l, at)| !creased.crease_reaches(state, l, at))
             .collect();
         let length: f64 = unreached
             .iter()
@@ -613,7 +642,7 @@ fn presses_for_lines(state: &State, creased: &Creased, fold: &Line, w: &Witness)
     // on the other side of the foot as well.
     let mut paper = creased.clone();
     for (line, at) in line_targets(state, creased, fold, w) {
-        if paper.reaches(state, line, at) {
+        if paper.crease_reaches(state, line, at) {
             continue;
         }
         let t = state.line(line).parameter_of(at);
@@ -629,6 +658,39 @@ fn presses_for_lines(state: &State, creased: &Creased, fold: &Line, w: &Witness)
         }
     }
     out
+}
+
+/// A crease no longer than this, with a mark at each end, is creased between
+/// the marks rather than sighted from anything further away: a tenth of the
+/// sheet. Lining a short crease up against references elsewhere on the sheet
+/// gains nothing over joining two marks a thumb's width apart, and reads
+/// worse — "fold A onto B" for a crease between two points the folder can
+/// see. A longer crease is another matter: a crease through two marks is
+/// the least accurate fold there is, and the error grows with the length.
+const SHORT_CREASE: f64 = 0.1;
+
+/// The "join the marks" witness for fold `i`, when its crease is short and
+/// both its ends are marks on the paper — see [`SHORT_CREASE`].
+fn crease_between_marks(
+    state: &State,
+    closure: &Closure,
+    creased: &Creased,
+    i: usize,
+) -> Option<Witness> {
+    let f = &closure.folded()[i];
+    let target = f.target.and_then(|t| closure.targets().get(t))?;
+    let runs = crease_runs(&f.line, &target.spans);
+    let [(a, b)] = runs.as_slice() else {
+        return None;
+    };
+    if (b[0] - a[0]).hypot(b[1] - a[1]) > SHORT_CREASE {
+        return None;
+    }
+    let (p, q) = (state.find_point(*a)?, state.find_point(*b)?);
+    if p == q || !point_mark_exists(state, creased, p) || !point_mark_exists(state, creased, q) {
+        return None;
+    }
+    crease_through(state, &f.line, p, q)
 }
 
 /// How many presses may buy a fold something moves in, over one nothing
@@ -653,13 +715,13 @@ fn repair(state: &State, creased: &Creased, line: &Line, witness: &Witness) -> O
     let mut presses = 0;
     for point in witness_missing_marks(state, &paper, witness) {
         for press in presses_for_mark(state, &paper, point) {
-            paper.add_spans(state, press.line, state.line(press.line), &[press.span]);
+            press.record(state, &mut paper);
             presses += 1;
         }
     }
     if !witness_aligns(state, &paper, line, witness) {
         for press in presses_for_lines(state, &paper, line, witness) {
-            paper.add_spans(state, press.line, state.line(press.line), &[press.span]);
+            press.record(state, &mut paper);
             presses += 1;
         }
     }
@@ -671,6 +733,7 @@ fn repair(state: &State, creased: &Creased, line: &Line, witness: &Witness) -> O
     Some(Repair {
         presses,
         well: witness_aligns(state, &paper, line, witness),
+        meet: witness_lines_meet(state, &paper, witness),
     })
 }
 
@@ -679,14 +742,27 @@ fn repair(state: &State, creased: &Creased, line: &Line, witness: &Witness) -> O
 struct Repair {
     presses: usize,
     well: bool,
+    /// For a bisector, whether the two creases meet at their crossing on the
+    /// paper ([`witness_lines_meet`]). No press repairs this: extending one
+    /// crease to an angle it was never part of is not a fold the pattern
+    /// asked for.
+    meet: bool,
 }
 
 impl Repair {
     /// Presses, counting a fold that stays short of [`MIN_ALIGNMENT`] as one
-    /// more: "fold P onto Q" after a pinch is as much work as lining up a
-    /// sliver, and more precise.
+    /// more — "fold P onto Q" after a pinch is as much work as lining up a
+    /// sliver, and more precise — and a bisector of creases that never meet
+    /// as two more, past the budget one press may buy a preference with, so
+    /// it is the choice only when nothing better can be made at all.
     fn cost(self) -> usize {
-        self.presses + usize::from(!self.well)
+        self.presses
+            + usize::from(!self.well)
+            + if self.meet {
+                0
+            } else {
+                MAX_PRESSES_FOR_PREFERENCE + 1
+            }
     }
 }
 
@@ -710,7 +786,7 @@ fn make_marks_real(
             return;
         };
         let f = &closure.folded()[folded_index];
-        creased.add_spans(state, press.line, &f.line, &[press.span]);
+        press.record(state, creased);
         placed.push(Placed {
             folded: folded_index,
             sweep,
@@ -811,10 +887,12 @@ fn found_witnesses(
 /// can now see what it names.
 ///
 /// The easiest kind of fold the folder can already sight, unless that is a
-/// fold nothing moves in — a perpendicular, or a line through two marks — in
-/// which case one pinch may buy a fold something does move in: "fold P onto
-/// Q" with a pinch first is what a folder would do, "fold through P
-/// perpendicular to A" is a hinge trick.
+/// fold nothing moves in — a perpendicular, or a line through two marks — or
+/// one with two things to line up at once — two points onto two lines, a
+/// line onto itself while a point lands somewhere — in which case one pinch
+/// may buy a one-motion fold: "fold P onto Q" with a pinch first is what a
+/// folder would do, "fold through P perpendicular to A" is a hinge trick and
+/// "fold P onto A and Q onto B" is two hands' work.
 ///
 /// Not any pinch for any easier fold. Measured on markhor: letting one pinch
 /// buy any easier axiom turned 18 line-onto-line folds into point-onto-point
@@ -851,8 +929,12 @@ fn sight(
         let already = (0..witnesses.len())
             .filter(|&w| sightable(state, creased, &f.line, &witnesses[w]))
             .min_by_key(|&w| witnesses[w].preference());
+        // A fold the folder can already make in one motion is the fold.
+        // One with two things to line up at once (O6, O7), or nothing to
+        // move at all (O1, O4), may still lose to a one-motion fold that a
+        // single press would allow.
         match already {
-            Some(w) if !matches!(witnesses[w].axiom, 1 | 4) => Some(w),
+            Some(w) if matches!(witnesses[w].axiom, 2 | 3 | 5) => Some(w),
             _ => (0..witnesses.len())
                 .filter_map(|w| cost_of(creased, &witnesses[w]).map(|cost| (w, cost)))
                 .min_by_key(|&(w, cost)| {
@@ -876,7 +958,19 @@ fn sight(
     });
     let mut found: Option<Witness> = None;
     let mut chosen = recorded;
-    if !clean {
+    // A short crease between two marks is creased between them, whatever
+    // else could sight it.
+    if let Some(w) = crease_between_marks(state, closure, creased, i) {
+        chosen = Some(
+            f.witnesses
+                .iter()
+                .position(|r| r.axiom == w.axiom && r.inputs == w.inputs)
+                .unwrap_or(f.witnesses.len()),
+        );
+        if chosen == Some(f.witnesses.len()) {
+            found = Some(w);
+        }
+    } else if !clean {
         let extra = found_witnesses(state, creased, &f.line, f.line_id, &f.witnesses);
         if !extra.is_empty() {
             let all: Vec<Witness> = f.witnesses.iter().chain(&extra).cloned().collect();
@@ -1154,7 +1248,7 @@ pub fn group(closure: &Closure, placed: &[Placed]) -> Vec<Group> {
 mod tests {
     use super::*;
     use crate::clock::{Deadline, frozen_clock};
-    use crate::closure::Target;
+    use crate::closure::{FoldOutcome, Target};
     use crate::line::Line;
     use crate::sheet::Sheet;
     use crate::state::DEFAULT_POINT_CAP;
@@ -1388,6 +1482,127 @@ mod tests {
         };
         assert!(presses_for_lines(&state, &fresh, &other, &w).is_empty());
         assert!(witness_aligns(&state, &fresh, &other, &w));
+    }
+
+    /// A pinch marks a spot; it is not a crease to lay another crease along.
+    /// The vertical x = 0.25 folded onto a diagonal that is creased only far
+    /// away and pinched at their crossing: the marks are there, the alignment
+    /// is not — and a press out to the crossing is a crease, and counts.
+    #[test]
+    fn a_pinch_is_a_mark_and_never_a_line_to_align_with() {
+        let mut state = State::new(Sheet::unit_square(), DEFAULT_POINT_CAP);
+        let a = state.add_line(v(0.25), LineTag::Cp).expect("a").id;
+        let diag = Line::from_points([0.0, 0.5], [0.5, 0.0]).expect("diag");
+        let b = state.add_line(diag, LineTag::Cp).expect("b").id;
+        // The bisector at their crossing that carries a's upper half onto
+        // b's lower-right ray: 22.5° through (0.25, 0.25).
+        let (c, s) = (
+            std::f64::consts::FRAC_PI_8.cos(),
+            std::f64::consts::FRAC_PI_8.sin(),
+        );
+        let fold = Line::from_points([0.25, 0.25], [0.25 + c, 0.25 + s]).expect("fold");
+        let mut creased = Creased::new(&state);
+        creased.add_whole(&state, a);
+        // b creased only near the right edge, then pinched at the crossing.
+        creased.add_spans(&state, b, &diag, &[[[0.45, 0.05], [0.5, 0.0]]]);
+        let w = witness(3, vec![Ref::Line { id: a }, Ref::Line { id: b }]);
+        assert!(!witness_lines_meet(&state, &creased, &w));
+        creased.add_pinch(&state, b, &diag, [[0.22, 0.28], [0.28, 0.22]]);
+        assert!(
+            creased.reaches(&state, b, [0.25, 0.25]),
+            "the mark is there"
+        );
+        assert!(!creased.crease_reaches(&state, b, [0.25, 0.25]));
+        assert!(
+            !witness_lines_meet(&state, &creased, &w),
+            "a pinch is not the crease"
+        );
+        assert!(!sightable(&state, &creased, &fold, &w));
+        // Pressed out from its run end to the crossing: now it is crease.
+        creased.add_spans(&state, b, &diag, &[[[0.45, 0.05], [0.2, 0.3]]]);
+        assert!(witness_lines_meet(&state, &creased, &w));
+        assert!(sightable(&state, &creased, &fold, &w));
+    }
+
+    /// Two creases that would cross somewhere neither of them goes are the
+    /// last thing to fold onto each other: a two-point fold that needs two
+    /// presses beats it, and a crease through two marks does too.
+    #[test]
+    fn a_bisector_of_creases_that_never_meet_is_the_last_resort() {
+        let mut state = State::new(Sheet::unit_square(), DEFAULT_POINT_CAP);
+        let a = state.add_line(v(0.25), LineTag::Cp).expect("a").id;
+        let diag = Line::from_points([0.0, 0.5], [0.5, 0.0]).expect("diag");
+        let b = state.add_line(diag, LineTag::Cp).expect("b").id;
+        let (c, s) = (
+            std::f64::consts::FRAC_PI_8.cos(),
+            std::f64::consts::FRAC_PI_8.sin(),
+        );
+        let fold = Line::from_points([0.25, 0.25], [0.25 + c, 0.25 + s]).expect("fold");
+        let mut creased = Creased::new(&state);
+        creased.add_whole(&state, a);
+        creased.add_spans(&state, b, &diag, &[[[0.45, 0.05], [0.5, 0.0]]]);
+        let w = witness(3, vec![Ref::Line { id: a }, Ref::Line { id: b }]);
+        // Aligned once folded — a's crease lands along b's — but the creases
+        // never meet on the paper.
+        assert!(crease_overlap(&state, &creased, &fold, a, b) >= MIN_ALIGNMENT - TOL);
+        let r = repair(&state, &creased, &fold, &w).expect("foldable");
+        assert!(r.well && !r.meet);
+        assert!(r.cost() > MAX_PRESSES_FOR_PREFERENCE, "cost {}", r.cost());
+    }
+
+    /// A short crease between two marks is creased between them, whatever
+    /// else could sight it. A grid of auxiliary lines puts marks at the
+    /// centre and at (9/16, 7/16); the pattern then wants the antidiagonal
+    /// creased only between those two — 0.088 of the sheet. Folding corner
+    /// onto corner would make it, and is not what a folder does for a
+    /// thumb's width of crease.
+    #[test]
+    fn a_short_crease_between_marks_is_creased_through_them() {
+        let anti = Line::from_points([1.0, 0.0], [0.0, 1.0]).expect("anti");
+        let short = Target::new(anti, vec![], vec![[[0.5, 0.5], [0.5625, 0.4375]]], 1.0, 0.0);
+        let mut c = Closure::new(Sheet::unit_square(), vec![short], DEFAULT_POINT_CAP);
+        // Each a fold midway between two lines already there, so the grid
+        // goes down before the pattern's own crease is looked at.
+        for line in [
+            v(0.5),
+            h(0.5),
+            v(0.75),
+            v(0.625),
+            v(0.5625),
+            h(0.25),
+            h(0.375),
+            h(0.4375),
+        ] {
+            assert!(
+                matches!(
+                    c.fold_line(line, LineTag::Aux).expect("fold"),
+                    FoldOutcome::Folded { .. }
+                ),
+                "{line:?}"
+            );
+        }
+        c.close(&Deadline::unbounded(frozen_clock()))
+            .expect("close");
+        assert!(c.is_complete());
+        let placed = order(&c, false);
+        let f = c.folded();
+        let entry = placed
+            .iter()
+            .find(|p| p.press.is_none() && f[p.folded].tag == LineTag::Cp)
+            .expect("the antidiagonal is placed");
+        let w = entry.presented(&f[entry.folded]).expect("a witness");
+        assert_eq!(w.axiom, 1, "{w:?}");
+        let ends: Vec<[f64; 2]> = w
+            .inputs
+            .iter()
+            .map(|r| c.state().points()[r.id()].p)
+            .collect();
+        let near = |p: [f64; 2], q: [f64; 2]| (p[0] - q[0]).hypot(p[1] - q[1]) < 1e-9;
+        assert!(
+            ends.iter().any(|&e| near(e, [0.5, 0.5]))
+                && ends.iter().any(|&e| near(e, [0.5625, 0.4375])),
+            "through the crease's own ends, got {ends:?}"
+        );
     }
 
     #[test]

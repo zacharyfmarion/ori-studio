@@ -391,6 +391,35 @@ the vertex from the wrong sides — passed as sightable with nothing to line up.
       exist. Until then the card says "Nothing on the paper lines up with this
       fold yet — crease it as drawn."
 
+**Correction 3 — what a card asks the folder to do.** From markhor and the
+hex grid, read as a folder would:
+
+- [x] Each fold is sighted at its own place in the order, with the round's
+      earlier folds and presses on the paper (`sight`), and the paper is asked
+      for witnesses the closure never saw when the recorded ones offer nothing
+      clean and free (`found_witnesses`, `Placed.found`).
+- [x] One-motion folds first: O2, O3, O5, then the two-alignment O7 and O6,
+      then O4 and O1 (`AXIOM_EASE_ORDER`). A sightable O6/O7/O4/O1 no longer
+      wins outright — one press may buy a one-motion fold. The stuck search
+      keeps ReferenceFinder's order (`AXIOM_SEARCH_ORDER`).
+- [x] A pinch is a mark, never a line: `Creased` keeps pinches apart from
+      creases; alignment and line presses see creases only (`crease_reaches`),
+      marks see both (`reaches`).
+- [x] A bisector's two creases must meet at their crossing on the paper
+      (`witness_lines_meet`); one whose creases never meet is the last resort
+      (`Repair::meet`, cost past the one-press budget). Parallel lines are
+      exempt — folding an edge onto a parallel crease is the commonest fold
+      there is.
+- [x] A crease no longer than `SHORT_CREASE` (0.1) with a mark at each end is
+      creased between them (O1 through its own ends, `crease_between_marks`).
+- [x] The card draws a step's crease as seen from the face it is made on: a
+      mountain in the pattern, made from the back, is a valley there
+      (`directionFromFace`). The finished card keeps the pattern's directions.
+- [x] Measured (122 designs): presses 3,869 → 2,748, flagged 13 → 4,
+      turn-overs 755 → 755. Markhor: O1 2, O2 53, O3 27, O5 4, no O6/O7, 3
+      presses. Iguana-c0: presses 16 → 6, O1 9 (short creases). hex-14: O6 4 →
+      0.
+
 **Still to build — the harness that makes a corpus number real**
 
 - [ ] Drive the *shipping* loop headlessly: the precrease bridge and

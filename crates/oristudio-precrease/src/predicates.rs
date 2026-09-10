@@ -346,6 +346,22 @@ fn pt(state: &State, id: usize) -> Pt {
     state.point(id)
 }
 
+/// The O1 witness creasing `target` through state points `p` and `q`, if the
+/// two do define it: the "connect the marks" reading of a crease, for the
+/// ordering pass to offer when both its ends are already on the paper.
+pub fn crease_through(state: &State, target: &Line, p: usize, q: usize) -> Option<Witness> {
+    let c = Construction::O1 {
+        p: pt(state, p),
+        q: pt(state, q),
+    };
+    witness(
+        state,
+        target,
+        &c,
+        vec![point_ref(state, p), point_ref(state, q)],
+    )
+}
+
 /// Enumerate certified witnesses for `target` from `facts`. Tier-1 axioms
 /// (O1–O4) always; O5–O7 only when `facts.landers_computed`.
 pub fn witnesses(state: &State, target: &Line, facts: &Facts) -> Vec<Witness> {

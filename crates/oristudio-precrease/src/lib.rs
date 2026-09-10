@@ -112,7 +112,7 @@ pub use lattice::{LatticeOffset, Ring};
 pub use line::{Line, LineIndex};
 pub use marks::{
     Creased, MIN_ALIGNMENT, crease_lands_on, crease_runs, end_is_found, ends_are_found,
-    mark_exists, point_lands_on, point_mark_exists, runs_reach, witness_aligns,
+    mark_exists, point_lands_on, point_mark_exists, runs_reach, witness_aligns, witness_lines_meet,
     witness_marks_exist, witness_missing_marks,
 };
 pub use merge::{LineKind, MergedLine};
