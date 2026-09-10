@@ -15,148 +15,158 @@ one is why the first one's measurements cannot be trusted at face value.
 
 ---
 
-## 1. Steps sighted from marks that are not on the paper
+## 1. Every step is sighted from marks that are on the paper
 
-### What is wrong
+### The invariant
 
-A step says "fold P onto Q" and Q is not on the paper. Not "not yet" — **never**.
-Replaying markhor fold by fold, and then asking again against the finished
-pattern with every crease of the whole plan made:
+**No plan ever contains a step sighted from a mark that is not on the paper.**
 
-```
-fold 15  POINT#28 (0.6464, 0.6464)   on the paper at the end of the plan: NO
-fold 21  POINT#31 (0.3536, 0.6464)   on the paper at the end of the plan: NO
-fold 24  POINT#23 (0.7071, 0.2929)   on the paper at the end of the plan: NO
-fold 26  POINT#28 (0.6464, 0.6464)   on the paper at the end of the plan: NO
-```
+Not "most steps". Not a coverage figure. The end state is a test that replays
+every fixture's finished plan onto a bare sheet and asserts zero steps with
+`marks_exist == false` — and if a pattern cannot meet it, the planner says so as
+a finding rather than shipping an instruction nobody can follow.
 
-Point 28 is where CP lines 14 and 8 cross: line 14 is creased through that spot,
-line 8 never is. Point 23 is where lines 13, 7 and 39 cross and **not one of the
-three** is ever creased through it — a point in empty space, which is exactly how
-it reads on screen.
+The percentages below are not a menu of which cases get fixed. Every case gets
+fixed. They say **how much ink each case costs**, which is a different question
+and the only one worth optimising.
 
-So this is not an ordering problem (waiting never helps) and not a drawing
-problem. The step cannot be performed as written.
+### Why it is always achievable — a theorem, not a measurement
 
-### Root cause
+A mark `P` is in `State` only because some pair of lines crossed there at
+`MIN_ANGLE_SINE` or steeper (`state.rs:258-268`), and a line is in `State` only
+because it was folded. A witness certified in round *r* names only points minted
+in rounds before *r*. So for every phantom mark, **both of its lines are already
+folded before the step that sights it.**
 
-`State` records a point wherever two lines cross, where "line" means the infinite
-line clipped to the sheet. That is the right model for *is this fold
-constructible* and the wrong one for *can a folder find this spot*, and
-`marks.rs:4-8` already says so in as many words: **"Two chords meeting is not two
-creases meeting."**
+The material is therefore always present. What is missing is never a fold — only
+a *press*: the pattern does not ask for crease at that spot, so the folder never
+made one there. Pressing along a line you are already folding costs ink and
+nothing else.
 
-The module exports the test — `mark_exists`, `point_mark_exists`, `Creased` — and
-`closure.rs:55` imports exactly two things from it:
+Measuring 4,094 of 4,094 phantom marks across 148 designs confirmed this rather
+than discovering it.
 
-```rust
-use crate::marks::{Creased, ends_are_found};
-```
+### The rule
 
-The closure keeps a live `Creased` and spends all of it on one question: does this
-crease's **ends** land somewhere findable (`closure.rs:328`). It never asks the
-same question about a witness's **inputs**. That is the whole defect, in one
-missing call.
+For a phantom mark `P` at the crossing of `A` and `B`:
 
-`order.rs:280` catches it afterwards, sets `Step.marks_exist = false`, and the
-sidebar prints *"pinch it in first"* — but by then the step is in the plan, and
-for these four there is nothing to pinch.
+**(c) Nothing**, when a later step creases through `P` before the step that needs
+it — the plan already fixes itself.
 
-### What was ruled out, and why
+**(a) One pinch**, when one of `A`/`B` already has a crease reaching `P`. The
+other gets a pinch at `P`, located by the crossing the folder can now see.
+`2 × PINCH_HALF_LENGTH` = 0.06 of the sheet's side.
 
-- **"Pick a different witness."** `order.rs:280` already searches *every*
-  recorded witness for a sightable one and overrides the closure's pick. So
-  `marks_exist == false` already means every witness was tried and none worked.
-  There is nothing left to promote, and a gate at certification time would find
-  exactly the same thing.
-- **"Refuse the fold and let the stuck search repair it."** It will not. The
-  goal-directed generator's anchors are `t ∩ m` — crossings with the *target*
-  line (`candidates.rs:12-16`). A phantom Q is an O2 *input*, and an O2's Q never
-  lies on its own perpendicular bisector, so the search is not aimed at creating
-  that mark.
-- **"Refuse and report it as unplannable."** Throws away a fold that is one pinch
-  short of legitimate.
+**(b) A press, then the pinch of (a)**, when neither reaches `P`. One of them is
+pressed from its nearest existing run end, **through `P`**, to the nearest end a
+folder can find on that line.
 
-### The fix: make the mark
+### The press does not stop at the mark
 
-Press a pinch at the crossing, on the line that is not creased there, sighted
-against the line that is. A pinch is `2 × PINCH_HALF_LENGTH = 0.06` of the
-sheet's side (`pinch.rs:27`) — you press *at* the mark, not from the existing
-crease out to it.
+This is the correction that matters, and the first version of this plan had it
+wrong. `end_is_found` (`marks.rs:232`) accepts a crease end only on the sheet's
+boundary, or where an already-creased line crosses it steeply. `crease_runs`
+merges an abutting press into the adjacent run, so a press that *stopped at* `P`
+would make `P` a run end — and at that moment nothing is creased through `P`;
+that is the premise of case (b). The instruction would read "crease along here
+and stop at a point that is not there", which is the original defect moved from
+the mark to the crease end.
 
-This is not forbidden by D3 of `precrease-step-ordering.md`. D3 is about a crease
-whose *end* has no landmark, where the fold happens either way and the extra
-crease buys only precision; that is a bad trade and stays out. A phantom
-reference has no alternative at all — you cannot stop by eye at a point that is
-not there — so the pinch is what correctness costs. D3 was rescoped to say this
-(`a6eb3a29`).
+So the press runs **past** `P`, to the nearest findable end beyond it: another
+creased crossing on that line, or the sheet's edge, which always qualifies
+because a chord's ends are on the boundary. **No press end is ever eyeballed.**
 
-The mechanism has been checked independently and holds for markhor 15, 21 and 26:
-both lines are folded before the round that sights the point (guaranteed — that
-is *why* the closure certified it), one of them is creased through the spot, and
-the pair crosses at ≥ `MIN_ANGLE_SINE` because that is the same test that minted
-the point in the first place (`state.rs:268-271`).
+That is a D3 exception and the plan takes it deliberately. D3's prose still names
+"a crease run out to an edge" as the thing never allowed, while D3's rescope
+authorises exactly this repair — an extra crease that buys performability, not
+precision. `precrease-step-ordering.md` needs that reconciled in the same change.
 
-### Which route actually works — measured, and measured wrong the first time
+### Reordering is out
 
-**The ReferenceFinder figures below the fold are answering the wrong question.**
-I asked RF to construct each point *from a bare sheet*, which of course costs
-rank 3–4 and two to four folds. The plan has already folded most of the
-construction. Asked what is missing *given the state*, the answer for markhor's
-step 15 is: **nothing**.
+The first version proposed swapping two folds so the sighting line comes first.
+It is neither available nor needed: there is no dependency graph over steps to
+topologically sort — there is a *total* order of closure rounds — and the one
+time reordering was tried for this class of problem it was measured **losing**,
+taking turn-overs 130 → 168. Case (a) covers the same ground by attaching the
+pinch to a later step instead of moving a fold.
 
-```
-fold  7  line #8   (0,0)-(1,1)          creased (0,0)-(0.25,0.25) and (0.75,0.75)-(1,1)
-fold 10  line #14  (0.9142,0)-(0.5,1)   creased (0.75,0.3964)-(0.5,1)
+### The thing the crate cannot yet say
 
-            they cross at (0.646447, 0.646447)   <- exactly Q
-            step 7  crease STOPS SHORT OF the crossing
-            step 10 crease REACHES the crossing
-```
+The pinch does not always land on the later-folded of the pair. When the line
+needing the pinch was folded *earlier* than the line whose crease reaches `P`,
+the crossing only becomes visible after the later fold — so the pinch belongs to
+a step **after** the one that made that line.
 
-Q is the sheet's main diagonal crossed with step 10's line. Both are folded
-before step 15. The diagonal is creased at both *ends* and Q sits in its
-uncreased middle. Every one of these points is on the 22.5° lattice and is the
-crossing of two lines the plan already contains — that is *why* the closure
-certified the fold.
+That is an ordinary physical action: refold along a crease that is already on the
+paper and press a little more of it. It is not a new fold. But it is a mark on
+line *X* declared at a step that folded line *Y*, and nothing in the crate can
+express it:
 
-So the three routes, cheapest first:
+- `cp_spans` is asserted parallel to `cp_line_ids` (`planner_direction.rs:246`)
+  and copied verbatim from `Target::spans` (`planner.rs:707`).
+- `extent` is hard-coded `Extent::Full` for every CP and Edge step before
+  `pinch_pass` looks at anything (`pinch.rs:125`).
+- `planner_properties.rs:312` asserts `Extent::Pinches` implies `StepKind::Aux`.
 
-**Ordering.** To press a mark at `P = A ∩ B` you fold along B and press where you
-can see A's crease, so A must be creased through P before B is folded. When the
-plan folds B first, that is often incidental rather than forced. markhor's step
-10 (line 14) depends only on lines 4 and 11 — not on the diagonal — so folding it
-before step 7 is legal, and then the diagonal's fold can pinch at the visible
-crossing. **Three of markhor's four phantom marks need only this. No extra
-crease at all.**
+**The wire change:** `Step` gains `presses: Vec<{ line_id, span }>`, where
+`line_id` may name a line an earlier step folded. `cp_spans` stays exactly what
+the pattern contains, so "what the design asks for" and "what correctness cost"
+remain separately measurable — which is what keeps the D3 guard
+(`no_step_creases_more_than_the_pattern_contains`) meaningful. `Extent` stays
+aux-only; presses are a new channel. The diagram must draw a press distinguishably
+from pattern crease, because in the finished model it is signed crease where the
+design wants flat paper.
 
-**A pinch**, where the order is already right: press `2 × PINCH_HALF_LENGTH` =
-6% of the sheet's side at the crossing, during a fold already scheduled.
+### What it costs is not yet known
 
-**A construction**, for the rest.
+**The 8.13% figure previously in this document is withdrawn.** It was wrong three
+ways, all confirmed against the harness:
 
-Over 148 designs and 4,094 phantom marks:
+1. **The pinch was never priced** — the whole "order is already right, one pinch"
+   case scored zero, and the pinch is that case's entire cost. Up to
+   4,094 × 0.06 = 245.6 more sheet-sides, taking the total toward ~14%.
+2. **The press was charged to the wrong line** — the harness picked the presser by
+   presentation order and then asked whether *that* line reaches `P`, so it
+   charged presses that a pinch on the other line would have avoided. The "needs
+   a press" bucket is an over-count by an unknown amount.
+3. **The press was measured to `P`, not to a findable end** — so even where a
+   press is genuinely needed, the number is a floor.
 
-| what the mark needs | | |
-|---|---|---|
-| the crossing gets creased later anyway | 321 | 7.8% |
-| a pinch at a crossing already visible | 2,283 | 55.8% |
-| swap the two folds, then pinch — no extra crease | 345 | 8.4% |
-| a genuine construction | 1,145 | 28.0% |
+The denominator was wrong too: it summed `cp_spans` only, so every auxiliary
+crease and existing pinch counted as zero length.
 
-markhor's step 24 is in that last 28%: its Q lies on lines 13, 7 and 39, and none
-of the three is ever creased through it.
+A re-measurement must report **press length and pinch length as two numbers**,
+over both `landmarks_first` settings and all components, not just the largest.
 
-**Caveat on the swap column.** "A does not transitively depend on B" is a
-*necessary* condition for trading their places, not a sufficient one — steps
-between them may depend on the current order. Proving it needs an actual reorder
-and replan, which is the first thing to build.
+### Prerequisites — real bugs found while checking this
 
-### One thing this dissolves
+- **`pinch_pass` reads the wrong witness.** It uses `closure.folded()[j].chosen`
+  (`pinch.rs:63`) — the closure's global argmin, fixed at fold time — while the
+  plan presents `order()`'s re-pick over the *sightable* subset
+  (`order.rs:301`). The two disagree exactly on the steps this work is about, so
+  an aux line is pinched at points no presented step uses. Fix before building on
+  it.
+- **`Creased::add_spans` replaces, it does not union** (`marks.rs:64`), and empty
+  spans silently mean "creased everywhere". Any press implementation that calls
+  it twice on one line deletes the pattern's own creases.
+- **The hoist branch does not search for a sightable witness** the way the round
+  loop does (`order.rs:252`), so a hoisted step can be flagged phantom while a
+  sightable witness sits unused.
 
-Once the mark is real, `Step.marks_exist` is true and the ring the diagram draws
-round it is honest. No separate drawing change is needed, and the entry under
-"Still open" in `references-step-diagram-unification.md` can come out.
+### The test that ends this
+
+Replay the finished plan onto a bare sheet, exactly as `measure_ends::measure`
+does but accumulating the **pressed** extent rather than `cp_spans`, and assert
+at every step:
+
+1. every point its presented witness names has two creases reaching it, crossing
+   at `MIN_ANGLE_SINE` or steeper — i.e. **zero `marks_exist == false`**;
+2. every merged run end of every step passes `end_is_found` against that same
+   replay — so the repair has not moved the defect to the crease ends.
+
+And a fixed-point check: planning again over the pressed plan produces an
+identical press set. It terminates because presses accumulate and are never
+retracted, over a finite set of (step, witness, point) triples.
 
 ---
 
@@ -279,52 +289,25 @@ fallback.
 
 ## Checklist
 
-**Correction 1 — marks that exist**
+**Correction 1 — every step sighted from marks that exist**
 
-- [x] Measure first: can ReferenceFinder construct markhor's points 23, 28 and
-      31 at the depth we run it at? **Yes — all three exact, rank ≤ 4.** And
-      Route A covers 0 of markhor's 4, so Route B is the fix.
-- [x] Lift `witness_marks_exist` into `marks.rs` so the closure and the ordering
-      pass cannot disagree about what is on the paper. Done in `53d041b5`, with
-      `witness_missing_marks` beside it.
-- [x] Surface *which* marks are missing: `Step.missing_marks`, the sighted points
-      that are not on the paper, in the planner's unit frame — which
-      `Planner::line_to_rf` notes **is** the ReferenceFinder frame, so they need
-      no conversion before a query. `Step.marks_exist` is its emptiness, pinned
-      by a test.
-- [ ] **Order the folds so the sighting line comes first.** The cheapest fix and
-      the one that covers markhor: no extra crease, no construction, just a
-      different order. Needs a real reorder-and-replan to confirm the swap is
-      safe, not the necessary-condition proxy measured above.
-- [ ] **Press a mark-pinch during a fold already scheduled**, where the order is
-      already right (55.8%). Its `Step` shape needs its own field — three
-      verifiers read `cp_spans.is_empty()` as "creased whole"
-      (`planner_direction.rs:352`, `:602`, `measure_ends.rs:89`), so the extra
-      press must not be a `cp_spans` entry.
-- [ ] **The driver asks RF for each missing mark and folds the constructions**,
-      for the 28% that neither of the above reaches.
-      Not started, and it needs a measurement first — see below. The shape is
-      settled: `DriverState` gains `missing_marks`, the rules gain
-      `AskReferenceFinderForMarks` after a complete close, and the driver reuses
-      `candidateLinesFrom` / `score` / `bestCandidate` / `fold` exactly as the
-      line fallback does. What is *not* settled is whether it should run at all.
-
-      **What that costs is still unmeasured**, and the earlier estimate here
-      (forty to eighty extra folds per design) was wrong because it priced every
-      phantom mark at a from-scratch construction. Only 28% need one at all, and
-      even those should be asked what is missing *given the state* rather than
-      from a bare sheet. Sizing it honestly needs the shipping loop, which means
-      RF, which means the harness below.
-- [ ] Route A as an optimisation afterwards, if the extra aux folds prove
-      expensive: press the pinch during a fold already scheduled, where the
-      ordering allows (61.1%). Decide its `Step` shape deliberately — three
-      verifiers read `cp_spans.is_empty()` as "creased whole"
-      (`planner_direction.rs:352`, `:602`, `measure_ends.rs:89`), so the extra
-      press needs its own field, not a `cp_spans` entry.
-- [ ] Re-measure. Watch turn-overs: the last tightening of this test cost
-      130 → 168, and `iguana-c0` is the pinned clean loss.
-- [ ] Remove the "Still open" entry in
-      `references-step-diagram-unification.md` once `marks_exist` is honest.
+- [x] Surface which marks are missing and where: `Step.missing_marks` (`53d041b5`),
+      with `witness_marks_exist` / `witness_missing_marks` shared out of
+      `marks.rs` so the closure and the ordering pass cannot disagree.
+- [ ] Fix the prerequisites: `pinch_pass`'s stale witness index, `add_spans`
+      replacing rather than unioning, the hoist branch's missing sightability
+      search.
+- [ ] `Step.presses` on the wire, distinct from `cp_spans`, able to name a line
+      an earlier step folded. Diagram draws it distinguishably.
+- [ ] Implement the rule: case (c) nothing, case (a) a pinch at a visible
+      crossing, case (b) a press through `P` to a findable end, then (a).
+- [ ] The invariant test: zero `marks_exist == false` over every fixture, and
+      every run end findable in the same replay. Fixed-point check.
+- [ ] Re-measure honestly — press length and pinch length separately, both
+      `landmarks_first` settings, all components — and reconcile D3's prose with
+      the exception this takes.
+- [ ] Watch turn-overs. The last change in this area cost 130 → 168, and
+      `iguana-c0` is the pinned clean loss.
 
 **Correction 2 — one set of rules.** Done, in `d7e23280`, `a80008dc`, `8ebcb252`.
 
