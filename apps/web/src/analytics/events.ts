@@ -422,6 +422,17 @@ export const ANALYTICS_EVENTS = {
   bpPatternNotFound: 'bp pattern not found',
   bpFlapResized: 'bp flap resized',
   /**
+   * A mirror pairing was made or broken by hand.
+   *
+   * Hand-placed because the three verbs — Pair with mirror, Pair all mirrored,
+   * Unpair from mirror — are toolbar and context-menu rows that call the store
+   * directly, so the `command invoked` chokepoint never sees them. Shared by
+   * the box-pleat and ExplOri trees, which have the same verbs over the same
+   * pairing model; `design_kind` says which. `pair_count_bucket` is bucketed
+   * and everything else is an enum: no ids, no positions.
+   */
+  symmetryPairChanged: 'symmetry pair changed',
+  /**
    * A check-suppression region was placed.
    *
    * Hand-placed because the `cp tool used` chokepoint cannot see it: that fires
@@ -714,6 +725,15 @@ export const BP_PATTERNLESS_STRETCH_BUCKETS = [1, 2, 4, 8] as const;
  * common the action needs to say so rather than appearing to do nothing.
  */
 export const PACKING_CIRCLE_COUNT_BUCKETS = [0, 2, 4, 8, 16, 32] as const;
+
+/**
+ * How many mirror pairs one Pair verb made or broke.
+ *
+ * Pair and Unpair always report 1; the buckets exist for Pair all mirrored,
+ * where the question is whether people reach for it on a handful of hand-drawn
+ * flaps or to pair a whole imported design at once.
+ */
+export const SYMMETRY_PAIR_COUNT_BUCKETS = [1, 2, 5, 10, 20] as const;
 
 /**
  * Threshold ladder for the crease-pattern snap radius, in Oriedita model units.

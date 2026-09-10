@@ -1331,10 +1331,24 @@ export interface OristudioBpSliceActions {
   ) => Promise<boolean>;
   /**
    * Forget that this vertex mirrors another. The two stay where they are; they
-   * simply stop being each other's mirror, and the optimizer will fall back to
-   * whatever their positions imply.
+   * simply stop being each other's mirror, everywhere — the tree drag, the flap
+   * drag, resize, delete and the optimizer all read the pairing and nothing
+   * else, so where the two happen to sit no longer pairs them.
    */
   unpairOristudioBpTreeSymmetry: (vertexId: number) => void;
+  /**
+   * Pair this vertex with the unpaired vertex sitting at its reflection, if
+   * there is exactly one (`inferBpTreeSymmetryPartner`). A no-op, recording
+   * nothing, when there is none. One of the three verbs that create a pair; the
+   * others are mirror-add and {@link pairAllOristudioBpTreeSymmetry}.
+   */
+  pairOristudioBpTreeSymmetry: (vertexId: number) => void;
+  /**
+   * Pair every unpaired vertex that has an unpaired reflection, at once. How a
+   * hand-drawn or imported symmetric tree becomes a paired one. A no-op,
+   * recording nothing, when nothing new pairs.
+   */
+  pairAllOristudioBpTreeSymmetry: () => void;
   /**
    * Run the BP layout optimizer and apply its result as one undoable step.
    * Cancelling leaves the document and history untouched.
@@ -1388,7 +1402,16 @@ export interface ExploriSlice {
     updates: readonly TreeVertexUpdate[]
   ) => Promise<boolean>;
   toggleExploriSymmetry: () => Promise<boolean>;
+  /** Break this node's mirror pairing. False when it had none. */
   unpairExploriNode: (nodeId: number) => Promise<boolean>;
+  /**
+   * Pair this node with the unpaired node at its reflection, if there is
+   * exactly one (`inferExploriPartner`). False, recording nothing, when there
+   * is none.
+   */
+  pairExploriNode: (nodeId: number) => Promise<boolean>;
+  /** Pair every unpaired node that has an unpaired reflection. False when nothing new pairs. */
+  pairAllExploriNodes: () => Promise<boolean>;
   setExploriDbConfigs: (dbConfigs: ExploriDbConfig[]) => Promise<boolean>;
   setExploriResultLimit: (resultLimit: number) => Promise<boolean>;
   selectExploriResult: (result: ExploriResult | null, detailIndex: number | null) => Promise<boolean>;
