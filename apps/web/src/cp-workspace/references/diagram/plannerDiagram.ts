@@ -150,6 +150,18 @@ function crossingParameter(segment: DiagramSegment, chord: DiagramSegment): numb
   return t > 1e-9 && t < 1 - 1e-9 ? t : null;
 }
 
+/** Where two segments' lines meet, extended as far as needed; null if parallel. */
+function linesMeet(p: DiagramSegment, q: DiagramSegment): Point | null {
+  const [a, b] = p;
+  const [c, d] = q;
+  const r = { x: b.x - a.x, y: b.y - a.y };
+  const s = { x: d.x - c.x, y: d.y - c.y };
+  const denom = r.x * s.y - r.y * s.x;
+  if (Math.abs(denom) < 1e-12) return null;
+  const t = ((c.x - a.x) * s.y - (c.y - a.y) * s.x) / denom;
+  return { x: a.x + r.x * t, y: a.y + r.y * t };
+}
+
 const lerp = (a: Point, b: Point, t: number): Point => ({
   x: a.x + (b.x - a.x) * t,
   y: a.y + (b.y - a.y) * t,
@@ -372,13 +384,28 @@ export function plannerStepDiagram(
     const side = sideOf(chord, swung);
     return side === 0 ? null : { moving: side, receiving: -side };
   })();
-  const shown = (which: number, spans: readonly DiagramSegment[]): DiagramSegment[] => {
+  const shown = (
+    which: number,
+    ref: PrecreaseRef,
+    spans: readonly DiagramSegment[]
+  ): DiagramSegment[] => {
     if (!interior || !chord) return [...spans];
     const side = moving.has(which) ? interior.moving : interior.receiving;
-    return spans.flatMap((span) => {
+    const arm = spans.flatMap((span) => {
       const kept = clipToSide(chord, side, span);
       return kept ? [kept] : [];
     });
+    if (arm.length <= 1) return arm;
+    // A line creased in separate pieces: the reference is the one unbroken
+    // run that comes out of the angle's vertex, where the fold meets this
+    // line. Another piece further along the same line is on the same side
+    // and is not what the folder lines up against.
+    const whole = segmentOfRef(sequence, frame, ref);
+    const vertex = whole ? linesMeet(whole, chord) : null;
+    if (!vertex) return arm;
+    const gap = (seg: DiagramSegment) =>
+      Math.min(...seg.map((q) => Math.hypot(q.x - vertex.x, q.y - vertex.y)));
+    return [arm.reduce((a, b) => (gap(b) < gap(a) ? b : a))];
   };
   let lineIndex = 0;
   let pointIndex = 0;
@@ -392,7 +419,7 @@ export function plannerStepDiagram(
       labels.push({ kind: 'label', at: xy(point), text: letter, style: 'highlight' });
       return;
     }
-    const segments = shown(which, spansOfRef(sequence, frame, ref));
+    const segments = shown(which, ref, spansOfRef(sequence, frame, ref));
     if (segments.length === 0) return;
     lineIndex += 1;
     for (const segment of segments) {

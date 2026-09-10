@@ -456,6 +456,75 @@ describe('a line folded onto a line', () => {
     expect(lines.some((l) => isSeg(l, [1, 0.5], [0.5, 1]))).toBe(false);
   });
 
+  // markhor step 12: the right edge folded onto the main diagonal, which is
+  // creased in two separate pieces — (0,0)–(0.25,0.25) and (0.75,0.75)–(1,1).
+  // Both are on the interior side of the fold, but only the one coming out of
+  // the corner at (1, 1) is what the folder lines the edge up against.
+  it('keeps only the unbroken run that comes out of the vertex', () => {
+    const seq = plannerSequenceFixture();
+    const diagonal = {
+      ...seq.steps[2]!,
+      id: 95,
+      line_id: 43,
+      line: { n: [Math.SQRT1_2, -Math.SQRT1_2] as [number, number], d: 0 },
+      segment: [
+        [0, 0],
+        [1, 1],
+      ] as [[number, number], [number, number]],
+      cp_spans: [
+        [
+          [0, 0],
+          [0.25, 0.25],
+        ],
+        [
+          [0.75, 0.75],
+          [1, 1],
+        ],
+      ] as [[number, number], [number, number]][],
+      extent: { kind: 'full' as const },
+    };
+    // The bisector at (1, 1) of the right edge (down, −90°) and the diagonal
+    // (down-left, −135°): −112.5°, reaching y = 0 at x = 1 − tan 22.5°.
+    const fold = {
+      ...seq.steps[4]!,
+      id: 94,
+      line: { n: [Math.cos(Math.PI / 8), -Math.sin(Math.PI / 8)] as [number, number], d: 0 },
+      segment: [
+        [1 - Math.tan(Math.PI / 8), 0],
+        [1, 1],
+      ] as [[number, number], [number, number]],
+      cp_spans: [] as [[number, number], [number, number]][],
+      witnesses: [
+        {
+          ...seq.steps[4]!.witnesses[0]!,
+          axiom: 3,
+          inputs: [
+            { kind: 'edge' as const, id: 1, side: 'right' as const },
+            { kind: 'line' as const, id: 43 },
+          ],
+          who_moves: [0],
+        },
+      ],
+      chosen: 0,
+    };
+    const withBoth = {
+      ...seq,
+      steps: [...seq.steps, diagonal, fold],
+      lines: [...seq.lines, { id: 43, tag: 'cp' as const, step: 95 }],
+    };
+    const d = plannerStepDiagram(withBoth, unitFrame(withBoth), withBoth.steps.length - 1);
+    const lines = (d?.primitives ?? []).filter(
+      (p): p is Extract<StepDiagramPrimitive, { kind: 'line' }> =>
+        p.kind === 'line' && p.style === 'highlight'
+    );
+    expect(lines.some((l) => isSeg(l, [0.75, 0.75], [1, 1]))).toBe(true);
+    expect(lines.some((l) => isSeg(l, [0, 0], [0.25, 0.25]))).toBe(false);
+    // And the moving arm is the whole right edge: the fold meets it only at
+    // the corner, so all of it is on the moving side, and all of it lands on
+    // the diagonal — (1, 0) reflects to (0.29, 0.29), on the paper.
+    expect(lines.some((l) => isSeg(l, [1, 0], [1, 1]))).toBe(true);
+  });
+
   it('leaves a line the fold does not cross whole', () => {
     // The fixture's own O3: bottom edge onto y = 0.5 along y = 0.25. Parallel
     // to the fold, so all of it moves and all of it is shown.
