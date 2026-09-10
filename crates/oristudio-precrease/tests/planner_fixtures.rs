@@ -104,12 +104,14 @@ fn every_manifest_fixture_plans_to_its_recorded_auxiliary_count() {
                     "{file}: step {} is a press of nothing",
                     step.id
                 );
-                assert!(
-                    step.chosen.is_none(),
-                    "{file}: step {} is a press with a witness",
-                    step.id
-                );
-                continue;
+                // A press presents the fold that made its line, so it has that
+                // fold's witness — and reads as an ordinary step.
+                let made = seq
+                    .steps
+                    .iter()
+                    .find(|s| s.line_id == step.line_id && s.kind != StepKind::Press)
+                    .unwrap_or_else(|| panic!("{file}: press on a line nobody made"));
+                assert_eq!(step.chosen, made.chosen, "{file}: step {}", step.id);
             }
             assert!(
                 step.chosen.is_some(),

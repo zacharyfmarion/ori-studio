@@ -704,7 +704,19 @@ impl Planner {
         let mut referenced_points: Vec<usize> = Vec::new();
         for (k, p) in placed.iter().enumerate() {
             let f: &FoldedLine = &folded[p.folded];
-            let chosen = p.chosen.map(|c| &f.witnesses[c]);
+            // A press is the fold that made this line, done again for a little
+            // more of it: same construction, same references, same motion, a
+            // pinch for an extent. So it presents the making step's witness
+            // and is made from the face that step was. Reading either off the
+            // press itself made it look like a different fold, and a press
+            // from the other face like a reversal.
+            let original = p.press.as_ref().and_then(|_| {
+                placed
+                    .iter()
+                    .find(|q| q.folded == p.folded && q.press.is_none())
+            });
+            let chosen_index = original.map_or(p.chosen, |q| q.chosen);
+            let chosen = chosen_index.map(|c| &f.witnesses[c]);
             if let Some(w) = chosen {
                 for r in &w.inputs {
                     if r.is_point() && !referenced_points.contains(&r.id()) {
@@ -743,17 +755,7 @@ impl Planner {
             // took whichever side was already up, and the share is then the
             // share of its length that side gets right.
             let majority = target.map_or(Direction::Unassigned, |t| t.direction);
-            // A press refolds a crease the way it already goes, whichever face
-            // the folder happens to be on; its direction is the fold's, not the
-            // face's. Reading it off the current side made a press from the
-            // other face look like a reversal.
-            let made_from = match &p.press {
-                Some(_) => placed
-                    .iter()
-                    .find(|q| q.folded == p.folded && q.press.is_none())
-                    .map_or(p.side, |q| q.side),
-                None => p.side,
-            };
+            let made_from = original.map_or(p.side, |q| q.side);
             let direction = match majority {
                 Direction::Unassigned => Direction::Unassigned,
                 _ => made_from.direction(),
@@ -771,12 +773,8 @@ impl Planner {
                 line_id: f.line_id,
                 segment: segment_of(sheet, &f.line).unwrap_or([[0.0; 2]; 2]),
                 extent,
-                witnesses: if p.press.is_some() {
-                    Vec::new()
-                } else {
-                    f.witnesses.clone()
-                },
-                chosen: p.chosen,
+                witnesses: f.witnesses.clone(),
+                chosen: chosen_index,
                 ease: chosen.map_or(0, |w| w.ease),
                 hard: chosen.is_some_and(|w| w.hard),
                 err: chosen.map_or(0.0, |w| w.err),

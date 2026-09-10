@@ -28,7 +28,7 @@ import type { ExtractedStep } from './referenceFinder/extractor';
 import type { ReferencesDirection } from './referencesBreakdown';
 import { unitFrame } from './diagram/diagramFrames';
 import { inputLetters } from './diagram/inputLetters';
-import { perpendicularMotion, pressInputs } from './diagram/plannerDiagram';
+import { perpendicularMotion } from './diagram/plannerDiagram';
 import { chosenWitness, type PrecreaseSequence } from './precreaseSequence';
 
 /** How many point and line inputs each axiom serialises, in that order. */
@@ -214,22 +214,8 @@ export function describePlannerStep(
 ): string {
   const step = sequence.steps[stepIndex];
   if (!step) return '';
-  // A press has no witness: it is a pinch on a crease already made, not a
-  // construction. Its card letters the pressed line A and the crease the pinch
-  // is located by B.
-  if (step.kind === 'press' && step.press) {
-    const [a, b] = inputLetters(pressInputs(step)).byInput;
-    return step.press.sighted_from === null
-      ? t(
-          'panels:references.planStep.pressOut',
-          'Refold {{a}} and crease it further, out to where it meets the next crease or the edge.',
-          { a }
-        )
-      : t('panels:references.planStep.pressAt', 'Refold {{a}} and pinch it where {{b}} crosses it.', {
-          a,
-          b,
-        });
-  }
+  // A press reads as the fold that made its line — it carries that fold's
+  // witness — and says how much of it to press, below, like any pinch.
   const witness = chosenWitness(step);
   if (!witness) {
     return t('panels:references.planStep.free', 'This line is already on the sheet.');
@@ -305,6 +291,11 @@ export function describePlannerStep(
   // that is not there.
   if (!step.marks_exist) {
     sentence = `${sentence} ${t('panels:references.planStep.markFirst', 'One of these marks is where two creases would cross if they ran further — pinch it in first.')}`;
+  }
+  // A press that runs out to a findable end is more than a pinch: that stretch
+  // of crease is needed, and the card draws exactly it.
+  if (step.kind === 'press' && step.press?.sighted_from === null) {
+    return `${sentence} ${t('panels:references.planStep.pressOut', 'Crease only the part shown.')}`;
   }
   if (step.extent.kind === 'pinches') {
     return `${sentence} ${t('panels:references.planStep.pinch', 'Pinch only — just the mark is needed.')}`;

@@ -281,14 +281,15 @@ describe('the cards that are not folds', () => {
 });
 
 describe('a press step', () => {
+  // A press carries the witness of the fold that made its line — here the
+  // fixture's step 2, O2 folding the SW corner onto a mark — so it draws as
+  // that fold did, with a pinch for its extent.
   const sequence = plannerSequenceFixture();
   const made = sequence.steps[1]!;
   const press = {
     ...made,
     id: 99,
     kind: 'press' as const,
-    witnesses: [],
-    chosen: null,
     cp_line_ids: [],
     cp_spans: [],
     direction: 'valley' as const,
@@ -297,6 +298,8 @@ describe('a press step', () => {
   };
   const withPress = { ...sequence, steps: [...sequence.steps, press] };
   const diagram = plannerStepDiagram(withPress, unitFrame(withPress), withPress.steps.length - 1);
+  const original = plannerStepDiagram(sequence, unitFrame(sequence), 1);
+  const kinds = (d: typeof diagram) => (d?.primitives ?? []).map((p) => p.kind);
 
   it('draws its pinch, and nothing that claims to be pattern crease', () => {
     const lines = (diagram?.primitives ?? []).filter((p) => p.kind === 'line');
@@ -304,20 +307,16 @@ describe('a press step', () => {
     expect(lines.some((l) => l.style === 'valley' || l.style === 'mountain')).toBe(false);
   });
 
-  it('letters the pressed line A and the crease the pinch is located by B', () => {
-    // A press card shows the line being refolded (its existing crease, A) and
-    // the crease that says where to pinch (B) — the two things the sentence
-    // "refold A and pinch it where B crosses it" names.
-    const labels = (diagram?.primitives ?? []).filter((p) => p.kind === 'label');
-    expect(labels.map((l) => (l.kind === 'label' ? l.text : ''))).toEqual(['A', 'B']);
-    const highlights = (diagram?.primitives ?? []).filter(
-      (p) => p.kind === 'line' && p.style === 'highlight'
+  it('shows the same references and motion as the fold that made its line', () => {
+    const rings = (d: typeof diagram) =>
+      (d?.primitives ?? []).filter((p) => p.kind === 'point').map((p) => (p.kind === 'point' ? p.at : null));
+    expect(rings(diagram)).toEqual(rings(original));
+    const labels = (d: typeof diagram) =>
+      (d?.primitives ?? []).filter((p) => p.kind === 'label').map((l) => (l.kind === 'label' ? l.text : ''));
+    expect(labels(diagram)).toEqual(labels(original));
+    expect(kinds(diagram).filter((k) => k === 'fold-arrow')).toEqual(
+      kinds(original).filter((k) => k === 'fold-arrow')
     );
-    expect(highlights.length).toBeGreaterThanOrEqual(2);
-  });
-
-  it('draws no arrow — nothing moves', () => {
-    expect((diagram?.primitives ?? []).some((p) => p.kind === 'fold-arrow')).toBe(false);
   });
 });
 

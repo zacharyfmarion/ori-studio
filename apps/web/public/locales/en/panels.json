@@ -880,8 +880,7 @@
       "markFirst": "One of these marks is where two creases would cross if they ran further — pinch it in first.",
       "partlyReversed": "This line is creased both ways in the pattern — the rest reverses as the model collapses.",
       "pinch": "Pinch only — just the mark is needed.",
-      "pressAt": "Refold {{a}} and pinch it where {{b}} crosses it.",
-      "pressOut": "Refold {{a}} and crease it further, out to where it meets the next crease or the edge.",
+      "pressOut": "Crease only the part shown.",
       "unknown": "Fold using {{inputs}}.",
       "visibleAux": "This crease will show in the finished model."
     },

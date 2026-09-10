@@ -914,8 +914,7 @@
       "markFirst": "Una de estas marcas está donde se cruzarían dos pliegues si siguieran: haz primero un pellizco ahí.",
       "partlyReversed": "En el patrón esta línea se pliega en ambos sentidos; el resto se invierte al colapsar el modelo.",
       "pinch": "Solo pellizca: basta con la marca.",
-      "pressAt": "Vuelve a doblar {{a}} y pellízcala donde {{b}} la cruza.",
-      "pressOut": "Vuelve a doblar {{a}} y prolonga el pliegue hasta donde encuentra el siguiente pliegue o el borde.",
+      "pressOut": "Marca solo la parte mostrada.",
       "unknown": "Dobla usando {{inputs}}.",
       "visibleAux": "Este pliegue se verá en el modelo terminado."
     },

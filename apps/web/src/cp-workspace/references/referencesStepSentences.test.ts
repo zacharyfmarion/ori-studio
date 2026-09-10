@@ -204,16 +204,15 @@ describe('a planner step', () => {
 });
 
 describe('a press step', () => {
-  // A press on the fixture's second step's line (line id 5, made at step 2),
-  // located by the crease from step 3 (line id 6).
+  // A press on the fixture's second step's line (line id 5, made at step 2 by
+  // O2 folding P onto Q). It carries that step's witness, so it reads as that
+  // fold does — and then says how much of it to press.
   const sequence = plannerSequenceFixture();
   const made = sequence.steps[1]!;
   const press = {
     ...made,
     id: 99,
     kind: 'press' as const,
-    witnesses: [],
-    chosen: null,
     cp_line_ids: [],
     cp_spans: [],
     extent: { kind: 'pinches' as const, spans: [[[0.47, 0.5], [0.53, 0.5]] as [[number, number], [number, number]]] },
@@ -221,16 +220,16 @@ describe('a press step', () => {
   };
   const withPress = { ...sequence, steps: [...sequence.steps, press] };
 
-  it('says which crease to refold and which crossing to pinch at, by letter', () => {
+  it('reads as the fold that made its line, pinch only', () => {
     const sentence = describePlannerStep(t, withPress, withPress.steps.length - 1);
-    expect(sentence).toBe('Refold A and pinch it where B crosses it.');
+    expect(sentence).toBe(`${describePlannerStep(t, sequence, 1)} Pinch only — just the mark is needed.`);
+    expect(sentence).not.toMatch(/refold/i);
   });
 
-  it('says to run the crease out when nothing sights it yet', () => {
+  it('says to crease the part shown when it runs out to an end', () => {
     const out = { ...press, press: { ...press.press, sighted_from: null } };
     const seq = { ...sequence, steps: [...sequence.steps, out] };
     const sentence = describePlannerStep(t, seq, seq.steps.length - 1);
-    expect(sentence).toContain('Refold A and crease it further');
-    expect(sentence).toContain('the edge');
+    expect(sentence).toBe(`${describePlannerStep(t, sequence, 1)} Crease only the part shown.`);
   });
 });

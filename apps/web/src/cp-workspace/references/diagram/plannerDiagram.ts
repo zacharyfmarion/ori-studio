@@ -171,18 +171,6 @@ const lerp = (a: Point, b: Point, t: number): Point => ({
 const midpoint = (seg: DiagramSegment): Point => lerp(seg[0], seg[1], 0.5);
 
 /**
- * The references a press card shows: the line being pressed, then the crease
- * the pinch is located by. Lettered `A` and `B` in that order, so the sentence
- * can say "refold A and pinch it where B crosses it".
- */
-export function pressInputs(step: PrecreaseStep): PrecreaseRef[] {
-  const along: PrecreaseRef = { kind: 'line', id: step.line_id };
-  return step.press?.sighted_from != null
-    ? [along, { kind: 'line', id: step.press.sighted_from }]
-    : [along];
-}
-
-/**
  * How an O4 is performed, when it can be drawn as a motion at all.
  *
  * The crate says nothing moves — a perpendicular is sighted, not swung — but a
@@ -442,14 +430,11 @@ export function plannerStepDiagram(
     }
   }
 
+  // A press carries the witness of the fold that made its line, so it draws
+  // exactly as that fold did — the same references, the same motion — with a
+  // pinch for its extent. It is not a different kind of picture.
   const witness = chosenWitness(step);
-  // A press has no witness — it is a pinch, not a construction — but it is
-  // located by a crease, and that crease is the one thing the card must show:
-  // "pinch here" means nothing without the crossing that says where here is.
-  const inputs: PrecreaseRef[] =
-    step.kind === 'press'
-      ? pressInputs(step)
-      : (witness?.inputs ?? []);
+  const inputs: PrecreaseRef[] = witness?.inputs ?? [];
   const labels: StepDiagramPrimitive[] = [];
   const letters = inputLetters(inputs);
   const chord = frame.chord(step);
