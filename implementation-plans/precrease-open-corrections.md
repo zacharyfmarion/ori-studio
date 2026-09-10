@@ -426,6 +426,13 @@ shared, because then there is one loop to reproduce rather than two.
 
 ## Not in scope
 
+- The snap tier cannot place a *jittered* triangle grid: `SNAP_MAX_Q = 5` and
+  the union-pitch rule cap ℤ[√3] at denominator 7 for a ring normal of
+  magnitude 2, so a hand-drawn or detected copy of `hex-14.fold` would still
+  read as off the lattice. The dense tier's pure elements `q√r/D` (which made
+  the exact file plan) want a matching sparse family — one parameter, pitch
+  `√r/D` — before that case is worth measuring.
+
 Carried from `references-step-diagram-unification.md`, unchanged and still true:
 
 - `--fold-unassigned` is a hard literal in `theme.css:118` that `applyTheme`

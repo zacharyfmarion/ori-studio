@@ -19,13 +19,20 @@
 //!   denominators of [`dense_ring_denominators`] (powers of two to 64, and
 //!   the odd grids 3, 5, 7 with a few halvings) with `|q| ≤ 12` — the
 //!   irrational coefficient of `(√2−1)⁴`, the deepest landmark real designs
-//!   reach; `p` is unbounded. The offset ring is the *design's*: an axis line
-//!   in a 22.5° design is tested in ℤ[√2] too. ℤ[√2] is dense in ℝ, so the
-//!   bounds are what make "off the lattice" a meaningful verdict: with them a
-//!   random offset lands within `TOL` of a candidate with probability of
-//!   ~1.4 % per ring and ~4 % for the rationals, so a design with many
-//!   off-lattice lines is still classified as such, while the count of
-//!   off-lattice lines undercounts by about that much.
+//!   reach; `p` is unbounded. And, at the same denominators, the **pure**
+//!   elements `q√r/D` with no bound on `q` at all: a 60° grid of `D` rows
+//!   puts every oblique line exactly there, and `q` is the row index, which
+//!   runs the width of the sheet (a 14-row triangle grid reaches `q = 21`).
+//!   That is one candidate per denominator — a lattice as sparse as the
+//!   rationals at `D` — so it costs nothing in false positives; the landmark
+//!   bound is what keeps `p ≠ 0` from being a second free parameter. The
+//!   offset ring is the *design's*: an axis line in a 22.5° design is tested
+//!   in ℤ[√2] too. ℤ[√2] is dense in ℝ, so the bounds are what make "off the
+//!   lattice" a meaningful verdict: with them a random offset lands within
+//!   `TOL` of a candidate with probability of ~1.4 % per ring and ~4 % for
+//!   the rationals, so a design with many off-lattice lines is still
+//!   classified as such, while the count of off-lattice lines undercounts by
+//!   about that much.
 //! - **Sparse snap families** (the snap, radius [`SNAP_RADIUS`]): directions
 //!   with `|a|, |b| ≤ 8`, and one denominator family per odd `m ≤ 25`. For a
 //!   line whose ring normal has magnitude `|n|`, the family admits offsets
@@ -294,6 +301,26 @@ pub fn nearest_offset(c: f64, ring: Ring, denominator: u32, q_max: i64) -> (Latt
     ))
 }
 
+/// The nearest pure element `q√r/denominator` — no rational part, any `q` —
+/// with the residual `|c − value|`. Where a grid of `denominator` rows in a
+/// 60° (or 45°) design puts its oblique lines; `q` is the row index.
+pub fn nearest_pure_offset(c: f64, ring: Ring, denominator: u32) -> (LatticeOffset, f64) {
+    let r = ring.irrational();
+    let denom = denominator as f64;
+    let q = (c * denom / r).round();
+    let value = q * r / denom;
+    (
+        LatticeOffset {
+            p: 0,
+            q: q as i64,
+            denominator,
+            ring,
+            value,
+        },
+        (c - value).abs(),
+    )
+}
+
 /// Denominators of the dense ring tier, ascending: `m · 2ᵏ` for
 /// `(m, k) ≤ (1, 6), (3, 4), (5, 2), (7, 1)` — the powers of two 22.5°
 /// designs halve into, and the odd grids box-pleating sheets put them on.
@@ -487,7 +514,9 @@ pub fn dense_offset_residual(
             }
             Ring::Sqrt2 | Ring::Sqrt3 => {
                 for &denominator in dense_ring_denominators().iter().chain(&grid_denominators) {
-                    if consider(nearest_offset(c, ring, denominator, DENSE_MAX_Q)) {
+                    if consider(nearest_offset(c, ring, denominator, DENSE_MAX_Q))
+                        || consider(nearest_pure_offset(c, ring, denominator))
+                    {
                         break 'rings;
                     }
                 }
@@ -744,6 +773,37 @@ mod tests {
         let (_, res) =
             dense_offset_residual((1.0 + 2.0 * SQRT2) / 3.0, &conn, ComponentGrid::default());
         assert!(res > TOL);
+    }
+
+    /// A triangle grid's oblique lines sit at `q√3/D` with `q` the row
+    /// index, which runs past the landmark bound on a sheet of more than
+    /// twelve rows: hex_precreasing.fold, 14 rows, reaches `q = 21`.
+    #[test]
+    fn a_pure_ring_element_is_dense_whatever_its_coefficient() {
+        let (dir, _) = nearest_family_angle(PI / 6.0);
+        assert_eq!(dir.ring, Ring::Sqrt3);
+        // 17 and 19 are the two rows of that file no rational coincidence
+        // within TOL happens to cover (13√3/14 is 193/120 to 4.4e-7, and the
+        // rationals are tried first); before the pure element they were the
+        // whole reason the design read as off the lattice.
+        for q in [17i64, 19] {
+            let c = q as f64 * SQRT3 / 14.0;
+            let (off, res) = dense_offset_residual(c, &dir, ComponentGrid::default());
+            assert!(res < 1e-12, "q = {q}: residual {res}");
+            assert_eq!(
+                (off.p, off.q, off.denominator, off.ring),
+                (0, q, 14, Ring::Sqrt3)
+            );
+        }
+        // A row that reduces is found at its smallest denominator, as before.
+        let (off, res) = dense_offset_residual(21.0 * SQRT3 / 14.0, &dir, ComponentGrid::default());
+        assert!(res < 1e-12);
+        assert_eq!((off.p, off.q, off.denominator), (0, 3, 2));
+        // The rational part is still bounded: a deep element with one is not
+        // suddenly on the lattice.
+        let deep = (1.0 + 40.0 * SQRT3) / 14.0;
+        let (_, res) = dense_offset_residual(deep, &dir, ComponentGrid::default());
+        assert!(res > TOL, "residual {res}");
     }
 
     #[test]

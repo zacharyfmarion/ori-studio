@@ -58,9 +58,10 @@ fn plan(file: &str) -> Sequence {
     plan_component(&component_of(&load(file)), unbounded_options()).1
 }
 
-const EVERY_FIXTURE: [&str; 10] = [
+const EVERY_FIXTURE: [&str; 11] = [
     "tests/fixtures/precrease/grid6.fold",
     "tests/fixtures/precrease/iguana-c0.fold",
+    "tests/fixtures/precrease/hex-14.fold",
     "tests/fixtures/precrease/claim7-cand9.fold",
     "tests/fixtures/precrease/g3d_x19.fold",
     "tests/fixtures/precrease/x13_x38.fold",

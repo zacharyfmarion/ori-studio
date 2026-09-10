@@ -164,6 +164,17 @@
       "panel": null,
       "crate": 2,
       "note": "No plan value to compare against. Solved by one depth-2 auxiliary pair."
+    },
+    {
+      "file": "tests/fixtures/precrease/hex-14.fold",
+      "component": 0,
+      "description": "A 14-row triangle grid on its own rectangle (W/H = 4*sqrt3/7, drawn rotated 30 degrees on the Oriedita canvas): 13 rows and two families of 21 oblique lines whose ring offsets are k*sqrt3/14 with k up to 21, past the dense tier's landmark bound on q.",
+      "lines": 55,
+      "status": "complete",
+      "prototype": null,
+      "panel": null,
+      "crate": 1,
+      "note": "Classified off the lattice until the dense tier admitted pure ring elements q*sqrt3/D with no bound on q; the planner then solved one line (the midline) and stopped. Exact now: the midline from the bare sheet, one depth-1 auxiliary (a corner onto an edge through the opposite corner, the diagram's 60-degree reference), and every other line closes."
     }
   ]
 }

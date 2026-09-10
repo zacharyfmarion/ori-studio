@@ -132,11 +132,38 @@ fn spike_grid6_is_exact_with_fourteen_lines() {
     assert_eq!(e.snapped.lines.len(), 14);
 }
 
+/// A 14-row triangle grid on its own rectangle: its oblique lines' ring
+/// offsets are k√3/14 with k up to 21, past the dense tier's landmark bound
+/// on the irrational coefficient — which is why it read as off the lattice
+/// until the tier admitted pure ring elements. The rectangle is rotated 30°
+/// on the canvas, and W/H = 4√3/7 is what puts every crossing on the lattice.
+#[test]
+fn a_triangle_grid_on_its_own_rectangle_is_exact() {
+    let analysis = analyze_fold_file(&repo_root().join("tests/fixtures/precrease/hex-14.fold"));
+    assert_eq!(analysis.components.len(), 1);
+    let c = &analysis.components[0];
+    assert!(c.refused.is_none());
+    let frame = c.frame.as_ref().expect("frame");
+    assert!(
+        (frame.x_axis[0] - (3.0f64).sqrt() / 2.0).abs() < 1e-9,
+        "rotated 30°"
+    );
+    let rf = c.rf_rect.as_ref().expect("rf_rect");
+    assert!(
+        (rf.width - 4.0 * (3.0f64).sqrt() / 7.0).abs() < 1e-9,
+        "{rf:?}"
+    );
+    assert_eq!(c.merged_lines.len(), 55);
+    let e = c.exactness.as_ref().expect("exactness");
+    assert_eq!(e.class, ExactnessClass::Exact, "{:?}", e.residuals);
+    assert_eq!(e.off_lattice_lines, 0);
+}
+
 #[test]
 fn panel_counterexample_fixtures_are_exact() {
     // The design panel's counterexample crease patterns, kept beside the planner's
-    // own fixtures. grid6 has its own test above, and iguana-c0 is a real design
-    // rather than a counterexample, so both are skipped here.
+    // own fixtures. grid6 has its own test above, and iguana-c0 and hex-14 are
+    // real designs rather than counterexamples, so they are skipped here.
     let dir = repo_root().join("tests/fixtures/precrease");
     let mut seen = 0;
     for entry in std::fs::read_dir(&dir).expect("precrease fixtures") {
@@ -148,7 +175,7 @@ fn panel_counterexample_fixtures_are_exact() {
             .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or_default();
-        if name == "grid6" || name == "iguana-c0" {
+        if name == "grid6" || name == "iguana-c0" || name == "hex-14" {
             continue;
         }
         seen += 1;
