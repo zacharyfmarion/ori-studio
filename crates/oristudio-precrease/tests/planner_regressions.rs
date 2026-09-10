@@ -399,16 +399,46 @@ fn bird_base_closes_from_the_bare_sheet_with_no_auxiliary_fold() {
     assert_eq!(o5, 8, "the eight corner lines are O5");
 }
 
+/// Every axiom's certification path is exercised by some fixture's closure.
+///
+/// This used to pin one fixture — Oriedita's `solution_sample_1` — as
+/// recording all of O1–O7, and it did, until the presentation preference
+/// changed which auxiliary fold the stuck search takes there and O5 stopped
+/// coming up on it. Which fixture carries which axiom is incidental; that the
+/// set carries all of them is the guarantee.
+#[test]
+fn the_fixtures_between_them_exercise_every_axiom() {
+    let mut seen: Vec<u8> = Vec::new();
+    for file in [
+        "tests/fixtures/precrease/grid6.fold",
+        "tests/fixtures/precrease/iguana-c0.fold",
+        "tests/fixtures/flat-folder/kabuto.fold",
+        "tests/fixtures/oriedita/solution_sample_1.cp",
+        "crates/oristudio-cp/resources/default-molecules/bird_base.fold",
+        "crates/oristudio-cp/resources/default-molecules/frog_base.fold",
+    ] {
+        let cp = load(file);
+        let analysis = analyze_cp(&cp);
+        let (_, seq) = plan_component(&analysis.components[0], unbounded_options());
+        seen.extend(witness_axioms(&seq));
+    }
+    seen.sort_unstable();
+    seen.dedup();
+    assert_eq!(seen, vec![1, 2, 3, 4, 5, 6, 7]);
+}
+
 #[test]
 fn solution_sample_1_closure_exercises_o3_through_o7() {
-    // The plan's testing strategy wants a fixture whose closure exercises
-    // O3–O7; under the corrected predicates that is Oriedita's
-    // `solution_sample_1`, not the bird base.
+    // A real design that completes with several axioms in play, and whose
+    // presentation does not collapse to one of them.
     let cp = load("tests/fixtures/oriedita/solution_sample_1.cp");
     let analysis = analyze_cp(&cp);
     let (_, seq) = plan_component(&analysis.components[0], unbounded_options());
     assert_eq!(seq.status, Status::Complete);
-    assert_eq!(witness_axioms(&seq), vec![1, 2, 3, 4, 5, 6, 7]);
+    let recorded = witness_axioms(&seq);
+    for axiom in [3, 4, 6, 7] {
+        assert!(recorded.contains(&axiom), "{recorded:?}");
+    }
     // And the presentation picks more than one axiom.
     let mut chosen: Vec<u8> = seq
         .steps

@@ -467,6 +467,10 @@ fn parallel_use_point(
         ends(other)
             .into_iter()
             .map(|e| fold.reflect_point(e))
+            // An image off the paper is not somewhere a crease can be pressed
+            // to. Both lines' ends reflect symmetrically, so the one whose
+            // images land on the sheet is the one to press.
+            .filter(|img| state.in_paper(*img))
             .map(|img| {
                 let gap = mine
                     .iter()
@@ -509,6 +513,43 @@ fn presses_for_lines(state: &State, creased: &Creased, fold: &Line, w: &Witness)
         }
     }
     out
+}
+
+/// How many presses may buy a fold something moves in, over one nothing
+/// does. One: a single pinch to turn "fold through P perpendicular to A" into
+/// "fold P onto Q" is the trade a folder would make; more than that and the
+/// plan is paying in steps for a preference.
+const MAX_PRESSES_FOR_PREFERENCE: usize = 1;
+
+/// How many presses sighting `witness` would take, without making any.
+///
+/// The ordering pass weighs this against ease: a fold of an easier kind that
+/// needs a pinch is still preferred, but among folds of one kind the one that
+/// needs less is. Counted on a copy of the paper, because a mark's presses
+/// change what the next mark needs.
+fn presses_needed(state: &State, creased: &Creased, line: &Line, witness: &Witness) -> usize {
+    let mut paper = creased.clone();
+    let mut count = 0;
+    for point in witness_missing_marks(state, &paper, witness) {
+        for press in presses_for_mark(state, &paper, point) {
+            paper.add_spans(state, press.line, state.line(press.line), &[press.span]);
+            count += 1;
+        }
+    }
+    if !witness_aligns(state, &paper, line, witness) {
+        for press in presses_for_lines(state, &paper, line, witness) {
+            paper.add_spans(state, press.line, state.line(press.line), &[press.span]);
+            count += 1;
+        }
+        // A witness the presses cannot repair is not a choice at all.
+        if !witness_aligns(state, &paper, line, witness) {
+            return usize::MAX / 2;
+        }
+    }
+    if !witness_marks_exist(state, &paper, witness) {
+        return usize::MAX / 2;
+    }
+    count
 }
 
 /// Emit the presses that make every mark `witness` sights real, recording each
@@ -727,47 +768,69 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
         let members: Vec<usize> = (0..folded.len())
             .filter(|&i| !hoisted[i] && folded[i].round == r)
             .collect();
-        // Prefer a witness the folder can actually sight. Every witness on a
-        // round-r line was certified against the state as it stood before the
-        // round began, so they all see the same paper and the choice does not
-        // depend on the order inside the round.
+        // Pick the witness the folder should be shown. The easiest kind of
+        // fold the folder can already sight, unless that is a fold nothing
+        // moves in — a perpendicular, or a line through two marks — in which
+        // case one pinch may buy a fold something does move in: "fold P onto
+        // Q" with a pinch first is what a folder would do, "fold through P
+        // perpendicular to A" is a hinge trick. Then put whatever it needs on
+        // the paper, ahead of this round.
+        //
+        // Not any pinch for any easier fold. Measured on markhor: letting one
+        // pinch buy any easier axiom turned 18 line-onto-line folds into
+        // point-onto-point with a pinch each, and a fold of an edge onto a
+        // crease is not improved by that.
+        //
+        // Every witness on a round-r line was certified against the state as
+        // it stood before the round began, so they all see the same paper.
+        // Only if the presses fail (they should not: see `presses_for_mark`)
+        // is the step left flagged, naming what is missing, so the invariant
+        // test reports it rather than the card pretending.
         for &i in &members {
             let f = &folded[i];
-            let sightable = (0..f.witnesses.len())
+            let already = (0..f.witnesses.len())
                 .filter(|&w| sightable(state, &creased, &f.line, &f.witnesses[w]))
                 .min_by_key(|&w| f.witnesses[w].preference());
-            match sightable {
-                Some(w) => sighting.chosen[i] = Some(w),
-                // Nothing recorded can be sighted. Keep the closure's own
-                // choice — the fold is still correct — and put the marks it
-                // needs on the paper with press steps ahead of this round.
-                // Only if that fails (it should not: see `presses_for_mark`)
-                // is the step left flagged, naming what is missing, so the
-                // invariant test reports it rather than the card pretending.
-                None => {
-                    if let Some(w) = sighting.chosen[i].and_then(|w| f.witnesses.get(w)) {
-                        let real = make_marks_real(
-                            state,
-                            closure,
-                            &mut creased,
-                            &folded_of_line,
-                            &f.line,
-                            w,
-                            k as u32 + 1,
-                            side,
-                            &mut placed,
-                        );
-                        sighting.marks_exist[i] = real;
-                        sighting.missing[i] = if real {
-                            Vec::new()
-                        } else {
-                            witness_missing_marks(state, &creased, w)
-                        };
+            let swung = |w: usize| !matches!(f.witnesses[w].axiom, 1 | 4);
+            let best = match already {
+                Some(w) if swung(w) => Some(w),
+                _ => (0..f.witnesses.len()).min_by_key(|&w| {
+                    let witness = &f.witnesses[w];
+                    let (ease, hard, err) = witness.preference();
+                    let needs = if sightable(state, &creased, &f.line, witness) {
+                        0
                     } else {
-                        sighting.marks_exist[i] = f.witnesses.is_empty();
-                    }
-                }
+                        presses_needed(state, &creased, &f.line, witness)
+                    };
+                    (needs > MAX_PRESSES_FOR_PREFERENCE, ease, needs, hard, err)
+                }),
+            };
+            let Some(w) = best else {
+                sighting.marks_exist[i] = true;
+                continue;
+            };
+            sighting.chosen[i] = Some(w);
+            let witness = &f.witnesses[w];
+            if sightable(state, &creased, &f.line, witness) {
+                continue;
             }
+            let real = make_marks_real(
+                state,
+                closure,
+                &mut creased,
+                &folded_of_line,
+                &f.line,
+                witness,
+                k as u32 + 1,
+                side,
+                &mut placed,
+            );
+            sighting.marks_exist[i] = real;
+            sighting.missing[i] = if real {
+                Vec::new()
+            } else {
+                witness_missing_marks(state, &creased, witness)
+            };
         }
         let is_cp_round = members.iter().all(|&i| folded[i].tag == LineTag::Cp);
         let ordered: Vec<(usize, f64)> = if is_cp_round {

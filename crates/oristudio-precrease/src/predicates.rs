@@ -119,10 +119,19 @@ pub struct Witness {
 }
 
 impl Witness {
-    /// Ordering key for the presentation choice: non-hard first, then the
-    /// ease order, then the certificate residual.
-    pub fn preference(&self) -> (bool, u8, u64) {
-        (self.hard, self.ease, (self.err / 1e-18) as u64)
+    /// Ordering key for the presentation choice: the ease order first, then
+    /// non-hard, then the certificate residual.
+    ///
+    /// Ease before hardness, on purpose. `hard` is ReferenceFinder's legibility
+    /// scoring — a skinny flap, or an alignment with no edge in it — and the
+    /// module doc says it is scored, never enforced. Sorting on it first made
+    /// it enforced across axioms: a skinny "fold P onto Q" lost to any clean
+    /// "fold through P perpendicular to A", when the first is the fold a folder
+    /// would make and the second needs a hinge trick. Two points beat folding a
+    /// line onto itself whenever both are possible; within one axiom, the
+    /// cleaner fold still wins.
+    pub fn preference(&self) -> (u8, bool, u64) {
+        (self.ease, self.hard, (self.err / 1e-18) as u64)
     }
 
     /// Cost contribution to the stuck search's ease sum.
@@ -658,8 +667,8 @@ pub fn all_witnesses(state: &State, target: &Line) -> Vec<Witness> {
     witnesses(state, target, &facts)
 }
 
-/// The presentation witness: non-hard first, then the ease order
-/// `O2 < O3 < O7 < O6 < O5 < O4 < O1`, then the smallest residual.
+/// The presentation witness: the ease order `O2 < O3 < O7 < O6 < O5 < O4 < O1`
+/// first, then non-hard, then the smallest residual.
 pub fn choose(witnesses: &[Witness]) -> Option<usize> {
     (0..witnesses.len()).min_by_key(|&i| witnesses[i].preference())
 }

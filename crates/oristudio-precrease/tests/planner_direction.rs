@@ -656,11 +656,16 @@ fn a_real_design_turns_over_a_handful_of_times() {
     assert_eq!(folds, 91, "iguana-c0 folds");
     // Thirteen of those folds were sighted from marks that were not on the
     // paper; each now gets the press that puts its mark there first.
-    // Thirteen for marks that were not on the paper, and two for lines whose
-    // crease did not reach where a fold used them.
-    assert_eq!(seq.totals.presses, 15, "iguana-c0 presses");
-    assert_eq!(seq.steps.len(), 106, "iguana-c0 steps");
-    assert_eq!(turn_overs(&seq), 9, "iguana-c0 turn-overs");
+    // For marks that were not on the paper and lines whose crease did not
+    // reach where a fold used them — and one more since a pinch may buy a
+    // two-point fold over a perpendicular.
+    assert_eq!(seq.totals.presses, 16, "iguana-c0 presses");
+    assert_eq!(seq.steps.len(), 107, "iguana-c0 steps");
+    // 9 while hardness sorted before the ease order. The presentation
+    // preference also feeds the stuck search's ease term, so changing it can
+    // change which auxiliary fold the search takes and everything after it;
+    // the auxiliary count is pinned by the manifest and did not move.
+    assert_eq!(turn_overs(&seq), 6, "iguana-c0 turn-overs");
 }
 
 /// The snappable path builds its targets from `SnappedLine`, which carries no
