@@ -225,87 +225,87 @@ the Rust kernels, Tauri.
 
 ### Phase 0 — Pin the bug (these fail on `main`)
 
-- [ ] Packing: pair 1–2, `unpairOristudioBpTreeSymmetry(1)`, move flap 1 →
+- [x] Packing: pair 1–2, `unpairOristudioBpTreeSymmetry(1)`, move flap 1 →
       no single move issued for flap 2; same for
       `resizeOristudioBpLayoutFlap` and `reshapeOristudioBpFlap`.
-- [ ] Tree: after Unpair, `moveOristudioBpTreeVerticesWithSymmetry` moves one
+- [x] Tree: after Unpair, `moveOristudioBpTreeVerticesWithSymmetry` moves one
       vertex; `setOristudioBpTreeEdgeLength` touches one edge;
       `deleteOristudioBpTreeNode` deletes one id.
-- [ ] Library: `mirrorBpTreeVertexId(tree, [], axis, id)` with a vertex at the
+- [x] Library: `mirrorBpTreeVertexId(tree, [], axis, id)` with a vertex at the
       reflection returns `null`; an on-axis vertex still returns itself.
-- [ ] ExplOri: after `unpairExploriNode`, the mirrored-updates helper returns
+- [x] ExplOri: after `unpairExploriNode`, the mirrored-updates helper returns
       only the primary move.
 
 ### Phase 1 — Library
 
-- [ ] Delete branch three of `mirrorBpTreeVertexId`; rewrite its doc, the
+- [x] Delete branch three of `mirrorBpTreeVertexId`; rewrite its doc, the
       tolerance doc, and the module header with the three-verbs invariant.
-- [ ] Add `inferBpTreeSymmetryPartner` and `inferBpTreeSymmetryPairs`. Tests:
+- [x] Add `inferBpTreeSymmetryPartner` and `inferBpTreeSymmetryPairs`. Tests:
       mutual-best; two candidates within tolerance → `null`; already-paired and
       on-axis vertices skipped; each vertex used once; tolerance edge; the
       partner of a partner is not re-proposed.
-- [ ] Retitle and re-fixture the seven "honours an explicit pair over the
+- [x] Retitle and re-fixture the seven "honours an explicit pair over the
       geometric guess" tests; flip the three inference tests.
-- [ ] `explori/symmetry.ts`: same deletion in `mirrorExploriNodeId`; same two
+- [x] `explori/symmetry.ts`: same deletion in `mirrorExploriNodeId`; same two
       functions; tests.
 
 ### Phase 2 — Store
 
-- [ ] `pairOristudioBpTreeSymmetry(vertexId)` and
+- [x] `pairOristudioBpTreeSymmetry(vertexId)` and
       `pairAllOristudioBpTreeSymmetry()`: undoable via
       `recordSymmetryHistory`, `dirty: true`, no-op and no history entry when
       nothing pairs. Tests beside `oristudioBpSymmetryDocument.test.ts`.
-- [ ] Confirm each reader is explicit-or-self with no code change:
+- [x] Confirm each reader is explicit-or-self with no code change:
       `bpMirrorPartnerId`, `moveOristudioBpTreeVerticesWithSymmetry`,
       `deleteOristudioBpTreeNode`, `setOristudioBpTreeEdgeLength`,
       `resizeOristudioBpLayoutFlap`, `reshapeOristudioBpFlap`,
       `moveOristudioBpLayoutFlapsWithSymmetry`,
       `addOristudioBpTreeLeafWithSymmetry`. Phase 0 goes green here.
-- [ ] Analytics event in `events.ts` and `track(...)` at the three actions;
+- [x] Analytics event in `events.ts` and `track(...)` at the three actions;
       taxonomy note in `docs/analytics.md`.
-- [ ] `exploriSlice.ts`: `pairExploriNode`, `pairAllExploriNodes`; the move,
+- [x] `exploriSlice.ts`: `pairExploriNode`, `pairAllExploriNodes`; the move,
       add-leaf, and delete paths and `explori/deletion.ts` need no code change.
 
 ### Phase 3 — Shared tree editor and BP UI
 
-- [ ] `tree-editor/host.ts`: drop `resolveMirrorOf`; add `pairableWith`,
+- [x] `tree-editor/host.ts`: drop `resolveMirrorOf`; add `pairableWith`,
       `pair`; document the invariant on the interface.
-- [ ] `TreeEditor.tsx`: preview reads `partnerOf`; add-leaf ghost reads
+- [x] `TreeEditor.tsx`: preview reads `partnerOf`; add-leaf ghost reads
       `partnerOf ?? on-axis self`; the toolbar and vertex-menu slot chooses
       Pair or Unpair; `treeCanvasMenuItems` gains Pair all mirrored.
-- [ ] `TreeEditorToolbar.tsx`, `treeContextMenu.ts`, `TreeEditorCopy`
+- [x] `TreeEditorToolbar.tsx`, `treeContextMenu.ts`, `TreeEditorCopy`
       (`pair`, `pairAll`); tests in `treeContextMenu.test.ts`,
       `hostContract.test.tsx`, and the `canPair` permutation in
       `viewportToolbarLayout.test.ts`.
-- [ ] `useBpTreeSymmetry.ts`, `useBpPackingSymmetry.ts`: `pairableWith` /
+- [x] `useBpTreeSymmetry.ts`, `useBpPackingSymmetry.ts`: `pairableWith` /
       `pairableId`, `pair`, `pairAllCount`, `pairAll`; drop `resolveMirrorOf`.
-- [ ] `BpPackingPanel.tsx` symmetry toolbar group, `bpPackingContextMenu.ts`,
+- [x] `BpPackingPanel.tsx` symmetry toolbar group, `bpPackingContextMenu.ts`,
       `BpPackingSymmetryMenu.tsx` (Pair all row with count);
       `useBpTreeEditorHost.ts` and `useExploriTreeHost.ts` copy.
-- [ ] i18n: `i18n:extract`, translate the three strings in eight locales,
+- [x] i18n: `i18n:extract`, translate the three strings in eight locales,
       `i18n:check`.
 
 ### Phase 4 — Optimizer
 
-- [ ] `resolveOptimizerSymmetry`: explicit-or-self only; new unresolved copy;
+- [x] `resolveOptimizerSymmetry`: explicit-or-self only; new unresolved copy;
       delete the self-pair declaration branch and its test; flip "infers a
       partner from where the flap is drawn".
-- [ ] `BpOptimizerModal.test.tsx` and the symmetry-menu status: a design with
+- [x] `BpOptimizerModal.test.tsx` and the symmetry-menu status: a design with
       mirrored-but-unpaired flaps reads unusable with the Pair message; after
       Pair all it reads ready.
 
 ### Phase 5 — Docs and memory
 
-- [ ] `bp-tree-symmetry-draw.md` D3: add "superseded by
+- [x] `bp-tree-symmetry-draw.md` D3: add "superseded by
       `bp-symmetry-explicit-pairs.md`" without rewriting the history.
-- [ ] `bp-design-pane-architecture.md` ~line 201: the "degrades to geometric
+- [x] `bp-design-pane-architecture.md` ~line 201: the "degrades to geometric
       inference after reload" note is obsolete.
 - [ ] Update the session memory `bp-unpair-noop-geometric-inference` to point
       at the landed PR.
 
 ### Validation
 
-- [ ] `npm run lint:web`, `npm run typecheck:web`, `npm run i18n:check`, and
+- [x] `npm run lint:web`, `npm run typecheck:web`, `npm run i18n:check`, and
       `npm run test:web` (Node 22, run from `apps/web`).
 - [ ] Browser, owner Zach: tree pane — draw with mirror draw on, Unpair, drag
       the left node: the right node stays; set a length 2→3: the partner edge
@@ -316,5 +316,41 @@ the Rust kernels, Tauri.
 
 ## Outcome
 
-To be filled in when the PR lands: what changed, what the user-visible rules
-are, and any decision above that review overturned.
+Implemented 2026-09-10 on `claude/box-pleating-mirroring-bugs-a5839f`, one
+commit per phase (`eee45395` tests, `635fdf31` library, `3cfd4367` store,
+`461c70d4` UI, `ceab728e` optimizer), full web suite green at each step.
+
+The user-visible rules now:
+
+- A vertex mirrors another only through a pair. A pair is made by mirror-add,
+  *Pair with mirror*, or *Pair all mirrored*, and broken by *Unpair from
+  mirror*, by deleting a member, or by a load that no longer has both vertices.
+  Where two vertices happen to sit never pairs them.
+- After Unpair, the tree drag, the length edit, the flap drag, resize, reshape,
+  delete, the drag clamps, the partner marks, the drag preview and the optimizer
+  all treat the two as unrelated.
+- The slot after the Symmetry toggle shows Unpair or Pair, never both. *Pair all
+  mirrored* lives in the packing pane's symmetry menu (with the count it would
+  make, disabled at zero) and the tree canvas's context menu.
+- A vertex on the mirror line is still its own mirror while it sits there; the
+  toggle remains the way to move it off.
+- A `.bps` import mirrors nothing until paired. Files saved before pairs were
+  persisted (before 2026-08-03) likewise need one *Pair all mirrored*.
+
+Where the work departed from the plan above:
+
+- The analytics event is `symmetry pair changed`, not `bp symmetry pair
+  changed`: it is shared by the box-pleat and ExplOri trees and carries
+  `design_kind`, following the `design sent to edit` precedent.
+- Phase 4 went one step further than "new unresolved copy". The resolver's three
+  refusals were raw English; it now reports a structured
+  `OptimizerSymmetryProblem` and one describer, `symmetryProblemLabel`, puts it
+  into words for the status line, the dialog and the refused run — so the
+  wording change also closed the only unlocalized copy on the symmetry path.
+- The host contract gained `pairAllCount` and `pairAll` as well as
+  `pairableWith` and `pair`, so the tree canvas menu can offer Pair all without
+  a second store binding in the editor.
+- The store test fixtures that had `pairs: []` beside two leaves at reflected
+  positions now declare the pair. Seven tests titled "honours an explicit pair
+  over the geometric guess" became "follows the explicit pair, not the vertex
+  at the reflected spot".
