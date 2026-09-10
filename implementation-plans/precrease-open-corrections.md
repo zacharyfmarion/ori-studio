@@ -90,32 +90,46 @@ time reordering was tried for this class of problem it was measured **losing**,
 taking turn-overs 130 → 168. Case (a) covers the same ground by attaching the
 pinch to a later step instead of moving a fold.
 
-### The thing the crate cannot yet say
+### A press is a step
 
 The pinch does not always land on the later-folded of the pair. When the line
 needing the pinch was folded *earlier* than the line whose crease reaches `P`,
-the crossing only becomes visible after the later fold — so the pinch belongs to
-a step **after** the one that made that line.
+the crossing only becomes visible after the later fold — on markhor, Q is on the
+diagonal from step 7, in a gap that only step 10's crease locates. The diagonal
+has to be refolded and pinched there, after step 10 and before step 15.
 
-That is an ordinary physical action: refold along a crease that is already on the
-paper and press a little more of it. It is not a new fold. But it is a mark on
-line *X* declared at a step that folded line *Y*, and nothing in the crate can
-express it:
+That is an ordinary physical action and a real diagram numbers it: *"pinch
+here"* is one step, *"fold to the pinch"* is the next. So it is a **step**, not a
+field smuggled onto some other step's line:
 
-- `cp_spans` is asserted parallel to `cp_line_ids` (`planner_direction.rs:246`)
-  and copied verbatim from `Target::spans` (`planner.rs:707`).
-- `extent` is hard-coded `Extent::Full` for every CP and Edge step before
-  `pinch_pass` looks at anything (`pinch.rs:125`).
-- `planner_properties.rs:312` asserts `Extent::Pinches` implies `StepKind::Aux`.
+```rust
+pub enum StepKind {
+    Cp,     // realises pattern crease on a new line
+    Aux,    // a new auxiliary line
+    Press,  // more crease on a line already made, to put a mark on the paper
+}
+```
 
-**The wire change:** `Step` gains `presses: Vec<{ line_id, span }>`, where
-`line_id` may name a line an earlier step folded. `cp_spans` stays exactly what
-the pattern contains, so "what the design asks for" and "what correctness cost"
-remain separately measurable — which is what keeps the D3 guard
-(`no_step_creases_more_than_the_pattern_contains`) meaningful. `Extent` stays
-aux-only; presses are a new channel. The diagram must draw a press distinguishably
-from pattern crease, because in the finished model it is signed crease where the
-design wants flat paper.
+A press step has `line_id` = the line being re-pressed, `extent: Pinches` with
+the short span at `P` (or the run out to a findable end, in case (b)),
+`cp_spans` **empty** because the pattern asks for nothing there — that is the
+whole point — and a witness that is the sighting: *this line exists; that one
+crosses it here.* It sits immediately before the step that needs the mark. Case
+(b) is two press steps.
+
+`LineEntry.step` keeps meaning *the step that made the line* — a press does not
+make it — so `planner.rs:684`'s one-slot-per-line map is untouched. Everything
+downstream already handles a pinched step because auxiliary lines are pinched
+today: `plannerDiagram.ts` draws `extent.kind === 'pinches'` as short marks, the
+sentence says *"Pinch only — just the mark is needed."*, and the visibility
+build-up adds whatever a step creases. `Totals` gains a `press` count so extra
+ink is countable and never mistaken for `aux` or `cp`, which keeps the D3 guard
+(`no_step_creases_more_than_the_pattern_contains`) exactly as meaningful as it
+is now.
+
+The one piece of plumbing: `Placed.folded` indexes a `FoldedLine`, and a press
+has no fold of its own. `Placed` has to be able to say *a press of this line at
+this point* as well as *this fold*.
 
 ### What it costs is not yet known
 
@@ -147,8 +161,10 @@ over both `landmarks_first` settings and all components, not just the largest.
   an aux line is pinched at points no presented step uses. Fix before building on
   it.
 - **`Creased::add_spans` replaces, it does not union** (`marks.rs:64`), and empty
-  spans silently mean "creased everywhere". Any press implementation that calls
-  it twice on one line deletes the pattern's own creases.
+  spans silently mean "creased everywhere". The ordering pass calls it once per
+  step, so the first press step on a line would **wipe that line's pattern
+  creases and leave only the pinch**. This is the bug that bites first, and it
+  goes first.
 - **The hoist branch does not search for a sightable witness** the way the round
   loop does (`order.rs:252`), so a hoisted step can be flagged phantom while a
   sightable witness sits unused.
@@ -297,8 +313,10 @@ fallback.
 - [ ] Fix the prerequisites: `pinch_pass`'s stale witness index, `add_spans`
       replacing rather than unioning, the hoist branch's missing sightability
       search.
-- [ ] `Step.presses` on the wire, distinct from `cp_spans`, able to name a line
-      an earlier step folded. Diagram draws it distinguishably.
+- [ ] `StepKind::Press` and a `Placed` that can carry one. `cp_spans` stays
+      empty on a press; `Totals.press` counts them. The diagram already draws a
+      pinched step; it should draw a press in its own ink so extra crease reads
+      as extra.
 - [ ] Implement the rule: case (c) nothing, case (a) a pinch at a visible
       crossing, case (b) a press through `P` to a findable end, then (a).
 - [ ] The invariant test: zero `marks_exist == false` over every fixture, and
