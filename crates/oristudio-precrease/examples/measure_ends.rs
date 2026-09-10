@@ -16,14 +16,15 @@ use oristudio_precrease::analyze;
 use oristudio_precrease::clock::frozen_clock;
 use oristudio_precrease::fixture_io::load_path;
 use oristudio_precrease::marks::{Creased, crease_runs, end_is_found};
+use oristudio_precrease::pinch::Extent;
 use oristudio_precrease::planner::{Planner, PlannerOptions};
-use oristudio_precrease::sequence::Sequence;
+use oristudio_precrease::sequence::{Sequence, StepKind};
 use oristudio_precrease::sheet::Sheet;
 use oristudio_precrease::state::State;
 
 const ORIEDITA_PAPER: [f64; 4] = [-200.0, -200.0, 200.0, 200.0];
 
-#[derive(Default, Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
 struct Tally {
     steps: usize,
     rounds: usize,
@@ -32,6 +33,10 @@ struct Tally {
     ends: usize,
     lost_ends: usize,
     reversed: usize,
+    /// Press steps: extra crease made so a later step can be sighted.
+    presses: usize,
+    /// Their total length, in sheet-sides.
+    press_len: f64,
 }
 
 impl Tally {
@@ -43,6 +48,8 @@ impl Tally {
         self.ends += o.ends;
         self.lost_ends += o.lost_ends;
         self.reversed += o.reversed;
+        self.presses += o.presses;
+        self.press_len += o.press_len;
     }
 }
 
@@ -71,6 +78,23 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize) -> Tally {
         ..Tally::default()
     };
     for step in &seq.steps {
+        // A press is a pinch on a line already made: it goes on the paper, but
+        // it is not a crease with ends a folder must find — it is pressed *at*
+        // a mark. Its empty `cp_spans` must not read as "creased whole".
+        if step.kind == StepKind::Press {
+            let Extent::Pinches { spans } = &step.extent else {
+                continue;
+            };
+            t.presses += 1;
+            t.press_len += spans
+                .iter()
+                .map(|[a, b]| (a[0] - b[0]).hypot(a[1] - b[1]))
+                .sum::<f64>();
+            if let Ok(outcome) = state.add_line(step.line, step.tag) {
+                creased.add_spans(&state, outcome.id, &step.line, spans);
+            }
+            continue;
+        }
         let spans = &step.cp_spans;
         // Per end of a merged run, not per segment: a CP splits a line at every
         // change of assignment, and those joints are not ends.
@@ -213,10 +237,12 @@ fn main() {
     println!("\n{planned} designs planned of {}", paths.len());
     for (label, t) in [("preference on ", on), ("preference off", off)] {
         println!(
-            "{label}  steps {:5}  rounds {:5}  phantom {:4}  turn-overs {:4}  lost ends {:5} / {:5} ({:.1}%)  reversed {:4}",
+            "{label}  steps {:5}  rounds {:5}  phantom {:4}  presses {:4} ({:.1} sheet-sides)  turn-overs {:4}  lost ends {:5} / {:5} ({:.1}%)  reversed {:4}",
             t.steps,
             t.rounds,
             t.phantom,
+            t.presses,
+            t.press_len,
             t.turn_overs,
             t.lost_ends,
             t.ends,

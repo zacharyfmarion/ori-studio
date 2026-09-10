@@ -79,6 +79,18 @@ fn a_step_is_made_from_the_side_its_direction_needs() {
         let seq = plan(file);
         assert!(!seq.steps.is_empty(), "{file}: no steps");
         for step in &seq.steps {
+            // A press refolds a crease the way it already goes, from whatever
+            // face the folder is on: its direction is the fold's, and its side
+            // is the moment's. The rule below is about making a crease.
+            if step.kind == StepKind::Press {
+                let made = seq
+                    .steps
+                    .iter()
+                    .find(|s| s.line_id == step.line_id && s.kind != StepKind::Press)
+                    .unwrap_or_else(|| panic!("{file}: press on a line nobody made"));
+                assert_eq!(step.direction, made.direction, "{file}: {step:?}");
+                continue;
+            }
             match step.direction {
                 // A crease made from the front is a valley, one made from the
                 // back is a mountain, and there is no third case.

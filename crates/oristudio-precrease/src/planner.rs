@@ -743,9 +743,20 @@ impl Planner {
             // took whichever side was already up, and the share is then the
             // share of its length that side gets right.
             let majority = target.map_or(Direction::Unassigned, |t| t.direction);
+            // A press refolds a crease the way it already goes, whichever face
+            // the folder happens to be on; its direction is the fold's, not the
+            // face's. Reading it off the current side made a press from the
+            // other face look like a reversal.
+            let made_from = match &p.press {
+                Some(_) => placed
+                    .iter()
+                    .find(|q| q.folded == p.folded && q.press.is_none())
+                    .map_or(p.side, |q| q.side),
+                None => p.side,
+            };
             let direction = match majority {
                 Direction::Unassigned => Direction::Unassigned,
-                _ => p.side.direction(),
+                _ => made_from.direction(),
             };
             let direction_share = share_of(
                 majority,
