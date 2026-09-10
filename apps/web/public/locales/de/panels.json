@@ -111,6 +111,11 @@
     "fold": {
       "book": "Buchfalte",
       "diagonal": "Diagonalfalte"
+    },
+    "problem": {
+      "axisOffCentre": "Die Symmetrieachse muss durch die Mitte des Bogens verlaufen, damit der Optimierer den Bogen symmetrisch halten kann.",
+      "notAMirror": "Die Paarung ist keine Spiegelung: Einige Laschen sind nicht gegenseitig gepaart. Jede Lasche muss mit genau einer anderen Lasche gepaart sein oder auf der Achse mit sich selbst.",
+      "unpaired": "{{names}} hat kein Spiegelpaar. Auswählen und „Mit Spiegel paaren“ wählen, „Alle gespiegelten paaren“ verwenden, mit eingeschaltetem Spiegelzeichnen neu zeichnen oder auf die Spiegellinie verschieben."
     }
   },
   "bpTree": {

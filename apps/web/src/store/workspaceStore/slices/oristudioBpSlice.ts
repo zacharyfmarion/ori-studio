@@ -32,6 +32,8 @@ import {
 } from '../oristudioBpRuntime';
 import { designKind } from '../../../designKinds/registry';
 import { trackDesignSentToEdit, trackSymmetryPairChanged } from '../../../analytics';
+import i18n from '../../../i18n';
+import { symmetryProblemLabel } from '../../../lib/bpSymmetryLabels';
 import { recordSnapshot, snapshotEntry } from '../snapshotHistory';
 import {
   addBpTreeSymmetryPair,
@@ -1459,7 +1461,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         if (!resolved.ok) {
           // Falling back to an unconstrained solve would hand back a layout the
           // user did not ask for, so refuse and say why.
-          set({ oristudioBpError: resolved.reason });
+          set({ oristudioBpError: symmetryProblemLabel(i18n.t, resolved.problem) });
           return 'failed';
         }
         symmetry = resolved.payload;

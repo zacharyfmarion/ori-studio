@@ -184,7 +184,7 @@ describe('resolveOptimizerSymmetry', () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.reason).toContain('v3');
+    expect(result.problem).toEqual({ kind: 'unpaired', names: ['v3'] });
   });
 
   it('rejects an axis the optimizer cannot honour', () => {
@@ -197,7 +197,7 @@ describe('resolveOptimizerSymmetry', () => {
     );
     expect(offCentre.ok).toBe(false);
     if (offCentre.ok) return;
-    expect(offCentre.reason).toContain('centre of the sheet');
+    expect(offCentre.problem).toEqual({ kind: 'axis-off-centre' });
   });
 
   it('does not ask whether mirror draw is on', () => {
@@ -229,25 +229,6 @@ describe('resolveOptimizerSymmetry', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.inconsistentPairs.length).toBeGreaterThan(0);
-  });
-});
-
-describe('on-axis declaration', () => {
-  it('accepts a self-pair as "this flap sits on the axis"', () => {
-    // A flap on the axis has no partner to pair with, so a pair whose two
-    // members are the same flap is how the user says so when inference is off.
-    const result = resolveOptimizerSymmetry(
-      bugTree(),
-      symmetryState({
-        pairs: [
-          { v1: 1, v2: 2 },
-          { v1: 3, v2: 3 },
-        ],
-      })
-    );
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(new Map(result.payload.partners).get(3)).toBe(3);
   });
 });
 

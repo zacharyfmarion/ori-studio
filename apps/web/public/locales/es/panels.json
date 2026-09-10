@@ -113,6 +113,11 @@
     "fold": {
       "book": "Pliegue de libro",
       "diagonal": "Pliegue diagonal"
+    },
+    "problem": {
+      "axisOffCentre": "El eje de simetría debe pasar por el centro de la hoja para que el optimizador mantenga la hoja simétrica.",
+      "notAMirror": "El emparejamiento no es un espejo: algunas solapas no se emparejan mutuamente. Cada solapa debe emparejarse exactamente con otra solapa, o consigo misma sobre el eje.",
+      "unpaired": "Nada está emparejado con {{names}}. Selecciónala y elige Emparejar con el espejo, usa Emparejar todo lo simétrico, dibújala con el dibujo simétrico activado o muévela a la línea del espejo."
     }
   },
   "bpTree": {

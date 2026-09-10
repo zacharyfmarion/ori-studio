@@ -14,6 +14,7 @@ import {
   type SymmetryFold,
 } from '../lib/bpTreeSymmetry';
 import { resolveOptimizerSymmetry } from '../lib/bpOptimizerSymmetry';
+import { symmetryProblemLabel } from '../lib/bpSymmetryLabels';
 import {
   bpPackingSheetCenter,
   bpPackingSheetSupportsAxis,
@@ -121,7 +122,7 @@ function foldStatus(
   symmetry: Parameters<typeof resolveOptimizerSymmetry>[1]
 ): string {
   const resolved = resolveOptimizerSymmetry(tree, symmetry);
-  if (!resolved.ok) return resolved.reason;
+  if (!resolved.ok) return symmetryProblemLabel(t, resolved.problem);
   if (resolved.inconsistentPairs.length > 0) {
     return t(
       'panels:bpPacking.symmetryInconsistent',

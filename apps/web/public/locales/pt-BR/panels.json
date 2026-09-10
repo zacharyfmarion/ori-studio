@@ -113,6 +113,11 @@
     "fold": {
       "book": "Dobra de livro",
       "diagonal": "Dobra diagonal"
+    },
+    "problem": {
+      "axisOffCentre": "O eixo de simetria precisa passar pelo centro da folha para que o otimizador mantenha a folha simétrica.",
+      "notAMirror": "O emparelhamento não é um espelho: algumas abas não formam par entre si. Cada aba precisa formar par com exatamente uma outra aba, ou consigo mesma sobre o eixo.",
+      "unpaired": "Nada está emparelhado com {{names}}. Selecione e escolha Emparelhar com o espelho, use Emparelhar tudo que é simétrico, desenhe com o desenho espelhado ligado ou mova para a linha do espelho."
     }
   },
   "bpTree": {

@@ -111,6 +111,11 @@
     "fold": {
       "book": "Book fold",
       "diagonal": "Diagonal fold"
+    },
+    "problem": {
+      "axisOffCentre": "The symmetry axis must pass through the centre of the sheet for the optimizer to keep the sheet symmetric.",
+      "notAMirror": "The pairing is not a mirror: some flaps do not pair back to each other. Every flap must pair with exactly one other flap, or with itself on the axis.",
+      "unpaired": "Nothing is paired with {{names}}. Select it and choose Pair with mirror, use Pair all mirrored, draw it with mirror draw on, or move it onto the mirror line."
     }
   },
   "bpTree": {

@@ -340,11 +340,13 @@ describe('symmetry row', () => {
   });
 
   it('explains why it cannot mirror instead of blocking the run', () => {
-    // A flap with no mirror drawn and not on the line cannot be accounted for.
+    // A flap with no pair and not on the line cannot be accounted for. The
+    // explanation names the flap and the verbs that pair it.
     withTree({}, 'rectangular', true);
     openWith({ layoutMode: 'view' });
     renderModal();
-    expect(text()).toMatch(/mirrors/i);
+    expect(text()).toContain('Nothing is paired with c');
+    expect(text()).toContain('Pair with mirror');
     const run = findButton('Run!');
     expect(run.disabled).toBe(false);
   });

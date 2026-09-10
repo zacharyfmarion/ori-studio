@@ -113,6 +113,11 @@
     "fold": {
       "book": "Pli livre",
       "diagonal": "Pli diagonal"
+    },
+    "problem": {
+      "axisOffCentre": "L'axe de symétrie doit passer par le centre de la feuille pour que l'optimiseur garde la feuille symétrique.",
+      "notAMirror": "L'association n'est pas un miroir\u00a0: certains rabats ne sont pas associés réciproquement. Chaque rabat doit être associé à exactement un autre rabat, ou à lui-même sur l'axe.",
+      "unpaired": "Rien n'est associé à {{names}}. Sélectionnez-le et choisissez Associer au miroir, utilisez Associer tout ce qui est en miroir, dessinez-le avec le dessin en miroir activé, ou déplacez-le sur la ligne du miroir."
     }
   },
   "bpTree": {

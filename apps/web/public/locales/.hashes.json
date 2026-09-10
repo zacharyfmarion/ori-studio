@@ -2806,7 +2806,10 @@
     "panels:bpTree.pairAll": "0c51159d421c",
     "panels:explori.pair": "08c0796c8674",
     "panels:explori.pairAll": "0c51159d421c",
-    "panels:treeEditor.contextMenu.pairAllNone": "229a002767d8"
+    "panels:treeEditor.contextMenu.pairAllNone": "229a002767d8",
+    "panels:bpSymmetry.problem.axisOffCentre": "aca4720348b3",
+    "panels:bpSymmetry.problem.notAMirror": "df53cd4703ad",
+    "panels:bpSymmetry.problem.unpaired": "d58d4f9339e7"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5615,7 +5618,10 @@
     "panels:bpTree.pairAll": "0c51159d421c",
     "panels:explori.pair": "08c0796c8674",
     "panels:explori.pairAll": "0c51159d421c",
-    "panels:treeEditor.contextMenu.pairAllNone": "229a002767d8"
+    "panels:treeEditor.contextMenu.pairAllNone": "229a002767d8",
+    "panels:bpSymmetry.problem.axisOffCentre": "aca4720348b3",
+    "panels:bpSymmetry.problem.notAMirror": "df53cd4703ad",
+    "panels:bpSymmetry.problem.unpaired": "d58d4f9339e7"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8424,7 +8430,10 @@
     "panels:bpTree.pairAll": "0c51159d421c",
     "panels:explori.pair": "08c0796c8674",
     "panels:explori.pairAll": "0c51159d421c",
-    "panels:treeEditor.contextMenu.pairAllNone": "229a002767d8"
+    "panels:treeEditor.contextMenu.pairAllNone": "229a002767d8",
+    "panels:bpSymmetry.problem.axisOffCentre": "aca4720348b3",
+    "panels:bpSymmetry.problem.notAMirror": "df53cd4703ad",
+    "panels:bpSymmetry.problem.unpaired": "d58d4f9339e7"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11182,7 +11191,10 @@
     "panels:bpTree.pairAll": "0c51159d421c",
     "panels:explori.pair": "08c0796c8674",
     "panels:explori.pairAll": "0c51159d421c",
-    "panels:treeEditor.contextMenu.pairAllNone": "229a002767d8"
+    "panels:treeEditor.contextMenu.pairAllNone": "229a002767d8",
+    "panels:bpSymmetry.problem.axisOffCentre": "aca4720348b3",
+    "panels:bpSymmetry.problem.notAMirror": "df53cd4703ad",
+    "panels:bpSymmetry.problem.unpaired": "d58d4f9339e7"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -13940,7 +13952,10 @@
     "panels:bpTree.pairAll": "0c51159d421c",
     "panels:explori.pair": "08c0796c8674",
     "panels:explori.pairAll": "0c51159d421c",
-    "panels:treeEditor.contextMenu.pairAllNone": "229a002767d8"
+    "panels:treeEditor.contextMenu.pairAllNone": "229a002767d8",
+    "panels:bpSymmetry.problem.axisOffCentre": "aca4720348b3",
+    "panels:bpSymmetry.problem.notAMirror": "df53cd4703ad",
+    "panels:bpSymmetry.problem.unpaired": "d58d4f9339e7"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -16749,7 +16764,10 @@
     "panels:bpTree.pairAll": "0c51159d421c",
     "panels:explori.pair": "08c0796c8674",
     "panels:explori.pairAll": "0c51159d421c",
-    "panels:treeEditor.contextMenu.pairAllNone": "229a002767d8"
+    "panels:treeEditor.contextMenu.pairAllNone": "229a002767d8",
+    "panels:bpSymmetry.problem.axisOffCentre": "aca4720348b3",
+    "panels:bpSymmetry.problem.notAMirror": "df53cd4703ad",
+    "panels:bpSymmetry.problem.unpaired": "d58d4f9339e7"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -19558,7 +19576,10 @@
     "panels:bpTree.pairAll": "0c51159d421c",
     "panels:explori.pair": "08c0796c8674",
     "panels:explori.pairAll": "0c51159d421c",
-    "panels:treeEditor.contextMenu.pairAllNone": "229a002767d8"
+    "panels:treeEditor.contextMenu.pairAllNone": "229a002767d8",
+    "panels:bpSymmetry.problem.axisOffCentre": "aca4720348b3",
+    "panels:bpSymmetry.problem.notAMirror": "df53cd4703ad",
+    "panels:bpSymmetry.problem.unpaired": "d58d4f9339e7"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -22316,6 +22337,9 @@
     "panels:bpTree.pairAll": "0c51159d421c",
     "panels:explori.pair": "08c0796c8674",
     "panels:explori.pairAll": "0c51159d421c",
-    "panels:treeEditor.contextMenu.pairAllNone": "229a002767d8"
+    "panels:treeEditor.contextMenu.pairAllNone": "229a002767d8",
+    "panels:bpSymmetry.problem.axisOffCentre": "aca4720348b3",
+    "panels:bpSymmetry.problem.notAMirror": "df53cd4703ad",
+    "panels:bpSymmetry.problem.unpaired": "d58d4f9339e7"
   }
 }

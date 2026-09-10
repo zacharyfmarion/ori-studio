@@ -58,9 +58,20 @@ export interface OptimizerSymmetryResolved {
   inconsistentPairs: [number, number][];
 }
 
+/**
+ * Why the drawing cannot be solved symmetrically, as a fact rather than a
+ * sentence — the UI puts it into words (`symmetryProblemLabel`) in the user's
+ * language, and the same fact reads differently in a status line and an error.
+ */
+export type OptimizerSymmetryProblem =
+  | { kind: 'axis-off-centre' }
+  /** Leaves with no pair and not on the axis, by display name. */
+  | { kind: 'unpaired'; names: string[] }
+  | { kind: 'not-a-mirror' };
+
 export interface OptimizerSymmetryRejected {
   ok: false;
-  reason: string;
+  problem: OptimizerSymmetryProblem;
 }
 
 export type OptimizerSymmetryResolution = OptimizerSymmetryResolved | OptimizerSymmetryRejected;
@@ -170,12 +181,7 @@ export function resolveOptimizerSymmetry(
   // is the design's own `fold` and `quarterTurn`.
   const axis = optimizerSymmetryAxisForMirror(tree.sheet.kind, symmetry);
   if (!isPaperCenter(symmetry.loc, tree.sheet.width, tree.sheet.height)) {
-    return {
-      ok: false,
-      reason:
-        'The symmetry axis must pass through the centre of the sheet for the ' +
-        'optimizer to keep the sheet symmetric.',
-    };
+    return { ok: false, problem: { kind: 'axis-off-centre' } };
   }
 
   const leaves = (tree.vertices ?? []).filter((vertex) => vertex.isLeaf);
@@ -185,8 +191,10 @@ export function resolveOptimizerSymmetry(
   const partner = new Map<number, number>();
   const unresolved: number[] = [];
   for (const leaf of leaves) {
-    // Read from the tree drawing: a flap drawn with mirror-draw carries an
-    // explicit pair, and one drawn on the mirror line is its own mirror.
+    // The pairing the user made — mirror-add, Pair with mirror, Pair all
+    // mirrored — plus a flap drawn on the mirror line, which is its own mirror.
+    // Where an unpaired flap happens to sit pairs it with nothing: that is what
+    // lets Unpair mean something here too.
     //
     // This holds whichever layout method the run uses. Random mode discards the
     // *packing*, not the tree, so the drawing is just as good a statement of
@@ -200,25 +208,18 @@ export function resolveOptimizerSymmetry(
   }
 
   if (unresolved.length > 0) {
-    const names = unresolved
-      .map((id) => leaves.find((vertex) => vertex.id === id)?.name || String(id))
-      .join(', ');
     return {
       ok: false,
-      reason:
-        `Nothing mirrors ${names}. Draw each flap with mirror draw on so it gets ` +
-        'a partner, or move it onto the mirror line.',
+      problem: {
+        kind: 'unpaired',
+        names: unresolved.map((id) => leaves.find((vertex) => vertex.id === id)?.name || String(id)),
+      },
     };
   }
 
   for (const [id, mirror] of partner) {
     if (partner.get(mirror) !== id) {
-      return {
-        ok: false,
-        reason:
-          'The pairing is not a mirror: some flaps do not pair back to each other. ' +
-          'Every flap must pair with exactly one other flap, or with itself on the axis.',
-      };
+      return { ok: false, problem: { kind: 'not-a-mirror' } };
     }
   }
 
