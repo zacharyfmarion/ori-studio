@@ -62,6 +62,9 @@
     "nudgeRight": "BP-Auswahl nach rechts verschieben",
     "nudgeUp": "BP-Auswahl nach oben verschieben",
     "onlyOnePattern": "Nur ein Muster",
+    "pair": "Mit Spiegel paaren",
+    "pairAll": "Alle gespiegelten paaren",
+    "pairAllNone": "Keine ungepaarten Laschen liegen einander gegenüber.",
     "pattern": "Muster",
     "patternNotFound": "Muster nicht gefunden",
     "patternNotFoundFor": "Kein Faltmuster für {{flaps}}",
@@ -123,6 +126,8 @@
     "length": "Länge",
     "mirrorDraw": "Spiegelzeichnen",
     "mirrorDrawOn": "Spiegelzeichnen (ein)",
+    "pair": "Mit Spiegel paaren",
+    "pairAll": "Alle gespiegelten paaren",
     "selectEdge": "BP-Kante {{id}} auswählen, Länge {{length}}",
     "selectLeafVertex": "BP-Blattknoten {{id}} auswählen",
     "selectLeafVertexWithLabel": "BP-Blattknoten {{id}} auswählen, {{label}}",
@@ -658,6 +663,8 @@
     "noResultsYetTitle": "Noch keine Ergebnisse",
     "openInExplori": "In ExplOri öffnen",
     "openResult": "Ergebnis {{id}} öffnen",
+    "pair": "Mit Spiegelung paaren",
+    "pairAll": "Alle gespiegelten paaren",
     "previousResult": "Vorheriges Ergebnis",
     "qualityAcceptable": "Brauchbare Übereinstimmung",
     "qualityGood": "Gute Übereinstimmung",
@@ -906,7 +913,8 @@
   "treeEditor": {
     "contextMenu": {
       "addLeaf": "Blatt hier hinzufügen",
-      "deselect": "Auswahl aufheben"
+      "deselect": "Auswahl aufheben",
+      "pairAllNone": "Keine ungepaarten Knoten liegen einander gegenüber."
     }
   }
 }

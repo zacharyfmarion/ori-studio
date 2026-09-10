@@ -94,6 +94,25 @@ export function BpPackingSymmetryMenu({ symmetry }: { symmetry: BpPackingSymmetr
               );
             })}
           </div>
+          {/*
+            * The one-click way from a hand-drawn or imported symmetric layout to
+            * a paired one. Nothing pairs flaps by where they sit on its own; this
+            * is where the user asks for it.
+            */}
+          <button
+            type="button"
+            className="symmetry-menu__preset symmetry-menu__action"
+            disabled={symmetry.pairAllCount === 0}
+            title={
+              symmetry.pairAllCount === 0
+                ? t('panels:bpPacking.pairAllNone', 'No unpaired flaps sit opposite each other.')
+                : undefined
+            }
+            onClick={() => symmetry.pairAll()}
+          >
+            <span>{t('panels:bpPacking.pairAll', 'Pair all mirrored')}</span>
+            {symmetry.pairAllCount > 0 && <small>{symmetry.pairAllCount}</small>}
+          </button>
           <p className="symmetry-menu__status">{symmetry.status}</p>
         </div>
       )}

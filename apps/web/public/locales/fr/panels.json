@@ -64,6 +64,9 @@
     "nudgeRight": "Déplacer la sélection BP vers la droite",
     "nudgeUp": "Déplacer la sélection BP vers le haut",
     "onlyOnePattern": "Un seul motif",
+    "pair": "Associer au miroir",
+    "pairAll": "Associer tout ce qui est en miroir",
+    "pairAllNone": "Aucun rabat non associé n'en a un en face.",
     "pattern": "Motif",
     "patternNotFound": "Motif introuvable",
     "patternNotFoundFor": "Aucun motif de plis pour {{flaps}}",
@@ -125,6 +128,8 @@
     "length": "Longueur",
     "mirrorDraw": "Dessin en miroir",
     "mirrorDrawOn": "Dessin en miroir (activé)",
+    "pair": "Associer au miroir",
+    "pairAll": "Associer tout ce qui est en miroir",
     "selectEdge": "Sélectionner l'arête BP {{id}}, longueur {{length}}",
     "selectLeafVertex": "Sélectionner le sommet feuille BP {{id}}",
     "selectLeafVertexWithLabel": "Sélectionner le sommet feuille BP {{id}}, {{label}}",
@@ -687,6 +692,8 @@
     "noResultsYetTitle": "Pas encore de résultats",
     "openInExplori": "Ouvrir dans ExplOri",
     "openResult": "Ouvrir le résultat {{id}}",
+    "pair": "Associer au miroir",
+    "pairAll": "Associer tout ce qui est en miroir",
     "previousResult": "Résultat précédent",
     "qualityAcceptable": "Correspondance acceptable",
     "qualityGood": "Bonne correspondance",
@@ -940,7 +947,8 @@
   "treeEditor": {
     "contextMenu": {
       "addLeaf": "Ajouter une feuille ici",
-      "deselect": "Tout désélectionner"
+      "deselect": "Tout désélectionner",
+      "pairAllNone": "Aucun nœud non associé n'en a un en face."
     }
   }
 }

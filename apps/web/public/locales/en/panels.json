@@ -62,6 +62,9 @@
     "nudgeRight": "Nudge BP selection right",
     "nudgeUp": "Nudge BP selection up",
     "onlyOnePattern": "Only one pattern",
+    "pair": "Pair with mirror",
+    "pairAll": "Pair all mirrored",
+    "pairAllNone": "No unpaired flaps sit opposite each other.",
     "pattern": "Pattern",
     "patternNotFound": "Pattern not found",
     "patternNotFoundFor": "No crease pattern for {{flaps}}",
@@ -123,6 +126,8 @@
     "length": "Length",
     "mirrorDraw": "Mirror draw",
     "mirrorDrawOn": "Mirror draw (on)",
+    "pair": "Pair with mirror",
+    "pairAll": "Pair all mirrored",
     "selectEdge": "Select BP edge {{id}}, length {{length}}",
     "selectLeafVertex": "Select BP leaf vertex {{id}}",
     "selectLeafVertexWithLabel": "Select BP leaf vertex {{id}}, {{label}}",
@@ -658,6 +663,8 @@
     "noResultsYetTitle": "No results yet",
     "openInExplori": "Open in ExplOri",
     "openResult": "Open result {{id}}",
+    "pair": "Pair with mirror",
+    "pairAll": "Pair all mirrored",
     "previousResult": "Previous result",
     "qualityAcceptable": "Acceptable match",
     "qualityGood": "Good match",
@@ -906,7 +913,8 @@
   "treeEditor": {
     "contextMenu": {
       "addLeaf": "Add leaf here",
-      "deselect": "Deselect all"
+      "deselect": "Deselect all",
+      "pairAllNone": "No unpaired nodes sit opposite each other."
     }
   }
 }

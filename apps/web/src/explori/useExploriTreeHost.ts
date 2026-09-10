@@ -13,7 +13,8 @@ import {
   EXPLORI_SYMMETRY_TOLERANCE,
   explicitExploriPairId,
   exploriMirrorHeldIds,
-  mirrorExploriNodeId,
+  inferExploriPairs,
+  inferExploriPartner,
 } from './symmetry';
 
 /**
@@ -62,6 +63,8 @@ function exploriTreeCopy(t: TFunction): TreeEditorCopy {
     symmetry: t('panels:explori.symmetry', 'Symmetry'),
     mirrorDrawOn: t('panels:explori.mirrorDrawOn', 'Mirror draw (on)'),
     unpair: t('panels:explori.unpair', 'Unpair from mirror'),
+    pair: t('panels:explori.pair', 'Pair with mirror'),
+    pairAll: t('panels:explori.pairAll', 'Pair all mirrored'),
     layers: t('panels:explori.layers', 'Layers'),
     layerLabels: t('panels:explori.layerLabels', 'Labels'),
     length: t('panels:explori.length', 'Length'),
@@ -92,6 +95,8 @@ export function useExploriTreeHost(): TreeEditorHost {
   const setEdgeLength = useWorkspaceStore((state) => state.setExploriEdgeLength);
   const toggleSymmetry = useWorkspaceStore((state) => state.toggleExploriSymmetry);
   const unpairNode = useWorkspaceStore((state) => state.unpairExploriNode);
+  const pairNode = useWorkspaceStore((state) => state.pairExploriNode);
+  const pairAllNodes = useWorkspaceStore((state) => state.pairAllExploriNodes);
   // Labels are a view preference with no reason to outlive the pane, unlike
   // box-pleat's, which is shared with its packing view through settings.
   const [labels, setLabels] = useState(true);
@@ -145,7 +150,10 @@ export function useExploriTreeHost(): TreeEditorHost {
         : null,
       pairs: document.symmetry.pairs,
       partnerOf: (nodeId) => explicitExploriPairId(document.symmetry.pairs, nodeId),
-      resolveMirrorOf: (nodeId) => mirrorExploriNodeId(document, nodeId),
+      pairableWith: (nodeId) => inferExploriPartner(document, nodeId),
+      pair: (nodeId) => void pairNode(nodeId),
+      pairAllCount: inferExploriPairs(document).length - document.symmetry.pairs.length,
+      pairAll: () => void pairAllNodes(),
       isOnAxis: (nodeId) => {
         if (!document.symmetry.enabled) return false;
         const loc = document.nodes.find((node) => node.id === nodeId)?.loc;
@@ -165,7 +173,7 @@ export function useExploriTreeHost(): TreeEditorHost {
           : { axis: EXPLORI_SYMMETRY_AXIS, heldIds, clearance: EXPLORI_SYMMETRY_TOLERANCE };
       },
     };
-  }, [document, frame, toggleSymmetry, unpairNode]);
+  }, [document, frame, toggleSymmetry, unpairNode, pairNode, pairAllNodes]);
 
   return useMemo<TreeEditorHost>(
     () => ({

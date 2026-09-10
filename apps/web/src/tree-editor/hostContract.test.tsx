@@ -57,6 +57,8 @@ const COPY: TreeEditorCopy = {
   symmetry: 'Symmetry',
   mirrorDrawOn: 'Mirror draw (on)',
   unpair: 'Unpair',
+  pair: 'Pair',
+  pairAll: 'Pair all',
   layers: 'Layers',
   layerLabels: 'Labels',
   length: 'Length',

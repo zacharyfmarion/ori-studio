@@ -60,6 +60,9 @@
     "nudgeRight": "BP の選択を右に微調整",
     "nudgeUp": "BP の選択を上に微調整",
     "onlyOnePattern": "パターンは1つのみ",
+    "pair": "ミラーとペアにする",
+    "pairAll": "ミラー対称をすべてペアにする",
+    "pairAllNone": "向かい合う未ペアのフラップはありません。",
     "pattern": "パターン",
     "patternNotFound": "パターンが見つかりません",
     "patternNotFoundFor": "{{flaps}}の折り線パターンがありません",
@@ -121,6 +124,8 @@
     "length": "長さ",
     "mirrorDraw": "ミラー描画",
     "mirrorDrawOn": "ミラー描画（オン）",
+    "pair": "ミラーとペアにする",
+    "pairAll": "ミラー対称をすべてペアにする",
     "selectEdge": "BP 辺 {{id}}、長さ {{length}} を選択",
     "selectLeafVertex": "BP 葉頂点 {{id}} を選択",
     "selectLeafVertexWithLabel": "BP 葉頂点 {{id}}、{{label}} を選択",
@@ -629,6 +634,8 @@
     "noResultsYetTitle": "結果はまだありません",
     "openInExplori": "ExplOri で開く",
     "openResult": "結果 {{id}} を開く",
+    "pair": "ミラーと対応付ける",
+    "pairAll": "ミラー対称をすべて対応付ける",
     "previousResult": "前の結果",
     "qualityAcceptable": "許容できる一致",
     "qualityGood": "良い一致",
@@ -876,7 +883,8 @@
   "treeEditor": {
     "contextMenu": {
       "addLeaf": "ここに葉を追加",
-      "deselect": "すべて選択解除"
+      "deselect": "すべて選択解除",
+      "pairAllNone": "向かい合う未ペアのノードはありません。"
     }
   }
 }

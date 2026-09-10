@@ -1,4 +1,4 @@
-import { Tag, Unlink } from 'lucide-react';
+import { Link, Tag, Unlink } from 'lucide-react';
 import {
   ViewportToolbar,
   viewportLayerItems,
@@ -22,6 +22,8 @@ export function TreeEditorToolbar({
   symmetry,
   canUnpair,
   onUnpair,
+  canPair,
+  onPair,
   zoomIn,
   zoomOut,
   fitToView,
@@ -34,6 +36,9 @@ export function TreeEditorToolbar({
   symmetry: TreeSymmetryHost | null;
   canUnpair: boolean;
   onUnpair: () => void;
+  /** The same slot as Unpair — one verb or the other, never both. */
+  canPair: boolean;
+  onPair: () => void;
   zoomIn: () => void;
   zoomOut: () => void;
   fitToView: () => void;
@@ -58,6 +63,14 @@ export function TreeEditorToolbar({
                 icon: <Unlink size={14} />,
                 onSelect: onUnpair,
               },
+              !canUnpair &&
+                canPair && {
+                  kind: 'action' as const,
+                  id: 'pair',
+                  label: copy.pair,
+                  icon: <Link size={14} />,
+                  onSelect: onPair,
+                },
             ],
           },
         ]

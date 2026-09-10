@@ -2798,7 +2798,15 @@
     "cpVocab:action.cp_action_vertex_pin.label": "9a1d4823a841",
     "cpVocab:action.cp_action_vertex_pin.tooltip": "9c5186463586",
     "cpVocab:action.cp_action_vertex_pin.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_vertex_pin.steps.0": "9dc8c56b6e56"
+    "cpVocab:action.cp_action_vertex_pin.steps.0": "9dc8c56b6e56",
+    "panels:bpPacking.pair": "08c0796c8674",
+    "panels:bpPacking.pairAll": "0c51159d421c",
+    "panels:bpPacking.pairAllNone": "7b088ea0f615",
+    "panels:bpTree.pair": "08c0796c8674",
+    "panels:bpTree.pairAll": "0c51159d421c",
+    "panels:explori.pair": "08c0796c8674",
+    "panels:explori.pairAll": "0c51159d421c",
+    "panels:treeEditor.contextMenu.pairAllNone": "229a002767d8"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5599,7 +5607,15 @@
     "cpVocab:action.cp_action_vertex_pin.label": "9a1d4823a841",
     "cpVocab:action.cp_action_vertex_pin.tooltip": "9c5186463586",
     "cpVocab:action.cp_action_vertex_pin.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_vertex_pin.steps.0": "9dc8c56b6e56"
+    "cpVocab:action.cp_action_vertex_pin.steps.0": "9dc8c56b6e56",
+    "panels:bpPacking.pair": "08c0796c8674",
+    "panels:bpPacking.pairAll": "0c51159d421c",
+    "panels:bpPacking.pairAllNone": "7b088ea0f615",
+    "panels:bpTree.pair": "08c0796c8674",
+    "panels:bpTree.pairAll": "0c51159d421c",
+    "panels:explori.pair": "08c0796c8674",
+    "panels:explori.pairAll": "0c51159d421c",
+    "panels:treeEditor.contextMenu.pairAllNone": "229a002767d8"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8400,7 +8416,15 @@
     "cpVocab:action.cp_action_vertex_pin.label": "9a1d4823a841",
     "cpVocab:action.cp_action_vertex_pin.tooltip": "9c5186463586",
     "cpVocab:action.cp_action_vertex_pin.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_vertex_pin.steps.0": "9dc8c56b6e56"
+    "cpVocab:action.cp_action_vertex_pin.steps.0": "9dc8c56b6e56",
+    "panels:bpPacking.pair": "08c0796c8674",
+    "panels:bpPacking.pairAll": "0c51159d421c",
+    "panels:bpPacking.pairAllNone": "7b088ea0f615",
+    "panels:bpTree.pair": "08c0796c8674",
+    "panels:bpTree.pairAll": "0c51159d421c",
+    "panels:explori.pair": "08c0796c8674",
+    "panels:explori.pairAll": "0c51159d421c",
+    "panels:treeEditor.contextMenu.pairAllNone": "229a002767d8"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11150,7 +11174,15 @@
     "cpVocab:action.cp_action_vertex_pin.label": "9a1d4823a841",
     "cpVocab:action.cp_action_vertex_pin.tooltip": "9c5186463586",
     "cpVocab:action.cp_action_vertex_pin.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_vertex_pin.steps.0": "9dc8c56b6e56"
+    "cpVocab:action.cp_action_vertex_pin.steps.0": "9dc8c56b6e56",
+    "panels:bpPacking.pair": "08c0796c8674",
+    "panels:bpPacking.pairAll": "0c51159d421c",
+    "panels:bpPacking.pairAllNone": "7b088ea0f615",
+    "panels:bpTree.pair": "08c0796c8674",
+    "panels:bpTree.pairAll": "0c51159d421c",
+    "panels:explori.pair": "08c0796c8674",
+    "panels:explori.pairAll": "0c51159d421c",
+    "panels:treeEditor.contextMenu.pairAllNone": "229a002767d8"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -13900,7 +13932,15 @@
     "cpVocab:action.cp_action_vertex_pin.label": "9a1d4823a841",
     "cpVocab:action.cp_action_vertex_pin.tooltip": "9c5186463586",
     "cpVocab:action.cp_action_vertex_pin.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_vertex_pin.steps.0": "9dc8c56b6e56"
+    "cpVocab:action.cp_action_vertex_pin.steps.0": "9dc8c56b6e56",
+    "panels:bpPacking.pair": "08c0796c8674",
+    "panels:bpPacking.pairAll": "0c51159d421c",
+    "panels:bpPacking.pairAllNone": "7b088ea0f615",
+    "panels:bpTree.pair": "08c0796c8674",
+    "panels:bpTree.pairAll": "0c51159d421c",
+    "panels:explori.pair": "08c0796c8674",
+    "panels:explori.pairAll": "0c51159d421c",
+    "panels:treeEditor.contextMenu.pairAllNone": "229a002767d8"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -16701,7 +16741,15 @@
     "cpVocab:action.cp_action_vertex_pin.label": "9a1d4823a841",
     "cpVocab:action.cp_action_vertex_pin.tooltip": "9c5186463586",
     "cpVocab:action.cp_action_vertex_pin.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_vertex_pin.steps.0": "9dc8c56b6e56"
+    "cpVocab:action.cp_action_vertex_pin.steps.0": "9dc8c56b6e56",
+    "panels:bpPacking.pair": "08c0796c8674",
+    "panels:bpPacking.pairAll": "0c51159d421c",
+    "panels:bpPacking.pairAllNone": "7b088ea0f615",
+    "panels:bpTree.pair": "08c0796c8674",
+    "panels:bpTree.pairAll": "0c51159d421c",
+    "panels:explori.pair": "08c0796c8674",
+    "panels:explori.pairAll": "0c51159d421c",
+    "panels:treeEditor.contextMenu.pairAllNone": "229a002767d8"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -19502,7 +19550,15 @@
     "cpVocab:action.cp_action_vertex_pin.label": "9a1d4823a841",
     "cpVocab:action.cp_action_vertex_pin.tooltip": "9c5186463586",
     "cpVocab:action.cp_action_vertex_pin.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_vertex_pin.steps.0": "9dc8c56b6e56"
+    "cpVocab:action.cp_action_vertex_pin.steps.0": "9dc8c56b6e56",
+    "panels:bpPacking.pair": "08c0796c8674",
+    "panels:bpPacking.pairAll": "0c51159d421c",
+    "panels:bpPacking.pairAllNone": "7b088ea0f615",
+    "panels:bpTree.pair": "08c0796c8674",
+    "panels:bpTree.pairAll": "0c51159d421c",
+    "panels:explori.pair": "08c0796c8674",
+    "panels:explori.pairAll": "0c51159d421c",
+    "panels:treeEditor.contextMenu.pairAllNone": "229a002767d8"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -22252,6 +22308,14 @@
     "cpVocab:action.cp_action_vertex_pin.label": "9a1d4823a841",
     "cpVocab:action.cp_action_vertex_pin.tooltip": "9c5186463586",
     "cpVocab:action.cp_action_vertex_pin.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_vertex_pin.steps.0": "9dc8c56b6e56"
+    "cpVocab:action.cp_action_vertex_pin.steps.0": "9dc8c56b6e56",
+    "panels:bpPacking.pair": "08c0796c8674",
+    "panels:bpPacking.pairAll": "0c51159d421c",
+    "panels:bpPacking.pairAllNone": "7b088ea0f615",
+    "panels:bpTree.pair": "08c0796c8674",
+    "panels:bpTree.pairAll": "0c51159d421c",
+    "panels:explori.pair": "08c0796c8674",
+    "panels:explori.pairAll": "0c51159d421c",
+    "panels:treeEditor.contextMenu.pairAllNone": "229a002767d8"
   }
 }

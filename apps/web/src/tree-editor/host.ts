@@ -62,10 +62,25 @@ export interface TreeSymmetryHost {
    * per-pointer-sample path.
    */
   pairs: readonly TreeSymmetryPair[];
-  /** The vertex explicitly paired with this one, if any. */
+  /**
+   * The vertex paired with this one, if any.
+   *
+   * The only notion of "partner" the editor has. There used to be a second,
+   * `resolveMirrorOf`, that also read position — and the two disagreeing is how
+   * Unpair came to hide the button while the drag kept mirroring. A pair exists
+   * because a verb made it: mirror-add, `pair`, or `pairAll`.
+   */
   partnerOf(vertexId: number): number | null;
-  /** Its mirror, explicit or inferred from position; null when none resolves. */
-  resolveMirrorOf(vertexId: number): number | null;
+  /**
+   * The vertex `pair` would pair this one with, or null: both unpaired, off the
+   * axis, and each the other's nearest reflection. What decides whether the
+   * Pair verb is offered.
+   */
+  pairableWith(vertexId: number): number | null;
+  pair(vertexId: number): void;
+  /** How many pairs `pairAll` would make right now; the row is disabled at zero. */
+  pairAllCount: number;
+  pairAll(): void;
   /**
    * Whether this vertex sits on the mirror *and* the drag should refuse it.
    *
@@ -99,6 +114,8 @@ export interface TreeEditorCopy {
   mirrorDraw: string;
   mirrorDrawOn: string;
   unpair: string;
+  pair: string;
+  pairAll: string;
   layers: string;
   layerLabels: string;
   length: string;

@@ -33,6 +33,8 @@ function deps(overrides: Partial<BpPackingContextMenuDeps> = {}): BpPackingConte
     nudge: vi.fn(),
     unpairableId: null,
     unpair: vi.fn(),
+    pairableId: null,
+    pair: vi.fn(),
     ...overrides,
   };
 }
@@ -83,6 +85,25 @@ describe('the flap menu', () => {
     expect(
       ids(bpPackingMenuItems({ kind: 'flap', count: 1 }, deps({ unpairableId: 4 })))
     ).toContain('bp-unpair');
+  });
+
+  it('offers pair in the same slot, only when the flap is unpaired with a twin waiting', () => {
+    const items = bpPackingMenuItems({ kind: 'flap', count: 1 }, deps({ pairableId: 4 }));
+    expect(ids(items)).toContain('bp-pair');
+    expect(ids(items)).not.toContain('bp-unpair');
+    // Never both: a host answering both is a bug, and Unpair wins.
+    expect(
+      ids(bpPackingMenuItems({ kind: 'flap', count: 1 }, deps({ unpairableId: 4, pairableId: 4 })))
+    ).not.toContain('bp-pair');
+  });
+
+  it('pairs the flap it was built for', () => {
+    const pair = vi.fn();
+    const items = bpPackingMenuItems({ kind: 'flap', count: 1 }, deps({ pairableId: 4, pair }));
+    const row = items.find((item) => 'id' in item && item.id === 'bp-pair');
+    if (!row || row.kind !== 'action') throw new Error('expected the pair row');
+    row.onSelect();
+    expect(pair).toHaveBeenCalledWith(4);
   });
 
   it('unpairs the flap it was built for', () => {

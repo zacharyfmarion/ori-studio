@@ -7434,6 +7434,25 @@ button.cp-folded-figure-toolbar__notice:hover {
   cursor: default;
 }
 
+/* Pair all mirrored: a full-width row in the preset style, count at the right. */
+.symmetry-menu__action {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.symmetry-menu__action small {
+  font-size: 0.64rem;
+  color: var(--text-tertiary);
+}
+
+.symmetry-menu__action:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* Whether the drawing is actually mirrorable, under the fold that decides it. */
 .symmetry-menu__status {
   margin: 0;

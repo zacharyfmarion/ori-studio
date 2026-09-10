@@ -64,6 +64,9 @@
     "nudgeRight": "Desplazar la selección BP hacia la derecha",
     "nudgeUp": "Desplazar la selección BP hacia arriba",
     "onlyOnePattern": "Solo un patrón",
+    "pair": "Emparejar con el espejo",
+    "pairAll": "Emparejar todo lo simétrico",
+    "pairAllNone": "Ninguna solapa sin pareja tiene otra enfrente.",
     "pattern": "Patrón",
     "patternNotFound": "Patrón no encontrado",
     "patternNotFoundFor": "Sin patrón de pliegues para {{flaps}}",
@@ -125,6 +128,8 @@
     "length": "Longitud",
     "mirrorDraw": "Dibujo simétrico",
     "mirrorDrawOn": "Dibujo simétrico (activado)",
+    "pair": "Emparejar con el espejo",
+    "pairAll": "Emparejar todo lo simétrico",
     "selectEdge": "Seleccionar arista BP {{id}}, longitud {{length}}",
     "selectLeafVertex": "Seleccionar vértice hoja BP {{id}}",
     "selectLeafVertexWithLabel": "Seleccionar vértice hoja BP {{id}}, {{label}}",
@@ -687,6 +692,8 @@
     "noResultsYetTitle": "Aún no hay resultados",
     "openInExplori": "Abrir en ExplOri",
     "openResult": "Abrir el resultado {{id}}",
+    "pair": "Vincular con el espejo",
+    "pairAll": "Vincular todo lo simétrico",
     "previousResult": "Resultado anterior",
     "qualityAcceptable": "Coincidencia aceptable",
     "qualityGood": "Buena coincidencia",
@@ -940,7 +947,8 @@
   "treeEditor": {
     "contextMenu": {
       "addLeaf": "Añadir hoja aquí",
-      "deselect": "Deseleccionar todo"
+      "deselect": "Deseleccionar todo",
+      "pairAllNone": "Ningún nodo sin pareja tiene otro enfrente."
     }
   }
 }

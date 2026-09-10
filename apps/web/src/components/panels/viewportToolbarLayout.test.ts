@@ -32,7 +32,8 @@ function surfaceGroups(options: {
   rotate?: boolean;
   editableCp?: boolean;
   symmetry?: boolean;
-  canUnpair?: boolean;
+  /** The one slot after the mirror toggle: Unpair, Pair, or nothing. */
+  pairSlot?: 'none' | 'unpair' | 'pair';
   layers?: string[];
 }): ViewportToolbarGroupSpec[] {
   const layers = options.layers ?? [];
@@ -62,7 +63,8 @@ function surfaceGroups(options: {
             items: [
               node('symmetry', { only: 'fine' }),
               action('symmetry', { only: 'coarse', checked: false }),
-              options.canUnpair && action('unpair'),
+              options.pairSlot === 'unpair' && action('unpair'),
+              options.pairSlot === 'pair' && action('pair'),
             ],
           },
         ]
@@ -87,11 +89,11 @@ for (const pan of [false, true]) {
   for (const rotate of [false, true]) {
     for (const editableCp of [false, true]) {
       for (const symmetry of [false, true]) {
-        for (const canUnpair of [false, true]) {
+        for (const pairSlot of ['none', 'unpair', 'pair'] as const) {
           for (const layers of [[], ['labels'], ['grid', 'labels', 'axes']]) {
             SURFACES.push({
-              name: `pan=${pan} rotate=${rotate} cp=${editableCp} sym=${symmetry} unpair=${canUnpair} layers=${layers.length}`,
-              groups: surfaceGroups({ pan, rotate, editableCp, symmetry, canUnpair, layers }),
+              name: `pan=${pan} rotate=${rotate} cp=${editableCp} sym=${symmetry} pair=${pairSlot} layers=${layers.length}`,
+              groups: surfaceGroups({ pan, rotate, editableCp, symmetry, pairSlot, layers }),
             });
           }
         }
