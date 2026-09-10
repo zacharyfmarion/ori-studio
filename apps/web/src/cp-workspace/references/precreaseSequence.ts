@@ -183,17 +183,20 @@ export interface PrecreaseStep {
   visible: boolean;
   witnesses_complete: boolean;
   /**
-   * Every mark this step is sighted from is on the paper.
+   * Everything this step is sighted from is on the paper: every mark it names,
+   * and some overlap for each crease it lines up with a crease.
    *
    * A fold runs the width of the sheet, but the pattern usually wants only part
-   * of it — so the crossing of two *chords* need not be a crease crossing. When
-   * this is false the fold is still right, but the folder has to be told to
-   * make the mark rather than shown where it already is.
+   * of it — so the crossing of two *chords* need not be a crease crossing, and
+   * a crease that stops at the fold has nothing across it to land on. When this
+   * is false the fold is still right, but the folder has to be told what is
+   * missing rather than shown where it already is.
    */
   marks_exist: boolean;
   /**
    * Where the marks this step sights but cannot find actually are, in the
-   * planner's unit frame. Empty exactly when `marks_exist`.
+   * planner's unit frame. Never non-empty when `marks_exist`; empty when it is
+   * false and the marks are there but no crease lines up.
    *
    * `marks_exist` alone says the step is unperformable and leaves nothing to do
    * about it; these are the coordinates to hand ReferenceFinder for a
@@ -202,8 +205,22 @@ export interface PrecreaseStep {
   missing_marks: [number, number][];
   /** Present exactly when `kind` is `press`. */
   press?: PrecreaseStepPress;
+  /**
+   * The shortest stretch over which this step lines a crease up with a crease,
+   * in the planner's unit frame; absent when it lines up none. Below
+   * `SHORT_ALIGNMENT` the fold can be made but not precisely — a fold 0.02
+   * from the sheet's edge lines up 0.04 of edge whatever is pressed — and the
+   * card says to take care.
+   */
+  alignment?: number;
   hoisted: boolean;
 }
+
+/**
+ * The alignment the planner treats as a pinch's worth: `MIN_ALIGNMENT` in
+ * `crates/oristudio-precrease/src/marks.rs`, twice its pinch half-length.
+ */
+export const SHORT_ALIGNMENT = 0.06;
 
 /** Consecutive steps of one side, direction, axiom and input pattern. */
 export interface PrecreaseGroup {

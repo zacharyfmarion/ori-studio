@@ -355,6 +355,42 @@ fallback.
       match — so the double cannot quietly drift either.
 - [x] The honesty banner on `measure_ends.rs`.
 
+**Correction 1, continued — a line is a reference only where it is creased,
+and only where the fold lines it up.** The marks part of Correction 1 said
+nothing about lines, and a fold "onto" a crease that stops at the fold — a
+perpendicular at the end of a crease, a bisector of two creases that meet at
+the vertex from the wrong sides — passed as sightable with nothing to line up.
+
+- [x] `crease_overlap` / `witness_alignment`: how much crease actually lands on
+      crease, by reflecting the runs on the paper across the fold — never the
+      chords. `MIN_ALIGNMENT` = a pinch's length; below it the fold can be made
+      but not precisely.
+- [x] Line presses aim a pinch-length *past* the foot (self-folds) or the
+      crossing (bisectors, on the side the fold pairs up), not merely at it:
+      `self_fold_targets`, `pair_targets`, `parallel_target`. Unit tests pin
+      both cases that were wrong.
+- [x] One repair cost per witness (`repair`): presses, plus one for a fold that
+      stays short of `MIN_ALIGNMENT`. Within one press the easiest kind of fold
+      wins; past that the cheapest. A sliver is chosen only when nothing
+      reaches a pinch's worth, and the step then says so (`Step.alignment`,
+      "align with care").
+- [x] The card lines a receiving line up against the crease that is actually
+      there, presses on it included, not the making step's spans alone
+      (markhor step 89 drew "fold A onto B" with B nowhere near where A
+      landed).
+- [x] Re-measured, same 122 designs: phantom 0 → **13**, presses 3,591 →
+      3,869 (416.8 sheet-sides), turn-overs 755 → 755. Markhor: 8 presses, no
+      O4 left, every O3 lines up ≥ 0.06. Iguana-c0: 16 presses, two slivers of
+      0.04 at the sheet's edge.
+- [ ] The 13: each is a fold whose every witness is a perpendicular at the end
+      of a crease on the sheet's edge (Duck step 27, Goldfish, Starfish, Kyubei,
+      Dragon, Wizard, Mammoth). Searching every witness the final state admits,
+      restricted to inputs already on the paper, found nothing more for any of
+      them — so the fix is not a wider search but a *later round*: defer the
+      fold to just before its first dependent, where the points it needs
+      exist. Until then the card says "Nothing on the paper lines up with this
+      fold yet — crease it as drawn."
+
 **Still to build — the harness that makes a corpus number real**
 
 - [ ] Drive the *shipping* loop headlessly: the precrease bridge and

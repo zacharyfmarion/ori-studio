@@ -912,9 +912,11 @@
       "axiom7": "Dobla {{b}} sobre sí misma de modo que {{a}} caiga en {{c}}.",
       "free": "Esta línea ya está en la hoja.",
       "markFirst": "Una de estas marcas está donde se cruzarían dos pliegues si siguieran: haz primero un pellizco ahí.",
+      "noAlignment": "Todavía nada en el papel coincide con este pliegue: márcalo tal como se muestra.",
       "partlyReversed": "En el patrón esta línea se pliega en ambos sentidos; el resto se invierte al colapsar el modelo.",
       "pinch": "Solo pellizca: basta con la marca.",
       "pressOut": "Marca solo la parte mostrada.",
+      "shortAlignment": "Aquí los pliegues coinciden solo brevemente: alinéalos con cuidado.",
       "unknown": "Dobla usando {{inputs}}.",
       "visibleAux": "Este pliegue se verá en el modelo terminado."
     },

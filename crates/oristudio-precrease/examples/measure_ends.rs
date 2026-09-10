@@ -207,12 +207,14 @@ fn main() {
         };
         planned += 1;
         // A corpus design is a directory holding truth.fold, so the directory
-        // is the design's name.
-        let name = path
-            .parent()
-            .and_then(|d| d.file_name())
-            .unwrap_or_default()
-            .to_string_lossy();
+        // is the design's name; a loose .cp or .fold is its own.
+        let name = if path.file_stem().is_some_and(|s| s == "truth") {
+            path.parent().and_then(|d| d.file_name())
+        } else {
+            path.file_name()
+        }
+        .unwrap_or_default()
+        .to_string_lossy();
         println!(
             "{name}\t{}\t{}/{}\t{}/{}\t{}/{}",
             a.steps, a.phantom, b.phantom, a.turn_overs, b.turn_overs, a.lost_ends, b.lost_ends

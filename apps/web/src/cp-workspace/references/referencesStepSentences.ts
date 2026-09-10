@@ -29,7 +29,7 @@ import type { ReferencesDirection } from './referencesBreakdown';
 import { unitFrame } from './diagram/diagramFrames';
 import { inputLetters } from './diagram/inputLetters';
 import { perpendicularMotion } from './diagram/plannerDiagram';
-import { chosenWitness, type PrecreaseSequence } from './precreaseSequence';
+import { SHORT_ALIGNMENT, chosenWitness, type PrecreaseSequence } from './precreaseSequence';
 
 /** How many point and line inputs each axiom serialises, in that order. */
 export const STEP_INPUT_ARITY: Readonly<Record<number, { points: number; lines: number }>> = {
@@ -290,7 +290,18 @@ export function describePlannerStep(
   // and saying nothing would be telling the folder to bring a corner to a point
   // that is not there.
   if (!step.marks_exist) {
-    sentence = `${sentence} ${t('panels:references.planStep.markFirst', 'One of these marks is where two creases would cross if they ran further — pinch it in first.')}`;
+    sentence =
+      step.missing_marks.length > 0
+        ? `${sentence} ${t('panels:references.planStep.markFirst', 'One of these marks is where two creases would cross if they ran further — pinch it in first.')}`
+        : // The marks are there; what is missing is crease to line up
+          // against — a line folded onto itself that ends at the fold, say.
+          `${sentence} ${t('panels:references.planStep.noAlignment', 'Nothing on the paper lines up with this fold yet — crease it as drawn.')}`;
+  }
+  // The creases line up, but over less than a pinch: the planner found no
+  // witness it could press into a longer one, so the fold is made from what
+  // there is. Say so rather than let the card imply a clean alignment.
+  if (step.alignment !== undefined && step.alignment < SHORT_ALIGNMENT - 1e-9) {
+    sentence = `${sentence} ${t('panels:references.planStep.shortAlignment', 'The creases line up only briefly here — align with care.')}`;
   }
   // A press that runs out to a findable end is more than a pinch: that stretch
   // of crease is needed, and the card draws exactly it.

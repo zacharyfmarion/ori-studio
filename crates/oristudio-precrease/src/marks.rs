@@ -84,6 +84,21 @@ impl Creased {
             let (u, v) = (line.parameter_of(*a), line.parameter_of(*b));
             if u <= v { (u, v) } else { (v, u) }
         }));
+        // Kept merged: a crease pattern splits a line at every crossing and
+        // every change of assignment, so one continuous crease arrives as
+        // dozens of pieces, and anything that asks how *long* a crease is —
+        // whether two creases lie along each other far enough to align, where
+        // a crease's end is — must see the crease, not the pieces. Same merge
+        // as `crease_runs`, for the same reason.
+        runs.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let mut merged: Vec<(f64, f64)> = Vec::with_capacity(runs.len());
+        for &(u, v) in runs.iter() {
+            match merged.last_mut() {
+                Some(last) if u <= last.1 + TOL => last.1 = last.1.max(v),
+                _ => merged.push((u, v)),
+            }
+        }
+        *runs = merged;
     }
 
     /// Record a fold creased along its whole chord.
@@ -181,8 +196,15 @@ fn creased_intervals(state: &State, creased: &Creased, line_id: usize) -> Vec<(f
     }
 }
 
-/// Whether some creased part of `line_id`, carried across `fold`, lands on
-/// some creased part of `onto`.
+/// The least a crease has to lie along another for a folder to line the two
+/// up: a pinch's length. Shorter than that is a crossing, not an alignment —
+/// two creases that merely touch at a point "overlap" there and say nothing
+/// about the angle, and a crease that ends exactly at the fold meets its own
+/// reflection at that end and nowhere else.
+pub const MIN_ALIGNMENT: f64 = 2.0 * crate::pinch::PINCH_HALF_LENGTH;
+
+/// How far some creased part of `line_id`, carried across `fold`, lies along
+/// some creased part of `onto` — the longest such stretch, or zero.
 ///
 /// This is what makes a line usable as a reference: the folder aligns crease
 /// to crease, and a line that is only creased where the fold does not take it
@@ -190,14 +212,15 @@ fn creased_intervals(state: &State, creased: &Creased, line_id: usize) -> Vec<(f
 /// line onto itself — in which case the question is whether the crease on one
 /// side of the fold reaches across to crease on the other. Reflection is its
 /// own inverse, so which of the two lines actually moves does not change the
-/// answer.
-pub fn crease_lands_on(
+/// answer. Nor does a crease that lands off the sheet: `onto`'s crease is on
+/// the sheet, so the overlap is too.
+pub fn crease_overlap(
     state: &State,
     creased: &Creased,
     fold: &Line,
     line_id: usize,
     onto: usize,
-) -> bool {
+) -> f64 {
     let from = state.line(line_id);
     let to = state.line(onto);
     let landing: Vec<(f64, f64)> = creased_intervals(state, creased, line_id)
@@ -211,7 +234,19 @@ pub fn crease_lands_on(
         .collect();
     creased_intervals(state, creased, onto)
         .into_iter()
-        .any(|(p, q)| landing.iter().any(|&(x, y)| x <= q + TOL && p <= y + TOL))
+        .flat_map(|(p, q)| landing.iter().map(move |&(x, y)| y.min(q) - x.max(p)))
+        .fold(0.0, f64::max)
+}
+
+/// Whether [`crease_overlap`] is at least [`MIN_ALIGNMENT`].
+pub fn crease_lands_on(
+    state: &State,
+    creased: &Creased,
+    fold: &Line,
+    line_id: usize,
+    onto: usize,
+) -> bool {
+    crease_overlap(state, creased, fold, line_id, onto) >= MIN_ALIGNMENT - TOL
 }
 
 /// Whether a mark, carried across `fold`, lands on a creased part of `line_id`.
@@ -229,23 +264,40 @@ pub fn point_lands_on(
     state.line(line_id).distance_to_point(r) <= TOL && creased.reaches(state, line_id, r)
 }
 
-/// Whether every alignment `w` asks the folder to make is between creases
-/// that are on the paper — the line-input counterpart of
-/// [`witness_marks_exist`].
+/// The shortest crease-to-crease stretch `w` asks the folder to line up,
+/// in sheet units — `None` when it asks for none (no line is folded onto a
+/// line), zero when some required alignment has no overlap at all. Marks that
+/// must land on a line are a separate, yes-or-no question and are not here.
 ///
 /// `State` certified the witness against infinite lines; this asks whether
 /// the creases the pattern actually put on those lines reach the places the
-/// fold uses them. A perpendicular to a line whose crease stops short of the
-/// foot is constructible and cannot be folded, because there is nothing there
-/// to fold onto itself.
-pub fn witness_aligns(state: &State, creased: &Creased, fold: &Line, w: &Witness) -> bool {
+/// fold uses them, and by how much. A perpendicular to a line whose crease
+/// stops short of the foot is constructible and cannot be folded, because
+/// there is nothing there to fold onto itself; one across a line 0.02 from
+/// the sheet's edge can be folded, but only 0.04 of it ever lines up.
+pub fn witness_alignment(
+    state: &State,
+    creased: &Creased,
+    fold: &Line,
+    w: &Witness,
+) -> Option<f64> {
     let id = |i: usize| w.inputs.get(i).map(|r| r.id());
     match w.axiom {
         3 => match (id(0), id(1)) {
-            (Some(a), Some(b)) => crease_lands_on(state, creased, fold, a, b),
-            _ => true,
+            (Some(a), Some(b)) => Some(crease_overlap(state, creased, fold, a, b)),
+            _ => None,
         },
-        4 => id(1).is_none_or(|l| crease_lands_on(state, creased, fold, l, l)),
+        4 => id(1).map(|l| crease_overlap(state, creased, fold, l, l)),
+        // [p, m, l]: l folds onto itself.
+        7 => id(2).map(|l| crease_overlap(state, creased, fold, l, l)),
+        _ => None,
+    }
+}
+
+/// Whether every mark `w` brings onto a line lands on crease that is there.
+pub fn witness_landings_exist(state: &State, creased: &Creased, fold: &Line, w: &Witness) -> bool {
+    let id = |i: usize| w.inputs.get(i).map(|r| r.id());
+    match w.axiom {
         // [pivot, p, m]: p lands on m.
         5 => match (id(1), id(2)) {
             (Some(p), Some(m)) => point_lands_on(state, creased, fold, p, m),
@@ -259,16 +311,30 @@ pub fn witness_aligns(state: &State, creased: &Creased, fold: &Line, w: &Witness
             }
             _ => true,
         },
-        // [p, m, l]: p lands on m, l folds onto itself.
-        7 => match (id(0), id(1), id(2)) {
-            (Some(p), Some(m), Some(l)) => {
-                point_lands_on(state, creased, fold, p, m)
-                    && crease_lands_on(state, creased, fold, l, l)
-            }
+        // [p, m, l]: p lands on m.
+        7 => match (id(0), id(1)) {
+            (Some(p), Some(m)) => point_lands_on(state, creased, fold, p, m),
             _ => true,
         },
         _ => true,
     }
+}
+
+/// Whether every alignment `w` asks for is between creases that are on the
+/// paper and lie along each other for at least [`MIN_ALIGNMENT`] — the
+/// line-input counterpart of [`witness_marks_exist`], at the bar a folder can
+/// line up to.
+pub fn witness_aligns(state: &State, creased: &Creased, fold: &Line, w: &Witness) -> bool {
+    witness_landings_exist(state, creased, fold, w)
+        && witness_alignment(state, creased, fold, w).is_none_or(|l| l >= MIN_ALIGNMENT - TOL)
+}
+
+/// Whether `w` can be folded at all: its marks land on crease, and every
+/// alignment has *some* length. A sliver of alignment is a fold a folder can
+/// make, imprecisely; none is not a fold.
+pub fn witness_aligns_at_all(state: &State, creased: &Creased, fold: &Line, w: &Witness) -> bool {
+    witness_landings_exist(state, creased, fold, w)
+        && witness_alignment(state, creased, fold, w).is_none_or(|l| l > TOL)
 }
 
 /// The mark at a state point, by its id.
@@ -402,6 +468,24 @@ mod tests {
             !creased.reaches(&state, id, [0.35, 0.35]),
             "and nothing was invented"
         );
+    }
+
+    /// A crease that arrives in pieces is one crease. iguana-c0's midline is
+    /// twenty CP segments of 0.02–0.04; asked whether it lies along another
+    /// crease for a pinch's length, piece by piece it never does.
+    #[test]
+    fn touching_pieces_are_one_run() {
+        let midline = Line::new([1.0, 0.0], 0.5).expect("line");
+        let state = state_with(&[midline]);
+        let id = state.line_count() - 1;
+        let mut creased = Creased::new(&state);
+        let pieces: Vec<[[f64; 2]; 2]> = (0..20)
+            .map(|k| [[0.5, k as f64 * 0.05], [0.5, (k + 1) as f64 * 0.05]])
+            .collect();
+        creased.add_spans(&state, id, &midline, &pieces);
+        let runs = creased.runs_of(id).expect("runs");
+        assert_eq!(runs.len(), 1, "{runs:?}");
+        assert!((runs[0].1 - runs[0].0 - 1.0).abs() < 1e-9, "{runs:?}");
     }
 
     #[test]

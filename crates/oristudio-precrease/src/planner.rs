@@ -685,9 +685,12 @@ impl Planner {
         };
         let placed: Vec<Placed> = order(closure, landmarks_first);
         let fold_order: Vec<usize> = placed.iter().map(|p| p.folded).collect();
-        let presented: Vec<Option<usize>> = placed.iter().map(|p| p.chosen).collect();
-        let verdicts = pinch_pass(closure, &fold_order, &presented);
         let folded = closure.folded();
+        let presented: Vec<Option<&Witness>> = placed
+            .iter()
+            .map(|p| p.chosen.and_then(|c| folded[p.folded].witnesses.get(c)))
+            .collect();
+        let verdicts = pinch_pass(closure, &fold_order, &presented);
         let state = closure.state();
 
         // Step id per state line id, for `unlocks` and `LineEntry::step`: the
@@ -793,6 +796,7 @@ impl Planner {
                     .filter_map(|&id| state.points().get(id).map(|pt| pt.p))
                     .collect(),
                 hoisted: p.hoisted,
+                alignment: p.alignment,
                 press: p.press.as_ref().map(|press| StepPress {
                     at: press.at,
                     point: press.point,

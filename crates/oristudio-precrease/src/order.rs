@@ -29,7 +29,8 @@ use crate::constants::MIN_ANGLE_SINE;
 use crate::direction::Side;
 use crate::line::Line;
 use crate::marks::{
-    Creased, point_mark_exists, witness_aligns, witness_marks_exist, witness_missing_marks,
+    Creased, MIN_ALIGNMENT, crease_overlap, point_mark_exists, witness_alignment, witness_aligns,
+    witness_aligns_at_all, witness_marks_exist, witness_missing_marks,
 };
 use crate::pinch::PINCH_HALF_LENGTH;
 use crate::predicates::{Ref, Witness};
@@ -62,6 +63,11 @@ pub struct Placed {
     /// actually reach their crossing — the fold is still constructible, but the
     /// folder has to be told to make the mark rather than shown where it is.
     pub marks_exist: bool,
+    /// The shortest crease-to-crease stretch the presentation witness lines
+    /// up, in sheet units — `None` when it lines up no creases. Below
+    /// `MIN_ALIGNMENT` the fold can be made but not precisely, and the card
+    /// should say so.
+    pub alignment: Option<f64>,
     /// *Which* of the presentation witness's marks are not on the paper, by
     /// state point id.
     ///
@@ -371,22 +377,27 @@ fn presses_for_mark(state: &State, creased: &Creased, point: usize) -> Vec<Press
     best.map(|(_, presses)| presses).unwrap_or_default()
 }
 
-/// Where a fold along `fold` uses each line input of `w` — the spot the
-/// crease has to reach for the alignment to be made — by input index.
+/// Where each line input of `w` has to be creased for a fold along `fold` to
+/// line it up with at least [`MIN_ALIGNMENT`] of crease, by line: the spots a
+/// press must reach. Empty when every alignment the witness asks for is
+/// already that long.
 ///
-/// O3 aligns two lines where the fold crosses them; O4 and O7 fold a line
-/// onto itself across the fold, so its foot; O5, O6 and O7 land a mark on a
-/// line, so the mark's image. Reaching that spot is enough in every case:
-/// the crossing is fixed by the fold, and an image on a crease is an image on
-/// a crease.
-fn line_use_points(
+/// Reaching the place the fold *uses* a line is not enough. A line folded
+/// onto itself — the second input of O4, the third of O7 — mirrors about the
+/// fold's foot, so crease on one side of the foot can only line up with
+/// crease on the other: a crease that stops at the foot lines up with
+/// nothing. Two lines bisected mirror onto each other from their crossing,
+/// and the side of one that lands on the other is fixed by the fold, so a
+/// crease that stops at the crossing lines up with nothing there either. A
+/// mark landing on a line (O5, O6, the first input of O7) is a point on a
+/// crease and only has to be reached.
+fn line_targets(
     state: &State,
     creased: &Creased,
     fold: &Line,
     w: &Witness,
 ) -> Vec<(usize, [f64; 2])> {
     let line_id = |i: usize| w.inputs.get(i).map(|r| r.id());
-    let foot = |l: usize| fold.intersect(state.line(l)).map(|x| (l, x));
     let image = |p: usize, m: usize| {
         state
             .points()
@@ -397,20 +408,14 @@ fn line_use_points(
     match w.axiom {
         3 => {
             if let (Some(a), Some(b)) = (line_id(0), line_id(1)) {
-                match (foot(a), foot(b)) {
-                    (Some(fa), Some(fb)) => {
-                        out.push(fa);
-                        out.push(fb);
-                    }
-                    // Parallel to the fold, which lies midway between them:
-                    // there is no crossing, and the creases align only where
-                    // one lands on the other. Carry whichever is cheaper out
-                    // to where the other's crease lands.
-                    _ => out.extend(parallel_use_point(state, creased, fold, a, b)),
-                }
+                out.extend(pair_targets(state, creased, fold, a, b));
             }
         }
-        4 => out.extend(line_id(1).and_then(foot)),
+        4 => {
+            if let Some(l) = line_id(1) {
+                out.extend(self_fold_targets(state, creased, fold, l));
+            }
+        }
         5 => {
             if let (Some(p), Some(m)) = (line_id(1), line_id(2)) {
                 out.extend(image(p, m));
@@ -427,56 +432,148 @@ fn line_use_points(
         7 => {
             if let (Some(p), Some(m), Some(l)) = (line_id(0), line_id(1), line_id(2)) {
                 out.extend(image(p, m));
-                out.extend(foot(l));
+                out.extend(self_fold_targets(state, creased, fold, l));
             }
         }
         _ => {}
     }
     // Only lines that are lines: a corner or mark input has no crease to press.
     out.retain(|(l, _)| w.inputs.iter().any(|r| r.is_line() && r.id() == *l));
+    out.retain(|(l, at)| !creased.reaches(state, *l, *at));
     out
 }
 
+/// The spots on `l` a fold along `fold` needs creased to fold `l` onto
+/// itself: a pinch-length either side of the foot, as far as the sheet allows.
+fn self_fold_targets(
+    state: &State,
+    creased: &Creased,
+    fold: &Line,
+    l: usize,
+) -> Vec<(usize, [f64; 2])> {
+    if crease_overlap(state, creased, fold, l, l) >= MIN_ALIGNMENT - TOL {
+        return Vec::new();
+    }
+    let line = state.line(l);
+    let Some(foot) = fold.intersect(line) else {
+        return Vec::new();
+    };
+    let Some((lo, hi)) = state.sheet().clip_parameters(line) else {
+        return Vec::new();
+    };
+    let t = line.parameter_of(foot);
+    [(t - MIN_ALIGNMENT).max(lo), (t + MIN_ALIGNMENT).min(hi)]
+        .into_iter()
+        .map(|u| (l, line.point_at(u)))
+        .collect()
+}
+
+/// The spots on `a` and `b` a fold along `fold` needs creased to bring one
+/// onto the other, on the side of their crossing the fold pairs up.
+///
+/// The fold mirrors `a` onto `b` about the crossing, so a stretch of `a` on
+/// one side of it lands on `b` on a definite side. Either pairing of sides
+/// would do; the one chosen is the one whose creases are closest to already
+/// there — fewest spots to press, then the shortest presses. Parallel lines
+/// have no crossing and are handled by [`parallel_target`].
+fn pair_targets(
+    state: &State,
+    creased: &Creased,
+    fold: &Line,
+    a: usize,
+    b: usize,
+) -> Vec<(usize, [f64; 2])> {
+    if crease_overlap(state, creased, fold, a, b) >= MIN_ALIGNMENT - TOL {
+        return Vec::new();
+    }
+    let (la, lb) = (state.line(a), state.line(b));
+    let Some(cross) = la.intersect(lb) else {
+        return parallel_target(state, creased, fold, a, b)
+            .into_iter()
+            .collect();
+    };
+    let (Some((lo_a, hi_a)), Some((lo_b, hi_b))) = (
+        state.sheet().clip_parameters(la),
+        state.sheet().clip_parameters(lb),
+    ) else {
+        return Vec::new();
+    };
+    let (ta, tb) = (la.parameter_of(cross), lb.parameter_of(cross));
+    // Which way along `b` a step forward along `a` lands.
+    let along = lb.parameter_of(fold.reflect_point(la.point_at(ta + 1.0))) - tb;
+    let sigma = if along >= 0.0 { 1.0 } else { -1.0 };
+    let candidate = |s: f64| {
+        let ua = (ta + s * MIN_ALIGNMENT).clamp(lo_a, hi_a);
+        let ub = (tb + sigma * s * MIN_ALIGNMENT).clamp(lo_b, hi_b);
+        // Whether the sheet leaves room for the full alignment on this side.
+        let room = (ua - ta).abs().min((ub - tb).abs()) >= MIN_ALIGNMENT - TOL;
+        let targets = [(a, la.point_at(ua)), (b, lb.point_at(ub))];
+        let unreached: Vec<(usize, [f64; 2])> = targets
+            .into_iter()
+            .filter(|&(l, at)| !creased.reaches(state, l, at))
+            .collect();
+        let length: f64 = unreached
+            .iter()
+            .filter_map(|&(l, at)| {
+                press_span(state, creased, l, state.line(l).parameter_of(at)).map(|(_, len)| len)
+            })
+            .sum();
+        ((!room, unreached.len(), length), unreached)
+    };
+    let (plus, minus) = (candidate(1.0), candidate(-1.0));
+    let (key_p, key_m) = (plus.0, minus.0);
+    if (key_p.0, key_p.1, key_p.2.total_cmp(&key_m.2))
+        <= (key_m.0, key_m.1, std::cmp::Ordering::Equal)
+    {
+        plus.1
+    } else {
+        minus.1
+    }
+}
+
 /// For two lines parallel to `fold`, the spot on one of them its crease must
-/// reach to meet the image of the other's — on whichever line that is the
-/// shorter press. `None` when one already overlaps, or nothing is creased.
-fn parallel_use_point(
+/// reach to lie a pinch-length along the image of the other's — on whichever
+/// line that is the shorter press. `None` when nothing is creased.
+///
+/// The fold lies midway between the lines and there is no crossing: the
+/// creases align only where one lands on the other, so the target is a
+/// pinch-length inside the landing, not merely its end.
+fn parallel_target(
     state: &State,
     creased: &Creased,
     fold: &Line,
     a: usize,
     b: usize,
 ) -> Option<(usize, [f64; 2])> {
-    let ends = |l: usize| -> Vec<[f64; 2]> {
-        let line = state.line(l);
-        match creased.runs_of(l) {
-            Some(runs) => runs
-                .iter()
-                .flat_map(|&(u, v)| [line.point_at(u), line.point_at(v)])
-                .collect(),
-            None => Vec::new(),
-        }
+    let runs = |l: usize| -> Vec<(f64, f64)> {
+        creased.runs_of(l).map(|r| r.to_vec()).unwrap_or_default()
     };
-    // How far `on` would have to be pressed to reach the nearest image of
-    // `other`'s crease ends, and where.
+    // The cheapest spot on `on` to press to, so that its crease lies a
+    // pinch-length along some image of `other`'s crease.
     let cost = |on: usize, other: usize| -> Option<(f64, [f64; 2])> {
-        let mine = ends(on);
+        let (line, from) = (state.line(on), state.line(other));
+        let mine = runs(on);
         if mine.is_empty() {
             return None;
         }
-        ends(other)
+        let (lo, hi) = state.sheet().clip_parameters(line)?;
+        runs(other)
             .into_iter()
-            .map(|e| fold.reflect_point(e))
-            // An image off the paper is not somewhere a crease can be pressed
-            // to. Both lines' ends reflect symmetrically, so the one whose
-            // images land on the sheet is the one to press.
-            .filter(|img| state.in_paper(*img))
-            .map(|img| {
+            .filter_map(|(u, v)| {
+                let x = line.parameter_of(fold.reflect_point(from.point_at(u)));
+                let y = line.parameter_of(fold.reflect_point(from.point_at(v)));
+                let (x, y) = (x.min(y).max(lo), x.max(y).min(hi));
+                // An image off the paper is not somewhere a crease can be
+                // pressed to.
+                (y > x + TOL).then_some((x, y))
+            })
+            .flat_map(|(x, y)| [(x + MIN_ALIGNMENT).min(y), (y - MIN_ALIGNMENT).max(x)])
+            .map(|target| {
                 let gap = mine
                     .iter()
-                    .map(|m| (m[0] - img[0]).hypot(m[1] - img[1]))
+                    .flat_map(|&(u, v)| [(u - target).abs(), (v - target).abs()])
                     .fold(f64::INFINITY, f64::min);
-                (gap, img)
+                (gap, line.point_at(target))
             })
             .min_by(|x, y| x.0.total_cmp(&y.0))
     };
@@ -497,12 +594,17 @@ fn parallel_use_point(
 /// the spot to a findable end, exactly as a mark's press is — before the fold.
 fn presses_for_lines(state: &State, creased: &Creased, fold: &Line, w: &Witness) -> Vec<Press> {
     let mut out = Vec::new();
-    for (line, at) in line_use_points(state, creased, fold, w) {
-        if creased.reaches(state, line, at) || out.iter().any(|p: &Press| p.line == line) {
+    // Each press is recorded before the next spot is looked at: one press
+    // from a run end past a spot to a findable end usually covers the spot
+    // on the other side of the foot as well.
+    let mut paper = creased.clone();
+    for (line, at) in line_targets(state, creased, fold, w) {
+        if paper.reaches(state, line, at) {
             continue;
         }
         let t = state.line(line).parameter_of(at);
-        if let Some((span, _)) = press_span(state, creased, line, t) {
+        if let Some((span, _)) = press_span(state, &paper, line, t) {
+            paper.add_spans(state, line, state.line(line), &[span]);
             out.push(Press {
                 line,
                 at,
@@ -521,39 +623,62 @@ fn presses_for_lines(state: &State, creased: &Creased, fold: &Line, w: &Witness)
 /// plan is paying in steps for a preference.
 const MAX_PRESSES_FOR_PREFERENCE: usize = 1;
 
-/// How many presses sighting `witness` would take, without making any.
+/// What sighting `witness` would take, without making any of it: the presses,
+/// and whether the fold is then well aligned. `None` when no press makes it a
+/// fold at all — a mark that cannot be put on the paper, or creases that would
+/// never line up.
 ///
-/// The ordering pass weighs this against ease: a fold of an easier kind that
-/// needs a pinch is still preferred, but among folds of one kind the one that
-/// needs less is. Counted on a copy of the paper, because a mark's presses
-/// change what the next mark needs.
-fn presses_needed(state: &State, creased: &Creased, line: &Line, witness: &Witness) -> usize {
+/// Counted on a copy of the paper, because a mark's presses change what the
+/// next mark needs. A fold is well aligned when every crease it lines up with
+/// a crease overlaps it by [`MIN_ALIGNMENT`]; one that is not can still be
+/// folded, less precisely — a fold 0.02 from the sheet's edge lines up 0.02 of
+/// edge whatever is pressed — and the ordering pass weighs that as one press
+/// worth of trouble.
+fn repair(state: &State, creased: &Creased, line: &Line, witness: &Witness) -> Option<Repair> {
     let mut paper = creased.clone();
-    let mut count = 0;
+    let mut presses = 0;
     for point in witness_missing_marks(state, &paper, witness) {
         for press in presses_for_mark(state, &paper, point) {
             paper.add_spans(state, press.line, state.line(press.line), &[press.span]);
-            count += 1;
+            presses += 1;
         }
     }
     if !witness_aligns(state, &paper, line, witness) {
         for press in presses_for_lines(state, &paper, line, witness) {
             paper.add_spans(state, press.line, state.line(press.line), &[press.span]);
-            count += 1;
-        }
-        // A witness the presses cannot repair is not a choice at all.
-        if !witness_aligns(state, &paper, line, witness) {
-            return usize::MAX / 2;
+            presses += 1;
         }
     }
-    if !witness_marks_exist(state, &paper, witness) {
-        return usize::MAX / 2;
+    if !witness_marks_exist(state, &paper, witness)
+        || !witness_aligns_at_all(state, &paper, line, witness)
+    {
+        return None;
     }
-    count
+    Some(Repair {
+        presses,
+        well: witness_aligns(state, &paper, line, witness),
+    })
 }
 
-/// Emit the presses that make every mark `witness` sights real, recording each
-/// on the paper as it goes, and return whether they all are now.
+/// What [`repair`] found a witness needs.
+#[derive(Clone, Copy, Debug)]
+struct Repair {
+    presses: usize,
+    well: bool,
+}
+
+impl Repair {
+    /// Presses, counting a fold that stays short of [`MIN_ALIGNMENT`] as one
+    /// more: "fold P onto Q" after a pinch is as much work as lining up a
+    /// sliver, and more precise.
+    fn cost(self) -> usize {
+        self.presses + usize::from(!self.well)
+    }
+}
+
+/// Emit the presses that make every mark `witness` sights real and carry its
+/// lines to where the fold lines them up, recording each on the paper as it
+/// goes — the presses [`repair`] counted.
 #[allow(clippy::too_many_arguments)]
 fn make_marks_real(
     state: &State,
@@ -565,7 +690,7 @@ fn make_marks_real(
     sweep: u32,
     side: Side,
     placed: &mut Vec<Placed>,
-) -> bool {
+) {
     let emit = |press: Press, creased: &mut Creased, placed: &mut Vec<Placed>| {
         let Some(folded_index) = folded_of_line.get(press.line).copied().flatten() else {
             return;
@@ -580,6 +705,7 @@ fn make_marks_real(
             direction_angle: folded_angle(&f.line),
             side,
             marks_exist: true,
+            alignment: None,
             missing: Vec::new(),
             press: Some(press),
         });
@@ -594,7 +720,6 @@ fn make_marks_real(
             emit(press, creased, placed);
         }
     }
-    witness_marks_exist(state, creased, witness) && witness_aligns(state, creased, line, witness)
 }
 
 /// The face a fold has to be made from, or `None` when it does not care.
@@ -621,6 +746,8 @@ struct Sighting {
     marks_exist: Vec<bool>,
     /// The state point ids of the marks that are not.
     missing: Vec<Vec<usize>>,
+    /// The shortest crease alignment that witness asks for.
+    alignment: Vec<Option<f64>>,
 }
 
 /// Split one round's folds into at most two side-blocks and emit them.
@@ -662,6 +789,7 @@ fn emit_round(
                 direction_angle: angle,
                 side: at,
                 marks_exist: sighting.marks_exist[i],
+                alignment: sighting.alignment[i],
                 missing: sighting.missing[i].clone(),
                 press: None,
             });
@@ -742,6 +870,7 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
                     direction_angle: folded_angle(&f.line),
                     side,
                     marks_exist: sightable(state, &creased, &f.line, w),
+                    alignment: witness_alignment(state, &creased, &f.line, w),
                     missing: witness_missing_marks(state, &creased, w),
                     press: None,
                 });
@@ -763,6 +892,7 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
         chosen: folded.iter().map(|f| f.chosen).collect(),
         marks_exist: vec![true; folded.len()],
         missing: vec![Vec::new(); folded.len()],
+        alignment: vec![None; folded.len()],
     };
     for (k, &r) in rounds.iter().enumerate() {
         let members: Vec<usize> = (0..folded.len())
@@ -792,40 +922,67 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
                 .filter(|&w| sightable(state, &creased, &f.line, &f.witnesses[w]))
                 .min_by_key(|&w| f.witnesses[w].preference());
             let swung = |w: usize| !matches!(f.witnesses[w].axiom, 1 | 4);
+            let cheapest = |witnesses: &[Witness]| -> Option<usize> {
+                (0..witnesses.len())
+                    .filter_map(|w| {
+                        let witness = &witnesses[w];
+                        let cost = if sightable(state, &creased, &f.line, witness) {
+                            0
+                        } else {
+                            repair(state, &creased, &f.line, witness)?.cost()
+                        };
+                        Some((w, cost))
+                    })
+                    .min_by_key(|&(w, cost)| {
+                        let (ease, hard, err) = witnesses[w].preference();
+                        // Within the budget, the easiest kind of fold; past
+                        // it, the fold that costs least. A plan paying four
+                        // presses for a fold of an easier kind than one that
+                        // costs two is paying in steps for a preference.
+                        if cost <= MAX_PRESSES_FOR_PREFERENCE {
+                            (0, ease as usize, cost, hard, err)
+                        } else {
+                            (1, cost, ease as usize, hard, err)
+                        }
+                    })
+                    .map(|(w, _)| w)
+            };
             let best = match already {
                 Some(w) if swung(w) => Some(w),
-                _ => (0..f.witnesses.len()).min_by_key(|&w| {
-                    let witness = &f.witnesses[w];
-                    let (ease, hard, err) = witness.preference();
-                    let needs = if sightable(state, &creased, &f.line, witness) {
-                        0
-                    } else {
-                        presses_needed(state, &creased, &f.line, witness)
-                    };
-                    (needs > MAX_PRESSES_FOR_PREFERENCE, ease, needs, hard, err)
-                }),
+                _ => cheapest(&f.witnesses),
             };
+            // None of the recorded witnesses can be folded, whatever is
+            // pressed — a perpendicular whose line ends at the sheet's edge
+            // exactly at the foot, say. Measured on the corpus: a search of
+            // every witness the final state admits, kept to inputs already on
+            // the paper, found nothing more for any of them, so the step is
+            // flagged as it is, and the card says so.
             let Some(w) = best else {
-                sighting.marks_exist[i] = true;
+                sighting.marks_exist[i] = f.witnesses.is_empty();
+                if let Some(w) = sighting.chosen[i].and_then(|w| f.witnesses.get(w)) {
+                    sighting.missing[i] = witness_missing_marks(state, &creased, w);
+                }
                 continue;
             };
             sighting.chosen[i] = Some(w);
             let witness = &f.witnesses[w];
-            if sightable(state, &creased, &f.line, witness) {
-                continue;
+            if !sightable(state, &creased, &f.line, witness) {
+                make_marks_real(
+                    state,
+                    closure,
+                    &mut creased,
+                    &folded_of_line,
+                    &f.line,
+                    witness,
+                    k as u32 + 1,
+                    side,
+                    &mut placed,
+                );
             }
-            let real = make_marks_real(
-                state,
-                closure,
-                &mut creased,
-                &folded_of_line,
-                &f.line,
-                witness,
-                k as u32 + 1,
-                side,
-                &mut placed,
-            );
+            let real = witness_marks_exist(state, &creased, witness)
+                && witness_aligns_at_all(state, &creased, &f.line, witness);
             sighting.marks_exist[i] = real;
+            sighting.alignment[i] = witness_alignment(state, &creased, &f.line, witness);
             sighting.missing[i] = if real {
                 Vec::new()
             } else {
@@ -1065,6 +1222,89 @@ mod tests {
             (far_x - 0.7).abs() < 1e-9,
             "stops at the crossing with x = 0.7, got {far_x}"
         );
+    }
+
+    fn witness(axiom: u8, inputs: Vec<Ref>) -> Witness {
+        Witness {
+            axiom,
+            inputs,
+            root: 0,
+            who_moves: Vec::new(),
+            hard: false,
+            visible: true,
+            skinny: false,
+            ease: 0,
+            err: 0.0,
+        }
+    }
+
+    /// A line folded onto itself mirrors about the fold's foot, so a crease
+    /// that stops at the foot lines up with nothing: the press carries it a
+    /// pinch-length past, on to a findable end.
+    #[test]
+    fn a_self_fold_whose_crease_stops_at_the_foot_is_pressed_past_it() {
+        let mut state = State::new(Sheet::unit_square(), DEFAULT_POINT_CAP);
+        let a = state.add_line(h(0.5), LineTag::Cp).expect("a").id;
+        // The fold itself, in the state so its foot on `a` is a point; not
+        // creased, so nothing is findable there yet.
+        let fold = v(0.5);
+        state.add_line(fold, LineTag::Cp).expect("fold");
+        let mut creased = Creased::new(&state);
+        // Creased from the left edge exactly to the foot at x = 0.5.
+        creased.add_spans(&state, a, &h(0.5), &[[[0.0, 0.5], [0.5, 0.5]]]);
+        let p = state.find_point([0.5, 0.5]).expect("foot");
+        let w = witness(4, vec![Ref::Point { id: p }, Ref::Line { id: a }]);
+        assert!(creased.reaches(&state, a, [0.5, 0.5]), "reaches the foot");
+        assert!(
+            !witness_aligns_at_all(&state, &creased, &fold, &w),
+            "and yet nothing lines up"
+        );
+        let presses = presses_for_lines(&state, &creased, &fold, &w);
+        assert_eq!(presses.len(), 1, "{presses:?}");
+        assert_eq!(presses[0].line, a);
+        for pr in &presses {
+            creased.add_spans(&state, pr.line, state.line(pr.line), &[pr.span]);
+        }
+        let overlap = crease_overlap(&state, &creased, &fold, a, a);
+        assert!(overlap >= MIN_ALIGNMENT - TOL, "lines up {overlap}");
+        assert!(witness_aligns(&state, &creased, &fold, &w));
+    }
+
+    /// Two creases meeting at their crossing, both on the sides the fold does
+    /// not pair up: the bisector between the *other* rays. The press extends
+    /// one crease across the crossing so it lands on the other.
+    #[test]
+    fn a_bisector_of_creases_that_stop_at_their_crossing_gets_one_pressed_across() {
+        let mut state = State::new(Sheet::unit_square(), DEFAULT_POINT_CAP);
+        let a = state.add_line(v(0.5), LineTag::Cp).expect("a").id;
+        let b = state.add_line(h(0.5), LineTag::Cp).expect("b").id;
+        let mut creased = Creased::new(&state);
+        // Down from the crossing, and left from it.
+        creased.add_spans(&state, a, &v(0.5), &[[[0.5, 0.0], [0.5, 0.5]]]);
+        creased.add_spans(&state, b, &h(0.5), &[[[0.0, 0.5], [0.5, 0.5]]]);
+        // x + y = 1 maps the downward ray onto the *rightward* one, not the
+        // leftward one that is creased; x = y would be the fold these
+        // creases sight without help.
+        let fold = Line::from_points([1.0, 0.0], [0.0, 1.0]).expect("fold");
+        let w = witness(3, vec![Ref::Line { id: a }, Ref::Line { id: b }]);
+        assert_eq!(crease_overlap(&state, &creased, &fold, a, b), 0.0);
+        let presses = presses_for_lines(&state, &creased, &fold, &w);
+        assert_eq!(presses.len(), 1, "one crease crosses over: {presses:?}");
+        for pr in &presses {
+            creased.add_spans(&state, pr.line, state.line(pr.line), &[pr.span]);
+        }
+        let overlap = crease_overlap(&state, &creased, &fold, a, b);
+        assert!(overlap >= MIN_ALIGNMENT - TOL, "lines up {overlap}");
+        // The other bisector needed nothing.
+        let other = Line::from_points([0.0, 0.0], [1.0, 1.0]).expect("fold");
+        let fresh = {
+            let mut c = Creased::new(&state);
+            c.add_spans(&state, a, &v(0.5), &[[[0.5, 0.0], [0.5, 0.5]]]);
+            c.add_spans(&state, b, &h(0.5), &[[[0.0, 0.5], [0.5, 0.5]]]);
+            c
+        };
+        assert!(presses_for_lines(&state, &fresh, &other, &w).is_empty());
+        assert!(witness_aligns(&state, &fresh, &other, &w));
     }
 
     #[test]

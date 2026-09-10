@@ -527,6 +527,118 @@ describe('a line folded onto a line', () => {
     expect(lines.some((l) => isSeg(l, [1, 0], [1, 1]))).toBe(true);
   });
 
+  // markhor step 89: the vertical x = 0.25 folded onto a diagonal whose
+  // pattern crease sits far down the sheet, and which a later step pinched at
+  // the crossing. The pinch is the crease the vertical actually lands on — the
+  // one the folder lines up against — and it was made after the diagonal, so
+  // the making step alone does not know about it.
+  it('lines a receiving line up against a pinch pressed on it after it was made', () => {
+    const seq = plannerSequenceFixture();
+    // x + y = 1.15, creased from (1, 0.15) to (0.5, 0.65) by the pattern.
+    const diagonal = {
+      ...seq.steps[2]!,
+      id: 93,
+      line_id: 44,
+      line: { n: [Math.SQRT1_2, Math.SQRT1_2] as [number, number], d: 1.15 * Math.SQRT1_2 },
+      segment: [
+        [1, 0.15],
+        [0.15, 1],
+      ] as [[number, number], [number, number]],
+      cp_spans: [
+        [
+          [1, 0.15],
+          [0.5, 0.65],
+        ],
+      ] as [[number, number], [number, number]][],
+      extent: { kind: 'full' as const },
+    };
+    // A pinch on it, straddling its crossing with x = 0.25 at (0.25, 0.9).
+    const pinch = {
+      ...diagonal,
+      id: 92,
+      kind: 'press' as const,
+      cp_line_ids: [] as number[],
+      cp_spans: [] as [[number, number], [number, number]][],
+      extent: {
+        kind: 'pinches' as const,
+        spans: [
+          [
+            [0.22, 0.93],
+            [0.28, 0.87],
+          ],
+        ] as [[number, number], [number, number]][],
+      },
+      press: { at: [0.25, 0.9] as [number, number], point: 4, sighted_from: 6 },
+    };
+    // The vertical, creased edge to edge.
+    const vertical = {
+      ...seq.steps[2]!,
+      id: 91,
+      line_id: 45,
+      line: { n: [1, 0] as [number, number], d: 0.25 },
+      segment: [
+        [0.25, 0],
+        [0.25, 1],
+      ] as [[number, number], [number, number]],
+      cp_spans: [
+        [
+          [0.25, 0],
+          [0.25, 1],
+        ],
+      ] as [[number, number], [number, number]][],
+      extent: { kind: 'full' as const },
+    };
+    // The bisector at (0.25, 0.9) that carries the vertical's upper arm
+    // (straight up) onto the diagonal's lower-right arm: it runs at −22.5°
+    // from the vertex... i.e. the fold direction is the sum of the unit arm
+    // directions (0, 1) + (1, −1)/√2.
+    const ux = Math.SQRT1_2;
+    const uy = 1 - Math.SQRT1_2;
+    const len = Math.hypot(ux, uy);
+    const n: [number, number] = [-uy / len, ux / len];
+    const fold = {
+      ...seq.steps[4]!,
+      id: 90,
+      line: { n, d: n[0] * 0.25 + n[1] * 0.9 },
+      segment: [
+        [0.25 - (ux / uy) * 0.1, 1],
+        [0.25 + (ux / uy) * 0.1, 0.8],
+      ] as [[number, number], [number, number]],
+      cp_spans: [] as [[number, number], [number, number]][],
+      witnesses: [
+        {
+          ...seq.steps[4]!.witnesses[0]!,
+          axiom: 3,
+          inputs: [
+            { kind: 'line' as const, id: 45 },
+            { kind: 'line' as const, id: 44 },
+          ],
+          who_moves: [0],
+        },
+      ],
+      chosen: 0,
+    };
+    const withAll = {
+      ...seq,
+      steps: [...seq.steps, diagonal, vertical, pinch, fold],
+      lines: [
+        ...seq.lines,
+        { id: 44, tag: 'cp' as const, step: 93 },
+        { id: 45, tag: 'cp' as const, step: 91 },
+      ],
+    };
+    const d = plannerStepDiagram(withAll, unitFrame(withAll), withAll.steps.length - 1);
+    const lines = (d?.primitives ?? []).filter(
+      (p): p is Extract<StepDiagramPrimitive, { kind: 'line' }> =>
+        p.kind === 'line' && p.style === 'highlight'
+    );
+    // The receiving arm is the pinch's lower-right half, out of the vertex.
+    expect(lines.some((l) => isSeg(l, [0.25, 0.9], [0.28, 0.87]))).toBe(true);
+    expect(lines.some((l) => isSeg(l, [1, 0.15], [0.5, 0.65]))).toBe(false);
+    // The moving arm is the vertical above the vertex.
+    expect(lines.some((l) => isSeg(l, [0.25, 0.9], [0.25, 1]))).toBe(true);
+  });
+
   // markhor step 16: a perpendicular to the main diagonal through P at
   // (0.75, 0.396). The crate says nothing moves; a folder holds P and swings
   // the (1, 1) corner over until it lies on the diagonal's other arm, landing

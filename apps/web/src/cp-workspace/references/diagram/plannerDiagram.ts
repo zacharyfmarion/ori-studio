@@ -199,7 +199,7 @@ export function perpendicularMotion(
   const side = sideOf(chord, end);
   if (side === 0) return null;
   // The corner that moves is the far end of the crease on that arm.
-  const runs = spansOfRef(sequence, frame, ref).flatMap((span) => {
+  const runs = spansOfRef(sequence, frame, step, ref).flatMap((span) => {
     const kept = clipToSide(chord, side, span);
     return kept ? [kept] : [];
   });
@@ -242,13 +242,17 @@ function movingPortion(
 }
 
 /**
- * What is actually creased along an input line: an edge whole, a made line
- * wherever the pattern (or the pinch pass) pressed it. The chord is the wrong
- * thing to highlight — the folder lines up against the crease that is there.
+ * What is actually creased along an input line as of `step`: an edge whole, a
+ * made line wherever the pattern (or the pinch pass) pressed it, plus every
+ * press an earlier step put on it. The chord is the wrong thing to highlight —
+ * the folder lines up against the crease that is there — and the making step
+ * alone is not enough either: a pinch pressed on the line later is crease too,
+ * and is sometimes the only crease the fold lines up against.
  */
 function spansOfRef(
   sequence: PrecreaseSequence,
   frame: DiagramFrame,
+  step: PrecreaseStep,
   ref: PrecreaseRef
 ): DiagramSegment[] {
   if (ref.kind === 'edge') {
@@ -256,10 +260,11 @@ function spansOfRef(
     return edge ? [edge] : [];
   }
   if (ref.kind !== 'line') return [];
-  const entry = sequence.lines.find((line) => line.id === ref.id);
-  if (!entry || entry.step === null) return [];
-  const made = sequence.steps.find((s) => s.id === entry.step);
-  return made ? mergeRuns(creasedSpans(frame, made)) : [];
+  const upTo = sequence.steps.indexOf(step);
+  const before = upTo < 0 ? sequence.steps : sequence.steps.slice(0, upTo);
+  return mergeRuns(
+    before.filter((s) => s.line_id === ref.id).flatMap((s) => creasedSpans(frame, s))
+  );
 }
 
 /**
@@ -498,7 +503,7 @@ export function plannerStepDiagram(
       labels.push({ kind: 'label', at: xy(point), text: letter, style: 'highlight' });
       return;
     }
-    const segments = shown(which, ref, spansOfRef(sequence, frame, ref));
+    const segments = shown(which, ref, spansOfRef(sequence, frame, step, ref));
     if (segments.length === 0) return;
     for (const segment of segments) {
       primitives.push({

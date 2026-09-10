@@ -233,3 +233,40 @@ describe('a press step', () => {
     expect(sentence).toBe(`${describePlannerStep(t, sequence, 1)} Crease only the part shown.`);
   });
 });
+
+describe('a step that cannot be sighted', () => {
+  const sequence = plannerSequenceFixture();
+  const flagged = (missing: [number, number][]) => {
+    const step = { ...sequence.steps[4]!, marks_exist: false, missing_marks: missing };
+    return { ...sequence, steps: sequence.steps.map((s, i) => (i === 4 ? step : s)) };
+  };
+
+  it('asks for the mark first when one is missing', () => {
+    expect(describePlannerStep(t, flagged([[0.5, 0.5]]), 4)).toContain('pinch it in first');
+  });
+
+  it('says nothing lines up when the marks are there but no crease does', () => {
+    const sentence = describePlannerStep(t, flagged([]), 4);
+    expect(sentence).toContain('Nothing on the paper lines up with this fold yet');
+    expect(sentence).not.toContain('pinch it in first');
+  });
+});
+
+describe('a step whose creases line up over less than a pinch', () => {
+  const sequence = plannerSequenceFixture();
+
+  it('says to align with care', () => {
+    const short = { ...sequence.steps[4]!, alignment: 0.04 };
+    const seq = { ...sequence, steps: sequence.steps.map((s, i) => (i === 4 ? short : s)) };
+    expect(describePlannerStep(t, seq, 4)).toBe(
+      `${describePlannerStep(t, sequence, 4)} The creases line up only briefly here — align with care.`
+    );
+  });
+
+  it('says nothing when they line up a pinch or more, or when nothing lines up', () => {
+    const long = { ...sequence.steps[4]!, alignment: 0.06 };
+    const seq = { ...sequence, steps: sequence.steps.map((s, i) => (i === 4 ? long : s)) };
+    expect(describePlannerStep(t, seq, 4)).toBe(describePlannerStep(t, sequence, 4));
+    expect(describePlannerStep(t, sequence, 1)).not.toMatch(/briefly/);
+  });
+});

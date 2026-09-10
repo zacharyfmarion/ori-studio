@@ -331,10 +331,12 @@ fn a_flagged_step_says_where_the_marks_it_cannot_find_are() {
     for file in EVERY_FIXTURE {
         let seq = plan(file);
         for step in &seq.steps {
-            assert_eq!(
-                step.marks_exist,
-                step.missing_marks.is_empty(),
-                "{file}: step {} disagrees with itself about whether it can be sighted",
+            // A step that can be sighted has nothing missing. The converse
+            // does not hold: a flagged step with no missing mark is one whose
+            // marks are there but whose creases never line up.
+            assert!(
+                !step.marks_exist || step.missing_marks.is_empty(),
+                "{file}: step {} says it can be sighted and names a missing mark",
                 step.id
             );
             if step.missing_marks.is_empty() {

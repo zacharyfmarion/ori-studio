@@ -302,7 +302,11 @@ fn pinch_pass_keeps_fold_count_and_confines_point_uses_to_spans() {
         let state = closure.state();
         // Fold count: the pass reports one verdict per fold and changes nothing.
         let order: Vec<usize> = (0..closure.folded().len()).collect();
-        let chosen: Vec<Option<usize>> = closure.folded().iter().map(|f| f.chosen).collect();
+        let chosen: Vec<_> = closure
+            .folded()
+            .iter()
+            .map(|f| f.chosen_witness())
+            .collect();
         let verdicts = pinch_pass(closure, &order, &chosen);
         assert_eq!(verdicts.len(), closure.folded().len(), "{file}");
         // One step per fold. A press is a step but not a fold — it re-presses

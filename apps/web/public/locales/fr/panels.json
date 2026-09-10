@@ -912,9 +912,11 @@
       "axiom7": "Repliez {{b}} sur elle-même de sorte que {{a}} tombe sur {{c}}.",
       "free": "Cette ligne est déjà sur la feuille.",
       "markFirst": "L’une de ces marques est là où deux plis se croiseraient s’ils allaient plus loin : pincez-la d’abord.",
+      "noAlignment": "Rien sur le papier ne coïncide encore avec ce pli — marquez-le tel qu’il est dessiné.",
       "partlyReversed": "Dans le patron, cette ligne est pliée dans les deux sens ; le reste s’inverse lorsque le modèle se referme.",
       "pinch": "Pincez seulement : seul le repère est nécessaire.",
       "pressOut": "Ne marquez que la partie indiquée.",
+      "shortAlignment": "Les plis ne coïncident ici que brièvement — alignez-les avec soin.",
       "unknown": "Pliez en utilisant {{inputs}}.",
       "visibleAux": "Ce pli sera visible sur le modèle fini."
     },

@@ -21,7 +21,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::closure::{Closure, FoldedLine};
+use crate::closure::Closure;
+use crate::predicates::Witness;
 use crate::state::LineTag;
 
 /// Half-length of a pinch along the line, in sheet units.
@@ -61,19 +62,14 @@ pub struct PinchVerdict {
 /// whose first choice named a mark that is not on the paper.
 fn downstream_uses(
     closure: &Closure,
-    order: &[usize],
-    chosen: &[Option<usize>],
+    presented: &[Option<&Witness>],
     from: usize,
     line_id: usize,
 ) -> (bool, Vec<usize>) {
     let state = closure.state();
     let mut as_line = false;
     let mut at_points: Vec<usize> = Vec::new();
-    for (k, &j) in order.iter().enumerate().skip(from + 1) {
-        let step: &FoldedLine = &closure.folded()[j];
-        let Some(w) = chosen[k].and_then(|c| step.witnesses.get(c)) else {
-            continue;
-        };
+    for w in presented.iter().skip(from + 1).flatten() {
         for r in &w.inputs {
             if r.is_line() {
                 if r.id() == line_id {
@@ -124,14 +120,14 @@ fn spans(closure: &Closure, line_id: usize, points: &[usize]) -> Vec<[[f64; 2]; 
 }
 
 /// Run the pass over the steps `order` (indices into `closure.folded()`, in
-/// presentation order), with `chosen[k]` the witness the plan presents for
+/// presentation order), with `presented[k]` the witness the plan presents for
 /// `order[k]`. Returns one verdict per entry of `order`.
 pub fn pinch_pass(
     closure: &Closure,
     order: &[usize],
-    chosen: &[Option<usize>],
+    presented: &[Option<&Witness>],
 ) -> Vec<PinchVerdict> {
-    debug_assert_eq!(order.len(), chosen.len());
+    debug_assert_eq!(order.len(), presented.len());
     order
         .iter()
         .enumerate()
@@ -145,7 +141,7 @@ pub fn pinch_pass(
                     used_as_line: false,
                 };
             }
-            let (as_line, at_points) = downstream_uses(closure, order, chosen, k, step.line_id);
+            let (as_line, at_points) = downstream_uses(closure, presented, k, step.line_id);
             if as_line || at_points.is_empty() {
                 PinchVerdict {
                     extent: Extent::Full,
@@ -173,7 +169,11 @@ pub fn visible_aux_count(closure: &Closure) -> usize {
     // The closure's own order and its own witness choice: this scores a state
     // the search is considering, not a plan anyone will be shown.
     let order: Vec<usize> = (0..closure.folded().len()).collect();
-    let chosen: Vec<Option<usize>> = closure.folded().iter().map(|f| f.chosen).collect();
+    let chosen: Vec<Option<&Witness>> = closure
+        .folded()
+        .iter()
+        .map(|f| f.chosen_witness())
+        .collect();
     pinch_pass(closure, &order, &chosen)
         .iter()
         .filter(|v| v.visible)
@@ -218,7 +218,7 @@ mod tests {
         c.close(&unbounded).expect("close");
         assert!(c.is_complete());
         let order: Vec<usize> = (0..c.folded().len()).collect();
-        let chosen: Vec<Option<usize>> = c.folded().iter().map(|f| f.chosen).collect();
+        let chosen: Vec<Option<&Witness>> = c.folded().iter().map(|f| f.chosen_witness()).collect();
         let verdicts = pinch_pass(&c, &order, &chosen);
         assert_eq!(verdicts.len(), c.folded().len());
         let y2x_index = c
@@ -280,7 +280,7 @@ mod tests {
         c.close(&unbounded).expect("close");
         assert!(c.is_complete());
         let order: Vec<usize> = (0..c.folded().len()).collect();
-        let chosen: Vec<Option<usize>> = c.folded().iter().map(|f| f.chosen).collect();
+        let chosen: Vec<Option<&Witness>> = c.folded().iter().map(|f| f.chosen_witness()).collect();
         let verdicts = pinch_pass(&c, &order, &chosen);
         let aux = &verdicts[0];
         // x = ¾'s chosen witness is O2 ((½,0) → (1,0)), a point use of x = ½.
