@@ -303,6 +303,22 @@ export function describePlannerStep(
   if (step.alignment !== undefined && step.alignment < SHORT_ALIGNMENT - 1e-9) {
     sentence = `${sentence} ${t('panels:references.planStep.shortAlignment', 'The creases line up only briefly here — align with care.')}`;
   }
+  // A fold with no exact construction is made by the closest one there was,
+  // and the error is said in the sheet's own terms. One sighted from such a
+  // crease inherits it, and says that instead — the error does not go away
+  // by being inherited.
+  if (step.approximation !== undefined) {
+    sentence = `${sentence} ${t('panels:references.planStep.approximate', 'Approximate — the closest construction is off by {{pct}}% of the sheet.', {
+      pct: percentOfSheet(step.approximation),
+    })}`;
+  } else if (!step.exact) {
+    sentence = `${sentence} ${t('panels:references.planStep.inherited', 'Sighted from an approximate crease, so only as exact as that is.')}`;
+  }
+  // Crease made past the pattern's own line, because a later step lines up
+  // against the line there: said, so the folder does not stop at the pattern.
+  if (step.pressed_on.length > 0) {
+    sentence = `${sentence} ${t('panels:references.planStep.pressedOn', 'Crease on past the pattern’s line as far as shown — a later step lines up against it there.')}`;
+  }
   // A press that runs out to a findable end is more than a pinch: that stretch
   // of crease is needed, and the card draws exactly it.
   if (step.kind === 'press' && step.press?.sighted_from === null) {
@@ -361,4 +377,15 @@ export function describeAxiom(t: TFunction, axiom: number): string {
     default:
       return t('panels:references.axiom.free', 'already on the sheet');
   }
+}
+
+/**
+ * A distance in the planner's unit frame as a percentage of the sheet, with
+ * enough digits to tell 0.05 % from 0.5 %, never a wall of them.
+ */
+function percentOfSheet(distance: number): string {
+  const pct = distance * 100;
+  if (pct >= 1) return pct.toFixed(1);
+  if (pct >= 0.1) return pct.toFixed(2);
+  return pct.toPrecision(2);
 }

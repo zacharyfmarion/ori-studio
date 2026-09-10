@@ -29,9 +29,9 @@ use crate::constants::MIN_ANGLE_SINE;
 use crate::direction::Side;
 use crate::line::Line;
 use crate::marks::{
-    Creased, MIN_ALIGNMENT, crease_overlap, crease_runs, point_mark_exists, witness_alignment,
-    witness_aligns, witness_aligns_at_all, witness_lines_meet, witness_marks_exist,
-    witness_missing_marks,
+    Creased, MIN_ALIGNMENT, crease_overlap, crease_runs, end_is_found, point_mark_exists,
+    witness_alignment, witness_aligns, witness_aligns_at_all, witness_lines_meet,
+    witness_marks_exist, witness_missing_marks,
 };
 use crate::pinch::PINCH_HALF_LENGTH;
 use crate::predicates::{Ref, Witness, all_witnesses, crease_through};
@@ -92,6 +92,12 @@ pub struct Placed {
     /// `folded` names, which is already on the paper, to put a mark where a
     /// later step needs one. See [`presses_for_mark`].
     pub press: Option<Press>,
+    /// Crease this fold makes past what the pattern asks for, as spans on
+    /// its line: a later step lines up against the line there, and the press
+    /// that would have carried it out is folded into this step instead, its
+    /// far end being somewhere the folder could find when this fold was
+    /// made. See [`make_marks_real`].
+    pub pressed_on: Vec<[[f64; 2]; 2]>,
 }
 
 impl Placed {
@@ -769,12 +775,23 @@ impl Repair {
 /// Emit the presses that make every mark `witness` sights real and carry its
 /// lines to where the fold lines them up, recording each on the paper as it
 /// goes — the presses [`repair`] counted.
+///
+/// A press that runs from a crease's end out to a findable end is not
+/// always a step of its own. If that end was findable when the crease was
+/// first made — `snapshots` holds the paper as it stood then — the folder
+/// could have creased that far in the first place, and the plan says so:
+/// the span joins the making step as `pressed_on` and no press is emitted.
+/// "Fold through P and Q, creasing the top third; later, crease the rest"
+/// was two steps for one fold. A pinch stays a step: it is a mark, located
+/// by a crossing, and the crease between a run end and a distant pinch is
+/// not something the pattern asked for.
 #[allow(clippy::too_many_arguments)]
 fn make_marks_real(
     state: &State,
     closure: &Closure,
     creased: &mut Creased,
     folded_of_line: &[Option<usize>],
+    snapshots: &[Option<Creased>],
     line: &Line,
     witness: &Witness,
     sweep: u32,
@@ -787,6 +804,18 @@ fn make_marks_real(
         };
         let f = &closure.folded()[folded_index];
         press.record(state, creased);
+        if !press.is_pinch()
+            && snapshots
+                .get(folded_index)
+                .and_then(|s| s.as_ref())
+                .is_some_and(|then| end_is_found(state, then, &f.line, press.span[1]))
+            && let Some(making) = placed
+                .iter_mut()
+                .find(|q| q.folded == folded_index && q.press.is_none())
+        {
+            making.pressed_on.push(press.span);
+            return;
+        }
         placed.push(Placed {
             folded: folded_index,
             sweep,
@@ -799,6 +828,7 @@ fn make_marks_real(
             alignment: None,
             missing: Vec::new(),
             press: Some(press),
+            pressed_on: Vec::new(),
         });
     };
     for point in witness_missing_marks(state, creased, witness) {
@@ -912,22 +942,26 @@ fn sight(
     closure: &Closure,
     creased: &mut Creased,
     folded_of_line: &[Option<usize>],
+    snapshots: &[Option<Creased>],
     i: usize,
     sweep: u32,
     side: Side,
     placed: &mut Vec<Placed>,
 ) -> Sighted {
     let f = &closure.folded()[i];
+    // The line the witnesses construct — the approximation, for a fold made
+    // by one — is the line the folder is sighting.
+    let fold = f.constructed();
     let cost_of = |creased: &Creased, witness: &Witness| -> Option<usize> {
-        if sightable(state, creased, &f.line, witness) {
+        if sightable(state, creased, &fold, witness) {
             Some(0)
         } else {
-            repair(state, creased, &f.line, witness).map(Repair::cost)
+            repair(state, creased, &fold, witness).map(Repair::cost)
         }
     };
     let pick = |creased: &Creased, witnesses: &[Witness]| -> Option<usize> {
         let already = (0..witnesses.len())
-            .filter(|&w| sightable(state, creased, &f.line, &witnesses[w]))
+            .filter(|&w| sightable(state, creased, &fold, &witnesses[w]))
             .min_by_key(|&w| witnesses[w].preference());
         // A fold the folder can already make in one motion is the fold.
         // One with two things to line up at once (O6, O7), or nothing to
@@ -971,7 +1005,7 @@ fn sight(
             found = Some(w);
         }
     } else if !clean {
-        let extra = found_witnesses(state, creased, &f.line, f.line_id, &f.witnesses);
+        let extra = found_witnesses(state, creased, &fold, f.line_id, &f.witnesses);
         if !extra.is_empty() {
             let all: Vec<Witness> = f.witnesses.iter().chain(&extra).cloned().collect();
             if let Some(w) = pick(creased, &all) {
@@ -999,13 +1033,14 @@ fn sight(
         };
     };
     let witness = witness.clone();
-    if !sightable(state, creased, &f.line, &witness) {
+    if !sightable(state, creased, &fold, &witness) {
         make_marks_real(
             state,
             closure,
             creased,
             folded_of_line,
-            &f.line,
+            snapshots,
+            &fold,
             &witness,
             sweep,
             side,
@@ -1013,12 +1048,12 @@ fn sight(
         );
     }
     let real = witness_marks_exist(state, creased, &witness)
-        && witness_aligns_at_all(state, creased, &f.line, &witness);
+        && witness_aligns_at_all(state, creased, &fold, &witness);
     Sighted {
         chosen,
         found,
         marks_exist: real,
-        alignment: witness_alignment(state, creased, &f.line, &witness),
+        alignment: witness_alignment(state, creased, &fold, &witness),
         missing: if real {
             Vec::new()
         } else {
@@ -1044,6 +1079,9 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
     for (i, f) in folded.iter().enumerate() {
         folded_of_line[f.line_id] = Some(i);
     }
+    // The paper as it stood when each fold was made, for a later press to ask
+    // whether the fold could have been creased that far in the first place.
+    let mut snapshots: Vec<Option<Creased>> = vec![None; folded.len()];
 
     // Phase 0: hoisted landmarks.
     let mut hoisted = vec![false; folded.len()];
@@ -1084,6 +1122,7 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
                         closure,
                         &mut creased,
                         &folded_of_line,
+                        &snapshots,
                         &f.line,
                         w,
                         0,
@@ -1103,8 +1142,10 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
                     alignment: witness_alignment(state, &creased, &f.line, w),
                     missing: witness_missing_marks(state, &creased, w),
                     press: None,
+                    pressed_on: Vec::new(),
                 });
                 record(&mut creased, closure, i);
+                snapshots[i] = Some(creased.clone());
             }
         }
     }
@@ -1158,6 +1199,7 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
                     closure,
                     &mut creased,
                     &folded_of_line,
+                    &snapshots,
                     i,
                     sweep,
                     side,
@@ -1175,8 +1217,10 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
                     alignment: sighted.alignment,
                     missing: sighted.missing,
                     press: None,
+                    pressed_on: Vec::new(),
                 });
                 record(&mut creased, closure, i);
+                snapshots[i] = Some(creased.clone());
             }
         }
     }

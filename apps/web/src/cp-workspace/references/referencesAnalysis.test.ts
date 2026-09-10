@@ -80,6 +80,9 @@ function fakePlanner(options: {
     async fold() {
       throw new Error('the analysis folds nothing');
     },
+    async foldApproximation() {
+      throw new Error('the analysis folds nothing');
+    },
     async sequence() {
       return sequence;
     },

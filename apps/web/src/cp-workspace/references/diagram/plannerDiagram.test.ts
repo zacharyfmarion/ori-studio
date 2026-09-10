@@ -129,6 +129,46 @@ describe('plannerStepDiagram', () => {
     }
   });
 
+  // A fold creased on past the pattern's line, because a later step lines
+  // up against it there: that crease is made now, in the step's own style,
+  // and is on the paper for every later card.
+  it('draws what a step presses on past the pattern, now and later', () => {
+    const seq = directed('unassigned', 'valley');
+    const on = {
+      ...seq,
+      steps: seq.steps.map((s, i) =>
+        i === 1
+          ? {
+              ...s,
+              pressed_on: [
+                [
+                  [0.5, 0.5],
+                  [0.5, 0.2],
+                ] as [[number, number], [number, number]],
+              ],
+            }
+          : s
+      ),
+    };
+    const near = (a: readonly number[], b: readonly number[]) =>
+      Math.hypot(a[0]! - b[0]!, a[1]! - b[1]!) < 1e-9;
+    const seg = (l: Extract<StepDiagramPrimitive, { kind: 'line' }>, a: number[], b: number[]) =>
+      (near(l.from, a) && near(l.to, b)) || (near(l.from, b) && near(l.to, a));
+    const own = plannerStepDiagram(on, unitFrame(on), 1);
+    const valleys = (own?.primitives ?? []).filter(
+      (p): p is Extract<StepDiagramPrimitive, { kind: 'line' }> =>
+        p.kind === 'line' && p.style === 'valley'
+    );
+    expect(valleys.some((l) => seg(l, [0.5, 0.5], [0.5, 0.2]))).toBe(true);
+    // And on the next card it is crease already there.
+    const later = plannerStepDiagram(on, unitFrame(on), 2);
+    const earlier = (later?.primitives ?? []).filter(
+      (p): p is Extract<StepDiagramPrimitive, { kind: 'line' }> =>
+        p.kind === 'line' && p.style === 'crease'
+    );
+    expect(earlier.some((l) => seg(l, [0.5, 0.5], [0.5, 0.2]))).toBe(true);
+  });
+
   it('draws a corner input as a point', () => {
     const diagram = plannerStepDiagram(sequence, unitFrame(sequence), 0);
     expect(diagram?.primitives.filter((primitive) => primitive.kind === 'point')).toHaveLength(2);

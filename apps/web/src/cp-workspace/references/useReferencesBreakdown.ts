@@ -220,6 +220,7 @@ function summaryOf(record: ReferencesPlanRecord): ReferencesPlanSummary | null {
         stepCount: acc.stepCount + entry.result.sequence.steps.length,
         findingCount: acc.findingCount + entry.result.sequence.findings.length,
         approximateCount: acc.approximateCount + entry.result.approximate.length,
+        inexactSteps: acc.inexactSteps + t.approximate,
         turnOvers: acc.turnOvers + turnOversOf(entry.result.sequence.steps),
         mixedSteps:
           acc.mixedSteps +
@@ -239,6 +240,7 @@ function summaryOf(record: ReferencesPlanRecord): ReferencesPlanSummary | null {
       stepCount: 0,
       findingCount: 0,
       approximateCount: 0,
+      inexactSteps: 0,
       turnOvers: 0,
       mixedSteps: 0,
     }

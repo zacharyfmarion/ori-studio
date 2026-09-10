@@ -5,6 +5,7 @@ import { extractSolution, type ExtractedStep } from './referenceFinder/extractor
 import type { ReferenceFinderReplayFixture } from './referenceFinder/replayClient';
 import { unitFrame } from './diagram/diagramFrames';
 import { plannerStepDiagram } from './diagram/plannerDiagram';
+import type { PrecreaseStep } from './precreaseSequence';
 import { plannerSequenceFixture } from './__fixtures__/plannerSequence';
 import {
   describePlannerStep,
@@ -249,6 +250,49 @@ describe('a step that cannot be sighted', () => {
     const sentence = describePlannerStep(t, flagged([]), 4);
     expect(sentence).toContain('Nothing on the paper lines up with this fold yet');
     expect(sentence).not.toContain('pinch it in first');
+  });
+});
+
+describe('a step that creases on past the pattern', () => {
+  it('says so, and why', () => {
+    const sequence = plannerSequenceFixture();
+    const on = {
+      ...sequence,
+      steps: sequence.steps.map((s, i) =>
+        i === 1
+          ? { ...s, pressed_on: [[[0.5, 0.5], [0.5, 0.2]] as [[number, number], [number, number]]] }
+          : s
+      ),
+    };
+    expect(describePlannerStep(t, on, 1)).toBe(
+      `${describePlannerStep(t, sequence, 1)} Crease on past the pattern’s line as far as shown — a later step lines up against it there.`
+    );
+  });
+});
+
+describe('a step that is not exact', () => {
+  const sequence = plannerSequenceFixture();
+  const withStep = (overrides: Partial<PrecreaseStep>) => ({
+    ...sequence,
+    steps: sequence.steps.map((s, i) => (i === 1 ? { ...s, ...overrides } : s)),
+  });
+
+  it('says how far off the closest construction is, in the sheet’s own terms', () => {
+    const seq = withStep({ exact: false, approximation: 0.00748 });
+    expect(describePlannerStep(t, seq, 1)).toBe(
+      `${describePlannerStep(t, sequence, 1)} Approximate — the closest construction is off by 0.75% of the sheet.`
+    );
+    const tiny = withStep({ exact: false, approximation: 0.000056 });
+    expect(describePlannerStep(t, tiny, 1)).toContain('off by 0.0056% of the sheet');
+    const large = withStep({ exact: false, approximation: 0.045 });
+    expect(describePlannerStep(t, large, 1)).toContain('off by 4.5% of the sheet');
+  });
+
+  it('says a fold sighted from an approximate crease is only as exact as that', () => {
+    const seq = withStep({ exact: false });
+    expect(describePlannerStep(t, seq, 1)).toBe(
+      `${describePlannerStep(t, sequence, 1)} Sighted from an approximate crease, so only as exact as that is.`
+    );
   });
 });
 

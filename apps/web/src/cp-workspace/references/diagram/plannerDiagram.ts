@@ -372,15 +372,17 @@ function creasedSpans(
   step: PrecreaseStep,
   patterned = true
 ): readonly DiagramSegment[] {
+  // Crease pressed on past the pattern's own is not in the pattern, so it is
+  // drawn either way — as are the pinch and chord cases, by definition.
+  const pressedOn = frame.pressedOn(step);
   const creases = frame.creases(step);
-  // `patterned` false means something else is already drawing exactly these,
-  // out of the crease pattern itself. The two branches below are not in the
-  // pattern by definition, so they are drawn either way.
-  if (creases.length > 0) return patterned ? creases : [];
+  // `patterned` false means something else is already drawing exactly the
+  // pattern's creases, out of the crease pattern itself.
+  if (creases.length > 0) return patterned ? [...creases, ...pressedOn] : pressedOn;
   const pinches = frame.pinches(step);
-  if (pinches.length > 0) return pinches;
+  if (pinches.length > 0) return [...pinches, ...pressedOn];
   const chord = frame.chord(step);
-  return chord ? [chord] : [];
+  return chord ? [chord, ...pressedOn] : pressedOn;
 }
 
 /**
@@ -580,6 +582,9 @@ export function plannerStepDiagram(
       style: made,
     });
   }
+  // What the step presses on past the pattern's line, for a later step's
+  // sake, is crease the folder makes now, and is drawn the same way.
+  for (const span of frame.pressedOn(step)) primitives.push(spanLine(span, made));
   primitives.push(...labels);
 
   return { sheet: { width: sheet.width, height: sheet.height }, primitives };

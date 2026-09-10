@@ -165,8 +165,9 @@ struct PlannerInfo {
     exactness: Option<ExactnessSummary>,
     /// The sheet was refused (non-rectangular outline); nothing else applies.
     refused: bool,
-    /// Off-lattice: the closure runs but the stuck search never does, and
-    /// remaining lines are reported as findings rather than folded.
+    /// Off-lattice: the design has lines with no exact construction. They are
+    /// folded last, by the closest construction ReferenceFinder finds, and
+    /// marked as such.
     off_lattice: bool,
     /// Distinct CP lines the planner is trying to construct.
     targets: usize,
@@ -362,6 +363,43 @@ impl PrecreasePlanner {
             .fold(&parsed, &parsed_tags, budget)
             .map_err(to_js_precrease_error)?;
         to_js_value(&outcomes)
+    }
+
+    /// Fold the remaining target equal to `target` (`[nx, ny, d]`) by the
+    /// closest construction there is — `constructed` (`[nx, ny, d]`), a line
+    /// the current state reproduces exactly, `err` from the target in sheet
+    /// units — then re-close. See `Planner::fold_approximation`.
+    pub fn fold_approximation(
+        &mut self,
+        target: &[f64],
+        constructed: &[f64],
+        err: f64,
+        budget_ms: f64,
+    ) -> Result<JsValue, JsValue> {
+        let budget = finite_budget(budget_ms, "budget_ms")?;
+        if !err.is_finite() || err < 0.0 {
+            return Err(js_error(
+                "invalid_input",
+                format!("err must be a finite non-negative number, got {err}"),
+            ));
+        }
+        let one = |values: &[f64], name: &str| -> Result<Line, JsValue> {
+            let lines = parse_lines(values)?;
+            match lines.as_slice() {
+                [line] => Ok(*line),
+                _ => Err(js_error(
+                    "invalid_input",
+                    format!("{name} takes one [nx, ny, d] triple, got {}", values.len()),
+                )),
+            }
+        };
+        let target = one(target, "target")?;
+        let constructed = one(constructed, "constructed")?;
+        let outcome = self
+            .inner
+            .fold_approximation(&target, &constructed, err, budget)
+            .map_err(to_js_precrease_error)?;
+        to_js_value(&outcome)
     }
 
     /// The plan in its wire shape.

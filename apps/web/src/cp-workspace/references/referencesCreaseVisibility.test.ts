@@ -38,6 +38,8 @@ function step(id: number, cpLineIds: number[]): PrecreaseStep {
     witnesses_complete: true,
     marks_exist: true,
     missing_marks: [],
+    exact: true,
+    pressed_on: [],
     hoisted: false,
   };
 }

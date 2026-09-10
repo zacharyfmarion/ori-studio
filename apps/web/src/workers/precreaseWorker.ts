@@ -404,6 +404,38 @@ const api = {
     );
   },
 
+  /**
+   * Fold the remaining target equal to `target` by the closest construction
+   * there is — `constructed`, a line the current state reproduces exactly,
+   * `err` from the target in the planner's unit frame — then re-close.
+   */
+  async plannerFoldApproximation(
+    token: number,
+    target: Float64Array,
+    constructed: Float64Array,
+    err: number,
+    budgetMs: number
+  ): Promise<PrecreaseFoldOutcome> {
+    const id = requireFinite('token', token);
+    const targetValues = requireLines('target', target);
+    const constructedValues = requireLines('constructed', constructed);
+    if (targetValues.length !== 3 || constructedValues.length !== 3) {
+      throw invalidInput('target and constructed must each be one [nx, ny, d] triple');
+    }
+    const error = requireFinite('err', err);
+    if (error < 0) throw invalidInput(`err must be non-negative, got ${error}`);
+    const budget = requireFinite('budgetMs', budgetMs);
+    return call(
+      () =>
+        requirePlanner(id).fold_approximation(
+          targetValues,
+          constructedValues,
+          error,
+          budget
+        ) as PrecreaseFoldOutcome
+    );
+  },
+
   /** The plan in its wire shape. */
   async plannerSequence(token: number, landmarksFirst: boolean): Promise<PrecreaseSequence> {
     const id = requireFinite('token', token);

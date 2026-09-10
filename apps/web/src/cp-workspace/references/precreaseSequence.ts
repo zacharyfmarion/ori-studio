@@ -109,7 +109,6 @@ export type PrecreaseLineTag = 'edge' | 'cp' | 'aux' | 'rf_aux';
 export type PrecreaseStopReason =
   | 'complete'
   | 'unsolved'
-  | 'off_lattice'
   | 'budget'
   | 'aborted'
   | 'refused_sheet'
@@ -120,7 +119,8 @@ export type PrecreaseLastStep =
   | { kind: 'nothing' }
   | { kind: 'closed'; stalled: boolean }
   | { kind: 'searched'; found: boolean }
-  | { kind: 'asked_reference_finder'; folded: boolean };
+  | { kind: 'asked_reference_finder'; folded: boolean }
+  | { kind: 'approximated'; folded: boolean };
 
 /** The facts only the driver knows — the crate's `drive::DriverState`. */
 export interface PrecreaseDriverState {
@@ -130,6 +130,12 @@ export interface PrecreaseDriverState {
   reference_finder: boolean;
   rf_events: number;
   max_rf_events: number;
+  /**
+   * This driver can fold the closest construction of a line that has no exact
+   * one. Not counted against `max_rf_events`: each such event folds one
+   * target, so the targets left bound it.
+   */
+  approximate: boolean;
 }
 
 /** What to do next — the crate's `drive::PlanAction`. */
@@ -137,6 +143,7 @@ export type PrecreasePlanAction =
   | { kind: 'close' }
   | { kind: 'stuck_search' }
   | { kind: 'ask_reference_finder' }
+  | { kind: 'approximate' }
   | { kind: 'stop'; reason: PrecreaseStopReason };
 
 /** One fold in the presentation order. */
@@ -213,6 +220,26 @@ export interface PrecreaseStep {
    * card says to take care.
    */
   alignment?: number;
+  /**
+   * For a line folded by the closest construction there was rather than an
+   * exact one: how far that construction lands from the pattern's line, in the
+   * planner's unit frame. Absent for a fold made exactly.
+   */
+  approximation?: number;
+  /**
+   * Whether this step is exact: made by an exact construction, from references
+   * that are themselves exact. False for a fold with an `approximation`, and
+   * for any fold sighted from an approximate crease or a mark fewer than two
+   * exact creases pass through — the error is inherited, and the card says so.
+   */
+  exact: boolean;
+  /**
+   * Crease this step makes past what the pattern asks for, as spans on its
+   * line in the planner's unit frame: a later step lines up against the line
+   * there, so the folder creases that far now rather than in a press of its
+   * own. Empty for most steps.
+   */
+  pressed_on: PrecreasePlanSegment[];
   hoisted: boolean;
 }
 
@@ -252,6 +279,8 @@ export interface PrecreaseTotals {
   lower_bound: number;
   free_lines: number;
   unsolved: number;
+  /** Steps that are not exact: folded by an approximation, or sighted from one. */
+  approximate: number;
 }
 
 export type PrecreaseStatus =

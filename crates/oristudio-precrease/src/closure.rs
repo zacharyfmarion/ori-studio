@@ -197,12 +197,29 @@ pub struct FoldedLine {
     pub chosen: Option<usize>,
     /// Whether the lander tier was evaluated for this line's witnesses.
     pub witnesses_complete: bool,
+    /// For a line folded by the closest construction there was rather than an
+    /// exact one ([`Closure::fold_approximation`]): how far that construction
+    /// lands from the line, in sheet units. `None` for an exact fold.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub approximation: Option<f64>,
+    /// The line the witnesses actually construct, when it is not `line`: the
+    /// approximation. What the folder makes; `line` is what the pattern
+    /// wanted, and what the state carries so that later lines close against
+    /// the pattern's own geometry.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub folded_as: Option<Line>,
 }
 
 impl FoldedLine {
     /// The presentation witness.
     pub fn chosen_witness(&self) -> Option<&Witness> {
         self.chosen.map(|i| &self.witnesses[i])
+    }
+
+    /// The line the witnesses construct: `folded_as` for an approximation,
+    /// otherwise the line itself.
+    pub fn constructed(&self) -> Line {
+        self.folded_as.unwrap_or(self.line)
     }
 }
 
@@ -551,6 +568,8 @@ impl Closure {
             witnesses: ws,
             chosen,
             witnesses_complete: complete,
+            approximation: None,
+            folded_as: None,
         });
         // Release the facts of a folded target.
         self.facts[t] = TargetFacts::default();
@@ -596,6 +615,8 @@ impl Closure {
             witnesses: ws,
             chosen,
             witnesses_complete: true,
+            approximation: None,
+            folded_as: None,
         });
         Ok(FoldOutcome::Folded {
             line_id: outcome.id,
@@ -606,6 +627,68 @@ impl Closure {
     /// The folded record of state line `id`, if the closure folded it.
     pub fn folded_by_line_id(&self, id: usize) -> Option<&FoldedLine> {
         self.folded.iter().find(|f| f.line_id == id)
+    }
+
+    /// Fold remaining target `t` by the closest construction there is:
+    /// `constructed` is a line some axiom application in the current state
+    /// reproduces exactly, `err` how far it lands from the target, in sheet
+    /// units.
+    ///
+    /// What goes into the state is the **target's** line, not the
+    /// construction's: the pattern's later lines are drawn from the
+    /// pattern's own geometry, and closing them against it lets them inherit
+    /// this one error rather than each finding its own. What the fold records
+    /// is the construction's witnesses, with the error on them, and
+    /// `folded_as` naming the line they make — the line the folder is shown.
+    /// Nothing certifies the target against the state, by design: there is
+    /// no exact construction, which is why this exists.
+    ///
+    /// `NotConstructible` when the state has no exact construction of
+    /// `constructed` — the driver was meant to fold the steps that lead to it
+    /// first — and `AlreadyFolded` when the target is.
+    pub fn fold_approximation(
+        &mut self,
+        t: usize,
+        constructed: Line,
+        err: f64,
+    ) -> Result<FoldOutcome, PrecreaseError> {
+        if !self.remaining.contains(&t) {
+            return Ok(match self.state.find_line(&self.targets[t].line) {
+                Some(id) => FoldOutcome::AlreadyFolded { line_id: id },
+                None => FoldOutcome::NotConstructible,
+            });
+        }
+        let line = self.targets[t].line;
+        if !self.state.sheet().crosses(&line) {
+            return Ok(FoldOutcome::OffSheet);
+        }
+        let ws = all_witnesses(&self.state, &constructed);
+        if ws.is_empty() {
+            return Ok(FoldOutcome::NotConstructible);
+        }
+        self.round += 1;
+        let round = self.round;
+        let outcome = self.state.add_line(line, LineTag::Cp)?;
+        let chosen = choose(&ws);
+        self.record_crease(outcome.id, &line, Some(t));
+        self.folded.push(FoldedLine {
+            line_id: outcome.id,
+            line,
+            tag: LineTag::Cp,
+            target: Some(t),
+            round,
+            witnesses: ws,
+            chosen,
+            witnesses_complete: true,
+            approximation: Some(err),
+            folded_as: Some(constructed),
+        });
+        self.facts[t] = TargetFacts::default();
+        self.remaining.retain(|&x| x != t);
+        Ok(FoldOutcome::Folded {
+            line_id: outcome.id,
+            cp_target: Some(t),
+        })
     }
 
     /// Every certified witness for `line` against the **current** state

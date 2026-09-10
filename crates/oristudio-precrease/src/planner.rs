@@ -177,6 +177,8 @@ pub struct Planner {
     closure: Option<Closure>,
     exactness: Option<ExactnessSummary>,
     off_lattice: bool,
+    /// Targets folded by an approximation ([`Self::fold_approximation`]).
+    approximations: u32,
     refused: bool,
     stuck_events: Vec<StuckSummary>,
     budget_hit: bool,
@@ -205,6 +207,7 @@ impl Planner {
             closure: None,
             exactness: None,
             off_lattice: false,
+            approximations: 0,
             refused: true,
             stuck_events: Vec::new(),
             budget_hit: false,
@@ -317,6 +320,7 @@ impl Planner {
             }),
             exactness: None,
             off_lattice: false,
+            approximations: 0,
             refused: false,
             stuck_events: Vec::new(),
             budget_hit: false,
@@ -430,9 +434,6 @@ impl Planner {
         max_depth: u8,
         budget_ms: f64,
     ) -> Result<Option<StuckSummary>, PrecreaseError> {
-        if self.off_lattice {
-            return Ok(None);
-        }
         let deadline = self.deadline(budget_ms);
         let mut opts = self.opts.stuck;
         opts.max_depth = max_depth.clamp(1, 3);
@@ -535,12 +536,43 @@ impl Planner {
         Ok(outcomes)
     }
 
+    /// Fold the remaining target equal to `target` by the closest
+    /// construction there is — `constructed`, a line some axiom application
+    /// in the current state reproduces, `err` from the target in sheet units
+    /// — then re-close. See [`Closure::fold_approximation`].
+    ///
+    /// `NotConstructible` when `target` names no remaining target, or the
+    /// state has no exact construction of `constructed`.
+    pub fn fold_approximation(
+        &mut self,
+        target: &Line,
+        constructed: &Line,
+        err: f64,
+        budget_ms: f64,
+    ) -> Result<FoldOutcome, PrecreaseError> {
+        let closure = self.closure_mut()?;
+        let Some(t) = closure.target_of(target) else {
+            return Ok(FoldOutcome::NotConstructible);
+        };
+        let out = match closure.fold_approximation(t, *constructed, err) {
+            Ok(o) => o,
+            Err(e) => {
+                self.note_cap(Err(e.clone()))?;
+                return Err(e);
+            }
+        };
+        if matches!(out, FoldOutcome::Folded { .. }) {
+            self.approximations += 1;
+        }
+        self.close(budget_ms)?;
+        Ok(out)
+    }
+
     /// What the plan itself says, for the shared rules in [`crate::drive`].
     pub fn plan_state(&self) -> PlanState {
         PlanState {
             refused: self.refused,
             complete: self.closure.as_ref().is_some_and(|c| c.is_complete()),
-            off_lattice: self.off_lattice,
             point_cap_hit: self.point_cap_hit,
         }
     }
@@ -599,6 +631,9 @@ impl Planner {
                 // so a future rule change cannot panic the headless path.
                 PlanAction::AskReferenceFinder => {
                     driver.last = LastStep::AskedReferenceFinder { folded: false };
+                }
+                PlanAction::Approximate => {
+                    driver.last = LastStep::Approximated { folded: false };
                 }
                 PlanAction::Stop { reason } => {
                     if reason == StopReason::Budget {
@@ -705,6 +740,17 @@ impl Planner {
 
         let mut steps: Vec<Step> = Vec::with_capacity(placed.len());
         let mut referenced_points: Vec<usize> = Vec::new();
+        // Which lines are on the paper exactly, as the steps go: the sheet's
+        // edges, and every fold that is exact. A mark is exact when two exact
+        // lines cross there; a fold is exact when its own construction is
+        // and everything it sights from is. An approximation's error is
+        // inherited by whatever is sighted from it, and the card has to say so
+        // there too.
+        let mut exact_lines: Vec<bool> = state
+            .lines()
+            .iter()
+            .map(|l| l.tag == LineTag::Edge)
+            .collect();
         for (k, p) in placed.iter().enumerate() {
             let f: &FoldedLine = &folded[p.folded];
             // A press is the fold that made this line, done again for a little
@@ -763,25 +809,41 @@ impl Planner {
                 },
                 None => verdict.extent.clone(),
             };
-            // The direction the fold is actually made in. A line with a firm
+            // The direction the fold is actually made in: toward the folder,
+            // from whichever face is up — every fold is. A line with a firm
             // majority forced the side it is on, so the two agree; a weak one
             // took whichever side was already up, and the share is then the
             // share of its length that side gets right. A press is made from
-            // whichever face is up when its mark is needed, and toward the
-            // folder like every other fold — "fold P onto Q" is a valley on
-            // the face it is said on. Giving it the making fold's direction
-            // instead drew a mountain under that sentence whenever the two
-            // faces differed.
+            // whichever face is up when its mark is needed — "fold P onto Q"
+            // is a valley on the face it is said on; giving it the making
+            // fold's direction instead drew a mountain under that sentence.
+            // An auxiliary fold has no assignment in the pattern, but it is
+            // a fold like any other while it is being made, and a card that
+            // drew it in no direction read as a fold that was not real.
             let majority = target.map_or(Direction::Unassigned, |t| t.direction);
-            let direction = match majority {
-                Direction::Unassigned => Direction::Unassigned,
-                _ => p.side.direction(),
-            };
+            let direction = p.side.direction();
             let direction_share = share_of(
                 majority,
                 target.map_or(0.0, |t| t.direction_share),
                 direction,
             );
+            let exact_point = |id: usize| {
+                state
+                    .points()
+                    .get(id)
+                    .is_some_and(|pt| pt.lines.iter().filter(|&&l| exact_lines[l]).count() >= 2)
+            };
+            let exact = f.approximation.is_none()
+                && chosen.is_none_or(|w| {
+                    w.inputs.iter().all(|r| match r {
+                        Ref::Line { id } => exact_lines[*id],
+                        Ref::Point { id } => exact_point(*id),
+                        Ref::Edge { .. } | Ref::Corner { .. } => true,
+                    })
+                });
+            if p.press.is_none() {
+                exact_lines[f.line_id] = exact;
+            }
             steps.push(Step {
                 id: k as u32 + 1,
                 kind,
@@ -811,6 +873,9 @@ impl Planner {
                     .collect(),
                 hoisted: p.hoisted,
                 alignment: p.alignment,
+                approximation: f.approximation,
+                exact,
+                pressed_on: p.pressed_on.clone(),
                 press: p.press.as_ref().map(|press| StepPress {
                     at: press.at,
                     point: press.point,
@@ -902,6 +967,7 @@ impl Planner {
         let visible_aux = steps.iter().filter(|s| s.visible).count() as u32;
         let free_lines = closure.free_targets().len() as u32;
         let unsolved = closure.remaining().len() as u32;
+        let approximate = steps.iter().filter(|s| !s.exact).count() as u32;
         let totals = Totals {
             folds: cp_lines + aux,
             cp_lines,
@@ -911,6 +977,7 @@ impl Planner {
             lower_bound: cp_lines + unsolved,
             free_lines,
             unsolved,
+            approximate,
         };
 
         Sequence {

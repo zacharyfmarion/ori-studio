@@ -65,6 +65,8 @@ function step(partial: Partial<PrecreaseStep> & Pick<PrecreaseStep, 'id' | 'line
     witnesses_complete: true,
     marks_exist: true,
     missing_marks: [],
+    exact: true,
+    pressed_on: [],
     hoisted: false,
     ...partial,
   };
@@ -211,6 +213,7 @@ export function plannerSequenceFixture(): PrecreaseSequence {
       lower_bound: 4,
       free_lines: 2,
       unsolved: 1,
+      approximate: 0,
     },
     findings: [
       {

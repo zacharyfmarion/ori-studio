@@ -90,15 +90,13 @@ fn a_step_is_made_from_the_side_its_direction_needs() {
                 // onto Q".
                 Direction::Mountain => assert_eq!(step.side, Side::Back, "{file}: {step:?}"),
                 Direction::Valley => assert_eq!(step.side, Side::Front, "{file}: {step:?}"),
-                // Only a line the finished pattern assigns nothing, or a press
-                // on one.
-                Direction::Unassigned => {
-                    assert!(
-                        matches!(step.kind, StepKind::Aux | StepKind::Press),
-                        "{file}: {step:?}"
-                    );
-                    assert_eq!(step.direction_share, 0.0, "{file}: {step:?}");
-                }
+                // Never: an auxiliary fold has no assignment in the pattern,
+                // but it is made toward the folder like every other fold, and
+                // its card says which way that is.
+                Direction::Unassigned => panic!("{file}: {step:?} is made in no direction"),
+            }
+            if step.kind == StepKind::Aux {
+                assert_eq!(step.direction_share, 0.0, "{file}: {step:?}");
             }
             assert!(
                 (0.0..=1.0).contains(&step.direction_share),
@@ -569,9 +567,14 @@ fn a_press_is_a_pinch_on_a_line_already_made_and_claims_no_pattern_crease() {
 /// chord.
 fn pressed_spans(step: &Step) -> Option<Vec<Span>> {
     match (&step.kind, &step.extent) {
-        (StepKind::Cp, _) if !step.cp_spans.is_empty() => {
-            Some(step.cp_spans.iter().map(|[a, b]| (*a, *b)).collect())
-        }
+        // The pattern's spans, and whatever the step pressed on past them.
+        (StepKind::Cp, _) if !step.cp_spans.is_empty() => Some(
+            step.cp_spans
+                .iter()
+                .chain(&step.pressed_on)
+                .map(|[a, b]| (*a, *b))
+                .collect(),
+        ),
         (StepKind::Cp, _) => None,
         (_, Extent::Pinches { spans }) => Some(spans.iter().map(|[a, b]| (*a, *b)).collect()),
         (_, Extent::Full) => None,
@@ -603,7 +606,14 @@ fn a_grid_folds_each_round_from_one_side() {
     let seq = plan("tests/fixtures/precrease/grid6.fold");
     assert_eq!(sides(&seq), "FBBBBFFFFFBBBBF", "grid6 schedule");
     assert_eq!(turn_overs(&seq), 4, "grid6 turn-overs");
-    let count = |d: Direction| seq.steps.iter().filter(|s| s.direction == d).count();
+    // The pattern's own lines; the one auxiliary fold is made toward the
+    // folder like any other and is not counted against the pattern.
+    let count = |d: Direction| {
+        seq.steps
+            .iter()
+            .filter(|s| s.kind == StepKind::Cp && s.direction == d)
+            .count()
+    };
     assert_eq!(count(Direction::Mountain), 7, "grid6 mountains");
     assert_eq!(count(Direction::Valley), 7, "grid6 valleys");
 }

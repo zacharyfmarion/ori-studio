@@ -24,7 +24,6 @@ import type {
 export interface DoublePlanState {
   refused: boolean;
   complete: boolean;
-  off_lattice: boolean;
   point_cap_hit: boolean;
 }
 
@@ -43,9 +42,7 @@ export function nextActionDouble(
       return { kind: 'close' };
     case 'closed':
       if (plan.complete) return stop('complete');
-      if (driver.last.stalled) return stop('budget');
-      if (plan.off_lattice) return stop('off_lattice');
-      if (driver.out_of_time) return stop('budget');
+      if (driver.last.stalled || driver.out_of_time) return stop('budget');
       return { kind: 'stuck_search' };
     case 'searched':
       if (driver.last.found) return { kind: 'close' };
@@ -53,6 +50,14 @@ export function nextActionDouble(
       if (driver.rf_events >= driver.max_rf_events || driver.out_of_time) return stop('budget');
       return { kind: 'ask_reference_finder' };
     case 'asked_reference_finder':
-      return driver.last.folded ? { kind: 'close' } : stop('unsolved');
+      if (driver.last.folded) return { kind: 'close' };
+      if (!driver.approximate) return stop('unsolved');
+      if (driver.out_of_time) return stop('budget');
+      return { kind: 'approximate' };
+    case 'approximated':
+      if (!driver.last.folded) return stop('unsolved');
+      if (!driver.approximate) return stop('unsolved');
+      if (driver.out_of_time) return stop('budget');
+      return { kind: 'close' };
   }
 }

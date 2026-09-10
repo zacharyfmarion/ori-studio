@@ -69,6 +69,15 @@ export function ReferencesSummaryStrip({ summary }: { summary: ReferencesPlanSum
         </span>
       )}
       <ExactnessBadge summary={summary} />
+      {summary.inexactSteps > 0 && (
+        <Badge tone="neutral">
+          {t('panels:references.summary.inexact', {
+            defaultValue_one: '{{count}} approximate step',
+            defaultValue_other: '{{count}} approximate steps',
+            count: summary.inexactSteps,
+          })}
+        </Badge>
+      )}
       {summary.unsolved > 0 && (
         <Badge tone="neutral">
           {t('panels:references.summary.unsolved', '{{n}} not solved', { n: summary.unsolved })}

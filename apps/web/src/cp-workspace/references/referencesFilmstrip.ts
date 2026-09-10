@@ -91,11 +91,15 @@ export function planFilmstrip(
     switch (view.kind) {
       case 'fold': {
         folds += 1;
+        // A step that is not exact — folded by the closest construction there
+        // was, or sighted from one — wears it on the card, not only in the
+        // sentence: the folder reads the strip before the sentence.
+        const exact = sequence.steps[view.step]?.exact ?? true;
         return [
           {
             key: `plan-${view.component}-${view.step}`,
             kind: 'fold',
-            badge: '',
+            badge: exact ? '' : t('panels:references.planStep.approximateBadge', 'Approximate'),
             number: folds,
             diagram: null,
             primitives: plannerStepDiagram(sequence, unitFrame(sequence), view.step),

@@ -39,6 +39,7 @@ import {
   type PrecreaseFinding,
   type PrecreaseFoldOutcome,
   type PrecreasePlanLine,
+  type PrecreasePlanSegment,
   type PrecreasePlannerInfo,
   type PrecreaseSequence,
   type PrecreaseStuckSummary,
@@ -59,6 +60,12 @@ export interface PrecreasePlannerHandle {
   stuckSearch(depth: number, budgetMs: number): Promise<PrecreaseStuckSummary | null>;
   score(lines: Float64Array): Promise<Uint32Array>;
   fold(lines: Float64Array, tags: Uint8Array, budgetMs: number): Promise<PrecreaseFoldOutcome[]>;
+  foldApproximation(
+    target: Float64Array,
+    constructed: Float64Array,
+    err: number,
+    budgetMs: number
+  ): Promise<PrecreaseFoldOutcome>;
   sequence(landmarksFirst: boolean): Promise<PrecreaseSequence>;
   explain(line: Float64Array): Promise<PrecreaseExplanation>;
   toRf(lines: Float64Array): Promise<Float64Array>;
@@ -90,6 +97,13 @@ export interface PrecreasePlannerWorkerApi {
     tags: Uint8Array,
     budgetMs: number
   ): Promise<PrecreaseFoldOutcome[]>;
+  plannerFoldApproximation(
+    token: number,
+    target: Float64Array,
+    constructed: Float64Array,
+    err: number,
+    budgetMs: number
+  ): Promise<PrecreaseFoldOutcome>;
   plannerSequence(token: number, landmarksFirst: boolean): Promise<PrecreaseSequence>;
   plannerExplain(token: number, line: Float64Array): Promise<PrecreaseExplanation>;
   plannerToRf(token: number, lines: Float64Array): Promise<Float64Array>;
@@ -110,6 +124,8 @@ export function createWorkerPlannerHandle(
     stuckSearch: (depth, budgetMs) => api.plannerStuckSearch(token, depth, budgetMs),
     score: (lines) => api.plannerScore(token, lines),
     fold: (lines, tags, budgetMs) => api.plannerFold(token, lines, tags, budgetMs),
+    foldApproximation: (target, constructed, err, budgetMs) =>
+      api.plannerFoldApproximation(token, target, constructed, err, budgetMs),
     sequence: (landmarksFirst) => api.plannerSequence(token, landmarksFirst),
     explain: (line) => api.plannerExplain(token, line),
     toRf: (lines) => api.plannerToRf(token, lines),
@@ -127,7 +143,10 @@ export interface PrecreasePlanReferenceFinder {
   exact: ReferenceFinderClient;
   /**
    * `goodEnoughError` 0.005, `count` 1 — the best *approximation* of a line no
-   * exact construction reaches, for the findings list. Never folded.
+   * exact construction reaches. Folded, last, and marked as such: once nothing
+   * exact is left, the loop folds the closest construction of one remaining
+   * line at a time and closes again. What even that cannot reach goes to the
+   * findings list, with this client's best attempt beside it.
    */
   approximate?: ReferenceFinderClient;
 }
@@ -210,6 +229,8 @@ export interface PrecreasePlanResult {
   approximate: PrecreaseApproximateFinding[];
   /** Auxiliary lines taken from a ReferenceFinder solution and certified. */
   rfAuxFolded: number;
+  /** Lines folded by the closest construction there was rather than an exact one. */
+  approximated: number;
   /** ReferenceFinder line queries the run made. */
   rfQueries: number;
   stuckEvents: number;
@@ -275,6 +296,7 @@ export async function runPrecreasePlan(
   let rfEvents = 0;
   let rfQueries = 0;
   let rfAuxFolded = 0;
+  let approximated = 0;
   let stuckEvents = 0;
 
   if (info.refused) {
@@ -288,6 +310,7 @@ export async function runPrecreasePlan(
       partial: true,
       approximate: [],
       rfAuxFolded: 0,
+      approximated: 0,
       rfQueries: 0,
       stuckEvents: 0,
       durationMs: now() - started,
@@ -322,6 +345,7 @@ export async function runPrecreasePlan(
         reference_finder: Boolean(referenceFinder),
         rf_events: rfEvents,
         max_rf_events: maxRfEvents,
+        approximate: Boolean(referenceFinder?.approximate),
       });
 
       if (action.kind === 'stop') {
@@ -347,6 +371,17 @@ export async function runPrecreasePlan(
         const summary = await planner.stuckSearch(stuckDepth, stuckBudgetMs);
         if (summary) stuckEvents += 1;
         last = { kind: 'searched', found: Boolean(summary) };
+        continue;
+      }
+
+      if (action.kind === 'approximate') {
+        // Only ever returned because we said we can, and only once nothing
+        // exact is left to make.
+        const fallback = await approximateFallback();
+        rfQueries += fallback.queries;
+        if (fallback.aborted) checkAbort();
+        if (fallback.folded) approximated += 1;
+        last = { kind: 'approximated', folded: fallback.folded };
         continue;
       }
 
@@ -386,11 +421,10 @@ export async function runPrecreasePlan(
     info,
     sequence,
     stopReason: stop,
-    // Off-lattice is a deliberate end, not a failure — but it still leaves
-    // lines unfolded, so the summary strip must say so.
     partial: stop !== 'complete',
     approximate,
     rfAuxFolded,
+    approximated,
     rfQueries,
     stuckEvents,
     durationMs: now() - started,
@@ -468,6 +502,118 @@ export async function runPrecreasePlan(
     const applied = outcomes.some((entry) => entry.kind === 'folded');
     return { folded: applied, queries, aborted: outcome.aborted };
   }
+
+  /**
+   * Fold the closest construction of one remaining line.
+   *
+   * Every remaining line is asked about at once (the answers are cached, so
+   * the next event costs nothing new), and the one with the smallest error —
+   * fewest folds on a tie — is taken: its construction's own lines are folded
+   * as certified auxiliaries, exactly as the exact fallback does, and then
+   * the pattern's line is folded *as* the construction's, with the error on
+   * record. One line per event, then the loop closes again: what the pattern
+   * derives from it may now close exactly, relative to it, and inherits this
+   * one error rather than finding its own.
+   */
+  async function approximateFallback(): Promise<{
+    folded: boolean;
+    queries: number;
+    aborted: boolean;
+  }> {
+    const client = referenceFinder?.approximate;
+    if (!client) return { folded: false, queries: 0, aborted: false };
+    const lines = decodeRemaining(await planner.remaining());
+    const keys = await planner.lineKeys();
+    const requests: ReferenceFinderLineRequest[] = lines.map((line, i) => ({
+      a: line.segment[0] as RfPoint,
+      b: line.segment[1] as RfPoint,
+      key: keys[i] ?? `${line.line.n[0]},${line.line.n[1]},${line.line.d}`,
+    }));
+    report('querying', { folded, remaining }, { queried: 0, queryTotal: requests.length });
+    const outcome = await client.batchLines(
+      requests,
+      (done, total) => report('querying', { folded, remaining }, { queried: done, queryTotal: total }),
+      signal
+    );
+    const queries = outcome.results.length - outcome.fromCache;
+    const candidates = approximationCandidates(outcome.results, lines);
+    for (const candidate of candidates.slice(0, MAX_APPROXIMATION_ATTEMPTS)) {
+      checkAbort();
+      // The construction's own lines first, exact, as auxiliaries; then the
+      // pattern's line as the construction's.
+      const raw = candidate.steps.flatMap((step) => [step[0], step[1], step[2], step[3]]);
+      if (raw.length > 0) {
+        await planner.fold(
+          encodeLines(decodeLines(await planner.fromRf(Float64Array.from(raw)))),
+          Uint8Array.from(candidate.steps.map(() => PRECREASE_TAG.rfAux)),
+          stuckBudgetMs
+        );
+      }
+      const [constructed] = decodeLines(
+        await planner.fromRf(Float64Array.from(candidate.constructed))
+      );
+      if (!constructed) continue;
+      const result = await planner.foldApproximation(
+        encodeLines([candidate.target]),
+        encodeLines([constructed]),
+        candidate.err,
+        stuckBudgetMs
+      );
+      if (result.kind === 'folded') {
+        return { folded: true, queries, aborted: outcome.aborted };
+      }
+    }
+    return { folded: false, queries, aborted: outcome.aborted };
+  }
+}
+
+/** Constructions tried per approximation event before giving up on it. */
+const MAX_APPROXIMATION_ATTEMPTS = 3;
+
+/** One remaining line's closest construction, ready to fold. */
+interface ApproximationCandidate {
+  target: PrecreasePlanLine;
+  /** The construction's own line steps, `[ax, ay, bx, by]` in ReferenceFinder coordinates. */
+  steps: [number, number, number, number][];
+  /** The line the construction makes, `[ax, ay, bx, by]`, in ReferenceFinder coordinates. */
+  constructed: [number, number, number, number];
+  err: number;
+  foldCount: number;
+}
+
+/**
+ * Every remaining line's best approximation, closest first — fewest folds on
+ * a tie — paired with the target it approximates. A solution the construction
+ * lands on within the exact tolerance is not an approximation and is left to
+ * the exact fallback; one with no line to make is skipped.
+ */
+export function approximationCandidates(
+  results: readonly ReferenceFinderBatchResult[],
+  targets: readonly { line: PrecreasePlanLine; segment: PrecreasePlanSegment }[]
+): ApproximationCandidate[] {
+  const out: ApproximationCandidate[] = [];
+  results.forEach((result, i) => {
+    const target = targets[i];
+    if (!target || !('solutions' in result)) return;
+    for (const solution of result.solutions) {
+      if (solution.target.kind !== 'line') continue;
+      const { a, b } = solution.target.line;
+      if (a[0] === b[0] && a[1] === b[1]) continue;
+      const constructed: [number, number, number, number] = [a[0], a[1], b[0], b[1]];
+      const steps: [number, number, number, number][] = [];
+      for (const step of solution.steps) {
+        if (!step.line) continue;
+        const { a: p, b: q } = step.line;
+        if (!Number.isFinite(p[0]) || !Number.isFinite(q[0])) continue;
+        if (p[0] === q[0] && p[1] === q[1]) continue;
+        if (chordKey(p, q) === chordKey(a, b)) continue;
+        steps.push([p[0], p[1], q[0], q[1]]);
+      }
+      out.push({ target: target.line, steps, constructed, err: solution.err, foldCount: solution.foldCount });
+    }
+  });
+  out.sort((x, y) => x.err - y.err || x.foldCount - y.foldCount);
+  return out;
 }
 
 /**

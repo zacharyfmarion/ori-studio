@@ -43,6 +43,10 @@ pub struct StepPress {
     pub sighted_from: Option<usize>,
 }
 
+fn default_true() -> bool {
+    true
+}
+
 /// One fold in the presentation order.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Step {
@@ -125,6 +129,25 @@ pub struct Step {
     /// edge whatever is pressed, and the card should say to take care.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub alignment: Option<f64>,
+    /// For a line folded by the closest construction there was rather than
+    /// an exact one: how far that construction lands from the pattern's line,
+    /// in sheet units. Absent for a fold made exactly.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub approximation: Option<f64>,
+    /// Whether this step is exact: made by an exact construction, from
+    /// references that are themselves exact. False for a fold with an
+    /// `approximation`, and for any fold sighted from an approximate crease,
+    /// or from a mark that fewer than two exact creases pass through — the
+    /// error does not go away by being inherited, and the card says so.
+    #[serde(default = "default_true")]
+    pub exact: bool,
+    /// Crease this step makes past what the pattern asks for, as spans on its
+    /// line in the planner's unit frame: a later step lines up against the
+    /// line there, and rather than a press of its own the folder creases that
+    /// far now, while the fold is being made. Its far end is somewhere they
+    /// can find at this point. Empty for most steps.
+    #[serde(default)]
+    pub pressed_on: Vec<[[f64; 2]; 2]>,
     /// Hoisted to phase 0 by `landmarks_first`.
     pub hoisted: bool,
 }
@@ -163,6 +186,10 @@ pub struct Totals {
     /// The exact lower bound within the flat-sheet model: distinct CP lines
     /// off the outline.
     pub lower_bound: u32,
+    /// Steps that are not exact: folded by an approximation, or sighted from
+    /// one (`Step::exact`).
+    #[serde(default)]
+    pub approximate: u32,
     /// CP lines coinciding with the sheet outline (free).
     pub free_lines: u32,
     /// CP lines not yet folded.

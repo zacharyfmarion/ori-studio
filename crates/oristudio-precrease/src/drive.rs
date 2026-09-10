@@ -2,7 +2,9 @@
 //!
 //! Planning a crease pattern is a small loop: close up everything constructible,
 //! and when that runs out, search for an auxiliary fold that unlocks more; when
-//! *that* runs out, ask ReferenceFinder. The loop body cannot live in this crate
+//! *that* runs out, ask ReferenceFinder for an exact construction; and when
+//! there is none, ask it for the closest one and fold that, marked as the
+//! approximation it is. The loop body cannot live in this crate
 //! — ReferenceFinder is vendored C++ that only the browser can reach, the loop
 //! has to yield between chunks so a large pattern does not freeze the UI, and it
 //! has to be interruptible. All three make it async, and nothing here is.
@@ -24,9 +26,16 @@ use serde::{Deserialize, Serialize};
 
 /// Why a plan run ended.
 ///
-/// One vocabulary for both drivers. `Complete`, `Unsolved` and `OffLattice` are
-/// properties of the plan; `Budget`, `Aborted` and `PointCap` are properties of
-/// the run, and used to exist only in the browser.
+/// One vocabulary for both drivers. `Complete` and `Unsolved` are properties
+/// of the plan; `Budget`, `Aborted` and `PointCap` are properties of the run,
+/// and used to exist only in the browser.
+///
+/// There is no off-lattice stop. A component off the lattice used to close
+/// once and report the rest, on the reasoning that an approximation would
+/// become a reference for every later step. It would — but the folder has to
+/// make those creases either way, and a plan that stops leaves them to guess.
+/// So such a component goes round the same loop as any other, and the lines
+/// with no exact construction are folded last, by the closest one, and say so.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StopReason {
@@ -34,8 +43,6 @@ pub enum StopReason {
     Complete,
     /// The search ran out of ideas with targets left; they become findings.
     Unsolved,
-    /// An off-lattice component: the closure runs, the rest are reported.
-    OffLattice,
     /// Out of time, or out of ReferenceFinder calls.
     Budget,
     /// The caller asked us to stop.
@@ -58,9 +65,12 @@ pub enum LastStep {
     Closed { stalled: bool },
     /// The stuck search ran; `found` means it folded something.
     Searched { found: bool },
-    /// ReferenceFinder was asked; `folded` means its answer was certified and
-    /// folded.
+    /// ReferenceFinder was asked for an exact construction; `folded` means its
+    /// answer was certified and folded.
     AskedReferenceFinder { folded: bool },
+    /// ReferenceFinder was asked for the closest construction of a remaining
+    /// line; `folded` means one was folded, as an approximation.
+    Approximated { folded: bool },
 }
 
 /// The facts only the driver knows.
@@ -73,9 +83,15 @@ pub struct DriverState {
     pub aborted: bool,
     /// This driver can reach ReferenceFinder at all.
     pub reference_finder: bool,
-    /// How many times it has been asked, against its cap.
+    /// How many times it has been asked for an exact construction, against
+    /// its cap.
     pub rf_events: u32,
     pub max_rf_events: u32,
+    /// This driver can fold the closest construction of a line that has no
+    /// exact one. Not counted against `max_rf_events`: each such event folds
+    /// one target, so the targets left bound it.
+    #[serde(default)]
+    pub approximate: bool,
 }
 
 impl Default for DriverState {
@@ -87,6 +103,7 @@ impl Default for DriverState {
             reference_finder: false,
             rf_events: 0,
             max_rf_events: 0,
+            approximate: false,
         }
     }
 }
@@ -100,9 +117,13 @@ pub enum PlanAction {
     Close,
     /// Search for an auxiliary fold that unlocks a target.
     StuckSearch,
-    /// Ask ReferenceFinder for a construction. Only ever returned to a driver
-    /// that said it has one.
+    /// Ask ReferenceFinder for an exact construction. Only ever returned to a
+    /// driver that said it has one.
     AskReferenceFinder,
+    /// Ask ReferenceFinder for the closest construction of each remaining line
+    /// and fold the best of them, as an approximation. Only ever returned to a
+    /// driver that said it can, and only once nothing exact is left to make.
+    Approximate,
     /// Stop, for this reason.
     ///
     /// A struct variant, not a newtype: an internally tagged enum cannot carry
@@ -116,7 +137,6 @@ pub enum PlanAction {
 pub struct PlanState {
     pub refused: bool,
     pub complete: bool,
-    pub off_lattice: bool,
     pub point_cap_hit: bool,
 }
 
@@ -147,18 +167,7 @@ pub fn next_action(plan: PlanState, driver: DriverState) -> PlanAction {
                 PlanAction::Stop {
                     reason: StopReason::Complete,
                 }
-            } else if stalled {
-                PlanAction::Stop {
-                    reason: StopReason::Budget,
-                }
-            } else if plan.off_lattice {
-                // The closure runs on an off-lattice component; the search does
-                // not, because an off-lattice line has no exact construction to
-                // find. Its targets become findings.
-                PlanAction::Stop {
-                    reason: StopReason::OffLattice,
-                }
-            } else if driver.out_of_time {
+            } else if stalled || driver.out_of_time {
                 PlanAction::Stop {
                     reason: StopReason::Budget,
                 }
@@ -186,7 +195,27 @@ pub fn next_action(plan: PlanState, driver: DriverState) -> PlanAction {
         }
 
         LastStep::AskedReferenceFinder { folded: true } => PlanAction::Close,
-        LastStep::AskedReferenceFinder { folded: false } => PlanAction::Stop {
+        // Nothing exact is left to make: the lines still standing have no
+        // exact construction from here. Fold the closest one, if this driver
+        // can, and go round again — what the pattern derives from it may
+        // close exactly relative to it.
+        LastStep::AskedReferenceFinder { folded: false }
+        | LastStep::Approximated { folded: true } => {
+            if !driver.approximate {
+                PlanAction::Stop {
+                    reason: StopReason::Unsolved,
+                }
+            } else if driver.out_of_time {
+                PlanAction::Stop {
+                    reason: StopReason::Budget,
+                }
+            } else if matches!(driver.last, LastStep::Approximated { .. }) {
+                PlanAction::Close
+            } else {
+                PlanAction::Approximate
+            }
+        }
+        LastStep::Approximated { folded: false } => PlanAction::Stop {
             reason: StopReason::Unsolved,
         },
     }
@@ -199,7 +228,6 @@ mod tests {
     const RUNNING: PlanState = PlanState {
         refused: false,
         complete: false,
-        off_lattice: false,
         point_cap_hit: false,
     };
 
@@ -220,6 +248,7 @@ mod tests {
             PlanAction::Close,
             PlanAction::StuckSearch,
             PlanAction::AskReferenceFinder,
+            PlanAction::Approximate,
             PlanAction::Stop {
                 reason: StopReason::Complete,
             },
@@ -252,6 +281,7 @@ mod tests {
             reference_finder: true,
             rf_events: 2,
             max_rf_events: 5,
+            approximate: true,
         };
         let json = serde_json::to_string(&ds).expect("serialize");
         assert_eq!(
@@ -328,7 +358,6 @@ mod tests {
     fn a_complete_plan_beats_every_other_reason_to_stop() {
         let plan = PlanState {
             complete: true,
-            off_lattice: true,
             ..RUNNING
         };
         let ds = DriverState {
@@ -368,30 +397,83 @@ mod tests {
     }
 
     #[test]
-    fn an_off_lattice_component_closes_and_then_stops_without_searching() {
-        let plan = PlanState {
-            off_lattice: true,
-            ..RUNNING
-        };
+    fn a_stalled_closure_stops_on_budget() {
         assert_eq!(
-            next_action(plan, after(LastStep::Closed { stalled: false })),
+            next_action(RUNNING, after(LastStep::Closed { stalled: true })),
             PlanAction::Stop {
-                reason: StopReason::OffLattice
+                reason: StopReason::Budget
             }
         );
     }
 
+    /// With nothing exact left, a driver that can fold approximations is told
+    /// to; one that cannot stops unsolved, as before. An approximation folded
+    /// is progress, so the loop closes again before asking for the next — a
+    /// line the pattern derives from it may now close exactly.
     #[test]
-    fn a_stalled_closure_stops_on_budget_before_the_off_lattice_check() {
-        let plan = PlanState {
-            off_lattice: true,
-            ..RUNNING
-        };
+    fn approximations_come_only_after_every_exact_avenue_and_one_at_a_time() {
+        let exact_failed = after(LastStep::AskedReferenceFinder { folded: false });
         assert_eq!(
-            next_action(plan, after(LastStep::Closed { stalled: true })),
+            next_action(RUNNING, exact_failed),
+            PlanAction::Stop {
+                reason: StopReason::Unsolved
+            }
+        );
+        let can = DriverState {
+            approximate: true,
+            reference_finder: true,
+            ..exact_failed
+        };
+        assert_eq!(next_action(RUNNING, can), PlanAction::Approximate);
+        assert_eq!(
+            next_action(
+                RUNNING,
+                DriverState {
+                    out_of_time: true,
+                    ..can
+                }
+            ),
             PlanAction::Stop {
                 reason: StopReason::Budget
             }
+        );
+        // The exact cap does not bound approximations: each folds a target.
+        assert_eq!(
+            next_action(
+                RUNNING,
+                DriverState {
+                    rf_events: 9,
+                    max_rf_events: 4,
+                    ..can
+                }
+            ),
+            PlanAction::Approximate
+        );
+        let folded = DriverState {
+            last: LastStep::Approximated { folded: true },
+            ..can
+        };
+        assert_eq!(next_action(RUNNING, folded), PlanAction::Close);
+        let nothing = DriverState {
+            last: LastStep::Approximated { folded: false },
+            ..can
+        };
+        assert_eq!(
+            next_action(RUNNING, nothing),
+            PlanAction::Stop {
+                reason: StopReason::Unsolved
+            }
+        );
+        // And an exact fold is never skipped for an approximation: a closure
+        // that is not complete searches first.
+        assert_eq!(
+            next_action(
+                RUNNING,
+                DriverState {
+                    ..after(LastStep::Closed { stalled: false })
+                }
+            ),
+            PlanAction::StuckSearch
         );
     }
 }

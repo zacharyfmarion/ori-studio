@@ -48,6 +48,8 @@ interface FakeSpec {
   /** What `stuckSearch` returns, in order; `null` means "found nothing". */
   stuck?: (string | null)[];
   offLattice?: boolean;
+  /** `foldApproximation` refuses everything: the state has no construction. */
+  refuseApproximations?: boolean;
   refused?: boolean;
 }
 
@@ -78,7 +80,9 @@ function lineThrough(
 }
 
 class FakePlanner implements PrecreasePlannerHandle {
-  readonly calls = { close: 0, stuck: 0, fold: 0, score: 0 };
+  readonly calls = { close: 0, stuck: 0, fold: 0, score: 0, approximate: 0 };
+  /** Targets folded by an approximation, with the error handed in. */
+  readonly approximations: { key: string; err: number }[] = [];
   private readonly remainingKeys: Set<string>;
   private readonly closable: Set<string>;
   private readonly foldedTargets: string[] = [];
@@ -118,7 +122,6 @@ class FakePlanner implements PrecreasePlannerHandle {
       {
         refused: this.spec.refused ?? false,
         complete: this.remainingKeys.size === 0,
-        off_lattice: this.spec.offLattice ?? false,
         point_cap_hit: false,
       },
       driver
@@ -205,6 +208,22 @@ class FakePlanner implements PrecreasePlannerHandle {
     return out;
   }
 
+  async foldApproximation(
+    target: Float64Array,
+    _constructed: Float64Array,
+    err: number
+  ): Promise<PrecreaseFoldOutcome> {
+    this.calls.approximate += 1;
+    const key = keyOf({ n: [target[0], target[1]], d: target[2] });
+    if (this.spec.refuseApproximations || !this.remainingKeys.has(key)) {
+      return { kind: 'not_constructible' };
+    }
+    this.remainingKeys.delete(key);
+    this.foldedTargets.push(key);
+    this.approximations.push({ key, err });
+    return { kind: 'folded', line_id: 20 + this.approximations.length, cp_target: 0 };
+  }
+
   async sequence(): Promise<PrecreaseSequence> {
     const findings: PrecreaseFinding[] = this.spec.targets
       .filter((target) => this.remainingKeys.has(target.key))
@@ -237,6 +256,7 @@ class FakePlanner implements PrecreasePlannerHandle {
         lower_bound: this.spec.targets.length,
         free_lines: 0,
         unsolved: findings.length,
+        approximate: this.approximations.length,
       },
       findings,
       points: [],
@@ -372,38 +392,79 @@ describe('runPrecreasePlan', () => {
     expect(result.sequence.findings).toHaveLength(1);
   });
 
-  it('never searches an off-lattice component, and reports its lines instead', async () => {
+  /** The line `line-approximate.json` was captured for: nothing exact reaches it. */
+  const awkwardTarget: FakeTarget = {
+    key: keyOf(lineThrough([0.123, 0], [0.789, 1])),
+    line: lineThrough([0.123, 0], [0.789, 1]),
+    segment: [
+      [0.123, 0],
+      [0.789, 1],
+    ],
+  };
+
+  function approximateClient() {
+    return createReplayReferenceFinderClient([
+      lineApproximate as unknown as ReferenceFinderReplayFixture,
+    ]);
+  }
+
+  it('searches an off-lattice component like any other, and reports what it cannot make exactly', async () => {
     const planner = new FakePlanner({
-      targets: [quarterTarget],
+      targets: [awkwardTarget],
       closable: [],
       offLattice: true,
+      stuck: [null],
     });
     const result = await runPrecreasePlan(planner, {
       computedAtRevision: 'r1',
       referenceFinder: { exact: exactClient() },
     });
-    expect(result.stopReason).toBe('off_lattice');
-    expect(planner.calls.stuck).toBe(0);
+    // No approximate client: the line stays a finding, as it always did —
+    // but the search and the exact ReferenceFinder query ran first.
+    expect(result.stopReason).toBe('unsolved');
+    expect(planner.calls.stuck).toBe(1);
+    expect(planner.calls.approximate).toBe(0);
     expect(result.sequence.findings[0].reason).toBe('off_lattice');
   });
 
-  it('attaches ReferenceFinder’s best approximation to each finding', async () => {
-    const approximate = createReplayReferenceFinderClient([
-      lineApproximate as unknown as ReferenceFinderReplayFixture,
-    ]);
-    const target: FakeTarget = {
-      key: keyOf(lineThrough([0.123, 0], [0.789, 1])),
-      line: lineThrough([0.123, 0], [0.789, 1]),
-      segment: [
-        [0.123, 0],
-        [0.789, 1],
-      ],
-    };
-    const planner = new FakePlanner({ targets: [target], closable: [], offLattice: true });
+  it('folds the closest construction once nothing exact is left, and marks it', async () => {
+    const planner = new FakePlanner({
+      targets: [awkwardTarget],
+      closable: [],
+      offLattice: true,
+      stuck: [null],
+    });
     const result = await runPrecreasePlan(planner, {
       computedAtRevision: 'r1',
-      referenceFinder: { exact: exactClient(), approximate },
+      referenceFinder: { exact: exactClient(), approximate: approximateClient() },
     });
+    expect(result.stopReason).toBe('complete');
+    // Every exact avenue first: the search, then an exact query.
+    expect(planner.calls.stuck).toBe(1);
+    expect(planner.calls.approximate).toBe(1);
+    expect(result.approximated).toBe(1);
+    expect(planner.approximations).toHaveLength(1);
+    expect(planner.approximations[0].key).toBe(awkwardTarget.key);
+    expect(planner.approximations[0].err).toBeCloseTo(0.000748779415597783, 12);
+    expect(result.sequence.totals.approximate).toBe(1);
+    expect(result.sequence.findings).toHaveLength(0);
+    expect(result.approximate).toHaveLength(0);
+  });
+
+  it('attaches ReferenceFinder’s best approximation to a finding it could not fold', async () => {
+    const planner = new FakePlanner({
+      targets: [awkwardTarget],
+      closable: [],
+      offLattice: true,
+      stuck: [null],
+      refuseApproximations: true,
+    });
+    const result = await runPrecreasePlan(planner, {
+      computedAtRevision: 'r1',
+      referenceFinder: { exact: exactClient(), approximate: approximateClient() },
+    });
+    expect(result.stopReason).toBe('unsolved');
+    expect(result.approximated).toBe(0);
     expect(result.approximate).toHaveLength(1);
     expect(result.approximate[0].finding).toBe(0);
     expect(result.approximate[0].err).toBeGreaterThan(0);

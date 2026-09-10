@@ -55,6 +55,8 @@ export interface DiagramFrame {
   pinches(step: PrecreaseStep): readonly DiagramSegment[];
   /** Where the pattern wants creases on a step's chord, or empty. */
   creases(step: PrecreaseStep): readonly DiagramSegment[];
+  /** Crease the step makes past the pattern's own, for a later step to line up against. */
+  pressedOn(step: PrecreaseStep): readonly DiagramSegment[];
   /** A state point by its id. */
   point(id: number): Point | null;
   /** One of the sheet's four edges. */
@@ -133,6 +135,7 @@ export function unitFrame(
         ? step.extent.spans.map(pair)
         : [],
     creases: (step) => step.cp_spans.map(pair),
+    pressedOn: (step) => step.pressed_on.map(pair),
     point: (id) => {
       const found = sequence.points.find((entry) => entry.id === id);
       return found ? { x: found.p[0], y: found.p[1] } : null;
@@ -264,6 +267,8 @@ export function modelFrame(
           ] as DiagramSegment
       );
     },
+    pressedOn: (step) =>
+      (at(step)?.pressedOn ?? []).map((span) => [span.a, span.b] as DiagramSegment),
     point: (id) => {
       const index = sequence.points.findIndex((entry) => entry.id === id);
       return index >= 0 ? (model.points[index] ?? null) : null;

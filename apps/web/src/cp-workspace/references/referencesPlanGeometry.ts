@@ -31,6 +31,8 @@ export interface ReferencesPlanModelStep {
   segment: { a: Point; b: Point };
   /** Short spans around the marks it is consumed at; empty for a full crease. */
   pinches: { a: Point; b: Point }[];
+  /** Crease made past the pattern's own, for a later step to line up against. */
+  pressedOn: { a: Point; b: Point }[];
 }
 
 /** A plan's geometry in model space. */
@@ -65,6 +67,10 @@ export function planModelPoints(sequence: PrecreaseSequence): Float64Array {
         push(span[0]);
         push(span[1]);
       }
+    }
+    for (const span of step.pressed_on) {
+      push(span[0]);
+      push(span[1]);
     }
   }
   for (const point of sequence.points) push(point.p);
@@ -116,7 +122,8 @@ export function decodePlanModel(
       step.extent.kind === 'pinches'
         ? step.extent.spans.map(() => ({ a: next(), b: next() }))
         : [];
-    return { segment, pinches };
+    const pressedOn = step.pressed_on.map(() => ({ a: next(), b: next() }));
+    return { segment, pinches, pressedOn };
   });
   const points = sequence.points.map(() => next());
   const edges = {} as Record<PrecreaseEdgeSide, { a: Point; b: Point }>;

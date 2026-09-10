@@ -2946,7 +2946,13 @@
     "panels:references.planStep.pressOut": "bdaa517017bb",
     "panels:references.planStep.axiom4Corner": "923cddafa8c9",
     "panels:references.planStep.shortAlignment": "a8645554471d",
-    "panels:references.planStep.noAlignment": "b8b3cefb8e97"
+    "panels:references.planStep.noAlignment": "b8b3cefb8e97",
+    "panels:references.planStep.approximate": "d643f968645a",
+    "panels:references.planStep.approximateBadge": "78b9b22ebb6f",
+    "panels:references.planStep.inherited": "2f7a1e398ebc",
+    "panels:references.summary.inexact_one": "7515e9d6313e",
+    "panels:references.summary.inexact_other": "127107615461",
+    "panels:references.planStep.pressedOn": "31c2600f07e9"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5895,7 +5901,13 @@
     "panels:references.planStep.pressOut": "bdaa517017bb",
     "panels:references.planStep.axiom4Corner": "923cddafa8c9",
     "panels:references.planStep.shortAlignment": "a8645554471d",
-    "panels:references.planStep.noAlignment": "b8b3cefb8e97"
+    "panels:references.planStep.noAlignment": "b8b3cefb8e97",
+    "panels:references.planStep.approximate": "d643f968645a",
+    "panels:references.planStep.approximateBadge": "78b9b22ebb6f",
+    "panels:references.planStep.inherited": "2f7a1e398ebc",
+    "panels:references.summary.inexact_one": "7515e9d6313e",
+    "panels:references.summary.inexact_other": "127107615461",
+    "panels:references.planStep.pressedOn": "31c2600f07e9"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8844,7 +8856,13 @@
     "panels:references.planStep.pressOut": "bdaa517017bb",
     "panels:references.planStep.axiom4Corner": "923cddafa8c9",
     "panels:references.planStep.shortAlignment": "a8645554471d",
-    "panels:references.planStep.noAlignment": "b8b3cefb8e97"
+    "panels:references.planStep.noAlignment": "b8b3cefb8e97",
+    "panels:references.planStep.approximate": "d643f968645a",
+    "panels:references.planStep.approximateBadge": "78b9b22ebb6f",
+    "panels:references.planStep.inherited": "2f7a1e398ebc",
+    "panels:references.summary.inexact_one": "7515e9d6313e",
+    "panels:references.summary.inexact_other": "127107615461",
+    "panels:references.planStep.pressedOn": "31c2600f07e9"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11737,7 +11755,12 @@
     "panels:references.planStep.pressOut": "bdaa517017bb",
     "panels:references.planStep.axiom4Corner": "923cddafa8c9",
     "panels:references.planStep.shortAlignment": "a8645554471d",
-    "panels:references.planStep.noAlignment": "b8b3cefb8e97"
+    "panels:references.planStep.noAlignment": "b8b3cefb8e97",
+    "panels:references.planStep.approximate": "d643f968645a",
+    "panels:references.planStep.approximateBadge": "78b9b22ebb6f",
+    "panels:references.planStep.inherited": "2f7a1e398ebc",
+    "panels:references.summary.inexact_other": "127107615461",
+    "panels:references.planStep.pressedOn": "31c2600f07e9"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14630,7 +14653,12 @@
     "panels:references.planStep.pressOut": "bdaa517017bb",
     "panels:references.planStep.axiom4Corner": "923cddafa8c9",
     "panels:references.planStep.shortAlignment": "a8645554471d",
-    "panels:references.planStep.noAlignment": "b8b3cefb8e97"
+    "panels:references.planStep.noAlignment": "b8b3cefb8e97",
+    "panels:references.planStep.approximate": "d643f968645a",
+    "panels:references.planStep.approximateBadge": "78b9b22ebb6f",
+    "panels:references.planStep.inherited": "2f7a1e398ebc",
+    "panels:references.summary.inexact_other": "127107615461",
+    "panels:references.planStep.pressedOn": "31c2600f07e9"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -17579,7 +17607,13 @@
     "panels:references.planStep.pressOut": "bdaa517017bb",
     "panels:references.planStep.axiom4Corner": "923cddafa8c9",
     "panels:references.planStep.shortAlignment": "a8645554471d",
-    "panels:references.planStep.noAlignment": "b8b3cefb8e97"
+    "panels:references.planStep.noAlignment": "b8b3cefb8e97",
+    "panels:references.planStep.approximate": "d643f968645a",
+    "panels:references.planStep.approximateBadge": "78b9b22ebb6f",
+    "panels:references.planStep.inherited": "2f7a1e398ebc",
+    "panels:references.summary.inexact_one": "7515e9d6313e",
+    "panels:references.summary.inexact_other": "127107615461",
+    "panels:references.planStep.pressedOn": "31c2600f07e9"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -20528,7 +20562,13 @@
     "panels:references.planStep.pressOut": "bdaa517017bb",
     "panels:references.planStep.axiom4Corner": "923cddafa8c9",
     "panels:references.planStep.shortAlignment": "a8645554471d",
-    "panels:references.planStep.noAlignment": "b8b3cefb8e97"
+    "panels:references.planStep.noAlignment": "b8b3cefb8e97",
+    "panels:references.planStep.approximate": "d643f968645a",
+    "panels:references.planStep.approximateBadge": "78b9b22ebb6f",
+    "panels:references.planStep.inherited": "2f7a1e398ebc",
+    "panels:references.summary.inexact_one": "7515e9d6313e",
+    "panels:references.summary.inexact_other": "127107615461",
+    "panels:references.planStep.pressedOn": "31c2600f07e9"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -23421,6 +23461,11 @@
     "panels:references.planStep.pressOut": "bdaa517017bb",
     "panels:references.planStep.axiom4Corner": "923cddafa8c9",
     "panels:references.planStep.shortAlignment": "a8645554471d",
-    "panels:references.planStep.noAlignment": "b8b3cefb8e97"
+    "panels:references.planStep.noAlignment": "b8b3cefb8e97",
+    "panels:references.planStep.approximate": "d643f968645a",
+    "panels:references.planStep.approximateBadge": "78b9b22ebb6f",
+    "panels:references.planStep.inherited": "2f7a1e398ebc",
+    "panels:references.summary.inexact_other": "127107615461",
+    "panels:references.planStep.pressedOn": "31c2600f07e9"
   }
 }

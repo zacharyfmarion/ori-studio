@@ -110,6 +110,12 @@ function handleFor(planner: {
   stuck_search(depth: number, budget: number): unknown;
   score(lines: Float64Array): Uint32Array;
   fold(lines: Float64Array, tags: Uint8Array, budget: number): unknown;
+  fold_approximation(
+    target: Float64Array,
+    constructed: Float64Array,
+    err: number,
+    budget: number
+  ): unknown;
   sequence(landmarksFirst: boolean): unknown;
   next_action(driver: unknown): unknown;
   explain(line: Float64Array): unknown;
@@ -127,6 +133,8 @@ function handleFor(planner: {
     score: async (lines) => planner.score(lines),
     fold: async (lines, tags, budgetMs) =>
       planner.fold(lines, tags, budgetMs) as PrecreaseFoldOutcome[],
+    foldApproximation: async (target, constructed, err, budgetMs) =>
+      planner.fold_approximation(target, constructed, err, budgetMs) as PrecreaseFoldOutcome,
     sequence: async (landmarksFirst) => planner.sequence(landmarksFirst) as PrecreaseSequence,
     explain: async (line) => planner.explain(line) as PrecreaseExplanation,
     toRf: async (lines) => planner.to_rf(lines),
@@ -171,7 +179,6 @@ describe.skipIf(!available)('runPrecreasePlan over the real planner bridge', () 
       const plan = {
         refused: false,
         complete: false,
-        off_lattice: false,
         point_cap_hit: false,
       };
       const lasts: PrecreaseLastStep[] = [
@@ -182,37 +189,42 @@ describe.skipIf(!available)('runPrecreasePlan over the real planner bridge', () 
         { kind: 'searched', found: true },
         { kind: 'asked_reference_finder', folded: false },
         { kind: 'asked_reference_finder', folded: true },
+        { kind: 'approximated', folded: false },
+        { kind: 'approximated', folded: true },
       ];
       let checked = 0;
       for (const last of lasts) {
         for (const out_of_time of [false, true]) {
           for (const aborted of [false, true]) {
             for (const reference_finder of [false, true]) {
-              for (const [rf_events, max_rf_events] of [
-                [0, 0],
-                [0, 3],
-                [3, 3],
-                [4, 3],
-              ]) {
-                const driver = {
-                  last,
-                  out_of_time,
-                  aborted,
-                  reference_finder,
-                  rf_events,
-                  max_rf_events,
-                };
-                expect(nextActionDouble(plan, driver)).toEqual(
-                  planner.next_action(driver) as PrecreasePlanAction
-                );
-                checked += 1;
+              for (const approximate of [false, true]) {
+                for (const [rf_events, max_rf_events] of [
+                  [0, 0],
+                  [0, 3],
+                  [3, 3],
+                  [4, 3],
+                ]) {
+                  const driver = {
+                    last,
+                    out_of_time,
+                    aborted,
+                    reference_finder,
+                    rf_events,
+                    max_rf_events,
+                    approximate,
+                  };
+                  expect(nextActionDouble(plan, driver)).toEqual(
+                    planner.next_action(driver) as PrecreasePlanAction
+                  );
+                  checked += 1;
+                }
               }
             }
           }
         }
       }
       // A loop that silently checked nothing would pass too.
-      expect(checked).toBe(lasts.length * 2 * 2 * 2 * 4);
+      expect(checked).toBe(lasts.length * 2 * 2 * 2 * 2 * 4);
     } finally {
       planner.free();
     }

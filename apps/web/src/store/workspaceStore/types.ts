@@ -1437,6 +1437,11 @@ export interface ReferencesPlanSummary {
   stepCount: number;
   findingCount: number;
   approximateCount: number;
+  /**
+   * Steps that are not exact: folded by the closest construction there was, or
+   * sighted from one. Every one of them says so on its card.
+   */
+  inexactSteps: number;
   /** How many times the folder turns the paper over to make these folds. */
   turnOvers: number;
   /** Steps whose line is creased both ways in the pattern (plan D21). */

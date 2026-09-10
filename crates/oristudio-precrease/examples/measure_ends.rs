@@ -13,7 +13,6 @@
 use std::path::{Path, PathBuf};
 
 use oristudio_precrease::analyze;
-use oristudio_precrease::clock::frozen_clock;
 use oristudio_precrease::fixture_io::load_path;
 use oristudio_precrease::marks::{Creased, crease_runs, end_is_found};
 use oristudio_precrease::pinch::Extent;
@@ -124,10 +123,13 @@ fn plan_file(path: &Path, prefer: bool) -> Option<Tally> {
     let analysis = analyze(&cp.segments, &cp.colors, Some(ORIEDITA_PAPER)).ok()?;
     let mut total = Tally::default();
     for component in &analysis.components {
+        // The product's budgets, not unbounded ones: the stuck search now
+        // runs on off-lattice components too, and unbounded it can search a
+        // hand-drawn design for an hour. The browser gives it four seconds
+        // an event and thirty in all, and a measurement at any other setting
+        // is of a planner nobody ships. A real clock, therefore — a frozen
+        // one never expires.
         let opts = PlannerOptions {
-            clock: frozen_clock(),
-            stuck_budget_ms: 0.0,
-            total_budget_ms: 0.0,
             prefer_findable_ends: prefer,
             ..PlannerOptions::default()
         };
