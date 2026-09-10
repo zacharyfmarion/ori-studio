@@ -109,8 +109,16 @@ paragraph has already caused once. Where there is no alternative, the extra
 crease is what correctness costs and it gets made. The case that proves it: a
 step sighted from a mark that is not on the paper cannot be performed at all —
 you cannot stop by eye at a point that is not there — so a pinch is pressed to
-put the mark where the fold needs it. What is never allowed is creasing *more*
-than that: a pinch where a pinch will do, never a crease run out to an edge.
+put the mark where the fold needs it (`precrease-open-corrections.md`).
+
+And when neither crease reaches the mark, the press that carries one of them
+there does not stop *at* the mark — that would make a crease end nobody can
+find, the same defect moved — but runs past it to the nearest end a folder
+can find: a creased crossing, or the sheet's edge. So "a crease run out to an
+edge" is not never; it is the fallback when nothing nearer is findable, and it
+is taken only then. What is never allowed is creasing more than the cheapest
+findable repair: a pinch where a pinch will do, the nearest findable end where
+a press is needed.
 
 This is also what makes D2's fallback safe: there is always something to fall
 back *to*.

@@ -335,9 +335,8 @@ fallback.
       arrived stopping 5 × 10⁻⁴ short, and a press would have been made to close
       a gap in the file rather than the design. Endpoints now snap to the
       boundary or a crossing within `SNAP_RADIUS`.
-- [ ] Reconcile D3's prose in `precrease-step-ordering.md` with the exception
-      case (b) takes — it still names "a crease run out to an edge" as never
-      allowed, and that is exactly what a press to a findable end may do.
+- [x] Reconcile D3's prose in `precrease-step-ordering.md` with the exception
+      case (b) takes.
 
 **Correction 2 — one set of rules.** Done, in `d7e23280`, `a80008dc`, `8ebcb252`.
 
