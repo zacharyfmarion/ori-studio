@@ -405,7 +405,8 @@ impl Planner {
     }
 
     /// A planner over the bare unit sheet and explicit target lines (tests,
-    /// tools): treated as exact.
+    /// tools): treated as exact, and never pleated on a grid — bare lines
+    /// carry no crease evidence, and what these callers want is the closure.
     pub fn from_lines(sheet: Sheet, lines: &[Line], opts: PlannerOptions) -> Planner {
         let started_ms = (opts.clock)();
         let targets = lines
