@@ -3,7 +3,9 @@ import type { PrecreaseLastStep, PrecreasePlanAction } from './precreaseSequence
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import type { TFunction } from 'i18next';
 import { runPrecreasePlan, type PrecreasePlannerHandle } from './precreasePlan';
+import { describePlannerStep } from './referencesStepSentences';
 import type {
   PrecreaseCloseReport,
   PrecreaseExplanation,
@@ -41,6 +43,27 @@ const FIXTURES = resolve(ROOT, '../../tests/fixtures/precrease');
 const MANIFEST = resolve(FIXTURES, 'manifest.json');
 const available = existsSync(WASM) && existsSync(MANIFEST);
 
+/**
+ * The English default with `{{name}}` interpolations applied, plural and
+ * ordinal forms picked as English picks them — the sentence tests' renderer.
+ */
+function render(_key: string, second?: unknown, third?: unknown): string {
+  const options = (typeof second === 'object' && second !== null ? second : third) as
+    | Record<string, unknown>
+    | undefined;
+  let fallback = typeof second === 'string' ? second : '';
+  if (typeof options?.count === 'number') {
+    const type = options.ordinal === true ? 'ordinal' : 'cardinal';
+    const category = new Intl.PluralRules('en', { type }).select(options.count);
+    const suffix = type === 'ordinal' ? `_ordinal_${category}` : `_${category}`;
+    fallback = String(options[`defaultValue${suffix}`] ?? options.defaultValue ?? fallback);
+  }
+  return fallback.replace(/\{\{(\w+)\}\}/g, (_match, name: string) =>
+    String(options?.[name] ?? `{{${name}}}`)
+  );
+}
+const t = render as unknown as TFunction;
+
 /** Oriedita colour code for a FOLD assignment (`crates/…/fixture_io.rs`). */
 function colorOfAssignment(assignment: string | undefined): number {
   switch (assignment) {
@@ -76,7 +99,12 @@ function loadFold(name: string): { segments: Float64Array; colors: Int32Array } 
 
 function fixtureEntry(file: string) {
   const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8')) as {
-    fixtures: { file: string; crate: number | null; status: string }[];
+    fixtures: {
+      file: string;
+      crate: number | null;
+      status: string;
+      grid: { kind: 'box' | 'hex'; n: number; lines: number } | null;
+    }[];
   };
   const entry = manifest.fixtures.find((fixture) => fixture.file.endsWith(file));
   if (!entry) throw new Error(`no manifest entry for ${file}`);
@@ -240,6 +268,36 @@ describe.skipIf(!available)('runPrecreasePlan over the real planner bridge', () 
     expect(result.sequence.totals.aux).toBe(expectedAux('grid6.fold'));
     expect(result.sequence.totals.unsolved).toBe(0);
     expect(result.rfAuxFolded).toBe(0);
+  });
+
+  it('opens grid6 with the grid the manifest records, in the shape the cards read', async () => {
+    const { result } = await plan('grid6.fold');
+    const { sequence } = result;
+    const recorded = fixtureEntry('grid6.fold').grid;
+    expect(recorded).not.toBeNull();
+    expect(sequence.grid).toMatchObject({
+      kind: recorded!.kind,
+      n: recorded!.n,
+      lines: recorded!.lines,
+      families: 2,
+    });
+    // Every field the browser reads off a grid step crosses the bridge — a
+    // field the crate stopped emitting would otherwise read as undefined
+    // and the sentence would say "into undefined".
+    const first = sequence.steps[0]!;
+    expect(first.kind).toBe('grid');
+    expect(first.grid).toBeDefined();
+    expect(first.grid!.cells).toBe(6);
+    expect(first.grid!.lines).toHaveLength(5);
+    for (const line of first.grid!.lines) {
+      expect(['mountain', 'valley']).toContain(line.direction);
+      expect(typeof line.pattern_share).toBe('number');
+      expect(line.cp_line_ids.length).toBe(line.cp_spans.length);
+    }
+    expect(describePlannerStep(t, sequence, 0)).toBe(
+      'Pleat the sheet into 6ths vertically: 5 lines, alternating mountain and valley, mountain first.'
+    );
+    expect(sequence.steps.slice(2).every((step) => step.kind !== 'grid')).toBe(true);
   });
 
   it('plans the iguana component 0 with the auxiliary count the manifest records', async () => {
