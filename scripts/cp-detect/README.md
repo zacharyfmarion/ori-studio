@@ -703,6 +703,21 @@ python3 scripts/cp-detect/contact_ink_referee.py /tmp/pool-off /tmp/pool-on
 `GRID_PRIOR=0` switches off the box-pleat grid completion of the border in
 the same tool, for an A/B of that lever on the candidate pools.
 
+Two more questions have a tool each. Does an answer fold flat by the
+editor's own Fold, and is it on its lattice:
+
+```bash
+cargo run --release -p oristudio-cp --example fold_check -- answers/<case>.pipeline.fold
+cargo run --release -p oristudio-cp-compiler --example lattice_probe -- answers/<case>.pipeline.fold
+```
+
+`fold_check` runs `FoldingEstimateSession` to `Order5` on the file's creases
+and prints the outcome; `lattice_probe` rebuilds the solve input from the
+document, runs the lattice's answer alone (`solve_exact_on_lattice`) and
+prints the round — the lattice read, the snap, and why it was adopted or
+refused. The harness records the same round per case as
+`detection.lattice_round`.
+
 For every contact the second dump moved, the referee fits the crease's ink
 centreline on the rectified grayscale from 12 to 90 px inside the edge and
 extrapolates it to the paper edge, then reports how far the head's position

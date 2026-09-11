@@ -416,6 +416,66 @@ real images are untouched: three of the four box-pleated ones show no
 prior (too few spans to vote, or a grid the junctions do not confirm) and
 executioner's 28-cell grid finds nothing to complete.
 
+## Lever 5, landed (2026-09-10): the lattice's answer
+
+Two things the grid prior left on the table were the same thing. The four
+giants it brought to an exact decode (diamond-sword, earwig,
+origami-by-xiao-dai, skeleton-shrimp) sat over the solve's crease cap,
+where the LM step alone outlasts any budget; and a solved box-pleated
+design lands a fraction of a pixel off its grid — the curated turtle 0.46 px
+at its worst vertex — because Kawasaki holds along a continuum of nearby
+geometries and the priors decide where on it the answer stops, which the
+folder reads as creases that should coincide and do not. A design drawn on
+a grid is solved by the grid: read the lattice from the geometry, snap
+every vertex to it, judge the snapped pattern like any answer.
+
+The reading is a significance question, not a fit question
+(`oristudio-cp-compiler/src/lattice.rs`): the coarsest lattice the
+pattern's coordinates sit within 1.5 px of, believed only when random
+coordinates could not have landed in its bands (counted over distinct
+values, since a design's vertices share lines), with its bands under half
+the edge, and a finer lattice than the one most of the pattern sits on
+earning its extra points on the vertices the coarser one could not
+explain. The snapped answer must be exact by everything but the carrier
+residual: on a lattice an answer is exact or it is wrong. The round runs
+after the polish rounds, on the converged answer, which is the evidence
+that the geometry is on its lattice; over the crease cap, where the LM
+step cannot fit any budget, the harness and `decode_bounded` try the
+lattice's answer on the input alone, and only there are a few stray
+vertices forgiven (0.5% of the coordinates, each within a third of a
+cell). Two full runs taught both restrictions: a 2% allowance snapped
+three hybrids whose truths sit off the lattice read (ant, ladybug, swan:
+1.3–1.8% of their coordinates beyond 1.5 px, against 0.1–0.4% for designs
+on their grid) to a wrong exact configuration where the LM had found the
+right one, and an input-stage snap under the cap did the same to
+hatsune-miku, whose two vertices a third of a cell off its 40-grid the
+detector had placed within 2 px of a 120-cell lattice.
+
+| | before | after |
+| --- | --- | --- |
+| curated turtle, worst vertex off its 16-grid | 0.46 px | 0.00 px |
+| curated turtle, solve | LM, 0.23 s | lattice, 3 ms |
+| capped giants recovered | 0 of 4 | 3 of 4 (earwig 48 cells, diamond-sword 112, skeleton-shrimp 64; 40–60 ms each) |
+
+On the full curated benchmark (run `2026-09-10-lattice-solve`, scored
+strictly against the grid-prior run):
+
+| | after lever 4 | after lever 5 |
+| --- | --- | --- |
+| rendered decoder exact / strict convergence | 338 / 319 | 338 / 322 |
+| curated decoder exact / strict convergence | 18 / 18 | 18 / 18 |
+| gate reproduced | 441 | 451 |
+| strict conversions gained / lost | | 3 / 0 |
+
+The three conversions are the capped giants; the ten gate conversions are
+truths over the cap solved by their lattice. Every other case's answer is
+the same answer, on its lattice where it has one.
+
+Origami-by-xiao-dai keeps four vertices 8–11 px off its 48-grid — a
+misplaced junction the decoder's 4 px metric forgave — and reads no
+lattice, rightly; a partial snap around such vertices is the next step
+for it. Plan: `implementation-plans/cp-detect-lattice-exact-solve.md`.
+
 ## Harness findings to fix alongside
 
 - `end_to_end.recovered` scores strict topology and assignment on
