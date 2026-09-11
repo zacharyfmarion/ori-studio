@@ -519,6 +519,170 @@ describe('a line folded onto a line', () => {
     expect(lines.some((l) => isSeg(l, [1, 0.5], [0.5, 1]))).toBe(false);
   });
 
+  // crocodile step 39: a grid line A (y = ¾, creased whole) folded onto a
+  // line B (x = ¾) along the 45° bisector x + y = 1½ through their crossing
+  // J = (¾, ¾). B is creased in two pieces: one that begins at J and runs up
+  // the top-right corner, and one below J from y = 0.55 to 0.65. The corner
+  // is the small flap, so A's right arm swings, and it lands on B's *lower*
+  // piece — the upper piece begins at the fold and runs off with the flap,
+  // and used to be lit as the arm to fold onto.
+  it('lights the piece of the receiving line the moving arm actually lands on', () => {
+    const seq = plannerSequenceFixture();
+    const a = {
+      ...seq.steps[0]!,
+      id: 95,
+      line_id: 43,
+      line: { n: [0, 1] as [number, number], d: 0.75 },
+      segment: [
+        [0, 0.75],
+        [1, 0.75],
+      ] as [[number, number], [number, number]],
+      extent: { kind: 'full' as const },
+      cp_spans: [] as [[number, number], [number, number]][],
+    };
+    const b = {
+      ...seq.steps[2]!,
+      id: 96,
+      line_id: 44,
+      line: { n: [1, 0] as [number, number], d: 0.75 },
+      segment: [
+        [0.75, 0],
+        [0.75, 1],
+      ] as [[number, number], [number, number]],
+      cp_spans: [
+        [
+          [0.75, 0.75],
+          [0.75, 1],
+        ],
+        [
+          [0.75, 0.55],
+          [0.75, 0.65],
+        ],
+      ] as [[number, number], [number, number]][],
+    };
+    const fold = {
+      ...seq.steps[4]!,
+      id: 97,
+      line: { n: [Math.SQRT1_2, Math.SQRT1_2] as [number, number], d: 1.5 * Math.SQRT1_2 },
+      segment: [
+        [1, 0.5],
+        [0.5, 1],
+      ] as [[number, number], [number, number]],
+      cp_spans: [] as [[number, number], [number, number]][],
+      witnesses: [
+        {
+          ...seq.steps[4]!.witnesses[0]!,
+          axiom: 3,
+          inputs: [
+            { kind: 'line' as const, id: 43 },
+            { kind: 'line' as const, id: 44 },
+          ],
+          who_moves: [0],
+        },
+      ],
+      chosen: 0,
+    };
+    const withAll = {
+      ...seq,
+      steps: [...seq.steps, a, b, fold],
+      lines: [
+        ...seq.lines,
+        { id: 43, tag: 'aux' as const, step: 95 },
+        { id: 44, tag: 'cp' as const, step: 96 },
+      ],
+    };
+    const d = plannerStepDiagram(withAll, unitFrame(withAll), withAll.steps.length - 1);
+    const lit = (d?.primitives ?? []).filter(
+      (p): p is Extract<StepDiagramPrimitive, { kind: 'line' }> =>
+        p.kind === 'line' && p.style === 'highlight'
+    );
+    expect(lit).toHaveLength(2);
+    // A: the arm on the corner flap.
+    expect(lit.some((l) => isSeg(l, [0.75, 0.75], [1, 0.75]))).toBe(true);
+    // B: the piece A lands on, below the crossing — not the one that begins
+    // at the fold and runs up.
+    expect(lit.some((l) => isSeg(l, [0.75, 0.55], [0.75, 0.65]))).toBe(true);
+    expect(lit.some((l) => isSeg(l, [0.75, 0.75], [0.75, 1]))).toBe(false);
+    // And the arrow leaves from that arm of A, landing on B below J.
+    const arrows = (d?.primitives ?? []).filter((p) => p.kind === 'fold-arrow');
+    expect(arrows).toHaveLength(1);
+  });
+
+  // The same fold with B creased only below the crossing on the far side of
+  // the fold from the corner: the corner flap's arm still lands there.
+  it('prefers the arm that lands on crease over one that lands on nothing', () => {
+    const seq = plannerSequenceFixture();
+    const a = {
+      ...seq.steps[0]!,
+      id: 95,
+      line_id: 43,
+      line: { n: [0, 1] as [number, number], d: 0.75 },
+      segment: [
+        [0, 0.75],
+        [1, 0.75],
+      ] as [[number, number], [number, number]],
+      extent: { kind: 'full' as const },
+      cp_spans: [] as [[number, number], [number, number]][],
+    };
+    // B creased only *above* J: the corner flap's arm (A's right half) lands
+    // below J on nothing, so the other arm of A moves, onto B's crease.
+    const b = {
+      ...seq.steps[2]!,
+      id: 96,
+      line_id: 44,
+      line: { n: [1, 0] as [number, number], d: 0.75 },
+      segment: [
+        [0.75, 0],
+        [0.75, 1],
+      ] as [[number, number], [number, number]],
+      cp_spans: [
+        [
+          [0.75, 0.75],
+          [0.75, 1],
+        ],
+      ] as [[number, number], [number, number]][],
+    };
+    const fold = {
+      ...seq.steps[4]!,
+      id: 97,
+      line: { n: [Math.SQRT1_2, Math.SQRT1_2] as [number, number], d: 1.5 * Math.SQRT1_2 },
+      segment: [
+        [1, 0.5],
+        [0.5, 1],
+      ] as [[number, number], [number, number]],
+      cp_spans: [] as [[number, number], [number, number]][],
+      witnesses: [
+        {
+          ...seq.steps[4]!.witnesses[0]!,
+          axiom: 3,
+          inputs: [
+            { kind: 'line' as const, id: 43 },
+            { kind: 'line' as const, id: 44 },
+          ],
+          who_moves: [0],
+        },
+      ],
+      chosen: 0,
+    };
+    const withAll = {
+      ...seq,
+      steps: [...seq.steps, a, b, fold],
+      lines: [
+        ...seq.lines,
+        { id: 43, tag: 'aux' as const, step: 95 },
+        { id: 44, tag: 'cp' as const, step: 96 },
+      ],
+    };
+    const d = plannerStepDiagram(withAll, unitFrame(withAll), withAll.steps.length - 1);
+    const lit = (d?.primitives ?? []).filter(
+      (p): p is Extract<StepDiagramPrimitive, { kind: 'line' }> =>
+        p.kind === 'line' && p.style === 'highlight'
+    );
+    expect(lit.some((l) => isSeg(l, [0, 0.75], [0.75, 0.75]))).toBe(true);
+    expect(lit.some((l) => isSeg(l, [0.75, 0.75], [0.75, 1]))).toBe(true);
+    expect(lit.some((l) => isSeg(l, [0.75, 0.75], [1, 0.75]))).toBe(false);
+  });
+
   // markhor step 12: the right edge folded onto the main diagonal, which is
   // creased in two separate pieces — (0,0)–(0.25,0.25) and (0.75,0.75)–(1,1).
   // Both are on the interior side of the fold, but only the one coming out of

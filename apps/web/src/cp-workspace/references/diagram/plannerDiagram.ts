@@ -343,6 +343,179 @@ function mergeRuns(spans: readonly DiagramSegment[]): DiagramSegment[] {
 const length = (seg: DiagramSegment): number =>
   Math.hypot(seg[1].x - seg[0].x, seg[1].y - seg[0].y);
 
+/** A segment's image across the fold. */
+function reflectSegment(chord: DiagramSegment, seg: DiagramSegment): DiagramSegment {
+  const [a, b] = [reflectAcross(chord, [seg[0].x, seg[0].y]), reflectAcross(chord, [seg[1].x, seg[1].y])];
+  return [
+    { x: a[0], y: a[1] },
+    { x: b[0], y: b[1] },
+  ];
+}
+
+/**
+ * How far `b` lies along `a`, when the two are pieces of one line: the length
+ * of their common stretch, and zero when `b` is not on `a`'s line at all.
+ */
+function overlapAlong(a: DiagramSegment, b: DiagramSegment): number {
+  const len = length(a);
+  if (len === 0) return 0;
+  const ux = (a[1].x - a[0].x) / len;
+  const uy = (a[1].y - a[0].y) / len;
+  const off = (p: Point) => Math.abs((p.x - a[0].x) * -uy + (p.y - a[0].y) * ux);
+  if (off(b[0]) > 1e-6 * len || off(b[1]) > 1e-6 * len) return 0;
+  const at = (p: Point) => (p.x - a[0].x) * ux + (p.y - a[0].y) * uy;
+  const [u, v] = [at(b[0]), at(b[1])].sort((p, q) => p - q);
+  return Math.max(0, Math.min(len, v) - Math.max(0, u));
+}
+
+/**
+ * The most any of `runs`, carried across the fold, lies along any of `onto`:
+ * the alignment the fold gives the folder between these two lines, measured
+ * the way the crate's `crease_overlap` measures it.
+ */
+function alignment(
+  chord: DiagramSegment,
+  runs: readonly DiagramSegment[],
+  onto: readonly DiagramSegment[]
+): number {
+  let best = 0;
+  for (const run of runs) {
+    const image = reflectSegment(chord, run);
+    for (const target of onto) best = Math.max(best, overlapAlong(target, image));
+  }
+  return best;
+}
+
+/**
+ * How much paper lies on `side` of the fold: the sheet clipped to that
+ * half-plane. A folder swings the smaller flap.
+ */
+function flapArea(frame: DiagramFrame, chord: DiagramSegment, side: number): number {
+  const bottom = frame.edge('bottom');
+  const top = frame.edge('top');
+  if (!bottom || !top) return 0;
+  let polygon: Point[] = [bottom[0], bottom[1], top[1], top[0]];
+  const clipped: Point[] = [];
+  for (let i = 0; i < polygon.length; i += 1) {
+    const p = polygon[i]!;
+    const q = polygon[(i + 1) % polygon.length]!;
+    const inP = sideOf(chord, p) !== -side;
+    const inQ = sideOf(chord, q) !== -side;
+    if (inP) clipped.push(p);
+    if (inP !== inQ) {
+      const t = crossingParameter([p, q], chord);
+      if (t !== null) clipped.push(lerp(p, q, t));
+    }
+  }
+  polygon = clipped;
+  let area = 0;
+  for (let i = 0; i < polygon.length; i += 1) {
+    const p = polygon[i]!;
+    const q = polygon[(i + 1) % polygon.length]!;
+    area += p.x * q.y - q.x * p.y;
+  }
+  return Math.abs(area) / 2;
+}
+
+/** The pieces of `runs` on `side` of the fold. */
+function onSide(
+  chord: DiagramSegment,
+  side: number,
+  runs: readonly DiagramSegment[]
+): DiagramSegment[] {
+  return runs.flatMap((run) => {
+    const kept = clipToSide(chord, side, run);
+    return kept ? [kept] : [];
+  });
+}
+
+/**
+ * The stretch of `piece` that, carried across the fold, lies along one of
+ * `onto` — the longest such, or null when none of it does.
+ */
+function landingStretch(
+  chord: DiagramSegment,
+  piece: DiagramSegment,
+  onto: readonly DiagramSegment[]
+): DiagramSegment | null {
+  const image = reflectSegment(chord, piece);
+  const len = length(image);
+  if (len === 0) return null;
+  const ux = (image[1].x - image[0].x) / len;
+  const uy = (image[1].y - image[0].y) / len;
+  const off = (p: Point) => Math.abs((p.x - image[0].x) * -uy + (p.y - image[0].y) * ux);
+  const at = (p: Point) => (p.x - image[0].x) * ux + (p.y - image[0].y) * uy;
+  let best: [number, number] | null = null;
+  for (const run of onto) {
+    if (off(run[0]) > 1e-6 * len || off(run[1]) > 1e-6 * len) continue;
+    const [u, v] = [at(run[0]), at(run[1])].sort((p, q) => p - q);
+    const lo = Math.max(0, u);
+    const hi = Math.min(len, v);
+    if (hi > lo && (!best || hi - lo > best[1] - best[0])) best = [lo, hi];
+  }
+  if (!best) return null;
+  // Back on the moving line: the image's parameter is the piece's own.
+  return [lerp(piece[0], piece[1], best[0] / len), lerp(piece[0], piece[1], best[1] / len)];
+}
+
+/**
+ * Which side of the fold moves when a line is folded onto a line.
+ *
+ * A fold along `chord` swings one side of the paper over, and the moving
+ * line's arm on that side lands on the other line's arm across the fold. The
+ * reflection carries the whole line, so either side is a fold that works —
+ * what decides it is what the folder has to line up: the side whose arm,
+ * carried across, lands on crease the other line actually has (the crate's
+ * alignment; a pinch's worth of it, at least), and of those the side with
+ * less paper on it, which is the flap a folder picks up. When no side lands
+ * on crease, the smaller flap whose arm lands on the paper at all; and when
+ * the moving line does not cross the fold, the side it is on.
+ */
+function movingSide(
+  frame: DiagramFrame,
+  chord: DiagramSegment,
+  source: DiagramSegment,
+  movingRuns: readonly DiagramSegment[],
+  receivingRuns: readonly DiagramSegment[]
+): number {
+  const t = crossingParameter(source, chord);
+  const halves: DiagramSegment[] =
+    t === null
+      ? [source]
+      : [
+          [source[0], lerp(source[0], source[1], t)],
+          [lerp(source[0], source[1], t), source[1]],
+        ];
+  const sides = [...new Set(halves.map((half) => sideOf(chord, midpoint(half))))].filter(
+    (side) => side !== 0
+  );
+  if (sides.length === 0) return 0;
+  const lands = (side: number) =>
+    halves.some((half) => {
+      if (sideOf(chord, midpoint(half)) !== side) return false;
+      const r = reflectAcross(chord, [midpoint(half).x, midpoint(half).y]);
+      return frame.inPaper({ x: r[0], y: r[1] });
+    });
+  const pinch = ALIGNMENT_FLOOR * Math.max(frame.sheet.width, frame.sheet.height);
+  const aligned = (side: number) =>
+    alignment(chord, onSide(chord, side, movingRuns), onSide(chord, -side, receivingRuns)) >= pinch;
+  // An arm that lands on crease lands on the paper there, whatever its
+  // midpoint does: a long arm swung over a small flap has most of its length
+  // off the sheet and the stretch that matters on it.
+  const usable = sides.filter(aligned);
+  const landing = sides.filter(lands);
+  const pool = usable.length ? usable : landing.length ? landing : sides;
+  return pool.reduce((best, side) =>
+    flapArea(frame, chord, side) < flapArea(frame, chord, best) ? side : best
+  );
+}
+
+/**
+ * The least alignment worth folding onto, as a share of the sheet: a pinch's
+ * length, the crate's `MIN_ALIGNMENT`.
+ */
+const ALIGNMENT_FLOOR = 0.06;
+
 /** Which side of `chord` the point is on: +1, −1, or 0 on the line. */
 function sideOf(chord: DiagramSegment, p: Point): number {
   const [a, b] = chord;
@@ -363,7 +536,11 @@ function clipToSide(chord: DiagramSegment, side: number, seg: DiagramSegment): D
   if (on(s0) && on(s1)) return s0 === 0 && s1 === 0 ? null : seg;
   if (!on(s0) && !on(s1)) return null;
   const t = crossingParameter(seg, chord);
-  if (t === null) return on(s0) ? seg : null;
+  // No crossing inside the segment, yet one end is off the side asked for:
+  // the segment starts on the fold and runs away from that side, whole. It
+  // used to be kept here, and a crease beginning at the fold was then shown
+  // as the arm on *both* sides of it.
+  if (t === null) return null;
   const at = lerp(seg[0], seg[1], t);
   return on(s0) ? [seg[0], at] : [at, seg[1]];
 }
@@ -549,15 +726,22 @@ export function plannerStepDiagram(
   // lands on, with the motion drawn — and nothing else, because that is all
   // a folder needs.
   const perpendicular = witness ? perpendicularMotion(sequence, frame, step, witness) : null;
+  const runsOf = (ref: PrecreaseRef) => spansOfRef(sequence, frame, step, ref);
   const interior = (() => {
     if (perpendicular) return { moving: perpendicular.moving, receiving: perpendicular.receiving };
     if (witness?.axiom !== 3 || !chord) return null;
     const which = witness.inputs.findIndex((_, i) => moving.has(i));
+    const other = witness.inputs.findIndex((_, i) => i !== which);
     const source = which >= 0 ? segmentOfRef(sequence, frame, witness.inputs[which]!) : null;
-    if (!source) return null;
-    // The side of the fold the moving half is on, and the side its image is.
-    const swung = midpoint(movingPortion(frame, chord, source));
-    const side = sideOf(chord, swung);
+    if (!source || other < 0) return null;
+    // The side of the fold that moves, and the side its image lands on.
+    const side = movingSide(
+      frame,
+      chord,
+      source,
+      runsOf(witness.inputs[which]!),
+      runsOf(witness.inputs[other]!)
+    );
     return side === 0 ? null : { moving: side, receiving: -side };
   })();
   const shown = (
@@ -566,17 +750,25 @@ export function plannerStepDiagram(
     spans: readonly DiagramSegment[]
   ): DiagramSegment[] => {
     if (!interior || !chord) return [...spans];
-    const side =
-      moving.has(which) && !perpendicular ? interior.moving : interior.receiving;
-    const arm = spans.flatMap((span) => {
-      const kept = clipToSide(chord, side, span);
-      return kept ? [kept] : [];
-    });
+    const isMoving = moving.has(which) && !perpendicular;
+    const side = isMoving ? interior.moving : interior.receiving;
+    const arm = onSide(chord, side, spans);
     if (arm.length <= 1) return arm;
-    // A line creased in separate pieces: the reference is the one unbroken
-    // run that comes out of the angle's vertex, where the fold meets this
-    // line. Another piece further along the same line is on the same side
-    // and is not what the folder lines up against.
+    // A line creased in separate pieces: the references are the pieces the
+    // fold actually brings crease onto — those that, once the fold is made,
+    // lie along the other line's crease. Not the piece nearest the angle's
+    // vertex: a crease that begins at the fold and runs off the other way is
+    // nearest of all and is not landed on at all. Only when no piece is
+    // landed on does the nearest stand in, so the folder at least sees which
+    // line is meant.
+    const otherIndex = inputs.findIndex(
+      (_, i) => i !== which && inputs[i]!.kind !== 'point' && inputs[i]!.kind !== 'corner'
+    );
+    const otherRuns = otherIndex >= 0 ? onSide(chord, -side, runsOf(inputs[otherIndex]!)) : [];
+    const landed = arm.filter((piece) =>
+      (isMoving ? alignment(chord, [piece], otherRuns) : alignment(chord, otherRuns, [piece])) > 0
+    );
+    if (landed.length > 0) return landed;
     const whole = segmentOfRef(sequence, frame, ref);
     const vertex = whole ? linesMeet(whole, chord) : null;
     if (!vertex) return arm;
@@ -584,6 +776,10 @@ export function plannerStepDiagram(
       Math.min(...seg.map((q) => Math.hypot(q.x - vertex.x, q.y - vertex.y)));
     return [arm.reduce((a, b) => (gap(b) < gap(a) ? b : a))];
   };
+  // The pieces each line input is drawn as, kept for the arrow: a moving line
+  // is swung from the piece the folder is shown, not from a half of the whole
+  // chord picked over again.
+  const shownPieces = new Map<number, DiagramSegment[]>();
   inputs.forEach((ref, which) => {
     const letter = letters.byInput[which]!;
     if (ref.kind === 'point' || ref.kind === 'corner') {
@@ -593,7 +789,8 @@ export function plannerStepDiagram(
       labels.push({ kind: 'label', at: xy(point), text: letter, style: 'highlight' });
       return;
     }
-    const segments = shown(which, ref, spansOfRef(sequence, frame, step, ref));
+    const segments = shown(which, ref, runsOf(ref));
+    shownPieces.set(which, segments);
     if (segments.length === 0) return;
     for (const segment of segments) {
       primitives.push({
@@ -622,11 +819,31 @@ export function plannerStepDiagram(
     if (out) primitives.push({ kind: 'fold-arrow', out });
   }
 
-  // The motion: each moving input to its image across the new crease.
+  // The motion: each moving input to its image across the new crease. A line
+  // swings from the stretch of the piece it is shown as that lands on the
+  // other line's crease — the longest such, or the longest piece when nothing
+  // lands — so the arrow, the highlight and the landing agree on which arm
+  // moves and where it goes.
   for (const which of witness?.who_moves ?? []) {
     const ref = inputs[which];
     if (!ref || !chord) continue;
-    const anchor = anchorOfRef(sequence, frame, chord, ref);
+    const pieces = shownPieces.get(which) ?? [];
+    const otherIndex = inputs.findIndex(
+      (_, i) => i !== which && inputs[i]!.kind !== 'point' && inputs[i]!.kind !== 'corner'
+    );
+    const onto =
+      interior && otherIndex >= 0
+        ? onSide(chord, interior.receiving, runsOf(inputs[otherIndex]!))
+        : [];
+    const stretches = pieces.flatMap((piece) => {
+      const stretch = landingStretch(chord, piece, onto);
+      return stretch ? [stretch] : [];
+    });
+    const swung = (stretches.length ? stretches : pieces).reduce<DiagramSegment | null>(
+      (a, b) => (a === null || length(b) > length(a) ? b : a),
+      null
+    );
+    const anchor = swung ? xy(midpoint(swung)) : anchorOfRef(sequence, frame, chord, ref);
     if (!anchor) continue;
     const out = foldArrowArc(anchor, reflectAcross(chord, anchor), xy(frame.centre));
     if (out) primitives.push({ kind: 'fold-arrow', out });
