@@ -37,7 +37,7 @@ import {
   type UserCamera,
 } from '../renderer/camera';
 import type { CpRenderer } from '../renderer/CpRenderer';
-import { readCssVarColor } from '../renderer/cssColor';
+import { readCssVarColor, readCssVarNumber } from '../renderer/cssColor';
 import { canvasDiagramInk } from './diagram/diagramInk';
 import { createReglRenderer } from '../renderer/reglRenderer';
 import type { Rgba, StrokeGeometry, Viewport } from '../renderer/types';
@@ -210,6 +210,12 @@ const FOLDED_COLOR_VAR = '--fold-unassigned';
 const FOLDED_FALLBACK: Rgba = [0.604, 0.643, 0.678, 1];
 /** Ghosted "folded so far" lines sit back from the pattern. */
 const FOLDED_ALPHA = 0.55;
+/**
+ * How faint a pattern crease made by an earlier step draws: the theme's, held
+ * to the light theme's step off the ground (`themes/referencesInk.ts`). The
+ * fallback is that tuning itself.
+ */
+const DIM_ALPHA_VAR = '--references-dim-alpha';
 /** The part of a fold that is not creased: present, but barely. */
 const UNFOLDED_ALPHA = 0.22;
 
@@ -835,11 +841,21 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       // because this is the one place that owns the palette; the rule that says
       // *which* direction lives in `referencesCreaseVisibility`.
       const palette = overlayColors(canvas);
+      // How far back the earlier steps' creases sit is the theme's call too:
+      // one alpha reads twice as strong over a dark ground as over a light.
+      const dimAlpha =
+        creaseVisibility.dimAlpha < 1
+          ? readCssVarNumber(canvas, DIM_ALPHA_VAR, creaseVisibility.dimAlpha)
+          : creaseVisibility.dimAlpha;
       renderer.setStrokes(
         applyCreaseVisibility(
           strokes,
           geometry.segEndpoints.length / 4,
-          { ...creaseVisibility, ink: { mountain: palette.mountain, valley: palette.valley } },
+          {
+            ...creaseVisibility,
+            dimAlpha,
+            ink: { mountain: palette.mountain, valley: palette.valley },
+          },
           canvasDiagramInk(lineWidth)
         )
       );

@@ -50,13 +50,17 @@ const LINE: DiagramStrokeInk = { width: 1.2, cap: 'round' };
  *
  * - **crease** is solid at a third of a fold line's weight
  *   (`origami_house_template.svg`: 2.52 against 7.56). An already-made crease is
- *   context, not an instruction.
+ *   context, not an instruction — and how faint, the theme decides
+ *   (`themes/referencesInk.ts`), which is why it carries no opacity here.
  * - **valley 8:4** and **mountain 4:2:1:2**, in units of the stroke width — so
  *   at 1.6 wide they are `12.8 6.4` and `6.4 3.2 1.6 3.2`. `butt` caps because
  *   `round` inflates every mark until the mountain reads as a solid line.
  */
 export const DIAGRAM_LINE_INK: Record<DiagramLineStyleName, DiagramStrokeInk> = {
-  crease: { ...LINE, width: 0.75, opacity: 0.75 },
+  // Its opacity is the theme's, not the pen's: `--references-crease-alpha`,
+  // read by the card's CSS and by `diagramColors.ts` for the canvas, because
+  // how far a grey sits back from the ground depends on the ground.
+  crease: { ...LINE, width: 0.75 },
   edge: { ...LINE },
   highlight: { ...LINE, width: 2 },
   valley: { ...LINE, width: 1.6, dash: [12.8, 6.4], cap: 'butt' },

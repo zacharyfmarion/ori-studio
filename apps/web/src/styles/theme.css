@@ -11343,9 +11343,12 @@ button.bp-packing-alert:focus-visible {
   fill: none;
 }
 
-/* An already-made crease is context, not an instruction. */
+/* An already-made crease is context, not an instruction. How far back it sits
+   is the theme's call (`themes/referencesInk.ts`): the same grey at one alpha
+   stands twice as far off a dark ground as off a light one. */
 .step-diagram__line--crease {
   stroke: var(--fold-unassigned);
+  stroke-opacity: var(--references-crease-alpha, 0.75);
 }
 
 .step-diagram__line--edge {

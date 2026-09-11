@@ -27,8 +27,10 @@ describe('the diagram’s pen', () => {
   });
 
   it('carries every weight the stylesheet used to', () => {
+    // An earlier crease's opacity is the theme's (`themes/referencesInk.ts`),
+    // not the pen's, so it is the one style with a weight and no opacity.
     expect(DIAGRAM_LINE_INK).toEqual({
-      crease: { width: 0.75, cap: 'round', opacity: 0.75 },
+      crease: { width: 0.75, cap: 'round' },
       edge: { width: 1.2, cap: 'round' },
       highlight: { width: 2, cap: 'round' },
       valley: { width: 1.6, cap: 'butt', dash: [12.8, 6.4] },
