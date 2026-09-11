@@ -56,6 +56,10 @@ pub enum Outliers {
 const MAX_OUTLIER_FRACTION: f64 = 0.005;
 const MIN_OUTLIERS_ALLOWED: usize = 2;
 const MAX_OUTLIER_TOLERANCES: f64 = 2.5;
+/// A lattice that explains all but this share of the coordinates is the
+/// coarse lattice the pattern mostly sits on, whatever the policy makes of
+/// the rest; a finer lattice then has to earn its extra points on that rest.
+const COARSE_CANDIDATE_MAX_OFF_FRACTION: f64 = 0.05;
 /// Two coordinates closer than this, in the unit square, are one reading.
 const DISTINCT_COORDINATE_EPSILON: f64 = 1e-6;
 
@@ -124,25 +128,28 @@ pub fn detect_square_lattice(
         }
         let reach = (tolerance * MAX_OUTLIER_TOLERANCES).min(1.0 / f64::from(cells) / 3.0);
         let mut max_offset = 0.0_f64;
-        let mut off = 0usize;
-        let mut far = Vec::new();
+        let mut off = Vec::new();
+        let mut far = 0usize;
         for &coordinate in coordinates {
             let offset = (coordinate - snap_to(coordinate, cells)).abs();
             if offset > tolerance {
-                off += 1;
+                off.push(coordinate);
             }
             if offset > tolerance.max(reach) {
-                far.push(coordinate);
+                far += 1;
             }
             max_offset = max_offset.max(offset);
         }
-        if off > allowed_outliers {
-            continue;
-        }
-        let outliers = off;
-        if !far.is_empty() {
-            if unexplained.is_none() {
-                unexplained = Some(far);
+        let outliers = off.len();
+        if outliers > allowed_outliers || far > 0 {
+            // The coarse lattice the pattern mostly sits on, recorded once,
+            // whatever the policy makes of the rest (two of hatsune-miku's 402
+            // vertices sit a third of a cell off its 40-grid, and 120 cells
+            // passed within 2 px of them: not earned by four readings).
+            if unexplained.is_none()
+                && outliers as f64 <= COARSE_CANDIDATE_MAX_OFF_FRACTION * coordinates.len() as f64
+            {
+                unexplained = Some(off);
             }
             continue;
         }
@@ -288,6 +295,20 @@ mod tests {
         let lattice =
             detect_square_lattice(&coordinates, 1.0 / PX, PX, Outliers::None).expect("lattice");
         assert_eq!(lattice.cells, 16);
+    }
+
+    #[test]
+    fn a_stray_vertex_a_third_of_a_cell_off_does_not_earn_a_finer_lattice() {
+        // Four hundred coordinates on a 40-grid and two vertices at a third of
+        // a cell: 120 cells would pass within 2 px of them, and 120 is not
+        // earned by four readings. No lattice, whatever the policy.
+        let mut coordinates = grid_coordinates(40, 400, 0.3 / PX);
+        for c in [7.0 / 40.0 + 1.0 / 120.0, 11.0 / 40.0 + 1.0 / 120.0] {
+            coordinates.push(c);
+            coordinates.push(c + 1.0 / 8.0);
+        }
+        assert!(detect_square_lattice(&coordinates, 1.5 / PX, PX, Outliers::Few).is_none());
+        assert!(detect_square_lattice(&coordinates, 1.5 / PX, PX, Outliers::None).is_none());
     }
 
     #[test]
