@@ -323,13 +323,17 @@ describe('the cards that are not folds', () => {
   });
 
   it('draws the finished pattern in the directions its steps were made in', () => {
-    const finished = directed('mountain', 'valley');
+    // The auxiliary first step was made in a direction too, but the finished
+    // pattern assigns it none: it is drawn neutral there.
+    const finished = directed('valley', 'mountain', 'valley');
     const diagram = plannerFinishedDiagram(finished, unitFrame(finished));
     const styles = diagram.primitives.flatMap((p) => (p.kind === 'line' ? [p.style] : []));
     expect(styles).toContain('mountain');
     expect(styles).toContain('valley');
-    // A step with no crease in the pattern has no direction to state.
     expect(styles).toContain('crease');
+    const auxStyles = plannerFinishedDiagram(finished, unitFrame(finished))
+      .primitives.filter((p) => p.kind === 'line' && p.style === 'pinch-valley');
+    expect(auxStyles).toHaveLength(0);
   });
 });
 

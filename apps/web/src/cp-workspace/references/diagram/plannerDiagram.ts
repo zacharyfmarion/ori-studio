@@ -655,7 +655,10 @@ export function plannerFinishedDiagram(
     primitives.push({ kind: 'sheet', width: sheet.width, height: sheet.height });
   }
   for (const step of sequence.steps) {
-    const style = styleOf(step.direction, true);
+    // The pattern's own lines in the pattern's directions. An auxiliary fold
+    // was made in a direction too, but the finished pattern assigns it none,
+    // and this card is the pattern.
+    const style = styleOf(step.kind === 'aux' ? 'unassigned' : step.direction, true);
     for (const span of creasedSpans(frame, step)) {
       primitives.push(spanLine(span, style));
     }

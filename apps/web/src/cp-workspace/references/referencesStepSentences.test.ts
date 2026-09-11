@@ -280,7 +280,7 @@ describe('a step that is not exact', () => {
   it('says how far off the closest construction is, in the sheet’s own terms', () => {
     const seq = withStep({ exact: false, approximation: 0.00748 });
     expect(describePlannerStep(t, seq, 1)).toBe(
-      `${describePlannerStep(t, sequence, 1)} Approximate — the closest construction is off by 0.75% of the sheet.`
+      `${describePlannerStep(t, sequence, 1)} Approximate — this construction is off by 0.75% of the sheet.`
     );
     const tiny = withStep({ exact: false, approximation: 0.000056 });
     expect(describePlannerStep(t, tiny, 1)).toContain('off by 0.0056% of the sheet');

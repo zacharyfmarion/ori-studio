@@ -47,7 +47,10 @@ export function nextActionDouble(
     case 'searched':
       if (driver.last.found) return { kind: 'close' };
       if (!driver.reference_finder) return stop('unsolved');
-      if (driver.rf_events >= driver.max_rf_events || driver.out_of_time) return stop('budget');
+      if (driver.out_of_time) return stop('budget');
+      if (driver.rf_events >= driver.max_rf_events) {
+        return driver.approximate ? { kind: 'approximate' } : stop('budget');
+      }
       return { kind: 'ask_reference_finder' };
     case 'asked_reference_finder':
       if (driver.last.folded) return { kind: 'close' };

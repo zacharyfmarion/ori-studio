@@ -833,6 +833,8 @@ impl Planner {
                     .get(id)
                     .is_some_and(|pt| pt.lines.iter().filter(|&&l| exact_lines[l]).count() >= 2)
             };
+            // A press is located by the crease it is sighted from, and is
+            // only as exact as that crease.
             let exact = f.approximation.is_none()
                 && chosen.is_none_or(|w| {
                     w.inputs.iter().all(|r| match r {
@@ -840,7 +842,11 @@ impl Planner {
                         Ref::Point { id } => exact_point(*id),
                         Ref::Edge { .. } | Ref::Corner { .. } => true,
                     })
-                });
+                })
+                && p.press
+                    .as_ref()
+                    .and_then(|press| press.sighted_from)
+                    .is_none_or(|l| exact_lines[l]);
             if p.press.is_none() {
                 exact_lines[f.line_id] = exact;
             }

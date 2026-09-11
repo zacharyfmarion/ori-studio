@@ -380,7 +380,7 @@ export async function runPrecreasePlan(
         const fallback = await approximateFallback();
         rfQueries += fallback.queries;
         if (fallback.aborted) checkAbort();
-        if (fallback.folded) approximated += 1;
+        if (fallback.approximated) approximated += 1;
         last = { kind: 'approximated', folded: fallback.folded };
         continue;
       }
@@ -408,6 +408,7 @@ export async function runPrecreasePlan(
     approximate = await approximateFindings(
       referenceFinder.approximate,
       sequence.findings,
+      await planner.lineKeys(),
       signal,
       (queried, queryTotal) =>
         report('approximating', { folded, remaining }, { queried, queryTotal })
@@ -486,7 +487,7 @@ export async function runPrecreasePlan(
       signal
     );
     const queries = outcome.results.length - outcome.fromCache;
-    const candidates = candidateLinesFrom(outcome.results);
+    const candidates = candidateLinesFrom(outcome.results, client.database);
     if (candidates.length === 0) {
       return { folded: false, queries, aborted: outcome.aborted };
     }
@@ -516,12 +517,15 @@ export async function runPrecreasePlan(
    * one error rather than finding its own.
    */
   async function approximateFallback(): Promise<{
+    /** The state advanced: a target folded, as an approximation or exactly. */
     folded: boolean;
+    /** A target was folded by an approximation. */
+    approximated: boolean;
     queries: number;
     aborted: boolean;
   }> {
     const client = referenceFinder?.approximate;
-    if (!client) return { folded: false, queries: 0, aborted: false };
+    if (!client) return { folded: false, approximated: false, queries: 0, aborted: false };
     const lines = decodeRemaining(await planner.remaining());
     const keys = await planner.lineKeys();
     const requests: ReferenceFinderLineRequest[] = lines.map((line, i) => ({
@@ -536,18 +540,22 @@ export async function runPrecreasePlan(
       signal
     );
     const queries = outcome.results.length - outcome.fromCache;
-    const candidates = approximationCandidates(outcome.results, lines);
+    const candidates = approximationCandidates(outcome.results, lines, client.database);
     for (const candidate of candidates.slice(0, MAX_APPROXIMATION_ATTEMPTS)) {
       checkAbort();
-      // The construction's own lines first, exact, as auxiliaries; then the
-      // pattern's line as the construction's.
+      // The construction's own lines first — its free diagonals and its
+      // steps — exact, as auxiliaries; then the pattern's line as the
+      // construction's. `fold` closes again afterwards, so the auxiliaries
+      // alone may let the closure fold the target *exactly*; that is
+      // progress too, and better than the approximation it was heading for.
       const raw = candidate.steps.flatMap((step) => [step[0], step[1], step[2], step[3]]);
       if (raw.length > 0) {
-        await planner.fold(
+        const outcomes = await planner.fold(
           encodeLines(decodeLines(await planner.fromRf(Float64Array.from(raw)))),
           Uint8Array.from(candidate.steps.map(() => PRECREASE_TAG.rfAux)),
           stuckBudgetMs
         );
+        rfAuxFolded += outcomes.filter((entry) => entry.kind === 'folded').length;
       }
       const [constructed] = decodeLines(
         await planner.fromRf(Float64Array.from(candidate.constructed))
@@ -560,10 +568,13 @@ export async function runPrecreasePlan(
         stuckBudgetMs
       );
       if (result.kind === 'folded') {
-        return { folded: true, queries, aborted: outcome.aborted };
+        return { folded: true, approximated: true, queries, aborted: outcome.aborted };
+      }
+      if (result.kind === 'already_folded') {
+        return { folded: true, approximated: false, queries, aborted: outcome.aborted };
       }
     }
-    return { folded: false, queries, aborted: outcome.aborted };
+    return { folded: false, approximated: false, queries, aborted: outcome.aborted };
   }
 }
 
@@ -582,14 +593,17 @@ interface ApproximationCandidate {
 }
 
 /**
- * Every remaining line's best approximation, closest first — fewest folds on
- * a tie — paired with the target it approximates. A solution the construction
- * lands on within the exact tolerance is not an approximation and is left to
- * the exact fallback; one with no line to make is skipped.
+ * Every remaining line's best approximation, smallest error first — fewest
+ * folds on a tie — paired with the target it approximates. ReferenceFinder
+ * answers with the simplest construction inside its tolerance, so "best" is
+ * within that; a solution that happens to be exact is kept, since folding
+ * its steps lets the closure make the target exactly. One with no line to
+ * make is skipped.
  */
 export function approximationCandidates(
   results: readonly ReferenceFinderBatchResult[],
-  targets: readonly { line: PrecreasePlanLine; segment: PrecreasePlanSegment }[]
+  targets: readonly { line: PrecreasePlanLine; segment: PrecreasePlanSegment }[],
+  sheet: { width: number; height: number }
 ): ApproximationCandidate[] {
   const out: ApproximationCandidate[] = [];
   results.forEach((result, i) => {
@@ -598,13 +612,22 @@ export function approximationCandidates(
     for (const solution of result.solutions) {
       if (solution.target.kind !== 'line') continue;
       const { a, b } = solution.target.line;
+      if (![a[0], a[1], b[0], b[1]].every(Number.isFinite)) continue;
       if (a[0] === b[0] && a[1] === b[1]) continue;
       const constructed: [number, number, number, number] = [a[0], a[1], b[0], b[1]];
-      const steps: [number, number, number, number][] = [];
+      // The rank-1 diagonals a construction relies on are never among its
+      // steps; the core treats them as free. They are folds all the same,
+      // and a step sighted from one certifies only once they are there.
+      const steps: [number, number, number, number][] = solution.freeDiagonals.map(
+        (diagonal) =>
+          diagonal === 'sw_ne'
+            ? [0, 0, sheet.width, sheet.height]
+            : [0, sheet.height, sheet.width, 0]
+      );
       for (const step of solution.steps) {
         if (!step.line) continue;
         const { a: p, b: q } = step.line;
-        if (!Number.isFinite(p[0]) || !Number.isFinite(q[0])) continue;
+        if (![p[0], p[1], q[0], q[1]].every(Number.isFinite)) continue;
         if (p[0] === q[0] && p[1] === q[1]) continue;
         if (chordKey(p, q) === chordKey(a, b)) continue;
         steps.push([p[0], p[1], q[0], q[1]]);
@@ -621,27 +644,36 @@ export function approximationCandidates(
  * quadruples in ReferenceFinder coordinates.
  *
  * Deduped on a quantised chord key so the same line reached from five
- * solutions of five targets is scored once. Only *line* steps contribute: a
- * mark step makes no crease, and a free diagonal is not a fold.
+ * solutions of five targets is scored once. Line steps and the free diagonals
+ * a solution relies on contribute; a mark step makes no crease.
  */
 function candidateLinesFrom(
-  results: readonly ReferenceFinderBatchResult[]
+  results: readonly ReferenceFinderBatchResult[],
+  sheet: { width: number; height: number }
 ): [number, number, number, number][] {
   const seen = new Set<string>();
   const out: [number, number, number, number][] = [];
+  const offer = (a: RfPoint, b: RfPoint) => {
+    if (!Number.isFinite(a[0]) || !Number.isFinite(a[1])) return;
+    if (!Number.isFinite(b[0]) || !Number.isFinite(b[1])) return;
+    if (a[0] === b[0] && a[1] === b[1]) return;
+    const key = chordKey(a, b);
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push([a[0], a[1], b[0], b[1]]);
+  };
   for (const result of results) {
     if (!('solutions' in result)) continue;
     for (const solution of result.solutions) {
+      // A free diagonal is a fold too, and the construction's steps may
+      // only certify once it is there.
+      for (const diagonal of solution.freeDiagonals) {
+        if (diagonal === 'sw_ne') offer([0, 0], [sheet.width, sheet.height]);
+        else offer([0, sheet.height], [sheet.width, 0]);
+      }
       for (const step of solution.steps) {
         if (!step.line) continue;
-        const { a, b } = step.line;
-        if (!Number.isFinite(a[0]) || !Number.isFinite(a[1])) continue;
-        if (!Number.isFinite(b[0]) || !Number.isFinite(b[1])) continue;
-        if (a[0] === b[0] && a[1] === b[1]) continue;
-        const key = chordKey(a, b);
-        if (seen.has(key)) continue;
-        seen.add(key);
-        out.push([a[0], a[1], b[0], b[1]]);
+        offer(step.line.a, step.line.b);
       }
     }
   }
@@ -697,6 +729,7 @@ function lineBefore(a: PrecreasePlanLine, b: PrecreasePlanLine): boolean {
 async function approximateFindings(
   client: ReferenceFinderClient,
   findings: readonly PrecreaseFinding[],
+  keys: readonly string[],
   signal: AbortSignal | undefined,
   onProgress: (done: number, total: number) => void
 ): Promise<PrecreaseApproximateFinding[]> {
@@ -705,12 +738,16 @@ async function approximateFindings(
     .filter((entry) => entry.finding.segment !== null);
   if (indexed.length === 0) return [];
   const outcome = await client.batchLines(
-    indexed.map(({ finding }) => {
+    indexed.map(({ finding, index }) => {
       const segment = finding.segment as [[number, number], [number, number]];
       return {
         a: segment[0] as RfPoint,
         b: segment[1] as RfPoint,
-        key: `approx:${finding.line.n[0]},${finding.line.n[1]},${finding.line.d}`,
+        // The planner's own key for the line — the one the loop's
+        // approximate pass asked under, so this is answered from its cache.
+        // Findings and `remaining()` both walk the closure's remaining
+        // targets in order.
+        key: keys[index] ?? `${finding.line.n[0]},${finding.line.n[1]},${finding.line.d}`,
       };
     }),
     onProgress,

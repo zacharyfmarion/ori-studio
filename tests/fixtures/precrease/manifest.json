@@ -151,8 +151,8 @@
       "status": "complete",
       "prototype": null,
       "panel": null,
-      "crate": 2,
-      "note": "No plan value to compare against. Solved by one depth-2 auxiliary pair."
+      "crate": 1,
+      "note": "No plan value to compare against. Solved by one depth-2 auxiliary pair until the tier-1 scan learned to see a point a shallow-crossing line makes on a target (predicates::scan_points); one depth-1 auxiliary since."
     },
     {
       "file": "tests/fixtures/precrease/divergence-3.cp",
@@ -162,8 +162,8 @@
       "status": "complete",
       "prototype": null,
       "panel": null,
-      "crate": 2,
-      "note": "No plan value to compare against. Solved by one depth-2 auxiliary pair."
+      "crate": 1,
+      "note": "No plan value to compare against. Solved by one depth-2 auxiliary pair until the tier-1 scan learned to see a point a shallow-crossing line makes on a target (predicates::scan_points); one depth-1 auxiliary since."
     },
     {
       "file": "tests/fixtures/precrease/hex-14.fold",

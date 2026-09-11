@@ -185,9 +185,23 @@ pub fn next_action(plan: PlanState, driver: DriverState) -> PlanAction {
                 PlanAction::Stop {
                     reason: StopReason::Unsolved,
                 }
-            } else if driver.rf_events >= driver.max_rf_events || driver.out_of_time {
+            } else if driver.out_of_time {
                 PlanAction::Stop {
                     reason: StopReason::Budget,
+                }
+            } else if driver.rf_events >= driver.max_rf_events {
+                // The exact asks are spent. A driver that can approximate goes
+                // straight to that — the closure and the search have already
+                // had this state, so no exact fold is skipped — rather than
+                // stopping with lines it could still make. Every approximation
+                // round comes back through here, which is why the cap must
+                // not end it.
+                if driver.approximate {
+                    PlanAction::Approximate
+                } else {
+                    PlanAction::Stop {
+                        reason: StopReason::Budget,
+                    }
                 }
             } else {
                 PlanAction::AskReferenceFinder
@@ -438,6 +452,8 @@ mod tests {
             }
         );
         // The exact cap does not bound approximations: each folds a target.
+        // Every round comes back through the search's failure, so that is
+        // the edge that has to let it through once the exact asks are spent.
         assert_eq!(
             next_action(
                 RUNNING,
@@ -448,6 +464,37 @@ mod tests {
                 }
             ),
             PlanAction::Approximate
+        );
+        let spent = DriverState {
+            last: LastStep::Searched { found: false },
+            rf_events: 4,
+            max_rf_events: 4,
+            ..can
+        };
+        assert_eq!(next_action(RUNNING, spent), PlanAction::Approximate);
+        assert_eq!(
+            next_action(
+                RUNNING,
+                DriverState {
+                    approximate: false,
+                    ..spent
+                }
+            ),
+            PlanAction::Stop {
+                reason: StopReason::Budget
+            }
+        );
+        assert_eq!(
+            next_action(
+                RUNNING,
+                DriverState {
+                    out_of_time: true,
+                    ..spent
+                }
+            ),
+            PlanAction::Stop {
+                reason: StopReason::Budget
+            }
         );
         let folded = DriverState {
             last: LastStep::Approximated { folded: true },

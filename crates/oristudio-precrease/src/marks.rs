@@ -492,6 +492,22 @@ pub fn end_is_found(state: &State, creased: &Creased, line: &Line, end: [f64; 2]
         })
 }
 
+/// [`end_is_found`], counting only ends whose extent is settled: the sheet's
+/// boundary, or a crossing with a pattern line creased there. An auxiliary
+/// line is recorded as creased along its whole chord until the pinch pass
+/// reduces it to marks, so a crossing with one cannot be promised to the
+/// folder — the rule a press's far end is chosen by.
+pub fn settled_end_is_found(state: &State, creased: &Creased, line: &Line, end: [f64; 2]) -> bool {
+    state.sheet().on_boundary(end)
+        || (0..state.line_count()).any(|id| {
+            let l = &state.lines()[id];
+            !matches!(l.tag, LineTag::Aux | LineTag::RfAux)
+                && l.line.distance_to_point(end) <= TOL
+                && l.line.cross(line).abs() >= MIN_ANGLE_SINE
+                && creased.reaches(state, id, end)
+        })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

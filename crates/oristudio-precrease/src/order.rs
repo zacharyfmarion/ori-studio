@@ -29,7 +29,7 @@ use crate::constants::MIN_ANGLE_SINE;
 use crate::direction::Side;
 use crate::line::Line;
 use crate::marks::{
-    Creased, MIN_ALIGNMENT, crease_overlap, crease_runs, end_is_found, point_mark_exists,
+    Creased, MIN_ALIGNMENT, crease_overlap, crease_runs, point_mark_exists, settled_end_is_found,
     witness_alignment, witness_aligns, witness_aligns_at_all, witness_lines_meet,
     witness_marks_exist, witness_missing_marks,
 };
@@ -804,11 +804,18 @@ fn make_marks_real(
         };
         let f = &closure.folded()[folded_index];
         press.record(state, creased);
+        // Only a span that extends the crease the making fold itself left,
+        // out to an end the folder could find then by the rule a press's
+        // end is chosen by — never through a crossing with an auxiliary
+        // line, whose extent is not settled.
         if !press.is_pinch()
             && snapshots
                 .get(folded_index)
                 .and_then(|s| s.as_ref())
-                .is_some_and(|then| end_is_found(state, then, &f.line, press.span[1]))
+                .is_some_and(|then| {
+                    then.crease_reaches(state, press.line, press.span[0])
+                        && settled_end_is_found(state, then, &f.line, press.span[1])
+                })
             && let Some(making) = placed
                 .iter_mut()
                 .find(|q| q.folded == folded_index && q.press.is_none())

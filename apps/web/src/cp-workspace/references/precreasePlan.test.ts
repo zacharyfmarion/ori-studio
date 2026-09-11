@@ -10,6 +10,8 @@ import {
   createReplayReferenceFinderClient,
   type ReferenceFinderReplayFixture,
 } from './referenceFinder/replayClient';
+import type { ReferenceFinderClient, ReferenceFinderLineRequest } from './referenceFinder/client';
+import { extractSolution } from './referenceFinder/extractor';
 import { bestCandidate, runPrecreasePlan, type PrecreasePlannerHandle } from './precreasePlan';
 import type {
   PrecreaseCloseReport,
@@ -50,6 +52,12 @@ interface FakeSpec {
   offLattice?: boolean;
   /** `foldApproximation` refuses everything: the state has no construction. */
   refuseApproximations?: boolean;
+  /**
+   * Folding a construction's own auxiliary lines lets the closure fold the
+   * target exactly — `fold` marks every remaining target closable, so the
+   * approximation itself finds nothing left to approximate.
+   */
+  auxiliariesSolve?: boolean;
   refused?: boolean;
 }
 
@@ -81,8 +89,10 @@ function lineThrough(
 
 class FakePlanner implements PrecreasePlannerHandle {
   readonly calls = { close: 0, stuck: 0, fold: 0, score: 0, approximate: 0 };
-  /** Targets folded by an approximation, with the error handed in. */
-  readonly approximations: { key: string; err: number }[] = [];
+  /** Targets folded by an approximation, with the error and the line handed in. */
+  readonly approximations: { key: string; err: number; constructed: PrecreasePlanLine }[] = [];
+  /** Every line `fold` was handed, in order. */
+  readonly foldedLines: PrecreasePlanLine[] = [];
   private readonly remainingKeys: Set<string>;
   private readonly closable: Set<string>;
   private readonly foldedTargets: string[] = [];
@@ -197,6 +207,11 @@ class FakePlanner implements PrecreasePlannerHandle {
     this.calls.fold += 1;
     const out: PrecreaseFoldOutcome[] = [];
     for (let i = 0; i < lines.length / 3; i += 1) {
+      this.foldedLines.push({ n: [lines[i * 3], lines[i * 3 + 1]], d: lines[i * 3 + 2] });
+      if (this.spec.auxiliariesSolve) {
+        for (const target of this.spec.targets) this.closable.add(target.key);
+        await this.close();
+      }
       const key = keyOf({ n: [lines[i * 3], lines[i * 3 + 1]], d: lines[i * 3 + 2] });
       if (this.spec.auxUnlocks?.[key] && !this.foldedAux.includes(key)) {
         this.applyAux(key);
@@ -210,17 +225,22 @@ class FakePlanner implements PrecreasePlannerHandle {
 
   async foldApproximation(
     target: Float64Array,
-    _constructed: Float64Array,
+    constructed: Float64Array,
     err: number
   ): Promise<PrecreaseFoldOutcome> {
     this.calls.approximate += 1;
     const key = keyOf({ n: [target[0], target[1]], d: target[2] });
-    if (this.spec.refuseApproximations || !this.remainingKeys.has(key)) {
-      return { kind: 'not_constructible' };
-    }
+    if (this.spec.refuseApproximations) return { kind: 'not_constructible' };
+    // A target no longer remaining was folded — by this event's own
+    // auxiliary lines and the close that follows them, as the crate answers.
+    if (!this.remainingKeys.has(key)) return { kind: 'already_folded', line_id: 0 };
     this.remainingKeys.delete(key);
     this.foldedTargets.push(key);
-    this.approximations.push({ key, err });
+    this.approximations.push({
+      key,
+      err,
+      constructed: { n: [constructed[0], constructed[1]], d: constructed[2] },
+    });
     return { kind: 'folded', line_id: 20 + this.approximations.length, cp_target: 0 };
   }
 
@@ -446,9 +466,79 @@ describe('runPrecreasePlan', () => {
     expect(planner.approximations).toHaveLength(1);
     expect(planner.approximations[0].key).toBe(awkwardTarget.key);
     expect(planner.approximations[0].err).toBeCloseTo(0.000748779415597783, 12);
+    // The construction's own lines were folded first — the fixture's four
+    // line steps A–D, not its final line E — and the target was folded *as*
+    // E: the line ReferenceFinder's `solution` names.
+    expect(planner.calls.fold).toBe(1);
+    expect(planner.foldedLines).toHaveLength(4);
+    const made = planner.approximations[0].constructed;
+    expect(Math.abs(made.n[0])).toBeCloseTo(0.832428993720862, 9);
+    expect(Math.abs(made.n[1])).toBeCloseTo(0.554131726589331, 9);
+    expect(Math.abs(made.d)).toBeCloseTo(0.103012071923111, 9);
     expect(result.sequence.totals.approximate).toBe(1);
     expect(result.sequence.findings).toHaveLength(0);
     expect(result.approximate).toHaveLength(0);
+  });
+
+  it('approximates every line that needs it, however many exact asks the cap allows', async () => {
+    // Five independent lines with no exact construction, and a cap of two
+    // exact ReferenceFinder asks. Each approximation round comes back through
+    // the search and the exact ask; the cap must not end the run.
+    const targets: FakeTarget[] = [0, 1, 2, 3, 4].map((i) => {
+      const line = lineThrough([0.123 + i * 0.01, 0], [0.789, 1]);
+      return {
+        key: keyOf(line),
+        line,
+        segment: [
+          [0.123 + i * 0.01, 0],
+          [0.789, 1],
+        ],
+      };
+    });
+    const planner = new FakePlanner({ targets, closable: [], offLattice: true, stuck: [null, null, null, null, null] });
+    // The replay client only knows one line; a client answering every line
+    // with the same near-miss stands in for ReferenceFinder here.
+    const near = lineApproximate as unknown as ReferenceFinderReplayFixture;
+    const solution = extractSolution(near.solutions[0]!, near.query);
+    const approximate = {
+      ...approximateClient(),
+      batchLines: async (requests: ReferenceFinderLineRequest[]) => ({
+        results: requests.map((request) => ({
+          key: request.key ?? '',
+          a: request.a,
+          b: request.b,
+          solutions: [solution],
+        })),
+        fromCache: 0,
+        aborted: false,
+      }),
+    } as unknown as ReferenceFinderClient;
+    const result = await runPrecreasePlan(planner, {
+      computedAtRevision: 'r1',
+      maxReferenceFinderEvents: 2,
+      referenceFinder: { exact: exactClient(), approximate },
+    });
+    expect(result.stopReason).toBe('complete');
+    expect(result.approximated).toBe(5);
+    expect(result.sequence.findings).toHaveLength(0);
+  });
+
+  it('counts a target its construction’s own lines folded exactly as progress, not as an approximation', async () => {
+    const planner = new FakePlanner({
+      targets: [awkwardTarget],
+      closable: [],
+      offLattice: true,
+      stuck: [null],
+      auxiliariesSolve: true,
+    });
+    const result = await runPrecreasePlan(planner, {
+      computedAtRevision: 'r1',
+      referenceFinder: { exact: exactClient(), approximate: approximateClient() },
+    });
+    expect(result.stopReason).toBe('complete');
+    expect(result.approximated).toBe(0);
+    expect(planner.approximations).toHaveLength(0);
+    expect(result.sequence.findings).toHaveLength(0);
   });
 
   it('attaches ReferenceFinder’s best approximation to a finding it could not fold', async () => {

@@ -610,6 +610,14 @@ pub fn scan_lines(state: &State, target: &Line, facts: &mut Facts, from: usize) 
 pub fn scan_points(state: &State, target: &Line, facts: &mut Facts, from: usize) {
     for (p, sp) in state.points().iter().enumerate().skip(from) {
         if target.distance_to_point(sp.p) <= TOL {
+            // A point on the target belongs in `points_on`. `scan_lines` puts
+            // it there through the line that made it — unless that line
+            // crosses the target too shallowly to be looked up at all, and
+            // its partner was scanned before the point existed. Then the
+            // point is found here, or not at all.
+            if !facts.points_on.contains(&p) {
+                facts.points_on.push(p);
+            }
             continue;
         }
         let r = target.reflect_point(sp.p);

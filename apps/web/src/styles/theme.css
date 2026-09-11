@@ -11032,6 +11032,13 @@ button.bp-packing-alert:focus-visible {
   text-transform: uppercase;
 }
 
+/* A fold that is not exact carries both: its number where every fold's is,
+   and the badge in the opposite corner. */
+.references-card--fold .references-card__badge {
+  left: auto;
+  right: 4px;
+}
+
 .references-card--turn-over,
 .references-card--done {
   border-style: dashed;

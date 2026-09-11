@@ -308,7 +308,7 @@ export function describePlannerStep(
   // crease inherits it, and says that instead — the error does not go away
   // by being inherited.
   if (step.approximation !== undefined) {
-    sentence = `${sentence} ${t('panels:references.planStep.approximate', 'Approximate — the closest construction is off by {{pct}}% of the sheet.', {
+    sentence = `${sentence} ${t('panels:references.planStep.approximate', 'Approximate — this construction is off by {{pct}}% of the sheet.', {
       pct: percentOfSheet(step.approximation),
     })}`;
   } else if (!step.exact) {
@@ -335,7 +335,8 @@ export function describePlannerStep(
   // it is close — rather than let the card imply the finished assignment falls
   // out of the precrease. An 84%-mountain line is dishonest in the same way a
   // 55% one is, just less often.
-  if (step.direction !== 'unassigned' && step.direction_share < 1) {
+  // Only a pattern line has a share; an auxiliary fold's is exactly 0.
+  if (step.kind === 'cp' && step.direction_share > 0 && step.direction_share < 1) {
     return `${sentence} ${t('panels:references.planStep.partlyReversed', 'This line is creased both ways in the pattern — the rest reverses as the model collapses.')}`;
   }
   return sentence;

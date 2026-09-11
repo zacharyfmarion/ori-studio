@@ -225,7 +225,9 @@ function summaryOf(record: ReferencesPlanRecord): ReferencesPlanSummary | null {
         mixedSteps:
           acc.mixedSteps +
           entry.result.sequence.steps.filter(
-            (step) => step.direction !== 'unassigned' && step.direction_share < 1
+            // A pattern line creased the other way for part of its length;
+            // an auxiliary fold has no assignment and a share of exactly 0.
+            (step) => step.kind === 'cp' && step.direction_share > 0 && step.direction_share < 1
           ).length,
       };
     },

@@ -587,6 +587,19 @@ impl Closure {
         if let Some(id) = self.state.find_line(&line) {
             return Ok(FoldOutcome::AlreadyFolded { line_id: id });
         }
+        // A line an approximation was folded *as* is a crease on the paper
+        // even though the state carries the pattern's line in its place:
+        // folding it again would tell the folder to make the same crease
+        // twice.
+        if let Some(made) = self
+            .folded
+            .iter()
+            .find(|f| f.folded_as.is_some_and(|l| l.approx_eq(&line)))
+        {
+            return Ok(FoldOutcome::AlreadyFolded {
+                line_id: made.line_id,
+            });
+        }
         let ws = all_witnesses(&self.state, &line);
         if ws.is_empty() {
             return Ok(FoldOutcome::NotConstructible);
