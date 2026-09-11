@@ -8,6 +8,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::line::{Line, LineIndex};
+use crate::sheet::Sheet;
 use crate::tol::TOL;
 
 /// Oriedita colour codes mapped to what the planner cares about.
@@ -78,6 +79,111 @@ pub struct MergeResult {
     pub lines: Vec<MergedLine>,
     pub segment_line: Vec<Option<u32>>,
     pub skipped_zero_length: Vec<u32>,
+}
+
+/// Coalesce lines that lie within `radius` of one another into one, the way
+/// a folder reads them: a crease a quarter of a millimetre from another is
+/// the same crease.
+///
+/// For an off-lattice component. Its lines are planned as drawn, and a design
+/// drawn a hair off its own grid — hex-tiger's outer strip is 0.0631 of the
+/// sheet wide, not a 16th — draws the short creases that meet that strip
+/// 0.0006 from the grid lines they belong on. Merged at `TOL` those are
+/// distinct lines, and each became a fold of its own, sighted with an O5 onto
+/// a crease already on the paper. The snappable path never sees this: its
+/// snap puts both lines on the lattice line and merges them there. This is
+/// the same merge without the move — the line kept is the one carrying the
+/// most crease, and the others' creases join it.
+///
+/// Two lines are one only when they are within `radius` everywhere on the
+/// sheet — both ends of the joining line's chord within `radius` of the kept
+/// line, not merely its offset at the origin's foot — and when their creases
+/// do **not** lie alongside each other: a crease that continues another's
+/// line past where it stops is that crease drawn a hair off, but two creases
+/// side by side over the same stretch are what the exactness probe refuses
+/// to snap together for the same reason (a designed pair cannot be told from
+/// a duplicate), and they stay two lines here too.
+///
+/// `spans` gives each crease id's endpoints in the unit frame. Every input
+/// line keeps its creases' ids: `segment_indices` are the caller's, so a
+/// crease id still says which line realises it.
+pub fn coalesce_lines(
+    sheet: &Sheet,
+    lines: &[MergedLine],
+    radius: f64,
+    spans: impl Fn(u32) -> Option<[[f64; 2]; 2]>,
+) -> Vec<MergedLine> {
+    // Longest first, so the line that carries the most crease is the one the
+    // others join.
+    let mut order: Vec<usize> = (0..lines.len()).collect();
+    order.sort_by(|&a, &b| {
+        let creased = |l: &MergedLine| l.mountain_length + l.valley_length + l.longest_segment;
+        creased(&lines[b])
+            .total_cmp(&creased(&lines[a]))
+            .then(a.cmp(&b))
+    });
+    // The creased intervals of a line, along `host`'s own parameter.
+    let intervals = |line: &MergedLine, host: &Line| -> Vec<(f64, f64)> {
+        line.segment_indices
+            .iter()
+            .filter_map(|&i| spans(i))
+            .map(|[a, b]| {
+                let (u, v) = (host.parameter_of(a), host.parameter_of(b));
+                if u <= v { (u, v) } else { (v, u) }
+            })
+            .collect()
+    };
+    let mut out: Vec<MergedLine> = Vec::with_capacity(lines.len());
+    for i in order {
+        let line = &lines[i];
+        // A border line is the sheet's outline and is never a fold; it takes
+        // nothing and joins nothing.
+        let joins = !line.is_border && !line.on_outline;
+        let chord = sheet.clip(&line.line);
+        let host = joins
+            .then(|| {
+                out.iter_mut().find(|kept| {
+                    if kept.is_border || kept.on_outline {
+                        return false;
+                    }
+                    let Some((a, b)) = chord else {
+                        return false;
+                    };
+                    if kept.line.distance_to_point(a) > radius
+                        || kept.line.distance_to_point(b) > radius
+                    {
+                        return false;
+                    }
+                    let mine = intervals(line, &kept.line);
+                    let theirs = intervals(kept, &kept.line);
+                    mine.iter()
+                        .all(|&(u, v)| theirs.iter().all(|&(p, q)| v.min(q) - u.max(p) <= TOL))
+                })
+            })
+            .flatten();
+        match host {
+            Some(kept) => {
+                kept.segment_indices
+                    .extend_from_slice(&line.segment_indices);
+                for kind in &line.kinds {
+                    if !kept.kinds.contains(kind) {
+                        kept.kinds.push(*kind);
+                    }
+                }
+                kept.kinds.sort_unstable();
+                kept.mountain_length += line.mountain_length;
+                kept.valley_length += line.valley_length;
+                let apart = chord.map_or(0.0, |(a, b)| {
+                    kept.line
+                        .distance_to_point(a)
+                        .max(kept.line.distance_to_point(b))
+                });
+                kept.merge_residual = kept.merge_residual.max(line.merge_residual).max(apart);
+            }
+            None => out.push(line.clone()),
+        }
+    }
+    out
 }
 
 /// Merge `segments` (unit-sheet `[x1, y1, x2, y2]` each) into distinct lines
@@ -172,6 +278,93 @@ mod tests {
         assert_eq!(LineKind::from_color(3), LineKind::Auxiliary);
         assert_eq!(LineKind::from_color(7), LineKind::Auxiliary);
         assert_eq!(LineKind::from_color(-1), LineKind::Unassigned);
+    }
+
+    /// Merge, then coalesce at 2e-3 on the unit square, with each crease's
+    /// own endpoints on hand.
+    fn coalesced(segments: &[[f64; 4]], kinds: &[LineKind]) -> Vec<MergedLine> {
+        let merged = merge_segments(segments, kinds, None).lines;
+        coalesce_lines(&Sheet::unit_square(), &merged, 2e-3, |i| {
+            segments
+                .get(i as usize)
+                .map(|s| [[s[0], s[1]], [s[2], s[3]]])
+        })
+    }
+
+    #[test]
+    fn lines_a_hair_apart_coalesce_onto_the_one_carrying_the_most_crease() {
+        // A long mountain at y = ½ over the left half, a short valley 0.0006
+        // above it further along, a line well clear of both, and a border line
+        // the same hair from the top edge.
+        let segments = [
+            [0.0, 0.5, 0.5, 0.5],
+            [0.9, 0.5006, 1.0, 0.5006],
+            [0.0, 0.6, 1.0, 0.6],
+            [0.0, 1.0, 1.0, 1.0],
+            [0.0, 0.9994, 0.5, 0.9994],
+        ];
+        let kinds = [
+            LineKind::Mountain,
+            LineKind::Valley,
+            LineKind::Mountain,
+            LineKind::Border,
+            LineKind::Valley,
+        ];
+        assert_eq!(
+            merge_segments(&segments, &kinds, None).lines.len(),
+            5,
+            "at TOL they are five lines"
+        );
+        let out = coalesced(&segments, &kinds);
+        assert_eq!(out.len(), 4);
+        let half = out
+            .iter()
+            .find(|l| (l.line.d - 0.5).abs() < 1e-9)
+            .expect("the long line is kept as drawn");
+        assert_eq!(half.segment_indices, vec![0, 1]);
+        assert_eq!(half.kinds, vec![LineKind::Mountain, LineKind::Valley]);
+        assert!((half.mountain_length - 0.5).abs() < 1e-12);
+        assert!((half.valley_length - 0.1).abs() < 1e-12);
+        assert!((half.merge_residual - 0.0006).abs() < 1e-9);
+        // The border is the sheet, not a crease: the line near it stays.
+        assert!(out.iter().any(|l| l.is_border));
+        assert!(out.iter().any(|l| (l.line.d - 0.9994).abs() < 1e-9));
+        assert!(out.iter().any(|l| (l.line.d - 0.6).abs() < 1e-9));
+    }
+
+    #[test]
+    fn creases_side_by_side_stay_two_lines() {
+        // The same hair apart, but over the same stretch: a designed pair or
+        // a duplicate, and not for this pass to decide.
+        let segments = [[0.0, 0.5, 1.0, 0.5], [0.2, 0.5015, 0.9, 0.5015]];
+        let kinds = [LineKind::Valley, LineKind::Mountain];
+        assert_eq!(coalesced(&segments, &kinds).len(), 2);
+        // Touching end to end is not side by side.
+        let touching = [[0.0, 0.5, 0.5, 0.5], [0.5, 0.5006, 1.0, 0.5006]];
+        assert_eq!(coalesced(&touching, &kinds).len(), 1);
+    }
+
+    #[test]
+    fn a_line_within_the_radius_at_one_end_only_stays_its_own() {
+        // Its offset at the origin's foot is within 2e-3 of y = ½, and its far
+        // end is 0.004 away: not one crease anywhere but at one end. Either
+        // way round.
+        for far in [[0.6, 0.502, 1.0, 0.504], [0.6, 0.504, 1.0, 0.502]] {
+            let segments = [[0.0, 0.5, 0.5, 0.5], far];
+            let kinds = [LineKind::Mountain, LineKind::Mountain];
+            assert_eq!(coalesced(&segments, &kinds).len(), 2, "{far:?}");
+        }
+    }
+
+    #[test]
+    fn the_residual_is_the_distance_whichever_sign_the_lines_canonicalise_to() {
+        // A rising hair over a horizontal: the two canonicalise with opposite
+        // signs, and the residual is still how far apart they are.
+        let segments = [[0.0, 0.5, 0.5, 0.5], [0.9, 0.5006, 1.0, 0.5006 + 1e-9]];
+        let kinds = [LineKind::Mountain, LineKind::Valley];
+        let out = coalesced(&segments, &kinds);
+        assert_eq!(out.len(), 1);
+        assert!(out[0].merge_residual < 0.001, "{}", out[0].merge_residual);
     }
 
     #[test]

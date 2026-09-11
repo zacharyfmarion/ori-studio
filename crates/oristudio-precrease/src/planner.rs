@@ -21,6 +21,7 @@ use crate::error::PrecreaseError;
 use crate::exactness::ExactnessClass;
 use crate::grid;
 use crate::line::Line;
+use crate::merge::coalesce_lines;
 use crate::order::{Placed, group, order, pattern};
 use crate::pinch::{Extent, pinch_pass};
 use crate::predicates::{Ref, Witness, full_facts, witnesses};
@@ -341,19 +342,43 @@ impl Planner {
                 .map(|s| [[s[0], s[1]], [s[2], s[3]]])
                 .collect()
         };
+        // An off-lattice component is planned as drawn, and what it draws a
+        // hair apart it means as one crease: see `coalesce_lines`. An exact
+        // component's lines are on the lattice, and two of them that close
+        // are two lines. A coalesced line's creases then get the snappable
+        // path's treatment of their ends — an end a hair from the edge, or
+        // from the crease it meets, is put on it — because the join projected
+        // them onto a line a hair from where they were drawn.
+        let coalesced;
+        let merged_lines: &[crate::merge::MergedLine] =
+            if exactness.class == ExactnessClass::OffLattice {
+                coalesced = coalesce_lines(&sheet, &component.merged_lines, SNAP_RADIUS, |i| {
+                    unit_of_segment
+                        .get(&i)
+                        .map(|s| [[s[0], s[1]], [s[2], s[3]]])
+                });
+                &coalesced
+            } else {
+                &component.merged_lines
+            };
+        let merged_line_set: Vec<Line> = merged_lines.iter().map(|ml| ml.line).collect();
         let targets: Vec<Target> =
             match exactness.class {
-                ExactnessClass::Exact | ExactnessClass::OffLattice => component
-                    .merged_lines
+                ExactnessClass::Exact | ExactnessClass::OffLattice => merged_lines
                     .iter()
                     .map(|ml| {
-                        Target::new(
+                        let target = Target::new(
                             ml.line,
                             ml.segment_indices.iter().map(|&i| i + 1).collect(),
                             spans_of(&ml.segment_indices),
                             ml.mountain_length,
                             ml.valley_length,
-                        )
+                        );
+                        if exactness.class == ExactnessClass::OffLattice {
+                            target.with_spans_snapped(&sheet, &merged_line_set, SNAP_RADIUS)
+                        } else {
+                            target
+                        }
                     })
                     .collect(),
                 ExactnessClass::Snappable => {

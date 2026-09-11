@@ -8,7 +8,7 @@ use common::*;
 use oristudio_precrease::planner::PlannerOptions;
 use oristudio_precrease::predicates::Ref;
 use oristudio_precrease::sequence::{Sequence, StepKind};
-use oristudio_precrease::{Direction, GridKind, Side};
+use oristudio_precrease::{Direction, ExactnessClass, GridKind, Side, analyze};
 
 /// The fixtures that are pleated, with the grid the manifest records.
 const PLEATED: [(&str, GridKind, u32); 3] = [
@@ -209,6 +209,99 @@ fn landmarks_first_leaves_the_grid_where_it_is() {
             assert_eq!(hoisted.steps[k].grid, plain.steps[k].grid, "{file}");
         }
     }
+}
+
+/// An off-lattice design draws a crease a hair off a grid line — hex-tiger's
+/// ear creases sit 0.0006 from the 30° lines of its grid — and the pleat that
+/// makes the grid line makes that crease too, rather than the plan sighting a
+/// second fold a quarter of a millimetre from the first.
+#[test]
+fn a_crease_a_hair_off_a_grid_line_rides_on_the_grid_step() {
+    // An 8-grid box pattern, a second line drawn alongside x = ¼ a hair off
+    // it (which the exactness probe refuses to snap together, so the
+    // component is off-lattice and planned as drawn — and which the coalesce
+    // leaves alone for the same reason), and a short crease 0.0006 above the
+    // grid line y = ½ where that line stops.
+    let mut segments: Vec<f64> = Vec::new();
+    let mut colors: Vec<i32> = Vec::new();
+    let mut push = |s: [f64; 4], c: i32| {
+        segments.extend_from_slice(&[
+            s[0] * 400.0 - 200.0,
+            200.0 - s[1] * 400.0,
+            s[2] * 400.0 - 200.0,
+            200.0 - s[3] * 400.0,
+        ]);
+        colors.push(c);
+    };
+    for (a, b) in [
+        ([0.0, 0.0], [1.0, 0.0]),
+        ([1.0, 0.0], [1.0, 1.0]),
+        ([1.0, 1.0], [0.0, 1.0]),
+        ([0.0, 1.0], [0.0, 0.0]),
+    ] {
+        push([a[0], a[1], b[0], b[1]], 0);
+    }
+    for k in 1..8 {
+        let t = k as f64 / 8.0;
+        push([t, 0.0, t, 1.0], if k % 2 == 0 { 1 } else { 2 });
+        // y = ½ stops short of the right edge; the hair-off crease continues
+        // it there, as hex-tiger's ears continue its grid lines.
+        let right = if k == 4 { 0.8 } else { 1.0 };
+        push([0.0, t, right, t], if k % 2 == 0 { 2 } else { 1 });
+    }
+    push([0.2515, 0.0, 0.2515, 1.0], 1);
+    push([0.9, 0.5006, 1.0, 0.5006], 2);
+    let analysis = analyze(&segments, &colors, Some(ORIEDITA_PAPER)).expect("analysis");
+    let component = &analysis.components[0];
+    assert_eq!(
+        component.exactness.as_ref().map(|e| e.class),
+        Some(ExactnessClass::OffLattice)
+    );
+    let hair = component
+        .merged_lines
+        .iter()
+        .position(|l| (l.line.d - 0.5006).abs() < 1e-6 && l.line.n[1] > 0.9)
+        .expect("the hair-off crease merges as its own line at TOL");
+    let hair_id = component.merged_lines[hair].segment_indices[0] + 1;
+    let (_, seq) = plan_component(component, unbounded_options());
+    let grid = seq.grid.as_ref().expect("a grid");
+    assert_eq!((grid.kind, grid.n), (GridKind::Box, 8));
+    let horizontal = seq.steps[1].grid.as_ref().expect("the horizontal family");
+    let half = horizontal
+        .lines
+        .iter()
+        .find(|l| (l.line.d - 0.5).abs() < 1e-9)
+        .expect("y = ½ is a grid line");
+    assert!(
+        half.cp_line_ids.contains(&hair_id),
+        "the hair-off crease is made by the grid line it sits on: {:?}",
+        half.cp_line_ids
+    );
+    assert!(
+        seq.steps
+            .iter()
+            .all(|s| s.kind != StepKind::Cp || !s.cp_line_ids.contains(&hair_id)),
+        "and not by a fold of its own"
+    );
+    // The line alongside x = ¼ is still its own: a fold of its own, or
+    // ReferenceFinder's to construct, which this driver has not got.
+    let alongside = component
+        .merged_lines
+        .iter()
+        .find(|l| (l.line.d - 0.2515).abs() < 1e-6 && l.line.n[0] > 0.9)
+        .map(|l| l.segment_indices[0] + 1)
+        .expect("the line alongside x = ¼");
+    assert!(
+        seq.steps
+            .iter()
+            .any(|s| s.kind == StepKind::Cp && s.cp_line_ids.contains(&alongside))
+            || seq
+                .findings
+                .iter()
+                .any(|f| f.cp_line_ids.contains(&alongside)),
+        "a crease drawn alongside another is not folded as it"
+    );
+    assert!(seq.totals.unsolved <= 1, "{:?}", seq.findings);
 }
 
 /// On the point cap partway through the grid, the lines that made it onto
