@@ -48,6 +48,11 @@ pub struct GridStepLine {
     /// The pattern's own direction for it: `Unassigned` when the pattern does
     /// not contain the line, or assigns it nothing.
     pub pattern_direction: Direction,
+    /// The share of the line's creased length `pattern_direction` covers, in
+    /// `[0, 1]`; `0` when the pattern does not contain the line. Below 1 the
+    /// pattern creases the line both ways, whichever way it is pleated — the
+    /// same fact `Step::direction_share` states for a step of its own.
+    pub pattern_share: f64,
     /// The editor's 1-based crease ids on this line; empty when the pattern
     /// does not contain it.
     pub cp_line_ids: Vec<u32>,
@@ -67,6 +72,11 @@ pub struct GridStep {
     pub normal: [f64; 2],
     /// Distance between adjacent lines.
     pub spacing: f64,
+    /// How many strips the family cuts the sheet into, when that is a whole
+    /// number — "pleat into 16ths". `None` for an oblique family, or one
+    /// whose spacing does not divide the side it crosses; the card then
+    /// counts the lines instead.
+    pub cells: Option<u32>,
     /// Every line of the family, by ascending index.
     pub lines: Vec<GridStepLine>,
     /// How many of them the pattern contains.

@@ -106,7 +106,26 @@ completed-plan analytics event carries `grid_kind` and `grid_lines_bucket`.
 - [x] Ordering: grid steps first, no turn-over, no witness; landmarks-first
       leaves them in place.
 - [x] Bridge option (`precrease_grid` in the options JSON); TS types.
-- [ ] Web setting (default on), toggle that re-plans, analytics.
-- [ ] Grid card, sentence, summary; locales.
-- [ ] Measured: the corpus and the fixtures with and without the grid
-      (steps, turn-overs, presses); everything else unchanged.
+- [x] Web setting (default on), toggle that re-plans, analytics.
+- [x] Grid card, sentence, summary; locales.
+- [x] Measured (`measure_ends`, product budgets, no ReferenceFinder, so
+      ceilings): 54 designs — the loadable curated corpus plus the fixtures —
+      go from 4,950 steps, 350 turn-overs, 852 presses and 12.8 % of crease
+      ends unfindable to **4,369 steps, 288 turn-overs, 741 presses and
+      9.6 %**; every design without a grid is unchanged. Per design
+      (steps / turn-overs / lost ends, before → after): axolotl 35/3/12 →
+      24/1/0; executioner 83/4/50 → 25/1/0; cordyceps-ant 92/6/50 →
+      44/2/0; hex-tiger 129/10/29 → 76/4/0; zebra 116/6/49 → 67/4/0;
+      okapi 87/6/18 → 62/4/0; turtle 69/4/30 → 42/1/0; iguana-c0 97/6/16
+      → 26/1/0; grid6 15/4/0 → 6/1/0; hex-14 56/5/0 → 15/1/0.
+- [x] Reviewed (three lenses, two refuters a finding): a rectangle's grid
+      is named by its axis family and each family says its own strip count
+      (`cells`); the tie-break pleats a mountain first as documented; a
+      point cap partway through the grid reports the lines that were made
+      and leaves the rest remaining, and a cap mid-round no longer leaves a
+      folded target remaining; the toggle is keyed on the setting the plan
+      on screen was made under, so a toggle mid-run or on another sheet is
+      never swallowed, and a picked target defers it; the canvas draws the
+      stretch of an in-pattern grid line the pattern does not crease; the
+      strip's "no auxiliary folds needed" and the mixed-line count leave
+      the grid's own lines out and count the pattern's pleated lines in.

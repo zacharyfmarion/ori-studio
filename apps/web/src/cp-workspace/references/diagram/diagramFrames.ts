@@ -22,13 +22,31 @@
 import type { Point } from '../../../lib/geometry';
 import type { ReferencesPlanModel } from '../referencesPlanGeometry';
 import type {
+  PrecreaseDirection,
   PrecreaseEdgeSide,
+  PrecreaseGridStepLine,
   PrecreasePlanSegment,
   PrecreaseSequence,
   PrecreaseStep,
 } from '../precreaseSequence';
 
 export type DiagramSegment = readonly [Point, Point];
+
+/** One line of a grid step's family, where the frame has it. */
+export interface DiagramGridLine {
+  /** The whole line across the paper: a pleat creases it edge to edge. */
+  segment: DiagramSegment;
+  /** The direction the pleat gives it, named from the front. */
+  direction: PrecreaseDirection;
+  /** Whether the pattern contains it; otherwise it is the grid's own. */
+  inPattern: boolean;
+  /**
+   * Where the pattern wants creases on it, or empty. The pleat creases the
+   * whole line; what the pattern does not want of it is crease the paper
+   * carries and the pattern does not draw.
+   */
+  creases: readonly DiagramSegment[];
+}
 
 export interface DiagramFrame {
   /**
@@ -57,6 +75,12 @@ export interface DiagramFrame {
   creases(step: PrecreaseStep): readonly DiagramSegment[];
   /** Crease the step makes past the pattern's own, for a later step to line up against. */
   pressedOn(step: PrecreaseStep): readonly DiagramSegment[];
+  /**
+   * Every line of a grid step's family, parallel to `step.grid.lines`; empty
+   * for any other step. A grid step's own chord is only the family's first
+   * line, so the family is asked for as a whole.
+   */
+  gridLines(step: PrecreaseStep): readonly DiagramGridLine[];
   /** A state point by its id. */
   point(id: number): Point | null;
   /** One of the sheet's four edges. */
@@ -76,6 +100,18 @@ const pair = (s: PrecreasePlanSegment): DiagramSegment => [
   { x: s[0][0], y: s[0][1] },
   { x: s[1][0], y: s[1][1] },
 ];
+
+/** A grid line as the frame hands it out, with its segment wherever the frame has it. */
+const gridLine = (
+  line: PrecreaseGridStepLine,
+  segment: DiagramSegment,
+  creases: readonly DiagramSegment[]
+): DiagramGridLine => ({
+  segment,
+  direction: line.direction,
+  inPattern: line.cp_line_ids.length > 0,
+  creases,
+});
 
 function unitEdge(
   sheet: { width: number; height: number },
@@ -136,6 +172,10 @@ export function unitFrame(
         : [],
     creases: (step) => step.cp_spans.map(pair),
     pressedOn: (step) => step.pressed_on.map(pair),
+    gridLines: (step) =>
+      (step.grid?.lines ?? []).map((line) =>
+        gridLine(line, pair(line.segment), line.cp_spans.map(pair))
+      ),
     point: (id) => {
       const found = sequence.points.find((entry) => entry.id === id);
       return found ? { x: found.p[0], y: found.p[1] } : null;
@@ -269,6 +309,27 @@ export function modelFrame(
     },
     pressedOn: (step) =>
       (at(step)?.pressedOn ?? []).map((span) => [span.a, span.b] as DiagramSegment),
+    gridLines: (step) => {
+      const mapped = at(step)?.gridLines ?? [];
+      return (step.grid?.lines ?? []).flatMap((line, i) => {
+        const span = mapped[i];
+        if (!span) return [];
+        // The pattern's spans on the line are recovered along the mapped
+        // segment exactly as `creases` recovers a step's own: by ratio.
+        const unit = [
+          { x: line.segment[0][0], y: line.segment[0][1] },
+          { x: line.segment[1][0], y: line.segment[1][1] },
+        ] as const;
+        const creases = line.cp_spans.map(
+          (crease) =>
+            [
+              along(span.a, span.b, parameterOf(unit[0], unit[1], crease[0])),
+              along(span.a, span.b, parameterOf(unit[0], unit[1], crease[1])),
+            ] as DiagramSegment
+        );
+        return [gridLine(line, [span.a, span.b], creases)];
+      });
+    },
     point: (id) => {
       const index = sequence.points.findIndex((entry) => entry.id === id);
       return index >= 0 ? (model.points[index] ?? null) : null;

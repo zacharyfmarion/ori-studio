@@ -59,6 +59,28 @@ describe('totals and lookups', () => {
     expect(breakdownTotals({ ...sequence.totals, folds: 4, aux: 0 }).atLowerBound).toBe(true);
   });
 
+  it('carries the grid’s line count, which the fold count includes and the crease count does not', () => {
+    // A 16-grid pleated in both directions: 30 lines, 20 of them the
+    // pattern's, which count as creases realised. The other 10 are folds but
+    // not creases — the technique, not auxiliary folds — so with no auxiliary
+    // fold at all the plan still sits at its lower bound.
+    const totals = breakdownTotals({
+      ...sequence.totals,
+      folds: 24 + 10,
+      cp_lines: 24,
+      aux: 0,
+      lower_bound: 24,
+      grid_lines: 30,
+      grid_cp_lines: 20,
+    });
+    expect(totals.gridLines).toBe(30);
+    expect(totals.atLowerBound).toBe(true);
+    expect(
+      breakdownTotals({ ...sequence.totals, folds: 35, cp_lines: 24, aux: 1, lower_bound: 24, grid_lines: 30, grid_cp_lines: 20 }).atLowerBound
+    ).toBe(false);
+    expect(breakdownTotals(sequence.totals).gridLines).toBe(0);
+  });
+
   it('finds a step by its presentation id', () => {
     expect(stepsById(sequence).get(3)?.line.d).toBe(0.5);
     expect(stepsById(sequence).get(99)).toBeUndefined();

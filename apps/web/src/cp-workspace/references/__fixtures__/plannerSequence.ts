@@ -10,6 +10,9 @@
  * Test-only: nothing outside `*.test.ts` imports this.
  */
 import type {
+  PrecreaseDirection,
+  PrecreaseGridStepLine,
+  PrecreasePlanSegment,
   PrecreaseSequence,
   PrecreaseStep,
   PrecreaseWitness,
@@ -271,6 +274,254 @@ export function plannerSequenceFixture(): PrecreaseSequence {
       budget_hit: false,
       point_cap_hit: false,
       max_depth_searched: 2,
+      search_exhausted: true,
+      witnesses_incomplete_steps: 0,
+      rf_lines_folded: 0,
+    },
+  };
+}
+
+/**
+ * One line of an axis-aligned grid family, creased edge to edge across the
+ * unit sheet: `x = d` for the vertical family, `y = d` for the horizontal.
+ */
+function gridLine(
+  lineId: number,
+  normal: [number, number],
+  d: number,
+  index: number,
+  direction: PrecreaseDirection,
+  pattern: { ids: number[]; spans: PrecreasePlanSegment[]; direction: PrecreaseDirection } | null
+): PrecreaseGridStepLine {
+  const segment: PrecreasePlanSegment =
+    normal[0] !== 0
+      ? [
+          [d, 0],
+          [d, 1],
+        ]
+      : [
+          [0, d],
+          [1, d],
+        ];
+  return {
+    line_id: lineId,
+    line: { n: normal, d },
+    segment,
+    index,
+    direction,
+    pattern_direction: pattern?.direction ?? 'unassigned',
+    pattern_share: pattern ? 1 : 0,
+    cp_line_ids: pattern?.ids ?? [],
+    cp_spans: pattern?.spans ?? [],
+  };
+}
+
+/** A grid step over `lines`, shaped as the crate builds one (`planner.rs`, `grid_steps`). */
+function gridStep(
+  id: number,
+  family: number,
+  normal: [number, number],
+  lines: PrecreaseGridStepLine[]
+): PrecreaseStep {
+  const first = lines[0]!;
+  return step({
+    id,
+    kind: 'grid',
+    tag: 'grid',
+    line: first.line,
+    line_id: first.line_id,
+    segment: first.segment,
+    visible: true,
+    cp_line_ids: lines.flatMap((line) => line.cp_line_ids),
+    cp_spans: lines.flatMap((line) => line.cp_spans),
+    grid: {
+      kind: 'box',
+      family,
+      n: 4,
+      normal,
+      spacing: 0.25,
+      cells: 4,
+      lines,
+      in_pattern: lines.filter((line) => line.cp_line_ids.length > 0).length,
+      reversed: lines.filter(
+        (line) => line.pattern_direction !== 'unassigned' && line.pattern_direction !== line.direction
+      ).length,
+    },
+  });
+}
+
+/**
+ * A box-pleated plan that opens with its grid: a 4-grid on the unit sheet,
+ * two families of three interior lines each, then one fold sighted from a
+ * grid line that is not its family's first.
+ *
+ * Ids: state lines 0–3 are the sheet edges, 4–6 the vertical family (x = ¼,
+ * ½, ¾), 7–9 the horizontal (y = ¼, ½, ¾), 10 the diagonal. The pattern
+ * contains x = ¼, x = ½ (cut in two at the middle) and y = ½ — and wants
+ * y = ½ the other way from the pleat. The remaining three lines are the
+ * grid's own. Apart from `plannerSequenceFixture`, whose counts other tests
+ * pin.
+ */
+export function plannerSequenceWithGridFixture(): PrecreaseSequence {
+  const vertical = [
+    gridLine(4, VERTICAL, 0.25, 1, 'mountain', {
+      ids: [1],
+      spans: [
+        [
+          [0.25, 0],
+          [0.25, 1],
+        ],
+      ],
+      direction: 'mountain',
+    }),
+    gridLine(5, VERTICAL, 0.5, 2, 'valley', {
+      ids: [2, 3],
+      spans: [
+        [
+          [0.5, 0],
+          [0.5, 0.5],
+        ],
+        [
+          [0.5, 0.5],
+          [0.5, 1],
+        ],
+      ],
+      direction: 'valley',
+    }),
+    gridLine(6, VERTICAL, 0.75, 3, 'mountain', null),
+  ];
+  const horizontal = [
+    gridLine(7, HORIZONTAL, 0.25, 1, 'mountain', null),
+    gridLine(8, HORIZONTAL, 0.5, 2, 'valley', {
+      ids: [4],
+      spans: [
+        [
+          [0, 0.5],
+          [1, 0.5],
+        ],
+      ],
+      direction: 'mountain',
+    }),
+    gridLine(9, HORIZONTAL, 0.75, 3, 'mountain', null),
+  ];
+  const steps: PrecreaseStep[] = [
+    gridStep(1, 0, VERTICAL, vertical),
+    gridStep(2, 1, HORIZONTAL, horizontal),
+    // The left edge folded onto y = ½ — the horizontal family's second line —
+    // along the bisector from (0, ½) to (½, 1).
+    step({
+      id: 3,
+      line_id: 10,
+      line: { n: [Math.SQRT1_2, -Math.SQRT1_2], d: -0.5 * Math.SQRT1_2 },
+      segment: [
+        [0, 0.5],
+        [0.5, 1],
+      ],
+      witnesses: [
+        witness(3, [
+          { kind: 'edge', id: 0, side: 'left' },
+          { kind: 'line', id: 8 },
+        ]),
+      ],
+      chosen: 0,
+      direction: 'valley',
+      direction_share: 1,
+      cp_line_ids: [5],
+      cp_spans: [
+        [
+          [0, 0.5],
+          [0.5, 1],
+        ],
+      ],
+    }),
+  ];
+
+  return {
+    status: 'complete',
+    certification: 'best_found_to_depth_2',
+    sheet: { width: 1, height: 1 },
+    landmarks_first: false,
+    grid: { kind: 'box', n: 4, families: 2, lines: 6, cp_lines: 3 },
+    steps,
+    groups: [
+      {
+        kind: 'grid',
+        side: 'front',
+        direction_angle: 0,
+        axiom: 0,
+        pattern: 'grid',
+        step_ids: [1],
+        count: 1,
+      },
+      {
+        kind: 'grid',
+        side: 'front',
+        direction_angle: Math.PI / 2,
+        axiom: 0,
+        pattern: 'grid',
+        step_ids: [2],
+        count: 1,
+      },
+      {
+        kind: 'cp',
+        side: 'front',
+        direction_angle: Math.PI / 4,
+        axiom: 3,
+        pattern: 'O3:el',
+        step_ids: [3],
+        count: 1,
+      },
+    ],
+    totals: {
+      folds: 7,
+      cp_lines: 4,
+      aux: 0,
+      visible_aux: 0,
+      grid_lines: 6,
+      grid_cp_lines: 3,
+      lower_bound: 4,
+      free_lines: 0,
+      unsolved: 0,
+      approximate: 0,
+    },
+    findings: [],
+    points: [
+      { id: 0, p: [0, 0], lines: [0, 2], on_boundary: true },
+      { id: 1, p: [1, 0], lines: [1, 2], on_boundary: true },
+      { id: 4, p: [0.5, 0.5], lines: [5, 8], on_boundary: false },
+    ],
+    lines: [
+      { id: 0, tag: 'edge', step: null },
+      { id: 1, tag: 'edge', step: null },
+      { id: 2, tag: 'edge', step: null },
+      { id: 3, tag: 'edge', step: null },
+      { id: 4, tag: 'cp', step: 1 },
+      { id: 5, tag: 'cp', step: 1 },
+      { id: 6, tag: 'grid', step: 1 },
+      { id: 7, tag: 'grid', step: 2 },
+      { id: 8, tag: 'cp', step: 2 },
+      { id: 9, tag: 'grid', step: 2 },
+      { id: 10, tag: 'cp', step: 3 },
+    ],
+    exactness: {
+      class: 'exact',
+      family: null,
+      max_displacement_unit: 0,
+      max_displacement_model: 0,
+      off_lattice_lines: 0,
+      off_lattice_vertices: 0,
+    },
+    diagnostics: {
+      closure: { rounds: 1, tier1_sweeps: 1, tier2_sweeps: 0, target_evaluations: 4 },
+      stuck_events: 0,
+      candidates_evaluated: 0,
+      closures_run: 1,
+      points: 20,
+      lines: 11,
+      elapsed_ms: 3,
+      budget_hit: false,
+      point_cap_hit: false,
+      max_depth_searched: 0,
       search_exhausted: true,
       witnesses_incomplete_steps: 0,
       rf_lines_folded: 0,

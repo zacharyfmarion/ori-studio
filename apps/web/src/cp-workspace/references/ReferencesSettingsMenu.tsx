@@ -128,6 +128,20 @@ export function ReferencesSettingsMenu({
           </DropdownMenu.CheckboxItem>
           <DropdownMenu.CheckboxItem
             className="context-menu__item"
+            checked={settings.precreaseGrid}
+            onCheckedChange={(checked) => onChange({ precreaseGrid: checked === true })}
+          >
+            <span className="context-menu__icon">
+              <DropdownMenu.ItemIndicator>
+                <Check size={12} />
+              </DropdownMenu.ItemIndicator>
+            </span>
+            <span className="context-menu__label">
+              {t('panels:references.settings.precreaseGrid', 'Precrease grid')}
+            </span>
+          </DropdownMenu.CheckboxItem>
+          <DropdownMenu.CheckboxItem
+            className="context-menu__item"
             checked={settings.showPinches}
             onCheckedChange={(checked) => onChange({ showPinches: checked === true })}
           >

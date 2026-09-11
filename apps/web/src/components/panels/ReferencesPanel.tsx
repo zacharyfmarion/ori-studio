@@ -138,13 +138,14 @@ export function ReferencesPanel() {
   const sheetIds = useMemo(() => (component ? sheetLineIds(component) : null), [component]);
   const borderIds = useMemo(() => (component ? sheetBorderLineIds(component) : null), [component]);
 
+  const targeted = controller.target !== null && controller.target.kind !== 'whole';
   const breakdown = useReferencesBreakdown(
     view.geometry,
     view.revision,
     controller.frames,
-    selectedSheet
+    selectedSheet,
+    targeted
   );
-  const targeted = controller.target !== null && controller.target.kind !== 'whole';
 
   const targetHighlights = useReferencesHighlights(
     view.geometry,

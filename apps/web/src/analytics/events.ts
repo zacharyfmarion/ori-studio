@@ -405,10 +405,12 @@ export const ANALYTICS_EVENTS = {
    * when it could not (a non-rectangular sheet, the point cap, the budget).
    *
    * Carries only enums and bucketed counts: `target_kind`, `lines_bucket`,
-   * `aux_bucket`, `visible_aux_bucket`, `duration_bucket`, `exactness_class`
-   * and, on a refusal, `refusal_reason`. Never a fold count, a line, a
-   * coordinate or anything else derived from the user's geometry — the shape
-   * of a design is the design.
+   * `aux_bucket`, `visible_aux_bucket`, `turn_overs_bucket`,
+   * `mixed_steps_bucket`, `duration_bucket`, `exactness_class`, `grid_kind`
+   * (`box` / `hex` / `none` — whether the plan opened with a precrease grid),
+   * `grid_lines_bucket` and, on a refusal, `refusal_reason`. Never a fold
+   * count, a line, a coordinate or anything else derived from the user's
+   * geometry — the shape of a design is the design.
    */
   foldingStepsCompleted: 'folding steps completed',
   foldingStepsCancelled: 'folding steps cancelled',

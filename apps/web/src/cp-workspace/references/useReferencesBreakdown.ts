@@ -202,6 +202,23 @@ function turnOversOf(steps: readonly PrecreaseStep[]): number {
   return side === 'front' ? count : count + 1;
 }
 
+/**
+ * How many of the pattern's lines it creases both ways: a property of the
+ * design, so a line the grid pleats counts exactly as one folded on its own
+ * would, or the number would move with the setting instead of the pattern.
+ * An auxiliary fold has no assignment and a share of exactly 0.
+ */
+function mixedLinesOf(steps: readonly PrecreaseStep[]): number {
+  let count = 0;
+  for (const step of steps) {
+    const shares =
+      step.grid?.lines.map((line) => line.pattern_share) ??
+      (step.kind === 'cp' ? [step.direction_share] : []);
+    count += shares.filter((share) => share > 0 && share < 1).length;
+  }
+  return count;
+}
+
 /** The plan's counts, as the store's summary descriptor. */
 function summaryOf(record: ReferencesPlanRecord): ReferencesPlanSummary | null {
   const first = record.components[0];
@@ -222,13 +239,7 @@ function summaryOf(record: ReferencesPlanRecord): ReferencesPlanSummary | null {
         approximateCount: acc.approximateCount + entry.result.approximate.length,
         inexactSteps: acc.inexactSteps + t.approximate,
         turnOvers: acc.turnOvers + turnOversOf(entry.result.sequence.steps),
-        mixedSteps:
-          acc.mixedSteps +
-          entry.result.sequence.steps.filter(
-            // A pattern line creased the other way for part of its length;
-            // an auxiliary fold has no assignment and a share of exactly 0.
-            (step) => step.kind === 'cp' && step.direction_share > 0 && step.direction_share < 1
-          ).length,
+        mixedSteps: acc.mixedSteps + mixedLinesOf(entry.result.sequence.steps),
       };
     },
     {
@@ -261,6 +272,9 @@ function summaryOf(record: ReferencesPlanRecord): ReferencesPlanSummary | null {
     }
   }
   const partial = record.components.some((entry) => entry.result.partial) || record.refused.length > 0;
+  // The first sheet's grid, like its status: the workspace plans one sheet at
+  // a time (D12), so there is no second one to be worst-case across.
+  const grid = first.result.sequence.grid ?? null;
   return {
     computedAtRevision: record.revision,
     component: first.component,
@@ -269,6 +283,10 @@ function summaryOf(record: ReferencesPlanRecord): ReferencesPlanSummary | null {
     partial,
     certification: first.result.sequence.certification,
     ...totals,
+    gridKind: grid?.kind ?? null,
+    gridN: grid?.n ?? 0,
+    gridLines: first.result.sequence.totals.grid_lines,
+    gridCpLines: first.result.sequence.totals.grid_cp_lines,
     exactnessClass,
     maxDisplacementModel,
     durationMs: record.durationMs,
@@ -295,10 +313,17 @@ export function useReferencesBreakdown(
   revision: string,
   frames: SheetAnalysis | null,
   /** The sheet the sidebar has selected; null falls back to the largest. */
-  selectedSheet: number | null
+  selectedSheet: number | null,
+  /**
+   * A vertex or crease is picked, so the workspace is showing that target's
+   * construction rather than the whole-pattern plan. The auto-plan and
+   * Recompute both leave the plan alone then, and so does a settings change.
+   */
+  targeted = false
 ): ReferencesBreakdownController {
   const { t } = useTranslation();
   const viewState = useWorkspaceStore((state) => state.referencesView);
+  const precreaseGrid = useWorkspaceStore((state) => state.referencesSettings.precreaseGrid);
   // The summary is derived from the record below, not read from the store.
   // `referencesPlan` is one slot for a whole document and is cleared on every
   // sheet switch, so switching away and back left the toolbar blank over a plan
@@ -339,9 +364,9 @@ export function useReferencesBreakdown(
 
   // The values the async runs read after an await, and the abort they answer
   // to. A run belongs to one revision; the document moving on drops it.
-  const latest = useRef({ geometry, revision, frames, selectedSheet });
+  const latest = useRef({ geometry, revision, frames, selectedSheet, precreaseGrid });
   useEffect(() => {
-    latest.current = { geometry, revision, frames, selectedSheet };
+    latest.current = { geometry, revision, frames, selectedSheet, precreaseGrid };
   });
   const abortRef = useRef<AbortController | null>(null);
   // The planner bridge is retained here in its own right rather than leaning on
@@ -374,6 +399,8 @@ export function useReferencesBreakdown(
       forRevision: string,
       signal: AbortSignal,
       budgetMs: number,
+      /** Open a pleated design with its grid pleated (`referencesSettings.precreaseGrid`). */
+      precreaseGrid: boolean,
       onProgress: (progress: PrecreasePlanProgress) => void
     ): Promise<
       (ReferencesPlanComponent & { token: number }) | { refusedKind: PrecreaseRefusalKind | null }
@@ -382,7 +409,7 @@ export function useReferencesBreakdown(
         input.segments,
         input.colors,
         component.id,
-        { total_budget_ms: budgetMs },
+        { total_budget_ms: budgetMs, precrease_grid: precreaseGrid },
         paperFallbackRect()
       );
       const info: PrecreasePlannerInfo = created.info;
@@ -450,6 +477,9 @@ export function useReferencesBreakdown(
     setReferencesProgress({ phase: 'closing', done: 0, total: 0 });
     const started = performance.now();
     const input = precreaseInputFromTransport(current.geometry);
+    // Taken now, with the rest of `current`, so a toggle mid-run cannot make
+    // a plan that is for neither setting.
+    const withGrid = current.precreaseGrid;
 
     void (async () => {
       const client = getPrecreaseClient();
@@ -472,6 +502,7 @@ export function useReferencesBreakdown(
             forRevision,
             controller.signal,
             share,
+            withGrid,
             (progress) => setReferencesProgress(progressOf(progress))
           );
           if ('refusedKind' in outcome) refused.push({ component: sheets[i].id, kind: outcome.refusedKind });
@@ -509,6 +540,7 @@ export function useReferencesBreakdown(
         refused,
         durationMs: performance.now() - started,
         plannerToken: planned.length === 1 ? (lastToken ?? null) : null,
+        precreaseGrid: withGrid,
       };
       setReferencesPlanRecord(record);
       const nextSummary = summaryOf(record);
@@ -547,11 +579,15 @@ export function useReferencesBreakdown(
     void (async () => {
       const client = getPrecreaseClient();
       try {
+        // No grid, whatever the folding-sequence setting says: the analysis
+        // gives every line an axiom or a rank, and a pleated line has neither
+        // — it is in no cp step and never remaining, so it would simply be
+        // missing from the count.
         const created = await client.plannerCreate(
           input.segments,
           input.colors,
           sheet.id,
-          {},
+          { precrease_grid: false },
           paperFallbackRect()
         );
         const handle = createWorkerPlannerHandle(client, created.token);
@@ -597,6 +633,21 @@ export function useReferencesBreakdown(
       }
     })();
   }, [setReferencesAnalysis, setReferencesProgress, setReferencesRun, t]);
+
+  // Precrease grid changes the plan, not its presentation: the grid is pleated
+  // before the first close, so there is no second `sequence()` reading to
+  // switch to the way `landmarksFirst` does. The plan on screen records the
+  // setting it was made under, and whenever the two disagree — a toggle, or a
+  // toggle made while a run was in flight or while another sheet was up, once
+  // the plan it should have changed is back on screen — it is re-planned.
+  // Keyed on the record rather than on the click, so a toggle can never be
+  // swallowed. A picked target defers it: the whole-pattern run is not what is
+  // wanted then, and it would reset the target's step when it landed.
+  useEffect(() => {
+    if (record === null || record.precreaseGrid === precreaseGrid) return;
+    if (targeted || referencesRunSnapshot().running) return;
+    run();
+  }, [precreaseGrid, record, run, targeted]);
 
   const landmarksFirst = viewState.landmarksFirst;
   const variants = useMemo<ReferencesPlanVariant[]>(
@@ -718,6 +769,10 @@ function trackPlan(
     // is the one to watch: a median of 4 was what the corpus predicted.
     turn_overs_bucket: bucketCount(summary.turnOvers, COUNT_BUCKETS),
     mixed_steps_bucket: bucketCount(summary.mixedSteps, COUNT_BUCKETS),
+    // Whether the design was pleated on a grid at all, and how big the grid
+    // was — the share of real designs the grid-first opening applies to.
+    grid_kind: summary.gridKind ?? 'none',
+    grid_lines_bucket: bucketCount(summary.gridLines, COUNT_BUCKETS),
   };
   if (aborted) {
     track(ANALYTICS_EVENTS.foldingStepsCancelled, properties);

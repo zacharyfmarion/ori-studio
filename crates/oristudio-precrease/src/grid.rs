@@ -113,6 +113,10 @@ pub struct GridLine {
     /// The pattern's own direction for the line: `Unassigned` when the
     /// pattern does not contain it or assigns it nothing.
     pub pattern_direction: Direction,
+    /// The share of the line's creased length `pattern_direction` covers,
+    /// in `[0, 1]`; `0` when the pattern does not contain the line. Below 1
+    /// the pattern creases the line both ways, whichever way it is pleated.
+    pub pattern_share: f64,
 }
 
 /// A family of parallel grid lines.
@@ -125,6 +129,11 @@ pub struct GridFamily {
     /// Offset of index 0: `0` for a family anchored on an edge, `spacing / 2`
     /// for an oblique family of a lattice anchored half a cell in.
     pub phase: f64,
+    /// How many strips the family cuts the sheet into, when that is a whole
+    /// number: an axis-aligned family from one edge to the other, `N` for a
+    /// spacing of `side / N`. `None` for an oblique family, or one whose
+    /// spacing does not divide the side it crosses.
+    pub cells: Option<u32>,
     /// Every line of the family that crosses the sheet, by ascending index.
     pub lines: Vec<GridLine>,
 }
@@ -150,8 +159,11 @@ impl GridFamily {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Grid {
     pub kind: GridKind,
-    /// Cells across the side the grid is anchored to: the spacing is that
-    /// side over `n`.
+    /// Cells across the sheet along the first family's normal — the width
+    /// for a vertical family, the height for a horizontal one: the spacing
+    /// is that side over `n`. For a hex grid on a rectangle, whose lattice is
+    /// anchored on one edge and need not meet the opposite one on a line,
+    /// the nearest whole number.
     pub n: u32,
     /// The families the pattern uses, axis-aligned first.
     pub families: Vec<GridFamily>,
@@ -312,7 +324,6 @@ fn evaluate(
     targets: &[Target],
     sorted: &[Sorted],
     shape: &Shape,
-    n: u32,
     spacing: f64,
 ) -> Option<Candidate> {
     // The oblique families share one phase: the lattice is anchored once.
@@ -342,12 +353,14 @@ fn evaluate(
                     target,
                     pattern_direction: target
                         .map_or(Direction::Unassigned, |t| targets[t].direction),
+                    pattern_share: target.map_or(0.0, |t| targets[t].direction_share),
                 })
                 .collect();
             families.push(GridFamily {
                 normal,
                 spacing,
                 phase,
+                cells: cells_of(sheet, normal, spacing, phase),
                 lines: grid_lines,
             });
         }
@@ -363,6 +376,11 @@ fn evaluate(
         }
         let score = used as f64 - FINENESS_COST * total as f64;
         if best.as_ref().is_none_or(|b| score > b.score) {
+            // The spacing may have come from either side; the count the
+            // grid is named by is along its axis family, whether or not
+            // the pattern uses that family.
+            let axis = bucket_normal(shape.families[0]);
+            let n = (extent_along(sheet, axis) / spacing).round() as u32;
             best = Some(Candidate {
                 grid: Grid {
                     kind: shape.kind,
@@ -374,6 +392,26 @@ fn evaluate(
         }
     }
     best
+}
+
+/// How far the sheet extends along `normal`: the width for a vertical
+/// family, the height for a horizontal one, and the projected diagonal for
+/// an oblique one.
+fn extent_along(sheet: &Sheet, normal: [f64; 2]) -> f64 {
+    normal[0].abs() * sheet.width + normal[1].abs() * sheet.height
+}
+
+/// How many strips a family cuts the sheet into, when the family runs from
+/// one edge to the opposite one in whole cells: an axis-aligned family with
+/// no phase whose spacing divides its side.
+fn cells_of(sheet: &Sheet, normal: [f64; 2], spacing: f64, phase: f64) -> Option<u32> {
+    let axis_aligned = normal[0].abs() < TOL || normal[1].abs() < TOL;
+    if !axis_aligned || phase.abs() > TOL {
+        return None;
+    }
+    let cells = extent_along(sheet, normal) / spacing;
+    let whole = cells.round();
+    ((cells - whole).abs() * spacing <= TOL).then_some(whole as u32)
 }
 
 /// Alternate each family mountain and valley by index, with the parity that
@@ -397,8 +435,18 @@ fn assign_directions(grid: &mut Grid, targets: &[Target]) {
                 .sum()
         };
         // Ties go to a mountain first: the pleat is made from the front,
-        // and the first crease of a pleat is the one at the edge.
-        let parity = if cost(1) < cost(0) { 1 } else { 0 };
+        // and the first crease of a pleat is the one at the edge. "First"
+        // is the family's first line, whatever index it carries.
+        let Some(first) = family.lines.first().map(|l| l.index) else {
+            continue;
+        };
+        let mountain_first = first.rem_euclid(2);
+        let other = 1 - mountain_first;
+        let parity = if cost(other) < cost(mountain_first) {
+            other
+        } else {
+            mountain_first
+        };
         for line in &mut family.lines {
             line.direction = pleat_direction(line.index, parity);
         }
@@ -435,17 +483,17 @@ pub fn detect(sheet: &Sheet, targets: &[Target]) -> Option<Grid> {
         }
         // Spacings from either side. The same spacing from both sides (a
         // square) is tried once.
-        let mut spacings: Vec<(u32, f64)> = Vec::new();
+        let mut spacings: Vec<f64> = Vec::new();
         for n in MIN_GRID..=MAX_GRID {
             for side in [sheet.width, sheet.height] {
                 let s = side / n as f64;
-                if !spacings.iter().any(|(_, t)| (t - s).abs() <= TOL) {
-                    spacings.push((n, s));
+                if !spacings.iter().any(|t| (t - s).abs() <= TOL) {
+                    spacings.push(s);
                 }
             }
         }
-        for (n, spacing) in spacings {
-            if let Some(c) = evaluate(sheet, targets, &sorted, shape, n, spacing)
+        for spacing in spacings {
+            if let Some(c) = evaluate(sheet, targets, &sorted, shape, spacing)
                 && best.as_ref().is_none_or(|b| c.score > b.score)
             {
                 best = Some(c);
@@ -580,6 +628,11 @@ mod tests {
         assert_eq!(grid.families.len(), 3);
         assert_eq!(grid.in_pattern(), lines.len());
         assert!(grid.families.iter().all(|f| f.phase == 0.0));
+        // The verticals cut the sheet into 16 strips; an oblique family cuts
+        // it into no whole number of anything.
+        assert_eq!(grid.families[0].cells, Some(16));
+        assert_eq!(grid.families[1].cells, None);
+        assert_eq!(grid.families[2].cells, None);
     }
 
     #[test]
@@ -644,6 +697,45 @@ mod tests {
                 }
         }));
         assert_eq!(horizontal.reversed(), 0);
+    }
+
+    #[test]
+    fn a_rectangle_is_named_by_the_cells_along_its_first_family() {
+        // A 2:1 sheet on 16ths of its width: the same spacing is 8ths of
+        // its height, and the grid is a 16-grid whichever side produced it.
+        let sheet = Sheet::new(1.0, 0.5).expect("sheet");
+        let mut lines: Vec<Target> = Vec::new();
+        for k in 1..16 {
+            lines.push(target(&sheet, v(k as f64 / 16.0), 1.0, 0.0));
+        }
+        for j in 1..8 {
+            lines.push(target(&sheet, h(j as f64 / 16.0), 1.0, 0.0));
+        }
+        let grid = detect(&sheet, &lines).expect("a grid");
+        assert_eq!(grid.kind, GridKind::Box);
+        assert_eq!(grid.n, 16);
+        assert_eq!(grid.families[0].cells, Some(16));
+        assert_eq!(grid.families[1].cells, Some(8));
+        assert_eq!(grid.families[0].lines.len(), 15);
+        assert_eq!(grid.families[1].lines.len(), 7);
+    }
+
+    #[test]
+    fn a_tie_pleats_a_mountain_first() {
+        // No direction evidence at all: the first line of each family is
+        // a mountain, whatever index it carries.
+        let sheet = Sheet::unit_square();
+        let mut lines: Vec<Target> = Vec::new();
+        for k in 1..8 {
+            let x = k as f64 / 8.0;
+            lines.push(target(&sheet, v(x), 0.0, 0.0));
+            lines.push(target(&sheet, h(x), 0.0, 0.0));
+        }
+        let grid = detect(&sheet, &lines).expect("a grid");
+        for family in &grid.families {
+            assert_eq!(family.lines[0].direction, Direction::Mountain);
+            assert_eq!(family.lines[1].direction, Direction::Valley);
+        }
     }
 
     #[test]

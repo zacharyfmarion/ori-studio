@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { returnStroke } from '../stepDiagramGeometry';
 import { seenFromTheBack } from './diagramModel';
-import { unitFrame } from './diagramFrames';
+import { modelFrame, unitFrame } from './diagramFrames';
+import { decodePlanModel, planModelPoints } from '../referencesPlanGeometry';
 import type { StepDiagramPrimitive } from '../referenceFinderDiagramToPrimitives';
-import { plannerSequenceFixture } from '../__fixtures__/plannerSequence';
+import {
+  plannerSequenceFixture,
+  plannerSequenceWithGridFixture,
+} from '../__fixtures__/plannerSequence';
 import {
   plannerFinishedDiagram,
   plannerStepDiagram,
@@ -852,5 +856,199 @@ describe('a line folded onto a line', () => {
         p.kind === 'line' && p.style === 'highlight'
     );
     expect(lines.some((l) => isSeg(l, [0, 0], [1, 0]))).toBe(true);
+  });
+});
+
+// A box-pleated plan opens with its grid: one step per family, every line of
+// it edge to edge, mountain and valley alternating. That is a pleat, not a
+// sighting, and the card has to say so — the whole family at once, with no
+// arrow and nothing lettered.
+describe('a grid step', () => {
+  const sequence = plannerSequenceWithGridFixture();
+  const unit = unitFrame(sequence);
+  type Line = Extract<StepDiagramPrimitive, { kind: 'line' }>;
+  const lines = (primitives: readonly StepDiagramPrimitive[] | undefined) =>
+    (primitives ?? []).filter((p): p is Line => p.kind === 'line');
+  const near = (a: readonly number[], b: readonly number[]) =>
+    Math.hypot(a[0]! - b[0]!, a[1]! - b[1]!) < 1e-9;
+  const isSeg = (l: Line, a: number[], b: number[]) =>
+    (near(l.from, a) && near(l.to, b)) || (near(l.from, b) && near(l.to, a));
+
+  it('draws every line of the family full-length, each in its own direction', () => {
+    const diagram = plannerStepDiagram(sequence, unit, 0);
+    const drawn = lines(diagram?.primitives);
+    // Three lines, alternating: x = ¼ mountain, x = ½ valley, x = ¾ mountain.
+    expect(drawn.map((l) => l.style)).toEqual(['mountain', 'valley', 'mountain']);
+    expect(drawn.some((l) => isSeg(l, [0.25, 0], [0.25, 1]))).toBe(true);
+    expect(drawn.some((l) => isSeg(l, [0.5, 0], [0.5, 1]))).toBe(true);
+    expect(drawn.some((l) => isSeg(l, [0.75, 0], [0.75, 1]))).toBe(true);
+    // The whole line, not the pattern's pieces of it: x = ½ is cut in two in
+    // the pattern and is one crease here.
+    expect(drawn.some((l) => isSeg(l, [0.5, 0], [0.5, 0.5]))).toBe(false);
+  });
+
+  it('draws neither an arrow nor a letter: nothing is brought onto anything', () => {
+    for (const index of [0, 1]) {
+      const kinds = (plannerStepDiagram(sequence, unit, index)?.primitives ?? []).map((p) => p.kind);
+      expect(kinds).not.toContain('fold-arrow');
+      expect(kinds).not.toContain('label');
+      expect(kinds).not.toContain('point');
+      expect(kinds[0]).toBe('sheet');
+    }
+  });
+
+  // The pleat's directions are named from the front, as every direction is;
+  // a grid step is made from the front and the card is never mirrored. This
+  // is what keeps `seenFromTheBack` the one place a face is renamed.
+  it('names the pleat’s directions from the front', () => {
+    expect(sequence.steps[1]!.side).toBe('front');
+    expect(sequence.steps[1]!.direction).toBe('unassigned');
+    // The second family's own lines, under which the first family is crease.
+    const styles = lines(plannerStepDiagram(sequence, unit, 1)?.primitives)
+      .map((l) => l.style)
+      .filter((style) => style !== 'crease');
+    expect(styles).toEqual(['mountain', 'valley', 'mountain']);
+  });
+
+  it('is on every later card as crease, the whole family of it', () => {
+    const later = lines(plannerStepDiagram(sequence, unit, 2)?.primitives).filter(
+      (l) => l.style === 'crease'
+    );
+    expect(later).toHaveLength(6);
+  });
+
+  // The canvas draws the pattern's own creases itself, held to the steps made
+  // so far — so of a pleated family only the lines the pattern lacks are left
+  // for the step to put on it.
+  it('leaves only the grid’s own lines to a surface that draws the pattern', () => {
+    const later = lines(
+      plannerStepDiagram(sequence, unit, 2, { earlier: 'unpatterned' })?.primitives
+    ).filter((l) => l.style === 'crease');
+    expect(later).toHaveLength(3);
+    expect(later.some((l) => isSeg(l, [0.75, 0], [0.75, 1]))).toBe(true);
+    expect(later.some((l) => isSeg(l, [0, 0.25], [1, 0.25]))).toBe(true);
+    expect(later.some((l) => isSeg(l, [0, 0.75], [1, 0.75]))).toBe(true);
+    expect(later.some((l) => isSeg(l, [0.25, 0], [0.25, 1]))).toBe(false);
+  });
+
+  // The pleat creases a line edge to edge whatever the pattern wants of it, and
+  // the canvas's own ink stops where the pattern's does — so the rest of an
+  // in-pattern grid line is the step's to draw there, and nowhere else's.
+  it('draws the stretch of an in-pattern grid line the pattern does not crease', () => {
+    const partial = structuredClone(sequence);
+    const family = partial.steps[0]!.grid!;
+    family.lines[0]!.cp_spans = [
+      [
+        [0.25, 0],
+        [0.25, 0.5],
+      ],
+    ];
+    partial.steps[0]!.cp_spans = family.lines.flatMap((line) => line.cp_spans);
+    const later = lines(
+      plannerStepDiagram(partial, unitFrame(partial), 2, { earlier: 'unpatterned' })?.primitives
+    ).filter((l) => l.style === 'crease');
+    expect(later).toHaveLength(4);
+    expect(later.some((l) => isSeg(l, [0.25, 0.5], [0.25, 1]))).toBe(true);
+    expect(later.some((l) => isSeg(l, [0.25, 0], [0.25, 0.5]))).toBe(false);
+    // And the model frame agrees: the gap is recovered along the mapped line.
+    const model = modelFrame(partial, decodePlanModel(partial, planModelPoints(partial)));
+    const view = lines(
+      plannerStepDiagram(partial, model, 2, { earlier: 'unpatterned' })?.primitives
+    ).filter((l) => l.style === 'crease');
+    expect(view).toHaveLength(4);
+    expect(view.some((l) => isSeg(l, [0.25, 0.5], [0.25, 1]))).toBe(true);
+  });
+
+  it('is on the turn-over card as crease', () => {
+    const drawn = lines(plannerTurnOverDiagram(sequence, unit, 1).primitives);
+    expect(drawn).toHaveLength(6);
+    expect(drawn.every((l) => l.style === 'crease')).toBe(true);
+  });
+
+  // The finished pattern: a grid line the pattern holds is drawn in the
+  // direction it was pleated, whatever the pattern will want of it once the
+  // model collapses (plan D26); one the pattern lacks is auxiliary and takes
+  // the neutral ink, as an auxiliary fold does.
+  it('finishes with in-pattern grid lines by pleat direction and the rest as crease', () => {
+    const drawn = lines(plannerFinishedDiagram(sequence, unit).primitives);
+    const styleOf = (a: number[], b: number[]) => drawn.find((l) => isSeg(l, a, b))?.style;
+    expect(styleOf([0.25, 0], [0.25, 1])).toBe('mountain');
+    expect(styleOf([0.5, 0], [0.5, 1])).toBe('valley');
+    expect(styleOf([0.75, 0], [0.75, 1])).toBe('crease');
+    // y = ½ is pleated as a valley and the pattern wants a mountain: the
+    // pleat's direction is the one the folder made.
+    expect(sequence.steps[1]!.grid!.lines[1]!.pattern_direction).toBe('mountain');
+    expect(styleOf([0, 0.5], [1, 0.5])).toBe('valley');
+    expect(styleOf([0, 0.25], [1, 0.25])).toBe('crease');
+    expect(styleOf([0, 0.75], [1, 0.75])).toBe('crease');
+    // And the fold after the grid, in its own direction.
+    expect(styleOf([0, 0.5], [0.5, 1])).toBe('valley');
+  });
+
+  // A grid step's own line id is only its family's first; the rest are in
+  // the family. A step sighted from y = ½ — the horizontal family's second
+  // line — has to be shown that line, not y = ¼.
+  it('lets a later step sight from any line of the family, not just the first', () => {
+    const diagram = plannerStepDiagram(sequence, unit, 2);
+    const highlights = lines(diagram?.primitives).filter((l) => l.style === 'highlight');
+    // The receiving arm: y = ½ on the side the edge lands, out of the vertex
+    // at (0, ½). The moving arm: the upper half of the left edge.
+    expect(highlights.some((l) => isSeg(l, [0, 0.5], [1, 0.5]))).toBe(true);
+    expect(highlights.some((l) => isSeg(l, [0, 0.5], [0, 1]))).toBe(true);
+    expect(highlights.some((l) => isSeg(l, [0, 0.25], [1, 0.25]))).toBe(false);
+    expect(highlights.some((l) => isSeg(l, [0.25, 0], [0.25, 1]))).toBe(false);
+    // And the arrow leaves from the half of the edge that moves.
+    const arrows = (diagram?.primitives ?? []).filter((p) => p.kind === 'fold-arrow');
+    expect(arrows).toHaveLength(1);
+    const arrow = arrows[0]!;
+    if (arrow.kind !== 'fold-arrow') throw new Error('unreachable');
+    const { center, radius, from } = arrow.out;
+    expect(near([center[0] + radius * Math.cos(from), center[1] + radius * Math.sin(from)], [0, 0.75])).toBe(true);
+  });
+
+  // The same picture from both frames, the claim `diagramFrames.test.ts`
+  // makes for the plain fixture: a grid step's family arrives mapped in the
+  // one round trip, and the view must draw exactly what the card does.
+  it('draws the same primitives from the unit frame and the model frame', () => {
+    const [c, s] = [Math.cos(Math.PI / 7), Math.sin(Math.PI / 7)];
+    const image = (p: readonly [number, number]): [number, number] => {
+      const [x, y] = [p[0] * 400, -p[1] * 400];
+      return [x * c - y * s - 200, x * s + y * c + 60];
+    };
+    const mapToModel = (points: Float64Array) => {
+      const out = new Float64Array(points.length);
+      for (let i = 0; i < points.length; i += 2) {
+        const [x, y] = image([points[i]!, points[i + 1]!]);
+        out[i] = x;
+        out[i + 1] = y;
+      }
+      return out;
+    };
+    const model = modelFrame(
+      sequence,
+      decodePlanModel(sequence, mapToModel(planModelPoints(sequence)))
+    );
+    const round = (v: number) => Number(v.toFixed(6));
+    const comparable = (
+      primitives: readonly StepDiagramPrimitive[],
+      map: (p: readonly [number, number]) => readonly [number, number]
+    ) =>
+      primitives.map((p) => {
+        if (p.kind === 'line') {
+          return { kind: p.kind, style: p.style, ends: [map(p.from).map(round), map(p.to).map(round)].sort() };
+        }
+        if (p.kind === 'point' || p.kind === 'label' || p.kind === 'turn-over') {
+          return { ...p, at: map(p.at).map(round) };
+        }
+        return { kind: p.kind };
+      });
+    for (let i = 0; i < sequence.steps.length; i += 1) {
+      const card = plannerStepDiagram(sequence, unit, i)!.primitives.filter((p) => p.kind !== 'sheet');
+      const view = plannerStepDiagram(sequence, model, i)!.primitives;
+      expect(comparable(view, (p) => p), `step ${i}`).toEqual(comparable(card, image));
+    }
+    const card = plannerFinishedDiagram(sequence, unit).primitives.filter((p) => p.kind !== 'sheet');
+    const view = plannerFinishedDiagram(sequence, model).primitives;
+    expect(comparable(view, (p) => p)).toEqual(comparable(card, image));
   });
 });

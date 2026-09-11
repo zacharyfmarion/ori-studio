@@ -49,11 +49,17 @@
  * the crate says something moves, its arc. O4 also moves nothing (a
  * perpendicular is sighted, not swung), so it too draws without an arrow —
  * that comes from `who_moves` being empty and needs no special case here.
+ *
+ * A **grid** step is a pleat, not a sighting: every line of one family, edge
+ * to edge, mountain and valley alternating. It draws the whole family in the
+ * directions the pleat gives it and nothing else — no references, no motion,
+ * no letters — because that is what a folder does with "pleat into 16ths",
+ * and the card of one line with an arrow on it would be the wrong instruction.
  */
 import { dashRulerAlong, foldArrowArc } from '../stepDiagramGeometry';
 import { inputLetters } from './inputLetters';
 import type { Point } from '../../../lib/geometry';
-import type { DiagramFrame, DiagramSegment } from './diagramFrames';
+import type { DiagramFrame, DiagramGridLine, DiagramSegment } from './diagramFrames';
 import type {
   DiagramLineStyleName,
   StepDiagramModel,
@@ -70,6 +76,23 @@ import {
 /** A frame segment as the primitives' own tuples. */
 const xy = (p: { x: number; y: number }): [number, number] => [p.x, p.y];
 
+/**
+ * The line of a grid step that a state line id names, or null when the family
+ * does not hold it.
+ *
+ * A grid step's own `line_id` and chord are only its family's first line; the
+ * rest are in `grid.lines`. A later step sighted from any of them has to find
+ * the line it means, not the family's first.
+ */
+function gridLineOf(
+  frame: DiagramFrame,
+  step: PrecreaseStep,
+  lineId: number
+): DiagramGridLine | null {
+  const index = step.grid?.lines.findIndex((line) => line.line_id === lineId) ?? -1;
+  return index >= 0 ? (frame.gridLines(step)[index] ?? null) : null;
+}
+
 /** The in-paper segment an input reference stands for, if it is a line at all. */
 function segmentOfRef(
   sequence: PrecreaseSequence,
@@ -81,7 +104,8 @@ function segmentOfRef(
   const entry = sequence.lines.find((line) => line.id === ref.id);
   if (!entry || entry.step === null) return null;
   const step = sequence.steps.find((s) => s.id === entry.step);
-  return step ? frame.chord(step) : null;
+  if (!step) return null;
+  return step.grid ? (gridLineOf(frame, step, ref.id)?.segment ?? null) : frame.chord(step);
 }
 
 /**
@@ -263,7 +287,16 @@ function spansOfRef(
   const upTo = sequence.steps.indexOf(step);
   const before = upTo < 0 ? sequence.steps : sequence.steps.slice(0, upTo);
   return mergeRuns(
-    before.filter((s) => s.line_id === ref.id).flatMap((s) => creasedSpans(frame, s))
+    before.flatMap((s) => {
+      // A pleat creases each line of its family edge to edge, so the crease
+      // along a grid line is the line itself — and only that line, not the
+      // family the step made it with.
+      if (s.grid) {
+        const line = gridLineOf(frame, s, ref.id);
+        return line ? [line.segment] : [];
+      }
+      return s.line_id === ref.id ? creasedSpans(frame, s) : [];
+    })
   );
 }
 
@@ -361,7 +394,8 @@ export interface PlannerStepDiagramOptions {
 
 /**
  * What a step actually left on the paper: the CP creases it made, the spans it
- * pinched, or — for an auxiliary fold pressed in full — its whole chord.
+ * pinched, or — for an auxiliary fold pressed in full — its whole chord. For a
+ * grid step, every line of its family, edge to edge.
  *
  * Never the whole chord of a CP step. The parts of a fold the pattern does not
  * crease are not on the paper, and drawing them is the difference between a
@@ -372,18 +406,61 @@ function creasedSpans(
   step: PrecreaseStep,
   patterned = true
 ): readonly DiagramSegment[] {
+  // `patterned` false means something else is already drawing exactly the
+  // pattern's creases, out of the crease pattern itself — so of a pleated
+  // family what is left to draw is the lines the pattern lacks, and of the
+  // lines it has, the stretches it does not crease: the pleat runs edge to
+  // edge whatever the pattern wants of it.
+  if (step.grid) {
+    return frame.gridLines(step).flatMap((line) => {
+      if (patterned) return [line.segment];
+      return line.inPattern ? uncreased(line.segment, line.creases) : [line.segment];
+    });
+  }
   // Crease pressed on past the pattern's own is not in the pattern, so it is
   // drawn either way — as are the pinch and chord cases, by definition.
   const pressedOn = frame.pressedOn(step);
   const creases = frame.creases(step);
-  // `patterned` false means something else is already drawing exactly the
-  // pattern's creases, out of the crease pattern itself.
   if (creases.length > 0) return patterned ? [...creases, ...pressedOn] : pressedOn;
   const pinches = frame.pinches(step);
   if (pinches.length > 0) return [...pinches, ...pressedOn];
   const chord = frame.chord(step);
   return chord ? [chord, ...pressedOn] : pressedOn;
 }
+
+/**
+ * The parts of `segment` that `creases` do not cover, as segments.
+ *
+ * Along the segment as a parameter: the creases become intervals, merged, and
+ * the gaps between them from one end to the other are what is left. A gap
+ * shorter than a hair is rounding, not crease.
+ */
+function uncreased(
+  segment: DiagramSegment,
+  creases: readonly DiagramSegment[]
+): DiagramSegment[] {
+  const [a, b] = segment;
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const span = dx * dx + dy * dy;
+  if (span === 0) return [];
+  const at = (p: Point) => ((p.x - a.x) * dx + (p.y - a.y) * dy) / span;
+  const covered = creases
+    .map(([p, q]) => [at(p), at(q)].sort((u, v) => u - v) as [number, number])
+    .sort((u, v) => u[0] - v[0]);
+  const gaps: DiagramSegment[] = [];
+  let cursor = 0;
+  const point = (t: number): Point => ({ x: a.x + dx * t, y: a.y + dy * t });
+  for (const [start, end] of covered) {
+    if (start > cursor + UNCREASED_EPSILON) gaps.push([point(cursor), point(start)]);
+    cursor = Math.max(cursor, end);
+  }
+  if (cursor < 1 - UNCREASED_EPSILON) gaps.push([point(cursor), point(1)]);
+  return gaps;
+}
+
+/** A gap along a chord shorter than this fraction of it is rounding. */
+const UNCREASED_EPSILON = 1e-6;
 
 /**
  * A span as a drawable line, put on its own line's dash ruler.
@@ -435,6 +512,17 @@ export function plannerStepDiagram(
     for (const span of creasedSpans(frame, earlier, patterned)) {
       primitives.push(spanLine(span, 'crease'));
     }
+  }
+
+  // A pleat: the whole family, each line full-length in the direction the
+  // pleat gives it, read from the front like every other direction here.
+  // Nothing is brought onto anything and nothing is named, so no arrow and
+  // no letters.
+  if (step.grid) {
+    for (const line of frame.gridLines(step)) {
+      primitives.push(spanLine(line.segment, styleOf(line.direction, true)));
+    }
+    return { sheet: { width: sheet.width, height: sheet.height }, primitives };
   }
 
   // A press carries the witness of the fold that made its line, so it draws
@@ -657,7 +745,16 @@ export function plannerFinishedDiagram(
   for (const step of sequence.steps) {
     // The pattern's own lines in the pattern's directions. An auxiliary fold
     // was made in a direction too, but the finished pattern assigns it none,
-    // and this card is the pattern.
+    // and this card is the pattern. A pleated family is both at once: the
+    // lines the pattern holds keep their pleat direction, the rest are
+    // auxiliary like any other.
+    if (step.grid) {
+      for (const line of frame.gridLines(step)) {
+        const style = styleOf(line.inPattern ? line.direction : 'unassigned', true);
+        primitives.push(spanLine(line.segment, style));
+      }
+      continue;
+    }
     const style = styleOf(step.kind === 'aux' ? 'unassigned' : step.direction, true);
     for (const span of creasedSpans(frame, step)) {
       primitives.push(spanLine(span, style));

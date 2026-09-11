@@ -4,7 +4,8 @@ import type { ReferencesPlanSummary } from '../../store/workspaceStore/types';
 
 /**
  * The toolbar's summary of a breakdown: "N folds = M creases + K auxiliary
- * (J visible)", the lower bound, and what the exactness probe decided.
+ * (J visible)", the grid the plan opens with, the lower bound, and what the
+ * exactness probe decided.
  *
  * The wording is load-bearing. The search is bounded, not exhaustive, so this
  * never says "minimum" and never implies one: it reports what was found, and
@@ -22,22 +23,46 @@ import type { ReferencesPlanSummary } from '../../store/workspaceStore/types';
 export function ReferencesSummaryStrip({ summary }: { summary: ReferencesPlanSummary | null }) {
   const { t } = useTranslation();
   if (!summary) return null;
-  const atLowerBound = summary.folds === summary.lowerBound;
+  // A pleated grid creases lines the pattern does not contain: folds that are
+  // not creases, which the arithmetic has to account for or it stops adding up.
+  // They are the technique, not auxiliary folds, so they do not stand between
+  // the plan and its lower bound.
+  const gridOnly = summary.gridLines - summary.gridCpLines;
+  const atLowerBound = summary.folds - gridOnly === summary.lowerBound;
 
   return (
     <span className="references-summary">
       <span className="references-summary__folds">
-        {t(
-          'panels:references.summary.folds',
-          '{{folds}} folds = {{creases}} creases + {{aux}} auxiliary ({{visible}} visible)',
-          {
-            folds: summary.folds,
-            creases: summary.cpLines,
-            aux: summary.aux,
-            visible: summary.visibleAux,
-          }
-        )}
+        {gridOnly > 0
+          ? t(
+              'panels:references.summary.foldsWithGrid',
+              '{{folds}} folds = {{creases}} creases + {{aux}} auxiliary + {{grid}} grid-only ({{visible}} visible)',
+              {
+                folds: summary.folds,
+                creases: summary.cpLines,
+                aux: summary.aux,
+                grid: gridOnly,
+                visible: summary.visibleAux,
+              }
+            )
+          : t(
+              'panels:references.summary.folds',
+              '{{folds}} folds = {{creases}} creases + {{aux}} auxiliary ({{visible}} visible)',
+              {
+                folds: summary.folds,
+                creases: summary.cpLines,
+                aux: summary.aux,
+                visible: summary.visibleAux,
+              }
+            )}
       </span>
+      {summary.gridKind !== null && (
+        <span className="references-summary__grid">
+          {summary.gridKind === 'hex'
+            ? t('panels:references.summary.hexGrid', 'hex grid {{n}}', { n: summary.gridN })
+            : t('panels:references.summary.grid', 'grid {{n}}', { n: summary.gridN })}
+        </span>
+      )}
       <span className="references-summary__bound">
         {atLowerBound
           ? t('panels:references.summary.atLowerBound', 'no auxiliary folds needed')

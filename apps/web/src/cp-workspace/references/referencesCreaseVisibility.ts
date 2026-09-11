@@ -40,6 +40,7 @@
  * one of them, and a diagram that fades it out reads as an empty page.
  */
 import { flipDirection } from './diagram/diagramModel';
+import type { PrecreaseDirection, PrecreaseStep } from './precreaseSequence';
 import type { ReferencesPlanVariant } from './referencesResults';
 import type { ReferencesViewStep } from './referencesSequenceView';
 import type { ReferencesCreaseVisibility } from './referencesViewGeometry';
@@ -143,13 +144,15 @@ export function planVisibility(
     if (view.kind !== 'fold' || view.component !== component) continue;
     const entry = variants[view.component]?.sequence.steps[view.step];
     if (!entry) continue;
-    for (const id of entry.cp_line_ids) {
-      if (sheetLineIds && !sheetLineIds.has(id)) continue;
-      visible.add(id);
-      if (entry.direction !== 'unassigned') {
-        // Named from the face the reader is on, like everything else in the
-        // picture — see `diagram/diagramModel.flipDirection`.
-        directions.set(id, mirrored ? flipDirection(entry.direction) : entry.direction);
+    for (const made of creasesMadeBy(entry)) {
+      for (const id of made.cpLineIds) {
+        if (sheetLineIds && !sheetLineIds.has(id)) continue;
+        visible.add(id);
+        if (made.direction !== 'unassigned') {
+          // Named from the face the reader is on, like everything else in the
+          // picture — see `diagram/diagramModel.flipDirection`.
+          directions.set(id, mirrored ? flipDirection(made.direction) : made.direction);
+        }
       }
     }
   }
@@ -171,4 +174,22 @@ export function planVisibility(
     // here and blue there the moment its step stopped being active.
     directions,
   };
+}
+
+/**
+ * The creases a step puts on the paper, each with the direction it was made
+ * in. One entry for a fold; one per line for a grid step, whose own
+ * `direction` is unassigned because a pleat alternates — the family's lines
+ * carry theirs.
+ */
+function creasesMadeBy(
+  step: PrecreaseStep
+): readonly { cpLineIds: readonly number[]; direction: PrecreaseDirection }[] {
+  if (step.grid) {
+    return step.grid.lines.map((line) => ({
+      cpLineIds: line.cp_line_ids,
+      direction: line.direction,
+    }));
+  }
+  return [{ cpLineIds: step.cp_line_ids, direction: step.direction }];
 }

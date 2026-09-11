@@ -535,12 +535,21 @@ impl Closure {
             self.stats.rounds += 1;
             let round = self.round;
             let mut folded_targets: Vec<usize> = Vec::with_capacity(constructible.len());
+            let mut failed = None;
             for (t, ws) in constructible {
-                self.fold_target(t, ws, round)?;
+                if let Err(e) = self.fold_target(t, ws, round) {
+                    // The cap: what this round folded before it is on the
+                    // paper, and must not stay remaining as well.
+                    failed = Some(e);
+                    break;
+                }
                 folded_targets.push(t);
                 folded_now += 1;
             }
             self.remaining.retain(|t| !folded_targets.contains(t));
+            if let Some(e) = failed {
+                return Err(e);
+            }
         }
     }
 
@@ -675,47 +684,64 @@ impl Closure {
     /// Only meaningful on a closure nothing has been folded on; called on any
     /// other it still folds what it is given, but the grid then is not the
     /// first thing on the paper, and the plan says it is.
+    ///
+    /// On the point cap the lines already pleated stay on the paper and are
+    /// reported as the grid — the folder made them — and the rest are never
+    /// added; the error says why.
     pub fn fold_grid(&mut self, grid: Grid) -> Result<(), PrecreaseError> {
         self.round += 1;
         let round = self.round;
-        for (fi, family) in grid.families.iter().enumerate() {
-            for (li, gl) in family.lines.iter().enumerate() {
-                if self.state.find_line(&gl.line).is_some() {
-                    continue;
-                }
-                let target = gl.target.filter(|t| self.remaining.contains(t));
-                let tag = if target.is_some() {
-                    LineTag::Cp
-                } else {
-                    LineTag::Grid
-                };
-                let outcome = self.state.add_line(gl.line, tag)?;
-                // The pleat creases the whole line, whatever part of it the
-                // pattern wants.
-                self.creased.add_whole(&self.state, outcome.id);
-                self.folded.push(FoldedLine {
-                    line_id: outcome.id,
-                    line: gl.line,
-                    tag,
-                    target,
-                    round,
-                    witnesses: Vec::new(),
-                    chosen: None,
-                    witnesses_complete: true,
-                    approximation: None,
-                    folded_as: None,
-                    grid: Some(GridRef {
-                        family: fi,
-                        line: li,
-                    }),
-                });
-                if let Some(t) = target {
-                    self.facts[t] = TargetFacts::default();
-                    self.remaining.retain(|&x| x != t);
-                }
+        // Every line the grid names, in family order, before any is added:
+        // the grid is recorded first so that a cap partway through still
+        // reports the lines that made it onto the paper.
+        let lines: Vec<(usize, usize, Line, Option<usize>)> = grid
+            .families
+            .iter()
+            .enumerate()
+            .flat_map(|(fi, family)| {
+                family
+                    .lines
+                    .iter()
+                    .enumerate()
+                    .map(move |(li, gl)| (fi, li, gl.line, gl.target))
+            })
+            .collect();
+        self.grid = Some(grid);
+        for (fi, li, line, target) in lines {
+            if self.state.find_line(&line).is_some() {
+                continue;
+            }
+            let target = target.filter(|t| self.remaining.contains(t));
+            let tag = if target.is_some() {
+                LineTag::Cp
+            } else {
+                LineTag::Grid
+            };
+            let outcome = self.state.add_line(line, tag)?;
+            // The pleat creases the whole line, whatever part of it the
+            // pattern wants.
+            self.creased.add_whole(&self.state, outcome.id);
+            self.folded.push(FoldedLine {
+                line_id: outcome.id,
+                line,
+                tag,
+                target,
+                round,
+                witnesses: Vec::new(),
+                chosen: None,
+                witnesses_complete: true,
+                approximation: None,
+                folded_as: None,
+                grid: Some(GridRef {
+                    family: fi,
+                    line: li,
+                }),
+            });
+            if let Some(t) = target {
+                self.facts[t] = TargetFacts::default();
+                self.remaining.retain(|&x| x != t);
             }
         }
-        self.grid = Some(grid);
         Ok(())
     }
 
@@ -826,6 +852,28 @@ mod tests {
 
     fn unbounded() -> Deadline {
         Deadline::unbounded(frozen_clock())
+    }
+
+    #[test]
+    fn a_round_cut_short_by_the_point_cap_keeps_its_folds_out_of_remaining() {
+        // Eight verticals and eight horizontals close in one round from the
+        // bare sheet; a cap that trips partway leaves what was folded folded,
+        // and nothing both folded and remaining.
+        let lines: Vec<Line> = (1..8)
+            .flat_map(|k| [v(k as f64 / 8.0), h(k as f64 / 8.0)])
+            .collect();
+        let mut c = Closure::new(Sheet::unit_square(), targets(&lines), 40);
+        let err = c.close(&unbounded()).expect_err("the cap trips");
+        assert!(matches!(err, PrecreaseError::PointCap { .. }));
+        assert!(!c.folded().is_empty());
+        for f in c.folded() {
+            let t = f.target.expect("a target");
+            assert!(
+                !c.remaining().contains(&t),
+                "target {t} is folded and remaining"
+            );
+        }
+        assert_eq!(c.folded().len() + c.remaining().len(), lines.len());
     }
 
     #[test]

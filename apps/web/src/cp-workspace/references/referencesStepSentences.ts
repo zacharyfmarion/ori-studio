@@ -25,11 +25,16 @@
  */
 import type { TFunction } from 'i18next';
 import type { ExtractedStep } from './referenceFinder/extractor';
-import type { ReferencesDirection } from './referencesBreakdown';
+import { directionOfGroup, type ReferencesDirection } from './referencesBreakdown';
 import { unitFrame } from './diagram/diagramFrames';
 import { inputLetters } from './diagram/inputLetters';
 import { perpendicularMotion } from './diagram/plannerDiagram';
-import { SHORT_ALIGNMENT, chosenWitness, type PrecreaseSequence } from './precreaseSequence';
+import {
+  SHORT_ALIGNMENT,
+  chosenWitness,
+  type PrecreaseGridStep,
+  type PrecreaseSequence,
+} from './precreaseSequence';
 
 /** How many point and line inputs each axiom serialises, in that order. */
 export const STEP_INPUT_ARITY: Readonly<Record<number, { points: number; lines: number }>> = {
@@ -214,6 +219,9 @@ export function describePlannerStep(
 ): string {
   const step = sequence.steps[stepIndex];
   if (!step) return '';
+  // A grid step is a pleat, not a sighted fold: it has no witness, and every
+  // line of the family is in it.
+  if (step.kind === 'grid' && step.grid) return describeGridStep(t, step.grid);
   // A press reads as the fold that made its line — it carries that fold's
   // witness — and says how much of it to press, below, like any pinch.
   const witness = chosenWitness(step);
@@ -340,6 +348,86 @@ export function describePlannerStep(
     return `${sentence} ${t('panels:references.planStep.partlyReversed', 'This line is creased both ways in the pattern — the rest reverses as the model collapses.')}`;
   }
   return sentence;
+}
+
+/**
+ * The instruction for a grid step: one family of the precrease grid, pleated
+ * edge to edge.
+ *
+ * Said the way a folder says it — "into 16ths", which way, how many lines, and
+ * the alternation with its phase (the family's first line, by index) — because
+ * the card draws every line of the family and the sentence's job is the count
+ * and the rhythm. When the pattern wants some of the lines the other way it
+ * says how many: they are creased as the pleat makes them and reverse as the
+ * model collapses, and a folder who is not told reads the finished assignment
+ * off the precrease.
+ */
+export function describeGridStep(t: TFunction, grid: PrecreaseGridStep): string {
+  // `directionOfGroup` takes the normal's angle, as the groups carry it.
+  const direction = describeDirection(
+    t,
+    directionOfGroup(Math.atan2(grid.normal[1], grid.normal[0]))
+  );
+  const ordinal = (n: number) =>
+    t('panels:references.planStep.gridFraction', {
+      count: n,
+      ordinal: true,
+      defaultValue_ordinal_one: '{{count}}sts',
+      defaultValue_ordinal_two: '{{count}}nds',
+      defaultValue_ordinal_few: '{{count}}rds',
+      defaultValue_ordinal_other: '{{count}}ths',
+    });
+  // An axis family runs edge to edge in whole strips — "into 16ths". An
+  // oblique family of a hex grid divides nothing whole, so it is said by its
+  // spacing: one cell of the grid apart.
+  const pleat =
+    grid.cells !== null
+      ? t('panels:references.planStep.gridPleatInto', 'Pleat the sheet into {{fraction}} {{direction}}', {
+          fraction: ordinal(grid.cells),
+          direction,
+        })
+      : t(
+          'panels:references.planStep.gridPleatSpaced',
+          'Pleat the sheet {{direction}}, one {{cell}} of the sheet apart',
+          {
+            cell: t('panels:references.planStep.gridCell', {
+              count: grid.n,
+              ordinal: true,
+              defaultValue_ordinal_one: '{{count}}st',
+              defaultValue_ordinal_two: '{{count}}nd',
+              defaultValue_ordinal_few: '{{count}}rd',
+              defaultValue_ordinal_other: '{{count}}th',
+            }),
+            direction,
+          }
+        );
+  const count = grid.lines.length;
+  const sentence =
+    grid.lines[0]?.direction === 'valley'
+      ? t('panels:references.planStep.gridValleyFirst', {
+          count,
+          pleat,
+          defaultValue_one:
+            '{{pleat}}: {{count}} line, alternating valley and mountain, valley first.',
+          defaultValue_other:
+            '{{pleat}}: {{count}} lines, alternating valley and mountain, valley first.',
+        })
+      : t('panels:references.planStep.gridMountainFirst', {
+          count,
+          pleat,
+          defaultValue_one:
+            '{{pleat}}: {{count}} line, alternating mountain and valley, mountain first.',
+          defaultValue_other:
+            '{{pleat}}: {{count}} lines, alternating mountain and valley, mountain first.',
+        });
+  if (grid.reversed === 0) return sentence;
+  return `${sentence} ${t('panels:references.planStep.gridReversed', {
+    count: grid.reversed,
+    defaultValue_one:
+      'The pattern wants {{count}} of them the other way; it reverses as the model collapses.',
+    defaultValue_other:
+      'The pattern wants {{count}} of them the other way; they reverse as the model collapses.',
+  })}`;
 }
 
 /** How a direction reads in a row's sentence. */

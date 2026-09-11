@@ -238,6 +238,7 @@ fn grid_steps(closure: &Closure, sheet: &Sheet) -> Vec<Step> {
                         index: gl.index,
                         direction: gl.direction,
                         pattern_direction: gl.pattern_direction,
+                        pattern_share: gl.pattern_share,
                         cp_line_ids: target.map(|t| t.cp_line_ids.clone()).unwrap_or_default(),
                         cp_spans: target.map(|t| t.spans.clone()).unwrap_or_default(),
                     })
@@ -279,8 +280,17 @@ fn grid_steps(closure: &Closure, sheet: &Sheet) -> Vec<Step> {
                     n: grid.n,
                     normal: family.normal,
                     spacing: family.spacing,
+                    cells: family.cells,
                     in_pattern: lines.iter().filter(|l| !l.cp_line_ids.is_empty()).count() as u32,
-                    reversed: family.reversed() as u32,
+                    // Over the lines actually pleated: on the point cap a
+                    // family can be short of its last lines.
+                    reversed: lines
+                        .iter()
+                        .filter(|l| {
+                            l.pattern_direction != Direction::Unassigned
+                                && l.pattern_direction != l.direction
+                        })
+                        .count() as u32,
                     lines,
                 }),
             })

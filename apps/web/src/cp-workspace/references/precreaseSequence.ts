@@ -83,6 +83,13 @@ export interface PrecreaseGridStepLine {
    * contain the line, or assigns it nothing.
    */
   pattern_direction: PrecreaseDirection;
+  /**
+   * The share of the line's creased length `pattern_direction` covers, in
+   * `[0, 1]`; `0` when the pattern lacks the line. Below 1 the pattern creases
+   * the line both ways, whichever way it is pleated — what `direction_share`
+   * says for a step of its own.
+   */
+  pattern_share: number;
   /** The editor's 1-based crease ids on this line; empty when the pattern lacks it. */
   cp_line_ids: number[];
   /** Where those creases are on the line, parallel to `cp_line_ids`. */
@@ -100,6 +107,12 @@ export interface PrecreaseGridStep {
   normal: [number, number];
   /** Distance between adjacent lines. */
   spacing: number;
+  /**
+   * How many strips the family cuts the sheet into, when that is a whole
+   * number — "pleat into 16ths". Null for an oblique family, or one whose
+   * spacing does not divide the side it crosses; the card then counts lines.
+   */
+  cells: number | null;
   /** Every line of the family, by ascending index. */
   lines: PrecreaseGridStepLine[];
   /** How many of them the pattern contains. */

@@ -1395,6 +1395,13 @@ export interface ReferencesSettings {
    * only meaningful once a breakdown exists (plan, Phase 5).
    */
   startFromPlan: boolean;
+  /**
+   * Open a box- or hex-pleated design with its grid pleated, one step per
+   * family, before anything is sighted. On by default: it is how every folder
+   * precreases such a design. Unlike `landmarksFirst` this changes the plan
+   * itself, so toggling it re-plans (`implementation-plans/precrease-grid-first.md`).
+   */
+  precreaseGrid: boolean;
 }
 
 /** How the exactness policy classified the component being planned (D8). */
@@ -1446,6 +1453,18 @@ export interface ReferencesPlanSummary {
   turnOvers: number;
   /** Steps whose line is creased both ways in the pattern (plan D21). */
   mixedSteps: number;
+  /** The grid the plan opens with, or null when the design is not pleated on one. */
+  gridKind: 'box' | 'hex' | null;
+  /** Cells across the grid's anchored side; 0 without a grid. */
+  gridN: number;
+  /** Lines pleated over every grid family, the pattern's and the grid's own alike. */
+  gridLines: number;
+  /**
+   * Of `gridLines`, the lines the pattern contains. The rest are in `folds`
+   * but not in `cpLines`, which is why `folds = cpLines + aux` stops holding
+   * once a grid is pleated.
+   */
+  gridCpLines: number;
   exactnessClass: ReferencesExactnessClass | null;
   /** Snappable only: the largest distance a line moved, in model units. */
   maxDisplacementModel: number;

@@ -33,7 +33,11 @@ export interface ReferencesFilmstripStep {
    * does not read as a numbered run with unexplained gaps in it.
    */
   kind: 'fold' | 'turn-over' | 'done';
-  /** The badge on a card that is not a fold. Empty for a fold. */
+  /**
+   * The badge on a card: what a card that is not a fold is, or what a fold
+   * needs the reader to know before the sentence (approximate, a grid pleat).
+   * Empty for an ordinary exact fold.
+   */
   badge: string;
   /**
    * What the card is numbered.
@@ -93,13 +97,21 @@ export function planFilmstrip(
         folds += 1;
         // A step that is not exact — folded by the closest construction there
         // was, or sighted from one — wears it on the card, not only in the
-        // sentence: the folder reads the strip before the sentence.
-        const exact = sequence.steps[view.step]?.exact ?? true;
+        // sentence: the folder reads the strip before the sentence. A grid
+        // step is exact by construction (a pleat sights nothing), so the two
+        // badges never compete.
+        const step = sequence.steps[view.step];
+        const badge =
+          step?.kind === 'grid'
+            ? t('panels:references.planStep.gridBadge', 'Grid')
+            : (step?.exact ?? true)
+              ? ''
+              : t('panels:references.planStep.approximateBadge', 'Approximate');
         return [
           {
             key: `plan-${view.component}-${view.step}`,
             kind: 'fold',
-            badge: exact ? '' : t('panels:references.planStep.approximateBadge', 'Approximate'),
+            badge,
             number: folds,
             diagram: null,
             primitives: plannerStepDiagram(sequence, unitFrame(sequence), view.step),

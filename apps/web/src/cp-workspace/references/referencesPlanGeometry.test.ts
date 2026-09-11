@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { plannerSequenceFixture } from './__fixtures__/plannerSequence';
+import {
+  plannerSequenceFixture,
+  plannerSequenceWithGridFixture,
+} from './__fixtures__/plannerSequence';
 import {
   decodePlanModel,
   EDGE_ORDER,
@@ -46,18 +49,49 @@ describe('planModelPoints / decodePlanModel', () => {
     expect(model.steps[0].segment.b).toEqual({ x: 200, y: 0 });
   });
 
+  /**
+   * How many points the layout holds, counted independently of it: per step
+   * the chord, then each pinch, each press-on and each grid line as two
+   * endpoints; then the marks, the four edges, and each finding's segment.
+   */
+  const pointCount = (seq: typeof sequence) =>
+    seq.steps.reduce(
+      (n, step) =>
+        n +
+        2 +
+        (step.extent.kind === 'pinches' ? step.extent.spans.length * 2 : 0) +
+        step.pressed_on.length * 2 +
+        (step.grid?.lines.length ?? 0) * 2,
+      0
+    ) +
+    seq.points.length +
+    8 +
+    seq.findings.filter((finding) => finding.segment).length * 2;
+
   it('lays the request out in exactly the order it is read back', () => {
     // Two values per point, and the count has to match or every later entry
     // is off by one — the one failure mode this contract can have.
-    const expected =
-      sequence.steps.reduce(
-        (n, step) => n + 2 + (step.extent.kind === 'pinches' ? step.extent.spans.length * 2 : 0),
-        0
-      ) +
-      sequence.points.length +
-      8 +
-      sequence.findings.filter((finding) => finding.segment).length * 2;
-    expect(planModelPoints(sequence).length).toBe(expected * 2);
+    expect(planModelPoints(sequence).length).toBe(pointCount(sequence) * 2);
+    const gridded = plannerSequenceWithGridFixture();
+    expect(planModelPoints(gridded).length).toBe(pointCount(gridded) * 2);
+  });
+
+  // A grid step's own chord is only its family's first line; the family
+  // crosses in the same round trip, after the chord, so the view can draw the
+  // pleat without a second call.
+  it('carries every line of a pleated family, after the step’s own chord', () => {
+    const gridded = plannerSequenceWithGridFixture();
+    const model = decodePlanModel(gridded, mapToModel(planModelPoints(gridded)));
+    for (const [i, step] of gridded.steps.entries()) {
+      expect(model.steps[i].gridLines).toHaveLength(step.grid?.lines.length ?? 0);
+    }
+    // The vertical family's last line, x = ¾, edge to edge.
+    const last = model.steps[0].gridLines[2];
+    expect(last.a).toEqual({ x: 100, y: 200 });
+    expect(last.b).toEqual({ x: 100, y: -200 });
+    // And what comes after the family is still read in its place.
+    expect(model.points[2]).toEqual({ x: 0, y: 0 });
+    expect(model.edges.top.a).toEqual({ x: -200, y: -200 });
   });
 });
 
@@ -114,5 +148,18 @@ describe('planStepScene', () => {
     const scene = planStepScene(sequence, model, 99);
     expect(scene.diagram).toBeNull();
     expect(scene.highlightLineIds).toEqual([]);
+  });
+
+  it('frames a grid step by its whole family, not its first line', () => {
+    const gridded = plannerSequenceWithGridFixture();
+    const scene = planStepScene(
+      gridded,
+      decodePlanModel(gridded, mapToModel(planModelPoints(gridded))),
+      0
+    );
+    // The vertical family, x = ¼ … ¾, edge to edge.
+    expect(scene.bounds).toEqual({ minX: -100, maxX: 100, minY: -200, maxY: 200 });
+    // Every pattern crease the family holds, for the canvas's crease visibility.
+    expect(scene.highlightLineIds).toEqual([1, 2, 3]);
   });
 });

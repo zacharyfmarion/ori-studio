@@ -159,6 +159,13 @@ export interface ReferencesPlanRecord {
   refused: { component: number; kind: PrecreaseRefusalKind | null }[];
   durationMs: number;
   /**
+   * The "Precrease grid" setting this plan was computed under. The setting
+   * changes the plan itself, not its presentation, so a plan is for one value
+   * of it the way it is for one revision — and a plan that disagrees with the
+   * setting on screen is re-planned, whenever that comes to light.
+   */
+  precreaseGrid: boolean;
+  /**
    * The worker planner still sitting on this plan's final state, when there is
    * one — what "Starting from: this sequence" scores against. Only a
    * single-sheet plan keeps it: the worker holds one planner at a time, so

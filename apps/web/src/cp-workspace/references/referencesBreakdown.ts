@@ -84,7 +84,10 @@ export function stepsById(sequence: PrecreaseSequence): Map<number, PrecreaseSte
 }
 
 /**
- * What the summary strip prints. `folds = cpLines + aux` by construction, and
+ * What the summary strip prints. `folds = cpLines + aux` by construction —
+ * plus, when the plan opens with a precrease grid, the grid's own lines: a
+ * family is pleated edge to edge whether or not the pattern wants every line
+ * of it, and those it does not want are creases made but not `cpLines`.
  * `lowerBound` is the exact lower bound *within the flat-sheet model* — the
  * number of distinct CP lines off the outline. Never a claimed minimum: the
  * search is bounded (plan, "Honest statement").
@@ -94,10 +97,15 @@ export interface ReferencesBreakdownTotals {
   cpLines: number;
   aux: number;
   visibleAux: number;
+  /** Lines of the precrease grid over every family; 0 when the plan has none. */
+  gridLines: number;
   lowerBound: number;
   freeLines: number;
   unsolved: number;
-  /** `folds` equals the lower bound: no auxiliary fold was needed at all. */
+  /**
+   * No auxiliary fold was needed at all: the folds equal the lower bound,
+   * the grid's own lines apart — those are the technique, not a detour.
+   */
   atLowerBound: boolean;
 }
 
@@ -107,10 +115,11 @@ export function breakdownTotals(totals: PrecreaseTotals): ReferencesBreakdownTot
     cpLines: totals.cp_lines,
     aux: totals.aux,
     visibleAux: totals.visible_aux,
+    gridLines: totals.grid_lines,
     lowerBound: totals.lower_bound,
     freeLines: totals.free_lines,
     unsolved: totals.unsolved,
-    atLowerBound: totals.folds === totals.lower_bound,
+    atLowerBound: totals.folds - (totals.grid_lines - totals.grid_cp_lines) === totals.lower_bound,
   };
 }
 

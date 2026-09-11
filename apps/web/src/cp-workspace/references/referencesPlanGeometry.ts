@@ -33,6 +33,12 @@ export interface ReferencesPlanModelStep {
   pinches: { a: Point; b: Point }[];
   /** Crease made past the pattern's own, for a later step to line up against. */
   pressedOn: { a: Point; b: Point }[];
+  /**
+   * Every line of a grid step's family, parallel to `step.grid.lines`; empty
+   * for any other step. A grid line is creased edge to edge, so its whole
+   * segment is what the view draws.
+   */
+  gridLines: { a: Point; b: Point }[];
 }
 
 /** A plan's geometry in model space. */
@@ -71,6 +77,10 @@ export function planModelPoints(sequence: PrecreaseSequence): Float64Array {
     for (const span of step.pressed_on) {
       push(span[0]);
       push(span[1]);
+    }
+    for (const line of step.grid?.lines ?? []) {
+      push(line.segment[0]);
+      push(line.segment[1]);
     }
   }
   for (const point of sequence.points) push(point.p);
@@ -123,7 +133,8 @@ export function decodePlanModel(
         ? step.extent.spans.map(() => ({ a: next(), b: next() }))
         : [];
     const pressedOn = step.pressed_on.map(() => ({ a: next(), b: next() }));
-    return { segment, pinches, pressedOn };
+    const gridLines = (step.grid?.lines ?? []).map(() => ({ a: next(), b: next() }));
+    return { segment, pinches, pressedOn, gridLines };
   });
   const points = sequence.points.map(() => next());
   const edges = {} as Record<PrecreaseEdgeSide, { a: Point; b: Point }>;
@@ -179,8 +190,12 @@ export function planStepScene(
     earlier: 'unpatterned',
   });
   const geometry = model.steps[index];
+  // A grid step's own chord is its family's first line; the step is the family.
   const bounds = geometry
-    ? extend(extend(null, geometry.segment.a), geometry.segment.b)
+    ? [geometry.segment, ...geometry.gridLines].reduce<ModelBounds | null>(
+        (box, span) => extend(extend(box, span.a), span.b),
+        null
+      )
     : null;
   return { diagram, bounds, highlightLineIds: step.cp_line_ids };
 }

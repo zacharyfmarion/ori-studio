@@ -211,6 +211,71 @@ fn landmarks_first_leaves_the_grid_where_it_is() {
     }
 }
 
+/// On the point cap partway through the grid, the lines that made it onto
+/// the paper are the grid the plan reports, and the pattern lines it never
+/// reached are still remaining: nothing is planned twice and nothing is lost.
+#[test]
+fn a_grid_cut_short_by_the_point_cap_is_reported_as_far_as_it_got() {
+    let cp = load("tests/fixtures/precrease/grid6.fold");
+    let analysis = analyze_cp(&cp);
+    let opts = PlannerOptions {
+        point_cap: 30,
+        ..unbounded_options()
+    };
+    let (_, seq) = plan_component(&analysis.components[0], opts);
+    assert!(seq.diagnostics.point_cap_hit);
+    let grid = seq
+        .grid
+        .as_ref()
+        .expect("the grid that was made is reported");
+    assert!(grid.lines > 0 && grid.lines < 10, "{grid:?}");
+    let pleated: u32 = seq
+        .steps
+        .iter()
+        .filter_map(|s| s.grid.as_ref())
+        .map(|g| g.lines.len() as u32)
+        .sum();
+    assert_eq!(pleated, grid.lines);
+    // Every pattern line is either a step or a finding, never both, never
+    // neither.
+    assert_eq!(
+        seq.totals.cp_lines + seq.totals.unsolved,
+        seq.totals.lower_bound
+    );
+    assert_eq!(seq.totals.lower_bound + seq.totals.free_lines, 14);
+    let folded: std::collections::HashSet<u32> = seq
+        .steps
+        .iter()
+        .flat_map(|s| match &s.grid {
+            Some(g) => g
+                .lines
+                .iter()
+                .flat_map(|l| l.cp_line_ids.clone())
+                .collect::<Vec<_>>(),
+            None => s.cp_line_ids.clone(),
+        })
+        .collect();
+    for finding in &seq.findings {
+        for id in &finding.cp_line_ids {
+            assert!(
+                !folded.contains(id),
+                "crease {id} is both folded and unsolved"
+            );
+        }
+    }
+    for entry in seq
+        .lines
+        .iter()
+        .filter(|l| l.tag == oristudio_precrease::LineTag::Cp)
+    {
+        assert!(
+            entry.step.is_some(),
+            "state line {} was made by no step",
+            entry.id
+        );
+    }
+}
+
 /// The curated benchmark designs, when they are on this machine
 /// (`ORI_PRECREASE_CORPUS` names the directory of `<design>/truth.fold`):
 /// real hex-pleated designs and real box-pleated ones. The grid is read off

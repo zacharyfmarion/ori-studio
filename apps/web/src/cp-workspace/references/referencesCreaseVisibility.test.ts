@@ -10,6 +10,7 @@ import {
 import type { ReferencesViewStep } from './referencesSequenceView';
 import type { ReferencesPlanVariant } from './referencesResults';
 import type { PrecreaseSequence, PrecreaseStep } from './precreaseSequence';
+import { plannerSequenceWithGridFixture } from './__fixtures__/plannerSequence';
 
 function step(id: number, cpLineIds: number[]): PrecreaseStep {
   return {
@@ -257,6 +258,37 @@ describe('the direction a crease keeps', () => {
     const variants = [variant([{ ...step(1, [10]), direction: 'unassigned' as const }])];
     const at = planVisibility(variants, [fold(0)], 0, input);
     expect(at.directions?.size).toBe(0);
+  });
+
+  // A grid step's own direction is unassigned — a pleat alternates — and the
+  // family's lines each carry theirs. The canvas must read those, or a line
+  // the pattern wants the other way keeps the pattern's colour here while the
+  // card and the sentence say the pleat's.
+  it('is the pleat direction of each grid line, not the step-level unassigned', () => {
+    const sequence = plannerSequenceWithGridFixture();
+    const variants = [variant(sequence.steps)];
+    const views: ReferencesViewStep[] = [fold(0), fold(1), fold(2)];
+    const at = planVisibility(variants, views, 2, {
+      ...input,
+      sheetLineIds: new Set([1, 2, 3, 4, 5]),
+      borderLineIds: new Set<number>(),
+    });
+    expect([...at.visible ?? []].sort()).toEqual([1, 2, 3, 4]);
+    expect([...(at.directions ?? [])]).toEqual([
+      [1, 'mountain'],
+      [2, 'valley'],
+      [3, 'valley'],
+      // Pleated valley though the pattern says mountain: it stays as made.
+      [4, 'valley'],
+    ]);
+    const back = planVisibility(variants, views, 2, {
+      ...input,
+      mirrored: true,
+      sheetLineIds: new Set([1, 2, 3, 4, 5]),
+      borderLineIds: new Set<number>(),
+    });
+    expect(back.directions?.get(1)).toBe('valley');
+    expect(back.directions?.get(4)).toBe('mountain');
   });
 
   // The point layer needs to tell the outline from the folds: a dot at every

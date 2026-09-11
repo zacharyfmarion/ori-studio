@@ -5,7 +5,11 @@ import { extractSolution, type ExtractedStep } from './referenceFinder/extractor
 import type { ReferenceFinderReplayFixture } from './referenceFinder/replayClient';
 import { unitFrame } from './diagram/diagramFrames';
 import { plannerStepDiagram } from './diagram/plannerDiagram';
-import type { PrecreaseStep } from './precreaseSequence';
+import type {
+  PrecreaseGridStep,
+  PrecreaseGridStepLine,
+  PrecreaseStep,
+} from './precreaseSequence';
 import { plannerSequenceFixture } from './__fixtures__/plannerSequence';
 import {
   describePlannerStep,
@@ -15,11 +19,29 @@ import {
   splitStepInputs,
 } from './referencesStepSentences';
 
-/** Returns the English default with `{{name}}` interpolations applied. */
-const t = ((_key: string, fallback: string, values?: Record<string, unknown>) =>
-  fallback.replace(/\{\{(\w+)\}\}/g, (_match, name: string) =>
-    String(values?.[name] ?? `{{${name}}}`)
-  )) as unknown as TFunction;
+/**
+ * Returns the English default with `{{name}}` interpolations applied. A plural
+ * call passes its defaults in the options object, one per CLDR category —
+ * cardinal (`defaultValue_one` / `_other`) or, with `ordinal: true`, ordinal
+ * (`_ordinal_one` / `_two` / `_few` / `_other`) — and gets the form English
+ * selects for `count`.
+ */
+function render(_key: string, second?: unknown, third?: unknown): string {
+  const options = (typeof second === 'object' && second !== null ? second : third) as
+    | Record<string, unknown>
+    | undefined;
+  let fallback = typeof second === 'string' ? second : '';
+  if (typeof options?.count === 'number') {
+    const type = options.ordinal === true ? 'ordinal' : 'cardinal';
+    const category = new Intl.PluralRules('en', { type }).select(options.count);
+    const suffix = type === 'ordinal' ? `_ordinal_${category}` : `_${category}`;
+    fallback = String(options[`defaultValue${suffix}`] ?? options.defaultValue ?? fallback);
+  }
+  return fallback.replace(/\{\{(\w+)\}\}/g, (_match, name: string) =>
+    String(options?.[name] ?? `{{${name}}}`)
+  );
+}
+const t = render as unknown as TFunction;
 
 function step(overrides: Partial<ExtractedStep>): ExtractedStep {
   return { axiom: 1, inputs: [], label: 'A', pinch: false, diagramIndex: 0, ...overrides };
@@ -312,5 +334,134 @@ describe('a step whose creases line up over less than a pinch', () => {
     const seq = { ...sequence, steps: sequence.steps.map((s, i) => (i === 4 ? long : s)) };
     expect(describePlannerStep(t, seq, 4)).toBe(describePlannerStep(t, sequence, 4));
     expect(describePlannerStep(t, sequence, 1)).not.toMatch(/briefly/);
+  });
+});
+
+// A grid step is one family of the precrease grid, and reads as the pleat a
+// folder makes rather than as fifteen sighted folds.
+describe('a grid step', () => {
+  const sequence = plannerSequenceFixture();
+
+  /** A family of `n − 1` interior lines, alternating from `first` by index. */
+  function family(
+    overrides: Partial<PrecreaseGridStep> & { first?: 'mountain' | 'valley' } = {}
+  ): PrecreaseGridStep {
+    const { first = 'mountain', ...rest } = overrides;
+    const n = rest.n ?? 16;
+    const normal = rest.normal ?? ([1, 0] as [number, number]);
+    const lines: PrecreaseGridStepLine[] = [];
+    for (let index = 1; index < n; index += 1) {
+      const even = (index - 1) % 2 === 0;
+      const direction = even === (first === 'mountain') ? 'mountain' : 'valley';
+      lines.push({
+        line_id: 10 + index,
+        line: { n: normal, d: index / n },
+        segment: [
+          [index / n, 0],
+          [index / n, 1],
+        ],
+        index,
+        direction,
+        pattern_direction: 'unassigned',
+        pattern_share: 0,
+        cp_line_ids: [],
+        cp_spans: [],
+      });
+    }
+    // An axis family cuts the sheet into `n` strips; an oblique one into no
+    // whole number of anything, as the crate reports it.
+    const oblique = normal[0] !== 0 && normal[1] !== 0;
+    return {
+      kind: 'box',
+      family: 0,
+      n,
+      normal,
+      spacing: 1 / n,
+      cells: oblique ? null : n,
+      lines,
+      in_pattern: 0,
+      reversed: 0,
+      ...rest,
+    };
+  }
+
+  function withGrid(grid: PrecreaseGridStep, side: 'front' | 'back' = 'front') {
+    const first = grid.lines[0]!;
+    const step: PrecreaseStep = {
+      ...sequence.steps[1]!,
+      id: 1,
+      kind: 'grid',
+      tag: 'grid',
+      line: first.line,
+      line_id: first.line_id,
+      segment: first.segment,
+      witnesses: [],
+      chosen: null,
+      direction: 'unassigned',
+      direction_share: 0,
+      side,
+      cp_line_ids: [],
+      cp_spans: [],
+      exact: true,
+      grid,
+    };
+    return { ...sequence, steps: [step, ...sequence.steps] };
+  }
+
+  it('says which way, into how many, how many lines, and the alternation’s phase', () => {
+    expect(describePlannerStep(t, withGrid(family()), 0)).toBe(
+      'Pleat the sheet into 16ths vertically: 15 lines, alternating mountain and valley, mountain first.'
+    );
+    expect(describePlannerStep(t, withGrid(family({ normal: [0, 1], first: 'valley' })), 0)).toBe(
+      'Pleat the sheet into 16ths horizontally: 15 lines, alternating valley and mountain, valley first.'
+    );
+  });
+
+  it('writes the fraction as English does — 32nds, 8ths, 23rds — not 32ths', () => {
+    expect(describePlannerStep(t, withGrid(family({ n: 32 })), 0)).toContain('into 32nds');
+    expect(describePlannerStep(t, withGrid(family({ n: 8 })), 0)).toContain('into 8ths');
+    expect(describePlannerStep(t, withGrid(family({ n: 23 })), 0)).toContain('into 23rds');
+    expect(describePlannerStep(t, withGrid(family({ n: 21 })), 0)).toContain('into 21sts');
+  });
+
+  it('names an oblique hex family by its angle, from the normal, and by its spacing', () => {
+    // A normal at 120° is a line at 30°: the family reads by the line's own
+    // direction, as the sidebar's rows do, and never by its normal. It cuts
+    // the sheet into no whole number of strips, so it is said by the grid's
+    // cell instead of "into 16ths".
+    const theta = (2 * Math.PI) / 3;
+    const hex = family({ kind: 'hex', normal: [Math.cos(theta), Math.sin(theta)] });
+    expect(describePlannerStep(t, withGrid(hex), 0)).toBe(
+      'Pleat the sheet at 30°, one 16th of the sheet apart: 15 lines, alternating mountain and valley, mountain first.'
+    );
+  });
+
+  it('counts the strips of the family itself, not the grid’s, on a rectangle', () => {
+    // A 2:1 sheet on 16ths of its width: the horizontal family has 7 lines
+    // and cuts the height into 8ths, whatever `n` the grid is named by.
+    const horizontal = family({ n: 16, normal: [0, 1], cells: 8 });
+    horizontal.lines = horizontal.lines.slice(0, 7);
+    expect(describePlannerStep(t, withGrid(horizontal), 0)).toContain(
+      'Pleat the sheet into 8ths horizontally: 7 lines'
+    );
+  });
+
+  it('says how many lines the pattern wants the other way, only when there are any', () => {
+    expect(describePlannerStep(t, withGrid(family({ in_pattern: 9 })), 0)).not.toMatch(/other way/);
+    expect(describePlannerStep(t, withGrid(family({ in_pattern: 9, reversed: 3 })), 0)).toBe(
+      'Pleat the sheet into 16ths vertically: 15 lines, alternating mountain and valley, mountain first. The pattern wants 3 of them the other way; they reverse as the model collapses.'
+    );
+    expect(describePlannerStep(t, withGrid(family({ in_pattern: 9, reversed: 1 })), 0)).toContain(
+      'The pattern wants 1 of them the other way; it reverses as the model collapses.'
+    );
+  });
+
+  it('is a pleat, not a free line or a sighted fold', () => {
+    // No witness — but that is because nothing is sighted, not because the
+    // line is already there.
+    const sentence = describePlannerStep(t, withGrid(family()), 0);
+    expect(sentence).not.toMatch(/already on the sheet/);
+    expect(sentence).not.toMatch(/Fold /);
+    expect(describePlannerStep(t, withGrid(family(), 'back'), 0)).toBe(sentence);
   });
 });
