@@ -10807,11 +10807,6 @@ button.bp-packing-alert:focus-visible {
     order: 2;
   }
 
-  /* The way out of a pick is a bare button, not a `.ui-control`, so the coarse
-     block above does not reach it. */
-  .references-workspace .references-target__exit {
-    min-height: var(--touch-target);
-  }
 }
 
 /*
@@ -11340,26 +11335,6 @@ button.bp-packing-alert:focus-visible {
   font-size: 0.7rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-}
-
-.references-target__exit {
-  display: inline-flex;
-  gap: 4px;
-  align-items: center;
-  padding: 2px var(--space-2);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.7rem;
-  white-space: nowrap;
-}
-
-.references-target__exit:hover {
-  border-color: var(--border-strong, var(--border-subtle));
-  color: var(--text-primary);
 }
 
 /*

@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronsLeft, ChevronsRight, X } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
 import { IconButton } from '../../components/ui/IconButton';
 import type { ReferencesTarget } from '../../store/workspaceStore/types';
 import type { ReferencesCandidateResult } from './referencesResults';
@@ -97,10 +98,12 @@ export const ReferencesTargetControls = memo(function ReferencesTargetControls({
               })}
         </Badge>
       )}
-      <button type="button" className="references-target__exit" onClick={onClear}>
+      {/* The accent, not a quiet outline: this is the one way out of a pick,
+          and it went unnoticed beside the badges it matched. */}
+      <Button size="sm" variant="primary" onClick={onClear}>
         <X size={12} aria-hidden="true" />
         {t('panels:references.backToPattern', 'Back to the whole pattern')}
-      </button>
+      </Button>
     </div>
   );
 });
