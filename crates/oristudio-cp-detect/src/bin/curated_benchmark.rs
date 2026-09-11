@@ -675,15 +675,9 @@ fn solver_gate(
         Err(error) => return json!({ "error": format!("rebuild: {error}") }),
     };
     // The solve's LM step is not preemptible, and on thousands of spans one
-    // step outlasts the budget by minutes; the pipeline skips such a solve,
-    // and so does the gate.
-    if input.selected_spans.len() > max_edges {
-        return json!({
-            "status": "skipped_too_large",
-            "spans": input.selected_spans.len(),
-            "seconds": round(started.elapsed().as_secs_f64()),
-        });
-    }
+    // step outlasts the budget by minutes; over the cap only the lattice's
+    // answer is tried, in the pipeline and in the gate alike.
+    let over_cap = input.selected_spans.len() > max_edges;
     let input_json = match serde_json::to_string(&input) {
         Ok(v) => v,
         Err(error) => return json!({ "error": format!("json: {error}") }),
@@ -700,7 +694,20 @@ fn solver_gate(
     let Ok((parsed, options)) = parse_exact_solve_request(&input_json, &options) else {
         return json!({ "error": "request" });
     };
-    let solved = solve_exact_with_exemptions(&parsed, &options);
+    let solved = if over_cap {
+        let lattice = oristudio_cp_compiler::solve_exact_on_lattice(&parsed, options.options);
+        if lattice.movement_report["accepted"] != json!(true) {
+            return json!({
+                "status": "skipped_too_large",
+                "spans": input.selected_spans.len(),
+                "lattice_round": lattice.movement_report["lattice_round"],
+                "seconds": round(started.elapsed().as_secs_f64()),
+            });
+        }
+        lattice
+    } else {
+        solve_exact_with_exemptions(&parsed, &options)
+    };
     let mr = &solved.movement_report;
     let polish = &mr["polish"];
     let mut record = json!({
@@ -713,6 +720,8 @@ fn solver_gate(
         "pinned_family": polish["pinned_family"]["adopted"],
         "pinned_step_degrees": polish["pinned_family"]["step_degrees"],
         "pleats": polish["pleat_runs"]["adopted"],
+        "lattice_round": polish["lattice_round"].clone(),
+        "over_cap": over_cap,
         "merged_vertices": solved.merged_vertices.len(),
         "seconds": round(started.elapsed().as_secs_f64()),
     });
@@ -870,6 +879,7 @@ fn run_case(session: &Mutex<NativeSession>, case: &Case, args: &Args) -> Value {
                             let budget = native_inference::SolveBudget {
                                 seconds: args.budget,
                                 work: args.budget_work,
+                                lattice_only: false,
                             };
                             let probe = native_inference::decode_with_budget(
                                 &rectified.rgba,
@@ -901,14 +911,54 @@ fn run_case(session: &Mutex<NativeSession>, case: &Case, args: &Args) -> Value {
                             // stands in, and the record says why there is no
                             // solve.
                             let mut too_large = None;
+                            let mut lattice_only = false;
+                            let mut refused_lattice: Option<Value> = None;
                             let decoded = if topology.is_none() {
                                 probe
                             } else if recognised_edges > args.max_edges {
-                                too_large = Some(format!(
-                                    "too_large: {recognised_edges} edges recognized, over the {} edge cap; solve skipped",
-                                    args.max_edges
-                                ));
-                                probe
+                                // Over the cap the lattice's answer is still
+                                // tried: a box-pleated design detected on its
+                                // grid is solved by the grid, with no LM step.
+                                let lattice = native_inference::decode_with_budget(
+                                    &rectified.rgba,
+                                    &heads,
+                                    native_inference::SolveBudget {
+                                        lattice_only: true,
+                                        ..budget
+                                    },
+                                    false,
+                                );
+                                match lattice {
+                                    Ok(decoded)
+                                        if native_inference::accepted_on_lattice(&decoded) =>
+                                    {
+                                        lattice_only = true;
+                                        Ok(decoded)
+                                    }
+                                    other => {
+                                        // Why the lattice did not answer, kept
+                                        // beside the skip it leaves behind.
+                                        if let Ok(decoded) = &other {
+                                            let report = serde_json::to_value(&decoded.report)
+                                                .unwrap_or(Value::Null);
+                                            let movement = report.pointer(
+                                                "/quality_report/compiler_report/exact_solve/movement_report",
+                                            );
+                                            refused_lattice = movement.and_then(|movement| {
+                                                movement
+                                                    .pointer("/polish/lattice_round")
+                                                    .filter(|round| !round.is_null())
+                                                    .or_else(|| movement.get("lattice_round"))
+                                                    .cloned()
+                                            });
+                                        }
+                                        too_large = Some(format!(
+                                            "too_large: {recognised_edges} edges recognized, over the {} edge cap; solve skipped",
+                                            args.max_edges
+                                        ));
+                                        probe
+                                    }
+                                }
                             } else {
                                 native_inference::decode_with_budget(
                                     &rectified.rgba,
@@ -936,6 +986,14 @@ fn run_case(session: &Mutex<NativeSession>, case: &Case, args: &Args) -> Value {
                                         detection["solve_status"] = json!("skipped_too_large");
                                         detection["too_large"] = json!(reason);
                                     }
+                                    if lattice_only {
+                                        detection["lattice_only"] = json!(true);
+                                    }
+                                    detection["lattice_round"] =
+                                        refused_lattice.unwrap_or_else(|| {
+                                            exact["movement_report"]["polish"]["lattice_round"]
+                                                .clone()
+                                        });
                                     detection["accepted"] =
                                         exact["movement_report"]["accepted"].clone();
                                     detection["rejection_reasons"] =

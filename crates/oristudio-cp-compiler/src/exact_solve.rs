@@ -161,6 +161,14 @@ pub struct ExactSolveOptions {
     /// configuration moved 9.3 px. Half the movement budget sits between.
     #[serde(default = "default_carrier_join_movement_budget")]
     pub carrier_join_movement_budget: f64,
+    /// Whether to read the square lattice a box-pleated design is drawn on
+    /// and hold the answer to it. See [`LatticeSnapMode`].
+    #[serde(default)]
+    pub lattice_snap: LatticeSnapMode,
+    /// How far, in pixels of the detected raster, a vertex may sit from the
+    /// lattice and still be read as on it.
+    #[serde(default = "default_lattice_snap_tolerance_px")]
+    pub lattice_snap_tolerance_px: f64,
 }
 
 const fn default_carrier_join_movement_budget() -> f64 {
@@ -267,6 +275,38 @@ fn default_angle_family_snap_tolerance_radians() -> f64 {
 
 const fn default_angle_family_min_fraction() -> f64 {
     0.5
+}
+
+/// A box-pleated design is drawn on a square grid: every vertex on a lattice
+/// of `N` cells per edge, or its half-grid where diagonals cross. A solve of
+/// such a design converges to within a fraction of a pixel of that lattice
+/// and no closer — Kawasaki holds along a continuum of nearby geometries, the
+/// free slide, and the priors decide where on it the answer stops — and a
+/// pattern a fraction of a pixel off its lattice is not exact: creases that
+/// should coincide when folded do not, to the folder's precision. `Auto`
+/// reads the lattice ([`crate::lattice`]) and snaps every vertex to it, judged
+/// like the pinned and symmetry rounds: adopted only when the snapped answer
+/// is exact and nothing regresses. It runs after the polish rounds, on the
+/// converged answer; and, for a pattern too large for the LM step to fit any
+/// budget, on the input alone ([`solve_exact_on_lattice`]), where a design
+/// detected on its grid is solved by the grid with no optimisation at all.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LatticeSnapMode {
+    #[default]
+    Auto,
+    Off,
+}
+
+/// A pixel and a half. A converged solve sits within half a pixel of the
+/// lattice (curated turtle: 0.46 px at the worst vertex); a rendered giant's
+/// detection within 1.1–1.4 px at its worst vertex (earwig 1.10, skeleton
+/// shrimp 1.06, diamond sword 1.44 on grids of 48–112) with a median of a
+/// quarter pixel, and 1.0 read no lattice on any of them. [`crate::lattice`]
+/// refuses a lattice whose bands at this width would cover half the edge,
+/// so the width bounds the grids it can read to about 170 cells at 1024 px.
+const fn default_lattice_snap_tolerance_px() -> f64 {
+    1.5
 }
 
 /// How many times a refused pinned round halves its tolerance and tries again.
@@ -446,6 +486,8 @@ impl Default for ExactSolveOptions {
             pleat_spacing: PleatSpacingMode::default(),
             carrier_join: CarrierJoinMode::default(),
             carrier_join_movement_budget: default_carrier_join_movement_budget(),
+            lattice_snap: LatticeSnapMode::default(),
+            lattice_snap_tolerance_px: default_lattice_snap_tolerance_px(),
             polish_kawasaki_sigma_radians: default_polish_kawasaki_sigma_radians(),
             polish_carrier_incidence_sigma: default_polish_carrier_incidence_sigma(),
             polish_rounds: default_polish_rounds(),
@@ -647,6 +689,32 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
         options,
         Rc::new(BTreeSet::new()),
         Rc::clone(&no_pins),
+        false,
+    );
+    place_dissolved_vertices(&normalized, input, &mut solved.vertices_exact);
+    report_dissolved_movement(&normalized, input, &mut solved);
+    restore_original_edges(input, &mut solved);
+    solved
+}
+
+/// The lattice's answer alone: [`solve_exact`] when the input is a
+/// box-pleated design already within a pixel of its grid, and a `Failed`
+/// graph (`lattice_not_found`) otherwise — with no optimisation attempted
+/// either way. For patterns too large for the LM step to fit a budget, whose
+/// detection can still be exact: the snapped geometry is judged like any
+/// answer, so a `Solved` result here is the same promise it is anywhere.
+pub fn solve_exact_on_lattice(
+    input: &ExactSolveInput,
+    options: ExactSolveOptions,
+) -> ExactSolvedGraph {
+    let no_pins = Rc::new(BTreeSet::new());
+    let normalized = normalized_input(input, &no_pins);
+    let mut solved = solve_exact_inner(
+        &normalized,
+        options,
+        Rc::new(BTreeSet::new()),
+        Rc::clone(&no_pins),
+        true,
     );
     place_dissolved_vertices(&normalized, input, &mut solved.vertices_exact);
     report_dissolved_movement(&normalized, input, &mut solved);
@@ -743,6 +811,7 @@ pub fn solve_exact_with_exemptions(
         options.options,
         Rc::new(options.exempt_vertex_ids.clone()),
         Rc::clone(&pinned),
+        false,
     );
     place_dissolved_vertices(&normalized, input, &mut solved.vertices_exact);
     report_dissolved_movement(&normalized, input, &mut solved);
@@ -918,6 +987,7 @@ fn solve_exact_inner(
     options: ExactSolveOptions,
     exempt_vertex_ids: Rc<BTreeSet<usize>>,
     pinned_vertex_ids: Rc<BTreeSet<usize>>,
+    lattice_only: bool,
 ) -> ExactSolvedGraph {
     let deadline = ExactSolveDeadline::start(options.timeout_seconds, options.work_budget);
     let validation = validate_input(input);
@@ -994,26 +1064,78 @@ fn solve_exact_inner(
         };
     }
 
-    let (final_params, termination, evaluations, objective, counters) = if initial_params.is_empty()
-    {
-        (
-            initial_params.clone(),
-            "no_parameters".to_owned(),
-            0usize,
-            initial_objective,
-            SolveCounterSnapshot::default(),
-        )
-    } else if initial_residuals.is_empty() {
-        (
-            initial_params.clone(),
-            "no_residuals".to_owned(),
-            0usize,
-            initial_objective,
-            SolveCounterSnapshot::default(),
+    // A design already on its lattice is solved by the lattice: snapped and
+    // judged, with no optimisation. See [`LatticeSnapMode`].
+    // The input's own geometry stands in for the solve only where nothing
+    // else can answer. Where the solve can be run, it is the evidence that
+    // the geometry is on its lattice: a design with a few vertices off it
+    // that the detector happened to place within tolerance of lattice
+    // points (hatsune-miku, on its 40-grid but for eight creases) snaps to
+    // a wrong exact configuration from the input and to the right one after
+    // the solve has moved those vertices where they belong.
+    let lattice_quick = if lattice_only {
+        lattice_round(
+            &model,
+            input,
+            &before,
+            &initial_params,
+            &before,
+            options,
+            LatticeStage {
+                name: "input",
+                outliers: crate::lattice::Outliers::Few,
+            },
         )
     } else {
-        run_lm_minimize(&model, &initial_params, options)
+        None
     };
+    let lattice_exact = lattice_quick
+        .as_ref()
+        .and_then(|round| round.adopted.as_ref())
+        .map(|adoption| adoption.params.clone());
+    if lattice_only && lattice_exact.is_none() {
+        return failed_graph(
+            input,
+            before_points,
+            json!({
+                "status": "lattice_not_found",
+                "lattice_round": lattice_quick.as_ref().map(|round| lattice_round_json(&round.outcome)),
+            }),
+            json!({
+                "status": "failed",
+                "reason": "lattice_not_found",
+            }),
+        );
+    }
+    let (final_params, termination, evaluations, objective, counters) =
+        if let Some(params) = lattice_exact {
+            let objective = residual_energy(&model.residuals_for(&params));
+            (
+                params,
+                "lattice_exact".to_owned(),
+                0usize,
+                objective,
+                SolveCounterSnapshot::default(),
+            )
+        } else if initial_params.is_empty() {
+            (
+                initial_params.clone(),
+                "no_parameters".to_owned(),
+                0usize,
+                initial_objective,
+                SolveCounterSnapshot::default(),
+            )
+        } else if initial_residuals.is_empty() {
+            (
+                initial_params.clone(),
+                "no_residuals".to_owned(),
+                0usize,
+                initial_objective,
+                SolveCounterSnapshot::default(),
+            )
+        } else {
+            run_lm_minimize(&model, &initial_params, options)
+        };
 
     // Then the carrier round: which creases are one line, read off the
     // geometry stage 1 straightened rather than the geometry the detector
@@ -1024,17 +1146,22 @@ fn solve_exact_inner(
     let mut initial_objective = initial_objective;
     let mut termination = termination;
     let mut evaluations = evaluations;
-    let carrier_join = join_pass_through_carriers(
-        &mut model,
-        input,
-        &before,
-        &mut final_params,
-        &mut objective,
-        &mut initial_objective,
-        &mut termination,
-        &mut evaluations,
-        options,
-    );
+    let lattice_solved = termination == "lattice_exact";
+    let carrier_join = if lattice_solved {
+        CarrierJoinOutcome::default()
+    } else {
+        join_pass_through_carriers(
+            &mut model,
+            input,
+            &before,
+            &mut final_params,
+            &mut objective,
+            &mut initial_objective,
+            &mut termination,
+            &mut evaluations,
+            options,
+        )
+    };
     let carriers_adopted = carrier_join.rounds.iter().any(|round| round.adopted);
 
     // Polish: the stage-1 priors anchor to noisy detected positions, so LM
@@ -1045,6 +1172,20 @@ fn solve_exact_inner(
     let mut polish_outcome = PolishOutcome::default();
     let no_merges = BTreeSet::new();
     let (final_params, termination, evaluations, objective, polish_adopted, merged_span_ids, model) = 'polish: {
+        if lattice_solved {
+            // Judged already, as the answer: nothing to polish.
+            polish_outcome.stop_reason = "lattice_exact";
+            polish_outcome.lattice = lattice_quick.map(|round| round.outcome);
+            break 'polish (
+                final_params,
+                termination,
+                evaluations,
+                objective,
+                true,
+                no_merges,
+                model,
+            );
+        }
         if !options.polish {
             polish_outcome.stop_reason = "disabled";
             break 'polish (
@@ -1240,6 +1381,30 @@ fn solve_exact_inner(
             }
             polish_outcome.pleat_runs = Some(round.outcome);
         }
+        // Last, the lattice: on the converged, pinned, symmetric, pleated
+        // answer, which is where a box-pleated design sits nearest its grid.
+        let mut lattice_adopted = false;
+        if let Some(round) = lattice_round(
+            &active,
+            input,
+            &before,
+            &current_params,
+            &current_after,
+            options,
+            LatticeStage {
+                name: "polish",
+                outliers: crate::lattice::Outliers::None,
+            },
+        ) {
+            if let Some(adoption) = round.adopted {
+                current_params = adoption.params;
+                current_kawasaki = adoption.after.max_kawasaki_residual_degrees;
+                current_after = adoption.after;
+                polish_outcome.kawasaki_after_degrees = Some(current_kawasaki);
+                lattice_adopted = true;
+            }
+            polish_outcome.lattice = Some(round.outcome);
+        }
         let _ = &current_after;
         // An adopted carrier round is a refinement too: judged like the
         // others, so the answer is not re-judged against the original anchors.
@@ -1247,6 +1412,7 @@ fn solve_exact_inner(
             && !symmetry_adopted
             && !pinned_adopted
             && !pleats_adopted
+            && !lattice_adopted
             && !carriers_adopted
         {
             break 'polish (
@@ -1263,9 +1429,12 @@ fn solve_exact_inner(
         let pinned = if pinned_adopted { ",pinned" } else { "" };
         let symmetric = if symmetry_adopted { ",symmetric" } else { "" };
         let pleated = if pleats_adopted { ",pleats" } else { "" };
+        let latticed = if lattice_adopted { ",lattice" } else { "" };
         (
             current_params,
-            format!("{termination}+polish(rounds={rounds_adopted}{pinned}{symmetric}{pleated})"),
+            format!(
+                "{termination}+polish(rounds={rounds_adopted}{pinned}{symmetric}{pleated}{latticed})"
+            ),
             evaluations + polish_evaluations,
             polished_objective,
             true,
@@ -3906,6 +4075,10 @@ struct PolishOutcome {
     symmetry: Option<SymmetryRoundOutcome>,
     /// The pleat round, when the pattern was read as having pleat runs.
     pleat_runs: Option<PleatRoundOutcome>,
+    /// The lattice round, when the pattern was read as drawn on a square
+    /// grid: the one that stood in for the solve, or the one after the
+    /// polish. See [`lattice_round`].
+    lattice: Option<LatticeRoundOutcome>,
 }
 
 /// What the symmetry round did. See [`symmetry_round`].
@@ -4619,6 +4792,332 @@ struct PinnedAdoption {
     frozen_params: Vec<bool>,
 }
 
+/// What the lattice round did. See [`lattice_round`] and [`LatticeSnapMode`].
+#[derive(Debug, Clone)]
+struct LatticeRoundOutcome {
+    /// `input` when the round stood in for the solve, `polish` after it.
+    stage: &'static str,
+    /// Cells per paper edge of the lattice read; 0 when none was.
+    cells: u32,
+    /// The furthest any vertex sat from the lattice, in pixels.
+    max_offset_px: f64,
+    /// Vertices the snap moved.
+    vertices_snapped: usize,
+    adopted: bool,
+    /// `adopted`, `refused`, or `no_lattice` (with `cells` 0).
+    stop_reason: &'static str,
+    /// The snapped candidate's verdict, so a refusal reads: its status, the
+    /// residuals and counts the status is made of.
+    status: ExactSolvedGraphStatus,
+    kawasaki_degrees: f64,
+    carrier_residual: f64,
+    max_vertex_movement: f64,
+    odd_degree_vertices: usize,
+    maekawa_failures: usize,
+    degenerate_edges: usize,
+    unmodeled_crossings: usize,
+    boundary_failures: usize,
+    camv: Option<CamvCounts>,
+    refusals: Vec<String>,
+}
+
+impl LatticeRoundOutcome {
+    fn of(stage: &'static str, after: &GraphAnalysis, status: ExactSolvedGraphStatus) -> Self {
+        Self {
+            stage,
+            cells: 0,
+            max_offset_px: 0.0,
+            vertices_snapped: 0,
+            adopted: false,
+            stop_reason: "no_lattice",
+            status,
+            kawasaki_degrees: after.max_kawasaki_residual_degrees,
+            carrier_residual: after.max_carrier_residual,
+            max_vertex_movement: after.max_vertex_movement,
+            odd_degree_vertices: after.odd_degree_vertices.len(),
+            maekawa_failures: after.maekawa_failures.len(),
+            degenerate_edges: after.degenerate_edges.len(),
+            unmodeled_crossings: after.unmodeled_crossings.len(),
+            boundary_failures: after.boundary_failures.len(),
+            camv: after.camv,
+            refusals: Vec::new(),
+        }
+    }
+}
+
+struct LatticeRound {
+    outcome: LatticeRoundOutcome,
+    adopted: Option<PinnedAdoption>,
+}
+
+/// Where a lattice round runs and what it may forgive.
+#[derive(Debug, Clone, Copy)]
+struct LatticeStage {
+    /// `input` when the round stands in for the solve, `polish` after it.
+    name: &'static str,
+    outliers: crate::lattice::Outliers,
+}
+
+fn lattice_round_json(outcome: &LatticeRoundOutcome) -> Value {
+    json!({
+        "stage": outcome.stage,
+        "cells": outcome.cells,
+        "max_offset_px": round6(outcome.max_offset_px),
+        "vertices_snapped": outcome.vertices_snapped,
+        "adopted": outcome.adopted,
+        "stop_reason": outcome.stop_reason,
+        "status": format!("{:?}", outcome.status).to_lowercase(),
+        "kawasaki_degrees": round12(outcome.kawasaki_degrees),
+        "carrier_residual": round12(outcome.carrier_residual),
+        "max_vertex_movement": round12(outcome.max_vertex_movement),
+        "odd_degree_vertices": outcome.odd_degree_vertices,
+        "maekawa_failures": outcome.maekawa_failures,
+        "degenerate_edges": outcome.degenerate_edges,
+        "unmodeled_crossings": outcome.unmodeled_crossings,
+        "boundary_failures": outcome.boundary_failures,
+        "camv_angle_violations": outcome.camv.map(|camv| camv.angle_violations),
+        "big_little_big_violations": outcome.camv.map(|camv| camv.big_little_big_violations),
+        "refusals": outcome.refusals,
+    })
+}
+
+/// Read the square lattice the pattern is drawn on from `current_params`,
+/// snap every vertex of the pattern to it, refit the carriers through the
+/// snapped vertices, and judge the result like the pinned round: adopted
+/// only when the acceptance gate passes and nothing regresses — not the
+/// Kawasaki bar, not the checker's counts, and not a `Solved` verdict the
+/// current answer already had. `None` when the mode is off, the budget is
+/// gone, or the paper is not the unit square; a round that read no lattice
+/// is returned refused, so the report says so. See [`LatticeSnapMode`].
+fn lattice_round(
+    model: &SolveModel,
+    input: &ExactSolveInput,
+    before: &GraphAnalysis,
+    current_params: &OVector<f64, Dyn>,
+    current_after: &GraphAnalysis,
+    options: ExactSolveOptions,
+    stage: LatticeStage,
+) -> Option<LatticeRound> {
+    let LatticeStage {
+        name: stage,
+        outliers,
+    } = stage;
+    if options.lattice_snap == LatticeSnapMode::Off || model.timeout_reached() {
+        return None;
+    }
+    if model
+        .vertex_params
+        .iter()
+        .any(|param| matches!(param, VertexParameterization::PolyBoundary { .. }))
+    {
+        return None;
+    }
+    let current_status = classify_status(before, current_after, options);
+    // Only the vertices the answer holds: a candidate the selection left
+    // without a span is not part of the pattern and sits wherever the head
+    // fired.
+    let mut in_pattern = vec![false; model.vertex_params.len()];
+    for span in &model.selected_spans {
+        for vertex in span.vertices {
+            if let Some(flag) = in_pattern.get_mut(model.representative_of(vertex)) {
+                *flag = true;
+            }
+        }
+    }
+    let points = model.placed_points(current_params);
+    let mut coordinates = Vec::new();
+    for (vertex, param) in model.vertex_params.iter().enumerate() {
+        if model.representative_of(vertex) != vertex || !in_pattern[vertex] {
+            continue;
+        }
+        match *param {
+            VertexParameterization::Fixed { .. } | VertexParameterization::PolyBoundary { .. } => {}
+            VertexParameterization::Boundary { index, .. } => {
+                coordinates.push(current_params[index])
+            }
+            VertexParameterization::Free { .. } => {
+                coordinates.push(points[vertex].x);
+                coordinates.push(points[vertex].y);
+            }
+        }
+    }
+    let tolerance = options.lattice_snap_tolerance_px / model.image_size_px;
+    let Some(lattice) = crate::lattice::detect_square_lattice(
+        &coordinates,
+        tolerance,
+        model.image_size_px,
+        outliers,
+    ) else {
+        return Some(LatticeRound {
+            outcome: LatticeRoundOutcome::of(stage, current_after, current_status),
+            adopted: None,
+        });
+    };
+
+    let mut snapped = current_params.clone();
+    let mut vertices_snapped = 0usize;
+    for (vertex, param) in model.vertex_params.iter().enumerate() {
+        if !in_pattern[model.representative_of(vertex)] {
+            continue;
+        }
+        match *param {
+            VertexParameterization::Boundary { index, .. } => {
+                let value = lattice.snap(snapped[index]);
+                if value != snapped[index] {
+                    vertices_snapped += 1;
+                }
+                snapped[index] = value;
+            }
+            VertexParameterization::Free { x_index, y_index } => {
+                let x = lattice.snap(snapped[x_index]);
+                let y = lattice.snap(snapped[y_index]);
+                if x != snapped[x_index] || y != snapped[y_index] {
+                    vertices_snapped += 1;
+                }
+                snapped[x_index] = x;
+                snapped[y_index] = y;
+            }
+            VertexParameterization::Fixed { .. } | VertexParameterization::PolyBoundary { .. } => {}
+        }
+    }
+    let snapped_points = model.placed_points(&snapped);
+    refit_carriers_through(model, &snapped_points, &mut snapped);
+
+    let mut refusals = Vec::new();
+    if representatives_collide(model, &snapped_points, &in_pattern) {
+        refusals.push("lattice_vertices_collide".to_owned());
+    }
+    let after = analyze_graph(input, &snapped_points, model, &snapped, options);
+    let status = classify_status(before, &after, options);
+    // Judged in the polish model's units, like every round after stage 1:
+    // the original objective anchors to the detected positions the snap
+    // moves away from by design.
+    let reanchored = model.reanchored_for_polish(current_params);
+    let start_energy = residual_energy(&reanchored.residuals_for(current_params));
+    let final_energy = residual_energy(&reanchored.residuals_for(&snapped));
+    refusals.extend(exact_solution_rejection_reasons(
+        before,
+        &after,
+        status,
+        start_energy,
+        final_energy,
+        options,
+    ));
+    refusals.extend(pinned_round_regressions(current_after, &after, options));
+    if current_status == ExactSolvedGraphStatus::Solved && status != ExactSolvedGraphStatus::Solved
+    {
+        refusals.push("lattice_status_regressed".to_owned());
+    }
+    // On the lattice the answer is exact or it is wrong: every angle a
+    // multiple of the family's step, so Kawasaki holds to the last digit or
+    // misses by degrees. The carrier residual is the one bar not asked — a
+    // carrier group the join built from creases not quite on one lattice
+    // line still measures against a single line (skeleton-shrimp, 5.3e-4
+    // against a bar of 5e-4, every vertex on its 64-grid).
+    if !lattice_exact(&after, options) {
+        refusals.push("lattice_not_exact".to_owned());
+    }
+    refusals.sort();
+    refusals.dedup();
+    let adopted = refusals.is_empty();
+    let outcome = LatticeRoundOutcome {
+        cells: lattice.cells,
+        max_offset_px: lattice.max_offset * model.image_size_px,
+        vertices_snapped,
+        adopted,
+        stop_reason: if adopted { "adopted" } else { "refused" },
+        refusals,
+        ..LatticeRoundOutcome::of(stage, &after, status)
+    };
+    Some(LatticeRound {
+        outcome,
+        adopted: adopted.then(|| PinnedAdoption {
+            params: snapped,
+            after,
+            evaluations: 0,
+            merged_span_ids: model.merged_span_ids.clone(),
+            frozen_params: model.frozen_params.clone(),
+        }),
+    })
+}
+
+/// Whether a snapped answer is exact by everything but the carrier residual:
+/// the topology clean, the checker clean, Kawasaki at the bar, nothing
+/// degenerate, crossing or off its boundary.
+fn lattice_exact(after: &GraphAnalysis, options: ExactSolveOptions) -> bool {
+    after.odd_degree_vertices.is_empty()
+        && after.maekawa_failures.is_empty()
+        && after.degenerate_edges.is_empty()
+        && after.unmodeled_crossings.is_empty()
+        && after.boundary_failures.is_empty()
+        && after
+            .camv
+            .is_some_and(|camv| camv.angle_violations == 0 && camv.big_little_big_violations == 0)
+        && after.max_kawasaki_residual_degrees <= options.solved_kawasaki_epsilon_degrees
+}
+
+/// Set every carrier group's line to the one through its spans' snapped
+/// endpoints — the two farthest apart, which on a lattice is the line all of
+/// them share — keeping the normal's orientation. A group whose endpoints
+/// coincide keeps its line.
+fn refit_carriers_through(model: &SolveModel, points: &[Point2], params: &mut OVector<f64, Dyn>) {
+    for group in &model.carrier_groups {
+        let mut endpoints: Vec<Point2> = Vec::new();
+        for &span_index in &group.span_indices {
+            let Some(span) = model.selected_spans.get(span_index) else {
+                continue;
+            };
+            for vertex in span.vertices {
+                let point = points[model.representative_of(vertex)];
+                if !endpoints
+                    .iter()
+                    .any(|existing| distance(*existing, point) < 1e-9)
+                {
+                    endpoints.push(point);
+                }
+            }
+        }
+        let mut farthest: Option<(Point2, Point2, f64)> = None;
+        for (i, a) in endpoints.iter().enumerate() {
+            for b in &endpoints[i + 1..] {
+                let d = distance(*a, *b);
+                if farthest.is_none_or(|(_, _, best)| d > best) {
+                    farthest = Some((*a, *b, d));
+                }
+            }
+        }
+        let Some((a, b, length)) = farthest else {
+            continue;
+        };
+        if length < 1e-9 {
+            continue;
+        }
+        let direction = Point2::new((b.x - a.x) / length, (b.y - a.y) / length);
+        let mut normal = Point2::new(-direction.y, direction.x);
+        let theta = params[group.theta_index];
+        if normal.x * theta.cos() + normal.y * theta.sin() < 0.0 {
+            normal = Point2::new(-normal.x, -normal.y);
+        }
+        params[group.theta_index] = normal.y.atan2(normal.x);
+        params[group.rho_index] = normal.x * a.x + normal.y * a.y;
+    }
+}
+
+/// Two vertices of the pattern the answer holds apart landing on one
+/// lattice point.
+fn representatives_collide(model: &SolveModel, points: &[Point2], in_pattern: &[bool]) -> bool {
+    let mut seen = BTreeSet::new();
+    for (vertex, point) in points.iter().enumerate() {
+        if model.representative_of(vertex) != vertex || !in_pattern[vertex] {
+            continue;
+        }
+        if !seen.insert((point.x.to_bits(), point.y.to_bits())) {
+            return true;
+        }
+    }
+    false
+}
+
 /// Pin the pattern to its angle family and judge the result. See
 /// [`AngleFamilyMode`] for why, [`SolveModel::pinned_to_angle_family`] for how.
 /// `None` when the mode is off, the budget is gone, or no family is present.
@@ -5004,6 +5503,7 @@ impl PolishOutcome {
             pinned_family: None,
             symmetry: None,
             pleat_runs: None,
+            lattice: None,
         }
     }
 
@@ -5088,6 +5588,7 @@ fn polish_report_json(polish: &PolishOutcome, options: ExactSolveOptions) -> Val
                     .collect::<Vec<_>>(),
             })
         }),
+        "lattice_round": polish.lattice.as_ref().map(lattice_round_json),
         "pinned_family": polish.pinned_family.as_ref().map(|pinned| {
             json!({
                 "step_degrees": pinned.step_degrees,
@@ -8135,6 +8636,232 @@ mod tests {
             }
         }
         matrix
+    }
+
+    /// A box-pleated pattern on an 8-grid that folds flat locally: vertical
+    /// pleats at every grid line, alternating mountain and valley, crossed by
+    /// two horizontal lines at 3/8 and 5/8 whose segments alternate the other
+    /// way, so every crossing is a 3:1 vertex of four right angles. Interior
+    /// vertices are displaced by `noise_px` (of 1024) so the solve has
+    /// something to do.
+    fn pleat_grid_input(noise_px: f64) -> ExactSolveInput {
+        const CELLS: usize = 8;
+        let mut input = base_square_input();
+        input.image_size = Some(1024);
+        let noise = noise_px / 1024.0;
+        let mut ids: BTreeMap<(usize, usize), usize> = BTreeMap::new();
+        // Contacts: top and bottom at every grid line, left and right at the
+        // two rows.
+        for i in 1..CELLS {
+            let x = i as f64 / CELLS as f64;
+            for (row, y, side) in [
+                (0usize, 0.0, BoundarySide::Top),
+                (3, 1.0, BoundarySide::Bottom),
+            ] {
+                let id = input.vertices.len();
+                input.vertices.push(vertex(
+                    id,
+                    Point2::new(x, y),
+                    CandidateVertexKind::BoundaryContact,
+                    CandidateVertexMovementPolicy::BoundaryOnly,
+                    Some(side),
+                ));
+                ids.insert((i, row), id);
+            }
+        }
+        for (row, y) in [(1usize, 3.0 / 8.0), (2, 5.0 / 8.0)] {
+            for (i, x, side) in [
+                (0usize, 0.0, BoundarySide::Left),
+                (CELLS, 1.0, BoundarySide::Right),
+            ] {
+                let id = input.vertices.len();
+                input.vertices.push(vertex(
+                    id,
+                    Point2::new(x, y),
+                    CandidateVertexKind::BoundaryContact,
+                    CandidateVertexMovementPolicy::BoundaryOnly,
+                    Some(side),
+                ));
+                ids.insert((i, row), id);
+            }
+            for i in 1..CELLS {
+                let id = input.vertices.len();
+                let sign = if (i + row) % 2 == 0 { 1.0 } else { -1.0 };
+                input.vertices.push(vertex(
+                    id,
+                    Point2::new(i as f64 / CELLS as f64 + sign * noise, y - sign * noise),
+                    CandidateVertexKind::InteriorJunction,
+                    CandidateVertexMovementPolicy::Movable,
+                    None,
+                ));
+                ids.insert((i, row), id);
+            }
+        }
+        // The border, split at every contact the way the candidate graph's
+        // locked border spans split it: the checker reads a contact as a
+        // vertex with two border rays only when the border ends there.
+        input.selected_spans.clear();
+        input.boundary.generated_border_span_ids.clear();
+        for side in &mut input.boundary.sides {
+            let mut along: Vec<usize> = input
+                .vertices
+                .iter()
+                .filter(|vertex| {
+                    vertex.boundary_side == Some(side.side)
+                        || side.corner_vertices.contains(&vertex.id)
+                })
+                .map(|vertex| vertex.id)
+                .collect();
+            let key = |id: usize| {
+                let point = input.vertices[id].point;
+                match side.side {
+                    BoundarySide::Top | BoundarySide::Bottom => point.x,
+                    BoundarySide::Left | BoundarySide::Right => point.y,
+                }
+            };
+            along.sort_by(|a, b| key(*a).total_cmp(&key(*b)));
+            along.dedup();
+            side.contact_vertices = along.clone();
+            for pair in along.windows(2) {
+                let id = input.selected_spans.len();
+                input.selected_spans.push(span(
+                    id,
+                    pair[0],
+                    pair[1],
+                    AssignmentLabel::Boundary,
+                    id,
+                    &input.vertices,
+                ));
+                input.boundary.generated_border_span_ids.push(id);
+            }
+        }
+        let mut next_id = input.selected_spans.len();
+        let mut add = |input: &mut ExactSolveInput,
+                       a: usize,
+                       b: usize,
+                       label: AssignmentLabel,
+                       carrier: usize| {
+            let span = span(next_id, a, b, label, carrier, &input.vertices);
+            input.selected_spans.push(span);
+            next_id += 1;
+        };
+        // Vertical pleats: line i is mountain for even i, valley for odd, in
+        // three segments (top contact - row 1 - row 2 - bottom contact).
+        for i in 1..CELLS {
+            let label = if i % 2 == 0 {
+                AssignmentLabel::Mountain
+            } else {
+                AssignmentLabel::Valley
+            };
+            for rows in [(0usize, 1usize), (1, 2), (2, 3)] {
+                add(
+                    &mut input,
+                    ids[&(i, rows.0)],
+                    ids[&(i, rows.1)],
+                    label,
+                    100 + i,
+                );
+            }
+        }
+        // Horizontal rows: the segment right of vertex i takes the colour
+        // opposite to the vertical line through i, so each crossing is 3:1.
+        // Horizontal rows: segments alternate, so at vertex i (whose vertical
+        // line is mountain for even i) the two horizontal rays are one of
+        // each and the crossing is 3:1.
+        for row in [1usize, 2] {
+            for i in 0..CELLS {
+                let label = if i % 2 == 0 {
+                    AssignmentLabel::Mountain
+                } else {
+                    AssignmentLabel::Valley
+                };
+                add(
+                    &mut input,
+                    ids[&(i, row)],
+                    ids[&(i + 1, row)],
+                    label,
+                    200 + row * 10 + i,
+                );
+            }
+        }
+        input
+    }
+
+    fn lattice_offset_px(points: &[Point2], cells: f64) -> f64 {
+        points
+            .iter()
+            .flat_map(|point| [point.x, point.y])
+            .map(|c| ((c * cells).round() - c * cells).abs() / cells * 1024.0)
+            .fold(0.0_f64, f64::max)
+    }
+
+    #[test]
+    fn a_solved_box_pleat_pattern_lands_exactly_on_its_lattice() {
+        let input = pleat_grid_input(0.4);
+        let solved = solve_exact(&input, ExactSolveOptions::default());
+        assert_eq!(
+            solved.status,
+            ExactSolvedGraphStatus::Solved,
+            "{}",
+            solved.movement_report
+        );
+        let round = &solved.movement_report["polish"]["lattice_round"];
+        assert_eq!(round["adopted"], json!(true), "{round}");
+        assert_eq!(round["cells"], json!(8));
+        assert!(lattice_offset_px(&solved.vertices_exact, 8.0) < 1e-9);
+        assert_eq!(
+            solved.theorem_residual_report["after"]["max_kawasaki_residual_degrees"],
+            json!(0.0)
+        );
+    }
+
+    #[test]
+    fn the_lattice_alone_solves_a_pattern_already_on_it() {
+        let input = pleat_grid_input(0.6);
+        let solved = solve_exact_on_lattice(&input, ExactSolveOptions::default());
+        assert_eq!(
+            solved.status,
+            ExactSolvedGraphStatus::Solved,
+            "{}",
+            solved.movement_report
+        );
+        assert_eq!(
+            solved.movement_report["termination"],
+            json!("lattice_exact")
+        );
+        assert_eq!(solved.movement_report["evaluations"], json!(0));
+        assert!(lattice_offset_px(&solved.vertices_exact, 8.0) < 1e-9);
+        let round = &solved.movement_report["polish"]["lattice_round"];
+        assert_eq!(round["stage"], json!("input"));
+        assert_eq!(round["adopted"], json!(true));
+    }
+
+    #[test]
+    fn the_lattice_alone_refuses_a_pattern_off_it() {
+        let mut input = pleat_grid_input(0.0);
+        let stray = input
+            .vertices
+            .iter()
+            .position(|vertex| vertex.kind == CandidateVertexKind::InteriorJunction)
+            .expect("junction");
+        input.vertices[stray].point.x += 6.0 / 1024.0;
+        let solved = solve_exact_on_lattice(&input, ExactSolveOptions::default());
+        assert_eq!(solved.status, ExactSolvedGraphStatus::Failed);
+        assert_eq!(solved.movement_report["status"], json!("lattice_not_found"));
+        assert_eq!(solved.movement_report["evaluations"], Value::Null);
+    }
+
+    #[test]
+    fn the_lattice_round_can_be_switched_off() {
+        let input = pleat_grid_input(0.4);
+        let options = ExactSolveOptions {
+            lattice_snap: LatticeSnapMode::Off,
+            ..ExactSolveOptions::default()
+        };
+        let solved = solve_exact(&input, options);
+        assert_eq!(solved.status, ExactSolvedGraphStatus::Solved);
+        assert!(solved.movement_report["polish"]["lattice_round"].is_null());
+        assert!(lattice_offset_px(&solved.vertices_exact, 8.0) > 1e-6);
     }
 
     fn base_square_input() -> ExactSolveInput {

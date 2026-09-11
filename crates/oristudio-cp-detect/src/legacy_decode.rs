@@ -90,6 +90,13 @@ pub struct DecodeConfig {
     /// only the wall clock, which is what the product runs with.
     #[serde(default)]
     pub exact_solve_work_budget: Option<u64>,
+    /// Run only the lattice's answer for the exact solve
+    /// (`oristudio_cp_compiler::solve_exact_on_lattice`): a box-pleated design
+    /// detected within a pixel of its grid is snapped to it and judged, with
+    /// no optimisation, and anything else fails at once. For patterns too
+    /// large for the LM step.
+    #[serde(default)]
+    pub exact_solve_lattice_only: bool,
     /// Optional override for the junction peak-extraction threshold (for sweeps).
     /// `None` keeps the production default (`line_threshold.max(0.50)`).
     #[serde(default)]
@@ -154,6 +161,7 @@ impl Default for DecodeConfig {
             junction_cluster_keep_rule: crate::evidence_extract::JunctionClusterKeepRule::default(),
             exact_solve_timeout_seconds: default_exact_solve_timeout_seconds(),
             exact_solve_work_budget: None,
+            exact_solve_lattice_only: false,
             junction_peak_threshold: None,
             recognize_only: false,
         }

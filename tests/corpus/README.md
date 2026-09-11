@@ -222,24 +222,27 @@ scoring are in `scripts/cp-detect/README.md`, the case format in
 `implementation-plans/cp-detect-curated-ground-truth.md` and the rendered
 group in `implementation-plans/cp-detect-rendered-corpus.md`.
 
-Last curated run on September 9, 2026 at the commit that reads a box-pleat
-grid from the candidate graph and completes the paper border on it
-(`crates/oristudio-cp-detect/src/candidate_generation/grid_prior.rs`), on
-top of the solve's work budget (`--budget-work`, below), the junction lever
-— the junction peak floor at 0.25 with the weak-peak guards in
+Last curated run on September 10, 2026 at the commit that solves a
+box-pleated design by its lattice
+(`crates/oristudio-cp-compiler/src/lattice.rs`, the lattice round in
+`exact_solve.rs`), on top of the two rotated papers' re-curated truths
+(`scripts/cp-detect/upright-curated-paper.py`), the box-pleat grid prior
+for the paper border
+(`crates/oristudio-cp-detect/src/candidate_generation/grid_prior.rs`), the
+solve's work budget (`--budget-work`, below), the junction lever — the
+junction peak floor at 0.25 with the weak-peak guards in
 `crates/oristudio-cp-detect/src/candidate_generation/junction_carrier_v1.rs`
 — the strict `recovered`, the paper-quad fix in the auto-rectifier
 (`crates/oristudio-cp-detect/src/rectify.rs`) and the boundary-contact
 re-localisation with its real-image hardening
 (`crates/oristudio-cp-detect/src/candidate_generation/contact_relocalize.rs`),
 with the model `scripts/cp-detect/current-model.json` named at that commit,
-on an Apple Silicon Mac with CoreML, 993 s on 8 workers on a machine
-carrying other load (the verdicts do not depend on it; the previous run took
-608 s alone). 558 cases in two
+on an Apple Silicon Mac with CoreML, 982 s on 8 workers on a machine
+carrying other load (the verdicts do not depend on it). 558 cases in two
 ```text
-curated benchmark: 558 cases | decoder exact 356 of 539 (mean edge F1 0.967) | end to end recovered 337 | gate reproduced 441 | 993s
+curated benchmark: 558 cases | decoder exact 356 of 539 (mean edge F1 0.970) | end to end recovered 340 | gate reproduced 451 | 982s
   curated: decoder exact 18 of 61 (mean edge F1 0.944); end to end recovered 18, accepted wrong 16, not accepted 6; gate reproduced 34, close 3, off 2, not solved 10, skipped 1, solved without a truth 11
-  cpoogle: decoder exact 338 of 478 (mean edge F1 0.970); end to end recovered 319, accepted wrong 114, not accepted 43, skipped 6; gate reproduced 407, close 14, off 3, not solved 12, error 13, skipped 35
+  cpoogle: decoder exact 338 of 478 (mean edge F1 0.974); end to end recovered 322, accepted wrong 115, not accepted 39, skipped 6; gate reproduced 417, close 14, off 3, not solved 12, error 13, skipped 25
 ```
 
 `recovered` is strict since September 9, 2026: accepted **and** the strict
@@ -315,6 +318,26 @@ carries an 8.6° Kawasaki error at a junction one cell inside the corner
 that is the same in both runs, and the exact graph leaves the solver
 nowhere else to go. The sweep that set the gates is in
 `implementation-plans/cp-detect-box-pleat-grid-prior.md`.
+
+The lattice then took strict `recovered` from 337 to 340 and the gate from
+441 to 451, nothing the other way: a box-pleated design is drawn on a
+square grid, and a solve of one converges within a fraction of a pixel of
+that grid and no closer (the curated turtle 0.46 px at its worst vertex),
+so the solve reads the lattice from the converged geometry, snaps every
+vertex to it and judges the snapped pattern like any answer — exact by
+everything but the carrier residual, or refused. Over the crease cap,
+where the LM step alone outlasts any budget, the lattice's answer is tried
+on the input alone, which is how three of the giants the grid prior had
+brought to an exact decode (earwig on 48 cells, diamond-sword on 112,
+skeleton-shrimp on 64) recover in 40–60 ms each and ten more truths pass
+the gate; origami-by-xiao-dai keeps four junctions 8–11 px off its grid
+and reads no lattice. Reading a lattice is a significance question, and
+two full runs set its rules: strays are forgiven only over the cap, and
+few (a 2% allowance snapped three hybrids whose truths sit off the lattice
+read to a wrong exact configuration), and the input's geometry stands in
+for the solve only where the solve cannot run (an input-stage snap under
+the cap did the same to hatsune-miku). The sweep is in
+`implementation-plans/cp-detect-lattice-exact-solve.md`.
 
 The solve runs on a work budget, not a clock, since September 9, 2026:
 5·10⁸ vertex²·checks by default (`--budget-work`), the 25 s the old clock

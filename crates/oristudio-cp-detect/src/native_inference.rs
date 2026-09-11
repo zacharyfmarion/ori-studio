@@ -177,6 +177,11 @@ pub fn rectify(rgba: &[u8], width: u32, height: u32) -> Result<Rectified, String
 pub struct SolveBudget {
     pub seconds: f64,
     pub work: Option<u64>,
+    /// Only the lattice's answer: snap a box-pleated design already within a
+    /// pixel of its grid and judge it, with no optimisation — what a pattern
+    /// too large for the LM step can still be solved by. See
+    /// `oristudio_cp_compiler::solve_exact_on_lattice`.
+    pub lattice_only: bool,
 }
 
 impl SolveBudget {
@@ -184,6 +189,7 @@ impl SolveBudget {
         Self {
             seconds,
             work: None,
+            lattice_only: false,
         }
     }
 }
@@ -249,6 +255,7 @@ pub fn decode_with_budget(
             junction_offset_cluster_radius_px: JUNCTION_OFFSET_RADIUS_PX,
             exact_solve_timeout_seconds: budget.seconds,
             exact_solve_work_budget: budget.work,
+            exact_solve_lattice_only: budget.lattice_only,
             recognize_only,
             ..DecodeConfig::default()
         },
@@ -263,8 +270,10 @@ pub fn decode_with_budget(
 /// Recognise first, and solve only when the recognised graph is within
 /// `max_edges`: the fused backend's compiler stage has no budget of its own and
 /// spends minutes on a thousand-edge pattern, which the solve budget cannot
-/// bound. The error names the size so a report can say why a case was not
-/// solved.
+/// bound. Over the cap, the lattice's answer is still tried — a box-pleated
+/// design detected on its grid is solved by the grid with no optimisation —
+/// and the error names the size so a report can say why a case was not
+/// solved otherwise.
 pub fn decode_bounded(
     rgba: &[u8],
     heads: &Heads,
@@ -277,9 +286,35 @@ pub fn decode_bounded(
         .and_then(|r| r.get("edge_count").and_then(|v| v.as_u64()))
         .unwrap_or(0) as usize;
     if edges > max_edges {
+        let lattice = decode_with_budget(
+            rgba,
+            heads,
+            SolveBudget {
+                lattice_only: true,
+                ..SolveBudget::seconds(solve_budget_seconds)
+            },
+            false,
+        )?;
+        if accepted_on_lattice(&lattice) {
+            return Ok(lattice);
+        }
         return Err(format!(
             "too_large: {edges} edges recognized, over the {max_edges} edge cap; solve skipped"
         ));
     }
     decode(rgba, heads, solve_budget_seconds, false)
+}
+
+/// Whether a decode's exact solve accepted its answer — the same acceptance
+/// the LM path's answer gets, which a lattice-only solve either passes on
+/// the snapped geometry or fails at once.
+pub fn accepted_on_lattice(decoded: &decode::DecodedFold) -> bool {
+    serde_json::to_value(&decoded.report)
+        .ok()
+        .and_then(|report| {
+            report
+                .pointer("/quality_report/compiler_report/exact_solve/movement_report/accepted")
+                .and_then(|accepted| accepted.as_bool())
+        })
+        .unwrap_or(false)
 }
