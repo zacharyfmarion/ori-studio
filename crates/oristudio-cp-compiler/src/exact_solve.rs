@@ -286,11 +286,10 @@ const fn default_angle_family_min_fraction() -> f64 {
 /// should coincide when folded do not, to the folder's precision. `Auto`
 /// reads the lattice ([`crate::lattice`]) and snaps every vertex to it, judged
 /// like the pinned and symmetry rounds: adopted only when the snapped answer
-/// is `Solved` and nothing regresses. It runs twice: on the input, where a
-/// rendered or well-detected design already sits within a pixel of its grid
-/// and the snapped geometry is the answer with no optimisation at all — the
-/// case a thousand-crease pattern needs, whose LM step alone outlasts any
-/// budget — and after the polish rounds, on the converged answer.
+/// is exact and nothing regresses. It runs after the polish rounds, on the
+/// converged answer; and, for a pattern too large for the LM step to fit any
+/// budget, on the input alone ([`solve_exact_on_lattice`]), where a design
+/// detected on its grid is solved by the grid with no optimisation at all.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LatticeSnapMode {
@@ -1067,25 +1066,29 @@ fn solve_exact_inner(
 
     // A design already on its lattice is solved by the lattice: snapped and
     // judged, with no optimisation. See [`LatticeSnapMode`].
-    // Under the cap the solve is there to be run: the input's own geometry
-    // stands in for it only when every vertex is on the lattice. Over the
-    // cap, where nothing else can answer, a few strays are tolerated.
-    let lattice_quick = lattice_round(
-        &model,
-        input,
-        &before,
-        &initial_params,
-        &before,
-        options,
-        LatticeStage {
-            name: "input",
-            outliers: if lattice_only {
-                crate::lattice::Outliers::Few
-            } else {
-                crate::lattice::Outliers::None
+    // The input's own geometry stands in for the solve only where nothing
+    // else can answer. Where the solve can be run, it is the evidence that
+    // the geometry is on its lattice: a design with a few vertices off it
+    // that the detector happened to place within tolerance of lattice
+    // points (hatsune-miku, on its 40-grid but for eight creases) snaps to
+    // a wrong exact configuration from the input and to the right one after
+    // the solve has moved those vertices where they belong.
+    let lattice_quick = if lattice_only {
+        lattice_round(
+            &model,
+            input,
+            &before,
+            &initial_params,
+            &before,
+            options,
+            LatticeStage {
+                name: "input",
+                outliers: crate::lattice::Outliers::Few,
             },
-        },
-    );
+        )
+    } else {
+        None
+    };
     let lattice_exact = lattice_quick
         .as_ref()
         .and_then(|round| round.adopted.as_ref())
