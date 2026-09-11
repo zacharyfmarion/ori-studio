@@ -26,7 +26,7 @@ use crate::pinch::{Extent, pinch_pass};
 use crate::predicates::{Ref, Witness, full_facts, witnesses};
 use crate::sequence::{
     Diagnostics, ExactnessSummary, FactsSummary, Finding, FindingReason, GridStep, GridStepLine,
-    GridSummary, LineEntry, PointEntry, Sequence, Status, Step, StepKind, StepPress, Totals,
+    GridSummary, Group, LineEntry, PointEntry, Sequence, Status, Step, StepKind, StepPress, Totals,
 };
 use crate::sheet::Sheet;
 use crate::state::{DEFAULT_POINT_CAP, LineTag};
@@ -1050,7 +1050,21 @@ impl Planner {
             steps[i].unlocks = unlocks;
         }
 
-        let groups = group(closure, &placed, first_id);
+        // The grid's steps are their own groups: one family, one row.
+        let groups: Vec<Group> = steps
+            .iter()
+            .take(first_id as usize - 1)
+            .map(|s| Group {
+                kind: StepKind::Grid,
+                side: s.side,
+                direction_angle: s.line.folded_angle_offset().0,
+                axiom: 0,
+                pattern: "grid".to_string(),
+                step_ids: vec![s.id],
+                count: 1,
+            })
+            .chain(group(closure, &placed, first_id))
+            .collect();
         let _ = pattern(None);
 
         referenced_points.sort_unstable();
