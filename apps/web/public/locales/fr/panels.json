@@ -911,7 +911,7 @@
       "axiom4Corner": "Pliez par {{p}} en amenant {{q}} sur {{a}}.",
       "axiom5": "Pliez par {{a}}, en amenant {{b}} sur {{c}}.",
       "axiom6": "Pliez {{a}} sur {{b}} et {{c}} sur {{d}}.",
-      "axiom7": "Repliez {{b}} sur elle-même de sorte que {{a}} tombe sur {{c}}.",
+      "axiom7": "Repliez {{lSelf}} sur elle-même de sorte que {{p}} tombe sur {{lLand}}.",
       "free": "Cette ligne est déjà sur la feuille.",
       "gridBadge": "Grille",
       "gridCell_ordinal_one": "{{count}}er",

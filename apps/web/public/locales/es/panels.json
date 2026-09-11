@@ -911,7 +911,7 @@
       "axiom4Corner": "Dobla por {{p}}, llevando {{q}} sobre {{a}}.",
       "axiom5": "Dobla por {{a}}, llevando {{b}} sobre {{c}}.",
       "axiom6": "Dobla {{a}} sobre {{b}} y {{c}} sobre {{d}}.",
-      "axiom7": "Dobla {{b}} sobre sí misma de modo que {{a}} caiga en {{c}}.",
+      "axiom7": "Dobla {{lSelf}} sobre sí misma de modo que {{p}} caiga en {{lLand}}.",
       "free": "Esta línea ya está en la hoja.",
       "gridBadge": "Cuadrícula",
       "gridCell_ordinal_other": "{{count}}avo",

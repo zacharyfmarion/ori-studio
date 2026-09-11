@@ -911,7 +911,7 @@
       "axiom4Corner": "Dobre por {{p}}, levando {{q}} sobre {{a}}.",
       "axiom5": "Dobre passando por {{a}}, levando {{b}} até {{c}}.",
       "axiom6": "Dobre {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
-      "axiom7": "Dobre {{b}} sobre si mesma de modo que {{a}} caia em {{c}}.",
+      "axiom7": "Dobre {{lSelf}} sobre si mesma de modo que {{p}} caia em {{lLand}}.",
       "free": "Esta linha já está na folha.",
       "gridBadge": "Grade",
       "gridCell_ordinal_other": "{{count}} avos",

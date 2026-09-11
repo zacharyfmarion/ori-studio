@@ -877,7 +877,7 @@
       "axiom4Corner": "Falte durch {{p}} und bringe {{q}} auf {{a}}.",
       "axiom5": "Falte durch {{a}} und bringe {{b}} auf {{c}}.",
       "axiom6": "Falte {{a}} auf {{b}} und {{c}} auf {{d}}.",
-      "axiom7": "Falte {{b}} auf sich selbst, sodass {{a}} auf {{c}} landet.",
+      "axiom7": "Falte {{lSelf}} auf sich selbst, sodass {{p}} auf {{lLand}} landet.",
       "free": "Diese Linie ist bereits auf dem Blatt.",
       "gridBadge": "Raster",
       "gridCell_ordinal_other": "{{count}}tel",

@@ -282,10 +282,15 @@ export function describePlannerStep(
       );
       break;
     case 7:
+      // The crate's O7 is `[p, m1, m2]`: `p` lands on `m1`, and the crease is
+      // perpendicular to `m2` — so `m2` is the line folded onto itself. The
+      // placeholders are named by role, as the ReferenceFinder sentence's are,
+      // because this once had the two lines the other way round and the card's
+      // arrow disagreed with its caption.
       sentence = t(
         'panels:references.planStep.axiom7',
-        'Fold {{b}} onto itself so that {{a}} lands on {{c}}.',
-        { a: name(0), b: name(1), c: name(2) }
+        'Fold {{lSelf}} onto itself so that {{p}} lands on {{lLand}}.',
+        { p: name(0), lLand: name(1), lSelf: name(2) }
       );
       break;
     default:

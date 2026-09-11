@@ -204,6 +204,33 @@ describe('a planner step', () => {
     expect(describePlannerStep(t, sequence, 4)).toContain('Fold A onto B.');
   });
 
+  // axolotl (busi12341) step 26: `[P, m1, m2]` with P on the top edge, m1 the
+  // horizontal midline and m2 the diagonal. The crease is perpendicular to the
+  // diagonal and carries P onto the midline — so it is the diagonal (B) that
+  // is folded onto itself and the midline (A) that P lands on. The sentence
+  // had the two lines the other way round, and the card's arrow, which is
+  // drawn from the geometry, disagreed with its caption.
+  it('folds the O7’s perpendicular reference onto itself, and lands P on the other line', () => {
+    const o7 = {
+      ...sequence.steps[4]!,
+      witnesses: [
+        {
+          ...sequence.steps[4]!.witnesses[0]!,
+          axiom: 7,
+          inputs: [
+            { kind: 'corner' as const, id: 2, corner: 'nw' as const },
+            { kind: 'edge' as const, id: 2, side: 'bottom' as const },
+            { kind: 'line' as const, id: 4 },
+          ],
+          who_moves: [0],
+        },
+      ],
+      chosen: 0,
+    };
+    const seq = { ...sequence, steps: sequence.steps.map((s, i) => (i === 4 ? o7 : s)) };
+    expect(describePlannerStep(t, seq, 4)).toContain('Fold B onto itself so that P lands on A.');
+  });
+
   it('uses exactly the letters the card draws', () => {
     for (let i = 0; i < sequence.steps.length; i += 1) {
       const sentence = describePlannerStep(t, sequence, i);

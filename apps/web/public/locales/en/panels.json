@@ -877,7 +877,7 @@
       "axiom4Corner": "Fold through {{p}}, bringing {{q}} onto {{a}}.",
       "axiom5": "Fold through {{a}}, bringing {{b}} onto {{c}}.",
       "axiom6": "Fold {{a}} onto {{b}} and {{c}} onto {{d}}.",
-      "axiom7": "Fold {{b}} onto itself so that {{a}} lands on {{c}}.",
+      "axiom7": "Fold {{lSelf}} onto itself so that {{p}} lands on {{lLand}}.",
       "free": "This line is already on the sheet.",
       "gridBadge": "Grid",
       "gridCell_ordinal_one": "{{count}}st",
