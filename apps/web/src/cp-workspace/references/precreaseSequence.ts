@@ -58,9 +58,70 @@ export type PrecreaseExtent =
  * `cp` realises crease the pattern contains; `aux` is a helper line it does
  * not; `press` is more crease on a line already made — a pinch put on the paper
  * so a later step has a mark to sight. A press is not a fold: the folder refolds
- * a crease that is already there.
+ * a crease that is already there. `grid` is one family of the precrease grid,
+ * pleated edge to edge, mountain and valley alternating — many lines in one
+ * step, listed in `PrecreaseStep.grid`.
  */
-export type PrecreaseStepKind = 'cp' | 'aux' | 'press';
+export type PrecreaseStepKind = 'cp' | 'aux' | 'press' | 'grid';
+
+/** Which grid a pleated design is precreased on. */
+export type PrecreaseGridKind = 'box' | 'hex';
+
+/** One line of a `grid` step. */
+export interface PrecreaseGridStepLine {
+  /** State line id. */
+  line_id: number;
+  line: PrecreasePlanLine;
+  /** The in-paper segment, for drawing. */
+  segment: PrecreasePlanSegment;
+  /** Position in the family: the line is `n · p = phase + index · spacing`. */
+  index: number;
+  /** The direction the pleat gives it, read from the front. */
+  direction: PrecreaseDirection;
+  /**
+   * The pattern's own direction for it: `unassigned` when the pattern does not
+   * contain the line, or assigns it nothing.
+   */
+  pattern_direction: PrecreaseDirection;
+  /** The editor's 1-based crease ids on this line; empty when the pattern lacks it. */
+  cp_line_ids: number[];
+  /** Where those creases are on the line, parallel to `cp_line_ids`. */
+  cp_spans: PrecreasePlanSegment[];
+}
+
+/** What a `grid` step pleats. */
+export interface PrecreaseGridStep {
+  kind: PrecreaseGridKind;
+  /** Index of this family in the grid, in the order the steps come. */
+  family: number;
+  /** Cells across the side the grid is anchored to. */
+  n: number;
+  /** The family's unit normal. */
+  normal: [number, number];
+  /** Distance between adjacent lines. */
+  spacing: number;
+  /** Every line of the family, by ascending index. */
+  lines: PrecreaseGridStepLine[];
+  /** How many of them the pattern contains. */
+  in_pattern: number;
+  /**
+   * How many of those the pattern wants the other way: they reverse as the
+   * model collapses.
+   */
+  reversed: number;
+}
+
+/** The grid a plan opens with, for the summary. */
+export interface PrecreaseGridSummary {
+  kind: PrecreaseGridKind;
+  n: number;
+  /** Families pleated, one step each. */
+  families: number;
+  /** Lines pleated, over every family. */
+  lines: number;
+  /** Of those, lines the pattern contains. */
+  cp_lines: number;
+}
 
 /** What a `press` step is for. */
 export interface PrecreaseStepPress {
@@ -97,7 +158,11 @@ export type PrecreaseDirection = 'mountain' | 'valley' | 'unassigned';
  * the folder turns it.
  */
 export type PrecreaseSide = 'front' | 'back';
-export type PrecreaseLineTag = 'edge' | 'cp' | 'aux' | 'rf_aux';
+/**
+ * `grid` is a line of the precrease grid the pattern does not contain: pleated
+ * with the rest of the grid, creased edge to edge, never a mark to be pinched.
+ */
+export type PrecreaseLineTag = 'edge' | 'cp' | 'aux' | 'rf_aux' | 'grid';
 
 /**
  * Why a plan run ended — the crate's own `drive::StopReason`, mirrored.
@@ -213,6 +278,12 @@ export interface PrecreaseStep {
   /** Present exactly when `kind` is `press`. */
   press?: PrecreaseStepPress;
   /**
+   * Present exactly when `kind` is `grid`. The step's own `line`, `line_id`
+   * and `segment` are then the family's first line, so that a step always has
+   * one; the family is here.
+   */
+  grid?: PrecreaseGridStep;
+  /**
    * The shortest stretch over which this step lines a crease up with a crease,
    * in the planner's unit frame; absent when it lines up none. Below
    * `SHORT_ALIGNMENT` the fold can be made but not precisely — a fold 0.02
@@ -265,10 +336,20 @@ export interface PrecreaseGroup {
 
 /** The summary strip's counts. Never "minimum" — the search is bounded. */
 export interface PrecreaseTotals {
+  /**
+   * Every crease made: CP lines, auxiliary folds and the grid's lines the
+   * pattern does not contain. A press is not a fold and is not here.
+   */
   folds: number;
+  /** CP lines realised, by a step of their own or by a grid step. */
   cp_lines: number;
+  /** Auxiliary folds from the search or ReferenceFinder — not grid lines. */
   aux: number;
   visible_aux: number;
+  /** Lines of the precrease grid, over every family, the pattern's and the grid's own alike. */
+  grid_lines: number;
+  /** Of those, lines the pattern contains. */
+  grid_cp_lines: number;
   /**
    * Press steps: extra crease the pattern does not contain, made so a later
    * step can be sighted. Apart from `aux` so "what the design asks for" and
@@ -371,6 +452,8 @@ export interface PrecreaseSequence {
   certification: string;
   sheet: PrecreaseSheet;
   landmarks_first: boolean;
+  /** The grid the plan opens with, when the design is pleated on one. */
+  grid?: PrecreaseGridSummary;
   steps: PrecreaseStep[];
   groups: PrecreaseGroup[];
   totals: PrecreaseTotals;
@@ -450,6 +533,11 @@ export interface PrecreasePlannerOptions {
   max_candidates?: number;
   stuck_budget_ms?: number;
   total_budget_ms?: number;
+  /**
+   * Open a box- or hex-pleated design with its grid pleated, one step per
+   * family, before anything is sighted. The crate's default is on.
+   */
+  precrease_grid?: boolean;
 }
 
 /** Values per remaining line in `remaining()`: `nx, ny, d, ax, ay, bx, by`. */

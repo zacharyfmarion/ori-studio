@@ -8,7 +8,8 @@
     "spike's O3 external-bisector / O4 foot / O7 crossing false positives raises them, and fixing its",
     "rounded-normal point-on-line index (which hid every +/-45 line) lowers them. `null` means the plan",
     "records no value for that fixture.",
-    "Four fixtures are referenced where they already live rather than copied here."
+    "Four fixtures are referenced where they already live rather than copied here.",
+    "`grid` is the precrease grid the planner pleats first with its default options (null when the design is not box- or hex-pleated): kind, cells across the anchoring side, and lines pleated over every family. `crate` is the auxiliary count with that grid."
   ],
   "fixtures": [
     {
@@ -20,7 +21,8 @@
       "prototype": 0,
       "panel": 0,
       "crate": 0,
-      "note": "Agrees. Every line closes from the bare sheet. The axioms its witnesses use are O2, O3 and O5 only — not the O5/O6/O7 the plan's evidence table names: with only the four edges and two midlines folded, each 67.5-degree corner line has exactly one lander (the centre onto an edge), and O6 needs two."
+      "note": "Agrees. Every line closes from the bare sheet. The axioms its witnesses use are O2, O3 and O5 only — not the O5/O6/O7 the plan's evidence table names: with only the four edges and two midlines folded, each 67.5-degree corner line has exactly one lander (the centre onto an edge), and O6 needs two.",
+      "grid": null
     },
     {
       "file": "crates/oristudio-cp/resources/default-molecules/frog_base.fold",
@@ -31,7 +33,8 @@
       "prototype": 1,
       "panel": 1,
       "crate": 1,
-      "note": "Agrees. One depth-1 auxiliary (a diagonal) unlocks all 16 lines; it stays a full crease because later steps use it as an O3 reflection line."
+      "note": "Agrees. One depth-1 auxiliary (a diagonal) unlocks all 16 lines; it stays a full crease because later steps use it as an O3 reflection line.",
+      "grid": null
     },
     {
       "file": "tests/fixtures/precrease/grid6.fold",
@@ -41,8 +44,13 @@
       "status": "complete",
       "prototype": 1,
       "panel": 1,
-      "crate": 1,
-      "note": "Agrees. Four lines close from the bare sheet, then one depth-1 auxiliary unlocks the remaining ten."
+      "crate": 0,
+      "note": "Agrees line by line (crate 1: four lines close from the bare sheet, then one depth-1 auxiliary unlocks the remaining ten). Pleated on its 6-grid — the default — the ten axis lines are two grid steps and the four diagonals close from the grid's crossings with no auxiliary fold.",
+      "grid": {
+        "kind": "box",
+        "n": 6,
+        "lines": 10
+      }
     },
     {
       "file": "tests/fixtures/flat-folder/kabuto.fold",
@@ -53,7 +61,8 @@
       "prototype": 2,
       "panel": 1,
       "crate": 1,
-      "note": "Agrees with the panel, not the prototype. The prototype's second auxiliary fold was an artefact of its rounded-normal point-on-line index, which made five of kabuto's +/-45 degree lines invisible from the marks lying on them."
+      "note": "Agrees with the panel, not the prototype. The prototype's second auxiliary fold was an artefact of its rounded-normal point-on-line index, which made five of kabuto's +/-45 degree lines invisible from the marks lying on them.",
+      "grid": null
     },
     {
       "file": "tests/fixtures/oriedita/solution_sample_1.cp",
@@ -64,7 +73,8 @@
       "prototype": 2,
       "panel": 1,
       "crate": 1,
-      "note": "Agrees with the panel, not the prototype: one auxiliary fold (corner onto centre) unlocks twelve lines."
+      "note": "Agrees with the panel, not the prototype: one auxiliary fold (corner onto centre) unlocks twelve lines.",
+      "grid": null
     },
     {
       "file": "tests/fixtures/precrease/g3d_x19.fold",
@@ -75,7 +85,8 @@
       "prototype": 3,
       "panel": 2,
       "crate": 2,
-      "note": "Agrees with the panel. Two things were needed to reach 2: the stuck search must keep deepening until a set COMPLETES the closure (stopping at the first set that unlocks anything gave 3), and the candidate cap must be taken round-robin across axioms — a flat cut of the ease-sorted list drops every O1 candidate, and the second line of the optimal pair is an O1."
+      "note": "Agrees with the panel. Two things were needed to reach 2: the stuck search must keep deepening until a set COMPLETES the closure (stopping at the first set that unlocks anything gave 3), and the candidate cap must be taken round-robin across axioms — a flat cut of the ease-sorted list drops every O1 candidate, and the second line of the optimal pair is an O1.",
+      "grid": null
     },
     {
       "file": "tests/fixtures/precrease/x13_x38.fold",
@@ -86,7 +97,8 @@
       "prototype": 4,
       "panel": 3,
       "crate": 3,
-      "note": "Agrees with the panel. Found at depth 3, which the plan's 'depth 3 when the candidate count is small' rule allows (4 root candidates)."
+      "note": "Agrees with the panel. Found at depth 3, which the plan's 'depth 3 when the candidate count is small' rule allows (4 root candidates).",
+      "grid": null
     },
     {
       "file": "tests/fixtures/precrease/x13_diag_pair.fold",
@@ -97,7 +109,8 @@
       "prototype": 4,
       "panel": 3,
       "crate": 3,
-      "note": "Agrees with the panel; found at depth 3."
+      "note": "Agrees with the panel; found at depth 3.",
+      "grid": null
     },
     {
       "file": "tests/fixtures/precrease/g3d_x112.fold",
@@ -108,7 +121,8 @@
       "prototype": 2,
       "panel": 2,
       "crate": 2,
-      "note": "Agrees. The prototype reached 2 folds plus one unsolved line here (6 folds once its deleted 'fold the best approximation' branch ran); the crate solves all seven exactly with two auxiliary folds."
+      "note": "Agrees. The prototype reached 2 folds plus one unsolved line here (6 folds once its deleted 'fold the best approximation' branch ran); the crate solves all seven exactly with two auxiliary folds.",
+      "grid": null
     },
     {
       "file": "tests/fixtures/precrease/claim7-cand9.fold",
@@ -119,7 +133,8 @@
       "prototype": 3,
       "panel": 2,
       "crate": 2,
-      "note": "Agrees with the panel. Reaching 2 needed the lander scan to accept a mirror line that only touches the sheet at a corner: a lander is a point of P on the reflected reference line, and a corner is such a point, but the scan asked whether that line CROSSES the sheet (an in-paper segment longer than TOL) and so lost every corner lander. That false negative alone cost this fixture one auxiliary fold."
+      "note": "Agrees with the panel. Reaching 2 needed the lander scan to accept a mirror line that only touches the sheet at a corner: a lander is a point of P on the reflected reference line, and a corner is such a point, but the scan asked whether that line CROSSES the sheet (an in-paper segment longer than TOL) and so lost every corner lander. That false negative alone cost this fixture one auxiliary fold.",
+      "grid": null
     },
     {
       "file": "tests/fixtures/precrease/iguana-c0.fold",
@@ -129,8 +144,13 @@
       "status": "complete",
       "prototype": 2,
       "panel": null,
-      "crate": 2,
-      "note": "Agrees with the prototype's upper bound of 2 (the plan records no certified panel value; its sheet frame was unverified there and is derived from the border loop here). Two of the 89 lines close from the bare sheet; one depth-2 auxiliary pair unlocks the other 87."
+      "crate": 0,
+      "note": "Agrees with the prototype's upper bound of 2 (the plan records no certified panel value; its sheet frame was unverified there and is derived from the border loop here). Two of the 89 lines close from the bare sheet; one depth-2 auxiliary pair unlocks the other 87. Pleated on its 50-grid — the default — 65 of the 89 lines are two grid steps, and the rest close from the grid's crossings with no auxiliary fold (line by line: 2).",
+      "grid": {
+        "kind": "box",
+        "n": 50,
+        "lines": 98
+      }
     },
     {
       "file": "tests/fixtures/precrease/divergence-1.cp",
@@ -141,7 +161,8 @@
       "prototype": null,
       "panel": null,
       "crate": 1,
-      "note": "No plan value to compare against; recorded so a change in the search is visible. Solved by one depth-1 auxiliary fold."
+      "note": "No plan value to compare against; recorded so a change in the search is visible. Solved by one depth-1 auxiliary fold.",
+      "grid": null
     },
     {
       "file": "tests/fixtures/precrease/divergence-2.cp",
@@ -152,7 +173,8 @@
       "prototype": null,
       "panel": null,
       "crate": 1,
-      "note": "No plan value to compare against. Solved by one depth-2 auxiliary pair until the tier-1 scan learned to see a point a shallow-crossing line makes on a target (predicates::scan_points); one depth-1 auxiliary since."
+      "note": "No plan value to compare against. Solved by one depth-2 auxiliary pair until the tier-1 scan learned to see a point a shallow-crossing line makes on a target (predicates::scan_points); one depth-1 auxiliary since.",
+      "grid": null
     },
     {
       "file": "tests/fixtures/precrease/divergence-3.cp",
@@ -163,7 +185,8 @@
       "prototype": null,
       "panel": null,
       "crate": 1,
-      "note": "No plan value to compare against. Solved by one depth-2 auxiliary pair until the tier-1 scan learned to see a point a shallow-crossing line makes on a target (predicates::scan_points); one depth-1 auxiliary since."
+      "note": "No plan value to compare against. Solved by one depth-2 auxiliary pair until the tier-1 scan learned to see a point a shallow-crossing line makes on a target (predicates::scan_points); one depth-1 auxiliary since.",
+      "grid": null
     },
     {
       "file": "tests/fixtures/precrease/hex-14.fold",
@@ -173,8 +196,13 @@
       "status": "complete",
       "prototype": null,
       "panel": null,
-      "crate": 1,
-      "note": "Classified off the lattice until the dense tier admitted pure ring elements q*sqrt3/D with no bound on q; the planner then solved one line (the midline) and stopped. Exact now: the midline from the bare sheet, one depth-1 auxiliary (a corner onto an edge through the opposite corner, the diagram's 60-degree reference), and every other line closes."
+      "crate": 0,
+      "note": "Classified off the lattice until the dense tier admitted pure ring elements q*sqrt3/D with no bound on q; the planner then solved one line (the midline) and stopped. Exact now: the midline from the bare sheet, one depth-1 auxiliary (a corner onto an edge through the opposite corner, the diagram's 60-degree reference), and every other line closes. Pleated on the two oblique families of its 16-column hex grid — the default — the 42 oblique lines are two grid steps and the 13 rows close from their crossings with no auxiliary fold (line by line: 1).",
+      "grid": {
+        "kind": "hex",
+        "n": 16,
+        "lines": 42
+      }
     }
   ]
 }

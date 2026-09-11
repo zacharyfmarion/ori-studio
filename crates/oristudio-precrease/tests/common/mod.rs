@@ -39,6 +39,15 @@ pub fn unbounded_options() -> PlannerOptions {
     }
 }
 
+/// The same, with the precrease grid off: the plan folds every line one at
+/// a time, which is what the per-line schedule tests pin.
+pub fn grid_off_options() -> PlannerOptions {
+    PlannerOptions {
+        precrease_grid: false,
+        ..unbounded_options()
+    }
+}
+
 /// Plan one component fully and return the planner and its sequence.
 pub fn plan_component(component: &Component, opts: PlannerOptions) -> (Planner, Sequence) {
     let mut planner = Planner::new(component, opts);

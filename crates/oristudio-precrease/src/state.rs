@@ -75,6 +75,10 @@ pub enum LineTag {
     Aux,
     /// An auxiliary fold supplied from a ReferenceFinder solution.
     RfAux,
+    /// A line of the precrease grid the pattern does not contain: pleated
+    /// with the rest of the grid, creased edge to edge, and never a mark to
+    /// be pinched.
+    Grid,
 }
 
 impl LineTag {

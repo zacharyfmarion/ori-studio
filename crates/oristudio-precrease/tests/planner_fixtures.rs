@@ -77,10 +77,12 @@ fn every_manifest_fixture_plans_to_its_recorded_auxiliary_count() {
                 ));
             }
         }
-        // Structural invariants of every plan.
+        // Structural invariants of every plan. A fold is a crease made: the
+        // pattern's lines, the auxiliary folds, and the grid's own lines.
+        let grid_aux = seq.totals.grid_lines - seq.totals.grid_cp_lines;
         assert_eq!(
             seq.totals.folds,
-            seq.totals.cp_lines + seq.totals.aux,
+            seq.totals.cp_lines + seq.totals.aux + grid_aux,
             "{file}"
         );
         assert_eq!(u64::from(seq.totals.aux), aux, "{file}");
@@ -89,15 +91,59 @@ fn every_manifest_fixture_plans_to_its_recorded_auxiliary_count() {
             seq.totals.lower_bound,
             "{file}"
         );
+        // The manifest says whether the design is pleated on a grid.
+        let grid_steps = seq
+            .steps
+            .iter()
+            .filter(|s| s.kind == StepKind::Grid)
+            .count() as u32;
+        match (&entry["grid"], &seq.grid) {
+            (serde_json::Value::Null, None) => assert_eq!(grid_steps, 0, "{file}"),
+            (expected, Some(grid)) if !expected.is_null() => {
+                assert_eq!(
+                    expected["n"].as_u64(),
+                    Some(u64::from(grid.n)),
+                    "{file}: grid"
+                );
+                assert_eq!(
+                    expected["kind"].as_str(),
+                    Some(match grid.kind {
+                        oristudio_precrease::GridKind::Box => "box",
+                        oristudio_precrease::GridKind::Hex => "hex",
+                    }),
+                    "{file}: grid"
+                );
+                assert_eq!(
+                    expected["lines"].as_u64(),
+                    Some(u64::from(grid.lines)),
+                    "{file}: grid lines"
+                );
+                assert_eq!(grid_steps, grid.families, "{file}");
+                assert_eq!(grid.lines, seq.totals.grid_lines, "{file}");
+                assert_eq!(grid.cp_lines, seq.totals.grid_cp_lines, "{file}");
+            }
+            (expected, found) => {
+                failures.push(format!("{file}: manifest grid {expected}, plan {found:?}"))
+            }
+        }
         // A press is a step but not a fold: it puts a mark on the paper for a
-        // fold that follows, on a line already made.
+        // fold that follows, on a line already made. A grid step is one step
+        // for a family of folds.
         assert_eq!(
             seq.steps.len() as u32,
-            seq.totals.folds + seq.totals.presses,
+            seq.totals.folds - seq.totals.grid_lines + grid_steps + seq.totals.presses,
             "{file}"
         );
         for (k, step) in seq.steps.iter().enumerate() {
             assert_eq!(step.id as usize, k + 1);
+            if step.kind == StepKind::Grid {
+                let grid = step.grid.as_ref().unwrap_or_else(|| {
+                    panic!("{file}: step {} is a grid step with no grid", step.id)
+                });
+                assert!(!grid.lines.is_empty(), "{file}: step {}", step.id);
+                assert!(step.chosen.is_none() && step.witnesses.is_empty(), "{file}");
+                continue;
+            }
             if step.kind == StepKind::Press {
                 assert!(
                     step.press.is_some(),

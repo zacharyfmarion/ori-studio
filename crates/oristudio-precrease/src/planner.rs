@@ -19,13 +19,14 @@ use crate::direction::{Direction, share_of};
 use crate::drive::{self, DriverState, LastStep, PlanAction, PlanState, StopReason};
 use crate::error::PrecreaseError;
 use crate::exactness::ExactnessClass;
+use crate::grid;
 use crate::line::Line;
 use crate::order::{Placed, group, order, pattern};
 use crate::pinch::{Extent, pinch_pass};
 use crate::predicates::{Ref, Witness, full_facts, witnesses};
 use crate::sequence::{
-    Diagnostics, ExactnessSummary, FactsSummary, Finding, FindingReason, LineEntry, PointEntry,
-    Sequence, Status, Step, StepKind, StepPress, Totals,
+    Diagnostics, ExactnessSummary, FactsSummary, Finding, FindingReason, GridStep, GridStepLine,
+    GridSummary, LineEntry, PointEntry, Sequence, Status, Step, StepKind, StepPress, Totals,
 };
 use crate::sheet::Sheet;
 use crate::state::{DEFAULT_POINT_CAP, LineTag};
@@ -52,6 +53,10 @@ pub struct PlannerOptions {
     /// off state exists so the two orders can be compared on the corpus, and
     /// comes out once that comparison is recorded.
     pub prefer_findable_ends: bool,
+    /// Whether a box- or hex-pleated design opens with its grid pleated, one
+    /// step per family, before anything is sighted ([`crate::grid`]). On by
+    /// default: that is how such a design is precreased.
+    pub precrease_grid: bool,
     pub clock: Clock,
 }
 
@@ -63,13 +68,15 @@ impl Default for PlannerOptions {
             stuck_budget_ms: 4000.0,
             total_budget_ms: 30_000.0,
             prefer_findable_ends: true,
+            precrease_grid: true,
             clock: default_clock(),
         }
     }
 }
 
 /// The JSON shape of the options: `{ point_cap, max_depth, depth3_threshold,
-/// max_candidates, stuck_budget_ms, total_budget_ms }`, all optional.
+/// max_candidates, stuck_budget_ms, total_budget_ms, precrease_grid }`, all
+/// optional.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct PlannerOptionsJson {
@@ -79,6 +86,7 @@ pub struct PlannerOptionsJson {
     pub max_candidates: Option<usize>,
     pub stuck_budget_ms: Option<f64>,
     pub total_budget_ms: Option<f64>,
+    pub precrease_grid: Option<bool>,
 }
 
 impl PlannerOptions {
@@ -103,6 +111,9 @@ impl PlannerOptions {
         }
         if let Some(c) = parsed.max_candidates {
             opts.stuck.candidates.max_candidates = c.max(1);
+        }
+        if let Some(g) = parsed.precrease_grid {
+            opts.precrease_grid = g;
         }
         for (value, slot) in [
             (parsed.stuck_budget_ms, &mut opts.stuck_budget_ms),
@@ -192,6 +203,89 @@ pub struct Planner {
 
 fn segment_of(sheet: &Sheet, line: &Line) -> Option<[[f64; 2]; 2]> {
     sheet.clip(line).map(|(a, b)| [a, b])
+}
+
+/// The grid's steps, one per family, numbered from 1: pleated from the front,
+/// with no witness, before anything else is on the paper.
+///
+/// A step's own `line`, `line_id` and `segment` are the family's first line,
+/// so that every step has one; the family is in `grid`. The step carries every
+/// pattern crease its lines contain, so the canvas's crease visibility reads it
+/// as it reads any other.
+fn grid_steps(closure: &Closure, sheet: &Sheet) -> Vec<Step> {
+    let Some(grid) = closure.grid() else {
+        return Vec::new();
+    };
+    let targets = closure.targets();
+    grid.families
+        .iter()
+        .enumerate()
+        .filter_map(|(fi, family)| {
+            let lines: Vec<GridStepLine> = family
+                .lines
+                .iter()
+                .enumerate()
+                .filter_map(|(li, gl)| {
+                    let f = closure
+                        .folded()
+                        .iter()
+                        .find(|f| f.grid.is_some_and(|g| g.family == fi && g.line == li))?;
+                    let target = f.target.map(|t| &targets[t]);
+                    Some(GridStepLine {
+                        line_id: f.line_id,
+                        line: f.line,
+                        segment: segment_of(sheet, &f.line).unwrap_or([[0.0; 2]; 2]),
+                        index: gl.index,
+                        direction: gl.direction,
+                        pattern_direction: gl.pattern_direction,
+                        cp_line_ids: target.map(|t| t.cp_line_ids.clone()).unwrap_or_default(),
+                        cp_spans: target.map(|t| t.spans.clone()).unwrap_or_default(),
+                    })
+                })
+                .collect();
+            let first = lines.first()?;
+            Some(Step {
+                id: fi as u32 + 1,
+                kind: StepKind::Grid,
+                tag: LineTag::Grid,
+                line: first.line,
+                line_id: first.line_id,
+                segment: first.segment,
+                extent: Extent::Full,
+                witnesses: Vec::new(),
+                chosen: None,
+                ease: 0,
+                hard: false,
+                err: 0.0,
+                direction: Direction::Unassigned,
+                direction_share: 0.0,
+                side: crate::direction::Side::Front,
+                unlocks: Vec::new(),
+                cp_line_ids: lines.iter().flat_map(|l| l.cp_line_ids.clone()).collect(),
+                cp_spans: lines.iter().flat_map(|l| l.cp_spans.clone()).collect(),
+                visible: true,
+                witnesses_complete: true,
+                marks_exist: true,
+                missing_marks: Vec::new(),
+                hoisted: false,
+                alignment: None,
+                approximation: None,
+                exact: true,
+                pressed_on: Vec::new(),
+                press: None,
+                grid: Some(GridStep {
+                    kind: grid.kind,
+                    family: fi,
+                    n: grid.n,
+                    normal: family.normal,
+                    spacing: family.spacing,
+                    in_pattern: lines.iter().filter(|l| !l.cp_line_ids.is_empty()).count() as u32,
+                    reversed: family.reversed() as u32,
+                    lines,
+                }),
+            })
+        })
+        .collect()
 }
 
 impl Planner {
@@ -293,8 +387,18 @@ impl Planner {
         });
         planner.off_lattice = exactness.class == ExactnessClass::OffLattice;
         planner.refused = false;
+        let grid = opts
+            .precrease_grid
+            .then(|| grid::detect(&sheet, &targets))
+            .flatten();
         let mut closure = Closure::new(sheet, targets, opts.point_cap);
         closure.set_prefer_findable_ends(opts.prefer_findable_ends);
+        if let Some(grid) = grid {
+            // The grid is a few hundred lines at most, far under the cap; if
+            // it is not, the plan goes on without it and says the cap was hit.
+            let result = closure.fold_grid(grid);
+            let _ = planner.note_cap(result);
+        }
         planner.closure = Some(closure);
         planner.sheet = Some(sheet);
         planner
@@ -708,6 +812,7 @@ impl Planner {
                 certification: "heuristic".to_string(),
                 sheet: Sheet::unit_square(),
                 landmarks_first,
+                grid: None,
                 steps: Vec::new(),
                 groups: Vec::new(),
                 totals: Totals::default(),
@@ -728,29 +833,49 @@ impl Planner {
         let verdicts = pinch_pass(closure, &fold_order, &presented);
         let state = closure.state();
 
+        // The grid comes first, one step per family, ahead of every placed
+        // fold: it is on the paper before anything is sighted.
+        let grid_steps = grid_steps(closure, sheet);
+        let first_id = grid_steps.len() as u32 + 1;
+
         // Step id per state line id, for `unlocks` and `LineEntry::step`: the
         // step that MADE the line. A press refolds a line an earlier step made
         // and does not take its place here.
         let mut step_of_line: Vec<Option<u32>> = vec![None; state.line_count()];
+        for g in &grid_steps {
+            if let Some(grid) = &g.grid {
+                for l in &grid.lines {
+                    step_of_line[l.line_id] = Some(g.id);
+                }
+            }
+        }
         for (k, p) in placed.iter().enumerate() {
             if p.press.is_none() {
-                step_of_line[folded[p.folded].line_id] = Some(k as u32 + 1);
+                step_of_line[folded[p.folded].line_id] = Some(k as u32 + first_id);
             }
         }
 
-        let mut steps: Vec<Step> = Vec::with_capacity(placed.len());
+        let mut steps: Vec<Step> = Vec::with_capacity(grid_steps.len() + placed.len());
         let mut referenced_points: Vec<usize> = Vec::new();
         // Which lines are on the paper exactly, as the steps go: the sheet's
-        // edges, and every fold that is exact. A mark is exact when two exact
-        // lines cross there; a fold is exact when its own construction is
-        // and everything it sights from is. An approximation's error is
-        // inherited by whatever is sighted from it, and the card has to say so
-        // there too.
+        // edges, the grid, and every fold that is exact. A mark is exact when
+        // two exact lines cross there; a fold is exact when its own
+        // construction is and everything it sights from is. An
+        // approximation's error is inherited by whatever is sighted from it,
+        // and the card has to say so there too.
         let mut exact_lines: Vec<bool> = state
             .lines()
             .iter()
-            .map(|l| l.tag == LineTag::Edge)
+            .map(|l| matches!(l.tag, LineTag::Edge | LineTag::Grid))
             .collect();
+        for g in &grid_steps {
+            if let Some(grid) = &g.grid {
+                for l in &grid.lines {
+                    exact_lines[l.line_id] = true;
+                }
+            }
+        }
+        steps.extend(grid_steps);
         for (k, p) in placed.iter().enumerate() {
             let f: &FoldedLine = &folded[p.folded];
             // A press is the fold that made this line, done again for a little
@@ -851,7 +976,7 @@ impl Planner {
                 exact_lines[f.line_id] = exact;
             }
             steps.push(Step {
-                id: k as u32 + 1,
+                id: k as u32 + first_id,
                 kind,
                 tag: f.tag,
                 line: f.line,
@@ -887,16 +1012,22 @@ impl Planner {
                     point: press.point,
                     sighted_from: press.sighted_from,
                 }),
+                grid: None,
             });
         }
 
         // Unlocks: CP steps whose chosen witness uses an aux step's line or
-        // a mark on it.
+        // a mark on it — or, for a grid step, any line of the family.
         for i in 0..steps.len() {
-            if steps[i].kind != StepKind::Aux {
-                continue;
-            }
-            let line_id = steps[i].line_id;
+            let line_ids: Vec<usize> = match steps[i].kind {
+                StepKind::Aux => vec![steps[i].line_id],
+                StepKind::Grid => steps[i]
+                    .grid
+                    .as_ref()
+                    .map(|g| g.lines.iter().map(|l| l.line_id).collect())
+                    .unwrap_or_default(),
+                _ => continue,
+            };
             let mut unlocks: Vec<u32> = Vec::new();
             for later in &steps[(i + 1)..] {
                 if later.kind != StepKind::Cp {
@@ -906,10 +1037,11 @@ impl Planner {
                     continue;
                 };
                 let uses = w.inputs.iter().any(|r| match r {
-                    Ref::Edge { id, .. } | Ref::Line { id } => *id == line_id,
-                    Ref::Corner { id, .. } | Ref::Point { id } => {
-                        state.points()[*id].lines.contains(&line_id)
-                    }
+                    Ref::Edge { id, .. } | Ref::Line { id } => line_ids.contains(id),
+                    Ref::Corner { id, .. } | Ref::Point { id } => state.points()[*id]
+                        .lines
+                        .iter()
+                        .any(|l| line_ids.contains(l)),
                 });
                 if uses {
                     unlocks.push(later.id);
@@ -918,7 +1050,7 @@ impl Planner {
             steps[i].unlocks = unlocks;
         }
 
-        let groups = group(closure, &placed);
+        let groups = group(closure, &placed, first_id);
         let _ = pattern(None);
 
         referenced_points.sort_unstable();
@@ -967,30 +1099,54 @@ impl Planner {
             })
             .collect();
 
-        let cp_lines = steps.iter().filter(|s| s.kind == StepKind::Cp).count() as u32;
+        let grid_lines: u32 = steps
+            .iter()
+            .filter_map(|s| s.grid.as_ref())
+            .map(|g| g.lines.len() as u32)
+            .sum();
+        let grid_cp_lines: u32 = steps
+            .iter()
+            .filter_map(|s| s.grid.as_ref())
+            .map(|g| g.in_pattern)
+            .sum();
+        let cp_lines =
+            steps.iter().filter(|s| s.kind == StepKind::Cp).count() as u32 + grid_cp_lines;
         let aux = steps.iter().filter(|s| s.kind == StepKind::Aux).count() as u32;
         let presses = steps.iter().filter(|s| s.kind == StepKind::Press).count() as u32;
-        let visible_aux = steps.iter().filter(|s| s.visible).count() as u32;
+        let visible_aux = steps
+            .iter()
+            .filter(|s| s.kind == StepKind::Aux && s.visible)
+            .count() as u32;
         let free_lines = closure.free_targets().len() as u32;
         let unsolved = closure.remaining().len() as u32;
         let approximate = steps.iter().filter(|s| !s.exact).count() as u32;
         let totals = Totals {
-            folds: cp_lines + aux,
+            folds: cp_lines + aux + (grid_lines - grid_cp_lines),
             cp_lines,
             aux,
             visible_aux,
+            grid_lines,
+            grid_cp_lines,
             presses,
             lower_bound: cp_lines + unsolved,
             free_lines,
             unsolved,
             approximate,
         };
+        let grid = closure.grid().map(|g| GridSummary {
+            kind: g.kind,
+            n: g.n,
+            families: g.families.len() as u32,
+            lines: grid_lines,
+            cp_lines: grid_cp_lines,
+        });
 
         Sequence {
             status,
             certification: self.certification(),
             sheet: *sheet,
             landmarks_first,
+            grid,
             steps,
             groups,
             totals,

@@ -35,6 +35,8 @@ const WASM = resolve(
   ROOT,
   'src/generated/oristudio-precrease-wasm/oristudio_precrease_wasm_bg.wasm'
 );
+/** Planner options with the precrease grid off: every line folded on its own. */
+const LINE_BY_LINE = JSON.stringify({ precrease_grid: false });
 const FIXTURES = resolve(ROOT, '../../tests/fixtures/precrease');
 const MANIFEST = resolve(FIXTURES, 'manifest.json');
 const available = existsSync(WASM) && existsSync(MANIFEST);
@@ -257,7 +259,9 @@ describe.skipIf(!available)('runPrecreasePlan over the real planner bridge', () 
     const wasm = await import('../../generated/oristudio-precrease-wasm/oristudio_precrease_wasm');
     wasm.initSync({ module: readFileSync(WASM) });
     const { segments, colors } = loadFold('iguana-c0.fold');
-    const planner = new wasm.PrecreasePlanner(segments, colors, undefined, 0, '');
+    // Line by line: pleated on its grid, iguana closes in one chunk, and
+    // this is a test of the chunking.
+    const planner = new wasm.PrecreasePlanner(segments, colors, undefined, 0, LINE_BY_LINE);
     const phases: string[] = [];
     try {
       await runPrecreasePlan(handleFor(planner), {
@@ -279,7 +283,7 @@ describe.skipIf(!available)('runPrecreasePlan over the real planner bridge', () 
     const wasm = await import('../../generated/oristudio-precrease-wasm/oristudio_precrease_wasm');
     wasm.initSync({ module: readFileSync(WASM) });
     const { segments, colors } = loadFold('iguana-c0.fold');
-    const planner = new wasm.PrecreasePlanner(segments, colors, undefined, 0, '');
+    const planner = new wasm.PrecreasePlanner(segments, colors, undefined, 0, LINE_BY_LINE);
     const controller = new AbortController();
     try {
       const result = await runPrecreasePlan(handleFor(planner), {

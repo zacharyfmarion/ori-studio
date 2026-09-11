@@ -310,12 +310,14 @@ fn pinch_pass_keeps_fold_count_and_confines_point_uses_to_spans() {
         let verdicts = pinch_pass(closure, &order, &chosen);
         assert_eq!(verdicts.len(), closure.folded().len(), "{file}");
         // One step per fold. A press is a step but not a fold — it re-presses
-        // a line a fold already made — so it is not counted here.
-        let folds = seq
+        // a line a fold already made — so it is not counted here; a grid step
+        // is one step for a family of folds.
+        let folds: usize = seq
             .steps
             .iter()
             .filter(|s| s.kind != StepKind::Press)
-            .count();
+            .map(|s| s.grid.as_ref().map_or(1, |g| g.lines.len()))
+            .sum();
         assert_eq!(folds, closure.folded().len(), "{file}");
         // Every pinched auxiliary line: later steps use it only through points
         // inside its spans. A press is pinched too, and is exactly the opposite

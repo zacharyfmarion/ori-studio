@@ -133,7 +133,9 @@ pub fn pinch_pass(
         .enumerate()
         .map(|(k, &i)| {
             let step = &closure.folded()[i];
-            if step.tag == LineTag::Cp || step.tag == LineTag::Edge {
+            // A grid line is the technique, not a mark: creased edge to edge
+            // and never cut back.
+            if matches!(step.tag, LineTag::Cp | LineTag::Edge | LineTag::Grid) {
                 return PinchVerdict {
                     extent: Extent::Full,
                     visible: false,

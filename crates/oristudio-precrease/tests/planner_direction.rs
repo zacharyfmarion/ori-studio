@@ -58,6 +58,11 @@ fn plan(file: &str) -> Sequence {
     plan_component(&component_of(&load(file)), unbounded_options()).1
 }
 
+/// The plan with the grid off: every line folded one at a time.
+fn plan_line_by_line(file: &str) -> Sequence {
+    plan_component(&component_of(&load(file)), grid_off_options()).1
+}
+
 const EVERY_FIXTURE: [&str; 11] = [
     "tests/fixtures/precrease/grid6.fold",
     "tests/fixtures/precrease/iguana-c0.fold",
@@ -80,6 +85,22 @@ fn a_step_is_made_from_the_side_its_direction_needs() {
         let seq = plan(file);
         assert!(!seq.steps.is_empty(), "{file}: no steps");
         for step in &seq.steps {
+            // A grid step pleats its family from the front, mountains and
+            // valleys alternating: the step itself has no one direction, and
+            // every line of it has one.
+            if let Some(grid) = &step.grid {
+                assert_eq!(step.kind, StepKind::Grid, "{file}: {step:?}");
+                assert_eq!(step.side, Side::Front, "{file}: {step:?}");
+                assert_eq!(step.direction, Direction::Unassigned, "{file}: {step:?}");
+                for line in &grid.lines {
+                    assert_ne!(line.direction, Direction::Unassigned, "{file}: {line:?}");
+                }
+                continue;
+            }
+            assert!(
+                step.grid.is_none() && step.kind != StepKind::Grid,
+                "{file}: {step:?}"
+            );
             match step.direction {
                 // A crease made from the front is a valley, one made from the
                 // back is a mountain, and there is no third case. A press
@@ -243,50 +264,65 @@ fn a_cp_step_says_where_on_its_chord_the_creases_are() {
         let seq = plan(file);
         let sheet = seq.sheet;
         let mut partial = 0;
-        for step in &seq.steps {
-            if step.kind == StepKind::Aux {
-                assert!(
-                    step.cp_spans.is_empty(),
-                    "{file}: aux step {} has spans",
-                    step.id
-                );
-                continue;
-            }
+        // A grid step's spans are on its many lines; the step's own line is
+        // the first of them. Check each line as its own chord.
+        let chords: Vec<Chord> = seq
+            .steps
+            .iter()
+            .flat_map(|step| match &step.grid {
+                Some(grid) => grid
+                    .lines
+                    .iter()
+                    .map(|l| (l.line, l.segment, l.cp_spans.clone(), l.cp_line_ids.clone()))
+                    .collect::<Vec<_>>(),
+                None if step.kind == StepKind::Aux => {
+                    assert!(
+                        step.cp_spans.is_empty(),
+                        "{file}: aux step {} has spans",
+                        step.id
+                    );
+                    Vec::new()
+                }
+                None => vec![(
+                    step.line,
+                    step.segment,
+                    step.cp_spans.clone(),
+                    step.cp_line_ids.clone(),
+                )],
+            })
+            .collect();
+        for (line, segment, cp_spans, cp_line_ids) in &chords {
             assert_eq!(
-                step.cp_spans.len(),
-                step.cp_line_ids.len(),
-                "{file}: step {} has {} spans for {} creases",
-                step.id,
-                step.cp_spans.len(),
-                step.cp_line_ids.len()
+                cp_spans.len(),
+                cp_line_ids.len(),
+                "{file}: a chord has {} spans for {} creases",
+                cp_spans.len(),
+                cp_line_ids.len()
             );
             let mut covered = 0.0;
-            for [a, b] in &step.cp_spans {
+            for [a, b] in cp_spans {
                 for p in [a, b] {
                     assert!(
-                        step.line.distance_to_point(*p) < 1e-9,
-                        "{file}: step {} has a span off its own line",
-                        step.id
+                        line.distance_to_point(*p) < 1e-9,
+                        "{file}: a chord has a span off its own line",
                     );
                     assert!(
                         p[0] >= -1e-9
                             && p[0] <= sheet.width + 1e-9
                             && p[1] >= -1e-9
                             && p[1] <= sheet.height + 1e-9,
-                        "{file}: step {} has a span off the sheet: {p:?}",
-                        step.id
+                        "{file}: a chord has a span off the sheet: {p:?}",
                     );
                 }
                 covered += ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2)).sqrt();
             }
             let chord = {
-                let [a, b] = step.segment;
+                let [a, b] = segment;
                 ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2)).sqrt()
             };
             assert!(
                 covered <= chord + 1e-9,
-                "{file}: step {} creases more than its chord",
-                step.id
+                "{file}: a chord creases more than its length",
             );
             if covered < chord - 1e-6 {
                 partial += 1;
@@ -434,7 +470,14 @@ fn every_step_is_sighted_from_marks_that_are_on_the_paper() {
             }
             // Now this step's own crease is on the paper — what it actually
             // pressed, which for a CP step is the pattern's spans and for a
-            // press or a pinched auxiliary line is its extent.
+            // press or a pinched auxiliary line is its extent. A grid step
+            // pleats every line of its family edge to edge.
+            if let Some(grid) = &step.grid {
+                for line in &grid.lines {
+                    whole.insert(line.line_id);
+                }
+                continue;
+            }
             match pressed_spans(step) {
                 None => {
                     whole.insert(step.line_id);
@@ -584,6 +627,15 @@ fn pressed_spans(step: &Step) -> Option<Vec<Span>> {
 /// One creased piece of a line: its two endpoints.
 type Span = ([f64; 2], [f64; 2]);
 
+/// One line a step creases: the line, its chord, and the pattern's spans and
+/// crease ids on it.
+type Chord = (
+    oristudio_precrease::Line,
+    [[f64; 2]; 2],
+    Vec<[[f64; 2]; 2]>,
+    Vec<u32>,
+);
+
 /// Whether `p` lies on the segment `a`–`b`.
 fn on_span(a: [f64; 2], b: [f64; 2], p: [f64; 2]) -> bool {
     let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
@@ -600,10 +652,11 @@ fn on_span(a: [f64; 2], b: [f64; 2], p: [f64; 2]) -> bool {
 }
 
 /// grid6 is the fully determined case: seven mountains, seven valleys, and no
-/// line carrying both, so exactly one schedule is correct.
+/// line carrying both, so exactly one schedule is correct — folded line by
+/// line, with the grid off.
 #[test]
 fn a_grid_folds_each_round_from_one_side() {
-    let seq = plan("tests/fixtures/precrease/grid6.fold");
+    let seq = plan_line_by_line("tests/fixtures/precrease/grid6.fold");
     assert_eq!(sides(&seq), "FBBBBFFFFFBBBBF", "grid6 schedule");
     assert_eq!(turn_overs(&seq), 4, "grid6 turn-overs");
     // The pattern's own lines; the one auxiliary fold is made toward the
@@ -616,6 +669,38 @@ fn a_grid_folds_each_round_from_one_side() {
     };
     assert_eq!(count(Direction::Mountain), 7, "grid6 mountains");
     assert_eq!(count(Direction::Valley), 7, "grid6 valleys");
+}
+
+/// With the grid on, grid6 opens with its two families pleated from the
+/// front, and the four diagonals follow from their crossings: no auxiliary
+/// fold, one turn-over where the line-by-line plan needed four.
+#[test]
+fn a_pleated_grid_opens_the_plan_and_the_diagonals_follow() {
+    let seq = plan("tests/fixtures/precrease/grid6.fold");
+    let grid = seq.grid.as_ref().expect("grid6 is pleated");
+    assert_eq!(grid.n, 6);
+    assert_eq!((grid.families, grid.lines, grid.cp_lines), (2, 10, 10));
+    assert_eq!(sides(&seq), "FFFFBB", "grid6 schedule with the grid");
+    assert_eq!(turn_overs(&seq), 1, "grid6 turn-overs with the grid");
+    assert_eq!(seq.totals.aux, 0, "the diagonals need no auxiliary fold");
+    assert_eq!(seq.totals.cp_lines, 14);
+    assert_eq!(seq.totals.folds, 14);
+    let families: Vec<_> = seq.steps.iter().filter_map(|s| s.grid.as_ref()).collect();
+    assert_eq!(families.len(), 2);
+    for family in &families {
+        assert_eq!(family.lines.len(), 5);
+        assert_eq!(family.in_pattern, 5);
+        // grid6's axis lines alternate exactly as a pleat does.
+        assert_eq!(family.reversed, 0);
+        for pair in family.lines.windows(2) {
+            assert_ne!(pair[0].direction, pair[1].direction);
+        }
+    }
+    // Every step after the grid sights something on it.
+    assert!(
+        seq.steps[..2].iter().all(|s| !s.unlocks.is_empty()),
+        "the grid steps unlock what follows"
+    );
 }
 
 /// The minimal mixed pattern, and the one that catches an inverted
@@ -657,7 +742,7 @@ fn an_all_mountain_pattern_turns_over_once_and_stays_there() {
 /// taken — but not everywhere, and this is the fixture that says so.
 #[test]
 fn a_real_design_turns_over_a_handful_of_times() {
-    let seq = plan("tests/fixtures/precrease/iguana-c0.fold");
+    let seq = plan_line_by_line("tests/fixtures/precrease/iguana-c0.fold");
     let folds = seq
         .steps
         .iter()

@@ -82,6 +82,7 @@ pub mod error;
 pub mod exactness;
 pub mod fixture_io;
 pub mod frame;
+pub mod grid;
 pub mod lattice;
 pub mod line;
 pub mod marks;
@@ -108,6 +109,7 @@ pub use exactness::{
     Exactness, ExactnessClass, Residuals, SnappedComponent, SnappedLine, probe, snap,
 };
 pub use frame::{Frame, FrameAffines, RfRect};
+pub use grid::{Grid, GridFamily, GridKind, GridLine};
 pub use lattice::{LatticeOffset, Ring};
 pub use line::{Line, LineIndex};
 pub use marks::{

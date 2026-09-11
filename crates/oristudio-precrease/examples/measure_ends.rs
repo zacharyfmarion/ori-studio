@@ -1,14 +1,15 @@
 //! Measure the two closure orders against each other on a corpus.
 //!
 //! ```sh
-//! cargo run --release -p oristudio-precrease --example measure_ends -- <dir-or-file>...
+//! cargo run --release -p oristudio-precrease --example measure_ends -- [--no-grid] <dir-or-file>...
 //! ```
 //!
 //! Per design and in total: steps, turn-overs, steps sighted from a mark that
 //! is not on the paper, and crease ends with no landmark. Run twice — with the
 //! endpoint preference on and off — and print both, because a reorder cannot be
 //! simulated after the fact: changing what folds first changes what is
-//! constructible next, so the two plans are different plans.
+//! constructible next, so the two plans are different plans. `--no-grid` plans
+//! without the precrease grid, to measure the grid the same way.
 
 use std::path::{Path, PathBuf};
 
@@ -77,6 +78,16 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize) -> Tally {
         ..Tally::default()
     };
     for step in &seq.steps {
+        // A grid step pleats every line of its family edge to edge: nothing
+        // to find, everything on the paper.
+        if let Some(grid) = &step.grid {
+            for line in &grid.lines {
+                if let Ok(outcome) = state.add_line(line.line, step.tag) {
+                    creased.add_whole(&state, outcome.id);
+                }
+            }
+            continue;
+        }
         // A press is a pinch on a line already made: it goes on the paper, but
         // it is not a crease with ends a folder must find — it is pressed *at*
         // a mark. Its empty `cp_spans` must not read as "creased whole".
@@ -118,7 +129,7 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize) -> Tally {
     t
 }
 
-fn plan_file(path: &Path, prefer: bool) -> Option<Tally> {
+fn plan_file(path: &Path, prefer: bool, grid: bool) -> Option<Tally> {
     let cp = load_path(path, None).ok()?;
     let analysis = analyze(&cp.segments, &cp.colors, Some(ORIEDITA_PAPER)).ok()?;
     let mut total = Tally::default();
@@ -131,6 +142,7 @@ fn plan_file(path: &Path, prefer: bool) -> Option<Tally> {
         // one never expires.
         let opts = PlannerOptions {
             prefer_findable_ends: prefer,
+            precrease_grid: grid,
             ..PlannerOptions::default()
         };
         let point_cap = opts.point_cap;
@@ -171,8 +183,9 @@ fn collect(path: &Path, out: &mut Vec<PathBuf>) {
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    let grid = !args.iter().any(|a| a == "--no-grid");
     let mut paths = Vec::new();
-    for a in &args {
+    for a in args.iter().filter(|a| *a != "--no-grid") {
         collect(Path::new(a), &mut paths);
     }
     // One plan per design: the corpus keeps a detection and a topology beside
@@ -202,7 +215,7 @@ fn main() {
     );
     println!("design\tsteps\tphantom on/off\tturns on/off\tlost ends on/off");
     for path in &paths {
-        let (a, b) = (plan_file(path, true), plan_file(path, false));
+        let (a, b) = (plan_file(path, true, grid), plan_file(path, false, grid));
         let (Some(a), Some(b)) = (a, b) else {
             println!("{}\tdid not plan", path.display());
             continue;

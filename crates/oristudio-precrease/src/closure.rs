@@ -51,6 +51,7 @@ use serde::{Deserialize, Serialize};
 use crate::clock::Deadline;
 use crate::direction::{Direction, Side, majority};
 use crate::error::PrecreaseError;
+use crate::grid::Grid;
 use crate::line::{Line, LineIndex};
 use crate::marks::{Creased, ends_are_found};
 use crate::predicates::{
@@ -208,6 +209,20 @@ pub struct FoldedLine {
     /// the pattern's own geometry.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub folded_as: Option<Line>,
+    /// For a line of the precrease grid ([`Closure::fold_grid`]): which
+    /// family and which line of it. A grid line is made by pleating, not
+    /// sighted, so it has no witnesses.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grid: Option<GridRef>,
+}
+
+/// Where a folded line sits in the precrease grid.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GridRef {
+    /// Index into [`Grid::families`].
+    pub family: usize,
+    /// Index into that family's lines.
+    pub line: usize,
 }
 
 impl FoldedLine {
@@ -284,6 +299,8 @@ pub struct Closure {
     /// input to the endpoint half of the constructibility test.
     creased: Creased,
     prefer_findable_ends: bool,
+    /// The grid pleated before the first close, if any.
+    grid: Option<Grid>,
     stats: ClosureStats,
 }
 
@@ -328,6 +345,7 @@ impl Closure {
             round: 0,
             creased,
             prefer_findable_ends: true,
+            grid: None,
             stats: ClosureStats::default(),
         }
     }
@@ -355,6 +373,11 @@ impl Closure {
     /// Every folded line in fold order.
     pub fn folded(&self) -> &[FoldedLine] {
         &self.folded
+    }
+
+    /// The grid pleated before the first close, if any.
+    pub fn grid(&self) -> Option<&Grid> {
+        self.grid.as_ref()
     }
 
     /// The current round counter.
@@ -570,6 +593,7 @@ impl Closure {
             witnesses_complete: complete,
             approximation: None,
             folded_as: None,
+            grid: None,
         });
         // Release the facts of a folded target.
         self.facts[t] = TargetFacts::default();
@@ -630,11 +654,69 @@ impl Closure {
             witnesses_complete: true,
             approximation: None,
             folded_as: None,
+            grid: None,
         });
         Ok(FoldOutcome::Folded {
             line_id: outcome.id,
             cp_target: None,
         })
+    }
+
+    /// Pleat `grid` into the paper: every line of every family, creased along
+    /// its whole chord, before anything is closed.
+    ///
+    /// A grid line the pattern contains is folded as that target; every other
+    /// is a [`LineTag::Grid`] auxiliary — the technique, not a mark, which is
+    /// why the pinch pass leaves it alone. No line records a witness: a grid
+    /// is made by pleating, edge to edge, not sighted line by line, and the
+    /// card for it says so. The closure, the stuck search and everything
+    /// after then run over a state that already carries the grid.
+    ///
+    /// Only meaningful on a closure nothing has been folded on; called on any
+    /// other it still folds what it is given, but the grid then is not the
+    /// first thing on the paper, and the plan says it is.
+    pub fn fold_grid(&mut self, grid: Grid) -> Result<(), PrecreaseError> {
+        self.round += 1;
+        let round = self.round;
+        for (fi, family) in grid.families.iter().enumerate() {
+            for (li, gl) in family.lines.iter().enumerate() {
+                if self.state.find_line(&gl.line).is_some() {
+                    continue;
+                }
+                let target = gl.target.filter(|t| self.remaining.contains(t));
+                let tag = if target.is_some() {
+                    LineTag::Cp
+                } else {
+                    LineTag::Grid
+                };
+                let outcome = self.state.add_line(gl.line, tag)?;
+                // The pleat creases the whole line, whatever part of it the
+                // pattern wants.
+                self.creased.add_whole(&self.state, outcome.id);
+                self.folded.push(FoldedLine {
+                    line_id: outcome.id,
+                    line: gl.line,
+                    tag,
+                    target,
+                    round,
+                    witnesses: Vec::new(),
+                    chosen: None,
+                    witnesses_complete: true,
+                    approximation: None,
+                    folded_as: None,
+                    grid: Some(GridRef {
+                        family: fi,
+                        line: li,
+                    }),
+                });
+                if let Some(t) = target {
+                    self.facts[t] = TargetFacts::default();
+                    self.remaining.retain(|&x| x != t);
+                }
+            }
+        }
+        self.grid = Some(grid);
+        Ok(())
     }
 
     /// The folded record of state line `id`, if the closure folded it.
@@ -695,6 +777,7 @@ impl Closure {
             witnesses_complete: true,
             approximation: Some(err),
             folded_as: Some(constructed),
+            grid: None,
         });
         self.facts[t] = TargetFacts::default();
         self.remaining.retain(|&x| x != t);

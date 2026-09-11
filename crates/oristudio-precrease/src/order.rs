@@ -223,7 +223,9 @@ fn record(creased: &mut Creased, closure: &Closure, folded_index: usize) {
     let f = &closure.folded()[folded_index];
     let state = closure.state();
     match f.target.and_then(|t| closure.targets().get(t)) {
-        Some(target) if !target.spans.is_empty() => {
+        // A pleated grid line is creased edge to edge whatever the pattern
+        // wants of it.
+        Some(target) if !target.spans.is_empty() && f.grid.is_none() => {
             creased.add_spans(state, f.line_id, &f.line, &target.spans)
         }
         _ => creased.add_whole(state, f.line_id),
@@ -1090,12 +1092,26 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
     // whether the fold could have been creased that far in the first place.
     let mut snapshots: Vec<Option<Creased>> = vec![None; folded.len()];
 
-    // Phase 0: hoisted landmarks.
+    // The grid is on the paper before anything else and is not placed here:
+    // the planner emits one step per family ahead of every placed fold.
+    // `hoisted` doubles as "already on the paper" for the round loop below.
     let mut hoisted = vec![false; folded.len()];
+    for (i, f) in folded.iter().enumerate() {
+        if f.grid.is_some() {
+            hoisted[i] = true;
+            record(&mut creased, closure, i);
+            snapshots[i] = Some(creased.clone());
+        }
+    }
+
+    // Phase 0: hoisted landmarks.
     if landmarks_first {
         let mut available = vec![false; state.line_count()];
         for (id, l) in state.lines().iter().enumerate() {
-            available[id] = l.tag == LineTag::Edge;
+            available[id] = matches!(l.tag, LineTag::Edge | LineTag::Grid);
+        }
+        for f in folded.iter().filter(|f| f.grid.is_some()) {
+            available[f.line_id] = true;
         }
         for (i, f) in folded.iter().enumerate() {
             if !matches!(f.tag, LineTag::Aux | LineTag::RfAux) {
@@ -1246,8 +1262,9 @@ pub fn pattern(w: Option<&Witness>) -> String {
 }
 
 /// Group consecutive placed steps with the same sweep, side, kind, direction,
-/// axiom and pattern. `step_ids` are 1-based positions in `placed`.
-pub fn group(closure: &Closure, placed: &[Placed]) -> Vec<Group> {
+/// axiom and pattern. `step_ids` are 1-based positions in `placed`, after the
+/// `first_id - 1` steps that come before them (the grid's).
+pub fn group(closure: &Closure, placed: &[Placed], first_id: u32) -> Vec<Group> {
     let folded = closure.folded();
     let mut groups: Vec<Group> = Vec::new();
     // The sweep the open group belongs to. A sweep boundary ends a group, but
@@ -1265,7 +1282,7 @@ pub fn group(closure: &Closure, placed: &[Placed]) -> Vec<Group> {
         };
         let axiom = w.map_or(0, |w| w.axiom);
         let pat = pattern(w);
-        let id = k as u32 + 1;
+        let id = k as u32 + first_id;
         match groups.last_mut() {
             Some(g)
                 if open_sweep == p.sweep
@@ -1673,7 +1690,7 @@ mod tests {
         assert!(r2[0].0 > 0.5 && r2[1].0 > 0.5, "verticals first: {r2:?}");
         assert!(r2[0].1 < r2[1].1, "ascending offsets: {r2:?}");
         assert!(r2[2].1 > r2[3].1, "descending offsets: {r2:?}");
-        let groups = group(&c, &placed);
+        let groups = group(&c, &placed, 1);
         // Midlines: same round, different directions → two groups; quarters:
         // two clusters → two groups of two.
         assert_eq!(groups.len(), 4, "{groups:?}");

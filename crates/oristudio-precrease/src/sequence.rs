@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use crate::closure::ClosureStats;
 use crate::direction::{Direction, Side};
 use crate::exactness::ExactnessClass;
+use crate::grid::GridKind;
 use crate::line::Line;
 use crate::pinch::Extent;
 use crate::predicates::Witness;
@@ -27,6 +28,65 @@ pub enum StepKind {
     /// paper where a later step needs one. Not a fold: the folder refolds
     /// along a crease that is already there and presses a little further.
     Press,
+    /// One family of the precrease grid, pleated edge to edge, alternating
+    /// mountain and valley. Many lines in one step; `Step::grid` lists them.
+    Grid,
+}
+
+/// One line of a [`StepKind::Grid`] step.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GridStepLine {
+    /// State line id.
+    pub line_id: usize,
+    pub line: Line,
+    /// The in-paper segment, for drawing.
+    pub segment: [[f64; 2]; 2],
+    /// Position in the family: the line is `n · p = phase + index · spacing`.
+    pub index: i32,
+    /// The direction the pleat gives it, read from the front.
+    pub direction: Direction,
+    /// The pattern's own direction for it: `Unassigned` when the pattern does
+    /// not contain the line, or assigns it nothing.
+    pub pattern_direction: Direction,
+    /// The editor's 1-based crease ids on this line; empty when the pattern
+    /// does not contain it.
+    pub cp_line_ids: Vec<u32>,
+    /// Where those creases are on the line, parallel to `cp_line_ids`.
+    pub cp_spans: Vec<[[f64; 2]; 2]>,
+}
+
+/// What a [`StepKind::Grid`] step pleats.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GridStep {
+    pub kind: GridKind,
+    /// Index of this family in the grid, in the order the steps come.
+    pub family: usize,
+    /// Cells across the side the grid is anchored to.
+    pub n: u32,
+    /// The family's unit normal.
+    pub normal: [f64; 2],
+    /// Distance between adjacent lines.
+    pub spacing: f64,
+    /// Every line of the family, by ascending index.
+    pub lines: Vec<GridStepLine>,
+    /// How many of them the pattern contains.
+    pub in_pattern: u32,
+    /// How many of those the pattern wants the other way: they reverse as
+    /// the model collapses.
+    pub reversed: u32,
+}
+
+/// The grid a plan opens with, for the summary.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GridSummary {
+    pub kind: GridKind,
+    pub n: u32,
+    /// Families pleated, one step each.
+    pub families: u32,
+    /// Lines pleated, over every family.
+    pub lines: u32,
+    /// Of those, lines the pattern contains.
+    pub cp_lines: u32,
 }
 
 /// What a [`StepKind::Press`] step is for.
@@ -122,6 +182,11 @@ pub struct Step {
     /// Present exactly when `kind` is [`StepKind::Press`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub press: Option<StepPress>,
+    /// Present exactly when `kind` is [`StepKind::Grid`]. The step's own
+    /// `line`, `line_id` and `segment` are then the family's first line, so
+    /// that a step always has one; the family is here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grid: Option<GridStep>,
     /// The shortest stretch over which this step lines a crease up with a
     /// crease, in sheet units; absent when it lines up none. Below
     /// `marks::MIN_ALIGNMENT` — a pinch's length — the fold can be made but
@@ -173,11 +238,21 @@ pub struct Group {
 /// visible)", never "minimum".
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct Totals {
-    /// CP folds plus auxiliary folds. A press is not a fold and is not here.
+    /// Every crease made: CP lines, auxiliary folds and the grid's lines the
+    /// pattern does not contain. A press is not a fold and is not here.
     pub folds: u32,
+    /// CP lines realised, by a step of their own or by a grid step.
     pub cp_lines: u32,
+    /// Auxiliary folds from the search or ReferenceFinder — not grid lines.
     pub aux: u32,
     pub visible_aux: u32,
+    /// Lines of the precrease grid, over every family, the pattern's and the
+    /// grid's own alike.
+    #[serde(default)]
+    pub grid_lines: u32,
+    /// Of those, lines the pattern contains.
+    #[serde(default)]
+    pub grid_cp_lines: u32,
     /// Press steps: extra crease the pattern does not contain, made so a later
     /// step can be sighted. Counted apart from `aux` so "what the design asks
     /// for" and "what correctness cost" never blur.
@@ -301,6 +376,9 @@ pub struct Sequence {
     pub certification: String,
     pub sheet: Sheet,
     pub landmarks_first: bool,
+    /// The grid the plan opens with, when the design is pleated on one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grid: Option<GridSummary>,
     pub steps: Vec<Step>,
     pub groups: Vec<Group>,
     pub totals: Totals,

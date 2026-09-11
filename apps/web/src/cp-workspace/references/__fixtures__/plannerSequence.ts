@@ -210,6 +210,8 @@ export function plannerSequenceFixture(): PrecreaseSequence {
       cp_lines: 4,
       aux: 1,
       visible_aux: 0,
+      grid_lines: 0,
+      grid_cp_lines: 0,
       lower_bound: 4,
       free_lines: 2,
       unsolved: 1,
