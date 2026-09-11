@@ -81,7 +81,8 @@ export type StepDiagramPrimitive =
   | { kind: 'label'; at: readonly [number, number]; text: string; style: DiagramPointStyleName };
 
 export interface StepDiagramModel {
-  sheet: { width: number; height: number };
+  /** The paper's size, and — off the unit frame — where its middle is. */
+  sheet: { width: number; height: number; centre?: readonly [number, number] };
   /** In drawing order, the sheet first. */
   primitives: StepDiagramPrimitive[];
 }

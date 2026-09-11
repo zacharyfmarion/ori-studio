@@ -10695,6 +10695,136 @@ button.bp-packing-alert:focus-visible {
   .cp-tool-picker__sheet {
     width: calc(100% - var(--touch-target));
   }
+
+  /*
+   * References: one screen at a time. `useReferencesPhoneFlow` mounts either
+   * the rail or the panel, never both, so the rail here is the list screen —
+   * the whole width, scrolling as one — and the panel is the detail screen with
+   * a Back button where its title was.
+   *
+   * Every selector below is prefixed with `.references-workspace`, and not for
+   * scoping: the workspace's own rules come *after* this block in the file, so
+   * at equal specificity they would win on source order and none of this would
+   * apply. The prefix is what makes these the later word.
+   */
+  .references-workspace .references-sidebar {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    border-right: 0;
+  }
+
+  .references-workspace .references-sidebar__header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    min-height: var(--touch-target);
+    padding: 0 var(--space-3);
+  }
+
+  /*
+   * Two cards per row, sized for a thumb, and no cap on the strip: the rail's
+   * 40% ceiling exists so a long list leaves room for the notes beside the
+   * canvas, and on this screen the notes come *after* the list, in the same
+   * scroll.
+   */
+  .references-workspace .references-sheets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+    max-height: none;
+    overflow: visible;
+    padding: var(--space-3);
+  }
+
+  .references-workspace .references-sheet {
+    gap: var(--space-2);
+    min-height: var(--touch-target);
+    padding: var(--space-2);
+  }
+
+  .references-workspace .references-sheet__meta {
+    font-size: 0.8rem;
+  }
+
+  .references-workspace .references-sheet__index {
+    min-width: 20px;
+    height: 20px;
+    font-size: 0.72rem;
+  }
+
+  .references-workspace .references-sidebar__notes {
+    overflow: visible;
+  }
+
+  .references-workspace .references-sidebar__hint {
+    font-size: 0.85rem;
+  }
+
+  .references-workspace .references-sidebar__warning {
+    padding: 0 var(--space-3) var(--space-2);
+    font-size: 0.8rem;
+  }
+
+  /* A finding is a button that frames a line on the detail, so it is a target. */
+  .references-workspace .references-finding {
+    min-height: var(--touch-target);
+    font-size: 0.8rem;
+  }
+
+  /*
+   * The detail's toolbar, as rows rather than a row.
+   *
+   * At 375px the Back button and the five view controls fill the first row on
+   * their own, so the picked target's controls — its badge, the candidate
+   * stepper, the readouts and the way out of it — take a full row of their own
+   * underneath. They are children of the *first* group in the markup, beside
+   * the Back button; `display: contents` on that group hands them to the
+   * toolbar's own flex layout, where `order` and a 100% basis can put them
+   * where the first row cannot.
+   */
+  .references-workspace .references-panel .panel-toolbar {
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .references-workspace .references-panel .panel-toolbar__group:first-child {
+    display: contents;
+  }
+
+  .references-workspace .references-panel__back {
+    flex: 0 0 auto;
+    order: 0;
+  }
+
+  .references-workspace .references-panel .panel-toolbar__group:last-child {
+    flex: 0 0 auto;
+    order: 1;
+    margin-left: auto;
+  }
+
+  .references-workspace .references-target {
+    flex: 1 0 100%;
+    order: 2;
+  }
+
+  /* The way out of a pick is a bare button, not a `.ui-control`, so the coarse
+     block above does not reach it. */
+  .references-workspace .references-target__exit {
+    min-height: var(--touch-target);
+  }
+
+  /*
+   * The breakdown's summary is hidden here. Its sentence — "55 folds = 55
+   * creases + 0 auxiliary (0 visible)", the grid, the bound, the turn-overs —
+   * is a line of arithmetic some ninety characters long, and the toolbar is
+   * one row on a screen that cannot hold it beside anything. What it says is
+   * on the screen anyway: the fold count is the last card's number in the
+   * filmstrip, and the lines a plan cannot construct are the findings under
+   * the list. Pure output, like the readouts hidden at the top of this block.
+   */
+  .references-workspace .references-summary {
+    display: none;
+  }
 }
 
 /*
@@ -11414,7 +11544,7 @@ button.bp-packing-alert:focus-visible {
 }
 
 /*
-  The halo is the ground the label sits on. `labelPlacement` pushes a label off
+  The halo is the ground the label sits on. `placeLabels` pushes a label off
   the sheet into the padding band on purpose, so a halo painted in `--bg-paper`
   was a near-white ring floating on the dark card — which is what it looked like.
 */

@@ -50,6 +50,10 @@ vi.mock('../../store/workspaceStore/precreaseRuntime', async (importOriginal) =>
       sheetFrames: () => new Promise(() => undefined),
       modelToRf: () => Promise.resolve([0.5, 0.5]),
       rfToModelMany: () => new Promise(() => undefined),
+      // Reached only once the frames are known (the phone test seeds them):
+      // the sequence runs on arrival, and stays running.
+      plannerCreate: () => new Promise(() => undefined),
+      plannerDispose: () => Promise.resolve(),
     }),
   };
 });
@@ -62,9 +66,13 @@ vi.mock('../../cp-workspace/references/ReferencesCpView', () => ({
 
 const { ReferencesPanel } = await import('./ReferencesPanel');
 const { TooltipProvider } = await import('../ui/Tooltip');
+const { PHONE_MEDIA_QUERY } = await import('../../platform/phoneLayout');
 const { useWorkspaceStore } = await import('../../store/workspaceStore');
-const { clearReferencesResults } = await import('../../cp-workspace/references/referencesResults');
+const { clearReferencesResults, setReferencesFrames } = await import(
+  '../../cp-workspace/references/referencesResults'
+);
 const { resetReferencesRun } = await import('../../cp-workspace/references/referencesRun');
+const { referencesRevisionKey } = await import('../../cp-workspace/references/useReferencesView');
 
 /** jsdom has no Worker; the precrease runtime spawns a real one on retain. */
 class FakeWorker extends EventTarget {
@@ -90,6 +98,32 @@ function cpDocument(loadSerial: number) {
     lastCommandResult: null,
   };
 }
+
+/** One square sheet owning both segments — what `sheetFrames` would answer. */
+const ANALYSIS = {
+  components: [
+    {
+      id: 0,
+      frame: { origin: [0, 0], x_axis: [1, 0], y_axis: [0, -1], width: 100, height: 100 },
+      rf_rect: { width: 1, height: 1 },
+      affines: null,
+      outline: [],
+      outline_residual: 0,
+      is_fallback: false,
+      border_segment_indices: [],
+      segment_indices: [0, 1],
+      unit_segments: [],
+      merged_lines: [],
+      exactness: null,
+      refused: null,
+    },
+  ],
+  unassigned_segments: [],
+  warnings: [],
+  segment_count: 2,
+  tol: 1e-6,
+  snap_radius: 2e-3,
+};
 
 let container: HTMLDivElement | null = null;
 let root: Root | null = null;
@@ -160,4 +194,66 @@ it('holds its hook order through every mode and run state', () => {
     // Still the panel, not the error boundary's fallback.
     expect(container?.querySelector('.references-workspace')).not.toBeNull();
   }
+});
+
+/**
+ * The phone branch: one screen at a time, swapped by a press and a Back.
+ *
+ * The frames are seeded rather than answered by the (pending) worker stub, so
+ * the list has a card to press; the plan that then runs on arrival stays
+ * pending, which is the "working it out" state the detail opens in.
+ */
+it('on a phone, opens a sheet from the list into the detail and comes back', () => {
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn((query: string) => ({
+      matches: query === PHONE_MEDIA_QUERY,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+  );
+  act(() =>
+    root?.render(
+      <TooltipProvider>
+        <ReferencesPanel />
+      </TooltipProvider>
+    )
+  );
+  const query = (selector: string) => container?.querySelector(selector) ?? null;
+  const press = (selector: string) =>
+    act(() => query(selector)?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+  // No document: the detail's empty overlay is the screen, and it has no Back.
+  expect(query('.references-sidebar')).toBeNull();
+  expect(query('.references-panel__overlay')).not.toBeNull();
+  expect(query('.references-panel__back')).toBeNull();
+
+  const document1 = cpDocument(1);
+  act(() => {
+    setReferencesFrames({
+      revision: referencesRevisionKey(document1 as never),
+      analysis: ANALYSIS as never,
+    });
+    useWorkspaceStore.setState({ oristudioCpDocument: document1 } as never);
+  });
+  // A document: the list, alone, with its one card.
+  expect(query('.references-panel')).toBeNull();
+  expect(container?.querySelectorAll('.references-sheet')).toHaveLength(1);
+
+  press('.references-sheet');
+  // The detail, alone, with the way back where the title was.
+  expect(query('.references-sidebar')).toBeNull();
+  expect(query('.references-panel')).not.toBeNull();
+  expect(query('.references-panel__back')).not.toBeNull();
+  expect(query('.panel-title')).toBeNull();
+
+  press('.references-panel__back');
+  expect(query('.references-sidebar')).not.toBeNull();
+  expect(query('.references-panel')).toBeNull();
+
+  // Open again, then a new document arrives under the detail: back to the list.
+  press('.references-sheet');
+  expect(query('.references-panel')).not.toBeNull();
+  act(() => useWorkspaceStore.setState({ oristudioCpDocument: cpDocument(2) } as never));
+  expect(query('.references-sidebar')).not.toBeNull();
+  expect(query('.references-panel')).toBeNull();
 });

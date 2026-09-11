@@ -2967,7 +2967,9 @@
     "panels:references.summary.hexGrid": "369a37ec2e6b",
     "panels:references.planStep.gridCell_ordinal_other": "f7883c24fe97",
     "panels:references.planStep.gridPleatInto": "749481e2852a",
-    "panels:references.planStep.gridPleatSpaced": "abde29a6d2f4"
+    "panels:references.planStep.gridPleatSpaced": "abde29a6d2f4",
+    "panels:references.backToPatterns": "160a13d94fb0",
+    "panels:references.hint.open": "2c22f0044453"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5937,7 +5939,9 @@
     "panels:references.summary.hexGrid": "369a37ec2e6b",
     "panels:references.planStep.gridCell_ordinal_other": "f7883c24fe97",
     "panels:references.planStep.gridPleatInto": "749481e2852a",
-    "panels:references.planStep.gridPleatSpaced": "abde29a6d2f4"
+    "panels:references.planStep.gridPleatSpaced": "abde29a6d2f4",
+    "panels:references.backToPatterns": "160a13d94fb0",
+    "panels:references.hint.open": "2c22f0044453"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8909,7 +8913,9 @@
     "panels:references.planStep.gridCell_ordinal_one": "df4af2889200",
     "panels:references.planStep.gridCell_ordinal_other": "f7883c24fe97",
     "panels:references.planStep.gridPleatInto": "749481e2852a",
-    "panels:references.planStep.gridPleatSpaced": "abde29a6d2f4"
+    "panels:references.planStep.gridPleatSpaced": "abde29a6d2f4",
+    "panels:references.backToPatterns": "160a13d94fb0",
+    "panels:references.hint.open": "2c22f0044453"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11819,7 +11825,9 @@
     "panels:references.summary.hexGrid": "369a37ec2e6b",
     "panels:references.planStep.gridCell_ordinal_other": "f7883c24fe97",
     "panels:references.planStep.gridPleatInto": "749481e2852a",
-    "panels:references.planStep.gridPleatSpaced": "abde29a6d2f4"
+    "panels:references.planStep.gridPleatSpaced": "abde29a6d2f4",
+    "panels:references.backToPatterns": "160a13d94fb0",
+    "panels:references.hint.open": "2c22f0044453"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14729,7 +14737,9 @@
     "panels:references.summary.hexGrid": "369a37ec2e6b",
     "panels:references.planStep.gridCell_ordinal_other": "f7883c24fe97",
     "panels:references.planStep.gridPleatInto": "749481e2852a",
-    "panels:references.planStep.gridPleatSpaced": "abde29a6d2f4"
+    "panels:references.planStep.gridPleatSpaced": "abde29a6d2f4",
+    "panels:references.backToPatterns": "160a13d94fb0",
+    "panels:references.hint.open": "2c22f0044453"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -17699,7 +17709,9 @@
     "panels:references.summary.hexGrid": "369a37ec2e6b",
     "panels:references.planStep.gridCell_ordinal_other": "f7883c24fe97",
     "panels:references.planStep.gridPleatInto": "749481e2852a",
-    "panels:references.planStep.gridPleatSpaced": "abde29a6d2f4"
+    "panels:references.planStep.gridPleatSpaced": "abde29a6d2f4",
+    "panels:references.backToPatterns": "160a13d94fb0",
+    "panels:references.hint.open": "2c22f0044453"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -20669,7 +20681,9 @@
     "panels:references.summary.hexGrid": "369a37ec2e6b",
     "panels:references.planStep.gridCell_ordinal_other": "f7883c24fe97",
     "panels:references.planStep.gridPleatInto": "749481e2852a",
-    "panels:references.planStep.gridPleatSpaced": "abde29a6d2f4"
+    "panels:references.planStep.gridPleatSpaced": "abde29a6d2f4",
+    "panels:references.backToPatterns": "160a13d94fb0",
+    "panels:references.hint.open": "2c22f0044453"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -23579,6 +23593,8 @@
     "panels:references.summary.hexGrid": "369a37ec2e6b",
     "panels:references.planStep.gridCell_ordinal_other": "f7883c24fe97",
     "panels:references.planStep.gridPleatInto": "749481e2852a",
-    "panels:references.planStep.gridPleatSpaced": "abde29a6d2f4"
+    "panels:references.planStep.gridPleatSpaced": "abde29a6d2f4",
+    "panels:references.backToPatterns": "160a13d94fb0",
+    "panels:references.hint.open": "2c22f0044453"
   }
 }

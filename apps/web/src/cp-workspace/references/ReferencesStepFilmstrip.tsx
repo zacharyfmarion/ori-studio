@@ -194,12 +194,17 @@ export const ReferencesStepFilmstrip = memo(function ReferencesStepFilmstrip({
                     )}
                     <span className="references-card__thumb">
                       {step.diagram ? (
-                        <StepDiagram diagram={step.diagram} size={100} />
+                        <StepDiagram
+                          diagram={step.diagram}
+                          size={100}
+                          chrome={{ number: step.number, badge: step.badge }}
+                        />
                       ) : (
                         <StepDiagram
                           primitives={step.primitives}
                           size={100}
                           mirrored={step.mirrored}
+                          chrome={{ number: step.number, badge: step.badge }}
                         />
                       )}
                     </span>

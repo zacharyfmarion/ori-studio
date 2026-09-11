@@ -1,7 +1,26 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { StepDiagram } from './StepDiagram';
+import { cardChromeRects, StepDiagram } from './StepDiagram';
+import {
+  DIAGRAM_LABEL_INK,
+  DIAGRAM_LINE_INK,
+  DIAGRAM_MARK_INK,
+  labelWidth,
+} from './diagram/diagramInk';
 import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
+import { createDiagramProjector, foldArrowArc } from './stepDiagramGeometry';
+
+/** Every element of one tag in the markup, as its attributes plus its `text`. */
+function elements(markup: string, tag: string): Record<string, string>[] {
+  return [...markup.matchAll(new RegExp(`<${tag}[^>]*>(?:([^<]*)</${tag}>)?`, 'g'))].map(
+    (match) => ({
+      ...Object.fromEntries(
+        [...match[0].matchAll(/([a-zA-Z-]+)="([^"]*)"/g)].map((attr) => [attr[1], attr[2]])
+      ),
+      text: match[1] ?? '',
+    })
+  );
+}
 
 const model = (width: number, height: number): StepDiagramModel => ({
   sheet: { width, height },
@@ -75,8 +94,11 @@ function pieces(markup: string): { offset: number; length: number }[] {
 }
 
 describe('a crease split into spans still dashes as one line', () => {
-  // A valley is `stroke-dasharray: 12.8 6.4` in theme.css.
-  const period = 12.8 + 6.4;
+  /** The valley's dash period, as the card actually draws it. */
+  const periodOf = (markup: string) =>
+    elements(markup, 'line')[0]!['stroke-dasharray']!.split(' ')
+      .map(Number)
+      .reduce((a, b) => a + b, 0);
 
   // Six pieces tiling one line, all shorter than a single ink run — the shape
   // markhor's step 1 actually has.
@@ -102,6 +124,7 @@ describe('a crease split into spans still dashes as one line', () => {
 
   /** How far the pattern jumps at each seam. Zero is one continuous line. */
   const seamJumps = (markup: string) => {
+    const period = periodOf(markup);
     const drawn = pieces(markup).sort((a, b) => a.offset - b.offset);
     const jumps: number[] = [];
     for (let i = 0; i + 1 < drawn.length; i += 1) {
@@ -133,6 +156,7 @@ describe('a crease split into spans still dashes as one line', () => {
   // every seam still landed somewhere else in the pattern.
   it('lands in the wrong place if the offset is negated', () => {
     const markup = renderToStaticMarkup(<StepDiagram primitives={model(true)} size={100} />);
+    const period = periodOf(markup);
     const drawn = pieces(markup).sort((a, b) => a.offset - b.offset);
     const negated = drawn.map((d) => ({ ...d, offset: -d.offset }));
     const jumps: number[] = [];
@@ -231,5 +255,215 @@ describe('one model at two sizes', () => {
     // rounded number is not the rounding of eight times it.
     expect(large.glyph).toBeCloseTo(small.glyph * 8, 3);
     expect(large.stroke).toBeCloseTo(small.stroke * 8, 3);
+  });
+});
+
+/**
+ * A card's dash runs are half the pen's — see `DiagramProjector.dashScale`.
+ * The pen's runs suit the canvas, where a dash is read against creases; on a
+ * 128 px card a valley's `12.8` ink is an eighth of the paper, and five repeats
+ * across a thumbnail read as a few strokes rather than a dashed line.
+ */
+describe('the dashes on a card', () => {
+  const dashed: StepDiagramModel = {
+    sheet: { width: 1, height: 1 },
+    primitives: [
+      { kind: 'sheet', width: 1, height: 1 },
+      { kind: 'line', from: [0, 0.2], to: [1, 0.2], style: 'valley' },
+      { kind: 'line', from: [0, 0.4], to: [1, 0.4], style: 'mountain' },
+    ],
+  };
+  const ink = createDiagramProjector(dashed.sheet, 100).ink;
+
+  it('are half the pen’s runs, at the pen’s full width', () => {
+    const [valley, mountain] = elements(
+      renderToStaticMarkup(<StepDiagram primitives={dashed} size={100} />),
+      'line'
+    );
+    const runs = (line: Record<string, string>) => line['stroke-dasharray']!.split(' ').map(Number);
+    expect(runs(valley!)).toEqual(DIAGRAM_LINE_INK.valley.dash!.map((run) => run * ink * 0.5));
+    expect(runs(mountain!)).toEqual(
+      DIAGRAM_LINE_INK.mountain.dash!.map((run) => run * ink * 0.5)
+    );
+    expect(Number(valley!['stroke-width'])).toBeCloseTo(DIAGRAM_LINE_INK.valley.width * ink, 9);
+  });
+
+  // A dash phase is a distance along the line, in the same units as the runs.
+  // Halving the runs must not halve it: every span of one line measures from
+  // the same zero on the same ruler, whatever pattern is laid along it.
+  it('keep the phase on the line’s own ruler', () => {
+    const phased: StepDiagramModel = {
+      sheet: { width: 1, height: 1 },
+      primitives: [
+        { kind: 'line', from: [0, 0.2], to: [1, 0.2], style: 'valley', dashPhase: 0.25 },
+      ],
+    };
+    const markup = renderToStaticMarkup(<StepDiagram primitives={phased} size={100} />);
+    const [line] = elements(markup, 'line');
+    expect(Number(line!['stroke-dashoffset'])).toBeCloseTo(0.25 * 80, 9);
+  });
+});
+
+/**
+ * The letters, read back off the rendered attributes and measured with the
+ * same estimate of a glyph's box the layout uses. A letter used to stand off
+ * its point by less than the ring's radius plus half a glyph, so it sat on
+ * the ring; at the top-left corner it sat under the step number, which is a
+ * DOM element over the picture the SVG cannot see.
+ */
+describe('the letters on a card', () => {
+  const at = (x: number, y: number, text: string): StepDiagramModel['primitives'] => [
+    { kind: 'point', at: [x, y], style: 'highlight' },
+    { kind: 'label', at: [x, y], text, style: 'highlight' },
+  ];
+  const marked: StepDiagramModel = {
+    sheet: { width: 1, height: 1 },
+    primitives: [
+      { kind: 'sheet', width: 1, height: 1 },
+      ...at(0, 1, 'P'),
+      ...at(1, 1, 'Q'),
+      ...at(0, 0, 'R'),
+      ...at(1, 0, 'S'),
+      ...at(0.5, 0.5, 'T'),
+      { kind: 'label', at: [0.5, 0.5], text: 'A', style: 'highlight' },
+    ],
+  };
+
+  /** The box a rendered letter fills, by the layout's own estimate. */
+  const boxOf = (text: Record<string, string>) => {
+    const size = Number(text['font-size']);
+    const width = labelWidth(text.text!, size);
+    const height = DIAGRAM_LABEL_INK.glyph.height * size;
+    const x = Number(text.x);
+    const anchor = text['text-anchor'];
+    const left = anchor === 'start' ? x : anchor === 'end' ? x - width : x - width / 2;
+    const top = Number(text.y) - DIAGRAM_LABEL_INK.glyph.baseline * height;
+    return { x: left, y: top, width, height };
+  };
+  type Box = ReturnType<typeof boxOf>;
+  const overlap = (a: Box, b: Box) =>
+    a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+
+  /** The cards a strip prints: a numbered fold, one with a badge beside the number, one with only a badge. */
+  const chromes = [
+    { number: 7, badge: '' },
+    { number: 107, badge: 'Approximate' },
+    { number: 12, badge: 'Приблизительно' },
+    { number: null, badge: 'Turn over' },
+  ];
+
+  it('cover neither a ring, nor each other, nor the number and badge, and stay on the card', () => {
+    for (const mirrored of [false, true]) {
+      for (const chrome of chromes) {
+        const markup = renderToStaticMarkup(
+          <StepDiagram primitives={marked} size={100} mirrored={mirrored} chrome={chrome} />
+        );
+        const texts = elements(markup, 'text');
+        const rings = elements(markup, 'circle');
+        expect(texts).toHaveLength(6);
+        expect(rings).toHaveLength(5);
+        const boxes = texts.map(boxOf);
+        const reserved = cardChromeRects(100, chrome);
+        boxes.forEach((box, i) => {
+          const label = `${texts[i]!.x},${texts[i]!.y} mirrored=${mirrored} ${JSON.stringify(chrome)}`;
+          expect(box.x, label).toBeGreaterThanOrEqual(0);
+          expect(box.y, label).toBeGreaterThanOrEqual(0);
+          expect(box.x + box.width, label).toBeLessThanOrEqual(100);
+          expect(box.y + box.height, label).toBeLessThanOrEqual(100);
+          for (const corner of reserved) expect(overlap(box, corner), label).toBe(false);
+          for (const ring of rings) {
+            const cx = Number(ring.cx);
+            const cy = Number(ring.cy);
+            const outer = Number(ring.r) + Number(ring['stroke-width']) / 2;
+            const nx = Math.min(Math.max(cx, box.x), box.x + box.width);
+            const ny = Math.min(Math.max(cy, box.y), box.y + box.height);
+            expect(Math.hypot(nx - cx, ny - cy), label).toBeGreaterThanOrEqual(outer - 1e-9);
+          }
+          boxes.forEach((other, j) => {
+            if (j !== i) expect(overlap(box, other), label).toBe(false);
+          });
+        });
+      }
+    }
+  });
+
+  it('are kept off the corners the card prints over, sized by what it prints there', () => {
+    const [seven] = cardChromeRects(100, { number: 7, badge: '' });
+    const [hundred] = cardChromeRects(100, { number: 107, badge: '' });
+    expect(seven!.x).toBe(0);
+    expect(seven!.y).toBe(0);
+    expect(hundred!.width).toBeGreaterThan(seven!.width);
+    // A badge sits beside the number on a fold, against the right edge, and
+    // takes the number's corner on a card with no number.
+    const [, beside] = cardChromeRects(100, { number: 3, badge: 'Approximate' });
+    expect(beside!.x + beside!.width).toBe(100);
+    const [alone] = cardChromeRects(100, { number: null, badge: 'Turn over' });
+    expect(alone!.x).toBe(0);
+    // Wider by the letter, and an ideograph is wider than a letter.
+    const widthOf = (badge: string) => cardChromeRects(100, { number: null, badge })[0]!.width;
+    expect(widthOf('Приблизительно')).toBeGreaterThan(widthOf('Approximate'));
+    expect(widthOf('Approximate')).toBeGreaterThan(widthOf('Grid'));
+    expect(widthOf('近似')).toBeGreaterThan(widthOf('ab'));
+    expect(widthOf('Приблизительно')).toBeLessThanOrEqual(100);
+    expect(cardChromeRects(100, { number: null, badge: '' })).toEqual([]);
+  });
+});
+
+/**
+ * Where the fold arrow turns round. A point folded onto a point ends its
+ * journey at the other mark, and a mark is a ring: the stroke used to run to
+ * the ring's centre and turn round inside it. A point folded onto a line lands
+ * on nothing marked, and the two strokes meet on the line as before.
+ */
+describe('a fold arrow on a card', () => {
+  const sheet = { width: 1, height: 1 };
+  const project = createDiagramProjector(sheet, 100);
+  const rim = DIAGRAM_MARK_INK.radius * project.ink;
+
+  /** Where the outgoing stroke ends, from the first path of the arrow group. */
+  const outgoingEnd = (model: StepDiagramModel) => {
+    const markup = renderToStaticMarkup(<StepDiagram primitives={model} size={100} />);
+    const arrow = markup.slice(markup.indexOf('step-diagram__arrow'));
+    const d = elements(arrow, 'path')[0]!.d!;
+    const [x, y] = d.split(' ').slice(-2).map(Number);
+    return { x: x!, y: y! };
+  };
+
+  it('turns round at the rim of the mark it lands on', () => {
+    const p: [number, number] = [0.2, 0.2];
+    const q: [number, number] = [0.8, 0.6];
+    const out = foldArrowArc(p, q, [0.5, 0.5]);
+    if (!out) throw new Error('no arc');
+    const model: StepDiagramModel = {
+      sheet,
+      primitives: [
+        { kind: 'sheet', width: 1, height: 1 },
+        { kind: 'point', at: p, style: 'highlight' },
+        { kind: 'point', at: q, style: 'highlight' },
+        { kind: 'fold-arrow', out },
+      ],
+    };
+    const end = outgoingEnd(model);
+    const mark = project(q);
+    expect(Math.hypot(end.x - mark.x, end.y - mark.y)).toBeCloseTo(rim, 2);
+  });
+
+  it('runs all the way to a line it lands on', () => {
+    const p: [number, number] = [0.25, 0.8];
+    const onLine: [number, number] = [0.8, 0.2];
+    const out = foldArrowArc(p, onLine, [0.5, 0.5]);
+    if (!out) throw new Error('no arc');
+    const model: StepDiagramModel = {
+      sheet,
+      primitives: [
+        { kind: 'sheet', width: 1, height: 1 },
+        { kind: 'line', from: [0, 0.2], to: [1, 0.2], style: 'highlight' },
+        { kind: 'point', at: p, style: 'highlight' },
+        { kind: 'fold-arrow', out },
+      ],
+    };
+    const end = outgoingEnd(model);
+    const landing = project(onLine);
+    expect(Math.hypot(end.x - landing.x, end.y - landing.y)).toBeLessThan(1e-3);
   });
 });

@@ -812,6 +812,7 @@
       "o7": "point onto a line, perpendicular"
     },
     "backToPattern": "Back to the whole pattern",
+    "backToPatterns": "Patterns",
     "breakdown": {
       "sheetId": "Sheet {{n}}"
     },
@@ -852,6 +853,7 @@
     },
     "freeDiagonals": "Also needs the sheet diagonal(s): {{names}}.",
     "hint": {
+      "open": "Open a pattern to see how to fold it.",
       "pick": "Click a vertex or crease to see how to fold it."
     },
     "meta": {

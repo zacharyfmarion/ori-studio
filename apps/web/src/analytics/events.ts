@@ -422,6 +422,18 @@ export const ANALYTICS_EVENTS = {
    * is doing the work the plan claims it does.
    */
   referenceBatchCompleted: 'reference batch completed',
+  /**
+   * A pattern's detail — the steps and the canvas — was opened from the
+   * References list on a phone.
+   *
+   * Phone-only, because that is the one layout that shows the list and the
+   * detail one at a time; everywhere else the detail is always on screen and
+   * there is nothing to open. So every one of these is a phone session that got
+   * past the list to the folds, which is the question putting the list first
+   * raises. `source` is which press did it: a pattern's card, or a finding in
+   * the notes under the cards.
+   */
+  referencesPatternOpened: 'references pattern opened',
   creasePatternBuilt: 'crease pattern built',
   optimizerRun: 'optimizer run',
   projectOpened: 'project opened',

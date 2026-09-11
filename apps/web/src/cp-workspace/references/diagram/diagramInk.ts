@@ -131,10 +131,46 @@ export function canvasDiagramInk(lineWidth: number): number {
  * `size` and `halo` were user units rather than screen pixels before this — a
  * `font-size` inside a viewBox already scales — so they convert at 1.2 ink to
  * the user unit, not 1:1 like the strokes. The halo is the ground the letter
- * sits on: `labelPlacement` pushes a label off the sheet into the padding band
- * on purpose, so it has to carry its own background out there.
+ * sits on: `placeLabels` pushes a label off the sheet into the padding band on
+ * purpose, so it has to carry its own background out there.
+ *
+ * `glyph` is the box a letter is taken to fill, as shares of `size`, and it is
+ * what the layout keeps clear of rings and other letters — an SVG `<text>`
+ * cannot be measured before it is drawn, so its footprint is estimated from
+ * the font size instead. A capital is as tall as the size, and its baseline
+ * sits at 0.86 of the box because the halo reaches below it; its width is
+ * the letter's own (`labelWidth`). `standoff` is the clear air kept between
+ * that box and whatever it stands beside, and it is the halo's own reach: the
+ * halo is painted in the ground colour, so a halo over a ring erases a piece
+ * of it.
  */
-export const DIAGRAM_LABEL_INK = { size: 10.8, halo: 3, offset: 4.2 } as const;
+export const DIAGRAM_LABEL_INK = {
+  size: 10.8,
+  halo: 3,
+  standoff: 1.5,
+  glyph: { height: 1, baseline: 0.86 },
+} as const;
+
+/**
+ * How wide each capital is at the label's weight, in ems: Inter Bold's
+ * advances, measured in the browser. The letters differ by half again — a Q
+ * is 0.75, a P 0.62 — and a box sized by the average let a Q at the right
+ * edge of a card run off it. A letter outside the table, or the fallback
+ * font, gets the widest common one.
+ */
+const CAPITAL_WIDTHS: Readonly<Record<string, number>> = {
+  A: 0.692, B: 0.64, C: 0.712, D: 0.7, E: 0.573, F: 0.548, G: 0.727, H: 0.729, I: 0.265,
+  J: 0.558, K: 0.653, L: 0.543, M: 0.861, N: 0.714, O: 0.752, P: 0.618, Q: 0.752, R: 0.64,
+  S: 0.631, T: 0.602, U: 0.707, V: 0.678, W: 0.965, X: 0.686, Y: 0.665, Z: 0.631,
+};
+const OTHER_GLYPH_WIDTH = 0.75;
+
+/** The width of a label's text at font size `size`, in the same units. */
+export function labelWidth(text: string, size: number): number {
+  let ems = 0;
+  for (const glyph of text) ems += CAPITAL_WIDTHS[glyph] ?? OTHER_GLYPH_WIDTH;
+  return ems * size;
+}
 
 /**
  * The dash slots a diagram uses, and the patterns that fill them.

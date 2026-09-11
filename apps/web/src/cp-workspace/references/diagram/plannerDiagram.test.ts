@@ -39,7 +39,7 @@ describe('plannerStepDiagram', () => {
   it('always starts with the sheet, like a ReferenceFinder diagram', () => {
     const diagram = plannerStepDiagram(sequence, unitFrame(sequence), 1);
     expect(diagram?.primitives[0]).toEqual({ kind: 'sheet', width: 1, height: 1 });
-    expect(diagram?.sheet).toEqual({ width: 1, height: 1 });
+    expect(diagram?.sheet).toEqual({ width: 1, height: 1, centre: [0.5, 0.5] });
   });
 
   it('draws a pinched step as its spans, never as a full crease', () => {
@@ -1212,7 +1212,12 @@ describe('a grid step', () => {
       expect(comparable(view, (p) => p), `step ${i}`).toEqual(comparable(card, image));
     }
     const card = plannerFinishedDiagram(sequence, unit).primitives.filter((p) => p.kind !== 'sheet');
-    const view = plannerFinishedDiagram(sequence, model).primitives;
-    expect(comparable(view, (p) => p)).toEqual(comparable(card, image));
+    const finished = plannerFinishedDiagram(sequence, model);
+    expect(comparable(finished.primitives, (p) => p)).toEqual(comparable(card, image));
+    // And the sheet the picture is of has its middle where the paper's middle
+    // is in the model — the letters stand outward from it — rather than half
+    // the paper's size from the model's origin.
+    expect(finished.sheet.centre?.map(round)).toEqual(image([0.5, 0.5]).map(round));
+    expect(finished.sheet.width).toBeCloseTo(400, 6);
   });
 });

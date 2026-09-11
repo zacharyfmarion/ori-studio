@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { DIAGRAM_MARK_INK } from './diagram/diagramInk';
 import {
   ARROWHEAD_ASPECT,
+  DIAGRAM_CARD_DASH_SCALE,
   arcEndDirection,
+  arcEndPoint,
   arcExtent,
   arcStartDirection,
   arrowheadBase,
@@ -10,14 +12,15 @@ import {
   arrowheadPoints,
   arrowheadSize,
   createDiagramProjector,
+  createOverlayProjector,
   dashRulerAlong,
   foldAndUnfoldArrow,
   foldAndUnfoldFromArc,
   arcSamplePoints,
   arcThroughPoints,
   foldArrowArc,
+  foldArrowLanding,
   foldArrowTrim,
-  labelPlacement,
   type DiagramArc,
 } from './stepDiagramGeometry';
 
@@ -49,6 +52,16 @@ describe('createDiagramProjector', () => {
     // Longer side spans the 80 units; the short side is centred in them.
     expect(project([0, 0])).toEqual({ x: 10, y: 70 });
     expect(project([1, 0.5])).toEqual({ x: 90, y: 30 });
+  });
+
+  // The pen's runs are measured against creases on the canvas and against the
+  // paper on a card, where a valley's `12.8` is an eighth of the sheet: five
+  // repeats across a thumbnail read as a few strokes, not as a dashed line.
+  it('shortens a card’s dashes, and only a card’s', () => {
+    expect(createDiagramProjector(UNIT, 100).dashScale).toBe(DIAGRAM_CARD_DASH_SCALE);
+    expect(DIAGRAM_CARD_DASH_SCALE).toBe(0.5);
+    const view = { origin: [0, 0] as const, ex: [1, 0] as const, ey: [0, -1] as const };
+    expect(createOverlayProjector(view, 1).dashScale).toBe(1);
   });
 });
 
@@ -147,27 +160,6 @@ describe('arrowheadPoints', () => {
     // Base → tip is parallel to the direction, so the base edge is square to it.
     const along = (tip.x - base.x) * dir.y - (tip.y - base.y) * dir.x;
     expect(along).toBeCloseTo(0, 12);
-  });
-});
-
-describe('labelPlacement', () => {
-  const project = createDiagramProjector(UNIT, 100);
-
-  it('pushes a label away from the sheet centre and anchors toward it', () => {
-    const bottomLeft = labelPlacement([0, 0], UNIT, project);
-    expect(bottomLeft.anchor).toBe('end');
-    expect(bottomLeft.dx).toBeCloseTo(-3.5);
-    expect(bottomLeft.dy).toBeCloseTo(5.6);
-    const topRight = labelPlacement([1, 1], UNIT, project);
-    expect(topRight.anchor).toBe('start');
-    expect(topRight.dx).toBeCloseTo(3.5);
-    expect(topRight.dy).toBeCloseTo(-2.8);
-  });
-
-  it('centres a label on the vertical midline', () => {
-    const placement = labelPlacement([0.5, 0.2], UNIT, project);
-    expect(placement.anchor).toBe('middle');
-    expect(placement.dx).toBe(0);
   });
 });
 
@@ -279,20 +271,6 @@ describe('a mirrored projector', () => {
     expect(sweepOf(front)).not.toBe(sweepOf(back));
   });
 
-  // The offset is applied in SVG units, so reading the side off the SHEET puts
-  // every back-side label inside the drawing and leaves the margin empty.
-  it('pushes a label into the margin it is actually next to', () => {
-    const back = createDiagramProjector(sheet, 100, true);
-    // A mark on the sheet's left edge is drawn at the picture's RIGHT edge.
-    expect(back([0, 0.5]).x).toBeGreaterThan(back([0.5, 0.5]).x);
-    const placed = labelPlacement([0, 0.5], sheet, back);
-    expect(placed.anchor).toBe('start');
-    expect(placed.dx).toBeGreaterThan(0);
-    // Unmirrored, the same mark goes the other way.
-    const front = createDiagramProjector(sheet, 100);
-    expect(labelPlacement([0, 0.5], sheet, front).anchor).toBe('end');
-  });
-
   it('turns the arrowhead round with the picture', () => {
     const arc = {
       center: [0.5, 0.5] as const,
@@ -360,6 +338,61 @@ describe('foldArrowTrim', () => {
       expect(ratio).toBeGreaterThan(0.85);
       expect(ratio).toBeLessThan(1.2);
     }
+  });
+});
+
+describe('foldArrowLanding', () => {
+  const rim = DIAGRAM_MARK_INK.radius * CARD.ink;
+
+  // A point folded onto a point: the far end of the arc is another mark, and a
+  // stroke drawn to its centre crosses the ring and turns round inside it.
+  it('stops an arc one rim short of the mark it lands on', () => {
+    const p: [number, number] = [0.2, 0.2];
+    const q: [number, number] = [0.8, 0.6];
+    const out = foldArrowArc(p, q, CENTRE);
+    if (!out) throw new Error('no arc');
+    const landed = foldArrowLanding(out, [CARD(p), CARD(q)], rim, CARD);
+    const end = CARD(arcEndPoint(landed));
+    const mark = CARD(q);
+    // Trimmed along the arc, whose chord is a hair shorter than the arc.
+    expect(Math.hypot(end.x - mark.x, end.y - mark.y)).toBeCloseTo(rim, 2);
+    // Shorter by exactly that much, from the same start, on the same circle.
+    expect(landed.radius * arcExtent(landed)).toBeCloseTo(
+      out.radius * arcExtent(out) - rim / CARD.scale,
+      9
+    );
+    expect(landed.from).toBe(out.from);
+    expect(landed.center).toEqual(out.center);
+  });
+
+  // A point folded onto a line lands on nothing marked, and the arc ends where
+  // it ends — the two strokes meet on the line.
+  it('leaves an arc that lands on a line alone', () => {
+    const p: [number, number] = [0.25, 0.8];
+    const onLine: [number, number] = [0.8, 0.2];
+    const out = foldArrowArc(p, onLine, CENTRE);
+    if (!out) throw new Error('no arc');
+    expect(foldArrowLanding(out, [CARD(p)], rim, CARD)).toBe(out);
+  });
+
+  it('counts a mark within the rim as landed on, and one beyond it as not', () => {
+    const p: [number, number] = [0.2, 0.2];
+    const q: [number, number] = [0.8, 0.6];
+    const out = foldArrowArc(p, q, CENTRE);
+    if (!out) throw new Error('no arc');
+    const nudge = (by: number): [number, number] => [q[0] + by / CARD.scale, q[1]];
+    expect(foldArrowLanding(out, [CARD(nudge(rim * 0.9))], rim, CARD)).not.toBe(out);
+    expect(foldArrowLanding(out, [CARD(nudge(rim * 1.1))], rim, CARD)).toBe(out);
+  });
+
+  // The start gives up a rim too; an arc with no room for both would turn
+  // inside out rather than shorten.
+  it('leaves an arc too short to trim at both ends', () => {
+    const p: [number, number] = [0.5, 0.5];
+    const q: [number, number] = [0.5 + rim / CARD.scale, 0.5];
+    const out = foldArrowArc(p, q, CENTRE);
+    if (!out) throw new Error('no arc');
+    expect(foldArrowLanding(out, [CARD(q)], rim, CARD)).toBe(out);
   });
 });
 

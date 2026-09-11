@@ -8,15 +8,18 @@
  * two.
  */
 
-import {
-  DIAGRAM_ARROWHEAD_INK,
-  DIAGRAM_INK_PER_SHEET,
-  DIAGRAM_LABEL_INK,
-} from './diagram/diagramInk';
+import { DIAGRAM_ARROWHEAD_INK, DIAGRAM_INK_PER_SHEET } from './diagram/diagramInk';
 
 export interface DiagramSheet {
   width: number;
   height: number;
+  /**
+   * Where the paper's middle is, in the same space as the primitives. Absent,
+   * it is `(width/2, height/2)` — true of the unit frame a card draws in, and
+   * false of the canvas, where the paper sits wherever the document put it
+   * and its size says nothing about its position.
+   */
+  centre?: readonly [number, number];
 }
 
 export interface SvgPoint {
@@ -48,6 +51,17 @@ export interface DiagramProjector {
    * `diagram/diagramInk.ts`.
    */
   ink: number;
+  /**
+   * How much shorter this drawing's dash runs are than the pen says.
+   *
+   * The pen's runs suit the canvas, where a dash is measured against creases.
+   * On a card the same runs are measured against the paper — a valley's `12.8`
+   * is an eighth of the sheet — and a pattern that repeats five times across a
+   * thumbnail reads as a few strokes rather than as a dashed line. Only the
+   * dash array takes it, never the stroke width: the line keeps its weight and
+   * says what it is more often.
+   */
+  dashScale: number;
   /** The `viewBox` attribute for the whole diagram. */
   viewBox: string;
   size: number;
@@ -92,6 +106,8 @@ export function createOverlayProjector(
   project.ex = ex;
   project.ey = ey;
   project.ink = ink;
+  // The pen's own runs: on the canvas a dash is read against the creases.
+  project.dashScale = 1;
   project.viewBox = '';
   project.size = 0;
   project.mirrored = mirrors(ex, ey);
@@ -100,6 +116,17 @@ export function createOverlayProjector(
 
 /** Margin round the sheet as a fraction of the viewBox side, so labels at a corner fit. */
 export const DIAGRAM_PADDING = 0.1;
+
+/**
+ * A card's dash runs against the pen's — see `DiagramProjector.dashScale`.
+ *
+ * Chosen by eye on the 128 px card: at half, a valley repeats ten times across
+ * the sheet instead of five and still reads as a valley, and the mountain's
+ * dot is 0.8 px, which a card at device resolution still shows as a dot. A
+ * third made the mountain's dot vanish; two thirds left the valley reading as
+ * strokes.
+ */
+export const DIAGRAM_CARD_DASH_SCALE = 0.5;
 
 /**
  * A projector that fits `sheet` into a square `size × size` viewBox, centred,
@@ -129,6 +156,7 @@ export function createDiagramProjector(
   project.ex = { x: mirrored ? -scale : scale, y: 0 };
   project.ey = { x: 0, y: -scale };
   project.ink = longer * scale * DIAGRAM_INK_PER_SHEET;
+  project.dashScale = DIAGRAM_CARD_DASH_SCALE;
   project.viewBox = `0 0 ${size} ${size}`;
   project.size = size;
   project.mirrored = mirrors(project.ex, project.ey);
@@ -437,6 +465,50 @@ export function foldAndUnfoldArrow(
 }
 
 /**
+ * The angle that `by` of arc length covers, signed in the direction of travel,
+ * so that `from + alongArc(arc, d)` is `d` further along the arc.
+ */
+function alongArc(arc: DiagramArc, by: number): number {
+  return (by / Math.max(arc.radius, 1e-6)) * (arc.ccw ? 1 : -1);
+}
+
+/** Where the arc ends, in its own units. */
+export function arcEndPoint(arc: DiagramArc): [number, number] {
+  return pointOnArc(arc, arc.to);
+}
+
+/**
+ * The outgoing stroke of a fold arrow, stopped at the rim of the mark it lands
+ * on — or left alone when it lands on nothing marked.
+ *
+ * A point folded onto a point (O2) ends its journey at the other mark, and the
+ * mark is a ring: a stroke drawn to its centre crosses the ring and turns round
+ * inside it. So the arc gives up one rim at its end, and the return is built
+ * from there — which is why this runs *before* the return exists. A point
+ * folded onto a line (O5, O6, O7) or a line onto a line (O3) lands on nothing
+ * marked, and the arc ends where it ends.
+ *
+ * `marks` are the picture's ring centres and `rim` its ring radius, both in the
+ * projector's units, because "lands on" is a question about the drawing — a
+ * rim is a length in ink, and ink is decided by what the picture is drawn on.
+ */
+export function foldArrowLanding(
+  out: DiagramArc,
+  marks: readonly SvgPoint[],
+  rim: number,
+  project: DiagramProjector
+): DiagramArc {
+  const end = project(arcEndPoint(out));
+  const lands = marks.some((mark) => Math.hypot(mark.x - end.x, mark.y - end.y) <= rim);
+  if (!lands) return out;
+  const by = rim / project.scale;
+  // The start gives up a rim too (`foldArrowTrim`); an arc with no room for
+  // both would turn inside out rather than shorten.
+  if (out.radius * arcExtent(out) <= 2 * by) return out;
+  return { ...out, to: out.to - alongArc(out, by) };
+}
+
+/**
  * The two strokes as drawn, and where the head's tip goes.
  *
  * The shaft starts on the rim of the ring round the mark rather than at its
@@ -451,11 +523,9 @@ export function foldArrowTrim(
   head: number,
   rim = 0
 ): { out: DiagramArc; back: DiagramArc; tip: number } {
-  const onward = (arc: DiagramArc, by: number) =>
-    (by / Math.max(arc.radius, 1e-6)) * (arc.ccw ? 1 : -1);
   return {
-    out: { ...arrow.out, from: arrow.out.from + onward(arrow.out, rim) },
-    back: { ...arrow.back, to: arrow.back.to - onward(arrow.back, head) },
+    out: { ...arrow.out, from: arrow.out.from + alongArc(arrow.out, rim) },
+    back: { ...arrow.back, to: arrow.back.to - alongArc(arrow.back, head) },
     tip: arrow.back.to,
   };
 }
@@ -591,47 +661,6 @@ export function dashRulerAlong(
     return { ax: bx, ay: by, bx: ax, by: ay, phase: bx * -dx + by * -dy };
   }
   return { ax, ay, bx, by, phase: ax * dx + ay * dy };
-}
-
-export type LabelAnchor = 'start' | 'middle' | 'end';
-
-/**
- * Where a label's text sits relative to its point: pushed away from the sheet's
- * centre so it does not cover the reference it names, and anchored so it does
- * not run off the near edge. Offsets are SVG user units.
- *
- * Decided in **projected** space, not sheet space. The offset is applied in SVG
- * user units, and a mirrored projector gives the two spaces opposite
- * handedness — reading the side off the sheet would push every label on a
- * back-side card inward, over the drawing, and leave the margin it was aimed at
- * empty.
- */
-export function labelPlacement(
-  at: readonly [number, number],
-  sheet: DiagramSheet,
-  project: DiagramProjector
-): { anchor: LabelAnchor; dx: number; dy: number } {
-  // In ink, like the glyph it moves. Taken from the box instead, a letter and
-  // the distance it stands off its mark were measured on different rulers, and
-  // only agreed at one size.
-  const offset = project.ink * DIAGRAM_LABEL_INK.offset;
-  const centre = project([sheet.width / 2, sheet.height / 2]);
-  const point = project(at);
-  const edge = 1e-6 * project.scale;
-  let anchor: LabelAnchor = 'middle';
-  let dx = 0;
-  if (point.x <= centre.x - edge) {
-    anchor = 'end';
-    dx = -offset;
-  } else if (point.x >= centre.x + edge) {
-    anchor = 'start';
-    dx = offset;
-  }
-  // Above the point when it sits in the top half (screen up is smaller y),
-  // below it otherwise; a text baseline sits above the point by default so the
-  // downward offset is larger to clear the glyphs.
-  const dy = point.y <= centre.y ? -offset * 0.8 : offset * 1.6;
-  return { anchor, dx, dy };
 }
 
 function fmt(value: number): string {

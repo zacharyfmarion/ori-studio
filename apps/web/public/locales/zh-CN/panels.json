@@ -783,6 +783,7 @@
       "o7": "点落到线上，且垂直"
     },
     "backToPattern": "返回整个折痕图",
+    "backToPatterns": "图样",
     "breakdown": {
       "sheetId": "纸张 {{n}}"
     },
@@ -822,6 +823,7 @@
     },
     "freeDiagonals": "还需要纸的对角线：{{names}}。",
     "hint": {
+      "open": "打开一个图样，查看如何折出它。",
       "pick": "点击顶点或折痕，查看如何折出它。"
     },
     "meta": {

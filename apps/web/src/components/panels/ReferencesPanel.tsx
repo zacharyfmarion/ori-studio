@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  ArrowLeft,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -66,6 +67,7 @@ import {
 } from '../../cp-workspace/references/referencesShortcuts';
 import { useReferencesAutoPlan } from '../../cp-workspace/references/useReferencesAutoPlan';
 import { useReferencesBreakdown } from '../../cp-workspace/references/useReferencesBreakdown';
+import { useReferencesPhoneFlow } from '../../cp-workspace/references/useReferencesPhoneFlow';
 import { useReferencesRun, useReferencesRunToast } from '../../cp-workspace/references/useReferencesRun';
 import { useReferencesShortcuts } from '../../cp-workspace/references/useReferencesShortcuts';
 import { useReferencesTarget } from '../../cp-workspace/references/useReferencesTarget';
@@ -89,6 +91,11 @@ import { NextDocumentAction } from './NextDocumentAction';
  * numbered cards, the active step's sentence under it, and the crease pattern
  * below showing the sheet as it stands at that step. The left rail is the
  * document's patterns, one of which is being folded.
+ *
+ * A phone has no room for the rail beside the canvas, so it shows one of the
+ * two at a time — the rail as a list screen, the rest as a detail screen with
+ * a Back button — and `useReferencesPhoneFlow` says which. Every other layout
+ * renders both, exactly as before.
  *
  * Two modes share those surfaces: with a vertex or crease picked they describe
  * ReferenceFinder's candidates; with nothing picked they describe the
@@ -146,6 +153,16 @@ export function ReferencesPanel() {
     selectedSheet,
     targeted
   );
+  const run = useWorkspaceStore((state) => state.referencesRun);
+  const flow = useReferencesPhoneFlow(
+    {
+      hasDocument: view.hasDocument,
+      revision: view.revision,
+      sheets: sheets.length,
+      failed: run.status === 'error',
+    },
+    { selectSheet, selectFinding: breakdown.selectFinding }
+  );
 
   const targetHighlights = useReferencesHighlights(
     view.geometry,
@@ -179,7 +196,6 @@ export function ReferencesPanel() {
     view.themeKey
   );
 
-  const run = useWorkspaceStore((state) => state.referencesRun);
   const shortcutOverrides = useShortcutStore((store) => store.overrides);
   const indicator = useReferencesRun();
   useReferencesRunToast(indicator);
@@ -376,11 +392,15 @@ export function ReferencesPanel() {
   // set from a breakdown when a vertex is picked — and without the `targeted`
   // half of this gate, framing came back for every step of a *target*, which is
   // the behaviour the gate exists to remove.
+  // On a phone the finding is pressed on the list, where there is no canvas,
+  // and framed on the detail that press opens: the screen is a dependency so
+  // a finding still active from the last visit is framed again.
   const findingBounds =
     !targeted && breakdown.activeFinding !== null ? highlights.stepBounds : null;
+  const screen = flow.screen;
   useEffect(() => {
     if (findingBounds) viewRef.current?.frameModelBounds(findingBounds);
-  }, [findingBounds]);
+  }, [findingBounds, screen]);
 
   const contextMenu = useContextMenuController('references');
   const onBodyContextMenu = (event: ReactMouseEvent<HTMLDivElement>) => {
@@ -407,207 +427,238 @@ export function ReferencesPanel() {
 
   return (
     <div className="references-workspace">
-      <ReferencesSheetsSidebar
-        sheets={sheets}
-        components={controller.frames?.components ?? []}
-        geometry={view.geometry}
-        selected={selectedSheet}
-        onSelect={selectSheet}
-        breakdown={breakdown}
-        analysis={breakdown.analysisRecord}
-        busy={busy}
-        hasDocument={view.hasDocument}
-        targeted={targeted}
-        hint={controller.hint}
-        warnings={controller.warnings}
-      />
-      <section className="panel-shell references-panel">
-        <div className="panel-toolbar">
-          <div className="panel-toolbar__group">
-            <Compass size={14} />
-            <span className="panel-title">{t('panels:references.title', 'References')}</span>
-            {targeted && controller.target && (
-              <ReferencesTargetControls
-                target={controller.target}
-                candidateCount={controller.candidates?.length ?? 0}
-                activeCandidate={controller.activeCandidate}
-                active={active}
-                onPreviousCandidate={controller.previousCandidate}
-                onNextCandidate={controller.nextCandidate}
-                onClear={controller.clear}
-                previousLabel={commandById('previous-candidate')?.label ?? ''}
-                nextLabel={commandById('next-candidate')?.label ?? ''}
-                previousDisabled={commandById('previous-candidate')?.disabled ?? true}
-                nextDisabled={commandById('next-candidate')?.disabled ?? true}
+      {flow.screen !== 'detail' && (
+        <ReferencesSheetsSidebar
+          sheets={sheets}
+          components={controller.frames?.components ?? []}
+          geometry={view.geometry}
+          selected={selectedSheet}
+          onSelect={flow.openSheet}
+          breakdown={breakdown}
+          analysis={breakdown.analysisRecord}
+          busy={busy}
+          hasDocument={view.hasDocument}
+          targeted={targeted}
+          // The list screen has no canvas to click a vertex on.
+          hint={
+            flow.screen === 'list'
+              ? t('panels:references.hint.open', 'Open a pattern to see how to fold it.')
+              : controller.hint
+          }
+          warnings={controller.warnings}
+          onSelectFinding={flow.openFinding}
+        />
+      )}
+      {flow.screen !== 'list' && (
+        <section className="panel-shell references-panel">
+          <div className="panel-toolbar">
+            <div className="panel-toolbar__group">
+              {flow.back ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="references-panel__back"
+                  onClick={flow.back}
+                >
+                  <ArrowLeft size={14} aria-hidden="true" />
+                  {t('panels:references.backToPatterns', 'Patterns')}
+                </Button>
+              ) : (
+                <>
+                  <Compass size={14} />
+                  <span className="panel-title">{t('panels:references.title', 'References')}</span>
+                </>
+              )}
+              {targeted && controller.target && (
+                <ReferencesTargetControls
+                  target={controller.target}
+                  candidateCount={controller.candidates?.length ?? 0}
+                  activeCandidate={controller.activeCandidate}
+                  active={active}
+                  onPreviousCandidate={controller.previousCandidate}
+                  onNextCandidate={controller.nextCandidate}
+                  onClear={controller.clear}
+                  previousLabel={commandById('previous-candidate')?.label ?? ''}
+                  nextLabel={commandById('next-candidate')?.label ?? ''}
+                  previousDisabled={commandById('previous-candidate')?.disabled ?? true}
+                  nextDisabled={commandById('next-candidate')?.disabled ?? true}
+                />
+              )}
+              {!targeted && <ReferencesSummaryStrip summary={breakdown.summary} />}
+            </div>
+            <div className="panel-toolbar__group">
+              {VIEW_ACTIONS.map((id) => {
+                const command = commandById(id);
+                if (!command) return null;
+                const Icon = ACTION_ICONS[id];
+                return (
+                  <IconButton
+                    key={id}
+                    size="sm"
+                    variant="toolbar"
+                    title={command.label}
+                    disabled={command.disabled}
+                    onClick={() => runShortcut(command.shortcutId)}
+                  >
+                    <Icon size={14} />
+                  </IconButton>
+                );
+              })}
+              <ReferencesSettingsMenu
+                settings={settings}
+                onChange={setReferencesSettings}
+                disabled={!view.hasDocument}
+                landmarksFirst={breakdown.landmarksFirst}
+                onToggleLandmarksFirst={breakdown.toggleLandmarksFirst}
+                hasPlan={breakdown.record !== null}
+              />
+              <IconButton
+                size="sm"
+                variant="toolbar"
+                title={
+                  commandById('recompute')?.label ?? t('panels:references.recompute', 'Recompute')
+                }
+                disabled={!canRecompute}
+                onClick={recompute}
+              >
+                <RefreshCw size={14} />
+              </IconButton>
+            </div>
+          </div>
+
+          <ReferencesStepFilmstrip
+            steps={filmstrip}
+            activeStep={activeStep}
+            onSelectStep={selectStep}
+            onPrevious={previousStep}
+            onNext={nextStep}
+            previousLabel={commandById('previous-step')?.label ?? ''}
+            nextLabel={commandById('next-step')?.label ?? ''}
+            previousDisabled={commandById('previous-step')?.disabled ?? true}
+            nextDisabled={commandById('next-step')?.disabled ?? true}
+            placeholder={filmstripPlaceholder}
+            note={filmstripNote}
+          />
+
+          <div className="panel-body references-panel__body" onContextMenu={onBodyContextMenu}>
+            {view.geometry && (
+              <ReferencesCpView
+                ref={viewRef}
+                geometry={view.geometry}
+                lineStyle={view.lineStyle}
+                mode={view.mode}
+                lineWidth={view.lineWidth}
+                pointSize={view.pointSize}
+                wheelGesture={view.wheelGesture}
+                snapRadius={view.snapRadius}
+                highlightVertexIdx={highlights.highlightVertexIdx}
+                diagramStrokes={scene.strokes}
+                selected={highlights.selected}
+                onViewChange={setDiagramCamera}
+                sheetLineIds={sheetIds}
+                creaseVisibility={creaseVisibility}
+                mirrored={mirrored}
+                onPick={controller.pick}
+                framingKey={`${view.framingKey}-sheet-${selectedSheet ?? 'none'}`}
+                themeKey={view.themeKey}
+                ariaLabel={t(
+                  'panels:references.canvasAriaLabel',
+                  'Crease pattern. Click a vertex or crease to find its references; drag to pan, scroll to zoom.'
+                )}
               />
             )}
-            {!targeted && <ReferencesSummaryStrip summary={breakdown.summary} />}
-          </div>
-          <div className="panel-toolbar__group">
-            {VIEW_ACTIONS.map((id) => {
-              const command = commandById(id);
-              if (!command) return null;
-              const Icon = ACTION_ICONS[id];
-              return (
-                <IconButton
-                  key={id}
-                  size="sm"
-                  variant="toolbar"
-                  title={command.label}
-                  disabled={command.disabled}
-                  onClick={() => runShortcut(command.shortcutId)}
-                >
-                  <Icon size={14} />
-                </IconButton>
-              );
-            })}
-            <ReferencesSettingsMenu
-              settings={settings}
-              onChange={setReferencesSettings}
-              disabled={!view.hasDocument}
-              landmarksFirst={breakdown.landmarksFirst}
-              onToggleLandmarksFirst={breakdown.toggleLandmarksFirst}
-              hasPlan={breakdown.record !== null}
-            />
-            <IconButton
-              size="sm"
-              variant="toolbar"
-              title={commandById('recompute')?.label ?? t('panels:references.recompute', 'Recompute')}
-              disabled={!canRecompute}
-              onClick={recompute}
-            >
-              <RefreshCw size={14} />
-            </IconButton>
-          </div>
-        </div>
-
-        <ReferencesStepFilmstrip
-          steps={filmstrip}
-          activeStep={activeStep}
-          onSelectStep={selectStep}
-          onPrevious={previousStep}
-          onNext={nextStep}
-          previousLabel={commandById('previous-step')?.label ?? ''}
-          nextLabel={commandById('next-step')?.label ?? ''}
-          previousDisabled={commandById('previous-step')?.disabled ?? true}
-          nextDisabled={commandById('next-step')?.disabled ?? true}
-          placeholder={filmstripPlaceholder}
-          note={filmstripNote}
-        />
-
-        <div className="panel-body references-panel__body" onContextMenu={onBodyContextMenu}>
-          {view.geometry && (
-            <ReferencesCpView
-              ref={viewRef}
-              geometry={view.geometry}
-              lineStyle={view.lineStyle}
-              mode={view.mode}
+            <ReferencesDiagramLayer
+              model={scene.symbols}
+              camera={diagramCamera}
               lineWidth={view.lineWidth}
-              pointSize={view.pointSize}
-              wheelGesture={view.wheelGesture}
-              snapRadius={view.snapRadius}
-              highlightVertexIdx={highlights.highlightVertexIdx}
-              diagramStrokes={scene.strokes}
-              selected={highlights.selected}
-              onViewChange={setDiagramCamera}
-              sheetLineIds={sheetIds}
-              creaseVisibility={creaseVisibility}
-              mirrored={mirrored}
-              onPick={controller.pick}
-              framingKey={`${view.framingKey}-sheet-${selectedSheet ?? 'none'}`}
-              themeKey={view.themeKey}
-              ariaLabel={t(
-                'panels:references.canvasAriaLabel',
-                'Crease pattern. Click a vertex or crease to find its references; drag to pan, scroll to zoom.'
-              )}
             />
-          )}
-          <ReferencesDiagramLayer
-            model={scene.symbols}
-            camera={diagramCamera}
-            lineWidth={view.lineWidth}
-          />
-          <ContextMenu
-            open={contextMenu.open}
-            x={contextMenu.x}
-            y={contextMenu.y}
-            items={contextMenu.items}
-            onOpenChange={contextMenu.onOpenChange}
-            onCloseAutoFocus={contextMenu.onCloseAutoFocus}
-          />
-          {!view.hasDocument && (
-            <div className="references-panel__overlay">
-              <span>{t('panels:references.noCreasePattern', 'No crease pattern')}</span>
-              <small>
-                {t(
-                  'panels:references.empty',
-                  'No crease pattern. Open or draw one in Edit, then come back.'
-                )}
-              </small>
-              <NextDocumentAction />
-            </div>
-          )}
-          {view.hasDocument && readoutState === 'running' && (
-            <div className="references-panel__overlay references-panel__overlay--loading" role="status">
-              <span>
-                {indicator.stopping
-                  ? t('panels:references.stopping', 'Cancelling…')
-                  : targeted
-                    ? t('panels:references.searching', 'Finding references…')
-                    : t('panels:references.planning', 'Working out the folding sequence…')}
-              </span>
-              {breakdown.progress && breakdown.progress.total > 0 && (
+            <ContextMenu
+              open={contextMenu.open}
+              x={contextMenu.x}
+              y={contextMenu.y}
+              items={contextMenu.items}
+              onOpenChange={contextMenu.onOpenChange}
+              onCloseAutoFocus={contextMenu.onCloseAutoFocus}
+            />
+            {!view.hasDocument && (
+              <div className="references-panel__overlay">
+                <span>{t('panels:references.noCreasePattern', 'No crease pattern')}</span>
                 <small>
-                  {breakdown.progress.phase === 'querying'
-                    ? t('panels:references.progress.querying', 'Searching {{done}} of {{total}} lines', {
-                        done: breakdown.progress.done,
-                        total: breakdown.progress.total,
-                      })
-                    : t('panels:references.progress.closing', 'Folded {{done}} of {{total}} lines', {
-                        done: breakdown.progress.done,
-                        total: breakdown.progress.total,
-                      })}
+                  {t(
+                    'panels:references.empty',
+                    'No crease pattern. Open or draw one in Edit, then come back.'
+                  )}
                 </small>
-              )}
-              {indicator.stoppable && !indicator.stopping && (
-                <Button variant="secondary" size="sm" onClick={() => indicator.stop()}>
-                  {t('panels:references.stop', 'Stop')}
-                </Button>
-              )}
-            </div>
-          )}
-          {view.hasDocument && readoutState === 'stale' && (
-            <div className="references-panel__overlay" role="status">
-              <span>{t('panels:references.outOfDate', 'Out of date')}</span>
-              <small>
-                {t(
-                  'panels:references.outOfDateHint',
-                  'The crease pattern changed since these references were found.'
+                <NextDocumentAction />
+              </div>
+            )}
+            {view.hasDocument && readoutState === 'running' && (
+              <div
+                className="references-panel__overlay references-panel__overlay--loading"
+                role="status"
+              >
+                <span>
+                  {indicator.stopping
+                    ? t('panels:references.stopping', 'Cancelling…')
+                    : targeted
+                      ? t('panels:references.searching', 'Finding references…')
+                      : t('panels:references.planning', 'Working out the folding sequence…')}
+                </span>
+                {breakdown.progress && breakdown.progress.total > 0 && (
+                  <small>
+                    {breakdown.progress.phase === 'querying'
+                      ? t(
+                          'panels:references.progress.querying',
+                          'Searching {{done}} of {{total}} lines',
+                          { done: breakdown.progress.done, total: breakdown.progress.total }
+                        )
+                      : t(
+                          'panels:references.progress.closing',
+                          'Folded {{done}} of {{total}} lines',
+                          { done: breakdown.progress.done, total: breakdown.progress.total }
+                        )}
+                  </small>
                 )}
-              </small>
-              <Button variant="primary" size="sm" onClick={recompute}>
-                {t('panels:references.recompute', 'Recompute')}
-              </Button>
-            </div>
-          )}
-          {view.hasDocument && run.status === 'error' && (
-            <div className="references-panel__overlay" role="alert">
-              <span>{t('panels:references.errorTitle', 'References unavailable')}</span>
-              <small>{run.message}</small>
-              <div className="references-panel__overlay-actions">
-                {canRecompute && (
-                  <Button variant="primary" size="sm" onClick={recompute}>
-                    {t('panels:references.recompute', 'Recompute')}
+                {indicator.stoppable && !indicator.stopping && (
+                  <Button variant="secondary" size="sm" onClick={() => indicator.stop()}>
+                    {t('panels:references.stop', 'Stop')}
                   </Button>
                 )}
-                <Button variant="secondary" size="sm" onClick={controller.clear}>
-                  {t('panels:references.dismiss', 'Dismiss')}
+              </div>
+            )}
+            {view.hasDocument && readoutState === 'stale' && (
+              <div className="references-panel__overlay" role="status">
+                <span>{t('panels:references.outOfDate', 'Out of date')}</span>
+                <small>
+                  {t(
+                    'panels:references.outOfDateHint',
+                    'The crease pattern changed since these references were found.'
+                  )}
+                </small>
+                <Button variant="primary" size="sm" onClick={recompute}>
+                  {t('panels:references.recompute', 'Recompute')}
                 </Button>
               </div>
-            </div>
-          )}
-        </div>
-      </section>
+            )}
+            {view.hasDocument && run.status === 'error' && (
+              <div className="references-panel__overlay" role="alert">
+                <span>{t('panels:references.errorTitle', 'References unavailable')}</span>
+                <small>{run.message}</small>
+                <div className="references-panel__overlay-actions">
+                  {canRecompute && (
+                    <Button variant="primary" size="sm" onClick={recompute}>
+                      {t('panels:references.recompute', 'Recompute')}
+                    </Button>
+                  )}
+                  <Button variant="secondary" size="sm" onClick={controller.clear}>
+                    {t('panels:references.dismiss', 'Dismiss')}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

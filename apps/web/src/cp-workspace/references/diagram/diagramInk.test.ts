@@ -7,6 +7,7 @@ import {
   DIAGRAM_MARK_INK,
   DIAGRAM_SHEET_INK,
   DIAGRAM_TURN_OVER_INK,
+  labelWidth,
 } from './diagramInk';
 
 /**
@@ -73,6 +74,25 @@ describe('the diagram’s pen', () => {
     const inkPerUserUnit = 96 / 80;
     expect(DIAGRAM_LABEL_INK.size / inkPerUserUnit).toBeCloseTo(9, 6);
     expect(DIAGRAM_LABEL_INK.halo / inkPerUserUnit).toBeCloseTo(2.5, 6);
-    expect(DIAGRAM_LABEL_INK.offset / inkPerUserUnit).toBeCloseTo(3.5, 6);
+  });
+
+  // The letter's footprint is estimated, not measured — an SVG `<text>` has no
+  // size until it is drawn — and the standoff is the halo's reach, so a letter
+  // that clears a ring by it does not erase a piece of the ring with its
+  // ground-coloured halo either.
+  it('keeps a letter’s box and standoff in step with its halo', () => {
+    expect(DIAGRAM_LABEL_INK.glyph).toEqual({ height: 1, baseline: 0.86 });
+    expect(DIAGRAM_LABEL_INK.standoff).toBe(DIAGRAM_LABEL_INK.halo / 2);
+  });
+
+  // Sized by the letter, not by an average: a Q at the right edge of a card
+  // ran off it when every capital was taken to be two thirds of an em.
+  it('sizes a label by the advances of its own letters', () => {
+    expect(labelWidth('P', 10)).toBeCloseTo(6.18, 6);
+    expect(labelWidth('Q', 10)).toBeCloseTo(7.52, 6);
+    expect(labelWidth('PQ', 10)).toBeCloseTo(6.18 + 7.52, 6);
+    expect(labelWidth('W', 10)).toBeGreaterThan(labelWidth('I', 10) * 3);
+    // An unknown glyph is taken at the widest common width, not at zero.
+    expect(labelWidth('α', 10)).toBeCloseTo(7.5, 6);
   });
 });

@@ -1,10 +1,11 @@
-import { memo, useMemo } from 'react';
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Shapes } from 'lucide-react';
 import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import { ReferencesFindingsList } from './ReferencesFindingsList';
+import { ReferencesSheetGrid } from './ReferencesSheetGrid';
 import type { ReferencesAnalysis } from './referencesAnalysis';
-import { sheetThumbnail, type ReferencesSheet } from './referencesSheets';
+import type { ReferencesSheet } from './referencesSheets';
 import type { PrecreaseComponent } from './sheetFrames';
 import type { ReferencesBreakdownController } from './useReferencesBreakdown';
 
@@ -21,6 +22,12 @@ import type { ReferencesBreakdownController } from './useReferencesBreakdown';
  * rail is also where the run affordance and the notes live, so hiding it would
  * leave both homeless; a lone row still says which sheet the workspace found
  * and whether it can be planned.
+ *
+ * On a phone it is the whole screen rather than a rail: the list the reader
+ * picks a pattern from, with the detail behind a press (`useReferencesPhoneFlow`).
+ * Same component, because it is the same list — the header, the cards and the
+ * notes — and the stylesheet's phone block is what stretches it to the width
+ * and grows the cards (`theme.css`, `.references-sidebar`).
  *
  * Under the pattern list it carries only the notes: what the frames analysis
  * warned about, and the lines no exact fold reaches. It deliberately does *not*
@@ -47,6 +54,8 @@ export interface ReferencesSheetsSidebarProps {
   targeted: boolean;
   hint: string;
   warnings: readonly string[];
+  /** A press on a finding in the notes. */
+  onSelectFinding: (index: number | null) => void;
 }
 
 export const ReferencesSheetsSidebar = memo(function ReferencesSheetsSidebar({
@@ -62,6 +71,7 @@ export const ReferencesSheetsSidebar = memo(function ReferencesSheetsSidebar({
   targeted,
   hint,
   warnings,
+  onSelectFinding,
 }: ReferencesSheetsSidebarProps) {
   const { t } = useTranslation();
   const planned = breakdown.record !== null;
@@ -77,27 +87,14 @@ export const ReferencesSheetsSidebar = memo(function ReferencesSheetsSidebar({
         {sheets.length > 0 && <span className="references-sidebar__count">{sheets.length}</span>}
       </div>
 
-      {/* A plain container, not a list: a `listbox` may own only `option` and
-          `group`, and wrapping each option in an `li` puts something between
-          them. */}
       {sheets.length > 0 && geometry && (
-        <div
-          className="references-sheets"
-          role="listbox"
-          aria-label={t('panels:references.sheets.label', 'Crease patterns')}
-        >
-          {sheets.map((sheet, index) => (
-            <SheetCard
-              key={sheet.id}
-              sheet={sheet}
-              index={index}
-              component={components.find((entry) => entry.id === sheet.id) ?? null}
-              geometry={geometry}
-              selected={sheet.id === selected}
-              onSelect={() => onSelect(sheet.id)}
-            />
-          ))}
-        </div>
+        <ReferencesSheetGrid
+          sheets={sheets}
+          components={components}
+          geometry={geometry}
+          selected={selected}
+          onSelect={onSelect}
+        />
       )}
 
       <div className="references-sidebar__notes">
@@ -120,71 +117,10 @@ export const ReferencesSheetsSidebar = memo(function ReferencesSheetsSidebar({
             record={breakdown.record}
             analysis={analysis}
             activeFinding={breakdown.activeFinding}
-            onSelectFinding={breakdown.selectFinding}
+            onSelectFinding={onSelectFinding}
           />
         )}
       </div>
     </aside>
   );
 });
-
-interface SheetCardProps {
-  sheet: ReferencesSheet;
-  index: number;
-  component: PrecreaseComponent | null;
-  geometry: CpGeometryTransport;
-  selected: boolean;
-  onSelect: () => void;
-}
-
-function SheetCard({ sheet, index, component, geometry, selected, onSelect }: SheetCardProps) {
-  const { t } = useTranslation();
-  const thumbnail = useMemo(
-    () => (component ? sheetThumbnail(geometry, component) : null),
-    [component, geometry]
-  );
-  return (
-    <button
-      type="button"
-      role="option"
-      aria-selected={selected}
-      className={`references-sheet${selected ? ' references-sheet--selected' : ''}${
-        sheet.plannable ? '' : ' references-sheet--refused'
-      }`}
-      onClick={onSelect}
-      title={t('panels:references.sheets.cardTitle', {
-        defaultValue_one: 'Pattern {{n}}: {{count}} crease',
-        defaultValue_other: 'Pattern {{n}}: {{count}} creases',
-        n: index + 1,
-        count: sheet.creaseCount,
-      })}
-    >
-      <span className="references-sheet__thumb">
-        {thumbnail && (
-          <svg viewBox={thumbnail.viewBox} aria-hidden="true" className="references-sheet__svg">
-            {thumbnail.strokes.map((stroke, i) => (
-              <line
-                key={i}
-                className={`references-sheet__stroke references-sheet__stroke--${stroke.kind}`}
-                x1={stroke.x1}
-                y1={stroke.y1}
-                x2={stroke.x2}
-                y2={stroke.y2}
-              />
-            ))}
-          </svg>
-        )}
-      </span>
-      <span className="references-sheet__meta">
-        <span className="references-sheet__index">{index + 1}</span>
-        <span className="references-sheet__count">
-          {t('panels:references.sheets.creases', {
-            defaultValue_one: '{{count}} crease',
-            defaultValue_other: '{{count}} creases',
-            count: sheet.creaseCount,
-          })}
-        </span>
-      </span>
-    </button>
-  );
-}

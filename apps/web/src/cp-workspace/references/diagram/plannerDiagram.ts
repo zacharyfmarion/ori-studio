@@ -56,7 +56,7 @@
  * no letters — because that is what a folder does with "pleat into 16ths",
  * and the card of one line with an arrow on it would be the wrong instruction.
  */
-import { dashRulerAlong, foldArrowArc } from '../stepDiagramGeometry';
+import { dashRulerAlong, foldArrowArc, type DiagramSheet } from '../stepDiagramGeometry';
 import { inputLetters } from './inputLetters';
 import type { Point } from '../../../lib/geometry';
 import type { DiagramFrame, DiagramGridLine, DiagramSegment } from './diagramFrames';
@@ -699,7 +699,7 @@ export function plannerStepDiagram(
     for (const line of frame.gridLines(step)) {
       primitives.push(spanLine(line.segment, styleOf(line.direction, true)));
     }
-    return { sheet: { width: sheet.width, height: sheet.height }, primitives };
+    return { sheet: sheetOf(sheet, frame), primitives };
   }
 
   // A press carries the witness of the fold that made its line, so it draws
@@ -892,7 +892,7 @@ export function plannerStepDiagram(
   for (const span of frame.pressedOn(step)) primitives.push(spanLine(span, made));
   primitives.push(...labels);
 
-  return { sheet: { width: sheet.width, height: sheet.height }, primitives };
+  return { sheet: sheetOf(sheet, frame), primitives };
 }
 
 /**
@@ -928,7 +928,16 @@ export function plannerTurnOverDiagram(
     }
   }
   primitives.push(...turnOverSymbol(frame));
-  return { sheet: { width: sheet.width, height: sheet.height }, primitives };
+  return { sheet: sheetOf(sheet, frame), primitives };
+}
+
+/**
+ * The sheet a picture is of: its size, and where its middle is in the space
+ * the primitives are drawn in — which on the canvas is wherever the document
+ * put the paper, not half its size from the origin.
+ */
+function sheetOf(sheet: { width: number; height: number }, frame: DiagramFrame): DiagramSheet {
+  return { width: sheet.width, height: sheet.height, centre: [frame.centre.x, frame.centre.y] };
 }
 
 /**
@@ -977,5 +986,5 @@ export function plannerFinishedDiagram(
       primitives.push(spanLine(span, style));
     }
   }
-  return { sheet: { width: sheet.width, height: sheet.height }, primitives };
+  return { sheet: sheetOf(sheet, frame), primitives };
 }

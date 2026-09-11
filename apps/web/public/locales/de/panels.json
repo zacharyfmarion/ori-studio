@@ -812,6 +812,7 @@
       "o7": "Punkt auf eine Linie, senkrecht"
     },
     "backToPattern": "Zurück zum ganzen Muster",
+    "backToPatterns": "Muster",
     "breakdown": {
       "sheetId": "Blatt {{n}}"
     },
@@ -852,6 +853,7 @@
     },
     "freeDiagonals": "Benötigt außerdem die Bogendiagonale(n): {{names}}.",
     "hint": {
+      "open": "Öffne ein Muster, um zu sehen, wie man es faltet.",
       "pick": "Klicke auf einen Scheitelpunkt oder eine Falte, um zu sehen, wie man sie faltet."
     },
     "meta": {

@@ -845,6 +845,7 @@
       "o7": "punto sobre una línea, perpendicular"
     },
     "backToPattern": "Volver al patrón completo",
+    "backToPatterns": "Patrones",
     "breakdown": {
       "sheetId": "Hoja {{n}}"
     },
@@ -886,6 +887,7 @@
     },
     "freeDiagonals": "También necesita la(s) diagonal(es) de la hoja: {{names}}.",
     "hint": {
+      "open": "Abre un patrón para ver cómo doblarlo.",
       "pick": "Haz clic en un vértice o pliegue para ver cómo doblarlo."
     },
     "meta": {

@@ -845,6 +845,7 @@
       "o7": "ponto sobre uma linha, perpendicular"
     },
     "backToPattern": "Voltar ao padrão inteiro",
+    "backToPatterns": "Padrões",
     "breakdown": {
       "sheetId": "Folha {{n}}"
     },
@@ -886,6 +887,7 @@
     },
     "freeDiagonals": "Também precisa da(s) diagonal(is) da folha: {{names}}.",
     "hint": {
+      "open": "Abra um padrão para ver como dobrá-lo.",
       "pick": "Clique em um vértice ou dobra para ver como dobrá-lo."
     },
     "meta": {

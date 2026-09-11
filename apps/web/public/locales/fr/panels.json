@@ -845,6 +845,7 @@
       "o7": "point sur une ligne, perpendiculaire"
     },
     "backToPattern": "Revenir au patron entier",
+    "backToPatterns": "Patrons",
     "breakdown": {
       "sheetId": "Feuille {{n}}"
     },
@@ -886,6 +887,7 @@
     },
     "freeDiagonals": "Nécessite aussi la ou les diagonales de la feuille : {{names}}.",
     "hint": {
+      "open": "Ouvrez un patron pour voir comment le plier.",
       "pick": "Cliquez sur un sommet ou un pli pour voir comment le plier."
     },
     "meta": {

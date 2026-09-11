@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
 import type { ReferencesDiagramView } from './ReferencesCpView';
-import { diagramPrimitiveShape } from './diagram/DiagramPrimitives';
+import { createDiagramRenderContext, diagramPrimitiveShape } from './diagram/DiagramPrimitives';
 import { canvasDiagramInk } from './diagram/diagramInk';
 import { createOverlayProjector } from './stepDiagramGeometry';
 
@@ -42,8 +42,15 @@ export function ReferencesDiagramLayer({
       camera ? createOverlayProjector(camera.view, canvasDiagramInk(lineWidth)) : null,
     [camera, lineWidth]
   );
+  // No bounds and nothing reserved: the canvas has no edge of its own and no
+  // number over its corner, so a letter goes wherever its mark is.
+  const context = useMemo(
+    () =>
+      model && project ? createDiagramRenderContext(model.primitives, model.sheet, project) : null,
+    [model, project]
+  );
 
-  if (!model || !project || model.primitives.length === 0) return null;
+  if (!model || !context || model.primitives.length === 0) return null;
 
   return (
     <svg
@@ -52,9 +59,7 @@ export function ReferencesDiagramLayer({
       style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible' }}
       aria-hidden="true"
     >
-      {model.primitives.map((primitive, index) =>
-        diagramPrimitiveShape(primitive, index, project, model.sheet)
-      )}
+      {model.primitives.map((primitive, index) => diagramPrimitiveShape(primitive, index, context))}
     </svg>
   );
 }

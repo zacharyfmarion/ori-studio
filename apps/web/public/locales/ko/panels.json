@@ -783,6 +783,7 @@
       "o7": "점을 선 위로, 수직으로"
     },
     "backToPattern": "패턴 전체로 돌아가기",
+    "backToPatterns": "패턴",
     "breakdown": {
       "sheetId": "시트 {{n}}"
     },
@@ -822,6 +823,7 @@
     },
     "freeDiagonals": "종이의 대각선도 필요합니다: {{names}}.",
     "hint": {
+      "open": "패턴을 열면 접는 방법이 표시됩니다.",
       "pick": "꼭짓점이나 접는 선을 클릭하면 접는 방법이 표시됩니다."
     },
     "meta": {
