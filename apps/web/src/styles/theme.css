@@ -10812,19 +10812,6 @@ button.bp-packing-alert:focus-visible {
   .references-workspace .references-target__exit {
     min-height: var(--touch-target);
   }
-
-  /*
-   * The breakdown's summary is hidden here. Its sentence — "55 folds = 55
-   * creases + 0 auxiliary (0 visible)", the grid, the bound, the turn-overs —
-   * is a line of arithmetic some ninety characters long, and the toolbar is
-   * one row on a screen that cannot hold it beside anything. What it says is
-   * on the screen anyway: the fold count is the last card's number in the
-   * filmstrip, and the lines a plan cannot construct are the findings under
-   * the list. Pure output, like the readouts hidden at the top of this block.
-   */
-  .references-workspace .references-summary {
-    display: none;
-  }
 }
 
 /*
@@ -11252,25 +11239,6 @@ button.bp-packing-alert:focus-visible {
 .references-finding__meta {
   color: var(--text-tertiary);
   font-size: 0.66rem;
-}
-
-/*
- * The toolbar's summary of a breakdown. The fold count and the lower bound sit
- * side by side on purpose: the strip reports what was found and states the
- * bound separately, and never claims a minimum.
- */
-.references-summary {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--text-tertiary);
-  font-size: 0.7rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.references-summary__folds {
-  color: var(--text-secondary);
 }
 
 /*

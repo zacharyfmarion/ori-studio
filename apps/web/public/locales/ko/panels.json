@@ -927,22 +927,6 @@
     },
     "stop": "중지",
     "stopping": "취소 중…",
-    "summary": {
-      "atLowerBound": "보조 접기가 필요 없음",
-      "folds": "접기 {{folds}}회 = 접힘선 {{creases}}개 + 보조선 {{aux}}개(보이는 것 {{visible}}개)",
-      "foldsWithGrid": "접기 {{folds}}회 = 접힘선 {{creases}}개 + 보조선 {{aux}}개 + 격자 전용 {{grid}}개(보이는 것 {{visible}}개)",
-      "free": "{{n}}개는 종이 가장자리",
-      "grid": "격자 {{n}}",
-      "hexGrid": "육각 격자 {{n}}",
-      "inexact_other": "근사 단계 {{count}}개",
-      "lowerBound": "하한 {{n}}",
-      "mixed_other": "산과 골이 섞인 선 {{count}}개",
-      "offLattice": "격자 외",
-      "partial": "부분",
-      "snapped": "스냅됨, 최대 {{d}}",
-      "turnOvers_other": "뒤집기 {{count}}번",
-      "unsolved": "{{n}}개 미해결"
-    },
     "targetGone": "선택한 접는 선이 전개도에 더 이상 없습니다.",
     "title": "참조",
     "warning": {

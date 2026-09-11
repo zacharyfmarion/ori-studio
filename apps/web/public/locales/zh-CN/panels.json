@@ -927,22 +927,6 @@
     },
     "stop": "停止",
     "stopping": "正在取消…",
-    "summary": {
-      "atLowerBound": "无需辅助折叠",
-      "folds": "{{folds}} 次折叠 = {{creases}} 条折痕 + {{aux}} 条辅助线（{{visible}} 条可见）",
-      "foldsWithGrid": "{{folds}} 次折叠 = {{creases}} 条折痕 + {{aux}} 条辅助线 + {{grid}} 条仅网格线（{{visible}} 条可见）",
-      "free": "{{n}} 条位于纸张边缘",
-      "grid": "网格 {{n}}",
-      "hexGrid": "六边形网格 {{n}}",
-      "inexact_other": "{{count}} 个近似步骤",
-      "lowerBound": "下界 {{n}}",
-      "mixed_other": "{{count}} 条线在图中山谷混合",
-      "offLattice": "不在格点上",
-      "partial": "部分",
-      "snapped": "已吸附，最大 {{d}}",
-      "turnOvers_other": "翻面 {{count}} 次",
-      "unsolved": "{{n}} 条未解决"
-    },
     "targetGone": "所选折痕已不在折痕图中。",
     "title": "参考",
     "warning": {

@@ -927,22 +927,6 @@
     },
     "stop": "停止",
     "stopping": "キャンセル中…",
-    "summary": {
-      "atLowerBound": "補助の折りは不要です",
-      "folds": "{{folds}} 回の折り = 折り線 {{creases}} 本 + 補助線 {{aux}} 本（うち {{visible}} 本が見えます）",
-      "foldsWithGrid": "{{folds}} 回の折り = 折り線 {{creases}} 本 + 補助線 {{aux}} 本 + グリッドのみ {{grid}} 本（うち {{visible}} 本が見えます）",
-      "free": "{{n}} 本は紙の端です",
-      "grid": "グリッド {{n}}",
-      "hexGrid": "六角グリッド {{n}}",
-      "inexact_other": "近似の手順 {{count}}",
-      "lowerBound": "下限 {{n}}",
-      "mixed_other": "山谷が混ざる線 {{count}} 本",
-      "offLattice": "格子外",
-      "partial": "部分的",
-      "snapped": "スナップ済み、最大 {{d}}",
-      "turnOvers_other": "裏返し {{count}} 回",
-      "unsolved": "{{n}} 本が未解決"
-    },
     "targetGone": "選んだ折り線は展開図にもうありません。",
     "title": "リファレンス",
     "warning": {

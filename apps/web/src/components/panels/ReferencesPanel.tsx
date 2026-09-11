@@ -36,7 +36,6 @@ import { useReferencesDiagramScene } from '../../cp-workspace/references/useRefe
 import { ReferencesSettingsMenu } from '../../cp-workspace/references/ReferencesSettingsMenu';
 import { ReferencesSheetsSidebar } from '../../cp-workspace/references/ReferencesSheetsSidebar';
 import { ReferencesStepFilmstrip } from '../../cp-workspace/references/ReferencesStepFilmstrip';
-import { ReferencesSummaryStrip } from '../../cp-workspace/references/ReferencesSummaryStrip';
 import { ReferencesTargetControls } from '../../cp-workspace/references/ReferencesTargetControls';
 import {
   buildReferencesActions,
@@ -484,7 +483,6 @@ export function ReferencesPanel() {
                   nextDisabled={commandById('next-candidate')?.disabled ?? true}
                 />
               )}
-              {!targeted && <ReferencesSummaryStrip summary={breakdown.summary} />}
             </div>
             <div className="panel-toolbar__group">
               {VIEW_ACTIONS.map((id) => {

@@ -22,10 +22,15 @@
  *   is what the paper already has on it. The step draws that crease itself, as
  *   the dashed fold line it is — so it is drawn once, by the thing that is
  *   asking for it, and the dimmed build-up is what it stands out from.
- * - **Reading one reference dims, but hides nothing.** ReferenceFinder's steps
- *   are folds on a blank sheet and have no relation to the pattern's creases, so
- *   there is no "so far" to build up — the pattern goes quiet instead, and the
- *   construction ghosts read over it.
+ * - **Reading one reference shows the paper and the crease, and nothing else.**
+ *   ReferenceFinder's steps are folds on a blank sheet and have no relation to
+ *   the pattern's creases, so there is no "so far" to build up. The pattern
+ *   used to go quiet behind the construction instead, and three hundred dimmed
+ *   creases were still three hundred creases: the construction's own lines
+ *   were lost among them, and a reader picking a crease partway through the
+ *   sequence took the build-up for the answer. So the sheet is the paper's
+ *   outline and the picked crease, and the construction draws over blank paper
+ *   as ReferenceFinder means it to.
  * - **A turn-over shows the build-up too, and one more step of it.** Turning
  *   the paper over happens between folds, not only at the end, so it holds back
  *   the creases that are not made yet exactly as a fold card does — but the
@@ -88,23 +93,26 @@ export function unreadVisibility(input: ReferencesVisibilityInput): ReferencesCr
   return { visible: sheetLineIds, dimmed: null, dimAlpha: 1 };
 }
 
-/** The whole sheet, with everything but `activeLineIds` dimmed. */
+/**
+ * The paper's outline and `activeLineIds`, at full strength; every other crease
+ * of the sheet is hidden. A picked vertex has no line of its own, so its sheet
+ * is blank paper with the vertex marked on it.
+ */
 export function targetVisibility(input: ReferencesVisibilityInput): ReferencesCreaseVisibility {
-  const { sheetLineIds, activeLineIds } = input;
+  const { sheetLineIds, borderLineIds, activeLineIds } = input;
   if (!sheetLineIds) {
     return activeLineIds.size === 0
       ? REFERENCES_ALL_CREASES
       : { visible: null, dimmed: null, dimAlpha: 1 };
   }
-  const dimmed = new Set<number>();
+  const visible = new Set<number>();
   for (const id of sheetLineIds) {
-    if (activeLineIds.has(id) || input.borderLineIds?.has(id)) continue;
-    dimmed.add(id);
+    if (activeLineIds.has(id) || borderLineIds?.has(id)) visible.add(id);
   }
   return {
-    visible: sheetLineIds,
-    dimmed,
-    dimAlpha: REFERENCES_DIM_ALPHA,
+    visible,
+    dimmed: null,
+    dimAlpha: 1,
     emphasis: activeLineIds,
     emphasisWidth: REFERENCES_EMPHASIS_WIDTH,
   };
@@ -126,7 +134,8 @@ export function planVisibility(
 ): ReferencesCreaseVisibility {
   const { sheetLineIds, borderLineIds, mirrored = false } = input;
   const target = viewSteps[activeStep];
-  if (!target) return targetVisibility({ ...input, activeLineIds: new Set() });
+  // No step to be at: the sheet as it is, whole.
+  if (!target) return unreadVisibility(input);
 
   // A card that is not a fold — a turn-over, or the finished pattern — picks
   // nothing out, but still shows only what has been folded by the time it is

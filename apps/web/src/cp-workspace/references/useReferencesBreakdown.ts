@@ -96,7 +96,6 @@ export interface ReferencesBreakdownController {
   refused: ReferencesPlanRecord['refused'];
   /** A breakdown exists but describes an earlier revision. */
   stale: boolean;
-  summary: ReferencesPlanSummary | null;
   analysis: ReferencesAnalysisSummaryState | null;
   /** The analysis itself, for the findings list. */
   analysisRecord: ReferencesAnalysis | null;
@@ -258,8 +257,8 @@ function summaryOf(record: ReferencesPlanRecord): ReferencesPlanSummary | null {
       mixedSteps: 0,
     }
   );
-  // The worst class across sheets, because the summary strip speaks for the
-  // whole pattern: one off-lattice sheet makes the plan an off-lattice plan.
+  // The worst class across sheets, because the summary speaks for the whole
+  // pattern: one off-lattice sheet makes the plan an off-lattice plan.
   const order = { exact: 0, snappable: 1, off_lattice: 2 } as const;
   let exactnessClass: ReferencesPlanSummary['exactnessClass'] = null;
   let maxDisplacementModel = 0;
@@ -324,11 +323,9 @@ export function useReferencesBreakdown(
   const { t } = useTranslation();
   const viewState = useWorkspaceStore((state) => state.referencesView);
   const precreaseGrid = useWorkspaceStore((state) => state.referencesSettings.precreaseGrid);
-  // The summary is derived from the record below, not read from the store.
-  // `referencesPlan` is one slot for a whole document and is cleared on every
-  // sheet switch, so switching away and back left the toolbar blank over a plan
-  // the filmstrip was still showing. The record already says which sheet has a
-  // plan; the store keeps its own copy for the analytics descriptor.
+  // `referencesPlan` is one slot for a whole document, cleared on every sheet
+  // switch, and nothing here reads it: the record says which sheet has a plan,
+  // and the store's copy is the analytics descriptor.
   const analysisSummary = useWorkspaceStore((state) => state.referencesAnalysis);
   const progress = useWorkspaceStore((state) => state.referencesProgress);
   const setReferencesPlan = useWorkspaceStore((state) => state.setReferencesPlan);
@@ -720,7 +717,6 @@ export function useReferencesBreakdown(
     variants,
     refused: record?.refused ?? [],
     stale,
-    summary: record ? summaryOf(record) : null,
     analysis: analysisSummary?.computedAtRevision === revision ? analysisSummary : null,
     analysisRecord: analysisRecord?.analysis ?? null,
     flatSteps,

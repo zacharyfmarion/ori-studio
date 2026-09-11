@@ -124,16 +124,28 @@ describe('planVisibility', () => {
 });
 
 describe('targetVisibility', () => {
-  it('keeps the whole sheet, dimming all but the picked crease and the paper', () => {
+  // The whole sheet used to stay behind the construction, dimmed. Dimmed or
+  // not, it was the pattern, and a reader who picked a crease at step 38 of
+  // the plan took the build-up for part of the answer.
+  it('shows the paper and the picked crease, and hides every other crease', () => {
     const at = targetVisibility({
       sheetLineIds: SHEET,
       borderLineIds: BORDER,
       activeLineIds: new Set([11]),
     });
-    expect(at.visible).toBe(SHEET);
-    expect(at.dimmed?.has(11)).toBe(false);
-    expect(at.dimmed?.has(10)).toBe(true);
-    expect(at.dimmed?.has(1)).toBe(false);
+    expect([...(at.visible ?? [])].sort()).toEqual([...BORDER, 11].sort());
+    expect(at.visible?.has(10)).toBe(false);
+    expect(at.dimmed).toBeNull();
+    expect(at.dimAlpha).toBe(1);
+  });
+
+  it('shows blank paper for a picked vertex, which has no crease of its own', () => {
+    const at = targetVisibility({
+      sheetLineIds: SHEET,
+      borderLineIds: BORDER,
+      activeLineIds: new Set(),
+    });
+    expect([...(at.visible ?? [])].sort()).toEqual([...BORDER].sort());
   });
 
   it('falls back to the whole document when no sheet is resolved', () => {
@@ -185,7 +197,7 @@ describe('emphasis', () => {
     expect([...(at.emphasis ?? [])]).toEqual([11]);
     // Width, not hue: the crease's colour is already saying which way it folds.
     expect(at.emphasisWidth).toBe(REFERENCES_EMPHASIS_WIDTH);
-    expect(at.dimmed?.has(11)).toBe(false);
+    expect(at.visible?.has(11)).toBe(true);
   });
 });
 
