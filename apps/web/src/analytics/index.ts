@@ -66,6 +66,7 @@ export {
 export { trackCommunityLink } from './trackCommunityLink';
 export { trackDesignSentToEdit } from './trackSendToEdit';
 export { trackDesktopDownload } from './trackDesktopDownload';
+export { trackSymmetryPairChanged, type SymmetryPairAction } from './trackSymmetryPairChanged';
 
 export { useAppOpenedEvent } from './useAppOpenedEvent';
 export { useBpPatternNotFoundEvent } from './useBpPatternNotFoundEvent';

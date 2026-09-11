@@ -62,6 +62,9 @@
     "nudgeRight": "BP-Auswahl nach rechts verschieben",
     "nudgeUp": "BP-Auswahl nach oben verschieben",
     "onlyOnePattern": "Nur ein Muster",
+    "pair": "Mit Spiegel paaren",
+    "pairAll": "Alle gespiegelten paaren",
+    "pairAllNone": "Keine ungepaarten Laschen liegen einander gegenüber.",
     "pattern": "Muster",
     "patternNotFound": "Muster nicht gefunden",
     "patternNotFoundFor": "Kein Faltmuster für {{flaps}}",
@@ -108,6 +111,11 @@
     "fold": {
       "book": "Buchfalte",
       "diagonal": "Diagonalfalte"
+    },
+    "problem": {
+      "axisOffCentre": "Die Symmetrieachse muss durch die Mitte des Bogens verlaufen, damit der Optimierer den Bogen symmetrisch halten kann.",
+      "notAMirror": "Die Paarung ist keine Spiegelung: Einige Laschen sind nicht gegenseitig gepaart. Jede Lasche muss mit genau einer anderen Lasche gepaart sein oder auf der Achse mit sich selbst.",
+      "unpaired": "{{names}} hat kein Spiegelpaar. Auswählen und „Mit Spiegel paaren“ wählen, „Alle gespiegelten paaren“ verwenden, mit eingeschaltetem Spiegelzeichnen neu zeichnen oder auf die Spiegellinie verschieben."
     }
   },
   "bpTree": {
@@ -123,6 +131,8 @@
     "length": "Länge",
     "mirrorDraw": "Spiegelzeichnen",
     "mirrorDrawOn": "Spiegelzeichnen (ein)",
+    "pair": "Mit Spiegel paaren",
+    "pairAll": "Alle gespiegelten paaren",
     "selectEdge": "BP-Kante {{id}} auswählen, Länge {{length}}",
     "selectLeafVertex": "BP-Blattknoten {{id}} auswählen",
     "selectLeafVertexWithLabel": "BP-Blattknoten {{id}} auswählen, {{label}}",
@@ -658,6 +668,8 @@
     "noResultsYetTitle": "Noch keine Ergebnisse",
     "openInExplori": "In ExplOri öffnen",
     "openResult": "Ergebnis {{id}} öffnen",
+    "pair": "Mit Spiegelung paaren",
+    "pairAll": "Alle gespiegelten paaren",
     "previousResult": "Vorheriges Ergebnis",
     "qualityAcceptable": "Brauchbare Übereinstimmung",
     "qualityGood": "Gute Übereinstimmung",
@@ -906,7 +918,8 @@
   "treeEditor": {
     "contextMenu": {
       "addLeaf": "Blatt hier hinzufügen",
-      "deselect": "Auswahl aufheben"
+      "deselect": "Auswahl aufheben",
+      "pairAllNone": "Keine ungepaarten Knoten liegen einander gegenüber."
     }
   }
 }

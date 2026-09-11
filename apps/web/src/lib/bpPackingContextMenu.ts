@@ -52,6 +52,12 @@ export interface BpPackingContextMenuDeps {
    */
   unpairableId: number | null;
   unpair: (id: number) => void;
+  /**
+   * The flap to pair with the unpaired flap at its reflection, when exactly one
+   * such flap is selected. The same slot as `unpairableId`, never both.
+   */
+  pairableId: number | null;
+  pair: (id: number) => void;
 }
 
 const NUDGE_DIRECTIONS: readonly BpPackingNudgeDirection[] = ['up', 'down', 'left', 'right'];
@@ -101,7 +107,14 @@ export function bpFlapMenuItems(deps: BpPackingContextMenuDeps): ContextMenuItem
           label: t('panels:bpPacking.unpair', 'Unpair from mirror'),
           onSelect: () => deps.unpair(deps.unpairableId as number),
         }
-      : null,
+      : deps.pairableId !== null
+        ? {
+            kind: 'action',
+            id: 'bp-pair',
+            label: t('panels:bpPacking.pair', 'Pair with mirror'),
+            onSelect: () => deps.pair(deps.pairableId as number),
+          }
+        : null,
     { kind: 'separator' },
     ...contextMenuActionItems(['edit.delete'], action, labels).map(
       (item): ContextMenuItem => (item.kind === 'action' ? { ...item, danger: true } : item)

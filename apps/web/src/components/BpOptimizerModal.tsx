@@ -11,6 +11,7 @@ import {
 import { cancelActiveOristudioBpOptimizer } from '../store/workspaceStore/oristudioBpRuntime';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { resolveOptimizerSymmetry, type SymmetryFold } from '../lib/bpOptimizerSymmetry';
+import { symmetryProblemLabel } from '../lib/bpSymmetryLabels';
 import { SYMMETRY_FOLDS, symmetryFoldLabel } from '../lib/bpSymmetryLabels';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
@@ -120,10 +121,10 @@ export function BpOptimizerModal() {
     if (!tree) return { mode: 'off' as const };
     const resolved = resolveOptimizerSymmetry(tree, symmetryState);
     if (!resolved.ok) {
-      return { mode: 'unusable' as const, reason: resolved.reason };
+      return { mode: 'unusable' as const, reason: symmetryProblemLabel(t, resolved.problem) };
     }
     return { mode: 'ready' as const, inconsistent: resolved.inconsistentPairs.length };
-  }, [symmetryState, tree]);
+  }, [symmetryState, tree, t]);
 
   useEffect(() => {
     if (!isOpen) return;

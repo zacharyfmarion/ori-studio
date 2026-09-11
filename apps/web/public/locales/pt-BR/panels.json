@@ -64,6 +64,9 @@
     "nudgeRight": "Deslocar seleção BP para a direita",
     "nudgeUp": "Deslocar seleção BP para cima",
     "onlyOnePattern": "Apenas um padrão",
+    "pair": "Emparelhar com o espelho",
+    "pairAll": "Emparelhar tudo que é simétrico",
+    "pairAllNone": "Nenhuma aba sem par tem outra em frente.",
     "pattern": "Padrão",
     "patternNotFound": "Padrão não encontrado",
     "patternNotFoundFor": "Sem padrão de vincos para {{flaps}}",
@@ -110,6 +113,11 @@
     "fold": {
       "book": "Dobra de livro",
       "diagonal": "Dobra diagonal"
+    },
+    "problem": {
+      "axisOffCentre": "O eixo de simetria precisa passar pelo centro da folha para que o otimizador mantenha a folha simétrica.",
+      "notAMirror": "O emparelhamento não é um espelho: algumas abas não formam par entre si. Cada aba precisa formar par com exatamente uma outra aba, ou consigo mesma sobre o eixo.",
+      "unpaired": "Nada está emparelhado com {{names}}. Selecione e escolha Emparelhar com o espelho, use Emparelhar tudo que é simétrico, desenhe com o desenho espelhado ligado ou mova para a linha do espelho."
     }
   },
   "bpTree": {
@@ -125,6 +133,8 @@
     "length": "Comprimento",
     "mirrorDraw": "Desenho espelhado",
     "mirrorDrawOn": "Desenho espelhado (ativado)",
+    "pair": "Emparelhar com o espelho",
+    "pairAll": "Emparelhar tudo que é simétrico",
     "selectEdge": "Selecionar aresta BP {{id}}, comprimento {{length}}",
     "selectLeafVertex": "Selecionar vértice folha BP {{id}}",
     "selectLeafVertexWithLabel": "Selecionar vértice folha BP {{id}}, {{label}}",
@@ -687,6 +697,8 @@
     "noResultsYetTitle": "Ainda sem resultados",
     "openInExplori": "Abrir no ExplOri",
     "openResult": "Abrir o resultado {{id}}",
+    "pair": "Vincular ao espelho",
+    "pairAll": "Vincular tudo que é simétrico",
     "previousResult": "Resultado anterior",
     "qualityAcceptable": "Correspondência aceitável",
     "qualityGood": "Boa correspondência",
@@ -940,7 +952,8 @@
   "treeEditor": {
     "contextMenu": {
       "addLeaf": "Adicionar folha aqui",
-      "deselect": "Desmarcar tudo"
+      "deselect": "Desmarcar tudo",
+      "pairAllNone": "Nenhum nó sem par tem outro em frente."
     }
   }
 }

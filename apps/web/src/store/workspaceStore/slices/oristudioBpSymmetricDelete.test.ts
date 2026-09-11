@@ -87,7 +87,9 @@ function setUp(symmetry: { enabled: boolean; pairs?: { v1: number; v2: number }[
         fold: 'book',
         quarterTurn: false,
         sidesSwapped: false,
-        pairs: symmetry.pairs ?? [],
+        // The fixture's mirrored pair, declared: a pair exists because the user made
+        // one, and nothing pairs vertices by where they sit.
+        pairs: symmetry.pairs ?? [{ v1: 1, v2: 2 }],
       }
       })},
     true
@@ -123,7 +125,7 @@ describe('deleteOristudioBpTreeNode under symmetry', () => {
     expect(deletedIds()).toEqual([2, 1]);
   });
 
-  it('honours an explicit pair over the geometric guess', async () => {
+  it('follows the explicit pair, not the vertex at the reflected spot', async () => {
     setUp({ enabled: true, pairs: [{ v1: 1, v2: 3 }] });
     await useWorkspaceStore.getState().deleteOristudioBpTreeNode(1);
     expect(deletedIds()).toEqual([1, 3]);
@@ -139,6 +141,15 @@ describe('deleteOristudioBpTreeNode under symmetry', () => {
     setUp({ enabled: true });
     await useWorkspaceStore.getState().deleteOristudioBpTreeNode(3);
     expect(deletedIds()).toEqual([3]);
+  });
+
+  it('deletes one node once the pair is broken', async () => {
+    // Unpair moves nothing, so 1 and 2 are still reflections of each other. A
+    // pair exists because the user made one, not because of where two nodes sit.
+    setUp({ enabled: true, pairs: [{ v1: 1, v2: 2 }] });
+    useWorkspaceStore.getState().unpairOristudioBpTreeSymmetry(1);
+    await useWorkspaceStore.getState().deleteOristudioBpTreeNode(1);
+    expect(deletedIds()).toEqual([1]);
   });
 
   /**

@@ -8402,8 +8402,10 @@ describe('workspace store slices', () => {
       await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
       const document = selectOristudioBpDocument(useWorkspaceStore.getState())!;
       const tree = document.snapshot.tree;
-      // A leaf that is neither on the mirror line nor opposite another one has
-      // no mirror to give, so the run must say so rather than quietly drop it.
+      // The starter tree's two leaves are paired, as mirror draw would have left
+      // them; the stray one has no pair and is not on the mirror line, so it has
+      // no mirror to give and the run must say so rather than quietly drop it.
+      const leaves = tree.vertices.filter((vertex) => vertex.isLeaf).map((vertex) => vertex.id);
       useWorkspaceStore.setState({
       ...singleBoxPleatDesignTab({
         document: {
@@ -8426,7 +8428,7 @@ describe('workspace store slices', () => {
           sidesSwapped: false,
           angle: 90,
           loc: { x: tree.sheet.width / 2, y: tree.sheet.height / 2 },
-          pairs: [],
+          pairs: [{ v1: Math.min(leaves[0], leaves[1]), v2: Math.max(leaves[0], leaves[1]) }],
         }
       }),} as never);
 
@@ -8441,7 +8443,9 @@ describe('workspace store slices', () => {
       ).resolves.toBe('failed');
 
       expect(bpMocks.optimizeOristudioBpLayout).not.toHaveBeenCalled();
-      expect(useWorkspaceStore.getState().oristudioBpError).toMatch(/mirrors/i);
+      // Names the flap, and the verbs that would pair it.
+      expect(useWorkspaceStore.getState().oristudioBpError).toContain('Nothing is paired with stray');
+      expect(useWorkspaceStore.getState().oristudioBpError).toContain('Pair with mirror');
     });
 
     it('mirrors in random mode too, since that discards the packing not the tree', async () => {

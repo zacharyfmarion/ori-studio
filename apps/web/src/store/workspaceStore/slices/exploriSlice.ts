@@ -1,4 +1,11 @@
-import { ANALYTICS_EVENTS, bucketCount, COUNT_BUCKETS, DURATION_MS_BUCKETS, track } from '../../../analytics';
+import {
+  ANALYTICS_EVENTS,
+  bucketCount,
+  COUNT_BUCKETS,
+  DURATION_MS_BUCKETS,
+  track,
+  trackSymmetryPairChanged,
+} from '../../../analytics';
 import { designKind } from '../../../designKinds';
 import { acquireDesignHandle } from '../../../engines/designHandles';
 import { useLayoutStore } from '../../layoutStore';
@@ -20,6 +27,8 @@ import {
   EXPLORI_SYMMETRY_AXIS,
   addExploriPair,
   exploriLeafPlacement,
+  inferExploriPairs,
+  inferExploriPartner,
   mirrorExploriNodeId,
   removeExploriPair,
 } from '../../../explori/symmetry';
@@ -383,10 +392,43 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
 
     unpairExploriNode: async (nodeId: number) => {
       const designId = get().activeDesignId;
-      return edit(designId, (document) => ({
-        ...document,
-        symmetry: { ...document.symmetry, pairs: removeExploriPair(document.symmetry.pairs, nodeId) },
-      }));
+      return edit(designId, (document) => {
+        const pairs = removeExploriPair(document.symmetry.pairs, nodeId);
+        if (pairs.length === document.symmetry.pairs.length) return null;
+        trackSymmetryPairChanged({ designKind: 'explori', action: 'unpair', pairCount: 1 });
+        return { ...document, symmetry: { ...document.symmetry, pairs } };
+      });
+    },
+
+    pairExploriNode: async (nodeId: number) => {
+      const designId = get().activeDesignId;
+      return edit(designId, (document) => {
+        const partner = inferExploriPartner(document, nodeId);
+        if (partner === null) return null;
+        trackSymmetryPairChanged({ designKind: 'explori', action: 'pair', pairCount: 1 });
+        return {
+          ...document,
+          symmetry: {
+            ...document.symmetry,
+            pairs: addExploriPair(document.symmetry.pairs, nodeId, partner),
+          },
+        };
+      });
+    },
+
+    pairAllExploriNodes: async () => {
+      const designId = get().activeDesignId;
+      return edit(designId, (document) => {
+        const pairs = inferExploriPairs(document);
+        // Same array back means nothing paired; the helper promises that identity.
+        if (pairs === document.symmetry.pairs) return null;
+        trackSymmetryPairChanged({
+          designKind: 'explori',
+          action: 'pair_all',
+          pairCount: pairs.length - document.symmetry.pairs.length,
+        });
+        return { ...document, symmetry: { ...document.symmetry, pairs } };
+      });
     },
 
     setExploriDbConfigs: async (dbConfigs: ExploriDbConfig[]) => {

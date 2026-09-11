@@ -108,7 +108,9 @@ function setUp(options: {
           fold: options.fold ?? 'book',
           quarterTurn: false,
           sidesSwapped: false,
-          pairs: options.pairs ?? [],
+          // The fixture's mirrored pair, declared: a pair exists because the user made
+          // one, and nothing pairs vertices by where they sit.
+          pairs: options.pairs ?? [{ v1: 1, v2: 2 }],
         },
       }),
     },
@@ -165,7 +167,7 @@ describe('reshapeOristudioBpFlap', () => {
     expect(reshape.radius).toBe(5);
   });
 
-  it('honours an explicit pair over the geometric guess', async () => {
+  it('follows the explicit pair, not the vertex at the reflected spot', async () => {
     setUp({ pairs: [{ v1: 1, v2: 3 }] });
     await useWorkspaceStore.getState().reshapeOristudioBpFlap(1, FOOTPRINT, true);
     expect(reshapes().map(([id]) => id)).toEqual([1, 3]);
@@ -175,6 +177,15 @@ describe('reshapeOristudioBpFlap', () => {
     setUp();
     await useWorkspaceStore.getState().reshapeOristudioBpFlap(3, FOOTPRINT, true);
     expect(reshapes().map(([id]) => id)).toEqual([3]);
+  });
+
+  it('reshapes one flap once the pair is broken', async () => {
+    // Unpair moves nothing, so 1 and 2 are still reflections of each other. A
+    // pair exists because the user made one, not because of where two flaps sit.
+    setUp({ pairs: [{ v1: 1, v2: 2 }] });
+    useWorkspaceStore.getState().unpairOristudioBpTreeSymmetry(1);
+    await useWorkspaceStore.getState().reshapeOristudioBpFlap(1, FOOTPRINT, true);
+    expect(reshapes().map(([id]) => id)).toEqual([1]);
   });
 
   it('leaves the tree drawing alone mid-drag and corrects it on release', async () => {

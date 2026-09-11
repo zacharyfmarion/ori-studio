@@ -1,4 +1,4 @@
-import { Tag, Unlink } from 'lucide-react';
+import { Link, Link2, Tag, Unlink } from 'lucide-react';
 import {
   ViewportToolbar,
   viewportLayerItems,
@@ -22,6 +22,8 @@ export function TreeEditorToolbar({
   symmetry,
   canUnpair,
   onUnpair,
+  canPair,
+  onPair,
   zoomIn,
   zoomOut,
   fitToView,
@@ -34,6 +36,9 @@ export function TreeEditorToolbar({
   symmetry: TreeSymmetryHost | null;
   canUnpair: boolean;
   onUnpair: () => void;
+  /** The same slot as Unpair — one verb or the other, never both. */
+  canPair: boolean;
+  onPair: () => void;
   zoomIn: () => void;
   zoomOut: () => void;
   fitToView: () => void;
@@ -57,6 +62,28 @@ export function TreeEditorToolbar({
                 label: copy.unpair,
                 icon: <Unlink size={14} />,
                 onSelect: onUnpair,
+              },
+              !canUnpair &&
+                canPair && {
+                  kind: 'action' as const,
+                  id: 'pair',
+                  label: copy.pair,
+                  icon: <Link size={14} />,
+                  onSelect: onPair,
+                },
+              // Always present, so the verb is discoverable; disabled with the
+              // reason when nothing would pair. The tooltip carries the count.
+              {
+                kind: 'action' as const,
+                id: 'pair-all',
+                label: copy.pairAll,
+                title:
+                  symmetry.pairAllCount === 0
+                    ? copy.pairAllNone
+                    : `${copy.pairAll} (${symmetry.pairAllCount})`,
+                icon: <Link2 size={14} />,
+                disabled: symmetry.pairAllCount === 0,
+                onSelect: symmetry.pairAll,
               },
             ],
           },

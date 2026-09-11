@@ -35,7 +35,12 @@ export interface UseBpPackingContextMenuOptions {
   canNudge: (direction: BpPackingNudgeDirection) => boolean;
   /** Move the selection one unit; returns whether anything actually moved. */
   nudge: (direction: BpPackingNudgeDirection) => boolean;
-  symmetry: { unpairableId: number | null; unpair: (id: number) => void };
+  symmetry: {
+    unpairableId: number | null;
+    unpair: (id: number) => void;
+    pairableId: number | null;
+    pair: (id: number) => void;
+  };
 }
 
 export interface BpPackingContextMenu {
@@ -100,6 +105,8 @@ export function useBpPackingContextMenu(
             nudge: (direction) => void nudge(direction),
             unpairableId: symmetry.unpairableId,
             unpair: symmetry.unpair,
+            pairableId: symmetry.pairableId,
+            pair: symmetry.pair,
           }),
       });
     },

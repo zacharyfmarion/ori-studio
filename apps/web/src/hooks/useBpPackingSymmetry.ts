@@ -7,11 +7,14 @@ import {
   BP_TREE_SYMMETRY_ANGLE,
   bpTreeSymmetryDefaultLoc,
   explicitBpTreePairId,
+  inferBpTreeSymmetryPairs,
+  inferBpTreeSymmetryPartner,
   mirrorBpTreeVertexId,
   type BpMirrorOrientation,
   type SymmetryFold,
 } from '../lib/bpTreeSymmetry';
 import { resolveOptimizerSymmetry } from '../lib/bpOptimizerSymmetry';
+import { symmetryProblemLabel } from '../lib/bpSymmetryLabels';
 import {
   bpPackingSheetCenter,
   bpPackingSheetSupportsAxis,
@@ -99,9 +102,18 @@ export interface BpPackingSymmetryView {
   mirrorSideGuard:
     | ((flap: OristudioBpFlap, candidate: BpFlapFootprintLike) => boolean)
     | null;
-  /** The selected flap's explicit partner, if any. Null means nothing to unpair. */
+  /** The selected flap, when it has a pair to break. Null means nothing to unpair. */
   unpairableId: number | null;
   unpair: (vertexId: number) => void;
+  /**
+   * The selected flap, when it is unpaired and an unpaired flap sits at its
+   * reflection. The same slot as `unpairableId`, never both.
+   */
+  pairableId: number | null;
+  pair: (vertexId: number) => void;
+  /** How many pairs Pair all mirrored would make; the row is disabled at zero. */
+  pairAllCount: number;
+  pairAll: () => void;
 }
 
 function foldStatus(
@@ -110,7 +122,7 @@ function foldStatus(
   symmetry: Parameters<typeof resolveOptimizerSymmetry>[1]
 ): string {
   const resolved = resolveOptimizerSymmetry(tree, symmetry);
-  if (!resolved.ok) return resolved.reason;
+  if (!resolved.ok) return symmetryProblemLabel(t, resolved.problem);
   if (resolved.inconsistentPairs.length > 0) {
     return t(
       'panels:bpPacking.symmetryInconsistent',
@@ -161,6 +173,12 @@ export function useBpPackingSymmetry(
   const setOristudioBpSymmetry = useWorkspaceStore((state) => state.setOristudioBpSymmetry);
   const unpairOristudioBpTreeSymmetry = useWorkspaceStore(
     (state) => state.unpairOristudioBpTreeSymmetry
+  );
+  const pairOristudioBpTreeSymmetry = useWorkspaceStore(
+    (state) => state.pairOristudioBpTreeSymmetry
+  );
+  const pairAllOristudioBpTreeSymmetry = useWorkspaceStore(
+    (state) => state.pairAllOristudioBpTreeSymmetry
   );
 
   // Enabling rebuilds the tree-space axis from the tree sheet, exactly as the
@@ -229,6 +247,20 @@ export function useBpPackingSymmetry(
     return explicitBpTreePairId(symmetry.pairs, id) === null ? null : id;
   }, [symmetry.pairs, selectedFlapIds]);
 
+  // A flap is its tree leaf, so what it could pair with is read off the tree:
+  // position proposes a pair here, as an offer, and nowhere else.
+  const pairableId = useMemo(() => {
+    if (selectedFlapIds.length !== 1) return null;
+    const id = selectedFlapIds[0];
+    if (explicitBpTreePairId(symmetry.pairs, id) !== null) return null;
+    return inferBpTreeSymmetryPartner(tree, symmetry.pairs, treeAxis, id) === null ? null : id;
+  }, [symmetry.pairs, selectedFlapIds, tree, treeAxis]);
+
+  const pairAllCount = useMemo(
+    () => inferBpTreeSymmetryPairs(tree, symmetry.pairs, treeAxis).length - symmetry.pairs.length,
+    [tree, symmetry.pairs, treeAxis]
+  );
+
   // Gated on mirror draw, unlike the partner mark above, and for the reason the
   // store's own `bpIsSelfMirrored` gives: a *pair* is a fact the user recorded
   // and outlives the toggle, while sitting on the line never is.
@@ -271,5 +303,9 @@ export function useBpPackingSymmetry(
     mirrorSideGuard,
     unpairableId,
     unpair: unpairOristudioBpTreeSymmetry,
+    pairableId,
+    pair: pairOristudioBpTreeSymmetry,
+    pairAllCount,
+    pairAll: pairAllOristudioBpTreeSymmetry,
   };
 }

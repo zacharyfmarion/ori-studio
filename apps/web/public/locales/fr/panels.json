@@ -64,6 +64,9 @@
     "nudgeRight": "Déplacer la sélection BP vers la droite",
     "nudgeUp": "Déplacer la sélection BP vers le haut",
     "onlyOnePattern": "Un seul motif",
+    "pair": "Associer au miroir",
+    "pairAll": "Associer tout ce qui est en miroir",
+    "pairAllNone": "Aucun rabat non associé n'en a un en face.",
     "pattern": "Motif",
     "patternNotFound": "Motif introuvable",
     "patternNotFoundFor": "Aucun motif de plis pour {{flaps}}",
@@ -110,6 +113,11 @@
     "fold": {
       "book": "Pli livre",
       "diagonal": "Pli diagonal"
+    },
+    "problem": {
+      "axisOffCentre": "L'axe de symétrie doit passer par le centre de la feuille pour que l'optimiseur garde la feuille symétrique.",
+      "notAMirror": "L'association n'est pas un miroir\u00a0: certains rabats ne sont pas associés réciproquement. Chaque rabat doit être associé à exactement un autre rabat, ou à lui-même sur l'axe.",
+      "unpaired": "Rien n'est associé à {{names}}. Sélectionnez-le et choisissez Associer au miroir, utilisez Associer tout ce qui est en miroir, dessinez-le avec le dessin en miroir activé, ou déplacez-le sur la ligne du miroir."
     }
   },
   "bpTree": {
@@ -125,6 +133,8 @@
     "length": "Longueur",
     "mirrorDraw": "Dessin en miroir",
     "mirrorDrawOn": "Dessin en miroir (activé)",
+    "pair": "Associer au miroir",
+    "pairAll": "Associer tout ce qui est en miroir",
     "selectEdge": "Sélectionner l'arête BP {{id}}, longueur {{length}}",
     "selectLeafVertex": "Sélectionner le sommet feuille BP {{id}}",
     "selectLeafVertexWithLabel": "Sélectionner le sommet feuille BP {{id}}, {{label}}",
@@ -687,6 +697,8 @@
     "noResultsYetTitle": "Pas encore de résultats",
     "openInExplori": "Ouvrir dans ExplOri",
     "openResult": "Ouvrir le résultat {{id}}",
+    "pair": "Associer au miroir",
+    "pairAll": "Associer tout ce qui est en miroir",
     "previousResult": "Résultat précédent",
     "qualityAcceptable": "Correspondance acceptable",
     "qualityGood": "Bonne correspondance",
@@ -940,7 +952,8 @@
   "treeEditor": {
     "contextMenu": {
       "addLeaf": "Ajouter une feuille ici",
-      "deselect": "Tout désélectionner"
+      "deselect": "Tout désélectionner",
+      "pairAllNone": "Aucun nœud non associé n'en a un en face."
     }
   }
 }
