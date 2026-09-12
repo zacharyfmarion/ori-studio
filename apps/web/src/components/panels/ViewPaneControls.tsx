@@ -107,7 +107,10 @@ export function ViewPaneToggleRow({
       <span className="control-row__label">
         {label}
         {help && (
-          <Tooltip>
+          // Prompt, unlike a toolbar's tooltips: nobody sweeps past an info
+          // mark by accident, and the provider's 700 ms reads as nothing
+          // happening.
+          <Tooltip delayDuration={150}>
             <TooltipTrigger asChild>
               <button type="button" className="control-row__help" aria-label={help}>
                 <Info size={13} aria-hidden="true" />
