@@ -12,6 +12,7 @@ import type {
   PrecreaseFoldOutcome,
   PrecreasePlannerInfo,
   PrecreaseSequence,
+  PrecreaseStep,
   PrecreaseStuckSummary,
 } from './precreaseSequence';
 
@@ -361,6 +362,52 @@ describe.skipIf(!available)('runPrecreasePlan over the real planner bridge', () 
       sequence.totals.grid_unwanted_length
     );
   }, 120_000);
+
+  // Every CP step's crease crosses the bridge as one run holding the
+  // pattern's pieces, with the reach length that cost; asked not to reach,
+  // the plan sends the pieces as they are and no reach at all.
+  it('makes each CP step’s crease one run from reference to reference, and the pieces when asked', async () => {
+    const { result } = await plan('iguana-c0.fold');
+    const { sequence } = result;
+    const along = (step: PrecreaseStep, p: [number, number]) =>
+      (p[0] - step.segment[0][0]) * (step.segment[1][0] - step.segment[0][0]) +
+      (p[1] - step.segment[0][1]) * (step.segment[1][1] - step.segment[0][1]);
+    const cp = sequence.steps.filter((step) => step.kind === 'cp' && step.cp_spans.length > 0);
+    expect(cp.length).toBeGreaterThan(0);
+    for (const step of cp) {
+      expect(step.made).toHaveLength(1);
+      const [u, v] = [along(step, step.made[0]![0]), along(step, step.made[0]![1])].sort(
+        (a, b) => a - b
+      );
+      for (const span of step.cp_spans) {
+        for (const end of span) {
+          expect(along(step, end)).toBeGreaterThanOrEqual(u - 1e-9);
+          expect(along(step, end)).toBeLessThanOrEqual(v + 1e-9);
+        }
+      }
+    }
+    for (const step of sequence.steps.filter((step) => step.kind !== 'cp')) {
+      expect(step.made).toEqual([]);
+    }
+    expect(sequence.totals.reach_length).toBeGreaterThan(0);
+    // Line by line — the grid makes most of the iguana's lines — with and
+    // without the rule: the pieces come back, and the presses with them.
+    const { result: reached } = await plan(
+      'iguana-c0.fold',
+      0,
+      JSON.stringify({ precrease_grid: false })
+    );
+    const { result: plain } = await plan(
+      'iguana-c0.fold',
+      0,
+      JSON.stringify({ precrease_grid: false, reach_references: false })
+    );
+    expect(plain.sequence.totals.reach_length).toBeLessThan(1e-9);
+    expect(
+      plain.sequence.steps.some((step) => step.kind === 'cp' && (step.made?.length ?? 0) > 1)
+    ).toBe(true);
+    expect(plain.sequence.totals.presses).toBeGreaterThan(reached.sequence.totals.presses ?? 0);
+  }, 180_000);
 
   it('plans the iguana component 0 with the auxiliary count the manifest records', async () => {
     const { result, wallMs } = await plan('iguana-c0.fold');

@@ -1409,6 +1409,15 @@ export interface ReferencesSettings {
    * re-plans (`implementation-plans/precrease-grid-where-needed.md`).
    */
   gridWhereNeeded: boolean;
+  /**
+   * Make each step's crease one run from reference to reference — the
+   * pattern's pieces joined, each end carried out to the nearest edge or
+   * crease the folder can find — rather than exactly the pattern's pieces,
+   * which stop wherever the design stops needing them. On by default: it is
+   * how a diagram instructs a fold. Changes the plan, so toggling it re-plans
+   * (`implementation-plans/precrease-reach-references.md`).
+   */
+  reachReferences: boolean;
 }
 
 /** How the exactness policy classified the component being planned (D8). */
@@ -1479,6 +1488,12 @@ export interface ReferencesPlanSummary {
    * units — what a grid made only where it is needed exists to lower.
    */
   gridUnwantedLength: number;
+  /**
+   * Crease the steps made past the pattern's own to be made from reference
+   * to reference, in sheet units — the cost of the "Crease to references"
+   * setting.
+   */
+  reachLength: number;
   exactnessClass: ReferencesExactnessClass | null;
   /** Snappable only: the largest distance a line moved, in model units. */
   maxDisplacementModel: number;

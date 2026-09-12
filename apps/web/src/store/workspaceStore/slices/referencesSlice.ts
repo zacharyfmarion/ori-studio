@@ -21,6 +21,7 @@ export const DEFAULT_REFERENCES_SETTINGS: ReferencesSettings = {
   startFromPlan: false,
   precreaseGrid: true,
   gridWhereNeeded: true,
+  reachReferences: true,
 };
 
 /** The candidate counts the settings popover offers. */

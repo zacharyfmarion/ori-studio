@@ -907,6 +907,7 @@
       "includeApproximate": "近似解も含める",
       "landmarksFirst": "目印を先に",
       "precreaseGrid": "グリッドを先に折る",
+      "reachReferences": "参照点まで折り筋をつける",
       "sequence": "折り手順",
       "showPinches": "つまみ折りを表示",
       "startFromPlan": "この手順から始める",

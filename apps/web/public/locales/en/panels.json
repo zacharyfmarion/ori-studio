@@ -947,6 +947,7 @@
       "includeApproximate": "Include approximate solutions",
       "landmarksFirst": "Landmarks first",
       "precreaseGrid": "Precrease grid",
+      "reachReferences": "Crease to references",
       "sequence": "Folding sequence",
       "showPinches": "Show pinches",
       "startFromPlan": "Start from this sequence",

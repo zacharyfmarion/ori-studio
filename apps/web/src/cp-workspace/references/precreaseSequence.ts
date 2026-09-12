@@ -384,6 +384,16 @@ export interface PrecreaseStep {
    * own. Empty for most steps.
    */
   pressed_on: PrecreasePlanSegment[];
+  /**
+   * The crease this step leaves on its line, in the planner's unit frame: the
+   * pattern's pieces joined into one run, each end carried outward to the
+   * reference it stops at — the sheet's edge, or a crease already there — so
+   * the folder is never told to stop on blank paper. Every one of `cp_spans`
+   * lies within it. Empty for an auxiliary step, a press, a CP line creased
+   * along its whole chord, and any plan from before the planner reached for
+   * references — the pattern's own pieces are then all there is to draw.
+   */
+  made: PrecreasePlanSegment[];
   hoisted: boolean;
 }
 
@@ -435,6 +445,13 @@ export interface PrecreaseTotals {
    * "what correctness cost" never blur. Absent from plans older than this.
    */
   presses?: number;
+  /**
+   * Crease the CP steps make past the pattern's own to be made from reference
+   * to reference (`made` less `cp_spans`), in sheet units: the blank between
+   * a line's pieces, and the stretch from the pattern's end out to the
+   * reference the crease stops at. Absent from plans older than this.
+   */
+  reach_length?: number;
   /** The exact lower bound within the flat-sheet model. */
   lower_bound: number;
   free_lines: number;
@@ -623,6 +640,13 @@ export interface PrecreasePlannerOptions {
    * finest grid edge to edge. The crate's default is on.
    */
   grid_where_needed?: boolean;
+  /**
+   * Make each CP step's crease one run from reference to reference — the
+   * pattern's pieces joined, each end carried out to the nearest edge or
+   * crease the folder can find — rather than exactly the pattern's pieces.
+   * The crate's default is on.
+   */
+  reach_references?: boolean;
 }
 
 /** Values per remaining line in `remaining()`: `nx, ny, d, ax, ay, bx, by`. */

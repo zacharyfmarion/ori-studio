@@ -409,8 +409,10 @@ export const ANALYTICS_EVENTS = {
    * `mixed_steps_bucket`, `duration_bucket`, `exactness_class`, `grid_kind`
    * (`box` / `hex` / `none` — whether the plan opened with a precrease grid),
    * `grid_lines_bucket`, `grid_steps_bucket`, `grid_unwanted_bucket` (crease
-   * the grid put where the pattern has none, in tenths of a sheet-length)
-   * and, on a refusal, `refusal_reason`. Never a fold
+   * the grid put where the pattern has none, in tenths of a sheet-length),
+   * `reach_bucket` (crease the steps made past the pattern's own to run from
+   * reference to reference, likewise) and, on a refusal, `refusal_reason`.
+   * Never a fold
    * count, a line, a coordinate or anything else derived from the user's
    * geometry — the shape of a design is the design.
    */

@@ -288,6 +288,7 @@ function summaryOf(record: ReferencesPlanRecord): ReferencesPlanSummary | null {
     gridCpLines: first.result.sequence.totals.grid_cp_lines,
     gridSteps: grid?.steps ?? 0,
     gridUnwantedLength: first.result.sequence.totals.grid_unwanted_length ?? 0,
+    reachLength: first.result.sequence.totals.reach_length ?? 0,
     exactnessClass,
     maxDisplacementModel,
     durationMs: record.durationMs,
@@ -327,6 +328,9 @@ export function useReferencesBreakdown(
   const precreaseGrid = useWorkspaceStore((state) => state.referencesSettings.precreaseGrid);
   const gridWhereNeeded = useWorkspaceStore(
     (state) => state.referencesSettings.gridWhereNeeded
+  );
+  const reachReferences = useWorkspaceStore(
+    (state) => state.referencesSettings.reachReferences
   );
   // `referencesPlan` is one slot for a whole document, cleared on every sheet
   // switch, and nothing here reads it: the record says which sheet has a plan,
@@ -373,6 +377,7 @@ export function useReferencesBreakdown(
     selectedSheet,
     precreaseGrid,
     gridWhereNeeded,
+    reachReferences,
   });
   useEffect(() => {
     latest.current = {
@@ -382,6 +387,7 @@ export function useReferencesBreakdown(
       selectedSheet,
       precreaseGrid,
       gridWhereNeeded,
+      reachReferences,
     };
   });
   const abortRef = useRef<AbortController | null>(null);
@@ -417,9 +423,10 @@ export function useReferencesBreakdown(
       budgetMs: number,
       /**
        * Open a pleated design with its grid pleated, and only where it is
-       * needed (`referencesSettings.precreaseGrid` / `gridWhereNeeded`).
+       * needed (`referencesSettings.precreaseGrid` / `gridWhereNeeded`); make
+       * each fold from reference to reference (`reachReferences`).
        */
-      grid: { precreaseGrid: boolean; gridWhereNeeded: boolean },
+      grid: { precreaseGrid: boolean; gridWhereNeeded: boolean; reachReferences: boolean },
       onProgress: (progress: PrecreasePlanProgress) => void
     ): Promise<
       (ReferencesPlanComponent & { token: number }) | { refusedKind: PrecreaseRefusalKind | null }
@@ -432,6 +439,7 @@ export function useReferencesBreakdown(
           total_budget_ms: budgetMs,
           precrease_grid: grid.precreaseGrid,
           grid_where_needed: grid.gridWhereNeeded,
+          reach_references: grid.reachReferences,
         },
         paperFallbackRect()
       );
@@ -505,6 +513,7 @@ export function useReferencesBreakdown(
     const grid = {
       precreaseGrid: current.precreaseGrid,
       gridWhereNeeded: current.gridWhereNeeded,
+      reachReferences: current.reachReferences,
     };
 
     void (async () => {
@@ -568,6 +577,7 @@ export function useReferencesBreakdown(
         plannerToken: planned.length === 1 ? (lastToken ?? null) : null,
         precreaseGrid: grid.precreaseGrid,
         gridWhereNeeded: grid.gridWhereNeeded,
+        reachReferences: grid.reachReferences,
       };
       setReferencesPlanRecord(record);
       const nextSummary = summaryOf(record);
@@ -676,13 +686,14 @@ export function useReferencesBreakdown(
     // a plan made under either value of it is the plan wanted.
     if (
       record.precreaseGrid === precreaseGrid &&
-      (!precreaseGrid || record.gridWhereNeeded === gridWhereNeeded)
+      (!precreaseGrid || record.gridWhereNeeded === gridWhereNeeded) &&
+      record.reachReferences === reachReferences
     ) {
       return;
     }
     if (targeted || referencesRunSnapshot().running) return;
     run();
-  }, [precreaseGrid, gridWhereNeeded, record, run, targeted]);
+  }, [precreaseGrid, gridWhereNeeded, reachReferences, record, run, targeted]);
 
   const landmarksFirst = viewState.landmarksFirst;
   const variants = useMemo<ReferencesPlanVariant[]>(
@@ -815,6 +826,10 @@ function trackPlan(
       Math.round(summary.gridUnwantedLength * 10),
       COUNT_BUCKETS
     ),
+    // How much crease the steps made past the pattern's own to run from
+    // reference to reference, in tenths of a sheet-length: the cost of
+    // "Crease to references", so its worth is measurable in the field.
+    reach_bucket: bucketCount(Math.round(summary.reachLength * 10), COUNT_BUCKETS),
   };
   if (aborted) {
     track(ANALYTICS_EVENTS.foldingStepsCancelled, properties);

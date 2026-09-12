@@ -134,6 +134,52 @@ describe('the model frame', () => {
     }
   });
 
+  // The crease a step made is a stretch of the same chord, recovered the
+  // same way — and it is the pattern's own pieces when the plan did not reach.
+  it('recovers what a step made along its chord, and falls back to the pieces', () => {
+    const reached = {
+      ...sequence,
+      steps: sequence.steps.map((step, i) =>
+        i === 1
+          ? {
+              ...step,
+              cp_spans: [
+                [
+                  [0.25, 0.2],
+                  [0.25, 0.4],
+                ],
+              ] as [[number, number], [number, number]][],
+              made: [
+                [
+                  [0.25, 0],
+                  [0.25, 0.7],
+                ],
+              ] as [[number, number], [number, number]][],
+            }
+          : step
+      ),
+    };
+    const frame = modelFrame(reached, decodePlanModel(reached, mapToModel(planModelPoints(reached))));
+    const [run] = frame.made(reached.steps[1]);
+    expect(run).toBeDefined();
+    for (const [end, want] of [
+      [run![0], [0.25, 0]],
+      [run![1], [0.25, 0.7]],
+    ] as const) {
+      const [x, y] = image(want);
+      expect(end.x).toBeCloseTo(x, 9);
+      expect(end.y).toBeCloseTo(y, 9);
+    }
+    // Every other step has no `made`, so its pieces are what it made.
+    expect(frame.made(reached.steps[0])).toEqual(frame.creases(reached.steps[0]));
+    expect(unitFrame(reached).made(reached.steps[1])).toEqual([
+      [
+        { x: 0.25, y: 0 },
+        { x: 0.25, y: 0.7 },
+      ],
+    ]);
+  });
+
   it('measures the paper and finds its middle under a rotation', () => {
     expect(model.sheet.width).toBeCloseTo(SCALE, 9);
     expect(model.sheet.height).toBeCloseTo(SCALE, 9);

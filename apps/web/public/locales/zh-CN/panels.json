@@ -907,6 +907,7 @@
       "includeApproximate": "包含近似解",
       "landmarksFirst": "先做基准点",
       "precreaseGrid": "预折网格",
+      "reachReferences": "折痕延伸至参照",
       "sequence": "折叠顺序",
       "showPinches": "显示捏折",
       "startFromPlan": "从此顺序开始",

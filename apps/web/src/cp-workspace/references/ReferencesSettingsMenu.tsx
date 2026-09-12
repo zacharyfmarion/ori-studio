@@ -157,6 +157,20 @@ export function ReferencesSettingsMenu({
           </DropdownMenu.CheckboxItem>
           <DropdownMenu.CheckboxItem
             className="context-menu__item"
+            checked={settings.reachReferences}
+            onCheckedChange={(checked) => onChange({ reachReferences: checked === true })}
+          >
+            <span className="context-menu__icon">
+              <DropdownMenu.ItemIndicator>
+                <Check size={12} />
+              </DropdownMenu.ItemIndicator>
+            </span>
+            <span className="context-menu__label">
+              {t('panels:references.settings.reachReferences', 'Crease to references')}
+            </span>
+          </DropdownMenu.CheckboxItem>
+          <DropdownMenu.CheckboxItem
+            className="context-menu__item"
             checked={settings.showPinches}
             onCheckedChange={(checked) => onChange({ showPinches: checked === true })}
           >

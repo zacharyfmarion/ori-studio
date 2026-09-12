@@ -38,6 +38,7 @@ function step(id: number, side: PrecreaseSide): PrecreaseStep {
     missing_marks: [],
     exact: true,
     pressed_on: [],
+    made: [],
     hoisted: false,
   };
 }

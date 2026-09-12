@@ -79,6 +79,13 @@ export interface DiagramFrame {
   pinches(step: PrecreaseStep): readonly DiagramSegment[];
   /** Where the pattern wants creases on a step's chord, or empty. */
   creases(step: PrecreaseStep): readonly DiagramSegment[];
+  /**
+   * The crease a CP step actually makes: the pattern's pieces joined into one
+   * run and carried out to the references it stops at, when the plan reached
+   * for them; the pattern's own pieces (`creases`) otherwise. Empty for a
+   * step whose `extent` says how much of it is made.
+   */
+  made(step: PrecreaseStep): readonly DiagramSegment[];
   /** Crease the step makes past the pattern's own, for a later step to line up against. */
   pressedOn(step: PrecreaseStep): readonly DiagramSegment[];
   /**
@@ -179,6 +186,7 @@ export function unitFrame(
         ? step.extent.spans.map(pair)
         : [],
     creases: (step) => step.cp_spans.map(pair),
+    made: (step) => (step.made?.length ? step.made : step.cp_spans).map(pair),
     pressedOn: (step) => step.pressed_on.map(pair),
     gridLines: (step) =>
       (step.grid?.lines ?? []).map((line) =>
@@ -281,6 +289,25 @@ export function modelFrame(
     width: lengthOf(bottom) || sequence.sheet.width,
     height: lengthOf(left) || sequence.sheet.height,
   };
+  const recoverAlongChord = (
+    step: PrecreaseStep,
+    spans: readonly PrecreasePlanSegment[]
+  ): DiagramSegment[] => {
+    const geometry = at(step);
+    if (!geometry) return [];
+    const [a, b] = [geometry.segment.a, geometry.segment.b];
+    const unit = [
+      { x: step.segment[0][0], y: step.segment[0][1] },
+      { x: step.segment[1][0], y: step.segment[1][1] },
+    ] as const;
+    return spans.map(
+      (span) =>
+        [
+          along(a, b, parameterOf(unit[0], unit[1], span[0])),
+          along(a, b, parameterOf(unit[0], unit[1], span[1])),
+        ] as DiagramSegment
+    );
+  };
 
   return {
     sheet,
@@ -295,26 +322,10 @@ export function modelFrame(
       (options.showPinches ?? true) && step.extent.kind === 'pinches'
         ? (at(step)?.pinches ?? []).map((span) => [span.a, span.b] as DiagramSegment)
         : [],
-    creases: (step) => {
-      const geometry = at(step);
-      if (!geometry) return [];
-      const [a, b] = [geometry.segment.a, geometry.segment.b];
-      return step.cp_spans.map(
-        (span) =>
-          [
-            along(a, b, parameterOf(
-              { x: step.segment[0][0], y: step.segment[0][1] },
-              { x: step.segment[1][0], y: step.segment[1][1] },
-              span[0]
-            )),
-            along(a, b, parameterOf(
-              { x: step.segment[0][0], y: step.segment[0][1] },
-              { x: step.segment[1][0], y: step.segment[1][1] },
-              span[1]
-            )),
-          ] as DiagramSegment
-      );
-    },
+    // A step's spans are recovered along the mapped chord by ratio: they
+    // are stretches of the same line, and the chord is already mapped.
+    creases: (step) => recoverAlongChord(step, step.cp_spans),
+    made: (step) => recoverAlongChord(step, step.made?.length ? step.made : step.cp_spans),
     pressedOn: (step) =>
       (at(step)?.pressedOn ?? []).map((span) => [span.a, span.b] as DiagramSegment),
     gridLines: (step) => {

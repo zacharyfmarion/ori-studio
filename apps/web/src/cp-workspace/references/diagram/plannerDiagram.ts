@@ -647,11 +647,13 @@ export interface PlannerStepDiagramOptions {
 }
 
 /**
- * What a step actually left on the paper: the CP creases it made, the spans it
- * pinched, or — for an auxiliary fold pressed in full — its whole chord. For a
- * grid step, every line of its family, edge to edge.
+ * What a step actually left on the paper: the crease a CP step made — the
+ * pattern's pieces joined and carried to references, or the pieces
+ * themselves when the plan did not reach — the spans it pinched, or, for an
+ * auxiliary fold pressed in full, its whole chord. For a grid step, every
+ * line of its family, edge to edge.
  *
- * Never the whole chord of a CP step. The parts of a fold the pattern does not
+ * Never the whole chord of a CP step. The parts of a fold the step does not
  * crease are not on the paper, and drawing them is the difference between a
  * diagram and a picture of a line.
  */
@@ -664,7 +666,8 @@ function creasedSpans(
   // pattern's creases, out of the crease pattern itself — so of a pleated
   // family what is left to draw is the lines the pattern lacks, and of the
   // lines it has, the stretches it does not crease: the pleat runs edge to
-  // edge whatever the pattern wants of it.
+  // edge whatever the pattern wants of it. Of a CP step's own line, the
+  // same: the stretches it creased that the pattern does not hold.
   if (step.grid) {
     return frame.gridLines(step).flatMap((line) => {
       if (patterned) return line.spans;
@@ -677,7 +680,12 @@ function creasedSpans(
   // drawn either way — as are the pinch and chord cases, by definition.
   const pressedOn = frame.pressedOn(step);
   const creases = frame.creases(step);
-  if (creases.length > 0) return patterned ? [...creases, ...pressedOn] : pressedOn;
+  if (creases.length > 0) {
+    const made = frame.made(step);
+    return patterned
+      ? [...made, ...pressedOn]
+      : [...made.flatMap((span) => uncreased(span, creases)), ...pressedOn];
+  }
   const pinches = frame.pinches(step);
   if (pinches.length > 0) return [...pinches, ...pressedOn];
   const chord = frame.chord(step);
@@ -1015,7 +1023,7 @@ export function plannerStepDiagram(
   const direction = step.direction;
   const made = styleOf(direction, true);
   const pinches = frame.pinches(step);
-  const creases = frame.creases(step);
+  const creases = frame.made(step);
   if (pinches.length > 0) {
     // A pinch is a crease, so it carries its own direction rather than a colour
     // of its own.
@@ -1027,10 +1035,12 @@ export function plannerStepDiagram(
           : 'pinch';
     for (const span of pinches) primitives.push(spanLine(span, pinch));
   } else if (creases.length > 0) {
-    // The pattern only wants creases where its own segments are, so that is all
-    // the picture draws. The rest of the chord used to be shown faintly, to say
-    // the fold still runs the full width — but a crease pattern's line is not
-    // an instruction to crease all of it, and the faint stand-in read as one.
+    // The crease the step makes: the pattern's pieces joined into one run and
+    // carried out to the references it stops at, which is what a diagram
+    // draws — never the bare chord. The rest of the chord used to be shown
+    // faintly, to say the fold still runs the full width, but a crease
+    // pattern's line is not an instruction to crease all of it, and the
+    // faint stand-in read as one.
     for (const span of creases) primitives.push(spanLine(span, made));
   } else if (chord) {
     // An auxiliary fold leaves no crease in the pattern, so the whole chord is

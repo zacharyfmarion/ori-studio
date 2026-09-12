@@ -941,6 +941,7 @@
       "includeApproximate": "Näherungslösungen einbeziehen",
       "landmarksFirst": "Orientierungspunkte zuerst",
       "precreaseGrid": "Raster vorfalten",
+      "reachReferences": "Bis zu Referenzen falten",
       "sequence": "Faltfolge",
       "showPinches": "Kniffe anzeigen",
       "startFromPlan": "Von dieser Folge ausgehen",

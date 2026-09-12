@@ -175,6 +175,86 @@ describe('plannerStepDiagram', () => {
     expect(earlier.some((l) => seg(l, [0.5, 0.5], [0.5, 0.2]))).toBe(true);
   });
 
+  // A fold the pattern holds in pieces is made as one crease, from the
+  // reference each end stops at: `made` is what the folder creases, and the
+  // pieces are only where the pattern's own creases are.
+  it('draws the crease the step makes, not the pattern’s pieces', () => {
+    const seq = directed('unassigned', 'valley');
+    const near = (a: readonly number[], b: readonly number[]) =>
+      Math.hypot(a[0]! - b[0]!, a[1]! - b[1]!) < 1e-9;
+    const seg = (l: Extract<StepDiagramPrimitive, { kind: 'line' }>, a: number[], b: number[]) =>
+      (near(l.from, a) && near(l.to, b)) || (near(l.from, b) && near(l.to, a));
+    const pieces: PrecreasePlanSegment[] = [
+      [
+        [0.25, 0.1],
+        [0.25, 0.3],
+      ],
+      [
+        [0.25, 0.6],
+        [0.25, 0.8],
+      ],
+    ];
+    const whole: PrecreasePlanSegment[] = [
+      [
+        [0.25, 0],
+        [0.25, 1],
+      ],
+    ];
+    const reached = {
+      ...seq,
+      steps: seq.steps.map((s, i) =>
+        i === 1 ? { ...s, extent: { kind: 'full' as const }, cp_spans: pieces, made: whole } : s
+      ),
+    };
+    const own = plannerStepDiagram(reached, unitFrame(reached), 1);
+    const valleys = (own?.primitives ?? []).filter(
+      (p): p is Extract<StepDiagramPrimitive, { kind: 'line' }> =>
+        p.kind === 'line' && p.style === 'valley'
+    );
+    expect(valleys).toHaveLength(1);
+    expect(seg(valleys[0]!, [0.25, 0], [0.25, 1])).toBe(true);
+    // On the next card the whole run is crease already there.
+    const later = plannerStepDiagram(reached, unitFrame(reached), 2);
+    const earlier = (later?.primitives ?? []).filter(
+      (p): p is Extract<StepDiagramPrimitive, { kind: 'line' }> =>
+        p.kind === 'line' && p.style === 'crease'
+    );
+    expect(earlier.some((l) => seg(l, [0.25, 0], [0.25, 1]))).toBe(true);
+    // A surface that draws the pattern's creases itself is left the rest:
+    // the blank the fold creased through, and the stretch out to each edge.
+    const rest = (
+      plannerStepDiagram(reached, unitFrame(reached), 2, { earlier: 'unpatterned' })?.primitives ??
+      []
+    ).filter(
+      (p): p is Extract<StepDiagramPrimitive, { kind: 'line' }> =>
+        p.kind === 'line' && p.style === 'crease' && near([l(p)[0][0], 0], [0.25, 0])
+    );
+    function l(p: Extract<StepDiagramPrimitive, { kind: 'line' }>) {
+      return [p.from, p.to] as const;
+    }
+    const spans = rest.map((p) => [p.from[1], p.to[1]].sort((a, b) => a - b));
+    expect(spans).toEqual(
+      expect.arrayContaining([
+        [0, 0.1],
+        [0.3, 0.6],
+        [0.8, 1],
+      ])
+    );
+    expect(spans).not.toContainEqual([0.1, 0.3]);
+    expect(spans).not.toContainEqual([0.6, 0.8]);
+    // A plan that did not reach draws the pieces as they are.
+    const plain = {
+      ...seq,
+      steps: seq.steps.map((s, i) =>
+        i === 1 ? { ...s, extent: { kind: 'full' as const }, cp_spans: pieces, made: [] } : s
+      ),
+    };
+    const pieceLines = (plannerStepDiagram(plain, unitFrame(plain), 1)?.primitives ?? []).filter(
+      (p) => p.kind === 'line' && p.style === 'valley'
+    );
+    expect(pieceLines).toHaveLength(2);
+  });
+
   it('draws a corner input as a point', () => {
     const diagram = plannerStepDiagram(sequence, unitFrame(sequence), 0);
     expect(diagram?.primitives.filter((primitive) => primitive.kind === 'point')).toHaveLength(2);

@@ -2963,7 +2963,8 @@
     "panels:references.settings.gridWhereNeeded": "c38ff4170155",
     "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
     "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
-    "panels:references.planStep.axiom7LineMoves": "98d9a1532eef"
+    "panels:references.planStep.axiom7LineMoves": "98d9a1532eef",
+    "panels:references.settings.reachReferences": "7754d45c3976"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5929,7 +5930,8 @@
     "panels:references.settings.gridWhereNeeded": "c38ff4170155",
     "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
     "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
-    "panels:references.planStep.axiom7LineMoves": "98d9a1532eef"
+    "panels:references.planStep.axiom7LineMoves": "98d9a1532eef",
+    "panels:references.settings.reachReferences": "7754d45c3976"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8897,7 +8899,8 @@
     "panels:references.settings.gridWhereNeeded": "c38ff4170155",
     "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
     "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
-    "panels:references.planStep.axiom7LineMoves": "98d9a1532eef"
+    "panels:references.planStep.axiom7LineMoves": "98d9a1532eef",
+    "panels:references.settings.reachReferences": "7754d45c3976"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11805,7 +11808,8 @@
     "panels:references.settings.gridWhereNeeded": "c38ff4170155",
     "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
     "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
-    "panels:references.planStep.axiom7LineMoves": "98d9a1532eef"
+    "panels:references.planStep.axiom7LineMoves": "98d9a1532eef",
+    "panels:references.settings.reachReferences": "7754d45c3976"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14713,7 +14717,8 @@
     "panels:references.settings.gridWhereNeeded": "c38ff4170155",
     "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
     "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
-    "panels:references.planStep.axiom7LineMoves": "98d9a1532eef"
+    "panels:references.planStep.axiom7LineMoves": "98d9a1532eef",
+    "panels:references.settings.reachReferences": "7754d45c3976"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -17679,7 +17684,8 @@
     "panels:references.settings.gridWhereNeeded": "c38ff4170155",
     "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
     "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
-    "panels:references.planStep.axiom7LineMoves": "98d9a1532eef"
+    "panels:references.planStep.axiom7LineMoves": "98d9a1532eef",
+    "panels:references.settings.reachReferences": "7754d45c3976"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -20645,7 +20651,8 @@
     "panels:references.settings.gridWhereNeeded": "c38ff4170155",
     "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
     "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
-    "panels:references.planStep.axiom7LineMoves": "98d9a1532eef"
+    "panels:references.planStep.axiom7LineMoves": "98d9a1532eef",
+    "panels:references.settings.reachReferences": "7754d45c3976"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -23553,6 +23560,7 @@
     "panels:references.settings.gridWhereNeeded": "c38ff4170155",
     "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
     "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
-    "panels:references.planStep.axiom7LineMoves": "98d9a1532eef"
+    "panels:references.planStep.axiom7LineMoves": "98d9a1532eef",
+    "panels:references.settings.reachReferences": "7754d45c3976"
   }
 }

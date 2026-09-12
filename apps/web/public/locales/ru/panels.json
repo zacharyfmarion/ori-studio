@@ -1017,6 +1017,7 @@
       "includeApproximate": "Включать приближённые решения",
       "landmarksFirst": "Сначала ориентиры",
       "precreaseGrid": "Наметить сетку заранее",
+      "reachReferences": "Сгибать до ориентиров",
       "sequence": "Последовательность складок",
       "showPinches": "Показывать защипы",
       "startFromPlan": "Начать с этой последовательности",

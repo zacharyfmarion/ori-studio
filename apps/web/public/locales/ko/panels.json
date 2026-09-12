@@ -907,6 +907,7 @@
       "includeApproximate": "근사 해 포함",
       "landmarksFirst": "기준점 먼저",
       "precreaseGrid": "격자 먼저 접기",
+      "reachReferences": "기준선까지 접기",
       "sequence": "접기 순서",
       "showPinches": "집기 표시",
       "startFromPlan": "이 순서에서 시작",
