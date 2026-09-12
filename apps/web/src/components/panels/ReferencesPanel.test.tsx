@@ -68,6 +68,7 @@ const { ReferencesPanel } = await import('./ReferencesPanel');
 const { TooltipProvider } = await import('../ui/Tooltip');
 const { PHONE_MEDIA_QUERY } = await import('../../platform/phoneLayout');
 const { useWorkspaceStore } = await import('../../store/workspaceStore');
+const { useLayoutStore } = await import('../../store/layoutStore');
 const { clearReferencesResults, setReferencesFrames } = await import(
   '../../cp-workspace/references/referencesResults'
 );
@@ -222,6 +223,26 @@ it('keeps the header to the title and floats the view verbs over the canvas', ()
       (button) => button.getAttribute('aria-label') ?? button.textContent
     )
   ).toEqual(['Zoom Out', '100%', 'Zoom In', 'Fit', 'Recompute References']);
+});
+
+it('offers the touch drawer a slot at the top right of its view', () => {
+  // The shell's pill lane sits over the dock's top-right corner, which here is
+  // the header and the filmstrip. The panel knows where its view begins, so it
+  // registers a slot there and takes it back when it goes.
+  act(() =>
+    root?.render(
+      <TooltipProvider>
+        <ReferencesPanel />
+      </TooltipProvider>
+    )
+  );
+  const slot = container?.querySelector('.references-panel__body .references-panel__pills');
+  expect(slot).not.toBeNull();
+  expect(useLayoutStore.getState().viewDrawerSlot).toBe(slot);
+
+  act(() => root?.render(<div />));
+
+  expect(useLayoutStore.getState().viewDrawerSlot).toBeNull();
 });
 
 /**

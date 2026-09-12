@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal, X } from 'lucide-react';
 import { useWorkspaceViewDrawer } from '../hooks/useWorkspaceViewDrawer';
-import type { ViewPanelId } from '../store/layoutStore';
+import { useLayoutStore, type ViewPanelId } from '../store/layoutStore';
 import { ErrorBoundary } from './errors/ErrorBoundary';
 import { CpViewControlsPanel } from './panels/CpViewControlsPanel';
 import { ReferencesViewControlsPanel } from './panels/ReferencesViewControlsPanel';
@@ -42,6 +42,7 @@ const VIEW_DRAWER_BODIES: Record<ViewPanelId, ComponentType> = {
 export function WorkspaceViewDrawer() {
   const { t } = useTranslation();
   const { spec, open, drawerId, openDrawer, close, triggerRef } = useWorkspaceViewDrawer();
+  const slot = useLayoutStore((state) => state.viewDrawerSlot);
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
   // Focus the dialog itself rather than the first control in it, so a screen
@@ -51,6 +52,12 @@ export function WorkspaceViewDrawer() {
   }, [open]);
 
   if (!spec) return null;
+  // A pane that seats the pill itself has nowhere for it until its view is
+  // up — References' phone list screen has no view, and no settings to be
+  // about until a sheet is opened. A pane that does not is not handed a slot
+  // another pane may have left behind.
+  const seat = spec.trigger === 'slot' ? slot : null;
+  if (spec.trigger === 'slot' && !seat) return null;
 
   // Named as the docked pane is named: the Simulate and References panes are
   // "Settings", Edit's is "View" — see `WORKSPACE_VIEW_PANELS`.
@@ -66,21 +73,30 @@ export function WorkspaceViewDrawer() {
     : t('common:viewDrawer.close', 'Close view options');
   const Body = VIEW_DRAWER_BODIES[spec.id];
 
+  const trigger = (
+    <Button
+      ref={triggerRef}
+      size="md"
+      variant="secondary"
+      className="view-drawer__trigger"
+      aria-haspopup="dialog"
+      aria-expanded={open}
+      aria-controls={drawerId}
+      onClick={openDrawer}
+    >
+      <SlidersHorizontal size={15} aria-hidden="true" />
+      {openLabel}
+    </Button>
+  );
+
   return (
     <>
-      <Button
-        ref={triggerRef}
-        size="md"
-        variant="secondary"
-        className="view-drawer__trigger"
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-controls={drawerId}
-        onClick={openDrawer}
-      >
-        <SlidersHorizontal size={15} aria-hidden="true" />
-        {openLabel}
-      </Button>
+      {/*
+        In the pane's own slot when it offers one — References puts it at the
+        top right of its view, below the filmstrip, where the lane's corner
+        would have been the header — else here in the lane.
+      */}
+      {seat ? createPortal(trigger, seat) : trigger}
       {/*
         Portaled, for the reason `CpToolPickerSheet` is: this component now
         renders *inside* the pill lane, and that lane is `pointer-events: none`

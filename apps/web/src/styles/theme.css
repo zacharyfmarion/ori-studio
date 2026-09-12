@@ -9911,24 +9911,11 @@ button.bp-packing-alert:focus-visible {
   }
 
   /*
-   * The References pane's header is a title and nothing on its right — the
-   * settings that used to sit there are what the pill opens — so the pill takes
-   * that end of the header rather than dropping below it onto the filmstrip.
-   * A title alone leaves a header at its 36px minimum, so both of the
-   * workspace's headers — the pattern rail's and the panel's, side by side on
-   * a tablet and one at a time on a phone — are made a touch target tall plus
-   * the phone layout's row padding, which is what the panel's header is on a
-   * phone anyway once it holds the Back button. The inset centres the pill in
-   * that.
+   * The References pane does not use the lane at all: it registers a slot at
+   * the top right of its own view (`.references-panel__pills`), below the
+   * filmstrip, and the drawer's pill goes there — the lane's corner is that
+   * workspace's header.
    */
-  .canvas-pill-lane[data-view-panel='references-view-controls'] {
-    --view-drawer-inset-top: var(--space-1);
-  }
-
-  .references-workspace .references-sidebar__header,
-  .references-workspace .references-panel .panel-toolbar {
-    min-height: calc(var(--touch-target) + 2 * var(--space-1));
-  }
 
   /*
    * The pill row. The inset lives here rather than on any one pill because
@@ -10876,6 +10863,28 @@ button.bp-packing-alert:focus-visible {
   inset: 0;
 }
 
+/*
+ * The touch layer's Settings pill, at the top right of the view — below the
+ * filmstrip, where the shell's pill lane would have put it over the header.
+ * Empty under a fine pointer (the drawer renders nothing), so it costs the
+ * desktop layout nothing; on touch the pill inside it re-asserts its own
+ * pointer events and the view keeps every tap around it.
+ */
+.references-panel__pills {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 17;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  pointer-events: none;
+}
+
+.references-panel__pills > * {
+  pointer-events: auto;
+}
+
 /* No `cp-webgl-layer` here on purpose: the editor's floating toolbars forward
    wheel events to the first canvas carrying that class. */
 /* The resting cursor only. Hover and drag are decided in JS through the shared
@@ -11294,6 +11303,12 @@ button.bp-packing-alert:focus-visible {
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: var(--space-1);
   align-items: center;
+}
+
+/* The cards alone, without the chevrons: the phone (see the filmstrip's
+   `navigation` prop), where the stepping sits on the floating bar. */
+.references-filmstrip__strip--bare {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .references-filmstrip__list {

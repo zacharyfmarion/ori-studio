@@ -142,6 +142,13 @@ interface ViewPanelDefinition {
   initialWidth: number;
   /** The primary pane it docks to the right of. */
   referencePanelId: string;
+  /**
+   * Where the touch drawer's pill goes: the shell's canvas pill lane, or only
+   * a slot the pane registers (`viewDrawerSlot`) — nowhere when the pane
+   * offers none, as References does on its phone list screen, where there is
+   * no view for the settings to be about.
+   */
+  trigger: 'lane' | 'slot';
 }
 
 const WORKSPACE_VIEW_PANELS = {
@@ -151,6 +158,7 @@ const WORKSPACE_VIEW_PANELS = {
     title: 'View',
     initialWidth: 260,
     referencePanelId: 'crease-pattern',
+    trigger: 'lane',
   },
   // "Settings", not "View": what the Simulate and References panes hold is
   // how the model is run and how the plan is made, and only a little of it
@@ -161,6 +169,7 @@ const WORKSPACE_VIEW_PANELS = {
     title: 'Settings',
     initialWidth: 260,
     referencePanelId: 'simulator',
+    trigger: 'lane',
   },
   references: {
     id: 'references-view-controls',
@@ -168,6 +177,7 @@ const WORKSPACE_VIEW_PANELS = {
     title: 'Settings',
     initialWidth: 260,
     referencePanelId: 'references',
+    trigger: 'slot',
   },
 } as const satisfies Partial<Record<WorkspaceId, ViewPanelDefinition>>;
 
@@ -367,8 +377,19 @@ interface LayoutState {
    * and because `activePanelId` below has to consult it.
    */
   designPaneId: string | null;
+  /**
+   * Where the touch drawer's pill goes when the active pane offers a place for
+   * it, registered by that pane while mounted; null means the canvas pill lane.
+   *
+   * The lane sits over the dock's top-right corner, which for References is
+   * its header and filmstrip — chrome the pill would cover. The panel knows
+   * where its own view begins and the lane cannot, so it hands the drawer a
+   * slot in that corner instead (`WorkspaceViewDrawer`).
+   */
+  viewDrawerSlot: HTMLElement | null;
   activeWorkspace: WorkspaceId;
   setDockviewApi: (api: DockviewApi | null) => void;
+  setViewDrawerSlot: (slot: HTMLElement | null) => void;
   setDesignPaneApi: (api: DockviewApi | null) => void;
   setDesignPaneId: (panelId: string | null) => void;
   setActiveWorkspace: (workspace: WorkspaceId) => void;
@@ -389,8 +410,10 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
   dockviewApi: null,
   designPaneApi: null,
   designPaneId: null,
+  viewDrawerSlot: null,
   activeWorkspace: 'design',
   setDockviewApi: (api) => set({ dockviewApi: api }),
+  setViewDrawerSlot: (slot) => set({ viewDrawerSlot: slot }),
   setDesignPaneApi: (api) => set({ designPaneApi: api }),
   setDesignPaneId: (panelId) => set({ designPaneId: panelId }),
   setActiveWorkspace: (workspace) => set({ activeWorkspace: workspace }),

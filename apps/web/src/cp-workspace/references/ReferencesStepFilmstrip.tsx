@@ -52,6 +52,13 @@ export interface ReferencesStepFilmstripProps {
   previousLabel: string;
   nextLabel: string;
   /**
+   * Whether the chevrons are here at all. On the phone they are not — a touch
+   * target either side of a 375px strip left room for barely one card — and
+   * the stepping leads the floating bar instead (`ReferencesViewportToolbar`).
+   * The strip is then the cards alone, edge to edge.
+   */
+  navigation?: boolean;
+  /**
    * Whether each chevron is dead, from the same catalog the labels come from.
    *
    * Derived here once and it drifted: "is there a previous step" is one
@@ -80,6 +87,7 @@ export const ReferencesStepFilmstrip = memo(function ReferencesStepFilmstrip({
   placeholder,
   note,
   previousLabel,
+  navigation = true,
   nextLabel,
   previousDisabled,
   nextDisabled,
@@ -133,16 +141,24 @@ export const ReferencesStepFilmstrip = memo(function ReferencesStepFilmstrip({
 
   return (
     <div className="references-filmstrip">
-      <div className="references-filmstrip__strip">
-        <IconButton
-          size="sm"
-          variant="toolbar"
-          title={previousLabel}
-          disabled={previousDisabled}
-          onClick={onPrevious}
-        >
-          <ChevronLeft size={16} />
-        </IconButton>
+      <div
+        className={
+          navigation
+            ? 'references-filmstrip__strip'
+            : 'references-filmstrip__strip references-filmstrip__strip--bare'
+        }
+      >
+        {navigation && (
+          <IconButton
+            size="sm"
+            variant="toolbar"
+            title={previousLabel}
+            disabled={previousDisabled}
+            onClick={onPrevious}
+          >
+            <ChevronLeft size={16} />
+          </IconButton>
+        )}
         <div ref={listRef} className="references-filmstrip__list">
           <div
             className="references-filmstrip__track"
@@ -214,15 +230,17 @@ export const ReferencesStepFilmstrip = memo(function ReferencesStepFilmstrip({
             })}
           </div>
         </div>
-        <IconButton
-          size="sm"
-          variant="toolbar"
-          title={nextLabel}
-          disabled={nextDisabled}
-          onClick={onNext}
-        >
-          <ChevronRight size={16} />
-        </IconButton>
+        {navigation && (
+          <IconButton
+            size="sm"
+            variant="toolbar"
+            title={nextLabel}
+            disabled={nextDisabled}
+            onClick={onNext}
+          >
+            <ChevronRight size={16} />
+          </IconButton>
+        )}
       </div>
       <p className="references-filmstrip__caption">
         {active ? (

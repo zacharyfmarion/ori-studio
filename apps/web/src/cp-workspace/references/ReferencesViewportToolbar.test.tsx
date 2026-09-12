@@ -193,15 +193,27 @@ describe('ReferencesViewportToolbar', () => {
     expect(button('More view controls')).toBeFalsy();
   });
 
-  it('keeps the whole set inline on a phone', () => {
+  it('keeps the whole set inline on a phone, ending with the step navigation', () => {
     // The Edit bar hands its phone strip over to the favourite tools and drops
     // the zoom buttons for a pinch; this surface has nothing better to put
-    // there, so the view controls stay.
+    // there, so the view controls stay — and Previous and Next step come
+    // last, at the thumb's end, taken off the filmstrip, where two touch
+    // targets either side of the cards left a 375px strip room for barely one.
     stubDevice('phone');
 
-    render();
+    render({ stepCount: 3, activeStep: 1 });
+
+    expect(inlineLabels()).toEqual([...BAR, 'Previous Step', 'Next Step']);
+    expect(button('More view controls')).toBeFalsy();
+    press(button('Next Step'));
+    expect(run).toHaveBeenLastCalledWith('references.nextStep');
+  });
+
+  it('leaves the stepping to the filmstrip everywhere but the phone', () => {
+    stubDevice('tablet');
+
+    render({ stepCount: 3, activeStep: 1 });
 
     expect(inlineLabels()).toEqual(BAR);
-    expect(button('More view controls')).toBeFalsy();
   });
 });

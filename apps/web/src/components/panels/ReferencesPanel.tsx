@@ -12,6 +12,7 @@ import { Button } from '../ui/Button';
 import { ContextMenu } from '../ui/ContextMenu';
 import { useContextMenuController } from '../../menus/context/useContextMenuController';
 import type { ReferencesShortcutId } from '../../keyboard/shortcuts';
+import { useLayoutStore } from '../../store/layoutStore';
 import { useShortcutStore } from '../../store/shortcutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import {
@@ -96,6 +97,7 @@ import { NextDocumentAction } from './NextDocumentAction';
 
 export function ReferencesPanel() {
   const { t } = useTranslation();
+  const setViewDrawerSlot = useLayoutStore((state) => state.setViewDrawerSlot);
   const view = useReferencesView();
   const controller = useReferencesTarget(view);
   const showPinches = useWorkspaceStore((state) => state.referencesSettings.showPinches);
@@ -477,11 +479,20 @@ export function ReferencesPanel() {
             nextLabel={commandById('next-step')?.label ?? ''}
             previousDisabled={commandById('previous-step')?.disabled ?? true}
             nextDisabled={commandById('next-step')?.disabled ?? true}
+            // Off on the phone, whose flow is the one that has a screen at all.
+            navigation={flow.screen === null}
             placeholder={filmstripPlaceholder}
             note={filmstripNote}
           />
 
           <div className="panel-body references-panel__body" onContextMenu={onBodyContextMenu}>
+            {/*
+              Where the touch layer's Settings pill goes: the top right of the
+              view, below the filmstrip. The shell's pill lane would put it over
+              the header. Registered with the layout store as an element, and
+              cleared by the same callback when the body unmounts.
+            */}
+            <div className="references-panel__pills" ref={setViewDrawerSlot} />
             {view.geometry && (
               <ReferencesCpView
                 ref={viewRef}

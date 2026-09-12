@@ -211,11 +211,12 @@ describe('the workspace dock under a coarse pointer', () => {
     );
   });
 
-  it('gives the References workspace the View pill too', () => {
-    // Its settings moved from a header popover into a View pane, so the touch
-    // layer reaches them the way it reaches the other two panes' controls — and
-    // the lane says which pane it is for, which is what the stylesheet reads to
-    // seat the pill in the header's empty right end.
+  it('leaves the References pill to the pane, not the lane', () => {
+    // Its settings moved from a header popover into a Settings pane, so the
+    // touch layer reaches them the way it reaches the other two panes' controls
+    // — but the lane's corner is that workspace's header, so the pane seats the
+    // pill itself, at the top right of its view, and the lane holds nothing
+    // until it has (`viewDrawerSlot`).
     stubPointer(true);
     useLayoutStore.setState({ activeWorkspace: 'references' });
 
@@ -223,7 +224,11 @@ describe('the workspace dock under a coarse pointer', () => {
 
     const lane = container?.querySelector('.canvas-pill-lane');
     expect(lane?.getAttribute('data-view-panel')).toBe('references-view-controls');
+    expect(lane?.querySelector('.view-drawer__trigger')).toBeNull();
+    const slot = document.createElement('div');
+    act(() => useLayoutStore.setState({ viewDrawerSlot: slot }));
+    expect(lane?.querySelector('.view-drawer__trigger')).toBeNull();
     // Named as the docked pane is: Settings here, View in Edit.
-    expect(lane?.querySelector('.view-drawer__trigger')?.textContent).toBe('Settings');
+    expect(slot.querySelector('.view-drawer__trigger')?.textContent).toBe('Settings');
   });
 });
