@@ -6544,10 +6544,18 @@ button.cp-folded-figure-toolbar__notice:hover {
   justify-content: flex-end;
 }
 
-.cp-view-controls-panel__select {
+/* A select filling its value column, in every View pane. */
+.control-row__select {
   width: 100%;
   min-width: 0;
   height: 26px;
+}
+
+/* An option that qualifies the one above it — "Only where needed" under
+   "Precrease grid" — sits a step in, so the pair reads as one setting. The
+   menu form of the same idea is `.context-menu__item--nested`. */
+.control-row--nested {
+  padding-left: 24px;
 }
 
 /* Simulate workspace options pane, alongside the Edit workspace's view pane. */
@@ -6557,16 +6565,20 @@ button.cp-folded-figure-toolbar__notice:hover {
   overflow-y: auto;
 }
 
-.simulator-view-controls-panel__section {
+/*
+ * A View pane's sections (`ViewPaneControls.tsx`), shared by the Simulate and
+ * References panes.
+ */
+.view-pane-section {
   flex: 0 0 auto;
   border-bottom: 1px solid var(--border-subtle);
 }
 
-.simulator-view-controls-panel__section:last-child {
+.view-pane-section:last-child {
   border-bottom: 0;
 }
 
-.simulator-view-controls-panel__section-header {
+.view-pane-section__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -6574,15 +6586,15 @@ button.cp-folded-figure-toolbar__notice:hover {
   padding: 8px var(--space-3) 4px;
 }
 
-.simulator-view-controls-panel__section-title {
+.view-pane-section__title {
   color: var(--text-secondary);
   font-size: 0.74rem;
   font-weight: 600;
 }
 
 /* Collapsible section header, following `.grid-settings__toggle` in the Edit
-   workspace's view pane so the two panes disclose the same way. */
-.simulator-view-controls-panel__section-toggle {
+   workspace's view pane so the panes disclose the same way. */
+.view-pane-section__toggle {
   display: flex;
   flex: 1 1 auto;
   align-items: center;
@@ -6596,30 +6608,27 @@ button.cp-folded-figure-toolbar__notice:hover {
   cursor: pointer;
 }
 
-.simulator-view-controls-panel__section-toggle:hover
-  .simulator-view-controls-panel__section-title {
+.view-pane-section__toggle:hover .view-pane-section__title {
   color: var(--text-primary);
 }
 
-.simulator-view-controls-panel__section-chevron {
+.view-pane-section__chevron {
   flex: 0 0 auto;
   color: var(--text-tertiary);
   transition: transform 0.12s ease;
 }
 
-.simulator-view-controls-panel__section[data-open]
-  .simulator-view-controls-panel__section-chevron {
+.view-pane-section[data-open] .view-pane-section__chevron {
   transform: rotate(90deg);
 }
 
 /* A closed section is just its header, so the extra bottom padding that spaces a
    header from its controls would read as a gap. */
-.simulator-view-controls-panel__section:not([data-open])
-  .simulator-view-controls-panel__section-header {
+.view-pane-section:not([data-open]) .view-pane-section__header {
   padding-bottom: 8px;
 }
 
-.simulator-view-controls-panel__section-hint {
+.view-pane-section__hint {
   margin: 0;
   padding: 0 var(--space-3) 6px;
   color: var(--text-tertiary);
@@ -6662,12 +6671,6 @@ button.cp-folded-figure-toolbar__notice:hover {
 .simulator-view-controls-panel__action:hover {
   background: var(--surface-hover, rgb(255 255 255 / 8%));
   color: var(--text-primary);
-}
-
-.simulator-view-controls-panel__select {
-  width: 100%;
-  min-width: 0;
-  height: 26px;
 }
 
 /* Slider plus its readout: the number column is fixed so the sliders align. */

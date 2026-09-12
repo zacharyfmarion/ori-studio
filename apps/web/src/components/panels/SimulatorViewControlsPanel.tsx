@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ChevronRight, RotateCcw } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 import {
   SIMULATOR_CREASE_STYLES,
   SIMULATOR_SETTING_RANGES,
@@ -17,7 +17,7 @@ import { useThemeStore } from '../../store/themeStore';
 import { ColorField } from '../ui/ColorField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
 import { Slider } from '../ui/Slider';
-import { Toggle } from '../ui/Toggle';
+import { ViewPaneSection as Section, ViewPaneToggleRow as ToggleRow } from './ViewPaneControls';
 
 // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
 function creaseStyleLabel(value: SimulatorCreaseStyle, t: TFunction): string {
@@ -98,7 +98,7 @@ export function SimulatorViewControlsPanel() {
               >
                 <SelectTrigger
                   aria-label={t('panels:simulatorViewControls.style', 'Style')}
-                  className="simulator-view-controls-panel__select"
+                  className="control-row__select"
                 >
                   <SelectValue />
                 </SelectTrigger>
@@ -126,7 +126,7 @@ export function SimulatorViewControlsPanel() {
               >
                 <SelectTrigger
                   aria-label={t('panels:simulatorViewControls.colorMode', 'Colour')}
-                  className="simulator-view-controls-panel__select"
+                  className="control-row__select"
                 >
                   <SelectValue />
                 </SelectTrigger>
@@ -225,7 +225,7 @@ export function SimulatorViewControlsPanel() {
               >
                 <SelectTrigger
                   aria-label={t('panels:simulatorViewControls.creaseStyle', 'Style')}
-                  className="simulator-view-controls-panel__select"
+                  className="control-row__select"
                 >
                   <SelectValue />
                 </SelectTrigger>
@@ -281,7 +281,7 @@ export function SimulatorViewControlsPanel() {
               >
                 <SelectTrigger
                   aria-label={t('panels:simulatorViewControls.background', 'Background')}
-                  className="simulator-view-controls-panel__select"
+                  className="control-row__select"
                 >
                   <SelectValue />
                 </SelectTrigger>
@@ -375,95 +375,6 @@ export function SimulatorViewControlsPanel() {
         </Section>
       </div>
     </section>
-  );
-}
-
-/**
- * One group of options.
- *
- * `collapsible` sections start closed, following `GridSettingsSection` in the
- * Edit workspace's view pane — same chevron, same `data-open` hook, same
- * component-local state rather than a persisted preference. Everything but
- * Render is a set of controls most sessions never touch, and they should not
- * push the ones that matter below the fold.
- */
-function Section({
-  title,
-  description,
-  action,
-  collapsible = false,
-  children,
-}: {
-  title: string;
-  description?: string;
-  action?: React.ReactNode;
-  collapsible?: boolean;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(false);
-  const body = (
-    <>
-      {description && (
-        <p className="simulator-view-controls-panel__section-hint">{description}</p>
-      )}
-      {children}
-    </>
-  );
-
-  if (!collapsible) {
-    return (
-      <div className="simulator-view-controls-panel__section">
-        <div className="simulator-view-controls-panel__section-header">
-          <span className="simulator-view-controls-panel__section-title">{title}</span>
-          {action}
-        </div>
-        {body}
-      </div>
-    );
-  }
-
-  return (
-    <div className="simulator-view-controls-panel__section" data-open={open || undefined}>
-      <div className="simulator-view-controls-panel__section-header">
-        <button
-          type="button"
-          className="simulator-view-controls-panel__section-toggle"
-          aria-expanded={open}
-          onClick={() => setOpen((current) => !current)}
-        >
-          <ChevronRight
-            size={13}
-            className="simulator-view-controls-panel__section-chevron"
-            aria-hidden="true"
-          />
-          <span className="simulator-view-controls-panel__section-title">{title}</span>
-        </button>
-        {/* The action only makes sense against controls you can see. */}
-        {open && action}
-      </div>
-      {open && body}
-    </div>
-  );
-}
-
-function ToggleRow({
-  label,
-  checked,
-  disabled,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  disabled?: boolean;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <div className="control-row" data-disabled={disabled || undefined}>
-      <span className="control-row__label">{label}</span>
-      <div className="control-row__value control-row__value--toggle">
-        <Toggle aria-label={label} checked={checked} disabled={disabled} onChange={onChange} />
-      </div>
-    </div>
   );
 }
 

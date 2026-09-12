@@ -266,7 +266,7 @@ function FoldAngleDisplayRow({
           value={value}
           onValueChange={(next) => onChange(next as OristudioCpFoldAngleDisplay)}
         >
-          <SelectTrigger aria-label={label} className="cp-view-controls-panel__select">
+          <SelectTrigger aria-label={label} className="control-row__select">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -295,7 +295,7 @@ function LineStyleRow({
       <span className="control-row__label">{t('panels:cpViewControls.lineStyle', 'Line style')}</span>
       <div className="control-row__value control-row__value--select">
         <Select value={value} onValueChange={(next) => onChange(next as OristudioCpLineStyle)}>
-          <SelectTrigger aria-label={t('panels:cpViewControls.lineStyle', 'Line style')} className="cp-view-controls-panel__select">
+          <SelectTrigger aria-label={t('panels:cpViewControls.lineStyle', 'Line style')} className="control-row__select">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
