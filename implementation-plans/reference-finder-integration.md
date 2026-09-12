@@ -67,6 +67,12 @@ entered only from the rail, View › References, or the selection floating toolb
 **entire CP** is selected (the Simulate button's toolbar) — a selected crease never carries
 over · settings live in the toolbar, no View pane · default chords as proposed.
 
+> **Revised 2026-09-12:** the settings now live in a View pane
+> (`references-view-controls`, docked like Edit's and Simulate's, the drawer
+> pill under a coarse pointer) and the view verbs — zoom, fit, recompute — in
+> a floating bar over the canvas like Edit's viewport toolbar; the header is
+> the title alone. "Settings live in the toolbar, no View pane" is superseded.
+
 ## Approach
 
 ### Evidence this plan rests on

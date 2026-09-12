@@ -424,4 +424,15 @@ exactly it.
       0.375, 0.625 and 0.927. Less crease means fewer marks for later
       steps, so presses can rise where the joined crease used to supply
       them (markhor 11 → 16); measured below.
+- [x] Corpus with the three fixes of 2026-09-12 together — found witnesses
+      name only marks that are there, two marks beat a press, reach piece
+      by piece — against the reach-and-edge state above: steps 4,290 →
+      4,259, presses 489 → 458, lost ends 0 of 8,430, crease past the
+      pattern 281 → 118 sheet-lengths (the longest single extension still
+      *earwig*'s 1.36), phantom marks and turn-overs unchanged; *Abra* 77
+      steps and 3 presses either way with 5.2 → 2.5 of excess,
+      *Wolpertinger* 161 → 157. `measure_ends`'s "in pieces" column now
+      counts steps whose crease is several runs each ending at a reference
+      (509 of them, 166 sheet-lengths of blank left blank between
+      references) — no longer a defect, and read as such.
 - [ ] Live check on *Abra* (Zach)
