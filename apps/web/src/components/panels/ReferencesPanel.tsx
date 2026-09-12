@@ -100,7 +100,6 @@ export function ReferencesPanel() {
   const setViewDrawerSlot = useLayoutStore((state) => state.setViewDrawerSlot);
   const view = useReferencesView();
   const controller = useReferencesTarget(view);
-  const showPinches = useWorkspaceStore((state) => state.referencesSettings.showPinches);
   const storedSheet = useWorkspaceStore((state) => state.referencesSelectedSheet);
   const setSelectedSheet = useWorkspaceStore((state) => state.setReferencesSelectedSheet);
 
@@ -157,8 +156,7 @@ export function ReferencesPanel() {
     breakdown.variants,
     viewSteps,
     breakdown.activeStep,
-    breakdown.activeFinding,
-    showPinches
+    breakdown.activeFinding
   );
   const highlights = targeted ? targetHighlights : planHighlights;
   // Which face the reader is on. Everything the picture says about direction is

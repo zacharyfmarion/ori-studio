@@ -98,8 +98,8 @@ describe('planModelPoints / decodePlanModel', () => {
 describe('planStepScene', () => {
   const sequence = plannerSequenceFixture();
   const model = decodePlanModel(sequence, mapToModel(planModelPoints(sequence)));
-  const styles = (index: number, options?: { showPinches?: boolean }) =>
-    (planStepScene(sequence, model, index, options).diagram?.primitives ?? []).flatMap((p) =>
+  const styles = (index: number) =>
+    (planStepScene(sequence, model, index).diagram?.primitives ?? []).flatMap((p) =>
       p.kind === 'line' ? [p.style] : []
     );
 
@@ -139,9 +139,8 @@ describe('planStepScene', () => {
     expect(planStepScene(sequence, model, 0).highlightLineIds).toEqual([]);
   });
 
-  it('draws a pinch as its spans, and as a full line when pinches are hidden', () => {
-    expect(styles(0, { showPinches: true }).filter((s) => s === 'pinch')).toHaveLength(2);
-    expect(styles(0, { showPinches: false }).filter((s) => s === 'pinch')).toHaveLength(0);
+  it('draws a pinch as its spans', () => {
+    expect(styles(0).filter((s) => s === 'pinch')).toHaveLength(2);
   });
 
   it('is empty for a step index that names nothing', () => {

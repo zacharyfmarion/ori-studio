@@ -2898,8 +2898,6 @@
     "panels:references.progress.querying": "9304f08ee3df",
     "panels:references.settings.landmarksFirst": "8fb7a0f2841b",
     "panels:references.settings.sequence": "fd0333c1a664",
-    "panels:references.settings.showPinches": "55b2acc9d0ce",
-    "panels:references.settings.startFromPlan": "01210f3f3fbd",
     "panels:references.sidebar.planning": "7e2f97878f55",
     "panels:references.warning.degenerateBorderSegments": "fa24965df5b3",
     "panels:references.warning.overlappingSheets": "d979774e65db",
@@ -2962,13 +2960,14 @@
     "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
     "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
     "panels:references.planStep.axiom7LineMoves": "98d9a1532eef",
-    "panels:references.settings.reachReferences": "7754d45c3976",
     "panels:references.settings.emptyNote": "e98539add89f",
     "panels:references.settings.solutions": "900fe12faa26",
     "panels:references.viewportControls": "56107b7c5ba3",
     "common:viewDrawer.closeSettings": "0ccfef828950",
     "common:viewDrawer.openSettings": "74a883a037bc",
-    "common:viewDrawer.settingsTitle": "74a883a037bc"
+    "common:viewDrawer.settingsTitle": "74a883a037bc",
+    "panels:references.settings.disallowDangling": "fa2db5de7c06",
+    "panels:references.settings.disallowDanglingHelp": "5a622321cb37"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5869,8 +5868,6 @@
     "panels:references.progress.querying": "9304f08ee3df",
     "panels:references.settings.landmarksFirst": "8fb7a0f2841b",
     "panels:references.settings.sequence": "fd0333c1a664",
-    "panels:references.settings.showPinches": "55b2acc9d0ce",
-    "panels:references.settings.startFromPlan": "01210f3f3fbd",
     "panels:references.sidebar.planning": "7e2f97878f55",
     "panels:references.warning.degenerateBorderSegments": "fa24965df5b3",
     "panels:references.warning.overlappingSheets": "d979774e65db",
@@ -5933,13 +5930,14 @@
     "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
     "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
     "panels:references.planStep.axiom7LineMoves": "98d9a1532eef",
-    "panels:references.settings.reachReferences": "7754d45c3976",
     "panels:references.settings.emptyNote": "e98539add89f",
     "panels:references.settings.solutions": "900fe12faa26",
     "panels:references.viewportControls": "56107b7c5ba3",
     "common:viewDrawer.closeSettings": "0ccfef828950",
     "common:viewDrawer.openSettings": "74a883a037bc",
-    "common:viewDrawer.settingsTitle": "74a883a037bc"
+    "common:viewDrawer.settingsTitle": "74a883a037bc",
+    "panels:references.settings.disallowDangling": "fa2db5de7c06",
+    "panels:references.settings.disallowDanglingHelp": "5a622321cb37"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8840,8 +8838,6 @@
     "panels:references.progress.querying": "9304f08ee3df",
     "panels:references.settings.landmarksFirst": "8fb7a0f2841b",
     "panels:references.settings.sequence": "fd0333c1a664",
-    "panels:references.settings.showPinches": "55b2acc9d0ce",
-    "panels:references.settings.startFromPlan": "01210f3f3fbd",
     "panels:references.sidebar.planning": "7e2f97878f55",
     "panels:references.warning.degenerateBorderSegments": "fa24965df5b3",
     "panels:references.warning.overlappingSheets": "d979774e65db",
@@ -8906,13 +8902,14 @@
     "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
     "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
     "panels:references.planStep.axiom7LineMoves": "98d9a1532eef",
-    "panels:references.settings.reachReferences": "7754d45c3976",
     "panels:references.settings.emptyNote": "e98539add89f",
     "panels:references.settings.solutions": "900fe12faa26",
     "panels:references.viewportControls": "56107b7c5ba3",
     "common:viewDrawer.closeSettings": "0ccfef828950",
     "common:viewDrawer.openSettings": "74a883a037bc",
-    "common:viewDrawer.settingsTitle": "74a883a037bc"
+    "common:viewDrawer.settingsTitle": "74a883a037bc",
+    "panels:references.settings.disallowDangling": "fa2db5de7c06",
+    "panels:references.settings.disallowDanglingHelp": "5a622321cb37"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11762,8 +11759,6 @@
     "panels:references.progress.querying": "9304f08ee3df",
     "panels:references.settings.landmarksFirst": "8fb7a0f2841b",
     "panels:references.settings.sequence": "fd0333c1a664",
-    "panels:references.settings.showPinches": "55b2acc9d0ce",
-    "panels:references.settings.startFromPlan": "01210f3f3fbd",
     "panels:references.sidebar.planning": "7e2f97878f55",
     "panels:references.warning.degenerateBorderSegments": "fa24965df5b3",
     "panels:references.warning.overlappingSheets": "d979774e65db",
@@ -11819,13 +11814,14 @@
     "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
     "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
     "panels:references.planStep.axiom7LineMoves": "98d9a1532eef",
-    "panels:references.settings.reachReferences": "7754d45c3976",
     "panels:references.settings.emptyNote": "e98539add89f",
     "panels:references.settings.solutions": "900fe12faa26",
     "panels:references.viewportControls": "56107b7c5ba3",
     "common:viewDrawer.closeSettings": "0ccfef828950",
     "common:viewDrawer.openSettings": "74a883a037bc",
-    "common:viewDrawer.settingsTitle": "74a883a037bc"
+    "common:viewDrawer.settingsTitle": "74a883a037bc",
+    "panels:references.settings.disallowDangling": "fa2db5de7c06",
+    "panels:references.settings.disallowDanglingHelp": "5a622321cb37"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14675,8 +14671,6 @@
     "panels:references.progress.querying": "9304f08ee3df",
     "panels:references.settings.landmarksFirst": "8fb7a0f2841b",
     "panels:references.settings.sequence": "fd0333c1a664",
-    "panels:references.settings.showPinches": "55b2acc9d0ce",
-    "panels:references.settings.startFromPlan": "01210f3f3fbd",
     "panels:references.sidebar.planning": "7e2f97878f55",
     "panels:references.warning.degenerateBorderSegments": "fa24965df5b3",
     "panels:references.warning.overlappingSheets": "d979774e65db",
@@ -14732,13 +14726,14 @@
     "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
     "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
     "panels:references.planStep.axiom7LineMoves": "98d9a1532eef",
-    "panels:references.settings.reachReferences": "7754d45c3976",
     "panels:references.settings.emptyNote": "e98539add89f",
     "panels:references.settings.solutions": "900fe12faa26",
     "panels:references.viewportControls": "56107b7c5ba3",
     "common:viewDrawer.closeSettings": "0ccfef828950",
     "common:viewDrawer.openSettings": "74a883a037bc",
-    "common:viewDrawer.settingsTitle": "74a883a037bc"
+    "common:viewDrawer.settingsTitle": "74a883a037bc",
+    "panels:references.settings.disallowDangling": "fa2db5de7c06",
+    "panels:references.settings.disallowDanglingHelp": "5a622321cb37"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -17639,8 +17634,6 @@
     "panels:references.progress.querying": "9304f08ee3df",
     "panels:references.settings.landmarksFirst": "8fb7a0f2841b",
     "panels:references.settings.sequence": "fd0333c1a664",
-    "panels:references.settings.showPinches": "55b2acc9d0ce",
-    "panels:references.settings.startFromPlan": "01210f3f3fbd",
     "panels:references.sidebar.planning": "7e2f97878f55",
     "panels:references.warning.degenerateBorderSegments": "fa24965df5b3",
     "panels:references.warning.overlappingSheets": "d979774e65db",
@@ -17703,13 +17696,14 @@
     "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
     "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
     "panels:references.planStep.axiom7LineMoves": "98d9a1532eef",
-    "panels:references.settings.reachReferences": "7754d45c3976",
     "panels:references.settings.emptyNote": "e98539add89f",
     "panels:references.settings.solutions": "900fe12faa26",
     "panels:references.viewportControls": "56107b7c5ba3",
     "common:viewDrawer.closeSettings": "0ccfef828950",
     "common:viewDrawer.openSettings": "74a883a037bc",
-    "common:viewDrawer.settingsTitle": "74a883a037bc"
+    "common:viewDrawer.settingsTitle": "74a883a037bc",
+    "panels:references.settings.disallowDangling": "fa2db5de7c06",
+    "panels:references.settings.disallowDanglingHelp": "5a622321cb37"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -20610,8 +20604,6 @@
     "panels:references.progress.querying": "9304f08ee3df",
     "panels:references.settings.landmarksFirst": "8fb7a0f2841b",
     "panels:references.settings.sequence": "fd0333c1a664",
-    "panels:references.settings.showPinches": "55b2acc9d0ce",
-    "panels:references.settings.startFromPlan": "01210f3f3fbd",
     "panels:references.sidebar.planning": "7e2f97878f55",
     "panels:references.warning.degenerateBorderSegments": "fa24965df5b3",
     "panels:references.warning.overlappingSheets": "d979774e65db",
@@ -20674,13 +20666,14 @@
     "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
     "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
     "panels:references.planStep.axiom7LineMoves": "98d9a1532eef",
-    "panels:references.settings.reachReferences": "7754d45c3976",
     "panels:references.settings.emptyNote": "e98539add89f",
     "panels:references.settings.solutions": "900fe12faa26",
     "panels:references.viewportControls": "56107b7c5ba3",
     "common:viewDrawer.closeSettings": "0ccfef828950",
     "common:viewDrawer.openSettings": "74a883a037bc",
-    "common:viewDrawer.settingsTitle": "74a883a037bc"
+    "common:viewDrawer.settingsTitle": "74a883a037bc",
+    "panels:references.settings.disallowDangling": "fa2db5de7c06",
+    "panels:references.settings.disallowDanglingHelp": "5a622321cb37"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -23530,8 +23523,6 @@
     "panels:references.progress.querying": "9304f08ee3df",
     "panels:references.settings.landmarksFirst": "8fb7a0f2841b",
     "panels:references.settings.sequence": "fd0333c1a664",
-    "panels:references.settings.showPinches": "55b2acc9d0ce",
-    "panels:references.settings.startFromPlan": "01210f3f3fbd",
     "panels:references.sidebar.planning": "7e2f97878f55",
     "panels:references.warning.degenerateBorderSegments": "fa24965df5b3",
     "panels:references.warning.overlappingSheets": "d979774e65db",
@@ -23587,12 +23578,13 @@
     "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
     "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
     "panels:references.planStep.axiom7LineMoves": "98d9a1532eef",
-    "panels:references.settings.reachReferences": "7754d45c3976",
     "panels:references.settings.emptyNote": "e98539add89f",
     "panels:references.settings.solutions": "900fe12faa26",
     "panels:references.viewportControls": "56107b7c5ba3",
     "common:viewDrawer.closeSettings": "0ccfef828950",
     "common:viewDrawer.openSettings": "74a883a037bc",
-    "common:viewDrawer.settingsTitle": "74a883a037bc"
+    "common:viewDrawer.settingsTitle": "74a883a037bc",
+    "panels:references.settings.disallowDangling": "fa2db5de7c06",
+    "panels:references.settings.disallowDanglingHelp": "5a622321cb37"
   }
 }

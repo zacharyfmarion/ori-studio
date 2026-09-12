@@ -1384,18 +1384,6 @@ export interface ReferencesSettings {
    */
   includeApproximate: boolean;
   /**
-   * Draw an auxiliary crease the pinch pass reduced as its short spans rather
-   * than as a full line. On by default: a pinch and a full crease are
-   * different instructions, and the difference is the point of the pass.
-   */
-  showPinches: boolean;
-  /**
-   * Rank a crease target's candidates by the folds still needed *given the
-   * breakdown's state*, rather than from the bare sheet. Off by default, and
-   * only meaningful once a breakdown exists (plan, Phase 5).
-   */
-  startFromPlan: boolean;
-  /**
    * Open a box- or hex-pleated design with its grid pleated before anything is
    * sighted. On by default: it is how every folder precreases such a design.
    * Unlike `landmarksFirst` this changes the plan itself, so toggling it
@@ -1410,14 +1398,15 @@ export interface ReferencesSettings {
    */
   gridWhereNeeded: boolean;
   /**
-   * Make each step's crease one run from reference to reference — the
-   * pattern's pieces joined, each end carried out to the nearest edge or
-   * crease the folder can find — rather than exactly the pattern's pieces,
-   * which stop wherever the design stops needing them. On by default: it is
-   * how a diagram instructs a fold. Changes the plan, so toggling it re-plans
+   * Require every crease to end at a reference — the sheet's edge or a crease
+   * already made — at both ends. Off by default: a crease is anchored at a
+   * reference at one end and carried to a second only when that adds no more
+   * crease than the crease itself, so a short crease may dangle at one end.
+   * On, every crease runs from reference to reference, whatever extra crease
+   * that takes. Changes the plan, so toggling it re-plans
    * (`implementation-plans/precrease-reach-references.md`).
    */
-  reachReferences: boolean;
+  disallowDanglingFolds: boolean;
 }
 
 /** How the exactness policy classified the component being planned (D8). */

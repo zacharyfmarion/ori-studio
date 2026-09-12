@@ -650,6 +650,12 @@ export interface PrecreasePlannerOptions {
    * The crate's default is on.
    */
   reach_references?: boolean;
+  /**
+   * Carry every crease to a reference at *both* ends, whatever extra crease
+   * that takes, rather than anchoring it at one and finishing it only when
+   * that is cheap. The crate's default is off.
+   */
+  disallow_dangling_folds?: boolean;
 }
 
 /** Values per remaining line in `remaining()`: `nx, ny, d, ax, ay, bx, by`. */

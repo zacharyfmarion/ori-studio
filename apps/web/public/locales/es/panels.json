@@ -974,16 +974,15 @@
     "searching": "Buscando referencias…",
     "settings": {
       "candidates": "Candidatos",
+      "disallowDangling": "No permitir pliegues sueltos",
+      "disallowDanglingHelp": "Un pliegue suelto es una marca que termina en papel en blanco, sin nada donde detenerse. Desactivado: cada marca parte de una referencia (el borde del papel o un pliegue ya hecho) y llega a una segunda solo cuando eso no añade más marca que la propia marca. Activado: cada marca va de referencia a referencia, cueste el pliegue extra que cueste.",
       "emptyNote": "Abre un patrón de plegado para ajustar cómo se buscan sus referencias.",
       "gridWhereNeeded": "Solo donde haga falta",
       "includeApproximate": "Incluir soluciones aproximadas",
       "landmarksFirst": "Referencias primero",
       "precreaseGrid": "Preplegar la cuadrícula",
-      "reachReferences": "Marcar hasta las referencias",
       "sequence": "Secuencia de plegado",
-      "showPinches": "Mostrar pellizcos",
-      "solutions": "Soluciones",
-      "startFromPlan": "Partir de esta secuencia"
+      "solutions": "Soluciones"
     },
     "sheets": {
       "cardTitle_one": "Patrón {{n}}: {{count}} pliegue",

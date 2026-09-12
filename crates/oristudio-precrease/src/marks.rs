@@ -710,7 +710,9 @@ pub fn findable_end_beyond(
 ///    is then under twice the crease with one, which is the same 2× a
 ///    single short crease is judged by: a fifth of a sheet is not creased
 ///    top to bottom for its second reference, and a crease already most of
-///    the way across is finished.
+///    the way across is finished. With `no_dangling` it is carried there
+///    regardless: every crease from reference to reference, whatever that
+///    costs.
 ///
 /// An end that [`settled_end_is_found`] finds stays exactly where the
 /// pattern put it; nothing ever moves inward. Empty for empty spans, which
@@ -720,6 +722,7 @@ pub fn reach(
     creased: &Creased,
     line: &Line,
     spans: &[[[f64; 2]; 2]],
+    no_dangling: bool,
 ) -> Vec<[[f64; 2]; 2]> {
     let mut pieces: Vec<(f64, f64)> = crease_runs(line, spans)
         .into_iter()
@@ -772,15 +775,16 @@ pub fn reach(
             }
         }
         let len = run.1 - run.0;
+        let worth = |extension: f64| no_dangling || extension <= len + TOL;
         if !lo_found
             && let Some(b) = below
-            && run.0 - b <= len + TOL
+            && worth(run.0 - b)
         {
             run.0 = b;
         }
         if !hi_found
             && let Some(a) = above
-            && a - run.1 <= len + TOL
+            && worth(a - run.1)
         {
             run.1 = a;
         }
@@ -946,6 +950,7 @@ mod tests {
                 [[0.25, 0.25], [0.75, 0.75]],
                 [[0.9, 0.9], [1.0, 1.0]],
             ],
+            false,
         )[..] else {
             panic!("one run");
         };
@@ -981,6 +986,7 @@ mod tests {
                 [[0.45, 0.125], [0.55, 0.125]],
                 [[0.95, 0.125], [1.0, 0.125]],
             ],
+            false,
         );
         let mut xs: Vec<[f64; 2]> = runs
             .iter()
@@ -1013,7 +1019,13 @@ mod tests {
         let across_id = state.line_count() - 1;
         creased.add_whole(&state, across_id);
         // From the bottom edge up to the crossing with `across`.
-        let [run] = reach(&state, &creased, &midline, &[[[0.5, 0.0], [0.5, 0.3]]])[..] else {
+        let [run] = reach(
+            &state,
+            &creased,
+            &midline,
+            &[[[0.5, 0.0], [0.5, 0.3]]],
+            false,
+        )[..] else {
             panic!("one run");
         };
         let ys = {
@@ -1043,7 +1055,13 @@ mod tests {
         creased.add_whole(&state, cp_id);
         // A crease in the middle: the low end a settled crossing at 0.15,
         // the high end an aux crossing at 0.45 and a settled one at 0.5.
-        let [run] = reach(&state, &creased, &midline, &[[[0.5, 0.2], [0.5, 0.4]]])[..] else {
+        let [run] = reach(
+            &state,
+            &creased,
+            &midline,
+            &[[[0.5, 0.2], [0.5, 0.4]]],
+            false,
+        )[..] else {
             panic!("one run");
         };
         let mut ys = [run[0][1], run[1][1]];
@@ -1068,7 +1086,7 @@ mod tests {
         let state = state_with(&[midline]);
         let creased = Creased::new(&state);
         let ends_of = |spans: &[[[f64; 2]; 2]]| -> [f64; 2] {
-            let [run] = reach(&state, &creased, &midline, spans)[..] else {
+            let [run] = reach(&state, &creased, &midline, spans, false)[..] else {
                 panic!("one run");
             };
             let mut ys = [run[0][1], run[1][1]];
@@ -1096,6 +1114,20 @@ mod tests {
         // of 0.5 is taken; at 0.6 for a crease of 0.4 it is not.
         near(ends_of(&[[[0.5, 0.0], [0.5, 0.5]]]), [0.0, 1.0]);
         near(ends_of(&[[[0.5, 0.0], [0.5, 0.4]]]), [0.0, 0.4]);
+        // With dangling folds disallowed, the second reference is reached
+        // whatever it costs.
+        let [run] = reach(
+            &state,
+            &creased,
+            &midline,
+            &[[[0.5, 0.7], [0.5, 0.9]]],
+            true,
+        )[..] else {
+            panic!("one run");
+        };
+        let mut ys = [run[0][1], run[1][1]];
+        ys.sort_by(f64::total_cmp);
+        near(ys, [0.0, 1.0]);
     }
 
     /// markhor step 4: three short pieces along a line with nothing
@@ -1122,6 +1154,7 @@ mod tests {
                 [[0.375, 0.448], [0.375, 0.521]],
                 [[0.375, 0.948], [0.375, 1.0]],
             ],
+            false,
         )[..] else {
             panic!("one run");
         };
@@ -1140,13 +1173,19 @@ mod tests {
         let mut creased = Creased::new(&state);
         let across_id = state.line_count() - 1;
         creased.add_pinch(&state, across_id, &across, [[0.48, 0.7], [0.52, 0.7]]);
-        let [run] = reach(&state, &creased, &midline, &[[[0.5, 0.0], [0.5, 0.7]]])[..] else {
+        let [run] = reach(
+            &state,
+            &creased,
+            &midline,
+            &[[[0.5, 0.0], [0.5, 0.7]]],
+            false,
+        )[..] else {
             panic!("one run");
         };
         let mut ys = [run[0][1], run[1][1]];
         ys.sort_by(f64::total_cmp);
         assert!((ys[1] - 0.7).abs() < 1e-9, "stops at the pinch: {run:?}");
-        assert!(reach(&state, &creased, &midline, &[]).is_empty());
+        assert!(reach(&state, &creased, &midline, &[], false).is_empty());
     }
 
     #[test]

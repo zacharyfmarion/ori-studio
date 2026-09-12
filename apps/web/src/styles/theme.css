@@ -635,6 +635,24 @@
   font-size: 0.74rem;
 }
 
+/* The info mark after a label whose name cannot carry what the setting does. */
+.control-row__help {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  vertical-align: -2px;
+  cursor: help;
+}
+
+.control-row__help:hover,
+.control-row__help:focus-visible {
+  color: var(--text-primary);
+}
+
 .control-row__value {
   color: var(--text-primary);
   font-size: 0.74rem;

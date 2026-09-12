@@ -118,7 +118,6 @@ describe('planIsForSheet', () => {
       components: components.map((component) => ({ component })),
       refused: refused.map((component) => ({ component, kind: null })),
       durationMs: 1,
-      plannerToken: null,
     }) as unknown as ReferencesPlanRecord;
 
   it('accepts the sheet it planned', () => {

@@ -14,12 +14,12 @@ import { ViewPaneSection, ViewPaneToggleRow } from './ViewPaneControls';
  * were computed when the plan landed.
  *
  * Two groups, the split the popover drew: what to ask ReferenceFinder for a
- * picked vertex or crease, and how the whole-pattern sequence is made and
- * shown.
+ * picked vertex or crease — always from the bare sheet — and how the
+ * whole-pattern sequence is made.
  */
 export function ReferencesViewControlsPanel() {
   const { t } = useTranslation();
-  const { settings, setSettings, landmarksFirst, toggleLandmarksFirst, hasDocument, hasPlan } =
+  const { settings, setSettings, landmarksFirst, toggleLandmarksFirst, hasDocument } =
     useReferencesSettings();
 
   if (!hasDocument) {
@@ -71,12 +71,6 @@ export function ReferencesViewControlsPanel() {
             checked={settings.includeApproximate}
             onChange={(checked) => setSettings({ includeApproximate: checked })}
           />
-          <ViewPaneToggleRow
-            label={t('panels:references.settings.startFromPlan', 'Start from this sequence')}
-            checked={settings.startFromPlan}
-            disabled={!hasPlan}
-            onChange={(checked) => setSettings({ startFromPlan: checked })}
-          />
         </ViewPaneSection>
 
         <ViewPaneSection title={t('panels:references.settings.sequence', 'Folding sequence')}>
@@ -98,14 +92,13 @@ export function ReferencesViewControlsPanel() {
             onChange={(checked) => setSettings({ gridWhereNeeded: checked })}
           />
           <ViewPaneToggleRow
-            label={t('panels:references.settings.reachReferences', 'Crease to references')}
-            checked={settings.reachReferences}
-            onChange={(checked) => setSettings({ reachReferences: checked })}
-          />
-          <ViewPaneToggleRow
-            label={t('panels:references.settings.showPinches', 'Show pinches')}
-            checked={settings.showPinches}
-            onChange={(checked) => setSettings({ showPinches: checked })}
+            label={t('panels:references.settings.disallowDangling', 'Disallow dangling folds')}
+            help={t(
+              'panels:references.settings.disallowDanglingHelp',
+              'A dangling fold is a crease with an end on blank paper — nothing to stop at. Off, each crease starts from a reference (the paper’s edge or a crease already made) and runs to a second one only when that adds no more crease than the crease itself. On, every crease runs from reference to reference, however much extra crease that takes.'
+            )}
+            checked={settings.disallowDanglingFolds}
+            onChange={(checked) => setSettings({ disallowDanglingFolds: checked })}
           />
         </ViewPaneSection>
       </div>

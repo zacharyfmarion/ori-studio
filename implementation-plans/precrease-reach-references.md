@@ -315,15 +315,25 @@ boundary is where the sheet is turned.
   segments are, so that is all the picture draws" is revised: the picture
   draws the crease the *step* makes — more than the pattern's pieces, still
   never the bare chord.
-- Settings: `ReferencesSettings.reachReferences` (default `true`), a
-  checkbox in `ReferencesSettingsMenu.tsx` ("Crease to references"),
-  `ReferencesPlanRecord.reachReferences`, `useReferencesBreakdown.ts`
-  passes `reach_references` and re-plans on change (the `gridWhereNeeded`
-  pattern). Off is for a folder who wants the precrease to match the
-  pattern exactly, and it is what the measurement compares against.
+- Settings: the rule is always on in the product — a "Crease to
+  references" switch shipped and was removed as useless (2026-09-12), the
+  crate's `reach_references` staying as the corpus comparison. What the
+  Settings pane has is **"Disallow dangling folds"**
+  (`ReferencesSettings.disallowDanglingFolds`, default off, with an info
+  mark whose tooltip says what it does): on, every crease is finished to
+  its second reference whatever that costs (`disallow_dangling_folds`
+  through the bridge; `ReferencesPlanRecord.disallowDanglingFolds`, and
+  `useReferencesBreakdown.ts` re-plans on change, the `gridWhereNeeded`
+  pattern). Removed at the same time, from the same pane: "Start from this
+  sequence" (a picked crease's candidates are always ranked from the bare
+  sheet; `referencesFromPlan.ts` and the planner kept alive for it are
+  gone) and "Show pinches" (a pinched auxiliary fold is always drawn as
+  its pinches).
 - Analytics: `reach_bucket` on `folding steps completed` — crease past the
   pattern by the rule, in tenths of a sheet-length, bucketed like
-  `grid_unwanted_bucket`; `analytics/events.ts` and `docs/analytics.md`.
+  `grid_unwanted_bucket` — and `dangling_folds` (`allowed` /
+  `disallowed`), the setting the plan was made under; `analytics/events.ts`
+  and `docs/analytics.md`.
 - i18n: the one settings label through `i18n:extract` → 8 locales →
   `i18n:stamp` → `i18n:check`.
 - Tests: `plannerDiagram.test.ts` (a step in pieces draws one run; an
@@ -557,4 +567,8 @@ exactly it.
       for a crease's ends to become findable costs a quarter of the
       turn-overs to buy 32 references and 23 sheet-lengths less crease —
       the next lever to weigh, against turn-over smoothing across rounds.
-- [ ] Live check on *Abra* and markhor 47/49 (Zach)
+- [x] Settings pane: "Disallow dangling folds" (default off, info tooltip)
+      in place of "Crease to references", "Start from this sequence" and
+      "Show pinches"; `PlannerOptions.disallow_dangling_folds`, `measure_ends
+      --no-dangling` / `dump_steps --no-dangling` to measure it.
+- [ ] Live check on *Abra* and markhor 4 / 47 (Zach)

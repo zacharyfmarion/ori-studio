@@ -296,7 +296,13 @@ fn record(creased: &mut Creased, closure: &Closure, folded_index: usize) -> Vec<
             // rule `Closure::record_crease` keeps its own paper by, applied
             // here to the paper as it stands in presentation order.
             let made = if closure.reach_references() {
-                reach(state, creased, &f.line, &target.spans)
+                reach(
+                    state,
+                    creased,
+                    &f.line,
+                    &target.spans,
+                    closure.disallow_dangling_folds(),
+                )
             } else {
                 runs_of(&f.line, &target.spans)
             };

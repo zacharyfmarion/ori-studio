@@ -902,16 +902,15 @@
     "searching": "기준점을 찾는 중…",
     "settings": {
       "candidates": "후보 수",
+      "disallowDangling": "떠 있는 접기 금지",
+      "disallowDanglingHelp": "떠 있는 접기란 끝이 빈 종이 위에서 끝나 멈출 기준이 없는 접은 선입니다. 끄면 각 접은 선은 기준(종이 가장자리나 이미 있는 접은 선)에서 시작하고, 선 자체보다 더 길어지지 않을 때만 두 번째 기준까지 이어집니다. 켜면 추가로 얼마나 더 접든 모든 접은 선이 기준에서 기준까지 이어집니다.",
       "emptyNote": "참조를 찾는 방식을 조정하려면 전개도를 여세요.",
       "gridWhereNeeded": "필요한 곳에만",
       "includeApproximate": "근사 해 포함",
       "landmarksFirst": "기준점 먼저",
       "precreaseGrid": "격자 먼저 접기",
-      "reachReferences": "기준선까지 접기",
       "sequence": "접기 순서",
-      "showPinches": "집기 표시",
-      "solutions": "해답 수",
-      "startFromPlan": "이 순서에서 시작"
+      "solutions": "해답 수"
     },
     "sheets": {
       "cardTitle_other": "패턴 {{n}}: 접힘선 {{count}}개",

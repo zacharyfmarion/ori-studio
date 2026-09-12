@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Info } from 'lucide-react';
 import { Toggle } from '../ui/Toggle';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/Tooltip';
 
 /**
  * The building blocks a workspace's View pane is made of: a titled group of
@@ -79,16 +80,20 @@ export function ViewPaneSection({
  *
  * `nested` sets the row a step in, for an option that qualifies the one above
  * it — "Only where needed" under "Precrease grid" — so the pair reads as one
- * setting, the way `.context-menu__item--nested` does in a menu.
+ * setting, the way `.context-menu__item--nested` does in a menu. `help` puts
+ * an info mark after the label that explains the setting on hover or focus,
+ * for one whose name cannot carry what it does.
  */
 export function ViewPaneToggleRow({
   label,
+  help,
   checked,
   disabled,
   nested = false,
   onChange,
 }: {
   label: string;
+  help?: string;
   checked: boolean;
   disabled?: boolean;
   nested?: boolean;
@@ -99,7 +104,19 @@ export function ViewPaneToggleRow({
       className={nested ? 'control-row control-row--nested' : 'control-row'}
       data-disabled={disabled || undefined}
     >
-      <span className="control-row__label">{label}</span>
+      <span className="control-row__label">
+        {label}
+        {help && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button type="button" className="control-row__help" aria-label={help}>
+                <Info size={13} aria-hidden="true" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">{help}</TooltipContent>
+          </Tooltip>
+        )}
+      </span>
       <div className="control-row__value control-row__value--toggle">
         <Toggle aria-label={label} checked={checked} disabled={disabled} onChange={onChange} />
       </div>

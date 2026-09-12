@@ -177,8 +177,7 @@ export interface ReferencesPlanScene {
 export function planStepScene(
   sequence: PrecreaseSequence,
   model: ReferencesPlanModel,
-  index: number,
-  options: { showPinches?: boolean } = {}
+  index: number
 ): ReferencesPlanScene {
   const step = sequence.steps[index];
   if (!step) return { diagram: null, bounds: null, highlightLineIds: [] };
@@ -186,7 +185,7 @@ export function planStepScene(
   // folded so far by `referencesCreaseVisibility` — so the step draws only what
   // the pattern cannot: its own crease, which is not folded yet, and the
   // pinches and auxiliary folds no crease pattern records.
-  const diagram = plannerStepDiagram(sequence, modelFrame(sequence, model, options), index, {
+  const diagram = plannerStepDiagram(sequence, modelFrame(sequence, model), index, {
     earlier: 'unpatterned',
   });
   const geometry = model.steps[index];

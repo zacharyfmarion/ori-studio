@@ -17,11 +17,9 @@ export const DEFAULT_REFERENCES_VIEW: ReferencesView = {
 export const DEFAULT_REFERENCES_SETTINGS: ReferencesSettings = {
   candidateCount: 5,
   includeApproximate: false,
-  showPinches: true,
-  startFromPlan: false,
   precreaseGrid: true,
   gridWhereNeeded: true,
-  reachReferences: true,
+  disallowDanglingFolds: false,
 };
 
 /** The candidate counts the settings popover offers. */

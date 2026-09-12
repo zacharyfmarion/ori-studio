@@ -305,6 +305,10 @@ pub struct Closure {
     /// Whether a fold's crease is one run carried out to references
     /// ([`crate::marks::reach`]) rather than the pattern's pieces as they are.
     reach_references: bool,
+    /// Whether [`crate::marks::reach`] carries every crease to a reference at
+    /// both ends, or leaves the second where that would cost more crease
+    /// than there is.
+    disallow_dangling_folds: bool,
     /// The grid pleated before the first close, if any.
     grid: Option<Grid>,
     stats: ClosureStats,
@@ -353,6 +357,7 @@ impl Closure {
             prefer_findable_ends: true,
             prefer_sightable: true,
             reach_references: true,
+            disallow_dangling_folds: false,
             grid: None,
             stats: ClosureStats::default(),
         }
@@ -451,6 +456,20 @@ impl Closure {
     /// See [`Closure::set_reach_references`].
     pub fn reach_references(&self) -> bool {
         self.reach_references
+    }
+
+    /// Whether every crease must end at a reference at both ends
+    /// ([`crate::marks::reach`]'s third rule made unconditional). Off by
+    /// default: a crease is anchored at one reference, and its other end
+    /// dangles when the second reference would cost more crease than there
+    /// is.
+    pub fn set_disallow_dangling_folds(&mut self, on: bool) {
+        self.disallow_dangling_folds = on;
+    }
+
+    /// See [`Closure::set_disallow_dangling_folds`].
+    pub fn disallow_dangling_folds(&self) -> bool {
+        self.disallow_dangling_folds
     }
 
     /// Every remaining target whose line can be sighted *and* whose creases
@@ -671,12 +690,13 @@ impl Closure {
             state,
             targets,
             reach_references,
+            disallow_dangling_folds,
             ..
         } = self;
         match target.map(|t| &targets[t].spans) {
             Some(spans) if !spans.is_empty() => {
                 if *reach_references {
-                    let runs = reach(state, creased, line, spans);
+                    let runs = reach(state, creased, line, spans, *disallow_dangling_folds);
                     creased.add_spans(state, line_id, line, &runs);
                 } else {
                     creased.add_spans(state, line_id, line, spans);

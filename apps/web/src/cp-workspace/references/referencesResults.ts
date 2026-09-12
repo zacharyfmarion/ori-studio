@@ -167,16 +167,8 @@ export interface ReferencesPlanRecord {
   precreaseGrid: boolean;
   /** The "Only where needed" setting this plan was computed under, likewise. */
   gridWhereNeeded: boolean;
-  /** The "Crease to references" setting this plan was computed under, likewise. */
-  reachReferences: boolean;
-  /**
-   * The worker planner still sitting on this plan's final state, when there is
-   * one — what "Starting from: this sequence" scores against. Only a
-   * single-sheet plan keeps it: the worker holds one planner at a time, so
-   * after several sheets the survivor would be the last one planned rather
-   * than the one a target belongs to, and a wrong state is worse than none.
-   */
-  plannerToken: number | null;
+  /** The "Disallow dangling folds" setting this plan was computed under, likewise. */
+  disallowDanglingFolds: boolean;
 }
 
 /** A CP-wide analysis and the revision it describes. */

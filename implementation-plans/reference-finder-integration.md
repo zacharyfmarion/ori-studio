@@ -930,6 +930,8 @@ pitch keeps nearest-element snapping unambiguous. Wasm exports are `sheet_frames
 - [x] CP-wide analysis (closure-first, ReferenceFinder for the unreachable remainder) with
       progress/Stop, findings list with click-to-frame, summary strip.
 - [x] "Starting from: this sequence" for crease targets using the shared from-state scorer.
+      Removed 2026-09-12 as unclear: a picked crease's candidates are always ranked from
+      the bare sheet now, and the planner is disposed after every run.
 - [ ] Export: copy the step list as text. (Analytics for the breakdown/analysis events and
       the `docs/` user note landed; the text export did not.)
 

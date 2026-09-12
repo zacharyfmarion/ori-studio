@@ -72,6 +72,13 @@ pub struct PlannerOptions {
     /// fold. Off keeps the precrease to the pattern, lost ends and all, and
     /// is what the corpus measurement compares against.
     pub reach_references: bool,
+    /// Whether every crease must end at a reference at *both* ends. Off by
+    /// default: a crease is anchored at one reference and carried to the
+    /// second only when that costs no more crease than there already is,
+    /// so a short crease may dangle at one end. On, every crease runs from
+    /// reference to reference, whatever crease past the pattern that takes
+    /// ([`crate::marks::reach`]).
+    pub disallow_dangling_folds: bool,
     pub clock: Clock,
 }
 
@@ -99,6 +106,7 @@ impl Default for PlannerOptions {
             prefer_sightable: true,
             precrease_grid: GridMode::WhereNeeded,
             reach_references: true,
+            disallow_dangling_folds: false,
             clock: default_clock(),
         }
     }
@@ -106,7 +114,8 @@ impl Default for PlannerOptions {
 
 /// The JSON shape of the options: `{ point_cap, max_depth, depth3_threshold,
 /// max_candidates, stuck_budget_ms, total_budget_ms, precrease_grid,
-/// grid_where_needed, reach_references, prefer_sightable }`, all optional.
+/// grid_where_needed, reach_references, disallow_dangling_folds,
+/// prefer_sightable }`, all optional.
 /// `precrease_grid` is
 /// the toggle and `grid_where_needed` says how much of the grid a plan opens
 /// with, so a caller that sends only the toggle still gets a grid.
@@ -122,6 +131,7 @@ pub struct PlannerOptionsJson {
     pub precrease_grid: Option<bool>,
     pub grid_where_needed: Option<bool>,
     pub reach_references: Option<bool>,
+    pub disallow_dangling_folds: Option<bool>,
     pub prefer_sightable: Option<bool>,
 }
 
@@ -150,6 +160,9 @@ impl PlannerOptions {
         }
         if let Some(on) = parsed.reach_references {
             opts.reach_references = on;
+        }
+        if let Some(on) = parsed.disallow_dangling_folds {
+            opts.disallow_dangling_folds = on;
         }
         if let Some(on) = parsed.prefer_sightable {
             opts.prefer_sightable = on;
@@ -613,6 +626,7 @@ impl Planner {
         let mut closure = Closure::new(sheet, targets, opts.point_cap);
         closure.set_prefer_findable_ends(opts.prefer_findable_ends);
         closure.set_reach_references(opts.reach_references);
+        closure.set_disallow_dangling_folds(opts.disallow_dangling_folds);
         closure.set_prefer_sightable(opts.prefer_sightable);
         if let Some(grid) = grid {
             // The grid is a few hundred lines at most, far under the cap; if
@@ -643,6 +657,7 @@ impl Planner {
                 let mut closure = Closure::new(sheet, targets, opts.point_cap);
                 closure.set_prefer_findable_ends(opts.prefer_findable_ends);
                 closure.set_reach_references(opts.reach_references);
+                closure.set_disallow_dangling_folds(opts.disallow_dangling_folds);
                 closure.set_prefer_sightable(opts.prefer_sightable);
                 closure
             }),

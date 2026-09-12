@@ -213,8 +213,7 @@ function planHighlights(
   variants: readonly ReferencesPlanVariant[],
   viewSteps: readonly ReferencesViewStep[],
   activeStep: number,
-  activeFinding: number | null,
-  showPinches: boolean
+  activeFinding: number | null
 ): ReferencesHighlights {
   if (variants.length === 0) return NO_HIGHLIGHTS;
   if (activeFinding !== null) {
@@ -237,7 +236,7 @@ function planHighlights(
   if (!target || target.kind !== 'fold') return NO_HIGHLIGHTS;
   const entry = variants[target.component];
   if (!entry) return NO_HIGHLIGHTS;
-  const overlay = planStepScene(entry.sequence, entry.model, target.step, { showPinches });
+  const overlay = planStepScene(entry.sequence, entry.model, target.step);
   return {
     highlightLineIds: new Set(overlay.highlightLineIds),
     highlightVertexIdx: EMPTY_IDS,
@@ -260,11 +259,10 @@ export function useReferencesPlanHighlights(
   variants: readonly ReferencesPlanVariant[],
   viewSteps: readonly ReferencesViewStep[],
   activeStep: number,
-  activeFinding: number | null,
-  showPinches: boolean
+  activeFinding: number | null
 ): ReferencesHighlights {
   return useMemo(
-    () => planHighlights(variants, viewSteps, activeStep, activeFinding, showPinches),
-    [variants, viewSteps, activeStep, activeFinding, showPinches]
+    () => planHighlights(variants, viewSteps, activeStep, activeFinding),
+    [variants, viewSteps, activeStep, activeFinding]
   );
 }

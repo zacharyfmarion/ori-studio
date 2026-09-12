@@ -942,16 +942,15 @@
     "searching": "Finding references…",
     "settings": {
       "candidates": "Candidates",
+      "disallowDangling": "Disallow dangling folds",
+      "disallowDanglingHelp": "A dangling fold is a crease with an end on blank paper — nothing to stop at. Off, each crease starts from a reference (the paper’s edge or a crease already made) and runs to a second one only when that adds no more crease than the crease itself. On, every crease runs from reference to reference, however much extra crease that takes.",
       "emptyNote": "Open a crease pattern to adjust how its references are found.",
       "gridWhereNeeded": "Only where needed",
       "includeApproximate": "Include approximate solutions",
       "landmarksFirst": "Landmarks first",
       "precreaseGrid": "Precrease grid",
-      "reachReferences": "Crease to references",
       "sequence": "Folding sequence",
-      "showPinches": "Show pinches",
-      "solutions": "Solutions",
-      "startFromPlan": "Start from this sequence"
+      "solutions": "Solutions"
     },
     "sheets": {
       "cardTitle_one": "Pattern {{n}}: {{count}} crease",

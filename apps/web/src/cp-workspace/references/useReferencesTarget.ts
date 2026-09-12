@@ -34,8 +34,6 @@ import {
   type ReferenceFinderQuerySettings,
 } from './referenceFinder/protocol';
 import type { RawSolution, RfPoint } from './referenceFinder/solution';
-import { createWorkerPlannerHandle } from './precreasePlan';
-import { candidateCosts, orderByCost, reorder } from './referencesFromPlan';
 import {
   clearReferencesResults,
   referencesResultsSnapshot,
@@ -460,38 +458,6 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
   }, [setReferencesCandidates, setReferencesRun, setReferencesTarget, setReferencesView]);
 
   /**
-   * The order to show a crease target's candidates in, given the breakdown.
-   *
-   * Off by default (`startFromPlan`), and only for a crease: a vertex is a
-   * mark, and the plan folds lines. The planner the breakdown left behind is
-   * the state being scored against, so a plan for another sheet, another
-   * revision, or one whose planner has since been replaced falls back to
-   * ReferenceFinder's own ranking rather than to a state we cannot see.
-   */
-  const orderFromPlan = useCallback(
-    async (
-      solutions: readonly ExtractedSolution[],
-      componentId: number,
-      forRevision: string,
-      kind: TargetKind
-    ): Promise<number[]> => {
-      const identity = solutions.map((_, index) => index);
-      if (!settingsRef.current.startFromPlan || kind !== 'crease') return identity;
-      const plan = referencesResultsSnapshot().plan;
-      if (!plan || plan.revision !== forRevision || plan.plannerToken === null) return identity;
-      if (!plan.components.some((entry) => entry.component === componentId)) return identity;
-      try {
-        const handle = createWorkerPlannerHandle(getPrecreaseClient(), plan.plannerToken);
-        return orderByCost(await candidateCosts(handle, solutions));
-      } catch (error) {
-        reportError(error, { surface: 'references:startFromPlan' });
-        return identity;
-      }
-    },
-    []
-  );
-
-  /**
    * Whether the answer this flow is about to publish is still wanted: the
    * document has not moved, the run has not been superseded, and the pick has
    * not been dismissed or replaced. All three are read after an await, so all
@@ -580,13 +546,10 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
         return;
       }
 
-      // "Starting from: this sequence": ReferenceFinder always answers from
-      // the bare sheet, so when a breakdown exists its state is a better
-      // ranking of the same answers. The core's raw output is parallel to the
-      // extracted list, so the order is applied to both or to neither.
-      const order = await orderFromPlan(solutions, component.id, forRevision, record.kind);
-      const raws = order.map((index) => transport.raw[index]);
-      solutions = reorder(solutions, order);
+      // ReferenceFinder answers from the bare sheet, and that is the ranking
+      // shown: a construction for one crease, on its own. The core's raw
+      // output is parallel to the extracted list.
+      const raws = transport.raw;
 
       try {
         const { modelSteps, originals } = await whilePrecreaseClientAlive(
@@ -633,7 +596,7 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
         setReferencesRun({ status: 'error', message: humanizeError(error, t) });
       }
     },
-    [orderFromPlan, setReferencesCandidates, setReferencesRun, setReferencesView, superseded, t]
+    [setReferencesCandidates, setReferencesRun, setReferencesView, superseded, t]
   );
 
   /** The frames for `forRevision`, from the side table or computed now. */

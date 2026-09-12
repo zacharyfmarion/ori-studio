@@ -3,7 +3,7 @@
 //! line, its in-paper segment, direction and side.
 //!
 //! ```sh
-//! cargo run --release -p oristudio-precrease --example dump_steps -- <file> [--no-grid] [--whole] [--no-reach] [--no-sightable] [--component N]
+//! cargo run --release -p oristudio-precrease --example dump_steps -- <file> [--no-grid] [--whole] [--no-reach] [--no-sightable] [--no-dangling] [--component N]
 //! ```
 
 use std::path::PathBuf;
@@ -19,6 +19,7 @@ fn main() {
     let grid = !args.iter().any(|a| a == "--no-grid");
     let reach = !args.iter().any(|a| a == "--no-reach");
     let sightable = !args.iter().any(|a| a == "--no-sightable");
+    let no_dangling = args.iter().any(|a| a == "--no-dangling");
     let whole = args.iter().any(|a| a == "--whole");
     let component: usize = args
         .iter()
@@ -48,6 +49,7 @@ fn main() {
             (true, false) => GridMode::WhereNeeded,
         },
         reach_references: reach,
+        disallow_dangling_folds: no_dangling,
         prefer_sightable: sightable,
         clock: default_clock(),
         ..PlannerOptions::default()

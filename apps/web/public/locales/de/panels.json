@@ -936,16 +936,15 @@
     "searching": "Referenzen werden gesucht…",
     "settings": {
       "candidates": "Kandidaten",
+      "disallowDangling": "Lose Falten verbieten",
+      "disallowDanglingHelp": "Eine lose Falte ist ein Kniff, der auf leerem Papier endet – ohne Anhaltspunkt, wo er aufhört. Aus: Jeder Kniff beginnt an einer Referenz (Papierkante oder bereits vorhandene Falte) und läuft nur dann bis zu einer zweiten, wenn das nicht mehr Falz kostet als der Kniff selbst lang ist. An: Jeder Kniff läuft von Referenz zu Referenz, egal wie viel zusätzlicher Falz nötig ist.",
       "emptyNote": "Öffne ein Faltmuster, um einzustellen, wie seine Referenzen gefunden werden.",
       "gridWhereNeeded": "Nur wo nötig",
       "includeApproximate": "Näherungslösungen einbeziehen",
       "landmarksFirst": "Orientierungspunkte zuerst",
       "precreaseGrid": "Raster vorfalten",
-      "reachReferences": "Bis zu Referenzen falten",
       "sequence": "Faltfolge",
-      "showPinches": "Kniffe anzeigen",
-      "solutions": "Lösungen",
-      "startFromPlan": "Von dieser Folge ausgehen"
+      "solutions": "Lösungen"
     },
     "sheets": {
       "cardTitle_one": "Muster {{n}}: {{count}} Faltlinie",

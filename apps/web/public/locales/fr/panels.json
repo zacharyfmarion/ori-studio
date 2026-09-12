@@ -976,16 +976,15 @@
     "searching": "Recherche des références…",
     "settings": {
       "candidates": "Candidats",
+      "disallowDangling": "Interdire les plis flottants",
+      "disallowDanglingHelp": "Un pli flottant est une marque qui se termine sur du papier vierge, sans rien pour l’arrêter. Désactivé : chaque marque part d’une référence (le bord du papier ou un pli déjà fait) et ne va jusqu’à une seconde que si cela n’ajoute pas plus de marque que la marque elle-même. Activé : chaque marque va de référence à référence, quelle que soit la longueur supplémentaire.",
       "emptyNote": "Ouvrez un patron de pliage pour régler la recherche de ses références.",
       "gridWhereNeeded": "Seulement où nécessaire",
       "includeApproximate": "Inclure les solutions approximatives",
       "landmarksFirst": "Repères d’abord",
       "precreaseGrid": "Préplier la grille",
-      "reachReferences": "Marquer jusqu’aux références",
       "sequence": "Séquence de pliage",
-      "showPinches": "Afficher les pincements",
-      "solutions": "Solutions",
-      "startFromPlan": "Partir de cette séquence"
+      "solutions": "Solutions"
     },
     "sheets": {
       "cardTitle_one": "Patron {{n}} : {{count}} pli",

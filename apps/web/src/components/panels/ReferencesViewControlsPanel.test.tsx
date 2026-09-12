@@ -1,12 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import {
-  clearReferencesResults,
-  setReferencesPlanRecord,
-  type ReferencesPlanRecord,
-} from '../../cp-workspace/references/referencesResults';
-import { referencesRevisionKey } from '../../cp-workspace/references/useReferencesView';
+import { clearReferencesResults } from '../../cp-workspace/references/referencesResults';
 import { DEFAULT_REFERENCES_SETTINGS } from '../../store/workspaceStore/slices/referencesSlice';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
@@ -28,20 +23,6 @@ const DOCUMENT = {
   operationDescriptors: [],
   lastCommandResult: null,
 };
-
-/** A plan for the open document, on its one sheet. */
-function planFor(document: typeof DOCUMENT): ReferencesPlanRecord {
-  return {
-    revision: referencesRevisionKey(document as never),
-    components: [{ component: 0 } as ReferencesPlanRecord['components'][number]],
-    refused: [],
-    durationMs: 1,
-    precreaseGrid: true,
-    gridWhereNeeded: true,
-    reachReferences: true,
-    plannerToken: null,
-  };
-}
 
 function render(): HTMLDivElement {
   container = document.createElement('div');
@@ -97,12 +78,10 @@ describe('ReferencesViewControlsPanel', () => {
       )
     ).toEqual([
       'Include approximate solutions',
-      'Start from this sequence',
       'Landmarks first',
       'Precrease grid',
       'Only where needed',
-      'Crease to references',
-      'Show pinches',
+      'Disallow dangling folds',
     ]);
     // The candidate count is the one setting that is not a switch.
     expect(rendered.querySelector('button[aria-label="Solutions"]')?.textContent).toContain(
@@ -168,22 +147,19 @@ describe('ReferencesViewControlsPanel', () => {
     expect(row?.getAttribute('data-disabled')).toBe('true');
   });
 
-  it('offers "start from this sequence" only once a plan exists for this sheet', () => {
+  it('explains "disallow dangling folds" from an info mark beside its label', () => {
     const rendered = render();
-    expect(toggle(rendered, 'Start from this sequence').disabled).toBe(true);
+    const help = rendered.querySelector<HTMLButtonElement>('.control-row__help');
+    expect(help).not.toBeNull();
+    expect(help?.closest('.control-row')?.textContent).toContain('Disallow dangling folds');
+    // The explanation is the mark's accessible name, so it reads without the
+    // hover as well.
+    expect(help?.getAttribute('aria-label')).toContain('A dangling fold is a crease');
+    // Only that row carries one: the other names say what they do.
+    expect(rendered.querySelectorAll('.control-row__help')).toHaveLength(1);
 
-    act(() => setReferencesPlanRecord(planFor(DOCUMENT)));
-    expect(toggle(rendered, 'Start from this sequence').disabled).toBe(false);
-
-    // Another sheet's plan says nothing about this one.
-    act(() => useWorkspaceStore.getState().setReferencesSelectedSheet(2));
-    expect(toggle(rendered, 'Start from this sequence').disabled).toBe(true);
-
-    // Nor does a plan for a document that has since changed.
-    act(() => {
-      useWorkspaceStore.getState().setReferencesSelectedSheet(0);
-      useWorkspaceStore.setState({ oristudioCpDocument: { ...DOCUMENT, loadSerial: 2 } } as never);
-    });
-    expect(toggle(rendered, 'Start from this sequence').disabled).toBe(true);
+    expect(settings().disallowDanglingFolds).toBe(false);
+    press(toggle(rendered, 'Disallow dangling folds'));
+    expect(settings().disallowDanglingFolds).toBe(true);
   });
 });

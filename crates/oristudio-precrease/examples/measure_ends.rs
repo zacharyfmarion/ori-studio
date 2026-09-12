@@ -13,7 +13,8 @@
 //! to measure the grid the same way; `--no-reach` plans with every CP step
 //! creasing exactly the pattern's pieces rather than one run from reference
 //! to reference, and `--no-sightable` without the closure folding first what
-//! the paper can sight, to measure those rules the same way. `-v` names
+//! the paper can sight, and `--no-dangling` with every crease carried to a
+//! reference at both ends, to measure those rules the same way. `-v` names
 //! every lost end, every step made in pieces and every press — with what the
 //! press was for: a fold that had a free witness, a mark the pattern makes
 //! later anyway, or neither — with the preference on, to be read by hand.
@@ -281,12 +282,14 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize, verbose: bool) -> Tal
     t
 }
 
+#[allow(clippy::too_many_arguments)]
 fn plan_file(
     path: &Path,
     prefer: bool,
     grid: bool,
     reach: bool,
     sightable: bool,
+    no_dangling: bool,
     verbose: bool,
 ) -> Option<Tally> {
     let cp = load_path(path, None).ok()?;
@@ -307,6 +310,7 @@ fn plan_file(
                 GridMode::Off
             },
             reach_references: reach,
+            disallow_dangling_folds: no_dangling,
             prefer_sightable: sightable,
             ..PlannerOptions::default()
         };
@@ -351,12 +355,17 @@ fn main() {
     let grid = !args.iter().any(|a| a == "--no-grid");
     let reach = !args.iter().any(|a| a == "--no-reach");
     let sightable = !args.iter().any(|a| a == "--no-sightable");
+    let no_dangling = args.iter().any(|a| a == "--no-dangling");
     let verbose = args.iter().any(|a| a == "-v");
+    let flags = [
+        "--no-grid",
+        "--no-reach",
+        "--no-sightable",
+        "--no-dangling",
+        "-v",
+    ];
     let mut paths = Vec::new();
-    for a in args
-        .iter()
-        .filter(|a| *a != "--no-grid" && *a != "--no-reach" && *a != "--no-sightable" && *a != "-v")
-    {
+    for a in args.iter().filter(|a| !flags.contains(&a.as_str())) {
         collect(Path::new(a), &mut paths);
     }
     // One plan per design: the corpus keeps a detection and a topology beside
@@ -392,8 +401,8 @@ fn main() {
             println!("{}", path.display());
         }
         let (a, b) = (
-            plan_file(path, true, grid, reach, sightable, verbose),
-            plan_file(path, false, grid, reach, sightable, false),
+            plan_file(path, true, grid, reach, sightable, no_dangling, verbose),
+            plan_file(path, false, grid, reach, sightable, no_dangling, false),
         );
         let (Some(a), Some(b)) = (a, b) else {
             println!("{}\tdid not plan", path.display());

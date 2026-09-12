@@ -902,16 +902,15 @@
     "searching": "基準点を探しています…",
     "settings": {
       "candidates": "候補数",
+      "disallowDangling": "宙ぶらりんの折り目を禁止",
+      "disallowDanglingHelp": "宙ぶらりんの折り目とは、端が何もない紙の上で終わる折り目のことで、止める目印がありません。オフ：各折り目は基準（紙の縁、または既にある折り目）から始まり、折り目自体より長くならない場合にだけ二つ目の基準まで伸ばします。オン：どれだけ余分に折り目が増えても、すべての折り目を基準から基準まで付けます。",
       "emptyNote": "リファレンスの探し方を調整するには展開図を開いてください。",
       "gridWhereNeeded": "必要な場所だけ",
       "includeApproximate": "近似解も含める",
       "landmarksFirst": "目印を先に",
       "precreaseGrid": "グリッドを先に折る",
-      "reachReferences": "参照点まで折り筋をつける",
       "sequence": "折り手順",
-      "showPinches": "つまみ折りを表示",
-      "solutions": "解の数",
-      "startFromPlan": "この手順から始める"
+      "solutions": "解の数"
     },
     "sheets": {
       "cardTitle_other": "パターン {{n}}: 折り線 {{count}} 本",

@@ -157,23 +157,8 @@ function unitEdge(
   }
 }
 
-/**
- * What a frame may be asked to leave out.
- *
- * `showPinches` is a reader's setting: a pinched auxiliary fold is drawn as the
- * short marks it actually leaves, or as the whole chord it was made along. Both
- * frames honour it, or the two pictures would differ on exactly the steps the
- * setting is about.
- */
-export interface DiagramFrameOptions {
-  showPinches?: boolean;
-}
-
 /** The planner's own unit square: the card's frame, and the sequence as given. */
-export function unitFrame(
-  sequence: PrecreaseSequence,
-  options: DiagramFrameOptions = {}
-): DiagramFrame {
+export function unitFrame(sequence: PrecreaseSequence): DiagramFrame {
   const sheet = sequence.sheet;
   const sides: PrecreaseEdgeSide[] = ['left', 'right', 'bottom', 'top'];
   return {
@@ -181,10 +166,7 @@ export function unitFrame(
     centre: { x: sheet.width / 2, y: sheet.height / 2 },
     outline: sides.map((side) => unitEdge(sheet, side)),
     chord: (step) => pair(step.segment),
-    pinches: (step) =>
-      (options.showPinches ?? true) && step.extent.kind === 'pinches'
-        ? step.extent.spans.map(pair)
-        : [],
+    pinches: (step) => (step.extent.kind === 'pinches' ? step.extent.spans.map(pair) : []),
     creases: (step) => step.cp_spans.map(pair),
     made: (step) => (step.made?.length ? step.made : step.cp_spans).map(pair),
     pressedOn: (step) => step.pressed_on.map(pair),
@@ -265,11 +247,7 @@ const along = (a: Point, b: Point, t: number): Point => ({
  * leaves the crate (`crates/oristudio-precrease/src/closure.rs:106`) — so the
  * recovery is exact, not an approximation, and it costs no second round trip.
  */
-export function modelFrame(
-  sequence: PrecreaseSequence,
-  model: ReferencesPlanModel,
-  options: DiagramFrameOptions = {}
-): DiagramFrame {
+export function modelFrame(sequence: PrecreaseSequence, model: ReferencesPlanModel): DiagramFrame {
   const indexOfStep = new Map(sequence.steps.map((step, i) => [step.id, i]));
   const at = (step: PrecreaseStep) => model.steps[indexOfStep.get(step.id) ?? -1] ?? null;
   const corners = Object.values(model.edges).flatMap((e) => [e.a, e.b]);
@@ -319,7 +297,7 @@ export function modelFrame(
       return geometry ? [geometry.segment.a, geometry.segment.b] : null;
     },
     pinches: (step) =>
-      (options.showPinches ?? true) && step.extent.kind === 'pinches'
+      step.extent.kind === 'pinches'
         ? (at(step)?.pinches ?? []).map((span) => [span.a, span.b] as DiagramSegment)
         : [],
     // A step's spans are recovered along the mapped chord by ratio: they

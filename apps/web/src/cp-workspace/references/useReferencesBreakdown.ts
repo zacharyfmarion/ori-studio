@@ -163,9 +163,7 @@ function plannerClients(rect: PrecreaseRfRect) {
  * selection names nothing.
  *
  * A list rather than one component because the run loop below still walks it —
- * the workspace answers for one sheet at a time (plan D12), and planning one
- * sheet is what makes `planned.length === 1` true on every document, so the
- * planner survives a run and `startFromPlan` has a state to score against.
+ * the workspace answers for one sheet at a time (plan D12).
  */
 function plannableComponents(
   analysis: SheetAnalysis,
@@ -329,8 +327,8 @@ export function useReferencesBreakdown(
   const gridWhereNeeded = useWorkspaceStore(
     (state) => state.referencesSettings.gridWhereNeeded
   );
-  const reachReferences = useWorkspaceStore(
-    (state) => state.referencesSettings.reachReferences
+  const disallowDanglingFolds = useWorkspaceStore(
+    (state) => state.referencesSettings.disallowDanglingFolds
   );
   // `referencesPlan` is one slot for a whole document, cleared on every sheet
   // switch, and nothing here reads it: the record says which sheet has a plan,
@@ -377,7 +375,7 @@ export function useReferencesBreakdown(
     selectedSheet,
     precreaseGrid,
     gridWhereNeeded,
-    reachReferences,
+    disallowDanglingFolds,
   });
   useEffect(() => {
     latest.current = {
@@ -387,7 +385,7 @@ export function useReferencesBreakdown(
       selectedSheet,
       precreaseGrid,
       gridWhereNeeded,
-      reachReferences,
+      disallowDanglingFolds,
     };
   });
   const abortRef = useRef<AbortController | null>(null);
@@ -423,13 +421,17 @@ export function useReferencesBreakdown(
       budgetMs: number,
       /**
        * Open a pleated design with its grid pleated, and only where it is
-       * needed (`referencesSettings.precreaseGrid` / `gridWhereNeeded`); make
-       * each fold from reference to reference (`reachReferences`).
+       * needed (`referencesSettings.precreaseGrid` / `gridWhereNeeded`); carry
+       * every crease to a reference at both ends (`disallowDanglingFolds`).
        */
-      grid: { precreaseGrid: boolean; gridWhereNeeded: boolean; reachReferences: boolean },
+      grid: {
+        precreaseGrid: boolean;
+        gridWhereNeeded: boolean;
+        disallowDanglingFolds: boolean;
+      },
       onProgress: (progress: PrecreasePlanProgress) => void
     ): Promise<
-      (ReferencesPlanComponent & { token: number }) | { refusedKind: PrecreaseRefusalKind | null }
+      ReferencesPlanComponent | { refusedKind: PrecreaseRefusalKind | null }
     > => {
       const created = await client.plannerCreate(
         input.segments,
@@ -439,7 +441,7 @@ export function useReferencesBreakdown(
           total_budget_ms: budgetMs,
           precrease_grid: grid.precreaseGrid,
           grid_where_needed: grid.gridWhereNeeded,
-          reach_references: grid.reachReferences,
+          disallow_dangling_folds: grid.disallowDanglingFolds,
         },
         paperFallbackRect()
       );
@@ -468,7 +470,6 @@ export function useReferencesBreakdown(
       });
       return {
         component: component.id,
-        token: created.token,
         result,
         frame,
         plain: await variant(result.sequence),
@@ -513,14 +514,13 @@ export function useReferencesBreakdown(
     const grid = {
       precreaseGrid: current.precreaseGrid,
       gridWhereNeeded: current.gridWhereNeeded,
-      reachReferences: current.reachReferences,
+      disallowDanglingFolds: current.disallowDanglingFolds,
     };
 
     void (async () => {
       const client = getPrecreaseClient();
       const planned: ReferencesPlanComponent[] = [];
       const refused: ReferencesPlanRecord['refused'] = [];
-      let lastToken: number | null = null;
       try {
         // The whole run shares one budget; each sheet gets what is left,
         // divided by the sheets still to do, so one pathological component
@@ -541,10 +541,7 @@ export function useReferencesBreakdown(
             (progress) => setReferencesProgress(progressOf(progress))
           );
           if ('refusedKind' in outcome) refused.push({ component: sheets[i].id, kind: outcome.refusedKind });
-          else {
-            planned.push(outcome);
-            lastToken = outcome.token;
-          }
+          else planned.push(outcome);
           if (performance.now() - started >= totalBudgetMs) break;
         }
       } catch (error) {
@@ -559,11 +556,9 @@ export function useReferencesBreakdown(
         });
         return;
       } finally {
-        // A single-sheet plan keeps its planner: it is the state
-        // `settings.startFromPlan` scores a target's candidates against, and
-        // rebuilding it would mean re-running the closure. Anything else is
-        // disposed — the survivor would be the wrong sheet's.
-        if (planned.length !== 1) await client.plannerDispose().catch(() => undefined);
+        // The planner is not kept: both presentation orders were read while
+        // it held the closure, and nothing asks it anything afterwards.
+        await client.plannerDispose().catch(() => undefined);
       }
 
       endReferencesRun(runId);
@@ -574,10 +569,9 @@ export function useReferencesBreakdown(
         components: planned,
         refused,
         durationMs: performance.now() - started,
-        plannerToken: planned.length === 1 ? (lastToken ?? null) : null,
         precreaseGrid: grid.precreaseGrid,
         gridWhereNeeded: grid.gridWhereNeeded,
-        reachReferences: grid.reachReferences,
+        disallowDanglingFolds: grid.disallowDanglingFolds,
       };
       setReferencesPlanRecord(record);
       const nextSummary = summaryOf(record);
@@ -687,13 +681,13 @@ export function useReferencesBreakdown(
     if (
       record.precreaseGrid === precreaseGrid &&
       (!precreaseGrid || record.gridWhereNeeded === gridWhereNeeded) &&
-      record.reachReferences === reachReferences
+      record.disallowDanglingFolds === disallowDanglingFolds
     ) {
       return;
     }
     if (targeted || referencesRunSnapshot().running) return;
     run();
-  }, [precreaseGrid, gridWhereNeeded, reachReferences, record, run, targeted]);
+  }, [precreaseGrid, gridWhereNeeded, disallowDanglingFolds, record, run, targeted]);
 
   const landmarksFirst = viewState.landmarksFirst;
   const variants = useMemo<ReferencesPlanVariant[]>(
@@ -826,10 +820,12 @@ function trackPlan(
       Math.round(summary.gridUnwantedLength * 10),
       COUNT_BUCKETS
     ),
-    // How much crease the steps made past the pattern's own to run from
-    // reference to reference, in tenths of a sheet-length: the cost of
-    // "Crease to references", so its worth is measurable in the field.
+    // How much crease the steps made past the pattern's own to end at
+    // references, in tenths of a sheet-length: the cost of the reach rule,
+    // and of "Disallow dangling folds" on top of it — which is why the
+    // setting the plan was made under goes with it.
     reach_bucket: bucketCount(Math.round(summary.reachLength * 10), COUNT_BUCKETS),
+    dangling_folds: record.disallowDanglingFolds ? ('disallowed' as const) : ('allowed' as const),
   };
   if (aborted) {
     track(ANALYTICS_EVENTS.foldingStepsCancelled, properties);
