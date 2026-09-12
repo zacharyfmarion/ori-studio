@@ -334,17 +334,68 @@ With the endpoint preference off the same corpus has 1,099 lost ends
 (12.7%) and a reach estimate of 138 sheet-lengths: the preference already
 buys a fifth of the extension, and stays.
 
+**Measured with the rule** (`measure_ends -v`, same corpus, preference on):
+
+| corpus | steps | presses | lost ends | in pieces | reach (most in one step) |
+| --- | --- | --- | --- | --- | --- |
+| *Abra* | 80 (was 86) | 6 (was 12) | 0 / 148 | 0 | 5.2 (1.00, step 74) |
+| *Wolpertinger* | 167 (was 169) | — | 0 (was 47) | 0 (was 40) | 13.8 (0.90) |
+| 56 designs | 4,325 (was 4,512) | 534, 36.0 sheet-lengths (was 711, 53.5) | 0 / 7,258 (was 863) | 0 (was 588) | 281.3 (1.36, *earwig* step 1) |
+
+Gates: 1 and 2 hold by construction and the replay agrees (0 of 7,258
+ends, 0 steps in pieces). 3: presses down by a quarter, and every one
+left is a pinch on the other line of a mark or a press for an alignment
+beyond the reach — the press test's invariants hold on iguana-c0 line by
+line, the one fixture that still needs any (3, from 6). 4: steps down by
+187, 177 of them the presses removed and the rest folds the closure's
+changed order no longer takes; phantom marks 2 → 2, turn-overs 301 →
+301. 5: 281 sheet-lengths of crease past the pattern, under the 306 the
+estimate gave, because the rule's own paper has more references on it;
+1,000 of the 4,325 steps crease past the pattern at all, 240 of them by
+under 0.1, 320 by 0.1–0.25, 263 by 0.25–0.5, 165 by 0.5–1, and 12 by more
+than a sheet-length. 6: `measure_grid` over the gridded components of
+the same corpus (Alebrijes aside), where-needed mode against the earlier
+run: grid steps 109 → 109 and lines 1,588 → 1,588 (the grid is detected
+before anything is folded), `grid_unwanted_length` 765.5 → 760.6,
+unsolved 26 → 26, hard witnesses 370 → 355, presses 128 → 114, steps
+2,082 → 2,068, turn-overs 127 → 124.
+
+**The twelve longest, read by hand.** Every one is a corner-to-corner or
+corner-to-mark fold along a diagonal. Ten have the pattern holding the
+line only at its ends — *secretary-bird* 36, *roadrunner* 3 and *crocodile* 6 have
+the main diagonal creased for 0.04–0.14 at *both* corners and nothing
+between; *roadrunner* 58/59 and *secretary-bird* 21/37 the same on the
+diagonals parallel to it; *frigate-bird* 3 and *Abra* 74 pieces at both
+ends of an antidiagonal — and the rule joins the ends across the sheet:
+"fold in half diagonally", the opening of every such diagram, and the
+shape of *Abra*'s step 3 that this plan was asked for. The other kind is
+a single short crease on a corner-to-corner fold: *halibut* 1 (0.12 at
+one corner), *frog-naoki-terao* 1 (0.35 from a corner) and *earwig* 1
+(0.05 at the centre of the sheet, the longest extension of all at 1.36)
+become the whole diagonal. *Earwig*'s is the one a diagram might instead
+call a pinch — "fold in half diagonally, pinch the centre" — and the
+refinement, if wanted, is the one already named above: a pattern crease
+no longer than a pinch's worth (`MIN_ALIGNMENT`, 0.06) whose ends nothing
+later sights stays a pinch. Not done here; the request was for the bias,
+and the corner-and-corner cases that make up most of the twelve are
+exactly it.
+
 - [x] `measure_ends -v`: names lost ends and steps in pieces, replays
       `pressed_on`, counts pieces and blank length, estimates the reach
-- [ ] `marks::findable_end_beyond` + `marks::reach`, unit tests;
+- [x] `marks::findable_end_beyond` + `marks::reach`, unit tests;
       `press_span` on the shared search
-- [ ] Closure option and `record_crease`; `order::record` and `Placed.made`;
+- [x] Closure option and `record_crease`; `order::record` and `Placed.made`;
       *Abra*-shaped ordering test
-- [ ] `Step.made`, `Totals.reach_length`, `PlannerOptions.reach_references`
-      through JSON and wasm; fixtures and manifest re-recorded; `dump_steps`
-      and `measure_ends` replay `made`
-- [ ] Gates 1–6 measured on the corpus; the ten longest extensions read by
-      hand and the reading recorded here
-- [ ] Web: `made` drawn as the step's crease and in context; setting;
-      analytics bucket; i18n; tests
+- [x] `Step.made`, `Totals.reach_length`, `PlannerOptions.reach_references`
+      through JSON and wasm; `dump_steps` prints `made`; `measure_ends`
+      measures the rule (`--no-reach` for without) and replays `made`;
+      iguana-c0's pinned counts re-recorded (presses 6 → 3, steps 97 → 94)
+- [x] Gates 1–6 measured on the corpus; the twelve longest extensions read
+      by hand and the reading recorded above
+- [x] Web: `made` drawn as the step's crease and in context; "Crease to
+      references" setting; `reach_bucket`; i18n; tests
+- [x] Structural check on *Abra* in the browser pane: step 1's card draws
+      the midline edge to edge, step 3's the diagonal corner to corner in
+      one dash; with the setting off step 1 goes back to its piece from
+      0.207 up, and on again the whole line
 - [ ] Live check on *Abra* (Zach)
