@@ -93,8 +93,14 @@ pub fn parse_cp(text: &str) -> LoadedCp {
     LoadedCp { segments, colors }
 }
 
-/// The FOLD document of an `.osf` project: `workspace.documents[document]`
-/// when that is a crease pattern, else the first crease-pattern document.
+/// The FOLD document of an `.osf` project.
+///
+/// Two shapes, split by `schemaVersion`: v1–v7 keep a flat
+/// `workspace.documents` array, of which `document` selects one (else the
+/// first crease pattern); v8 keeps one crease pattern under
+/// `workspace.creasePattern`. A reader that knows one shape does not fail on
+/// the other — it reports "no crease-pattern document" and the file drops
+/// out of whatever scan it was in — so both are read.
 pub fn osf_fold_projection(osf: &Value, document: Option<usize>) -> Option<&Value> {
     // A `fn` item, not a closure: a closure's inferred signature gives the
     // argument and the return their own lifetimes, so the borrow cannot
@@ -103,13 +109,17 @@ pub fn osf_fold_projection(osf: &Value, document: Option<usize>) -> Option<&Valu
         let projection = &d["creasePattern"]["foldProjection"];
         projection.is_object().then_some(projection)
     }
-    let documents = osf["workspace"]["documents"].as_array()?;
-    if let Some(index) = document
-        && let Some(p) = documents.get(index).and_then(pick)
-    {
-        return Some(p);
+    if let Some(documents) = osf["workspace"]["documents"].as_array() {
+        if let Some(index) = document
+            && let Some(p) = documents.get(index).and_then(pick)
+        {
+            return Some(p);
+        }
+        if let Some(p) = documents.iter().find_map(pick) {
+            return Some(p);
+        }
     }
-    documents.iter().find_map(pick)
+    pick(&osf["workspace"]["creasePattern"])
 }
 
 /// Load a `.fold`, `.cp` or `.osf` file. `document` selects the `.osf`
