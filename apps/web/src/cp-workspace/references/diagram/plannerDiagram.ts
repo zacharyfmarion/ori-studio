@@ -56,7 +56,12 @@
  * no letters — because that is what a folder does with "pleat into 16ths",
  * and the card of one line with an arrow on it would be the wrong instruction.
  */
-import { dashRulerAlong, foldArrowArc, type DiagramSheet } from '../stepDiagramGeometry';
+import {
+  dashRulerAlong,
+  dashZeroOf,
+  foldArrowArc,
+  type DiagramSheet,
+} from '../stepDiagramGeometry';
 import { inputLetters } from './inputLetters';
 import type { Point } from '../../../lib/geometry';
 import type { DiagramFrame, DiagramGridLine, DiagramSegment } from './diagramFrames';
@@ -722,8 +727,14 @@ function uncreased(
   const span = dx * dx + dy * dy;
   if (span === 0) return [];
   const at = (p: Point) => ((p.x - a.x) * dx + (p.y - a.y) * dy) / span;
+  // Clipped to the segment: a crease of the same line that lies beyond
+  // either end is not a gap in *this* segment, and unclipped it produced one
+  // running from the segment's end out to the crease — markhor's step 39
+  // drew the blank between two of step 38's runs as if it were creased.
   const covered = creases
     .map(([p, q]) => [at(p), at(q)].sort((u, v) => u - v) as [number, number])
+    .map(([u, v]) => [Math.max(0, u), Math.min(1, v)] as [number, number])
+    .filter(([u, v]) => v > u)
     .sort((u, v) => u[0] - v[0]);
   const gaps: DiagramSegment[] = [];
   let cursor = 0;
@@ -744,9 +755,16 @@ const UNCREASED_EPSILON = 1e-6;
  *
  * Every piece of one crease then measures its pattern from the same zero, so a
  * crease split at four crossings reads as one dashed line rather than four.
+ * `zero` is where that ruler starts — the beginning of the crease the pieces
+ * belong to (`dashZeroOf`) — so the crease opens with a dash: measured from
+ * the origin, a short crease could start in a gap and read as no fold at all.
  */
-function spanLine(span: DiagramSegment, style: DiagramLineStyleName): StepDiagramPrimitive {
-  const ruler = dashRulerAlong(span[0].x, span[0].y, span[1].x, span[1].y);
+function spanLine(
+  span: DiagramSegment,
+  style: DiagramLineStyleName,
+  zero?: Point
+): StepDiagramPrimitive {
+  const ruler = dashRulerAlong(span[0].x, span[0].y, span[1].x, span[1].y, zero);
   return {
     kind: 'line',
     from: [ruler.ax, ruler.ay],
@@ -835,8 +853,9 @@ export function plannerStepDiagram(
       });
     });
     for (const line of frame.gridLines(step)) {
+      const zero = dashZeroOf(line.spans);
       for (const span of line.spans) {
-        primitives.push(spanLine(span, styleOf(line.direction, true)));
+        primitives.push(spanLine(span, styleOf(line.direction, true), zero));
       }
     }
     return { sheet: sheetOf(sheet, frame), primitives };
@@ -1044,13 +1063,17 @@ export function plannerStepDiagram(
   const made = styleOf(direction, true);
   const pinches = frame.pinches(step);
   const creases = frame.made(step);
+  const pressedOn = frame.pressedOn(step);
+  // The dash pattern of everything this step creases starts where the crease
+  // starts: its pieces and what it presses on are one crease, on one ruler.
+  const zero = dashZeroOf([...creases, ...pinches, ...pressedOn]);
   // A press that runs a crease out from its end to somewhere the folder can
   // find is a stretch of crease, not a mark: the card says "crease only the
   // part shown" and draws that part the way the fold that made the line was
   // drawn. Only a press located by a crossing — a pinch — is drawn as one.
   const carriesOut = step.kind === 'press' && step.press?.sighted_from === null;
   if (pinches.length > 0 && carriesOut) {
-    for (const span of pinches) primitives.push(spanLine(span, made));
+    for (const span of pinches) primitives.push(spanLine(span, made, zero));
   } else if (pinches.length > 0) {
     // A pinch is a crease, so it carries its own direction rather than a colour
     // of its own.
@@ -1068,7 +1091,7 @@ export function plannerStepDiagram(
     // faintly, to say the fold still runs the full width, but a crease
     // pattern's line is not an instruction to crease all of it, and the
     // faint stand-in read as one.
-    for (const span of creases) primitives.push(spanLine(span, made));
+    for (const span of creases) primitives.push(spanLine(span, made, zero));
   } else if (chord) {
     // An auxiliary fold leaves no crease in the pattern, so the whole chord is
     // the instruction. O1 is the exception: "crease through these two marks"
@@ -1084,7 +1107,7 @@ export function plannerStepDiagram(
   }
   // What the step presses on past the pattern's line, for a later step's
   // sake, is crease the folder makes now, and is drawn the same way.
-  for (const span of frame.pressedOn(step)) primitives.push(spanLine(span, made));
+  for (const span of pressedOn) primitives.push(spanLine(span, made, zero));
   primitives.push(...labels);
 
   return { sheet: sheetOf(sheet, frame), primitives };
@@ -1172,15 +1195,18 @@ export function plannerFinishedDiagram(
     if (step.grid) {
       for (const line of frame.gridLines(step)) {
         const style = styleOf(line.inPattern ? line.direction : 'unassigned', true);
+        const zero = dashZeroOf(line.spans);
         for (const span of line.spans) {
-          primitives.push(spanLine(span, style));
+          primitives.push(spanLine(span, style, zero));
         }
       }
       continue;
     }
     const style = styleOf(step.kind === 'aux' ? 'unassigned' : step.direction, true);
-    for (const span of creasedSpans(frame, step)) {
-      primitives.push(spanLine(span, style));
+    const spans = creasedSpans(frame, step);
+    const zero = dashZeroOf(spans);
+    for (const span of spans) {
+      primitives.push(spanLine(span, style, zero));
     }
   }
   return { sheet: sheetOf(sheet, frame), primitives };

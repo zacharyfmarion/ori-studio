@@ -255,6 +255,120 @@ describe('plannerStepDiagram', () => {
     expect(pieceLines).toHaveLength(2);
   });
 
+  // markhor step 38 → 39: a fold made in three runs with blank paper between
+  // them. A surface that draws the pattern's own creases is left only what
+  // the step creased past them — and there is nothing past them here, so
+  // nothing; the blank between the runs is not crease, whichever way the
+  // creases of the same line lie beyond a run's ends.
+  it('never draws the blank between a step’s runs as crease', () => {
+    const seq = directed('unassigned', 'valley');
+    // Off the fixture's own landmark at y = ½.
+    const y = 0.3;
+    const runs: PrecreasePlanSegment[] = [
+      [
+        [1, y],
+        [0.85, y],
+      ],
+      [
+        [0.65, y],
+        [0.35, y],
+      ],
+      [
+        [0.15, y],
+        [0, y],
+      ],
+    ];
+    const pieces: PrecreasePlanSegment[] = [
+      [
+        [1, y],
+        [0.85, y],
+      ],
+      [
+        [0, y],
+        [0.15, y],
+      ],
+      [
+        [0.35, y],
+        [0.5, y],
+      ],
+      [
+        [0.65, y],
+        [0.5, y],
+      ],
+    ];
+    const across = {
+      ...seq,
+      steps: seq.steps.map((s, i) =>
+        i === 1
+          ? {
+              ...s,
+              line: { n: [0, 1] as [number, number], d: y },
+              segment: [
+                [0, y],
+                [1, y],
+              ] as [[number, number], [number, number]],
+              extent: { kind: 'full' as const },
+              cp_spans: pieces,
+              made: runs,
+            }
+          : s
+      ),
+    };
+    const at = (earlier: 'all' | 'unpatterned') =>
+      (plannerStepDiagram(across, unitFrame(across), 2, { earlier })?.primitives ?? [])
+        .filter(
+          (p): p is Extract<StepDiagramPrimitive, { kind: 'line' }> =>
+            p.kind === 'line' &&
+            p.style === 'crease' &&
+            Math.abs(p.from[1] - y) < 1e-9 &&
+            Math.abs(p.to[1] - y) < 1e-9
+        )
+        .map((p) => [p.from[0], p.to[0]].sort((a, b) => a - b).map((v) => +v.toFixed(3)))
+        .sort((a, b) => a[0]! - b[0]!);
+    expect(at('all')).toEqual([
+      [0, 0.15],
+      [0.35, 0.65],
+      [0.85, 1],
+    ]);
+    expect(at('unpatterned')).toEqual([]);
+  });
+
+  // The dash pattern of the crease a step makes begins where the crease
+  // begins, whatever the line's position on the sheet: a short crease that
+  // started in a gap of the pattern read as no fold at all.
+  it('opens the crease it makes with a dash', () => {
+    const seq = directed('unassigned', 'valley');
+    const short = {
+      ...seq,
+      steps: seq.steps.map((s, i) =>
+        i === 1
+          ? {
+              ...s,
+              extent: { kind: 'full' as const },
+              cp_spans: [
+                [
+                  [0.25, 0.71],
+                  [0.25, 0.73],
+                ],
+              ] as PrecreasePlanSegment[],
+              made: [
+                [
+                  [0.25, 0.71],
+                  [0.25, 0.73],
+                ],
+              ] as PrecreasePlanSegment[],
+            }
+          : s
+      ),
+    };
+    const lines = (plannerStepDiagram(short, unitFrame(short), 1)?.primitives ?? []).filter(
+      (p): p is Extract<StepDiagramPrimitive, { kind: 'line' }> =>
+        p.kind === 'line' && p.style === 'valley'
+    );
+    expect(lines).toHaveLength(1);
+    expect(lines[0]!.dashPhase ?? 0).toBeCloseTo(0, 9);
+  });
+
   it('draws a corner input as a point', () => {
     const diagram = plannerStepDiagram(sequence, unitFrame(sequence), 0);
     expect(diagram?.primitives.filter((primitive) => primitive.kind === 'point')).toHaveLength(2);

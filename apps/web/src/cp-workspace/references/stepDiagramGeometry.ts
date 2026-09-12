@@ -644,7 +644,8 @@ export function dashRulerAlong(
   ax: number,
   ay: number,
   bx: number,
-  by: number
+  by: number,
+  zero?: { x: number; y: number }
 ): { ax: number; ay: number; bx: number; by: number; phase: number } {
   const length = Math.hypot(bx - ax, by - ay);
   if (length === 0) return { ax, ay, bx, by, phase: 0 };
@@ -657,10 +658,46 @@ export function dashRulerAlong(
   // half a period apart, and fill each other's gaps — one line drawn twice,
   // reading solid.
   const backwards = dx < -AXIS_TOLERANCE || (dx <= AXIS_TOLERANCE && dy < 0);
+  const [ux, uy] = backwards ? [-dx, -dy] : [dx, dy];
+  // The ruler's zero: the origin's foot on the line, unless the caller names
+  // where the crease begins — see `dashZeroOf`. Measured from the origin, a
+  // short crease can start anywhere in the pattern, and one that starts in a
+  // gap is a fold the reader cannot see.
+  const from = zero ? zero.x * ux + zero.y * uy : 0;
   if (backwards) {
-    return { ax: bx, ay: by, bx: ax, by: ay, phase: bx * -dx + by * -dy };
+    return { ax: bx, ay: by, bx: ax, by: ay, phase: bx * ux + by * uy - from };
   }
-  return { ax, ay, bx, by, phase: ax * dx + ay * dy };
+  return { ax, ay, bx, by, phase: ax * ux + ay * uy - from };
+}
+
+/**
+ * Where the dash pattern of a crease drawn as several pieces begins: the end
+ * of its pieces that comes first along the line's canonical direction, so
+ * the first piece opens with a dash and every later piece continues the
+ * pattern from there. `undefined` for no pieces, when the ruler falls back
+ * to the origin.
+ */
+export function dashZeroOf(
+  pieces: readonly (readonly [{ x: number; y: number }, { x: number; y: number }])[]
+): { x: number; y: number } | undefined {
+  let best: { x: number; y: number } | undefined;
+  let least = Infinity;
+  for (const [a, b] of pieces) {
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    if (length === 0) continue;
+    const dx = (b.x - a.x) / length;
+    const dy = (b.y - a.y) / length;
+    const backwards = dx < -AXIS_TOLERANCE || (dx <= AXIS_TOLERANCE && dy < 0);
+    const [ux, uy] = backwards ? [-dx, -dy] : [dx, dy];
+    for (const p of [a, b]) {
+      const along = p.x * ux + p.y * uy;
+      if (along < least) {
+        least = along;
+        best = p;
+      }
+    }
+  }
+  return best;
 }
 
 function fmt(value: number): string {

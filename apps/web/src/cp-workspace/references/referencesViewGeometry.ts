@@ -410,13 +410,41 @@ export function applyCreaseVisibility(
     }
     if (dimmed !== null && dimmed.has(id)) color[i * 4 + 3] *= dimAlpha;
   }
+  // The ruler's zero is where the line's visible crease begins, not the
+  // origin's foot on the line: measured from the origin, a short crease can
+  // start anywhere in the pattern, and one that starts in a gap is a fold
+  // the reader cannot see. The strokes of one line are found by the axis
+  // they share — no two of them have to know about each other, and the
+  // hidden ones do not move the zero.
+  const rulers = new Array<ReturnType<typeof dashRulerAlong>>(strokes.count);
+  const starts = new Map<string, number>();
+  const keyOf = (i: number): string | null => {
+    const r = rulers[i]!;
+    const length = Math.hypot(r.bx - r.ax, r.by - r.ay);
+    if (length === 0) return null;
+    const ux = (r.bx - r.ax) / length;
+    const uy = (r.by - r.ay) / length;
+    // The line's own coordinate across itself, with its direction: the same
+    // for every stroke of one line, whatever piece of it.
+    const across = r.ax * -uy + r.ay * ux;
+    return `${ux.toFixed(6)},${uy.toFixed(6)},${across.toFixed(4)}`;
+  };
   for (let i = 0; i < strokes.count; i += 1) {
-    const ruler = dashRulerAlong(a[i * 2], a[i * 2 + 1], b[i * 2], b[i * 2 + 1]);
+    rulers[i] = dashRulerAlong(a[i * 2], a[i * 2 + 1], b[i * 2], b[i * 2 + 1]);
+    if (color[i * 4 + 3] === 0) continue;
+    const key = keyOf(i);
+    if (key === null) continue;
+    const start = starts.get(key);
+    if (start === undefined || rulers[i]!.phase < start) starts.set(key, rulers[i]!.phase);
+  }
+  for (let i = 0; i < strokes.count; i += 1) {
+    const ruler = rulers[i]!;
     a[i * 2] = ruler.ax;
     a[i * 2 + 1] = ruler.ay;
     b[i * 2] = ruler.bx;
     b[i * 2 + 1] = ruler.by;
-    dashPhase[i] = ruler.phase;
+    const key = keyOf(i);
+    dashPhase[i] = ruler.phase - (key === null ? 0 : (starts.get(key) ?? 0));
   }
   return {
     ...strokes,

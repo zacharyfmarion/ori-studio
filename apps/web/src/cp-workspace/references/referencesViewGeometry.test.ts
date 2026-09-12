@@ -277,6 +277,28 @@ describe('dash continuity along one line', () => {
     expect([...backward.b]).toEqual([...forward.b]);
   });
 
+  // markhor step 41: a crease 0.02 long whose start, measured from the
+  // origin, fell in a gap of the pattern. The ruler starts where the line's
+  // visible crease starts, so its first piece opens with a dash; a piece of
+  // the same line that is not shown yet does not move the start.
+  it('starts each line’s ruler where its visible crease begins', () => {
+    const out = applyCreaseVisibility(
+      strokes([
+        [5, 2, 6, 2],
+        [6, 2, 9, 2],
+        [1, 2, 5, 2],
+        [0, 7, 4, 7],
+      ]),
+      4,
+      { visible: new Set([1, 2, 4]), dimmed: null, dimAlpha: 1 },
+      1.25
+    );
+    const phases = [...(out.dashPhase ?? [])];
+    expect(phases[0]).toBeCloseTo(0, 6);
+    expect(phases[1]).toBeCloseTo(1, 6);
+    expect(phases[3]).toBeCloseTo(0, 6);
+  });
+
   it('measures a diagonal along its own axis, not along x', () => {
     const k = Math.SQRT1_2;
     const out = applyCreaseVisibility(

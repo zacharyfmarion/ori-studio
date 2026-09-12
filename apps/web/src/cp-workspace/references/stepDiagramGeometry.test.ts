@@ -14,6 +14,7 @@ import {
   createDiagramProjector,
   createOverlayProjector,
   dashRulerAlong,
+  dashZeroOf,
   foldAndUnfoldArrow,
   foldAndUnfoldFromArc,
   arcSamplePoints,
@@ -462,5 +463,32 @@ describe('the dash ruler on a line that is only nearly axis-aligned', () => {
     const sloped = dashRulerAlong(0, 0, -1, 1);
     expect(sloped.ax).toBeCloseTo(-1, 9);
     expect(sloped.ay).toBeCloseTo(1, 9);
+  });
+
+  // markhor step 41: a crease 0.02 long, whose start measured from the origin
+  // fell inside a gap of the pattern — a fold the reader could not see. On a
+  // ruler that starts where the crease starts it opens with a dash, and the
+  // pieces after it carry the pattern on from there.
+  it('starts the pattern where the crease begins when told where that is', () => {
+    const pieces: (readonly [{ x: number; y: number }, { x: number; y: number }])[] = [
+      [
+        { x: 0.552, y: 0.979 },
+        { x: 0.537, y: 0.963 },
+      ],
+      [
+        { x: 0.687, y: 1.123 },
+        { x: 0.762, y: 1.203 },
+      ],
+    ];
+    const zero = dashZeroOf(pieces);
+    expect(zero).toEqual({ x: 0.537, y: 0.963 });
+    const first = dashRulerAlong(0.552, 0.979, 0.537, 0.963, zero);
+    expect(first.phase).toBeCloseTo(0, 9);
+    // The next piece's phase is its distance along the line from that start.
+    const next = dashRulerAlong(0.687, 1.123, 0.762, 1.203, zero);
+    expect(next.phase).toBeCloseTo(Math.hypot(0.687 - 0.537, 1.123 - 0.963), 6);
+    // Without a zero the ruler is the origin's, as before.
+    expect(dashRulerAlong(0.552, 0.979, 0.537, 0.963).phase).not.toBeCloseTo(0, 3);
+    expect(dashZeroOf([])).toBeUndefined();
   });
 });
