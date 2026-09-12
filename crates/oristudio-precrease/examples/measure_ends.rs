@@ -5,22 +5,33 @@
 //! ```
 //!
 //! Per design and in total: steps, turn-overs, steps sighted from a mark that
-//! is not on the paper, and crease ends with no landmark. Run twice — with the
-//! endpoint preference on and off — and print both, because a reorder cannot be
-//! simulated after the fact: changing what folds first changes what is
-//! constructible next, so the two plans are different plans. `--no-grid` plans
-//! without the precrease grid, to measure the grid the same way.
+//! is not on the paper, crease ends with no landmark, and steps that crease
+//! one line in pieces. Run twice — with the endpoint preference on and off —
+//! and print both, because a reorder cannot be simulated after the fact:
+//! changing what folds first changes what is constructible next, so the two
+//! plans are different plans. `--no-grid` plans without the precrease grid,
+//! to measure the grid the same way. `-v` names every lost end and every
+//! step made in pieces, with the preference on, to be read by hand.
+//!
+//! The reach estimate is what `implementation-plans/precrease-reach-references.md`
+//! would add: per CP step, the blank between its pieces plus, for each end of
+//! the joined run that is nowhere to be found, the distance out to the nearest
+//! settled reference beyond it — measured on the plan as ordered today, so it
+//! is an estimate of the rule's cost, not the rule.
 
 use std::path::{Path, PathBuf};
 
 use oristudio_precrease::analyze;
+use oristudio_precrease::constants::MIN_ANGLE_SINE;
 use oristudio_precrease::fixture_io::load_path;
-use oristudio_precrease::marks::{Creased, crease_runs, end_is_found};
+use oristudio_precrease::line::Line;
+use oristudio_precrease::marks::{Creased, crease_runs, end_is_found, settled_end_is_found};
 use oristudio_precrease::pinch::Extent;
 use oristudio_precrease::planner::{GridMode, Planner, PlannerOptions};
 use oristudio_precrease::sequence::{Sequence, StepKind};
 use oristudio_precrease::sheet::Sheet;
-use oristudio_precrease::state::State;
+use oristudio_precrease::state::{LineTag, State};
+use oristudio_precrease::tol::TOL;
 
 const ORIEDITA_PAPER: [f64; 4] = [-200.0, -200.0, 200.0, 200.0];
 
@@ -32,6 +43,16 @@ struct Tally {
     phantom: usize,
     ends: usize,
     lost_ends: usize,
+    /// CP steps whose creases on their line are more than one run: a fold
+    /// the folder is asked to make in pieces, with paper left blank between.
+    pieces: usize,
+    /// The blank stretches between those runs, in sheet-sides.
+    gap_len: f64,
+    /// What carrying each joined run's lost ends out to the nearest settled
+    /// reference would add, in sheet-sides — the reach rule's other cost.
+    reach_len: f64,
+    /// The longest single such extension, and the step it is on.
+    longest_reach: (f64, u32),
     reversed: usize,
     /// Press steps: extra crease made so a later step can be sighted.
     presses: usize,
@@ -47,15 +68,48 @@ impl Tally {
         self.phantom += o.phantom;
         self.ends += o.ends;
         self.lost_ends += o.lost_ends;
+        self.pieces += o.pieces;
+        self.gap_len += o.gap_len;
+        self.reach_len += o.reach_len;
+        if o.longest_reach.0 > self.longest_reach.0 {
+            self.longest_reach = o.longest_reach;
+        }
         self.reversed += o.reversed;
         self.presses += o.presses;
         self.press_len += o.press_len;
     }
 }
 
+/// How far past `t` along `line` a crease would have to run for its end to
+/// be found: to the sheet's boundary, or the nearest crossing beyond `t`
+/// with a line of settled extent creased there — `order::press_span`'s far
+/// end, for the reach rule's estimate.
+fn reach_beyond(state: &State, creased: &Creased, line: &Line, t: f64, forward: bool) -> f64 {
+    let Some((lo, hi)) = state.sheet().clip_parameters(line) else {
+        return 0.0;
+    };
+    let mut t_far = if forward { hi } else { lo };
+    for (id, other) in state.lines().iter().enumerate() {
+        if matches!(other.tag, LineTag::Aux | LineTag::RfAux)
+            || other.line.cross(line).abs() < MIN_ANGLE_SINE
+        {
+            continue;
+        }
+        let Some(x) = other.line.intersect(line) else {
+            continue;
+        };
+        let u = line.parameter_of(x);
+        let beyond = if forward { u > t + TOL } else { u < t - TOL };
+        if beyond && creased.reaches(state, id, x) && (u - t).abs() < (t_far - t).abs() {
+            t_far = u;
+        }
+    }
+    (t_far - t).abs()
+}
+
 /// Replay a sequence onto a bare sheet, counting the ends the folder cannot
-/// find at the moment the step is performed.
-fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize) -> Tally {
+/// find at the moment the step is performed. With `verbose`, say which.
+fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize, verbose: bool) -> Tally {
     let mut state = State::new(sheet, point_cap);
     let mut creased = Creased::new(&state);
     let mut t = Tally {
@@ -112,15 +166,62 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize) -> Tally {
         let spans = &step.cp_spans;
         // Per end of a merged run, not per segment: a CP splits a line at every
         // change of assignment, and those joints are not ends.
-        let ends: Vec<[f64; 2]> = crease_runs(&step.line, spans)
-            .into_iter()
-            .flat_map(|(a, b)| [a, b])
-            .collect();
+        let runs = crease_runs(&step.line, spans);
+        if runs.len() > 1 {
+            t.pieces += 1;
+            let gaps: f64 = runs
+                .windows(2)
+                .map(|w| (w[0].1[0] - w[1].0[0]).hypot(w[0].1[1] - w[1].0[1]))
+                .sum();
+            t.gap_len += gaps;
+            if verbose {
+                println!(
+                    "  step {:>3} in {} pieces, {:.3} blank between them",
+                    step.id,
+                    runs.len(),
+                    gaps
+                );
+            }
+        }
+        // The reach rule's estimate: the joined run's two ends, carried out.
+        if let (Some(first), Some(last)) = (runs.first(), runs.last()) {
+            for (end, forward) in [(first.0, false), (last.1, true)] {
+                if settled_end_is_found(&state, &creased, &step.line, end) {
+                    continue;
+                }
+                let out = reach_beyond(
+                    &state,
+                    &creased,
+                    &step.line,
+                    step.line.parameter_of(end),
+                    forward,
+                );
+                t.reach_len += out;
+                if out > t.longest_reach.0 {
+                    t.longest_reach = (out, step.id);
+                }
+                if verbose {
+                    println!(
+                        "  step {:>3} end ({:.3},{:.3}) would reach {:.3} further",
+                        step.id, end[0], end[1], out
+                    );
+                }
+            }
+        }
+        let ends: Vec<[f64; 2]> = runs.into_iter().flat_map(|(a, b)| [a, b]).collect();
         t.ends += ends.len();
-        t.lost_ends += ends
-            .iter()
-            .filter(|end| !end_is_found(&state, &creased, &step.line, **end))
-            .count();
+        for end in &ends {
+            if end_is_found(&state, &creased, &step.line, *end) {
+                continue;
+            }
+            t.lost_ends += 1;
+            if verbose {
+                println!(
+                    "  step {:>3} end ({:.3},{:.3}) is nowhere to be found",
+                    step.id, end[0], end[1]
+                );
+            }
+        }
         let Ok(outcome) = state.add_line(step.line, step.tag) else {
             continue;
         };
@@ -129,11 +230,16 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize) -> Tally {
         } else {
             creased.add_spans(&state, outcome.id, &step.line, spans);
         }
+        // What the step pressed on past the pattern is crease on the paper
+        // too, and a later end may be found on it.
+        if !step.pressed_on.is_empty() {
+            creased.add_spans(&state, outcome.id, &step.line, &step.pressed_on);
+        }
     }
     t
 }
 
-fn plan_file(path: &Path, prefer: bool, grid: bool) -> Option<Tally> {
+fn plan_file(path: &Path, prefer: bool, grid: bool, verbose: bool) -> Option<Tally> {
     let cp = load_path(path, None).ok()?;
     let analysis = analyze(&cp.segments, &cp.colors, Some(ORIEDITA_PAPER)).ok()?;
     let mut total = Tally::default();
@@ -159,7 +265,7 @@ fn plan_file(path: &Path, prefer: bool, grid: bool) -> Option<Tally> {
             return None;
         }
         let sheet = *planner.sheet()?;
-        let mut t = measure(&planner.sequence(false), sheet, point_cap);
+        let mut t = measure(&planner.sequence(false), sheet, point_cap, verbose);
         t.rounds = planner
             .closure_ref()
             .map_or(0, |c| c.stats().rounds as usize);
@@ -192,8 +298,9 @@ fn collect(path: &Path, out: &mut Vec<PathBuf>) {
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let grid = !args.iter().any(|a| a == "--no-grid");
+    let verbose = args.iter().any(|a| a == "-v");
     let mut paths = Vec::new();
-    for a in args.iter().filter(|a| *a != "--no-grid") {
+    for a in args.iter().filter(|a| *a != "--no-grid" && *a != "-v") {
         collect(Path::new(a), &mut paths);
     }
     // One plan per design: the corpus keeps a detection and a topology beside
@@ -221,9 +328,17 @@ fn main() {
          (`Planner::plan_without_reference_finder`), which the shipping driver \
          has and this does not. Defect counts below are CEILINGS."
     );
-    println!("design\tsteps\tphantom on/off\tturns on/off\tlost ends on/off");
+    println!(
+        "design\tsteps\tphantom on/off\tturns on/off\tlost ends on/off\tpieces on/off\treach est. (longest @step)"
+    );
     for path in &paths {
-        let (a, b) = (plan_file(path, true, grid), plan_file(path, false, grid));
+        if verbose {
+            println!("{}", path.display());
+        }
+        let (a, b) = (
+            plan_file(path, true, grid, verbose),
+            plan_file(path, false, grid, false),
+        );
         let (Some(a), Some(b)) = (a, b) else {
             println!("{}\tdid not plan", path.display());
             continue;
@@ -239,8 +354,20 @@ fn main() {
         .unwrap_or_default()
         .to_string_lossy();
         println!(
-            "{name}\t{}\t{}/{}\t{}/{}\t{}/{}",
-            a.steps, a.phantom, b.phantom, a.turn_overs, b.turn_overs, a.lost_ends, b.lost_ends
+            "{name}\t{}\t{}/{}\t{}/{}\t{}/{}\t{}/{}\t{:.2}+{:.2} ({:.2} @{})",
+            a.steps,
+            a.phantom,
+            b.phantom,
+            a.turn_overs,
+            b.turn_overs,
+            a.lost_ends,
+            b.lost_ends,
+            a.pieces,
+            b.pieces,
+            a.gap_len,
+            a.reach_len,
+            a.longest_reach.0,
+            a.longest_reach.1
         );
         for (k, (x, y)) in [
             (a.phantom, b.phantom),
@@ -262,7 +389,7 @@ fn main() {
     println!("\n{planned} designs planned of {}", paths.len());
     for (label, t) in [("preference on ", on), ("preference off", off)] {
         println!(
-            "{label}  steps {:5}  rounds {:5}  phantom {:4}  presses {:4} ({:.1} sheet-sides)  turn-overs {:4}  lost ends {:5} / {:5} ({:.1}%)  reversed {:4}",
+            "{label}  steps {:5}  rounds {:5}  phantom {:4}  presses {:4} ({:.1} sheet-sides)  turn-overs {:4}  lost ends {:5} / {:5} ({:.1}%)  in pieces {:4} ({:.1} sheet-sides blank)  reach est. {:.1} sheet-sides (longest {:.2})  reversed {:4}",
             t.steps,
             t.rounds,
             t.phantom,
@@ -272,6 +399,10 @@ fn main() {
             t.lost_ends,
             t.ends,
             100.0 * t.lost_ends as f64 / t.ends.max(1) as f64,
+            t.pieces,
+            t.gap_len,
+            t.reach_len,
+            t.longest_reach.0,
             t.reversed
         );
     }
