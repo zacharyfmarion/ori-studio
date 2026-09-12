@@ -973,9 +973,9 @@
     "refusedSheet": "La hoja alrededor de esta selección no pudo leerse como un rectángulo.",
     "searching": "Buscando referencias…",
     "settings": {
+      "allowDangling": "Permitir pliegues sueltos",
+      "allowDanglingHelp": "Un pliegue suelto es una marca que termina en papel en blanco, sin nada donde detenerse. Activado: cada marca parte de una referencia (el borde del papel o un pliegue ya hecho) y llega a una segunda solo cuando eso no añade más marca que la propia marca. Desactivado: cada marca va de referencia a referencia, cueste el pliegue extra que cueste.",
       "candidates": "Candidatos",
-      "disallowDangling": "No permitir pliegues sueltos",
-      "disallowDanglingHelp": "Un pliegue suelto es una marca que termina en papel en blanco, sin nada donde detenerse. Desactivado: cada marca parte de una referencia (el borde del papel o un pliegue ya hecho) y llega a una segunda solo cuando eso no añade más marca que la propia marca. Activado: cada marca va de referencia a referencia, cueste el pliegue extra que cueste.",
       "emptyNote": "Abre un patrón de plegado para ajustar cómo se buscan sus referencias.",
       "gridWhereNeeded": "Solo donde haga falta",
       "includeApproximate": "Incluir soluciones aproximadas",

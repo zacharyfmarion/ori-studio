@@ -318,11 +318,11 @@ boundary is where the sheet is turned.
 - Settings: the rule is always on in the product — a "Crease to
   references" switch shipped and was removed as useless (2026-09-12), the
   crate's `reach_references` staying as the corpus comparison. What the
-  Settings pane has is **"Disallow dangling folds"**
-  (`ReferencesSettings.disallowDanglingFolds`, default off, with an info
-  mark whose tooltip says what it does): on, every crease is finished to
-  its second reference whatever that costs (`disallow_dangling_folds`
-  through the bridge; `ReferencesPlanRecord.disallowDanglingFolds`, and
+  Settings pane has is **"Allow dangling folds"**
+  (`ReferencesSettings.allowDanglingFolds`, default on, with an info mark
+  whose tooltip says what it does): off, every crease is finished to its
+  second reference whatever that costs (`allow_dangling_folds` through the
+  bridge; `ReferencesPlanRecord.allowDanglingFolds`, and
   `useReferencesBreakdown.ts` re-plans on change, the `gridWhereNeeded`
   pattern). Removed at the same time, from the same pane: "Start from this
   sequence" (a picked crease's candidates are always ranked from the bare
@@ -567,8 +567,8 @@ exactly it.
       for a crease's ends to become findable costs a quarter of the
       turn-overs to buy 32 references and 23 sheet-lengths less crease —
       the next lever to weigh, against turn-over smoothing across rounds.
-- [x] Settings pane: "Disallow dangling folds" (default off, info tooltip)
-      in place of "Crease to references", "Start from this sequence" and
-      "Show pinches"; `PlannerOptions.disallow_dangling_folds`, `measure_ends
-      --no-dangling` / `dump_steps --no-dangling` to measure it.
+- [x] Settings pane: "Allow dangling folds" (default on, info tooltip) in
+      place of "Crease to references", "Start from this sequence" and "Show
+      pinches"; `PlannerOptions.allow_dangling_folds`, `measure_ends
+      --no-dangling` / `dump_steps --no-dangling` to measure the off state.
 - [ ] Live check on *Abra* and markhor 4 / 47 (Zach)

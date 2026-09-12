@@ -2966,8 +2966,8 @@
     "common:viewDrawer.closeSettings": "0ccfef828950",
     "common:viewDrawer.openSettings": "74a883a037bc",
     "common:viewDrawer.settingsTitle": "74a883a037bc",
-    "panels:references.settings.disallowDangling": "fa2db5de7c06",
-    "panels:references.settings.disallowDanglingHelp": "5a622321cb37"
+    "panels:references.settings.allowDangling": "3ab4a66817d3",
+    "panels:references.settings.allowDanglingHelp": "691190612076"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5936,8 +5936,8 @@
     "common:viewDrawer.closeSettings": "0ccfef828950",
     "common:viewDrawer.openSettings": "74a883a037bc",
     "common:viewDrawer.settingsTitle": "74a883a037bc",
-    "panels:references.settings.disallowDangling": "fa2db5de7c06",
-    "panels:references.settings.disallowDanglingHelp": "5a622321cb37"
+    "panels:references.settings.allowDangling": "3ab4a66817d3",
+    "panels:references.settings.allowDanglingHelp": "691190612076"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8908,8 +8908,8 @@
     "common:viewDrawer.closeSettings": "0ccfef828950",
     "common:viewDrawer.openSettings": "74a883a037bc",
     "common:viewDrawer.settingsTitle": "74a883a037bc",
-    "panels:references.settings.disallowDangling": "fa2db5de7c06",
-    "panels:references.settings.disallowDanglingHelp": "5a622321cb37"
+    "panels:references.settings.allowDangling": "3ab4a66817d3",
+    "panels:references.settings.allowDanglingHelp": "691190612076"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11820,8 +11820,8 @@
     "common:viewDrawer.closeSettings": "0ccfef828950",
     "common:viewDrawer.openSettings": "74a883a037bc",
     "common:viewDrawer.settingsTitle": "74a883a037bc",
-    "panels:references.settings.disallowDangling": "fa2db5de7c06",
-    "panels:references.settings.disallowDanglingHelp": "5a622321cb37"
+    "panels:references.settings.allowDangling": "3ab4a66817d3",
+    "panels:references.settings.allowDanglingHelp": "691190612076"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14732,8 +14732,8 @@
     "common:viewDrawer.closeSettings": "0ccfef828950",
     "common:viewDrawer.openSettings": "74a883a037bc",
     "common:viewDrawer.settingsTitle": "74a883a037bc",
-    "panels:references.settings.disallowDangling": "fa2db5de7c06",
-    "panels:references.settings.disallowDanglingHelp": "5a622321cb37"
+    "panels:references.settings.allowDangling": "3ab4a66817d3",
+    "panels:references.settings.allowDanglingHelp": "691190612076"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -17702,8 +17702,8 @@
     "common:viewDrawer.closeSettings": "0ccfef828950",
     "common:viewDrawer.openSettings": "74a883a037bc",
     "common:viewDrawer.settingsTitle": "74a883a037bc",
-    "panels:references.settings.disallowDangling": "fa2db5de7c06",
-    "panels:references.settings.disallowDanglingHelp": "5a622321cb37"
+    "panels:references.settings.allowDangling": "3ab4a66817d3",
+    "panels:references.settings.allowDanglingHelp": "691190612076"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -20672,8 +20672,8 @@
     "common:viewDrawer.closeSettings": "0ccfef828950",
     "common:viewDrawer.openSettings": "74a883a037bc",
     "common:viewDrawer.settingsTitle": "74a883a037bc",
-    "panels:references.settings.disallowDangling": "fa2db5de7c06",
-    "panels:references.settings.disallowDanglingHelp": "5a622321cb37"
+    "panels:references.settings.allowDangling": "3ab4a66817d3",
+    "panels:references.settings.allowDanglingHelp": "691190612076"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -23584,7 +23584,7 @@
     "common:viewDrawer.closeSettings": "0ccfef828950",
     "common:viewDrawer.openSettings": "74a883a037bc",
     "common:viewDrawer.settingsTitle": "74a883a037bc",
-    "panels:references.settings.disallowDangling": "fa2db5de7c06",
-    "panels:references.settings.disallowDanglingHelp": "5a622321cb37"
+    "panels:references.settings.allowDangling": "3ab4a66817d3",
+    "panels:references.settings.allowDanglingHelp": "691190612076"
   }
 }

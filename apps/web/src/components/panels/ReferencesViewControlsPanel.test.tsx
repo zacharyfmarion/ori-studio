@@ -81,7 +81,7 @@ describe('ReferencesViewControlsPanel', () => {
       'Landmarks first',
       'Precrease grid',
       'Only where needed',
-      'Disallow dangling folds',
+      'Allow dangling folds',
     ]);
     // The candidate count is the one setting that is not a switch.
     expect(rendered.querySelector('button[aria-label="Solutions"]')?.textContent).toContain(
@@ -147,19 +147,19 @@ describe('ReferencesViewControlsPanel', () => {
     expect(row?.getAttribute('data-disabled')).toBe('true');
   });
 
-  it('explains "disallow dangling folds" from an info mark beside its label', () => {
+  it('explains "allow dangling folds" from an info mark beside its label', () => {
     const rendered = render();
     const help = rendered.querySelector<HTMLButtonElement>('.control-row__help');
     expect(help).not.toBeNull();
-    expect(help?.closest('.control-row')?.textContent).toContain('Disallow dangling folds');
+    expect(help?.closest('.control-row')?.textContent).toContain('Allow dangling folds');
     // The explanation is the mark's accessible name, so it reads without the
     // hover as well.
     expect(help?.getAttribute('aria-label')).toContain('A dangling fold is a crease');
     // Only that row carries one: the other names say what they do.
     expect(rendered.querySelectorAll('.control-row__help')).toHaveLength(1);
 
-    expect(settings().disallowDanglingFolds).toBe(false);
-    press(toggle(rendered, 'Disallow dangling folds'));
-    expect(settings().disallowDanglingFolds).toBe(true);
+    expect(settings().allowDanglingFolds).toBe(true);
+    press(toggle(rendered, 'Allow dangling folds'));
+    expect(settings().allowDanglingFolds).toBe(false);
   });
 });

@@ -49,7 +49,7 @@ fn main() {
             (true, false) => GridMode::WhereNeeded,
         },
         reach_references: reach,
-        disallow_dangling_folds: no_dangling,
+        allow_dangling_folds: !no_dangling,
         prefer_sightable: sightable,
         clock: default_clock(),
         ..PlannerOptions::default()

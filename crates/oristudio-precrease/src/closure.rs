@@ -305,10 +305,10 @@ pub struct Closure {
     /// Whether a fold's crease is one run carried out to references
     /// ([`crate::marks::reach`]) rather than the pattern's pieces as they are.
     reach_references: bool,
-    /// Whether [`crate::marks::reach`] carries every crease to a reference at
-    /// both ends, or leaves the second where that would cost more crease
-    /// than there is.
-    disallow_dangling_folds: bool,
+    /// Whether [`crate::marks::reach`] may leave a crease's second end where
+    /// the pattern has it when its reference would cost more crease than
+    /// there is, or carries every crease to a reference at both ends.
+    allow_dangling_folds: bool,
     /// The grid pleated before the first close, if any.
     grid: Option<Grid>,
     stats: ClosureStats,
@@ -357,7 +357,7 @@ impl Closure {
             prefer_findable_ends: true,
             prefer_sightable: true,
             reach_references: true,
-            disallow_dangling_folds: false,
+            allow_dangling_folds: true,
             grid: None,
             stats: ClosureStats::default(),
         }
@@ -458,18 +458,18 @@ impl Closure {
         self.reach_references
     }
 
-    /// Whether every crease must end at a reference at both ends
-    /// ([`crate::marks::reach`]'s third rule made unconditional). Off by
-    /// default: a crease is anchored at one reference, and its other end
-    /// dangles when the second reference would cost more crease than there
-    /// is.
-    pub fn set_disallow_dangling_folds(&mut self, on: bool) {
-        self.disallow_dangling_folds = on;
+    /// Whether a crease may dangle at one end — anchored at one reference,
+    /// its other end left where the pattern has it when the second
+    /// reference would cost more crease than there is. On by default; off,
+    /// every crease ends at a reference at both ends
+    /// ([`crate::marks::reach`]'s third rule made unconditional).
+    pub fn set_allow_dangling_folds(&mut self, on: bool) {
+        self.allow_dangling_folds = on;
     }
 
-    /// See [`Closure::set_disallow_dangling_folds`].
-    pub fn disallow_dangling_folds(&self) -> bool {
-        self.disallow_dangling_folds
+    /// See [`Closure::set_allow_dangling_folds`].
+    pub fn allow_dangling_folds(&self) -> bool {
+        self.allow_dangling_folds
     }
 
     /// Every remaining target whose line can be sighted *and* whose creases
@@ -690,13 +690,13 @@ impl Closure {
             state,
             targets,
             reach_references,
-            disallow_dangling_folds,
+            allow_dangling_folds,
             ..
         } = self;
         match target.map(|t| &targets[t].spans) {
             Some(spans) if !spans.is_empty() => {
                 if *reach_references {
-                    let runs = reach(state, creased, line, spans, *disallow_dangling_folds);
+                    let runs = reach(state, creased, line, spans, *allow_dangling_folds);
                     creased.add_spans(state, line_id, line, &runs);
                 } else {
                     creased.add_spans(state, line_id, line, spans);

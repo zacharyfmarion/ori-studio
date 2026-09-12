@@ -167,8 +167,8 @@ export interface ReferencesPlanRecord {
   precreaseGrid: boolean;
   /** The "Only where needed" setting this plan was computed under, likewise. */
   gridWhereNeeded: boolean;
-  /** The "Disallow dangling folds" setting this plan was computed under, likewise. */
-  disallowDanglingFolds: boolean;
+  /** The "Allow dangling folds" setting this plan was computed under, likewise. */
+  allowDanglingFolds: boolean;
 }
 
 /** A CP-wide analysis and the revision it describes. */

@@ -975,9 +975,9 @@
     "refusedSheet": "La feuille autour de cette sélection n’a pas pu être lue comme un rectangle.",
     "searching": "Recherche des références…",
     "settings": {
+      "allowDangling": "Autoriser les plis flottants",
+      "allowDanglingHelp": "Un pli flottant est une marque qui se termine sur du papier vierge, sans rien pour l’arrêter. Activé : chaque marque part d’une référence (le bord du papier ou un pli déjà fait) et ne va jusqu’à une seconde que si cela n’ajoute pas plus de marque que la marque elle-même. Désactivé : chaque marque va de référence à référence, quelle que soit la longueur supplémentaire.",
       "candidates": "Candidats",
-      "disallowDangling": "Interdire les plis flottants",
-      "disallowDanglingHelp": "Un pli flottant est une marque qui se termine sur du papier vierge, sans rien pour l’arrêter. Désactivé : chaque marque part d’une référence (le bord du papier ou un pli déjà fait) et ne va jusqu’à une seconde que si cela n’ajoute pas plus de marque que la marque elle-même. Activé : chaque marque va de référence à référence, quelle que soit la longueur supplémentaire.",
       "emptyNote": "Ouvrez un patron de pliage pour régler la recherche de ses références.",
       "gridWhereNeeded": "Seulement où nécessaire",
       "includeApproximate": "Inclure les solutions approximatives",

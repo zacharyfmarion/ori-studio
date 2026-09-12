@@ -705,14 +705,13 @@ pub fn findable_end_beyond(
 ///    reference, whatever that costs: a crease floating on blank paper
 ///    cannot be placed at all, while one anchored at a reference is "from
 ///    here, this far".
-/// 3. **The other end is carried to its reference when the extension is no
-///    longer than the run already is** — the crease with both ends found
-///    is then under twice the crease with one, which is the same 2× a
-///    single short crease is judged by: a fifth of a sheet is not creased
-///    top to bottom for its second reference, and a crease already most of
-///    the way across is finished. With `no_dangling` it is carried there
-///    regardless: every crease from reference to reference, whatever that
-///    costs.
+/// 3. **The other end is carried to its reference** — always, unless
+///    `allow_dangling`, when it is carried there only if the extension is
+///    no longer than the run already is: the crease with both ends found
+///    is then under twice the crease with one, the same 2× a single short
+///    crease is judged by, so a fifth of a sheet is not creased top to
+///    bottom for its second reference while a crease already most of the
+///    way across is finished.
 ///
 /// An end that [`settled_end_is_found`] finds stays exactly where the
 /// pattern put it; nothing ever moves inward. Empty for empty spans, which
@@ -722,7 +721,7 @@ pub fn reach(
     creased: &Creased,
     line: &Line,
     spans: &[[[f64; 2]; 2]],
-    no_dangling: bool,
+    allow_dangling: bool,
 ) -> Vec<[[f64; 2]; 2]> {
     let mut pieces: Vec<(f64, f64)> = crease_runs(line, spans)
         .into_iter()
@@ -775,7 +774,7 @@ pub fn reach(
             }
         }
         let len = run.1 - run.0;
-        let worth = |extension: f64| no_dangling || extension <= len + TOL;
+        let worth = |extension: f64| !allow_dangling || extension <= len + TOL;
         if !lo_found
             && let Some(b) = below
             && worth(run.0 - b)
@@ -950,7 +949,7 @@ mod tests {
                 [[0.25, 0.25], [0.75, 0.75]],
                 [[0.9, 0.9], [1.0, 1.0]],
             ],
-            false,
+            true,
         )[..] else {
             panic!("one run");
         };
@@ -986,7 +985,7 @@ mod tests {
                 [[0.45, 0.125], [0.55, 0.125]],
                 [[0.95, 0.125], [1.0, 0.125]],
             ],
-            false,
+            true,
         );
         let mut xs: Vec<[f64; 2]> = runs
             .iter()
@@ -1024,7 +1023,7 @@ mod tests {
             &creased,
             &midline,
             &[[[0.5, 0.0], [0.5, 0.3]]],
-            false,
+            true,
         )[..] else {
             panic!("one run");
         };
@@ -1060,7 +1059,7 @@ mod tests {
             &creased,
             &midline,
             &[[[0.5, 0.2], [0.5, 0.4]]],
-            false,
+            true,
         )[..] else {
             panic!("one run");
         };
@@ -1086,7 +1085,7 @@ mod tests {
         let state = state_with(&[midline]);
         let creased = Creased::new(&state);
         let ends_of = |spans: &[[[f64; 2]; 2]]| -> [f64; 2] {
-            let [run] = reach(&state, &creased, &midline, spans, false)[..] else {
+            let [run] = reach(&state, &creased, &midline, spans, true)[..] else {
                 panic!("one run");
             };
             let mut ys = [run[0][1], run[1][1]];
@@ -1114,14 +1113,14 @@ mod tests {
         // of 0.5 is taken; at 0.6 for a crease of 0.4 it is not.
         near(ends_of(&[[[0.5, 0.0], [0.5, 0.5]]]), [0.0, 1.0]);
         near(ends_of(&[[[0.5, 0.0], [0.5, 0.4]]]), [0.0, 0.4]);
-        // With dangling folds disallowed, the second reference is reached
+        // With no dangling fold allowed, the second reference is reached
         // whatever it costs.
         let [run] = reach(
             &state,
             &creased,
             &midline,
             &[[[0.5, 0.7], [0.5, 0.9]]],
-            true,
+            false,
         )[..] else {
             panic!("one run");
         };
@@ -1154,7 +1153,7 @@ mod tests {
                 [[0.375, 0.448], [0.375, 0.521]],
                 [[0.375, 0.948], [0.375, 1.0]],
             ],
-            false,
+            true,
         )[..] else {
             panic!("one run");
         };
@@ -1178,14 +1177,14 @@ mod tests {
             &creased,
             &midline,
             &[[[0.5, 0.0], [0.5, 0.7]]],
-            false,
+            true,
         )[..] else {
             panic!("one run");
         };
         let mut ys = [run[0][1], run[1][1]];
         ys.sort_by(f64::total_cmp);
         assert!((ys[1] - 0.7).abs() < 1e-9, "stops at the pinch: {run:?}");
-        assert!(reach(&state, &creased, &midline, &[], false).is_empty());
+        assert!(reach(&state, &creased, &midline, &[], true).is_empty());
     }
 
     #[test]

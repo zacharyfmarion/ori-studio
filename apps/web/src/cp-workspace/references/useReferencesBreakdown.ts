@@ -327,8 +327,8 @@ export function useReferencesBreakdown(
   const gridWhereNeeded = useWorkspaceStore(
     (state) => state.referencesSettings.gridWhereNeeded
   );
-  const disallowDanglingFolds = useWorkspaceStore(
-    (state) => state.referencesSettings.disallowDanglingFolds
+  const allowDanglingFolds = useWorkspaceStore(
+    (state) => state.referencesSettings.allowDanglingFolds
   );
   // `referencesPlan` is one slot for a whole document, cleared on every sheet
   // switch, and nothing here reads it: the record says which sheet has a plan,
@@ -375,7 +375,7 @@ export function useReferencesBreakdown(
     selectedSheet,
     precreaseGrid,
     gridWhereNeeded,
-    disallowDanglingFolds,
+    allowDanglingFolds,
   });
   useEffect(() => {
     latest.current = {
@@ -385,7 +385,7 @@ export function useReferencesBreakdown(
       selectedSheet,
       precreaseGrid,
       gridWhereNeeded,
-      disallowDanglingFolds,
+      allowDanglingFolds,
     };
   });
   const abortRef = useRef<AbortController | null>(null);
@@ -421,13 +421,13 @@ export function useReferencesBreakdown(
       budgetMs: number,
       /**
        * Open a pleated design with its grid pleated, and only where it is
-       * needed (`referencesSettings.precreaseGrid` / `gridWhereNeeded`); carry
-       * every crease to a reference at both ends (`disallowDanglingFolds`).
+       * needed (`referencesSettings.precreaseGrid` / `gridWhereNeeded`); let a
+       * crease dangle at one end (`allowDanglingFolds`), or not.
        */
       grid: {
         precreaseGrid: boolean;
         gridWhereNeeded: boolean;
-        disallowDanglingFolds: boolean;
+        allowDanglingFolds: boolean;
       },
       onProgress: (progress: PrecreasePlanProgress) => void
     ): Promise<
@@ -441,7 +441,7 @@ export function useReferencesBreakdown(
           total_budget_ms: budgetMs,
           precrease_grid: grid.precreaseGrid,
           grid_where_needed: grid.gridWhereNeeded,
-          disallow_dangling_folds: grid.disallowDanglingFolds,
+          allow_dangling_folds: grid.allowDanglingFolds,
         },
         paperFallbackRect()
       );
@@ -514,7 +514,7 @@ export function useReferencesBreakdown(
     const grid = {
       precreaseGrid: current.precreaseGrid,
       gridWhereNeeded: current.gridWhereNeeded,
-      disallowDanglingFolds: current.disallowDanglingFolds,
+      allowDanglingFolds: current.allowDanglingFolds,
     };
 
     void (async () => {
@@ -571,7 +571,7 @@ export function useReferencesBreakdown(
         durationMs: performance.now() - started,
         precreaseGrid: grid.precreaseGrid,
         gridWhereNeeded: grid.gridWhereNeeded,
-        disallowDanglingFolds: grid.disallowDanglingFolds,
+        allowDanglingFolds: grid.allowDanglingFolds,
       };
       setReferencesPlanRecord(record);
       const nextSummary = summaryOf(record);
@@ -681,13 +681,13 @@ export function useReferencesBreakdown(
     if (
       record.precreaseGrid === precreaseGrid &&
       (!precreaseGrid || record.gridWhereNeeded === gridWhereNeeded) &&
-      record.disallowDanglingFolds === disallowDanglingFolds
+      record.allowDanglingFolds === allowDanglingFolds
     ) {
       return;
     }
     if (targeted || referencesRunSnapshot().running) return;
     run();
-  }, [precreaseGrid, gridWhereNeeded, disallowDanglingFolds, record, run, targeted]);
+  }, [precreaseGrid, gridWhereNeeded, allowDanglingFolds, record, run, targeted]);
 
   const landmarksFirst = viewState.landmarksFirst;
   const variants = useMemo<ReferencesPlanVariant[]>(
@@ -822,10 +822,10 @@ function trackPlan(
     ),
     // How much crease the steps made past the pattern's own to end at
     // references, in tenths of a sheet-length: the cost of the reach rule,
-    // and of "Disallow dangling folds" on top of it — which is why the
-    // setting the plan was made under goes with it.
+    // and of "Allow dangling folds" being off on top of it — which is why
+    // the setting the plan was made under goes with it.
     reach_bucket: bucketCount(Math.round(summary.reachLength * 10), COUNT_BUCKETS),
-    dangling_folds: record.disallowDanglingFolds ? ('disallowed' as const) : ('allowed' as const),
+    dangling_folds: record.allowDanglingFolds ? ('allowed' as const) : ('disallowed' as const),
   };
   if (aborted) {
     track(ANALYTICS_EVENTS.foldingStepsCancelled, properties);

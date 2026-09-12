@@ -92,13 +92,13 @@ export function ReferencesViewControlsPanel() {
             onChange={(checked) => setSettings({ gridWhereNeeded: checked })}
           />
           <ViewPaneToggleRow
-            label={t('panels:references.settings.disallowDangling', 'Disallow dangling folds')}
+            label={t('panels:references.settings.allowDangling', 'Allow dangling folds')}
             help={t(
-              'panels:references.settings.disallowDanglingHelp',
-              'A dangling fold is a crease with an end on blank paper — nothing to stop at. Off, each crease starts from a reference (the paper’s edge or a crease already made) and runs to a second one only when that adds no more crease than the crease itself. On, every crease runs from reference to reference, however much extra crease that takes.'
+              'panels:references.settings.allowDanglingHelp',
+              'A dangling fold is a crease with an end on blank paper — nothing to stop at. On, each crease starts from a reference (the paper’s edge or a crease already made) and runs to a second one only when that adds no more crease than the crease itself. Off, every crease runs from reference to reference, however much extra crease that takes.'
             )}
-            checked={settings.disallowDanglingFolds}
-            onChange={(checked) => setSettings({ disallowDanglingFolds: checked })}
+            checked={settings.allowDanglingFolds}
+            onChange={(checked) => setSettings({ allowDanglingFolds: checked })}
           />
         </ViewPaneSection>
       </div>

@@ -941,9 +941,9 @@
     "refusedSheet": "The sheet around this pick could not be read as a rectangle.",
     "searching": "Finding references…",
     "settings": {
+      "allowDangling": "Allow dangling folds",
+      "allowDanglingHelp": "A dangling fold is a crease with an end on blank paper — nothing to stop at. On, each crease starts from a reference (the paper’s edge or a crease already made) and runs to a second one only when that adds no more crease than the crease itself. Off, every crease runs from reference to reference, however much extra crease that takes.",
       "candidates": "Candidates",
-      "disallowDangling": "Disallow dangling folds",
-      "disallowDanglingHelp": "A dangling fold is a crease with an end on blank paper — nothing to stop at. Off, each crease starts from a reference (the paper’s edge or a crease already made) and runs to a second one only when that adds no more crease than the crease itself. On, every crease runs from reference to reference, however much extra crease that takes.",
       "emptyNote": "Open a crease pattern to adjust how its references are found.",
       "gridWhereNeeded": "Only where needed",
       "includeApproximate": "Include approximate solutions",

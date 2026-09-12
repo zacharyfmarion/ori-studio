@@ -1398,15 +1398,15 @@ export interface ReferencesSettings {
    */
   gridWhereNeeded: boolean;
   /**
-   * Require every crease to end at a reference — the sheet's edge or a crease
-   * already made — at both ends. Off by default: a crease is anchored at a
-   * reference at one end and carried to a second only when that adds no more
-   * crease than the crease itself, so a short crease may dangle at one end.
-   * On, every crease runs from reference to reference, whatever extra crease
-   * that takes. Changes the plan, so toggling it re-plans
+   * Let a crease end on blank paper at one end. On by default: a crease is
+   * anchored at a reference — the sheet's edge or a crease already made — at
+   * one end and carried to a second only when that adds no more crease than
+   * the crease itself, so a short crease may dangle at one end. Off, every
+   * crease runs from reference to reference, whatever extra crease that
+   * takes. Changes the plan, so toggling it re-plans
    * (`implementation-plans/precrease-reach-references.md`).
    */
-  disallowDanglingFolds: boolean;
+  allowDanglingFolds: boolean;
 }
 
 /** How the exactness policy classified the component being planned (D8). */

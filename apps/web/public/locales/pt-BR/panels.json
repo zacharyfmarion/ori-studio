@@ -973,9 +973,9 @@
     "refusedSheet": "A folha ao redor desta seleção não pôde ser lida como um retângulo.",
     "searching": "Procurando referências…",
     "settings": {
+      "allowDangling": "Permitir dobras soltas",
+      "allowDanglingHelp": "Uma dobra solta é um vinco que termina em papel em branco — sem nada onde parar. Ligado: cada vinco parte de uma referência (a borda do papel ou um vinco já feito) e só chega a uma segunda quando isso não acrescenta mais vinco do que o próprio vinco. Desligado: cada vinco vai de referência a referência, por mais vinco extra que isso custe.",
       "candidates": "Candidatos",
-      "disallowDangling": "Não permitir dobras soltas",
-      "disallowDanglingHelp": "Uma dobra solta é um vinco que termina em papel em branco — sem nada onde parar. Desligado: cada vinco parte de uma referência (a borda do papel ou um vinco já feito) e só chega a uma segunda quando isso não acrescenta mais vinco do que o próprio vinco. Ligado: cada vinco vai de referência a referência, por mais vinco extra que isso custe.",
       "emptyNote": "Abra um padrão de vincos para ajustar como suas referências são encontradas.",
       "gridWhereNeeded": "Só onde for preciso",
       "includeApproximate": "Incluir soluções aproximadas",

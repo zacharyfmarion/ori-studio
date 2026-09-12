@@ -19,7 +19,7 @@ export const DEFAULT_REFERENCES_SETTINGS: ReferencesSettings = {
   includeApproximate: false,
   precreaseGrid: true,
   gridWhereNeeded: true,
-  disallowDanglingFolds: false,
+  allowDanglingFolds: true,
 };
 
 /** The candidate counts the settings popover offers. */

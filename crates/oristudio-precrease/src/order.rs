@@ -301,7 +301,7 @@ fn record(creased: &mut Creased, closure: &Closure, folded_index: usize) -> Vec<
                     creased,
                     &f.line,
                     &target.spans,
-                    closure.disallow_dangling_folds(),
+                    closure.allow_dangling_folds(),
                 )
             } else {
                 runs_of(&f.line, &target.spans)
