@@ -256,7 +256,18 @@ export function perpendicularMotion(
   frame: DiagramFrame,
   step: PrecreaseStep,
   witness: { axiom: number; inputs: readonly PrecreaseRef[] }
-): { lineAt: number; corner: Point; moving: number; receiving: number } | null {
+): {
+  lineAt: number;
+  corner: Point;
+  moving: number;
+  receiving: number;
+  /**
+   * The line is the sheet's edge, and the fold is said and shown as the edge
+   * brought back onto itself — the whole edge, and the corner swinging with
+   * no name of its own — rather than as a corner brought onto an arm.
+   */
+  ontoItself: boolean;
+} | null {
   const chord = frame.chord(step);
   if (witness.axiom !== 4 || !chord) return null;
   const lineAt = witness.inputs.findIndex((r) => r.kind === 'line' || r.kind === 'edge');
@@ -278,7 +289,9 @@ export function perpendicularMotion(
   const corner = runs
     .flatMap((r) => [...r])
     .reduce<Point | null>((far, q) => (far === null || reach(q) > reach(far) ? q : far), null);
-  return corner ? { lineAt, corner, moving: side, receiving: -side } : null;
+  return corner
+    ? { lineAt, corner, moving: side, receiving: -side, ontoItself: ref.kind === 'edge' }
+    : null;
 }
 
 /**
@@ -855,6 +868,9 @@ export function plannerStepDiagram(
   const perpendicular = witness ? perpendicularMotion(sequence, frame, step, witness) : null;
   const runsOf = (ref: PrecreaseRef) => spansOfRef(sequence, frame, step, ref);
   const interior = (() => {
+    // An edge folded onto itself is shown whole: it is the thing lined up,
+    // along its whole length, and the corner only swings.
+    if (perpendicular?.ontoItself) return null;
     if (perpendicular) return { moving: perpendicular.moving, receiving: perpendicular.receiving };
     if (witness?.axiom !== 3 || !chord) return null;
     const which = witness.inputs.findIndex((_, i) => moving.has(i));
@@ -966,12 +982,16 @@ export function plannerStepDiagram(
     labels.push({ kind: 'label', at: xy(midpoint(longest)), text: letter, style: 'highlight' });
   });
 
-  // O4: the corner that swings, and its motion onto the other arm.
+  // O4: the corner that swings, and its motion onto the other arm. An edge
+  // folded onto itself has the motion alone: the caption names the edge, not
+  // the corner, so the corner carries no ring and no letter.
   if (perpendicular && chord) {
     const { corner } = perpendicular;
     const at = xy(corner);
-    primitives.push({ kind: 'point', at, style: 'highlight' });
-    labels.push({ kind: 'label', at, text: letters.nextPoint, style: 'highlight' });
+    if (!perpendicular.ontoItself) {
+      primitives.push({ kind: 'point', at, style: 'highlight' });
+      labels.push({ kind: 'label', at, text: letters.nextPoint, style: 'highlight' });
+    }
     const out = foldArrowArc(at, reflectAcross(chord, at), xy(frame.centre));
     if (out) primitives.push({ kind: 'fold-arrow', out });
   }
@@ -1024,7 +1044,14 @@ export function plannerStepDiagram(
   const made = styleOf(direction, true);
   const pinches = frame.pinches(step);
   const creases = frame.made(step);
-  if (pinches.length > 0) {
+  // A press that runs a crease out from its end to somewhere the folder can
+  // find is a stretch of crease, not a mark: the card says "crease only the
+  // part shown" and draws that part the way the fold that made the line was
+  // drawn. Only a press located by a crossing — a pinch — is drawn as one.
+  const carriesOut = step.kind === 'press' && step.press?.sighted_from === null;
+  if (pinches.length > 0 && carriesOut) {
+    for (const span of pinches) primitives.push(spanLine(span, made));
+  } else if (pinches.length > 0) {
     // A pinch is a crease, so it carries its own direction rather than a colour
     // of its own.
     const pinch: DiagramLineStyleName =

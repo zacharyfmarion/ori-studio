@@ -450,6 +450,25 @@ describe('a press step', () => {
     expect(lines.some((l) => l.style === 'valley' || l.style === 'mountain')).toBe(false);
   });
 
+  // A press that runs the crease out to somewhere the folder can find is a
+  // stretch of crease — "crease only the part shown" — and is drawn as one,
+  // in the direction's dashes; a heavy solid stroke says "pinch here".
+  it('draws a press that carries the line out as crease, not as a pinch', () => {
+    const out = {
+      ...press,
+      extent: {
+        kind: 'pinches' as const,
+        spans: [[[0.25, 0.4], [0.25, 0]] as [[number, number], [number, number]]],
+      },
+      press: { at: [0.25, 0.3] as [number, number], point: null, sighted_from: null },
+    };
+    const withOut = { ...sequence, steps: [...sequence.steps, out] };
+    const d = plannerStepDiagram(withOut, unitFrame(withOut), withOut.steps.length - 1);
+    const lines = (d?.primitives ?? []).filter((p) => p.kind === 'line');
+    expect(lines.some((l) => l.style === 'valley')).toBe(true);
+    expect(lines.some((l) => l.style === 'pinch-valley')).toBe(false);
+  });
+
   it('shows the same references and motion as the fold that made its line', () => {
     const rings = (d: typeof diagram) =>
       (d?.primitives ?? []).filter((p) => p.kind === 'point').map((p) => (p.kind === 'point' ? p.at : null));
@@ -1030,6 +1049,72 @@ describe('a line folded onto a line', () => {
     const at = (angle: number) => [center[0] + radius * Math.cos(angle), center[1] + radius * Math.sin(angle)];
     expect(near(at(from), [1, 1])).toBe(true);
     expect(near(at(to), [k - 1, k - 1])).toBe(true);
+  });
+
+  // Abra step 20: x = 0.293 through a mark, perpendicular to the bottom edge.
+  // A diagram says "fold the bottom edge onto itself through P", and the card
+  // shows that: the mark, the whole edge, and the corner swinging with no
+  // name of its own — not a corner brought onto an arm.
+  it('shows a perpendicular to an edge as the edge folded onto itself', () => {
+    const seq = plannerSequenceFixture();
+    const P: [number, number] = [0.25, 0.8];
+    const fold = {
+      ...seq.steps[1]!,
+      id: 93,
+      cp_spans: [
+        [
+          [0.25, 0],
+          [0.25, 0.3],
+        ],
+      ] as [[number, number], [number, number]][],
+      made: [
+        [
+          [0.25, 0],
+          [0.25, 0.3],
+        ],
+      ] as [[number, number], [number, number]][],
+      extent: { kind: 'full' as const },
+      witnesses: [
+        {
+          ...seq.steps[1]!.witnesses[0]!,
+          axiom: 4,
+          inputs: [
+            { kind: 'point' as const, id: 50 },
+            { kind: 'edge' as const, id: 2, side: 'bottom' as const },
+          ],
+          who_moves: [],
+        },
+      ],
+      chosen: 0,
+    };
+    const withFold = {
+      ...seq,
+      steps: [...seq.steps, fold],
+      points: [...seq.points, { id: 50, p: P, lines: [5], on_boundary: false }],
+    };
+    const d = plannerStepDiagram(withFold, unitFrame(withFold), withFold.steps.length - 1);
+    const prims = d?.primitives ?? [];
+    const lines = prims.filter(
+      (p): p is Extract<StepDiagramPrimitive, { kind: 'line' }> =>
+        p.kind === 'line' && p.style === 'highlight'
+    );
+    const points = prims.filter((p) => p.kind === 'point');
+    const labels = prims.filter((p) => p.kind === 'label').map((l) => (l.kind === 'label' ? l.text : ''));
+    // The mark and the edge, and nothing lettered for the corner.
+    expect(points).toHaveLength(1);
+    expect(points.some((p) => p.kind === 'point' && near(p.at, P))).toBe(true);
+    expect(labels.sort()).toEqual(['A', 'P']);
+    // The whole edge, both arms of it.
+    expect(lines.some((l) => isSeg(l, [0, 0], [1, 0]))).toBe(true);
+    // And the corner's motion onto the other arm.
+    const arrows = prims.filter((p) => p.kind === 'fold-arrow');
+    expect(arrows).toHaveLength(1);
+    const arrow = arrows[0]!;
+    if (arrow.kind !== 'fold-arrow') throw new Error('unreachable');
+    const { center, radius, from, to } = arrow.out;
+    const at = (angle: number) => [center[0] + radius * Math.cos(angle), center[1] + radius * Math.sin(angle)];
+    expect(near(at(from), [0, 0])).toBe(true);
+    expect(near(at(to), [0.5, 0])).toBe(true);
   });
 
   // markhor steps 4 and 8: the midline from step 1 is one crease the folder
