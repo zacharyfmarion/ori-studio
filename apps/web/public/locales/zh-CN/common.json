@@ -293,7 +293,10 @@
   },
   "viewDrawer": {
     "close": "关闭视图选项",
+    "closeSettings": "关闭设置",
     "open": "视图",
+    "openSettings": "设置",
+    "settingsTitle": "设置",
     "title": "视图选项"
   },
   "workspaceRail": {

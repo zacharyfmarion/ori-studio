@@ -2965,7 +2965,10 @@
     "panels:references.settings.reachReferences": "7754d45c3976",
     "panels:references.settings.emptyNote": "e98539add89f",
     "panels:references.settings.solutions": "900fe12faa26",
-    "panels:references.viewportControls": "56107b7c5ba3"
+    "panels:references.viewportControls": "56107b7c5ba3",
+    "common:viewDrawer.closeSettings": "0ccfef828950",
+    "common:viewDrawer.openSettings": "74a883a037bc",
+    "common:viewDrawer.settingsTitle": "74a883a037bc"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5933,7 +5936,10 @@
     "panels:references.settings.reachReferences": "7754d45c3976",
     "panels:references.settings.emptyNote": "e98539add89f",
     "panels:references.settings.solutions": "900fe12faa26",
-    "panels:references.viewportControls": "56107b7c5ba3"
+    "panels:references.viewportControls": "56107b7c5ba3",
+    "common:viewDrawer.closeSettings": "0ccfef828950",
+    "common:viewDrawer.openSettings": "74a883a037bc",
+    "common:viewDrawer.settingsTitle": "74a883a037bc"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8903,7 +8909,10 @@
     "panels:references.settings.reachReferences": "7754d45c3976",
     "panels:references.settings.emptyNote": "e98539add89f",
     "panels:references.settings.solutions": "900fe12faa26",
-    "panels:references.viewportControls": "56107b7c5ba3"
+    "panels:references.viewportControls": "56107b7c5ba3",
+    "common:viewDrawer.closeSettings": "0ccfef828950",
+    "common:viewDrawer.openSettings": "74a883a037bc",
+    "common:viewDrawer.settingsTitle": "74a883a037bc"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11813,7 +11822,10 @@
     "panels:references.settings.reachReferences": "7754d45c3976",
     "panels:references.settings.emptyNote": "e98539add89f",
     "panels:references.settings.solutions": "900fe12faa26",
-    "panels:references.viewportControls": "56107b7c5ba3"
+    "panels:references.viewportControls": "56107b7c5ba3",
+    "common:viewDrawer.closeSettings": "0ccfef828950",
+    "common:viewDrawer.openSettings": "74a883a037bc",
+    "common:viewDrawer.settingsTitle": "74a883a037bc"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14723,7 +14735,10 @@
     "panels:references.settings.reachReferences": "7754d45c3976",
     "panels:references.settings.emptyNote": "e98539add89f",
     "panels:references.settings.solutions": "900fe12faa26",
-    "panels:references.viewportControls": "56107b7c5ba3"
+    "panels:references.viewportControls": "56107b7c5ba3",
+    "common:viewDrawer.closeSettings": "0ccfef828950",
+    "common:viewDrawer.openSettings": "74a883a037bc",
+    "common:viewDrawer.settingsTitle": "74a883a037bc"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -17691,7 +17706,10 @@
     "panels:references.settings.reachReferences": "7754d45c3976",
     "panels:references.settings.emptyNote": "e98539add89f",
     "panels:references.settings.solutions": "900fe12faa26",
-    "panels:references.viewportControls": "56107b7c5ba3"
+    "panels:references.viewportControls": "56107b7c5ba3",
+    "common:viewDrawer.closeSettings": "0ccfef828950",
+    "common:viewDrawer.openSettings": "74a883a037bc",
+    "common:viewDrawer.settingsTitle": "74a883a037bc"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -20659,7 +20677,10 @@
     "panels:references.settings.reachReferences": "7754d45c3976",
     "panels:references.settings.emptyNote": "e98539add89f",
     "panels:references.settings.solutions": "900fe12faa26",
-    "panels:references.viewportControls": "56107b7c5ba3"
+    "panels:references.viewportControls": "56107b7c5ba3",
+    "common:viewDrawer.closeSettings": "0ccfef828950",
+    "common:viewDrawer.openSettings": "74a883a037bc",
+    "common:viewDrawer.settingsTitle": "74a883a037bc"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -23569,6 +23590,9 @@
     "panels:references.settings.reachReferences": "7754d45c3976",
     "panels:references.settings.emptyNote": "e98539add89f",
     "panels:references.settings.solutions": "900fe12faa26",
-    "panels:references.viewportControls": "56107b7c5ba3"
+    "panels:references.viewportControls": "56107b7c5ba3",
+    "common:viewDrawer.closeSettings": "0ccfef828950",
+    "common:viewDrawer.openSettings": "74a883a037bc",
+    "common:viewDrawer.settingsTitle": "74a883a037bc"
   }
 }

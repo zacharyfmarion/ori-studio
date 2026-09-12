@@ -339,6 +339,9 @@ export function WorkspaceShell() {
   // Nothing here can be closed (see `FixedDockTab`), so no panel can go missing
   // and need dragging back.
   const coarsePointer = useIsCoarsePointerSurface();
+  // For the stylesheet: the dock's tab bar is sized per workspace, so a docked
+  // pane's header lines up with the primary pane's own (see App.css).
+  const activeWorkspace = useLayoutStore((state) => state.activeWorkspace);
 
   // The other half of "is the View pane docked, or drawered?". It lives on the
   // shell rather than beside the drawer because the repair it performs is the
@@ -435,7 +438,7 @@ export function WorkspaceShell() {
             element that takes its `className`, so placing the dock by that class
             targets one level too deep — see the note in App.css.
           */}
-          <div className="workspace-shell__dock">
+          <div className="workspace-shell__dock" data-workspace={activeWorkspace}>
             <ErrorBoundary surface="shell:dockview" variant="pane">
               <DockviewReact
                 components={panelComponents}

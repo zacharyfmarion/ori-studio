@@ -293,7 +293,10 @@
   },
   "viewDrawer": {
     "close": "보기 옵션 닫기",
+    "closeSettings": "설정 닫기",
     "open": "보기",
+    "openSettings": "설정",
+    "settingsTitle": "설정",
     "title": "보기 옵션"
   },
   "workspaceRail": {

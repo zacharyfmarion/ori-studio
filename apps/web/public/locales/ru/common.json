@@ -293,7 +293,10 @@
   },
   "viewDrawer": {
     "close": "Закрыть параметры вида",
+    "closeSettings": "Закрыть настройки",
     "open": "Вид",
+    "openSettings": "Настройки",
+    "settingsTitle": "Настройки",
     "title": "Параметры вида"
   },
   "workspaceRail": {

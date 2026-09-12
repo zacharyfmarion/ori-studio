@@ -223,6 +223,7 @@ describe('the workspace dock under a coarse pointer', () => {
 
     const lane = container?.querySelector('.canvas-pill-lane');
     expect(lane?.getAttribute('data-view-panel')).toBe('references-view-controls');
-    expect(lane?.querySelector('.view-drawer__trigger')?.textContent).toBe('View');
+    // Named as the docked pane is: Settings here, View in Edit.
+    expect(lane?.querySelector('.view-drawer__trigger')?.textContent).toBe('Settings');
   });
 });

@@ -12,8 +12,10 @@ import {
 
 interface MockPanel {
   id: string;
+  title?: string;
   group: MockGroup;
   api: { setActive: ReturnType<typeof vi.fn> };
+  setTitle: ReturnType<typeof vi.fn>;
 }
 
 interface MockGroup {
@@ -53,6 +55,7 @@ function createDockviewApi(layout: SerializedDockview = dockviewLayout()) {
 
   function addPanel(options: {
     id: string;
+    title?: string;
     position?: { referenceGroup?: string | MockGroup; referencePanel?: string };
   }): MockPanel {
     const referenceGroup = options.position?.referenceGroup;
@@ -66,12 +69,16 @@ function createDockviewApi(layout: SerializedDockview = dockviewLayout()) {
     groups.set(group.id, group);
     const panel: MockPanel = {
       id: options.id,
+      title: options.title,
       group,
       api: {
         setActive: vi.fn(() => {
           activePanelId = options.id;
         }),
       },
+      setTitle: vi.fn((title: string) => {
+        panel.title = title;
+      }),
     };
     panels.set(options.id, panel);
     activePanelId = options.id;
@@ -425,6 +432,22 @@ describe('the View pane under a coarse pointer', () => {
       position: { referencePanel: 'simulator', direction: 'right' },
       initialWidth: 260,
     });
+  });
+
+  it('renames a restored pane to what the table calls it now', () => {
+    // A restored layout carries the title the pane was saved with. The
+    // Simulate and References panes were "View" until they were "Settings";
+    // the repair is here, not a layout version bump.
+    const api = createDockviewApi();
+    applyDefaultLayout(api, 'simulate', false);
+    const panel = api.panelMap.get('simulator-view-controls');
+    expect(panel?.title).toBe('Settings');
+    panel!.title = 'View';
+
+    reconcileViewPanel(api, 'simulate', false);
+
+    expect(panel?.title).toBe('Settings');
+    expect(api.addPanel.mock.calls.filter(([o]) => o.id === 'simulator-view-controls')).toHaveLength(1);
   });
 
   it('is idempotent in both directions', () => {

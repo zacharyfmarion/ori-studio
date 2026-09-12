@@ -148,9 +148,13 @@ describe('the workspace View drawer', () => {
     useLayoutStore.setState({ activeWorkspace: 'simulate' });
     render();
 
+    // Named as its docked pane is — Settings, where Edit's is View.
+    expect(trigger()?.textContent).toBe('Settings');
     press(trigger());
 
     expect(dialog()?.textContent).toContain('simulator view controls');
+    expect(dialog()?.getAttribute('aria-label')).toBe('Settings');
+    expect(document.querySelector('[aria-label="Close settings"]')).not.toBeNull();
   });
 
   it('offers the References settings the same way', () => {

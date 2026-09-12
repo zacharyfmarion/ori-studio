@@ -152,17 +152,20 @@ const WORKSPACE_VIEW_PANELS = {
     initialWidth: 260,
     referencePanelId: 'crease-pattern',
   },
+  // "Settings", not "View": what the Simulate and References panes hold is
+  // how the model is run and how the plan is made, and only a little of it
+  // is about looking. Edit's pane is view options through and through.
   simulate: {
     id: 'simulator-view-controls',
     component: 'simulator-view-controls',
-    title: 'View',
+    title: 'Settings',
     initialWidth: 260,
     referencePanelId: 'simulator',
   },
   references: {
     id: 'references-view-controls',
     component: 'references-view-controls',
-    title: 'View',
+    title: 'Settings',
     initialWidth: 260,
     referencePanelId: 'references',
   },
@@ -245,7 +248,13 @@ export function reconcileViewPanel(
     if (panel) api.removePanel(panel);
     return;
   }
-  if (!panel) addViewPanel(api, spec);
+  if (!panel) {
+    addViewPanel(api, spec);
+    return;
+  }
+  // A restored layout carries the title the pane was saved with; a renamed
+  // pane is repaired here rather than by throwing the layout away.
+  if (panel.title !== spec.title) panel.setTitle(spec.title);
 }
 
 export function applyDefaultLayout(

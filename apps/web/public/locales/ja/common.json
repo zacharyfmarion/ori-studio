@@ -293,7 +293,10 @@
   },
   "viewDrawer": {
     "close": "表示オプションを閉じる",
+    "closeSettings": "設定を閉じる",
     "open": "表示",
+    "openSettings": "設定",
+    "settingsTitle": "設定",
     "title": "表示オプション"
   },
   "workspaceRail": {

@@ -293,7 +293,10 @@
   },
   "viewDrawer": {
     "close": "Fechar opções de exibição",
+    "closeSettings": "Fechar configurações",
     "open": "Exibir",
+    "openSettings": "Configurações",
+    "settingsTitle": "Configurações",
     "title": "Opções de exibição"
   },
   "workspaceRail": {

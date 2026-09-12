@@ -52,7 +52,18 @@ export function WorkspaceViewDrawer() {
 
   if (!spec) return null;
 
-  const title = t('common:viewDrawer.title', 'View options');
+  // Named as the docked pane is named: the Simulate and References panes are
+  // "Settings", Edit's is "View" — see `WORKSPACE_VIEW_PANELS`.
+  const settings = spec.title === 'Settings';
+  const title = settings
+    ? t('common:viewDrawer.settingsTitle', 'Settings')
+    : t('common:viewDrawer.title', 'View options');
+  const openLabel = settings
+    ? t('common:viewDrawer.openSettings', 'Settings')
+    : t('common:viewDrawer.open', 'View');
+  const closeLabel = settings
+    ? t('common:viewDrawer.closeSettings', 'Close settings')
+    : t('common:viewDrawer.close', 'Close view options');
   const Body = VIEW_DRAWER_BODIES[spec.id];
 
   return (
@@ -68,7 +79,7 @@ export function WorkspaceViewDrawer() {
         onClick={openDrawer}
       >
         <SlidersHorizontal size={15} aria-hidden="true" />
-        {t('common:viewDrawer.open', 'View')}
+        {openLabel}
       </Button>
       {/*
         Portaled, for the reason `CpToolPickerSheet` is: this component now
@@ -116,11 +127,7 @@ export function WorkspaceViewDrawer() {
             >
               <header className="view-drawer__header">
                 <span className="view-drawer__title">{title}</span>
-                <IconButton
-                  size="sm"
-                  aria-label={t('common:viewDrawer.close', 'Close view options')}
-                  onClick={close}
-                >
+                <IconButton size="sm" aria-label={closeLabel} onClick={close}>
                   <X size={15} />
                 </IconButton>
               </header>
