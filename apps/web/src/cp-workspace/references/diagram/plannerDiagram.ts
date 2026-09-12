@@ -72,6 +72,7 @@ import {
   type PrecreaseRef,
   type PrecreaseSequence,
   type PrecreaseStep,
+  type PrecreaseWitness,
 } from '../precreaseSequence';
 
 /** A frame segment as the primitives' own tuples. */
@@ -563,6 +564,35 @@ function movingSide(
  */
 const ALIGNMENT_FLOOR = 0.06;
 
+/**
+ * Which line inputs a point input lands on, by input index: the crate's O5
+ * is `[pivot, p, m1]`, O6 `[p1, m1, p2, m2]`, O7 `[p, m1, m2]`.
+ */
+function landingPairs(witness: PrecreaseWitness | null): Map<number, number> {
+  switch (witness?.axiom) {
+    case 5:
+      return new Map([[2, 1]]);
+    case 6:
+      return new Map([
+        [1, 0],
+        [3, 2],
+      ]);
+    case 7:
+      return new Map([[1, 0]]);
+    default:
+      return new Map();
+  }
+}
+
+/** How far `p` is from the segment `[a, b]`. */
+function distanceToSegment([a, b]: DiagramSegment, p: Point): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2));
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
 /** Which side of `chord` the point is on: +1, −1, or 0 on the line. */
 function sideOf(chord: DiagramSegment, p: Point): number {
   const [a, b] = chord;
@@ -833,11 +863,41 @@ export function plannerStepDiagram(
     );
     return side === 0 ? null : { moving: side, receiving: -side };
   })();
+  // A point brought onto a line lands at one place on it — its image across
+  // the fold — and only the arm of the line that place is on takes part: the
+  // arm that swings over when the line is what moves, the arm the point lands
+  // on when the point is. The other arm stays put, and highlighting it said
+  // the whole edge was being folded. wolpertinger step 125: an edge folded
+  // through a mark on it onto an interior mark — the stretch below the mark
+  // swings, the stretch above does not.
+  const landings = landingPairs(witness);
+  const landingOf = (which: number): Point | null => {
+    const from = landings.get(which);
+    if (from === undefined || !chord) return null;
+    const ref = inputs[from];
+    if (!ref || (ref.kind !== 'point' && ref.kind !== 'corner')) return null;
+    const at = frame.point(ref.id);
+    if (!at) return null;
+    const [x, y] = reflectAcross(chord, xy(at));
+    return { x, y };
+  };
   const shown = (
     which: number,
     ref: PrecreaseRef,
     spans: readonly DiagramSegment[]
   ): DiagramSegment[] => {
+    const landing = landingOf(which);
+    if (landing && chord) {
+      const side = sideOf(chord, landing);
+      const arm = side === 0 ? [...spans] : onSide(chord, side, spans);
+      if (arm.length <= 1) return arm;
+      // The piece the landing is on; else the nearest, so the folder at
+      // least sees which line is meant.
+      const gap = (piece: DiagramSegment) => distanceToSegment(piece, landing);
+      const on = arm.filter((piece) => gap(piece) <= 1e-6 * Math.max(1, length(chord)));
+      if (on.length > 0) return on;
+      return [arm.reduce((a, b) => (gap(b) < gap(a) ? b : a))];
+    }
     if (!interior || !chord) return [...spans];
     const isMoving = moving.has(which) && !perpendicular;
     const side = isMoving ? interior.moving : interior.receiving;
@@ -916,6 +976,15 @@ export function plannerStepDiagram(
   for (const which of witness?.who_moves ?? []) {
     const ref = inputs[which];
     if (!ref || !chord) continue;
+    // A line that carries a point's landing swings from that very place: the
+    // arrow runs from where the mark will land to the mark.
+    const landing = landingOf(which);
+    if (landing) {
+      const from = xy(landing);
+      const out = foldArrowArc(from, reflectAcross(chord, from), xy(frame.centre));
+      if (out) primitives.push({ kind: 'fold-arrow', out });
+      continue;
+    }
     const pieces = shownPieces.get(which) ?? [];
     const otherIndex = inputs.findIndex(
       (_, i) => i !== which && inputs[i]!.kind !== 'point' && inputs[i]!.kind !== 'corner'

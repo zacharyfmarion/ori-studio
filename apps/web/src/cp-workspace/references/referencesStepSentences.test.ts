@@ -231,6 +231,53 @@ describe('a planner step', () => {
     expect(describePlannerStep(t, seq, 4)).toContain('Fold B onto itself so that P lands on A.');
   });
 
+  // wolpertinger step 125: an O5 through a mark on the right edge, the edge
+  // itself the line the interior mark meets. The crate says the edge is what
+  // swings (`who_moves: [2]`): the stretch of it below the pivot is brought
+  // onto the mark, and "bringing Q onto A" had the folder moving the wrong
+  // thing. The same for an O7 whose landing line is the one on the edge.
+  it('says which of the mark and the line is brought onto the other, as the crate decided', () => {
+    const o5 = (who_moves: number[]) => ({
+      ...sequence.steps[4]!,
+      witnesses: [
+        {
+          ...sequence.steps[4]!.witnesses[0]!,
+          axiom: 5,
+          inputs: [
+            { kind: 'point' as const, id: 8 },
+            { kind: 'point' as const, id: 9 },
+            { kind: 'edge' as const, id: 1, side: 'right' as const },
+          ],
+          who_moves,
+        },
+      ],
+      chosen: 0,
+    });
+    const seq = (step: (typeof sequence.steps)[number]) => ({
+      ...sequence,
+      steps: sequence.steps.map((s, i) => (i === 4 ? step : s)),
+    });
+    expect(describePlannerStep(t, seq(o5([2])), 4)).toContain('Fold through P, bringing A onto Q.');
+    expect(describePlannerStep(t, seq(o5([1])), 4)).toContain('Fold through P, bringing Q onto A.');
+    const o7 = {
+      ...sequence.steps[4]!,
+      witnesses: [
+        {
+          ...sequence.steps[4]!.witnesses[0]!,
+          axiom: 7,
+          inputs: [
+            { kind: 'point' as const, id: 8 },
+            { kind: 'edge' as const, id: 2, side: 'bottom' as const },
+            { kind: 'line' as const, id: 4 },
+          ],
+          who_moves: [1],
+        },
+      ],
+      chosen: 0,
+    };
+    expect(describePlannerStep(t, seq(o7), 4)).toContain('Fold B onto itself so that A lands on P.');
+  });
+
   it('uses exactly the letters the card draws', () => {
     for (let i = 0; i < sequence.steps.length; i += 1) {
       const sentence = describePlannerStep(t, sequence, i);

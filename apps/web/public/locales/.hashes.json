@@ -2961,7 +2961,9 @@
     "panels:references.planStep.gridBoundLine": "60e43a33e9cf",
     "panels:references.planStep.gridBoundUp": "af07a66c8e7e",
     "panels:references.settings.gridWhereNeeded": "c38ff4170155",
-    "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6"
+    "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
+    "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
+    "panels:references.planStep.axiom7LineMoves": "98d9a1532eef"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5925,7 +5927,9 @@
     "panels:references.planStep.gridBoundLine": "60e43a33e9cf",
     "panels:references.planStep.gridBoundUp": "af07a66c8e7e",
     "panels:references.settings.gridWhereNeeded": "c38ff4170155",
-    "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6"
+    "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
+    "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
+    "panels:references.planStep.axiom7LineMoves": "98d9a1532eef"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8891,7 +8895,9 @@
     "panels:references.planStep.gridBoundLine": "60e43a33e9cf",
     "panels:references.planStep.gridBoundUp": "af07a66c8e7e",
     "panels:references.settings.gridWhereNeeded": "c38ff4170155",
-    "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6"
+    "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
+    "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
+    "panels:references.planStep.axiom7LineMoves": "98d9a1532eef"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11797,7 +11803,9 @@
     "panels:references.planStep.gridBoundLine": "60e43a33e9cf",
     "panels:references.planStep.gridBoundUp": "af07a66c8e7e",
     "panels:references.settings.gridWhereNeeded": "c38ff4170155",
-    "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6"
+    "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
+    "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
+    "panels:references.planStep.axiom7LineMoves": "98d9a1532eef"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14703,7 +14711,9 @@
     "panels:references.planStep.gridBoundLine": "60e43a33e9cf",
     "panels:references.planStep.gridBoundUp": "af07a66c8e7e",
     "panels:references.settings.gridWhereNeeded": "c38ff4170155",
-    "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6"
+    "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
+    "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
+    "panels:references.planStep.axiom7LineMoves": "98d9a1532eef"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -17667,7 +17677,9 @@
     "panels:references.planStep.gridBoundLine": "60e43a33e9cf",
     "panels:references.planStep.gridBoundUp": "af07a66c8e7e",
     "panels:references.settings.gridWhereNeeded": "c38ff4170155",
-    "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6"
+    "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
+    "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
+    "panels:references.planStep.axiom7LineMoves": "98d9a1532eef"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -20631,7 +20643,9 @@
     "panels:references.planStep.gridBoundLine": "60e43a33e9cf",
     "panels:references.planStep.gridBoundUp": "af07a66c8e7e",
     "panels:references.settings.gridWhereNeeded": "c38ff4170155",
-    "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6"
+    "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
+    "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
+    "panels:references.planStep.axiom7LineMoves": "98d9a1532eef"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -23537,6 +23551,8 @@
     "panels:references.planStep.gridBoundLine": "60e43a33e9cf",
     "panels:references.planStep.gridBoundUp": "af07a66c8e7e",
     "panels:references.settings.gridWhereNeeded": "c38ff4170155",
-    "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6"
+    "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
+    "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
+    "panels:references.planStep.axiom7LineMoves": "98d9a1532eef"
   }
 }

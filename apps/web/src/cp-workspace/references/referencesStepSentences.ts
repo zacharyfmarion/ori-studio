@@ -269,11 +269,21 @@ export function describePlannerStep(
       break;
     }
     case 5:
-      sentence = t(
-        'panels:references.planStep.axiom5',
-        'Fold through {{a}}, bringing {{b}} onto {{c}}.',
-        { a: name(0), b: name(1), c: name(2) }
-      );
+      // `[pivot, p, m1]`. Which of the mark and the line swings over is the
+      // crate's call (`who_moves`): a mark on the edge is brought onto the
+      // line; a line on the edge is brought onto the mark — and the card's
+      // arrow goes the same way, so the caption has to.
+      sentence = witness.who_moves.includes(2)
+        ? t(
+            'panels:references.planStep.axiom5LineMoves',
+            'Fold through {{a}}, bringing {{c}} onto {{b}}.',
+            { a: name(0), b: name(1), c: name(2) }
+          )
+        : t(
+            'panels:references.planStep.axiom5',
+            'Fold through {{a}}, bringing {{b}} onto {{c}}.',
+            { a: name(0), b: name(1), c: name(2) }
+          );
       break;
     case 6:
       sentence = t(
@@ -288,11 +298,17 @@ export function describePlannerStep(
       // placeholders are named by role, as the ReferenceFinder sentence's are,
       // because this once had the two lines the other way round and the card's
       // arrow disagreed with its caption.
-      sentence = t(
-        'panels:references.planStep.axiom7',
-        'Fold {{lSelf}} onto itself so that {{p}} lands on {{lLand}}.',
-        { p: name(0), lLand: name(1), lSelf: name(2) }
-      );
+      sentence = witness.who_moves.includes(1)
+        ? t(
+            'panels:references.planStep.axiom7LineMoves',
+            'Fold {{lSelf}} onto itself so that {{lLand}} lands on {{p}}.',
+            { p: name(0), lLand: name(1), lSelf: name(2) }
+          )
+        : t(
+            'panels:references.planStep.axiom7',
+            'Fold {{lSelf}} onto itself so that {{p}} lands on {{lLand}}.',
+            { p: name(0), lLand: name(1), lSelf: name(2) }
+          );
       break;
     default:
       sentence = t('panels:references.planStep.unknown', 'Fold using {{inputs}}.', {

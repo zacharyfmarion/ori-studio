@@ -1025,6 +1025,88 @@ describe('a line folded onto a line', () => {
   });
 });
 
+// wolpertinger step 125: an O5 through a mark P on the right edge, bringing
+// the edge onto an interior mark Q. Only the stretch of the edge that swings
+// over — the arm on the side of the fold where Q lands — takes part; the
+// stretch above the pivot stays where it is and is not lit. And since it is
+// the edge that moves, the arrow runs from where Q will land to Q.
+describe('a point brought onto a line', () => {
+  const sequence = plannerSequenceFixture();
+  // The fold x − y = ½, through P = (1, ½) on the right edge and (½, 0):
+  // Q = (0.6, 0.5) lands on the edge at (1, 0.1), below the pivot.
+  const o5 = (who_moves: number[]) => {
+    const step = {
+      ...sequence.steps[4]!,
+      id: 98,
+      line: { n: [Math.SQRT1_2, -Math.SQRT1_2] as [number, number], d: 0.5 * Math.SQRT1_2 },
+      segment: [
+        [1, 0.5],
+        [0.5, 0],
+      ] as [[number, number], [number, number]],
+      cp_spans: [] as [[number, number], [number, number]][],
+      witnesses: [
+        {
+          ...sequence.steps[4]!.witnesses[0]!,
+          axiom: 5,
+          inputs: [
+            { kind: 'point' as const, id: 20 },
+            { kind: 'point' as const, id: 21 },
+            { kind: 'edge' as const, id: 1, side: 'right' as const },
+          ],
+          who_moves,
+        },
+      ],
+      chosen: 0,
+    };
+    return {
+      ...sequence,
+      steps: [...sequence.steps, step],
+      points: [
+        ...sequence.points,
+        { id: 20, p: [1, 0.5] as [number, number], lines: [1, 6], on_boundary: true },
+        { id: 21, p: [0.6, 0.5] as [number, number], lines: [4, 8], on_boundary: false },
+      ],
+    };
+  };
+  const near = (a: readonly number[], b: readonly number[]) =>
+    Math.hypot(a[0]! - b[0]!, a[1]! - b[1]!) < 1e-9;
+  type Line = Extract<StepDiagramPrimitive, { kind: 'line' }>;
+  const isSeg = (l: Line, a: number[], b: number[]) =>
+    (near(l.from, a) && near(l.to, b)) || (near(l.from, b) && near(l.to, a));
+  const draw = (seq: ReturnType<typeof o5>) =>
+    plannerStepDiagram(seq, unitFrame(seq), seq.steps.length - 1)?.primitives ?? [];
+  const highlights = (primitives: readonly StepDiagramPrimitive[]) =>
+    primitives.filter((p): p is Line => p.kind === 'line' && p.style === 'highlight');
+  const arrowEnds = (primitives: readonly StepDiagramPrimitive[]) => {
+    const arrow = primitives.find((p) => p.kind === 'fold-arrow');
+    if (!arrow || arrow.kind !== 'fold-arrow') throw new Error('no arrow');
+    const { center, radius, from, to } = arrow.out;
+    const at = (angle: number) => [center[0] + radius * Math.cos(angle), center[1] + radius * Math.sin(angle)];
+    return { from: at(from), to: at(to) };
+  };
+
+  it('lights only the arm of the line the mark lands on', () => {
+    for (const who of [[2], [1]]) {
+      const lit = highlights(draw(o5(who)));
+      expect(lit.some((l) => isSeg(l, [1, 0], [1, 0.5]))).toBe(true);
+      expect(lit.some((l) => isSeg(l, [1, 0], [1, 1]))).toBe(false);
+      expect(lit.some((l) => isSeg(l, [1, 0.5], [1, 1]))).toBe(false);
+    }
+  });
+
+  it('swings the edge from where the mark will land, onto the mark', () => {
+    const { from, to } = arrowEnds(draw(o5([2])));
+    expect(near(from, [1, 0.1])).toBe(true);
+    expect(near(to, [0.6, 0.5])).toBe(true);
+  });
+
+  it('swings the mark onto the edge when the mark is what moves', () => {
+    const { from, to } = arrowEnds(draw(o5([1])));
+    expect(near(from, [0.6, 0.5])).toBe(true);
+    expect(near(to, [1, 0.1])).toBe(true);
+  });
+});
+
 // A box-pleated plan opens with its grid: one step per family, every line of
 // it edge to edge, mountain and valley alternating. That is a pleat, not a
 // sighting, and the card has to say so — the whole family at once, with no
