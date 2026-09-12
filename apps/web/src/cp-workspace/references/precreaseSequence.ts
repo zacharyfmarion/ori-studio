@@ -96,10 +96,34 @@ export interface PrecreaseGridStepLine {
   cp_spans: PrecreasePlanSegment[];
 }
 
+/** A line a band of grid lines is bounded by, or the sheet's edge there. */
+export interface PrecreaseGridBound {
+  /** The family index of the bounding line: 0 or the family's cells for the edge. */
+  index: number;
+  /** Where it is across the sheet, as a share of the side the family crosses. */
+  fraction: number;
+  /** The sheet's edge rather than a line of the family. */
+  edge: boolean;
+  /**
+   * State line id of the bounding line, when it is a line — one an earlier
+   * grid step made, so the folder can see it. Null for the edge, and for an
+   * odd base's band (13ths, 25ths), which no halving made and whose bounds
+   * are positions across the sheet.
+   */
+  line_id: number | null;
+}
+
+/** A band of a `grid` step that is not a pleat: a run of the level's lines. */
+export interface PrecreaseGridRegion {
+  bounds: [PrecreaseGridBound, PrecreaseGridBound];
+  /** How many of the step's lines lie in the band. */
+  lines: number;
+}
+
 /** What a `grid` step pleats. */
 export interface PrecreaseGridStep {
   kind: PrecreaseGridKind;
-  /** Index of this family in the grid, in the order the steps come. */
+  /** Index of this family in the grid. */
   family: number;
   /** Cells across the side the grid is anchored to. */
   n: number;
@@ -109,17 +133,33 @@ export interface PrecreaseGridStep {
   spacing: number;
   /**
    * How many strips the family cuts the sheet into, when that is a whole
-   * number — "pleat into 16ths". Null for an oblique family, or one whose
-   * spacing does not divide the side it crosses; the card then counts lines.
+   * number. For a pleat, what it pleats into — "pleat into 16ths". Null for
+   * an oblique family, or one whose spacing does not divide the side it
+   * crosses; the card then counts lines.
    */
   cells: number | null;
-  /** Every line of the family, by ascending index. */
+  /**
+   * The halving level the step makes, as its cells across the side: a
+   * pleat's finest level, or a band step's level — "the 32nds". 0 for an
+   * oblique family.
+   */
+  level: number;
+  /**
+   * Pleated edge to edge, every line of the level and of every coarser level
+   * of the family, in one step. Otherwise the step makes its level's lines
+   * in `regions` only.
+   */
+  pleat: boolean;
+  /** The bands a step that is not a pleat makes its lines in, ascending. */
+  regions: PrecreaseGridRegion[];
+  /** Every line the step makes, by ascending index. */
   lines: PrecreaseGridStepLine[];
   /** How many of them the pattern contains. */
   in_pattern: number;
   /**
    * How many of those the pattern wants the other way: they reverse as the
-   * model collapses.
+   * model collapses. Zero for a band step, whose lines are made the way the
+   * pattern wants them.
    */
   reversed: number;
 }
@@ -128,9 +168,11 @@ export interface PrecreaseGridStep {
 export interface PrecreaseGridSummary {
   kind: PrecreaseGridKind;
   n: number;
-  /** Families pleated, one step each. */
+  /** Families the grid makes lines of. */
   families: number;
-  /** Lines pleated, over every family. */
+  /** Grid steps: the pleats and the band steps. */
+  steps: number;
+  /** Lines made, over every family. */
   lines: number;
   /** Of those, lines the pattern contains. */
   cp_lines: number;
@@ -364,6 +406,12 @@ export interface PrecreaseTotals {
   /** Of those, lines the pattern contains. */
   grid_cp_lines: number;
   /**
+   * Crease the grid's steps put on lines where the pattern has none, in sheet
+   * units: the chord of a grid-only line, and the rest of the chord of a
+   * pattern line past its own creases.
+   */
+  grid_unwanted_length: number;
+  /**
    * Press steps: extra crease the pattern does not contain, made so a later
    * step can be sighted. Apart from `aux` so "what the design asks for" and
    * "what correctness cost" never blur. Absent from plans older than this.
@@ -547,10 +595,16 @@ export interface PrecreasePlannerOptions {
   stuck_budget_ms?: number;
   total_budget_ms?: number;
   /**
-   * Open a box- or hex-pleated design with its grid pleated, one step per
-   * family, before anything is sighted. The crate's default is on.
+   * Open a box- or hex-pleated design with its grid pleated before anything
+   * is sighted. The crate's default is on.
    */
   precrease_grid?: boolean;
+  /**
+   * Make the grid only where the pattern needs it — the lines it uses, at the
+   * resolution each part of the sheet needs — rather than every line of the
+   * finest grid edge to edge. The crate's default is on.
+   */
+  grid_where_needed?: boolean;
 }
 
 /** Values per remaining line in `remaining()`: `nx, ny, d, ax, ay, bx, by`. */

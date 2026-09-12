@@ -405,6 +405,9 @@ describe('a grid step', () => {
       normal,
       spacing: 1 / n,
       cells: oblique ? null : n,
+      level: oblique ? 0 : n,
+      pleat: true,
+      regions: [],
       lines,
       in_pattern: 0,
       reversed: 0,
@@ -490,5 +493,117 @@ describe('a grid step', () => {
     expect(sentence).not.toMatch(/already on the sheet/);
     expect(sentence).not.toMatch(/Fold /);
     expect(describePlannerStep(t, withGrid(family(), 'back'), 0)).toBe(sentence);
+  });
+
+  // A step that is not a pleat makes one level's lines in the bands the
+  // pattern needs them in, each the way the pattern wants it: no alternation
+  // to state, and the band named by the lines the folder can see.
+  describe('made in bands', () => {
+    /** The 32nds of a 32-family between the ¼ and ¾ lines: the odd indices 9–23. */
+    function bands(overrides: Partial<PrecreaseGridStep> = {}): PrecreaseGridStep {
+      const all = family({ n: 32 });
+      const lines = all.lines.filter((line) => line.index % 2 === 1 && line.index >= 9 && line.index <= 23);
+      return {
+        ...all,
+        level: 32,
+        pleat: false,
+        regions: [
+          {
+            bounds: [
+              { index: 8, fraction: 0.25, edge: false, line_id: 4 },
+              { index: 24, fraction: 0.75, edge: false, line_id: 12 },
+            ],
+            lines: lines.length,
+          },
+        ],
+        lines,
+        reversed: 0,
+        ...overrides,
+      };
+    }
+
+    it('names the level, the band by its bounding lines, and the count', () => {
+      expect(describePlannerStep(t, withGrid(bands()), 0)).toBe(
+        'Add the 32nds vertically between the 1/4 line and the 3/4 line: 8 lines, creased as shown.'
+      );
+    });
+
+    it('names the sheet’s edge as a bound, by which edge it is', () => {
+      const edge = bands({
+        regions: [
+          {
+            bounds: [
+              { index: 0, fraction: 0, edge: true, line_id: null },
+              { index: 8, fraction: 0.25, edge: false, line_id: 4 },
+            ],
+            lines: 4,
+          },
+        ],
+      });
+      expect(describePlannerStep(t, withGrid(edge), 0)).toContain(
+        'between the left edge and the 1/4 line'
+      );
+      const horizontal = bands({
+        normal: [0, 1],
+        regions: [
+          {
+            bounds: [
+              { index: 24, fraction: 0.75, edge: false, line_id: 12 },
+              { index: 32, fraction: 1, edge: true, line_id: null },
+            ],
+            lines: 4,
+          },
+        ],
+      });
+      expect(describePlannerStep(t, withGrid(horizontal), 0)).toContain(
+        'horizontally between the 3/4 line and the top edge'
+      );
+    });
+
+    it('lists several bands', () => {
+      const two = bands({
+        regions: [
+          {
+            bounds: [
+              { index: 0, fraction: 0, edge: true, line_id: null },
+              { index: 4, fraction: 0.125, edge: false, line_id: 2 },
+            ],
+            lines: 2,
+          },
+          {
+            bounds: [
+              { index: 28, fraction: 0.875, edge: false, line_id: 14 },
+              { index: 32, fraction: 1, edge: true, line_id: null },
+            ],
+            lines: 2,
+          },
+        ],
+      });
+      expect(describePlannerStep(t, withGrid(two), 0)).toContain(
+        'between the left edge and the 1/8 line, and between the 7/8 line and the right edge'
+      );
+    });
+
+    // An odd base's band (13ths, 25ths) is bounded by nothing a halving
+    // made, so its bounds are positions across the sheet.
+    it('names a bound with no line on it as a position', () => {
+      const odd = bands({
+        n: 13,
+        cells: 13,
+        level: 13,
+        regions: [
+          {
+            bounds: [
+              { index: 0, fraction: 0, edge: true, line_id: null },
+              { index: 9, fraction: 9 / 13, edge: false, line_id: null },
+            ],
+            lines: 8,
+          },
+        ],
+      });
+      expect(describePlannerStep(t, withGrid(odd), 0)).toContain(
+        'Add the 13ths vertically between the left edge and 9/13 of the way across'
+      );
+    });
   });
 });

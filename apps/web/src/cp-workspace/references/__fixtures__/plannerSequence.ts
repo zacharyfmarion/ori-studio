@@ -215,6 +215,7 @@ export function plannerSequenceFixture(): PrecreaseSequence {
       visible_aux: 0,
       grid_lines: 0,
       grid_cp_lines: 0,
+      grid_unwanted_length: 0,
       lower_bound: 4,
       free_lines: 2,
       unsolved: 1,
@@ -341,6 +342,9 @@ function gridStep(
       normal,
       spacing: 0.25,
       cells: 4,
+      level: 4,
+      pleat: true,
+      regions: [],
       lines,
       in_pattern: lines.filter((line) => line.cp_line_ids.length > 0).length,
       reversed: lines.filter(
@@ -441,7 +445,7 @@ export function plannerSequenceWithGridFixture(): PrecreaseSequence {
     certification: 'best_found_to_depth_2',
     sheet: { width: 1, height: 1 },
     landmarks_first: false,
-    grid: { kind: 'box', n: 4, families: 2, lines: 6, cp_lines: 3 },
+    grid: { kind: 'box', n: 4, families: 2, steps: 2, lines: 6, cp_lines: 3 },
     steps,
     groups: [
       {
@@ -479,6 +483,7 @@ export function plannerSequenceWithGridFixture(): PrecreaseSequence {
       visible_aux: 0,
       grid_lines: 6,
       grid_cp_lines: 3,
+      grid_unwanted_length: 0,
       lower_bound: 4,
       free_lines: 0,
       unsolved: 0,

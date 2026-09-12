@@ -15,6 +15,7 @@ import {
 } from './plannerDiagram';
 import type {
   PrecreaseDirection,
+  PrecreaseGridStepLine,
   PrecreasePlanSegment,
   PrecreaseSequence,
 } from '../precreaseSequence';
@@ -1147,6 +1148,107 @@ describe('a grid step', () => {
     expect(styleOf([0, 0.75], [1, 0.75])).toBe('crease');
     // And the fold after the grid, in its own direction.
     expect(styleOf([0, 0.5], [0.5, 1])).toBe('valley');
+  });
+
+  // A grid step that is not a pleat makes one level's lines in bands, and
+  // the card has to say where: each band as a wash of the paper between the
+  // lines it is bounded by, those lines picked out, and the band's own lines
+  // in the directions the pattern wants them.
+  describe('made in bands', () => {
+    const [vertical] = sequence.steps;
+    const family = vertical!.grid!;
+    const band = (d: number, index: number, direction: PrecreaseDirection): PrecreaseGridStepLine => ({
+      line_id: 20 + index,
+      line: { n: [1, 0], d },
+      segment: [
+        [d, 0],
+        [d, 1],
+      ],
+      index,
+      direction,
+      pattern_direction: direction,
+      pattern_share: 1,
+      cp_line_ids: [20 + index],
+      cp_spans: [
+        [
+          [d, 0.25],
+          [d, 0.75],
+        ],
+      ],
+    });
+    const lines8 = [band(0.375, 3, 'valley'), band(0.625, 5, 'valley')];
+    const step = {
+      ...vertical!,
+      id: 3,
+      line_id: lines8[0]!.line_id,
+      line: lines8[0]!.line,
+      segment: lines8[0]!.segment,
+      cp_line_ids: lines8.flatMap((l) => l.cp_line_ids),
+      cp_spans: lines8.flatMap((l) => l.cp_spans),
+      grid: {
+        ...family,
+        cells: 8,
+        level: 8,
+        pleat: false,
+        regions: [
+          {
+            bounds: [
+              { index: 2, fraction: 0.25, edge: false, line_id: 4 },
+              { index: 6, fraction: 0.75, edge: false, line_id: 6 },
+            ] as [
+              { index: number; fraction: number; edge: boolean; line_id: number | null },
+              { index: number; fraction: number; edge: boolean; line_id: number | null },
+            ],
+            lines: 2,
+          },
+        ],
+        lines: lines8,
+        in_pattern: 2,
+        reversed: 0,
+      },
+    };
+    const banded: PrecreaseSequence = {
+      ...sequence,
+      steps: [sequence.steps[0]!, sequence.steps[1]!, step],
+      lines: [
+        ...sequence.lines,
+        ...lines8.map((l) => ({ id: l.line_id, tag: 'cp' as const, step: 3 })),
+      ],
+    };
+
+    it('washes the band between its bounds and picks the bounds out', () => {
+      const diagram = plannerStepDiagram(banded, unitFrame(banded), 2);
+      const regions = (diagram?.primitives ?? []).filter((p) => p.kind === 'region');
+      expect(regions).toHaveLength(1);
+      const region = regions[0]!;
+      if (region.kind !== 'region') throw new Error('unreachable');
+      const xs = region.corners.map((c) => c[0]).sort();
+      const ys = region.corners.map((c) => c[1]).sort();
+      expect(xs).toEqual([0.25, 0.25, 0.75, 0.75]);
+      expect(ys).toEqual([0, 0, 1, 1]);
+      const highlights = lines(diagram?.primitives).filter((l) => l.style === 'highlight');
+      expect(highlights.some((l) => isSeg(l, [0.25, 0], [0.25, 1]))).toBe(true);
+      expect(highlights.some((l) => isSeg(l, [0.75, 0], [0.75, 1]))).toBe(true);
+      expect(highlights).toHaveLength(2);
+      // The wash goes under everything but the paper.
+      const kinds = (diagram?.primitives ?? []).map((p) => p.kind);
+      expect(kinds.indexOf('region')).toBeLessThan(kinds.indexOf('line'));
+    });
+
+    it('draws the band’s lines whole, the way the pattern wants them', () => {
+      const diagram = plannerStepDiagram(banded, unitFrame(banded), 2);
+      const own = lines(diagram?.primitives).filter(
+        (l) => l.style !== 'highlight' && l.style !== 'crease'
+      );
+      expect(own.map((l) => l.style)).toEqual(['valley', 'valley']);
+      expect(own.some((l) => isSeg(l, [0.375, 0], [0.375, 1]))).toBe(true);
+      expect(own.some((l) => isSeg(l, [0.625, 0], [0.625, 1]))).toBe(true);
+    });
+
+    it('is a pleat on the card when it is a pleat, with no wash', () => {
+      const kinds = (plannerStepDiagram(sequence, unit, 0)?.primitives ?? []).map((p) => p.kind);
+      expect(kinds).not.toContain('region');
+    });
   });
 
   // A grid step's own line id is only its family's first; the rest are in

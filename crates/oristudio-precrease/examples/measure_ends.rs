@@ -17,7 +17,7 @@ use oristudio_precrease::analyze;
 use oristudio_precrease::fixture_io::load_path;
 use oristudio_precrease::marks::{Creased, crease_runs, end_is_found};
 use oristudio_precrease::pinch::Extent;
-use oristudio_precrease::planner::{Planner, PlannerOptions};
+use oristudio_precrease::planner::{GridMode, Planner, PlannerOptions};
 use oristudio_precrease::sequence::{Sequence, StepKind};
 use oristudio_precrease::sheet::Sheet;
 use oristudio_precrease::state::State;
@@ -142,7 +142,11 @@ fn plan_file(path: &Path, prefer: bool, grid: bool) -> Option<Tally> {
         // one never expires.
         let opts = PlannerOptions {
             prefer_findable_ends: prefer,
-            precrease_grid: grid,
+            precrease_grid: if grid {
+                GridMode::WhereNeeded
+            } else {
+                GridMode::Off
+            },
             ..PlannerOptions::default()
         };
         let point_cap = opts.point_cap;

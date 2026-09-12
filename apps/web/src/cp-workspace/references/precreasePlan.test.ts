@@ -275,6 +275,7 @@ class FakePlanner implements PrecreasePlannerHandle {
         visible_aux: 0,
         grid_lines: 0,
         grid_cp_lines: 0,
+        grid_unwanted_length: 0,
         lower_bound: this.spec.targets.length,
         free_lines: 0,
         unsolved: findings.length,

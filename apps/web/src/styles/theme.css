@@ -517,6 +517,12 @@
   pointer-events: none;
 }
 
+/* An item that qualifies the one above it — "Only where needed" under
+   "Precrease grid" — sits a step in, so the pair reads as one setting. */
+.context-menu__item--nested {
+  padding-left: 24px;
+}
+
 .context-menu__item[data-danger] {
   color: var(--status-danger);
 }
@@ -11401,6 +11407,14 @@ button.bp-packing-alert:focus-visible {
 /* The paper seen from its other face — see `--paper-back`. */
 .step-diagram__sheet--back {
   fill: var(--paper-back);
+}
+
+/* The band a grid step works in: a wash of the highlight ink, so it reads as
+   a stretch of the paper the step is about rather than as a crease. */
+.step-diagram__region {
+  fill: var(--cp-reference-input, var(--accent-primary));
+  fill-opacity: 0.12;
+  stroke: none;
 }
 
 /* A diagram the adapter refused: a box where the picture would be, rather than

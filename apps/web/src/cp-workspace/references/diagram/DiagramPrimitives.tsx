@@ -214,6 +214,15 @@ export function diagramPrimitiveShape(
         </g>
       );
     }
+    case 'region': {
+      // Under the lines, over the paper: a fill, no stroke, so the band reads
+      // as a stretch of the sheet and not as one more crease.
+      const points = primitive.corners
+        .map((corner) => project(corner))
+        .map((p) => `${round(p.x)},${round(p.y)}`)
+        .join(' ');
+      return <polygon key={index} className="step-diagram__region" points={points} />;
+    }
     case 'turn-over': {
       const at = project(primitive.at);
       const scale = (DIAGRAM_TURN_OVER_INK * project.ink) / TURN_OVER_BOX.width;

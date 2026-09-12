@@ -41,13 +41,39 @@
 //! one way. The pattern must use at least [`MIN_GRID_USE`] of the grid it is
 //! given, and at least [`MIN_GRID_LINES`] lines of it.
 //!
+//! # Only where the pattern needs it
+//!
+//! The finest grid that holds every gridded crease is rarely the grid the
+//! sheet is on everywhere: *Alebrijes* is a 64-grid in its centre and a
+//! 16-grid nearly everywhere else, and pleating 64ths across the whole sheet
+//! makes sixty creases the model never uses. So a family's lines sort into
+//! **levels** by the halving they come from — for `cells = q · 2^a` the
+//! levels are `q, 2q, …, cells`, and a level's own lines are the ones its
+//! halving adds — and each level is either **pleated whole** or made only in
+//! **bands**: runs of its lines the pattern holds, merged across a gap of
+//! one, bounded by lines of the coarser levels the folder can see ("the
+//! 32nds between the ¼ and ¾ lines"). Halving needs the parents, so a band
+//! requires every coarser line inside it, and the half line exists wherever
+//! anything finer does. A level is pleated whole when its bands hold
+//! [`PLEAT_SHARE`] of its lines, or all but [`PLEAT_SLACK`] — a second step
+//! to save two creases is a bad trade — and consecutive whole levels from
+//! the coarsest collapse into the family's one pleat. A band step of fewer
+//! than [`MIN_REGION_LINES`] lines is not a step: that level and every finer
+//! one are left to the closure, which folds a stray line as it folds any.
+//! An oblique family has no cells to halve and is pleated whole. See
+//! `implementation-plans/precrease-grid-where-needed.md`.
+//!
 //! # Direction
 //!
-//! Within a family the lines alternate mountain and valley by index, as a
-//! pleat does, and the parity is the one that disagrees with the pattern's
-//! own assignment over the least creased length. Grid lines the pattern does
-//! not contain have no say. Which lines the pattern wants the other way is
-//! reported, so the card can say so: they reverse as the model collapses.
+//! A pleat's lines alternate mountain and valley in order, as a pleat does,
+//! and the parity is the one that disagrees with the pattern's own
+//! assignment over the least creased length; grid lines the pattern does
+//! not contain have no say, and which lines the pattern wants the other way
+//! is reported, so the card can say so: they reverse as the model collapses.
+//! A band step's lines are not adjacent on the sheet — a parent sits between
+//! each pair — so alternation would name a rhythm with no physical meaning:
+//! each takes the pattern's own direction, and a line the pattern lacks the
+//! step's majority.
 
 use serde::{Deserialize, Serialize};
 
@@ -79,6 +105,19 @@ pub const MIN_GRID_LINES: usize = 6;
 /// grid is scored against another. At 0.1, doubling a 16-grid to catch one
 /// stray 32nd loses; a 32-grid the pattern uses a third of wins.
 pub const FINENESS_COST: f64 = 0.1;
+/// The share of a level's lines its bands must hold for the level to be
+/// pleated whole rather than made in bands.
+pub const PLEAT_SHARE: f64 = 0.75;
+/// A level whose bands leave out no more than this many lines is pleated
+/// whole: a band step to save two creases costs more than it saves.
+pub const PLEAT_SLACK: usize = 2;
+/// The fewest lines a band step may have. Below it the level's lines, and
+/// every finer level's, are the closure's: "fold the edge onto the ¼ line"
+/// is one card, and a better one than a pleat of one.
+pub const MIN_REGION_LINES: usize = 3;
+/// How many lines a band may skip over between two the pattern holds: one
+/// unwanted crease against a second instruction.
+pub const BAND_GAP: usize = 1;
 /// How far a line's normal may be from a bucket's angle, radians. Well above
 /// [`TOL`] so a raw off-lattice file's rounding still sorts its lines, and
 /// far below 15°.
@@ -117,6 +156,42 @@ pub struct GridLine {
     /// in `[0, 1]`; `0` when the pattern does not contain the line. Below 1
     /// the pattern creases the line both ways, whichever way it is pleated.
     pub pattern_share: f64,
+    /// The halving level the line belongs to, as that level's cells across
+    /// the side: the half line is level 2, the quarters 4, and so on; `0`
+    /// for a family with no cells to halve.
+    pub level: u32,
+    /// Whether a step of the family makes this line. A line of a level made
+    /// in bands that lies outside every band is not made, and the pattern's
+    /// creases on it, if any, are the closure's.
+    pub made: bool,
+}
+
+/// A band of one level's lines: a run the pattern holds, with the coarser
+/// lines that bound it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GridBand {
+    /// Indices of the family's lines bounding the band — lines of a coarser
+    /// level, or the sheet's edge at index `0` or `cells`.
+    pub lo: i32,
+    pub hi: i32,
+    /// Positions in [`GridFamily::lines`] of the band's lines, ascending.
+    pub lines: Vec<usize>,
+}
+
+/// One step of a family: a level pleated whole, or made in bands.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GridFamilyStep {
+    /// The finest level the step makes, as its cells across the side — a
+    /// pleat of 16ths, or the 32nds. `0` for an oblique family's pleat.
+    pub level: u32,
+    /// Pleated edge to edge, every line of the level and of every coarser
+    /// level, in one step.
+    pub pleat: bool,
+    /// The bands, when not a pleat.
+    pub bands: Vec<GridBand>,
+    /// Positions in [`GridFamily::lines`] of every line the step makes,
+    /// ascending.
+    pub lines: Vec<usize>,
 }
 
 /// A family of parallel grid lines.
@@ -136,6 +211,9 @@ pub struct GridFamily {
     pub cells: Option<u32>,
     /// Every line of the family that crosses the sheet, by ascending index.
     pub lines: Vec<GridLine>,
+    /// The steps that make the family's lines: its pleat first, then its
+    /// band steps coarse to fine. Empty when nothing of the family is made.
+    pub steps: Vec<GridFamilyStep>,
 }
 
 impl GridFamily {
@@ -144,14 +222,26 @@ impl GridFamily {
         self.lines.iter().filter(|l| l.target.is_some()).count()
     }
 
-    /// How many of this family's lines the pattern wants the other way.
+    /// How many of this family's lines its steps make.
+    pub fn made(&self) -> usize {
+        self.lines.iter().filter(|l| l.made).count()
+    }
+
+    /// How many of the lines its steps make the pattern wants the other way.
     pub fn reversed(&self) -> usize {
         self.lines
             .iter()
             .filter(|l| {
-                l.pattern_direction != Direction::Unassigned && l.pattern_direction != l.direction
+                l.made
+                    && l.pattern_direction != Direction::Unassigned
+                    && l.pattern_direction != l.direction
             })
             .count()
+    }
+
+    /// The step that makes the line at position `li`, if one does.
+    pub fn step_of(&self, li: usize) -> Option<usize> {
+        self.steps.iter().position(|s| s.lines.contains(&li))
     }
 }
 
@@ -186,6 +276,16 @@ impl Grid {
     /// How many of them the pattern contains.
     pub fn in_pattern(&self) -> usize {
         self.families.iter().map(GridFamily::in_pattern).sum()
+    }
+
+    /// How many lines the grid's steps make.
+    pub fn made(&self) -> usize {
+        self.families.iter().map(GridFamily::made).sum()
+    }
+
+    /// How many steps the grid has, over every family.
+    pub fn step_count(&self) -> usize {
+        self.families.iter().map(|f| f.steps.len()).sum()
     }
 }
 
@@ -354,6 +454,8 @@ fn evaluate(
                     pattern_direction: target
                         .map_or(Direction::Unassigned, |t| targets[t].direction),
                     pattern_share: target.map_or(0.0, |t| targets[t].direction_share),
+                    level: 0,
+                    made: true,
                 })
                 .collect();
             families.push(GridFamily {
@@ -362,6 +464,7 @@ fn evaluate(
                 phase,
                 cells: cells_of(sheet, normal, spacing, phase),
                 lines: grid_lines,
+                steps: Vec::new(),
             });
         }
         // A family the pattern barely uses is not pleated.
@@ -414,55 +517,262 @@ fn cells_of(sheet: &Sheet, normal: [f64; 2], spacing: f64, phase: f64) -> Option
     ((cells - whole).abs() * spacing <= TOL).then_some(whole as u32)
 }
 
-/// Alternate each family mountain and valley by index, with the parity that
-/// disagrees with the pattern over the least creased length.
-fn assign_directions(grid: &mut Grid, targets: &[Target]) {
-    for family in &mut grid.families {
-        let cost = |parity: i32| -> f64 {
-            family
-                .lines
-                .iter()
-                .filter_map(|l| {
-                    let t = &targets[l.target?];
-                    let grid_dir = pleat_direction(l.index, parity);
-                    let creased: f64 = t.spans.iter().map(length).sum();
-                    Some(match t.direction {
-                        Direction::Unassigned => 0.0,
-                        d if d == grid_dir => creased * (1.0 - t.direction_share),
-                        _ => creased * t.direction_share,
-                    })
-                })
-                .sum()
+/// The halving level of line `k` of a family of `cells` strips, as that
+/// level's cells across the side: for `cells = q · 2^a`, the coarsest level
+/// whose lines include `k`. The half line of a 16-family is level 2, its
+/// quarters 4, an odd 16th 16; every line of a 13-family is level 13.
+fn level_of(k: i32, cells: u32) -> u32 {
+    let a = cells.trailing_zeros();
+    let q = cells >> a;
+    let v = k.unsigned_abs().trailing_zeros().min(a);
+    q << (a - v)
+}
+
+/// The levels of a family of `cells` strips, coarsest first: the odd base
+/// when there is one, then each halving.
+fn level_chain(cells: u32) -> Vec<u32> {
+    let a = cells.trailing_zeros();
+    let q = cells >> a;
+    let mut chain: Vec<u32> = Vec::new();
+    if q > 1 {
+        chain.push(q);
+    }
+    chain.extend((1..=a).map(|j| q << j));
+    chain
+}
+
+/// Which lines a level makes, and which it requires of the coarser ones.
+struct LevelPlan {
+    level: u32,
+    pleat: bool,
+    bands: Vec<GridBand>,
+    lines: Vec<usize>,
+}
+
+/// The steps of `family`, given which of its lines count as needed, with
+/// the levels at chain position `cut` and beyond left out. Levels are read
+/// finest first, because a band requires the coarser lines it is halved
+/// between and those requirements flow one way. Returns the plans coarsest
+/// first, or the chain position of the coarsest level too thin to be a step.
+fn plan_levels(
+    family: &GridFamily,
+    cells: u32,
+    chain: &[u32],
+    cut: usize,
+) -> Result<Vec<LevelPlan>, usize> {
+    let mut required = vec![false; family.lines.len()];
+    let mut plans: Vec<LevelPlan> = Vec::new();
+    let mut thin: Option<usize> = None;
+    for (ci, &level) in chain.iter().enumerate().take(cut).rev() {
+        let unit = (cells / level) as i32;
+        let positions: Vec<usize> = family
+            .lines
+            .iter()
+            .enumerate()
+            .filter(|(_, l)| l.level == level)
+            .map(|(p, _)| p)
+            .collect();
+        let total = positions.len();
+        if total == 0 {
+            continue;
+        }
+        let needed: Vec<usize> = positions
+            .iter()
+            .enumerate()
+            .filter(|&(_, &p)| family.lines[p].target.is_some() || required[p])
+            .map(|(j, _)| j)
+            .collect();
+        if needed.is_empty() {
+            continue;
+        }
+        // Runs of needed lines, merged across a gap of `BAND_GAP`.
+        let mut runs: Vec<(usize, usize)> = Vec::new();
+        for &j in &needed {
+            match runs.last_mut() {
+                Some(run) if j - run.1 <= BAND_GAP + 1 => run.1 = j,
+                _ => runs.push((j, j)),
+            }
+        }
+        let in_bands: usize = runs.iter().map(|(a, b)| b - a + 1).sum();
+        let pleat = in_bands as f64 >= (PLEAT_SHARE * total as f64).ceil()
+            || in_bands + PLEAT_SLACK >= total;
+        let mut require = |lo: i32, hi: i32| {
+            for (p, l) in family.lines.iter().enumerate() {
+                if l.level < level && l.index >= lo && l.index <= hi {
+                    required[p] = true;
+                }
+            }
         };
-        // Ties go to a mountain first: the pleat is made from the front,
-        // and the first crease of a pleat is the one at the edge. "First"
-        // is the family's first line, whatever index it carries.
-        let Some(first) = family.lines.first().map(|l| l.index) else {
+        if pleat {
+            require(0, cells as i32);
+            plans.push(LevelPlan {
+                level,
+                pleat: true,
+                bands: Vec::new(),
+                lines: positions,
+            });
+            continue;
+        }
+        if in_bands < MIN_REGION_LINES {
+            thin = Some(ci);
+            continue;
+        }
+        let bands: Vec<GridBand> = runs
+            .iter()
+            .map(|&(a, b)| {
+                let lo = family.lines[positions[a]].index - unit;
+                let hi = family.lines[positions[b]].index + unit;
+                require(lo, hi);
+                GridBand {
+                    lo,
+                    hi,
+                    lines: positions[a..=b].to_vec(),
+                }
+            })
+            .collect();
+        plans.push(LevelPlan {
+            level,
+            pleat: false,
+            lines: bands.iter().flat_map(|b| b.lines.iter().copied()).collect(),
+            bands,
+        });
+    }
+    if let Some(ci) = thin {
+        return Err(ci);
+    }
+    plans.reverse();
+    Ok(plans)
+}
+
+/// Decide each family's steps: its pleat, then its band steps coarse to
+/// fine — see the module doc. A family with no cells to halve is one pleat,
+/// and so is every family when the grid is wanted `whole`.
+fn plan_steps(grid: &mut Grid, whole: bool) {
+    for family in &mut grid.families {
+        let Some(cells) = family.cells.filter(|_| !whole) else {
+            for l in &mut family.lines {
+                l.level = 0;
+                l.made = true;
+            }
+            family.steps = vec![GridFamilyStep {
+                level: family.cells.unwrap_or(0),
+                pleat: true,
+                bands: Vec::new(),
+                lines: (0..family.lines.len()).collect(),
+            }];
             continue;
         };
-        let mountain_first = first.rem_euclid(2);
-        let other = 1 - mountain_first;
-        let parity = if cost(other) < cost(mountain_first) {
-            other
-        } else {
-            mountain_first
+        for l in &mut family.lines {
+            l.level = level_of(l.index, cells);
+            l.made = false;
+        }
+        let chain = level_chain(cells);
+        // A level too thin to be a step takes every finer level with it,
+        // and what those required of the coarser ones goes too.
+        let mut cut = chain.len();
+        let plans = loop {
+            match plan_levels(family, cells, &chain, cut) {
+                Ok(plans) => break plans,
+                Err(ci) => cut = ci,
+            }
         };
-        for line in &mut family.lines {
-            line.direction = pleat_direction(line.index, parity);
+        // Consecutive whole levels from the coarsest are one pleat.
+        let mut steps: Vec<GridFamilyStep> = Vec::new();
+        for plan in plans {
+            match steps.last_mut() {
+                Some(last) if last.pleat && plan.pleat => {
+                    last.level = plan.level;
+                    last.lines.extend(plan.lines);
+                    last.lines.sort_unstable();
+                }
+                _ => steps.push(GridFamilyStep {
+                    level: plan.level,
+                    pleat: plan.pleat,
+                    bands: plan.bands,
+                    lines: plan.lines,
+                }),
+            }
+        }
+        for step in &steps {
+            for &p in &step.lines {
+                family.lines[p].made = true;
+            }
+        }
+        family.steps = steps;
+    }
+    grid.families.retain(|f| !f.steps.is_empty());
+}
+
+/// A pleat alternates mountain and valley in order, with the parity that
+/// disagrees with the pattern over the least creased length; a band step's
+/// lines take the pattern's own direction, or the step's majority.
+fn assign_directions(grid: &mut Grid, targets: &[Target]) {
+    for family in &mut grid.families {
+        for step in &family.steps {
+            if step.pleat {
+                let cost = |parity: usize| -> f64 {
+                    step.lines
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(rank, &p)| {
+                            let t = &targets[family.lines[p].target?];
+                            let grid_dir = pleat_direction(rank, parity);
+                            let creased: f64 = t.spans.iter().map(length).sum();
+                            Some(match t.direction {
+                                Direction::Unassigned => 0.0,
+                                d if d == grid_dir => creased * (1.0 - t.direction_share),
+                                _ => creased * t.direction_share,
+                            })
+                        })
+                        .sum()
+                };
+                // Ties go to a mountain first: the pleat is made from the
+                // front, and the first crease of a pleat is the one at the
+                // edge.
+                let parity = if cost(1) < cost(0) { 1 } else { 0 };
+                for (rank, &p) in step.lines.iter().enumerate() {
+                    family.lines[p].direction = pleat_direction(rank, parity);
+                }
+            } else {
+                let mountains = step
+                    .lines
+                    .iter()
+                    .filter(|&&p| family.lines[p].pattern_direction == Direction::Mountain)
+                    .count();
+                let valleys = step
+                    .lines
+                    .iter()
+                    .filter(|&&p| family.lines[p].pattern_direction == Direction::Valley)
+                    .count();
+                let majority = if valleys > mountains {
+                    Direction::Valley
+                } else {
+                    Direction::Mountain
+                };
+                for &p in &step.lines {
+                    let line = &mut family.lines[p];
+                    line.direction = match line.pattern_direction {
+                        Direction::Unassigned => majority,
+                        d => d,
+                    };
+                }
+            }
         }
     }
 }
 
-fn pleat_direction(index: i32, parity: i32) -> Direction {
-    if (index + parity).rem_euclid(2) == 0 {
+fn pleat_direction(rank: usize, parity: usize) -> Direction {
+    if (rank + parity).is_multiple_of(2) {
         Direction::Mountain
     } else {
         Direction::Valley
     }
 }
 
-/// The grid `targets` are pleated on, if they are pleated at all.
-pub fn detect(sheet: &Sheet, targets: &[Target]) -> Option<Grid> {
+/// The grid `targets` are pleated on, if they are pleated at all: every
+/// family one pleat when `whole`, otherwise each made only where the pattern
+/// needs it (the module doc).
+pub fn detect(sheet: &Sheet, targets: &[Target], whole: bool) -> Option<Grid> {
     let sorted = sort_targets(sheet, targets);
     let total_weight: f64 = sorted.iter().map(|s| s.weight).sum();
     if total_weight <= 0.0 {
@@ -501,6 +811,10 @@ pub fn detect(sheet: &Sheet, targets: &[Target]) -> Option<Grid> {
         }
     }
     let mut grid = best?.grid;
+    plan_steps(&mut grid, whole);
+    if grid.families.is_empty() {
+        return None;
+    }
     assign_directions(&mut grid, targets);
     Some(grid)
 }
@@ -534,7 +848,7 @@ mod tests {
         }
         let diag = Line::from_points([0.0, 0.0], [1.0, 1.0]).expect("l");
         lines.push(target(&sheet, diag, 1.0, 0.0));
-        let grid = detect(&sheet, &lines).expect("a grid");
+        let grid = detect(&sheet, &lines, false).expect("a grid");
         assert_eq!(grid.kind, GridKind::Box);
         assert_eq!(grid.n, 8);
         assert_eq!(grid.families.len(), 2);
@@ -559,7 +873,7 @@ mod tests {
             lines.push(target(&sheet, h(x), 1.0, 0.0));
         }
         lines.push(target(&sheet, v(3.0 / 32.0), 1.0, 0.0));
-        let grid = detect(&sheet, &lines).expect("a grid");
+        let grid = detect(&sheet, &lines, false).expect("a grid");
         assert_eq!(grid.n, 8);
         assert_eq!(grid.in_pattern(), 14);
     }
@@ -575,7 +889,7 @@ mod tests {
             lines.push(target(&sheet, v(x), 1.0, 0.0));
             lines.push(target(&sheet, h(x), 1.0, 0.0));
         }
-        let grid = detect(&sheet, &lines).expect("a grid");
+        let grid = detect(&sheet, &lines, false).expect("a grid");
         assert_eq!(grid.n, 16);
         assert_eq!(grid.in_pattern(), 16);
     }
@@ -599,7 +913,7 @@ mod tests {
                 lines.push(target(&sheet, line, 1.0, 0.0));
             }
         }
-        assert!(detect(&sheet, &lines).is_none());
+        assert!(detect(&sheet, &lines, false).is_none());
     }
 
     #[test]
@@ -622,7 +936,7 @@ mod tests {
                 }
             }
         }
-        let grid = detect(&sheet, &lines).expect("a grid");
+        let grid = detect(&sheet, &lines, false).expect("a grid");
         assert_eq!(grid.kind, GridKind::Hex);
         assert_eq!(grid.n, 16);
         assert_eq!(grid.families.len(), 3);
@@ -653,7 +967,7 @@ mod tests {
                 }
             }
         }
-        let grid = detect(&sheet, &lines).expect("a grid");
+        let grid = detect(&sheet, &lines, false).expect("a grid");
         assert_eq!(grid.kind, GridKind::Hex);
         assert_eq!(grid.n, 16);
         assert_eq!(grid.in_pattern(), lines.len());
@@ -676,7 +990,7 @@ mod tests {
             let (hm, hv) = if k % 2 == 1 { (0.4, 0.6) } else { (0.6, 0.4) };
             lines.push(target(&sheet, h(x), hm, hv));
         }
-        let grid = detect(&sheet, &lines).expect("a grid");
+        let grid = detect(&sheet, &lines, false).expect("a grid");
         let vertical = &grid.families[0];
         assert!(vertical.lines.iter().all(|l| {
             l.direction
@@ -711,7 +1025,7 @@ mod tests {
         for j in 1..8 {
             lines.push(target(&sheet, h(j as f64 / 16.0), 1.0, 0.0));
         }
-        let grid = detect(&sheet, &lines).expect("a grid");
+        let grid = detect(&sheet, &lines, false).expect("a grid");
         assert_eq!(grid.kind, GridKind::Box);
         assert_eq!(grid.n, 16);
         assert_eq!(grid.families[0].cells, Some(16));
@@ -731,7 +1045,7 @@ mod tests {
             lines.push(target(&sheet, v(x), 0.0, 0.0));
             lines.push(target(&sheet, h(x), 0.0, 0.0));
         }
-        let grid = detect(&sheet, &lines).expect("a grid");
+        let grid = detect(&sheet, &lines, false).expect("a grid");
         for family in &grid.families {
             assert_eq!(family.lines[0].direction, Direction::Mountain);
             assert_eq!(family.lines[1].direction, Direction::Valley);
@@ -745,10 +1059,202 @@ mod tests {
         for k in 1..16 {
             lines.push(target(&sheet, v(k as f64 / 16.0), 1.0, 0.0));
         }
-        let grid = detect(&sheet, &lines).expect("a grid");
+        let grid = detect(&sheet, &lines, false).expect("a grid");
         assert_eq!(grid.kind, GridKind::Box);
         assert_eq!(grid.families.len(), 1);
         assert_eq!(grid.n, 16);
+    }
+
+    /// Verticals and horizontals at every `k/n` in `axis`, plus the extra
+    /// lines named, both ways.
+    fn box_pattern(sheet: &Sheet, n: u32, axis: &[u32], extra: &[(u32, u32)]) -> Vec<Target> {
+        let mut lines: Vec<Target> = Vec::new();
+        for &k in axis {
+            let x = k as f64 / n as f64;
+            lines.push(target(sheet, v(x), 1.0, 0.0));
+            lines.push(target(sheet, h(x), 0.0, 1.0));
+        }
+        for &(k, d) in extra {
+            let x = k as f64 / d as f64;
+            lines.push(target(sheet, v(x), 1.0, 0.0));
+            lines.push(target(sheet, h(x), 0.0, 1.0));
+        }
+        lines
+    }
+
+    type StepShape = (u32, bool, Vec<(i32, i32, usize)>);
+
+    fn steps_of(family: &GridFamily) -> Vec<StepShape> {
+        family
+            .steps
+            .iter()
+            .map(|s| {
+                (
+                    s.level,
+                    s.pleat,
+                    s.bands
+                        .iter()
+                        .map(|b| (b.lo, b.hi, b.lines.len()))
+                        .collect(),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_finer_level_the_pattern_uses_only_across_the_middle_is_a_band() {
+        // Every 16th, and the 32nds between ¼ and ¾ only: pleat 16ths, then
+        // the 32nds in one band between the ¼ and ¾ lines.
+        let sheet = Sheet::unit_square();
+        let axis: Vec<u32> = (1..16).collect();
+        let odd: Vec<(u32, u32)> = (9..=23).step_by(2).map(|k| (k, 32)).collect();
+        let lines = box_pattern(&sheet, 16, &axis, &odd);
+        let grid = detect(&sheet, &lines, false).expect("a grid");
+        assert_eq!(grid.n, 32);
+        for family in &grid.families {
+            assert_eq!(
+                steps_of(family),
+                vec![(16, true, vec![]), (32, false, vec![(8, 24, 8)])]
+            );
+            assert_eq!(family.made(), 23);
+            assert_eq!(family.lines.len(), 31);
+            // The pleat's lines are the even indices, alternating in order
+            // from whichever way its first line goes; the band's are the
+            // pattern's own, made the way it wants them.
+            let pleat = &family.steps[0];
+            let first = family.lines[pleat.lines[0]].direction;
+            let other = if first == Direction::Mountain {
+                Direction::Valley
+            } else {
+                Direction::Mountain
+            };
+            for (rank, &p) in pleat.lines.iter().enumerate() {
+                assert_eq!(family.lines[p].index % 2, 0);
+                assert_eq!(
+                    family.lines[p].direction,
+                    if rank % 2 == 0 { first } else { other }
+                );
+            }
+            for &p in &family.steps[1].lines {
+                let l = &family.lines[p];
+                assert!(l.target.is_some());
+                assert_eq!(l.direction, l.pattern_direction);
+            }
+            for l in family.lines.iter().filter(|l| !l.made) {
+                assert!(l.target.is_none(), "an unmade line the pattern holds");
+            }
+        }
+        assert_eq!(grid.step_count(), 4);
+    }
+
+    #[test]
+    fn a_level_the_pattern_holds_most_of_is_pleated_whole() {
+        // 8ths, and six of the eight 16ths: a second step to save two
+        // creases is a bad trade, so the 16ths are pleated whole.
+        let sheet = Sheet::unit_square();
+        let axis: Vec<u32> = (1..8).collect();
+        let odd: Vec<(u32, u32)> = [3, 5, 7, 9, 11, 13].iter().map(|&k| (k, 16)).collect();
+        let lines = box_pattern(&sheet, 8, &axis, &odd);
+        let grid = detect(&sheet, &lines, false).expect("a grid");
+        assert_eq!(grid.n, 16);
+        for family in &grid.families {
+            assert_eq!(steps_of(family), vec![(16, true, vec![])]);
+            assert_eq!(family.made(), 15);
+        }
+    }
+
+    #[test]
+    fn a_thin_band_is_left_to_the_closure_with_everything_finer() {
+        // 8ths and two stray 16ths: two lines are not a step, so the 16ths
+        // are the closure's and the family is a pleat of 8ths.
+        let sheet = Sheet::unit_square();
+        let axis: Vec<u32> = (1..8).collect();
+        let lines = box_pattern(&sheet, 8, &axis, &[(3, 16), (11, 16)]);
+        let grid = detect(&sheet, &lines, false).expect("a grid");
+        assert_eq!(grid.n, 16);
+        for family in &grid.families {
+            assert_eq!(steps_of(family), vec![(8, true, vec![])]);
+            assert_eq!(family.made(), 7);
+            let stray: Vec<i32> = family
+                .lines
+                .iter()
+                .filter(|l| !l.made && l.target.is_some())
+                .map(|l| l.index)
+                .collect();
+            assert_eq!(stray, vec![3, 11]);
+        }
+    }
+
+    #[test]
+    fn the_half_line_is_made_wherever_anything_finer_is() {
+        // The 8ths and four 16ths in a band, and no half line anywhere in
+        // the pattern: halving needs its parents, so the quarters and the
+        // half line are pleated though the pattern holds neither.
+        let sheet = Sheet::unit_square();
+        let odd: Vec<(u32, u32)> = [5, 7, 9, 11].iter().map(|&k| (k, 16)).collect();
+        let lines = box_pattern(&sheet, 16, &[2, 6, 10, 14], &odd);
+        let grid = detect(&sheet, &lines, false).expect("a grid");
+        assert_eq!(grid.n, 16);
+        for family in &grid.families {
+            assert_eq!(
+                steps_of(family),
+                vec![(8, true, vec![]), (16, false, vec![(4, 12, 4)])]
+            );
+            assert!(
+                family
+                    .lines
+                    .iter()
+                    .any(|l| l.index == 8 && l.made && l.target.is_none()),
+                "the half line is made for the halving"
+            );
+        }
+    }
+
+    #[test]
+    fn an_odd_base_is_made_in_bands_too() {
+        // 13ths on the left two thirds of a 26-grid: no halving made them,
+        // so the band is bounded by positions rather than lines.
+        let sheet = Sheet::unit_square();
+        let extra: Vec<(u32, u32)> = (1..=8).map(|j| (j, 13)).collect();
+        let lines = box_pattern(&sheet, 26, &[], &extra);
+        let grid = detect(&sheet, &lines, false).expect("a grid");
+        assert_eq!(grid.n, 13);
+        for family in &grid.families {
+            assert_eq!(steps_of(family), vec![(13, false, vec![(0, 9, 8)])]);
+        }
+    }
+
+    #[test]
+    fn a_whole_grid_is_one_pleat_per_family() {
+        let sheet = Sheet::unit_square();
+        let axis: Vec<u32> = (1..16).collect();
+        let odd: Vec<(u32, u32)> = (9..=23).step_by(2).map(|k| (k, 32)).collect();
+        let lines = box_pattern(&sheet, 16, &axis, &odd);
+        let grid = detect(&sheet, &lines, true).expect("a grid");
+        for family in &grid.families {
+            assert_eq!(steps_of(family), vec![(32, true, vec![])]);
+            assert_eq!(family.made(), 31);
+        }
+    }
+
+    #[test]
+    fn levels_come_from_the_halving() {
+        assert_eq!(level_of(8, 16), 2);
+        assert_eq!(level_of(4, 16), 4);
+        assert_eq!(level_of(12, 16), 4);
+        assert_eq!(level_of(6, 16), 8);
+        assert_eq!(level_of(1, 16), 16);
+        assert_eq!(level_of(8, 24), 3);
+        assert_eq!(level_of(12, 24), 6);
+        assert_eq!(level_of(6, 24), 12);
+        assert_eq!(level_of(3, 24), 24);
+        assert_eq!(level_of(5, 13), 13);
+        assert_eq!(level_of(6, 26), 13);
+        assert_eq!(level_of(7, 26), 26);
+        assert_eq!(level_chain(16), vec![2, 4, 8, 16]);
+        assert_eq!(level_chain(24), vec![3, 6, 12, 24]);
+        assert_eq!(level_chain(13), vec![13]);
+        assert_eq!(level_chain(26), vec![13, 26]);
     }
 
     #[test]
@@ -760,6 +1266,6 @@ mod tests {
             target(&sheet, v(5.0 / 64.0), 1.0, 0.0),
             target(&sheet, h(7.0 / 64.0), 1.0, 0.0),
         ];
-        assert!(detect(&sheet, &lines).is_none());
+        assert!(detect(&sheet, &lines, false).is_none());
     }
 }

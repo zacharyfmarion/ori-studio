@@ -298,20 +298,44 @@ Gates:
 
 ## Checklist
 
-- [ ] `measure_grid.rs`, and the baseline for the corpus, *Alebrijes* and the
-      fixtures recorded here — including the per-family witness-usage table
-      for *Alebrijes* c0–c2 under the criterion above.
-- [ ] `grid.rs`: levels per family from `cells` (oblique families from the
-      corner-anchored index); bands from need + dependency, merged across one
-      cell; bounds; pleat-or-region by line share; the region-only prune with
-      demotion; tests on the fixtures and the corpus (`ORI_PRECREASE_CORPUS`),
-      including a 24-grid, a 26-grid, a 2:1 sheet and a hex grid, and one that
-      every region step's bounds are on the paper before it and that every
-      pleat has its half line.
-- [ ] Stage 1: `fold_grid` over levels, whole chords, region-line witnesses;
-      `GridStep.level / pleat / regions`; region-step directions from the
-      pattern; sentences, cards, canvas, settings toggle, analytics; measured
-      against the gate, with every design whose level count rose read.
+- [x] `measure_grid.rs`, and the baseline. Over the curated corpus (its
+      three `.fold` files a design), *Alebrijes*'s four sheets and the
+      fixtures, the whole grid: 2,154 grid lines, 630 of them in no crease,
+      1,248.6 sheet-lengths of unwanted crease, 106 grid steps, 2,339 steps,
+      125 turn-overs, 128 presses, 26 lines unsolved.
+- [x] `grid.rs`: levels per family from `cells`; bands from need +
+      dependency, merged across one line; bounds; pleat-or-region by line
+      share; the region-only prune with demotion; an oblique family stays
+      one pleat. Tests on the fixtures, the synthetic middle-band, most-of-a-
+      level, thin-band, half-line, odd-base and whole cases; every band's
+      bounds are on the paper before its step, or are positions for an odd
+      base, and every pleat keeps its half line (`planner_grid.rs`,
+      `grid.rs`).
+- [x] Stage 1: `fold_grid` over the lines the steps make, whole chords;
+      `GridStep.level / pleat / regions`, `GridSummary.steps`,
+      `Totals.grid_unwanted_length`; band-step directions from the pattern;
+      the band sentence, the card's wash and highlighted bounds, the
+      *Only where needed* toggle keyed on the record, the analytics
+      properties. **Measured** (`measure_grid`, same corpus): grid lines
+      2,154 → 1,772, lines in no crease 630 → **275** (−56 %), unwanted
+      crease 1,248.6 → 873.5 sheet-lengths, grid steps 106 → 125, steps
+      2,339 → 2,390 (+51: +19 of them the band steps themselves), turn-overs
+      125 → 135, presses 128 → 132, unsolved 26 → 26. **7.0 lines saved per
+      step added**, against the gate's 4. *Alebrijes*: c0 62 → 46 grid lines
+      (18 → 2 unwanted), c2 126 → 62 (66 → 2), steps 67 → 69 and 83 → 87 —
+      exactly the band steps, no fold added. Read by hand: frog-on-lilly's
+      seven horizontals are a pleat of quarters and five closure folds
+      (steps 54 → 59, for 28 lines and 24 unwanted creases saved);
+      secretary-bird's 13ths and 26ths are bands (111 → 115); the rest are
+      the band steps and one or two folds. One thing the numbers say that
+      the gate does not price: `hard` witnesses rise 385 → 422, because a
+      diagonal folded from a 64th mark on the edge is folded from two
+      interior lattice marks once the 64ths stop short of the edge — a fold
+      a folder with a precreased grid makes routinely, but one
+      ReferenceFinder's visibility rule flags, and the cards say "fold P onto
+      Q" for it either way. Region-line witnesses (the plan's O3 of the two
+      parents) are not made: with whole chords nothing presses a grid line,
+      and they are stage 2's to add with the extents that need them.
 - [ ] Stage 2: `GridLine.spans` through all four readers (`fold_grid`,
       `order::record`, both replays in `planner_direction.rs`,
       `measure_ends`); the grid-line press preference and the `order.rs`

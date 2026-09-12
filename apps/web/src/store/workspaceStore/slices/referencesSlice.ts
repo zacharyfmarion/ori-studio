@@ -20,6 +20,7 @@ export const DEFAULT_REFERENCES_SETTINGS: ReferencesSettings = {
   showPinches: true,
   startFromPlan: false,
   precreaseGrid: true,
+  gridWhereNeeded: true,
 };
 
 /** The candidate counts the settings popover offers. */

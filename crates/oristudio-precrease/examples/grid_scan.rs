@@ -1,13 +1,14 @@
 //! What grid, if any, each crease pattern is pleated on.
 //!
 //! ```sh
-//! cargo run -p oristudio-precrease --example grid_scan -- <file.fold|.cp|.osf>... [-v]
+//! cargo run -p oristudio-precrease --example grid_scan -- <file.fold|.cp|.osf>... [-v] [--whole]
 //! ```
 //!
 //! One line per component: the sheet, the exactness class, how the lines
 //! sort into 15° buckets by normal, and the grid [`oristudio_precrease::grid::detect`]
-//! finds — kind, cells, families with their line counts and how many the
-//! pattern contains. `-v` lists every family's offsets.
+//! finds — kind, cells, families with the lines their steps make, how many
+//! of the family the pattern contains, and the steps themselves (a pleat
+//! into so many, or a level's bands). `-v` lists every family's lines.
 
 use std::path::PathBuf;
 
@@ -20,7 +21,8 @@ use oristudio_precrease::sheet::Sheet;
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let verbose = args.iter().any(|a| a == "-v");
-    for arg in args.iter().filter(|a| *a != "-v") {
+    let whole = args.iter().any(|a| a == "--whole");
+    for arg in args.iter().filter(|a| *a != "-v" && *a != "--whole") {
         let file = PathBuf::from(arg);
         let cp = match load_path(&file, None) {
             Ok(cp) => cp,
@@ -97,7 +99,7 @@ fn main() {
                     )
                 })
                 .collect();
-            let grid = detect(&sheet, &targets);
+            let grid = detect(&sheet, &targets, whole);
             let grid_text = match &grid {
                 None => "no grid".to_string(),
                 Some(g) => format!(
@@ -107,11 +109,34 @@ fn main() {
                     g.families
                         .iter()
                         .map(|f| format!(
-                            "{:.0}°:{}/{} rev {}",
+                            "{:.0}°:{}/{} made {} rev {} {}",
                             f.normal[1].atan2(f.normal[0]).to_degrees(),
                             f.in_pattern(),
                             f.lines.len(),
-                            f.reversed()
+                            f.made(),
+                            f.reversed(),
+                            f.steps
+                                .iter()
+                                .map(|s| if s.pleat {
+                                    format!("pleat{}", s.level)
+                                } else {
+                                    format!(
+                                        "L{}[{}]",
+                                        s.level,
+                                        s.bands
+                                            .iter()
+                                            .map(|b| format!(
+                                                "{}..{}:{}",
+                                                b.lo,
+                                                b.hi,
+                                                b.lines.len()
+                                            ))
+                                            .collect::<Vec<_>>()
+                                            .join(",")
+                                    )
+                                })
+                                .collect::<Vec<_>>()
+                                .join(" ")
                         ))
                         .collect::<Vec<_>>()
                         .join(" ")
@@ -137,8 +162,14 @@ fn main() {
                     );
                     for l in &f.lines {
                         println!(
-                            "    k={:>3} d={:+.5} {:?} target={:?} pattern={:?}",
-                            l.index, l.line.d, l.direction, l.target, l.pattern_direction
+                            "    k={:>3} d={:+.5} L{} {} {:?} target={:?} pattern={:?}",
+                            l.index,
+                            l.line.d,
+                            l.level,
+                            if l.made { "made" } else { "----" },
+                            l.direction,
+                            l.target,
+                            l.pattern_direction
                         );
                     }
                 }

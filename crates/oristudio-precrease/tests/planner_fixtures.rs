@@ -118,7 +118,12 @@ fn every_manifest_fixture_plans_to_its_recorded_auxiliary_count() {
                     Some(u64::from(grid.lines)),
                     "{file}: grid lines"
                 );
-                assert_eq!(grid_steps, grid.families, "{file}");
+                assert_eq!(
+                    expected["steps"].as_u64(),
+                    Some(u64::from(grid.steps)),
+                    "{file}: grid steps"
+                );
+                assert_eq!(grid_steps, grid.steps, "{file}");
                 assert_eq!(grid.lines, seq.totals.grid_lines, "{file}");
                 assert_eq!(grid.cp_lines, seq.totals.grid_cp_lines, "{file}");
             }

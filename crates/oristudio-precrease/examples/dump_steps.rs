@@ -3,7 +3,7 @@
 //! line, its in-paper segment, direction and side.
 //!
 //! ```sh
-//! cargo run --release -p oristudio-precrease --example dump_steps -- <file> [--no-grid]
+//! cargo run --release -p oristudio-precrease --example dump_steps -- <file> [--no-grid] [--whole] [--component N]
 //! ```
 
 use std::path::PathBuf;
@@ -11,14 +11,27 @@ use std::path::PathBuf;
 use oristudio_precrease::analyze;
 use oristudio_precrease::clock::default_clock;
 use oristudio_precrease::fixture_io::load_path;
-use oristudio_precrease::planner::{Planner, PlannerOptions};
+use oristudio_precrease::planner::{GridMode, Planner, PlannerOptions};
 use oristudio_precrease::predicates::Ref;
-use oristudio_precrease::sequence::StepKind;
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let grid = !args.iter().any(|a| a == "--no-grid");
-    let file = PathBuf::from(args.iter().find(|a| *a != "--no-grid").expect("a file"));
+    let whole = args.iter().any(|a| a == "--whole");
+    let component: usize = args
+        .iter()
+        .position(|a| a == "--component")
+        .and_then(|i| args.get(i + 1))
+        .and_then(|c| c.parse().ok())
+        .unwrap_or(0);
+    let is_component_value = |i: usize| i > 0 && args[i - 1] == "--component";
+    let file = PathBuf::from(
+        args.iter()
+            .enumerate()
+            .find(|(i, a)| !a.starts_with("--") && !is_component_value(*i))
+            .map(|(_, a)| a)
+            .expect("a file"),
+    );
     let cp = load_path(&file, None).expect("load");
     let analysis = analyze(
         &cp.segments,
@@ -27,11 +40,15 @@ fn main() {
     )
     .expect("analyze");
     let opts = PlannerOptions {
-        precrease_grid: grid,
+        precrease_grid: match (grid, whole) {
+            (false, _) => GridMode::Off,
+            (true, true) => GridMode::Whole,
+            (true, false) => GridMode::WhereNeeded,
+        },
         clock: default_clock(),
         ..PlannerOptions::default()
     };
-    let mut planner = Planner::new(&analysis.components[0], opts);
+    let mut planner = Planner::new(&analysis.components[component], opts);
     let status = planner.plan_without_reference_finder().expect("plan");
     let seq = planner.sequence(false);
     println!(
@@ -63,13 +80,25 @@ fn main() {
             .unwrap_or_default();
         let [a, b] = s.segment;
         println!(
-            "{:>3} {:?}{} O{} {:?} {:?} line n=({:.4},{:.4}) d={:.5} seg ({:.3},{:.3})-({:.3},{:.3}) cp={:?} spans={} marks={} align={:?} exact={}{}",
+            "{:>3} {:?}{} O{} {:?} {:?} line n=({:.4},{:.4}) d={:.5} seg ({:.3},{:.3})-({:.3},{:.3}) cp={:?} spans={} marks={} align={:?} exact={} hard={}{}",
             s.id,
             s.kind,
-            if s.kind == StepKind::Grid {
-                format!("[{} lines]", s.grid.as_ref().map_or(0, |g| g.lines.len()))
-            } else {
-                String::new()
+            match s.grid.as_ref() {
+                Some(g) if g.pleat => format!("[pleat {} lines, {}ths]", g.lines.len(), g.level),
+                Some(g) => format!(
+                    "[{}ths {} lines in {}]",
+                    g.level,
+                    g.lines.len(),
+                    g.regions
+                        .iter()
+                        .map(|r| format!(
+                            "{:.3}..{:.3}",
+                            r.bounds[0].fraction, r.bounds[1].fraction
+                        ))
+                        .collect::<Vec<_>>()
+                        .join(",")
+                ),
+                None => String::new(),
             },
             w.map_or(0, |w| w.axiom),
             s.direction,
@@ -90,6 +119,7 @@ fn main() {
             s.marks_exist,
             s.alignment,
             s.exact,
+            s.hard,
             if inputs.is_empty() {
                 String::new()
             } else {

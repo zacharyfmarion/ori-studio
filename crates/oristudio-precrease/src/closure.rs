@@ -671,15 +671,18 @@ impl Closure {
         })
     }
 
-    /// Pleat `grid` into the paper: every line of every family, creased along
+    /// Pleat `grid` into the paper: every line its steps make, creased along
     /// its whole chord, before anything is closed.
     ///
     /// A grid line the pattern contains is folded as that target; every other
     /// is a [`LineTag::Grid`] auxiliary — the technique, not a mark, which is
     /// why the pinch pass leaves it alone. No line records a witness: a grid
     /// is made by pleating, edge to edge, not sighted line by line, and the
-    /// card for it says so. The closure, the stuck search and everything
-    /// after then run over a state that already carries the grid.
+    /// card for it says so. A line of the grid no step makes — outside every
+    /// band of its level ([`crate::grid`]) — is not added: the pattern's
+    /// creases on it, if any, stay targets for the closure. The closure, the
+    /// stuck search and everything after then run over a state that already
+    /// carries the grid.
     ///
     /// Only meaningful on a closure nothing has been folded on; called on any
     /// other it still folds what it is given, but the grid then is not the
@@ -703,6 +706,7 @@ impl Closure {
                     .lines
                     .iter()
                     .enumerate()
+                    .filter(|(_, gl)| gl.made)
                     .map(move |(li, gl)| (fi, li, gl.line, gl.target))
             })
             .collect();

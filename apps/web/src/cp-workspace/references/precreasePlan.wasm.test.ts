@@ -103,7 +103,7 @@ function fixtureEntry(file: string) {
       file: string;
       crate: number | null;
       status: string;
-      grid: { kind: 'box' | 'hex'; n: number; lines: number } | null;
+      grid: { kind: 'box' | 'hex'; n: number; steps: number; lines: number } | null;
     }[];
   };
   const entry = manifest.fixtures.find((fixture) => fixture.file.endsWith(file));
@@ -173,11 +173,11 @@ function handleFor(planner: {
 }
 
 describe.skipIf(!available)('runPrecreasePlan over the real planner bridge', () => {
-  async function plan(file: string, component = 0) {
+  async function plan(file: string, component = 0, options = '') {
     const wasm = await import('../../generated/oristudio-precrease-wasm/oristudio_precrease_wasm');
     wasm.initSync({ module: readFileSync(WASM) });
     const { segments, colors } = loadFold(file);
-    const planner = new wasm.PrecreasePlanner(segments, colors, undefined, component, '');
+    const planner = new wasm.PrecreasePlanner(segments, colors, undefined, component, options);
     try {
       const started = performance.now();
       const result = await runPrecreasePlan(handleFor(planner), {
@@ -278,9 +278,11 @@ describe.skipIf(!available)('runPrecreasePlan over the real planner bridge', () 
     expect(sequence.grid).toMatchObject({
       kind: recorded!.kind,
       n: recorded!.n,
+      steps: recorded!.steps,
       lines: recorded!.lines,
       families: 2,
     });
+    expect(typeof sequence.totals.grid_unwanted_length).toBe('number');
     // Every field the browser reads off a grid step crosses the bridge — a
     // field the crate stopped emitting would otherwise read as undefined
     // and the sentence would say "into undefined".
@@ -288,6 +290,9 @@ describe.skipIf(!available)('runPrecreasePlan over the real planner bridge', () 
     expect(first.kind).toBe('grid');
     expect(first.grid).toBeDefined();
     expect(first.grid!.cells).toBe(6);
+    expect(first.grid!.level).toBe(6);
+    expect(first.grid!.pleat).toBe(true);
+    expect(first.grid!.regions).toEqual([]);
     expect(first.grid!.lines).toHaveLength(5);
     for (const line of first.grid!.lines) {
       expect(['mountain', 'valley']).toContain(line.direction);
@@ -299,6 +304,43 @@ describe.skipIf(!available)('runPrecreasePlan over the real planner bridge', () 
     );
     expect(sequence.steps.slice(2).every((step) => step.kind !== 'grid')).toBe(true);
   });
+
+  // The iguana's horizontals are held only across the middle: made where
+  // needed, they are a band of 25ths and a band of 50ths there, and every
+  // field a band step's card and sentence read crosses the bridge.
+  it('makes the iguana’s grid in bands where the pattern needs it, and whole when asked', async () => {
+    const { result } = await plan('iguana-c0.fold');
+    const { sequence } = result;
+    const recorded = fixtureEntry('iguana-c0.fold').grid!;
+    expect(sequence.grid).toMatchObject({ steps: recorded.steps, lines: recorded.lines });
+    const grid = sequence.steps.filter((step) => step.kind === 'grid');
+    expect(grid).toHaveLength(recorded.steps);
+    const bands = grid.filter((step) => !step.grid!.pleat);
+    expect(bands.length).toBeGreaterThan(0);
+    for (const step of bands) {
+      const family = step.grid!;
+      expect(family.level).toBeGreaterThan(0);
+      expect(family.regions.length).toBeGreaterThan(0);
+      for (const region of family.regions) {
+        expect(region.lines).toBeGreaterThan(0);
+        for (const bound of region.bounds) {
+          expect(typeof bound.fraction).toBe('number');
+          expect(typeof bound.edge).toBe('boolean');
+          expect(bound.line_id === null || typeof bound.line_id === 'number').toBe(true);
+        }
+      }
+      expect(describePlannerStep(t, sequence, step.id - 1)).toMatch(/^Add the \d+\w+ .* between .*: \d+ lines, creased as shown\.$/);
+    }
+    // Whole: one pleat per family, every line of the finest grid.
+    const { result: whole } = await plan('iguana-c0.fold', 0, JSON.stringify({ grid_where_needed: false }));
+    const pleats = whole.sequence.steps.filter((step) => step.kind === 'grid');
+    expect(pleats).toHaveLength(2);
+    expect(pleats.every((step) => step.grid!.pleat)).toBe(true);
+    expect(whole.sequence.totals.grid_lines).toBe(98);
+    expect(whole.sequence.totals.grid_unwanted_length).toBeGreaterThan(
+      sequence.totals.grid_unwanted_length
+    );
+  }, 120_000);
 
   it('plans the iguana component 0 with the auxiliary count the manifest records', async () => {
     const { result, wallMs } = await plan('iguana-c0.fold');

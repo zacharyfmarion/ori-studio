@@ -286,6 +286,8 @@ function summaryOf(record: ReferencesPlanRecord): ReferencesPlanSummary | null {
     gridN: grid?.n ?? 0,
     gridLines: first.result.sequence.totals.grid_lines,
     gridCpLines: first.result.sequence.totals.grid_cp_lines,
+    gridSteps: grid?.steps ?? 0,
+    gridUnwantedLength: first.result.sequence.totals.grid_unwanted_length ?? 0,
     exactnessClass,
     maxDisplacementModel,
     durationMs: record.durationMs,
@@ -323,6 +325,9 @@ export function useReferencesBreakdown(
   const { t } = useTranslation();
   const viewState = useWorkspaceStore((state) => state.referencesView);
   const precreaseGrid = useWorkspaceStore((state) => state.referencesSettings.precreaseGrid);
+  const gridWhereNeeded = useWorkspaceStore(
+    (state) => state.referencesSettings.gridWhereNeeded
+  );
   // `referencesPlan` is one slot for a whole document, cleared on every sheet
   // switch, and nothing here reads it: the record says which sheet has a plan,
   // and the store's copy is the analytics descriptor.
@@ -361,9 +366,23 @@ export function useReferencesBreakdown(
 
   // The values the async runs read after an await, and the abort they answer
   // to. A run belongs to one revision; the document moving on drops it.
-  const latest = useRef({ geometry, revision, frames, selectedSheet, precreaseGrid });
+  const latest = useRef({
+    geometry,
+    revision,
+    frames,
+    selectedSheet,
+    precreaseGrid,
+    gridWhereNeeded,
+  });
   useEffect(() => {
-    latest.current = { geometry, revision, frames, selectedSheet, precreaseGrid };
+    latest.current = {
+      geometry,
+      revision,
+      frames,
+      selectedSheet,
+      precreaseGrid,
+      gridWhereNeeded,
+    };
   });
   const abortRef = useRef<AbortController | null>(null);
   // The planner bridge is retained here in its own right rather than leaning on
@@ -396,8 +415,11 @@ export function useReferencesBreakdown(
       forRevision: string,
       signal: AbortSignal,
       budgetMs: number,
-      /** Open a pleated design with its grid pleated (`referencesSettings.precreaseGrid`). */
-      precreaseGrid: boolean,
+      /**
+       * Open a pleated design with its grid pleated, and only where it is
+       * needed (`referencesSettings.precreaseGrid` / `gridWhereNeeded`).
+       */
+      grid: { precreaseGrid: boolean; gridWhereNeeded: boolean },
       onProgress: (progress: PrecreasePlanProgress) => void
     ): Promise<
       (ReferencesPlanComponent & { token: number }) | { refusedKind: PrecreaseRefusalKind | null }
@@ -406,7 +428,11 @@ export function useReferencesBreakdown(
         input.segments,
         input.colors,
         component.id,
-        { total_budget_ms: budgetMs, precrease_grid: precreaseGrid },
+        {
+          total_budget_ms: budgetMs,
+          precrease_grid: grid.precreaseGrid,
+          grid_where_needed: grid.gridWhereNeeded,
+        },
         paperFallbackRect()
       );
       const info: PrecreasePlannerInfo = created.info;
@@ -476,7 +502,10 @@ export function useReferencesBreakdown(
     const input = precreaseInputFromTransport(current.geometry);
     // Taken now, with the rest of `current`, so a toggle mid-run cannot make
     // a plan that is for neither setting.
-    const withGrid = current.precreaseGrid;
+    const grid = {
+      precreaseGrid: current.precreaseGrid,
+      gridWhereNeeded: current.gridWhereNeeded,
+    };
 
     void (async () => {
       const client = getPrecreaseClient();
@@ -499,7 +528,7 @@ export function useReferencesBreakdown(
             forRevision,
             controller.signal,
             share,
-            withGrid,
+            grid,
             (progress) => setReferencesProgress(progressOf(progress))
           );
           if ('refusedKind' in outcome) refused.push({ component: sheets[i].id, kind: outcome.refusedKind });
@@ -537,7 +566,8 @@ export function useReferencesBreakdown(
         refused,
         durationMs: performance.now() - started,
         plannerToken: planned.length === 1 ? (lastToken ?? null) : null,
-        precreaseGrid: withGrid,
+        precreaseGrid: grid.precreaseGrid,
+        gridWhereNeeded: grid.gridWhereNeeded,
       };
       setReferencesPlanRecord(record);
       const nextSummary = summaryOf(record);
@@ -641,10 +671,18 @@ export function useReferencesBreakdown(
   // swallowed. A picked target defers it: the whole-pattern run is not what is
   // wanted then, and it would reset the target's step when it landed.
   useEffect(() => {
-    if (record === null || record.precreaseGrid === precreaseGrid) return;
+    if (record === null) return;
+    // "Only where needed" says nothing without a grid, so with the grid off
+    // a plan made under either value of it is the plan wanted.
+    if (
+      record.precreaseGrid === precreaseGrid &&
+      (!precreaseGrid || record.gridWhereNeeded === gridWhereNeeded)
+    ) {
+      return;
+    }
     if (targeted || referencesRunSnapshot().running) return;
     run();
-  }, [precreaseGrid, record, run, targeted]);
+  }, [precreaseGrid, gridWhereNeeded, record, run, targeted]);
 
   const landmarksFirst = viewState.landmarksFirst;
   const variants = useMemo<ReferencesPlanVariant[]>(
@@ -769,6 +807,14 @@ function trackPlan(
     // was — the share of real designs the grid-first opening applies to.
     grid_kind: summary.gridKind ?? 'none',
     grid_lines_bucket: bucketCount(summary.gridLines, COUNT_BUCKETS),
+    // How the grid was made — one pleat per family, or pleats plus bands —
+    // and how much crease it put where the pattern has none, in tenths of a
+    // sheet-length: the number "only where needed" exists to lower.
+    grid_steps_bucket: bucketCount(summary.gridSteps, COUNT_BUCKETS),
+    grid_unwanted_bucket: bucketCount(
+      Math.round(summary.gridUnwantedLength * 10),
+      COUNT_BUCKETS
+    ),
   };
   if (aborted) {
     track(ANALYTICS_EVENTS.foldingStepsCancelled, properties);

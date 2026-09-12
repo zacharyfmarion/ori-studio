@@ -21,13 +21,15 @@ use crate::error::PrecreaseError;
 use crate::exactness::ExactnessClass;
 use crate::grid;
 use crate::line::Line;
+use crate::marks::crease_runs;
 use crate::merge::coalesce_lines;
 use crate::order::{Placed, group, order, pattern};
 use crate::pinch::{Extent, pinch_pass};
 use crate::predicates::{Ref, Witness, full_facts, witnesses};
 use crate::sequence::{
-    Diagnostics, ExactnessSummary, FactsSummary, Finding, FindingReason, GridStep, GridStepLine,
-    GridSummary, Group, LineEntry, PointEntry, Sequence, Status, Step, StepKind, StepPress, Totals,
+    Diagnostics, ExactnessSummary, FactsSummary, Finding, FindingReason, GridBound, GridRegion,
+    GridStep, GridStepLine, GridSummary, Group, LineEntry, PointEntry, Sequence, Status, Step,
+    StepKind, StepPress, Totals,
 };
 use crate::sheet::Sheet;
 use crate::state::{DEFAULT_POINT_CAP, LineTag};
@@ -54,11 +56,24 @@ pub struct PlannerOptions {
     /// off state exists so the two orders can be compared on the corpus, and
     /// comes out once that comparison is recorded.
     pub prefer_findable_ends: bool,
-    /// Whether a box- or hex-pleated design opens with its grid pleated, one
-    /// step per family, before anything is sighted ([`crate::grid`]). On by
-    /// default: that is how such a design is precreased.
-    pub precrease_grid: bool,
+    /// Whether a box- or hex-pleated design opens with its grid pleated
+    /// before anything is sighted ([`crate::grid`]), and how much of it.
+    /// Where needed by default: that is how such a design is precreased.
+    pub precrease_grid: GridMode,
     pub clock: Clock,
+}
+
+/// How much of a pleated design's grid the plan opens with.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum GridMode {
+    /// No grid step: every line is sighted, the grid's own included.
+    Off,
+    /// Every line of the grid, edge to edge, one pleat per family.
+    Whole,
+    /// The lines the pattern uses, at the resolution each part of the sheet
+    /// needs — [`crate::grid`]'s levels and bands.
+    #[default]
+    WhereNeeded,
 }
 
 impl Default for PlannerOptions {
@@ -69,15 +84,17 @@ impl Default for PlannerOptions {
             stuck_budget_ms: 4000.0,
             total_budget_ms: 30_000.0,
             prefer_findable_ends: true,
-            precrease_grid: true,
+            precrease_grid: GridMode::WhereNeeded,
             clock: default_clock(),
         }
     }
 }
 
 /// The JSON shape of the options: `{ point_cap, max_depth, depth3_threshold,
-/// max_candidates, stuck_budget_ms, total_budget_ms, precrease_grid }`, all
-/// optional.
+/// max_candidates, stuck_budget_ms, total_budget_ms, precrease_grid,
+/// grid_where_needed }`, all optional. `precrease_grid` is the toggle and
+/// `grid_where_needed` says how much of the grid a plan opens with, so a
+/// caller that sends only the toggle still gets a grid.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct PlannerOptionsJson {
@@ -88,6 +105,7 @@ pub struct PlannerOptionsJson {
     pub stuck_budget_ms: Option<f64>,
     pub total_budget_ms: Option<f64>,
     pub precrease_grid: Option<bool>,
+    pub grid_where_needed: Option<bool>,
 }
 
 impl PlannerOptions {
@@ -113,9 +131,14 @@ impl PlannerOptions {
         if let Some(c) = parsed.max_candidates {
             opts.stuck.candidates.max_candidates = c.max(1);
         }
-        if let Some(g) = parsed.precrease_grid {
-            opts.precrease_grid = g;
-        }
+        opts.precrease_grid = match (
+            parsed.precrease_grid.unwrap_or(true),
+            parsed.grid_where_needed.unwrap_or(true),
+        ) {
+            (false, _) => GridMode::Off,
+            (true, false) => GridMode::Whole,
+            (true, true) => GridMode::WhereNeeded,
+        };
         for (value, slot) in [
             (parsed.stuck_budget_ms, &mut opts.stuck_budget_ms),
             (parsed.total_budget_ms, &mut opts.total_budget_ms),
@@ -206,31 +229,65 @@ fn segment_of(sheet: &Sheet, line: &Line) -> Option<[[f64; 2]; 2]> {
     sheet.clip(line).map(|(a, b)| [a, b])
 }
 
-/// The grid's steps, one per family, numbered from 1: pleated from the front,
-/// with no witness, before anything else is on the paper.
+/// The grid's steps, numbered from 1: the pleats first, one per family, then
+/// the band steps coarse to fine with the families interleaved — pleated from
+/// the front, with no witness, before anything else is on the paper.
 ///
-/// A step's own `line`, `line_id` and `segment` are the family's first line,
-/// so that every step has one; the family is in `grid`. The step carries every
-/// pattern crease its lines contain, so the canvas's crease visibility reads it
-/// as it reads any other.
+/// A step's own `line`, `line_id` and `segment` are its first line, so that
+/// every step has one; the rest is in `grid`. The step carries every pattern
+/// crease its lines contain, so the canvas's crease visibility reads it as it
+/// reads any other.
 fn grid_steps(closure: &Closure, sheet: &Sheet) -> Vec<Step> {
     let Some(grid) = closure.grid() else {
         return Vec::new();
     };
     let targets = closure.targets();
-    grid.families
-        .iter()
-        .enumerate()
-        .filter_map(|(fi, family)| {
-            let lines: Vec<GridStepLine> = family
-                .lines
+    // (family, step) in presentation order.
+    let mut order: Vec<(usize, usize)> = Vec::new();
+    for (fi, family) in grid.families.iter().enumerate() {
+        order.extend(
+            family
+                .steps
                 .iter()
                 .enumerate()
-                .filter_map(|(li, gl)| {
-                    let f = closure
-                        .folded()
-                        .iter()
-                        .find(|f| f.grid.is_some_and(|g| g.family == fi && g.line == li))?;
+                .filter(|(_, s)| s.pleat)
+                .map(|(si, _)| (fi, si)),
+        );
+    }
+    let mut bands: Vec<(u32, usize, usize)> = grid
+        .families
+        .iter()
+        .enumerate()
+        .flat_map(|(fi, family)| {
+            family
+                .steps
+                .iter()
+                .enumerate()
+                .filter(|(_, s)| !s.pleat)
+                .map(move |(si, s)| (s.level, fi, si))
+        })
+        .collect();
+    bands.sort_by_key(|&(level, fi, si)| (level, fi, si));
+    order.extend(bands.into_iter().map(|(_, fi, si)| (fi, si)));
+
+    let folded_line = |fi: usize, li: usize| {
+        closure
+            .folded()
+            .iter()
+            .find(|f| f.grid.is_some_and(|g| g.family == fi && g.line == li))
+    };
+    order
+        .iter()
+        .enumerate()
+        .filter_map(|(k, &(fi, si))| {
+            let family = &grid.families[fi];
+            let step = &family.steps[si];
+            let lines: Vec<GridStepLine> = step
+                .lines
+                .iter()
+                .filter_map(|&li| {
+                    let gl = &family.lines[li];
+                    let f = folded_line(fi, li)?;
                     let target = f.target.map(|t| &targets[t]);
                     Some(GridStepLine {
                         line_id: f.line_id,
@@ -246,8 +303,39 @@ fn grid_steps(closure: &Closure, sheet: &Sheet) -> Vec<Step> {
                 })
                 .collect();
             let first = lines.first()?;
+            let bound = |index: i32| -> GridBound {
+                let cells = family.cells.unwrap_or(0) as i32;
+                let edge = index <= 0 || index >= cells;
+                GridBound {
+                    index,
+                    fraction: if cells > 0 {
+                        index as f64 / cells as f64
+                    } else {
+                        0.0
+                    },
+                    edge,
+                    line_id: (!edge)
+                        .then(|| {
+                            family
+                                .lines
+                                .iter()
+                                .position(|l| l.index == index && l.made)
+                                .and_then(|li| folded_line(fi, li))
+                                .map(|f| f.line_id)
+                        })
+                        .flatten(),
+                }
+            };
+            let regions: Vec<GridRegion> = step
+                .bands
+                .iter()
+                .map(|b| GridRegion {
+                    bounds: [bound(b.lo), bound(b.hi)],
+                    lines: b.lines.len() as u32,
+                })
+                .collect();
             Some(Step {
-                id: fi as u32 + 1,
+                id: k as u32 + 1,
                 kind: StepKind::Grid,
                 tag: LineTag::Grid,
                 line: first.line,
@@ -281,7 +369,14 @@ fn grid_steps(closure: &Closure, sheet: &Sheet) -> Vec<Step> {
                     n: grid.n,
                     normal: family.normal,
                     spacing: family.spacing,
-                    cells: family.cells,
+                    // A pleat pleats into its finest level; a band step's
+                    // lines are counted, and its level named, on the card.
+                    cells: family
+                        .cells
+                        .map(|c| if step.pleat { step.level.min(c) } else { c }),
+                    level: step.level,
+                    pleat: step.pleat,
+                    regions,
                     in_pattern: lines.iter().filter(|l| !l.cp_line_ids.is_empty()).count() as u32,
                     // Over the lines actually pleated: on the point cap a
                     // family can be short of its last lines.
@@ -422,10 +517,10 @@ impl Planner {
         });
         planner.off_lattice = exactness.class == ExactnessClass::OffLattice;
         planner.refused = false;
-        let grid = opts
-            .precrease_grid
-            .then(|| grid::detect(&sheet, &targets))
-            .flatten();
+        let grid = match opts.precrease_grid {
+            GridMode::Off => None,
+            mode => grid::detect(&sheet, &targets, mode == GridMode::Whole),
+        };
         let mut closure = Closure::new(sheet, targets, opts.point_cap);
         closure.set_prefer_findable_ends(opts.prefer_findable_ends);
         if let Some(grid) = grid {
@@ -1159,6 +1254,23 @@ impl Planner {
             .filter_map(|s| s.grid.as_ref())
             .map(|g| g.in_pattern)
             .sum();
+        // What the grid creases past the pattern: the chord of a line the
+        // pattern lacks, and the rest of the chord of one it holds.
+        let grid_unwanted_length: f64 = steps
+            .iter()
+            .filter_map(|s| s.grid.as_ref())
+            .flat_map(|g| g.lines.iter())
+            .map(|l| {
+                let chord = ((l.segment[0][0] - l.segment[1][0]).powi(2)
+                    + (l.segment[0][1] - l.segment[1][1]).powi(2))
+                .sqrt();
+                let creased: f64 = crease_runs(&l.line, &l.cp_spans)
+                    .iter()
+                    .map(|(a, b)| ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2)).sqrt())
+                    .sum();
+                (chord - creased).max(0.0)
+            })
+            .sum();
         let cp_lines =
             steps.iter().filter(|s| s.kind == StepKind::Cp).count() as u32 + grid_cp_lines;
         let aux = steps.iter().filter(|s| s.kind == StepKind::Aux).count() as u32;
@@ -1177,6 +1289,7 @@ impl Planner {
             visible_aux,
             grid_lines,
             grid_cp_lines,
+            grid_unwanted_length,
             presses,
             lower_bound: cp_lines + unsolved,
             free_lines,
@@ -1187,6 +1300,7 @@ impl Planner {
             kind: g.kind,
             n: g.n,
             families: g.families.len() as u32,
+            steps: steps.iter().filter(|s| s.kind == StepKind::Grid).count() as u32,
             lines: grid_lines,
             cp_lines: grid_cp_lines,
         });

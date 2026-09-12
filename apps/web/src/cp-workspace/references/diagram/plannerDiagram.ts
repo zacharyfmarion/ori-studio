@@ -68,6 +68,7 @@ import type {
 import {
   chosenWitness,
   type PrecreaseDirection,
+  type PrecreaseGridBound,
   type PrecreaseRef,
   type PrecreaseSequence,
   type PrecreaseStep,
@@ -91,6 +92,52 @@ function gridLineOf(
 ): DiagramGridLine | null {
   const index = step.grid?.lines.findIndex((line) => line.line_id === lineId) ?? -1;
   return index >= 0 ? (frame.gridLines(step)[index] ?? null) : null;
+}
+
+/**
+ * Where a band's bound is on the paper: the bounding line, drawn by the grid
+ * step that made it; the sheet's edge; or, for an odd base's band, which no
+ * line bounds, the position a step further on from the band's outermost
+ * line — the same stride again, which the frame map keeps straight.
+ */
+function gridBoundSegment(
+  sequence: PrecreaseSequence,
+  frame: DiagramFrame,
+  step: PrecreaseStep,
+  bound: PrecreaseGridBound
+): DiagramSegment | null {
+  const grid = step.grid;
+  if (!grid) return null;
+  const vertical = Math.abs(grid.normal[0]) >= Math.abs(grid.normal[1]);
+  if (bound.edge) {
+    return frame.edge(
+      vertical ? (bound.index <= 0 ? 'left' : 'right') : bound.index <= 0 ? 'bottom' : 'top'
+    );
+  }
+  if (bound.line_id !== null) {
+    for (const earlier of sequence.steps) {
+      if (earlier.id >= step.id) break;
+      if (!earlier.grid) continue;
+      const line = gridLineOf(frame, earlier, bound.line_id);
+      if (line) return line.segment;
+    }
+    return null;
+  }
+  const lines = frame.gridLines(step);
+  const index = grid.lines.findIndex((line) => line.index > bound.index);
+  // The band's outermost line and its neighbour, extrapolated one stride
+  // outward; `index` is the first line past a low bound, and the last line
+  // before a high one is where the search stops.
+  const [near, next] =
+    index === 0
+      ? [lines[0]?.segment, lines[1]?.segment]
+      : [lines[grid.lines.length - 1]?.segment, lines[grid.lines.length - 2]?.segment];
+  if (!near || !next) return null;
+  const stride = (k: 0 | 1) => ({
+    x: near[k].x - (next[k].x - near[k].x),
+    y: near[k].y - (next[k].y - near[k].y),
+  });
+  return [stride(0), stride(1)];
 }
 
 /** The in-paper segment an input reference stands for, if it is a line at all. */
@@ -680,6 +727,19 @@ export function plannerStepDiagram(
     primitives.push({ kind: 'sheet', width: sheet.width, height: sheet.height });
   }
 
+  // A band step works in a stretch of the paper: each band as a wash under
+  // everything but the paper itself, so "between the ¼ and ¾ lines" is a
+  // place on the card before it is a sentence.
+  const bands = step.grid && !step.grid.pleat ? step.grid.regions : [];
+  const bandBounds = bands.map((region) =>
+    region.bounds.map((bound) => gridBoundSegment(sequence, frame, step, bound))
+  );
+  for (const [lo, hi] of bandBounds) {
+    if (lo && hi) {
+      primitives.push({ kind: 'region', corners: [xy(lo[0]), xy(lo[1]), xy(hi[1]), xy(hi[0])] });
+    }
+  }
+
   // The sheet as it stands: everything folded so far, over the paper and under
   // this step's own references.
   const patterned = (options.earlier ?? 'all') === 'all';
@@ -694,8 +754,17 @@ export function plannerStepDiagram(
   // A pleat: the whole family, each line full-length in the direction the
   // pleat gives it, read from the front like every other direction here.
   // Nothing is brought onto anything and nothing is named, so no arrow and
-  // no letters.
+  // no letters. A band step is the same picture inside its bands, with the
+  // lines each band is sighted from picked out.
   if (step.grid) {
+    bands.forEach((region, b) => {
+      region.bounds.forEach((bound, k) => {
+        const segment = bandBounds[b]?.[k];
+        if (segment && !bound.edge && bound.line_id !== null) {
+          primitives.push(spanLine(segment, 'highlight'));
+        }
+      });
+    });
     for (const line of frame.gridLines(step)) {
       primitives.push(spanLine(line.segment, styleOf(line.direction, true)));
     }

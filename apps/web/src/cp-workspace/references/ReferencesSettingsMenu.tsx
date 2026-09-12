@@ -141,6 +141,21 @@ export function ReferencesSettingsMenu({
             </span>
           </DropdownMenu.CheckboxItem>
           <DropdownMenu.CheckboxItem
+            className="context-menu__item context-menu__item--nested"
+            checked={settings.gridWhereNeeded}
+            disabled={!settings.precreaseGrid}
+            onCheckedChange={(checked) => onChange({ gridWhereNeeded: checked === true })}
+          >
+            <span className="context-menu__icon">
+              <DropdownMenu.ItemIndicator>
+                <Check size={12} />
+              </DropdownMenu.ItemIndicator>
+            </span>
+            <span className="context-menu__label">
+              {t('panels:references.settings.gridWhereNeeded', 'Only where needed')}
+            </span>
+          </DropdownMenu.CheckboxItem>
+          <DropdownMenu.CheckboxItem
             className="context-menu__item"
             checked={settings.showPinches}
             onCheckedChange={(checked) => onChange({ showPinches: checked === true })}

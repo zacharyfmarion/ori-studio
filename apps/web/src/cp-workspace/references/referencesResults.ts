@@ -165,6 +165,8 @@ export interface ReferencesPlanRecord {
    * setting on screen is re-planned, whenever that comes to light.
    */
   precreaseGrid: boolean;
+  /** The "Only where needed" setting this plan was computed under, likewise. */
+  gridWhereNeeded: boolean;
   /**
    * The worker planner still sitting on this plan's final state, when there is
    * one — what "Starting from: this sequence" scores against. Only a

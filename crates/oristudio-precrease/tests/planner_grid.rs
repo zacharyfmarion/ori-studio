@@ -5,7 +5,7 @@ mod common;
 
 use common::*;
 
-use oristudio_precrease::planner::PlannerOptions;
+use oristudio_precrease::planner::{GridMode, PlannerOptions};
 use oristudio_precrease::predicates::Ref;
 use oristudio_precrease::sequence::{Sequence, StepKind};
 use oristudio_precrease::{Direction, ExactnessClass, GridKind, Side, analyze};
@@ -38,24 +38,23 @@ fn a_pleated_design_opens_with_its_grid() {
             .unwrap_or_else(|| panic!("{file}: no grid"));
         assert_eq!(grid.kind, kind, "{file}");
         assert_eq!(grid.n, n, "{file}");
-        // The grid steps come first, one per family, and are the only grid
-        // steps there are.
-        let families = grid.families as usize;
-        assert!(families >= 1, "{file}");
+        // The grid steps come first — the pleats, then the band steps — and
+        // are the only grid steps there are.
+        let count = grid.steps as usize;
+        assert!(
+            count >= grid.families as usize && grid.families >= 1,
+            "{file}"
+        );
         for (k, step) in seq.steps.iter().enumerate() {
             assert_eq!(step.id as usize, k + 1, "{file}: ids run from one");
             let is_grid = step.kind == StepKind::Grid;
-            assert_eq!(
-                is_grid,
-                k < families,
-                "{file}: step {} out of place",
-                step.id
-            );
+            assert_eq!(is_grid, k < count, "{file}: step {} out of place", step.id);
             assert_eq!(is_grid, step.grid.is_some(), "{file}: step {}", step.id);
         }
         let mut lines = 0;
         let mut cp_lines = 0;
-        for step in &seq.steps[..families] {
+        let mut seen_band = false;
+        for step in &seq.steps[..count] {
             let family = step.grid.as_ref().expect("a grid step carries its family");
             // Pleated from the front, sighted from nothing, exact by
             // construction.
@@ -64,27 +63,42 @@ fn a_pleated_design_opens_with_its_grid() {
             assert!(step.exact && step.marks_exist, "{file}");
             assert_eq!(step.direction, Direction::Unassigned, "{file}");
             assert!(!family.lines.is_empty(), "{file}");
-            assert_eq!(family.family, step.id as usize - 1, "{file}");
+            assert!((family.family as u32) < grid.families, "{file}");
             assert_eq!(family.n, n, "{file}");
-            // The lines alternate, in ascending order, every one on its own
-            // chord; the step's own line is the first of them.
+            // The pleats come before the band steps.
+            if family.pleat {
+                assert!(!seen_band, "{file}: a pleat after a band step");
+            } else {
+                seen_band = true;
+            }
+            // In ascending order, every one on its own chord; the step's own
+            // line is the first of them.
             assert_eq!(step.line_id, family.lines[0].line_id, "{file}");
             for pair in family.lines.windows(2) {
                 assert!(pair[0].index < pair[1].index, "{file}: lines out of order");
-                assert_ne!(
-                    pair[0].direction, pair[1].direction,
-                    "{file}: no alternation"
-                );
-                assert_eq!(
-                    pair[1].index - pair[0].index,
-                    1,
-                    "{file}: a grid line is missing between {} and {}",
-                    pair[0].index,
-                    pair[1].index
-                );
+                if family.pleat {
+                    // A pleat alternates, and skips no line of its level.
+                    assert_ne!(
+                        pair[0].direction, pair[1].direction,
+                        "{file}: no alternation"
+                    );
+                    if let Some(cells) = family.cells {
+                        assert_eq!(
+                            (pair[1].index - pair[0].index) as u32,
+                            cells / family.level.max(1),
+                            "{file}: a grid line is missing between {} and {}",
+                            pair[0].index,
+                            pair[1].index
+                        );
+                    }
+                }
             }
             for line in &family.lines {
                 assert_ne!(line.direction, Direction::Unassigned, "{file}");
+                if !family.pleat && line.pattern_direction != Direction::Unassigned {
+                    // A band step's line is made the way the pattern wants it.
+                    assert_eq!(line.direction, line.pattern_direction, "{file}");
+                }
                 assert_eq!(line.cp_spans.len(), line.cp_line_ids.len(), "{file}");
                 // The step's crease ids are its lines' crease ids.
                 for id in &line.cp_line_ids {
@@ -98,12 +112,41 @@ fn a_pleated_design_opens_with_its_grid() {
                     .unwrap_or_else(|| panic!("{file}: grid line {} unknown", line.line_id));
                 assert_eq!(entry.step, Some(step.id), "{file}: line {}", line.line_id);
                 assert!(
-                    !seq.steps[families..]
+                    !seq.steps[count..]
                         .iter()
                         .any(|s| s.line_id == line.line_id && s.kind != StepKind::Press),
                     "{file}: grid line {} folded again",
                     line.line_id
                 );
+            }
+            // A band is bounded by the sheet's edge or by a line an earlier
+            // grid step made, so the folder can see where it runs — except
+            // an odd base's band (13ths, 25ths), which no halving made and
+            // whose bounds are positions across the sheet.
+            assert_eq!(family.pleat, family.regions.is_empty(), "{file}");
+            for region in &family.regions {
+                assert!(region.lines >= 1, "{file}");
+                for bound in &region.bounds {
+                    if bound.edge {
+                        assert!(bound.line_id.is_none(), "{file}");
+                        continue;
+                    }
+                    let Some(id) = bound.line_id else {
+                        assert!(family.level % 2 == 1, "{file}: a bound off the paper");
+                        continue;
+                    };
+                    let made_by = seq
+                        .lines
+                        .iter()
+                        .find(|l| l.id == id)
+                        .and_then(|l| l.step)
+                        .unwrap_or_else(|| panic!("{file}: bound {id} made by nothing"));
+                    assert!(
+                        made_by < step.id,
+                        "{file}: bound {id} made after step {}",
+                        step.id
+                    );
+                }
             }
             lines += family.lines.len() as u32;
             cp_lines += family.in_pattern;
@@ -125,10 +168,10 @@ fn a_pleated_design_opens_with_its_grid() {
         // Nothing after the grid is a grid line, and something after it is
         // sighted from the grid.
         assert!(
-            seq.steps[..families].iter().any(|s| !s.unlocks.is_empty()),
+            seq.steps[..count].iter().any(|s| !s.unlocks.is_empty()),
             "{file}: no step is sighted from the grid"
         );
-        for later in &seq.steps[families..] {
+        for later in &seq.steps[count..] {
             let Some(w) = later.chosen.and_then(|c| later.witnesses.get(c)) else {
                 continue;
             };
@@ -138,44 +181,40 @@ fn a_pleated_design_opens_with_its_grid() {
                 }
             }
         }
-    }
-}
-
-#[test]
-fn a_design_that_is_not_pleated_has_no_grid_step() {
-    for file in [
-        "crates/oristudio-cp/resources/default-molecules/bird_base.fold",
-        "crates/oristudio-cp/resources/default-molecules/frog_base.fold",
-        "tests/fixtures/precrease/g3d_x19.fold",
-        "tests/fixtures/precrease/claim7-cand9.fold",
-    ] {
-        let seq = plan(file, unbounded_options());
-        assert!(seq.grid.is_none(), "{file}: {:?}", seq.grid);
-        assert!(
-            seq.steps
-                .iter()
-                .all(|s| s.kind != StepKind::Grid && s.grid.is_none()),
-            "{file}"
-        );
-        assert_eq!(seq.totals.grid_lines, 0, "{file}");
+        // Whatever the grid left out, the plan still makes.
+        assert_eq!(seq.totals.unsolved, 0, "{file}");
     }
 }
 
 #[test]
 fn the_grid_can_be_turned_off_and_the_plan_folds_line_by_line() {
     let off = PlannerOptions::from_json(r#"{"precrease_grid": false}"#).expect("options");
-    assert!(!off.precrease_grid);
-    assert!(
+    assert_eq!(off.precrease_grid, GridMode::Off);
+    assert_eq!(
         PlannerOptions::from_json("")
             .expect("defaults")
-            .precrease_grid
+            .precrease_grid,
+        GridMode::WhereNeeded
+    );
+    // The toggle alone still gets a grid; the second flag says how much.
+    assert_eq!(
+        PlannerOptions::from_json(r#"{"grid_where_needed": false}"#)
+            .expect("options")
+            .precrease_grid,
+        GridMode::Whole
+    );
+    assert_eq!(
+        PlannerOptions::from_json(r#"{"precrease_grid": false, "grid_where_needed": true}"#)
+            .expect("options")
+            .precrease_grid,
+        GridMode::Off
     );
     for (file, _, _) in PLEATED {
         let with = plan(file, unbounded_options());
         let without = plan(
             file,
             PlannerOptions {
-                precrease_grid: false,
+                precrease_grid: GridMode::Off,
                 ..unbounded_options()
             },
         );
@@ -202,9 +241,9 @@ fn landmarks_first_leaves_the_grid_where_it_is() {
         let analysis = analyze_cp(&cp);
         let (planner, plain) = plan_component(&analysis.components[0], unbounded_options());
         let hoisted = planner.sequence(true);
-        let families = plain.grid.as_ref().expect("grid").families as usize;
+        let count = plain.grid.as_ref().expect("grid").steps as usize;
         assert_eq!(hoisted.grid, plain.grid, "{file}");
-        for k in 0..families {
+        for k in 0..count {
             assert_eq!(hoisted.steps[k].kind, StepKind::Grid, "{file}");
             assert_eq!(hoisted.steps[k].grid, plain.steps[k].grid, "{file}");
         }

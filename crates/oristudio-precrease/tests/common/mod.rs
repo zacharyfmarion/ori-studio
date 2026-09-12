@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use oristudio_precrease::clock::frozen_clock;
 use oristudio_precrease::fixture_io::{LoadedCp, load_path};
-use oristudio_precrease::planner::{Planner, PlannerOptions};
+use oristudio_precrease::planner::{GridMode, Planner, PlannerOptions};
 use oristudio_precrease::sequence::Sequence;
 use oristudio_precrease::{Component, Line, SheetAnalysis, analyze};
 
@@ -43,7 +43,7 @@ pub fn unbounded_options() -> PlannerOptions {
 /// a time, which is what the per-line schedule tests pin.
 pub fn grid_off_options() -> PlannerOptions {
     PlannerOptions {
-        precrease_grid: false,
+        precrease_grid: GridMode::Off,
         ..unbounded_options()
     }
 }

@@ -1396,12 +1396,19 @@ export interface ReferencesSettings {
    */
   startFromPlan: boolean;
   /**
-   * Open a box- or hex-pleated design with its grid pleated, one step per
-   * family, before anything is sighted. On by default: it is how every folder
-   * precreases such a design. Unlike `landmarksFirst` this changes the plan
-   * itself, so toggling it re-plans (`implementation-plans/precrease-grid-first.md`).
+   * Open a box- or hex-pleated design with its grid pleated before anything is
+   * sighted. On by default: it is how every folder precreases such a design.
+   * Unlike `landmarksFirst` this changes the plan itself, so toggling it
+   * re-plans (`implementation-plans/precrease-grid-first.md`).
    */
   precreaseGrid: boolean;
+  /**
+   * Make the grid only where the pattern needs it — the lines it uses, at the
+   * resolution each part of the sheet needs — rather than every line of the
+   * finest grid edge to edge. On by default; changes the plan, so toggling it
+   * re-plans (`implementation-plans/precrease-grid-where-needed.md`).
+   */
+  gridWhereNeeded: boolean;
 }
 
 /** How the exactness policy classified the component being planned (D8). */
@@ -1465,6 +1472,13 @@ export interface ReferencesPlanSummary {
    * once a grid is pleated.
    */
   gridCpLines: number;
+  /** Grid steps: the pleats and the band steps; 0 without a grid. */
+  gridSteps: number;
+  /**
+   * Crease the grid put on lines where the pattern has none, in sheet
+   * units — what a grid made only where it is needed exists to lower.
+   */
+  gridUnwantedLength: number;
   exactnessClass: ReferencesExactnessClass | null;
   /** Snappable only: the largest distance a line moved, in model units. */
   maxDisplacementModel: number;

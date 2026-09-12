@@ -49,6 +49,7 @@
       "grid": {
         "kind": "box",
         "n": 6,
+        "steps": 2,
         "lines": 10
       }
     },
@@ -145,11 +146,12 @@
       "prototype": 2,
       "panel": null,
       "crate": 0,
-      "note": "Agrees with the prototype's upper bound of 2 (the plan records no certified panel value; its sheet frame was unverified there and is derived from the border loop here). Two of the 89 lines close from the bare sheet; one depth-2 auxiliary pair unlocks the other 87. Pleated on its 50-grid — the default — 65 of the 89 lines are two grid steps, and the rest close from the grid's crossings with no auxiliary fold (line by line: 2).",
+      "note": "Agrees with the prototype's upper bound of 2 (the plan records no certified panel value; its sheet frame was unverified there and is derived from the border loop here). Two of the 89 lines close from the bare sheet; one depth-2 auxiliary pair unlocks the other 87. Pleated on its 50-grid — the default — the verticals are one pleat of 50ths and the horizontals, which the pattern holds only across the middle, a band of 25ths and a band of 50ths there: 72 lines in three grid steps, 65 of them the pattern's, and the rest close from the grid's crossings with no auxiliary fold (line by line: 2).",
       "grid": {
         "kind": "box",
         "n": 50,
-        "lines": 98
+        "steps": 3,
+        "lines": 72
       }
     },
     {
@@ -201,6 +203,7 @@
       "grid": {
         "kind": "hex",
         "n": 16,
+        "steps": 2,
         "lines": 42
       }
     }

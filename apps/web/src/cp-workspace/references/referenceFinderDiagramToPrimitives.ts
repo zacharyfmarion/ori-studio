@@ -77,6 +77,12 @@ export type StepDiagramPrimitive =
    * carries only its outgoing arc.
    */
   | { kind: 'turn-over'; at: readonly [number, number] }
+  /**
+   * A stretch of the paper a step works in, as a light fill under the lines:
+   * the band a grid step's lines are made in, between the bounds the folder
+   * sights them from. A convex polygon, in sheet units.
+   */
+  | { kind: 'region'; corners: readonly (readonly [number, number])[] }
   | { kind: 'point'; at: readonly [number, number]; style: DiagramPointStyleName }
   | { kind: 'label'; at: readonly [number, number]; text: string; style: DiagramPointStyleName };
 

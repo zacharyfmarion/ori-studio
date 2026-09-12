@@ -408,7 +408,9 @@ export const ANALYTICS_EVENTS = {
    * `aux_bucket`, `visible_aux_bucket`, `turn_overs_bucket`,
    * `mixed_steps_bucket`, `duration_bucket`, `exactness_class`, `grid_kind`
    * (`box` / `hex` / `none` — whether the plan opened with a precrease grid),
-   * `grid_lines_bucket` and, on a refusal, `refusal_reason`. Never a fold
+   * `grid_lines_bucket`, `grid_steps_bucket`, `grid_unwanted_bucket` (crease
+   * the grid put where the pattern has none, in tenths of a sheet-length)
+   * and, on a refusal, `refusal_reason`. Never a fold
    * count, a line, a coordinate or anything else derived from the user's
    * geometry — the shape of a design is the design.
    */

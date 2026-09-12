@@ -60,11 +60,36 @@ pub struct GridStepLine {
     pub cp_spans: Vec<[[f64; 2]; 2]>,
 }
 
+/// A line a band of grid lines is bounded by, or the sheet's edge there.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GridBound {
+    /// The family index of the bounding line: `0` or the family's cells for
+    /// the sheet's edge.
+    pub index: i32,
+    /// Where it is across the sheet, as a share of the side the family
+    /// crosses: `index / cells`.
+    pub fraction: f64,
+    /// The sheet's edge rather than a line of the family.
+    pub edge: bool,
+    /// State line id of the bounding line, when it is a line — always one
+    /// an earlier grid step made, so the folder can see it.
+    pub line_id: Option<usize>,
+}
+
+/// A band of a [`GridStep`] that is not a pleat: a run of the level's lines
+/// between two coarser lines the folder can see.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GridRegion {
+    pub bounds: [GridBound; 2],
+    /// How many of the step's lines lie in the band.
+    pub lines: u32,
+}
+
 /// What a [`StepKind::Grid`] step pleats.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GridStep {
     pub kind: GridKind,
-    /// Index of this family in the grid, in the order the steps come.
+    /// Index of this family in the grid.
     pub family: usize,
     /// Cells across the side the grid is anchored to.
     pub n: u32,
@@ -73,11 +98,23 @@ pub struct GridStep {
     /// Distance between adjacent lines.
     pub spacing: f64,
     /// How many strips the family cuts the sheet into, when that is a whole
-    /// number — "pleat into 16ths". `None` for an oblique family, or one
+    /// number. For a pleat, what it pleats into — "pleat into 16ths": the
+    /// finest level the pleat makes. `None` for an oblique family, or one
     /// whose spacing does not divide the side it crosses; the card then
     /// counts the lines instead.
     pub cells: Option<u32>,
-    /// Every line of the family, by ascending index.
+    /// The halving level the step makes, as its cells across the side: a
+    /// pleat's finest level, or a band step's level — "the 32nds". `0` for
+    /// an oblique family.
+    pub level: u32,
+    /// Pleated edge to edge, every line of the level and of every coarser
+    /// level of the family, in one step. Otherwise the step makes its level's
+    /// lines in `regions` only.
+    pub pleat: bool,
+    /// The bands a step that is not a pleat makes its lines in, ascending.
+    #[serde(default)]
+    pub regions: Vec<GridRegion>,
+    /// Every line the step makes, by ascending index.
     pub lines: Vec<GridStepLine>,
     /// How many of them the pattern contains.
     pub in_pattern: u32,
@@ -91,9 +128,11 @@ pub struct GridStep {
 pub struct GridSummary {
     pub kind: GridKind,
     pub n: u32,
-    /// Families pleated, one step each.
+    /// Families the grid makes lines of.
     pub families: u32,
-    /// Lines pleated, over every family.
+    /// Grid steps: the pleats and the band steps.
+    pub steps: u32,
+    /// Lines made, over every family.
     pub lines: u32,
     /// Of those, lines the pattern contains.
     pub cp_lines: u32,
@@ -246,7 +285,7 @@ pub struct Group {
 
 /// Counts for the summary strip: "N folds = M creases + K auxiliary (J
 /// visible)", never "minimum".
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
 pub struct Totals {
     /// Every crease made: CP lines, auxiliary folds and the grid's lines the
     /// pattern does not contain. A press is not a fold and is not here.
@@ -263,6 +302,12 @@ pub struct Totals {
     /// Of those, lines the pattern contains.
     #[serde(default)]
     pub grid_cp_lines: u32,
+    /// Crease the grid's steps put on lines where the pattern has none, in
+    /// sheet units: the whole chord of a grid-only line, and the stretch of
+    /// a pattern line past the pattern's own creases. The number a grid made
+    /// only where it is needed exists to lower.
+    #[serde(default)]
+    pub grid_unwanted_length: f64,
     /// Press steps: extra crease the pattern does not contain, made so a later
     /// step can be sighted. Counted apart from `aux` so "what the design asks
     /// for" and "what correctness cost" never blur.

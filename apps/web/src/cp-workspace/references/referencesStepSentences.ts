@@ -32,6 +32,7 @@ import { perpendicularMotion } from './diagram/plannerDiagram';
 import {
   SHORT_ALIGNMENT,
   chosenWitness,
+  type PrecreaseGridBound,
   type PrecreaseGridStep,
   type PrecreaseSequence,
 } from './precreaseSequence';
@@ -407,6 +408,7 @@ export function describeGridStep(t: TFunction, grid: PrecreaseGridStep): string 
           }
         );
   const count = grid.lines.length;
+  if (!grid.pleat) return describeGridBands(t, grid, ordinal(grid.level), direction);
   const sentence =
     grid.lines[0]?.direction === 'valley'
       ? t('panels:references.planStep.gridValleyFirst', {
@@ -433,6 +435,74 @@ export function describeGridStep(t: TFunction, grid: PrecreaseGridStep): string 
     defaultValue_other:
       'The pattern wants {{count}} of them the other way; they reverse as the model collapses.',
   })}`;
+}
+
+/** `index / cells` in lowest terms, as "3/16". */
+export function gridFraction(index: number, cells: number): string {
+  const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
+  const g = gcd(Math.abs(index), Math.abs(cells)) || 1;
+  return `${index / g}/${cells / g}`;
+}
+
+/**
+ * A band's bound in a sentence: the line the folder can see, the sheet's
+ * edge, or — for an odd base's band, which no halving made — a position
+ * across the sheet.
+ */
+function describeGridBound(
+  t: TFunction,
+  grid: PrecreaseGridStep,
+  bound: PrecreaseGridBound
+): string {
+  const vertical = Math.abs(grid.normal[0]) >= Math.abs(grid.normal[1]);
+  if (bound.edge) {
+    if (vertical) {
+      return bound.index <= 0
+        ? t('panels:references.ref.leftEdge', 'the left edge')
+        : t('panels:references.ref.rightEdge', 'the right edge');
+    }
+    return bound.index <= 0
+      ? t('panels:references.ref.bottomEdge', 'the bottom edge')
+      : t('panels:references.ref.topEdge', 'the top edge');
+  }
+  const fraction = grid.cells === null ? String(bound.index) : gridFraction(bound.index, grid.cells);
+  if (bound.line_id !== null) {
+    return t('panels:references.planStep.gridBoundLine', 'the {{fraction}} line', { fraction });
+  }
+  return vertical
+    ? t('panels:references.planStep.gridBoundAcross', '{{fraction}} of the way across', {
+        fraction,
+      })
+    : t('panels:references.planStep.gridBoundUp', '{{fraction}} of the way up', { fraction });
+}
+
+/**
+ * A grid step that is not a pleat: one level's lines, in the bands the
+ * pattern needs them in, each made the way the pattern wants it — "Add the
+ * 32nds vertically between the 1/4 and 3/4 lines: 8 lines, creased as shown."
+ */
+function describeGridBands(
+  t: TFunction,
+  grid: PrecreaseGridStep,
+  level: string,
+  direction: string
+): string {
+  const bands = grid.regions.map((region) =>
+    t('panels:references.planStep.gridBand', 'between {{lo}} and {{hi}}', {
+      lo: describeGridBound(t, grid, region.bounds[0]),
+      hi: describeGridBound(t, grid, region.bounds[1]),
+    })
+  );
+  const where = bands.join(t('panels:references.planStep.gridBandsAnd', ', and '));
+  return t('panels:references.planStep.gridBands', {
+    count: grid.lines.length,
+    level,
+    direction,
+    where,
+    defaultValue_one: 'Add the {{level}} {{direction}} {{where}}: {{count}} line, creased as shown.',
+    defaultValue_other:
+      'Add the {{level}} {{direction}} {{where}}: {{count}} lines, creased as shown.',
+  });
 }
 
 /** How a direction reads in a row's sentence. */
