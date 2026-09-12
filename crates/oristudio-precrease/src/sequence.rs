@@ -277,6 +277,17 @@ pub struct Step {
     /// can find at this point. Empty for most steps.
     #[serde(default)]
     pub pressed_on: Vec<[[f64; 2]; 2]>,
+    /// The crease this step leaves on its line, in the planner's unit frame:
+    /// the pattern's pieces joined into one run, each end carried outward to
+    /// the reference it stops at — the sheet's edge, or a crease already
+    /// there — so the folder is never told to stop on blank paper. Every one
+    /// of `cp_spans` lies within it; the rest is crease the pattern does not
+    /// contain, made so the fold can be made as a diagram would instruct
+    /// it. Planned with the reach off, the pattern's own runs. Empty for an
+    /// auxiliary step, a press, and a CP line creased along its whole chord,
+    /// whose `extent` says how much of it is made.
+    #[serde(default)]
+    pub made: Vec<[[f64; 2]; 2]>,
     /// Hoisted to phase 0 by `landmarks_first`.
     pub hoisted: bool,
 }
@@ -328,6 +339,12 @@ pub struct Totals {
     /// for" and "what correctness cost" never blur.
     #[serde(default)]
     pub presses: u32,
+    /// Crease the CP steps make past the pattern's own to be made from
+    /// reference to reference (`Step::made` less `Step::cp_spans`), in sheet
+    /// units: the blank between a line's pieces, and the stretch from the
+    /// pattern's end out to the reference the crease stops at.
+    #[serde(default)]
+    pub reach_length: f64,
     /// The exact lower bound within the flat-sheet model: distinct CP lines
     /// off the outline.
     pub lower_bound: u32,

@@ -60,6 +60,13 @@ pub struct PlannerOptions {
     /// before anything is sighted ([`crate::grid`]), and how much of it.
     /// Where needed by default: that is how such a design is precreased.
     pub precrease_grid: GridMode,
+    /// Whether a CP step's crease is one run from reference to reference —
+    /// the pattern's pieces joined, each end carried out to the nearest edge
+    /// or crease the folder can find ([`crate::marks::reach`]) — or exactly
+    /// the pattern's pieces. On by default: it is how a diagram instructs a
+    /// fold. Off keeps the precrease to the pattern, lost ends and all, and
+    /// is what the corpus measurement compares against.
+    pub reach_references: bool,
     pub clock: Clock,
 }
 
@@ -85,6 +92,7 @@ impl Default for PlannerOptions {
             total_budget_ms: 30_000.0,
             prefer_findable_ends: true,
             precrease_grid: GridMode::WhereNeeded,
+            reach_references: true,
             clock: default_clock(),
         }
     }
@@ -92,9 +100,9 @@ impl Default for PlannerOptions {
 
 /// The JSON shape of the options: `{ point_cap, max_depth, depth3_threshold,
 /// max_candidates, stuck_budget_ms, total_budget_ms, precrease_grid,
-/// grid_where_needed }`, all optional. `precrease_grid` is the toggle and
-/// `grid_where_needed` says how much of the grid a plan opens with, so a
-/// caller that sends only the toggle still gets a grid.
+/// grid_where_needed, reach_references }`, all optional. `precrease_grid` is
+/// the toggle and `grid_where_needed` says how much of the grid a plan opens
+/// with, so a caller that sends only the toggle still gets a grid.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct PlannerOptionsJson {
@@ -106,6 +114,7 @@ pub struct PlannerOptionsJson {
     pub total_budget_ms: Option<f64>,
     pub precrease_grid: Option<bool>,
     pub grid_where_needed: Option<bool>,
+    pub reach_references: Option<bool>,
 }
 
 impl PlannerOptions {
@@ -130,6 +139,9 @@ impl PlannerOptions {
         }
         if let Some(c) = parsed.max_candidates {
             opts.stuck.candidates.max_candidates = c.max(1);
+        }
+        if let Some(on) = parsed.reach_references {
+            opts.reach_references = on;
         }
         opts.precrease_grid = match (
             parsed.precrease_grid.unwrap_or(true),
@@ -427,6 +439,7 @@ fn grid_steps(closure: &Closure, sheet: &Sheet) -> Vec<Step> {
                 approximation: None,
                 exact: true,
                 pressed_on: Vec::new(),
+                made: Vec::new(),
                 press: None,
                 grid: Some(GridStep {
                     kind: grid.kind,
@@ -588,6 +601,7 @@ impl Planner {
         };
         let mut closure = Closure::new(sheet, targets, opts.point_cap);
         closure.set_prefer_findable_ends(opts.prefer_findable_ends);
+        closure.set_reach_references(opts.reach_references);
         if let Some(grid) = grid {
             // The grid is a few hundred lines at most, far under the cap; if
             // it is not, the plan goes on without it and says the cap was hit.
@@ -616,6 +630,7 @@ impl Planner {
             closure: Some({
                 let mut closure = Closure::new(sheet, targets, opts.point_cap);
                 closure.set_prefer_findable_ends(opts.prefer_findable_ends);
+                closure.set_reach_references(opts.reach_references);
                 closure
             }),
             exactness: None,
@@ -1285,6 +1300,7 @@ impl Planner {
                 approximation: f.approximation,
                 exact,
                 pressed_on: p.pressed_on.clone(),
+                made: p.made.clone(),
                 press: p.press.as_ref().map(|press| StepPress {
                     at: press.at,
                     point: press.point,
@@ -1421,6 +1437,17 @@ impl Planner {
                 (made - length_of(&crease_runs(&l.line, &l.cp_spans))).max(0.0)
             })
             .sum();
+        // What the CP steps crease past the pattern's own to be made from
+        // reference to reference: the blank joined and the ends carried out.
+        let reach_length: f64 = steps
+            .iter()
+            .filter(|s| s.kind == StepKind::Cp && !s.made.is_empty())
+            .map(|s| {
+                (length_of(&crease_runs(&s.line, &s.made))
+                    - length_of(&crease_runs(&s.line, &s.cp_spans)))
+                .max(0.0)
+            })
+            .sum();
         let cp_lines =
             steps.iter().filter(|s| s.kind == StepKind::Cp).count() as u32 + grid_cp_lines;
         let aux = steps.iter().filter(|s| s.kind == StepKind::Aux).count() as u32;
@@ -1441,6 +1468,7 @@ impl Planner {
             grid_cp_lines,
             grid_unwanted_length,
             presses,
+            reach_length,
             lower_bound: cp_lines + unsolved,
             free_lines,
             unsolved,

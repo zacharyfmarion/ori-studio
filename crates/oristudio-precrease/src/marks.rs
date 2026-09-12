@@ -508,6 +508,77 @@ pub fn settled_end_is_found(state: &State, creased: &Creased, line: &Line, end: 
         })
 }
 
+/// The nearest parameter beyond `t` along `line` — past it in the direction
+/// `forward` says — at which a crease's end would be found by the settled
+/// rule: the sheet's boundary, or the crossing with a line of settled extent
+/// that is creased there and crosses squarely. The boundary always
+/// qualifies, so the answer is always on the sheet.
+///
+/// This is where a press runs to, and where a fold's own crease is carried
+/// to (see [`reach`]): a crease that stops short of anything is an
+/// instruction to stop *somewhere*.
+pub fn findable_end_beyond(
+    state: &State,
+    creased: &Creased,
+    line: &Line,
+    t: f64,
+    forward: bool,
+) -> Option<f64> {
+    let (lo, hi) = state.sheet().clip_parameters(line)?;
+    let mut t_far = if forward { hi } else { lo };
+    for (id, other) in state.lines().iter().enumerate() {
+        if matches!(other.tag, LineTag::Aux | LineTag::RfAux)
+            || other.line.cross(line).abs() < MIN_ANGLE_SINE
+        {
+            continue;
+        }
+        let Some(x) = other.line.intersect(line) else {
+            continue;
+        };
+        let u = line.parameter_of(x);
+        let beyond = if forward { u > t + TOL } else { u < t - TOL };
+        if beyond && (u - t).abs() < (t_far - t).abs() && creased.reaches(state, id, x) {
+            t_far = u;
+        }
+    }
+    Some(t_far)
+}
+
+/// The crease a fold along `line` makes for the pattern's `spans`: one run
+/// from the first piece to the last, each end carried outward to the nearest
+/// reference the folder can find on the paper as it stands.
+///
+/// A diagram's instruction is a whole crease with a reference at each end —
+/// the sheet's edge, or a crease already there. The pattern's own crease on
+/// a line often is not: it arrives in pieces with blank paper between them,
+/// and it stops wherever the design stops needing it. So the run is the
+/// hull of the pieces, and an end that [`settled_end_is_found`] does not
+/// find moves outward, never inward, to [`findable_end_beyond`]. An end that
+/// is found stays exactly where the pattern put it. `None` for empty spans,
+/// which mean the whole chord and already end on the edge.
+pub fn reach(
+    state: &State,
+    creased: &Creased,
+    line: &Line,
+    spans: &[[[f64; 2]; 2]],
+) -> Option<[[f64; 2]; 2]> {
+    let runs = crease_runs(line, spans);
+    let (first, last) = (runs.first()?, runs.last()?);
+    let mut lo = line.parameter_of(first.0);
+    let mut hi = line.parameter_of(last.1);
+    if !settled_end_is_found(state, creased, line, first.0)
+        && let Some(t) = findable_end_beyond(state, creased, line, lo, false)
+    {
+        lo = lo.min(t);
+    }
+    if !settled_end_is_found(state, creased, line, last.1)
+        && let Some(t) = findable_end_beyond(state, creased, line, hi, true)
+    {
+        hi = hi.max(t);
+    }
+    Some([line.point_at(lo), line.point_at(hi)])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -571,6 +642,98 @@ mod tests {
         let runs = creased.runs_of(id).expect("runs");
         assert_eq!(runs.len(), 1, "{runs:?}");
         assert!((runs[0].1 - runs[0].0 - 1.0).abs() < 1e-9, "{runs:?}");
+    }
+
+    /// The pattern's pieces on a line are one crease, and each end of it is
+    /// somewhere: *Abra*'s diagonal arrives as three runs with blank paper
+    /// between them, folded corner to corner.
+    #[test]
+    fn the_pieces_of_a_line_are_one_crease_from_reference_to_reference() {
+        let diagonal = Line::from_points([0.0, 0.0], [1.0, 1.0]).expect("line");
+        let state = state_with(&[diagonal]);
+        let creased = Creased::new(&state);
+        let run = reach(
+            &state,
+            &creased,
+            &diagonal,
+            &[
+                [[0.0, 0.0], [0.1, 0.1]],
+                [[0.25, 0.25], [0.75, 0.75]],
+                [[0.9, 0.9], [1.0, 1.0]],
+            ],
+        )
+        .expect("a run");
+        let ends = [diagonal.parameter_of(run[0]), diagonal.parameter_of(run[1])];
+        let (lo, hi) = state.sheet().clip_parameters(&diagonal).expect("clip");
+        assert!(
+            (ends[0] - lo).abs() < 1e-9 && (ends[1] - hi).abs() < 1e-9,
+            "{run:?}"
+        );
+    }
+
+    /// An end on the sheet's edge, or on a crease crossing squarely, is
+    /// found and stays where the pattern put it — the bias toward more line
+    /// is only for an end that has nothing.
+    #[test]
+    fn a_found_end_stays_put() {
+        let midline = Line::new([1.0, 0.0], 0.5).expect("line");
+        let across = Line::new([0.0, 1.0], 0.3).expect("line");
+        let state = state_with(&[midline, across]);
+        let mut creased = Creased::new(&state);
+        let across_id = state.line_count() - 1;
+        creased.add_whole(&state, across_id);
+        // From the bottom edge up to the crossing with `across`.
+        let run = reach(&state, &creased, &midline, &[[[0.5, 0.0], [0.5, 0.3]]]).expect("a run");
+        let ys = {
+            let mut ys = [run[0][1], run[1][1]];
+            ys.sort_by(f64::total_cmp);
+            ys
+        };
+        assert!(ys[0].abs() < 1e-9 && (ys[1] - 0.3).abs() < 1e-9, "{run:?}");
+    }
+
+    /// An end nowhere goes to the nearest settled reference beyond it: a
+    /// crease crossing squarely, not an auxiliary line's crossing nearer in,
+    /// and the edge when nothing else is there.
+    #[test]
+    fn a_lost_end_reaches_the_nearest_settled_reference() {
+        let midline = Line::new([1.0, 0.0], 0.5).expect("line");
+        let aux = Line::new([0.0, 1.0], 0.6).expect("line");
+        let cp = Line::new([0.0, 1.0], 0.8).expect("line");
+        let mut state = State::new(Sheet::unit_square(), 10_000);
+        state.add_line(midline, LineTag::Cp).expect("line");
+        let aux_id = state.add_line(aux, LineTag::Aux).expect("line").id;
+        let cp_id = state.add_line(cp, LineTag::Cp).expect("line").id;
+        let mut creased = Creased::new(&state);
+        creased.add_whole(&state, aux_id);
+        creased.add_whole(&state, cp_id);
+        // A crease in the middle: the low end has nothing below it but the
+        // edge, the high end an aux crossing at 0.6 and a settled one at 0.8.
+        let run = reach(&state, &creased, &midline, &[[[0.5, 0.2], [0.5, 0.4]]]).expect("a run");
+        let mut ys = [run[0][1], run[1][1]];
+        ys.sort_by(f64::total_cmp);
+        assert!(ys[0].abs() < 1e-9, "to the edge: {run:?}");
+        assert!(
+            (ys[1] - 0.8).abs() < 1e-9,
+            "to the settled crossing: {run:?}"
+        );
+    }
+
+    /// A pinch is a mark a fold can be sighted at, so a crease may end on
+    /// it; and the whole chord needs nothing.
+    #[test]
+    fn a_pinch_is_a_reference_and_the_whole_chord_needs_none() {
+        let midline = Line::new([1.0, 0.0], 0.5).expect("line");
+        let across = Line::new([0.0, 1.0], 0.7).expect("line");
+        let state = state_with(&[midline, across]);
+        let mut creased = Creased::new(&state);
+        let across_id = state.line_count() - 1;
+        creased.add_pinch(&state, across_id, &across, [[0.48, 0.7], [0.52, 0.7]]);
+        let run = reach(&state, &creased, &midline, &[[[0.5, 0.0], [0.5, 0.7]]]).expect("a run");
+        let mut ys = [run[0][1], run[1][1]];
+        ys.sort_by(f64::total_cmp);
+        assert!((ys[1] - 0.7).abs() < 1e-9, "stops at the pinch: {run:?}");
+        assert!(reach(&state, &creased, &midline, &[]).is_none());
     }
 
     #[test]

@@ -505,11 +505,22 @@ fn every_step_is_sighted_from_marks_that_are_on_the_paper() {
 
 /// A press step is exactly a pinch on a line an earlier step made, placed
 /// right before the step that needs the mark, and never claims pattern crease.
+///
+/// With every fold made from reference to reference no fixture needs a press
+/// with its grid on, so iguana-c0 is planned line by line as well: three of
+/// its marks are still made by a press.
 #[test]
 fn a_press_is_a_pinch_on_a_line_already_made_and_claims_no_pattern_crease() {
     let mut seen_one = false;
-    for file in EVERY_FIXTURE {
-        let seq = plan(file);
+    let plans: Vec<(String, Sequence)> = EVERY_FIXTURE
+        .iter()
+        .map(|file| (file.to_string(), plan(file)))
+        .chain(std::iter::once((
+            "iguana-c0 line by line".to_string(),
+            plan_line_by_line("tests/fixtures/precrease/iguana-c0.fold"),
+        )))
+        .collect();
+    for (file, seq) in &plans {
         let made_at = |line: usize| seq.lines.iter().find(|l| l.id == line).and_then(|l| l.step);
         for (k, step) in seq.steps.iter().enumerate() {
             if step.kind != StepKind::Press {
@@ -633,13 +644,19 @@ fn a_press_is_a_pinch_on_a_line_already_made_and_claims_no_pattern_crease() {
 /// chord.
 fn pressed_spans(step: &Step) -> Option<Vec<Span>> {
     match (&step.kind, &step.extent) {
-        // The pattern's spans, and whatever the step pressed on past them.
+        // The crease the step made — the pattern's pieces joined and carried
+        // to references, or the pieces themselves when the plan did not
+        // reach — and whatever the step pressed on past that.
         (StepKind::Cp, _) if !step.cp_spans.is_empty() => Some(
-            step.cp_spans
-                .iter()
-                .chain(&step.pressed_on)
-                .map(|[a, b]| (*a, *b))
-                .collect(),
+            if step.made.is_empty() {
+                &step.cp_spans
+            } else {
+                &step.made
+            }
+            .iter()
+            .chain(&step.pressed_on)
+            .map(|[a, b]| (*a, *b))
+            .collect(),
         ),
         (StepKind::Cp, _) => None,
         (_, Extent::Pinches { spans }) => Some(spans.iter().map(|[a, b]| (*a, *b)).collect()),
@@ -774,11 +791,13 @@ fn a_real_design_turns_over_a_handful_of_times() {
     assert_eq!(folds, 91, "iguana-c0 folds");
     // Presses for marks that were not on the paper and lines whose crease did
     // not reach where a fold used them. Sixteen while every fold was sighted
-    // against the paper as its round began; six now that each is sighted at
+    // against the paper as its round began; six once each was sighted at
     // its own place in the order, where the same round's earlier folds have
-    // left their marks too.
-    assert_eq!(seq.totals.presses, 6, "iguana-c0 presses");
-    assert_eq!(seq.steps.len(), 97, "iguana-c0 steps");
+    // left their marks too; three now that every fold is creased from
+    // reference to reference, so the marks along a fold's own line are there
+    // the moment it is made.
+    assert_eq!(seq.totals.presses, 3, "iguana-c0 presses");
+    assert_eq!(seq.steps.len(), 94, "iguana-c0 steps");
     // 9 while hardness sorted before the ease order. The presentation
     // preference also feeds the stuck search's ease term, so changing it can
     // change which auxiliary fold the search takes and everything after it;

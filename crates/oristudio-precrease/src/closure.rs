@@ -53,7 +53,7 @@ use crate::direction::{Direction, Side, majority};
 use crate::error::PrecreaseError;
 use crate::grid::Grid;
 use crate::line::{Line, LineIndex};
-use crate::marks::{Creased, ends_are_found};
+use crate::marks::{Creased, ends_are_found, reach};
 use crate::predicates::{
     Facts, Witness, all_witnesses, choose, scan_landers, scan_lines, scan_points, witnesses,
 };
@@ -299,6 +299,9 @@ pub struct Closure {
     /// input to the endpoint half of the constructibility test.
     creased: Creased,
     prefer_findable_ends: bool,
+    /// Whether a fold's crease is one run carried out to references
+    /// ([`crate::marks::reach`]) rather than the pattern's pieces as they are.
+    reach_references: bool,
     /// The grid pleated before the first close, if any.
     grid: Option<Grid>,
     stats: ClosureStats,
@@ -345,6 +348,7 @@ impl Closure {
             round: 0,
             creased,
             prefer_findable_ends: true,
+            reach_references: true,
             grid: None,
             stats: ClosureStats::default(),
         }
@@ -422,6 +426,20 @@ impl Closure {
     /// each other and comes out once that measurement has been taken.
     pub fn set_prefer_findable_ends(&mut self, on: bool) {
         self.prefer_findable_ends = on;
+    }
+
+    /// Whether a fold's crease is made as one run from reference to
+    /// reference — the pattern's pieces joined, each end carried outward to
+    /// the nearest edge or crease the folder can find — or as the pattern's
+    /// pieces exactly. On by default: it is how a diagram instructs a fold.
+    /// Off leaves the precrease matching the pattern, ends lost and all.
+    pub fn set_reach_references(&mut self, on: bool) {
+        self.reach_references = on;
+    }
+
+    /// See [`Closure::set_reach_references`].
+    pub fn reach_references(&self) -> bool {
+        self.reach_references
     }
 
     /// Every remaining target whose line can be sighted *and* whose creases
@@ -589,15 +607,30 @@ impl Closure {
     /// A fold runs the width of the sheet, but the *pattern* usually only wants
     /// part of that chord. An auxiliary line has no target and creases whole —
     /// [`crate::pinch`] may cut it back later, but only to marks that are used.
+    /// A pattern line is creased as the folder will crease it: one run from
+    /// reference to reference when the closure reaches for them, so that the
+    /// paper the next sweep judges its targets' ends against is the paper
+    /// the folder will have.
     fn record_crease(&mut self, line_id: usize, line: &Line, target: Option<usize>) {
         let Closure {
             creased,
             state,
             targets,
+            reach_references,
             ..
         } = self;
         match target.map(|t| &targets[t].spans) {
-            Some(spans) if !spans.is_empty() => creased.add_spans(state, line_id, line, spans),
+            Some(spans) if !spans.is_empty() => {
+                let run = if *reach_references {
+                    reach(state, creased, line, spans)
+                } else {
+                    None
+                };
+                match run {
+                    Some(run) => creased.add_spans(state, line_id, line, &[run]),
+                    None => creased.add_spans(state, line_id, line, spans),
+                }
+            }
             _ => creased.add_whole(state, line_id),
         }
     }

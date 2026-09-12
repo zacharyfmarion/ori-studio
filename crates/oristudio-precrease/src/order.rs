@@ -29,9 +29,9 @@ use crate::constants::MIN_ANGLE_SINE;
 use crate::direction::Side;
 use crate::line::Line;
 use crate::marks::{
-    Creased, MIN_ALIGNMENT, crease_overlap, crease_runs, point_mark_exists, settled_end_is_found,
-    witness_alignment, witness_aligns, witness_aligns_at_all, witness_lines_meet,
-    witness_marks_exist, witness_missing_marks,
+    Creased, MIN_ALIGNMENT, crease_overlap, crease_runs, findable_end_beyond, point_mark_exists,
+    reach, settled_end_is_found, witness_alignment, witness_aligns, witness_aligns_at_all,
+    witness_lines_meet, witness_marks_exist, witness_missing_marks,
 };
 use crate::pinch::PINCH_HALF_LENGTH;
 use crate::predicates::{Ref, Witness, all_witnesses, crease_through};
@@ -98,6 +98,13 @@ pub struct Placed {
     /// far end being somewhere the folder could find when this fold was
     /// made. See [`make_marks_real`].
     pub pressed_on: Vec<[[f64; 2]; 2]>,
+    /// The crease this fold leaves on its line, as the runs recorded on the
+    /// paper: with the closure reaching references, one run from the
+    /// pattern's first piece to its last with each end carried to the
+    /// reference it stops at ([`crate::marks::reach`]); without, the
+    /// pattern's own runs. Empty for a press, and for a fold creased along
+    /// its whole chord.
+    pub made: Vec<[[f64; 2]; 2]>,
 }
 
 impl Placed {
@@ -219,7 +226,9 @@ fn order_round(closure: &Closure, members: &[usize]) -> Vec<(usize, f64)> {
 /// part of that chord. An auxiliary fold has no target and creases its whole
 /// chord — the pinch pass may cut it down later, but only to marks that are
 /// used, this one included if a witness names it.
-fn record(creased: &mut Creased, closure: &Closure, folded_index: usize) {
+/// Put fold `folded_index` on the paper, and say where: the runs recorded,
+/// merged, or empty for a fold creased along its whole chord.
+fn record(creased: &mut Creased, closure: &Closure, folded_index: usize) -> Vec<[[f64; 2]; 2]> {
     let f = &closure.folded()[folded_index];
     let state = closure.state();
     // A grid line is creased as its grid step made it: a pleat's line edge
@@ -235,17 +244,41 @@ fn record(creased: &mut Creased, closure: &Closure, folded_index: usize) {
             .unwrap_or(&[]);
         if spans.is_empty() {
             creased.add_whole(state, f.line_id);
-        } else {
-            creased.add_spans(state, f.line_id, &f.line, spans);
+            return Vec::new();
         }
-        return;
+        creased.add_spans(state, f.line_id, &f.line, spans);
+        return runs_of(&f.line, spans);
     }
     match f.target.and_then(|t| closure.targets().get(t)) {
         Some(target) if !target.spans.is_empty() => {
-            creased.add_spans(state, f.line_id, &f.line, &target.spans)
+            // The crease the folder makes for the pattern's pieces: one run
+            // from reference to reference when the closure reaches for
+            // them, the pieces as they are when it does not — the same
+            // rule `Closure::record_crease` keeps its own paper by, applied
+            // here to the paper as it stands in presentation order.
+            let made = if closure.reach_references() {
+                reach(state, creased, &f.line, &target.spans)
+                    .map(|run| vec![run])
+                    .unwrap_or_default()
+            } else {
+                runs_of(&f.line, &target.spans)
+            };
+            creased.add_spans(state, f.line_id, &f.line, &made);
+            made
         }
-        _ => creased.add_whole(state, f.line_id),
+        _ => {
+            creased.add_whole(state, f.line_id);
+            Vec::new()
+        }
     }
+}
+
+/// `spans` merged into runs, as spans.
+fn runs_of(line: &Line, spans: &[[[f64; 2]; 2]]) -> Vec<[[f64; 2]; 2]> {
+    crease_runs(line, spans)
+        .into_iter()
+        .map(|(a, b)| [a, b])
+        .collect()
 }
 
 /// Whether the folder can sight `w` for the fold along `line`: every mark it
@@ -291,7 +324,6 @@ fn press_span(
     if runs.is_empty() {
         return None;
     }
-    let (lo, hi) = state.sheet().clip_parameters(line)?;
     // The run end nearest the mark, and which way the press runs from it.
     let (t_near, _) = runs
         .iter()
@@ -299,36 +331,10 @@ fn press_span(
         .min_by(|a, b| a.1.total_cmp(&b.1))?;
     let forward = t_near < t_p;
     // The nearest findable end beyond the mark: the boundary, or the crossing
-    // with a line that is already creased there and crosses squarely.
-    let mut t_far = if forward { hi } else { lo };
-    for (other_id, other) in state.lines().iter().enumerate() {
-        if other_id == line_id || other.line.cross(line).abs() < MIN_ANGLE_SINE {
-            continue;
-        }
-        // Only a crease whose extent is settled can be an end: an edge, or a CP
-        // line, creased exactly where the pattern says. An auxiliary line is
-        // recorded here as creased along its whole chord, and the pinch pass
-        // will later reduce it to marks — so a crossing with one is not
-        // somewhere the folder can be promised to find.
-        if matches!(other.tag, LineTag::Aux | LineTag::RfAux) {
-            continue;
-        }
-        let Some(x) = other.line.intersect(line) else {
-            continue;
-        };
-        let t = line.parameter_of(x);
-        let beyond = if forward {
-            t > t_p + TOL
-        } else {
-            t < t_p - TOL
-        };
-        if !beyond || !creased.reaches(state, other_id, x) {
-            continue;
-        }
-        if (t - t_p).abs() < (t_far - t_p).abs() {
-            t_far = t;
-        }
-    }
+    // with a line of settled extent that is already creased there and
+    // crosses squarely — `marks::findable_end_beyond`, the rule a fold's own
+    // ends are carried out by.
+    let t_far = findable_end_beyond(state, creased, line, t_p, forward)?;
     let span = [line.point_at(t_near), line.point_at(t_far)];
     Some((span, (t_far - t_near).abs()))
 }
@@ -854,6 +860,7 @@ fn make_marks_real(
             missing: Vec::new(),
             press: Some(press),
             pressed_on: Vec::new(),
+            made: Vec::new(),
         });
     };
     for point in witness_missing_marks(state, creased, witness) {
@@ -1189,8 +1196,8 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
                     missing: witness_missing_marks(state, &creased, w),
                     press: None,
                     pressed_on: Vec::new(),
+                    made: record(&mut creased, closure, i),
                 });
-                record(&mut creased, closure, i);
                 snapshots[i] = Some(creased.clone());
             }
         }
@@ -1264,8 +1271,8 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
                     missing: sighted.missing,
                     press: None,
                     pressed_on: Vec::new(),
+                    made: record(&mut creased, closure, i),
                 });
-                record(&mut creased, closure, i);
                 snapshots[i] = Some(creased.clone());
             }
         }
@@ -1639,6 +1646,99 @@ mod tests {
         let r = repair(&state, &creased, &fold, &w).expect("foldable");
         assert!(r.well && !r.meet);
         assert!(r.cost() > MAX_PRESSES_FOR_PREFERENCE, "cost {}", r.cost());
+    }
+
+    /// *Abra*'s opening: the sheet folded in half each way with the pattern
+    /// wanting only part of each midline, then corner to corner along a
+    /// diagonal the pattern holds in three pieces. Each fold is made as a
+    /// diagram would make it — one crease, edge to edge — and a fold sighted
+    /// from a mark in one of the diagonal's gaps needs no press for it.
+    /// Without the rule the pieces are placed as they are.
+    #[test]
+    fn a_fold_is_one_crease_from_reference_to_reference() {
+        let diagonal = Line::from_points([0.0, 0.0], [1.0, 1.0]).expect("diagonal");
+        let targets = || {
+            vec![
+                Target::new(v(0.5), vec![1], vec![[[0.5, 0.2], [0.5, 1.0]]], 1.0, 0.0),
+                Target::new(h(0.5), vec![2], vec![[[0.0, 0.5], [0.8, 0.5]]], 1.0, 0.0),
+                Target::new(
+                    diagonal,
+                    vec![3, 4, 5],
+                    vec![
+                        [[0.0, 0.0], [0.1, 0.1]],
+                        [[0.25, 0.25], [0.75, 0.75]],
+                        [[0.9, 0.9], [1.0, 1.0]],
+                    ],
+                    1.0,
+                    0.0,
+                ),
+                // Two halvings toward the bottom edge, and a line whose only
+                // witness is the perpendicular through their crossing with
+                // the diagonal, (1/8, 1/8) — in the diagonal's first gap.
+                Target::unassigned(h(0.25), vec![6]),
+                Target::unassigned(h(0.125), vec![7]),
+                Target::new(
+                    v(0.125),
+                    vec![8],
+                    vec![[[0.125, 0.0], [0.125, 0.125]]],
+                    1.0,
+                    0.0,
+                ),
+            ]
+        };
+        let plan = |reach: bool| {
+            let mut c = Closure::new(Sheet::unit_square(), targets(), DEFAULT_POINT_CAP);
+            c.set_reach_references(reach);
+            c.close(&Deadline::unbounded(frozen_clock()))
+                .expect("close");
+            assert!(c.is_complete(), "reach {reach}: {:?}", c.remaining());
+            let placed = order(&c, false);
+            (c, placed)
+        };
+
+        let (c, placed) = plan(true);
+        let f = c.folded();
+        assert!(
+            placed.iter().all(|p| p.press.is_none()),
+            "no press: {:?}",
+            placed
+                .iter()
+                .filter(|p| p.press.is_some())
+                .collect::<Vec<_>>()
+        );
+        let made_of = |line: &Line| -> [[f64; 2]; 2] {
+            let entry = placed
+                .iter()
+                .find(|p| f[p.folded].line == *line)
+                .unwrap_or_else(|| panic!("{line:?} is placed"));
+            let [run] = entry.made.as_slice() else {
+                panic!("one run: {:?}", entry.made);
+            };
+            *run
+        };
+        for line in [v(0.5), h(0.5), diagonal] {
+            let run = made_of(&line);
+            let mut got = [line.parameter_of(run[0]), line.parameter_of(run[1])];
+            got.sort_by(f64::total_cmp);
+            let (lo, hi) = c.state().sheet().clip_parameters(&line).expect("clip");
+            assert!(
+                (got[0] - lo).abs() < 1e-9 && (got[1] - hi).abs() < 1e-9,
+                "{line:?} edge to edge: {got:?} vs [{lo}, {hi}]"
+            );
+        }
+        // The pattern's own runs are what a plan without the rule makes.
+        let (c, placed) = plan(false);
+        let f = c.folded();
+        let entry = placed
+            .iter()
+            .find(|p| p.press.is_none() && f[p.folded].line == diagonal)
+            .expect("the diagonal is placed");
+        assert_eq!(
+            entry.made.len(),
+            3,
+            "the pieces as they are: {:?}",
+            entry.made
+        );
     }
 
     /// A short crease between two marks is creased between them, whatever

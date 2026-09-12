@@ -181,11 +181,13 @@ fn every_manifest_fixture_plans_to_its_recorded_auxiliary_count() {
         }
         // Landmarks-first keeps the totals — the folds, that is. A different
         // order can leave different marks short and so need different presses,
-        // and can crease a band's line further for them.
+        // can crease a band's line further for them, and carries a fold's
+        // ends to whatever reference is nearest at its place in that order.
         let lf = planner.sequence(true);
         let folds_only = |t: &Totals| Totals {
             presses: 0,
             grid_unwanted_length: 0.0,
+            reach_length: 0.0,
             ..*t
         };
         assert_eq!(folds_only(&lf.totals), folds_only(&seq.totals), "{file}");
