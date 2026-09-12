@@ -398,4 +398,14 @@ exactly it.
       the midline edge to edge, step 3's the diagonal corner to corner in
       one dash; with the setting off step 1 goes back to its piece from
       0.207 up, and on again the whole line
+- [x] From the live reading of *Abra*: a perpendicular to the sheet's
+      edge is said and shown as the edge folded onto itself through the
+      mark, and ranks before a swing of a mark onto a line
+      (`FOLD_EASE_ORDER`; step 20 read "fold through P, bringing Q onto A"
+      for a vertical a diagram gives as "fold the bottom edge onto itself
+      through P"); a press that carries a line out is drawn as crease, not
+      as the heavy solid pinch stroke (step 23). Corpus with both: steps
+      4,325 → 4,290, presses 534 → 489, turn-overs 301 → 302, reach and
+      lost ends unchanged; *Abra* 80 → 77 steps and 6 → 3 presses,
+      *Wolpertinger* 167 → 161.
 - [ ] Live check on *Abra* (Zach)
