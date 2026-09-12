@@ -76,6 +76,28 @@ in both places the paper is kept — the closure's `record_crease` and the
 ordering pass's `record` — and one field on a step that says how far it
 creased.
 
+## What the corpus says
+
+`measure_ends -v` at HEAD over the curated benchmark, *Abra*, *Wolpertinger*
+and the crate's fixtures — 56 designs, 4,512 steps, through
+`plan_without_reference_finder`, so ceilings: 863 of 8,630 crease ends are
+nowhere to be found (10.0%), 588 CP steps are made in pieces with 195
+sheet-lengths of blank paper between the pieces, and 711 steps are presses
+(53.5 sheet-lengths of crease). The worst sheets are the ones with the most
+steps — *markhor-detailed* 88 lost ends and 41 steps in pieces of 231
+steps, *frigate-bird* 59 and 25 of 196, *Wolpertinger* 47 and 40 of 169.
+
+The rule's estimated cost on today's order: joining the pieces is those 195
+sheet-lengths, and carrying the 573 lost hull ends out to a reference adds
+111 more — 233 of them under 0.1, 192 between 0.1 and 0.25, 97 between
+0.25 and 0.5, 48 between 0.5 and 1, and 3 over a sheet-length. The long
+ones are the first steps on a blank sheet: *halibut*'s step 1 folds corner
+Se onto corner Nw and the pattern wants 0.12 of that diagonal at one
+corner, so the rule creases the whole diagonal, 1.29 more than the pattern
+has. That is "fold in half diagonally", which is how a diagram opens — but
+it is also a crease across the finished model that the pattern does not
+contain, and it is the case the by-hand reading in §Measurement is for.
+
 ## Approach
 
 ### The rule: *reach*
@@ -120,8 +142,15 @@ is measured, per step and in total, not reasoned about.
   request asks for ("fold more line than is actually necessary"), and it is
   what a diagram does; the alternative — stop somewhere on blank paper — is
   the defect. The extension is bounded by the sheet, and its length is
-  reported so the worst cases can be read by hand. If reading them says a
-  cap is wanted, it is one constant in `marks::reach` and one gate below.
+  reported so the worst cases can be read by hand. If the reading says a
+  cap is wanted, it is one constant in `marks::reach` — and it must mean
+  *leave the end where the pattern has it* when the nearest reference is
+  further than the cap, never *stop part way*: a crease carried half way
+  to a reference has a lost end and more crease, the worse of both. The
+  finer alternative, if the long extensions turn out to be ends nothing
+  later sights from, is to extend only an end a later step uses — that
+  keeps *halibut*'s step 1 a corner crease, at the price of a rule the
+  reader has to know about. Not first.
 - **Nearest reference, not best.** An end 0.02 from the edge with a
   crossing 0.01 beyond it stops at the crossing. Preferring the edge when
   it is within a hair is a refinement to measure separately, not a first
@@ -299,7 +328,11 @@ Baseline at HEAD (`measure_ends -v`, preference on, `plan_without_reference_find
 | corpus | steps | presses | lost ends | in pieces (blank) | reach est. (longest) |
 | --- | --- | --- | --- | --- | --- |
 | *Abra* | 86 | 12 (1.1 sheet-lengths) | 22 / 168 (13.1%) | 9 (3.5) | 1.8 (0.21) |
-| curated + *Abra* + *Wolpertinger* + fixtures | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ |
+| curated + *Abra* + *Wolpertinger* + fixtures (56 designs) | 4,512 | 711 (53.5) | 863 / 8,630 (10.0%) | 588 (195.3) | 110.9 (1.29, *halibut* step 1) |
+
+With the endpoint preference off the same corpus has 1,099 lost ends
+(12.7%) and a reach estimate of 138 sheet-lengths: the preference already
+buys a fifth of the extension, and stays.
 
 - [x] `measure_ends -v`: names lost ends and steps in pieces, replays
       `pressed_on`, counts pieces and blank length, estimates the reach
