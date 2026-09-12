@@ -39,7 +39,7 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::constants::{SKINNY_FLAP_ASPECT, axiom_ease, axiom_search_ease};
+use crate::constants::{SKINNY_FLAP_ASPECT, axiom_search_ease, fold_ease};
 use crate::construct::{Construction, Pt};
 use crate::line::Line;
 use crate::sheet::{CornerName, EdgeSide};
@@ -112,7 +112,8 @@ pub struct Witness {
     pub visible: bool,
     /// The fold leaves a flap thinner than `SKINNY_FLAP_ASPECT` of the sheet.
     pub skinny: bool,
-    /// Axiom ease penalty, 0 (O2) .. 6 (O1).
+    /// Fold ease penalty under [`crate::constants::FOLD_EASE_ORDER`], 0
+    /// (O2) .. 7 (O1).
     pub ease: u8,
     /// Certificate residual between the constructed line and the target.
     pub err: f64,
@@ -132,6 +133,21 @@ impl Witness {
     /// cleaner fold still wins.
     pub fn preference(&self) -> (u8, bool, u64) {
         (self.ease, self.hard, (self.err / 1e-18) as u64)
+    }
+
+    /// An O4 whose line is the sheet's edge: the edge folded onto itself
+    /// through a mark. `[p, m]`, and `m` is the edge.
+    pub fn folds_edge_onto_itself(&self) -> bool {
+        self.axiom == 4 && matches!(self.inputs.get(1), Some(Ref::Edge { .. }))
+    }
+
+    /// Whether the folder makes this fold in one motion: a point or a line
+    /// onto another (O2, O3), a point swung onto a line about a pivot (O5),
+    /// or the edge brought back onto itself through a mark. O6 and O7 line
+    /// two things up at once; an O1 and a perpendicular to a crease are
+    /// sighted rather than swung.
+    pub fn one_motion(&self) -> bool {
+        matches!(self.axiom, 2 | 3 | 5) || self.folds_edge_onto_itself()
     }
 
     /// Ordering key for the closure's own pick, under the search's axiom
@@ -329,6 +345,7 @@ fn witness(
     // are made (fold the centre onto an edge through the far corner), and
     // ReferenceFinder constructs every one of them exactly. Scoring those as
     // hard was wrong.
+    let edge_onto_itself = axiom == 4 && matches!(inputs.get(1), Some(Ref::Edge { .. }));
     Some(Witness {
         axiom,
         inputs,
@@ -337,7 +354,7 @@ fn witness(
         hard: !visible || skinny,
         visible,
         skinny,
-        ease: axiom_ease(axiom).unwrap_or(6) as u8,
+        ease: fold_ease(axiom, edge_onto_itself).unwrap_or(7) as u8,
         err: cert.err,
     })
 }
@@ -714,9 +731,9 @@ pub fn choose(witnesses: &[Witness]) -> Option<usize> {
 }
 
 /// The witness a card would present for `witnesses` on a bare reading — the
-/// ease order `O2 < O3 < O5 < O7 < O6 < O4 < O1` first, then non-hard, then
-/// the smallest residual — for an explanation of a line the plan has not
-/// placed.
+/// ease order `O2 < O3 < O4 on an edge < O5 < O7 < O6 < O4 < O1` first, then
+/// non-hard, then the smallest residual — for an explanation of a line the
+/// plan has not placed.
 pub fn choose_for_card(witnesses: &[Witness]) -> Option<usize> {
     (0..witnesses.len()).min_by_key(|&i| witnesses[i].preference())
 }
@@ -772,6 +789,36 @@ mod tests {
         let o1 = ws.iter().find(|w| w.axiom == 1).expect("o1");
         assert!(o1.inputs.iter().all(|r| matches!(r, Ref::Corner { .. })));
         assert!(o1.who_moves.is_empty());
+    }
+
+    /// *Abra*'s x = 0.293: a mark on the line, two edges perpendicular to
+    /// it. The card says "fold the bottom edge onto itself through P" over
+    /// any swing of a mark onto a line — one motion, the edge lined up along
+    /// its whole length — and a perpendicular to a crease stays where it was.
+    #[test]
+    fn an_edge_folded_onto_itself_through_a_mark_beats_a_swing() {
+        let mut state = State::new(Sheet::unit_square(), DEFAULT_POINT_CAP);
+        // A mark at (0.293, 0.8): the crossing of a horizontal and a
+        // diagonal through it.
+        let across = line([0.0, 1.0], 0.8);
+        let oblique = Line::from_points([0.293, 0.8], [0.0, 0.507]).expect("l");
+        state.add_line(across, LineTag::Cp).expect("across");
+        state.add_line(oblique, LineTag::Cp).expect("oblique");
+        let target = line([1.0, 0.0], 0.293);
+        let ws = all_witnesses(&state, &target);
+        let chosen = &ws[choose_for_card(&ws).expect("some")];
+        assert!(chosen.folds_edge_onto_itself(), "{chosen:?}");
+        assert!(chosen.one_motion());
+        // Below O3 and above O5 in the card's order; a perpendicular to the
+        // horizontal crease through the same mark ranks where O4 always did.
+        let o5 = fold_ease(5, false).expect("o5") as u8;
+        assert!(chosen.ease < o5);
+        let on_crease = ws
+            .iter()
+            .find(|w| w.axiom == 4 && matches!(w.inputs[1], Ref::Line { .. }))
+            .expect("a perpendicular to the crease");
+        assert!(on_crease.ease > o5);
+        assert!(!on_crease.one_motion());
     }
 
     #[test]

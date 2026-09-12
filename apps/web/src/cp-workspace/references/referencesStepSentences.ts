@@ -254,9 +254,11 @@ export function describePlannerStep(
     case 4: {
       // The card draws a perpendicular as a folder makes one — hold the mark,
       // swing a corner onto the line's other arm — when it can find that
-      // corner, and letters it. Say the same thing it shows.
+      // corner, and letters it. Say the same thing it shows. A perpendicular
+      // to the sheet's edge is the edge folded onto itself through the mark,
+      // which is how a diagram says it, and the card shows the whole edge.
       const corner = perpendicularMotion(sequence, unitFrame(sequence), step, witness);
-      sentence = corner
+      sentence = corner && !corner.ontoItself
         ? t(
             'panels:references.planStep.axiom4Corner',
             'Fold through {{p}}, bringing {{q}} onto {{a}}.',

@@ -292,6 +292,43 @@ fn sightable(state: &State, creased: &Creased, line: &Line, w: &Witness) -> bool
         && witness_lines_meet(state, creased, w)
 }
 
+/// For an edge folded onto itself through a mark: how far along `fold` its
+/// foot on that edge is from the nearest crease the pattern wants on the
+/// fold, in sheet units. Zero when the crease runs to that edge.
+fn edge_foot_gap(state: &State, fold: &Line, spans: &[[[f64; 2]; 2]], w: &Witness) -> f64 {
+    let Some(Ref::Edge { id, .. }) = w.inputs.get(1) else {
+        return 0.0;
+    };
+    let Some(foot) = state.line(*id).intersect(fold) else {
+        return 0.0;
+    };
+    let t = fold.parameter_of(foot);
+    let runs: Vec<(f64, f64)> = if spans.is_empty() {
+        state
+            .sheet()
+            .clip_parameters(fold)
+            .map(|(lo, hi)| vec![(lo, hi)])
+            .unwrap_or_default()
+    } else {
+        crease_runs(fold, spans)
+            .into_iter()
+            .map(|(a, b)| (fold.parameter_of(a), fold.parameter_of(b)))
+            .collect()
+    };
+    runs.iter()
+        .map(|&(u, v)| {
+            if t < u {
+                u - t
+            } else if t > v {
+                t - v
+            } else {
+                0.0
+            }
+        })
+        .fold(f64::INFINITY, f64::min)
+        .min(f64::MAX)
+}
+
 /// Where along `line` to press so that its crease covers `t_p`, starting from
 /// its nearest existing run end and running **past** the mark to the nearest end
 /// a folder can find.
@@ -991,28 +1028,45 @@ fn sight(
             repair(state, creased, &fold, witness).map(Repair::cost)
         }
     };
+    // A fold perpendicular to one edge is perpendicular to the opposite
+    // one too, and both are witnesses of equal ease. The folder wants the
+    // edge the crease is at: "fold the bottom edge onto itself" for a
+    // crease that runs up from the bottom, whichever edge the mark is
+    // nearer. So the tie goes to the edge whose foot on the fold is
+    // nearest the crease the pattern wants.
+    let spans: &[[[f64; 2]; 2]] = f
+        .target
+        .and_then(|t| closure.targets().get(t))
+        .map_or(&[], |t| t.spans.as_slice());
+    let at_the_crease = |w: &Witness| -> u64 {
+        if !w.folds_edge_onto_itself() {
+            return 0;
+        }
+        (edge_foot_gap(state, &fold, spans, w) / 1e-9) as u64
+    };
     let pick = |creased: &Creased, witnesses: &[Witness]| -> Option<usize> {
         let already = (0..witnesses.len())
             .filter(|&w| sightable(state, creased, &fold, &witnesses[w]))
-            .min_by_key(|&w| witnesses[w].preference());
+            .min_by_key(|&w| (witnesses[w].preference(), at_the_crease(&witnesses[w])));
         // A fold the folder can already make in one motion is the fold.
         // One with two things to line up at once (O6, O7), or nothing to
-        // move at all (O1, O4), may still lose to a one-motion fold that a
-        // single press would allow.
+        // move at all (O1, a perpendicular to a crease), may still lose to a
+        // one-motion fold that a single press would allow.
         match already {
-            Some(w) if matches!(witnesses[w].axiom, 2 | 3 | 5) => Some(w),
+            Some(w) if witnesses[w].one_motion() => Some(w),
             _ => (0..witnesses.len())
                 .filter_map(|w| cost_of(creased, &witnesses[w]).map(|cost| (w, cost)))
                 .min_by_key(|&(w, cost)| {
                     let (ease, hard, err) = witnesses[w].preference();
+                    let gap = at_the_crease(&witnesses[w]);
                     // Within the budget, the easiest kind of fold; past it,
                     // the fold that costs least. A plan paying four presses
                     // for a fold of an easier kind than one that costs two
                     // is paying in steps for a preference.
                     if cost <= MAX_PRESSES_FOR_PREFERENCE {
-                        (0, ease as usize, cost, hard, err)
+                        (0, ease as usize, cost, hard, err, gap)
                     } else {
-                        (1, cost, ease as usize, hard, err)
+                        (1, cost, ease as usize, hard, err, gap)
                     }
                 })
                 .map(|(w, _)| w),

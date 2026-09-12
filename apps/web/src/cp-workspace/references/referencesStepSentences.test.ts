@@ -231,6 +231,43 @@ describe('a planner step', () => {
     expect(describePlannerStep(t, seq, 4)).toContain('Fold B onto itself so that P lands on A.');
   });
 
+  // Abra step 20: x = 0.293 through a mark, perpendicular to the bottom edge.
+  // A diagram gives that as the edge folded onto itself through the mark, and
+  // so does the card — not as the corner brought onto the edge's other arm,
+  // which is how a perpendicular to a crease is said.
+  it('says a perpendicular to an edge as the edge folded onto itself', () => {
+    const o4 = (line: { kind: 'edge'; id: number; side: 'bottom' } | { kind: 'line'; id: number }) => ({
+      ...sequence.steps[1]!,
+      cp_spans: [
+        [
+          [0.25, 0],
+          [0.25, 0.3],
+        ],
+      ] as [[number, number], [number, number]][],
+      witnesses: [
+        {
+          ...sequence.steps[1]!.witnesses[0]!,
+          axiom: 4,
+          inputs: [{ kind: 'point' as const, id: 50 }, line],
+          who_moves: [],
+        },
+      ],
+      chosen: 0,
+    });
+    const seq = (step: (typeof sequence.steps)[number]) => ({
+      ...sequence,
+      steps: sequence.steps.map((s, i) => (i === 1 ? step : s)),
+      points: [...sequence.points, { id: 50, p: [0.25, 0.8] as [number, number], lines: [5], on_boundary: false }],
+    });
+    expect(describePlannerStep(t, seq(o4({ kind: 'edge', id: 2, side: 'bottom' })), 1)).toContain(
+      'Fold through P, folding A onto itself.'
+    );
+    // A perpendicular to a crease is still the corner swung onto its arm.
+    expect(describePlannerStep(t, seq(o4({ kind: 'line', id: 4 })), 1)).toContain(
+      'Fold through P, bringing Q onto A.'
+    );
+  });
+
   // wolpertinger step 125: an O5 through a mark on the right edge, the edge
   // itself the line the interior mark meets. The crate says the edge is what
   // swings (`who_moves: [2]`): the stretch of it below the pivot is brought
