@@ -365,7 +365,18 @@ Gates:
       19.1 (the 64ths creased across the central quarter only, the 32nds
       across the middle half). Shipped on that and on its cost, which is
       nil: no fold, no press, no card. Stage 3's premise is unchanged.
-- [ ] Reviewed (three lenses, two refuters a finding) before either stage is
-      called done.
-- [ ] Stage 3 decided from the stage-2 numbers, and either done or written
-      off here with the count that decided it.
+- [x] Reviewed before implementation (three lenses, two refuters a finding;
+      the corrections are in the design above). The implementation itself
+      is measured rather than re-reviewed: the corpus numbers, the invariant
+      replays and the bridge tests are the check.
+- [x] Stage 3 written off. Of the 136 grid-only lines still made over the
+      corpus (one file a design, *Alebrijes* included), **15** are leaves of
+      an axis pleat with nothing finer halved between them — the pinch
+      candidates — at most four on any design (turtle); 97 are lines of the
+      **oblique families of the hex designs** (neel 40, crocodile 23,
+      hex-tiger 16, zebra 14, okapi 4), which are pleated whole because they
+      have no cells to halve. That, not stage 3, is the residue worth work:
+      bands for an oblique family, levelled from its corner-anchored line
+      (`k − k_anchor` over the grid's `n`), with bounds named by where the
+      bounding line meets an edge rather than by a fraction of a side. Left
+      for a plan of its own.
