@@ -363,10 +363,10 @@ describe.skipIf(!available)('runPrecreasePlan over the real planner bridge', () 
     );
   }, 120_000);
 
-  // Every CP step's crease crosses the bridge as runs from reference to
-  // reference that hold the pattern's pieces, with the reach length that
-  // cost; asked not to reach, the plan sends the pieces as they are and no
-  // reach at all.
+  // Every CP step's crease crosses the bridge as runs that hold the
+  // pattern's pieces, carried out to references where those are near
+  // enough, with the reach length that cost; asked not to reach, the plan
+  // sends the pieces as they are and no reach at all.
   it('makes each CP step’s crease run from reference to reference, and the pieces when asked', async () => {
     const { result } = await plan('iguana-c0.fold');
     const { sequence } = result;
@@ -389,13 +389,10 @@ describe.skipIf(!available)('runPrecreasePlan over the real planner bridge', () 
       expect(step.made).toEqual([]);
     }
     expect(sequence.totals.reach_length).toBeGreaterThan(0);
-    // Line by line — the grid makes most of the iguana's lines — with and
-    // without the rule: the pieces come back, and the presses with them.
-    const { result: reached } = await plan(
-      'iguana-c0.fold',
-      0,
-      JSON.stringify({ precrease_grid: false })
-    );
+    // Line by line — the grid makes most of the iguana's lines — without
+    // the rule: the pieces come back, and no reach at all. (The presses do
+    // not: a mark on a crease left short is pinched while that crease is
+    // made, whichever way the plan was made.)
     const { result: plain } = await plan(
       'iguana-c0.fold',
       0,
@@ -405,7 +402,6 @@ describe.skipIf(!available)('runPrecreasePlan over the real planner bridge', () 
     expect(
       plain.sequence.steps.some((step) => step.kind === 'cp' && (step.made?.length ?? 0) > 1)
     ).toBe(true);
-    expect(plain.sequence.totals.presses).toBeGreaterThan(reached.sequence.totals.presses ?? 0);
   }, 180_000);
 
   it('plans the iguana component 0 with the auxiliary count the manifest records', async () => {

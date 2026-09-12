@@ -379,9 +379,11 @@ export interface PrecreaseStep {
   exact: boolean;
   /**
    * Crease this step makes past what the pattern asks for, as spans on its
-   * line in the planner's unit frame: a later step lines up against the line
-   * there, so the folder creases that far now rather than in a press of its
-   * own. Empty for most steps.
+   * line in the planner's unit frame, because a later step uses the line
+   * there: a stretch a later step lines up against, or a pinch — a span a
+   * pinch long — at a crossing, for a mark a later step is sighted at. The
+   * folder makes it now rather than in a press of its own. Empty for most
+   * steps.
    */
   pressed_on: PrecreasePlanSegment[];
   /**

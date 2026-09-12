@@ -139,22 +139,70 @@ it never crosses the boundary. Its cost is crease the pattern does not
 contain — the blank between pieces plus the two extensions — and that cost
 is measured, per step and in total, not reasoned about.
 
+### The cap: twice the crease, or the crease as it is
+
+The first cut had no cap: a short crease in the middle of the sheet with
+no reference nearby was extended to the edge, bounded only by the sheet,
+and its length reported. The reading (markhor, step 47 — a fifth of a
+sheet creased top to bottom for a piece a fifth long) said a cap is
+wanted, and said what it must mean: *leave the end where the pattern has
+it* when the nearest reference is too far, never *stop part way* — a crease
+carried half way to a reference has a lost end and more crease, the worse
+of both.
+
+`marks::REACH_MAX_RATIO = 2.0`: the crease a fold makes for the sake of
+references stays **under twice** the pattern's own on that line; at twice
+or beyond, the extension is not made and the crease is shown as the
+pattern has it, ending on blank paper — "fold and unfold, creasing only
+here" is how a diagram gives that one. The budget is the whole line's and
+is spent on the shortest extensions first, so a corner-to-corner diagonal
+the pattern holds at both corners and across the middle is still joined
+(1.4 sheet-lengths of crease for a sheet-length of pattern), a piece with
+a crossing a hair beyond its end still reaches it, and a short crease
+whose only reference is the far edge is left alone. A crease left short
+has ends the folder cannot find — `measure_ends` counts them as lost ends
+still, and now they are the rule's choice rather than a defect: 326 of
+8,464 ends on the corpus (3.9%), read as such.
+
+### Marks the fold could have pinched
+
+The cap costs marks. A crease made whole to the edge crossed every crease
+on its way and left a mark at each; left short, it leaves none, and a
+later fold sighted at one of those crossings paid a press for it — iguana
+went from no presses to three the moment the cap landed, each a pinch on
+one of two short diagonals at a crossing with an edge or the midline,
+which were there when the diagonal was folded. The folder would not have
+made a step of that: they fold along the diagonal once and press it at
+the pattern's crease *and* at the crossing.
+
+So the paper knows about them (`Creased::note_pinchable`, called by
+whoever records a fold): a spot on a fold's line, beyond the crease it
+left, where a crease *already on the paper* crosses it squarely is
+**pinchable** — a mark the fold could have made and has not. `mark_exists`
+counts a pinchable spot as one of a mark's two creases, provided the other
+is there in fact (it is what the pinch is sighted from); a crease end may
+not stop at one, and nothing is drawn there. When a fold is placed and its
+witness names such a mark, `order::pinch_while_folding` makes it real: the
+pinch joins the making step as `pressed_on`, a pinch long, and the paper
+records it. `make_marks_real` keeps the same rule for the residue — a pinch
+located by a crease that was there when the line was folded joins the
+making step rather than becoming a step — and a pinch located by a crease
+made *later* stays a step, since the crossing was not there to sight.
+
+The closure's own paper does the same, so `prefer_sightable` no longer
+waits a sweep for a mark that a pinch at the making step supplies — and
+that is where the turn-overs went: waiting is a sweep, and a sweep
+boundary is where the sheet is turned.
+
 ### What is deliberately not done
 
-- **No cap on the extension.** A short crease in the middle of the sheet
-  with no reference nearby is extended to the edge. That is the bias the
-  request asks for ("fold more line than is actually necessary"), and it is
-  what a diagram does; the alternative — stop somewhere on blank paper — is
-  the defect. The extension is bounded by the sheet, and its length is
-  reported so the worst cases can be read by hand. If the reading says a
-  cap is wanted, it is one constant in `marks::reach` — and it must mean
-  *leave the end where the pattern has it* when the nearest reference is
-  further than the cap, never *stop part way*: a crease carried half way
-  to a reference has a lost end and more crease, the worse of both. The
-  finer alternative, if the long extensions turn out to be ends nothing
-  later sights from, is to extend only an end a later step uses — that
-  keeps *halibut*'s step 1 a corner crease, at the price of a rule the
-  reader has to know about. Not first.
+- **Extend only an end a later step uses.** The finer alternative to the
+  cap — carry an end out only where something later sights from it — is
+  what pinching while folding does for marks, a pinch long rather than the
+  whole extension. For a crease a later step *lines up along*, the
+  existing `pressed_on` join already carries it out at the making step
+  when the far end was findable then. Neither reads the future: both are
+  the ordering pass's hindsight, applied to the step already placed.
 - **Nearest reference, not best.** An end 0.02 from the edge with a
   crossing 0.01 beyond it stops at the crossing. Preferring the edge when
   it is within a hair is a refinement to measure separately, not a first
@@ -172,8 +220,10 @@ is measured, per step and in total, not reasoned about.
   only for an end that has nothing, never for one that has a reference.
 - **No sentence.** A diagram shows how far a crease goes and does not say
   it. The card's sentence stays what it is ("Fold corner Sw onto corner
-  Se"), the picture draws the crease the step makes, and the existing
-  `pressed_on` sentence stays for the residual case it describes.
+  Se"), the picture draws the crease the step makes, and the `pressed_on`
+  sentence — "Also crease where shown past the pattern's line — a later
+  step uses it there" — covers both the stretch a later step lines up
+  against and the pinch a later step is sighted at.
 
 ### Where it lives
 
@@ -435,4 +485,51 @@ exactly it.
       counts steps whose crease is several runs each ending at a reference
       (509 of them, 166 sheet-lengths of blank left blank between
       references) — no longer a defect, and read as such.
-- [ ] Live check on *Abra* (Zach)
+- [x] The closure and the ordering pass fold first what the paper can
+      sight (`c41e2fc1`: witnesses enumerated marks-first before the caps,
+      `prefer_sightable` in the closure, `marks_first` within a round):
+      presses 458 → 296 (51 with a free witness the ease budget let a press
+      beat, 29 for a mark the pattern makes later, 216 necessary), steps
+      4,097, turn-overs 302 → 370 — a wait is a sweep, and a sweep boundary
+      turns the sheet. *Abra* 12 → 0 presses, *plantcient dragon* 16 → 4,
+      markhor 16 → 1.
+- [x] `REACH_MAX_RATIO = 2.0` in `marks::reach`, budget per line spent
+      shortest-first; a pinch located by a crease that was there when the
+      line was folded joins the making step. Corpus against the state above:
+      steps 4,097 → 4,001, presses 296 → 200, turn-overs 370 → 379, lost
+      ends 0 → 312 of 8,462 (creases the rule leaves as the pattern has
+      them), crease past the pattern 122 → 54 sheet-lengths (longest single
+      extension 1.36 → 0.55). markhor's step 47 line (x = 0.463, pattern
+      0.735..0.963) is made 0.537..0.963 — 1.87×, to the crossing at 0.537
+      — rather than top to bottom; iguana line by line 91 steps → 94, with
+      three pinches on the short diagonals.
+- [x] Pinchable marks (`Creased::note_pinchable`, `mark_exists`,
+      `order::pinch_while_folding`, the closure's paper too). Corpus:
+      steps 4,001 → 3,987, rounds 615 → 546, presses 200 → 186, turn-overs
+      379 → 332, lost ends 326 of 8,464 (3.9%), reach 52 sheet-lengths;
+      iguana back to 91 steps and no press at 7 turn-overs (8 before the
+      cap). Per design the turn-overs are where it shows: *halibut* 15 → 9,
+      *roadrunner* 16 → 11, *common wildebeest* 14 → 10, *frigate bird*
+      13 → 9.
+- [x] Two corrections the reading of *Abra* forced, which had gained a
+      press (74 steps → 75): `pick_witness` let one press buy *any* easier
+      fold within the budget, so a free O6 lost to an O7 with a press
+      before it — now a press buys a one-motion fold and nothing else; and
+      a mark that is only a pinchable spot counted like one that is there,
+      so an O2 wanting a pinch beat a free O3 — now `already`, the
+      one-motion fold taken as it stands, is chosen among witnesses whose
+      marks are there in fact (`witness_marks_real`), and a pinch is made
+      only when no such fold exists. Corpus: steps 3,983, presses 182 (8
+      with a free witness, 18 for a mark made later, 156 necessary),
+      turn-overs 332, lost ends 326, reach 52 — unchanged by the second
+      correction, which only took the pinches made while folding from
+      1,431 to **616** (37 sheet-lengths of pinch, against the 70 of reach
+      the cap saved). *Abra* 74 steps, no press, 9 pinches; markhor 198
+      steps and 1 press → 197 and none, reach 8.3 → 4.0; *Wolpertinger*
+      146 either way, reach 5.4 → 2.5.
+- [ ] With `prefer_findable_ends` off the same corpus is 3,992 steps, 191
+      presses, **250** turn-overs, 383 lost ends and 69 of reach: waiting
+      for a crease's ends to become findable now costs a quarter of the
+      turn-overs to buy 57 references and 17 sheet-lengths less crease —
+      the next lever to weigh, against turn-over smoothing across rounds.
+- [ ] Live check on *Abra* and markhor 47/49 (Zach)

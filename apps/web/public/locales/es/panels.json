@@ -945,7 +945,7 @@
       "noAlignment": "Todavía nada en el papel coincide con este pliegue: márcalo tal como se muestra.",
       "partlyReversed": "En el patrón esta línea se pliega en ambos sentidos; el resto se invierte al colapsar el modelo.",
       "pinch": "Solo pellizca: basta con la marca.",
-      "pressedOn": "Marca más allá de la línea del patrón hasta donde se muestra: un paso posterior se alinea ahí con ella.",
+      "pressedOn": "Marca también, donde se muestra, más allá de la línea del patrón: un paso posterior la usa ahí.",
       "pressOut": "Marca solo la parte mostrada.",
       "shortAlignment": "Aquí los pliegues coinciden solo brevemente: alinéalos con cuidado.",
       "unknown": "Dobla usando {{inputs}}.",

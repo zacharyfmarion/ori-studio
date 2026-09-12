@@ -398,7 +398,28 @@ describe('a step that creases on past the pattern', () => {
       ),
     };
     expect(describePlannerStep(t, on, 1)).toBe(
-      `${describePlannerStep(t, sequence, 1)} Crease on past the pattern’s line as far as shown — a later step lines up against it there.`
+      `${describePlannerStep(t, sequence, 1)} Also crease where shown past the pattern’s line — a later step uses it there.`
+    );
+  });
+
+  // A pinch made while folding — a span a pinch long at a crossing, for a
+  // mark a later step is sighted at — is the same instruction: the card
+  // draws where, and the sentence says why.
+  it('says the same of a pinch made while folding', () => {
+    const sequence = plannerSequenceFixture();
+    const pinched = {
+      ...sequence,
+      steps: sequence.steps.map((s, i) =>
+        i === 1
+          ? {
+              ...s,
+              pressed_on: [[[0.5, 0.53], [0.5, 0.47]] as [[number, number], [number, number]]],
+            }
+          : s
+      ),
+    };
+    expect(describePlannerStep(t, pinched, 1)).toBe(
+      `${describePlannerStep(t, sequence, 1)} Also crease where shown past the pattern’s line — a later step uses it there.`
     );
   });
 });

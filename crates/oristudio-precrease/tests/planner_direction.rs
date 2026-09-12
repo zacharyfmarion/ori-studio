@@ -814,10 +814,12 @@ fn a_real_design_turns_over_a_handful_of_times() {
     assert_eq!(seq.totals.presses, 0, "iguana-c0 presses");
     assert_eq!(seq.steps.len(), 91, "iguana-c0 steps");
     // 9 while hardness sorted before the ease order; 6 with the presses; 8
-    // now — waiting for marks is a sweep, and a sweep boundary is where the
-    // sheet is turned over. Two turn-overs for three presses is the trade,
-    // and the corpus is where it is judged.
-    assert_eq!(turn_overs(&seq), 8, "iguana-c0 turn-overs");
+    // once the closure waited for marks — waiting is a sweep, and a sweep
+    // boundary is where the sheet is turned over; 7 now that a mark on a
+    // crease left short is pinched while that crease is made, so nothing
+    // waits for it. Two turn-overs for three presses was the trade, and the
+    // corpus is where it is judged.
+    assert_eq!(turn_overs(&seq), 7, "iguana-c0 turn-overs");
 }
 
 /// The snappable path builds its targets from `SnappedLine`, which carries no
@@ -978,11 +980,17 @@ fn unfound_ends(seq: &Sequence) -> usize {
         // by construction (checked in its own test) and its near end is an
         // existing crease's end, already counted by the step that made it. So
         // only a crease has ends: a CP step's pattern spans, or a full
-        // auxiliary line.
+        // auxiliary line — and not what a step pressed on past its crease,
+        // which is a press or a pinch made while folding, by the same rule.
         let is_pinch =
             step.kind == StepKind::Press || matches!(step.extent, Extent::Pinches { .. });
         if !is_pinch {
-            let ends: Vec<[f64; 2]> = crease_runs(&step.line, &spans)
+            let crease: &[[[f64; 2]; 2]] = if step.made.is_empty() {
+                &step.cp_spans
+            } else {
+                &step.made
+            };
+            let ends: Vec<[f64; 2]> = crease_runs(&step.line, crease)
                 .into_iter()
                 .flat_map(|(a, b)| [a, b])
                 .collect();

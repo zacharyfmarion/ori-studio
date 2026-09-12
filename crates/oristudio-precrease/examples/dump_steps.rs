@@ -84,7 +84,7 @@ fn main() {
             .unwrap_or_default();
         let [a, b] = s.segment;
         println!(
-            "{:>3} {:?}{} O{} {:?} {:?} line n=({:.4},{:.4}) d={:.5} seg ({:.3},{:.3})-({:.3},{:.3}) cp={:?} spans={} made={} marks={} align={:?} exact={} hard={}{}",
+            "{:>3} {:?}{} O{} {:?} {:?} line n=({:.4},{:.4}) d={:.5} seg ({:.3},{:.3})-({:.3},{:.3}) cp={:?} spans={} made={}{}{} marks={} align={:?} exact={} hard={}{}",
             s.id,
             s.kind,
             match s.grid.as_ref() {
@@ -129,6 +129,30 @@ fn main() {
                 .map(|[p, q]| format!("({:.3},{:.3})-({:.3},{:.3})", p[0], p[1], q[0], q[1]))
                 .collect::<Vec<_>>()
                 .join(" "),
+            if s.pressed_on.is_empty() {
+                String::new()
+            } else {
+                format!(
+                    " pressed_on={}",
+                    s.pressed_on
+                        .iter()
+                        .map(|[p, q]| format!(
+                            "({:.3},{:.3})-({:.3},{:.3})",
+                            p[0], p[1], q[0], q[1]
+                        ))
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                )
+            },
+            s.press
+                .as_ref()
+                .map(|p| {
+                    format!(
+                        " press at=({:.3},{:.3}) point={:?} sighted_from={:?}",
+                        p.at[0], p.at[1], p.point, p.sighted_from
+                    )
+                })
+                .unwrap_or_default(),
             s.marks_exist,
             s.alignment,
             s.exact,

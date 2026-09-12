@@ -31,7 +31,7 @@ use oristudio_precrease::fixture_io::load_path;
 use oristudio_precrease::marks::{
     Creased, crease_runs, end_is_found, point_mark_exists, witness_sightable,
 };
-use oristudio_precrease::pinch::Extent;
+use oristudio_precrease::pinch::{Extent, PINCH_HALF_LENGTH};
 use oristudio_precrease::planner::{GridMode, Planner, PlannerOptions};
 use oristudio_precrease::predicates::all_witnesses_on;
 use oristudio_precrease::sequence::{Sequence, StepKind};
@@ -70,6 +70,9 @@ struct Tally {
     presses_made_later: usize,
     /// Their total length, in sheet-sides.
     press_len: f64,
+    /// Marks pinched while the crease they are on was made — a pinch on a
+    /// step's `pressed_on` rather than a press step of its own.
+    pinched_while_folding: usize,
 }
 
 impl Tally {
@@ -91,6 +94,7 @@ impl Tally {
         self.presses_with_free_witness += o.presses_with_free_witness;
         self.presses_made_later += o.presses_made_later;
         self.press_len += o.press_len;
+        self.pinched_while_folding += o.pinched_while_folding;
     }
 }
 
@@ -237,9 +241,16 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize, verbose: bool) -> Tal
             unpressed.add_spans(&state, outcome.id, &step.line, spans);
         }
         // What the step pressed on past the pattern is crease on the paper
-        // too, and a later end may be found on it.
-        if !step.pressed_on.is_empty() {
-            creased.add_spans(&state, outcome.id, &step.line, &step.pressed_on);
+        // too, and a later end may be found on it. A span no longer than a
+        // pinch is a pinch — a mark made while folding, not crease.
+        for span in &step.pressed_on {
+            let len = (span[0][0] - span[1][0]).hypot(span[0][1] - span[1][1]);
+            if len <= 2.0 * PINCH_HALF_LENGTH + 1e-9 {
+                t.pinched_while_folding += 1;
+                creased.add_pinch(&state, outcome.id, &step.line, *span);
+            } else {
+                creased.add_spans(&state, outcome.id, &step.line, &[*span]);
+            }
         }
     }
     for (id, at, free) in presses {
@@ -434,7 +445,7 @@ fn main() {
     println!("\n{planned} designs planned of {}", paths.len());
     for (label, t) in [("preference on ", on), ("preference off", off)] {
         println!(
-            "{label}  steps {:5}  rounds {:5}  phantom {:4}  presses {:4} ({:.1} sheet-sides; {} with a free witness, {} for a mark made later, {} necessary)  turn-overs {:4}  lost ends {:5} / {:5} ({:.1}%)  in pieces {:4} ({:.1} sheet-sides blank)  reach {:.1} sheet-sides (most {:.2})  reversed {:4}",
+            "{label}  steps {:5}  rounds {:5}  phantom {:4}  presses {:4} ({:.1} sheet-sides; {} with a free witness, {} for a mark made later, {} necessary)  pinched while folding {:4}  turn-overs {:4}  lost ends {:5} / {:5} ({:.1}%)  in pieces {:4} ({:.1} sheet-sides blank)  reach {:.1} sheet-sides (most {:.2})  reversed {:4}",
             t.steps,
             t.rounds,
             t.phantom,
@@ -443,6 +454,7 @@ fn main() {
             t.presses_with_free_witness,
             t.presses_made_later,
             t.presses - t.presses_with_free_witness - t.presses_made_later,
+            t.pinched_while_folding,
             t.turn_overs,
             t.lost_ends,
             t.ends,

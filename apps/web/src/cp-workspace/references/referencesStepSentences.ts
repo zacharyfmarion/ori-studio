@@ -346,10 +346,11 @@ export function describePlannerStep(
   } else if (!step.exact) {
     sentence = `${sentence} ${t('panels:references.planStep.inherited', 'Sighted from an approximate crease, so only as exact as that is.')}`;
   }
-  // Crease made past the pattern's own line, because a later step lines up
-  // against the line there: said, so the folder does not stop at the pattern.
+  // Crease made past the pattern's own line — a stretch, or a pinch at a
+  // crossing — because a later step uses the line there: said, so the folder
+  // does not stop at the pattern.
   if (step.pressed_on.length > 0) {
-    sentence = `${sentence} ${t('panels:references.planStep.pressedOn', 'Crease on past the pattern’s line as far as shown — a later step lines up against it there.')}`;
+    sentence = `${sentence} ${t('panels:references.planStep.pressedOn', 'Also crease where shown past the pattern’s line — a later step uses it there.')}`;
   }
   // A press that runs out to a findable end is more than a pinch: that stretch
   // of crease is needed, and the card draws exactly it.

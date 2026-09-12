@@ -945,7 +945,7 @@
       "noAlignment": "Nada no papel coincide ainda com esta dobra — vinque como desenhado.",
       "partlyReversed": "No padrão, esta linha é vincada nos dois sentidos; o restante se inverte quando o modelo se fecha.",
       "pinch": "Apenas belisque: só a marca é necessária.",
-      "pressedOn": "Vinque além da linha do padrão até onde é mostrado — um passo posterior se alinha por ela ali.",
+      "pressedOn": "Vinque também, onde mostrado, além da linha do padrão — um passo posterior a usa ali.",
       "pressOut": "Vinque apenas a parte mostrada.",
       "shortAlignment": "Aqui os vincos coincidem só brevemente — alinhe com cuidado.",
       "unknown": "Dobre usando {{inputs}}.",

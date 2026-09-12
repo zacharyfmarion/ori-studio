@@ -271,10 +271,12 @@ pub struct Step {
     #[serde(default = "default_true")]
     pub exact: bool,
     /// Crease this step makes past what the pattern asks for, as spans on its
-    /// line in the planner's unit frame: a later step lines up against the
-    /// line there, and rather than a press of its own the folder creases that
-    /// far now, while the fold is being made. Its far end is somewhere they
-    /// can find at this point. Empty for most steps.
+    /// line in the planner's unit frame, because a later step uses the line
+    /// there: a stretch a later step lines up against, whose far end is
+    /// somewhere the folder can find at this point; or a pinch — a span a
+    /// pinch long — at a crossing with a crease already there, for a mark a
+    /// later step is sighted at. Rather than a press of its own, the folder
+    /// makes it now, while the fold is being made. Empty for most steps.
     #[serde(default)]
     pub pressed_on: Vec<[[f64; 2]; 2]>,
     /// The crease this step leaves on its line, in the planner's unit frame:

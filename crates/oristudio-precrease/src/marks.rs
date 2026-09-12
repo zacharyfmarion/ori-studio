@@ -38,10 +38,20 @@ use crate::tol::TOL;
 /// — too short to lay another crease against. So [`Creased::reaches`], which
 /// asks whether a spot is marked, sees pinches, and [`Creased::crease_reaches`]
 /// and [`Creased::runs_of`], which ask where the crease is, do not.
+///
+/// A **pinchable** spot is a pinch the folder could have made while the line
+/// was folded, and has not: where the line crosses a crease that was already
+/// on the paper then, beyond the crease the fold left. The fold is made once
+/// and pressed at the pattern's crease; pressing it at the crossing as well
+/// costs no step of its own, only a pinch's length of crease. So a mark there
+/// is on the paper the moment a fold needs it — [`mark_exists`] counts it,
+/// and the ordering pass adds the pinch to the making step — but it is not a
+/// crease, and not a crease end: nothing is drawn there until a fold asks.
 #[derive(Debug, Clone, Default)]
 pub struct Creased {
     runs: Vec<Option<Vec<(f64, f64)>>>,
     pinches: Vec<Vec<(f64, f64)>>,
+    pinchable: Vec<Vec<f64>>,
 }
 
 impl Creased {
@@ -55,6 +65,7 @@ impl Creased {
         }
         Creased {
             pinches: vec![Vec::new(); runs.len()],
+            pinchable: vec![Vec::new(); runs.len()],
             runs,
         }
     }
@@ -69,6 +80,7 @@ impl Creased {
                 .is_some_and(|l| l.tag == LineTag::Edge);
             self.runs.push(if edge { None } else { Some(Vec::new()) });
             self.pinches.push(Vec::new());
+            self.pinchable.push(Vec::new());
         }
     }
 
@@ -122,6 +134,51 @@ impl Creased {
         };
         let (u, v) = (line.parameter_of(span[0]), line.parameter_of(span[1]));
         pinches.push(if u <= v { (u, v) } else { (v, u) });
+    }
+
+    /// Note where `line_id`, just folded, could be pinched while it is:
+    /// every point of the state on it that its crease stops short of, where
+    /// a line already creased there crosses it squarely. Called once, by
+    /// whoever records the fold, with the paper as it stands at that moment
+    /// — a crease made later is not something the folder could have sighted
+    /// the pinch from then.
+    pub fn note_pinchable(&mut self, state: &State, line_id: usize) {
+        self.widen(state);
+        let Some(line) = state.lines().get(line_id) else {
+            return;
+        };
+        let mut spots = Vec::new();
+        for &point in &line.points {
+            let Some(pt) = state.points().get(point) else {
+                continue;
+            };
+            if self.crease_reaches(state, line_id, pt.p) {
+                continue;
+            }
+            let seen = pt.lines.iter().any(|&s| {
+                s != line_id
+                    && state.line(s).cross(&line.line).abs() >= MIN_ANGLE_SINE
+                    && self.reaches(state, s, pt.p)
+            });
+            if seen {
+                spots.push(line.line.parameter_of(pt.p));
+            }
+        }
+        if let Some(entry) = self.pinchable.get_mut(line_id) {
+            entry.extend(spots);
+        }
+    }
+
+    /// Whether `p` on `line_id` is a spot the folder could have pinched
+    /// while the line was folded — see the type's doc. False wherever the
+    /// line is actually creased or pinched: that is [`Creased::reaches`].
+    pub fn pinchable_at(&self, state: &State, line_id: usize, p: [f64; 2]) -> bool {
+        !self.reaches(state, line_id, p) && {
+            let t = state.line(line_id).parameter_of(p);
+            self.pinchable
+                .get(line_id)
+                .is_some_and(|spots| spots.iter().any(|&u| (u - t).abs() <= TOL))
+        }
     }
 
     /// Record a fold creased along its whole chord.
@@ -185,8 +242,31 @@ impl Creased {
 ///
 /// Two creases have to meet there — both made, and both pressed at that spot —
 /// and they have to cross squarely enough to locate it, which is the same
-/// conditioning floor the ordering pass applies to a witness's inputs.
+/// conditioning floor the ordering pass applies to a witness's inputs. One of
+/// the two may be a spot the folder could have pinched while its line was
+/// folded ([`Creased::pinchable_at`]): the other is the crease that pinch is
+/// sighted from, so it has to be there in fact.
 pub fn mark_exists(state: &State, creased: &Creased, p: [f64; 2], lines: &[usize]) -> bool {
+    let present: Vec<usize> = lines
+        .iter()
+        .copied()
+        .filter(|&l| creased.reaches(state, l, p))
+        .collect();
+    let squarely = |a: usize, b: usize| state.line(a).cross(state.line(b)).abs() >= MIN_ANGLE_SINE;
+    present
+        .iter()
+        .enumerate()
+        .any(|(i, &a)| present[i + 1..].iter().any(|&b| squarely(a, b)))
+        || lines
+            .iter()
+            .any(|&l| creased.pinchable_at(state, l, p) && present.iter().any(|&s| squarely(s, l)))
+}
+
+/// Whether the mark at `p` is on the paper in fact — two creases meeting
+/// there, neither of them a pinch still to be made. [`mark_exists`] without
+/// the pinchable spots: the question for a pick between witnesses, where a
+/// mark that costs a pinch, however cheap, should not beat one that is there.
+pub fn mark_is_real(state: &State, creased: &Creased, p: [f64; 2], lines: &[usize]) -> bool {
     let present: Vec<usize> = lines
         .iter()
         .copied()
@@ -197,6 +277,54 @@ pub fn mark_exists(state: &State, creased: &Creased, p: [f64; 2], lines: &[usize
             .iter()
             .any(|&b| state.line(a).cross(state.line(b)).abs() >= MIN_ANGLE_SINE)
     })
+}
+
+/// Whether every mark this witness sights is on the paper in fact — see
+/// [`mark_is_real`].
+pub fn witness_marks_real(state: &State, creased: &Creased, w: &Witness) -> bool {
+    w.inputs.iter().all(|r| match r {
+        Ref::Point { id } => state
+            .points()
+            .get(*id)
+            .is_some_and(|point| mark_is_real(state, creased, point.p, &point.lines)),
+        _ => true,
+    })
+}
+
+/// The lines through `p`, out of `lines`, whose mark there is only a spot
+/// the folder could have pinched — each with a crease that reaches `p` and
+/// crosses it squarely, to sight the pinch from. Empty when two creases
+/// already meet at `p`, or when nothing can be pinched there.
+pub fn pinchable_lines_at(
+    state: &State,
+    creased: &Creased,
+    p: [f64; 2],
+    lines: &[usize],
+) -> Vec<(usize, usize)> {
+    let present: Vec<usize> = lines
+        .iter()
+        .copied()
+        .filter(|&l| creased.reaches(state, l, p))
+        .collect();
+    let squarely = |a: usize, b: usize| state.line(a).cross(state.line(b)).abs() >= MIN_ANGLE_SINE;
+    if present
+        .iter()
+        .enumerate()
+        .any(|(i, &a)| present[i + 1..].iter().any(|&b| squarely(a, b)))
+    {
+        return Vec::new();
+    }
+    lines
+        .iter()
+        .filter(|&&l| creased.pinchable_at(state, l, p))
+        .filter_map(|&l| {
+            present
+                .iter()
+                .copied()
+                .find(|&s| squarely(s, l))
+                .map(|s| (l, s))
+        })
+        .collect()
 }
 
 /// The marks a witness sights that are **not** on the paper, by point id.
@@ -555,10 +683,19 @@ pub fn findable_end_beyond(
     Some(t_far)
 }
 
+/// How much longer than the pattern's own crease a fold's crease may be made
+/// for the sake of references, as a ratio: at this or beyond, an extension
+/// is not made and the crease is shown as the pattern has it, ending on
+/// blank paper. A crease a tenth of a sheet long carried to an edge nine
+/// tenths away is not a reference, it is a different crease; "fold and
+/// unfold, creasing only here" is how a diagram gives that one.
+pub const REACH_MAX_RATIO: f64 = 2.0;
+
 /// The crease a fold along `line` makes for the pattern's `spans`: each
 /// piece with every end carried outward to the nearest reference the folder
 /// can find on the paper as it stands, pieces that then touch merged into
-/// one run.
+/// one run — as long as all that crease stays under [`REACH_MAX_RATIO`]
+/// times the pattern's own.
 ///
 /// A diagram's instruction is a crease with a reference at each end — the
 /// sheet's edge, or a crease already there. The pattern's own crease on a
@@ -568,8 +705,14 @@ pub fn findable_end_beyond(
 /// is found stays exactly where the pattern put it. The excess is the least
 /// that reaches a reference: a piece whose neighbour's reference is nearer
 /// than its own stops there, and where nothing crosses the blank between two
-/// pieces they become one crease. Empty for empty spans, which mean the
-/// whole chord and already end on the edge.
+/// pieces they become one crease.
+///
+/// The ratio is a budget over the whole line, spent on the shortest
+/// extensions first: a corner-to-corner diagonal the pattern holds at both
+/// corners and across the middle is joined (1.4 sheet-lengths for a sheet-
+/// length of pattern), while a short crease whose nearest reference is the
+/// far edge is left as it is rather than made ten times longer. Empty for
+/// empty spans, which mean the whole chord and already end on the edge.
 pub fn reach(
     state: &State,
     creased: &Creased,
@@ -578,30 +721,60 @@ pub fn reach(
 ) -> Vec<[[f64; 2]; 2]> {
     let mut runs: Vec<(f64, f64)> = crease_runs(line, spans)
         .into_iter()
-        .map(|(a, b)| {
-            let (mut lo, mut hi) = (line.parameter_of(a), line.parameter_of(b));
-            if !settled_end_is_found(state, creased, line, a)
-                && let Some(t) = findable_end_beyond(state, creased, line, lo, false)
-            {
-                lo = lo.min(t);
-            }
-            if !settled_end_is_found(state, creased, line, b)
-                && let Some(t) = findable_end_beyond(state, creased, line, hi, true)
-            {
-                hi = hi.max(t);
-            }
-            (lo, hi)
-        })
+        .map(|(a, b)| (line.parameter_of(a), line.parameter_of(b)))
         .collect();
     runs.sort_by(|a, b| a.0.total_cmp(&b.0));
-    let mut merged: Vec<(f64, f64)> = Vec::with_capacity(runs.len());
-    for (u, v) in runs {
-        match merged.last_mut() {
-            Some(last) if u <= last.1 + TOL => last.1 = last.1.max(v),
-            _ => merged.push((u, v)),
+    let needed: f64 = runs.iter().map(|(u, v)| v - u).sum();
+    // Every extension an end could make: (run, low end?, the parameter it
+    // would reach), shortest first.
+    let mut extensions: Vec<(usize, bool, f64)> = Vec::new();
+    for (k, &(lo, hi)) in runs.iter().enumerate() {
+        if !settled_end_is_found(state, creased, line, line.point_at(lo))
+            && let Some(t) = findable_end_beyond(state, creased, line, lo, false)
+            && t < lo - TOL
+        {
+            extensions.push((k, true, t));
+        }
+        if !settled_end_is_found(state, creased, line, line.point_at(hi))
+            && let Some(t) = findable_end_beyond(state, creased, line, hi, true)
+            && t > hi + TOL
+        {
+            extensions.push((k, false, t));
         }
     }
-    merged
+    extensions.sort_by(|a, b| {
+        let len =
+            |e: &(usize, bool, f64)| (e.2 - if e.1 { runs[e.0].0 } else { runs[e.0].1 }).abs();
+        len(a).total_cmp(&len(b))
+    });
+    let merged_total = |runs: &[(f64, f64)]| -> (Vec<(f64, f64)>, f64) {
+        let mut sorted = runs.to_vec();
+        sorted.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let mut merged: Vec<(f64, f64)> = Vec::with_capacity(sorted.len());
+        for (u, v) in sorted {
+            match merged.last_mut() {
+                Some(last) if u <= last.1 + TOL => last.1 = last.1.max(v),
+                _ => merged.push((u, v)),
+            }
+        }
+        let total = merged.iter().map(|(u, v)| v - u).sum();
+        (merged, total)
+    };
+    let mut reached = runs.clone();
+    for (k, low, t) in extensions {
+        let mut trial = reached.clone();
+        if low {
+            trial[k].0 = t;
+        } else {
+            trial[k].1 = t;
+        }
+        let (_, total) = merged_total(&trial);
+        if total < REACH_MAX_RATIO * needed - TOL {
+            reached = trial;
+        }
+    }
+    merged_total(&reached)
+        .0
         .into_iter()
         .map(|(u, v)| [line.point_at(u), line.point_at(v)])
         .collect()
@@ -657,6 +830,69 @@ mod tests {
     /// A crease that arrives in pieces is one crease. iguana-c0's midline is
     /// twenty CP segments of 0.02–0.04; asked whether it lies along another
     /// crease for a pinch's length, piece by piece it never does.
+    /// A crease left short of a crossing with a crease that was already
+    /// there could have been pinched at the crossing while it was made, so
+    /// the mark counts as on the paper — for a witness. It is not a crease
+    /// end: a fold stopping there would stop on blank paper. And a crossing
+    /// with a crease made *later* is nothing of the kind: the folder had
+    /// nothing to sight the pinch from.
+    #[test]
+    fn a_crossing_the_fold_could_have_pinched_is_a_mark_but_not_an_end() {
+        let up = Line::new([1.0, 0.0], 0.5).expect("line");
+        let across = Line::new([0.0, 1.0], 0.6).expect("line");
+        let later = Line::new([0.0, 1.0], 0.3).expect("line");
+        let state = state_with(&[up, across, later]);
+        let id_of = |l: &Line| state.find_line(l).expect("a state line");
+        let (up_id, across_id, later_id) = (id_of(&up), id_of(&across), id_of(&later));
+        let mut creased = Creased::new(&state);
+        creased.add_whole(&state, up_id);
+        // The pattern wants a tenth of the horizontal, from the left edge.
+        creased.add_spans(&state, across_id, &across, &[[[0.0, 0.6], [0.1, 0.6]]]);
+        creased.note_pinchable(&state, across_id);
+        let crossing = state.find_point([0.5, 0.6]).expect("a state point");
+        assert!(creased.pinchable_at(&state, across_id, [0.5, 0.6]));
+        assert!(
+            !creased.pinchable_at(&state, across_id, [0.05, 0.6]),
+            "where the crease is, it is creased, not pinchable"
+        );
+        assert!(!creased.reaches(&state, across_id, [0.5, 0.6]));
+        assert!(point_mark_exists(&state, &creased, crossing), "a mark");
+        assert_eq!(
+            pinchable_lines_at(
+                &state,
+                &creased,
+                [0.5, 0.6],
+                &state.points()[crossing].lines
+            ),
+            vec![(across_id, up_id)],
+            "the horizontal is pinched there, sighted from the vertical"
+        );
+        assert!(
+            !end_is_found(&state, &creased, &up, [0.5, 0.6]),
+            "but not an end for a crease along the vertical to stop at"
+        );
+        // The lower horizontal, folded afterwards and creased whole: its
+        // crossing with the vertical is a real mark, but nothing on the
+        // upper horizontal changes — and the *lower* one, folded after the
+        // upper, cannot have been pinched at a crossing with it either way.
+        creased.add_whole(&state, later_id);
+        creased.note_pinchable(&state, later_id);
+        assert!(!creased.pinchable_at(&state, later_id, [0.5, 0.3]));
+        // Once the pinch is made, the spot is marked in fact.
+        creased.add_pinch(&state, across_id, &across, [[0.47, 0.6], [0.53, 0.6]]);
+        assert!(creased.reaches(&state, across_id, [0.5, 0.6]));
+        assert!(!creased.pinchable_at(&state, across_id, [0.5, 0.6]));
+        assert!(
+            pinchable_lines_at(
+                &state,
+                &creased,
+                [0.5, 0.6],
+                &state.points()[crossing].lines
+            )
+            .is_empty()
+        );
+    }
+
     #[test]
     fn touching_pieces_are_one_run() {
         let midline = Line::new([1.0, 0.0], 0.5).expect("line");
@@ -710,7 +946,7 @@ mod tests {
         let mut state = State::new(Sheet::unit_square(), 10_000);
         state.add_line(across, LineTag::Cp).expect("line");
         let mut creased = Creased::new(&state);
-        for x in [0.15, 0.35, 0.65, 0.85] {
+        for x in [0.08, 0.42, 0.58, 0.92] {
             let up = Line::new([1.0, 0.0], x).expect("line");
             let id = state.add_line(up, LineTag::Cp).expect("line").id;
             creased.add_whole(&state, id);
@@ -734,7 +970,7 @@ mod tests {
             })
             .collect();
         xs.sort_by(|a, b| a[0].total_cmp(&b[0]));
-        let want = [[0.0, 0.15], [0.35, 0.65], [0.85, 1.0]];
+        let want = [[0.0, 0.08], [0.42, 0.58], [0.92, 1.0]];
         assert_eq!(xs.len(), 3, "{xs:?}");
         for (got, want) in xs.iter().zip(want) {
             assert!(
@@ -768,31 +1004,82 @@ mod tests {
     }
 
     /// An end nowhere goes to the nearest settled reference beyond it: a
-    /// crease crossing squarely, not an auxiliary line's crossing nearer in,
-    /// and the edge when nothing else is there.
+    /// crease crossing squarely, not an auxiliary line's crossing nearer in.
     #[test]
     fn a_lost_end_reaches_the_nearest_settled_reference() {
         let midline = Line::new([1.0, 0.0], 0.5).expect("line");
-        let aux = Line::new([0.0, 1.0], 0.6).expect("line");
-        let cp = Line::new([0.0, 1.0], 0.8).expect("line");
+        let below = Line::new([0.0, 1.0], 0.15).expect("line");
+        let aux = Line::new([0.0, 1.0], 0.45).expect("line");
+        let cp = Line::new([0.0, 1.0], 0.5).expect("line");
         let mut state = State::new(Sheet::unit_square(), 10_000);
         state.add_line(midline, LineTag::Cp).expect("line");
+        let below_id = state.add_line(below, LineTag::Cp).expect("line").id;
         let aux_id = state.add_line(aux, LineTag::Aux).expect("line").id;
         let cp_id = state.add_line(cp, LineTag::Cp).expect("line").id;
         let mut creased = Creased::new(&state);
+        creased.add_whole(&state, below_id);
         creased.add_whole(&state, aux_id);
         creased.add_whole(&state, cp_id);
-        // A crease in the middle: the low end has nothing below it but the
-        // edge, the high end an aux crossing at 0.6 and a settled one at 0.8.
+        // A crease in the middle: the low end a settled crossing at 0.15,
+        // the high end an aux crossing at 0.45 and a settled one at 0.5.
         let [run] = reach(&state, &creased, &midline, &[[[0.5, 0.2], [0.5, 0.4]]])[..] else {
             panic!("one run");
         };
         let mut ys = [run[0][1], run[1][1]];
         ys.sort_by(f64::total_cmp);
-        assert!(ys[0].abs() < 1e-9, "to the edge: {run:?}");
         assert!(
-            (ys[1] - 0.8).abs() < 1e-9,
+            (ys[0] - 0.15).abs() < 1e-9,
+            "to the crossing below: {run:?}"
+        );
+        assert!(
+            (ys[1] - 0.5).abs() < 1e-9,
             "to the settled crossing: {run:?}"
+        );
+    }
+
+    /// markhor's step 49: a crease a fifth of a sheet long whose nearest
+    /// reference below is most of a sheet away. Carried there it would be
+    /// several times the crease the pattern wants — a different crease, not
+    /// a reference — so the crease is left as the pattern has it. The budget
+    /// is the whole line's, spent on the shortest extensions first: the near
+    /// edge is reached and the far one is not.
+    #[test]
+    fn a_reference_too_far_for_the_crease_is_not_reached() {
+        let midline = Line::new([1.0, 0.0], 0.5).expect("line");
+        let state = state_with(&[midline]);
+        let creased = Creased::new(&state);
+        // Nothing crosses: the only references are the edges, 0.1 and 0.7
+        // away from a crease of 0.2.
+        let [run] = reach(&state, &creased, &midline, &[[[0.5, 0.7], [0.5, 0.9]]])[..] else {
+            panic!("one run");
+        };
+        let mut ys = [run[0][1], run[1][1]];
+        ys.sort_by(f64::total_cmp);
+        assert!(
+            (ys[0] - 0.7).abs() < 1e-9,
+            "the far edge is not reached: {run:?}"
+        );
+        assert!((ys[1] - 1.0).abs() < 1e-9, "the near one is: {run:?}");
+        // With no reference within the budget at all, the crease is the
+        // pattern's own.
+        let [run] = reach(&state, &creased, &midline, &[[[0.5, 0.4], [0.5, 0.6]]])[..] else {
+            panic!("one run");
+        };
+        let mut ys = [run[0][1], run[1][1]];
+        ys.sort_by(f64::total_cmp);
+        assert!(
+            (ys[0] - 0.4).abs() < 1e-9 && (ys[1] - 0.6).abs() < 1e-9,
+            "{run:?}"
+        );
+        // Twice as long is the line: a crease of 0.2 is not carried 0.2.
+        let [run] = reach(&state, &creased, &midline, &[[[0.5, 0.2], [0.5, 0.4]]])[..] else {
+            panic!("one run");
+        };
+        let mut ys = [run[0][1], run[1][1]];
+        ys.sort_by(f64::total_cmp);
+        assert!(
+            (ys[0] - 0.2).abs() < 1e-9 && (ys[1] - 0.4).abs() < 1e-9,
+            "{run:?}"
         );
     }
 

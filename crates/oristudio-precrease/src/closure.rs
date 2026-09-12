@@ -681,6 +681,10 @@ impl Closure {
                 } else {
                     creased.add_spans(state, line_id, line, spans);
                 }
+                // Where the fold stops short of a crease already there, the
+                // folder could pinch it while folding: a mark a later fold
+                // can be sighted at with no press before it.
+                creased.note_pinchable(state, line_id);
             }
             _ => creased.add_whole(state, line_id),
         }

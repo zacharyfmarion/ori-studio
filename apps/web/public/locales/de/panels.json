@@ -907,7 +907,7 @@
       "noAlignment": "Noch nichts auf dem Papier passt zu dieser Falte – falte sie wie gezeichnet.",
       "partlyReversed": "Diese Linie ist im Muster in beide Richtungen gefaltet; der Rest kehrt sich beim Zusammenlegen um.",
       "pinch": "Nur kneifen – es wird nur die Markierung gebraucht.",
-      "pressedOn": "Falte über die Musterlinie hinaus so weit wie gezeigt – ein späterer Schritt richtet sich dort daran aus.",
+      "pressedOn": "Falte außerdem, wo gezeigt, über die Musterlinie hinaus – ein späterer Schritt nutzt sie dort.",
       "pressOut": "Nur den gezeigten Teil falten.",
       "shortAlignment": "Die Falten überlappen hier nur kurz – richte sie sorgfältig aus.",
       "unknown": "Falte mit {{inputs}}.",
