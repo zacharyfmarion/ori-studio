@@ -29,6 +29,7 @@ describe('workspace definitions', () => {
     expect(workspaceForPanelId('cp-view-controls')).toBe('edit');
     expect(workspaceForPanelId('simulator')).toBe('simulate');
     expect(workspaceForPanelId('references')).toBe('references');
+    expect(workspaceForPanelId('references-view-controls')).toBe('references');
 
     expect(workspaceForCommandId('view.creasePattern')).toBe('edit');
     expect(workspaceForCommandId('view.simulator')).toBe('simulate');

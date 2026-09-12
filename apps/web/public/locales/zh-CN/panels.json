@@ -901,8 +901,8 @@
     "refusedSheet": "无法将所选位置周围的纸读取为矩形。",
     "searching": "正在查找参考点…",
     "settings": {
-      "candidateCount": "{{n}} 个解",
       "candidates": "候选数",
+      "emptyNote": "打开折痕图以调整其参考的查找方式。",
       "gridWhereNeeded": "仅在需要处",
       "includeApproximate": "包含近似解",
       "landmarksFirst": "先做基准点",
@@ -910,8 +910,8 @@
       "reachReferences": "折痕延伸至参照",
       "sequence": "折叠顺序",
       "showPinches": "显示捏折",
-      "startFromPlan": "从此顺序开始",
-      "trigger": "参考设置"
+      "solutions": "解的数量",
+      "startFromPlan": "从此顺序开始"
     },
     "sheets": {
       "cardTitle_other": "图样 {{n}}：{{count}} 条折痕",
@@ -940,6 +940,7 @@
     "stopping": "正在取消…",
     "targetGone": "所选折痕已不在折痕图中。",
     "title": "参考",
+    "viewportControls": "参考视口控件",
     "warning": {
       "degenerateBorderSegments": "有 {{n}} 条边界折线两端重合，已忽略。",
       "noBorder": "没有边缘折痕：以默认纸张作为纸。",

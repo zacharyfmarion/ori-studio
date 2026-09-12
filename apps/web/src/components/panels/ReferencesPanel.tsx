@@ -7,21 +7,9 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-  Compass,
-  Maximize,
-  RefreshCw,
-  ZoomIn,
-  ZoomOut,
-} from 'lucide-react';
+import { ArrowLeft, Compass } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { ContextMenu } from '../ui/ContextMenu';
-import { IconButton } from '../ui/IconButton';
 import { useContextMenuController } from '../../menus/context/useContextMenuController';
 import type { ReferencesShortcutId } from '../../keyboard/shortcuts';
 import { useShortcutStore } from '../../store/shortcutStore';
@@ -33,10 +21,10 @@ import {
 } from '../../cp-workspace/references/ReferencesCpView';
 import { ReferencesDiagramLayer } from '../../cp-workspace/references/ReferencesDiagramLayer';
 import { useReferencesDiagramScene } from '../../cp-workspace/references/useReferencesDiagramScene';
-import { ReferencesSettingsMenu } from '../../cp-workspace/references/ReferencesSettingsMenu';
 import { ReferencesSheetsSidebar } from '../../cp-workspace/references/ReferencesSheetsSidebar';
 import { ReferencesStepFilmstrip } from '../../cp-workspace/references/ReferencesStepFilmstrip';
 import { ReferencesTargetControls } from '../../cp-workspace/references/ReferencesTargetControls';
+import { ReferencesViewportToolbar } from '../../cp-workspace/references/ReferencesViewportToolbar';
 import {
   buildReferencesActions,
   referencesCommands,
@@ -79,17 +67,21 @@ import { NextDocumentAction } from './NextDocumentAction';
 
 /**
  * The References workspace's dock panel: a composition site. The sheet picker,
- * the step filmstrip, the crease-pattern view and the toolbar are mounted here
- * and wired to each other; every behaviour lives in `cp-workspace/references/`
- * — the store bindings in `useReferencesView` / `useReferencesTarget` /
- * `useReferencesBreakdown`, the verbs in the action catalog, the keys in the
- * `references` shortcut scope. No keyboard handling here (AGENTS.md > Panel
- * components).
+ * the step filmstrip, the crease-pattern view and the viewport bar are mounted
+ * here and wired to each other; every behaviour lives in
+ * `cp-workspace/references/` — the store bindings in `useReferencesView` /
+ * `useReferencesTarget` / `useReferencesBreakdown`, the verbs in the action
+ * catalog, the keys in the `references` shortcut scope. No keyboard handling
+ * here (AGENTS.md > Panel components).
  *
  * The workspace reads top to bottom like a diagram: the steps as a strip of
  * numbered cards, the active step's sentence under it, and the crease pattern
  * below showing the sheet as it stands at that step. The left rail is the
- * document's patterns, one of which is being folded.
+ * document's patterns, one of which is being folded. The header is the title
+ * and, with a target picked, that target's controls; the view verbs float over
+ * the canvas on the Edit workspace's bar, and the settings are the View pane
+ * beside the panel (`ReferencesViewControlsPanel`), which reads the store on
+ * its own.
  *
  * A phone has no room for the rail beside the canvas, so it shows one of the
  * two at a time — the rail as a list screen, the rest as a detail screen with
@@ -102,25 +94,11 @@ import { NextDocumentAction } from './NextDocumentAction';
  * decision, and it is one `targeted` flag.
  */
 
-const ACTION_ICONS: Record<ReferencesActionIcon, typeof ChevronLeft> = {
-  'previous-step': ChevronLeft,
-  'next-step': ChevronRight,
-  'previous-candidate': ChevronsLeft,
-  'next-candidate': ChevronsRight,
-  recompute: RefreshCw,
-  'reset-view': Maximize,
-  'zoom-in': ZoomIn,
-  'zoom-out': ZoomOut,
-};
-
-const VIEW_ACTIONS: readonly ReferencesActionIcon[] = ['zoom-out', 'zoom-in', 'reset-view'];
-
 export function ReferencesPanel() {
   const { t } = useTranslation();
   const view = useReferencesView();
   const controller = useReferencesTarget(view);
-  const settings = useWorkspaceStore((state) => state.referencesSettings);
-  const setReferencesSettings = useWorkspaceStore((state) => state.setReferencesSettings);
+  const showPinches = useWorkspaceStore((state) => state.referencesSettings.showPinches);
   const storedSheet = useWorkspaceStore((state) => state.referencesSelectedSheet);
   const setSelectedSheet = useWorkspaceStore((state) => state.setReferencesSelectedSheet);
 
@@ -178,7 +156,7 @@ export function ReferencesPanel() {
     viewSteps,
     breakdown.activeStep,
     breakdown.activeFinding,
-    settings.showPinches
+    showPinches
   );
   const highlights = targeted ? targetHighlights : planHighlights;
   // Which face the reader is on. Everything the picture says about direction is
@@ -203,6 +181,9 @@ export function ReferencesPanel() {
   const fitView = useCallback(() => viewRef.current?.fit(), []);
   const zoomIn = useCallback(() => viewRef.current?.zoomIn(), []);
   const zoomOut = useCallback(() => viewRef.current?.zoomOut(), []);
+  // The bar's readout mirrors the canvas camera; the camera stays the truth.
+  const [zoomPercent, setZoomPercent] = useState(100);
+  const zoomTo = useCallback((percent: number) => viewRef.current?.setZoomPercent(percent), []);
 
   // The CP-wide analysis is asked for from the Crease Pattern menu, which runs
   // before this panel exists; the request waits in the store until it mounts.
@@ -484,44 +465,6 @@ export function ReferencesPanel() {
                 />
               )}
             </div>
-            <div className="panel-toolbar__group">
-              {VIEW_ACTIONS.map((id) => {
-                const command = commandById(id);
-                if (!command) return null;
-                const Icon = ACTION_ICONS[id];
-                return (
-                  <IconButton
-                    key={id}
-                    size="sm"
-                    variant="toolbar"
-                    title={command.label}
-                    disabled={command.disabled}
-                    onClick={() => runShortcut(command.shortcutId)}
-                  >
-                    <Icon size={14} />
-                  </IconButton>
-                );
-              })}
-              <ReferencesSettingsMenu
-                settings={settings}
-                onChange={setReferencesSettings}
-                disabled={!view.hasDocument}
-                landmarksFirst={breakdown.landmarksFirst}
-                onToggleLandmarksFirst={breakdown.toggleLandmarksFirst}
-                hasPlan={breakdown.record !== null}
-              />
-              <IconButton
-                size="sm"
-                variant="toolbar"
-                title={
-                  commandById('recompute')?.label ?? t('panels:references.recompute', 'Recompute')
-                }
-                disabled={!canRecompute}
-                onClick={recompute}
-              >
-                <RefreshCw size={14} />
-              </IconButton>
-            </div>
           </div>
 
           <ReferencesStepFilmstrip
@@ -553,6 +496,7 @@ export function ReferencesPanel() {
                 diagramStrokes={scene.strokes}
                 selected={highlights.selected}
                 onViewChange={setDiagramCamera}
+                onZoomPercentChange={setZoomPercent}
                 sheetLineIds={sheetIds}
                 creaseVisibility={creaseVisibility}
                 mirrored={mirrored}
@@ -570,6 +514,15 @@ export function ReferencesPanel() {
               camera={diagramCamera}
               lineWidth={view.lineWidth}
             />
+            {view.geometry && (
+              <ReferencesViewportToolbar
+                zoomPercent={zoomPercent}
+                setZoomPercent={zoomTo}
+                commands={commands}
+                run={runShortcut}
+                shortcuts={shortcutOverrides}
+              />
+            )}
             <ContextMenu
               open={contextMenu.open}
               x={contextMenu.x}

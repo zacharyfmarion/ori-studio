@@ -935,8 +935,8 @@
     "refusedSheet": "Der Bogen um diese Auswahl konnte nicht als Rechteck gelesen werden.",
     "searching": "Referenzen werden gesucht…",
     "settings": {
-      "candidateCount": "{{n}} Lösungen",
       "candidates": "Kandidaten",
+      "emptyNote": "Öffne ein Faltmuster, um einzustellen, wie seine Referenzen gefunden werden.",
       "gridWhereNeeded": "Nur wo nötig",
       "includeApproximate": "Näherungslösungen einbeziehen",
       "landmarksFirst": "Orientierungspunkte zuerst",
@@ -944,8 +944,8 @@
       "reachReferences": "Bis zu Referenzen falten",
       "sequence": "Faltfolge",
       "showPinches": "Kniffe anzeigen",
-      "startFromPlan": "Von dieser Folge ausgehen",
-      "trigger": "Referenzeinstellungen"
+      "solutions": "Lösungen",
+      "startFromPlan": "Von dieser Folge ausgehen"
     },
     "sheets": {
       "cardTitle_one": "Muster {{n}}: {{count}} Faltlinie",
@@ -976,6 +976,7 @@
     "stopping": "Wird abgebrochen…",
     "targetGone": "Die gewählte Falte ist nicht mehr im Muster.",
     "title": "Referenzen",
+    "viewportControls": "Ansichtssteuerung der Referenzen",
     "warning": {
       "degenerateBorderSegments": "{{n}} Randlinie(n) haben zusammenfallende Enden und wurden ignoriert.",
       "noBorder": "Keine Randfalten: das Standardpapier wird als Bogen genommen.",

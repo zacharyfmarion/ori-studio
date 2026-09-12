@@ -941,8 +941,8 @@
     "refusedSheet": "The sheet around this pick could not be read as a rectangle.",
     "searching": "Finding references…",
     "settings": {
-      "candidateCount": "{{n}} solutions",
       "candidates": "Candidates",
+      "emptyNote": "Open a crease pattern to adjust how its references are found.",
       "gridWhereNeeded": "Only where needed",
       "includeApproximate": "Include approximate solutions",
       "landmarksFirst": "Landmarks first",
@@ -950,8 +950,8 @@
       "reachReferences": "Crease to references",
       "sequence": "Folding sequence",
       "showPinches": "Show pinches",
-      "startFromPlan": "Start from this sequence",
-      "trigger": "Reference settings"
+      "solutions": "Solutions",
+      "startFromPlan": "Start from this sequence"
     },
     "sheets": {
       "cardTitle_one": "Pattern {{n}}: {{count}} crease",
@@ -982,6 +982,7 @@
     "stopping": "Cancelling…",
     "targetGone": "The picked crease is no longer in the pattern.",
     "title": "References",
+    "viewportControls": "References viewport controls",
     "warning": {
       "degenerateBorderSegments": "{{n}} border crease(s) have coincident ends and were ignored.",
       "noBorder": "No border creases: the default paper is taken as the sheet.",

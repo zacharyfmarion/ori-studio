@@ -40,6 +40,7 @@ const STATIC_PANEL_CONTEXTS: Record<string, EditingContext> = {
   simulator: 'simulate',
   'simulator-view-controls': 'simulate',
   references: 'references',
+  'references-view-controls': 'references',
 };
 
 /**

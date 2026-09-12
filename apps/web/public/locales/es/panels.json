@@ -973,8 +973,8 @@
     "refusedSheet": "La hoja alrededor de esta selección no pudo leerse como un rectángulo.",
     "searching": "Buscando referencias…",
     "settings": {
-      "candidateCount": "{{n}} soluciones",
       "candidates": "Candidatos",
+      "emptyNote": "Abre un patrón de plegado para ajustar cómo se buscan sus referencias.",
       "gridWhereNeeded": "Solo donde haga falta",
       "includeApproximate": "Incluir soluciones aproximadas",
       "landmarksFirst": "Referencias primero",
@@ -982,8 +982,8 @@
       "reachReferences": "Marcar hasta las referencias",
       "sequence": "Secuencia de plegado",
       "showPinches": "Mostrar pellizcos",
-      "startFromPlan": "Partir de esta secuencia",
-      "trigger": "Ajustes de referencias"
+      "solutions": "Soluciones",
+      "startFromPlan": "Partir de esta secuencia"
     },
     "sheets": {
       "cardTitle_one": "Patrón {{n}}: {{count}} pliegue",
@@ -1016,6 +1016,7 @@
     "stopping": "Cancelando…",
     "targetGone": "El pliegue elegido ya no está en el patrón.",
     "title": "Referencias",
+    "viewportControls": "Controles de la vista de referencias",
     "warning": {
       "degenerateBorderSegments": "{{n}} pliegue(s) del borde tienen extremos coincidentes y se ignoraron.",
       "noBorder": "Sin pliegues de borde: se toma el papel predeterminado como hoja.",

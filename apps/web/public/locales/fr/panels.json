@@ -975,8 +975,8 @@
     "refusedSheet": "La feuille autour de cette sélection n’a pas pu être lue comme un rectangle.",
     "searching": "Recherche des références…",
     "settings": {
-      "candidateCount": "{{n}} solutions",
       "candidates": "Candidats",
+      "emptyNote": "Ouvrez un patron de pliage pour régler la recherche de ses références.",
       "gridWhereNeeded": "Seulement où nécessaire",
       "includeApproximate": "Inclure les solutions approximatives",
       "landmarksFirst": "Repères d’abord",
@@ -984,8 +984,8 @@
       "reachReferences": "Marquer jusqu’aux références",
       "sequence": "Séquence de pliage",
       "showPinches": "Afficher les pincements",
-      "startFromPlan": "Partir de cette séquence",
-      "trigger": "Réglages des références"
+      "solutions": "Solutions",
+      "startFromPlan": "Partir de cette séquence"
     },
     "sheets": {
       "cardTitle_one": "Patron {{n}} : {{count}} pli",
@@ -1018,6 +1018,7 @@
     "stopping": "Annulation…",
     "targetGone": "Le pli choisi n’est plus dans le patron.",
     "title": "Références",
+    "viewportControls": "Commandes d'affichage des références",
     "warning": {
       "degenerateBorderSegments": "{{n}} pli(s) de bord ont des extrémités confondues et ont été ignorés.",
       "noBorder": "Aucun pli de bord : le papier par défaut sert de feuille.",

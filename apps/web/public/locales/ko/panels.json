@@ -901,8 +901,8 @@
     "refusedSheet": "이 선택 주변의 종이를 직사각형으로 읽을 수 없었습니다.",
     "searching": "기준점을 찾는 중…",
     "settings": {
-      "candidateCount": "해 {{n}}개",
       "candidates": "후보 수",
+      "emptyNote": "참조를 찾는 방식을 조정하려면 전개도를 여세요.",
       "gridWhereNeeded": "필요한 곳에만",
       "includeApproximate": "근사 해 포함",
       "landmarksFirst": "기준점 먼저",
@@ -910,8 +910,8 @@
       "reachReferences": "기준선까지 접기",
       "sequence": "접기 순서",
       "showPinches": "집기 표시",
-      "startFromPlan": "이 순서에서 시작",
-      "trigger": "참조 설정"
+      "solutions": "해답 수",
+      "startFromPlan": "이 순서에서 시작"
     },
     "sheets": {
       "cardTitle_other": "패턴 {{n}}: 접힘선 {{count}}개",
@@ -940,6 +940,7 @@
     "stopping": "취소 중…",
     "targetGone": "선택한 접는 선이 전개도에 더 이상 없습니다.",
     "title": "참조",
+    "viewportControls": "참조 뷰포트 컨트롤",
     "warning": {
       "degenerateBorderSegments": "{{n}}개의 가장자리 선은 양 끝이 같아 무시했습니다.",
       "noBorder": "테두리 선이 없어 기본 종이를 종이로 사용합니다.",

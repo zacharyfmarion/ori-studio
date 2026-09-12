@@ -6,6 +6,7 @@ import { useWorkspaceViewDrawer } from '../hooks/useWorkspaceViewDrawer';
 import type { ViewPanelId } from '../store/layoutStore';
 import { ErrorBoundary } from './errors/ErrorBoundary';
 import { CpViewControlsPanel } from './panels/CpViewControlsPanel';
+import { ReferencesViewControlsPanel } from './panels/ReferencesViewControlsPanel';
 import { SimulatorViewControlsPanel } from './panels/SimulatorViewControlsPanel';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
@@ -21,6 +22,7 @@ import { IconButton } from './ui/IconButton';
 const VIEW_DRAWER_BODIES: Record<ViewPanelId, ComponentType> = {
   'cp-view-controls': CpViewControlsPanel,
   'simulator-view-controls': SimulatorViewControlsPanel,
+  'references-view-controls': ReferencesViewControlsPanel,
 };
 
 /**

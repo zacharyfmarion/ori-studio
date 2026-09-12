@@ -196,6 +196,34 @@ it('holds its hook order through every mode and run state', () => {
   }
 });
 
+it('keeps the header to the title and floats the view verbs over the canvas', () => {
+  // The zoom buttons, the settings popover and Recompute used to fill the
+  // header's right end. The settings are the View pane now (its own dock
+  // panel), and the verbs are the Edit workspace's bar, mounted only once
+  // there is a pattern to look at.
+  act(() =>
+    root?.render(
+      <TooltipProvider>
+        <ReferencesPanel />
+      </TooltipProvider>
+    )
+  );
+  const query = (selector: string) => container?.querySelector(selector) ?? null;
+  expect(query('.viewport-toolbar')).toBeNull();
+
+  act(() => useWorkspaceStore.setState({ oristudioCpDocument: cpDocument(1) } as never));
+
+  const header = query('.references-panel .panel-toolbar');
+  expect(header?.querySelector('.panel-title')?.textContent).toBe('References');
+  expect(header?.querySelector('button')).toBeNull();
+  const bar = query('.references-panel__body .viewport-toolbar');
+  expect(
+    [...(bar?.querySelectorAll('button') ?? [])].map(
+      (button) => button.getAttribute('aria-label') ?? button.textContent
+    )
+  ).toEqual(['Zoom Out', '100%', 'Zoom In', 'Fit', 'Recompute References']);
+});
+
 /**
  * The phone branch: one screen at a time, swapped by a press and a Back.
  *

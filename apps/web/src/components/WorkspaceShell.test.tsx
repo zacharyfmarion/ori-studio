@@ -25,10 +25,13 @@ vi.mock('./panels/DesignTabStrip', () => ({ DesignTabStrip: () => null }));
 
 // The View drawer *is* mounted here — its trigger is the touch layer's only way
 // back to the pane the dock stops showing, so the wiring is worth asserting. Only
-// its two bodies are stubbed, for the same reason as the dock's panels above.
+// its three bodies are stubbed, for the same reason as the dock's panels above.
 vi.mock('./panels/CpViewControlsPanel', () => ({ CpViewControlsPanel: () => null }));
 vi.mock('./panels/SimulatorViewControlsPanel', () => ({
   SimulatorViewControlsPanel: () => null,
+}));
+vi.mock('./panels/ReferencesViewControlsPanel', () => ({
+  ReferencesViewControlsPanel: () => null,
 }));
 
 import { useLayoutStore } from '../store/layoutStore';
@@ -206,5 +209,20 @@ describe('the workspace dock under a coarse pointer', () => {
     expect(dockviewApi.addPanel).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'cp-view-controls', initialWidth: 260 })
     );
+  });
+
+  it('gives the References workspace the View pill too', () => {
+    // Its settings moved from a header popover into a View pane, so the touch
+    // layer reaches them the way it reaches the other two panes' controls — and
+    // the lane says which pane it is for, which is what the stylesheet reads to
+    // seat the pill in the header's empty right end.
+    stubPointer(true);
+    useLayoutStore.setState({ activeWorkspace: 'references' });
+
+    renderShell();
+
+    const lane = container?.querySelector('.canvas-pill-lane');
+    expect(lane?.getAttribute('data-view-panel')).toBe('references-view-controls');
+    expect(lane?.querySelector('.view-drawer__trigger')?.textContent).toBe('View');
   });
 });

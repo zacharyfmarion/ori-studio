@@ -2825,10 +2825,8 @@
     "panels:references.ref.topEdge": "b63184234eff",
     "panels:references.refusedSheet": "ccbbe0a97f83",
     "panels:references.searching": "5e2cf66d4fd0",
-    "panels:references.settings.candidateCount": "74d955fabc0b",
     "panels:references.settings.candidates": "fdc9c0f69d6a",
     "panels:references.settings.includeApproximate": "d8b5cb2ea90c",
-    "panels:references.settings.trigger": "d39907d15a04",
     "panels:references.sidebar.none": "12bcdfce58c7",
     "panels:references.step.axiom1": "626a510d6876",
     "panels:references.step.axiom2": "da18aff7691c",
@@ -2964,7 +2962,10 @@
     "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
     "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
     "panels:references.planStep.axiom7LineMoves": "98d9a1532eef",
-    "panels:references.settings.reachReferences": "7754d45c3976"
+    "panels:references.settings.reachReferences": "7754d45c3976",
+    "panels:references.settings.emptyNote": "e98539add89f",
+    "panels:references.settings.solutions": "900fe12faa26",
+    "panels:references.viewportControls": "56107b7c5ba3"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5792,10 +5793,8 @@
     "panels:references.ref.topEdge": "b63184234eff",
     "panels:references.refusedSheet": "ccbbe0a97f83",
     "panels:references.searching": "5e2cf66d4fd0",
-    "panels:references.settings.candidateCount": "74d955fabc0b",
     "panels:references.settings.candidates": "fdc9c0f69d6a",
     "panels:references.settings.includeApproximate": "d8b5cb2ea90c",
-    "panels:references.settings.trigger": "d39907d15a04",
     "panels:references.sidebar.none": "12bcdfce58c7",
     "panels:references.step.axiom1": "626a510d6876",
     "panels:references.step.axiom2": "da18aff7691c",
@@ -5931,7 +5930,10 @@
     "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
     "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
     "panels:references.planStep.axiom7LineMoves": "98d9a1532eef",
-    "panels:references.settings.reachReferences": "7754d45c3976"
+    "panels:references.settings.reachReferences": "7754d45c3976",
+    "panels:references.settings.emptyNote": "e98539add89f",
+    "panels:references.settings.solutions": "900fe12faa26",
+    "panels:references.viewportControls": "56107b7c5ba3"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8759,10 +8761,8 @@
     "panels:references.ref.topEdge": "b63184234eff",
     "panels:references.refusedSheet": "ccbbe0a97f83",
     "panels:references.searching": "5e2cf66d4fd0",
-    "panels:references.settings.candidateCount": "74d955fabc0b",
     "panels:references.settings.candidates": "fdc9c0f69d6a",
     "panels:references.settings.includeApproximate": "d8b5cb2ea90c",
-    "panels:references.settings.trigger": "d39907d15a04",
     "panels:references.sidebar.none": "12bcdfce58c7",
     "panels:references.step.axiom1": "626a510d6876",
     "panels:references.step.axiom2": "da18aff7691c",
@@ -8900,7 +8900,10 @@
     "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
     "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
     "panels:references.planStep.axiom7LineMoves": "98d9a1532eef",
-    "panels:references.settings.reachReferences": "7754d45c3976"
+    "panels:references.settings.reachReferences": "7754d45c3976",
+    "panels:references.settings.emptyNote": "e98539add89f",
+    "panels:references.settings.solutions": "900fe12faa26",
+    "panels:references.viewportControls": "56107b7c5ba3"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11677,10 +11680,8 @@
     "panels:references.ref.topEdge": "b63184234eff",
     "panels:references.refusedSheet": "ccbbe0a97f83",
     "panels:references.searching": "5e2cf66d4fd0",
-    "panels:references.settings.candidateCount": "74d955fabc0b",
     "panels:references.settings.candidates": "fdc9c0f69d6a",
     "panels:references.settings.includeApproximate": "d8b5cb2ea90c",
-    "panels:references.settings.trigger": "d39907d15a04",
     "panels:references.sidebar.none": "12bcdfce58c7",
     "panels:references.step.axiom1": "626a510d6876",
     "panels:references.step.axiom2": "da18aff7691c",
@@ -11809,7 +11810,10 @@
     "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
     "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
     "panels:references.planStep.axiom7LineMoves": "98d9a1532eef",
-    "panels:references.settings.reachReferences": "7754d45c3976"
+    "panels:references.settings.reachReferences": "7754d45c3976",
+    "panels:references.settings.emptyNote": "e98539add89f",
+    "panels:references.settings.solutions": "900fe12faa26",
+    "panels:references.viewportControls": "56107b7c5ba3"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14586,10 +14590,8 @@
     "panels:references.ref.topEdge": "b63184234eff",
     "panels:references.refusedSheet": "ccbbe0a97f83",
     "panels:references.searching": "5e2cf66d4fd0",
-    "panels:references.settings.candidateCount": "74d955fabc0b",
     "panels:references.settings.candidates": "fdc9c0f69d6a",
     "panels:references.settings.includeApproximate": "d8b5cb2ea90c",
-    "panels:references.settings.trigger": "d39907d15a04",
     "panels:references.sidebar.none": "12bcdfce58c7",
     "panels:references.step.axiom1": "626a510d6876",
     "panels:references.step.axiom2": "da18aff7691c",
@@ -14718,7 +14720,10 @@
     "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
     "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
     "panels:references.planStep.axiom7LineMoves": "98d9a1532eef",
-    "panels:references.settings.reachReferences": "7754d45c3976"
+    "panels:references.settings.reachReferences": "7754d45c3976",
+    "panels:references.settings.emptyNote": "e98539add89f",
+    "panels:references.settings.solutions": "900fe12faa26",
+    "panels:references.viewportControls": "56107b7c5ba3"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -17546,10 +17551,8 @@
     "panels:references.ref.topEdge": "b63184234eff",
     "panels:references.refusedSheet": "ccbbe0a97f83",
     "panels:references.searching": "5e2cf66d4fd0",
-    "panels:references.settings.candidateCount": "74d955fabc0b",
     "panels:references.settings.candidates": "fdc9c0f69d6a",
     "panels:references.settings.includeApproximate": "d8b5cb2ea90c",
-    "panels:references.settings.trigger": "d39907d15a04",
     "panels:references.sidebar.none": "12bcdfce58c7",
     "panels:references.step.axiom1": "626a510d6876",
     "panels:references.step.axiom2": "da18aff7691c",
@@ -17685,7 +17688,10 @@
     "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
     "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
     "panels:references.planStep.axiom7LineMoves": "98d9a1532eef",
-    "panels:references.settings.reachReferences": "7754d45c3976"
+    "panels:references.settings.reachReferences": "7754d45c3976",
+    "panels:references.settings.emptyNote": "e98539add89f",
+    "panels:references.settings.solutions": "900fe12faa26",
+    "panels:references.viewportControls": "56107b7c5ba3"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -20513,10 +20519,8 @@
     "panels:references.ref.topEdge": "b63184234eff",
     "panels:references.refusedSheet": "ccbbe0a97f83",
     "panels:references.searching": "5e2cf66d4fd0",
-    "panels:references.settings.candidateCount": "74d955fabc0b",
     "panels:references.settings.candidates": "fdc9c0f69d6a",
     "panels:references.settings.includeApproximate": "d8b5cb2ea90c",
-    "panels:references.settings.trigger": "d39907d15a04",
     "panels:references.sidebar.none": "12bcdfce58c7",
     "panels:references.step.axiom1": "626a510d6876",
     "panels:references.step.axiom2": "da18aff7691c",
@@ -20652,7 +20656,10 @@
     "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
     "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
     "panels:references.planStep.axiom7LineMoves": "98d9a1532eef",
-    "panels:references.settings.reachReferences": "7754d45c3976"
+    "panels:references.settings.reachReferences": "7754d45c3976",
+    "panels:references.settings.emptyNote": "e98539add89f",
+    "panels:references.settings.solutions": "900fe12faa26",
+    "panels:references.viewportControls": "56107b7c5ba3"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -23429,10 +23436,8 @@
     "panels:references.ref.topEdge": "b63184234eff",
     "panels:references.refusedSheet": "ccbbe0a97f83",
     "panels:references.searching": "5e2cf66d4fd0",
-    "panels:references.settings.candidateCount": "74d955fabc0b",
     "panels:references.settings.candidates": "fdc9c0f69d6a",
     "panels:references.settings.includeApproximate": "d8b5cb2ea90c",
-    "panels:references.settings.trigger": "d39907d15a04",
     "panels:references.sidebar.none": "12bcdfce58c7",
     "panels:references.step.axiom1": "626a510d6876",
     "panels:references.step.axiom2": "da18aff7691c",
@@ -23561,6 +23566,9 @@
     "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6",
     "panels:references.planStep.axiom5LineMoves": "78bc47ac7cb0",
     "panels:references.planStep.axiom7LineMoves": "98d9a1532eef",
-    "panels:references.settings.reachReferences": "7754d45c3976"
+    "panels:references.settings.reachReferences": "7754d45c3976",
+    "panels:references.settings.emptyNote": "e98539add89f",
+    "panels:references.settings.solutions": "900fe12faa26",
+    "panels:references.viewportControls": "56107b7c5ba3"
   }
 }

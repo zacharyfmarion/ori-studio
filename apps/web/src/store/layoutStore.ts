@@ -159,6 +159,13 @@ const WORKSPACE_VIEW_PANELS = {
     initialWidth: 260,
     referencePanelId: 'simulator',
   },
+  references: {
+    id: 'references-view-controls',
+    component: 'references-view-controls',
+    title: 'View',
+    initialWidth: 260,
+    referencePanelId: 'references',
+  },
 } as const satisfies Partial<Record<WorkspaceId, ViewPanelDefinition>>;
 
 export type ViewPanelSpec = (typeof WORKSPACE_VIEW_PANELS)[keyof typeof WORKSPACE_VIEW_PANELS];
@@ -257,7 +264,7 @@ export function applyDefaultLayout(
       applySimulateLayout(api, coarsePointer);
       return;
     case 'references':
-      applyReferencesLayout(api);
+      applyReferencesLayout(api, coarsePointer);
       return;
   }
 }
@@ -306,19 +313,19 @@ function applySimulateLayout(api: DockviewApi, coarsePointer: boolean): void {
 }
 
 /**
- * One headerless panel and nothing beside it.
- *
- * The References workspace keeps its settings in its own toolbar popover, so it
- * has no View pane — which is why it is absent from `WORKSPACE_VIEW_PANELS`,
- * why `reconcileViewPanel` has nothing to do here, and why the pointer is not a
- * parameter: the layout is the same on every device.
+ * The Simulate shape again: the workspace's panel, and its settings docked
+ * beside it as a View pane on a fine pointer. A layout persisted before the
+ * pane existed restores without it and is repaired by `reconcileViewPanel`, so
+ * this needed no `LAYOUT_VERSION` bump.
  */
-function applyReferencesLayout(api: DockviewApi): void {
-  addHeaderlessPanel(api, {
+function applyReferencesLayout(api: DockviewApi, coarsePointer: boolean): void {
+  const references = addHeaderlessPanel(api, {
     id: 'references',
     component: 'references',
     title: 'References',
-  }).api.setActive();
+  });
+  if (!coarsePointer) addViewPanel(api, WORKSPACE_VIEW_PANELS.references);
+  references.api.setActive();
 }
 
 interface LayoutState {

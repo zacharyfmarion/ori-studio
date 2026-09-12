@@ -6558,11 +6558,18 @@ button.cp-folded-figure-toolbar__notice:hover {
   padding-left: 24px;
 }
 
-/* Simulate workspace options pane, alongside the Edit workspace's view pane. */
-.simulator-view-controls-panel__body {
+/* Simulate and References options panes, alongside the Edit workspace's view pane. */
+.simulator-view-controls-panel__body,
+.references-view-controls-panel__body {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+}
+
+.references-view-controls-panel__empty {
+  display: flex;
+  align-items: flex-start;
+  padding: var(--space-3);
 }
 
 /*
@@ -9904,6 +9911,26 @@ button.bp-packing-alert:focus-visible {
   }
 
   /*
+   * The References pane's header is a title and nothing on its right — the
+   * settings that used to sit there are what the pill opens — so the pill takes
+   * that end of the header rather than dropping below it onto the filmstrip.
+   * A title alone leaves a header at its 36px minimum, so both of the
+   * workspace's headers — the pattern rail's and the panel's, side by side on
+   * a tablet and one at a time on a phone — are made a touch target tall plus
+   * the phone layout's row padding, which is what the panel's header is on a
+   * phone anyway once it holds the Back button. The inset centres the pill in
+   * that.
+   */
+  .canvas-pill-lane[data-view-panel='references-view-controls'] {
+    --view-drawer-inset-top: var(--space-1);
+  }
+
+  .references-workspace .references-sidebar__header,
+  .references-workspace .references-panel .panel-toolbar {
+    min-height: calc(var(--touch-target) + 2 * var(--space-1));
+  }
+
+  /*
    * The pill row. The inset lives here rather than on any one pill because
    * several share it — undo/redo, Tools, View — and "left of View" has to be a
    * layout fact rather than an offset somebody computed from View's width, which
@@ -10722,12 +10749,18 @@ button.bp-packing-alert:focus-visible {
     border-right: 0;
   }
 
+  /* Its height is the coarse block's, shared with the panel's header. */
   .references-workspace .references-sidebar__header {
     position: sticky;
     top: 0;
     z-index: 1;
-    min-height: var(--touch-target);
     padding: 0 var(--space-3);
+  }
+
+  /* The list screen's header is the full width, and its right end is where
+     the View pill floats — so the count keeps to the title's side. */
+  .references-workspace .references-sidebar__count {
+    margin-left: var(--space-1);
   }
 
   /*
@@ -10782,13 +10815,13 @@ button.bp-packing-alert:focus-visible {
   /*
    * The detail's toolbar, as rows rather than a row.
    *
-   * At 375px the Back button and the five view controls fill the first row on
-   * their own, so the picked target's controls — its badge, the candidate
-   * stepper, the readouts and the way out of it — take a full row of their own
-   * underneath. They are children of the *first* group in the markup, beside
-   * the Back button; `display: contents` on that group hands them to the
-   * toolbar's own flex layout, where `order` and a 100% basis can put them
-   * where the first row cannot.
+   * At 375px the picked target's controls — its badge, the candidate stepper,
+   * the readouts and the way out of it — are wider than the row, so they take
+   * a full row of their own under the Back button. They are children of the
+   * one group in the markup, beside that button; `display: contents` on the
+   * group hands them to the toolbar's own flex layout, where `order` and a
+   * 100% basis can put them where the first row cannot. The first row's right
+   * end stays clear for the View pill (see the pill lane's References inset).
    */
   .references-workspace .references-panel .panel-toolbar {
     flex-wrap: wrap;
@@ -10796,19 +10829,13 @@ button.bp-packing-alert:focus-visible {
     padding: var(--space-1) var(--space-2);
   }
 
-  .references-workspace .references-panel .panel-toolbar__group:first-child {
+  .references-workspace .references-panel .panel-toolbar__group {
     display: contents;
   }
 
   .references-workspace .references-panel__back {
     flex: 0 0 auto;
     order: 0;
-  }
-
-  .references-workspace .references-panel .panel-toolbar__group:last-child {
-    flex: 0 0 auto;
-    order: 1;
-    margin-left: auto;
   }
 
   .references-workspace .references-target {

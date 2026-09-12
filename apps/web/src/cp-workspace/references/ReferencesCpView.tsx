@@ -26,6 +26,7 @@ import { applyPinchToCamera } from '../gestures/pinchCamera';
 import { contactCentroid, pinchTransform, type GesturePoint } from '../gestures/pinchTransform';
 import { LineHitIndex, type IndexedSegment } from '../picking/lineHitIndex';
 import {
+  cameraZoomForPercent,
   fitUserCamera,
   frameUserCameraOnBounds,
   modelViewFromCamera,
@@ -90,6 +91,8 @@ import {
 export interface ReferencesCpViewHandle {
   zoomIn: () => void;
   zoomOut: () => void;
+  /** Zoom to a percentage, about the centre — the viewport toolbar's presets. */
+  setZoomPercent: (percent: number) => void;
   /** Frame the whole crease pattern. */
   fit: () => void;
   /** Point the camera at model-space bounds without zooming out (a jump, not a fit). */
@@ -172,6 +175,12 @@ export interface ReferencesCpViewProps {
    * camera does not wake it.
    */
   onViewChange?: (view: ReferencesDiagramView) => void;
+  /**
+   * The zoom as a percentage, for the viewport toolbar's readout. 100% is
+   * actual size — one user unit to one CSS pixel — the editor's definition, so
+   * the two readouts agree about the same pattern. De-duped like the view.
+   */
+  onZoomPercentChange?: (percent: number) => void;
   /** The camera refits when this changes (a new document), never on an edit. */
   framingKey: string;
   /** Theme-resolved colours are re-read when this changes. */
@@ -293,6 +302,7 @@ interface LiveProps {
   snapRadius: number;
   onPick: (hit: ReferencesPick | null) => void;
   onViewChange?: (view: ReferencesDiagramView) => void;
+  onZoomPercentChange?: (percent: number) => void;
   contentBounds: UserBounds | null;
   vertices: readonly Point[];
   /** Median crease length, for the vertex crowding ramp. */
@@ -313,6 +323,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       highlightVertexIdx,
       diagramStrokes = null,
       onViewChange,
+      onZoomPercentChange,
       selected,
       sheetLineIds = null,
       creaseVisibility = ALL_CREASES,
@@ -441,12 +452,14 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       snapRadius,
       onPick,
       onViewChange,
+      onZoomPercentChange,
       contentBounds,
       vertices,
       vertexSpacingModel,
       hitIndexes,
     });
     const lastViewRef = useRef<ReferencesDiagramView | null>(null);
+    const lastZoomPercentRef = useRef<number | null>(null);
     // Declared before every effect below, so within one commit the handlers
     // and uploads read this render's values.
     useEffect(() => {
@@ -459,6 +472,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         snapRadius,
         onPick,
         onViewChange,
+        onZoomPercentChange,
         contentBounds,
         vertices,
         vertexSpacingModel,
@@ -542,6 +556,13 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         liveRef.current.onViewChange?.(next);
       };
 
+      const reportZoom = (cam: UserCamera, ratio: number) => {
+        const percent = Math.round((cam.zoom / ratio) * 100);
+        if (percent === lastZoomPercentRef.current) return;
+        lastZoomPercentRef.current = percent;
+        liveRef.current.onZoomPercentChange?.(percent);
+      };
+
       const renderNow = () => {
         const ratio = dpr();
         const viewport = viewportOf(ratio);
@@ -575,6 +596,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           ex: [view.ex[0] / ratio, view.ex[1] / ratio],
           ey: [view.ey[0] / ratio, view.ey[1] / ratio],
         });
+        reportZoom(cam, ratio);
         renderer.render({
           clearColor: readCssVarColor(canvas, CANVAS_BG_VAR, FALLBACK_CLEAR),
           view,
@@ -961,6 +983,14 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         return {
           zoomIn: () => zoomBy(ZOOM_STEP),
           zoomOut: () => zoomBy(1 / ZOOM_STEP),
+          setZoomPercent: (percent) => {
+            const cam = cameraRef.current;
+            const vp = viewport();
+            if (!cam || !vp) return;
+            // The inverse of `reportZoom`: 100% is one user unit per CSS pixel.
+            cam.zoom = cameraZoomForPercent(percent, vp.dpr);
+            renderNowRef.current();
+          },
           fit: () => {
             fitRequestedRef.current = true;
             renderNowRef.current();

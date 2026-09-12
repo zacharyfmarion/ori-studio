@@ -973,8 +973,8 @@
     "refusedSheet": "A folha ao redor desta seleção não pôde ser lida como um retângulo.",
     "searching": "Procurando referências…",
     "settings": {
-      "candidateCount": "{{n}} soluções",
       "candidates": "Candidatos",
+      "emptyNote": "Abra um padrão de vincos para ajustar como suas referências são encontradas.",
       "gridWhereNeeded": "Só onde for preciso",
       "includeApproximate": "Incluir soluções aproximadas",
       "landmarksFirst": "Marcos primeiro",
@@ -982,8 +982,8 @@
       "reachReferences": "Vincar até as referências",
       "sequence": "Sequência de dobras",
       "showPinches": "Mostrar beliscões",
-      "startFromPlan": "Partir desta sequência",
-      "trigger": "Configurações de referências"
+      "solutions": "Soluções",
+      "startFromPlan": "Partir desta sequência"
     },
     "sheets": {
       "cardTitle_one": "Padrão {{n}}: {{count}} vinco",
@@ -1016,6 +1016,7 @@
     "stopping": "Cancelando…",
     "targetGone": "A dobra escolhida não está mais no padrão.",
     "title": "Referências",
+    "viewportControls": "Controles da viewport de referências",
     "warning": {
       "degenerateBorderSegments": "{{n}} vinco(s) de borda têm extremidades coincidentes e foram ignorados.",
       "noBorder": "Sem dobras de borda: o papel padrão é usado como folha.",

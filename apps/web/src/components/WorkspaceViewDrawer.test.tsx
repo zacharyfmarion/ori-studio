@@ -14,6 +14,9 @@ vi.mock('./panels/CpViewControlsPanel', () => ({
 vi.mock('./panels/SimulatorViewControlsPanel', () => ({
   SimulatorViewControlsPanel: () => <p>simulator view controls</p>,
 }));
+vi.mock('./panels/ReferencesViewControlsPanel', () => ({
+  ReferencesViewControlsPanel: () => <p>references view controls</p>,
+}));
 
 const analytics = vi.hoisted(() => ({ track: vi.fn() }));
 
@@ -148,6 +151,17 @@ describe('the workspace View drawer', () => {
     press(trigger());
 
     expect(dialog()?.textContent).toContain('simulator view controls');
+  });
+
+  it('offers the References settings the same way', () => {
+    // The settings used to be a popover in the panel's header; now they are a
+    // View pane like the other two, so on touch this is how they are reached.
+    useLayoutStore.setState({ activeWorkspace: 'references' });
+    render();
+
+    press(trigger());
+
+    expect(dialog()?.textContent).toContain('references view controls');
   });
 
   it('reports that the drawer was opened', () => {
