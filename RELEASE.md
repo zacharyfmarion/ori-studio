@@ -137,6 +137,20 @@ Without them the run still succeeds and emits an **unsigned** `.app`, which
 Gatekeeper will refuse to open anywhere but the machine that built it — the run
 logs a warning saying so.
 
+### The Linux legs build against a patched linuxdeploy
+
+The AppImage must not carry its own GLib. It would be the runner's 2.72, and
+every GIO module on the user's machine — gvfs, dconf — then fails to load
+against it, which is what
+`undefined symbol: g_task_set_static_name` on Ubuntu 26.04 was. The build
+installs a patched linuxdeploy GTK plugin (`scripts/appimage/`) before
+`tauri build`, and then asserts the result on the built AppImage.
+
+If **Verify the AppImage leaves GLib to the host** fails, do not ship that
+build: read `scripts/appimage/README.md` before changing anything, because the
+mechanism that puts our plugin in front of the downloaded one is a silent one
+and that check is the only thing watching it.
+
 ### Releases
 
 ```sh
