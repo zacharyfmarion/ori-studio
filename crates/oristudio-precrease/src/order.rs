@@ -940,9 +940,10 @@ struct Sighted {
 }
 
 /// Witnesses for `line` the closure did not record, certified against the
-/// paper as it stands: every input already folded, or a crossing of folded
-/// lines. Everything the state knows is searched, including lines folded
-/// later, which is why the filter is by what is creased now and not by round.
+/// paper as it stands: every line input already folded, every mark already
+/// on the paper. Everything the state knows is searched, including lines
+/// folded later, which is why the filter is by what is creased now and not
+/// by round.
 ///
 /// The closure certifies a line once, against the state before its round,
 /// and keeps what it found then. But the order inside a round is free, so
@@ -952,6 +953,13 @@ struct Sighted {
 /// and P onto A" for the same crease. A witness found here names nothing
 /// that is not already on the paper, so it is as safe to present as a
 /// recorded one.
+///
+/// A mark is on the paper when two creases *reach* it, not when two lines
+/// through it have been folded somewhere ([`point_mark_exists`]). The
+/// looser test offered folds through marks that were not there, and the
+/// pick then paid a press to make each one: a symmetric pair of folds came
+/// out as a corner swing on one side and "pinch here, then fold" on the
+/// other, for a mark nothing else ever used.
 fn found_witnesses(
     state: &State,
     creased: &Creased,
@@ -962,13 +970,7 @@ fn found_witnesses(
     let on_paper = |r: &Ref| match r {
         Ref::Edge { .. } | Ref::Corner { .. } => true,
         Ref::Line { id } => *id != line_id && creased.is_folded(*id),
-        Ref::Point { id } => state.points().get(*id).is_some_and(|p| {
-            p.lines
-                .iter()
-                .filter(|&&l| l != line_id && creased.is_folded(l))
-                .count()
-                >= 2
-        }),
+        Ref::Point { id } => point_mark_exists(state, creased, *id),
     };
     all_witnesses(state, line)
         .into_iter()
@@ -979,6 +981,78 @@ fn found_witnesses(
                 .any(|r| r.axiom == w.axiom && r.inputs == w.inputs)
         })
         .collect()
+}
+
+/// What sighting `witness` for a fold along `fold` costs in presses: none
+/// when it is sightable as the paper stands, else what [`repair`] counts,
+/// or `None` when no press makes it a fold at all.
+fn witness_cost(state: &State, creased: &Creased, fold: &Line, witness: &Witness) -> Option<usize> {
+    if sightable(state, creased, fold, witness) {
+        Some(0)
+    } else {
+        repair(state, creased, fold, witness).map(Repair::cost)
+    }
+}
+
+/// The witness to present for a fold along `fold`, out of `witnesses`,
+/// against the paper as it stands; `spans` are the pattern's creases on the
+/// fold. See [`sight`] for the rules.
+fn pick_witness(
+    state: &State,
+    creased: &Creased,
+    fold: &Line,
+    spans: &[[[f64; 2]; 2]],
+    witnesses: &[Witness],
+) -> Option<usize> {
+    // A fold perpendicular to one edge is perpendicular to the opposite
+    // one too, and both are witnesses of equal ease. The folder wants the
+    // edge the crease is at: "fold the bottom edge onto itself" for a
+    // crease that runs up from the bottom, whichever edge the mark is
+    // nearer. So the tie goes to the edge whose foot on the fold is
+    // nearest the crease the pattern wants.
+    let at_the_crease = |w: &Witness| -> u64 {
+        if !w.folds_edge_onto_itself() {
+            return 0;
+        }
+        (edge_foot_gap(state, fold, spans, w) / 1e-9) as u64
+    };
+    let sightable_now: Vec<usize> = (0..witnesses.len())
+        .filter(|&w| sightable(state, creased, fold, &witnesses[w]))
+        .collect();
+    let already = sightable_now
+        .iter()
+        .copied()
+        .min_by_key(|&w| (witnesses[w].preference(), at_the_crease(&witnesses[w])));
+    // A crease through two marks that are on the paper is a fold the
+    // folder can make now, and a real diagram makes it — whatever its
+    // length — rather than put a mark on the paper for a fold of an
+    // easier kind. So no press may buy a preference over it: the pick
+    // is among the folds that are free.
+    let through_marks = sightable_now.iter().any(|&w| witnesses[w].axiom == 1);
+    // A fold the folder can already make in one motion is the fold.
+    // One with two things to line up at once (O6, O7), or nothing to
+    // move at all (O1, a perpendicular to a crease), may still lose to a
+    // one-motion fold that a single press would allow.
+    match already {
+        Some(w) if witnesses[w].one_motion() => Some(w),
+        _ => (0..witnesses.len())
+            .filter_map(|w| witness_cost(state, creased, fold, &witnesses[w]).map(|cost| (w, cost)))
+            .filter(|&(_, cost)| cost == 0 || !through_marks)
+            .min_by_key(|&(w, cost)| {
+                let (ease, hard, err) = witnesses[w].preference();
+                let gap = at_the_crease(&witnesses[w]);
+                // Within the budget, the easiest kind of fold; past it,
+                // the fold that costs least. A plan paying four presses
+                // for a fold of an easier kind than one that costs two
+                // is paying in steps for a preference.
+                if cost <= MAX_PRESSES_FOR_PREFERENCE {
+                    (0, ease as usize, cost, hard, err, gap)
+                } else {
+                    (1, cost, ease as usize, hard, err, gap)
+                }
+            })
+            .map(|(w, _)| w),
+    }
 }
 
 /// Pick the witness the folder should be shown for fold `i`, put whatever it
@@ -996,7 +1070,10 @@ fn found_witnesses(
 /// Not any pinch for any easier fold. Measured on markhor: letting one pinch
 /// buy any easier axiom turned 18 line-onto-line folds into point-onto-point
 /// with a pinch each, and a fold of an edge onto a crease is not improved by
-/// that.
+/// that. And no pinch at all when the crease can be made through two marks
+/// already on the paper: a diagram creases between the references it has,
+/// whatever the length, rather than making a mark so the fold can be a
+/// swing.
 ///
 /// When the recorded witnesses offer nothing that is both clean and free —
 /// a two-point or line-onto-line fold with nothing to press — the paper is
@@ -1021,56 +1098,14 @@ fn sight(
     // The line the witnesses construct — the approximation, for a fold made
     // by one — is the line the folder is sighting.
     let fold = f.constructed();
-    let cost_of = |creased: &Creased, witness: &Witness| -> Option<usize> {
-        if sightable(state, creased, &fold, witness) {
-            Some(0)
-        } else {
-            repair(state, creased, &fold, witness).map(Repair::cost)
-        }
-    };
-    // A fold perpendicular to one edge is perpendicular to the opposite
-    // one too, and both are witnesses of equal ease. The folder wants the
-    // edge the crease is at: "fold the bottom edge onto itself" for a
-    // crease that runs up from the bottom, whichever edge the mark is
-    // nearer. So the tie goes to the edge whose foot on the fold is
-    // nearest the crease the pattern wants.
+    let cost_of =
+        |creased: &Creased, witness: &Witness| witness_cost(state, creased, &fold, witness);
     let spans: &[[[f64; 2]; 2]] = f
         .target
         .and_then(|t| closure.targets().get(t))
         .map_or(&[], |t| t.spans.as_slice());
-    let at_the_crease = |w: &Witness| -> u64 {
-        if !w.folds_edge_onto_itself() {
-            return 0;
-        }
-        (edge_foot_gap(state, &fold, spans, w) / 1e-9) as u64
-    };
-    let pick = |creased: &Creased, witnesses: &[Witness]| -> Option<usize> {
-        let already = (0..witnesses.len())
-            .filter(|&w| sightable(state, creased, &fold, &witnesses[w]))
-            .min_by_key(|&w| (witnesses[w].preference(), at_the_crease(&witnesses[w])));
-        // A fold the folder can already make in one motion is the fold.
-        // One with two things to line up at once (O6, O7), or nothing to
-        // move at all (O1, a perpendicular to a crease), may still lose to a
-        // one-motion fold that a single press would allow.
-        match already {
-            Some(w) if witnesses[w].one_motion() => Some(w),
-            _ => (0..witnesses.len())
-                .filter_map(|w| cost_of(creased, &witnesses[w]).map(|cost| (w, cost)))
-                .min_by_key(|&(w, cost)| {
-                    let (ease, hard, err) = witnesses[w].preference();
-                    let gap = at_the_crease(&witnesses[w]);
-                    // Within the budget, the easiest kind of fold; past it,
-                    // the fold that costs least. A plan paying four presses
-                    // for a fold of an easier kind than one that costs two
-                    // is paying in steps for a preference.
-                    if cost <= MAX_PRESSES_FOR_PREFERENCE {
-                        (0, ease as usize, cost, hard, err, gap)
-                    } else {
-                        (1, cost, ease as usize, hard, err, gap)
-                    }
-                })
-                .map(|(w, _)| w),
-        }
+    let pick = |creased: &Creased, witnesses: &[Witness]| {
+        pick_witness(state, creased, &fold, spans, witnesses)
     };
     let recorded = pick(creased, &f.witnesses);
     let clean = recorded.is_some_and(|w| {
@@ -1402,6 +1437,7 @@ mod tests {
     use crate::clock::{Deadline, frozen_clock};
     use crate::closure::{FoldOutcome, Target};
     use crate::line::Line;
+    use crate::predicates::point_ref;
     use crate::sheet::Sheet;
     use crate::state::DEFAULT_POINT_CAP;
 
@@ -1425,6 +1461,125 @@ mod tests {
         c.close(&Deadline::unbounded(frozen_clock()))
             .expect("close");
         c
+    }
+
+    /// The paper for the two picks below: the horizontal midline creased
+    /// whole, the vertical one only up from the bottom edge to y = 0.3, and
+    /// the diagonal whole. So the centre is a mark (the horizontal and the
+    /// diagonal both reach it), the midline's foot on the bottom edge is a
+    /// mark, and the midline's crossing with the top edge is not — both its
+    /// lines are folded, and neither crease reaches it.
+    fn a_paper_with_a_mark_missing() -> (State, Creased) {
+        let mut state = State::new(Sheet::unit_square(), DEFAULT_POINT_CAP);
+        let across = state.add_line(h(0.5), LineTag::Cp).expect("across").id;
+        let up = state.add_line(v(0.5), LineTag::Cp).expect("up").id;
+        let diagonal = Line::from_points([0.0, 0.0], [1.0, 1.0]).expect("diagonal");
+        let diag = state.add_line(diagonal, LineTag::Cp).expect("diag").id;
+        let mut creased = Creased::new(&state);
+        creased.add_whole(&state, across);
+        creased.add_spans(&state, up, &v(0.5), &[[[0.5, 0.0], [0.5, 0.3]]]);
+        creased.add_whole(&state, diag);
+        (state, creased)
+    }
+
+    /// A witness found against the paper names marks that are on it — two
+    /// creases reaching the spot — never a crossing of lines that are merely
+    /// folded elsewhere. The looser test is how a symmetric pair of folds
+    /// came out as a corner swing on one side and a press-then-fold on the
+    /// other: the found fold named a mark that was not there, and the press
+    /// was the price of it.
+    #[test]
+    fn a_found_witness_names_only_marks_that_are_on_the_paper() {
+        let (state, mut creased) = a_paper_with_a_mark_missing();
+        let top = state.find_point([0.5, 1.0]).expect("the midline's top end");
+        let up = state.find_line(&v(0.5)).expect("up");
+        assert!(!point_mark_exists(&state, &creased, top));
+        // The antidiagonal: through the centre, which is a mark, and (0.5, 1)
+        // is where a swing about the centre would start from.
+        let anti = Line::from_points([1.0, 0.0], [0.0, 1.0]).expect("anti");
+        let names_top = |ws: &[Witness]| {
+            ws.iter().any(|w| {
+                w.inputs
+                    .iter()
+                    .any(|r| matches!(r, Ref::Point { id } if *id == top))
+            })
+        };
+        let found = found_witnesses(&state, &creased, &anti, usize::MAX, &[]);
+        assert!(!found.is_empty(), "the corners alone give O2");
+        assert!(!names_top(&found), "a mark that is not there: {found:?}");
+        // Once the midline is creased up to the top edge the mark is there,
+        // and folds through it are offered.
+        creased.add_spans(&state, up, &v(0.5), &[[[0.5, 0.3], [0.5, 1.0]]]);
+        assert!(point_mark_exists(&state, &creased, top));
+        let found = found_witnesses(&state, &creased, &anti, usize::MAX, &[]);
+        assert!(names_top(&found), "{found:?}");
+    }
+
+    /// A crease through two marks on the paper is made through them — a real
+    /// diagram creases between two references it has, whatever the length —
+    /// rather than pressing a mark so the fold can be a swing. Without the
+    /// two marks the swing is still worth its press.
+    #[test]
+    fn a_crease_through_two_marks_is_made_through_them_rather_than_pressing_for_a_swing() {
+        let (state, creased) = a_paper_with_a_mark_missing();
+        let centre = state.find_point([0.5, 0.5]).expect("centre");
+        let top = state.find_point([0.5, 1.0]).expect("top");
+        let left_edge = state.find_line(&v(0.0)).expect("left edge");
+        let anti = Line::from_points([1.0, 0.0], [0.0, 1.0]).expect("anti");
+        let plain = |axiom: u8, inputs: Vec<Ref>| Witness {
+            axiom,
+            inputs,
+            root: 0,
+            who_moves: Vec::new(),
+            hard: false,
+            visible: true,
+            skinny: false,
+            ease: crate::constants::fold_ease(axiom, false).expect("ease") as u8,
+            err: 0.0,
+        };
+        // Through the south-east corner and the centre, both on the paper.
+        let through = plain(
+            1,
+            vec![
+                point_ref(&state, state.find_point([1.0, 0.0]).expect("corner")),
+                Ref::Point { id: centre },
+            ],
+        );
+        // A swing about the centre, bringing (0.5, 1) onto the left edge —
+        // a fold of an easier kind, whose mark costs a pinch.
+        let swing = plain(
+            5,
+            vec![
+                Ref::Point { id: centre },
+                Ref::Point { id: top },
+                Ref::Edge {
+                    id: left_edge,
+                    side: crate::sheet::EdgeSide::Left,
+                },
+            ],
+        );
+        assert_eq!(witness_cost(&state, &creased, &anti, &through), Some(0));
+        assert_eq!(witness_cost(&state, &creased, &anti, &swing), Some(1));
+        let witnesses = vec![swing.clone(), through.clone()];
+        assert_eq!(
+            pick_witness(&state, &creased, &anti, &[], &witnesses),
+            Some(1),
+            "through the marks, not the swing"
+        );
+        // Without the crease through marks, the pinch buys the swing.
+        assert_eq!(
+            pick_witness(&state, &creased, &anti, &[], std::slice::from_ref(&swing)),
+            Some(0)
+        );
+        // And with the crease's second mark missing too, the swing again.
+        let mut bare = Creased::new(&state);
+        let diag = state
+            .find_line(&Line::from_points([0.0, 0.0], [1.0, 1.0]).expect("diagonal"))
+            .expect("diag");
+        bare.add_whole(&state, diag);
+        assert!(!point_mark_exists(&state, &bare, centre));
+        let both = vec![swing, through];
+        assert_ne!(pick_witness(&state, &bare, &anti, &[], &both), Some(1));
     }
 
     /// The midlines, creased only on their lower-left thirds, and the mark at
