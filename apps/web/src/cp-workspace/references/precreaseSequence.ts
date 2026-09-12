@@ -74,6 +74,13 @@ export interface PrecreaseGridStepLine {
   line: PrecreasePlanLine;
   /** The in-paper segment, for drawing. */
   segment: PrecreasePlanSegment;
+  /**
+   * Where along the chord the line is creased, when not edge to edge: a
+   * band's extent, and anything a later step needed of it past that. Empty
+   * for a line creased along its whole chord. Every one of `cp_spans` lies
+   * within these.
+   */
+  spans: PrecreasePlanSegment[];
   /** Position in the family: the line is `n · p = phase + index · spacing`. */
   index: number;
   /** The direction the pleat gives it, read from the front. */
@@ -102,8 +109,8 @@ export interface PrecreaseGridBound {
   index: number;
   /** Where it is across the sheet, as a share of the side the family crosses. */
   fraction: number;
-  /** The sheet's edge rather than a line of the family. */
-  edge: boolean;
+  /** Which edge of the sheet, when the bound is the edge rather than a line. */
+  edge: PrecreaseEdgeSide | null;
   /**
    * State line id of the bounding line, when it is a line — one an earlier
    * grid step made, so the folder can see it. Null for the edge, and for an
@@ -118,6 +125,17 @@ export interface PrecreaseGridRegion {
   bounds: [PrecreaseGridBound, PrecreaseGridBound];
   /** How many of the step's lines lie in the band. */
   lines: number;
+  /**
+   * How far along its lines the band is creased, as shares of the chord from
+   * `segment[0]` to `segment[1]` of the step's first line, when not edge to
+   * edge.
+   */
+  extent?: [number, number];
+  /**
+   * What the extent ends on — a whole pleat line of another family, or the
+   * sheet's edge — when there is one.
+   */
+  along?: [PrecreaseGridBound, PrecreaseGridBound];
 }
 
 /** What a `grid` step pleats. */

@@ -917,6 +917,7 @@
       "free": "Esta linha já está na folha.",
       "gridBadge": "Grade",
       "gridBand": "entre {{lo}} e {{hi}}",
+      "gridBandAlong": "{{band}}, de {{lo}} até {{hi}}",
       "gridBands_one": "Adicione os {{level}} {{direction}} {{where}}: {{count}} linha, vincada como mostrado.",
       "gridBands_many": "Adicione os {{level}} {{direction}} {{where}}: {{count}} linhas, vincadas como mostrado.",
       "gridBands_other": "Adicione os {{level}} {{direction}} {{where}}: {{count}} linhas, vincadas como mostrado.",

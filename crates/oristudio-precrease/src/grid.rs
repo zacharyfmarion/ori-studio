@@ -63,6 +63,15 @@
 //! An oblique family has no cells to halve and is pleated whole. See
 //! `implementation-plans/precrease-grid-where-needed.md`.
 //!
+//! A band's lines are creased only as far along as the pattern needs them
+//! (`GridLine::spans`, `GridBand::extent`): the stretch the pattern's
+//! creases on them span, and whatever a finer band halved between them
+//! needs of them, taken out to the nearest lines the folder can see across
+//! the stretch — a whole pleat line of another family, or the sheet's edge —
+//! so that a crease has ends somewhere findable. A pleat is edge to edge.
+//! Box grids only: an oblique family's ends would have to be found on the
+//! axis family's lattice, which is a different rule.
+//!
 //! # Direction
 //!
 //! A pleat's lines alternate mountain and valley in order, as a pleat does,
@@ -80,7 +89,7 @@ use serde::{Deserialize, Serialize};
 use crate::closure::Target;
 use crate::direction::Direction;
 use crate::line::Line;
-use crate::sheet::Sheet;
+use crate::sheet::{EdgeSide, Sheet};
 use crate::tol::{SNAP_RADIUS, TOL};
 
 /// The coarsest grid worth pleating as one: below this the closure folds the
@@ -164,6 +173,20 @@ pub struct GridLine {
     /// in bands that lies outside every band is not made, and the pattern's
     /// creases on it, if any, are the closure's.
     pub made: bool,
+    /// Where along the line it is creased, when not the whole chord: a
+    /// band's extent, and anything a later step needed of it past that.
+    /// Empty for a line creased edge to edge.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub spans: Vec<[[f64; 2]; 2]>,
+}
+
+/// Where a band's extent ends: on a line of another family, or the sheet's
+/// edge. Somewhere the folder can see, either way.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GridAlong {
+    Edge(EdgeSide),
+    Line { family: usize, line: usize },
 }
 
 /// A band of one level's lines: a run the pattern holds, with the coarser
@@ -176,6 +199,14 @@ pub struct GridBand {
     pub hi: i32,
     /// Positions in [`GridFamily::lines`] of the band's lines, ascending.
     pub lines: Vec<usize>,
+    /// How far along its lines the band is creased, as the parameter
+    /// interval along the family's direction ([`Line::parameter_of`]), when
+    /// not the whole chord.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub extent: Option<(f64, f64)>,
+    /// What the extent's two ends are on, when there is an extent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub along: Option<[GridAlong; 2]>,
 }
 
 /// One step of a family: a level pleated whole, or made in bands.
@@ -242,6 +273,25 @@ impl GridFamily {
     /// The step that makes the line at position `li`, if one does.
     pub fn step_of(&self, li: usize) -> Option<usize> {
         self.steps.iter().position(|s| s.lines.contains(&li))
+    }
+
+    /// The family's own axis: a line with the family's normal, at its phase.
+    /// Every position along the family's lines is measured on it
+    /// ([`Line::parameter_of`]), because a line the pattern holds carries the
+    /// pattern's own normal, which may point the other way, and a parameter
+    /// on one line is then the negative of the same place on the next.
+    pub fn axis(&self) -> Line {
+        Line::new(self.normal, self.phase).unwrap_or(Line {
+            n: self.normal,
+            d: self.phase,
+        })
+    }
+
+    /// The point on line `li` at parameter `t` along the family's axis.
+    pub fn point_along(&self, li: usize, t: f64) -> [f64; 2] {
+        let foot = self.lines[li].line.foot();
+        let dir = self.axis().direction();
+        [foot[0] + t * dir[0], foot[1] + t * dir[1]]
     }
 }
 
@@ -456,6 +506,7 @@ fn evaluate(
                     pattern_share: target.map_or(0.0, |t| targets[t].direction_share),
                     level: 0,
                     made: true,
+                    spans: Vec::new(),
                 })
                 .collect();
             families.push(GridFamily {
@@ -627,6 +678,8 @@ fn plan_levels(
                     lo,
                     hi,
                     lines: positions[a..=b].to_vec(),
+                    extent: None,
+                    along: None,
                 }
             })
             .collect();
@@ -701,6 +754,126 @@ fn plan_steps(grid: &mut Grid, whole: bool) {
         family.steps = steps;
     }
     grid.families.retain(|f| !f.steps.is_empty());
+}
+
+/// Where the folder can find an end along a family's lines: the crossings
+/// with every whole pleat line of another family, and the sheet's edges, as
+/// parameters along the family's direction.
+pub(crate) fn stops(sheet: &Sheet, grid: &Grid, family: usize) -> Vec<(f64, GridAlong)> {
+    if grid.families[family].lines.is_empty() {
+        return Vec::new();
+    }
+    let axis = grid.families[family].axis();
+    let mut out: Vec<(f64, GridAlong)> = Vec::new();
+    for (side, edge) in Sheet::EDGE_SIDES.iter().zip(sheet.edges()) {
+        if let Some(x) = edge.intersect(&axis) {
+            out.push((axis.parameter_of(x), GridAlong::Edge(*side)));
+        }
+    }
+    for (fi, other) in grid.families.iter().enumerate() {
+        if fi == family {
+            continue;
+        }
+        for step in other.steps.iter().filter(|s| s.pleat) {
+            for &li in &step.lines {
+                if let Some(x) = other.lines[li].line.intersect(&axis) {
+                    out.push((
+                        axis.parameter_of(x),
+                        GridAlong::Line {
+                            family: fi,
+                            line: li,
+                        },
+                    ));
+                }
+            }
+        }
+    }
+    out.sort_by(|a, b| a.0.total_cmp(&b.0));
+    out
+}
+
+/// The nearest stop at or before `t`, and at or after `u`.
+fn snap_outward(
+    stops: &[(f64, GridAlong)],
+    (t, u): (f64, f64),
+) -> Option<((f64, GridAlong), (f64, GridAlong))> {
+    let lo = stops.iter().rev().find(|(s, _)| *s <= t + TOL)?;
+    let hi = stops.iter().find(|(s, _)| *s >= u - TOL)?;
+    Some((*lo, *hi))
+}
+
+/// Crease each band only as far along its lines as the pattern needs — see
+/// the module doc. Finest level first, because what a band needs of its
+/// parents flows one way.
+fn plan_extents(grid: &mut Grid, sheet: &Sheet, targets: &[Target]) {
+    if grid.kind != GridKind::Box {
+        return;
+    }
+    for fi in 0..grid.families.len() {
+        let stops = stops(sheet, grid, fi);
+        let family = &mut grid.families[fi];
+        if family.lines.is_empty() {
+            continue;
+        }
+        let axis = family.axis();
+        // What a finer band needs of each line, as a parameter interval.
+        let mut required: Vec<Option<(f64, f64)>> = vec![None; family.lines.len()];
+        let widen = |acc: &mut Option<(f64, f64)>, t: f64| {
+            *acc = Some(match *acc {
+                None => (t, t),
+                Some((a, b)) => (a.min(t), b.max(t)),
+            });
+        };
+        let steps = family.steps.clone();
+        for step in steps.iter().rev().filter(|s| !s.pleat) {
+            let mut bands = step.bands.clone();
+            for band in &mut bands {
+                let mut hull: Option<(f64, f64)> = None;
+                for &p in &band.lines {
+                    if let Some(t) = family.lines[p].target {
+                        for [a, b] in &targets[t].spans {
+                            widen(&mut hull, axis.parameter_of(*a));
+                            widen(&mut hull, axis.parameter_of(*b));
+                        }
+                    }
+                    if let Some((a, b)) = required[p] {
+                        widen(&mut hull, a);
+                        widen(&mut hull, b);
+                    }
+                }
+                let Some(hull) = hull else {
+                    continue;
+                };
+                let Some((lo, hi)) = snap_outward(&stops, hull) else {
+                    continue;
+                };
+                // The whole chord is no extent at all.
+                let chord = sheet.clip_parameters(&axis);
+                if chord.is_some_and(|(a, b)| lo.0 <= a + TOL && hi.0 >= b - TOL) {
+                    continue;
+                }
+                band.extent = Some((lo.0, hi.0));
+                band.along = Some([lo.1, hi.1]);
+                for &p in &band.lines {
+                    family.lines[p].spans =
+                        vec![[family.point_along(p, lo.0), family.point_along(p, hi.0)]];
+                }
+                // Halving needs the parents creased where the band is.
+                for (p, l) in family.lines.iter().enumerate() {
+                    if l.level < step.level && l.index >= band.lo && l.index <= band.hi {
+                        widen(&mut required[p], lo.0);
+                        widen(&mut required[p], hi.0);
+                    }
+                }
+            }
+            let si = family
+                .steps
+                .iter()
+                .position(|s| s.level == step.level && !s.pleat)
+                .expect("the step being extended");
+            family.steps[si].bands = bands;
+        }
+    }
 }
 
 /// A pleat alternates mountain and valley in order, with the parity that
@@ -815,6 +988,7 @@ pub fn detect(sheet: &Sheet, targets: &[Target], whole: bool) -> Option<Grid> {
     if grid.families.is_empty() {
         return None;
     }
+    plan_extents(&mut grid, sheet, targets);
     assign_directions(&mut grid, targets);
     Some(grid)
 }

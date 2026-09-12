@@ -917,6 +917,7 @@
       "free": "Cette ligne est déjà sur la feuille.",
       "gridBadge": "Grille",
       "gridBand": "entre {{lo}} et {{hi}}",
+      "gridBandAlong": "{{band}}, de {{lo}} à {{hi}}",
       "gridBands_one": "Ajoutez les {{level}} {{direction}} {{where}} : {{count}} ligne, marquée comme indiqué.",
       "gridBands_many": "Ajoutez les {{level}} {{direction}} {{where}} : {{count}} lignes, marquées comme indiqué.",
       "gridBands_other": "Ajoutez les {{level}} {{direction}} {{where}} : {{count}} lignes, marquées comme indiqué.",

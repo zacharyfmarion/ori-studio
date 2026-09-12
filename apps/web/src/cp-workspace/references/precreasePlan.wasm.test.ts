@@ -323,10 +323,30 @@ describe.skipIf(!available)('runPrecreasePlan over the real planner bridge', () 
       expect(family.regions.length).toBeGreaterThan(0);
       for (const region of family.regions) {
         expect(region.lines).toBeGreaterThan(0);
-        for (const bound of region.bounds) {
+        for (const bound of [...region.bounds, ...(region.along ?? [])]) {
           expect(typeof bound.fraction).toBe('number');
-          expect(typeof bound.edge).toBe('boolean');
+          expect(bound.edge === null || typeof bound.edge === 'string').toBe(true);
           expect(bound.line_id === null || typeof bound.line_id === 'number').toBe(true);
+        }
+        if (region.extent) {
+          expect(region.extent[0]).toBeLessThan(region.extent[1]);
+          expect(region.along).toBeDefined();
+        }
+      }
+      // A band line's extent crosses as a list of spans, each within the
+      // chord, with every pattern crease inside it.
+      for (const line of family.lines) {
+        expect(Array.isArray(line.spans)).toBe(true);
+        for (const crease of line.cp_spans) {
+          if (line.spans.length === 0) continue;
+          const t = (p: [number, number]) =>
+            (p[0] - line.segment[0][0]) * (line.segment[1][0] - line.segment[0][0]) +
+            (p[1] - line.segment[0][1]) * (line.segment[1][1] - line.segment[0][1]);
+          const inside = line.spans.some(([a, b]) => {
+            const [u, v] = [t(a), t(b)].sort((x, y) => x - y);
+            return t(crease[0]) >= u - 1e-9 && t(crease[0]) <= v + 1e-9 && t(crease[1]) >= u - 1e-9 && t(crease[1]) <= v + 1e-9;
+          });
+          expect(inside).toBe(true);
         }
       }
       expect(describePlannerStep(t, sequence, step.id - 1)).toMatch(/^Add the \d+\w+ .* between .*: \d+ lines, creased as shown\.$/);

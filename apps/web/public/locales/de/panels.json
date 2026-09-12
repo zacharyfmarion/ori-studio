@@ -883,6 +883,7 @@
       "free": "Diese Linie ist bereits auf dem Blatt.",
       "gridBadge": "Raster",
       "gridBand": "zwischen {{lo}} und {{hi}}",
+      "gridBandAlong": "{{band}}, von {{lo}} bis {{hi}}",
       "gridBands_one": "Füge die {{level}} {{direction}} {{where}} hinzu: {{count}} Linie, wie gezeigt gefalzt.",
       "gridBands_other": "Füge die {{level}} {{direction}} {{where}} hinzu: {{count}} Linien, wie gezeigt gefalzt.",
       "gridBandsAnd": " und ",

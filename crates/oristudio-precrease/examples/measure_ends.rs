@@ -78,12 +78,16 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize) -> Tally {
         ..Tally::default()
     };
     for step in &seq.steps {
-        // A grid step pleats every line of its family edge to edge: nothing
-        // to find, everything on the paper.
+        // A grid step creases a pleat's lines edge to edge and a band's as
+        // far along as its spans say: nothing to find, all of it on the paper.
         if let Some(grid) = &step.grid {
             for line in &grid.lines {
                 if let Ok(outcome) = state.add_line(line.line, step.tag) {
-                    creased.add_whole(&state, outcome.id);
+                    if line.spans.is_empty() {
+                        creased.add_whole(&state, outcome.id);
+                    } else {
+                        creased.add_spans(&state, outcome.id, &line.line, &line.spans);
+                    }
                 }
             }
             continue;

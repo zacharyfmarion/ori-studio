@@ -127,7 +127,7 @@ fn a_pleated_design_opens_with_its_grid() {
             for region in &family.regions {
                 assert!(region.lines >= 1, "{file}");
                 for bound in &region.bounds {
-                    if bound.edge {
+                    if bound.edge.is_some() {
                         assert!(bound.line_id.is_none(), "{file}");
                         continue;
                     }
@@ -239,7 +239,7 @@ fn landmarks_first_leaves_the_grid_where_it_is() {
     for (file, _, _) in PLEATED {
         let cp = load(file);
         let analysis = analyze_cp(&cp);
-        let (planner, plain) = plan_component(&analysis.components[0], unbounded_options());
+        let (mut planner, plain) = plan_component(&analysis.components[0], unbounded_options());
         let hoisted = planner.sequence(true);
         let count = plain.grid.as_ref().expect("grid").steps as usize;
         assert_eq!(hoisted.grid, plain.grid, "{file}");
@@ -343,6 +343,162 @@ fn a_crease_a_hair_off_a_grid_line_rides_on_the_grid_step() {
     assert!(seq.totals.unsolved <= 1, "{:?}", seq.findings);
 }
 
+/// A box-pleated sheet the way *Alebrijes* is: 16ths everywhere, 32nds
+/// across the middle half, 64ths across the middle quarter, every fine line
+/// creased only across the middle of the sheet, plus the diagonals through
+/// the lattice that the closure folds from it. As Oriedita segments on the
+/// 400-unit canvas, so it goes through `analyze` like a real file.
+fn alebrijes_like() -> (Vec<f64>, Vec<i32>) {
+    let mut segments: Vec<f64> = Vec::new();
+    let mut colors: Vec<i32> = Vec::new();
+    let mut push = |s: [f64; 4], c: i32| {
+        segments.extend_from_slice(&[
+            s[0] * 400.0 - 200.0,
+            200.0 - s[1] * 400.0,
+            s[2] * 400.0 - 200.0,
+            200.0 - s[3] * 400.0,
+        ]);
+        colors.push(c);
+    };
+    for (a, b) in [
+        ([0.0, 0.0], [1.0, 0.0]),
+        ([1.0, 0.0], [1.0, 1.0]),
+        ([1.0, 1.0], [0.0, 1.0]),
+        ([0.0, 1.0], [0.0, 0.0]),
+    ] {
+        push([a[0], a[1], b[0], b[1]], 0);
+    }
+    // 16ths, edge to edge, both ways.
+    for k in 1..16 {
+        let t = k as f64 / 16.0;
+        push([t, 0.0, t, 1.0], if k % 2 == 0 { 1 } else { 2 });
+        push([0.0, t, 1.0, t], if k % 2 == 0 { 2 } else { 1 });
+    }
+    // 32nds between ¼ and ¾, creased across the middle half only.
+    for k in (9..=23).step_by(2) {
+        let t = k as f64 / 32.0;
+        push([t, 0.25, t, 0.75], 2);
+        push([0.25, t, 0.75, t], 2);
+    }
+    // 64ths between ⅜ and ⅝, creased across the middle quarter only.
+    for k in (25..=39).step_by(2) {
+        let t = k as f64 / 64.0;
+        push([t, 0.375, t, 0.625], 1);
+        push([0.375, t, 0.625, t], 1);
+    }
+    // Diagonals through lattice points at every resolution, so the closure
+    // has folds to sight from the grid — some from marks the fine lines make
+    // only across the middle.
+    for k in 0..8 {
+        let t = k as f64 / 8.0;
+        push([t, 0.0, 1.0, 1.0 - t], 2);
+        push([0.0, t, 1.0 - t, 1.0], 1);
+    }
+    for k in (25..=39).step_by(2) {
+        let t = k as f64 / 64.0;
+        push([t, 0.375, t + 0.25, 0.625], 2);
+    }
+    (segments, colors)
+}
+
+/// A band's lines are creased only as far along as the pattern needs them —
+/// out to a pleat line of the other family or the edge, so the crease has
+/// ends the folder can find — and nothing a later step needs of them is left
+/// to a press: the grid step creases that far in the first place.
+#[test]
+fn a_band_is_creased_only_where_the_pattern_needs_it() {
+    let (segments, colors) = alebrijes_like();
+    let analysis = analyze(&segments, &colors, Some(ORIEDITA_PAPER)).expect("analysis");
+    let component = &analysis.components[0];
+    let (_, seq) = plan_component(component, unbounded_options());
+    let grid = seq.grid.as_ref().expect("a grid");
+    assert_eq!((grid.kind, grid.n, grid.steps), (GridKind::Box, 64, 6));
+    let whole_len = |[a, b]: [[f64; 2]; 2]| (a[0] - b[0]).hypot(a[1] - b[1]);
+    let mut bands = 0;
+    for step in seq.steps.iter().filter(|s| s.kind == StepKind::Grid) {
+        let family = step.grid.as_ref().expect("grid");
+        if family.pleat {
+            assert!(
+                family.lines.iter().all(|l| l.spans.is_empty()),
+                "a pleat is edge to edge"
+            );
+            assert!(family.regions.is_empty());
+            continue;
+        }
+        bands += 1;
+        for region in &family.regions {
+            let extent = region
+                .extent
+                .expect("a band across the middle has an extent");
+            assert!(extent[0] > 0.0 && extent[1] < 1.0, "{extent:?}");
+            let along = region.along.as_ref().expect("the extent ends on something");
+            for end in along {
+                assert!(
+                    end.edge.is_some() || end.line_id.is_some(),
+                    "an extent ends on a line or the edge: {end:?}"
+                );
+                if let Some(id) = end.line_id {
+                    // On a pleat line of another family, made before this step.
+                    let made_by = seq.lines.iter().find(|l| l.id == id).and_then(|l| l.step);
+                    let pleat = made_by
+                        .and_then(|s| seq.steps.iter().find(|st| st.id == s))
+                        .and_then(|st| st.grid.as_ref());
+                    assert!(pleat.is_some_and(|g| g.pleat && g.family != family.family));
+                }
+            }
+        }
+        for line in &family.lines {
+            assert!(!line.spans.is_empty(), "a band's line has an extent");
+            let creased: f64 = line.spans.iter().map(|s| whole_len(*s)).sum();
+            assert!(
+                creased < whole_len(line.segment) - 1e-6,
+                "shorter than the chord"
+            );
+            // Every pattern crease on the line lies within the extent.
+            for span in &line.cp_spans {
+                for end in span {
+                    let t = line.line.parameter_of(*end);
+                    assert!(
+                        line.spans.iter().any(|[a, b]| {
+                            let (u, v) = (line.line.parameter_of(*a), line.line.parameter_of(*b));
+                            t >= u.min(v) - 1e-9 && t <= u.max(v) + 1e-9
+                        }),
+                        "a pattern crease outside its line's extent"
+                    );
+                }
+            }
+        }
+    }
+    assert_eq!(bands, 4);
+    // No press lands on a grid line: what a later step needed of a band's
+    // line, the grid step creased.
+    let grid_line_ids: Vec<usize> = seq
+        .steps
+        .iter()
+        .filter_map(|s| s.grid.as_ref())
+        .flat_map(|g| g.lines.iter().map(|l| l.line_id))
+        .collect();
+    for step in &seq.steps {
+        assert!(
+            !(step.kind == StepKind::Press && grid_line_ids.contains(&step.line_id)),
+            "step {} presses grid line {}",
+            step.id,
+            step.line_id
+        );
+    }
+    assert_eq!(seq.totals.unsolved, 0, "{:?}", seq.findings);
+    // And the grid puts less crease where the pattern has none than a whole
+    // one does, by a lot.
+    let (_, whole) = plan_component(
+        component,
+        PlannerOptions {
+            precrease_grid: GridMode::Whole,
+            ..unbounded_options()
+        },
+    );
+    assert!(seq.totals.grid_unwanted_length < whole.totals.grid_unwanted_length / 2.0);
+}
+
 /// On the point cap partway through the grid, the lines that made it onto
 /// the paper are the grid the plan reports, and the pattern lines it never
 /// reached are still remaining: nothing is planned twice and nothing is lost.
@@ -430,7 +586,7 @@ fn corpus_designs_are_pleated_on_their_own_grids() {
         let cp = oristudio_precrease::fixture_io::load_path(&path, None)
             .unwrap_or_else(|e| panic!("{}: {e}", path.display()));
         let analysis = analyze_cp(&cp);
-        let planner = oristudio_precrease::planner::Planner::new(
+        let mut planner = oristudio_precrease::planner::Planner::new(
             &analysis.components[0],
             unbounded_options(),
         );

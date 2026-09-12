@@ -471,10 +471,18 @@ fn every_step_is_sighted_from_marks_that_are_on_the_paper() {
             // Now this step's own crease is on the paper — what it actually
             // pressed, which for a CP step is the pattern's spans and for a
             // press or a pinched auxiliary line is its extent. A grid step
-            // pleats every line of its family edge to edge.
+            // creases a pleat's lines edge to edge and a band's only as far
+            // along as its spans say.
             if let Some(grid) = &step.grid {
                 for line in &grid.lines {
-                    whole.insert(line.line_id);
+                    if line.spans.is_empty() {
+                        whole.insert(line.line_id);
+                    } else {
+                        creased
+                            .entry(line.line_id)
+                            .or_default()
+                            .extend(line.spans.iter().map(|[a, b]| (*a, *b)));
+                    }
                 }
                 continue;
             }
@@ -544,6 +552,21 @@ fn a_press_is_a_pinch_on_a_line_already_made_and_claims_no_pattern_crease() {
                 let mut state = State::new(seq.sheet, DEFAULT_POINT_CAP);
                 let mut creased = Creased::new(&state);
                 for earlier in &seq.steps[..k] {
+                    // A grid step is every line of its family, each as far
+                    // along as the step creased it.
+                    if let Some(grid) = &earlier.grid {
+                        for line in &grid.lines {
+                            let Ok(o) = state.add_line(line.line, earlier.tag) else {
+                                continue;
+                            };
+                            if line.spans.is_empty() {
+                                creased.add_whole(&state, o.id);
+                            } else {
+                                creased.add_spans(&state, o.id, &line.line, &line.spans);
+                            }
+                        }
+                        continue;
+                    }
                     let Ok(o) = state.add_line(earlier.line, earlier.tag) else {
                         continue;
                     };

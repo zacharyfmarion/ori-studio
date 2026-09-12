@@ -94,6 +94,11 @@ function gridLineOf(
   return index >= 0 ? (frame.gridLines(step)[index] ?? null) : null;
 }
 
+/** Whether two segments run the same way, by the sign of their dot product. */
+function sameWay(a: DiagramSegment, b: DiagramSegment): boolean {
+  return (a[1].x - a[0].x) * (b[1].x - b[0].x) + (a[1].y - a[0].y) * (b[1].y - b[0].y) >= 0;
+}
+
 /**
  * Where a band's bound is on the paper: the bounding line, drawn by the grid
  * step that made it; the sheet's edge; or, for an odd base's band, which no
@@ -108,12 +113,7 @@ function gridBoundSegment(
 ): DiagramSegment | null {
   const grid = step.grid;
   if (!grid) return null;
-  const vertical = Math.abs(grid.normal[0]) >= Math.abs(grid.normal[1]);
-  if (bound.edge) {
-    return frame.edge(
-      vertical ? (bound.index <= 0 ? 'left' : 'right') : bound.index <= 0 ? 'bottom' : 'top'
-    );
-  }
+  if (bound.edge !== null) return frame.edge(bound.edge);
   if (bound.line_id !== null) {
     for (const earlier of sequence.steps) {
       if (earlier.id >= step.id) break;
@@ -335,12 +335,12 @@ function spansOfRef(
   const before = upTo < 0 ? sequence.steps : sequence.steps.slice(0, upTo);
   return mergeRuns(
     before.flatMap((s) => {
-      // A pleat creases each line of its family edge to edge, so the crease
-      // along a grid line is the line itself — and only that line, not the
-      // family the step made it with.
+      // A grid step creases each line of its family as far as its spans say
+      // — a pleat's edge to edge — so the crease along a grid line is that,
+      // and only that line, not the family the step made it with.
       if (s.grid) {
         const line = gridLineOf(frame, s, ref.id);
-        return line ? [line.segment] : [];
+        return line ? [...line.spans] : [];
       }
       return s.line_id === ref.id ? creasedSpans(frame, s) : [];
     })
@@ -637,8 +637,10 @@ function creasedSpans(
   // edge whatever the pattern wants of it.
   if (step.grid) {
     return frame.gridLines(step).flatMap((line) => {
-      if (patterned) return [line.segment];
-      return line.inPattern ? uncreased(line.segment, line.creases) : [line.segment];
+      if (patterned) return line.spans;
+      return line.inPattern
+        ? line.spans.flatMap((span) => uncreased(span, line.creases))
+        : line.spans;
     });
   }
   // Crease pressed on past the pattern's own is not in the pattern, so it is
@@ -734,11 +736,27 @@ export function plannerStepDiagram(
   const bandBounds = bands.map((region) =>
     region.bounds.map((bound) => gridBoundSegment(sequence, frame, step, bound))
   );
-  for (const [lo, hi] of bandBounds) {
-    if (lo && hi) {
-      primitives.push({ kind: 'region', corners: [xy(lo[0]), xy(lo[1]), xy(hi[1]), xy(hi[0])] });
-    }
-  }
+  bands.forEach((region, b) => {
+    const [lo, hi] = bandBounds[b] ?? [];
+    if (!lo || !hi) return;
+    // A band creased part way along its lines is that much of the paper:
+    // the bounds cut to the extent, which the frame map keeps as a share of
+    // the chord — the bounds run the way the step's own lines do.
+    const cut = (segment: DiagramSegment): DiagramSegment => {
+      const [r0, r1] = region.extent ?? [0, 1];
+      const at = (r: number): Point => ({
+        x: segment[0].x + (segment[1].x - segment[0].x) * r,
+        y: segment[0].y + (segment[1].y - segment[0].y) * r,
+      });
+      return [at(r0), at(r1)];
+    };
+    const own = frame.gridLines(step)[0]?.segment;
+    const aligned = (segment: DiagramSegment): DiagramSegment =>
+      own && sameWay(segment, own) ? segment : [segment[1], segment[0]];
+    const a = cut(aligned(lo));
+    const z = cut(aligned(hi));
+    primitives.push({ kind: 'region', corners: [xy(a[0]), xy(a[1]), xy(z[1]), xy(z[0])] });
+  });
 
   // The sheet as it stands: everything folded so far, over the paper and under
   // this step's own references.
@@ -766,7 +784,9 @@ export function plannerStepDiagram(
       });
     });
     for (const line of frame.gridLines(step)) {
-      primitives.push(spanLine(line.segment, styleOf(line.direction, true)));
+      for (const span of line.spans) {
+        primitives.push(spanLine(span, styleOf(line.direction, true)));
+      }
     }
     return { sheet: sheetOf(sheet, frame), primitives };
   }
@@ -1046,7 +1066,9 @@ export function plannerFinishedDiagram(
     if (step.grid) {
       for (const line of frame.gridLines(step)) {
         const style = styleOf(line.inPattern ? line.direction : 'unassigned', true);
-        primitives.push(spanLine(line.segment, style));
+        for (const span of line.spans) {
+          primitives.push(spanLine(span, style));
+        }
       }
       continue;
     }

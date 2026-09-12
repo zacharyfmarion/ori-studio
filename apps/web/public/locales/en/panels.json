@@ -883,6 +883,7 @@
       "free": "This line is already on the sheet.",
       "gridBadge": "Grid",
       "gridBand": "between {{lo}} and {{hi}}",
+      "gridBandAlong": "{{band}}, from {{lo}} to {{hi}}",
       "gridBands_one": "Add the {{level}} {{direction}} {{where}}: {{count}} line, creased as shown.",
       "gridBands_other": "Add the {{level}} {{direction}} {{where}}: {{count}} lines, creased as shown.",
       "gridBandsAnd": ", and ",

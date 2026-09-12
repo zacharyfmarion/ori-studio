@@ -269,7 +269,9 @@ Gates:
 - Stage 2 ships if unwanted creased length falls by at least a third more,
   presses on grid lines stay under 5 % of steps, and stage 1's unwanted-line
   gate still holds (a rule that re-makes lines to bound an extent is caught
-  here).
+  here). (Outcome: see the checklist — the length gate held on the
+  motivating design and not on a corpus whose bands mostly run edge to
+  edge; the press and line gates held everywhere.)
 
 ## Affected Areas
 
@@ -336,11 +338,33 @@ Gates:
       Q" for it either way. Region-line witnesses (the plan's O3 of the two
       parents) are not made: with whole chords nothing presses a grid line,
       and they are stage 2's to add with the extents that need them.
-- [ ] Stage 2: `GridLine.spans` through all four readers (`fold_grid`,
+- [x] Stage 2: `GridLine.spans` through all four readers (`fold_grid`,
       `order::record`, both replays in `planner_direction.rs`,
-      `measure_ends`); the grid-line press preference and the `order.rs`
-      press test; `StepPress.sighted_from` drawn; `cp_span ⊆ spans` asserted;
-      the `region` primitive; measured against the gate.
+      `measure_ends`), every position measured on the family's own axis
+      because a pattern line's normal may point the other way; a band's
+      extent is the hull of its lines' pattern spans and of what finer bands
+      halved between them need, snapped outward to a whole pleat line of
+      another family or the edge; the wash on the card is cut to it, the
+      sentence says "from the 3/8 line to the 5/8 line", `cp_span ⊆ spans`
+      is asserted in the crate and over the bridge. **One departure from the
+      design above:** no press ever lands on a grid line. Instead of
+      region-line witnesses and a press preference, `Planner::settle_grid`
+      runs the ordering pass, folds every press that landed on a grid line
+      into that line's extent — out to the nearest end findable on the paper
+      the grid left — and runs it again until none does; the closure's state
+      is the same lines either way, so the plan is stable under it. That is
+      "the folder creases that far in the first place", with no card for it.
+      **Measured** (same corpus): unwanted crease 1,248.6 → **832.6**
+      sheet-lengths (stage 1 left 873.5), steps 2,339 → 2,389, presses 128 →
+      131, presses on grid lines **0**, unsolved 26 → 26, and stage 1's
+      275 unwanted lines untouched. The gate as written — a third more off
+      the unwanted length — is **not met corpus-wide** (4.7 % more): most of
+      the corpus's band lines carry pattern crease nearly edge to edge, so
+      their extents snap to the edges and nothing is cut. Where the pattern
+      is local it bites as designed: *Alebrijes* c2 40.6 → 20.6, c0 27.1 →
+      19.1 (the 64ths creased across the central quarter only, the 32nds
+      across the middle half). Shipped on that and on its cost, which is
+      nil: no fold, no press, no card. Stage 3's premise is unchanged.
 - [ ] Reviewed (three lenses, two refuters a finding) before either stage is
       called done.
 - [ ] Stage 3 decided from the stage-2 numbers, and either done or written

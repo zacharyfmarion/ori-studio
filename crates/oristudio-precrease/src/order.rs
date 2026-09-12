@@ -222,10 +222,26 @@ fn order_round(closure: &Closure, members: &[usize]) -> Vec<(usize, f64)> {
 fn record(creased: &mut Creased, closure: &Closure, folded_index: usize) {
     let f = &closure.folded()[folded_index];
     let state = closure.state();
+    // A grid line is creased as its grid step made it: a pleat's line edge
+    // to edge whatever the pattern wants of it, a band's only as far along
+    // as the band runs — the same extent `Closure::fold_grid` recorded, read
+    // off the grid so the two never disagree.
+    if let Some(g) = f.grid {
+        let spans = closure
+            .grid()
+            .and_then(|grid| grid.families.get(g.family))
+            .and_then(|family| family.lines.get(g.line))
+            .map(|gl| gl.spans.as_slice())
+            .unwrap_or(&[]);
+        if spans.is_empty() {
+            creased.add_whole(state, f.line_id);
+        } else {
+            creased.add_spans(state, f.line_id, &f.line, spans);
+        }
+        return;
+    }
     match f.target.and_then(|t| closure.targets().get(t)) {
-        // A pleated grid line is creased edge to edge whatever the pattern
-        // wants of it.
-        Some(target) if !target.spans.is_empty() && f.grid.is_none() => {
+        Some(target) if !target.spans.is_empty() => {
             creased.add_spans(state, f.line_id, &f.line, &target.spans)
         }
         _ => creased.add_whole(state, f.line_id),
@@ -1093,13 +1109,20 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
     let mut snapshots: Vec<Option<Creased>> = vec![None; folded.len()];
 
     // The grid is on the paper before anything else and is not placed here:
-    // the planner emits one step per family ahead of every placed fold.
-    // `hoisted` doubles as "already on the paper" for the round loop below.
+    // the planner emits its steps ahead of every placed fold. `hoisted`
+    // doubles as "already on the paper" for the round loop below. The paper
+    // as it stood when a grid line was made is the paper with the whole grid
+    // on it — the grid is one block, and a band's line finds its ends on the
+    // other family's pleat.
     let mut hoisted = vec![false; folded.len()];
     for (i, f) in folded.iter().enumerate() {
         if f.grid.is_some() {
             hoisted[i] = true;
             record(&mut creased, closure, i);
+        }
+    }
+    for (i, f) in folded.iter().enumerate() {
+        if f.grid.is_some() {
             snapshots[i] = Some(creased.clone());
         }
     }

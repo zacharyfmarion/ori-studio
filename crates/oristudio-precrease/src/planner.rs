@@ -19,7 +19,7 @@ use crate::direction::{Direction, share_of};
 use crate::drive::{self, DriverState, LastStep, PlanAction, PlanState, StopReason};
 use crate::error::PrecreaseError;
 use crate::exactness::ExactnessClass;
-use crate::grid;
+use crate::grid::{self, GridAlong};
 use crate::line::Line;
 use crate::marks::crease_runs;
 use crate::merge::coalesce_lines;
@@ -31,7 +31,7 @@ use crate::sequence::{
     GridStep, GridStepLine, GridSummary, Group, LineEntry, PointEntry, Sequence, Status, Step,
     StepKind, StepPress, Totals,
 };
-use crate::sheet::Sheet;
+use crate::sheet::{EdgeSide, Sheet};
 use crate::state::{DEFAULT_POINT_CAP, LineTag};
 use crate::stuck::{StuckOptions, stuck_search};
 use crate::tol::SNAP_RADIUS;
@@ -293,6 +293,7 @@ fn grid_steps(closure: &Closure, sheet: &Sheet) -> Vec<Step> {
                         line_id: f.line_id,
                         line: f.line,
                         segment: segment_of(sheet, &f.line).unwrap_or([[0.0; 2]; 2]),
+                        spans: gl.spans.clone(),
                         index: gl.index,
                         direction: gl.direction,
                         pattern_direction: gl.pattern_direction,
@@ -303,9 +304,28 @@ fn grid_steps(closure: &Closure, sheet: &Sheet) -> Vec<Step> {
                 })
                 .collect();
             let first = lines.first()?;
-            let bound = |index: i32| -> GridBound {
+            // A bound of a family at its index: the sheet's edge at the
+            // family's ends, else the family's line there when a step made
+            // it, else a position across the sheet.
+            let bound = |fi: usize, index: i32| -> GridBound {
+                let family = &grid.families[fi];
                 let cells = family.cells.unwrap_or(0) as i32;
-                let edge = index <= 0 || index >= cells;
+                let vertical = family.normal[0].abs() >= family.normal[1].abs();
+                let edge = if index <= 0 {
+                    Some(if vertical {
+                        EdgeSide::Left
+                    } else {
+                        EdgeSide::Bottom
+                    })
+                } else if index >= cells {
+                    Some(if vertical {
+                        EdgeSide::Right
+                    } else {
+                        EdgeSide::Top
+                    })
+                } else {
+                    None
+                };
                 GridBound {
                     index,
                     fraction: if cells > 0 {
@@ -314,7 +334,8 @@ fn grid_steps(closure: &Closure, sheet: &Sheet) -> Vec<Step> {
                         0.0
                     },
                     edge,
-                    line_id: (!edge)
+                    line_id: edge
+                        .is_none()
                         .then(|| {
                             family
                                 .lines
@@ -326,12 +347,56 @@ fn grid_steps(closure: &Closure, sheet: &Sheet) -> Vec<Step> {
                         .flatten(),
                 }
             };
+            let along_bound = |along: GridAlong| -> GridBound {
+                match along {
+                    GridAlong::Edge(side) => GridBound {
+                        index: 0,
+                        fraction: match side {
+                            EdgeSide::Left | EdgeSide::Bottom => 0.0,
+                            EdgeSide::Right | EdgeSide::Top => 1.0,
+                        },
+                        edge: Some(side),
+                        line_id: None,
+                    },
+                    GridAlong::Line { family: of, line } => {
+                        bound(of, grid.families[of].lines[line].index)
+                    }
+                }
+            };
+            // Where along the step's first line's drawn chord a parameter on
+            // the family's axis falls, as a share from `segment[0]`: read off
+            // the geometry, since the chord may run either way.
+            let share_of = |t: f64| -> f64 {
+                let p = family.point_along(step.lines[0], t);
+                let [a, b] = first.segment;
+                let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
+                let len2 = dx * dx + dy * dy;
+                if len2 <= 0.0 {
+                    0.0
+                } else {
+                    ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2
+                }
+            };
             let regions: Vec<GridRegion> = step
                 .bands
                 .iter()
                 .map(|b| GridRegion {
-                    bounds: [bound(b.lo), bound(b.hi)],
+                    bounds: [bound(fi, b.lo), bound(fi, b.hi)],
                     lines: b.lines.len() as u32,
+                    extent: b.extent.map(|(t0, t1)| {
+                        let (r0, r1) = (share_of(t0), share_of(t1));
+                        [r0.min(r1), r0.max(r1)]
+                    }),
+                    // Left to right, bottom to top — the way a sentence reads
+                    // them, whichever way the family's axis runs.
+                    along: b.along.map(|[lo, hi]| {
+                        let (a, z) = (along_bound(lo), along_bound(hi));
+                        if a.fraction <= z.fraction {
+                            [a, z]
+                        } else {
+                            [z, a]
+                        }
+                    }),
                 })
                 .collect();
             Some(Step {
@@ -934,8 +999,90 @@ impl Planner {
         }
     }
 
+    /// How the exactness policy classified the component, once analysed.
+    pub fn exactness(&self) -> Option<&ExactnessSummary> {
+        self.exactness.as_ref()
+    }
+
+    /// Crease a band's line as far as a later step needs it, in the grid step
+    /// itself. The ordering pass presses a line where a step sights a mark on
+    /// it that its crease does not reach; on a grid line that press would be
+    /// a card of its own saying to refold a pleat, where the folder could have
+    /// creased that far in the first place. So the ordering is run, every
+    /// press that landed on a grid line is folded into that line's extent —
+    /// out to the nearest end the folder can find on the paper the grid left,
+    /// a whole pleat line of another family or the edge — and the ordering
+    /// is run again, until no press lands on the grid.
+    fn settle_grid(&mut self, landmarks_first: bool) {
+        for _ in 0..4 {
+            let Some(closure) = &self.closure else {
+                return;
+            };
+            let (Some(grid), Some(sheet)) = (closure.grid(), &self.sheet) else {
+                return;
+            };
+            let placed = order(closure, landmarks_first);
+            let folded = closure.folded();
+            let mut extensions: Vec<(usize, [[f64; 2]; 2])> = Vec::new();
+            for p in &placed {
+                let Some(press) = &p.press else {
+                    continue;
+                };
+                let f = &folded[p.folded];
+                let Some(g) = f.grid else {
+                    continue;
+                };
+                let family = &grid.families[g.family];
+                let gl = &family.lines[g.line];
+                if gl.spans.is_empty() {
+                    continue;
+                }
+                let stops = grid::stops(sheet, grid, g.family);
+                let axis = family.axis();
+                let t = axis.parameter_of(press.at);
+                let (mut lo, mut hi) = gl
+                    .spans
+                    .iter()
+                    .flat_map(|[a, b]| [axis.parameter_of(*a), axis.parameter_of(*b)])
+                    .fold((f64::INFINITY, f64::NEG_INFINITY), |(lo, hi), v| {
+                        (lo.min(v), hi.max(v))
+                    });
+                if t < lo {
+                    lo = stops
+                        .iter()
+                        .rev()
+                        .find(|(s, _)| *s <= t + SNAP_RADIUS)
+                        .map_or(t, |(s, _)| *s);
+                }
+                if t > hi {
+                    hi = stops
+                        .iter()
+                        .find(|(s, _)| *s >= t - SNAP_RADIUS)
+                        .map_or(t, |(s, _)| *s);
+                }
+                extensions.push((
+                    f.line_id,
+                    [
+                        family.point_along(g.line, lo),
+                        family.point_along(g.line, hi),
+                    ],
+                ));
+            }
+            if extensions.is_empty() {
+                return;
+            }
+            let Some(closure) = self.closure.as_mut() else {
+                return;
+            };
+            for (line_id, span) in extensions {
+                closure.press_grid_line(line_id, span);
+            }
+        }
+    }
+
     /// The plan in its wire shape.
-    pub fn sequence(&self, landmarks_first: bool) -> Sequence {
+    pub fn sequence(&mut self, landmarks_first: bool) -> Sequence {
+        self.settle_grid(landmarks_first);
         let status = self.status();
         let (Some(closure), Some(sheet)) = (&self.closure, &self.sheet) else {
             return Sequence {
@@ -1256,19 +1403,22 @@ impl Planner {
             .sum();
         // What the grid creases past the pattern: the chord of a line the
         // pattern lacks, and the rest of the chord of one it holds.
+        let length_of = |runs: &[([f64; 2], [f64; 2])]| -> f64 {
+            runs.iter()
+                .map(|(a, b)| ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2)).sqrt())
+                .sum()
+        };
         let grid_unwanted_length: f64 = steps
             .iter()
             .filter_map(|s| s.grid.as_ref())
             .flat_map(|g| g.lines.iter())
             .map(|l| {
-                let chord = ((l.segment[0][0] - l.segment[1][0]).powi(2)
-                    + (l.segment[0][1] - l.segment[1][1]).powi(2))
-                .sqrt();
-                let creased: f64 = crease_runs(&l.line, &l.cp_spans)
-                    .iter()
-                    .map(|(a, b)| ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2)).sqrt())
-                    .sum();
-                (chord - creased).max(0.0)
+                let made = if l.spans.is_empty() {
+                    length_of(&[(l.segment[0], l.segment[1])])
+                } else {
+                    length_of(&crease_runs(&l.line, &l.spans))
+                };
+                (made - length_of(&crease_runs(&l.line, &l.cp_spans))).max(0.0)
             })
             .sum();
         let cp_lines =

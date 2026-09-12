@@ -951,6 +951,7 @@
       "free": "Эта линия уже есть на листе.",
       "gridBadge": "Сетка",
       "gridBand": "между {{lo}} и {{hi}}",
+      "gridBandAlong": "{{band}}, от {{lo}} до {{hi}}",
       "gridBands_one": "Добавьте линии с шагом {{level}} {{direction}} {{where}}: {{count}} линия, сложенная как показано.",
       "gridBands_few": "Добавьте линии с шагом {{level}} {{direction}} {{where}}: {{count}} линии, сложенные как показано.",
       "gridBands_many": "Добавьте линии с шагом {{level}} {{direction}} {{where}}: {{count}} линий, сложенных как показано.",

@@ -308,6 +308,7 @@ function gridLine(
     line_id: lineId,
     line: { n: normal, d },
     segment,
+    spans: [],
     index,
     direction,
     pattern_direction: pattern?.direction ?? 'unassigned',

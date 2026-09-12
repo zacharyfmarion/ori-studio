@@ -853,6 +853,7 @@
       "free": "この線はすでに紙の上にあります。",
       "gridBadge": "グリッド",
       "gridBand": "{{lo}}と{{hi}}の間",
+      "gridBandAlong": "{{band}}、{{lo}}から{{hi}}まで",
       "gridBands_other": "{{where}}に{{direction}}{{level}}の線を加えます：{{count}} 本、図のとおりに折り筋をつけます。",
       "gridBandsAnd": "、および",
       "gridBoundAcross": "横 {{fraction}} の位置",

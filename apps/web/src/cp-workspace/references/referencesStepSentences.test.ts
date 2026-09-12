@@ -387,6 +387,7 @@ describe('a grid step', () => {
           [index / n, 0],
           [index / n, 1],
         ],
+        spans: [],
         index,
         direction,
         pattern_direction: 'unassigned',
@@ -510,8 +511,8 @@ describe('a grid step', () => {
         regions: [
           {
             bounds: [
-              { index: 8, fraction: 0.25, edge: false, line_id: 4 },
-              { index: 24, fraction: 0.75, edge: false, line_id: 12 },
+              { index: 8, fraction: 0.25, edge: null, line_id: 4 },
+              { index: 24, fraction: 0.75, edge: null, line_id: 12 },
             ],
             lines: lines.length,
           },
@@ -533,8 +534,8 @@ describe('a grid step', () => {
         regions: [
           {
             bounds: [
-              { index: 0, fraction: 0, edge: true, line_id: null },
-              { index: 8, fraction: 0.25, edge: false, line_id: 4 },
+              { index: 0, fraction: 0, edge: 'left', line_id: null },
+              { index: 8, fraction: 0.25, edge: null, line_id: 4 },
             ],
             lines: 4,
           },
@@ -548,8 +549,8 @@ describe('a grid step', () => {
         regions: [
           {
             bounds: [
-              { index: 24, fraction: 0.75, edge: false, line_id: 12 },
-              { index: 32, fraction: 1, edge: true, line_id: null },
+              { index: 24, fraction: 0.75, edge: null, line_id: 12 },
+              { index: 32, fraction: 1, edge: 'top', line_id: null },
             ],
             lines: 4,
           },
@@ -565,15 +566,15 @@ describe('a grid step', () => {
         regions: [
           {
             bounds: [
-              { index: 0, fraction: 0, edge: true, line_id: null },
-              { index: 4, fraction: 0.125, edge: false, line_id: 2 },
+              { index: 0, fraction: 0, edge: 'left', line_id: null },
+              { index: 4, fraction: 0.125, edge: null, line_id: 2 },
             ],
             lines: 2,
           },
           {
             bounds: [
-              { index: 28, fraction: 0.875, edge: false, line_id: 14 },
-              { index: 32, fraction: 1, edge: true, line_id: null },
+              { index: 28, fraction: 0.875, edge: null, line_id: 14 },
+              { index: 32, fraction: 1, edge: 'right', line_id: null },
             ],
             lines: 2,
           },
@@ -581,6 +582,49 @@ describe('a grid step', () => {
       });
       expect(describePlannerStep(t, withGrid(two), 0)).toContain(
         'between the left edge and the 1/8 line, and between the 7/8 line and the right edge'
+      );
+    });
+
+    // A band creased only part way along its lines says how far, by the
+    // lines of the other family its extent ends on.
+    it('says how far along the lines the band is creased', () => {
+      const cut = bands({
+        regions: [
+          {
+            bounds: [
+              { index: 8, fraction: 0.25, edge: null, line_id: 4 },
+              { index: 24, fraction: 0.75, edge: null, line_id: 12 },
+            ],
+            lines: 8,
+            extent: [0.375, 0.625],
+            along: [
+              { index: 6, fraction: 0.375, edge: null, line_id: 30 },
+              { index: 10, fraction: 0.625, edge: null, line_id: 34 },
+            ],
+          },
+        ],
+      });
+      expect(describePlannerStep(t, withGrid(cut), 0)).toBe(
+        'Add the 32nds vertically between the 1/4 line and the 3/4 line, from the 3/8 line to the 5/8 line: 8 lines, creased as shown.'
+      );
+      const toEdge = bands({
+        regions: [
+          {
+            bounds: [
+              { index: 8, fraction: 0.25, edge: null, line_id: 4 },
+              { index: 24, fraction: 0.75, edge: null, line_id: 12 },
+            ],
+            lines: 8,
+            extent: [0, 0.625],
+            along: [
+              { index: 0, fraction: 0, edge: 'bottom', line_id: null },
+              { index: 10, fraction: 0.625, edge: null, line_id: 34 },
+            ],
+          },
+        ],
+      });
+      expect(describePlannerStep(t, withGrid(toEdge), 0)).toContain(
+        'from the bottom edge to the 5/8 line'
       );
     });
 
@@ -594,8 +638,8 @@ describe('a grid step', () => {
         regions: [
           {
             bounds: [
-              { index: 0, fraction: 0, edge: true, line_id: null },
-              { index: 9, fraction: 9 / 13, edge: false, line_id: null },
+              { index: 0, fraction: 0, edge: 'left', line_id: null },
+              { index: 9, fraction: 9 / 13, edge: null, line_id: null },
             ],
             lines: 8,
           },

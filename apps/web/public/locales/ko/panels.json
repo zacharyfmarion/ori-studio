@@ -853,6 +853,7 @@
       "free": "이 선은 이미 종이에 있습니다.",
       "gridBadge": "격자",
       "gridBand": "{{lo}}과(와) {{hi}} 사이",
+      "gridBandAlong": "{{band}}, {{lo}}부터 {{hi}}까지",
       "gridBands_other": "{{where}}에 {{direction}} {{level}} 선을 추가합니다: 선 {{count}}개, 그림대로 접습니다.",
       "gridBandsAnd": ", 그리고 ",
       "gridBoundAcross": "가로 {{fraction}} 지점",

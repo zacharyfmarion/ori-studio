@@ -15,6 +15,7 @@ import {
 } from './plannerDiagram';
 import type {
   PrecreaseDirection,
+  PrecreaseGridBound,
   PrecreaseGridStepLine,
   PrecreasePlanSegment,
   PrecreaseSequence,
@@ -1164,6 +1165,7 @@ describe('a grid step', () => {
         [d, 0],
         [d, 1],
       ],
+      spans: [],
       index,
       direction,
       pattern_direction: direction,
@@ -1193,12 +1195,9 @@ describe('a grid step', () => {
         regions: [
           {
             bounds: [
-              { index: 2, fraction: 0.25, edge: false, line_id: 4 },
-              { index: 6, fraction: 0.75, edge: false, line_id: 6 },
-            ] as [
-              { index: number; fraction: number; edge: boolean; line_id: number | null },
-              { index: number; fraction: number; edge: boolean; line_id: number | null },
-            ],
+              { index: 2, fraction: 0.25, edge: null, line_id: 4 },
+              { index: 6, fraction: 0.75, edge: null, line_id: 6 },
+            ] as [PrecreaseGridBound, PrecreaseGridBound],
             lines: 2,
           },
         ],
@@ -1248,6 +1247,55 @@ describe('a grid step', () => {
     it('is a pleat on the card when it is a pleat, with no wash', () => {
       const kinds = (plannerStepDiagram(sequence, unit, 0)?.primitives ?? []).map((p) => p.kind);
       expect(kinds).not.toContain('region');
+    });
+
+    // A band creased only part way along its lines is that much of the
+    // paper: the wash stops where the crease does, and so do the lines.
+    it('cuts the wash and the lines to the band’s extent', () => {
+      const cut = {
+        ...step,
+        grid: {
+          ...step.grid,
+          regions: step.grid.regions.map((region) => ({
+            ...region,
+            extent: [0.25, 0.75] as [number, number],
+            along: [
+              { index: 1, fraction: 0.25, edge: null, line_id: 7 },
+              { index: 3, fraction: 0.75, edge: null, line_id: 9 },
+            ] as [PrecreaseGridBound, PrecreaseGridBound],
+          })),
+          lines: step.grid.lines.map((line) => ({
+            ...line,
+            spans: [
+              [
+                [line.line.d, 0.25],
+                [line.line.d, 0.75],
+              ] as PrecreasePlanSegment,
+            ],
+          })),
+        },
+      };
+      const seq: PrecreaseSequence = { ...banded, steps: [banded.steps[0]!, banded.steps[1]!, cut] };
+      const diagram = plannerStepDiagram(seq, unitFrame(seq), 2);
+      const region = (diagram?.primitives ?? []).find((p) => p.kind === 'region');
+      if (!region || region.kind !== 'region') throw new Error('no wash');
+      expect(region.corners.map((c) => c[0]).sort()).toEqual([0.25, 0.25, 0.75, 0.75]);
+      expect(region.corners.map((c) => c[1]).sort()).toEqual([0.25, 0.25, 0.75, 0.75]);
+      const own = lines(diagram?.primitives).filter(
+        (l) => l.style !== 'highlight' && l.style !== 'crease'
+      );
+      expect(own.some((l) => isSeg(l, [0.375, 0.25], [0.375, 0.75]))).toBe(true);
+      expect(own.some((l) => isSeg(l, [0.375, 0], [0.375, 1]))).toBe(false);
+      // And on the next card it is that much crease, no more.
+      const later: PrecreaseSequence = {
+        ...seq,
+        steps: [...seq.steps, { ...banded.steps[0]!, id: 4, grid: undefined, kind: 'cp' }],
+      };
+      const context = lines(plannerStepDiagram(later, unitFrame(later), 3)?.primitives).filter(
+        (l) => l.style === 'crease'
+      );
+      expect(context.some((l) => isSeg(l, [0.375, 0.25], [0.375, 0.75]))).toBe(true);
+      expect(context.some((l) => isSeg(l, [0.375, 0], [0.375, 1]))).toBe(false);
     });
   });
 

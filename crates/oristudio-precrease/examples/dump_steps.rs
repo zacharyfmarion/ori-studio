@@ -92,8 +92,12 @@ fn main() {
                     g.regions
                         .iter()
                         .map(|r| format!(
-                            "{:.3}..{:.3}",
-                            r.bounds[0].fraction, r.bounds[1].fraction
+                            "{:.3}..{:.3}{}",
+                            r.bounds[0].fraction,
+                            r.bounds[1].fraction,
+                            r.extent
+                                .map(|e| format!(" along {:.3}..{:.3}", e[0], e[1]))
+                                .unwrap_or_default()
                         ))
                         .collect::<Vec<_>>()
                         .join(",")

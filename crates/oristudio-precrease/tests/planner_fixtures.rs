@@ -34,7 +34,7 @@ fn every_manifest_fixture_plans_to_its_recorded_auxiliary_count() {
             .iter()
             .find(|c| c.id == component)
             .unwrap_or_else(|| panic!("{file}: no component {component}"));
-        let (planner, seq) = plan_component(comp, unbounded_options());
+        let (mut planner, seq) = plan_component(comp, unbounded_options());
         let aux = seq.steps.iter().filter(|s| s.kind == StepKind::Aux).count() as u64;
         let expected_status = match entry["status"].as_str().unwrap_or("complete") {
             "complete" => Status::Complete,
@@ -180,9 +180,14 @@ fn every_manifest_fixture_plans_to_its_recorded_auxiliary_count() {
             }
         }
         // Landmarks-first keeps the totals — the folds, that is. A different
-        // order can leave different marks short and so need different presses.
+        // order can leave different marks short and so need different presses,
+        // and can crease a band's line further for them.
         let lf = planner.sequence(true);
-        let folds_only = |t: &Totals| Totals { presses: 0, ..*t };
+        let folds_only = |t: &Totals| Totals {
+            presses: 0,
+            grid_unwanted_length: 0.0,
+            ..*t
+        };
         assert_eq!(folds_only(&lf.totals), folds_only(&seq.totals), "{file}");
     }
     assert!(failures.is_empty(), "\n{}", failures.join("\n"));

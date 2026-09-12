@@ -437,11 +437,17 @@ export function describeGridStep(t: TFunction, grid: PrecreaseGridStep): string 
   })}`;
 }
 
-/** `index / cells` in lowest terms, as "3/16". */
-export function gridFraction(index: number, cells: number): string {
-  const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
-  const g = gcd(Math.abs(index), Math.abs(cells)) || 1;
-  return `${index / g}/${cells / g}`;
+/**
+ * A position across the sheet as the fraction it is, in lowest terms — "3/16"
+ * — found by the smallest denominator up to a 64-grid's that names it, since
+ * a bound carries its share of the side and not its family's cells.
+ */
+export function gridFraction(fraction: number): string {
+  for (let q = 1; q <= 64; q += 1) {
+    const p = Math.round(fraction * q);
+    if (Math.abs(p / q - fraction) < 1e-9) return `${p}/${q}`;
+  }
+  return fraction.toFixed(2);
 }
 
 /**
@@ -452,20 +458,24 @@ export function gridFraction(index: number, cells: number): string {
 function describeGridBound(
   t: TFunction,
   grid: PrecreaseGridStep,
-  bound: PrecreaseGridBound
+  bound: PrecreaseGridBound,
+  /** Across the family's own lines, or along them (the other family's). */
+  across = true
 ): string {
-  const vertical = Math.abs(grid.normal[0]) >= Math.abs(grid.normal[1]);
-  if (bound.edge) {
-    if (vertical) {
-      return bound.index <= 0
-        ? t('panels:references.ref.leftEdge', 'the left edge')
-        : t('panels:references.ref.rightEdge', 'the right edge');
-    }
-    return bound.index <= 0
-      ? t('panels:references.ref.bottomEdge', 'the bottom edge')
-      : t('panels:references.ref.topEdge', 'the top edge');
+  switch (bound.edge) {
+    case 'left':
+      return t('panels:references.ref.leftEdge', 'the left edge');
+    case 'right':
+      return t('panels:references.ref.rightEdge', 'the right edge');
+    case 'bottom':
+      return t('panels:references.ref.bottomEdge', 'the bottom edge');
+    case 'top':
+      return t('panels:references.ref.topEdge', 'the top edge');
+    case null:
+      break;
   }
-  const fraction = grid.cells === null ? String(bound.index) : gridFraction(bound.index, grid.cells);
+  const vertical = Math.abs(grid.normal[0]) >= Math.abs(grid.normal[1]) === across;
+  const fraction = grid.cells === null ? String(bound.index) : gridFraction(bound.fraction);
   if (bound.line_id !== null) {
     return t('panels:references.planStep.gridBoundLine', 'the {{fraction}} line', { fraction });
   }
@@ -479,7 +489,9 @@ function describeGridBound(
 /**
  * A grid step that is not a pleat: one level's lines, in the bands the
  * pattern needs them in, each made the way the pattern wants it — "Add the
- * 32nds vertically between the 1/4 and 3/4 lines: 8 lines, creased as shown."
+ * 32nds vertically between the 1/4 and 3/4 lines: 8 lines, creased as
+ * shown." — and, when a band is creased only part way along its lines, how
+ * far: "from the 3/8 line to the 5/8 line".
  */
 function describeGridBands(
   t: TFunction,
@@ -487,12 +499,18 @@ function describeGridBands(
   level: string,
   direction: string
 ): string {
-  const bands = grid.regions.map((region) =>
-    t('panels:references.planStep.gridBand', 'between {{lo}} and {{hi}}', {
+  const bands = grid.regions.map((region) => {
+    const band = t('panels:references.planStep.gridBand', 'between {{lo}} and {{hi}}', {
       lo: describeGridBound(t, grid, region.bounds[0]),
       hi: describeGridBound(t, grid, region.bounds[1]),
-    })
-  );
+    });
+    if (!region.along) return band;
+    return t('panels:references.planStep.gridBandAlong', '{{band}}, from {{lo}} to {{hi}}', {
+      band,
+      lo: describeGridBound(t, grid, region.along[0], false),
+      hi: describeGridBound(t, grid, region.along[1], false),
+    });
+  });
   const where = bands.join(t('panels:references.planStep.gridBandsAnd', ', and '));
   return t('panels:references.planStep.gridBands', {
     count: grid.lines.length,

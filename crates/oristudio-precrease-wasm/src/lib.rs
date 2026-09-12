@@ -238,12 +238,11 @@ impl PrecreasePlanner {
             ),
             None => (0, 0, 0),
         };
-        let sequence = self.inner.sequence(false);
         to_js_value(&PlannerInfo {
             component: self.inner.component_id(),
             status: self.inner.status(),
             sheet: self.inner.sheet().copied(),
-            exactness: sequence.exactness,
+            exactness: self.inner.exactness().cloned(),
             refused: self.inner.status() == Status::RefusedSheet,
             off_lattice: self.inner.is_off_lattice(),
             targets,
@@ -403,7 +402,7 @@ impl PrecreasePlanner {
     }
 
     /// The plan in its wire shape.
-    pub fn sequence(&self, landmarks_first: bool) -> Result<JsValue, JsValue> {
+    pub fn sequence(&mut self, landmarks_first: bool) -> Result<JsValue, JsValue> {
         to_js_value(&self.inner.sequence(landmarks_first))
     }
 

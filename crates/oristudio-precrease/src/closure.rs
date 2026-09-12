@@ -380,6 +380,37 @@ impl Closure {
         self.grid.as_ref()
     }
 
+    /// Crease grid line `line_id` along `span` as well — a stretch a later
+    /// step turned out to need, which the grid step then makes in the first
+    /// place rather than a press refolding the line for it. Records it on
+    /// the grid and on the paper; a line that is not the grid's is left
+    /// alone.
+    pub fn press_grid_line(&mut self, line_id: usize, span: [[f64; 2]; 2]) {
+        let Some(folded) = self.folded.iter().find(|f| f.line_id == line_id) else {
+            return;
+        };
+        let Some(g) = folded.grid else {
+            return;
+        };
+        let line = folded.line;
+        let Some(grid) = self.grid.as_mut() else {
+            return;
+        };
+        let Some(gl) = grid
+            .families
+            .get_mut(g.family)
+            .and_then(|f| f.lines.get_mut(g.line))
+        else {
+            return;
+        };
+        // A line creased edge to edge has nothing to gain.
+        if gl.spans.is_empty() {
+            return;
+        }
+        gl.spans.push(span);
+        self.creased.add_spans(&self.state, line_id, &line, &[span]);
+    }
+
     /// The current round counter.
     pub fn round(&self) -> u32 {
         self.round
@@ -697,7 +728,16 @@ impl Closure {
         // Every line the grid names, in family order, before any is added:
         // the grid is recorded first so that a cap partway through still
         // reports the lines that made it onto the paper.
-        let lines: Vec<(usize, usize, Line, Option<usize>)> = grid
+        /// One line to add: its family and position, its geometry, the
+        /// target it realises, and how far along it is creased.
+        struct Pleated {
+            family: usize,
+            line: usize,
+            geometry: Line,
+            target: Option<usize>,
+            spans: Vec<[[f64; 2]; 2]>,
+        }
+        let lines: Vec<Pleated> = grid
             .families
             .iter()
             .enumerate()
@@ -707,11 +747,24 @@ impl Closure {
                     .iter()
                     .enumerate()
                     .filter(|(_, gl)| gl.made)
-                    .map(move |(li, gl)| (fi, li, gl.line, gl.target))
+                    .map(move |(li, gl)| Pleated {
+                        family: fi,
+                        line: li,
+                        geometry: gl.line,
+                        target: gl.target,
+                        spans: gl.spans.clone(),
+                    })
             })
             .collect();
         self.grid = Some(grid);
-        for (fi, li, line, target) in lines {
+        for Pleated {
+            family: fi,
+            line: li,
+            geometry: line,
+            target,
+            spans,
+        } in lines
+        {
             if self.state.find_line(&line).is_some() {
                 continue;
             }
@@ -722,9 +775,14 @@ impl Closure {
                 LineTag::Grid
             };
             let outcome = self.state.add_line(line, tag)?;
-            // The pleat creases the whole line, whatever part of it the
-            // pattern wants.
-            self.creased.add_whole(&self.state, outcome.id);
+            // A pleat creases the whole line, whatever part of it the pattern
+            // wants; a band's line only as far along as its band runs.
+            if spans.is_empty() {
+                self.creased.add_whole(&self.state, outcome.id);
+            } else {
+                self.creased
+                    .add_spans(&self.state, outcome.id, &line, &spans);
+            }
             self.folded.push(FoldedLine {
                 line_id: outcome.id,
                 line,

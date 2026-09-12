@@ -13,7 +13,7 @@ use crate::grid::GridKind;
 use crate::line::Line;
 use crate::pinch::Extent;
 use crate::predicates::Witness;
-use crate::sheet::Sheet;
+use crate::sheet::{EdgeSide, Sheet};
 use crate::state::LineTag;
 
 /// A step folds a CP line or an auxiliary one.
@@ -41,6 +41,12 @@ pub struct GridStepLine {
     pub line: Line,
     /// The in-paper segment, for drawing.
     pub segment: [[f64; 2]; 2],
+    /// Where along the chord the line is creased, when not edge to edge: a
+    /// band's extent, and anything a later step needed of it past that.
+    /// Empty for a line creased along its whole chord. Every one of
+    /// `cp_spans` lies within these.
+    #[serde(default)]
+    pub spans: Vec<[[f64; 2]; 2]>,
     /// Position in the family: the line is `n · p = phase + index · spacing`.
     pub index: i32,
     /// The direction the pleat gives it, read from the front.
@@ -69,8 +75,9 @@ pub struct GridBound {
     /// Where it is across the sheet, as a share of the side the family
     /// crosses: `index / cells`.
     pub fraction: f64,
-    /// The sheet's edge rather than a line of the family.
-    pub edge: bool,
+    /// Which edge of the sheet, when the bound is the edge rather than a
+    /// line of the family.
+    pub edge: Option<EdgeSide>,
     /// State line id of the bounding line, when it is a line — always one
     /// an earlier grid step made, so the folder can see it.
     pub line_id: Option<usize>,
@@ -83,6 +90,14 @@ pub struct GridRegion {
     pub bounds: [GridBound; 2],
     /// How many of the step's lines lie in the band.
     pub lines: u32,
+    /// How far along its lines the band is creased, as shares of the chord
+    /// from `segment[0]` to `segment[1]`, when not edge to edge.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub extent: Option<[f64; 2]>,
+    /// What the extent ends on — a whole pleat line of another family, or
+    /// the sheet's edge — when there is one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub along: Option<[GridBound; 2]>,
 }
 
 /// What a [`StepKind::Grid`] step pleats.

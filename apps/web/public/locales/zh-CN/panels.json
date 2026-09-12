@@ -853,6 +853,7 @@
       "free": "这条线已经在纸上了。",
       "gridBadge": "网格",
       "gridBand": "{{lo}}与{{hi}}之间",
+      "gridBandAlong": "{{band}}，从{{lo}}到{{hi}}",
       "gridBands_other": "在{{where}}{{direction}}加上{{level}}的线：共 {{count}} 条，按图示压出折痕。",
       "gridBandsAnd": "，以及",
       "gridBoundAcross": "横向 {{fraction}} 处",

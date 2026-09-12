@@ -917,6 +917,7 @@
       "free": "Esta línea ya está en la hoja.",
       "gridBadge": "Cuadrícula",
       "gridBand": "entre {{lo}} y {{hi}}",
+      "gridBandAlong": "{{band}}, desde {{lo}} hasta {{hi}}",
       "gridBands_one": "Añade los {{level}} {{direction}} {{where}}: {{count}} línea, marcada como se muestra.",
       "gridBands_many": "Añade los {{level}} {{direction}} {{where}}: {{count}} líneas, marcadas como se muestra.",
       "gridBands_other": "Añade los {{level}} {{direction}} {{where}}: {{count}} líneas, marcadas como se muestra.",

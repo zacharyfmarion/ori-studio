@@ -36,14 +36,20 @@ export type DiagramSegment = readonly [Point, Point];
 export interface DiagramGridLine {
   /** The whole line across the paper: a pleat creases it edge to edge. */
   segment: DiagramSegment;
+  /**
+   * Where the step creases the line: the whole chord for a pleat's line, a
+   * band's extent for a band's — and anything a later step needed of it,
+   * creased then rather than pressed later. What the card draws for it.
+   */
+  spans: readonly DiagramSegment[];
   /** The direction the pleat gives it, named from the front. */
   direction: PrecreaseDirection;
   /** Whether the pattern contains it; otherwise it is the grid's own. */
   inPattern: boolean;
   /**
-   * Where the pattern wants creases on it, or empty. The pleat creases the
-   * whole line; what the pattern does not want of it is crease the paper
-   * carries and the pattern does not draw.
+   * Where the pattern wants creases on it, or empty. The step creases the
+   * line over `spans`; what the pattern does not want of that is crease the
+   * paper carries and the pattern does not draw.
    */
   creases: readonly DiagramSegment[];
 }
@@ -105,9 +111,11 @@ const pair = (s: PrecreasePlanSegment): DiagramSegment => [
 const gridLine = (
   line: PrecreaseGridStepLine,
   segment: DiagramSegment,
+  spans: readonly DiagramSegment[],
   creases: readonly DiagramSegment[]
 ): DiagramGridLine => ({
   segment,
+  spans: spans.length > 0 ? spans : [segment],
   direction: line.direction,
   inPattern: line.cp_line_ids.length > 0,
   creases,
@@ -174,7 +182,7 @@ export function unitFrame(
     pressedOn: (step) => step.pressed_on.map(pair),
     gridLines: (step) =>
       (step.grid?.lines ?? []).map((line) =>
-        gridLine(line, pair(line.segment), line.cp_spans.map(pair))
+        gridLine(line, pair(line.segment), (line.spans ?? []).map(pair), line.cp_spans.map(pair))
       ),
     point: (id) => {
       const found = sequence.points.find((entry) => entry.id === id);
@@ -320,14 +328,14 @@ export function modelFrame(
           { x: line.segment[0][0], y: line.segment[0][1] },
           { x: line.segment[1][0], y: line.segment[1][1] },
         ] as const;
-        const creases = line.cp_spans.map(
-          (crease) =>
-            [
-              along(span.a, span.b, parameterOf(unit[0], unit[1], crease[0])),
-              along(span.a, span.b, parameterOf(unit[0], unit[1], crease[1])),
-            ] as DiagramSegment
-        );
-        return [gridLine(line, [span.a, span.b], creases)];
+        const recover = (piece: PrecreasePlanSegment): DiagramSegment => [
+          along(span.a, span.b, parameterOf(unit[0], unit[1], piece[0])),
+          along(span.a, span.b, parameterOf(unit[0], unit[1], piece[1])),
+        ];
+        const creases = line.cp_spans.map(recover);
+        // The extent the same way: it is a stretch of the same chord.
+        const spans = (line.spans ?? []).map(recover);
+        return [gridLine(line, [span.a, span.b], spans, creases)];
       });
     },
     point: (id) => {

@@ -2960,7 +2960,8 @@
     "panels:references.planStep.gridBoundAcross": "91e19ba5a876",
     "panels:references.planStep.gridBoundLine": "60e43a33e9cf",
     "panels:references.planStep.gridBoundUp": "af07a66c8e7e",
-    "panels:references.settings.gridWhereNeeded": "c38ff4170155"
+    "panels:references.settings.gridWhereNeeded": "c38ff4170155",
+    "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5923,7 +5924,8 @@
     "panels:references.planStep.gridBoundAcross": "91e19ba5a876",
     "panels:references.planStep.gridBoundLine": "60e43a33e9cf",
     "panels:references.planStep.gridBoundUp": "af07a66c8e7e",
-    "panels:references.settings.gridWhereNeeded": "c38ff4170155"
+    "panels:references.settings.gridWhereNeeded": "c38ff4170155",
+    "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8888,7 +8890,8 @@
     "panels:references.planStep.gridBoundAcross": "91e19ba5a876",
     "panels:references.planStep.gridBoundLine": "60e43a33e9cf",
     "panels:references.planStep.gridBoundUp": "af07a66c8e7e",
-    "panels:references.settings.gridWhereNeeded": "c38ff4170155"
+    "panels:references.settings.gridWhereNeeded": "c38ff4170155",
+    "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11793,7 +11796,8 @@
     "panels:references.planStep.gridBoundAcross": "91e19ba5a876",
     "panels:references.planStep.gridBoundLine": "60e43a33e9cf",
     "panels:references.planStep.gridBoundUp": "af07a66c8e7e",
-    "panels:references.settings.gridWhereNeeded": "c38ff4170155"
+    "panels:references.settings.gridWhereNeeded": "c38ff4170155",
+    "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14698,7 +14702,8 @@
     "panels:references.planStep.gridBoundAcross": "91e19ba5a876",
     "panels:references.planStep.gridBoundLine": "60e43a33e9cf",
     "panels:references.planStep.gridBoundUp": "af07a66c8e7e",
-    "panels:references.settings.gridWhereNeeded": "c38ff4170155"
+    "panels:references.settings.gridWhereNeeded": "c38ff4170155",
+    "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -17661,7 +17666,8 @@
     "panels:references.planStep.gridBoundAcross": "91e19ba5a876",
     "panels:references.planStep.gridBoundLine": "60e43a33e9cf",
     "panels:references.planStep.gridBoundUp": "af07a66c8e7e",
-    "panels:references.settings.gridWhereNeeded": "c38ff4170155"
+    "panels:references.settings.gridWhereNeeded": "c38ff4170155",
+    "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -20624,7 +20630,8 @@
     "panels:references.planStep.gridBoundAcross": "91e19ba5a876",
     "panels:references.planStep.gridBoundLine": "60e43a33e9cf",
     "panels:references.planStep.gridBoundUp": "af07a66c8e7e",
-    "panels:references.settings.gridWhereNeeded": "c38ff4170155"
+    "panels:references.settings.gridWhereNeeded": "c38ff4170155",
+    "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -23529,6 +23536,7 @@
     "panels:references.planStep.gridBoundAcross": "91e19ba5a876",
     "panels:references.planStep.gridBoundLine": "60e43a33e9cf",
     "panels:references.planStep.gridBoundUp": "af07a66c8e7e",
-    "panels:references.settings.gridWhereNeeded": "c38ff4170155"
+    "panels:references.settings.gridWhereNeeded": "c38ff4170155",
+    "panels:references.planStep.gridBandAlong": "6ea7a6bf5dd6"
   }
 }
