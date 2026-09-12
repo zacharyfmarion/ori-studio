@@ -621,14 +621,11 @@ impl Closure {
         } = self;
         match target.map(|t| &targets[t].spans) {
             Some(spans) if !spans.is_empty() => {
-                let run = if *reach_references {
-                    reach(state, creased, line, spans)
+                if *reach_references {
+                    let runs = reach(state, creased, line, spans);
+                    creased.add_spans(state, line_id, line, &runs);
                 } else {
-                    None
-                };
-                match run {
-                    Some(run) => creased.add_spans(state, line_id, line, &[run]),
-                    None => creased.add_spans(state, line_id, line, spans),
+                    creased.add_spans(state, line_id, line, spans);
                 }
             }
             _ => creased.add_whole(state, line_id),

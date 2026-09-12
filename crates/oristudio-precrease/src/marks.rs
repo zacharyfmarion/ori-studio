@@ -544,39 +544,56 @@ pub fn findable_end_beyond(
     Some(t_far)
 }
 
-/// The crease a fold along `line` makes for the pattern's `spans`: one run
-/// from the first piece to the last, each end carried outward to the nearest
-/// reference the folder can find on the paper as it stands.
+/// The crease a fold along `line` makes for the pattern's `spans`: each
+/// piece with every end carried outward to the nearest reference the folder
+/// can find on the paper as it stands, pieces that then touch merged into
+/// one run.
 ///
-/// A diagram's instruction is a whole crease with a reference at each end —
-/// the sheet's edge, or a crease already there. The pattern's own crease on
-/// a line often is not: it arrives in pieces with blank paper between them,
-/// and it stops wherever the design stops needing it. So the run is the
-/// hull of the pieces, and an end that [`settled_end_is_found`] does not
-/// find moves outward, never inward, to [`findable_end_beyond`]. An end that
-/// is found stays exactly where the pattern put it. `None` for empty spans,
-/// which mean the whole chord and already end on the edge.
+/// A diagram's instruction is a crease with a reference at each end — the
+/// sheet's edge, or a crease already there. The pattern's own crease on a
+/// line often is not: it arrives in pieces, and each stops wherever the
+/// design stops needing it. So an end that [`settled_end_is_found`] does not
+/// find moves outward, never inward, to [`findable_end_beyond`]; an end that
+/// is found stays exactly where the pattern put it. The excess is the least
+/// that reaches a reference: a piece whose neighbour's reference is nearer
+/// than its own stops there, and where nothing crosses the blank between two
+/// pieces they become one crease. Empty for empty spans, which mean the
+/// whole chord and already end on the edge.
 pub fn reach(
     state: &State,
     creased: &Creased,
     line: &Line,
     spans: &[[[f64; 2]; 2]],
-) -> Option<[[f64; 2]; 2]> {
-    let runs = crease_runs(line, spans);
-    let (first, last) = (runs.first()?, runs.last()?);
-    let mut lo = line.parameter_of(first.0);
-    let mut hi = line.parameter_of(last.1);
-    if !settled_end_is_found(state, creased, line, first.0)
-        && let Some(t) = findable_end_beyond(state, creased, line, lo, false)
-    {
-        lo = lo.min(t);
+) -> Vec<[[f64; 2]; 2]> {
+    let mut runs: Vec<(f64, f64)> = crease_runs(line, spans)
+        .into_iter()
+        .map(|(a, b)| {
+            let (mut lo, mut hi) = (line.parameter_of(a), line.parameter_of(b));
+            if !settled_end_is_found(state, creased, line, a)
+                && let Some(t) = findable_end_beyond(state, creased, line, lo, false)
+            {
+                lo = lo.min(t);
+            }
+            if !settled_end_is_found(state, creased, line, b)
+                && let Some(t) = findable_end_beyond(state, creased, line, hi, true)
+            {
+                hi = hi.max(t);
+            }
+            (lo, hi)
+        })
+        .collect();
+    runs.sort_by(|a, b| a.0.total_cmp(&b.0));
+    let mut merged: Vec<(f64, f64)> = Vec::with_capacity(runs.len());
+    for (u, v) in runs {
+        match merged.last_mut() {
+            Some(last) if u <= last.1 + TOL => last.1 = last.1.max(v),
+            _ => merged.push((u, v)),
+        }
     }
-    if !settled_end_is_found(state, creased, line, last.1)
-        && let Some(t) = findable_end_beyond(state, creased, line, hi, true)
-    {
-        hi = hi.max(t);
-    }
-    Some([line.point_at(lo), line.point_at(hi)])
+    merged
+        .into_iter()
+        .map(|(u, v)| [line.point_at(u), line.point_at(v)])
+        .collect()
 }
 
 #[cfg(test)]
@@ -652,7 +669,7 @@ mod tests {
         let diagonal = Line::from_points([0.0, 0.0], [1.0, 1.0]).expect("line");
         let state = state_with(&[diagonal]);
         let creased = Creased::new(&state);
-        let run = reach(
+        let [run] = reach(
             &state,
             &creased,
             &diagonal,
@@ -661,14 +678,59 @@ mod tests {
                 [[0.25, 0.25], [0.75, 0.75]],
                 [[0.9, 0.9], [1.0, 1.0]],
             ],
-        )
-        .expect("a run");
+        )[..] else {
+            panic!("one run");
+        };
         let ends = [diagonal.parameter_of(run[0]), diagonal.parameter_of(run[1])];
         let (lo, hi) = state.sheet().clip_parameters(&diagonal).expect("clip");
         assert!(
             (ends[0] - lo).abs() < 1e-9 && (ends[1] - hi).abs() < 1e-9,
             "{run:?}"
         );
+    }
+
+    /// markhor's step 101: pieces at each edge and in the middle of a line,
+    /// with creases crossing the blank between them. Each piece runs out to
+    /// the nearest crossing and no further — three creases, each ending at
+    /// a reference, and the blank between the references is left blank.
+    #[test]
+    fn the_pieces_stop_at_the_references_between_them() {
+        let across = Line::new([0.0, 1.0], 0.125).expect("line");
+        let mut state = State::new(Sheet::unit_square(), 10_000);
+        state.add_line(across, LineTag::Cp).expect("line");
+        let mut creased = Creased::new(&state);
+        for x in [0.15, 0.35, 0.65, 0.85] {
+            let up = Line::new([1.0, 0.0], x).expect("line");
+            let id = state.add_line(up, LineTag::Cp).expect("line").id;
+            creased.add_whole(&state, id);
+        }
+        let runs = reach(
+            &state,
+            &creased,
+            &across,
+            &[
+                [[0.0, 0.125], [0.05, 0.125]],
+                [[0.45, 0.125], [0.55, 0.125]],
+                [[0.95, 0.125], [1.0, 0.125]],
+            ],
+        );
+        let mut xs: Vec<[f64; 2]> = runs
+            .iter()
+            .map(|[a, b]| {
+                let mut x = [a[0], b[0]];
+                x.sort_by(f64::total_cmp);
+                x
+            })
+            .collect();
+        xs.sort_by(|a, b| a[0].total_cmp(&b[0]));
+        let want = [[0.0, 0.15], [0.35, 0.65], [0.85, 1.0]];
+        assert_eq!(xs.len(), 3, "{xs:?}");
+        for (got, want) in xs.iter().zip(want) {
+            assert!(
+                (got[0] - want[0]).abs() < 1e-9 && (got[1] - want[1]).abs() < 1e-9,
+                "{xs:?}"
+            );
+        }
     }
 
     /// An end on the sheet's edge, or on a crease crossing squarely, is
@@ -683,7 +745,9 @@ mod tests {
         let across_id = state.line_count() - 1;
         creased.add_whole(&state, across_id);
         // From the bottom edge up to the crossing with `across`.
-        let run = reach(&state, &creased, &midline, &[[[0.5, 0.0], [0.5, 0.3]]]).expect("a run");
+        let [run] = reach(&state, &creased, &midline, &[[[0.5, 0.0], [0.5, 0.3]]])[..] else {
+            panic!("one run");
+        };
         let ys = {
             let mut ys = [run[0][1], run[1][1]];
             ys.sort_by(f64::total_cmp);
@@ -709,7 +773,9 @@ mod tests {
         creased.add_whole(&state, cp_id);
         // A crease in the middle: the low end has nothing below it but the
         // edge, the high end an aux crossing at 0.6 and a settled one at 0.8.
-        let run = reach(&state, &creased, &midline, &[[[0.5, 0.2], [0.5, 0.4]]]).expect("a run");
+        let [run] = reach(&state, &creased, &midline, &[[[0.5, 0.2], [0.5, 0.4]]])[..] else {
+            panic!("one run");
+        };
         let mut ys = [run[0][1], run[1][1]];
         ys.sort_by(f64::total_cmp);
         assert!(ys[0].abs() < 1e-9, "to the edge: {run:?}");
@@ -729,11 +795,13 @@ mod tests {
         let mut creased = Creased::new(&state);
         let across_id = state.line_count() - 1;
         creased.add_pinch(&state, across_id, &across, [[0.48, 0.7], [0.52, 0.7]]);
-        let run = reach(&state, &creased, &midline, &[[[0.5, 0.0], [0.5, 0.7]]]).expect("a run");
+        let [run] = reach(&state, &creased, &midline, &[[[0.5, 0.0], [0.5, 0.7]]])[..] else {
+            panic!("one run");
+        };
         let mut ys = [run[0][1], run[1][1]];
         ys.sort_by(f64::total_cmp);
         assert!((ys[1] - 0.7).abs() < 1e-9, "stops at the pinch: {run:?}");
-        assert!(reach(&state, &creased, &midline, &[]).is_none());
+        assert!(reach(&state, &creased, &midline, &[]).is_empty());
     }
 
     #[test]

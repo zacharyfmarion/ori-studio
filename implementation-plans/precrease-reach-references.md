@@ -106,22 +106,26 @@ For a CP fold along line `L` whose target holds pattern spans `S` (non-empty;
 an empty `S` is the whole chord and already ends on the edge), against the
 paper `P` as it stands when the fold is made:
 
-1. **One crease.** `runs = crease_runs(L, S)`, sorted along `L`. The step
-   creases `[t_lo, t_hi]` = from the start of the first run to the end of
-   the last: the pieces and the blank paper between them.
-2. **Each end reaches a reference.** If `settled_end_is_found(P, L,
-   point_at(t_lo))`, the low end stays. Otherwise it moves *outward* — never
-   inward — to the nearest `t < t_lo` at which it would be found: the
-   sheet's boundary (`clip_parameters`), or a crossing with a line of
-   settled extent (tag `Edge`, `Cp` or `Grid`, never `Aux`/`RfAux`) that
-   crosses `L` squarely and is creased at the crossing (`Creased::reaches`).
-   The high end the same way, toward `t > t_hi`. The boundary always
-   qualifies, so the search always terminates on the sheet.
-3. The step's crease is recorded on the paper as that one run and reported
+1. **Each piece reaches a reference at each end.** For every run of
+   `crease_runs(L, S)`: if `settled_end_is_found(P, L, end)`, the end
+   stays. Otherwise it moves *outward* — away from the piece, never inward
+   — to the nearest parameter at which it would be found: the sheet's
+   boundary (`clip_parameters`), or a crossing with a line of settled
+   extent (tag `Edge`, `Cp` or `Grid`, never `Aux`/`RfAux`) that crosses
+   `L` squarely and is creased at the crossing (`Creased::reaches`). The
+   boundary always qualifies, so the search always terminates on the sheet.
+2. **Pieces merge where their reaches meet.** Two pieces with nothing
+   crossing the blank between them run into each other and become one
+   crease; two pieces with a crossing between them each stop at it — or at
+   their own nearer crossings — and the blank between the references stays
+   blank. (The first cut of this rule joined every piece into one hull
+   before reaching; markhor's ⅛ line, three short pieces with crossings in
+   the gaps, showed that creases far more than the nearest reference asks.)
+3. The step's crease is recorded on the paper as those runs and reported
    as `Step.made`.
 
-Every CP step then has both ends findable at the moment it is made, by
-construction, and no CP step is made in pieces. This is `press_span`'s
+Every CP step then has every crease end findable at the moment it is made,
+by construction, with the least excess that does. This is `press_span`'s
 far-end search factored out and run for the fold itself: a press ran from a
 run end past a mark to a findable end; a fold now runs from reference to
 reference in the first place. Presses for marks *on the fold's own line*
@@ -408,4 +412,16 @@ exactly it.
       4,325 → 4,290, presses 534 → 489, turn-overs 301 → 302, reach and
       lost ends unchanged; *Abra* 80 → 77 steps and 6 → 3 presses,
       *Wolpertinger* 167 → 161.
+- [x] From the live reading of markhor (step 101, y = ⅛): the hull rule
+      joined three short pieces — at each edge and in the middle — into one
+      crease edge to edge when creases crossing the blank between them
+      would have stopped each piece a hair past its end. The rule is now
+      per piece: each end of each piece is carried outward to the *nearest*
+      reference, and pieces merge only where their reaches meet — the least
+      excess that reaches a reference, so *Abra*'s diagonal (nothing crosses
+      its gaps at the time) is still one crease corner to corner and
+      markhor's ⅛ line is three creases ending at the crossings at 0.073,
+      0.375, 0.625 and 0.927. Less crease means fewer marks for later
+      steps, so presses can rise where the joined crease used to supply
+      them (markhor 11 → 16); measured below.
 - [ ] Live check on *Abra* (Zach)

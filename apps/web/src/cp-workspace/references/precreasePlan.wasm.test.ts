@@ -363,10 +363,11 @@ describe.skipIf(!available)('runPrecreasePlan over the real planner bridge', () 
     );
   }, 120_000);
 
-  // Every CP step's crease crosses the bridge as one run holding the
-  // pattern's pieces, with the reach length that cost; asked not to reach,
-  // the plan sends the pieces as they are and no reach at all.
-  it('makes each CP step’s crease one run from reference to reference, and the pieces when asked', async () => {
+  // Every CP step's crease crosses the bridge as runs from reference to
+  // reference that hold the pattern's pieces, with the reach length that
+  // cost; asked not to reach, the plan sends the pieces as they are and no
+  // reach at all.
+  it('makes each CP step’s crease run from reference to reference, and the pieces when asked', async () => {
     const { result } = await plan('iguana-c0.fold');
     const { sequence } = result;
     const along = (step: PrecreaseStep, p: [number, number]) =>
@@ -375,15 +376,13 @@ describe.skipIf(!available)('runPrecreasePlan over the real planner bridge', () 
     const cp = sequence.steps.filter((step) => step.kind === 'cp' && step.cp_spans.length > 0);
     expect(cp.length).toBeGreaterThan(0);
     for (const step of cp) {
-      expect(step.made).toHaveLength(1);
-      const [u, v] = [along(step, step.made[0]![0]), along(step, step.made[0]![1])].sort(
-        (a, b) => a - b
+      expect(step.made.length).toBeGreaterThanOrEqual(1);
+      const runs = step.made.map((run) =>
+        [along(step, run[0]), along(step, run[1])].sort((a, b) => a - b)
       );
       for (const span of step.cp_spans) {
-        for (const end of span) {
-          expect(along(step, end)).toBeGreaterThanOrEqual(u - 1e-9);
-          expect(along(step, end)).toBeLessThanOrEqual(v + 1e-9);
-        }
+        const [a, b] = [along(step, span[0]), along(step, span[1])].sort((x, y) => x - y);
+        expect(runs.some(([u, v]) => a >= u! - 1e-9 && b <= v! + 1e-9)).toBe(true);
       }
     }
     for (const step of sequence.steps.filter((step) => step.kind !== 'cp')) {

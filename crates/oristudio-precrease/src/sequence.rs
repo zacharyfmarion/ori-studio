@@ -278,14 +278,16 @@ pub struct Step {
     #[serde(default)]
     pub pressed_on: Vec<[[f64; 2]; 2]>,
     /// The crease this step leaves on its line, in the planner's unit frame:
-    /// the pattern's pieces joined into one run, each end carried outward to
-    /// the reference it stops at — the sheet's edge, or a crease already
-    /// there — so the folder is never told to stop on blank paper. Every one
-    /// of `cp_spans` lies within it; the rest is crease the pattern does not
-    /// contain, made so the fold can be made as a diagram would instruct
-    /// it. Planned with the reach off, the pattern's own runs. Empty for an
-    /// auxiliary step, a press, and a CP line creased along its whole chord,
-    /// whose `extent` says how much of it is made.
+    /// the pattern's pieces, each end carried outward to the nearest
+    /// reference it can stop at — the sheet's edge, or a crease already
+    /// there — and merged where they meet, so the folder is never told to
+    /// stop on blank paper and never creases further than the nearest
+    /// reference asks. Every one of `cp_spans` lies within them; the rest is
+    /// crease the pattern does not contain, made so the fold can be made as
+    /// a diagram would instruct it. Planned with the reach off, the
+    /// pattern's own runs. Empty for an auxiliary step, a press, and a CP
+    /// line creased along its whole chord, whose `extent` says how much of
+    /// it is made.
     #[serde(default)]
     pub made: Vec<[[f64; 2]; 2]>,
     /// Hoisted to phase 0 by `landmarks_first`.

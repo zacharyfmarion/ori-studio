@@ -386,10 +386,11 @@ export interface PrecreaseStep {
   pressed_on: PrecreasePlanSegment[];
   /**
    * The crease this step leaves on its line, in the planner's unit frame: the
-   * pattern's pieces joined into one run, each end carried outward to the
-   * reference it stops at — the sheet's edge, or a crease already there — so
-   * the folder is never told to stop on blank paper. Every one of `cp_spans`
-   * lies within it. Empty for an auxiliary step, a press, a CP line creased
+   * pattern's pieces, each end carried outward to the nearest reference it can
+   * stop at — the sheet's edge, or a crease already there — and merged where
+   * they meet, so the folder is never told to stop on blank paper and never
+   * creases further than the nearest reference asks. Every one of `cp_spans`
+   * lies within them. Empty for an auxiliary step, a press, a CP line creased
    * along its whole chord, and any plan from before the planner reached for
    * references — the pattern's own pieces are then all there is to draw.
    */

@@ -99,11 +99,10 @@ pub struct Placed {
     /// made. See [`make_marks_real`].
     pub pressed_on: Vec<[[f64; 2]; 2]>,
     /// The crease this fold leaves on its line, as the runs recorded on the
-    /// paper: with the closure reaching references, one run from the
-    /// pattern's first piece to its last with each end carried to the
-    /// reference it stops at ([`crate::marks::reach`]); without, the
-    /// pattern's own runs. Empty for a press, and for a fold creased along
-    /// its whole chord.
+    /// paper: with the closure reaching references, the pattern's pieces
+    /// each carried out to the references they stop at and merged where
+    /// they meet ([`crate::marks::reach`]); without, the pattern's own runs.
+    /// Empty for a press, and for a fold creased along its whole chord.
     pub made: Vec<[[f64; 2]; 2]>,
 }
 
@@ -258,8 +257,6 @@ fn record(creased: &mut Creased, closure: &Closure, folded_index: usize) -> Vec<
             // here to the paper as it stands in presentation order.
             let made = if closure.reach_references() {
                 reach(state, creased, &f.line, &target.spans)
-                    .map(|run| vec![run])
-                    .unwrap_or_default()
             } else {
                 runs_of(&f.line, &target.spans)
             };
