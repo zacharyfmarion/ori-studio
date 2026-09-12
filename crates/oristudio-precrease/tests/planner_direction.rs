@@ -506,18 +506,31 @@ fn every_step_is_sighted_from_marks_that_are_on_the_paper() {
 /// A press step is exactly a pinch on a line an earlier step made, placed
 /// right before the step that needs the mark, and never claims pattern crease.
 ///
-/// With every fold made from reference to reference no fixture needs a press
-/// with its grid on, so iguana-c0 is planned line by line as well: three of
-/// its marks are still made by a press.
+/// With every fold made from reference to reference, and the sightable folds
+/// made first, no fixture needs a press at all — so iguana-c0 is also planned
+/// line by line with both of those off, the way plans were made before them,
+/// where three of its marks are still made by a press.
 #[test]
 fn a_press_is_a_pinch_on_a_line_already_made_and_claims_no_pattern_crease() {
     let mut seen_one = false;
+    let as_before = || {
+        let cp = load("tests/fixtures/precrease/iguana-c0.fold");
+        plan_component(
+            &component_of(&cp),
+            PlannerOptions {
+                prefer_sightable: false,
+                reach_references: false,
+                ..grid_off_options()
+            },
+        )
+        .1
+    };
     let plans: Vec<(String, Sequence)> = EVERY_FIXTURE
         .iter()
         .map(|file| (file.to_string(), plan(file)))
         .chain(std::iter::once((
-            "iguana-c0 line by line".to_string(),
-            plan_line_by_line("tests/fixtures/precrease/iguana-c0.fold"),
+            "iguana-c0 line by line, as before reach and sightable-first".to_string(),
+            as_before(),
         )))
         .collect();
     for (file, seq) in &plans {
@@ -793,16 +806,18 @@ fn a_real_design_turns_over_a_handful_of_times() {
     // not reach where a fold used them. Sixteen while every fold was sighted
     // against the paper as its round began; six once each was sighted at
     // its own place in the order, where the same round's earlier folds have
-    // left their marks too; three now that every fold is creased from
+    // left their marks too; three once every fold was creased from
     // reference to reference, so the marks along a fold's own line are there
-    // the moment it is made.
-    assert_eq!(seq.totals.presses, 3, "iguana-c0 presses");
-    assert_eq!(seq.steps.len(), 94, "iguana-c0 steps");
-    // 9 while hardness sorted before the ease order. The presentation
-    // preference also feeds the stuck search's ease term, so changing it can
-    // change which auxiliary fold the search takes and everything after it;
-    // the auxiliary count is pinned by the manifest and did not move.
-    assert_eq!(turn_overs(&seq), 6, "iguana-c0 turn-overs");
+    // the moment it is made; none now that the closure folds first what the
+    // paper can sight and the ordering pass does the same within a round,
+    // so every mark a fold needs is made by a crease before it.
+    assert_eq!(seq.totals.presses, 0, "iguana-c0 presses");
+    assert_eq!(seq.steps.len(), 91, "iguana-c0 steps");
+    // 9 while hardness sorted before the ease order; 6 with the presses; 8
+    // now — waiting for marks is a sweep, and a sweep boundary is where the
+    // sheet is turned over. Two turn-overs for three presses is the trade,
+    // and the corpus is where it is judged.
+    assert_eq!(turn_overs(&seq), 8, "iguana-c0 turn-overs");
 }
 
 /// The snappable path builds its targets from `SnappedLine`, which carries no

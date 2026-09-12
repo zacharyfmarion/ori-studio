@@ -42,6 +42,7 @@ use serde::{Deserialize, Serialize};
 use crate::constants::{SKINNY_FLAP_ASPECT, axiom_search_ease, fold_ease};
 use crate::construct::{Construction, Pt};
 use crate::line::Line;
+use crate::marks::{Creased, point_mark_exists};
 use crate::sheet::{CornerName, EdgeSide};
 use crate::state::State;
 use crate::tol::TOL;
@@ -382,7 +383,43 @@ pub fn crease_through(state: &State, target: &Line, p: usize, q: usize) -> Optio
 /// Enumerate certified witnesses for `target` from `facts`. Tier-1 axioms
 /// (O1–O4) always; O5–O7 only when `facts.landers_computed`.
 pub fn witnesses(state: &State, target: &Line, facts: &Facts) -> Vec<Witness> {
+    witnesses_on(state, target, facts, None)
+}
+
+/// [`witnesses`], enumerated with the paper in view.
+///
+/// The caps below keep the enumeration bounded, and they cut by scan order:
+/// the first twelve points on the line, the first sixteen constructions per
+/// axiom. Scan order is line order, which knows nothing about which points
+/// are marks a folder can find — so a fold whose free witness used the
+/// thirteenth point was recorded with sixteen that each needed a press, and
+/// the one that cost nothing was never seen. With `paper` given, the points
+/// and landers that are marks on it come first, so what the caps keep is
+/// what the folder can use. The set of constructions is otherwise the same,
+/// and with no paper the order is the scan's.
+pub fn witnesses_on(
+    state: &State,
+    target: &Line,
+    facts: &Facts,
+    paper: Option<&Creased>,
+) -> Vec<Witness> {
     let mut out: Vec<Witness> = Vec::new();
+    let is_mark = |id: usize| paper.is_some_and(|creased| point_mark_exists(state, creased, id));
+    let mut points_on: Vec<usize> = facts.points_on.clone();
+    let mut o2_pairs: Vec<(usize, usize)> = facts.o2_pairs.clone();
+    let mut landers: Vec<(usize, usize)> = facts.landers.clone();
+    if paper.is_some() {
+        // Stable: among marks, and among the rest, the scan's order stands.
+        points_on.sort_by_key(|&p| !is_mark(p));
+        o2_pairs.sort_by_key(|&(p, r)| usize::from(!is_mark(p)) + usize::from(!is_mark(r)));
+        landers.sort_by_key(|&(p, _)| !is_mark(p));
+    }
+    let facts = &Facts {
+        points_on,
+        o2_pairs,
+        landers,
+        ..facts.clone()
+    };
     let points: Vec<usize> = facts
         .points_on
         .iter()
@@ -722,6 +759,13 @@ pub fn all_witnesses(state: &State, target: &Line) -> Vec<Witness> {
     witnesses(state, target, &facts)
 }
 
+/// [`all_witnesses`], with the marks on `paper` enumerated first — see
+/// [`witnesses_on`].
+pub fn all_witnesses_on(state: &State, target: &Line, paper: &Creased) -> Vec<Witness> {
+    let facts = full_facts(state, target);
+    witnesses_on(state, target, &facts, Some(paper))
+}
+
 /// The closure's own witness for a line, under the search's order
 /// ([`Witness::search_preference`]): the stuck search reads it, and so must
 /// not see the card's order. The witness a card presents is chosen in
@@ -819,6 +863,66 @@ mod tests {
             .expect("a perpendicular to the crease");
         assert!(on_crease.ease > o5);
         assert!(!on_crease.one_motion());
+    }
+
+    /// plantcient dragon: a line with more than twelve points on it, of
+    /// which only the thirteenth is a mark on the paper. Enumerated in scan
+    /// order the caps kept twelve points and sixteen constructions that all
+    /// needed a press; with the paper in view the mark comes first and the
+    /// free construction is among what is kept.
+    #[test]
+    fn with_the_paper_in_view_the_marks_come_first() {
+        let mut state = State::new(Sheet::unit_square(), DEFAULT_POINT_CAP);
+        let target = line([1.0, 0.0], 0.5);
+        // Fourteen points on the target, each the crossing of a horizontal
+        // and a diagonal; only the last pair is creased where they cross.
+        let k = std::f64::consts::FRAC_1_SQRT_2;
+        let mut pairs = Vec::new();
+        for i in 1..=14 {
+            let y = 0.04 + 0.06 * i as f64;
+            let across = state
+                .add_line(line([0.0, 1.0], y), LineTag::Cp)
+                .expect("line")
+                .id;
+            let slant = state
+                .add_line(line([k, k], (0.5 + y) * k), LineTag::Cp)
+                .expect("line")
+                .id;
+            pairs.push((across, slant, y));
+        }
+        let mut creased = Creased::new(&state);
+        for &(across, slant, y) in &pairs[..13] {
+            creased.add_spans(&state, across, state.line(across), &[[[0.0, y], [0.2, y]]]);
+            creased.add_spans(
+                &state,
+                slant,
+                state.line(slant),
+                &[[[0.0, 0.5 + y], [0.1, 0.4 + y]]],
+            );
+        }
+        let (across, slant, y) = pairs[13];
+        creased.add_whole(&state, across);
+        creased.add_whole(&state, slant);
+        let mark = state
+            .find_point([0.5, y])
+            .expect("the crossing of the last pair");
+        assert!(point_mark_exists(&state, &creased, mark));
+        let names_mark = |ws: &[Witness]| {
+            ws.iter().any(|w| {
+                w.inputs
+                    .iter()
+                    .any(|r| matches!(r, Ref::Point { id } if *id == mark))
+            })
+        };
+        assert!(
+            !names_mark(&all_witnesses(&state, &target)),
+            "capped away by scan order"
+        );
+        assert!(names_mark(&all_witnesses_on(&state, &target, &creased)));
+        // The same constructions otherwise: no axiom appears that could not.
+        let plain = axioms(&all_witnesses(&state, &target));
+        let ranked = axioms(&all_witnesses_on(&state, &target, &creased));
+        assert_eq!(plain, ranked);
     }
 
     #[test]

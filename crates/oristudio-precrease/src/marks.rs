@@ -456,6 +456,17 @@ pub fn runs_reach(line: &Line, spans: &[[[f64; 2]; 2]], p: [f64; 2]) -> bool {
         .any(|(a, b)| t >= line.parameter_of(a) - TOL && t <= line.parameter_of(b) + TOL)
 }
 
+/// Whether the folder can sight `w` for the fold along `line` on the paper as
+/// it stands: every mark it names is there, every alignment it asks for is
+/// between creases that are there, and the creases a bisector needs meet.
+/// The one question, asked by the closure to decide what to fold now and by
+/// the ordering pass to decide what to show — so the two cannot disagree.
+pub fn witness_sightable(state: &State, creased: &Creased, line: &Line, w: &Witness) -> bool {
+    witness_marks_exist(state, creased, w)
+        && witness_aligns(state, creased, line, w)
+        && witness_lines_meet(state, creased, w)
+}
+
 /// Whether every end of every crease on `line` is somewhere the folder can find.
 ///
 /// An end on the sheet's edge needs nothing — you crease to the edge of the

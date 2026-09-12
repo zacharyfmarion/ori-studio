@@ -3,7 +3,7 @@
 //! line, its in-paper segment, direction and side.
 //!
 //! ```sh
-//! cargo run --release -p oristudio-precrease --example dump_steps -- <file> [--no-grid] [--whole] [--component N]
+//! cargo run --release -p oristudio-precrease --example dump_steps -- <file> [--no-grid] [--whole] [--no-reach] [--no-sightable] [--component N]
 //! ```
 
 use std::path::PathBuf;
@@ -17,6 +17,8 @@ use oristudio_precrease::predicates::Ref;
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let grid = !args.iter().any(|a| a == "--no-grid");
+    let reach = !args.iter().any(|a| a == "--no-reach");
+    let sightable = !args.iter().any(|a| a == "--no-sightable");
     let whole = args.iter().any(|a| a == "--whole");
     let component: usize = args
         .iter()
@@ -45,6 +47,8 @@ fn main() {
             (true, true) => GridMode::Whole,
             (true, false) => GridMode::WhereNeeded,
         },
+        reach_references: reach,
+        prefer_sightable: sightable,
         clock: default_clock(),
         ..PlannerOptions::default()
     };

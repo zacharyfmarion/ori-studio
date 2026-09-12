@@ -12,9 +12,11 @@
 //! plans are different plans. `--no-grid` plans without the precrease grid,
 //! to measure the grid the same way; `--no-reach` plans with every CP step
 //! creasing exactly the pattern's pieces rather than one run from reference
-//! to reference, to measure that rule the same way. `-v` names every lost
-//! end and every step made in pieces, with the preference on, to be read by
-//! hand.
+//! to reference, and `--no-sightable` without the closure folding first what
+//! the paper can sight, to measure those rules the same way. `-v` names
+//! every lost end, every step made in pieces and every press — with what the
+//! press was for: a fold that had a free witness, a mark the pattern makes
+//! later anyway, or neither — with the preference on, to be read by hand.
 //!
 //! What is replayed is what each step *made*: a CP step's `made` run (its
 //! pattern spans when the plan did not reach) and whatever it pressed on, a
@@ -26,9 +28,12 @@ use std::path::{Path, PathBuf};
 
 use oristudio_precrease::analyze;
 use oristudio_precrease::fixture_io::load_path;
-use oristudio_precrease::marks::{Creased, crease_runs, end_is_found};
+use oristudio_precrease::marks::{
+    Creased, crease_runs, end_is_found, point_mark_exists, witness_sightable,
+};
 use oristudio_precrease::pinch::Extent;
 use oristudio_precrease::planner::{GridMode, Planner, PlannerOptions};
+use oristudio_precrease::predicates::all_witnesses_on;
 use oristudio_precrease::sequence::{Sequence, StepKind};
 use oristudio_precrease::sheet::Sheet;
 use oristudio_precrease::state::State;
@@ -57,6 +62,12 @@ struct Tally {
     reversed: usize,
     /// Press steps: extra crease made so a later step can be sighted.
     presses: usize,
+    /// Of the presses: ones before a step that had another witness sightable
+    /// on the paper as it stood — a press the pick could have avoided.
+    presses_with_free_witness: usize,
+    /// Of the presses: ones for a mark the pattern's own creases do make,
+    /// later in the plan — a press an order could have avoided.
+    presses_made_later: usize,
     /// Their total length, in sheet-sides.
     press_len: f64,
 }
@@ -77,6 +88,8 @@ impl Tally {
         }
         self.reversed += o.reversed;
         self.presses += o.presses;
+        self.presses_with_free_witness += o.presses_with_free_witness;
+        self.presses_made_later += o.presses_made_later;
         self.press_len += o.press_len;
     }
 }
@@ -86,6 +99,13 @@ impl Tally {
 fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize, verbose: bool) -> Tally {
     let mut state = State::new(sheet, point_cap);
     let mut creased = Creased::new(&state);
+    // The paper without its presses, for asking afterwards which marks the
+    // pattern's own creases make anyway: a press for one of those is a
+    // press an order could have avoided.
+    let mut unpressed = Creased::new(&state);
+    // (step id, the mark or spot the press is for, whether the step it
+    // serves had a sightable witness without it).
+    let mut presses: Vec<(u32, [f64; 2], bool)> = Vec::new();
     let mut t = Tally {
         steps: seq.steps.len(),
         turn_overs: usize::from(
@@ -105,7 +125,7 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize, verbose: bool) -> Tal
             .count(),
         ..Tally::default()
     };
-    for step in &seq.steps {
+    for (k, step) in seq.steps.iter().enumerate() {
         // A grid step creases a pleat's lines edge to edge and a band's as
         // far along as its spans say: nothing to find, all of it on the paper.
         if let Some(grid) = &step.grid {
@@ -113,8 +133,10 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize, verbose: bool) -> Tal
                 if let Ok(outcome) = state.add_line(line.line, step.tag) {
                     if line.spans.is_empty() {
                         creased.add_whole(&state, outcome.id);
+                        unpressed.add_whole(&state, outcome.id);
                     } else {
                         creased.add_spans(&state, outcome.id, &line.line, &line.spans);
+                        unpressed.add_spans(&state, outcome.id, &line.line, &line.spans);
                     }
                 }
             }
@@ -132,6 +154,19 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize, verbose: bool) -> Tal
                 .iter()
                 .map(|[a, b]| (a[0] - b[0]).hypot(a[1] - b[1]))
                 .sum::<f64>();
+            // The step this press is for is the next fold; ask whether it
+            // had a witness the paper could sight as it stood, press or no.
+            let served = seq.steps[k + 1..]
+                .iter()
+                .find(|s| s.kind != StepKind::Press);
+            let free = served.is_some_and(|s| {
+                all_witnesses_on(&state, &s.line, &creased)
+                    .iter()
+                    .any(|w| witness_sightable(&state, &creased, &s.line, w))
+            });
+            if let Some(press) = &step.press {
+                presses.push((step.id, press.at, free));
+            }
             if let Ok(outcome) = state.add_line(step.line, step.tag) {
                 creased.add_spans(&state, outcome.id, &step.line, spans);
             }
@@ -196,8 +231,10 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize, verbose: bool) -> Tal
         };
         if spans.is_empty() {
             creased.add_whole(&state, outcome.id);
+            unpressed.add_whole(&state, outcome.id);
         } else {
             creased.add_spans(&state, outcome.id, &step.line, spans);
+            unpressed.add_spans(&state, outcome.id, &step.line, spans);
         }
         // What the step pressed on past the pattern is crease on the paper
         // too, and a later end may be found on it.
@@ -205,10 +242,42 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize, verbose: bool) -> Tal
             creased.add_spans(&state, outcome.id, &step.line, &step.pressed_on);
         }
     }
+    for (id, at, free) in presses {
+        let made_later = state
+            .find_point(at)
+            .is_some_and(|p| point_mark_exists(&state, &unpressed, p));
+        if free {
+            t.presses_with_free_witness += 1;
+        } else if made_later {
+            t.presses_made_later += 1;
+        }
+        if verbose {
+            println!(
+                "  step {:>3} press at ({:.3},{:.3}): {}",
+                id,
+                at[0],
+                at[1],
+                if free {
+                    "a free witness existed"
+                } else if made_later {
+                    "the mark is made later by the pattern"
+                } else {
+                    "necessary: no free witness, no crease ever reaches it"
+                }
+            );
+        }
+    }
     t
 }
 
-fn plan_file(path: &Path, prefer: bool, grid: bool, reach: bool, verbose: bool) -> Option<Tally> {
+fn plan_file(
+    path: &Path,
+    prefer: bool,
+    grid: bool,
+    reach: bool,
+    sightable: bool,
+    verbose: bool,
+) -> Option<Tally> {
     let cp = load_path(path, None).ok()?;
     let analysis = analyze(&cp.segments, &cp.colors, Some(ORIEDITA_PAPER)).ok()?;
     let mut total = Tally::default();
@@ -227,6 +296,7 @@ fn plan_file(path: &Path, prefer: bool, grid: bool, reach: bool, verbose: bool) 
                 GridMode::Off
             },
             reach_references: reach,
+            prefer_sightable: sightable,
             ..PlannerOptions::default()
         };
         let point_cap = opts.point_cap;
@@ -269,11 +339,12 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let grid = !args.iter().any(|a| a == "--no-grid");
     let reach = !args.iter().any(|a| a == "--no-reach");
+    let sightable = !args.iter().any(|a| a == "--no-sightable");
     let verbose = args.iter().any(|a| a == "-v");
     let mut paths = Vec::new();
     for a in args
         .iter()
-        .filter(|a| *a != "--no-grid" && *a != "--no-reach" && *a != "-v")
+        .filter(|a| *a != "--no-grid" && *a != "--no-reach" && *a != "--no-sightable" && *a != "-v")
     {
         collect(Path::new(a), &mut paths);
     }
@@ -310,8 +381,8 @@ fn main() {
             println!("{}", path.display());
         }
         let (a, b) = (
-            plan_file(path, true, grid, reach, verbose),
-            plan_file(path, false, grid, reach, false),
+            plan_file(path, true, grid, reach, sightable, verbose),
+            plan_file(path, false, grid, reach, sightable, false),
         );
         let (Some(a), Some(b)) = (a, b) else {
             println!("{}\tdid not plan", path.display());
@@ -363,12 +434,15 @@ fn main() {
     println!("\n{planned} designs planned of {}", paths.len());
     for (label, t) in [("preference on ", on), ("preference off", off)] {
         println!(
-            "{label}  steps {:5}  rounds {:5}  phantom {:4}  presses {:4} ({:.1} sheet-sides)  turn-overs {:4}  lost ends {:5} / {:5} ({:.1}%)  in pieces {:4} ({:.1} sheet-sides blank)  reach {:.1} sheet-sides (most {:.2})  reversed {:4}",
+            "{label}  steps {:5}  rounds {:5}  phantom {:4}  presses {:4} ({:.1} sheet-sides; {} with a free witness, {} for a mark made later, {} necessary)  turn-overs {:4}  lost ends {:5} / {:5} ({:.1}%)  in pieces {:4} ({:.1} sheet-sides blank)  reach {:.1} sheet-sides (most {:.2})  reversed {:4}",
             t.steps,
             t.rounds,
             t.phantom,
             t.presses,
             t.press_len,
+            t.presses_with_free_witness,
+            t.presses_made_later,
+            t.presses - t.presses_with_free_witness - t.presses_made_later,
             t.turn_overs,
             t.lost_ends,
             t.ends,

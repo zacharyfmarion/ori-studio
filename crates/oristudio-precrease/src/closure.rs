@@ -53,9 +53,9 @@ use crate::direction::{Direction, Side, majority};
 use crate::error::PrecreaseError;
 use crate::grid::Grid;
 use crate::line::{Line, LineIndex};
-use crate::marks::{Creased, ends_are_found, reach};
+use crate::marks::{Creased, ends_are_found, reach, witness_sightable};
 use crate::predicates::{
-    Facts, Witness, all_witnesses, choose, scan_landers, scan_lines, scan_points, witnesses,
+    Facts, Witness, all_witnesses, choose, scan_landers, scan_lines, scan_points, witnesses_on,
 };
 use crate::sheet::Sheet;
 use crate::state::{LineTag, State};
@@ -299,6 +299,9 @@ pub struct Closure {
     /// input to the endpoint half of the constructibility test.
     creased: Creased,
     prefer_findable_ends: bool,
+    /// Whether a sweep folds first the targets with a witness sightable on
+    /// the paper as it stands, letting the rest wait for their marks.
+    prefer_sightable: bool,
     /// Whether a fold's crease is one run carried out to references
     /// ([`crate::marks::reach`]) rather than the pattern's pieces as they are.
     reach_references: bool,
@@ -348,6 +351,7 @@ impl Closure {
             round: 0,
             creased,
             prefer_findable_ends: true,
+            prefer_sightable: true,
             reach_references: true,
             grid: None,
             stats: ClosureStats::default(),
@@ -428,6 +432,13 @@ impl Closure {
         self.prefer_findable_ends = on;
     }
 
+    /// Whether a sweep folds first the targets the folder could sight on the
+    /// paper as it stands, and lets the others wait for their marks
+    /// ([`Closure::close`]). On by default; the off state is the comparison.
+    pub fn set_prefer_sightable(&mut self, on: bool) {
+        self.prefer_sightable = on;
+    }
+
     /// Whether a fold's crease is made as one run from reference to
     /// reference — the pattern's pieces joined, each end carried outward to
     /// the nearest edge or crease the folder can find — or as the pattern's
@@ -504,7 +515,29 @@ impl Closure {
 
     fn evaluate(&mut self, t: usize) -> Vec<Witness> {
         self.stats.target_evaluations += 1;
-        witnesses(&self.state, &self.targets[t].line, &self.facts[t].facts)
+        // With the paper in view, so the caps keep the witnesses whose marks
+        // are there over the ones that would each need a press.
+        witnesses_on(
+            &self.state,
+            &self.targets[t].line,
+            &self.facts[t].facts,
+            Some(&self.creased),
+        )
+    }
+
+    /// Every remaining target of `constructible` with a witness the folder
+    /// can sight on the paper as it stood when the sweep began: every mark it
+    /// names is a crease crossing, every alignment is between creases that
+    /// are there. The others are constructible only with a press first.
+    fn sightable_now(&self, constructible: &[(usize, Vec<Witness>)]) -> Vec<bool> {
+        constructible
+            .iter()
+            .map(|(t, ws)| {
+                let line = &self.targets[*t].line;
+                ws.iter()
+                    .any(|w| witness_sightable(&self.state, &self.creased, line, w))
+            })
+            .collect()
     }
 
     /// Run the closure until the fixpoint or the deadline. Resumable: a call
@@ -563,11 +596,32 @@ impl Closure {
                 }
             }
 
-            // Fold the ones the folder could finish, and let the rest wait a
-            // sweep in the hope that these give them the landmark they lack.
-            // Never a requirement: a sweep with nothing fully constructible
-            // folds what it can sight, exactly as it always did, so the closure
-            // cannot stall on this and no pattern stops planning.
+            // Fold the ones the folder could make from what is on the paper
+            // — a witness whose every mark is a crease crossing — and let the
+            // rest wait a sweep in the hope that these give them the mark they
+            // lack. A witness is certified against the geometry, where every
+            // crossing of two lines is a point; on the paper a crease stops
+            // where the pattern stops it, and a fold sighted from a crossing
+            // no crease reaches costs a press before it. Folding first what
+            // needs none puts the pattern's own crease through those
+            // crossings, and most presses were only ever the residue of
+            // folding in the other order. Never a requirement: a sweep with
+            // nothing sightable folds what it can construct, exactly as it
+            // always did, so the closure cannot stall on this and no pattern
+            // stops planning.
+            if self.prefer_sightable {
+                let sightable = self.sightable_now(&constructible);
+                if sightable.iter().any(|&f| f) {
+                    constructible = constructible
+                        .into_iter()
+                        .zip(sightable)
+                        .filter(|(_, f)| *f)
+                        .map(|(c, _)| c)
+                        .collect();
+                }
+            }
+            // And of those, the ones the folder could finish, for the same
+            // reason about crease ends.
             if self.prefer_findable_ends {
                 let findable = self.ends_findable(&constructible);
                 if findable.iter().any(|&f| f) {

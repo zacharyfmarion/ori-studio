@@ -31,10 +31,10 @@ use crate::line::Line;
 use crate::marks::{
     Creased, MIN_ALIGNMENT, crease_overlap, crease_runs, findable_end_beyond, point_mark_exists,
     reach, settled_end_is_found, witness_alignment, witness_aligns, witness_aligns_at_all,
-    witness_lines_meet, witness_marks_exist, witness_missing_marks,
+    witness_lines_meet, witness_marks_exist, witness_missing_marks, witness_sightable,
 };
 use crate::pinch::PINCH_HALF_LENGTH;
-use crate::predicates::{Ref, Witness, all_witnesses, crease_through};
+use crate::predicates::{Ref, Witness, all_witnesses_on, crease_through};
 use crate::sequence::{Group, StepKind};
 use crate::state::{LineTag, State};
 use crate::tol::TOL;
@@ -219,6 +219,43 @@ fn order_round(closure: &Closure, members: &[usize]) -> Vec<(usize, f64)> {
     out
 }
 
+/// A round's folds with the ones the folder can already sight first.
+///
+/// Every fold in a round was certified against the state before the round,
+/// so any order is executable; the sweep order (`order_round`) is how a
+/// folder works across a sheet. But a fold sighted from a crossing that no
+/// crease reaches yet costs a press — and often the crease that would reach
+/// it is another fold of the same round. So the sweep order is kept among
+/// the folds the paper can already sight, and a fold that cannot be sighted
+/// waits behind them: recorded one at a time on a copy of the paper, a fold
+/// whose mark the last one just made becomes sightable and takes its turn.
+/// Only when nothing left can be sighted is the next one in sweep order
+/// taken as it is, and the press it needs is made by `sight`.
+fn marks_first(
+    closure: &Closure,
+    creased: &Creased,
+    ordered: Vec<(usize, f64)>,
+) -> Vec<(usize, f64)> {
+    let state = closure.state();
+    let folded = closure.folded();
+    let mut paper = creased.clone();
+    let mut pending = ordered;
+    let mut out = Vec::with_capacity(pending.len());
+    while !pending.is_empty() {
+        let free = pending.iter().position(|&(i, _)| {
+            let f = &folded[i];
+            let fold = f.constructed();
+            f.witnesses
+                .iter()
+                .any(|w| sightable(state, &paper, &fold, w))
+        });
+        let (i, angle) = pending.remove(free.unwrap_or(0));
+        record(&mut paper, closure, i);
+        out.push((i, angle));
+    }
+    out
+}
+
 /// Record the crease `folded_index` leaves on the paper.
 ///
 /// A fold runs the width of the sheet, but the *pattern* usually only wants
@@ -282,11 +319,9 @@ fn runs_of(line: &Line, spans: &[[[f64; 2]; 2]]) -> Vec<[[f64; 2]; 2]> {
 /// names is on the paper, and every alignment it asks for is between creases
 /// that are there. Both halves are the same question — is the reference the
 /// closure certified against the geometry also on the paper — asked of points
-/// and of lines.
+/// and of lines. [`marks::witness_sightable`], which the closure asks too.
 fn sightable(state: &State, creased: &Creased, line: &Line, w: &Witness) -> bool {
-    witness_marks_exist(state, creased, w)
-        && witness_aligns(state, creased, line, w)
-        && witness_lines_meet(state, creased, w)
+    witness_sightable(state, creased, line, w)
 }
 
 /// For an edge folded onto itself through a mark: how far along `fold` its
@@ -969,7 +1004,7 @@ fn found_witnesses(
         Ref::Line { id } => *id != line_id && creased.is_folded(*id),
         Ref::Point { id } => point_mark_exists(state, creased, *id),
     };
-    all_witnesses(state, line)
+    all_witnesses_on(state, line, creased)
         .into_iter()
         .filter(|w| w.inputs.iter().all(on_paper))
         .filter(|w| {
@@ -1311,6 +1346,9 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
                 .map(|&i| (i, folded_angle(&folded[i].line)))
                 .collect()
         };
+        // Sightable folds first, so a mark a fold needs is made by the
+        // pattern's own crease rather than by a press.
+        let ordered = marks_first(closure, &creased, ordered);
         // Whichever side is already up leads, so a round that needs only one
         // side — the common case — never turns the sheet over at all. A fold
         // that does not force a side joins the leading block, where it costs

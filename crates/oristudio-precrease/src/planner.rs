@@ -56,6 +56,11 @@ pub struct PlannerOptions {
     /// off state exists so the two orders can be compared on the corpus, and
     /// comes out once that comparison is recorded.
     pub prefer_findable_ends: bool,
+    /// Whether a sweep folds first the targets the folder could sight on the
+    /// paper as it stands ([`Closure::set_prefer_sightable`]), so the marks a
+    /// fold needs are made by the pattern's own creases rather than by a
+    /// press. On by default; the off state is the corpus comparison.
+    pub prefer_sightable: bool,
     /// Whether a box- or hex-pleated design opens with its grid pleated
     /// before anything is sighted ([`crate::grid`]), and how much of it.
     /// Where needed by default: that is how such a design is precreased.
@@ -91,6 +96,7 @@ impl Default for PlannerOptions {
             stuck_budget_ms: 4000.0,
             total_budget_ms: 30_000.0,
             prefer_findable_ends: true,
+            prefer_sightable: true,
             precrease_grid: GridMode::WhereNeeded,
             reach_references: true,
             clock: default_clock(),
@@ -100,7 +106,8 @@ impl Default for PlannerOptions {
 
 /// The JSON shape of the options: `{ point_cap, max_depth, depth3_threshold,
 /// max_candidates, stuck_budget_ms, total_budget_ms, precrease_grid,
-/// grid_where_needed, reach_references }`, all optional. `precrease_grid` is
+/// grid_where_needed, reach_references, prefer_sightable }`, all optional.
+/// `precrease_grid` is
 /// the toggle and `grid_where_needed` says how much of the grid a plan opens
 /// with, so a caller that sends only the toggle still gets a grid.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -115,6 +122,7 @@ pub struct PlannerOptionsJson {
     pub precrease_grid: Option<bool>,
     pub grid_where_needed: Option<bool>,
     pub reach_references: Option<bool>,
+    pub prefer_sightable: Option<bool>,
 }
 
 impl PlannerOptions {
@@ -142,6 +150,9 @@ impl PlannerOptions {
         }
         if let Some(on) = parsed.reach_references {
             opts.reach_references = on;
+        }
+        if let Some(on) = parsed.prefer_sightable {
+            opts.prefer_sightable = on;
         }
         opts.precrease_grid = match (
             parsed.precrease_grid.unwrap_or(true),
@@ -602,6 +613,7 @@ impl Planner {
         let mut closure = Closure::new(sheet, targets, opts.point_cap);
         closure.set_prefer_findable_ends(opts.prefer_findable_ends);
         closure.set_reach_references(opts.reach_references);
+        closure.set_prefer_sightable(opts.prefer_sightable);
         if let Some(grid) = grid {
             // The grid is a few hundred lines at most, far under the cap; if
             // it is not, the plan goes on without it and says the cap was hit.
@@ -631,6 +643,7 @@ impl Planner {
                 let mut closure = Closure::new(sheet, targets, opts.point_cap);
                 closure.set_prefer_findable_ends(opts.prefer_findable_ends);
                 closure.set_reach_references(opts.reach_references);
+                closure.set_prefer_sightable(opts.prefer_sightable);
                 closure
             }),
             exactness: None,
