@@ -683,98 +683,119 @@ pub fn findable_end_beyond(
     Some(t_far)
 }
 
-/// How much longer than the pattern's own crease a fold's crease may be made
-/// for the sake of references, as a ratio: at this or beyond, an extension
-/// is not made and the crease is shown as the pattern has it, ending on
-/// blank paper. A crease a tenth of a sheet long carried to an edge nine
-/// tenths away is not a reference, it is a different crease; "fold and
-/// unfold, creasing only here" is how a diagram gives that one.
-pub const REACH_MAX_RATIO: f64 = 2.0;
-
-/// The crease a fold along `line` makes for the pattern's `spans`: each
-/// piece with every end carried outward to the nearest reference the folder
-/// can find on the paper as it stands, pieces that then touch merged into
-/// one run — as long as all that crease stays under [`REACH_MAX_RATIO`]
-/// times the pattern's own.
+/// The crease a fold along `line` makes for the pattern's `spans`: the
+/// pieces joined where nothing between them is a reference, each run
+/// referenced at one end at least, and carried to a reference at the other
+/// when that costs no more crease than the run already is.
 ///
 /// A diagram's instruction is a crease with a reference at each end — the
 /// sheet's edge, or a crease already there. The pattern's own crease on a
 /// line often is not: it arrives in pieces, and each stops wherever the
-/// design stops needing it. So an end that [`settled_end_is_found`] does not
-/// find moves outward, never inward, to [`findable_end_beyond`]; an end that
-/// is found stays exactly where the pattern put it. The excess is the least
-/// that reaches a reference: a piece whose neighbour's reference is nearer
-/// than its own stops there, and where nothing crosses the blank between two
-/// pieces they become one crease.
+/// design stops needing it. What is minimised is the number of ends the
+/// folder cannot find, and crease is the price:
 ///
-/// The ratio is a budget over the whole line, spent on the shortest
-/// extensions first: a corner-to-corner diagonal the pattern holds at both
-/// corners and across the middle is joined (1.4 sheet-lengths for a sheet-
-/// length of pattern), while a short crease whose nearest reference is the
-/// far edge is left as it is rather than made ten times longer. Empty for
-/// empty spans, which mean the whole chord and already end on the edge.
+/// 1. **A gap between two pieces with no reference in it is creased
+///    through.** The folder makes the fold once; pressing it in three
+///    separate stretches is three times the fussing, and joining removes
+///    two unfound ends for the gap's length. A gap that holds references
+///    is different: each piece runs out to the nearest one in the gap and
+///    stops there, and the blank between two references stays blank.
+/// 2. **No run is left with both ends unfound.** A run neither of whose
+///    ends is somewhere the folder can find is carried to the nearer
+///    reference, whatever that costs: a crease floating on blank paper
+///    cannot be placed at all, while one anchored at a reference is "from
+///    here, this far".
+/// 3. **The other end is carried to its reference when the extension is no
+///    longer than the run already is** — the crease with both ends found
+///    is then under twice the crease with one, which is the same 2× a
+///    single short crease is judged by: a fifth of a sheet is not creased
+///    top to bottom for its second reference, and a crease already most of
+///    the way across is finished.
+///
+/// An end that [`settled_end_is_found`] finds stays exactly where the
+/// pattern put it; nothing ever moves inward. Empty for empty spans, which
+/// mean the whole chord and already end on the edge.
 pub fn reach(
     state: &State,
     creased: &Creased,
     line: &Line,
     spans: &[[[f64; 2]; 2]],
 ) -> Vec<[[f64; 2]; 2]> {
-    let mut runs: Vec<(f64, f64)> = crease_runs(line, spans)
+    let mut pieces: Vec<(f64, f64)> = crease_runs(line, spans)
         .into_iter()
         .map(|(a, b)| (line.parameter_of(a), line.parameter_of(b)))
         .collect();
-    runs.sort_by(|a, b| a.0.total_cmp(&b.0));
-    let needed: f64 = runs.iter().map(|(u, v)| v - u).sum();
-    // Every extension an end could make: (run, low end?, the parameter it
-    // would reach), shortest first.
-    let mut extensions: Vec<(usize, bool, f64)> = Vec::new();
-    for (k, &(lo, hi)) in runs.iter().enumerate() {
-        if !settled_end_is_found(state, creased, line, line.point_at(lo))
-            && let Some(t) = findable_end_beyond(state, creased, line, lo, false)
-            && t < lo - TOL
-        {
-            extensions.push((k, true, t));
-        }
-        if !settled_end_is_found(state, creased, line, line.point_at(hi))
-            && let Some(t) = findable_end_beyond(state, creased, line, hi, true)
-            && t > hi + TOL
-        {
-            extensions.push((k, false, t));
+    pieces.sort_by(|a, b| a.0.total_cmp(&b.0));
+    let found = |t: f64| settled_end_is_found(state, creased, line, line.point_at(t));
+    let beyond = |t: f64, forward: bool| findable_end_beyond(state, creased, line, t, forward);
+
+    // 1. Gaps: through, or out to the references in them.
+    let mut runs: Vec<(f64, f64)> = Vec::with_capacity(pieces.len());
+    for (lo, hi) in pieces {
+        let Some(last) = runs.last_mut() else {
+            runs.push((lo, hi));
+            continue;
+        };
+        let up = beyond(last.1, true).filter(|&t| t < lo - TOL);
+        let down = beyond(lo, false).filter(|&t| t > last.1 + TOL);
+        match (up, down) {
+            (Some(up), Some(down)) => {
+                if !found(last.1) {
+                    last.1 = up;
+                }
+                runs.push((if found(lo) { lo } else { down }, hi));
+            }
+            _ => last.1 = hi,
         }
     }
-    extensions.sort_by(|a, b| {
-        let len =
-            |e: &(usize, bool, f64)| (e.2 - if e.1 { runs[e.0].0 } else { runs[e.0].1 }).abs();
-        len(a).total_cmp(&len(b))
-    });
-    let merged_total = |runs: &[(f64, f64)]| -> (Vec<(f64, f64)>, f64) {
-        let mut sorted = runs.to_vec();
-        sorted.sort_by(|a, b| a.0.total_cmp(&b.0));
-        let mut merged: Vec<(f64, f64)> = Vec::with_capacity(sorted.len());
-        for (u, v) in sorted {
-            match merged.last_mut() {
-                Some(last) if u <= last.1 + TOL => last.1 = last.1.max(v),
-                _ => merged.push((u, v)),
+
+    // 2 and 3. The outer ends of each run.
+    for run in &mut runs {
+        let (mut lo_found, mut hi_found) = (found(run.0), found(run.1));
+        let below = beyond(run.0, false);
+        let above = beyond(run.1, true);
+        if !lo_found && !hi_found {
+            match (below, above) {
+                (Some(b), Some(a)) if run.0 - b <= a - run.1 => {
+                    run.0 = b;
+                    lo_found = true;
+                }
+                (_, Some(a)) => {
+                    run.1 = a;
+                    hi_found = true;
+                }
+                (Some(b), None) => {
+                    run.0 = b;
+                    lo_found = true;
+                }
+                (None, None) => {}
             }
         }
-        let total = merged.iter().map(|(u, v)| v - u).sum();
-        (merged, total)
-    };
-    let mut reached = runs.clone();
-    for (k, low, t) in extensions {
-        let mut trial = reached.clone();
-        if low {
-            trial[k].0 = t;
-        } else {
-            trial[k].1 = t;
+        let len = run.1 - run.0;
+        if !lo_found
+            && let Some(b) = below
+            && run.0 - b <= len + TOL
+        {
+            run.0 = b;
         }
-        let (_, total) = merged_total(&trial);
-        if total < REACH_MAX_RATIO * needed - TOL {
-            reached = trial;
+        if !hi_found
+            && let Some(a) = above
+            && a - run.1 <= len + TOL
+        {
+            run.1 = a;
         }
     }
-    merged_total(&reached)
-        .0
+
+    // Runs that meet at a reference are one crease.
+    runs.sort_by(|a, b| a.0.total_cmp(&b.0));
+    let mut merged: Vec<(f64, f64)> = Vec::with_capacity(runs.len());
+    for (u, v) in runs {
+        match merged.last_mut() {
+            Some(last) if u <= last.1 + TOL => last.1 = last.1.max(v),
+            _ => merged.push((u, v)),
+        }
+    }
+    merged
         .into_iter()
         .map(|(u, v)| [line.point_at(u), line.point_at(v)])
         .collect()
@@ -946,7 +967,7 @@ mod tests {
         let mut state = State::new(Sheet::unit_square(), 10_000);
         state.add_line(across, LineTag::Cp).expect("line");
         let mut creased = Creased::new(&state);
-        for x in [0.08, 0.42, 0.58, 0.92] {
+        for x in [0.15, 0.35, 0.65, 0.85] {
             let up = Line::new([1.0, 0.0], x).expect("line");
             let id = state.add_line(up, LineTag::Cp).expect("line").id;
             creased.add_whole(&state, id);
@@ -970,7 +991,7 @@ mod tests {
             })
             .collect();
         xs.sort_by(|a, b| a[0].total_cmp(&b[0]));
-        let want = [[0.0, 0.08], [0.42, 0.58], [0.92, 1.0]];
+        let want = [[0.0, 0.15], [0.35, 0.65], [0.85, 1.0]];
         assert_eq!(xs.len(), 3, "{xs:?}");
         for (got, want) in xs.iter().zip(want) {
             assert!(
@@ -1037,50 +1058,76 @@ mod tests {
         );
     }
 
-    /// markhor's step 49: a crease a fifth of a sheet long whose nearest
-    /// reference below is most of a sheet away. Carried there it would be
-    /// several times the crease the pattern wants — a different crease, not
-    /// a reference — so the crease is left as the pattern has it. The budget
-    /// is the whole line's, spent on the shortest extensions first: the near
-    /// edge is reached and the far one is not.
+    /// A crease is never left with both ends unfound, and its second
+    /// reference is reached when that costs no more crease than there is.
+    /// Nothing crosses the midline here, so the edges are the only
+    /// references.
     #[test]
-    fn a_reference_too_far_for_the_crease_is_not_reached() {
+    fn a_crease_is_anchored_at_one_end_and_finished_when_that_is_cheap() {
         let midline = Line::new([1.0, 0.0], 0.5).expect("line");
         let state = state_with(&[midline]);
         let creased = Creased::new(&state);
-        // Nothing crosses: the only references are the edges, 0.1 and 0.7
-        // away from a crease of 0.2.
-        let [run] = reach(&state, &creased, &midline, &[[[0.5, 0.7], [0.5, 0.9]]])[..] else {
+        let ends_of = |spans: &[[[f64; 2]; 2]]| -> [f64; 2] {
+            let [run] = reach(&state, &creased, &midline, spans)[..] else {
+                panic!("one run");
+            };
+            let mut ys = [run[0][1], run[1][1]];
+            ys.sort_by(f64::total_cmp);
+            ys
+        };
+        let near = |got: [f64; 2], want: [f64; 2]| {
+            assert!(
+                (got[0] - want[0]).abs() < 1e-9 && (got[1] - want[1]).abs() < 1e-9,
+                "{got:?} vs {want:?}"
+            );
+        };
+        // A fifth of a sheet near the top: anchored at the top edge, a
+        // tenth away; the bottom edge is 0.7 further for a crease of 0.3,
+        // so the bottom end stays where the pattern has it.
+        near(ends_of(&[[[0.5, 0.7], [0.5, 0.9]]]), [0.7, 1.0]);
+        // The same crease in the middle: anchored at one edge (0.4 away,
+        // either), and the other edge is then 0.4 more for a crease of 0.6
+        // — cheaper than the crease, so the whole line.
+        near(ends_of(&[[[0.5, 0.4], [0.5, 0.6]]]), [0.0, 1.0]);
+        // Twice as long is the line: a crease of 0.2 anchored at the bottom
+        // edge is 0.4, and the top edge is 0.6 away.
+        near(ends_of(&[[[0.5, 0.2], [0.5, 0.4]]]), [0.0, 0.4]);
+        // Already anchored at one end: the other edge at 0.5 for a crease
+        // of 0.5 is taken; at 0.6 for a crease of 0.4 it is not.
+        near(ends_of(&[[[0.5, 0.0], [0.5, 0.5]]]), [0.0, 1.0]);
+        near(ends_of(&[[[0.5, 0.0], [0.5, 0.4]]]), [0.0, 0.4]);
+    }
+
+    /// markhor step 4: three short pieces along a line with nothing
+    /// crossing the blank between them, the top one at the edge. One fold,
+    /// pressed in three places with two unfound ends each side of every gap,
+    /// is not an instruction; the gaps are creased through, and with the
+    /// joined crease most of the sheet long the bottom edge is reached too.
+    #[test]
+    fn pieces_with_nothing_between_them_are_one_crease() {
+        let up = Line::new([1.0, 0.0], 0.375).expect("line");
+        let across = Line::new([1.0, 0.0], 0.5).expect("line");
+        let mut state = State::new(Sheet::unit_square(), 10_000);
+        state.add_line(up, LineTag::Cp).expect("line");
+        // A parallel line is creased but crosses nothing.
+        let other = state.add_line(across, LineTag::Cp).expect("line").id;
+        let mut creased = Creased::new(&state);
+        creased.add_whole(&state, other);
+        let [run] = reach(
+            &state,
+            &creased,
+            &up,
+            &[
+                [[0.375, 0.271], [0.375, 0.345]],
+                [[0.375, 0.448], [0.375, 0.521]],
+                [[0.375, 0.948], [0.375, 1.0]],
+            ],
+        )[..] else {
             panic!("one run");
         };
         let mut ys = [run[0][1], run[1][1]];
         ys.sort_by(f64::total_cmp);
-        assert!(
-            (ys[0] - 0.7).abs() < 1e-9,
-            "the far edge is not reached: {run:?}"
-        );
-        assert!((ys[1] - 1.0).abs() < 1e-9, "the near one is: {run:?}");
-        // With no reference within the budget at all, the crease is the
-        // pattern's own.
-        let [run] = reach(&state, &creased, &midline, &[[[0.5, 0.4], [0.5, 0.6]]])[..] else {
-            panic!("one run");
-        };
-        let mut ys = [run[0][1], run[1][1]];
-        ys.sort_by(f64::total_cmp);
-        assert!(
-            (ys[0] - 0.4).abs() < 1e-9 && (ys[1] - 0.6).abs() < 1e-9,
-            "{run:?}"
-        );
-        // Twice as long is the line: a crease of 0.2 is not carried 0.2.
-        let [run] = reach(&state, &creased, &midline, &[[[0.5, 0.2], [0.5, 0.4]]])[..] else {
-            panic!("one run");
-        };
-        let mut ys = [run[0][1], run[1][1]];
-        ys.sort_by(f64::total_cmp);
-        assert!(
-            (ys[0] - 0.2).abs() < 1e-9 && (ys[1] - 0.4).abs() < 1e-9,
-            "{run:?}"
-        );
+        assert!(ys[0].abs() < 1e-9 && (ys[1] - 1.0).abs() < 1e-9, "{run:?}");
     }
 
     /// A pinch is a mark a fold can be sighted at, so a crease may end on

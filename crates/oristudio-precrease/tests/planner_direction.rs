@@ -506,21 +506,21 @@ fn every_step_is_sighted_from_marks_that_are_on_the_paper() {
 /// A press step is exactly a pinch on a line an earlier step made, placed
 /// right before the step that needs the mark, and never claims pattern crease.
 ///
-/// With every fold made from reference to reference, and the sightable folds
-/// made first, no fixture needs a press at all — so iguana-c0 is also planned
-/// line by line with both of those off, the way plans were made before them,
-/// where three of its marks are still made by a press.
+/// With every fold made from reference to reference, the sightable folds
+/// made first, and a mark on a crease left short pinched while that crease
+/// is made, no fixture needs a press at all — so `solution_sample_1` is
+/// also planned with reach off, the way plans were made before it, where
+/// one of its marks is still made by a press.
 #[test]
 fn a_press_is_a_pinch_on_a_line_already_made_and_claims_no_pattern_crease() {
     let mut seen_one = false;
     let as_before = || {
-        let cp = load("tests/fixtures/precrease/iguana-c0.fold");
+        let cp = load("tests/fixtures/oriedita/solution_sample_1.cp");
         plan_component(
             &component_of(&cp),
             PlannerOptions {
-                prefer_sightable: false,
                 reach_references: false,
-                ..grid_off_options()
+                ..unbounded_options()
             },
         )
         .1
@@ -529,7 +529,7 @@ fn a_press_is_a_pinch_on_a_line_already_made_and_claims_no_pattern_crease() {
         .iter()
         .map(|file| (file.to_string(), plan(file)))
         .chain(std::iter::once((
-            "iguana-c0 line by line, as before reach and sightable-first".to_string(),
+            "solution_sample_1, as before reach".to_string(),
             as_before(),
         )))
         .collect();

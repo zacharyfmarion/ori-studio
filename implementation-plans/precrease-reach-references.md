@@ -139,30 +139,46 @@ it never crosses the boundary. Its cost is crease the pattern does not
 contain — the blank between pieces plus the two extensions — and that cost
 is measured, per step and in total, not reasoned about.
 
-### The cap: twice the crease, or the crease as it is
+### The cap: one end always, the other when it is cheap
 
 The first cut had no cap: a short crease in the middle of the sheet with
 no reference nearby was extended to the edge, bounded only by the sheet,
 and its length reported. The reading (markhor, step 47 — a fifth of a
 sheet creased top to bottom for a piece a fifth long) said a cap is
 wanted, and said what it must mean: *leave the end where the pattern has
-it* when the nearest reference is too far, never *stop part way* — a crease
-carried half way to a reference has a lost end and more crease, the worse
-of both.
+it* when the nearest reference is too far, never *stop part way*.
 
-`marks::REACH_MAX_RATIO = 2.0`: the crease a fold makes for the sake of
-references stays **under twice** the pattern's own on that line; at twice
-or beyond, the extension is not made and the crease is shown as the
-pattern has it, ending on blank paper — "fold and unfold, creasing only
-here" is how a diagram gives that one. The budget is the whole line's and
-is spent on the shortest extensions first, so a corner-to-corner diagonal
-the pattern holds at both corners and across the middle is still joined
-(1.4 sheet-lengths of crease for a sheet-length of pattern), a piece with
-a crossing a hair beyond its end still reaches it, and a short crease
-whose only reference is the far edge is left alone. A crease left short
-has ends the folder cannot find — `measure_ends` counts them as lost ends
-still, and now they are the rule's choice rather than a defect: 326 of
-8,464 ends on the corpus (3.9%), read as such.
+A first cap — the whole crease on a line under twice the pattern's own —
+was the wrong quantity: markhor's step 4 has three short pieces spread
+over most of a line, and the sum of the pieces (0.2) made joining them
+(0.73) look like 3.7×, leaving one fold pressed in three places with
+five ends on blank paper. What is being minimised is the number of ends
+the folder cannot find, and crease is the price of removing them; the
+rule in `marks::reach` is now:
+
+1. **A gap between two pieces with no reference in it is creased
+   through.** The folder makes the fold once; joining removes two unfound
+   ends for the gap's length, always the best deal on the line. A gap that
+   holds references is not a gap in this sense: each piece runs to the
+   nearest one and stops, and the blank between two references stays
+   blank (markhor 101, unchanged).
+2. **No run is left with both ends unfound.** A run neither of whose ends
+   is somewhere the folder can find is carried to the nearer reference,
+   whatever that costs — a crease floating on blank paper cannot be
+   placed at all; one anchored at a reference is "from here, this far".
+3. **The other end is carried to its reference when the extension is no
+   longer than the run already is** — the crease with both ends found is
+   then under twice the crease with one. Step 47's line (one run, its
+   second reference 0.2 away for 0.23 of crease) is finished; a fifth of
+   a sheet is not creased top to bottom for its second reference; a crease
+   already most of the way across is.
+
+Marks are not creases: a pinch lives at a crossing, located by the crease
+it is sighted from, and needs no reference of its own.
+
+Ends left on blank paper are now the rule's choice rather than a defect
+(`measure_ends` counts them as lost ends still) — one at most per run,
+and only where the second reference would cost more than the crease.
 
 ### Marks the fold could have pinched
 
@@ -527,9 +543,18 @@ exactly it.
       the cap saved). *Abra* 74 steps, no press, 9 pinches; markhor 198
       steps and 1 press → 197 and none, reach 8.3 → 4.0; *Wolpertinger*
       146 either way, reach 5.4 → 2.5.
-- [ ] With `prefer_findable_ends` off the same corpus is 3,992 steps, 191
-      presses, **250** turn-overs, 383 lost ends and 69 of reach: waiting
-      for a crease's ends to become findable now costs a quarter of the
-      turn-overs to buy 57 references and 17 sheet-lengths less crease —
+- [x] The cap re-cut as the two rules above (markhor step 4: three pieces
+      on x = ⅜ pressed in three places, five ends on blank paper — now one
+      crease edge to edge). Corpus against the ratio state: steps 3,983 →
+      3,973, presses 182 → 172, pinches while folding 616 → 573, turn-overs
+      332 → 320, ends on blank paper 326 → **149** of 8,250 (1.8%, at most
+      one per run), reach 52 → 94 sheet-lengths — the price, still below
+      the 122 of no cap at all (the longest single extension is *earwig*'s
+      1.36 again, an anchoring one). No design gains a step beyond noise;
+      *ubu* 16 → 2 unfound ends, *frigate bird* 28 → 7, *Abra* 8 → 2.
+- [ ] With `prefer_findable_ends` off the same corpus is 3,975 steps, 174
+      presses, **242** turn-overs, 181 lost ends and 117 of reach: waiting
+      for a crease's ends to become findable costs a quarter of the
+      turn-overs to buy 32 references and 23 sheet-lengths less crease —
       the next lever to weigh, against turn-over smoothing across rounds.
 - [ ] Live check on *Abra* and markhor 47/49 (Zach)
