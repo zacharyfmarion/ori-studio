@@ -5,6 +5,7 @@ import type { AppStatus } from '../lib/sampleProject';
 import { useIsPhoneLayout } from '../platform/phoneLayout';
 import { DesktopDownloadButton } from './download/DesktopDownloadButton';
 import { StartFigure } from './start/StartFigure';
+import './start/StartGrid.css';
 
 interface StartScreenProps {
   status: AppStatus;
@@ -45,6 +46,7 @@ export function StartScreen({
     // the welcome page, which owns the landmark and the landing below it. The
     // labelled region inside is still the section.
     <div className="start-screen" aria-busy={preparing || undefined}>
+      <div className="start-grid" aria-hidden="true" />
       {/*
         In the corner of the screenful, not at the edge of the text: a sibling of
         `__content` rather than a row inside it, so the 1040px column the copy
