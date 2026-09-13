@@ -445,14 +445,14 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
     /**
      * What a click or a passing pointer can land on.
      *
-     * While a sequence is being read, the paper as it stands
-     * (`creaseVisibility.pickable`): the creases made so far — the border among
-     * them — and the vertices those creases make: where they cross, where they
-     * meet the border, and the sheet's corners, which are there from the start.
-     * A point where one line merely changes colour is not a landmark and is
-     * left out, as it is from the dots. A crease a later step makes is not on
-     * the paper yet, so hovering it marks nothing and a click there falls
-     * through to whatever is. Otherwise the whole sheet in scope.
+     * While something is being read, what is drawn (`creaseVisibility.pickable`)
+     * — the creases made so far, or the one reference being read, the border
+     * among them — and the vertices those creases make: where they cross,
+     * where they meet the border, and the sheet's corners, which are there
+     * from the start. A point where one line merely changes colour is not a
+     * landmark and is left out, as it is from the dots. A crease that is not
+     * drawn is not there to point at, so hovering it marks nothing and a click
+     * there is a click on blank paper. Otherwise the whole sheet in scope.
      */
     const pickableLineIds = creaseVisibility.pickable ?? sheetLineIds;
     const pickableVertexIdx = useMemo<Set<number> | null>(

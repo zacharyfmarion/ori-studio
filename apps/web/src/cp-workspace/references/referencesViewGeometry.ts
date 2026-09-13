@@ -411,10 +411,10 @@ export interface ReferencesCreaseVisibility {
   visible: ReadonlySet<number> | null;
   /**
    * The 1-based ids a click or a passing pointer can land on, with the
-   * vertices those creases make. Absent or `null`, the whole sheet in scope:
-   * reading one reference hides the other creases but still lets the next one
-   * be picked, where reading a plan scopes picking to the paper as it stands —
-   * a crease a later step makes is not there to point at.
+   * vertices those creases make. Absent or `null`, the whole sheet in scope.
+   * Reading scopes it to what is drawn: a crease a later step makes, or one
+   * hidden behind a reference being read, is not there to point at — a click
+   * on it is a click on blank paper.
    */
   pickable?: ReadonlySet<number> | null;
   /** Ids drawn faintly: made by an earlier step, or simply not this step's. */

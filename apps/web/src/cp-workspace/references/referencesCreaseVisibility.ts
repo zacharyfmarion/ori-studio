@@ -32,7 +32,10 @@
  *   were lost among them, and a reader picking a crease partway through the
  *   sequence took the build-up for the answer. So the sheet is the paper's
  *   outline and the picked crease, and the construction draws over blank paper
- *   as ReferenceFinder means it to.
+ *   as ReferenceFinder means it to. What is hidden cannot be pointed at
+ *   either: a click on blank paper clears the pick, and the whole sheet is
+ *   back — that is how the reader moves on, not by hitting a crease they
+ *   cannot see.
  * - **A turn-over shows the build-up too, and one more step of it.** Turning
  *   the paper over happens between folds, not only at the end, so it holds back
  *   the creases that are not made yet exactly as a fold card does — but the
@@ -113,6 +116,7 @@ export function targetVisibility(input: ReferencesVisibilityInput): ReferencesCr
   }
   return {
     visible,
+    pickable: visible,
     dimmed: null,
     dimAlpha: 1,
     emphasis: activeLineIds,

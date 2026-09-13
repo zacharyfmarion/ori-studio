@@ -324,9 +324,7 @@ describe('ReferencesCpView picking', () => {
     expect(onPick).toHaveBeenLastCalledWith({ kind: 'vertex', idx: 0, point: { x: 0, y: 50 } });
   });
 
-  it('keeps the whole sheet pickable while one reference is read, hidden creases included', () => {
-    // Reading a crease hides the others, but the next pick has to be able to
-    // land on one of them — that is how the reader moves on.
+  it('leaves the whole sheet pickable when the visibility says nothing about picking', () => {
     const onPick = vi.fn<(hit: ReferencesPick | null) => void>();
     const canvas = mount({
       onPick,

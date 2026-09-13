@@ -146,8 +146,9 @@ describe('targetVisibility', () => {
     expect(at.visible?.has(10)).toBe(false);
     expect(at.dimmed).toBeNull();
     expect(at.dimAlpha).toBe(1);
-    // Hidden, not gone: the next pick may land on any crease of the sheet.
-    expect(at.pickable).toBeUndefined();
+    // Hidden creases are not there to point at: a click on one is a click on
+    // blank paper, which clears the pick and brings the sheet back.
+    expect(at.pickable).toBe(at.visible);
   });
 
   it('shows blank paper for a picked vertex, which has no crease of its own', () => {
