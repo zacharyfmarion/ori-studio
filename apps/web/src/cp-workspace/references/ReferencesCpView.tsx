@@ -54,6 +54,10 @@ import {
 import type { ModelBounds } from './referencesStepGeometry';
 import {
   applyCreaseVisibility,
+  concatOverlayPoints,
+  concatStrokes,
+  hoveredCreaseToPreviewStroke,
+  hoveredVertexToOverlayPoint,
   isClick,
   highlightedVerticesToOverlayPoints,
   modelBoundsToUser,
@@ -82,10 +86,14 @@ import {
  *
  * Input: wheel and drag pan/zoom, two-finger pinch through a local pointer map,
  * and a click (under four CSS px of travel) that hit-tests **on release only**
- * — vertices first, then creases — and calls `onPick`. Everything it draws
- * beyond the document arrives as props: which creases to highlight, which
- * vertices, the step's ghost lines and marks. Colours are read from the theme
- * on the canvas element and re-read when `themeKey` changes.
+ * — vertices first, then creases — and calls `onPick`. The same hit test runs
+ * under a passing pointer, once a frame, and what it finds is drawn in the
+ * pick accent — a translucent stroke over the crease, a ring round the vertex
+ * — so that a pattern of identical lines says which of them a click would
+ * take. Everything else it draws beyond the document arrives as props: which
+ * creases to highlight, which vertices, the step's ghost lines and marks.
+ * Colours are read from the theme on the canvas element and re-read when
+ * `themeKey` changes.
  */
 
 export interface ReferencesCpViewHandle {
@@ -270,6 +278,13 @@ function withAlpha(color: Rgba, alpha: number): Rgba {
   return [color[0], color[1], color[2], color[3] * alpha];
 }
 
+/** The same thing under the pointer as a frame ago, by identity rather than position. */
+function samePick(a: ReferencesPick | null, b: ReferencesPick | null): boolean {
+  if (a === null || b === null) return a === b;
+  if (a.kind === 'line') return b.kind === 'line' && a.id === b.id;
+  return b.kind === 'vertex' && a.idx === b.idx;
+}
+
 /**
  * The overlay's inks, resolved from the canvas's own theme.
  *
@@ -345,14 +360,14 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
     // Bumped when a lost context comes back, so the lifecycle effect rebuilds
     // the renderer and every upload effect below re-runs against it.
     const [rendererGeneration, setRendererGeneration] = useState(0);
-    // What the pointer is over, and whether it is dragging — the two inputs the
-    // cursor needs. Both are mirrored in refs the raw handlers read and write,
-    // and only pushed into state when the answer flips, so a pointermove over
-    // unchanged ground re-renders nothing (the Edit canvas's `applyCreaseHover`
-    // shape, `CreasePatternWebglCanvas.tsx`).
-    const [hovered, setHovered] = useState(false);
+    // What the pointer is over, and whether it is dragging — what the cursor
+    // and the hover mark need. Both are mirrored in refs the raw handlers read
+    // and write, and only pushed into state when the answer changes, so a
+    // pointermove along the same crease re-renders nothing (the Edit canvas's
+    // `applyCreaseHover` shape, `CreasePatternWebglCanvas.tsx`).
+    const [hovered, setHovered] = useState<ReferencesPick | null>(null);
     const [dragging, setDragging] = useState(false);
-    const hoveredRef = useRef(false);
+    const hoveredRef = useRef<ReferencesPick | null>(null);
 
     const vertices = useMemo(() => vertexPointsFromTransport(geometry), [geometry]);
     /**
@@ -665,13 +680,14 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         );
       };
 
-      // Hover, for the cursor. Coalesced to a frame because `LineHitIndex`
-      // falls back to a linear scan at fit zoom (~2 ms at 50k segments), which
-      // is fine once per frame and not fine once per pointermove sample.
+      // Hover, for the cursor and the hover mark. Coalesced to a frame because
+      // `LineHitIndex` falls back to a linear scan at fit zoom (~2 ms at 50k
+      // segments), which is fine once per frame and not fine once per
+      // pointermove sample.
       let hoverProbe = 0;
       let hoverAt: { x: number; y: number } | null = null;
-      const applyHover = (next: boolean) => {
-        if (next === hoveredRef.current) return;
+      const applyHover = (next: ReferencesPick | null) => {
+        if (samePick(next, hoveredRef.current)) return;
         hoveredRef.current = next;
         setHovered(next);
       };
@@ -682,7 +698,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           hoverProbe = 0;
           const at = hoverAt;
           if (!at) return;
-          applyHover(hitTest(at.x, at.y) !== null);
+          applyHover(hitTest(at.x, at.y));
         });
       };
       const cancelHover = () => {
@@ -691,7 +707,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           cancelAnimationFrame(hoverProbe);
           hoverProbe = 0;
         }
-        applyHover(false);
+        applyHover(null);
       };
 
 
@@ -924,18 +940,32 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       renderNowRef.current();
     }, [drawnVertices, pointSize, themeKey, rendererGeneration]);
 
-    // The step's lines that the pattern does not contain, over the creases.
+    // The step's lines that the pattern does not contain, over the creases —
+    // and the crease under the pointer, in the accent it would be picked in.
+    // On this channel rather than in the crease upload, which is the whole
+    // document: a hover must not cost a 50k-segment re-pack. The picked crease
+    // is already drawn in the accent, so hovering it adds nothing.
     useEffect(() => {
       const renderer = rendererRef.current;
       const canvas = canvasRef.current;
       if (!renderer || !canvas) return;
-      renderer.setPreview(diagramStrokes);
+      const hoverStroke =
+        hovered?.kind === 'line' && !(selected?.kind === 'line' && selected.id === hovered.id)
+          ? hoveredCreaseToPreviewStroke(
+              geometry,
+              hovered.id,
+              readCssVarColor(canvas, INPUT_COLOR_VAR, INPUT_FALLBACK),
+              HIGHLIGHT_WIDTH_MUL
+            )
+          : null;
+      renderer.setPreview(concatStrokes(diagramStrokes, hoverStroke));
       renderNowRef.current();
-    }, [diagramStrokes, rendererGeneration]);
+    }, [diagramStrokes, hovered, selected, geometry, themeKey, rendererGeneration]);
 
-    // Input rings, the new mark, and the picked/highlighted vertices, on top of
-    // everything. This channel draws at full opacity whatever the crowding, which
-    // is why the vertex marks live here rather than in the point layer.
+    // Input rings, the new mark, the picked/highlighted vertices and the ring
+    // round the vertex under the pointer, on top of everything. This channel
+    // draws at full opacity whatever the crowding, which is why the vertex
+    // marks live here rather than in the point layer.
     useEffect(() => {
       const renderer = rendererRef.current;
       const canvas = canvasRef.current;
@@ -946,13 +976,25 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       const picked = [...highlighted]
         .map((idx) => vertices[idx])
         .filter((point): point is Point => point !== undefined);
+      const hoverRing =
+        hovered?.kind === 'vertex' && !(selected?.kind === 'vertex' && selected.idx === hovered.idx)
+          ? hoveredVertexToOverlayPoint(
+              hovered.point,
+              readCssVarColor(canvas, INPUT_COLOR_VAR, INPUT_FALLBACK),
+              pointSize
+            )
+          : null;
       renderer.setOverlayPoints(
-        highlightedVerticesToOverlayPoints(picked, newColor, pointSize)
+        concatOverlayPoints(
+          highlightedVerticesToOverlayPoints(picked, newColor, pointSize),
+          hoverRing
+        )
       );
       renderNowRef.current();
     }, [
       highlightVertexIdx,
       selected,
+      hovered,
       vertices,
       pointSize,
       themeKey,
@@ -1020,7 +1062,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       panToolActive: false,
       panModifierHeld: false,
       panDragging: dragging,
-      creaseHovered: hovered,
+      creaseHovered: hovered !== null,
     });
 
     return (

@@ -2,6 +2,7 @@ import { act, createRef } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
+import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
 import { cpModelToSvg } from '../../lib/creasePatternViewport';
 import { fitUserCamera, modelViewFromCamera, projectModelPoint } from '../renderer/camera';
 import { transportUserBounds, type ReferencesPick } from './referencesViewGeometry';
@@ -193,6 +194,64 @@ describe('ReferencesCpView picking', () => {
     // and so is spelled by *not* setting an inline cursor.
     hover(canvas, clientOf(180, 10));
     expect(canvas.style.cursor).toBe('');
+  });
+
+  it('marks the crease under the pointer on the preview channel, in the pick accent', () => {
+    const canvas = mount();
+    uploads.setPreview.mockClear();
+
+    hover(canvas, clientOf(150, 50));
+    const preview = uploads.setPreview.mock.calls.at(-1)?.[0];
+    expect(preview?.count).toBe(1);
+    // Crease 1, from (0, 50) to (200, 50), translucent and at the picked width.
+    expect([...preview.a, ...preview.b]).toEqual([0, 50, 200, 50]);
+    expect(preview.color[3]).toBeGreaterThan(0);
+    expect(preview.color[3]).toBeLessThan(1);
+    expect(preview.widthMul[0]).toBeGreaterThan(1);
+    expect(preview.dashSlot?.[0]).toBe(0);
+
+    // Off the pattern, the mark goes with it.
+    hover(canvas, clientOf(180, 10));
+    expect(uploads.setPreview.mock.calls.at(-1)?.[0]).toBeNull();
+  });
+
+  it('rings the vertex under the pointer on the overlay channel, and not the picked one', () => {
+    const canvas = mount();
+    uploads.setOverlayPoints.mockClear();
+
+    hover(canvas, clientOf(100, 50));
+    const overlay = uploads.setOverlayPoints.mock.calls.at(-1)?.[0];
+    expect(overlay?.count).toBe(1);
+    expect([overlay.center[0], overlay.center[1]]).toEqual([100, 50]);
+    // A ring: a wider mark than the dot, filled faintly, outlined in full.
+    expect(overlay.radius[0]).toBeGreaterThan(1);
+    expect(overlay.fill[3]).toBeLessThan(overlay.stroke[3]);
+
+    // Already picked: it is drawn as picked, and the hover adds nothing.
+    const idx = vertexPointsFromTransport(GEOMETRY).findIndex((p) => p.x === 100 && p.y === 50);
+    act(() => root?.render(<ReferencesCpView {...props({ selected: { kind: 'vertex', idx } })} />));
+    hover(canvas, clientOf(100, 50));
+    const picked = uploads.setOverlayPoints.mock.calls.at(-1)?.[0];
+    expect(picked?.count).toBe(1);
+    expect(picked.radius[0]).toBeLessThan(overlay.radius[0]);
+  });
+
+  it('draws the hovered crease with the step’s own lines, not instead of them', () => {
+    const strokes = {
+      a: new Float32Array([0, 0]),
+      b: new Float32Array([10, 10]),
+      color: new Float32Array([0, 0, 0, 1]),
+      widthMul: new Float32Array([1]),
+      dashSlot: new Float32Array([1]),
+      count: 1,
+      dashPatterns: [[4, 2]],
+    };
+    const canvas = mount({ diagramStrokes: strokes });
+    hover(canvas, clientOf(150, 50));
+    const preview = uploads.setPreview.mock.calls.at(-1)?.[0];
+    expect(preview?.count).toBe(2);
+    expect(preview.dashPatterns).toEqual([[4, 2]]);
+    expect([...preview.dashSlot]).toEqual([1, 0]);
   });
 
   it('shows grabbing while a drag is in progress, whatever is under the pointer', () => {

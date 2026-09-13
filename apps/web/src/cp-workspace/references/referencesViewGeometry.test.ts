@@ -6,7 +6,13 @@ import { LineHitIndex } from '../picking/lineHitIndex';
 import type { Rgba, StrokeGeometry } from '../renderer/types';
 import {
   applyCreaseVisibility,
+  concatStrokes,
   ghostSegmentsToStrokes,
+  hoveredCreaseToPreviewStroke,
+  hoveredVertexToOverlayPoint,
+  HOVER_FILL_ALPHA,
+  HOVER_RING_SCALE,
+  HOVER_STROKE_ALPHA,
   isClick,
   markersToOverlayPoints,
   modelBoundsToUser,
@@ -418,5 +424,76 @@ describe('the paper as a shape', () => {
   it('is nothing at all without a border', () => {
     expect(sheetFillGeometry(transport(square), null, GREY)).toBeNull();
     expect(sheetFillGeometry(transport(square), new Set(), GREY)).toBeNull();
+  });
+});
+
+describe('the hover marks', () => {
+  const accent: Rgba = [1, 0, 0.5, 1];
+
+  it('draws the hovered crease as one translucent preview stroke at the given width', () => {
+    const stroke = hoveredCreaseToPreviewStroke(GEOMETRY, 2, accent, 2.6);
+    expect(stroke?.count).toBe(1);
+    expect([...(stroke?.a ?? []), ...(stroke?.b ?? [])]).toEqual([100, 0, 100, 100]);
+    expect([...(stroke?.color ?? [])].slice(0, 3)).toEqual([1, 0, 0.5]);
+    expect(stroke?.color[3]).toBeCloseTo(HOVER_STROKE_ALPHA);
+    expect(stroke?.widthMul[0]).toBeCloseTo(2.6);
+    // Solid, whatever dash table it is drawn beside.
+    expect(stroke?.dashSlot?.[0]).toBe(0);
+    expect(hoveredCreaseToPreviewStroke(GEOMETRY, 3, accent, 2.6)).toBeNull();
+    expect(hoveredCreaseToPreviewStroke(GEOMETRY, 0, accent, 2.6)).toBeNull();
+  });
+
+  it('rings the hovered vertex wider than its dot, faintly filled and fully outlined', () => {
+    const ring = hoveredVertexToOverlayPoint({ x: 100, y: 100 }, accent, 2);
+    expect(ring.count).toBe(1);
+    expect([ring.center[0], ring.center[1]]).toEqual([100, 100]);
+    expect(ring.screenSpace[0]).toBe(1);
+    expect(ring.radius[0]).toBeGreaterThan(2);
+    expect(ring.radius[0] / HOVER_RING_SCALE).toBeLessThan(ring.radius[0]);
+    expect(ring.fill[3]).toBeCloseTo(HOVER_FILL_ALPHA);
+    expect([...ring.stroke]).toEqual(accent);
+  });
+});
+
+describe('concatStrokes', () => {
+  const plain = (n: number, dashSlot?: number[]): StrokeGeometry => ({
+    a: new Float32Array(n * 2).fill(1),
+    b: new Float32Array(n * 2).fill(2),
+    color: new Float32Array(n * 4).fill(0.5),
+    widthMul: new Float32Array(n).fill(1),
+    count: n,
+    ...(dashSlot ? { dashSlot: Float32Array.from(dashSlot) } : {}),
+  });
+
+  it('passes one side through when the other is empty', () => {
+    const one = plain(1);
+    expect(concatStrokes(null, null)).toBeNull();
+    expect(concatStrokes(one, null)).toBe(one);
+    expect(concatStrokes(null, one)).toBe(one);
+  });
+
+  it('joins the buffers in order, a before b', () => {
+    const joined = concatStrokes(plain(2), plain(1));
+    expect(joined?.count).toBe(3);
+    expect(joined?.a.length).toBe(6);
+    expect(joined?.color.length).toBe(12);
+    expect(joined?.widthMul.length).toBe(3);
+    expect(joined?.dashSlot).toBeUndefined();
+    expect(joined?.dashPhase).toBeUndefined();
+  });
+
+  it('keeps one dash table, and gives a buffer without slots the program’s default beside it', () => {
+    const dashed: StrokeGeometry = { ...plain(1, [1]), dashPatterns: [[4, 2]], dashPhase: new Float32Array([3]) };
+    const joined = concatStrokes(dashed, plain(1));
+    expect(joined?.dashPatterns).toEqual([[4, 2]]);
+    // A buffer without a slot draws in slot 1 when a table is present — the
+    // rule the program applies to it on its own — so it keeps doing so here.
+    expect([...(joined?.dashSlot ?? [])]).toEqual([1, 1]);
+    expect([...(joined?.dashPhase ?? [])]).toEqual([3, 0]);
+    // A solid stroke says so itself.
+    const solid = concatStrokes(dashed, plain(1, [0]));
+    expect([...(solid?.dashSlot ?? [])]).toEqual([1, 0]);
+    // The table comes from whichever side has one.
+    expect(concatStrokes(plain(1), dashed)?.dashPatterns).toEqual([[4, 2]]);
   });
 });

@@ -236,6 +236,103 @@ export function highlightedVerticesToOverlayPoints(
   return { center, radius, screenSpace, fill, stroke, count };
 }
 
+/**
+ * How much wider than an ordinary vertex dot the hover ring is drawn, and how
+ * much of the accent its fill keeps. A ring rather than a dot: the dot
+ * underneath stays visible inside it, so the mark reads as "this one, if you
+ * click" rather than as a vertex that has changed.
+ */
+export const HOVER_RING_SCALE = 1.9;
+export const HOVER_FILL_ALPHA = 0.28;
+/** The alpha the hovered crease's accent draws at, over the crease itself. */
+export const HOVER_STROKE_ALPHA = 0.55;
+
+/**
+ * The vertex under the pointer, as an overlay ring in the pick accent.
+ *
+ * On the overlay channel for the same reason the picked vertex is
+ * ({@link highlightedVerticesToOverlayPoints}): the dot layer fades to nothing
+ * on a dense pattern, and the affordance has to survive the fade — that is the
+ * pattern on which a vertex is hardest to tell from a crease crossing.
+ */
+export function hoveredVertexToOverlayPoint(
+  point: Point,
+  accent: Rgba,
+  pointSize: number
+): PointGeometry {
+  return {
+    center: new Float32Array([point.x, point.y]),
+    radius: new Float32Array([VERTEX_RADIUS_FACTOR * pointSize * HOVER_RING_SCALE]),
+    screenSpace: new Float32Array([1]),
+    fill: new Float32Array([accent[0], accent[1], accent[2], accent[3] * HOVER_FILL_ALPHA]),
+    stroke: new Float32Array(accent),
+    count: 1,
+  };
+}
+
+/**
+ * The crease under the pointer, as one preview stroke in the pick accent —
+ * translucent, at the picked crease's width, so it reads as the selection it
+ * would become rather than as a selection. Null for an id the transport does
+ * not have.
+ */
+export function hoveredCreaseToPreviewStroke(
+  geometry: CpGeometryTransport,
+  id: number,
+  accent: Rgba,
+  widthMul: number
+): StrokeGeometry | null {
+  const e = (id - 1) * 4;
+  const endpoints = geometry.segEndpoints;
+  if (id < 1 || e + 3 >= endpoints.length) return null;
+  return {
+    a: new Float32Array([endpoints[e], endpoints[e + 1]]),
+    b: new Float32Array([endpoints[e + 2], endpoints[e + 3]]),
+    color: new Float32Array([accent[0], accent[1], accent[2], accent[3] * HOVER_STROKE_ALPHA]),
+    widthMul: new Float32Array([widthMul]),
+    dashSlot: new Float32Array([0]),
+    count: 1,
+  };
+}
+
+/**
+ * Two stroke uploads as one buffer, `b` drawn after `a`; null when both are
+ * empty. Dash patterns are a per-buffer table, so the two must agree on it or
+ * one must have none: `a`'s wins, and a segment from a buffer without a
+ * `dashSlot` keeps the program's rule for that case (slot 1, the uniform
+ * dash) only when a table is present at all.
+ */
+export function concatStrokes(
+  a: StrokeGeometry | null,
+  b: StrokeGeometry | null
+): StrokeGeometry | null {
+  if (!a) return b;
+  if (!b) return a;
+  const count = a.count + b.count;
+  const join = (x: Float32Array, y: Float32Array): Float32Array => {
+    const out = new Float32Array(x.length + y.length);
+    out.set(x, 0);
+    out.set(y, x.length);
+    return out;
+  };
+  const dashPatterns = a.dashPatterns?.length ? a.dashPatterns : b.dashPatterns;
+  const slots = (g: StrokeGeometry): Float32Array =>
+    g.dashSlot ?? new Float32Array(g.count).fill(dashPatterns?.length ? 1 : 0);
+  const phases = (g: StrokeGeometry): Float32Array => g.dashPhase ?? new Float32Array(g.count);
+  const depths = (g: StrokeGeometry): Float32Array => g.depth ?? new Float32Array(g.count);
+  return {
+    a: join(a.a, b.a),
+    b: join(a.b, b.b),
+    color: join(a.color, b.color),
+    widthMul: join(a.widthMul, b.widthMul),
+    count,
+    ...(dashPatterns?.length ? { dashPatterns } : {}),
+    ...(a.dashSlot || b.dashSlot ? { dashSlot: join(slots(a), slots(b)) } : {}),
+    ...(a.dashPhase || b.dashPhase ? { dashPhase: join(phases(a), phases(b)) } : {}),
+    ...(a.depth || b.depth ? { depth: join(depths(a), depths(b)) } : {}),
+  };
+}
+
 /** Two overlay-point uploads as one buffer; null when both are empty. */
 export function concatOverlayPoints(
   a: PointGeometry | null,
