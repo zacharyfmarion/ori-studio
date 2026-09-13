@@ -205,6 +205,7 @@ the person chose it or is following their OS. Two things it is deliberately not:
 | `command invoked` | `command_id`, `command_group` | A menu / keyboard / palette action (recognized ids only; data suffixes stripped) |
 | `cp tool used` | `operation`, `group` | A CP editor operation executes |
 | `workspace viewed` | `workspace` | The active workspace changes. Design carries no `variant`: it holds tabs, so it has no single method to name |
+| `site page viewed` | `page` (`download`) | A content page of the site — `/download/` and its siblings — is opened. The pages exist to be found from a search result; this is how we learn whether they are |
 | `crease pattern built` | `node_count_bucket`, `had_conditions` | A tree is compiled to a CP |
 | `optimizer run` | `kind`, `succeeded`, `feasible` | A TreeMaker optimizer runs |
 | `project opened` | `source` (`file`/`example`/`new`) | A project is opened/created |

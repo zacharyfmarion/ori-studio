@@ -1,0 +1,45 @@
+{
+  "download": {
+    "builds": {
+      "allReleases": "릴리스 노트가 포함된 모든 릴리스 (GitHub)",
+      "lead": "플랫폼과 아키텍처마다 파일 하나씩, GitHub Releases에 게시됩니다.",
+      "title": "모든 빌드"
+    },
+    "desktop": {
+      "files": "Ori Studio 프로젝트(.osf)를 Finder나 탐색기에서 바로 열 수 있습니다.",
+      "menus": "네이티브 메뉴와 파일 대화 상자로, 열기와 저장이 컴퓨터의 다른 앱과 똑같이 느껴집니다.",
+      "same": "그 밖의 모든 것은 동일합니다. 파일은 두 버전 사이를 자유롭게 오가며, 데스크톱 앱이 할 수 있는데 브라우저가 못 하는 일은 없습니다.",
+      "title": "데스크톱 앱이 더해 주는 것",
+      "updates": "새 릴리스를 확인하고 스스로 설치합니다."
+    },
+    "eyebrow": "데스크톱 앱",
+    "latest": "최신 릴리스: {{version}}",
+    "lead": "Ori Studio는 아무것도 설치하지 않고 브라우저에서 실행됩니다. 데스크톱 앱은 같은 작업 공간을 macOS, Windows, Linux용으로 패키징한 것으로, 네이티브 메뉴와 파일 대화 상자, Finder나 탐색기에서 바로 열리는 프로젝트, 스스로 설치되는 업데이트가 더해집니다.",
+    "openInBrowser": "또는 브라우저에서 열기",
+    "title": "Ori Studio 다운로드",
+    "which": {
+      "linuxBody": ".deb는 Debian, Ubuntu 및 그 파생 배포판에 설치됩니다. AppImage는 설치 없이 어디서나 실행됩니다. 실행 권한을 준 뒤 실행하세요.",
+      "linuxTerm": "Linux",
+      "macBody": "M 시리즈 칩이 탑재된 Mac은 Apple Silicon, 그 이전 Mac은 Intel을 선택하세요. 브라우저가 둘을 구분할 수 없어 다운로드 버튼은 기본적으로 Apple Silicon을 고릅니다.",
+      "macTerm": "macOS",
+      "title": "어떤 빌드를 받을까요?",
+      "windowsBody": "64비트 Windows용 설치 프로그램 하나입니다.",
+      "windowsTerm": "Windows"
+    }
+  },
+  "footer": {
+    "communityLabel": "커뮤니티",
+    "discord": "Discord",
+    "github": "GitHub",
+    "note": "{{name}}는 자유·오픈소스 소프트웨어입니다.",
+    "releases": "릴리스"
+  },
+  "header": {
+    "openApp": "앱 열기"
+  },
+  "nav": {
+    "download": "다운로드",
+    "home": "홈",
+    "label": "사이트"
+  }
+}

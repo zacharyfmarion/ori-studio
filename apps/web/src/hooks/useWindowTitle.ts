@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { applyWindowTitle, formatWindowTitle } from '../platform/windowTitle';
-import { isLandingPath } from '../routing/paths';
+import { sitePageForPath } from '../site/sitePages';
 import { useWorkspaceStore } from '../store/workspaceStore';
 
 /**
@@ -28,10 +28,12 @@ import { useWorkspaceStore } from '../store/workspaceStore';
  * field choice here: the gate is `currentFilePath`, not `currentFileName` — see
  * `formatWindowTitle` for why the latter cannot answer "is there a file".
  *
- * **And it reads the route**, because the landing page is not a document. This
- * runs from the root layout route, so it runs there too, and naming that page
- * after the blank project behind it is what Google indexed the site as — see the
- * `landing` note in `formatWindowTitle`.
+ * **And it reads the route**, because a site page is not a document. This runs
+ * from the root layout route, so it runs on the landing and on `/download/` too,
+ * and naming those after the blank project behind them is what Google indexed the
+ * site as — see the `pageTitle` note in `formatWindowTitle`. The registry answers
+ * which pages those are, so a page added there is titled correctly without this
+ * hook hearing about it.
  */
 export function useWindowTitle() {
   const { pathname } = useLocation();
@@ -39,11 +41,11 @@ export function useWindowTitle() {
   const dirty = useWorkspaceStore((state) => state.dirty);
   const fileName = useWorkspaceStore((state) => state.currentFileName);
   const filePath = useWorkspaceStore((state) => state.currentFilePath);
-  const landing = isLandingPath(pathname);
+  const pageTitle = sitePageForPath(pathname)?.title;
 
   useEffect(() => {
     void applyWindowTitle(
-      formatWindowTitle({ projectTitle: workspaceTitle, dirty, fileName, filePath, landing })
+      formatWindowTitle({ projectTitle: workspaceTitle, dirty, fileName, filePath, pageTitle })
     );
-  }, [dirty, fileName, filePath, landing, workspaceTitle]);
+  }, [dirty, fileName, filePath, pageTitle, workspaceTitle]);
 }

@@ -1,0 +1,45 @@
+{
+  "download": {
+    "builds": {
+      "allReleases": "Alle Versionen mit ihren Hinweisen auf GitHub",
+      "lead": "Eine Datei pro Plattform und Architektur, veröffentlicht auf GitHub Releases.",
+      "title": "Alle Builds"
+    },
+    "desktop": {
+      "files": "Ori-Studio-Projekte (.osf) öffnen sich direkt aus dem Finder oder Explorer.",
+      "menus": "Native Menüs und Dateidialoge, damit sich Öffnen und Speichern wie in jeder anderen App auf Ihrem Rechner anfühlen.",
+      "same": "Alles andere ist identisch. Dateien wandern frei zwischen beiden hin und her, und es gibt nichts, was die Desktop-App kann und der Browser nicht.",
+      "title": "Was die Desktop-App hinzufügt",
+      "updates": "Sie prüft auf neue Versionen und installiert sie selbst."
+    },
+    "eyebrow": "Desktop-App",
+    "latest": "Aktuelle Version: {{version}}",
+    "lead": "Ori Studio läuft im Browser, ohne dass Sie etwas installieren müssen. Die Desktop-App ist derselbe Arbeitsbereich, verpackt für macOS, Windows und Linux — mit nativen Menüs und Dateidialogen, Projekten, die sich direkt aus dem Finder oder Explorer öffnen, und Updates, die sich selbst installieren.",
+    "openInBrowser": "Oder im Browser öffnen",
+    "title": "Ori Studio herunterladen",
+    "which": {
+      "linuxBody": "Das .deb lässt sich auf Debian, Ubuntu und deren Verwandten installieren. Das AppImage läuft überall ohne Installation: ausführbar machen und starten.",
+      "linuxTerm": "Linux",
+      "macBody": "Apple Silicon für jeden Mac mit M-Chip, Intel für die davor. Der Download-Button wählt standardmäßig Apple Silicon, weil ein Browser die beiden nicht unterscheiden kann.",
+      "macTerm": "macOS",
+      "title": "Welcher Build?",
+      "windowsBody": "Ein Installer, für 64-Bit-Windows.",
+      "windowsTerm": "Windows"
+    }
+  },
+  "footer": {
+    "communityLabel": "Community",
+    "discord": "Discord",
+    "github": "GitHub",
+    "note": "{{name}} ist frei und quelloffen.",
+    "releases": "Versionen"
+  },
+  "header": {
+    "openApp": "App öffnen"
+  },
+  "nav": {
+    "download": "Download",
+    "home": "Startseite",
+    "label": "Website"
+  }
+}

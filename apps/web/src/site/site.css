@@ -1,0 +1,304 @@
+/*
+ * The site pages: the masthead and footer every one shares, and the prose frame the
+ * content pages render inside.
+ *
+ * Same tokens, borders and measures as the landing (`WelcomeLanding.css`), at reading
+ * size. A download page in a different visual language from the product it downloads
+ * would be the first thing a visitor saw and the last thing that resembled it.
+ */
+
+/* --- Frame --- */
+
+/*
+ * The scroll container, for the reason `.welcome-page` is one: `body` is
+ * `overflow: hidden` for the app, so a page of prose has to scroll somewhere of its own.
+ * `dvh` so a phone's collapsing URL bar does not leave the footer below the fold.
+ */
+.site-page {
+  height: 100vh;
+  height: 100dvh;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.site-page__scroll {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100%;
+  overflow: hidden auto;
+}
+
+/* --- Masthead --- */
+
+.site-header {
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+}
+
+.site-header__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-5);
+  width: min(1120px, 100%);
+  margin-inline: auto;
+  padding: var(--space-3) clamp(20px, 5vw, 56px);
+}
+
+.site-header__brand {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 760;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.site-header__brand:hover {
+  color: var(--accent-primary);
+}
+
+.site-header__cta {
+  margin-left: auto;
+  gap: var(--space-2);
+  text-decoration: none;
+}
+
+/* --- Nav (masthead and footer alike) --- */
+
+.site-nav__list,
+.site-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.site-nav__link {
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+  font-weight: 560;
+  text-decoration: none;
+}
+
+.site-nav__link:hover {
+  color: var(--text-primary);
+}
+
+.site-nav__link[aria-current='page'] {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--accent-primary);
+  text-underline-offset: 0.35em;
+}
+
+/* --- Footer --- */
+
+.site-footer {
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+}
+
+.site-footer__inner {
+  display: grid;
+  gap: var(--space-3);
+  width: min(1120px, 100%);
+  margin-inline: auto;
+  padding: var(--space-6) clamp(20px, 5vw, 56px);
+}
+
+.site-footer__note {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+}
+
+/* --- Prose --- */
+
+/*
+ * A reading measure, not the landing's 1120px: this is text, and ~70 characters is where
+ * a line stops being work to follow. Left-aligned inside the same page gutter as the
+ * masthead, so the eye lands where the brand was.
+ */
+.site-article {
+  width: min(1120px, 100%);
+  margin-inline: auto;
+  padding: clamp(32px, 6vw, 72px) clamp(20px, 5vw, 56px) clamp(48px, 8vw, 96px);
+}
+
+.site-article__head {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 68ch;
+  margin-bottom: clamp(32px, 5vw, 56px);
+}
+
+.site-eyebrow {
+  color: color-mix(in srgb, var(--accent-primary) 80%, var(--text-secondary));
+  font-size: 0.7rem;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.site-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  font-weight: 780;
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+.site-lead {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: clamp(1rem, 1.5vw, 1.12rem);
+  font-weight: 500;
+  line-height: 1.62;
+}
+
+.site-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.site-actions .ui-button {
+  text-decoration: none;
+}
+
+.site-note {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 0.86rem;
+}
+
+.site-note a {
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.site-note a:hover {
+  color: var(--text-primary);
+}
+
+.site-section {
+  max-width: 68ch;
+  margin-top: clamp(32px, 5vw, 48px);
+  color: var(--text-secondary);
+  font-size: 0.98rem;
+  line-height: 1.65;
+}
+
+.site-section > p {
+  margin: 0 0 var(--space-4);
+}
+
+/* The build grid is cards, not prose, and reads better with room for three columns. */
+.site-section--wide {
+  max-width: 880px;
+}
+
+.site-heading {
+  margin: 0 0 var(--space-3);
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  font-weight: 740;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.site-list {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+.site-list li + li {
+  margin-top: var(--space-2);
+}
+
+.site-definitions {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+}
+
+.site-definitions dt {
+  color: var(--text-primary);
+  font-weight: 640;
+}
+
+.site-definitions dd {
+  margin: 0;
+}
+
+@media (max-width: 560px) {
+  .site-definitions {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-1);
+  }
+
+  .site-definitions dd + dt {
+    margin-top: var(--space-3);
+  }
+}
+
+/* --- Build list --- */
+
+.site-builds {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-5);
+  margin: var(--space-2) 0 var(--space-4);
+}
+
+.site-builds__os {
+  margin: 0 0 var(--space-2);
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.site-builds__list {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.site-builds__link {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 560;
+  text-decoration: none;
+}
+
+.site-builds__link:hover {
+  border-color: var(--border-default);
+  background: var(--bg-tertiary);
+}
+
+.site-builds__size {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

@@ -28,6 +28,7 @@ export const PARSER_NAMESPACES = [
   'toasts',
   'errors',
   'landing',
+  'site',
 ];
 // `cpVocab` is generated from the CP tool data module (not parser-managed) but is still a
 // first-class namespace for translation parity.

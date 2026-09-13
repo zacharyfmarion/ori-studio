@@ -66,7 +66,7 @@ const CHECKS = [
     path: '/sitemap.xml',
     rejectHtml: true,
     contentType: 'xml',
-    contains: ['<urlset', '<loc>https://oristudio.dev/</loc>'],
+    contains: ['<urlset', '<loc>https://oristudio.dev/</loc>', '<loc>https://oristudio.dev/download/</loc>'],
   },
   {
     name: 'the root page carries its canonical and card metadata',
@@ -92,6 +92,22 @@ const CHECKS = [
     name: '/welcome answers with the landing copy, however it is served',
     path: '/welcome',
     contains: ['id="seo-content"', 'crease pattern'],
+  },
+  {
+    // A content page, through the same gate as the landing — and the one assertion the
+    // landing cannot make. `index.html` hardcodes `canonical → /`; a content page that
+    // shipped with it would deploy, serve and 200 exactly like this, and be consolidated
+    // into the homepage rather than indexed as itself. The SPA fallback would also pass
+    // every *other* check here, since it carries the landing's copy and `#seo-content`.
+    name: '/download/ is its own page, with its own canonical',
+    path: '/download/',
+    contains: [
+      '<link rel="canonical" href="https://oristudio.dev/download/" />',
+      '<title>Download Ori Studio for macOS, Windows and Linux</title>',
+      'id="seo-content"',
+      'Every build',
+    ],
+    absent: ['<link rel="canonical" href="https://oristudio.dev/" />'],
   },
   {
     name: 'the OpenGraph image is served',

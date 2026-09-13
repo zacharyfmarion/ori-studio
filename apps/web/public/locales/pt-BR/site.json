@@ -1,0 +1,45 @@
+{
+  "download": {
+    "builds": {
+      "allReleases": "Todas as versões, com suas notas, no GitHub",
+      "lead": "Um arquivo por plataforma e arquitetura, publicado no GitHub Releases.",
+      "title": "Todas as compilações"
+    },
+    "desktop": {
+      "files": "Projetos do Ori Studio (.osf) abrem direto do Finder ou do Explorador de Arquivos.",
+      "menus": "Menus e diálogos de arquivo nativos, para que abrir e salvar pareçam iguais a qualquer outro aplicativo da sua máquina.",
+      "same": "Todo o resto é idêntico. Os arquivos circulam livremente entre os dois, e não há nada que o aplicativo para desktop faça que o navegador não faça.",
+      "title": "O que o aplicativo para desktop acrescenta",
+      "updates": "Ele verifica novas versões e as instala sozinho."
+    },
+    "eyebrow": "Aplicativo para desktop",
+    "latest": "Versão mais recente: {{version}}",
+    "lead": "O Ori Studio funciona no seu navegador sem instalar nada. O aplicativo para desktop é o mesmo espaço de trabalho, empacotado para macOS, Windows e Linux — com menus e diálogos de arquivo nativos, projetos que abrem direto do Finder ou do Explorador de Arquivos e atualizações que se instalam sozinhas.",
+    "openInBrowser": "Ou abra no seu navegador",
+    "title": "Baixar o Ori Studio",
+    "which": {
+      "linuxBody": "O .deb instala no Debian, no Ubuntu e em seus derivados. O AppImage roda em qualquer lugar sem instalação: dê permissão de execução e abra.",
+      "linuxTerm": "Linux",
+      "macBody": "Apple Silicon para qualquer Mac com chip da série M; Intel para os anteriores. O botão de download escolhe Apple Silicon por padrão, porque um navegador não consegue distinguir os dois.",
+      "macTerm": "macOS",
+      "title": "Qual compilação?",
+      "windowsBody": "Um único instalador, para Windows de 64 bits.",
+      "windowsTerm": "Windows"
+    }
+  },
+  "footer": {
+    "communityLabel": "Comunidade",
+    "discord": "Discord",
+    "github": "GitHub",
+    "note": "O {{name}} é livre e de código aberto.",
+    "releases": "Versões"
+  },
+  "header": {
+    "openApp": "Abrir o aplicativo"
+  },
+  "nav": {
+    "download": "Baixar",
+    "home": "Início",
+    "label": "Site"
+  }
+}
