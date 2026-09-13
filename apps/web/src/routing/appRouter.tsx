@@ -4,6 +4,8 @@ import { RouteErrorElement } from '../components/errors/RouteErrorElement';
 import { WorkspaceShell } from '../components/WorkspaceShell';
 import { readBoolean, storageKey, STORAGE_KEYS } from '../lib/storage';
 import { getRuntimeSurface } from '../platform/runtime';
+import { SitePageRoute } from '../site/SitePageRoute';
+import { CONTENT_PAGES, routeSegment } from '../site/sitePages';
 import { DESIGN_PATH, EDIT_PATH, LEGACY_DESIGN_PATHS, WELCOME_PATH } from './paths';
 import { ShareRoute } from './ShareRoute';
 import { WelcomeRoute } from './WelcomeRoute';
@@ -68,6 +70,7 @@ export function currentPath(): string | null {
  * no server rewrite, so it uses an in-memory history to avoid deep-link 404s.
  */
 export function createAppRouter(): AppRouter {
+  const desktop = getRuntimeSurface() === 'desktop';
   const routes = [
     {
       path: '/',
@@ -78,6 +81,19 @@ export function createAppRouter(): AppRouter {
       children: [
         { index: true, loader: startupRedirect },
         { path: 'welcome', element: <WelcomeRoute /> },
+        // The site's content pages — `/download/` and its siblings — built from the
+        // registry, so a page the prerender writes a file for is a page the router
+        // knows. Without a route the crawler is fine (Pages serves the file) and a
+        // reader is not: React boots, nothing matches, and the catch-all below
+        // bounces them to the start screen. Web only: the same `dist` ships inside
+        // Tauri, where a download page is nonsense and the footer that would link
+        // to it renders nothing.
+        ...(desktop
+          ? []
+          : CONTENT_PAGES.map((page) => ({
+              path: routeSegment(page),
+              element: <SitePageRoute page={page} />,
+            }))),
         // Share links land here, stash their intent, and redirect to Edit. A real
         // route (rather than a fragment on `/edit`) so the share leaves the URL on
         // arrival and this handling never runs on a normal start.
@@ -107,7 +123,7 @@ export function createAppRouter(): AppRouter {
     },
   ];
 
-  if (getRuntimeSurface() === 'desktop') {
+  if (desktop) {
     // Start at the index so `startupRedirect` applies the welcome/Edit preference
     // on desktop too (there's no address bar to deep-link from).
     return createMemoryRouter(routes, { initialEntries: ['/'] });

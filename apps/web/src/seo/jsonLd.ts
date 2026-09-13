@@ -1,5 +1,6 @@
 import { DISCORD_URL, REPOSITORY_URL } from '../constants/release';
-import { SITE_DESCRIPTION, SITE_NAME, SITE_OG_IMAGE, SITE_ORIGIN } from './siteMeta';
+import { LANDING_PAGE, type SitePage } from '../site/sitePages';
+import { SITE_DESCRIPTION, SITE_NAME, SITE_OG_IMAGE, SITE_ORIGIN, siteUrl } from './siteMeta';
 
 /**
  * Structured data for the landing page: the **site** and the **app** it serves, as one
@@ -93,4 +94,31 @@ export function escapeForScriptTag(json: string): string {
 /** Serialize for a `<script type="application/ld+json">` body. */
 export function landingJsonLdScript(): string {
   return escapeForScriptTag(JSON.stringify(landingJsonLd()));
+}
+
+/**
+ * Structured data for a content page: a `WebPage` that belongs to the site.
+ *
+ * Not the landing's graph. `WebSite` is homepage-only by definition and `SoftwareApplication`
+ * describes the app rather than the page; a download page carrying both would be claiming
+ * to be the site from a URL that is not the site. `isPartOf` points at the `WebSite` node
+ * by id, which is how a crawler learns this page and the homepage are one property
+ * without the page restating the homepage's data.
+ */
+export function pageJsonLd(page: SitePage): Record<string, unknown> {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    '@id': `${siteUrl(page.path)}#webpage`,
+    name: page.title,
+    description: page.description,
+    url: siteUrl(page.path),
+    isPartOf: { '@id': `${SITE_ORIGIN}/#website` },
+  };
+}
+
+/** The `ld+json` body for any site page: the graph for the landing, a `WebPage` otherwise. */
+export function sitePageJsonLdScript(page: SitePage): string {
+  const data = page.id === LANDING_PAGE.id ? landingJsonLd() : pageJsonLd(page);
+  return escapeForScriptTag(JSON.stringify(data));
 }

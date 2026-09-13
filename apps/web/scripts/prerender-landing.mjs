@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Put the landing page into `dist/index.html` as real HTML, and generate the two files
- * search engines read.
+ * Put every site page into `dist` as real HTML, and generate the two files search engines
+ * read.
  *
  * Google does execute JavaScript, so the SPA is indexable in principle. In practice
  * crawling and rendering are separate queues: the HTML is fetched immediately, and the
@@ -14,8 +14,12 @@
  * exists as a build output: an artifact the deploy produces but a local build does not is
  * an artifact nobody can reproduce or debug. See AGENTS.md.
  *
- * The markup comes from the same `WelcomeLanding` component the app renders, so the two
- * cannot describe the product differently.
+ * The markup comes from the same components the app renders, so the two cannot describe
+ * a page differently. Which pages exist, what each one's `<head>` says and where each one
+ * lands are all answered by `src/site/sitePages.ts` through `prerenderSite` — this script
+ * only loads the template and writes what it is handed. That split is what makes the
+ * assembly testable: the failure it guards against (a page carrying the homepage's
+ * canonical) deploys and serves without a sound.
  */
 import { createServer } from 'vite';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -71,110 +75,32 @@ async function withVite(fn) {
   }
 }
 
-/**
- * Wrap a replacement so `String.prototype.replace` inserts it verbatim.
- *
- * A string replacement expands `$&`, `$'`, `` $` `` and `$1`..`$9`. The landing markup and
- * the JSON-LD both pass through here, and either can grow a `$` the moment someone writes
- * one into the marketing copy — at which point the page silently corrupts itself and every
- * check downstream still passes. A function replacement is never interpreted.
- */
-function verbatim(replacement) {
-  return () => replacement;
-}
-
-/**
- * Replace the JSON-LD block rather than appending another.
- *
- * Same idempotency reasoning as {@link stripExisting}, and the same silent outcome if it is
- * missed: a second run over the same `dist` left two `SoftwareApplication` nodes in the
- * head, which is invalid structured data, and every check downstream still passed.
- */
-function injectJsonLd(html, snippet) {
-  if (!html.includes('</head>')) fail('dist/index.html has no </head>');
-  const stripped = html.replace(
-    /[ \t]*<script type="application\/ld\+json">[\s\S]*?<\/script>\n?/g,
-    ''
-  );
-  return stripped.replace('</head>', verbatim(`  ${snippet}\n  </head>`));
-}
-
-/**
- * The markup goes *before* `#root`, as a sibling, followed immediately by an inline script
- * that removes it.
- *
- * The script is the load-bearing part, and it has to be **inline and adjacent**. The module
- * bundle is deferred: it does not execute until the document is parsed, and ~1MB of JS
- * takes far longer to arrive than the 35KB of render-blocking CSS ahead of it. That window
- * is real, and in it the browser paints this block. On `/welcome` that is landing-then-
- * landing and nearly invisible; on `/edit` — where anyone who turned off "show welcome on
- * startup" lands from `/` — it is a full marketing page flashing before the editor. That is
- * not a trade worth making for a paint we throw away a moment later.
- *
- * An inline `<script>` runs synchronously at its position in the parse, before the parser
- * reaches `#root` and before first paint, so the node never reaches the screen on any
- * route. None of the SEO value depends on it surviving: a crawler that reads bytes has
- * already received the markup, and one that renders gets React's identical copy.
- *
- * `main.tsx` removes it too. That is not redundancy for its own sake — it is the fallback
- * if a future CSP blocks inline scripts, which would otherwise silently restore the flash.
- */
-/**
- * Drop a block a previous run left behind, so injecting is idempotent.
- *
- * `vite build` empties `dist`, so the shipped path always starts clean — but running this
- * script directly is the obvious way to iterate on it without waiting on a wasm rebuild,
- * and doing that twice used to produce two copies of the landing page. Nothing downstream
- * would say so: the smoke test asserts the copy is *present*, never how often, so the
- * result was a crawler seeing the pitch and two `<h1>`s twice over, silently.
- */
-function stripExisting(html, id, anchor) {
-  const start = html.indexOf(`<div id="${id}">`);
-  if (start === -1) return html;
-  const end = html.indexOf(anchor, start);
-  if (end === -1) fail(`dist/index.html has a stale #${id} block with no ${anchor} after it`);
-  return html.slice(0, start) + html.slice(end);
-}
-
-function injectContent(html, id, markup) {
-  const anchor = '<div id="root"></div>';
-  if (!html.includes(anchor)) fail(`dist/index.html has no ${anchor}`);
-  html = stripExisting(html, id, anchor);
-  const strip = `<script>document.getElementById(${JSON.stringify(id)}).remove()</script>`;
-  return html.replace(anchor, verbatim(`<div id="${id}">${markup}</div>${strip}\n    ${anchor}`));
-}
-
 async function main() {
-  const { entry, meta } = await withVite(async (load) => ({
-    entry: await load('/src/seo/prerenderEntry.tsx'),
-    meta: await load('/src/seo/siteMeta.ts'),
-  }));
-  const { SEO_CONTENT_ID, renderLandingMarkup, landingJsonLdScript } = entry;
-  const { SITEMAP_PATHS, SITE_ORIGIN, siteUrl } = meta;
+  const template = await readFile(resolve(dist, 'index.html'), 'utf8');
 
-  const markup = renderLandingMarkup();
-  // A render that silently produced nothing would sail through every later check: the
-  // file would still be valid HTML, still deploy, still 200. Only the words would be
-  // gone, which is the one thing nothing downstream inspects.
-  if (markup.length < 1000) fail(`rendered markup is only ${markup.length} bytes — expected the landing page`);
+  const { files, paths, meta } = await withVite(async (load) => {
+    const entry = await load('/src/seo/prerenderEntry.tsx');
+    const pages = await load('/src/site/sitePages.ts');
+    return {
+      files: entry.prerenderSite(template),
+      paths: pages.SITEMAP_PATHS,
+      meta: await load('/src/seo/siteMeta.ts'),
+    };
+  });
+  const { SITE_ORIGIN, siteUrl } = meta;
 
-  const source = await readFile(resolve(dist, 'index.html'), 'utf8');
-  let html = injectContent(source, SEO_CONTENT_ID, markup);
-  html = injectJsonLd(
-    html,
-    `<script type="application/ld+json">${landingJsonLdScript()}</script>`
-  );
+  for (const { file, html, page } of files) {
+    // A render that silently produced nothing would sail through every later check: the
+    // file would still be valid HTML, still deploy, still 200. Only the words would be
+    // gone, which is the one thing nothing downstream inspects.
+    const size = html.length - template.length;
+    if (size < 1000) fail(`${page.path} rendered only ${size} bytes of markup — expected a page`);
+    const target = resolve(dist, file);
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, html);
+  }
 
-  if (!html.includes(`id="${SEO_CONTENT_ID}"`)) fail('content injection produced no marker');
-
-  await writeFile(resolve(dist, 'index.html'), html);
-  // `/welcome` holds the same page and canonicalises to `/`. Writing it as a real file
-  // means a crawler that follows a link there gets the content directly rather than the
-  // SPA fallback plus a client-side redirect.
-  await mkdir(resolve(dist, 'welcome'), { recursive: true });
-  await writeFile(resolve(dist, 'welcome/index.html'), html);
-
-  const urls = SITEMAP_PATHS.map((path) => `  <url>\n    <loc>${siteUrl(path)}</loc>\n  </url>`).join('\n');
+  const urls = paths.map((path) => `  <url>\n    <loc>${siteUrl(path)}</loc>\n  </url>`).join('\n');
   await writeFile(
     resolve(dist, 'sitemap.xml'),
     `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`
@@ -187,9 +113,10 @@ async function main() {
       : `# Not the production deploy (ORI_SITE_ENV is unset), so this host must not be\n# indexed — it serves the same copy as the real site on a public preview hostname.\nUser-agent: *\nDisallow: /\n`
   );
 
+  const written = files.map(({ file }) => file).join(', ');
   console.log(
-    `prerender-landing: ${markup.length} bytes of landing markup, ` +
-      `sitemap with ${SITEMAP_PATHS.length} url(s), robots.txt ${isProduction ? 'allowing' : 'disallowing'} crawlers`
+    `prerender-landing: wrote ${files.length} file(s) (${written}), ` +
+      `sitemap with ${paths.length} url(s), robots.txt ${isProduction ? 'allowing' : 'disallowing'} crawlers`
   );
 }
 

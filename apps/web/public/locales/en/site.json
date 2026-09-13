@@ -1,0 +1,45 @@
+{
+  "download": {
+    "builds": {
+      "allReleases": "All releases, with their notes, on GitHub",
+      "lead": "One file per platform and architecture, published on GitHub Releases.",
+      "title": "Every build"
+    },
+    "desktop": {
+      "files": "Ori Studio projects (.osf) open straight from Finder or Explorer.",
+      "menus": "Native menus and file dialogs, so opening and saving feel like every other app on your machine.",
+      "same": "Everything else is identical. Files move between the two freely, and there is nothing the desktop app can do that the browser cannot.",
+      "title": "What the desktop app adds",
+      "updates": "It checks for new releases and installs them itself."
+    },
+    "eyebrow": "Desktop app",
+    "latest": "Latest release: {{version}}",
+    "lead": "Ori Studio runs in your browser with nothing to install. The desktop app is the same workspace, packaged for macOS, Windows and Linux — with native menus and file dialogs, projects that open straight from Finder or Explorer, and updates that install themselves.",
+    "openInBrowser": "Or open it in your browser",
+    "title": "Download Ori Studio",
+    "which": {
+      "linuxBody": "The .deb installs on Debian and Ubuntu and their relatives. The AppImage runs anywhere without installing: make it executable and launch it.",
+      "linuxTerm": "Linux",
+      "macBody": "Apple Silicon for any Mac with an M-series chip; Intel for the ones before. The download button picks Apple Silicon by default, because a browser cannot tell the two apart.",
+      "macTerm": "macOS",
+      "title": "Which build?",
+      "windowsBody": "One installer, for 64-bit Windows.",
+      "windowsTerm": "Windows"
+    }
+  },
+  "footer": {
+    "communityLabel": "Community",
+    "discord": "Discord",
+    "github": "GitHub",
+    "note": "{{name}} is free and open source.",
+    "releases": "Releases"
+  },
+  "header": {
+    "openApp": "Open the app"
+  },
+  "nav": {
+    "download": "Download",
+    "home": "Home",
+    "label": "Site"
+  }
+}

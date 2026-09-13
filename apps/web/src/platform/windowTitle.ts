@@ -1,4 +1,4 @@
-import { SITE_NAME, SITE_TITLE } from '../seo/siteMeta';
+import { SITE_NAME } from '../seo/siteMeta';
 import { getRuntimeSurface, type RuntimeSurface } from './runtime';
 
 export interface WindowTitleInput {
@@ -22,15 +22,18 @@ export interface WindowTitleInput {
    */
   filePath?: string | null;
   /**
-   * True while the app is showing the landing page rather than a document.
+   * The title of the site page being shown, when the app is showing one rather
+   * than a document — the landing, or `/download/` and its siblings.
    *
-   * There is no document to name there, and the store still holds one — a blank
-   * project called `Untitled`. Titling the landing after it is what put
+   * There is no document to name on those pages, and the store still holds one —
+   * a blank project called `Untitled`. Titling the landing after it is what put
    * "Ori Studio: Untitled" in Google's result for the site: the prerendered HTML
-   * carries {@link SITE_TITLE}, Googlebot's render pass then ran this and
-   * replaced it, and the rendered title is the one that gets indexed.
+   * carried {@link SITE_TITLE}, Googlebot's render pass then ran this and
+   * replaced it, and the rendered title is the one that gets indexed. So the
+   * page's own title wins here, and it has to be the exact string the prerender
+   * wrote, or a crawler is back to watching the title change under it.
    */
-  landing?: boolean;
+  pageTitle?: string;
   surface?: RuntimeSurface;
 }
 
@@ -39,16 +42,14 @@ export function formatWindowTitle({
   dirty,
   fileName,
   filePath = null,
-  landing = false,
+  pageTitle,
   surface = getRuntimeSurface(),
 }: WindowTitleInput): string {
   // Two different answers on purpose, because the string lands in two different
   // places. In a browser it is the tab *and* the search result, so it is the
-  // sentence written for the query — and it has to match the `<title>` in
-  // `index.html` exactly, or a crawler is back to seeing the title change under
-  // it. Desktop has neither a tab nor a crawler, just a title bar that a
-  // seventy-character sentence would be absurd in.
-  if (landing) return surface === 'desktop' ? SITE_NAME : SITE_TITLE;
+  // page's title verbatim. Desktop has neither a tab nor a crawler, just a title
+  // bar that a page title written for a result would be absurd in.
+  if (pageTitle) return surface === 'desktop' ? SITE_NAME : pageTitle;
 
   const fromFile = filePath ? (fileName?.trim() ?? '') : '';
   const title = fromFile || projectTitle.trim() || 'Untitled';

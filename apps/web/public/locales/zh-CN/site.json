@@ -1,0 +1,45 @@
+{
+  "download": {
+    "builds": {
+      "allReleases": "GitHub 上的所有版本及更新说明",
+      "lead": "每个平台和架构各一个文件，发布在 GitHub Releases 上。",
+      "title": "所有构建"
+    },
+    "desktop": {
+      "files": "Ori Studio 项目 (.osf) 可以直接从 Finder 或资源管理器中打开。",
+      "menus": "原生菜单和文件对话框，打开和保存的体验与你电脑上的其他应用一致。",
+      "same": "其余部分完全相同。文件可以在两者之间自由流转，桌面应用能做的事，浏览器版本同样能做。",
+      "title": "桌面应用带来了什么",
+      "updates": "它会自动检查新版本并自行安装。"
+    },
+    "eyebrow": "桌面应用",
+    "latest": "最新版本：{{version}}",
+    "lead": "Ori Studio 在浏览器中运行，无需安装。桌面应用是同一个工作区，打包为 macOS、Windows 和 Linux 版本——带有原生菜单和文件对话框，项目可直接从 Finder 或资源管理器打开，更新也会自行安装。",
+    "openInBrowser": "或者在浏览器中打开",
+    "title": "下载 Ori Studio",
+    "which": {
+      "linuxBody": ".deb 可安装在 Debian、Ubuntu 及其衍生发行版上。AppImage 无需安装即可在任何发行版上运行：赋予可执行权限后直接启动。",
+      "linuxTerm": "Linux",
+      "macBody": "搭载 M 系列芯片的 Mac 选择 Apple 芯片版本，更早的 Mac 选择 Intel 版本。由于浏览器无法区分两者，下载按钮默认选择 Apple 芯片版本。",
+      "macTerm": "macOS",
+      "title": "该选哪个构建？",
+      "windowsBody": "一个安装程序，适用于 64 位 Windows。",
+      "windowsTerm": "Windows"
+    }
+  },
+  "footer": {
+    "communityLabel": "社区",
+    "discord": "Discord",
+    "github": "GitHub",
+    "note": "{{name}} 是自由开源软件。",
+    "releases": "版本发布"
+  },
+  "header": {
+    "openApp": "打开应用"
+  },
+  "nav": {
+    "download": "下载",
+    "home": "首页",
+    "label": "站点"
+  }
+}
