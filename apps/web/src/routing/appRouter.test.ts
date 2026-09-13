@@ -1,6 +1,7 @@
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { storageKey, STORAGE_KEYS } from '../lib/storage';
 import { PHONE_MEDIA_QUERY } from '../platform/mobileSurface';
+import { CONTENT_PAGES } from '../site/sitePages';
 import { createAppRouter, startupHomePath } from './appRouter';
 
 const WELCOME_KEY = storageKey(STORAGE_KEYS.showWelcomeOnStartup);
@@ -101,5 +102,51 @@ describe('the workspace routes on a phone', () => {
   it('opens a share link rather than the landing page', async () => {
     mockPhoneViewport();
     await expect(resolve('/s/abcd1234')).resolves.toBe('/s/abcd1234');
+  });
+});
+
+/**
+ * A prerendered file is not a route. Pages serves `dist/download/index.html`, so a
+ * crawler is satisfied — then React boots, the router matches nothing, and the `*`
+ * catch-all bounces the reader to the start screen. The page renders and vanishes. So
+ * every page the registry declares has to resolve to itself here, in the form the deploy
+ * answers with and in the form a client-side link may use.
+ */
+describe('the site pages', () => {
+  it.each(CONTENT_PAGES)('resolves $path to itself, not to the start screen', async (page) => {
+    await expect(resolve(page.path)).resolves.toBe(page.path);
+  });
+
+  it.each(CONTENT_PAGES)('resolves $path without its trailing slash too', async (page) => {
+    const bare = page.path.replace(/\/$/, '');
+    await expect(resolve(bare)).resolves.toBe(bare);
+  });
+
+  it('still bounces a path that is not a page', async () => {
+    await expect(resolve('/download-old/')).resolves.toBe('/welcome');
+  });
+});
+
+/**
+ * The same `dist` ships inside Tauri, where a download page is nonsense and the footer
+ * that would link to it renders nothing. A memory router of its own here: it does not
+ * touch browser history, so it can coexist with the shared one above.
+ */
+describe('the site pages on desktop', () => {
+  it('are not routed, so a stray path lands on the start screen like any other', async () => {
+    Object.defineProperty(window, '__TAURI_INTERNALS__', { configurable: true, value: {} });
+    try {
+      const desktopRouter = createAppRouter();
+      try {
+        for (const page of CONTENT_PAGES) {
+          await desktopRouter.navigate(page.path);
+          expect(desktopRouter.state.location.pathname).toBe('/welcome');
+        }
+      } finally {
+        desktopRouter.dispose();
+      }
+    } finally {
+      Reflect.deleteProperty(window, '__TAURI_INTERNALS__');
+    }
   });
 });

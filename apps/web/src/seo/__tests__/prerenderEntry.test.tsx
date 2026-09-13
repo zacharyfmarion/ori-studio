@@ -2,9 +2,10 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { LANDING_SECTIONS } from '../../components/landing/WelcomeLanding';
-import { escapeForScriptTag, landingJsonLd, landingJsonLdScript } from '../jsonLd';
-import { renderLandingMarkup } from '../prerenderEntry';
-import { SEO_CONTENT_ID, SITE_NAME, SITE_ORIGIN, SITE_TITLE, SITEMAP_PATHS } from '../siteMeta';
+import { CONTENT_PAGES, LANDING_PAGE, SITE_PAGES } from '../../site/sitePages';
+import { escapeForScriptTag, landingJsonLd, landingJsonLdScript, pageJsonLd } from '../jsonLd';
+import { prerenderSite, renderLandingMarkup, renderPageMarkup } from '../prerenderEntry';
+import { SEO_CONTENT_ID, SITE_NAME, SITE_ORIGIN, SITE_TITLE, siteUrl } from '../siteMeta';
 
 /**
  * The PR-time gate on the prerender.
@@ -53,6 +54,132 @@ describe('landing prerender', () => {
     expect(markup).not.toContain('data-reactroot');
     expect(markup).not.toContain('<!--$-->');
   });
+
+  it('links every other page of the site from the landing', () => {
+    // The footer is the only place the landing points at its siblings, which makes it
+    // the way a crawler on the homepage learns a download page exists. Sitelinks are
+    // chosen from pages Google can reach; a page linked from nowhere is not one.
+    for (const page of CONTENT_PAGES) {
+      expect(markup).toContain(`href="${page.path}"`);
+    }
+  });
+});
+
+/**
+ * The content pages, through the same gate.
+ *
+ * Every assertion here names one of the ways a page fails without a sound — a copy
+ * with no words, a page that does not link back, a heading structure a crawler cannot
+ * read — and each one still deploys, serves and 200s.
+ */
+describe('content page prerender', () => {
+  it.each(CONTENT_PAGES)('renders $path with its own h1 and real copy', (page) => {
+    const markup = renderPageMarkup(page);
+    const h1s = markup.match(/<h1[\s>]/g) ?? [];
+    expect(h1s).toHaveLength(1);
+    expect(markup.length).toBeGreaterThan(2000);
+  });
+
+  it.each(CONTENT_PAGES)('marks $path as the current page in its own nav', (page) => {
+    const markup = renderPageMarkup(page);
+    const current = markup.match(/<a\b[^>]*aria-current="page"[^>]*>/g) ?? [];
+    expect(current.length).toBeGreaterThan(0);
+    for (const tag of current) expect(tag).toContain(`href="${page.path}"`);
+  });
+
+  it.each(CONTENT_PAGES)('links $path back to the landing and to every sibling', (page) => {
+    const markup = renderPageMarkup(page);
+    expect(markup).toContain('href="/"');
+    for (const other of CONTENT_PAGES) {
+      expect(markup).toContain(`href="${other.path}"`);
+    }
+  });
+});
+
+/**
+ * The whole assembly, against a stand-in for the built `index.html`.
+ *
+ * A template rather than the real `dist/index.html`, which CI never builds — but with the
+ * real `<head>` from `apps/web/index.html`, because the canonical it hardcodes is the
+ * exact thing a content page has to overwrite.
+ */
+describe('prerenderSite', () => {
+  const template = indexHtml().replace('<script type="module" src="/src/main.tsx"></script>', '');
+  const files = prerenderSite(template);
+  const fileFor = (path: string) => {
+    const match = files.find(({ page }) => page.path === path);
+    if (!match) throw new Error(`no output for ${path}`);
+    return match;
+  };
+
+  it('writes the landing to the root and to /welcome, and every content page to its directory', () => {
+    const names = files.map(({ file }) => file);
+    expect(names).toContain('index.html');
+    expect(names).toContain('welcome/index.html');
+    for (const page of CONTENT_PAGES) {
+      expect(names).toContain(`${page.path.replace(/^\/|\/$/g, '')}/index.html`);
+    }
+  });
+
+  /**
+   * The central trap. `index.html` says `canonical → /`, which is right for the landing
+   * and for the app routes that fold into it. A content page shipped with it would tell a
+   * crawler the page *is* the homepage, be consolidated into it, and never be indexed as
+   * itself — while deploying, serving and 200ing exactly like a page that works.
+   */
+  it.each(CONTENT_PAGES)('gives $path its own canonical, not the homepage’s', (page) => {
+    const { html } = fileFor(page.path);
+    expect(html).toContain(`<link rel="canonical" href="${siteUrl(page.path)}" />`);
+    expect(html).not.toContain(`<link rel="canonical" href="${SITE_ORIGIN}/" />`);
+    expect(html).toContain(`<meta property="og:url" content="${siteUrl(page.path)}" />`);
+  });
+
+  it.each(CONTENT_PAGES)('gives $path its own title, description and card', (page) => {
+    const { html } = fileFor(page.path);
+    expect(html).toContain(`<title>${page.title}</title>`);
+    expect(html).toContain(`<meta name="description" content="${page.description}" />`);
+    expect(html).toContain(`<meta property="og:title" content="${page.title}" />`);
+    expect(html).toContain(`<meta name="twitter:title" content="${page.title}" />`);
+  });
+
+  it('leaves the landing’s head as index.html wrote it', () => {
+    const { html } = fileFor('/');
+    expect(html).toContain(`<link rel="canonical" href="${SITE_ORIGIN}/" />`);
+    expect(html).toContain(`<title>${SITE_TITLE}</title>`);
+    // The card says more than the title on purpose; the template's is the right one.
+    expect(html).toContain(
+      '<meta property="og:title" content="Ori Studio — origami crease pattern editor and folding simulator" />'
+    );
+  });
+
+  it('gives the landing the site graph and a content page only a WebPage', () => {
+    expect(fileFor('/').html).toContain('"@type":"WebSite"');
+    for (const page of CONTENT_PAGES) {
+      const { html } = fileFor(page.path);
+      // A `WebSite` node is homepage-only by definition; a download page carrying one
+      // would be claiming to be the site from a URL that is not the site.
+      expect(html).not.toContain('"@type":"WebSite"');
+      expect(html).not.toContain('"@type":"SoftwareApplication"');
+      expect(html).toContain('"@type":"WebPage"');
+      expect(html).toContain(`"isPartOf":{"@id":"${SITE_ORIGIN}/#website"}`);
+    }
+  });
+
+  it('puts every page’s copy before #root with the script that removes it', () => {
+    for (const { html } of files) {
+      expect(html).toContain(`<div id="${SEO_CONTENT_ID}">`);
+      expect(html).toContain(`<script>document.getElementById("${SEO_CONTENT_ID}").remove()</script>`);
+      expect(html.indexOf(`id="${SEO_CONTENT_ID}"`)).toBeLessThan(html.indexOf('<div id="root"></div>'));
+    }
+  });
+
+  it('is idempotent over its own output', () => {
+    // Running the script twice over the same `dist` is the obvious way to iterate on it,
+    // and used to leave two copies of the landing and two JSON-LD blocks.
+    const { html } = fileFor('/');
+    const again = prerenderSite(html).find(({ file }) => file === 'index.html');
+    expect(again?.html).toBe(html);
+  });
 });
 
 /** `apps/web/index.html` — Vite's entry, read before any of our code runs. */
@@ -100,7 +227,8 @@ describe('site metadata', () => {
 
   it('builds absolute sitemap URLs on the canonical origin', () => {
     expect(SITE_ORIGIN).not.toMatch(/\/$/);
-    expect(SITEMAP_PATHS).toContain('/');
+    expect(siteUrl('/')).toBe(`${SITE_ORIGIN}/`);
+    expect(siteUrl('/download/')).toBe(`${SITE_ORIGIN}/download/`);
   });
 });
 
@@ -138,6 +266,15 @@ describe('landing JSON-LD', () => {
     expect(app.sameAs).toEqual(
       expect.arrayContaining([expect.stringContaining('github.com')])
     );
+  });
+
+  it('describes a content page as a WebPage of the site, not as the site', () => {
+    const [page] = CONTENT_PAGES;
+    const node = pageJsonLd(page);
+    expect(node['@type']).toBe('WebPage');
+    expect(node.url).toBe(siteUrl(page.path));
+    expect(node.isPartOf).toEqual({ '@id': `${SITE_ORIGIN}/#website` });
+    expect(SITE_PAGES).toContain(LANDING_PAGE);
   });
 
   it('escapes < so a value can never close the script tag', () => {

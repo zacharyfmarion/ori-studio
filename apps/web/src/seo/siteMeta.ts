@@ -8,7 +8,9 @@
  * here, so the smoke test confirms a single source instead of standing in for one.
  *
  * No browser dependencies: this is imported by React components, by the prerender entry
- * running under Node, and by the build script.
+ * running under Node, by the build script, and by the share Worker. The sitemap's *paths*
+ * are not here — they are the site page registry in `src/site/sitePages.ts`, which has
+ * components behind it and so cannot be a leaf; only the origin they are joined to is.
  */
 
 /** Scheme + host, no trailing slash. Everything absolute is built from this. */
@@ -41,15 +43,6 @@ export const SITE_DESCRIPTION =
 
 /** The social card. 1200×630 is what every platform asks for. */
 export const SITE_OG_IMAGE = `${SITE_ORIGIN}/og-default.png`;
-
-/**
- * Every path worth putting in front of a crawler.
- *
- * One entry, on purpose. `/welcome` holds the same content and canonicalises to `/`, and
- * the workspace routes are an app shell with nothing to rank. Localised variants would be
- * added here (Phase 6) rather than in a hand-maintained XML file.
- */
-export const SITEMAP_PATHS = ['/'] as const;
 
 /** Absolute URL for a site-relative path. */
 export function siteUrl(path: string): string {

@@ -18,6 +18,7 @@ import {
   useIsPhoneSurface,
 } from '../platform/mobileSurface';
 import { useLayoutStore } from '../store/layoutStore';
+import { SiteFooter } from '../site/SiteFooter';
 import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { DESIGN_PATH, EDIT_PATH } from './paths';
@@ -125,6 +126,12 @@ export function WelcomeRoute() {
           onToggleShowWelcomeOnStartup={setShowWelcomeOnStartup}
         />
         <WelcomeLanding />
+        {/*
+          The landing's links to the rest of the site. Here rather than inside
+          `WelcomeLanding`, which stays a pure block of copy with no router
+          dependency; the prerender's `StaticLanding` places it the same way.
+        */}
+        <SiteFooter />
       </main>
       {/*
         The cue exists to say "there is more below the first screenful". With no

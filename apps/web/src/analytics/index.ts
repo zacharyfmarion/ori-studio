@@ -38,6 +38,7 @@ export type {
   LandingCta,
   LandingFeatureId,
   LandingSectionId,
+  SitePageViewedId,
   LandingSurface,
   OptimizerKind,
   ProjectOpenSource,
@@ -75,6 +76,7 @@ export {
   useLandingViewedEvent,
 } from './useLandingViewedEvent';
 export { useWorkspaceViewedEvent } from './useWorkspaceViewedEvent';
+export { useSitePageViewedEvent } from './useSitePageViewedEvent';
 
 export {
   getBootstrapSharedProperties,

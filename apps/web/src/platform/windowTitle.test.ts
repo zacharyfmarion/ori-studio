@@ -55,35 +55,43 @@ describe('window title formatting', () => {
   });
 
   /**
-   * On the landing there is no document to name, and the two surfaces want
+   * On a site page there is no document to name, and the two surfaces want
    * genuinely different strings for it.
    *
-   * The web one is the search result, so it has to be the sentence `index.html`
-   * already serves — `useWindowTitle` running on `/welcome` and overwriting that
-   * with the blank project's name is what Google indexed as
+   * The web one is the search result, so it has to be the page's title exactly as
+   * `index.html` serves it — `useWindowTitle` running on `/welcome` and overwriting
+   * that with the blank project's name is what Google indexed as
    * "Ori Studio: Untitled". A title bar is not a search result and not a tab, so
-   * desktop takes the name alone rather than a seventy-character sentence.
+   * desktop takes the name alone rather than a sentence written for a result.
    *
-   * The project fields are populated in both cases: what makes this page not a
+   * The project fields are populated in both cases: what makes a page not a
    * document is the route, not an empty store.
    */
-  it('titles the landing for the site on web', () => {
+  it('titles a site page by its own title on web', () => {
     expect(
       formatWindowTitle({
         projectTitle: 'Crane base',
         dirty: true,
-        landing: true,
+        pageTitle: SITE_TITLE,
         surface: 'web',
       })
     ).toBe(SITE_TITLE);
-  });
-
-  it('titles the landing with just the app name on desktop', () => {
     expect(
       formatWindowTitle({
         projectTitle: 'Crane base',
         dirty: true,
-        landing: true,
+        pageTitle: 'Download Ori Studio for macOS, Windows and Linux',
+        surface: 'web',
+      })
+    ).toBe('Download Ori Studio for macOS, Windows and Linux');
+  });
+
+  it('titles a site page with just the app name on desktop', () => {
+    expect(
+      formatWindowTitle({
+        projectTitle: 'Crane base',
+        dirty: true,
+        pageTitle: SITE_TITLE,
         surface: 'desktop',
       })
     ).toBe(SITE_NAME);
