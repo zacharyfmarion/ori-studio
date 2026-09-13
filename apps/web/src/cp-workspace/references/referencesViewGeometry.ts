@@ -409,6 +409,14 @@ export interface ReferencesCreaseVisibility {
    * being read step by step, so nothing is held back.
    */
   visible: ReadonlySet<number> | null;
+  /**
+   * The 1-based ids a click or a passing pointer can land on, with the
+   * vertices those creases make. Absent or `null`, the whole sheet in scope:
+   * reading one reference hides the other creases but still lets the next one
+   * be picked, where reading a plan scopes picking to the paper as it stands —
+   * a crease a later step makes is not there to point at.
+   */
+  pickable?: ReadonlySet<number> | null;
   /** Ids drawn faintly: made by an earlier step, or simply not this step's. */
   dimmed: ReadonlySet<number> | null;
   /**
@@ -565,9 +573,9 @@ export function applyCreaseVisibility(
  * its own bucket and vanish.
  *
  * One implementation for two questions that must not be able to disagree:
- * which vertices belong to the sheet in scope, and which of them the steps so
- * far have actually made. They differ in one respect only, and it is an
- * argument: see `dropCollinear`.
+ * which vertices belong to the sheet in scope, and which of them the creases
+ * on the paper so far actually make — what is drawn, and what can be picked.
+ * They differ in one respect only, and it is an argument: see `dropCollinear`.
  */
 export function verticesOfLines(
   geometry: CpGeometryTransport,
@@ -605,9 +613,10 @@ export function verticesOfLines(
   // the whole line one way (plan D20) — so those splits are invisible in the
   // fold and a dot there marks nothing the folder can use.
   //
-  // Only for *drawing*. It is still a real point of the pattern, and asking
-  // "how do I get here" is the question the workspace exists to answer, so the
-  // set that scopes picking keeps it.
+  // For the paper as it stands — what is drawn, and what can be picked while a
+  // sequence is read. The set that scopes a sheet keeps it: it is still a real
+  // point of the pattern, and with nothing being read, asking "how do I get
+  // here" is the question the workspace exists to answer.
   if (options.dropCollinear) {
     for (const [at, directions] of meeting) {
       if (directions.length === 2 && collinear(directions[0], directions[1])) kept.delete(at);

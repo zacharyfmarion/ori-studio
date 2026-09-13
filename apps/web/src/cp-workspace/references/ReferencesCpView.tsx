@@ -159,7 +159,9 @@ export interface ReferencesCpViewProps {
    *
    * The sheet as it stands at the active step: creases a later step makes are
    * not drawn at all, and creases an earlier step made are dimmed behind the
-   * ones this step is about. Omit to draw the whole document at full strength.
+   * ones this step is about — and, through `pickable`, what can be hovered or
+   * picked: a crease the folder has not made yet is not something they can
+   * point at. Omit to draw the whole document at full strength.
    */
   creaseVisibility?: ReferencesCreaseVisibility;
   /**
@@ -392,9 +394,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
      *
      * A vertex is where creases cross, so one whose creases are all still to be
      * folded does not exist yet on the paper — drawing it gave away where later
-     * folds land and made the sheet look finished from step one. Picking is
-     * deliberately left on the whole sheet: asking "how do I get this point"
-     * before reaching its step is the question the workspace is for.
+     * folds land and made the sheet look finished from step one.
      */
     const drawnVertices = useMemo(() => {
       const visible = creaseVisibility.visible;
@@ -442,20 +442,40 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       if (centre === null) return cpModelToSvg;
       return (point: Point) => cpModelToSvg({ x: 2 * centre - point.x, y: point.y });
     }, [mirrored, geometry, sheetLineIds]);
+    /**
+     * What a click or a passing pointer can land on.
+     *
+     * While a sequence is being read, the paper as it stands
+     * (`creaseVisibility.pickable`): the creases made so far — the border among
+     * them — and the vertices those creases make: where they cross, where they
+     * meet the border, and the sheet's corners, which are there from the start.
+     * A point where one line merely changes colour is not a landmark and is
+     * left out, as it is from the dots. A crease a later step makes is not on
+     * the paper yet, so hovering it marks nothing and a click there falls
+     * through to whatever is. Otherwise the whole sheet in scope.
+     */
+    const pickableLineIds = creaseVisibility.pickable ?? sheetLineIds;
+    const pickableVertexIdx = useMemo<Set<number> | null>(
+      () =>
+        creaseVisibility.pickable
+          ? verticesOfLines(geometry, vertices, creaseVisibility.pickable, { dropCollinear: true })
+          : sheetVertexIdx,
+      [geometry, vertices, creaseVisibility.pickable, sheetVertexIdx]
+    );
     const hitIndexes = useMemo<ReferencesHitIndexes>(
       () => ({
         vertices: new LineHitIndex(
           vertices
             .map((v, i) => ({ id: i + 1, a: v, b: v }))
-            .filter((entry) => sheetVertexIdx === null || sheetVertexIdx.has(entry.id - 1))
+            .filter((entry) => pickableVertexIdx === null || pickableVertexIdx.has(entry.id - 1))
         ),
         lines: new LineHitIndex(
           lineSegmentsOf(geometry).filter(
-            (segment) => sheetLineIds === null || sheetLineIds.has(segment.id)
+            (segment) => pickableLineIds === null || pickableLineIds.has(segment.id)
           )
         ),
       }),
-      [geometry, vertices, sheetVertexIdx, sheetLineIds]
+      [geometry, vertices, pickableVertexIdx, pickableLineIds]
     );
 
     const liveRef = useRef<LiveProps>({

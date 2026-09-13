@@ -21,7 +21,9 @@
  *   crease is deliberately absent: it has not been folded yet, and the pattern
  *   is what the paper already has on it. The step draws that crease itself, as
  *   the dashed fold line it is — so it is drawn once, by the thing that is
- *   asking for it, and the dimmed build-up is what it stands out from.
+ *   asking for it, and the dimmed build-up is what it stands out from. The
+ *   same set is what can be pointed at: a crease a later step makes, or a
+ *   vertex it will make, is not on the paper for the pointer to find.
  * - **Reading one reference shows the paper and the crease, and nothing else.**
  *   ReferenceFinder's steps are folds on a blank sheet and have no relation to
  *   the pattern's creases, so there is no "so far" to build up. The pattern
@@ -166,7 +168,7 @@ export function planVisibility(
     }
   }
   if (target.kind !== 'fold') {
-    return { visible, dimmed: null, dimAlpha: 1, directions, borderLineIds };
+    return { visible, pickable: visible, dimmed: null, dimAlpha: 1, directions, borderLineIds };
   }
   const dimmed = new Set<number>();
   for (const id of visible) {
@@ -175,6 +177,7 @@ export function planVisibility(
   }
   return {
     visible,
+    pickable: visible,
     dimmed,
     dimAlpha: REFERENCES_DIM_ALPHA,
     borderLineIds,

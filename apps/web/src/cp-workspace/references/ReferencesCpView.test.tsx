@@ -299,6 +299,43 @@ describe('ReferencesCpView picking', () => {
     expect(onPick).toHaveBeenCalledWith(null);
   });
 
+  it('picks and hovers only what is on the paper at the step being read', () => {
+    // Reading step k: crease 1 is made, crease 2 is a later step's. The
+    // vertical crease is not there to point at, and the vertex where it lands
+    // on the horizontal one is not there yet either — the horizontal crease
+    // simply runs through that point.
+    const onPick = vi.fn<(hit: ReferencesPick | null) => void>();
+    const canvas = mount({
+      onPick,
+      creaseVisibility: { visible: new Set([1]), pickable: new Set([1]), dimmed: null, dimAlpha: 1 },
+    });
+    uploads.setPreview.mockClear();
+    hover(canvas, clientOf(100, 20));
+    expect(canvas.style.cursor).toBe('');
+    expect(uploads.setPreview.mock.calls.at(-1)?.[0] ?? null).toBeNull();
+    click(canvas, clientOf(100, 20));
+    expect(onPick).toHaveBeenLastCalledWith(null);
+    click(canvas, clientOf(100, 50));
+    expect(onPick).toHaveBeenLastCalledWith({ kind: 'line', id: 1 });
+    // The crease that is there still answers, and its own ends do.
+    click(canvas, clientOf(150, 50));
+    expect(onPick).toHaveBeenLastCalledWith({ kind: 'line', id: 1 });
+    click(canvas, clientOf(0, 50));
+    expect(onPick).toHaveBeenLastCalledWith({ kind: 'vertex', idx: 0, point: { x: 0, y: 50 } });
+  });
+
+  it('keeps the whole sheet pickable while one reference is read, hidden creases included', () => {
+    // Reading a crease hides the others, but the next pick has to be able to
+    // land on one of them — that is how the reader moves on.
+    const onPick = vi.fn<(hit: ReferencesPick | null) => void>();
+    const canvas = mount({
+      onPick,
+      creaseVisibility: { visible: new Set([1]), dimmed: null, dimAlpha: 1 },
+    });
+    click(canvas, clientOf(100, 20));
+    expect(onPick).toHaveBeenLastCalledWith({ kind: 'line', id: 2 });
+  });
+
   it('does not pick after a drag, which pans instead', () => {
     const onPick = vi.fn<(hit: ReferencesPick | null) => void>();
     const canvas = mount({ onPick });

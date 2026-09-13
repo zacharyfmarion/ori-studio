@@ -85,6 +85,14 @@ describe('planVisibility', () => {
     expect(planVisibility(variants, flat, 2, input).visible?.has(12)).toBe(false);
   });
 
+  it('lets only the paper as it stands be picked', () => {
+    const at = planVisibility(variants, flat, 1, input);
+    expect(at.pickable).toBe(at.visible);
+    // The finished card: everything, and everything pickable.
+    const views: ReferencesViewStep[] = [...flat, { kind: 'done', side: 'front', component: 0 }];
+    expect(planVisibility(variants, views, 3, input).pickable?.has(12)).toBe(true);
+  });
+
   it('dims the creases earlier steps made, and never the paper', () => {
     const at = planVisibility(variants, flat, 1, input);
     expect(at.dimmed?.has(10)).toBe(true);
@@ -138,6 +146,8 @@ describe('targetVisibility', () => {
     expect(at.visible?.has(10)).toBe(false);
     expect(at.dimmed).toBeNull();
     expect(at.dimAlpha).toBe(1);
+    // Hidden, not gone: the next pick may land on any crease of the sheet.
+    expect(at.pickable).toBeUndefined();
   });
 
   it('shows blank paper for a picked vertex, which has no crease of its own', () => {
