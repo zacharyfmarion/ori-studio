@@ -1,44 +1,53 @@
 /**
- * An annotation's opacity, as **one undo entry per adjustment**.
+ * A slider whose drag is **one undo entry**.
  *
  * That protocol is the whole reason this is a component rather than a `<Slider>`
- * at each call site: the first `input` of a drag snapshots the pre-state, and the
- * native `change` event — fired once on release, or per keyboard step, and which
- * a pointer-up on a range thumb can otherwise swallow — commits it. Written twice
- * it would be right in one place and forty-entries-per-drag in the other, with
- * nothing to show for it until someone pressed undo.
+ * at each call site: the first `input` of a drag opens the gesture (the caller
+ * snapshots its pre-state), and the native `change` event — fired once on
+ * release, or per keyboard step, and which a pointer-up on a range thumb can
+ * otherwise swallow — commits it. Written twice it would be right in one place
+ * and forty-entries-per-drag in the other, with nothing to show for it until
+ * someone pressed undo.
  *
- * `label` is the only thing callers differ on, because they differ on where the
- * control sits: `AnnotationActions` puts it on a floating toolbar with a visible
- * "Opacity" caption and a percentage beside it, while a dropdown item has room
- * for neither and needs the caption to be the accessible name instead.
+ * It is unit-agnostic: `value`, `min`, `max` and `step` are whatever the caller
+ * shows, and the caller converts (an annotation's 0–1 opacity is a 0–100 drag).
+ * It began life as `AnnotationOpacitySlider`; the annotation toolbars, the
+ * region chip's image menu and the Properties pane's rows all use this one.
  */
 import { useCallback, useEffect, useRef } from 'react';
-import { Slider } from '../components/ui/Slider';
+import { Slider } from './Slider';
 
-export interface AnnotationOpacitySliderProps {
-  /** 0–1, as the annotation stores it. The slider itself works in percent. */
-  opacity: number;
-  onOpacity: (value: number) => void;
+export interface GestureSliderProps {
+  min: number;
+  max: number;
+  step?: number;
+  value: number;
+  /** Per pointer move; the caller writes state and records nothing. */
+  onChange: (value: number) => void;
   onGestureStart: () => void;
   /** Closes the snapshot. Takes the label so the caller names the edit. */
   onGestureCommit: (label: string) => void;
   /** History label for the whole drag. */
   commitLabel: string;
+  disabled?: boolean;
   /** Accessible name, for a caller with no visible caption of its own. */
-  label?: string;
+  'aria-label'?: string;
   className?: string;
 }
 
-export function AnnotationOpacitySlider({
-  opacity,
-  onOpacity,
+export function GestureSlider({
+  min,
+  max,
+  step = 1,
+  value,
+  onChange,
   onGestureStart,
   onGestureCommit,
   commitLabel,
-  label,
+  disabled = false,
+  'aria-label': ariaLabel,
   className,
-}: AnnotationOpacitySliderProps) {
+}: GestureSliderProps) {
   const sliderRef = useRef<HTMLInputElement | null>(null);
   const sessionRef = useRef(false);
   // Held in a ref so the `change` listener below is attached once, on mount,
@@ -62,25 +71,27 @@ export function AnnotationOpacitySlider({
   }, []);
 
   const handleInput = useCallback(
-    (percent: number) => {
+    (next: number) => {
       if (!sessionRef.current) {
         onGestureStart();
         sessionRef.current = true;
       }
-      onOpacity(percent / 100);
+      onChange(next);
     },
-    [onGestureStart, onOpacity]
+    [onGestureStart, onChange]
   );
 
   return (
     <Slider
       ref={sliderRef}
       className={className}
-      min={0}
-      max={100}
-      value={Math.round(opacity * 100)}
+      min={min}
+      max={max}
+      step={step}
+      value={value}
+      disabled={disabled}
       onChange={handleInput}
-      aria-label={label}
+      aria-label={ariaLabel}
     />
   );
 }

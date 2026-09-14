@@ -7,6 +7,7 @@ interface SliderProps {
   step?: number;
   value: number;
   onChange: (value: number) => void;
+  disabled?: boolean;
   'aria-label'?: string;
   className?: string;
   /**
@@ -29,6 +30,7 @@ export function Slider({
   step = 1,
   value,
   onChange,
+  disabled = false,
   'aria-label': ariaLabel,
   className = '',
   ref,
@@ -43,6 +45,7 @@ export function Slider({
       max={max}
       step={step}
       value={value}
+      disabled={disabled}
       aria-label={ariaLabel}
       className={`ui-slider ${className}`.trim()}
       onChange={(event) => onChange(Number(event.target.value))}

@@ -10,7 +10,8 @@ interface SegmentedOption<T extends string> {
 
 interface SegmentedControlProps<T extends string> {
   options: SegmentedOption<T>[];
-  value: T;
+  /** `null` marks no option active — a mixed value across a multi-block selection. */
+  value: T | null;
   onChange: (value: T) => void;
   /** Greys out every option and refuses clicks — the control is still readable. */
   disabled?: boolean;

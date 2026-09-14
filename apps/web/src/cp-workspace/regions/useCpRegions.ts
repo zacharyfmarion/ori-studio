@@ -108,7 +108,7 @@ export interface UseCpRegionActions {
   /**
    * Set a region's owned image opacity. Deliberately unbracketed, like
    * {@link moveRegion}: a slider drag is one gesture and forty samples, and
-   * `AnnotationOpacitySlider` opens and closes the snapshot around the whole of
+   * `GestureSlider` opens and closes the snapshot around the whole of
    * it.
    */
   setRegionImageOpacity: (id: string, opacity: number) => void;

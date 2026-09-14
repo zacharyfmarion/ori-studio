@@ -6557,29 +6557,65 @@ button.cp-folded-figure-toolbar__notice:hover {
   justify-content: flex-end;
 }
 
-.cp-view-controls-panel__select {
+/* One trigger height for every pane's selects: the default 28px trigger is a
+   toolbar control, and a row of them beside 26px steppers looked ragged in each
+   pane that set this by hand. */
+.control-row__select {
   width: 100%;
   min-width: 0;
   height: 26px;
 }
 
-/* Simulate workspace options pane, alongside the Edit workspace's view pane. */
-.simulator-view-controls-panel__body {
+.control-row__value--text {
   display: flex;
-  flex-direction: column;
-  overflow-y: auto;
+  justify-content: flex-end;
 }
 
-.simulator-view-controls-panel__section {
+/* A segmented control hugs its options; stretched to the column it reads as a
+   half-filled progress bar. */
+.control-row__value--segmented {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Slider plus its readout: the number column is fixed so the sliders align. */
+.control-row__value--slider {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.control-row__value--slider .ui-slider {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.control-row__readout {
+  flex: 0 0 auto;
+  min-width: 28px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.control-row[data-disabled] .control-row__label,
+.control-row[data-disabled] .control-row__readout {
+  opacity: 0.5;
+}
+
+/* A titled group of rows, optionally folded behind its title. Shared by every
+   options pane; see components/ui/CollapsibleSection.tsx. */
+.collapsible-section {
   flex: 0 0 auto;
   border-bottom: 1px solid var(--border-subtle);
 }
 
-.simulator-view-controls-panel__section:last-child {
+.collapsible-section:last-child {
   border-bottom: 0;
 }
 
-.simulator-view-controls-panel__section-header {
+.collapsible-section__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -6587,15 +6623,13 @@ button.cp-folded-figure-toolbar__notice:hover {
   padding: 8px var(--space-3) 4px;
 }
 
-.simulator-view-controls-panel__section-title {
+.collapsible-section__title {
   color: var(--text-secondary);
   font-size: 0.74rem;
   font-weight: 600;
 }
 
-/* Collapsible section header, following `.grid-settings__toggle` in the Edit
-   workspace's view pane so the two panes disclose the same way. */
-.simulator-view-controls-panel__section-toggle {
+.collapsible-section__toggle {
   display: flex;
   flex: 1 1 auto;
   align-items: center;
@@ -6609,30 +6643,27 @@ button.cp-folded-figure-toolbar__notice:hover {
   cursor: pointer;
 }
 
-.simulator-view-controls-panel__section-toggle:hover
-  .simulator-view-controls-panel__section-title {
+.collapsible-section__toggle:hover .collapsible-section__title {
   color: var(--text-primary);
 }
 
-.simulator-view-controls-panel__section-chevron {
+.collapsible-section__chevron {
   flex: 0 0 auto;
   color: var(--text-tertiary);
   transition: transform 0.12s ease;
 }
 
-.simulator-view-controls-panel__section[data-open]
-  .simulator-view-controls-panel__section-chevron {
+.collapsible-section[data-open] .collapsible-section__chevron {
   transform: rotate(90deg);
 }
 
 /* A closed section is just its header, so the extra bottom padding that spaces a
    header from its controls would read as a gap. */
-.simulator-view-controls-panel__section:not([data-open])
-  .simulator-view-controls-panel__section-header {
+.collapsible-section:not([data-open]) .collapsible-section__header {
   padding-bottom: 8px;
 }
 
-.simulator-view-controls-panel__section-hint {
+.collapsible-section__hint {
   margin: 0;
   padding: 0 var(--space-3) 6px;
   color: var(--text-tertiary);
@@ -6640,7 +6671,8 @@ button.cp-folded-figure-toolbar__notice:hover {
   line-height: 1.35;
 }
 
-.simulator-view-controls-panel__reset {
+/* The header slot for a small control (a reset), shown only while open. */
+.collapsible-section__action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -6652,9 +6684,16 @@ button.cp-folded-figure-toolbar__notice:hover {
   cursor: pointer;
 }
 
-.simulator-view-controls-panel__reset:hover {
+.collapsible-section__action:hover {
   background: var(--surface-hover, rgb(255 255 255 / 8%));
   color: var(--text-primary);
+}
+
+/* Simulate workspace options pane, alongside the Edit workspace's view pane. */
+.simulator-view-controls-panel__body {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
 }
 
 /* A text action inside a section body, rather than the icon-only affordance in a
@@ -6675,76 +6714,6 @@ button.cp-folded-figure-toolbar__notice:hover {
 .simulator-view-controls-panel__action:hover {
   background: var(--surface-hover, rgb(255 255 255 / 8%));
   color: var(--text-primary);
-}
-
-.simulator-view-controls-panel__select {
-  width: 100%;
-  min-width: 0;
-  height: 26px;
-}
-
-/* Slider plus its readout: the number column is fixed so the sliders align. */
-.simulator-view-controls-panel__slider-value {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.simulator-view-controls-panel__slider-value .ui-slider {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.simulator-view-controls-panel__number {
-  flex: 0 0 auto;
-  min-width: 28px;
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-.control-row[data-disabled] .control-row__label {
-  opacity: 0.5;
-}
-
-.grid-settings {
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.grid-settings__toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 8px var(--space-3);
-  border: 0;
-  background: transparent;
-  color: var(--text-secondary);
-  font: inherit;
-  font-size: 0.74rem;
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-}
-
-.grid-settings__toggle:hover {
-  color: var(--text-primary);
-}
-
-.grid-settings__chevron {
-  flex: 0 0 auto;
-  color: var(--text-tertiary);
-  transition: transform 0.12s ease;
-}
-
-.grid-settings[data-open] .grid-settings__chevron {
-  transform: rotate(90deg);
-}
-
-.grid-settings__body {
-  padding-bottom: var(--space-2);
-  background: color-mix(in srgb, var(--bg-primary) 45%, transparent);
 }
 
 .grid-scale-row {

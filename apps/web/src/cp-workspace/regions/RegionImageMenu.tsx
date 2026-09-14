@@ -41,7 +41,7 @@ import { useTranslation } from 'react-i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Check, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { MenuIconButton } from '../../components/ui/MenuIconButton';
-import { AnnotationOpacitySlider } from '../AnnotationOpacitySlider';
+import { GestureSlider } from '../../components/ui/GestureSlider';
 import type { CpImage } from '../images/cpImage';
 
 /** The verbs a region's owned image offers, all bracketed as one undo entry. */
@@ -111,13 +111,15 @@ export function RegionImageMenu({
             <span className="context-menu__label">
               {t('panels:cpRegion.imageOpacity', 'Opacity')}
             </span>
-            <AnnotationOpacitySlider
-              opacity={image.opacity}
-              onOpacity={onImageOpacity}
+            <GestureSlider
+              min={0}
+              max={100}
+              value={Math.round(image.opacity * 100)}
+              onChange={(percent) => onImageOpacity(percent / 100)}
               onGestureStart={onGestureStart}
               onGestureCommit={onGestureCommit}
               commitLabel={t('panels:cpRegion.imageAdjustOpacity', 'Adjust reference image')}
-              label={t('panels:cpRegion.imageOpacity', 'Opacity')}
+              aria-label={t('panels:cpRegion.imageOpacity', 'Opacity')}
             />
           </label>
           <DropdownMenu.Separator className="context-menu__separator" />

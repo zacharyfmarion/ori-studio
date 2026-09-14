@@ -1662,11 +1662,11 @@ Validation: `npm run lint:web && npm run typecheck:web && npm run test:web`
 **Goal.** Land the shared presentation pieces as a behaviour-preserving dedupe
 of three panels. Ships alone: yes.
 
-- [ ] `lib/propertyDescriptors.ts`
-- [ ] `components/ui/fieldRows/*` + `index.ts`; `components/ui/CollapsibleSection.tsx` with one `.collapsible-section__*` CSS family in `theme.css`; the 26px select-trigger rule set once
-- [ ] Move `cp-workspace/AnnotationOpacitySlider.tsx` → `components/ui/GestureSlider.tsx` (generic `onGestureStart`/`onGestureCommit(label)`); `SliderRow` wraps it; `AnnotationActions.tsx` and `RegionImageMenu.tsx` import the new path
-- [ ] Migrate `CpViewControlsPanel.tsx`, `SimulatorViewControlsPanel.tsx` and `CreaseExportDialog.tsx` onto the kit; delete their private `ToggleRow`/`NumberRow`/`SliderRow`/`Section`/`ExportSection`
-- [ ] Kit render tests (Toggle never inside a `<label>`; Segmented/Select accept `null`; NumberRow resyncs on value change; the continuous latch resets when `held` flips)
+- [x] `lib/propertyDescriptors.ts`
+- [x] `components/ui/fieldRows/*` + `index.ts`; `components/ui/CollapsibleSection.tsx` with one `.collapsible-section__*` CSS family in `theme.css`; the 26px select-trigger rule set once
+- [x] Move `cp-workspace/AnnotationOpacitySlider.tsx` → `components/ui/GestureSlider.tsx` (generic `onGestureStart`/`onGestureCommit(label)`); `SliderRow` wraps it; `AnnotationActions.tsx` and `RegionImageMenu.tsx` import the new path
+- [x] Migrate `CpViewControlsPanel.tsx` and `SimulatorViewControlsPanel.tsx` onto the kit; delete their private `ToggleRow`/`NumberRow`/`SliderRow`/`Section`. `CreaseExportDialog`'s `ExportSection` is left as is: it is a *controlled* accordion (one section open at a time, state lifted to the dialog) with the modal's own styling, not the pane disclosure, so forcing it onto `CollapsibleSection` would change the dialog for no shared code
+- [x] Kit render tests (Toggle never inside a `<label>`; Segmented/Select accept `null`; NumberRow resyncs on value change; the continuous latch resets when `held` flips)
 
 Validation: `npm run lint:web && npm run typecheck:web && npm run test:web`
 (`components/ui`, `CpViewControlsPanel.test.tsx`, `SimulatorViewControlsPanel.test.tsx`);
