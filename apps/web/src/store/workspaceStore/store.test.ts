@@ -45,6 +45,7 @@ import type { FileService, SaveBinaryFileOptions, SaveTextFileOptions } from '..
 import { DEFAULT_CREASE_COLOR_MODE } from '../../lib/sampleProject';
 import {
   DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+  cpSelectionSize,
   emptyOristudioCpSelection,
 } from '../../lib/creasePatternViewport';
 import {
@@ -2277,7 +2278,10 @@ describe('workspace store slices', () => {
         renderSnapshot: foldedRenderSnapshot(),
       },
     ]);
-    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBe('generated-1');
+    // The file carries both a crease selection and an active figure. The canvas
+    // has one holder, so the creases win at the boundary and the figure is not
+    // selected — the same rule `takeCanvasSelection` keeps everywhere else.
+    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBeNull();
     expect(useWorkspaceStore.getState().foldArtifacts?.simulation_model).not.toBeNull();
   });
 
@@ -5072,7 +5076,9 @@ describe('workspace store slices', () => {
 
     expect(oristudioCpMocks.freeOristudioCpFoldedFigure).toHaveBeenCalledWith(8);
     expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toHaveLength(1);
-    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBe(foldedFigure.id);
+    // Deleting the selected figure selects nothing — no advance to the next
+    // one, which put the selection on a figure nobody clicked.
+    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBeNull();
   });
 
   it('undoes and redoes a folded figure placement without touching the wasm document', async () => {
@@ -8816,5 +8822,386 @@ describe('a fresh 3D fold arrives focused', () => {
     const state = useWorkspaceStore.getState();
     expect(state.oristudioCpFoldedFigures[0]?.snapshot ?? null).not.toBeNull();
     expect(state.oristudioCpFocusedFoldedFigureId).toBeNull();
+  });
+});
+
+describe('one canvas selection', () => {
+  /**
+   * The canvas has one holder — a crease selection, an annotation, a folded
+   * figure or a focused window — and every claim goes through
+   * `takeCanvasSelection`. These drive each selection-bearing action and count
+   * holders afterwards, so a raw `set` that bypasses the helper (the fold
+   * completions used to; a model write's landing used to re-claim) fails here
+   * rather than surfacing as a pane showing the wrong object.
+   */
+  function holders(): number {
+    const state = useWorkspaceStore.getState();
+    return [
+      cpSelectionSize(state.oristudioCpSelection) > 0,
+      state.oristudioCpSelectedAnnotationId !== null,
+      state.oristudioCpActiveFoldedFigureId !== null,
+      state.oristudioCpFocusedInlineSimulationId !== null,
+    ].filter(Boolean).length;
+  }
+
+  function seedEverything() {
+    resetStores(seedSnapshot());
+    const snapshot = foldedFigureSnapshot();
+    const figure: OristudioCpFoldedFigureEntry = {
+      id: 'generated-1',
+      title: 'Folded model 1',
+      handle: (nextInvariantHandle += 1),
+      sourceKind: 'generated-from-current-cp',
+      sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
+      snapshot,
+      renderSnapshot: foldedRenderSnapshot(),
+      error: null,
+    };
+    const image = createCpImage({
+      src: 'data:image/png;base64,AAAA',
+      naturalWidth: 10,
+      naturalHeight: 10,
+      center: { x: 0, y: 0 },
+      width: 1,
+      height: 1,
+    });
+    const window = inlineSimulationFixture();
+    useWorkspaceStore.setState({
+      activePanelId: 'crease-pattern',
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      oristudioCpFoldedFigures: [figure],
+      oristudioCpAnnotations: [image],
+      oristudioCpInlineSimulations: [window],
+      oristudioCpHistoryPast: [],
+      oristudioCpHistoryFuture: [],
+    });
+    return { figure, image, window };
+  }
+  let nextInvariantHandle = 500;
+
+  it('holds at most one selection through every claim', () => {
+    const { figure, image, window } = seedEverything();
+    const store = useWorkspaceStore.getState();
+    store.setOristudioCpSelection({ ...emptyOristudioCpSelection(), lines: [1] });
+    expect(holders()).toBe(1);
+    store.setSelectedAnnotation(image.id);
+    expect(holders()).toBe(1);
+    store.setOristudioCpActiveFoldedFigure(figure.id);
+    expect(holders()).toBe(1);
+    store.focusOristudioCpInlineSimulation(window.id);
+    expect(holders()).toBe(1);
+    store.setOristudioCpSelection({ ...emptyOristudioCpSelection(), lines: [1] });
+    expect(holders()).toBe(1);
+    expect(useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId).toBeNull();
+  });
+
+  it('releases only the releaser\'s own claim', () => {
+    const { image } = seedEverything();
+    const store = useWorkspaceStore.getState();
+    store.setSelectedAnnotation(image.id);
+    // A tool that clears the annotation as it starts must not drop creases it
+    // is about to act on — so releasing is asymmetric to taking.
+    store.setSelectedAnnotation(null);
+    store.setOristudioCpSelection({ ...emptyOristudioCpSelection(), lines: [1] });
+    store.setSelectedAnnotation(null);
+    expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([1]);
+    store.setOristudioCpActiveFoldedFigure(null);
+    store.focusOristudioCpInlineSimulation(null);
+    expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([1]);
+  });
+
+  it('leaves one holder after a flat fold and after a 3D fold', async () => {
+    seedEverything();
+    useWorkspaceStore.setState({
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+    });
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+    // A flat fold selects nothing: the creases let go and the figure is not
+    // taken, so a delete right after folding removes neither.
+    expect(holders()).toBe(0);
+
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([
+        cpLine(
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+          { color: 'Red1', fold_magnitude: 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE }
+        ),
+      ]),
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+      oristudioCpSelectedAnnotationId: null,
+    });
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+    // A 3D fold arrives selected and focused, and nothing else holds the canvas.
+    const state = useWorkspaceStore.getState();
+    expect(holders()).toBe(1);
+    expect(state.oristudioCpActiveFoldedFigureId).toBe(state.oristudioCpFocusedFoldedFigureId);
+  });
+
+  it('selects nothing after deleting the selected object of any kind', () => {
+    const { figure, image, window } = seedEverything();
+    const store = useWorkspaceStore.getState();
+    store.setSelectedAnnotation(image.id);
+    store.removeAnnotation(image.id);
+    expect(holders()).toBe(0);
+    store.focusOristudioCpInlineSimulation(window.id);
+    store.removeOristudioCpInlineSimulation(window.id);
+    expect(holders()).toBe(0);
+    store.setOristudioCpActiveFoldedFigure(figure.id);
+    void store.deleteOristudioCpFoldedFigure(figure.id);
+    expect(holders()).toBe(0);
+    expect(useWorkspaceStore.getState().oristudioCpFocusedFoldedFigureId).toBeNull();
+  });
+
+  it('keeps an annotation selected across undo when the step left it in place', async () => {
+    const { image } = seedEverything();
+    const store = useWorkspaceStore.getState();
+    store.setSelectedAnnotation(image.id);
+    const before = useWorkspaceStore.getState().oristudioCpAnnotations;
+    store.updateAnnotation(image.id, { opacity: 0.5 });
+    store.recordAnnotationHistory([...before], 'Adjust opacity');
+
+    await useWorkspaceStore.getState().undo();
+    expect(useWorkspaceStore.getState().oristudioCpAnnotations[0]?.opacity).toBe(1);
+    expect(useWorkspaceStore.getState().oristudioCpSelectedAnnotationId).toBe(image.id);
+
+    await useWorkspaceStore.getState().redo();
+    expect(useWorkspaceStore.getState().oristudioCpAnnotations[0]?.opacity).toBe(0.5);
+    expect(useWorkspaceStore.getState().oristudioCpSelectedAnnotationId).toBe(image.id);
+  });
+
+  it('drops the annotation selection when undo removes the annotation', async () => {
+    const { image } = seedEverything();
+    const store = useWorkspaceStore.getState();
+    const before = useWorkspaceStore.getState().oristudioCpAnnotations;
+    const added = createCpImage({
+      src: 'data:image/png;base64,BBBB',
+      naturalWidth: 10,
+      naturalHeight: 10,
+      center: { x: 1, y: 1 },
+      width: 1,
+      height: 1,
+    });
+    store.addAnnotation(added);
+    store.recordAnnotationHistory([...before], 'Add image');
+    store.setSelectedAnnotation(added.id);
+
+    await useWorkspaceStore.getState().undo();
+    expect(useWorkspaceStore.getState().oristudioCpAnnotations).toEqual([image]);
+    expect(useWorkspaceStore.getState().oristudioCpSelectedAnnotationId).toBeNull();
+  });
+
+  it('opens a file that names two holders with the creases selected', async () => {
+    // Covered by 'opens native editable CP projects through the CP runtime',
+    // which writes a crease selection beside an active figure and asserts the
+    // figure is not selected; this pins the other half — a file with only an
+    // active figure keeps it.
+    resetStores(seedSnapshot());
+    loadSnapshotIntoStore(seedSnapshot());
+    const document = blankCpDocumentState().document;
+    const nativeText = serializeNativeProjectFile(
+      createNativeCreasePatternProjectFile({
+        title: 'Figure only',
+        filename: 'figure.cp',
+        path: '/tmp/figure.cp',
+        document,
+        source: { format: 'cp', filename: 'figure.cp', path: '/tmp/figure.cp' },
+        foldProjection: JSON.parse(editableCpFoldText) as FoldDocument,
+        foldArtifacts: null,
+        creaseColorMode: 'mvf',
+        selection: emptyOristudioCpSelection(),
+        viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+        foldedFigures: [
+          {
+            id: 'generated-1',
+            title: 'Folded model 1',
+            handle: 99,
+            sourceKind: 'generated-from-current-cp',
+            sourceCpRevision: 0,
+            startingFaceId: 1,
+            displayStyle: 'Paper5',
+            status: 'ready',
+            placement: IDENTITY_FOLDED_PLACEMENT,
+            snapshot: foldedFigureSnapshot(),
+            renderSnapshot: foldedRenderSnapshot(),
+            error: null,
+          },
+        ],
+        activeFoldedFigureId: 'generated-1',
+        lineage: importedCpLineage(),
+        appVersion: '0.1.1',
+        now: new Date('2026-05-26T12:00:00.000Z'),
+      })
+    );
+    const fileService = createFileService({
+      text: nativeText,
+      name: 'figure.osf',
+      path: '/tmp/figure.osf',
+    });
+    await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
+    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBe('generated-1');
+    expect(holders()).toBe(1);
+  });
+});
+
+describe('live folded model writes', () => {
+  /**
+   * A flat figure's appearance is a kernel round trip per change, and a colour
+   * drag issues one per pointer move. The slice's own bookkeeping — which model
+   * a partial merges onto, how in-flight writes are counted, what a landing
+   * writes — is what keeps the kernel and the store agreeing under that load.
+   */
+  let nextHandle = 700;
+
+  function seedFlatFigure() {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      activePanelId: 'crease-pattern',
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+    });
+    const snapshot = foldedFigureSnapshot();
+    const figure: OristudioCpFoldedFigureEntry = {
+      id: 'generated-1',
+      title: 'Folded model 1',
+      handle: (nextHandle += 1),
+      sourceKind: 'generated-from-current-cp',
+      sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
+      snapshot,
+      renderSnapshot: foldedRenderSnapshot(),
+      error: null,
+    };
+    const image = createCpImage({
+      src: 'data:image/png;base64,AAAA',
+      naturalWidth: 10,
+      naturalHeight: 10,
+      center: { x: 0, y: 0 },
+      width: 1,
+      height: 1,
+    });
+    useWorkspaceStore.setState({
+      oristudioCpFoldedFigures: [figure],
+      oristudioCpAnnotations: [image],
+      oristudioCpHistoryPast: [],
+      oristudioCpHistoryFuture: [],
+    });
+    return { figure, image };
+  }
+
+  /** Each kernel write resolves only when the test says so, in issue order. */
+  function deferredKernelWrites() {
+    const pending: Array<() => void> = [];
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockImplementation(
+      (_handle: number, model: OristudioCpFoldedFigureModel) =>
+        new Promise<OristudioCpFoldedFigureSnapshot>((resolve) => {
+          pending.push(() => resolve({ ...foldedFigureSnapshot(), model }));
+        })
+    );
+    return {
+      resolveNext: async () => {
+        pending.shift()?.();
+        await flushMicrotasks();
+      },
+      count: () => pending.length,
+    };
+  }
+
+  function kernelModels(): OristudioCpFoldedFigureModel[] {
+    return oristudioCpMocks.setOristudioCpFoldedFigureModel.mock.calls.map(
+      (call) => call[1] as OristudioCpFoldedFigureModel
+    );
+  }
+
+  it('merges a second in-flight write onto the first, so neither field is lost', async () => {
+    const { figure } = seedFlatFigure();
+    const writes = deferredKernelWrites();
+    const first = useWorkspaceStore
+      .getState()
+      .updateOristudioCpFoldedFigureModel(figure.id, { state: 'Back1' });
+    const second = useWorkspaceStore
+      .getState()
+      .updateOristudioCpFoldedFigureModel(figure.id, { display_shadows: true });
+    // The second write carries the first's field even though the store has not
+    // heard back from the first yet.
+    expect(kernelModels()[1]).toMatchObject({ state: 'Back1', display_shadows: true });
+    await writes.resolveNext();
+    await writes.resolveNext();
+    await Promise.all([first, second]);
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.snapshot?.model).toMatchObject(
+      { state: 'Back1', display_shadows: true }
+    );
+  });
+
+  it('does not let the first landed write unmask a reconcile while others are in flight', async () => {
+    const { figure } = seedFlatFigure();
+    const writes = deferredKernelWrites();
+    const first = useWorkspaceStore
+      .getState()
+      .updateOristudioCpFoldedFigureModel(figure.id, { state: 'Back1' });
+    const second = useWorkspaceStore
+      .getState()
+      .updateOristudioCpFoldedFigureModel(figure.id, { display_shadows: true });
+    await writes.resolveNext();
+    const writesBefore = kernelModels().length;
+    // With one write still in flight the reconcile must stand down — a live
+    // edit is newer intent than whatever scheduled the reconcile.
+    void useWorkspaceStore.getState().reconcileFoldedFigureModels([figure.id]);
+    await flushMicrotasks();
+    expect(kernelModels().length).toBe(writesBefore);
+    await writes.resolveNext();
+    await Promise.all([first, second]);
+  });
+
+  it('lands a write without taking the selection back from what the user clicked meanwhile', async () => {
+    const { figure, image } = seedFlatFigure();
+    const writes = deferredKernelWrites();
+    const write = useWorkspaceStore
+      .getState()
+      .updateOristudioCpFoldedFigureModel(figure.id, { state: 'Back1' });
+    // Editing selects the figure, at issue time.
+    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBe(figure.id);
+    useWorkspaceStore.getState().setSelectedAnnotation(image.id);
+    await writes.resolveNext();
+    await write;
+    expect(useWorkspaceStore.getState().oristudioCpSelectedAnnotationId).toBe(image.id);
+    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBeNull();
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.snapshot?.model.state).toBe(
+      'Back1'
+    );
+  });
+
+  it('reconciles the kernel after an undo supersedes a write still in flight', async () => {
+    const { figure } = seedFlatFigure();
+    const original = figure.snapshot!.model;
+    const writes = deferredKernelWrites();
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+    const write = useWorkspaceStore
+      .getState()
+      .updateOristudioCpFoldedFigureModel(figure.id, { front_color: { red: 255, green: 0, blue: 0 } });
+    // The gesture records what it has; the undo lands while the kernel has not
+    // answered — the mid-drag case.
+    useWorkspaceStore.getState().recordFoldedFigureHistory([...before], 'Change folded model');
+    useWorkspaceStore.getState().supersedeOristudioCpFoldedFigureModelWrites();
+    await useWorkspaceStore.getState().undo();
+    await flushMicrotasks();
+    // Now the stale write answers.
+    await writes.resolveNext();
+    await write;
+    await flushMicrotasks();
+    // The store shows the restored model, and so does the kernel's last write:
+    // the stale tick reached the kernel and the deferred reconcile put it back.
+    expect(
+      useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.snapshot?.model.front_color
+    ).toEqual(original.front_color);
+    await writes.resolveNext();
+    await flushMicrotasks();
+    await vi.waitFor(() => expect(kernelModels().at(-1)?.front_color).toEqual(original.front_color));
   });
 });

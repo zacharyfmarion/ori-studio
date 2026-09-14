@@ -968,6 +968,16 @@ export interface CreasePatternSliceActions {
     id: string,
     update: Partial<OristudioCpFoldedFigureModel>
   ) => Promise<boolean>;
+  /**
+   * Make every in-flight live model write stale, for an undo taken mid-drag.
+   *
+   * A stale write lands in the kernel and nowhere else, so the figure is
+   * reconciled against the store once its last write has landed — the reconcile
+   * the undo itself schedules runs while the write is still counted and stands
+   * down. Without this the tick that lands after the undo would carry the
+   * dragged colour into the kernel with the store showing the restored one.
+   */
+  supersedeOristudioCpFoldedFigureModelWrites: () => void;
   duplicateOristudioCpFoldedFigure: (id?: string) => Promise<boolean>;
   /**
    * Re-fold a figure from its recorded source region, in place — same id,

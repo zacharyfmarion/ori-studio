@@ -364,10 +364,6 @@ const noPanelKeydown = [
  * registry, and do not add to it.
  */
 const PANELS_WITH_LEGACY_KEYDOWN = [
-  // Only the Delete-selected-canvas-object listener is left; it is already
-  // window-scoped, so it is not the focus-coupled failure this rule targets. It
-  // folds into the `edit.delete` menu action with the annotation bindings.
-  'src/components/panels/CreasePatternPanel.tsx',
   'src/components/panels/DesignPanel.tsx', // space-to-pan
   'src/components/panels/BpPackingPanel.tsx', // arrow-nudge + space-to-pan
   'src/components/panels/BpTreePanel.tsx',
