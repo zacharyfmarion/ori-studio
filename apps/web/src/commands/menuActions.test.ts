@@ -9,6 +9,7 @@ import { getWorkspaceCapabilities } from '../lib/workspaceCapabilities';
 import { createFileService } from '../platform/fileService';
 import { useLayoutStore } from '../store/layoutStore';
 import { createMenuActionHandler, isMenuActionId } from './menuActions';
+import { registerCanvasSessionEnder } from '../cp-workspace/canvasObjects/canvasSessions';
 
 // The default `showWorkspace` navigates for real, and the point of the tests
 // below is that it is a default rather than a wiring line — so the router itself
@@ -339,6 +340,26 @@ describe('menu actions', () => {
 
     expect(deps.workspace.requestOristudioCpAction).toHaveBeenCalledWith('CircleChangeColor');
     expect(deps.workspace.executeOristudioCpCommand).not.toHaveBeenCalled();
+  });
+
+  it('ends open canvas sessions before an undo or redo runs', async () => {
+    // A text box mid-edit commits and a drag mid-gesture aborts *before* the
+    // history step, whichever surface the undo came from — this arm is the one
+    // every path reaches.
+    const deps = createDeps();
+    const handle = createMenuActionHandler(deps);
+    const reasons: string[] = [];
+    const unregister = registerCanvasSessionEnder((reason) => {
+      reasons.push(`${reason}:${deps.workspace.undo.mock.calls.length}`);
+    });
+    try {
+      await expect(handle('edit.undo')).resolves.toBe(true);
+      await expect(handle('edit.redo')).resolves.toBe(true);
+    } finally {
+      unregister();
+    }
+    // Ended before the undo ran (no undo call yet), and again before the redo.
+    expect(reasons).toEqual(['history:0', 'history:1']);
   });
 
   it('dispatches edit commands through workspace actions', async () => {

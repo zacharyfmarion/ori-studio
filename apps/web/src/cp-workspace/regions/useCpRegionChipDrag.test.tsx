@@ -56,7 +56,10 @@ function mount(claim: CpSurfaceClaim): Recorded {
       center: { x: 10, y: 10 },
       onSelect: () => (recorded.selected += 1),
       onMove: (center) => recorded.moved.push(center),
-      onGestureStart: () => (recorded.gestures += 1),
+      onGestureStart: () => {
+        recorded.gestures += 1;
+        return true;
+      },
       onGestureCommit: (label) => recorded.commits.push(label),
     });
     return <div data-testid="bar" {...drag} />;

@@ -1,4 +1,11 @@
-import { useCallback, useMemo, useRef, useState, type DragEvent as ReactDragEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent as ReactDragEvent,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SerializedEditorState } from 'lexical';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -24,7 +31,15 @@ import {
   isTextAnnotation,
   topAnnotationZ,
 } from './annotation';
-import type { CanvasAnnotation, ImageAnnotation } from './annotation';
+import type { ImageAnnotation } from './annotation';
+import { annotationGesture } from './annotationGesture';
+import {
+  bringAnnotationToFront as bringAnnotationToFrontVerb,
+  deleteAnnotation as deleteAnnotationVerb,
+  sendAnnotationToBack as sendAnnotationToBackVerb,
+} from './annotationVerbs';
+import type { GestureToken } from '../canvasObjects/gestureBracket';
+import { registerCanvasSessionEnder } from '../canvasObjects/canvasSessions';
 import {
   createTextAnnotation,
   textBoxFromDragCorners,
@@ -33,8 +48,12 @@ import {
 } from './textAnnotation';
 
 
-/** Reason inline text editing ended: a click outside, or the keyboard. */
-export type TextEditExitReason = 'blur' | 'escape';
+/**
+ * Reason inline text editing ended: a click outside, the keyboard, an undo
+ * about to run (the session commits so the step can undo it), or the document
+ * being replaced (nothing to record into).
+ */
+export type TextEditExitReason = 'blur' | 'escape' | 'history' | 'document-replaced';
 
 export interface UseCpAnnotationsOptions {
   /** Live model↔CSS transform, for placing dropped images and new text boxes. */
@@ -50,10 +69,10 @@ export interface UseCpAnnotationsOptions {
  * lifecycle.
  *
  * It lives here rather than in the panel because all of it shares one
- * invariant — `preGestureAnnotationsRef` holds the pre-gesture snapshot, and
- * every mutation must be bracketed by begin/commit so a whole drag or edit
- * lands as a single undo entry. That invariant is only checkable if the code
- * that depends on it is in one place.
+ * invariant — every mutation is bracketed by begin/commit on the layer's
+ * bracket (`annotationGesture`) so a whole drag or edit lands as a single undo
+ * entry. The bracket is module-level, so the Properties pane in another dock
+ * panel edits through the same one and cannot clobber a drag's baseline.
  */
 /**
  * Where a picked or dropped image should land, in **client** coordinates.
@@ -88,10 +107,11 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
   );
 
   /**
-   * Annotation list captured at the start of a move/resize/rotate/crop/edit, so
-   * the whole gesture records a single undo entry when it commits.
+   * The bracket token for the canvas gesture in flight (a drag on the overlay,
+   * a floating-toolbar slider), so the whole gesture records a single undo
+   * entry when it commits. The snapshot itself lives in `annotationGesture`.
    */
-  const preGestureAnnotationsRef = useRef<readonly CanvasAnnotation[] | null>(null);
+  const gestureTokenRef = useRef<GestureToken | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement | null>(null);
   /**
    * Where the next picked image should land, in client coordinates.
@@ -106,17 +126,27 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
    */
   const pendingImagePointRef = useRef<CpImagePlacement | null>(null);
 
+  /**
+   * Open the canvas gesture. False when another owner holds the layer — an
+   * open text session, a Properties-pane slider mid-drag — in which case the
+   * caller must not start its drag: writes it made would land un-undoable.
+   */
   const beginGesture = useCallback(() => {
-    preGestureAnnotationsRef.current = useWorkspaceStore.getState().oristudioCpAnnotations;
+    const token = annotationGesture.begin('canvas');
+    gestureTokenRef.current = token;
+    return token !== null;
   }, []);
-  const commitGesture = useCallback(
-    (label: string) => {
-      const previous = preGestureAnnotationsRef.current;
-      preGestureAnnotationsRef.current = null;
-      if (previous) recordAnnotationHistory([...previous], label);
-    },
-    [recordAnnotationHistory]
-  );
+  const commitGesture = useCallback((label: string) => {
+    const token = gestureTokenRef.current;
+    gestureTokenRef.current = null;
+    if (token) void annotationGesture.commit(token, label);
+  }, []);
+  /** A drag that was cancelled: drop the snapshot without recording. */
+  const cancelGesture = useCallback(() => {
+    const token = gestureTokenRef.current;
+    gestureTokenRef.current = null;
+    if (token) annotationGesture.abort(token);
+  }, []);
 
   const selectedAnnotation = useMemo(
     () => annotations.find((a) => a.id === selectedAnnotationId) ?? null,
@@ -333,36 +363,16 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
   // `selectedAnnotationId`, which is React state and still holds the *previous*
   // selection for the rest of the tick. Taking the id is what makes "act on what
   // was clicked" expressible at all.
+  // The verbs themselves live in `annotationVerbs.ts`, over the same bracket,
+  // so the context menu and the Properties pane call the very same functions.
   const bringAnnotationToFront = useCallback(
-    (id: string) => {
-      const images = useWorkspaceStore.getState().oristudioCpAnnotations;
-      const maxZ = images.reduce((max, image) => Math.max(max, image.z), 0);
-      beginGesture();
-      updateAnnotation(id, { z: maxZ + 1 });
-      commitGesture(t('panels:creasePattern.bringImageToFront', 'Bring image to front'));
-    },
-    [updateAnnotation, beginGesture, commitGesture, t]
+    (id: string) => bringAnnotationToFrontVerb(id, t),
+    [t]
   );
 
-  const sendAnnotationToBack = useCallback(
-    (id: string) => {
-      const images = useWorkspaceStore.getState().oristudioCpAnnotations;
-      const minZ = images.reduce((min, image) => Math.min(min, image.z), 0);
-      beginGesture();
-      updateAnnotation(id, { z: minZ - 1 });
-      commitGesture(t('panels:creasePattern.sendImageToBack', 'Send image to back'));
-    },
-    [updateAnnotation, beginGesture, commitGesture, t]
-  );
+  const sendAnnotationToBack = useCallback((id: string) => sendAnnotationToBackVerb(id, t), [t]);
 
-  const deleteAnnotationById = useCallback(
-    (id: string) => {
-      beginGesture();
-      removeAnnotation(id);
-      commitGesture(t('panels:creasePattern.deleteImage', 'Delete image'));
-    },
-    [removeAnnotation, beginGesture, commitGesture, t]
-  );
+  const deleteAnnotationById = useCallback((id: string) => deleteAnnotationVerb(id, t), [t]);
 
   const bringSelectedImageToFront = useCallback(() => {
     if (selectedAnnotationId) bringAnnotationToFront(selectedAnnotationId);
@@ -379,8 +389,14 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
   // --- Inline text editing ---
 
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
-  /** The box under edit and whether this edit created it, for the undo label. */
-  const editStartRef = useRef<{ id: string; created: boolean } | null>(null);
+  /**
+   * The box under edit, whether this edit created it (for the undo label), and
+   * the bracket token the session holds for its whole life — which is what
+   * refuses any other annotation gesture while a box is being edited.
+   */
+  const editStartRef = useRef<{ id: string; created: boolean; token: GestureToken | null } | null>(
+    null
+  );
   /**
    * A click outside an editor both commits it and, if the Text tool is active,
    * would land on the canvas as a "create a box here". Set on a blur exit so
@@ -392,8 +408,7 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
   // on one → inline editing.
   const requestEditText = useCallback(
     (id: string) => {
-      preGestureAnnotationsRef.current = useWorkspaceStore.getState().oristudioCpAnnotations;
-      editStartRef.current = { id, created: false };
+      editStartRef.current = { id, created: false, token: annotationGesture.begin('text-session') };
       setSelectedAnnotation(id);
       setEditingTextId(id);
     },
@@ -433,8 +448,12 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
         fontSize: cssPerModel > 0 ? 16 / cssPerModel : DEFAULT_TEXT_FONT_SIZE,
         z: topAnnotationZ(prev) + 1,
       });
-      preGestureAnnotationsRef.current = prev; // snapshot before add, for undo
-      editStartRef.current = { id: box.id, created: true };
+      // Snapshot before the add, so undoing the session removes the box.
+      editStartRef.current = {
+        id: box.id,
+        created: true,
+        token: annotationGesture.begin('text-session'),
+      };
       addAnnotation(box);
       setEditingTextId(box.id);
     },
@@ -464,8 +483,11 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
         fontSize: cssPerModel > 0 ? 16 / cssPerModel : DEFAULT_TEXT_FONT_SIZE,
         z: topAnnotationZ(prev) + 1,
       });
-      preGestureAnnotationsRef.current = prev;
-      editStartRef.current = { id: annotation.id, created: true };
+      editStartRef.current = {
+        id: annotation.id,
+        created: true,
+        token: annotationGesture.begin('text-session'),
+      };
       addAnnotation(annotation);
       setEditingTextId(annotation.id);
     },
@@ -480,35 +502,69 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
   );
 
   // Leave inline editing. An empty box is discarded (parity with Oriedita's
-  // blank-text GC); otherwise the whole edit records one undo entry.
+  // blank-text GC); otherwise the whole edit records one undo entry — unless
+  // the document is being replaced, in which case there is nothing to record
+  // into and the session is simply dropped.
   const exitEditText = useCallback(
     (reason: TextEditExitReason = 'blur') => {
       if (reason === 'blur') suppressNextTextCreateRef.current = true;
       const editing = editStartRef.current;
       setEditingTextId(null);
       editStartRef.current = null;
-      if (!editing) {
-        preGestureAnnotationsRef.current = null;
-        return;
-      }
+      if (!editing) return;
+      const settle = (label: string | null) => {
+        if (!editing.token) return;
+        if (label === null || reason === 'document-replaced') {
+          annotationGesture.abort(editing.token);
+        } else {
+          void annotationGesture.commit(editing.token, label);
+        }
+      };
       const annotation = useWorkspaceStore
         .getState()
         .oristudioCpAnnotations.find((a) => a.id === editing.id);
       const empty =
         !annotation || (annotation.kind === 'text' && annotation.plainText.trim() === '');
       if (empty) {
-        removeAnnotation(editing.id);
-        if (editing.created) preGestureAnnotationsRef.current = null;
-        else commitGesture(t('panels:textAnnotation.deleteText', 'Delete text'));
+        if (reason !== 'document-replaced') removeAnnotation(editing.id);
+        settle(editing.created ? null : t('panels:textAnnotation.deleteText', 'Delete text'));
         return;
       }
-      commitGesture(
+      settle(
         editing.created
           ? t('panels:textAnnotation.addText', 'Add text')
           : t('panels:textAnnotation.editText', 'Edit text')
       );
     },
-    [removeAnnotation, commitGesture, t]
+    [removeAnnotation, t]
+  );
+
+  // An undo about to run commits the open session first, so the step undoes
+  // it rather than running under a live editor that would write the restored
+  // doc back on its next keystroke; a document replacement drops it.
+  const exitEditTextRef = useRef(exitEditText);
+  useEffect(() => {
+    exitEditTextRef.current = exitEditText;
+  });
+  useEffect(
+    () =>
+      registerCanvasSessionEnder((endReason) => {
+        if (editStartRef.current) exitEditTextRef.current(endReason);
+      }, 'session'),
+    []
+  );
+  // The bracket is module-level and would otherwise outlive the surface that
+  // opened it, refusing every later annotation gesture.
+  useEffect(
+    () => () => {
+      const token = gestureTokenRef.current;
+      gestureTokenRef.current = null;
+      if (token) annotationGesture.abort(token);
+      const session = editStartRef.current;
+      editStartRef.current = null;
+      if (session?.token) annotationGesture.abort(session.token);
+    },
+    []
   );
 
   // Delete from the text toolbar removes the box and leaves edit mode; the
@@ -520,12 +576,10 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
     editStartRef.current = null;
     if (!id) return;
     removeAnnotation(id);
-    if (editing && !editing.created) {
-      commitGesture(t('panels:textAnnotation.deleteText', 'Delete text'));
-    } else {
-      preGestureAnnotationsRef.current = null;
-    }
-  }, [editingTextId, removeAnnotation, commitGesture, t]);
+    if (!editing?.token) return;
+    if (editing.created) annotationGesture.abort(editing.token);
+    else void annotationGesture.commit(editing.token, t('panels:textAnnotation.deleteText', 'Delete text'));
+  }, [editingTextId, removeAnnotation, t]);
 
   return {
     annotations,
@@ -538,6 +592,7 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
     syncAnnotationHeight,
     beginGesture,
     commitGesture,
+    cancelGesture,
     gestureLabel,
     applyBoxUpdate,
     applyCrop,

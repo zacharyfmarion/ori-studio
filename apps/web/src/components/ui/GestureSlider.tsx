@@ -24,7 +24,12 @@ export interface GestureSliderProps {
   value: number;
   /** Per pointer move; the caller writes state and records nothing. */
   onChange: (value: number) => void;
-  onGestureStart: () => void;
+  /**
+   * Opens the caller's undo bracket. Answering `false` refuses the drag —
+   * another surface holds the layer — and no value is written until the
+   * next press; a caller that returns nothing is taken as consenting.
+   */
+  onGestureStart: () => boolean | void;
   /** Closes the snapshot. Takes the label so the caller names the edit. */
   onGestureCommit: (label: string) => void;
   /** History label for the whole drag. */
@@ -50,6 +55,8 @@ export function GestureSlider({
 }: GestureSliderProps) {
   const sliderRef = useRef<HTMLInputElement | null>(null);
   const sessionRef = useRef(false);
+  /** A press whose begin was refused writes nothing until the next press. */
+  const refusedRef = useRef(false);
   // Held in a ref so the `change` listener below is attached once, on mount,
   // rather than re-attached whenever the caller passes a fresh closure — which
   // it does on every render, since these are usually inline arrows.
@@ -62,6 +69,7 @@ export function GestureSlider({
     const el = sliderRef.current;
     if (!el) return;
     const onCommit = () => {
+      refusedRef.current = false;
       if (!sessionRef.current) return;
       sessionRef.current = false;
       latest.current.onGestureCommit(latest.current.commitLabel);
@@ -73,7 +81,14 @@ export function GestureSlider({
   const handleInput = useCallback(
     (next: number) => {
       if (!sessionRef.current) {
-        onGestureStart();
+        if (refusedRef.current) return;
+        if (onGestureStart() === false) {
+          // Refused for the rest of this press; the thumb snaps back to the
+          // prop on the next render, and the native `change` on release
+          // clears the refusal so the next press asks again.
+          refusedRef.current = true;
+          return;
+        }
         sessionRef.current = true;
       }
       onChange(next);

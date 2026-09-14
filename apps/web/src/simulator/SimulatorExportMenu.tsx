@@ -4,6 +4,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Download } from 'lucide-react';
 import { MenuIconButton } from '../components/ui/MenuIconButton';
 import type { SimulatorViewExportFormat } from './simulatorViewExport';
+import { CANVAS_COMPANION_PROPS } from '../cp-workspace/canvasObjects/canvasCompanionSurface';
 
 /**
  * "Export this view", for wherever a simulation is shown.
@@ -63,6 +64,10 @@ export function SimulatorExportMenu({
       <DropdownMenu.Portal>
         <DropdownMenu.Content
           className="context-menu"
+          // Opened from a window's floating inspector on the Edit canvas as well
+          // as from the Simulate panel; marked so a press in it keeps that
+          // window's focus (see useBlurOnPressOutside). Harmless elsewhere.
+          {...CANVAS_COMPANION_PROPS}
           side="bottom"
           align="end"
           sideOffset={6}

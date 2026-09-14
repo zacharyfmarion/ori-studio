@@ -20,7 +20,7 @@
  * the chip carries the gesture instead. Resize and rotate still come from that
  * overlay's handles through `useCpAnnotations`, as they do for every other kind.
  */
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { OristudioCpDiagnosticEntry } from '../../engine/oristudioCpTypes';
@@ -40,6 +40,8 @@ import {
   type CreateCpSuppressionRegionInput,
 } from '../annotations/suppressionRegion';
 import { boxContainsModelPoint } from '../annotations/annotationTransform';
+import { annotationGesture } from '../annotations/annotationGesture';
+import type { GestureToken } from '../canvasObjects/gestureBracket';
 import { cpCheckSuppressionRules, isCpDiagnosticSuppressed } from '../diagnostics/checkSuppression';
 import { visibleCpDiagnostics } from '../diagnostics/visibleEntries';
 
@@ -114,8 +116,12 @@ export interface UseCpRegionActions {
   setRegionImageOpacity: (id: string, opacity: number) => void;
   /** Delete a region's owned image and drop the link, as one undo entry. */
   removeRegionImage: (id: string) => void;
-  /** Snapshot before a multi-step edit (a chip drag), so it undoes as one. */
-  beginGesture: () => void;
+  /**
+   * Snapshot before a multi-step edit (a chip drag), so it undoes as one. False
+   * when another surface holds the annotation layer's bracket; the caller must
+   * not start its drag then.
+   */
+  beginGesture: () => boolean;
   /** Close the snapshot opened by {@link beginGesture} under `label`. */
   commitGesture: (label: string) => void;
 }
@@ -217,17 +223,29 @@ export function useCpRegionActions(): UseCpRegionActions {
   const recordAnnotationHistory = useWorkspaceStore((state) => state.recordAnnotationHistory);
   const clearPinsIn = useWorkspaceStore((state) => state.clearOristudioCpVertexPinsIn);
 
-  const preGestureRef = useRef<readonly CanvasAnnotation[] | null>(null);
+  // The layer's bracket, shared with every other annotation surface — a chip
+  // drag and a Properties-pane slider cannot both hold it. `beginGesture`
+  // answers false when refused; a chip drag then does not start.
+  const gestureTokenRef = useRef<GestureToken | null>(null);
   const beginGesture = useCallback(() => {
-    preGestureRef.current = useWorkspaceStore.getState().oristudioCpAnnotations;
+    const token = annotationGesture.begin('chip');
+    gestureTokenRef.current = token;
+    return token !== null;
   }, []);
-  const commitGesture = useCallback(
-    (label: string) => {
-      const previous = preGestureRef.current;
-      preGestureRef.current = null;
-      if (previous) recordAnnotationHistory([...previous], label);
+  const commitGesture = useCallback((label: string) => {
+    const token = gestureTokenRef.current;
+    gestureTokenRef.current = null;
+    if (token) void annotationGesture.commit(token, label);
+  }, []);
+  // A chip drag whose surface unmounted mid-gesture must not hold the
+  // module-level bracket against every later annotation gesture.
+  useEffect(
+    () => () => {
+      const token = gestureTokenRef.current;
+      gestureTokenRef.current = null;
+      if (token) annotationGesture.abort(token);
     },
-    [recordAnnotationHistory]
+    []
   );
 
   const selectRegion = useCallback(

@@ -54,11 +54,13 @@ describe('CpTextEditor', () => {
     expect(onExit).toHaveBeenCalledWith('escape');
   });
 
-  it('keeps editing when focus moves into the text toolbar', () => {
+  it('keeps editing when focus moves into a surface that edits the selection', () => {
     const onExit = vi.fn();
     const content = renderEditor(onExit);
+    // The text toolbar, the Properties pane and every floating toolbar carry
+    // this one attribute — see canvasCompanionSurface.ts.
     const toolbar = document.createElement('div');
-    toolbar.setAttribute('data-cp-text-toolbar', '');
+    toolbar.setAttribute('data-cp-companion', '');
     document.body.appendChild(toolbar);
     const button = toolbar.appendChild(document.createElement('button'));
 

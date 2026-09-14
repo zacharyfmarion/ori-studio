@@ -73,7 +73,8 @@ export interface CpRegionChipDragOptions {
   /** Write a new centre. Unbracketed — see {@link onGestureStart}. */
   onMove: (center: Vec2) => void;
   /** Snapshot for undo, opened on the first move rather than on the press. */
-  onGestureStart: () => void;
+  /** Opens the layer's bracket; false refuses the drag. */
+  onGestureStart: () => boolean;
   /** Close the snapshot under a label, so the drag undoes as one entry. */
   onGestureCommit: (label: string) => void;
 }
@@ -147,8 +148,14 @@ export function useCpRegionChipDrag({
       };
       if (!drag.moved) {
         if (Math.hypot(dCss.x, dCss.y) <= DRAG_THRESHOLD_PX) return;
+        // Refused when another surface holds the annotation layer's bracket
+        // (a Properties-pane slider mid-drag): a move that cannot be recorded
+        // is a move that must not happen.
+        if (!onGestureStart()) {
+          dragRef.current = null;
+          return;
+        }
         drag.moved = true;
-        onGestureStart();
       }
       const dModel = overlayCssDeltaToModel(views.model, dCss);
       if (!dModel) return;

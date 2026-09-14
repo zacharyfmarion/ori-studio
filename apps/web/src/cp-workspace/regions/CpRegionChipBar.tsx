@@ -7,6 +7,7 @@ import { useCanvasObjectAnchor } from '../canvasObjects/useCanvasObjectAnchor';
 import type { AnnotationBox } from '../annotations/annotationTransform';
 import { regionChipPlacement } from './regionChipPlacement';
 import type { CpRegionChipDragHandlers } from './useCpRegionChipDrag';
+import { CANVAS_COMPANION_PROPS } from '../canvasObjects/canvasCompanionSurface';
 
 /**
  * The bar a suppression region wears along its top edge.
@@ -104,6 +105,7 @@ export function CpRegionChipBar({
         className="floating-toolbar cp-region-chip"
         role="toolbar"
         aria-label={ariaLabel}
+        {...CANVAS_COMPANION_PROPS}
         style={{
           position: 'fixed',
           left: `${placement.left}px`,

@@ -1,4 +1,5 @@
 import { clearAllInlineSimulationSources } from '../../cp-workspace/inlineSimulation/inlineSimulationRuntime';
+import { endOpenCanvasSessions } from '../../cp-workspace/canvasObjects/canvasSessions';
 import { NO_CP_VERTEX_PINS } from '../../cp-workspace/pins/vertexPins';
 import { emptyOristudioCpSelection } from '../../lib/creasePatternViewport';
 import type { WorkspaceState } from './types';
@@ -71,6 +72,9 @@ export type CpDocumentScopedState = {
  */
 export function discardCpDocumentState(): CpDocumentScopedState {
   clearAllInlineSimulationSources();
+  // An open text edit or a drag mid-gesture belongs to the document going away;
+  // dropped, not recorded, since there is nothing left to record into.
+  endOpenCanvasSessions('document-replaced');
   return {
     importedCreasePattern: null,
     oristudioCpDocument: null,

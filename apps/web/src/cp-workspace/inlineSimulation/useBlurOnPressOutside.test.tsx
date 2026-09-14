@@ -18,10 +18,13 @@ function Harness({ active, onBlur }: { active: boolean; onBlur: () => void }): R
       <div ref={panelRef} data-testid="panel">
         <canvas data-testid="canvas" />
       </div>
-      <div className="cp-inline-simulation-inspector">
+      {/* The inspector and its portalled menu both carry the companion
+          attribute (FloatingToolbar sets it on its root) — see
+          canvasCompanionSurface.ts. */}
+      <div className="cp-inline-simulation-inspector" data-cp-companion="">
         <input data-testid="scrub" />
       </div>
-      <div data-inline-simulation-menu="">
+      <div data-cp-companion="">
         <button data-testid="menu-item" />
       </div>
       <div data-testid="other-panel" />

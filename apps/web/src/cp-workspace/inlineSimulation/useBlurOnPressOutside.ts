@@ -1,14 +1,5 @@
 import { useEffect, type RefObject } from 'react';
-
-/**
- * The parts of the UI a focused window owns that are not inside the panel.
- *
- * Both are body-portaled: the inspector because {@link FloatingToolbar} escapes
- * transformed Dockview ancestors, and its colour menu because Radix portals
- * menu content. A containment check against the panel alone would therefore
- * blur on every scrub of the fold slider.
- */
-const PORTALED_SURFACES = '.cp-inline-simulation-inspector, [data-inline-simulation-menu]';
+import { isCanvasCompanionSurface } from '../canvasObjects/canvasCompanionSurface';
 
 /**
  * Give up a focused simulation window when a press lands outside the
@@ -43,7 +34,10 @@ export function useBlurOnPressOutside({
       const target = event.target;
       if (!(target instanceof Node)) return;
       if (panelRef.current?.contains(target)) return;
-      if (target instanceof Element && target.closest(PORTALED_SURFACES)) return;
+      // The window's floating inspector, its portalled menus, and any docked
+      // surface that edits the selection are outside the panel and must not
+      // count as leaving it — one predicate answers that for every such rule.
+      if (isCanvasCompanionSurface(target)) return;
       onBlur();
     };
     // Capture, so a press that something else stops from propagating is still

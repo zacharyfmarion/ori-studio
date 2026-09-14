@@ -27,7 +27,8 @@ export function CpImageInspector({
   /** Element the canvas is positioned against — see {@link useCanvasObjectAnchor}. */
   container: HTMLElement | null;
   onUpdate: (patch: CpImageUpdate) => void;
-  onGestureStart: () => void;
+  /** Opens the annotation layer's bracket; false refuses the drag. */
+  onGestureStart: () => boolean | void;
   onGestureCommit: (label: string) => void;
   onBringToFront: () => void;
   onSendToBack: () => void;

@@ -83,6 +83,8 @@ type Drag =
        */
       selectionBefore: string | null;
       moved: boolean;
+      /** Whether the first move opened the undo bracket. */
+      bracketOpen: boolean;
     }
   | {
       kind: 'resize';
@@ -92,6 +94,7 @@ type Drag =
       /** When true the handle crops instead of scaling (image only). */
       crop: boolean;
       moved: boolean;
+      bracketOpen: boolean;
     }
   | {
       kind: 'rotate';
@@ -100,6 +103,7 @@ type Drag =
       startPointerAngle: number;
       center: Vec2;
       moved: boolean;
+      bracketOpen: boolean;
     };
 
 /**
@@ -226,6 +230,7 @@ export function CanvasObjectOverlay({
   canCrop,
   onGestureStart,
   onGestureCommit,
+  onGestureCancel,
 }: {
   objects: readonly TransformableCanvasObject[];
   selectedId: string | null;
@@ -268,10 +273,22 @@ export function CanvasObjectOverlay({
   onContextMenu?: (id: string, clientX: number, clientY: number) => void;
   /** Whether this object supports crop mode (double-click toggles it). */
   canCrop?: (id: string) => boolean;
-  /** Called at the start of a move/resize/rotate gesture (to snapshot for undo). */
-  onGestureStart?: (id: string) => void;
+  /**
+   * Called on the first pointer move that actually moves the object (never on
+   * the press — a click must not open an undo bracket), to snapshot for undo.
+   * Answering `false` refuses the drag: another surface holds the layer's
+   * bracket, so a move could not be recorded and must not happen. A caller
+   * that returns nothing is taken as consenting.
+   */
+  onGestureStart?: (id: string) => boolean | void;
   /** Called once a gesture actually changed the object, for undo/labeling. */
   onGestureCommit?: (id: string, kind: 'move' | 'resize' | 'rotate' | 'crop') => void;
+  /**
+   * Called when a gesture that opened its bracket ends without a commit — the
+   * pointer was cancelled, or a camera gesture took the surface — so the
+   * snapshot is dropped rather than left for a later commit to close.
+   */
+  onGestureCancel?: (id: string) => void;
 }) {
   // Live camera, subscribed directly so only this overlay re-renders per frame.
   const views = useCpOverlayViews();
@@ -420,7 +437,8 @@ export function CanvasObjectOverlay({
       // object is being dragged. What makes that safe when the press turns out
       // to be the first finger of a pinch is `selectionBefore` — see `abortDrag`.
       onSelect(object.id);
-      onGestureStart?.(object.id);
+      // The undo bracket opens on the first move that moves the object, not
+      // here: a click must not hold the layer's bracket.
       dragRef.current = {
         kind: 'move',
         id: object.id,
@@ -428,9 +446,10 @@ export function CanvasObjectOverlay({
         startCenter: { x: object.box.center.x, y: object.box.center.y },
         selectionBefore: selectedId,
         moved: false,
+        bracketOpen: false,
       };
     },
-    [interactive, onSelect, onGestureStart, selectedId]
+    [interactive, onSelect, selectedId]
   );
 
   const handleResizeDown = useCallback(
@@ -453,7 +472,6 @@ export function CanvasObjectOverlay({
       }
       if (event.button !== 0) return;
       if (!claimPress(event)) return;
-      onGestureStart?.(object.id);
       dragRef.current = {
         kind: 'resize',
         id: object.id,
@@ -461,9 +479,10 @@ export function CanvasObjectOverlay({
         startObject: object,
         crop: cropMode && (canCrop?.(object.id) ?? false),
         moved: false,
+        bracketOpen: false,
       };
     },
-    [interactive, onGestureStart, cropMode, canCrop]
+    [interactive, cropMode, canCrop]
   );
 
   const handleRotateDown = useCallback(
@@ -477,7 +496,6 @@ export function CanvasObjectOverlay({
       }
       if (event.button !== 0) return;
       if (!claimPress(event)) return;
-      onGestureStart?.(object.id);
       const pointer = pointerToObject(event, object.space);
       const angle = pointer
         ? Math.atan2(pointer.y - object.box.center.y, pointer.x - object.box.center.x)
@@ -489,9 +507,10 @@ export function CanvasObjectOverlay({
         startPointerAngle: angle,
         center: { x: object.box.center.x, y: object.box.center.y },
         moved: false,
+        bracketOpen: false,
       };
     },
-    [interactive, pointerToObject, onGestureStart]
+    [interactive, pointerToObject]
   );
 
   /**
@@ -549,11 +568,26 @@ export function CanvasObjectOverlay({
       const action = cpSurfaceGestures.move(event);
       const drag = dragRef.current;
       if (action !== 'forward' || !drag || !views) return;
+      // The first sample that moves the object opens the undo bracket, and a
+      // refused bracket ends the drag before it writes anything: a move that
+      // could not be recorded must not happen.
+      const openBracket = (): boolean => {
+        if (drag.bracketOpen) return true;
+        if (onGestureStart?.(drag.id) === false) {
+          dragRef.current = null;
+          return false;
+        }
+        drag.moved = true;
+        drag.bracketOpen = true;
+        return true;
+      };
       if (drag.kind === 'move') {
         const dCss = { x: event.clientX - drag.startClient.x, y: event.clientY - drag.startClient.y };
         const dObject = overlayCssDeltaToModel(views[object.space], dCss);
         if (!dObject) return;
-        if (!drag.moved && Math.hypot(dCss.x, dCss.y) > 1) drag.moved = true;
+        // Sub-pixel jitter on a press is not a move — and not a bracket.
+        if (!drag.moved && Math.hypot(dCss.x, dCss.y) <= 1) return;
+        if (!openBracket()) return;
         onUpdate(drag.id, {
           center: { x: drag.startCenter.x + dObject.x, y: drag.startCenter.y + dObject.y },
         });
@@ -561,8 +595,8 @@ export function CanvasObjectOverlay({
       }
       const pointer = pointerToObject(event, object.space);
       if (!pointer) return;
+      if (!openBracket()) return;
       if (drag.kind === 'resize') {
-        drag.moved = true;
         if (drag.crop) {
           onCropUpdate?.(drag.id, drag.handle, pointer);
           return;
@@ -581,25 +615,30 @@ export function CanvasObjectOverlay({
         return;
       }
       // rotate
-      drag.moved = true;
       const angle = Math.atan2(pointer.y - drag.center.y, pointer.x - drag.center.x);
       let rotation = drag.startRotation + (angle - drag.startPointerAngle);
       if (withShiftLatch(event.shiftKey)) rotation = snapAngle(rotation, IMAGE_ROTATION_SNAP_RADIANS);
       onUpdate(drag.id, { rotation });
     },
-    [views, pointerToObject, onUpdate, onCropUpdate]
+    [views, pointerToObject, onUpdate, onCropUpdate, onGestureStart]
   );
 
   /**
    * A gesture that never gets its pointerup (pointer cancelled, capture lost)
    * must not stay live, or the object silently follows the cursor afterwards.
    * Drop it without recording — the store already holds the in-progress value,
-   * and no history entry means the next real edit still has a sane baseline.
+   * and the bracket it opened is dropped with it so the next real edit still
+   * has a sane baseline.
    */
-  const handlePointerCancel = useCallback((event: ReactPointerEvent<SVGElement>) => {
-    dragRef.current = null;
-    releaseContact(event);
-  }, []);
+  const handlePointerCancel = useCallback(
+    (event: ReactPointerEvent<SVGElement>) => {
+      const drag = dragRef.current;
+      dragRef.current = null;
+      releaseContact(event);
+      if (drag?.bracketOpen) onGestureCancel?.(drag.id);
+    },
+    [onGestureCancel]
+  );
 
   const handlePointerUp = useCallback(
     (event: ReactPointerEvent<SVGElement>) => {
@@ -643,6 +682,7 @@ export function CanvasObjectOverlay({
     const drag = dragRef.current;
     dragRef.current = null;
     if (!drag) return;
+    if (drag.bracketOpen) onGestureCancel?.(drag.id);
     if (drag.kind === 'move') {
       if (drag.selectionBefore !== drag.id) onSelect(drag.selectionBefore);
       if (drag.moved) onUpdate(drag.id, { center: drag.startCenter });
@@ -657,7 +697,7 @@ export function CanvasObjectOverlay({
       const { center, width, height } = drag.startObject.box;
       onUpdate(drag.id, { center, width, height });
     }
-  }, [onUpdate, onSelect]);
+  }, [onUpdate, onSelect, onGestureCancel]);
 
   useEffect(() => cpSurfaceGestures.onAbort('overlay', abortDrag), [abortDrag]);
 

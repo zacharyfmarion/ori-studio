@@ -1128,12 +1128,22 @@ export function CreasePatternPanel() {
     },
     [isFoldedFigureId, folded, annotations, inlineSimulations]
   );
-  // All three kinds take one checkpoint per gesture, not per pointermove.
+  // All three kinds take one checkpoint per gesture, not per pointermove. The
+  // answer is whether the layer's bracket was granted; the overlay does not
+  // start a drag it cannot record.
   const beginCanvasObjectGesture = useCallback(
+    (id: string): boolean => {
+      if (inlineSimulations.isInlineSimulationId(id)) return inlineSimulations.beginGesture();
+      if (isFoldedFigureId(id)) return folded.beginGesture();
+      return annotations.beginGesture();
+    },
+    [isFoldedFigureId, annotations, folded, inlineSimulations]
+  );
+  const cancelCanvasObjectGesture = useCallback(
     (id: string) => {
-      if (inlineSimulations.isInlineSimulationId(id)) inlineSimulations.beginGesture();
-      else if (isFoldedFigureId(id)) folded.beginGesture();
-      else annotations.beginGesture();
+      if (inlineSimulations.isInlineSimulationId(id)) inlineSimulations.cancelGesture();
+      else if (isFoldedFigureId(id)) folded.cancelGesture();
+      else annotations.cancelGesture();
     },
     [isFoldedFigureId, annotations, folded, inlineSimulations]
   );
@@ -3451,6 +3461,7 @@ export function CreasePatternPanel() {
                     canCrop={annotations.canCrop}
                     onGestureStart={beginCanvasObjectGesture}
                     onGestureCommit={commitCanvasObjectGesture}
+                    onGestureCancel={cancelCanvasObjectGesture}
                   />
                 )}
                 {webglOverlayView && folded.windowFigures.length > 0 && (

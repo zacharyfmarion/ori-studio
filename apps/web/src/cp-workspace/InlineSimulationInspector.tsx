@@ -8,6 +8,7 @@ import { resolveCpViewportCanvas } from './cpViewportCanvas';
 import { IconButton } from '../components/ui/IconButton';
 import { Slider } from '../components/ui/Slider';
 import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
+import { CANVAS_COMPANION_PROPS } from './canvasObjects/canvasCompanionSurface';
 import {
   getInlineSimulationFoldPercent,
   subscribeInlineSimulationFold,
@@ -54,10 +55,10 @@ function ColorModeMenu({
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         {/* Portaled out of the toolbar by Radix, so it needs to say for itself
-            that it belongs to the window — see useBlurOnPressOutside. */}
+            that it belongs to the selection — see useBlurOnPressOutside. */}
         <DropdownMenu.Content
           className="context-menu"
-          data-inline-simulation-menu=""
+          {...CANVAS_COMPANION_PROPS}
           side="bottom"
           align="start"
           sideOffset={6}

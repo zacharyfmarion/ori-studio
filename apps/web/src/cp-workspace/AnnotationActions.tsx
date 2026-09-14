@@ -24,7 +24,8 @@ export function AnnotationActions({
 }: {
   opacity: number;
   onOpacity: (value: number) => void;
-  onGestureStart: () => void;
+  /** Opens the annotation layer's bracket; false refuses the drag. */
+  onGestureStart: () => boolean | void;
   onGestureCommit: (label: string) => void;
   onBringToFront: () => void;
   onSendToBack: () => void;

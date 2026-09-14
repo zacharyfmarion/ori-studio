@@ -77,6 +77,21 @@ function bodyPolygon(): SVGPolygonElement | null {
   return container?.querySelector('polygon') ?? null;
 }
 
+function stubCapture(element: SVGElement) {
+  const target = element as unknown as Record<string, unknown>;
+  target.setPointerCapture = () => {};
+  target.hasPointerCapture = () => false;
+  target.releasePointerCapture = () => {};
+}
+
+/** A one-finger touch event at a client point; pointer 1 throughout. */
+function pointerEvent(type: string, clientX: number, clientY: number): Event {
+  const event = new MouseEvent(type, { bubbles: true, button: 0, clientX, clientY });
+  Object.defineProperty(event, 'pointerId', { value: 1 });
+  Object.defineProperty(event, 'pointerType', { value: 'touch' });
+  return event;
+}
+
 describe('CanvasObjectOverlay body interactivity', () => {
   it('takes pointer events on an ordinary object', () => {
     render();
@@ -566,12 +581,86 @@ describe('CanvasObjectOverlay pan precedence', () => {
     // object over a dense pattern could not be sized at all.
     const pressed = stubClaim('crease');
     const started: string[] = [];
-    render({ objects: [object('a')], selectedId: 'a', onGestureStart: (id) => started.push(id) });
+    render({
+      objects: [object('a')],
+      selectedId: 'a',
+      onGestureStart: (id) => {
+        started.push(id);
+      },
+    });
 
-    pressElement(container!.querySelector('rect') as SVGRectElement);
+    const handle = container!.querySelector('rect') as SVGRectElement;
+    pressElement(handle);
+    // The press itself opens nothing — a click must not hold the undo bracket.
+    // The first move does.
+    expect(started).toEqual([]);
+    act(() => {
+      handle.dispatchEvent(pointerEvent('pointermove', 80, 80));
+    });
 
     expect(pressed).toEqual([]);
     expect(started).toEqual(['a']);
+  });
+
+  it('never opens the undo bracket for a click, and drops it on cancel', () => {
+    const started: string[] = [];
+    const cancelled: string[] = [];
+    const commits: string[] = [];
+    render({
+      objects: [object('a')],
+      selectedId: null,
+      onGestureStart: (id) => {
+        started.push(id);
+      },
+      onGestureCancel: (id) => {
+        cancelled.push(id);
+      },
+      onGestureCommit: (_id, kind) => commits.push(kind),
+    });
+    const body = bodyPolygon();
+    if (!body) throw new Error('no body polygon');
+    stubCapture(body);
+
+    // A click: press and release, no move.
+    act(() => {
+      body.dispatchEvent(pointerEvent('pointerdown', 50, 50));
+      body.dispatchEvent(pointerEvent('pointerup', 50, 50));
+    });
+    expect(started).toEqual([]);
+    expect(commits).toEqual([]);
+    expect(cancelled).toEqual([]);
+
+    // A drag that is cancelled: the bracket opened on the first move is
+    // dropped, not left for a later commit to close.
+    act(() => {
+      body.dispatchEvent(pointerEvent('pointerdown', 50, 50));
+      body.dispatchEvent(pointerEvent('pointermove', 70, 50));
+      body.dispatchEvent(pointerEvent('pointercancel', 70, 50));
+    });
+    expect(started).toEqual(['a']);
+    expect(cancelled).toEqual(['a']);
+    expect(commits).toEqual([]);
+  });
+
+  it('does not start a drag whose bracket is refused', () => {
+    const patches: CanvasObjectBoxUpdate[] = [];
+    render({
+      objects: [object('a')],
+      selectedId: null,
+      onUpdate: (_id, patch) => patches.push(patch),
+      onGestureStart: () => false,
+    });
+    const body = bodyPolygon();
+    if (!body) throw new Error('no body polygon');
+    stubCapture(body);
+    act(() => {
+      body.dispatchEvent(pointerEvent('pointerdown', 50, 50));
+      body.dispatchEvent(pointerEvent('pointermove', 70, 50));
+      body.dispatchEvent(pointerEvent('pointermove', 90, 50));
+      body.dispatchEvent(pointerEvent('pointerup', 90, 50));
+    });
+    // Nothing was written: a move that could not be recorded must not happen.
+    expect(patches).toEqual([]);
   });
 
   /**
@@ -903,20 +992,6 @@ describe('CanvasObjectOverlay aspect lock', () => {
     return patch.width !== undefined && patch.height !== undefined
       ? { width: patch.width, height: patch.height }
       : null;
-  }
-
-  function stubCapture(element: SVGElement) {
-    const target = element as unknown as Record<string, unknown>;
-    target.setPointerCapture = () => {};
-    target.hasPointerCapture = () => false;
-    target.releasePointerCapture = () => {};
-  }
-
-  function pointerEvent(type: string, clientX: number, clientY: number): Event {
-    const event = new MouseEvent(type, { bubbles: true, button: 0, clientX, clientY });
-    Object.defineProperty(event, 'pointerId', { value: 1 });
-    Object.defineProperty(event, 'pointerType', { value: 'touch' });
-    return event;
   }
 
   // The latch only exists on a touch device, so these have to be run on one.

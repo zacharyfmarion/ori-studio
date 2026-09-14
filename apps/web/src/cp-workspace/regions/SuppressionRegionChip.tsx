@@ -154,7 +154,8 @@ export interface SuppressionRegionChipProps extends CpRegionImageActions {
   onToggleCheckClass: (cpCheckClass: CpCheckClass) => void;
   /** Write a new centre during a bar drag. Unbracketed — see `useCpRegions`. */
   onMove: (center: Vec2) => void;
-  onGestureStart: () => void;
+  /** Opens the annotation layer's bracket; false refuses the drag. */
+  onGestureStart: () => boolean;
   onGestureCommit: (label: string) => void;
   onDelete: () => void;
   /**

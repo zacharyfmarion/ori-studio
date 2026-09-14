@@ -31,6 +31,7 @@ import { $setBlocksType, $patchStyleText } from '@lexical/selection';
 import { $createParagraphNode } from 'lexical';
 import { Bold, Italic, Trash2, Underline } from 'lucide-react';
 import { FloatingToolbar } from '../components/ui/FloatingToolbar';
+import { isCanvasCompanionSurface } from './canvasObjects/canvasCompanionSurface';
 import { resolveCpViewportCanvas } from './cpViewportCanvas';
 import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
 import type { AnnotationBox } from './annotations/annotationTransform';
@@ -88,9 +89,10 @@ export function CpTextEditor({ doc, box, container, onChange, onExit, onDelete }
 
   const handleBlur = useCallback(
     (event: FocusEvent<HTMLDivElement>) => {
-      // Keep editing when focus moves into the text toolbar (buttons/selects).
-      const next = event.relatedTarget as HTMLElement | null;
-      if (next && next.closest('[data-cp-text-toolbar]')) return;
+      // Keep editing when focus moves into the text toolbar, or into any other
+      // surface that edits the selection (the Properties pane). One predicate
+      // answers that for the focused-window blur too.
+      if (isCanvasCompanionSurface(event.relatedTarget)) return;
       onExit('blur');
     },
     [onExit]
@@ -267,7 +269,7 @@ function TextToolbar({
       className="cp-text-toolbar"
       ariaLabel={t('panels:textAnnotation.textControls', 'Text controls')}
     >
-      <div data-cp-text-toolbar className="cp-text-toolbar__group">
+      <div className="cp-text-toolbar__group">
         <select
           className="cp-text-toolbar__select"
           value={state.block}
