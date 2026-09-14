@@ -81,11 +81,58 @@ Plus two things that are not about the pick: the side a short crease is
 made from (56, 147, 157, 158), and one witness per card where two
 symmetric ones would keep the fold straight (136).
 
+And one thing that is not a preference at all. Zach: *"we should disallow
+having the starting point of a 'fold two points together' be a point on
+the interior of the paper. It's just not a practical fold."* Lining an
+interior point up on another means seeing through the paper. That is
+what 30 is (both points interior), and 37, 58, 81, 103, 104, 122, 127, 136
+and 140 are the same fold presented nine more times; it is the single
+most common card in the list.
+
 ## Approach
 
 Each rule is one measurable change; they land in the order below, each
 re-measured on the corpus (`measure_ends`, plus the new pick tallies) and
 pinned on `markhor_feedback.fold` step by step.
+
+### R0. An interior point never starts a point-onto-point fold
+
+A constraint, not a score. An O2 is a fold only when the point that moves
+is on the boundary — a corner, or a mark on an edge — with one exception,
+Zach's: the moving point may be interior when **a crease already made
+runs through it, parallel to the fold being made, with the opposite
+assignment** (a mountain through the point when the fold is a valley, or
+the reverse). Folding that crease first turns the interior point into a
+point on a folded edge, and because it is parallel, folding the flap over
+does not disturb what is being lined up. Nothing else qualifies: not a
+crease through the point at another angle, not a mark that is merely
+visible.
+
+Where it applies:
+
+- **The pick.** `pick_witness` never presents an O2 whose moving point is
+  interior and not on such a crease, however it scores — even when the
+  alternative costs a press, since a press buys a mark on the boundary or
+  a crease to line up along, both of which the folder can see. `who_moves`
+  already puts the boundary point first when there is one; the rule bites
+  when both points are interior, and the exception decides which of the
+  two moves.
+- **The closure.** Such an O2 does not certify a line on its own: a line
+  whose only witness is an impractical fold waits, and the stuck search
+  or ReferenceFinder finds another construction — an auxiliary crease, a
+  mark on the edge — the way it does for a line with no witness at all.
+  This is the part with a cost: measured as extra auxiliary folds and
+  steps on the corpus before it is switched on, and if the cost is bad
+  the fallback is to present the fold flagged as impractical (the card
+  says so) rather than to plan around it.
+
+The predicate — `o2_start_is_practical(state, creased, fold, direction,
+w)`: the moving point is `on_boundary`, or some creased line reaching it
+(`Creased::reaches`) is parallel to the fold within `MIN_ANGLE_SINE` and
+was made in the opposite direction (the step's own `direction`, the same
+face) — lives in `marks.rs` beside the other "on the paper" questions, and
+`explain_steps` prints it. Pins: 30 and the nine above stop being
+interior-onto-interior O2s; 32 stays (its moving point is on the edge).
 
 ### R1. Visibility outranks ease; skinny stays behind it
 
@@ -96,10 +143,12 @@ crease lands on a crease it can see — beats an easier kind of fold that has
 to be lined up under the paper. Skinny keeps its place after ease (the
 markhor measurement that put it there stands).
 
-Expected: 103/104 become the O4 through the mark; 21 the corner swing; 30,
-37, 58, 127 leave the interior-onto-interior O2s. Risk: designs whose only
-visible witnesses are O6/O7 get two-handed folds where they had an
-invisible O2 — measured, and R5 below is what makes the visible set big
+R0 removes the interior-onto-interior O2s outright; R1 is the same
+judgement for every other axiom, as a preference: an O5 swinging an
+interior point, an O3 of two interior creases (21). Expected: 103/104
+become the O4 through the mark; 21 the corner swing. Risk: designs whose
+only visible witnesses are O6/O7 get two-handed folds where they had an
+invisible one — measured, and R5 below is what makes the visible set big
 enough for this to be a choice rather than a fallback.
 
 ### R2. Precision and locality: lever and reach
@@ -236,8 +285,10 @@ Then Zach folds it again.
 - `crates/oristudio-precrease/src/order.rs` — `pick_witness` rewritten on
   the new key over the whole paper; `crease_between_marks` by comparison;
   `forced_side` flip for pinches; `Placed.also`.
-- `crates/oristudio-precrease/src/marks.rs` — crossing vs T in
-  `mark_exists`; swing conditioning.
+- `crates/oristudio-precrease/src/marks.rs` — `o2_start_is_practical`;
+  crossing vs T in `mark_exists`; swing conditioning.
+- `crates/oristudio-precrease/src/closure.rs` — impractical O2s do not
+  certify alone (behind the corpus measurement).
 - `crates/oristudio-precrease/src/sequence.rs`, `planner.rs` — `Step.also`.
 - `crates/oristudio-precrease/examples/{explain_steps,measure_ends}.rs` —
   the tool and the tallies.
@@ -252,7 +303,11 @@ Then Zach folds it again.
 
 - [x] Diagnose all 26 items against the paper as it stood
   (`explain_steps`); the table above.
-- [ ] R1 visibility before ease — measure, pin 21, 30, 37, 58, 103, 104, 127.
+- [ ] R0 no interior start for a point-onto-point fold, with the
+  parallel-opposite-crease exception — the pick first; then the closure,
+  measured, with the flagged card as the fallback. Pin 30, 37, 58, 81,
+  103, 104, 122, 127, 136, 140.
+- [ ] R1 visibility before ease — measure, pin 21, 58, 103, 104, 127.
 - [ ] R2 lever and reach — measure, pin 31, 32, 48, 81, 146.
 - [ ] R3 bisection at the crease — pin 48, 71, 73, 127, 129, 140, 142.
 - [ ] R4 connect the marks by comparison — pin 36, 122, 146.
