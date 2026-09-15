@@ -30,6 +30,12 @@
   grid-template-rows: auto minmax(300px, 1fr);
 }
 
+/* The rights gate: as narrow as the picker it follows. */
+.cp-detect-modal__surface--confirm {
+  width: min(620px, 100%);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
 .cp-detect-modal__surface--crop {
   grid-template-rows: auto auto auto minmax(0, 1fr) auto;
 }
@@ -390,6 +396,65 @@
 .cp-detect-modal__detecting .cp-detect-modal__canvas {
   width: min(360px, 80%);
   opacity: 0.72;
+}
+
+.cp-detect-modal__rights {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+}
+
+/* The image the attestation is about: shown at a glance, never the layout's
+   size — a phone photo is taller than the dialog. */
+.cp-detect-modal__rights-image {
+  align-self: center;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+}
+
+.cp-detect-modal__rights-lead {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+/* The shared checkbox row is a short bold label; the attestation is a
+   sentence, so it wraps under the box and reads in the primary colour. */
+.cp-detect-modal__rights-attest {
+  align-items: flex-start;
+  color: var(--text-primary);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.cp-detect-modal__rights-attest input {
+  flex: none;
+  margin-top: 2px;
+}
+
+.cp-detect-modal__rights-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.cp-detect-modal__rights-status {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
 }
 
 @keyframes cp-detect-spin {

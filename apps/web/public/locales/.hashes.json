@@ -2788,7 +2788,11 @@
     "panels:foldedFigureActions.renderAs": "b696ffa72558",
     "panels:foldedFigureActions.side": "630ef00b7c4f",
     "panels:foldedFigureActions.sideUnsupported3d": "d0fcca756b81",
-    "panels:foldedFigureActions.style": "7e744141b40e"
+    "panels:foldedFigureActions.style": "7e744141b40e",
+    "dialogs:cpDetectImport.rights.attest": "3c063ccbf64c",
+    "dialogs:cpDetectImport.rights.back": "76900f1bfd16",
+    "dialogs:cpDetectImport.rights.continue": "31fbef162594",
+    "dialogs:cpDetectImport.rights.lead": "559e1da6894e"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5579,7 +5583,11 @@
     "panels:foldedFigureActions.renderAs": "b696ffa72558",
     "panels:foldedFigureActions.side": "630ef00b7c4f",
     "panels:foldedFigureActions.sideUnsupported3d": "d0fcca756b81",
-    "panels:foldedFigureActions.style": "7e744141b40e"
+    "panels:foldedFigureActions.style": "7e744141b40e",
+    "dialogs:cpDetectImport.rights.attest": "3c063ccbf64c",
+    "dialogs:cpDetectImport.rights.back": "76900f1bfd16",
+    "dialogs:cpDetectImport.rights.continue": "31fbef162594",
+    "dialogs:cpDetectImport.rights.lead": "559e1da6894e"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8370,7 +8378,11 @@
     "panels:foldedFigureActions.renderAs": "b696ffa72558",
     "panels:foldedFigureActions.side": "630ef00b7c4f",
     "panels:foldedFigureActions.sideUnsupported3d": "d0fcca756b81",
-    "panels:foldedFigureActions.style": "7e744141b40e"
+    "panels:foldedFigureActions.style": "7e744141b40e",
+    "dialogs:cpDetectImport.rights.attest": "3c063ccbf64c",
+    "dialogs:cpDetectImport.rights.back": "76900f1bfd16",
+    "dialogs:cpDetectImport.rights.continue": "31fbef162594",
+    "dialogs:cpDetectImport.rights.lead": "559e1da6894e"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11111,7 +11123,11 @@
     "panels:foldedFigureActions.renderAs": "b696ffa72558",
     "panels:foldedFigureActions.side": "630ef00b7c4f",
     "panels:foldedFigureActions.sideUnsupported3d": "d0fcca756b81",
-    "panels:foldedFigureActions.style": "7e744141b40e"
+    "panels:foldedFigureActions.style": "7e744141b40e",
+    "dialogs:cpDetectImport.rights.attest": "3c063ccbf64c",
+    "dialogs:cpDetectImport.rights.back": "76900f1bfd16",
+    "dialogs:cpDetectImport.rights.continue": "31fbef162594",
+    "dialogs:cpDetectImport.rights.lead": "559e1da6894e"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -13852,7 +13868,11 @@
     "panels:foldedFigureActions.renderAs": "b696ffa72558",
     "panels:foldedFigureActions.side": "630ef00b7c4f",
     "panels:foldedFigureActions.sideUnsupported3d": "d0fcca756b81",
-    "panels:foldedFigureActions.style": "7e744141b40e"
+    "panels:foldedFigureActions.style": "7e744141b40e",
+    "dialogs:cpDetectImport.rights.attest": "3c063ccbf64c",
+    "dialogs:cpDetectImport.rights.back": "76900f1bfd16",
+    "dialogs:cpDetectImport.rights.continue": "31fbef162594",
+    "dialogs:cpDetectImport.rights.lead": "559e1da6894e"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -16643,7 +16663,11 @@
     "panels:foldedFigureActions.renderAs": "b696ffa72558",
     "panels:foldedFigureActions.side": "630ef00b7c4f",
     "panels:foldedFigureActions.sideUnsupported3d": "d0fcca756b81",
-    "panels:foldedFigureActions.style": "7e744141b40e"
+    "panels:foldedFigureActions.style": "7e744141b40e",
+    "dialogs:cpDetectImport.rights.attest": "3c063ccbf64c",
+    "dialogs:cpDetectImport.rights.back": "76900f1bfd16",
+    "dialogs:cpDetectImport.rights.continue": "31fbef162594",
+    "dialogs:cpDetectImport.rights.lead": "559e1da6894e"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -19434,7 +19458,11 @@
     "panels:foldedFigureActions.renderAs": "b696ffa72558",
     "panels:foldedFigureActions.side": "630ef00b7c4f",
     "panels:foldedFigureActions.sideUnsupported3d": "d0fcca756b81",
-    "panels:foldedFigureActions.style": "7e744141b40e"
+    "panels:foldedFigureActions.style": "7e744141b40e",
+    "dialogs:cpDetectImport.rights.attest": "3c063ccbf64c",
+    "dialogs:cpDetectImport.rights.back": "76900f1bfd16",
+    "dialogs:cpDetectImport.rights.continue": "31fbef162594",
+    "dialogs:cpDetectImport.rights.lead": "559e1da6894e"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -22175,6 +22203,10 @@
     "panels:foldedFigureActions.renderAs": "b696ffa72558",
     "panels:foldedFigureActions.side": "630ef00b7c4f",
     "panels:foldedFigureActions.sideUnsupported3d": "d0fcca756b81",
-    "panels:foldedFigureActions.style": "7e744141b40e"
+    "panels:foldedFigureActions.style": "7e744141b40e",
+    "dialogs:cpDetectImport.rights.attest": "3c063ccbf64c",
+    "dialogs:cpDetectImport.rights.back": "76900f1bfd16",
+    "dialogs:cpDetectImport.rights.continue": "31fbef162594",
+    "dialogs:cpDetectImport.rights.lead": "559e1da6894e"
   }
 }
