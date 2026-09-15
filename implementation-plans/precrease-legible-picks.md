@@ -427,7 +427,11 @@ Second round, from Zach's next fold of markhor (2026-09-14):
   between two marks in the middle of the sheet is not that fold and is
   still joined between its marks. Card 6 now reads "Fold P onto Q and R
   onto S", the two corners each onto the opposite one, still one card;
-  nothing else on markhor moved.
+  nothing else on markhor moved. Corpus (54 designs): 49 diagonals that
+  were bisections at the crease are corner to corner now (641 → 592);
+  steps 4,039 → 4,038, cards 3,327 → 3,326, presses 169 → 168 — all of
+  it helioprion, which lost a step, a piece and a press — and every
+  other design's plan is the same to the step.
 - **The card's own geometry**: `sideOf` in `diagram/plannerDiagram.ts`
   judged a point on the fold within a billionth of a unit, which the
   document frame (a 400-unit sheet) did not meet; a receiving piece that
