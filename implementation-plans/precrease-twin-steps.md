@@ -160,6 +160,9 @@ mirrored arrows, which keeps them apart in every pair looked at so far.
       867 pairs, a fifth fewer cards — with steps, turn-overs, lost ends,
       pieces and reach unchanged against the run before twins (53 common
       designs: steps 3,729 → 3,731, turn-overs 308 → 308, lost ends 142 →
-      139, reach 112.9 → 113.2).
+      139, reach 112.9 → 113.2). With only the simple kinds one card
+      (O1, O2, O3, the edge onto itself): 4,039 steps, 3,327 cards — 712
+      pairs — turn-overs 320, lost ends 139, reach 118.9; mirror witnesses
+      61, O2 only.
 - [ ] Zach folds markhor.
 - [ ] Phase 2: quads.
