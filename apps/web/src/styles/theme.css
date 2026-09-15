@@ -10970,6 +10970,13 @@ button.bp-packing-alert:focus-visible {
   padding-left: 0;
 }
 
+/* The toolbar centres its groups; the tabs want its full height, so the
+   group that holds them stretches and the strip stretches inside it. The
+   target's controls in the same group stay centred by the group's own rule. */
+.references-panel .panel-toolbar > .panel-toolbar__group {
+  align-self: stretch;
+}
+
 .references-mode.design-tab-strip {
   align-self: stretch;
   min-height: 0;
