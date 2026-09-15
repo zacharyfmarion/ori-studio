@@ -1119,10 +1119,14 @@ fn repick_to_vouch(
 /// The witness a press step of its own presents: over what the paper offers
 /// for the line now ([`candidates`]), the pick among those the folder can
 /// sight free of presses and that vouch for the pinch (R10, [`Vouch`]),
-/// judged with the pinch as the crease — practical and precise there. As
-/// `chosen`/`found` for the press's [`Placed`]; none when nothing on offer
-/// vouches, and the press then presents the making fold's witness as it
-/// always did.
+/// judged with the pinch as the crease — practical and precise there.
+/// When nothing on offer vouches, the pick among all of them that are
+/// practical, by the same key — the most precise the paper allows, which
+/// is still better than the making fold's witness that could not vouch
+/// for it either (helmeted hornbill: a mark a hundred levers from that
+/// witness's alignment). As `chosen`/`found` for the press's [`Placed`];
+/// none only when nothing practical can be sighted at all, and the press
+/// then presents the making fold's witness as it always did.
 fn press_witness(
     state: &State,
     closure: &Closure,
@@ -1136,36 +1140,40 @@ fn press_witness(
     let spans: &[[[f64; 2]; 2]] = target.map_or(&[], |t| t.spans.as_slice());
     let direction = target.map_or(Direction::Unassigned, |t| t.direction);
     let made = [press.span];
-    let pool: Vec<Witness> = candidates(state, creased, &fold, f.line_id, &made, &f.witnesses)
+    let free: Vec<Witness> = candidates(state, creased, &fold, f.line_id, &made, &f.witnesses)
         .into_iter()
         .filter(|w| sightable(state, creased, &fold, w))
-        .filter(|w| Vouch::of(state, creased, &fold, w).covers(press.span))
         .collect();
-    if pool.is_empty() {
-        return (None, None);
-    }
     let direction_of_line = |line_id: usize| -> Option<Direction> {
         let fi = folded_of_line.get(line_id).copied().flatten()?;
         let t = closure.folded()[fi].target?;
         Some(closure.targets()[t].direction)
     };
-    let scored = score_witnesses(
-        state,
-        creased,
-        &fold,
-        spans,
-        &made,
-        direction,
-        &direction_of_line,
-        &pool,
-    );
-    let Some((index, judgement)) = pick_scored(state, &fold, spans, &pool, &scored) else {
-        return (None, None);
+    let pick_among = |pool: &[Witness]| -> Option<(usize, Judgement)> {
+        let scored = score_witnesses(
+            state,
+            creased,
+            &fold,
+            spans,
+            &made,
+            direction,
+            &direction_of_line,
+            pool,
+        );
+        pick_scored(state, &fold, spans, pool, &scored)
     };
-    if !judgement.practical || !judgement.precise {
-        return (None, None);
-    }
-    let w = &pool[index];
+    let vouching: Vec<Witness> = free
+        .iter()
+        .filter(|w| Vouch::of(state, creased, &fold, w).covers(press.span))
+        .cloned()
+        .collect();
+    let w = match pick_among(&vouching) {
+        Some((index, judgement)) if judgement.practical && judgement.precise => &vouching[index],
+        _ => match pick_among(&free) {
+            Some((index, judgement)) if judgement.practical => &free[index],
+            _ => return (None, None),
+        },
+    };
     match f
         .witnesses
         .iter()
