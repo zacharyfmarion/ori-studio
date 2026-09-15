@@ -466,8 +466,21 @@ Second round, from Zach's next fold of markhor (2026-09-14):
   the later step found elsewhere; one press appears (card 21: a mark at
   (0.25, 0.677) that a 0.02 crease lined up over a tenth of the sheet
   could not reach, 4.2 levers away, and nothing on that paper could),
-  sighted for itself. 164 steps, 112 cards, no pinch beyond the bar
-  (`measure_ends` prints `pinches beyond`, read off a replay).
+  sighted for itself. 164 steps, 113 cards, no pinch beyond the bar
+  (`measure_ends` prints `pinches beyond`, read off a replay). Corpus (54
+  designs, against the corner-to-corner run): pinches while folding
+  539 → 492; steps 4,038 → 4,070 and presses 168 → 200 — the refused
+  pinches, each a press sighted for itself; cards 3,326 → 3,352,
+  turn-overs 320 → 324, lost ends 139 → 141, reach 119.0 → 122.1
+  sheet-sides; own ends 685 → 640 (the re-sighted folds), invisible
+  71 → 77, imprecise 350 → 354, mean error unchanged. What the replay
+  still reads as beyond the bar: 15 spans on eight designs, down from
+  85 at three levers and about a hundred at two and a half, and all but
+  three of them presses for marks nothing on the paper at that moment can
+  sight precisely — helmeted hornbill's five, at a corner, at seven to
+  127 levers from the best alignment there is — the residue R10 makes
+  visible rather than silent; the other three are twins on hex-tiger
+  and Alebrijes where the replay's paper differs from the pass's.
 - **The card's own geometry**: `sideOf` in `diagram/plannerDiagram.ts`
   judged a point on the fold within a billionth of a unit, which the
   document frame (a 400-unit sheet) did not meet; a receiving piece that
