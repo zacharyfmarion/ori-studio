@@ -222,4 +222,4 @@ Nothing in `apps/tauri`, no Rust, no wasm.
 - [x] i18n: four keys, eight locales, stamped, `i18n:check` green
 - [x] Tests: helpers updated, rights-confirmation describe, session-reset assertions
 - [x] Browser check of the flow
-- [ ] Draft PR against `main`
+- [x] Draft PR against `main` — #376
