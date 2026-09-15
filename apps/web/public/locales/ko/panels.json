@@ -241,11 +241,7 @@
       "title": "검사 억제 영역"
     },
     "text": {
-      "changeAlignment": "텍스트 정렬 변경",
-      "changeColor": "텍스트 색상 변경",
       "changeSize": "텍스트 크기 변경",
-      "changeStyle": "텍스트 스타일 변경",
-      "mixed": "혼합",
       "size": "크기",
       "title": "텍스트"
     }
@@ -903,7 +899,6 @@
     "addText": "텍스트 추가",
     "alignCenter": "가운데 정렬",
     "alignLeft": "왼쪽 정렬",
-    "alignment": "정렬",
     "alignRight": "오른쪽 정렬",
     "blockBody": "본문",
     "blockHeading": "제목",

@@ -6,8 +6,6 @@ interface SegmentedOption<T extends string> {
   label: string;
   icon?: ReactNode;
   title?: string;
-  /** Show the icon alone; the label stays the accessible name and the tooltip. */
-  iconOnly?: boolean;
 }
 
 interface SegmentedControlProps<T extends string> {
@@ -41,10 +39,9 @@ export function SegmentedControl<T extends string>({
             disabled={disabled}
             onClick={() => onChange(option.value)}
             className="segmented__option"
-            aria-label={option.iconOnly ? option.label : undefined}
           >
             {option.icon}
-            {!option.iconOnly && <span>{option.label}</span>}
+            <span>{option.label}</span>
           </button>
         );
       })}

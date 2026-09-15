@@ -2,8 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import type { TFunction } from 'i18next';
 import type { PropertyField, PropertySheet } from '../../lib/propertyDescriptors';
 import { TEXT } from '../canvasObjects/canvasObjectKinds.fixtures';
-import { textDocFromPlainText } from './textAnnotation';
-import { setDocAlign, setDocBlock, setDocColor } from './textDocTransforms';
 import { buildTextProperties, type TextPropertyDeps } from './textProperties';
 
 const t = ((_key: string, fallback: string) => fallback) as unknown as TFunction;
@@ -18,9 +16,6 @@ function deps(overrides: Partial<TextPropertyDeps> = {}): TextPropertyDeps {
     commit: vi.fn(),
     updateById: vi.fn(),
     commitById: vi.fn(),
-    setAlign: vi.fn(),
-    setBlock: vi.fn(),
-    setColor: vi.fn(),
     ...overrides,
   };
 }
@@ -31,79 +26,15 @@ function field(sheet: PropertySheet, id: string): PropertyField {
   return found;
 }
 
-const TWO = textDocFromPlainText('One\nTwo');
-
 describe('buildTextProperties', () => {
-  it('names the sheet and offers the whole-box fields in order', () => {
+  it('names the sheet and offers the box-level fields only', () => {
+    // The content's formatting — block preset, marks, alignment, colour —
+    // follows the caret on the editing toolbar and is not a property of the
+    // box (Decision 12 in the plan).
     const sheet = buildTextProperties({ kind: 'text', id: TEXT.id, annotation: TEXT }, deps());
     expect(sheet).toMatchObject({ kind: 'text', targetId: TEXT.id, title: 'Text', icon: 'text' });
-    expect(sheet.sections.flatMap((s) => s.fields).map((f) => f.id)).toEqual([
-      'align',
-      'block',
-      'color',
-      'fontSize',
-      'opacity',
-    ]);
+    expect(sheet.sections.flatMap((s) => s.fields).map((f) => f.id)).toEqual(['fontSize', 'opacity']);
     for (const f of sheet.sections.flatMap((s) => s.fields)) expect(f.support).toBe('supported');
-  });
-
-  it('reads alignment, block and colour off the stored document', () => {
-    const doc = setDocColor(setDocBlock(setDocAlign(TWO, 'center'), 'h2'), '#30a46c');
-    const sheet = buildTextProperties(
-      { kind: 'text', id: TEXT.id, annotation: { ...TEXT, doc } },
-      deps()
-    );
-    const align = field(sheet, 'align');
-    if (align.kind !== 'segmented') throw new Error('segmented');
-    expect(align.value).toBe('center');
-    expect(align.options.map((o) => o.icon)).toEqual(['align-left', 'align-center', 'align-right']);
-    const block = field(sheet, 'block');
-    if (block.kind !== 'select') throw new Error('select');
-    expect(block.value).toBe('h2');
-    expect(block.options.map((o) => o.label)).toEqual(['Body', 'Heading', 'Subheading']);
-    const color = field(sheet, 'color');
-    if (color.kind !== 'select') throw new Error('select');
-    expect(color.value).toBe('#30a46c');
-    expect(color.options[0]).toEqual({ id: 'default', label: 'Default' });
-    expect(color.options[1]).toMatchObject({ id: '#e5484d', label: 'Red', swatch: '#e5484d' });
-  });
-
-  it('shows the mixed state as nothing chosen when the blocks disagree', () => {
-    const mixed = setDocAlign(TWO, 'right');
-    (mixed.root as unknown as { children: Array<{ format: string }> }).children[1]!.format = 'left';
-    const sheet = buildTextProperties(
-      { kind: 'text', id: TEXT.id, annotation: { ...TEXT, doc: mixed } },
-      deps()
-    );
-    const align = field(sheet, 'align');
-    expect(align.kind === 'segmented' && align.value).toBeNull();
-    const block = field(sheet, 'block');
-    expect(block.kind === 'select' && block.placeholder).toBe('Mixed');
-  });
-
-  it('routes the whole-box fields through the host, which picks the write path', () => {
-    const d = deps();
-    const sheet = buildTextProperties({ kind: 'text', id: TEXT.id, annotation: TEXT }, d);
-    const align = field(sheet, 'align');
-    if (align.kind !== 'segmented') throw new Error('segmented');
-    align.commit('right');
-    expect(d.setAlign).toHaveBeenCalledWith('right');
-
-    const block = field(sheet, 'block');
-    if (block.kind !== 'select') throw new Error('select');
-    block.commit('h1');
-    expect(d.setBlock).toHaveBeenCalledWith('h1');
-
-    const color = field(sheet, 'color');
-    if (color.kind !== 'select') throw new Error('select');
-    color.commit('default');
-    expect(d.setColor).toHaveBeenCalledWith('');
-    color.commit('#4c9aff');
-    expect(d.setColor).toHaveBeenCalledWith('#4c9aff');
-    // Never a free colour: anything outside the six is dropped.
-    color.commit('#123456');
-    expect(d.setColor).toHaveBeenCalledTimes(2);
-    expect(d.commit).not.toHaveBeenCalled();
   });
 
   it('edits the size as a percentage of the sheet edge, as one entry', () => {

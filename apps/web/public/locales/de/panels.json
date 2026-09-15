@@ -246,11 +246,7 @@
       "title": "Prüfungsfreier Bereich"
     },
     "text": {
-      "changeAlignment": "Textausrichtung ändern",
-      "changeColor": "Textfarbe ändern",
       "changeSize": "Textgröße ändern",
-      "changeStyle": "Textstil ändern",
-      "mixed": "Gemischt",
       "size": "Größe",
       "title": "Text"
     }
@@ -933,7 +929,6 @@
     "addText": "Text hinzufügen",
     "alignCenter": "Zentriert",
     "alignLeft": "Linksbündig",
-    "alignment": "Ausrichtung",
     "alignRight": "Rechtsbündig",
     "blockBody": "Fließtext",
     "blockHeading": "Überschrift",

@@ -1230,6 +1230,11 @@ with **no** bracket — the session's single 'Edit text' entry covers it
 the annotation bracket, so a careless caller cannot double-record. Whole-box
 semantics in both states; the floating toolbar keeps per-selection marks.
 
+*Superseded 2026-09-15 — Decision 17 reversed: the three formatting rows are
+gone from the sheet (they are the editing toolbar's, per selection) and the
+paragraphs above describe a write path that no longer exists. The rows below
+are kept as the record of what was built and removed.*
+
 | Field | Control | Range / options | Storage | Setter | Protocol | Undo label | Support |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `align` | segmented left / center / right (`null` when blocks disagree) | `TextAlign` | per-block `format` in `doc` | idle `setDocAlign(doc, align)`; editing `element.setFormat` on every top-level block | discrete | `panels:cpProperties.text.changeAlignment` 'Change text alignment' | supported |
@@ -1473,6 +1478,18 @@ Each open question, settled, with the rejected alternative and why.
     semantics would not visibly change runs carrying explicit values;
     dispatching `FORMAT_ELEMENT_COMMAND` headlessly has no handler. Colour is
     the six `TEXT_COLORS` swatches, not a free picker.
+    **Reversed 2026-09-15 (Zach's call, after the first review).** With the
+    toolbar's per-selection block, alignment and colour back (Phase H), the
+    pane's whole-box copies of the same three were the confusing part: two
+    controls with one name and two scopes. The text sheet is now box-level only
+    — size and opacity — and the content's formatting follows the caret on the
+    editing toolbar, where a whole-box change is a select-all. The considered
+    alternative, the pane's fields following the caret while editing, would have
+    made the sheet the first whose values come from something other than the
+    workspace store (the editor's selection); deferred, not rejected, until the
+    pane has a second reason to read editor state. `textDocTransforms`, the
+    editor registry and the descriptor-level option icons and swatches went
+    with the fields.
 18. **`editingTextId` lives in a session-only module store that also holds the
     bracket token.** A store field would force `CP_DOCUMENT_SCOPED_KEYS`
     producers and a history-capture decision for a value history must never
@@ -1496,6 +1513,12 @@ Each open question, settled, with the rejected alternative and why.
     that works until you touch the model is the class the oracle exists to
     prevent, so the pre-orbit default-camera flip is dropped and the module's
     comment and test say so.
+    **Both halves reversed later.** Phase H hid `anti_alias` (the web renderer
+    never reads it; a fifth of a pixel of stroke is all it moved), and the merge
+    of main's Style menu made `side` on 3D `unsupported` — shown disabled with
+    the hint "Turn a 3D model with Other side" — per that plan's Decision 2 and
+    this module's own rule that a control which vanishes between figure kinds
+    reads as a bug.
 23. **Inline simulations: the shared simulator settings under a labelled
     section and nothing else; transport, refresh, export and delete stay
     floating; no camera rows; the inspector's colour-mode menu goes.**
@@ -1852,9 +1875,14 @@ Six fixes from Zach's pass over Phases A–F, each browser-verified.
 - [x] The pane gives back the tab it displaced: `usePropertiesPaneActivation` remembers the group's active tab when *it* reveals Properties, subscribes to that group's `onDidActivePanelChange` (fired synchronously by `setActive`, and only for that group's tab — verified against dockview) so a manual tab change ends the reveal, and on a release transition activates the displaced tab, deferred past the pointer gesture like the reveal. A Properties tab the user had on top, or chose after the reveal, stays through a release; a release followed by another object before the pointer comes up flips nothing (`usePropertiesPaneActivation.test.tsx`, a two-tab fake group)
 - [x] The text toolbar's per-selection block preset, alignment and colour are back, beside the marks: `annotations/textSelectionFormatting.ts` (`$readSelectionFormat`, `setSelectionBlock`/`Align`/`Color` — the editor's own idioms, no bracket; `$getSelectionStyleValueForProperty` for the colour rather than a regex on `selection.style`); Radix selects with the companion attribute on their portalled lists, refocusing the editor on close so the next keystroke lands in the text; `'default'` stands in for `''` as in the pane's colour select
 
-Open from the same pass: the pane's alignment/style/colour act on the whole
-box while the toolbar's act on the selection — a design question (whole-box vs
-follow-the-caret while editing), not a bug; decided with Zach before any code.
+- [x] From the same pass, decided with Zach: the pane's alignment / style /
+  colour acted on the whole box while the toolbar's act on the selection. The
+  three are gone from the sheet (Decision 17, reversed); the text sheet is size
+  and opacity. `textDocTransforms` (+ parity test), `textEditorRegistry` (+
+  `RegisterEditorPlugin`, the editor's `id` prop), `PropertyOption.icon` /
+  `.swatch`, `SegmentedControl.iconOnly` and `SelectRowOption.swatch` had no
+  other consumer and are removed; `enumLabels`' text labels stay for the
+  toolbar.
 
 ### Phase G (Rust) — Kernel render-input cache for flat figures
 

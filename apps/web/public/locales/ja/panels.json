@@ -241,11 +241,7 @@
       "title": "チェック抑制領域"
     },
     "text": {
-      "changeAlignment": "テキストの配置を変更",
-      "changeColor": "テキストの色を変更",
       "changeSize": "テキストのサイズを変更",
-      "changeStyle": "テキストのスタイルを変更",
-      "mixed": "混在",
       "size": "サイズ",
       "title": "テキスト"
     }
@@ -903,7 +899,6 @@
     "addText": "テキストを追加",
     "alignCenter": "中央揃え",
     "alignLeft": "左揃え",
-    "alignment": "配置",
     "alignRight": "右揃え",
     "blockBody": "本文",
     "blockHeading": "見出し",

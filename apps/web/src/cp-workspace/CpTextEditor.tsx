@@ -30,7 +30,6 @@ import {
 import { FloatingToolbar } from '../components/ui/FloatingToolbar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/Select';
 import { textAlignLabel, textBlockLabel, textColorLabel } from '../i18n/enumLabels';
-import { registerTextEditor } from './annotations/textEditorRegistry';
 import {
   TEXT_ALIGNS,
   TEXT_BLOCK_PRESETS,
@@ -67,8 +66,6 @@ const LEXICAL_THEME = {
 };
 
 export interface CpTextEditorProps {
-  /** The box under edit, so the editor can register itself by id. */
-  id: string;
   doc: SerializedEditorState;
   /** The edited box, so the toolbar can anchor to it. */
   box: AnnotationBox;
@@ -85,7 +82,6 @@ export interface CpTextEditorProps {
 }
 
 export function CpTextEditor({
-  id,
   doc,
   box,
   container,
@@ -145,17 +141,9 @@ export function CpTextEditor({
       <AutoFocusPlugin />
       <OnChangePlugin onChange={handleChange} ignoreSelectionChange />
       <EscapeExitPlugin onEscape={handleEscape} />
-      <RegisterEditorPlugin id={id} />
       <TextToolbar box={box} container={container} onDelete={onDelete} />
     </LexicalComposer>
   );
-}
-
-/** Lets the Properties pane reach this editor by the box's id — see `textEditorRegistry`. */
-function RegisterEditorPlugin({ id }: { id: string }) {
-  const [editor] = useLexicalComposerContext();
-  useEffect(() => registerTextEditor(id, editor), [id, editor]);
-  return null;
 }
 
 /**

@@ -186,7 +186,6 @@ function TextBox({
     >
       {editing ? (
         <CpTextEditor
-          id={text.id}
           doc={text.doc}
           box={text}
           container={toolbarContainer}

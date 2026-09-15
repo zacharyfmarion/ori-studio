@@ -241,11 +241,7 @@
       "title": "检查抑制区域"
     },
     "text": {
-      "changeAlignment": "更改文本对齐",
-      "changeColor": "更改文本颜色",
       "changeSize": "更改文本大小",
-      "changeStyle": "更改文本样式",
-      "mixed": "混合",
       "size": "大小",
       "title": "文本"
     }
@@ -903,7 +899,6 @@
     "addText": "添加文本",
     "alignCenter": "居中对齐",
     "alignLeft": "左对齐",
-    "alignment": "对齐",
     "alignRight": "右对齐",
     "blockBody": "正文",
     "blockHeading": "标题",

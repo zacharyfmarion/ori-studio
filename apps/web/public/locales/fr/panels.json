@@ -251,11 +251,7 @@
       "title": "Zone de suppression"
     },
     "text": {
-      "changeAlignment": "Modifier l'alignement du texte",
-      "changeColor": "Modifier la couleur du texte",
       "changeSize": "Modifier la taille du texte",
-      "changeStyle": "Modifier le style du texte",
-      "mixed": "Mixte",
       "size": "Taille",
       "title": "Texte"
     }
@@ -967,7 +963,6 @@
     "addText": "Ajouter du texte",
     "alignCenter": "Centrer",
     "alignLeft": "Aligner à gauche",
-    "alignment": "Alignement",
     "alignRight": "Aligner à droite",
     "blockBody": "Corps",
     "blockHeading": "Titre",

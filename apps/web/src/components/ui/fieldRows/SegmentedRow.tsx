@@ -6,8 +6,6 @@ export interface SegmentedRowOption {
   id: string;
   label: string;
   icon?: ReactNode;
-  /** Show the icon alone; the label stays the accessible name and the tooltip. */
-  iconOnly?: boolean;
 }
 
 /**
@@ -40,7 +38,6 @@ export function SegmentedRow({
           value: option.id,
           label: option.label,
           icon: option.icon,
-          iconOnly: option.iconOnly,
         }))}
         value={value}
         disabled={disabled}

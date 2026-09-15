@@ -246,11 +246,7 @@
       "title": "Suppression region"
     },
     "text": {
-      "changeAlignment": "Change text alignment",
-      "changeColor": "Change text color",
       "changeSize": "Change text size",
-      "changeStyle": "Change text style",
-      "mixed": "Mixed",
       "size": "Size",
       "title": "Text"
     }
@@ -933,7 +929,6 @@
     "addText": "Add text",
     "alignCenter": "Align center",
     "alignLeft": "Align left",
-    "alignment": "Alignment",
     "alignRight": "Align right",
     "blockBody": "Body",
     "blockHeading": "Heading",

@@ -251,11 +251,7 @@
       "title": "Región de supresión"
     },
     "text": {
-      "changeAlignment": "Cambiar la alineación del texto",
-      "changeColor": "Cambiar el color del texto",
       "changeSize": "Cambiar el tamaño del texto",
-      "changeStyle": "Cambiar el estilo del texto",
-      "mixed": "Mixto",
       "size": "Tamaño",
       "title": "Texto"
     }
@@ -967,7 +963,6 @@
     "addText": "Añadir texto",
     "alignCenter": "Centrar",
     "alignLeft": "Alinear a la izquierda",
-    "alignment": "Alineación",
     "alignRight": "Alinear a la derecha",
     "blockBody": "Cuerpo",
     "blockHeading": "Encabezado",

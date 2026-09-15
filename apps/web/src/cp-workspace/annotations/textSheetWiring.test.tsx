@@ -1,7 +1,6 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { $getRoot, $isElementNode } from 'lexical';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDocument';
@@ -11,22 +10,20 @@ import { cpOverlayViewStore } from '../cpOverlayViewStore';
 import { endOpenCanvasSessions } from '../canvasObjects/canvasSessions';
 import { annotationGesture } from './annotationGesture';
 import { createTextAnnotation, textDocFromPlainText } from './textAnnotation';
-import { textDocSummary } from './textDocTransforms';
 import {
   beginTextEditSession,
   endTextEditSession,
   resetTextEditSessionForTests,
   textEditSession,
 } from './textEditSession';
-import { resetTextEditorRegistryForTests, textEditorFor } from './textEditorRegistry';
 
 /**
  * The text sheet's two write paths, wired: the live editor beside the pane
- * the way the canvas mounts them. Idle, a whole-box change is one entry on
- * the stored doc; while the box is being edited, the same change drives the
- * editor, leaves the session open, and lands in the session's one 'Edit
- * text' entry on exit. An undo from the menu bar mid-session commits the
- * session first, so the step undoes it.
+ * the way the canvas mounts them. Idle, a box-level change is one entry
+ * through the layer's bracket; while the box is being edited, the same change
+ * writes inside the session, leaves it open, and lands in its one 'Edit text'
+ * entry on exit. An undo from the menu bar mid-session commits the session
+ * first, so the step undoes it.
  */
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -76,11 +73,6 @@ function mount(editingId: string | null) {
   act(() => root?.render(<Surfaces editingId={editingId} />));
 }
 
-const alignButton = (label: string) =>
-  [...(host?.querySelectorAll<HTMLButtonElement>('.cp-properties-panel .segmented__option') ?? [])].find(
-    (button) => button.getAttribute('aria-label') === label
-  );
-
 const opacitySlider = () =>
   [...(host?.querySelectorAll<HTMLInputElement>('.cp-properties-panel input[type="range"]') ?? [])].find(
     (input) => input.getAttribute('aria-label') === 'Opacity'
@@ -102,7 +94,6 @@ const storedText = (id: string) => {
   if (!annotation || annotation.kind !== 'text') throw new Error('no text box');
   return annotation;
 };
-const storedDoc = (id: string) => storedText(id).doc;
 
 const BOX = createTextAnnotation({
   id: 'text-1',
@@ -112,7 +103,6 @@ const BOX = createTextAnnotation({
 
 beforeEach(() => {
   resetTextEditSessionForTests();
-  resetTextEditorRegistryForTests();
   annotationGesture.abortAll();
   cpOverlayViewStore.set({ model: VIEW, user: VIEW });
   useWorkspaceStore.setState(
@@ -140,54 +130,11 @@ afterEach(() => {
   root = null;
   host = null;
   resetTextEditSessionForTests();
-  resetTextEditorRegistryForTests();
   annotationGesture.abortAll();
   useWorkspaceStore.setState(initialState, true);
 });
 
 describe('the text sheet', () => {
-  it('aligns an idle box on the stored document, as one entry', async () => {
-    mount(null);
-    expect(textDocSummary(storedDoc(BOX.id)).align).toBe('left');
-
-    await act(async () => alignButton('Align center')?.click());
-
-    expect(textDocSummary(storedDoc(BOX.id)).align).toBe('center');
-    expect(history()).toHaveLength(1);
-    expect(history()[0]?.label).toBe('Change text alignment');
-    expect(textEditSession()).toBeNull();
-  });
-
-  it('aligns a box under edit in its editor, inside the session’s entry', async () => {
-    act(() => {
-      beginTextEditSession(BOX.id, false);
-    });
-    mount(BOX.id);
-    const editor = textEditorFor(BOX.id);
-    expect(editor).not.toBeNull();
-    expect(annotationGesture.openOwner()).toBe('text-session');
-
-    await act(async () => alignButton('Align right')?.click());
-
-    // The editor changed, the store followed through OnChangePlugin, and the
-    // session is still open with nothing recorded yet.
-    const formats: string[] = [];
-    editor?.getEditorState().read(() => {
-      for (const block of $getRoot().getChildren()) {
-        if ($isElementNode(block)) formats.push(block.getFormatType());
-      }
-    });
-    expect(formats).toEqual(['right']);
-    expect(textDocSummary(storedDoc(BOX.id)).align).toBe('right');
-    expect(textEditSession()?.id).toBe(BOX.id);
-    expect(history()).toHaveLength(0);
-
-    await act(async () => endTextEditSession('blur'));
-    expect(history()).toHaveLength(1);
-    expect(history()[0]?.label).toBe('Edit text');
-    expect(annotationGesture.openOwner()).toBeNull();
-  });
-
   it('fades an idle box through the layer’s bracket, as one entry', async () => {
     mount(null);
     const slider = opacitySlider();
@@ -233,7 +180,7 @@ describe('the text sheet', () => {
       beginTextEditSession(BOX.id, false);
     });
     mount(BOX.id);
-    await act(async () => alignButton('Align center')?.click());
+    await act(async () => dragSlider(opacitySlider()!, 0.5));
     expect(history()).toHaveLength(0);
 
     await act(async () => endOpenCanvasSessions('history'));
