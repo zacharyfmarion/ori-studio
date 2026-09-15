@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
-import { handleShortcutKeyDown } from './shortcutDispatcher';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { handleShortcutKeyDown, isOpenLayerTarget } from './shortcutDispatcher';
 import { SHORTCUT_DEFINITIONS } from './shortcuts';
 
 describe('shortcut dispatcher', () => {
@@ -225,5 +225,60 @@ describe('simulator scope', () => {
     });
 
     expect(cpAction).toHaveBeenCalledWith(cpActionFor('f'));
+  });
+});
+
+describe('an open layer owns its keys', () => {
+  function mount(html: string) {
+    const host = document.body.appendChild(document.createElement('div'));
+    host.innerHTML = html;
+    return host;
+  }
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('reads the ancestry of the target, not the document', () => {
+    const host = mount(
+      '<div role="menu"><div role="menuitem" id="item"></div></div>' +
+        '<div data-radix-popper-content-wrapper=""><div role="option" id="option"></div></div>' +
+        '<div id="canvas" tabindex="0"></div>'
+    );
+
+    expect(isOpenLayerTarget(host.querySelector('#item'))).toBe(true);
+    expect(isOpenLayerTarget(host.querySelector('#option'))).toBe(true);
+    // A layer is open somewhere, but this key is not aimed at it.
+    expect(isOpenLayerTarget(host.querySelector('#canvas'))).toBe(false);
+    expect(isOpenLayerTarget(document.body)).toBe(false);
+  });
+
+  it('answers no for a non-element target', () => {
+    expect(isOpenLayerTarget(window)).toBe(false);
+    expect(isOpenLayerTarget(document)).toBe(false);
+    expect(isOpenLayerTarget(null)).toBe(false);
+  });
+
+  it('declines a chord typed into an open menu', () => {
+    const host = mount('<div role="menu"><div role="menuitem" tabindex="-1"></div></div>');
+    const item = host.querySelector('[role="menuitem"]') as HTMLElement;
+    const cpAction = vi.fn();
+    const event = new KeyboardEvent('keydown', {
+      key: 'b',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    Object.defineProperty(event, 'target', { value: item });
+
+    expect(
+      handleShortcutKeyDown(event, {
+        scopeStack: ['crease-pattern', 'global'],
+        executors: { cpAction },
+      })
+    ).toBe(false);
+
+    expect(cpAction).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
   });
 });

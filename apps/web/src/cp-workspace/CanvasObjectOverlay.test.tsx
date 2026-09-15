@@ -77,6 +77,58 @@ function bodyPolygon(): SVGPolygonElement | null {
   return container?.querySelector('polygon') ?? null;
 }
 
+describe('CanvasObjectOverlay Escape', () => {
+  function pressEscape(target: EventTarget, init: KeyboardEventInit = {}) {
+    const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true, ...init });
+    act(() => void target.dispatchEvent(event));
+    return event;
+  }
+
+  it('deselects from the canvas, even though the runtime claimed the key first', () => {
+    // `viewport.cancel` claims every canvas Escape ahead of this listener and
+    // never deselects a canvas object itself, so `defaultPrevented` is the
+    // normal state of the key when it arrives here — not a reason to yield.
+    const onSelect = vi.fn();
+    render({ onSelect });
+    const canvas = document.body.appendChild(document.createElement('div'));
+    canvas.tabIndex = 0;
+
+    const event = pressEscape(canvas);
+    event.preventDefault();
+    pressEscape(canvas);
+
+    expect(onSelect).toHaveBeenCalledTimes(2);
+    expect(onSelect).toHaveBeenLastCalledWith(null);
+    canvas.remove();
+  });
+
+  it('leaves Escape aimed into an open layer to the layer', () => {
+    // The object's own context menu: Radix dismisses it on Escape, and the
+    // object it was about has to still be selected afterwards.
+    const onSelect = vi.fn();
+    render({ onSelect });
+    const menu = document.body.appendChild(document.createElement('div'));
+    menu.setAttribute('role', 'menu');
+    menu.tabIndex = -1;
+
+    pressEscape(menu);
+
+    expect(onSelect).not.toHaveBeenCalled();
+    menu.remove();
+  });
+
+  it('leaves Escape in a text field to the field', () => {
+    const onSelect = vi.fn();
+    render({ onSelect });
+    const input = document.body.appendChild(document.createElement('input'));
+
+    pressEscape(input);
+
+    expect(onSelect).not.toHaveBeenCalled();
+    input.remove();
+  });
+});
+
 describe('CanvasObjectOverlay body interactivity', () => {
   it('takes pointer events on an ordinary object', () => {
     render();

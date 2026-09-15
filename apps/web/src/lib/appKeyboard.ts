@@ -1,7 +1,7 @@
 import { selectionSize } from './selection';
 import type { Selection } from './sampleProject';
 import type { EditingContext } from '../workspaces/editingContext';
-import { isShortcutEditingTarget } from '../keyboard/shortcutDispatcher';
+import { isOpenLayerTarget, isShortcutEditingTarget } from '../keyboard/shortcutDispatcher';
 import { handleShortcutRuntimeKeyDown } from '../keyboard/shortcutRuntime';
 import type { ShortcutDefaultsSource, ShortcutOverrides } from '../keyboard/shortcuts';
 
@@ -24,7 +24,17 @@ export interface AppKeyboardActions {
 }
 
 export function handleAppKeyDown(event: KeyboardEvent, actions: AppKeyboardActions): boolean {
-  if (event.defaultPrevented || isShortcutEditingTarget(event.target)) return false;
+  // A key typed into an input, or into an open menu, is not a shortcut. The
+  // runtime asks the same of its own callers, but the deselect fallback below
+  // is this function's alone: without the layer check here, Escape aimed at a
+  // context menu would still clear the project selection behind it.
+  if (
+    event.defaultPrevented ||
+    isShortcutEditingTarget(event.target) ||
+    isOpenLayerTarget(event.target)
+  ) {
+    return false;
+  }
 
   // The runtime is asked first, always. It used to be asked second, behind a
   // branch that handed Escape to the project-selection deselect for every
