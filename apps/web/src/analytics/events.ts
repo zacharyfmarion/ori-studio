@@ -576,6 +576,18 @@ export const ANALYTICS_EVENTS = {
    */
   viewDrawerOpened: 'view drawer opened',
   /**
+   * A property of a selected canvas object was changed from the Properties
+   * pane.
+   *
+   * The pane is the first surface that edits every canvas-object kind through
+   * one renderer, so this is what says whether people edit there rather than on
+   * the floating toolbars and menus that still exist — the question adding a
+   * second surface for the same edits raises. Once per recorded change, never
+   * per input event. `object_kind` is the kind table's key and `property` the
+   * field's id: enums by construction, never a value.
+   */
+  canvasObjectPropertyChanged: 'canvas object property changed',
+  /**
    * The phone layout's tool sheet was opened.
    *
    * Phone-only, because that layout is the only one without a tool rail — so

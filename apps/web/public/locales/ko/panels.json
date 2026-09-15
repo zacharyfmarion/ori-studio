@@ -214,7 +214,25 @@
   "cpProperties": {
     "empty": "캔버스에서 개체를 선택하면 속성을 편집할 수 있습니다.",
     "folded": {
-      "changeView": "접힌 모델 보기 변경"
+      "appearance": "모양",
+      "changeView": "접힌 모델 보기 변경",
+      "displayStyle": "표시 스타일",
+      "refoldToChange": "이 모델의 모양을 바꾸려면 다시 접으세요"
+    },
+    "image": {
+      "rotation": "회전",
+      "title": "이미지"
+    },
+    "inlineSimulation": {
+      "settings": "시뮬레이터 설정",
+      "sharedNote": "시뮬레이트 작업 공간 및 모든 창과 공유됨",
+      "title": "시뮬레이션 창"
+    },
+    "region": {
+      "title": "검사 억제 영역"
+    },
+    "text": {
+      "title": "텍스트"
     }
   },
   "cpRegion": {

@@ -219,7 +219,25 @@
   "cpProperties": {
     "empty": "Select an object on the canvas to edit its properties.",
     "folded": {
-      "changeView": "Change folded model view"
+      "appearance": "Appearance",
+      "changeView": "Change folded model view",
+      "displayStyle": "Display style",
+      "refoldToChange": "Refold to change how this figure looks"
+    },
+    "image": {
+      "rotation": "Rotation",
+      "title": "Image"
+    },
+    "inlineSimulation": {
+      "settings": "Simulator settings",
+      "sharedNote": "Shared with the Simulate workspace and every window",
+      "title": "Simulation window"
+    },
+    "region": {
+      "title": "Suppression region"
+    },
+    "text": {
+      "title": "Text"
     }
   },
   "cpRegion": {

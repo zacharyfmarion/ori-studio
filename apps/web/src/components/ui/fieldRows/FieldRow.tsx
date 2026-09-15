@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { RotateCcw } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * The label-left / control-right row every options pane is built from.
@@ -20,6 +22,7 @@ export function FieldRow({
   disabled = false,
   title,
   className,
+  onReset,
   children,
 }: {
   label: string;
@@ -30,8 +33,15 @@ export function FieldRow({
   /** Why the row is disabled, shown on hover; the row itself carries it, not the control. */
   title?: string;
   className?: string;
+  /**
+   * Put the value back to its default. Rendered as the trailing affordance
+   * `ColorField.onClear` has — a reset is a property edit like any other, so
+   * it sits with the control rather than in a header.
+   */
+  onReset?: () => void;
   children: ReactNode;
 }) {
+  const { t } = useTranslation();
   const rowClass = ['control-row', className].filter(Boolean).join(' ');
   return (
     <div className={rowClass} data-disabled={disabled || undefined} title={title}>
@@ -42,7 +52,21 @@ export function FieldRow({
       ) : (
         <span className="control-row__label">{label}</span>
       )}
-      <div className={`control-row__value control-row__value--${kind}`}>{children}</div>
+      <div className={`control-row__value control-row__value--${kind}`}>
+        {children}
+        {onReset && (
+          <button
+            type="button"
+            className="control-row__reset"
+            title={t('common:colorField.reset', 'Reset to default')}
+            aria-label={t('common:colorField.resetNamed', 'Reset {{label}} to default', { label })}
+            disabled={disabled}
+            onClick={onReset}
+          >
+            <RotateCcw size={11} />
+          </button>
+        )}
+      </div>
     </div>
   );
 }

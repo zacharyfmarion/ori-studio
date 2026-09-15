@@ -20,6 +20,7 @@ export function SliderRow({
   onGestureStart,
   onGestureCommit,
   commitLabel,
+  onReset,
 }: {
   label: string;
   value: number;
@@ -31,12 +32,14 @@ export function SliderRow({
   /** The readout beside the thumb; defaults to the value with the step's decimals. */
   format?: (value: number) => string;
   onChange: (value: number) => void;
-  onGestureStart?: () => void;
+  /** Opens the caller's undo bracket; `false` refuses the drag (see `GestureSlider`). */
+  onGestureStart?: () => boolean | void;
   onGestureCommit?: (label: string) => void;
   commitLabel?: string;
+  onReset?: () => void;
 }) {
   return (
-    <FieldRow label={label} kind="slider" disabled={disabled} title={title}>
+    <FieldRow label={label} kind="slider" disabled={disabled} title={title} onReset={onReset}>
       <GestureSlider
         aria-label={label}
         min={min}

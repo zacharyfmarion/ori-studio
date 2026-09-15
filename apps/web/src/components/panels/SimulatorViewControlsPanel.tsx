@@ -11,6 +11,7 @@ import {
   type SimulatorNumericSettingKey,
   type SimulatorSettings,
 } from '../../lib/simulatorSettings';
+import { simulatorColorModeLabel, simulatorCreaseStyleLabel } from '../../i18n/enumLabels';
 import { simulatorStyleDefaults } from '../../simulator/simulatorPalette';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useThemeStore } from '../../store/themeStore';
@@ -19,17 +20,6 @@ import { ColorField } from '../ui/ColorField';
 import { SelectRow, SliderRow, ToggleRow } from '../ui/fieldRows';
 
 // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
-function creaseStyleLabel(value: SimulatorCreaseStyle, t: TFunction): string {
-  switch (value) {
-    case 'color':
-      return t('panels:simulatorViewControls.creaseStyleColor', 'Mountain / valley');
-    case 'mono':
-      return t('panels:simulatorViewControls.creaseStyleMono', 'One ink');
-    case 'mono-dashed':
-      return t('panels:simulatorViewControls.creaseStyleMonoDashed', 'One ink, dashed');
-  }
-}
-
 function exportBackgroundLabel(value: SimulatorExportBackground, t: TFunction): string {
   switch (value) {
     case 'transparent':
@@ -96,10 +86,10 @@ export function SimulatorViewControlsPanel() {
           <SelectRow
             label={t('panels:simulatorViewControls.colorMode', 'Colour')}
             value={settings.colorMode}
-            options={[
-              { id: 'paper', label: t('panels:simulatorViewControls.colorPaper', 'Paper') },
-              { id: 'strain', label: t('panels:simulatorViewControls.colorStrain', 'Strain') },
-            ]}
+            options={(['paper', 'strain'] as const).map((mode) => ({
+              id: mode,
+              label: simulatorColorModeLabel(t, mode),
+            }))}
             onChange={(value) => setSetting('colorMode', value as SimulatorSettings['colorMode'])}
           />
           {settings.colorMode === 'strain' && (
@@ -178,7 +168,7 @@ export function SimulatorViewControlsPanel() {
             value={settings.creaseStyle}
             options={SIMULATOR_CREASE_STYLES.map((value) => ({
               id: value,
-              label: creaseStyleLabel(value, t),
+              label: simulatorCreaseStyleLabel(t, value),
             }))}
             onChange={(value) => setSetting('creaseStyle', value as SimulatorCreaseStyle)}
           />

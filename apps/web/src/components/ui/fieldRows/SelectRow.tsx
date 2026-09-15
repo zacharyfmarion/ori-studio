@@ -22,6 +22,7 @@ export function SelectRow({
   disabled,
   title,
   onChange,
+  onReset,
   contentProps,
 }: {
   label: string;
@@ -31,10 +32,11 @@ export function SelectRow({
   disabled?: boolean;
   title?: string;
   onChange: (value: string) => void;
+  onReset?: () => void;
   contentProps?: Omit<ComponentPropsWithoutRef<typeof SelectContent>, 'children'>;
 }) {
   return (
-    <FieldRow label={label} kind="select" disabled={disabled} title={title}>
+    <FieldRow label={label} kind="select" disabled={disabled} title={title} onReset={onReset}>
       <Select value={value ?? ''} onValueChange={onChange} disabled={disabled}>
         <SelectTrigger aria-label={label} className="control-row__select">
           <SelectValue placeholder={placeholder} />

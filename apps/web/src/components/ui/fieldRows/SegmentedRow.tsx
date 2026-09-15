@@ -20,6 +20,7 @@ export function SegmentedRow({
   disabled,
   title,
   onChange,
+  onReset,
 }: {
   label: string;
   value: string | null;
@@ -27,9 +28,10 @@ export function SegmentedRow({
   disabled?: boolean;
   title?: string;
   onChange: (value: string) => void;
+  onReset?: () => void;
 }) {
   return (
-    <FieldRow label={label} kind="segmented" disabled={disabled} title={title}>
+    <FieldRow label={label} kind="segmented" disabled={disabled} title={title} onReset={onReset}>
       <SegmentedControl
         aria-label={label}
         options={options.map((option) => ({

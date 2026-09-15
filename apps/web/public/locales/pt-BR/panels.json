@@ -224,7 +224,25 @@
   "cpProperties": {
     "empty": "Selecione um objeto na tela para editar suas propriedades.",
     "folded": {
-      "changeView": "Alterar a vista do modelo dobrado"
+      "appearance": "Aparência",
+      "changeView": "Alterar a vista do modelo dobrado",
+      "displayStyle": "Estilo de exibição",
+      "refoldToChange": "Dobre novamente para alterar a aparência deste modelo"
+    },
+    "image": {
+      "rotation": "Rotação",
+      "title": "Imagem"
+    },
+    "inlineSimulation": {
+      "settings": "Configurações do simulador",
+      "sharedNote": "Compartilhadas com o espaço de trabalho Simular e todas as janelas",
+      "title": "Janela de simulação"
+    },
+    "region": {
+      "title": "Região de supressão"
+    },
+    "text": {
+      "title": "Texto"
     }
   },
   "cpRegion": {

@@ -11,6 +11,7 @@ import { handleMenuAction } from '../../commands/menuActions';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { isTextAnnotation, type CanvasAnnotation } from '../annotations/annotation';
 import type { CpImagePlacement } from '../annotations/useCpAnnotations';
+import { resolveCanvasObjectById } from '../canvasObjects/canvasObjectKinds';
 import type { FoldedFigureActionDeps } from '../folded/foldedFigureActions';
 import { foldedFigureMenuItemsWith } from '../folded/foldedFigureMenuItems';
 import type { CpContextMenuRequest } from '../contextMenuTarget';
@@ -217,13 +218,28 @@ export function useCpCanvasContextMenu(
 
   const onCanvasObjectContextMenu = useCallback(
     (id: string, clientX: number, clientY: number) => {
-      if (openFoldedFigureMenu(id, clientX, clientY)) return;
-      const annotation = annotations.annotations.find((candidate) => candidate.id === id);
-      // An inline simulation window falls through with no menu: its verbs live
-      // on its own inspector, which the window already carries.
-      if (annotation) openAnnotationMenu(annotation, clientX, clientY);
+      // Dispatched by kind through the kind table, so an id of a kind this
+      // menu does not know is a typecheck error here rather than a silent
+      // fall-through. A window gets no menu: its verbs live on its own
+      // inspector, which the window already carries. A region's body is inert
+      // to the overlay, so its clause is never reached today; its rows arrive
+      // with the layer bindings.
+      const target = resolveCanvasObjectById(useWorkspaceStore.getState(), id);
+      if (!target) return;
+      switch (target.kind) {
+        case 'folded-figure':
+          openFoldedFigureMenu(target.id, clientX, clientY);
+          return;
+        case 'image':
+        case 'text':
+          openAnnotationMenu(target.annotation, clientX, clientY);
+          return;
+        case 'suppressionRegion':
+        case 'inline-simulation':
+          return;
+      }
     },
-    [annotations.annotations, openAnnotationMenu, openFoldedFigureMenu]
+    [openAnnotationMenu, openFoldedFigureMenu]
   );
 
   const openFromKeyboard = useCallback(

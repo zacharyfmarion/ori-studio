@@ -2820,7 +2820,17 @@
     "panels:creasePattern.bringTextToFront": "313606ad8065",
     "panels:creasePattern.sendTextToBack": "b7daf246cded",
     "panels:sidePane.properties": "ae43692b2a31",
-    "panels:sidePane.view": "dcc839a4015c"
+    "panels:sidePane.view": "dcc839a4015c",
+    "panels:cpProperties.folded.appearance": "3907fa7f8072",
+    "panels:cpProperties.folded.displayStyle": "d084240fc2f2",
+    "panels:cpProperties.folded.refoldToChange": "eaed6e6d372d",
+    "panels:cpProperties.image.rotation": "57b5e2fc1bba",
+    "panels:cpProperties.image.title": "1aa4cb0bcca7",
+    "panels:cpProperties.inlineSimulation.settings": "b947e36a9000",
+    "panels:cpProperties.inlineSimulation.sharedNote": "f69602296ccb",
+    "panels:cpProperties.inlineSimulation.title": "064e882226c3",
+    "panels:cpProperties.region.title": "a020d7e066bc",
+    "panels:cpProperties.text.title": "71988c4d8e08"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5643,7 +5653,17 @@
     "panels:creasePattern.bringTextToFront": "313606ad8065",
     "panels:creasePattern.sendTextToBack": "b7daf246cded",
     "panels:sidePane.properties": "ae43692b2a31",
-    "panels:sidePane.view": "dcc839a4015c"
+    "panels:sidePane.view": "dcc839a4015c",
+    "panels:cpProperties.folded.appearance": "3907fa7f8072",
+    "panels:cpProperties.folded.displayStyle": "d084240fc2f2",
+    "panels:cpProperties.folded.refoldToChange": "eaed6e6d372d",
+    "panels:cpProperties.image.rotation": "57b5e2fc1bba",
+    "panels:cpProperties.image.title": "1aa4cb0bcca7",
+    "panels:cpProperties.inlineSimulation.settings": "b947e36a9000",
+    "panels:cpProperties.inlineSimulation.sharedNote": "f69602296ccb",
+    "panels:cpProperties.inlineSimulation.title": "064e882226c3",
+    "panels:cpProperties.region.title": "a020d7e066bc",
+    "panels:cpProperties.text.title": "71988c4d8e08"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8466,7 +8486,17 @@
     "panels:creasePattern.bringTextToFront": "313606ad8065",
     "panels:creasePattern.sendTextToBack": "b7daf246cded",
     "panels:sidePane.properties": "ae43692b2a31",
-    "panels:sidePane.view": "dcc839a4015c"
+    "panels:sidePane.view": "dcc839a4015c",
+    "panels:cpProperties.folded.appearance": "3907fa7f8072",
+    "panels:cpProperties.folded.displayStyle": "d084240fc2f2",
+    "panels:cpProperties.folded.refoldToChange": "eaed6e6d372d",
+    "panels:cpProperties.image.rotation": "57b5e2fc1bba",
+    "panels:cpProperties.image.title": "1aa4cb0bcca7",
+    "panels:cpProperties.inlineSimulation.settings": "b947e36a9000",
+    "panels:cpProperties.inlineSimulation.sharedNote": "f69602296ccb",
+    "panels:cpProperties.inlineSimulation.title": "064e882226c3",
+    "panels:cpProperties.region.title": "a020d7e066bc",
+    "panels:cpProperties.text.title": "71988c4d8e08"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11238,7 +11268,17 @@
     "panels:creasePattern.bringTextToFront": "313606ad8065",
     "panels:creasePattern.sendTextToBack": "b7daf246cded",
     "panels:sidePane.properties": "ae43692b2a31",
-    "panels:sidePane.view": "dcc839a4015c"
+    "panels:sidePane.view": "dcc839a4015c",
+    "panels:cpProperties.folded.appearance": "3907fa7f8072",
+    "panels:cpProperties.folded.displayStyle": "d084240fc2f2",
+    "panels:cpProperties.folded.refoldToChange": "eaed6e6d372d",
+    "panels:cpProperties.image.rotation": "57b5e2fc1bba",
+    "panels:cpProperties.image.title": "1aa4cb0bcca7",
+    "panels:cpProperties.inlineSimulation.settings": "b947e36a9000",
+    "panels:cpProperties.inlineSimulation.sharedNote": "f69602296ccb",
+    "panels:cpProperties.inlineSimulation.title": "064e882226c3",
+    "panels:cpProperties.region.title": "a020d7e066bc",
+    "panels:cpProperties.text.title": "71988c4d8e08"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14010,7 +14050,17 @@
     "panels:creasePattern.bringTextToFront": "313606ad8065",
     "panels:creasePattern.sendTextToBack": "b7daf246cded",
     "panels:sidePane.properties": "ae43692b2a31",
-    "panels:sidePane.view": "dcc839a4015c"
+    "panels:sidePane.view": "dcc839a4015c",
+    "panels:cpProperties.folded.appearance": "3907fa7f8072",
+    "panels:cpProperties.folded.displayStyle": "d084240fc2f2",
+    "panels:cpProperties.folded.refoldToChange": "eaed6e6d372d",
+    "panels:cpProperties.image.rotation": "57b5e2fc1bba",
+    "panels:cpProperties.image.title": "1aa4cb0bcca7",
+    "panels:cpProperties.inlineSimulation.settings": "b947e36a9000",
+    "panels:cpProperties.inlineSimulation.sharedNote": "f69602296ccb",
+    "panels:cpProperties.inlineSimulation.title": "064e882226c3",
+    "panels:cpProperties.region.title": "a020d7e066bc",
+    "panels:cpProperties.text.title": "71988c4d8e08"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -16833,7 +16883,17 @@
     "panels:creasePattern.bringTextToFront": "313606ad8065",
     "panels:creasePattern.sendTextToBack": "b7daf246cded",
     "panels:sidePane.properties": "ae43692b2a31",
-    "panels:sidePane.view": "dcc839a4015c"
+    "panels:sidePane.view": "dcc839a4015c",
+    "panels:cpProperties.folded.appearance": "3907fa7f8072",
+    "panels:cpProperties.folded.displayStyle": "d084240fc2f2",
+    "panels:cpProperties.folded.refoldToChange": "eaed6e6d372d",
+    "panels:cpProperties.image.rotation": "57b5e2fc1bba",
+    "panels:cpProperties.image.title": "1aa4cb0bcca7",
+    "panels:cpProperties.inlineSimulation.settings": "b947e36a9000",
+    "panels:cpProperties.inlineSimulation.sharedNote": "f69602296ccb",
+    "panels:cpProperties.inlineSimulation.title": "064e882226c3",
+    "panels:cpProperties.region.title": "a020d7e066bc",
+    "panels:cpProperties.text.title": "71988c4d8e08"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -19656,7 +19716,17 @@
     "panels:creasePattern.bringTextToFront": "313606ad8065",
     "panels:creasePattern.sendTextToBack": "b7daf246cded",
     "panels:sidePane.properties": "ae43692b2a31",
-    "panels:sidePane.view": "dcc839a4015c"
+    "panels:sidePane.view": "dcc839a4015c",
+    "panels:cpProperties.folded.appearance": "3907fa7f8072",
+    "panels:cpProperties.folded.displayStyle": "d084240fc2f2",
+    "panels:cpProperties.folded.refoldToChange": "eaed6e6d372d",
+    "panels:cpProperties.image.rotation": "57b5e2fc1bba",
+    "panels:cpProperties.image.title": "1aa4cb0bcca7",
+    "panels:cpProperties.inlineSimulation.settings": "b947e36a9000",
+    "panels:cpProperties.inlineSimulation.sharedNote": "f69602296ccb",
+    "panels:cpProperties.inlineSimulation.title": "064e882226c3",
+    "panels:cpProperties.region.title": "a020d7e066bc",
+    "panels:cpProperties.text.title": "71988c4d8e08"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -22428,6 +22498,16 @@
     "panels:creasePattern.bringTextToFront": "313606ad8065",
     "panels:creasePattern.sendTextToBack": "b7daf246cded",
     "panels:sidePane.properties": "ae43692b2a31",
-    "panels:sidePane.view": "dcc839a4015c"
+    "panels:sidePane.view": "dcc839a4015c",
+    "panels:cpProperties.folded.appearance": "3907fa7f8072",
+    "panels:cpProperties.folded.displayStyle": "d084240fc2f2",
+    "panels:cpProperties.folded.refoldToChange": "eaed6e6d372d",
+    "panels:cpProperties.image.rotation": "57b5e2fc1bba",
+    "panels:cpProperties.image.title": "1aa4cb0bcca7",
+    "panels:cpProperties.inlineSimulation.settings": "b947e36a9000",
+    "panels:cpProperties.inlineSimulation.sharedNote": "f69602296ccb",
+    "panels:cpProperties.inlineSimulation.title": "064e882226c3",
+    "panels:cpProperties.region.title": "a020d7e066bc",
+    "panels:cpProperties.text.title": "71988c4d8e08"
   }
 }

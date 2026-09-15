@@ -219,7 +219,25 @@
   "cpProperties": {
     "empty": "Wählen Sie ein Objekt auf der Leinwand aus, um seine Eigenschaften zu bearbeiten.",
     "folded": {
-      "changeView": "Ansicht des gefalteten Modells ändern"
+      "appearance": "Darstellung",
+      "changeView": "Ansicht des gefalteten Modells ändern",
+      "displayStyle": "Anzeigestil",
+      "refoldToChange": "Neu falten, um das Aussehen dieses Modells zu ändern"
+    },
+    "image": {
+      "rotation": "Drehung",
+      "title": "Bild"
+    },
+    "inlineSimulation": {
+      "settings": "Simulator-Einstellungen",
+      "sharedNote": "Gemeinsam mit dem Simulieren-Arbeitsbereich und allen Fenstern",
+      "title": "Simulationsfenster"
+    },
+    "region": {
+      "title": "Prüfungsfreier Bereich"
+    },
+    "text": {
+      "title": "Text"
     }
   },
   "cpRegion": {

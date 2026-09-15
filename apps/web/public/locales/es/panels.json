@@ -224,7 +224,25 @@
   "cpProperties": {
     "empty": "Selecciona un objeto en el lienzo para editar sus propiedades.",
     "folded": {
-      "changeView": "Cambiar la vista del modelo plegado"
+      "appearance": "Apariencia",
+      "changeView": "Cambiar la vista del modelo plegado",
+      "displayStyle": "Estilo de visualización",
+      "refoldToChange": "Vuelve a plegar para cambiar el aspecto de este modelo"
+    },
+    "image": {
+      "rotation": "Rotación",
+      "title": "Imagen"
+    },
+    "inlineSimulation": {
+      "settings": "Ajustes del simulador",
+      "sharedNote": "Compartidos con el espacio de trabajo Simular y con todas las ventanas",
+      "title": "Ventana de simulación"
+    },
+    "region": {
+      "title": "Región de supresión"
+    },
+    "text": {
+      "title": "Texto"
     }
   },
   "cpRegion": {

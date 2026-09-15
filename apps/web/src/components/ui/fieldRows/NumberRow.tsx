@@ -18,6 +18,7 @@ export function NumberRow({
   title,
   normalize,
   onCommit,
+  onReset,
 }: {
   label: string;
   value: number;
@@ -29,10 +30,18 @@ export function NumberRow({
   title?: string;
   normalize?: (value: number) => number;
   onCommit: (value: number) => void;
+  onReset?: () => void;
 }) {
   const inputId = useId();
   return (
-    <FieldRow label={label} htmlFor={inputId} kind="input" disabled={disabled} title={title}>
+    <FieldRow
+      label={label}
+      htmlFor={inputId}
+      kind="input"
+      disabled={disabled}
+      title={title}
+      onReset={onReset}
+    >
       <NumberField
         id={inputId}
         label={label}

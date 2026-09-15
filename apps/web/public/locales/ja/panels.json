@@ -214,7 +214,25 @@
   "cpProperties": {
     "empty": "キャンバス上のオブジェクトを選択すると、そのプロパティを編集できます。",
     "folded": {
-      "changeView": "折り上がりモデルの視点を変更"
+      "appearance": "外観",
+      "changeView": "折り上がりモデルの視点を変更",
+      "displayStyle": "表示スタイル",
+      "refoldToChange": "この図の見た目を変えるには折り直してください"
+    },
+    "image": {
+      "rotation": "回転",
+      "title": "画像"
+    },
+    "inlineSimulation": {
+      "settings": "シミュレーター設定",
+      "sharedNote": "シミュレートワークスペースとすべてのウィンドウで共有",
+      "title": "シミュレーションウィンドウ"
+    },
+    "region": {
+      "title": "チェック抑制領域"
+    },
+    "text": {
+      "title": "テキスト"
     }
   },
   "cpRegion": {

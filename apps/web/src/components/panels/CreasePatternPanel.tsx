@@ -151,14 +151,14 @@ import { CreaseAnglePopover } from '../../cp-workspace/foldAngle/CreaseAnglePopo
 import { useVertexSolve } from '../../cp-workspace/foldAngleSolve/useVertexSolve';
 import { usePropagationDraft } from '../../cp-workspace/foldPropagation/usePropagationDraft';
 import { CpToolOptionLayer } from '../../cp-workspace/toolOptions/CpToolOptionLayer';
-import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
+import { CpFloatingInspectors } from '../../cp-workspace/canvasObjects/CpFloatingInspectors';
+import { useSelectedCanvasObject } from '../../cp-workspace/canvasObjects/useSelectedCanvasObject';
+import { usePropertiesPaneActivation } from '../../cp-workspace/properties/usePropertiesPaneActivation';
 import { CpSelectionToolbar } from '../../cp-workspace/CpSelectionToolbar';
-import { CpFoldedFigureToolbar } from '../../cp-workspace/folded/CpFoldedFigureToolbar';
 import { useFoldedFigures } from '../../cp-workspace/folded/useFoldedFigures';
 import { selectedCanvasObjectId as selectedCanvasObjectIdOf } from '../../cp-workspace/canvasObjects/transformableObject';
 import { InlineSimulationLayer } from '../../cp-workspace/InlineSimulationLayer';
 import { Folded3dWindowLayer } from '../../cp-workspace/Folded3dWindowLayer';
-import { InlineSimulationInspector } from '../../cp-workspace/InlineSimulationInspector';
 import { useInlineSimulations } from '../../cp-workspace/inlineSimulation/useInlineSimulations';
 import { useSimulateSelection } from '../../cp-workspace/inlineSimulation/useSimulateSelection';
 import { useBlurOnPressOutside } from '../../cp-workspace/inlineSimulation/useBlurOnPressOutside';
@@ -751,10 +751,8 @@ export function CreasePatternPanel() {
   });
   const {
     editingTextId,
-    selectedImage: selectedCpImage,
     imageAnnotations,
     setSelectedAnnotation,
-    updateAnnotation,
     imageFileInputRef,
     addImageFromFile,
     deleteSelectedImage,
@@ -785,17 +783,13 @@ export function CreasePatternPanel() {
   // `Crease Pattern ▸ Repair ▸ Exact Solve…`. A hook rather than state here: the
   // panel decides that a solve binding is mounted, not what one does.
   const regionSolve = useCpRegionSolve();
-  // Which floating toolbar owns the corner. `selectedImage` narrows by kind and
-  // is null for a region, so it cannot answer this — and a selected region
-  // expands its chip into a toolbar the others must stand down for.
-  //
-  // Derived here rather than in `useCpRegions` only because this is its one
-  // consumer and that hook's `regions` view costs a hidden-findings pass per
-  // instance; a second consumer should move it there.
-  const selectedCpRegion = useMemo(
-    () => regionAnnotations.find((region) => region.id === oristudioCpSelectedAnnotationId) ?? null,
-    [regionAnnotations, oristudioCpSelectedAnnotationId]
-  );
+  // The selected canvas object, whichever kind holds it — what the floating
+  // inspectors, the delete ladder and the selection toolbar's guard dispatch
+  // on, resolved once through the kind table.
+  const selectedCanvasObject = useSelectedCanvasObject();
+  // Bring the Properties pane forward when the selection moves to a new
+  // object. Mounted here, not by the pane: an inactive dock tab is unmounted.
+  usePropertiesPaneActivation();
   // Object toolbars anchor themselves against the *live* camera (see
   // useCanvasObjectAnchor); the panel only supplies the element they measure
   // from. Anchoring off the panel's debounced camera copy left them behind
@@ -981,7 +975,6 @@ export function CreasePatternPanel() {
   const {
     active: activeFoldedFigure,
     generated: generatedFoldedFigures,
-    selected: selectedFoldedFigure,
     staleIds: staleFoldedFigureIds,
     actionDeps: foldedFigureActionDeps,
     canFoldSelectedModel,
@@ -990,7 +983,6 @@ export function CreasePatternPanel() {
   // Inline simulation windows: the third canvas-object kind, and the only one
   // whose contents keep running after you place them.
   const inlineSimulations = useInlineSimulations({ cpDocument: oristudioCpDocument });
-  const focusedInlineSimulation = inlineSimulations.selected;
   // Leaving the surface gives the window up, which also hands the `simulator`
   // shortcut scope back. Presses *on* the surface are the canvas's business.
   useBlurOnPressOutside({
@@ -1266,20 +1258,24 @@ export function CreasePatternPanel() {
    * to the viewport at all — see `viewport.delete` in the shortcut registry.
    */
   const deleteSelectedCanvasObject = useCallback((): boolean => {
-    if (!annotationsInteractive || !selectedCanvasObjectId) return false;
-    if (oristudioCpSelectedAnnotationId) deleteSelectedImage();
-    else if (inlineSimulations.isInlineSimulationId(selectedCanvasObjectId)) {
-      inlineSimulations.remove(selectedCanvasObjectId);
-    } else folded.remove(selectedCanvasObjectId);
+    if (!annotationsInteractive || !selectedCanvasObject) return false;
+    switch (selectedCanvasObject.kind) {
+      case 'image':
+      case 'text':
+      case 'suppressionRegion':
+        // A region's delete is the chip's (it also removes the owned image and
+        // clears pins); the annotation verb refuses it, as before.
+        deleteSelectedImage();
+        break;
+      case 'inline-simulation':
+        inlineSimulations.remove(selectedCanvasObject.id);
+        break;
+      case 'folded-figure':
+        folded.remove(selectedCanvasObject.id);
+        break;
+    }
     return true;
-  }, [
-    annotationsInteractive,
-    selectedCanvasObjectId,
-    oristudioCpSelectedAnnotationId,
-    deleteSelectedImage,
-    folded,
-    inlineSimulations,
-  ]);
+  }, [annotationsInteractive, selectedCanvasObject, deleteSelectedImage, folded, inlineSimulations]);
   const squareBisectorToolPrompt =
     isSquareBisectorOperation(activeCpCommand?.operationId) &&
     cpToolState.phase === 'active' &&
@@ -3484,57 +3480,19 @@ export function CreasePatternPanel() {
                     onPlayingChange={inlineSimulations.setPlaying}
                   />
                 )}
-                {focusedInlineSimulation && (
-                  <InlineSimulationInspector
-                    simulation={focusedInlineSimulation}
-                    container={toolbarContainer}
-                    playing={inlineSimulations.playing}
-                    stale={inlineSimulations.staleIds.has(focusedInlineSimulation.id)}
-                    colorMode={inlineSimulations.settings.colorMode}
-                    onColorMode={(mode) => inlineSimulations.setSetting('colorMode', mode)}
-                    onTogglePlay={inlineSimulations.togglePlay}
-                    onScrub={(percent) =>
-                      inlineSimulations.scrub(focusedInlineSimulation.id, percent)
-                    }
-                    onSetUpright={inlineSimulations.setUpright}
-                    onReplay={inlineSimulations.replay}
-                    onExport={inlineSimulations.exportView}
-                    onRefresh={() => inlineSimulations.refresh(focusedInlineSimulation.id)}
-                    onDelete={() => inlineSimulations.remove(focusedInlineSimulation.id)}
-                  />
-                )}
-                {/* The per-object inspectors, hand-written as a mutual-exclusion
-                    cascade because there is no per-kind inspector registry. A
-                    region is the fourth kind and does not get a clause here: its
-                    chip is mounted above, unconditionally, and *expands* into the
-                    inspector when the region holds the selection. So what a fourth
-                    kind costs this cascade is the `!selectedCpRegion` guards below
-                    — a selected region is a floating toolbar on screen, and the
-                    others have to stand down for it exactly as they do for each
-                    other.
-
-                    Flagged rather than quietly extended, per AGENTS.md: the fix
-                    is a registry keyed by annotation kind, not a fifth condition
-                    on each of four clauses. */}
-                {annotationsInteractive && selectedCpImage && !editingTextId && (
-                  <CpImageInspector
-                    image={selectedCpImage}
-                    container={toolbarContainer}
-                    onUpdate={(patch) => updateAnnotation(selectedCpImage.id, patch)}
-                    onGestureStart={annotations.beginGesture}
-                    onGestureCommit={annotations.commitGesture}
-                    onBringToFront={annotations.bringSelectedImageToFront}
-                    onSendToBack={annotations.sendSelectedImageToBack}
-                    onDelete={deleteSelectedImage}
-                  />
-                )}
-                {!editingTextId && !selectedCpImage && selectedFoldedFigure && (
-                  <CpFoldedFigureToolbar
-                    figure={selectedFoldedFigure}
-                    container={toolbarContainer}
-                    deps={foldedFigureActionDeps}
-                  />
-                )}
+                {/* The selected object's floating surface: one switch over the
+                    kind table, so a new kind is a clause there rather than a
+                    guard on every clause here. A region's surface is its chip,
+                    mounted above for as long as the region exists. */}
+                <CpFloatingInspectors
+                  target={selectedCanvasObject}
+                  container={toolbarContainer}
+                  editingTextId={editingTextId}
+                  annotationsInteractive={annotationsInteractive}
+                  annotations={annotations}
+                  foldedFigureActionDeps={foldedFigureActionDeps}
+                  inlineSimulations={inlineSimulations}
+                />
                 {/* Deliberately not gated on `annotationsInteractive`: that flag
                     keeps *annotations* from stealing clicks while a drawing tool
                     is mid-gesture, and it is false for exactly the tools that
@@ -3548,18 +3506,13 @@ export function CreasePatternPanel() {
                     toolbar's (fold, simulate, export) would all act on a
                     document the pending proposal has not been applied to.
 
-                    A selected suppression region is one too, and it is the only
-                    clause that needs saying: every other pair above is already
-                    exclusive because the store keeps one canvas-object selection,
-                    while *this* toolbar follows the crease selection — which a
-                    click on a region leaves standing. Without the guard, picking
-                    a region while creases are selected puts two toolbars on the
-                    canvas at once. */}
-                {!editingTextId &&
-                  !selectedCpImage &&
-                  !selectedCpRegion &&
-                  !selectedFoldedFigure &&
-                  !openToolOptionWindow && <CpSelectionToolbar container={toolbarContainer} />}
+                    Any selected canvas object is one too: *this* toolbar follows
+                    the crease selection, which a click on a region leaves
+                    standing, so without the guard picking a region while creases
+                    are selected puts two toolbars on the canvas at once. */}
+                {!editingTextId && !selectedCanvasObject && !openToolOptionWindow && (
+                  <CpSelectionToolbar container={toolbarContainer} />
+                )}
                 </>
               ) : (
                 <div className="cp-panel__unopened" role="status">

@@ -32,9 +32,9 @@ import {
 } from '../annotations/annotation';
 import type { CpImage } from '../images/cpImage';
 import {
-  CP_CHECK_CLASSES,
   createCpSuppressionRegion,
   hasAttachedSolveInput,
+  toggledCheckClasses,
   type CpCheckClass,
   type CpSuppressionRegion,
   type CreateCpSuppressionRegionInput,
@@ -192,19 +192,9 @@ export function cpRegionHiddenCounts(
   return counts;
 }
 
-/** The canonical suppression list with `cpCheckClass` flipped. */
-export function toggledCheckClasses(
-  suppress: readonly CpCheckClass[],
-  cpCheckClass: CpCheckClass
-): CpCheckClass[] {
-  const on = suppress.includes(cpCheckClass);
-  // Rebuilt from the canonical order rather than pushed or spliced, so two
-  // regions suppressing the same set hold equal arrays — the same rule
-  // `normalizeCheckClasses` applies on create and on load.
-  return CP_CHECK_CLASSES.filter((candidate) =>
-    candidate === cpCheckClass ? !on : suppress.includes(candidate)
-  );
-}
+// Moved beside the region type so the Properties pane's catalog, which is
+// React-free, can reach it; re-exported for the callers that import it here.
+export { toggledCheckClasses };
 
 /**
  * The region verbs, without subscribing to anything the verbs do not need.

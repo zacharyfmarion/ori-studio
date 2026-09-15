@@ -6544,6 +6544,65 @@ button.cp-folded-figure-toolbar__notice:hover {
   padding: var(--space-3);
 }
 
+/* A property sheet: the selected object's name and context, then its rows in
+   sections — the same `control-row` / `collapsible-section` idiom as the View
+   pane, so the two tabs read as one pane. See components/properties. */
+.property-sheet {
+  display: flex;
+  flex-direction: column;
+}
+
+.property-sheet__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 10px var(--space-3) 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.property-sheet__icon {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  color: var(--text-tertiary);
+}
+
+.property-sheet__titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.property-sheet__title {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.property-sheet__subtitle {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* An untitled section is the sheet's plain body: rows with no header. */
+.property-sheet__section {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.property-sheet__section:last-child {
+  border-bottom: 0;
+}
+
 .cp-view-controls-panel__view-options {
   flex: 0 0 auto;
 }
@@ -8880,6 +8939,33 @@ button.bp-packing-alert:focus-visible {
 .color-field__clear:hover:not(:disabled) {
   border-color: var(--border-default);
   color: var(--text-primary);
+}
+
+/* The same affordance on any other row: a field's `reset`, trailing the control. */
+.control-row__reset {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 22px;
+  margin-left: 4px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+
+.control-row__reset:hover:not(:disabled) {
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+
+.control-row__reset:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 
 .simulator-view-controls-panel__colors > .control-row:last-child {

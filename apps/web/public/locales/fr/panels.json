@@ -224,7 +224,25 @@
   "cpProperties": {
     "empty": "Sélectionnez un objet sur le canevas pour modifier ses propriétés.",
     "folded": {
-      "changeView": "Modifier la vue du modèle plié"
+      "appearance": "Apparence",
+      "changeView": "Modifier la vue du modèle plié",
+      "displayStyle": "Style d'affichage",
+      "refoldToChange": "Repliez le modèle pour changer son apparence"
+    },
+    "image": {
+      "rotation": "Rotation",
+      "title": "Image"
+    },
+    "inlineSimulation": {
+      "settings": "Réglages du simulateur",
+      "sharedNote": "Partagés avec l'espace de travail Simuler et toutes les fenêtres",
+      "title": "Fenêtre de simulation"
+    },
+    "region": {
+      "title": "Zone de suppression"
+    },
+    "text": {
+      "title": "Texte"
     }
   },
   "cpRegion": {

@@ -13,6 +13,7 @@ export function TextRow({
   disabled,
   title,
   onCommit,
+  onReset,
 }: {
   label: string;
   value: string;
@@ -20,6 +21,7 @@ export function TextRow({
   disabled?: boolean;
   title?: string;
   onCommit: (value: string) => void;
+  onReset?: () => void;
 }) {
   const inputId = useId();
   const [draft, setDraft] = useState(value);
@@ -35,7 +37,14 @@ export function TextRow({
   };
 
   return (
-    <FieldRow label={label} htmlFor={inputId} kind="text" disabled={disabled} title={title}>
+    <FieldRow
+      label={label}
+      htmlFor={inputId}
+      kind="text"
+      disabled={disabled}
+      title={title}
+      onReset={onReset}
+    >
       <input
         id={inputId}
         className="control-row__input"

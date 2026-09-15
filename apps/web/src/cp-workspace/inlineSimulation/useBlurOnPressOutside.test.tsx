@@ -27,6 +27,10 @@ function Harness({ active, onBlur }: { active: boolean; onBlur: () => void }): R
       <div data-cp-companion="">
         <button data-testid="menu-item" />
       </div>
+      {/* The Properties pane: another dock panel, marked the same way. */}
+      <section className="cp-properties-panel" data-cp-companion="">
+        <input data-testid="pane-row" />
+      </section>
       <div data-testid="other-panel" />
     </>
   );
@@ -81,6 +85,15 @@ describe('useBlurOnPressOutside', () => {
     render(true, onBlur);
     press('scrub');
     press('menu-item');
+    expect(onBlur).not.toHaveBeenCalled();
+  });
+
+  it('keeps the window focused through a press in the Properties pane', () => {
+    // The pane edits the focused window's settings; blurring on the press
+    // that reaches for a row would empty the pane under the pointer.
+    const onBlur = vi.fn();
+    render(true, onBlur);
+    press('pane-row');
     expect(onBlur).not.toHaveBeenCalled();
   });
 

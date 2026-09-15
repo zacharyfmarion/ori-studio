@@ -214,6 +214,20 @@ function normalizeCheckClasses(value: readonly unknown[]): CpCheckClass[] {
   return CP_CHECK_CLASSES.filter((checkClass) => value.includes(checkClass));
 }
 
+/** The canonical suppression list with `cpCheckClass` flipped. */
+export function toggledCheckClasses(
+  suppress: readonly CpCheckClass[],
+  cpCheckClass: CpCheckClass
+): CpCheckClass[] {
+  const on = suppress.includes(cpCheckClass);
+  // Rebuilt from the canonical order rather than pushed or spliced, so two
+  // regions suppressing the same set hold equal arrays — the same rule
+  // `normalizeCheckClasses` applies on create and on load.
+  return CP_CHECK_CLASSES.filter((candidate) =>
+    candidate === cpCheckClass ? !on : suppress.includes(candidate)
+  );
+}
+
 /** Validate an array of regions from `.osf`, dropping invalid entries. */
 export function validateCpSuppressionRegions(value: unknown): CpSuppressionRegion[] {
   if (!Array.isArray(value)) return [];

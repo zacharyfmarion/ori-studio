@@ -7,6 +7,7 @@ import type {
   OristudioCpDivideMode,
   OristudioCpLengthenColorMode,
 } from '../lib/oristudioCpToolSettings';
+import type { SimulatorColorMode, SimulatorCreaseStyle } from '../lib/simulatorSettings';
 
 /**
  * Render-time translations for small fixed enums whose English labels live in data modules.
@@ -75,3 +76,21 @@ export function cpFoldAngleDisplayLabel(
   }
 }
 
+
+/** How the simulator colours the paper — the Simulate pane and the inline window's sheet share it. */
+export function simulatorColorModeLabel(t: TFunction, mode: SimulatorColorMode): string {
+  return mode === 'strain'
+    ? t('panels:simulatorViewControls.colorStrain', 'Strain')
+    : t('panels:simulatorViewControls.colorPaper', 'Paper');
+}
+
+export function simulatorCreaseStyleLabel(t: TFunction, style: SimulatorCreaseStyle): string {
+  switch (style) {
+    case 'color':
+      return t('panels:simulatorViewControls.creaseStyleColor', 'Mountain / valley');
+    case 'mono':
+      return t('panels:simulatorViewControls.creaseStyleMono', 'One ink');
+    case 'mono-dashed':
+      return t('panels:simulatorViewControls.creaseStyleMonoDashed', 'One ink, dashed');
+  }
+}

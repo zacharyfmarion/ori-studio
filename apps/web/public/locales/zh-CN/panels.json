@@ -214,7 +214,25 @@
   "cpProperties": {
     "empty": "在画布上选择一个对象以编辑其属性。",
     "folded": {
-      "changeView": "更改折叠模型视角"
+      "appearance": "外观",
+      "changeView": "更改折叠模型视角",
+      "displayStyle": "显示样式",
+      "refoldToChange": "重新折叠后才能更改此模型的外观"
+    },
+    "image": {
+      "rotation": "旋转",
+      "title": "图像"
+    },
+    "inlineSimulation": {
+      "settings": "模拟器设置",
+      "sharedNote": "与模拟工作区和所有窗口共享",
+      "title": "模拟窗口"
+    },
+    "region": {
+      "title": "检查抑制区域"
+    },
+    "text": {
+      "title": "文本"
     }
   },
   "cpRegion": {
