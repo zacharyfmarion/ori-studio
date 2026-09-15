@@ -282,6 +282,19 @@ export interface CpDetectRectifiedImage {
   report: CpDetectRectificationReport;
 }
 
+/**
+ * The likelihood gate's verdict on an image (`likelihood::CpLikelihood`): the
+ * model's probability, whether it cleared the operating threshold, and the
+ * features behind it. The features are for diagnosis only — never sent
+ * anywhere, never shown to the user.
+ */
+export interface CpDetectLikelihood {
+  score: number;
+  likely: boolean;
+  threshold: number;
+  features: Record<string, number>;
+}
+
 export interface CpDetectDecodeWarning {
   code: string;
   message: string;

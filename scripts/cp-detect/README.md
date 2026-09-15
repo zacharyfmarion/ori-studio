@@ -877,3 +877,73 @@ provenance banner at startup; if that commit ≠ the working-tree `HEAD` at the 
 cwd it refuses to run (`STALE BINARY`) unless you pass `--allow-stale`. Note the
 benchmark default line evidence is `model`; the product/inspector path uses
 `--line-evidence-source source-image`, so pass that for product-faithful runs.
+
+## Crease-pattern likelihood gate
+
+`crates/oristudio-cp-detect/src/likelihood.rs` answers "does this image look
+like a crease pattern?" for every reference image added to the Edit canvas —
+the gate behind the "Looks like a crease pattern · Detect creases" offer. It
+is hand features on a ≤512 px copy (straight-line length, skeleton endpoint
+rate, orientation lattice fit, full-span segment share, background fraction,
+periodicity…) combined by a table of 100 depth-3 trees in
+`likelihood_model.rs`. That file is **generated** here and never edited: the
+Rust extractor is the only implementation of the features, so the table is
+fitted on features the product itself computed and cannot drift from them.
+
+Refit when the features change, when the corpus grows, or to move the
+operating point. It needs the `create-pattern-detector` datasets and repo
+checked out beside this one (defaults in `build-manifest.py`), and a venv with
+numpy, Pillow and scikit-learn:
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install numpy pillow scikit-learn
+OUT=artifacts/cp-likelihood && mkdir -p $OUT
+
+# 1. The labelled set: designer sets, curated cases, rendered corpus, and the
+#    scrape pipeline's Gemini-labelled crops (accepted = positive, rejected =
+#    negative by kind). Add --photo-dir for natural photographs.
+python3 scripts/cp-detect/cp-likelihood/build-manifest.py --out $OUT/manifest.jsonl
+
+# 2. Structured negatives the corpus lacks (graph paper, mats, tables, charts,
+#    plans, flowcharts, text, brick/plaid, mazes, random line art). Without
+#    them every model lets grids through.
+python3 scripts/cp-detect/cp-likelihood/synth-negatives.py --out-dir $OUT/synth --manifest $OUT/synth.jsonl
+
+# 3. Features, with the product's own extractor (parallel; ~1 min for 5k images).
+cargo build --release -p oristudio-cp-detect --examples
+target/release/examples/cp_likelihood_features --manifest $OUT/manifest.jsonl --out $OUT/features.jsonl
+target/release/examples/cp_likelihood_features --manifest $OUT/synth.jsonl --out $OUT/synth-features.jsonl
+
+# 4. Fit, report, and write the table. Rows split 70/30 by an md5 of the path;
+#    the operating point is chosen on the held-out rows, then the shipped table
+#    is refitted on everything.
+.venv/bin/python scripts/cp-detect/cp-likelihood/fit-model.py \
+  --features $OUT/features.jsonl $OUT/synth-features.jsonl \
+  --model-rs crates/oristudio-cp-detect/src/likelihood_model.rs \
+  --report $OUT/report.md --threshold 0.8
+
+cargo test -p oristudio-cp-detect --lib likelihood
+npm --workspace @treemaker/web run build:oristudio-cp-detect-wasm
+```
+
+`fit-model.py` prints a sweep of operating points before it writes anything.
+The 2026-09-15 fit (4,909 labelled rows, held-out AUC 0.979):
+
+| threshold | recall (all / designer sets) | FPR clean negatives | folded-model photos | synthetic line art |
+|---|---|---|---|---|
+| 0.7 | 0.93 / 0.93 | 0.036 | 0.029 | 0.078 |
+| **0.8 (shipped)** | **0.89 / 0.90** | **0.025** | **0.021** | **0.047** |
+| 0.9 | 0.81 / 0.82 | 0.017 | 0.011 | 0.047 |
+
+"Clean negatives" are the folded-model photos, natural photographs, text and
+diagram rejects plus every synthetic class — not the noisy "multi-panel",
+"blank" and "other" rejects, which often contain a real crease pattern and
+would count a correct offer as a false positive. Evenly spaced grids are the
+residual: about a quarter of synthetic graph paper is offered at 0.8, and a
+grid *is* a precrease pattern, so this is accepted rather than chased.
+
+To see why one image got its verdict:
+
+```bash
+cargo run --release -p oristudio-cp-detect --example cp_likelihood_score -- path/to/image.png
+```
