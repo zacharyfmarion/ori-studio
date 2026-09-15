@@ -161,7 +161,6 @@ describe('CpPropertiesPanel', () => {
       'Back color',
       'Line color',
       'Shadow',
-      'Anti-alias',
       'Scale',
       'Rotation',
     ]);

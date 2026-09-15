@@ -224,7 +224,6 @@
   "cpProperties": {
     "empty": "Sélectionnez un objet sur le canevas pour modifier ses propriétés.",
     "folded": {
-      "antiAlias": "Anticrénelage",
       "appearance": "Apparence",
       "camera": "Caméra",
       "changeView": "Modifier la vue du modèle plié",

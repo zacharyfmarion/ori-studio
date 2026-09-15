@@ -106,7 +106,6 @@ describe('buildFoldedFigureProperties', () => {
       'backColor',
       'lineColor',
       'shadows',
-      'antiAlias',
       'scale',
       'rotation',
     ]);
@@ -125,7 +124,6 @@ describe('buildFoldedFigureProperties', () => {
       reason: 'Shadows are not drawn for a 3D folded model yet',
     });
     expect(field(sheet, 'frontColor').support).toBe('supported');
-    expect(field(sheet, 'antiAlias').support).toBe('supported');
   });
 
   it('disables every appearance field with the Refold reason on a figure that is not ready', () => {
@@ -162,11 +160,6 @@ describe('buildFoldedFigureProperties', () => {
     shadows.commit(true);
     expect(d.commitModel).toHaveBeenCalledWith({ display_shadows: true });
 
-    const antiAlias = field(sheet, 'antiAlias');
-    if (antiAlias.kind !== 'toggle') throw new Error('toggle');
-    expect(antiAlias.value).toBe(true);
-    antiAlias.commit(false);
-    expect(d.commitModel).toHaveBeenCalledWith({ anti_alias: false });
   });
 
   it('marks neither side current for a figure in an overlay state', () => {

@@ -214,7 +214,6 @@
   "cpProperties": {
     "empty": "在画布上选择一个对象以编辑其属性。",
     "folded": {
-      "antiAlias": "抗锯齿",
       "appearance": "外观",
       "camera": "相机",
       "changeView": "更改折叠模型视角",

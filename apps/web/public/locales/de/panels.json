@@ -219,7 +219,6 @@
   "cpProperties": {
     "empty": "Wählen Sie ein Objekt auf der Leinwand aus, um seine Eigenschaften zu bearbeiten.",
     "folded": {
-      "antiAlias": "Kantenglättung",
       "appearance": "Darstellung",
       "camera": "Kamera",
       "changeView": "Ansicht des gefalteten Modells ändern",

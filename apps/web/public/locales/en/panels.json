@@ -219,7 +219,6 @@
   "cpProperties": {
     "empty": "Select an object on the canvas to edit its properties.",
     "folded": {
-      "antiAlias": "Anti-alias",
       "appearance": "Appearance",
       "camera": "Camera",
       "changeView": "Change folded model view",

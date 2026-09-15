@@ -224,7 +224,6 @@
   "cpProperties": {
     "empty": "Selecione um objeto na tela para editar suas propriedades.",
     "folded": {
-      "antiAlias": "Suavização",
       "appearance": "Aparência",
       "camera": "Câmera",
       "changeView": "Alterar a vista do modelo dobrado",

@@ -214,7 +214,6 @@
   "cpProperties": {
     "empty": "キャンバス上のオブジェクトを選択すると、そのプロパティを編集できます。",
     "folded": {
-      "antiAlias": "アンチエイリアス",
       "appearance": "外観",
       "camera": "カメラ",
       "changeView": "折り上がりモデルの視点を変更",

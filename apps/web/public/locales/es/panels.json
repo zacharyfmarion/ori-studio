@@ -224,7 +224,6 @@
   "cpProperties": {
     "empty": "Selecciona un objeto en el lienzo para editar sus propiedades.",
     "folded": {
-      "antiAlias": "Suavizado",
       "appearance": "Apariencia",
       "camera": "Cámara",
       "changeView": "Cambiar la vista del modelo plegado",

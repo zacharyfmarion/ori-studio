@@ -178,16 +178,6 @@ export function buildFoldedFigureProperties(
       value: model?.display_shadows ?? false,
       commit: (display_shadows) => deps.commitModel({ display_shadows }),
     },
-    {
-      id: 'antiAlias',
-      kind: 'toggle',
-      label: t('panels:cpProperties.folded.antiAlias', 'Anti-alias'),
-      ...appearance('antiAlias'),
-      undoLabel: changeModel,
-      protocol: 'discrete',
-      value: model?.anti_alias ?? false,
-      commit: (anti_alias) => deps.commitModel({ anti_alias }),
-    },
   ];
 
   const sections: PropertySection[] = [
