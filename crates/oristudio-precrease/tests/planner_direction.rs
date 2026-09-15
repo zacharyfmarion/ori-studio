@@ -15,6 +15,7 @@ use common::*;
 use std::collections::{HashMap, HashSet};
 
 use oristudio_precrease::marks::{Creased, crease_runs, end_is_found};
+use oristudio_precrease::order::PINCH_CREASE;
 use oristudio_precrease::pinch::Extent;
 use oristudio_precrease::planner::PlannerOptions;
 use oristudio_precrease::predicates::Ref;
@@ -101,6 +102,26 @@ fn a_step_is_made_from_the_side_its_direction_needs() {
                 step.grid.is_none() && step.kind != StepKind::Grid,
                 "{file}: {step:?}"
             );
+            // A pinch — a pattern crease no longer than `PINCH_CREASE` — is
+            // made from the face where it is a mountain, pinched up between
+            // finger and thumb rather than creased flat (R6 in
+            // `implementation-plans/precrease-legible-picks.md`); it keeps
+            // the pattern's direction and flips the side. A weak majority
+            // forces no side at all, so nothing of it flips.
+            let pinch = step.kind == StepKind::Cp
+                && step.press.is_none()
+                && step.direction.is_firm(step.direction_share)
+                && !step.cp_spans.is_empty()
+                && crease_runs(&step.line, &step.cp_spans)
+                    .iter()
+                    .map(|(a, b)| (a[0] - b[0]).hypot(a[1] - b[1]))
+                    .sum::<f64>()
+                    <= PINCH_CREASE;
+            let (mountain_side, valley_side) = if pinch {
+                (Side::Front, Side::Back)
+            } else {
+                (Side::Back, Side::Front)
+            };
             match step.direction {
                 // A crease made from the front is a valley, one made from the
                 // back is a mountain, and there is no third case. A press
@@ -109,8 +130,10 @@ fn a_step_is_made_from_the_side_its_direction_needs() {
                 // the other face is then creased both ways — as precreasing
                 // does — and the card never shows a mountain under "fold P
                 // onto Q".
-                Direction::Mountain => assert_eq!(step.side, Side::Back, "{file}: {step:?}"),
-                Direction::Valley => assert_eq!(step.side, Side::Front, "{file}: {step:?}"),
+                Direction::Mountain => {
+                    assert_eq!(step.side, mountain_side, "{file}: {step:?}")
+                }
+                Direction::Valley => assert_eq!(step.side, valley_side, "{file}: {step:?}"),
                 // Never: an auxiliary fold has no assignment in the pattern,
                 // but it is made toward the folder like every other fold, and
                 // its card says which way that is.
@@ -749,9 +772,12 @@ fn a_pleated_grid_opens_the_plan_and_the_diagonals_follow() {
             assert_ne!(pair[0].direction, pair[1].direction);
         }
     }
-    // Every step after the grid sights something on it.
+    // The diagonals sight the grid: each bisects the sheet's edge and a grid
+    // line where they meet, so the pleat that made those lines unlocks them.
+    // (Both happen to bisect lines of the same family; the other pleat is
+    // still the grid, not a step that follows it.)
     assert!(
-        seq.steps[..2].iter().all(|s| !s.unlocks.is_empty()),
+        seq.steps[..2].iter().any(|s| !s.unlocks.is_empty()),
         "the grid steps unlock what follows"
     );
 }
@@ -808,11 +834,15 @@ fn a_real_design_turns_over_a_handful_of_times() {
     // its own place in the order, where the same round's earlier folds have
     // left their marks too; three once every fold was creased from
     // reference to reference, so the marks along a fold's own line are there
-    // the moment it is made; none now that the closure folds first what the
-    // paper can sight and the ordering pass does the same within a round,
-    // so every mark a fold needs is made by a crease before it.
-    assert_eq!(seq.totals.presses, 0, "iguana-c0 presses");
-    assert_eq!(seq.steps.len(), 91, "iguana-c0 steps");
+    // the moment it is made; none once the closure folded first what the
+    // paper could sight and the ordering pass did the same within a round,
+    // so every mark a fold needed was made by a crease before it; three now
+    // that a fold the folder can watch outranks one lined up under the
+    // paper (R1): three verticals whose only free sighting was a blind O7
+    // are each bought a pinch on a pattern line and made as "fold the
+    // bottom edge onto itself through P".
+    assert_eq!(seq.totals.presses, 3, "iguana-c0 presses");
+    assert_eq!(seq.steps.len(), 94, "iguana-c0 steps");
     // 9 while hardness sorted before the ease order; 6 with the presses; 8
     // once the closure waited for marks — waiting is a sweep, and a sweep
     // boundary is where the sheet is turned over; 7 now that a mark on a

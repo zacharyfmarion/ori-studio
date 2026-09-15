@@ -84,6 +84,7 @@ pub mod exactness;
 pub mod fixture_io;
 pub mod frame;
 pub mod grid;
+pub mod judge;
 pub mod lattice;
 pub mod line;
 pub mod marks;

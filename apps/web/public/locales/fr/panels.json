@@ -904,6 +904,7 @@
     "outsideSheet": "Cette sélection n’est dans aucune feuille.",
     "planning": "Calcul de la séquence de pliage…",
     "planStep": {
+      "alsoNote": "Alignez les deux en même temps pour que le pli reste droit.",
       "approximate": "Approximatif — cette construction s’écarte de {{pct}} % de la feuille.",
       "approximateBadge": "Approximatif",
       "axiom1": "Pliez par {{a}} et {{b}}.",
@@ -942,6 +943,7 @@
       "gridValleyFirst_one": "{{pleat}} : {{count}} ligne, en alternant vallée et montagne, vallée d’abord.",
       "gridValleyFirst_many": "{{pleat}} : {{count}} lignes, en alternant vallée et montagne, vallée d’abord.",
       "gridValleyFirst_other": "{{pleat}} : {{count}} lignes, en alternant vallée et montagne, vallée d’abord.",
+      "impractical": "Aucun des points n'est sur un bord : celui-ci s'aligne à travers le papier — rien sur la feuille n'en fait encore un pli plus net.",
       "inherited": "Repéré depuis un pli approximatif, donc pas plus exact que celui-ci.",
       "markFirst": "L’une de ces marques est là où deux plis se croiseraient s’ils allaient plus loin : pincez-la d’abord.",
       "noAlignment": "Rien sur le papier ne coïncide encore avec ce pli — marquez-le tel qu’il est dessiné.",

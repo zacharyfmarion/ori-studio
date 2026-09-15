@@ -28,10 +28,13 @@
 use std::path::{Path, PathBuf};
 
 use oristudio_precrease::analyze;
+use oristudio_precrease::direction::{Direction, Side};
 use oristudio_precrease::fixture_io::load_path;
+use oristudio_precrease::judge::judge;
 use oristudio_precrease::marks::{
     Creased, crease_runs, end_is_found, point_mark_exists, witness_sightable,
 };
+use oristudio_precrease::order::PINCH_CREASE;
 use oristudio_precrease::pinch::{Extent, PINCH_HALF_LENGTH};
 use oristudio_precrease::planner::{GridMode, Planner, PlannerOptions};
 use oristudio_precrease::predicates::all_witnesses_on;
@@ -74,6 +77,28 @@ struct Tally {
     /// Marks pinched while the crease they are on was made — a pinch on a
     /// step's `pressed_on` rather than a press step of its own.
     pinched_while_folding: usize,
+    /// The picks, judged on the replay paper as `order::pick_witness` judged
+    /// them (`implementation-plans/precrease-legible-picks.md`): CP steps
+    /// whose card the folder cannot watch (R1), cannot make precisely (R2),
+    /// makes through the paper (R0), makes at the crease itself — a
+    /// bisection with its vertex there, a short crease joined between its
+    /// own marks (R3, R4) — pinches as a mountain from the other face (R6),
+    /// and shows twice, mirrored (R8). `judged` is how many CP steps the
+    /// replay could judge at all: a card naming a crease the replay has not
+    /// made yet is skipped and counted in `unjudged`.
+    judged: usize,
+    unjudged: usize,
+    invisible: usize,
+    imprecise: usize,
+    impractical: usize,
+    bisections_at_crease: usize,
+    own_ends: usize,
+    mountain_pinches: usize,
+    mirrored: usize,
+    /// The error at the crease summed over the judged picks that have one,
+    /// and how many that is, for the mean.
+    error_sum: f64,
+    error_n: usize,
 }
 
 impl Tally {
@@ -96,6 +121,33 @@ impl Tally {
         self.presses_made_later += o.presses_made_later;
         self.press_len += o.press_len;
         self.pinched_while_folding += o.pinched_while_folding;
+        self.judged += o.judged;
+        self.unjudged += o.unjudged;
+        self.invisible += o.invisible;
+        self.imprecise += o.imprecise;
+        self.impractical += o.impractical;
+        self.bisections_at_crease += o.bisections_at_crease;
+        self.own_ends += o.own_ends;
+        self.mountain_pinches += o.mountain_pinches;
+        self.mirrored += o.mirrored;
+        self.error_sum += o.error_sum;
+        self.error_n += o.error_n;
+    }
+
+    fn picks_line(&self) -> String {
+        format!(
+            "picks {:5} judged ({:4} not yet on the replay paper)  invisible {:4}  imprecise {:4}  impractical {:4}  bisections at the crease {:4}  own ends {:4}  mountain pinches {:4}  mirrored {:4}  mean error {:.2}",
+            self.judged,
+            self.unjudged,
+            self.invisible,
+            self.imprecise,
+            self.impractical,
+            self.bisections_at_crease,
+            self.own_ends,
+            self.mountain_pinches,
+            self.mirrored,
+            self.error_sum / self.error_n.max(1) as f64
+        )
     }
 }
 
@@ -104,6 +156,15 @@ impl Tally {
 fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize, verbose: bool) -> Tally {
     let mut state = State::new(sheet, point_cap);
     let mut creased = Creased::new(&state);
+    // The direction each replayed line was made in, by replay line id, for
+    // R0's exception.
+    let mut directions: Vec<Option<Direction>> = Vec::new();
+    let note = |directions: &mut Vec<Option<Direction>>, id: usize, d: Direction| {
+        if directions.len() <= id {
+            directions.resize(id + 1, None);
+        }
+        directions[id] = Some(d);
+    };
     // The paper without its presses, for asking afterwards which marks the
     // pattern's own creases make anyway: a press for one of those is a
     // press an order could have avoided.
@@ -113,15 +174,12 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize, verbose: bool) -> Tal
     let mut presses: Vec<(u32, [f64; 2], bool)> = Vec::new();
     let mut t = Tally {
         steps: seq.steps.len(),
-        turn_overs: usize::from(
-            seq.steps
-                .first()
-                .is_some_and(|s| s.side == oristudio_precrease::direction::Side::Back),
-        ) + seq
-            .steps
-            .windows(2)
-            .filter(|w| w[0].side != w[1].side)
-            .count(),
+        turn_overs: usize::from(seq.steps.first().is_some_and(|s| s.side == Side::Back))
+            + seq
+                .steps
+                .windows(2)
+                .filter(|w| w[0].side != w[1].side)
+                .count(),
         phantom: seq.steps.iter().filter(|s| !s.marks_exist).count(),
         reversed: seq
             .steps
@@ -143,6 +201,7 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize, verbose: bool) -> Tal
                         creased.add_spans(&state, outcome.id, &line.line, &line.spans);
                         unpressed.add_spans(&state, outcome.id, &line.line, &line.spans);
                     }
+                    note(&mut directions, outcome.id, line.direction);
                 }
             }
             continue;
@@ -217,6 +276,84 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize, verbose: bool) -> Tal
                 );
             }
         }
+        // The pick, judged as the ordering pass judged it — on the paper as
+        // it stands, before the step is made.
+        if step.kind == StepKind::Cp {
+            let pattern_length: f64 = length_of(&crease_runs(&step.line, &step.cp_spans));
+            let firm = step.direction.is_firm(step.direction_share);
+            let natural = match step.direction {
+                Direction::Mountain => Side::Back,
+                Direction::Valley => Side::Front,
+                Direction::Unassigned => step.side,
+            };
+            let mountain_pinch = firm
+                && !step.cp_spans.is_empty()
+                && pattern_length <= PINCH_CREASE
+                && step.side != natural;
+            if mountain_pinch {
+                t.mountain_pinches += 1;
+            }
+            if step.also.is_some() {
+                t.mirrored += 1;
+            }
+            if step.impractical {
+                t.impractical += 1;
+            }
+            let chosen = step
+                .chosen
+                .and_then(|c| step.witnesses.get(c))
+                .and_then(|w| seq.witness_in(&state, w));
+            match chosen {
+                Some(w) => {
+                    t.judged += 1;
+                    let direction_of_line = |id: usize| directions.get(id).copied().flatten();
+                    let j = judge(
+                        &state,
+                        &creased,
+                        &step.line,
+                        spans,
+                        &step.cp_spans,
+                        step.direction,
+                        &direction_of_line,
+                        &w,
+                    );
+                    if !j.visible {
+                        t.invisible += 1;
+                    }
+                    if !j.precise {
+                        t.imprecise += 1;
+                    }
+                    if j.bisection_at_crease {
+                        t.bisections_at_crease += 1;
+                    }
+                    if j.own_ends {
+                        t.own_ends += 1;
+                    }
+                    if let Some(e) = j.error.filter(|e| e.is_finite()) {
+                        t.error_sum += e;
+                        t.error_n += 1;
+                    }
+                    if verbose && (!j.visible || !j.precise || step.impractical) {
+                        println!(
+                            "  step {:>3} O{} {}{}{}lever {} error {}",
+                            step.id,
+                            w.axiom,
+                            if step.impractical {
+                                "impractical, "
+                            } else {
+                                ""
+                            },
+                            if j.visible { "" } else { "invisible, " },
+                            if j.precise { "" } else { "imprecise, " },
+                            j.lever.map_or("-".to_string(), |l| format!("{l:.3}")),
+                            j.error.map_or("-".to_string(), |e| format!("{e:.2}")),
+                        );
+                    }
+                }
+                None if step.chosen.is_some() => t.unjudged += 1,
+                None => {}
+            }
+        }
         let ends: Vec<[f64; 2]> = runs.into_iter().flat_map(|(a, b)| [a, b]).collect();
         t.ends += ends.len();
         for end in &ends {
@@ -234,6 +371,7 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize, verbose: bool) -> Tal
         let Ok(outcome) = state.add_line(step.line, step.tag) else {
             continue;
         };
+        note(&mut directions, outcome.id, step.direction);
         if spans.is_empty() {
             creased.add_whole(&state, outcome.id);
             unpressed.add_whole(&state, outcome.id);
@@ -253,6 +391,7 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize, verbose: bool) -> Tal
                 creased.add_spans(&state, outcome.id, &step.line, &[*span]);
             }
         }
+        creased.note_pinchable(&state, outcome.id);
     }
     for (id, at, free) in presses {
         let made_later = state
@@ -434,6 +573,7 @@ fn main() {
             a.longest_reach.0,
             a.longest_reach.1
         );
+        println!("  {}", a.picks_line());
         for (k, (x, y)) in [
             (a.phantom, b.phantom),
             (a.turn_overs, b.turn_overs),
@@ -474,6 +614,7 @@ fn main() {
             t.longest_reach.0,
             t.reversed
         );
+        println!("{label}  {}", t.picks_line());
     }
     for (label, [better, worse]) in ["phantom", "turn-overs", "lost ends"]
         .into_iter()

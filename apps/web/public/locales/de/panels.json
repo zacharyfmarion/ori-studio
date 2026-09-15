@@ -870,6 +870,7 @@
     "outsideSheet": "Diese Auswahl liegt in keinem Bogen.",
     "planning": "Faltfolge wird berechnet…",
     "planStep": {
+      "alsoNote": "Richte beide zugleich aus, damit die Faltung gerade bleibt.",
       "approximate": "Näherung – diese Konstruktion liegt {{pct}} % der Blattseite daneben.",
       "approximateBadge": "Näherung",
       "axiom1": "Falte durch {{a}} und {{b}}.",
@@ -902,6 +903,7 @@
       "gridReversed_other": "Das Muster will {{count}} davon andersherum; sie kehren sich beim Zusammenlegen um.",
       "gridValleyFirst_one": "{{pleat}}: {{count}} Linie, abwechselnd Tal und Berg, zuerst Tal.",
       "gridValleyFirst_other": "{{pleat}}: {{count}} Linien, abwechselnd Tal und Berg, zuerst Tal.",
+      "impractical": "Keiner der Punkte liegt an einer Kante, daher wird diese Faltung durch das Papier hindurch ausgerichtet — nichts auf dem Bogen macht sie bisher zu einer saubereren Faltung.",
       "inherited": "Von einer genäherten Falte aus angepeilt, also nur so genau wie diese.",
       "markFirst": "Eine dieser Markierungen liegt dort, wo sich zwei Falten kreuzen würden, wenn sie weiterliefen — kneife sie zuerst.",
       "noAlignment": "Noch nichts auf dem Papier passt zu dieser Falte – falte sie wie gezeichnet.",

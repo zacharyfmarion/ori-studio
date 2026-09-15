@@ -44,6 +44,35 @@ describe('plannerStepDiagram', () => {
     expect(diagram?.sheet).toEqual({ width: 1, height: 1, centre: [0.5, 0.5] });
   });
 
+  // A symmetric design's second pair for the same fold: drawn beside the
+  // first with the next letters, its own ring on each mark and its own
+  // arrow, so the folder lines up both ends of the fold at once.
+  it('draws a mirror witness with its own letters and arrow', () => {
+    const also = {
+      ...sequence.steps[1]!.witnesses[0]!,
+      inputs: [
+        { kind: 'corner' as const, id: 1, corner: 'se' as const },
+        { kind: 'point' as const, id: 4 },
+      ],
+    };
+    const mirrored = {
+      ...sequence,
+      steps: sequence.steps.map((s, i) => (i === 1 ? { ...s, also } : s)),
+    };
+    const alone = plannerStepDiagram(sequence, unitFrame(sequence), 1);
+    const both = plannerStepDiagram(mirrored, unitFrame(mirrored), 1);
+    const letters = (model: typeof both) =>
+      model?.primitives.flatMap((p) => (p.kind === 'label' ? [p.text] : [])) ?? [];
+    expect(letters(alone)).toEqual(['P', 'Q']);
+    expect(letters(both)).toEqual(['P', 'Q', 'R', 'S']);
+    const arrows = (model: typeof both) =>
+      model?.primitives.filter((p) => p.kind === 'fold-arrow').length ?? 0;
+    expect(arrows(both)).toBe(arrows(alone) + 1);
+    const rings = (model: typeof both) =>
+      model?.primitives.filter((p) => p.kind === 'point').length ?? 0;
+    expect(rings(both)).toBe(rings(alone) + 2);
+  });
+
   it('draws a pinched step as its spans, never as a full crease', () => {
     // The difference is the whole point of the pinch pass, and a thumbnail
     // that got it wrong would be telling the folder to leave a visible line.

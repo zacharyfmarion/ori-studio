@@ -840,6 +840,7 @@
     "outsideSheet": "所选位置不在任何一张纸内。",
     "planning": "正在计算折叠顺序…",
     "planStep": {
+      "alsoNote": "同时对齐两处，折痕才能保持笔直。",
       "approximate": "近似——此作图偏离纸张的 {{pct}}%。",
       "approximateBadge": "近似",
       "axiom1": "沿通过 {{a}} 和 {{b}} 的直线折叠。",
@@ -868,6 +869,7 @@
       "gridPleatSpaced": "将纸{{direction}}以纸张的{{cell}}为间距折叠",
       "gridReversed_other": "折痕图中其中 {{count}} 条需要反向，会在收拢时翻转。",
       "gridValleyFirst_other": "{{pleat}}：共 {{count}} 条线，谷山交替，先谷折。",
+      "impractical": "两个点都不在纸边上，所以这一折只能透过纸对齐 — 纸上还没有任何参考能让它折得更准。",
       "inherited": "以近似折痕为参照，因此精度不高于该折痕。",
       "markFirst": "其中一个参考点位于两条折痕延长后的交点处。请先捏出这个记号。",
       "noAlignment": "纸上还没有可以与这条折线对齐的参照，请按图示压出折痕。",

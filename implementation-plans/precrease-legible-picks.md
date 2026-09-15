@@ -299,22 +299,77 @@ Then Zach folds it again.
   `referencesStepSentences.ts`; locales.
 - `implementation-plans/precrease-reach-references.md` — cross-reference.
 
+## What landed, and where it differs from the above
+
+The rules live in `crates/oristudio-precrease/src/judge.rs` (one
+`Judgement` per witness, read by the pick, `measure_ends` and
+`explain_steps` alike) and `order::pick_witness`. The key, in order:
+practical (R0); free before pressed (one press may buy a one-motion fold);
+visible (R1); precise (R2); at the crease (R3, R4); a crossing to sight
+from (R7); the ease order; then the skinny flap, the error, the residual.
+Then the override: among what is visible and precise with the same presses
+— the same *cost*, not the same tier, so a free two-handed O1 competes —
+the candidate the key likes best of those at least three times as accurate
+as the ease-preferred pick. Refinements found on the way:
+
+- **R3** asks that the angle be one the folder can see: the bisection's
+  vertex on the sheet's edge, or one arm the edge itself. Two interior
+  creases meeting inside the sheet are lined up under the paper, and a
+  short crease between them is joined (R4) instead.
+- **R4** own-ends outranks R7: a short crease pinched between the two
+  creases it runs between is read off them, even where one end is a T
+  (146, 157). And joining a crease's own marks is one motion.
+- **R7** a pinch is a mark made to be read — a pinch's length centred on
+  the point counts as continuing — else every mark pinched while folding
+  read as a T. The override ignores R7: a fold sighted from a crease's end
+  three times nearer the crease beats one from a crossing a sheet away
+  (103, 104: an edge mark and the mark at the crease over two marks on the
+  far edge).
+- **R8** the mirror is a *different* witness: an O1 through a symmetric
+  pair read from the other end is not one. `Step.also: Option<Witness>`,
+  drawn with letters carrying on from the first's, sentence "Fold P onto
+  Q. Fold R onto S. Line up both at once, so the fold stays straight."
+- **R9** a long crease folded onto itself through a mark is one motion, as
+  the edge is — without that the ease it gained meant nothing at the tier.
+- **The override takes the best-by-key candidate**, not the most accurate:
+  past three times better, the bird base's corner swing (O5) is still the
+  fold over a crease sighted through two marks (O1).
+- **R6** flips `forced_side` for a firm pattern crease no longer than
+  `PINCH_CREASE`; the step keeps the pattern's direction (a mountain from
+  the front is the mountain pinch) and the side test knows the case.
+- **R0's closure half** is not done: an impractical O2 still certifies a
+  line; the pick presents it only when nothing practical exists and flags
+  the step `impractical` (markhor has none).
+
+Pins: `tests/planner_markhor.rs`, gated on `ORI_PRECREASE_MARKHOR` (the
+file is not committed), one entry per item above, by line. Iguana's
+line-by-line pin moved from 0 presses / 91 steps to 3 / 94: three
+verticals whose only free sighting was a blind O7 are each bought a pinch
+on a pattern line and made as "fold the bottom edge onto itself through P"
+— R1's trade, and the fixture that says what it costs.
+
 ## Checklist
 
 - [x] Diagnose all 26 items against the paper as it stood
   (`explain_steps`); the table above.
-- [ ] R0 no interior start for a point-onto-point fold, with the
-  parallel-opposite-crease exception — the pick first; then the closure,
-  measured, with the flagged card as the fallback. Pin 30, 37, 58, 81,
+- [x] R0 no interior start for a point-onto-point fold, with the
+  parallel-opposite-crease exception — the pick; pinned 30, 37, 58, 81,
   103, 104, 122, 127, 136, 140.
-- [ ] R1 visibility before ease — measure, pin 21, 58, 103, 104, 127.
-- [ ] R2 lever and reach — measure, pin 31, 32, 48, 81, 146.
-- [ ] R3 bisection at the crease — pin 48, 71, 73, 127, 129, 140, 142.
-- [ ] R4 connect the marks by comparison — pin 36, 122, 146.
-- [ ] R5 the pick over the whole paper — measure the cost; pin 21, 31.
-- [ ] R6 mountain pinches — measure turn-overs; pin 56, 147, 157.
-- [ ] R7 crossing vs T — pin 73.
-- [ ] R8 symmetric *also* — crate, bridge, web; pin 136.
-- [ ] R9 O4 through the crease's end on a long crease — pin 34, 93.
-- [ ] Corpus gates 1–3; the markhor_feedback pin table as a test.
+- [ ] R0 in the closure — an impractical O2 does not certify alone;
+  measure first.
+- [x] R1 visibility before ease — pinned 21, 58, 103, 104, 127.
+- [x] R2 lever and reach — pinned 31, 32, 48, 81, 146.
+- [x] R3 bisection at the crease — pinned 48, 71, 73, 127, 129, 140, 142.
+- [x] R4 connect the marks by comparison — pinned 36, 122, 146.
+- [x] R5 the pick over the whole paper — pinned 21, 31.
+- [x] R6 mountain pinches — pinned 48, 56, 146, 147, 157; 158 stays a
+  fold from the back.
+- [x] R7 crossing vs T — pinned 73.
+- [x] R8 symmetric *also* — crate, bridge, web; 136 turned out to be one
+  alignment on the centre line, and the *also* shows on 17 of markhor's
+  other steps.
+- [x] R9 O4 through the crease's end on a long crease — pinned 34, 93.
+- [x] The markhor_feedback pin table as a test.
+- [ ] Corpus gates 1–3 (`measure_ends` pick tallies; the run is in the
+  session notes).
 - [ ] Zach folds markhor again.

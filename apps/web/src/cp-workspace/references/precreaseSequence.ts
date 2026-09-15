@@ -397,6 +397,20 @@ export interface PrecreaseStep {
    * references — the pattern's own pieces are then all there is to draw.
    */
   made: PrecreasePlanSegment[];
+  /**
+   * The mirror image of the chosen witness about the sheet's centre line,
+   * when the fold is its own mirror image and the paper offers the mirror
+   * alignment too: a symmetric design's second pair for the same fold. The
+   * card draws both — a second arrow, its own letters — and the sentence
+   * names both, so the folder lines up both ends of a long fold at once.
+   */
+  also?: PrecreaseWitness;
+  /**
+   * The chosen witness is one no practical fold makes — an interior point
+   * lined up on another through the paper — and nothing else was on offer.
+   * The card says so.
+   */
+  impractical: boolean;
   hoisted: boolean;
 }
 

@@ -2967,7 +2967,9 @@
     "common:viewDrawer.openSettings": "74a883a037bc",
     "common:viewDrawer.settingsTitle": "74a883a037bc",
     "panels:references.settings.allowDangling": "3ab4a66817d3",
-    "panels:references.settings.allowDanglingHelp": "691190612076"
+    "panels:references.settings.allowDanglingHelp": "691190612076",
+    "panels:references.planStep.alsoNote": "81e20acaca58",
+    "panels:references.planStep.impractical": "a5480031b1fb"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5937,7 +5939,9 @@
     "common:viewDrawer.openSettings": "74a883a037bc",
     "common:viewDrawer.settingsTitle": "74a883a037bc",
     "panels:references.settings.allowDangling": "3ab4a66817d3",
-    "panels:references.settings.allowDanglingHelp": "691190612076"
+    "panels:references.settings.allowDanglingHelp": "691190612076",
+    "panels:references.planStep.alsoNote": "81e20acaca58",
+    "panels:references.planStep.impractical": "a5480031b1fb"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8909,7 +8913,9 @@
     "common:viewDrawer.openSettings": "74a883a037bc",
     "common:viewDrawer.settingsTitle": "74a883a037bc",
     "panels:references.settings.allowDangling": "3ab4a66817d3",
-    "panels:references.settings.allowDanglingHelp": "691190612076"
+    "panels:references.settings.allowDanglingHelp": "691190612076",
+    "panels:references.planStep.alsoNote": "81e20acaca58",
+    "panels:references.planStep.impractical": "a5480031b1fb"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11821,7 +11827,9 @@
     "common:viewDrawer.openSettings": "74a883a037bc",
     "common:viewDrawer.settingsTitle": "74a883a037bc",
     "panels:references.settings.allowDangling": "3ab4a66817d3",
-    "panels:references.settings.allowDanglingHelp": "691190612076"
+    "panels:references.settings.allowDanglingHelp": "691190612076",
+    "panels:references.planStep.alsoNote": "81e20acaca58",
+    "panels:references.planStep.impractical": "a5480031b1fb"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14733,7 +14741,9 @@
     "common:viewDrawer.openSettings": "74a883a037bc",
     "common:viewDrawer.settingsTitle": "74a883a037bc",
     "panels:references.settings.allowDangling": "3ab4a66817d3",
-    "panels:references.settings.allowDanglingHelp": "691190612076"
+    "panels:references.settings.allowDanglingHelp": "691190612076",
+    "panels:references.planStep.alsoNote": "81e20acaca58",
+    "panels:references.planStep.impractical": "a5480031b1fb"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -17703,7 +17713,9 @@
     "common:viewDrawer.openSettings": "74a883a037bc",
     "common:viewDrawer.settingsTitle": "74a883a037bc",
     "panels:references.settings.allowDangling": "3ab4a66817d3",
-    "panels:references.settings.allowDanglingHelp": "691190612076"
+    "panels:references.settings.allowDanglingHelp": "691190612076",
+    "panels:references.planStep.alsoNote": "81e20acaca58",
+    "panels:references.planStep.impractical": "a5480031b1fb"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -20673,7 +20685,9 @@
     "common:viewDrawer.openSettings": "74a883a037bc",
     "common:viewDrawer.settingsTitle": "74a883a037bc",
     "panels:references.settings.allowDangling": "3ab4a66817d3",
-    "panels:references.settings.allowDanglingHelp": "691190612076"
+    "panels:references.settings.allowDanglingHelp": "691190612076",
+    "panels:references.planStep.alsoNote": "81e20acaca58",
+    "panels:references.planStep.impractical": "a5480031b1fb"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -23585,6 +23599,8 @@
     "common:viewDrawer.openSettings": "74a883a037bc",
     "common:viewDrawer.settingsTitle": "74a883a037bc",
     "panels:references.settings.allowDangling": "3ab4a66817d3",
-    "panels:references.settings.allowDanglingHelp": "691190612076"
+    "panels:references.settings.allowDanglingHelp": "691190612076",
+    "panels:references.planStep.alsoNote": "81e20acaca58",
+    "panels:references.planStep.impractical": "a5480031b1fb"
   }
 }

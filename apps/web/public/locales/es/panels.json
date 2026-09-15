@@ -904,6 +904,7 @@
     "outsideSheet": "Esta selección no está dentro de ninguna hoja.",
     "planning": "Calculando la secuencia de plegado…",
     "planStep": {
+      "alsoNote": "Alinea ambos a la vez para que el pliegue quede recto.",
       "approximate": "Aproximado: esta construcción se desvía un {{pct}} % de la hoja.",
       "approximateBadge": "Aproximado",
       "axiom1": "Dobla por {{a}} y {{b}}.",
@@ -940,6 +941,7 @@
       "gridValleyFirst_one": "{{pleat}}: {{count}} línea, alternando valle y montaña, primero valle.",
       "gridValleyFirst_many": "{{pleat}}: {{count}} líneas, alternando valle y montaña, primero valle.",
       "gridValleyFirst_other": "{{pleat}}: {{count}} líneas, alternando valle y montaña, primero valle.",
+      "impractical": "Ningún punto está en un borde, así que este se alinea a través del papel — nada en la hoja lo convierte aún en un pliegue más limpio.",
       "inherited": "Referenciado desde un pliegue aproximado, así que solo es tan exacto como ese.",
       "markFirst": "Una de estas marcas está donde se cruzarían dos pliegues si siguieran: haz primero un pellizco ahí.",
       "noAlignment": "Todavía nada en el papel coincide con este pliegue: márcalo tal como se muestra.",

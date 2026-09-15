@@ -62,7 +62,7 @@ import {
   foldArrowArc,
   type DiagramSheet,
 } from '../stepDiagramGeometry';
-import { inputLetters } from './inputLetters';
+import { alsoLetters, inputLetters, type InputLetters } from './inputLetters';
 import type { Point } from '../../../lib/geometry';
 import type { DiagramFrame, DiagramGridLine, DiagramSegment } from './diagramFrames';
 import type {
@@ -867,8 +867,13 @@ export function plannerStepDiagram(
   const witness = chosenWitness(step);
   const inputs: PrecreaseRef[] = witness?.inputs ?? [];
   const labels: StepDiagramPrimitive[] = [];
-  const letters = inputLetters(inputs);
   const chord = frame.chord(step);
+  // Everything a witness puts on the card — its references, their letters,
+  // the motion — drawn once for the chosen witness and again for its mirror
+  // image when the paper offers one (`step.also`), with the letters carrying
+  // on from the first's so the sentence can name both.
+  const drawWitness = (witness: PrecreaseWitness | null, letters: InputLetters): void => {
+  const inputs: PrecreaseRef[] = witness?.inputs ?? [];
   // O3 folds one line onto another, and the fold bisects the angle between
   // them. Only the arms of that angle take part: the moving line's half that
   // swings over, and the receiving line on the side it lands. The other arms
@@ -1052,6 +1057,13 @@ export function plannerStepDiagram(
     if (!anchor) continue;
     const out = foldArrowArc(anchor, reflectAcross(chord, anchor), xy(frame.centre));
     if (out) primitives.push({ kind: 'fold-arrow', out });
+  }
+
+  };
+  drawWitness(witness, inputLetters(inputs));
+  if (witness && step.also) {
+    const corner = perpendicularMotion(sequence, frame, step, witness);
+    drawWitness(step.also, alsoLetters(inputs, !!corner && !corner.ontoItself, step.also.inputs));
   }
 
   // The crease this step makes, then the letters, both over the references. The

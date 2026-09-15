@@ -71,6 +71,7 @@ function step(partial: Partial<PrecreaseStep> & Pick<PrecreaseStep, 'id' | 'line
     exact: true,
     pressed_on: [],
     made: [],
+    impractical: false,
     hoisted: false,
     ...partial,
   };

@@ -1,34 +1,34 @@
 //! For chosen steps of a plan, every construction the paper offered at that
-//! moment — the one the card presents and the ones it did not — with what
-//! each would have asked the folder to line up.
+//! moment — the one the card presents and the ones it did not — judged and
+//! priced the way the pick judged them.
 //!
 //! ```sh
 //! cargo run --release -p oristudio-precrease --example explain_steps -- <file> <step-id>[,<step-id>...] [--no-grid]
 //! ```
 //!
 //! The plan is replayed onto a bare sheet the way `measure_ends` replays it,
-//! and at each requested step the witnesses are re-derived from that paper
-//! (`all_witnesses_on`) rather than read from the closure's capped list, so
-//! a construction the closure never enumerated shows up here too. Each is
-//! printed with its inputs as geometry, whether it was sightable as the
-//! paper stood, and two numbers a folder feels: the **lever** — how far
-//! apart the things being lined up are, which is what bounds the fold's
-//! angular accuracy — and the **reach** — how far the crease the step makes
-//! is from the place the alignment happens, which is how much that angular
-//! error grows by the time it arrives at the crease.
+//! and at each requested step the ordering pass's own reasoning is laid out
+//! (`order::explain`): the recorded witnesses and every construction the
+//! paper offers, each with the presses sighting it would take and its
+//! judgement — practical (R0), visible (R1), precise (R2: the **lever** the
+//! alignment has and the **error** it grows to by the crease), a crossing to
+//! sight from (R7), local to the crease (R3, R4). The pick is marked `card`,
+//! its mirror image `also`; when the pick made here differs from the one the
+//! plan presented, both are shown, since the replay's paper and the ordering
+//! pass's can differ in what was pinched along the way.
 
 use std::path::PathBuf;
 
 use oristudio_precrease::analyze;
 use oristudio_precrease::clock::default_clock;
+use oristudio_precrease::direction::Direction;
 use oristudio_precrease::fixture_io::load_path;
-use oristudio_precrease::line::Line;
-use oristudio_precrease::marks::{
-    Creased, crease_runs, witness_alignment, witness_marks_exist, witness_sightable,
-};
-use oristudio_precrease::pinch::Extent;
+use oristudio_precrease::judge::{DirectionOfLine, Judgement};
+use oristudio_precrease::marks::{Creased, crease_runs};
+use oristudio_precrease::order::{Explained, explain};
+use oristudio_precrease::pinch::{Extent, PINCH_HALF_LENGTH};
 use oristudio_precrease::planner::{GridMode, Planner, PlannerOptions};
-use oristudio_precrease::predicates::{Ref, Witness, all_witnesses_on};
+use oristudio_precrease::predicates::{Ref, Witness};
 use oristudio_precrease::sequence::{Sequence, Step, StepKind};
 use oristudio_precrease::state::State;
 
@@ -68,71 +68,94 @@ fn main() {
 
     let mut state = State::new(sheet, point_cap);
     let mut creased = Creased::new(&state);
+    let mut replay = Replay::default();
     for step in &seq.steps {
         if wanted.contains(&step.id) {
-            explain(&seq, step, &state, &creased);
+            explain_step(&seq, step, &state, &creased, &replay);
         }
-        replay(step, &mut state, &mut creased);
+        replay.put(step, &mut state, &mut creased);
     }
 }
 
-/// Put a step on the replay paper exactly as `measure_ends` does.
-fn replay(step: &Step, state: &mut State, creased: &mut Creased) {
-    if let Some(grid) = &step.grid {
-        for line in &grid.lines {
-            if let Ok(outcome) = state.add_line(line.line, step.tag) {
-                if line.spans.is_empty() {
-                    creased.add_whole(state, outcome.id);
-                } else {
-                    creased.add_spans(state, outcome.id, &line.line, &line.spans);
+/// What the replay knows beyond the paper: the direction each replayed line
+/// was made in (by replay line id), for R0's exception.
+#[derive(Default)]
+struct Replay {
+    directions: Vec<Option<Direction>>,
+}
+
+impl Replay {
+    fn note(&mut self, id: usize, d: Direction) {
+        if self.directions.len() <= id {
+            self.directions.resize(id + 1, None);
+        }
+        self.directions[id] = Some(d);
+    }
+
+    fn direction_of(&self, id: usize) -> Option<Direction> {
+        self.directions.get(id).copied().flatten()
+    }
+
+    /// Put a step on the replay paper exactly as `measure_ends` does.
+    fn put(&mut self, step: &Step, state: &mut State, creased: &mut Creased) {
+        if let Some(grid) = &step.grid {
+            for line in &grid.lines {
+                if let Ok(outcome) = state.add_line(line.line, step.tag) {
+                    if line.spans.is_empty() {
+                        creased.add_whole(state, outcome.id);
+                    } else {
+                        creased.add_spans(state, outcome.id, &line.line, &line.spans);
+                    }
+                    self.note(outcome.id, line.direction);
                 }
             }
+            return;
         }
-        return;
-    }
-    if step.kind == StepKind::Press {
-        if let Extent::Pinches { spans } = &step.extent
-            && let Ok(outcome) = state.add_line(step.line, step.tag)
-        {
+        if step.kind == StepKind::Press {
+            if let Extent::Pinches { spans } = &step.extent
+                && let Ok(outcome) = state.add_line(step.line, step.tag)
+            {
+                creased.add_spans(state, outcome.id, &step.line, spans);
+            }
+            return;
+        }
+        let spans = if step.made.is_empty() {
+            &step.cp_spans
+        } else {
+            &step.made
+        };
+        let Ok(outcome) = state.add_line(step.line, step.tag) else {
+            return;
+        };
+        if spans.is_empty() {
+            creased.add_whole(state, outcome.id);
+        } else {
             creased.add_spans(state, outcome.id, &step.line, spans);
         }
-        return;
-    }
-    let spans = if step.made.is_empty() {
-        &step.cp_spans
-    } else {
-        &step.made
-    };
-    let Ok(outcome) = state.add_line(step.line, step.tag) else {
-        return;
-    };
-    if spans.is_empty() {
-        creased.add_whole(state, outcome.id);
-    } else {
-        creased.add_spans(state, outcome.id, &step.line, spans);
-    }
-    for span in &step.pressed_on {
-        let len = (span[0][0] - span[1][0]).hypot(span[0][1] - span[1][1]);
-        if len <= 2.0 * oristudio_precrease::pinch::PINCH_HALF_LENGTH + 1e-9 {
-            creased.add_pinch(state, outcome.id, &step.line, *span);
-        } else {
-            creased.add_spans(state, outcome.id, &step.line, &[*span]);
+        for span in &step.pressed_on {
+            let len = (span[0][0] - span[1][0]).hypot(span[0][1] - span[1][1]);
+            if len <= 2.0 * PINCH_HALF_LENGTH + 1e-9 {
+                creased.add_pinch(state, outcome.id, &step.line, *span);
+            } else {
+                creased.add_spans(state, outcome.id, &step.line, &[*span]);
+            }
         }
+        creased.note_pinchable(state, outcome.id);
+        self.note(outcome.id, step.direction);
     }
-    creased.note_pinchable(state, outcome.id);
 }
 
-fn point_name(state: &State, r: &Ref) -> String {
+fn ref_name(state: &State, r: &Ref) -> String {
     match r {
         Ref::Edge { side, .. } => format!("edge:{side:?}"),
         Ref::Corner { corner, .. } => format!("corner:{corner:?}"),
-        Ref::Line { id } => {
-            let l = state.line(*id);
-            match state.clip(*id) {
-                Some((a, b)) => format!("line({:.3},{:.3})-({:.3},{:.3})", a[0], a[1], b[0], b[1]),
-                None => format!("line n=({:.3},{:.3}) d={:.3}", l.n[0], l.n[1], l.d),
+        Ref::Line { id } => match state.clip(*id) {
+            Some((a, b)) => format!("line({:.3},{:.3})-({:.3},{:.3})", a[0], a[1], b[0], b[1]),
+            None => {
+                let l = state.line(*id);
+                format!("line n=({:.3},{:.3}) d={:.3}", l.n[0], l.n[1], l.d)
             }
-        }
+        },
         Ref::Point { id } => {
             let p = state.point(*id);
             let on_edge = state.points()[*id].on_boundary;
@@ -146,55 +169,24 @@ fn point_name(state: &State, r: &Ref) -> String {
     }
 }
 
-/// The distance between the two things a witness lines up: the accuracy of
-/// the fold is bounded by how far apart they are.
-fn lever(state: &State, creased: &Creased, fold: &Line, w: &Witness) -> Option<f64> {
-    let p = |i: usize| -> Option<[f64; 2]> {
-        match w.inputs.get(i)? {
-            Ref::Point { id } | Ref::Corner { id, .. } => Some(state.point(*id)),
-            _ => None,
-        }
-    };
-    let dist = |a: [f64; 2], b: [f64; 2]| (a[0] - b[0]).hypot(a[1] - b[1]);
-    match w.axiom {
-        1 | 2 => Some(dist(p(0)?, p(1)?)),
-        // A line lined up along a line: the overlap of the creases.
-        3 | 4 | 7 => witness_alignment(state, creased, fold, w),
-        // A swing: the point's distance from the pivot is the lever.
-        5 => Some(dist(p(0)?, p(1)?)),
-        _ => None,
-    }
+fn flags(j: &Judgement) -> String {
+    [
+        if j.practical { 'P' } else { 'x' },
+        if j.visible { 'v' } else { '.' },
+        if j.precise { 'p' } else { '.' },
+        if j.crossings { 'c' } else { '.' },
+        if j.local() { 'L' } else { '.' },
+        if j.skinny { 's' } else { '.' },
+    ]
+    .iter()
+    .collect()
 }
 
-/// Where the alignment happens, for the reach: the midpoint of two points,
-/// the crossing of two lines, the foot of a perpendicular, the pivot.
-fn anchor(state: &State, fold: &Line, w: &Witness) -> Option<[f64; 2]> {
-    let p = |i: usize| -> Option<[f64; 2]> {
-        match w.inputs.get(i)? {
-            Ref::Point { id } | Ref::Corner { id, .. } => Some(state.point(*id)),
-            _ => None,
-        }
-    };
-    let l = |i: usize| -> Option<&Line> {
-        match w.inputs.get(i)? {
-            Ref::Line { id } | Ref::Edge { id, .. } => Some(state.line(*id)),
-            _ => None,
-        }
-    };
-    match w.axiom {
-        1 | 2 => {
-            let (a, b) = (p(0)?, p(1)?);
-            Some([(a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0])
-        }
-        3 => l(0)?.intersect(l(1)?),
-        4 => l(1)?.intersect(fold),
-        5 => p(0),
-        7 => l(2)?.intersect(fold),
-        _ => None,
-    }
+fn num(x: Option<f64>, digits: usize) -> String {
+    x.map_or_else(|| "-".to_string(), |v| format!("{v:.digits$}"))
 }
 
-fn explain(seq: &Sequence, step: &Step, state: &State, creased: &Creased) {
+fn explain_step(seq: &Sequence, step: &Step, state: &State, creased: &Creased, replay: &Replay) {
     let made = if step.made.is_empty() {
         &step.cp_spans
     } else {
@@ -205,12 +197,12 @@ fn explain(seq: &Sequence, step: &Step, state: &State, creased: &Creased) {
         .iter()
         .map(|(a, b)| (a[0] - b[0]).hypot(a[1] - b[1]))
         .sum();
-    let chosen = step.chosen.and_then(|c| step.witnesses.get(c));
     println!(
-        "== step {} {:?} {:?} line n=({:.4},{:.4}) d={:.5} crease {:.3} long {}",
+        "== step {} {:?} {:?} {:?} line n=({:.4},{:.4}) d={:.5} crease {:.3} long {}{}",
         step.id,
         step.kind,
         step.direction,
+        step.side,
         step.line.n[0],
         step.line.n[1],
         step.line.d,
@@ -218,92 +210,116 @@ fn explain(seq: &Sequence, step: &Step, state: &State, creased: &Creased) {
         runs.iter()
             .map(|(a, b)| format!("({:.3},{:.3})-({:.3},{:.3})", a[0], a[1], b[0], b[1]))
             .collect::<Vec<_>>()
-            .join(" ")
+            .join(" "),
+        if step.impractical { " IMPRACTICAL" } else { "" }
     );
-    if let Some(w) = chosen {
-        let names: Vec<String> = w
-            .inputs
-            .iter()
-            .map(|r| match r {
-                Ref::Point { id } => seq
-                    .points
-                    .iter()
-                    .find(|p| p.id == *id)
-                    .map(|p| format!("pt({:.3},{:.3})", p.p[0], p.p[1]))
-                    .unwrap_or_else(|| format!("pt#{id}")),
-                Ref::Line { id } => seq
-                    .lines
-                    .iter()
-                    .find(|l| l.id == *id)
-                    .map(|l| format!("line#{}(step {:?})", id, l.step))
-                    .unwrap_or_else(|| format!("line#{id}")),
-                Ref::Edge { side, .. } => format!("edge:{side:?}"),
-                Ref::Corner { corner, .. } => format!("corner:{corner:?}"),
-            })
-            .collect();
+    let recorded: Vec<Witness> = step
+        .witnesses
+        .iter()
+        .filter_map(|w| seq.witness_in(state, w))
+        .collect();
+    if recorded.len() < step.witnesses.len() {
         println!(
-            "   card: O{} [{}] moves={:?} hard={} ease={}",
-            w.axiom,
-            names.join(", "),
-            w.who_moves,
-            w.hard,
-            w.ease
+            "   ({} of {} recorded witnesses name something not on the replay paper yet)",
+            step.witnesses.len() - recorded.len(),
+            step.witnesses.len()
         );
     }
-    // What the closure recorded for the line, by axiom, so a construction the
-    // paper offers can be told from one the pick was ever shown.
-    let mut recorded: Vec<String> = Vec::new();
-    for axiom in 1..=7u8 {
-        let n = step.witnesses.iter().filter(|w| w.axiom == axiom).count();
-        if n > 0 {
-            let edge_self = step
-                .witnesses
+    let presented = step
+        .chosen
+        .and_then(|c| step.witnesses.get(c))
+        .and_then(|w| seq.witness_in(state, w));
+    let direction_of_line: DirectionOfLine<'_> = &|id: usize| replay.direction_of(id);
+    let mut rows: Vec<Explained> = explain(
+        state,
+        creased,
+        &step.line,
+        usize::MAX,
+        &step.cp_spans,
+        made,
+        step.direction,
+        direction_of_line,
+        &recorded,
+    );
+    let same = |a: &Witness, b: &Witness| a.axiom == b.axiom && a.inputs == b.inputs;
+    let pick = rows.iter().find(|r| r.chosen).map(|r| r.witness.clone());
+    match (&presented, &pick) {
+        (Some(p), Some(c)) if !same(p, c) => println!(
+            "   NOTE: the plan presented O{} [{}], the pick here is O{} [{}] — the papers differ",
+            p.axiom,
+            p.inputs
                 .iter()
-                .any(|w| w.axiom == axiom && w.folds_edge_onto_itself());
-            recorded.push(format!(
-                "O{axiom}×{n}{}",
-                if axiom == 4 && edge_self {
-                    "(edge)"
-                } else {
-                    ""
-                }
-            ));
+                .map(|r| ref_name(state, r))
+                .collect::<Vec<_>>()
+                .join(", "),
+            c.axiom,
+            c.inputs
+                .iter()
+                .map(|r| ref_name(state, r))
+                .collect::<Vec<_>>()
+                .join(", "),
+        ),
+        (Some(_), None) => {
+            println!("   NOTE: nothing here can be folded; the plan's card is flagged")
         }
+        (None, _) => println!("   (the plan presented no witness)"),
+        _ => {}
     }
-    println!("   recorded: {}", recorded.join(" "));
-    let mut all = all_witnesses_on(state, &step.line, creased);
-    all.sort_by_key(|w| w.preference());
-    let crease_mid = runs
-        .first()
-        .map(|(a, b)| [(a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0]);
-    for w in &all {
-        let sightable = witness_sightable(state, creased, &step.line, w);
-        let marks = witness_marks_exist(state, creased, w);
-        let align = witness_alignment(state, creased, &step.line, w);
-        let lever = lever(state, creased, &step.line, w);
-        let reach = match (anchor(state, &step.line, w), crease_mid) {
-            (Some(a), Some(m)) => Some((a[0] - m[0]).hypot(a[1] - m[1])),
-            _ => None,
-        };
-        let inputs: Vec<String> = w.inputs.iter().map(|r| point_name(state, r)).collect();
+    if let Some(also) = &step.also {
         println!(
-            "   {} O{} ease={} hard={} moves={:?} marks={} align={} lever={} reach={} [{}]",
-            if sightable { "OK " } else { "   " },
+            "   also: O{} [{}]",
+            also.axiom,
+            seq.witness_in(state, also)
+                .map(|a| a
+                    .inputs
+                    .iter()
+                    .map(|r| ref_name(state, r))
+                    .collect::<Vec<_>>()
+                    .join(", "))
+                .unwrap_or_else(|| "?".into())
+        );
+    }
+    // The pick first, then what could be folded now, then by what the pick
+    // would ask next: presses, visibility, precision, ease, error.
+    rows.sort_by(|a, b| {
+        b.chosen.cmp(&a.chosen).then_with(|| {
+            let k = |r: &Explained| {
+                (
+                    r.cost.map_or(usize::MAX, |c| c),
+                    !r.judgement.practical,
+                    !r.judgement.visible,
+                    !r.judgement.precise,
+                    !r.judgement.crossings,
+                    !r.judgement.local(),
+                    r.judgement.ease,
+                    r.judgement.error.map_or(0, |e| (e * 1e3) as u64),
+                )
+            };
+            k(a).cmp(&k(b))
+        })
+    });
+    for r in &rows {
+        let w = &r.witness;
+        let j = &r.judgement;
+        let inputs: Vec<String> = w.inputs.iter().map(|x| ref_name(state, x)).collect();
+        println!(
+            "   {}{} O{} ease={} [{}] cost={} lever={} reach={} err={} moves={:?} {}{}",
+            if r.chosen { "card " } else { "     " },
+            match r.cost {
+                Some(0) => "OK ",
+                Some(_) => "   ",
+                None => "-- ",
+            },
             w.axiom,
-            w.ease,
-            w.hard,
+            j.ease,
+            flags(j),
+            r.cost.map_or_else(|| "none".to_string(), |c| c.to_string()),
+            num(j.lever, 3),
+            num(j.reach, 3),
+            num(j.error, 2),
             w.who_moves,
-            marks,
-            align
-                .map(|a| format!("{a:.3}"))
-                .unwrap_or_else(|| "-".into()),
-            lever
-                .map(|a| format!("{a:.3}"))
-                .unwrap_or_else(|| "-".into()),
-            reach
-                .map(|a| format!("{a:.3}"))
-                .unwrap_or_else(|| "-".into()),
-            inputs.join(", ")
+            inputs.join(", "),
+            if r.also { " (also)" } else { "" }
         );
     }
 }

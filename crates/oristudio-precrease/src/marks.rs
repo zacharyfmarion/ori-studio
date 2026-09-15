@@ -21,6 +21,7 @@
 
 use crate::constants::MIN_ANGLE_SINE;
 use crate::line::Line;
+use crate::pinch::PINCH_HALF_LENGTH;
 use crate::predicates::{Ref, Witness};
 use crate::state::{LineTag, State};
 use crate::tol::TOL;
@@ -260,6 +261,39 @@ pub fn mark_exists(state: &State, creased: &Creased, p: [f64; 2], lines: &[usize
         || lines
             .iter()
             .any(|&l| creased.pinchable_at(state, l, p) && present.iter().any(|&s| squarely(s, l)))
+}
+
+/// Whether the mark at `p` is a **crossing**: two creases that cross squarely
+/// and each continue a pinch's length past the point on both sides. A crease
+/// that merely *ends* on another — a T — is a place a crease stops, which
+/// the reach rule is happy to find, and not a mark a folder reads: the end of
+/// a crease is the fuzziest part of it. A point on the sheet's boundary
+/// counts the edge as continuing, and a pinch continues by construction: it
+/// is a pinch's length centred on the point, made to be read.
+pub fn mark_is_crossing(state: &State, creased: &Creased, p: [f64; 2], lines: &[usize]) -> bool {
+    let through = |l: usize| -> bool {
+        if state.is_edge(l) {
+            return true;
+        }
+        let line = state.line(l);
+        if !creased.crease_reaches(state, l, p) {
+            return creased.reaches(state, l, p);
+        }
+        let t = line.parameter_of(p);
+        [t - PINCH_HALF_LENGTH, t + PINCH_HALF_LENGTH]
+            .into_iter()
+            .all(|u| {
+                let q = line.point_at(u);
+                // Past the sheet's edge is as far as a crease can go.
+                !state.in_paper(q) || creased.crease_reaches(state, l, q)
+            })
+    };
+    let present: Vec<usize> = lines.iter().copied().filter(|&l| through(l)).collect();
+    present.iter().enumerate().any(|(i, &a)| {
+        present[i + 1..]
+            .iter()
+            .any(|&b| state.line(a).cross(state.line(b)).abs() >= MIN_ANGLE_SINE)
+    })
 }
 
 /// Whether the mark at `p` is on the paper in fact — two creases meeting

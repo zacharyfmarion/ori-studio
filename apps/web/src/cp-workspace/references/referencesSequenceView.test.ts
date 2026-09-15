@@ -39,6 +39,7 @@ function step(id: number, side: PrecreaseSide): PrecreaseStep {
     exact: true,
     pressed_on: [],
     made: [],
+    impractical: false,
     hoisted: false,
   };
 }

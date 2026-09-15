@@ -904,6 +904,7 @@
     "outsideSheet": "Esta seleção não está dentro de nenhuma folha.",
     "planning": "Calculando a sequência de dobras…",
     "planStep": {
+      "alsoNote": "Alinhe os dois ao mesmo tempo, para que a dobra fique reta.",
       "approximate": "Aproximado — esta construção desvia {{pct}} % da folha.",
       "approximateBadge": "Aproximado",
       "axiom1": "Dobre passando por {{a}} e {{b}}.",
@@ -940,6 +941,7 @@
       "gridValleyFirst_one": "{{pleat}}: {{count}} linha, alternando vale e montanha, vale primeiro.",
       "gridValleyFirst_many": "{{pleat}}: {{count}} linhas, alternando vale e montanha, vale primeiro.",
       "gridValleyFirst_other": "{{pleat}}: {{count}} linhas, alternando vale e montanha, vale primeiro.",
+      "impractical": "Nenhum dos pontos está numa borda, então esta é alinhada através do papel — nada na folha a torna uma dobra mais limpa ainda.",
       "inherited": "Referenciado a partir de um vinco aproximado, portanto só tão exato quanto ele.",
       "markFirst": "Uma destas marcas está onde dois vincos se cruzariam se seguissem adiante: faça primeiro um beliscão ali.",
       "noAlignment": "Nada no papel coincide ainda com esta dobra — vinque como desenhado.",

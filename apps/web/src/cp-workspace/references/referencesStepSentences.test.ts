@@ -368,6 +368,42 @@ describe('a press step', () => {
   });
 });
 
+describe('a step with a mirror alignment', () => {
+  const sequence = plannerSequenceFixture();
+  const also = {
+    ...sequence.steps[1]!.witnesses[0]!,
+    inputs: [
+      { kind: 'corner' as const, id: 1, corner: 'se' as const },
+      { kind: 'point' as const, id: 4 },
+    ],
+  };
+  const mirrored = {
+    ...sequence,
+    steps: sequence.steps.map((s, i) => (i === 1 ? { ...s, also } : s)),
+  };
+
+  // The second witness's letters carry on from the first's — the card
+  // letters them the same way — and the sentence says why both are shown.
+  it('names both alignments, lettered in turn, and says to line up both', () => {
+    expect(describePlannerStep(t, mirrored, 1)).toBe(
+      'Fold P onto Q. Fold R onto S. Line up both at once, so the fold stays straight.'
+    );
+  });
+});
+
+describe('a step no practical fold makes', () => {
+  it('says the point is lined up through the paper', () => {
+    const sequence = plannerSequenceFixture();
+    const flagged = {
+      ...sequence,
+      steps: sequence.steps.map((s, i) => (i === 1 ? { ...s, impractical: true } : s)),
+    };
+    const sentence = describePlannerStep(t, flagged, 1);
+    expect(sentence.startsWith('Fold P onto Q.')).toBe(true);
+    expect(sentence).toContain('lined up through the paper');
+  });
+});
+
 describe('a step that cannot be sighted', () => {
   const sequence = plannerSequenceFixture();
   const flagged = (missing: [number, number][]) => {

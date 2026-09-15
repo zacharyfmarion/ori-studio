@@ -86,7 +86,7 @@ fn main() {
             .unwrap_or_default();
         let [a, b] = s.segment;
         println!(
-            "{:>3} {:?}{} O{} {:?} {:?} line n=({:.4},{:.4}) d={:.5} seg ({:.3},{:.3})-({:.3},{:.3}) cp={:?} spans={} made={}{}{} marks={} align={:?} exact={} hard={}{}",
+            "{:>3} {:?}{} O{} {:?} {:?} line n=({:.4},{:.4}) d={:.5} seg ({:.3},{:.3})-({:.3},{:.3}) cp={:?} spans={} made={}{}{} marks={} align={:?} exact={} hard={}{}{}{}",
             s.id,
             s.kind,
             match s.grid.as_ref() {
@@ -164,6 +164,21 @@ fn main() {
             } else {
                 format!(" <- {}", inputs.join(", "))
             },
+            s.also
+                .as_ref()
+                .map(|a| {
+                    format!(
+                        " also=O{} [{}]",
+                        a.axiom,
+                        a.inputs
+                            .iter()
+                            .map(|r| format!("{r:?}"))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                })
+                .unwrap_or_default(),
+            if s.impractical { " IMPRACTICAL" } else { "" },
         );
     }
     for f in &seq.findings {

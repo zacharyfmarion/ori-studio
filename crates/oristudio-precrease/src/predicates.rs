@@ -193,6 +193,11 @@ pub struct Facts {
 /// with any witness gets at least one per applicable axiom.
 const MAX_POINTS_FOR_PAIRS: usize = 12;
 const MAX_WITNESSES_PER_AXIOM: usize = 16;
+/// The wider cap the presentation pass enumerates under
+/// ([`all_witnesses_for_card`]): the card's pick judges every construction
+/// by what it asks of the folder, and the one a folder would choose is often
+/// far down the scan order.
+const CARD_WITNESSES_PER_AXIOM: usize = 64;
 /// Landers kept per target, with per-point and per-line diversity caps so
 /// an O6 pair with distinct points and lines survives the cap.
 pub const MAX_LANDERS: usize = 96;
@@ -233,7 +238,9 @@ pub fn point_ref(state: &State, id: usize) -> Ref {
     Ref::Point { id }
 }
 
-fn ref_on_boundary(state: &State, r: &Ref) -> bool {
+/// Whether a reference is on the sheet's boundary: an edge or corner, an
+/// edge line, or a mark on an edge — the things a folder can watch move.
+pub fn ref_on_boundary(state: &State, r: &Ref) -> bool {
     match r {
         Ref::Edge { .. } | Ref::Corner { .. } => true,
         Ref::Line { id } => state.is_edge(*id),
@@ -403,6 +410,17 @@ pub fn witnesses_on(
     facts: &Facts,
     paper: Option<&Creased>,
 ) -> Vec<Witness> {
+    witnesses_on_capped(state, target, facts, paper, MAX_WITNESSES_PER_AXIOM)
+}
+
+/// [`witnesses_on`] with the per-axiom cap chosen by the caller.
+fn witnesses_on_capped(
+    state: &State,
+    target: &Line,
+    facts: &Facts,
+    paper: Option<&Creased>,
+    cap: usize,
+) -> Vec<Witness> {
     let mut out: Vec<Witness> = Vec::new();
     let is_mark = |id: usize| paper.is_some_and(|creased| point_mark_exists(state, creased, id));
     let mut points_on: Vec<usize> = facts.points_on.clone();
@@ -430,7 +448,7 @@ pub fn witnesses_on(
     // O2 first: the most accurate fold by hand.
     let mut count = 0;
     for &(p, r) in &facts.o2_pairs {
-        if count >= MAX_WITNESSES_PER_AXIOM {
+        if count >= cap {
             break;
         }
         let c = Construction::O2 {
@@ -451,7 +469,7 @@ pub fn witnesses_on(
     // O3.
     count = 0;
     for &(m, m2) in &facts.o3_pairs {
-        if count >= MAX_WITNESSES_PER_AXIOM {
+        if count >= cap {
             break;
         }
         let c = Construction::O3 {
@@ -473,7 +491,7 @@ pub fn witnesses_on(
     count = 0;
     'o4: for &m in &facts.perps {
         for &p in &points {
-            if count >= MAX_WITNESSES_PER_AXIOM {
+            if count >= cap {
                 break 'o4;
             }
             let c = Construction::O4 {
@@ -496,7 +514,7 @@ pub fn witnesses_on(
     count = 0;
     'o1: for (i, &p) in points.iter().enumerate() {
         for &q in &points[i + 1..] {
-            if count >= MAX_WITNESSES_PER_AXIOM {
+            if count >= cap {
                 break 'o1;
             }
             let c = Construction::O1 {
@@ -520,7 +538,7 @@ pub fn witnesses_on(
         count = 0;
         'o7: for &m2 in &facts.perps {
             for &(p, m1) in &facts.landers {
-                if count >= MAX_WITNESSES_PER_AXIOM {
+                if count >= cap {
                     break 'o7;
                 }
                 if m1 == m2 {
@@ -551,7 +569,7 @@ pub fn witnesses_on(
         count = 0;
         'o6: for (i, &(p1, m1)) in facts.landers.iter().enumerate() {
             for &(p2, m2) in &facts.landers[i + 1..] {
-                if count >= MAX_WITNESSES_PER_AXIOM {
+                if count >= cap {
                     break 'o6;
                 }
                 if p1 == p2 || m1 == m2 {
@@ -584,7 +602,7 @@ pub fn witnesses_on(
         count = 0;
         'o5: for &pivot in &points {
             for &(p, m1) in &facts.landers {
-                if count >= MAX_WITNESSES_PER_AXIOM {
+                if count >= cap {
                     break 'o5;
                 }
                 if p == pivot {
@@ -764,6 +782,13 @@ pub fn all_witnesses(state: &State, target: &Line) -> Vec<Witness> {
 pub fn all_witnesses_on(state: &State, target: &Line, paper: &Creased) -> Vec<Witness> {
     let facts = full_facts(state, target);
     witnesses_on(state, target, &facts, Some(paper))
+}
+
+/// [`all_witnesses_on`] under the presentation pass's wider cap: every
+/// construction the paper offers for `target` that a card might present.
+pub fn all_witnesses_for_card(state: &State, target: &Line, paper: &Creased) -> Vec<Witness> {
+    let facts = full_facts(state, target);
+    witnesses_on_capped(state, target, &facts, Some(paper), CARD_WITNESSES_PER_AXIOM)
 }
 
 /// The closure's own witness for a line, under the search's order

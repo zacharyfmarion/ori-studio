@@ -26,16 +26,17 @@
 
 use crate::closure::{Closure, FoldedLine};
 use crate::constants::MIN_ANGLE_SINE;
-use crate::direction::Side;
+use crate::direction::{Direction, Side};
+use crate::judge::{Judgement, MAX_ERROR, judge};
 use crate::line::Line;
 use crate::marks::{
     Creased, MIN_ALIGNMENT, crease_overlap, crease_runs, findable_end_beyond, pinchable_lines_at,
     point_mark_exists, reach, settled_end_is_found, witness_alignment, witness_aligns,
-    witness_aligns_at_all, witness_lines_meet, witness_marks_exist, witness_marks_real,
-    witness_missing_marks, witness_sightable,
+    witness_aligns_at_all, witness_lines_meet, witness_marks_exist, witness_missing_marks,
+    witness_sightable,
 };
 use crate::pinch::PINCH_HALF_LENGTH;
-use crate::predicates::{Ref, Witness, all_witnesses_on, crease_through};
+use crate::predicates::{Ref, Witness, all_witnesses_for_card, crease_through};
 use crate::sequence::{Group, StepKind};
 use crate::state::{LineTag, State};
 use crate::tol::TOL;
@@ -60,8 +61,7 @@ pub struct Placed {
     /// their end — `found`.
     pub chosen: Option<usize>,
     /// A witness the closure did not record, found here against the paper as
-    /// it stands when this fold is made: everything it names is already
-    /// there. See [`found_witnesses`].
+    /// it stands when this fold is made. See [`candidates`].
     pub found: Option<Witness>,
     pub hoisted: bool,
     /// Every mark the presentation witness sights is on the paper.
@@ -107,6 +107,15 @@ pub struct Placed {
     /// they meet ([`crate::marks::reach`]); without, the pattern's own runs.
     /// Empty for a press, and for a fold creased along its whole chord.
     pub made: Vec<[[f64; 2]; 2]>,
+    /// A second witness of the same fold, the mirror image of the presented
+    /// one about the sheet's centre line, sightable as the paper stands: the
+    /// card shows both, because two alignments a sheet apart keep a long
+    /// fold straight where one does not. See [`mirror_witness`].
+    pub also: Option<Witness>,
+    /// The presented witness is a fold the folder cannot make well — an
+    /// interior point lined up on another (`judge::o2_start_is_practical`) —
+    /// and nothing else was on offer. The card says so.
+    pub impractical: bool,
 }
 
 impl Placed {
@@ -769,37 +778,26 @@ fn presses_for_lines(state: &State, creased: &Creased, fold: &Line, w: &Witness)
     out
 }
 
-/// A crease no longer than this, with a mark at each end, is creased between
-/// the marks rather than sighted from anything further away: a tenth of the
-/// sheet. Lining a short crease up against references elsewhere on the sheet
-/// gains nothing over joining two marks a thumb's width apart, and reads
-/// worse — "fold A onto B" for a crease between two points the folder can
-/// see. A longer crease is another matter: a crease through two marks is
-/// the least accurate fold there is, and the error grows with the length.
-const SHORT_CREASE: f64 = 0.1;
-
-/// The "join the marks" witness for fold `i`, when its crease is short and
-/// both its ends are marks on the paper — see [`SHORT_CREASE`].
+/// The "join the marks" witness for a fold along `line` creasing `made`: the
+/// O1 through the two ends of its crease, when the crease is one run and
+/// both ends are marks on the paper. Whether that is the fold to present is
+/// the pick's question (`judge::CONNECT_CREASE`, [`Judgement::own_ends`]);
+/// this only makes sure the candidate exists, since the enumeration keeps a
+/// dozen points per line and the crease's own ends need not be among them.
 fn crease_between_marks(
     state: &State,
-    closure: &Closure,
     creased: &Creased,
-    i: usize,
+    line: &Line,
+    made: &[[[f64; 2]; 2]],
 ) -> Option<Witness> {
-    let f = &closure.folded()[i];
-    let target = f.target.and_then(|t| closure.targets().get(t))?;
-    let runs = crease_runs(&f.line, &target.spans);
-    let [(a, b)] = runs.as_slice() else {
+    let [[a, b]] = made else {
         return None;
     };
-    if (b[0] - a[0]).hypot(b[1] - a[1]) > SHORT_CREASE {
-        return None;
-    }
     let (p, q) = (state.find_point(*a)?, state.find_point(*b)?);
     if p == q || !point_mark_exists(state, creased, p) || !point_mark_exists(state, creased, q) {
         return None;
     }
-    crease_through(state, &f.line, p, q)
+    crease_through(state, line, p, q)
 }
 
 /// How many presses may buy a fold something moves in, over one nothing
@@ -995,6 +993,8 @@ fn make_marks_real(
             press: Some(press),
             pressed_on: Vec::new(),
             made: Vec::new(),
+            also: None,
+            impractical: false,
         });
     };
     for point in witness_missing_marks(state, creased, witness) {
@@ -1009,14 +1009,32 @@ fn make_marks_real(
     }
 }
 
+/// A crease no longer than this, in the pattern, is a pinch: it is made on
+/// the face where it is a **mountain** rather than the face where it is a
+/// valley, because a mountain between two nearby marks is pinched up
+/// between finger and thumb, and a valley there has to be creased flat. A
+/// tenth of a sheet and a pinch's length.
+pub const PINCH_CREASE: f64 = 0.12;
+
 /// The face a fold has to be made from, or `None` when it does not care.
 ///
 /// An auxiliary line has no target and so no direction; a line whose majority
 /// is under [`crate::direction::FIRM_MAJORITY`] has one but is not allowed to
-/// spend a turn-over on it.
+/// spend a turn-over on it. A pinch ([`PINCH_CREASE`]) is made from the other
+/// face, as a mountain.
 fn forced_side(closure: &Closure, folded_index: usize) -> Option<Side> {
-    let target = closure.folded()[folded_index].target?;
-    closure.targets().get(target)?.forces_side()
+    let f = &closure.folded()[folded_index];
+    let target = closure.targets().get(f.target?)?;
+    let side = target.forces_side()?;
+    let length: f64 = crease_runs(&f.line, &target.spans)
+        .iter()
+        .map(|(a, b)| (a[0] - b[0]).hypot(a[1] - b[1]))
+        .sum();
+    if !target.spans.is_empty() && length <= PINCH_CREASE {
+        Some(side.flipped())
+    } else {
+        Some(side)
+    }
 }
 
 /// What sighting one fold settled: which witness the folder is shown, and
@@ -1025,7 +1043,7 @@ struct Sighted {
     /// Presentation witness index into the recorded witnesses, or one past
     /// their end for `found`.
     chosen: Option<usize>,
-    /// A witness the closure did not record — see [`found_witnesses`].
+    /// A witness the closure did not record — see [`candidates`].
     found: Option<Witness>,
     /// Every mark that witness sights is on the paper, and every alignment it
     /// asks for is between creases that are there.
@@ -1034,50 +1052,133 @@ struct Sighted {
     missing: Vec<usize>,
     /// The shortest crease alignment that witness asks for.
     alignment: Option<f64>,
+    /// The presented witness's mirror image, when the paper has one.
+    also: Option<Witness>,
+    /// The presented witness is an impractical fold and the only one.
+    impractical: bool,
 }
 
-/// Witnesses for `line` the closure did not record, certified against the
-/// paper as it stands: every line input already folded, every mark already
-/// on the paper. Everything the state knows is searched, including lines
-/// folded later, which is why the filter is by what is creased now and not
-/// by round.
+/// Every construction the paper offers for `line` at this moment, for the
+/// pick to choose from: the closure's recorded witnesses first (so `chosen`
+/// can index them), then the ones the paper offers now and the closure did
+/// not record — the crease's own two marks joined, and everything
+/// [`all_witnesses_for_card`] enumerates whose lines are already folded.
 ///
 /// The closure certifies a line once, against the state before its round,
-/// and keeps what it found then. But the order inside a round is free, so
-/// by the time a fold is made the paper may carry marks the same round's
-/// earlier folds left — the spot a corner lands on, say, where two of them
-/// cross — and "fold Q onto P" is a clearer instruction than "fold Q onto B
-/// and P onto A" for the same crease. A witness found here names nothing
-/// that is not already on the paper, so it is as safe to present as a
-/// recorded one.
-///
-/// A mark is on the paper when two creases *reach* it, not when two lines
-/// through it have been folded somewhere ([`point_mark_exists`]). The
-/// looser test offered folds through marks that were not there, and the
-/// pick then paid a press to make each one: a symmetric pair of folds came
-/// out as a corner swing on one side and "pinch here, then fold" on the
-/// other, for a mark nothing else ever used.
-fn found_witnesses(
+/// keeps a capped list in scan order, and stops at the first tier that
+/// certifies. The order inside a round is free, so by the time a fold is
+/// made the paper may carry marks the same round's earlier folds left; and
+/// the construction a folder would choose — a bisection at the crease, a
+/// perpendicular through its end — is often one the closure never
+/// enumerated. Everything the state knows is searched, including lines
+/// folded later, which is why the filter is by what is folded now and not
+/// by round; a mark that is not yet on the paper is not filtered here, since
+/// a press can put it there and the pick prices that.
+fn candidates(
     state: &State,
     creased: &Creased,
     line: &Line,
     line_id: usize,
+    made: &[[[f64; 2]; 2]],
     recorded: &[Witness],
 ) -> Vec<Witness> {
-    let on_paper = |r: &Ref| match r {
-        Ref::Edge { .. } | Ref::Corner { .. } => true,
+    let mut out: Vec<Witness> = recorded.to_vec();
+    let folded = |r: &Ref| match r {
+        Ref::Edge { .. } | Ref::Corner { .. } | Ref::Point { .. } => true,
         Ref::Line { id } => *id != line_id && creased.is_folded(*id),
-        Ref::Point { id } => point_mark_exists(state, creased, *id),
     };
-    all_witnesses_on(state, line, creased)
-        .into_iter()
-        .filter(|w| w.inputs.iter().all(on_paper))
-        .filter(|w| {
-            !recorded
+    let known = |out: &[Witness], w: &Witness| {
+        out.iter()
+            .any(|r| r.axiom == w.axiom && r.inputs == w.inputs && r.root == w.root)
+    };
+    if let Some(w) = crease_between_marks(state, creased, line, made)
+        && !known(&out, &w)
+    {
+        out.push(w);
+    }
+    for w in all_witnesses_for_card(state, line, creased) {
+        if w.inputs.iter().all(folded) && !known(&out, &w) {
+            out.push(w);
+        }
+    }
+    out
+}
+
+/// The mirror image of `chosen` about the sheet's vertical or horizontal
+/// centre line, among `candidates`, when the fold itself is its own mirror
+/// image about that line and the mirror is sightable too: the second
+/// alignment a symmetric design offers for the same fold (markhor's step
+/// 136 — the pair on x = ⅝ beside the pair on x = ⅜). Same axiom, every
+/// input the mirror of the other's, so the card can show both and the folder
+/// can line up both ends of a long fold at once.
+fn mirror_witness(
+    state: &State,
+    creased: &Creased,
+    fold: &Line,
+    chosen: &Witness,
+    candidates: &[Witness],
+) -> Option<Witness> {
+    let sheet = *state.sheet();
+    let mirrors: [&dyn Fn([f64; 2]) -> [f64; 2]; 2] =
+        [&|p: [f64; 2]| [sheet.width - p[0], p[1]], &|p: [f64; 2]| {
+            [p[0], sheet.height - p[1]]
+        }];
+    let same_point = |a: [f64; 2], b: [f64; 2]| (a[0] - b[0]).hypot(a[1] - b[1]) <= TOL;
+    let same_line = |a: &Line, b: &Line| {
+        ((a.n[0] - b.n[0]).abs() <= TOL
+            && (a.n[1] - b.n[1]).abs() <= TOL
+            && (a.d - b.d).abs() <= TOL)
+            || ((a.n[0] + b.n[0]).abs() <= TOL
+                && (a.n[1] + b.n[1]).abs() <= TOL
+                && (a.d + b.d).abs() <= TOL)
+    };
+    let mirror_line = |l: &Line, m: &dyn Fn([f64; 2]) -> [f64; 2]| -> Option<Line> {
+        let (a, b) = sheet.clip(l)?;
+        Line::from_points(m(a), m(b))
+    };
+    for m in mirrors {
+        // The fold has to be its own mirror image, or the mirror witness is
+        // a witness of another fold.
+        let Some(fold_image) = mirror_line(fold, m) else {
+            continue;
+        };
+        if !same_line(fold, &fold_image) {
+            continue;
+        }
+        let matches = |w: &Witness| -> bool {
+            // The same alignment under another order of its inputs — an O1
+            // through a symmetric pair, read from the other end — is not a
+            // second one.
+            if w.axiom != chosen.axiom
+                || w.inputs.len() != chosen.inputs.len()
+                || w.inputs.iter().all(|r| chosen.inputs.contains(r))
+            {
+                return false;
+            }
+            w.inputs
                 .iter()
-                .any(|r| r.axiom == w.axiom && r.inputs == w.inputs)
-        })
-        .collect()
+                .zip(&chosen.inputs)
+                .all(|(a, b)| match (a, b) {
+                    (
+                        Ref::Point { id: x } | Ref::Corner { id: x, .. },
+                        Ref::Point { id: y } | Ref::Corner { id: y, .. },
+                    ) => same_point(state.point(*x), m(state.point(*y))),
+                    (
+                        Ref::Line { id: x } | Ref::Edge { id: x, .. },
+                        Ref::Line { id: y } | Ref::Edge { id: y, .. },
+                    ) => mirror_line(state.line(*y), m)
+                        .is_some_and(|k| same_line(state.line(*x), &k)),
+                    _ => false,
+                })
+        };
+        if let Some(w) = candidates
+            .iter()
+            .find(|w| matches(w) && sightable(state, creased, fold, w))
+        {
+            return Some(w.clone());
+        }
+    }
+    None
 }
 
 /// What sighting `witness` for a fold along `fold` costs in presses: none
@@ -1091,16 +1192,52 @@ fn witness_cost(state: &State, creased: &Creased, fold: &Line, witness: &Witness
     }
 }
 
-/// The witness to present for a fold along `fold`, out of `witnesses`,
-/// against the paper as it stands; `spans` are the pattern's creases on the
-/// fold. See [`sight`] for the rules.
+/// The witness to present for a fold along `fold`, out of `witnesses` — the
+/// index of the pick, with its judgement — against the paper as it stands,
+/// which will crease `made` in `direction`.
+///
+/// The key, in order (`implementation-plans/precrease-legible-picks.md`):
+///
+/// 1. **Practical** (R0): an interior point folded onto another is not a
+///    fold, and is presented only when nothing else is on offer.
+/// 2. **Free before pressed**: a fold the folder can make now, before one a
+///    press has to prepare — with the one trade a folder makes, a single
+///    press for a one-motion fold over a two-handed one
+///    ([`MAX_PRESSES_FOR_PREFERENCE`]); and no press at all when the crease
+///    can be made through two marks already on the paper.
+/// 3. **Visible** (R1): an alignment the folder can watch — something on
+///    the boundary moves, or a crease lands on a crease — before one lined
+///    up under the paper, whatever kind of fold either is.
+/// 4. **Precise** (R2): two references far enough apart, and the crease near
+///    enough to where they are lined up, that the fold lands where it should.
+/// 5. **At the crease** (R3, R4): a bisection whose vertex is the crease's
+///    end, or a short crease's own two marks joined, before any other kind
+///    of fold — its own marks even where one is a crease's end on another:
+///    a short crease pinched between the two creases it runs between is
+///    read off them, not sighted from afar.
+/// 6. **A crossing to sight from** (R7), before a crease's end on another.
+/// 7. The **ease order** — two points, line onto line, the edge onto itself
+///    … — then the skinny flap, the error at the crease, the residual. For a
+///    perpendicular to the sheet's edge, the edge whose foot is at the
+///    crease.
+///
+/// Then one override: among what is visible and precise in the winning
+/// class — the same presses, whether or not the same motion or as well
+/// marked — a fold whose error at the crease is at most a third of the
+/// ease-preferred one's is taken instead: a fold three times as accurate is
+/// worth a harder kind (markhor 34: two edge marks a sheet apart over two
+/// points a fifth apart) or a fuzzier mark (markhor 103).
+#[allow(clippy::too_many_arguments)]
 fn pick_witness(
     state: &State,
     creased: &Creased,
     fold: &Line,
     spans: &[[[f64; 2]; 2]],
+    made: &[[[f64; 2]; 2]],
+    direction: Direction,
+    direction_of_line: crate::judge::DirectionOfLine<'_>,
     witnesses: &[Witness],
-) -> Option<usize> {
+) -> Option<(usize, Judgement)> {
     // A fold perpendicular to one edge is perpendicular to the opposite
     // one too, and both are witnesses of equal ease. The folder wants the
     // edge the crease is at: "fold the bottom edge onto itself" for a
@@ -1113,77 +1250,182 @@ fn pick_witness(
         }
         (edge_foot_gap(state, fold, spans, w) / 1e-9) as u64
     };
-    let sightable_now: Vec<usize> = (0..witnesses.len())
-        .filter(|&w| sightable(state, creased, fold, &witnesses[w]))
-        .collect();
-    // Sightable with every mark there in fact: a mark that is only a spot
-    // the folder could have pinched is free of steps, not of ink, and a
-    // one-motion fold whose marks are all there is the fold over one that
-    // wants a pinch first.
-    let already = sightable_now
+    struct Scored {
+        index: usize,
+        cost: usize,
+        judgement: Judgement,
+        one_motion: bool,
+    }
+    let scored: Vec<Scored> = witnesses
         .iter()
-        .copied()
-        .filter(|&w| witness_marks_real(state, creased, &witnesses[w]))
-        .min_by_key(|&w| (witnesses[w].preference(), at_the_crease(&witnesses[w])));
+        .enumerate()
+        .filter_map(|(index, w)| {
+            let cost = witness_cost(state, creased, fold, w)?;
+            let judgement = judge(
+                state,
+                creased,
+                fold,
+                made,
+                spans,
+                direction,
+                direction_of_line,
+                w,
+            );
+            let one_motion = judgement.one_motion;
+            Some(Scored {
+                index,
+                cost,
+                judgement,
+                one_motion,
+            })
+        })
+        .collect();
     // A crease through two marks that are on the paper is a fold the
     // folder can make now, and a real diagram makes it — whatever its
     // length — rather than put a mark on the paper for a fold of an
     // easier kind. So no press may buy a preference over it: the pick
     // is among the folds that are free.
-    let through_marks = sightable_now.iter().any(|&w| witnesses[w].axiom == 1);
-    // A fold the folder can already make in one motion is the fold.
-    // One with two things to line up at once (O6, O7), or nothing to
-    // move at all (O1, a perpendicular to a crease), may still lose to a
-    // one-motion fold that a single press would allow — and only to one
-    // of those: a press buys a swing, never a different two-handed fold
-    // (Abra paid a press to turn a free O6 into an O7).
-    match already {
-        Some(w) if witnesses[w].one_motion() => Some(w),
-        _ => (0..witnesses.len())
-            .filter_map(|w| witness_cost(state, creased, fold, &witnesses[w]).map(|cost| (w, cost)))
-            .filter(|&(_, cost)| cost == 0 || !through_marks)
-            .min_by_key(|&(w, cost)| {
-                let (ease, hard, err) = witnesses[w].preference();
-                let gap = at_the_crease(&witnesses[w]);
-                // Free, or a one-motion fold within the budget: the
-                // easiest kind of fold. Past that, the fold that costs
-                // least. A plan paying four presses for a fold of an
-                // easier kind than one that costs two is paying in steps
-                // for a preference.
-                let bought = cost <= MAX_PRESSES_FOR_PREFERENCE && witnesses[w].one_motion();
-                if cost == 0 || bought {
-                    (0, ease as usize, cost, hard, err, gap)
-                } else {
-                    (1, cost, ease as usize, hard, err, gap)
-                }
-            })
-            .map(|(w, _)| w),
-    }
+    let through_marks = scored
+        .iter()
+        .any(|c| c.cost == 0 && witnesses[c.index].axiom == 1);
+    let practical_exists = scored.iter().any(|c| c.judgement.practical);
+    let key = |c: &Scored| {
+        let w = &witnesses[c.index];
+        let j = &c.judgement;
+        // Free one-motion folds; then free two-handed ones beside one-motion
+        // folds a single press allows; then by the presses.
+        let press_tier = if c.cost == 0 && c.one_motion {
+            0
+        } else if c.cost == 0 || (c.cost <= MAX_PRESSES_FOR_PREFERENCE && c.one_motion) {
+            1
+        } else {
+            2 + c.cost
+        };
+        (
+            !j.practical,
+            press_tier,
+            !j.visible,
+            !j.precise,
+            !j.local(),
+            !j.crossings,
+            j.ease,
+            j.skinny,
+            j.error.map_or(0, |e| (e * 1e3) as u64),
+            (w.err / 1e-18) as u64,
+            at_the_crease(w),
+        )
+    };
+    let best = scored
+        .iter()
+        .filter(|c| c.cost == 0 || !through_marks)
+        .filter(|c| c.judgement.practical || !practical_exists)
+        .min_by_key(|c| key(c))?;
+    // The override: three times as accurate, in the same class — the same
+    // presses (not the same tier: a crease through two marks is free and
+    // two-handed, and it is exactly the fold the override is for), as
+    // visible, as precise, as local. Not as well marked: a fold sighted
+    // from a crease's end three times nearer the crease beats one sighted
+    // from a crossing a sheet away (markhor 103: an edge mark and a mark at
+    // the crease over two edge marks at the far edge).
+    let class = |c: &Scored| {
+        let k = key(c);
+        (k.0, c.cost, k.2, k.3, k.4)
+    };
+    // Among those, the one the key likes best — not the most accurate of
+    // them: past three times better, a corner swing the folder makes in one
+    // motion (bird base) is still the fold over a crease sighted through
+    // two marks, however much more accurate the two marks are.
+    let chosen = match best.judgement.error {
+        Some(error) if !best.judgement.local() && best.judgement.visible => scored
+            .iter()
+            .filter(|c| class(c) == class(best) && c.judgement.visible && c.judgement.precise)
+            .filter(|c| c.judgement.error.is_some_and(|e| e <= error / MAX_ERROR))
+            .min_by_key(|c| key(c))
+            .unwrap_or(best),
+        _ => best,
+    };
+    Some((chosen.index, chosen.judgement.clone()))
+}
+
+/// One construction the paper offers for a fold, as the pick saw it: for
+/// the tools (`explain_steps`), so what they print is what [`pick_witness`]
+/// scored and not a second reading of the paper.
+#[derive(Debug, Clone)]
+pub struct Explained {
+    pub witness: Witness,
+    /// The presses sighting it would take; `None` when no press makes it a
+    /// fold.
+    pub cost: Option<usize>,
+    pub judgement: Judgement,
+    /// The one the pick chose.
+    pub chosen: bool,
+    /// The chosen one's mirror image, when the paper has one.
+    pub also: bool,
+}
+
+/// Every construction the paper offers for a fold along `line` (its id
+/// `line_id` in `state`) that will crease `made` for the pattern's `spans`
+/// in `direction`, judged and priced as [`pick_witness`] does, with the
+/// pick marked — the ordering pass's reasoning laid out for a tool.
+#[allow(clippy::too_many_arguments)]
+pub fn explain(
+    state: &State,
+    creased: &Creased,
+    line: &Line,
+    line_id: usize,
+    spans: &[[[f64; 2]; 2]],
+    made: &[[[f64; 2]; 2]],
+    direction: Direction,
+    direction_of_line: crate::judge::DirectionOfLine<'_>,
+    recorded: &[Witness],
+) -> Vec<Explained> {
+    let pool = candidates(state, creased, line, line_id, made, recorded);
+    let pick = pick_witness(
+        state,
+        creased,
+        line,
+        spans,
+        made,
+        direction,
+        direction_of_line,
+        &pool,
+    );
+    let also = pick
+        .as_ref()
+        .and_then(|(i, _)| mirror_witness(state, creased, line, &pool[*i], &pool));
+    pool.iter()
+        .enumerate()
+        .map(|(i, w)| Explained {
+            witness: w.clone(),
+            cost: witness_cost(state, creased, line, w),
+            judgement: judge(
+                state,
+                creased,
+                line,
+                made,
+                spans,
+                direction,
+                direction_of_line,
+                w,
+            ),
+            chosen: pick.as_ref().is_some_and(|(c, _)| *c == i),
+            also: also
+                .as_ref()
+                .is_some_and(|a| a.axiom == w.axiom && a.inputs == w.inputs),
+        })
+        .collect()
 }
 
 /// Pick the witness the folder should be shown for fold `i`, put whatever it
 /// needs on the paper ahead of it (presses, on `side`), and say whether they
 /// can now see what it names.
 ///
-/// The easiest kind of fold the folder can already sight, unless that is a
-/// fold nothing moves in — a perpendicular, or a line through two marks — or
-/// one with two things to line up at once — two points onto two lines, a
-/// line onto itself while a point lands somewhere — in which case one pinch
-/// may buy a one-motion fold: "fold P onto Q" with a pinch first is what a
-/// folder would do, "fold through P perpendicular to A" is a hinge trick and
-/// "fold P onto A and Q onto B" is two hands' work.
-///
-/// Not any pinch for any easier fold. Measured on markhor: letting one pinch
-/// buy any easier axiom turned 18 line-onto-line folds into point-onto-point
-/// with a pinch each, and a fold of an edge onto a crease is not improved by
-/// that. And no pinch at all when the crease can be made through two marks
-/// already on the paper: a diagram creases between the references it has,
-/// whatever the length, rather than making a mark so the fold can be a
-/// swing.
-///
-/// When the recorded witnesses offer nothing that is both clean and free —
-/// a two-point or line-onto-line fold with nothing to press — the paper is
-/// asked again for witnesses the closure never saw ([`found_witnesses`]).
+/// The pick is [`pick_witness`], over every construction the paper offers
+/// at this moment ([`candidates`]): the closure's recorded witnesses and
+/// the ones it never enumerated alike. The presented one is `chosen`, an
+/// index into the recorded list or one past its end for a witness found
+/// here (`found`). Its mirror image, when the paper has one, rides along as
+/// `also`.
 ///
 /// Only if the presses fail (they should not: see `presses_for_mark`) is the
 /// step left flagged, naming what is missing, so the invariant test reports
@@ -1204,49 +1446,51 @@ fn sight(
     // The line the witnesses construct — the approximation, for a fold made
     // by one — is the line the folder is sighting.
     let fold = f.constructed();
-    let cost_of =
-        |creased: &Creased, witness: &Witness| witness_cost(state, creased, &fold, witness);
-    let spans: &[[[f64; 2]; 2]] = f
-        .target
-        .and_then(|t| closure.targets().get(t))
-        .map_or(&[], |t| t.spans.as_slice());
-    let pick = |creased: &Creased, witnesses: &[Witness]| {
-        pick_witness(state, creased, &fold, spans, witnesses)
-    };
-    let recorded = pick(creased, &f.witnesses);
-    let clean = recorded.is_some_and(|w| {
-        matches!(f.witnesses[w].axiom, 2 | 3) && cost_of(creased, &f.witnesses[w]) == Some(0)
-    });
-    let mut found: Option<Witness> = None;
-    let mut chosen = recorded;
-    // A short crease between two marks is creased between them, whatever
-    // else could sight it.
-    if let Some(w) = crease_between_marks(state, closure, creased, i) {
-        chosen = Some(
-            f.witnesses
-                .iter()
-                .position(|r| r.axiom == w.axiom && r.inputs == w.inputs)
-                .unwrap_or(f.witnesses.len()),
-        );
-        if chosen == Some(f.witnesses.len()) {
-            found = Some(w);
-        }
-    } else if !clean {
-        let extra = found_witnesses(state, creased, &fold, f.line_id, &f.witnesses);
-        if !extra.is_empty() {
-            let all: Vec<Witness> = f.witnesses.iter().chain(&extra).cloned().collect();
-            if let Some(w) = pick(creased, &all) {
-                chosen = Some(w.min(f.witnesses.len()));
-                if w >= f.witnesses.len() {
-                    found = Some(all[w].clone());
-                }
+    let target = f.target.and_then(|t| closure.targets().get(t));
+    let spans: &[[[f64; 2]; 2]] = target.map_or(&[], |t| t.spans.as_slice());
+    let direction = target.map_or(Direction::Unassigned, |t| t.direction);
+    // The crease this fold will leave, judged before it is recorded: the
+    // same rule `record` applies a moment later.
+    let made: Vec<[[f64; 2]; 2]> = match target {
+        Some(t) if !t.spans.is_empty() => {
+            if closure.reach_references() {
+                reach(
+                    state,
+                    creased,
+                    &f.line,
+                    &t.spans,
+                    closure.allow_dangling_folds(),
+                )
+            } else {
+                runs_of(&f.line, &t.spans)
             }
         }
-    }
+        _ => state
+            .sheet()
+            .clip(&f.line)
+            .map(|(a, b)| vec![[a, b]])
+            .unwrap_or_default(),
+    };
+    let direction_of_line = |line_id: usize| -> Option<Direction> {
+        let fi = folded_of_line.get(line_id).copied().flatten()?;
+        let t = closure.folded()[fi].target?;
+        Some(closure.targets()[t].direction)
+    };
+    let pool = candidates(state, creased, &fold, f.line_id, &made, &f.witnesses);
+    let pick = pick_witness(
+        state,
+        creased,
+        &fold,
+        spans,
+        &made,
+        direction,
+        &direction_of_line,
+        &pool,
+    );
     // None of them can be folded, whatever is pressed — a perpendicular
     // whose line ends at the sheet's edge exactly at the foot, say. The step
     // is flagged as it is, and the card says so.
-    let Some(witness) = chosen.and_then(|w| f.witnesses.get(w).or(found.as_ref())) else {
+    let Some((index, judgement)) = pick else {
         let missing = f
             .chosen_witness()
             .map(|w| witness_missing_marks(state, creased, w))
@@ -1257,9 +1501,16 @@ fn sight(
             marks_exist: f.witnesses.is_empty(),
             missing,
             alignment: None,
+            also: None,
+            impractical: false,
         };
     };
-    let witness = witness.clone();
+    let witness = pool[index].clone();
+    let (chosen, found) = if index < f.witnesses.len() {
+        (Some(index), None)
+    } else {
+        (Some(f.witnesses.len()), Some(witness.clone()))
+    };
     pinch_while_folding(state, creased, folded_of_line, &witness, placed);
     if !sightable(state, creased, &fold, &witness) {
         make_marks_real(
@@ -1275,6 +1526,10 @@ fn sight(
             placed,
         );
     }
+    let also = mirror_witness(state, creased, &fold, &witness, &pool);
+    if let Some(w) = &also {
+        pinch_while_folding(state, creased, folded_of_line, w, placed);
+    }
     let real = witness_marks_exist(state, creased, &witness)
         && witness_aligns_at_all(state, creased, &fold, &witness);
     Sighted {
@@ -1287,6 +1542,8 @@ fn sight(
         } else {
             witness_missing_marks(state, creased, &witness)
         },
+        also,
+        impractical: !judgement.practical,
     }
 }
 
@@ -1394,6 +1651,8 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
                     press: None,
                     pressed_on: Vec::new(),
                     made: record(&mut creased, closure, i),
+                    also: None,
+                    impractical: false,
                 });
                 snapshots[i] = Some(creased.clone());
             }
@@ -1472,6 +1731,8 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
                     press: None,
                     pressed_on: Vec::new(),
                     made: record(&mut creased, closure, i),
+                    also: sighted.also,
+                    impractical: sighted.impractical,
                 });
                 snapshots[i] = Some(creased.clone());
             }
@@ -1560,6 +1821,32 @@ mod tests {
         Line::new([0.0, 1.0], y).expect("line")
     }
 
+    /// The pick for a fold along `fold`, judged as if it creased the whole
+    /// chord, with no direction: what the tests below ask.
+    fn pick(
+        state: &State,
+        creased: &Creased,
+        fold: &Line,
+        witnesses: &[Witness],
+    ) -> Option<(usize, Judgement)> {
+        let made: Vec<[[f64; 2]; 2]> = state
+            .sheet()
+            .clip(fold)
+            .map(|(a, b)| vec![[a, b]])
+            .unwrap_or_default();
+        let none: crate::judge::DirectionOfLine<'_> = &|_| None;
+        pick_witness(
+            state,
+            creased,
+            fold,
+            &[],
+            &made,
+            Direction::Unassigned,
+            none,
+            witnesses,
+        )
+    }
+
     fn closure_of(lines: &[Line]) -> Closure {
         let mut c = Closure::new(
             Sheet::unit_square(),
@@ -1601,29 +1888,29 @@ mod tests {
     /// was the price of it.
     #[test]
     fn a_found_witness_names_only_marks_that_are_on_the_paper() {
-        let (state, mut creased) = a_paper_with_a_mark_missing();
+        let (state, creased) = a_paper_with_a_mark_missing();
         let top = state.find_point([0.5, 1.0]).expect("the midline's top end");
-        let up = state.find_line(&v(0.5)).expect("up");
         assert!(!point_mark_exists(&state, &creased, top));
         // The antidiagonal: through the centre, which is a mark, and (0.5, 1)
         // is where a swing about the centre would start from.
         let anti = Line::from_points([1.0, 0.0], [0.0, 1.0]).expect("anti");
-        let names_top = |ws: &[Witness]| {
-            ws.iter().any(|w| {
-                w.inputs
-                    .iter()
-                    .any(|r| matches!(r, Ref::Point { id } if *id == top))
-            })
+        let names_top = |w: &Witness| {
+            w.inputs
+                .iter()
+                .any(|r| matches!(r, Ref::Point { id } if *id == top))
         };
-        let found = found_witnesses(&state, &creased, &anti, usize::MAX, &[]);
-        assert!(!found.is_empty(), "the corners alone give O2");
-        assert!(!names_top(&found), "a mark that is not there: {found:?}");
-        // Once the midline is creased up to the top edge the mark is there,
-        // and folds through it are offered.
-        creased.add_spans(&state, up, &v(0.5), &[[[0.5, 0.3], [0.5, 1.0]]]);
-        assert!(point_mark_exists(&state, &creased, top));
-        let found = found_witnesses(&state, &creased, &anti, usize::MAX, &[]);
-        assert!(names_top(&found), "{found:?}");
+        let pool = candidates(&state, &creased, &anti, usize::MAX, &[], &[]);
+        assert!(!pool.is_empty(), "the corners alone give O2");
+        assert!(
+            pool.iter().any(names_top),
+            "the pool holds the swing through the missing mark; the pick prices it"
+        );
+        let (index, _) = pick(&state, &creased, &anti, &pool).expect("a pick");
+        assert!(
+            !names_top(&pool[index]),
+            "a mark that is not there costs a press, and the corners are free: {:?}",
+            pool[index]
+        );
     }
 
     /// A crease through two marks on the paper is made through them — a real
@@ -1673,13 +1960,13 @@ mod tests {
         assert_eq!(witness_cost(&state, &creased, &anti, &swing), Some(1));
         let witnesses = vec![swing.clone(), through.clone()];
         assert_eq!(
-            pick_witness(&state, &creased, &anti, &[], &witnesses),
+            pick(&state, &creased, &anti, &witnesses).map(|(i, _)| i),
             Some(1),
             "through the marks, not the swing"
         );
         // Without the crease through marks, the pinch buys the swing.
         assert_eq!(
-            pick_witness(&state, &creased, &anti, &[], std::slice::from_ref(&swing)),
+            pick(&state, &creased, &anti, std::slice::from_ref(&swing)).map(|(i, _)| i),
             Some(0)
         );
         // And with the crease's second mark missing too, the swing again.
@@ -1690,7 +1977,7 @@ mod tests {
         bare.add_whole(&state, diag);
         assert!(!point_mark_exists(&state, &bare, centre));
         let both = vec![swing, through];
-        assert_ne!(pick_witness(&state, &bare, &anti, &[], &both), Some(1));
+        assert_ne!(pick(&state, &bare, &anti, &both).map(|(i, _)| i), Some(1));
     }
 
     /// A mark the fold could have pinched is free of steps, not of ink: a
@@ -1741,16 +2028,16 @@ mod tests {
             sightable(&state, &creased, &fold, &swing),
             "sightable, with the pinch"
         );
-        assert!(!witness_marks_real(&state, &creased, &swing));
+        assert!(!crate::marks::witness_marks_real(&state, &creased, &swing));
         assert_eq!(witness_cost(&state, &creased, &fold, &swing), Some(0));
         let both = vec![swing.clone(), onto];
         assert_eq!(
-            pick_witness(&state, &creased, &fold, &[], &both),
+            pick(&state, &creased, &fold, &both).map(|(i, _)| i),
             Some(1),
             "the edge onto the crease, whose marks are there"
         );
         assert_eq!(
-            pick_witness(&state, &creased, &fold, &[], std::slice::from_ref(&swing)),
+            pick(&state, &creased, &fold, std::slice::from_ref(&swing)).map(|(i, _)| i),
             Some(0),
             "and the swing when it is all there is"
         );
@@ -1760,7 +2047,9 @@ mod tests {
     /// line up at once that the folder can make now is the fold, over
     /// another two-handed fold that a press would allow — Abra paid a press
     /// to turn a free O6 into an O7 — and still loses to a one-motion fold
-    /// that one pinch allows.
+    /// that one pinch allows, provided the folder can see that fold: a swing
+    /// of an interior point onto an interior crease is lined up under the
+    /// paper, and the free two-handed fold they can watch wins.
     #[test]
     fn a_press_buys_a_one_motion_fold_and_never_another_two_handed_one() {
         let mut state = State::new(Sheet::unit_square(), DEFAULT_POINT_CAP);
@@ -1772,26 +2061,33 @@ mod tests {
         let mut creased = Creased::new(&state);
         creased.add_whole(&state, across);
         creased.add_whole(&state, up);
-        creased.add_whole(&state, high);
+        // The high horizontal creased short of the right edge: (1, 0.8) on the
+        // edge is not yet a mark, and (0.8, 0.8) needs the diagonal pinched.
+        creased.add_spans(&state, high, &h(0.8), &[[[0.0, 0.8], [0.85, 0.8]]]);
         // The diagonal creased to just past the centre: folded onto itself
         // about the antidiagonal it lines up with nothing until it is
-        // pressed on to (0.8, 0.8) — which is not a mark until then.
+        // pressed on to (0.8, 0.8).
         creased.add_spans(&state, diag, &diagonal, &[[[0.0, 0.0], [0.52, 0.52]]]);
         let anti = Line::from_points([1.0, 0.0], [0.0, 1.0]).expect("anti");
         let centre = state.find_point([0.5, 0.5]).expect("centre");
         let far = state.find_point([0.8, 0.8]).expect("(0.8, 0.8)");
+        let right_mark = state.find_point([1.0, 0.8]).expect("(1, 0.8)");
         let sw = point_ref(&state, state.find_point([0.0, 0.0]).expect("corner"));
         let top = Ref::Edge {
             id: state.find_line(&h(1.0)).expect("top edge"),
             side: crate::sheet::EdgeSide::Top,
         };
-        let plain = |axiom: u8, inputs: Vec<Ref>| Witness {
+        let bottom = Ref::Edge {
+            id: state.find_line(&h(0.0)).expect("bottom edge"),
+            side: crate::sheet::EdgeSide::Bottom,
+        };
+        let plain = |axiom: u8, inputs: Vec<Ref>, who_moves: Vec<u8>, visible: bool| Witness {
             axiom,
             inputs,
             root: 0,
-            who_moves: Vec::new(),
-            hard: false,
-            visible: true,
+            who_moves,
+            hard: !visible,
+            visible,
             skinny: false,
             ease: crate::constants::fold_ease(axiom, false).expect("ease") as u8,
             err: 0.0,
@@ -1800,37 +2096,61 @@ mod tests {
         let two_handed = plain(
             6,
             vec![sw, top, Ref::Point { id: centre }, Ref::Line { id: across }],
+            vec![0, 2],
+            true,
         );
         // Corner Sw onto the top edge while the diagonal folds onto itself:
         // the diagonal needs pressing out first.
-        let perpendicular = plain(7, vec![sw, top, Ref::Line { id: diag }]);
+        let perpendicular = plain(7, vec![sw, top, Ref::Line { id: diag }], vec![0], true);
         // Through the centre, swinging (0.8, 0.8) onto the diagonal's
-        // crease: the mark needs a pinch first.
-        let swing = plain(
+        // crease: the mark needs a pinch first, and the folder cannot see
+        // the point land.
+        let hidden_swing = plain(
             5,
             vec![
                 Ref::Point { id: centre },
                 Ref::Point { id: far },
                 Ref::Line { id: diag },
             ],
+            vec![1],
+            false,
+        );
+        // Through the centre, swinging the edge mark (1, 0.8) onto the bottom
+        // edge: a pinch to make the mark, and a fold the folder can watch.
+        let swing = plain(
+            5,
+            vec![
+                Ref::Point { id: centre },
+                Ref::Point { id: right_mark },
+                bottom,
+            ],
+            vec![1],
+            true,
         );
         assert_eq!(witness_cost(&state, &creased, &anti, &two_handed), Some(0));
+        assert!(witness_cost(&state, &creased, &anti, &perpendicular).is_some_and(|c| c >= 1));
         assert_eq!(
-            witness_cost(&state, &creased, &anti, &perpendicular),
+            witness_cost(&state, &creased, &anti, &hidden_swing),
             Some(1)
         );
         assert_eq!(witness_cost(&state, &creased, &anti, &swing), Some(1));
         let both = vec![perpendicular.clone(), two_handed.clone()];
         assert_eq!(
-            pick_witness(&state, &creased, &anti, &[], &both),
+            pick(&state, &creased, &anti, &both).map(|(i, _)| i),
             Some(1),
             "the free two-handed fold, not the pressed one"
         );
+        let hidden = vec![perpendicular.clone(), two_handed.clone(), hidden_swing];
+        assert_eq!(
+            pick(&state, &creased, &anti, &hidden).map(|(i, _)| i),
+            Some(1),
+            "a swing lined up under the paper does not buy anything"
+        );
         let all = vec![perpendicular, two_handed, swing];
         assert_eq!(
-            pick_witness(&state, &creased, &anti, &[], &all),
+            pick(&state, &creased, &anti, &all).map(|(i, _)| i),
             Some(2),
-            "one pinch buys the swing"
+            "one pinch buys the swing the folder can see"
         );
     }
 
@@ -1882,6 +2202,8 @@ mod tests {
             press: None,
             pressed_on: Vec::new(),
             made: Vec::new(),
+            also: None,
+            impractical: false,
         };
         let mut placed = vec![placed_fold(0), placed_fold(1)];
         let w = witness(
@@ -2287,7 +2609,10 @@ mod tests {
         let short = Target::new(anti, vec![], vec![[[0.5, 0.5], [0.5625, 0.4375]]], 1.0, 0.0);
         let mut c = Closure::new(Sheet::unit_square(), vec![short], DEFAULT_POINT_CAP);
         // Each a fold midway between two lines already there, so the grid
-        // goes down before the pattern's own crease is looked at.
+        // goes down before the pattern's own crease is looked at. Pattern
+        // lines rather than auxiliary ones: a crossing of auxiliary creases
+        // is not a reference the reach rule will stop a crease at, and this
+        // is a test of a crease that stops at its marks.
         for line in [
             v(0.5),
             h(0.5),
@@ -2300,7 +2625,7 @@ mod tests {
         ] {
             assert!(
                 matches!(
-                    c.fold_line(line, LineTag::Aux).expect("fold"),
+                    c.fold_line(line, LineTag::Cp).expect("fold"),
                     FoldOutcome::Folded { .. }
                 ),
                 "{line:?}"
@@ -2313,7 +2638,7 @@ mod tests {
         let f = c.folded();
         let entry = placed
             .iter()
-            .find(|p| p.press.is_none() && f[p.folded].tag == LineTag::Cp)
+            .find(|p| p.press.is_none() && f[p.folded].target.is_some())
             .expect("the antidiagonal is placed");
         let w = entry.presented(&f[entry.folded]).expect("a witness");
         assert_eq!(w.axiom, 1, "{w:?}");

@@ -36,3 +36,23 @@ export function inputLetters(inputs: readonly PrecreaseRef[]): InputLetters {
   );
   return { byInput, nextPoint: pointLetter(points), nextLine: lineLetter(lines) };
 }
+
+/**
+ * The letters for a second witness on the same card — the mirror image of
+ * the first (`PrecreaseStep.also`) — carrying on from the first's: its marks
+ * after the first's marks (and the corner the first lettered, when it drew
+ * one), its lines after the first's lines, so no letter appears twice.
+ */
+export function alsoLetters(
+  first: readonly PrecreaseRef[],
+  firstLettersACorner: boolean,
+  also: readonly PrecreaseRef[]
+): InputLetters {
+  const corner: PrecreaseRef[] = firstLettersACorner ? [{ kind: 'point', id: -1 }] : [];
+  const all = inputLetters([...first, ...corner, ...also]);
+  return {
+    byInput: all.byInput.slice(first.length + corner.length),
+    nextPoint: all.nextPoint,
+    nextLine: all.nextLine,
+  };
+}

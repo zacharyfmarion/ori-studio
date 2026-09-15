@@ -27,7 +27,7 @@ import type { TFunction } from 'i18next';
 import type { ExtractedStep } from './referenceFinder/extractor';
 import { directionOfGroup, type ReferencesDirection } from './referencesBreakdown';
 import { unitFrame } from './diagram/diagramFrames';
-import { inputLetters } from './diagram/inputLetters';
+import { alsoLetters, inputLetters, type InputLetters } from './diagram/inputLetters';
 import { perpendicularMotion } from './diagram/plannerDiagram';
 import {
   SHORT_ALIGNMENT,
@@ -35,6 +35,8 @@ import {
   type PrecreaseGridBound,
   type PrecreaseGridStep,
   type PrecreaseSequence,
+  type PrecreaseStep,
+  type PrecreaseWitness,
 } from './precreaseSequence';
 
 /** How many point and line inputs each axiom serialises, in that order. */
@@ -229,7 +231,98 @@ export function describePlannerStep(
   if (!witness) {
     return t('panels:references.planStep.free', 'This line is already on the sheet.');
   }
-  const letters = inputLetters(witness.inputs);
+  let sentence = witnessClause(t, sequence, step, witness, inputLetters(witness.inputs));
+  // The mirror image of the same alignment, when the paper offers one: a
+  // second pair for the same fold, so both ends of a long fold are lined up
+  // at once. Its letters carry on from the first's, as they do on the card.
+  if (step.also) {
+    const corner =
+      witness.axiom === 4 ? perpendicularMotion(sequence, unitFrame(sequence), step, witness) : null;
+    const clause = witnessClause(
+      t,
+      sequence,
+      step,
+      step.also,
+      alsoLetters(witness.inputs, !!corner && !corner.ontoItself, step.also.inputs)
+    );
+    sentence = `${sentence} ${clause} ${t('panels:references.planStep.alsoNote', 'Line up both at once, so the fold stays straight.')}`;
+  }
+  // The fold is an interior point lined up on another — one a folder makes
+  // by sighting through the paper — and nothing else was on the paper to
+  // make it from. Say so, rather than present it as a fold like any other.
+  if (step.impractical) {
+    sentence = `${sentence} ${t('panels:references.planStep.impractical', 'Neither point is on an edge, so this one is lined up through the paper — nothing on the sheet makes it a cleaner fold yet.')}`;
+  }
+  // A reference the paper does not carry yet. The planner prefers a witness it
+  // can sight, so this is the residue where none of the recorded ones works —
+  // and saying nothing would be telling the folder to bring a corner to a point
+  // that is not there.
+  if (!step.marks_exist) {
+    sentence =
+      step.missing_marks.length > 0
+        ? `${sentence} ${t('panels:references.planStep.markFirst', 'One of these marks is where two creases would cross if they ran further — pinch it in first.')}`
+        : // The marks are there; what is missing is crease to line up
+          // against — a line folded onto itself that ends at the fold, say.
+          `${sentence} ${t('panels:references.planStep.noAlignment', 'Nothing on the paper lines up with this fold yet — crease it as drawn.')}`;
+  }
+  // The creases line up, but over less than a pinch: the planner found no
+  // witness it could press into a longer one, so the fold is made from what
+  // there is. Say so rather than let the card imply a clean alignment.
+  if (step.alignment !== undefined && step.alignment < SHORT_ALIGNMENT - 1e-9) {
+    sentence = `${sentence} ${t('panels:references.planStep.shortAlignment', 'The creases line up only briefly here — align with care.')}`;
+  }
+  // A fold with no exact construction is made by the closest one there was,
+  // and the error is said in the sheet's own terms. One sighted from such a
+  // crease inherits it, and says that instead — the error does not go away
+  // by being inherited.
+  if (step.approximation !== undefined) {
+    sentence = `${sentence} ${t('panels:references.planStep.approximate', 'Approximate — this construction is off by {{pct}}% of the sheet.', {
+      pct: percentOfSheet(step.approximation),
+    })}`;
+  } else if (!step.exact) {
+    sentence = `${sentence} ${t('panels:references.planStep.inherited', 'Sighted from an approximate crease, so only as exact as that is.')}`;
+  }
+  // Crease made past the pattern's own line — a stretch, or a pinch at a
+  // crossing — because a later step uses the line there: said, so the folder
+  // does not stop at the pattern.
+  if (step.pressed_on.length > 0) {
+    sentence = `${sentence} ${t('panels:references.planStep.pressedOn', 'Also crease where shown past the pattern’s line — a later step uses it there.')}`;
+  }
+  // A press that runs out to a findable end is more than a pinch: that stretch
+  // of crease is needed, and the card draws exactly it.
+  if (step.kind === 'press' && step.press?.sighted_from === null) {
+    return `${sentence} ${t('panels:references.planStep.pressOut', 'Crease only the part shown.')}`;
+  }
+  if (step.extent.kind === 'pinches') {
+    return `${sentence} ${t('panels:references.planStep.pinch', 'Pinch only — just the mark is needed.')}`;
+  }
+  if (step.kind === 'aux' && step.visible) {
+    return `${sentence} ${t('panels:references.planStep.visibleAux', 'This crease will show in the finished model.')}`;
+  }
+  // A line whose creases are not all one way is creased whichever way most of
+  // its length wants (plan D21). Say so whenever that is true — not only when
+  // it is close — rather than let the card imply the finished assignment falls
+  // out of the precrease. An 84%-mountain line is dishonest in the same way a
+  // 55% one is, just less often.
+  // Only a pattern line has a share; an auxiliary fold's is exactly 0.
+  if (step.kind === 'cp' && step.direction_share > 0 && step.direction_share < 1) {
+    return `${sentence} ${t('panels:references.planStep.partlyReversed', 'This line is creased both ways in the pattern — the rest reverses as the model collapses.')}`;
+  }
+  return sentence;
+}
+
+/**
+ * The instruction one witness gives, with the letters the card gave its
+ * references — {@link describePlannerStep} for the chosen witness and again
+ * for its mirror image.
+ */
+function witnessClause(
+  t: TFunction,
+  sequence: PrecreaseSequence,
+  step: PrecreaseStep,
+  witness: PrecreaseWitness,
+  letters: InputLetters
+): string {
   const name = (which: number) => letters.byInput[which] ?? '?';
   let sentence: string;
   switch (witness.axiom) {
@@ -316,61 +409,6 @@ export function describePlannerStep(
       sentence = t('panels:references.planStep.unknown', 'Fold using {{inputs}}.', {
         inputs: letters.byInput.join(', '),
       });
-  }
-  // A reference the paper does not carry yet. The planner prefers a witness it
-  // can sight, so this is the residue where none of the recorded ones works —
-  // and saying nothing would be telling the folder to bring a corner to a point
-  // that is not there.
-  if (!step.marks_exist) {
-    sentence =
-      step.missing_marks.length > 0
-        ? `${sentence} ${t('panels:references.planStep.markFirst', 'One of these marks is where two creases would cross if they ran further — pinch it in first.')}`
-        : // The marks are there; what is missing is crease to line up
-          // against — a line folded onto itself that ends at the fold, say.
-          `${sentence} ${t('panels:references.planStep.noAlignment', 'Nothing on the paper lines up with this fold yet — crease it as drawn.')}`;
-  }
-  // The creases line up, but over less than a pinch: the planner found no
-  // witness it could press into a longer one, so the fold is made from what
-  // there is. Say so rather than let the card imply a clean alignment.
-  if (step.alignment !== undefined && step.alignment < SHORT_ALIGNMENT - 1e-9) {
-    sentence = `${sentence} ${t('panels:references.planStep.shortAlignment', 'The creases line up only briefly here — align with care.')}`;
-  }
-  // A fold with no exact construction is made by the closest one there was,
-  // and the error is said in the sheet's own terms. One sighted from such a
-  // crease inherits it, and says that instead — the error does not go away
-  // by being inherited.
-  if (step.approximation !== undefined) {
-    sentence = `${sentence} ${t('panels:references.planStep.approximate', 'Approximate — this construction is off by {{pct}}% of the sheet.', {
-      pct: percentOfSheet(step.approximation),
-    })}`;
-  } else if (!step.exact) {
-    sentence = `${sentence} ${t('panels:references.planStep.inherited', 'Sighted from an approximate crease, so only as exact as that is.')}`;
-  }
-  // Crease made past the pattern's own line — a stretch, or a pinch at a
-  // crossing — because a later step uses the line there: said, so the folder
-  // does not stop at the pattern.
-  if (step.pressed_on.length > 0) {
-    sentence = `${sentence} ${t('panels:references.planStep.pressedOn', 'Also crease where shown past the pattern’s line — a later step uses it there.')}`;
-  }
-  // A press that runs out to a findable end is more than a pinch: that stretch
-  // of crease is needed, and the card draws exactly it.
-  if (step.kind === 'press' && step.press?.sighted_from === null) {
-    return `${sentence} ${t('panels:references.planStep.pressOut', 'Crease only the part shown.')}`;
-  }
-  if (step.extent.kind === 'pinches') {
-    return `${sentence} ${t('panels:references.planStep.pinch', 'Pinch only — just the mark is needed.')}`;
-  }
-  if (step.kind === 'aux' && step.visible) {
-    return `${sentence} ${t('panels:references.planStep.visibleAux', 'This crease will show in the finished model.')}`;
-  }
-  // A line whose creases are not all one way is creased whichever way most of
-  // its length wants (plan D21). Say so whenever that is true — not only when
-  // it is close — rather than let the card imply the finished assignment falls
-  // out of the precrease. An 84%-mountain line is dishonest in the same way a
-  // 55% one is, just less often.
-  // Only a pattern line has a share; an auxiliary fold's is exactly 0.
-  if (step.kind === 'cp' && step.direction_share > 0 && step.direction_share < 1) {
-    return `${sentence} ${t('panels:references.planStep.partlyReversed', 'This line is creased both ways in the pattern — the rest reverses as the model collapses.')}`;
   }
   return sentence;
 }

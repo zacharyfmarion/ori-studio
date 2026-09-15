@@ -12,9 +12,9 @@ use crate::exactness::ExactnessClass;
 use crate::grid::GridKind;
 use crate::line::Line;
 use crate::pinch::Extent;
-use crate::predicates::Witness;
+use crate::predicates::{Ref, Witness};
 use crate::sheet::{EdgeSide, Sheet};
-use crate::state::LineTag;
+use crate::state::{LineTag, State};
 
 /// A step folds a CP line or an auxiliary one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -246,6 +246,18 @@ pub struct Step {
     /// Present exactly when `kind` is [`StepKind::Press`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub press: Option<StepPress>,
+    /// A second witness of the same fold: the mirror image of the presented
+    /// one about the sheet's centre line, sightable as the paper stands. Two
+    /// alignments a sheet apart keep a long fold straight where one does
+    /// not, so the card shows both — a second arrow, its own letters — and
+    /// the sentence names both. Absent for most steps.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub also: Option<Witness>,
+    /// The presented fold lines an interior point up on another — a fold the
+    /// folder makes by sighting through the paper — and nothing else was on
+    /// offer. The card says so.
+    #[serde(default)]
+    pub impractical: bool,
     /// Present exactly when `kind` is [`StepKind::Grid`]. The step's own
     /// `line`, `line_id` and `segment` are then the family's first line, so
     /// that a step always has one; the family is here.
@@ -478,4 +490,31 @@ pub struct Sequence {
     pub lines: Vec<LineEntry>,
     pub exactness: Option<ExactnessSummary>,
     pub diagnostics: Diagnostics,
+}
+
+impl Sequence {
+    /// `w`, a witness of this sequence's state, in the ids of `state` — a
+    /// paper the sequence is being replayed onto: marks by where they are,
+    /// creases by the line of the step that folded them, edges and corners
+    /// by their own ids, which every state gives out first. `None` when
+    /// something it names is not on `state` yet.
+    pub fn witness_in(&self, state: &State, w: &Witness) -> Option<Witness> {
+        let mut out = w.clone();
+        for r in &mut out.inputs {
+            *r = match *r {
+                Ref::Edge { .. } | Ref::Corner { .. } => *r,
+                Ref::Point { id } => Ref::Point {
+                    id: state.find_point(self.points.iter().find(|p| p.id == id)?.p)?,
+                },
+                Ref::Line { id } => {
+                    let step = self.lines.iter().find(|l| l.id == id)?.step?;
+                    let line = self.steps.iter().find(|s| s.id == step)?.line;
+                    Ref::Line {
+                        id: state.find_line(&line)?,
+                    }
+                }
+            };
+        }
+        Some(out)
+    }
 }

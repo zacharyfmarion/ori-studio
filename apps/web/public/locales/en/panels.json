@@ -870,6 +870,7 @@
     "outsideSheet": "This pick is not inside any sheet.",
     "planning": "Working out the folding sequence…",
     "planStep": {
+      "alsoNote": "Line up both at once, so the fold stays straight.",
       "approximate": "Approximate — this construction is off by {{pct}}% of the sheet.",
       "approximateBadge": "Approximate",
       "axiom1": "Fold through {{a}} and {{b}}.",
@@ -908,6 +909,7 @@
       "gridReversed_other": "The pattern wants {{count}} of them the other way; they reverse as the model collapses.",
       "gridValleyFirst_one": "{{pleat}}: {{count}} line, alternating valley and mountain, valley first.",
       "gridValleyFirst_other": "{{pleat}}: {{count}} lines, alternating valley and mountain, valley first.",
+      "impractical": "Neither point is on an edge, so this one is lined up through the paper — nothing on the sheet makes it a cleaner fold yet.",
       "inherited": "Sighted from an approximate crease, so only as exact as that is.",
       "markFirst": "One of these marks is where two creases would cross if they ran further — pinch it in first.",
       "noAlignment": "Nothing on the paper lines up with this fold yet — crease it as drawn.",
