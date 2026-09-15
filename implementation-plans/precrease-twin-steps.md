@@ -156,5 +156,10 @@ mirrored arrows, which keeps them apart in every pair looked at so far.
 - [x] Twin card: both creases, both witnesses.
 - [ ] Arrows in separate lanes when mirrored arcs cross.
 - [x] Twin sentence and locales.
-- [ ] Corpus: cards per design; Zach folds markhor.
+- [x] Corpus (54 designs, 2026-09-15): 4,035 steps read as 3,168 cards —
+      867 pairs, a fifth fewer cards — with steps, turn-overs, lost ends,
+      pieces and reach unchanged against the run before twins (53 common
+      designs: steps 3,729 → 3,731, turn-overs 308 → 308, lost ends 142 →
+      139, reach 112.9 → 113.2).
+- [ ] Zach folds markhor.
 - [ ] Phase 2: quads.
