@@ -1804,9 +1804,9 @@ entry; align while editing → caret stays.
 owned image's visibility and opacity; the chip keeps the findings count and
 every verb. Ships alone: yes.
 
-- [ ] `regions/regionProperties.ts` + `useRegionProperties.ts`: the inventory in §10 (checks via `useCpRegionActions().toggleRegionCheckClass`, region opacity through the annotation bracket, owned image resolved by `imageId` from `oristudioCpAnnotations`, `toggleRegionImageHidden` / `setRegionImageOpacity`); catalog tests (hidden not-applicable; image rows only when the owned image resolves; tick = suppressed)
-- [ ] `regionWiring.test.tsx` extended: selecting a region mounts the chip and the sheet, the sheet has no Solve control, toggling a check from the sheet and from the chip records one entry each
-- [ ] i18n for the region section; 8 locales
+- [x] `regions/regionProperties.ts` + `useRegionProperties.ts`: the inventory in §10 (checks and the image's visibility through the annotation verb, region and image opacity through the annotation bracket — `AnnotationPaneDeps` gained `updateById`/`commitById` for a write addressed to the owned image on the same layer; owned image resolved by `imageId` from `oristudioCpAnnotations`); catalog tests (hidden not-applicable; image rows only when the owned image resolves; tick = suppressed; image writes addressed to the image)
+- [x] `regionWiring.test.tsx` extended (the pane mounted beside the panel): selecting a region mounts the chip and the sheet, the sheet has no Solve control, toggling a check from the sheet and from the chip records one entry each and the sheet follows the store back
+- [x] i18n for the region section; 8 locales
 
 Validation: `npm run lint:web && npm run typecheck:web && npm run i18n:check && npm run test:web`
 (`cp-workspace/regions`, wiring); browser: a check toggled from the pane

@@ -26,6 +26,14 @@ export interface AnnotationPaneDeps {
   end(label: string): void;
   /** One discrete edit as one entry. */
   commit(patch: AnnotationUpdate, label: string): void;
+  /**
+   * The same two writes, addressed to another annotation on the layer — a
+   * region's owned reference image. One bracket, one entry: the layer is one
+   * list, so a write to the image inside the region's gesture is the same
+   * gesture.
+   */
+  updateById(id: string, patch: AnnotationUpdate): void;
+  commitById(id: string, patch: AnnotationUpdate, label: string): void;
 }
 
 /**
@@ -40,22 +48,40 @@ export function useAnnotationPaneDeps(id: string): AnnotationPaneDeps {
   const updateAnnotation = useWorkspaceStore((state) => state.updateAnnotation);
   const gesture = usePaneGesture(annotationGesture);
 
-  const update = useCallback(
-    (patch: AnnotationUpdate) => {
+  const updateById = useCallback(
+    (targetId: string, patch: AnnotationUpdate) => {
       // Aborted underneath (an undo from the menu bar): writing now would land
       // a change no entry covers. The next move begins a fresh gesture.
       if (!gesture.isOpen()) return;
-      updateAnnotation(id, patch);
+      updateAnnotation(targetId, patch);
     },
-    [gesture, id, updateAnnotation]
+    [gesture, updateAnnotation]
+  );
+  const update = useCallback(
+    (patch: AnnotationUpdate) => updateById(id, patch),
+    [updateById, id]
+  );
+  const commitById = useCallback(
+    (targetId: string, patch: AnnotationUpdate, label: string) =>
+      updateAnnotationAsEntry(targetId, patch, label),
+    []
   );
   const commit = useCallback(
-    (patch: AnnotationUpdate, label: string) => updateAnnotationAsEntry(id, patch, label),
-    [id]
+    (patch: AnnotationUpdate, label: string) => commitById(id, patch, label),
+    [commitById, id]
   );
 
   return useMemo(
-    () => ({ t, held: gesture.held, begin: gesture.begin, update, end: gesture.end, commit }),
-    [t, gesture.held, gesture.begin, gesture.end, update, commit]
+    () => ({
+      t,
+      held: gesture.held,
+      begin: gesture.begin,
+      update,
+      end: gesture.end,
+      commit,
+      updateById,
+      commitById,
+    }),
+    [t, gesture.held, gesture.begin, gesture.end, update, commit, updateById, commitById]
   );
 }

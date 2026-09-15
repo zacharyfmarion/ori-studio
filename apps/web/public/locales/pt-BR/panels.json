@@ -247,6 +247,9 @@
       "title": "Janela de simulação"
     },
     "region": {
+      "hidden": "Oculta",
+      "imageShown": "Visível",
+      "section": "Região",
       "title": "Região de supressão"
     },
     "text": {

@@ -247,6 +247,9 @@
       "title": "Fenêtre de simulation"
     },
     "region": {
+      "hidden": "Masquée",
+      "imageShown": "Visible",
+      "section": "Zone",
       "title": "Zone de suppression"
     },
     "text": {

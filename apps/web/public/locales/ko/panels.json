@@ -237,6 +237,9 @@
       "title": "시뮬레이션 창"
     },
     "region": {
+      "hidden": "숨김",
+      "imageShown": "표시",
+      "section": "영역",
       "title": "검사 억제 영역"
     },
     "text": {

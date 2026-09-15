@@ -131,6 +131,7 @@ describe('CpPropertiesPanel', () => {
     mount({ oristudioCpSelectedAnnotationId: REGION.id });
     expect(text('.property-sheet__title')).toBe('Suppression region');
     expect(labels()).toEqual([
+      'Opacity',
       'Kawasaki (angles)',
       'Big-little-big',
       'Maekawa (parity)',

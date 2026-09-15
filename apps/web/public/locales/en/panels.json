@@ -242,6 +242,9 @@
       "title": "Simulation window"
     },
     "region": {
+      "hidden": "Hidden",
+      "imageShown": "Shown",
+      "section": "Region",
       "title": "Suppression region"
     },
     "text": {

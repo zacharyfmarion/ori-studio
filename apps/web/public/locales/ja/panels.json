@@ -237,6 +237,9 @@
       "title": "シミュレーションウィンドウ"
     },
     "region": {
+      "hidden": "非表示",
+      "imageShown": "表示",
+      "section": "領域",
       "title": "チェック抑制領域"
     },
     "text": {

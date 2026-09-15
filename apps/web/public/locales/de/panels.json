@@ -242,6 +242,9 @@
       "title": "Simulationsfenster"
     },
     "region": {
+      "hidden": "Ausgeblendet",
+      "imageShown": "Sichtbar",
+      "section": "Bereich",
       "title": "Prüfungsfreier Bereich"
     },
     "text": {

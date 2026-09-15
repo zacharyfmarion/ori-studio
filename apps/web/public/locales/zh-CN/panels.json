@@ -237,6 +237,9 @@
       "title": "模拟窗口"
     },
     "region": {
+      "hidden": "隐藏",
+      "imageShown": "显示",
+      "section": "区域",
       "title": "检查抑制区域"
     },
     "text": {

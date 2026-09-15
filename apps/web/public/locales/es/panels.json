@@ -247,6 +247,9 @@
       "title": "Ventana de simulación"
     },
     "region": {
+      "hidden": "Oculta",
+      "imageShown": "Visible",
+      "section": "Región",
       "title": "Región de supresión"
     },
     "text": {

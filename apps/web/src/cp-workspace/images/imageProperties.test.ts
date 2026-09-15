@@ -14,6 +14,8 @@ function deps(overrides: Partial<ImagePropertyDeps> = {}): ImagePropertyDeps {
     update: vi.fn(),
     end: vi.fn(),
     commit: vi.fn(),
+    updateById: vi.fn(),
+    commitById: vi.fn(),
     ...overrides,
   };
 }

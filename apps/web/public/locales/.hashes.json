@@ -2841,7 +2841,10 @@
     "panels:textAnnotation.colorGreen": "d486dfbd5fb5",
     "panels:textAnnotation.colorOrange": "78e7771b8b46",
     "panels:textAnnotation.colorPurple": "7d465fb9b931",
-    "panels:textAnnotation.colorRed": "ba19e9c3d5f4"
+    "panels:textAnnotation.colorRed": "ba19e9c3d5f4",
+    "panels:cpProperties.region.hidden": "7e6fefff0f0a",
+    "panels:cpProperties.region.imageShown": "6ba2a0e0afd0",
+    "panels:cpProperties.region.section": "d3a008ef1335"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5685,7 +5688,10 @@
     "panels:textAnnotation.colorGreen": "d486dfbd5fb5",
     "panels:textAnnotation.colorOrange": "78e7771b8b46",
     "panels:textAnnotation.colorPurple": "7d465fb9b931",
-    "panels:textAnnotation.colorRed": "ba19e9c3d5f4"
+    "panels:textAnnotation.colorRed": "ba19e9c3d5f4",
+    "panels:cpProperties.region.hidden": "7e6fefff0f0a",
+    "panels:cpProperties.region.imageShown": "6ba2a0e0afd0",
+    "panels:cpProperties.region.section": "d3a008ef1335"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8529,7 +8535,10 @@
     "panels:textAnnotation.colorGreen": "d486dfbd5fb5",
     "panels:textAnnotation.colorOrange": "78e7771b8b46",
     "panels:textAnnotation.colorPurple": "7d465fb9b931",
-    "panels:textAnnotation.colorRed": "ba19e9c3d5f4"
+    "panels:textAnnotation.colorRed": "ba19e9c3d5f4",
+    "panels:cpProperties.region.hidden": "7e6fefff0f0a",
+    "panels:cpProperties.region.imageShown": "6ba2a0e0afd0",
+    "panels:cpProperties.region.section": "d3a008ef1335"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11322,7 +11331,10 @@
     "panels:textAnnotation.colorGreen": "d486dfbd5fb5",
     "panels:textAnnotation.colorOrange": "78e7771b8b46",
     "panels:textAnnotation.colorPurple": "7d465fb9b931",
-    "panels:textAnnotation.colorRed": "ba19e9c3d5f4"
+    "panels:textAnnotation.colorRed": "ba19e9c3d5f4",
+    "panels:cpProperties.region.hidden": "7e6fefff0f0a",
+    "panels:cpProperties.region.imageShown": "6ba2a0e0afd0",
+    "panels:cpProperties.region.section": "d3a008ef1335"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14115,7 +14127,10 @@
     "panels:textAnnotation.colorGreen": "d486dfbd5fb5",
     "panels:textAnnotation.colorOrange": "78e7771b8b46",
     "panels:textAnnotation.colorPurple": "7d465fb9b931",
-    "panels:textAnnotation.colorRed": "ba19e9c3d5f4"
+    "panels:textAnnotation.colorRed": "ba19e9c3d5f4",
+    "panels:cpProperties.region.hidden": "7e6fefff0f0a",
+    "panels:cpProperties.region.imageShown": "6ba2a0e0afd0",
+    "panels:cpProperties.region.section": "d3a008ef1335"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -16959,7 +16974,10 @@
     "panels:textAnnotation.colorGreen": "d486dfbd5fb5",
     "panels:textAnnotation.colorOrange": "78e7771b8b46",
     "panels:textAnnotation.colorPurple": "7d465fb9b931",
-    "panels:textAnnotation.colorRed": "ba19e9c3d5f4"
+    "panels:textAnnotation.colorRed": "ba19e9c3d5f4",
+    "panels:cpProperties.region.hidden": "7e6fefff0f0a",
+    "panels:cpProperties.region.imageShown": "6ba2a0e0afd0",
+    "panels:cpProperties.region.section": "d3a008ef1335"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -19803,7 +19821,10 @@
     "panels:textAnnotation.colorGreen": "d486dfbd5fb5",
     "panels:textAnnotation.colorOrange": "78e7771b8b46",
     "panels:textAnnotation.colorPurple": "7d465fb9b931",
-    "panels:textAnnotation.colorRed": "ba19e9c3d5f4"
+    "panels:textAnnotation.colorRed": "ba19e9c3d5f4",
+    "panels:cpProperties.region.hidden": "7e6fefff0f0a",
+    "panels:cpProperties.region.imageShown": "6ba2a0e0afd0",
+    "panels:cpProperties.region.section": "d3a008ef1335"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -22596,6 +22617,9 @@
     "panels:textAnnotation.colorGreen": "d486dfbd5fb5",
     "panels:textAnnotation.colorOrange": "78e7771b8b46",
     "panels:textAnnotation.colorPurple": "7d465fb9b931",
-    "panels:textAnnotation.colorRed": "ba19e9c3d5f4"
+    "panels:textAnnotation.colorRed": "ba19e9c3d5f4",
+    "panels:cpProperties.region.hidden": "7e6fefff0f0a",
+    "panels:cpProperties.region.imageShown": "6ba2a0e0afd0",
+    "panels:cpProperties.region.section": "d3a008ef1335"
   }
 }

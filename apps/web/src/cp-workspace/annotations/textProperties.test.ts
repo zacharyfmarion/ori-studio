@@ -16,6 +16,8 @@ function deps(overrides: Partial<TextPropertyDeps> = {}): TextPropertyDeps {
     update: vi.fn(),
     end: vi.fn(),
     commit: vi.fn(),
+    updateById: vi.fn(),
+    commitById: vi.fn(),
     setAlign: vi.fn(),
     setBlock: vi.fn(),
     setColor: vi.fn(),
