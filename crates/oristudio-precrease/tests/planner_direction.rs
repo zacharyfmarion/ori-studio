@@ -836,20 +836,25 @@ fn a_real_design_turns_over_a_handful_of_times() {
     // reference to reference, so the marks along a fold's own line are there
     // the moment it is made; none once the closure folded first what the
     // paper could sight and the ordering pass did the same within a round,
-    // so every mark a fold needed was made by a crease before it; three now
-    // that a fold the folder can watch outranks one lined up under the
-    // paper (R1): three verticals whose only free sighting was a blind O7
-    // are each bought a pinch on a pattern line and made as "fold the
-    // bottom edge onto itself through P".
-    assert_eq!(seq.totals.presses, 3, "iguana-c0 presses");
-    assert_eq!(seq.steps.len(), 94, "iguana-c0 steps");
+    // so every mark a fold needed was made by a crease before it; three
+    // when a fold the folder can watch came to outrank one lined up under
+    // the paper (R1) — three verticals whose only free sighting was a blind
+    // O7 were each bought a pinch; none again now that the closure holds a
+    // line back while its crease would be anchored far and a line still to
+    // come would anchor it nearer: those verticals wait, and the lines that
+    // let them be sighted are down first.
+    assert_eq!(seq.totals.presses, 0, "iguana-c0 presses");
+    assert_eq!(seq.steps.len(), 91, "iguana-c0 steps");
     // 9 while hardness sorted before the ease order; 6 with the presses; 8
     // once the closure waited for marks — waiting is a sweep, and a sweep
     // boundary is where the sheet is turned over; 7 now that a mark on a
     // crease left short is pinched while that crease is made, so nothing
     // waits for it. Two turn-overs for three presses was the trade, and the
-    // corpus is where it is judged.
-    assert_eq!(turn_overs(&seq), 7, "iguana-c0 turn-overs");
+    // corpus is where it is judged; 10 now that the closure holds a line
+    // back for a nearer anchor — the three presses went, and the sheet
+    // turns three times more for it: the same hundred and one cards,
+    // less ink.
+    assert_eq!(turn_overs(&seq), 10, "iguana-c0 turn-overs");
 }
 
 /// The snappable path builds its targets from `SnappedLine`, which carries no

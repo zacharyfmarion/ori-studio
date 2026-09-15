@@ -79,6 +79,12 @@ pub struct PlannerOptions {
     /// to reference, whatever crease past the pattern that takes
     /// ([`crate::marks::reach`]).
     pub allow_dangling_folds: bool,
+    /// Whether the closure holds back a line whose crease, made as soon as
+    /// the line can be constructed, would be carried past the pattern's
+    /// ends by more than twice that crease's length, while a line still to come would
+    /// put a reference at one of its ends ([`Closure::set_defer_far_anchors`]).
+    /// On by default; off folds every line in the first round it can be.
+    pub defer_far_anchors: bool,
     pub clock: Clock,
 }
 
@@ -107,6 +113,7 @@ impl Default for PlannerOptions {
             precrease_grid: GridMode::WhereNeeded,
             reach_references: true,
             allow_dangling_folds: true,
+            defer_far_anchors: true,
             clock: default_clock(),
         }
     }
@@ -115,7 +122,7 @@ impl Default for PlannerOptions {
 /// The JSON shape of the options: `{ point_cap, max_depth, depth3_threshold,
 /// max_candidates, stuck_budget_ms, total_budget_ms, precrease_grid,
 /// grid_where_needed, reach_references, allow_dangling_folds,
-/// prefer_sightable }`, all optional.
+/// defer_far_anchors, prefer_sightable }`, all optional.
 /// `precrease_grid` is
 /// the toggle and `grid_where_needed` says how much of the grid a plan opens
 /// with, so a caller that sends only the toggle still gets a grid.
@@ -132,6 +139,7 @@ pub struct PlannerOptionsJson {
     pub grid_where_needed: Option<bool>,
     pub reach_references: Option<bool>,
     pub allow_dangling_folds: Option<bool>,
+    pub defer_far_anchors: Option<bool>,
     pub prefer_sightable: Option<bool>,
 }
 
@@ -163,6 +171,9 @@ impl PlannerOptions {
         }
         if let Some(on) = parsed.allow_dangling_folds {
             opts.allow_dangling_folds = on;
+        }
+        if let Some(on) = parsed.defer_far_anchors {
+            opts.defer_far_anchors = on;
         }
         if let Some(on) = parsed.prefer_sightable {
             opts.prefer_sightable = on;
@@ -629,6 +640,7 @@ impl Planner {
         closure.set_prefer_findable_ends(opts.prefer_findable_ends);
         closure.set_reach_references(opts.reach_references);
         closure.set_allow_dangling_folds(opts.allow_dangling_folds);
+        closure.set_defer_far_anchors(opts.defer_far_anchors);
         closure.set_prefer_sightable(opts.prefer_sightable);
         if let Some(grid) = grid {
             // The grid is a few hundred lines at most, far under the cap; if
@@ -660,6 +672,7 @@ impl Planner {
                 closure.set_prefer_findable_ends(opts.prefer_findable_ends);
                 closure.set_reach_references(opts.reach_references);
                 closure.set_allow_dangling_folds(opts.allow_dangling_folds);
+                closure.set_defer_far_anchors(opts.defer_far_anchors);
                 closure.set_prefer_sightable(opts.prefer_sightable);
                 closure
             }),

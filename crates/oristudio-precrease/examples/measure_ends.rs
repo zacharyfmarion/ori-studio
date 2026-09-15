@@ -13,7 +13,9 @@
 //! to measure the grid the same way; `--no-reach` plans with every CP step
 //! creasing exactly the pattern's pieces rather than one run from reference
 //! to reference, and `--no-sightable` without the closure folding first what
-//! the paper can sight, and `--no-dangling` with every crease carried to a
+//! the paper can sight, `--no-defer` with every line folded in the first
+//! round it can be rather than waiting for a nearer anchor, and
+//! `--no-dangling` with every crease carried to a
 //! reference at both ends, to measure those rules the same way. `-v` names
 //! every lost end, every step made in pieces and every press — with what the
 //! press was for: a fold that had a free witness, a mark the pattern makes
@@ -484,6 +486,7 @@ fn plan_file(
     reach: bool,
     sightable: bool,
     no_dangling: bool,
+    no_defer: bool,
     verbose: bool,
 ) -> Option<Tally> {
     let cp = load_path(path, None).ok()?;
@@ -505,6 +508,7 @@ fn plan_file(
             },
             reach_references: reach,
             allow_dangling_folds: !no_dangling,
+            defer_far_anchors: !no_defer,
             prefer_sightable: sightable,
             ..PlannerOptions::default()
         };
@@ -550,12 +554,14 @@ fn main() {
     let reach = !args.iter().any(|a| a == "--no-reach");
     let sightable = !args.iter().any(|a| a == "--no-sightable");
     let no_dangling = args.iter().any(|a| a == "--no-dangling");
+    let no_defer = args.iter().any(|a| a == "--no-defer");
     let verbose = args.iter().any(|a| a == "-v");
     let flags = [
         "--no-grid",
         "--no-reach",
         "--no-sightable",
         "--no-dangling",
+        "--no-defer",
         "-v",
     ];
     let mut paths = Vec::new();
@@ -595,8 +601,26 @@ fn main() {
             println!("{}", path.display());
         }
         let (a, b) = (
-            plan_file(path, true, grid, reach, sightable, no_dangling, verbose),
-            plan_file(path, false, grid, reach, sightable, no_dangling, false),
+            plan_file(
+                path,
+                true,
+                grid,
+                reach,
+                sightable,
+                no_dangling,
+                no_defer,
+                verbose,
+            ),
+            plan_file(
+                path,
+                false,
+                grid,
+                reach,
+                sightable,
+                no_dangling,
+                no_defer,
+                false,
+            ),
         );
         let (Some(a), Some(b)) = (a, b) else {
             println!("{}\tdid not plan", path.display());

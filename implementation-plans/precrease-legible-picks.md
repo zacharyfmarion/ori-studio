@@ -370,6 +370,26 @@ Second round, from Zach's next fold of markhor (2026-09-14):
   twice as long as it need be and he would rather have no reference,
   applied to the marks a card joins. It is still made mark to mark when it
   is all there is.
+- **Held back for a nearer anchor** (`Closure::near_anchored`,
+  `PlannerOptions::defer_far_anchors`, on by default; `measure_ends
+  --no-defer`). The closure folded a line in the first round it could be
+  constructed and the crease was made with whatever the paper had:
+  markhor's x = ⅛ was constructible in round 2 and carried a quarter sheet
+  to the edge for a crease a twelfth long, its ends on lines eighty steps
+  later. The older rule (`prefer_findable_ends`) waits only while some
+  other line in the sweep has *every* end found, which in that round
+  nothing had. Now a line whose crease would be carried past the
+  pattern's outer ends by more than twice that crease's length waits
+  while a line still to come crosses it at an unfound end within that bar
+  — never a requirement, and at most sixteen sweeps. Twice, not once, and
+  the ends only: at one crease's length (with the gaps the reach rule
+  joins counted in) x = ⅜ and ⅝ deferred too, and the lines that used
+  them as references — 48's bisection, 103's edge mark — picked something
+  worse; ten pins moved and iguana turned over three times more. At twice
+  the ends' overrun the pins all hold: x = ⅛ moves to step 135 and
+  creases exactly its pattern piece (both ends found) instead of 0.345,
+  markhor turns over 8 times instead of 7; iguana line by line trades its
+  three presses for three turn-overs — the same 101 cards, less ink.
 - **The card's own geometry**: `sideOf` in `diagram/plannerDiagram.ts`
   judged a point on the fold within a billionth of a unit, which the
   document frame (a 400-unit sheet) did not meet; a receiving piece that

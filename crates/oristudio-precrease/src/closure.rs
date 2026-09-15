@@ -49,11 +49,15 @@
 use serde::{Deserialize, Serialize};
 
 use crate::clock::Deadline;
+use crate::constants::MIN_ANGLE_SINE;
 use crate::direction::{Direction, Side, majority};
 use crate::error::PrecreaseError;
 use crate::grid::Grid;
 use crate::line::{Line, LineIndex};
-use crate::marks::{Creased, ends_are_found, reach, witness_sightable};
+use crate::marks::{
+    Creased, MIN_ALIGNMENT, crease_runs, ends_are_found, reach, runs_reach, settled_end_is_found,
+    witness_sightable,
+};
 use crate::predicates::{
     Facts, Witness, all_witnesses, choose, scan_landers, scan_lines, scan_points, witnesses_on,
 };
@@ -179,7 +183,16 @@ struct TargetFacts {
     lines_scanned: usize,
     points_scanned: usize,
     lander_lines_scanned: usize,
+    /// Sweeps this target has been held back for a nearer anchor
+    /// ([`Closure::near_anchored`]).
+    deferrals: u32,
 }
+
+/// How many sweeps a target may wait for a crossing that would let its
+/// crease stop nearer the pattern's own before it is folded regardless. A
+/// closure seldom runs to twenty rounds; this is a backstop against two
+/// targets each waiting on the other, not a budget.
+const MAX_DEFERRALS: u32 = 16;
 
 /// One folded line with everything the closure knew when it folded it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -309,6 +322,11 @@ pub struct Closure {
     /// the pattern has it when its reference would cost more crease than
     /// there is, or carries every crease to a reference at both ends.
     allow_dangling_folds: bool,
+    /// Whether a sweep holds back a target whose crease, made now, would be
+    /// carried past the pattern's own by more than that crease's length,
+    /// while a target still to come would put a reference at one of its
+    /// ends ([`Closure::near_anchored`]).
+    defer_far_anchors: bool,
     /// The grid pleated before the first close, if any.
     grid: Option<Grid>,
     stats: ClosureStats,
@@ -358,6 +376,7 @@ impl Closure {
             prefer_sightable: true,
             reach_references: true,
             allow_dangling_folds: true,
+            defer_far_anchors: true,
             grid: None,
             stats: ClosureStats::default(),
         }
@@ -472,6 +491,26 @@ impl Closure {
         self.allow_dangling_folds
     }
 
+    /// Whether a sweep holds back a target that would be anchored far. The
+    /// closure folds a line in the first round it can be constructed, and
+    /// the crease is then made with whatever the paper has: markhor's
+    /// x = ⅛ was constructible in round 2 and carried a quarter sheet to
+    /// the edge for a crease a twelfth long, when the lines through its ends
+    /// came eighty steps later. On by default, a target whose crease would
+    /// be carried past the pattern's ends by more than twice that crease's
+    /// length waits while a target still to come would put a reference at
+    /// one of its ends; off, every target is folded as soon as it can be, and the two
+    /// are measured against each other on the corpus. Never a requirement:
+    /// a sweep with nothing near folds what it can construct.
+    pub fn set_defer_far_anchors(&mut self, on: bool) {
+        self.defer_far_anchors = on;
+    }
+
+    /// See [`Closure::set_defer_far_anchors`].
+    pub fn defer_far_anchors(&self) -> bool {
+        self.defer_far_anchors
+    }
+
     /// Every remaining target whose line can be sighted *and* whose creases
     /// both begin and end somewhere the folder can find, out of `constructible`.
     ///
@@ -484,6 +523,97 @@ impl Closure {
             .map(|(t, _)| {
                 let target = &self.targets[*t];
                 ends_are_found(&self.state, &self.creased, &target.line, &target.spans)
+            })
+            .collect()
+    }
+
+    /// Of `constructible`, the targets whose crease — made on the paper as
+    /// the sweep began — is anchored near enough: carried past the
+    /// pattern's outer ends by no more than twice that crease's length (and
+    /// a pinch), or not to be anchored nearer by waiting, because no target
+    /// still to come crosses the line at an unfound end within that bar.
+    /// The rest wait a sweep for the crossing that would let them stop
+    /// short; a target that has waited [`MAX_DEFERRALS`] sweeps is folded
+    /// regardless. Judged against the paper as it stood when the sweep
+    /// began, on the same footing as [`Closure::ends_findable`].
+    fn near_anchored(&self, constructible: &[(usize, Vec<Witness>)]) -> Vec<bool> {
+        let state = &self.state;
+        let creased = &self.creased;
+        constructible
+            .iter()
+            .map(|(t, _)| {
+                let target = &self.targets[*t];
+                if !self.reach_references
+                    || target.spans.is_empty()
+                    || self.facts[*t].deferrals >= MAX_DEFERRALS
+                {
+                    return true;
+                }
+                let line = &target.line;
+                let length = |runs: &[([f64; 2], [f64; 2])]| -> f64 {
+                    runs.iter()
+                        .map(|(a, b)| (a[0] - b[0]).hypot(a[1] - b[1]))
+                        .sum()
+                };
+                let pattern = crease_runs(line, &target.spans);
+                let pattern_len = length(&pattern);
+                let made = reach(
+                    state,
+                    creased,
+                    line,
+                    &target.spans,
+                    self.allow_dangling_folds,
+                );
+                // Carried past the pattern's outer ends — not the gaps
+                // between its pieces, which the reach rule joins by design
+                // — by more than twice the crease's own length: Zach's bar
+                // for a crease carried to a reference.
+                let extent = |runs: &[([f64; 2], [f64; 2])]| -> (f64, f64) {
+                    runs.iter()
+                        .flat_map(|(a, b)| [line.parameter_of(*a), line.parameter_of(*b)])
+                        .fold((f64::INFINITY, f64::NEG_INFINITY), |(lo, hi), t| {
+                            (lo.min(t), hi.max(t))
+                        })
+                };
+                let (p_lo, p_hi) = extent(&pattern);
+                let (m_lo, m_hi) = extent(&crease_runs(line, &made));
+                let carried = (p_lo - m_lo).max(0.0) + (m_hi - p_hi).max(0.0);
+                let bar = (2.0 * pattern_len).max(MIN_ALIGNMENT);
+                if carried <= bar + TOL {
+                    return true;
+                }
+                // Far. The unfound ends, and whether a target still to come
+                // crosses the line at one of them — at the end or beyond
+                // it, within the bar — with crease that reaches the crossing.
+                let ends: Vec<(f64, bool)> = pattern
+                    .iter()
+                    .flat_map(|(a, b)| {
+                        let (u, v) = (line.parameter_of(*a), line.parameter_of(*b));
+                        [(u.min(v), false), (u.max(v), true)]
+                    })
+                    .filter(|(end, _)| {
+                        !settled_end_is_found(state, creased, line, line.point_at(*end))
+                    })
+                    .collect();
+                let helped = self.remaining.iter().any(|&u| {
+                    if u == *t {
+                        return false;
+                    }
+                    let other = &self.targets[u];
+                    if other.line.cross(line).abs() < MIN_ANGLE_SINE {
+                        return false;
+                    }
+                    other.line.intersect(line).is_some_and(|x| {
+                        runs_reach(&other.line, &other.spans, x) && {
+                            let s = line.parameter_of(x);
+                            ends.iter().any(|&(end, forward)| {
+                                let outward = if forward { s - end } else { end - s };
+                                outward >= -TOL && outward <= bar + TOL
+                            })
+                        }
+                    })
+                });
+                !helped
             })
             .collect()
     }
@@ -647,6 +777,25 @@ impl Closure {
                     constructible = constructible
                         .into_iter()
                         .zip(findable)
+                        .filter(|(_, f)| *f)
+                        .map(|(c, _)| c)
+                        .collect();
+                }
+            }
+            // And of those, the ones whose crease can be anchored near the
+            // pattern's own now; the rest wait for the crossing that would
+            // let them stop short. Never a requirement, for the same reason.
+            if self.defer_far_anchors {
+                let near = self.near_anchored(&constructible);
+                if near.iter().any(|&f| f) {
+                    for ((t, _), keep) in constructible.iter().zip(&near) {
+                        if !keep {
+                            self.facts[*t].deferrals += 1;
+                        }
+                    }
+                    constructible = constructible
+                        .into_iter()
+                        .zip(near)
                         .filter(|(_, f)| *f)
                         .map(|(c, _)| c)
                         .collect();
@@ -1022,6 +1171,72 @@ mod tests {
 
     fn unbounded() -> Deadline {
         Deadline::unbounded(frozen_clock())
+    }
+
+    /// markhor's x = ⅛ in miniature: x = ¼ is constructible in round 2, its
+    /// pattern crease runs from y = ⅛ to y = 5⁄32, and neither end is on a
+    /// crease until y = ⅛ comes in round 3. Folded in round 2 it is
+    /// anchored at the bottom edge, an eighth of crease for a thirty-second
+    /// of pattern; held back until y = ⅛ is down, it stops there. The other
+    /// round-2 line, y = ¼, has an unfound end of its own — so the older
+    /// rule, which waits only while some other line has every end found,
+    /// holds nothing back, as it held nothing back on markhor.
+    #[test]
+    fn a_target_whose_crease_would_be_anchored_far_waits_for_the_crossing_that_lets_it_stop() {
+        let plan = |defer: bool| {
+            let mut all = targets(&[v(0.5), h(0.5), h(0.125)]);
+            all.push(Target::new(
+                h(0.25),
+                vec![8],
+                vec![[[0.0, 0.25], [0.4, 0.25]]],
+                1.0,
+                0.0,
+            ));
+            all.push(Target::new(
+                v(0.25),
+                vec![9],
+                vec![[[0.25, 0.125], [0.25, 0.15625]]],
+                1.0,
+                0.0,
+            ));
+            let mut c = Closure::new(Sheet::unit_square(), all, DEFAULT_POINT_CAP);
+            c.set_defer_far_anchors(defer);
+            c.close(&unbounded()).expect("close");
+            assert!(c.is_complete());
+            let folded = c.folded();
+            let of = |line: &Line| {
+                folded
+                    .iter()
+                    .find(|f| {
+                        (f.line.d - line.d).abs() < 1e-9 && (f.line.n[0] - line.n[0]).abs() < 1e-9
+                    })
+                    .expect("folded")
+            };
+            let quarter = of(&v(0.25));
+            let eighth = of(&h(0.125));
+            let runs = c
+                .creased
+                .runs_of(quarter.line_id)
+                .expect("creased")
+                .to_vec();
+            let low = runs
+                .iter()
+                .map(|&(u, v)| quarter.line.point_at(u.min(v))[1])
+                .fold(f64::INFINITY, f64::min);
+            (quarter.round, eighth.round, low)
+        };
+        let (quarter, eighth, low) = plan(false);
+        assert!(
+            quarter < eighth,
+            "folded as soon as it can be: round {quarter} before {eighth}"
+        );
+        assert!(low.abs() < 1e-9, "carried to the bottom edge: {low}");
+        let (quarter, eighth, low) = plan(true);
+        assert!(
+            quarter > eighth,
+            "waits for y = ⅛: round {quarter} after {eighth}"
+        );
+        assert!((low - 0.125).abs() < 1e-9, "stops at y = ⅛: {low}");
     }
 
     #[test]
