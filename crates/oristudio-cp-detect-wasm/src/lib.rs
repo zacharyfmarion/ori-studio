@@ -93,6 +93,22 @@ pub fn cp_detect_auto_rectify_rgba(
     wasm_rectified_image(result)
 }
 
+/// Does this image look like a crease pattern? The gate behind the offer on a
+/// reference image dropped onto the Edit canvas. Any size; a copy no larger
+/// than `likelihood::LIKELIHOOD_MAX_SIDE` on its longer side skips the
+/// resample. Returns `{ score, likely, threshold, features }`.
+#[wasm_bindgen]
+pub fn cp_detect_crease_pattern_likelihood(
+    rgba: &[u8],
+    width: u32,
+    height: u32,
+) -> Result<JsValue, JsValue> {
+    install_panic_hook();
+    let verdict = oristudio_cp_detect::likelihood::crease_pattern_likelihood(rgba, width, height)
+        .map_err(|error| js_error("invalid_image", error.to_string()))?;
+    to_js_value(&verdict)
+}
+
 #[wasm_bindgen]
 pub fn cp_detect_manual_rectify_rgba(
     rgba: &[u8],

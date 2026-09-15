@@ -3591,6 +3591,46 @@ button.cp-folded-figure-toolbar__notice:hover {
   width: 90px;
 }
 
+/* "Looks like a crease pattern — Detect creases?" on a reference image.
+   Floating-toolbar chrome, so it is one of the canvas's own controls and not a
+   notification; only the fade-in and the label are its own. */
+.cp-detect-suggestion {
+  animation: cp-detect-suggestion-in 150ms ease-out;
+}
+
+.cp-detect-suggestion__body {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cp-detect-suggestion__icon {
+  color: var(--accent-primary);
+  flex: 0 0 auto;
+}
+
+.cp-detect-suggestion__label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+@keyframes cp-detect-suggestion-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-detect-suggestion {
+    animation: none;
+  }
+}
+
 /* --- Text annotations --------------------------------------------------- */
 
 .cp-text-box {

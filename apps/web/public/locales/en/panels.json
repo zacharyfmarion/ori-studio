@@ -184,6 +184,12 @@
     "maekawa": "Maekawa (parity)",
     "vertexClosure": "Vertex closure"
   },
+  "cpDetectSuggestion": {
+    "ariaLabel": "Crease pattern detected in image",
+    "detect": "Detect creases",
+    "label": "Looks like a crease pattern",
+    "notNow": "Not now"
+  },
   "cpExactSolve": {
     "hint": {
       "geometry": "Usually under a second.",

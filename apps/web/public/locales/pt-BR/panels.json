@@ -186,6 +186,12 @@
     "maekawa": "Maekawa (paridade)",
     "vertexClosure": "Fechamento do vértice"
   },
+  "cpDetectSuggestion": {
+    "ariaLabel": "Padrão de vincos detectado na imagem",
+    "detect": "Detectar vincos",
+    "label": "Parece um padrão de vincos",
+    "notNow": "Agora não"
+  },
   "cpExactSolve": {
     "hint": {
       "geometry": "Normalmente menos de um segundo.",

@@ -65,6 +65,7 @@
       "opening": "正在打开图像",
       "rectifying": "正在校正裁剪"
     },
+    "canvasImageName": "画布图像",
     "chooseImage": "选择图像",
     "compilerReviewOverlays": "编译器审查叠加层",
     "crop": "裁剪",
@@ -90,6 +91,7 @@
     "rectified": "已校正",
     "regionLabel": "检测到的折痕图",
     "repairLabel": "添加检测到的折痕图以便修复",
+    "replacesImage": "添加会用图案替换图像。“检查并修复”会在修复期间将图像以半透明保留在下方。",
     "reviewAndFix": "检查并修复",
     "rights": {
       "attest": "我确认此折痕图是通过合法途径获得的，并且我有权使用它。",
@@ -343,6 +345,8 @@
       "orphanedLabel": "已停用的检测器",
       "remove": "移除",
       "row": "检测器 v{{version}}",
+      "suggestDetection": "为添加到画布的图像建议检测折痕图",
+      "suggestDetectionDescription": "当参考图像看起来像折痕图时，提示进行检测。检测在本设备上运行，不会下载任何内容。",
       "title": "模型",
       "unavailable": "无法读取模型清单：{{reason}}",
       "update": "更新",

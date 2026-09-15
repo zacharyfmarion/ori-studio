@@ -165,6 +165,7 @@ import { useCpDocumentCamera } from '../../cp-workspace/camera/useCpDocumentCame
 import { isSuppressionRegionAnnotation } from '../../cp-workspace/annotations/annotation';
 import { useCpAnnotations } from '../../cp-workspace/annotations/useCpAnnotations';
 import { CpRegionLayer } from '../../cp-workspace/regions/CpRegionLayer';
+import { CpDetectSuggestionLayer } from '../../cp-workspace/images/CpDetectSuggestionLayer';
 import { useCpRegionActions } from '../../cp-workspace/regions/useCpRegions';
 import { useCpRegionSolve } from '../../cp-workspace/regions/useCpRegionSolve';
 import { useCpVertexPins } from '../../cp-workspace/pins/useCpVertexPins';
@@ -3223,6 +3224,7 @@ export function CreasePatternPanel() {
                   solve={regionSolve}
                   onContextMenu={cpContextMenu.onCanvasObjectContextMenu}
                 />
+                <CpDetectSuggestionLayer container={toolbarContainer} />
                 {webglOverlayView && canvasObjects.length > 0 && (
                   <CanvasObjectOverlay
                     objects={canvasObjects}

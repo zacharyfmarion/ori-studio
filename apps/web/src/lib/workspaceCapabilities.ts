@@ -181,7 +181,8 @@ export interface WorkspaceCapabilityInput {
   cpDetectAvailable?: boolean;
 }
 
-function cpDetectAvailableHere(): boolean {
+/** Whether this build and surface offer CP detection at all: the flag is on and this is not a phone. */
+export function cpDetectAvailableHere(): boolean {
   return isCpDetectSurfaceAvailable({
     buildEnabled: isCpDetectBuildEnabled(),
     phone: isPhoneLayout(),

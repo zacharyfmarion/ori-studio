@@ -293,7 +293,22 @@ export type CpExactSolveRejectionReason =
 export type CpExactSolveResolution = 'accepted' | 'accepted-partial' | 'retried';
 
 /** How an image reached the Detect dialog. */
-export type CpDetectImageSource = 'picker' | 'drop';
+export type CpDetectImageSource = 'picker' | 'drop' | 'canvas-suggestion';
+
+/** The likelihood gate's verdict on an image added to the canvas. */
+export type CpDetectLikelihoodVerdict = 'likely' | 'unlikely';
+
+/**
+ * The gate's probability, bucketed. The operating threshold is 0.8, so the
+ * `0.8-0.9` and `0.9+` buckets are the offers and the two below are the
+ * near-misses worth knowing the size of.
+ */
+export function cpDetectScoreBucket(score: number): string {
+  if (score < 0.5) return '<0.5';
+  if (score < 0.8) return '0.5-0.8';
+  if (score < 0.9) return '0.8-0.9';
+  return '0.9+';
+}
 
 /** Where the Detect dialog stood when it was closed without importing. */
 export type CpDetectDismissStage = 'upload' | 'confirm' | 'crop' | 'detecting' | 'review';
@@ -484,6 +499,19 @@ export const ANALYTICS_EVENTS = {
    * not an inference.
    */
   cpDetectImageLoaded: 'cp detect image loaded',
+  /**
+   * The canvas entry to the same funnel. Every reference image added to the
+   * Edit canvas is scored by the likelihood gate (`scored`, the denominator);
+   * the ones that clear the threshold show the pill (`suggested`); the pill is
+   * either taken (`accepted`, which then produces a `cp detect image loaded`
+   * with `source: 'canvas-suggestion'`) or closed (`dismissed`). `scored`
+   * carries a bucketed score and verdict only — the field false-positive rate
+   * is read off the acceptance rate per bucket, never off the image.
+   */
+  cpDetectImageScored: 'cp detect image scored',
+  cpDetectSuggested: 'cp detect suggested',
+  cpDetectSuggestionAccepted: 'cp detect suggestion accepted',
+  cpDetectSuggestionDismissed: 'cp detect suggestion dismissed',
   /**
    * The rights gate between an image loading and Detect was answered:
    * `accepted` is Continue, and `false` is Back. A close at the gate is a

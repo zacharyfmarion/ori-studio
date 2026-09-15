@@ -65,6 +65,7 @@
       "opening": "Abrindo imagem",
       "rectifying": "Retificando recorte"
     },
+    "canvasImageName": "Imagem da tela",
     "chooseImage": "Escolher imagem",
     "compilerReviewOverlays": "Sobreposições de revisão do compilador",
     "crop": "Recortar",
@@ -90,6 +91,7 @@
     "rectified": "Retificado",
     "regionLabel": "Padrão de vincos detectado",
     "repairLabel": "Adicionar o padrão de vincos detectado para corrigir",
+    "replacesImage": "Adicionar substitui sua imagem pelo padrão. Revisar e corrigir a mantém abaixo, com meia opacidade, enquanto você repara.",
     "reviewAndFix": "Revisar e corrigir",
     "rights": {
       "attest": "Confirmo que este padrão de vincos foi obtido legalmente e que tenho o direito de usá-lo.",
@@ -359,6 +361,8 @@
       "orphanedLabel": "Detector descontinuado",
       "remove": "Remover",
       "row": "Detector v{{version}}",
+      "suggestDetection": "Sugerir a detecção de padrões de vincos em imagens adicionadas à tela",
+      "suggestDetectionDescription": "Quando uma imagem de referência parecer um padrão de vincos, oferecer para detectá-lo. A verificação roda neste dispositivo e não baixa nada.",
       "title": "Modelos",
       "unavailable": "Não foi possível ler o registro de modelos: {{reason}}",
       "update": "Atualizar",
