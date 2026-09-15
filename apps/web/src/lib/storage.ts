@@ -40,6 +40,7 @@ export const STORAGE_KEYS = {
   bpOptimizer: 'bp-optimizer',
   simulatorSettings: 'simulator-settings',
   /** Whether product analytics is enabled (opt-out preference; default true). */
+  cpDetectSuggestions: 'cp-detect-suggestions',
   analyticsEnabled: 'analytics-enabled',
   /** Anonymous, locally-generated stable id used to `identify()` in PostHog. */
   analyticsId: 'analytics-id',

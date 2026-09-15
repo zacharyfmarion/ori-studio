@@ -13,6 +13,8 @@ import { CpDetectCropEditor } from './CpDetectCropEditor';
 import { CpDetectRightsConfirmation } from './CpDetectRightsConfirmation';
 import { sourceSizeForRectification } from './cpDetectCropLoupe';
 import { track } from '../analytics';
+import { CP_DETECT_OPEN_EVENT, isCpDetectCanvasImageDetail, type CpDetectCanvasImageDetail } from '../lib/cpDetectEntry';
+import { useCpDetectSuggestionStore } from '../cp-workspace/images/cpDetectSuggestionStore';
 import type { CpDetectFailureReason, CpDetectImageSource } from '../analytics/events';
 import { proxy } from 'comlink';
 import { CpDetectModelLine } from './CpDetectModelLine';
@@ -301,6 +303,12 @@ export function CpDetectImportModal() {
    * is remembered across sessions.
    */
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
+  /**
+   * The canvas annotation this session was opened on, if the pill opened it.
+   * Read back on close (the offer returns) and on import (the offer is done),
+   * and — Phase 2 — to register the pattern onto that image.
+   */
+  const [canvasImage, setCanvasImage] = useState<{ annotationId: string } | null>(null);
   const [model, setModel] = useState<DetectorModelState | null>(null);
   const [modelProgress, setModelProgress] = useState<CpDetectModelDownloadProgress | null>(null);
   const [modelUpdating, setModelUpdating] = useState(false);
@@ -337,10 +345,16 @@ export function CpDetectImportModal() {
     if (solveRun) requestCpExactSolveStop(solveRun.runId);
   }, [solveRun]);
 
+  const loadCanvasImageRef = useRef<(detail: CpDetectCanvasImageDetail) => void>(() => undefined);
+
   useEffect(() => {
-    const onOpen = () => setOpen(true);
-    window.addEventListener('ori-studio:detect-cp-image', onOpen);
-    return () => window.removeEventListener('ori-studio:detect-cp-image', onOpen);
+    const onOpen = (event: Event) => {
+      setOpen(true);
+      const detail = (event as CustomEvent<unknown>).detail;
+      if (isCpDetectCanvasImageDetail(detail)) loadCanvasImageRef.current(detail);
+    };
+    window.addEventListener(CP_DETECT_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(CP_DETECT_OPEN_EVENT, onOpen);
   }, []);
 
   // What the registry points at, what is installed, whether an update is on
@@ -433,6 +447,7 @@ export function CpDetectImportModal() {
     setError(null);
     setDropActive(false);
     setPreviewOverlays(DEFAULT_PREVIEW_OVERLAYS);
+    setCanvasImage(null);
   }, []);
 
   /**
@@ -454,12 +469,25 @@ export function CpDetectImportModal() {
     // The funnel's exit, with where it happened. Only a close that abandons the
     // session reaches here; a successful add closes through `addToDocument`.
     track('cp detect dismissed', { stage: modalStage(busy, recognition, source, rightsConfirmed) });
+    // Taking the offer did not consume it: the pill comes back, still one
+    // click to dismiss, since nothing else on the image leads here.
+    if (canvasImage) {
+      useCpDetectSuggestionStore.getState().setSuggestionState(canvasImage.annotationId, 'pending');
+    }
     setOpen(false);
     resetSession();
-  }, [busy, canClose, recognition, resetSession, rightsConfirmed, source, stopSolve]);
+  }, [busy, canClose, canvasImage, recognition, resetSession, rightsConfirmed, source, stopSolve]);
 
   const loadImageFile = useCallback(async (file: OpenBinaryFileResult, from: CpDetectImageSource) => {
     const nextSource = await sourceImageFromFile(file, t);
+    if (from !== 'canvas-suggestion') {
+      setCanvasImage((previous) => {
+        if (previous) {
+          useCpDetectSuggestionStore.getState().setSuggestionState(previous.annotationId, 'pending');
+        }
+        return null;
+      });
+    }
     setSource((previous) => {
       if (previous?.url) URL.revokeObjectURL(previous.url);
       return nextSource;
@@ -523,6 +551,33 @@ export function CpDetectImportModal() {
     },
     [loadImageFile, t]
   );
+
+  /**
+   * The pill's entry: the annotation's data URL (cropped as on canvas) becomes
+   * the source, and the dialog lands where a drop would — on the rights gate,
+   * rectifying underneath. The offer is marked open until this session ends.
+   */
+  const loadCanvasImage = useCallback(
+    async (detail: CpDetectCanvasImageDetail) => {
+      setBusy('opening');
+      setError(null);
+      try {
+        const file = await binaryFileFromCanvasImage(detail, t);
+        setCanvasImage({ annotationId: detail.annotationId });
+        await loadImageFile(file, 'canvas-suggestion');
+      } catch (caught) {
+        useCpDetectSuggestionStore.getState().setSuggestionState(detail.annotationId, 'pending');
+        setError(cpDetectError(caught).message);
+      } finally {
+        setBusy(null);
+      }
+    },
+    [loadImageFile, t]
+  );
+
+  useEffect(() => {
+    loadCanvasImageRef.current = (detail) => void loadCanvasImage(detail);
+  }, [loadCanvasImage]);
 
   const confirmRights = useCallback(() => {
     setRightsConfirmed(true);
@@ -853,6 +908,9 @@ export function CpDetectImportModal() {
           outcome: importOutcome(topology, phase),
           repair_sites: repairSiteBucket(topology),
         });
+        if (canvasImage) {
+          useCpDetectSuggestionStore.getState().setSuggestionState(canvasImage.annotationId, 'accepted');
+        }
         setOpen(false);
         // Same reset as `close`: a successful add ends the session, so the next
         // open starts at the file picker rather than on the pattern just added.
@@ -864,6 +922,7 @@ export function CpDetectImportModal() {
       }
     },
     [
+      canvasImage,
       improvedFoldJson,
       partialFoldJson,
       phase,
@@ -980,6 +1039,11 @@ export function CpDetectImportModal() {
                 {status}
               </div>
             )}
+            {/* A file that could not be read — an unsupported drop, a canvas
+                image that failed to decode — lands back here, and used to
+                land silently: the message was only ever drawn on the later
+                stages. */}
+            {error && <div className="cp-detect-modal__error">{error}</div>}
           </div>
         )}
 
@@ -1346,6 +1410,53 @@ async function sourceImageFromFile(file: OpenBinaryFileResult, t: TFunction): Pr
   } catch (error) {
     URL.revokeObjectURL(url);
     throw error;
+  }
+}
+
+/**
+ * A canvas image as the dialog's input: the annotation's data URL decoded,
+ * cropped as the annotation is, and re-encoded as PNG bytes. PNG rather than
+ * the original type because the crop is applied by drawing, and a second JPEG
+ * pass would cost the creases their edges for nothing.
+ */
+async function binaryFileFromCanvasImage(
+  detail: CpDetectCanvasImageDetail,
+  t: TFunction
+): Promise<OpenBinaryFileResult> {
+  const { src, crop } = detail.image;
+  const whole = crop.x === 0 && crop.y === 0 && crop.w === 1 && crop.h === 1;
+  const response = await fetch(src);
+  const blob = await response.blob();
+  if (whole) {
+    return {
+      bytes: new Uint8Array(await blob.arrayBuffer()),
+      name: t('dialogs:cpDetectImport.canvasImageName', 'Canvas image'),
+      path: null,
+      mimeType: blob.type || 'image/png',
+    };
+  }
+  const bitmap = await createImageBitmap(blob);
+  try {
+    const sx = Math.round(crop.x * bitmap.width);
+    const sy = Math.round(crop.y * bitmap.height);
+    const sw = Math.max(1, Math.round(crop.w * bitmap.width));
+    const sh = Math.max(1, Math.round(crop.h * bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = sw;
+    canvas.height = sh;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error(t('errors:cpDetectImport.canvasUnavailable', 'Canvas 2D is unavailable'));
+    context.drawImage(bitmap, sx, sy, sw, sh, 0, 0, sw, sh);
+    const cropped = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+    if (!cropped) throw new Error(t('errors:cpDetectImport.canvasUnavailable', 'Canvas 2D is unavailable'));
+    return {
+      bytes: new Uint8Array(await cropped.arrayBuffer()),
+      name: t('dialogs:cpDetectImport.canvasImageName', 'Canvas image'),
+      path: null,
+      mimeType: 'image/png',
+    };
+  } finally {
+    bitmap.close?.();
   }
 }
 

@@ -205,3 +205,17 @@ describe('settingsStore', () => {
     expect(freshStore.getState().cpSnapRadius).toBe(30);
   });
 });
+
+describe('cpDetectSuggestions', () => {
+  afterEach(() => {
+    localStorage.removeItem('oristudio:cp-detect-suggestions');
+    useSettingsStore.setState(initialSettingsState);
+  });
+
+  it('defaults on and persists the switch', () => {
+    expect(useSettingsStore.getState().cpDetectSuggestions).toBe(true);
+    useSettingsStore.getState().setCpDetectSuggestions(false);
+    expect(useSettingsStore.getState().cpDetectSuggestions).toBe(false);
+    expect(localStorage.getItem('oristudio:cp-detect-suggestions')).toBe('false');
+  });
+});

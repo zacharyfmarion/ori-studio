@@ -17,7 +17,20 @@ export interface ImportedImageSource {
   /** Capped pixel dimensions (each ≤ IMAGE_MAX_DIMENSION). */
   naturalWidth: number;
   naturalHeight: number;
+  /**
+   * A copy no larger than {@link IMAGE_PREVIEW_MAX_DIMENSION} on its longer
+   * side, drawn from the same bitmap, for the crease-pattern likelihood gate.
+   * Null when a 2D context could not be had; the gate then stays silent.
+   */
+  preview: ImageData | null;
 }
+
+/**
+ * Longest edge of the gate's copy. The gate works at 512 px anyway
+ * (`likelihood::LIKELIHOOD_MAX_SIDE`), and a full 2048 px `ImageData` would be
+ * a 16 MB transfer to the worker for nothing.
+ */
+export const IMAGE_PREVIEW_MAX_DIMENSION = 512;
 
 const TRANSPARENT_SOURCE_TYPES = new Set(['image/png', 'image/webp', 'image/gif']);
 
@@ -50,8 +63,28 @@ export async function importImageFile(file: File): Promise<ImportedImageSource> 
     const src = keepAlpha
       ? canvas.toDataURL('image/png')
       : canvas.toDataURL('image/jpeg', IMAGE_JPEG_QUALITY);
-    return { src, naturalWidth: width, naturalHeight: height };
+    return { src, naturalWidth: width, naturalHeight: height, preview: previewImageData(bitmap) };
   } finally {
     bitmap.close();
+  }
+}
+
+function previewImageData(bitmap: ImageBitmap): ImageData | null {
+  const longest = Math.max(bitmap.width, bitmap.height);
+  const scale = Math.min(1, IMAGE_PREVIEW_MAX_DIMENSION / longest);
+  const width = Math.max(1, Math.round(bitmap.width * scale));
+  const height = Math.max(1, Math.round(bitmap.height * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  try {
+    return ctx.getImageData(0, 0, width, height);
+  } catch {
+    return null;
   }
 }

@@ -382,19 +382,26 @@ real cropped render before calling it done.
       provenance
 
 ### Phase 1 — pill and hand-off
-- [ ] `cpDetectSuggestionStore` (transient map) and `useCpDetectSuggestions`
-      with every gate, the ≤512 px main-thread copy, silent failure
-- [ ] `addImageFromFile` returns the id; worker warmed on image-only `dragover`
-- [ ] `CpDetectSuggestionPill` + `CpDetectSuggestionLayer`; `bottom-start`,
+- [x] `cpDetectSuggestionStore` (transient map), `cpDetectSuggestions.ts`
+      (the gates, scoring, silent failure) and `useCpDetectSuggestions`
+- [x] The import keeps a ≤512 px preview for the gate; the hook scores after
+      the add; worker warmed on image-only `dragover`
+- [x] `CpDetectSuggestionPill` + `CpDetectSuggestionLayer`; `bottom-start`,
       pane boundary, wheel forwarding, live region, reduced-motion fade
-- [ ] Dialog: typed detail, data-URL (cropped) source, `annotationId` in
-      session, `CpDetectImageSource` extended, close/import reported back to
-      the suggestion store
-- [ ] Setting + toggle row; third-dismissal toast
-- [ ] Analytics events and `docs/analytics.md` rows
-- [ ] i18n: extract, translate all locales, stamp, check
-- [ ] Vitest coverage listed under Verification; lint; typecheck
-- [ ] Browser pass with the four drop cases; desktop drop; screenshots in PR
+- [x] Dialog: typed detail (`lib/cpDetectEntry.ts`), data-URL (cropped)
+      source, `annotationId` in session, `CpDetectImageSource` extended,
+      close/import reported back to the suggestion store; the upload stage
+      now shows a read error instead of swallowing it
+- [x] Setting + toggle row in Settings ▸ General ▸ Models; third-dismissal
+      toast
+- [x] Analytics events and `docs/analytics.md` rows
+- [x] i18n: extract, translate all locales, stamp, check
+- [x] Vitest coverage listed under Verification; lint; typecheck
+- [x] Browser pass on the dev server: clean render → pill (score 0.97); the
+      app's own coloured, pentagonal preview → no pill (0.56, a known miss:
+      filled faces and a non-22.5° symmetry); Detect lands on the rights
+      gate; cancel brings the pill back; × retires it
+- [ ] Desktop drop in the Tauri dev app
 
 ### Phase 2 — registration
 - [ ] Axis-aligned quad → annotation box over the paper bounds

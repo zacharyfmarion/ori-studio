@@ -3,6 +3,9 @@
     "failed": "Diese Aktion konnte nicht ausgeführt werden",
     "failedDetail": "Es wurde nichts geändert. Wenn das weiterhin passiert, lade die Seite neu."
   },
+  "cpDetectSuggestion": {
+    "turnOff": "Diese Vorschläge lassen sich unter Einstellungen ▸ Allgemein ▸ Modelle abschalten."
+  },
   "cpRegionSolve": {
     "failed": "Dieses Muster konnte nicht gelöst werden",
     "incompleteAction": "„Erneut versuchen“, um die Topologie zu reparieren und erneut zu lösen, oder „Trotzdem übernehmen“, um diese Koordinaten zu behalten.",

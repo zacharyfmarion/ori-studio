@@ -65,6 +65,7 @@
       "opening": "이미지 여는 중",
       "rectifying": "자르기 보정 중"
     },
+    "canvasImageName": "캔버스 이미지",
     "chooseImage": "이미지 선택",
     "compilerReviewOverlays": "컴파일러 검토 오버레이",
     "crop": "자르기",
@@ -343,6 +344,8 @@
       "orphanedLabel": "사용 중단된 감지기",
       "remove": "제거",
       "row": "감지기 v{{version}}",
+      "suggestDetection": "캔버스에 추가한 이미지에서 전개도 감지를 제안",
+      "suggestDetectionDescription": "참조 이미지가 전개도처럼 보이면 감지를 제안합니다. 검사는 이 기기에서 실행되며 아무것도 다운로드하지 않습니다.",
       "title": "모델",
       "unavailable": "모델 레지스트리를 읽을 수 없습니다: {{reason}}",
       "update": "업데이트",

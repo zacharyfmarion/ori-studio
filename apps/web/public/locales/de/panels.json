@@ -184,6 +184,12 @@
     "maekawa": "Maekawa (Parität)",
     "vertexClosure": "Knotenschluss"
   },
+  "cpDetectSuggestion": {
+    "ariaLabel": "Faltmuster im Bild erkannt",
+    "detect": "Falten erkennen",
+    "label": "Sieht aus wie ein Faltmuster",
+    "notNow": "Jetzt nicht"
+  },
   "cpExactSolve": {
     "hint": {
       "geometry": "Meist unter einer Sekunde.",

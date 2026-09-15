@@ -11,7 +11,8 @@ import { createCpImage } from '../images/cpImage';
 import type { BoxCorners } from '../tools/viewAlignedBox';
 import { importImageFile } from '../images/cpImageImport';
 import { cropImage, fitImageModelSize } from '../images/cpImagePlacement';
-import { classifyDroppedFile, dragCarriesFiles } from '../../lib/fileDrop';
+import { classifyDroppedFile, dragCarriesFiles, isImageOnlyDrag } from '../../lib/fileDrop';
+import { noteAddedCanvasImage, warmCpDetectClient } from '../images/cpDetectSuggestions';
 import {
   overlayCssPerModel,
   overlayCssToModel,
@@ -230,21 +231,29 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
         }
         const images = useWorkspaceStore.getState().oristudioCpAnnotations;
         const topZ = images.reduce((max, image) => Math.max(max, image.z), 0);
-        addAnnotation(
-          createCpImage({
-            src: source.src,
-            naturalWidth: source.naturalWidth,
-            naturalHeight: source.naturalHeight,
-            center,
-            width,
-            height,
-            // Square to the screen it was dropped on. Centre and extent above
-            // already go through the overlay view, so they need no adjustment.
-            rotation,
-            z: topZ + 1,
-          })
-        );
+        const image = createCpImage({
+          src: source.src,
+          naturalWidth: source.naturalWidth,
+          naturalHeight: source.naturalHeight,
+          center,
+          width,
+          height,
+          // Square to the screen it was dropped on. Centre and extent above
+          // already go through the overlay view, so they need no adjustment.
+          rotation,
+          z: topZ + 1,
+        });
+        addAnnotation(image);
         recordAnnotationHistory([...images], t('panels:creasePattern.addImage', 'Add image'));
+        // After the add, never before it: the offer to detect a crease pattern
+        // in this image is scored off the main thread and must not delay the
+        // drop. Silent on every failure by contract.
+        void noteAddedCanvasImage({
+          id: image.id,
+          preview: source.preview,
+          naturalWidth: source.naturalWidth,
+          naturalHeight: source.naturalHeight,
+        });
       } catch (error) {
         console.error('[cp-image] failed to import image', error);
         // A decode failure used to stop at the console, so picking a file the
@@ -274,6 +283,9 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
     if (dragCarriesFiles({ types: Array.from(transfer.types), items: transfer.items })) {
       event.preventDefault();
       transfer.dropEffect = 'copy';
+      // An image hovers here for longer than the detect worker's cold start,
+      // so the gate can answer with the drop rather than a moment after it.
+      if (isImageOnlyDrag(transfer.items)) warmCpDetectClient();
     }
   }, []);
 

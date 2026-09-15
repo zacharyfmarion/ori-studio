@@ -65,6 +65,7 @@
       "opening": "Bild wird geöffnet",
       "rectifying": "Zuschnitt wird entzerrt"
     },
+    "canvasImageName": "Bild auf der Arbeitsfläche",
     "chooseImage": "Bild auswählen",
     "compilerReviewOverlays": "Compiler-Prüfungs-Overlays",
     "crop": "Zuschneiden",
@@ -351,6 +352,8 @@
       "orphanedLabel": "Erkennungsmodell (zurückgezogen)",
       "remove": "Entfernen",
       "row": "Erkennungsmodell v{{version}}",
+      "suggestDetection": "Erkennung von Faltmustern in zur Arbeitsfläche hinzugefügten Bildern vorschlagen",
+      "suggestDetectionDescription": "Wenn ein Referenzbild wie ein Faltmuster aussieht, die Erkennung anbieten. Die Prüfung läuft auf diesem Gerät und lädt nichts herunter.",
       "title": "Modelle",
       "unavailable": "Das Modellverzeichnis konnte nicht gelesen werden: {{reason}}",
       "update": "Aktualisieren",

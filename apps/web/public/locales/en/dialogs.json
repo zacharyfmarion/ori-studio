@@ -65,6 +65,7 @@
       "opening": "Opening image",
       "rectifying": "Rectifying crop"
     },
+    "canvasImageName": "Canvas image",
     "chooseImage": "Choose Image",
     "compilerReviewOverlays": "Compiler review overlays",
     "crop": "Crop",
@@ -351,6 +352,8 @@
       "orphanedLabel": "Retired detector",
       "remove": "Remove",
       "row": "Detector v{{version}}",
+      "suggestDetection": "Suggest detecting crease patterns in images added to the canvas",
+      "suggestDetectionDescription": "When a reference image looks like a crease pattern, offer to detect it. The check runs on this device and downloads nothing.",
       "title": "Models",
       "unavailable": "The model registry could not be read: {{reason}}",
       "update": "Update",

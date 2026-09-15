@@ -186,6 +186,12 @@
     "maekawa": "Maekawa (paridad)",
     "vertexClosure": "Cierre del vértice"
   },
+  "cpDetectSuggestion": {
+    "ariaLabel": "Patrón de pliegues detectado en la imagen",
+    "detect": "Detectar pliegues",
+    "label": "Parece un patrón de pliegues",
+    "notNow": "Ahora no"
+  },
   "cpExactSolve": {
     "hint": {
       "geometry": "Normalmente menos de un segundo.",

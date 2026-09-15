@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { formatModelSize } from '../../lib/cpDetectModels';
 import { isCpDetectBuildEnabled } from '../../platform/features';
 import { Button } from '../ui/Button';
+import { useSettingsStore } from '../../store/settingsStore';
+import { SettingsToggleRow } from './SettingsToggleRow';
 import { useDetectorModels, type DetectorModelsDeps, type DetectorModelRow } from './useDetectorModels';
 
 /**
@@ -15,6 +17,8 @@ import { useDetectorModels, type DetectorModelsDeps, type DetectorModelRow } fro
 export function ModelsSection({ deps }: { deps?: DetectorModelsDeps } = {}) {
   const { t } = useTranslation();
   const models = useDetectorModels(deps);
+  const cpDetectSuggestions = useSettingsStore((state) => state.cpDetectSuggestions);
+  const setCpDetectSuggestions = useSettingsStore((state) => state.setCpDetectSuggestions);
   if (!isCpDetectBuildEnabled()) return null;
 
   const newestInstalled = models.rows.find((row) => row.installed);
@@ -30,6 +34,18 @@ export function ModelsSection({ deps }: { deps?: DetectorModelsDeps } = {}) {
           'The crease-pattern detector downloads its model once and keeps it on this device. A newer model is offered here and in the Detect dialog; nothing downloads without its size shown first.'
         )}
       </p>
+      <SettingsToggleRow
+        label={t(
+          'dialogs:settings.models.suggestDetection',
+          'Suggest detecting crease patterns in images added to the canvas'
+        )}
+        description={t(
+          'dialogs:settings.models.suggestDetectionDescription',
+          'When a reference image looks like a crease pattern, offer to detect it. The check runs on this device and downloads nothing.'
+        )}
+        checked={cpDetectSuggestions}
+        onChange={setCpDetectSuggestions}
+      />
       {models.status === 'loading' && (
         <p className="settings-toggle-row__desc">{t('dialogs:settings.models.loading', 'Reading the model registry…')}</p>
       )}

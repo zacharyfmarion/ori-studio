@@ -65,6 +65,7 @@
       "opening": "Abriendo imagen",
       "rectifying": "Rectificando el recorte"
     },
+    "canvasImageName": "Imagen del lienzo",
     "chooseImage": "Elegir imagen",
     "compilerReviewOverlays": "Superposiciones de revisión del compilador",
     "crop": "Recortar",
@@ -359,6 +360,8 @@
       "orphanedLabel": "Detector retirado",
       "remove": "Eliminar",
       "row": "Detector v{{version}}",
+      "suggestDetection": "Sugerir detectar patrones de pliegues en imágenes añadidas al lienzo",
+      "suggestDetectionDescription": "Cuando una imagen de referencia parezca un patrón de pliegues, ofrecer detectarlo. La comprobación se ejecuta en este dispositivo y no descarga nada.",
       "title": "Modelos",
       "unavailable": "No se pudo leer el registro de modelos: {{reason}}",
       "update": "Actualizar",

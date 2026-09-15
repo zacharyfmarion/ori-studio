@@ -182,6 +182,12 @@
     "maekawa": "前川（偶奇）",
     "vertexClosure": "頂点の閉合"
   },
+  "cpDetectSuggestion": {
+    "ariaLabel": "画像内に展開図を検出",
+    "detect": "折り線を検出",
+    "label": "展開図のようです",
+    "notNow": "今はしない"
+  },
   "cpExactSolve": {
     "hint": {
       "geometry": "通常は1秒以内です。",

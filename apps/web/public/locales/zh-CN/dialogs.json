@@ -65,6 +65,7 @@
       "opening": "正在打开图像",
       "rectifying": "正在校正裁剪"
     },
+    "canvasImageName": "画布图像",
     "chooseImage": "选择图像",
     "compilerReviewOverlays": "编译器审查叠加层",
     "crop": "裁剪",
@@ -343,6 +344,8 @@
       "orphanedLabel": "已停用的检测器",
       "remove": "移除",
       "row": "检测器 v{{version}}",
+      "suggestDetection": "为添加到画布的图像建议检测折痕图",
+      "suggestDetectionDescription": "当参考图像看起来像折痕图时，提示进行检测。检测在本设备上运行，不会下载任何内容。",
       "title": "模型",
       "unavailable": "无法读取模型清单：{{reason}}",
       "update": "更新",

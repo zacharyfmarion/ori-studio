@@ -2792,7 +2792,15 @@
     "dialogs:cpDetectImport.rights.attest": "3c063ccbf64c",
     "dialogs:cpDetectImport.rights.back": "76900f1bfd16",
     "dialogs:cpDetectImport.rights.continue": "31fbef162594",
-    "dialogs:cpDetectImport.rights.lead": "559e1da6894e"
+    "dialogs:cpDetectImport.rights.lead": "559e1da6894e",
+    "panels:cpDetectSuggestion.ariaLabel": "3f4d3dcf5873",
+    "panels:cpDetectSuggestion.detect": "5b2c2c5f47e7",
+    "panels:cpDetectSuggestion.label": "283da52ef53b",
+    "panels:cpDetectSuggestion.notNow": "a0e63d7c7125",
+    "dialogs:cpDetectImport.canvasImageName": "5e45cc6c58fe",
+    "dialogs:settings.models.suggestDetection": "4cb7339a4e98",
+    "dialogs:settings.models.suggestDetectionDescription": "b57bb9391c6b",
+    "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5587,7 +5595,15 @@
     "dialogs:cpDetectImport.rights.attest": "3c063ccbf64c",
     "dialogs:cpDetectImport.rights.back": "76900f1bfd16",
     "dialogs:cpDetectImport.rights.continue": "31fbef162594",
-    "dialogs:cpDetectImport.rights.lead": "559e1da6894e"
+    "dialogs:cpDetectImport.rights.lead": "559e1da6894e",
+    "panels:cpDetectSuggestion.ariaLabel": "3f4d3dcf5873",
+    "panels:cpDetectSuggestion.detect": "5b2c2c5f47e7",
+    "panels:cpDetectSuggestion.label": "283da52ef53b",
+    "panels:cpDetectSuggestion.notNow": "a0e63d7c7125",
+    "dialogs:cpDetectImport.canvasImageName": "5e45cc6c58fe",
+    "dialogs:settings.models.suggestDetection": "4cb7339a4e98",
+    "dialogs:settings.models.suggestDetectionDescription": "b57bb9391c6b",
+    "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8382,7 +8398,15 @@
     "dialogs:cpDetectImport.rights.attest": "3c063ccbf64c",
     "dialogs:cpDetectImport.rights.back": "76900f1bfd16",
     "dialogs:cpDetectImport.rights.continue": "31fbef162594",
-    "dialogs:cpDetectImport.rights.lead": "559e1da6894e"
+    "dialogs:cpDetectImport.rights.lead": "559e1da6894e",
+    "panels:cpDetectSuggestion.ariaLabel": "3f4d3dcf5873",
+    "panels:cpDetectSuggestion.detect": "5b2c2c5f47e7",
+    "panels:cpDetectSuggestion.label": "283da52ef53b",
+    "panels:cpDetectSuggestion.notNow": "a0e63d7c7125",
+    "dialogs:cpDetectImport.canvasImageName": "5e45cc6c58fe",
+    "dialogs:settings.models.suggestDetection": "4cb7339a4e98",
+    "dialogs:settings.models.suggestDetectionDescription": "b57bb9391c6b",
+    "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11127,7 +11151,15 @@
     "dialogs:cpDetectImport.rights.attest": "3c063ccbf64c",
     "dialogs:cpDetectImport.rights.back": "76900f1bfd16",
     "dialogs:cpDetectImport.rights.continue": "31fbef162594",
-    "dialogs:cpDetectImport.rights.lead": "559e1da6894e"
+    "dialogs:cpDetectImport.rights.lead": "559e1da6894e",
+    "panels:cpDetectSuggestion.ariaLabel": "3f4d3dcf5873",
+    "panels:cpDetectSuggestion.detect": "5b2c2c5f47e7",
+    "panels:cpDetectSuggestion.label": "283da52ef53b",
+    "panels:cpDetectSuggestion.notNow": "a0e63d7c7125",
+    "dialogs:cpDetectImport.canvasImageName": "5e45cc6c58fe",
+    "dialogs:settings.models.suggestDetection": "4cb7339a4e98",
+    "dialogs:settings.models.suggestDetectionDescription": "b57bb9391c6b",
+    "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -13872,7 +13904,15 @@
     "dialogs:cpDetectImport.rights.attest": "3c063ccbf64c",
     "dialogs:cpDetectImport.rights.back": "76900f1bfd16",
     "dialogs:cpDetectImport.rights.continue": "31fbef162594",
-    "dialogs:cpDetectImport.rights.lead": "559e1da6894e"
+    "dialogs:cpDetectImport.rights.lead": "559e1da6894e",
+    "panels:cpDetectSuggestion.ariaLabel": "3f4d3dcf5873",
+    "panels:cpDetectSuggestion.detect": "5b2c2c5f47e7",
+    "panels:cpDetectSuggestion.label": "283da52ef53b",
+    "panels:cpDetectSuggestion.notNow": "a0e63d7c7125",
+    "dialogs:cpDetectImport.canvasImageName": "5e45cc6c58fe",
+    "dialogs:settings.models.suggestDetection": "4cb7339a4e98",
+    "dialogs:settings.models.suggestDetectionDescription": "b57bb9391c6b",
+    "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -16667,7 +16707,15 @@
     "dialogs:cpDetectImport.rights.attest": "3c063ccbf64c",
     "dialogs:cpDetectImport.rights.back": "76900f1bfd16",
     "dialogs:cpDetectImport.rights.continue": "31fbef162594",
-    "dialogs:cpDetectImport.rights.lead": "559e1da6894e"
+    "dialogs:cpDetectImport.rights.lead": "559e1da6894e",
+    "panels:cpDetectSuggestion.ariaLabel": "3f4d3dcf5873",
+    "panels:cpDetectSuggestion.detect": "5b2c2c5f47e7",
+    "panels:cpDetectSuggestion.label": "283da52ef53b",
+    "panels:cpDetectSuggestion.notNow": "a0e63d7c7125",
+    "dialogs:cpDetectImport.canvasImageName": "5e45cc6c58fe",
+    "dialogs:settings.models.suggestDetection": "4cb7339a4e98",
+    "dialogs:settings.models.suggestDetectionDescription": "b57bb9391c6b",
+    "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -19462,7 +19510,15 @@
     "dialogs:cpDetectImport.rights.attest": "3c063ccbf64c",
     "dialogs:cpDetectImport.rights.back": "76900f1bfd16",
     "dialogs:cpDetectImport.rights.continue": "31fbef162594",
-    "dialogs:cpDetectImport.rights.lead": "559e1da6894e"
+    "dialogs:cpDetectImport.rights.lead": "559e1da6894e",
+    "panels:cpDetectSuggestion.ariaLabel": "3f4d3dcf5873",
+    "panels:cpDetectSuggestion.detect": "5b2c2c5f47e7",
+    "panels:cpDetectSuggestion.label": "283da52ef53b",
+    "panels:cpDetectSuggestion.notNow": "a0e63d7c7125",
+    "dialogs:cpDetectImport.canvasImageName": "5e45cc6c58fe",
+    "dialogs:settings.models.suggestDetection": "4cb7339a4e98",
+    "dialogs:settings.models.suggestDetectionDescription": "b57bb9391c6b",
+    "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -22207,6 +22263,14 @@
     "dialogs:cpDetectImport.rights.attest": "3c063ccbf64c",
     "dialogs:cpDetectImport.rights.back": "76900f1bfd16",
     "dialogs:cpDetectImport.rights.continue": "31fbef162594",
-    "dialogs:cpDetectImport.rights.lead": "559e1da6894e"
+    "dialogs:cpDetectImport.rights.lead": "559e1da6894e",
+    "panels:cpDetectSuggestion.ariaLabel": "3f4d3dcf5873",
+    "panels:cpDetectSuggestion.detect": "5b2c2c5f47e7",
+    "panels:cpDetectSuggestion.label": "283da52ef53b",
+    "panels:cpDetectSuggestion.notNow": "a0e63d7c7125",
+    "dialogs:cpDetectImport.canvasImageName": "5e45cc6c58fe",
+    "dialogs:settings.models.suggestDetection": "4cb7339a4e98",
+    "dialogs:settings.models.suggestDetectionDescription": "b57bb9391c6b",
+    "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b"
   }
 }

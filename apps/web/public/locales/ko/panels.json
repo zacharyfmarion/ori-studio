@@ -182,6 +182,12 @@
     "maekawa": "마에카와(패리티)",
     "vertexClosure": "꼭짓점 닫힘"
   },
+  "cpDetectSuggestion": {
+    "ariaLabel": "이미지에서 전개도 감지됨",
+    "detect": "접는 선 감지",
+    "label": "전개도처럼 보입니다",
+    "notNow": "나중에"
+  },
   "cpExactSolve": {
     "hint": {
       "geometry": "보통 1초 이내입니다.",
