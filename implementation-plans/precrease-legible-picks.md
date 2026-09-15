@@ -390,6 +390,27 @@ Second round, from Zach's next fold of markhor (2026-09-14):
   creases exactly its pattern piece (both ends found) instead of 0.345,
   markhor turns over 8 times instead of 7; iguana line by line trades its
   three presses for three turn-overs — the same 101 cards, less ink.
+- **R6 undone** (2026-09-15): Zach folded with the mountain pinches and
+  wanted them back as valleys — every fold is a valley from the face it is
+  made on, a short one between two marks included. `forced_side` no longer
+  flips; the pinch pins lost their sides.
+- **The key, reordered.** Undoing R6 changed the intra-round order, and
+  31, 32 and 48 came back as folds lined up half a sheet from their
+  crease: a free one-motion fold outranked a free two-handed one *before*
+  visibility and precision were asked. Now: practical; free before pressed
+  (one press may buy a fold the folder can watch, and nothing else — not
+  one motion); not overlong; visible; precise; at the crease; a crossing;
+  marks already there; **then** one motion before two hands; then the ease
+  order. And precision has an absolute bar: the crease within a quarter
+  sheet of the alignment (`MAX_REACH`), whatever the lever — two points a
+  sheet apart fix the line well, but a crease half a sheet from where the
+  folder holds them together is pinched blind. The sheet's edge folded
+  onto itself with its foot at the crease's end is *local* (103, 104).
+- **The card's pool sees the marks.** The closure's lander caps (96, in
+  scan order) filled with points no crease reaches on a design this size,
+  and the swing a folder would make — an edge mark onto a crease that is
+  there (32) — was past them. The card enumerates landers over marks on
+  the paper only, under wider caps (`full_facts_on`).
 - **The card's own geometry**: `sideOf` in `diagram/plannerDiagram.ts`
   judged a point on the fold within a billionth of a unit, which the
   document frame (a 400-unit sheet) did not meet; a receiving piece that
@@ -417,8 +438,8 @@ on a pattern line and made as "fold the bottom edge onto itself through P"
 - [x] R3 bisection at the crease — pinned 48, 71, 73, 127, 129, 140, 142.
 - [x] R4 connect the marks by comparison — pinned 36, 122, 146.
 - [x] R5 the pick over the whole paper — pinned 21, 31.
-- [x] R6 mountain pinches — pinned 48, 56, 146, 147, 157; 158 stays a
-  fold from the back.
+- [x] ~~R6 mountain pinches~~ — undone at Zach's request; every fold a
+  valley from the face it is made on.
 - [x] R7 crossing vs T — pinned 73.
 - [x] R8 symmetric *also* — crate, bridge, web; 136 turned out to be one
   alignment on the centre line, and the *also* shows on 17 of markhor's

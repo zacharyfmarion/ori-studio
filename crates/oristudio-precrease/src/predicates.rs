@@ -201,18 +201,42 @@ const CARD_WITNESSES_PER_AXIOM: usize = 64;
 /// Landers kept per target, with per-point and per-line diversity caps so
 /// an O6 pair with distinct points and lines survives the cap.
 pub const MAX_LANDERS: usize = 96;
+/// The wider lander caps the presentation pass scans under, over marks on
+/// the paper only ([`full_facts_on`]): the closure's caps fill with points
+/// no crease reaches on a big design, and the swing a folder would make —
+/// an edge mark onto a crease that is there — was past them (markhor 32).
+const CARD_LANDERS: usize = 256;
+const CARD_LANDERS_PER: usize = 16;
 pub const MAX_LANDERS_PER_POINT: usize = 8;
 pub const MAX_LANDERS_PER_LINE: usize = 8;
 
 impl Facts {
     /// Add a lander subject to the diversity caps. Returns whether it was kept.
     pub fn push_lander(&mut self, p: usize, m1: usize) -> bool {
-        if self.landers.len() >= MAX_LANDERS || self.landers.contains(&(p, m1)) {
+        self.push_lander_within(
+            p,
+            m1,
+            MAX_LANDERS,
+            MAX_LANDERS_PER_POINT,
+            MAX_LANDERS_PER_LINE,
+        )
+    }
+
+    /// [`Facts::push_lander`] under caps of the caller's choosing.
+    pub fn push_lander_within(
+        &mut self,
+        p: usize,
+        m1: usize,
+        max: usize,
+        per_point: usize,
+        per_line: usize,
+    ) -> bool {
+        if self.landers.len() >= max || self.landers.contains(&(p, m1)) {
             return false;
         }
         let same_point = self.landers.iter().filter(|(q, _)| *q == p).count();
         let same_line = self.landers.iter().filter(|(_, m)| *m == m1).count();
-        if same_point >= MAX_LANDERS_PER_POINT || same_line >= MAX_LANDERS_PER_LINE {
+        if same_point >= per_point || same_line >= per_line {
             return false;
         }
         self.landers.push((p, m1));
@@ -712,6 +736,32 @@ pub fn scan_points(state: &State, target: &Line, facts: &mut Facts, from: usize)
 /// already scanned for this target; pairs `(m₁, m)` with both below `from`
 /// were seen before.
 pub fn scan_landers(state: &State, target: &Line, facts: &mut Facts, from: usize) {
+    scan_landers_on(
+        state,
+        target,
+        facts,
+        from,
+        None,
+        MAX_LANDERS,
+        MAX_LANDERS_PER_POINT,
+        MAX_LANDERS_PER_LINE,
+    );
+}
+
+/// [`scan_landers`] over the marks on `paper` only, when it is given —
+/// a lander no crease reaches costs a press before it can be used, and the
+/// card's pool is for what the folder can make now — under the caps given.
+#[allow(clippy::too_many_arguments)]
+pub fn scan_landers_on(
+    state: &State,
+    target: &Line,
+    facts: &mut Facts,
+    from: usize,
+    paper: Option<&Creased>,
+    max: usize,
+    per_point: usize,
+    per_line: usize,
+) {
     let sheet = state.sheet();
     let n = state.line_count();
     let mut seen: HashSet<(usize, usize)> = facts.landers.iter().copied().collect();
@@ -755,8 +805,11 @@ pub fn scan_landers(state: &State, target: &Line, facts: &mut Facts, from: usize
                 if !state.in_paper(r) {
                     continue;
                 }
+                if paper.is_some_and(|creased| !point_mark_exists(state, creased, c)) {
+                    continue;
+                }
                 if seen.insert((c, m1)) {
-                    facts.push_lander(c, m1);
+                    facts.push_lander_within(c, m1, max, per_point, per_line);
                 }
             }
         }
@@ -784,10 +837,28 @@ pub fn all_witnesses_on(state: &State, target: &Line, paper: &Creased) -> Vec<Wi
     witnesses_on(state, target, &facts, Some(paper))
 }
 
+/// Every fact about `target` for the presentation pass: tier 1 as
+/// [`full_facts`] has it, and landers over the marks on `paper` only, under
+/// the card's wider caps.
+pub fn full_facts_on(state: &State, target: &Line, paper: &Creased) -> Facts {
+    let mut facts = tier1_facts(state, target);
+    scan_landers_on(
+        state,
+        target,
+        &mut facts,
+        0,
+        Some(paper),
+        CARD_LANDERS,
+        CARD_LANDERS_PER,
+        CARD_LANDERS_PER,
+    );
+    facts
+}
+
 /// [`all_witnesses_on`] under the presentation pass's wider cap: every
 /// construction the paper offers for `target` that a card might present.
 pub fn all_witnesses_for_card(state: &State, target: &Line, paper: &Creased) -> Vec<Witness> {
-    let facts = full_facts(state, target);
+    let facts = full_facts_on(state, target, paper);
     witnesses_on_capped(state, target, &facts, Some(paper), CARD_WITNESSES_PER_AXIOM)
 }
 

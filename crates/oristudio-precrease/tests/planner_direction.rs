@@ -15,7 +15,6 @@ use common::*;
 use std::collections::{HashMap, HashSet};
 
 use oristudio_precrease::marks::{Creased, crease_runs, end_is_found};
-use oristudio_precrease::order::PINCH_CREASE;
 use oristudio_precrease::pinch::Extent;
 use oristudio_precrease::planner::PlannerOptions;
 use oristudio_precrease::predicates::Ref;
@@ -102,26 +101,6 @@ fn a_step_is_made_from_the_side_its_direction_needs() {
                 step.grid.is_none() && step.kind != StepKind::Grid,
                 "{file}: {step:?}"
             );
-            // A pinch — a pattern crease no longer than `PINCH_CREASE` — is
-            // made from the face where it is a mountain, pinched up between
-            // finger and thumb rather than creased flat (R6 in
-            // `implementation-plans/precrease-legible-picks.md`); it keeps
-            // the pattern's direction and flips the side. A weak majority
-            // forces no side at all, so nothing of it flips.
-            let pinch = step.kind == StepKind::Cp
-                && step.press.is_none()
-                && step.direction.is_firm(step.direction_share)
-                && !step.cp_spans.is_empty()
-                && crease_runs(&step.line, &step.cp_spans)
-                    .iter()
-                    .map(|(a, b)| (a[0] - b[0]).hypot(a[1] - b[1]))
-                    .sum::<f64>()
-                    <= PINCH_CREASE;
-            let (mountain_side, valley_side) = if pinch {
-                (Side::Front, Side::Back)
-            } else {
-                (Side::Back, Side::Front)
-            };
             match step.direction {
                 // A crease made from the front is a valley, one made from the
                 // back is a mountain, and there is no third case. A press
@@ -130,10 +109,8 @@ fn a_step_is_made_from_the_side_its_direction_needs() {
                 // the other face is then creased both ways — as precreasing
                 // does — and the card never shows a mountain under "fold P
                 // onto Q".
-                Direction::Mountain => {
-                    assert_eq!(step.side, mountain_side, "{file}: {step:?}")
-                }
-                Direction::Valley => assert_eq!(step.side, valley_side, "{file}: {step:?}"),
+                Direction::Mountain => assert_eq!(step.side, Side::Back, "{file}: {step:?}"),
+                Direction::Valley => assert_eq!(step.side, Side::Front, "{file}: {step:?}"),
                 // Never: an auxiliary fold has no assignment in the pattern,
                 // but it is made toward the folder like every other fold, and
                 // its card says which way that is.
@@ -843,18 +820,21 @@ fn a_real_design_turns_over_a_handful_of_times() {
     // line back while its crease would be anchored far and a line still to
     // come would anchor it nearer: those verticals wait, and the lines that
     // let them be sighted are down first.
-    assert_eq!(seq.totals.presses, 0, "iguana-c0 presses");
-    assert_eq!(seq.steps.len(), 91, "iguana-c0 steps");
+    // One again once a press could buy only visibility and one motion no
+    // longer ranked above it: a pinch for a swing the folder can watch, over
+    // a fold lined up under the paper.
+    assert_eq!(seq.totals.presses, 1, "iguana-c0 presses");
+    assert_eq!(seq.steps.len(), 92, "iguana-c0 steps");
     // 9 while hardness sorted before the ease order; 6 with the presses; 8
     // once the closure waited for marks — waiting is a sweep, and a sweep
     // boundary is where the sheet is turned over; 7 now that a mark on a
     // crease left short is pinched while that crease is made, so nothing
     // waits for it. Two turn-overs for three presses was the trade, and the
-    // corpus is where it is judged; 10 now that the closure holds a line
-    // back for a nearer anchor — the three presses went, and the sheet
-    // turns three times more for it: the same hundred and one cards,
-    // less ink.
-    assert_eq!(turn_overs(&seq), 10, "iguana-c0 turn-overs");
+    // corpus is where it is judged; 12 now that the closure holds a line
+    // back for a nearer anchor and every fold is again a valley from the
+    // face it is made on — the presses went, and the sheet turns for it:
+    // more cards, less ink, and the corpus is where that is judged too.
+    assert_eq!(turn_overs(&seq), 12, "iguana-c0 turn-overs");
 }
 
 /// The snappable path builds its targets from `SnappedLine`, which carries no

@@ -36,7 +36,6 @@ use oristudio_precrease::judge::judge;
 use oristudio_precrease::marks::{
     Creased, crease_runs, end_is_found, point_mark_exists, witness_sightable,
 };
-use oristudio_precrease::order::PINCH_CREASE;
 use oristudio_precrease::pinch::{Extent, PINCH_HALF_LENGTH};
 use oristudio_precrease::planner::{GridMode, Planner, PlannerOptions};
 use oristudio_precrease::predicates::all_witnesses_on;
@@ -84,8 +83,7 @@ struct Tally {
     /// whose card the folder cannot watch (R1), cannot make precisely (R2),
     /// makes through the paper (R0), makes at the crease itself — a
     /// bisection with its vertex there, a short crease joined between its
-    /// own marks (R3, R4) — pinches as a mountain from the other face (R6),
-    /// and shows twice, mirrored (R8). `judged` is how many CP steps the
+    /// own marks (R3, R4), and shows twice, mirrored (R8). `judged` is how many CP steps the
     /// replay could judge at all: a card naming a crease the replay has not
     /// made yet is skipped and counted in `unjudged`.
     judged: usize,
@@ -95,7 +93,6 @@ struct Tally {
     impractical: usize,
     bisections_at_crease: usize,
     own_ends: usize,
-    mountain_pinches: usize,
     mirrored: usize,
     /// O1 picks joining marks far beyond the crease — presented only when
     /// nothing else was on offer.
@@ -133,7 +130,6 @@ impl Tally {
         self.impractical += o.impractical;
         self.bisections_at_crease += o.bisections_at_crease;
         self.own_ends += o.own_ends;
-        self.mountain_pinches += o.mountain_pinches;
         self.mirrored += o.mirrored;
         self.overlong += o.overlong;
         self.error_sum += o.error_sum;
@@ -142,7 +138,7 @@ impl Tally {
 
     fn picks_line(&self) -> String {
         format!(
-            "picks {:5} judged ({:4} not yet on the replay paper)  invisible {:4}  imprecise {:4}  impractical {:4}  bisections at the crease {:4}  own ends {:4}  mountain pinches {:4}  mirrored {:4}  overlong {:4}  mean error {:.2}",
+            "picks {:5} judged ({:4} not yet on the replay paper)  invisible {:4}  imprecise {:4}  impractical {:4}  bisections at the crease {:4}  own ends {:4}  mirrored {:4}  overlong {:4}  mean error {:.2}",
             self.judged,
             self.unjudged,
             self.invisible,
@@ -150,7 +146,6 @@ impl Tally {
             self.impractical,
             self.bisections_at_crease,
             self.own_ends,
-            self.mountain_pinches,
             self.mirrored,
             self.overlong,
             self.error_sum / self.error_n.max(1) as f64
@@ -286,20 +281,6 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize, verbose: bool) -> Tal
         // The pick, judged as the ordering pass judged it — on the paper as
         // it stands, before the step is made.
         if step.kind == StepKind::Cp {
-            let pattern_length: f64 = length_of(&crease_runs(&step.line, &step.cp_spans));
-            let firm = step.direction.is_firm(step.direction_share);
-            let natural = match step.direction {
-                Direction::Mountain => Side::Back,
-                Direction::Valley => Side::Front,
-                Direction::Unassigned => step.side,
-            };
-            let mountain_pinch = firm
-                && !step.cp_spans.is_empty()
-                && pattern_length <= PINCH_CREASE
-                && step.side != natural;
-            if mountain_pinch {
-                t.mountain_pinches += 1;
-            }
             if step.also.is_some() {
                 t.mirrored += 1;
             }

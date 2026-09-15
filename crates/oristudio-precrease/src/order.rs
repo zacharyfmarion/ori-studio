@@ -838,10 +838,10 @@ fn crease_between_marks(
     crease_through(state, line, p, q)
 }
 
-/// How many presses may buy a fold something moves in, over one nothing
-/// does. One: a single pinch to turn "fold through P perpendicular to A" into
-/// "fold P onto Q" is the trade a folder would make; more than that and the
-/// plan is paying in steps for a preference.
+/// How many presses may buy a fold the folder can watch, over one lined up
+/// under the paper. One: a single pinch to turn a blind perpendicular into
+/// "fold the edge onto itself through P" is the trade a folder would make;
+/// more than that and the plan is paying in steps for a preference.
 const MAX_PRESSES_FOR_PREFERENCE: usize = 1;
 
 /// What sighting `witness` would take, without making any of it: the presses,
@@ -1047,32 +1047,17 @@ fn make_marks_real(
     }
 }
 
-/// A crease no longer than this, in the pattern, is a pinch: it is made on
-/// the face where it is a **mountain** rather than the face where it is a
-/// valley, because a mountain between two nearby marks is pinched up
-/// between finger and thumb, and a valley there has to be creased flat. A
-/// tenth of a sheet and a pinch's length.
-pub const PINCH_CREASE: f64 = 0.12;
-
 /// The face a fold has to be made from, or `None` when it does not care.
 ///
 /// An auxiliary line has no target and so no direction; a line whose majority
 /// is under [`crate::direction::FIRM_MAJORITY`] has one but is not allowed to
-/// spend a turn-over on it. A pinch ([`PINCH_CREASE`]) is made from the other
-/// face, as a mountain.
+/// spend a turn-over on it. Every fold is made as a valley from the face it
+/// is made on, a short one pinched between two marks included: pinching
+/// short creases as mountains from the other face was tried and Zach
+/// wanted them back as valleys.
 fn forced_side(closure: &Closure, folded_index: usize) -> Option<Side> {
     let f = &closure.folded()[folded_index];
-    let target = closure.targets().get(f.target?)?;
-    let side = target.forces_side()?;
-    let length: f64 = crease_runs(&f.line, &target.spans)
-        .iter()
-        .map(|(a, b)| (a[0] - b[0]).hypot(a[1] - b[1]))
-        .sum();
-    if !target.spans.is_empty() && length <= PINCH_CREASE {
-        Some(side.flipped())
-    } else {
-        Some(side)
-    }
+    closure.targets().get(f.target?)?.forces_side()
 }
 
 /// What sighting one fold settled: which witness the folder is shown, and
@@ -1240,7 +1225,7 @@ fn witness_cost(state: &State, creased: &Creased, fold: &Line, witness: &Witness
 ///    fold, and is presented only when nothing else is on offer.
 /// 2. **Free before pressed**: a fold the folder can make now, before one a
 ///    press has to prepare — with the one trade a folder makes, a single
-///    press for a one-motion fold over a two-handed one
+///    press for a fold they can watch over one lined up under the paper
 ///    ([`MAX_PRESSES_FOR_PREFERENCE`]); and no press at all when the crease
 ///    can be made through two marks already on the paper.
 /// 3. **Not overlong**: a crease joined between two marks well beyond it
@@ -1261,7 +1246,10 @@ fn witness_cost(state: &State, creased: &Creased, fold: &Line, witness: &Witness
 ///    then, among free folds, marks already on the paper before a spot
 ///    still to be pinched while its crease is made — no step, but ink the
 ///    pattern does not ask for (a press has paid for its marks in the tier).
-/// 8. The **ease order** — two points, line onto line, the edge onto itself
+/// 8. **One motion** before two hands — a point or a line onto another,
+///    the edge onto itself — and only here: a fold whose alignment is half
+///    a sheet from its crease is not made easier by being one motion.
+/// 9. The **ease order** — two points, line onto line, the edge onto itself
 ///    … — then the skinny flap, the error at the crease, the residual. For a
 ///    perpendicular to the sheet's edge, the edge whose foot is at the
 ///    crease.
@@ -1337,11 +1325,12 @@ fn pick_witness(
     let key = |c: &Scored| {
         let w = &witnesses[c.index];
         let j = &c.judgement;
-        // Free one-motion folds; then free two-handed ones beside one-motion
-        // folds a single press allows; then by the presses.
-        let press_tier = if c.cost == 0 && c.one_motion {
+        // Free folds the folder can watch; then free folds lined up under
+        // the paper beside folds a single press makes watchable — the one
+        // thing a press may buy; then by the presses.
+        let press_tier = if c.cost == 0 && j.visible {
             0
-        } else if c.cost == 0 || (c.cost <= MAX_PRESSES_FOR_PREFERENCE && c.one_motion) {
+        } else if c.cost == 0 || (c.cost <= MAX_PRESSES_FOR_PREFERENCE && j.visible) {
             1
         } else {
             2 + c.cost
@@ -1360,6 +1349,10 @@ fn pick_witness(
             // A spot still to be pinched while its crease is made: ink for
             // no step. A press has paid for its marks in the tier already.
             c.cost == 0 && !j.marks_real,
+            // One motion before two hands, and only now: a fold lined up
+            // half a sheet from its crease is not made easier by being one
+            // motion (markhor 31, 32, 48).
+            !c.one_motion,
             j.ease,
             j.skinny,
             // The numbers, last and together: a tuple's ordering stops at
@@ -2104,15 +2097,16 @@ mod tests {
         );
     }
 
-    /// A press buys a swing and nothing else. A fold with two things to
-    /// line up at once that the folder can make now is the fold, over
-    /// another two-handed fold that a press would allow — Abra paid a press
-    /// to turn a free O6 into an O7 — and still loses to a one-motion fold
-    /// that one pinch allows, provided the folder can see that fold: a swing
-    /// of an interior point onto an interior crease is lined up under the
-    /// paper, and the free two-handed fold they can watch wins.
+    /// A press buys a fold the folder can watch, and nothing else. A fold
+    /// with two things to line up at once that the folder can make now is
+    /// the fold, over another two-handed fold that a press would allow —
+    /// Abra paid a press to turn a free O6 into an O7 — and over a swing
+    /// that one pinch allows, however much easier the swing is to make: a
+    /// press is a step and ink, and one motion is not worth either. Only
+    /// when the free fold is lined up under the paper does a pinch for a
+    /// fold they can watch pay.
     #[test]
-    fn a_press_buys_a_one_motion_fold_and_never_another_two_handed_one() {
+    fn a_press_buys_a_fold_the_folder_can_watch_and_nothing_else() {
         let mut state = State::new(Sheet::unit_square(), DEFAULT_POINT_CAP);
         let across = state.add_line(h(0.5), LineTag::Cp).expect("across").id;
         let up = state.add_line(v(0.5), LineTag::Cp).expect("up").id;
@@ -2207,11 +2201,24 @@ mod tests {
             Some(1),
             "a swing lined up under the paper does not buy anything"
         );
-        let all = vec![perpendicular, two_handed, swing];
+        let all = vec![perpendicular, two_handed.clone(), swing.clone()];
         assert_eq!(
             pick(&state, &creased, &anti, &all).map(|(i, _)| i),
-            Some(2),
-            "one pinch buys the swing the folder can see"
+            Some(1),
+            "the free fold they can watch, not a pinch for one motion"
+        );
+        // The same two-handed fold lined up under the paper: now the pinch
+        // for a swing they can see is the trade a folder makes.
+        let blind = Witness {
+            visible: false,
+            hard: true,
+            ..two_handed
+        };
+        let watchable = vec![blind, swing];
+        assert_eq!(
+            pick(&state, &creased, &anti, &watchable).map(|(i, _)| i),
+            Some(1),
+            "one pinch buys the swing the folder can see over a blind fold"
         );
     }
 

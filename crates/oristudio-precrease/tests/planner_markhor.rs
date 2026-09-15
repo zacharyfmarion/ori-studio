@@ -29,7 +29,8 @@ struct Expect {
     item: u32,
     /// The fold's line: normal and offset.
     line: (f64, f64, f64),
-    axiom: Option<u8>,
+    /// The kinds of fold that answer the item; empty for any.
+    axioms: &'static [u8],
     side: Option<Side>,
     points: &'static [(f64, f64)],
     edges: &'static [EdgeSide],
@@ -42,7 +43,7 @@ struct Expect {
 const ANY: Expect = Expect {
     item: 0,
     line: (0.0, 0.0, 0.0),
-    axiom: None,
+    axioms: &[],
     side: None,
     points: &[],
     edges: &[],
@@ -57,33 +58,30 @@ const EXPECTED: &[Expect] = &[
     Expect {
         item: 21,
         line: (0.3827, 0.9239, 0.97992),
-        axiom: Some(5),
+        axioms: &[5],
         points: &[(0.75, 0.75)],
         corners: &[CornerName::Ne],
         ..ANY
     },
-    // 30: a crease 0.02 long; nothing great, but a fold the folder can watch
-    // and a pinch made from the back as a mountain.
+    // 30: a crease 0.02 long; nothing great, but a fold the folder can watch.
     Expect {
         item: 30,
         line: (FRAC_1_SQRT_2, FRAC_1_SQRT_2, 1.00888),
-        side: Some(Side::Back),
         ..ANY
     },
-    // 31, 32: an edge mark brought onto a mark, near the crease, over a pair
-    // three quarters of a sheet away.
+    // 31, 32: the 45° crease folded onto itself at the crease's own end, or
+    // an edge mark carried onto a crease perpendicular to it — a fold made
+    // at the crease — over a pair three quarters of a sheet away.
     Expect {
         item: 31,
         line: (FRAC_1_SQRT_2, FRAC_1_SQRT_2, 0.98744),
-        axiom: Some(2),
-        points: &[(1.0, 0.6464)],
+        axioms: &[4, 7],
         ..ANY
     },
     Expect {
         item: 32,
         line: (FRAC_1_SQRT_2, FRAC_1_SQRT_2, 0.65533),
-        axiom: Some(2),
-        points: &[(0.3536, 0.0)],
+        axioms: &[6, 7],
         ..ANY
     },
     // 34: the crease through its two edge marks 0.91 apart — the accuracy
@@ -91,7 +89,7 @@ const EXPECTED: &[Expect] = &[
     Expect {
         item: 34,
         line: (FRAC_1_SQRT_2, FRAC_1_SQRT_2, 0.45711),
-        axiom: Some(1),
+        axioms: &[1],
         points: &[(0.0, 0.6464), (0.6464, 0.0)],
         ..ANY
     },
@@ -99,7 +97,7 @@ const EXPECTED: &[Expect] = &[
     Expect {
         item: 36,
         line: (0.0, 1.0, 0.82322),
-        axiom: Some(1),
+        axioms: &[1],
         points: &[(0.4268, 0.8232), (0.5732, 0.8232)],
         ..ANY
     },
@@ -108,33 +106,32 @@ const EXPECTED: &[Expect] = &[
     Expect {
         item: 37,
         line: (0.0, 1.0, 0.91161),
-        axiom: Some(2),
+        axioms: &[2],
         points: &[(0.5, 1.0), (0.5, 0.8232)],
         ..ANY
     },
-    // 48: the top edge onto x = ⅜ — a bisection at the crease's end — pinched
-    // as a mountain from the front.
+    // 48: the top edge onto x = ⅜ — a bisection at the crease's end.
     Expect {
         item: 48,
         line: (FRAC_1_SQRT_2, FRAC_1_SQRT_2, 0.97227),
-        axiom: Some(3),
-        side: Some(Side::Front),
+        axioms: &[3],
         edges: &[EdgeSide::Top],
         lines: &[(1.0, 0.0, 0.375)],
         ..ANY
     },
-    // 56, 147, 157: short creases pinched as mountains from the front.
+    // 56: a short crease between two creases, a fold the folder can watch.
+    // (Pinching it as a mountain from the front was tried and undone: every
+    // fold is a valley from the face it is made on.)
     Expect {
         item: 56,
         line: (0.3827, 0.9239, 0.72093),
-        side: Some(Side::Front),
         ..ANY
     },
     // 58: the left edge swung onto a mark, not two interior points.
     Expect {
         item: 58,
         line: (0.9239, 0.3827, 0.64167),
-        axiom: Some(5),
+        axioms: &[5],
         edges: &[EdgeSide::Left],
         ..ANY
     },
@@ -142,7 +139,7 @@ const EXPECTED: &[Expect] = &[
     Expect {
         item: 71,
         line: (0.9239, 0.3827, 0.84462),
-        axiom: Some(3),
+        axioms: &[3],
         lines: &[(1.0, 0.0, 0.5)],
         ..ANY
     },
@@ -150,25 +147,26 @@ const EXPECTED: &[Expect] = &[
     Expect {
         item: 73,
         line: (0.9239, 0.3827, 0.38268),
-        axiom: Some(3),
+        axioms: &[3],
         edges: &[EdgeSide::Left],
         ..ANY
     },
-    // 81: two marks at the crease, not two 0.06 apart.
+    // 81: two marks at the crease — its own end and one along the line —
+    // not two 0.06 apart.
     Expect {
         item: 81,
         line: (0.3827, 0.9239, 0.62526),
-        axiom: Some(1),
-        points: &[(0.25, 0.5732), (0.125, 0.625)],
+        axioms: &[1],
+        points: &[(0.25, 0.5732)],
         ..ANY
     },
-    // 93: the crease between its own marks, not a swing whose pivot grazes
-    // the landing line.
+    // 93: the crease between its own marks, or the right edge carried onto
+    // a mark perpendicular to the diagonal — at the crease either way — not
+    // a swing whose pivot grazes the landing line.
     Expect {
         item: 93,
         line: (FRAC_1_SQRT_2, -FRAC_1_SQRT_2, 0.5),
-        axiom: Some(1),
-        points: &[(0.9571, 0.25), (1.0, 0.2929)],
+        axioms: &[1, 4, 7],
         ..ANY
     },
     // 103, 104: the top edge folded onto itself through the crease's start
@@ -177,7 +175,7 @@ const EXPECTED: &[Expect] = &[
     Expect {
         item: 103,
         line: (1.0, 0.0, 0.28661),
-        axiom: Some(4),
+        axioms: &[4],
         points: &[(0.2866, 0.9634)],
         edges: &[EdgeSide::Top],
         ..ANY
@@ -185,7 +183,7 @@ const EXPECTED: &[Expect] = &[
     Expect {
         item: 104,
         line: (1.0, 0.0, 0.71339),
-        axiom: Some(4),
+        axioms: &[4],
         points: &[(0.7134, 0.9634)],
         edges: &[EdgeSide::Top],
         ..ANY
@@ -194,7 +192,7 @@ const EXPECTED: &[Expect] = &[
     Expect {
         item: 122,
         line: (FRAC_1_SQRT_2, FRAC_1_SQRT_2, 1.09727),
-        axiom: Some(1),
+        axioms: &[1],
         points: &[(0.7134, 0.8384), (0.5884, 0.9634)],
         ..ANY
     },
@@ -202,13 +200,13 @@ const EXPECTED: &[Expect] = &[
     Expect {
         item: 127,
         line: (0.3827, 0.9239, 0.59724),
-        axiom: Some(3),
+        axioms: &[3],
         ..ANY
     },
     Expect {
         item: 129,
         line: (0.3827, 0.9239, 0.38268),
-        axiom: Some(3),
+        axioms: &[3],
         edges: &[EdgeSide::Bottom],
         ..ANY
     },
@@ -217,38 +215,35 @@ const EXPECTED: &[Expect] = &[
     Expect {
         item: 136,
         line: (0.0, 1.0, 0.78661),
-        axiom: Some(2),
+        axioms: &[2],
         points: &[(0.5, 1.0), (0.5, 0.5732)],
         ..ANY
     },
     Expect {
         item: 140,
         line: (0.3827, -0.9239, -0.21456),
-        axiom: Some(3),
+        axioms: &[3],
         ..ANY
     },
     Expect {
         item: 142,
         line: (0.3827, -0.9239, 0.0),
-        axiom: Some(3),
+        axioms: &[3],
         edges: &[EdgeSide::Bottom],
         ..ANY
     },
-    // 146: the crease's own ends, 0.10 apart, pinched as a mountain from
-    // the front.
+    // 146: the crease's own ends, 0.10 apart.
     Expect {
         item: 146,
         line: (FRAC_1_SQRT_2, -FRAC_1_SQRT_2, 0.42678),
-        axiom: Some(1),
-        side: Some(Side::Front),
+        axioms: &[1],
         points: &[(0.9268, 0.3232), (1.0, 0.3964)],
         ..ANY
     },
     Expect {
         item: 147,
         line: (FRAC_1_SQRT_2, -FRAC_1_SQRT_2, 0.40533),
-        axiom: Some(1),
-        side: Some(Side::Front),
+        axioms: &[1],
         points: &[(0.75, 0.1768), (0.7714, 0.1982)],
         ..ANY
     },
@@ -258,30 +253,27 @@ const EXPECTED: &[Expect] = &[
     Expect {
         item: 157,
         line: (0.9239, -0.3827, -0.08406),
-        axiom: Some(1),
-        side: Some(Side::Front),
+        axioms: &[1],
         points: &[(0.1616, 0.6098)],
         ..ANY
     },
-    // 158: two pieces of 0.19 and 0.38 — not a pinch, and made from the back
-    // as the mountain it is; a corner brought onto a mark.
+    // 158: two pieces of 0.19 and 0.38, made from the back as the mountain
+    // it is; a corner brought onto a mark.
     Expect {
         item: 158,
         line: (0.9239, -0.3827, -0.05604),
-        axiom: Some(2),
+        axioms: &[2, 3],
         side: Some(Side::Back),
-        corners: &[CornerName::Nw],
         ..ANY
     },
     // 48 (second round): a crease folded onto itself whose other arm lay
     // wholly under the flap is not a fold the folder can watch; the right
-    // edge swung onto a mark about the same pivot is.
+    // edge swung onto a mark, or an edge mark carried onto a crease
+    // perpendicular to the diagonal, at the crease, is.
     Expect {
         item: 48,
         line: (FRAC_1_SQRT_2, FRAC_1_SQRT_2, 1.02405),
-        axiom: Some(5),
-        edges: &[EdgeSide::Right],
-        points: &[(0.4482, 1.0)],
+        axioms: &[5, 7],
         ..ANY
     },
 ];
@@ -333,10 +325,8 @@ fn check(seq: &Sequence, step: &Step, e: &Expect) -> Result<(), String> {
         .and_then(|c| step.witnesses.get(c))
         .ok_or_else(|| "no witness presented".to_string())?;
     let got = describe(seq, w);
-    if let Some(axiom) = e.axiom
-        && w.axiom != axiom
-    {
-        return Err(format!("expected O{axiom}, got {got}"));
+    if !e.axioms.is_empty() && !e.axioms.contains(&w.axiom) {
+        return Err(format!("expected one of O{:?}, got {got}", e.axioms));
     }
     if let Some(side) = e.side
         && step.side != side

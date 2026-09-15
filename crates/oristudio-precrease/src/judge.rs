@@ -26,8 +26,9 @@
 //!   are — two points, the overlap of two creases, a swing's radius — and the
 //!   **reach** is how far the crease being made is from the alignment. The
 //!   error at the crease is bounded by their ratio ([`Judgement::error`]),
-//!   and a witness whose lever is under [`MIN_LEVER`] or whose error is over
-//!   [`MAX_ERROR`] is imprecise.
+//!   and a witness whose lever is under [`MIN_LEVER`], whose error is over
+//!   [`MAX_ERROR`] or whose crease is further than [`MAX_REACH`] from the
+//!   alignment is imprecise.
 //! - **R3** A bisection whose vertex is at the crease is the fold — when the
 //!   folder can see the angle: its vertex on the sheet's edge, or one of its
 //!   arms the edge itself. Two interior creases meeting inside the sheet are
@@ -58,6 +59,12 @@ pub const MIN_LEVER: f64 = 0.09;
 /// the farthest end of the crease at most this many levers from where the
 /// alignment happens. Beyond it the crease lands somewhere near the line.
 pub const MAX_ERROR: f64 = 3.0;
+/// The farthest the crease may be from where the alignment happens, in
+/// sheet units, whatever the lever: a quarter of the sheet. Two points a
+/// sheet apart fix the fold line well, but a crease half a sheet from where
+/// the folder holds them together is pinched with the other hand, blind
+/// (markhor 31 and 32, reach 0.53 and 0.55, for creases a thirtieth long).
+pub const MAX_REACH: f64 = 0.25;
 /// How far from the crease an alignment's anchor may be and still count as
 /// *at* the crease: a bisection's vertex at the crease's end, two marks the
 /// crease runs between. A pinch's length: the width of a pressed mark.
@@ -97,9 +104,10 @@ pub struct Judgement {
     /// `reach_far / lever`: how many times the alignment's own error the
     /// crease's end can be off by.
     pub error: Option<f64>,
-    /// R2: lever at least [`MIN_LEVER`] and error at most [`MAX_ERROR`]; a
-    /// witness with nothing to measure is not called imprecise, and nor is a
-    /// crease joined between its own two marks, however short.
+    /// R2: lever at least [`MIN_LEVER`], error at most [`MAX_ERROR`] and the
+    /// crease within [`MAX_REACH`] of the alignment; a witness with nothing
+    /// to measure is not called imprecise, and nor is a crease joined
+    /// between its own two marks, however short.
     pub precise: bool,
     /// The anchor lies within [`AT_CREASE`] of the crease being made.
     pub at_crease: bool,
@@ -109,6 +117,11 @@ pub struct Judgement {
     /// R4: an O1 through both ends of a crease no longer than
     /// [`CONNECT_CREASE`].
     pub own_ends: bool,
+    /// The sheet's edge folded onto itself through a mark, with the fold's
+    /// foot on the edge at the crease's own end: "fold the top edge onto
+    /// itself through the crease's start point" (markhor 103, 104) is made
+    /// at the crease as a bisection there is.
+    pub edge_at_crease: bool,
     /// R7: every mark the witness names that is on the paper is a crossing of
     /// two creases, not a crease's end on another. A mark not yet there is a
     /// press's business, priced by the pick, and not counted here as well.
@@ -137,10 +150,10 @@ pub struct Judgement {
 
 impl Judgement {
     /// Whether the judgement makes the fold one the folder makes at the
-    /// crease itself: a bisection with its vertex there, or the crease's own
-    /// two marks joined.
+    /// crease itself: a bisection with its vertex there, the crease's own
+    /// two marks joined, or the edge folded onto itself at the crease's end.
     pub fn local(&self) -> bool {
-        self.bisection_at_crease || self.own_ends
+        self.bisection_at_crease || self.own_ends || self.edge_at_crease
     }
 }
 
@@ -439,9 +452,11 @@ pub fn judge(
     // The crease's own two marks are as far apart as the crease is long, and
     // nothing lines a crease up better than the marks it runs between; the
     // lever floor is for references elsewhere on the sheet.
-    let precise =
-        (own_ends || lever.is_none_or(|l| l >= MIN_LEVER)) && error.is_none_or(|e| e <= MAX_ERROR);
+    let precise = (own_ends || lever.is_none_or(|l| l >= MIN_LEVER))
+        && error.is_none_or(|e| e <= MAX_ERROR)
+        && reach.is_none_or(|r| r <= MAX_REACH);
     let at_crease = reach.is_some_and(|r| r <= AT_CREASE);
+    let edge_at_crease = w.axiom == 4 && w.folds_edge_onto_itself() && at_crease;
     let angle_seen = w.inputs.iter().any(|r| ref_on_boundary(state, r))
         || anchor.is_some_and(|a| state.sheet().on_boundary(a));
     let bisection_at_crease = w.axiom == 3
@@ -511,6 +526,7 @@ pub fn judge(
         at_crease,
         bisection_at_crease,
         own_ends,
+        edge_at_crease,
         crossings,
         overlong,
         marks_real,
@@ -899,7 +915,7 @@ mod tests {
         assert!((j.reach.expect("reach") - 0.4).abs() < 1e-9);
         assert!((j.reach_far.expect("far") - 0.5).abs() < 1e-9);
         assert!((j.error.expect("error") - 1.0).abs() < 1e-9);
-        assert!(j.precise);
+        assert!(!j.precise, "0.4 from the alignment is past MAX_REACH");
         assert!(!j.at_crease);
         assert!(!j.practical, "both points interior");
         // The same crease made across the midline: at the alignment.
@@ -916,6 +932,7 @@ mod tests {
         );
         assert!(j.at_crease);
         assert!(j.reach.expect("reach") < 1e-9);
+        assert!(j.precise);
     }
 
     #[test]
@@ -973,6 +990,28 @@ mod tests {
         );
         assert!(j.error.expect("error") > MAX_ERROR);
         assert!(!j.precise);
+        // Far apart and well within the error bar, but the crease is half a
+        // sheet from where the two are held together.
+        let o1 = witness(
+            1,
+            vec![Ref::Point { id: a }, Ref::Point { id: b }],
+            vec![],
+            true,
+        );
+        let across = [[[0.95, 0.5], [1.0, 0.5]]];
+        let j = judge(
+            &state,
+            &creased,
+            &wide,
+            &across,
+            &across,
+            Direction::Valley,
+            none,
+            &o1,
+        );
+        assert!(j.error.expect("error") <= MAX_ERROR);
+        assert!(j.reach.expect("reach") > MAX_REACH);
+        assert!(!j.precise, "the crease is 0.45 from the alignment");
     }
 
     #[test]

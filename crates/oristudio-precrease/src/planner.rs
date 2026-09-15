@@ -1274,11 +1274,7 @@ impl Planner {
             };
             // The direction the fold is actually made in: toward the folder,
             // from whichever face is up — every fold is. A line with a firm
-            // majority forced the side it is on, so the two agree — except a
-            // pinch, which is made from the *other* face as a mountain
-            // (`order::PINCH_CREASE`) and keeps the pattern's direction here:
-            // the card draws it from the face it is made on, and a valley
-            // seen from the back is the mountain the folder pinches. A weak
+            // majority forced the side it is on, so the two agree. A weak
             // majority took whichever side was already up, and the share is
             // then the share of its length that side gets right. A press is
             // made from whichever face is up when its mark is needed — "fold
@@ -1289,12 +1285,7 @@ impl Planner {
             // card that drew it in no direction read as a fold that was not
             // real.
             let majority = target.map_or(Direction::Unassigned, |t| t.direction);
-            let firm = target.is_some_and(|t| t.direction.is_firm(t.direction_share));
-            let direction = if p.press.is_none() && firm {
-                majority
-            } else {
-                p.side.direction()
-            };
+            let direction = p.side.direction();
             let direction_share = share_of(
                 majority,
                 target.map_or(0.0, |t| t.direction_share),
