@@ -13,7 +13,7 @@
 //! judgement — practical (R0), visible (R1), precise (R2: the **lever** the
 //! alignment has and the **error** it grows to by the crease), a crossing to
 //! sight from (R7), local to the crease (R3, R4), sighted from marks already
-//! there (`m`). The pick is marked `card`,
+//! there (`m`), corner to corner (`C`). The pick is marked `card`,
 //! its mirror image `also`; when the pick made here differs from the one the
 //! plan presented, both are shown, since the replay's paper and the ordering
 //! pass's can differ in what was pinched along the way.
@@ -188,6 +188,7 @@ fn flags(j: &Judgement) -> String {
         if j.marks_real { 'm' } else { '.' },
         if j.overlong { 'O' } else { '.' },
         if j.skinny { 's' } else { '.' },
+        if j.corner_to_corner { 'C' } else { '.' },
     ]
     .iter()
     .collect()

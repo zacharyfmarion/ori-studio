@@ -399,9 +399,9 @@ Second round, from Zach's next fold of markhor (2026-09-14):
   crease: a free one-motion fold outranked a free two-handed one *before*
   visibility and precision were asked. Now: practical; free before pressed
   (one press may buy a fold the folder can watch, and nothing else — not
-  one motion); not overlong; visible; precise; at the crease; a crossing;
-  marks already there; **then** one motion before two hands; then the ease
-  order. And precision has an absolute bar: the crease within a quarter
+  one motion); corner to corner (below); not overlong; visible; precise;
+  at the crease; a crossing; marks already there; **then** one motion
+  before two hands; then the ease order. And precision has an absolute bar: the crease within a quarter
   sheet of the alignment (`MAX_REACH`), whatever the lever — two points a
   sheet apart fix the line well, but a crease half a sheet from where the
   folder holds them together is pinched blind. The sheet's edge folded
@@ -411,6 +411,23 @@ Second round, from Zach's next fold of markhor (2026-09-14):
   and the swing a folder would make — an edge mark onto a crease that is
   there (32) — was past them. The card enumerates landers over marks on
   the paper only, under wider caps (`full_facts_on`).
+- **Corner to corner takes precedence** (2026-09-15, markhor card 6). The
+  diagonals were presented as bisections of the corners' angles — the
+  right edge onto the bottom edge — because a bisection with its vertex
+  at the crease is *local* and corner onto corner, anchored at the
+  sheet's centre, is not. Zach: "step 6 would generally be diagrammed as
+  folding corner to corner… special case that case so that it's
+  diagrammed that way, like that takes precedence." So it does, as a term
+  of the judgement (`Judgement::corner_to_corner`): a corner onto a
+  corner, or a crease through two corners, sorts before everything else
+  that is free — before overlong, visible, precise and local — when the
+  fold is creased the whole way across the sheet or near enough (the
+  fold's ends at the sheet's edge beyond the crease by no more than its
+  own length, the overlong measure). A thumb's width of the diagonal
+  between two marks in the middle of the sheet is not that fold and is
+  still joined between its marks. Card 6 now reads "Fold P onto Q and R
+  onto S", the two corners each onto the opposite one, still one card;
+  nothing else on markhor moved.
 - **The card's own geometry**: `sideOf` in `diagram/plannerDiagram.ts`
   judged a point on the fold within a billionth of a unit, which the
   document frame (a 400-unit sheet) did not meet; a receiving piece that

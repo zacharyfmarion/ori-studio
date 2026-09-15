@@ -1291,31 +1291,34 @@ fn witness_cost(state: &State, creased: &Creased, fold: &Line, witness: &Witness
 ///    press for a fold they can watch over one lined up under the paper
 ///    ([`MAX_PRESSES_FOR_PREFERENCE`]); and no press at all when the crease
 ///    can be made through two marks already on the paper.
-/// 3. **Not overlong**: a crease joined between two marks well beyond it
+/// 3. **Corner to corner**: a corner onto a corner, or a crease through two
+///    corners — how a diagram folds a diagonal, and the most exact
+///    alignment there is — before anything else that is free.
+/// 4. **Not overlong**: a crease joined between two marks well beyond it
 ///    ([`Judgement::overlong`]) — more crease than the pattern asks for by
 ///    more than the crease itself — after any fold that is not, seen or
 ///    unseen: Zach would rather have less to go on than twice the crease.
-/// 4. **Visible** (R1): an alignment the folder can watch — something on
+/// 5. **Visible** (R1): an alignment the folder can watch — something on
 ///    the boundary moves, or a crease lands on a crease — before one lined
 ///    up under the paper, whatever kind of fold either is.
-/// 5. **Precise** (R2): two references far enough apart, and the crease near
+/// 6. **Precise** (R2): two references far enough apart, and the crease near
 ///    enough to where they are lined up, that the fold lands where it should.
-/// 6. **At the crease** (R3, R4): a bisection whose vertex is the crease's
+/// 7. **At the crease** (R3, R4): a bisection whose vertex is the crease's
 ///    end, or a short crease's own two marks joined, before any other kind
 ///    of fold — its own marks even where one is a crease's end on another:
 ///    a short crease pinched between the two creases it runs between is
 ///    read off them, not sighted from afar.
-/// 7. **A crossing to sight from** (R7), before a crease's end on another;
+/// 8. **A crossing to sight from** (R7), before a crease's end on another;
 ///    then, among free folds, marks already on the paper before a spot
 ///    still to be pinched while its crease is made — no step, but ink the
 ///    pattern does not ask for (a press has paid for its marks in the tier).
-/// 8. **One motion** before two hands — a point or a line onto another,
+/// 9. **One motion** before two hands — a point or a line onto another,
 ///    the edge onto itself — and only here: a fold whose alignment is half
 ///    a sheet from its crease is not made easier by being one motion.
-/// 9. The **ease order** — two points, line onto line, the edge onto itself
-///    … — then the skinny flap, the error at the crease, the residual. For a
-///    perpendicular to the sheet's edge, the edge whose foot is at the
-///    crease.
+/// 10. The **ease order** — two points, line onto line, the edge onto itself
+///     … — then the skinny flap, the error at the crease, the residual. For
+///     a perpendicular to the sheet's edge, the edge whose foot is at the
+///     crease.
 ///
 /// Then one override: among what is visible and precise in the winning
 /// class — the same presses, whether or not the same motion or as well
@@ -1401,10 +1404,17 @@ fn pick_witness(
         (
             !j.practical,
             press_tier,
-            // Ink before sight: a crease joined between marks far beyond it
-            // is crease the pattern does not ask for, and Zach would rather
-            // have a fold with less to go on than twice the crease.
-            j.overlong,
+            (
+                // Corner to corner before everything else that is free:
+                // the fold every diagram makes that way, and the most
+                // exact (markhor's card 6, the diagonals).
+                !j.corner_to_corner,
+                // Ink before sight: a crease joined between marks far
+                // beyond it is crease the pattern does not ask for, and
+                // Zach would rather have a fold with less to go on than
+                // twice the crease.
+                j.overlong,
+            ),
             !j.visible,
             !j.precise,
             !j.local(),
@@ -3030,6 +3040,51 @@ mod tests {
                 entry.made
             );
         }
+    }
+
+    /// The antidiagonal with the midlines down: the bisection of the corner
+    /// Se's angle is a fold at the crease, and corner Sw onto corner Ne is
+    /// how every diagram folds it. Corner to corner wins.
+    #[test]
+    fn a_diagonal_is_folded_corner_to_corner_over_the_corners_bisection() {
+        let mut state = State::new(Sheet::unit_square(), DEFAULT_POINT_CAP);
+        let across = state.add_line(h(0.5), LineTag::Cp).expect("across").id;
+        let up = state.add_line(v(0.5), LineTag::Cp).expect("up").id;
+        let mut creased = Creased::new(&state);
+        creased.add_whole(&state, across);
+        creased.add_whole(&state, up);
+        let anti = Line::from_points([1.0, 0.0], [0.0, 1.0]).expect("anti");
+        let corner = |p: [f64; 2]| point_ref(&state, state.find_point(p).expect("corner"));
+        let edge = |l: Line, side: crate::sheet::EdgeSide| Ref::Edge {
+            id: state.find_line(&l).expect("edge"),
+            side,
+        };
+        let plain = |axiom: u8, inputs: Vec<Ref>, who_moves: Vec<u8>| Witness {
+            axiom,
+            inputs,
+            root: 0,
+            who_moves,
+            hard: false,
+            visible: true,
+            skinny: false,
+            ease: crate::constants::fold_ease(axiom, false).expect("ease") as u8,
+            err: 0.0,
+        };
+        let bisection = plain(
+            3,
+            vec![
+                edge(v(1.0), crate::sheet::EdgeSide::Right),
+                edge(h(0.0), crate::sheet::EdgeSide::Bottom),
+            ],
+            vec![0],
+        );
+        let corners = plain(2, vec![corner([0.0, 0.0]), corner([1.0, 1.0])], vec![0]);
+        let both = vec![bisection, corners];
+        assert_eq!(
+            pick(&state, &creased, &anti, &both).map(|(i, _)| i),
+            Some(1),
+            "corner to corner, not the corner's bisection"
+        );
     }
 
     /// The quarter lines: each corner onto the bottom edge's midpoint, one

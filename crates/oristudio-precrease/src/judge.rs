@@ -16,6 +16,9 @@
 //!   fold and of the opposite assignment: folding it first puts the point on
 //!   a folded edge, and being parallel, folding the flap over disturbs
 //!   nothing. See [`o2_start_is_practical`].
+//! - **Corner to corner** first: a corner onto a corner, or a crease through
+//!   two corners, is how a diagram folds a diagonal and the most exact
+//!   alignment there is; it takes precedence over the rest of the key.
 //! - **R1** Visibility outranks ease: [`Witness::visible`] is asked before
 //!   the ease order, and the skinny flap after it — and a landing has to be
 //!   seen *at the flap's edge*: whatever is carried onto a crease lands
@@ -88,6 +91,17 @@ pub const PARALLEL_SINE: f64 = 0.02;
 pub struct Judgement {
     /// R0: not an interior point folded onto another, or the exception.
     pub practical: bool,
+    /// Corner to corner: a corner folded onto a corner, or a crease through
+    /// two corners, creasing the fold the whole way across the sheet or
+    /// near enough — the fold's ends at the sheet's edge lie beyond the
+    /// crease by no more than its own length (and [`CONNECT_CREASE`]).
+    /// "Fold in half diagonally" is how every diagram makes that fold, and
+    /// it is the most exact alignment a folder has, so it takes precedence
+    /// over everything but a press (markhor's card 6: the diagonals were
+    /// bisections of the corners' angles). A thumb's width of the diagonal
+    /// between two marks in the middle of the sheet is not that fold: the
+    /// folder joins the marks.
+    pub corner_to_corner: bool,
     /// R1: the folder can watch the alignment — [`Witness::visible`], and
     /// every landing seen past the flap's edge ([`landings_seen`]).
     pub visible: bool,
@@ -426,6 +440,12 @@ pub fn judge(
     w: &Witness,
 ) -> Judgement {
     let practical = o2_start_is_practical(state, creased, fold, direction, direction_of_line, w);
+    let corner_to_corner = matches!(w.axiom, 1 | 2)
+        && w.inputs.iter().all(|r| matches!(r, Ref::Corner { .. }))
+        && state
+            .sheet()
+            .clip_parameters(fold)
+            .is_none_or(|(lo, hi)| !extends_well_beyond(fold, made, lo, hi));
     let lever = lever(state, creased, fold, w);
     let anchor = anchor(state, fold, w);
     let (reach, reach_far) = match anchor {
@@ -483,24 +503,8 @@ pub fn judge(
                 _ => None,
             })
             .collect();
-        let runs: Vec<(f64, f64)> = made
-            .iter()
-            .map(|[a, b]| {
-                let (u, v) = (fold.parameter_of(*a), fold.parameter_of(*b));
-                (u.min(v), u.max(v))
-            })
-            .collect();
-        match (marks.as_slice(), runs.is_empty()) {
-            ([p, q], false) => {
-                let (lo, hi) = (p.min(*q), p.max(*q));
-                let length: f64 = runs.iter().map(|(u, v)| v - u).sum();
-                let covered: f64 = runs
-                    .iter()
-                    .map(|(u, v)| (v.min(hi) - u.max(lo)).max(0.0))
-                    .sum();
-                let extension = (hi - lo) - covered;
-                extension > length.max(CONNECT_CREASE)
-            }
+        match marks.as_slice() {
+            [p, q] => extends_well_beyond(fold, made, p.min(*q), p.max(*q)),
             _ => false,
         }
     };
@@ -516,6 +520,7 @@ pub fn judge(
     let one_motion = w.one_motion() || own_ends || long_crease_onto_itself;
     Judgement {
         practical,
+        corner_to_corner,
         visible: w.visible && landings_seen(state, creased, fold, w),
         skinny: w.skinny,
         lever,
@@ -533,6 +538,31 @@ pub fn judge(
         ease,
         one_motion,
     }
+}
+
+/// Whether creasing `fold` from parameter `lo` to `hi` — between two marks,
+/// or the whole way across the sheet — would add more crease than the
+/// pattern asks for: beyond the crease `made`, more than the crease's own
+/// length and more than [`CONNECT_CREASE`]. Nothing made means the fold is
+/// creased whole, which is never beyond it.
+fn extends_well_beyond(fold: &Line, made: &[[[f64; 2]; 2]], lo: f64, hi: f64) -> bool {
+    if made.is_empty() {
+        return false;
+    }
+    let runs: Vec<(f64, f64)> = made
+        .iter()
+        .map(|[a, b]| {
+            let (u, v) = (fold.parameter_of(*a), fold.parameter_of(*b));
+            (u.min(v), u.max(v))
+        })
+        .collect();
+    let length: f64 = runs.iter().map(|(u, v)| v - u).sum();
+    let covered: f64 = runs
+        .iter()
+        .map(|(u, v)| (v.min(hi) - u.max(lo)).max(0.0))
+        .sum();
+    let extension = (hi - lo) - covered;
+    extension > length.max(CONNECT_CREASE)
 }
 
 /// R4: `w` is an O1 through the two ends of a single crease no longer than
@@ -883,6 +913,86 @@ mod tests {
             &o1,
         );
         assert!(!j.overlong);
+    }
+
+    #[test]
+    fn a_corner_onto_a_corner_or_a_crease_through_two_is_corner_to_corner() {
+        let (state, creased) = paper();
+        let sw = state.find_point([0.0, 0.0]).expect("sw");
+        let ne = state.find_point([1.0, 1.0]).expect("ne");
+        let corner = |id: usize, name: crate::sheet::CornerName| Ref::Corner { id, corner: name };
+        let none: DirectionOfLine<'_> = &|_| None;
+        let anti = Line::from_points([1.0, 0.0], [0.0, 1.0]).expect("anti");
+        let o2 = witness(
+            2,
+            vec![
+                corner(sw, crate::sheet::CornerName::Sw),
+                corner(ne, crate::sheet::CornerName::Ne),
+            ],
+            vec![0],
+            true,
+        );
+        let j = judge(
+            &state,
+            &creased,
+            &anti,
+            &[],
+            &[],
+            Direction::Valley,
+            none,
+            &o2,
+        );
+        assert!(j.corner_to_corner);
+        // A corner onto a mark is not.
+        let a = state.find_point([0.5, 0.25]).expect("a");
+        let onto_mark = witness(
+            2,
+            vec![
+                corner(sw, crate::sheet::CornerName::Sw),
+                Ref::Point { id: a },
+            ],
+            vec![0],
+            true,
+        );
+        let j = judge(
+            &state,
+            &creased,
+            &anti,
+            &[],
+            &[],
+            Direction::Valley,
+            none,
+            &onto_mark,
+        );
+        assert!(!j.corner_to_corner);
+        // Nor is corner onto corner for a thumb's width of the diagonal in
+        // the middle of the sheet: the folder joins the marks there.
+        let thumb = [[[0.5, 0.5], [0.5625, 0.4375]]];
+        let j = judge(
+            &state,
+            &creased,
+            &anti,
+            &thumb,
+            &thumb,
+            Direction::Valley,
+            none,
+            &o2,
+        );
+        assert!(!j.corner_to_corner);
+        // Half the diagonal, from the corner, is: the fold is creased from
+        // the corner as far as it goes.
+        let half = [[[1.0, 0.0], [0.5, 0.5]]];
+        let j = judge(
+            &state,
+            &creased,
+            &anti,
+            &half,
+            &half,
+            Direction::Valley,
+            none,
+            &o2,
+        );
+        assert!(j.corner_to_corner);
     }
 
     #[test]
