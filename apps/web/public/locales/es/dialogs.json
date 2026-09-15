@@ -88,10 +88,10 @@
     },
     "mvChanges": "Cambios M/V",
     "openImageTitle": "Abrir imagen de patrón de pliegues",
-    "placedOverImage": "El patrón se colocará sobre tu imagen, que quedará debajo a media opacidad.",
     "rectified": "Rectificado",
     "regionLabel": "Patrón de pliegues detectado",
     "repairLabel": "Añadir el patrón de pliegues detectado para repararlo",
+    "replacesImage": "Añadir sustituye tu imagen por el patrón. Revisar y corregir la mantiene debajo, a media opacidad, mientras reparas.",
     "reviewAndFix": "Revisar y corregir",
     "rights": {
       "attest": "Confirmo que este patrón de pliegues se obtuvo legalmente y que tengo derecho a usarlo.",

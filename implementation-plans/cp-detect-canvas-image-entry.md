@@ -10,10 +10,12 @@ things people actually put on this canvas as references (photos of folded
 models, diagram pages, text), must never block or slow the drop, and must be
 one click to dismiss.
 
-Once the pattern is detected, it should land **on** the image, with the image
-demoted to a locked half-opacity underlay behind it — the same relationship
-Review & Fix already builds for its own rectified underlay — rather than beside
-the current pattern with the image left where it was.
+Once the pattern is imported, the image has done its job: a clean add
+replaces it with the pattern, exactly as the direct File ▸ Detect flow keeps
+no image, and Review & Fix swaps it for the rectified underlay its region
+owns. (A first cut registered the pattern onto the image and kept it as a
+locked half-opacity underlay on every path; outside Review & Fix nothing owns
+a locked image, so it could not be removed. Dropped after review.)
 
 The pill is the only new entry point. File ▸ Detect CP from Image… stays as
 the manual path for the patterns the gate misses; an explicit verb on the
@@ -83,10 +85,11 @@ below, with the Rust extractor as the only feature implementation.
    dialog is open.
 4. **×** ("Not now") removes the pill for this image. It does not come back
    for that image in this session. Nothing is written to the document.
-5. After the dialog imports, the detected pattern sits over the paper in the
-   image, the image is at 50% opacity, locked and behind the creases, and the
-   camera frames the paper. Undo peels the image change first, then the
-   creases — the order Review & Fix already uses.
+5. After the dialog imports, the image is gone and the pattern is in the
+   document where any import lands, framed by the camera — the same result
+   as the direct flow. Review & Fix instead keeps its rectified copy of the
+   image underneath, owned by the repair region. Undo brings the image back
+   first, then removes the creases — the order Review & Fix already uses.
 
 ### Where the pill goes, and why
 
@@ -288,33 +291,33 @@ and the import back to the suggestion store, and clears it in `resetSession`.
 
 Never the image, its size, its name or its raw score.
 
-### Phase 2 — the pattern lands on the image
+### Phase 2 — what becomes of the image
 
-After `importAddOristudioCpText`, the added paper's bounds come from
-`lastOristudioCpImportAddPlacement()`, as Review & Fix already reads them.
-**Move the image, not the creases**: the annotation's centre, width and height
-are free, and this is the direction the existing underlay code takes.
+The dialog knows which annotation it was opened on (`annotationId` in its
+session). After `importAddOristudioCpText`:
 
-- **Axis-aligned paper quad** (renders, screenshots, scans — the common case):
-  map `detected_source_quad` from rectifier-input pixels through the
-  annotation's natural size and crop to model units, and set the annotation's
-  box so that quad coincides with the paper bounds. No inset: the quad *is*
-  the paper's outline in the source, unlike the rectified frame's 32 px
-  convention (`cp-detect-underlay-registration`).
-- **Rotated or perspective quad**: an affine box cannot match it. Replace the
-  annotation's source with the rectified 1024² frame and size it with the
-  existing `repairAnnotations` rule, which is exactly what Review & Fix does.
-- Either way: opacity 0.5, `locked`, `z` below every annotation; one undo
-  entry for the image change recorded after the crease entry so undo peels
-  the image first; camera frames the paper. In `reviewAndFix` mode the
-  original annotation is **replaced** by the region's rectified underlay so
-  there is exactly one image, never two.
-- The dialog's review step says where the pattern will go: "The pattern will
-  be placed over your image." No new controls.
+- **Add, Add improved, Add partial, Add as-is** — the canvas image is
+  removed, in one overlay undo entry recorded after the crease entry, so a
+  first undo brings the image back and a second removes the creases. The
+  pattern lands where any import lands and the camera frames it: the direct
+  flow's result exactly.
+- **Review & Fix** — the canvas image is removed and the existing
+  `repairAnnotations` path adds the rectified underlay and the region that
+  owns it, so there is one image, never two. The underlay's sizing now lives
+  in one function (`rectifiedUnderlayBox`).
+- The review step says so: "Adding replaces your image with the pattern.
+  Review & Fix keeps it underneath, at half opacity, while you repair."
+- A canvas image deleted while the dialog was open leaves the document as an
+  ordinary import would.
 
-This phase is what makes the entry point feel designed rather than plumbed,
-and it is the part most worth a browser pass with a real skewed photo and a
-real cropped render before calling it done.
+**Why not keep the image as an underlay on a clean add.** The first cut did:
+an upright paper outline moved and scaled the original onto the imported
+paper, a skewed one swapped in the rectified frame, and either was demoted to
+half opacity, locked, beneath everything. Locked is absolute — no body, no
+handles, no context menu — and only a suppression region carries controls
+for a locked image. Outside Review & Fix there is no region, so the underlay
+could not be removed. Reviewed on the dev server and dropped; the direct
+flow's behaviour is the right one here.
 
 ### Verification
 
@@ -404,16 +407,13 @@ real cropped render before calling it done.
 - [ ] Desktop drop in the Tauri dev app
 
 ### Phase 2 — registration
-- [x] Axis-aligned quad → annotation box over the paper bounds
-      (`cpImageRegistration.ts`, unit-tested)
-- [x] Rotated/perspective quad → rectified-frame underlay via the sizing
-      Review & Fix uses (`rectifiedUnderlayBox`, now shared); `reviewAndFix`
-      removes the canvas image rather than doubling it
-- [x] Demotion (opacity, lock, z) and one overlay undo entry after the crease
-      entry; camera frames the paper as before
+- [x] A clean add removes the canvas image (one overlay undo entry after the
+      crease entry); Review & Fix removes it and adds its region-owned
+      rectified underlay (`rectifiedUnderlayBox` shared); a deleted image
+      leaves an ordinary import
 - [x] Review-step copy
-- [x] Browser pass on the dev server: a clean render lands on the paper
-      through the affine path (its own pixels kept); Review & Fix removes it
-      and leaves one rectified underlay owned by the region; a real
-      diamond-oriented pattern takes the rectified-frame path (1024 px JPEG
-      at 1024/960 of the paper), creases over it aligned
+- [x] Browser pass on the dev server: Add as-is removes the image and adds
+      the pattern; Review & Fix leaves one rectified underlay owned by the
+      region; a real diamond-oriented pattern goes through the same paths
+- [x] Registration onto the image built, reviewed, and removed: a locked
+      underlay with no region to own it could not be removed

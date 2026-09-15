@@ -88,10 +88,10 @@
     },
     "mvChanges": "山折り／谷折りの変更",
     "openImageTitle": "展開図の画像を開く",
-    "placedOverImage": "パターンは画像の上に配置され、画像はその下に半透明のまま残ります。",
     "rectified": "補正済み",
     "regionLabel": "検出した展開図",
     "repairLabel": "修復用に検出した展開図を追加",
+    "replacesImage": "追加すると画像はパターンに置き換わります。「確認して修正」では、修正中も画像を半透明で下に残します。",
     "reviewAndFix": "確認して修正",
     "rights": {
       "attest": "この展開図を合法的に入手し、使用する権利があることを確認します。",

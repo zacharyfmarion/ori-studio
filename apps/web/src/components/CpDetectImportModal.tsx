@@ -70,18 +70,7 @@ import {
   createCpSuppressionRegion,
   DETECT_SUPPRESSED_CHECK_CLASSES,
 } from '../cp-workspace/annotations/suppressionRegion';
-import {
-  createCpImage,
-  defaultCpImageCrop,
-  IMAGE_JPEG_QUALITY,
-  type CpImage,
-  type CpImageUpdate,
-} from '../cp-workspace/images/cpImage';
-import {
-  DETECT_UNDERLAY_OPACITY,
-  quadIsAxisAligned,
-  registerImageOntoPaper,
-} from '../cp-workspace/images/cpImageRegistration';
+import { createCpImage, IMAGE_JPEG_QUALITY, type CpImage } from '../cp-workspace/images/cpImage';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import './CpDetectImportModal.css';
@@ -175,6 +164,9 @@ const DETECT_DECODER_BACKEND = 'legacy_candidate_exact_solve_v1' as const;
  * this constant is the name of it.
  */
 const DETECT_PAPER_INSET_PX = 32;
+
+/** The opacity a Review & Fix underlay is shown at: a picture to repair over, not the drawing. */
+const DETECT_UNDERLAY_OPACITY = 0.5;
 
 /**
  * Outward margin on the suppression region, as a fraction of the paper.
@@ -882,8 +874,10 @@ export function CpDetectImportModal() {
         }
         const paper = lastOristudioCpImportAddPlacement()?.bounds ?? null;
         const store = useWorkspaceStore.getState();
-        // The canvas image this session came from, if it is still there — a
-        // pattern detected from it lands *on* it, not beside the document.
+        // The canvas image this session came from, if it is still there. It
+        // has done its job once the pattern is in the document: a clean add
+        // replaces it, exactly as the direct flow keeps no image, and Review &
+        // Fix swaps it for the rectified underlay its region owns.
         const canvasAnnotation = canvasImage
           ? (store.oristudioCpAnnotations.find(
               (annotation): annotation is CpImage =>
@@ -913,20 +907,11 @@ export function CpDetectImportModal() {
           // same object doing two different jobs, and separating them is how we
           // tell whether anyone found the tool.
           track('cp suppression region created', { source: 'detect' });
-        } else if (canvasAnnotation && paper && rectified) {
-          store.updateAnnotation(
-            canvasAnnotation.id,
-            canvasImagePatch(
-              {
-                source: { width: source.image.width, height: source.image.height },
-                quad: quad ?? rectified.report.detected_source_quad ?? rectified.report.source_quad,
-                rectified,
-              },
-              paper,
-              bottomAnnotationZ(beforeAnnotations),
-              t
-            )
-          );
+        } else if (canvasAnnotation) {
+          // Not demoted to an underlay: outside Review & Fix nothing owns a
+          // locked image — no region, no handles, no context menu — so it
+          // would sit under the pattern with no way to remove it.
+          store.removeAnnotation(canvasAnnotation.id);
           annotationsChanged = true;
         }
         if (annotationsChanged) {
@@ -971,7 +956,6 @@ export function CpDetectImportModal() {
       improvedFoldJson,
       partialFoldJson,
       phase,
-      quad,
       recognition,
       rectified,
       resetSession,
@@ -1204,8 +1188,8 @@ export function CpDetectImportModal() {
             {canvasImage && (
               <p className="cp-detect-modal__drop-hint">
                 {t(
-                  'dialogs:cpDetectImport.placedOverImage',
-                  'The pattern will be placed over your image, which stays underneath it at half opacity.'
+                  'dialogs:cpDetectImport.replacesImage',
+                  'Adding replaces your image with the pattern. Review & Fix keeps it underneath, at half opacity, while you repair.'
                 )}
               </p>
             )}
@@ -2010,42 +1994,6 @@ function rectifiedUnderlayBox(
     width: paperWidth * scale,
     height: paperHeight * scale,
     rotation: 0,
-  };
-}
-
-/**
- * The canvas image a pattern was detected from becomes its underlay.
- *
- * An upright paper outline is matched by moving and scaling the original —
- * the picture the user dropped stays theirs, title and margins included. A
- * rotated or perspective outline cannot be matched by any affine box, so the
- * rectified frame stands in for the original, sized the way Review & Fix
- * sizes its own underlay. Either way the image ends half-opaque, locked and
- * beneath everything, which is what makes the creases over it editable.
- */
-function canvasImagePatch(
-  detected: {
-    source: { width: number; height: number };
-    quad: CpDetectQuad;
-    rectified: CpDetectRectifiedImage;
-  },
-  paper: OristudioCpModelBox,
-  bottomZ: number,
-  t: TFunction
-): CpImageUpdate {
-  const demoted = { opacity: DETECT_UNDERLAY_OPACITY, locked: true, z: bottomZ - 1 };
-  if (quadIsAxisAligned(detected.quad)) {
-    const box = registerImageOntoPaper({ source: detected.source, quad: detected.quad, paper });
-    if (box) return { ...box, ...demoted };
-  }
-  const frame = detected.rectified.image;
-  return {
-    src: imageDataToDataUrl(frame, t),
-    naturalWidth: frame.width,
-    naturalHeight: frame.height,
-    crop: defaultCpImageCrop(),
-    ...rectifiedUnderlayBox(paper, frame),
-    ...demoted,
   };
 }
 

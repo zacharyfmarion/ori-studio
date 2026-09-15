@@ -2801,7 +2801,7 @@
     "dialogs:settings.models.suggestDetection": "4cb7339a4e98",
     "dialogs:settings.models.suggestDetectionDescription": "b57bb9391c6b",
     "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b",
-    "dialogs:cpDetectImport.placedOverImage": "322cde4d559e"
+    "dialogs:cpDetectImport.replacesImage": "c56e9542a469"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5605,7 +5605,7 @@
     "dialogs:settings.models.suggestDetection": "4cb7339a4e98",
     "dialogs:settings.models.suggestDetectionDescription": "b57bb9391c6b",
     "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b",
-    "dialogs:cpDetectImport.placedOverImage": "322cde4d559e"
+    "dialogs:cpDetectImport.replacesImage": "c56e9542a469"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8409,7 +8409,7 @@
     "dialogs:settings.models.suggestDetection": "4cb7339a4e98",
     "dialogs:settings.models.suggestDetectionDescription": "b57bb9391c6b",
     "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b",
-    "dialogs:cpDetectImport.placedOverImage": "322cde4d559e"
+    "dialogs:cpDetectImport.replacesImage": "c56e9542a469"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11163,7 +11163,7 @@
     "dialogs:settings.models.suggestDetection": "4cb7339a4e98",
     "dialogs:settings.models.suggestDetectionDescription": "b57bb9391c6b",
     "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b",
-    "dialogs:cpDetectImport.placedOverImage": "322cde4d559e"
+    "dialogs:cpDetectImport.replacesImage": "c56e9542a469"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -13917,7 +13917,7 @@
     "dialogs:settings.models.suggestDetection": "4cb7339a4e98",
     "dialogs:settings.models.suggestDetectionDescription": "b57bb9391c6b",
     "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b",
-    "dialogs:cpDetectImport.placedOverImage": "322cde4d559e"
+    "dialogs:cpDetectImport.replacesImage": "c56e9542a469"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -16721,7 +16721,7 @@
     "dialogs:settings.models.suggestDetection": "4cb7339a4e98",
     "dialogs:settings.models.suggestDetectionDescription": "b57bb9391c6b",
     "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b",
-    "dialogs:cpDetectImport.placedOverImage": "322cde4d559e"
+    "dialogs:cpDetectImport.replacesImage": "c56e9542a469"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -19525,7 +19525,7 @@
     "dialogs:settings.models.suggestDetection": "4cb7339a4e98",
     "dialogs:settings.models.suggestDetectionDescription": "b57bb9391c6b",
     "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b",
-    "dialogs:cpDetectImport.placedOverImage": "322cde4d559e"
+    "dialogs:cpDetectImport.replacesImage": "c56e9542a469"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -22279,6 +22279,6 @@
     "dialogs:settings.models.suggestDetection": "4cb7339a4e98",
     "dialogs:settings.models.suggestDetectionDescription": "b57bb9391c6b",
     "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b",
-    "dialogs:cpDetectImport.placedOverImage": "322cde4d559e"
+    "dialogs:cpDetectImport.replacesImage": "c56e9542a469"
   }
 }

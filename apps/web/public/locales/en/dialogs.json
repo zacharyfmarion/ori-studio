@@ -88,10 +88,10 @@
     },
     "mvChanges": "M/V changes",
     "openImageTitle": "Open Crease Pattern Image",
-    "placedOverImage": "The pattern will be placed over your image, which stays underneath it at half opacity.",
     "rectified": "Rectified",
     "regionLabel": "Detected crease pattern",
     "repairLabel": "Add detected crease pattern to repair",
+    "replacesImage": "Adding replaces your image with the pattern. Review & Fix keeps it underneath, at half opacity, while you repair.",
     "reviewAndFix": "Review & Fix",
     "rights": {
       "attest": "I confirm that this crease pattern was obtained legally and that I have the right to use it.",

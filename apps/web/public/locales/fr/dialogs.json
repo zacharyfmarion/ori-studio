@@ -88,10 +88,10 @@
     },
     "mvChanges": "Changements M/V",
     "openImageTitle": "Ouvrir l'image du patron de plis",
-    "placedOverImage": "Le patron sera placé sur votre image, qui reste dessous à demi-opacité.",
     "rectified": "Redressé",
     "regionLabel": "Patron de plis détecté",
     "repairLabel": "Ajouter le patron de plis détecté pour le corriger",
+    "replacesImage": "Ajouter remplace votre image par le patron. Vérifier et corriger la garde dessous, à demi-opacité, pendant la réparation.",
     "reviewAndFix": "Vérifier et corriger",
     "rights": {
       "attest": "Je confirme que ce patron de plis a été obtenu légalement et que j’ai le droit de l’utiliser.",
