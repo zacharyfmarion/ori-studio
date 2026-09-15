@@ -41,4 +41,4 @@ Two changes, one per defect:
 - [x] Layer re-measures on `height` / `minHeight` change + test.
 - [x] Browser verification: bottom-handle shrink keeps the text in place; shrink below content snaps to content height; top-handle shrink.
 - [x] lint, typecheck, unit tests.
-- [ ] Draft PR.
+- [x] Draft PR: https://github.com/zacharyfmarion/ori-studio/pull/378
