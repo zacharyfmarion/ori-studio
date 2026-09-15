@@ -250,6 +250,12 @@
       "title": "Zone de suppression"
     },
     "text": {
+      "changeAlignment": "Modifier l'alignement du texte",
+      "changeColor": "Modifier la couleur du texte",
+      "changeSize": "Modifier la taille du texte",
+      "changeStyle": "Modifier le style du texte",
+      "mixed": "Mixte",
+      "size": "Taille",
       "title": "Texte"
     }
   },
@@ -970,6 +976,12 @@
     "blockSubheading": "Sous-titre",
     "bold": "Gras",
     "color": "Couleur du texte",
+    "colorBlue": "Bleu",
+    "colorDefault": "Par défaut",
+    "colorGreen": "Vert",
+    "colorOrange": "Orange",
+    "colorPurple": "Violet",
+    "colorRed": "Rouge",
     "deleteText": "Supprimer le texte",
     "editText": "Modifier le texte",
     "italic": "Italique",

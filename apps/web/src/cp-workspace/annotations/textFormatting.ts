@@ -50,8 +50,20 @@ export function textBlockPreset(type: TextBlockType): TextBlockPreset {
   return TEXT_BLOCK_PRESETS.find((preset) => preset.value === type) ?? TEXT_BLOCK_PRESETS[0];
 }
 
+/**
+ * The colour swatches a text box offers, `''` being the default (the theme's
+ * text colour). Fixed rather than free: a box's colour is one of six named
+ * choices, so no hex ever reaches analytics and the `.osf` validator needs
+ * no new rule. Labels are localised at the call site (`textColorLabel`).
+ */
+export const TEXT_COLORS = ['', '#e5484d', '#f5a623', '#30a46c', '#4c9aff', '#8e4ec6'] as const;
+
+export type TextColor = (typeof TEXT_COLORS)[number];
+
 /** Supported text alignments. */
 export type TextAlign = 'left' | 'center' | 'right';
+
+export const TEXT_ALIGNS: readonly TextAlign[] = ['left', 'center', 'right'];
 
 /** Normalize a Lexical element `format` (string or numeric) to a CSS alignment. */
 export function normalizeTextAlign(format: unknown): TextAlign {

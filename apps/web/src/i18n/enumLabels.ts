@@ -8,6 +8,7 @@ import type {
   OristudioCpLengthenColorMode,
 } from '../lib/oristudioCpToolSettings';
 import type { SimulatorColorMode, SimulatorCreaseStyle } from '../lib/simulatorSettings';
+import type { TextAlign, TextBlockType, TextColor } from '../cp-workspace/annotations/textFormatting';
 
 /**
  * Render-time translations for small fixed enums whose English labels live in data modules.
@@ -92,5 +93,46 @@ export function simulatorCreaseStyleLabel(t: TFunction, style: SimulatorCreaseSt
       return t('panels:simulatorViewControls.creaseStyleMono', 'One ink');
     case 'mono-dashed':
       return t('panels:simulatorViewControls.creaseStyleMonoDashed', 'One ink, dashed');
+  }
+}
+
+/** A text box's block preset — the editing toolbar's select and the Properties pane share it. */
+export function textBlockLabel(t: TFunction, type: TextBlockType): string {
+  switch (type) {
+    case 'paragraph':
+      return t('panels:textAnnotation.blockBody', 'Body');
+    case 'h1':
+      return t('panels:textAnnotation.blockHeading', 'Heading');
+    case 'h2':
+      return t('panels:textAnnotation.blockSubheading', 'Subheading');
+  }
+}
+
+export function textAlignLabel(t: TFunction, align: TextAlign): string {
+  switch (align) {
+    case 'left':
+      return t('panels:textAnnotation.alignLeft', 'Align left');
+    case 'center':
+      return t('panels:textAnnotation.alignCenter', 'Align center');
+    case 'right':
+      return t('panels:textAnnotation.alignRight', 'Align right');
+  }
+}
+
+/** One of the six text colours by name — `''` is the default. */
+export function textColorLabel(t: TFunction, color: TextColor): string {
+  switch (color) {
+    case '':
+      return t('panels:textAnnotation.colorDefault', 'Default');
+    case '#e5484d':
+      return t('panels:textAnnotation.colorRed', 'Red');
+    case '#f5a623':
+      return t('panels:textAnnotation.colorOrange', 'Orange');
+    case '#30a46c':
+      return t('panels:textAnnotation.colorGreen', 'Green');
+    case '#4c9aff':
+      return t('panels:textAnnotation.colorBlue', 'Blue');
+    case '#8e4ec6':
+      return t('panels:textAnnotation.colorPurple', 'Purple');
   }
 }

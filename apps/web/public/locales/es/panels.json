@@ -250,6 +250,12 @@
       "title": "Región de supresión"
     },
     "text": {
+      "changeAlignment": "Cambiar la alineación del texto",
+      "changeColor": "Cambiar el color del texto",
+      "changeSize": "Cambiar el tamaño del texto",
+      "changeStyle": "Cambiar el estilo del texto",
+      "mixed": "Mixto",
+      "size": "Tamaño",
       "title": "Texto"
     }
   },
@@ -970,6 +976,12 @@
     "blockSubheading": "Subencabezado",
     "bold": "Negrita",
     "color": "Color de texto",
+    "colorBlue": "Azul",
+    "colorDefault": "Predeterminado",
+    "colorGreen": "Verde",
+    "colorOrange": "Naranja",
+    "colorPurple": "Morado",
+    "colorRed": "Rojo",
     "deleteText": "Eliminar texto",
     "editText": "Editar texto",
     "italic": "Cursiva",

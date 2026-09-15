@@ -26,6 +26,7 @@ function renderEditor(onExit: (reason: 'blur' | 'escape') => void): HTMLElement 
   act(() => {
     root?.render(
       <CpTextEditor
+        id={box.id}
         doc={box.doc}
         box={box}
         container={null}

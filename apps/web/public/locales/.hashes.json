@@ -2829,7 +2829,19 @@
     "panels:cpProperties.folded.yaw": "b823d5f9d1ce",
     "panels:cpProperties.folded.zoom": "509c517ede79",
     "panels:creasePattern.noFoldedModels": "35871e799639",
-    "panels:creasePattern.propertiesEllipsis": "c7f6565f0fd6"
+    "panels:creasePattern.propertiesEllipsis": "c7f6565f0fd6",
+    "panels:cpProperties.text.changeAlignment": "610c05e3988c",
+    "panels:cpProperties.text.changeColor": "fade33fa7414",
+    "panels:cpProperties.text.changeSize": "42adf5818e59",
+    "panels:cpProperties.text.changeStyle": "c65b9285da94",
+    "panels:cpProperties.text.mixed": "f340b6d6edef",
+    "panels:cpProperties.text.size": "1af851907331",
+    "panels:textAnnotation.colorBlue": "ec7d56a01607",
+    "panels:textAnnotation.colorDefault": "21b111cbfe6e",
+    "panels:textAnnotation.colorGreen": "d486dfbd5fb5",
+    "panels:textAnnotation.colorOrange": "78e7771b8b46",
+    "panels:textAnnotation.colorPurple": "7d465fb9b931",
+    "panels:textAnnotation.colorRed": "ba19e9c3d5f4"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5661,7 +5673,19 @@
     "panels:cpProperties.folded.yaw": "b823d5f9d1ce",
     "panels:cpProperties.folded.zoom": "509c517ede79",
     "panels:creasePattern.noFoldedModels": "35871e799639",
-    "panels:creasePattern.propertiesEllipsis": "c7f6565f0fd6"
+    "panels:creasePattern.propertiesEllipsis": "c7f6565f0fd6",
+    "panels:cpProperties.text.changeAlignment": "610c05e3988c",
+    "panels:cpProperties.text.changeColor": "fade33fa7414",
+    "panels:cpProperties.text.changeSize": "42adf5818e59",
+    "panels:cpProperties.text.changeStyle": "c65b9285da94",
+    "panels:cpProperties.text.mixed": "f340b6d6edef",
+    "panels:cpProperties.text.size": "1af851907331",
+    "panels:textAnnotation.colorBlue": "ec7d56a01607",
+    "panels:textAnnotation.colorDefault": "21b111cbfe6e",
+    "panels:textAnnotation.colorGreen": "d486dfbd5fb5",
+    "panels:textAnnotation.colorOrange": "78e7771b8b46",
+    "panels:textAnnotation.colorPurple": "7d465fb9b931",
+    "panels:textAnnotation.colorRed": "ba19e9c3d5f4"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8493,7 +8517,19 @@
     "panels:cpProperties.folded.yaw": "b823d5f9d1ce",
     "panels:cpProperties.folded.zoom": "509c517ede79",
     "panels:creasePattern.noFoldedModels": "35871e799639",
-    "panels:creasePattern.propertiesEllipsis": "c7f6565f0fd6"
+    "panels:creasePattern.propertiesEllipsis": "c7f6565f0fd6",
+    "panels:cpProperties.text.changeAlignment": "610c05e3988c",
+    "panels:cpProperties.text.changeColor": "fade33fa7414",
+    "panels:cpProperties.text.changeSize": "42adf5818e59",
+    "panels:cpProperties.text.changeStyle": "c65b9285da94",
+    "panels:cpProperties.text.mixed": "f340b6d6edef",
+    "panels:cpProperties.text.size": "1af851907331",
+    "panels:textAnnotation.colorBlue": "ec7d56a01607",
+    "panels:textAnnotation.colorDefault": "21b111cbfe6e",
+    "panels:textAnnotation.colorGreen": "d486dfbd5fb5",
+    "panels:textAnnotation.colorOrange": "78e7771b8b46",
+    "panels:textAnnotation.colorPurple": "7d465fb9b931",
+    "panels:textAnnotation.colorRed": "ba19e9c3d5f4"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11274,7 +11310,19 @@
     "panels:cpProperties.folded.yaw": "b823d5f9d1ce",
     "panels:cpProperties.folded.zoom": "509c517ede79",
     "panels:creasePattern.noFoldedModels": "35871e799639",
-    "panels:creasePattern.propertiesEllipsis": "c7f6565f0fd6"
+    "panels:creasePattern.propertiesEllipsis": "c7f6565f0fd6",
+    "panels:cpProperties.text.changeAlignment": "610c05e3988c",
+    "panels:cpProperties.text.changeColor": "fade33fa7414",
+    "panels:cpProperties.text.changeSize": "42adf5818e59",
+    "panels:cpProperties.text.changeStyle": "c65b9285da94",
+    "panels:cpProperties.text.mixed": "f340b6d6edef",
+    "panels:cpProperties.text.size": "1af851907331",
+    "panels:textAnnotation.colorBlue": "ec7d56a01607",
+    "panels:textAnnotation.colorDefault": "21b111cbfe6e",
+    "panels:textAnnotation.colorGreen": "d486dfbd5fb5",
+    "panels:textAnnotation.colorOrange": "78e7771b8b46",
+    "panels:textAnnotation.colorPurple": "7d465fb9b931",
+    "panels:textAnnotation.colorRed": "ba19e9c3d5f4"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14055,7 +14103,19 @@
     "panels:cpProperties.folded.yaw": "b823d5f9d1ce",
     "panels:cpProperties.folded.zoom": "509c517ede79",
     "panels:creasePattern.noFoldedModels": "35871e799639",
-    "panels:creasePattern.propertiesEllipsis": "c7f6565f0fd6"
+    "panels:creasePattern.propertiesEllipsis": "c7f6565f0fd6",
+    "panels:cpProperties.text.changeAlignment": "610c05e3988c",
+    "panels:cpProperties.text.changeColor": "fade33fa7414",
+    "panels:cpProperties.text.changeSize": "42adf5818e59",
+    "panels:cpProperties.text.changeStyle": "c65b9285da94",
+    "panels:cpProperties.text.mixed": "f340b6d6edef",
+    "panels:cpProperties.text.size": "1af851907331",
+    "panels:textAnnotation.colorBlue": "ec7d56a01607",
+    "panels:textAnnotation.colorDefault": "21b111cbfe6e",
+    "panels:textAnnotation.colorGreen": "d486dfbd5fb5",
+    "panels:textAnnotation.colorOrange": "78e7771b8b46",
+    "panels:textAnnotation.colorPurple": "7d465fb9b931",
+    "panels:textAnnotation.colorRed": "ba19e9c3d5f4"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -16887,7 +16947,19 @@
     "panels:cpProperties.folded.yaw": "b823d5f9d1ce",
     "panels:cpProperties.folded.zoom": "509c517ede79",
     "panels:creasePattern.noFoldedModels": "35871e799639",
-    "panels:creasePattern.propertiesEllipsis": "c7f6565f0fd6"
+    "panels:creasePattern.propertiesEllipsis": "c7f6565f0fd6",
+    "panels:cpProperties.text.changeAlignment": "610c05e3988c",
+    "panels:cpProperties.text.changeColor": "fade33fa7414",
+    "panels:cpProperties.text.changeSize": "42adf5818e59",
+    "panels:cpProperties.text.changeStyle": "c65b9285da94",
+    "panels:cpProperties.text.mixed": "f340b6d6edef",
+    "panels:cpProperties.text.size": "1af851907331",
+    "panels:textAnnotation.colorBlue": "ec7d56a01607",
+    "panels:textAnnotation.colorDefault": "21b111cbfe6e",
+    "panels:textAnnotation.colorGreen": "d486dfbd5fb5",
+    "panels:textAnnotation.colorOrange": "78e7771b8b46",
+    "panels:textAnnotation.colorPurple": "7d465fb9b931",
+    "panels:textAnnotation.colorRed": "ba19e9c3d5f4"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -19719,7 +19791,19 @@
     "panels:cpProperties.folded.yaw": "b823d5f9d1ce",
     "panels:cpProperties.folded.zoom": "509c517ede79",
     "panels:creasePattern.noFoldedModels": "35871e799639",
-    "panels:creasePattern.propertiesEllipsis": "c7f6565f0fd6"
+    "panels:creasePattern.propertiesEllipsis": "c7f6565f0fd6",
+    "panels:cpProperties.text.changeAlignment": "610c05e3988c",
+    "panels:cpProperties.text.changeColor": "fade33fa7414",
+    "panels:cpProperties.text.changeSize": "42adf5818e59",
+    "panels:cpProperties.text.changeStyle": "c65b9285da94",
+    "panels:cpProperties.text.mixed": "f340b6d6edef",
+    "panels:cpProperties.text.size": "1af851907331",
+    "panels:textAnnotation.colorBlue": "ec7d56a01607",
+    "panels:textAnnotation.colorDefault": "21b111cbfe6e",
+    "panels:textAnnotation.colorGreen": "d486dfbd5fb5",
+    "panels:textAnnotation.colorOrange": "78e7771b8b46",
+    "panels:textAnnotation.colorPurple": "7d465fb9b931",
+    "panels:textAnnotation.colorRed": "ba19e9c3d5f4"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -22500,6 +22584,18 @@
     "panels:cpProperties.folded.yaw": "b823d5f9d1ce",
     "panels:cpProperties.folded.zoom": "509c517ede79",
     "panels:creasePattern.noFoldedModels": "35871e799639",
-    "panels:creasePattern.propertiesEllipsis": "c7f6565f0fd6"
+    "panels:creasePattern.propertiesEllipsis": "c7f6565f0fd6",
+    "panels:cpProperties.text.changeAlignment": "610c05e3988c",
+    "panels:cpProperties.text.changeColor": "fade33fa7414",
+    "panels:cpProperties.text.changeSize": "42adf5818e59",
+    "panels:cpProperties.text.changeStyle": "c65b9285da94",
+    "panels:cpProperties.text.mixed": "f340b6d6edef",
+    "panels:cpProperties.text.size": "1af851907331",
+    "panels:textAnnotation.colorBlue": "ec7d56a01607",
+    "panels:textAnnotation.colorDefault": "21b111cbfe6e",
+    "panels:textAnnotation.colorGreen": "d486dfbd5fb5",
+    "panels:textAnnotation.colorOrange": "78e7771b8b46",
+    "panels:textAnnotation.colorPurple": "7d465fb9b931",
+    "panels:textAnnotation.colorRed": "ba19e9c3d5f4"
   }
 }

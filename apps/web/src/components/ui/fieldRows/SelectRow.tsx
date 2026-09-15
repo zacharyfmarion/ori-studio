@@ -5,6 +5,8 @@ import { FieldRow } from './FieldRow';
 export interface SelectRowOption {
   id: string;
   label: string;
+  /** A colour shown as a dot beside the label. */
+  swatch?: string;
 }
 
 /**
@@ -44,6 +46,13 @@ export function SelectRow({
         <SelectContent {...contentProps}>
           {options.map((option) => (
             <SelectItem key={option.id} value={option.id}>
+              {option.swatch && (
+                <span
+                  className="select-swatch"
+                  style={{ background: option.swatch }}
+                  aria-hidden="true"
+                />
+              )}
               {option.label}
             </SelectItem>
           ))}

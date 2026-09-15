@@ -240,6 +240,12 @@
       "title": "チェック抑制領域"
     },
     "text": {
+      "changeAlignment": "テキストの配置を変更",
+      "changeColor": "テキストの色を変更",
+      "changeSize": "テキストのサイズを変更",
+      "changeStyle": "テキストのスタイルを変更",
+      "mixed": "混在",
+      "size": "サイズ",
       "title": "テキスト"
     }
   },
@@ -906,6 +912,12 @@
     "blockSubheading": "小見出し",
     "bold": "太字",
     "color": "文字色",
+    "colorBlue": "青",
+    "colorDefault": "デフォルト",
+    "colorGreen": "緑",
+    "colorOrange": "オレンジ",
+    "colorPurple": "紫",
+    "colorRed": "赤",
     "deleteText": "テキストを削除",
     "editText": "テキストを編集",
     "italic": "斜体",

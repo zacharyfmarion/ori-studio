@@ -1,11 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type DragEvent as ReactDragEvent,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, type DragEvent as ReactDragEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SerializedEditorState } from 'lexical';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -44,7 +37,14 @@ import {
   sendAnnotationToBack as sendAnnotationToBackVerb,
 } from './annotationVerbs';
 import type { GestureToken } from '../canvasObjects/gestureBracket';
-import { registerCanvasSessionEnder } from '../canvasObjects/canvasSessions';
+import {
+  beginTextEditSession,
+  endTextEditSession,
+  takeSuppressNextTextCreate,
+  textEditSession,
+  useTextEditSession,
+  type TextEditExitReason,
+} from './textEditSession';
 import {
   createTextAnnotation,
   textBoxFromDragCorners,
@@ -53,12 +53,9 @@ import {
 } from './textAnnotation';
 
 
-/**
- * Reason inline text editing ended: a click outside, the keyboard, an undo
- * about to run (the session commits so the step can undo it), or the document
- * being replaced (nothing to record into).
- */
-export type TextEditExitReason = 'blur' | 'escape' | 'history' | 'document-replaced';
+// The session's exit reasons are the session module's; re-exported for the
+// callers that name the type through this hook.
+export type { TextEditExitReason } from './textEditSession';
 
 export interface UseCpAnnotationsOptions {
   /** Live model↔CSS transform, for placing dropped images and new text boxes. */
@@ -102,7 +99,6 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
   );
   const addAnnotation = useWorkspaceStore((state) => state.addAnnotation);
   const updateAnnotation = useWorkspaceStore((state) => state.updateAnnotation);
-  const removeAnnotation = useWorkspaceStore((state) => state.removeAnnotation);
   const setSelectedAnnotation = useWorkspaceStore(
     (state) => state.setSelectedAnnotation
   );
@@ -393,29 +389,17 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
 
   // --- Inline text editing ---
 
-  const [editingTextId, setEditingTextId] = useState<string | null>(null);
-  /**
-   * The box under edit, whether this edit created it (for the undo label), and
-   * the bracket token the session holds for its whole life — which is what
-   * refuses any other annotation gesture while a box is being edited.
-   */
-  const editStartRef = useRef<{ id: string; created: boolean; token: GestureToken | null } | null>(
-    null
-  );
-  /**
-   * A click outside an editor both commits it and, if the Text tool is active,
-   * would land on the canvas as a "create a box here". Set on a blur exit so
-   * that same click only deselects.
-   */
-  const suppressNextTextCreateRef = useRef(false);
+  // The session lives at module level (`textEditSession.ts`) so the Properties
+  // pane, a separate dock panel, can tell whether the box it shows is being
+  // edited; this hook is its canvas-side driver.
+  const editingTextId = useTextEditSession()?.id ?? null;
 
   // Double-click a text box (via the annotation overlay), or a Text-tool click
   // on one → inline editing.
   const requestEditText = useCallback(
     (id: string) => {
-      editStartRef.current = { id, created: false, token: annotationGesture.begin('text-session') };
       setSelectedAnnotation(id);
-      setEditingTextId(id);
+      beginTextEditSession(id, false);
     },
     [setSelectedAnnotation]
   );
@@ -433,14 +417,13 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
       // rather than stacking a new box on top.
       const hit = annotationAtModelPoint(prev, modelPoint);
       if (hit) {
-        suppressNextTextCreateRef.current = false;
+        takeSuppressNextTextCreate();
         if (isTextAnnotation(hit)) requestEditText(hit.id);
         else setSelectedAnnotation(hit.id);
         return;
       }
       // Empty canvas: if this click just committed an edit, it only deselects.
-      if (suppressNextTextCreateRef.current) {
-        suppressNextTextCreateRef.current = false;
+      if (takeSuppressNextTextCreate()) {
         setSelectedAnnotation(null);
         return;
       }
@@ -454,13 +437,8 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
         z: topAnnotationZ(prev) + 1,
       });
       // Snapshot before the add, so undoing the session removes the box.
-      editStartRef.current = {
-        id: box.id,
-        created: true,
-        token: annotationGesture.begin('text-session'),
-      };
+      beginTextEditSession(box.id, true);
       addAnnotation(box);
-      setEditingTextId(box.id);
     },
     [overlayView, addAnnotation, requestEditText, setSelectedAnnotation]
   );
@@ -488,13 +466,8 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
         fontSize: cssPerModel > 0 ? 16 / cssPerModel : DEFAULT_TEXT_FONT_SIZE,
         z: topAnnotationZ(prev) + 1,
       });
-      editStartRef.current = {
-        id: annotation.id,
-        created: true,
-        token: annotationGesture.begin('text-session'),
-      };
+      beginTextEditSession(annotation.id, true);
       addAnnotation(annotation);
-      setEditingTextId(annotation.id);
     },
     [overlayView, addAnnotation, createTextAt]
   );
@@ -506,58 +479,23 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
     [updateAnnotation]
   );
 
-  // Leave inline editing. An empty box is discarded (parity with Oriedita's
-  // blank-text GC); otherwise the whole edit records one undo entry — unless
-  // the document is being replaced, in which case there is nothing to record
-  // into and the session is simply dropped.
+  // Leave inline editing — the session module owns the empty-box GC, the
+  // labels and the create-suppression arm.
   const exitEditText = useCallback(
-    (reason: TextEditExitReason = 'blur') => {
-      if (reason === 'blur') suppressNextTextCreateRef.current = true;
-      const editing = editStartRef.current;
-      setEditingTextId(null);
-      editStartRef.current = null;
-      if (!editing) return;
-      const settle = (label: string | null) => {
-        if (!editing.token) return;
-        if (label === null || reason === 'document-replaced') {
-          annotationGesture.abort(editing.token);
-        } else {
-          void annotationGesture.commit(editing.token, label);
-        }
-      };
-      const annotation = useWorkspaceStore
-        .getState()
-        .oristudioCpAnnotations.find((a) => a.id === editing.id);
-      const empty =
-        !annotation || (annotation.kind === 'text' && annotation.plainText.trim() === '');
-      if (empty) {
-        if (reason !== 'document-replaced') removeAnnotation(editing.id);
-        settle(editing.created ? null : t('panels:textAnnotation.deleteText', 'Delete text'));
-        return;
-      }
-      settle(
-        editing.created
-          ? t('panels:textAnnotation.addText', 'Add text')
-          : t('panels:textAnnotation.editText', 'Edit text')
-      );
-    },
-    [removeAnnotation, t]
-  );
-
-  // An undo about to run commits the open session first, so the step undoes
-  // it rather than running under a live editor that would write the restored
-  // doc back on its next keystroke; a document replacement drops it.
-  const exitEditTextRef = useRef(exitEditText);
-  useEffect(() => {
-    exitEditTextRef.current = exitEditText;
-  });
-  useEffect(
-    () =>
-      registerCanvasSessionEnder((endReason) => {
-        if (editStartRef.current) exitEditTextRef.current(endReason);
-      }, 'session'),
+    (reason: TextEditExitReason = 'blur') => endTextEditSession(reason),
     []
   );
+
+  // A session outlives no box: the selection leaving it (a click elsewhere the
+  // editor's blur did not see, a menu verb) or the box vanishing (delete,
+  // undo, document replace) ends it as a blur. An undo about to run and a
+  // document replacement reach the session through the chokepoint, which the
+  // session module registers for itself.
+  useEffect(() => {
+    if (!editingTextId) return;
+    const gone = !annotations.some((annotation) => annotation.id === editingTextId);
+    if (gone || selectedAnnotationId !== editingTextId) endTextEditSession('blur');
+  }, [editingTextId, annotations, selectedAnnotationId]);
   // The bracket is module-level and would otherwise outlive the surface that
   // opened it, refusing every later annotation gesture.
   useEffect(
@@ -565,26 +503,14 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
       const token = gestureTokenRef.current;
       gestureTokenRef.current = null;
       if (token) annotationGesture.abort(token);
-      const session = editStartRef.current;
-      editStartRef.current = null;
-      if (session?.token) annotationGesture.abort(session.token);
+      if (textEditSession()) endTextEditSession('document-replaced');
     },
     []
   );
 
   // Delete from the text toolbar removes the box and leaves edit mode; the
   // pre-edit snapshot makes it undoable (unless the box was never real).
-  const deleteEditingText = useCallback(() => {
-    const editing = editStartRef.current;
-    const id = editingTextId;
-    setEditingTextId(null);
-    editStartRef.current = null;
-    if (!id) return;
-    removeAnnotation(id);
-    if (!editing?.token) return;
-    if (editing.created) annotationGesture.abort(editing.token);
-    else void annotationGesture.commit(editing.token, t('panels:textAnnotation.deleteText', 'Delete text'));
-  }, [editingTextId, removeAnnotation, t]);
+  const deleteEditingText = useCallback(() => endTextEditSession('delete'), []);
 
   // A region's delete and check toggles are the region verbs' — a delete also
   // removes the owned reference image and clears the pins inside it, which the

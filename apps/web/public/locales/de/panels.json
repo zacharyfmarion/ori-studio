@@ -245,6 +245,12 @@
       "title": "Prüfungsfreier Bereich"
     },
     "text": {
+      "changeAlignment": "Textausrichtung ändern",
+      "changeColor": "Textfarbe ändern",
+      "changeSize": "Textgröße ändern",
+      "changeStyle": "Textstil ändern",
+      "mixed": "Gemischt",
+      "size": "Größe",
       "title": "Text"
     }
   },
@@ -936,6 +942,12 @@
     "blockSubheading": "Unterüberschrift",
     "bold": "Fett",
     "color": "Textfarbe",
+    "colorBlue": "Blau",
+    "colorDefault": "Standard",
+    "colorGreen": "Grün",
+    "colorOrange": "Orange",
+    "colorPurple": "Violett",
+    "colorRed": "Rot",
     "deleteText": "Text löschen",
     "editText": "Text bearbeiten",
     "italic": "Kursiv",

@@ -1,5 +1,15 @@
 import { useRef, useSyncExternalStore } from 'react';
-import { Image, Origami, Play, SquareDashed, Type, type LucideIcon } from 'lucide-react';
+import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  Image,
+  Origami,
+  Play,
+  SquareDashed,
+  Type,
+  type LucideIcon,
+} from 'lucide-react';
 import {
   visiblePropertyFields,
   type ColorField,
@@ -39,6 +49,18 @@ const SHEET_ICONS: Record<string, LucideIcon> = {
   'folded-figure': Origami,
   'inline-simulation': Play,
 };
+
+/** The names a catalog may put on a segmented option's `icon`. */
+const OPTION_ICONS: Record<string, LucideIcon> = {
+  'align-left': AlignLeft,
+  'align-center': AlignCenter,
+  'align-right': AlignRight,
+};
+
+function optionIcon(name: string | undefined) {
+  const Icon = name ? OPTION_ICONS[name] : undefined;
+  return Icon ? <Icon size={14} aria-hidden /> : undefined;
+}
 
 /**
  * One {@link PropertySheet}, rendered.
@@ -183,7 +205,10 @@ function FieldView({
         <SegmentedRow
           label={field.label}
           value={field.value}
-          options={field.options}
+          options={field.options.map((option) => {
+            const icon = optionIcon(option.icon);
+            return { id: option.id, label: option.label, icon, iconOnly: icon !== undefined };
+          })}
           disabled={disabled}
           title={title}
           onChange={(next) => {

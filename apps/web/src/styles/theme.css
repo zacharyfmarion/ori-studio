@@ -3657,51 +3657,12 @@ button.cp-folded-figure-toolbar__notice:hover {
   text-decoration: underline line-through;
 }
 
-/* Text toolbar controls */
+/* Text toolbar controls: the marks and Delete. The whole-box controls that
+   used to sit here — block, alignment, colour — are the Properties pane's. */
 .cp-text-toolbar__group {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-.cp-text-toolbar__select,
-.cp-text-toolbar__color-select {
-  height: 24px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm, 4px);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  font-size: 12px;
-  padding: 0 4px;
-}
-
-.cp-text-toolbar__align {
-  display: inline-flex;
-  gap: 2px;
-}
-
-.cp-text-toolbar__align-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm, 4px);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-}
-
-.cp-text-toolbar__align-btn[data-active] {
-  background: color-mix(in srgb, var(--accent-primary) 22%, transparent);
-  color: var(--text-primary);
-}
-
-.cp-text-toolbar__color {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
 }
 
 /* In WebGL mode the SVG is covered by the canvas; hide it so the browser stops
@@ -7180,73 +7141,14 @@ button.cp-folded-figure-toolbar__notice:hover {
   font-weight: 680;
 }
 
-/* 76px is the widest label the popover carries ("Front color", 71px) plus a
-   little; below that it wraps to two lines and the row grows. */
-.folded-figure-menu__field,
-.folded-figure-menu__toggle-row {
-  display: grid;
-  grid-template-columns: 76px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  min-height: 28px;
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  font-weight: 700;
-}
-
-.folded-figure-menu__toggle-row {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-
-.folded-figure-menu__field input,
-.folded-figure-menu__field select {
-  min-width: 0;
-  height: 26px;
-  padding: 0 7px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font: inherit;
-  font-size: 0.72rem;
-}
-
-.folded-figure-menu__field input:focus-visible,
-.folded-figure-menu__field select:focus-visible {
-  border-color: var(--accent-primary);
-  outline: none;
-}
-
-.folded-figure-menu__field input:disabled,
-.folded-figure-menu__field select:disabled {
-  opacity: 0.55;
-}
-
-/* Sized to its options and parked at the right edge of the field column, where the
-   inputs above it end. Stretching a segmented control to the full row divides the
-   width by however many options there happen to be, so the active segment lands
-   somewhere different each time the set changes — and at two options it reads as a
-   half-filled progress bar rather than a choice. */
-.folded-figure-menu__field--segmented .segmented {
-  justify-self: end;
-}
-
-/* The colour rows carry the same label column as the fields around them, so the
-   three swatches line up under the Display select rather than under their own
-   labels. `inline` brings no pane chrome of its own — see ColorField. */
-.folded-figure-menu__panel .color-field--inline {
-  display: grid;
-  grid-template-columns: 76px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  min-height: 28px;
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  font-weight: 700;
-}
-
-.folded-figure-menu__panel .color-field--inline .color-field__value {
-  justify-content: flex-end;
+/* The picker's line for a document with no figure yet. The appearance form
+   that used to follow the list is the Properties pane's. */
+.folded-figure-menu__empty {
+  margin: 0;
+  padding: 4px 7px 6px;
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  line-height: 1.35;
 }
 
 .design-layer-menu {
@@ -8941,6 +8843,17 @@ button.bp-packing-alert:focus-visible {
   color: var(--text-primary);
 }
 
+/* A colour named in a select's option, drawn as a dot beside its label. */
+.select-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 7px;
+  border: 1px solid var(--border-default);
+  border-radius: 50%;
+  vertical-align: -1px;
+}
+
 /* The same affordance on any other row: a field's `reset`, trailing the control. */
 .control-row__reset {
   display: flex;
@@ -9901,15 +9814,11 @@ button.bp-packing-alert:focus-visible {
   .field-row input,
   .settings-shortcuts__toolbar input[type='search'],
   .design-tab__name-input,
-  .cp-text-toolbar__select,
-  .cp-text-toolbar__color-select,
   .condition-number input,
   .cp-context-panel__field input:not(.number-field__input),
   .cp-context-panel__field select,
   .cp-context-panel__field textarea,
   .viewport-toolbar__rotation-input,
-  .folded-figure-menu__field input,
-  .folded-figure-menu__field select,
   .bp-sheet-menu__input,
   .symmetry-menu__field input,
   .bp-tree-edge-editor__input,

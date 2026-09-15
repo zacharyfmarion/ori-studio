@@ -87,8 +87,14 @@ export interface ContinuousCommit<T> {
 export interface PropertyOption {
   id: string;
   label: string;
-  /** An icon *name*, resolved to a node by the renderer; the catalog stays JSX-free. */
+  /**
+   * An icon *name*, resolved to a node by the renderer; the catalog stays
+   * JSX-free. A segmented option with an icon shows the icon alone and keeps
+   * its label as the accessible name and tooltip.
+   */
   icon?: string;
+  /** A colour the renderer shows as a dot beside the label — a swatch, not a value. */
+  swatch?: string;
 }
 
 export type ToggleField = FieldBase & { kind: 'toggle' } & DiscreteCommit<boolean>;

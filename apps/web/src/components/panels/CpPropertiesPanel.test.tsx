@@ -10,6 +10,7 @@ import {
   WINDOW,
 } from '../../cp-workspace/canvasObjects/canvasObjectKinds.fixtures';
 import { annotationGesture } from '../../cp-workspace/annotations/annotationGesture';
+import { textDocSummary } from '../../cp-workspace/annotations/textDocTransforms';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDocument';
 import { CpPropertiesPanel } from './CpPropertiesPanel';
@@ -106,10 +107,24 @@ describe('CpPropertiesPanel', () => {
     expect(useWorkspaceStore.getState().oristudioCpHistoryPast.at(-1)?.label).toBe('Adjust opacity');
   });
 
-  it('shows a text sheet', () => {
+  it('shows a text sheet and aligns an idle box as one entry', async () => {
     mount({ oristudioCpSelectedAnnotationId: TEXT.id });
     expect(text('.property-sheet__title')).toBe('Text');
-    expect(labels()).toEqual(['Opacity']);
+    expect(labels()).toEqual(['Alignment', 'Text style', 'Text color', 'Size', 'Opacity']);
+    const center = [...(host?.querySelectorAll<HTMLButtonElement>('.segmented__option') ?? [])].find(
+      (button) => button.getAttribute('aria-label') === 'Align center'
+    );
+    const before = useWorkspaceStore.getState().oristudioCpHistoryPast.length;
+    await act(async () => center?.click());
+    const box = useWorkspaceStore
+      .getState()
+      .oristudioCpAnnotations.find((annotation) => annotation.id === TEXT.id);
+    if (!box || box.kind !== 'text') throw new Error('no text box');
+    expect(textDocSummary(box.doc).align).toBe('center');
+    expect(useWorkspaceStore.getState().oristudioCpHistoryPast.length).toBe(before + 1);
+    expect(useWorkspaceStore.getState().oristudioCpHistoryPast.at(-1)?.label).toBe(
+      'Change text alignment'
+    );
   });
 
   it('shows a region sheet and toggles a suppressed check as one entry', async () => {

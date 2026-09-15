@@ -255,6 +255,12 @@
       "title": "Область подавления"
     },
     "text": {
+      "changeAlignment": "Изменить выравнивание текста",
+      "changeColor": "Изменить цвет текста",
+      "changeSize": "Изменить размер текста",
+      "changeStyle": "Изменить стиль текста",
+      "mixed": "Смешанное",
+      "size": "Размер",
       "title": "Текст"
     }
   },
@@ -1004,6 +1010,12 @@
     "blockSubheading": "Подзаголовок",
     "bold": "Полужирный",
     "color": "Цвет текста",
+    "colorBlue": "Синий",
+    "colorDefault": "По умолчанию",
+    "colorGreen": "Зелёный",
+    "colorOrange": "Оранжевый",
+    "colorPurple": "Фиолетовый",
+    "colorRed": "Красный",
     "deleteText": "Удалить текст",
     "editText": "Изменить текст",
     "italic": "Курсив",

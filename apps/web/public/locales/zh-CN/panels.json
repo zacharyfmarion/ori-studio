@@ -240,6 +240,12 @@
       "title": "检查抑制区域"
     },
     "text": {
+      "changeAlignment": "更改文本对齐",
+      "changeColor": "更改文本颜色",
+      "changeSize": "更改文本大小",
+      "changeStyle": "更改文本样式",
+      "mixed": "混合",
+      "size": "大小",
       "title": "文本"
     }
   },
@@ -906,6 +912,12 @@
     "blockSubheading": "副标题",
     "bold": "粗体",
     "color": "文本颜色",
+    "colorBlue": "蓝色",
+    "colorDefault": "默认",
+    "colorGreen": "绿色",
+    "colorOrange": "橙色",
+    "colorPurple": "紫色",
+    "colorRed": "红色",
     "deleteText": "删除文本",
     "editText": "编辑文本",
     "italic": "斜体",

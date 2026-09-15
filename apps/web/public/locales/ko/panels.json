@@ -240,6 +240,12 @@
       "title": "검사 억제 영역"
     },
     "text": {
+      "changeAlignment": "텍스트 정렬 변경",
+      "changeColor": "텍스트 색상 변경",
+      "changeSize": "텍스트 크기 변경",
+      "changeStyle": "텍스트 스타일 변경",
+      "mixed": "혼합",
+      "size": "크기",
       "title": "텍스트"
     }
   },
@@ -906,6 +912,12 @@
     "blockSubheading": "부제목",
     "bold": "굵게",
     "color": "텍스트 색상",
+    "colorBlue": "파란색",
+    "colorDefault": "기본",
+    "colorGreen": "초록색",
+    "colorOrange": "주황색",
+    "colorPurple": "보라색",
+    "colorRed": "빨간색",
     "deleteText": "텍스트 삭제",
     "editText": "텍스트 편집",
     "italic": "기울임꼴",
