@@ -306,6 +306,16 @@ pub struct Step {
     pub made: Vec<[[f64; 2]; 2]>,
     /// Hoisted to phase 0 by `landmarks_first`.
     pub hoisted: bool,
+    /// The number the folder sees, 1-based in presentation order — shared
+    /// by the two steps of a twin pair, which the card shows as one; every
+    /// other step's own.
+    #[serde(default)]
+    pub card: u32,
+    /// The `id` of the step made at once with this one: its mirror image
+    /// about a symmetry of the sheet, line and witness alike, placed next
+    /// to it. A diagram folds such a pair as one step, and so does the card.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub twin: Option<u32>,
 }
 
 /// Consecutive steps of one side, direction, axiom and input pattern.
@@ -368,6 +378,9 @@ pub struct Totals {
     /// one (`Step::exact`).
     #[serde(default)]
     pub approximate: u32,
+    /// Cards the folder reads: every step its own, a twin pair one.
+    #[serde(default)]
+    pub cards: u32,
     /// CP lines coinciding with the sheet outline (free).
     pub free_lines: u32,
     /// CP lines not yet folded.

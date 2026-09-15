@@ -82,6 +82,7 @@ describe('ReferencesViewControlsPanel', () => {
       'Precrease grid',
       'Only where needed',
       'Allow dangling folds',
+      'Merge symmetric steps',
     ]);
     // The candidate count is the one setting that is not a switch.
     expect(rendered.querySelector('button[aria-label="Solutions"]')?.textContent).toContain(
@@ -155,11 +156,24 @@ describe('ReferencesViewControlsPanel', () => {
     // The explanation is the mark's accessible name, so it reads without the
     // hover as well.
     expect(help?.getAttribute('aria-label')).toContain('A dangling fold is a crease');
-    // Only that row carries one: the other names say what they do.
-    expect(rendered.querySelectorAll('.control-row__help')).toHaveLength(1);
+    // Only the rows whose names do not say what they do carry one.
+    expect(rendered.querySelectorAll('.control-row__help')).toHaveLength(2);
 
     expect(settings().allowDanglingFolds).toBe(true);
     press(toggle(rendered, 'Allow dangling folds'));
     expect(settings().allowDanglingFolds).toBe(false);
+  });
+
+  // Two folds that mirror each other are one card, as a diagram folds them;
+  // the setting is on by default and turns that off.
+  it('merges symmetric steps by default, and the toggle turns it off', () => {
+    const rendered = render();
+    const help = [...rendered.querySelectorAll<HTMLButtonElement>('.control-row__help')].find(
+      (mark) => mark.closest('.control-row')?.textContent?.includes('Merge symmetric steps')
+    );
+    expect(help?.getAttribute('aria-label')).toContain('mirror each other');
+    expect(settings().mergeSymmetricSteps).toBe(true);
+    press(toggle(rendered, 'Merge symmetric steps'));
+    expect(settings().mergeSymmetricSteps).toBe(false);
   });
 });

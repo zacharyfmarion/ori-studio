@@ -31,8 +31,19 @@ import type { ReferencesPlanVariant } from './referencesResults';
 export type ReferencesPaperSide = PrecreaseSide;
 
 export type ReferencesViewStep =
-  /** One of the planner's folds, on the side the crate put it. */
-  | { kind: 'fold'; side: ReferencesPaperSide; component: number; step: number }
+  /**
+   * One of the planner's folds, on the side the crate put it — with the
+   * planner step made at once with it, when the crate paired them
+   * (`PrecreaseStep.twin`): the card shows both, and the reader passes the
+   * pair as one.
+   */
+  | {
+      kind: 'fold';
+      side: ReferencesPaperSide;
+      component: number;
+      step: number;
+      twin?: number;
+    }
   /**
    * Turn the paper over. `side` is the face you are looking at while you do it
    * — the one you are leaving — and `after` is the planner step the build-up
@@ -62,8 +73,16 @@ export function referencesViewSteps(
   let side: ReferencesPaperSide = 'front';
   let last: ReferencesFlatStep | null = null;
 
+  // A twin pair is one card: the second of the pair is folded into the
+  // first's view step and gets none of its own.
+  const paired = new Set<string>();
   for (const flat of flatSteps) {
-    const step = variants[flat.component]?.sequence.steps[flat.step];
+    const sequence = variants[flat.component]?.sequence;
+    const step = sequence?.steps[flat.step];
+    if (paired.has(`${flat.component}:${flat.step}`)) {
+      last = flat;
+      continue;
+    }
     const wants: ReferencesPaperSide = step?.side ?? 'front';
     if (wants !== side) {
       steps.push({
@@ -74,7 +93,22 @@ export function referencesViewSteps(
       });
       side = wants;
     }
-    steps.push({ kind: 'fold', side, component: flat.component, step: flat.step });
+    // The twin must be the very next planner step of the same sheet, on the
+    // same side — which is how the crate places it; anything else is read
+    // as two cards.
+    const next = sequence?.steps[flat.step + 1];
+    const twin =
+      step?.twin !== undefined && next?.id === step.twin && next.side === step.side
+        ? flat.step + 1
+        : undefined;
+    if (twin !== undefined) paired.add(`${flat.component}:${twin}`);
+    steps.push({
+      kind: 'fold',
+      side,
+      component: flat.component,
+      step: flat.step,
+      ...(twin !== undefined ? { twin } : {}),
+    });
     last = flat;
   }
 

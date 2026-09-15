@@ -218,7 +218,8 @@ export function describeStep(t: TFunction, step: ExtractedStep): string {
 export function describePlannerStep(
   t: TFunction,
   sequence: PrecreaseSequence,
-  stepIndex: number
+  stepIndex: number,
+  twin?: number
 ): string {
   const step = sequence.steps[stepIndex];
   if (!step) return '';
@@ -246,6 +247,20 @@ export function describePlannerStep(
       alsoLetters(witness.inputs, !!corner && !corner.ontoItself, step.also.inputs)
     );
     sentence = `${sentence} ${clause} ${t('panels:references.planStep.alsoNote', 'Line up both at once, so the fold stays straight.')}`;
+  }
+  // The twin: the fold made at once with this one, its mirror image. Named
+  // with the next letters, as the card letters it — in one sentence where
+  // the pair has one ("Fold P onto Q and R onto S."), else in two.
+  const twinStep = twin === undefined ? undefined : sequence.steps[twin];
+  const twinWitness = twinStep ? chosenWitness(twinStep) : null;
+  if (twinStep && twinWitness) {
+    const corner =
+      witness.axiom === 4 ? perpendicularMotion(sequence, unitFrame(sequence), step, witness) : null;
+    const letters = alsoLetters(witness.inputs, !!corner && !corner.ontoItself, twinWitness.inputs);
+    const first = inputLetters(witness.inputs);
+    const paired = twinSentence(t, witness, first, twinWitness, letters);
+    sentence =
+      paired ?? `${sentence} ${witnessClause(t, sequence, twinStep, twinWitness, letters)}`;
   }
   // The fold is an interior point lined up on another — one a folder makes
   // by sighting through the paper — and nothing else was on the paper to
@@ -309,6 +324,40 @@ export function describePlannerStep(
     return `${sentence} ${t('panels:references.planStep.partlyReversed', 'This line is creased both ways in the pattern — the rest reverses as the model collapses.')}`;
   }
   return sentence;
+}
+
+/**
+ * One sentence for a twin pair of the common kinds — two points onto two
+ * points, two lines onto two lines, two creases through two pairs of marks
+ * — or null when the pair reads better as two sentences.
+ */
+function twinSentence(
+  t: TFunction,
+  witness: PrecreaseWitness,
+  first: InputLetters,
+  twin: PrecreaseWitness,
+  second: InputLetters
+): string | null {
+  if (witness.axiom !== twin.axiom) return null;
+  const a = (which: number) => first.byInput[which] ?? '?';
+  const c = (which: number) => second.byInput[which] ?? '?';
+  switch (witness.axiom) {
+    case 1:
+      return t(
+        'panels:references.planStep.twinAxiom1',
+        'Fold through {{a}} and {{b}}, and through {{c}} and {{d}}.',
+        { a: a(0), b: a(1), c: c(0), d: c(1) }
+      );
+    case 2:
+    case 3:
+      return t(
+        'panels:references.planStep.twinAxiom2',
+        'Fold {{a}} onto {{b}} and {{c}} onto {{d}}.',
+        { a: a(0), b: a(1), c: c(0), d: c(1) }
+      );
+    default:
+      return null;
+  }
 }
 
 /**

@@ -157,7 +157,9 @@ export function planVisibility(
   for (let i = 0; i <= folded && i < viewSteps.length; i += 1) {
     const view = viewSteps[i];
     if (view.kind !== 'fold' || view.component !== component) continue;
-    const entry = variants[view.component]?.sequence.steps[view.step];
+    const steps = variants[view.component]?.sequence.steps;
+    const entries = [steps?.[view.step], view.twin === undefined ? undefined : steps?.[view.twin]];
+    for (const entry of entries) {
     if (!entry) continue;
     for (const made of creasesMadeBy(entry)) {
       for (const id of made.cpLineIds) {
@@ -169,6 +171,7 @@ export function planVisibility(
           directions.set(id, mirrored ? flipDirection(made.direction) : made.direction);
         }
       }
+    }
     }
   }
   if (target.kind !== 'fold') {

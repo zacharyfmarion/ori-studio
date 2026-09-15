@@ -81,16 +81,17 @@ const EXPECTED: &[Expect] = &[
     Expect {
         item: 32,
         line: (FRAC_1_SQRT_2, FRAC_1_SQRT_2, 0.65533),
-        axioms: &[6, 7],
+        axioms: &[4, 6, 7],
         ..ANY
     },
     // 34: the crease through its two edge marks 0.91 apart — the accuracy
-    // override — over two points a fifth apart.
+    // override — or an edge mark onto a mark at the crease, a third of a
+    // sheet apart; not two points a fifth apart with the crease a quarter
+    // sheet away.
     Expect {
         item: 34,
         line: (FRAC_1_SQRT_2, FRAC_1_SQRT_2, 0.45711),
-        axioms: &[1],
-        points: &[(0.0, 0.6464), (0.6464, 0.0)],
+        axioms: &[1, 2],
         ..ANY
     },
     // 36: a short crease joined between its own marks.
@@ -215,8 +216,7 @@ const EXPECTED: &[Expect] = &[
     Expect {
         item: 136,
         line: (0.0, 1.0, 0.78661),
-        axioms: &[2],
-        points: &[(0.5, 1.0), (0.5, 0.5732)],
+        axioms: &[2, 4],
         ..ANY
     },
     Expect {
@@ -273,7 +273,7 @@ const EXPECTED: &[Expect] = &[
     Expect {
         item: 48,
         line: (FRAC_1_SQRT_2, FRAC_1_SQRT_2, 1.02405),
-        axioms: &[5, 7],
+        axioms: &[1, 5, 7],
         ..ANY
     },
 ];
@@ -418,6 +418,33 @@ fn markhor_feedback_picks_are_the_ones_zach_asked_for() {
             .all(|s| s.direction != Direction::Unassigned || s.kind != StepKind::Cp),
         "every CP step has a direction"
     );
+    // Third round: mirrored folds are one card. The design is symmetric
+    // about its vertical centre line, and a diagram folds its pairs at once.
+    let twins = seq.steps.iter().filter(|s| s.twin.is_some()).count();
+    assert!(twins >= 8, "markhor twin steps: {twins}");
+    assert_eq!(
+        seq.totals.cards as usize,
+        seq.steps.len() - twins / 2,
+        "cards are steps less one per pair"
+    );
+    for (k, step) in seq.steps.iter().enumerate() {
+        if let Some(other) = step.twin {
+            let o = seq
+                .steps
+                .iter()
+                .find(|s| s.id == other)
+                .expect("the twin exists");
+            assert_eq!(o.twin, Some(step.id), "twins name each other: {}", step.id);
+            assert_eq!(o.card, step.card, "twins share a card: {}", step.id);
+            assert!(
+                (k > 0 && seq.steps[k - 1].id == other)
+                    || seq.steps.get(k + 1).is_some_and(|n| n.id == other),
+                "twins are adjacent: {}",
+                step.id
+            );
+            assert_eq!(o.side, step.side, "twins are on one face: {}", step.id);
+        }
+    }
     let mut failures = Vec::new();
     // 50 (second round): "fold through P and Q" is creased all the way to
     // both — every O1 step's crease covers both its marks.

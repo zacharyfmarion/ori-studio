@@ -878,6 +878,8 @@
       "pressedOn": "표시된 곳에서는 전개도의 선을 넘겨서도 접은 선을 내세요. 나중 단계에서 그곳을 사용합니다.",
       "pressOut": "표시된 부분만 접은 선을 냅니다.",
       "shortAlignment": "여기서는 접은 선이 아주 짧게만 겹치므로 신중하게 맞추세요.",
+      "twinAxiom1": "{{a}}와(과) {{b}}를 지나도록, 그리고 {{c}}와(과) {{d}}를 지나도록 접습니다.",
+      "twinAxiom2": "{{a}}을(를) {{b}}에, {{c}}을(를) {{d}}에 맞춰 접습니다.",
       "unknown": "{{inputs}}을(를) 사용해 접습니다.",
       "visibleAux": "이 접힘선은 완성된 작품에 남습니다."
     },
@@ -910,6 +912,8 @@
       "gridWhereNeeded": "필요한 곳에만",
       "includeApproximate": "근사 해 포함",
       "landmarksFirst": "기준점 먼저",
+      "mergeSymmetric": "대칭인 단계 합치기",
+      "mergeSymmetricHelp": "서로 거울상인 두 접기 — 예를 들어 왼쪽 모서리를 중심으로, 오른쪽 모서리를 중심으로 — 를 접기 도면처럼 화살표를 하나씩 둔 한 단계로 보여 줍니다. 끄면 접기마다 별도의 단계가 됩니다.",
       "precreaseGrid": "격자 먼저 접기",
       "sequence": "접기 순서",
       "solutions": "해답 수"

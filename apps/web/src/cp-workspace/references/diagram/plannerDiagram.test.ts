@@ -73,6 +73,33 @@ describe('plannerStepDiagram', () => {
     expect(rings(both)).toBe(rings(alone) + 2);
   });
 
+  // A twin pair — two folds that mirror each other, made at once — is one
+  // card: both creases, both witnesses with the letters carrying on, an
+  // arrow for each.
+  it('draws a twin pair on one card with both creases and continued letters', () => {
+    const paired = {
+      ...sequence,
+      steps: sequence.steps.map((s, i) =>
+        i === 1 ? { ...s, twin: 3 } : i === 2 ? { ...s, twin: 2 } : s
+      ),
+    };
+    const alone = plannerStepDiagram(sequence, unitFrame(sequence), 1);
+    const both = plannerStepDiagram(paired, unitFrame(paired), 1, { twin: 2 });
+    const letters = (model: typeof both) =>
+      model?.primitives.flatMap((p) => (p.kind === 'label' ? [p.text] : [])) ?? [];
+    expect(letters(alone)).toEqual(['P', 'Q']);
+    expect(letters(both)).toEqual(['P', 'Q', 'R', 'S']);
+    const arrows = (model: typeof both) =>
+      model?.primitives.filter((p) => p.kind === 'fold-arrow').length ?? 0;
+    expect(arrows(both)).toBe(arrows(alone) + 1);
+    // Two chords in the fold's own style: the pair's creases.
+    const creases = (model: typeof both) =>
+      model?.primitives.filter(
+        (p) => p.kind === 'line' && p.style !== 'highlight' && p.style !== 'crease'
+      ).length ?? 0;
+    expect(creases(both)).toBe(creases(alone) * 2);
+  });
+
   it('draws a pinched step as its spans, never as a full crease', () => {
     // The difference is the whole point of the pinch pass, and a thumbnail
     // that got it wrong would be telling the folder to leave a visible line.

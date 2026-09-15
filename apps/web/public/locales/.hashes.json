@@ -2969,7 +2969,11 @@
     "panels:references.settings.allowDangling": "3ab4a66817d3",
     "panels:references.settings.allowDanglingHelp": "691190612076",
     "panels:references.planStep.alsoNote": "81e20acaca58",
-    "panels:references.planStep.impractical": "a5480031b1fb"
+    "panels:references.planStep.impractical": "a5480031b1fb",
+    "panels:references.planStep.twinAxiom1": "babc565ae7c6",
+    "panels:references.planStep.twinAxiom2": "15ec969f966f",
+    "panels:references.settings.mergeSymmetric": "1c35427c79ae",
+    "panels:references.settings.mergeSymmetricHelp": "3a181645f991"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5941,7 +5945,11 @@
     "panels:references.settings.allowDangling": "3ab4a66817d3",
     "panels:references.settings.allowDanglingHelp": "691190612076",
     "panels:references.planStep.alsoNote": "81e20acaca58",
-    "panels:references.planStep.impractical": "a5480031b1fb"
+    "panels:references.planStep.impractical": "a5480031b1fb",
+    "panels:references.planStep.twinAxiom1": "babc565ae7c6",
+    "panels:references.planStep.twinAxiom2": "15ec969f966f",
+    "panels:references.settings.mergeSymmetric": "1c35427c79ae",
+    "panels:references.settings.mergeSymmetricHelp": "3a181645f991"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8915,7 +8923,11 @@
     "panels:references.settings.allowDangling": "3ab4a66817d3",
     "panels:references.settings.allowDanglingHelp": "691190612076",
     "panels:references.planStep.alsoNote": "81e20acaca58",
-    "panels:references.planStep.impractical": "a5480031b1fb"
+    "panels:references.planStep.impractical": "a5480031b1fb",
+    "panels:references.planStep.twinAxiom1": "babc565ae7c6",
+    "panels:references.planStep.twinAxiom2": "15ec969f966f",
+    "panels:references.settings.mergeSymmetric": "1c35427c79ae",
+    "panels:references.settings.mergeSymmetricHelp": "3a181645f991"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11829,7 +11841,11 @@
     "panels:references.settings.allowDangling": "3ab4a66817d3",
     "panels:references.settings.allowDanglingHelp": "691190612076",
     "panels:references.planStep.alsoNote": "81e20acaca58",
-    "panels:references.planStep.impractical": "a5480031b1fb"
+    "panels:references.planStep.impractical": "a5480031b1fb",
+    "panels:references.planStep.twinAxiom1": "babc565ae7c6",
+    "panels:references.planStep.twinAxiom2": "15ec969f966f",
+    "panels:references.settings.mergeSymmetric": "1c35427c79ae",
+    "panels:references.settings.mergeSymmetricHelp": "3a181645f991"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14743,7 +14759,11 @@
     "panels:references.settings.allowDangling": "3ab4a66817d3",
     "panels:references.settings.allowDanglingHelp": "691190612076",
     "panels:references.planStep.alsoNote": "81e20acaca58",
-    "panels:references.planStep.impractical": "a5480031b1fb"
+    "panels:references.planStep.impractical": "a5480031b1fb",
+    "panels:references.planStep.twinAxiom1": "babc565ae7c6",
+    "panels:references.planStep.twinAxiom2": "15ec969f966f",
+    "panels:references.settings.mergeSymmetric": "1c35427c79ae",
+    "panels:references.settings.mergeSymmetricHelp": "3a181645f991"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -17715,7 +17735,11 @@
     "panels:references.settings.allowDangling": "3ab4a66817d3",
     "panels:references.settings.allowDanglingHelp": "691190612076",
     "panels:references.planStep.alsoNote": "81e20acaca58",
-    "panels:references.planStep.impractical": "a5480031b1fb"
+    "panels:references.planStep.impractical": "a5480031b1fb",
+    "panels:references.planStep.twinAxiom1": "babc565ae7c6",
+    "panels:references.planStep.twinAxiom2": "15ec969f966f",
+    "panels:references.settings.mergeSymmetric": "1c35427c79ae",
+    "panels:references.settings.mergeSymmetricHelp": "3a181645f991"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -20687,7 +20711,11 @@
     "panels:references.settings.allowDangling": "3ab4a66817d3",
     "panels:references.settings.allowDanglingHelp": "691190612076",
     "panels:references.planStep.alsoNote": "81e20acaca58",
-    "panels:references.planStep.impractical": "a5480031b1fb"
+    "panels:references.planStep.impractical": "a5480031b1fb",
+    "panels:references.planStep.twinAxiom1": "babc565ae7c6",
+    "panels:references.planStep.twinAxiom2": "15ec969f966f",
+    "panels:references.settings.mergeSymmetric": "1c35427c79ae",
+    "panels:references.settings.mergeSymmetricHelp": "3a181645f991"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -23601,6 +23629,10 @@
     "panels:references.settings.allowDangling": "3ab4a66817d3",
     "panels:references.settings.allowDanglingHelp": "691190612076",
     "panels:references.planStep.alsoNote": "81e20acaca58",
-    "panels:references.planStep.impractical": "a5480031b1fb"
+    "panels:references.planStep.impractical": "a5480031b1fb",
+    "panels:references.planStep.twinAxiom1": "babc565ae7c6",
+    "panels:references.planStep.twinAxiom2": "15ec969f966f",
+    "panels:references.settings.mergeSymmetric": "1c35427c79ae",
+    "panels:references.settings.mergeSymmetricHelp": "3a181645f991"
   }
 }

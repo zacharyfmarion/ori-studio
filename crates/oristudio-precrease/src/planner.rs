@@ -23,7 +23,7 @@ use crate::grid::{self, GridAlong};
 use crate::line::Line;
 use crate::marks::crease_runs;
 use crate::merge::coalesce_lines;
-use crate::order::{Placed, group, order, pattern};
+use crate::order::{Placed, group, order_with, pattern};
 use crate::pinch::{Extent, pinch_pass};
 use crate::predicates::{Ref, Witness, full_facts, witnesses};
 use crate::sequence::{
@@ -85,6 +85,12 @@ pub struct PlannerOptions {
     /// put a reference at one of its ends ([`Closure::set_defer_far_anchors`]).
     /// On by default; off folds every line in the first round it can be.
     pub defer_far_anchors: bool,
+    /// Whether two folds that are each other's mirror image — line and
+    /// witness alike, both sightable before either is made — are placed
+    /// together and numbered as one card, as a diagram folds them
+    /// (`order::twin_in_queue`). On by default; off, every fold is a card
+    /// of its own.
+    pub merge_symmetric_steps: bool,
     pub clock: Clock,
 }
 
@@ -114,6 +120,7 @@ impl Default for PlannerOptions {
             reach_references: true,
             allow_dangling_folds: true,
             defer_far_anchors: true,
+            merge_symmetric_steps: true,
             clock: default_clock(),
         }
     }
@@ -122,7 +129,8 @@ impl Default for PlannerOptions {
 /// The JSON shape of the options: `{ point_cap, max_depth, depth3_threshold,
 /// max_candidates, stuck_budget_ms, total_budget_ms, precrease_grid,
 /// grid_where_needed, reach_references, allow_dangling_folds,
-/// defer_far_anchors, prefer_sightable }`, all optional.
+/// defer_far_anchors, merge_symmetric_steps, prefer_sightable }`, all
+/// optional.
 /// `precrease_grid` is
 /// the toggle and `grid_where_needed` says how much of the grid a plan opens
 /// with, so a caller that sends only the toggle still gets a grid.
@@ -140,6 +148,7 @@ pub struct PlannerOptionsJson {
     pub reach_references: Option<bool>,
     pub allow_dangling_folds: Option<bool>,
     pub defer_far_anchors: Option<bool>,
+    pub merge_symmetric_steps: Option<bool>,
     pub prefer_sightable: Option<bool>,
 }
 
@@ -174,6 +183,9 @@ impl PlannerOptions {
         }
         if let Some(on) = parsed.defer_far_anchors {
             opts.defer_far_anchors = on;
+        }
+        if let Some(on) = parsed.merge_symmetric_steps {
+            opts.merge_symmetric_steps = on;
         }
         if let Some(on) = parsed.prefer_sightable {
             opts.prefer_sightable = on;
@@ -478,6 +490,8 @@ fn grid_steps(closure: &Closure, sheet: &Sheet) -> Vec<Step> {
                 press: None,
                 also: None,
                 impractical: false,
+                card: 0,
+                twin: None,
                 grid: Some(GridStep {
                     kind: grid.kind,
                     family: fi,
@@ -1079,7 +1093,7 @@ impl Planner {
             let (Some(grid), Some(sheet)) = (closure.grid(), &self.sheet) else {
                 return;
             };
-            let placed = order(closure, landmarks_first);
+            let placed = order_with(closure, landmarks_first, self.opts.merge_symmetric_steps);
             let folded = closure.folded();
             let mut extensions: Vec<(usize, [[f64; 2]; 2])> = Vec::new();
             for p in &placed {
@@ -1159,7 +1173,8 @@ impl Planner {
                 diagnostics: self.diagnostics(),
             };
         };
-        let placed: Vec<Placed> = order(closure, landmarks_first);
+        let placed: Vec<Placed> =
+            order_with(closure, landmarks_first, self.opts.merge_symmetric_steps);
         let fold_order: Vec<usize> = placed.iter().map(|p| p.folded).collect();
         let folded = closure.folded();
         let presented: Vec<Option<&Witness>> = placed
@@ -1172,7 +1187,8 @@ impl Planner {
         // The grid comes first, one step per family, ahead of every placed
         // fold: it is on the paper before anything is sighted.
         let grid_steps = grid_steps(closure, sheet);
-        let first_id = grid_steps.len() as u32 + 1;
+        let grid_count = grid_steps.len();
+        let first_id = grid_count as u32 + 1;
 
         // Step id per state line id, for `unlocks` and `LineEntry::step`: the
         // step that MADE the line. A press refolds a line an earlier step made
@@ -1354,9 +1370,39 @@ impl Planner {
                 }),
                 also: presenting.also.clone(),
                 impractical: presenting.impractical,
+                card: 0,
+                twin: None,
                 grid: None,
             });
         }
+        // Twins share a card; every other step is a card of its own. The
+        // grid's steps come first and are cards too.
+        let step_index_of_folded: std::collections::HashMap<usize, usize> = placed
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| p.press.is_none())
+            .map(|(k, p)| (p.folded, k + grid_count))
+            .collect();
+        for (k, p) in placed.iter().enumerate() {
+            if let Some(a) = p
+                .twin_of
+                .and_then(|a| step_index_of_folded.get(&a).copied())
+            {
+                let b = k + grid_count;
+                let (a_id, b_id) = (steps[a].id, steps[b].id);
+                steps[a].twin = Some(b_id);
+                steps[b].twin = Some(a_id);
+            }
+        }
+        let mut card = 0u32;
+        for k in 0..steps.len() {
+            let with_previous = k > 0 && steps[k].twin == Some(steps[k - 1].id);
+            if !with_previous {
+                card += 1;
+            }
+            steps[k].card = card;
+        }
+        let cards = card;
 
         // Unlocks: CP steps whose chosen witness uses an aux step's line or
         // a mark on it — or, for a grid step, any line of the family.
@@ -1521,6 +1567,7 @@ impl Planner {
             free_lines,
             unsolved,
             approximate,
+            cards,
         };
         let grid = closure.grid().map(|g| GridSummary {
             kind: g.kind,

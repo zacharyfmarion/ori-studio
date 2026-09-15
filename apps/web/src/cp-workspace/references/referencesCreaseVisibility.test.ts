@@ -44,6 +44,7 @@ function step(id: number, cpLineIds: number[]): PrecreaseStep {
     made: [],
     impractical: false,
     hoisted: false,
+    card: id,
   };
 }
 

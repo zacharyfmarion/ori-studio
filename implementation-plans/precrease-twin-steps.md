@@ -129,15 +129,32 @@ prints it, and the corpus gate is cards down, nothing else up.
   (`drawWitness` twice, arrow lanes), `__fixtures__/plannerSequence.ts`,
   locales.
 
+## What landed (2026-09-15)
+
+`order::Symmetry` (four axes), `twin_in_queue` and the twin placement in
+`order_with`, `Step.card`/`Step.twin`/`Totals.cards`,
+`PlannerOptions::merge_symmetric_steps` (on; `measure_ends --no-twins`),
+the "Merge symmetric steps" setting with its help mark, the view-step
+merge, the twin card (both creases, both witnesses with the letters
+carrying on, an arrow each), the paired sentence for O1/O2/O3 pairs and
+two sentences otherwise, eight locales. The crate's lander scan for the
+card pool is over marks on the paper only, which made the mirror witness
+findable at all on a design this size. Markhor: 163 steps → 97 cards;
+iguana line by line: 8 twin steps. Arrow lanes — choosing each arc's
+bulge to miss the other's — are not done: mirrored geometry gives
+mirrored arrows, which keeps them apart in every pair looked at so far.
+
 ## Checklist
 
-- [ ] `Symmetry` with four axes; `mirror_witness` on it.
-- [ ] Twin detection in the ordering pass; `Step.card`, `Step.twin`,
+- [x] `Symmetry` with four axes; `mirror_witness` on it.
+- [x] Twin detection in the ordering pass; `Step.card`, `Step.twin`,
       `Totals.cards`; option and JSON.
-- [ ] Crate tests and the markhor pairs pinned.
-- [ ] Bridge types and fixture.
-- [ ] View steps by card; CP highlight and crease visibility by card.
-- [ ] Twin card: both creases, both witnesses, arrows in separate lanes.
-- [ ] Twin sentence and locales.
+- [x] Crate tests and the markhor pairs pinned (as a count and the pair
+      invariants; the pairs move with the order).
+- [x] Bridge types and fixture.
+- [x] View steps by card; CP highlight and crease visibility by card.
+- [x] Twin card: both creases, both witnesses.
+- [ ] Arrows in separate lanes when mirrored arcs cross.
+- [x] Twin sentence and locales.
 - [ ] Corpus: cards per design; Zach folds markhor.
 - [ ] Phase 2: quads.

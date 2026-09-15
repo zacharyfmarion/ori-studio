@@ -912,6 +912,8 @@
       "pressedOn": "Falte außerdem, wo gezeigt, über die Musterlinie hinaus – ein späterer Schritt nutzt sie dort.",
       "pressOut": "Nur den gezeigten Teil falten.",
       "shortAlignment": "Die Falten überlappen hier nur kurz – richte sie sorgfältig aus.",
+      "twinAxiom1": "Falte durch {{a}} und {{b}} sowie durch {{c}} und {{d}}.",
+      "twinAxiom2": "Falte {{a}} auf {{b}} und {{c}} auf {{d}}.",
       "unknown": "Falte mit {{inputs}}.",
       "visibleAux": "Diese Faltlinie ist im fertigen Modell sichtbar."
     },
@@ -944,6 +946,8 @@
       "gridWhereNeeded": "Nur wo nötig",
       "includeApproximate": "Näherungslösungen einbeziehen",
       "landmarksFirst": "Orientierungspunkte zuerst",
+      "mergeSymmetric": "Symmetrische Schritte zusammenfassen",
+      "mergeSymmetricHelp": "Zwei Faltungen, die sich spiegeln — etwa die linke Ecke zur Mitte und die rechte Ecke zur Mitte — werden als ein Schritt mit je einem Pfeil gezeigt, so wie ein Diagramm sie faltet. Aus: jede Faltung ist ein eigener Schritt.",
       "precreaseGrid": "Raster vorfalten",
       "sequence": "Faltfolge",
       "solutions": "Lösungen"

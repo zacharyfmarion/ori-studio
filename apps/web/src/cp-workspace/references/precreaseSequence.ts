@@ -412,6 +412,18 @@ export interface PrecreaseStep {
    */
   impractical: boolean;
   hoisted: boolean;
+  /**
+   * The number the folder sees, 1-based in presentation order — shared by the
+   * two steps of a twin pair, which the card shows as one; every other
+   * step's own.
+   */
+  card: number;
+  /**
+   * The `id` of the step made at once with this one: its mirror image about
+   * a symmetry of the sheet, line and witness alike, placed next to it. A
+   * diagram folds such a pair as one step, and so does the card.
+   */
+  twin?: number;
 }
 
 /**
@@ -475,6 +487,8 @@ export interface PrecreaseTotals {
   unsolved: number;
   /** Steps that are not exact: folded by an approximation, or sighted from one. */
   approximate: number;
+  /** Cards the folder reads: every step its own, a twin pair one. */
+  cards: number;
 }
 
 export type PrecreaseStatus =
@@ -671,6 +685,12 @@ export interface PrecreasePlannerOptions {
    * takes. The crate's default is on.
    */
   allow_dangling_folds?: boolean;
+  /**
+   * Show two folds that are each other's mirror image — line and witness
+   * alike, both sightable before either is made — as one card, as a diagram
+   * folds them. The crate's default is on.
+   */
+  merge_symmetric_steps?: boolean;
 }
 
 /** Values per remaining line in `remaining()`: `nx, ny, d, ax, ay, bx, by`. */

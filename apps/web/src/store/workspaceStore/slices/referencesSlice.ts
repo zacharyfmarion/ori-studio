@@ -20,6 +20,7 @@ export const DEFAULT_REFERENCES_SETTINGS: ReferencesSettings = {
   precreaseGrid: true,
   gridWhereNeeded: true,
   allowDanglingFolds: true,
+  mergeSymmetricSteps: true,
 };
 
 /** The candidate counts the settings popover offers. */

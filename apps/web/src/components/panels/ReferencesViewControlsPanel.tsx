@@ -100,6 +100,15 @@ export function ReferencesViewControlsPanel() {
             checked={settings.allowDanglingFolds}
             onChange={(checked) => setSettings({ allowDanglingFolds: checked })}
           />
+          <ViewPaneToggleRow
+            label={t('panels:references.settings.mergeSymmetric', 'Merge symmetric steps')}
+            help={t(
+              'panels:references.settings.mergeSymmetricHelp',
+              'Two folds that mirror each other — the left corner to the centre and the right corner to the centre, say — are shown as one step with an arrow for each, the way a diagram folds them. Off, every fold is a step of its own.'
+            )}
+            checked={settings.mergeSymmetricSteps}
+            onChange={(checked) => setSettings({ mergeSymmetricSteps: checked })}
+          />
         </ViewPaneSection>
       </div>
     </section>

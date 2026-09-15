@@ -177,26 +177,37 @@ export interface ReferencesPlanScene {
 export function planStepScene(
   sequence: PrecreaseSequence,
   model: ReferencesPlanModel,
-  index: number
+  index: number,
+  twin?: number
 ): ReferencesPlanScene {
   const step = sequence.steps[index];
   if (!step) return { diagram: null, bounds: null, highlightLineIds: [] };
+  const twinStep = twin === undefined ? undefined : sequence.steps[twin];
   // The canvas has the document's own creases under this, held to the steps
   // folded so far by `referencesCreaseVisibility` — so the step draws only what
   // the pattern cannot: its own crease, which is not folded yet, and the
   // pinches and auxiliary folds no crease pattern records.
   const diagram = plannerStepDiagram(sequence, modelFrame(sequence, model), index, {
     earlier: 'unpatterned',
+    twin,
   });
   const geometry = model.steps[index];
-  // A grid step's own chord is its family's first line; the step is the family.
-  const bounds = geometry
-    ? [geometry.segment, ...geometry.gridLines].reduce<ModelBounds | null>(
-        (box, span) => extend(extend(box, span.a), span.b),
-        null
-      )
-    : null;
-  return { diagram, bounds, highlightLineIds: step.cp_line_ids };
+  const twinGeometry = twin === undefined ? undefined : model.steps[twin];
+  // A grid step's own chord is its family's first line; the step is the
+  // family. A twin card frames both folds.
+  const spans = [
+    ...(geometry ? [geometry.segment, ...geometry.gridLines] : []),
+    ...(twinGeometry ? [twinGeometry.segment] : []),
+  ];
+  const bounds = spans.reduce<ModelBounds | null>(
+    (box, span) => extend(extend(box, span.a), span.b),
+    null
+  );
+  return {
+    diagram,
+    bounds,
+    highlightLineIds: [...step.cp_line_ids, ...(twinStep?.cp_line_ids ?? [])],
+  };
 }
 
 

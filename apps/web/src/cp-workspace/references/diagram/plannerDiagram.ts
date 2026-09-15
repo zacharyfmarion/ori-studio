@@ -669,6 +669,12 @@ export interface PlannerStepDiagramOptions {
    * each filling the other's dash gaps.
    */
   earlier?: 'all' | 'unpatterned';
+  /**
+   * The planner step made at once with this one — its mirror image about a
+   * symmetry of the sheet (`PrecreaseStep.twin`) — drawn on the same card:
+   * its crease, its references with the letters carrying on, its arrow.
+   */
+  twin?: number;
 }
 
 /**
@@ -874,13 +880,17 @@ export function plannerStepDiagram(
   const witness = chosenWitness(step);
   const inputs: PrecreaseRef[] = witness?.inputs ?? [];
   const labels: StepDiagramPrimitive[] = [];
-  const chord = frame.chord(step);
   // Everything a witness puts on the card — its references, their letters,
   // the motion — drawn once for the chosen witness and again for its mirror
   // image when the paper offers one (`step.also`), with the letters carrying
   // on from the first's so the sentence can name both.
-  const drawWitness = (witness: PrecreaseWitness | null, letters: InputLetters): void => {
+  const drawWitness = (
+    step: PrecreaseStep,
+    witness: PrecreaseWitness | null,
+    letters: InputLetters
+  ): void => {
   const inputs: PrecreaseRef[] = witness?.inputs ?? [];
+  const chord = frame.chord(step);
   // O3 folds one line onto another, and the fold bisects the angle between
   // them. Only the arms of that angle take part: the moving line's half that
   // swings over, and the receiving line on the side it lands. The other arms
@@ -1067,17 +1077,32 @@ export function plannerStepDiagram(
   }
 
   };
-  drawWitness(witness, inputLetters(inputs));
+  drawWitness(step, witness, inputLetters(inputs));
+  const corner = witness ? perpendicularMotion(sequence, frame, step, witness) : null;
+  const cornerLettered = !!corner && !corner.ontoItself;
   if (witness && step.also) {
-    const corner = perpendicularMotion(sequence, frame, step, witness);
-    drawWitness(step.also, alsoLetters(inputs, !!corner && !corner.ontoItself, step.also.inputs));
+    drawWitness(step, step.also, alsoLetters(inputs, cornerLettered, step.also.inputs));
+  }
+  // The twin: the fold made at once with this one, its mirror image. Its
+  // references take the next letters, so the sentence can name both.
+  const twinStep = options.twin === undefined ? undefined : sequence.steps[options.twin];
+  const twinWitness = twinStep ? chosenWitness(twinStep) : null;
+  if (twinStep && twinWitness) {
+    drawWitness(twinStep, twinWitness, alsoLetters(inputs, cornerLettered, twinWitness.inputs));
   }
 
   // The crease this step makes, then the letters, both over the references. The
   // crate settled the direction (plan D21) — one per step, never two.
   // The pattern's direction, read from the front. A card of the paper's
   // back renames every line for that face in one place, `seenFromTheBack`
-  // — never here, or a mirrored card renames it twice.
+  // — never here, or a mirrored card renames it twice. Drawn for the step
+  // and again for its twin.
+  const drawCrease = (
+    step: PrecreaseStep,
+    witness: PrecreaseWitness | null,
+    inputs: readonly PrecreaseRef[]
+  ): void => {
+  const chord = frame.chord(step);
   const direction = step.direction;
   const made = styleOf(direction, true);
   const pinches = frame.pinches(step);
@@ -1127,6 +1152,9 @@ export function plannerStepDiagram(
   // What the step presses on past the pattern's line, for a later step's
   // sake, is crease the folder makes now, and is drawn the same way.
   for (const span of pressedOn) primitives.push(spanLine(span, made, zero));
+  };
+  drawCrease(step, witness, inputs);
+  if (twinStep) drawCrease(twinStep, twinWitness, twinWitness?.inputs ?? []);
   primitives.push(...labels);
 
   return { sheet: sheetOf(sheet, frame), primitives };

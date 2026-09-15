@@ -73,6 +73,7 @@ function step(partial: Partial<PrecreaseStep> & Pick<PrecreaseStep, 'id' | 'line
     made: [],
     impractical: false,
     hoisted: false,
+    card: partial.id,
     ...partial,
   };
 }
@@ -222,6 +223,7 @@ export function plannerSequenceFixture(): PrecreaseSequence {
       free_lines: 2,
       unsolved: 1,
       approximate: 0,
+      cards: 5,
     },
     findings: [
       {
@@ -491,6 +493,7 @@ export function plannerSequenceWithGridFixture(): PrecreaseSequence {
       free_lines: 0,
       unsolved: 0,
       approximate: 0,
+      cards: 0,
     },
     findings: [],
     points: [

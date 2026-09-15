@@ -330,6 +330,9 @@ export function useReferencesBreakdown(
   const allowDanglingFolds = useWorkspaceStore(
     (state) => state.referencesSettings.allowDanglingFolds
   );
+  const mergeSymmetricSteps = useWorkspaceStore(
+    (state) => state.referencesSettings.mergeSymmetricSteps
+  );
   // `referencesPlan` is one slot for a whole document, cleared on every sheet
   // switch, and nothing here reads it: the record says which sheet has a plan,
   // and the store's copy is the analytics descriptor.
@@ -376,6 +379,7 @@ export function useReferencesBreakdown(
     precreaseGrid,
     gridWhereNeeded,
     allowDanglingFolds,
+    mergeSymmetricSteps,
   });
   useEffect(() => {
     latest.current = {
@@ -386,6 +390,7 @@ export function useReferencesBreakdown(
       precreaseGrid,
       gridWhereNeeded,
       allowDanglingFolds,
+      mergeSymmetricSteps,
     };
   });
   const abortRef = useRef<AbortController | null>(null);
@@ -422,12 +427,14 @@ export function useReferencesBreakdown(
       /**
        * Open a pleated design with its grid pleated, and only where it is
        * needed (`referencesSettings.precreaseGrid` / `gridWhereNeeded`); let a
-       * crease dangle at one end (`allowDanglingFolds`), or not.
+       * crease dangle at one end (`allowDanglingFolds`), or not; show
+       * mirrored folds as one card (`mergeSymmetricSteps`), or not.
        */
       grid: {
         precreaseGrid: boolean;
         gridWhereNeeded: boolean;
         allowDanglingFolds: boolean;
+        mergeSymmetricSteps: boolean;
       },
       onProgress: (progress: PrecreasePlanProgress) => void
     ): Promise<
@@ -442,6 +449,7 @@ export function useReferencesBreakdown(
           precrease_grid: grid.precreaseGrid,
           grid_where_needed: grid.gridWhereNeeded,
           allow_dangling_folds: grid.allowDanglingFolds,
+          merge_symmetric_steps: grid.mergeSymmetricSteps,
         },
         paperFallbackRect()
       );
@@ -515,6 +523,7 @@ export function useReferencesBreakdown(
       precreaseGrid: current.precreaseGrid,
       gridWhereNeeded: current.gridWhereNeeded,
       allowDanglingFolds: current.allowDanglingFolds,
+      mergeSymmetricSteps: current.mergeSymmetricSteps,
     };
 
     void (async () => {
@@ -572,6 +581,7 @@ export function useReferencesBreakdown(
         precreaseGrid: grid.precreaseGrid,
         gridWhereNeeded: grid.gridWhereNeeded,
         allowDanglingFolds: grid.allowDanglingFolds,
+        mergeSymmetricSteps: grid.mergeSymmetricSteps,
       };
       setReferencesPlanRecord(record);
       const nextSummary = summaryOf(record);
@@ -681,13 +691,22 @@ export function useReferencesBreakdown(
     if (
       record.precreaseGrid === precreaseGrid &&
       (!precreaseGrid || record.gridWhereNeeded === gridWhereNeeded) &&
-      record.allowDanglingFolds === allowDanglingFolds
+      record.allowDanglingFolds === allowDanglingFolds &&
+      record.mergeSymmetricSteps === mergeSymmetricSteps
     ) {
       return;
     }
     if (targeted || referencesRunSnapshot().running) return;
     run();
-  }, [precreaseGrid, gridWhereNeeded, allowDanglingFolds, record, run, targeted]);
+  }, [
+    precreaseGrid,
+    gridWhereNeeded,
+    allowDanglingFolds,
+    mergeSymmetricSteps,
+    record,
+    run,
+    targeted,
+  ]);
 
   const landmarksFirst = viewState.landmarksFirst;
   const variants = useMemo<ReferencesPlanVariant[]>(
@@ -826,6 +845,9 @@ function trackPlan(
     // the setting the plan was made under goes with it.
     reach_bucket: bucketCount(Math.round(summary.reachLength * 10), COUNT_BUCKETS),
     dangling_folds: record.allowDanglingFolds ? ('allowed' as const) : ('disallowed' as const),
+    // Whether mirrored folds were shown as one card, and how many cards that
+    // saved — bucketed, like every count here.
+    symmetric_steps: record.mergeSymmetricSteps ? ('merged' as const) : ('separate' as const),
   };
   if (aborted) {
     track(ANALYTICS_EVENTS.foldingStepsCancelled, properties);

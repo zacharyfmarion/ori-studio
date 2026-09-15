@@ -391,6 +391,26 @@ describe('a step with a mirror alignment', () => {
   });
 });
 
+describe('a twin pair', () => {
+  const sequence = plannerSequenceFixture();
+  const paired = {
+    ...sequence,
+    steps: sequence.steps.map((s, i) =>
+      i === 1 ? { ...s, twin: 3 } : i === 2 ? { ...s, twin: 2 } : s
+    ),
+  };
+
+  // Two folds of the same kind, made at once, read as one sentence with the
+  // twin's letters carrying on from the first's.
+  it('says both folds in one sentence', () => {
+    expect(describePlannerStep(t, paired, 1, 2)).toBe('Fold P onto Q and R onto S.');
+  });
+
+  it('reads as one card only when asked for with its twin', () => {
+    expect(describePlannerStep(t, paired, 1)).toBe('Fold P onto Q.');
+  });
+});
+
 describe('a step no practical fold makes', () => {
   it('says the point is lined up through the paper', () => {
     const sequence = plannerSequenceFixture();

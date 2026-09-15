@@ -1407,6 +1407,12 @@ export interface ReferencesSettings {
    * (`implementation-plans/precrease-reach-references.md`).
    */
   allowDanglingFolds: boolean;
+  /**
+   * Two folds that are each other's mirror image — line and witness alike,
+   * both sightable before either is made — are shown as one card, as a
+   * diagram folds them. On by default.
+   */
+  mergeSymmetricSteps: boolean;
 }
 
 /** How the exactness policy classified the component being planned (D8). */

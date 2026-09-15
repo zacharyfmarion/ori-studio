@@ -950,6 +950,8 @@
       "pressedOn": "Vinque também, onde mostrado, além da linha do padrão — um passo posterior a usa ali.",
       "pressOut": "Vinque apenas a parte mostrada.",
       "shortAlignment": "Aqui os vincos coincidem só brevemente — alinhe com cuidado.",
+      "twinAxiom1": "Dobre por {{a}} e {{b}}, e por {{c}} e {{d}}.",
+      "twinAxiom2": "Dobre {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
       "unknown": "Dobre usando {{inputs}}.",
       "visibleAux": "Este vinco aparecerá no modelo pronto."
     },
@@ -982,6 +984,8 @@
       "gridWhereNeeded": "Só onde for preciso",
       "includeApproximate": "Incluir soluções aproximadas",
       "landmarksFirst": "Marcos primeiro",
+      "mergeSymmetric": "Unir passos simétricos",
+      "mergeSymmetricHelp": "Duas dobras que se espelham — o canto esquerdo ao centro e o canto direito ao centro, por exemplo — aparecem como um só passo com uma seta para cada uma, como um diagrama as dobra. Desligado, cada dobra é um passo próprio.",
       "precreaseGrid": "Pré-vincar a grade",
       "sequence": "Sequência de dobras",
       "solutions": "Soluções"

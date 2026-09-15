@@ -236,7 +236,7 @@ function planHighlights(
   if (!target || target.kind !== 'fold') return NO_HIGHLIGHTS;
   const entry = variants[target.component];
   if (!entry) return NO_HIGHLIGHTS;
-  const overlay = planStepScene(entry.sequence, entry.model, target.step);
+  const overlay = planStepScene(entry.sequence, entry.model, target.step, target.twin);
   return {
     highlightLineIds: new Set(overlay.highlightLineIds),
     highlightVertexIdx: EMPTY_IDS,

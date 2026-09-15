@@ -878,6 +878,8 @@
       "pressedOn": "也按图示越过图案的线压出折痕——后面的步骤要在那里用到它。",
       "pressOut": "只在所示部分压出折痕。",
       "shortAlignment": "这里两条折痕只有很短一段重合，请仔细对齐。",
+      "twinAxiom1": "沿经过 {{a}} 和 {{b}} 的线折叠，再沿经过 {{c}} 和 {{d}} 的线折叠。",
+      "twinAxiom2": "将 {{a}} 折到 {{b}}，同时将 {{c}} 折到 {{d}}。",
       "unknown": "使用 {{inputs}} 折叠。",
       "visibleAux": "这条折痕会留在完成的作品上。"
     },
@@ -910,6 +912,8 @@
       "gridWhereNeeded": "仅在需要处",
       "includeApproximate": "包含近似解",
       "landmarksFirst": "先做基准点",
+      "mergeSymmetric": "合并对称步骤",
+      "mergeSymmetricHelp": "两个互为镜像的折叠 — 例如左角折向中心和右角折向中心 — 会像折图那样显示为一个步骤，各带一个箭头。关闭后，每个折叠都是单独的步骤。",
       "precreaseGrid": "预折网格",
       "sequence": "折叠顺序",
       "solutions": "解的数量"

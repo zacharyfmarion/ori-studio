@@ -114,9 +114,11 @@ export function planFilmstrip(
             badge,
             number: folds,
             diagram: null,
-            primitives: plannerStepDiagram(sequence, unitFrame(sequence), view.step),
+            primitives: plannerStepDiagram(sequence, unitFrame(sequence), view.step, {
+              twin: view.twin,
+            }),
             mirrored: view.side === 'back',
-            sentence: describePlannerStep(t, sequence, view.step),
+            sentence: describePlannerStep(t, sequence, view.step, view.twin),
           },
         ];
       }

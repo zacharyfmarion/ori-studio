@@ -169,6 +169,8 @@ export interface ReferencesPlanRecord {
   gridWhereNeeded: boolean;
   /** The "Allow dangling folds" setting this plan was computed under, likewise. */
   allowDanglingFolds: boolean;
+  /** The "Merge symmetric steps" setting this plan was computed under, likewise. */
+  mergeSymmetricSteps: boolean;
 }
 
 /** A CP-wide analysis and the revision it describes. */

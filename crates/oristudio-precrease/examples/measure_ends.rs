@@ -48,6 +48,8 @@ const ORIEDITA_PAPER: [f64; 4] = [-200.0, -200.0, 200.0, 200.0];
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 struct Tally {
     steps: usize,
+    /// Cards the folder reads: steps less one per twin pair.
+    cards: usize,
     rounds: usize,
     turn_overs: usize,
     phantom: usize,
@@ -106,6 +108,7 @@ struct Tally {
 impl Tally {
     fn add(&mut self, o: Tally) {
         self.steps += o.steps;
+        self.cards += o.cards;
         self.rounds += o.rounds;
         self.turn_overs += o.turn_overs;
         self.phantom += o.phantom;
@@ -176,6 +179,7 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize, verbose: bool) -> Tal
     let mut presses: Vec<(u32, [f64; 2], bool)> = Vec::new();
     let mut t = Tally {
         steps: seq.steps.len(),
+        cards: seq.totals.cards as usize,
         turn_overs: usize::from(seq.steps.first().is_some_and(|s| s.side == Side::Back))
             + seq
                 .steps
@@ -468,6 +472,7 @@ fn plan_file(
     sightable: bool,
     no_dangling: bool,
     no_defer: bool,
+    no_twins: bool,
     verbose: bool,
 ) -> Option<Tally> {
     let cp = load_path(path, None).ok()?;
@@ -490,6 +495,7 @@ fn plan_file(
             reach_references: reach,
             allow_dangling_folds: !no_dangling,
             defer_far_anchors: !no_defer,
+            merge_symmetric_steps: !no_twins,
             prefer_sightable: sightable,
             ..PlannerOptions::default()
         };
@@ -536,6 +542,7 @@ fn main() {
     let sightable = !args.iter().any(|a| a == "--no-sightable");
     let no_dangling = args.iter().any(|a| a == "--no-dangling");
     let no_defer = args.iter().any(|a| a == "--no-defer");
+    let no_twins = args.iter().any(|a| a == "--no-twins");
     let verbose = args.iter().any(|a| a == "-v");
     let flags = [
         "--no-grid",
@@ -543,6 +550,7 @@ fn main() {
         "--no-sightable",
         "--no-dangling",
         "--no-defer",
+        "--no-twins",
         "-v",
     ];
     let mut paths = Vec::new();
@@ -590,6 +598,7 @@ fn main() {
                 sightable,
                 no_dangling,
                 no_defer,
+                no_twins,
                 verbose,
             ),
             plan_file(
@@ -600,6 +609,7 @@ fn main() {
                 sightable,
                 no_dangling,
                 no_defer,
+                no_twins,
                 false,
             ),
         );
@@ -654,8 +664,9 @@ fn main() {
     println!("\n{planned} designs planned of {}", paths.len());
     for (label, t) in [("preference on ", on), ("preference off", off)] {
         println!(
-            "{label}  steps {:5}  rounds {:5}  phantom {:4}  presses {:4} ({:.1} sheet-sides; {} with a free witness, {} for a mark made later, {} necessary)  pinched while folding {:4}  turn-overs {:4}  lost ends {:5} / {:5} ({:.1}%)  in pieces {:4} ({:.1} sheet-sides blank)  reach {:.1} sheet-sides (most {:.2})  reversed {:4}",
+            "{label}  steps {:5}  cards {:5}  rounds {:5}  phantom {:4}  presses {:4} ({:.1} sheet-sides; {} with a free witness, {} for a mark made later, {} necessary)  pinched while folding {:4}  turn-overs {:4}  lost ends {:5} / {:5} ({:.1}%)  in pieces {:4} ({:.1} sheet-sides blank)  reach {:.1} sheet-sides (most {:.2})  reversed {:4}",
             t.steps,
+            t.cards,
             t.rounds,
             t.phantom,
             t.presses,

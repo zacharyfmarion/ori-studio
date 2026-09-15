@@ -950,6 +950,8 @@
       "pressedOn": "Marca también, donde se muestra, más allá de la línea del patrón: un paso posterior la usa ahí.",
       "pressOut": "Marca solo la parte mostrada.",
       "shortAlignment": "Aquí los pliegues coinciden solo brevemente: alinéalos con cuidado.",
+      "twinAxiom1": "Pliega por {{a}} y {{b}}, y por {{c}} y {{d}}.",
+      "twinAxiom2": "Pliega {{a}} sobre {{b}} y {{c}} sobre {{d}}.",
       "unknown": "Dobla usando {{inputs}}.",
       "visibleAux": "Este pliegue se verá en el modelo terminado."
     },
@@ -982,6 +984,8 @@
       "gridWhereNeeded": "Solo donde haga falta",
       "includeApproximate": "Incluir soluciones aproximadas",
       "landmarksFirst": "Referencias primero",
+      "mergeSymmetric": "Combinar pasos simétricos",
+      "mergeSymmetricHelp": "Dos pliegues que son imagen especular uno del otro — la esquina izquierda al centro y la derecha al centro, por ejemplo — se muestran como un solo paso con una flecha para cada uno, como los pliega un diagrama. Desactivado, cada pliegue es un paso propio.",
       "precreaseGrid": "Preplegar la cuadrícula",
       "sequence": "Secuencia de plegado",
       "solutions": "Soluciones"

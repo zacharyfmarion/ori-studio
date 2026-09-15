@@ -280,6 +280,7 @@ class FakePlanner implements PrecreasePlannerHandle {
         free_lines: 0,
         unsolved: findings.length,
         approximate: this.approximations.length,
+        cards: this.foldedTargets.length + this.foldedAux.length,
       },
       findings,
       points: [],

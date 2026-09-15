@@ -24,6 +24,8 @@
 //! axiom and input pattern into one row with a count ("fold the sixteenths
 //! horizontally: 7 creases").
 
+use std::collections::VecDeque;
+
 use crate::closure::{Closure, FoldedLine};
 use crate::constants::MIN_ANGLE_SINE;
 use crate::direction::{Direction, Side};
@@ -36,8 +38,11 @@ use crate::marks::{
     witness_sightable,
 };
 use crate::pinch::PINCH_HALF_LENGTH;
-use crate::predicates::{Ref, Witness, all_witnesses_for_card, crease_through};
+use crate::predicates::{
+    Ref, Witness, all_witnesses_for_card, crease_through, line_ref, point_ref,
+};
 use crate::sequence::{Group, StepKind};
+use crate::sheet::Sheet;
 use crate::state::{LineTag, State};
 use crate::tol::TOL;
 
@@ -116,6 +121,12 @@ pub struct Placed {
     /// interior point lined up on another (`judge::o2_start_is_practical`) —
     /// and nothing else was on offer. The card says so.
     pub impractical: bool,
+    /// This fold is the **twin** of the entry just before it — its mirror
+    /// image about a symmetry of the sheet, line and witness alike, both
+    /// sightable before either was made — and the card shows the two as
+    /// one step, as a diagram does. The value is the folded index of the
+    /// other. See [`twin_in_queue`].
+    pub twin_of: Option<usize>,
 }
 
 impl Placed {
@@ -312,18 +323,21 @@ fn record(
             // them, the pieces as they are when it does not — the same
             // rule `Closure::record_crease` keeps its own paper by, applied
             // here to the paper as it stands in presentation order.
+            // With the reach rule off the crease is the pattern's pieces
+            // exactly, lost ends and all — that is the comparison — so an
+            // O1 is carried to its marks only with it on.
             let made = if closure.reach_references() {
-                reach(
+                let made = reach(
                     state,
                     creased,
                     &f.line,
                     &target.spans,
                     closure.allow_dangling_folds(),
-                )
+                );
+                presented.map_or(made.clone(), |w| through_marks(state, &f.line, made, w))
             } else {
                 runs_of(&f.line, &target.spans)
             };
-            let made = presented.map_or(made.clone(), |w| through_marks(state, &f.line, made, w));
             creased.add_spans(state, f.line_id, &f.line, &made);
             creased.note_pinchable(state, f.line_id);
             made
@@ -1033,6 +1047,7 @@ fn make_marks_real(
             made: Vec::new(),
             also: None,
             impractical: false,
+            twin_of: None,
         });
     };
     for point in witness_missing_marks(state, creased, witness) {
@@ -1127,13 +1142,101 @@ fn candidates(
     out
 }
 
-/// The mirror image of `chosen` about the sheet's vertical or horizontal
-/// centre line, among `candidates`, when the fold itself is its own mirror
-/// image about that line and the mirror is sightable too: the second
-/// alignment a symmetric design offers for the same fold (markhor's step
-/// 136 — the pair on x = ⅝ beside the pair on x = ⅜). Same axiom, every
-/// input the mirror of the other's, so the card can show both and the folder
-/// can line up both ends of a long fold at once.
+/// A symmetry of the sheet: a reflection about one of its centre lines or,
+/// for a square, about one of its diagonals. What "the same fold on the
+/// other side" means — the mirror alignment a card shows beside its own
+/// (R8), and the twin fold a card makes at once with its own.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Symmetry {
+    /// About the vertical centre line: left for right.
+    Vertical,
+    /// About the horizontal centre line: top for bottom.
+    Horizontal,
+    /// About the diagonal from the bottom-left corner (a square only).
+    Diagonal,
+    /// About the diagonal from the bottom-right corner (a square only).
+    Antidiagonal,
+}
+
+impl Symmetry {
+    /// The symmetries `sheet` has.
+    pub fn of(sheet: &Sheet) -> Vec<Symmetry> {
+        let mut out = vec![Symmetry::Vertical, Symmetry::Horizontal];
+        if (sheet.width - sheet.height).abs() <= TOL {
+            out.push(Symmetry::Diagonal);
+            out.push(Symmetry::Antidiagonal);
+        }
+        out
+    }
+
+    /// The image of a point.
+    pub fn point(self, sheet: &Sheet, p: [f64; 2]) -> [f64; 2] {
+        match self {
+            Symmetry::Vertical => [sheet.width - p[0], p[1]],
+            Symmetry::Horizontal => [p[0], sheet.height - p[1]],
+            Symmetry::Diagonal => [p[1], p[0]],
+            Symmetry::Antidiagonal => [sheet.width - p[1], sheet.height - p[0]],
+        }
+    }
+
+    /// The image of a line, through the images of its chord's ends; `None`
+    /// for a line that misses the sheet.
+    pub fn line(self, sheet: &Sheet, l: &Line) -> Option<Line> {
+        let (a, b) = sheet.clip(l)?;
+        Line::from_points(self.point(sheet, a), self.point(sheet, b))
+    }
+
+    /// The image of a reference, as a reference of `state`: the mark, corner,
+    /// crease or edge the image falls on. `None` when the state has none
+    /// there.
+    pub fn reference(self, state: &State, r: &Ref) -> Option<Ref> {
+        let sheet = state.sheet();
+        match r {
+            Ref::Point { id } | Ref::Corner { id, .. } => state
+                .find_point(self.point(sheet, state.point(*id)))
+                .map(|p| point_ref(state, p)),
+            Ref::Line { id } | Ref::Edge { id, .. } => state
+                .find_line(&self.line(sheet, state.line(*id))?)
+                .map(|l| line_ref(state, l)),
+        }
+    }
+
+    /// Whether `l` is its own image.
+    pub fn fixes_line(self, sheet: &Sheet, l: &Line) -> bool {
+        self.line(sheet, l)
+            .is_some_and(|image| same_line(l, &image))
+    }
+
+    /// Whether `w` is the image of `of`: the same axiom, every input the
+    /// image of the other's, in the same order.
+    pub fn maps_witness(self, state: &State, of: &Witness, w: &Witness) -> bool {
+        w.axiom == of.axiom
+            && w.inputs.len() == of.inputs.len()
+            && of
+                .inputs
+                .iter()
+                .zip(&w.inputs)
+                .all(|(a, b)| self.reference(state, a).as_ref() == Some(b))
+    }
+}
+
+/// Two lines the same, either way round.
+fn same_line(a: &Line, b: &Line) -> bool {
+    ((a.n[0] - b.n[0]).abs() <= TOL && (a.n[1] - b.n[1]).abs() <= TOL && (a.d - b.d).abs() <= TOL)
+        || ((a.n[0] + b.n[0]).abs() <= TOL
+            && (a.n[1] + b.n[1]).abs() <= TOL
+            && (a.d + b.d).abs() <= TOL)
+}
+
+/// The mirror image of `chosen` about a symmetry of the sheet, among
+/// `candidates`, when the fold itself is its own image under that symmetry
+/// and the mirror is sightable too: the second alignment a symmetric design
+/// offers for the same fold (markhor's step 136 — the pair on x = ⅝ beside
+/// the pair on x = ⅜). Same axiom, every input the mirror of the other's, so
+/// the card can show both and the folder can line up both ends of a long
+/// fold at once. The same alignment under another order of its inputs — an
+/// O1 through a symmetric pair, read from the other end — is not a second
+/// one.
 fn mirror_witness(
     state: &State,
     creased: &Creased,
@@ -1141,63 +1244,18 @@ fn mirror_witness(
     chosen: &Witness,
     candidates: &[Witness],
 ) -> Option<Witness> {
-    let sheet = *state.sheet();
-    let mirrors: [&dyn Fn([f64; 2]) -> [f64; 2]; 2] =
-        [&|p: [f64; 2]| [sheet.width - p[0], p[1]], &|p: [f64; 2]| {
-            [p[0], sheet.height - p[1]]
-        }];
-    let same_point = |a: [f64; 2], b: [f64; 2]| (a[0] - b[0]).hypot(a[1] - b[1]) <= TOL;
-    let same_line = |a: &Line, b: &Line| {
-        ((a.n[0] - b.n[0]).abs() <= TOL
-            && (a.n[1] - b.n[1]).abs() <= TOL
-            && (a.d - b.d).abs() <= TOL)
-            || ((a.n[0] + b.n[0]).abs() <= TOL
-                && (a.n[1] + b.n[1]).abs() <= TOL
-                && (a.d + b.d).abs() <= TOL)
-    };
-    let mirror_line = |l: &Line, m: &dyn Fn([f64; 2]) -> [f64; 2]| -> Option<Line> {
-        let (a, b) = sheet.clip(l)?;
-        Line::from_points(m(a), m(b))
-    };
-    for m in mirrors {
+    let sheet = state.sheet();
+    for sym in Symmetry::of(sheet) {
         // The fold has to be its own mirror image, or the mirror witness is
         // a witness of another fold.
-        let Some(fold_image) = mirror_line(fold, m) else {
-            continue;
-        };
-        if !same_line(fold, &fold_image) {
+        if !sym.fixes_line(sheet, fold) {
             continue;
         }
-        let matches = |w: &Witness| -> bool {
-            // The same alignment under another order of its inputs — an O1
-            // through a symmetric pair, read from the other end — is not a
-            // second one.
-            if w.axiom != chosen.axiom
-                || w.inputs.len() != chosen.inputs.len()
-                || w.inputs.iter().all(|r| chosen.inputs.contains(r))
-            {
-                return false;
-            }
-            w.inputs
-                .iter()
-                .zip(&chosen.inputs)
-                .all(|(a, b)| match (a, b) {
-                    (
-                        Ref::Point { id: x } | Ref::Corner { id: x, .. },
-                        Ref::Point { id: y } | Ref::Corner { id: y, .. },
-                    ) => same_point(state.point(*x), m(state.point(*y))),
-                    (
-                        Ref::Line { id: x } | Ref::Edge { id: x, .. },
-                        Ref::Line { id: y } | Ref::Edge { id: y, .. },
-                    ) => mirror_line(state.line(*y), m)
-                        .is_some_and(|k| same_line(state.line(*x), &k)),
-                    _ => false,
-                })
-        };
-        if let Some(w) = candidates
-            .iter()
-            .find(|w| matches(w) && sightable(state, creased, fold, w))
-        {
+        if let Some(w) = candidates.iter().find(|w| {
+            !w.inputs.iter().all(|r| chosen.inputs.contains(r))
+                && sym.maps_witness(state, chosen, w)
+                && sightable(state, creased, fold, w)
+        }) {
             return Some(w.clone());
         }
     }
@@ -1596,8 +1654,121 @@ fn sight(
     }
 }
 
-/// Place every folded line. Returns the presentation order.
+/// A twin found in the block: its position in the queue, its folded index,
+/// its witness, and the crease it makes.
+type TwinFound = (usize, usize, Witness, Vec<[[f64; 2]; 2]>);
+
+/// A fold still waiting in the block that is the twin of `a`, the entry
+/// just placed: its line the image of `a`'s under a symmetry of the sheet,
+/// its witness the image of `a`'s presented one, both sightable and free on
+/// `before` — the paper as it stood before `a` was made, so the order
+/// between the two is immaterial — its crease the image of `a`'s, and the
+/// same kind of fold in the same direction. A diagram folds such a pair as
+/// one step, and so does the card. The queue position and folded index of
+/// the twin, its witness, and the crease it makes.
+fn twin_in_queue(
+    state: &State,
+    closure: &Closure,
+    before: &Creased,
+    a: &Placed,
+    queue: &VecDeque<(usize, f64)>,
+) -> Option<TwinFound> {
+    let folded = closure.folded();
+    let fa = &folded[a.folded];
+    let ta = closure.targets().get(fa.target?)?;
+    if fa.grid.is_some() || fa.tag != LineTag::Cp || a.press.is_some() || !a.marks_exist {
+        return None;
+    }
+    let wa = a.presented(fa)?;
+    let fold_a = fa.constructed();
+    if witness_cost(state, before, &fold_a, wa) != Some(0) {
+        return None;
+    }
+    let sheet = state.sheet();
+    for sym in Symmetry::of(sheet) {
+        let Some(image) = sym.line(sheet, &fa.line) else {
+            continue;
+        };
+        if same_line(&image, &fa.line) {
+            continue;
+        }
+        for (k, &(j, _)) in queue.iter().enumerate() {
+            let fb = &folded[j];
+            if fb.grid.is_some() || fb.tag != LineTag::Cp || !same_line(&fb.line, &image) {
+                continue;
+            }
+            let Some(tb) = fb.target.and_then(|t| closure.targets().get(t)) else {
+                continue;
+            };
+            if tb.direction != ta.direction {
+                continue;
+            }
+            let fold_b = fb.constructed();
+            let pool = candidates(state, before, &fold_b, fb.line_id, &[], &fb.witnesses);
+            let Some(wb) = pool.iter().find(|w| sym.maps_witness(state, wa, w)) else {
+                continue;
+            };
+            let made_b = if closure.reach_references() {
+                let made = reach(
+                    state,
+                    before,
+                    &fb.line,
+                    &tb.spans,
+                    closure.allow_dangling_folds(),
+                );
+                through_marks(state, &fb.line, made, wb)
+            } else {
+                runs_of(&fb.line, &tb.spans)
+            };
+            // The crease the image of the other's: a pair whose creases stop
+            // at different references is two instructions.
+            let mut image_runs: Vec<(f64, f64)> = crease_runs(&fa.line, &a.made)
+                .iter()
+                .map(|(p, q)| {
+                    let (u, v) = (
+                        fb.line.parameter_of(sym.point(sheet, *p)),
+                        fb.line.parameter_of(sym.point(sheet, *q)),
+                    );
+                    (u.min(v), u.max(v))
+                })
+                .collect();
+            let mut runs_b: Vec<(f64, f64)> = crease_runs(&fb.line, &made_b)
+                .iter()
+                .map(|(p, q)| {
+                    let (u, v) = (fb.line.parameter_of(*p), fb.line.parameter_of(*q));
+                    (u.min(v), u.max(v))
+                })
+                .collect();
+            image_runs.sort_by(|x, y| x.0.total_cmp(&y.0));
+            runs_b.sort_by(|x, y| x.0.total_cmp(&y.0));
+            let same_runs = image_runs.len() == runs_b.len()
+                && image_runs
+                    .iter()
+                    .zip(&runs_b)
+                    .all(|(x, y)| (x.0 - y.0).abs() <= 1e-6 && (x.1 - y.1).abs() <= 1e-6);
+            if !same_runs {
+                continue;
+            }
+            if !sightable(state, before, &fold_b, wb)
+                || witness_cost(state, before, &fold_b, wb) != Some(0)
+            {
+                continue;
+            }
+            return Some((k, j, wb.clone(), made_b));
+        }
+    }
+    None
+}
+
+/// Place every folded line. Returns the presentation order, with symmetric
+/// pairs made one card ([`twin_in_queue`]).
 pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
+    order_with(closure, landmarks_first, true)
+}
+
+/// [`order`], with or without twins: `merge_twins` off places every fold on
+/// a card of its own, which is the comparison.
+pub fn order_with(closure: &Closure, landmarks_first: bool, merge_twins: bool) -> Vec<Placed> {
     let folded = closure.folded();
     let state = closure.state();
     let mut placed: Vec<Placed> = Vec::new();
@@ -1702,6 +1873,7 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
                     made: record(&mut creased, closure, i, Some(w)),
                     also: None,
                     impractical: false,
+                    twin_of: None,
                 });
                 snapshots[i] = Some(creased.clone());
             }
@@ -1754,7 +1926,11 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
                 continue;
             }
             side = block_side;
-            for (i, angle) in block {
+            let mut queue: VecDeque<(usize, f64)> = block.into_iter().collect();
+            while let Some((i, angle)) = queue.pop_front() {
+                // The paper before this fold, for its twin: the two are made
+                // at once, so the twin is sighted on the paper without it.
+                let before = merge_twins.then(|| creased.clone());
                 let sighted = sight(
                     state,
                     closure,
@@ -1787,8 +1963,62 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
                     made: record(&mut creased, closure, i, presented.as_ref()),
                     also: sighted.also,
                     impractical: sighted.impractical,
+                    twin_of: None,
                 });
                 snapshots[i] = Some(creased.clone());
+                let twin = before.as_ref().and_then(|before| {
+                    let a = placed.last()?;
+                    twin_in_queue(state, closure, before, a, &queue)
+                });
+                if let Some((k, j, witness, made)) = twin {
+                    queue.remove(k);
+                    // The twin is the symmetric alignment; a mirror of the
+                    // first's own witness beside it would be a third arrow.
+                    if let Some(a) = placed.last_mut() {
+                        a.also = None;
+                    }
+                    let f = &folded[j];
+                    let (chosen, found) = match f
+                        .witnesses
+                        .iter()
+                        .position(|w| w.axiom == witness.axiom && w.inputs == witness.inputs)
+                    {
+                        Some(c) => (Some(c), None),
+                        None => (Some(f.witnesses.len()), Some(witness.clone())),
+                    };
+                    pinch_while_folding(
+                        state,
+                        &mut creased,
+                        &folded_of_line,
+                        &witness,
+                        &mut placed,
+                    );
+                    if made.is_empty() {
+                        creased.add_whole(state, f.line_id);
+                    } else {
+                        creased.add_spans(state, f.line_id, &f.line, &made);
+                        creased.note_pinchable(state, f.line_id);
+                    }
+                    placed.push(Placed {
+                        folded: j,
+                        sweep,
+                        chosen,
+                        found,
+                        hoisted: false,
+                        direction_angle: folded_angle(&f.line),
+                        side,
+                        marks_exist: true,
+                        alignment: witness_alignment(state, &creased, &f.constructed(), &witness),
+                        missing: Vec::new(),
+                        press: None,
+                        pressed_on: Vec::new(),
+                        made,
+                        also: None,
+                        impractical: false,
+                        twin_of: Some(i),
+                    });
+                    snapshots[j] = Some(creased.clone());
+                }
             }
         }
     }
@@ -2272,6 +2502,7 @@ mod tests {
             made: Vec::new(),
             also: None,
             impractical: false,
+            twin_of: None,
         };
         let mut placed = vec![placed_fold(0), placed_fold(1)];
         let w = witness(
@@ -2780,6 +3011,45 @@ mod tests {
                 entry.made
             );
         }
+    }
+
+    /// The quarter lines: each corner onto the bottom edge's midpoint, one
+    /// the mirror image of the other about the vertical centre line, both
+    /// sightable on the paper with the midlines down. A diagram folds them
+    /// as one step; so does the card. The midlines themselves are twins
+    /// about the diagonal — corner onto corner either way.
+    #[test]
+    fn mirrored_folds_are_placed_together_as_twins() {
+        let c = closure_of(&[v(0.5), h(0.5), v(0.25), v(0.75)]);
+        let placed = order(&c, false);
+        let f = c.folded();
+        let line_of = |p: &Placed| f[p.folded].line;
+        let twins: Vec<(usize, usize)> = placed
+            .iter()
+            .enumerate()
+            .filter_map(|(k, p)| p.twin_of.map(|a| (k, a)))
+            .collect();
+        assert_eq!(twins.len(), 2, "two pairs: {twins:?}");
+        for (k, a) in &twins {
+            assert_eq!(
+                placed[k - 1].folded,
+                *a,
+                "a twin follows the fold it mirrors"
+            );
+            let (la, lb) = (line_of(&placed[k - 1]), line_of(&placed[*k]));
+            assert!(
+                Symmetry::of(c.state().sheet()).iter().any(|s| s
+                    .line(c.state().sheet(), &la)
+                    .is_some_and(|i| same_line(&i, &lb))),
+                "mirror lines: {la:?} {lb:?}"
+            );
+            assert_eq!(placed[k - 1].side, placed[*k].side);
+            assert!(placed[k - 1].also.is_none(), "a twin stands in for an also");
+        }
+        // The comparison: every fold its own card.
+        let apart = order_with(&c, false, false);
+        assert!(apart.iter().all(|p| p.twin_of.is_none()));
+        assert_eq!(apart.len(), placed.len());
     }
 
     #[test]

@@ -86,7 +86,7 @@ fn main() {
             .unwrap_or_default();
         let [a, b] = s.segment;
         println!(
-            "{:>3} {:?}{} O{} {:?} {:?} line n=({:.4},{:.4}) d={:.5} seg ({:.3},{:.3})-({:.3},{:.3}) cp={:?} spans={} made={}{}{} marks={} align={:?} exact={} hard={}{}{}{}",
+            "{:>3} {:?}{} O{} {:?} {:?} line n=({:.4},{:.4}) d={:.5} seg ({:.3},{:.3})-({:.3},{:.3}) cp={:?} spans={} made={}{}{} marks={} align={:?} exact={} hard={}{}{}{}{}",
             s.id,
             s.kind,
             match s.grid.as_ref() {
@@ -179,6 +179,9 @@ fn main() {
                 })
                 .unwrap_or_default(),
             if s.impractical { " IMPRACTICAL" } else { "" },
+            s.twin
+                .map(|t| format!(" card={} twin={t}", s.card))
+                .unwrap_or_default(),
         );
     }
     for f in &seq.findings {

@@ -918,6 +918,8 @@
       "pressedOn": "Also crease where shown past the pattern’s line — a later step uses it there.",
       "pressOut": "Crease only the part shown.",
       "shortAlignment": "The creases line up only briefly here — align with care.",
+      "twinAxiom1": "Fold through {{a}} and {{b}}, and through {{c}} and {{d}}.",
+      "twinAxiom2": "Fold {{a}} onto {{b}} and {{c}} onto {{d}}.",
       "unknown": "Fold using {{inputs}}.",
       "visibleAux": "This crease will show in the finished model."
     },
@@ -950,6 +952,8 @@
       "gridWhereNeeded": "Only where needed",
       "includeApproximate": "Include approximate solutions",
       "landmarksFirst": "Landmarks first",
+      "mergeSymmetric": "Merge symmetric steps",
+      "mergeSymmetricHelp": "Two folds that mirror each other — the left corner to the centre and the right corner to the centre, say — are shown as one step with an arrow for each, the way a diagram folds them. Off, every fold is a step of its own.",
       "precreaseGrid": "Precrease grid",
       "sequence": "Folding sequence",
       "solutions": "Solutions"

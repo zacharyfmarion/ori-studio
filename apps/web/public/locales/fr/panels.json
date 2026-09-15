@@ -952,6 +952,8 @@
       "pressedOn": "Marquez aussi, là où c’est indiqué, au-delà de la ligne du patron — une étape ultérieure s’en sert à cet endroit.",
       "pressOut": "Ne marquez que la partie indiquée.",
       "shortAlignment": "Les plis ne coïncident ici que brièvement — alignez-les avec soin.",
+      "twinAxiom1": "Pliez par {{a}} et {{b}}, et par {{c}} et {{d}}.",
+      "twinAxiom2": "Pliez {{a}} sur {{b}} et {{c}} sur {{d}}.",
       "unknown": "Pliez en utilisant {{inputs}}.",
       "visibleAux": "Ce pli sera visible sur le modèle fini."
     },
@@ -984,6 +986,8 @@
       "gridWhereNeeded": "Seulement où nécessaire",
       "includeApproximate": "Inclure les solutions approximatives",
       "landmarksFirst": "Repères d’abord",
+      "mergeSymmetric": "Fusionner les étapes symétriques",
+      "mergeSymmetricHelp": "Deux plis qui se reflètent — le coin gauche vers le centre et le coin droit vers le centre, par exemple — sont montrés en une seule étape avec une flèche pour chacun, comme un diagramme les plie. Désactivé, chaque pli est une étape à part.",
       "precreaseGrid": "Préplier la grille",
       "sequence": "Séquence de pliage",
       "solutions": "Solutions"

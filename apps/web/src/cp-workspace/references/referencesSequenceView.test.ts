@@ -41,6 +41,7 @@ function step(id: number, side: PrecreaseSide): PrecreaseStep {
     made: [],
     impractical: false,
     hoisted: false,
+    card: id,
   };
 }
 
@@ -64,6 +65,32 @@ const view = (sides: string) => {
   const { variants, flat } = planOf(sides);
   return referencesViewSteps(variants, flat);
 };
+
+describe('a twin pair in the view steps', () => {
+  // The crate places a fold's mirror image right after it and names each in
+  // the other's `twin`; the reader passes the two as one card.
+  it('folds the second of a pair into the first\'s view step', () => {
+    const { variants, flat } = planOf('FFFF');
+    const steps = variants[0]!.sequence.steps;
+    steps[1] = { ...steps[1]!, twin: steps[2]!.id };
+    steps[2] = { ...steps[2]!, twin: steps[1]!.id };
+    const view = referencesViewSteps(variants, flat);
+    const folds = view.filter((v) => v.kind === 'fold');
+    expect(folds).toHaveLength(3);
+    expect(folds[1]).toEqual({ kind: 'fold', side: 'front', component: 0, step: 1, twin: 2 });
+    expect(folds[2]).toEqual({ kind: 'fold', side: 'front', component: 0, step: 3 });
+  });
+
+  it('keeps a pair apart when the twin is not the next step on the same side', () => {
+    const { variants, flat } = planOf('FFBF');
+    const steps = variants[0]!.sequence.steps;
+    steps[1] = { ...steps[1]!, twin: steps[2]!.id };
+    steps[2] = { ...steps[2]!, twin: steps[1]!.id };
+    const folds = referencesViewSteps(variants, flat).filter((v) => v.kind === 'fold');
+    expect(folds).toHaveLength(4);
+    expect(folds.every((f) => !('twin' in f))).toBe(true);
+  });
+});
 
 describe('referencesViewSteps', () => {
   it('is empty for a plan with no steps', () => {
