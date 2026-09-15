@@ -139,14 +139,39 @@ impl Creased {
 
     /// Note where `line_id`, just folded, could be pinched while it is:
     /// every point of the state on it that its crease stops short of, where
-    /// a line already creased there crosses it squarely. Called once, by
-    /// whoever records the fold, with the paper as it stands at that moment
-    /// — a crease made later is not something the folder could have sighted
-    /// the pinch from then.
-    pub fn note_pinchable(&mut self, state: &State, line_id: usize) {
+    /// a line already creased there crosses it squarely — and that the fold
+    /// vouches for: `vouched` is asked with the pinch's span, and a fold
+    /// vouches only within reach of its alignment (R10,
+    /// [`crate::judge::Vouch`]); a spot it cannot vouch for is no mark a
+    /// later fold may count on. Called once, by whoever records the fold,
+    /// with the paper as it stands at that moment — a crease made later is
+    /// not something the folder could have sighted the pinch from then.
+    pub fn note_pinchable(
+        &mut self,
+        state: &State,
+        line_id: usize,
+        vouched: impl Fn([[f64; 2]; 2]) -> bool,
+    ) {
         self.widen(state);
+        let spots = self.pinchable_spots(state, line_id, vouched);
+        if let Some(entry) = self.pinchable.get_mut(line_id) {
+            entry.extend(spots);
+        }
+    }
+
+    /// The spots [`Creased::note_pinchable`] would note for `line_id` on
+    /// this paper, as parameters along its line, without noting them.
+    pub fn pinchable_spots(
+        &self,
+        state: &State,
+        line_id: usize,
+        vouched: impl Fn([[f64; 2]; 2]) -> bool,
+    ) -> Vec<f64> {
         let Some(line) = state.lines().get(line_id) else {
-            return;
+            return Vec::new();
+        };
+        let Some((lo, hi)) = state.sheet().clip_parameters(&line.line) else {
+            return Vec::new();
         };
         let mut spots = Vec::new();
         for &point in &line.points {
@@ -161,12 +186,38 @@ impl Creased {
                     && state.line(s).cross(&line.line).abs() >= MIN_ANGLE_SINE
                     && self.reaches(state, s, pt.p)
             });
-            if seen {
-                spots.push(line.line.parameter_of(pt.p));
+            if !seen {
+                continue;
+            }
+            let t = line.line.parameter_of(pt.p);
+            let span = [
+                line.line.point_at((t - PINCH_HALF_LENGTH).max(lo)),
+                line.line.point_at((t + PINCH_HALF_LENGTH).min(hi)),
+            ];
+            if vouched(span) {
+                spots.push(t);
             }
         }
+        spots
+    }
+
+    /// Forget that `line_id` could be pinched at `p`: a fold asked for the
+    /// pinch could not vouch for it after all, and the mark is missing —
+    /// for a press to make, as [`mark_exists`] will now say.
+    pub fn forget_pinchable(&mut self, state: &State, line_id: usize, p: [f64; 2]) {
+        let t = state.line(line_id).parameter_of(p);
         if let Some(entry) = self.pinchable.get_mut(line_id) {
-            entry.extend(spots);
+            entry.retain(|&u| (u - t).abs() > TOL);
+        }
+    }
+
+    /// Replace what `line_id` could be pinched at — for a fold whose
+    /// alignment changed after it was recorded, with the spots that
+    /// alignment vouches for ([`Creased::pinchable_spots`]).
+    pub fn set_pinchable(&mut self, state: &State, line_id: usize, spots: Vec<f64>) {
+        self.widen(state);
+        if let Some(entry) = self.pinchable.get_mut(line_id) {
+            *entry = spots;
         }
     }
 
@@ -906,7 +957,7 @@ mod tests {
         creased.add_whole(&state, up_id);
         // The pattern wants a tenth of the horizontal, from the left edge.
         creased.add_spans(&state, across_id, &across, &[[[0.0, 0.6], [0.1, 0.6]]]);
-        creased.note_pinchable(&state, across_id);
+        creased.note_pinchable(&state, across_id, |_| true);
         let crossing = state.find_point([0.5, 0.6]).expect("a state point");
         assert!(creased.pinchable_at(&state, across_id, [0.5, 0.6]));
         assert!(
@@ -934,7 +985,7 @@ mod tests {
         // upper horizontal changes — and the *lower* one, folded after the
         // upper, cannot have been pinched at a crossing with it either way.
         creased.add_whole(&state, later_id);
-        creased.note_pinchable(&state, later_id);
+        creased.note_pinchable(&state, later_id, |_| true);
         assert!(!creased.pinchable_at(&state, later_id, [0.5, 0.3]));
         // Once the pinch is made, the spot is marked in fact.
         creased.add_pinch(&state, across_id, &across, [[0.47, 0.6], [0.53, 0.6]]);

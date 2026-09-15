@@ -24,7 +24,7 @@ use oristudio_precrease::analyze;
 use oristudio_precrease::clock::default_clock;
 use oristudio_precrease::direction::Direction;
 use oristudio_precrease::fixture_io::load_path;
-use oristudio_precrease::judge::{DirectionOfLine, Judgement};
+use oristudio_precrease::judge::{DirectionOfLine, Judgement, Vouch};
 use oristudio_precrease::marks::{Creased, crease_runs};
 use oristudio_precrease::order::{Explained, explain};
 use oristudio_precrease::pinch::{Extent, PINCH_HALF_LENGTH};
@@ -74,7 +74,15 @@ fn main() {
         if wanted.contains(&step.id) {
             explain_step(&seq, step, &state, &creased, &replay);
         }
-        replay.put(step, &mut state, &mut creased);
+        // What the presented alignment vouches for, as the plan judged it.
+        let vouch = step
+            .chosen
+            .and_then(|c| step.witnesses.get(c))
+            .and_then(|w| seq.witness_in(&state, w))
+            .map_or(Vouch::everything(), |w| {
+                Vouch::of(&state, &creased, &step.line, &w)
+            });
+        replay.put(step, &mut state, &mut creased, vouch);
     }
 }
 
@@ -98,7 +106,7 @@ impl Replay {
     }
 
     /// Put a step on the replay paper exactly as `measure_ends` does.
-    fn put(&mut self, step: &Step, state: &mut State, creased: &mut Creased) {
+    fn put(&mut self, step: &Step, state: &mut State, creased: &mut Creased, vouch: Vouch) {
         if let Some(grid) = &step.grid {
             for line in &grid.lines {
                 if let Ok(outcome) = state.add_line(line.line, step.tag) {
@@ -141,7 +149,7 @@ impl Replay {
                 creased.add_spans(state, outcome.id, &step.line, &[*span]);
             }
         }
-        creased.note_pinchable(state, outcome.id);
+        creased.note_pinchable(state, outcome.id, |span| vouch.covers(span));
         self.note(outcome.id, step.direction);
     }
 }

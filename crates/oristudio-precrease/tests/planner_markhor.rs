@@ -13,11 +13,15 @@ use std::f64::consts::FRAC_1_SQRT_2;
 use oristudio_precrease::clock::default_clock;
 use oristudio_precrease::direction::Side;
 use oristudio_precrease::fixture_io::load_path;
+use oristudio_precrease::judge::{MAX_PINCH_ERROR, Vouch};
 use oristudio_precrease::line::Line;
+use oristudio_precrease::marks::Creased;
+use oristudio_precrease::pinch::{Extent, PINCH_HALF_LENGTH};
 use oristudio_precrease::planner::{Planner, PlannerOptions};
 use oristudio_precrease::predicates::{Ref, Witness};
 use oristudio_precrease::sequence::{Sequence, Step, StepKind};
 use oristudio_precrease::sheet::{CornerName, EdgeSide};
+use oristudio_precrease::state::State;
 use oristudio_precrease::{Direction, analyze};
 
 /// What a step's card should present: the axiom, the face it is made from,
@@ -120,12 +124,19 @@ const EXPECTED: &[Expect] = &[
         lines: &[(1.0, 0.0, 0.375)],
         ..ANY
     },
-    // 56: a short crease between two creases, a fold the folder can watch.
-    // (Pinching it as a mountain from the front was tried and undone: every
-    // fold is a valley from the face it is made on.)
+    // 56 (card 37 in the third round): a short crease between two creases.
+    // Its own two marks are a tenth of the sheet apart, and the pinch at the
+    // right edge that card 48 lands on was 4.7 levers from them (R10); now a
+    // mark on the top edge onto a mark by the bottom edge, a sheet apart, the
+    // pinch a third of a lever from where they meet. (Pinching the crease as
+    // a mountain from the front was tried and undone: every fold is a valley
+    // from the face it is made on.)
     Expect {
         item: 56,
         line: (0.3827, 0.9239, 0.72093),
+        axioms: &[2],
+        edges: &[],
+        points: &[(0.8536, 1.0)],
         ..ANY
     },
     // 58: the left edge swung onto a mark, not two interior points.
@@ -406,8 +417,14 @@ fn markhor_feedback_picks_are_the_ones_zach_asked_for() {
     let mut planner = Planner::new(&analysis.components[0], opts);
     planner.plan_without_reference_finder().expect("plan");
     let seq = planner.sequence(false);
-    assert_eq!(seq.steps.len(), 163, "markhor steps");
-    assert_eq!(seq.totals.presses, 0, "markhor presses");
+    // R10 (third round) costs one press: the mark at (0.25, 0.677), a 45°
+    // crease's crossing with a line the fold that made the crease — 0.02 of
+    // it, lined up over a tenth of the sheet — could not vouch for from 4.2
+    // levers away, and nothing else on that paper could. The press is
+    // sighted for itself, by a mark onto the top edge with a crease folded
+    // onto itself, and the pinch is within reach of that.
+    assert_eq!(seq.steps.len(), 164, "markhor steps");
+    assert_eq!(seq.totals.presses, 1, "markhor presses");
     assert!(
         seq.steps.iter().all(|s| !s.impractical),
         "every fold on this sheet has a practical construction"
@@ -476,6 +493,69 @@ fn markhor_feedback_picks_are_the_ones_zach_asked_for() {
             }
         }
     }
+    // R10 (third round): whatever a step presses on past the pattern — a
+    // pinch for a later step, more crease out to a findable end — is within
+    // `MAX_PINCH_ERROR` levers of the alignment the step is made by, read on
+    // the paper as the folder has it then. The plan's own gate says so by
+    // construction; this replay reads it off the sequence.
+    let sheet = *planner.sheet().expect("sheet");
+    let mut state = State::new(sheet, PlannerOptions::default().point_cap);
+    let mut creased = Creased::new(&state);
+    let mut pinches = 0;
+    for step in &seq.steps {
+        let presented = step
+            .chosen
+            .and_then(|c| step.witnesses.get(c))
+            .and_then(|w| seq.witness_in(&state, w));
+        if let Some(w) = &presented {
+            let vouch = Vouch::of(&state, &creased, &step.line, w);
+            for span in &step.pressed_on {
+                pinches += 1;
+                if let Some(e) = vouch.error_at(*span)
+                    && e > MAX_PINCH_ERROR
+                {
+                    failures.push(format!(
+                        "step {}: presses on ({:.3},{:.3}) {e:.2} levers from its alignment (O{} {})",
+                        step.id,
+                        (span[0][0] + span[1][0]) / 2.0,
+                        (span[0][1] + span[1][1]) / 2.0,
+                        w.axiom,
+                        describe(&seq, w)
+                    ));
+                }
+            }
+        }
+        if step.kind == StepKind::Press {
+            if let Extent::Pinches { spans } = &step.extent
+                && let Ok(outcome) = state.add_line(step.line, step.tag)
+            {
+                creased.add_spans(&state, outcome.id, &step.line, spans);
+            }
+            continue;
+        }
+        let spans = if step.made.is_empty() {
+            &step.cp_spans
+        } else {
+            &step.made
+        };
+        let Ok(outcome) = state.add_line(step.line, step.tag) else {
+            continue;
+        };
+        if spans.is_empty() {
+            creased.add_whole(&state, outcome.id);
+        } else {
+            creased.add_spans(&state, outcome.id, &step.line, spans);
+        }
+        for span in &step.pressed_on {
+            let len = (span[0][0] - span[1][0]).hypot(span[0][1] - span[1][1]);
+            if len <= 2.0 * PINCH_HALF_LENGTH + 1e-9 {
+                creased.add_pinch(&state, outcome.id, &step.line, *span);
+            } else {
+                creased.add_spans(&state, outcome.id, &step.line, &[*span]);
+            }
+        }
+    }
+    assert!(pinches >= 20, "markhor pinches while folding: {pinches}");
     for e in EXPECTED {
         let want = Line::new([e.line.0, e.line.1], e.line.2).expect("line");
         let Some(step) = seq

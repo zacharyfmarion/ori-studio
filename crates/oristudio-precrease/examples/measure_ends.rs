@@ -32,7 +32,7 @@ use std::path::{Path, PathBuf};
 use oristudio_precrease::analyze;
 use oristudio_precrease::direction::{Direction, Side};
 use oristudio_precrease::fixture_io::load_path;
-use oristudio_precrease::judge::judge;
+use oristudio_precrease::judge::{MAX_PINCH_ERROR, Vouch, judge};
 use oristudio_precrease::marks::{
     Creased, crease_runs, end_is_found, point_mark_exists, witness_sightable,
 };
@@ -80,6 +80,10 @@ struct Tally {
     /// Marks pinched while the crease they are on was made — a pinch on a
     /// step's `pressed_on` rather than a press step of its own.
     pinched_while_folding: usize,
+    /// Of everything a step pressed on past the pattern, pinches and crease
+    /// alike, how much its presented alignment cannot vouch for (R10): more
+    /// than `MAX_PINCH_ERROR` levers from where the alignment happens.
+    pinches_beyond: usize,
     /// The picks, judged on the replay paper as `order::pick_witness` judged
     /// them (`implementation-plans/precrease-legible-picks.md`): CP steps
     /// whose card the folder cannot watch (R1), cannot make precisely (R2),
@@ -126,6 +130,7 @@ impl Tally {
         self.presses_made_later += o.presses_made_later;
         self.press_len += o.press_len;
         self.pinched_while_folding += o.pinched_while_folding;
+        self.pinches_beyond += o.pinches_beyond;
         self.judged += o.judged;
         self.unjudged += o.unjudged;
         self.invisible += o.invisible;
@@ -141,7 +146,7 @@ impl Tally {
 
     fn picks_line(&self) -> String {
         format!(
-            "picks {:5} judged ({:4} not yet on the replay paper)  invisible {:4}  imprecise {:4}  impractical {:4}  bisections at the crease {:4}  own ends {:4}  mirrored {:4}  overlong {:4}  mean error {:.2}",
+            "picks {:5} judged ({:4} not yet on the replay paper)  invisible {:4}  imprecise {:4}  impractical {:4}  bisections at the crease {:4}  own ends {:4}  mirrored {:4}  overlong {:4}  pinches beyond {:4}  mean error {:.2}",
             self.judged,
             self.unjudged,
             self.invisible,
@@ -151,6 +156,7 @@ impl Tally {
             self.own_ends,
             self.mirrored,
             self.overlong,
+            self.pinches_beyond,
             self.error_sum / self.error_n.max(1) as f64
         )
     }
@@ -236,6 +242,29 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize, verbose: bool) -> Tal
             });
             if let Some(press) = &step.press {
                 presses.push((step.id, press.at, free));
+            }
+            // R10 for a press of its own: the pinch within reach of the
+            // alignment the press presents.
+            let presented = step
+                .chosen
+                .and_then(|c| step.witnesses.get(c))
+                .and_then(|w| seq.witness_in(&state, w));
+            if let Some(w) = &presented {
+                let vouch = Vouch::of(&state, &creased, &step.line, w);
+                for span in spans {
+                    if vouch.error_at(*span).is_some_and(|e| e > MAX_PINCH_ERROR) {
+                        t.pinches_beyond += 1;
+                        if verbose {
+                            println!(
+                                "  step {:>3} press at ({:.3},{:.3}) beyond its alignment: {:.2} levers",
+                                step.id,
+                                (span[0][0] + span[1][0]) / 2.0,
+                                (span[0][1] + span[1][1]) / 2.0,
+                                vouch.error_at(*span).unwrap_or(0.0)
+                            );
+                        }
+                    }
+                }
             }
             if let Ok(outcome) = state.add_line(step.line, step.tag) {
                 creased.add_spans(&state, outcome.id, &step.line, spans);
@@ -367,6 +396,15 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize, verbose: bool) -> Tal
                 );
             }
         }
+        // What the presented alignment vouches for (R10), read on the
+        // paper before the crease goes down, as the plan read it.
+        let vouch = step
+            .chosen
+            .and_then(|c| step.witnesses.get(c))
+            .and_then(|w| seq.witness_in(&state, w))
+            .map_or(Vouch::everything(), |w| {
+                Vouch::of(&state, &creased, &step.line, &w)
+            });
         let Ok(outcome) = state.add_line(step.line, step.tag) else {
             continue;
         };
@@ -389,8 +427,20 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize, verbose: bool) -> Tal
             } else {
                 creased.add_spans(&state, outcome.id, &step.line, &[*span]);
             }
+            if vouch.error_at(*span).is_some_and(|e| e > MAX_PINCH_ERROR) {
+                t.pinches_beyond += 1;
+                if verbose {
+                    println!(
+                        "  step {:>3} presses on ({:.3},{:.3}) beyond its alignment: {:.2} levers",
+                        step.id,
+                        (span[0][0] + span[1][0]) / 2.0,
+                        (span[0][1] + span[1][1]) / 2.0,
+                        vouch.error_at(*span).unwrap_or(0.0)
+                    );
+                }
+            }
         }
-        creased.note_pinchable(&state, outcome.id);
+        creased.note_pinchable(&state, outcome.id, |span| vouch.covers(span));
     }
     for (id, at, free) in presses {
         let made_later = state

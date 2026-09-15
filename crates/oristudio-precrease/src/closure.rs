@@ -53,6 +53,7 @@ use crate::constants::MIN_ANGLE_SINE;
 use crate::direction::{Direction, Side, majority};
 use crate::error::PrecreaseError;
 use crate::grid::Grid;
+use crate::judge::Vouch;
 use crate::line::{Line, LineIndex};
 use crate::marks::{
     Creased, MIN_ALIGNMENT, crease_runs, ends_are_found, reach, runs_reach, settled_end_is_found,
@@ -854,7 +855,20 @@ impl Closure {
     /// reference to reference when the closure reaches for them, so that the
     /// paper the next sweep judges its targets' ends against is the paper
     /// the folder will have.
-    fn record_crease(&mut self, line_id: usize, line: &Line, target: Option<usize>) {
+    ///
+    /// `witnesses` are the fold's, for what they can vouch for: where the
+    /// fold stops short of a crease already there the folder could pinch it
+    /// while folding — a mark a later fold can be sighted at with no press
+    /// before it — but only within reach of an alignment the folder could
+    /// sight now (R10, [`Vouch`]); a spot none of them vouches for is not a
+    /// mark the next sweep may count on.
+    fn record_crease(
+        &mut self,
+        line_id: usize,
+        line: &Line,
+        target: Option<usize>,
+        witnesses: &[Witness],
+    ) {
         let Closure {
             creased,
             state,
@@ -865,16 +879,20 @@ impl Closure {
         } = self;
         match target.map(|t| &targets[t].spans) {
             Some(spans) if !spans.is_empty() => {
+                let vouches: Vec<Vouch> = witnesses
+                    .iter()
+                    .filter(|w| witness_sightable(state, creased, line, w))
+                    .map(|w| Vouch::of(state, creased, line, w))
+                    .collect();
                 if *reach_references {
                     let runs = reach(state, creased, line, spans, *allow_dangling_folds);
                     creased.add_spans(state, line_id, line, &runs);
                 } else {
                     creased.add_spans(state, line_id, line, spans);
                 }
-                // Where the fold stops short of a crease already there, the
-                // folder could pinch it while folding: a mark a later fold
-                // can be sighted at with no press before it.
-                creased.note_pinchable(state, line_id);
+                creased.note_pinchable(state, line_id, |span| {
+                    vouches.iter().any(|v| v.covers(span))
+                });
             }
             _ => creased.add_whole(state, line_id),
         }
@@ -899,7 +917,7 @@ impl Closure {
         let outcome = self.state.add_line(line, LineTag::Cp)?;
         let chosen = choose(&ws);
         let complete = self.facts[t].facts.landers_computed;
-        self.record_crease(outcome.id, &line, Some(t));
+        self.record_crease(outcome.id, &line, Some(t), &ws);
         self.folded.push(FoldedLine {
             line_id: outcome.id,
             line,
@@ -960,7 +978,7 @@ impl Closure {
         }
         let outcome = self.state.add_line(line, tag)?;
         let chosen = choose(&ws);
-        self.record_crease(outcome.id, &line, None);
+        self.record_crease(outcome.id, &line, None, &ws);
         self.folded.push(FoldedLine {
             line_id: outcome.id,
             line,
@@ -1131,7 +1149,7 @@ impl Closure {
         let round = self.round;
         let outcome = self.state.add_line(line, LineTag::Cp)?;
         let chosen = choose(&ws);
-        self.record_crease(outcome.id, &line, Some(t));
+        self.record_crease(outcome.id, &line, Some(t), &ws);
         self.folded.push(FoldedLine {
             line_id: outcome.id,
             line,

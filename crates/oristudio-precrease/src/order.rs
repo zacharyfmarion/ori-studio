@@ -29,7 +29,7 @@ use std::collections::VecDeque;
 use crate::closure::{Closure, FoldedLine};
 use crate::constants::MIN_ANGLE_SINE;
 use crate::direction::{Direction, Side};
-use crate::judge::{Judgement, MAX_ERROR, judge};
+use crate::judge::{Judgement, MAX_ERROR, Vouch, judge};
 use crate::line::Line;
 use crate::marks::{
     Creased, MIN_ALIGNMENT, crease_overlap, crease_runs, findable_end_beyond, pinchable_lines_at,
@@ -63,7 +63,9 @@ pub struct Placed {
     pub sweep: u32,
     /// Presentation witness index (may differ from the closure's choice for
     /// a hoisted line). Indexes the fold's recorded witnesses, or — one past
-    /// their end — `found`.
+    /// their end — `found`. For a press: the alignment the press is sighted
+    /// by for itself ([`press_witness`]), or none to present the making
+    /// fold's.
     pub chosen: Option<usize>,
     /// A witness the closure did not record, found here against the paper as
     /// it stands when this fold is made. See [`candidates`].
@@ -125,7 +127,9 @@ pub struct Placed {
     /// image about a symmetry of the sheet, line and witness alike, both
     /// sightable before either was made — and the card shows the two as
     /// one step, as a diagram does. The value is the folded index of the
-    /// other. See [`twin_in_queue`].
+    /// other. See [`twin_in_queue`]. Sighted again for a pinch it could not
+    /// vouch for ([`repick_to_vouch`]), either may present a witness that
+    /// is no longer the other's image; the pair stays one card.
     pub twin_of: Option<usize>,
 }
 
@@ -275,8 +279,17 @@ fn marks_first(
         let (i, angle) = pending.remove(free.unwrap_or(0));
         // The paper of the sightable-first order is provisional: which
         // witness will be presented is not known yet, so no crease is
-        // carried to an O1's marks here.
-        record(&mut paper, closure, i, None);
+        // carried to an O1's marks here, and the fold vouches for what any
+        // of its recorded witnesses the folder could sight does.
+        let f = &folded[i];
+        let fold = f.constructed();
+        let vouches: Vec<Vouch> = f
+            .witnesses
+            .iter()
+            .filter(|w| sightable(state, &paper, &fold, w))
+            .map(|w| Vouch::of(state, &paper, &fold, w))
+            .collect();
+        record(&mut paper, closure, i, None, &vouches);
         out.push((i, angle));
     }
     out
@@ -295,6 +308,7 @@ fn record(
     closure: &Closure,
     folded_index: usize,
     presented: Option<&Witness>,
+    vouches: &[Vouch],
 ) -> Vec<[[f64; 2]; 2]> {
     let f = &closure.folded()[folded_index];
     let state = closure.state();
@@ -339,7 +353,11 @@ fn record(
                 runs_of(&f.line, &target.spans)
             };
             creased.add_spans(state, f.line_id, &f.line, &made);
-            creased.note_pinchable(state, f.line_id);
+            // A spot the fold could pinch while folding is a mark only
+            // where an alignment the folder could use vouches for it (R10).
+            creased.note_pinchable(state, f.line_id, |span| {
+                vouches.iter().any(|v| v.covers(span))
+            });
             made
         }
         _ => {
@@ -937,12 +955,19 @@ impl Repair {
 /// left short for its own references is pinched, at the making step,
 /// wherever a later fold turns out to need a mark on the line — a pinch's
 /// length each, rather than the whole line.
+///
+/// `vouched` is R10's gate ([`vouch_gate`]): asked with the making step and
+/// the pinch's span, it says whether the fold vouches for a pinch there —
+/// sighting the fold again if it has to — and a pinch it refuses is not
+/// made: the spot is no longer one the paper counts on, so the mark is
+/// missing and [`make_marks_real`] makes it a press.
 fn pinch_while_folding(
     state: &State,
     creased: &mut Creased,
     folded_of_line: &[Option<usize>],
     w: &Witness,
     placed: &mut [Placed],
+    vouched: &mut VouchGate<'_>,
 ) {
     for r in &w.inputs {
         let Ref::Point { id } = r else {
@@ -971,8 +996,183 @@ fn pinch_while_folding(
         else {
             continue;
         };
+        if !vouched(creased, making, span) {
+            creased.forget_pinchable(state, line_id, pt.p);
+            continue;
+        }
         making.pressed_on.push(span);
         creased.add_pinch(state, line_id, line, span);
+    }
+}
+
+/// R10's remedy when a fold cannot vouch for a pinch a later step needs on
+/// its line: sight the fold again, on the paper as it stood before it was
+/// made, for a witness that vouches for every pinch it carries and this one
+/// — free, practical and precise, by the same pick — and present that
+/// instead. Markhor 37: two marks a tenth apart become the same line
+/// through a mark a quarter sheet further along, and the pinch at the edge
+/// is within reach. The crease the new witness leaves is put on the paper
+/// (an O1 runs mark to mark), and what the line can be pinched at is
+/// re-noted for what the new alignment vouches for. A twin keeps its
+/// place; its witness is no longer the mirror image, and the card shows
+/// the two as they are. `false` when nothing on offer vouches: the pinch
+/// is then a press of its own.
+#[allow(clippy::too_many_arguments)]
+fn repick_to_vouch(
+    state: &State,
+    closure: &Closure,
+    folded_of_line: &[Option<usize>],
+    before: Option<&Creased>,
+    then: Option<&Creased>,
+    creased: &mut Creased,
+    making: &mut Placed,
+    span: [[f64; 2]; 2],
+) -> bool {
+    let (Some(before), Some(then)) = (before, then) else {
+        return false;
+    };
+    let f = &closure.folded()[making.folded];
+    let fold = f.constructed();
+    let target = f.target.and_then(|t| closure.targets().get(t));
+    let spans: &[[[f64; 2]; 2]] = target.map_or(&[], |t| t.spans.as_slice());
+    let direction = target.map_or(Direction::Unassigned, |t| t.direction);
+    let needed: Vec<[[f64; 2]; 2]> = making.pressed_on.iter().copied().chain([span]).collect();
+    let pool: Vec<Witness> =
+        candidates(state, before, &fold, f.line_id, &making.made, &f.witnesses)
+            .into_iter()
+            .filter(|w| sightable(state, before, &fold, w))
+            .filter(|w| {
+                let vouch = Vouch::of(state, before, &fold, w);
+                needed.iter().all(|s| vouch.covers(*s))
+            })
+            .collect();
+    if pool.is_empty() {
+        return false;
+    }
+    let direction_of_line = |line_id: usize| -> Option<Direction> {
+        let fi = folded_of_line.get(line_id).copied().flatten()?;
+        let t = closure.folded()[fi].target?;
+        Some(closure.targets()[t].direction)
+    };
+    let Some((index, judgement)) = pick_witness(
+        state,
+        before,
+        &fold,
+        spans,
+        &making.made,
+        direction,
+        &direction_of_line,
+        &pool,
+    ) else {
+        return false;
+    };
+    if !judgement.practical || !judgement.precise {
+        return false;
+    }
+    let w = pool[index].clone();
+    match f
+        .witnesses
+        .iter()
+        .position(|r| r.axiom == w.axiom && r.inputs == w.inputs)
+    {
+        Some(c) => {
+            making.chosen = Some(c);
+            making.found = None;
+        }
+        None => {
+            making.chosen = Some(f.witnesses.len());
+            making.found = Some(w.clone());
+        }
+    }
+    if let Some(t) = target
+        && !t.spans.is_empty()
+        && closure.reach_references()
+    {
+        let made = through_marks(
+            state,
+            &f.line,
+            reach(
+                state,
+                before,
+                &f.line,
+                &t.spans,
+                closure.allow_dangling_folds(),
+            ),
+            &w,
+        );
+        creased.add_spans(state, f.line_id, &f.line, &made);
+        making.made = made;
+    }
+    if making.also.is_some() {
+        making.also = mirror_witness(state, before, &fold, &w, &pool);
+    }
+    making.alignment = witness_alignment(state, before, &fold, &w);
+    making.marks_exist = true;
+    making.missing.clear();
+    making.impractical = false;
+    let vouch = Vouch::of(state, before, &fold, &w);
+    let spots = then.pinchable_spots(state, f.line_id, |s| vouch.covers(s));
+    creased.set_pinchable(state, f.line_id, spots);
+    true
+}
+
+/// The witness a press step of its own presents: over what the paper offers
+/// for the line now ([`candidates`]), the pick among those the folder can
+/// sight free of presses and that vouch for the pinch (R10, [`Vouch`]),
+/// judged with the pinch as the crease — practical and precise there. As
+/// `chosen`/`found` for the press's [`Placed`]; none when nothing on offer
+/// vouches, and the press then presents the making fold's witness as it
+/// always did.
+fn press_witness(
+    state: &State,
+    closure: &Closure,
+    folded_of_line: &[Option<usize>],
+    creased: &Creased,
+    f: &FoldedLine,
+    press: &Press,
+) -> (Option<usize>, Option<Witness>) {
+    let fold = f.constructed();
+    let target = f.target.and_then(|t| closure.targets().get(t));
+    let spans: &[[[f64; 2]; 2]] = target.map_or(&[], |t| t.spans.as_slice());
+    let direction = target.map_or(Direction::Unassigned, |t| t.direction);
+    let made = [press.span];
+    let pool: Vec<Witness> = candidates(state, creased, &fold, f.line_id, &made, &f.witnesses)
+        .into_iter()
+        .filter(|w| sightable(state, creased, &fold, w))
+        .filter(|w| Vouch::of(state, creased, &fold, w).covers(press.span))
+        .collect();
+    if pool.is_empty() {
+        return (None, None);
+    }
+    let direction_of_line = |line_id: usize| -> Option<Direction> {
+        let fi = folded_of_line.get(line_id).copied().flatten()?;
+        let t = closure.folded()[fi].target?;
+        Some(closure.targets()[t].direction)
+    };
+    let scored = score_witnesses(
+        state,
+        creased,
+        &fold,
+        spans,
+        &made,
+        direction,
+        &direction_of_line,
+        &pool,
+    );
+    let Some((index, judgement)) = pick_scored(state, &fold, spans, &pool, &scored) else {
+        return (None, None);
+    };
+    if !judgement.practical || !judgement.precise {
+        return (None, None);
+    }
+    let w = &pool[index];
+    match f
+        .witnesses
+        .iter()
+        .position(|r| r.axiom == w.axiom && r.inputs == w.inputs)
+    {
+        Some(c) => (Some(c), None),
+        None => (Some(f.witnesses.len()), Some(w.clone())),
     }
 }
 
@@ -991,6 +1191,13 @@ fn pinch_while_folding(
 /// the mark having counted as on the paper. A pinch located by a crease
 /// made later stays a step: the crossing it is sighted at was not there to
 /// sight.
+///
+/// And only a span the making fold can vouch for (R10, [`Vouch`]): a pinch
+/// or more crease beyond [`crate::judge::MAX_PINCH_ERROR`] levers of the
+/// alignment the fold was made by is not something that fold can promise.
+/// Then the fold is sighted again for a witness that can
+/// ([`repick_to_vouch`]), and failing that the press stays a step of its
+/// own.
 #[allow(clippy::too_many_arguments)]
 fn make_marks_real(
     state: &State,
@@ -998,6 +1205,7 @@ fn make_marks_real(
     creased: &mut Creased,
     folded_of_line: &[Option<usize>],
     snapshots: &[Option<Creased>],
+    befores: &[Option<Creased>],
     line: &Line,
     witness: &Witness,
     sweep: u32,
@@ -1009,9 +1217,8 @@ fn make_marks_real(
             return;
         };
         let f = &closure.folded()[folded_index];
-        press.record(state, creased);
         let then = snapshots.get(folded_index).and_then(|s| s.as_ref());
-        let while_folding = match press.sighted_from {
+        let could_then = match press.sighted_from {
             // Only a span that extends the crease the making fold itself
             // left, out to an end the folder could find then by the rule a
             // press's end is chosen by — never through a crossing with an
@@ -1023,19 +1230,38 @@ fn make_marks_real(
             // A pinch at a crossing the folder could see then.
             Some(seen) => then.is_some_and(|then| then.reaches(state, seen, press.at)),
         };
-        if while_folding
-            && let Some(making) = placed
+        let while_folding = could_then && {
+            let making = placed
                 .iter_mut()
-                .find(|q| q.folded == folded_index && q.press.is_none())
-        {
-            making.pressed_on.push(press.span);
+                .find(|q| q.folded == folded_index && q.press.is_none());
+            match making {
+                Some(making) => {
+                    let mut gate = vouch_gate(state, closure, folded_of_line, befores, snapshots);
+                    let vouched = gate(creased, making, press.span);
+                    if vouched {
+                        making.pressed_on.push(press.span);
+                    }
+                    vouched
+                }
+                None => false,
+            }
+        };
+        if while_folding {
+            press.record(state, creased);
             return;
         }
+        // A press of its own is the line folded again, and it is sighted
+        // for itself on the paper as it now stands (R10): by an alignment
+        // that vouches for the pinch, where the paper offers one — before
+        // the pinch is on it, so nothing sights the pinch from itself —
+        // and by the making fold's own otherwise, which could not.
+        let (chosen, found) = press_witness(state, closure, folded_of_line, creased, f, &press);
+        press.record(state, creased);
         placed.push(Placed {
             folded: folded_index,
             sweep,
-            chosen: None,
-            found: None,
+            chosen,
+            found,
             hoisted: false,
             direction_angle: folded_angle(&f.line),
             side,
@@ -1094,6 +1320,9 @@ struct Sighted {
     also: Option<Witness>,
     /// The presented witness is an impractical fold and the only one.
     impractical: bool,
+    /// What the fold vouches for being pinched while it is made (R10):
+    /// [`free_vouches`], and the presented witness's own.
+    vouches: Vec<Vouch>,
 }
 
 /// Every construction the paper offers for `line` at this moment, for the
@@ -1326,8 +1555,20 @@ fn witness_cost(state: &State, creased: &Creased, fold: &Line, witness: &Witness
 /// ease-preferred one's is taken instead: a fold three times as accurate is
 /// worth a harder kind (markhor 34: two edge marks a sheet apart over two
 /// points a fifth apart) or a fuzzier mark (markhor 103).
+/// One candidate as the pick scores it: its presses and its judgement.
+struct Scored {
+    index: usize,
+    cost: usize,
+    judgement: Judgement,
+    one_motion: bool,
+}
+
+/// Every witness in `witnesses` that some press makes a fold at all, priced
+/// ([`witness_cost`]) and judged ([`judge`]) for a fold along `fold` that
+/// will crease `made` for the pattern's `spans` in `direction` — what
+/// [`pick_scored`] chooses from and [`free_vouches`] reads.
 #[allow(clippy::too_many_arguments)]
-fn pick_witness(
+fn score_witnesses(
     state: &State,
     creased: &Creased,
     fold: &Line,
@@ -1336,26 +1577,8 @@ fn pick_witness(
     direction: Direction,
     direction_of_line: crate::judge::DirectionOfLine<'_>,
     witnesses: &[Witness],
-) -> Option<(usize, Judgement)> {
-    // A fold perpendicular to one edge is perpendicular to the opposite
-    // one too, and both are witnesses of equal ease. The folder wants the
-    // edge the crease is at: "fold the bottom edge onto itself" for a
-    // crease that runs up from the bottom, whichever edge the mark is
-    // nearer. So the tie goes to the edge whose foot on the fold is
-    // nearest the crease the pattern wants.
-    let at_the_crease = |w: &Witness| -> u64 {
-        if !w.folds_edge_onto_itself() {
-            return 0;
-        }
-        (edge_foot_gap(state, fold, spans, w) / 1e-9) as u64
-    };
-    struct Scored {
-        index: usize,
-        cost: usize,
-        judgement: Judgement,
-        one_motion: bool,
-    }
-    let scored: Vec<Scored> = witnesses
+) -> Vec<Scored> {
+    witnesses
         .iter()
         .enumerate()
         .filter_map(|(index, w)| {
@@ -1378,7 +1601,108 @@ fn pick_witness(
                 one_motion,
             })
         })
-        .collect();
+        .collect()
+}
+
+/// R10: what the paper may count on being pinched while the fold is made —
+/// the vouches ([`Vouch`]) of every witness the folder could sight now, free
+/// of presses, and make well (practical and precise), not only the
+/// presented one: a later step that needs a spot only another of them
+/// vouches for has the fold sighted again for that witness
+/// ([`repick_to_vouch`]).
+fn free_vouches(
+    state: &State,
+    creased: &Creased,
+    fold: &Line,
+    witnesses: &[Witness],
+    scored: &[Scored],
+) -> Vec<Vouch> {
+    scored
+        .iter()
+        .filter(|c| c.cost == 0 && c.judgement.practical && c.judgement.precise)
+        .map(|c| Vouch::of(state, creased, fold, &witnesses[c.index]))
+        .collect()
+}
+
+/// [`free_vouches`] for a fold along `line` (its id `line_id` in `state`),
+/// over every construction the paper offers ([`candidates`]) — with the
+/// presented witness's own vouch — for the tools' replays, so their paper
+/// notes the spots the plan's did.
+#[allow(clippy::too_many_arguments)]
+pub fn vouches_for(
+    state: &State,
+    creased: &Creased,
+    line: &Line,
+    line_id: usize,
+    spans: &[[[f64; 2]; 2]],
+    made: &[[[f64; 2]; 2]],
+    direction: Direction,
+    direction_of_line: crate::judge::DirectionOfLine<'_>,
+    recorded: &[Witness],
+    presented: Option<&Witness>,
+) -> Vec<Vouch> {
+    let pool = candidates(state, creased, line, line_id, made, recorded);
+    let scored = score_witnesses(
+        state,
+        creased,
+        line,
+        spans,
+        made,
+        direction,
+        direction_of_line,
+        &pool,
+    );
+    let mut out = free_vouches(state, creased, line, &pool, &scored);
+    if let Some(w) = presented {
+        out.push(Vouch::of(state, creased, line, w));
+    }
+    out
+}
+
+#[allow(clippy::too_many_arguments)]
+fn pick_witness(
+    state: &State,
+    creased: &Creased,
+    fold: &Line,
+    spans: &[[[f64; 2]; 2]],
+    made: &[[[f64; 2]; 2]],
+    direction: Direction,
+    direction_of_line: crate::judge::DirectionOfLine<'_>,
+    witnesses: &[Witness],
+) -> Option<(usize, Judgement)> {
+    let scored = score_witnesses(
+        state,
+        creased,
+        fold,
+        spans,
+        made,
+        direction,
+        direction_of_line,
+        witnesses,
+    );
+    pick_scored(state, fold, spans, witnesses, &scored)
+}
+
+/// [`pick_witness`] over witnesses already scored.
+fn pick_scored(
+    state: &State,
+    fold: &Line,
+    spans: &[[[f64; 2]; 2]],
+    witnesses: &[Witness],
+    scored: &[Scored],
+) -> Option<(usize, Judgement)> {
+    // A fold perpendicular to one edge is perpendicular to the opposite
+    // one too, and both are witnesses of equal ease. The folder wants the
+    // edge the crease is at: "fold the bottom edge onto itself" for a
+    // crease that runs up from the bottom, whichever edge the mark is
+    // nearer. So the tie goes to the edge whose foot on the fold is
+    // nearest the crease the pattern wants.
+    let at_the_crease = |w: &Witness| -> u64 {
+        if !w.folds_edge_onto_itself() {
+            return 0;
+        }
+        (edge_foot_gap(state, fold, spans, w) / 1e-9) as u64
+    };
     // A crease through two marks that are on the paper is a fold the
     // folder can make now, and a real diagram makes it — whatever its
     // length — rather than put a mark on the paper for a fold of an
@@ -1502,7 +1826,7 @@ pub fn explain(
     recorded: &[Witness],
 ) -> Vec<Explained> {
     let pool = candidates(state, creased, line, line_id, made, recorded);
-    let pick = pick_witness(
+    let scored = score_witnesses(
         state,
         creased,
         line,
@@ -1512,28 +1836,37 @@ pub fn explain(
         direction_of_line,
         &pool,
     );
+    let pick = pick_scored(state, line, spans, &pool, &scored);
     let also = pick
         .as_ref()
         .and_then(|(i, _)| mirror_witness(state, creased, line, &pool[*i], &pool));
     pool.iter()
         .enumerate()
-        .map(|(i, w)| Explained {
-            witness: w.clone(),
-            cost: witness_cost(state, creased, line, w),
-            judgement: judge(
-                state,
-                creased,
-                line,
-                made,
-                spans,
-                direction,
-                direction_of_line,
-                w,
-            ),
-            chosen: pick.as_ref().is_some_and(|(c, _)| *c == i),
-            also: also
-                .as_ref()
-                .is_some_and(|a| a.axiom == w.axiom && a.inputs == w.inputs),
+        .map(|(i, w)| {
+            let s = scored.iter().find(|s| s.index == i);
+            Explained {
+                witness: w.clone(),
+                cost: s.map(|s| s.cost),
+                judgement: s.map_or_else(
+                    || {
+                        judge(
+                            state,
+                            creased,
+                            line,
+                            made,
+                            spans,
+                            direction,
+                            direction_of_line,
+                            w,
+                        )
+                    },
+                    |s| s.judgement.clone(),
+                ),
+                chosen: pick.as_ref().is_some_and(|(c, _)| *c == i),
+                also: also
+                    .as_ref()
+                    .is_some_and(|a| a.axiom == w.axiom && a.inputs == w.inputs),
+            }
         })
         .collect()
 }
@@ -1559,6 +1892,7 @@ fn sight(
     creased: &mut Creased,
     folded_of_line: &[Option<usize>],
     snapshots: &[Option<Creased>],
+    befores: &[Option<Creased>],
     i: usize,
     sweep: u32,
     side: Side,
@@ -1599,7 +1933,7 @@ fn sight(
         Some(closure.targets()[t].direction)
     };
     let pool = candidates(state, creased, &fold, f.line_id, &made, &f.witnesses);
-    let pick = pick_witness(
+    let scored = score_witnesses(
         state,
         creased,
         &fold,
@@ -1609,6 +1943,8 @@ fn sight(
         &direction_of_line,
         &pool,
     );
+    let pick = pick_scored(state, &fold, spans, &pool, &scored);
+    let mut vouches = free_vouches(state, creased, &fold, &pool, &scored);
     // None of them can be folded, whatever is pressed — a perpendicular
     // whose line ends at the sheet's edge exactly at the foot, say. The step
     // is flagged as it is, and the card says so.
@@ -1625,15 +1961,18 @@ fn sight(
             alignment: None,
             also: None,
             impractical: false,
+            vouches,
         };
     };
     let witness = pool[index].clone();
+    vouches.push(Vouch::of(state, creased, &fold, &witness));
     let (chosen, found) = if index < f.witnesses.len() {
         (Some(index), None)
     } else {
         (Some(f.witnesses.len()), Some(witness.clone()))
     };
-    pinch_while_folding(state, creased, folded_of_line, &witness, placed);
+    let mut gate = vouch_gate(state, closure, folded_of_line, befores, snapshots);
+    pinch_while_folding(state, creased, folded_of_line, &witness, placed, &mut gate);
     if !sightable(state, creased, &fold, &witness) {
         make_marks_real(
             state,
@@ -1641,6 +1980,7 @@ fn sight(
             creased,
             folded_of_line,
             snapshots,
+            befores,
             &fold,
             &witness,
             sweep,
@@ -1650,7 +1990,7 @@ fn sight(
     }
     let also = mirror_witness(state, creased, &fold, &witness, &pool);
     if let Some(w) = &also {
-        pinch_while_folding(state, creased, folded_of_line, w, placed);
+        pinch_while_folding(state, creased, folded_of_line, w, placed, &mut gate);
     }
     let real = witness_marks_exist(state, creased, &witness)
         && witness_aligns_at_all(state, creased, &fold, &witness);
@@ -1666,7 +2006,87 @@ fn sight(
         },
         also,
         impractical: !judgement.practical,
+        vouches,
     }
+}
+
+/// R10's gate as [`pinch_while_folding`] takes it: asked with the paper,
+/// the making step and the pinch's span.
+type VouchGate<'a> = dyn FnMut(&mut Creased, &mut Placed, [[f64; 2]; 2]) -> bool + 'a;
+
+/// R10's gate on a pinch joining a fold already placed, for
+/// [`pinch_while_folding`] and [`make_marks_real`]: the fold's presented
+/// witness vouches for the span, on the paper it was sighted on — or the
+/// fold is sighted again for one that does ([`repick_to_vouch`]).
+fn vouch_gate<'a>(
+    state: &'a State,
+    closure: &'a Closure,
+    folded_of_line: &'a [Option<usize>],
+    befores: &'a [Option<Creased>],
+    snapshots: &'a [Option<Creased>],
+) -> impl FnMut(&mut Creased, &mut Placed, [[f64; 2]; 2]) -> bool + 'a {
+    move |creased: &mut Creased, making: &mut Placed, span: [[f64; 2]; 2]| {
+        let f = &closure.folded()[making.folded];
+        let before = befores.get(making.folded).and_then(|b| b.as_ref());
+        let then = snapshots.get(making.folded).and_then(|s| s.as_ref());
+        let vouched = {
+            let paper = before.or(then).unwrap_or(&*creased);
+            making
+                .presented(f)
+                .is_some_and(|w| Vouch::of(state, paper, &f.constructed(), w).covers(span))
+        };
+        vouched
+            || repick_to_vouch(
+                state,
+                closure,
+                folded_of_line,
+                before,
+                then,
+                creased,
+                making,
+                span,
+            )
+    }
+}
+
+/// What a fold `j` vouches for being pinched while it is made, on `paper`
+/// — the paper it is sighted on — presented by `witness` and creasing
+/// `made`: [`free_vouches`] over what the paper offers, and the presented
+/// witness's own. For the folds [`sight`] does not place: a twin, a
+/// hoisted landmark.
+fn vouches_of_fold(
+    state: &State,
+    closure: &Closure,
+    folded_of_line: &[Option<usize>],
+    paper: &Creased,
+    j: usize,
+    made: &[[[f64; 2]; 2]],
+    witness: &Witness,
+) -> Vec<Vouch> {
+    let f = &closure.folded()[j];
+    let fold = f.constructed();
+    let target = f.target.and_then(|t| closure.targets().get(t));
+    let spans: &[[[f64; 2]; 2]] = target.map_or(&[], |t| t.spans.as_slice());
+    let direction = target.map_or(Direction::Unassigned, |t| t.direction);
+    let direction_of_line = |line_id: usize| -> Option<Direction> {
+        let fi = folded_of_line.get(line_id).copied().flatten()?;
+        let t = closure.folded()[fi].target?;
+        Some(closure.targets()[t].direction)
+    };
+    let pool = candidates(state, paper, &fold, f.line_id, made, &f.witnesses);
+    let scored = score_witnesses(
+        state,
+        paper,
+        &fold,
+        spans,
+        made,
+        direction,
+        &direction_of_line,
+        &pool,
+    );
+    let mut out = free_vouches(state, paper, &fold, &pool, &scored);
+    out.push(Vouch::of(state, paper, &fold, witness));
+    out
 }
 
 /// A twin found in the block: its position in the queue, its folded index,
@@ -1816,6 +2236,9 @@ pub fn order_with(closure: &Closure, landmarks_first: bool, merge_twins: bool) -
     // The paper as it stood when each fold was made, for a later press to ask
     // whether the fold could have been creased that far in the first place.
     let mut snapshots: Vec<Option<Creased>> = vec![None; folded.len()];
+    // And as it stood just before, for a fold sighted again once a later
+    // step asks it for a pinch its alignment cannot vouch for (R10).
+    let mut befores: Vec<Option<Creased>> = vec![None; folded.len()];
 
     // The grid is on the paper before anything else and is not placed here:
     // the planner emits its steps ahead of every placed fold. `hoisted`
@@ -1827,7 +2250,7 @@ pub fn order_with(closure: &Closure, landmarks_first: bool, merge_twins: bool) -
     for (i, f) in folded.iter().enumerate() {
         if f.grid.is_some() {
             hoisted[i] = true;
-            record(&mut creased, closure, i, None);
+            record(&mut creased, closure, i, None, &[Vouch::everything()]);
         }
     }
     for (i, f) in folded.iter().enumerate() {
@@ -1871,7 +2294,16 @@ pub fn order_with(closure: &Closure, landmarks_first: bool, merge_twins: bool) -
                 hoisted[i] = true;
                 available[f.line_id] = true;
                 let w = &f.witnesses[k];
-                pinch_while_folding(state, &mut creased, &folded_of_line, w, &mut placed);
+                befores[i] = Some(creased.clone());
+                let hoisted_vouches = vec![Vouch::of(state, &creased, &f.line, w)];
+                pinch_while_folding(
+                    state,
+                    &mut creased,
+                    &folded_of_line,
+                    w,
+                    &mut placed,
+                    &mut vouch_gate(state, closure, &folded_of_line, &befores, &snapshots),
+                );
                 if !sightable(state, &creased, &f.line, w) {
                     make_marks_real(
                         state,
@@ -1879,6 +2311,7 @@ pub fn order_with(closure: &Closure, landmarks_first: bool, merge_twins: bool) -
                         &mut creased,
                         &folded_of_line,
                         &snapshots,
+                        &befores,
                         &f.line,
                         w,
                         0,
@@ -1899,7 +2332,7 @@ pub fn order_with(closure: &Closure, landmarks_first: bool, merge_twins: bool) -
                     missing: witness_missing_marks(state, &creased, w),
                     press: None,
                     pressed_on: Vec::new(),
-                    made: record(&mut creased, closure, i, Some(w)),
+                    made: record(&mut creased, closure, i, Some(w), &hoisted_vouches),
                     also: None,
                     impractical: false,
                     twin_of: None,
@@ -1957,15 +2390,17 @@ pub fn order_with(closure: &Closure, landmarks_first: bool, merge_twins: bool) -
             side = block_side;
             let mut queue: VecDeque<(usize, f64)> = block.into_iter().collect();
             while let Some((i, angle)) = queue.pop_front() {
-                // The paper before this fold, for its twin: the two are made
-                // at once, so the twin is sighted on the paper without it.
-                let before = merge_twins.then(|| creased.clone());
+                // The paper before this fold: for its twin — the two are
+                // made at once, so the twin is sighted on the paper without
+                // it — and for sighting it again later (R10).
+                befores[i] = Some(creased.clone());
                 let sighted = sight(
                     state,
                     closure,
                     &mut creased,
                     &folded_of_line,
                     &snapshots,
+                    &befores,
                     i,
                     sweep,
                     side,
@@ -1989,18 +2424,28 @@ pub fn order_with(closure: &Closure, landmarks_first: bool, merge_twins: bool) -
                     missing: sighted.missing,
                     press: None,
                     pressed_on: Vec::new(),
-                    made: record(&mut creased, closure, i, presented.as_ref()),
+                    made: record(
+                        &mut creased,
+                        closure,
+                        i,
+                        presented.as_ref(),
+                        &sighted.vouches,
+                    ),
                     also: sighted.also,
                     impractical: sighted.impractical,
                     twin_of: None,
                 });
                 snapshots[i] = Some(creased.clone());
-                let twin = before.as_ref().and_then(|before| {
-                    let a = placed.last()?;
-                    twin_in_queue(state, closure, before, a, &queue)
-                });
+                let twin = merge_twins
+                    .then(|| befores[i].as_ref())
+                    .flatten()
+                    .and_then(|before| {
+                        let a = placed.last()?;
+                        twin_in_queue(state, closure, before, a, &queue)
+                    });
                 if let Some((k, j, witness, made, merged)) = twin {
                     queue.remove(k);
+                    befores[j] = befores[i].clone();
                     // The twin is the symmetric alignment; a mirror of the
                     // first's own witness beside it would be a third arrow.
                     if merged && let Some(a) = placed.last_mut() {
@@ -2021,12 +2466,27 @@ pub fn order_with(closure: &Closure, landmarks_first: bool, merge_twins: bool) -
                         &folded_of_line,
                         &witness,
                         &mut placed,
+                        &mut vouch_gate(state, closure, &folded_of_line, &befores, &snapshots),
                     );
+                    let vouches = match befores[j].as_ref() {
+                        Some(before) => vouches_of_fold(
+                            state,
+                            closure,
+                            &folded_of_line,
+                            before,
+                            j,
+                            &made,
+                            &witness,
+                        ),
+                        None => vec![Vouch::of(state, &creased, &f.constructed(), &witness)],
+                    };
                     if made.is_empty() {
                         creased.add_whole(state, f.line_id);
                     } else {
                         creased.add_spans(state, f.line_id, &f.line, &made);
-                        creased.note_pinchable(state, f.line_id);
+                        creased.note_pinchable(state, f.line_id, |span| {
+                            vouches.iter().any(|v| v.covers(span))
+                        });
                     }
                     placed.push(Placed {
                         folded: j,
@@ -2304,7 +2764,7 @@ mod tests {
         let mut creased = Creased::new(&state);
         creased.add_whole(&state, up);
         creased.add_spans(&state, across, &h(0.6), &[[[0.0, 0.6], [0.1, 0.6]]]);
-        creased.note_pinchable(&state, across);
+        creased.note_pinchable(&state, across, |_| true);
         let crossing = state.find_point([0.5, 0.6]).expect("(0.5, 0.6)");
         let top_mark = state.find_point([0.5, 1.0]).expect("(0.5, 1)");
         let top = state.find_line(&h(1.0)).expect("top edge");
@@ -2508,7 +2968,7 @@ mod tests {
         let mut creased = Creased::new(&state);
         creased.add_whole(&state, up);
         creased.add_spans(&state, across, &h(0.6), &[[[0.0, 0.6], [0.1, 0.6]]]);
-        creased.note_pinchable(&state, across);
+        creased.note_pinchable(&state, across, |_| true);
         let crossing = state.find_point([0.5, 0.6]).expect("a state point");
         // The making steps, as `order` would have placed them: the vertical
         // is fold 0, the horizontal fold 1.
@@ -2548,7 +3008,14 @@ mod tests {
             presses_for_mark(&state, &creased, crossing).is_empty(),
             "no press"
         );
-        pinch_while_folding(&state, &mut creased, &folded_of_line, &w, &mut placed);
+        pinch_while_folding(
+            &state,
+            &mut creased,
+            &folded_of_line,
+            &w,
+            &mut placed,
+            &mut |_, _, _| true,
+        );
         assert!(
             placed[0].pressed_on.is_empty(),
             "the vertical reaches it already"
@@ -2569,7 +3036,14 @@ mod tests {
             "and on the paper"
         );
         // Asked again, nothing more is added.
-        pinch_while_folding(&state, &mut creased, &folded_of_line, &w, &mut placed);
+        pinch_while_folding(
+            &state,
+            &mut creased,
+            &folded_of_line,
+            &w,
+            &mut placed,
+            &mut |_, _, _| true,
+        );
         assert_eq!(placed[1].pressed_on.len(), 1);
     }
 
@@ -3040,6 +3514,176 @@ mod tests {
                 entry.made
             );
         }
+    }
+
+    /// R10: a crease an eighth long between two marks does not vouch for a
+    /// pinch at the sheet's edge, four levers away (markhor 37). Asked for
+    /// one by a later step, the fold is sighted again for an alignment
+    /// that does — the edges onto each other, or the marks a quarter and
+    /// three quarters along — and the pinch joins it. A pinch within reach
+    /// of its own two marks never needed that.
+    #[test]
+    fn a_fold_asked_for_a_pinch_beyond_its_alignment_is_sighted_again() {
+        let mid = Target::new(
+            h(0.5),
+            vec![],
+            vec![[[0.4375, 0.5], [0.5625, 0.5]]],
+            1.0,
+            0.0,
+        );
+        let mut c = Closure::new(Sheet::unit_square(), vec![mid], DEFAULT_POINT_CAP);
+        let verticals = [
+            v(0.5),
+            v(0.25),
+            v(0.75),
+            v(0.375),
+            v(0.625),
+            v(0.4375),
+            v(0.5625),
+        ];
+        for line in verticals {
+            assert!(
+                matches!(
+                    c.fold_line(line, LineTag::Cp).expect("fold"),
+                    FoldOutcome::Folded { .. }
+                ),
+                "{line:?}"
+            );
+        }
+        c.close(&Deadline::unbounded(frozen_clock()))
+            .expect("close");
+        assert!(c.is_complete());
+        let placed = order(&c, false);
+        let state = c.state();
+        let f = c.folded();
+        let mut entry = placed
+            .iter()
+            .find(|p| p.press.is_none() && f[p.folded].target.is_some())
+            .expect("the midline is placed")
+            .clone();
+        // Presented by its own two marks, as markhor 37 was.
+        let mark = |x: f64| point_ref(state, state.find_point([x, 0.5]).expect("mark"));
+        let own = Witness {
+            axiom: 1,
+            inputs: vec![mark(0.4375), mark(0.5625)],
+            root: 0,
+            who_moves: vec![],
+            hard: false,
+            visible: true,
+            skinny: false,
+            ease: crate::constants::fold_ease(1, false).expect("ease") as u8,
+            err: 0.0,
+        };
+        entry.chosen = Some(f[entry.folded].witnesses.len());
+        entry.found = Some(own.clone());
+        entry.made = vec![[[0.4375, 0.5], [0.5625, 0.5]]];
+        let w = &own;
+        // The paper before and after it, as the pass keeps them.
+        let mut before = Creased::new(state);
+        for line in verticals {
+            before.add_whole(state, state.find_line(&line).expect("vertical"));
+        }
+        let line_id = f[entry.folded].line_id;
+        let mut then = before.clone();
+        then.add_spans(state, line_id, &h(0.5), &entry.made);
+        then.note_pinchable(state, line_id, |_| true);
+        let mut folded_of_line = vec![None; state.line_count()];
+        for (i, fl) in f.iter().enumerate() {
+            folded_of_line[fl.line_id] = Some(i);
+        }
+        let mut befores = vec![None; f.len()];
+        befores[entry.folded] = Some(before.clone());
+        let mut snapshots = vec![None; f.len()];
+        snapshots[entry.folded] = Some(then.clone());
+        let mut gate = vouch_gate(state, &c, &folded_of_line, &befores, &snapshots);
+        // A pinch an eighth past the crease is within two and a half levers
+        // of the marks: the fold stays as it is.
+        let near = [[0.65, 0.5], [0.7, 0.5]];
+        let mut paper = then.clone();
+        let mut making = entry.clone();
+        assert!(gate(&mut paper, &mut making, near));
+        assert_eq!(
+            making.presented(&f[making.folded]).expect("witness").axiom,
+            1
+        );
+        // The edge is four levers away: sighted again.
+        let edge = [[1.0 - 2.0 * PINCH_HALF_LENGTH, 0.5], [1.0, 0.5]];
+        let mut paper = then.clone();
+        let mut making = entry.clone();
+        assert!(
+            Vouch::of(state, &before, &h(0.5), w)
+                .error_at(edge)
+                .expect("error")
+                > 3.0
+        );
+        assert!(
+            gate(&mut paper, &mut making, edge),
+            "an alignment that reaches the edge is on offer"
+        );
+        let again = making.presented(&f[making.folded]).expect("a witness");
+        assert_ne!(again.inputs, w.inputs, "a different alignment: {again:?}");
+        assert!(
+            Vouch::of(state, &before, &h(0.5), again).covers(edge),
+            "and it vouches for the pinch: {again:?}"
+        );
+        assert!(making.marks_exist && making.missing.is_empty());
+    }
+
+    /// R10: a pinch the gate refuses is not made — the mark stays missing,
+    /// for a press to make.
+    #[test]
+    fn a_pinch_the_fold_cannot_vouch_for_is_not_made_while_folding() {
+        let mut state = State::new(Sheet::unit_square(), DEFAULT_POINT_CAP);
+        let up = state.add_line(v(0.5), LineTag::Cp).expect("up").id;
+        let across = state.add_line(h(0.6), LineTag::Cp).expect("across").id;
+        let mut creased = Creased::new(&state);
+        creased.add_whole(&state, up);
+        creased.add_spans(&state, across, &h(0.6), &[[[0.0, 0.6], [0.1, 0.6]]]);
+        creased.note_pinchable(&state, across, |_| true);
+        let crossing = state.find_point([0.5, 0.6]).expect("a state point");
+        let mut folded_of_line = vec![None; state.line_count()];
+        folded_of_line[up] = Some(0);
+        folded_of_line[across] = Some(1);
+        let placed_fold = |folded: usize| Placed {
+            folded,
+            sweep: 1,
+            chosen: None,
+            found: None,
+            hoisted: false,
+            direction_angle: 0.0,
+            side: Side::Front,
+            marks_exist: true,
+            alignment: None,
+            missing: Vec::new(),
+            press: None,
+            pressed_on: Vec::new(),
+            made: Vec::new(),
+            also: None,
+            impractical: false,
+            twin_of: None,
+        };
+        let mut placed = vec![placed_fold(0), placed_fold(1)];
+        let w = witness(
+            2,
+            vec![
+                Ref::Point { id: crossing },
+                Ref::Corner {
+                    id: 0,
+                    corner: crate::sheet::CornerName::Nw,
+                },
+            ],
+        );
+        pinch_while_folding(
+            &state,
+            &mut creased,
+            &folded_of_line,
+            &w,
+            &mut placed,
+            &mut |_, _, _| false,
+        );
+        assert!(placed[1].pressed_on.is_empty(), "refused");
+        assert!(!creased.reaches(&state, across, [0.5, 0.6]));
+        assert_eq!(witness_missing_marks(&state, &creased, &w), vec![crossing]);
     }
 
     /// The antidiagonal with the midlines down: the bisection of the corner

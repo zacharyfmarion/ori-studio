@@ -1232,14 +1232,21 @@ impl Planner {
             let f: &FoldedLine = &folded[p.folded];
             // A press is the fold that made this line, done again for a little
             // more of it: same construction, same references, same motion, a
-            // pinch for an extent. So it presents the making step's witness.
-            // Reading that off the press itself made it look like a different
-            // fold.
-            let original = p.press.as_ref().and_then(|_| {
-                placed
-                    .iter()
-                    .find(|q| q.folded == p.folded && q.press.is_none())
-            });
+            // pinch for an extent. So it presents the making step's witness —
+            // unless the ordering pass sighted the press for itself, by an
+            // alignment that vouches for the pinch where the making fold's
+            // could not (R10, `order::press_witness`). Reading a press off
+            // itself with no witness of its own made it look like a
+            // different fold.
+            let original = p
+                .press
+                .as_ref()
+                .filter(|_| p.chosen.is_none())
+                .and_then(|_| {
+                    placed
+                        .iter()
+                        .find(|q| q.folded == p.folded && q.press.is_none())
+                });
             let presenting = original.unwrap_or(p);
             let chosen_index = presenting.chosen;
             // The recorded witnesses, plus the one the ordering pass found

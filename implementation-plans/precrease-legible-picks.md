@@ -432,6 +432,42 @@ Second round, from Zach's next fold of markhor (2026-09-14):
   steps 4,039 → 4,038, cards 3,327 → 3,326, presses 169 → 168 — all of
   it helioprion, which lost a step, a piece and a press — and every
   other design's plan is the same to the step.
+- **R10: a pinch is an end of the crease** (2026-09-15, markhor card 37).
+  A fold that also pinched a mark for a later step — "Also crease where
+  shown past the pattern's line" — was judged for its crease alone: card
+  37 joined two marks a tenth of the sheet apart and pinched the line at
+  the right edge, 4.7 levers from them, for card 48 to land on. Zach:
+  "This kind of fold will lead to an inaccurate crease because the
+  distance between the two points you're connecting is far [less than
+  the distance to] the other mark that is being made." Now a fold
+  *vouches* for a pinch, or for more crease, only within
+  `MAX_PINCH_ERROR` = 2.5 levers of where its alignment happens
+  (`judge::Vouch`, the same measure as the crease's own error, held to
+  the tighter bar he asked for; the quarter-sheet reach bar is not
+  applied — a pinch is pressed on a fold already flat). The own-ends
+  exemption does not cover it, and a witness the judgement cannot
+  measure (an O6, a bisection of parallel lines) vouches for nothing.
+  Where it lives: the paper's *pinchable* spots
+  (`Creased::note_pinchable`) — the crossings beyond a fold's crease
+  that `mark_exists` counts as marks, for the closure and the pick alike
+  — are now only the spots some free, practical, precise witness of the
+  fold vouches for (`order::free_vouches`), not the presented one alone,
+  since a later step that needs such a spot has the fold **sighted
+  again** for that witness (`order::repick_to_vouch`, on the paper as it
+  stood before the fold; the crease it leaves is recomputed and put on
+  the paper). When a pinch is asked for that the presented witness
+  cannot vouch for and no re-pick can, the pinch is refused, the spot
+  forgotten, and the mark becomes a **press of its own**, which is now
+  sighted for itself on the paper at that moment (`order::press_witness`)
+  rather than presenting the making fold's witness that could not vouch
+  for it. Markhor: card 37 becomes a mark on the top edge onto a mark by
+  the bottom edge, a sheet apart, the edge pinch a third of a lever from
+  where they meet; six other folds are re-sighted or lose a far pinch
+  the later step found elsewhere; one press appears (card 21: a mark at
+  (0.25, 0.677) that a 0.02 crease lined up over a tenth of the sheet
+  could not reach, 4.2 levers away, and nothing on that paper could),
+  sighted for itself. 164 steps, 112 cards, no pinch beyond the bar
+  (`measure_ends` prints `pinches beyond`, read off a replay).
 - **The card's own geometry**: `sideOf` in `diagram/plannerDiagram.ts`
   judged a point on the fold within a billionth of a unit, which the
   document frame (a 400-unit sheet) did not meet; a receiving piece that
@@ -466,6 +502,9 @@ on a pattern line and made as "fold the bottom edge onto itself through P"
   alignment on the centre line, and the *also* shows on 17 of markhor's
   other steps.
 - [x] R9 O4 through the crease's end on a long crease — pinned 34, 93.
+- [x] R10 a pinch is an end of the crease — pinned 56 (card 37) and, as
+      an invariant over every step's `pressed_on` and every press, no
+      pinch beyond 2.5 levers of the presented alignment.
 - [x] The markhor_feedback pin table as a test; second round: 48 (landing
   seen past the flap's edge), 50 (an O1 creased to both marks — as an
   invariant over every O1 step).

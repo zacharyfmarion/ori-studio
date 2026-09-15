@@ -41,6 +41,11 @@
 //! - **R7** A mark is a crossing; a crease ending on another is not one.
 //! - **R9** A line folded onto itself through a mark is a hinge trick when
 //!   the line's crease is short and an ordinary fold when it is long.
+//! - **R10** A pinch is an end of the crease: a fold vouches for a mark
+//!   pinched while it is made only within [`MAX_PINCH_ERROR`] levers of
+//!   its alignment ([`Vouch`]). Two marks a tenth of the sheet apart fix
+//!   the crease between them, not a mark at the sheet's edge four levers
+//!   away (markhor 37).
 
 use crate::constants::{MIN_ANGLE_SINE, fold_ease};
 use crate::direction::Direction;
@@ -62,6 +67,14 @@ pub const MIN_LEVER: f64 = 0.09;
 /// the farthest end of the crease at most this many levers from where the
 /// alignment happens. Beyond it the crease lands somewhere near the line.
 pub const MAX_ERROR: f64 = 3.0;
+/// R10: the farthest a fold may pinch a mark for a later step, in levers
+/// from where the alignment happens — a pinch is an end of the crease, and
+/// held to a tighter bar than the crease itself at Zach's request. Markhor
+/// 37 joined two marks a tenth of the sheet apart and pinched the line at
+/// the sheet's edge, 4.7 levers away, for a fold ten cards later to land
+/// on: "the distance between the two points you're connecting is far
+/// [less than the distance to] the other mark that is being made".
+pub const MAX_PINCH_ERROR: f64 = 2.5;
 /// The farthest the crease may be from where the alignment happens, in
 /// sheet units, whatever the lever: a quarter of the sheet. Two points a
 /// sheet apart fix the fold line well, but a crease half a sheet from where
@@ -448,26 +461,7 @@ pub fn judge(
             .is_none_or(|(lo, hi)| !extends_well_beyond(fold, made, lo, hi));
     let lever = lever(state, creased, fold, w);
     let anchor = anchor(state, fold, w);
-    let (reach, reach_far) = match anchor {
-        Some(a) if !made.is_empty() => {
-            let near = made
-                .iter()
-                .map(|[p, q]| segment_distance(a, *p, *q))
-                .fold(f64::INFINITY, f64::min);
-            let far = made
-                .iter()
-                .flat_map(|[p, q]| [*p, *q])
-                .map(|e| (e[0] - a[0]).hypot(e[1] - a[1]))
-                .fold(0.0, f64::max);
-            (Some(near), Some(far))
-        }
-        _ => (None, None),
-    };
-    let error = match (lever, reach_far) {
-        (Some(l), Some(far)) if l > TOL => Some(far / l),
-        (Some(l), Some(_)) if l <= TOL => Some(f64::INFINITY),
-        _ => None,
-    };
+    let (reach, reach_far, error) = grown(lever, anchor, made);
     let own_ends = w.axiom == 1 && is_own_ends(state, fold, spans, w);
     // The crease's own two marks are as far apart as the crease is long, and
     // nothing lines a crease up better than the marks it runs between; the
@@ -537,6 +531,89 @@ pub fn judge(
         marks_real,
         ease,
         one_motion,
+    }
+}
+
+/// An alignment's error grown to `spans`: how near they come to where the
+/// alignment happens, how far their farthest end is, and that distance in
+/// levers — the reach, the far reach and the error of [`Judgement`].
+fn grown(
+    lever: Option<f64>,
+    anchor: Option<[f64; 2]>,
+    spans: &[[[f64; 2]; 2]],
+) -> (Option<f64>, Option<f64>, Option<f64>) {
+    let (reach, far) = match anchor {
+        Some(a) if !spans.is_empty() => {
+            let near = spans
+                .iter()
+                .map(|[p, q]| segment_distance(a, *p, *q))
+                .fold(f64::INFINITY, f64::min);
+            let far = spans
+                .iter()
+                .flat_map(|[p, q]| [*p, *q])
+                .map(|e| (e[0] - a[0]).hypot(e[1] - a[1]))
+                .fold(0.0, f64::max);
+            (Some(near), Some(far))
+        }
+        _ => (None, None),
+    };
+    let error = match (lever, far) {
+        (Some(l), Some(far)) if l > TOL => Some(far / l),
+        (Some(l), Some(_)) if l <= TOL => Some(f64::INFINITY),
+        _ => None,
+    };
+    (reach, far, error)
+}
+
+/// R10: what a fold sighted by one witness can vouch for — where its
+/// alignment happens and how far apart the things aligned are — read off
+/// the paper once, so the paper can ask about each spot as the fold is
+/// recorded ([`crate::marks::Creased::note_pinchable`]) without the
+/// witness in hand.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Vouch {
+    anchor: Option<[f64; 2]>,
+    lever: Option<f64>,
+    /// Vouches for everything: a fold with no witness to hold it to.
+    unbounded: bool,
+}
+
+impl Vouch {
+    /// What a fold along `fold` sighted by `w` vouches for, on the paper
+    /// `creased` as it stands when the fold is made. A witness the
+    /// judgement has no lever or anchor for — an O6, a bisection of
+    /// parallel lines — vouches for nothing beyond its crease: the
+    /// judgement does not know how well it fixes the line, and a pinch is
+    /// not made on what it cannot say.
+    pub fn of(state: &State, creased: &Creased, fold: &Line, w: &Witness) -> Vouch {
+        Vouch {
+            anchor: anchor(state, fold, w),
+            lever: lever(state, creased, fold, w),
+            unbounded: false,
+        }
+    }
+
+    /// A fold with no witness to hold it to: it vouches for everything, as
+    /// the paper did before R10. A grid line, a fold creased whole.
+    pub fn everything() -> Vouch {
+        Vouch {
+            anchor: None,
+            lever: None,
+            unbounded: true,
+        }
+    }
+
+    /// The alignment's error grown to `span` — its farthest end, in
+    /// levers from where the alignment happens. `None` when there is no
+    /// lever or no anchor to measure from.
+    pub fn error_at(&self, span: [[f64; 2]; 2]) -> Option<f64> {
+        grown(self.lever, self.anchor, &[span]).2
+    }
+
+    /// Whether the fold vouches for a pinch, or more crease, along `span`:
+    /// within [`MAX_PINCH_ERROR`] levers of the alignment.
+    pub fn covers(&self, span: [[f64; 2]; 2]) -> bool {
+        self.unbounded || self.error_at(span).is_some_and(|e| e <= MAX_PINCH_ERROR)
     }
 }
 
@@ -993,6 +1070,78 @@ mod tests {
             &o2,
         );
         assert!(j.corner_to_corner);
+    }
+
+    /// R10: two marks a tenth of the sheet apart vouch for a pinch a fifth
+    /// away and not for one at the sheet's edge, a fold in half vouches for
+    /// its whole line, and a witness with no lever vouches for anything.
+    #[test]
+    fn a_fold_vouches_for_a_pinch_within_two_and_a_half_levers() {
+        let (state, creased) = paper();
+        let none: DirectionOfLine<'_> = &|_| None;
+        // Marks at (0.5, 0.25) and (0.5, 0.75) — the midline's crossings
+        // with the two horizontals — joined: lever 0.5, anchor the centre.
+        let a = state.find_point([0.5, 0.25]).expect("a");
+        let b = state.find_point([0.5, 0.75]).expect("b");
+        let up = v(0.5);
+        let w = witness(
+            1,
+            vec![Ref::Point { id: a }, Ref::Point { id: b }],
+            vec![],
+            true,
+        );
+        let vouch = Vouch::of(&state, &creased, &up, &w);
+        let pinch = |y: f64| [[0.5, y - 0.02], [0.5, y + 0.02]];
+        assert!(vouch.covers(pinch(0.0)), "the edge is a lever away");
+        assert!((vouch.error_at(pinch(0.0)).expect("error") - 1.04).abs() < 1e-9);
+        // A fold judged for the same crease agrees with the vouch.
+        let j = judge(
+            &state,
+            &creased,
+            &up,
+            &[pinch(0.0)],
+            &[],
+            Direction::Valley,
+            none,
+            &w,
+        );
+        assert_eq!(j.error, vouch.error_at(pinch(0.0)));
+        // Two marks a tenth apart on the low horizontal: (0.5, 0.25) and a
+        // mark a tenth along — the sheet's edge is 4.7 levers away.
+        let mut state = state;
+        let short = state.add_line(v(0.6), LineTag::Cp).expect("short").id;
+        let mut creased = creased;
+        creased.add_whole(&state, short);
+        let c = state.find_point([0.6, 0.25]).expect("c");
+        let low = h(0.25);
+        let w = witness(
+            1,
+            vec![Ref::Point { id: a }, Ref::Point { id: c }],
+            vec![],
+            true,
+        );
+        let vouch = Vouch::of(&state, &creased, &low, &w);
+        let along = |x: f64| [[x - 0.02, 0.25], [x + 0.02, 0.25]];
+        assert!(vouch.covers(along(0.75)), "two levers away");
+        assert!(!vouch.covers(along(1.0)), "four and a half levers away");
+        assert!(!vouch.covers(along(0.0)));
+        assert!(Vouch::everything().covers(along(0.0)));
+        // A fold the judgement cannot measure — two points onto two lines —
+        // vouches for nothing: it may fix the line well, but nothing here
+        // says so.
+        let o6 = witness(
+            6,
+            vec![
+                Ref::Point { id: a },
+                Ref::Line { id: short },
+                Ref::Point { id: c },
+                Ref::Line { id: short },
+            ],
+            vec![0, 2],
+            true,
+        );
+        let vouch = Vouch::of(&state, &creased, &low, &o6);
+        assert!(!vouch.covers(along(0.5)));
     }
 
     #[test]
