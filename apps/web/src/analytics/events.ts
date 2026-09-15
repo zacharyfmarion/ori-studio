@@ -281,7 +281,7 @@ export type CpExactSolveResolution = 'accepted' | 'accepted-partial' | 'retried'
 export type CpDetectImageSource = 'picker' | 'drop';
 
 /** Where the Detect dialog stood when it was closed without importing. */
-export type CpDetectDismissStage = 'upload' | 'crop' | 'detecting' | 'review';
+export type CpDetectDismissStage = 'upload' | 'confirm' | 'crop' | 'detecting' | 'review';
 
 /**
  * Why a detection did not complete.
@@ -461,12 +461,21 @@ export const ANALYTICS_EVENTS = {
   cpExactSolveResolved: 'cp exact solve resolved',
   /**
    * The Image→CP funnel, in order. `command invoked` (`file.detectCpImage`)
-   * opens the dialog; then an image is loaded, Detect is pressed, detection
-   * completes, and the pattern is imported. A close at any point before the
-   * import is a `cp detect dismissed` with the stage it happened at, so the
-   * drop-off between any two steps is a count, not an inference.
+   * opens the dialog; then an image is loaded, its rights are confirmed,
+   * Detect is pressed, detection completes, and the pattern is imported. A
+   * close at any point before the import is a `cp detect dismissed` with the
+   * stage it happened at, so the drop-off between any two steps is a count,
+   * not an inference.
    */
   cpDetectImageLoaded: 'cp detect image loaded',
+  /**
+   * The rights gate between an image loading and Detect was answered:
+   * `accepted` is Continue, and `false` is Back. A close at the gate is a
+   * `cp detect dismissed` at stage `confirm` instead, the same split the
+   * dialog makes everywhere between abandoning and declining. No "shown"
+   * event: every `cp detect image loaded` shows it.
+   */
+  cpDetectRightsAnswered: 'cp detect rights answered',
   cpDetectStarted: 'cp detect started',
   cpDetectCompleted: 'cp detect completed',
   cpDetectImported: 'cp detect imported',

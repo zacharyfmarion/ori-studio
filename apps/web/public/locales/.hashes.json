@@ -2805,7 +2805,11 @@
     "panels:bpSymmetry.problem.axisOffCentre": "aca4720348b3",
     "panels:bpSymmetry.problem.notAMirror": "df53cd4703ad",
     "panels:bpSymmetry.problem.unpaired": "d58d4f9339e7",
-    "panels:simulator.restart": "6b983a81e5e8"
+    "panels:simulator.restart": "6b983a81e5e8",
+    "dialogs:cpDetectImport.rights.attest": "3c063ccbf64c",
+    "dialogs:cpDetectImport.rights.back": "76900f1bfd16",
+    "dialogs:cpDetectImport.rights.continue": "31fbef162594",
+    "dialogs:cpDetectImport.rights.lead": "559e1da6894e"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5613,7 +5617,11 @@
     "panels:bpSymmetry.problem.axisOffCentre": "aca4720348b3",
     "panels:bpSymmetry.problem.notAMirror": "df53cd4703ad",
     "panels:bpSymmetry.problem.unpaired": "d58d4f9339e7",
-    "panels:simulator.restart": "6b983a81e5e8"
+    "panels:simulator.restart": "6b983a81e5e8",
+    "dialogs:cpDetectImport.rights.attest": "3c063ccbf64c",
+    "dialogs:cpDetectImport.rights.back": "76900f1bfd16",
+    "dialogs:cpDetectImport.rights.continue": "31fbef162594",
+    "dialogs:cpDetectImport.rights.lead": "559e1da6894e"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8421,7 +8429,11 @@
     "panels:bpSymmetry.problem.axisOffCentre": "aca4720348b3",
     "panels:bpSymmetry.problem.notAMirror": "df53cd4703ad",
     "panels:bpSymmetry.problem.unpaired": "d58d4f9339e7",
-    "panels:simulator.restart": "6b983a81e5e8"
+    "panels:simulator.restart": "6b983a81e5e8",
+    "dialogs:cpDetectImport.rights.attest": "3c063ccbf64c",
+    "dialogs:cpDetectImport.rights.back": "76900f1bfd16",
+    "dialogs:cpDetectImport.rights.continue": "31fbef162594",
+    "dialogs:cpDetectImport.rights.lead": "559e1da6894e"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11178,7 +11190,11 @@
     "panels:bpSymmetry.problem.axisOffCentre": "aca4720348b3",
     "panels:bpSymmetry.problem.notAMirror": "df53cd4703ad",
     "panels:bpSymmetry.problem.unpaired": "d58d4f9339e7",
-    "panels:simulator.restart": "6b983a81e5e8"
+    "panels:simulator.restart": "6b983a81e5e8",
+    "dialogs:cpDetectImport.rights.attest": "3c063ccbf64c",
+    "dialogs:cpDetectImport.rights.back": "76900f1bfd16",
+    "dialogs:cpDetectImport.rights.continue": "31fbef162594",
+    "dialogs:cpDetectImport.rights.lead": "559e1da6894e"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -13935,7 +13951,11 @@
     "panels:bpSymmetry.problem.axisOffCentre": "aca4720348b3",
     "panels:bpSymmetry.problem.notAMirror": "df53cd4703ad",
     "panels:bpSymmetry.problem.unpaired": "d58d4f9339e7",
-    "panels:simulator.restart": "6b983a81e5e8"
+    "panels:simulator.restart": "6b983a81e5e8",
+    "dialogs:cpDetectImport.rights.attest": "3c063ccbf64c",
+    "dialogs:cpDetectImport.rights.back": "76900f1bfd16",
+    "dialogs:cpDetectImport.rights.continue": "31fbef162594",
+    "dialogs:cpDetectImport.rights.lead": "559e1da6894e"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -16743,7 +16763,11 @@
     "panels:bpSymmetry.problem.axisOffCentre": "aca4720348b3",
     "panels:bpSymmetry.problem.notAMirror": "df53cd4703ad",
     "panels:bpSymmetry.problem.unpaired": "d58d4f9339e7",
-    "panels:simulator.restart": "6b983a81e5e8"
+    "panels:simulator.restart": "6b983a81e5e8",
+    "dialogs:cpDetectImport.rights.attest": "3c063ccbf64c",
+    "dialogs:cpDetectImport.rights.back": "76900f1bfd16",
+    "dialogs:cpDetectImport.rights.continue": "31fbef162594",
+    "dialogs:cpDetectImport.rights.lead": "559e1da6894e"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -19551,7 +19575,11 @@
     "panels:bpSymmetry.problem.axisOffCentre": "aca4720348b3",
     "panels:bpSymmetry.problem.notAMirror": "df53cd4703ad",
     "panels:bpSymmetry.problem.unpaired": "d58d4f9339e7",
-    "panels:simulator.restart": "6b983a81e5e8"
+    "panels:simulator.restart": "6b983a81e5e8",
+    "dialogs:cpDetectImport.rights.attest": "3c063ccbf64c",
+    "dialogs:cpDetectImport.rights.back": "76900f1bfd16",
+    "dialogs:cpDetectImport.rights.continue": "31fbef162594",
+    "dialogs:cpDetectImport.rights.lead": "559e1da6894e"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -22308,6 +22336,10 @@
     "panels:bpSymmetry.problem.axisOffCentre": "aca4720348b3",
     "panels:bpSymmetry.problem.notAMirror": "df53cd4703ad",
     "panels:bpSymmetry.problem.unpaired": "d58d4f9339e7",
-    "panels:simulator.restart": "6b983a81e5e8"
+    "panels:simulator.restart": "6b983a81e5e8",
+    "dialogs:cpDetectImport.rights.attest": "3c063ccbf64c",
+    "dialogs:cpDetectImport.rights.back": "76900f1bfd16",
+    "dialogs:cpDetectImport.rights.continue": "31fbef162594",
+    "dialogs:cpDetectImport.rights.lead": "559e1da6894e"
   }
 }

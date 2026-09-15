@@ -91,6 +91,12 @@
     "regionLabel": "Detected crease pattern",
     "repairLabel": "Add detected crease pattern to repair",
     "reviewAndFix": "Review & Fix",
+    "rights": {
+      "attest": "I confirm that this crease pattern was obtained legally and that I have the right to use it.",
+      "back": "Back",
+      "continue": "Continue",
+      "lead": "Crease patterns are their designers’ work. Detect only a pattern you have the right to use: one you designed, one that was published for others to fold, or one whose designer gave you permission. The image is processed on this device and is never uploaded."
+    },
     "runningModel": "Running model",
     "stopping": "Stopping…",
     "stopSolve": "Stop",

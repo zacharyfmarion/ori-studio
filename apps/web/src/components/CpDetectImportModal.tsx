@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Crop, ImagePlus, Loader2, Play, Square, Upload, Wrench, X } from 'lucide-react';
 import { CpDetectCropEditor } from './CpDetectCropEditor';
+import { CpDetectRightsConfirmation } from './CpDetectRightsConfirmation';
 import { sourceSizeForRectification } from './cpDetectCropLoupe';
 import { track } from '../analytics';
 import type { CpDetectFailureReason, CpDetectImageSource } from '../analytics/events';
@@ -80,7 +81,7 @@ type BusyState =
   | 'solving'
   | 'importing'
   | null;
-type ModalStage = 'upload' | 'crop' | 'detecting' | 'review';
+type ModalStage = 'upload' | 'confirm' | 'crop' | 'detecting' | 'review';
 
 /**
  * The funnel's reason for a detection that did not complete: the model store's
@@ -102,9 +103,23 @@ function detectFailureReason(code: string): CpDetectFailureReason {
   }
 }
 
-/** Where the dialog stands, from the three facts that decide it. */
-function modalStage(busy: string | null, recognition: unknown, source: unknown): ModalStage {
-  return busy === 'detecting' ? 'detecting' : recognition ? 'review' : source ? 'crop' : 'upload';
+/**
+ * Where the dialog stands, from the four facts that decide it.
+ *
+ * `confirm` is the rights gate: an image is loaded and nobody has yet said
+ * they are entitled to it. It sits before the crop step rather than before the
+ * picker so the attestation is about a specific image on screen.
+ */
+function modalStage(
+  busy: string | null,
+  recognition: unknown,
+  source: unknown,
+  rightsConfirmed: boolean
+): ModalStage {
+  if (busy === 'detecting') return 'detecting';
+  if (recognition) return 'review';
+  if (!source) return 'upload';
+  return rightsConfirmed ? 'crop' : 'confirm';
 }
 type PreviewOverlayKey = 'inferred' | 'assignments';
 
@@ -277,6 +292,15 @@ export function CpDetectImportModal() {
   const [rectified, setRectified] = useState<CpDetectRectifiedImage | null>(null);
   const [recognition, setRecognition] = useState<CpDetectRecognizeResult | null>(null);
   const [phase, setPhase] = useState<SolvePhase>(NOT_ATTEMPTED);
+  /**
+   * Whether the user has said they are entitled to `source`.
+   *
+   * Per image, deliberately: the sentence confirmed is about the crease
+   * pattern on screen, so every image `loadImageFile` brings in — including a
+   * second one picked from the crop or review step — asks again, and nothing
+   * is remembered across sessions.
+   */
+  const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [model, setModel] = useState<DetectorModelState | null>(null);
   const [modelProgress, setModelProgress] = useState<CpDetectModelDownloadProgress | null>(null);
   const [modelUpdating, setModelUpdating] = useState(false);
@@ -404,6 +428,7 @@ export function CpDetectImportModal() {
     setRectified(null);
     setRecognition(null);
     setPhase(NOT_ATTEMPTED);
+    setRightsConfirmed(false);
     setSolveTargetId(null);
     setError(null);
     setDropActive(false);
@@ -428,10 +453,10 @@ export function CpDetectImportModal() {
     if (busy === 'solving') stopSolve();
     // The funnel's exit, with where it happened. Only a close that abandons the
     // session reaches here; a successful add closes through `addToDocument`.
-    track('cp detect dismissed', { stage: modalStage(busy, recognition, source) });
+    track('cp detect dismissed', { stage: modalStage(busy, recognition, source, rightsConfirmed) });
     setOpen(false);
     resetSession();
-  }, [busy, canClose, recognition, resetSession, source, stopSolve]);
+  }, [busy, canClose, recognition, resetSession, rightsConfirmed, source, stopSolve]);
 
   const loadImageFile = useCallback(async (file: OpenBinaryFileResult, from: CpDetectImageSource) => {
     const nextSource = await sourceImageFromFile(file, t);
@@ -443,8 +468,12 @@ export function CpDetectImportModal() {
     setRectified(null);
     setRecognition(null);
     setPhase(NOT_ATTEMPTED);
+    setRightsConfirmed(false);
     setPreviewOverlays(DEFAULT_PREVIEW_OVERLAYS);
 
+    // The rights gate is on screen from here. Rectifying underneath it is
+    // local work in the worker — the image never leaves the device — and it
+    // means the crop step is ready the moment Continue is pressed.
     const client = await getCpDetectClient();
     setBusy('rectifying');
     const auto = await whileCpDetectClientAlive(
@@ -494,6 +523,24 @@ export function CpDetectImportModal() {
     },
     [loadImageFile, t]
   );
+
+  const confirmRights = useCallback(() => {
+    setRightsConfirmed(true);
+    track('cp detect rights answered', { accepted: true });
+  }, []);
+
+  /**
+   * Decline the gate: back to the picker with the image gone.
+   *
+   * The whole session goes, not just `source` — `resetSession` is exactly
+   * "as if nothing had been chosen", and the model read survives it. The gate
+   * refuses this while the first rectification is still running (see its
+   * `busy`), so no late result can land on the emptied session.
+   */
+  const declineRights = useCallback(() => {
+    track('cp detect rights answered', { accepted: false });
+    resetSession();
+  }, [resetSession]);
 
   /**
    * Distinguishes one crop's rectification from the next one's: a corner
@@ -854,7 +901,7 @@ export function CpDetectImportModal() {
     const solved = phase.kind === 'settled' ? phase.fold : null;
     return solved ? foldPreviewOf(solved) : parseFoldPreview(recognition.foldJson);
   }, [phase, recognition]);
-  const stage = modalStage(busy, recognition, source);
+  const stage = modalStage(busy, recognition, source, rightsConfirmed);
   const canChooseImage = model !== null && busy === null && !modelUpdating;
   // The solve has its own row, which names the stage rather than saying "busy".
   const downloading =
@@ -934,6 +981,17 @@ export function CpDetectImportModal() {
               </div>
             )}
           </div>
+        )}
+
+        {stage === 'confirm' && cropSource && (
+          <CpDetectRightsConfirmation
+            image={{ url: cropSource.url, width: cropSource.image.width, height: cropSource.image.height }}
+            busy={busy !== null}
+            status={status}
+            error={error}
+            onConfirm={confirmRights}
+            onBack={declineRights}
+          />
         )}
 
         {stage === 'crop' && cropSource && (

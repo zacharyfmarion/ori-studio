@@ -349,8 +349,18 @@ function bodyText(): string {
   return document.body.textContent ?? '';
 }
 
-/** Walk the modal from the upload stage to the review stage. */
-async function reachReviewStage(): Promise<void> {
+function rightsGate(): Element | null {
+  return document.querySelector('[data-testid="cp-detect-rights"]');
+}
+
+function rightsCheckbox(): HTMLInputElement {
+  const found = rightsGate()?.querySelector('input[type="checkbox"]');
+  if (!found) throw new Error('no rights checkbox on screen');
+  return found as HTMLInputElement;
+}
+
+/** Open the modal and choose an image, which lands on the rights gate. */
+async function reachRightsGate(): Promise<void> {
   await act(async () => {
     root?.render(
       <TooltipProvider>
@@ -364,6 +374,19 @@ async function reachReviewStage(): Promise<void> {
   await settle();
   click('Choose Image');
   await settle();
+}
+
+/** Answer the rights gate: tick the attestation and continue to the crop. */
+async function confirmRights(): Promise<void> {
+  act(() => rightsCheckbox().click());
+  click('Continue');
+  await settle();
+}
+
+/** Walk the modal from the upload stage to the review stage. */
+async function reachReviewStage(): Promise<void> {
+  await reachRightsGate();
+  await confirmRights();
   click('Detect');
   await settle();
 }
@@ -1045,6 +1068,12 @@ describe('CpDetectImportModal session reset', () => {
     expect(button('Choose Image')).not.toBeNull();
     expect(button('Detect')).toBeNull();
     expect(button('Review & Fix')).toBeNull();
+
+    // And the rights gate is asked again: the answer went with the session.
+    click('Choose Image');
+    await settle();
+    expect(rightsGate()).not.toBeNull();
+    expect(button('Detect')).toBeNull();
   });
 
   it('starts from the file picker after being closed', async () => {
@@ -1067,6 +1096,11 @@ describe('CpDetectImportModal session reset', () => {
 
     expect(button('Choose Image')).not.toBeNull();
     expect(button('Detect')).toBeNull();
+
+    click('Choose Image');
+    await settle();
+    expect(rightsGate()).not.toBeNull();
+    expect(button('Detect')).toBeNull();
   });
 
   it('releases the source object URL rather than holding it for the session', async () => {
@@ -1079,6 +1113,138 @@ describe('CpDetectImportModal session reset', () => {
 });
 
 /**
+ * The rights gate between an image loading and the crop step.
+ *
+ * A crease pattern is its designer's work. The gate is asked about the image
+ * on screen, for every image the dialog loads, and the tick is the affirmative
+ * act — so the tests are about what is reachable without it, what Back throws
+ * away, and when the question comes back.
+ */
+describe('CpDetectImportModal rights confirmation', () => {
+  it('asks after an image is chosen, before any crop or Detect', async () => {
+    await reachRightsGate();
+
+    expect(rightsGate()).not.toBeNull();
+    expect(bodyText()).toContain('crane.png');
+    expect(bodyText()).toContain('I confirm that this crease pattern was obtained legally');
+    expect(button('Detect')).toBeNull();
+    expect(document.querySelector('.cp-detect-modal__image-wrap')).toBeNull();
+    // The image itself, by its object URL — the user attests about what they see.
+    expect(rightsGate()?.querySelector('img')?.getAttribute('src')).toBe('blob:source');
+  });
+
+  it('keeps Continue disabled until the attestation is ticked', async () => {
+    await reachRightsGate();
+
+    expect(button('Continue')?.disabled).toBe(true);
+    act(() => rightsCheckbox().click());
+    expect(button('Continue')?.disabled).toBe(false);
+    act(() => rightsCheckbox().click());
+    expect(button('Continue')?.disabled).toBe(true);
+  });
+
+  it('rectifies underneath the gate, so Continue lands on a crop that is already there', async () => {
+    await reachRightsGate();
+    expect(detectClient.autoRectifyImage).toHaveBeenCalledTimes(1);
+
+    await confirmRights();
+
+    expect(rightsGate()).toBeNull();
+    expect(button('Detect')).not.toBeNull();
+    expect(document.querySelector('.cp-detect-modal__image-wrap')).not.toBeNull();
+    expect(detectClient.autoRectifyImage).toHaveBeenCalledTimes(1);
+    expect(track).toHaveBeenCalledWith('cp detect rights answered', { accepted: true });
+  });
+
+  it('goes back to the picker on Back, with the image gone', async () => {
+    await reachRightsGate();
+
+    click('Back');
+    await settle();
+
+    expect(rightsGate()).toBeNull();
+    expect(button('Choose Image')).not.toBeNull();
+    expect(button('Detect')).toBeNull();
+    expect(bodyText()).not.toContain('crane.png');
+    expect(globalThis.URL.revokeObjectURL).toHaveBeenCalledWith('blob:source');
+    expect(track).toHaveBeenCalledWith('cp detect rights answered', { accepted: false });
+  });
+
+  it('counts a close at the gate as a dismissal there, not as an answer', async () => {
+    await reachRightsGate();
+
+    const dismiss = [...document.querySelectorAll('button')].find(
+      (element) => element.getAttribute('aria-label') === 'Close'
+    );
+    if (!dismiss) throw new Error('no close button');
+    act(() => dismiss.click());
+    await settle();
+
+    expect(track).toHaveBeenCalledWith('cp detect dismissed', { stage: 'confirm' });
+    expect(track).not.toHaveBeenCalledWith('cp detect rights answered', expect.anything());
+  });
+
+  it('asks again for a second image chosen from the crop step', async () => {
+    await reachRightsGate();
+    await confirmRights();
+    expect(button('Detect')).not.toBeNull();
+
+    click('Choose Image');
+    await settle();
+
+    expect(rightsGate()).not.toBeNull();
+    expect(button('Detect')).toBeNull();
+  });
+
+  it('asks again for a second image chosen from the review step', async () => {
+    await reachReviewStage();
+    expect(button('Review & Fix')).not.toBeNull();
+
+    click('Choose Image');
+    await settle();
+
+    expect(rightsGate()).not.toBeNull();
+    expect(button('Review & Fix')).toBeNull();
+    expect(button('Detect')).toBeNull();
+  });
+
+  it('refuses Back while the first rectification is still running, and says so', async () => {
+    let finishRectifying: (() => void) | null = null;
+    detectClient.autoRectifyImage.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishRectifying = () => resolve(rectifiedImage());
+        })
+    );
+    await reachRightsGate();
+
+    expect(rightsGate()).not.toBeNull();
+    expect(button('Back')?.disabled).toBe(true);
+    expect(bodyText()).toContain('Rectifying crop');
+    // Continue is not gated on it: the crop step draws itself around a
+    // rectification still in flight.
+    act(() => rightsCheckbox().click());
+    expect(button('Continue')?.disabled).toBe(false);
+
+    await act(async () => {
+      finishRectifying?.();
+    });
+    await settle();
+
+    expect(button('Back')?.disabled).toBe(false);
+    expect(bodyText()).not.toContain('Rectifying crop');
+  });
+
+  it('shows a failed rectification at the gate rather than after it', async () => {
+    detectClient.autoRectifyImage.mockRejectedValueOnce(new Error('no paper found'));
+    await reachRightsGate();
+
+    expect(rightsGate()).not.toBeNull();
+    expect(bodyText()).toContain('no paper found');
+  });
+});
+
+/**
  * The crop step: a corner drag is the whole interaction, and the crop must
  * follow the pointer, show the magnifier while it does, and re-rectify itself
  * when the corner is let go — there is no button for that, and the one that was
@@ -1086,19 +1252,8 @@ describe('CpDetectImportModal session reset', () => {
  */
 describe('CpDetectImportModal crop editing', () => {
   async function reachCropStage(): Promise<void> {
-    await act(async () => {
-      root?.render(
-        <TooltipProvider>
-          <CpDetectImportModal />
-        </TooltipProvider>
-      );
-    });
-    await act(async () => {
-      window.dispatchEvent(new CustomEvent('ori-studio:detect-cp-image'));
-    });
-    await settle();
-    click('Choose Image');
-    await settle();
+    await reachRightsGate();
+    await confirmRights();
   }
 
   function pointer(type: string, target: Element, x: number, y: number): void {

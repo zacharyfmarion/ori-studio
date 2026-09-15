@@ -230,8 +230,9 @@ the person chose it or is following their OS. Two things it is deliberately not:
 | `fold warning accepted` | `source`, `accepted`, `suppressed_future_warnings` | The user answered that warning |
 | `fold simulation run` | `source` (`fold-3d-refused`/`fold-3d-no-layer-order`), `crease_count_bucket` | The simulator was opened instead of a 3D fold — because the fold was refused, or because a placed figure's layers could not be ordered |
 | `cp detect image loaded` | `source` (`picker`/`drop`), `paper_found` | An image reached the Detect dialog and was rectified. `paper_found` is whether the paper's outline was found automatically, which is the auto-crop's hit rate |
+| `cp detect rights answered` | `accepted` | The rights gate between an image loading and Detect was answered: `true` is Continue, `false` is Back to the picker. A close at the gate is a `cp detect dismissed` at `confirm` instead, not a `false` here. No "shown" event — every `cp detect image loaded` shows it |
 | `cp detect started` | — | Image→CP detection begins |
-| `cp detect dismissed` | `stage` (`upload`/`crop`/`detecting`/`review`) | The dialog was closed without importing, and where it stood. The funnel's drop-off, counted rather than inferred |
+| `cp detect dismissed` | `stage` (`upload`/`confirm`/`crop`/`detecting`/`review`) | The dialog was closed without importing, and where it stood. The funnel's drop-off, counted rather than inferred |
 | `cp detect completed` | `succeeded`, on failure `reason` (`registry_unavailable`/`registry_invalid`/`download_failed`/`integrity`/`worker_lost`/`inference`), on success optional `execution_provider` (`webgpu`/`wasm`), `wasm_threads_bucket`, `session_create_ms_bucket`, `inference_ms_bucket`, `model_source` (`installed`/`downloaded`) | Detection finishes. The runtime facts ride only on success: which provider ran, how many wasm threads it had, how long the session took to build and the inference to run, and whether the model's bytes were already on the device — the spread across devices is the point of measuring |
 | `cp detect imported` | `mode`, `outcome`, `repair_sites` (bucketed) | A detected CP is imported. `outcome` is how the pattern came out — the five solver endings under their own names (`solved`, `ambiguous`, `timeout`, `rejected`, `malformed`), plus `recognized` (not solved, because the topology was flagged) and `cancelled`. `ambiguous` is the one to watch: the solver kept its answer and the pattern got better, but not to the precision the foldability check holds, so it is an improvement rather than a success |
 | `cp detect cancelled` | `kind` (`region`/`detect-import`/`command`), `stage`, `duration_ms_bucket` | A running exact solve was stopped by the user. Deliberately not a verdict on `cp exact solve completed` — a stopped run reached none of the solver's endings, and counting it there would put it in the feature's failure rate |
@@ -273,19 +274,23 @@ anyone using this, and does it work" gets answered:
 
 1. `command invoked` with `action: file.detectCpImage` — the dialog opened.
 2. `cp detect image loaded` — an image was chosen and rectified.
-3. `cp detect started` — Detect was pressed. The first press on a device is
+3. `cp detect rights answered` — the user confirmed they are entitled to the
+   image (`accepted: true`), or went back to the picker (`false`). The gate is
+   asked for every image, so a second image loaded in one session is a second
+   pair of steps 2 and 3.
+4. `cp detect started` — Detect was pressed. The first press on a device is
    also the model download; `cp detect model downloaded` with
    `source: first-run` marks it.
-4. `cp detect completed` — `succeeded` and, on success, the runtime buckets;
+5. `cp detect completed` — `succeeded` and, on success, the runtime buckets;
    on failure, the `reason`. Success rate of the model run.
-5. `cp detect imported` — the pattern was added, with `outcome` saying how far
+6. `cp detect imported` — the pattern was added, with `outcome` saying how far
    the solve got (`solved` is the clean ending; `ambiguous` improved the
    pattern without reaching the foldability check).
-6. `cp exact solve completed` and `cp exact solve resolved` — for a pattern
+7. `cp exact solve completed` and `cp exact solve resolved` — for a pattern
    added with a solve region, whether the solve landed and whether the user
    kept it.
 
-`cp detect dismissed` carries the stage at every exit before step 5, so the
+`cp detect dismissed` carries the stage at every exit before step 6, so the
 drop-off between any two steps is a count. Nothing in the funnel carries the
 image, the pattern, or the model id.
 
