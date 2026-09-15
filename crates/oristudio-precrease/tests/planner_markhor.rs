@@ -252,22 +252,36 @@ const EXPECTED: &[Expect] = &[
         points: &[(0.75, 0.1768), (0.7714, 0.1982)],
         ..ANY
     },
+    // 157: from its top mark down to the next mark along the line — the
+    // pattern's own lower end is on no crease yet, so the crease runs on to
+    // where one is (the reach rule) and is joined mark to mark.
     Expect {
         item: 157,
         line: (0.9239, -0.3827, -0.08406),
         axiom: Some(1),
         side: Some(Side::Front),
-        points: &[(0.125, 0.5214), (0.1616, 0.6098)],
+        points: &[(0.1616, 0.6098)],
         ..ANY
     },
     // 158: two pieces of 0.19 and 0.38 — not a pinch, and made from the back
-    // as the mountain it is.
+    // as the mountain it is; a corner brought onto a mark.
     Expect {
         item: 158,
         line: (0.9239, -0.3827, -0.05604),
         axiom: Some(2),
         side: Some(Side::Back),
-        points: &[(0.0, 0.5), (0.25, 0.3964)],
+        corners: &[CornerName::Nw],
+        ..ANY
+    },
+    // 48 (second round): a crease folded onto itself whose other arm lay
+    // wholly under the flap is not a fold the folder can watch; the right
+    // edge swung onto a mark about the same pivot is.
+    Expect {
+        item: 48,
+        line: (FRAC_1_SQRT_2, FRAC_1_SQRT_2, 1.02405),
+        axiom: Some(5),
+        edges: &[EdgeSide::Right],
+        points: &[(0.4482, 1.0)],
         ..ANY
     },
 ];
@@ -415,6 +429,36 @@ fn markhor_feedback_picks_are_the_ones_zach_asked_for() {
         "every CP step has a direction"
     );
     let mut failures = Vec::new();
+    // 50 (second round): "fold through P and Q" is creased all the way to
+    // both — every O1 step's crease covers both its marks.
+    for step in seq.steps.iter().filter(|s| s.kind == StepKind::Cp) {
+        let Some(w) = step.chosen.and_then(|c| step.witnesses.get(c)) else {
+            continue;
+        };
+        if w.axiom != 1 {
+            continue;
+        }
+        let runs: Vec<(f64, f64)> = step
+            .made
+            .iter()
+            .map(|[a, b]| {
+                let (u, v) = (step.line.parameter_of(*a), step.line.parameter_of(*b));
+                (u.min(v), v.max(u))
+            })
+            .collect();
+        for r in &w.inputs {
+            let Some(p) = point_of(&seq, r) else {
+                continue;
+            };
+            let t = step.line.parameter_of(p);
+            if !runs.iter().any(|(u, v)| t >= u - 1e-6 && t <= v + 1e-6) {
+                failures.push(format!(
+                    "step {}: the crease {:?} does not reach its mark ({:.4},{:.4})",
+                    step.id, step.made, p[0], p[1]
+                ));
+            }
+        }
+    }
     for e in EXPECTED {
         let want = Line::new([e.line.0, e.line.1], e.line.2).expect("line");
         let Some(step) = seq

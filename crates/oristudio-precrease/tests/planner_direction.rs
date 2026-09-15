@@ -1057,9 +1057,11 @@ fn a_mirror_witness_has_its_marks_in_the_points_table() {
             .and_then(|c| step.witnesses.get(c))
             .expect("chosen");
         assert_eq!(also.axiom, chosen.axiom, "{step:?}");
+        // Its own reflection, read the other way round, is not a second
+        // alignment; sharing the centre line it folds onto itself is.
         assert!(
-            also.inputs.iter().all(|r| !chosen.inputs.contains(r)),
-            "a mirror names other references: {step:?}"
+            !also.inputs.iter().all(|r| chosen.inputs.contains(r)),
+            "a mirror names some other reference: {step:?}"
         );
         for r in also.inputs.iter().filter(|r| r.is_point()) {
             assert!(

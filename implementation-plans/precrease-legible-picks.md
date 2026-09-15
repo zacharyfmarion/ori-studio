@@ -344,6 +344,24 @@ as the ease-preferred pick. Refinements found on the way:
   line; the pick presents it only when nothing practical exists and flags
   the step `impractical` (markhor has none).
 
+Second round, from Zach's next fold of markhor (2026-09-14):
+
+- **R1 at the flap's edge** (`judge::landings_seen`, folded into
+  `Judgement::visible`). Whatever is carried onto a crease lands *under*
+  the flap — what moves is part of it — so the folder can only watch the
+  alignment where the crease landed on comes out from under the flap's
+  edge: it has to be there at the point where the folded flap's boundary
+  crosses it (the image of the moving mark, or of the moving arm's end on
+  the sheet's edge) and for a pinch's length beyond. Markhor 48 folded a
+  crease onto itself whose other arm lay wholly under the flap; it is now
+  the right edge swung onto a mark. An edge landed on is there everywhere;
+  a flap's own edge is seen wherever it overlaps; a line folded onto itself
+  is judged for the shorter arm, the one the card swings.
+- **A crease through two marks runs from the one to the other**
+  (`order::through_marks`): "fold through P and Q" creases all the way to
+  both, whatever the pattern wants between them (markhor 50), and the
+  paper carries that crease for the folds after it.
+
 Pins: `tests/planner_markhor.rs`, gated on `ORI_PRECREASE_MARKHOR` (the
 file is not committed), one entry per item above, by line. Iguana's
 line-by-line pin moved from 0 presses / 91 steps to 3 / 94: three
@@ -372,7 +390,9 @@ on a pattern line and made as "fold the bottom edge onto itself through P"
   alignment on the centre line, and the *also* shows on 17 of markhor's
   other steps.
 - [x] R9 O4 through the crease's end on a long crease — pinned 34, 93.
-- [x] The markhor_feedback pin table as a test.
+- [x] The markhor_feedback pin table as a test; second round: 48 (landing
+  seen past the flap's edge), 50 (an O1 creased to both marks — as an
+  invariant over every O1 step).
 - [x] Corpus gates 1–3, measured 2026-09-14 on the 53 designs both runs
   planned (the curated set has changed since the baseline; abra and
   wolpertinger are gone from it): steps 3,738 → 3,715, turn-overs 308 →

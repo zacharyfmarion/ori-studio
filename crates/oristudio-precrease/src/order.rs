@@ -262,7 +262,10 @@ fn marks_first(
                 .any(|w| sightable(state, &paper, &fold, w))
         });
         let (i, angle) = pending.remove(free.unwrap_or(0));
-        record(&mut paper, closure, i);
+        // The paper of the sightable-first order is provisional: which
+        // witness will be presented is not known yet, so no crease is
+        // carried to an O1's marks here.
+        record(&mut paper, closure, i, None);
         out.push((i, angle));
     }
     out
@@ -276,7 +279,12 @@ fn marks_first(
 /// used, this one included if a witness names it.
 /// Put fold `folded_index` on the paper, and say where: the runs recorded,
 /// merged, or empty for a fold creased along its whole chord.
-fn record(creased: &mut Creased, closure: &Closure, folded_index: usize) -> Vec<[[f64; 2]; 2]> {
+fn record(
+    creased: &mut Creased,
+    closure: &Closure,
+    folded_index: usize,
+    presented: Option<&Witness>,
+) -> Vec<[[f64; 2]; 2]> {
     let f = &closure.folded()[folded_index];
     let state = closure.state();
     // A grid line is creased as its grid step made it: a pleat's line edge
@@ -315,6 +323,7 @@ fn record(creased: &mut Creased, closure: &Closure, folded_index: usize) -> Vec<
             } else {
                 runs_of(&f.line, &target.spans)
             };
+            let made = presented.map_or(made.clone(), |w| through_marks(state, &f.line, made, w));
             creased.add_spans(state, f.line_id, &f.line, &made);
             creased.note_pinchable(state, f.line_id);
             made
@@ -324,6 +333,35 @@ fn record(creased: &mut Creased, closure: &Closure, folded_index: usize) -> Vec<
             Vec::new()
         }
     }
+}
+
+/// A crease through two marks is creased from the one to the other: "fold
+/// through P and Q" is made all the way to both, whatever the pattern wants
+/// between them (markhor 50). `made` with the stretch between an O1's two
+/// marks added, merged into runs; any other witness leaves it alone.
+fn through_marks(
+    state: &State,
+    line: &Line,
+    mut made: Vec<[[f64; 2]; 2]>,
+    w: &Witness,
+) -> Vec<[[f64; 2]; 2]> {
+    if w.axiom != 1 {
+        return made;
+    }
+    let marks: Vec<[f64; 2]> = w
+        .inputs
+        .iter()
+        .filter_map(|r| match r {
+            Ref::Point { id } | Ref::Corner { id, .. } => Some(state.point(*id)),
+            _ => None,
+        })
+        .filter(|p| line.distance_to_point(*p) <= TOL)
+        .collect();
+    let [p, q] = marks.as_slice() else {
+        return made;
+    };
+    made.push([*p, *q]);
+    runs_of(line, &made)
 }
 
 /// `spans` merged into runs, as spans.
@@ -1584,7 +1622,7 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
     for (i, f) in folded.iter().enumerate() {
         if f.grid.is_some() {
             hoisted[i] = true;
-            record(&mut creased, closure, i);
+            record(&mut creased, closure, i, None);
         }
     }
     for (i, f) in folded.iter().enumerate() {
@@ -1656,7 +1694,7 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
                     missing: witness_missing_marks(state, &creased, w),
                     press: None,
                     pressed_on: Vec::new(),
-                    made: record(&mut creased, closure, i),
+                    made: record(&mut creased, closure, i, Some(w)),
                     also: None,
                     impractical: false,
                 });
@@ -1723,6 +1761,11 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
                     side,
                     &mut placed,
                 );
+                let presented = sighted.found.clone().or_else(|| {
+                    sighted
+                        .chosen
+                        .and_then(|c| folded[i].witnesses.get(c).cloned())
+                });
                 placed.push(Placed {
                     folded: i,
                     sweep,
@@ -1736,7 +1779,7 @@ pub fn order(closure: &Closure, landmarks_first: bool) -> Vec<Placed> {
                     missing: sighted.missing,
                     press: None,
                     pressed_on: Vec::new(),
-                    made: record(&mut creased, closure, i),
+                    made: record(&mut creased, closure, i, presented.as_ref()),
                     also: sighted.also,
                     impractical: sighted.impractical,
                 });
@@ -2659,6 +2702,65 @@ mod tests {
                 && ends.iter().any(|&e| near(e, [0.5625, 0.4375])),
             "through the crease's own ends, got {ends:?}"
         );
+    }
+
+    /// The same paper with a pattern crease shorter than the stretch between
+    /// its marks: "fold through P and Q" is creased from the one to the
+    /// other (markhor 50).
+    #[test]
+    fn a_crease_through_two_marks_is_made_all_the_way_between_them() {
+        let anti = Line::from_points([1.0, 0.0], [0.0, 1.0]).expect("anti");
+        let short = Target::new(anti, vec![], vec![[[0.5, 0.5], [0.53, 0.47]]], 1.0, 0.0);
+        let mut c = Closure::new(Sheet::unit_square(), vec![short], DEFAULT_POINT_CAP);
+        for line in [
+            v(0.5),
+            h(0.5),
+            v(0.75),
+            v(0.625),
+            v(0.5625),
+            h(0.25),
+            h(0.375),
+            h(0.4375),
+        ] {
+            assert!(
+                matches!(
+                    c.fold_line(line, LineTag::Cp).expect("fold"),
+                    FoldOutcome::Folded { .. }
+                ),
+                "{line:?}"
+            );
+        }
+        c.close(&Deadline::unbounded(frozen_clock()))
+            .expect("close");
+        assert!(c.is_complete());
+        let placed = order(&c, false);
+        let f = c.folded();
+        let entry = placed
+            .iter()
+            .find(|p| p.press.is_none() && f[p.folded].target.is_some())
+            .expect("the antidiagonal is placed");
+        let w = entry.presented(&f[entry.folded]).expect("a witness");
+        assert_eq!(w.axiom, 1, "{w:?}");
+        let marks: Vec<[f64; 2]> = w
+            .inputs
+            .iter()
+            .map(|r| c.state().points()[r.id()].p)
+            .collect();
+        let runs = crease_runs(&anti, &entry.made);
+        for m in &marks {
+            assert!(
+                runs.iter().any(|(a, b)| {
+                    let (ta, tb, tm) = (
+                        anti.parameter_of(*a),
+                        anti.parameter_of(*b),
+                        anti.parameter_of(*m),
+                    );
+                    tm >= ta.min(tb) - 1e-9 && tm <= ta.max(tb) + 1e-9
+                }),
+                "the crease reaches the mark {m:?}: {:?}",
+                entry.made
+            );
+        }
     }
 
     #[test]

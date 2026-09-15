@@ -17,7 +17,11 @@
 //!   a folded edge, and being parallel, folding the flap over disturbs
 //!   nothing. See [`o2_start_is_practical`].
 //! - **R1** Visibility outranks ease: [`Witness::visible`] is asked before
-//!   the ease order, and the skinny flap after it.
+//!   the ease order, and the skinny flap after it — and a landing has to be
+//!   seen *at the flap's edge*: whatever is carried onto a crease lands
+//!   under the flap, and the folder can only watch the alignment where the
+//!   crease landed on comes out from under the flap's edge
+//!   ([`landings_seen`]).
 //! - **R2** Precision: the **lever** is how far apart the things lined up
 //!   are — two points, the overlap of two creases, a swing's radius — and the
 //!   **reach** is how far the crease being made is from the alignment. The
@@ -77,7 +81,8 @@ pub const PARALLEL_SINE: f64 = 0.02;
 pub struct Judgement {
     /// R0: not an interior point folded onto another, or the exception.
     pub practical: bool,
-    /// R1: the folder can watch the alignment — [`Witness::visible`].
+    /// R1: the folder can watch the alignment — [`Witness::visible`], and
+    /// every landing seen past the flap's edge ([`landings_seen`]).
     pub visible: bool,
     /// The fold leaves a sliver of a flap — [`Witness::skinny`].
     pub skinny: bool,
@@ -174,6 +179,139 @@ pub fn o2_start_is_practical(
             && state.line(l).cross(fold).abs() <= PARALLEL_SINE
             && direction_of_line(l) == Some(opposite)
     })
+}
+
+/// How far past the flap's edge a crease landed on has to run for the folder
+/// to sight the alignment on it: a pinch's length, the same bar as
+/// [`MIN_ALIGNMENT`].
+const SEEN_PAST_EDGE: f64 = MIN_ALIGNMENT;
+
+/// A step along a line, past which a point is unambiguously in or out of
+/// the paper.
+const OUTWARD_STEP: f64 = 1e-3;
+
+/// R1 at the flap's edge. Whether every landing the fold asks for can be
+/// seen once the flap is folded over. A mark carried onto a crease, or a
+/// crease carried onto a crease, lands *under* the flap — what moves is
+/// part of it — and the only place the folder can watch the alignment is
+/// where the crease landed on comes out from under the flap's edge. So that
+/// crease has to be there where the folded flap's boundary crosses it, and
+/// for a sighting length beyond ([`SEEN_PAST_EDGE`]): markhor 48 folded a
+/// crease onto itself whose other arm lay wholly under the flap, with
+/// nothing past the edge to line it up by. An edge landed on is there
+/// everywhere; a flap's own edge carried onto a crease is seen wherever
+/// they overlap; a mark carried onto a mark is read at the flap's edge and
+/// is not this rule's business.
+pub fn landings_seen(state: &State, creased: &Creased, fold: &Line, w: &Witness) -> bool {
+    let moves = |i: usize| w.who_moves.contains(&(i as u8));
+    let point = |i: usize| -> Option<[f64; 2]> {
+        match w.inputs.get(i)? {
+            Ref::Point { id } | Ref::Corner { id, .. } => Some(state.point(*id)),
+            _ => None,
+        }
+    };
+    let line = |i: usize| -> Option<usize> {
+        match w.inputs.get(i)? {
+            Ref::Line { id } | Ref::Edge { id, .. } => Some(*id),
+            _ => None,
+        }
+    };
+    let mark_onto = |p: Option<[f64; 2]>, m: Option<usize>| -> bool {
+        match (p, m) {
+            // A mark on the fold itself goes nowhere: nothing to watch land.
+            (Some(p), Some(_)) if fold.signed_distance(p).abs() <= TOL => true,
+            (Some(p), Some(m)) => crease_past_edge(state, creased, fold, m, fold.reflect_point(p)),
+            _ => true,
+        }
+    };
+    match w.axiom {
+        3 => match (line(0), line(1)) {
+            (Some(a), Some(b)) => {
+                let (moving, base) = if moves(1) { (b, a) } else { (a, b) };
+                crease_onto(state, creased, fold, moving, base, false)
+            }
+            _ => true,
+        },
+        4 => line(1).is_none_or(|l| crease_onto(state, creased, fold, l, l, true)),
+        // [pivot, p, m]: p onto m, or m — the edge — onto p.
+        5 => !moves(1) || mark_onto(point(1), line(2)),
+        // [p1, m1, p2, m2].
+        6 => {
+            (!moves(0) || mark_onto(point(0), line(1)))
+                && (!moves(2) || mark_onto(point(2), line(3)))
+        }
+        // [p, m1, m2]: p onto m1, or m1 — the edge — onto p.
+        7 => !moves(0) || mark_onto(point(0), line(1)),
+        _ => true,
+    }
+}
+
+/// Whether the crease of `base` is there from `x` — where the folded flap's
+/// boundary crosses it — outward for [`SEEN_PAST_EDGE`]. Outward along
+/// `base` is the way whose preimage leaves the sheet: the flap covers the
+/// other way. An edge is there everywhere.
+fn crease_past_edge(
+    state: &State,
+    creased: &Creased,
+    fold: &Line,
+    base: usize,
+    x: [f64; 2],
+) -> bool {
+    if state.is_edge(base) {
+        return true;
+    }
+    let u = state.line(base).direction();
+    let along = |d: f64| [x[0] + d * u[0], x[1] + d * u[1]];
+    // Outward is the way whose preimage leaves the sheet — both ways, at
+    // the image of a corner — and the crease has to run that way.
+    [1.0, -1.0]
+        .into_iter()
+        .filter(|&sign| !state.in_paper(fold.reflect_point(along(sign * OUTWARD_STEP))))
+        .any(|sign| {
+            [0.0, 0.5, 1.0]
+                .into_iter()
+                .all(|k| creased.crease_reaches(state, base, along(sign * k * SEEN_PAST_EDGE)))
+        })
+}
+
+/// Whether a crease `moving` carried onto `base` is seen at the flap's edge:
+/// the flap is the side of the fold the moving arm is on, its edge crosses
+/// `base` at the image of that arm's end on the sheet's boundary, and the
+/// base crease must run on from there. Either arm may be the one swung,
+/// except a line folded onto itself, where the shorter arm is (the card
+/// swings that one: less paper to move). A flap's own edge is seen wherever
+/// it overlaps.
+fn crease_onto(
+    state: &State,
+    creased: &Creased,
+    fold: &Line,
+    moving: usize,
+    base: usize,
+    shorter_arm_only: bool,
+) -> bool {
+    if state.is_edge(moving) {
+        return true;
+    }
+    let Some((a, c)) = state.clip(moving) else {
+        return false;
+    };
+    let foot = fold.intersect(state.line(moving));
+    let mut ends: Vec<[f64; 2]> = [a, c]
+        .into_iter()
+        .filter(|e| fold.signed_distance(*e).abs() > TOL)
+        .collect();
+    if shorter_arm_only && let Some(f) = foot {
+        let reach = |e: &[f64; 2]| (e[0] - f[0]).hypot(e[1] - f[1]);
+        if let Some(nearest) = ends
+            .iter()
+            .copied()
+            .min_by(|p, q| reach(p).total_cmp(&reach(q)))
+        {
+            ends = vec![nearest];
+        }
+    }
+    ends.into_iter()
+        .any(|e| crease_past_edge(state, creased, fold, base, fold.reflect_point(e)))
 }
 
 /// Where the alignment happens: two points' midpoint, two lines' crossing,
@@ -324,7 +462,7 @@ pub fn judge(
     let one_motion = w.one_motion() || own_ends || long_crease_onto_itself;
     Judgement {
         practical,
-        visible: w.visible,
+        visible: w.visible && landings_seen(state, creased, fold, w),
         skinny: w.skinny,
         lever,
         reach,
@@ -537,6 +675,101 @@ mod tests {
             mountain,
             &w
         ));
+    }
+
+    /// A crease folded onto itself through an edge mark, like markhor 48:
+    /// the shorter arm swings over and lands on the other arm, which is
+    /// under the flap from the fold to the image of the sheet's edge. Only
+    /// crease beyond that can be sighted on.
+    #[test]
+    fn a_crease_folded_onto_itself_is_seen_only_where_it_runs_out_past_the_flap() {
+        let mut state = State::new(Sheet::unit_square(), DEFAULT_POINT_CAP);
+        // The 45° line y = x + 0.25, from (0, 0.25) to (0.75, 1).
+        let a = Line::from_points([0.0, 0.25], [0.75, 1.0]).expect("line");
+        let a_id = state.add_line(a, LineTag::Cp).expect("a").id;
+        // The fold: through (0.448, 1) on the top edge, perpendicular to it
+        // — on the paper as a line, so the mark it makes there is a point.
+        let fold = Line::from_points([0.448, 1.0], [1.0, 0.448]).expect("fold");
+        let _ = state.add_line(fold, LineTag::Cp).expect("fold line");
+        let top = state.find_point([0.448, 1.0]).expect("top mark");
+        let w = witness(
+            4,
+            vec![Ref::Point { id: top }, Ref::Line { id: a_id }],
+            vec![],
+            true,
+        );
+        // Its crease from (0.5, 0.75) up to the edge: the upper arm (0.21)
+        // swings and lands on the lower arm, whose crease stops at (0.5,
+        // 0.75) — inside the folded flap, whose edge crosses the line at
+        // (0.448, 0.698).
+        let mut short = Creased::new(&state);
+        short.add_spans(&state, a_id, &a, &[[[0.5, 0.75], [0.75, 1.0]]]);
+        assert!(
+            !landings_seen(&state, &short, &fold, &w),
+            "nothing past the flap's edge"
+        );
+        // The crease carried on to (0.3, 0.55): it comes out from under the
+        // flap at (0.448, 0.698) and runs on, and the folder sights on that.
+        let mut long = Creased::new(&state);
+        long.add_spans(&state, a_id, &a, &[[[0.3, 0.55], [0.75, 1.0]]]);
+        assert!(landings_seen(&state, &long, &fold, &w));
+        // A mark swung onto the same crease: the landing on it has to be
+        // seen the same way. The fold through P that carries the corner
+        // (1, 1) onto the line: (0.239, 0.489) is as far from P as the
+        // corner is, and the fold is the perpendicular bisector of the two.
+        let landing = [0.239_10, 0.489_10];
+        let mid = [(1.0 + landing[0]) / 2.0, (1.0 + landing[1]) / 2.0];
+        let swing = Line::from_points([0.448, 1.0], mid).expect("swing");
+        let mut state2 = State::new(Sheet::unit_square(), DEFAULT_POINT_CAP);
+        let a2 = state2.add_line(a, LineTag::Cp).expect("a").id;
+        let _ = state2.add_line(swing, LineTag::Cp);
+        let corner = state2.find_point([1.0, 1.0]).expect("corner");
+        let pivot2 = state2.find_point([0.448, 1.0]).expect("pivot");
+        let o5 = witness(
+            5,
+            vec![
+                Ref::Point { id: pivot2 },
+                Ref::Corner {
+                    id: corner,
+                    corner: crate::sheet::CornerName::Ne,
+                },
+                Ref::Line { id: a2 },
+            ],
+            vec![1],
+            true,
+        );
+        let carried = swing.reflect_point([1.0, 1.0]);
+        assert!(
+            a.distance_to_point(carried) <= 1e-3,
+            "the corner lands on the line: {carried:?}"
+        );
+        let mut hidden = Creased::new(&state2);
+        // Crease only between the fold and the landing: under the flap.
+        let foot = swing.intersect(&a).expect("foot");
+        hidden.add_spans(&state2, a2, &a, &[[foot, carried]]);
+        assert!(!landings_seen(&state2, &hidden, &swing, &o5));
+        let mut seen = Creased::new(&state2);
+        seen.add_whole(&state2, a2);
+        assert!(landings_seen(&state2, &seen, &swing, &o5));
+        // The sheet's edge landed on is there everywhere.
+        let bottom = state2.find_line(&h(0.0)).expect("bottom");
+        let onto_edge = witness(
+            5,
+            vec![
+                Ref::Point { id: pivot2 },
+                Ref::Corner {
+                    id: corner,
+                    corner: crate::sheet::CornerName::Ne,
+                },
+                Ref::Edge {
+                    id: bottom,
+                    side: crate::sheet::EdgeSide::Bottom,
+                },
+            ],
+            vec![1],
+            true,
+        );
+        assert!(landings_seen(&state2, &hidden, &swing, &onto_edge));
     }
 
     #[test]

@@ -146,17 +146,25 @@ impl Replay {
     }
 }
 
-fn ref_name(state: &State, r: &Ref) -> String {
+fn ref_name(state: &State, creased: &Creased, r: &Ref) -> String {
     match r {
         Ref::Edge { side, .. } => format!("edge:{side:?}"),
         Ref::Corner { corner, .. } => format!("corner:{corner:?}"),
-        Ref::Line { id } => match state.clip(*id) {
-            Some((a, b)) => format!("line({:.3},{:.3})-({:.3},{:.3})", a[0], a[1], b[0], b[1]),
-            None => {
-                let l = state.line(*id);
-                format!("line n=({:.3},{:.3}) d={:.3}", l.n[0], l.n[1], l.d)
-            }
-        },
+        Ref::Line { id } => {
+            let l = state.line(*id);
+            let runs: Vec<String> = creased
+                .runs_of(*id)
+                .map(|runs| {
+                    runs.iter()
+                        .map(|&(u, v)| {
+                            let (a, b) = (l.point_at(u), l.point_at(v));
+                            format!("({:.3},{:.3})-({:.3},{:.3})", a[0], a[1], b[0], b[1])
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            format!("line[{}]", runs.join(" "))
+        }
         Ref::Point { id } => {
             let p = state.point(*id);
             let on_edge = state.points()[*id].on_boundary;
@@ -251,13 +259,13 @@ fn explain_step(seq: &Sequence, step: &Step, state: &State, creased: &Creased, r
             p.axiom,
             p.inputs
                 .iter()
-                .map(|r| ref_name(state, r))
+                .map(|r| ref_name(state, creased, r))
                 .collect::<Vec<_>>()
                 .join(", "),
             c.axiom,
             c.inputs
                 .iter()
-                .map(|r| ref_name(state, r))
+                .map(|r| ref_name(state, creased, r))
                 .collect::<Vec<_>>()
                 .join(", "),
         ),
@@ -275,7 +283,7 @@ fn explain_step(seq: &Sequence, step: &Step, state: &State, creased: &Creased, r
                 .map(|a| a
                     .inputs
                     .iter()
-                    .map(|r| ref_name(state, r))
+                    .map(|r| ref_name(state, creased, r))
                     .collect::<Vec<_>>()
                     .join(", "))
                 .unwrap_or_else(|| "?".into())
@@ -303,7 +311,11 @@ fn explain_step(seq: &Sequence, step: &Step, state: &State, creased: &Creased, r
     for r in &rows {
         let w = &r.witness;
         let j = &r.judgement;
-        let inputs: Vec<String> = w.inputs.iter().map(|x| ref_name(state, x)).collect();
+        let inputs: Vec<String> = w
+            .inputs
+            .iter()
+            .map(|x| ref_name(state, creased, x))
+            .collect();
         println!(
             "   {}{} O{} ease={} [{}] cost={} lever={} reach={} err={} moves={:?} {}{}",
             if r.chosen { "card " } else { "     " },
