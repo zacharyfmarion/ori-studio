@@ -1,0 +1,127 @@
+# References: find a reference, or read the sequence
+
+## Goal
+
+The References workspace does two jobs and leads with the expensive one. It
+plans the whole precrease sequence on arrival, and it answers "how do I get
+this point or crease?" only for what the current step has already folded —
+so a crease made late in the sequence can be asked about only from the last
+card. Its landing state on an empty pattern is scaffolding: an empty
+filmstrip with two arrows, two actions written as prose, a settings column
+for a plan that does not exist. Zach (2026-09-15):
+
+> a lot of people will want instead of an entire folding sequence, like just
+> a way to ask, like how do I get a specific point or line? … maybe it makes
+> more sense to have … a state where it's like, hey, would you like to find
+> arbitrary reference points or compute the precreasing sequence.
+
+And the empty state "feels a bit weird". Both on a phone as much as on a
+desktop.
+
+## Approach
+
+### A persistent mode, not a one-time question
+
+A chooser is a modal you answer once and cannot find again, and on a phone a
+full-screen dead end. So the choice is a segmented control at the top of the
+pane, `Find a reference` | `Folding sequence`, and it also decides what the
+canvas draws. Workspace view state (`referencesView.mode`), not a setting:
+it is where the reader is, like the active step. The workspace **lands in
+Find**, and a new document lands there again.
+
+- **Find.** The whole pattern at full strength, every vertex and crease
+  tappable, no filmstrip. A tap runs ReferenceFinder for that target on a
+  blank sheet, which is today's targeted flow: the candidate's steps become
+  the carousel, the paper shows the outline and the picked crease, and the
+  target controls carry the way out. Nothing is planned in this mode.
+- **Sequence.** What exists today, planned on demand: switching to Sequence
+  runs the planner if the (revision, sheet) has not been attempted, with the
+  same loop guard `useReferencesAutoPlan` already has. The plan is cached per
+  pattern, so switching back and forth is free. Two things change on the
+  canvas: creases later steps make are drawn as **ghosts** (a faint alpha,
+  still pickable), and a tap on any crease — ghost or made — **jumps to the
+  card that makes it**; a tap on a vertex jumps to the step that completes
+  it. "Which step makes this crease?" is a different question from "how do
+  I get this point from scratch?", and each mode answers one.
+
+Leaving Find clears the pick (a target belongs to Find); entering Find keeps
+the plan (a plan belongs to the pattern).
+
+### Empty states that say what is true
+
+- **A sheet with no creases** (the border only, which is what a new
+  document is): "This sheet has no creases yet. Draw the pattern in Edit,
+  then come back." with a button to Edit. No hint to tap anything, no plan
+  attempted.
+- **No filmstrip until there are cards.** Its slot holds one line — the lead
+  — which is the mode's hint in Find, "Working out the folding sequence…"
+  while planning, and a `Plan the folding sequence` button when a plan was
+  stopped or failed and there is nothing to read.
+- The settings pane is unchanged: on touch it is already the drawer behind
+  the Settings pill, and on a desktop a dock pane is not in the way.
+
+### Phone
+
+The layout store already undocks the side panes under a coarse pointer and
+`useReferencesPhoneFlow` shows the list and the detail one at a time, so the
+phone detail is a single column: toolbar (Back, then the mode switch on a row
+of its own), the lead or the carousel with its sentence, the sheet. What the
+touch surface gains:
+
+- **Fat targets.** The hit floors (`CP_LINE_HIT_MIN_CSS` 8, `CP_POINT_HIT_MIN_CSS`
+  6) are pointer-precision minimums; under a coarse pointer they become
+  finger-sized. The mark under the finger shows on touch-down and follows
+  it, so the reader sees what a release will pick.
+- **The carousel snaps.** Scroll-snap on the strip in the phone block, one
+  card centred at a time.
+- Pinch-zoom on the sheet already exists (`pinchTransform`).
+
+## Affected Areas
+
+- `store/workspaceStore/types.ts`, `slices/referencesSlice.ts` —
+  `ReferencesView.mode`.
+- `cp-workspace/references/referencesMode.ts` (new, pure: what each surface
+  shows per mode), `useReferencesMode.ts` (new: binding, reset on a new
+  document, analytics), `referencesStepIndex.ts` (new, pure: crease or vertex
+  → the view step that makes it), `ReferencesModeSwitch.tsx`,
+  `ReferencesLead.tsx` (new, presentation).
+- `referencesCreaseVisibility.ts` — ghosts in `planVisibility`;
+  `referencesViewGeometry.ts` — `ghost`/`ghostAlpha` in the visibility type
+  and `applyCreaseVisibility`.
+- `useReferencesAutoPlan.ts` — `wanted`.
+- `ReferencesCpView.tsx`, `cp-workspace/snapRadius.ts` — coarse-pointer hit
+  floors, the mark under the finger.
+- `components/panels/ReferencesPanel.tsx` — composition only.
+- `styles/theme.css` — the lead, the switch in the toolbar, the phone rows,
+  scroll-snap.
+- `analytics/events.ts`, `docs/analytics.md` — `references mode changed`,
+  `references step jumped`.
+- Locales (8) for the new strings; tests beside each module.
+
+## Checklist
+
+- [x] `referencesView.mode`, default `find`; reset on a new document.
+- [x] Mode switch in the toolbar; leaving Find clears the pick.
+- [x] Find: whole sheet, all pickable, no filmstrip, the lead's hint.
+- [x] Sequence: planned on demand; ghosts; tap-to-jump; the lead while
+      planning and when nothing is read.
+- [x] Empty sheet: the message and the way to Edit; no plan attempted.
+- [x] Phone: switch on its own row, coarse hit floors, the mark under the
+      finger, carousel snap.
+- [x] Analytics events and docs; locales; unit tests; the panel's hook-order
+      test through the mode transitions.
+- [ ] Zach tries it on a desktop and a phone.
+
+## What landed (2026-09-15)
+
+Verified in the pane on markhor: the workspace lands in Find with the hint
+where the strip was and nothing running; a tap on the sheet's centre picks
+the vertex and the target controls and its strip appear; switching to
+Sequence clears the pick, says "Working out the folding sequence…" in the
+lead and plans (163 lines in about ten seconds), then the cards; a tap on
+the antidiagonal — a ghost, made at card 50 — jumps the strip to card 50;
+back to Find the sheet is whole again, and back to Sequence the plan is
+there at once. On the phone viewport the list opens the detail with Back
+on the first toolbar row and the switch full-width on the second (44 px
+options), the strip is the cards alone with scroll-snap, and touch taps
+jump to the making step (cards 48, 112 and 2 from three spots).

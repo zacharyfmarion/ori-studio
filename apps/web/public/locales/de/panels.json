@@ -831,6 +831,8 @@
     },
     "dismiss": "Schließen",
     "empty": "Kein Faltmuster. Öffne oder zeichne eines unter Bearbeiten und komm dann zurück.",
+    "emptySheet": "Noch keine Falten",
+    "emptySheetHint": "Dieses Blatt hat noch keine Falten. Zeichne das Muster unter Bearbeiten und komm dann zurück.",
     "errorTitle": "Referenzen nicht verfügbar",
     "exact": "Exakt",
     "filmstrip": {
@@ -852,14 +854,28 @@
       "turnOverBadge": "Wenden"
     },
     "freeDiagonals": "Benötigt außerdem die Bogendiagonale(n): {{names}}.",
+    "goToEdit": "Zu Bearbeiten",
     "hint": {
+      "jump": "Tippe auf eine Falte, um zu dem Schritt zu springen, der sie faltet.",
       "open": "Öffne ein Muster, um zu sehen, wie man es faltet.",
       "pick": "Klicke auf einen Scheitelpunkt oder eine Falte, um zu sehen, wie man sie faltet."
+    },
+    "lead": {
+      "find": "Tippe auf einen Scheitelpunkt oder eine Falte, um zu sehen, wie man sie von einem leeren Blatt aus faltet.",
+      "plan": "Alle Vorfalten des Musters, in der Reihenfolge, in der sie gefaltet werden.",
+      "planAction": "Faltfolge berechnen"
     },
     "meta": {
       "crease": "Falte",
       "solution": "Lösung {{n}} von {{total}}",
       "vertex": "Scheitelpunkt"
+    },
+    "mode": {
+      "find": "Referenz finden",
+      "findTitle": "Tippe auf einen Scheitelpunkt oder eine Falte, um zu sehen, wie man sie von einem leeren Blatt aus faltet",
+      "label": "Was angezeigt wird",
+      "sequence": "Faltfolge",
+      "sequenceTitle": "Alle Vorfalten des Musters, in der Reihenfolge, in der sie gefaltet werden"
     },
     "noCreasePattern": "Kein Faltmuster",
     "nonRectangular": "Dieser Bogen ist kein Rechteck. Referenzen lassen sich derzeit nur auf rechteckigen Bögen finden.",
@@ -959,7 +975,6 @@
       "creases_one": "{{count}} Faltlinie",
       "creases_other": "{{count}} Faltlinien",
       "label": "Faltmuster",
-      "noPlan": "Berechne, wie dieses Muster gefaltet wird, oder klicke auf einen Punkt oder eine Faltlinie für eine einzelne Referenz.",
       "title": "Muster"
     },
     "sidebar": {

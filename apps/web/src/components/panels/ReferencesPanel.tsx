@@ -20,6 +20,17 @@ import {
   type ReferencesCpViewHandle,
   type ReferencesDiagramView,
 } from '../../cp-workspace/references/ReferencesCpView';
+import type { ReferencesPick } from '../../cp-workspace/references/referencesViewGeometry';
+import { ReferencesLead } from '../../cp-workspace/references/ReferencesLead';
+import { ReferencesModeSwitch } from '../../cp-workspace/references/ReferencesModeSwitch';
+import { referencesSurfaces } from '../../cp-workspace/references/referencesMode';
+import {
+  creasesAtVertices,
+  stepIndexOfLine,
+  stepIndexOfVertex,
+} from '../../cp-workspace/references/referencesStepIndex';
+import { useReferencesMode } from '../../cp-workspace/references/useReferencesMode';
+import { ANALYTICS_EVENTS, track } from '../../analytics';
 import { ReferencesDiagramLayer } from '../../cp-workspace/references/ReferencesDiagramLayer';
 import { useReferencesDiagramScene } from '../../cp-workspace/references/useReferencesDiagramScene';
 import { ReferencesSheetsSidebar } from '../../cp-workspace/references/ReferencesSheetsSidebar';
@@ -89,17 +100,23 @@ import { NextDocumentAction } from './NextDocumentAction';
  * a Back button — and `useReferencesPhoneFlow` says which. Every other layout
  * renders both, exactly as before.
  *
- * Two modes share those surfaces: with a vertex or crease picked they describe
- * ReferenceFinder's candidates; with nothing picked they describe the
- * whole-pattern breakdown. Choosing between the two is this file's only real
- * decision, and it is one `targeted` flag.
+ * Two jobs share those surfaces, and the reader chooses between them with the
+ * mode switch in the toolbar: *Find a reference* — the whole pattern to point
+ * at, and ReferenceFinder's candidates for the vertex or crease picked — and
+ * *Folding sequence* — the planner's breakdown, read step by step, with the
+ * creases still to come as ghosts a tap jumps to. What each surface shows in
+ * each mode is `referencesSurfaces`, decided once here and handed down.
  */
+
+/** A tap that means nothing: no plan to jump in, or a sheet with nothing on it. */
+const ignorePick = (): void => undefined;
 
 export function ReferencesPanel() {
   const { t } = useTranslation();
   const setViewDrawerSlot = useLayoutStore((state) => state.setViewDrawerSlot);
   const view = useReferencesView();
   const controller = useReferencesTarget(view);
+  const { mode, setMode } = useReferencesMode(view.framingKey, controller.clear);
   const storedSheet = useWorkspaceStore((state) => state.referencesSelectedSheet);
   const setSelectedSheet = useWorkspaceStore((state) => state.setReferencesSelectedSheet);
 
@@ -132,6 +149,18 @@ export function ReferencesPanel() {
     targeted
   );
   const run = useWorkspaceStore((state) => state.referencesRun);
+  const busy = run.status === 'running' || run.status === 'stopping';
+  // A sheet that is only its border — a new document — has nothing to find
+  // or to plan; unknown until the frames land, and not called empty before.
+  const emptySheet = component !== null && component.segment_indices.length === 0;
+  const surfaces = referencesSurfaces({
+    mode,
+    targeted,
+    hasCreases: !emptySheet,
+    planned: breakdown.record !== null,
+    busy,
+  });
+  const readingPlan = surfaces.canvas === 'plan';
   const flow = useReferencesPhoneFlow(
     {
       hasDocument: view.hasDocument,
@@ -152,8 +181,9 @@ export function ReferencesPanel() {
   );
   // The planner's folds, the turn-overs between them, and the finished pattern.
   const viewSteps = breakdown.viewSteps;
+  // Only while the plan is being read: in Find a cached plan draws nothing.
   const planHighlights = useReferencesPlanHighlights(
-    breakdown.variants,
+    readingPlan ? breakdown.variants : [],
     viewSteps,
     breakdown.activeStep,
     breakdown.activeFinding
@@ -162,7 +192,7 @@ export function ReferencesPanel() {
   // Which face the reader is on. Everything the picture says about direction is
   // said from it — a mountain seen from the front is a valley seen from the
   // back — so it reaches the card, the overlay and the pattern's own creases.
-  const mirrored = !targeted && sideAt(viewSteps, breakdown.activeStep) === 'back';
+  const mirrored = readingPlan && sideAt(viewSteps, breakdown.activeStep) === 'back';
   // The step's picture, once: straight lines packed for the GPU, symbols for the
   // layer over it. Both off the same primitives the filmstrip card draws.
   const [diagramCamera, setDiagramCamera] = useState<ReferencesDiagramView | null>(null);
@@ -201,43 +231,37 @@ export function ReferencesPanel() {
     runAnalysisRef.current();
   }, [analysisRequest, consumeAnalysisRequest]);
 
-  // Transport and filmstrip address whichever mode is showing.
-  const stepCount = targeted ? controller.stepCount : viewSteps.length;
-  const activeStep = targeted ? controller.activeStep : breakdown.activeStep;
+  // Transport and filmstrip address whichever strip is showing: the picked
+  // target's candidates, or the plan. Neither, and there is nothing to step.
+  const stepCount = targeted ? controller.stepCount : readingPlan ? viewSteps.length : 0;
+  const activeStep = targeted ? controller.activeStep : readingPlan ? breakdown.activeStep : 0;
   const selectStep = targeted ? controller.selectStep : breakdown.selectStep;
   const nextStep = useCallback(() => selectStep(activeStep + 1), [selectStep, activeStep]);
   const previousStep = useCallback(() => selectStep(activeStep - 1), [selectStep, activeStep]);
 
-  const busy = run.status === 'running' || run.status === 'stopping';
   const active = controller.active;
   /**
-   * What the caption says when the strip is empty, which is three different
-   * things. A solution with no steps is the one worth telling apart: a corner
-   * or an edge midpoint is already on the paper, so "no construction found"
-   * would be exactly wrong about an answer that is both found and free.
+   * What the caption says when the target's strip is empty. A solution with no
+   * steps is the one worth telling apart: a corner or an edge midpoint is
+   * already on the paper, so "no construction found" would be exactly wrong
+   * about an answer that is both found and free. Without a target the strip
+   * is not rendered at all — the lead stands in its place.
    */
   const filmstripPlaceholder = busy
-    ? targeted
-      ? t('panels:references.searching', 'Finding references…')
-      : t('panels:references.planning', 'Working out the folding sequence…')
-    : targeted
-      ? active
-        ? controller.target?.kind === 'crease'
-          ? t(
-              'panels:references.alreadyOnSheetLine',
-              'This line is already on the paper — no folds needed.'
-            )
-          : t(
-              'panels:references.alreadyOnSheet',
-              'This point is already on the paper — no folds needed.'
-            )
+    ? t('panels:references.searching', 'Finding references…')
+    : active
+      ? controller.target?.kind === 'crease'
+        ? t(
+            'panels:references.alreadyOnSheetLine',
+            'This line is already on the paper — no folds needed.'
+          )
         : t(
-            'panels:references.sidebar.none',
-            'ReferenceFinder found no construction for this target at the current settings.'
+            'panels:references.alreadyOnSheet',
+            'This point is already on the paper — no folds needed.'
           )
       : t(
-          'panels:references.sheets.noPlan',
-          'Work out how to fold this pattern, or click a vertex or crease for one reference.'
+          'panels:references.sidebar.none',
+          'ReferenceFinder found no construction for this target at the current settings.'
         );
   /**
    * The free sheet diagonals a solution leans on.
@@ -263,11 +287,16 @@ export function ReferencesPanel() {
     () =>
       targeted
         ? candidateFilmstrip(t, active)
-        : planFilmstrip(t, breakdown.variants, viewSteps),
-    [targeted, t, active, breakdown.variants, viewSteps]
+        : readingPlan
+          ? planFilmstrip(t, breakdown.variants, viewSteps)
+          : [],
+    [targeted, readingPlan, t, active, breakdown.variants, viewSteps]
   );
 
-  // The sheet as it stands at the active step — see `referencesCreaseVisibility`.
+  // The sheet as it stands — see `referencesCreaseVisibility`: whole in Find
+  // and before a plan, the outline and the picked crease for a target, the
+  // build-up plus the ghosts of what is still to come while the plan is read.
+  const { canvas } = surfaces;
   const creaseVisibility = useMemo(() => {
     if (!sheetIds) return REFERENCES_ALL_CREASES;
     const input = {
@@ -276,13 +305,15 @@ export function ReferencesPanel() {
       activeLineIds: highlights.highlightLineIds,
       mirrored,
     };
-    if (targeted) return targetVisibility(input);
-    if (breakdown.variants.length === 0) return unreadVisibility(input);
-    return planVisibility(breakdown.variants, viewSteps, breakdown.activeStep, input);
+    if (canvas === 'target') return targetVisibility(input);
+    if (canvas === 'plan') {
+      return planVisibility(breakdown.variants, viewSteps, breakdown.activeStep, input);
+    }
+    return unreadVisibility(input);
   }, [
     sheetIds,
     borderIds,
-    targeted,
+    canvas,
     mirrored,
     highlights.highlightLineIds,
     breakdown.variants,
@@ -290,14 +321,34 @@ export function ReferencesPanel() {
     breakdown.activeStep,
   ]);
 
-  // Which face of the paper the reader is looking at. While the sheet is on its
-  // back the view mirrors, because that is what they would see — and the last
-  // step turns it back, so the pattern is read from the side its mountain and
-  // valley assignment is stated in.
+  // A tap on the sheet while the plan is read is navigation: to the step that
+  // makes the crease, or the last of the steps making the creases that meet
+  // at the vertex. Nothing about which one leaves the browser.
+  const creasesAt = useMemo(
+    () => (view.geometry ? creasesAtVertices(view.geometry) : null),
+    [view.geometry]
+  );
+  const jumpToPick = useCallback(
+    (hit: ReferencesPick | null) => {
+      if (!hit || !creasesAt) return;
+      const index =
+        hit.kind === 'line'
+          ? stepIndexOfLine(breakdown.variants, viewSteps, hit.id)
+          : stepIndexOfVertex(breakdown.variants, viewSteps, creasesAt, hit.point);
+      if (index === null) return;
+      breakdown.selectStep(index);
+      track(ANALYTICS_EVENTS.referencesStepJumped, {
+        target_kind: hit.kind === 'line' ? 'crease' : 'vertex',
+      });
+    },
+    [creasesAt, breakdown, viewSteps]
+  );
+  const onPick =
+    surfaces.pick === 'query' ? controller.pick : surfaces.pick === 'jump' ? jumpToPick : ignorePick;
 
-  // The sequence is what the workspace is for, so it runs on arrival rather
-  // than behind a button — see `useReferencesAutoPlan` for what stops that
-  // becoming a loop.
+  // The sequence is planned the moment the reader asks for it — on switching
+  // to Sequence — and not before; see `useReferencesAutoPlan` for what stops
+  // that becoming a loop.
   useReferencesAutoPlan(
     {
       hasDocument: view.hasDocument,
@@ -307,9 +358,11 @@ export function ReferencesPanel() {
       planned: breakdown.record !== null,
       busy,
       targeted,
+      wanted: mode === 'sequence' && !emptySheet,
     },
     breakdown.run
   );
+  const goToEdit = useCallback(() => useLayoutStore.getState().activateWorkspace('edit'), []);
 
   /** Recompute re-runs whatever the workspace is showing. */
   const recompute = useCallback(() => {
@@ -350,7 +403,9 @@ export function ReferencesPanel() {
     []
   );
 
-  const canRecompute = !busy && (targeted ? controller.target !== null : view.hasDocument);
+  // In Find, Recompute is the target's; without one there is nothing to run.
+  const canRecompute =
+    !busy && (targeted ? controller.target !== null : mode === 'sequence' && !emptySheet);
   const actions = buildReferencesActions(
     {
       stepCount,
@@ -401,7 +456,7 @@ export function ReferencesPanel() {
       ? 'running'
       : run.status === 'error'
         ? 'error'
-        : controller.stale || (!targeted && breakdown.stale)
+        : controller.stale || (mode === 'sequence' && !targeted && breakdown.stale)
           ? 'stale'
           : 'ready';
 
@@ -423,7 +478,9 @@ export function ReferencesPanel() {
           hint={
             flow.screen === 'list'
               ? t('panels:references.hint.open', 'Open a pattern to see how to fold it.')
-              : controller.hint
+              : mode === 'sequence'
+                ? t('panels:references.hint.jump', 'Tap a crease to jump to the step that makes it.')
+                : controller.hint
           }
           warnings={controller.warnings}
           onSelectFinding={flow.openFinding}
@@ -449,6 +506,11 @@ export function ReferencesPanel() {
                   <span className="panel-title">{t('panels:references.title', 'References')}</span>
                 </>
               )}
+              <ReferencesModeSwitch
+                mode={mode}
+                onChange={setMode}
+                disabled={!view.hasDocument || emptySheet}
+              />
               {targeted && controller.target && (
                 <ReferencesTargetControls
                   target={controller.target}
@@ -467,21 +529,25 @@ export function ReferencesPanel() {
             </div>
           </div>
 
-          <ReferencesStepFilmstrip
-            steps={filmstrip}
-            activeStep={activeStep}
-            onSelectStep={selectStep}
-            onPrevious={previousStep}
-            onNext={nextStep}
-            previousLabel={commandById('previous-step')?.label ?? ''}
-            nextLabel={commandById('next-step')?.label ?? ''}
-            previousDisabled={commandById('previous-step')?.disabled ?? true}
-            nextDisabled={commandById('next-step')?.disabled ?? true}
-            // Off on the phone, whose flow is the one that has a screen at all.
-            navigation={flow.screen === null}
-            placeholder={filmstripPlaceholder}
-            note={filmstripNote}
-          />
+          {surfaces.strip === 'none' ? (
+            <ReferencesLead lead={surfaces.lead} onPlan={breakdown.run} />
+          ) : (
+            <ReferencesStepFilmstrip
+              steps={filmstrip}
+              activeStep={activeStep}
+              onSelectStep={selectStep}
+              onPrevious={previousStep}
+              onNext={nextStep}
+              previousLabel={commandById('previous-step')?.label ?? ''}
+              nextLabel={commandById('next-step')?.label ?? ''}
+              previousDisabled={commandById('previous-step')?.disabled ?? true}
+              nextDisabled={commandById('next-step')?.disabled ?? true}
+              // Off on the phone, whose flow is the one that has a screen at all.
+              navigation={flow.screen === null}
+              placeholder={filmstripPlaceholder}
+              note={filmstripNote}
+            />
+          )}
 
           <div className="panel-body references-panel__body" onContextMenu={onBodyContextMenu}>
             {/*
@@ -509,7 +575,7 @@ export function ReferencesPanel() {
                 sheetLineIds={sheetIds}
                 creaseVisibility={creaseVisibility}
                 mirrored={mirrored}
-                onPick={controller.pick}
+                onPick={onPick}
                 framingKey={`${view.framingKey}-sheet-${selectedSheet ?? 'none'}`}
                 themeKey={view.themeKey}
                 ariaLabel={t(
@@ -550,6 +616,20 @@ export function ReferencesPanel() {
                   )}
                 </small>
                 <NextDocumentAction />
+              </div>
+            )}
+            {view.hasDocument && surfaces.emptySheet && !busy && (
+              <div className="references-panel__overlay" role="status">
+                <span>{t('panels:references.emptySheet', 'No creases yet')}</span>
+                <small>
+                  {t(
+                    'panels:references.emptySheetHint',
+                    'This sheet has no creases yet. Draw the pattern in Edit, then come back.'
+                  )}
+                </small>
+                <Button variant="primary" size="sm" onClick={goToEdit}>
+                  {t('panels:references.goToEdit', 'Go to Edit')}
+                </Button>
               </div>
             )}
             {view.hasDocument && readoutState === 'running' && (

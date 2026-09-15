@@ -50,8 +50,8 @@ vi.mock('../../store/workspaceStore/precreaseRuntime', async (importOriginal) =>
       sheetFrames: () => new Promise(() => undefined),
       modelToRf: () => Promise.resolve([0.5, 0.5]),
       rfToModelMany: () => new Promise(() => undefined),
-      // Reached only once the frames are known (the phone test seeds them):
-      // the sequence runs on arrival, and stays running.
+      // Reached only once the frames are known and the sequence is asked for
+      // (the mode test switches to it); it then stays running.
       plannerCreate: () => new Promise(() => undefined),
       plannerDispose: () => Promise.resolve(),
     }),
@@ -184,8 +184,13 @@ it('holds its hook order through every mode and run state', () => {
     () => store().setReferencesRun({ status: 'error', message: 'nope' }),
     () => store().setReferencesRun({ status: 'stale' }),
     () => store().setReferencesRun({ status: 'idle' }),
-    // ...and back to the breakdown mode.
+    // ...and back to Find with nothing picked.
     () => store().setReferencesTarget(null),
+    // The sequence: planned on switching to it, read once a plan is there.
+    () => store().setReferencesView({ mode: 'sequence' }),
+    () => store().setReferencesRun({ status: 'running', startedAt: Date.now() }),
+    () => store().setReferencesRun({ status: 'idle' }),
+    () => store().setReferencesView({ mode: 'find' }),
     () => useWorkspaceStore.setState({ oristudioCpDocument: cpDocument(2) } as never),
     () => useWorkspaceStore.setState({ oristudioCpDocument: null } as never),
   ];
@@ -216,13 +221,81 @@ it('keeps the header to the title and floats the view verbs over the canvas', ()
 
   const header = query('.references-panel .panel-toolbar');
   expect(header?.querySelector('.panel-title')?.textContent).toBe('References');
-  expect(header?.querySelector('button')).toBeNull();
+  // The only buttons in the header are the mode switch's two options.
+  expect(
+    [...(header?.querySelectorAll('button') ?? [])].map((button) => button.textContent)
+  ).toEqual(['Find a reference', 'Folding sequence']);
   const bar = query('.references-panel__body .viewport-toolbar');
   expect(
     [...(bar?.querySelectorAll('button') ?? [])].map(
       (button) => button.getAttribute('aria-label') ?? button.textContent
     )
   ).toEqual(['Zoom Out', '100%', 'Zoom In', 'Fit', 'Recompute References']);
+});
+
+it('lands in Find with the lead where the filmstrip goes, and plans only when the sequence is asked for', () => {
+  act(() =>
+    root?.render(
+      <TooltipProvider>
+        <ReferencesPanel />
+      </TooltipProvider>
+    )
+  );
+  const query = (selector: string) => container?.querySelector(selector) ?? null;
+  const document1 = cpDocument(1);
+  act(() => {
+    setReferencesFrames({
+      revision: referencesRevisionKey(document1 as never),
+      analysis: ANALYSIS as never,
+    });
+    useWorkspaceStore.setState({ oristudioCpDocument: document1 } as never);
+  });
+  // Find: the hint, no strip, and nothing running.
+  expect(useWorkspaceStore.getState().referencesView.mode).toBe('find');
+  expect(query('.references-lead')?.textContent).toContain('Tap a vertex or crease');
+  expect(query('.references-filmstrip')).toBeNull();
+  expect(useWorkspaceStore.getState().referencesRun.status).toBe('idle');
+
+  // Sequence: the planner is asked, and the lead says so.
+  act(() =>
+    query('.references-mode button[aria-pressed="false"]')?.dispatchEvent(
+      new MouseEvent('click', { bubbles: true })
+    )
+  );
+  expect(useWorkspaceStore.getState().referencesView.mode).toBe('sequence');
+  expect(useWorkspaceStore.getState().referencesRun.status).toBe('running');
+  expect(query('.references-lead')?.textContent).toContain('Working out the folding sequence');
+  expect(query('.references-filmstrip')).toBeNull();
+
+  // A new document lands in Find again.
+  act(() => useWorkspaceStore.setState({ oristudioCpDocument: cpDocument(2) } as never));
+  expect(useWorkspaceStore.getState().referencesView.mode).toBe('find');
+});
+
+it('says a sheet with no creases has nothing to find, and disables the switch', () => {
+  act(() =>
+    root?.render(
+      <TooltipProvider>
+        <ReferencesPanel />
+      </TooltipProvider>
+    )
+  );
+  const query = (selector: string) => container?.querySelector(selector) ?? null;
+  const document1 = cpDocument(1);
+  act(() => {
+    setReferencesFrames({
+      revision: referencesRevisionKey(document1 as never),
+      analysis: {
+        ...ANALYSIS,
+        components: [{ ...ANALYSIS.components[0], segment_indices: [], border_segment_indices: [0, 1] }],
+      } as never,
+    });
+    useWorkspaceStore.setState({ oristudioCpDocument: document1 } as never);
+  });
+  expect(query('.references-panel__overlay')?.textContent).toContain('No creases yet');
+  expect(query('.references-lead')).toBeNull();
+  expect(query('.references-mode button')?.hasAttribute('disabled')).toBe(true);
+  expect(useWorkspaceStore.getState().referencesRun.status).toBe('idle');
 });
 
 it('offers the touch drawer a slot at the top right of its view', () => {
@@ -249,8 +322,8 @@ it('offers the touch drawer a slot at the top right of its view', () => {
  * The phone branch: one screen at a time, swapped by a press and a Back.
  *
  * The frames are seeded rather than answered by the (pending) worker stub, so
- * the list has a card to press; the plan that then runs on arrival stays
- * pending, which is the "working it out" state the detail opens in.
+ * the list has a card to press; the detail opens in Find, with nothing
+ * running.
  */
 it('on a phone, opens a sheet from the list into the detail and comes back', () => {
   vi.stubGlobal(

@@ -33,6 +33,7 @@ function state(overrides: Partial<ReferencesAutoPlanState> = {}): ReferencesAuto
     planned: false,
     busy: false,
     targeted: false,
+    wanted: true,
     ...overrides,
   };
 }
@@ -52,9 +53,21 @@ function render(next: ReferencesAutoPlanState, run: () => void) {
 }
 
 describe('useReferencesAutoPlan', () => {
-  it('works out the sequence on arrival, without a gesture', () => {
+  it('works out the sequence as soon as it is wanted, without a gesture', () => {
     const run = vi.fn();
     render(state(), run);
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for the sequence to be asked for, then runs once', () => {
+    const run = vi.fn();
+    render(state({ wanted: false }), run);
+    expect(run).not.toHaveBeenCalled();
+    render(state({ wanted: true }), run);
+    expect(run).toHaveBeenCalledTimes(1);
+    // Back to Find and to Sequence again: the pair was attempted.
+    render(state({ wanted: false }), run);
+    render(state({ wanted: true }), run);
     expect(run).toHaveBeenCalledTimes(1);
   });
 

@@ -10848,6 +10848,34 @@ button.bp-packing-alert:focus-visible {
     order: 2;
   }
 
+  /* The mode switch takes a row of its own under the Back button, full width,
+     each option a thumb-sized target. */
+  .references-workspace .references-mode {
+    flex: 1 0 100%;
+    order: 1;
+    margin-left: 0;
+  }
+
+  .references-workspace .references-mode .segmented {
+    display: flex;
+    width: 100%;
+  }
+
+  .references-workspace .references-mode .segmented__option {
+    flex: 1 1 0;
+    min-height: var(--touch-target);
+    font-size: 0.8rem;
+  }
+
+  /* One card at a time under a thumb: the strip snaps to a card's centre. */
+  .references-workspace .references-filmstrip__list {
+    scroll-snap-type: x proximity;
+  }
+
+  .references-workspace .references-filmstrip__item {
+    scroll-snap-align: center;
+  }
+
 }
 
 /*
@@ -10916,6 +10944,46 @@ button.bp-packing-alert:focus-visible {
   height: 100%;
   touch-action: none;
   cursor: grab;
+}
+
+/*
+ * The switch between the workspace's two jobs, beside the title. Its labels
+ * are words rather than icons alone: which of the two things the canvas is
+ * showing is the one fact the reader needs and the icons do not carry it.
+ */
+.references-mode {
+  display: flex;
+  align-items: center;
+  margin-left: var(--space-2);
+}
+
+.references-mode .segmented__option {
+  font-size: 0.72rem;
+}
+
+/*
+ * The one line where the filmstrip goes once there are cards: the mode's hint,
+ * the wait while the sequence is planned, or the button that plans it. The
+ * strip's own height, so the canvas does not jump when the cards arrive.
+ */
+.references-lead {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.references-lead__text {
+  flex: 1 1 24ch;
+  margin: 0;
 }
 
 .references-panel__overlay {

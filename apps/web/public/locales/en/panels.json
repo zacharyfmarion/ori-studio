@@ -831,6 +831,8 @@
     },
     "dismiss": "Dismiss",
     "empty": "No crease pattern. Open or draw one in Edit, then come back.",
+    "emptySheet": "No creases yet",
+    "emptySheetHint": "This sheet has no creases yet. Draw the pattern in Edit, then come back.",
     "errorTitle": "References unavailable",
     "exact": "Exact",
     "filmstrip": {
@@ -852,14 +854,28 @@
       "turnOverBadge": "Turn over"
     },
     "freeDiagonals": "Also needs the sheet diagonal(s): {{names}}.",
+    "goToEdit": "Go to Edit",
     "hint": {
+      "jump": "Tap a crease to jump to the step that makes it.",
       "open": "Open a pattern to see how to fold it.",
       "pick": "Click a vertex or crease to see how to fold it."
+    },
+    "lead": {
+      "find": "Tap a vertex or crease to see how to fold it from a blank sheet.",
+      "plan": "Every precrease of the pattern, in the order to fold them.",
+      "planAction": "Plan the folding sequence"
     },
     "meta": {
       "crease": "Crease",
       "solution": "Solution {{n}} of {{total}}",
       "vertex": "Vertex"
+    },
+    "mode": {
+      "find": "Find a reference",
+      "findTitle": "Tap a vertex or crease to see how to fold it from a blank sheet",
+      "label": "What to show",
+      "sequence": "Folding sequence",
+      "sequenceTitle": "Every precrease of the pattern, in the order to fold them"
     },
     "noCreasePattern": "No crease pattern",
     "nonRectangular": "This sheet is not a rectangle. References can only be found on rectangular sheets for now.",
@@ -965,7 +981,6 @@
       "creases_one": "{{count}} crease",
       "creases_other": "{{count}} creases",
       "label": "Crease patterns",
-      "noPlan": "Work out how to fold this pattern, or click a vertex or crease for one reference.",
       "title": "Patterns"
     },
     "sidebar": {

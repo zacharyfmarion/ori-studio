@@ -801,6 +801,8 @@
     },
     "dismiss": "닫기",
     "empty": "전개도가 없습니다. 편집에서 열거나 그린 뒤 돌아오세요.",
+    "emptySheet": "아직 접는 선이 없습니다",
+    "emptySheetHint": "이 종이에는 아직 접는 선이 없습니다. 편집에서 패턴을 그린 뒤 다시 돌아오세요.",
     "errorTitle": "참조를 사용할 수 없음",
     "exact": "정확",
     "filmstrip": {
@@ -822,14 +824,28 @@
       "turnOverBadge": "뒤집기"
     },
     "freeDiagonals": "종이의 대각선도 필요합니다: {{names}}.",
+    "goToEdit": "편집으로 이동",
     "hint": {
+      "jump": "접는 선을 탭하면 그 선을 접는 단계로 이동합니다.",
       "open": "패턴을 열면 접는 방법이 표시됩니다.",
       "pick": "꼭짓점이나 접는 선을 클릭하면 접는 방법이 표시됩니다."
+    },
+    "lead": {
+      "find": "꼭짓점이나 접는 선을 탭하면 빈 종이에서 접는 방법이 표시됩니다.",
+      "plan": "패턴의 모든 사전 접기를 접는 순서대로 표시합니다.",
+      "planAction": "접기 순서 계산"
     },
     "meta": {
       "crease": "접는 선",
       "solution": "해답 {{n}} / {{total}}",
       "vertex": "꼭짓점"
+    },
+    "mode": {
+      "find": "기준점 찾기",
+      "findTitle": "꼭짓점이나 접는 선을 탭하면 빈 종이에서 접는 방법이 표시됩니다",
+      "label": "표시 내용",
+      "sequence": "접기 순서",
+      "sequenceTitle": "패턴의 모든 사전 접기를 접는 순서대로 표시합니다"
     },
     "noCreasePattern": "전개도 없음",
     "nonRectangular": "이 종이는 직사각형이 아닙니다. 현재는 직사각형 종이에서만 기준점을 찾을 수 있습니다.",
@@ -923,7 +939,6 @@
       "cardTitle_other": "패턴 {{n}}: 접힘선 {{count}}개",
       "creases_other": "접힘선 {{count}}개",
       "label": "접힘선 패턴",
-      "noPlan": "이 패턴을 접는 방법을 계산하거나, 꼭짓점이나 접힘선을 클릭해 참조 하나를 찾으세요.",
       "title": "패턴"
     },
     "sidebar": {

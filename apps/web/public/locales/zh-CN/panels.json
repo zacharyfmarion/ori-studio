@@ -801,6 +801,8 @@
     },
     "dismiss": "关闭",
     "empty": "没有折痕图。请在“编辑”中打开或绘制一个，然后再回来。",
+    "emptySheet": "尚无折痕",
+    "emptySheetHint": "此纸张尚无折痕。请在“编辑”中绘制图样，然后返回。",
     "errorTitle": "参考不可用",
     "exact": "精确",
     "filmstrip": {
@@ -822,14 +824,28 @@
       "turnOverBadge": "翻面"
     },
     "freeDiagonals": "还需要纸的对角线：{{names}}。",
+    "goToEdit": "前往编辑",
     "hint": {
+      "jump": "点击折痕，跳转到折出它的步骤。",
       "open": "打开一个图样，查看如何折出它。",
       "pick": "点击顶点或折痕，查看如何折出它。"
+    },
+    "lead": {
+      "find": "点击顶点或折痕，查看如何从空白纸张折出它。",
+      "plan": "图样的全部预折痕，按折叠顺序排列。",
+      "planAction": "计算折叠顺序"
     },
     "meta": {
       "crease": "折痕",
       "solution": "第 {{n}} / {{total}} 个解",
       "vertex": "顶点"
+    },
+    "mode": {
+      "find": "查找参考点",
+      "findTitle": "点击顶点或折痕，查看如何从空白纸张折出它",
+      "label": "显示内容",
+      "sequence": "折叠顺序",
+      "sequenceTitle": "图样的全部预折痕，按折叠顺序排列"
     },
     "noCreasePattern": "没有折痕图",
     "nonRectangular": "这张纸不是矩形。目前只能在矩形纸上查找参考点。",
@@ -923,7 +939,6 @@
       "cardTitle_other": "图样 {{n}}：{{count}} 条折痕",
       "creases_other": "{{count}} 条折痕",
       "label": "折痕图",
-      "noPlan": "计算这个折痕图的折叠方法，或点击顶点或折痕查找单个参照。",
       "title": "图样"
     },
     "sidebar": {

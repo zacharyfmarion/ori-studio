@@ -50,7 +50,10 @@ import {
   CP_POINT_HIT_MIN_CSS,
   CP_POINT_HIT_RATIO,
   cpHitRadiusModel,
+  CP_LINE_HIT_MIN_CSS_COARSE,
+  CP_POINT_HIT_MIN_CSS_COARSE,
 } from '../snapRadius';
+import { useIsCoarsePointerSurface } from '../../platform/pointerSurface';
 import type { ModelBounds } from './referencesStepGeometry';
 import {
   applyCreaseVisibility,
@@ -317,6 +320,9 @@ interface LiveProps {
   pointSize: number;
   wheelGesture: WheelGesturePreference;
   snapRadius: number;
+  /** The hit floors, in CSS px: fingertip-sized under a coarse pointer. */
+  pointFloorCss: number;
+  lineFloorCss: number;
   onPick: (hit: ReferencesPick | null) => void;
   onViewChange?: (view: ReferencesDiagramView) => void;
   onZoomPercentChange?: (percent: number) => void;
@@ -368,6 +374,11 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
     // pointermove along the same crease re-renders nothing (the Edit canvas's
     // `applyCreaseHover` shape, `CreasePatternWebglCanvas.tsx`).
     const [hovered, setHovered] = useState<ReferencesPick | null>(null);
+    // A fingertip is not a cursor: the hit floors grow under a coarse pointer,
+    // and the mark under the finger shows on touch-down rather than on hover.
+    const coarse = useIsCoarsePointerSurface();
+    const pointFloorCss = coarse ? CP_POINT_HIT_MIN_CSS_COARSE : CP_POINT_HIT_MIN_CSS;
+    const lineFloorCss = coarse ? CP_LINE_HIT_MIN_CSS_COARSE : CP_LINE_HIT_MIN_CSS;
     const [dragging, setDragging] = useState(false);
     const hoveredRef = useRef<ReferencesPick | null>(null);
 
@@ -485,6 +496,8 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       pointSize,
       wheelGesture,
       snapRadius,
+      pointFloorCss,
+      lineFloorCss,
       onPick,
       onViewChange,
       onZoomPercentChange,
@@ -505,6 +518,8 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         pointSize,
         wheelGesture,
         snapRadius,
+        pointFloorCss,
+        lineFloorCss,
         onPick,
         onViewChange,
         onZoomPercentChange,
@@ -695,8 +710,8 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           live.hitIndexes,
           live.vertices,
           model,
-          cpHitRadiusModel(live.snapRadius, zoom, CP_POINT_HIT_RATIO, CP_POINT_HIT_MIN_CSS),
-          cpHitRadiusModel(live.snapRadius, zoom, CP_LINE_HIT_RATIO, CP_LINE_HIT_MIN_CSS)
+          cpHitRadiusModel(live.snapRadius, zoom, CP_POINT_HIT_RATIO, live.pointFloorCss),
+          cpHitRadiusModel(live.snapRadius, zoom, CP_LINE_HIT_RATIO, live.lineFloorCss)
         );
       };
 
@@ -742,6 +757,10 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           moved = false;
           setDragging(true);
           cancelHover();
+          // No hover on touch, so the mark shows under the finger from the
+          // press, and follows it while the press is still a tap: what a
+          // release will pick is visible before it is picked.
+          if (e.pointerType === 'touch') applyHover(hitTest(e.clientX, e.clientY));
         } else {
           // A second finger turns the gesture into a camera gesture; no click
           // can come out of it.
@@ -778,7 +797,13 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           return;
         }
         const from = prev[0];
-        if (press && !moved && !isClick(press, { x: e.clientX, y: e.clientY })) moved = true;
+        if (press && !moved && !isClick(press, { x: e.clientX, y: e.clientY })) {
+          moved = true;
+          // A pan, not a tap: nothing will be picked, so nothing is marked.
+          if (e.pointerType === 'touch') applyHover(null);
+        } else if (press && !moved && e.pointerType === 'touch') {
+          applyHover(hitTest(e.clientX, e.clientY));
+        }
         // A drag pans from the first pixel; the click test on release is what
         // says whether it was one. The few pixels a click wobbles by are a pan
         // nobody sees.
@@ -802,8 +827,10 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         if (pointers.size === 0) {
           setDragging(false);
           // The pointer has not moved, but what is under it may have: a click
-          // that picked a crease leaves the cursor where the press left it.
-          probeHover(e.clientX, e.clientY);
+          // that picked a crease leaves the cursor where the press left it. A
+          // finger has left; nothing is under it.
+          if (e.pointerType === 'touch') applyHover(null);
+          else probeHover(e.clientX, e.clientY);
         }
       };
 

@@ -98,9 +98,10 @@ export const ReferencesSheetsSidebar = memo(function ReferencesSheetsSidebar({
       )}
 
       <div className="references-sidebar__notes">
-        {/* No "work it out" button: the sequence is what the workspace is for,
-            so it runs on arrival (`useReferencesAutoPlan`) the way Simulate
-            folds on arrival. Recompute in the toolbar is the way to ask again. */}
+        {/* No "work it out" button here: the sequence is planned the moment
+            the workspace is switched to it (`useReferencesAutoPlan`), and the
+            lead under the toolbar carries the button when a plan was stopped
+            or failed. Recompute in the toolbar is the way to ask again. */}
         {hasDocument && !targeted && !planned && busy && (
           <p className="references-sidebar__hint">
             {t('panels:references.sidebar.planning', 'Working out the folding sequence…')}

@@ -865,6 +865,8 @@
     },
     "dismiss": "Descartar",
     "empty": "No hay patrón de plegado. Abre o dibuja uno en Editar y vuelve.",
+    "emptySheet": "Aún no hay pliegues",
+    "emptySheetHint": "Esta hoja aún no tiene pliegues. Dibuja el patrón en Editar y vuelve después.",
     "errorTitle": "Referencias no disponibles",
     "exact": "Exacto",
     "filmstrip": {
@@ -886,14 +888,28 @@
       "turnOverBadge": "Dar la vuelta"
     },
     "freeDiagonals": "También necesita la(s) diagonal(es) de la hoja: {{names}}.",
+    "goToEdit": "Ir a Editar",
     "hint": {
+      "jump": "Toca un pliegue para saltar al paso que lo dobla.",
       "open": "Abre un patrón para ver cómo doblarlo.",
       "pick": "Haz clic en un vértice o pliegue para ver cómo doblarlo."
+    },
+    "lead": {
+      "find": "Toca un vértice o pliegue para ver cómo doblarlo desde una hoja en blanco.",
+      "plan": "Todos los prepliegues del patrón, en el orden en que se doblan.",
+      "planAction": "Calcular la secuencia de plegado"
     },
     "meta": {
       "crease": "Pliegue",
       "solution": "Solución {{n}} de {{total}}",
       "vertex": "Vértice"
+    },
+    "mode": {
+      "find": "Buscar una referencia",
+      "findTitle": "Toca un vértice o pliegue para ver cómo doblarlo desde una hoja en blanco",
+      "label": "Qué mostrar",
+      "sequence": "Secuencia de plegado",
+      "sequenceTitle": "Todos los prepliegues del patrón, en el orden en que se doblan"
     },
     "noCreasePattern": "Sin patrón de pliegues",
     "nonRectangular": "Esta hoja no es un rectángulo. Por ahora solo se pueden hallar referencias en hojas rectangulares.",
@@ -999,7 +1015,6 @@
       "creases_many": "{{count}} pliegues",
       "creases_other": "{{count}} pliegues",
       "label": "Patrones de pliegues",
-      "noPlan": "Calcula cómo doblar este patrón, o haz clic en un vértice o pliegue para una sola referencia.",
       "title": "Patrones"
     },
     "sidebar": {

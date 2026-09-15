@@ -1518,7 +1518,20 @@ export interface ReferencesProgress {
   total: number;
 }
 
+/**
+ * Which of the workspace's two jobs the reader is doing: asking how to get one
+ * picked point or crease from a blank sheet, or reading the planner's whole
+ * precrease order. See `cp-workspace/references/referencesMode.ts`.
+ */
+export type ReferencesMode = 'find' | 'sequence';
+
 export interface ReferencesView {
+  /**
+   * Where the reader is, like the active step: Find on arrival and on a new
+   * document, Sequence once they ask for the order. A view choice rather than
+   * a setting — it says nothing about how either answer is computed.
+   */
+  mode: ReferencesMode;
   /**
    * Which step the view frames: an index into the active candidate's steps in
    * target mode, and into the breakdown's steps in whole-pattern mode.

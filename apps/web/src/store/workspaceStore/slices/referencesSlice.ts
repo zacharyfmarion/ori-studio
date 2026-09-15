@@ -7,6 +7,7 @@ import type {
 } from '../types';
 
 export const DEFAULT_REFERENCES_VIEW: ReferencesView = {
+  mode: 'find',
   activeStep: 0,
   activeCandidate: 0,
   landmarksFirst: false,

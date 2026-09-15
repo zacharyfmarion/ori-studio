@@ -865,6 +865,8 @@
     },
     "dismiss": "Fechar",
     "empty": "Nenhum padrão de vincos. Abra ou desenhe um em Editar e volte.",
+    "emptySheet": "Ainda não há dobras",
+    "emptySheetHint": "Esta folha ainda não tem dobras. Desenhe o padrão em Editar e depois volte.",
     "errorTitle": "Referências indisponíveis",
     "exact": "Exato",
     "filmstrip": {
@@ -886,14 +888,28 @@
       "turnOverBadge": "Virar"
     },
     "freeDiagonals": "Também precisa da(s) diagonal(is) da folha: {{names}}.",
+    "goToEdit": "Ir para Editar",
     "hint": {
+      "jump": "Toque em uma dobra para ir ao passo que a faz.",
       "open": "Abra um padrão para ver como dobrá-lo.",
       "pick": "Clique em um vértice ou dobra para ver como dobrá-lo."
+    },
+    "lead": {
+      "find": "Toque em um vértice ou dobra para ver como dobrá-lo a partir de uma folha em branco.",
+      "plan": "Todas as pré-dobras do padrão, na ordem em que são dobradas.",
+      "planAction": "Calcular a sequência de dobras"
     },
     "meta": {
       "crease": "Dobra",
       "solution": "Solução {{n}} de {{total}}",
       "vertex": "Vértice"
+    },
+    "mode": {
+      "find": "Encontrar uma referência",
+      "findTitle": "Toque em um vértice ou dobra para ver como dobrá-lo a partir de uma folha em branco",
+      "label": "O que mostrar",
+      "sequence": "Sequência de dobras",
+      "sequenceTitle": "Todas as pré-dobras do padrão, na ordem em que são dobradas"
     },
     "noCreasePattern": "Sem padrão de dobras",
     "nonRectangular": "Esta folha não é um retângulo. Por enquanto, referências só podem ser encontradas em folhas retangulares.",
@@ -999,7 +1015,6 @@
       "creases_many": "{{count}} vincos",
       "creases_other": "{{count}} vincos",
       "label": "Padrões de vincos",
-      "noPlan": "Calcule como dobrar este padrão, ou clique em um vértice ou vinco para uma única referência.",
       "title": "Padrões"
     },
     "sidebar": {

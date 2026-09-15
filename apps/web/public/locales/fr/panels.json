@@ -865,6 +865,8 @@
     },
     "dismiss": "Fermer",
     "empty": "Aucun patron de pliage. Ouvrez-en ou dessinez-en un dans Édition, puis revenez.",
+    "emptySheet": "Pas encore de plis",
+    "emptySheetHint": "Cette feuille n’a pas encore de plis. Dessinez le patron dans Édition, puis revenez.",
     "errorTitle": "Références indisponibles",
     "exact": "Exact",
     "filmstrip": {
@@ -886,14 +888,28 @@
       "turnOverBadge": "Retourner"
     },
     "freeDiagonals": "Nécessite aussi la ou les diagonales de la feuille : {{names}}.",
+    "goToEdit": "Aller à Édition",
     "hint": {
+      "jump": "Touchez un pli pour aller à l’étape qui le fait.",
       "open": "Ouvrez un patron pour voir comment le plier.",
       "pick": "Cliquez sur un sommet ou un pli pour voir comment le plier."
+    },
+    "lead": {
+      "find": "Touchez un sommet ou un pli pour voir comment le plier à partir d’une feuille vierge.",
+      "plan": "Tous les prépliages du patron, dans l’ordre où les plier.",
+      "planAction": "Calculer la séquence de pliage"
     },
     "meta": {
       "crease": "Pli",
       "solution": "Solution {{n}} sur {{total}}",
       "vertex": "Sommet"
+    },
+    "mode": {
+      "find": "Trouver une référence",
+      "findTitle": "Touchez un sommet ou un pli pour voir comment le plier à partir d’une feuille vierge",
+      "label": "Quoi afficher",
+      "sequence": "Séquence de pliage",
+      "sequenceTitle": "Tous les prépliages du patron, dans l’ordre où les plier"
     },
     "noCreasePattern": "Aucun patron de pliage",
     "nonRectangular": "Cette feuille n’est pas un rectangle. Pour l’instant, les références ne se trouvent que sur des feuilles rectangulaires.",
@@ -1001,7 +1017,6 @@
       "creases_many": "{{count}} plis",
       "creases_other": "{{count}} plis",
       "label": "Patrons de plis",
-      "noPlan": "Calculez comment plier ce patron, ou cliquez sur un sommet ou un pli pour une seule référence.",
       "title": "Patrons"
     },
     "sidebar": {

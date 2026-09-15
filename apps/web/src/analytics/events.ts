@@ -441,6 +441,19 @@ export const ANALYTICS_EVENTS = {
    * the notes under the cards.
    */
   referencesPatternOpened: 'references pattern opened',
+  /**
+   * The reader switched the References workspace between its two jobs —
+   * finding one reference, or reading the folding sequence. `mode` is the one
+   * switched *to* (`find` / `sequence`). The workspace lands in Find and plans
+   * only when asked, so this is how often the sequence is asked for at all.
+   */
+  referencesModeChanged: 'references mode changed',
+  /**
+   * A tap on the sheet in Sequence mode moved the strip to the step that
+   * makes what was tapped. `target_kind` is `crease` or `vertex`; nothing
+   * about which one, which would be the user's geometry.
+   */
+  referencesStepJumped: 'references step jumped',
   creasePatternBuilt: 'crease pattern built',
   optimizerRun: 'optimizer run',
   projectOpened: 'project opened',
