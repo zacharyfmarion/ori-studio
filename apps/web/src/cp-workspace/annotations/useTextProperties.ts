@@ -14,7 +14,9 @@ import {
 import { $createHeadingNode, type HeadingTagType } from '@lexical/rich-text';
 import { $copyBlockFormatIndent, getCSSFromStyleObject, getStyleObjectFromCSS } from '@lexical/selection';
 import type { PropertySheet } from '../../lib/propertyDescriptors';
+import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { TargetOf } from '../canvasObjects/canvasObjectKinds';
+import type { AnnotationUpdate } from './annotation';
 import { serializedStateToPlainText } from './textAnnotation';
 import { setDocAlign, setDocBlock, setDocColor } from './textDocTransforms';
 import { useTextEditSession } from './textEditSession';
@@ -40,12 +42,34 @@ import { useAnnotationPaneDeps } from './useAnnotationPaneDeps';
  * moves with its block, and `replace` remaps a point on a replaced block),
  * styles are patched node by node, and the DOM selection is left alone so
  * the pane control keeps focus for the next click.
+ *
+ * The box-level fields take the same fork. Idle, a size or opacity change goes
+ * through the layer's bracket like any annotation's. While the box is being
+ * edited the session *holds* that bracket, so the pane's own `begin` would be
+ * refused and the rows would sit disabled for the whole edit; instead they
+ * write the store directly, inside the session's entry, the way a keystroke
+ * does.
  */
 export function useTextProperties(target: TargetOf<'text'>): PropertySheet {
-  const deps = useAnnotationPaneDeps(target.id);
+  const paneDeps = useAnnotationPaneDeps(target.id);
+  const updateAnnotation = useWorkspaceStore((state) => state.updateAnnotation);
   const id = target.id;
   const editing = useTextEditSession()?.id === id;
   const doc = target.annotation.doc;
+  const deps = useMemo(
+    () =>
+      editing
+        ? {
+            ...paneDeps,
+            held: false,
+            begin: () => true,
+            update: (patch: AnnotationUpdate) => updateAnnotation(id, patch),
+            end: () => {},
+            commit: (patch: AnnotationUpdate) => updateAnnotation(id, patch),
+          }
+        : paneDeps,
+    [editing, paneDeps, updateAnnotation, id]
+  );
   const { t, commit } = deps;
 
   const idle = useCallback(

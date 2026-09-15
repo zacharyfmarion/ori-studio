@@ -81,14 +81,28 @@ const alignButton = (label: string) =>
     (button) => button.getAttribute('aria-label') === label
   );
 
+const opacitySlider = () =>
+  [...(host?.querySelectorAll<HTMLInputElement>('.cp-properties-panel input[type="range"]') ?? [])].find(
+    (input) => input.getAttribute('aria-label') === 'Opacity'
+  );
+
+/** A pointer drag of the range thumb: `input` per move, one `change` on release. */
+function dragSlider(input: HTMLInputElement, value: number): void {
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+  setter?.call(input, String(value));
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
 const history = () => useWorkspaceStore.getState().oristudioCpHistoryPast;
-const storedDoc = (id: string) => {
+const storedText = (id: string) => {
   const annotation = useWorkspaceStore
     .getState()
     .oristudioCpAnnotations.find((candidate) => candidate.id === id);
   if (!annotation || annotation.kind !== 'text') throw new Error('no text box');
-  return annotation.doc;
+  return annotation;
 };
+const storedDoc = (id: string) => storedText(id).doc;
 
 const BOX = createTextAnnotation({
   id: 'text-1',
@@ -104,6 +118,9 @@ beforeEach(() => {
   useWorkspaceStore.setState(
     {
       ...initialState,
+      // `activeEditingContext` is derived from the active panel; `undo`
+      // routes on it.
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: DOCUMENT,
       oristudioCpAnnotations: [BOX],
       oristudioCpSelectedAnnotationId: BOX.id,
@@ -169,6 +186,46 @@ describe('the text sheet', () => {
     expect(history()).toHaveLength(1);
     expect(history()[0]?.label).toBe('Edit text');
     expect(annotationGesture.openOwner()).toBeNull();
+  });
+
+  it('fades an idle box through the layer’s bracket, as one entry', async () => {
+    mount(null);
+    const slider = opacitySlider();
+    expect(slider).toBeDefined();
+    expect(slider?.disabled).toBe(false);
+
+    await act(async () => dragSlider(slider!, 0.4));
+
+    expect(storedText(BOX.id).opacity).toBeCloseTo(0.4);
+    expect(history()).toHaveLength(1);
+    expect(history()[0]?.label).toBe('Adjust opacity');
+    expect(annotationGesture.openOwner()).toBeNull();
+  });
+
+  it('fades a box under edit inside the session, with the row live', async () => {
+    act(() => {
+      beginTextEditSession(BOX.id, false);
+    });
+    mount(BOX.id);
+    // The session holds the layer's bracket. The row must not sit disabled
+    // for the whole edit: it writes inside the session's entry instead.
+    expect(annotationGesture.openOwner()).toBe('text-session');
+    const slider = opacitySlider();
+    expect(slider?.disabled).toBe(false);
+
+    await act(async () => dragSlider(slider!, 0.25));
+
+    expect(storedText(BOX.id).opacity).toBeCloseTo(0.25);
+    expect(textEditSession()?.id).toBe(BOX.id);
+    expect(annotationGesture.openOwner()).toBe('text-session');
+    expect(history()).toHaveLength(0);
+
+    await act(async () => endTextEditSession('blur'));
+    expect(history()).toHaveLength(1);
+    expect(history()[0]?.label).toBe('Edit text');
+    // Undoing that one entry restores the opacity with the text.
+    await act(async () => useWorkspaceStore.getState().undo());
+    expect(storedText(BOX.id).opacity).toBe(1);
   });
 
   it('commits the session at the undo chokepoint, so the step undoes it', async () => {
