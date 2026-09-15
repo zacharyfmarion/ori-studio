@@ -531,10 +531,11 @@ impl Closure {
     /// the sweep began — is anchored near enough: carried past the
     /// pattern's outer ends by no more than twice that crease's length (and
     /// a pinch), or not to be anchored nearer by waiting, because no target
-    /// still to come crosses the line at an unfound end within that bar.
-    /// The rest wait a sweep for the crossing that would let them stop
-    /// short; a target that has waited [`MAX_DEFERRALS`] sweeps is folded
-    /// regardless. Judged against the paper as it stood when the sweep
+    /// still to come crosses the line at an unfound end within that bar —
+    /// or needed now, as the anchor of another line in the sweep whose
+    /// pattern end lies on it. The rest wait a sweep for the crossing that
+    /// would let them stop short; a target that has waited
+    /// [`MAX_DEFERRALS`] sweeps is folded regardless. Judged against the paper as it stood when the sweep
     /// began, on the same footing as [`Closure::ends_findable`].
     fn near_anchored(&self, constructible: &[(usize, Vec<Witness>)]) -> Vec<bool> {
         let state = &self.state;
@@ -580,6 +581,26 @@ impl Closure {
                 let carried = (p_lo - m_lo).max(0.0) + (m_hi - p_hi).max(0.0);
                 let bar = (2.0 * pattern_len).max(MIN_ALIGNMENT);
                 if carried <= bar + TOL {
+                    return true;
+                }
+                // Far — but an anchor another line in this sweep needs now:
+                // a pattern end of theirs lies on this line where this
+                // crease would reach. Holding it back would carry their
+                // crease somewhere else, or lose the end.
+                let needed = constructible.iter().any(|(u, _)| {
+                    *u != *t && {
+                        let other = &self.targets[*u];
+                        crease_runs(&other.line, &other.spans)
+                            .iter()
+                            .flat_map(|(a, b)| [*a, *b])
+                            .any(|end| {
+                                line.distance_to_point(end) <= TOL
+                                    && runs_reach(line, &made, end)
+                                    && !settled_end_is_found(state, creased, &other.line, end)
+                            })
+                    }
+                });
+                if needed {
                     return true;
                 }
                 // Far. The unfound ends, and whether a target still to come
