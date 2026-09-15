@@ -88,6 +88,18 @@ describe('useBlurOnPressOutside', () => {
     expect(onBlur).not.toHaveBeenCalled();
   });
 
+  it('leaves a press that landed on the root to the modal layer that took it', () => {
+    // A Radix select's open list disables pointer events on `body`; the press
+    // that closes it arrives on `<html>`, outside every panel. That press is
+    // the layer's, not a press outside the window.
+    const onBlur = vi.fn();
+    render(true, onBlur);
+    act(() => {
+      document.documentElement.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    });
+    expect(onBlur).not.toHaveBeenCalled();
+  });
+
   it('keeps the window focused through a press in the Properties pane', () => {
     // The pane edits the focused window's settings; blurring on the press
     // that reaches for a row would empty the pane under the pointer.

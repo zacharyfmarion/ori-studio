@@ -33,6 +33,13 @@ export function useBlurOnPressOutside({
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target;
       if (!(target instanceof Node)) return;
+      // A press that reached nothing under `body` landed while a modal layer
+      // held the page — a Radix select's list puts `pointer-events: none` on
+      // the body, so the press that closes it arrives on `<html>`. That press
+      // is the layer's to dismiss, not a press outside the window: measured on
+      // the Properties pane, choosing a crease style then clicking beside the
+      // list blurred the window and emptied the pane mid-edit.
+      if (!document.body.contains(target)) return;
       if (panelRef.current?.contains(target)) return;
       // The window's floating inspector, its portalled menus, and any docked
       // surface that edits the selection are outside the panel and must not
