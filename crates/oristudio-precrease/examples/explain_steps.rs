@@ -186,6 +186,7 @@ fn flags(j: &Judgement) -> String {
         if j.crossings { 'c' } else { '.' },
         if j.local() { 'L' } else { '.' },
         if j.marks_real { 'm' } else { '.' },
+        if j.overlong { 'O' } else { '.' },
         if j.skinny { 's' } else { '.' },
     ]
     .iter()

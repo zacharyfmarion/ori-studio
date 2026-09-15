@@ -1243,21 +1243,25 @@ fn witness_cost(state: &State, creased: &Creased, fold: &Line, witness: &Witness
 ///    press for a one-motion fold over a two-handed one
 ///    ([`MAX_PRESSES_FOR_PREFERENCE`]); and no press at all when the crease
 ///    can be made through two marks already on the paper.
-/// 3. **Visible** (R1): an alignment the folder can watch — something on
+/// 3. **Not overlong**: a crease joined between two marks well beyond it
+///    ([`Judgement::overlong`]) — more crease than the pattern asks for by
+///    more than the crease itself — after any fold that is not, seen or
+///    unseen: Zach would rather have less to go on than twice the crease.
+/// 4. **Visible** (R1): an alignment the folder can watch — something on
 ///    the boundary moves, or a crease lands on a crease — before one lined
 ///    up under the paper, whatever kind of fold either is.
-/// 4. **Precise** (R2): two references far enough apart, and the crease near
+/// 5. **Precise** (R2): two references far enough apart, and the crease near
 ///    enough to where they are lined up, that the fold lands where it should.
-/// 5. **At the crease** (R3, R4): a bisection whose vertex is the crease's
+/// 6. **At the crease** (R3, R4): a bisection whose vertex is the crease's
 ///    end, or a short crease's own two marks joined, before any other kind
 ///    of fold — its own marks even where one is a crease's end on another:
 ///    a short crease pinched between the two creases it runs between is
 ///    read off them, not sighted from afar.
-/// 6. **A crossing to sight from** (R7), before a crease's end on another;
+/// 7. **A crossing to sight from** (R7), before a crease's end on another;
 ///    then, among free folds, marks already on the paper before a spot
 ///    still to be pinched while its crease is made — no step, but ink the
 ///    pattern does not ask for (a press has paid for its marks in the tier).
-/// 7. The **ease order** — two points, line onto line, the edge onto itself
+/// 8. The **ease order** — two points, line onto line, the edge onto itself
 ///    … — then the skinny flap, the error at the crease, the residual. For a
 ///    perpendicular to the sheet's edge, the edge whose foot is at the
 ///    crease.
@@ -1345,6 +1349,10 @@ fn pick_witness(
         (
             !j.practical,
             press_tier,
+            // Ink before sight: a crease joined between marks far beyond it
+            // is crease the pattern does not ask for, and Zach would rather
+            // have a fold with less to go on than twice the crease.
+            j.overlong,
             !j.visible,
             !j.precise,
             !j.local(),
@@ -1354,9 +1362,13 @@ fn pick_witness(
             c.cost == 0 && !j.marks_real,
             j.ease,
             j.skinny,
-            j.error.map_or(0, |e| (e * 1e3) as u64),
-            (w.err / 1e-18) as u64,
-            at_the_crease(w),
+            // The numbers, last and together: a tuple's ordering stops at
+            // twelve fields.
+            (
+                j.error.map_or(0, |e| (e * 1e3) as u64),
+                (w.err / 1e-18) as u64,
+                at_the_crease(w),
+            ),
         )
     };
     let best = scored
@@ -1373,7 +1385,7 @@ fn pick_witness(
     // the crease over two edge marks at the far edge).
     let class = |c: &Scored| {
         let k = key(c);
-        (k.0, c.cost, k.2, k.3, k.4)
+        (k.0, c.cost, k.2, k.3, k.4, k.5)
     };
     // Among those, the one the key likes best — not the most accurate of
     // them: past three times better, a corner swing the folder makes in one

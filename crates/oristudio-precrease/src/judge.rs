@@ -113,6 +113,13 @@ pub struct Judgement {
     /// two creases, not a crease's end on another. A mark not yet there is a
     /// press's business, priced by the pick, and not counted here as well.
     pub crossings: bool,
+    /// An O1 whose two marks lie well beyond the crease: creasing from the
+    /// one to the other, as a fold through two marks is made, would add more
+    /// than the crease's own length (and more than [`CONNECT_CREASE`]) of
+    /// crease the pattern does not ask for. Zach's rule for a crease carried
+    /// to references — twice as long as it need be, and he would rather
+    /// have no reference — applied to the marks a card joins.
+    pub overlong: bool,
     /// Every mark the witness names is on the paper in fact — none of them a
     /// spot still to be pinched while its crease is made
     /// ([`witness_marks_real`]). A pinch made while folding costs no step,
@@ -450,6 +457,38 @@ pub fn judge(
         _ => true,
     });
     let marks_real = witness_marks_real(state, creased, w);
+    let overlong = w.axiom == 1 && {
+        let marks: Vec<f64> = w
+            .inputs
+            .iter()
+            .filter_map(|r| match r {
+                Ref::Point { id } | Ref::Corner { id, .. } => {
+                    Some(fold.parameter_of(state.point(*id)))
+                }
+                _ => None,
+            })
+            .collect();
+        let runs: Vec<(f64, f64)> = made
+            .iter()
+            .map(|[a, b]| {
+                let (u, v) = (fold.parameter_of(*a), fold.parameter_of(*b));
+                (u.min(v), u.max(v))
+            })
+            .collect();
+        match (marks.as_slice(), runs.is_empty()) {
+            ([p, q], false) => {
+                let (lo, hi) = (p.min(*q), p.max(*q));
+                let length: f64 = runs.iter().map(|(u, v)| v - u).sum();
+                let covered: f64 = runs
+                    .iter()
+                    .map(|(u, v)| (v.min(hi) - u.max(lo)).max(0.0))
+                    .sum();
+                let extension = (hi - lo) - covered;
+                extension > length.max(CONNECT_CREASE)
+            }
+            _ => false,
+        }
+    };
     let alignment = witness_alignment(state, creased, fold, w);
     let long_crease_onto_itself = w.axiom == 4
         && !w.folds_edge_onto_itself()
@@ -473,6 +512,7 @@ pub fn judge(
         bisection_at_crease,
         own_ends,
         crossings,
+        overlong,
         marks_real,
         ease,
         one_motion,
@@ -770,6 +810,63 @@ mod tests {
             true,
         );
         assert!(landings_seen(&state2, &hidden, &swing, &onto_edge));
+    }
+
+    /// Two marks far beyond a short crease: joining them is more crease than
+    /// the pattern asks for by more than the crease itself, and the card
+    /// would rather sight the crease some other way.
+    #[test]
+    fn a_crease_joined_between_marks_far_beyond_it_is_overlong() {
+        let (state, creased) = paper();
+        let a = state.find_point([0.5, 0.25]).expect("a");
+        let b = state.find_point([0.5, 0.75]).expect("b");
+        let o1 = witness(
+            1,
+            vec![Ref::Point { id: a }, Ref::Point { id: b }],
+            vec![],
+            true,
+        );
+        let none: DirectionOfLine<'_> = &|_| None;
+        // A crease 0.05 long in the middle: 0.45 of extra crease to join them.
+        let short = [[[0.5, 0.475], [0.5, 0.525]]];
+        let j = judge(
+            &state,
+            &creased,
+            &v(0.5),
+            &short,
+            &short,
+            Direction::Valley,
+            none,
+            &o1,
+        );
+        assert!(j.overlong);
+        // A crease 0.4 long between them: 0.1 of extra crease, less than the
+        // crease and less than a fifth of the sheet.
+        let long = [[[0.5, 0.3], [0.5, 0.7]]];
+        let j = judge(
+            &state,
+            &creased,
+            &v(0.5),
+            &long,
+            &long,
+            Direction::Valley,
+            none,
+            &o1,
+        );
+        assert!(!j.overlong);
+        // The crease between its own two marks is never overlong.
+        let own = [[[0.5, 0.25], [0.5, 0.75]]];
+        let j = judge(
+            &state,
+            &creased,
+            &v(0.5),
+            &own,
+            &own,
+            Direction::Valley,
+            none,
+            &o1,
+        );
+        assert!(!j.overlong);
     }
 
     #[test]

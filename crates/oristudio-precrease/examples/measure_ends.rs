@@ -95,6 +95,9 @@ struct Tally {
     own_ends: usize,
     mountain_pinches: usize,
     mirrored: usize,
+    /// O1 picks joining marks far beyond the crease — presented only when
+    /// nothing else was on offer.
+    overlong: usize,
     /// The error at the crease summed over the judged picks that have one,
     /// and how many that is, for the mean.
     error_sum: f64,
@@ -130,13 +133,14 @@ impl Tally {
         self.own_ends += o.own_ends;
         self.mountain_pinches += o.mountain_pinches;
         self.mirrored += o.mirrored;
+        self.overlong += o.overlong;
         self.error_sum += o.error_sum;
         self.error_n += o.error_n;
     }
 
     fn picks_line(&self) -> String {
         format!(
-            "picks {:5} judged ({:4} not yet on the replay paper)  invisible {:4}  imprecise {:4}  impractical {:4}  bisections at the crease {:4}  own ends {:4}  mountain pinches {:4}  mirrored {:4}  mean error {:.2}",
+            "picks {:5} judged ({:4} not yet on the replay paper)  invisible {:4}  imprecise {:4}  impractical {:4}  bisections at the crease {:4}  own ends {:4}  mountain pinches {:4}  mirrored {:4}  overlong {:4}  mean error {:.2}",
             self.judged,
             self.unjudged,
             self.invisible,
@@ -146,6 +150,7 @@ impl Tally {
             self.own_ends,
             self.mountain_pinches,
             self.mirrored,
+            self.overlong,
             self.error_sum / self.error_n.max(1) as f64
         )
     }
@@ -328,6 +333,9 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize, verbose: bool) -> Tal
                     }
                     if j.own_ends {
                         t.own_ends += 1;
+                    }
+                    if j.overlong {
+                        t.overlong += 1;
                     }
                     if let Some(e) = j.error.filter(|e| e.is_finite()) {
                         t.error_sum += e;

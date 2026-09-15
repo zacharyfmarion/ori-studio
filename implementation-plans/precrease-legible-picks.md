@@ -360,7 +360,21 @@ Second round, from Zach's next fold of markhor (2026-09-14):
 - **A crease through two marks runs from the one to the other**
   (`order::through_marks`): "fold through P and Q" creases all the way to
   both, whatever the pattern wants between them (markhor 50), and the
-  paper carries that crease for the folds after it.
+  paper carries that crease for the folds after it. Which made the cost of
+  a far-apart pair visible: volant-penguin joined two marks 0.92 apart for
+  a 0.065 pinch, and the corpus's crease past the pattern went from 86 to
+  129 sheet-sides. So an O1 whose marks lie beyond the crease by more than
+  the crease's own length (and more than a fifth of the sheet) is
+  **overlong** (`Judgement::overlong`), and sorts after every other free
+  fold, seen or unseen — Zach's rule for a crease carried to references,
+  twice as long as it need be and he would rather have no reference,
+  applied to the marks a card joins. It is still made mark to mark when it
+  is all there is.
+- **The card's own geometry**: `sideOf` in `diagram/plannerDiagram.ts`
+  judged a point on the fold within a billionth of a unit, which the
+  document frame (a 400-unit sheet) did not meet; a receiving piece that
+  starts at the fold's vertex was dropped and markhor 80 showed the piece
+  the edge never lands on. Relative now, and pinned at both scales.
 
 Pins: `tests/planner_markhor.rs`, gated on `ORI_PRECREASE_MARKHOR` (the
 file is not committed), one entry per item above, by line. Iguana's
