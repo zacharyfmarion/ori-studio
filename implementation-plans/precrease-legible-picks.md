@@ -409,11 +409,16 @@ on a pattern line and made as "fold the bottom edge onto itself through P"
   invariant over every O1 step).
 - [x] Corpus gates 1–3, measured 2026-09-14 on the 53 designs both runs
   planned (the curated set has changed since the baseline; abra and
-  wolpertinger are gone from it): steps 3,738 → 3,715, turn-overs 308 →
-  312, lost ends 140 → 146, pieces 403 → 407, reach 86.8 → 86.4
-  sheet-sides. Over the 54 planned: presses 159, pinches while folding
-  631, picks 3,678 judged — invisible 75, imprecise 209, impractical 0,
-  bisections at the crease 646, own ends 742, mountain pinches 1,152,
-  mirrored 153, mean error 2.58. An invisible or imprecise pick is one
-  with no free alternative that is not: the key sorts those first.
+  wolpertinger are gone from it). After the first round: steps 3,738 →
+  3,715, turn-overs 308 → 312, lost ends 140 → 146, pieces 403 → 407,
+  reach 86.8 → 86.4 sheet-sides. After the second (landings seen, O1 to
+  both marks, overlong): steps 3,729, turn-overs 314, lost ends 146,
+  pieces 399, reach 110.1 — the crease past the pattern is up by a
+  quarter, which is the O1s creased mark to mark (129 before the overlong
+  term). Over the 54 planned: presses 163, pinches while folding 675,
+  picks 3,683 judged — invisible 109 (the landing rule finds more of
+  them), imprecise 216, impractical 0, bisections at the crease 629, own
+  ends 746, mountain pinches 1,155, mirrored 173, mean error 2.58. An
+  invisible or imprecise pick is one with no free alternative that is
+  not: the key sorts those first.
 - [ ] Zach folds markhor again.

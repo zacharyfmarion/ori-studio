@@ -334,7 +334,11 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize, verbose: bool) -> Tal
                     if j.own_ends {
                         t.own_ends += 1;
                     }
-                    if j.overlong {
+                    // Judged against the pattern's own crease rather than
+                    // `made`, which already runs from mark to mark for an
+                    // O1 and so never reads as overlong here.
+                    if w.axiom == 1 && overlong_for_pattern(&step.line, &step.cp_spans, &state, &w)
+                    {
                         t.overlong += 1;
                     }
                     if let Some(e) = j.error.filter(|e| e.is_finite()) {
@@ -427,6 +431,49 @@ fn measure(seq: &Sequence, sheet: Sheet, point_cap: usize, verbose: bool) -> Tal
         }
     }
     t
+}
+
+/// Whether an O1's two marks lie beyond the pattern's own crease on `line`
+/// by more than that crease's length (and more than
+/// [`oristudio_precrease::judge::CONNECT_CREASE`]) — the pick's
+/// `Judgement::overlong`, read off the pattern.
+fn overlong_for_pattern(
+    line: &oristudio_precrease::line::Line,
+    spans: &[[[f64; 2]; 2]],
+    state: &State,
+    w: &oristudio_precrease::predicates::Witness,
+) -> bool {
+    let marks: Vec<f64> = w
+        .inputs
+        .iter()
+        .filter_map(|r| match r {
+            oristudio_precrease::predicates::Ref::Point { id }
+            | oristudio_precrease::predicates::Ref::Corner { id, .. } => {
+                Some(line.parameter_of(state.point(*id)))
+            }
+            _ => None,
+        })
+        .collect();
+    let [p, q] = marks.as_slice() else {
+        return false;
+    };
+    let (lo, hi) = (p.min(*q), p.max(*q));
+    let runs: Vec<(f64, f64)> = crease_runs(line, spans)
+        .into_iter()
+        .map(|(a, b)| {
+            let (u, v) = (line.parameter_of(a), line.parameter_of(b));
+            (u.min(v), u.max(v))
+        })
+        .collect();
+    if runs.is_empty() {
+        return false;
+    }
+    let length: f64 = runs.iter().map(|(u, v)| v - u).sum();
+    let covered: f64 = runs
+        .iter()
+        .map(|(u, v)| (v.min(hi) - u.max(lo)).max(0.0))
+        .sum();
+    (hi - lo) - covered > length.max(oristudio_precrease::judge::CONNECT_CREASE)
 }
 
 #[allow(clippy::too_many_arguments)]
