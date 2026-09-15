@@ -14,6 +14,7 @@ describe('panelComponents', () => {
     expect(Object.keys(panelComponents).sort()).toEqual([
       'bp-editor',
       'conditions',
+      'cp-properties',
       'cp-view-controls',
       'crease-pattern',
       'design',

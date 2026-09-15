@@ -1,6 +1,14 @@
 import { create } from 'zustand';
-import type { DockviewApi, IDockviewPanel, SerializedDockview } from 'dockview';
+import type {
+  DockviewApi,
+  DockviewGroupPanel,
+  IDockviewPanel,
+  Position,
+  SerializedDockview,
+} from 'dockview';
+import i18n from '../i18n';
 import { isCoarsePointerSurface } from '../platform/pointerSurface';
+import { requestSidePane } from './sidePaneRequests';
 import type { WorkspaceId } from '../workspaces/workspaces';
 import { primaryPanelIdFor, workspaceForPanelId } from '../workspaces/workspaces';
 import { readJson, readString, removeKey, storageKey, STORAGE_KEYS, writeJson, writeString } from '../lib/storage';
@@ -119,80 +127,156 @@ interface PrimaryPanelOptions {
 }
 
 /**
- * The shape of a workspace's View pane, in the form `addPanel` wants it.
+ * A workspace's side panes — the View pane, and beside it the Properties pane —
+ * in the form `addPanel` wants them.
  *
- * It exists because the pane is no longer built in exactly one place: under a
- * coarse pointer it is not docked at all, and the drawer that replaces it has to
- * name the same panel. The default build, the reconcile and the drawer all read
- * this one record, which is what keeps "which pane is the View pane" from being
- * answered by three hand-written literals that can drift — which is how the id,
- * component, title and width used to live.
+ * One table rather than literals at each build site, because a pane is built
+ * in more than one place: the default build, the reconcile that repairs a
+ * restored layout, and the touch drawer that replaces the docked column under a
+ * coarse pointer. All of them read this one record, which is what keeps "which
+ * panes does this workspace dock" from drifting between three hand-written
+ * copies.
+ *
+ * `placement` is where a pane lands: the lead of a column docks beside the
+ * primary pane (`beside-primary`) and a later pane joins the lead's group as a
+ * tab (`tab-of`). A list is ordered lead first so the group exists before the
+ * tab that needs it.
  */
-interface ViewPanelDefinition {
+interface SidePaneDefinition {
   id: string;
   component: string;
-  title: string;
-  initialWidth: number;
-  /** The primary pane it docks to the right of. */
+  initialWidth?: number;
+  /** The primary pane the column docks to the right of. */
   referencePanelId: string;
+  placement: { kind: 'beside-primary' } | { kind: 'tab-of'; leadId: string };
 }
 
-const WORKSPACE_VIEW_PANELS = {
-  edit: {
-    id: 'cp-view-controls',
-    component: 'cp-view-controls',
-    title: 'View',
-    initialWidth: 260,
-    referencePanelId: 'crease-pattern',
-  },
-  simulate: {
-    id: 'simulator-view-controls',
-    component: 'simulator-view-controls',
-    title: 'View',
-    initialWidth: 260,
-    referencePanelId: 'simulator',
-  },
-} as const satisfies Partial<Record<WorkspaceId, ViewPanelDefinition>>;
+const WORKSPACE_SIDE_PANES = {
+  edit: [
+    {
+      id: 'cp-view-controls',
+      component: 'cp-view-controls',
+      initialWidth: 260,
+      referencePanelId: 'crease-pattern',
+      placement: { kind: 'beside-primary' },
+    },
+    {
+      id: 'cp-properties',
+      component: 'cp-properties',
+      referencePanelId: 'crease-pattern',
+      placement: { kind: 'tab-of', leadId: 'cp-view-controls' },
+    },
+  ],
+  simulate: [
+    {
+      id: 'simulator-view-controls',
+      component: 'simulator-view-controls',
+      initialWidth: 260,
+      referencePanelId: 'simulator',
+      placement: { kind: 'beside-primary' },
+    },
+  ],
+} as const satisfies Partial<Record<WorkspaceId, readonly SidePaneDefinition[]>>;
 
-export type ViewPanelSpec = (typeof WORKSPACE_VIEW_PANELS)[keyof typeof WORKSPACE_VIEW_PANELS];
+export type SidePaneSpec = (typeof WORKSPACE_SIDE_PANES)[keyof typeof WORKSPACE_SIDE_PANES][number];
 
 /**
  * The ids in the table, as a union rather than `string`.
  *
- * The drawer keys its content map on this, so a workspace that gains a View pane
- * without gaining a drawer body is a compile error rather than an empty sheet.
+ * The drawer keys its content map on this, so a workspace that gains a side
+ * pane without gaining a drawer body is a compile error rather than an empty
+ * sheet.
  */
-export type ViewPanelId = ViewPanelSpec['id'];
+export type SidePaneId = SidePaneSpec['id'];
 
-export function viewPanelFor(workspace: WorkspaceId): ViewPanelSpec | null {
-  return workspace in WORKSPACE_VIEW_PANELS
-    ? WORKSPACE_VIEW_PANELS[workspace as keyof typeof WORKSPACE_VIEW_PANELS]
-    : null;
+export function sidePanesFor(workspace: WorkspaceId): readonly SidePaneSpec[] {
+  return workspace in WORKSPACE_SIDE_PANES
+    ? WORKSPACE_SIDE_PANES[workspace as keyof typeof WORKSPACE_SIDE_PANES]
+    : [];
 }
 
-function addViewPanel(api: DockviewApi, spec: ViewPanelSpec): void {
-  // Dockview throws when a `referencePanel` is not in the dock, and reconciling
-  // runs against layouts we did not build (a restored `fromJSON`, an error path
+/** The pane that leads a workspace's side column, or null for a workspace without one. */
+export function leadSidePaneFor(workspace: WorkspaceId): SidePaneSpec | null {
+  return sidePanesFor(workspace)[0] ?? null;
+}
+
+/**
+ * A side pane's tab title, localised.
+ *
+ * A render-site switch with literal keys — the extractor only sees literals —
+ * called through `i18n.t` rather than a hook because the callers are the
+ * layout builders, which run from the store. Dockview persists the title it
+ * was given, so a restored layout is retitled on reconcile and on language
+ * change (`retitleSidePanes`); before that, tab titles were English literals.
+ */
+export function sidePaneTitle(spec: SidePaneSpec): string {
+  switch (spec.id) {
+    case 'cp-view-controls':
+    case 'simulator-view-controls':
+      return i18n.t('panels:sidePane.view', 'View');
+    case 'cp-properties':
+      return i18n.t('panels:sidePane.properties', 'Properties');
+  }
+}
+
+function addSidePane(api: DockviewApi, spec: SidePaneSpec): void {
+  // Dockview throws when a reference is not in the dock, and reconciling runs
+  // against layouts we did not build (a restored `fromJSON`, an error path
   // that left the dock empty). Nothing to dock beside is a reason to leave the
   // dock alone, not to take the workspace down.
+  if (spec.placement.kind === 'tab-of') {
+    const lead = api.getPanel(spec.placement.leadId);
+    if (!lead) return;
+    api.addPanel({
+      id: spec.id,
+      component: spec.component,
+      title: sidePaneTitle(spec),
+      position: { referenceGroup: lead.group },
+      // Added behind the lead: the tab exists, the lead stays on top.
+      inactive: true,
+    });
+    return;
+  }
   if (!api.getPanel(spec.referencePanelId)) return;
+  const initialWidth = 'initialWidth' in spec ? spec.initialWidth : undefined;
   api.addPanel({
     id: spec.id,
     component: spec.component,
-    title: spec.title,
+    title: sidePaneTitle(spec),
     position: { referencePanel: spec.referencePanelId, direction: 'right' },
-    initialWidth: spec.initialWidth,
+    ...(initialWidth ? { initialWidth } : {}),
   });
 }
 
 /**
- * Make the dock's View pane agree with the pointer, in either direction.
+ * Give every present side pane the title the current language says, so a tab
+ * restored from a layout persisted under another language does not keep it.
+ */
+export function retitleSidePanes(api: DockviewApi, workspace: WorkspaceId): void {
+  for (const spec of sidePanesFor(workspace)) {
+    const panel = api.getPanel(spec.id);
+    if (!panel) continue;
+    const title = sidePaneTitle(spec);
+    if (panel.title !== title) panel.api.setTitle(title);
+  }
+}
+
+/**
+ * Make the dock's side panes agree with the pointer and the table, in either
+ * direction.
  *
- * Under a coarse pointer the pane is not docked: a 260px column beside the
+ * Under a coarse pointer the panes are not docked: a 260px column beside the
  * canvas is most of an iPad's width in portrait, and the same controls are one
- * tap away in the drawer (see `WorkspaceViewDrawer`). Removing it rather than
- * hiding it is the point — `removePanel` takes the emptied group with it, so the
+ * tap away in the drawer (see `WorkspaceViewDrawer`). Removing rather than
+ * hiding is the point — `removePanel` takes the emptied group with it, so the
  * canvas gets the width back instead of dockview holding an invisible column.
+ *
+ * On a fine pointer every listed pane that is missing is added, in table order
+ * so a tab's lead exists first. That is what carries a persisted layout across
+ * a table change: dockview's `fromJSON` restores exactly the panel set it was
+ * given, so a layout saved before a pane existed would never show it. Adding
+ * the missing pane keeps the user's sash widths; bumping `LAYOUT_VERSION` would
+ * discard them. This is the rung the View pane already had, generalised.
  *
  * Total and idempotent, because it has to run at several unrelated moments:
  * after each of the two `fromJSON` restores, once more at the end of `onReady`
@@ -200,22 +284,14 @@ function addViewPanel(api: DockviewApi, spec: ViewPanelSpec): void {
  * a live app. A default build needs none of it — `applyDefaultLayout` is handed
  * the pointer and builds the right set — so that call is the free no-op.
  *
- * **Why this instead of a pointer-scoped storage bucket.** A separate
- * `…:edit:coarse` key would not touch the dock that is already built, so the
- * live flip needs this function regardless — and once it exists, the second
- * bucket buys nothing while doubling the scopes to invalidate. Repairing also
- * beats discarding: the difference between the two layouts is exactly one panel
- * whose full options this module owns, so there is nothing here that a version
- * bump's throw-it-away semantics would be the right tool for.
- *
  * The cost, stated: a device that really does flip (a convertible, devtools
- * emulation) gets the pane back at `initialWidth` rather than at whatever width
- * the user had dragged it to, because the debounced save will have overwritten
- * the stored sash position while the pane was gone. An iPad does not flip —
- * `pointer` stays `coarse` with a Magic Keyboard attached — so this is not the
- * case the feature is for.
+ * emulation) gets the column back at `initialWidth` rather than at whatever
+ * width the user had dragged it to, because the debounced save will have
+ * overwritten the stored sash position while the panes were gone. An iPad does
+ * not flip — `pointer` stays `coarse` with a Magic Keyboard attached — so this
+ * is not the case the feature is for.
  */
-export function reconcileViewPanel(
+export function reconcileSidePanes(
   api: DockviewApi,
   workspace: WorkspaceId,
   coarsePointer: boolean = isCoarsePointerSurface()
@@ -224,14 +300,52 @@ export function reconcileViewPanel(
   // active tab's own dock and persist into the `.osf`, so reconciling there would
   // write a pane-less layout into a document that travels to other devices and
   // other users — a much worse bug than the local one this fixes.
-  const spec = viewPanelFor(workspace);
-  if (!spec) return;
-  const panel = api.getPanel(spec.id);
+  const specs = sidePanesFor(workspace);
+  if (specs.length === 0) return;
   if (coarsePointer) {
-    if (panel) api.removePanel(panel);
+    // Tabs before their lead, so the lead's removal is what empties the group.
+    for (const spec of [...specs].reverse()) {
+      const panel = api.getPanel(spec.id);
+      if (panel) api.removePanel(panel);
+    }
     return;
   }
-  if (!panel) addViewPanel(api, spec);
+  for (const spec of specs) {
+    const panel = api.getPanel(spec.id);
+    // Found inside the headerless primary group — a drop that a build without
+    // `refuseDropsIntoHeaderlessGroups` accepted, persisted as it was — the
+    // pane covers the canvas with no tab to bring it back. Re-adding through
+    // the one placement path puts it where the table says; the lead goes first
+    // in table order, so a tab lands in the lead's new group, not the old one.
+    if (panel?.group.header.hidden) api.removePanel(panel);
+    if (!api.getPanel(spec.id)) addSidePane(api, spec);
+  }
+  retitleSidePanes(api, workspace);
+}
+
+/**
+ * Refuse a drop that would make a panel a tab of a headerless group.
+ *
+ * A primary group hides its header so the canvas fills the pane — and a panel
+ * dropped onto the canvas, the centre position, joins a tab strip nobody can
+ * see. It comes up active, covers the canvas, and there is no tab to switch
+ * back; the only way out was View ▸ Reset Layout. Reachable by dragging the
+ * View or Properties tab onto the canvas. Edge drops split the group instead,
+ * and the new group has a header, so those stay allowed. Vetoed at the
+ * overlay so the drop target never lights up, and again at the drop, which is
+ * the one dockview honours when the overlay did not run.
+ */
+export function refuseDropsIntoHeaderlessGroups(api: DockviewApi): void {
+  const intoHiddenTabStrip = (event: {
+    group: DockviewGroupPanel | undefined;
+    position: Position;
+  }): boolean => event.group?.header.hidden === true && event.position === 'center';
+  api.onWillShowOverlay((event) => {
+    if (intoHiddenTabStrip(event)) event.preventDefault();
+  });
+  api.onWillDrop((event) => {
+    if (intoHiddenTabStrip(event)) event.preventDefault();
+  });
 }
 
 export function applyDefaultLayout(
@@ -275,14 +389,15 @@ function applyDesignLayout(api: DockviewApi): void {
 }
 
 function applyEditLayout(api: DockviewApi, coarsePointer: boolean): void {
-  addHeaderlessPanel(api, {
+  const creasePattern = addHeaderlessPanel(api, {
     id: 'crease-pattern',
     component: 'crease-pattern',
     title: 'Crease Pattern',
   });
   // Built rather than built-and-reconciled, so a touch device never mounts the
-  // pane's controls for the one frame it would take to remove them again.
-  if (!coarsePointer) addViewPanel(api, WORKSPACE_VIEW_PANELS.edit);
+  // panes' controls for the one frame it would take to remove them again.
+  if (!coarsePointer) for (const spec of sidePanesFor('edit')) addSidePane(api, spec);
+  creasePattern.api.setActive();
 }
 
 function applySimulateLayout(api: DockviewApi, coarsePointer: boolean): void {
@@ -291,7 +406,7 @@ function applySimulateLayout(api: DockviewApi, coarsePointer: boolean): void {
     component: 'simulator',
     title: 'Simulator',
   });
-  if (!coarsePointer) addViewPanel(api, WORKSPACE_VIEW_PANELS.simulate);
+  if (!coarsePointer) for (const spec of sidePanesFor('simulate')) addSidePane(api, spec);
   simulator.api.setActive();
 }
 
@@ -387,8 +502,8 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
       try {
         dockviewApi.fromJSON(saved);
         // A restored layout is a panel set from whenever it was captured, which
-        // need not be the panel set this pointer wants. See `reconcileViewPanel`.
-        reconcileViewPanel(dockviewApi, workspace);
+        // need not be the panel set this pointer wants. See `reconcileSidePanes`.
+        reconcileSidePanes(dockviewApi, workspace);
         reportActivePanel(get().activePanelId());
         return;
       } catch (error) {
@@ -421,6 +536,13 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
     const panel = dockviewApi?.getPanel(id) ?? designPaneApi?.getPanel(id);
     if (panel) {
       panel.api.setActive();
+      return;
+    }
+    // A side pane the table lists but the dock does not hold is one a coarse
+    // pointer keeps in the drawer instead; ask the drawer to open on it rather
+    // than doing nothing.
+    if (sidePanesFor(get().activeWorkspace).some((spec) => spec.id === id)) {
+      requestSidePane(id);
       return;
     }
     // No dock holds it. On a phone that is the ordinary case for a design pane —

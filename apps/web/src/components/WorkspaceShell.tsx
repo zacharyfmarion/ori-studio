@@ -43,7 +43,8 @@ import { usesNativeAppMenu } from '../platform/runtime';
 import {
   applyDefaultLayout,
   clearPersistedLayout,
-  reconcileViewPanel,
+  reconcileSidePanes,
+  refuseDropsIntoHeaderlessGroups,
   useLayoutStore,
 } from '../store/layoutStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -349,6 +350,7 @@ export function WorkspaceShell() {
     (event: DockviewReadyEvent) => {
       const { api } = event;
       setDockviewApi(api);
+      refuseDropsIntoHeaderlessGroups(api);
 
       // Build for the workspace the URL asks for, not the store default, so the
       // layout is built once, correctly, with no second rebuild churning the
@@ -373,12 +375,13 @@ export function WorkspaceShell() {
       }
 
       // A restored layout carries the panel set from whenever it was captured,
-      // which need not be the set this pointer wants — see `reconcileViewPanel`.
-      // Idempotent, so the freshly built path above pays nothing for it. Ahead of
-      // the `onDidLayoutChange` subscription below on purpose: a repair is not an
-      // arrangement the user made, so it should not be what gets written back
-      // before they have touched anything.
-      reconcileViewPanel(api, workspace);
+      // which need not be the set this pointer wants, nor the set the table
+      // lists today — see `reconcileSidePanes`. Idempotent, so the freshly built
+      // path above pays nothing for it. Ahead of the `onDidLayoutChange`
+      // subscription below on purpose: a repair is not an arrangement the user
+      // made, so it should not be what gets written back before they have
+      // touched anything.
+      reconcileSidePanes(api, workspace);
 
       // The active panel drives the active editing context (menus, history,
       // shortcuts). Seed it and keep it in sync as the user focuses panels.

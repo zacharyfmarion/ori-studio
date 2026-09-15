@@ -216,12 +216,19 @@
       "refinement": "Verfeinerung auf Faltgenauigkeit"
     }
   },
+  "cpProperties": {
+    "empty": "Wählen Sie ein Objekt auf der Leinwand aus, um seine Eigenschaften zu bearbeiten.",
+    "folded": {
+      "changeView": "Ansicht des gefalteten Modells ändern"
+    }
+  },
   "cpRegion": {
     "accept": "Übernehmen",
     "acceptAnyway": "Trotzdem übernehmen",
     "acceptHistory": "Exakte Lösung übernehmen",
     "acceptPartialHistory": "Teilergebnis der exakten Lösung übernehmen",
     "addRegion": "Prüfungsfreien Bereich hinzufügen",
+    "bringToFront": "Bereich in den Vordergrund bringen",
     "changeChecks": "Unterdrückte Prüfungen ändern",
     "checksMenu": "Unterdrückte Prüfungen",
     "completion": {
@@ -269,6 +276,7 @@
       "noPattern": "In diesem Bereich liegen keine Falten, es gibt also nichts zu lösen. Schieben Sie den Bereich über das erkannte Faltmuster und versuchen Sie es erneut."
     },
     "repairTools": "Reparaturwerkzeuge",
+    "sendToBack": "Bereich in den Hintergrund senden",
     "solve": "Lösen",
     "solveError": "Das Lösen konnte nicht ausgeführt werden — {{message}}",
     "solveErrorUnknown": "Das Lösen konnte nicht ausgeführt werden.",
@@ -317,6 +325,7 @@
     "angleBisectorSelectSegmentToEnd": "Winkelhalbierende: Segment zum Beenden auswählen",
     "anotherSolutionAction": "Andere Lösung anzeigen",
     "bringImageToFront": "Bild in den Vordergrund bringen",
+    "bringTextToFront": "Text in den Vordergrund bringen",
     "buildingCreasePattern": "Faltmuster wird erstellt",
     "canvasDiagnostics_one": "Canvas-Diagnosen: {{count}}",
     "canvasDiagnostics_other": "Canvas-Diagnosen: {{count}}",
@@ -516,6 +525,7 @@
       "simulateInline": "Eingebettet simulieren"
     },
     "sendImageToBack": "Bild in den Hintergrund senden",
+    "sendTextToBack": "Text in den Hintergrund senden",
     "setFoldedModelUpright": "Oben-Richtung des gefalteten Modells festlegen",
     "shadow": "Schatten",
     "shadowUnsupported3d": "Für ein gefaltetes 3D-Modell werden noch keine Schatten gezeichnet",
@@ -796,6 +806,10 @@
     "x": "X",
     "y": "Y",
     "yes": "Ja"
+  },
+  "sidePane": {
+    "properties": "Eigenschaften",
+    "view": "Ansicht"
   },
   "simulator": {
     "backendCpu": "CPU",

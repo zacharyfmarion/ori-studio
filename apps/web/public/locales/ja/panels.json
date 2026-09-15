@@ -211,12 +211,19 @@
       "refinement": "折り精度まで調整中"
     }
   },
+  "cpProperties": {
+    "empty": "キャンバス上のオブジェクトを選択すると、そのプロパティを編集できます。",
+    "folded": {
+      "changeView": "折り上がりモデルの視点を変更"
+    }
+  },
   "cpRegion": {
     "accept": "適用",
     "acceptAnyway": "そのまま適用",
     "acceptHistory": "厳密解を適用",
     "acceptPartialHistory": "厳密解の途中結果を適用",
     "addRegion": "抑制領域を追加",
+    "bringToFront": "領域を最前面へ",
     "changeChecks": "抑制するチェックを変更",
     "checksMenu": "抑制するチェック",
     "completion": {
@@ -257,6 +264,7 @@
       "noPattern": "この領域内に折り線がないため、解くものがありません。領域を検出された展開図の上に移動してからもう一度お試しください。"
     },
     "repairTools": "修復ツール",
+    "sendToBack": "領域を最背面へ",
     "solve": "解く",
     "solveError": "計算を実行できませんでした — {{message}}",
     "solveErrorUnknown": "計算を実行できませんでした。",
@@ -305,6 +313,7 @@
     "angleBisectorSelectSegmentToEnd": "角の二等分線：終点までのセグメントを選択",
     "anotherSolutionAction": "別の解を表示",
     "bringImageToFront": "画像を最前面へ",
+    "bringTextToFront": "テキストを最前面へ",
     "buildingCreasePattern": "展開図を作成中",
     "canvasDiagnostics_other": "キャンバス診断: {{count}} 件",
     "case_other": "ケース {{count}}",
@@ -489,6 +498,7 @@
       "simulateInline": "インラインでシミュレート"
     },
     "sendImageToBack": "画像を最背面へ",
+    "sendTextToBack": "テキストを最背面へ",
     "setFoldedModelUpright": "折り上がりモデルの上方向を設定",
     "shadow": "影",
     "shadowUnsupported3d": "3D の折り上がりモデルにはまだ影を描画できません",
@@ -767,6 +777,10 @@
     "x": "X",
     "y": "Y",
     "yes": "はい"
+  },
+  "sidePane": {
+    "properties": "プロパティ",
+    "view": "表示"
   },
   "simulator": {
     "backendCpu": "CPU",

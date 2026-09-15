@@ -211,12 +211,19 @@
       "refinement": "접기 정밀도로 다듬는 중"
     }
   },
+  "cpProperties": {
+    "empty": "캔버스에서 개체를 선택하면 속성을 편집할 수 있습니다.",
+    "folded": {
+      "changeView": "접힌 모델 보기 변경"
+    }
+  },
   "cpRegion": {
     "accept": "적용",
     "acceptAnyway": "그래도 적용",
     "acceptHistory": "정밀 풀이 적용",
     "acceptPartialHistory": "정밀 풀이 부분 결과 적용",
     "addRegion": "억제 영역 추가",
+    "bringToFront": "영역을 맨 앞으로 가져오기",
     "changeChecks": "억제할 검사 변경",
     "checksMenu": "억제된 검사",
     "completion": {
@@ -257,6 +264,7 @@
       "noPattern": "이 영역 안에 접는 선이 없어 풀 것이 없습니다. 영역을 감지된 전개도 위로 옮긴 뒤 다시 시도하세요."
     },
     "repairTools": "복구 도구",
+    "sendToBack": "영역을 맨 뒤로 보내기",
     "solve": "풀기",
     "solveError": "풀이를 실행할 수 없습니다 — {{message}}",
     "solveErrorUnknown": "풀이를 실행할 수 없습니다.",
@@ -305,6 +313,7 @@
     "angleBisectorSelectSegmentToEnd": "각 이등분선: 끝낼 선분 선택",
     "anotherSolutionAction": "다른 해 표시",
     "bringImageToFront": "이미지를 맨 앞으로 가져오기",
+    "bringTextToFront": "텍스트를 맨 앞으로 가져오기",
     "buildingCreasePattern": "전개도 생성 중",
     "canvasDiagnostics_other": "캔버스 진단: {{count}}개",
     "case_other": "케이스 {{count}}",
@@ -489,6 +498,7 @@
       "simulateInline": "인라인 시뮬레이션"
     },
     "sendImageToBack": "이미지를 맨 뒤로 보내기",
+    "sendTextToBack": "텍스트를 맨 뒤로 보내기",
     "setFoldedModelUpright": "접힌 모델의 위쪽 방향 설정",
     "shadow": "그림자",
     "shadowUnsupported3d": "3D 접힌 모델에는 아직 그림자가 그려지지 않습니다",
@@ -767,6 +777,10 @@
     "x": "X",
     "y": "Y",
     "yes": "예"
+  },
+  "sidePane": {
+    "properties": "속성",
+    "view": "보기"
   },
   "simulator": {
     "backendCpu": "CPU",

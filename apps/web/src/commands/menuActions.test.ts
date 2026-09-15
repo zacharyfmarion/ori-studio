@@ -189,6 +189,7 @@ describe('menu actions', () => {
     await expect(handle('view.simulate')).resolves.toBe(true);
     await expect(handle('view.creasePattern')).resolves.toBe(true);
     await expect(handle('view.simulator')).resolves.toBe(true);
+    await expect(handle('view.properties')).resolves.toBe(true);
     await expect(handle('file.settings')).resolves.toBe(true);
     await expect(handle('help.about')).resolves.toBe(true);
     await expect(handle('app.about')).resolves.toBe(true);
@@ -199,7 +200,8 @@ describe('menu actions', () => {
     expect(deps.workspace.createNewProject).not.toHaveBeenCalled();
     expect(deps.layout.activatePanel).toHaveBeenCalledWith('crease-pattern');
     expect(deps.layout.activatePanel).toHaveBeenCalledWith('simulator');
-    expect(deps.layout.activatePanel).toHaveBeenCalledTimes(4);
+    expect(deps.layout.activatePanel).toHaveBeenCalledWith('cp-properties');
+    expect(deps.layout.activatePanel).toHaveBeenCalledTimes(5);
     expect(deps.settings).toHaveBeenCalledOnce();
     expect(deps.about).toHaveBeenCalledTimes(2);
     expect(deps.workspace.buildCreasePattern).toHaveBeenCalledOnce();

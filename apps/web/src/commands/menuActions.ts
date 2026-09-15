@@ -87,6 +87,7 @@ export const MENU_ACTION_IDS = [
   'view.simulate',
   'view.simulator',
   'view.conditions',
+  'view.properties',
   'view.resetLayout',
   'optimize.scale',
   'optimize.edges',
@@ -351,6 +352,7 @@ const VIEW_PANEL_ACTIONS: Partial<Record<MenuActionId, string>> = {
   'view.simulate': 'simulator',
   'view.simulator': 'simulator',
   'view.conditions': 'conditions',
+  'view.properties': 'cp-properties',
 };
 
 export function isMenuActionId(id: string): id is MenuActionId {

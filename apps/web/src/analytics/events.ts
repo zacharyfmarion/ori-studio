@@ -570,6 +570,9 @@ export const ANALYTICS_EVENTS = {
    * view options. That is the question undocking the pane raises — whether the
    * canvas width was bought at the cost of controls nobody finds again — and it
    * cannot be answered from `command invoked`, since no menu action reaches it.
+   *
+   * `pane` names which side pane the sheet opened on (`cp-view-controls`,
+   * `cp-properties`, `simulator-view-controls`) — an enum, never content.
    */
   viewDrawerOpened: 'view drawer opened',
   /**

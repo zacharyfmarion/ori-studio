@@ -221,12 +221,19 @@
       "refinement": "Refinando a la precisión de plegado"
     }
   },
+  "cpProperties": {
+    "empty": "Selecciona un objeto en el lienzo para editar sus propiedades.",
+    "folded": {
+      "changeView": "Cambiar la vista del modelo plegado"
+    }
+  },
   "cpRegion": {
     "accept": "Aceptar",
     "acceptAnyway": "Aceptar de todos modos",
     "acceptHistory": "Aceptar la resolución exacta",
     "acceptPartialHistory": "Aceptar la resolución exacta parcial",
     "addRegion": "Añadir región de supresión",
+    "bringToFront": "Traer región al frente",
     "changeChecks": "Cambiar comprobaciones suprimidas",
     "checksMenu": "Comprobaciones suprimidas",
     "completion": {
@@ -281,6 +288,7 @@
       "noPattern": "No hay pliegues dentro de esta región, así que no hay nada que resolver. Mueve la región sobre el patrón detectado e inténtalo de nuevo."
     },
     "repairTools": "Herramientas de reparación",
+    "sendToBack": "Enviar región al fondo",
     "solve": "Resolver",
     "solveError": "No se pudo ejecutar la resolución — {{message}}",
     "solveErrorUnknown": "No se pudo ejecutar la resolución.",
@@ -329,6 +337,7 @@
     "angleBisectorSelectSegmentToEnd": "Bisectriz de ángulo: seleccione el segmento para terminar",
     "anotherSolutionAction": "Mostrar otra solución",
     "bringImageToFront": "Traer imagen al frente",
+    "bringTextToFront": "Traer texto al frente",
     "buildingCreasePattern": "Generando patrón de pliegues",
     "canvasDiagnostics_one": "Diagnósticos del lienzo: {{count}}",
     "canvasDiagnostics_many": "Diagnósticos del lienzo: {{count}}",
@@ -543,6 +552,7 @@
       "simulateInline": "Simular incrustado"
     },
     "sendImageToBack": "Enviar imagen al fondo",
+    "sendTextToBack": "Enviar texto al fondo",
     "setFoldedModelUpright": "Definir la vertical del modelo plegado",
     "shadow": "Sombra",
     "shadowUnsupported3d": "Todavía no se dibujan sombras para un modelo plegado en 3D",
@@ -829,6 +839,10 @@
     "x": "X",
     "y": "Y",
     "yes": "Sí"
+  },
+  "sidePane": {
+    "properties": "Propiedades",
+    "view": "Ver"
   },
   "simulator": {
     "backendCpu": "CPU",

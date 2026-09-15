@@ -216,12 +216,19 @@
       "refinement": "Refining to fold precision"
     }
   },
+  "cpProperties": {
+    "empty": "Select an object on the canvas to edit its properties.",
+    "folded": {
+      "changeView": "Change folded model view"
+    }
+  },
   "cpRegion": {
     "accept": "Accept",
     "acceptAnyway": "Accept anyway",
     "acceptHistory": "Accept exact solve",
     "acceptPartialHistory": "Accept partial exact solve",
     "addRegion": "Add suppression region",
+    "bringToFront": "Bring region to front",
     "changeChecks": "Change suppressed checks",
     "checksMenu": "Suppressed checks",
     "completion": {
@@ -269,6 +276,7 @@
       "noPattern": "There are no creases inside this region, so there is nothing to solve. Move the region over the detected pattern and try again."
     },
     "repairTools": "Repair tools",
+    "sendToBack": "Send region to back",
     "solve": "Solve",
     "solveError": "The solve could not run — {{message}}",
     "solveErrorUnknown": "The solve could not run.",
@@ -317,6 +325,7 @@
     "angleBisectorSelectSegmentToEnd": "Angle Bisector: Select segment to end",
     "anotherSolutionAction": "Show another solution",
     "bringImageToFront": "Bring image to front",
+    "bringTextToFront": "Bring text to front",
     "buildingCreasePattern": "Building crease pattern",
     "canvasDiagnostics_one": "Canvas diagnostics: {{count}}",
     "canvasDiagnostics_other": "Canvas diagnostics: {{count}}",
@@ -516,6 +525,7 @@
       "simulateInline": "Simulate inline"
     },
     "sendImageToBack": "Send image to back",
+    "sendTextToBack": "Send text to back",
     "setFoldedModelUpright": "Set folded model upright",
     "shadow": "Shadow",
     "shadowUnsupported3d": "Shadows are not drawn for a 3D folded model yet",
@@ -796,6 +806,10 @@
     "x": "X",
     "y": "Y",
     "yes": "Yes"
+  },
+  "sidePane": {
+    "properties": "Properties",
+    "view": "View"
   },
   "simulator": {
     "backendCpu": "CPU",

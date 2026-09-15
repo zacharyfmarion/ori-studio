@@ -65,6 +65,7 @@ export type WorkspaceCapabilityId =
   | 'view.simulate'
   | 'view.simulator'
   | 'view.conditions'
+  | 'view.properties'
   | 'view.resetLayout'
   | 'optimize.scale'
   | 'optimize.edges'
@@ -668,6 +669,15 @@ export function getWorkspaceCapabilities(
       true,
       t('common:capability.conditions', 'Conditions'),
       t('common:capability.showConditionsPane', 'Show the conditions pane')
+    ),
+    // Visible everywhere like the other View entries (it navigates to Edit),
+    // enabled once there is a crease pattern whose objects it could describe.
+    'view.properties': capability(
+      canEditCp,
+      t('common:capability.properties', 'Properties'),
+      canEditCp
+        ? t('common:capability.showPropertiesPane', 'Show the properties pane')
+        : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
     ),
     'view.resetLayout': capability(
       true,

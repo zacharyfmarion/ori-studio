@@ -6533,6 +6533,17 @@ button.cp-folded-figure-toolbar__notice:hover {
   flex-direction: column;
 }
 
+/* The Properties pane's one-line empty state sits where a sheet's first row
+   would, at the same inset the View pane's empty state uses. */
+.cp-properties-panel__body {
+  display: flex;
+  flex-direction: column;
+}
+
+.cp-properties-panel__body > .empty-note {
+  padding: var(--space-3);
+}
+
 .cp-view-controls-panel__view-options {
   flex: 0 0 auto;
 }
@@ -9897,7 +9908,7 @@ button.bp-packing-alert:focus-visible {
    * `--touch-target` and that is what actually sets the height — so the offset is
    * written in the same token rather than in the number it happens to produce.
    */
-  .canvas-pill-lane[data-view-panel='simulator-view-controls'] {
+  .canvas-pill-lane[data-view-workspace='simulate'] {
     --view-drawer-inset-top: calc(var(--touch-target) + var(--space-2));
   }
 

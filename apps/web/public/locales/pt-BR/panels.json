@@ -221,12 +221,19 @@
       "refinement": "Refinando até a precisão de dobra"
     }
   },
+  "cpProperties": {
+    "empty": "Selecione um objeto na tela para editar suas propriedades.",
+    "folded": {
+      "changeView": "Alterar a vista do modelo dobrado"
+    }
+  },
   "cpRegion": {
     "accept": "Aceitar",
     "acceptAnyway": "Aceitar mesmo assim",
     "acceptHistory": "Aceitar a resolução exata",
     "acceptPartialHistory": "Aceitar a resolução exata parcial",
     "addRegion": "Adicionar região de supressão",
+    "bringToFront": "Trazer região para a frente",
     "changeChecks": "Alterar verificações suprimidas",
     "checksMenu": "Verificações suprimidas",
     "completion": {
@@ -281,6 +288,7 @@
       "noPattern": "Não há vincos dentro desta região, então não há nada a resolver. Mova a região sobre o padrão detectado e tente de novo."
     },
     "repairTools": "Ferramentas de reparo",
+    "sendToBack": "Enviar região para trás",
     "solve": "Resolver",
     "solveError": "Não foi possível executar a resolução — {{message}}",
     "solveErrorUnknown": "Não foi possível executar a resolução.",
@@ -329,6 +337,7 @@
     "angleBisectorSelectSegmentToEnd": "Bissetriz: selecione o segmento até o fim",
     "anotherSolutionAction": "Mostrar outra solução",
     "bringImageToFront": "Trazer imagem para a frente",
+    "bringTextToFront": "Trazer texto para a frente",
     "buildingCreasePattern": "Gerando padrão de vincos",
     "canvasDiagnostics_one": "Diagnósticos da tela: {{count}}",
     "canvasDiagnostics_many": "Diagnósticos da tela: {{count}}",
@@ -543,6 +552,7 @@
       "simulateInline": "Simular incorporado"
     },
     "sendImageToBack": "Enviar imagem para trás",
+    "sendTextToBack": "Enviar texto para trás",
     "setFoldedModelUpright": "Definir a vertical do modelo dobrado",
     "shadow": "Sombra",
     "shadowUnsupported3d": "As sombras ainda não são desenhadas para um modelo dobrado em 3D",
@@ -829,6 +839,10 @@
     "x": "X",
     "y": "Y",
     "yes": "Sim"
+  },
+  "sidePane": {
+    "properties": "Propriedades",
+    "view": "Exibir"
   },
   "simulator": {
     "backendCpu": "CPU",
