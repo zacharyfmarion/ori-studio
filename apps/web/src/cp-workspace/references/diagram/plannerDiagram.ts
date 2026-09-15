@@ -1017,7 +1017,10 @@ export function plannerStepDiagram(
     }
     const segments = shown(which, ref, runsOf(ref));
     shownPieces.set(which, segments);
-    if (segments.length === 0 || already) return;
+    if (segments.length === 0) return;
+    // A line both witnesses use is drawn again for the arm the second one
+    // uses — the other half of the top edge, each half onto the centre line
+    // (markhor 4) — but lettered once.
     for (const segment of segments) {
       primitives.push({
         kind: 'line',
@@ -1026,6 +1029,7 @@ export function plannerStepDiagram(
         style: 'highlight',
       });
     }
+    if (already) return;
     // The letter sits on the longest piece. Ties go to the first, and a tie is
     // judged with slack: two equal pinches must pick the same one in both
     // frames, and model-space rounding would otherwise split them.

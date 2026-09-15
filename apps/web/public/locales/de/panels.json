@@ -914,6 +914,7 @@
       "shortAlignment": "Die Falten überlappen hier nur kurz – richte sie sorgfältig aus.",
       "twinAxiom1": "Falte durch {{a}} und {{b}} sowie durch {{c}} und {{d}}.",
       "twinAxiom2": "Falte {{a}} auf {{b}} und {{c}} auf {{d}}.",
+      "twinBothSides": "Falte {{a}} auf beiden Seiten auf {{b}}.",
       "unknown": "Falte mit {{inputs}}.",
       "visibleAux": "Diese Faltlinie ist im fertigen Modell sichtbar."
     },

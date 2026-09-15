@@ -132,6 +132,30 @@ describe('plannerStepDiagram', () => {
     expect(both?.primitives.filter((p) => p.kind === 'point')).toHaveLength(3);
   });
 
+  // A line both folds of a pair use is drawn for each fold's own arm — the
+  // left half of the top edge for the left fold, the right for the right
+  // (markhor 4) — and lettered once.
+  it('draws a shared line for both twins and letters it once', () => {
+    const o3 = sequence.steps[4]!;
+    const paired = {
+      ...sequence,
+      steps: sequence.steps.map((s, i) =>
+        i === 4 ? { ...s, twin: 6 } : i === 5 ? { ...s, twin: 5 } : s
+      ).concat(),
+    };
+    // A sixth step, the mirror of the fifth with the same references.
+    const twinStep = { ...o3, id: 6, line_id: 9, card: 5, twin: 5 };
+    const withTwin = { ...paired, steps: [...paired.steps, twinStep] };
+    const alone = plannerStepDiagram(sequence, unitFrame(sequence), 4);
+    const both = plannerStepDiagram(withTwin, unitFrame(withTwin), 4, { twin: 5 });
+    const highlights = (model: typeof both) =>
+      model?.primitives.filter((p) => p.kind === 'line' && p.style === 'highlight').length ?? 0;
+    expect(highlights(both)).toBe(highlights(alone) * 2);
+    const letters = (model: typeof both) =>
+      model?.primitives.flatMap((p) => (p.kind === 'label' ? [p.text] : [])) ?? [];
+    expect(letters(both)).toEqual(letters(alone));
+  });
+
   it('draws a pinched step as its spans, never as a full crease', () => {
     // The difference is the whole point of the pinch pass, and a thumbnail
     // that got it wrong would be telling the folder to leave a visible line.

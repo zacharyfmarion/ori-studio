@@ -880,6 +880,7 @@
       "shortAlignment": "这里两条折痕只有很短一段重合，请仔细对齐。",
       "twinAxiom1": "沿经过 {{a}} 和 {{b}} 的线折叠，再沿经过 {{c}} 和 {{d}} 的线折叠。",
       "twinAxiom2": "将 {{a}} 折到 {{b}}，同时将 {{c}} 折到 {{d}}。",
+      "twinBothSides": "两侧都将 {{a}} 折到 {{b}}。",
       "unknown": "使用 {{inputs}} 折叠。",
       "visibleAux": "这条折痕会留在完成的作品上。"
     },

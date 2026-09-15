@@ -952,6 +952,7 @@
       "shortAlignment": "Aqui os vincos coincidem só brevemente — alinhe com cuidado.",
       "twinAxiom1": "Dobre por {{a}} e {{b}}, e por {{c}} e {{d}}.",
       "twinAxiom2": "Dobre {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+      "twinBothSides": "Dobre {{a}} sobre {{b}} dos dois lados.",
       "unknown": "Dobre usando {{inputs}}.",
       "visibleAux": "Este vinco aparecerá no modelo pronto."
     },

@@ -954,6 +954,7 @@
       "shortAlignment": "Les plis ne coïncident ici que brièvement — alignez-les avec soin.",
       "twinAxiom1": "Pliez par {{a}} et {{b}}, et par {{c}} et {{d}}.",
       "twinAxiom2": "Pliez {{a}} sur {{b}} et {{c}} sur {{d}}.",
+      "twinBothSides": "Pliez {{a}} sur {{b}} des deux côtés.",
       "unknown": "Pliez en utilisant {{inputs}}.",
       "visibleAux": "Ce pli sera visible sur le modèle fini."
     },

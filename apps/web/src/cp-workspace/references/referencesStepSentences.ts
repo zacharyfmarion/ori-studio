@@ -341,6 +341,18 @@ function twinSentence(
   if (witness.axiom !== twin.axiom) return null;
   const a = (which: number) => first.byInput[which] ?? '?';
   const c = (which: number) => second.byInput[which] ?? '?';
+  // The same references on both sides — each half of the top edge onto the
+  // centre line — is one instruction with "both sides" in it, not "A onto
+  // B and A onto B".
+  const same =
+    first.byInput.length === second.byInput.length &&
+    first.byInput.every((letter, i) => letter === second.byInput[i]);
+  if (same && (witness.axiom === 2 || witness.axiom === 3)) {
+    return t('panels:references.planStep.twinBothSides', 'Fold {{a}} onto {{b}} on both sides.', {
+      a: a(0),
+      b: a(1),
+    });
+  }
   switch (witness.axiom) {
     case 1:
       return t(

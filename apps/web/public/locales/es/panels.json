@@ -952,6 +952,7 @@
       "shortAlignment": "Aquí los pliegues coinciden solo brevemente: alinéalos con cuidado.",
       "twinAxiom1": "Pliega por {{a}} y {{b}}, y por {{c}} y {{d}}.",
       "twinAxiom2": "Pliega {{a}} sobre {{b}} y {{c}} sobre {{d}}.",
+      "twinBothSides": "Pliega {{a}} sobre {{b}} por ambos lados.",
       "unknown": "Dobla usando {{inputs}}.",
       "visibleAux": "Este pliegue se verá en el modelo terminado."
     },

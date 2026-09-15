@@ -437,6 +437,17 @@ describe('a twin pair', () => {
     };
     expect(describePlannerStep(t, sharing, 1, 2)).toBe('Fold P onto Q and R onto Q.');
   });
+
+  // Each half of the top edge onto the centre line: the same references
+  // on both sides are one instruction.
+  it('says "on both sides" when the pair names the same references', () => {
+    const same = sequence.steps[1]!.witnesses[0]!;
+    const both = {
+      ...paired,
+      steps: paired.steps.map((s, i) => (i === 2 ? { ...s, witnesses: [same], chosen: 0 } : s)),
+    };
+    expect(describePlannerStep(t, both, 1, 2)).toBe('Fold P onto Q on both sides.');
+  });
 });
 
 describe('a step no practical fold makes', () => {

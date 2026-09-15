@@ -920,6 +920,7 @@
       "shortAlignment": "The creases line up only briefly here — align with care.",
       "twinAxiom1": "Fold through {{a}} and {{b}}, and through {{c}} and {{d}}.",
       "twinAxiom2": "Fold {{a}} onto {{b}} and {{c}} onto {{d}}.",
+      "twinBothSides": "Fold {{a}} onto {{b}} on both sides.",
       "unknown": "Fold using {{inputs}}.",
       "visibleAux": "This crease will show in the finished model."
     },
