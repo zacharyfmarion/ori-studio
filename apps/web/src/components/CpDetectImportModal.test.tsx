@@ -49,6 +49,8 @@ const storeActions = {
   loadCreasePatternText: vi.fn(async () => undefined),
   executeOristudioCpCommand: vi.fn(async (_operation: string) => true),
   addAnnotation: vi.fn((_annotation: CanvasAnnotation) => undefined),
+  updateAnnotation: vi.fn((_id: string, _patch: unknown) => undefined),
+  removeAnnotation: vi.fn((_id: string) => undefined),
   recordAnnotationHistory: vi.fn(() => undefined),
   oristudioCpAnnotations: [] as CanvasAnnotation[],
   oristudioCpError: null as string | null,
@@ -140,6 +142,8 @@ vi.mock('../engine/cpExactSolve', () => ({
 
 import { TooltipProvider } from './ui/Tooltip';
 import { CpDetectImportModal } from './CpDetectImportModal';
+import { useCpDetectSuggestionStore } from '../cp-workspace/images/cpDetectSuggestionStore';
+import { createCpImage } from '../cp-workspace/images/cpImage';
 
 const IMAGE_SIZE = 1024;
 const PAPER_SIZE = 400;
@@ -1349,5 +1353,197 @@ describe('CpDetectImportModal crop editing', () => {
     expect(detectClient.manualRectifyImage).toHaveBeenCalledTimes(1);
     expect(button('Edit Crop')).toBeNull();
     expect(document.querySelector('.cp-detect-modal__image-wrap')).not.toBeNull();
+  });
+});
+
+describe('CpDetectImportModal canvas image entry', () => {
+  const detail = {
+    source: 'canvas-suggestion' as const,
+    annotationId: 'image-1',
+    image: {
+      src: `data:image/png;base64,${btoa('not really a png')}`,
+      naturalWidth: 800,
+      naturalHeight: 800,
+      crop: { x: 0, y: 0, w: 1, h: 1 },
+    },
+  };
+
+  async function dispatchCanvasImage(): Promise<void> {
+    await act(async () => {
+      root?.render(
+        <TooltipProvider>
+          <CpDetectImportModal />
+        </TooltipProvider>
+      );
+    });
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('ori-studio:detect-cp-image', { detail }));
+    });
+  }
+
+  /**
+   * The data URL is read through `fetch` and lands over several async hops,
+   * so poll — with a flush of React's queue on each turn, and outside any
+   * enclosing `act`, which would hold every update back until it returned.
+   */
+  async function landed(check: () => void): Promise<void> {
+    await vi.waitFor(
+      async () => {
+        await act(async () => {
+          await Promise.resolve();
+        });
+        check();
+      },
+      { timeout: 3000 }
+    );
+  }
+
+  async function openOnCanvasImage(): Promise<void> {
+    await dispatchCanvasImage();
+    await landed(() => expect(detectClient.autoRectifyImage).toHaveBeenCalled());
+    await settle();
+  }
+
+  let fetchSpy: ReturnType<typeof vi.spyOn> | null = null;
+
+  beforeEach(() => {
+    const store = useCpDetectSuggestionStore.getState();
+    store.reset();
+    store.recordSuggestion('image-1', 0.9, true);
+    store.setSuggestionState('image-1', 'open');
+    // The test setup replaces `fetch` with a network refusal; a data URL is
+    // not the network, so answer it with a few bytes of "PNG".
+    fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async () =>
+        ({
+          blob: async () => new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }),
+        }) as unknown as Response
+    );
+  });
+
+  afterEach(() => {
+    fetchSpy?.mockRestore();
+    fetchSpy = null;
+  });
+
+  it('lands on the rights gate with the image loaded, attributed to the pill', async () => {
+    await openOnCanvasImage();
+    expect(detectClient.autoRectifyImage).toHaveBeenCalledTimes(1);
+    expect(rightsGate()).not.toBeNull();
+    expect(track).toHaveBeenCalledWith(
+      'cp detect image loaded',
+      expect.objectContaining({ source: 'canvas-suggestion' })
+    );
+    expect(useCpDetectSuggestionStore.getState().suggestions['image-1'].state).toBe('open');
+  });
+
+  it('returns the offer when the dialog is closed without importing', async () => {
+    await openOnCanvasImage();
+    const closeButton = [...document.querySelectorAll('button')].find(
+      (element) => element.getAttribute('aria-label') === 'Close'
+    );
+    if (!closeButton) throw new Error('no close button');
+    act(() => closeButton.click());
+    await settle();
+    expect(useCpDetectSuggestionStore.getState().suggestions['image-1'].state).toBe('pending');
+  });
+
+  it('retires the offer once the pattern is imported', async () => {
+    await openOnCanvasImage();
+    await confirmRights();
+    click('Detect');
+    await settle();
+    click('Add as-is');
+    await settle();
+    expect(storeActions.importAddOristudioCpText).toHaveBeenCalled();
+    expect(useCpDetectSuggestionStore.getState().suggestions['image-1'].state).toBe('accepted');
+  });
+
+  function canvasImageOnCanvas() {
+    storeActions.oristudioCpAnnotations = [
+      createCpImage({
+        id: 'image-1',
+        src: detail.image.src,
+        naturalWidth: 800,
+        naturalHeight: 800,
+        center: { x: 50, y: 50 },
+        width: 100,
+        height: 100,
+        rotation: 0.4,
+      }),
+    ];
+  }
+
+  it('replaces the canvas image with the pattern on a clean add, as the direct flow keeps no image', async () => {
+    canvasImageOnCanvas();
+    await openOnCanvasImage();
+    await confirmRights();
+    click('Detect');
+    await settle();
+    click('Add as-is');
+    await settle();
+
+    expect(storeActions.importAddOristudioCpText).toHaveBeenCalled();
+    expect(storeActions.removeAnnotation).toHaveBeenCalledWith('image-1');
+    // Never demoted to an underlay here: nothing outside Review & Fix owns a
+    // locked image, so it could not be removed afterwards.
+    expect(storeActions.updateAnnotation).not.toHaveBeenCalled();
+    expect(storeActions.addAnnotation).not.toHaveBeenCalled();
+    // One overlay entry after the crease entry, so undo brings the image back first.
+    expect(storeActions.recordAnnotationHistory).toHaveBeenCalledTimes(1);
+  });
+
+  it('says on the review step what happens to the image', async () => {
+    canvasImageOnCanvas();
+    await openOnCanvasImage();
+    await confirmRights();
+    click('Detect');
+    await settle();
+    expect(bodyText()).toContain('Adding replaces your image with the pattern');
+  });
+
+  it('removes the canvas image in Review & Fix, whose own underlay replaces it', async () => {
+    canvasImageOnCanvas();
+    await openOnCanvasImage();
+    await confirmRights();
+    click('Detect');
+    await settle();
+    click('Review & Fix');
+    await settle();
+
+    expect(storeActions.removeAnnotation).toHaveBeenCalledWith('image-1');
+    expect(storeActions.addAnnotation).toHaveBeenCalledTimes(2);
+    expect(storeActions.updateAnnotation).not.toHaveBeenCalled();
+    expect(storeActions.recordAnnotationHistory).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the document alone when the canvas image was deleted meanwhile', async () => {
+    await openOnCanvasImage();
+    await confirmRights();
+    click('Detect');
+    await settle();
+    click('Add as-is');
+    await settle();
+    expect(storeActions.removeAnnotation).not.toHaveBeenCalled();
+    expect(storeActions.recordAnnotationHistory).not.toHaveBeenCalled();
+    expect(useCpDetectSuggestionStore.getState().suggestions['image-1'].state).toBe('accepted');
+  });
+
+  it('returns the offer and shows the error when the image cannot be read', async () => {
+    // Rejects a tick later, as a real read would: an immediate rejection
+    // would land before the dialog's open effect, whose own `setError(null)`
+    // then wipes it — a race a data URL never wins in practice.
+    fetchSpy?.mockImplementationOnce(
+      () => new Promise((_resolve, reject) => setTimeout(() => reject(new Error('unreadable')), 20))
+    );
+    await dispatchCanvasImage();
+    // The offer returns in the same catch that records the error, so once the
+    // store shows it the message is queued; one settle then paints it.
+    await landed(() =>
+      expect(useCpDetectSuggestionStore.getState().suggestions['image-1'].state).toBe('pending')
+    );
+    await settle();
+    expect(detectClient.autoRectifyImage).not.toHaveBeenCalled();
+    expect(bodyText()).toContain('unreadable');
   });
 });

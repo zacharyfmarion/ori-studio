@@ -65,6 +65,7 @@
       "opening": "Ouverture de l'image",
       "rectifying": "Redressement du recadrage"
     },
+    "canvasImageName": "Image du canevas",
     "chooseImage": "Choisir une image",
     "compilerReviewOverlays": "Superpositions de révision du compilateur",
     "crop": "Recadrer",
@@ -90,6 +91,7 @@
     "rectified": "Redressé",
     "regionLabel": "Patron de plis détecté",
     "repairLabel": "Ajouter le patron de plis détecté pour le corriger",
+    "replacesImage": "Ajouter remplace votre image par le patron. Vérifier et corriger la garde dessous, à demi-opacité, pendant la réparation.",
     "reviewAndFix": "Vérifier et corriger",
     "rights": {
       "attest": "Je confirme que ce patron de plis a été obtenu légalement et que j’ai le droit de l’utiliser.",
@@ -210,8 +212,8 @@
   },
   "foldWarning": {
     "dontShowAgain": "Ne plus afficher",
-    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage\u00a0?",
-    "spatialMessage": "Des erreurs ont été détectées dans la façon dont ces plis se plient. Continuer le pliage\u00a0?",
+    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage ?",
+    "spatialMessage": "Des erreurs ont été détectées dans la façon dont ces plis se plient. Continuer le pliage ?",
     "title": "Avertissement"
   },
   "help": {
@@ -359,6 +361,8 @@
       "orphanedLabel": "Détecteur retiré",
       "remove": "Supprimer",
       "row": "Détecteur v{{version}}",
+      "suggestDetection": "Proposer la détection des patrons de pliage dans les images ajoutées au canevas",
+      "suggestDetectionDescription": "Quand une image de référence ressemble à un patron de pliage, proposer de le détecter. La vérification s’exécute sur cet appareil et ne télécharge rien.",
       "title": "Modèles",
       "unavailable": "Le registre des modèles n’a pas pu être lu : {{reason}}",
       "update": "Mettre à jour",
@@ -461,7 +465,7 @@
       "resetMessage": "Restaurer la disposition par défaut de l'espace de travail actuel ?",
       "resetTitle": "Réinitialiser la disposition de l'espace de travail",
       "snapRadius": "Rayon d'aimantation",
-      "snapRadiusHint": "À quelle distance le pointeur doit arriver d'un sommet, d'un pli ou d'un point de grille pour s'y aimanter, en unités de papier\u00a0: le papier fait 400 de large, c'est donc le même nombre que dans Oriedita.",
+      "snapRadiusHint": "À quelle distance le pointeur doit arriver d'un sommet, d'un pli ou d'un point de grille pour s'y aimanter, en unités de papier : le papier fait 400 de large, c'est donc le même nombre que dans Oriedita.",
       "wheelGestureHint": "Le pincement et Cmd/Ctrl+défilement zooment toujours, quel que soit votre choix.",
       "wheelPans": "Le défilement déplace, le pincement zoome",
       "wheelZooms": "Le défilement zoome"

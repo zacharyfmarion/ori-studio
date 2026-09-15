@@ -166,6 +166,7 @@ import {
 } from '../../cp-workspace/annotations/annotation';
 import { useCpAnnotations } from '../../cp-workspace/annotations/useCpAnnotations';
 import { CpRegionLayer } from '../../cp-workspace/regions/CpRegionLayer';
+import { CpDetectSuggestionLayer } from '../../cp-workspace/images/CpDetectSuggestionLayer';
 import { useCpRegionActions } from '../../cp-workspace/regions/useCpRegions';
 import { useCpRegionSolve } from '../../cp-workspace/regions/useCpRegionSolve';
 import { useCpVertexPins } from '../../cp-workspace/pins/useCpVertexPins';
@@ -3326,6 +3327,7 @@ export function CreasePatternPanel() {
                     dropping it again would typecheck cleanly. `regionWiring.test`
                     is what fails instead. */}
                 <CpRegionLayer container={toolbarContainer} solve={regionSolve} />
+                <CpDetectSuggestionLayer container={toolbarContainer} />
                 {webglOverlayView && canvasObjects.length > 0 && (
                   <CanvasObjectOverlay
                     objects={canvasObjects}

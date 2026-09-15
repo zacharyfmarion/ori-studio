@@ -186,6 +186,12 @@
     "maekawa": "Maekawa (parité)",
     "vertexClosure": "Fermeture du sommet"
   },
+  "cpDetectSuggestion": {
+    "ariaLabel": "Patron de pliage détecté dans l’image",
+    "detect": "Détecter les plis",
+    "label": "Ressemble à un patron de pliage",
+    "notNow": "Pas maintenant"
+  },
   "cpExactSolve": {
     "hint": {
       "geometry": "Généralement moins d’une seconde.",

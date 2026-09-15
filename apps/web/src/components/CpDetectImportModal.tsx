@@ -13,6 +13,8 @@ import { CpDetectCropEditor } from './CpDetectCropEditor';
 import { CpDetectRightsConfirmation } from './CpDetectRightsConfirmation';
 import { sourceSizeForRectification } from './cpDetectCropLoupe';
 import { track } from '../analytics';
+import { CP_DETECT_OPEN_EVENT, isCpDetectCanvasImageDetail, type CpDetectCanvasImageDetail } from '../lib/cpDetectEntry';
+import { useCpDetectSuggestionStore } from '../cp-workspace/images/cpDetectSuggestionStore';
 import type { CpDetectFailureReason, CpDetectImageSource } from '../analytics/events';
 import { proxy } from 'comlink';
 import { CpDetectModelLine } from './CpDetectModelLine';
@@ -63,12 +65,12 @@ import {
 } from '../store/workspaceStore/oristudioCpRuntime';
 import { useLayoutStore } from '../store/layoutStore';
 import { cpCamera } from '../cp-workspace/renderer/cpCameraRegistry';
-import { bottomAnnotationZ, type CanvasAnnotation } from '../cp-workspace/annotations/annotation';
+import { bottomAnnotationZ, isImageAnnotation, type CanvasAnnotation } from '../cp-workspace/annotations/annotation';
 import {
   createCpSuppressionRegion,
   DETECT_SUPPRESSED_CHECK_CLASSES,
 } from '../cp-workspace/annotations/suppressionRegion';
-import { createCpImage, IMAGE_JPEG_QUALITY } from '../cp-workspace/images/cpImage';
+import { createCpImage, IMAGE_JPEG_QUALITY, type CpImage } from '../cp-workspace/images/cpImage';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import './CpDetectImportModal.css';
@@ -162,6 +164,9 @@ const DETECT_DECODER_BACKEND = 'legacy_candidate_exact_solve_v1' as const;
  * this constant is the name of it.
  */
 const DETECT_PAPER_INSET_PX = 32;
+
+/** The opacity a Review & Fix underlay is shown at: a picture to repair over, not the drawing. */
+const DETECT_UNDERLAY_OPACITY = 0.5;
 
 /**
  * Outward margin on the suppression region, as a fraction of the paper.
@@ -301,6 +306,12 @@ export function CpDetectImportModal() {
    * is remembered across sessions.
    */
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
+  /**
+   * The canvas annotation this session was opened on, if the pill opened it.
+   * Read back on close (the offer returns) and on import (the offer is done),
+   * and — Phase 2 — to register the pattern onto that image.
+   */
+  const [canvasImage, setCanvasImage] = useState<{ annotationId: string } | null>(null);
   const [model, setModel] = useState<DetectorModelState | null>(null);
   const [modelProgress, setModelProgress] = useState<CpDetectModelDownloadProgress | null>(null);
   const [modelUpdating, setModelUpdating] = useState(false);
@@ -337,10 +348,16 @@ export function CpDetectImportModal() {
     if (solveRun) requestCpExactSolveStop(solveRun.runId);
   }, [solveRun]);
 
+  const loadCanvasImageRef = useRef<(detail: CpDetectCanvasImageDetail) => void>(() => undefined);
+
   useEffect(() => {
-    const onOpen = () => setOpen(true);
-    window.addEventListener('ori-studio:detect-cp-image', onOpen);
-    return () => window.removeEventListener('ori-studio:detect-cp-image', onOpen);
+    const onOpen = (event: Event) => {
+      setOpen(true);
+      const detail = (event as CustomEvent<unknown>).detail;
+      if (isCpDetectCanvasImageDetail(detail)) loadCanvasImageRef.current(detail);
+    };
+    window.addEventListener(CP_DETECT_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(CP_DETECT_OPEN_EVENT, onOpen);
   }, []);
 
   // What the registry points at, what is installed, whether an update is on
@@ -433,6 +450,7 @@ export function CpDetectImportModal() {
     setError(null);
     setDropActive(false);
     setPreviewOverlays(DEFAULT_PREVIEW_OVERLAYS);
+    setCanvasImage(null);
   }, []);
 
   /**
@@ -454,12 +472,25 @@ export function CpDetectImportModal() {
     // The funnel's exit, with where it happened. Only a close that abandons the
     // session reaches here; a successful add closes through `addToDocument`.
     track('cp detect dismissed', { stage: modalStage(busy, recognition, source, rightsConfirmed) });
+    // Taking the offer did not consume it: the pill comes back, still one
+    // click to dismiss, since nothing else on the image leads here.
+    if (canvasImage) {
+      useCpDetectSuggestionStore.getState().setSuggestionState(canvasImage.annotationId, 'pending');
+    }
     setOpen(false);
     resetSession();
-  }, [busy, canClose, recognition, resetSession, rightsConfirmed, source, stopSolve]);
+  }, [busy, canClose, canvasImage, recognition, resetSession, rightsConfirmed, source, stopSolve]);
 
   const loadImageFile = useCallback(async (file: OpenBinaryFileResult, from: CpDetectImageSource) => {
     const nextSource = await sourceImageFromFile(file, t);
+    if (from !== 'canvas-suggestion') {
+      setCanvasImage((previous) => {
+        if (previous) {
+          useCpDetectSuggestionStore.getState().setSuggestionState(previous.annotationId, 'pending');
+        }
+        return null;
+      });
+    }
     setSource((previous) => {
       if (previous?.url) URL.revokeObjectURL(previous.url);
       return nextSource;
@@ -523,6 +554,33 @@ export function CpDetectImportModal() {
     },
     [loadImageFile, t]
   );
+
+  /**
+   * The pill's entry: the annotation's data URL (cropped as on canvas) becomes
+   * the source, and the dialog lands where a drop would — on the rights gate,
+   * rectifying underneath. The offer is marked open until this session ends.
+   */
+  const loadCanvasImage = useCallback(
+    async (detail: CpDetectCanvasImageDetail) => {
+      setBusy('opening');
+      setError(null);
+      try {
+        const file = await binaryFileFromCanvasImage(detail, t);
+        setCanvasImage({ annotationId: detail.annotationId });
+        await loadImageFile(file, 'canvas-suggestion');
+      } catch (caught) {
+        useCpDetectSuggestionStore.getState().setSuggestionState(detail.annotationId, 'pending');
+        setError(cpDetectError(caught).message);
+      } finally {
+        setBusy(null);
+      }
+    },
+    [loadImageFile, t]
+  );
+
+  useEffect(() => {
+    loadCanvasImageRef.current = (detail) => void loadCanvasImage(detail);
+  }, [loadCanvasImage]);
 
   const confirmRights = useCallback(() => {
     setRightsConfirmed(true);
@@ -815,8 +873,26 @@ export function CpDetectImportModal() {
           );
         }
         const paper = lastOristudioCpImportAddPlacement()?.bounds ?? null;
+        const store = useWorkspaceStore.getState();
+        // The canvas image this session came from, if it is still there. It
+        // has done its job once the pattern is in the document: a clean add
+        // replaces it, exactly as the direct flow keeps no image, and Review &
+        // Fix swaps it for the rectified underlay its region owns.
+        const canvasAnnotation = canvasImage
+          ? (store.oristudioCpAnnotations.find(
+              (annotation): annotation is CpImage =>
+                annotation.id === canvasImage.annotationId && isImageAnnotation(annotation)
+            ) ?? null)
+          : null;
+        let annotationsChanged = false;
         if (underlay && paper) {
-          const store = useWorkspaceStore.getState();
+          // Review & Fix builds its own rectified underlay, and the canvas image
+          // would be a second copy of the same picture under it: one image, so
+          // the original goes and the region owns the one that stays.
+          if (canvasAnnotation) {
+            store.removeAnnotation(canvasAnnotation.id);
+            annotationsChanged = true;
+          }
           const annotations = repairAnnotations(
             paper,
             underlay,
@@ -825,16 +901,25 @@ export function CpDetectImportModal() {
             bottomAnnotationZ(beforeAnnotations)
           );
           for (const annotation of annotations) store.addAnnotation(annotation);
-          // A second, overlay-only history entry, so one undo takes the image
-          // and the region back off and a second undo takes the creases with
-          // them. Recorded after the adds because the store already holds the
-          // post-gesture layer by then.
-          store.recordAnnotationHistory(beforeAnnotations, label);
+          annotationsChanged = true;
           // The same event the rail tool fires, distinguished only by `source`:
           // a region drawn by hand and one set up by a detection import are the
           // same object doing two different jobs, and separating them is how we
           // tell whether anyone found the tool.
           track('cp suppression region created', { source: 'detect' });
+        } else if (canvasAnnotation) {
+          // Not demoted to an underlay: outside Review & Fix nothing owns a
+          // locked image — no region, no handles, no context menu — so it
+          // would sit under the pattern with no way to remove it.
+          store.removeAnnotation(canvasAnnotation.id);
+          annotationsChanged = true;
+        }
+        if (annotationsChanged) {
+          // A second, overlay-only history entry, so one undo takes the image
+          // (and the region) back off and a second undo takes the creases with
+          // them. Recorded after the changes because the store already holds
+          // the post-gesture layer by then.
+          store.recordAnnotationHistory(beforeAnnotations, label);
         }
         useLayoutStore.getState().activateWorkspace('edit');
         // No check is run here. This used to run seven, then one —
@@ -853,6 +938,9 @@ export function CpDetectImportModal() {
           outcome: importOutcome(topology, phase),
           repair_sites: repairSiteBucket(topology),
         });
+        if (canvasImage) {
+          useCpDetectSuggestionStore.getState().setSuggestionState(canvasImage.annotationId, 'accepted');
+        }
         setOpen(false);
         // Same reset as `close`: a successful add ends the session, so the next
         // open starts at the file picker rather than on the pattern just added.
@@ -864,6 +952,7 @@ export function CpDetectImportModal() {
       }
     },
     [
+      canvasImage,
       improvedFoldJson,
       partialFoldJson,
       phase,
@@ -980,6 +1069,11 @@ export function CpDetectImportModal() {
                 {status}
               </div>
             )}
+            {/* A file that could not be read — an unsupported drop, a canvas
+                image that failed to decode — lands back here, and used to
+                land silently: the message was only ever drawn on the later
+                stages. */}
+            {error && <div className="cp-detect-modal__error">{error}</div>}
           </div>
         )}
 
@@ -1090,6 +1184,15 @@ export function CpDetectImportModal() {
                 </Button>
               ))}
             </div>
+
+            {canvasImage && (
+              <p className="cp-detect-modal__drop-hint">
+                {t(
+                  'dialogs:cpDetectImport.replacesImage',
+                  'Adding replaces your image with the pattern. Review & Fix keeps it underneath, at half opacity, while you repair.'
+                )}
+              </p>
+            )}
 
             <div className="cp-detect-modal__verdict" data-outcome={verdictTone(topology, phase)}>
               {verdictMessage(t, {
@@ -1346,6 +1449,53 @@ async function sourceImageFromFile(file: OpenBinaryFileResult, t: TFunction): Pr
   } catch (error) {
     URL.revokeObjectURL(url);
     throw error;
+  }
+}
+
+/**
+ * A canvas image as the dialog's input: the annotation's data URL decoded,
+ * cropped as the annotation is, and re-encoded as PNG bytes. PNG rather than
+ * the original type because the crop is applied by drawing, and a second JPEG
+ * pass would cost the creases their edges for nothing.
+ */
+async function binaryFileFromCanvasImage(
+  detail: CpDetectCanvasImageDetail,
+  t: TFunction
+): Promise<OpenBinaryFileResult> {
+  const { src, crop } = detail.image;
+  const whole = crop.x === 0 && crop.y === 0 && crop.w === 1 && crop.h === 1;
+  const response = await fetch(src);
+  const blob = await response.blob();
+  if (whole) {
+    return {
+      bytes: new Uint8Array(await blob.arrayBuffer()),
+      name: t('dialogs:cpDetectImport.canvasImageName', 'Canvas image'),
+      path: null,
+      mimeType: blob.type || 'image/png',
+    };
+  }
+  const bitmap = await createImageBitmap(blob);
+  try {
+    const sx = Math.round(crop.x * bitmap.width);
+    const sy = Math.round(crop.y * bitmap.height);
+    const sw = Math.max(1, Math.round(crop.w * bitmap.width));
+    const sh = Math.max(1, Math.round(crop.h * bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = sw;
+    canvas.height = sh;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error(t('errors:cpDetectImport.canvasUnavailable', 'Canvas 2D is unavailable'));
+    context.drawImage(bitmap, sx, sy, sw, sh, 0, 0, sw, sh);
+    const cropped = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+    if (!cropped) throw new Error(t('errors:cpDetectImport.canvasUnavailable', 'Canvas 2D is unavailable'));
+    return {
+      bytes: new Uint8Array(await cropped.arrayBuffer()),
+      name: t('dialogs:cpDetectImport.canvasImageName', 'Canvas image'),
+      path: null,
+      mimeType: 'image/png',
+    };
+  } finally {
+    bitmap.close?.();
   }
 }
 
@@ -1824,6 +1974,29 @@ function verdictMessage(
  * `[inset, size - inset]`; the image box is therefore the paper scaled by
  * `size / (size - 2·inset)` about the same centre, since the inset is symmetric.
  */
+/**
+ * Where a rectified frame sits so that its paper — at pixels
+ * `[DETECT_PAPER_INSET_PX, size - DETECT_PAPER_INSET_PX]` on every
+ * rectification path — coincides with the paper the pattern was imported
+ * onto: centred, and larger than the paper by the frame's share outside the
+ * inset.
+ */
+function rectifiedUnderlayBox(
+  paper: OristudioCpModelBox,
+  frame: { width: number; height: number }
+): { center: { x: number; y: number }; width: number; height: number; rotation: number } {
+  const paperWidth = paper.maxX - paper.minX;
+  const paperHeight = paper.maxY - paper.minY;
+  const inset = 2 * DETECT_PAPER_INSET_PX;
+  const scale = frame.width > inset ? frame.width / (frame.width - inset) : 1;
+  return {
+    center: { x: (paper.minX + paper.maxX) / 2, y: (paper.minY + paper.maxY) / 2 },
+    width: paperWidth * scale,
+    height: paperHeight * scale,
+    rotation: 0,
+  };
+}
+
 function repairAnnotations(
   paper: OristudioCpModelBox,
   imageSrc: { src: string; width: number; height: number },
@@ -1831,19 +2004,18 @@ function repairAnnotations(
   label: string,
   bottomZ: number
 ): CanvasAnnotation[] {
-  const center = { x: (paper.minX + paper.maxX) / 2, y: (paper.minY + paper.maxY) / 2 };
+  const box = rectifiedUnderlayBox(paper, imageSrc);
+  const center = box.center;
   const paperWidth = paper.maxX - paper.minX;
   const paperHeight = paper.maxY - paper.minY;
-  const inset = 2 * DETECT_PAPER_INSET_PX;
-  const scale = imageSrc.width > inset ? imageSrc.width / (imageSrc.width - inset) : 1;
   const margin = Math.max(paperWidth, paperHeight) * REGION_PAPER_MARGIN_RATIO;
   const image = createCpImage({
     src: imageSrc.src,
     naturalWidth: imageSrc.width,
     naturalHeight: imageSrc.height,
     center,
-    width: paperWidth * scale,
-    height: paperHeight * scale,
+    width: box.width,
+    height: box.height,
     // Locked so it never takes a click meant for the creases over it, and at
     // half opacity so it reads as an underlay rather than as the drawing.
     //
@@ -1851,7 +2023,7 @@ function repairAnnotations(
     // `annotationAtModelPoint` skips it — so the region below has to carry the
     // controls for it, which is what `imageId` is for. Accepting the solve
     // unlocks it; deleting the region deletes it.
-    opacity: 0.5,
+    opacity: DETECT_UNDERLAY_OPACITY,
     locked: true,
     z: bottomZ - 1,
   });

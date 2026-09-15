@@ -63,6 +63,9 @@ required-features = ["native-inference"]
 
 [dev-dependencies]
 serde_json.workspace = true
+# The likelihood harness examples read the corpus as it is: JPEG and WebP
+# alongside PNG. Dev-only, so the wasm bridge keeps its PNG-only decoder.
+image = { workspace = true, features = ["jpeg", "webp"] }
 
 [[example]]
 name = "dump_candidate_pool"

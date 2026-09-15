@@ -65,6 +65,7 @@
       "opening": "画像を開いています",
       "rectifying": "切り抜きを補正中"
     },
+    "canvasImageName": "キャンバスの画像",
     "chooseImage": "画像を選択",
     "compilerReviewOverlays": "コンパイラーのレビューオーバーレイ",
     "crop": "切り抜き",
@@ -90,6 +91,7 @@
     "rectified": "補正済み",
     "regionLabel": "検出した展開図",
     "repairLabel": "修復用に検出した展開図を追加",
+    "replacesImage": "追加すると画像はパターンに置き換わります。「確認して修正」では、修正中も画像を半透明で下に残します。",
     "reviewAndFix": "確認して修正",
     "rights": {
       "attest": "この展開図を合法的に入手し、使用する権利があることを確認します。",
@@ -343,6 +345,8 @@
       "orphanedLabel": "廃止された検出モデル",
       "remove": "削除",
       "row": "検出モデル v{{version}}",
+      "suggestDetection": "キャンバスに追加した画像から展開図の検出を提案する",
+      "suggestDetectionDescription": "参照画像が展開図のように見える場合、検出を提案します。判定はこのデバイス上で行われ、何もダウンロードしません。",
       "title": "モデル",
       "unavailable": "モデルレジストリを読み込めませんでした: {{reason}}",
       "update": "更新",
