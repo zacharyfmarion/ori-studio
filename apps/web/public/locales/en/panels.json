@@ -320,12 +320,9 @@
     "buildingCreasePattern": "Building crease pattern",
     "canvasDiagnostics_one": "Canvas diagnostics: {{count}}",
     "canvasDiagnostics_other": "Canvas diagnostics: {{count}}",
-    "case_one": "Case {{count}}",
-    "case_other": "Case {{count}}",
     "changeFoldedColor": "Change folded model color",
     "changeFoldedDisplayStyle": "Change folded display style",
     "changeFoldedModel": "Change folded model",
-    "closeFoldedModels": "Close folded models",
     "commandFailed": "Command failed",
     "contextMenu": {
       "creaseType": "Crease type",
@@ -378,7 +375,6 @@
     },
     "diagnosticsHidden_one": "1 finding hidden by a filter",
     "diagnosticsHidden_other": "{{count}} findings hidden by a filter",
-    "display": "Display",
     "duplicateFoldedModelAction": "Duplicate folded model",
     "flipFoldedModel": "Flip folded model",
     "fold": "Fold",
@@ -422,29 +418,13 @@
       "front": "Front color",
       "line": "Line color"
     },
-    "foldedDisplayStyle": "Folded display style",
     "foldedFigure": {
       "windowAriaLabel": "Folded model, in three dimensions",
       "windowFailed": "Could not draw this model"
     },
-    "foldedModelControls": "Folded model controls",
-    "foldedModels": "Folded models",
-    "foldedModelSide": "Folded model side",
-    "foldedModelStatus": {
-      "error": "Failed",
-      "loading": "Folding…"
-    },
     "foldedState": {
       "back": "Back",
       "front": "Front"
-    },
-    "foldedStyle": {
-      "dev1": "Dev 1",
-      "dev4": "Dev 4",
-      "none": "None",
-      "paper": "Paper",
-      "transparent": "Transparent",
-      "wire": "Wire"
     },
     "foldModelAction": "Fold model",
     "inlineSimulation": {
@@ -481,7 +461,6 @@
     "moveSimulationWindow": "Move simulation window",
     "noCreasePattern": "No crease pattern",
     "noImportedCreasePattern": "No imported crease pattern",
-    "none": "None",
     "openingSharedLink": "Opening shared crease pattern…",
     "optimizingScale": "Optimizing scale",
     "orbitFoldedForm": "Turn folded form",
@@ -519,9 +498,6 @@
     "setFoldedModelUpright": "Set folded model upright",
     "shadow": "Shadow",
     "shadowUnsupported3d": "Shadows are not drawn for a 3D folded model yet",
-    "showFoldedModelShadow": "Show folded model shadow",
-    "side": "Side",
-    "stale": "Stale",
     "viewFoldedModelOtherSide": "View from the other side",
     "viewportControls": "Crease pattern viewport controls",
     "zoomFoldedForm": "Zoom folded form"
@@ -723,7 +699,6 @@
   "foldedFigureActions": {
     "anotherSolution": "Another solution",
     "delete": "Delete",
-    "displayStyle": "Display style",
     "duplicate": "Duplicate",
     "export": "Export…",
     "exportPng": "PNG image",
@@ -733,8 +708,12 @@
     "label": "Folded figure actions",
     "otherSide": "Other side",
     "refold": "Refold",
+    "renderAs": "Render as",
     "resetView": "Reset view",
     "setUpright": "Set upright",
+    "side": "Side",
+    "sideUnsupported3d": "Turn a 3D model with Other side",
+    "style": "Style",
     "styleDev1": "Dev 1",
     "styleDev4": "Dev 4",
     "styleNone": "None",

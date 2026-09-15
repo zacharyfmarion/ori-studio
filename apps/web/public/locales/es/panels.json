@@ -333,13 +333,9 @@
     "canvasDiagnostics_one": "Diagnósticos del lienzo: {{count}}",
     "canvasDiagnostics_many": "Diagnósticos del lienzo: {{count}}",
     "canvasDiagnostics_other": "Diagnósticos del lienzo: {{count}}",
-    "case_one": "Caso {{count}}",
-    "case_many": "Caso {{count}}",
-    "case_other": "Caso {{count}}",
     "changeFoldedColor": "Cambiar color del modelo plegado",
     "changeFoldedDisplayStyle": "Cambiar estilo de visualización plegada",
     "changeFoldedModel": "Cambiar modelo plegado",
-    "closeFoldedModels": "Cerrar modelos plegados",
     "commandFailed": "El comando falló",
     "contextMenu": {
       "creaseType": "Tipo de pliegue",
@@ -403,7 +399,6 @@
     "diagnosticsHidden_one": "1 problema oculto por un filtro",
     "diagnosticsHidden_many": "{{count}} problemas ocultos por un filtro",
     "diagnosticsHidden_other": "{{count}} problemas ocultos por un filtro",
-    "display": "Visualización",
     "duplicateFoldedModelAction": "Duplicar modelo plegado",
     "flipFoldedModel": "Voltear modelo plegado",
     "fold": "Plegar",
@@ -447,29 +442,13 @@
       "front": "Color del anverso",
       "line": "Color de línea"
     },
-    "foldedDisplayStyle": "Estilo de visualización del plegado",
     "foldedFigure": {
       "windowAriaLabel": "Modelo plegado, en tres dimensiones",
       "windowFailed": "No se pudo dibujar este modelo"
     },
-    "foldedModelControls": "Controles del modelo plegado",
-    "foldedModels": "Modelos plegados",
-    "foldedModelSide": "Cara del modelo plegado",
-    "foldedModelStatus": {
-      "error": "Ha fallado",
-      "loading": "Plegando…"
-    },
     "foldedState": {
       "back": "Reverso",
       "front": "Anverso"
-    },
-    "foldedStyle": {
-      "dev1": "Dev 1",
-      "dev4": "Dev 4",
-      "none": "Ninguno",
-      "paper": "Papel",
-      "transparent": "Transparente",
-      "wire": "Alambre"
     },
     "foldModelAction": "Plegar modelo",
     "inlineSimulation": {
@@ -507,7 +486,6 @@
     "moveSimulationWindow": "Mover ventana de simulación",
     "noCreasePattern": "No hay patrón de pliegues",
     "noImportedCreasePattern": "No hay patrón de pliegues importado",
-    "none": "Ninguno",
     "openingSharedLink": "Abriendo el patrón de pliegues compartido…",
     "optimizingScale": "Optimizando escala",
     "orbitFoldedForm": "Girar la figura plegada",
@@ -546,9 +524,6 @@
     "setFoldedModelUpright": "Definir la vertical del modelo plegado",
     "shadow": "Sombra",
     "shadowUnsupported3d": "Todavía no se dibujan sombras para un modelo plegado en 3D",
-    "showFoldedModelShadow": "Mostrar la sombra del modelo plegado",
-    "side": "Cara",
-    "stale": "Obsoleto",
     "viewFoldedModelOtherSide": "Ver desde el otro lado",
     "viewportControls": "Controles de la vista del patrón de pliegues",
     "zoomFoldedForm": "Ampliar forma plegada"
@@ -756,7 +731,6 @@
   "foldedFigureActions": {
     "anotherSolution": "Otra solución",
     "delete": "Eliminar",
-    "displayStyle": "Estilo de visualización",
     "duplicate": "Duplicar",
     "export": "Exportar…",
     "exportPng": "Imagen PNG",
@@ -766,8 +740,12 @@
     "label": "Acciones del modelo plegado",
     "otherSide": "Otro lado",
     "refold": "Volver a plegar",
+    "renderAs": "Mostrar como",
     "resetView": "Restablecer vista",
     "setUpright": "Definir vertical",
+    "side": "Cara",
+    "sideUnsupported3d": "Un modelo 3D se gira con «Otro lado»",
+    "style": "Estilo",
     "styleDev1": "Desarrollo 1",
     "styleDev4": "Desarrollo 4",
     "styleNone": "Ninguno",

@@ -74,6 +74,8 @@ function makeDeps(
     resetView: vi.fn(),
     setUpright: vi.fn(),
     setDisplayStyle: vi.fn(),
+    updateModel: vi.fn(),
+    endModelGesture: vi.fn(),
     foldAnother: vi.fn(),
     duplicate: vi.fn(),
     remove: vi.fn(),
@@ -164,13 +166,7 @@ describe('CpFoldedFigureToolbar', () => {
 
   it('shows the Tier-A verbs: flip, style, another solution, duplicate, delete', () => {
     render(makeFigure());
-    expect(labels()).toEqual([
-      'Flip',
-      'Display style',
-      'Another solution',
-      'Duplicate',
-      'Delete',
-    ]);
+    expect(labels()).toEqual(['Flip', 'Style', 'Another solution', 'Duplicate', 'Delete']);
   });
 
   // Regression: a dropdown trigger used to carry only an aria-label, because
@@ -182,7 +178,7 @@ describe('CpFoldedFigureToolbar', () => {
       (button) => button.getAttribute('aria-haspopup') === 'menu'
     );
     expect(menuButtons.map((button) => button.getAttribute('aria-label'))).toEqual([
-      'Display style',
+      'Style',
       'Export…',
     ]);
     // Whether the tooltip actually appears is Radix's contract and needs a real
@@ -221,13 +217,136 @@ describe('CpFoldedFigureToolbar', () => {
     render(makeFigure(), makeDeps({ exportAs: vi.fn() }));
     expect(labels()).toEqual([
       'Flip',
-      'Display style',
+      'Style',
       'Another solution',
       'Export…',
       'Duplicate',
       'Delete',
     ]);
     expect(toolbar()?.querySelectorAll('.floating-toolbar__separator')).toHaveLength(3);
+  });
+
+  describe('Style menu', () => {
+    /**
+     * Open a toolbar menu the way a keyboard user does. Radix opens a dropdown
+     * on `pointerdown`, which jsdom does not synthesize from `click()`; Enter on
+     * the trigger is a real path it does deliver.
+     */
+    function openMenu(label: string): void {
+      const trigger = buttons().find((button) => button.getAttribute('aria-label') === label);
+      if (!trigger) throw new Error(`no ${label} menu`);
+      act(() => {
+        trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      });
+    }
+
+    /** Menu content portals to `body`, so read the rows from there. */
+    function rows(): HTMLElement[] {
+      return Array.from(
+        document.querySelectorAll<HTMLElement>('[role="menu"] .context-menu__item')
+      );
+    }
+
+    it('holds the render style, side, colours and shadow as rows of one menu', () => {
+      render(makeFigure());
+      openMenu('Style');
+      expect(rows().map((row) => row.textContent)).toEqual([
+        'Render as',
+        'Side',
+        'Front color',
+        'Back color',
+        'Line color',
+        'Shadow',
+      ]);
+      const submenus = rows().filter((row) => row.getAttribute('aria-haspopup') === 'menu');
+      expect(submenus.map((row) => row.textContent)).toEqual(['Render as', 'Side']);
+      // Every row draws in the leading slot — a glyph, a swatch, or (when on) a
+      // check — so the labels line up without any row reserving an empty one.
+      for (const row of rows()) {
+        if (row.getAttribute('role') === 'menuitemcheckbox') continue;
+        expect(row.querySelector('.context-menu__icon')?.childElementCount, row.textContent ?? '').toBe(1);
+      }
+      expect(document.querySelectorAll('[role="menu"] input[type="color"]')).toHaveLength(3);
+      expect(document.querySelector('[role="menuitemcheckbox"]')?.textContent).toBe('Shadow');
+    });
+
+    it('paints each swatch from the figure model', () => {
+      render(
+        makeFigure({
+          snapshot: {
+            model: { state: 'Front0', front_color: { red: 1, green: 2, blue: 3 } },
+            find_another_overlap_valid: true,
+          },
+        } as unknown as Partial<OristudioCpFoldedFigureEntry>)
+      );
+      openMenu('Style');
+      const swatches = Array.from(
+        document.querySelectorAll<HTMLElement>('[role="menu"] .context-menu__swatch')
+      );
+      expect(swatches.map((swatch) => swatch.style.background)).toEqual([
+        'rgb(1, 2, 3)',
+        'rgb(233, 233, 233)',
+        'rgb(0, 0, 0)',
+      ]);
+    });
+
+    it('toggles shadow through the model binding and stays open', () => {
+      const deps = makeDeps();
+      const figure = makeFigure();
+      render(figure, deps);
+      openMenu('Style');
+      const shadow = document.querySelector<HTMLElement>('[role="menuitemcheckbox"]');
+      act(() => {
+        shadow?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      });
+      expect(deps.updateModel).toHaveBeenCalledWith(figure, { display_shadows: true });
+      expect(document.querySelector('[role="menu"]')).not.toBeNull();
+    });
+
+    it('offers side and shadow disabled on a 3D figure, each saying why', () => {
+      render(
+        makeFigure({
+          snapshot: null,
+          folded3d: { model: { state: 'Front0' }, verdict: { verdict: 'folded' } },
+          camera: { yaw: 0, pitch: 0, zoom: 1 },
+        } as unknown as Partial<OristudioCpFoldedFigureEntry>)
+      );
+      openMenu('Style');
+      const side = rows().find((row) => row.textContent === 'Side');
+      const shadow = document.querySelector<HTMLElement>('[role="menuitemcheckbox"]');
+      expect(side?.getAttribute('data-disabled')).not.toBeNull();
+      expect(side?.getAttribute('title')).toBe('Turn a 3D model with Other side');
+      expect(shadow?.getAttribute('data-disabled')).not.toBeNull();
+      expect(shadow?.getAttribute('title')).toBe('Shadows are not drawn for a 3D folded model yet');
+    });
+
+    // A modal menu puts `pointer-events: none` on everything outside it, so
+    // the press that dismisses it never reaches the canvas — which is what
+    // would deselect the figure. The menu must leave the canvas pressable.
+    it('leaves the canvas pressable while open, and closes on a press outside', async () => {
+      render(makeFigure());
+      openMenu('Style');
+      expect(document.querySelector('[role="menu"]')).not.toBeNull();
+      expect(document.body.style.pointerEvents).toBe('');
+      // Radix attaches its outside-press listener a tick after opening.
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      const outside = document.createElement('div');
+      container.appendChild(outside);
+      act(() => {
+        outside.dispatchEvent(
+          new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 })
+        );
+      });
+      expect(document.querySelector('[role="menu"]')).toBeNull();
+    });
+
+    it('still lists the export formats behind their own trigger', () => {
+      render(makeFigure(), makeDeps({ exportAs: vi.fn() }));
+      openMenu('Export…');
+      expect(rows().map((row) => row.textContent)).toEqual(['SVG image', 'PNG image']);
+    });
   });
 
   it('surfaces Refold only when the figure is stale', () => {

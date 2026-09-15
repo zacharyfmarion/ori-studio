@@ -320,12 +320,9 @@
     "buildingCreasePattern": "Faltmuster wird erstellt",
     "canvasDiagnostics_one": "Canvas-Diagnosen: {{count}}",
     "canvasDiagnostics_other": "Canvas-Diagnosen: {{count}}",
-    "case_one": "Fall {{count}}",
-    "case_other": "Fall {{count}}",
     "changeFoldedColor": "Farbe des gefalteten Modells ändern",
     "changeFoldedDisplayStyle": "Faltdarstellung ändern",
     "changeFoldedModel": "Gefaltetes Modell ändern",
-    "closeFoldedModels": "Gefaltete Modelle schließen",
     "commandFailed": "Befehl fehlgeschlagen",
     "contextMenu": {
       "creaseType": "Falttyp",
@@ -378,7 +375,6 @@
     },
     "diagnosticsHidden_one": "1 Problem durch einen Filter ausgeblendet",
     "diagnosticsHidden_other": "{{count}} Probleme durch einen Filter ausgeblendet",
-    "display": "Anzeige",
     "duplicateFoldedModelAction": "Gefaltetes Modell duplizieren",
     "flipFoldedModel": "Gefaltetes Modell umdrehen",
     "fold": "Falten",
@@ -422,29 +418,13 @@
       "front": "Vorderseitenfarbe",
       "line": "Linienfarbe"
     },
-    "foldedDisplayStyle": "Anzeigestil des gefalteten Modells",
     "foldedFigure": {
       "windowAriaLabel": "Gefaltetes Modell, dreidimensional",
       "windowFailed": "Dieses Modell konnte nicht gezeichnet werden"
     },
-    "foldedModelControls": "Steuerung des gefalteten Modells",
-    "foldedModels": "Gefaltete Modelle",
-    "foldedModelSide": "Seite des gefalteten Modells",
-    "foldedModelStatus": {
-      "error": "Fehlgeschlagen",
-      "loading": "Wird gefaltet …"
-    },
     "foldedState": {
       "back": "Rückseite",
       "front": "Vorderseite"
-    },
-    "foldedStyle": {
-      "dev1": "Dev 1",
-      "dev4": "Dev 4",
-      "none": "Ohne",
-      "paper": "Papier",
-      "transparent": "Transparent",
-      "wire": "Draht"
     },
     "foldModelAction": "Modell falten",
     "inlineSimulation": {
@@ -481,7 +461,6 @@
     "moveSimulationWindow": "Simulationsfenster verschieben",
     "noCreasePattern": "Kein Faltmuster",
     "noImportedCreasePattern": "Kein importiertes Faltmuster",
-    "none": "Ohne",
     "openingSharedLink": "Geteiltes Faltmuster wird geöffnet…",
     "optimizingScale": "Skalierung wird optimiert",
     "orbitFoldedForm": "Gefaltete Figur drehen",
@@ -519,9 +498,6 @@
     "setFoldedModelUpright": "Oben-Richtung des gefalteten Modells festlegen",
     "shadow": "Schatten",
     "shadowUnsupported3d": "Für ein gefaltetes 3D-Modell werden noch keine Schatten gezeichnet",
-    "showFoldedModelShadow": "Schatten des gefalteten Modells anzeigen",
-    "side": "Seite",
-    "stale": "Veraltet",
     "viewFoldedModelOtherSide": "Von der anderen Seite ansehen",
     "viewportControls": "Ansichtssteuerung des Faltmusters",
     "zoomFoldedForm": "Gefaltete Form zoomen"
@@ -723,7 +699,6 @@
   "foldedFigureActions": {
     "anotherSolution": "Andere Lösung",
     "delete": "Löschen",
-    "displayStyle": "Anzeigestil",
     "duplicate": "Duplizieren",
     "export": "Exportieren…",
     "exportPng": "PNG-Bild",
@@ -733,8 +708,12 @@
     "label": "Aktionen für gefaltetes Modell",
     "otherSide": "Andere Seite",
     "refold": "Neu falten",
+    "renderAs": "Darstellen als",
     "resetView": "Ansicht zurücksetzen",
     "setUpright": "Oben festlegen",
+    "side": "Seite",
+    "sideUnsupported3d": "Ein 3D-Modell wird mit „Andere Seite“ gedreht",
+    "style": "Stil",
     "styleDev1": "Entwicklung 1",
     "styleDev4": "Entwicklung 4",
     "styleNone": "Keiner",

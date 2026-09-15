@@ -64,6 +64,19 @@ export function foldedFigureCurrentCase(
 }
 
 /**
+ * A figure's appearance model, whichever kind of figure it is.
+ *
+ * A flat figure keeps its model in the kernel snapshot, a 3D one on `folded3d`.
+ * Reading only the first left every model control showing its fallback for a
+ * 3D figure.
+ */
+export function foldedFigureModel(
+  figure: OristudioCpFoldedFigureEntry | null | undefined
+): OristudioCpFoldedFigureModel | null {
+  return figure?.snapshot?.model ?? figure?.folded3d?.model ?? null;
+}
+
+/**
  * Toggle a folded figure between its front and back — turning the paper over.
  *
  * `Both` and `Transparent` are overlay view modes (front and back drawn together,

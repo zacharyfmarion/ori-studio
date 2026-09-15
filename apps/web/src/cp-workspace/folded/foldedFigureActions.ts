@@ -2,11 +2,22 @@ import type { TFunction } from 'i18next';
 import type {
   OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
+  OristudioCpFoldedFigureModel,
 } from '../../engine/oristudioCpTypes';
+import { FOLDED_FIGURE_SIDES } from '../../lib/foldedFigureSides';
+import { hexToRgbColor, rgbColorToHex } from '../../lib/rgbColor';
 import type { FoldedFigureExportFormat } from './foldedFigureExport';
-import { flipFoldedState, foldedFigureCycling } from './foldedFigureState';
+import { flipFoldedState, foldedFigureCycling, foldedFigureModel } from './foldedFigureState';
 import { foldedFigureCapabilities, isFolded3dFigure } from './foldedFigureCapabilities';
+import { foldedAppearanceEnabled } from './foldedFigureAppearance';
+import {
+  FOLDED_COLOR_FIELDS,
+  foldedColorLabel,
+  foldedStateLabel,
+  type FoldedColorKey,
+} from './foldedFigureControlOptions';
 import { foldedFigureNotice, type FoldedFigureNotice } from './foldedFigureNotice';
+import type { FoldedModelGesture } from './foldedModelGestureLedger';
 
 /**
  * The verbs a folded figure offers, in the order both surfaces present them.
@@ -27,6 +38,8 @@ export type FoldedFigureActionIcon =
   | 'reset-view'
   | 'set-upright'
   | 'style'
+  | 'display-style'
+  | 'side'
   | 'another'
   | 'first-solution'
   | 'refold'
@@ -71,10 +84,12 @@ export interface FoldedFigureChoiceOption {
  */
 export interface FoldedFigureChoice {
   kind: 'choice';
-  id: 'display-style' | 'export';
+  id: 'display-style' | 'side' | 'export';
   label: string;
   icon: FoldedFigureActionIcon;
   disabled: boolean;
+  /** Why the choice is disabled, when it is. */
+  hint?: string;
   /**
    * Whether the options are a mutually exclusive set (a display mode) rather
    * than a list of one-shot actions (export formats).
@@ -92,6 +107,59 @@ export interface FoldedFigureChoice {
 export interface FoldedFigureSeparator {
   kind: 'separator';
   id: string;
+}
+
+/**
+ * One of the figure's paper colours, as a row that opens a colour picker.
+ *
+ * Carries hex rather than the kernel's `{ red, green, blue }` because both
+ * renderers hand it straight to a native colour input, and converting here
+ * means neither converts. A drag streams `set` per pointer move under one
+ * gesture, and `commit` closes that gesture as one undo entry — from whichever
+ * of blur and unmount fires first; the second is a no-op.
+ */
+export interface FoldedFigureColorOption {
+  kind: 'color';
+  id: 'front-color' | 'back-color' | 'line-color';
+  label: string;
+  /** `#rrggbb`. */
+  value: string;
+  disabled: boolean;
+  set: (hex: string) => void;
+  commit: () => void;
+}
+
+/** An on/off setting, rendered as a check row that leaves the menu open. */
+export interface FoldedFigureToggleOption {
+  kind: 'toggle';
+  id: 'shadow';
+  label: string;
+  checked: boolean;
+  disabled: boolean;
+  /** Why the row is disabled, when it is. */
+  hint?: string;
+  toggle: () => void;
+}
+
+export type FoldedFigureStyleItem =
+  | FoldedFigureChoice
+  | FoldedFigureColorOption
+  | FoldedFigureToggleOption
+  | FoldedFigureSeparator;
+
+/**
+ * The figure's appearance settings, behind one control: a menu on the toolbar,
+ * a submenu in the context menu. Everything the viewport bar's Folded models
+ * dropdown offered a figure, addressed to *this* figure rather than to
+ * whichever happens to be active.
+ */
+export interface FoldedFigureGroup {
+  kind: 'group';
+  id: 'style';
+  label: string;
+  icon: FoldedFigureActionIcon;
+  disabled: boolean;
+  items: FoldedFigureStyleItem[];
 }
 
 /**
@@ -115,6 +183,7 @@ export interface FoldedFigureNoteAction {
 export type FoldedFigureAction =
   | FoldedFigureCommand
   | FoldedFigureChoice
+  | FoldedFigureGroup
   | FoldedFigureSeparator
   | FoldedFigureNoteAction;
 
@@ -148,6 +217,19 @@ export interface FoldedFigureActionDeps {
     figure: OristudioCpFoldedFigureEntry,
     style: OristudioCpFoldedFigureDisplayStyle
   ) => void;
+  /**
+   * Write part of the figure's model. Without `gesture` the change records an
+   * undo entry immediately; with one, it joins the run named by
+   * `gesture.scope` — opened by the first change, closed by
+   * {@link endModelGesture} — so a colour drag lands as one entry.
+   */
+  updateModel: (
+    figure: OristudioCpFoldedFigureEntry,
+    update: Partial<OristudioCpFoldedFigureModel>,
+    gesture?: FoldedModelGesture
+  ) => void;
+  /** Close a run opened through {@link updateModel}. A no-op if it is not open. */
+  endModelGesture: (scope: string) => void;
   foldAnother: (figure: OristudioCpFoldedFigureEntry) => void;
   duplicate: (figure: OristudioCpFoldedFigureEntry) => void;
   remove: (figure: OristudioCpFoldedFigureEntry) => void;
@@ -230,12 +312,126 @@ export function foldedDisplayStyleChoiceLabel(
   }
 }
 
+function foldedColorOptionId(key: FoldedColorKey): FoldedFigureColorOption['id'] {
+  switch (key) {
+    case 'front_color':
+      return 'front-color';
+    case 'back_color':
+      return 'back-color';
+    case 'line_color':
+      return 'line-color';
+  }
+}
+
+/**
+ * The figure's Style group: render style, side, the three colours, shadow.
+ *
+ * Gated in two layers. The whole group waits on `ready`, like every other
+ * kernel-backed verb; the model rows additionally ask `foldedAppearanceEnabled`
+ * whether their option does anything on this kind of figure, and a row it
+ * declines stays visible, disabled, with the reason as its hint — a control
+ * that vanished between figure kinds would read as a bug, and one that is
+ * enabled and inert is worse.
+ */
+export function foldedFigureStyleGroup(
+  figure: OristudioCpFoldedFigureEntry,
+  deps: FoldedFigureActionDeps
+): FoldedFigureGroup {
+  const { t } = deps;
+  const ready = isFoldedFigureReady(figure);
+  const capabilities = foldedFigureCapabilities(figure);
+  const model = foldedFigureModel(figure);
+  const modelReady = ready && capabilities.editModel;
+  const enabled = (option: Parameters<typeof foldedAppearanceEnabled>[1]) =>
+    modelReady && foldedAppearanceEnabled(figure, option);
+  const sideEnabled = enabled('side');
+  const shadowEnabled = enabled('shadow');
+  const colorLabel = t('panels:creasePattern.changeFoldedColor', 'Change folded model color');
+
+  return {
+    kind: 'group',
+    id: 'style',
+    label: t('panels:foldedFigureActions.style', 'Style'),
+    icon: 'style',
+    disabled: !ready,
+    items: [
+      {
+        kind: 'choice',
+        id: 'display-style',
+        label: t('panels:foldedFigureActions.renderAs', 'Render as'),
+        icon: 'display-style',
+        disabled: !ready,
+        exclusive: true,
+        options: capabilities.styleChoices.map((value) => ({
+          id: `display-style-${value}`,
+          label: foldedDisplayStyleChoiceLabel(t, value),
+          checked: value === figure.displayStyle,
+          run: () => deps.setDisplayStyle(figure, value),
+        })),
+      },
+      {
+        kind: 'choice',
+        id: 'side',
+        label: t('panels:foldedFigureActions.side', 'Side'),
+        icon: 'side',
+        disabled: !sideEnabled,
+        // A 3D figure's side is wherever the eye is: `model.state` only seeds
+        // the camera a fresh fold opens at, and "Other side" is the verb that
+        // moves it — so a state write here would change nothing on screen.
+        hint: sideEnabled
+          ? undefined
+          : t('panels:foldedFigureActions.sideUnsupported3d', 'Turn a 3D model with Other side'),
+        exclusive: true,
+        options: FOLDED_FIGURE_SIDES.map((value) => ({
+          id: `side-${value}`,
+          label: foldedStateLabel(t, value),
+          // Nothing current while the control is inert, and nothing current for
+          // a figure loaded in an overlay state the UI does not offer.
+          checked: sideEnabled && model?.state === value,
+          run: () => deps.updateModel(figure, { state: value }),
+        })),
+      },
+      { kind: 'separator', id: 'before-colors' },
+      ...FOLDED_COLOR_FIELDS.map((field): FoldedFigureColorOption => {
+        const scope = `folded-color:${figure.id}:${field.key}`;
+        return {
+          kind: 'color',
+          id: foldedColorOptionId(field.key),
+          label: foldedColorLabel(t, field.key),
+          value: rgbColorToHex(model?.[field.key] ?? field.fallback),
+          disabled: !modelReady,
+          set: (hex) =>
+            deps.updateModel(figure, { [field.key]: hexToRgbColor(hex) }, { scope, label: colorLabel }),
+          commit: () => deps.endModelGesture(scope),
+        };
+      }),
+      { kind: 'separator', id: 'before-shadow' },
+      {
+        kind: 'toggle',
+        id: 'shadow',
+        label: t('panels:creasePattern.shadow', 'Shadow'),
+        checked: model?.display_shadows ?? false,
+        disabled: !shadowEnabled,
+        hint: shadowEnabled
+          ? undefined
+          : t(
+              'panels:creasePattern.shadowUnsupported3d',
+              'Shadows are not drawn for a 3D folded model yet'
+            ),
+        toggle: () => deps.updateModel(figure, { display_shadows: !(model?.display_shadows ?? false) }),
+      },
+    ],
+  };
+}
+
 /**
  * Build the ordered action list for `figure`.
  *
  * Order is frequency-first, grouped by intent, destructive last — matching the
  * convention `AnnotationActions` sets for the image and text toolbars:
  * look (flip, style) → solution (another, refold) → manage (duplicate, delete).
+ * The Style group is one slot on the bar and one submenu in the menu; what it
+ * holds is {@link foldedFigureStyleGroup}'s to decide.
  */
 export function buildFoldedFigureActions(
   figure: OristudioCpFoldedFigureEntry,
@@ -243,7 +439,6 @@ export function buildFoldedFigureActions(
 ): FoldedFigureAction[] {
   const { t } = deps;
   const ready = isFoldedFigureReady(figure);
-  const currentStyle = figure.displayStyle;
   const canRefold = deps.refold !== undefined && deps.isStale?.(figure) === true;
   const { hasNext: hasNextSolution, wrapsToFirst } = foldedFigureCycling(figure);
   const capabilities = foldedFigureCapabilities(figure);
@@ -315,20 +510,7 @@ export function buildFoldedFigureActions(
   }
 
   actions.push(
-    {
-      kind: 'choice',
-      id: 'display-style',
-      label: t('panels:foldedFigureActions.displayStyle', 'Display style'),
-      icon: 'style',
-      disabled: !ready,
-      exclusive: true,
-      options: capabilities.styleChoices.map((value) => ({
-        id: `display-style-${value}`,
-        label: foldedDisplayStyleChoiceLabel(t, value),
-        checked: value === currentStyle,
-        run: () => deps.setDisplayStyle(figure, value),
-      })),
-    },
+    foldedFigureStyleGroup(figure, deps),
     { kind: 'separator', id: 'after-appearance' },
     {
       kind: 'command',

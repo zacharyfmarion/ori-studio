@@ -567,6 +567,41 @@ a.context-menu__item {
   color: currentcolor;
 }
 
+/* A colour row's value, painted, in the leading slot where a sibling's icon
+   sits. The native input lies over it invisibly so the engine's picker anchors
+   beside the swatch rather than at the row's origin, and `pointer-events: none`
+   sends a click to the row instead — whose select opens the picker, so it
+   cannot open twice. */
+.context-menu__swatch {
+  position: relative;
+  display: block;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+}
+
+.context-menu__color-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Up while a colour row's picker is open: the press that closes the picker
+   lands here and goes no further. Below the menu, so its rows stay usable, and
+   above everything else — see ContextMenuColorItem. */
+.context-menu__picker-shield {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-portaled-popover) - 1);
+}
+
 .panel-shell {
   display: flex;
   flex-direction: column;
@@ -1462,27 +1497,6 @@ a.context-menu__item {
   flex-direction: column;
   width: min(980px, calc(100vw - var(--space-6)));
   max-height: calc(100vh - var(--space-6));
-}
-
-/*
- * Eleven controls, on the shortest screen the app runs on. The dropdown this
- * replaces could size to its content because it hung over the canvas; a modal is
- * centred, so it caps and scrolls instead — otherwise the header and the last
- * colour field leave the viewport together.
- */
-.folded-figure-modal__document {
-  display: flex;
-  flex-direction: column;
-  max-height: calc(100vh - var(--safe-top) - var(--safe-bottom) - var(--space-6));
-}
-
-.folded-figure-modal__body {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow-y: auto;
-  /* Reaching the end must not start scrolling the canvas behind it. */
-  overscroll-behavior: contain;
 }
 
 .simple-modal__header,
@@ -6502,24 +6516,10 @@ button.cp-folded-figure-toolbar__notice:hover {
   margin-inline: 1px;
 }
 
-.cp-folded-figure-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-
 .cp-line-type-toolbar__button {
   min-width: 28px;
   font-size: 0.72rem;
   font-weight: 800;
-}
-
-/* A figure that no longer matches its creases, in the folded-models list. Reads
-   as a state rather than another case number. `.cp-folded-model-status` used to
-   carry this warning colour; that readout is gone, so the colour moved here. */
-.folded-figure-menu__figure small[data-stale] {
-  color: var(--status-warning);
-  font-weight: 700;
 }
 
 .cp-view-controls-panel__empty {
@@ -7057,157 +7057,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   min-height: 26px;
   padding: 0 10px;
   text-align: center;
-}
-
-.folded-figure-menu__panel {
-  width: min(286px, calc(100vw - var(--space-6)));
-  max-width: calc(100vw - var(--space-6));
-  padding: 8px;
-  gap: 6px;
-  color: var(--text-secondary);
-  white-space: normal;
-}
-
-.folded-figure-menu__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: 0 2px 5px;
-  border-bottom: 1px solid var(--border-subtle);
-  color: var(--text-primary);
-  font-size: 0.75rem;
-  font-weight: 760;
-}
-
-.folded-figure-menu__header span:last-child {
-  min-width: 0;
-  max-width: 150px;
-  overflow: hidden;
-  color: var(--text-tertiary);
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.folded-figure-menu__list {
-  display: grid;
-  max-height: 118px;
-  overflow: auto;
-  gap: 3px;
-  padding-right: 2px;
-}
-
-.folded-figure-menu__figure {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  min-height: 28px;
-  padding: 0 7px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-}
-
-.folded-figure-menu__figure:hover {
-  background: var(--bg-surface);
-  color: var(--text-primary);
-}
-
-.folded-figure-menu__figure[data-active] {
-  border-color: color-mix(in srgb, var(--accent-primary) 42%, transparent);
-  background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
-  color: var(--text-primary);
-}
-
-.folded-figure-menu__figure span {
-  min-width: 0;
-  overflow: hidden;
-  font-size: 0.72rem;
-  font-weight: 740;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.folded-figure-menu__figure small {
-  color: var(--text-tertiary);
-  font-size: 0.64rem;
-  font-weight: 680;
-}
-
-/* 76px is the widest label the popover carries ("Front color", 71px) plus a
-   little; below that it wraps to two lines and the row grows. */
-.folded-figure-menu__field,
-.folded-figure-menu__toggle-row {
-  display: grid;
-  grid-template-columns: 76px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  min-height: 28px;
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  font-weight: 700;
-}
-
-.folded-figure-menu__toggle-row {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-
-.folded-figure-menu__field input,
-.folded-figure-menu__field select {
-  min-width: 0;
-  height: 26px;
-  padding: 0 7px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font: inherit;
-  font-size: 0.72rem;
-}
-
-.folded-figure-menu__field input:focus-visible,
-.folded-figure-menu__field select:focus-visible {
-  border-color: var(--accent-primary);
-  outline: none;
-}
-
-.folded-figure-menu__field input:disabled,
-.folded-figure-menu__field select:disabled {
-  opacity: 0.55;
-}
-
-/* Sized to its options and parked at the right edge of the field column, where the
-   inputs above it end. Stretching a segmented control to the full row divides the
-   width by however many options there happen to be, so the active segment lands
-   somewhere different each time the set changes — and at two options it reads as a
-   half-filled progress bar rather than a choice. */
-.folded-figure-menu__field--segmented .segmented {
-  justify-self: end;
-}
-
-/* The colour rows carry the same label column as the fields around them, so the
-   three swatches line up under the Display select rather than under their own
-   labels. `inline` brings no pane chrome of its own — see ColorField. */
-.folded-figure-menu__panel .color-field--inline {
-  display: grid;
-  grid-template-columns: 76px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  min-height: 28px;
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  font-weight: 700;
-}
-
-.folded-figure-menu__panel .color-field--inline .color-field__value {
-  justify-content: flex-end;
 }
 
 .design-layer-menu {
@@ -9714,7 +9563,6 @@ button.bp-packing-alert:focus-visible {
   .context-menu__item,
   .viewport-toolbar__dropdown-item,
   .symmetry-menu__item,
-  .folded-figure-menu__figure,
   .menu-dropdown__item {
     min-height: var(--touch-target);
   }
@@ -9842,8 +9690,6 @@ button.bp-packing-alert:focus-visible {
   .cp-context-panel__field select,
   .cp-context-panel__field textarea,
   .viewport-toolbar__rotation-input,
-  .folded-figure-menu__field input,
-  .folded-figure-menu__field select,
   .bp-sheet-menu__input,
   .symmetry-menu__field input,
   .bp-tree-edge-editor__input,

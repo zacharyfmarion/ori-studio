@@ -1,7 +1,23 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Check, ChevronRight } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { ContextMenuColorItem } from './ContextMenuColorItem';
 import type { ContextMenuItem } from './contextMenuTypes';
+
+/** Whether a row draws something in the leading column: an icon, or a check. */
+function drawsLeadingSlot(item: ContextMenuItem): boolean {
+  switch (item.kind) {
+    case 'action':
+    case 'submenu':
+      return item.icon != null;
+    case 'radio':
+    case 'checkbox':
+    case 'color':
+      return true;
+    case 'separator':
+      return false;
+  }
+}
 
 /**
  * Render one menu entry. Recursive, so a `submenu` nests arbitrarily deep;
@@ -9,9 +25,15 @@ import type { ContextMenuItem } from './contextMenuTypes';
  * handling that `Content` already provides at the top level.
  *
  * `key` is supplied by the caller: only separators lack a stable id, so they
- * fall back to their index.
+ * fall back to their index. `reserveLeading` says whether a row with nothing to
+ * draw in the leading column keeps the column anyway — see
+ * {@link renderContextMenuItems}.
  */
-function renderItem(item: ContextMenuItem, index: number): React.ReactNode {
+function renderItem(
+  item: ContextMenuItem,
+  index: number,
+  reserveLeading: boolean
+): React.ReactNode {
   switch (item.kind) {
     case 'separator':
       return (
@@ -20,8 +42,14 @@ function renderItem(item: ContextMenuItem, index: number): React.ReactNode {
     case 'submenu':
       return (
         <DropdownMenu.Sub key={item.id}>
-          <DropdownMenu.SubTrigger className="context-menu__item" disabled={item.disabled}>
-            {item.icon != null && <span className="context-menu__icon">{item.icon}</span>}
+          <DropdownMenu.SubTrigger
+            className="context-menu__item"
+            disabled={item.disabled}
+            title={item.hint}
+          >
+            {(item.icon != null || reserveLeading) && (
+              <span className="context-menu__icon">{item.icon}</span>
+            )}
             <span className="context-menu__label">{item.label}</span>
             <span className="context-menu__subtrigger-arrow" aria-hidden>
               <ChevronRight size={12} />
@@ -29,7 +57,7 @@ function renderItem(item: ContextMenuItem, index: number): React.ReactNode {
           </DropdownMenu.SubTrigger>
           <DropdownMenu.Portal>
             <DropdownMenu.SubContent className="context-menu" sideOffset={2} collisionPadding={8}>
-              {item.items.map(renderItem)}
+              {renderContextMenuItems(item.items)}
             </DropdownMenu.SubContent>
           </DropdownMenu.Portal>
         </DropdownMenu.Sub>
@@ -44,12 +72,34 @@ function renderItem(item: ContextMenuItem, index: number): React.ReactNode {
           key={item.id}
           className="context-menu__item"
           disabled={item.disabled}
-          onSelect={item.onSelect}
+          onSelect={(event) => {
+            if (item.keepOpen) event.preventDefault();
+            item.onSelect();
+          }}
         >
           <span className="context-menu__icon">{item.checked && <Check size={12} />}</span>
           <span className="context-menu__label">{item.label}</span>
         </DropdownMenu.Item>
       );
+    case 'checkbox':
+      return (
+        <DropdownMenu.CheckboxItem
+          key={item.id}
+          className="context-menu__item"
+          checked={item.checked}
+          disabled={item.disabled}
+          title={item.hint}
+          onSelect={(event) => {
+            if (item.keepOpen) event.preventDefault();
+            item.onToggle();
+          }}
+        >
+          <span className="context-menu__icon">{item.checked && <Check size={12} />}</span>
+          <span className="context-menu__label">{item.label}</span>
+        </DropdownMenu.CheckboxItem>
+      );
+    case 'color':
+      return <ContextMenuColorItem key={item.id} item={item} />;
     case 'action':
       return (
         <DropdownMenu.Item
@@ -63,7 +113,9 @@ function renderItem(item: ContextMenuItem, index: number): React.ReactNode {
           title={item.hint}
           onSelect={item.onSelect}
         >
-          {item.icon != null && <span className="context-menu__icon">{item.icon}</span>}
+          {(item.icon != null || reserveLeading) && (
+            <span className="context-menu__icon">{item.icon}</span>
+          )}
           <span className="context-menu__label">{item.label}</span>
           {item.shortcut != null && (
             <span className="context-menu__shortcut">{item.shortcut}</span>
@@ -71,6 +123,23 @@ function renderItem(item: ContextMenuItem, index: number): React.ReactNode {
         </DropdownMenu.Item>
       );
   }
+}
+
+/**
+ * Render a list of entries into whatever `DropdownMenu.Content` they sit in.
+ *
+ * Exported so a toolbar dropdown can show the same rows a context menu does,
+ * from the same descriptors — a colour row or a check row written once, not
+ * once per surface.
+ *
+ * Labels line up in one column per list: a row with no icon still reserves the
+ * leading slot when any sibling draws in it, so a glyph-less "Side" sits under
+ * "Render as" rather than flush left of it. A list where nothing draws there
+ * keeps its labels at the edge, as every menu without icons always has.
+ */
+export function renderContextMenuItems(items: ContextMenuItem[]): React.ReactNode {
+  const reserveLeading = items.some(drawsLeadingSlot);
+  return items.map((item, index) => renderItem(item, index, reserveLeading));
 }
 
 interface ContextMenuProps {
@@ -148,7 +217,7 @@ export function ContextMenu({
           loop
           onCloseAutoFocus={onCloseAutoFocus}
         >
-          {items.map(renderItem)}
+          {renderContextMenuItems(items)}
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>

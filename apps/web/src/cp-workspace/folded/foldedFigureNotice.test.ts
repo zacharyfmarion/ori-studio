@@ -13,7 +13,6 @@ import {
   fold3dRefusalNotice,
   fold3dRefusalPlace,
   foldedFigureNotice,
-  foldedFigureSubtitle,
   crossingLineIds,
   foldedFigureSimulationLineIds,
 } from './foldedFigureNotice';
@@ -481,20 +480,5 @@ describe('fold3dRefusalPlace / fold3dRefusalNotice', () => {
     const notice = fold3dRefusalNotice(t, { code: 'no_faces' }, [vertexEntry('any', 0, 0)]);
     expect(notice.locate).toBeNull();
     expect(notice.message).toBe('These creases enclose no piece of paper to fold.');
-  });
-});
-
-describe('foldedFigureSubtitle', () => {
-  it('translates every status rather than printing the identifier', () => {
-    expect(foldedFigureSubtitle(t, figure({ status: 'loading' }), false)).toBe('Folding…');
-    expect(foldedFigureSubtitle(t, figure({ status: 'error' }), false)).toBe('Failed');
-    expect(foldedFigureSubtitle(t, figure({ status: 'stale' }), false)).toBe('Stale');
-  });
-
-  it('prefers stale, then the verdict, then the solution', () => {
-    const crossing = spatial({ verdict: 'local_crossing', vertices: 1 });
-    expect(foldedFigureSubtitle(t, crossing, true)).toBe('Stale');
-    expect(foldedFigureSubtitle(t, crossing, false)).toBe('Passes through itself');
-    expect(foldedFigureSubtitle(t, spatial({ verdict: 'folded' }), false)).toBe('Case 1');
   });
 });

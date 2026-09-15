@@ -307,11 +307,9 @@
     "bringImageToFront": "이미지를 맨 앞으로 가져오기",
     "buildingCreasePattern": "전개도 생성 중",
     "canvasDiagnostics_other": "캔버스 진단: {{count}}개",
-    "case_other": "케이스 {{count}}",
     "changeFoldedColor": "접힌 모델 색상 변경",
     "changeFoldedDisplayStyle": "접힌 표시 스타일 변경",
     "changeFoldedModel": "접힌 모델 변경",
-    "closeFoldedModels": "접힌 모델 닫기",
     "commandFailed": "명령 실패",
     "contextMenu": {
       "creaseType": "접는 선 종류",
@@ -353,7 +351,6 @@
       "warningOther_other": "{{label}} 경고 {{count}}개"
     },
     "diagnosticsHidden_other": "필터로 문제 {{count}}개 숨김",
-    "display": "표시",
     "duplicateFoldedModelAction": "접힌 모델 복제",
     "flipFoldedModel": "접힌 모델 뒤집기",
     "fold": "접기",
@@ -397,29 +394,13 @@
       "front": "앞면 색",
       "line": "선 색"
     },
-    "foldedDisplayStyle": "접힌 표시 스타일",
     "foldedFigure": {
       "windowAriaLabel": "접힌 모델, 3차원",
       "windowFailed": "이 모델을 그릴 수 없습니다"
     },
-    "foldedModelControls": "접힌 모델 컨트롤",
-    "foldedModels": "접힌 모델",
-    "foldedModelSide": "접힌 모델 면",
-    "foldedModelStatus": {
-      "error": "실패",
-      "loading": "접는 중…"
-    },
     "foldedState": {
       "back": "뒷면",
       "front": "앞면"
-    },
-    "foldedStyle": {
-      "dev1": "Dev 1",
-      "dev4": "Dev 4",
-      "none": "없음",
-      "paper": "종이",
-      "transparent": "투명",
-      "wire": "와이어"
     },
     "foldModelAction": "모델 접기",
     "inlineSimulation": {
@@ -455,7 +436,6 @@
     "moveSimulationWindow": "시뮬레이션 창 이동",
     "noCreasePattern": "전개도 없음",
     "noImportedCreasePattern": "가져온 전개도 없음",
-    "none": "없음",
     "openingSharedLink": "공유된 전개도를 여는 중…",
     "optimizingScale": "배율 최적화 중",
     "orbitFoldedForm": "접힌 도형 회전",
@@ -492,9 +472,6 @@
     "setFoldedModelUpright": "접힌 모델의 위쪽 방향 설정",
     "shadow": "그림자",
     "shadowUnsupported3d": "3D 접힌 모델에는 아직 그림자가 그려지지 않습니다",
-    "showFoldedModelShadow": "접힌 모델 그림자 표시",
-    "side": "면",
-    "stale": "오래됨",
     "viewFoldedModelOtherSide": "반대편에서 보기",
     "viewportControls": "전개도 뷰포트 컨트롤",
     "zoomFoldedForm": "접힌 형태 확대/축소"
@@ -694,7 +671,6 @@
   "foldedFigureActions": {
     "anotherSolution": "다른 해",
     "delete": "삭제",
-    "displayStyle": "표시 스타일",
     "duplicate": "복제",
     "export": "내보내기…",
     "exportPng": "PNG 이미지",
@@ -704,8 +680,12 @@
     "label": "접힌 모델 작업",
     "otherSide": "반대편",
     "refold": "다시 접기",
+    "renderAs": "표시 방식",
     "resetView": "보기 초기화",
     "setUpright": "위쪽 방향 설정",
+    "side": "면",
+    "sideUnsupported3d": "3D 모델은 “반대편”으로 돌립니다",
+    "style": "스타일",
     "styleDev1": "개발 1",
     "styleDev4": "개발 4",
     "styleNone": "없음",

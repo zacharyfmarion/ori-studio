@@ -346,14 +346,9 @@
     "canvasDiagnostics_few": "Диагностика холста: {{count}}",
     "canvasDiagnostics_many": "Диагностика холста: {{count}}",
     "canvasDiagnostics_other": "Диагностика холста: {{count}}",
-    "case_one": "Случай {{count}}",
-    "case_few": "Случай {{count}}",
-    "case_many": "Случай {{count}}",
-    "case_other": "Случай {{count}}",
     "changeFoldedColor": "Изменить цвет сложенной модели",
     "changeFoldedDisplayStyle": "Изменить стиль отображения сложенной формы",
     "changeFoldedModel": "Изменить сложенную модель",
-    "closeFoldedModels": "Закрыть сложенные модели",
     "commandFailed": "Команда не выполнена",
     "contextMenu": {
       "creaseType": "Тип сгиба",
@@ -428,7 +423,6 @@
     "diagnosticsHidden_few": "Фильтр скрывает {{count}} проблемы",
     "diagnosticsHidden_many": "Фильтр скрывает {{count}} проблем",
     "diagnosticsHidden_other": "Фильтр скрывает {{count}} проблемы",
-    "display": "Отображение",
     "duplicateFoldedModelAction": "Дублировать сложенную модель",
     "flipFoldedModel": "Перевернуть сложенную модель",
     "fold": "Сложить",
@@ -472,29 +466,13 @@
       "front": "Цвет лица",
       "line": "Цвет линии"
     },
-    "foldedDisplayStyle": "Стиль отображения сложенной модели",
     "foldedFigure": {
       "windowAriaLabel": "Сложенная модель, в трёх измерениях",
       "windowFailed": "Не удалось отрисовать эту модель"
     },
-    "foldedModelControls": "Элементы управления сложенной моделью",
-    "foldedModels": "Сложенные модели",
-    "foldedModelSide": "Сторона сложенной модели",
-    "foldedModelStatus": {
-      "error": "Ошибка",
-      "loading": "Складывание…"
-    },
     "foldedState": {
       "back": "Изнанка",
       "front": "Лицо"
-    },
-    "foldedStyle": {
-      "dev1": "Dev 1",
-      "dev4": "Dev 4",
-      "none": "Нет",
-      "paper": "Бумага",
-      "transparent": "Прозрачный",
-      "wire": "Каркас"
     },
     "foldModelAction": "Сложить модель",
     "inlineSimulation": {
@@ -533,7 +511,6 @@
     "moveSimulationWindow": "Переместить окно симуляции",
     "noCreasePattern": "Нет паттерна складок",
     "noImportedCreasePattern": "Нет импортированного паттерна складок",
-    "none": "Нет",
     "openingSharedLink": "Открывается общая схема складок…",
     "optimizingScale": "Оптимизация масштаба",
     "orbitFoldedForm": "Повернуть сложенную фигуру",
@@ -573,9 +550,6 @@
     "setFoldedModelUpright": "Задать направление вверх сложенной модели",
     "shadow": "Тень",
     "shadowUnsupported3d": "Тени пока не отрисовываются для трёхмерной сложенной модели",
-    "showFoldedModelShadow": "Показывать тень сложенной модели",
-    "side": "Сторона",
-    "stale": "Устарело",
     "viewFoldedModelOtherSide": "Посмотреть с другой стороны",
     "viewportControls": "Элементы управления областью просмотра паттерна складок",
     "zoomFoldedForm": "Масштабировать сложенную форму"
@@ -789,7 +763,6 @@
   "foldedFigureActions": {
     "anotherSolution": "Другое решение",
     "delete": "Удалить",
-    "displayStyle": "Стиль отображения",
     "duplicate": "Дублировать",
     "export": "Экспорт…",
     "exportPng": "Изображение PNG",
@@ -799,8 +772,12 @@
     "label": "Действия со сложенной моделью",
     "otherSide": "Другая сторона",
     "refold": "Сложить заново",
+    "renderAs": "Отображать как",
     "resetView": "Сбросить вид",
     "setUpright": "Задать верх",
+    "side": "Сторона",
+    "sideUnsupported3d": "Трёхмерную модель поворачивает «Другая сторона»",
+    "style": "Стиль",
     "styleDev1": "Разработка 1",
     "styleDev4": "Разработка 4",
     "styleNone": "Нет",

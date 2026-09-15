@@ -333,13 +333,9 @@
     "canvasDiagnostics_one": "Diagnostics du canevas : {{count}}",
     "canvasDiagnostics_many": "Diagnostics du canevas : {{count}}",
     "canvasDiagnostics_other": "Diagnostics du canevas : {{count}}",
-    "case_one": "Cas {{count}}",
-    "case_many": "Cas {{count}}",
-    "case_other": "Cas {{count}}",
     "changeFoldedColor": "Modifier la couleur du modèle plié",
     "changeFoldedDisplayStyle": "Modifier le style d’affichage plié",
     "changeFoldedModel": "Modifier le modèle plié",
-    "closeFoldedModels": "Fermer les modèles pliés",
     "commandFailed": "Échec de la commande",
     "contextMenu": {
       "creaseType": "Type de pli",
@@ -403,7 +399,6 @@
     "diagnosticsHidden_one": "1 problème masqué par un filtre",
     "diagnosticsHidden_many": "{{count}} problèmes masqués par un filtre",
     "diagnosticsHidden_other": "{{count}} problèmes masqués par un filtre",
-    "display": "Affichage",
     "duplicateFoldedModelAction": "Dupliquer le modèle plié",
     "flipFoldedModel": "Retourner le modèle plié",
     "fold": "Plier",
@@ -447,29 +442,13 @@
       "front": "Couleur du recto",
       "line": "Couleur de ligne"
     },
-    "foldedDisplayStyle": "Style d'affichage du modèle plié",
     "foldedFigure": {
       "windowAriaLabel": "Modèle plié, en trois dimensions",
       "windowFailed": "Impossible de dessiner ce modèle"
     },
-    "foldedModelControls": "Commandes du modèle plié",
-    "foldedModels": "Modèles pliés",
-    "foldedModelSide": "Face du modèle plié",
-    "foldedModelStatus": {
-      "error": "Échec",
-      "loading": "Pliage…"
-    },
     "foldedState": {
       "back": "Verso",
       "front": "Recto"
-    },
-    "foldedStyle": {
-      "dev1": "Dev 1",
-      "dev4": "Dev 4",
-      "none": "Aucun",
-      "paper": "Papier",
-      "transparent": "Transparent",
-      "wire": "Filaire"
     },
     "foldModelAction": "Plier le modèle",
     "inlineSimulation": {
@@ -507,7 +486,6 @@
     "moveSimulationWindow": "Déplacer la fenêtre de simulation",
     "noCreasePattern": "Aucun patron de plis",
     "noImportedCreasePattern": "Aucun patron de plis importé",
-    "none": "Aucun",
     "openingSharedLink": "Ouverture du patron de pliage partagé…",
     "optimizingScale": "Optimisation de l'échelle",
     "orbitFoldedForm": "Tourner la figure pliée",
@@ -546,9 +524,6 @@
     "setFoldedModelUpright": "Définir la verticale du modèle plié",
     "shadow": "Ombre",
     "shadowUnsupported3d": "Les ombres ne sont pas encore dessinées pour un modèle plié en 3D",
-    "showFoldedModelShadow": "Afficher l'ombre du modèle plié",
-    "side": "Face",
-    "stale": "Obsolète",
     "viewFoldedModelOtherSide": "Voir de l’autre côté",
     "viewportControls": "Commandes d'affichage du patron de plis",
     "zoomFoldedForm": "Zoomer sur la forme pliée"
@@ -756,7 +731,6 @@
   "foldedFigureActions": {
     "anotherSolution": "Autre solution",
     "delete": "Supprimer",
-    "displayStyle": "Style d’affichage",
     "duplicate": "Dupliquer",
     "export": "Exporter…",
     "exportPng": "Image PNG",
@@ -766,8 +740,12 @@
     "label": "Actions du modèle plié",
     "otherSide": "Autre côté",
     "refold": "Replier",
+    "renderAs": "Afficher comme",
     "resetView": "Réinitialiser la vue",
     "setUpright": "Définir la verticale",
+    "side": "Face",
+    "sideUnsupported3d": "Un modèle 3D se retourne avec « Autre côté »",
+    "style": "Style",
     "styleDev1": "Développement 1",
     "styleDev4": "Développement 4",
     "styleNone": "Aucun",

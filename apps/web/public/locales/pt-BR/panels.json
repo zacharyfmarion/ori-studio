@@ -333,13 +333,9 @@
     "canvasDiagnostics_one": "Diagnósticos da tela: {{count}}",
     "canvasDiagnostics_many": "Diagnósticos da tela: {{count}}",
     "canvasDiagnostics_other": "Diagnósticos da tela: {{count}}",
-    "case_one": "Caso {{count}}",
-    "case_many": "Caso {{count}}",
-    "case_other": "Caso {{count}}",
     "changeFoldedColor": "Alterar cor do modelo dobrado",
     "changeFoldedDisplayStyle": "Alterar estilo de exibição dobrada",
     "changeFoldedModel": "Alterar modelo dobrado",
-    "closeFoldedModels": "Fechar modelos dobrados",
     "commandFailed": "Comando falhou",
     "contextMenu": {
       "creaseType": "Tipo de vinco",
@@ -403,7 +399,6 @@
     "diagnosticsHidden_one": "1 problema oculto por um filtro",
     "diagnosticsHidden_many": "{{count}} problemas ocultos por um filtro",
     "diagnosticsHidden_other": "{{count}} problemas ocultos por um filtro",
-    "display": "Exibição",
     "duplicateFoldedModelAction": "Duplicar modelo dobrado",
     "flipFoldedModel": "Virar modelo dobrado",
     "fold": "Dobrar",
@@ -447,29 +442,13 @@
       "front": "Cor da frente",
       "line": "Cor da linha"
     },
-    "foldedDisplayStyle": "Estilo de exibição do dobrado",
     "foldedFigure": {
       "windowAriaLabel": "Modelo dobrado, em três dimensões",
       "windowFailed": "Não foi possível desenhar este modelo"
     },
-    "foldedModelControls": "Controles do modelo dobrado",
-    "foldedModels": "Modelos dobrados",
-    "foldedModelSide": "Lado do modelo dobrado",
-    "foldedModelStatus": {
-      "error": "Falhou",
-      "loading": "Dobrando…"
-    },
     "foldedState": {
       "back": "Verso",
       "front": "Frente"
-    },
-    "foldedStyle": {
-      "dev1": "Dev 1",
-      "dev4": "Dev 4",
-      "none": "Nenhum",
-      "paper": "Papel",
-      "transparent": "Transparente",
-      "wire": "Aramado"
     },
     "foldModelAction": "Dobrar modelo",
     "inlineSimulation": {
@@ -507,7 +486,6 @@
     "moveSimulationWindow": "Mover janela de simulação",
     "noCreasePattern": "Nenhum padrão de vincos",
     "noImportedCreasePattern": "Nenhum padrão de vincos importado",
-    "none": "Nenhum",
     "openingSharedLink": "Abrindo o padrão de vincos compartilhado…",
     "optimizingScale": "Otimizando escala",
     "orbitFoldedForm": "Girar a figura dobrada",
@@ -546,9 +524,6 @@
     "setFoldedModelUpright": "Definir a vertical do modelo dobrado",
     "shadow": "Sombra",
     "shadowUnsupported3d": "As sombras ainda não são desenhadas para um modelo dobrado em 3D",
-    "showFoldedModelShadow": "Mostrar sombra do modelo dobrado",
-    "side": "Lado",
-    "stale": "Desatualizado",
     "viewFoldedModelOtherSide": "Ver pelo outro lado",
     "viewportControls": "Controles da viewport do padrão de vincos",
     "zoomFoldedForm": "Ampliar forma dobrada"
@@ -756,7 +731,6 @@
   "foldedFigureActions": {
     "anotherSolution": "Outra solução",
     "delete": "Excluir",
-    "displayStyle": "Estilo de exibição",
     "duplicate": "Duplicar",
     "export": "Exportar…",
     "exportPng": "Imagem PNG",
@@ -766,8 +740,12 @@
     "label": "Ações do modelo dobrado",
     "otherSide": "Outro lado",
     "refold": "Dobrar novamente",
+    "renderAs": "Exibir como",
     "resetView": "Redefinir vista",
     "setUpright": "Definir vertical",
+    "side": "Lado",
+    "sideUnsupported3d": "Um modelo 3D é virado com “Outro lado”",
+    "style": "Estilo",
     "styleDev1": "Desenvolvimento 1",
     "styleDev4": "Desenvolvimento 4",
     "styleNone": "Nenhum",

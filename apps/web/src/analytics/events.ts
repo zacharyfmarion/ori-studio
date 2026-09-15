@@ -195,6 +195,21 @@ export type FoldVerdict =
 /** Which way a press of the one solution verb moved. */
 export type FoldCycleDirection = 'next' | 'wrap';
 
+/**
+ * Which appearance setting a folded figure's Style menu changed.
+ *
+ * One value per adjustment: a colour drag counts once, when it starts, never
+ * per pointer move — and never with the colour, which is the user's work. The
+ * question is which of the six rows earn their place, not what anyone chose.
+ */
+export type FoldedFigureStyleOption =
+  | 'display_style'
+  | 'side'
+  | 'front_color'
+  | 'back_color'
+  | 'line_color'
+  | 'shadow';
+
 /** Where a foldability check was run from. */
 export type FoldabilityCheckSource = 'pre-fold';
 
@@ -508,6 +523,7 @@ export const ANALYTICS_EVENTS = {
   foldAttempted: 'fold attempted',
   foldCompleted: 'fold completed',
   foldSolutionCycled: 'fold solution cycled',
+  foldedFigureStyled: 'folded figure styled',
   foldedFigureOrbited: 'folded figure orbited',
   foldedFigureZoomed: 'folded figure zoomed',
   // Whether anyone reaches for a model up at all is the question this answers —

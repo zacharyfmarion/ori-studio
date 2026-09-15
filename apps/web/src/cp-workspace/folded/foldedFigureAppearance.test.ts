@@ -80,6 +80,13 @@ describe('foldedAppearanceSupport', () => {
     }
   });
 
+  it('shows side on a 3D figure but disabled: its state seeds a camera and is then inert', () => {
+    expect(foldedAppearanceSupport(figure('spatial'), 'side')).toBe('unsupported');
+    expect(foldedAppearanceVisible(figure('spatial'), 'side')).toBe(true);
+    expect(foldedAppearanceEnabled(figure('spatial'), 'side')).toBe(false);
+    expect(foldedAppearanceEnabled(figure('flat'), 'side')).toBe(true);
+  });
+
   it('shows shadow on a 3D figure but disabled, rather than enabled and inert', () => {
     // The distinction the whole module exists for: visible so the control does
     // not vanish between figure kinds, disabled so pressing it cannot do

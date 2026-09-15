@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import {
@@ -7,7 +7,6 @@ import {
 } from '../../engine/oristudioCpTypes';
 import type {
   OristudioCpDocumentState,
-  OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureModel,
   FoldedFigurePlacement,
@@ -23,6 +22,8 @@ import {
   type FoldedFigureActionDeps,
 } from './foldedFigureActions';
 import { foldedFigureListsEqual } from './foldedFigureState';
+import { createFoldedModelGestureLedger } from './foldedModelGestureLedger';
+import { foldedFigureStyleOptions } from './foldedFigureStyleEvent';
 import { isFolded3dFigure } from './foldedFigureCapabilities';
 import { canWindowFolded3dFigure, folded3dWindowIds } from './folded3dWindow';
 import { useWorkerGpuSupport } from '../../simulator/workerGpuSupport';
@@ -60,7 +61,12 @@ import {
 } from '../../lib/simulatorOrbit';
 import { emptyOristudioCpSelection } from '../../lib/creasePatternViewport';
 import { announceUprightSet } from '../../lib/uprightFeedback';
-import { ANALYTICS_EVENTS, COUNT_BUCKETS, bucketCount } from '../../analytics/events';
+import {
+  ANALYTICS_EVENTS,
+  COUNT_BUCKETS,
+  bucketCount,
+  type FoldedFigureStyleOption,
+} from '../../analytics/events';
 import { track } from '../../analytics';
 
 /**
@@ -253,11 +259,10 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
 
   const preGestureActiveFoldedIdRef = useRef<string | null>(null);
 
-  const beginFoldedFigureGesture = useCallback(() => {
-    preGestureFoldedFiguresRef.current = useWorkspaceStore.getState().oristudioCpFoldedFigures;
-    preGestureActiveFoldedIdRef.current =
-      useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId;
-  }, []);
+  // Which continuous model edit (a colour drag) is mid-gesture. Consulted at
+  // every gesture boundary, so a drag nothing closed still lands as its own
+  // entry rather than being overwritten by the next verb's snapshot.
+  const [modelGestures] = useState(createFoldedModelGestureLedger);
 
   const commitFoldedFigureGesture = useCallback(
     (label: string) => {
@@ -282,6 +287,14 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     },
     [recordFoldedFigureHistory]
   );
+
+  const beginFoldedFigureGesture = useCallback(() => {
+    const pending = modelGestures.closeAny();
+    if (pending) commitFoldedFigureGesture(pending.label);
+    preGestureFoldedFiguresRef.current = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+    preGestureActiveFoldedIdRef.current =
+      useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId;
+  }, [commitFoldedFigureGesture, modelGestures]);
 
   /**
    * Run a discrete folded-figure action as one undo step: snapshot, act, record.
@@ -704,61 +717,65 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     t,
   ]);
 
-  const handleFoldedDisplayStyle = useCallback(
-    (displayStyle: OristudioCpFoldedFigureDisplayStyle) => {
-      if (!activeFoldedFigure) return;
-      const id = activeFoldedFigure.id;
-      runFoldedFigureAction(
-        t('panels:creasePattern.changeFoldedDisplayStyle', 'Change folded display style'),
-        () => setOristudioCpFoldedFigureDisplayStyle(id, displayStyle)
-      );
+  /**
+   * Write part of a figure's model. The colour pickers fire a change per
+   * pointer move, so a single drag would otherwise push dozens of undo entries.
+   * `gesture.scope` marks the run of changes belonging to one drag: the first
+   * change snapshots, and the matching {@link endFoldedModelGesture} (blur, or
+   * the menu unmounting) records exactly one entry. Discrete controls pass no
+   * gesture and record immediately.
+   */
+  const trackStyled = useCallback(
+    (figure: OristudioCpFoldedFigureEntry, options: readonly FoldedFigureStyleOption[]) => {
+      for (const option of options) {
+        track(ANALYTICS_EVENTS.foldedFigureStyled, {
+          option,
+          mode: isFolded3dFigure(figure) ? 'spatial' : 'flat',
+        });
+      }
     },
-    [activeFoldedFigure, setOristudioCpFoldedFigureDisplayStyle, runFoldedFigureAction, t]
+    []
   );
 
-  /**
-   * Model changes from the folded-figure menu. The colour pickers and the alpha
-   * slider fire a change per pointer move, so a single drag would otherwise push
-   * dozens of undo entries. `scope` marks the run of changes belonging to one
-   * gesture: the first change snapshots, and the matching
-   * {@link endFoldedModelGesture} (pointer-up / blur) records exactly one entry.
-   * Discrete controls pass no scope and record immediately.
-   */
-  const foldedModelGestureScopeRef = useRef<string | null>(null);
-
-  const handleFoldedModelUpdate = useCallback(
-    (update: Partial<OristudioCpFoldedFigureModel>, scope?: string) => {
-      if (!activeFoldedFigure) return;
-      const id = activeFoldedFigure.id;
-      if (!scope) {
+  const updateFoldedModel = useCallback(
+    (
+      figure: OristudioCpFoldedFigureEntry,
+      update: Partial<OristudioCpFoldedFigureModel>,
+      gesture?: { scope: string; label: string }
+    ) => {
+      if (!gesture) {
+        trackStyled(figure, foldedFigureStyleOptions(update));
         runFoldedFigureAction(
           t('panels:creasePattern.changeFoldedModel', 'Change folded model'),
-          () => updateOristudioCpFoldedFigureModel(id, update)
+          () => updateOristudioCpFoldedFigureModel(figure.id, update)
         );
         return;
       }
-      if (foldedModelGestureScopeRef.current !== scope) {
-        foldedModelGestureScopeRef.current = scope;
+      if (!modelGestures.isOpen(gesture.scope)) {
+        // Begin first: it closes any other open run, then snapshots. One event
+        // per run, here, rather than one per pointer move.
         beginFoldedFigureGesture();
+        modelGestures.open(gesture);
+        trackStyled(figure, foldedFigureStyleOptions(update));
       }
-      void updateOristudioCpFoldedFigureModel(id, update);
+      void updateOristudioCpFoldedFigureModel(figure.id, update);
     },
     [
-      activeFoldedFigure,
       updateOristudioCpFoldedFigureModel,
       runFoldedFigureAction,
       beginFoldedFigureGesture,
+      modelGestures,
+      trackStyled,
       t,
     ]
   );
 
   const endFoldedModelGesture = useCallback(
-    (scope: string, label: string) => {
-      if (foldedModelGestureScopeRef.current !== scope) return;
-      foldedModelGestureScopeRef.current = null;
-      commitFoldedFigureGesture(label);
+    (scope: string) => {
+      const closed = modelGestures.close(scope);
+      if (closed) commitFoldedFigureGesture(closed.label);
     },
-    [commitFoldedFigureGesture]
+    [commitFoldedFigureGesture, modelGestures]
   );
 
   const handleDuplicateFoldedFigure = useCallback(() => {
@@ -835,11 +852,15 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
                   state: foldedFigureFlipState(figure),
                 })
             ),
-      setDisplayStyle: (figure, style) =>
+      setDisplayStyle: (figure, style) => {
+        trackStyled(figure, ['display_style']);
         runFoldedFigureAction(
           t('panels:creasePattern.changeFoldedDisplayStyle', 'Change folded display style'),
           () => setOristudioCpFoldedFigureDisplayStyle(figure.id, style)
-        ),
+        );
+      },
+      updateModel: updateFoldedModel,
+      endModelGesture: endFoldedModelGesture,
       foldAnother: (figure) =>
         runFoldedFigureAction(
           t('panels:creasePattern.anotherSolutionAction', 'Show another solution'),
@@ -912,6 +933,9 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     }),
     [
       updateOristudioCpFoldedFigureModel,
+      updateFoldedModel,
+      endFoldedModelGesture,
+      trackStyled,
       setOristudioCpFoldedFigureDisplayStyle,
       setOristudioCpFolded3dCamera,
       foldAnotherOristudioCpFigure,
@@ -959,9 +983,6 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     gestureLabel: foldedGestureLabel,
     applyBoxUpdate: handleFoldedFigureBoxUpdate,
     foldModel: handleFoldModel,
-    setDisplayStyle: handleFoldedDisplayStyle,
-    updateModel: handleFoldedModelUpdate,
-    endModelGesture: endFoldedModelGesture,
     duplicate: handleDuplicateFoldedFigure,
     remove: handleDeleteFoldedFigure,
   };

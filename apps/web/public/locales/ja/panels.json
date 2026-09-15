@@ -307,11 +307,9 @@
     "bringImageToFront": "画像を最前面へ",
     "buildingCreasePattern": "展開図を作成中",
     "canvasDiagnostics_other": "キャンバス診断: {{count}} 件",
-    "case_other": "ケース {{count}}",
     "changeFoldedColor": "折り上がり図の色を変更",
     "changeFoldedDisplayStyle": "折り上がり図の表示スタイルを変更",
     "changeFoldedModel": "折り上がり図を変更",
-    "closeFoldedModels": "折り上がりモデルを閉じる",
     "commandFailed": "コマンドが失敗しました",
     "contextMenu": {
       "creaseType": "折り線の種類",
@@ -353,7 +351,6 @@
       "warningOther_other": "{{label}} 警告 {{count}} 件"
     },
     "diagnosticsHidden_other": "フィルターにより {{count}} 件の問題を非表示",
-    "display": "表示",
     "duplicateFoldedModelAction": "折り上がり図を複製",
     "flipFoldedModel": "折り上がり図を裏返す",
     "fold": "折る",
@@ -397,29 +394,13 @@
       "front": "表の色",
       "line": "線の色"
     },
-    "foldedDisplayStyle": "折りの表示スタイル",
     "foldedFigure": {
       "windowAriaLabel": "折り上がり図（立体）",
       "windowFailed": "このモデルを描画できませんでした"
     },
-    "foldedModelControls": "折りモデルの操作",
-    "foldedModels": "折りモデル",
-    "foldedModelSide": "折りモデルの面",
-    "foldedModelStatus": {
-      "error": "失敗",
-      "loading": "折り畳み中…"
-    },
     "foldedState": {
       "back": "裏",
       "front": "表"
-    },
-    "foldedStyle": {
-      "dev1": "Dev 1",
-      "dev4": "Dev 4",
-      "none": "なし",
-      "paper": "用紙",
-      "transparent": "透明",
-      "wire": "ワイヤー"
     },
     "foldModelAction": "モデルを折る",
     "inlineSimulation": {
@@ -455,7 +436,6 @@
     "moveSimulationWindow": "シミュレーションウィンドウを移動",
     "noCreasePattern": "展開図がありません",
     "noImportedCreasePattern": "インポートした展開図がありません",
-    "none": "なし",
     "openingSharedLink": "共有された展開図を開いています…",
     "optimizingScale": "スケールを最適化中",
     "orbitFoldedForm": "折り上がり図を回転",
@@ -492,9 +472,6 @@
     "setFoldedModelUpright": "折り上がりモデルの上方向を設定",
     "shadow": "影",
     "shadowUnsupported3d": "3D の折り上がりモデルにはまだ影を描画できません",
-    "showFoldedModelShadow": "折りモデルの影を表示",
-    "side": "面",
-    "stale": "要再折り",
     "viewFoldedModelOtherSide": "反対側から見る",
     "viewportControls": "展開図のビューポート操作",
     "zoomFoldedForm": "折り上がり図をズーム"
@@ -694,7 +671,6 @@
   "foldedFigureActions": {
     "anotherSolution": "別の解",
     "delete": "削除",
-    "displayStyle": "表示スタイル",
     "duplicate": "複製",
     "export": "エクスポート…",
     "exportPng": "PNG 画像",
@@ -704,8 +680,12 @@
     "label": "折り上がり図の操作",
     "otherSide": "反対側",
     "refold": "折り直す",
+    "renderAs": "表示形式",
     "resetView": "視点をリセット",
     "setUpright": "上方向を設定",
+    "side": "面",
+    "sideUnsupported3d": "3D モデルの向きは「反対側」で切り替えます",
+    "style": "スタイル",
     "styleDev1": "開発 1",
     "styleDev4": "開発 4",
     "styleNone": "なし",
