@@ -4412,6 +4412,29 @@ describe('workspace store slices', () => {
       expect(useWorkspaceStore.getState().oristudioCpFoldRuns).toEqual({});
     });
 
+    it('selects nothing while the fold runs, since the figure lands unselected', async () => {
+      // The draft entry used to take the canvas selection for exactly as long
+      // as the kernel took, so every selection-driven surface flashed for a
+      // figure that was never going to be selected. The creases still let go.
+      resetStores(seedSnapshot());
+      seedFoldableCp();
+      const fold = pendingFold();
+
+      const folding = useWorkspaceStore.getState().foldOristudioCpDocument();
+      await settle();
+
+      const state = useWorkspaceStore.getState();
+      expect(state.oristudioCpFoldedFigures.map((figure) => figure.status)).toEqual(['loading']);
+      expect(state.oristudioCpActiveFoldedFigureId).toBeNull();
+      expect(state.oristudioCpSelection.lines).toEqual([]);
+
+      fold.cancel();
+      await expect(folding).resolves.toBe(false);
+      // A stopped fold hands the creases back, and still selects no figure.
+      expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBeNull();
+      expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([1]);
+    });
+
     it('writes the exact run id where the running kernel reads it', async () => {
       resetStores(seedSnapshot());
       seedFoldableCp();

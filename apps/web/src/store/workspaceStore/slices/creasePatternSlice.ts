@@ -1041,9 +1041,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
    *
    * A stopped fold is not a failed one, and the two helpers above both write an
    * `error` envelope unconditionally — which `GlobalToasts` turns into an error
-   * toast. Restoring the crease selection is the other half: the draft entry took
-   * the canvas selection when it was inserted, and putting it back leaves the
-   * user exactly where they pressed `G`. Upstream drops the selection at dispatch
+   * toast. Restoring the crease selection is the other half: the draft entry
+   * cleared the canvas selection when it was inserted, and putting it back
+   * leaves the user exactly where they pressed `G`. Upstream drops the selection at dispatch
    * (`FoldAction.foldCreasePattern` calls `unselect_all`), so keeping it is a
    * deliberate improvement rather than parity.
    */
@@ -2356,13 +2356,16 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         error: null,
       };
 
-      // What the crease selection was before the draft entry took the canvas, so
-      // a stopped fold can hand it back rather than making the user reselect the
-      // creases they were about to fold.
+      // What the crease selection was before the draft entry cleared the canvas,
+      // so a stopped fold can hand it back rather than making the user reselect
+      // the creases they were about to fold.
       const selectionBeforeFold = get().oristudioCpSelection;
-      takeCanvasSelection('folded-figure', {
+      // Releases the canvas — the creases being folded let go, in the kernel too
+      // — but claims nothing: a fresh flat fold lands unselected (below), so a
+      // draft that took the selection was a figure selected for exactly as long
+      // as the kernel took, and every selection-driven surface flashed for it.
+      takeCanvasSelection('none', {
         oristudioCpFoldedFigures: [...get().oristudioCpFoldedFigures, loadingEntry],
-        oristudioCpActiveFoldedFigureId: figureId,
         oristudioCpError: null,
       });
 
