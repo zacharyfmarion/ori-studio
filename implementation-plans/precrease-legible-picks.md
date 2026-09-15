@@ -373,6 +373,13 @@ on a pattern line and made as "fold the bottom edge onto itself through P"
   other steps.
 - [x] R9 O4 through the crease's end on a long crease — pinned 34, 93.
 - [x] The markhor_feedback pin table as a test.
-- [ ] Corpus gates 1–3 (`measure_ends` pick tallies; the run is in the
-  session notes).
+- [x] Corpus gates 1–3, measured 2026-09-14 on the 53 designs both runs
+  planned (the curated set has changed since the baseline; abra and
+  wolpertinger are gone from it): steps 3,738 → 3,715, turn-overs 308 →
+  312, lost ends 140 → 146, pieces 403 → 407, reach 86.8 → 86.4
+  sheet-sides. Over the 54 planned: presses 159, pinches while folding
+  631, picks 3,678 judged — invisible 75, imprecise 209, impractical 0,
+  bisections at the crease 646, own ends 742, mountain pinches 1,152,
+  mirrored 153, mean error 2.58. An invisible or imprecise pick is one
+  with no free alternative that is not: the key sorts those first.
 - [ ] Zach folds markhor again.
