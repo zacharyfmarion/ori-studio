@@ -3657,12 +3657,20 @@ button.cp-folded-figure-toolbar__notice:hover {
   text-decoration: underline line-through;
 }
 
-/* Text toolbar controls: the marks and Delete. The whole-box controls that
-   used to sit here — block, alignment, colour — are the Properties pane's. */
+/* Text toolbar controls: the per-selection block preset, marks, alignment,
+   colour and Delete. The Properties pane carries the same properties for the
+   whole box. */
 .cp-text-toolbar__group {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+/* A select in the pill sits at the buttons' height and hugs its label. */
+.cp-text-toolbar__select {
+  width: auto;
+  height: 24px;
+  padding: 0 6px;
 }
 
 /* In WebGL mode the SVG is covered by the canvas; hide it so the browser stops

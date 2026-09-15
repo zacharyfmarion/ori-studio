@@ -2,8 +2,6 @@ import { useCallback, useEffect, useState, type FocusEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   $getRoot,
-  $getSelection,
-  $isRangeSelection,
   COMMAND_PRIORITY_HIGH,
   FORMAT_TEXT_COMMAND,
   KEY_ESCAPE_COMMAND,
@@ -19,10 +17,38 @@ import { AutoFocusPlugin } from '@lexical/react/LexicalAutoFocusPlugin';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { HeadingNode } from '@lexical/rich-text';
-import { Bold, Italic, Trash2, Underline } from 'lucide-react';
+import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  Bold,
+  Italic,
+  Trash2,
+  Underline,
+  type LucideIcon,
+} from 'lucide-react';
 import { FloatingToolbar } from '../components/ui/FloatingToolbar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/Select';
+import { textAlignLabel, textBlockLabel, textColorLabel } from '../i18n/enumLabels';
 import { registerTextEditor } from './annotations/textEditorRegistry';
-import { isCanvasCompanionSurface } from './canvasObjects/canvasCompanionSurface';
+import {
+  TEXT_ALIGNS,
+  TEXT_BLOCK_PRESETS,
+  TEXT_COLORS,
+  type TextAlign,
+  type TextBlockType,
+} from './annotations/textFormatting';
+import {
+  $readSelectionFormat,
+  setSelectionAlign,
+  setSelectionBlock,
+  setSelectionColor,
+  type TextSelectionFormat,
+} from './annotations/textSelectionFormatting';
+import {
+  CANVAS_COMPANION_PROPS,
+  isCanvasCompanionSurface,
+} from './canvasObjects/canvasCompanionSurface';
 import { resolveCpViewportCanvas } from './cpViewportCanvas';
 import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
 import type { AnnotationBox } from './annotations/annotationTransform';
@@ -159,19 +185,27 @@ function EscapeExitPlugin({ onEscape }: { onEscape: () => void }) {
   return null;
 }
 
-interface ToolbarState {
-  bold: boolean;
-  italic: boolean;
-  underline: boolean;
-}
+const INITIAL_TOOLBAR_STATE: TextSelectionFormat = {
+  bold: false,
+  italic: false,
+  underline: false,
+  block: 'paragraph',
+  align: 'left',
+  color: '',
+};
 
-const INITIAL_TOOLBAR_STATE: ToolbarState = { bold: false, italic: false, underline: false };
+const ALIGN_ICONS: Record<TextAlign, LucideIcon> = {
+  left: AlignLeft,
+  center: AlignCenter,
+  right: AlignRight,
+};
 
 /**
- * The editing toolbar: the per-selection marks and Delete. Everything that
- * applies to the whole box — alignment, block preset, colour, size — is a
- * property, in the Properties pane, which edits the live editor while the
- * box is open (see `useTextProperties`).
+ * The editing toolbar, per *selection*: block preset, marks, alignment,
+ * colour, and Delete. The same properties on the Properties pane apply to
+ * the whole box (see `useTextProperties`); here they follow the caret, the
+ * way a rich-text toolbar does, so one heading line or one red word is
+ * reachable without leaving the box.
  */
 function TextToolbar({
   box,
@@ -188,27 +222,31 @@ function TextToolbar({
   const [editor] = useLexicalComposerContext();
   // Subscribed here, not in the panel — see CpImageInspector.
   const anchorRect = useCanvasObjectAnchor(box, 'model', container);
-  const [state, setState] = useState<ToolbarState>(INITIAL_TOOLBAR_STATE);
+  const [state, setState] = useState<TextSelectionFormat>(INITIAL_TOOLBAR_STATE);
 
   useEffect(() => {
     return editor.registerUpdateListener(({ editorState }) => {
       editorState.read(() => {
-        const selection = $getSelection();
-        if (!$isRangeSelection(selection)) return;
-        setState({
-          bold: selection.hasFormat('bold'),
-          italic: selection.hasFormat('italic'),
-          underline: selection.hasFormat('underline'),
-        });
+        const format = $readSelectionFormat();
+        if (format) setState(format);
       });
     });
   }, [editor]);
 
-  // Marks fold into the single "edit text" undo entry recorded when the box
-  // leaves edit mode, so they don't manage their own gesture boundaries.
+  // Every edit here folds into the single "edit text" undo entry recorded
+  // when the box leaves edit mode, so none manages its own gesture boundary.
   const toggleMark = useCallback(
     (mark: 'bold' | 'italic' | 'underline') => {
       editor.dispatchCommand(FORMAT_TEXT_COMMAND, mark);
+    },
+    [editor]
+  );
+  // A list that closed puts focus on its trigger; the caret wants it back, so
+  // the next keystroke lands in the text rather than on the toolbar.
+  const refocusEditor = useCallback(
+    (event: Event) => {
+      event.preventDefault();
+      editor.focus();
     },
     [editor]
   );
@@ -222,6 +260,22 @@ function TextToolbar({
       ariaLabel={t('panels:textAnnotation.textControls', 'Text controls')}
     >
       <div className="cp-text-toolbar__group">
+        <Select value={state.block} onValueChange={(value) => setSelectionBlock(editor, value as TextBlockType)}>
+          <SelectTrigger
+            className="cp-text-toolbar__select"
+            aria-label={t('panels:textAnnotation.textStyle', 'Text style')}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent {...CANVAS_COMPANION_PROPS} onCloseAutoFocus={refocusEditor}>
+            {TEXT_BLOCK_PRESETS.map((preset) => (
+              <SelectItem key={preset.value} value={preset.value}>
+                {textBlockLabel(t, preset.value)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span className="floating-toolbar__separator" />
         <IconButton
           size="sm"
           variant="toolbar"
@@ -249,6 +303,49 @@ function TextToolbar({
         >
           <Underline size={14} />
         </IconButton>
+        <span className="floating-toolbar__separator" />
+        {TEXT_ALIGNS.map((align) => {
+          const Icon = ALIGN_ICONS[align];
+          return (
+            <IconButton
+              key={align}
+              size="sm"
+              variant="toolbar"
+              isActive={state.align === align}
+              title={textAlignLabel(t, align)}
+              onClick={() => setSelectionAlign(editor, align)}
+            >
+              <Icon size={14} />
+            </IconButton>
+          );
+        })}
+        <span className="floating-toolbar__separator" />
+        {/* Radix reserves `''` for "nothing chosen", so the default colour
+            travels as `'default'` — the pane's select spells it the same way —
+            and a colour outside the six shows as nothing chosen. */}
+        <Select
+          value={
+            (TEXT_COLORS as readonly string[]).includes(state.color) ? state.color || 'default' : ''
+          }
+          onValueChange={(value) => setSelectionColor(editor, value === 'default' ? '' : value)}
+        >
+          <SelectTrigger
+            className="cp-text-toolbar__select"
+            aria-label={t('panels:textAnnotation.color', 'Text color')}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent {...CANVAS_COMPANION_PROPS} onCloseAutoFocus={refocusEditor}>
+            {TEXT_COLORS.map((color) => (
+              <SelectItem key={color || 'default'} value={color || 'default'}>
+                {color && (
+                  <span className="select-swatch" style={{ background: color }} aria-hidden="true" />
+                )}
+                {textColorLabel(t, color)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <span className="floating-toolbar__separator" />
         <IconButton
           size="sm"

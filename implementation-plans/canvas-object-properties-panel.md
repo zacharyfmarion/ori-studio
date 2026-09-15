@@ -1160,7 +1160,9 @@ else: no object list, no figure list, no crease count.
   drops the opacity slider (front/back/delete stay); `InlineSimulationInspector`
   keeps transport/export/upright/replay/refresh/delete and loses the colour-mode
   menu (`colorModeLabel` moves to `i18n/enumLabels.ts`); `TextToolbar` keeps
-  per-selection marks and Delete; `CpFoldedFigureToolbar` is unchanged — flip,
+  every per-selection control — block preset, marks, alignment, colour, Delete
+  (Phase H restored the three Phase E had moved; the pane's copies are
+  whole-box, the toolbar's follow the caret); `CpFoldedFigureToolbar` is unchanged — flip,
   reset view, set upright, another solution, refold, export, duplicate, delete
   all stay there and in the context menu (its style choice and the pane's
   Display style render one `FOLDED_DISPLAY_STYLE_OPTIONS` table); region chips
@@ -1205,7 +1207,7 @@ from `isFoldedFigureReady`.
 | `side` | segmented Front0 / Back1 via `foldedStateLabel` | `FOLDED_FIGURE_SIDES` | `snapshot.model.state` | `updateFoldedFigureModelAsEntry(id, { state })` | discrete | `panels:creasePattern.changeFoldedModel` 'Change folded model' | flat: supported; **3D: `not-applicable`** (new answer in `foldedAppearanceSupport`; on 3D `state` only seeds the default camera before the first orbit and is inert after it — the enabled-and-inert class the oracle exists to prevent. The pre-orbit default-camera flip is dropped; 'Other side' on the floating toolbar is the 3D verb) |
 | `frontColor` / `backColor` / `lineColor` | color | hex ↔ `OristudioCpRgbColor` via `rgbColorToHex` / `hexToRgbColor`; fallbacks from `FOLDED_COLOR_FIELDS` | `model.front_color` / `back_color` / `line_color` | `queueFoldedModelWrite` inside `foldedFigureGesture` (`begin('pane:frontColor')` … `end` = `commit` after drain) | continuous | `panels:cpProperties.folded.changeColor` 'Change folded model color' | supported both kinds; unsupported when reopened |
 | `shadows` | toggle | — | `model.display_shadows` | `updateFoldedFigureModelAsEntry` | discrete | 'Change folded model' | flat supported; 3D `unsupported` (reason from the appearance module) |
-| `antiAlias` | toggle | — | `model.anti_alias` | same | discrete | 'Change folded model' | supported both (the kernel honours it; the oracle already says so) |
+| `antiAlias` | — | — | `model.anti_alias` | — | — | — | **`not-applicable` on both** (Phase H): the kernel carries the flag through the snapshot, but the web renderer antialiases everything and never reads it; the only visible effect is a 0.2 px stroke difference. No control; the field stays on the model for `.ori` parity |
 | `yaw` / `pitch` | number, degrees, step 1 | wraps to (−180, 180] | `camera.yaw` / `camera.pitch` (radians) | `setFolded3dCamera(id, { ...camera, yaw }, t)` spreading `orient`; `reset` = the fold's camera for that axis, keeping `orient` (the toolbar's Reset view semantics, per field) | draft; `live` = `getFolded3dOrbit(id)?.camera` via `subscribeFolded3dOrbitCamera` | `panels:cpProperties.folded.changeView` 'Change folded model view' | 3D only (hidden otherwise) |
 | `zoom` | number | `clampSimulatorZoom` [0.45, 4], step 0.05 | `camera.zoom` | same | draft | same | 3D only |
 | `scale` | number, > 0, step 0.05 | — | `placement.scale` | `setFoldedFigurePlacementAsEntry` | draft | existing 'Resize folded form' gesture label | both |
@@ -1789,7 +1791,7 @@ no double-recording inside a session. Ships alone: yes.
 - [x] `annotations/textEditSession.ts` (holds the bracket token; owns the exit logic; registers its own undo-chokepoint ender at module load, so reaching it never depends on which surface is mounted) and `annotations/textEditorRegistry.ts` (`RegisterEditorPlugin` beside `EscapeExitPlugin`); `useCpAnnotations` drops `editingTextId`/the two refs and delegates; an effect ends the session when the selection leaves the box or the box vanishes
 - [x] `annotations/textDocTransforms.ts` (`textDocSummary`, `setDocAlign`, `setDocBlock`, `setDocColor`, pure JSON, new object identities; every block written in Lexical's full serialized shape — a paragraph's `textFormat`/`textStyle` from its first text node) + the headless-Lexical parity test (`direction` normalised: the reconciler that settles it never runs headless); `TEXT_COLORS` lifted to `textFormatting.ts`; `textBlockLabel`, `textAlignLabel`, `textColorLabel` in `enumLabels.ts`
 - [x] `annotations/textProperties.ts` + `useTextProperties.ts`: the two write paths (the editing path drives the editor block by block and node by node with no select-all, so the caret's node moves with its block and the selection needs no restoring; `SKIP_DOM_SELECTION_TAG` leaves the DOM selection alone); the colour is a select with swatches rather than segmented swatches — six named colours with labels fit the pane and mirror the toolbar's old control (`PropertyOption.swatch`, `SelectRowOption.swatch`); alignment is an icon-only segmented row (`PropertyOption.icon` names, `SegmentedControl.iconOnly`); the size is a percentage of the sheet edge (`ORIEDITA_PAPER_MAX − MIN`), not model units × 100 — the `0.04` default the plan read the unit from is a stale validator fallback, real boxes are ~17 units; catalog tests for mixed alignment (`null`), the host's write paths, the fixed colour set
-- [x] `TextToolbar` trimmed to marks + delete (its dead CSS and the folded menu's form CSS removed); `CpTextEditor` takes `id`; `CpTextEditor.test.tsx` updated
+- [x] `TextToolbar` trimmed to marks + delete (its dead CSS and the folded menu's form CSS removed); `CpTextEditor` takes `id`; `CpTextEditor.test.tsx` updated — **reverted in Phase H**: the per-selection controls are back on the toolbar
 - [x] `annotations/textSheetWiring.test.tsx` (the text layer and the pane on one store; the panel cannot mount the editor in jsdom, which has no canvas view): aligning an idle box is one entry on the stored doc; aligning while editing drives the editor, keeps the session open with nothing recorded, and records one 'Edit text' entry on exit; the undo chokepoint commits the session first. `CpPropertiesPanel.test.tsx` aligns an idle box through the panel
 - [x] i18n for the text section; 8 locales
 
@@ -1811,6 +1813,21 @@ every verb. Ships alone: yes.
 Validation: `npm run lint:web && npm run typecheck:web && npm run i18n:check && npm run test:web`
 (`cp-workspace/regions`, wiring); browser: a check toggled from the pane
 updates the chip's count; region opacity slides as one entry.
+
+### Phase H — Follow-ups from the first review
+
+Six fixes from Zach's pass over Phases A–F, each browser-verified.
+
+- [x] A press that closes a Radix select's list lands on `<html>` (the list puts `pointer-events: none` on the body) and read as a press outside the simulation window, dropping the selection and emptying the pane mid-edit: `useBlurOnPressOutside` ignores a press whose target is outside `document.body`
+- [x] Text opacity did nothing while the box was being edited: the row sat disabled because the session holds the layer's bracket. `useTextProperties` forks the box-level fields like the document ones — idle through the bracket, editing written straight into the store inside the session's entry (`textSheetWiring.test.tsx`: one 'Adjust opacity' entry idle; none until exit while editing, then one 'Edit text' that undoes the opacity with the text)
+- [x] Anti-alias hidden: `foldedAppearanceSupport('antiAlias')` is `not-applicable` on every figure (see §10), the catalog row and its i18n key removed
+- [x] The Camera rows' reset buttons overlapped the steppers: `.control-row__value--input` is a fixed 112 px box, so `FieldRow` marks a value with a reset (`control-row__value--reset`) and the input kind widens by the reset's 22 px — the stepper keeps its width and the reset trails it, as a colour field's clear does
+- [x] The pane gives back the tab it displaced: `usePropertiesPaneActivation` remembers the group's active tab when *it* reveals Properties, subscribes to that group's `onDidActivePanelChange` (fired synchronously by `setActive`, and only for that group's tab — verified against dockview) so a manual tab change ends the reveal, and on a release transition activates the displaced tab, deferred past the pointer gesture like the reveal. A Properties tab the user had on top, or chose after the reveal, stays through a release; a release followed by another object before the pointer comes up flips nothing (`usePropertiesPaneActivation.test.tsx`, a two-tab fake group)
+- [x] The text toolbar's per-selection block preset, alignment and colour are back, beside the marks: `annotations/textSelectionFormatting.ts` (`$readSelectionFormat`, `setSelectionBlock`/`Align`/`Color` — the editor's own idioms, no bracket; `$getSelectionStyleValueForProperty` for the colour rather than a regex on `selection.style`); Radix selects with the companion attribute on their portalled lists, refocusing the editor on close so the next keystroke lands in the text; `'default'` stands in for `''` as in the pane's colour select
+
+Open from the same pass: the pane's alignment/style/colour act on the whole
+box while the toolbar's act on the selection — a design question (whole-box vs
+follow-the-caret while editing), not a bug; decided with Zach before any code.
 
 ### Phase G (optional, Rust) — Kernel render-input cache for flat figures
 
