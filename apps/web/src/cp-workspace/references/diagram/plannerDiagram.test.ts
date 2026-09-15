@@ -1761,3 +1761,102 @@ describe('a grid step', () => {
     expect(finished.sheet.width).toBeCloseTo(400, 6);
   });
 });
+
+// The receiving line of a line-onto-line fold is drawn as the piece the fold
+// lands crease on. Markhor's step 80 folded the left edge onto the
+// antidiagonal, creased in two pieces, one of them starting at the fold's
+// own vertex — and in the document frame (a 400-unit sheet) that piece was
+// judged a few billionths off the fold, dropped, and the card showed the
+// piece at the far corner instead, which the edge never reaches.
+describe('a receiving piece that starts at the fold, in the document frame', () => {
+  const base = plannerSequenceFixture();
+  const template = base.steps[1]!;
+  const anti = { n: [Math.SQRT1_2, Math.SQRT1_2] as [number, number], d: Math.SQRT1_2 };
+  const fold = { n: [0.9238795325, 0.3826834324] as [number, number], d: 0.3826834324 };
+  const seg = (a: [number, number], b: [number, number]): PrecreasePlanSegment => [a, b];
+  const antidiagonal = {
+    ...template,
+    id: 1,
+    line_id: 4,
+    line: anti,
+    segment: seg([1, 0], [0, 1]),
+    witnesses: [],
+    chosen: null,
+    cp_line_ids: [1],
+    cp_spans: [seg([1, 0], [0.75, 0.25]), seg([0.375, 0.625], [0, 1])],
+    made: [seg([1, 0], [0.75, 0.25]), seg([0.375, 0.625], [0, 1])],
+    side: 'front' as const,
+  };
+  const edgeOnto = {
+    ...template,
+    id: 2,
+    line_id: 5,
+    line: fold,
+    segment: seg([0.41421356, 0], [0, 1]),
+    witnesses: [
+      {
+        axiom: 3,
+        inputs: [
+          { kind: 'edge' as const, id: 0, side: 'left' as const },
+          { kind: 'line' as const, id: 4 },
+        ],
+        root: 0,
+        who_moves: [0],
+        hard: false,
+        visible: true,
+        skinny: false,
+        ease: 1,
+        err: 0,
+      },
+    ],
+    chosen: 0,
+    cp_line_ids: [2],
+    cp_spans: [seg([0.3017767, 0.2714466], [0, 1])],
+    made: [seg([0.3017767, 0.2714466], [0, 1])],
+    side: 'back' as const,
+  };
+  const sequence: PrecreaseSequence = {
+    ...base,
+    steps: [antidiagonal, edgeOnto],
+    lines: [
+      { id: 0, tag: 'edge', step: null },
+      { id: 1, tag: 'edge', step: null },
+      { id: 2, tag: 'edge', step: null },
+      { id: 3, tag: 'edge', step: null },
+      { id: 4, tag: 'cp', step: 1 },
+      { id: 5, tag: 'cp', step: 2 },
+    ],
+    points: [],
+  };
+  const highlights = (model: ReturnType<typeof plannerStepDiagram>) =>
+    model?.primitives.flatMap((p) => (p.kind === 'line' && p.style === 'highlight' ? [p] : [])) ?? [];
+  const near = (p: readonly [number, number], q: readonly [number, number]) =>
+    Math.hypot(p[0] - q[0], p[1] - q[1]) < 1e-3;
+  const drawsPiece = (
+    model: ReturnType<typeof plannerStepDiagram>,
+    a: [number, number],
+    b: [number, number]
+  ) =>
+    highlights(model).some(
+      (p) => (near(p.from, a) && near(p.to, b)) || (near(p.from, b) && near(p.to, a))
+    );
+
+  it('shows the piece the edge lands on, not the far one, on the unit square', () => {
+    const model = plannerStepDiagram(sequence, unitFrame(sequence), 1);
+    expect(drawsPiece(model, [0.375, 0.625], [0, 1])).toBe(true);
+    expect(drawsPiece(model, [1, 0], [0.75, 0.25])).toBe(false);
+  });
+
+  it('shows the same piece on a 400-unit sheet placed at −200', () => {
+    const points = planModelPoints(sequence);
+    const mapped = new Float64Array(points.length);
+    for (let i = 0; i < points.length; i += 2) {
+      mapped[i] = 400 * points[i]! - 200;
+      mapped[i + 1] = 400 * points[i + 1]! - 200;
+    }
+    const frame = modelFrame(sequence, decodePlanModel(sequence, mapped));
+    const model = plannerStepDiagram(sequence, frame, 1, { earlier: 'unpatterned' });
+    expect(drawsPiece(model, [-50, 50], [-200, 200])).toBe(true);
+    expect(drawsPiece(model, [200, -200], [100, -100])).toBe(false);
+  });
+});

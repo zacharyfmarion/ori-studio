@@ -616,7 +616,14 @@ function sideOf(chord: DiagramSegment, p: Point): number {
   const [a, b] = chord;
   const cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
   const scale = Math.hypot(b.x - a.x, b.y - a.y);
-  return Math.abs(cross) <= 1e-9 * scale ? 0 : Math.sign(cross);
+  // `cross / scale` is the point's distance from the fold's line, so this is
+  // "within a billionth of the chord's length" — relative, like everything
+  // else here. Measured against the chord's length alone it was a billionth
+  // of a *unit*, which the unit-square frame met and the document frame did
+  // not: on a 400-unit sheet a crease starting at the fold's own vertex sat
+  // a few billionths off it, was judged on the wrong side, and was dropped
+  // from the card in favour of a piece the fold never lands on (markhor 80).
+  return Math.abs(cross) <= 1e-9 * scale * scale ? 0 : Math.sign(cross);
 }
 
 /**
