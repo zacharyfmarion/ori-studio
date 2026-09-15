@@ -567,6 +567,41 @@ a.context-menu__item {
   color: currentcolor;
 }
 
+/* A colour row's value, painted, in the leading slot where a sibling's icon
+   sits. The native input lies over it invisibly so the engine's picker anchors
+   beside the swatch rather than at the row's origin, and `pointer-events: none`
+   sends a click to the row instead — whose select opens the picker, so it
+   cannot open twice. */
+.context-menu__swatch {
+  position: relative;
+  display: block;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+}
+
+.context-menu__color-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Up while a colour row's picker is open: the press that closes the picker
+   lands here and goes no further. Below the menu, so its rows stay usable, and
+   above everything else — see ContextMenuColorItem. */
+.context-menu__picker-shield {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-portaled-popover) - 1);
+}
+
 .panel-shell {
   display: flex;
   flex-direction: column;
@@ -1462,27 +1497,6 @@ a.context-menu__item {
   flex-direction: column;
   width: min(980px, calc(100vw - var(--space-6)));
   max-height: calc(100vh - var(--space-6));
-}
-
-/*
- * Eleven controls, on the shortest screen the app runs on. The dropdown this
- * replaces could size to its content because it hung over the canvas; a modal is
- * centred, so it caps and scrolls instead — otherwise the header and the last
- * colour field leave the viewport together.
- */
-.folded-figure-modal__document {
-  display: flex;
-  flex-direction: column;
-  max-height: calc(100vh - var(--safe-top) - var(--safe-bottom) - var(--space-6));
-}
-
-.folded-figure-modal__body {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow-y: auto;
-  /* Reaching the end must not start scrolling the canvas behind it. */
-  overscroll-behavior: contain;
 }
 
 .simple-modal__header,
@@ -6471,24 +6485,10 @@ button.cp-folded-figure-toolbar__notice:hover {
   margin-inline: 1px;
 }
 
-.cp-folded-figure-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-
 .cp-line-type-toolbar__button {
   min-width: 28px;
   font-size: 0.72rem;
   font-weight: 800;
-}
-
-/* A figure that no longer matches its creases, in the folded-models list. Reads
-   as a state rather than another case number. `.cp-folded-model-status` used to
-   carry this warning colour; that readout is gone, so the colour moved here. */
-.folded-figure-menu__figure small[data-stale] {
-  color: var(--status-warning);
-  font-weight: 700;
 }
 
 .cp-view-controls-panel__empty {
@@ -7071,98 +7071,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   min-height: 26px;
   padding: 0 10px;
   text-align: center;
-}
-
-.folded-figure-menu__panel {
-  width: min(286px, calc(100vw - var(--space-6)));
-  max-width: calc(100vw - var(--space-6));
-  padding: 8px;
-  gap: 6px;
-  color: var(--text-secondary);
-  white-space: normal;
-}
-
-.folded-figure-menu__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: 0 2px 5px;
-  border-bottom: 1px solid var(--border-subtle);
-  color: var(--text-primary);
-  font-size: 0.75rem;
-  font-weight: 760;
-}
-
-.folded-figure-menu__header span:last-child {
-  min-width: 0;
-  max-width: 150px;
-  overflow: hidden;
-  color: var(--text-tertiary);
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.folded-figure-menu__list {
-  display: grid;
-  max-height: 118px;
-  overflow: auto;
-  gap: 3px;
-  padding-right: 2px;
-}
-
-.folded-figure-menu__figure {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  min-height: 28px;
-  padding: 0 7px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-}
-
-.folded-figure-menu__figure:hover {
-  background: var(--bg-surface);
-  color: var(--text-primary);
-}
-
-.folded-figure-menu__figure[data-active] {
-  border-color: color-mix(in srgb, var(--accent-primary) 42%, transparent);
-  background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
-  color: var(--text-primary);
-}
-
-.folded-figure-menu__figure span {
-  min-width: 0;
-  overflow: hidden;
-  font-size: 0.72rem;
-  font-weight: 740;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.folded-figure-menu__figure small {
-  color: var(--text-tertiary);
-  font-size: 0.64rem;
-  font-weight: 680;
-}
-
-/* The picker's line for a document with no figure yet. The appearance form
-   that used to follow the list is the Properties pane's. */
-.folded-figure-menu__empty {
-  margin: 0;
-  padding: 4px 7px 6px;
-  color: var(--text-tertiary);
-  font-size: 0.7rem;
-  line-height: 1.35;
 }
 
 .design-layer-menu {
@@ -9707,7 +9615,6 @@ button.bp-packing-alert:focus-visible {
   .context-menu__item,
   .viewport-toolbar__dropdown-item,
   .symmetry-menu__item,
-  .folded-figure-menu__figure,
   .menu-dropdown__item {
     min-height: var(--touch-target);
   }

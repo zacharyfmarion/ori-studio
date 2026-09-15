@@ -16,6 +16,7 @@
 
 import type { SerializedEditorState } from 'lexical';
 import type { AnnotationBase } from './annotationBase';
+import type { AnnotationBox } from './annotationTransform';
 
 export interface TextAnnotation extends AnnotationBase {
   /** Discriminant marking this annotation as a rich-text box. */
@@ -40,7 +41,8 @@ export interface TextAnnotation extends AnnotationBase {
   autoHeight: boolean;
   /**
    * Minimum box height in model units (0 = none). A drag-created box seeds this
-   * with the dragged height, so the box starts that tall and grows *downward*
+   * with the dragged height, and a resize handle sets it to the dragged height
+   * ({@link textBoxResizeUpdate}), so the box is that tall and grows *downward*
    * only if content overflows — content is never hidden. Click-created boxes
    * leave it 0 and size purely to their content.
    */
@@ -236,6 +238,22 @@ export function textBoxFromDragCorners(
     height: Math.max(height, minExtent),
     rotation,
   };
+}
+
+/**
+ * The update a resize handle writes to a text box.
+ *
+ * A text box's height is a floor, not a size: the DOM box is `min-height` tall
+ * and grows past that only when the content needs more (see
+ * {@link TextAnnotation.minHeight}).
+ * So a dragged height has to land in `minHeight` too. Written to `height` alone
+ * it moved the centre for a box the DOM never shrank — the text slid by half the
+ * drag while the selection frame shrank around nothing.
+ *
+ * Moves and rotations carry no height and pass through untouched.
+ */
+export function textBoxResizeUpdate(patch: Partial<AnnotationBox>): TextAnnotationUpdate {
+  return patch.height === undefined ? patch : { ...patch, minHeight: patch.height };
 }
 
 /** Validate an array of text annotations from `.osf`, dropping invalid entries. */

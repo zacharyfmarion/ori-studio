@@ -227,6 +227,14 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
   // when another consumer loads its own model in between, this runtime's replies
   // are dropped in the worker instead of arriving with the wrong geometry.
   const tokenRef = useRef<number | undefined>(undefined);
+  // What this runtime last forwarded, so a new session can open on it. A
+  // session is made by `load`, and the worker can only carry a view forward
+  // from a session it still has — a fold that went null in between (a rebuild
+  // that re-derives the artifacts) released the old one first, and the viewport
+  // pushes only when the GPU path first turns on. The runtime is the one thing
+  // that knows a session was replaced, so it re-asserts the inputs itself.
+  const lastCameraRef = useRef<SimulatorCameraRequest | null>(null);
+  const lastRenderSettingsRef = useRef<RenderSettings | null>(null);
   // A camera or settings redraw produces a new image but no new solver state, so
   // it reuses the last frame's scalars rather than inventing zeros — which would
   // make the readouts flicker every time the user orbits.
@@ -320,6 +328,9 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
   useEffect(() => {
     if (!fold) {
       setStatus('idle');
+      // An error belongs to a model, and this one is gone: a rebuild that
+      // passes through here must not keep reporting the failure it is fixing.
+      setError(null);
       setModel(null);
       // Nothing to show and nothing to render: hand the model back rather than
       // leaving it resident until something else pushes it out.
@@ -370,6 +381,13 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
           prepare: { triangulate },
           solver: { ...solverOptions, foldProfile },
           preferGpu: wantsGpu,
+          // Open on what was last forwarded, so a replacement session's first
+          // frame is already right. Nothing yet on a first load, which the
+          // viewport covers when the GPU path turns on.
+          view: {
+            camera: lastCameraRef.current ?? undefined,
+            settings: lastRenderSettingsRef.current ?? undefined,
+          },
         });
         // A load that has been cancelled or superseded still *made* a session in
         // the worker — `load` registers it before it returns. Abandoning the
@@ -656,8 +674,11 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
 
   const setCamera = useCallback(
     (view: OrbitView, width: number, height: number) => {
-      if (!gpuActiveRef.current) return;
       const payload = { view, width, height };
+      // Remembered before the gate: it is the consumer's view either way, and
+      // the next session opens on it.
+      lastCameraRef.current = payload;
+      if (!gpuActiveRef.current) return;
       if (cameraBusyRef.current) {
         pendingCameraRef.current = payload;
         return;
@@ -668,6 +689,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
   );
 
   const setRenderSettings = useCallback((settings: RenderSettings) => {
+    lastRenderSettingsRef.current = settings;
     if (!gpuActiveRef.current) return;
     void clientRef.current
       ?.setRenderSettings(settings, tokenRef.current)

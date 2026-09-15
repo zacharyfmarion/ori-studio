@@ -91,6 +91,12 @@
     "regionLabel": "Padrão de vincos detectado",
     "repairLabel": "Adicionar o padrão de vincos detectado para corrigir",
     "reviewAndFix": "Revisar e corrigir",
+    "rights": {
+      "attest": "Confirmo que este padrão de vincos foi obtido legalmente e que tenho o direito de usá-lo.",
+      "back": "Voltar",
+      "continue": "Continuar",
+      "lead": "Padrões de vincos são obra de seus designers. Detecte apenas um padrão que você tenha o direito de usar: um que você mesmo criou, um que foi publicado para que outros dobrem, ou um cujo designer lhe deu permissão. A imagem é processada neste dispositivo e nunca é enviada."
+    },
     "runningModel": "Executando o modelo",
     "stopping": "Parando…",
     "stopSolve": "Parar",

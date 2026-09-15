@@ -705,7 +705,6 @@ describe('workspace capabilities', () => {
     expect(sim['view.simulate'].visible).toBe(true);
     expect(sim['view.design'].visible).toBe(true);
     expect(sim['file.open'].visible).toBe(true);
-    expect(sim['simulator.refresh'].visible).toBe(true);
     // Undo/redo remain visible but inert — the simulate context has no history.
     expect(sim['edit.undo'].visible).toBe(true);
     expect(sim['edit.undo'].enabled).toBe(false);

@@ -109,8 +109,7 @@ export type WorkspaceCapabilityId =
   | 'cp.organizeCircles'
   | 'cp.setActiveCreaseAngle'
   | 'insert.image'
-  | 'insert.text'
-  | 'simulator.refresh';
+  | 'insert.text';
 
 export interface WorkspaceCapability {
   enabled: boolean;
@@ -236,10 +235,6 @@ export function getWorkspaceCapabilities(
   const canExportEditableCp = input.hasEditableCreasePattern;
   const canExportCreasePattern = hasCreasePattern && !isBusy;
   const canEditCp = input.hasEditableCreasePattern && !isBusy;
-  const canRefreshFoldArtifacts =
-    !isBusy &&
-    (input.hasEditableCreasePattern ||
-      (treeMode && (input.creaseCount > 0 || input.facetCount > 0)));
   const hasSelectedCpLines = input.oristudioCpSelectedLineCount > 0;
   const solvablePatternCount = input.oristudioCpSolvablePatternCount ?? 0;
   // Scope is a *pattern* — the closed-boundary component — never the selection
@@ -1044,13 +1039,6 @@ export function getWorkspaceCapabilities(
             'Choose the fold angle new mountain and valley creases take'
           )
         : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
-    ),
-    'simulator.refresh': capability(
-      canRefreshFoldArtifacts,
-      t('common:capability.refresh', 'Refresh'),
-      canRefreshFoldArtifacts
-        ? busyOr(t('common:capability.refreshSimulatorModel', 'Refresh simulator model'), input.status, t)
-        : t('common:capability.buildOrEditCpBeforeRefreshing', 'Build or edit a crease pattern before refreshing the simulator')
     ),
   };
 

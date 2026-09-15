@@ -222,6 +222,7 @@ the person chose it or is following their OS. Two things it is deliberately not:
 | `fold attempted` | `mode` (`flat`/`spatial`), `crease_count_bucket`, `non_classic_count_bucket` | `G`, or the Fold button, on a non-empty foldable selection. `mode` is decided from the **scoped** selection, before any dialog |
 | `fold completed` | `mode`, `verdict` (`folded`/`no-solutions`/`contradiction`/`not-drawable`/`simulated`/`located`/`cancelled`/`halted`/`error`/`local-crossing`/`transversal-crossing`/`no-layer-order`), `solution_count_bucket`, `elapsed_ms_bucket`, optional `refusal`, optional `order_reason` | Every terminal branch of a fold, so it pairs one-to-one with `fold attempted`. `refusal` is the kernel's `Fold3dRefusal` code (ten values) and rides on the `simulated`/`located`/`cancelled` arms, which is how a refusal keeps its reason without a verdict of its own; `order_reason` is the `Fold3dOrderReason` code (eight values) on `no-layer-order`. `located` is the refusal dialog's offer to show the vertex it named being taken — the one value that says whether pointing at the diagnostic entry earned its place, and not a `cancelled`, because that user went to fix the pattern rather than giving up. `halted` is the user stopping a *running* fold, kept apart from `cancelled` (declining a dialog before any work happened) because the difference between the two is the whole point of measuring this. `elapsed_ms_bucket` is measured from the press, on its own ladder (up to an hour) rather than the shared duration one, and rides on every verdict — "how long people tolerate" is only readable against "how long folds take" |
 | `fold solution cycled` | `direction` (`next`/`wrap`), `solution_count_bucket` | The one solution verb on a folded figure |
+| `folded figure styled` | `option` (`display_style`/`side`/`front_color`/`back_color`/`line_color`/`shadow`), `mode` (`flat`/`spatial`) | A row of a folded figure's Style menu was used, from the toolbar or the context menu — both bind the same catalog, so one event covers both. Fired once per adjustment: a colour drag counts when it starts, never per pointer move. Never the colour itself: a paper colour is the user's work, and the question is which rows earn their place |
 | `folded figure orbited` | none | A 3D folded figure was turned by dragging it. Fired once per drag, on release, and only when the camera actually moved — never per pointer move, and never with an angle: a yaw/pitch pair is a measured value about someone's design |
 | `folded figure zoomed` | none | A 3D folded figure's window was zoomed with the wheel. Fired once per burst, when the wheel goes quiet, on the same terms as the orbit — no zoom factor, for the same reason |
 | `folded figure rehydrated` | `trigger` (`background`/`press`), `outcome` (`adopted`/`refused`) | A 3D figure reopened from a file was refolded so it can be turned again. Fired only when a fold was actually attempted — never for a figure the rules skip — and it is the only signal there is that this worked, because the whole process is deliberately invisible. `refused` means the refold did not reproduce the picture on screen, so it was discarded |
@@ -230,8 +231,9 @@ the person chose it or is following their OS. Two things it is deliberately not:
 | `fold warning accepted` | `source`, `accepted`, `suppressed_future_warnings` | The user answered that warning |
 | `fold simulation run` | `source` (`fold-3d-refused`/`fold-3d-no-layer-order`), `crease_count_bucket` | The simulator was opened instead of a 3D fold — because the fold was refused, or because a placed figure's layers could not be ordered |
 | `cp detect image loaded` | `source` (`picker`/`drop`), `paper_found` | An image reached the Detect dialog and was rectified. `paper_found` is whether the paper's outline was found automatically, which is the auto-crop's hit rate |
+| `cp detect rights answered` | `accepted` | The rights gate between an image loading and Detect was answered: `true` is Continue, `false` is Back to the picker. A close at the gate is a `cp detect dismissed` at `confirm` instead, not a `false` here. No "shown" event — every `cp detect image loaded` shows it |
 | `cp detect started` | — | Image→CP detection begins |
-| `cp detect dismissed` | `stage` (`upload`/`crop`/`detecting`/`review`) | The dialog was closed without importing, and where it stood. The funnel's drop-off, counted rather than inferred |
+| `cp detect dismissed` | `stage` (`upload`/`confirm`/`crop`/`detecting`/`review`) | The dialog was closed without importing, and where it stood. The funnel's drop-off, counted rather than inferred |
 | `cp detect completed` | `succeeded`, on failure `reason` (`registry_unavailable`/`registry_invalid`/`download_failed`/`integrity`/`worker_lost`/`inference`), on success optional `execution_provider` (`webgpu`/`wasm`), `wasm_threads_bucket`, `session_create_ms_bucket`, `inference_ms_bucket`, `model_source` (`installed`/`downloaded`) | Detection finishes. The runtime facts ride only on success: which provider ran, how many wasm threads it had, how long the session took to build and the inference to run, and whether the model's bytes were already on the device — the spread across devices is the point of measuring |
 | `cp detect imported` | `mode`, `outcome`, `repair_sites` (bucketed) | A detected CP is imported. `outcome` is how the pattern came out — the five solver endings under their own names (`solved`, `ambiguous`, `timeout`, `rejected`, `malformed`), plus `recognized` (not solved, because the topology was flagged) and `cancelled`. `ambiguous` is the one to watch: the solver kept its answer and the pattern got better, but not to the precision the foldability check holds, so it is an improvement rather than a success |
 | `cp detect cancelled` | `kind` (`region`/`detect-import`/`command`), `stage`, `duration_ms_bucket` | A running exact solve was stopped by the user. Deliberately not a verdict on `cp exact solve completed` — a stopped run reached none of the solver's endings, and counting it there would put it in the feature's failure rate |
@@ -274,19 +276,23 @@ anyone using this, and does it work" gets answered:
 
 1. `command invoked` with `action: file.detectCpImage` — the dialog opened.
 2. `cp detect image loaded` — an image was chosen and rectified.
-3. `cp detect started` — Detect was pressed. The first press on a device is
+3. `cp detect rights answered` — the user confirmed they are entitled to the
+   image (`accepted: true`), or went back to the picker (`false`). The gate is
+   asked for every image, so a second image loaded in one session is a second
+   pair of steps 2 and 3.
+4. `cp detect started` — Detect was pressed. The first press on a device is
    also the model download; `cp detect model downloaded` with
    `source: first-run` marks it.
-4. `cp detect completed` — `succeeded` and, on success, the runtime buckets;
+5. `cp detect completed` — `succeeded` and, on success, the runtime buckets;
    on failure, the `reason`. Success rate of the model run.
-5. `cp detect imported` — the pattern was added, with `outcome` saying how far
+6. `cp detect imported` — the pattern was added, with `outcome` saying how far
    the solve got (`solved` is the clean ending; `ambiguous` improved the
    pattern without reaching the foldability check).
-6. `cp exact solve completed` and `cp exact solve resolved` — for a pattern
+7. `cp exact solve completed` and `cp exact solve resolved` — for a pattern
    added with a solve region, whether the solve landed and whether the user
    kept it.
 
-`cp detect dismissed` carries the stage at every exit before step 5, so the
+`cp detect dismissed` carries the stage at every exit before step 6, so the
 drop-off between any two steps is a count. Nothing in the funnel carries the
 image, the pattern, or the model id.
 

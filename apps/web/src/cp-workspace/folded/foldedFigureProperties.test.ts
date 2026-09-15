@@ -114,11 +114,16 @@ describe('buildFoldedFigureProperties', () => {
     }
   });
 
-  it('hides the side and disables shadows with a reason on a 3D figure, and adds the camera', () => {
+  it('disables side and shadows with their reasons on a 3D figure, and adds the camera', () => {
     const sheet = sheetFor(SPATIAL);
     expect(sheet.sections.map((s) => s.id)).toEqual(['appearance', 'camera', 'placement']);
-    expect(field(sheet, 'side').support).toBe('not-applicable');
-    expect(visibleIds(sheet)).not.toContain('side');
+    // Shown disabled, with the Style menu's own hint: a control that vanished
+    // between figure kinds would read as a bug.
+    expect(field(sheet, 'side')).toMatchObject({
+      support: 'unsupported',
+      reason: 'Turn a 3D model with Other side',
+    });
+    expect(visibleIds(sheet)).toContain('side');
     expect(field(sheet, 'shadows')).toMatchObject({
       support: 'unsupported',
       reason: 'Shadows are not drawn for a 3D folded model yet',
@@ -144,7 +149,8 @@ describe('buildFoldedFigureProperties', () => {
     const sheet = sheetFor(FLAT, d);
     const style = field(sheet, 'displayStyle');
     if (style.kind !== 'select') throw new Error('select');
-    expect(style.options.map((o) => o.label)).toEqual(['Paper', 'X-ray', 'Wireframe']);
+    // The kind's choices in the Style menu's order and words.
+    expect(style.options.map((o) => o.label)).toEqual(['Paper', 'Wireframe', 'X-ray']);
     style.commit('Wire2');
     expect(d.setDisplayStyle).toHaveBeenCalledWith('Wire2');
 

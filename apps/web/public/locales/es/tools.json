@@ -281,7 +281,7 @@
     "foldForward": "Avanzar plegado",
     "foldStart": "Ir a plano",
     "playPause": "Reproducir / pausar plegado",
-    "replay": "Repetir desde plano",
+    "replay": "Reiniciar simulación",
     "resetView": "Restablecer vista del simulador",
     "toggleCreases": "Líneas de pliegue",
     "toggleFaces": "Caras",

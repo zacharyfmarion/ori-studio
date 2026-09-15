@@ -57,6 +57,8 @@ function deps(): FoldedFigureActionDeps {
     resetView: () => {},
     setUpright: () => {},
     setDisplayStyle: () => {},
+    updateModel: () => {},
+    endModelGesture: () => {},
     foldAnother: () => {},
     duplicate: () => {},
     remove: () => {},
@@ -127,14 +129,16 @@ describe('buildFoldedFigureActions, gated', () => {
     expect(label(spatialActions)).not.toBe(label(flatActions));
     // Everything else a 3D figure genuinely has stays.
     expect(spatialActions.map((action) => action.id)).toEqual(
-      expect.arrayContaining(['display-style', 'another', 'duplicate', 'delete'])
+      expect.arrayContaining(['style', 'another', 'duplicate', 'delete'])
     );
   });
 
   it('offers a 3D figure the whole style list', () => {
-    const choice = buildFoldedFigureActions(spatialFigure, deps()).find(
-      (action) => action.id === 'display-style'
+    const group = buildFoldedFigureActions(spatialFigure, deps()).find(
+      (action) => action.kind === 'group'
     );
+    if (group?.kind !== 'group') throw new Error('expected the Style group');
+    const choice = group.items.find((item) => item.id === 'display-style');
     expect(choice?.kind).toBe('choice');
     if (choice?.kind !== 'choice') throw new Error('expected the display-style choice');
     expect(choice.options.map((option) => option.id)).toEqual([

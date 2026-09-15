@@ -7,10 +7,15 @@ import type {
 import {
   buildFoldedFigureActions,
   foldedFigureFlipState,
+  foldedFigureStyleGroup,
   isFoldedFigureReady,
+  type FoldedFigureAction,
   type FoldedFigureActionDeps,
   type FoldedFigureChoice,
+  type FoldedFigureColorOption,
   type FoldedFigureCommand,
+  type FoldedFigureStyleItem,
+  type FoldedFigureToggleOption,
 } from './foldedFigureActions';
 
 // The builder only ever calls t(key, defaultValue); return the default so the
@@ -60,6 +65,8 @@ function makeDeps(overrides: Partial<FoldedFigureActionDeps> = {}): FoldedFigure
     resetView: vi.fn(),
     setUpright: vi.fn(),
     setDisplayStyle: vi.fn(),
+    updateModel: vi.fn(),
+    endModelGesture: vi.fn(),
     foldAnother: vi.fn(),
     duplicate: vi.fn(),
     remove: vi.fn(),
@@ -85,12 +92,18 @@ function command(
   return found;
 }
 
+/** A choice by id, whether it sits at the top level (export) or inside Style. */
 function choice(
   figure: OristudioCpFoldedFigureEntry,
   deps: FoldedFigureActionDeps,
   id: FoldedFigureChoice['id'] = 'display-style'
 ): FoldedFigureChoice {
-  const found = buildFoldedFigureActions(figure, deps).find(
+  const actions = buildFoldedFigureActions(figure, deps);
+  const candidates: Array<FoldedFigureAction | FoldedFigureStyleItem> = actions.flatMap(
+    (action): Array<FoldedFigureAction | FoldedFigureStyleItem> =>
+      action.kind === 'group' ? action.items : [action]
+  );
+  const found = candidates.find(
     (action): action is FoldedFigureChoice => action.kind === 'choice' && action.id === id
   );
   if (!found) throw new Error(`no ${id} choice`);
@@ -113,10 +126,10 @@ describe('buildFoldedFigureActions', () => {
     ]);
   });
 
-  it('puts the display-style choice directly after flip', () => {
+  it('puts the Style group directly after flip', () => {
     const actions = buildFoldedFigureActions(makeFigure(), makeDeps());
     expect(actions[0]).toMatchObject({ kind: 'command', id: 'flip' });
-    expect(actions[1]).toMatchObject({ kind: 'choice', id: 'display-style' });
+    expect(actions[1]).toMatchObject({ kind: 'group', id: 'style', icon: 'style' });
   });
 
   it('separates the appearance, solution and manage groups', () => {
@@ -247,7 +260,7 @@ describe('buildFoldedFigureActions', () => {
 
   describe('export', () => {
     it('is absent when the caller supplies no export support', () => {
-      expect(choiceIds(makeFigure(), makeDeps())).toEqual(['display-style']);
+      expect(choiceIds(makeFigure(), makeDeps())).toEqual([]);
     });
 
     it('sits between the solution group and the manage group', () => {
@@ -255,14 +268,7 @@ describe('buildFoldedFigureActions', () => {
       const ids = buildFoldedFigureActions(makeFigure(), deps)
         .filter((action) => action.kind !== 'separator')
         .map((action) => action.id);
-      expect(ids).toEqual([
-        'flip',
-        'display-style',
-        'another',
-        'export',
-        'duplicate',
-        'delete',
-      ]);
+      expect(ids).toEqual(['flip', 'style', 'another', 'export', 'duplicate', 'delete']);
     });
 
     it('offers image formats only — a folded figure is geometry on a page', () => {
@@ -452,5 +458,158 @@ describe('foldedFigureFlipState', () => {
   it('turns the paper over, defaulting to Front for a figure with no snapshot', () => {
     expect(foldedFigureFlipState(makeFigure())).toBe('Back1');
     expect(foldedFigureFlipState(makeFigure({ snapshot: null }))).toBe('Back1');
+  });
+});
+
+describe('foldedFigureStyleGroup', () => {
+  const FULL_MODEL = {
+    state: 'Front0',
+    front_color: { red: 255, green: 255, blue: 50 },
+    back_color: { red: 233, green: 233, blue: 233 },
+    line_color: { red: 0, green: 0, blue: 0 },
+    display_shadows: true,
+  };
+
+  function flat(model: Record<string, unknown> = FULL_MODEL) {
+    return makeFigure({
+      snapshot: { model, find_another_overlap_valid: true, discovered_fold_cases: 1 },
+    } as unknown as Partial<OristudioCpFoldedFigureEntry>);
+  }
+
+  function spatial(model: Record<string, unknown> = FULL_MODEL) {
+    return makeFigure({
+      snapshot: null,
+      folded3d: { model, verdict: { verdict: 'folded' } },
+      camera: { yaw: 0, pitch: 0, zoom: 1 },
+    } as unknown as Partial<OristudioCpFoldedFigureEntry>);
+  }
+
+  function styleChoice(figure: OristudioCpFoldedFigureEntry, deps: FoldedFigureActionDeps, id: string) {
+    const found = foldedFigureStyleGroup(figure, deps).items.find(
+      (item): item is FoldedFigureChoice => item.kind === 'choice' && item.id === id
+    );
+    if (!found) throw new Error(`no ${id} choice`);
+    return found;
+  }
+
+  function colors(figure: OristudioCpFoldedFigureEntry, deps: FoldedFigureActionDeps) {
+    return foldedFigureStyleGroup(figure, deps).items.filter(
+      (item): item is FoldedFigureColorOption => item.kind === 'color'
+    );
+  }
+
+  function shadow(figure: OristudioCpFoldedFigureEntry, deps: FoldedFigureActionDeps) {
+    const found = foldedFigureStyleGroup(figure, deps).items.find(
+      (item): item is FoldedFigureToggleOption => item.kind === 'toggle'
+    );
+    if (!found) throw new Error('no shadow toggle');
+    return found;
+  }
+
+  it('lays out render style, side, the three colours and shadow, in that order', () => {
+    const group = foldedFigureStyleGroup(flat(), makeDeps());
+    expect(group).toMatchObject({ kind: 'group', id: 'style', icon: 'style', disabled: false });
+    expect(group.items.map((item) => `${item.kind}:${item.id}`)).toEqual([
+      'choice:display-style',
+      'choice:side',
+      'separator:before-colors',
+      'color:front-color',
+      'color:back-color',
+      'color:line-color',
+      'separator:before-shadow',
+      'toggle:shadow',
+    ]);
+  });
+
+  it('checks the current render style, and routes a pick to setDisplayStyle', () => {
+    const deps = makeDeps();
+    const figure = flat();
+    const options = styleChoice(figure, deps, 'display-style').options;
+    expect(options.filter((option) => option.checked).map((option) => option.id)).toEqual([
+      'display-style-Paper5',
+    ]);
+    options[1]?.run();
+    expect(deps.setDisplayStyle).toHaveBeenCalledWith(figure, 'Wire2');
+  });
+
+  it('checks the current side, and writes the other as a discrete model change', () => {
+    const deps = makeDeps();
+    const figure = flat();
+    const side = styleChoice(figure, deps, 'side');
+    expect(side.exclusive).toBe(true);
+    expect(side.disabled).toBe(false);
+    expect(side.options.map((option) => [option.id, option.checked])).toEqual([
+      ['side-Front0', true],
+      ['side-Back1', false],
+    ]);
+    side.options[1]?.run();
+    expect(deps.updateModel).toHaveBeenCalledWith(figure, { state: 'Back1' });
+  });
+
+  it('marks neither side current for a figure loaded in an overlay state', () => {
+    const side = styleChoice(flat({ ...FULL_MODEL, state: 'Both2' }), makeDeps(), 'side');
+    expect(side.options.some((option) => option.checked)).toBe(false);
+  });
+
+  // A 3D figure's state only seeds the camera a fresh fold opens at; after
+  // that the figure re-projects at its own camera, so a side write is inert.
+  it('offers side on a 3D figure disabled, with the verb that does work as the hint', () => {
+    const side = styleChoice(spatial(), makeDeps(), 'side');
+    expect(side.disabled).toBe(true);
+    expect(side.hint).toBe('Turn a 3D model with Other side');
+    expect(side.options.some((option) => option.checked)).toBe(false);
+  });
+
+  it('shows each colour as hex and streams a change under its own gesture', () => {
+    const deps = makeDeps();
+    const figure = flat();
+    const rows = colors(figure, deps);
+    expect(rows.map((row) => [row.label, row.value])).toEqual([
+      ['Front color', '#ffff32'],
+      ['Back color', '#e9e9e9'],
+      ['Line color', '#000000'],
+    ]);
+    rows[0]?.set('#ff0000');
+    expect(deps.updateModel).toHaveBeenCalledWith(
+      figure,
+      { front_color: { red: 255, green: 0, blue: 0 } },
+      { scope: 'folded-color:folded-1:front_color', label: 'Change folded model color' }
+    );
+    rows[0]?.commit();
+    expect(deps.endModelGesture).toHaveBeenCalledWith('folded-color:folded-1:front_color');
+  });
+
+  it('falls back to the model defaults for a figure whose model is not loaded', () => {
+    const rows = colors(flat({ state: 'Front0' }), makeDeps());
+    expect(rows.map((row) => row.value)).toEqual(['#ffff32', '#e9e9e9', '#000000']);
+  });
+
+  it('reads the colours of a 3D figure from folded3d, and lets them be edited', () => {
+    const rows = colors(spatial({ ...FULL_MODEL, front_color: { red: 1, green: 2, blue: 3 } }), makeDeps());
+    expect(rows[0]).toMatchObject({ value: '#010203', disabled: false });
+  });
+
+  it('toggles shadow as a discrete model change', () => {
+    const deps = makeDeps();
+    const figure = flat();
+    const row = shadow(figure, deps);
+    expect(row).toMatchObject({ checked: true, disabled: false });
+    row.toggle();
+    expect(deps.updateModel).toHaveBeenCalledWith(figure, { display_shadows: false });
+  });
+
+  it('offers shadow on a 3D figure disabled, with the reason as its hint', () => {
+    const row = shadow(spatial(), makeDeps());
+    expect(row.disabled).toBe(true);
+    expect(row.hint).toBe('Shadows are not drawn for a 3D folded model yet');
+  });
+
+  it('disables the whole group, and every row in it, until the figure is ready', () => {
+    const loading = makeFigure({ status: 'loading', snapshot: null });
+    const group = foldedFigureStyleGroup(loading, makeDeps());
+    expect(group.disabled).toBe(true);
+    for (const item of group.items) {
+      if (item.kind !== 'separator') expect(item.disabled, item.id).toBe(true);
+    }
   });
 });

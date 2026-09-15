@@ -10,6 +10,7 @@ import {
 import type { CpOverlayView } from './CreasePatternWebglCanvas';
 import { useCpOverlayViews } from './cpOverlayViewStore';
 import { useWheelPassthrough } from '../hooks/useWheelPassthrough';
+import { isOpenLayerTarget, isShortcutEditingTarget } from '../keyboard/shortcutDispatcher';
 import { IMAGE_ROTATION_SNAP_RADIANS } from './images/cpImage';
 import {
   CORNER_RESIZE_HANDLES,
@@ -369,15 +370,18 @@ export function CanvasObjectOverlay({
   // Escape steps back one level: exit crop mode if cropping, else deselect.
   // Deselect via empty-canvas click is handled by the canvas background path
   // (CreasePatternPanel onSelect); this covers the keyboard. Ignored while
-  // typing or inline-editing a text box.
+  // typing or inline-editing a text box, and while the key is aimed into an
+  // open layer — the object's own context menu above all, whose Escape used to
+  // dismiss the menu *and* deselect the object it was about.
+  //
+  // Yields on the target and not on `defaultPrevented`: the shortcut runtime's
+  // `viewport.cancel` claims every canvas Escape ahead of this listener, so a
+  // claimed key is the normal case here, not a sign that someone else acted.
   useEffect(() => {
     if (!interactive || !selectedId || suppressedId) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      const target = event.target as HTMLElement | null;
-      if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) {
-        return;
-      }
+      if (isShortcutEditingTarget(event.target) || isOpenLayerTarget(event.target)) return;
       if (cropMode) setCropMode(false);
       else onSelect(null);
     };

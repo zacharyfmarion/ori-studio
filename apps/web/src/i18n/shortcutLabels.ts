@@ -42,7 +42,7 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
     case 'simulator.foldStart':
       return t('tools:simulator.foldStart', 'Jump To Flat');
     case 'simulator.replay':
-      return t('tools:simulator.replay', 'Replay From Flat');
+      return t('tools:simulator.replay', 'Restart Simulation');
     case 'simulator.resetView':
       return t('tools:simulator.resetView', 'Reset Simulator View');
     case 'simulator.toggleFaces':

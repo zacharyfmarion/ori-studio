@@ -1770,7 +1770,7 @@ phone modal shrink to figure pickers. Ships alone: yes.
 - [x] `foldedFigureGestureHistory.test.tsx`: one change whose round trip outlives the gesture → exactly one entry, recorded after the write; a canvas drag and an annotation drag begun during the drain are refused; a click on another object during the drain does not stale the draining commit; a burst coalesces and commits after the last write lands. The undo-mid-write case is `store.test.ts` "reconciles the kernel after an undo supersedes a write still in flight" (Phase A1)
 - [x] `folded/foldedFigureAppearance.ts`: `side` → `not-applicable` on 3D (comment reworded to say the pre-orbit seed is dropped); `foldedFigureAppearance.test.ts` updated
 - [x] `folded/foldedFigureProperties.ts` + `useFoldedFigureProperties.ts`: the full inventory in §10 (Appearance, Camera with `live` orbit values and per-field `reset`, Placement; title + `foldedFigureSubtitle`); catalog tests: 3D side hidden, 3D shadows unsupported with reason, reopened → every appearance field unsupported with the Refold reason (placement stays editable), colours continuous begin/end once, camera spreads `orient`, zoom clamped, `reset` on yaw keeps the rest. Degree/radian helpers moved to `lib/angleUnits.ts`, shared with the image sheet
-- [x] `FoldedFigureMenuButton` and `FoldedFigureModal` render `folded/FoldedFigurePicker.tsx` (the list, with an empty line for a document with no figure); `FoldedFigureControls.tsx` deleted; the 'Properties…' overflow row (`opensDialog: true`, disabled with nothing selected, `requestSidePane('cp-properties')`) beside the 'folded-models' row; the two display-style label sets collapsed onto `foldedDisplayStyleLabel`, keeping the toolbar's Paper / X-ray / Wireframe wording (already translated) and dropping `creasePattern.foldedStyle.*`
+- [x] `FoldedFigureMenuButton` and `FoldedFigureModal` render `folded/FoldedFigurePicker.tsx` (the list, with an empty line for a document with no figure); `FoldedFigureControls.tsx` deleted; the 'Properties…' overflow row (`opensDialog: true`, disabled with nothing selected, `requestSidePane('cp-properties')`) beside the 'folded-models' row; the two display-style label sets collapsed onto `foldedDisplayStyleLabel`, keeping the toolbar's Paper / X-ray / Wireframe wording (already translated) and dropping `creasePattern.foldedStyle.*` — **superseded by the merge of main (2026-09-15)**: `implementation-plans/folded-figure-style-menu.md` retired the viewport-bar dropdown and the phone modal outright (Decision 1 there), so the picker went with them and the 'Properties…' row stands beside Fold alone; the labels are main's `foldedDisplayStyleChoiceLabel`, and the pane's Display style row is 'Render as' over the kind's `styleChoices`, as the Style menu says it
 - [x] `eslint.config.js`: `OVERSIZED_PANELS['CreasePatternPanel.tsx']` 2900 → 2756, measured, with a ledger note
 - [x] i18n for the folded section; 8 locales
 
@@ -1813,6 +1813,33 @@ every verb. Ships alone: yes.
 Validation: `npm run lint:web && npm run typecheck:web && npm run i18n:check && npm run test:web`
 (`cp-workspace/regions`, wiring); browser: a check toggled from the pane
 updates the chip's count; region opacity slides as one entry.
+
+### Merge of main, 2026-09-15 — the Style menu
+
+Main landed `implementation-plans/folded-figure-style-menu.md` while this branch
+was open: the figure's appearance (Render as, Side, the three colours, Shadow)
+moved onto the floating toolbar's Style menu and the context menu's Style
+submenu, and the viewport-bar dropdown, its phone modal and their strings were
+deleted. Both surfaces stay: the menu is the floating one, the pane the docked
+one, and they read one `foldedAppearanceSupport`. Reconciled:
+
+- Main's `updateModel` / `endModelGesture` deps (a colour drag as one entry
+  under a `scope`) are implemented over this branch's `foldedFigureGesture`
+  bracket and `foldedModelWriteQueue` in `useFoldedFigures` — the scope is the
+  bracket's owner, so a menu drag, a pane slider and a canvas drag refuse each
+  other instead of clobbering, and the commit drains the kernel queue before it
+  records. Main's `foldedModelGestureLedger` (a second, snapshot-free ledger
+  for the same layer) is deleted; its `FoldedModelGesture` type lives on the
+  catalog. An open colour run is still closed by whatever verb or canvas
+  gesture comes next, as main had it.
+- `side` on a 3D figure is `unsupported` (shown disabled, main's Decision 2),
+  not `not-applicable`; the pane's row carries the menu's hint. `antiAlias`
+  stays `not-applicable` (Phase H).
+- `foldedFigureSubtitle` (Stale / Folding… / Failed / verdict / Case N) is
+  restored with its strings: main deleted it with the picker, and it is the
+  pane's subtitle.
+- The pane's Side label is `foldedFigureActions.side`; `creasePattern.side`
+  went with the dropdown.
 
 ### Phase H — Follow-ups from the first review
 

@@ -7,8 +7,8 @@ import {
 } from '../../engine/oristudioCpTypes';
 import type {
   OristudioCpDocumentState,
-  OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
+  OristudioCpFoldedFigureModel,
   FoldedFigurePlacement,
 } from '../../engine/oristudioCpTypes';
 import type { CanvasObjectBoxUpdate } from '../CanvasObjectOverlay';
@@ -20,7 +20,9 @@ import {
   foldedFigureFlipState,
   isFoldedFigureReady,
   type FoldedFigureActionDeps,
+  type FoldedModelGesture,
 } from './foldedFigureActions';
+import { foldedFigureStyleOptions } from './foldedFigureStyleEvent';
 import { isFolded3dFigure } from './foldedFigureCapabilities';
 import { canWindowFolded3dFigure, folded3dWindowIds } from './folded3dWindow';
 import { useWorkerGpuSupport } from '../../simulator/workerGpuSupport';
@@ -58,12 +60,18 @@ import {
 } from '../../lib/simulatorOrbit';
 import { emptyOristudioCpSelection } from '../../lib/creasePatternViewport';
 import { announceUprightSet } from '../../lib/uprightFeedback';
-import { ANALYTICS_EVENTS, COUNT_BUCKETS, bucketCount } from '../../analytics/events';
+import {
+  ANALYTICS_EVENTS,
+  COUNT_BUCKETS,
+  bucketCount,
+  type FoldedFigureStyleOption,
+} from '../../analytics/events';
 import { track } from '../../analytics';
 import type { GestureToken } from '../canvasObjects/gestureBracket';
 import type { CanvasLayerBinding } from '../canvasObjects/canvasLayerBindings';
 import { foldedFigureGesture } from './foldedFigureGesture';
 import { foldedFigureMenuItemsWith } from './foldedFigureMenuItems';
+import { queueFoldedModelWrite } from './foldedModelWriteQueue';
 import { deleteFoldedFigure, setFoldedFigureDisplayStyle } from './foldedFigureVerbs';
 
 /**
@@ -255,11 +263,32 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
   // and the kernel write queue — see `useFoldedFigureProperties`.
   const gestureTokenRef = useRef<GestureToken | null>(null);
 
+  // A Style-menu colour drag holds the same bracket under its own scope —
+  // one control's run of changes, `folded-color:<figure>:front_color` — so
+  // the whole drag records one entry and a canvas gesture cannot clobber it
+  // (the bracket refuses a second owner). `endModelGesture` closes it; a
+  // scope that is not open is a no-op, which is what lets a menu row commit
+  // from blur and unmount both and record once.
+  const menuGestureRef = useRef<{ gesture: FoldedModelGesture; token: GestureToken } | null>(
+    null
+  );
+
+  const endOpenMenuGesture = useCallback(() => {
+    const open = menuGestureRef.current;
+    menuGestureRef.current = null;
+    if (open && foldedFigureGesture.isOpen(open.token)) {
+      void foldedFigureGesture.commit(open.token, open.gesture.label);
+    }
+  }, []);
+
   const beginFoldedFigureGesture = useCallback(() => {
+    // A colour run nothing closed lands as its own entry first, rather than
+    // holding the layer against the drag that follows it.
+    endOpenMenuGesture();
     const token = foldedFigureGesture.begin('canvas');
     gestureTokenRef.current = token;
     return token !== null;
-  }, []);
+  }, [endOpenMenuGesture]);
 
   const commitFoldedFigureGesture = useCallback((label: string) => {
     const token = gestureTokenRef.current;
@@ -282,9 +311,12 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
    */
   const runFoldedFigureAction = useCallback(
     (label: string, action: () => void | Promise<unknown>) => {
+      // A colour run still open is committed by whatever comes next, under
+      // its own label, rather than refusing the verb.
+      endOpenMenuGesture();
       void foldedFigureGesture.run('verb', label, action);
     },
-    []
+    [endOpenMenuGesture]
   );
 
   const foldedGestureLabel = useCallback(
@@ -721,12 +753,66 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     t,
   ]);
 
-  const handleFoldedDisplayStyle = useCallback(
-    (displayStyle: OristudioCpFoldedFigureDisplayStyle) => {
-      if (!activeFoldedFigure) return;
-      void setFoldedFigureDisplayStyle(activeFoldedFigure.id, displayStyle, t);
+  const trackStyled = useCallback(
+    (figure: OristudioCpFoldedFigureEntry, options: readonly FoldedFigureStyleOption[]) => {
+      for (const option of options) {
+        track(ANALYTICS_EVENTS.foldedFigureStyled, {
+          option,
+          mode: isFolded3dFigure(figure) ? 'spatial' : 'flat',
+        });
+      }
     },
-    [activeFoldedFigure, t]
+    []
+  );
+
+  /**
+   * Write part of a figure's model from the Style menu. Without a gesture the
+   * change is one entry through the layer's verb. With one, the first change
+   * opens the bracket under `gesture.scope` and every change streams through
+   * the kernel write queue — at most one round trip in flight per figure, the
+   * rest coalesced — until {@link endFoldedModelGesture} commits, which drains
+   * the queue and records once. A run refused because another owner holds the
+   * layer (a pane slider, a canvas drag) writes nothing.
+   */
+  const updateFoldedModel = useCallback(
+    (
+      figure: OristudioCpFoldedFigureEntry,
+      update: Partial<OristudioCpFoldedFigureModel>,
+      gesture?: FoldedModelGesture
+    ) => {
+      if (!gesture) {
+        trackStyled(figure, foldedFigureStyleOptions(update));
+        runFoldedFigureAction(
+          t('panels:creasePattern.changeFoldedModel', 'Change folded model'),
+          () => updateOristudioCpFoldedFigureModel(figure.id, update)
+        );
+        return;
+      }
+      const open = menuGestureRef.current;
+      if (
+        !open ||
+        open.gesture.scope !== gesture.scope ||
+        !foldedFigureGesture.isOpen(open.token)
+      ) {
+        // Another run still open closes first, as its own entry. One event
+        // per run, here, rather than one per pointer move.
+        endOpenMenuGesture();
+        const token = foldedFigureGesture.begin(gesture.scope);
+        if (!token) return;
+        menuGestureRef.current = { gesture, token };
+        trackStyled(figure, foldedFigureStyleOptions(update));
+      }
+      queueFoldedModelWrite(figure.id, update);
+    },
+    [endOpenMenuGesture, runFoldedFigureAction, updateOristudioCpFoldedFigureModel, trackStyled, t]
+  );
+
+  const endFoldedModelGesture = useCallback(
+    (scope: string) => {
+      if (menuGestureRef.current?.gesture.scope !== scope) return;
+      endOpenMenuGesture();
+    },
+    [endOpenMenuGesture]
   );
 
   const handleDuplicateFoldedFigure = useCallback(() => {
@@ -800,7 +886,12 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
                   state: foldedFigureFlipState(figure),
                 })
             ),
-      setDisplayStyle: (figure, style) => void setFoldedFigureDisplayStyle(figure.id, style, t),
+      setDisplayStyle: (figure, style) => {
+        trackStyled(figure, ['display_style']);
+        void setFoldedFigureDisplayStyle(figure.id, style, t);
+      },
+      updateModel: updateFoldedModel,
+      endModelGesture: endFoldedModelGesture,
       foldAnother: (figure) =>
         runFoldedFigureAction(
           t('panels:creasePattern.anotherSolutionAction', 'Show another solution'),
@@ -869,6 +960,9 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     }),
     [
       updateOristudioCpFoldedFigureModel,
+      updateFoldedModel,
+      endFoldedModelGesture,
+      trackStyled,
       setOristudioCpFolded3dCamera,
       foldAnotherOristudioCpFigure,
       duplicateOristudioCpFoldedFigure,
@@ -968,7 +1062,6 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     gestureLabel: foldedGestureLabel,
     applyBoxUpdate: handleFoldedFigureBoxUpdate,
     foldModel: handleFoldModel,
-    setDisplayStyle: handleFoldedDisplayStyle,
     duplicate: handleDuplicateFoldedFigure,
     remove: handleDeleteFoldedFigure,
   };

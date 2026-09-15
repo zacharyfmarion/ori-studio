@@ -91,6 +91,12 @@
     "regionLabel": "Patron de plis détecté",
     "repairLabel": "Ajouter le patron de plis détecté pour le corriger",
     "reviewAndFix": "Vérifier et corriger",
+    "rights": {
+      "attest": "Je confirme que ce patron de plis a été obtenu légalement et que j’ai le droit de l’utiliser.",
+      "back": "Retour",
+      "continue": "Continuer",
+      "lead": "Les patrons de plis sont l’œuvre de leurs créateurs. Ne détectez qu’un patron que vous avez le droit d’utiliser : un patron que vous avez conçu, un patron publié pour que d’autres le plient, ou un patron dont le créateur vous a donné son accord. L’image est traitée sur cet appareil et n’est jamais envoyée."
+    },
     "runningModel": "Exécution du modèle",
     "stopping": "Arrêt…",
     "stopSolve": "Arrêter",

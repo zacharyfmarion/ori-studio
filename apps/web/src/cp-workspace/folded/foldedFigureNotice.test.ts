@@ -13,9 +13,9 @@ import {
   fold3dRefusalNotice,
   fold3dRefusalPlace,
   foldedFigureNotice,
-  foldedFigureSubtitle,
   crossingLineIds,
   foldedFigureSimulationLineIds,
+  foldedFigureSubtitle,
 } from './foldedFigureNotice';
 
 /**

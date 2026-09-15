@@ -155,7 +155,7 @@ describe('CpPropertiesPanel', () => {
     expect(text('.property-sheet__title')).toBe(FIGURE.title);
     expect(text('.property-sheet__subtitle')).toBe('Folding…');
     expect(labels()).toEqual([
-      'Display style',
+      'Render as',
       'Side',
       'Front color',
       'Back color',

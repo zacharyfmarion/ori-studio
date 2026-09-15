@@ -23,7 +23,10 @@ export interface SimulatorShortcutHandlers {
   /** Scrub the fold by a signed percentage. */
   nudgeFold: (deltaPercent: number) => void;
   setFoldPercent: (percent: number) => void;
-  replay: () => void;
+  /** Back to the beginning of the fold — paper flat, solver at rest — with the camera left alone. */
+  rewind: () => void;
+  /** Start over: {@link rewind}, and the view back to its opening transform. */
+  restart: () => void;
   resetView: () => void;
   zoomBy: (factor: number) => void;
   /** Toggle a render setting. Optional: an inline window has no options pane. */
@@ -61,10 +64,12 @@ export function runSimulatorShortcut(
       handlers.setFoldPercent(100);
       return;
     case 'simulator.foldStart':
-      handlers.setFoldPercent(0);
+      // A rewind rather than a settle to 0: "the beginning" is flat paper at
+      // rest, not wherever relaxing back from the current fold happens to stop.
+      handlers.rewind();
       return;
     case 'simulator.replay':
-      handlers.replay();
+      handlers.restart();
       return;
     case 'simulator.resetView':
       handlers.resetView();

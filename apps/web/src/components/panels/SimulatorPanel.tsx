@@ -13,7 +13,6 @@ import {
   Axis3d,
   Pause,
   Play,
-  RefreshCw,
   RotateCcw,
   StepForward,
   Waves,
@@ -49,7 +48,6 @@ import { useSimulatorViewExport } from "../../simulator/useSimulatorViewExport";
 import { foldNeedsTriangulation } from "../../simulator/canvas2dFrame";
 import { simulatorMaterialOptions } from "../../lib/simulatorSettings";
 import { useWorkspaceStore } from "../../store/workspaceStore";
-import { useWorkspaceCapabilities } from "../../store/workspaceStore/useWorkspaceCapabilities";
 import { IconButton } from "../ui/IconButton";
 import { NextDocumentAction } from "./NextDocumentAction";
 // Registers `__simCapabilityProbe()` in dev builds; no-op in production.
@@ -104,7 +102,6 @@ export function SimulatorPanel() {
   const refreshFoldArtifacts = useWorkspaceStore(
     (state) => state.refreshFoldArtifacts,
   );
-  const capabilities = useWorkspaceCapabilities();
 
   const [foldPercent, setFoldPercent] = useState(INITIAL_FOLD_PERCENT);
   const [loadState, setLoadState] = useState<LoadState>("idle");
@@ -118,7 +115,6 @@ export function SimulatorPanel() {
   const viewSettings = useWorkspaceStore((state) => state.simulatorSettings);
   const shortcutOverrides = useShortcutStore((store) => store.overrides);
   const setSimulatorSetting = useWorkspaceStore((state) => state.setSimulatorSetting);
-  const refreshCapability = capabilities["simulator.refresh"];
   const runConfig = simulatorRunConfig();
   // Segment the whole document's fold and simulate only the selected pattern.
   // Memoized so a new sub-fold object is not produced on every render (which
@@ -319,7 +315,9 @@ export function SimulatorPanel() {
     );
   }, [runConfig.foldStepPercent, setFoldTarget]);
 
-  const replayFromFlat = useCallback(() => {
+  // Back to the beginning of the fold, camera untouched: stop, put the paper
+  // flat with the solver at rest, and report zero. Cmd+Left, and half of Restart.
+  const rewindFold = useCallback(() => {
     setPlaying(false);
     playheadRef.current.set(0);
     setFoldPercent(0);
@@ -388,6 +386,29 @@ export function SimulatorPanel() {
     viewportRef.current?.zoomBy(factor);
   }, []);
 
+  // One verb for "start over", whatever state the simulation is in: the fold
+  // back at the beginning *and* the view back to its opening transform -- as if
+  // the simulation had just been opened. A healthy session rewinds in place; a
+  // broken one (a solver that threw, a lost context, artifacts the engine could
+  // not build) is rebuilt from the crease pattern, the only way back from
+  // those. Formerly two buttons, Refresh and Reset, exposing that split to
+  // users who only ever wanted the fold started over.
+  const canRestart = loadState === "ready" || loadState === "error";
+  const restartSimulation = useCallback(() => {
+    if (!canRestart) return;
+    // First, so a rebuild opens on the opening view: the runtime hands a new
+    // session whatever camera it was last given.
+    resetView();
+    if (loadState === "ready") {
+      rewindFold();
+      return;
+    }
+    setPlaying(false);
+    playheadRef.current.set(0);
+    setFoldPercent(0);
+    void refreshFoldArtifacts();
+  }, [canRestart, loadState, resetView, rewindFold, setPlaying, refreshFoldArtifacts]);
+
   // Scrub the fold by a signed delta. setFoldTarget clamps 0-100 and pauses
   // playback, so a manual scrub always stops an in-progress play.
   const nudgeFold = useCallback(
@@ -407,7 +428,8 @@ export function SimulatorPanel() {
     playPause: () => setPlaying(!playing),
     nudgeFold,
     setFoldPercent: setFoldTarget,
-    replay: replayFromFlat,
+    rewind: rewindFold,
+    restart: restartSimulation,
     resetView,
     zoomBy,
     toggleSetting: (key) => {
@@ -565,16 +587,13 @@ export function SimulatorPanel() {
           >
             <IconButton
               size="sm"
-              title={t("panels:simulator.refresh", "Refresh")}
+              title={`${t("panels:simulator.restart", "Restart")} (R)`}
+              aria-label={t("panels:simulator.restart", "Restart")}
               tooltipSide="top"
-              onClick={() => {
-                setPlaying(false);
-                setModelError(null);
-                void refreshFoldArtifacts();
-              }}
-              disabled={!refreshCapability.enabled}
+              onClick={restartSimulation}
+              disabled={!canRestart}
             >
-              <RefreshCw size={14} />
+              <RotateCcw size={14} />
             </IconButton>
             <IconButton
               size="sm"
@@ -603,16 +622,6 @@ export function SimulatorPanel() {
               disabled={loadState !== "ready"}
             >
               <StepForward size={14} />
-            </IconButton>
-            <IconButton
-              size="sm"
-              title={`${t("panels:simulator.reset", "Reset")} (R)`}
-              aria-label={t("panels:simulator.reset", "Reset")}
-              tooltipSide="top"
-              onClick={replayFromFlat}
-              disabled={loadState !== "ready"}
-            >
-              <RotateCcw size={14} />
             </IconButton>
           </div>
           <label className="simulator-slider">

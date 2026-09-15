@@ -265,7 +265,7 @@
     "foldForward": "折りを進める",
     "foldStart": "平らな状態へ移動",
     "playPause": "折りたたみの再生 / 一時停止",
-    "replay": "平らな状態から再生",
+    "replay": "シミュレーションを再スタート",
     "resetView": "シミュレーターの視点をリセット",
     "toggleCreases": "折り線",
     "toggleFaces": "面",

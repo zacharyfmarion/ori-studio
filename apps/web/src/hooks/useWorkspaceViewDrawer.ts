@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState, type RefObject } from 'react';
 import { ANALYTICS_EVENTS, track } from '../analytics';
-import { isShortcutEditingTarget } from '../keyboard/shortcutDispatcher';
+import { isOpenLayerTarget, isShortcutEditingTarget } from '../keyboard/shortcutDispatcher';
 import { useIsCoarsePointerSurface } from '../platform/pointerSurface';
 import {
   reconcileSidePanes,
@@ -164,17 +164,16 @@ export function useWorkspaceViewDrawer(): WorkspaceViewDrawerState {
   // is no private copy.
   //
   // The pane also has `Select`s, and Radix portals an open dropdown *outside* the
-  // sheet, so neither the target check nor a listener scoped to the sheet sees
-  // it. Radix mounts `[data-radix-popper-content-wrapper]` only while a layer is
-  // open, so its presence is the question "is a layer above me holding Escape"
-  // asked directly. Without this, Escape aimed at a dropdown closed the whole
+  // sheet, so a listener scoped to the sheet would never see it — but the
+  // dropdown holds focus while it is open, so the keystroke's target is inside
+  // it, and `isOpenLayerTarget` is the repo's one answer to "is a layer holding
+  // this key". Without the bail, Escape aimed at a dropdown closed the whole
   // drawer — one keystroke discarding the wrong thing.
   useEffect(() => {
     if (!open) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      if (isShortcutEditingTarget(event.target)) return;
-      if (document.querySelector('[data-radix-popper-content-wrapper]')) return;
+      if (isShortcutEditingTarget(event.target) || isOpenLayerTarget(event.target)) return;
       event.preventDefault();
       event.stopPropagation();
       close();

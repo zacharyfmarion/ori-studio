@@ -195,6 +195,21 @@ export type FoldVerdict =
 /** Which way a press of the one solution verb moved. */
 export type FoldCycleDirection = 'next' | 'wrap';
 
+/**
+ * Which appearance setting a folded figure's Style menu changed.
+ *
+ * One value per adjustment: a colour drag counts once, when it starts, never
+ * per pointer move — and never with the colour, which is the user's work. The
+ * question is which of the six rows earn their place, not what anyone chose.
+ */
+export type FoldedFigureStyleOption =
+  | 'display_style'
+  | 'side'
+  | 'front_color'
+  | 'back_color'
+  | 'line_color'
+  | 'shadow';
+
 /** Where a foldability check was run from. */
 export type FoldabilityCheckSource = 'pre-fold';
 
@@ -281,7 +296,7 @@ export type CpExactSolveResolution = 'accepted' | 'accepted-partial' | 'retried'
 export type CpDetectImageSource = 'picker' | 'drop';
 
 /** Where the Detect dialog stood when it was closed without importing. */
-export type CpDetectDismissStage = 'upload' | 'crop' | 'detecting' | 'review';
+export type CpDetectDismissStage = 'upload' | 'confirm' | 'crop' | 'detecting' | 'review';
 
 /**
  * Why a detection did not complete.
@@ -462,12 +477,21 @@ export const ANALYTICS_EVENTS = {
   cpExactSolveResolved: 'cp exact solve resolved',
   /**
    * The Image→CP funnel, in order. `command invoked` (`file.detectCpImage`)
-   * opens the dialog; then an image is loaded, Detect is pressed, detection
-   * completes, and the pattern is imported. A close at any point before the
-   * import is a `cp detect dismissed` with the stage it happened at, so the
-   * drop-off between any two steps is a count, not an inference.
+   * opens the dialog; then an image is loaded, its rights are confirmed,
+   * Detect is pressed, detection completes, and the pattern is imported. A
+   * close at any point before the import is a `cp detect dismissed` with the
+   * stage it happened at, so the drop-off between any two steps is a count,
+   * not an inference.
    */
   cpDetectImageLoaded: 'cp detect image loaded',
+  /**
+   * The rights gate between an image loading and Detect was answered:
+   * `accepted` is Continue, and `false` is Back. A close at the gate is a
+   * `cp detect dismissed` at stage `confirm` instead, the same split the
+   * dialog makes everywhere between abandoning and declining. No "shown"
+   * event: every `cp detect image loaded` shows it.
+   */
+  cpDetectRightsAnswered: 'cp detect rights answered',
   cpDetectStarted: 'cp detect started',
   cpDetectCompleted: 'cp detect completed',
   cpDetectImported: 'cp detect imported',
@@ -500,6 +524,7 @@ export const ANALYTICS_EVENTS = {
   foldAttempted: 'fold attempted',
   foldCompleted: 'fold completed',
   foldSolutionCycled: 'fold solution cycled',
+  foldedFigureStyled: 'folded figure styled',
   foldedFigureOrbited: 'folded figure orbited',
   foldedFigureZoomed: 'folded figure zoomed',
   // Whether anyone reaches for a model up at all is the question this answers —

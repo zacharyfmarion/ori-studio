@@ -265,7 +265,7 @@
     "foldForward": "向前折叠",
     "foldStart": "跳到展平",
     "playPause": "播放 / 暂停折叠",
-    "replay": "从展平重放",
+    "replay": "重新开始模拟",
     "resetView": "重置模拟器视图",
     "toggleCreases": "折线",
     "toggleFaces": "面",

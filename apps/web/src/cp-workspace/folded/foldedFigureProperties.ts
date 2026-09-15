@@ -18,17 +18,12 @@ import { clampSimulatorZoom, SIMULATOR_MAX_ZOOM, SIMULATOR_MIN_ZOOM } from '../.
 import { degreesToRadians, radiansToDegrees, wrapDegrees } from '../../lib/angleUnits';
 import type { TargetOf } from '../canvasObjects/canvasObjectKinds';
 import { DEFAULT_FOLDED_3D_CAMERA, type FoldedFigureCamera } from './foldedFigure3dProjection';
-import { isFoldedFigureReady } from './foldedFigureActions';
+import { foldedDisplayStyleChoiceLabel, isFoldedFigureReady } from './foldedFigureActions';
 import { foldedAppearanceSupport, type FoldedAppearanceOption } from './foldedFigureAppearance';
-import { isFolded3dFigure } from './foldedFigureCapabilities';
-import {
-  FOLDED_COLOR_FIELDS,
-  FOLDED_DISPLAY_STYLE_OPTIONS,
-  foldedColorLabel,
-  foldedDisplayStyleLabel,
-  foldedStateLabel,
-} from './foldedFigureControlOptions';
+import { foldedFigureCapabilities, isFolded3dFigure } from './foldedFigureCapabilities';
+import { FOLDED_COLOR_FIELDS, foldedColorLabel, foldedStateLabel } from './foldedFigureControlOptions';
 import { foldedFigureSubtitle } from './foldedFigureNotice';
+import { foldedFigureModel } from './foldedFigureState';
 
 export interface FoldedFigurePropertyDeps {
   t: TFunction;
@@ -80,8 +75,7 @@ export function buildFoldedFigureProperties(
   const figure = target.figure;
   const ready = isFoldedFigureReady(figure);
   const spatial = isFolded3dFigure(figure);
-  // A flat figure keeps its model in the kernel snapshot, a 3D one on `folded3d`.
-  const model = figure.snapshot?.model ?? figure.folded3d?.model ?? null;
+  const model = foldedFigureModel(figure);
   const notReady = t(
     'panels:cpProperties.folded.refoldToChange',
     'Refold to change how this figure looks'
@@ -98,30 +92,37 @@ export function buildFoldedFigureProperties(
     if (support === 'not-applicable') return { support };
     if (!ready) return { support: 'unsupported', reason: notReady };
     if (support === 'unsupported') {
-      return {
-        support,
-        reason:
-          option === 'shadow'
-            ? t(
-                'panels:creasePattern.shadowUnsupported3d',
-                'Shadows are not drawn for a 3D folded model yet'
-              )
-            : notReady,
-      };
+      return { support, reason: unsupportedReason(option) ?? notReady };
     }
     return { support };
+  };
+  /** Why an option the oracle declines is inert on this figure — the Style menu's hints, word for word. */
+  const unsupportedReason = (option: FoldedAppearanceOption): string | null => {
+    switch (option) {
+      case 'shadow':
+        return t(
+          'panels:creasePattern.shadowUnsupported3d',
+          'Shadows are not drawn for a 3D folded model yet'
+        );
+      case 'side':
+        return t('panels:foldedFigureActions.sideUnsupported3d', 'Turn a 3D model with Other side');
+      default:
+        return null;
+    }
   };
 
   const appearanceFields: PropertyField[] = [
     {
       id: 'displayStyle',
       kind: 'select',
-      label: t('panels:cpProperties.folded.displayStyle', 'Display style'),
+      label: t('panels:foldedFigureActions.renderAs', 'Render as'),
       ...appearance('displayStyle'),
       undoLabel: t('panels:creasePattern.changeFoldedDisplayStyle', 'Change folded display style'),
-      options: FOLDED_DISPLAY_STYLE_OPTIONS.map((style) => ({
+      // The kind's own choices, as the Style menu offers them; a legacy style
+      // a file carries shows nothing chosen, and picking any is the way out.
+      options: foldedFigureCapabilities(figure).styleChoices.map((style) => ({
         id: style,
-        label: foldedDisplayStyleLabel(t, style),
+        label: foldedDisplayStyleChoiceLabel(t, style),
       })),
       protocol: 'discrete',
       value: figure.displayStyle,
@@ -132,7 +133,7 @@ export function buildFoldedFigureProperties(
     {
       id: 'side',
       kind: 'segmented',
-      label: t('panels:creasePattern.side', 'Side'),
+      label: t('panels:foldedFigureActions.side', 'Side'),
       ...appearance('side'),
       undoLabel: changeModel,
       options: FOLDED_FIGURE_SIDES.map((side) => ({ id: side, label: foldedStateLabel(t, side) })),

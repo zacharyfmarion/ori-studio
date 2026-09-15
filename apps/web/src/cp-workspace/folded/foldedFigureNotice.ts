@@ -213,7 +213,7 @@ export function foldedFigureNotice(
 }
 
 /**
- * What the folded-models list says under a figure's title.
+ * What the Properties pane says under a figure's title.
  *
  * Stale first (it is the one the user can act on), then a verdict if there is
  * one, then the solution the figure is showing. The non-`ready` arms used to

@@ -116,7 +116,7 @@
     },
     "problem": {
       "axisOffCentre": "L'axe de symétrie doit passer par le centre de la feuille pour que l'optimiseur garde la feuille symétrique.",
-      "notAMirror": "L'association n'est pas un miroir : certains rabats ne sont pas associés réciproquement. Chaque rabat doit être associé à exactement un autre rabat, ou à lui-même sur l'axe.",
+      "notAMirror": "L'association n'est pas un miroir\u00a0: certains rabats ne sont pas associés réciproquement. Chaque rabat doit être associé à exactement un autre rabat, ou à lui-même sur l'axe.",
       "unpaired": "Rien n'est associé à {{names}}. Sélectionnez-le et choisissez Associer au miroir, utilisez Associer tout ce qui est en miroir, dessinez-le avec le dessin en miroir activé, ou déplacez-le sur la ligne du miroir."
     }
   },
@@ -227,7 +227,6 @@
       "appearance": "Apparence",
       "camera": "Caméra",
       "changeView": "Modifier la vue du modèle plié",
-      "displayStyle": "Style d'affichage",
       "pitch": "Inclinaison",
       "placement": "Position",
       "refoldToChange": "Repliez le modèle pour changer son apparence",
@@ -382,7 +381,6 @@
     "changeFoldedColor": "Modifier la couleur du modèle plié",
     "changeFoldedDisplayStyle": "Modifier le style d’affichage plié",
     "changeFoldedModel": "Modifier le modèle plié",
-    "closeFoldedModels": "Fermer les modèles pliés",
     "commandFailed": "Échec de la commande",
     "contextMenu": {
       "creaseType": "Type de pli",
@@ -493,7 +491,6 @@
       "windowAriaLabel": "Modèle plié, en trois dimensions",
       "windowFailed": "Impossible de dessiner ce modèle"
     },
-    "foldedModels": "Modèles pliés",
     "foldedModelStatus": {
       "error": "Échec",
       "loading": "Pliage…"
@@ -537,9 +534,7 @@
     "moveFoldedForm": "Déplacer la forme pliée",
     "moveSimulationWindow": "Déplacer la fenêtre de simulation",
     "noCreasePattern": "Aucun patron de plis",
-    "noFoldedModels": "Pliez le patron de plis pour ajouter un modèle plié.",
     "noImportedCreasePattern": "Aucun patron de plis importé",
-    "none": "Aucun",
     "openingSharedLink": "Ouverture du patron de pliage partagé…",
     "optimizingScale": "Optimisation de l'échelle",
     "orbitFoldedForm": "Tourner la figure pliée",
@@ -580,7 +575,6 @@
     "setFoldedModelUpright": "Définir la verticale du modèle plié",
     "shadow": "Ombre",
     "shadowUnsupported3d": "Les ombres ne sont pas encore dessinées pour un modèle plié en 3D",
-    "side": "Face",
     "stale": "Obsolète",
     "viewFoldedModelOtherSide": "Voir de l’autre côté",
     "viewportControls": "Commandes d'affichage du patron de plis",
@@ -789,7 +783,6 @@
   "foldedFigureActions": {
     "anotherSolution": "Autre solution",
     "delete": "Supprimer",
-    "displayStyle": "Style d’affichage",
     "duplicate": "Dupliquer",
     "export": "Exporter…",
     "exportPng": "Image PNG",
@@ -799,8 +792,12 @@
     "label": "Actions du modèle plié",
     "otherSide": "Autre côté",
     "refold": "Replier",
+    "renderAs": "Afficher comme",
     "resetView": "Réinitialiser la vue",
     "setUpright": "Définir la verticale",
+    "side": "Face",
+    "sideUnsupported3d": "Un modèle 3D se retourne avec « Autre côté »",
+    "style": "Style",
     "styleDev1": "Développement 1",
     "styleDev4": "Développement 4",
     "styleNone": "Aucun",
@@ -888,8 +885,7 @@
     "pause": "Pause",
     "percent": "{{value}} %",
     "play": "Lecture",
-    "refresh": "Actualiser",
-    "reset": "Réinitialiser",
+    "restart": "Redémarrer",
     "setUpright": "Définir la verticale",
     "stats": "{{vertices}} sommets | {{triangles}} triangles",
     "step": "Étape",

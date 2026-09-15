@@ -1,55 +1,12 @@
 /**
- * What the Folded models controls offer, and what each option is called.
- *
- * These lived in `CreasePatternPanel` while exactly one component read them.
- * Two do now — the dropdown and the phone modal both render
- * `FoldedFigureControls` — so they move to where both can see them rather than
- * being re-exported from a panel, which is the direction AGENTS.md points a
- * panel's contents in anyway.
+ * The Style menu's model rows, and what each is called.
  *
  * Every label is a literal-key `t()` call: the i18n extractor only sees
  * literals, so a computed key would silently drop the string from the catalogue.
  */
 import type { TFunction } from 'i18next';
-import type {
-  OristudioCpFoldedFigureDisplayStyle,
-  OristudioCpRgbColor,
-} from '../../engine/oristudioCpTypes';
+import type { OristudioCpRgbColor } from '../../engine/oristudioCpTypes';
 import type { FoldedFigureSide } from '../../lib/foldedFigureSides';
-
-export const FOLDED_DISPLAY_STYLE_OPTIONS: OristudioCpFoldedFigureDisplayStyle[] = [
-  'Paper5',
-  'Transparent3',
-  'Wire2',
-];
-
-/**
- * One name per display style, for the floating toolbar's style menu, the
- * context menu and the Properties pane alike. "X-ray" and "Wireframe" rather
- * than the kernel's "Transparent" and "Wire": they say what the picture looks
- * like, and X-ray is the word the Simulate workspace already uses for its own.
- */
-export function foldedDisplayStyleLabel(
-  t: TFunction,
-  value: OristudioCpFoldedFigureDisplayStyle
-): string {
-  switch (value) {
-    case 'Paper5':
-      return t('panels:foldedFigureActions.stylePaper', 'Paper');
-    case 'Wire2':
-      return t('panels:foldedFigureActions.styleWireframe', 'Wireframe');
-    case 'Transparent3':
-      return t('panels:foldedFigureActions.styleXray', 'X-ray');
-    case 'Development1':
-      return t('panels:foldedFigureActions.styleDev1', 'Dev 1');
-    case 'Development4':
-      return t('panels:foldedFigureActions.styleDev4', 'Dev 4');
-    case 'None0':
-      return t('panels:foldedFigureActions.styleNone', 'None');
-    default:
-      return value;
-  }
-}
 
 // Spelled out rather than initialled. Two options no longer need the abbreviation,
 // and the word is its own tooltip.
@@ -72,8 +29,8 @@ export const FOLDED_COLOR_FIELDS: Array<{ key: FoldedColorKey; fallback: Oristud
   { key: 'line_color', fallback: { red: 0, green: 0, blue: 0 } },
 ];
 
-// Named "… color" rather than "Front" / "Back", which the Side control directly
-// above these rows already uses for the view.
+// Named "… color" rather than "Front" / "Back", which the Side rows above these
+// already use for the view.
 export function foldedColorLabel(t: TFunction, key: FoldedColorKey): string {
   switch (key) {
     case 'front_color':

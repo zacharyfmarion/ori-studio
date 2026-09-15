@@ -671,3 +671,64 @@ describe('folded-figure meshes', () => {
     expect(session.getPerfStats().liveMeshes).toBe(0);
   });
 });
+
+/**
+ * What a new session looks through. A load carries the most recent session's
+ * camera and palette forward, which covers a model replacing a live one and
+ * nothing else: a session released before its replacement loads leaves nothing
+ * to carry, and the replacement opened on the worker's defaults — the blue
+ * front colour a refresh used to produce. The caller can now say what to open
+ * on, and that answer outranks the carry-over.
+ */
+describe('the view a new session opens on', () => {
+  const camera = { view: { yaw: 0.8, pitch: -0.6, zoom: 1.2 }, width: 640, height: 480 };
+
+  it('opens on the view it is given', async () => {
+    const session = createSimulatorSession();
+    const info = session.load(miura(4, 4), { view: { camera, settings: DEFAULT_EXPORT_SETTINGS } });
+    await frame(session.settle(2000, { token: info.token }));
+
+    const opened = session.exportSvg({ token: info.token })!.svg;
+    // The mountain colour of the settings it was handed, at the camera it was
+    // handed — the same document as pushing both after the fact.
+    expect(opened).toContain('#ffff00');
+    await session.setCamera(camera, info.token);
+    await session.setRenderSettings(DEFAULT_EXPORT_SETTINGS, info.token);
+    expect(session.exportSvg({ token: info.token })!.svg).toBe(opened);
+    session.dispose();
+  }, 30_000);
+
+  it('opens on the given view even with nothing to carry from', async () => {
+    const session = createSimulatorSession();
+    const first = session.load(miura(4, 4), {});
+    await session.setCamera(camera, first.token);
+    await session.setRenderSettings(DEFAULT_EXPORT_SETTINGS, first.token);
+    // Released before the replacement loads: the gap a rebuild passes through.
+    session.release(first.token);
+
+    const second = session.load(miura(4, 4), { view: { camera, settings: DEFAULT_EXPORT_SETTINGS } });
+    await frame(session.settle(2000, { token: second.token }));
+    const svg = session.exportSvg({ token: second.token })!.svg;
+    expect(svg).toContain('#ffff00');
+
+    // And without the answer, the same gap really does fall back to defaults —
+    // which is the case the runtime exists to close.
+    session.release(second.token);
+    const third = session.load(miura(4, 4), {});
+    await frame(session.settle(2000, { token: third.token }));
+    expect(session.exportSvg({ token: third.token })!.svg).not.toContain('#ffff00');
+    session.dispose();
+  }, 30_000);
+
+  it('still carries the most recent session forward when not told otherwise', async () => {
+    const session = createSimulatorSession();
+    const first = session.load(miura(4, 4), {});
+    await session.setCamera(camera, first.token);
+    await session.setRenderSettings(DEFAULT_EXPORT_SETTINGS, first.token);
+
+    const second = session.load(miura(4, 4), {});
+    await frame(session.settle(2000, { token: second.token }));
+    expect(session.exportSvg({ token: second.token })!.svg).toContain('#ffff00');
+    session.dispose();
+  }, 30_000);
+});

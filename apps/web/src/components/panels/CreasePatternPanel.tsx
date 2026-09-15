@@ -8,7 +8,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ListChecks, Loader2, Origami, SlidersHorizontal } from 'lucide-react';
+import { Loader2, Origami, SlidersHorizontal } from 'lucide-react';
 import { ProtractorIcon } from '../ui/ProtractorIcon';
 import {
   registerCpActionShortcutExecutor,
@@ -107,9 +107,7 @@ import { CreasePatternWebglCanvas } from '../../cp-workspace/CreasePatternWebglC
 import type { CpOverlayView, StepKind } from '../../cp-workspace/CreasePatternWebglCanvas';
 import { cpCamera } from '../../cp-workspace/renderer/cpCameraRegistry';
 import { publishCpToolSurface } from '../../cp-workspace/toolCatalog/cpToolSurface';
-import { FoldedFigureModal } from '../../cp-workspace/folded/FoldedFigureModal';
 import { requestSidePane } from '../../store/sidePaneRequests';
-import { FoldedFigurePicker } from '../../cp-workspace/folded/FoldedFigurePicker';
 import { useCpFavoriteToolbarGroup } from '../../cp-workspace/toolCatalog/useCpFavoriteToolbarGroup';
 import { useIsPhoneLayout } from '../../platform/phoneLayout';
 import { useCpCanvasContextMenu } from '../../cp-workspace/contextMenu/useCpCanvasContextMenu';
@@ -484,72 +482,6 @@ function cpCreasesUnderPreviewEndpoints(
     if (count === 1) found.add(onlyHit);
   }
   return [...found].map((i) => ({ a: lineSegments[i].a, b: lineSegments[i].b }));
-}
-
-/**
- * The folded-figure picker as a viewport-bar dropdown. The figure's appearance
- * is the Properties pane's, which picking a figure reveals.
- */
-function FoldedFigureMenuButton({
-  figures,
-  activeFigure,
-  staleFigureIds,
-  onSelectFigure,
-}: {
-  figures: OristudioCpFoldedFigureEntry[];
-  activeFigure: OristudioCpFoldedFigureEntry | null;
-  /**
-   * Figures whose source creases have changed since they were folded. Derived
-   * per document revision rather than stamped on the entry — see
-   * `lib/foldedFigureStaleness.ts`.
-   */
-  staleFigureIds: ReadonlySet<string>;
-  onSelectFigure: (id: string) => void;
-}) {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (menuRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    document.addEventListener('mousedown', onPointerDown);
-    return () => document.removeEventListener('mousedown', onPointerDown);
-  }, [open]);
-
-  return (
-    <div className="viewport-toolbar__menu-anchor folded-figure-menu" ref={menuRef}>
-      <IconButton
-        size="sm"
-        variant="toolbar"
-        title={t('panels:creasePattern.foldedModels', 'Folded models')}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        isActive={open}
-        onClick={() => setOpen((current) => !current)}
-      >
-        <ListChecks size={14} />
-      </IconButton>
-      {open && (
-        <div
-          className="viewport-toolbar__dropdown folded-figure-menu__panel"
-          role="menu"
-          aria-label={t('panels:creasePattern.foldedModels', 'Folded models')}
-        >
-          <FoldedFigurePicker
-            figures={figures}
-            activeFigure={activeFigure}
-            staleFigureIds={staleFigureIds}
-            onSelectFigure={onSelectFigure}
-          />
-        </div>
-      )}
-    </div>
-  );
 }
 
 export function CreasePatternPanel() {
@@ -948,7 +880,6 @@ export function CreasePatternPanel() {
     selectedFoldLineIds: selectedEditableFoldLineIds,
   });
   const {
-    active: activeFoldedFigure,
     generated: generatedFoldedFigures,
     staleIds: staleFoldedFigureIds,
     actionDeps: foldedFigureActionDeps,
@@ -1080,9 +1011,6 @@ export function CreasePatternPanel() {
   // The layout with no tool rail, which is the one that hands its viewport bar
   // over to the favorites.
   const phoneLayout = useIsPhoneLayout();
-  // Phone-only: the same controls the dropdown holds, in a frame that needs no
-  // anchor. See `FoldedFigureModal`.
-  const [foldedModalOpen, setFoldedModalOpen] = useState(false);
   const hasEditableCreasePattern = !!editableCp;
   // `importedCreasePattern` is named directly rather than inferred from
   // `project.creases`. A crease pattern is not a design, so a `.cp` opened on its
@@ -2975,13 +2903,14 @@ export function CreasePatternPanel() {
         },
         {
           id: 'fold',
+          // Fold is the one figure verb on the bar. Everything about a figure
+          // that exists — its style, its solutions, its export — lives on the
+          // figure's own toolbar and context menu, which act on the figure you
+          // clicked rather than on whichever happens to be active.
           items: phoneLayout
-            ? // Two actions rather than the node below, so both can collapse
-              // into the overflow menu — a node cannot, by design, and the bar
-              // this used to sit on now belongs to the favorites. Fold keeps
-              // its verb; the figure menu becomes a modal, because a popover
-              // anchored to a menu item would be a popover inside that menu's
-              // focus trap.
+            ? // An action rather than the node below, so it can collapse into
+              // the overflow menu — a node cannot, by design, and the bar this
+              // used to sit on now belongs to the favorites.
               [
                 {
                   kind: 'action' as const,
@@ -2990,17 +2919,6 @@ export function CreasePatternPanel() {
                   disabled: !canFoldSelectedModel,
                   icon: <Origami size={14} />,
                   onSelect: folded.foldModel,
-                },
-                {
-                  kind: 'action' as const,
-                  id: 'folded-models',
-                  label: t('panels:creasePattern.foldedModels', 'Folded models'),
-                  icon: <ListChecks size={14} />,
-                  // Without this the menu's focus restore lands after the
-                  // modal's own, and the dialog opens with focus on the
-                  // toolbar button behind it.
-                  opensDialog: true,
-                  onSelect: () => setFoldedModalOpen(true),
                 },
                 {
                   kind: 'action' as const,
@@ -3016,35 +2934,25 @@ export function CreasePatternPanel() {
                 },
               ]
             : [
-            {
-              kind: 'node',
-              id: 'fold',
-              node: (
-                <div className="cp-folded-figure-actions">
-                  <IconButton
-                    size="sm"
-                    variant="toolbar"
-                    title={foldShortcutLabel
-                      ? `${t('panels:creasePattern.fold', 'Fold')} (${foldShortcutLabel})`
-                      : t('panels:creasePattern.fold', 'Fold')}
-                    disabled={!canFoldSelectedModel}
-                    onClick={folded.foldModel}
-                  >
-                    <Origami size={14} />
-                  </IconButton>
-                  {/* "Another solution" lives on the figure's own contextual
-                      bar, which acts on the figure you clicked. This copy
-                      acted on the *active* figure — after a fold, a fallback
-                      to whichever was made most recently. */}
-                  <FoldedFigureMenuButton
-                    figures={oristudioCpFoldedFigures}
-                    activeFigure={activeFoldedFigure}
-                    staleFigureIds={staleFoldedFigureIds}
-                    onSelectFigure={setOristudioCpActiveFoldedFigure}
-                  />
-                </div>
-              ),
-            },
+                {
+                  kind: 'node',
+                  id: 'fold',
+                  node: (
+                    <IconButton
+                      size="sm"
+                      variant="toolbar"
+                      title={
+                        foldShortcutLabel
+                          ? `${t('panels:creasePattern.fold', 'Fold')} (${foldShortcutLabel})`
+                          : t('panels:creasePattern.fold', 'Fold')
+                      }
+                      disabled={!canFoldSelectedModel}
+                      onClick={folded.foldModel}
+                    >
+                      <Origami size={14} />
+                    </IconButton>
+                  ),
+                },
               ],
         },
       ]
@@ -3429,21 +3337,6 @@ export function CreasePatternPanel() {
                 }
                 phoneViewControls="collapsed"
               />
-              {/* Mounted beside the bar rather than inside it: it is a dialog,
-                  not a control, and the bar's own stacking context would cap a
-                  `--z-modal` layer at the canvas-overlay band. Gated on the
-                  layout as well as the flag so a rotation into the tablet
-                  arrangement takes the dropdown back rather than stranding a
-                  modal with no way to have been opened. */}
-              {editableCp && phoneLayout && foldedModalOpen && (
-                <FoldedFigureModal
-                  close={() => setFoldedModalOpen(false)}
-                  figures={oristudioCpFoldedFigures}
-                  activeFigure={activeFoldedFigure}
-                  staleFigureIds={staleFoldedFigureIds}
-                  onSelectFigure={setOristudioCpActiveFoldedFigure}
-                />
-              )}
               {/* Portals itself, so where it is mounted only decides its
                   lifetime. Beside the bar rather than inside it because it
                   outlives the field it anchors to: `Shift+A` opens it on a
