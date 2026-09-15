@@ -1,3 +1,4 @@
+import { degreesToRadians, formatPercent, radiansToDegrees, wrapDegrees } from '../../lib/angleUnits';
 import type { PropertySheet } from '../../lib/propertyDescriptors';
 import type { AnnotationPaneDeps } from '../annotations/useAnnotationPaneDeps';
 import type { TargetOf } from '../canvasObjects/canvasObjectKinds';
@@ -8,26 +9,6 @@ import type { TargetOf } from '../canvasObjects/canvasObjectKinds';
  * identity `t` and `vi.fn` deps the way `folded/foldedFigureActions.ts` is.
  */
 export type ImagePropertyDeps = AnnotationPaneDeps;
-
-export const RADIANS_PER_DEGREE = Math.PI / 180;
-
-/** Degrees into (−180, 180], the way a rotation field is read. */
-export function wrapDegrees(degrees: number): number {
-  const wrapped = ((((degrees + 180) % 360) + 360) % 360) - 180;
-  return wrapped === -180 ? 180 : wrapped;
-}
-
-export function radiansToDegrees(radians: number): number {
-  return wrapDegrees(Math.round((radians / RADIANS_PER_DEGREE) * 100) / 100);
-}
-
-export function degreesToRadians(degrees: number): number {
-  return wrapDegrees(degrees) * RADIANS_PER_DEGREE;
-}
-
-export function formatPercent(fraction: number): string {
-  return `${Math.round(fraction * 100)}%`;
-}
 
 /**
  * The properties of a reference image: opacity and rotation. The natural size

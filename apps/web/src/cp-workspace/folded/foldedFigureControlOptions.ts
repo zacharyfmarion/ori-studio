@@ -23,23 +23,29 @@ export const FOLDED_DISPLAY_STYLE_OPTIONS: OristudioCpFoldedFigureDisplayStyle[]
   'Wire2',
 ];
 
+/**
+ * One name per display style, for the floating toolbar's style menu, the
+ * context menu and the Properties pane alike. "X-ray" and "Wireframe" rather
+ * than the kernel's "Transparent" and "Wire": they say what the picture looks
+ * like, and X-ray is the word the Simulate workspace already uses for its own.
+ */
 export function foldedDisplayStyleLabel(
   t: TFunction,
   value: OristudioCpFoldedFigureDisplayStyle
 ): string {
   switch (value) {
     case 'Paper5':
-      return t('panels:creasePattern.foldedStyle.paper', 'Paper');
-    case 'Transparent3':
-      return t('panels:creasePattern.foldedStyle.transparent', 'Transparent');
+      return t('panels:foldedFigureActions.stylePaper', 'Paper');
     case 'Wire2':
-      return t('panels:creasePattern.foldedStyle.wire', 'Wire');
+      return t('panels:foldedFigureActions.styleWireframe', 'Wireframe');
+    case 'Transparent3':
+      return t('panels:foldedFigureActions.styleXray', 'X-ray');
     case 'Development1':
-      return t('panels:creasePattern.foldedStyle.dev1', 'Dev 1');
+      return t('panels:foldedFigureActions.styleDev1', 'Dev 1');
     case 'Development4':
-      return t('panels:creasePattern.foldedStyle.dev4', 'Dev 4');
+      return t('panels:foldedFigureActions.styleDev4', 'Dev 4');
     case 'None0':
-      return t('panels:creasePattern.foldedStyle.none', 'None');
+      return t('panels:foldedFigureActions.styleNone', 'None');
     default:
       return value;
   }

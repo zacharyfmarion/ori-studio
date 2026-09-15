@@ -92,11 +92,18 @@ export function foldedAppearanceSupport(
     case 'backColor':
     case 'lineColor':
     case 'antiAlias':
-    case 'side':
     case 'displayStyle':
       // The projector reads all of these — colours and anti-alias through
-      // `folded3dPaperStyle`, side as a camera, display style as its style plan.
+      // `folded3dPaperStyle`, display style as its style plan.
       return 'supported';
+    case 'side':
+      // On a flat figure the side is which face the kernel draws. On a 3D one
+      // "the other side" is somewhere to stand — the model's `state` used to
+      // seed the default camera before the first orbit and was inert after it,
+      // the enabled-and-inert class this module exists to prevent. That seed
+      // is dropped: the 3D verb is `otherSide` on the figure's toolbar, which
+      // moves the eye, and there is no side *property* to show.
+      return isFolded3dFigure(figure) ? 'not-applicable' : 'supported';
     case 'transparency':
       // The amount is the flat renderer's, and it does not transfer. Oriedita
       // uses `transparent_transparency` directly as a fill alpha, defaulted to

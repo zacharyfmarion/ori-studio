@@ -71,8 +71,13 @@ export interface GestureBracketSpec<S> {
   unchanged(before: S, now: S): boolean;
   /** Push the history entry: the store's `record*History` action for the layer. */
   record(before: S, label: string): void;
-  /** Awaited before the record — the folded layer drains its in-flight kernel writes. */
-  beforeCommit?(): Promise<void>;
+  /**
+   * Awaited before the record when it returns a promise — every layer drains
+   * the folded figures' in-flight kernel writes. Null when there is nothing to
+   * wait for, which keeps the commit synchronous: a click's commit must not
+   * open a drain window that refuses the next gesture for a microtask.
+   */
+  beforeCommit?(): Promise<void> | null;
 }
 
 let drainingCount = 0;
@@ -117,11 +122,12 @@ export function createGestureBracket<S>(spec: GestureBracketSpec<S>): GestureBra
     },
     async commit(token, label) {
       if (!open || open.token !== token || open.draining) return;
-      if (spec.beforeCommit) {
+      const drain = spec.beforeCommit?.() ?? null;
+      if (drain) {
         open.draining = true;
         setDraining(1);
         try {
-          await spec.beforeCommit();
+          await drain;
         } finally {
           setDraining(-1);
         }

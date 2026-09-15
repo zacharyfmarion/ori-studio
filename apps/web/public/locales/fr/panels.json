@@ -224,10 +224,18 @@
   "cpProperties": {
     "empty": "Sélectionnez un objet sur le canevas pour modifier ses propriétés.",
     "folded": {
+      "antiAlias": "Anticrénelage",
       "appearance": "Apparence",
+      "camera": "Caméra",
       "changeView": "Modifier la vue du modèle plié",
       "displayStyle": "Style d'affichage",
-      "refoldToChange": "Repliez le modèle pour changer son apparence"
+      "pitch": "Inclinaison",
+      "placement": "Position",
+      "refoldToChange": "Repliez le modèle pour changer son apparence",
+      "rotation": "Rotation",
+      "scale": "Échelle",
+      "yaw": "Orientation",
+      "zoom": "Zoom"
     },
     "image": {
       "rotation": "Rotation",
@@ -430,7 +438,6 @@
     "diagnosticsHidden_one": "1 problème masqué par un filtre",
     "diagnosticsHidden_many": "{{count}} problèmes masqués par un filtre",
     "diagnosticsHidden_other": "{{count}} problèmes masqués par un filtre",
-    "display": "Affichage",
     "duplicateFoldedModelAction": "Dupliquer le modèle plié",
     "flipFoldedModel": "Retourner le modèle plié",
     "fold": "Plier",
@@ -474,14 +481,11 @@
       "front": "Couleur du recto",
       "line": "Couleur de ligne"
     },
-    "foldedDisplayStyle": "Style d'affichage du modèle plié",
     "foldedFigure": {
       "windowAriaLabel": "Modèle plié, en trois dimensions",
       "windowFailed": "Impossible de dessiner ce modèle"
     },
-    "foldedModelControls": "Commandes du modèle plié",
     "foldedModels": "Modèles pliés",
-    "foldedModelSide": "Face du modèle plié",
     "foldedModelStatus": {
       "error": "Échec",
       "loading": "Pliage…"
@@ -489,14 +493,6 @@
     "foldedState": {
       "back": "Verso",
       "front": "Recto"
-    },
-    "foldedStyle": {
-      "dev1": "Dev 1",
-      "dev4": "Dev 4",
-      "none": "Aucun",
-      "paper": "Papier",
-      "transparent": "Transparent",
-      "wire": "Filaire"
     },
     "foldModelAction": "Plier le modèle",
     "inlineSimulation": {
@@ -533,12 +529,14 @@
     "moveFoldedForm": "Déplacer la forme pliée",
     "moveSimulationWindow": "Déplacer la fenêtre de simulation",
     "noCreasePattern": "Aucun patron de plis",
+    "noFoldedModels": "Pliez le patron de plis pour ajouter un modèle plié.",
     "noImportedCreasePattern": "Aucun patron de plis importé",
     "none": "Aucun",
     "openingSharedLink": "Ouverture du patron de pliage partagé…",
     "optimizingScale": "Optimisation de l'échelle",
     "orbitFoldedForm": "Tourner la figure pliée",
     "preparing": "Préparation de l'éditeur…",
+    "propertiesEllipsis": "Propriétés…",
     "refoldFoldedModelAction": "Replier le modèle",
     "rendererContextLost": "Restauration du canevas du patron de plis…",
     "rendererContextLostHint": "Le système a repris la mémoire graphique de ce canevas, ce qui peut arriver quand l’appareil vient à en manquer. Votre patron de plis est intact : la vue revient dès que le contexte graphique revient. S’il ne revient pas, rechargez Ori Studio.",
@@ -574,7 +572,6 @@
     "setFoldedModelUpright": "Définir la verticale du modèle plié",
     "shadow": "Ombre",
     "shadowUnsupported3d": "Les ombres ne sont pas encore dessinées pour un modèle plié en 3D",
-    "showFoldedModelShadow": "Afficher l'ombre du modèle plié",
     "side": "Face",
     "stale": "Obsolète",
     "viewFoldedModelOtherSide": "Voir de l’autre côté",

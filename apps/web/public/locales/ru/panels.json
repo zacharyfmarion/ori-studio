@@ -229,10 +229,18 @@
   "cpProperties": {
     "empty": "Выберите объект на холсте, чтобы изменить его свойства.",
     "folded": {
+      "antiAlias": "Сглаживание",
       "appearance": "Внешний вид",
+      "camera": "Камера",
       "changeView": "Изменить вид сложенной модели",
       "displayStyle": "Стиль отображения",
-      "refoldToChange": "Сложите модель заново, чтобы изменить её внешний вид"
+      "pitch": "Наклон",
+      "placement": "Положение",
+      "refoldToChange": "Сложите модель заново, чтобы изменить её внешний вид",
+      "rotation": "Поворот",
+      "scale": "Масштаб",
+      "yaw": "Разворот",
+      "zoom": "Масштаб вида"
     },
     "image": {
       "rotation": "Поворот",
@@ -455,7 +463,6 @@
     "diagnosticsHidden_few": "Фильтр скрывает {{count}} проблемы",
     "diagnosticsHidden_many": "Фильтр скрывает {{count}} проблем",
     "diagnosticsHidden_other": "Фильтр скрывает {{count}} проблемы",
-    "display": "Отображение",
     "duplicateFoldedModelAction": "Дублировать сложенную модель",
     "flipFoldedModel": "Перевернуть сложенную модель",
     "fold": "Сложить",
@@ -499,14 +506,11 @@
       "front": "Цвет лица",
       "line": "Цвет линии"
     },
-    "foldedDisplayStyle": "Стиль отображения сложенной модели",
     "foldedFigure": {
       "windowAriaLabel": "Сложенная модель, в трёх измерениях",
       "windowFailed": "Не удалось отрисовать эту модель"
     },
-    "foldedModelControls": "Элементы управления сложенной моделью",
     "foldedModels": "Сложенные модели",
-    "foldedModelSide": "Сторона сложенной модели",
     "foldedModelStatus": {
       "error": "Ошибка",
       "loading": "Складывание…"
@@ -514,14 +518,6 @@
     "foldedState": {
       "back": "Изнанка",
       "front": "Лицо"
-    },
-    "foldedStyle": {
-      "dev1": "Dev 1",
-      "dev4": "Dev 4",
-      "none": "Нет",
-      "paper": "Бумага",
-      "transparent": "Прозрачный",
-      "wire": "Каркас"
     },
     "foldModelAction": "Сложить модель",
     "inlineSimulation": {
@@ -559,12 +555,14 @@
     "moveFoldedForm": "Переместить сложенную форму",
     "moveSimulationWindow": "Переместить окно симуляции",
     "noCreasePattern": "Нет паттерна складок",
+    "noFoldedModels": "Сложите паттерн складок, чтобы добавить сложенную модель.",
     "noImportedCreasePattern": "Нет импортированного паттерна складок",
     "none": "Нет",
     "openingSharedLink": "Открывается общая схема складок…",
     "optimizingScale": "Оптимизация масштаба",
     "orbitFoldedForm": "Повернуть сложенную фигуру",
     "preparing": "Подготовка редактора…",
+    "propertiesEllipsis": "Свойства…",
     "refoldFoldedModelAction": "Сложить модель заново",
     "rendererContextLost": "Восстановление холста паттерна складок…",
     "rendererContextLostHint": "Система забрала графическую память этого холста — так бывает, когда устройству не хватает памяти. Ваш паттерн складок цел: изображение вернётся, как только вернётся графический контекст. Если он не вернётся, перезагрузите Ori Studio.",
@@ -601,7 +599,6 @@
     "setFoldedModelUpright": "Задать направление вверх сложенной модели",
     "shadow": "Тень",
     "shadowUnsupported3d": "Тени пока не отрисовываются для трёхмерной сложенной модели",
-    "showFoldedModelShadow": "Показывать тень сложенной модели",
     "side": "Сторона",
     "stale": "Устарело",
     "viewFoldedModelOtherSide": "Посмотреть с другой стороны",

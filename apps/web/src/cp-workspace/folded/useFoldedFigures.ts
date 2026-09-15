@@ -9,7 +9,6 @@ import type {
   OristudioCpDocumentState,
   OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
-  OristudioCpFoldedFigureModel,
   FoldedFigurePlacement,
 } from '../../engine/oristudioCpTypes';
 import type { CanvasObjectBoxUpdate } from '../CanvasObjectOverlay';
@@ -250,14 +249,11 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
   // The canvas drag's token on the layer's bracket (`foldedFigureGesture`),
   // so a whole drag records one undo entry. The bracket is module-level and
   // shared with the Properties pane; each gesture here (drag, orbit, zoom
-  // burst, verb, scoped model run) holds its own token under its own owner,
-  // and a begin refused because another owner holds the layer answers false.
+  // burst, verb) holds its own token under its own owner, and a begin refused
+  // because another owner holds the layer answers false. The continuous
+  // appearance edits (a colour pick) are the pane's, through the same bracket
+  // and the kernel write queue — see `useFoldedFigureProperties`.
   const gestureTokenRef = useRef<GestureToken | null>(null);
-  /**
-   * The run of model changes belonging to one continuous control (a colour
-   * picker drag), keyed by its `scope`; see {@link handleFoldedModelUpdate}.
-   */
-  const foldedModelGestureScopeRef = useRef<{ scope: string; token: GestureToken } | null>(null);
 
   const beginFoldedFigureGesture = useCallback(() => {
     const token = foldedFigureGesture.begin('canvas');
@@ -547,9 +543,6 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       const canvasToken = gestureTokenRef.current;
       gestureTokenRef.current = null;
       if (canvasToken) foldedFigureGesture.abort(canvasToken);
-      const scoped = foldedModelGestureScopeRef.current;
-      foldedModelGestureScopeRef.current = null;
-      if (scoped) foldedFigureGesture.abort(scoped.token);
     },
     []
   );
@@ -735,44 +728,6 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     },
     [activeFoldedFigure, t]
   );
-
-  /**
-   * Model changes from the folded-figure menu. The colour pickers and the alpha
-   * slider fire a change per pointer move, so a single drag would otherwise push
-   * dozens of undo entries. `scope` marks the run of changes belonging to one
-   * gesture: the first change snapshots, and the matching
-   * {@link endFoldedModelGesture} (pointer-up / blur) records exactly one entry.
-   * Discrete controls pass no scope and record immediately.
-   */
-  const handleFoldedModelUpdate = useCallback(
-    (update: Partial<OristudioCpFoldedFigureModel>, scope?: string) => {
-      if (!activeFoldedFigure) return;
-      const id = activeFoldedFigure.id;
-      if (!scope) {
-        runFoldedFigureAction(
-          t('panels:creasePattern.changeFoldedModel', 'Change folded model'),
-          () => updateOristudioCpFoldedFigureModel(id, update)
-        );
-        return;
-      }
-      if (foldedModelGestureScopeRef.current?.scope !== scope) {
-        const token = foldedFigureGesture.begin(`scope:${scope}`);
-        // Refused — another owner holds the layer, so the change could not be
-        // recorded. Not applied either: an un-undoable edit is worse than none.
-        if (!token) return;
-        foldedModelGestureScopeRef.current = { scope, token };
-      }
-      void updateOristudioCpFoldedFigureModel(id, update);
-    },
-    [activeFoldedFigure, updateOristudioCpFoldedFigureModel, runFoldedFigureAction, t]
-  );
-
-  const endFoldedModelGesture = useCallback((scope: string, label: string) => {
-    const open = foldedModelGestureScopeRef.current;
-    if (open?.scope !== scope) return;
-    foldedModelGestureScopeRef.current = null;
-    void foldedFigureGesture.commit(open.token, label);
-  }, []);
 
   const handleDuplicateFoldedFigure = useCallback(() => {
     if (!activeFoldedFigure) return;
@@ -1014,8 +969,6 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     applyBoxUpdate: handleFoldedFigureBoxUpdate,
     foldModel: handleFoldModel,
     setDisplayStyle: handleFoldedDisplayStyle,
-    updateModel: handleFoldedModelUpdate,
-    endModelGesture: endFoldedModelGesture,
     duplicate: handleDuplicateFoldedFigure,
     remove: handleDeleteFoldedFigure,
   };

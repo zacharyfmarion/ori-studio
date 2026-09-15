@@ -219,10 +219,18 @@
   "cpProperties": {
     "empty": "Wählen Sie ein Objekt auf der Leinwand aus, um seine Eigenschaften zu bearbeiten.",
     "folded": {
+      "antiAlias": "Kantenglättung",
       "appearance": "Darstellung",
+      "camera": "Kamera",
       "changeView": "Ansicht des gefalteten Modells ändern",
       "displayStyle": "Anzeigestil",
-      "refoldToChange": "Neu falten, um das Aussehen dieses Modells zu ändern"
+      "pitch": "Neigung",
+      "placement": "Position",
+      "refoldToChange": "Neu falten, um das Aussehen dieses Modells zu ändern",
+      "rotation": "Drehung",
+      "scale": "Maßstab",
+      "yaw": "Drehwinkel",
+      "zoom": "Zoom"
     },
     "image": {
       "rotation": "Drehung",
@@ -405,7 +413,6 @@
     },
     "diagnosticsHidden_one": "1 Problem durch einen Filter ausgeblendet",
     "diagnosticsHidden_other": "{{count}} Probleme durch einen Filter ausgeblendet",
-    "display": "Anzeige",
     "duplicateFoldedModelAction": "Gefaltetes Modell duplizieren",
     "flipFoldedModel": "Gefaltetes Modell umdrehen",
     "fold": "Falten",
@@ -449,14 +456,11 @@
       "front": "Vorderseitenfarbe",
       "line": "Linienfarbe"
     },
-    "foldedDisplayStyle": "Anzeigestil des gefalteten Modells",
     "foldedFigure": {
       "windowAriaLabel": "Gefaltetes Modell, dreidimensional",
       "windowFailed": "Dieses Modell konnte nicht gezeichnet werden"
     },
-    "foldedModelControls": "Steuerung des gefalteten Modells",
     "foldedModels": "Gefaltete Modelle",
-    "foldedModelSide": "Seite des gefalteten Modells",
     "foldedModelStatus": {
       "error": "Fehlgeschlagen",
       "loading": "Wird gefaltet …"
@@ -464,14 +468,6 @@
     "foldedState": {
       "back": "Rückseite",
       "front": "Vorderseite"
-    },
-    "foldedStyle": {
-      "dev1": "Dev 1",
-      "dev4": "Dev 4",
-      "none": "Ohne",
-      "paper": "Papier",
-      "transparent": "Transparent",
-      "wire": "Draht"
     },
     "foldModelAction": "Modell falten",
     "inlineSimulation": {
@@ -507,12 +503,14 @@
     "moveFoldedForm": "Gefaltete Form verschieben",
     "moveSimulationWindow": "Simulationsfenster verschieben",
     "noCreasePattern": "Kein Faltmuster",
+    "noFoldedModels": "Falten Sie das Faltmuster, um ein gefaltetes Modell hinzuzufügen.",
     "noImportedCreasePattern": "Kein importiertes Faltmuster",
     "none": "Ohne",
     "openingSharedLink": "Geteiltes Faltmuster wird geöffnet…",
     "optimizingScale": "Skalierung wird optimiert",
     "orbitFoldedForm": "Gefaltete Figur drehen",
     "preparing": "Editor wird vorbereitet…",
+    "propertiesEllipsis": "Eigenschaften…",
     "refoldFoldedModelAction": "Gefaltetes Modell neu falten",
     "rendererContextLost": "Faltmuster-Zeichenfläche wird wiederhergestellt…",
     "rendererContextLostHint": "Das System hat den Grafikspeicher dieser Zeichenfläche zurückgefordert, was passieren kann, wenn dem Gerät der Speicher ausgeht. Ihr Faltmuster ist sicher – die Ansicht kehrt zurück, sobald der Grafikkontext wieder da ist. Falls er nicht zurückkommt, laden Sie Ori Studio neu.",
@@ -547,7 +545,6 @@
     "setFoldedModelUpright": "Oben-Richtung des gefalteten Modells festlegen",
     "shadow": "Schatten",
     "shadowUnsupported3d": "Für ein gefaltetes 3D-Modell werden noch keine Schatten gezeichnet",
-    "showFoldedModelShadow": "Schatten des gefalteten Modells anzeigen",
     "side": "Seite",
     "stale": "Veraltet",
     "viewFoldedModelOtherSide": "Von der anderen Seite ansehen",

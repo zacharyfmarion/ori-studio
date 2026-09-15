@@ -1,5 +1,6 @@
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { createGestureBracket } from '../canvasObjects/gestureBracket';
+import { pendingFoldedModelWrites } from '../folded/foldedModelWriteQueue';
 import type { CanvasAnnotation } from './annotation';
 
 /**
@@ -11,6 +12,9 @@ import type { CanvasAnnotation } from './annotation';
  *
  * Identity is the change test: every store write rebuilds the list, so a
  * gesture that wrote nothing is the only one that records nothing.
+ *
+ * Overlay entries capture every layer live, so this commit too waits for the
+ * folded figures' kernel writes to land — see `gestureBracket.ts`.
  */
 export const annotationGesture = createGestureBracket<readonly CanvasAnnotation[]>({
   layer: 'annotations',
@@ -18,4 +22,5 @@ export const annotationGesture = createGestureBracket<readonly CanvasAnnotation[
   unchanged: (before, now) => before === now,
   record: (before, label) =>
     useWorkspaceStore.getState().recordAnnotationHistory([...before], label),
+  beforeCommit: () => pendingFoldedModelWrites(),
 });

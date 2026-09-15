@@ -8,11 +8,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import {
-  ListChecks,
-  Loader2,
-  Origami,
-} from 'lucide-react';
+import { ListChecks, Loader2, Origami, SlidersHorizontal } from 'lucide-react';
 import { ProtractorIcon } from '../ui/ProtractorIcon';
 import {
   registerCpActionShortcutExecutor,
@@ -26,9 +22,7 @@ import {
 import type {
   OristudioCpCommandPayload,
   OristudioCpDocumentSnapshot,
-  OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
-  OristudioCpFoldedFigureModel,
   OristudioCpLineColor,
   OristudioCpLineSegment,
   OristudioCpSnapCandidates,
@@ -113,8 +107,9 @@ import { CreasePatternWebglCanvas } from '../../cp-workspace/CreasePatternWebglC
 import type { CpOverlayView, StepKind } from '../../cp-workspace/CreasePatternWebglCanvas';
 import { cpCamera } from '../../cp-workspace/renderer/cpCameraRegistry';
 import { publishCpToolSurface } from '../../cp-workspace/toolCatalog/cpToolSurface';
-import { FoldedFigureControls } from '../../cp-workspace/folded/FoldedFigureControls';
 import { FoldedFigureModal } from '../../cp-workspace/folded/FoldedFigureModal';
+import { requestSidePane } from '../../store/sidePaneRequests';
+import { FoldedFigurePicker } from '../../cp-workspace/folded/FoldedFigurePicker';
 import { useCpFavoriteToolbarGroup } from '../../cp-workspace/toolCatalog/useCpFavoriteToolbarGroup';
 import { useIsPhoneLayout } from '../../platform/phoneLayout';
 import { useCpCanvasContextMenu } from '../../cp-workspace/contextMenu/useCpCanvasContextMenu';
@@ -491,14 +486,15 @@ function cpCreasesUnderPreviewEndpoints(
   return [...found].map((i) => ({ a: lineSegments[i].a, b: lineSegments[i].b }));
 }
 
+/**
+ * The folded-figure picker as a viewport-bar dropdown. The figure's appearance
+ * is the Properties pane's, which picking a figure reveals.
+ */
 function FoldedFigureMenuButton({
   figures,
   activeFigure,
   staleFigureIds,
   onSelectFigure,
-  onDisplayStyle,
-  onModelUpdate,
-  onModelGestureEnd,
 }: {
   figures: OristudioCpFoldedFigureEntry[];
   activeFigure: OristudioCpFoldedFigureEntry | null;
@@ -509,15 +505,6 @@ function FoldedFigureMenuButton({
    */
   staleFigureIds: ReadonlySet<string>;
   onSelectFigure: (id: string) => void;
-  onDisplayStyle: (displayStyle: OristudioCpFoldedFigureDisplayStyle) => void;
-  /**
-   * Apply a model change. `scope` groups the stream of changes a single drag
-   * emits (colour picker, alpha slider) into one undo entry; omit it for
-   * discrete controls, which record immediately.
-   */
-  onModelUpdate: (update: Partial<OristudioCpFoldedFigureModel>, scope?: string) => void;
-  /** End a scoped run of {@link onModelUpdate} changes and record one entry. */
-  onModelGestureEnd: (scope: string, label: string) => void;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -551,16 +538,13 @@ function FoldedFigureMenuButton({
         <div
           className="viewport-toolbar__dropdown folded-figure-menu__panel"
           role="menu"
-          aria-label={t('panels:creasePattern.foldedModelControls', 'Folded model controls')}
+          aria-label={t('panels:creasePattern.foldedModels', 'Folded models')}
         >
-          <FoldedFigureControls
+          <FoldedFigurePicker
             figures={figures}
             activeFigure={activeFigure}
             staleFigureIds={staleFigureIds}
             onSelectFigure={onSelectFigure}
-            onDisplayStyle={onDisplayStyle}
-            onModelUpdate={onModelUpdate}
-            onModelGestureEnd={onModelGestureEnd}
           />
         </div>
       )}
@@ -3018,6 +3002,18 @@ export function CreasePatternPanel() {
                   opensDialog: true,
                   onSelect: () => setFoldedModalOpen(true),
                 },
+                {
+                  kind: 'action' as const,
+                  id: 'properties',
+                  label: t('panels:creasePattern.propertiesEllipsis', 'Properties…'),
+                  icon: <SlidersHorizontal size={14} />,
+                  // The phone keeps its side panes in the View drawer; this
+                  // opens it on the Properties tab, which shows the selected
+                  // object — so it is inert with nothing selected.
+                  disabled: selectedCanvasObject === null,
+                  opensDialog: true,
+                  onSelect: () => requestSidePane('cp-properties'),
+                },
               ]
             : [
             {
@@ -3045,9 +3041,6 @@ export function CreasePatternPanel() {
                     activeFigure={activeFoldedFigure}
                     staleFigureIds={staleFoldedFigureIds}
                     onSelectFigure={setOristudioCpActiveFoldedFigure}
-                    onDisplayStyle={folded.setDisplayStyle}
-                    onModelUpdate={folded.updateModel}
-                    onModelGestureEnd={folded.endModelGesture}
                   />
                 </div>
               ),
@@ -3449,9 +3442,6 @@ export function CreasePatternPanel() {
                   activeFigure={activeFoldedFigure}
                   staleFigureIds={staleFoldedFigureIds}
                   onSelectFigure={setOristudioCpActiveFoldedFigure}
-                  onDisplayStyle={folded.setDisplayStyle}
-                  onModelUpdate={folded.updateModel}
-                  onModelGestureEnd={folded.endModelGesture}
                 />
               )}
               {/* Portals itself, so where it is mounted only decides its

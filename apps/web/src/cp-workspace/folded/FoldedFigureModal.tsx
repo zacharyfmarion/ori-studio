@@ -1,5 +1,5 @@
 /**
- * The Folded models controls, as a modal, for the phone.
+ * The folded-figure picker, as a modal, for the phone.
  *
  * # Why a phone gets a different frame
  *
@@ -9,27 +9,26 @@
  * is a popover inside a menu's focus trap, which is the exact shape
  * `viewportToolbarLayout` documents as the reason `kind: 'node'` exists.
  *
- * A modal has no anchor to be wrong about. It also has the height these controls
- * actually want: eleven of them, which as a dropdown over a 375px screen is a
- * panel taller than the canvas it is supposed to be modifying.
+ * A modal has no anchor to be wrong about.
  *
  * # What it does not do
  *
- * It does not own the controls — `FoldedFigureControls` does, and the dropdown
+ * It does not own the list — `FoldedFigurePicker` does, and the dropdown
  * renders the same element tree. This file is the frame: a backdrop, a titled
- * header, a close button, and Escape.
+ * header, a close button, and Escape. The figure's appearance is the
+ * Properties pane's, reached from the overflow row beside this one.
  */
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ListChecks, X } from 'lucide-react';
 import { isShortcutEditingTarget } from '../../keyboard/shortcutDispatcher';
 import { IconButton } from '../../components/ui/IconButton';
-import { FoldedFigureControls, type FoldedFigureControlsProps } from './FoldedFigureControls';
+import { FoldedFigurePicker, type FoldedFigurePickerProps } from './FoldedFigurePicker';
 
 export function FoldedFigureModal({
   close,
-  ...controls
-}: FoldedFigureControlsProps & { close: () => void }) {
+  ...picker
+}: FoldedFigurePickerProps & { close: () => void }) {
   const { t } = useTranslation();
   const title = t('panels:creasePattern.foldedModels', 'Folded models');
 
@@ -52,7 +51,7 @@ export function FoldedFigureModal({
   // Capture-phase on `window`, like every other dialog here, so Escape fires
   // wherever focus landed inside rather than only on what happens to be focused.
   // `isShortcutEditingTarget` is the repo's one answer to "does this target own
-  // its keystrokes", and this body holds a colour input and a select.
+  // its keystrokes".
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
@@ -101,7 +100,7 @@ export function FoldedFigureModal({
           </IconButton>
         </header>
         <div className="simple-modal__body folded-figure-modal__body">
-          <FoldedFigureControls {...controls} />
+          <FoldedFigurePicker {...picker} />
         </div>
       </div>
     </div>

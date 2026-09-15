@@ -6,6 +6,7 @@ import type {
 import type { FoldedFigureExportFormat } from './foldedFigureExport';
 import { flipFoldedState, foldedFigureCycling } from './foldedFigureState';
 import { foldedFigureCapabilities, isFolded3dFigure } from './foldedFigureCapabilities';
+import { foldedDisplayStyleLabel } from './foldedFigureControlOptions';
 import { foldedFigureNotice, type FoldedFigureNotice } from './foldedFigureNotice';
 
 /**
@@ -207,29 +208,6 @@ export function foldedExportFormatLabel(t: TFunction, value: FoldedFigureExportF
   }
 }
 
-export function foldedDisplayStyleChoiceLabel(
-  t: TFunction,
-  value: OristudioCpFoldedFigureDisplayStyle
-): string {
-  // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
-  switch (value) {
-    case 'Paper5':
-      return t('panels:foldedFigureActions.stylePaper', 'Paper');
-    case 'Wire2':
-      return t('panels:foldedFigureActions.styleWireframe', 'Wireframe');
-    case 'Transparent3':
-      return t('panels:foldedFigureActions.styleXray', 'X-ray');
-    case 'Development1':
-      return t('panels:foldedFigureActions.styleDev1', 'Dev 1');
-    case 'Development4':
-      return t('panels:foldedFigureActions.styleDev4', 'Dev 4');
-    case 'None0':
-      return t('panels:foldedFigureActions.styleNone', 'None');
-    default:
-      return value;
-  }
-}
-
 /**
  * Build the ordered action list for `figure`.
  *
@@ -324,7 +302,7 @@ export function buildFoldedFigureActions(
       exclusive: true,
       options: capabilities.styleChoices.map((value) => ({
         id: `display-style-${value}`,
-        label: foldedDisplayStyleChoiceLabel(t, value),
+        label: foldedDisplayStyleLabel(t, value),
         checked: value === currentStyle,
         run: () => deps.setDisplayStyle(figure, value),
       })),

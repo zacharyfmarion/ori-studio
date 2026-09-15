@@ -138,11 +138,24 @@ describe('CpPropertiesPanel', () => {
     mount({ oristudioCpActiveFoldedFigureId: FIGURE.id });
     expect(text('.property-sheet__title')).toBe(FIGURE.title);
     expect(text('.property-sheet__subtitle')).toBe('Folding…');
-    expect(labels()).toEqual(['Display style']);
-    // Not ready: offered, disabled, with the reason.
+    expect(labels()).toEqual([
+      'Display style',
+      'Side',
+      'Front color',
+      'Back color',
+      'Line color',
+      'Shadow',
+      'Anti-alias',
+      'Scale',
+      'Rotation',
+    ]);
+    // Not ready: the appearance is offered, disabled, with the reason; the
+    // placement — where it sits — stays editable.
     expect(host?.querySelector('.control-row')?.getAttribute('title')).toBe(
       'Refold to change how this figure looks'
     );
+    const scale = host?.querySelector<HTMLInputElement>('input[aria-label="Scale"]');
+    expect(scale?.disabled).toBe(false);
   });
 
   it('shows the shared simulator settings for a window and writes them app-wide', () => {

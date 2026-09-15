@@ -214,10 +214,18 @@
   "cpProperties": {
     "empty": "キャンバス上のオブジェクトを選択すると、そのプロパティを編集できます。",
     "folded": {
+      "antiAlias": "アンチエイリアス",
       "appearance": "外観",
+      "camera": "カメラ",
       "changeView": "折り上がりモデルの視点を変更",
       "displayStyle": "表示スタイル",
-      "refoldToChange": "この図の見た目を変えるには折り直してください"
+      "pitch": "傾き",
+      "placement": "配置",
+      "refoldToChange": "この図の見た目を変えるには折り直してください",
+      "rotation": "回転",
+      "scale": "拡大率",
+      "yaw": "回転角",
+      "zoom": "ズーム"
     },
     "image": {
       "rotation": "回転",
@@ -380,7 +388,6 @@
       "warningOther_other": "{{label}} 警告 {{count}} 件"
     },
     "diagnosticsHidden_other": "フィルターにより {{count}} 件の問題を非表示",
-    "display": "表示",
     "duplicateFoldedModelAction": "折り上がり図を複製",
     "flipFoldedModel": "折り上がり図を裏返す",
     "fold": "折る",
@@ -424,14 +431,11 @@
       "front": "表の色",
       "line": "線の色"
     },
-    "foldedDisplayStyle": "折りの表示スタイル",
     "foldedFigure": {
       "windowAriaLabel": "折り上がり図（立体）",
       "windowFailed": "このモデルを描画できませんでした"
     },
-    "foldedModelControls": "折りモデルの操作",
     "foldedModels": "折りモデル",
-    "foldedModelSide": "折りモデルの面",
     "foldedModelStatus": {
       "error": "失敗",
       "loading": "折り畳み中…"
@@ -439,14 +443,6 @@
     "foldedState": {
       "back": "裏",
       "front": "表"
-    },
-    "foldedStyle": {
-      "dev1": "Dev 1",
-      "dev4": "Dev 4",
-      "none": "なし",
-      "paper": "用紙",
-      "transparent": "透明",
-      "wire": "ワイヤー"
     },
     "foldModelAction": "モデルを折る",
     "inlineSimulation": {
@@ -481,12 +477,14 @@
     "moveFoldedForm": "折り上がり図を移動",
     "moveSimulationWindow": "シミュレーションウィンドウを移動",
     "noCreasePattern": "展開図がありません",
+    "noFoldedModels": "展開図を折ると折りモデルが追加されます。",
     "noImportedCreasePattern": "インポートした展開図がありません",
     "none": "なし",
     "openingSharedLink": "共有された展開図を開いています…",
     "optimizingScale": "スケールを最適化中",
     "orbitFoldedForm": "折り上がり図を回転",
     "preparing": "エディターを準備中…",
+    "propertiesEllipsis": "プロパティ…",
     "refoldFoldedModelAction": "折り上がり図を折り直す",
     "rendererContextLost": "展開図キャンバスを復元しています…",
     "rendererContextLostHint": "このキャンバスのグラフィックスメモリがシステムに回収されました。デバイスのメモリが不足すると起こることがあります。展開図は失われていません。グラフィックスコンテキストが戻り次第、表示も戻ります。戻らない場合は Ori Studio を再読み込みしてください。",
@@ -520,7 +518,6 @@
     "setFoldedModelUpright": "折り上がりモデルの上方向を設定",
     "shadow": "影",
     "shadowUnsupported3d": "3D の折り上がりモデルにはまだ影を描画できません",
-    "showFoldedModelShadow": "折りモデルの影を表示",
     "side": "面",
     "stale": "要再折り",
     "viewFoldedModelOtherSide": "反対側から見る",

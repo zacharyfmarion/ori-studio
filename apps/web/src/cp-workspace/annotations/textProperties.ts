@@ -1,5 +1,5 @@
 import type { PropertySheet } from '../../lib/propertyDescriptors';
-import { formatPercent } from '../images/imageProperties';
+import { formatPercent } from '../../lib/angleUnits';
 import type { TargetOf } from '../canvasObjects/canvasObjectKinds';
 import type { AnnotationPaneDeps } from './useAnnotationPaneDeps';
 

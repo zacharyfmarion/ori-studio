@@ -224,10 +224,18 @@
   "cpProperties": {
     "empty": "Selecione um objeto na tela para editar suas propriedades.",
     "folded": {
+      "antiAlias": "Suavização",
       "appearance": "Aparência",
+      "camera": "Câmera",
       "changeView": "Alterar a vista do modelo dobrado",
       "displayStyle": "Estilo de exibição",
-      "refoldToChange": "Dobre novamente para alterar a aparência deste modelo"
+      "pitch": "Inclinação",
+      "placement": "Posição",
+      "refoldToChange": "Dobre novamente para alterar a aparência deste modelo",
+      "rotation": "Rotação",
+      "scale": "Escala",
+      "yaw": "Giro",
+      "zoom": "Zoom"
     },
     "image": {
       "rotation": "Rotação",
@@ -430,7 +438,6 @@
     "diagnosticsHidden_one": "1 problema oculto por um filtro",
     "diagnosticsHidden_many": "{{count}} problemas ocultos por um filtro",
     "diagnosticsHidden_other": "{{count}} problemas ocultos por um filtro",
-    "display": "Exibição",
     "duplicateFoldedModelAction": "Duplicar modelo dobrado",
     "flipFoldedModel": "Virar modelo dobrado",
     "fold": "Dobrar",
@@ -474,14 +481,11 @@
       "front": "Cor da frente",
       "line": "Cor da linha"
     },
-    "foldedDisplayStyle": "Estilo de exibição do dobrado",
     "foldedFigure": {
       "windowAriaLabel": "Modelo dobrado, em três dimensões",
       "windowFailed": "Não foi possível desenhar este modelo"
     },
-    "foldedModelControls": "Controles do modelo dobrado",
     "foldedModels": "Modelos dobrados",
-    "foldedModelSide": "Lado do modelo dobrado",
     "foldedModelStatus": {
       "error": "Falhou",
       "loading": "Dobrando…"
@@ -489,14 +493,6 @@
     "foldedState": {
       "back": "Verso",
       "front": "Frente"
-    },
-    "foldedStyle": {
-      "dev1": "Dev 1",
-      "dev4": "Dev 4",
-      "none": "Nenhum",
-      "paper": "Papel",
-      "transparent": "Transparente",
-      "wire": "Aramado"
     },
     "foldModelAction": "Dobrar modelo",
     "inlineSimulation": {
@@ -533,12 +529,14 @@
     "moveFoldedForm": "Mover forma dobrada",
     "moveSimulationWindow": "Mover janela de simulação",
     "noCreasePattern": "Nenhum padrão de vincos",
+    "noFoldedModels": "Dobre o padrão de vincos para adicionar um modelo dobrado.",
     "noImportedCreasePattern": "Nenhum padrão de vincos importado",
     "none": "Nenhum",
     "openingSharedLink": "Abrindo o padrão de vincos compartilhado…",
     "optimizingScale": "Otimizando escala",
     "orbitFoldedForm": "Girar a figura dobrada",
     "preparing": "Preparando o editor…",
+    "propertiesEllipsis": "Propriedades…",
     "refoldFoldedModelAction": "Dobrar o modelo novamente",
     "rendererContextLost": "Restaurando a tela do padrão de vincos…",
     "rendererContextLostHint": "O sistema retomou a memória gráfica desta tela, o que pode acontecer quando o dispositivo fica com pouca. Seu padrão de vincos está seguro — a visualização volta assim que o contexto gráfico voltar. Se ele não voltar, recarregue o Ori Studio.",
@@ -574,7 +572,6 @@
     "setFoldedModelUpright": "Definir a vertical do modelo dobrado",
     "shadow": "Sombra",
     "shadowUnsupported3d": "As sombras ainda não são desenhadas para um modelo dobrado em 3D",
-    "showFoldedModelShadow": "Mostrar sombra do modelo dobrado",
     "side": "Lado",
     "stale": "Desatualizado",
     "viewFoldedModelOtherSide": "Ver pelo outro lado",

@@ -80,6 +80,16 @@ describe('foldedAppearanceSupport', () => {
     }
   });
 
+  it('has no side control on a 3D figure, whose other side is a place to stand', () => {
+    // A flat figure's side is which face the kernel draws; a 3D figure's is
+    // the `otherSide` verb on its toolbar, which moves the eye. Offering the
+    // model's `state` as a control there was enabled-and-inert after the first
+    // orbit, so it is not a property of the 3D figure at all.
+    expect(foldedAppearanceSupport(figure('flat'), 'side')).toBe('supported');
+    expect(foldedAppearanceSupport(figure('spatial'), 'side')).toBe('not-applicable');
+    expect(foldedAppearanceVisible(figure('spatial'), 'side')).toBe(false);
+  });
+
   it('shows shadow on a 3D figure but disabled, rather than enabled and inert', () => {
     // The distinction the whole module exists for: visible so the control does
     // not vanish between figure kinds, disabled so pressing it cannot do

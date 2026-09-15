@@ -219,10 +219,18 @@
   "cpProperties": {
     "empty": "Select an object on the canvas to edit its properties.",
     "folded": {
+      "antiAlias": "Anti-alias",
       "appearance": "Appearance",
+      "camera": "Camera",
       "changeView": "Change folded model view",
       "displayStyle": "Display style",
-      "refoldToChange": "Refold to change how this figure looks"
+      "pitch": "Tilt",
+      "placement": "Placement",
+      "refoldToChange": "Refold to change how this figure looks",
+      "rotation": "Rotation",
+      "scale": "Scale",
+      "yaw": "Turn",
+      "zoom": "Zoom"
     },
     "image": {
       "rotation": "Rotation",
@@ -405,7 +413,6 @@
     },
     "diagnosticsHidden_one": "1 finding hidden by a filter",
     "diagnosticsHidden_other": "{{count}} findings hidden by a filter",
-    "display": "Display",
     "duplicateFoldedModelAction": "Duplicate folded model",
     "flipFoldedModel": "Flip folded model",
     "fold": "Fold",
@@ -449,14 +456,11 @@
       "front": "Front color",
       "line": "Line color"
     },
-    "foldedDisplayStyle": "Folded display style",
     "foldedFigure": {
       "windowAriaLabel": "Folded model, in three dimensions",
       "windowFailed": "Could not draw this model"
     },
-    "foldedModelControls": "Folded model controls",
     "foldedModels": "Folded models",
-    "foldedModelSide": "Folded model side",
     "foldedModelStatus": {
       "error": "Failed",
       "loading": "Folding…"
@@ -464,14 +468,6 @@
     "foldedState": {
       "back": "Back",
       "front": "Front"
-    },
-    "foldedStyle": {
-      "dev1": "Dev 1",
-      "dev4": "Dev 4",
-      "none": "None",
-      "paper": "Paper",
-      "transparent": "Transparent",
-      "wire": "Wire"
     },
     "foldModelAction": "Fold model",
     "inlineSimulation": {
@@ -507,12 +503,14 @@
     "moveFoldedForm": "Move folded form",
     "moveSimulationWindow": "Move simulation window",
     "noCreasePattern": "No crease pattern",
+    "noFoldedModels": "Fold the crease pattern to add a folded model.",
     "noImportedCreasePattern": "No imported crease pattern",
     "none": "None",
     "openingSharedLink": "Opening shared crease pattern…",
     "optimizingScale": "Optimizing scale",
     "orbitFoldedForm": "Turn folded form",
     "preparing": "Preparing the editor…",
+    "propertiesEllipsis": "Properties…",
     "refoldFoldedModelAction": "Refold folded model",
     "rendererContextLost": "Restoring the crease-pattern canvas…",
     "rendererContextLostHint": "The system took this canvas’s graphics memory back, which can happen when the device runs low on it. Your crease pattern is safe — the view returns as soon as the graphics context does. If it does not come back, reload Ori Studio.",
@@ -547,7 +545,6 @@
     "setFoldedModelUpright": "Set folded model upright",
     "shadow": "Shadow",
     "shadowUnsupported3d": "Shadows are not drawn for a 3D folded model yet",
-    "showFoldedModelShadow": "Show folded model shadow",
     "side": "Side",
     "stale": "Stale",
     "viewFoldedModelOtherSide": "View from the other side",

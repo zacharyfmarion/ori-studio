@@ -168,7 +168,19 @@ const OVERSIZED_PANELS = {
   // wiring, which chooses the region hooks that mount, the region layer and
   // its two chips, and the diagnostic list they read. Neither is behavior that
   // belongs elsewhere, and neither branch chose the number the other crossed.
-  'CreasePatternPanel.tsx': 2900,
+  //
+  // 2900 -> 2756: the Properties pane's plan, phases A through D
+  // (`implementation-plans/canvas-object-properties-panel.md`). The inspector
+  // cascade is one switch in `canvasObjects/CpFloatingInspectors`; the seven
+  // per-kind dispatch arms (select, box update, begin/commit/cancel gesture,
+  // delete, context menu) and the three merged lists are one
+  // `mergeCanvasLayerBindings` over bindings each layer's hook returns; the
+  // folded appearance form left the dropdown and the modal for the pane, and
+  // the hook's scoped-model protocol went with it. What landed here is two
+  // hook calls (the resolved selection, the pane's reveal) and one overflow
+  // row. Measured, and set to the measurement: this is the direction the
+  // number is for.
+  'CreasePatternPanel.tsx': 2756,
   // 2085 -> 2095: the "no crease pattern" marking. The warning used to name an
   // internal class and point at nothing, so this adds the canvas layer that
   // shows which flaps it means, its Layers toggle, and the alert copy that

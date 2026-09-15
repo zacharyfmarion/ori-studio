@@ -1,13 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TFunction } from 'i18next';
 import { IMAGE } from '../canvasObjects/canvasObjectKinds.fixtures';
-import {
-  buildImageProperties,
-  degreesToRadians,
-  radiansToDegrees,
-  wrapDegrees,
-  type ImagePropertyDeps,
-} from './imageProperties';
+import { degreesToRadians, radiansToDegrees, wrapDegrees } from '../../lib/angleUnits';
+import { buildImageProperties, type ImagePropertyDeps } from './imageProperties';
 
 const t = ((_key: string, fallback: string) => fallback) as unknown as TFunction;
 

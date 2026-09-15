@@ -214,10 +214,18 @@
   "cpProperties": {
     "empty": "캔버스에서 개체를 선택하면 속성을 편집할 수 있습니다.",
     "folded": {
+      "antiAlias": "안티앨리어싱",
       "appearance": "모양",
+      "camera": "카메라",
       "changeView": "접힌 모델 보기 변경",
       "displayStyle": "표시 스타일",
-      "refoldToChange": "이 모델의 모양을 바꾸려면 다시 접으세요"
+      "pitch": "기울기",
+      "placement": "배치",
+      "refoldToChange": "이 모델의 모양을 바꾸려면 다시 접으세요",
+      "rotation": "회전",
+      "scale": "크기",
+      "yaw": "회전 각도",
+      "zoom": "확대"
     },
     "image": {
       "rotation": "회전",
@@ -380,7 +388,6 @@
       "warningOther_other": "{{label}} 경고 {{count}}개"
     },
     "diagnosticsHidden_other": "필터로 문제 {{count}}개 숨김",
-    "display": "표시",
     "duplicateFoldedModelAction": "접힌 모델 복제",
     "flipFoldedModel": "접힌 모델 뒤집기",
     "fold": "접기",
@@ -424,14 +431,11 @@
       "front": "앞면 색",
       "line": "선 색"
     },
-    "foldedDisplayStyle": "접힌 표시 스타일",
     "foldedFigure": {
       "windowAriaLabel": "접힌 모델, 3차원",
       "windowFailed": "이 모델을 그릴 수 없습니다"
     },
-    "foldedModelControls": "접힌 모델 컨트롤",
     "foldedModels": "접힌 모델",
-    "foldedModelSide": "접힌 모델 면",
     "foldedModelStatus": {
       "error": "실패",
       "loading": "접는 중…"
@@ -439,14 +443,6 @@
     "foldedState": {
       "back": "뒷면",
       "front": "앞면"
-    },
-    "foldedStyle": {
-      "dev1": "Dev 1",
-      "dev4": "Dev 4",
-      "none": "없음",
-      "paper": "종이",
-      "transparent": "투명",
-      "wire": "와이어"
     },
     "foldModelAction": "모델 접기",
     "inlineSimulation": {
@@ -481,12 +477,14 @@
     "moveFoldedForm": "접힌 형태 이동",
     "moveSimulationWindow": "시뮬레이션 창 이동",
     "noCreasePattern": "전개도 없음",
+    "noFoldedModels": "전개도를 접으면 접힌 모델이 추가됩니다.",
     "noImportedCreasePattern": "가져온 전개도 없음",
     "none": "없음",
     "openingSharedLink": "공유된 전개도를 여는 중…",
     "optimizingScale": "배율 최적화 중",
     "orbitFoldedForm": "접힌 도형 회전",
     "preparing": "편집기를 준비하는 중…",
+    "propertiesEllipsis": "속성…",
     "refoldFoldedModelAction": "접힌 모델 다시 접기",
     "rendererContextLost": "전개도 캔버스를 복원하는 중…",
     "rendererContextLostHint": "시스템이 이 캔버스의 그래픽 메모리를 회수했습니다. 기기의 메모리가 부족할 때 일어날 수 있습니다. 전개도는 안전하며, 그래픽 컨텍스트가 돌아오는 즉시 화면도 돌아옵니다. 돌아오지 않으면 Ori Studio를 새로 고치세요.",
@@ -520,7 +518,6 @@
     "setFoldedModelUpright": "접힌 모델의 위쪽 방향 설정",
     "shadow": "그림자",
     "shadowUnsupported3d": "3D 접힌 모델에는 아직 그림자가 그려지지 않습니다",
-    "showFoldedModelShadow": "접힌 모델 그림자 표시",
     "side": "면",
     "stale": "오래됨",
     "viewFoldedModelOtherSide": "반대편에서 보기",

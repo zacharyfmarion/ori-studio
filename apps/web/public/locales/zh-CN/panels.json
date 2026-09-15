@@ -214,10 +214,18 @@
   "cpProperties": {
     "empty": "在画布上选择一个对象以编辑其属性。",
     "folded": {
+      "antiAlias": "抗锯齿",
       "appearance": "外观",
+      "camera": "相机",
       "changeView": "更改折叠模型视角",
       "displayStyle": "显示样式",
-      "refoldToChange": "重新折叠后才能更改此模型的外观"
+      "pitch": "俯仰",
+      "placement": "位置",
+      "refoldToChange": "重新折叠后才能更改此模型的外观",
+      "rotation": "旋转",
+      "scale": "缩放",
+      "yaw": "转向",
+      "zoom": "视距"
     },
     "image": {
       "rotation": "旋转",
@@ -380,7 +388,6 @@
       "warningOther_other": "{{count}} 个 {{label}} 警告"
     },
     "diagnosticsHidden_other": "筛选器已隐藏 {{count}} 个问题",
-    "display": "显示",
     "duplicateFoldedModelAction": "复制折叠模型",
     "flipFoldedModel": "翻转折叠模型",
     "fold": "折叠",
@@ -424,14 +431,11 @@
       "front": "正面颜色",
       "line": "线条颜色"
     },
-    "foldedDisplayStyle": "折叠显示样式",
     "foldedFigure": {
       "windowAriaLabel": "折叠模型（三维）",
       "windowFailed": "无法绘制此模型"
     },
-    "foldedModelControls": "折叠模型控件",
     "foldedModels": "折叠模型",
-    "foldedModelSide": "折叠模型侧面",
     "foldedModelStatus": {
       "error": "失败",
       "loading": "正在折叠…"
@@ -439,14 +443,6 @@
     "foldedState": {
       "back": "背面",
       "front": "正面"
-    },
-    "foldedStyle": {
-      "dev1": "Dev 1",
-      "dev4": "Dev 4",
-      "none": "无",
-      "paper": "纸张",
-      "transparent": "透明",
-      "wire": "线框"
     },
     "foldModelAction": "折叠模型",
     "inlineSimulation": {
@@ -481,12 +477,14 @@
     "moveFoldedForm": "移动折叠图",
     "moveSimulationWindow": "移动模拟窗口",
     "noCreasePattern": "无折痕图",
+    "noFoldedModels": "折叠折痕图即可添加折叠模型。",
     "noImportedCreasePattern": "无导入的折痕图",
     "none": "无",
     "openingSharedLink": "正在打开分享的折痕图…",
     "optimizingScale": "正在优化比例",
     "orbitFoldedForm": "旋转折叠图形",
     "preparing": "正在准备编辑器…",
+    "propertiesEllipsis": "属性…",
     "refoldFoldedModelAction": "重新折叠模型",
     "rendererContextLost": "正在恢复折痕图画布…",
     "rendererContextLostHint": "系统收回了此画布的图形内存，设备内存不足时可能发生。你的折痕图安然无恙——图形上下文恢复后，视图也会随之恢复。若一直没有恢复，请重新加载 Ori Studio。",
@@ -520,7 +518,6 @@
     "setFoldedModelUpright": "设置折叠模型的向上方向",
     "shadow": "阴影",
     "shadowUnsupported3d": "尚不支持为 3D 折叠模型绘制阴影",
-    "showFoldedModelShadow": "显示折叠模型阴影",
     "side": "侧面",
     "stale": "已过期",
     "viewFoldedModelOtherSide": "从另一侧查看",
