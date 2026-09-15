@@ -49,10 +49,25 @@ export function alsoLetters(
   also: readonly PrecreaseRef[]
 ): InputLetters {
   const corner: PrecreaseRef[] = firstLettersACorner ? [{ kind: 'point', id: -1 }] : [];
-  const all = inputLetters([...first, ...corner, ...also]);
+  // A reference both name — the mark at the centre both corners fold onto,
+  // the line both marks sit on — keeps the letter the first gave it: one
+  // thing, one name, however many folds use it.
+  const shared = (r: PrecreaseRef) => first.findIndex((f) => sameRef(f, r));
+  const fresh = also.filter((r) => shared(r) < 0);
+  const all = inputLetters([...first, ...corner, ...fresh]);
+  const freshLetters = all.byInput.slice(first.length + corner.length);
+  let next = 0;
   return {
-    byInput: all.byInput.slice(first.length + corner.length),
+    byInput: also.map((r) => {
+      const at = shared(r);
+      return at >= 0 ? all.byInput[at]! : freshLetters[next++]!;
+    }),
     nextPoint: all.nextPoint,
     nextLine: all.nextLine,
   };
+}
+
+/** The same reference: the same kind of thing with the same state id. */
+export function sameRef(a: PrecreaseRef, b: PrecreaseRef): boolean {
+  return a.kind === b.kind && a.id === b.id;
 }

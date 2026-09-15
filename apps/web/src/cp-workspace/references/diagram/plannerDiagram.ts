@@ -62,7 +62,7 @@ import {
   foldArrowArc,
   type DiagramSheet,
 } from '../stepDiagramGeometry';
-import { alsoLetters, inputLetters, type InputLetters } from './inputLetters';
+import { alsoLetters, inputLetters, sameRef, type InputLetters } from './inputLetters';
 import type { Point } from '../../../lib/geometry';
 import type { DiagramFrame, DiagramGridLine, DiagramSegment } from './diagramFrames';
 import type {
@@ -880,6 +880,9 @@ export function plannerStepDiagram(
   const witness = chosenWitness(step);
   const inputs: PrecreaseRef[] = witness?.inputs ?? [];
   const labels: StepDiagramPrimitive[] = [];
+  // References already on the card: a mark or line two witnesses share is
+  // drawn and lettered once, by the first.
+  const drawn: PrecreaseRef[] = [];
   // Everything a witness puts on the card — its references, their letters,
   // the motion — drawn once for the chosen witness and again for its mirror
   // image when the paper offers one (`step.also`), with the letters carrying
@@ -982,13 +985,20 @@ export function plannerStepDiagram(
     const landed = arm.filter((piece) =>
       (isMoving ? alignment(chord, [piece], otherRuns) : alignment(chord, otherRuns, [piece])) > 0
     );
-    if (landed.length > 0) return landed;
     const whole = segmentOfRef(sequence, frame, ref);
     const vertex = whole ? linesMeet(whole, chord) : null;
-    if (!vertex) return arm;
     const gap = (seg: DiagramSegment) =>
-      Math.min(...seg.map((q) => Math.hypot(q.x - vertex.x, q.y - vertex.y)));
-    return [arm.reduce((a, b) => (gap(b) < gap(a) ? b : a))];
+      vertex ? Math.min(...seg.map((q) => Math.hypot(q.x - vertex.x, q.y - vertex.y))) : 0;
+    const nearest = (pieces: DiagramSegment[]) => [
+      pieces.reduce((a, b) => (gap(b) < gap(a) ? b : a)),
+    ];
+    // A bisection is made at its vertex: of the pieces the fold lands crease
+    // on, the folder lines up the one at the vertex, and a piece at the far
+    // end of the line — the top of the edge's image, markhor 67 — is not
+    // what they look at.
+    if (landed.length > 0) return witness?.axiom === 3 && vertex ? nearest(landed) : landed;
+    if (!vertex) return arm;
+    return nearest(arm);
   };
   // The pieces each line input is drawn as, kept for the arrow: a moving line
   // is swung from the piece the folder is shown, not from a half of the whole
@@ -996,16 +1006,18 @@ export function plannerStepDiagram(
   const shownPieces = new Map<number, DiagramSegment[]>();
   inputs.forEach((ref, which) => {
     const letter = letters.byInput[which]!;
+    const already = drawn.some((d) => sameRef(d, ref));
+    drawn.push(ref);
     if (ref.kind === 'point' || ref.kind === 'corner') {
       const point = frame.point(ref.id);
-      if (!point) return;
+      if (!point || already) return;
       primitives.push({ kind: 'point', at: xy(point), style: 'highlight' });
       labels.push({ kind: 'label', at: xy(point), text: letter, style: 'highlight' });
       return;
     }
     const segments = shown(which, ref, runsOf(ref));
     shownPieces.set(which, segments);
-    if (segments.length === 0) return;
+    if (segments.length === 0 || already) return;
     for (const segment of segments) {
       primitives.push({
         kind: 'line',

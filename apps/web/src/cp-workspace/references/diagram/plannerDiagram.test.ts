@@ -64,23 +64,33 @@ describe('plannerStepDiagram', () => {
     const letters = (model: typeof both) =>
       model?.primitives.flatMap((p) => (p.kind === 'label' ? [p.text] : [])) ?? [];
     expect(letters(alone)).toEqual(['P', 'Q']);
-    expect(letters(both)).toEqual(['P', 'Q', 'R', 'S']);
+    // The mirror shares the mark both corners fold onto: it keeps Q, and
+    // its ring is drawn once.
+    expect(letters(both)).toEqual(['P', 'Q', 'R']);
     const arrows = (model: typeof both) =>
       model?.primitives.filter((p) => p.kind === 'fold-arrow').length ?? 0;
     expect(arrows(both)).toBe(arrows(alone) + 1);
     const rings = (model: typeof both) =>
       model?.primitives.filter((p) => p.kind === 'point').length ?? 0;
-    expect(rings(both)).toBe(rings(alone) + 2);
+    expect(rings(both)).toBe(rings(alone) + 1);
   });
 
   // A twin pair — two folds that mirror each other, made at once — is one
   // card: both creases, both witnesses with the letters carrying on, an
   // arrow for each.
   it('draws a twin pair on one card with both creases and continued letters', () => {
+    const mirror = {
+      ...sequence.steps[2]!.witnesses[0]!,
+      inputs: [
+        { kind: 'corner' as const, id: 1, corner: 'se' as const },
+        { kind: 'point' as const, id: 5 },
+      ],
+    };
     const paired = {
       ...sequence,
+      points: [...sequence.points, { id: 5, p: [1, 0.5] as [number, number], lines: [1, 4], on_boundary: true }],
       steps: sequence.steps.map((s, i) =>
-        i === 1 ? { ...s, twin: 3 } : i === 2 ? { ...s, twin: 2 } : s
+        i === 1 ? { ...s, twin: 3 } : i === 2 ? { ...s, twin: 2, witnesses: [mirror], chosen: 0 } : s
       ),
     };
     const alone = plannerStepDiagram(sequence, unitFrame(sequence), 1);
@@ -98,6 +108,28 @@ describe('plannerStepDiagram', () => {
         (p) => p.kind === 'line' && p.style !== 'highlight' && p.style !== 'crease'
       ).length ?? 0;
     expect(creases(both)).toBe(creases(alone) * 2);
+  });
+
+  // A mark both folds of a pair use — the centre both corners fold onto —
+  // is one thing on the card: one ring, one letter, named the same in both.
+  it('letters a reference both twins share once', () => {
+    const shared = {
+      ...sequence.steps[1]!.witnesses[0]!,
+      inputs: [
+        { kind: 'corner' as const, id: 1, corner: 'se' as const },
+        { kind: 'point' as const, id: 4 },
+      ],
+    };
+    const paired = {
+      ...sequence,
+      steps: sequence.steps.map((s, i) =>
+        i === 1 ? { ...s, twin: 3 } : i === 2 ? { ...s, twin: 2, witnesses: [shared], chosen: 0 } : s
+      ),
+    };
+    const both = plannerStepDiagram(paired, unitFrame(paired), 1, { twin: 2 });
+    const letters = both?.primitives.flatMap((p) => (p.kind === 'label' ? [p.text] : [])) ?? [];
+    expect(letters).toEqual(['P', 'Q', 'R']);
+    expect(both?.primitives.filter((p) => p.kind === 'point')).toHaveLength(3);
   });
 
   it('draws a pinched step as its spans, never as a full crease', () => {
@@ -1872,6 +1904,26 @@ describe('a receiving piece that starts at the fold, in the document frame', () 
     const model = plannerStepDiagram(sequence, unitFrame(sequence), 1);
     expect(drawsPiece(model, [0.375, 0.625], [0, 1])).toBe(true);
     expect(drawsPiece(model, [1, 0], [0.75, 0.25])).toBe(false);
+  });
+
+  it('shows only the piece at the vertex when the edge lands on several', () => {
+    // The antidiagonal creased in two pieces the left edge lands on: the
+    // folder lines up the one at the vertex, not the one further along.
+    const both: PrecreaseSequence = {
+      ...sequence,
+      steps: sequence.steps.map((s) =>
+        s.id === 1
+          ? {
+              ...s,
+              cp_spans: [seg([0.375, 0.625], [0.55, 0.45]), seg([0.1, 0.9], [0, 1])],
+              made: [seg([0.375, 0.625], [0.55, 0.45]), seg([0.1, 0.9], [0, 1])],
+            }
+          : s
+      ),
+    };
+    const model = plannerStepDiagram(both, unitFrame(both), 1);
+    expect(drawsPiece(model, [0.1, 0.9], [0, 1])).toBe(true);
+    expect(drawsPiece(model, [0.375, 0.625], [0.55, 0.45])).toBe(false);
   });
 
   it('shows the same piece on a 400-unit sheet placed at −200', () => {

@@ -1244,6 +1244,11 @@ fn mirror_witness(
     chosen: &Witness,
     candidates: &[Witness],
 ) -> Option<Witness> {
+    // Two pairs of marks keep a fold straight; a second line folded onto
+    // the same line (an O4's mirror, markhor 54) reads as a second crease.
+    if !matches!(chosen.axiom, 1 | 2) {
+        return None;
+    }
     let sheet = state.sheet();
     for sym in Symmetry::of(sheet) {
         // The fold has to be its own mirror image, or the mirror witness is
@@ -1655,8 +1660,20 @@ fn sight(
 }
 
 /// A twin found in the block: its position in the queue, its folded index,
-/// its witness, and the crease it makes.
-type TwinFound = (usize, usize, Witness, Vec<[[f64; 2]; 2]>);
+/// its witness, the crease it makes, and whether the pair is one card.
+type TwinFound = (usize, usize, Witness, Vec<[[f64; 2]; 2]>, bool);
+
+/// Whether a mirrored pair of folds of this kind is one card. Two points
+/// onto two points, two lines onto two lines, two creases through two
+/// pairs of marks, the two edges onto themselves: a diagram folds those at
+/// once. A crease folded onto itself through a mark, a swing, a point
+/// carried onto a line while a crease folds onto itself are each a
+/// manoeuvre of their own, and Zach reads two of them on one card as
+/// two steps forced together (markhor 15, 17, 18, 31); the pair is still
+/// placed side by side.
+fn one_card(w: &Witness) -> bool {
+    (1..=3).contains(&w.axiom) || (w.axiom == 4 && w.folds_edge_onto_itself())
+}
 
 /// A fold still waiting in the block that is the twin of `a`, the entry
 /// just placed: its line the image of `a`'s under a symmetry of the sheet,
@@ -1664,8 +1681,10 @@ type TwinFound = (usize, usize, Witness, Vec<[[f64; 2]; 2]>);
 /// `before` — the paper as it stood before `a` was made, so the order
 /// between the two is immaterial — its crease the image of `a`'s, and the
 /// same kind of fold in the same direction. A diagram folds such a pair as
-/// one step, and so does the card. The queue position and folded index of
-/// the twin, its witness, and the crease it makes.
+/// one step, and so does the card — for the kinds a card can hold at once
+/// ([`one_card`]); the rest are placed side by side on cards of their own.
+/// The queue position and folded index of the twin, its witness, the
+/// crease it makes, and whether the pair is one card.
 fn twin_in_queue(
     state: &State,
     closure: &Closure,
@@ -1754,7 +1773,7 @@ fn twin_in_queue(
             {
                 continue;
             }
-            return Some((k, j, wb.clone(), made_b));
+            return Some((k, j, wb.clone(), made_b, one_card(wa)));
         }
     }
     None
@@ -1970,11 +1989,11 @@ pub fn order_with(closure: &Closure, landmarks_first: bool, merge_twins: bool) -
                     let a = placed.last()?;
                     twin_in_queue(state, closure, before, a, &queue)
                 });
-                if let Some((k, j, witness, made)) = twin {
+                if let Some((k, j, witness, made, merged)) = twin {
                     queue.remove(k);
                     // The twin is the symmetric alignment; a mirror of the
                     // first's own witness beside it would be a third arrow.
-                    if let Some(a) = placed.last_mut() {
+                    if merged && let Some(a) = placed.last_mut() {
                         a.also = None;
                     }
                     let f = &folded[j];
@@ -2015,7 +2034,7 @@ pub fn order_with(closure: &Closure, landmarks_first: bool, merge_twins: bool) -
                         made,
                         also: None,
                         impractical: false,
-                        twin_of: Some(i),
+                        twin_of: merged.then_some(i),
                     });
                     snapshots[j] = Some(creased.clone());
                 }

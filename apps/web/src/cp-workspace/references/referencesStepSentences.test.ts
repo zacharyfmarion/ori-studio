@@ -385,18 +385,30 @@ describe('a step with a mirror alignment', () => {
   // The second witness's letters carry on from the first's — the card
   // letters them the same way — and the sentence says why both are shown.
   it('names both alignments, lettered in turn, and says to line up both', () => {
+    // The mark both corners fold onto keeps its letter.
     expect(describePlannerStep(t, mirrored, 1)).toBe(
-      'Fold P onto Q. Fold R onto S. Line up both at once, so the fold stays straight.'
+      'Fold P onto Q. Fold R onto Q. Line up both at once, so the fold stays straight.'
     );
   });
 });
 
 describe('a twin pair', () => {
   const sequence = plannerSequenceFixture();
+  const mirror = {
+    ...sequence.steps[2]!.witnesses[0]!,
+    inputs: [
+      { kind: 'corner' as const, id: 1, corner: 'se' as const },
+      { kind: 'point' as const, id: 5 },
+    ],
+  };
   const paired = {
     ...sequence,
+    points: [
+      ...sequence.points,
+      { id: 5, p: [1, 0.5] as [number, number], lines: [1, 4], on_boundary: true },
+    ],
     steps: sequence.steps.map((s, i) =>
-      i === 1 ? { ...s, twin: 3 } : i === 2 ? { ...s, twin: 2 } : s
+      i === 1 ? { ...s, twin: 3 } : i === 2 ? { ...s, twin: 2, witnesses: [mirror], chosen: 0 } : s
     ),
   };
 
@@ -408,6 +420,22 @@ describe('a twin pair', () => {
 
   it('reads as one card only when asked for with its twin', () => {
     expect(describePlannerStep(t, paired, 1)).toBe('Fold P onto Q.');
+  });
+
+  // The mark both corners fold onto keeps its letter in the twin's clause.
+  it('names a reference both folds share once', () => {
+    const shared = {
+      ...sequence.steps[1]!.witnesses[0]!,
+      inputs: [
+        { kind: 'corner' as const, id: 1, corner: 'se' as const },
+        { kind: 'point' as const, id: 4 },
+      ],
+    };
+    const sharing = {
+      ...paired,
+      steps: paired.steps.map((s, i) => (i === 2 ? { ...s, witnesses: [shared], chosen: 0 } : s)),
+    };
+    expect(describePlannerStep(t, sharing, 1, 2)).toBe('Fold P onto Q and R onto Q.');
   });
 });
 
