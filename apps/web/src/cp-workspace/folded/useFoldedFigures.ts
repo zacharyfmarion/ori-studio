@@ -62,7 +62,9 @@ import { announceUprightSet } from '../../lib/uprightFeedback';
 import { ANALYTICS_EVENTS, COUNT_BUCKETS, bucketCount } from '../../analytics/events';
 import { track } from '../../analytics';
 import type { GestureToken } from '../canvasObjects/gestureBracket';
+import type { CanvasLayerBinding } from '../canvasObjects/canvasLayerBindings';
 import { foldedFigureGesture } from './foldedFigureGesture';
+import { foldedFigureMenuItemsWith } from './foldedFigureMenuItems';
 import { deleteFoldedFigure, setFoldedFigureDisplayStyle } from './foldedFigureVerbs';
 
 /**
@@ -137,6 +139,9 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
   );
   const focusOristudioCpFoldedFigure = useWorkspaceStore(
     (state) => state.focusOristudioCpFoldedFigure
+  );
+  const setOristudioCpActiveFoldedFigure = useWorkspaceStore(
+    (state) => state.setOristudioCpActiveFoldedFigure
   );
   const foldOristudioCpDocument = useWorkspaceStore((state) => state.foldOristudioCpDocument);
   const foldAnotherOristudioCpFigure = useWorkspaceStore(
@@ -924,7 +929,60 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     ]
   );
 
+  /**
+   * The folded-figure layer as one {@link CanvasLayerBinding}. A press selects
+   * *and* focuses (there is no second-press rule — adding one made turning the
+   * model take two clicks); the press that focuses is still the press that
+   * moves, because the body only goes inert for the next press. `focus` is a
+   * no-op on a flat figure, so the selection is set either way.
+   */
+  const binding = useMemo<CanvasLayerBinding>(
+    () => ({
+      kinds: ['folded-figure'],
+      transformables: foldedFigureObjects,
+      // Figures are framed through the canvas's `foldedFigures` prop, which draws them.
+      overlayBoxes: [],
+      inertBodyIds: foldedInertBodyIds,
+      select: (id) => {
+        setOristudioCpActiveFoldedFigure(id);
+        focusOristudioCpFoldedFigure(id);
+      },
+      release: () => setOristudioCpActiveFoldedFigure(null),
+      applyBoxUpdate: handleFoldedFigureBoxUpdate,
+      beginGesture: () => beginFoldedFigureGesture(),
+      commitGesture: (_id, kind) => commitFoldedFigureGesture(foldedGestureLabel(kind)),
+      cancelGesture: () => cancelFoldedFigureGesture(),
+      remove: handleDeleteFoldedFigure,
+      contextMenu: (id, deps) => {
+        const figure = oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
+        if (!figure) return null;
+        // Act on the *clicked* figure, not the active one, so the menu is
+        // correct even before the selection this sets has settled.
+        setOristudioCpActiveFoldedFigure(id);
+        return {
+          targetKind: 'folded-figure',
+          build: () => foldedFigureMenuItemsWith(figure, foldedFigureActionDeps, deps.t),
+        };
+      },
+    }),
+    [
+      foldedFigureObjects,
+      foldedInertBodyIds,
+      setOristudioCpActiveFoldedFigure,
+      focusOristudioCpFoldedFigure,
+      handleFoldedFigureBoxUpdate,
+      beginFoldedFigureGesture,
+      commitFoldedFigureGesture,
+      cancelFoldedFigureGesture,
+      foldedGestureLabel,
+      handleDeleteFoldedFigure,
+      oristudioCpFoldedFigures,
+      foldedFigureActionDeps,
+    ]
+  );
+
   return {
+    binding,
     figures: oristudioCpFoldedFigures,
     generated: generatedFoldedFigures,
     active: activeFoldedFigure,

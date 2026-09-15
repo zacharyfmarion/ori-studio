@@ -1747,11 +1747,11 @@ Simulate workspace.
 box update and gesture callbacks dispatch through `bindings.byId(id)`. A new
 kind is one binding row. Behaviour-preserving. Ships alone: yes.
 
-- [ ] `cp-workspace/canvasObjects/canvasLayerBindings.ts` (`CanvasLayerBinding`, `mergeCanvasLayerBindings`) + pure tests
-- [ ] `useCpAnnotations`, `useFoldedFigures`, `useInlineSimulations` return `binding` (transformables, overlayBoxes, inertBodyIds, select, applyBoxUpdate, begin/commit/cancelGesture, remove, contextMenu); `regions/regionMenuItems.ts` gives regions their rows (raised from the chip bar)
-- [ ] `CreasePatternPanel.tsx`: `selectCanvasObject`, `handleCanvasObjectUpdate`, `beginCanvasObjectGesture`, `commitCanvasObjectGesture`, `cancelCanvasObjectGesture`, the delete ladder, `canvasObjects`, `overlayBoxes` and `inertBodyIds` become one merge and `byId` lookups; `useCpCanvasContextMenu.onCanvasObjectContextMenu` resolves and calls `binding.contextMenu(id)` (fixes the text-else-image mapping); `analytics/events.ts` `ContextMenuTargetKind` gains `'region'`
-- [ ] Stub-kind test extended: a stub binding merges and dispatches with no panel edit; `regionWiring.test.tsx` gains a region right-click case
-- [ ] `apps/web/docs/superset-features.md`: pane and binding steps added to the new-kind checklist; the two honest counts from this plan recorded there
+- [x] `cp-workspace/canvasObjects/canvasLayerBindings.ts` (`CanvasLayerBinding`, `mergeCanvasLayerBindings(bindings, kindOf)` — the kind resolver is passed in so the merge stays pure) + pure tests, including a stub-kind binding dispatched with no merge edit
+- [x] `useCpAnnotations`, `useFoldedFigures`, `useInlineSimulations` return `binding` (transformables, overlayBoxes, inertBodyIds, select, release, applyBoxUpdate, begin/commit/cancelGesture, remove, contextMenu, and the image/text overlay inputs); `regions/regionMenuItems.ts` gives regions their rows, raised from a right-click on the chip bar (`CpRegionChipBar.onContextMenu` → `CpRegionLayer.onContextMenu` → the panel's object-menu entry); a region's `remove` is `useCpRegionActions.removeRegion`, so Delete on a selected region now deletes it (with its owned image and pins) rather than being refused
+- [x] `CreasePatternPanel.tsx`: `selectCanvasObject`, `handleCanvasObjectUpdate`, `beginCanvasObjectGesture`, `commitCanvasObjectGesture`, `cancelCanvasObjectGesture`, `canvasObjects`, `overlayBoxes` and `inertBodyIds` are one merge and `byId` lookups (the delete ladder switches on the resolved target's kind — the one remaining per-kind switch in the panel, kept because a region's Delete is the chip's verb and the ladder says so); `useCpCanvasContextMenu.onCanvasObjectContextMenu` hands `binding.contextMenu(id, deps)` to the controller and the annotation/folded arms left the hook; `analytics/events.ts` `ContextMenuTargetKind` gains `'region'`
+- [x] Stub-kind test (`canvasLayerBindings.test.ts`): a stub binding merges and dispatches with no panel edit; `regionWiring.test.tsx` gains a region right-click case; `regionMenuItems.test.ts`
+- [x] `apps/web/docs/superset-features.md`: pane and binding steps added to the new-kind checklist; the two honest counts from this plan recorded there
 
 Validation: `npm run lint:web && npm run typecheck:web && npm run test:web`
 (`cp-workspace/**`, `CreasePatternPanel` wiring tests, context-menu tests);

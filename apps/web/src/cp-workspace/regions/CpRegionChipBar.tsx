@@ -51,6 +51,12 @@ export interface CpRegionChipBarProps {
   ariaLabel: string;
   /** Press to select, drag to move. See {@link useCpRegionChipDrag}. */
   drag: CpRegionChipDragHandlers;
+  /**
+   * Right-click on the bar. The region's body is inert to the overlay — what is
+   * under it is the crease pattern — so the bar is where a right-click reaches
+   * the region at all.
+   */
+  onContextMenu?: (clientX: number, clientY: number) => void;
   children: ReactNode;
 }
 
@@ -59,6 +65,7 @@ export function CpRegionChipBar({
   container,
   ariaLabel,
   drag,
+  onContextMenu,
   children,
 }: CpRegionChipBarProps) {
   // Subscribed here, not in the panel: this bar re-renders per camera frame so
@@ -129,6 +136,13 @@ export function CpRegionChipBar({
           visibility: barHeight === null ? 'hidden' : 'visible',
         }}
         {...drag}
+        onContextMenu={
+          onContextMenu &&
+          ((event) => {
+            event.preventDefault();
+            onContextMenu(event.clientX, event.clientY);
+          })
+        }
       >
         {children}
       </div>

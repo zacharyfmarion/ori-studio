@@ -28,10 +28,15 @@ import type { AnnotationResizeHandle } from './annotationTransform';
 import {
   annotationAtModelPoint,
   isImageAnnotation,
+  isSuppressionRegionAnnotation,
   isTextAnnotation,
   topAnnotationZ,
 } from './annotation';
 import type { ImageAnnotation } from './annotation';
+import type { CanvasLayerBinding } from '../canvasObjects/canvasLayerBindings';
+import { cpAnnotationMenuItems } from '../contextMenu/cpContextMenuItems';
+import { cpRegionMenuItems } from '../regions/regionMenuItems';
+import { useCpRegionActions } from '../regions/useCpRegions';
 import { annotationGesture } from './annotationGesture';
 import {
   bringAnnotationToFront as bringAnnotationToFrontVerb,
@@ -581,7 +586,111 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
     else void annotationGesture.commit(editing.token, t('panels:textAnnotation.deleteText', 'Delete text'));
   }, [editingTextId, removeAnnotation, t]);
 
+  // A region's delete and check toggles are the region verbs' — a delete also
+  // removes the owned reference image and clears the pins inside it, which the
+  // bare annotation verb refuses to do by halves.
+  const regionActions = useCpRegionActions();
+
+  /**
+   * The annotation layer as one {@link CanvasLayerBinding}: three kinds, one
+   * list, one bracket. Everything here is a delegate to a binding above, so the
+   * panel dispatches by id without naming a kind — see `canvasLayerBindings.ts`.
+   */
+  const binding = useMemo<CanvasLayerBinding>(
+    () => ({
+      kinds: ['image', 'text', 'suppressionRegion'],
+      transformables: transformableObjects,
+      // Text boxes and regions carry `hidden`; images are framed through the
+      // canvas's own `images` prop, which draws them.
+      overlayBoxes: annotations.filter((annotation) => !isImageAnnotation(annotation)),
+      // A region's body is unconditionally inert: what is under it is the crease
+      // pattern, and the region is a wash drawn behind it. It stays movable
+      // through its chip and resizable through the selection handles.
+      inertBodyIds: new Set(
+        annotations.filter(isSuppressionRegionAnnotation).map((region) => region.id)
+      ),
+      select: (id) => setSelectedAnnotation(id),
+      release: () => setSelectedAnnotation(null),
+      applyBoxUpdate,
+      beginGesture: () => beginGesture(),
+      commitGesture: (_id, kind) => commitGesture(gestureLabel(kind)),
+      cancelGesture: () => cancelGesture(),
+      remove: (id) => {
+        const annotation = annotationById(id);
+        if (!annotation) return;
+        if (isSuppressionRegionAnnotation(annotation)) regionActions.removeRegion(id);
+        else deleteAnnotationById(id);
+      },
+      contextMenu: (id, deps) => {
+        const annotation = annotationById(id);
+        if (!annotation) return null;
+        // Selecting first is what makes the floating surface and the menu agree
+        // about which annotation is being acted on. The rows are bound by id,
+        // so they do not depend on this having landed.
+        setSelectedAnnotation(id);
+        if (isSuppressionRegionAnnotation(annotation)) {
+          return {
+            targetKind: 'region',
+            build: () =>
+              cpRegionMenuItems(annotation, {
+                t: deps.t,
+                toggleCheckClass: (cpCheckClass) =>
+                  regionActions.toggleRegionCheckClass(id, cpCheckClass),
+                remove: () => regionActions.removeRegion(id),
+              }),
+          };
+        }
+        const kind = isTextAnnotation(annotation) ? 'text' : 'image';
+        return {
+          targetKind: kind,
+          build: () =>
+            cpAnnotationMenuItems(kind, {
+              ...deps,
+              annotation: {
+                bringToFront: () => bringAnnotationToFront(id),
+                sendToBack: () => sendAnnotationToBack(id),
+                remove: () => deleteAnnotationById(id),
+                edit:
+                  kind === 'text'
+                    ? () => {
+                        // An inline edit takes focus for itself; without this
+                        // the menu's trap pulls it straight back out and the
+                        // blur that follows ends the edit before a key is
+                        // pressed.
+                        deps.deferFocus();
+                        requestEditText(id);
+                      }
+                    : undefined,
+              },
+            }),
+        };
+      },
+      applyCrop,
+      canCrop,
+      requestEdit: requestEditText,
+    }),
+    [
+      annotations,
+      transformableObjects,
+      setSelectedAnnotation,
+      applyBoxUpdate,
+      beginGesture,
+      commitGesture,
+      cancelGesture,
+      gestureLabel,
+      annotationById,
+      regionActions,
+      deleteAnnotationById,
+      bringAnnotationToFront,
+      sendAnnotationToBack,
+      requestEditText,
+      applyCrop,
+      canCrop,
+    ]
+  );
+
   return {
+    binding,
     annotations,
     imageAnnotations,
     transformableObjects,

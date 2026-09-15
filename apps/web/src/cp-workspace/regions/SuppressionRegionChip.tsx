@@ -158,6 +158,8 @@ export interface SuppressionRegionChipProps extends CpRegionImageActions {
   onGestureStart: () => boolean;
   onGestureCommit: (label: string) => void;
   onDelete: () => void;
+  /** Right-click on the bar; see {@link CpRegionChipBar}. */
+  onContextMenu?: (clientX: number, clientY: number) => void;
   /**
    * Appended before the controls — the slot `SolveRegionChip` composes into.
    * Nothing else should use it; a second consumer means a third chip component.
@@ -176,6 +178,7 @@ export function SuppressionRegionChip({
   onGestureStart,
   onGestureCommit,
   onDelete,
+  onContextMenu,
   onToggleImageHidden,
   onImageOpacity,
   onDeleteImage,
@@ -205,6 +208,7 @@ export function SuppressionRegionChip({
       container={container}
       ariaLabel={chipAriaLabel(t, region)}
       drag={drag}
+      onContextMenu={onContextMenu}
     >
       {/*
         A span, never a button. The whole bar is the affordance — it selects on

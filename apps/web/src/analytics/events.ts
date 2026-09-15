@@ -356,6 +356,7 @@ export type ContextMenuTargetKind =
   | 'circle'
   | 'text'
   | 'image'
+  | 'region'
   | 'folded-figure'
   | 'flap'
   | 'river'

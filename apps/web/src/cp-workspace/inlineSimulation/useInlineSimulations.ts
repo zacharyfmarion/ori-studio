@@ -10,6 +10,7 @@ import type { SimulatorViewExportFormat } from '../../simulator/simulatorViewExp
 import { simulatorView } from '../../simulator/simulatorViewRegistry';
 import { announceUprightSet } from '../../lib/uprightFeedback';
 import type { GestureToken } from '../canvasObjects/gestureBracket';
+import type { CanvasLayerBinding } from '../canvasObjects/canvasLayerBindings';
 import { inlineSimulationGesture } from './inlineSimulationGesture';
 
 export interface UseInlineSimulationsOptions {
@@ -250,7 +251,46 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
     [refreshSimulation, t]
   );
 
+  /**
+   * The window layer as one {@link CanvasLayerBinding}. A window's focus *is*
+   * its selection — one can be focused, and the focused one is exactly the one
+   * whose handles are live. No context menu: its verbs live on its inspector,
+   * which the window already carries.
+   */
+  const binding = useMemo<CanvasLayerBinding>(
+    () => ({
+      kinds: ['inline-simulation'],
+      transformables: transformableObjects,
+      // Never hidden — there is no affordance for it — but the framing contract
+      // is "skip what is not drawn", so say so.
+      overlayBoxes: simulations.map((simulation) => ({ ...simulation.box, hidden: false })),
+      inertBodyIds,
+      select: focus,
+      release: blur,
+      applyBoxUpdate,
+      beginGesture: () => beginGesture(),
+      commitGesture: (_id, kind) => commitGesture(gestureLabel(kind)),
+      cancelGesture: () => cancelGesture(),
+      remove: removeSimulation,
+      contextMenu: () => null,
+    }),
+    [
+      transformableObjects,
+      simulations,
+      inertBodyIds,
+      focus,
+      blur,
+      applyBoxUpdate,
+      beginGesture,
+      commitGesture,
+      cancelGesture,
+      gestureLabel,
+      removeSimulation,
+    ]
+  );
+
   return {
+    binding,
     simulations,
     transformableObjects,
     focusedId,

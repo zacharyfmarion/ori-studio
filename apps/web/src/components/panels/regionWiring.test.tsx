@@ -210,6 +210,29 @@ describe('suppression regions in the crease-pattern panel', () => {
     expect(present('.cp-region-chip')).toBe(true);
   });
 
+  it('opens the region menu from a right-click on its chip bar', () => {
+    // A region's body is inert to the overlay, so the bar is where a right-click
+    // reaches it. The rows are the layer binding's (`cpRegionMenuItems`), and
+    // the raise goes through the same object-menu entry every other kind takes
+    // — the prop `CpRegionLayer` has to be passed, which nothing else fails for.
+    mount();
+    const bar = document.querySelector<HTMLElement>('.cp-region-chip');
+    expect(bar).not.toBeNull();
+
+    act(() => {
+      bar?.dispatchEvent(
+        new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 40, clientY: 50 })
+      );
+    });
+
+    const labels = [...document.querySelectorAll('[role="menuitem"]')].map(
+      (item) => item.textContent
+    );
+    expect(labels).toEqual(['Suppressed checks', 'Delete region']);
+    // Raising the menu selects the region, so the menu and the chip agree.
+    expect(useWorkspaceStore.getState().oristudioCpSelectedAnnotationId).toBe(REGION.id);
+  });
+
   /**
    * The `solve` prop, which was missing for a whole phase.
    *
