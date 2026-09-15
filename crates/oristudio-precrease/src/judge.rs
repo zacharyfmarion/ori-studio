@@ -39,6 +39,7 @@ use crate::direction::Direction;
 use crate::line::Line;
 use crate::marks::{
     Creased, MIN_ALIGNMENT, mark_exists, mark_is_crossing, witness_alignment, witness_marks_exist,
+    witness_marks_real,
 };
 use crate::pinch::PINCH_HALF_LENGTH;
 use crate::predicates::{Ref, Witness, ref_on_boundary};
@@ -107,6 +108,12 @@ pub struct Judgement {
     /// two creases, not a crease's end on another. A mark not yet there is a
     /// press's business, priced by the pick, and not counted here as well.
     pub crossings: bool,
+    /// Every mark the witness names is on the paper in fact — none of them a
+    /// spot still to be pinched while its crease is made
+    /// ([`witness_marks_real`]). A pinch made while folding costs no step,
+    /// but it is ink the pattern does not ask for, and a witness sighted
+    /// from marks already there is preferred to one that needs it.
+    pub marks_real: bool,
     /// The ease the pick uses: the witness's own, or an edge fold's for a
     /// line folded onto itself along a long crease (R9).
     pub ease: u8,
@@ -304,6 +311,7 @@ pub fn judge(
         }),
         _ => true,
     });
+    let marks_real = witness_marks_real(state, creased, w);
     let alignment = witness_alignment(state, creased, fold, w);
     let long_crease_onto_itself = w.axiom == 4
         && !w.folds_edge_onto_itself()
@@ -327,6 +335,7 @@ pub fn judge(
         bisection_at_crease,
         own_ends,
         crossings,
+        marks_real,
         ease,
         one_motion,
     }

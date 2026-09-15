@@ -1215,7 +1215,10 @@ fn witness_cost(state: &State, creased: &Creased, fold: &Line, witness: &Witness
 ///    of fold — its own marks even where one is a crease's end on another:
 ///    a short crease pinched between the two creases it runs between is
 ///    read off them, not sighted from afar.
-/// 6. **A crossing to sight from** (R7), before a crease's end on another.
+/// 6. **A crossing to sight from** (R7), before a crease's end on another;
+///    then, among free folds, marks already on the paper before a spot
+///    still to be pinched while its crease is made — no step, but ink the
+///    pattern does not ask for (a press has paid for its marks in the tier).
 /// 7. The **ease order** — two points, line onto line, the edge onto itself
 ///    … — then the skinny flap, the error at the crease, the residual. For a
 ///    perpendicular to the sheet's edge, the edge whose foot is at the
@@ -1308,6 +1311,9 @@ fn pick_witness(
             !j.precise,
             !j.local(),
             !j.crossings,
+            // A spot still to be pinched while its crease is made: ink for
+            // no step. A press has paid for its marks in the tier already.
+            c.cost == 0 && !j.marks_real,
             j.ease,
             j.skinny,
             j.error.map_or(0, |e| (e * 1e3) as u64),

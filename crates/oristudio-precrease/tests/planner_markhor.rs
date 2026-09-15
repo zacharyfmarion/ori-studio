@@ -171,20 +171,23 @@ const EXPECTED: &[Expect] = &[
         points: &[(0.9571, 0.25), (1.0, 0.2929)],
         ..ANY
     },
-    // 103, 104: an edge mark onto the mark across from it, at the crease —
-    // the override over two marks on the far edge — not two interior points.
+    // 103, 104: the top edge folded onto itself through the crease's start
+    // point — Zach's ask — not two interior points, and not an edge mark
+    // onto a mark that would first have to be pinched.
     Expect {
         item: 103,
         line: (1.0, 0.0, 0.28661),
-        axiom: Some(2),
-        points: &[(0.0, 0.8232), (0.5732, 0.8232)],
+        axiom: Some(4),
+        points: &[(0.2866, 0.9634)],
+        edges: &[EdgeSide::Top],
         ..ANY
     },
     Expect {
         item: 104,
         line: (1.0, 0.0, 0.71339),
-        axiom: Some(2),
-        points: &[(1.0, 0.8232), (0.4268, 0.8232)],
+        axiom: Some(4),
+        points: &[(0.7134, 0.9634)],
+        edges: &[EdgeSide::Top],
         ..ANY
     },
     // 122: the crease's own ends, 0.18 apart.

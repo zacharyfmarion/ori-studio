@@ -322,9 +322,12 @@ as the ease-preferred pick. Refinements found on the way:
 - **R7** a pinch is a mark made to be read — a pinch's length centred on
   the point counts as continuing — else every mark pinched while folding
   read as a T. The override ignores R7: a fold sighted from a crease's end
-  three times nearer the crease beats one from a crossing a sheet away
-  (103, 104: an edge mark and the mark at the crease over two marks on the
-  far edge).
+  three times nearer the crease beats one from a crossing a sheet away.
+- **Marks already there** before a spot still to be pinched while its
+  crease is made, among free folds — after R7, before the ease order. A
+  pinch made while folding costs no step but is ink, and without the term
+  the corpus made 254 more of them; with it 103 and 104 are the top edge
+  onto itself through the crease's start point, Zach's own words.
 - **R8** the mirror is a *different* witness: an O1 through a symmetric
   pair read from the other end is not one. `Step.also: Option<Witness>`,
   drawn with letters carrying on from the first's, sentence "Fold P onto
