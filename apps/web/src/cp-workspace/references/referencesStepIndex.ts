@@ -2,10 +2,11 @@
  * Which step of the sequence makes a crease, or completes a vertex.
  *
  * In the Folding sequence mode a tap on the sheet is navigation: the reader
- * points at a crease — one already made, or one still to come, drawn as a
- * ghost — and the strip jumps to the card that makes it. "Which step makes
- * this?" is the question the sequence answers about a crease, where Find
- * answers "how do I get this from a blank sheet?" about a target.
+ * points at a crease the build-up has made and the strip jumps to the card
+ * that made it. "Which step made this?" is the question the sequence answers
+ * about a crease, where Find answers "how do I get this from a blank sheet?"
+ * about a target — and Find is where every crease is on the sheet to point
+ * at; the sequence shows only what has been creased so far.
  *
  * Pure: the plan's variants and the view's steps in, an index into the view's
  * steps out, so the mapping is tested without a canvas.

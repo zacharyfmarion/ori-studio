@@ -58,7 +58,7 @@ export interface ReferencesSurfaces {
   /**
    * Which visibility rule the canvas draws by: the sheet whole and at full
    * strength; the paper's outline and the picked crease; or the sheet as it
-   * stands at the active step, with the creases still to come as ghosts.
+   * stands at the active step — the creases made so far, and nothing later.
    */
   canvas: 'whole' | 'target' | 'plan';
   /** What the filmstrip shows, or that it is not rendered at all. */
@@ -66,7 +66,7 @@ export interface ReferencesSurfaces {
   lead: ReferencesLead;
   /**
    * What a tap on the sheet does: ask ReferenceFinder about the target, jump
-   * to the step that makes the crease, or nothing.
+   * to the step that made the crease, or nothing.
    */
   pick: 'query' | 'jump' | 'none';
   /** The sheet is a border and nothing else; the body says so instead. */

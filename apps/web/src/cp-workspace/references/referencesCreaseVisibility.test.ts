@@ -3,7 +3,6 @@ import {
   REFERENCES_ALL_CREASES,
   REFERENCES_DIM_ALPHA,
   REFERENCES_EMPHASIS_WIDTH,
-  REFERENCES_GHOST_ALPHA,
   planVisibility,
   targetVisibility,
   unreadVisibility,
@@ -79,20 +78,6 @@ describe('planVisibility', () => {
     expect(at.visible?.has(12)).toBe(false);
   });
 
-  it('draws the creases still to come as ghosts, pointable, and never this step\'s own', () => {
-    const at = planVisibility(variants, flat, 1, { ...input, activeLineIds: new Set([11]) });
-    // Step 3's crease is a ghost; step 2's is the card's own and is drawn by
-    // the card; step 1's is on the paper.
-    expect([...(at.ghost ?? [])]).toEqual([12]);
-    expect(at.ghostAlpha).toBe(REFERENCES_GHOST_ALPHA);
-    expect(at.dimmed?.has(12)).toBe(false);
-    expect([...(at.pickable ?? [])].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 10, 12]);
-    expect(REFERENCES_GHOST_ALPHA).toBeLessThan(REFERENCES_DIM_ALPHA);
-    // The finished card has nothing still to come.
-    const done: ReferencesViewStep[] = [...flat, { kind: 'done', side: 'front', component: 0 }];
-    expect(planVisibility(variants, done, 3, input).ghost?.size ?? 0).toBe(0);
-  });
-
   // The one the step is asking for is not on the paper yet, so the pattern is
   // not where it comes from — the step's own diagram draws it, once.
   it('leaves out the crease the step is about', () => {
@@ -102,10 +87,11 @@ describe('planVisibility', () => {
     expect(planVisibility(variants, flat, 2, input).visible?.has(12)).toBe(false);
   });
 
-  it('lets the paper as it stands and the ghosts be picked, and nothing else', () => {
-    const at = planVisibility(variants, flat, 1, { ...input, activeLineIds: new Set([11]) });
-    // The build-up and the ghosts; the card's own crease is neither.
-    expect([...(at.pickable ?? [])].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 10, 12]);
+  it('lets only the paper as it stands be picked', () => {
+    const at = planVisibility(variants, flat, 1, input);
+    expect(at.pickable).toBe(at.visible);
+    // A crease a later step makes is not there to point at.
+    expect(at.pickable?.has(12)).toBe(false);
     // The finished card: everything, and everything pickable.
     const views: ReferencesViewStep[] = [...flat, { kind: 'done', side: 'front', component: 0 }];
     expect(planVisibility(variants, views, 3, input).pickable?.has(12)).toBe(true);

@@ -417,16 +417,6 @@ export interface ReferencesCreaseVisibility {
    * on it is a click on blank paper.
    */
   pickable?: ReadonlySet<number> | null;
-  /**
-   * Ids drawn as ghosts, at `ghostAlpha`: the creases later steps of the
-   * sequence will make, shown so the reader can point at one and jump to its
-   * step. Drawn whether or not they are in `visible` — the ghost channel is
-   * additive — and never dimmed on top: a ghost is already as faint as it
-   * gets.
-   */
-  ghost?: ReadonlySet<number> | null;
-  /** Multiplier on a ghost crease's alpha. */
-  ghostAlpha?: number;
   /** Ids drawn faintly: made by an earlier step, or simply not this step's. */
   dimmed: ReadonlySet<number> | null;
   /**
@@ -471,8 +461,6 @@ export function applyCreaseVisibility(
     visible,
     dimmed,
     dimAlpha,
-    ghost = null,
-    ghostAlpha = 1,
     emphasis = null,
     emphasisWidth = 1,
     directions = null,
@@ -481,7 +469,6 @@ export function applyCreaseVisibility(
   const filters =
     visible !== null ||
     (dimmed !== null && dimmed.size > 0) ||
-    (ghost !== null && ghost.size > 0) ||
     (emphasis !== null && emphasis.size > 0) ||
     (directions !== null && directions.size > 0 && ink !== null);
   if (!filters) return strokes;
@@ -506,12 +493,6 @@ export function applyCreaseVisibility(
       continue;
     }
     const id = i + 1;
-    // A crease still to come: the pattern's own ink, at a ghost's strength,
-    // and nothing else said about it — it has not been folded either way.
-    if (ghost !== null && ghost.has(id)) {
-      color[i * 4 + 3] *= ghostAlpha;
-      continue;
-    }
     if (visible !== null && !visible.has(id)) {
       color[i * 4 + 3] = 0;
       continue;

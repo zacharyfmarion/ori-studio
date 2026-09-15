@@ -104,9 +104,10 @@ import { NextDocumentAction } from './NextDocumentAction';
  * Two jobs share those surfaces, and the reader chooses between them with the
  * mode switch in the toolbar: *Find a reference* — the whole pattern to point
  * at, and ReferenceFinder's candidates for the vertex or crease picked — and
- * *Folding sequence* — the planner's breakdown, read step by step, with the
- * creases still to come as ghosts a tap jumps to. What each surface shows in
- * each mode is `referencesSurfaces`, decided once here and handed down.
+ * *Folding sequence* — the planner's breakdown, read step by step, the sheet
+ * showing only what has been creased so far, a tap on one of those creases
+ * jumping to its step. What each surface shows in each mode is
+ * `referencesSurfaces`, decided once here and handed down.
  */
 
 /** A tap that means nothing: no plan to jump in, or a sheet with nothing on it. */
@@ -296,7 +297,7 @@ export function ReferencesPanel() {
 
   // The sheet as it stands — see `referencesCreaseVisibility`: whole in Find
   // and before a plan, the outline and the picked crease for a target, the
-  // build-up plus the ghosts of what is still to come while the plan is read.
+  // build-up so far while the plan is read.
   const { canvas } = surfaces;
   const creaseVisibility = useMemo(() => {
     if (!sheetIds) return REFERENCES_ALL_CREASES;
@@ -323,7 +324,7 @@ export function ReferencesPanel() {
   ]);
 
   // A tap on the sheet while the plan is read is navigation: to the step that
-  // makes the crease, or the last of the steps making the creases that meet
+  // made the crease, or the last of the steps making the creases that meet
   // at the vertex. Nothing about which one leaves the browser.
   const creasesAt = useMemo(
     () => (view.geometry ? creasesAtVertices(view.geometry) : null),

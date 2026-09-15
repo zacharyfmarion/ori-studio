@@ -450,7 +450,7 @@ export const ANALYTICS_EVENTS = {
   referencesModeChanged: 'references mode changed',
   /**
    * A tap on the sheet in Sequence mode moved the strip to the step that
-   * makes what was tapped. `target_kind` is `crease` or `vertex`; nothing
+   * made what was tapped. `target_kind` is `crease` or `vertex`; nothing
    * about which one, which would be the user's geometry.
    */
   referencesStepJumped: 'references step jumped',

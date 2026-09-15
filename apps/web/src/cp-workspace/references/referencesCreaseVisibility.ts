@@ -22,12 +22,12 @@
  *   is what the paper already has on it. The step draws that crease itself, as
  *   the dashed fold line it is — so it is drawn once, by the thing that is
  *   asking for it, and the dimmed build-up is what it stands out from. The
- *   creases later steps make are there too, as **ghosts** — fainter than the
- *   build-up, the pattern's own ink — so the reader can point at one and jump
- *   to the step that makes it, wherever in the sequence that is. Before the
- *   ghosts, a crease made late was reachable only from the last card. The
- *   build-up and the ghosts are what can be pointed at; a ghost draws no
- *   vertex dot, so the sheet does not look finished from step one.
+ *   same set is what can be pointed at — a tap on a crease made so far jumps
+ *   to the step that made it — and a crease a later step makes, or a vertex
+ *   it will make, is not on the paper for the pointer to find. (Drawing the
+ *   creases still to come as ghosts was tried and undone: Zach wants the
+ *   sequence to show only what has actually been creased; the whole pattern
+ *   is the *Find* mode's, where every crease can be pointed at.)
  * - **Reading one reference shows the paper and the crease, and nothing else.**
  *   ReferenceFinder's steps are folds on a blank sheet and have no relation to
  *   the pattern's creases, so there is no "so far" to build up. The pattern
@@ -61,12 +61,6 @@ import type { ReferencesCreaseVisibility } from './referencesViewGeometry';
 
 /** How much of its colour a crease keeps once an earlier step made it. */
 export const REFERENCES_DIM_ALPHA = 0.26;
-/**
- * How much of its colour a crease a later step will make keeps: enough to
- * find it under the pointer, too little to be read as made. Half the
- * build-up's dim, so the two never swap places.
- */
-export const REFERENCES_GHOST_ALPHA = 0.13;
 /**
  * How much wider the picked crease draws while one reference is being read.
  *
@@ -184,27 +178,8 @@ export function planVisibility(
     }
     }
   }
-  // The creases still to come, as ghosts: every crease of the sheet that is
-  // neither on the paper yet nor this step's own (the step draws that one
-  // itself). The finished card has none — its build-up is the whole sheet.
-  const ghost = new Set<number>();
-  if (sheetLineIds && target.kind !== 'done') {
-    for (const id of sheetLineIds) {
-      if (!visible.has(id) && !input.activeLineIds.has(id)) ghost.add(id);
-    }
-  }
-  const pickable = new Set<number>([...visible, ...ghost]);
   if (target.kind !== 'fold') {
-    return {
-      visible,
-      pickable,
-      ghost,
-      ghostAlpha: REFERENCES_GHOST_ALPHA,
-      dimmed: null,
-      dimAlpha: 1,
-      directions,
-      borderLineIds,
-    };
+    return { visible, pickable: visible, dimmed: null, dimAlpha: 1, directions, borderLineIds };
   }
   const dimmed = new Set<number>();
   for (const id of visible) {
@@ -213,9 +188,7 @@ export function planVisibility(
   }
   return {
     visible,
-    pickable,
-    ghost,
-    ghostAlpha: REFERENCES_GHOST_ALPHA,
+    pickable: visible,
     dimmed,
     dimAlpha: REFERENCES_DIM_ALPHA,
     borderLineIds,

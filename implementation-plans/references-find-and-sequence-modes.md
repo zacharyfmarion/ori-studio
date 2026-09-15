@@ -37,12 +37,15 @@ Find**, and a new document lands there again.
 - **Sequence.** What exists today, planned on demand: switching to Sequence
   runs the planner if the (revision, sheet) has not been attempted, with the
   same loop guard `useReferencesAutoPlan` already has. The plan is cached per
-  pattern, so switching back and forth is free. Two things change on the
-  canvas: creases later steps make are drawn as **ghosts** (a faint alpha,
-  still pickable), and a tap on any crease — ghost or made — **jumps to the
-  card that makes it**; a tap on a vertex jumps to the step that completes
-  it. "Which step makes this crease?" is a different question from "how do
-  I get this point from scratch?", and each mode answers one.
+  pattern, so switching back and forth is free. The sheet shows only what
+  has been creased so far, as it always did — drawing the creases still to
+  come as ghosts was tried and Zach undid it: "you only want to see the
+  creases up to the point that have actually been creased"; the whole
+  pattern is Find's, where every crease can be pointed at. One thing does
+  change: a tap on a crease the build-up has made **jumps to the card that
+  made it**, and a tap on a vertex to the step that completed it. "Which
+  step made this?" is a different question from "how do I get this from
+  scratch?", and each mode answers one.
 
 Leaving Find clears the pick (a target belongs to Find); entering Find keeps
 the plan (a plan belongs to the pattern).
@@ -85,9 +88,8 @@ touch surface gains:
   document, analytics), `referencesStepIndex.ts` (new, pure: crease or vertex
   → the view step that makes it), `ReferencesModeSwitch.tsx`,
   `ReferencesLead.tsx` (new, presentation).
-- `referencesCreaseVisibility.ts` — ghosts in `planVisibility`;
-  `referencesViewGeometry.ts` — `ghost`/`ghostAlpha` in the visibility type
-  and `applyCreaseVisibility`.
+- `referencesCreaseVisibility.ts` — unchanged in the end: the ghosts were
+  undone.
 - `useReferencesAutoPlan.ts` — `wanted`.
 - `ReferencesCpView.tsx`, `cp-workspace/snapRadius.ts` — coarse-pointer hit
   floors, the mark under the finger.
@@ -103,8 +105,9 @@ touch surface gains:
 - [x] `referencesView.mode`, default `find`; reset on a new document.
 - [x] Mode switch in the toolbar; leaving Find clears the pick.
 - [x] Find: whole sheet, all pickable, no filmstrip, the lead's hint.
-- [x] Sequence: planned on demand; ghosts; tap-to-jump; the lead while
-      planning and when nothing is read.
+- [x] Sequence: planned on demand; tap-to-jump on the creases made so far
+      (ghosts of the rest tried and undone); the lead while planning and
+      when nothing is read.
 - [x] Empty sheet: the message and the way to Edit; no plan attempted.
 - [x] Phone: switch on its own row, coarse hit floors, the mark under the
       finger, carousel snap.
@@ -119,9 +122,10 @@ where the strip was and nothing running; a tap on the sheet's centre picks
 the vertex and the target controls and its strip appear; switching to
 Sequence clears the pick, says "Working out the folding sequence…" in the
 lead and plans (163 lines in about ten seconds), then the cards; a tap on
-the antidiagonal — a ghost, made at card 50 — jumps the strip to card 50;
-back to Find the sheet is whole again, and back to Sequence the plan is
-there at once. On the phone viewport the list opens the detail with Back
+a crease the build-up has made jumps the strip to its card; back to Find
+the sheet is whole again, and back to Sequence the plan is there at once.
+The mode switch is the header, drawn as the Design workspace's tabs, and
+the "References" title is gone. On the phone viewport the list opens the detail with Back
 on the first toolbar row and the switch full-width on the second (44 px
 options), the strip is the cards alone with scroll-snap, and touch taps
 jump to the making step (cards 48, 112 and 2 from three spots).
