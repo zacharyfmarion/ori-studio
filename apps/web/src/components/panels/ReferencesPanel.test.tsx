@@ -220,11 +220,15 @@ it('keeps the header to the title and floats the view verbs over the canvas', ()
   act(() => useWorkspaceStore.setState({ oristudioCpDocument: cpDocument(1) } as never));
 
   const header = query('.references-panel .panel-toolbar');
-  expect(header?.querySelector('.panel-title')?.textContent).toBe('References');
-  // The only buttons in the header are the mode switch's two options.
+  // No title: the header is the mode switch, two tabs drawn as the Design
+  // workspace draws its designs' tabs.
+  expect(header?.querySelector('.panel-title')).toBeNull();
   expect(
-    [...(header?.querySelectorAll('button') ?? [])].map((button) => button.textContent)
-  ).toEqual(['Find a reference', 'Folding sequence']);
+    [...(header?.querySelectorAll('button') ?? [])].map(
+      (button) => `${button.getAttribute('role')}:${button.textContent}`
+    )
+  ).toEqual(['tab:Find a reference', 'tab:Folding sequence']);
+  expect(header?.querySelector('.design-tab-strip [role="tablist"]')).not.toBeNull();
   const bar = query('.references-panel__body .viewport-toolbar');
   expect(
     [...(bar?.querySelectorAll('button') ?? [])].map(
@@ -256,10 +260,11 @@ it('lands in Find with the lead where the filmstrip goes, and plans only when th
   expect(query('.references-filmstrip')).toBeNull();
   expect(useWorkspaceStore.getState().referencesRun.status).toBe('idle');
 
-  // Sequence: the planner is asked, and the lead says so.
+  // Sequence: the planner is asked, and the lead says so. (Radix activates a
+  // tab on mousedown, not click.)
   act(() =>
-    query('.references-mode button[aria-pressed="false"]')?.dispatchEvent(
-      new MouseEvent('click', { bubbles: true })
+    query('.references-mode [role="tab"][aria-selected="false"]')?.dispatchEvent(
+      new MouseEvent('mousedown', { bubbles: true, cancelable: true })
     )
   );
   expect(useWorkspaceStore.getState().referencesView.mode).toBe('sequence');
@@ -294,7 +299,7 @@ it('says a sheet with no creases has nothing to find, and disables the switch', 
   });
   expect(query('.references-panel__overlay')?.textContent).toContain('No creases yet');
   expect(query('.references-lead')).toBeNull();
-  expect(query('.references-mode button')?.hasAttribute('disabled')).toBe(true);
+  expect(query('.references-mode [role="tab"]')?.hasAttribute('disabled')).toBe(true);
   expect(useWorkspaceStore.getState().referencesRun.status).toBe('idle');
 });
 

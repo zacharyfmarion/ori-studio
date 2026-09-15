@@ -10848,22 +10848,35 @@ button.bp-packing-alert:focus-visible {
     order: 2;
   }
 
-  /* The mode switch takes a row of its own under the Back button, full width,
-     each option a thumb-sized target. */
+  /* The mode tabs take a row of their own under the Back button, the two of
+     them sharing the width, each a thumb-sized target. */
+  .references-workspace .references-panel .panel-toolbar {
+    padding-left: var(--space-2);
+  }
+
   .references-workspace .references-mode {
     flex: 1 0 100%;
     order: 1;
-    margin-left: 0;
   }
 
-  .references-workspace .references-mode .segmented {
-    display: flex;
+  .references-workspace .references-mode .design-tab-strip__root,
+  .references-workspace .references-mode .design-tab-strip__list {
+    flex: 1 1 auto;
     width: 100%;
   }
 
-  .references-workspace .references-mode .segmented__option {
+  .references-workspace .references-mode .design-tab {
     flex: 1 1 0;
+    max-width: none;
     min-height: var(--touch-target);
+  }
+
+  .references-workspace .references-mode .design-tab:last-child {
+    border-right: 0;
+  }
+
+  .references-workspace .references-mode .design-tab__trigger {
+    justify-content: center;
     font-size: 0.8rem;
   }
 
@@ -10947,18 +10960,28 @@ button.bp-packing-alert:focus-visible {
 }
 
 /*
- * The switch between the workspace's two jobs, beside the title. Its labels
- * are words rather than icons alone: which of the two things the canvas is
- * showing is the one fact the reader needs and the icons do not carry it.
+ * The switch between the workspace's two jobs is the header: the Design
+ * workspace's tab strip (`.design-tab-strip`, the same classes) inside the
+ * panel toolbar, which already has the strip's height, ground and bottom
+ * border — so the strip brings none of its own, and the tabs run flush from
+ * the toolbar's left edge the way the design tabs do from the shell's.
  */
-.references-mode {
-  display: flex;
-  align-items: center;
-  margin-left: var(--space-2);
+.references-panel .panel-toolbar {
+  padding-left: 0;
 }
 
-.references-mode .segmented__option {
-  font-size: 0.72rem;
+.references-mode.design-tab-strip {
+  align-self: stretch;
+  min-height: 0;
+  padding-right: 0;
+  border-bottom: 0;
+  background: transparent;
+}
+
+.references-mode .design-tab-strip__root,
+.references-mode .design-tab-strip__list,
+.references-mode .design-tab {
+  align-self: stretch;
 }
 
 /*

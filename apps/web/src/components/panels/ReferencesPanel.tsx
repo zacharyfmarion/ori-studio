@@ -7,7 +7,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Compass } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { ContextMenu } from '../ui/ContextMenu';
 import { useContextMenuController } from '../../menus/context/useContextMenuController';
@@ -89,11 +89,12 @@ import { NextDocumentAction } from './NextDocumentAction';
  * The workspace reads top to bottom like a diagram: the steps as a strip of
  * numbered cards, the active step's sentence under it, and the crease pattern
  * below showing the sheet as it stands at that step. The left rail is the
- * document's patterns, one of which is being folded. The header is the title
- * and, with a target picked, that target's controls; the view verbs float over
- * the canvas on the Edit workspace's bar, and the settings are the View pane
- * beside the panel (`ReferencesViewControlsPanel`), which reads the store on
- * its own.
+ * document's patterns, one of which is being folded. The header is the mode
+ * switch — two tabs, the Design workspace's — and, with a target picked, that
+ * target's controls; no title, the tabs say what the panel is. The view verbs
+ * float over the canvas on the Edit workspace's bar, and the settings are the
+ * View pane beside the panel (`ReferencesViewControlsPanel`), which reads the
+ * store on its own.
  *
  * A phone has no room for the rail beside the canvas, so it shows one of the
  * two at a time — the rail as a list screen, the rest as a detail screen with
@@ -500,12 +501,7 @@ export function ReferencesPanel() {
                   <ArrowLeft size={14} aria-hidden="true" />
                   {t('panels:references.backToPatterns', 'Patterns')}
                 </Button>
-              ) : (
-                <>
-                  <Compass size={14} />
-                  <span className="panel-title">{t('panels:references.title', 'References')}</span>
-                </>
-              )}
+              ) : null}
               <ReferencesModeSwitch
                 mode={mode}
                 onChange={setMode}
