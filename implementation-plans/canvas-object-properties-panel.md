@@ -1829,20 +1829,26 @@ Open from the same pass: the pane's alignment/style/colour act on the whole
 box while the toolbar's act on the selection — a design question (whole-box vs
 follow-the-caret while editing), not a bug; decided with Zach before any code.
 
-### Phase G (optional, Rust) — Kernel render-input cache for flat figures
+### Phase G (Rust) — Kernel render-input cache for flat figures
 
-**Goal.** Per-tick appearance cost on large figures drops from ~200 ms native to
-primitive emission so the queue rarely needs its second round trip. Parity
-surface unchanged. Ships alone: yes.
+**Goal.** Per-tick appearance cost on large figures drops from tens of
+milliseconds native to primitive emission so the queue rarely needs its second
+round trip. Parity surface unchanged. Ships alone: yes.
 
-- [ ] `crates/oristudio-cp/src/session.rs` / `folding.rs`: cache `FoldGraph`, `FoldedWireframe` and the subface configuration on `FlatFoldedFigure` after `fold_segments`; `render_snapshot_impl` takes borrowed cached inputs; the from-segments path stays for the oracle
-- [ ] Optionally `folded_figure_set_model_and_render` added in lockstep to `CP_ENGINE_COMMANDS`, `oristudioCpWorker.ts`, `oristudioCpNativeClient.ts` and `cp_engine.rs` (parity test)
-- [ ] `PORTING.md` note if the supported surface description changes
+- [x] `folding.rs`: `FoldedRenderInputs` (fold graph, wireframe, subface arrangement — private fields, `Clone`), built once by `FoldedRenderInputs::for_session` after `fold_segments` succeeds and held on `FlatFoldedFigure`; `render_snapshot_impl` takes `&FoldedRenderInputs` plus a `HierarchySource` (the session's solved ordering, or a search from the segments for the from-segments path and a session whose search found nothing); `folded_figure_snapshot_with_inputs` hands `set_model`, `fold_another`, `fold_to_case`, `duplicate` the cached wireframe under the same Step2 rule. The from-segments entry point builds its own inputs per call, so the render oracle still diffs a fresh computation
+- [x] `tests/folding.rs`: the session's cached render equals the from-segments render byte for byte in Wire2, Transparent3 and Paper5 after a model change, and the snapshot's wireframe equals `estimate_wireframe_from_segments`; `examples/folded_render_profile.rs` times the two per-tick calls on an `.osf` figure or a whole `.ori`
+- [x] `folded_figure_set_model_and_render` **not added**: measured after the cache on the 1774-crease iguana in the browser, the two kernel round trips are 3.1 + 4.2 ms of a 21 ms store tick — the rest is the store write and the React commit — so merging them would save a millisecond or two across four surfaces
+- [x] `PORTING.md` unchanged: the parity surface is the same functions with the same output; the cache is gated by the parity test above and the render oracle
 
-Validation: `cargo fmt --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace`;
-`cargo test -p oracle-tests` (render oracle byte-identical);
-`npm --workspace @treemaker/web run build:oristudio-cp-wasm` before any browser
-timing on a large `.cp`.
+Measured (native, release, 1774-crease iguana, Paper5): per tick `set_model`
+19.0 → 0.04 ms, render 38.9 → 3.4 ms; the fold itself pays the inputs once
+(576 → 638 ms). In the browser (wasm) the same tick through
+`updateOristudioCpFoldedFigureModel` went 85 → 17 ms median.
+
+Validation: `cargo fmt --check`, `cargo clippy -p oristudio-cp -p oristudio-cp-wasm --all-targets -- -D warnings`,
+`cargo test -p oristudio-cp` (1059 passed), the Oriedita render oracle
+(`ORIEDITA_RENDER_ORACLE=… cargo test -p oristudio-cp --test oriedita_render_oracle`, 13 passed),
+`npm --workspace @treemaker/web run build:oristudio-cp-wasm` before the browser timing.
 
 ## Risks
 
