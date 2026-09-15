@@ -88,6 +88,7 @@
     },
     "mvChanges": "산/골 변경",
     "openImageTitle": "전개도 이미지 열기",
+    "placedOverImage": "패턴은 이미지 위에 배치되며, 이미지는 그 아래에 반투명으로 남습니다.",
     "rectified": "보정됨",
     "regionLabel": "감지된 전개도",
     "repairLabel": "수정할 감지된 전개도 추가",

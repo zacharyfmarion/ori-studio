@@ -88,6 +88,7 @@
     },
     "mvChanges": "Alterações de M/V",
     "openImageTitle": "Abrir imagem de padrão de vincos",
+    "placedOverImage": "O padrão será colocado sobre sua imagem, que permanece abaixo dele com meia opacidade.",
     "rectified": "Retificado",
     "regionLabel": "Padrão de vincos detectado",
     "repairLabel": "Adicionar o padrão de vincos detectado para corrigir",

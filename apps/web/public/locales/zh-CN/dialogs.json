@@ -88,6 +88,7 @@
     },
     "mvChanges": "山折/谷折更改",
     "openImageTitle": "打开折痕图图像",
+    "placedOverImage": "图案将放置在图像上方，图像会以半透明保留在其下方。",
     "rectified": "已校正",
     "regionLabel": "检测到的折痕图",
     "repairLabel": "添加检测到的折痕图以便修复",

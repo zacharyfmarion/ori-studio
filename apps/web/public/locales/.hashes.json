@@ -2800,7 +2800,8 @@
     "dialogs:cpDetectImport.canvasImageName": "5e45cc6c58fe",
     "dialogs:settings.models.suggestDetection": "4cb7339a4e98",
     "dialogs:settings.models.suggestDetectionDescription": "b57bb9391c6b",
-    "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b"
+    "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b",
+    "dialogs:cpDetectImport.placedOverImage": "322cde4d559e"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5603,7 +5604,8 @@
     "dialogs:cpDetectImport.canvasImageName": "5e45cc6c58fe",
     "dialogs:settings.models.suggestDetection": "4cb7339a4e98",
     "dialogs:settings.models.suggestDetectionDescription": "b57bb9391c6b",
-    "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b"
+    "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b",
+    "dialogs:cpDetectImport.placedOverImage": "322cde4d559e"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8406,7 +8408,8 @@
     "dialogs:cpDetectImport.canvasImageName": "5e45cc6c58fe",
     "dialogs:settings.models.suggestDetection": "4cb7339a4e98",
     "dialogs:settings.models.suggestDetectionDescription": "b57bb9391c6b",
-    "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b"
+    "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b",
+    "dialogs:cpDetectImport.placedOverImage": "322cde4d559e"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11159,7 +11162,8 @@
     "dialogs:cpDetectImport.canvasImageName": "5e45cc6c58fe",
     "dialogs:settings.models.suggestDetection": "4cb7339a4e98",
     "dialogs:settings.models.suggestDetectionDescription": "b57bb9391c6b",
-    "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b"
+    "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b",
+    "dialogs:cpDetectImport.placedOverImage": "322cde4d559e"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -13912,7 +13916,8 @@
     "dialogs:cpDetectImport.canvasImageName": "5e45cc6c58fe",
     "dialogs:settings.models.suggestDetection": "4cb7339a4e98",
     "dialogs:settings.models.suggestDetectionDescription": "b57bb9391c6b",
-    "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b"
+    "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b",
+    "dialogs:cpDetectImport.placedOverImage": "322cde4d559e"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -16715,7 +16720,8 @@
     "dialogs:cpDetectImport.canvasImageName": "5e45cc6c58fe",
     "dialogs:settings.models.suggestDetection": "4cb7339a4e98",
     "dialogs:settings.models.suggestDetectionDescription": "b57bb9391c6b",
-    "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b"
+    "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b",
+    "dialogs:cpDetectImport.placedOverImage": "322cde4d559e"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -19518,7 +19524,8 @@
     "dialogs:cpDetectImport.canvasImageName": "5e45cc6c58fe",
     "dialogs:settings.models.suggestDetection": "4cb7339a4e98",
     "dialogs:settings.models.suggestDetectionDescription": "b57bb9391c6b",
-    "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b"
+    "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b",
+    "dialogs:cpDetectImport.placedOverImage": "322cde4d559e"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -22271,6 +22278,7 @@
     "dialogs:cpDetectImport.canvasImageName": "5e45cc6c58fe",
     "dialogs:settings.models.suggestDetection": "4cb7339a4e98",
     "dialogs:settings.models.suggestDetectionDescription": "b57bb9391c6b",
-    "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b"
+    "toasts:cpDetectSuggestion.turnOff": "df6c6454bf5b",
+    "dialogs:cpDetectImport.placedOverImage": "322cde4d559e"
   }
 }

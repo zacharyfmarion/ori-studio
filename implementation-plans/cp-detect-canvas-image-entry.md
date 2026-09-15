@@ -404,8 +404,16 @@ real cropped render before calling it done.
 - [ ] Desktop drop in the Tauri dev app
 
 ### Phase 2 — registration
-- [ ] Axis-aligned quad → annotation box over the paper bounds
-- [ ] Rotated/perspective quad → rectified-frame underlay via
-      `repairAnnotations` sizing; `reviewAndFix` replaces rather than doubles
-- [ ] Demotion (opacity, lock, z) and undo ordering; camera frames the paper
-- [ ] Review-step copy; browser pass with a render and a skewed photo
+- [x] Axis-aligned quad → annotation box over the paper bounds
+      (`cpImageRegistration.ts`, unit-tested)
+- [x] Rotated/perspective quad → rectified-frame underlay via the sizing
+      Review & Fix uses (`rectifiedUnderlayBox`, now shared); `reviewAndFix`
+      removes the canvas image rather than doubling it
+- [x] Demotion (opacity, lock, z) and one overlay undo entry after the crease
+      entry; camera frames the paper as before
+- [x] Review-step copy
+- [x] Browser pass on the dev server: a clean render lands on the paper
+      through the affine path (its own pixels kept); Review & Fix removes it
+      and leaves one rectified underlay owned by the region; a real
+      diamond-oriented pattern takes the rectified-frame path (1024 px JPEG
+      at 1024/960 of the paper), creases over it aligned

@@ -88,6 +88,7 @@
     },
     "mvChanges": "Changements M/V",
     "openImageTitle": "Ouvrir l'image du patron de plis",
+    "placedOverImage": "Le patron sera placé sur votre image, qui reste dessous à demi-opacité.",
     "rectified": "Redressé",
     "regionLabel": "Patron de plis détecté",
     "repairLabel": "Ajouter le patron de plis détecté pour le corriger",

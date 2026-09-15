@@ -49,6 +49,8 @@ const storeActions = {
   loadCreasePatternText: vi.fn(async () => undefined),
   executeOristudioCpCommand: vi.fn(async (_operation: string) => true),
   addAnnotation: vi.fn((_annotation: CanvasAnnotation) => undefined),
+  updateAnnotation: vi.fn((_id: string, _patch: unknown) => undefined),
+  removeAnnotation: vi.fn((_id: string) => undefined),
   recordAnnotationHistory: vi.fn(() => undefined),
   oristudioCpAnnotations: [] as CanvasAnnotation[],
   oristudioCpError: null as string | null,
@@ -141,6 +143,7 @@ vi.mock('../engine/cpExactSolve', () => ({
 import { TooltipProvider } from './ui/Tooltip';
 import { CpDetectImportModal } from './CpDetectImportModal';
 import { useCpDetectSuggestionStore } from '../cp-workspace/images/cpDetectSuggestionStore';
+import { createCpImage } from '../cp-workspace/images/cpImage';
 
 const IMAGE_SIZE = 1024;
 const PAPER_SIZE = 400;
@@ -1453,6 +1456,117 @@ describe('CpDetectImportModal canvas image entry', () => {
     click('Add as-is');
     await settle();
     expect(storeActions.importAddOristudioCpText).toHaveBeenCalled();
+    expect(useCpDetectSuggestionStore.getState().suggestions['image-1'].state).toBe('accepted');
+  });
+
+  function canvasImageOnCanvas() {
+    storeActions.oristudioCpAnnotations = [
+      createCpImage({
+        id: 'image-1',
+        src: detail.image.src,
+        naturalWidth: 800,
+        naturalHeight: 800,
+        center: { x: 50, y: 50 },
+        width: 100,
+        height: 100,
+        rotation: 0.4,
+      }),
+    ];
+  }
+
+  it('registers the pattern onto the image and demotes it to an underlay', async () => {
+    canvasImageOnCanvas();
+    await openOnCanvasImage();
+    await confirmRights();
+    click('Detect');
+    await settle();
+    click('Add as-is');
+    await settle();
+
+    // The rectifier saw a 64 px source whose paper outline is its [0, 10] px
+    // corner (the stubbed quad); the paper landed at [-200, 200]. So 10 px of
+    // source are 400 units — 40 units per px — the image is 64·40 wide and its
+    // left edge sits on the paper's left edge.
+    expect(storeActions.updateAnnotation).toHaveBeenCalledWith(
+      'image-1',
+      expect.objectContaining({
+        width: 2560,
+        height: 2560,
+        center: { x: -200 + 1280, y: -200 + 1280 },
+        rotation: 0,
+        opacity: 0.5,
+        locked: true,
+      })
+    );
+    expect(storeActions.removeAnnotation).not.toHaveBeenCalled();
+    // One overlay entry after the crease entry, as Review & Fix records its own.
+    expect(storeActions.recordAnnotationHistory).toHaveBeenCalledTimes(1);
+    expect(bodyText()).not.toContain('placed over your image');
+  });
+
+  it('says on the review step where the pattern will land', async () => {
+    canvasImageOnCanvas();
+    await openOnCanvasImage();
+    await confirmRights();
+    click('Detect');
+    await settle();
+    expect(bodyText()).toContain('placed over your image');
+  });
+
+  it('swaps in the rectified frame when the paper outline is not axis-aligned', async () => {
+    canvasImageOnCanvas();
+    const diamond = {
+      top_left: { x: 5, y: 0 },
+      top_right: { x: 10, y: 5 },
+      bottom_right: { x: 5, y: 10 },
+      bottom_left: { x: 0, y: 5 },
+    };
+    detectClient.autoRectifyImage.mockResolvedValue({
+      image: imageData(IMAGE_SIZE),
+      report: { source_quad: diamond, detected_source_quad: diamond, warnings: [] },
+    } as never);
+    await openOnCanvasImage();
+    await confirmRights();
+    click('Detect');
+    await settle();
+    click('Add as-is');
+    await settle();
+
+    const [id, patch] = storeActions.updateAnnotation.mock.calls[0] as [string, Record<string, unknown>];
+    expect(id).toBe('image-1');
+    // The frame, sized the way Review & Fix sizes its underlay: the whole 1024
+    // frame is 1024/960 of the paper, centred on it.
+    expect(patch.naturalWidth).toBe(IMAGE_SIZE);
+    expect(patch.width).toBeCloseTo((PAPER_SIZE * IMAGE_SIZE) / (IMAGE_SIZE - 64), 6);
+    expect(patch.center).toEqual({ x: 0, y: 0 });
+    expect(patch.crop).toEqual({ x: 0, y: 0, w: 1, h: 1 });
+    expect(patch.locked).toBe(true);
+  });
+
+  it('removes the canvas image in Review & Fix, whose own underlay replaces it', async () => {
+    canvasImageOnCanvas();
+    await openOnCanvasImage();
+    await confirmRights();
+    click('Detect');
+    await settle();
+    click('Review & Fix');
+    await settle();
+
+    expect(storeActions.removeAnnotation).toHaveBeenCalledWith('image-1');
+    expect(storeActions.addAnnotation).toHaveBeenCalledTimes(2);
+    expect(storeActions.updateAnnotation).not.toHaveBeenCalled();
+    expect(storeActions.recordAnnotationHistory).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the document alone when the canvas image was deleted meanwhile', async () => {
+    await openOnCanvasImage();
+    await confirmRights();
+    click('Detect');
+    await settle();
+    click('Add as-is');
+    await settle();
+    expect(storeActions.updateAnnotation).not.toHaveBeenCalled();
+    expect(storeActions.recordAnnotationHistory).not.toHaveBeenCalled();
     expect(useCpDetectSuggestionStore.getState().suggestions['image-1'].state).toBe('accepted');
   });
 

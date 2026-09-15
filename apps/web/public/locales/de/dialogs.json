@@ -88,6 +88,7 @@
     },
     "mvChanges": "Berg/Tal-Änderungen",
     "openImageTitle": "Faltmuster-Bild öffnen",
+    "placedOverImage": "Das Muster wird über dem Bild platziert; das Bild bleibt halbtransparent darunter.",
     "rectified": "Entzerrt",
     "regionLabel": "Erkanntes Faltmuster",
     "repairLabel": "Erkanntes Faltmuster zum Korrigieren hinzufügen",

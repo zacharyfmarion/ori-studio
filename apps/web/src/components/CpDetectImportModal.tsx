@@ -65,12 +65,23 @@ import {
 } from '../store/workspaceStore/oristudioCpRuntime';
 import { useLayoutStore } from '../store/layoutStore';
 import { cpCamera } from '../cp-workspace/renderer/cpCameraRegistry';
-import { bottomAnnotationZ, type CanvasAnnotation } from '../cp-workspace/annotations/annotation';
+import { bottomAnnotationZ, isImageAnnotation, type CanvasAnnotation } from '../cp-workspace/annotations/annotation';
 import {
   createCpSuppressionRegion,
   DETECT_SUPPRESSED_CHECK_CLASSES,
 } from '../cp-workspace/annotations/suppressionRegion';
-import { createCpImage, IMAGE_JPEG_QUALITY } from '../cp-workspace/images/cpImage';
+import {
+  createCpImage,
+  defaultCpImageCrop,
+  IMAGE_JPEG_QUALITY,
+  type CpImage,
+  type CpImageUpdate,
+} from '../cp-workspace/images/cpImage';
+import {
+  DETECT_UNDERLAY_OPACITY,
+  quadIsAxisAligned,
+  registerImageOntoPaper,
+} from '../cp-workspace/images/cpImageRegistration';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import './CpDetectImportModal.css';
@@ -870,8 +881,24 @@ export function CpDetectImportModal() {
           );
         }
         const paper = lastOristudioCpImportAddPlacement()?.bounds ?? null;
+        const store = useWorkspaceStore.getState();
+        // The canvas image this session came from, if it is still there — a
+        // pattern detected from it lands *on* it, not beside the document.
+        const canvasAnnotation = canvasImage
+          ? (store.oristudioCpAnnotations.find(
+              (annotation): annotation is CpImage =>
+                annotation.id === canvasImage.annotationId && isImageAnnotation(annotation)
+            ) ?? null)
+          : null;
+        let annotationsChanged = false;
         if (underlay && paper) {
-          const store = useWorkspaceStore.getState();
+          // Review & Fix builds its own rectified underlay, and the canvas image
+          // would be a second copy of the same picture under it: one image, so
+          // the original goes and the region owns the one that stays.
+          if (canvasAnnotation) {
+            store.removeAnnotation(canvasAnnotation.id);
+            annotationsChanged = true;
+          }
           const annotations = repairAnnotations(
             paper,
             underlay,
@@ -880,16 +907,34 @@ export function CpDetectImportModal() {
             bottomAnnotationZ(beforeAnnotations)
           );
           for (const annotation of annotations) store.addAnnotation(annotation);
-          // A second, overlay-only history entry, so one undo takes the image
-          // and the region back off and a second undo takes the creases with
-          // them. Recorded after the adds because the store already holds the
-          // post-gesture layer by then.
-          store.recordAnnotationHistory(beforeAnnotations, label);
+          annotationsChanged = true;
           // The same event the rail tool fires, distinguished only by `source`:
           // a region drawn by hand and one set up by a detection import are the
           // same object doing two different jobs, and separating them is how we
           // tell whether anyone found the tool.
           track('cp suppression region created', { source: 'detect' });
+        } else if (canvasAnnotation && paper && rectified) {
+          store.updateAnnotation(
+            canvasAnnotation.id,
+            canvasImagePatch(
+              {
+                source: { width: source.image.width, height: source.image.height },
+                quad: quad ?? rectified.report.detected_source_quad ?? rectified.report.source_quad,
+                rectified,
+              },
+              paper,
+              bottomAnnotationZ(beforeAnnotations),
+              t
+            )
+          );
+          annotationsChanged = true;
+        }
+        if (annotationsChanged) {
+          // A second, overlay-only history entry, so one undo takes the image
+          // (and the region) back off and a second undo takes the creases with
+          // them. Recorded after the changes because the store already holds
+          // the post-gesture layer by then.
+          store.recordAnnotationHistory(beforeAnnotations, label);
         }
         useLayoutStore.getState().activateWorkspace('edit');
         // No check is run here. This used to run seven, then one —
@@ -926,6 +971,7 @@ export function CpDetectImportModal() {
       improvedFoldJson,
       partialFoldJson,
       phase,
+      quad,
       recognition,
       rectified,
       resetSession,
@@ -1154,6 +1200,15 @@ export function CpDetectImportModal() {
                 </Button>
               ))}
             </div>
+
+            {canvasImage && (
+              <p className="cp-detect-modal__drop-hint">
+                {t(
+                  'dialogs:cpDetectImport.placedOverImage',
+                  'The pattern will be placed over your image, which stays underneath it at half opacity.'
+                )}
+              </p>
+            )}
 
             <div className="cp-detect-modal__verdict" data-outcome={verdictTone(topology, phase)}>
               {verdictMessage(t, {
@@ -1935,6 +1990,65 @@ function verdictMessage(
  * `[inset, size - inset]`; the image box is therefore the paper scaled by
  * `size / (size - 2·inset)` about the same centre, since the inset is symmetric.
  */
+/**
+ * Where a rectified frame sits so that its paper — at pixels
+ * `[DETECT_PAPER_INSET_PX, size - DETECT_PAPER_INSET_PX]` on every
+ * rectification path — coincides with the paper the pattern was imported
+ * onto: centred, and larger than the paper by the frame's share outside the
+ * inset.
+ */
+function rectifiedUnderlayBox(
+  paper: OristudioCpModelBox,
+  frame: { width: number; height: number }
+): { center: { x: number; y: number }; width: number; height: number; rotation: number } {
+  const paperWidth = paper.maxX - paper.minX;
+  const paperHeight = paper.maxY - paper.minY;
+  const inset = 2 * DETECT_PAPER_INSET_PX;
+  const scale = frame.width > inset ? frame.width / (frame.width - inset) : 1;
+  return {
+    center: { x: (paper.minX + paper.maxX) / 2, y: (paper.minY + paper.maxY) / 2 },
+    width: paperWidth * scale,
+    height: paperHeight * scale,
+    rotation: 0,
+  };
+}
+
+/**
+ * The canvas image a pattern was detected from becomes its underlay.
+ *
+ * An upright paper outline is matched by moving and scaling the original —
+ * the picture the user dropped stays theirs, title and margins included. A
+ * rotated or perspective outline cannot be matched by any affine box, so the
+ * rectified frame stands in for the original, sized the way Review & Fix
+ * sizes its own underlay. Either way the image ends half-opaque, locked and
+ * beneath everything, which is what makes the creases over it editable.
+ */
+function canvasImagePatch(
+  detected: {
+    source: { width: number; height: number };
+    quad: CpDetectQuad;
+    rectified: CpDetectRectifiedImage;
+  },
+  paper: OristudioCpModelBox,
+  bottomZ: number,
+  t: TFunction
+): CpImageUpdate {
+  const demoted = { opacity: DETECT_UNDERLAY_OPACITY, locked: true, z: bottomZ - 1 };
+  if (quadIsAxisAligned(detected.quad)) {
+    const box = registerImageOntoPaper({ source: detected.source, quad: detected.quad, paper });
+    if (box) return { ...box, ...demoted };
+  }
+  const frame = detected.rectified.image;
+  return {
+    src: imageDataToDataUrl(frame, t),
+    naturalWidth: frame.width,
+    naturalHeight: frame.height,
+    crop: defaultCpImageCrop(),
+    ...rectifiedUnderlayBox(paper, frame),
+    ...demoted,
+  };
+}
+
 function repairAnnotations(
   paper: OristudioCpModelBox,
   imageSrc: { src: string; width: number; height: number },
@@ -1942,19 +2056,18 @@ function repairAnnotations(
   label: string,
   bottomZ: number
 ): CanvasAnnotation[] {
-  const center = { x: (paper.minX + paper.maxX) / 2, y: (paper.minY + paper.maxY) / 2 };
+  const box = rectifiedUnderlayBox(paper, imageSrc);
+  const center = box.center;
   const paperWidth = paper.maxX - paper.minX;
   const paperHeight = paper.maxY - paper.minY;
-  const inset = 2 * DETECT_PAPER_INSET_PX;
-  const scale = imageSrc.width > inset ? imageSrc.width / (imageSrc.width - inset) : 1;
   const margin = Math.max(paperWidth, paperHeight) * REGION_PAPER_MARGIN_RATIO;
   const image = createCpImage({
     src: imageSrc.src,
     naturalWidth: imageSrc.width,
     naturalHeight: imageSrc.height,
     center,
-    width: paperWidth * scale,
-    height: paperHeight * scale,
+    width: box.width,
+    height: box.height,
     // Locked so it never takes a click meant for the creases over it, and at
     // half opacity so it reads as an underlay rather than as the drawing.
     //
@@ -1962,7 +2075,7 @@ function repairAnnotations(
     // `annotationAtModelPoint` skips it — so the region below has to carry the
     // controls for it, which is what `imageId` is for. Accepting the solve
     // unlocks it; deleting the region deletes it.
-    opacity: 0.5,
+    opacity: DETECT_UNDERLAY_OPACITY,
     locked: true,
     z: bottomZ - 1,
   });
