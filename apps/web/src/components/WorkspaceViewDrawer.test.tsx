@@ -203,6 +203,41 @@ describe('the workspace View drawer', () => {
     expect(dialog()).not.toBeNull();
   });
 
+  it('leaves Escape to an open dropdown inside the sheet', () => {
+    // The pane's `Select`s portal their open listbox outside the sheet, so a
+    // listener scoped to the sheet would never see it — but the listbox holds
+    // focus while open, so the key's target is inside it. Escape aimed at a
+    // dropdown must close the dropdown, not the whole drawer.
+    render();
+    press(trigger());
+    const wrapper = document.body.appendChild(document.createElement('div'));
+    wrapper.setAttribute('data-radix-popper-content-wrapper', '');
+    const option = wrapper.appendChild(document.createElement('div'));
+    option.setAttribute('role', 'option');
+    option.tabIndex = -1;
+    act(() => option.focus());
+
+    pressEscape(option);
+
+    expect(dialog()).not.toBeNull();
+    wrapper.remove();
+  });
+
+  it('closes on Escape while a layer is open somewhere else', () => {
+    // A tooltip is a popper layer too, and it holds no focus. Asking "is any
+    // layer open" would leave the sheet's one keyboard exit dead for as long as
+    // a label happened to be showing; asking where the key landed does not.
+    render();
+    press(trigger());
+    const tooltip = document.body.appendChild(document.createElement('div'));
+    tooltip.setAttribute('data-radix-popper-content-wrapper', '');
+
+    pressEscape(sheet() as EventTarget);
+
+    expect(dialog()).toBeNull();
+    tooltip.remove();
+  });
+
   it('closes on a backdrop press but not on a press inside the sheet', () => {
     render();
     press(trigger());

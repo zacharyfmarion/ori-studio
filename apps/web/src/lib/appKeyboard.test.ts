@@ -332,6 +332,150 @@ describe('app keyboard — Escape reaches the surface that owns it', () => {
   });
 });
 
+/**
+ * An open layer owns the keys aimed at it.
+ *
+ * Radix's Escape listener is capture-phase on the document, like the app's, but
+ * it is registered when the layer opens — after the app's — and it stands down
+ * once the chord is `defaultPrevented`. So with a canvas object selected, Escape
+ * on its context menu ran `viewport.cancel` (the object deselected, the inline
+ * simulation window blurred) and the menu stayed open. The runtime has to
+ * decline the chord before the layer sees it.
+ */
+describe('app keyboard — an open layer owns the keys aimed at it', () => {
+  /** A crease-pattern surface that claims every viewport verb, as the real one does for Escape. */
+  function claimingViewport() {
+    const viewport = vi.fn(() => true);
+    cleanups.push(registerViewportShortcutExecutor('crease-pattern', viewport));
+    return viewport;
+  }
+
+  function withObjectSelected() {
+    return createActions(selectEverything(createSampleProject()), {
+      activeEditingContext: 'crease-pattern',
+    });
+  }
+
+  /** What Radix mounts for an open dropdown or context menu: a `role="menu"` inside the popper wrapper. */
+  function mountMenu() {
+    const wrapper = document.body.appendChild(document.createElement('div'));
+    wrapper.setAttribute('data-radix-popper-content-wrapper', '');
+    const menu = wrapper.appendChild(document.createElement('div'));
+    menu.setAttribute('role', 'menu');
+    menu.tabIndex = -1;
+    const item = menu.appendChild(document.createElement('div'));
+    item.setAttribute('role', 'menuitem');
+    item.tabIndex = -1;
+    cleanups.push(() => wrapper.remove());
+    return { menu, item };
+  }
+
+  /** What Radix mounts for an open Select: a listbox in the popper wrapper, no `role="menu"` anywhere. */
+  function mountListbox() {
+    const wrapper = document.body.appendChild(document.createElement('div'));
+    wrapper.setAttribute('data-radix-popper-content-wrapper', '');
+    const listbox = wrapper.appendChild(document.createElement('div'));
+    listbox.setAttribute('role', 'listbox');
+    const option = listbox.appendChild(document.createElement('div'));
+    option.setAttribute('role', 'option');
+    option.tabIndex = -1;
+    cleanups.push(() => wrapper.remove());
+    return option;
+  }
+
+  function keyOn(target: EventTarget, init: KeyboardEventInit) {
+    const event = new KeyboardEvent('keydown', { ...init, cancelable: true });
+    Object.defineProperty(event, 'target', { value: target });
+    return event;
+  }
+
+  it('lets the layer dismiss on Escape with a canvas object selected', () => {
+    const viewport = claimingViewport();
+    const actions = withObjectSelected();
+    const { menu } = mountMenu();
+    cleanups.push(installAppKeyboardListener(actions));
+    // Radix's `DismissableLayer`: registered after the app's listener because
+    // the layer mounted later, and silent once someone upstream claimed the key.
+    const dismiss = vi.fn();
+    const layer = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !event.defaultPrevented) dismiss();
+    };
+    document.addEventListener('keydown', layer, true);
+    cleanups.push(() => document.removeEventListener('keydown', layer, true));
+
+    // Focus sits on the menu itself right after a right-click opens it.
+    menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+
+    expect(dismiss).toHaveBeenCalledOnce();
+    expect(viewport).not.toHaveBeenCalled();
+    expect(actions.selectNone).not.toHaveBeenCalled();
+  });
+
+  it('declines Escape on a menu item without preventing it', () => {
+    const viewport = claimingViewport();
+    const actions = withObjectSelected();
+    const { item } = mountMenu();
+    const event = keyOn(item, { key: 'Escape' });
+
+    expect(handleAppKeyDown(event, actions)).toBe(false);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(viewport).not.toHaveBeenCalled();
+    expect(actions.selectNone).not.toHaveBeenCalled();
+  });
+
+  it('declines Escape on an open Select the same way', () => {
+    // No `role="menu"` in this tree — the popper wrapper is what reaches it.
+    const viewport = claimingViewport();
+    const actions = withObjectSelected();
+    const event = keyOn(mountListbox(), { key: 'Escape' });
+
+    expect(handleAppKeyDown(event, actions)).toBe(false);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(viewport).not.toHaveBeenCalled();
+  });
+
+  it('still cancels on the canvas while a layer is open elsewhere', () => {
+    // The predicate reads the key's target, not the document. A global "is any
+    // layer open" would also stand down for a tooltip — a popper layer that
+    // holds no focus — so Escape would stop deselecting whenever the pointer
+    // happened to rest on a toolbar button.
+    const viewport = claimingViewport();
+    const actions = withObjectSelected();
+    mountMenu();
+    const canvas = document.body.appendChild(document.createElement('div'));
+    canvas.tabIndex = 0;
+    cleanups.push(() => canvas.remove());
+    const event = keyOn(canvas, { key: 'Escape' });
+
+    expect(handleAppKeyDown(event, actions)).toBe(true);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(viewport).toHaveBeenCalledWith('viewport.cancel');
+  });
+
+  it('leaves the rest of the keys to the menu as well', () => {
+    // A menu owns its keys the way an input does, not only Escape: Delete on a
+    // row must not delete the object the menu is about, and a letter is the
+    // menu's typeahead, not a tool.
+    const viewport = claimingViewport();
+    const cpAction = vi.fn();
+    cleanups.push(registerCpActionShortcutExecutor(cpAction));
+    const actions = withObjectSelected();
+    const { item } = mountMenu();
+
+    for (const event of [keyOn(item, { key: 'Delete' }), keyOn(item, { key: 'm' })]) {
+      expect(handleAppKeyDown(event, actions)).toBe(false);
+      expect(event.defaultPrevented).toBe(false);
+    }
+
+    expect(viewport).not.toHaveBeenCalled();
+    expect(cpAction).not.toHaveBeenCalled();
+    expect(actions.handleMenuAction).not.toHaveBeenCalled();
+  });
+});
+
 describe('the defaults source reaches a real keypress', () => {
   // The one path a keypress actually takes. Everything else — the Settings list,
   // the "Default" column, the native menu — reads the source through its own
