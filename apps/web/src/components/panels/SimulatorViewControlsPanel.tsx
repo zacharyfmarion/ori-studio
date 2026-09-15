@@ -84,7 +84,7 @@ export function SimulatorViewControlsPanel() {
             onChange={(value) => setSetting('renderMode', value as SimulatorSettings['renderMode'])}
           />
           <SelectRow
-            label={t('panels:simulatorViewControls.colorMode', 'Colour')}
+            label={t('panels:simulatorViewControls.colorMode', 'Color')}
             value={settings.colorMode}
             options={(['paper', 'strain'] as const).map((mode) => ({
               id: mode,

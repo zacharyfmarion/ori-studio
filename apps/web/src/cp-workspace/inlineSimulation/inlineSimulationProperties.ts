@@ -70,7 +70,7 @@ export function buildInlineSimulationProperties(
           {
             id: 'colorMode',
             kind: 'select',
-            label: t('panels:simulatorViewControls.colorMode', 'Colour'),
+            label: t('panels:simulatorViewControls.colorMode', 'Color'),
             support: 'supported',
             options: COLOR_MODES.map((mode) => ({
               id: mode,

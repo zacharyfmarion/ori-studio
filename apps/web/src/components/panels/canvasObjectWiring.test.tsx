@@ -144,7 +144,7 @@ describe('canvas objects in the crease-pattern panel', () => {
     expect(floating()).toEqual(['.cp-inline-simulation-inspector']);
     expect(sheetTitle()).toBe('Simulation window');
     // The colour-mode menu left the bar for the pane.
-    expect(document.querySelector('.cp-inline-simulation-inspector [aria-label="Colour"]')).toBeNull();
+    expect(document.querySelector('.cp-inline-simulation-inspector [aria-label="Color"]')).toBeNull();
   });
 
   it('stands the selection toolbar down for any selected object', () => {
