@@ -1224,7 +1224,9 @@ impl Planner {
                 .collect();
             let chosen = chosen_index.and_then(|c| witnesses.get(c)).cloned();
             let chosen = chosen.as_ref();
-            if let Some(w) = chosen {
+            // The card draws the mirror alignment's marks too, so they are
+            // in the table beside the chosen witness's.
+            for w in chosen.into_iter().chain(presenting.also.as_ref()) {
                 for r in &w.inputs {
                     if r.is_point() && !referenced_points.contains(&r.id()) {
                         referenced_points.push(r.id());

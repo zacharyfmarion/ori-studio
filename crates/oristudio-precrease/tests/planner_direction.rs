@@ -1040,3 +1040,32 @@ fn unfound_ends(seq: &Sequence) -> usize {
     }
     lost
 }
+
+/// The mirror alignment a card shows beside the chosen witness (R8) names
+/// marks of its own, and the card can only draw what the points table
+/// carries: the iguana's first fold, corner onto corner along the bottom
+/// edge, shows the top corners too.
+#[test]
+fn a_mirror_witness_has_its_marks_in_the_points_table() {
+    let seq = plan_line_by_line("tests/fixtures/precrease/iguana-c0.fold");
+    let mirrored: Vec<&Step> = seq.steps.iter().filter(|s| s.also.is_some()).collect();
+    assert!(!mirrored.is_empty(), "iguana has symmetric folds");
+    for step in mirrored {
+        let also = step.also.as_ref().expect("also");
+        let chosen = step
+            .chosen
+            .and_then(|c| step.witnesses.get(c))
+            .expect("chosen");
+        assert_eq!(also.axiom, chosen.axiom, "{step:?}");
+        assert!(
+            also.inputs.iter().all(|r| !chosen.inputs.contains(r)),
+            "a mirror names other references: {step:?}"
+        );
+        for r in also.inputs.iter().filter(|r| r.is_point()) {
+            assert!(
+                seq.points.iter().any(|p| p.id == r.id()),
+                "mark {r:?} of the mirror witness is not in the points table"
+            );
+        }
+    }
+}
