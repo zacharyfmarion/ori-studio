@@ -34,11 +34,11 @@ let container: HTMLDivElement | null = null;
 let canvas: HTMLCanvasElement | null = null;
 let forwarded: WheelEvent[] = [];
 
-function renderLayer(editing: boolean): HTMLElement {
-  const box = createTextAnnotation({
-    center: { x: 0, y: 0 },
-    doc: textDocFromPlainText('hello'),
-  });
+function renderLayer(
+  editing: boolean,
+  box = createTextAnnotation({ center: { x: 0, y: 0 }, doc: textDocFromPlainText('hello') }),
+  onSyncHeight: (id: string, height: number) => void = () => {}
+): HTMLElement {
   act(() => {
     root?.render(
       <CpTextAnnotationLayer
@@ -48,7 +48,7 @@ function renderLayer(editing: boolean): HTMLElement {
         onChangeText={() => {}}
         onExitEdit={() => {}}
         onDelete={() => {}}
-        onSyncHeight={() => {}}
+        onSyncHeight={onSyncHeight}
       />
     );
   });
@@ -115,5 +115,76 @@ describe('CpTextAnnotationLayer wheel handling', () => {
 
     expect(original.defaultPrevented).toBe(true);
     expect(forwarded).toHaveLength(1);
+  });
+});
+
+/**
+ * Height sync from the model side.
+ *
+ * The observer only sees the DOM box change size. A handle drag that asks for
+ * less height than the content needs changes the *model* height while the DOM
+ * box, already at the content height, stays put — so that trigger is the
+ * layer's own, and without it the selection frame is left shorter than the text.
+ */
+describe('CpTextAnnotationLayer height sync', () => {
+  /** jsdom lays nothing out; pin the rendered box to one content height. */
+  const CONTENT_HEIGHT_PX = 40;
+  let offsetHeight: PropertyDescriptor | undefined;
+
+  beforeEach(() => {
+    offsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight');
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+      configurable: true,
+      get: () => CONTENT_HEIGHT_PX,
+    });
+  });
+
+  afterEach(() => {
+    if (offsetHeight) Object.defineProperty(HTMLElement.prototype, 'offsetHeight', offsetHeight);
+  });
+
+  it('re-syncs the model height when a drag takes it below the content', () => {
+    const onSyncHeight = vi.fn();
+    const box = createTextAnnotation({
+      id: 'text-1',
+      center: { x: 0, y: 0 },
+      doc: textDocFromPlainText('hello'),
+      // The identity view maps one model unit to one CSS pixel.
+      height: CONTENT_HEIGHT_PX,
+      minHeight: CONTENT_HEIGHT_PX,
+    });
+    renderLayer(false, box, onSyncHeight);
+    // Model and DOM agree, so mounting asks for nothing — the guard against a
+    // sync that would feed itself.
+    expect(onSyncHeight).not.toHaveBeenCalled();
+
+    // A bottom-handle drag past the content: the floor and the height both
+    // drop, the DOM box does not.
+    renderLayer(false, { ...box, height: 20, minHeight: 20 }, onSyncHeight);
+
+    expect(onSyncHeight).toHaveBeenCalledTimes(1);
+    expect(onSyncHeight).toHaveBeenCalledWith('text-1', CONTENT_HEIGHT_PX);
+  });
+
+  it('stays quiet when the dragged height is what the DOM box renders', () => {
+    const onSyncHeight = vi.fn();
+    const box = createTextAnnotation({
+      id: 'text-1',
+      center: { x: 0, y: 0 },
+      doc: textDocFromPlainText('hello'),
+      height: 60,
+      minHeight: 60,
+    });
+    // Stub the DOM at the dragged size for this case: a floor above the content
+    // is exactly what the box renders at.
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+      configurable: true,
+      get: () => 60,
+    });
+    renderLayer(false, box, onSyncHeight);
+    renderLayer(false, { ...box, height: 60.2, minHeight: 60.2 }, onSyncHeight);
+
+    // Sub-pixel drift is not a reason to write the model.
+    expect(onSyncHeight).not.toHaveBeenCalled();
   });
 });

@@ -28,6 +28,7 @@ import type { CanvasAnnotation, ImageAnnotation } from './annotation';
 import {
   createTextAnnotation,
   textBoxFromDragCorners,
+  textBoxResizeUpdate,
   DEFAULT_TEXT_BOX_WIDTH,
   DEFAULT_TEXT_FONT_SIZE,
 } from './textAnnotation';
@@ -139,9 +140,17 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
     (id: string) => useWorkspaceStore.getState().oristudioCpAnnotations.find((a) => a.id === id),
     []
   );
+  // A text box's dragged height is its floor (`textBoxResizeUpdate`); every
+  // other kind takes the box as reported.
   const applyBoxUpdate = useCallback(
-    (id: string, patch: CanvasObjectBoxUpdate) => updateAnnotation(id, patch),
-    [updateAnnotation]
+    (id: string, patch: CanvasObjectBoxUpdate) => {
+      const annotation = annotationById(id);
+      updateAnnotation(
+        id,
+        annotation && isTextAnnotation(annotation) ? textBoxResizeUpdate(patch) : patch
+      );
+    },
+    [annotationById, updateAnnotation]
   );
   // Crop needs the image's source rect, which the overlay has no view of; it
   // hands back the dragged handle and pointer and we apply the image math here.

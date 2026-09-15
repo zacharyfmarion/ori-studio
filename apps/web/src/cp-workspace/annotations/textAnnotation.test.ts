@@ -4,6 +4,7 @@ import {
   emptyTextDoc,
   serializedStateToPlainText,
   textBoxFromDragCorners,
+  textBoxResizeUpdate,
   textDocFromPlainText,
   validateTextAnnotation,
   validateTextAnnotations,
@@ -113,6 +114,25 @@ describe('textBoxFromDragCorners', () => {
     expect(box?.rotation).toBe(0);
     expect(box?.height).toBeCloseTo(8);
     expect(box?.width).toBeCloseTo(0.5);
+  });
+});
+
+describe('textBoxResizeUpdate', () => {
+  it('makes a dragged height the floor too', () => {
+    // The DOM box is sized by the floor, so a height written without it left
+    // the rendered box at the old size while the frame shrank around it.
+    expect(
+      textBoxResizeUpdate({ center: { x: 1, y: 2 }, width: 3, height: 0.4 })
+    ).toEqual({ center: { x: 1, y: 2 }, width: 3, height: 0.4, minHeight: 0.4 });
+  });
+
+  it('passes a move or rotation through untouched', () => {
+    expect(textBoxResizeUpdate({ center: { x: 1, y: 2 } })).toEqual({ center: { x: 1, y: 2 } });
+    expect(textBoxResizeUpdate({ rotation: 1 })).toEqual({ rotation: 1 });
+  });
+
+  it('leaves the floor alone when only the width changes', () => {
+    expect(textBoxResizeUpdate({ width: 2 })).toEqual({ width: 2 });
   });
 });
 
