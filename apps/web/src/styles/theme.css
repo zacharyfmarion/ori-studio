@@ -6583,6 +6583,12 @@ button.cp-folded-figure-toolbar__notice:hover {
   width: 112px;
 }
 
+/* The stepper keeps its width and the reset trails it, the way a colour
+   field's clear does; inside the fixed box the two overlapped. */
+.control-row__value--input.control-row__value--reset {
+  width: calc(112px + 22px);
+}
+
 .control-row__value--select {
   display: flex;
   justify-content: flex-end;

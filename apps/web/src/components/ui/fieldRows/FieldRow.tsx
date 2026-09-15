@@ -52,7 +52,15 @@ export function FieldRow({
       ) : (
         <span className="control-row__label">{label}</span>
       )}
-      <div className={`control-row__value control-row__value--${kind}`}>
+      <div
+        className={[
+          'control-row__value',
+          `control-row__value--${kind}`,
+          onReset && 'control-row__value--reset',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
         {children}
         {onReset && (
           <button
