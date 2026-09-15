@@ -126,6 +126,7 @@
   "view": {
     "design": "Diseño",
     "edit": "Editar",
+    "properties": "Propiedades",
     "resetLayout": "Restablecer disposición",
     "simulate": "Simular"
   }

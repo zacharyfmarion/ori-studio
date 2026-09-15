@@ -399,8 +399,33 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
    * collapse into no-ops.
    */
   const modelWriteChain = new Map<string, Promise<unknown>>();
-  /** Figures with a live model edit in flight; see `reconcileFoldedFigureModel`. */
-  const pendingLiveModelWrites = new Set<string>();
+  /**
+   * Figures with live model edits in flight, counted; see
+   * `reconcileFoldedFigureModel`. A count rather than a set because a colour
+   * drag has several writes in flight at once, and the first to finish must not
+   * unmask a reconcile while the rest are still landing.
+   */
+  const pendingLiveModelWrites = new Map<string, number>();
+  /**
+   * The model each figure's newest live write was issued with, while any write
+   * is in flight. A partial update merges onto this rather than onto the store's
+   * `snapshot.model`, which lags a round trip behind: merging onto the store let
+   * two writes to different fields, issued back to back, drop whichever landed
+   * first. Dropped once nothing is in flight — the store is authoritative again.
+   */
+  const issuedModels = new Map<string, OristudioCpFoldedFigureModel>();
+  /**
+   * Figures whose in-flight live writes were superseded from outside — an undo
+   * mid-drag — and must reconcile once the stale write lands. The stale tick
+   * writes nothing to the store, but it did reach the kernel, and the reconcile
+   * scheduled by the undo ran while the write was still counted and so did not
+   * write either.
+   */
+  const supersededLiveModelWrites = new Set<string>();
+
+  function liveModelWriteCount(id: string): number {
+    return pendingLiveModelWrites.get(id) ?? 0;
+  }
   /**
    * Figures with a rehydrate in flight; see
    * `rehydrateOristudioCpFolded3dFigure`. The background queue and a press can
@@ -567,7 +592,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     if (foldedModelsEqual(lastWrittenKernelModel.get(handle), desired)) return;
     // A live edit issued while this sat in the queue is newer intent than the
     // history position that scheduled it, and its response lands after ours.
-    if (pendingLiveModelWrites.has(id)) return;
+    if (liveModelWriteCount(id) > 0) return;
 
     const requestId = (modelRequestSequence.get(id) ?? 0) + 1;
     modelRequestSequence.set(id, requestId);
@@ -814,6 +839,31 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   }
 
   /**
+   * Give up `owner`'s claim on the canvas — and only that claim.
+   *
+   * Releasing is deliberately asymmetric to taking: whatever else holds a
+   * selection stays where it is, so a tool that clears the annotation as it
+   * starts does not also drop the creases it is about to act on. Folded-figure
+   * focus is narrower than folded-figure selection and goes with it — a figure
+   * that kept focus after being deselected would go on turning under every drag
+   * that landed on it. One name for the three release sites, so the rule has one
+   * place to be read.
+   */
+  function releaseCanvasSelection(owner: 'annotation' | 'folded-figure' | 'inline-simulation'): void {
+    switch (owner) {
+      case 'annotation':
+        set({ oristudioCpSelectedAnnotationId: null });
+        return;
+      case 'folded-figure':
+        set({ oristudioCpActiveFoldedFigureId: null, oristudioCpFocusedFoldedFigureId: null });
+        return;
+      case 'inline-simulation':
+        set({ oristudioCpFocusedInlineSimulationId: null });
+        return;
+    }
+  }
+
+  /**
    * Apply a crease selection under the canvas invariant.
    *
    * A selection that names nothing is a release rather than a claim, so it
@@ -991,9 +1041,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
    *
    * A stopped fold is not a failed one, and the two helpers above both write an
    * `error` envelope unconditionally — which `GlobalToasts` turns into an error
-   * toast. Restoring the crease selection is the other half: the draft entry took
-   * the canvas selection when it was inserted, and putting it back leaves the
-   * user exactly where they pressed `G`. Upstream drops the selection at dispatch
+   * toast. Restoring the crease selection is the other half: the draft entry
+   * cleared the canvas selection when it was inserted, and putting it back
+   * leaves the user exactly where they pressed `G`. Upstream drops the selection at dispatch
    * (`FoldAction.foldCreasePattern` calls `unselect_all`), so keeping it is a
    * deliberate improvement rather than parity.
    */
@@ -1711,7 +1761,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     focusOristudioCpInlineSimulation: (id) => {
       if (get().oristudioCpFocusedInlineSimulationId === id) return;
       if (id === null) {
-        set({ oristudioCpFocusedInlineSimulationId: null });
+        releaseCanvasSelection('inline-simulation');
         return;
       }
       takeCanvasSelection('inline-simulation', {
@@ -1916,12 +1966,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     setOristudioCpActiveFoldedFigure: (oristudioCpActiveFoldedFigureId) => {
       const previousActiveId = get().oristudioCpActiveFoldedFigureId;
       if (oristudioCpActiveFoldedFigureId === null) {
-        // Orbit focus goes with the selection. This branch deliberately skips
-        // `takeCanvasSelection` — releasing a claim is the releaser's business —
-        // but focus is *narrower* than selection, so it cannot be left behind:
-        // a figure that keeps focus after being deselected goes on turning under
-        // every drag that lands on it.
-        set({ oristudioCpActiveFoldedFigureId: null, oristudioCpFocusedFoldedFigureId: null });
+        releaseCanvasSelection('folded-figure');
       } else {
         takeCanvasSelection('folded-figure', { oristudioCpActiveFoldedFigureId });
       }
@@ -2233,7 +2278,25 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
               scopedLineIds
             ),
           };
-          set({
+          // A fresh fold is selected **and focused**, which for a 3D figure has
+          // to be one step rather than two.
+          //
+          // Selected alone was the state the user could see — outline and
+          // floating toolbar — while the gesture still read as unfocused, so a
+          // figure that looked ready to turn moved instead. Focus is what makes
+          // the body inert and hands the drag to the camera, so the chrome and
+          // the gesture have to arrive together or the chrome is lying.
+          //
+          // This is also what an inline simulation does: for a window, focus
+          // *is* selection (see `selectedCanvasObjectId` in the panel), and a
+          // new one opens focused.
+          //
+          // Through `takeCanvasSelection`, like every other claim: the creases
+          // that were folded release their selection in the kernel as well as
+          // the store, and any window or annotation that somehow held the canvas
+          // lets go. The focus in the patch outranks the helper's own rule for
+          // it, because the patch names the figure the focus belongs to.
+          takeCanvasSelection('folded-figure', {
             oristudioCpFoldedFigures: [
               ...existing,
               {
@@ -2246,21 +2309,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                 ),
               },
             ],
-            // A fresh fold is selected **and focused**, which for a 3D figure has
-            // to be one step rather than two.
-            //
-            // Selected alone was the state the user could see — outline and
-            // floating toolbar — while the gesture still read as unfocused, so a
-            // figure that looked ready to turn moved instead. Focus is what makes
-            // the body inert and hands the drag to the camera, so the chrome and
-            // the gesture have to arrive together or the chrome is lying.
-            //
-            // This is also what an inline simulation does: for a window, focus
-            // *is* selection (see `selectedCanvasObjectId` in the panel), and a
-            // new one opens focused.
             oristudioCpActiveFoldedFigureId: figureId,
             oristudioCpFocusedFoldedFigureId: figureId,
-            oristudioCpSelection: emptyOristudioCpSelection(),
             oristudioCpError: null,
             dirty: true,
             projectMessage: 'Folded model',
@@ -2306,13 +2356,16 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         error: null,
       };
 
-      // What the crease selection was before the draft entry took the canvas, so
-      // a stopped fold can hand it back rather than making the user reselect the
-      // creases they were about to fold.
+      // What the crease selection was before the draft entry cleared the canvas,
+      // so a stopped fold can hand it back rather than making the user reselect
+      // the creases they were about to fold.
       const selectionBeforeFold = get().oristudioCpSelection;
-      takeCanvasSelection('folded-figure', {
+      // Releases the canvas — the creases being folded let go, in the kernel too
+      // — but claims nothing: a fresh flat fold lands unselected (below), so a
+      // draft that took the selection was a figure selected for exactly as long
+      // as the kernel took, and every selection-driven surface flashed for it.
+      takeCanvasSelection('none', {
         oristudioCpFoldedFigures: [...get().oristudioCpFoldedFigures, loadingEntry],
-        oristudioCpActiveFoldedFigureId: figureId,
         oristudioCpError: null,
       });
 
@@ -2396,7 +2449,14 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             scopedLineIds
           ),
         };
-        set({
+        // A fresh flat fold is not selected. Selecting it would put delete-key
+        // focus on the new figure the moment it appears, and the folded-figure
+        // menu targets the most recent figure anyway (activeGeneratedFoldedFigure).
+        // Nothing holds the canvas afterwards: the creases that were folded would
+        // otherwise stay selected, so a delete right after folding would take
+        // them with it — and through `takeCanvasSelection` they let go in the
+        // kernel too, not only in the store.
+        takeCanvasSelection('none', {
           oristudioCpFoldedFigures: existing.map((figure) =>
             figure.id === figureId
               ? {
@@ -2413,18 +2473,11 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                 }
               : figure
           ),
-          // A fresh fold is not selected. Selecting it would put delete-key focus
-          // on the new figure the moment it appears, and the folded-figure menu
-          // targets the most recent figure anyway (activeGeneratedFoldedFigure).
-          oristudioCpActiveFoldedFigureId: null,
-          // The creases that were folded stay selected otherwise, so a delete
-          // right after folding would take them with it.
-          oristudioCpSelection: emptyOristudioCpSelection(),
           oristudioCpError: null,
           dirty: true,
           projectMessage: 'Folded model',
         });
-        refreshFoldedFigureSelectionMarkers(previousActiveId);
+        // `takeCanvasSelection('none')` already redrew the released figure's marker.
         completed(
           contradiction ? 'contradiction' : foldVerdictForOutcome(result.snapshot),
           result.snapshot.discovered_fold_cases
@@ -2761,12 +2814,20 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       // one — and the rejection would be caught below and written onto the entry
       // as `status: 'error'`, destroying a perfectly good figure over a style
       // click.
+      // Changing a figure's style selects it — before the round trip, for the
+      // same reason as `updateOristudioCpFoldedFigureModel`: a claim made when
+      // the kernel answers would take the selection back from whatever the user
+      // clicked while it was in flight.
+      if (get().oristudioCpActiveFoldedFigureId !== figure.id) {
+        takeCanvasSelection('folded-figure', { oristudioCpActiveFoldedFigureId: figure.id });
+      }
+
       if ((figure.folded3d ?? null) !== null) {
         const renderSnapshot = reproject3dFigure(figure, displayStyle);
         // A figure reopened from a file has no render model: keep the stored
         // picture rather than blanking it, and still record the chosen style so
         // a refold shows it.
-        takeCanvasSelection('folded-figure', {
+        set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
             candidate.id === figure.id
               ? {
@@ -2776,7 +2837,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                 }
               : candidate
           ),
-          oristudioCpActiveFoldedFigureId: figure.id,
           oristudioCpError: null,
           dirty: true,
         });
@@ -2788,13 +2848,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           figure.handle,
           displayStyle,
           foldedFigureIndex(figure.id),
-          true
+          get().oristudioCpActiveFoldedFigureId === figure.id
         );
-        takeCanvasSelection('folded-figure', {
+        set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
             candidate.id === figure.id ? { ...candidate, displayStyle, renderSnapshot } : candidate
           ),
-          oristudioCpActiveFoldedFigureId: figure.id,
           oristudioCpError: null,
           dirty: true,
         });
@@ -2859,33 +2918,46 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         return false;
       }
 
+      // Editing a figure's appearance selects it — now, before the round trip.
+      // The landing below writes only the figure entry: a claim made when the
+      // kernel answers would yank the selection back from whatever the user
+      // clicked in the meantime, and clear that crease selection in the kernel
+      // with it.
+      if (get().oristudioCpActiveFoldedFigureId !== figure.id) {
+        takeCanvasSelection('folded-figure', { oristudioCpActiveFoldedFigureId: figure.id });
+      }
+      // Merge onto the newest *issued* model while writes are in flight, not
+      // onto the store's copy: the store lags a round trip, so two writes to
+      // different fields issued back to back would each carry the other's old
+      // value, and the newer one — the only one allowed to land — would drop
+      // the older field.
       const model: OristudioCpFoldedFigureModel = {
-        ...figure.snapshot.model,
+        ...(issuedModels.get(id) ?? figure.snapshot.model),
         ...update,
       };
+      issuedModels.set(id, model);
       // Continuous controls (the colour pickers, the alpha slider) fire a change
       // per pointer move, so several round-trips can be in flight at once and
       // could otherwise land out of order. Only the newest request for a figure
       // is allowed to write.
       const requestId = (modelRequestSequence.get(id) ?? 0) + 1;
       modelRequestSequence.set(id, requestId);
-      pendingLiveModelWrites.add(id);
+      pendingLiveModelWrites.set(id, liveModelWriteCount(id) + 1);
       try {
         const snapshot = await writeFoldedFigureModel(figure.handle, model);
         const renderSnapshot = await renderSnapshotForFoldedFigure(
           figure.handle,
           figure.displayStyle,
           foldedFigureIndex(figure.id),
-          true
+          get().oristudioCpActiveFoldedFigureId === figure.id
         );
         if (modelRequestSequence.get(id) !== requestId) return true;
-        takeCanvasSelection('folded-figure', {
+        set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
             candidate.id === figure.id
               ? { ...candidate, snapshot, renderSnapshot, error: null }
               : candidate
           ),
-          oristudioCpActiveFoldedFigureId: figure.id,
           oristudioCpError: null,
           dirty: true,
         });
@@ -2903,7 +2975,32 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         });
         return false;
       } finally {
-        pendingLiveModelWrites.delete(id);
+        const remaining = liveModelWriteCount(id) - 1;
+        if (remaining > 0) {
+          pendingLiveModelWrites.set(id, remaining);
+        } else {
+          pendingLiveModelWrites.delete(id);
+          issuedModels.delete(id);
+          // The last in-flight write for a figure whose writes were superseded
+          // by an undo has landed in the kernel and nowhere else; the reconcile
+          // the undo scheduled found a write still counted and stood down, so
+          // schedule it again now that it can act.
+          if (supersededLiveModelWrites.delete(id)) {
+            void get().reconcileFoldedFigureModels([id]);
+          }
+        }
+      }
+    },
+
+    supersedeOristudioCpFoldedFigureModelWrites: () => {
+      for (const [id, count] of pendingLiveModelWrites) {
+        if (count <= 0) continue;
+        // A bumped sequence makes every in-flight response for the figure
+        // stale: it will not write the store. It did reach the kernel, though,
+        // which is what the deferred reconcile above puts right.
+        modelRequestSequence.set(id, (modelRequestSequence.get(id) ?? 0) + 1);
+        issuedModels.delete(id);
+        supersededLiveModelWrites.add(id);
       }
     },
 
@@ -3441,16 +3538,18 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       // restore a figure that draws but can no longer be recoloured or refolded.
       releaseFoldedFigureHandle(figure.handle);
       const remaining = get().oristudioCpFoldedFigures.filter((candidate) => candidate.id !== id);
-      const activeId =
-        get().oristudioCpActiveFoldedFigureId === id
-          ? remaining[0]?.id ?? null
-          : get().oristudioCpActiveFoldedFigureId;
+      // Deleting the selected figure selects nothing, like deleting any other
+      // canvas object. It used to advance to the next figure, which put the
+      // selection — and everything that follows it — on a figure nobody clicked.
+      // Focus is narrower than selection and cannot outlive the figure either.
+      const wasActive = get().oristudioCpActiveFoldedFigureId === id;
+      const wasFocused = get().oristudioCpFocusedFoldedFigureId === id;
       set({
         oristudioCpFoldedFigures: remaining,
-        oristudioCpActiveFoldedFigureId: activeId,
+        ...(wasActive ? { oristudioCpActiveFoldedFigureId: null } : {}),
+        ...(wasFocused ? { oristudioCpFocusedFoldedFigureId: null } : {}),
         dirty: true,
       });
-      refreshFoldedFigureSelectionMarkers(activeId);
     },
 
     clearOristudioCpFoldedFigures: async () => {
@@ -3590,12 +3689,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         id !== null && get().oristudioCpAnnotations.some((annotation) => annotation.id === id)
           ? id
           : null;
-      // Only *taking* the selection is an invariant-bearing move. Releasing your
-      // own claim leaves whatever else holds one alone — picking a crease tool
-      // deselects the reference image without deselecting the creases the tool
-      // is about to act on.
+      // Only *taking* the selection is an invariant-bearing move; see
+      // `releaseCanvasSelection` for why releasing leaves the rest alone.
       if (resolved === null) {
-        set({ oristudioCpSelectedAnnotationId: null });
+        releaseCanvasSelection('annotation');
         return;
       }
       takeCanvasSelection('annotation', { oristudioCpSelectedAnnotationId: resolved });

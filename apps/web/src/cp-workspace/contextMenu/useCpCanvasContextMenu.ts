@@ -1,6 +1,5 @@
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ContextMenuItem } from '../../components/ui/contextMenuTypes';
 import type { OristudioCpFoldedFigureEntry } from '../../engine/oristudioCpTypes';
 import {
   contextMenuKeyboardAnchor,
@@ -9,14 +8,13 @@ import {
 } from '../../menus/context/useContextMenuController';
 import { handleMenuAction } from '../../commands/menuActions';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { isTextAnnotation, type CanvasAnnotation } from '../annotations/annotation';
 import type { CpImagePlacement } from '../annotations/useCpAnnotations';
+import type { CanvasLayerBindings } from '../canvasObjects/canvasLayerBindings';
 import type { FoldedFigureActionDeps } from '../folded/foldedFigureActions';
 import { foldedFigureMenuItemsWith } from '../folded/foldedFigureMenuItems';
 import type { CpContextMenuRequest } from '../contextMenuTarget';
 import { cpHasSelection } from './cpRightClick';
 import {
-  cpAnnotationMenuItems,
   cpBlankCanvasMenuItems,
   cpSelectionMenuItems,
   type CpContextMenuDeps,
@@ -39,23 +37,21 @@ import {
  */
 
 export interface UseCpCanvasContextMenuOptions {
+  /** The merged overlay layers; an object's menu is its layer's to build. */
+  bindings: CanvasLayerBindings;
+  /**
+   * For the *canvas's* folded-figure target — a right-click that reached the
+   * GL surface through an inert 3D body, which the overlay never saw.
+   */
   foldedFigures: readonly OristudioCpFoldedFigureEntry[];
   foldedFigureActionDeps: Omit<FoldedFigureActionDeps, 't'>;
   setActiveFoldedFigure: (id: string | null) => void;
   annotations: {
-    annotations: readonly CanvasAnnotation[];
-    canCrop: (id: string) => boolean;
-    requestEditText: (id: string) => void;
-    bringAnnotationToFront: (id: string) => void;
-    sendAnnotationToBack: (id: string) => void;
-    deleteAnnotationById: (id: string) => void;
     /** Place a text box at a model point and open it for editing. */
     createTextAt: (modelPoint: { x: number; y: number }) => void;
     /** Park where and how the next picked image should land. */
     setPendingImagePoint: (placement: CpImagePlacement | null) => void;
   };
-  /** Take the canvas selection for this object, whichever kind owns it. */
-  selectCanvasObject: (id: string | null) => void;
 }
 
 export interface CpCanvasContextMenu {
@@ -74,13 +70,8 @@ export function useCpCanvasContextMenu(
 ): CpCanvasContextMenu {
   const { t } = useTranslation();
   const controller = useContextMenuController('crease-pattern');
-  const {
-    foldedFigures,
-    foldedFigureActionDeps,
-    setActiveFoldedFigure,
-    annotations,
-    selectCanvasObject,
-  } = options;
+  const { bindings, foldedFigures, foldedFigureActionDeps, setActiveFoldedFigure, annotations } =
+    options;
 
   /** The shared half of every builder below. Read at open time, never in render. */
   const menuDeps = useCallback(
@@ -105,44 +96,6 @@ export function useCpCanvasContextMenu(
       return true;
     },
     [controller, foldedFigures, foldedFigureActionDeps, setActiveFoldedFigure, t]
-  );
-
-  const openAnnotationMenu = useCallback(
-    (annotation: CanvasAnnotation, clientX: number, clientY: number) => {
-      const id = annotation.id;
-      const kind = isTextAnnotation(annotation) ? 'text' : 'image';
-      // Selecting first is what makes the floating toolbar and the menu agree
-      // about which annotation is being acted on. The rows themselves are bound
-      // by id rather than to "the selection", so they do not depend on this
-      // having landed — see the id-addressed actions in `useCpAnnotations`.
-      selectCanvasObject(id);
-      controller.request({
-        clientX,
-        clientY,
-        targetKind: kind,
-        hasSelection: true,
-        build: (): ContextMenuItem[] =>
-          cpAnnotationMenuItems(kind, {
-            ...menuDeps(),
-            annotation: {
-              bringToFront: () => annotations.bringAnnotationToFront(id),
-              sendToBack: () => annotations.sendAnnotationToBack(id),
-              remove: () => annotations.deleteAnnotationById(id),
-              edit:
-                kind === 'text'
-                  ? () => {
-                      // An inline edit takes focus for itself; without this the
-                      // menu's trap pulls it straight back out and the blur that
-                      // follows ends the edit before a key is pressed.
-                      controller.deferFocus();
-                      annotations.requestEditText(id);
-                    }
-                  : undefined,
-            },
-          }),
-      });
-    },
-    [annotations, controller, menuDeps, selectCanvasObject]
   );
 
   const onCanvasContextMenu = useCallback(
@@ -215,15 +168,25 @@ export function useCpCanvasContextMenu(
     [annotations, controller, menuDeps, openFoldedFigureMenu]
   );
 
+  // An object's menu is its layer's to build: the binding says which rows and
+  // selects first, so the floating surface and the menu agree about what is
+  // being acted on; this only says where. A layer with no menu for the kind (a
+  // window, whose verbs are on its inspector) answers null.
   const onCanvasObjectContextMenu = useCallback(
     (id: string, clientX: number, clientY: number) => {
-      if (openFoldedFigureMenu(id, clientX, clientY)) return;
-      const annotation = annotations.annotations.find((candidate) => candidate.id === id);
-      // An inline simulation window falls through with no menu: its verbs live
-      // on its own inspector, which the window already carries.
-      if (annotation) openAnnotationMenu(annotation, clientX, clientY);
+      const request = bindings
+        .byId(id)
+        ?.contextMenu(id, { ...menuDeps(), deferFocus: controller.deferFocus });
+      if (!request) return;
+      controller.request({
+        clientX,
+        clientY,
+        targetKind: request.targetKind,
+        hasSelection: true,
+        build: request.build,
+      });
     },
-    [annotations.annotations, openAnnotationMenu, openFoldedFigureMenu]
+    [bindings, controller, menuDeps]
   );
 
   const openFromKeyboard = useCallback(

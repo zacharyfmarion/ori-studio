@@ -74,9 +74,18 @@ describe('foldedAppearanceSupport', () => {
     }
   });
 
-  it('offers the colours and anti-alias on a 3D figure, which already honours them', () => {
-    for (const option of ['frontColor', 'backColor', 'lineColor', 'antiAlias'] as const) {
+  it('offers the colours on a 3D figure, which already honours them', () => {
+    for (const option of ['frontColor', 'backColor', 'lineColor'] as const) {
       expect(foldedAppearanceEnabled(figure('spatial'), option)).toBe(true);
+    }
+  });
+
+  it('never offers anti-alias, whose only visible effect is a fifth of a pixel of stroke', () => {
+    // The web renderer antialiases everything and never reads the snapshot's
+    // flag; the model field stays for `.ori` parity, with no control on it.
+    for (const kind of ['flat', 'spatial'] as const) {
+      expect(foldedAppearanceSupport(figure(kind), 'antiAlias')).toBe('not-applicable');
+      expect(foldedAppearanceVisible(figure(kind), 'antiAlias')).toBe(false);
     }
   });
 

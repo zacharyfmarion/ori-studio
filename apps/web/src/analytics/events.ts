@@ -386,6 +386,7 @@ export type ContextMenuTargetKind =
   | 'circle'
   | 'text'
   | 'image'
+  | 'region'
   | 'folded-figure'
   | 'flap'
   | 'river'
@@ -623,8 +624,23 @@ export const ANALYTICS_EVENTS = {
    * view options. That is the question undocking the pane raises — whether the
    * canvas width was bought at the cost of controls nobody finds again — and it
    * cannot be answered from `command invoked`, since no menu action reaches it.
+   *
+   * `pane` names which side pane the sheet opened on (`cp-view-controls`,
+   * `cp-properties`, `simulator-view-controls`) — an enum, never content.
    */
   viewDrawerOpened: 'view drawer opened',
+  /**
+   * A property of a selected canvas object was changed from the Properties
+   * pane.
+   *
+   * The pane is the first surface that edits every canvas-object kind through
+   * one renderer, so this is what says whether people edit there rather than on
+   * the floating toolbars and menus that still exist — the question adding a
+   * second surface for the same edits raises. Once per recorded change, never
+   * per input event. `object_kind` is the kind table's key and `property` the
+   * field's id: enums by construction, never a value.
+   */
+  canvasObjectPropertyChanged: 'canvas object property changed',
   /**
    * The phone layout's tool sheet was opened.
    *

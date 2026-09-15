@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useIsCoarsePointerSurface } from '../platform/pointerSurface';
-import { useLayoutStore, viewPanelFor } from '../store/layoutStore';
+import { leadSidePaneFor, useLayoutStore } from '../store/layoutStore';
 
 /**
  * The row of pills floating over the canvas's top-right corner, on touch.
@@ -39,10 +39,10 @@ export function CanvasPillLane({ children }: { children: ReactNode }) {
   // `.panel-toolbar` whose right end already holds controls, and the lane drops
   // below it. Read here rather than passed in, so a workspace with no View pane
   // (Design) still gets a lane for its other pills.
-  const viewPanel = viewPanelFor(activeWorkspace);
+  const viewPanel = leadSidePaneFor(activeWorkspace);
 
   return (
-    <div className="canvas-pill-lane" data-view-panel={viewPanel?.id}>
+    <div className="canvas-pill-lane" data-view-workspace={viewPanel ? activeWorkspace : undefined}>
       <div className="canvas-pill-lane__row">{children}</div>
     </div>
   );

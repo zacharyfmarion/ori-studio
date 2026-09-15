@@ -57,9 +57,14 @@ describe('resolveEditingContext', () => {
     ).toBe('bp-tree');
   });
 
-  it('maps the crease-pattern pane and its side controls', () => {
+  it('maps the crease-pattern pane and its side panes', () => {
     expect(resolveEditingContext({ ...base, activePanelId: 'crease-pattern' })).toBe('crease-pattern');
     expect(resolveEditingContext({ ...base, activePanelId: 'cp-view-controls' })).toBe(
+      'crease-pattern'
+    );
+    // Focus in the Properties pane keeps the CP shortcuts live, so Cmd+Z after
+    // editing a property undoes the property.
+    expect(resolveEditingContext({ ...base, activePanelId: 'cp-properties' })).toBe(
       'crease-pattern'
     );
   });

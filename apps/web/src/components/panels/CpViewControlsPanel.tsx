@@ -1,6 +1,5 @@
-import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronRight, RotateCcw } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 import type { OristudioCpGridMetadata } from '../../engine/oristudioCpTypes';
 import {
   clampOrieditaGridAngle,
@@ -23,9 +22,9 @@ import { CP_CHECK_CLASSES, type CpCheckClass } from '../../cp-workspace/annotati
 import { cpCheckClassLabel } from '../../cp-workspace/diagnostics/checkSuppression';
 import { cpFoldAngleDisplayLabel, cpLineStyleLabel } from '../../i18n/enumLabels';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { NumberField } from '../ui/NumberField';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
-import { Toggle } from '../ui/Toggle';
+import { NumberRow, SelectRow, ToggleRow } from '../ui/fieldRows';
 
 export function CpViewControlsPanel() {
   const { t } = useTranslation();
@@ -141,111 +140,101 @@ function GridSettingsSection({
   onUpdate: (patch: Partial<OristudioCpGridMetadata>, label?: string) => Promise<boolean>;
 }) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
 
   const update = (patch: Partial<OristudioCpGridMetadata>, label?: string) => {
     void onUpdate(patch, label);
   };
 
   return (
-    <div className="grid-settings" data-open={open || undefined}>
+    <CollapsibleSection
+      collapsible
+      title={t('panels:cpViewControls.moreGridSettings', 'More grid settings')}
+      bodyLabel={t('panels:cpViewControls.gridConfiguration', 'Grid configuration')}
+    >
+      <NumberRow
+        label={t('panels:cpViewControls.interval', 'Interval')}
+        value={grid.interval_grid_size}
+        min={1}
+        step={1}
+        normalize={normalizeOrieditaIntervalGridSize}
+        onCommit={(value) =>
+          update(
+            { interval_grid_size: value },
+            t('panels:cpViewControls.setGridInterval', 'Set grid interval to {{value}}', {
+              value: normalizeOrieditaIntervalGridSize(value),
+            })
+          )
+        }
+      />
+      <NumberRow
+        label={t('panels:cpViewControls.angle', 'Angle')}
+        value={grid.grid_angle}
+        min={1}
+        max={179}
+        step={1}
+        suffix="°"
+        normalize={clampOrieditaGridAngle}
+        onCommit={(value) =>
+          update(
+            { grid_angle: value },
+            t('panels:cpViewControls.setGridAngle', 'Set grid angle to {{value}}°', {
+              value: clampOrieditaGridAngle(value),
+            })
+          )
+        }
+      />
+      <GridScaleRow
+        label={t('panels:cpViewControls.xScale', 'X scale')}
+        a={grid.grid_xa}
+        b={grid.grid_xb}
+        c={grid.grid_xc}
+        onChange={(a, b, c) =>
+          update({ grid_xa: a, grid_xb: b, grid_xc: c }, t('panels:cpViewControls.setGridXScale', 'Set grid X scale'))
+        }
+      />
+      <GridScaleRow
+        label={t('panels:cpViewControls.yScale', 'Y scale')}
+        a={grid.grid_ya}
+        b={grid.grid_yb}
+        c={grid.grid_yc}
+        onChange={(a, b, c) =>
+          update({ grid_ya: a, grid_yb: b, grid_yc: c }, t('panels:cpViewControls.setGridYScale', 'Set grid Y scale'))
+        }
+      />
+      <ToggleRow
+        label={t('panels:cpViewControls.diagonalGridlines', 'Diagonal gridlines')}
+        checked={grid.draw_diagonal_gridlines}
+        onChange={(checked) =>
+          update(
+            { draw_diagonal_gridlines: checked },
+            checked
+              ? t('panels:cpViewControls.showDiagonalGridlines', 'Show diagonal gridlines')
+              : t('panels:cpViewControls.hideDiagonalGridlines', 'Hide diagonal gridlines')
+          )
+        }
+      />
       <button
         type="button"
-        className="grid-settings__toggle"
-        aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
+        className="grid-settings__reset"
+        onClick={() =>
+          update(
+            {
+              grid_xa: ORIEDITA_GRID_SCALE_DEFAULTS.a,
+              grid_xb: ORIEDITA_GRID_SCALE_DEFAULTS.b,
+              grid_xc: ORIEDITA_GRID_SCALE_DEFAULTS.c,
+              grid_ya: ORIEDITA_GRID_SCALE_DEFAULTS.a,
+              grid_yb: ORIEDITA_GRID_SCALE_DEFAULTS.b,
+              grid_yc: ORIEDITA_GRID_SCALE_DEFAULTS.c,
+              grid_angle: 90,
+            },
+            t('panels:cpViewControls.resetGridShape', 'Reset grid shape')
+          )
+        }
       >
-        <ChevronRight size={14} className="grid-settings__chevron" aria-hidden="true" />
-        <span>{t('panels:cpViewControls.moreGridSettings', 'More grid settings')}</span>
+        <RotateCcw size={13} />
+        {t('panels:cpViewControls.resetGridShape', 'Reset grid shape')}
       </button>
-      {open && (
-        <div className="grid-settings__body" role="group" aria-label={t('panels:cpViewControls.gridConfiguration', 'Grid configuration')}>
-          <NumberRow
-            label={t('panels:cpViewControls.interval', 'Interval')}
-            value={grid.interval_grid_size}
-            min={1}
-            step={1}
-            normalize={normalizeOrieditaIntervalGridSize}
-            onCommit={(value) =>
-              update(
-                { interval_grid_size: value },
-                t('panels:cpViewControls.setGridInterval', 'Set grid interval to {{value}}', {
-                  value: normalizeOrieditaIntervalGridSize(value),
-                })
-              )
-            }
-          />
-          <NumberRow
-            label={t('panels:cpViewControls.angle', 'Angle')}
-            value={grid.grid_angle}
-            min={1}
-            max={179}
-            step={1}
-            suffix="°"
-            normalize={clampOrieditaGridAngle}
-            onCommit={(value) =>
-              update(
-                { grid_angle: value },
-                t('panels:cpViewControls.setGridAngle', 'Set grid angle to {{value}}°', {
-                  value: clampOrieditaGridAngle(value),
-                })
-              )
-            }
-          />
-          <GridScaleRow
-            label={t('panels:cpViewControls.xScale', 'X scale')}
-            a={grid.grid_xa}
-            b={grid.grid_xb}
-            c={grid.grid_xc}
-            onChange={(a, b, c) =>
-              update({ grid_xa: a, grid_xb: b, grid_xc: c }, t('panels:cpViewControls.setGridXScale', 'Set grid X scale'))
-            }
-          />
-          <GridScaleRow
-            label={t('panels:cpViewControls.yScale', 'Y scale')}
-            a={grid.grid_ya}
-            b={grid.grid_yb}
-            c={grid.grid_yc}
-            onChange={(a, b, c) =>
-              update({ grid_ya: a, grid_yb: b, grid_yc: c }, t('panels:cpViewControls.setGridYScale', 'Set grid Y scale'))
-            }
-          />
-          <ToggleRow
-            label={t('panels:cpViewControls.diagonalGridlines', 'Diagonal gridlines')}
-            checked={grid.draw_diagonal_gridlines}
-            onChange={(checked) =>
-              update(
-                { draw_diagonal_gridlines: checked },
-                checked
-                  ? t('panels:cpViewControls.showDiagonalGridlines', 'Show diagonal gridlines')
-                  : t('panels:cpViewControls.hideDiagonalGridlines', 'Hide diagonal gridlines')
-              )
-            }
-          />
-          <button
-            type="button"
-            className="grid-settings__reset"
-            onClick={() =>
-              update(
-                {
-                  grid_xa: ORIEDITA_GRID_SCALE_DEFAULTS.a,
-                  grid_xb: ORIEDITA_GRID_SCALE_DEFAULTS.b,
-                  grid_xc: ORIEDITA_GRID_SCALE_DEFAULTS.c,
-                  grid_ya: ORIEDITA_GRID_SCALE_DEFAULTS.a,
-                  grid_yb: ORIEDITA_GRID_SCALE_DEFAULTS.b,
-                  grid_yc: ORIEDITA_GRID_SCALE_DEFAULTS.c,
-                  grid_angle: 90,
-                },
-                t('panels:cpViewControls.resetGridShape', 'Reset grid shape')
-              )
-            }
-          >
-            <RotateCcw size={13} />
-            {t('panels:cpViewControls.resetGridShape', 'Reset grid shape')}
-          </button>
-        </div>
-      )}
-    </div>
+    </CollapsibleSection>
   );
 }
 
@@ -257,28 +246,16 @@ function FoldAngleDisplayRow({
   onChange: (value: OristudioCpFoldAngleDisplay) => void;
 }) {
   const { t } = useTranslation();
-  const label = t('panels:cpViewControls.foldAngleDisplay', 'Fold angle style');
   return (
-    <div className="control-row">
-      <span className="control-row__label">{label}</span>
-      <div className="control-row__value control-row__value--select">
-        <Select
-          value={value}
-          onValueChange={(next) => onChange(next as OristudioCpFoldAngleDisplay)}
-        >
-          <SelectTrigger aria-label={label} className="cp-view-controls-panel__select">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {ORISTUDIO_CP_FOLD_ANGLE_DISPLAYS.map((display) => (
-              <SelectItem key={display} value={display}>
-                {cpFoldAngleDisplayLabel(t, display)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    </div>
+    <SelectRow
+      label={t('panels:cpViewControls.foldAngleDisplay', 'Fold angle style')}
+      value={value}
+      options={ORISTUDIO_CP_FOLD_ANGLE_DISPLAYS.map((display) => ({
+        id: display,
+        label: cpFoldAngleDisplayLabel(t, display),
+      }))}
+      onChange={(next) => onChange(next as OristudioCpFoldAngleDisplay)}
+    />
   );
 }
 
@@ -291,23 +268,15 @@ function LineStyleRow({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="control-row">
-      <span className="control-row__label">{t('panels:cpViewControls.lineStyle', 'Line style')}</span>
-      <div className="control-row__value control-row__value--select">
-        <Select value={value} onValueChange={(next) => onChange(next as OristudioCpLineStyle)}>
-          <SelectTrigger aria-label={t('panels:cpViewControls.lineStyle', 'Line style')} className="cp-view-controls-panel__select">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {ORISTUDIO_CP_LINE_STYLES.map((style) => (
-              <SelectItem key={style} value={style}>
-                {cpLineStyleLabel(t, style)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    </div>
+    <SelectRow
+      label={t('panels:cpViewControls.lineStyle', 'Line style')}
+      value={value}
+      options={ORISTUDIO_CP_LINE_STYLES.map((style) => ({
+        id: style,
+        label: cpLineStyleLabel(t, style),
+      }))}
+      onChange={(next) => onChange(next as OristudioCpLineStyle)}
+    />
   );
 }
 
@@ -350,34 +319,18 @@ function CheckClassSection({
   onSuppressedChange: (next: readonly CpCheckClass[]) => void;
 }) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
   return (
-    <div className="grid-settings" data-open={open || undefined}>
-      <button
-        type="button"
-        className="grid-settings__toggle"
-        aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
-      >
-        <ChevronRight size={14} className="grid-settings__chevron" aria-hidden="true" />
-        <span>
-          {t('panels:cpViewControls.moreFoldabilitySettings', 'More foldability settings')}
-        </span>
-      </button>
-      {open && (
-        <div
-          className="grid-settings__body"
-          role="group"
-          aria-label={t('panels:cpViewControls.foldabilityChecks', 'Foldability checks')}
-        >
-          <CheckClassRows
-            overlayVisible={overlayVisible}
-            suppressed={suppressed}
-            onSuppressedChange={onSuppressedChange}
-          />
-        </div>
-      )}
-    </div>
+    <CollapsibleSection
+      collapsible
+      title={t('panels:cpViewControls.moreFoldabilitySettings', 'More foldability settings')}
+      bodyLabel={t('panels:cpViewControls.foldabilityChecks', 'Foldability checks')}
+    >
+      <CheckClassRows
+        overlayVisible={overlayVisible}
+        suppressed={suppressed}
+        onSuppressedChange={onSuppressedChange}
+      />
+    </CollapsibleSection>
   );
 }
 
@@ -416,71 +369,6 @@ function CheckClassRows({
         );
       })}
     </>
-  );
-}
-
-function ToggleRow({
-  label,
-  checked,
-  disabled,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  disabled?: boolean;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <div className="control-row">
-      <span className="control-row__label">{label}</span>
-      <div className="control-row__value control-row__value--toggle">
-        <Toggle aria-label={label} checked={checked} disabled={disabled} onChange={onChange} />
-      </div>
-    </div>
-  );
-}
-
-function NumberRow({
-  label,
-  value,
-  min,
-  max,
-  step,
-  suffix,
-  normalize,
-  onCommit,
-}: {
-  label: string;
-  value: number;
-  min?: number;
-  max?: number;
-  step?: number;
-  suffix?: string;
-  normalize?: (value: number) => number;
-  onCommit: (value: number) => void;
-}) {
-  // Two elements rather than a wrapping <label>, so a click on a step button
-  // lands on the button alone.
-  const inputId = useId();
-  return (
-    <div className="control-row">
-      <label className="control-row__label" htmlFor={inputId}>
-        {label}
-      </label>
-      <span className="control-row__value control-row__value--input">
-        <NumberField
-          id={inputId}
-          label={label}
-          value={value}
-          min={min}
-          max={max}
-          step={step}
-          suffix={suffix}
-          normalize={normalize}
-          onCommit={onCommit}
-        />
-      </span>
-    </div>
   );
 }
 

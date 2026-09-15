@@ -18,12 +18,19 @@ function Harness({ active, onBlur }: { active: boolean; onBlur: () => void }): R
       <div ref={panelRef} data-testid="panel">
         <canvas data-testid="canvas" />
       </div>
-      <div className="cp-inline-simulation-inspector">
+      {/* The inspector and its portalled menu both carry the companion
+          attribute (FloatingToolbar sets it on its root) — see
+          canvasCompanionSurface.ts. */}
+      <div className="cp-inline-simulation-inspector" data-cp-companion="">
         <input data-testid="scrub" />
       </div>
-      <div data-inline-simulation-menu="">
+      <div data-cp-companion="">
         <button data-testid="menu-item" />
       </div>
+      {/* The Properties pane: another dock panel, marked the same way. */}
+      <section className="cp-properties-panel" data-cp-companion="">
+        <input data-testid="pane-row" />
+      </section>
       <div data-testid="other-panel" />
     </>
   );
@@ -78,6 +85,27 @@ describe('useBlurOnPressOutside', () => {
     render(true, onBlur);
     press('scrub');
     press('menu-item');
+    expect(onBlur).not.toHaveBeenCalled();
+  });
+
+  it('leaves a press that landed on the root to the modal layer that took it', () => {
+    // A Radix select's open list disables pointer events on `body`; the press
+    // that closes it arrives on `<html>`, outside every panel. That press is
+    // the layer's, not a press outside the window.
+    const onBlur = vi.fn();
+    render(true, onBlur);
+    act(() => {
+      document.documentElement.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    });
+    expect(onBlur).not.toHaveBeenCalled();
+  });
+
+  it('keeps the window focused through a press in the Properties pane', () => {
+    // The pane edits the focused window's settings; blurring on the press
+    // that reaches for a row would empty the pane under the pointer.
+    const onBlur = vi.fn();
+    render(true, onBlur);
+    press('pane-row');
     expect(onBlur).not.toHaveBeenCalled();
   });
 

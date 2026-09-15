@@ -31,6 +31,7 @@ import type { CreaseExportOptions } from '../lib/creaseExport';
 import i18n from '../i18n';
 import { runUpdateCheck } from '../lib/updateController';
 import { announceUpdateCheck } from '../lib/updateFeedback';
+import { endOpenCanvasSessions } from '../cp-workspace/canvasObjects/canvasSessions';
 
 export const MENU_ACTION_IDS = [
   'app.about',
@@ -86,6 +87,7 @@ export const MENU_ACTION_IDS = [
   'view.simulate',
   'view.simulator',
   'view.conditions',
+  'view.properties',
   'view.resetLayout',
   'optimize.scale',
   'optimize.edges',
@@ -350,6 +352,7 @@ const VIEW_PANEL_ACTIONS: Partial<Record<MenuActionId, string>> = {
   'view.simulate': 'simulator',
   'view.simulator': 'simulator',
   'view.conditions': 'conditions',
+  'view.properties': 'cp-properties',
 };
 
 export function isMenuActionId(id: string): id is MenuActionId {
@@ -524,9 +527,15 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
         deps.settings?.();
         return true;
       case 'edit.undo':
+        // Every undo path — chords, the menu bar, the native menu, the phone
+        // pills — reaches this arm, so this is where an open canvas edit ends
+        // first: a text session commits (and the step then undoes it), and a
+        // pointer bracket mid-drag aborts so its later commit records nothing.
+        endOpenCanvasSessions('history');
         await deps.workspace.undo();
         return true;
       case 'edit.redo':
+        endOpenCanvasSessions('history');
         await deps.workspace.redo();
         return true;
       case 'edit.cut':

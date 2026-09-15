@@ -12,6 +12,7 @@ import {
 import { useWheelPassthrough } from '../../hooks/useWheelPassthrough';
 import { anchorIntersectsBoundary, toolbarMaxWidth } from './floatingToolbarBounds';
 import { observeResizeDeferred } from './observeResizeDeferred';
+import { CANVAS_COMPANION_PROPS } from '../../cp-workspace/canvasObjects/canvasCompanionSurface';
 
 /**
  * A rectangle in viewport (CSS px) coordinates that a {@link FloatingToolbar}
@@ -206,6 +207,9 @@ export function FloatingToolbar({
         className={['floating-toolbar', className].filter(Boolean).join(' ')}
         role="toolbar"
         aria-label={ariaLabel}
+        // A floating toolbar over the canvas edits what is selected there, so a
+        // press or a focus move into it must not read as leaving the selection.
+        {...CANVAS_COMPANION_PROPS}
         style={{
           ...floatingStyles,
           // Shifting cannot rescue a pill that is simply wider than the pane,

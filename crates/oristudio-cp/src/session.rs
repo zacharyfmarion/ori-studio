@@ -18,9 +18,9 @@ use crate::fold_graph::FoldGraphError;
 use crate::folding::{
     AdditionalEstimationError, DisplayStyle, EstimationOrder, EstimationStep, FoldSetupError,
     FoldedFigureModel, FoldedFigureRenderOptions, FoldedFigureRenderSnapshot, FoldedFigureSnapshot,
-    FoldingEstimateError, FoldingEstimateSession, InitialHierarchyError, WorkerOverlapSearchError,
-    fold_another, folded_figure_render_snapshot_from_session, folded_figure_snapshot_from_session,
-    folding_estimate_to_case,
+    FoldedRenderInputs, FoldingEstimateError, FoldingEstimateSession, InitialHierarchyError,
+    WorkerOverlapSearchError, fold_another, folded_figure_render_snapshot_from_session,
+    folded_figure_snapshot_with_inputs, folding_estimate_to_case,
 };
 use crate::folding3d::model::Folded3dRenderModel;
 use crate::folding3d::order::Advance;
@@ -340,6 +340,21 @@ impl From<FoldingEstimateError> for EngineError {
 pub struct FlatFoldedFigure {
     pub session: FoldingEstimateSession,
     pub model: FoldedFigureModel,
+    /// Derived from the session's segments once, after the fold; every
+    /// snapshot and render of the figure borrows them. `None` when the fold
+    /// traced no faces, and those calls answer as they always have for one.
+    render_inputs: Option<FoldedRenderInputs>,
+}
+
+impl FlatFoldedFigure {
+    /// The figure's current model and layer order over the cached wireframe.
+    fn snapshot(&self) -> FoldedFigureSnapshot {
+        folded_figure_snapshot_with_inputs(
+            &self.session,
+            self.model.clone(),
+            self.render_inputs.as_ref(),
+        )
+    }
 }
 
 /// The expensive, stateful object behind a folded-figure handle.
@@ -961,20 +976,22 @@ impl CpSession {
                 "the arrangement could not be traced, so there are no faces to fold",
             ));
         }
-        let snapshot = folded_figure_snapshot_from_session(&session, model.clone());
-        let handle = self.store_folded(FoldedFigure::Flat(Box::new(FlatFoldedFigure {
+        // Derived here, once, rather than on the first render: the fold has
+        // just paid seconds for the same graph, and a figure whose first
+        // colour change stalls is the case the cache exists for.
+        let render_inputs = FoldedRenderInputs::for_session(&session)?;
+        let figure = FlatFoldedFigure {
             session,
             model,
-        })));
+            render_inputs,
+        };
+        let snapshot = figure.snapshot();
+        let handle = self.store_folded(FoldedFigure::Flat(Box::new(figure)));
         Ok(FoldedFigureResult { handle, snapshot })
     }
 
     pub fn folded_figure_snapshot(&self, handle: u32) -> Result<FoldedFigureSnapshot, EngineError> {
-        let folded = self.flat(handle)?;
-        Ok(folded_figure_snapshot_from_session(
-            &folded.session,
-            folded.model.clone(),
-        ))
+        Ok(self.flat(handle)?.snapshot())
     }
 
     pub fn folded_figure_render_snapshot(
@@ -984,9 +1001,13 @@ impl CpSession {
         options: FoldedFigureRenderOptions,
     ) -> Result<Option<FoldedFigureRenderSnapshot>, EngineError> {
         let folded = self.flat(handle)?;
+        let Some(inputs) = folded.render_inputs.as_ref() else {
+            return Ok(None);
+        };
         let display_style = display_style.unwrap_or(folded.session.estimate().display_style);
         Ok(folded_figure_render_snapshot_from_session(
             &folded.session,
+            inputs,
             display_style,
             folded.model.clone(),
             options,
@@ -1000,10 +1021,7 @@ impl CpSession {
     ) -> Result<FoldedFigureSnapshot, EngineError> {
         let folded = self.flat_mut(handle)?;
         folded.model = model;
-        Ok(folded_figure_snapshot_from_session(
-            &folded.session,
-            folded.model.clone(),
-        ))
+        Ok(folded.snapshot())
     }
 
     pub fn folded_figure_duplicate(
@@ -1011,8 +1029,7 @@ impl CpSession {
         handle: u32,
     ) -> Result<FoldedFigureResult, EngineError> {
         let duplicate = self.flat(handle)?.clone();
-        let snapshot =
-            folded_figure_snapshot_from_session(&duplicate.session, duplicate.model.clone());
+        let snapshot = duplicate.snapshot();
         let handle = self.store_folded(FoldedFigure::Flat(Box::new(duplicate)));
         Ok(FoldedFigureResult { handle, snapshot })
     }
@@ -1023,10 +1040,7 @@ impl CpSession {
     ) -> Result<FoldedFigureSnapshot, EngineError> {
         let folded = self.flat_mut(handle)?;
         fold_another(&mut folded.session)?;
-        Ok(folded_figure_snapshot_from_session(
-            &folded.session,
-            folded.model.clone(),
-        ))
+        Ok(folded.snapshot())
     }
 
     pub fn folded_figure_fold_to_case(
@@ -1037,7 +1051,7 @@ impl CpSession {
     ) -> Result<FoldedFigureBatchResult, EngineError> {
         let folded = self.flat_mut(handle)?;
         let batch = folding_estimate_to_case(&mut folded.session, objective, initial_order)?;
-        let snapshot = folded_figure_snapshot_from_session(&folded.session, folded.model.clone());
+        let snapshot = folded.snapshot();
         Ok(FoldedFigureBatchResult {
             snapshot,
             discovered_case_numbers: batch.discovered_case_numbers,

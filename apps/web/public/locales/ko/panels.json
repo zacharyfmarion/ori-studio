@@ -217,12 +217,48 @@
       "refinement": "접기 정밀도로 다듬는 중"
     }
   },
+  "cpProperties": {
+    "empty": "캔버스에서 개체를 선택하면 속성을 편집할 수 있습니다.",
+    "folded": {
+      "appearance": "모양",
+      "camera": "카메라",
+      "changeView": "접힌 모델 보기 변경",
+      "pitch": "기울기",
+      "placement": "배치",
+      "refoldToChange": "이 모델의 모양을 바꾸려면 다시 접으세요",
+      "rotation": "회전",
+      "scale": "크기",
+      "yaw": "회전 각도",
+      "zoom": "확대"
+    },
+    "image": {
+      "rotation": "회전",
+      "title": "이미지"
+    },
+    "inlineSimulation": {
+      "settings": "시뮬레이터 설정",
+      "sharedNote": "시뮬레이트 작업 공간 및 모든 창과 공유됨",
+      "title": "시뮬레이션 창"
+    },
+    "region": {
+      "hidden": "숨김",
+      "imageShown": "표시",
+      "section": "영역",
+      "title": "검사 억제 영역"
+    },
+    "text": {
+      "changeSize": "텍스트 크기 변경",
+      "size": "크기",
+      "title": "텍스트"
+    }
+  },
   "cpRegion": {
     "accept": "적용",
     "acceptAnyway": "그래도 적용",
     "acceptHistory": "정밀 풀이 적용",
     "acceptPartialHistory": "정밀 풀이 부분 결과 적용",
     "addRegion": "억제 영역 추가",
+    "bringToFront": "영역을 맨 앞으로 가져오기",
     "changeChecks": "억제할 검사 변경",
     "checksMenu": "억제된 검사",
     "completion": {
@@ -263,6 +299,7 @@
       "noPattern": "이 영역 안에 접는 선이 없어 풀 것이 없습니다. 영역을 감지된 전개도 위로 옮긴 뒤 다시 시도하세요."
     },
     "repairTools": "복구 도구",
+    "sendToBack": "영역을 맨 뒤로 보내기",
     "solve": "풀기",
     "solveError": "풀이를 실행할 수 없습니다 — {{message}}",
     "solveErrorUnknown": "풀이를 실행할 수 없습니다.",
@@ -311,8 +348,10 @@
     "angleBisectorSelectSegmentToEnd": "각 이등분선: 끝낼 선분 선택",
     "anotherSolutionAction": "다른 해 표시",
     "bringImageToFront": "이미지를 맨 앞으로 가져오기",
+    "bringTextToFront": "텍스트를 맨 앞으로 가져오기",
     "buildingCreasePattern": "전개도 생성 중",
     "canvasDiagnostics_other": "캔버스 진단: {{count}}개",
+    "case_other": "케이스 {{count}}",
     "changeFoldedColor": "접힌 모델 색상 변경",
     "changeFoldedDisplayStyle": "접힌 표시 스타일 변경",
     "changeFoldedModel": "접힌 모델 변경",
@@ -404,6 +443,10 @@
       "windowAriaLabel": "접힌 모델, 3차원",
       "windowFailed": "이 모델을 그릴 수 없습니다"
     },
+    "foldedModelStatus": {
+      "error": "실패",
+      "loading": "접는 중…"
+    },
     "foldedState": {
       "back": "뒷면",
       "front": "앞면"
@@ -446,6 +489,7 @@
     "optimizingScale": "배율 최적화 중",
     "orbitFoldedForm": "접힌 도형 회전",
     "preparing": "편집기를 준비하는 중…",
+    "propertiesEllipsis": "속성…",
     "refoldFoldedModelAction": "접힌 모델 다시 접기",
     "rendererContextLost": "전개도 캔버스를 복원하는 중…",
     "rendererContextLostHint": "시스템이 이 캔버스의 그래픽 메모리를 회수했습니다. 기기의 메모리가 부족할 때 일어날 수 있습니다. 전개도는 안전하며, 그래픽 컨텍스트가 돌아오는 즉시 화면도 돌아옵니다. 돌아오지 않으면 Ori Studio를 새로 고치세요.",
@@ -475,9 +519,11 @@
       "simulateInline": "인라인 시뮬레이션"
     },
     "sendImageToBack": "이미지를 맨 뒤로 보내기",
+    "sendTextToBack": "텍스트를 맨 뒤로 보내기",
     "setFoldedModelUpright": "접힌 모델의 위쪽 방향 설정",
     "shadow": "그림자",
     "shadowUnsupported3d": "3D 접힌 모델에는 아직 그림자가 그려지지 않습니다",
+    "stale": "오래됨",
     "viewFoldedModelOtherSide": "반대편에서 보기",
     "viewportControls": "전개도 뷰포트 컨트롤",
     "zoomFoldedForm": "접힌 형태 확대/축소"
@@ -754,6 +800,10 @@
     "y": "Y",
     "yes": "예"
   },
+  "sidePane": {
+    "properties": "속성",
+    "view": "보기"
+  },
   "simulator": {
     "backendCpu": "CPU",
     "backendCpuTitle": "CPU에서 계산 중 (WebGL2 사용 불가)",
@@ -855,13 +905,18 @@
     "addText": "텍스트 추가",
     "alignCenter": "가운데 정렬",
     "alignLeft": "왼쪽 정렬",
-    "alignment": "정렬",
     "alignRight": "오른쪽 정렬",
     "blockBody": "본문",
     "blockHeading": "제목",
     "blockSubheading": "부제목",
     "bold": "굵게",
     "color": "텍스트 색상",
+    "colorBlue": "파란색",
+    "colorDefault": "기본",
+    "colorGreen": "초록색",
+    "colorOrange": "주황색",
+    "colorPurple": "보라색",
+    "colorRed": "빨간색",
     "deleteText": "텍스트 삭제",
     "editText": "텍스트 편집",
     "italic": "기울임꼴",

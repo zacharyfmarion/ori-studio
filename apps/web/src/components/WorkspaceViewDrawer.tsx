@@ -3,23 +3,26 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal, X } from 'lucide-react';
 import { useWorkspaceViewDrawer } from '../hooks/useWorkspaceViewDrawer';
-import type { ViewPanelId } from '../store/layoutStore';
+import { sidePaneTitle, type SidePaneId } from '../store/layoutStore';
 import { ErrorBoundary } from './errors/ErrorBoundary';
+import { CpPropertiesPanel } from './panels/CpPropertiesPanel';
 import { CpViewControlsPanel } from './panels/CpViewControlsPanel';
 import { SimulatorViewControlsPanel } from './panels/SimulatorViewControlsPanel';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
+import { SegmentedControl } from './ui/SegmentedControl';
 
 /**
- * What the sheet shows, per View pane.
+ * What the sheet shows, per side pane.
  *
- * Keyed on `ViewPanelId` rather than `string` on purpose: a workspace added to
- * the layout store's View-pane table without a body here fails to compile, so
- * the touch path cannot quietly ship an empty sheet the way a half-registered
+ * Keyed on `SidePaneId` rather than `string` on purpose: a pane added to the
+ * layout store's side-pane table without a body here fails to compile, so the
+ * touch path cannot quietly ship an empty sheet the way a half-registered
  * `Record<string, …>` would let it.
  */
-const VIEW_DRAWER_BODIES: Record<ViewPanelId, ComponentType> = {
+const VIEW_DRAWER_BODIES: Record<SidePaneId, ComponentType> = {
   'cp-view-controls': CpViewControlsPanel,
+  'cp-properties': CpPropertiesPanel,
   'simulator-view-controls': SimulatorViewControlsPanel,
 };
 
@@ -39,7 +42,8 @@ const VIEW_DRAWER_BODIES: Record<ViewPanelId, ComponentType> = {
  */
 export function WorkspaceViewDrawer() {
   const { t } = useTranslation();
-  const { spec, open, drawerId, openDrawer, close, triggerRef } = useWorkspaceViewDrawer();
+  const { panes, activePane, setActivePane, open, drawerId, openDrawer, close, triggerRef } =
+    useWorkspaceViewDrawer();
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
   // Focus the dialog itself rather than the first control in it, so a screen
@@ -48,10 +52,10 @@ export function WorkspaceViewDrawer() {
     if (open) dialogRef.current?.focus();
   }, [open]);
 
-  if (!spec) return null;
+  if (!activePane) return null;
 
   const title = t('common:viewDrawer.title', 'View options');
-  const Body = VIEW_DRAWER_BODIES[spec.id];
+  const Body = VIEW_DRAWER_BODIES[activePane.id];
 
   return (
     <>
@@ -63,7 +67,7 @@ export function WorkspaceViewDrawer() {
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={drawerId}
-        onClick={openDrawer}
+        onClick={() => openDrawer()}
       >
         <SlidersHorizontal size={15} aria-hidden="true" />
         {t('common:viewDrawer.open', 'View')}
@@ -113,7 +117,19 @@ export function WorkspaceViewDrawer() {
               onClick={(event) => event.stopPropagation()}
             >
               <header className="view-drawer__header">
-                <span className="view-drawer__title">{title}</span>
+                {/* One pane is the sheet's whole subject; two or more are tabs
+                    of it. The Simulate workspace has one and keeps its plain
+                    title. */}
+                {panes.length > 1 ? (
+                  <SegmentedControl
+                    aria-label={title}
+                    options={panes.map((pane) => ({ value: pane.id, label: sidePaneTitle(pane) }))}
+                    value={activePane.id}
+                    onChange={(id) => setActivePane(id as SidePaneId)}
+                  />
+                ) : (
+                  <span className="view-drawer__title">{title}</span>
+                )}
                 <IconButton
                   size="sm"
                   aria-label={t('common:viewDrawer.close', 'Close view options')}
@@ -129,7 +145,7 @@ export function WorkspaceViewDrawer() {
                   standing. The dock gives every panel one for the same reason (see
                   `withPanelErrorBoundary`).
                 */}
-                <ErrorBoundary surface={`drawer:${spec.id}`} variant="pane">
+                <ErrorBoundary key={activePane.id} surface={`drawer:${activePane.id}`} variant="pane">
                   <Body />
                 </ErrorBoundary>
               </div>

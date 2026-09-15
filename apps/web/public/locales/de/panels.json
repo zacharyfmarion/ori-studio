@@ -222,12 +222,48 @@
       "refinement": "Verfeinerung auf Faltgenauigkeit"
     }
   },
+  "cpProperties": {
+    "empty": "Wählen Sie ein Objekt auf der Leinwand aus, um seine Eigenschaften zu bearbeiten.",
+    "folded": {
+      "appearance": "Darstellung",
+      "camera": "Kamera",
+      "changeView": "Ansicht des gefalteten Modells ändern",
+      "pitch": "Neigung",
+      "placement": "Position",
+      "refoldToChange": "Neu falten, um das Aussehen dieses Modells zu ändern",
+      "rotation": "Drehung",
+      "scale": "Maßstab",
+      "yaw": "Drehwinkel",
+      "zoom": "Zoom"
+    },
+    "image": {
+      "rotation": "Drehung",
+      "title": "Bild"
+    },
+    "inlineSimulation": {
+      "settings": "Simulator-Einstellungen",
+      "sharedNote": "Gemeinsam mit dem Simulieren-Arbeitsbereich und allen Fenstern",
+      "title": "Simulationsfenster"
+    },
+    "region": {
+      "hidden": "Ausgeblendet",
+      "imageShown": "Sichtbar",
+      "section": "Bereich",
+      "title": "Prüfungsfreier Bereich"
+    },
+    "text": {
+      "changeSize": "Textgröße ändern",
+      "size": "Größe",
+      "title": "Text"
+    }
+  },
   "cpRegion": {
     "accept": "Übernehmen",
     "acceptAnyway": "Trotzdem übernehmen",
     "acceptHistory": "Exakte Lösung übernehmen",
     "acceptPartialHistory": "Teilergebnis der exakten Lösung übernehmen",
     "addRegion": "Prüfungsfreien Bereich hinzufügen",
+    "bringToFront": "Bereich in den Vordergrund bringen",
     "changeChecks": "Unterdrückte Prüfungen ändern",
     "checksMenu": "Unterdrückte Prüfungen",
     "completion": {
@@ -275,6 +311,7 @@
       "noPattern": "In diesem Bereich liegen keine Falten, es gibt also nichts zu lösen. Schieben Sie den Bereich über das erkannte Faltmuster und versuchen Sie es erneut."
     },
     "repairTools": "Reparaturwerkzeuge",
+    "sendToBack": "Bereich in den Hintergrund senden",
     "solve": "Lösen",
     "solveError": "Das Lösen konnte nicht ausgeführt werden — {{message}}",
     "solveErrorUnknown": "Das Lösen konnte nicht ausgeführt werden.",
@@ -323,9 +360,12 @@
     "angleBisectorSelectSegmentToEnd": "Winkelhalbierende: Segment zum Beenden auswählen",
     "anotherSolutionAction": "Andere Lösung anzeigen",
     "bringImageToFront": "Bild in den Vordergrund bringen",
+    "bringTextToFront": "Text in den Vordergrund bringen",
     "buildingCreasePattern": "Faltmuster wird erstellt",
     "canvasDiagnostics_one": "Canvas-Diagnosen: {{count}}",
     "canvasDiagnostics_other": "Canvas-Diagnosen: {{count}}",
+    "case_one": "Fall {{count}}",
+    "case_other": "Fall {{count}}",
     "changeFoldedColor": "Farbe des gefalteten Modells ändern",
     "changeFoldedDisplayStyle": "Faltdarstellung ändern",
     "changeFoldedModel": "Gefaltetes Modell ändern",
@@ -428,6 +468,10 @@
       "windowAriaLabel": "Gefaltetes Modell, dreidimensional",
       "windowFailed": "Dieses Modell konnte nicht gezeichnet werden"
     },
+    "foldedModelStatus": {
+      "error": "Fehlgeschlagen",
+      "loading": "Wird gefaltet …"
+    },
     "foldedState": {
       "back": "Rückseite",
       "front": "Vorderseite"
@@ -471,6 +515,7 @@
     "optimizingScale": "Skalierung wird optimiert",
     "orbitFoldedForm": "Gefaltete Figur drehen",
     "preparing": "Editor wird vorbereitet…",
+    "propertiesEllipsis": "Eigenschaften…",
     "refoldFoldedModelAction": "Gefaltetes Modell neu falten",
     "rendererContextLost": "Faltmuster-Zeichenfläche wird wiederhergestellt…",
     "rendererContextLostHint": "Das System hat den Grafikspeicher dieser Zeichenfläche zurückgefordert, was passieren kann, wenn dem Gerät der Speicher ausgeht. Ihr Faltmuster ist sicher – die Ansicht kehrt zurück, sobald der Grafikkontext wieder da ist. Falls er nicht zurückkommt, laden Sie Ori Studio neu.",
@@ -501,9 +546,11 @@
       "simulateInline": "Eingebettet simulieren"
     },
     "sendImageToBack": "Bild in den Hintergrund senden",
+    "sendTextToBack": "Text in den Hintergrund senden",
     "setFoldedModelUpright": "Oben-Richtung des gefalteten Modells festlegen",
     "shadow": "Schatten",
     "shadowUnsupported3d": "Für ein gefaltetes 3D-Modell werden noch keine Schatten gezeichnet",
+    "stale": "Veraltet",
     "viewFoldedModelOtherSide": "Von der anderen Seite ansehen",
     "viewportControls": "Ansichtssteuerung des Faltmusters",
     "zoomFoldedForm": "Gefaltete Form zoomen"
@@ -782,6 +829,10 @@
     "y": "Y",
     "yes": "Ja"
   },
+  "sidePane": {
+    "properties": "Eigenschaften",
+    "view": "Ansicht"
+  },
   "simulator": {
     "backendCpu": "CPU",
     "backendCpuTitle": "Berechnung auf der CPU (WebGL2 nicht verfügbar)",
@@ -884,13 +935,18 @@
     "addText": "Text hinzufügen",
     "alignCenter": "Zentriert",
     "alignLeft": "Linksbündig",
-    "alignment": "Ausrichtung",
     "alignRight": "Rechtsbündig",
     "blockBody": "Fließtext",
     "blockHeading": "Überschrift",
     "blockSubheading": "Unterüberschrift",
     "bold": "Fett",
     "color": "Textfarbe",
+    "colorBlue": "Blau",
+    "colorDefault": "Standard",
+    "colorGreen": "Grün",
+    "colorOrange": "Orange",
+    "colorPurple": "Violett",
+    "colorRed": "Rot",
     "deleteText": "Text löschen",
     "editText": "Text bearbeiten",
     "italic": "Kursiv",

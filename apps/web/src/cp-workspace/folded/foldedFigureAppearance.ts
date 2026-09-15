@@ -68,8 +68,9 @@ export const FOLDED_APPEARANCE_OPTIONS: readonly FoldedAppearanceOption[] = [
 /**
  * Whether `option` does anything on `figure`.
  *
- * `scale` and `rotation` are `not-applicable` on **every** figure, and that is
- * the one answer worth explaining. `FoldedFigureModel.scale` / `.rotation` are
+ * `scale`, `rotation` and `antiAlias` are `not-applicable` on **every** figure.
+ * Anti-alias is explained at its arm below; the transform pair is the answer
+ * worth explaining here. `FoldedFigureModel.scale` / `.rotation` are
  * Oriedita's own display transform, seeded only from imported Oriedita metadata.
  * Ori Studio scales and rotates a figure through `FoldedFigurePlacement`, driven
  * by the canvas handles and stored in the `.osf`. Wiring the model fields to a
@@ -88,12 +89,19 @@ export function foldedAppearanceSupport(
     case 'scale':
     case 'rotation':
       return 'not-applicable';
+    case 'antiAlias':
+      // Oriedita's `antiAlias` picks a Java2D rendering hint and a 1.2 px line
+      // over a 1.0 px one. The kernel still carries the flag through the
+      // snapshot for parity, but the web renderer antialiases every primitive
+      // regardless and never reads it, so the whole visible effect is a fifth
+      // of a pixel of stroke: a toggle that does nothing anyone can see. The
+      // field stays on the model for `.ori` round-trips; there is no control.
+      return 'not-applicable';
     case 'frontColor':
     case 'backColor':
     case 'lineColor':
-    case 'antiAlias':
     case 'displayStyle':
-      // The projector reads all of these — colours and anti-alias through
+      // The projector reads all of these — colours through
       // `folded3dPaperStyle`, display style as its style plan.
       return 'supported';
     case 'side':
@@ -101,6 +109,8 @@ export function foldedAppearanceSupport(
       // nowhere after that: the figure re-projects at `figure.camera`, which
       // every fold stamps, so a state write changes nothing on screen. "Other
       // side" moves the eye instead — see `foldedFigureCapabilities.flip`.
+      // Offered disabled, with that as its hint, rather than hidden: a control
+      // that vanishes between figure kinds reads as a bug.
       return isFolded3dFigure(figure) ? 'unsupported' : 'supported';
     case 'transparency':
       // The amount is the flat renderer's, and it does not transfer. Oriedita

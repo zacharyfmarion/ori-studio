@@ -21,6 +21,7 @@ export function ColorField({
   onCommit,
   onClear,
   disabled = false,
+  title,
   layout = 'stacked',
   showValue = false,
   className,
@@ -40,6 +41,8 @@ export function ColorField({
   /** Offered as a reset affordance when the value can fall back to a default. */
   onClear?: () => void;
   disabled?: boolean;
+  /** Why the field is disabled, shown on hover over the whole row. */
+  title?: string;
   /**
    * `stacked` puts the label above a full-width swatch, for the narrow grid
    * columns the folded-figure menu and the export dialog lay out. `row` is a
@@ -90,7 +93,11 @@ export function ColorField({
   // outside it, or clicking reset would also open the colour picker.
   const rowLike = layout === 'row' || layout === 'inline';
   return (
-    <div className={layout === 'row' ? `control-row ${classes}` : classes}>
+    <div
+      className={layout === 'row' ? `control-row ${classes}` : classes}
+      data-disabled={disabled || undefined}
+      title={title}
+    >
       <label className={rowLike ? 'control-row__label' : 'color-field__name'} htmlFor={inputId}>
         {label}
       </label>

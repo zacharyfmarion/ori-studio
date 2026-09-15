@@ -17,7 +17,6 @@ import {
   type FoldedColorKey,
 } from './foldedFigureControlOptions';
 import { foldedFigureNotice, type FoldedFigureNotice } from './foldedFigureNotice';
-import type { FoldedModelGesture } from './foldedModelGestureLedger';
 
 /**
  * The verbs a folded figure offers, in the order both surfaces present them.
@@ -192,6 +191,18 @@ export type FoldedFigureAction =
  * by the panel's `runFoldedFigureAction`, which snapshots → acts → records so
  * each verb lands as exactly one undo entry.
  */
+/**
+ * One control's run of continuous model changes — a colour drag — named so the
+ * first change opens the layer's undo bracket under `scope` and
+ * `endModelGesture(scope)` closes it as one entry under `label`.
+ */
+export interface FoldedModelGesture {
+  /** Names one control's run of changes, e.g. `folded-color:<figure>:front_color`. */
+  scope: string;
+  /** The history label the run lands under, stated when it opens. */
+  label: string;
+}
+
 export interface FoldedFigureActionDeps {
   t: TFunction;
   flip: (figure: OristudioCpFoldedFigureEntry) => void;

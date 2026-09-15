@@ -8,6 +8,7 @@ import { ExploriResultsPanel } from './ExploriResultsPanel';
 import { InspectorPanel } from './InspectorPanel';
 import { CreasePatternPanel } from './CreasePatternPanel';
 import { CpViewControlsPanel } from './CpViewControlsPanel';
+import { CpPropertiesPanel } from './CpPropertiesPanel';
 import { SimulatorPanel } from './SimulatorPanel';
 import { SimulatorViewControlsPanel } from './SimulatorViewControlsPanel';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
@@ -25,6 +26,7 @@ const panels: Record<string, FC<IDockviewPanelProps>> = {
   inspector: InspectorPanel,
   'crease-pattern': CreasePatternPanel,
   'cp-view-controls': CpViewControlsPanel,
+  'cp-properties': CpPropertiesPanel,
   simulator: SimulatorPanel,
   'simulator-view-controls': SimulatorViewControlsPanel,
   diagnostics: DiagnosticsPanel,

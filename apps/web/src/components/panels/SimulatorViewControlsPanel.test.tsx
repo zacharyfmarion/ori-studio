@@ -46,10 +46,10 @@ function slider(rendered: HTMLDivElement, label: string): HTMLInputElement {
 /** A section by its visible title. */
 function section(rendered: HTMLDivElement, title: string): HTMLElement {
   const found = [
-    ...rendered.querySelectorAll<HTMLElement>('.simulator-view-controls-panel__section'),
+    ...rendered.querySelectorAll<HTMLElement>('.collapsible-section'),
   ].find(
     (element) =>
-      element.querySelector('.simulator-view-controls-panel__section-title')?.textContent === title
+      element.querySelector('.collapsible-section__title')?.textContent === title
   );
   if (!found) throw new Error(`no section titled ${title}`);
   return found;
@@ -57,7 +57,7 @@ function section(rendered: HTMLDivElement, title: string): HTMLElement {
 
 function toggle(rendered: HTMLDivElement, title: string): void {
   const button = section(rendered, title).querySelector<HTMLButtonElement>(
-    '.simulator-view-controls-panel__section-toggle'
+    '.collapsible-section__toggle'
   );
   if (!button) throw new Error(`section ${title} is not collapsible`);
   act(() => {
@@ -200,7 +200,7 @@ describe('collapsible sections', () => {
     // Render stays open: it is the one people came for. Asserted on the toggle
     // class rather than aria-expanded, which the Radix selects inside it carry.
     expect(
-      section(rendered, 'Render').querySelector('.simulator-view-controls-panel__section-toggle')
+      section(rendered, 'Render').querySelector('.collapsible-section__toggle')
     ).toBeNull();
   });
 

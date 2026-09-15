@@ -7,6 +7,7 @@ import { useCanvasObjectAnchor } from '../canvasObjects/useCanvasObjectAnchor';
 import type { AnnotationBox } from '../annotations/annotationTransform';
 import { regionChipPlacement } from './regionChipPlacement';
 import type { CpRegionChipDragHandlers } from './useCpRegionChipDrag';
+import { CANVAS_COMPANION_PROPS } from '../canvasObjects/canvasCompanionSurface';
 
 /**
  * The bar a suppression region wears along its top edge.
@@ -50,6 +51,12 @@ export interface CpRegionChipBarProps {
   ariaLabel: string;
   /** Press to select, drag to move. See {@link useCpRegionChipDrag}. */
   drag: CpRegionChipDragHandlers;
+  /**
+   * Right-click on the bar. The region's body is inert to the overlay — what is
+   * under it is the crease pattern — so the bar is where a right-click reaches
+   * the region at all.
+   */
+  onContextMenu?: (clientX: number, clientY: number) => void;
   children: ReactNode;
 }
 
@@ -58,6 +65,7 @@ export function CpRegionChipBar({
   container,
   ariaLabel,
   drag,
+  onContextMenu,
   children,
 }: CpRegionChipBarProps) {
   // Subscribed here, not in the panel: this bar re-renders per camera frame so
@@ -104,6 +112,7 @@ export function CpRegionChipBar({
         className="floating-toolbar cp-region-chip"
         role="toolbar"
         aria-label={ariaLabel}
+        {...CANVAS_COMPANION_PROPS}
         style={{
           position: 'fixed',
           left: `${placement.left}px`,
@@ -127,6 +136,13 @@ export function CpRegionChipBar({
           visibility: barHeight === null ? 'hidden' : 'visible',
         }}
         {...drag}
+        onContextMenu={
+          onContextMenu &&
+          ((event) => {
+            event.preventDefault();
+            onContextMenu(event.clientX, event.clientY);
+          })
+        }
       >
         {children}
       </div>

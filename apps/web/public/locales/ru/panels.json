@@ -232,12 +232,48 @@
       "refinement": "Уточнение до точности складывания"
     }
   },
+  "cpProperties": {
+    "empty": "Выберите объект на холсте, чтобы изменить его свойства.",
+    "folded": {
+      "appearance": "Внешний вид",
+      "camera": "Камера",
+      "changeView": "Изменить вид сложенной модели",
+      "pitch": "Наклон",
+      "placement": "Положение",
+      "refoldToChange": "Сложите модель заново, чтобы изменить её внешний вид",
+      "rotation": "Поворот",
+      "scale": "Масштаб",
+      "yaw": "Разворот",
+      "zoom": "Масштаб вида"
+    },
+    "image": {
+      "rotation": "Поворот",
+      "title": "Изображение"
+    },
+    "inlineSimulation": {
+      "settings": "Настройки симулятора",
+      "sharedNote": "Общие с рабочей областью «Симуляция» и всеми окнами",
+      "title": "Окно симуляции"
+    },
+    "region": {
+      "hidden": "Скрыта",
+      "imageShown": "Показано",
+      "section": "Область",
+      "title": "Область подавления"
+    },
+    "text": {
+      "changeSize": "Изменить размер текста",
+      "size": "Размер",
+      "title": "Текст"
+    }
+  },
   "cpRegion": {
     "accept": "Принять",
     "acceptAnyway": "Всё равно принять",
     "acceptHistory": "Принять точное решение",
     "acceptPartialHistory": "Принять частичное точное решение",
     "addRegion": "Добавить область подавления",
+    "bringToFront": "Переместить область на передний план",
     "changeChecks": "Изменить подавляемые проверки",
     "checksMenu": "Подавляемые проверки",
     "completion": {
@@ -299,6 +335,7 @@
       "noPattern": "Внутри этой области нет складок, поэтому решать нечего. Переместите область на распознанный паттерн и попробуйте снова."
     },
     "repairTools": "Инструменты исправления",
+    "sendToBack": "Переместить область на задний план",
     "solve": "Решить",
     "solveError": "Не удалось выполнить решение — {{message}}",
     "solveErrorUnknown": "Не удалось выполнить решение.",
@@ -347,11 +384,16 @@
     "angleBisectorSelectSegmentToEnd": "Биссектриса угла: выберите отрезок для завершения",
     "anotherSolutionAction": "Показать другое решение",
     "bringImageToFront": "Переместить изображение на передний план",
+    "bringTextToFront": "Переместить текст на передний план",
     "buildingCreasePattern": "Построение паттерна складок",
     "canvasDiagnostics_one": "Диагностика холста: {{count}}",
     "canvasDiagnostics_few": "Диагностика холста: {{count}}",
     "canvasDiagnostics_many": "Диагностика холста: {{count}}",
     "canvasDiagnostics_other": "Диагностика холста: {{count}}",
+    "case_one": "Случай {{count}}",
+    "case_few": "Случай {{count}}",
+    "case_many": "Случай {{count}}",
+    "case_other": "Случай {{count}}",
     "changeFoldedColor": "Изменить цвет сложенной модели",
     "changeFoldedDisplayStyle": "Изменить стиль отображения сложенной формы",
     "changeFoldedModel": "Изменить сложенную модель",
@@ -476,6 +518,10 @@
       "windowAriaLabel": "Сложенная модель, в трёх измерениях",
       "windowFailed": "Не удалось отрисовать эту модель"
     },
+    "foldedModelStatus": {
+      "error": "Ошибка",
+      "loading": "Складывание…"
+    },
     "foldedState": {
       "back": "Изнанка",
       "front": "Лицо"
@@ -521,6 +567,7 @@
     "optimizingScale": "Оптимизация масштаба",
     "orbitFoldedForm": "Повернуть сложенную фигуру",
     "preparing": "Подготовка редактора…",
+    "propertiesEllipsis": "Свойства…",
     "refoldFoldedModelAction": "Сложить модель заново",
     "rendererContextLost": "Восстановление холста паттерна складок…",
     "rendererContextLostHint": "Система забрала графическую память этого холста — так бывает, когда устройству не хватает памяти. Ваш паттерн складок цел: изображение вернётся, как только вернётся графический контекст. Если он не вернётся, перезагрузите Ori Studio.",
@@ -553,9 +600,11 @@
       "simulateInline": "Симулировать на месте"
     },
     "sendImageToBack": "Переместить изображение на задний план",
+    "sendTextToBack": "Переместить текст на задний план",
     "setFoldedModelUpright": "Задать направление вверх сложенной модели",
     "shadow": "Тень",
     "shadowUnsupported3d": "Тени пока не отрисовываются для трёхмерной сложенной модели",
+    "stale": "Устарело",
     "viewFoldedModelOtherSide": "Посмотреть с другой стороны",
     "viewportControls": "Элементы управления областью просмотра паттерна складок",
     "zoomFoldedForm": "Масштабировать сложенную форму"
@@ -846,6 +895,10 @@
     "y": "Y",
     "yes": "Да"
   },
+  "sidePane": {
+    "properties": "Свойства",
+    "view": "Вид"
+  },
   "simulator": {
     "backendCpu": "CPU",
     "backendCpuTitle": "Вычисление на CPU (WebGL2 недоступен)",
@@ -950,13 +1003,18 @@
     "addText": "Добавить текст",
     "alignCenter": "По центру",
     "alignLeft": "По левому краю",
-    "alignment": "Выравнивание",
     "alignRight": "По правому краю",
     "blockBody": "Основной текст",
     "blockHeading": "Заголовок",
     "blockSubheading": "Подзаголовок",
     "bold": "Полужирный",
     "color": "Цвет текста",
+    "colorBlue": "Синий",
+    "colorDefault": "По умолчанию",
+    "colorGreen": "Зелёный",
+    "colorOrange": "Оранжевый",
+    "colorPurple": "Фиолетовый",
+    "colorRed": "Красный",
     "deleteText": "Удалить текст",
     "editText": "Изменить текст",
     "italic": "Курсив",

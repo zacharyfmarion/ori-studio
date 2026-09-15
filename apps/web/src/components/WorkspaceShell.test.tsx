@@ -24,9 +24,10 @@ vi.mock('./panels/PanelComponents', () => ({ panelComponents: {} }));
 vi.mock('./panels/DesignTabStrip', () => ({ DesignTabStrip: () => null }));
 
 // The View drawer *is* mounted here — its trigger is the touch layer's only way
-// back to the pane the dock stops showing, so the wiring is worth asserting. Only
-// its two bodies are stubbed, for the same reason as the dock's panels above.
+// back to the panes the dock stops showing, so the wiring is worth asserting.
+// Only its bodies are stubbed, for the same reason as the dock's panels above.
 vi.mock('./panels/CpViewControlsPanel', () => ({ CpViewControlsPanel: () => null }));
+vi.mock('./panels/CpPropertiesPanel', () => ({ CpPropertiesPanel: () => null }));
 vi.mock('./panels/SimulatorViewControlsPanel', () => ({
   SimulatorViewControlsPanel: () => null,
 }));
@@ -183,29 +184,51 @@ describe('the workspace dock under a coarse pointer', () => {
     // second half of this test: on a fine pointer the drawer is not mounted, so
     // a reconcile owned by it could never put the pane back.
     stubPointer(true);
-    const docked = new Map<string, { id: string }>([
-      ['crease-pattern', { id: 'crease-pattern' }],
-      ['cp-view-controls', { id: 'cp-view-controls' }],
+    interface Docked {
+      id: string;
+      title: string;
+      group: { id: string; header: { hidden: boolean } };
+      api: { setTitle: (title: string) => void };
+    }
+    const dock = (id: string, title: string): Docked => ({
+      id,
+      title,
+      group: { id: 'side', header: { hidden: false } },
+      api: { setTitle: vi.fn() },
+    });
+    const docked = new Map<string, Docked>([
+      ['crease-pattern', dock('crease-pattern', 'Crease Pattern')],
+      ['cp-view-controls', dock('cp-view-controls', 'View')],
+      ['cp-properties', dock('cp-properties', 'Properties')],
     ]);
     const dockviewApi = {
       getPanel: vi.fn((id: string) => docked.get(id) ?? null),
       removePanel: vi.fn((panel: { id: string }) => void docked.delete(panel.id)),
-      addPanel: vi.fn((options: { id: string }) => {
-        docked.set(options.id, { id: options.id });
-        return options;
+      addPanel: vi.fn((options: { id: string; title: string }) => {
+        const panel = dock(options.id, options.title);
+        docked.set(options.id, panel);
+        return panel;
       }),
     } as unknown as DockviewApi;
     useLayoutStore.setState({ activeWorkspace: 'edit', dockviewApi });
 
     renderShell();
 
-    expect(dockviewApi.removePanel).toHaveBeenCalledWith({ id: 'cp-view-controls' });
+    expect(dockviewApi.removePanel).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'cp-view-controls' })
+    );
+    expect(dockviewApi.removePanel).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'cp-properties' })
+    );
     expect([...docked.keys()]).toEqual(['crease-pattern']);
 
     flipPointer(false);
 
     expect(dockviewApi.addPanel).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'cp-view-controls', initialWidth: 260 })
+    );
+    expect(dockviewApi.addPanel).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'cp-properties', inactive: true })
     );
   });
 });

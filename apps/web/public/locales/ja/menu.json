@@ -126,6 +126,7 @@
   "view": {
     "design": "デザイン",
     "edit": "編集",
+    "properties": "プロパティ",
     "resetLayout": "レイアウトをリセット",
     "simulate": "シミュレート"
   }

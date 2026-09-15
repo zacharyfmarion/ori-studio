@@ -222,12 +222,48 @@
       "refinement": "Refining to fold precision"
     }
   },
+  "cpProperties": {
+    "empty": "Select an object on the canvas to edit its properties.",
+    "folded": {
+      "appearance": "Appearance",
+      "camera": "Camera",
+      "changeView": "Change folded model view",
+      "pitch": "Tilt",
+      "placement": "Placement",
+      "refoldToChange": "Refold to change how this figure looks",
+      "rotation": "Rotation",
+      "scale": "Scale",
+      "yaw": "Turn",
+      "zoom": "Zoom"
+    },
+    "image": {
+      "rotation": "Rotation",
+      "title": "Image"
+    },
+    "inlineSimulation": {
+      "settings": "Simulator settings",
+      "sharedNote": "Shared with the Simulate workspace and every window",
+      "title": "Simulation window"
+    },
+    "region": {
+      "hidden": "Hidden",
+      "imageShown": "Shown",
+      "section": "Region",
+      "title": "Suppression region"
+    },
+    "text": {
+      "changeSize": "Change text size",
+      "size": "Size",
+      "title": "Text"
+    }
+  },
   "cpRegion": {
     "accept": "Accept",
     "acceptAnyway": "Accept anyway",
     "acceptHistory": "Accept exact solve",
     "acceptPartialHistory": "Accept partial exact solve",
     "addRegion": "Add suppression region",
+    "bringToFront": "Bring region to front",
     "changeChecks": "Change suppressed checks",
     "checksMenu": "Suppressed checks",
     "completion": {
@@ -275,6 +311,7 @@
       "noPattern": "There are no creases inside this region, so there is nothing to solve. Move the region over the detected pattern and try again."
     },
     "repairTools": "Repair tools",
+    "sendToBack": "Send region to back",
     "solve": "Solve",
     "solveError": "The solve could not run — {{message}}",
     "solveErrorUnknown": "The solve could not run.",
@@ -323,9 +360,12 @@
     "angleBisectorSelectSegmentToEnd": "Angle Bisector: Select segment to end",
     "anotherSolutionAction": "Show another solution",
     "bringImageToFront": "Bring image to front",
+    "bringTextToFront": "Bring text to front",
     "buildingCreasePattern": "Building crease pattern",
     "canvasDiagnostics_one": "Canvas diagnostics: {{count}}",
     "canvasDiagnostics_other": "Canvas diagnostics: {{count}}",
+    "case_one": "Case {{count}}",
+    "case_other": "Case {{count}}",
     "changeFoldedColor": "Change folded model color",
     "changeFoldedDisplayStyle": "Change folded display style",
     "changeFoldedModel": "Change folded model",
@@ -428,6 +468,10 @@
       "windowAriaLabel": "Folded model, in three dimensions",
       "windowFailed": "Could not draw this model"
     },
+    "foldedModelStatus": {
+      "error": "Failed",
+      "loading": "Folding…"
+    },
     "foldedState": {
       "back": "Back",
       "front": "Front"
@@ -471,6 +515,7 @@
     "optimizingScale": "Optimizing scale",
     "orbitFoldedForm": "Turn folded form",
     "preparing": "Preparing the editor…",
+    "propertiesEllipsis": "Properties…",
     "refoldFoldedModelAction": "Refold folded model",
     "rendererContextLost": "Restoring the crease-pattern canvas…",
     "rendererContextLostHint": "The system took this canvas’s graphics memory back, which can happen when the device runs low on it. Your crease pattern is safe — the view returns as soon as the graphics context does. If it does not come back, reload Ori Studio.",
@@ -501,9 +546,11 @@
       "simulateInline": "Simulate inline"
     },
     "sendImageToBack": "Send image to back",
+    "sendTextToBack": "Send text to back",
     "setFoldedModelUpright": "Set folded model upright",
     "shadow": "Shadow",
     "shadowUnsupported3d": "Shadows are not drawn for a 3D folded model yet",
+    "stale": "Stale",
     "viewFoldedModelOtherSide": "View from the other side",
     "viewportControls": "Crease pattern viewport controls",
     "zoomFoldedForm": "Zoom folded form"
@@ -782,6 +829,10 @@
     "y": "Y",
     "yes": "Yes"
   },
+  "sidePane": {
+    "properties": "Properties",
+    "view": "View"
+  },
   "simulator": {
     "backendCpu": "CPU",
     "backendCpuTitle": "Solving on the CPU (WebGL2 unavailable)",
@@ -841,7 +892,7 @@
     "backgroundTransparent": "Transparent",
     "backgroundWhite": "White",
     "borderEdge": "Edge",
-    "colorMode": "Colour",
+    "colorMode": "Color",
     "colorPaper": "Paper",
     "colorStrain": "Strain",
     "creaseLines": "Crease lines",
@@ -884,13 +935,18 @@
     "addText": "Add text",
     "alignCenter": "Align center",
     "alignLeft": "Align left",
-    "alignment": "Alignment",
     "alignRight": "Align right",
     "blockBody": "Body",
     "blockHeading": "Heading",
     "blockSubheading": "Subheading",
     "bold": "Bold",
     "color": "Text color",
+    "colorBlue": "Blue",
+    "colorDefault": "Default",
+    "colorGreen": "Green",
+    "colorOrange": "Orange",
+    "colorPurple": "Purple",
+    "colorRed": "Red",
     "deleteText": "Delete text",
     "editText": "Edit text",
     "italic": "Italic",

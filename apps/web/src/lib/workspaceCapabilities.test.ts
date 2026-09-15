@@ -401,6 +401,27 @@ describe('workspace capabilities', () => {
     });
   });
 
+  it('offers the Properties pane only with an editable crease pattern', () => {
+    // The pane edits canvas objects of the CP document, so without one there is
+    // nothing for it to show; the reason names what to do about that.
+    const editable = capabilities({
+      documentMode: 'crease-pattern',
+      status: 'crease_pattern_ready',
+      hasEditableCreasePattern: true,
+    });
+    expect(editable['view.properties']).toMatchObject({
+      visible: true,
+      enabled: true,
+      reason: 'Show the properties pane',
+    });
+
+    const tree = capabilities({ documentMode: 'tree' });
+    expect(tree['view.properties']).toMatchObject({
+      enabled: false,
+      reason: 'Open an editable crease pattern first',
+    });
+  });
+
   it('disables workflow actions while the engine is busy or unavailable', () => {
     for (const status of ['loading_engine', 'optimizing', 'building_crease_pattern'] as const) {
       const state = capabilities({ status, edgeCount: 2, engineReady: status !== 'loading_engine' });

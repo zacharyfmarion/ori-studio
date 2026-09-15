@@ -25,6 +25,8 @@ let container: HTMLDivElement;
 let root: Root;
 
 const NOOP = () => {};
+/** A begin that is never refused, for chips whose drags these tests do not record. */
+const BEGIN = () => true;
 
 /**
  * The figures from `test_files/detect-cp/mid-solve_2.osf`: a 1,900x Kawasaki
@@ -83,7 +85,7 @@ function renderChip(
           onDeleteImage={NOOP}
           onToggleCheckClass={NOOP}
           onMove={NOOP}
-          onGestureStart={NOOP}
+          onGestureStart={BEGIN}
           onGestureCommit={NOOP}
           onDelete={NOOP}
         />

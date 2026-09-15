@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import {
@@ -20,9 +20,8 @@ import {
   foldedFigureFlipState,
   isFoldedFigureReady,
   type FoldedFigureActionDeps,
+  type FoldedModelGesture,
 } from './foldedFigureActions';
-import { foldedFigureListsEqual } from './foldedFigureState';
-import { createFoldedModelGestureLedger } from './foldedModelGestureLedger';
 import { foldedFigureStyleOptions } from './foldedFigureStyleEvent';
 import { isFolded3dFigure } from './foldedFigureCapabilities';
 import { canWindowFolded3dFigure, folded3dWindowIds } from './folded3dWindow';
@@ -68,6 +67,12 @@ import {
   type FoldedFigureStyleOption,
 } from '../../analytics/events';
 import { track } from '../../analytics';
+import type { GestureToken } from '../canvasObjects/gestureBracket';
+import type { CanvasLayerBinding } from '../canvasObjects/canvasLayerBindings';
+import { foldedFigureGesture } from './foldedFigureGesture';
+import { foldedFigureMenuItemsWith } from './foldedFigureMenuItems';
+import { queueFoldedModelWrite } from './foldedModelWriteQueue';
+import { deleteFoldedFigure, setFoldedFigureDisplayStyle } from './foldedFigureVerbs';
 
 /**
  * The face folding holds fixed. Oriedita lets this be chosen and the kernel still
@@ -142,16 +147,15 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
   const focusOristudioCpFoldedFigure = useWorkspaceStore(
     (state) => state.focusOristudioCpFoldedFigure
   );
-  const recordFoldedFigureHistory = useWorkspaceStore((state) => state.recordFoldedFigureHistory);
+  const setOristudioCpActiveFoldedFigure = useWorkspaceStore(
+    (state) => state.setOristudioCpActiveFoldedFigure
+  );
   const foldOristudioCpDocument = useWorkspaceStore((state) => state.foldOristudioCpDocument);
   const foldAnotherOristudioCpFigure = useWorkspaceStore(
     (state) => state.foldAnotherOristudioCpFigure
   );
   const setOristudioCpFoldedFigurePlacement = useWorkspaceStore(
     (state) => state.setOristudioCpFoldedFigurePlacement
-  );
-  const setOristudioCpFoldedFigureDisplayStyle = useWorkspaceStore(
-    (state) => state.setOristudioCpFoldedFigureDisplayStyle
   );
   const setOristudioCpFolded3dCamera = useWorkspaceStore(
     (state) => state.setOristudioCpFolded3dCamera
@@ -167,9 +171,6 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
   );
   const exportOristudioCpFoldedFigure = useWorkspaceStore(
     (state) => state.exportOristudioCpFoldedFigure
-  );
-  const deleteOristudioCpFoldedFigure = useWorkspaceStore(
-    (state) => state.deleteOristudioCpFoldedFigure
   );
   const setOristudioCpViewportOption = useWorkspaceStore(
     (state) => state.setOristudioCpViewportOption
@@ -253,60 +254,69 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     priorityId: oristudioCpFocusedFoldedFigureId ?? oristudioCpActiveFoldedFigureId,
   });
 
-  // Folded-figure state captured at the start of a gesture, so a whole drag
-  // records one undo entry — the same shape the annotation layer uses.
-  const preGestureFoldedFiguresRef = useRef<readonly OristudioCpFoldedFigureEntry[] | null>(null);
+  // The canvas drag's token on the layer's bracket (`foldedFigureGesture`),
+  // so a whole drag records one undo entry. The bracket is module-level and
+  // shared with the Properties pane; each gesture here (drag, orbit, zoom
+  // burst, verb) holds its own token under its own owner, and a begin refused
+  // because another owner holds the layer answers false. The continuous
+  // appearance edits (a colour pick) are the pane's, through the same bracket
+  // and the kernel write queue — see `useFoldedFigureProperties`.
+  const gestureTokenRef = useRef<GestureToken | null>(null);
 
-  const preGestureActiveFoldedIdRef = useRef<string | null>(null);
-
-  // Which continuous model edit (a colour drag) is mid-gesture. Consulted at
-  // every gesture boundary, so a drag nothing closed still lands as its own
-  // entry rather than being overwritten by the next verb's snapshot.
-  const [modelGestures] = useState(createFoldedModelGestureLedger);
-
-  const commitFoldedFigureGesture = useCallback(
-    (label: string) => {
-      const previous = preGestureFoldedFiguresRef.current;
-      const previousActiveId = preGestureActiveFoldedIdRef.current;
-      preGestureFoldedFiguresRef.current = null;
-      if (!previous) return;
-      const state = useWorkspaceStore.getState();
-      // A verb that changed nothing earns no undo entry. This bracket owns both
-      // ends of the gesture, so it is the one place that can tell — and the case
-      // is not rare: a fold that is refused, fails, or is *stopped* runs this
-      // `finally` having put the list back exactly as it found it, and would
-      // otherwise leave a step that undoes nothing on a project it just marked
-      // dirty.
-      if (
-        foldedFigureListsEqual(previous, state.oristudioCpFoldedFigures) &&
-        previousActiveId === state.oristudioCpActiveFoldedFigureId
-      ) {
-        return;
-      }
-      recordFoldedFigureHistory([...previous], label, previousActiveId);
-    },
-    [recordFoldedFigureHistory]
+  // A Style-menu colour drag holds the same bracket under its own scope —
+  // one control's run of changes, `folded-color:<figure>:front_color` — so
+  // the whole drag records one entry and a canvas gesture cannot clobber it
+  // (the bracket refuses a second owner). `endModelGesture` closes it; a
+  // scope that is not open is a no-op, which is what lets a menu row commit
+  // from blur and unmount both and record once.
+  const menuGestureRef = useRef<{ gesture: FoldedModelGesture; token: GestureToken } | null>(
+    null
   );
 
+  const endOpenMenuGesture = useCallback(() => {
+    const open = menuGestureRef.current;
+    menuGestureRef.current = null;
+    if (open && foldedFigureGesture.isOpen(open.token)) {
+      void foldedFigureGesture.commit(open.token, open.gesture.label);
+    }
+  }, []);
+
   const beginFoldedFigureGesture = useCallback(() => {
-    const pending = modelGestures.closeAny();
-    if (pending) commitFoldedFigureGesture(pending.label);
-    preGestureFoldedFiguresRef.current = useWorkspaceStore.getState().oristudioCpFoldedFigures;
-    preGestureActiveFoldedIdRef.current =
-      useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId;
-  }, [commitFoldedFigureGesture, modelGestures]);
+    // A colour run nothing closed lands as its own entry first, rather than
+    // holding the layer against the drag that follows it.
+    endOpenMenuGesture();
+    const token = foldedFigureGesture.begin('canvas');
+    gestureTokenRef.current = token;
+    return token !== null;
+  }, [endOpenMenuGesture]);
+
+  const commitFoldedFigureGesture = useCallback((label: string) => {
+    const token = gestureTokenRef.current;
+    gestureTokenRef.current = null;
+    if (token) void foldedFigureGesture.commit(token, label);
+  }, []);
+
+  const cancelFoldedFigureGesture = useCallback(() => {
+    const token = gestureTokenRef.current;
+    gestureTokenRef.current = null;
+    if (token) foldedFigureGesture.abort(token);
+  }, []);
 
   /**
    * Run a discrete folded-figure action as one undo step: snapshot, act, record.
    * Every entry point that mutates a folded figure goes through this, so none of
-   * them can quietly skip the undo stack the way they all used to.
+   * them can quietly skip the undo stack the way they all used to. A verb
+   * issued while another owner holds the layer — a drag in flight — is refused
+   * rather than recorded against a baseline that is still moving.
    */
   const runFoldedFigureAction = useCallback(
     (label: string, action: () => void | Promise<unknown>) => {
-      beginFoldedFigureGesture();
-      void Promise.resolve(action()).finally(() => commitFoldedFigureGesture(label));
+      // A colour run still open is committed by whatever comes next, under
+      // its own label, rather than refusing the verb.
+      endOpenMenuGesture();
+      void foldedFigureGesture.run('verb', label, action);
     },
-    [beginFoldedFigureGesture, commitFoldedFigureGesture]
+    [endOpenMenuGesture]
   );
 
   const foldedGestureLabel = useCallback(
@@ -400,8 +410,8 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
      * cannot gain or lose its render model mid-drag.
      */
     windowed: boolean;
-    /** Whether an undo snapshot has been taken for this drag yet. */
-    recording: boolean;
+    /** The undo bracket, once the first move that turned the figure opened it. */
+    token: GestureToken | null;
   } | null>(null);
 
   /** The live figure, read from the store rather than from a render-time list. */
@@ -458,7 +468,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
         // that never moves is a click, and snapshotting on press would put a
         // no-op entry on the stack that the user has to undo past. Taken on the
         // first move that actually turns the figure instead.
-        recording: false,
+        token: null,
       };
       return true;
     },
@@ -483,9 +493,12 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       const before = liveFigureCamera(figure);
       const next = advanceFoldedFigureOrbit(before, session.drag, point);
       if (!foldedFigureOrbitChanged(before, next)) return;
-      if (!session.recording) {
-        session.recording = true;
-        beginFoldedFigureGesture();
+      if (!session.token) {
+        session.token = foldedFigureGesture.begin('orbit');
+        // Refused — another owner holds the layer. The turn goes on as a live
+        // frame (the store is written on release either way), but nothing will
+        // record it, so stop here rather than move the figure un-undoably.
+        if (!session.token) return;
       }
       // A windowed figure is drawn by its mesh at the camera alone, so the CPU
       // projection would be built and then thrown away — `earcut` over every cell
@@ -505,7 +518,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       }
       publishFolded3dOrbit(session.id, { camera: next, snapshot });
     },
-    [beginFoldedFigureGesture, figureById]
+    [figureById]
   );
 
   /**
@@ -521,14 +534,17 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     endOrbitGesture();
     if (!session) return;
     const live = getFolded3dOrbit(session.id);
-    // `recording` is set by the first move that changed the camera, and that
+    // The token is taken by the first move that changed the camera, and that
     // same move publishes the frame — so neither is ever set without the other,
     // and a press and release that never turned anything writes nothing at all.
-    if (session.recording && live) {
+    if (session.token && live) {
       // Synchronous up to its `set`, so the store carries the drag's final
       // camera before the history entry is recorded against the pre-drag one.
       void setOristudioCpFolded3dCamera(session.id, live.camera);
-      commitFoldedFigureGesture(t('panels:creasePattern.orbitFoldedForm', 'Turn folded form'));
+      void foldedFigureGesture.commit(
+        session.token,
+        t('panels:creasePattern.orbitFoldedForm', 'Turn folded form')
+      );
       // Once per drag, and only for a drag that turned something. No properties:
       // the only numbers here are yaw and pitch, and an angle is a measured
       // value about someone's design, which the privacy contract keeps out of
@@ -539,7 +555,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     // drawing at: the canvas sees one change rather than a frame at the pre-drag
     // camera followed by a frame at the new one.
     clearFolded3dOrbit(session.id);
-  }, [commitFoldedFigureGesture, setOristudioCpFolded3dCamera, t]);
+  }, [setOristudioCpFolded3dCamera, t]);
 
   /**
    * A drag that never got its release — the surface unmounted mid-gesture. The
@@ -550,7 +566,15 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     () => () => {
       const session = orbitDragRef.current;
       orbitDragRef.current = null;
-      if (session) clearFolded3dOrbit(session.id);
+      if (session) {
+        clearFolded3dOrbit(session.id);
+        // The bracket is module-level and would otherwise outlive the surface
+        // that opened it, refusing every later gesture on the layer.
+        if (session.token) foldedFigureGesture.abort(session.token);
+      }
+      const canvasToken = gestureTokenRef.current;
+      gestureTokenRef.current = null;
+      if (canvasToken) foldedFigureGesture.abort(canvasToken);
     },
     []
   );
@@ -563,7 +587,9 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
    * event would produce a new figures array sixty times a second, and it would
    * leave the user an undo entry per notch to press back through.
    */
-  const zoomBurstRef = useRef<{ id: string; timer: number } | null>(null);
+  const zoomBurstRef = useRef<{ id: string; timer: number; token: GestureToken | null } | null>(
+    null
+  );
 
   /**
    * The store write that ends a zoom burst: one entry, one event, live frame
@@ -580,7 +606,12 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       const live = getFolded3dOrbit(burst.id);
       if (live) {
         void setOristudioCpFolded3dCamera(burst.id, live.camera);
-        commitFoldedFigureGesture(t('panels:creasePattern.zoomFoldedForm', 'Zoom folded form'));
+        if (burst.token) {
+          void foldedFigureGesture.commit(
+            burst.token,
+            t('panels:creasePattern.zoomFoldedForm', 'Zoom folded form')
+          );
+        }
         // Once per burst. No properties: a zoom factor is a measured value about
         // someone's design, which the privacy contract keeps out of analytics.
         track(ANALYTICS_EVENTS.foldedFigureZoomed);
@@ -628,23 +659,28 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       const zoom = clampSimulatorZoom(before.zoom * simulatorWheelZoomFactor(deltaY));
       if (zoom === before.zoom) return;
       const burst = zoomBurstRef.current;
+      let token: GestureToken | null;
       if (burst?.id !== id) {
         // A wheel that lands on a different figure ends the previous burst
         // properly rather than abandoning its live frame.
         if (burst) commitZoomRef.current();
-        beginFoldedFigureGesture();
+        token = foldedFigureGesture.begin('zoom');
+        // Refused: nothing could record the zoom, so the wheel does nothing.
+        if (!token) return;
       } else {
         window.clearTimeout(burst.timer);
+        token = burst.token;
       }
       zoomBurstRef.current = {
         id,
         timer: window.setTimeout(() => commitZoomRef.current(), FOLDED_3D_ZOOM_SETTLE_MS),
+        token,
       };
       // No snapshot: only a windowed figure can be zoomed, and a window draws
       // from the camera alone.
       publishFolded3dOrbit(id, { camera: { ...before, zoom }, snapshot: null });
     },
-    [beginFoldedFigureGesture, figureById, oristudioCpFocusedFoldedFigureId]
+    [figureById, oristudioCpFocusedFoldedFigureId]
   );
 
   /** A burst that never went quiet, because the surface went away. */
@@ -717,14 +753,6 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     t,
   ]);
 
-  /**
-   * Write part of a figure's model. The colour pickers fire a change per
-   * pointer move, so a single drag would otherwise push dozens of undo entries.
-   * `gesture.scope` marks the run of changes belonging to one drag: the first
-   * change snapshots, and the matching {@link endFoldedModelGesture} (blur, or
-   * the menu unmounting) records exactly one entry. Discrete controls pass no
-   * gesture and record immediately.
-   */
   const trackStyled = useCallback(
     (figure: OristudioCpFoldedFigureEntry, options: readonly FoldedFigureStyleOption[]) => {
       for (const option of options) {
@@ -737,11 +765,20 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     []
   );
 
+  /**
+   * Write part of a figure's model from the Style menu. Without a gesture the
+   * change is one entry through the layer's verb. With one, the first change
+   * opens the bracket under `gesture.scope` and every change streams through
+   * the kernel write queue — at most one round trip in flight per figure, the
+   * rest coalesced — until {@link endFoldedModelGesture} commits, which drains
+   * the queue and records once. A run refused because another owner holds the
+   * layer (a pane slider, a canvas drag) writes nothing.
+   */
   const updateFoldedModel = useCallback(
     (
       figure: OristudioCpFoldedFigureEntry,
       update: Partial<OristudioCpFoldedFigureModel>,
-      gesture?: { scope: string; label: string }
+      gesture?: FoldedModelGesture
     ) => {
       if (!gesture) {
         trackStyled(figure, foldedFigureStyleOptions(update));
@@ -751,31 +788,31 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
         );
         return;
       }
-      if (!modelGestures.isOpen(gesture.scope)) {
-        // Begin first: it closes any other open run, then snapshots. One event
+      const open = menuGestureRef.current;
+      if (
+        !open ||
+        open.gesture.scope !== gesture.scope ||
+        !foldedFigureGesture.isOpen(open.token)
+      ) {
+        // Another run still open closes first, as its own entry. One event
         // per run, here, rather than one per pointer move.
-        beginFoldedFigureGesture();
-        modelGestures.open(gesture);
+        endOpenMenuGesture();
+        const token = foldedFigureGesture.begin(gesture.scope);
+        if (!token) return;
+        menuGestureRef.current = { gesture, token };
         trackStyled(figure, foldedFigureStyleOptions(update));
       }
-      void updateOristudioCpFoldedFigureModel(figure.id, update);
+      queueFoldedModelWrite(figure.id, update);
     },
-    [
-      updateOristudioCpFoldedFigureModel,
-      runFoldedFigureAction,
-      beginFoldedFigureGesture,
-      modelGestures,
-      trackStyled,
-      t,
-    ]
+    [endOpenMenuGesture, runFoldedFigureAction, updateOristudioCpFoldedFigureModel, trackStyled, t]
   );
 
   const endFoldedModelGesture = useCallback(
     (scope: string) => {
-      const closed = modelGestures.close(scope);
-      if (closed) commitFoldedFigureGesture(closed.label);
+      if (menuGestureRef.current?.gesture.scope !== scope) return;
+      endOpenMenuGesture();
     },
-    [commitFoldedFigureGesture, modelGestures]
+    [endOpenMenuGesture]
   );
 
   const handleDuplicateFoldedFigure = useCallback(() => {
@@ -792,12 +829,9 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     (figureId?: string) => {
       const id = figureId ?? activeFoldedFigure?.id;
       if (!id) return;
-      runFoldedFigureAction(
-        t('panels:creasePattern.deleteFoldedModelAction', 'Delete folded model'),
-        () => deleteOristudioCpFoldedFigure(id)
-      );
+      void deleteFoldedFigure(id, t);
     },
-    [activeFoldedFigure, deleteOristudioCpFoldedFigure, runFoldedFigureAction, t]
+    [activeFoldedFigure, t]
   );
 
   /**
@@ -854,10 +888,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
             ),
       setDisplayStyle: (figure, style) => {
         trackStyled(figure, ['display_style']);
-        runFoldedFigureAction(
-          t('panels:creasePattern.changeFoldedDisplayStyle', 'Change folded display style'),
-          () => setOristudioCpFoldedFigureDisplayStyle(figure.id, style)
-        );
+        void setFoldedFigureDisplayStyle(figure.id, style, t);
       },
       updateModel: updateFoldedModel,
       endModelGesture: endFoldedModelGesture,
@@ -871,11 +902,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
           t('panels:creasePattern.duplicateFoldedModelAction', 'Duplicate folded model'),
           () => duplicateOristudioCpFoldedFigure(figure.id)
         ),
-      remove: (figure) =>
-        runFoldedFigureAction(
-          t('panels:creasePattern.deleteFoldedModelAction', 'Delete folded model'),
-          () => deleteOristudioCpFoldedFigure(figure.id)
-        ),
+      remove: (figure) => void deleteFoldedFigure(figure.id, t),
       refold: (figure) =>
         runFoldedFigureAction(
           t('panels:creasePattern.refoldFoldedModelAction', 'Refold folded model'),
@@ -936,11 +963,9 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       updateFoldedModel,
       endFoldedModelGesture,
       trackStyled,
-      setOristudioCpFoldedFigureDisplayStyle,
       setOristudioCpFolded3dCamera,
       foldAnotherOristudioCpFigure,
       duplicateOristudioCpFoldedFigure,
-      deleteOristudioCpFoldedFigure,
       refoldOristudioCpFoldedFigure,
       exportOristudioCpFoldedFigure,
       runFoldedFigureAction,
@@ -953,7 +978,60 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     ]
   );
 
+  /**
+   * The folded-figure layer as one {@link CanvasLayerBinding}. A press selects
+   * *and* focuses (there is no second-press rule — adding one made turning the
+   * model take two clicks); the press that focuses is still the press that
+   * moves, because the body only goes inert for the next press. `focus` is a
+   * no-op on a flat figure, so the selection is set either way.
+   */
+  const binding = useMemo<CanvasLayerBinding>(
+    () => ({
+      kinds: ['folded-figure'],
+      transformables: foldedFigureObjects,
+      // Figures are framed through the canvas's `foldedFigures` prop, which draws them.
+      overlayBoxes: [],
+      inertBodyIds: foldedInertBodyIds,
+      select: (id) => {
+        setOristudioCpActiveFoldedFigure(id);
+        focusOristudioCpFoldedFigure(id);
+      },
+      release: () => setOristudioCpActiveFoldedFigure(null),
+      applyBoxUpdate: handleFoldedFigureBoxUpdate,
+      beginGesture: () => beginFoldedFigureGesture(),
+      commitGesture: (_id, kind) => commitFoldedFigureGesture(foldedGestureLabel(kind)),
+      cancelGesture: () => cancelFoldedFigureGesture(),
+      remove: handleDeleteFoldedFigure,
+      contextMenu: (id, deps) => {
+        const figure = oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
+        if (!figure) return null;
+        // Act on the *clicked* figure, not the active one, so the menu is
+        // correct even before the selection this sets has settled.
+        setOristudioCpActiveFoldedFigure(id);
+        return {
+          targetKind: 'folded-figure',
+          build: () => foldedFigureMenuItemsWith(figure, foldedFigureActionDeps, deps.t),
+        };
+      },
+    }),
+    [
+      foldedFigureObjects,
+      foldedInertBodyIds,
+      setOristudioCpActiveFoldedFigure,
+      focusOristudioCpFoldedFigure,
+      handleFoldedFigureBoxUpdate,
+      beginFoldedFigureGesture,
+      commitFoldedFigureGesture,
+      cancelFoldedFigureGesture,
+      foldedGestureLabel,
+      handleDeleteFoldedFigure,
+      oristudioCpFoldedFigures,
+      foldedFigureActionDeps,
+    ]
+  );
+
   return {
+    binding,
     figures: oristudioCpFoldedFigures,
     generated: generatedFoldedFigures,
     active: activeFoldedFigure,
@@ -980,6 +1058,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     canFoldSelectedModel,
     beginGesture: beginFoldedFigureGesture,
     commitGesture: commitFoldedFigureGesture,
+    cancelGesture: cancelFoldedFigureGesture,
     gestureLabel: foldedGestureLabel,
     applyBoxUpdate: handleFoldedFigureBoxUpdate,
     foldModel: handleFoldModel,

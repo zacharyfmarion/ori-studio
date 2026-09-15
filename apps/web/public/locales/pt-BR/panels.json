@@ -227,12 +227,48 @@
       "refinement": "Refinando até a precisão de dobra"
     }
   },
+  "cpProperties": {
+    "empty": "Selecione um objeto na tela para editar suas propriedades.",
+    "folded": {
+      "appearance": "Aparência",
+      "camera": "Câmera",
+      "changeView": "Alterar a vista do modelo dobrado",
+      "pitch": "Inclinação",
+      "placement": "Posição",
+      "refoldToChange": "Dobre novamente para alterar a aparência deste modelo",
+      "rotation": "Rotação",
+      "scale": "Escala",
+      "yaw": "Giro",
+      "zoom": "Zoom"
+    },
+    "image": {
+      "rotation": "Rotação",
+      "title": "Imagem"
+    },
+    "inlineSimulation": {
+      "settings": "Configurações do simulador",
+      "sharedNote": "Compartilhadas com o espaço de trabalho Simular e todas as janelas",
+      "title": "Janela de simulação"
+    },
+    "region": {
+      "hidden": "Oculta",
+      "imageShown": "Visível",
+      "section": "Região",
+      "title": "Região de supressão"
+    },
+    "text": {
+      "changeSize": "Alterar tamanho do texto",
+      "size": "Tamanho",
+      "title": "Texto"
+    }
+  },
   "cpRegion": {
     "accept": "Aceitar",
     "acceptAnyway": "Aceitar mesmo assim",
     "acceptHistory": "Aceitar a resolução exata",
     "acceptPartialHistory": "Aceitar a resolução exata parcial",
     "addRegion": "Adicionar região de supressão",
+    "bringToFront": "Trazer região para a frente",
     "changeChecks": "Alterar verificações suprimidas",
     "checksMenu": "Verificações suprimidas",
     "completion": {
@@ -287,6 +323,7 @@
       "noPattern": "Não há vincos dentro desta região, então não há nada a resolver. Mova a região sobre o padrão detectado e tente de novo."
     },
     "repairTools": "Ferramentas de reparo",
+    "sendToBack": "Enviar região para trás",
     "solve": "Resolver",
     "solveError": "Não foi possível executar a resolução — {{message}}",
     "solveErrorUnknown": "Não foi possível executar a resolução.",
@@ -335,10 +372,14 @@
     "angleBisectorSelectSegmentToEnd": "Bissetriz: selecione o segmento até o fim",
     "anotherSolutionAction": "Mostrar outra solução",
     "bringImageToFront": "Trazer imagem para a frente",
+    "bringTextToFront": "Trazer texto para a frente",
     "buildingCreasePattern": "Gerando padrão de vincos",
     "canvasDiagnostics_one": "Diagnósticos da tela: {{count}}",
     "canvasDiagnostics_many": "Diagnósticos da tela: {{count}}",
     "canvasDiagnostics_other": "Diagnósticos da tela: {{count}}",
+    "case_one": "Caso {{count}}",
+    "case_many": "Caso {{count}}",
+    "case_other": "Caso {{count}}",
     "changeFoldedColor": "Alterar cor do modelo dobrado",
     "changeFoldedDisplayStyle": "Alterar estilo de exibição dobrada",
     "changeFoldedModel": "Alterar modelo dobrado",
@@ -452,6 +493,10 @@
       "windowAriaLabel": "Modelo dobrado, em três dimensões",
       "windowFailed": "Não foi possível desenhar este modelo"
     },
+    "foldedModelStatus": {
+      "error": "Falhou",
+      "loading": "Dobrando…"
+    },
     "foldedState": {
       "back": "Verso",
       "front": "Frente"
@@ -496,6 +541,7 @@
     "optimizingScale": "Otimizando escala",
     "orbitFoldedForm": "Girar a figura dobrada",
     "preparing": "Preparando o editor…",
+    "propertiesEllipsis": "Propriedades…",
     "refoldFoldedModelAction": "Dobrar o modelo novamente",
     "rendererContextLost": "Restaurando a tela do padrão de vincos…",
     "rendererContextLostHint": "O sistema retomou a memória gráfica desta tela, o que pode acontecer quando o dispositivo fica com pouca. Seu padrão de vincos está seguro — a visualização volta assim que o contexto gráfico voltar. Se ele não voltar, recarregue o Ori Studio.",
@@ -527,9 +573,11 @@
       "simulateInline": "Simular incorporado"
     },
     "sendImageToBack": "Enviar imagem para trás",
+    "sendTextToBack": "Enviar texto para trás",
     "setFoldedModelUpright": "Definir a vertical do modelo dobrado",
     "shadow": "Sombra",
     "shadowUnsupported3d": "As sombras ainda não são desenhadas para um modelo dobrado em 3D",
+    "stale": "Desatualizado",
     "viewFoldedModelOtherSide": "Ver pelo outro lado",
     "viewportControls": "Controles da viewport do padrão de vincos",
     "zoomFoldedForm": "Ampliar forma dobrada"
@@ -814,6 +862,10 @@
     "y": "Y",
     "yes": "Sim"
   },
+  "sidePane": {
+    "properties": "Propriedades",
+    "view": "Exibir"
+  },
   "simulator": {
     "backendCpu": "CPU",
     "backendCpuTitle": "Resolvendo na CPU (WebGL2 indisponível)",
@@ -917,13 +969,18 @@
     "addText": "Adicionar texto",
     "alignCenter": "Centralizar",
     "alignLeft": "Alinhar à esquerda",
-    "alignment": "Alinhamento",
     "alignRight": "Alinhar à direita",
     "blockBody": "Corpo",
     "blockHeading": "Título",
     "blockSubheading": "Subtítulo",
     "bold": "Negrito",
     "color": "Cor do texto",
+    "colorBlue": "Azul",
+    "colorDefault": "Padrão",
+    "colorGreen": "Verde",
+    "colorOrange": "Laranja",
+    "colorPurple": "Roxo",
+    "colorRed": "Vermelho",
     "deleteText": "Excluir texto",
     "editText": "Editar texto",
     "italic": "Itálico",

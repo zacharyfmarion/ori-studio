@@ -5,11 +5,13 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import type { CanvasObjectBoxUpdate } from '../CanvasObjectOverlay';
 import { inlineSimulationAsTransformable, isInlineSimulationStale } from './inlineSimulation';
-import type { InlineSimulation } from './inlineSimulation';
 import { exportInlineSimulation, requestInlineSimulationFold } from './inlineSimulationRuntime';
 import type { SimulatorViewExportFormat } from '../../simulator/simulatorViewExport';
 import { simulatorView } from '../../simulator/simulatorViewRegistry';
 import { announceUprightSet } from '../../lib/uprightFeedback';
+import type { GestureToken } from '../canvasObjects/gestureBracket';
+import type { CanvasLayerBinding } from '../canvasObjects/canvasLayerBindings';
+import { inlineSimulationGesture } from './inlineSimulationGesture';
 
 export interface UseInlineSimulationsOptions {
   /** The live CP document, for the staleness check. */
@@ -46,10 +48,6 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
   const refreshSimulation = useWorkspaceStore(
     (state) => state.refreshOristudioCpInlineSimulation
   );
-  const recordHistory = useWorkspaceStore(
-    (state) => state.recordInlineSimulationHistory
-  );
-
   const transformableObjects = useMemo(
     () => simulations.map(inlineSimulationAsTransformable),
     [simulations]
@@ -101,24 +99,34 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
   );
 
   /**
-   * The gesture protocol the other two canvas-object kinds already use: snapshot
-   * the list on press, record one entry on release. `applyBoxUpdate` runs on
-   * every pointermove, so the checkpoint cannot live there.
+   * The gesture protocol the other two canvas-object kinds use: open the
+   * layer's bracket on the first move, record one entry on release.
+   * `applyBoxUpdate` runs on every pointermove, so the checkpoint cannot live
+   * there. The bracket is module-level (`inlineSimulationGesture`) so a
+   * Properties pane shares it; `beginGesture` answers false when refused.
    */
-  const preGestureRef = useRef<readonly InlineSimulation[] | null>(null);
+  const gestureTokenRef = useRef<GestureToken | null>(null);
 
   const beginGesture = useCallback(() => {
-    preGestureRef.current = useWorkspaceStore.getState().oristudioCpInlineSimulations;
+    const token = inlineSimulationGesture.begin('canvas');
+    gestureTokenRef.current = token;
+    return token !== null;
   }, []);
 
-  const commitGesture = useCallback(
-    (label: string) => {
-      const previous = preGestureRef.current;
-      preGestureRef.current = null;
-      if (previous) recordHistory([...previous], label);
-    },
-    [recordHistory]
-  );
+  const commitGesture = useCallback((label: string) => {
+    const token = gestureTokenRef.current;
+    gestureTokenRef.current = null;
+    if (token) void inlineSimulationGesture.commit(token, label);
+  }, []);
+
+  const cancelGesture = useCallback(() => {
+    const token = gestureTokenRef.current;
+    gestureTokenRef.current = null;
+    if (token) inlineSimulationGesture.abort(token);
+  }, []);
+  // A drag whose surface unmounted mid-gesture must not hold the module-level
+  // bracket against every later window gesture.
+  useEffect(() => cancelGesture, [cancelGesture]);
 
   const gestureLabel = useCallback(
     (kind: 'move' | 'resize' | 'rotate' | 'crop') => {
@@ -243,7 +251,46 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
     [refreshSimulation, t]
   );
 
+  /**
+   * The window layer as one {@link CanvasLayerBinding}. A window's focus *is*
+   * its selection — one can be focused, and the focused one is exactly the one
+   * whose handles are live. No context menu: its verbs live on its inspector,
+   * which the window already carries.
+   */
+  const binding = useMemo<CanvasLayerBinding>(
+    () => ({
+      kinds: ['inline-simulation'],
+      transformables: transformableObjects,
+      // Never hidden — there is no affordance for it — but the framing contract
+      // is "skip what is not drawn", so say so.
+      overlayBoxes: simulations.map((simulation) => ({ ...simulation.box, hidden: false })),
+      inertBodyIds,
+      select: focus,
+      release: blur,
+      applyBoxUpdate,
+      beginGesture: () => beginGesture(),
+      commitGesture: (_id, kind) => commitGesture(gestureLabel(kind)),
+      cancelGesture: () => cancelGesture(),
+      remove: removeSimulation,
+      contextMenu: () => null,
+    }),
+    [
+      transformableObjects,
+      simulations,
+      inertBodyIds,
+      focus,
+      blur,
+      applyBoxUpdate,
+      beginGesture,
+      commitGesture,
+      cancelGesture,
+      gestureLabel,
+      removeSimulation,
+    ]
+  );
+
   return {
+    binding,
     simulations,
     transformableObjects,
     focusedId,
@@ -255,6 +302,7 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
     inertBodyIds,
     beginGesture,
     commitGesture,
+    cancelGesture,
     gestureLabel,
     playing,
     setPlaying,

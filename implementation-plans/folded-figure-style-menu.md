@@ -186,7 +186,11 @@ export interface FoldedFigureGroup {
   `isOpen`, `close`, `closeAny`), and `runFoldedFigureAction` /
   `beginFoldedFigureGesture` close any open scope before starting — De-risking
   §2. `commit` with no open scope is a no-op; a second commit for one drag
-  records nothing.
+  records nothing. *(Superseded when the Properties pane branch merged main,
+  2026-09-15: the scope is now an owner on the folded layer's shared undo
+  bracket, `folded/foldedFigureGesture.ts`, which has the same open / same-owner
+  re-entry / close-once rules and refuses a second owner outright; the ledger
+  module is gone. See `canvas-object-properties-panel.md`, "Merge of main".)*
 
 Tests (`foldedFigureActions.test.ts`): the group sits where the display-style
 choice sat; its items are in the order above with separators between the

@@ -227,12 +227,48 @@
       "refinement": "Refinando a la precisión de plegado"
     }
   },
+  "cpProperties": {
+    "empty": "Selecciona un objeto en el lienzo para editar sus propiedades.",
+    "folded": {
+      "appearance": "Apariencia",
+      "camera": "Cámara",
+      "changeView": "Cambiar la vista del modelo plegado",
+      "pitch": "Inclinación",
+      "placement": "Posición",
+      "refoldToChange": "Vuelve a plegar para cambiar el aspecto de este modelo",
+      "rotation": "Rotación",
+      "scale": "Escala",
+      "yaw": "Giro",
+      "zoom": "Zoom"
+    },
+    "image": {
+      "rotation": "Rotación",
+      "title": "Imagen"
+    },
+    "inlineSimulation": {
+      "settings": "Ajustes del simulador",
+      "sharedNote": "Compartidos con el espacio de trabajo Simular y con todas las ventanas",
+      "title": "Ventana de simulación"
+    },
+    "region": {
+      "hidden": "Oculta",
+      "imageShown": "Visible",
+      "section": "Región",
+      "title": "Región de supresión"
+    },
+    "text": {
+      "changeSize": "Cambiar el tamaño del texto",
+      "size": "Tamaño",
+      "title": "Texto"
+    }
+  },
   "cpRegion": {
     "accept": "Aceptar",
     "acceptAnyway": "Aceptar de todos modos",
     "acceptHistory": "Aceptar la resolución exacta",
     "acceptPartialHistory": "Aceptar la resolución exacta parcial",
     "addRegion": "Añadir región de supresión",
+    "bringToFront": "Traer región al frente",
     "changeChecks": "Cambiar comprobaciones suprimidas",
     "checksMenu": "Comprobaciones suprimidas",
     "completion": {
@@ -287,6 +323,7 @@
       "noPattern": "No hay pliegues dentro de esta región, así que no hay nada que resolver. Mueve la región sobre el patrón detectado e inténtalo de nuevo."
     },
     "repairTools": "Herramientas de reparación",
+    "sendToBack": "Enviar región al fondo",
     "solve": "Resolver",
     "solveError": "No se pudo ejecutar la resolución — {{message}}",
     "solveErrorUnknown": "No se pudo ejecutar la resolución.",
@@ -335,10 +372,14 @@
     "angleBisectorSelectSegmentToEnd": "Bisectriz de ángulo: seleccione el segmento para terminar",
     "anotherSolutionAction": "Mostrar otra solución",
     "bringImageToFront": "Traer imagen al frente",
+    "bringTextToFront": "Traer texto al frente",
     "buildingCreasePattern": "Generando patrón de pliegues",
     "canvasDiagnostics_one": "Diagnósticos del lienzo: {{count}}",
     "canvasDiagnostics_many": "Diagnósticos del lienzo: {{count}}",
     "canvasDiagnostics_other": "Diagnósticos del lienzo: {{count}}",
+    "case_one": "Caso {{count}}",
+    "case_many": "Caso {{count}}",
+    "case_other": "Caso {{count}}",
     "changeFoldedColor": "Cambiar color del modelo plegado",
     "changeFoldedDisplayStyle": "Cambiar estilo de visualización plegada",
     "changeFoldedModel": "Cambiar modelo plegado",
@@ -452,6 +493,10 @@
       "windowAriaLabel": "Modelo plegado, en tres dimensiones",
       "windowFailed": "No se pudo dibujar este modelo"
     },
+    "foldedModelStatus": {
+      "error": "Ha fallado",
+      "loading": "Plegando…"
+    },
     "foldedState": {
       "back": "Reverso",
       "front": "Anverso"
@@ -496,6 +541,7 @@
     "optimizingScale": "Optimizando escala",
     "orbitFoldedForm": "Girar la figura plegada",
     "preparing": "Preparando el editor…",
+    "propertiesEllipsis": "Propiedades…",
     "refoldFoldedModelAction": "Volver a plegar el modelo",
     "rendererContextLost": "Restaurando el lienzo del patrón de pliegues…",
     "rendererContextLostHint": "El sistema recuperó la memoria gráfica de este lienzo, algo que puede ocurrir cuando al dispositivo le queda poca. Tu patrón de pliegues está a salvo: la vista volverá en cuanto lo haga el contexto gráfico. Si no vuelve, recarga Ori Studio.",
@@ -527,9 +573,11 @@
       "simulateInline": "Simular incrustado"
     },
     "sendImageToBack": "Enviar imagen al fondo",
+    "sendTextToBack": "Enviar texto al fondo",
     "setFoldedModelUpright": "Definir la vertical del modelo plegado",
     "shadow": "Sombra",
     "shadowUnsupported3d": "Todavía no se dibujan sombras para un modelo plegado en 3D",
+    "stale": "Obsoleto",
     "viewFoldedModelOtherSide": "Ver desde el otro lado",
     "viewportControls": "Controles de la vista del patrón de pliegues",
     "zoomFoldedForm": "Ampliar forma plegada"
@@ -814,6 +862,10 @@
     "y": "Y",
     "yes": "Sí"
   },
+  "sidePane": {
+    "properties": "Propiedades",
+    "view": "Ver"
+  },
   "simulator": {
     "backendCpu": "CPU",
     "backendCpuTitle": "Resolviendo en la CPU (WebGL2 no disponible)",
@@ -917,13 +969,18 @@
     "addText": "Añadir texto",
     "alignCenter": "Centrar",
     "alignLeft": "Alinear a la izquierda",
-    "alignment": "Alineación",
     "alignRight": "Alinear a la derecha",
     "blockBody": "Cuerpo",
     "blockHeading": "Encabezado",
     "blockSubheading": "Subencabezado",
     "bold": "Negrita",
     "color": "Color de texto",
+    "colorBlue": "Azul",
+    "colorDefault": "Predeterminado",
+    "colorGreen": "Verde",
+    "colorOrange": "Naranja",
+    "colorPurple": "Morado",
+    "colorRed": "Rojo",
     "deleteText": "Eliminar texto",
     "editText": "Editar texto",
     "italic": "Cursiva",

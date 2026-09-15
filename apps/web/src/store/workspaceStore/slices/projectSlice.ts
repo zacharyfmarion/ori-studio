@@ -96,6 +96,7 @@ import {
   DEFAULT_ORISTUDIO_CP_LINE_STYLE,
   DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
   DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+  cpSelectionSize,
   emptyOristudioCpSelection,
   isValidOrieditaGridScale,
   normalizeOrieditaGridSize,
@@ -1150,6 +1151,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     // Here rather than at each call site: it is inseparable from installing
     // `oristudioCpInlineSimulations` below, and this is the only place that does.
     noteInlineSimulationIds(nativeDocument.creasePattern.inlineSimulations);
+    const restoredSelection = nativeDocument.viewState.selection ?? emptyOristudioCpSelection();
     return {
     // Overridden field-by-field below; spread for the fold side table,
     // which hydration only refills for the incoming windows.
@@ -1176,11 +1178,17 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     cpLoadFailure: null,
     oristudioCpHistoryPast: [],
     oristudioCpHistoryFuture: [],
-    oristudioCpSelection: nativeDocument.viewState.selection ?? emptyOristudioCpSelection(),
+    oristudioCpSelection: restoredSelection,
     oristudioCpActiveDiagnosticId: null,
     oristudioCpRevision: 0,
     oristudioCpFoldedFigures: nativeDocument.viewState.foldedFigures ?? [],
-    oristudioCpActiveFoldedFigureId: nativeDocument.viewState.activeFoldedFigureId ?? null,
+    // One holder at the boundary, as `takeCanvasSelection` keeps it everywhere
+    // else: a file that carries both a crease selection and an active figure
+    // (hand-edited, or written before the rule) opens with the creases.
+    oristudioCpActiveFoldedFigureId:
+      cpSelectionSize(restoredSelection) > 0
+        ? null
+        : (nativeDocument.viewState.activeFoldedFigureId ?? null),
     creaseColorMode: nativeDocument.viewState.creaseColorMode ?? DEFAULT_CREASE_COLOR_MODE,
     oristudioCpViewport: {
       ...DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,

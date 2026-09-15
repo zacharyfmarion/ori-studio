@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState, type DragEvent as ReactDragEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type DragEvent as ReactDragEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SerializedEditorState } from 'lexical';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -22,10 +22,30 @@ import type { AnnotationResizeHandle } from './annotationTransform';
 import {
   annotationAtModelPoint,
   isImageAnnotation,
+  isSuppressionRegionAnnotation,
   isTextAnnotation,
   topAnnotationZ,
 } from './annotation';
-import type { CanvasAnnotation, ImageAnnotation } from './annotation';
+import type { ImageAnnotation } from './annotation';
+import type { CanvasLayerBinding } from '../canvasObjects/canvasLayerBindings';
+import { cpAnnotationMenuItems } from '../contextMenu/cpContextMenuItems';
+import { cpRegionMenuItems } from '../regions/regionMenuItems';
+import { useCpRegionActions } from '../regions/useCpRegions';
+import { annotationGesture } from './annotationGesture';
+import {
+  bringAnnotationToFront as bringAnnotationToFrontVerb,
+  deleteAnnotation as deleteAnnotationVerb,
+  sendAnnotationToBack as sendAnnotationToBackVerb,
+} from './annotationVerbs';
+import type { GestureToken } from '../canvasObjects/gestureBracket';
+import {
+  beginTextEditSession,
+  endTextEditSession,
+  takeSuppressNextTextCreate,
+  textEditSession,
+  useTextEditSession,
+  type TextEditExitReason,
+} from './textEditSession';
 import {
   createTextAnnotation,
   textBoxFromDragCorners,
@@ -35,8 +55,9 @@ import {
 } from './textAnnotation';
 
 
-/** Reason inline text editing ended: a click outside, or the keyboard. */
-export type TextEditExitReason = 'blur' | 'escape';
+// The session's exit reasons are the session module's; re-exported for the
+// callers that name the type through this hook.
+export type { TextEditExitReason } from './textEditSession';
 
 export interface UseCpAnnotationsOptions {
   /** Live model↔CSS transform, for placing dropped images and new text boxes. */
@@ -52,10 +73,10 @@ export interface UseCpAnnotationsOptions {
  * lifecycle.
  *
  * It lives here rather than in the panel because all of it shares one
- * invariant — `preGestureAnnotationsRef` holds the pre-gesture snapshot, and
- * every mutation must be bracketed by begin/commit so a whole drag or edit
- * lands as a single undo entry. That invariant is only checkable if the code
- * that depends on it is in one place.
+ * invariant — every mutation is bracketed by begin/commit on the layer's
+ * bracket (`annotationGesture`) so a whole drag or edit lands as a single undo
+ * entry. The bracket is module-level, so the Properties pane in another dock
+ * panel edits through the same one and cannot clobber a drag's baseline.
  */
 /**
  * Where a picked or dropped image should land, in **client** coordinates.
@@ -80,7 +101,6 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
   );
   const addAnnotation = useWorkspaceStore((state) => state.addAnnotation);
   const updateAnnotation = useWorkspaceStore((state) => state.updateAnnotation);
-  const removeAnnotation = useWorkspaceStore((state) => state.removeAnnotation);
   const setSelectedAnnotation = useWorkspaceStore(
     (state) => state.setSelectedAnnotation
   );
@@ -90,10 +110,11 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
   );
 
   /**
-   * Annotation list captured at the start of a move/resize/rotate/crop/edit, so
-   * the whole gesture records a single undo entry when it commits.
+   * The bracket token for the canvas gesture in flight (a drag on the overlay,
+   * a floating-toolbar slider), so the whole gesture records a single undo
+   * entry when it commits. The snapshot itself lives in `annotationGesture`.
    */
-  const preGestureAnnotationsRef = useRef<readonly CanvasAnnotation[] | null>(null);
+  const gestureTokenRef = useRef<GestureToken | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement | null>(null);
   /**
    * Where the next picked image should land, in client coordinates.
@@ -108,17 +129,27 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
    */
   const pendingImagePointRef = useRef<CpImagePlacement | null>(null);
 
+  /**
+   * Open the canvas gesture. False when another owner holds the layer — an
+   * open text session, a Properties-pane slider mid-drag — in which case the
+   * caller must not start its drag: writes it made would land un-undoable.
+   */
   const beginGesture = useCallback(() => {
-    preGestureAnnotationsRef.current = useWorkspaceStore.getState().oristudioCpAnnotations;
+    const token = annotationGesture.begin('canvas');
+    gestureTokenRef.current = token;
+    return token !== null;
   }, []);
-  const commitGesture = useCallback(
-    (label: string) => {
-      const previous = preGestureAnnotationsRef.current;
-      preGestureAnnotationsRef.current = null;
-      if (previous) recordAnnotationHistory([...previous], label);
-    },
-    [recordAnnotationHistory]
-  );
+  const commitGesture = useCallback((label: string) => {
+    const token = gestureTokenRef.current;
+    gestureTokenRef.current = null;
+    if (token) void annotationGesture.commit(token, label);
+  }, []);
+  /** A drag that was cancelled: drop the snapshot without recording. */
+  const cancelGesture = useCallback(() => {
+    const token = gestureTokenRef.current;
+    gestureTokenRef.current = null;
+    if (token) annotationGesture.abort(token);
+  }, []);
 
   const selectedAnnotation = useMemo(
     () => annotations.find((a) => a.id === selectedAnnotationId) ?? null,
@@ -354,36 +385,16 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
   // `selectedAnnotationId`, which is React state and still holds the *previous*
   // selection for the rest of the tick. Taking the id is what makes "act on what
   // was clicked" expressible at all.
+  // The verbs themselves live in `annotationVerbs.ts`, over the same bracket,
+  // so the context menu and the Properties pane call the very same functions.
   const bringAnnotationToFront = useCallback(
-    (id: string) => {
-      const images = useWorkspaceStore.getState().oristudioCpAnnotations;
-      const maxZ = images.reduce((max, image) => Math.max(max, image.z), 0);
-      beginGesture();
-      updateAnnotation(id, { z: maxZ + 1 });
-      commitGesture(t('panels:creasePattern.bringImageToFront', 'Bring image to front'));
-    },
-    [updateAnnotation, beginGesture, commitGesture, t]
+    (id: string) => bringAnnotationToFrontVerb(id, t),
+    [t]
   );
 
-  const sendAnnotationToBack = useCallback(
-    (id: string) => {
-      const images = useWorkspaceStore.getState().oristudioCpAnnotations;
-      const minZ = images.reduce((min, image) => Math.min(min, image.z), 0);
-      beginGesture();
-      updateAnnotation(id, { z: minZ - 1 });
-      commitGesture(t('panels:creasePattern.sendImageToBack', 'Send image to back'));
-    },
-    [updateAnnotation, beginGesture, commitGesture, t]
-  );
+  const sendAnnotationToBack = useCallback((id: string) => sendAnnotationToBackVerb(id, t), [t]);
 
-  const deleteAnnotationById = useCallback(
-    (id: string) => {
-      beginGesture();
-      removeAnnotation(id);
-      commitGesture(t('panels:creasePattern.deleteImage', 'Delete image'));
-    },
-    [removeAnnotation, beginGesture, commitGesture, t]
-  );
+  const deleteAnnotationById = useCallback((id: string) => deleteAnnotationVerb(id, t), [t]);
 
   const bringSelectedImageToFront = useCallback(() => {
     if (selectedAnnotationId) bringAnnotationToFront(selectedAnnotationId);
@@ -399,24 +410,17 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
 
   // --- Inline text editing ---
 
-  const [editingTextId, setEditingTextId] = useState<string | null>(null);
-  /** The box under edit and whether this edit created it, for the undo label. */
-  const editStartRef = useRef<{ id: string; created: boolean } | null>(null);
-  /**
-   * A click outside an editor both commits it and, if the Text tool is active,
-   * would land on the canvas as a "create a box here". Set on a blur exit so
-   * that same click only deselects.
-   */
-  const suppressNextTextCreateRef = useRef(false);
+  // The session lives at module level (`textEditSession.ts`) so the Properties
+  // pane, a separate dock panel, can tell whether the box it shows is being
+  // edited; this hook is its canvas-side driver.
+  const editingTextId = useTextEditSession()?.id ?? null;
 
   // Double-click a text box (via the annotation overlay), or a Text-tool click
   // on one → inline editing.
   const requestEditText = useCallback(
     (id: string) => {
-      preGestureAnnotationsRef.current = useWorkspaceStore.getState().oristudioCpAnnotations;
-      editStartRef.current = { id, created: false };
       setSelectedAnnotation(id);
-      setEditingTextId(id);
+      beginTextEditSession(id, false);
     },
     [setSelectedAnnotation]
   );
@@ -434,14 +438,13 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
       // rather than stacking a new box on top.
       const hit = annotationAtModelPoint(prev, modelPoint);
       if (hit) {
-        suppressNextTextCreateRef.current = false;
+        takeSuppressNextTextCreate();
         if (isTextAnnotation(hit)) requestEditText(hit.id);
         else setSelectedAnnotation(hit.id);
         return;
       }
       // Empty canvas: if this click just committed an edit, it only deselects.
-      if (suppressNextTextCreateRef.current) {
-        suppressNextTextCreateRef.current = false;
+      if (takeSuppressNextTextCreate()) {
         setSelectedAnnotation(null);
         return;
       }
@@ -454,10 +457,9 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
         fontSize: cssPerModel > 0 ? 16 / cssPerModel : DEFAULT_TEXT_FONT_SIZE,
         z: topAnnotationZ(prev) + 1,
       });
-      preGestureAnnotationsRef.current = prev; // snapshot before add, for undo
-      editStartRef.current = { id: box.id, created: true };
+      // Snapshot before the add, so undoing the session removes the box.
+      beginTextEditSession(box.id, true);
       addAnnotation(box);
-      setEditingTextId(box.id);
     },
     [overlayView, addAnnotation, requestEditText, setSelectedAnnotation]
   );
@@ -485,10 +487,8 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
         fontSize: cssPerModel > 0 ? 16 / cssPerModel : DEFAULT_TEXT_FONT_SIZE,
         z: topAnnotationZ(prev) + 1,
       });
-      preGestureAnnotationsRef.current = prev;
-      editStartRef.current = { id: annotation.id, created: true };
+      beginTextEditSession(annotation.id, true);
       addAnnotation(annotation);
-      setEditingTextId(annotation.id);
     },
     [overlayView, addAnnotation, createTextAt]
   );
@@ -500,55 +500,144 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
     [updateAnnotation]
   );
 
-  // Leave inline editing. An empty box is discarded (parity with Oriedita's
-  // blank-text GC); otherwise the whole edit records one undo entry.
+  // Leave inline editing — the session module owns the empty-box GC, the
+  // labels and the create-suppression arm.
   const exitEditText = useCallback(
-    (reason: TextEditExitReason = 'blur') => {
-      if (reason === 'blur') suppressNextTextCreateRef.current = true;
-      const editing = editStartRef.current;
-      setEditingTextId(null);
-      editStartRef.current = null;
-      if (!editing) {
-        preGestureAnnotationsRef.current = null;
-        return;
-      }
-      const annotation = useWorkspaceStore
-        .getState()
-        .oristudioCpAnnotations.find((a) => a.id === editing.id);
-      const empty =
-        !annotation || (annotation.kind === 'text' && annotation.plainText.trim() === '');
-      if (empty) {
-        removeAnnotation(editing.id);
-        if (editing.created) preGestureAnnotationsRef.current = null;
-        else commitGesture(t('panels:textAnnotation.deleteText', 'Delete text'));
-        return;
-      }
-      commitGesture(
-        editing.created
-          ? t('panels:textAnnotation.addText', 'Add text')
-          : t('panels:textAnnotation.editText', 'Edit text')
-      );
+    (reason: TextEditExitReason = 'blur') => endTextEditSession(reason),
+    []
+  );
+
+  // A session outlives no box: the selection leaving it (a click elsewhere the
+  // editor's blur did not see, a menu verb) or the box vanishing (delete,
+  // undo, document replace) ends it as a blur. An undo about to run and a
+  // document replacement reach the session through the chokepoint, which the
+  // session module registers for itself.
+  useEffect(() => {
+    if (!editingTextId) return;
+    const gone = !annotations.some((annotation) => annotation.id === editingTextId);
+    if (gone || selectedAnnotationId !== editingTextId) endTextEditSession('blur');
+  }, [editingTextId, annotations, selectedAnnotationId]);
+  // The bracket is module-level and would otherwise outlive the surface that
+  // opened it, refusing every later annotation gesture.
+  useEffect(
+    () => () => {
+      const token = gestureTokenRef.current;
+      gestureTokenRef.current = null;
+      if (token) annotationGesture.abort(token);
+      if (textEditSession()) endTextEditSession('document-replaced');
     },
-    [removeAnnotation, commitGesture, t]
+    []
   );
 
   // Delete from the text toolbar removes the box and leaves edit mode; the
   // pre-edit snapshot makes it undoable (unless the box was never real).
-  const deleteEditingText = useCallback(() => {
-    const editing = editStartRef.current;
-    const id = editingTextId;
-    setEditingTextId(null);
-    editStartRef.current = null;
-    if (!id) return;
-    removeAnnotation(id);
-    if (editing && !editing.created) {
-      commitGesture(t('panels:textAnnotation.deleteText', 'Delete text'));
-    } else {
-      preGestureAnnotationsRef.current = null;
-    }
-  }, [editingTextId, removeAnnotation, commitGesture, t]);
+  const deleteEditingText = useCallback(() => endTextEditSession('delete'), []);
+
+  // A region's delete and check toggles are the region verbs' — a delete also
+  // removes the owned reference image and clears the pins inside it, which the
+  // bare annotation verb refuses to do by halves.
+  const regionActions = useCpRegionActions();
+
+  /**
+   * The annotation layer as one {@link CanvasLayerBinding}: three kinds, one
+   * list, one bracket. Everything here is a delegate to a binding above, so the
+   * panel dispatches by id without naming a kind — see `canvasLayerBindings.ts`.
+   */
+  const binding = useMemo<CanvasLayerBinding>(
+    () => ({
+      kinds: ['image', 'text', 'suppressionRegion'],
+      transformables: transformableObjects,
+      // Text boxes and regions carry `hidden`; images are framed through the
+      // canvas's own `images` prop, which draws them.
+      overlayBoxes: annotations.filter((annotation) => !isImageAnnotation(annotation)),
+      // A region's body is unconditionally inert: what is under it is the crease
+      // pattern, and the region is a wash drawn behind it. It stays movable
+      // through its chip and resizable through the selection handles.
+      inertBodyIds: new Set(
+        annotations.filter(isSuppressionRegionAnnotation).map((region) => region.id)
+      ),
+      select: (id) => setSelectedAnnotation(id),
+      release: () => setSelectedAnnotation(null),
+      applyBoxUpdate,
+      beginGesture: () => beginGesture(),
+      commitGesture: (_id, kind) => commitGesture(gestureLabel(kind)),
+      cancelGesture: () => cancelGesture(),
+      remove: (id) => {
+        const annotation = annotationById(id);
+        if (!annotation) return;
+        if (isSuppressionRegionAnnotation(annotation)) regionActions.removeRegion(id);
+        else deleteAnnotationById(id);
+      },
+      contextMenu: (id, deps) => {
+        const annotation = annotationById(id);
+        if (!annotation) return null;
+        // Selecting first is what makes the floating surface and the menu agree
+        // about which annotation is being acted on. The rows are bound by id,
+        // so they do not depend on this having landed.
+        setSelectedAnnotation(id);
+        if (isSuppressionRegionAnnotation(annotation)) {
+          return {
+            targetKind: 'region',
+            build: () =>
+              cpRegionMenuItems(annotation, {
+                t: deps.t,
+                toggleCheckClass: (cpCheckClass) =>
+                  regionActions.toggleRegionCheckClass(id, cpCheckClass),
+                remove: () => regionActions.removeRegion(id),
+              }),
+          };
+        }
+        const kind = isTextAnnotation(annotation) ? 'text' : 'image';
+        return {
+          targetKind: kind,
+          build: () =>
+            cpAnnotationMenuItems(kind, {
+              ...deps,
+              annotation: {
+                bringToFront: () => bringAnnotationToFront(id),
+                sendToBack: () => sendAnnotationToBack(id),
+                remove: () => deleteAnnotationById(id),
+                edit:
+                  kind === 'text'
+                    ? () => {
+                        // An inline edit takes focus for itself; without this
+                        // the menu's trap pulls it straight back out and the
+                        // blur that follows ends the edit before a key is
+                        // pressed.
+                        deps.deferFocus();
+                        requestEditText(id);
+                      }
+                    : undefined,
+              },
+            }),
+        };
+      },
+      applyCrop,
+      canCrop,
+      requestEdit: requestEditText,
+    }),
+    [
+      annotations,
+      transformableObjects,
+      setSelectedAnnotation,
+      applyBoxUpdate,
+      beginGesture,
+      commitGesture,
+      cancelGesture,
+      gestureLabel,
+      annotationById,
+      regionActions,
+      deleteAnnotationById,
+      bringAnnotationToFront,
+      sendAnnotationToBack,
+      requestEditText,
+      applyCrop,
+      canCrop,
+    ]
+  );
 
   return {
+    binding,
     annotations,
     imageAnnotations,
     transformableObjects,
@@ -559,6 +648,7 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
     syncAnnotationHeight,
     beginGesture,
     commitGesture,
+    cancelGesture,
     gestureLabel,
     applyBoxUpdate,
     applyCrop,

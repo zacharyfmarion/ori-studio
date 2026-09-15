@@ -11,6 +11,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('./panels/CpViewControlsPanel', () => ({
   CpViewControlsPanel: () => <input aria-label="grid size" defaultValue="8" />,
 }));
+vi.mock('./panels/CpPropertiesPanel', () => ({
+  CpPropertiesPanel: () => <p>cp properties</p>,
+}));
 vi.mock('./panels/SimulatorViewControlsPanel', () => ({
   SimulatorViewControlsPanel: () => <p>simulator view controls</p>,
 }));
@@ -23,6 +26,7 @@ vi.mock('../analytics', async (importOriginal) => {
 });
 
 import { useLayoutStore } from '../store/layoutStore';
+import { requestSidePane } from '../store/sidePaneRequests';
 import { WorkspaceViewDrawer } from './WorkspaceViewDrawer';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -73,6 +77,10 @@ const trigger = () => container?.querySelector<HTMLButtonElement>('.view-drawer_
  */
 const dialog = () => document.querySelector<HTMLElement>('[role="dialog"]');
 const sheet = () => document.querySelector<HTMLElement>('.view-drawer__sheet');
+const tab = (label: string) =>
+  [...document.querySelectorAll<HTMLButtonElement>('.view-drawer__header .segmented__option')].find(
+    (option) => option.textContent === label
+  );
 
 function press(element: Element | null | undefined) {
   act(() => element?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
@@ -161,6 +169,47 @@ describe('the workspace View drawer', () => {
 
     expect(analytics.track).toHaveBeenCalledWith('view drawer opened', {
       workspace: 'simulate',
+      pane: 'simulator-view-controls',
+    });
+  });
+
+  it('offers the Edit workspace its two panes as tabs of one sheet', () => {
+    // The Properties pane is docked as a tab of the View pane's group, and the
+    // sheet mirrors that: one trigger, one dialog, a switch at the top. The
+    // Simulate workspace has one pane and keeps its plain title (above).
+    render();
+    press(trigger());
+
+    expect(tab('View')?.getAttribute('aria-pressed')).toBe('true');
+    expect(document.querySelector('input[aria-label="grid size"]')).not.toBeNull();
+    expect(dialog()?.textContent).not.toContain('cp properties');
+
+    press(tab('Properties'));
+
+    expect(tab('Properties')?.getAttribute('aria-pressed')).toBe('true');
+    expect(dialog()?.textContent).toContain('cp properties');
+    expect(document.querySelector('input[aria-label="grid size"]')).toBeNull();
+  });
+
+  it('opens on a requested pane, including one raised with a workspace switch', () => {
+    // `activatePanel('cp-properties')` — View ▸ Properties — has no docked
+    // panel to activate under a coarse pointer, so it asks the drawer instead.
+    // Raised from another workspace the request lands in the same commit as
+    // the switch, whose force-close would otherwise shut the sheet it opened.
+    useLayoutStore.setState({ activeWorkspace: 'simulate' });
+    render();
+
+    act(() => {
+      useLayoutStore.setState({ activeWorkspace: 'edit' });
+      requestSidePane('cp-properties');
+    });
+
+    expect(dialog()).not.toBeNull();
+    expect(tab('Properties')?.getAttribute('aria-pressed')).toBe('true');
+    expect(dialog()?.textContent).toContain('cp properties');
+    expect(analytics.track).toHaveBeenCalledWith('view drawer opened', {
+      workspace: 'edit',
+      pane: 'cp-properties',
     });
   });
 
