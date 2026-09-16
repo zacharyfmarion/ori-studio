@@ -39,7 +39,7 @@ experiments, including negative results, in `research/cp-solver/`.
 - [x] Validate all complexity strata, independent synthetic cases, and browser.
 - [x] Verify AUX/pin compatibility, workspace tests, and affected web checks.
 - [x] Archive evidence outside the worktree, with file hashes.
-- [ ] Create a draft PR with quantified remaining failures.
+- [x] Create a draft PR with quantified remaining failures: [#387](https://github.com/zacharyfmarion/ori-studio/pull/387).
 
 No model publication is needed for algorithm-only changes. Any future model
 publication follows verified code deployment and preserves the legacy channel.

@@ -142,5 +142,8 @@ registries and model files are unchanged, so existing desktop installations
 continue to use their existing code and compatible model channel. The local
 default enables the new policy for imports and region/whole-pattern solves.
 Customers receive it through a subsequent code deployment or desktop update.
-No merge, production deployment, model publication, or desktop release has been
+No PR merge, production deployment, model publication, or desktop release has been
 performed for this solver phase. A merge requires the user's explicit go-ahead.
+
+Delivery: [draft PR #387](https://github.com/zacharyfmarion/ori-studio/pull/387).
+The local app remains available at `http://127.0.0.1:5176/welcome`.
