@@ -117,7 +117,7 @@ describe('buildReferencesActions', () => {
       state({ fold: { available: false, playing: false, folded: false, pleat: false } }),
       'play-fold'
     );
-    expect(none.hint).toBe('Open a fold of the sequence to play it');
+    expect(none.hint).toBe('Nothing to fold on this card');
   });
 
   it('gates the camera verbs on there being a view', () => {

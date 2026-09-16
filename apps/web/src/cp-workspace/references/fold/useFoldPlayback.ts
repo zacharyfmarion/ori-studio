@@ -37,6 +37,7 @@ export function useFoldPlayback({ view, scene, autoPlay }: FoldPlaybackInput): F
             trigger,
             direction: heading,
             step_kind: kind === 'turn-over' ? 'turn_over' : kind,
+            tab: kind === 'reference' ? 'find' : 'sequence',
           }),
       })
   );

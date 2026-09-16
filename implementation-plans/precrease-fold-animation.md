@@ -428,5 +428,13 @@ Enums only; no step numbers, no geometry.
 - [x] A turn-over card animates the sheet turning over (the same rig,
       rigid, hinge at the sheet's centre line), and a twin card plays its
       two folds in turn.
-- [ ] *Later, not this plan:* Find-mode candidates (ReferenceFinder steps
-      are folds too, with the moving point in the diagram); pleats.
+- [x] Find-tab cards play the same way. A ReferenceFinder step or a leaned-on
+      diagonal is read into a `FoldScene` of kind `reference` by
+      `candidateFoldScene`: the chord is the step's line in model space, the
+      swinging side is the one the card's own fold arrow starts from (the
+      smaller flap when it draws none), and what is pressed is the crease as
+      the picture draws it — the whole line, or the pinch the core makes when
+      only a mark is wanted. A card that only makes a mark has no fold and
+      keeps the hint. Same transport, same Play button, same Space and
+      auto-play; the analytics event carries `tab` to tell the two apart.
+- [ ] *Later, not this plan:* pleats.

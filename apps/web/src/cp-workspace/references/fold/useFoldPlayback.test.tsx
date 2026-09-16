@@ -83,6 +83,7 @@ describe('useFoldPlayback', () => {
       trigger: 'user',
       direction: 'fold',
       step_kind: 'cp',
+      tab: 'sequence',
     });
     act(() => probe()?.click());
     expect(probe()?.dataset.folded).toBe('false');

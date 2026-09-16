@@ -154,6 +154,20 @@ describe('useReferencesHighlights', () => {
     expect(highlights?.selected).toEqual({ kind: 'line', id: 2 });
   });
 
+  it("offers each fold step's flap to the transport, on the step's own line", () => {
+    render(RESULTS, 0);
+    expect(highlights?.fold?.kind).toBe('reference');
+    expect(highlights?.fold?.flaps).toHaveLength(1);
+    expect(highlights?.fold?.flaps[0]?.chord).toEqual(
+      expect.arrayContaining([
+        { x: 0, y: 50 },
+        { x: 100, y: 50 },
+      ])
+    );
+    render(null, 0);
+    expect(highlights?.fold).toBeNull();
+  });
+
   it('keeps the target off the sheet until the last step makes it', () => {
     render(RESULTS, 0);
     expect(highlights?.selected).toBeNull();

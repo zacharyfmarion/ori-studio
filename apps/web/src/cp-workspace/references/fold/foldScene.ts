@@ -9,11 +9,25 @@
  */
 import type { Point } from '../../../lib/geometry';
 import { modelFrame } from '../diagram/diagramFrames';
-import { stepFoldMotion, type FoldMotionKind, type FoldSide } from '../diagram/foldMotion';
+import {
+  smallerSideOf,
+  stepFoldMotion,
+  type FoldMotionKind,
+  type FoldSide,
+} from '../diagram/foldMotion';
 import type { Point as ModelPoint } from '../../../lib/geometry';
-import { clipPolygonToSide, sheetPolygon } from '../diagram/plannerDiagram';
-import type { ReferencesPlanVariant } from '../referencesResults';
+import { clipPolygonToSide, sheetPolygon, sideOf } from '../diagram/plannerDiagram';
+import type { StepDiagramModel } from '../referenceFinderDiagramToPrimitives';
+import { rfSheetOfFrame, rfToModel } from '../referenceFinderStepInModel';
+import type { ReferencesCandidateStep } from '../referencesCandidateSteps';
+import type {
+  ReferencesCandidateResult,
+  ReferencesOriginals,
+  ReferencesPlanVariant,
+} from '../referencesResults';
 import type { ReferencesViewStep } from '../referencesSequenceView';
+import { arcSamplePoints } from '../stepDiagramGeometry';
+import type { PrecreaseFrame } from '../sheetFrames';
 
 export interface FoldFlapScene {
   /** The fold line across the sheet, model space. */
@@ -33,8 +47,11 @@ export interface FoldFlapScene {
   whole?: boolean;
 }
 
-/** A step's kind, or the card between steps where the paper is turned over. */
-export type FoldSceneKind = FoldMotionKind | 'turn-over';
+/**
+ * A step's kind, the card between steps where the paper is turned over, or
+ * a step of a ReferenceFinder construction in the Find tab.
+ */
+export type FoldSceneKind = FoldMotionKind | 'turn-over' | 'reference';
 
 export interface FoldScene {
   kind: FoldSceneKind;
@@ -105,6 +122,86 @@ const midpoint = (segment: readonly [ModelPoint, ModelPoint]): ModelPoint => ({
   y: (segment[0].y + segment[1].y) / 2,
 });
 
+/** One flap of a sheet: the sheet clipped to the swinging side, and what is pressed along the line. */
+function flapScene(
+  sheet: readonly Point[],
+  chord: readonly [Point, Point],
+  side: FoldSide,
+  creasedSegments: readonly (readonly [Point, Point])[]
+): { flap: FoldFlapScene; reach: number } {
+  const polygon = clipPolygonToSide(sheet, chord, side);
+  const along = chordFrame(chord, side);
+  let reach = 0;
+  for (const corner of polygon) reach = Math.max(reach, inChordFrame(along, corner).u);
+  const creased = creasedSegments.map((span): readonly [number, number] => {
+    const a = inChordFrame(along, span[0]).s;
+    const b = inChordFrame(along, span[1]).s;
+    return a <= b ? [a, b] : [b, a];
+  });
+  return { flap: { chord, side, polygon, creased }, reach };
+}
+
+/** The styles a diagram draws a step's own new crease in: whole, or pressed only at a pinch. */
+const NEW_CREASE_STYLES = new Set(['valley', 'mountain', 'pinch', 'pinch-valley', 'pinch-mountain']);
+
+/**
+ * A card of the Find tab — one step of a ReferenceFinder construction, or a
+ * diagonal the answer leans on — as a fold, or null for a card that makes a
+ * mark and no fold.
+ *
+ * ReferenceFinder's picture is the only description of its step there is,
+ * so the fold is read from it: the side that swings is the one its own
+ * arrow starts from (the smaller flap when it draws none), and what is
+ * pressed is the crease as the diagram draws it, full or as the pinch the
+ * core makes when only a mark is wanted. The line itself is the step's chord
+ * in model space, already mapped when the answer landed.
+ */
+export function candidateFoldScene(
+  frame: PrecreaseFrame,
+  originals: ReferencesOriginals,
+  candidate: ReferencesCandidateResult,
+  step: ReferencesCandidateStep,
+  diagram: StepDiagramModel | null
+): FoldScene | null {
+  const rf = rfSheetOfFrame(frame);
+  const corner = (p: readonly [number, number]): Point => {
+    const [x, y] = rfToModel(frame, p);
+    return { x, y };
+  };
+  const sheet: Point[] = [
+    corner([0, 0]),
+    corner([rf.width, 0]),
+    corner([rf.width, rf.height]),
+    corner([0, rf.height]),
+  ];
+  const line =
+    step.kind === 'diagonal'
+      ? originals.lines[step.diagonal]
+      : step.steps.map((index) => candidate.modelSteps[index]?.line).find((l) => l !== undefined);
+  if (!line) return null;
+  const chord: readonly [Point, Point] = [line.a, line.b];
+  const arrow = diagram?.primitives.find((p) => p.kind === 'fold-arrow');
+  const start = arrow && arrow.kind === 'fold-arrow' ? arcSamplePoints(arrow.out)[0] : null;
+  const fromArrow = start ? sideOf(chord, { x: start[0], y: start[1] }) : 0;
+  const side: FoldSide | null =
+    fromArrow > 0 ? 1 : fromArrow < 0 ? -1 : smallerSideOf(sheet, chord);
+  if (side === null) return null;
+  // The new crease as drawn, kept to the pieces on the line itself.
+  const onLine = (p: readonly [number, number]) => sideOf(chord, { x: p[0], y: p[1] }) === 0;
+  const drawn = (diagram?.primitives ?? []).flatMap((p) =>
+    p.kind === 'line' && NEW_CREASE_STYLES.has(p.style) && onLine(p.from) && onLine(p.to)
+      ? [[{ x: p.from[0], y: p.from[1] }, { x: p.to[0], y: p.to[1] }] as const]
+      : []
+  );
+  const { flap, reach } = flapScene(sheet, chord, side, drawn.length > 0 ? drawn : [chord]);
+  return {
+    kind: 'reference',
+    flaps: [flap],
+    sheetShortSide: Math.min(frame.width, frame.height),
+    reach,
+  };
+}
+
 /**
  * What the reader is looking at moves, or null when nothing does — the
  * finished pattern, a pleat — or there is nothing to draw it on. A fold
@@ -147,17 +244,9 @@ export function planFoldScene(
   if (!motion || !sheet) return null;
   let reach = 0;
   const flaps = motion.flaps.map((flap): FoldFlapScene => {
-    const polygon = clipPolygonToSide(sheet, flap.chord, flap.side);
-    const along = chordFrame(flap.chord, flap.side);
-    for (const corner of polygon) {
-      reach = Math.max(reach, inChordFrame(along, corner).u);
-    }
-    const creased = flap.creased.map((span): readonly [number, number] => {
-      const a = inChordFrame(along, span[0]).s;
-      const b = inChordFrame(along, span[1]).s;
-      return a <= b ? [a, b] : [b, a];
-    });
-    return { chord: flap.chord, side: flap.side, polygon, creased };
+    const scene = flapScene(sheet, flap.chord, flap.side, flap.creased);
+    reach = Math.max(reach, scene.reach);
+    return scene.flap;
   });
   return {
     kind: motion.kind,

@@ -803,7 +803,7 @@
   },
   "references": {
     "actions": {
-      "noFoldHint": "手順の折りを開くと再生できます",
+      "noFoldHint": "このカードには折るものがありません",
       "noTargetHint": "先に頂点または折り線を選んでください",
       "pauseFold": "折りを一時停止",
       "pleatHint": "プリーツはまだアニメーションされません",

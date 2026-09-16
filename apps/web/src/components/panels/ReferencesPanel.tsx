@@ -66,7 +66,7 @@ import {
   runReferencesShortcut,
   type ReferencesShortcutActions,
 } from '../../cp-workspace/references/referencesShortcuts';
-import { foldCardKind, planFoldScene } from '../../cp-workspace/references/fold/foldScene';
+import { foldCardKind } from '../../cp-workspace/references/fold/foldScene';
 import { useFoldPlayback } from '../../cp-workspace/references/fold/useFoldPlayback';
 import { useReferencesAutoPlan } from '../../cp-workspace/references/useReferencesAutoPlan';
 import { useReferencesBreakdown } from '../../cp-workspace/references/useReferencesBreakdown';
@@ -226,15 +226,9 @@ export function ReferencesPanel() {
   const [zoomPercent, setZoomPercent] = useState(100);
   const zoomTo = useCallback((percent: number) => viewRef.current?.setZoomPercent(percent), []);
 
-  // The active step's fold, and its transport. Only while the plan is read:
-  // a Find card is a construction on blank paper, and has no flap to swing.
-  const foldScene = useMemo(
-    () =>
-      readingPlan && !targeted
-        ? planFoldScene(breakdown.variants, viewSteps, breakdown.activeStep)
-        : null,
-    [readingPlan, targeted, breakdown.variants, viewSteps, breakdown.activeStep]
-  );
+  // The active card's fold — a plan step's, a turn-over's or a ReferenceFinder
+  // step's, whichever strip is showing — and its transport.
+  const foldScene = highlights.fold;
   const autoPlayFolds = useSettingsStore((state) => state.referencesAutoPlayFolds);
   const fold = useFoldPlayback({ view: viewRef, scene: foldScene, autoPlay: autoPlayFolds });
 

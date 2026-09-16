@@ -803,7 +803,7 @@
   },
   "references": {
     "actions": {
-      "noFoldHint": "순서의 접기를 열면 재생할 수 있습니다",
+      "noFoldHint": "이 카드에는 접을 것이 없습니다",
       "noTargetHint": "먼저 꼭짓점이나 접는 선을 선택하세요",
       "pauseFold": "접기 일시정지",
       "pleatHint": "주름 접기는 아직 애니메이션되지 않습니다",

@@ -529,8 +529,10 @@ export const ANALYTICS_EVENTS = {
   /**
    * A step's fold was set moving in the References workspace. `trigger` is
    * `user` (the button, Space or the menu row) or `auto` (the setting);
-   * `direction` is `fold` or `unfold`; `step_kind` is `cp`, `aux`, `press`
-   * or `turn_over`. A pause is not counted. Nothing about the fold itself.
+   * `direction` is `fold` or `unfold`; `step_kind` is `cp`, `aux`, `press`,
+   * `turn_over` or `reference` (a ReferenceFinder step in the Find tab), and
+   * `tab` is `find` or `sequence`. A pause is not counted. Nothing about the
+   * fold itself.
    */
   referencesFoldPlayed: 'references fold played',
   /** The "Auto-play folds" preference was switched; `enabled` is `on` / `off`. */

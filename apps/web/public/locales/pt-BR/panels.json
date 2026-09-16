@@ -865,7 +865,7 @@
   },
   "references": {
     "actions": {
-      "noFoldHint": "Abra uma dobra da sequência para reproduzi-la",
+      "noFoldHint": "Não há nada para dobrar neste cartão",
       "noTargetHint": "Escolha primeiro um vértice ou uma dobra",
       "pauseFold": "Pausar dobra",
       "pleatHint": "Pregas ainda não são animadas",

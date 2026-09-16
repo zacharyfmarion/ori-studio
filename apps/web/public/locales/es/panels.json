@@ -865,7 +865,7 @@
   },
   "references": {
     "actions": {
-      "noFoldHint": "Abre un pliegue de la secuencia para reproducirlo",
+      "noFoldHint": "No hay nada que plegar en esta tarjeta",
       "noTargetHint": "Elige primero un vértice o un pliegue",
       "pauseFold": "Pausar pliegue",
       "pleatHint": "Los plisados aún no se animan",

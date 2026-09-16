@@ -20,7 +20,6 @@ import {
   anchorOfRef,
   clipPolygonToSide,
   creasedSpans,
-  flapArea,
   landingPairs,
   movingInputs,
   movingSide,
@@ -166,11 +165,15 @@ function arrowSide(
  */
 function smallerFlap(frame: DiagramFrame, chord: DiagramSegment): FoldSide | null {
   const sheet = sheetPolygon(frame);
-  if (!sheet) return null;
+  return sheet ? smallerSideOf(sheet, chord) : null;
+}
+
+/** {@link smallerFlap} for a sheet given as its polygon. */
+export function smallerSideOf(sheet: readonly Point[], chord: DiagramSegment): FoldSide | null {
   const whole = polygonArea(sheet);
   if (whole <= 0) return null;
-  const left = flapArea(frame, chord, 1);
-  const right = flapArea(frame, chord, -1);
+  const left = polygonArea(clipPolygonToSide(sheet, chord, 1));
+  const right = polygonArea(clipPolygonToSide(sheet, chord, -1));
   if (Math.abs(left - right) > 1e-9 * whole) return left < right ? 1 : -1;
   for (const corner of sheet) {
     const side = sideOf(chord, corner);

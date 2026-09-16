@@ -832,7 +832,7 @@
   },
   "references": {
     "actions": {
-      "noFoldHint": "Öffne eine Faltung der Sequenz, um sie abzuspielen",
+      "noFoldHint": "Auf dieser Karte gibt es nichts zu falten",
       "noTargetHint": "Wähle zuerst einen Scheitelpunkt oder eine Falte",
       "pauseFold": "Faltung pausieren",
       "pleatHint": "Plissees werden noch nicht animiert",

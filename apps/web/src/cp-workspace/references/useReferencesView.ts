@@ -22,6 +22,7 @@ import type {
 } from './referencesResults';
 import type { ReferencesViewStep } from './referencesSequenceView';
 import { findingBounds, planStepScene, planTurnOverScene } from './referencesPlanGeometry';
+import { candidateFoldScene, planFoldScene, type FoldScene } from './fold/foldScene';
 import {
   candidateViewSteps,
   clampCandidateStep,
@@ -125,6 +126,12 @@ export interface ReferencesHighlights {
   diagram: StepDiagramModel | null;
   /** The active step's references, for framing. */
   stepBounds: ModelBounds | null;
+  /**
+   * The card's fold, for the transport to play — the flap that swings and
+   * what is pressed — or null for a card that moves nothing. One shape for
+   * a plan step, a turn-over and a ReferenceFinder step alike.
+   */
+  fold: FoldScene | null;
 }
 
 /**
@@ -249,12 +256,21 @@ export function useReferencesHighlights(
     return bounds;
   }, [candidate, results, step]);
 
+  const fold = useMemo(
+    () =>
+      candidate && results && step
+        ? candidateFoldScene(results.frame, results.originals, candidate, step, diagram)
+        : null,
+    [candidate, results, step, diagram]
+  );
+
   return {
     highlightLineIds,
     highlightVertexIdx,
     selected,
     diagram,
     stepBounds,
+    fold,
   };
 }
 
@@ -264,6 +280,7 @@ const NO_HIGHLIGHTS: ReferencesHighlights = {
   selected: null,
   diagram: null,
   stepBounds: null,
+  fold: null,
 };
 
 /**
@@ -300,9 +317,10 @@ function planHighlights(
   // the card's — the creases so far greyed out under the symbol — drawn here
   // over a sheet the visibility rule has emptied for it. The finished card
   // has no picture of its own; the pattern itself is that one.
+  const fold = planFoldScene(variants, viewSteps, activeStep);
   if (target.kind === 'turn-over') {
     const scene = planTurnOverScene(entry.sequence, entry.model, target.after);
-    return { ...NO_HIGHLIGHTS, diagram: scene.diagram };
+    return { ...NO_HIGHLIGHTS, diagram: scene.diagram, fold };
   }
   if (target.kind !== 'fold') return NO_HIGHLIGHTS;
   const overlay = planStepScene(entry.sequence, entry.model, target.step, target.twin);
@@ -312,6 +330,7 @@ function planHighlights(
     selected: null,
     diagram: overlay.diagram,
     stepBounds: overlay.bounds,
+    fold,
   };
 }
 

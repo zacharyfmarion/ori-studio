@@ -121,7 +121,7 @@ export function buildReferencesActions(
       !fold.available,
       fold.pleat
         ? t('panels:references.actions.pleatHint', 'Pleats aren’t animated yet')
-        : t('panels:references.actions.noFoldHint', 'Open a fold of the sequence to play it')
+        : t('panels:references.actions.noFoldHint', 'Nothing to fold on this card')
     ),
     ...(fold.playing
       ? { label: t('panels:references.actions.pauseFold', 'Pause Fold'), icon: 'pause-fold' as const }

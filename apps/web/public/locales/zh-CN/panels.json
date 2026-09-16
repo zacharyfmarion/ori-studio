@@ -803,7 +803,7 @@
   },
   "references": {
     "actions": {
-      "noFoldHint": "打开序列中的一个折叠即可播放",
+      "noFoldHint": "这张卡片上没有可折叠的内容",
       "noTargetHint": "请先选择一个顶点或折痕",
       "pauseFold": "暂停折叠",
       "pleatHint": "百褶折暂不支持动画",

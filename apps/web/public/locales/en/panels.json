@@ -832,7 +832,7 @@
   },
   "references": {
     "actions": {
-      "noFoldHint": "Open a fold of the sequence to play it",
+      "noFoldHint": "Nothing to fold on this card",
       "noTargetHint": "Pick a vertex or crease first",
       "pauseFold": "Pause Fold",
       "pleatHint": "Pleats aren’t animated yet",

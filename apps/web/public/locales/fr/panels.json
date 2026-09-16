@@ -865,7 +865,7 @@
   },
   "references": {
     "actions": {
-      "noFoldHint": "Ouvrez un pli de la séquence pour le lire",
+      "noFoldHint": "Rien à plier sur cette carte",
       "noTargetHint": "Choisissez d’abord un sommet ou un pli",
       "pauseFold": "Mettre le pli en pause",
       "pleatHint": "Les plissés ne sont pas encore animés",
