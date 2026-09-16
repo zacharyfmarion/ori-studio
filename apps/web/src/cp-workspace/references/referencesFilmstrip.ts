@@ -20,6 +20,12 @@ import { unitFrame } from './diagram/diagramFrames';
 import type { Diagram } from './referenceFinder/solution';
 import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
 import { stepDiagram } from './referenceFinderDiagramToPrimitives';
+import {
+  candidateViewSteps,
+  describeDiagonalStep,
+  diagonalStepDiagram,
+  type RfSheet,
+} from './referencesCandidateSteps';
 import type { ReferencesCandidateResult, ReferencesPlanVariant } from './referencesResults';
 import type { ReferencesViewStep } from './referencesSequenceView';
 import { describePlannerStep, describeStep } from './referencesStepSentences';
@@ -56,22 +62,42 @@ export interface ReferencesFilmstripStep {
   sentence: string;
 }
 
-/** ReferenceFinder's steps for the active candidate. */
+/**
+ * The active candidate's steps, from the empty square: the sheet's diagonals
+ * it leans on first — folded corner onto corner, drawn from primitives of our
+ * own — then ReferenceFinder's, each with the core's own diagram
+ * (`referencesCandidateSteps`). `sheet` is the paper in ReferenceFinder's
+ * units, for the diagonal cards.
+ */
 export function candidateFilmstrip(
   t: TFunction,
-  candidate: ReferencesCandidateResult | null
+  candidate: ReferencesCandidateResult | null,
+  sheet: RfSheet
 ): ReferencesFilmstripStep[] {
   if (!candidate) return [];
-  return candidate.solution.steps.map((step, index) => ({
-    key: `rf-${index}`,
-    kind: 'fold' as const,
-    badge: '',
-    number: index + 1,
-    diagram: stepDiagram(candidate.raw, candidate.solution, index),
-    primitives: null,
-    mirrored: false,
-    sentence: describeStep(t, step),
-  }));
+  return candidateViewSteps(candidate.solution).map((step, number) =>
+    step.kind === 'diagonal'
+      ? {
+          key: `diagonal-${step.diagonal}`,
+          kind: 'fold' as const,
+          badge: '',
+          number: number + 1,
+          diagram: null,
+          primitives: diagonalStepDiagram(step.diagonal, sheet),
+          mirrored: false,
+          sentence: describeDiagonalStep(t, step.diagonal),
+        }
+      : {
+          key: `rf-${step.index}`,
+          kind: 'fold' as const,
+          badge: '',
+          number: number + 1,
+          diagram: stepDiagram(candidate.raw, candidate.solution, step.index),
+          primitives: null,
+          mirrored: false,
+          sentence: describeStep(t, candidate.solution.steps[step.index]),
+        }
+  );
 }
 
 /**

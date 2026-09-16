@@ -55,7 +55,7 @@ import {
   referencesRunSnapshot,
 } from './referencesRun';
 import { referencesSidebarText, refusalMessageFor } from './referencesSidebarText';
-import { clampStepIndex } from './referencesStepGeometry';
+import { candidateStepCount, clampCandidateStep } from './referencesCandidateSteps';
 import type { ReferencesPick } from './referencesViewGeometry';
 import {
   collinearSegments,
@@ -288,7 +288,7 @@ function summarize(solution: ExtractedSolution): ReferencesCandidate {
   return {
     rank: solution.rank,
     foldCount: solution.foldCount,
-    stepCount: solution.steps.length,
+    stepCount: candidateStepCount(solution),
     err: solution.err,
     exact: solution.exact,
   };
@@ -781,8 +781,9 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
   // --- Navigation -----------------------------------------------------------
   const activeCandidate = current && results ? Math.min(viewState.activeCandidate, Math.max(0, results.candidates.length - 1)) : 0;
   const active = current && results ? (results.candidates[activeCandidate] ?? null) : null;
-  const stepCount = active?.solution.steps.length ?? 0;
-  const activeStep = clampStepIndex(active?.solution ?? null, viewState.activeStep);
+  // The steps as they are read: the diagonals the answer leans on, then its own.
+  const stepCount = candidateStepCount(active?.solution ?? null);
+  const activeStep = clampCandidateStep(active?.solution ?? null, viewState.activeStep);
 
   const selectCandidate = useCallback(
     (index: number) => {

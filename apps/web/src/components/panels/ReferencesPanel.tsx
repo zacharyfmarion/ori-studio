@@ -24,6 +24,7 @@ import type { ReferencesPick } from '../../cp-workspace/references/referencesVie
 import { ReferencesLead } from '../../cp-workspace/references/ReferencesLead';
 import { ReferencesModeSwitch } from '../../cp-workspace/references/ReferencesModeSwitch';
 import { referencesSurfaces } from '../../cp-workspace/references/referencesMode';
+import { rfSheetOfFrame } from '../../cp-workspace/references/referenceFinderStepInModel';
 import {
   creasesAtVertices,
   stepIndexOfLine,
@@ -266,34 +267,20 @@ export function ReferencesPanel() {
           'panels:references.sidebar.none',
           'ReferenceFinder found no construction for this target at the current settings.'
         );
-  /**
-   * The free sheet diagonals a solution leans on.
-   *
-   * ReferenceFinder treats both as rank-1 originals, so they never appear as a
-   * step — but they are creases the folder still has to make, and a sequence
-   * that does not mention them undercounts its own folds.
-   */
-  const filmstripNote = useMemo(() => {
-    const free = targeted ? (active?.solution.freeDiagonals ?? []) : [];
-    if (free.length === 0) return '';
-    return t('panels:references.freeDiagonals', 'Also needs the sheet diagonal(s): {{names}}.', {
-      names: free
-        .map((name) =>
-          name === 'sw_ne'
-            ? t('panels:references.ref.diagonalSwNe', 'the bottom-left to top-right diagonal')
-            : t('panels:references.ref.diagonalNwSe', 'the top-left to bottom-right diagonal')
-        )
-        .join(', '),
-    });
-  }, [targeted, active, t]);
+  // The diagonals an answer leans on are its first steps, from the empty
+  // square, drawn on the paper in ReferenceFinder's units — no footnote.
+  const rfSheet = useMemo(
+    () => (controller.results ? rfSheetOfFrame(controller.results.frame) : { width: 1, height: 1 }),
+    [controller.results]
+  );
   const filmstrip = useMemo(
     () =>
       targeted
-        ? candidateFilmstrip(t, active)
+        ? candidateFilmstrip(t, active, rfSheet)
         : readingPlan
           ? planFilmstrip(t, breakdown.variants, viewSteps)
           : [],
-    [targeted, readingPlan, t, active, breakdown.variants, viewSteps]
+    [targeted, readingPlan, t, active, rfSheet, breakdown.variants, viewSteps]
   );
 
   // The sheet as it stands — see `referencesCreaseVisibility`: whole in Find
@@ -544,7 +531,6 @@ export function ReferencesPanel() {
               // Off on the phone, whose flow is the one that has a screen at all.
               navigation={flow.screen === null}
               placeholder={filmstripPlaceholder}
-              note={filmstripNote}
             />
           )}
 

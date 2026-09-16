@@ -887,7 +887,6 @@
       "turnOver": "Vire o papel, da esquerda para a direita.",
       "turnOverBadge": "Virar"
     },
-    "freeDiagonals": "Também precisa da(s) diagonal(is) da folha: {{names}}.",
     "goToEdit": "Ir para Editar",
     "hint": {
       "jump": "Toque em uma dobra para ir ao passo que a faz.",
@@ -1027,6 +1026,7 @@
       "axiom5": "Dobre {{x}} passando por {{p1}}, levando {{p0}} sobre {{l0}}.",
       "axiom6": "Dobre {{x}} levando {{p0}} sobre {{l0}} e {{p1}} sobre {{l1}}.",
       "axiom7": "Dobre {{x}} dobrando {{lSelf}} sobre si mesma de modo que {{p0}} caia sobre {{lLand}}.",
+      "diagonal": "Dobre {{a}} sobre {{b}}, vincando a diagonal.",
       "mark": "Marque {{x}} onde {{l0}} encontra {{l1}}.",
       "pinch": "Só um beliscão — apenas a marca é necessária.",
       "unknown": "Dobre {{x}} usando {{inputs}}."

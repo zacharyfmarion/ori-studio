@@ -887,7 +887,6 @@
       "turnOver": "Da la vuelta al papel, de izquierda a derecha.",
       "turnOverBadge": "Dar la vuelta"
     },
-    "freeDiagonals": "También necesita la(s) diagonal(es) de la hoja: {{names}}.",
     "goToEdit": "Ir a Editar",
     "hint": {
       "jump": "Toca un pliegue para saltar al paso que lo dobla.",
@@ -1027,6 +1026,7 @@
       "axiom5": "Dobla {{x}} pasando por {{p1}}, llevando {{p0}} sobre {{l0}}.",
       "axiom6": "Dobla {{x}} llevando {{p0}} sobre {{l0}} y {{p1}} sobre {{l1}}.",
       "axiom7": "Dobla {{x}} plegando {{lSelf}} sobre sí misma de modo que {{p0}} caiga sobre {{lLand}}.",
+      "diagonal": "Dobla {{a}} sobre {{b}}, marcando la diagonal.",
       "mark": "Marca {{x}} donde {{l0}} se cruza con {{l1}}.",
       "pinch": "Solo un pellizco: basta con la marca.",
       "unknown": "Dobla {{x}} usando {{inputs}}."

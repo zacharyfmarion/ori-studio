@@ -2914,7 +2914,6 @@
     "panels:references.sheets.title": "160a13d94fb0",
     "panels:references.alreadyOnSheet": "6cd59fdbaa66",
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
-    "panels:references.freeDiagonals": "5c210dbe552b",
     "panels:references.card.folds_one": "25ca08d34e54",
     "panels:references.card.folds_other": "9c8e30c45cdd",
     "panels:references.flip.finished": "11ba4a9f695d",
@@ -2982,7 +2981,8 @@
     "panels:references.mode.findTitle": "049990ba3bcb",
     "panels:references.mode.label": "9a87d71b1266",
     "panels:references.mode.sequence": "1695245a2b15",
-    "panels:references.mode.sequenceTitle": "4bf719b1b9ce"
+    "panels:references.mode.sequenceTitle": "4bf719b1b9ce",
+    "panels:references.step.diagonal": "a5c51940a272"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5899,7 +5899,6 @@
     "panels:references.sheets.title": "160a13d94fb0",
     "panels:references.alreadyOnSheet": "6cd59fdbaa66",
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
-    "panels:references.freeDiagonals": "5c210dbe552b",
     "panels:references.card.folds_one": "25ca08d34e54",
     "panels:references.card.folds_other": "9c8e30c45cdd",
     "panels:references.flip.finished": "11ba4a9f695d",
@@ -5967,7 +5966,8 @@
     "panels:references.mode.findTitle": "049990ba3bcb",
     "panels:references.mode.label": "9a87d71b1266",
     "panels:references.mode.sequence": "1695245a2b15",
-    "panels:references.mode.sequenceTitle": "4bf719b1b9ce"
+    "panels:references.mode.sequenceTitle": "4bf719b1b9ce",
+    "panels:references.step.diagonal": "a5c51940a272"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8884,7 +8884,6 @@
     "panels:references.sheets.title": "160a13d94fb0",
     "panels:references.alreadyOnSheet": "6cd59fdbaa66",
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
-    "panels:references.freeDiagonals": "5c210dbe552b",
     "panels:references.card.folds_one": "25ca08d34e54",
     "panels:references.card.folds_other": "9c8e30c45cdd",
     "panels:references.flip.finished": "11ba4a9f695d",
@@ -8954,7 +8953,8 @@
     "panels:references.mode.findTitle": "049990ba3bcb",
     "panels:references.mode.label": "9a87d71b1266",
     "panels:references.mode.sequence": "1695245a2b15",
-    "panels:references.mode.sequenceTitle": "4bf719b1b9ce"
+    "panels:references.mode.sequenceTitle": "4bf719b1b9ce",
+    "panels:references.step.diagonal": "a5c51940a272"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11818,7 +11818,6 @@
     "panels:references.sheets.title": "160a13d94fb0",
     "panels:references.alreadyOnSheet": "6cd59fdbaa66",
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
-    "panels:references.freeDiagonals": "5c210dbe552b",
     "panels:references.card.folds_other": "9c8e30c45cdd",
     "panels:references.flip.finished": "11ba4a9f695d",
     "panels:references.flip.turnOver": "3a57d964493f",
@@ -11881,7 +11880,8 @@
     "panels:references.mode.findTitle": "049990ba3bcb",
     "panels:references.mode.label": "9a87d71b1266",
     "panels:references.mode.sequence": "1695245a2b15",
-    "panels:references.mode.sequenceTitle": "4bf719b1b9ce"
+    "panels:references.mode.sequenceTitle": "4bf719b1b9ce",
+    "panels:references.step.diagonal": "a5c51940a272"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14745,7 +14745,6 @@
     "panels:references.sheets.title": "160a13d94fb0",
     "panels:references.alreadyOnSheet": "6cd59fdbaa66",
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
-    "panels:references.freeDiagonals": "5c210dbe552b",
     "panels:references.card.folds_other": "9c8e30c45cdd",
     "panels:references.flip.finished": "11ba4a9f695d",
     "panels:references.flip.turnOver": "3a57d964493f",
@@ -14808,7 +14807,8 @@
     "panels:references.mode.findTitle": "049990ba3bcb",
     "panels:references.mode.label": "9a87d71b1266",
     "panels:references.mode.sequence": "1695245a2b15",
-    "panels:references.mode.sequenceTitle": "4bf719b1b9ce"
+    "panels:references.mode.sequenceTitle": "4bf719b1b9ce",
+    "panels:references.step.diagonal": "a5c51940a272"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -17725,7 +17725,6 @@
     "panels:references.sheets.title": "160a13d94fb0",
     "panels:references.alreadyOnSheet": "6cd59fdbaa66",
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
-    "panels:references.freeDiagonals": "5c210dbe552b",
     "panels:references.card.folds_one": "25ca08d34e54",
     "panels:references.card.folds_other": "9c8e30c45cdd",
     "panels:references.flip.finished": "11ba4a9f695d",
@@ -17793,7 +17792,8 @@
     "panels:references.mode.findTitle": "049990ba3bcb",
     "panels:references.mode.label": "9a87d71b1266",
     "panels:references.mode.sequence": "1695245a2b15",
-    "panels:references.mode.sequenceTitle": "4bf719b1b9ce"
+    "panels:references.mode.sequenceTitle": "4bf719b1b9ce",
+    "panels:references.step.diagonal": "a5c51940a272"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -20710,7 +20710,6 @@
     "panels:references.sheets.title": "160a13d94fb0",
     "panels:references.alreadyOnSheet": "6cd59fdbaa66",
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
-    "panels:references.freeDiagonals": "5c210dbe552b",
     "panels:references.card.folds_one": "25ca08d34e54",
     "panels:references.card.folds_other": "9c8e30c45cdd",
     "panels:references.flip.finished": "11ba4a9f695d",
@@ -20778,7 +20777,8 @@
     "panels:references.mode.findTitle": "049990ba3bcb",
     "panels:references.mode.label": "9a87d71b1266",
     "panels:references.mode.sequence": "1695245a2b15",
-    "panels:references.mode.sequenceTitle": "4bf719b1b9ce"
+    "panels:references.mode.sequenceTitle": "4bf719b1b9ce",
+    "panels:references.step.diagonal": "a5c51940a272"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -23642,7 +23642,6 @@
     "panels:references.sheets.title": "160a13d94fb0",
     "panels:references.alreadyOnSheet": "6cd59fdbaa66",
     "panels:references.alreadyOnSheetLine": "4ac04237ffe1",
-    "panels:references.freeDiagonals": "5c210dbe552b",
     "panels:references.card.folds_other": "9c8e30c45cdd",
     "panels:references.flip.finished": "11ba4a9f695d",
     "panels:references.flip.turnOver": "3a57d964493f",
@@ -23705,6 +23704,7 @@
     "panels:references.mode.findTitle": "049990ba3bcb",
     "panels:references.mode.label": "9a87d71b1266",
     "panels:references.mode.sequence": "1695245a2b15",
-    "panels:references.mode.sequenceTitle": "4bf719b1b9ce"
+    "panels:references.mode.sequenceTitle": "4bf719b1b9ce",
+    "panels:references.step.diagonal": "a5c51940a272"
   }
 }

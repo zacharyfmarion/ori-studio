@@ -88,6 +88,7 @@ const RESULTS: ReferencesResults = {
     lines: {
       s: { a: { x: 0, y: 100 }, b: { x: 100, y: 100 } },
       n: { a: { x: 0, y: 0 }, b: { x: 100, y: 0 } },
+      sw_ne: { a: { x: 0, y: 100 }, b: { x: 100, y: 0 } },
     },
     marks: { sw: { x: 0, y: 100 }, ne: { x: 100, y: 0 } },
   },
@@ -128,6 +129,28 @@ afterEach(() => {
 describe('useReferencesHighlights', () => {
   it('marks the pick while there is no answer yet', () => {
     render(null, 0);
+    expect(highlights?.selected).toEqual({ kind: 'line', id: 2 });
+  });
+
+  it('reads a diagonal the answer leans on as its first step, on the paper', () => {
+    const leaning: ReferencesResults = {
+      ...RESULTS,
+      candidates: [
+        { ...CANDIDATE, solution: { ...SOLUTION, freeDiagonals: ['sw_ne'] } },
+      ],
+    };
+    render(leaning, 0);
+    // The diagonal, corner to corner, in model space: sw is (0, 100), ne is (100, 0).
+    expect(highlights?.diagram?.primitives).toContainEqual(
+      expect.objectContaining({ kind: 'line', style: 'valley', from: [0, 100], to: [100, 0] })
+    );
+    expect(highlights?.selected).toBeNull();
+    // Then ReferenceFinder's own steps; the target on the last of them.
+    render(leaning, 1);
+    expect(highlights?.diagram?.primitives).toContainEqual(
+      expect.objectContaining({ kind: 'line', style: 'valley', from: [0, 50], to: [100, 50] })
+    );
+    render(leaning, 2);
     expect(highlights?.selected).toEqual({ kind: 'line', id: 2 });
   });
 

@@ -56,6 +56,12 @@ export function rfToModel(frame: PrecreaseFrame, point: Pair): [number, number] 
   ];
 }
 
+/** The sheet's size in ReferenceFinder's units — the longer side 1 — from its frame. */
+export function rfSheetOfFrame(frame: PrecreaseFrame): { width: number; height: number } {
+  const longer = Math.max(frame.width, frame.height, Number.EPSILON);
+  return { width: frame.width / longer, height: frame.height / longer };
+}
+
 /**
  * A diagram in ReferenceFinder's sheet coordinates, in model space.
  *

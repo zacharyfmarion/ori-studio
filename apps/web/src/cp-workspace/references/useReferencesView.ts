@@ -22,13 +22,18 @@ import type {
 } from './referencesResults';
 import type { ReferencesViewStep } from './referencesSequenceView';
 import { findingBounds, planStepScene } from './referencesPlanGeometry';
-import { referenceFinderStepInModel } from './referenceFinderStepInModel';
-import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
 import {
-  clampStepIndex,
-  referencesStepOverlay,
-  type ModelBounds,
-} from './referencesStepGeometry';
+  candidateViewSteps,
+  clampCandidateStep,
+  diagonalStepDiagram,
+} from './referencesCandidateSteps';
+import {
+  diagramInModel,
+  referenceFinderStepInModel,
+  rfSheetOfFrame,
+} from './referenceFinderStepInModel';
+import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
+import { referencesStepOverlay, type ModelBounds } from './referencesStepGeometry';
 
 /**
  * What the References view renders, read from the stores in one place.
@@ -157,11 +162,16 @@ export function useReferencesHighlights(
 ): ReferencesHighlights {
   const candidate: ReferencesCandidateResult | null =
     current && results ? (results.candidates[activeCandidate] ?? results.candidates[0] ?? null) : null;
-  // The target is on the paper only once the construction has made it: on
-  // the last step, or with no steps at all (already on the paper).
-  const stepCount = candidate?.solution.steps.length ?? 0;
-  const targetMade =
-    stepCount === 0 || clampStepIndex(candidate?.solution ?? null, activeStep) >= stepCount - 1;
+  // The answer's steps as they are read — the sheet's diagonals it leans on
+  // first, then ReferenceFinder's own — and which of them is showing. The
+  // target is on the paper only once the construction has made it: on the
+  // last step, or with no steps at all (already on the paper).
+  const steps = useMemo(
+    () => (candidate ? candidateViewSteps(candidate.solution) : []),
+    [candidate]
+  );
+  const at = clampCandidateStep(candidate?.solution ?? null, activeStep);
+  const targetMade = steps.length === 0 || at >= steps.length - 1;
 
   // The collinear run is genuinely a *result* — the frames analysis found it —
   // so it stays keyed on the answer, not on the pick.
@@ -190,33 +200,47 @@ export function useReferencesHighlights(
   }, [picked, highlightVertexIdx, targetMade]);
 
   // What the step's card draws, on the pattern — one description of the step
-  // for both surfaces (`referenceFinderStepInModel`); the overlay's summary
-  // of it is kept for the framing bounds alone.
+  // for both surfaces: a diagonal step's own primitives, or ReferenceFinder's
+  // diagram of its step (`referenceFinderStepInModel`). The overlay's summary
+  // of an RF step is kept for the framing bounds alone; a diagonal frames
+  // itself.
+  const step = steps[at] ?? null;
   const diagram = useMemo(() => {
-    if (!candidate || !results) return null;
-    return referenceFinderStepInModel(
-      candidate.raw,
-      candidate.solution,
-      clampStepIndex(candidate.solution, activeStep),
-      results.frame
-    );
-  }, [candidate, results, activeStep]);
-  const overlay = useMemo(() => {
-    if (!candidate || !results) return null;
+    if (!candidate || !results || !step) return null;
+    if (step.kind === 'diagonal') {
+      return diagramInModel(
+        diagonalStepDiagram(step.diagonal, rfSheetOfFrame(results.frame)),
+        results.frame
+      );
+    }
+    return referenceFinderStepInModel(candidate.raw, candidate.solution, step.index, results.frame);
+  }, [candidate, results, step]);
+  const stepBounds = useMemo<ModelBounds | null>(() => {
+    if (!candidate || !results || !step) return null;
+    if (step.kind === 'diagonal') {
+      const line = results.originals.lines[step.diagonal];
+      if (!line) return null;
+      return {
+        minX: Math.min(line.a.x, line.b.x),
+        minY: Math.min(line.a.y, line.b.y),
+        maxX: Math.max(line.a.x, line.b.x),
+        maxY: Math.max(line.a.y, line.b.y),
+      };
+    }
     return referencesStepOverlay(
       candidate.solution,
       candidate.modelSteps,
       results.originals,
-      clampStepIndex(candidate.solution, activeStep)
-    );
-  }, [candidate, results, activeStep]);
+      step.index
+    ).bounds;
+  }, [candidate, results, step]);
 
   return {
     highlightLineIds,
     highlightVertexIdx,
     selected,
     diagram,
-    stepBounds: overlay?.bounds ?? null,
+    stepBounds,
   };
 }
 
