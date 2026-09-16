@@ -7,6 +7,7 @@
 //! delegated to selection. No Hough carrier is required for edge proposal; the
 //! carrier is the analytic line through the two endpoints.
 
+use super::vertex_spatial_index::VertexSpatialIndex;
 use std::collections::BTreeMap;
 
 use super::JunctionFirstV1StrategyOptions;
@@ -461,6 +462,7 @@ fn add_adjacent_pair_spans(
     let corridor = options.intermediate_corridor_px / scale;
     let endpoint_margin = options.endpoint_margin_px / scale;
     let short_bypass = options.short_span_bypass_px / scale;
+    let index = VertexSpatialIndex::new(vertices);
     for i in 0..vertices.len() {
         for j in (i + 1)..vertices.len() {
             let a = vertices[i].point;
@@ -478,7 +480,7 @@ fn add_adjacent_pair_spans(
             if !short && !preflight_line_support(a, b, evidence, image_size, options) {
                 continue;
             }
-            if has_intermediate_vertex(vertices, i, j, corridor, endpoint_margin) {
+            if has_intermediate_vertex(vertices, i, j, corridor, endpoint_margin, Some(&index)) {
                 continue;
             }
             let stats = sample_span_stats(
@@ -544,6 +546,7 @@ fn has_intermediate_vertex(
     b_id: usize,
     corridor: f64,
     endpoint_margin: f64,
+    index: Option<&VertexSpatialIndex>,
 ) -> bool {
     let a = vertices[a_id].point;
     let b = vertices[b_id].point;
@@ -552,20 +555,24 @@ fn has_intermediate_vertex(
         return false;
     };
     let t_a = project(a, direction);
-    for (id, vertex) in vertices.iter().enumerate() {
+    let predicate = |id| {
+        let vertex: &CandidateVertex = &vertices[id];
         if id == a_id || id == b_id {
-            continue;
+            return false;
         }
         let t = project(vertex.point, direction) - t_a;
         if t <= endpoint_margin || t >= length - endpoint_margin {
-            continue;
+            return false;
         }
         let on_line = Point2::new(a.x + direction.x * t, a.y + direction.y * t);
-        if distance(vertex.point, on_line) <= corridor {
-            return true;
+        distance(vertex.point, on_line) <= corridor
+    };
+    match index {
+        Some(index) if endpoint_margin.is_finite() && endpoint_margin >= 0.0 => {
+            index.any_near_segment(a, b, corridor, predicate)
         }
+        _ => (0..vertices.len()).any(predicate),
     }
-    false
 }
 
 pub(super) fn pair_supported(stats: SpanStats, options: JunctionFirstV1StrategyOptions) -> bool {
@@ -801,6 +808,39 @@ mod tests {
             source_carrier_ids: Vec::new(),
             source_adapter: CandidateSourceAdapter::ArrangementV2,
             provenance: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn indexed_corridors_match_exhaustive_geometry_at_grid_boundaries() {
+        let mut vertices = Vec::new();
+        for y in 0..=8 {
+            for x in 0..=8 {
+                vertices.push(test_vertex(
+                    vertices.len(),
+                    Point2::new(x as f64 / 8.0, y as f64 / 8.0),
+                ));
+            }
+        }
+        let mut state = 37109u64;
+        let mut random = || {
+            state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
+            (state >> 11) as f64 / (1u64 << 53) as f64
+        };
+        for _ in 0..64 {
+            vertices.push(test_vertex(vertices.len(), Point2::new(random(), random())));
+        }
+        let index = VertexSpatialIndex::new(&vertices);
+        for a in 0..vertices.len() {
+            for b in a + 1..vertices.len() {
+                for (radius, margin) in [(0.0, 0.0), (1e-9, 1e-9), (0.001, 0.002), (0.03, 0.01)] {
+                    assert_eq!(
+                        has_intermediate_vertex(&vertices, a, b, radius, margin, Some(&index)),
+                        has_intermediate_vertex(&vertices, a, b, radius, margin, None),
+                        "pair {a}/{b}, radius {radius}, margin {margin}",
+                    );
+                }
+            }
         }
     }
 

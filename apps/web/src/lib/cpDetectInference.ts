@@ -71,6 +71,7 @@ export async function runCpDetectDenseInference(
   manifest: CpDetectModelManifest
 ): Promise<CpDetectInferenceResult> {
   const startedAt = performance.now();
+  if ('pixel_evidence' in manifest.outputs) throw new Error('Compact model requires pixel inference');
   const imageSize = manifest.inference.image_size;
   const inputName = session.inputNames[0];
   if (!inputName) {

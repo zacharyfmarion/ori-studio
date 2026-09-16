@@ -355,6 +355,10 @@
   stroke: #2563eb;
 }
 
+.cp-detect-modal__fold-line--auxiliary {
+  stroke: rgb(100 200 200);
+}
+
 .cp-detect-modal__fold-line--border {
   stroke: #1f2428;
   stroke-width: 0.005;

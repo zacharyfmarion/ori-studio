@@ -73,7 +73,7 @@ function testImageData(data: Uint8ClampedArray, width: number, height: number): 
   } as ImageData;
 }
 
-const TEST_MANIFEST: CpDetectModelManifest = {
+const TEST_MANIFEST = {
   schema: 'oristudio/cp-detect-model-manifest/v1',
   id: 'test',
   model: { url: 'model.onnx' },
@@ -96,4 +96,4 @@ const TEST_MANIFEST: CpDetectModelManifest = {
     boundary_offset: 'boundary_offset',
     boundary_coord: 'boundary_coord',
   },
-};
+} satisfies CpDetectModelManifest;

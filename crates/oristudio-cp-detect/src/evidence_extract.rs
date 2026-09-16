@@ -852,7 +852,11 @@ fn line_arrangement_junction_primitives(
     .collect()
 }
 
-fn skeletonized_line_mask(line_probability: &[f32], size: usize, threshold: f32) -> Vec<u8> {
+pub(crate) fn skeletonized_line_mask(
+    line_probability: &[f32],
+    size: usize,
+    threshold: f32,
+) -> Vec<u8> {
     let mut mask = line_probability
         .iter()
         .map(|value| u8::from(*value >= threshold))

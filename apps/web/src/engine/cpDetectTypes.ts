@@ -30,8 +30,8 @@ export type CpDetectStatus =
   | 'recognized';
 
 export type CpDetectExecutionProvider = 'auto' | 'webgpu' | 'wasm';
-export type CpDetectJunctionSource = 'dense-model' | 'line-arrangement' | 'vertex-refiner-v3';
-export type CpDetectLineEvidenceSource = 'source-image' | 'dense-model';
+export type CpDetectJunctionSource = 'dense-model' | 'line-arrangement' | 'vertex-refiner-v3' | 'pixel-vertex-v1';
+export type CpDetectLineEvidenceSource = 'source-image' | 'dense-model' | 'pixel-vertex-v1';
 export type CpDetectVertexRefinerProposalMode = 'full-coverage' | 'dense-junction-regions';
 
 // The V3 vertex refiner is deprecated: benchmarking showed it never improves exact
@@ -101,7 +101,7 @@ export interface CpDetectModelManifest {
      */
     junction_offset_radius_px?: number;
   };
-  outputs: CpDetectOutputTensorNames;
+  outputs: CpDetectOutputTensorNames | { pixel_evidence: string };
 }
 
 export interface CpDetectOutputTensorNames {
@@ -208,6 +208,8 @@ export interface CpVertexRefinerInferenceResult {
 }
 
 export interface CpDetectWorkerRunOptions {
+  /** Original pixels and chosen crop, for source-based adaptive resolution. */
+  highResolutionSource?: { image: ImageData; quad: CpDetectQuad };
   manifestUrl?: string;
   modelUrl?: string;
   /**

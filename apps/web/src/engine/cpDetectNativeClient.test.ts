@@ -119,6 +119,28 @@ describe('the native detect client', () => {
     const client = nativeCpDetectClient(worker, { invokeImpl: vi.fn() as never, store: memoryModelStore() });
     expect(await client.autoRectifyImage(image(2))).toBe('rectified');
   });
+
+  it('runs compact manifests through the shared worker even when native inference is available', async () => {
+    const manifest = JSON.parse(await manifestText());
+    manifest.outputs = { pixel_evidence: 'vertices' };
+    const worker = {
+      recognizeRectifiedFold: vi.fn(async () => 'compact recognition'),
+      detectRectifiedFold: vi.fn(async () => 'compact detection'),
+    } as unknown as CpDetectClient;
+    const invokeImpl = vi.fn();
+    const client = nativeCpDetectClient(worker, {
+      invokeImpl: invokeImpl as never,
+      store: memoryModelStore(),
+      fetchImpl: fetchOf(JSON.stringify(manifest)),
+      nativeInferenceAvailable: async () => true,
+    });
+    const pixels = image(4);
+    const options = { manifestUrl: 'https://example.test/manifest.json' };
+    expect(await client.recognizeRectifiedFold(pixels, options)).toBe('compact recognition');
+    expect(await client.detectRectifiedFold(pixels, options)).toBe('compact detection');
+    expect(worker.recognizeRectifiedFold).toHaveBeenCalledWith(pixels, options, undefined);
+    expect(invokeImpl).not.toHaveBeenCalled();
+  });
 });
 
 /**

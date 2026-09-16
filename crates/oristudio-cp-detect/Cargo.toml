@@ -70,3 +70,7 @@ image = { workspace = true, features = ["jpeg", "webp"] }
 [[example]]
 name = "dump_candidate_pool"
 required-features = ["native-inference"]
+
+[[example]]
+name = "recognition_probe"
+required-features = ["native-inference"]

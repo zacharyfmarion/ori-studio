@@ -1,6 +1,43 @@
 use wasm_bindgen_test::*;
 
 #[wasm_bindgen_test]
+fn auxiliary_lines_survive_the_actual_solve_and_fold_export_bridge() {
+    let size = 128;
+    let rgba = vec![255; size * size * 4];
+    let crease = vec![0.0; size * size];
+    let mut recognized = oristudio_cp_detect::decode::decode_pixel_evidence(
+        &rgba,
+        &crease,
+        &[],
+        oristudio_cp_detect::decode::DecodeConfig {
+            image_size: size as u32,
+            recognize_only: true,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let segments = vec![oristudio_cp_detect::auxiliary::AuxiliarySegment {
+        endpoints: [[0.1, 0.2], [0.9, 0.8]],
+    }];
+    oristudio_cp_detect::auxiliary::attach_to_decoded(&mut recognized, &segments).unwrap();
+    let input = &recognized.report.quality_report["compiler_report"]["exact_solve_input"];
+    let result = oristudio_cp_detect_wasm::cp_detect_solve_exact_to_fold(
+        &input.to_string(),
+        r#"{"timeout_seconds":1}"#,
+    )
+    .unwrap();
+    let result: serde_json::Value = serde_wasm_bindgen::from_value(result).unwrap();
+    let fold = &result["fold"];
+    let labels = fold["edges_assignment"].as_array().unwrap();
+    assert_eq!(labels.iter().filter(|v| **v == "F").count(), 1);
+    assert_eq!(labels.last().unwrap(), "F");
+    let vertices = fold["vertices_coords"].as_array().unwrap();
+    assert_eq!(vertices[vertices.len() - 2], serde_json::json!([0.1, 0.2]));
+    assert_eq!(vertices[vertices.len() - 1], serde_json::json!([0.9, 0.8]));
+    assert_eq!(input["selected_spans"].as_array().unwrap().len(), 4);
+}
+
+#[wasm_bindgen_test]
 fn package_info_serializes_browser_detector_contract() {
     let info =
         oristudio_cp_detect_wasm::cp_detect_package_info().expect("package info should serialize");

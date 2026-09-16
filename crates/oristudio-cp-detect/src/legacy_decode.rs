@@ -307,6 +307,8 @@ pub struct RepairAction {
 
 #[derive(Debug, thiserror::Error)]
 pub enum DecodeError {
+    #[error("invalid pixel evidence: {0}")]
+    InvalidPixelEvidence(&'static str),
     #[error("invalid image size: {0}")]
     InvalidImageSize(u32),
     #[error("{name} length mismatch: expected {expected}, got {actual}")]

@@ -735,6 +735,7 @@ export function CpDetectImportModal() {
             junctionSource: 'dense-model',
             model: model.active,
             manifestUrl: model.active.manifest_url,
+            ...(source ? { highResolutionSource: { image: source.image, quad: rectified.report.source_quad } } : {}),
           },
           proxy((progress: CpDetectModelDownloadProgress) => setModelProgress(progress))
         )
@@ -1611,6 +1612,7 @@ function assignmentClass(assignment: string | undefined): string {
   if (assignment === 'M') return 'mountain';
   if (assignment === 'V') return 'valley';
   if (assignment === 'B') return 'border';
+  if (assignment === 'F') return 'auxiliary';
   return 'unknown';
 }
 

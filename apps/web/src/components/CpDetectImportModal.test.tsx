@@ -229,11 +229,12 @@ function candidateFold() {
 
 function recognition(
   topologyDiagnostics: unknown,
-  solveInput: unknown = { schema: 'exact-solve-input-v1' }
+  solveInput: unknown = { schema: 'exact-solve-input-v1' },
+  foldJson = candidateFold()
 ) {
   return {
     status: 'recognized',
-    foldJson: candidateFold(),
+    foldJson,
     detectorReport: {
       status: 'recognized',
       decoder_backend: 'legacy_candidate_exact_solve_v1',
@@ -500,6 +501,17 @@ describe('CpDetectImportModal recognize-then-solve', () => {
     expect(button('Add as-is')).toBeNull();
     expect(button('Solve & Add')).toBeNull();
     expect(bodyText()).toMatch(/now meets the foldability check/);
+  });
+
+  it('previews retained auxiliary geometry separately from valleys', async () => {
+    const fold = JSON.parse(candidateFold());
+    fold.edges_assignment = ['F'];
+    detectClient.recognizeRectifiedFold.mockResolvedValue(
+      recognition(diagnostics(1), undefined, JSON.stringify(fold))
+    );
+    await reachReviewStage();
+    expect(document.querySelector('.cp-detect-modal__fold-line--auxiliary')).not.toBeNull();
+    expect(document.querySelector('.cp-detect-modal__fold-line--valley')).toBeNull();
   });
 
   /**

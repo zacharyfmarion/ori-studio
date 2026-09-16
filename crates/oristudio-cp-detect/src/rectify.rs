@@ -318,6 +318,42 @@ pub fn auto_rectify_rgba(
     Ok(result)
 }
 
+/// Compact detector geometry uses a fixed 32px inset at every resolution.
+/// Preserve the established rectifier and explicitly convert its scaled frame.
+pub fn remap_to_pixel_inset(image: &mut RectifiedRgbaImage) -> Result<(), RectificationError> {
+    let size = image.report.image_size;
+    let (margin, _) = paper_target_span(size);
+    if margin == 32.0 {
+        return Ok(());
+    }
+    if size <= 64 {
+        return Err(RectificationError::InvalidDimensions {
+            width: size,
+            height: size,
+        });
+    }
+    use imageproc::geometric_transformations::{Interpolation, Projection, warp};
+    let scale = (size as f32 - 64.0) / (size as f32 - 2.0 * margin);
+    let shift = 32.0 - scale * margin;
+    let projection = Projection::from_matrix([scale, 0.0, shift, 0.0, scale, shift, 0.0, 0.0, 1.0])
+        .ok_or(RectificationError::SingularHomography)?;
+    let rgba = image::RgbaImage::from_raw(size, size, std::mem::take(&mut image.rgba)).ok_or(
+        RectificationError::InvalidDimensions {
+            width: size,
+            height: size,
+        },
+    )?;
+    image.rgba = warp(
+        &rgba,
+        &projection,
+        Interpolation::Bilinear,
+        image::Rgba([255, 255, 255, 255]),
+    )
+    .into_raw();
+    image.report.target_quad = Some(Quad::square(32.0, size as f32 - 32.0));
+    Ok(())
+}
+
 pub fn manual_rectify_rgba(
     rgba: &[u8],
     width: u32,
