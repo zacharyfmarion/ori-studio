@@ -175,10 +175,10 @@ describe('SimulatorPanel', () => {
     act(() => pressKey(' '));
     expect(rendered.querySelector('[aria-label="Play"]')).not.toBeNull();
 
-    // Shift+Arrow jumps the fold to the ends of the timeline.
-    act(() => pressKey('ArrowRight', { shiftKey: true }));
+    // Cmd+Arrow jumps the fold to the ends of the timeline.
+    act(() => pressKey('ArrowRight', { metaKey: true }));
     expect(rendered.querySelector('output')?.textContent).toBe('100%');
-    act(() => pressKey('ArrowLeft', { shiftKey: true }));
+    act(() => pressKey('ArrowLeft', { metaKey: true }));
     expect(rendered.querySelector('output')?.textContent).toBe('0%');
 
     // A plain arrow scrubs by a step, so 0 -> right lands above 0.
@@ -204,6 +204,116 @@ describe('SimulatorPanel', () => {
     });
     expect(rendered.querySelector('[aria-label="Play"]')).not.toBeNull();
     expect(rendered.querySelector('[aria-label="Pause"]')).toBeNull();
+  });
+});
+
+/**
+ * The one transport control for starting over. It used to be two — Refresh,
+ * which rebuilt the fold artifacts and loaded a new worker session, and Reset,
+ * which rewound the session in hand — and the split was the bug: users pressed
+ * whichever, and a rebuild came back on the worker's default camera and
+ * colours. Now one verb chooses: rewind while the session is healthy, rebuild
+ * when it is not.
+ */
+describe('SimulatorPanel restart', () => {
+  function restartButton(rendered: HTMLElement): HTMLButtonElement {
+    const button = rendered.querySelector<HTMLButtonElement>('[aria-label="Restart"]');
+    expect(button).not.toBeNull();
+    return button as HTMLButtonElement;
+  }
+
+  it('rewinds a healthy simulation in place', async () => {
+    const refreshFoldArtifacts = vi.fn(async () => null);
+    const rendered = renderPanel({ foldArtifacts: { fold: simpleFold() }, refreshFoldArtifacts });
+    await flushSimulator();
+
+    act(() => pressKey('ArrowRight', { metaKey: true }));
+    expect(rendered.querySelector('output')?.textContent).toBe('100%');
+
+    const restart = restartButton(rendered);
+    expect(restart.disabled).toBe(false);
+    act(() => restart.click());
+    expect(rendered.querySelector('output')?.textContent).toBe('0%');
+    // The session is kept — its camera and colours with it — not rebuilt.
+    expect(refreshFoldArtifacts).not.toHaveBeenCalled();
+    await flushSimulator();
+  });
+
+  it('puts the view back, where the Cmd+Arrow jumps leave it alone', async () => {
+    // jsdom has no pointer capture; the orbit gesture asks for it on the canvas.
+    const element = HTMLElement.prototype as unknown as Record<string, unknown>;
+    element.setPointerCapture = () => {};
+    element.hasPointerCapture = () => false;
+    element.releasePointerCapture = () => {};
+    try {
+      const rendered = renderPanel({ foldArtifacts: { fold: simpleFold() } });
+      await flushSimulator();
+      // The view cube is turned by the camera, so its transform is the camera as
+      // far as the DOM can see it.
+      const cube = () =>
+        rendered.querySelector<HTMLElement>('.simulator-view-cube__scene')?.style.transform;
+      const opening = cube();
+      expect(opening).toMatch(/^matrix3d\(/);
+
+      const canvas = rendered.querySelector('canvas');
+      expect(canvas).not.toBeNull();
+      const send = (type: string, x: number) =>
+        act(() => {
+          canvas?.dispatchEvent(
+            new PointerEvent(type, { pointerId: 1, clientX: x, clientY: 80, bubbles: true })
+          );
+        });
+      send('pointerdown', 100);
+      send('pointermove', 160);
+      send('pointerup', 160);
+      const orbited = cube();
+      expect(orbited).not.toBe(opening);
+
+      // Either end of the fold, camera untouched.
+      act(() => pressKey('ArrowRight', { metaKey: true }));
+      expect(rendered.querySelector('output')?.textContent).toBe('100%');
+      expect(cube()).toBe(orbited);
+      act(() => pressKey('ArrowLeft', { metaKey: true }));
+      expect(rendered.querySelector('output')?.textContent).toBe('0%');
+      expect(cube()).toBe(orbited);
+
+      // Restart is the one that starts the *view* over too.
+      act(() => pressKey('r'));
+      expect(rendered.querySelector('output')?.textContent).toBe('0%');
+      expect(cube()).toBe(opening);
+      await flushSimulator();
+    } finally {
+      delete element.setPointerCapture;
+      delete element.hasPointerCapture;
+      delete element.releasePointerCapture;
+    }
+  });
+
+  it('rebuilds a simulation the engine could not produce', async () => {
+    const refreshFoldArtifacts = vi.fn(async () => null);
+    const rendered = renderPanel({
+      foldArtifacts: null,
+      foldArtifactStatus: 'error',
+      foldArtifactError: 'the engine could not fold this',
+      refreshFoldArtifacts,
+    });
+    await flushSimulator();
+
+    expect(rendered.textContent).toContain('the engine could not fold this');
+    // Nothing to play, but something to start over: the rebuild is the only
+    // way back from here, and it must not need a second button.
+    expect(rendered.querySelector<HTMLButtonElement>('[aria-label="Play"]')?.disabled).toBe(true);
+    const restart = restartButton(rendered);
+    expect(restart.disabled).toBe(false);
+    act(() => restart.click());
+    expect(refreshFoldArtifacts).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers nothing to restart while a rebuild is in flight', async () => {
+    const rendered = renderPanel({ foldArtifacts: null, foldArtifactStatus: 'loading' });
+    await flushSimulator();
+
+    expect(restartButton(rendered).disabled).toBe(true);
   });
 });
 

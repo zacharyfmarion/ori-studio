@@ -6,6 +6,7 @@ use crate::io::Result;
 use crate::io::fold::import_fold_json;
 use crate::model::CreasePatternModel;
 use crate::operations::arrangement::add_line_segment_like_worker;
+use crate::operations::native::pinned::PinnedPoints;
 use crate::operations::transform::transform_segments_by_points;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -200,12 +201,16 @@ pub fn default_molecule(
         return Ok(0);
     }
 
+    // No pinned set: this places a *template* the generator is about to add, so
+    // there is no existing vertex to hold — the same reason the copy transforms
+    // take none.
     transform_segments_by_points(
         &mut template.line_segments,
         starting_circles[0].determine_center(),
         starting_circles[1].determine_center(),
         p1,
         p2,
+        PinnedPoints::none(),
     );
 
     let mut added = 0;

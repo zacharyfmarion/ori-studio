@@ -3,6 +3,7 @@ import type * as ort from 'onnxruntime-web/webgpu';
 import init, {
   cp_detect_ablate_dense_outputs,
   cp_detect_auto_rectify_rgba,
+  cp_detect_crease_pattern_likelihood,
   cp_detect_decode_dense_output_bundle,
   cp_detect_decode_dense_output_bundle_with_source_image_line_evidence,
   cp_detect_decode_dense_output_bundle_with_junction_source,
@@ -19,6 +20,7 @@ import type {
   CpDetectFoldResult,
   CpDetectInferenceResult,
   CpDetectJunctionSource,
+  CpDetectLikelihood,
   CpDetectLineEvidenceSource,
   CpDetectRecognizeResult,
   CpDetectRuntimeInfo,
@@ -354,6 +356,22 @@ const api = {
       return { manifest, version, installed };
     });
   },
+  /**
+   * Does this image look like a crease pattern? Pure Rust, no model: the gate
+   * behind the offer on a reference image added to the Edit canvas. Hand it a
+   * copy no larger than 512 px on its longer side — the extractor works at
+   * that size anyway, and a full-size `ImageData` is a needless transfer.
+   */
+  async creasePatternLikelihood(image: ImageData): Promise<CpDetectLikelihood> {
+    return call(
+      () =>
+        cp_detect_crease_pattern_likelihood(
+          imageDataBytes(image),
+          image.width,
+          image.height
+        ) as CpDetectLikelihood
+    );
+  },
   async autoRectifyImage(image: ImageData, imageSize = 1024): Promise<CpDetectRectifiedImage> {
     return call(() => rectifyFromWasm(cp_detect_auto_rectify_rgba(
       imageDataBytes(image),
@@ -626,7 +644,7 @@ function decodeFoldFromDenseOutputs(
   lineEvidenceSource: CpDetectLineEvidenceSource = 'source-image',
   recognizeOnly = false
 ): WasmDecodedFold {
-  const decoderBackend = options.decoderBackend ?? 'legacy_v2_decoder';
+  const decoderBackend = options.decoderBackend ?? 'legacy_candidate_exact_solve_v1';
   const outputBundle = Object.fromEntries(
     CP_DETECT_OUTPUT_KEYS
       .filter((key) => outputs[key])

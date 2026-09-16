@@ -13,6 +13,8 @@ use crate::operations::arrangement::{
     add_line_segment_like_worker, delete_line_segments_for_indices,
     divide_line_segment_with_new_lines,
 };
+use crate::operations::native::pinned::PinnedPoints;
+use crate::operations::native::vertex::VERTEX_COINCIDENCE;
 use crate::operations::selection::{delete_selected_lines, unselect_all};
 use serde::{Deserialize, Serialize};
 
@@ -284,7 +286,16 @@ pub fn operation_frame_reset(frame: &mut OperationFrame) {
 }
 
 /// Oriedita `CREASE_MOVE_21` final mutation after selected lines and delta are known.
-pub fn move_selected_lines(model: &mut CreasePatternModel, delta: Point) -> usize {
+///
+/// `pinned` holds the endpoints the user has pinned, so a selected crease with
+/// one pinned end stretches instead of translating and one with both ends pinned
+/// does not move at all. With an empty set this is the port, unchanged; see
+/// [`crate::operations::native::pinned`].
+pub fn move_selected_lines(
+    model: &mut CreasePatternModel,
+    delta: Point,
+    pinned: PinnedPoints<'_>,
+) -> usize {
     if !Epsilon::HIGH.gt0(delta.distance(Point::origin())) {
         return 0;
     }
@@ -296,13 +307,20 @@ pub fn move_selected_lines(model: &mut CreasePatternModel, delta: Point) -> usiz
     }
 
     delete_selected_lines(model);
-    translate_segments(&mut selected, delta);
+    translate_segments(&mut selected, delta, pinned);
+    drop_collapsed_segments(&mut selected, pinned);
     append_and_split(model, selected);
     unselect_all(model);
     moved_count
 }
 
 /// Oriedita `CREASE_COPY_22` final mutation after selected lines and delta are known.
+///
+/// Takes **no** pinned set, deliberately. A copy leaves every existing crease
+/// where it is — nothing is being moved, so there is nothing to hold — and what
+/// it produces is new geometry, which inherits no constraint the originals
+/// carried. A copy whose destination happens to land an endpoint on a pinned
+/// position is fine: the pin still holds the vertex it was placed on.
 pub fn copy_selected_lines(model: &mut CreasePatternModel, delta: Point) -> usize {
     if !Epsilon::HIGH.gt0(delta.distance(Point::origin())) {
         return 0;
@@ -314,7 +332,7 @@ pub fn copy_selected_lines(model: &mut CreasePatternModel, delta: Point) -> usiz
         return 0;
     }
 
-    translate_segments(&mut selected, delta);
+    translate_segments(&mut selected, delta, PinnedPoints::none());
     for segment in &mut selected {
         *segment = segment.with_selected(0);
     }
@@ -324,12 +342,17 @@ pub fn copy_selected_lines(model: &mut CreasePatternModel, delta: Point) -> usiz
 }
 
 /// Oriedita `CREASE_MOVE_4P_31` final mutation once all four points are known.
+///
+/// Pinned endpoints are held, as in [`move_selected_lines`]. A similarity is
+/// still a similarity for everything else in the selection — only the held ends
+/// sit out.
 pub fn move_selected_lines_by_points(
     model: &mut CreasePatternModel,
     original_a: Point,
     original_b: Point,
     target_a: Point,
     target_b: Point,
+    pinned: PinnedPoints<'_>,
 ) -> usize {
     let mut selected = selected_line_segments(model);
     let moved_count = selected.len();
@@ -338,13 +361,22 @@ pub fn move_selected_lines_by_points(
     }
 
     delete_selected_lines(model);
-    transform_segments_by_points(&mut selected, original_a, original_b, target_a, target_b);
+    transform_segments_by_points(
+        &mut selected,
+        original_a,
+        original_b,
+        target_a,
+        target_b,
+        pinned,
+    );
+    drop_collapsed_segments(&mut selected, pinned);
     append_and_split(model, selected);
     unselect_all(model);
     moved_count
 }
 
 /// Oriedita `CREASE_COPY_4P_32` final mutation once all four points are known.
+/// Takes no pinned set, for the reason [`copy_selected_lines`] gives.
 pub fn copy_selected_lines_by_points(
     model: &mut CreasePatternModel,
     original_a: Point,
@@ -358,7 +390,14 @@ pub fn copy_selected_lines_by_points(
         return 0;
     }
 
-    transform_segments_by_points(&mut selected, original_a, original_b, target_a, target_b);
+    transform_segments_by_points(
+        &mut selected,
+        original_a,
+        original_b,
+        target_a,
+        target_b,
+        PinnedPoints::none(),
+    );
     for segment in &mut selected {
         *segment = segment.with_selected(0);
     }
@@ -402,13 +441,15 @@ pub fn replace_line_segments(
     insert_line_segments(model, segments, true)
 }
 
-/// Oriedita `FoldLineSet.move(ta, tb, tc, td)` line-segment transform.
+/// Oriedita `FoldLineSet.move(ta, tb, tc, td)` line-segment transform, with
+/// pinned endpoints held.
 pub fn transform_segments_by_points(
     segments: &mut [LineSegment],
     original_a: Point,
     original_b: Point,
     target_a: Point,
     target_b: Point,
+    pinned: PinnedPoints<'_>,
 ) {
     let rotation = angle((original_a, original_b, target_a, target_b));
     let scale = target_a.distance(target_b) / original_a.distance(original_b);
@@ -417,7 +458,8 @@ pub fn transform_segments_by_points(
     for segment in segments {
         let new_a = point_rotate_scaled(original_a, segment.a, rotation, scale).move_by(delta);
         let new_b = point_rotate_scaled(original_a, segment.b, rotation, scale).move_by(delta);
-        *segment = segment.with_coordinates(new_a, new_b);
+        *segment =
+            segment.with_coordinates(pinned.hold(segment.a, new_a), pinned.hold(segment.b, new_b));
     }
 }
 
@@ -542,9 +584,10 @@ pub fn lengthen_crease(
     extension_point: Point,
     selection_distance: f64,
     color_mode: LengthenColorMode,
-) -> usize {
+    pinned: PinnedPoints<'_>,
+) -> Result<usize, LengthenRefusal> {
     let Some(extension_line) = closest_line_segment(model, extension_point) else {
-        return 0;
+        return Ok(0);
     };
 
     let max_extension = MAX_LENGTHEN_EXTENSION_DIAGONALS * line_segment_extent_diagonal(model);
@@ -554,7 +597,7 @@ pub fn lengthen_crease(
     if lines_to_extend.is_empty()
         || determine_line_segment_distance(extension_point, &extension_line) >= selection_distance
     {
-        return 0;
+        return Ok(0);
     }
 
     let same_line_mode = lines_to_extend.iter().any(|line| {
@@ -564,6 +607,31 @@ pub fn lengthen_crease(
             Epsilon::UNKNOWN_1EN6,
         ) == Intersection::ParallelEqual31
     });
+
+    // All-or-nothing, and refused *before* the first mutation.
+    //
+    // A lengthen never moves a vertex — both branches below append a crease
+    // running outward from an existing endpoint, leaving the original untouched.
+    // What it changes at that endpoint is its **topology**: a chain end becomes a
+    // pass-through, which changes its degree, its Kawasaki fan, and whether the
+    // solver would have dissolved it. Holding a vertex means holding that too.
+    //
+    // Refusing up front rather than per-crease avoids a half-applied lengthen,
+    // where some of the creases the user aimed at grew and others silently did
+    // not. `lengthen_anchor` is the same function the apply loop uses, so the
+    // pre-pass cannot drift from what it is predicting.
+    if !pinned.is_empty()
+        && lines_to_extend.iter().any(|original| {
+            pinned.holds(lengthen_anchor(
+                original,
+                &extension_line,
+                &selection_line,
+                same_line_mode,
+            ))
+        })
+    {
+        return Err(LengthenRefusal::PinnedVertex);
+    }
 
     let mut added = 0;
     if !same_line_mode {
@@ -592,13 +660,7 @@ pub fn lengthen_crease(
         }
     } else {
         for original in lines_to_extend {
-            let intersection = find_intersection_segments(&original, &selection_line);
-            let line_to_extend =
-                if intersection.distance(original.a) < intersection.distance(original.b) {
-                    original.with_swapped_coordinates()
-                } else {
-                    original
-                };
+            let line_to_extend = same_line_orientation(&original, &selection_line);
             let add_segment = extend_to_intersection_point_2(model, &line_to_extend);
             if add_extended_line_segment(
                 model,
@@ -612,7 +674,48 @@ pub fn lengthen_crease(
         }
     }
 
-    added
+    Ok(added)
+}
+
+/// Why a lengthen declined. One variant today; a token, not a sentence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LengthenRefusal {
+    /// A crease the gesture would extend anchors on a pinned vertex.
+    PinnedVertex,
+}
+
+/// The end an extension of `original` would grow *from* — its anchor.
+///
+/// Shared by the pre-pass and the apply loop so the two cannot disagree about
+/// which endpoint is at stake. Note the two branches anchor on opposite ends of
+/// the segment they build: in the crossing case the new crease runs from the
+/// target intersection *back* to the original's nearest endpoint, and in the
+/// same-line case it runs from the original's `b` outward. Pure in both — it
+/// reads no model state, which is what lets the pre-pass run before any
+/// mutation.
+fn lengthen_anchor(
+    original: &LineSegment,
+    extension_line: &LineSegment,
+    selection_line: &LineSegment,
+    same_line_mode: bool,
+) -> Point {
+    if same_line_mode {
+        same_line_orientation(original, selection_line).b
+    } else {
+        original.determine_closest_endpoint(find_intersection_segments(original, extension_line))
+    }
+}
+
+/// The same-line branch's orientation rule: the end *further* from where the
+/// selection line crossed is the one that grows, so a segment whose `a` is
+/// nearer is swapped.
+fn same_line_orientation(original: &LineSegment, selection_line: &LineSegment) -> LineSegment {
+    let intersection = find_intersection_segments(original, selection_line);
+    if intersection.distance(original.a) < intersection.distance(original.b) {
+        original.with_swapped_coordinates()
+    } else {
+        original.clone()
+    }
 }
 
 fn lengthen_candidates(
@@ -794,14 +897,37 @@ pub(crate) fn append_and_split(model: &mut CreasePatternModel, segments: Vec<Lin
     divide_line_segment_with_new_lines(model, original_end, added_end);
 }
 
-fn translate_segments(segments: &mut [LineSegment], delta: Point) {
+fn translate_segments(segments: &mut [LineSegment], delta: Point, pinned: PinnedPoints<'_>) {
     for segment in segments {
-        *segment = translate_segment(segment, delta);
+        *segment = segment.with_coordinates(
+            pinned.hold(segment.a, segment.a.move_by(delta)),
+            pinned.hold(segment.b, segment.b.move_by(delta)),
+        );
     }
 }
 
 fn translate_segment(segment: &LineSegment, delta: Point) -> LineSegment {
     segment.with_coordinates(segment.a.move_by(delta), segment.b.move_by(delta))
+}
+
+/// Drop creases a pinned transform has collapsed onto a point.
+///
+/// Only reachable with a pin: without one a transform is a similarity, which
+/// cannot shorten a non-degenerate crease to nothing. Holding one end while the
+/// other travels can — land the free end on the held one and the crease has zero
+/// length.
+///
+/// It has to be dropped rather than appended, because [`append_and_split`]
+/// extends the model with no zero-length guard of its own (unlike
+/// [`insert_line_segments`]). A sub-epsilon self-loop reaching the model makes
+/// the Euler check discard **every face in the pattern** on export, which is a
+/// document-wide failure produced by one collapsed crease. `move_vertex` drops
+/// its own collapsed segments for the same reason.
+fn drop_collapsed_segments(segments: &mut Vec<LineSegment>, pinned: PinnedPoints<'_>) {
+    if pinned.is_empty() {
+        return;
+    }
+    segments.retain(|segment| segment.a.distance(segment.b) > VERTEX_COINCIDENCE);
 }
 
 fn should_extend_to(origin: Point, direction: Point, point: Point, current_distance: f64) -> bool {

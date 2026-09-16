@@ -6,10 +6,13 @@ import type { CpSolveFrameTransform } from '../../engine/cpExactSolveTypes';
 import {
   cpRegionPatternLines,
   foldEdgesVertices,
+  foldVerticesCoords,
   partialVertexPositions,
+  pinnedFoldVertexIds,
   solvedRegionSegments,
   solvedVertexPositions,
 } from './regionSolveGeometry';
+import { VERTEX_COINCIDENCE } from '../tools/vertexEndpoints';
 
 /**
  * The two things standing between a solved answer and the document: which
@@ -335,5 +338,62 @@ describe('foldEdgesVertices', () => {
     expect(foldEdgesVertices('{}')).toBeNull();
     expect(foldEdgesVertices('{"edges_vertices":[[0]]}')).toBeNull();
     expect(foldEdgesVertices('{"edges_vertices":[[0,"1"]]}')).toBeNull();
+  });
+});
+
+describe('pins as solver vertex ids', () => {
+  const FOLD = JSON.stringify({
+    vertices_coords: [
+      [0, 0],
+      [100, 0],
+      [100, 100],
+    ],
+    edges_vertices: [
+      [0, 1],
+      [1, 2],
+    ],
+  });
+
+  it('reads vertices_coords back off the exported FOLD', () => {
+    expect(foldVerticesCoords(FOLD)).toEqual([
+      [0, 0],
+      [100, 0],
+      [100, 100],
+    ]);
+  });
+
+  it('refuses a malformed table rather than throwing', () => {
+    expect(foldVerticesCoords('not json')).toBeNull();
+    expect(foldVerticesCoords('{"vertices_coords":[[0]]}')).toBeNull();
+    expect(foldVerticesCoords('{"vertices_coords":[["a","b"]]}')).toBeNull();
+  });
+
+  it('maps a pin to the index it lands on, which is the solver id', () => {
+    const coords = foldVerticesCoords(FOLD) ?? [];
+    expect(pinnedFoldVertexIds(coords, [{ x: 100, y: 0 }])).toEqual([1]);
+  });
+
+  it('matches within the kernel coincidence epsilon', () => {
+    const coords = foldVerticesCoords(FOLD) ?? [];
+    expect(pinnedFoldVertexIds(coords, [{ x: 100 + VERTEX_COINCIDENCE * 0.5, y: 0 }])).toEqual([1]);
+  });
+
+  it('drops a pin that matches nothing rather than sending a stale id', () => {
+    // The solver refuses an id its input does not have, which is right for a
+    // caller that believes its ids — and this one knows some may be stale: a pin
+    // outside the region, or on a vertex an edit has since removed.
+    const coords = foldVerticesCoords(FOLD) ?? [];
+    expect(pinnedFoldVertexIds(coords, [{ x: 900, y: 900 }])).toEqual([]);
+  });
+
+  it('returns ascending, deduplicated ids', () => {
+    const coords = foldVerticesCoords(FOLD) ?? [];
+    expect(
+      pinnedFoldVertexIds(coords, [
+        { x: 100, y: 100 },
+        { x: 0, y: 0 },
+        { x: 0, y: 0 },
+      ])
+    ).toEqual([0, 2]);
   });
 });

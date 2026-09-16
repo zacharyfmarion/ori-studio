@@ -18,7 +18,8 @@
     "stripTitle": "이 도구 모음이 작동을 멈췄습니다"
   },
   "cp": {
-    "foldProducedNothing": "이 접는 선들에는 그릴 수 있는 평평한 접힘 형태가 없습니다"
+    "foldProducedNothing": "이 접는 선들에는 그릴 수 있는 평평한 접힘 형태가 없습니다",
+    "pinnedVertex": "이 접힘선은 고정된 정점에서 시작하므로 늘릴 수 없습니다. 먼저 정점 고정을 해제하거나 다른 접힘선을 늘리세요."
   },
   "cpDetectImport": {
     "addFailed": "감지된 전개도를 추가하지 못했습니다.",

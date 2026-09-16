@@ -127,7 +127,7 @@ Mirror the folded-figure plumbing exactly; there is no new mechanism here.
 | Delete a window | yes | the reported bug |
 | Move / resize / rotate | yes | drop the early return at [CreasePatternPanel.tsx:1350](apps/web/src/components/panels/CreasePatternPanel.tsx:1350) so windows use the same begin/commit gesture protocol as the other two canvas-object kinds |
 | Rebuild region (refresh) | yes | rewrites provenance |
-| Focus / blur | no | selection, not content |
+| Focus / blur | no | selection, not content. Window focus is also not *restored* by undo (it is a running solver and the app-wide `simulator` shortcut scope); the annotation selection, by contrast, now survives an undo whose restored list still holds the annotation — see `restoredAnnotationSelection` in `historySlice.ts` and `implementation-plans/canvas-object-properties-panel.md` §12 |
 | Scrub, play, replay | no | transport — `defecfa` pinned that a running fold is not a document edit, and putting it in history would be that regression by another route |
 | Orbit | no | not written back to the descriptor at all ([inlineSimulation.ts:42-48](apps/web/src/cp-workspace/inlineSimulation/inlineSimulation.ts:42)) |
 

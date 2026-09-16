@@ -645,13 +645,16 @@ fn solve_recognized_candidate(
         exact_solve_input,
     } = recognized;
     let exact_started = StageTimer::start();
-    let exact_solve = oristudio_cp_compiler::solve_exact(
-        &exact_input,
-        oristudio_cp_compiler::ExactSolveOptions {
-            timeout_seconds: config.exact_solve_timeout_seconds,
-            ..oristudio_cp_compiler::ExactSolveOptions::default()
-        },
-    );
+    let exact_options = oristudio_cp_compiler::ExactSolveOptions {
+        timeout_seconds: config.exact_solve_timeout_seconds,
+        work_budget: config.exact_solve_work_budget,
+        ..oristudio_cp_compiler::ExactSolveOptions::default()
+    };
+    let exact_solve = if config.exact_solve_lattice_only {
+        oristudio_cp_compiler::solve_exact_on_lattice(&exact_input, exact_options)
+    } else {
+        oristudio_cp_compiler::solve_exact(&exact_input, exact_options)
+    };
     let exact_seconds = exact_started.elapsed_seconds();
     let mut fold_document =
         oristudio_cp_compiler::fold_export::export_exact_solved_to_fold_document(
@@ -975,6 +978,7 @@ fn solve_not_attempted_report(config: &DecodeConfig) -> serde_json::Value {
         "budget": {
             "total_seconds": config.exact_solve_timeout_seconds,
             "spent_seconds": 0.0,
+            "total_work": config.exact_solve_work_budget,
             "policy": "shared_total_across_staged_solve_calls"
         }
     })

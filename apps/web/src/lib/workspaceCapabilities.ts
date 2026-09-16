@@ -66,6 +66,7 @@ export type WorkspaceCapabilityId =
   | 'view.simulator'
   | 'view.references'
   | 'view.conditions'
+  | 'view.properties'
   | 'view.resetLayout'
   | 'optimize.scale'
   | 'optimize.edges'
@@ -110,8 +111,7 @@ export type WorkspaceCapabilityId =
   | 'cp.organizeCircles'
   | 'cp.setActiveCreaseAngle'
   | 'insert.image'
-  | 'insert.text'
-  | 'simulator.refresh';
+  | 'insert.text';
 
 export interface WorkspaceCapability {
   enabled: boolean;
@@ -183,7 +183,8 @@ export interface WorkspaceCapabilityInput {
   cpDetectAvailable?: boolean;
 }
 
-function cpDetectAvailableHere(): boolean {
+/** Whether this build and surface offer CP detection at all: the flag is on and this is not a phone. */
+export function cpDetectAvailableHere(): boolean {
   return isCpDetectSurfaceAvailable({
     buildEnabled: isCpDetectBuildEnabled(),
     phone: isPhoneLayout(),
@@ -237,10 +238,6 @@ export function getWorkspaceCapabilities(
   const canExportEditableCp = input.hasEditableCreasePattern;
   const canExportCreasePattern = hasCreasePattern && !isBusy;
   const canEditCp = input.hasEditableCreasePattern && !isBusy;
-  const canRefreshFoldArtifacts =
-    !isBusy &&
-    (input.hasEditableCreasePattern ||
-      (treeMode && (input.creaseCount > 0 || input.facetCount > 0)));
   const hasSelectedCpLines = input.oristudioCpSelectedLineCount > 0;
   const solvablePatternCount = input.oristudioCpSolvablePatternCount ?? 0;
   // Scope is a *pattern* — the closed-boundary component — never the selection
@@ -676,6 +673,15 @@ export function getWorkspaceCapabilities(
       t('common:capability.conditions', 'Conditions'),
       t('common:capability.showConditionsPane', 'Show the conditions pane')
     ),
+    // Visible everywhere like the other View entries (it navigates to Edit),
+    // enabled once there is a crease pattern whose objects it could describe.
+    'view.properties': capability(
+      canEditCp,
+      t('common:capability.properties', 'Properties'),
+      canEditCp
+        ? t('common:capability.showPropertiesPane', 'Show the properties pane')
+        : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
+    ),
     'view.resetLayout': capability(
       true,
       t('common:capability.resetLayout', 'Reset Layout'),
@@ -1051,13 +1057,6 @@ export function getWorkspaceCapabilities(
             'Choose the fold angle new mountain and valley creases take'
           )
         : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
-    ),
-    'simulator.refresh': capability(
-      canRefreshFoldArtifacts,
-      t('common:capability.refresh', 'Refresh'),
-      canRefreshFoldArtifacts
-        ? busyOr(t('common:capability.refreshSimulatorModel', 'Refresh simulator model'), input.status, t)
-        : t('common:capability.buildOrEditCpBeforeRefreshing', 'Build or edit a crease pattern before refreshing the simulator')
     ),
   };
 

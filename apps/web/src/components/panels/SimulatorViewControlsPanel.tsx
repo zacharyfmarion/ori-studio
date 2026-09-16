@@ -11,26 +11,15 @@ import {
   type SimulatorNumericSettingKey,
   type SimulatorSettings,
 } from '../../lib/simulatorSettings';
+import { simulatorColorModeLabel, simulatorCreaseStyleLabel } from '../../i18n/enumLabels';
 import { simulatorStyleDefaults } from '../../simulator/simulatorPalette';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useThemeStore } from '../../store/themeStore';
+import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { ColorField } from '../ui/ColorField';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
-import { Slider } from '../ui/Slider';
-import { ViewPaneSection as Section, ViewPaneToggleRow as ToggleRow } from './ViewPaneControls';
+import { SelectRow, SliderRow, ToggleRow } from '../ui/fieldRows';
 
 // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
-function creaseStyleLabel(value: SimulatorCreaseStyle, t: TFunction): string {
-  switch (value) {
-    case 'color':
-      return t('panels:simulatorViewControls.creaseStyleColor', 'Mountain / valley');
-    case 'mono':
-      return t('panels:simulatorViewControls.creaseStyleMono', 'One ink');
-    case 'mono-dashed':
-      return t('panels:simulatorViewControls.creaseStyleMonoDashed', 'One ink, dashed');
-  }
-}
-
 function exportBackgroundLabel(value: SimulatorExportBackground, t: TFunction): string {
   switch (value) {
     case 'transparent':
@@ -84,65 +73,27 @@ export function SimulatorViewControlsPanel() {
   return (
     <section className="panel-shell simulator-view-controls-panel">
       <div className="panel-body simulator-view-controls-panel__body">
-        <Section title={t('panels:simulatorViewControls.render', 'Render')}>
-          <div className="control-row">
-            <span className="control-row__label">
-              {t('panels:simulatorViewControls.style', 'Style')}
-            </span>
-            <div className="control-row__value">
-              <Select
-                value={settings.renderMode}
-                onValueChange={(value) =>
-                  setSetting('renderMode', value as SimulatorSettings['renderMode'])
-                }
-              >
-                <SelectTrigger
-                  aria-label={t('panels:simulatorViewControls.style', 'Style')}
-                  className="control-row__select"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="paper">
-                    {t('panels:simulatorViewControls.stylePaper', 'Paper')}
-                  </SelectItem>
-                  <SelectItem value="xray">
-                    {t('panels:simulatorViewControls.styleXray', 'X-ray')}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="control-row">
-            <span className="control-row__label">
-              {t('panels:simulatorViewControls.colorMode', 'Colour')}
-            </span>
-            <div className="control-row__value">
-              <Select
-                value={settings.colorMode}
-                onValueChange={(value) =>
-                  setSetting('colorMode', value as SimulatorSettings['colorMode'])
-                }
-              >
-                <SelectTrigger
-                  aria-label={t('panels:simulatorViewControls.colorMode', 'Colour')}
-                  className="control-row__select"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="paper">
-                    {t('panels:simulatorViewControls.colorPaper', 'Paper')}
-                  </SelectItem>
-                  <SelectItem value="strain">
-                    {t('panels:simulatorViewControls.colorStrain', 'Strain')}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+        <CollapsibleSection title={t('panels:simulatorViewControls.render', 'Render')}>
+          <SelectRow
+            label={t('panels:simulatorViewControls.style', 'Style')}
+            value={settings.renderMode}
+            options={[
+              { id: 'paper', label: t('panels:simulatorViewControls.stylePaper', 'Paper') },
+              { id: 'xray', label: t('panels:simulatorViewControls.styleXray', 'X-ray') },
+            ]}
+            onChange={(value) => setSetting('renderMode', value as SimulatorSettings['renderMode'])}
+          />
+          <SelectRow
+            label={t('panels:simulatorViewControls.colorMode', 'Color')}
+            value={settings.colorMode}
+            options={(['paper', 'strain'] as const).map((mode) => ({
+              id: mode,
+              label: simulatorColorModeLabel(t, mode),
+            }))}
+            onChange={(value) => setSetting('colorMode', value as SimulatorSettings['colorMode'])}
+          />
           {settings.colorMode === 'strain' && (
-            <SliderRow
+            <SettingSliderRow
               settingKey="strainClip"
               label={t('panels:simulatorViewControls.strainClip', 'Red at %')}
               settings={settings}
@@ -175,7 +126,7 @@ export function SimulatorViewControlsPanel() {
             checked={settings.showViewCube}
             onChange={(checked) => setSetting('showViewCube', checked)}
           />
-        </Section>
+        </CollapsibleSection>
 
         {/*
           Which way the model is up. The orbit is a turntable about the paper's
@@ -190,13 +141,13 @@ export function SimulatorViewControlsPanel() {
           set is simply a reset, which is harmless. The folded figure's copy of
           this verb *can* gate, because its upright is document state.
         */}
-        <Section
+        <CollapsibleSection
           title={t('panels:simulatorViewControls.paper', 'Paper')}
           collapsible
           action={
             <button
               type="button"
-              className="simulator-view-controls-panel__reset"
+              className="collapsible-section__action"
               title={t('panels:simulatorViewControls.resetStyle', 'Reset style')}
               aria-label={t('panels:simulatorViewControls.resetStyle', 'Reset style')}
               onClick={resetStyle}
@@ -209,36 +160,18 @@ export function SimulatorViewControlsPanel() {
             {colorRow('paperFront', t('panels:simulatorViewControls.paperFront', 'Front'))}
             {colorRow('paperBack', t('panels:simulatorViewControls.paperBack', 'Back'))}
           </div>
-        </Section>
+        </CollapsibleSection>
 
-        <Section title={t('panels:simulatorViewControls.creases', 'Creases')} collapsible>
-          <div className="control-row">
-            <span className="control-row__label">
-              {t('panels:simulatorViewControls.creaseStyle', 'Style')}
-            </span>
-            <div className="control-row__value">
-              <Select
-                value={settings.creaseStyle}
-                onValueChange={(value) =>
-                  setSetting('creaseStyle', value as SimulatorCreaseStyle)
-                }
-              >
-                <SelectTrigger
-                  aria-label={t('panels:simulatorViewControls.creaseStyle', 'Style')}
-                  className="control-row__select"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SIMULATOR_CREASE_STYLES.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {creaseStyleLabel(value, t)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+        <CollapsibleSection title={t('panels:simulatorViewControls.creases', 'Creases')} collapsible>
+          <SelectRow
+            label={t('panels:simulatorViewControls.creaseStyle', 'Style')}
+            value={settings.creaseStyle}
+            options={SIMULATOR_CREASE_STYLES.map((value) => ({
+              id: value,
+              label: simulatorCreaseStyleLabel(t, value),
+            }))}
+            onChange={(value) => setSetting('creaseStyle', value as SimulatorCreaseStyle)}
+          />
           <div className="simulator-view-controls-panel__colors">
             {colorRow(
               'mountainColor',
@@ -252,15 +185,15 @@ export function SimulatorViewControlsPanel() {
             )}
             {colorRow('borderColor', t('panels:simulatorViewControls.borderEdge', 'Edge'))}
           </div>
-          <SliderRow
+          <SettingSliderRow
             settingKey="creaseWidth"
             label={t('panels:simulatorViewControls.creaseWidth', 'Weight')}
             settings={settings}
             setSetting={setSetting}
           />
-        </Section>
+        </CollapsibleSection>
 
-        <Section
+        <CollapsibleSection
           title={t('panels:simulatorViewControls.export', 'Export')}
           collapsible
           description={t(
@@ -268,36 +201,18 @@ export function SimulatorViewControlsPanel() {
             'Page background of an exported image.'
           )}
         >
-          <div className="control-row">
-            <span className="control-row__label">
-              {t('panels:simulatorViewControls.background', 'Background')}
-            </span>
-            <div className="control-row__value">
-              <Select
-                value={settings.exportBackground}
-                onValueChange={(value) =>
-                  setSetting('exportBackground', value as SimulatorExportBackground)
-                }
-              >
-                <SelectTrigger
-                  aria-label={t('panels:simulatorViewControls.background', 'Background')}
-                  className="control-row__select"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(['transparent', 'white', 'theme'] as const).map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {exportBackgroundLabel(value, t)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </Section>
+          <SelectRow
+            label={t('panels:simulatorViewControls.background', 'Background')}
+            value={settings.exportBackground}
+            options={(['transparent', 'white', 'theme'] as const).map((value) => ({
+              id: value,
+              label: exportBackgroundLabel(value, t),
+            }))}
+            onChange={(value) => setSetting('exportBackground', value as SimulatorExportBackground)}
+          />
+        </CollapsibleSection>
 
-        <Section
+        <CollapsibleSection
           title={t('panels:simulatorViewControls.material', 'Material')}
           collapsible
           description={t(
@@ -307,7 +222,7 @@ export function SimulatorViewControlsPanel() {
           action={
             <button
               type="button"
-              className="simulator-view-controls-panel__reset"
+              className="collapsible-section__action"
               title={t('panels:simulatorViewControls.resetMaterial', 'Reset material')}
               aria-label={t('panels:simulatorViewControls.resetMaterial', 'Reset material')}
               onClick={resetMaterial}
@@ -316,39 +231,39 @@ export function SimulatorViewControlsPanel() {
             </button>
           }
         >
-          <SliderRow
+          <SettingSliderRow
             settingKey="axialStiffness"
             label={t('panels:simulatorViewControls.axialStiffness', 'Stretch')}
             settings={settings}
             setSetting={setSetting}
           />
-          <SliderRow
+          <SettingSliderRow
             settingKey="creaseStiffness"
             label={t('panels:simulatorViewControls.creaseStiffness', 'Crease')}
             settings={settings}
             setSetting={setSetting}
           />
-          <SliderRow
+          <SettingSliderRow
             settingKey="panelStiffness"
             label={t('panels:simulatorViewControls.panelStiffness', 'Facet')}
             settings={settings}
             setSetting={setSetting}
           />
-          <SliderRow
+          <SettingSliderRow
             settingKey="faceStiffness"
             label={t('panels:simulatorViewControls.faceStiffness', 'Face')}
             settings={settings}
             setSetting={setSetting}
           />
-          <SliderRow
+          <SettingSliderRow
             settingKey="damping"
             label={t('panels:simulatorViewControls.damping', 'Damping')}
             settings={settings}
             setSetting={setSetting}
           />
-        </Section>
+        </CollapsibleSection>
 
-        <Section
+        <CollapsibleSection
           title={t('panels:simulatorViewControls.solver', 'Solver')}
           collapsible
           description={t(
@@ -356,7 +271,7 @@ export function SimulatorViewControlsPanel() {
             'Lower stability if a fold jitters or blows up.'
           )}
         >
-          <SliderRow
+          <SettingSliderRow
             settingKey="timeStepScale"
             label={t('panels:simulatorViewControls.stability', 'Stability')}
             settings={settings}
@@ -366,19 +281,20 @@ export function SimulatorViewControlsPanel() {
             // backwards.
             invert
           />
-          <SliderRow
+          <SettingSliderRow
             settingKey="foldPlayPercentPerSecond"
             label={t('panels:simulatorViewControls.playSpeed', 'Play speed')}
             settings={settings}
             setSetting={setSetting}
           />
-        </Section>
+        </CollapsibleSection>
       </div>
     </section>
   );
 }
 
-function SliderRow({
+/** A simulator setting as a row: range and step from the settings table. */
+function SettingSliderRow({
   settingKey,
   label,
   settings,
@@ -397,22 +313,15 @@ function SliderRow({
   // value still means what the engine expects.
   const shown = invert ? range.min + range.max - value : value;
   return (
-    <label className="control-row">
-      <span className="control-row__label">{label}</span>
-      <span className="control-row__value simulator-view-controls-panel__slider-value">
-        <Slider
-          aria-label={label}
-          min={range.min}
-          max={range.max}
-          step={range.step}
-          value={shown}
-          onChange={(next) => setSetting(settingKey, invert ? range.min + range.max - next : next)}
-        />
-        <span className="simulator-view-controls-panel__number">
-          {formatSettingValue(value, range.step)}
-        </span>
-      </span>
-    </label>
+    <SliderRow
+      label={label}
+      min={range.min}
+      max={range.max}
+      step={range.step}
+      value={shown}
+      format={() => formatSettingValue(value, range.step)}
+      onChange={(next) => setSetting(settingKey, invert ? range.min + range.max - next : next)}
+    />
   );
 }
 

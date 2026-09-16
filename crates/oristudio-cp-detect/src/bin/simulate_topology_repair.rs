@@ -1629,6 +1629,9 @@ fn process_sample(context: SampleContext<'_>, args: &Args) -> SampleRow {
     };
     let repaired_options = ExactSolveOptionsWithExemptions {
         options: exact_options,
+        // The harness simulates automatic repair, which pins nothing: pinning is
+        // a thing a person does in the editor.
+        pinned_vertex_ids: BTreeSet::new(),
         exempt_vertex_ids: if args.exempt_repaired_vertices {
             repaired.exempt_vertex_ids.clone()
         } else {
@@ -2313,6 +2316,7 @@ mod tests {
             IMAGE_SIZE,
             &ExactSolveOptionsWithExemptions {
                 options: ExactSolveOptions::default(),
+                pinned_vertex_ids: BTreeSet::new(),
                 exempt_vertex_ids: repaired.exempt_vertex_ids.clone(),
             },
             2.0,

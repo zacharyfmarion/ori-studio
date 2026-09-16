@@ -51,6 +51,12 @@ function bpTreeCopy(t: TFunction): TreeEditorCopy {
     symmetry: t('panels:bpTree.symmetry', 'Symmetry'),
     mirrorDrawOn: t('panels:bpTree.mirrorDrawOn', 'Mirror draw (on)'),
     unpair: t('panels:bpTree.unpair', 'Unpair from mirror'),
+    pair: t('panels:bpTree.pair', 'Pair with mirror'),
+    pairAll: t('panels:bpTree.pairAll', 'Pair all mirrored'),
+    pairAllNone: t(
+      'panels:treeEditor.contextMenu.pairAllNone',
+      'No unpaired nodes sit opposite each other.'
+    ),
     layers: t('panels:bpTree.layers', 'Layers'),
     layerLabels: t('panels:bpTree.layerLabels', 'Labels'),
     length: t('panels:bpTree.length', 'Length'),

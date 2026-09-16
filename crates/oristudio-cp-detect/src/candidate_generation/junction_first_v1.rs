@@ -305,17 +305,20 @@ pub(super) fn extract_evidence(
 
 /// The vertex builder and segment sampler are shared with `junction-carrier-v1`
 /// and take its options struct; only the fields used by those helpers matter.
-fn carrier_equivalent_options(
+pub(super) fn carrier_equivalent_options(
     options: JunctionFirstV1StrategyOptions,
 ) -> JunctionCarrierV1StrategyOptions {
     JunctionCarrierV1StrategyOptions {
         vertex_merge_radius_px: options.vertex_merge_radius_px,
+        weak_junction_merge_radius_px: options.weak_junction_merge_radius_px,
+        junction_border_exclusion_px: options.junction_border_exclusion_px,
         strong_span_line_support: options.strong_span_line_support,
         max_line_endpoint_vertices: 0,
         junction_offset_cluster_radius_px: options.junction_offset_cluster_radius_px,
         junction_cluster_keep_rule: options.junction_cluster_keep_rule,
         junction_evidence_source: options.junction_evidence_source,
         ink_weighted_assignment: options.ink_weighted_assignment,
+        boundary_contact_threshold: options.boundary_contact_threshold,
         ..JunctionCarrierV1StrategyOptions::default()
     }
 }
@@ -337,10 +340,48 @@ fn graph_from_evidence_with_vertices(
     mut vertices: Vec<CandidateVertex>,
 ) -> CandidateGraph {
     assign_vertex_ids(&mut vertices);
+    // Adjacency spans first: they give each boundary contact the crease
+    // direction its re-localisation needs, and the border spans are built
+    // from the contacts' final positions afterwards.
+    let mut crease_spans = Vec::new();
+    add_adjacent_pair_spans(
+        &vertices,
+        evidence,
+        config.image_size,
+        options,
+        &mut crease_spans,
+    );
+    let relocalized = relocalize_if_enabled(
+        &mut vertices,
+        &mut crease_spans,
+        evidence,
+        config.image_size,
+        options,
+    );
+    // A box-pleat grid, when the graph shows one, completes the border at
+    // the grid positions the contact head under-read. After the
+    // re-localisation: the grid's hold on the border is read from the
+    // contacts' corrected positions (the head's along-edge bias hides it),
+    // and a completed contact sits on its grid position, which is the ink's.
+    let grid = if options.grid_prior {
+        super::grid_prior::detect_grid_prior(&vertices, &crease_spans, config.image_size, options)
+    } else {
+        None
+    };
+    let completed = grid.map_or_else(Default::default, |prior| {
+        super::grid_prior::complete_border_on_grid(
+            &mut vertices,
+            &mut crease_spans,
+            &prior,
+            evidence,
+            config.image_size,
+            options,
+        )
+    });
     let boundary = boundary_model(&vertices, [0, 1, 2, 3]);
     let mut spans = Vec::new();
     add_locked_border_spans(&vertices, &boundary, &mut spans);
-    add_adjacent_pair_spans(&vertices, evidence, config.image_size, options, &mut spans);
+    spans.append(&mut crease_spans);
     assign_span_ids(&mut spans);
     let mut graph = CandidateGraph {
         schema: "oristudio/cp-compiler/candidate-graph-v1".to_owned(),
@@ -358,6 +399,22 @@ fn graph_from_evidence_with_vertices(
             notes: vec![
                 "junction-first-v1 adjacency-constrained dense strategy; no Hough carrier gate"
                     .to_owned(),
+                format!(
+                    "boundary contacts re-localised from the ink: {} moved, {} merged",
+                    relocalized.moved, relocalized.merged
+                ),
+                match grid {
+                    Some(prior) => format!(
+                        "box-pleat grid prior: {} cells (family {:.3}, grid {:.3}, contacts {:.3}); border completed with {} contacts, {} spans",
+                        prior.cells,
+                        prior.family_fraction,
+                        prior.grid_score,
+                        prior.contact_score,
+                        completed.contacts,
+                        completed.spans
+                    ),
+                    None => "box-pleat grid prior: none".to_owned(),
+                },
             ],
         },
         report: CandidateGraphReport {
@@ -375,6 +432,21 @@ fn graph_from_evidence_with_vertices(
     graph.alternatives = graph.conflicts.clone();
     graph.report = graph_report(&graph);
     graph
+}
+
+/// `contact_relocalize::relocalize_contacts` when the option is on; a report
+/// of nothing done otherwise.
+pub(super) fn relocalize_if_enabled(
+    vertices: &mut Vec<CandidateVertex>,
+    spans: &mut Vec<CandidateCreaseSpan>,
+    evidence: &CompilerEvidence,
+    image_size: u32,
+    options: JunctionFirstV1StrategyOptions,
+) -> super::contact_relocalize::ContactRelocalizeReport {
+    if !options.contact_relocalize {
+        return super::contact_relocalize::ContactRelocalizeReport::default();
+    }
+    super::contact_relocalize::relocalize_contacts(vertices, spans, evidence, image_size, options)
 }
 
 fn add_adjacent_pair_spans(
@@ -496,14 +568,14 @@ fn has_intermediate_vertex(
     false
 }
 
-fn pair_supported(stats: SpanStats, options: JunctionFirstV1StrategyOptions) -> bool {
+pub(super) fn pair_supported(stats: SpanStats, options: JunctionFirstV1StrategyOptions) -> bool {
     stats.line_mean >= options.min_span_line_support
         && (stats.line_min >= options.min_span_line_min_support
             || stats.line_mean >= options.strong_span_line_support)
         && stats.non_crease_mean <= options.max_non_crease_support
 }
 
-fn span_from_adjacent_pair(
+pub(super) fn span_from_adjacent_pair(
     id: usize,
     vertices: [usize; 2],
     a: Point2,

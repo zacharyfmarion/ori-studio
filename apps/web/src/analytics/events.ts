@@ -49,12 +49,51 @@ export type LandingSectionId =
   | 'compatibility'
   | 'get';
 
+/** The landing page's calls to action. */
+export type LandingCta = 'discord' | 'github' | 'scroll' | 'download';
+
 /**
- * The landing page's calls to action.
+ * Where a link out to the community Discord was followed from.
  *
- * No download: the desktop build is not released, so the page does not offer one.
+ * One value, because the landing page's own Discord link is already counted as a
+ * `landing cta clicked` with `cta: 'discord'` and must not be counted twice. This
+ * event exists for the links the landing page's funnel cannot see — today the
+ * workspace toolbar, which is somebody already inside the app going looking for
+ * other people, a different act entirely from a visitor deciding to.
  */
-export type LandingCta = 'discord' | 'github' | 'scroll';
+export type CommunityLinkSurface = 'toolbar';
+
+/**
+ * Which desktop build a download was started for.
+ *
+ * `releases-page` is not a build: it is the fallback every control falls back to
+ * when the release could not be read (offline, rate-limited, blocked), and it is
+ * in the same enum so the failure is *counted* rather than invisible. A ratio of
+ * it against the real builds is the only signal that the GitHub fetch is not
+ * working for a population.
+ *
+ * These mirror `DesktopBuildId` in `platform/desktopDownload.ts`; `trackDesktopDownload`
+ * passes one straight through, so the two cannot drift without a type error.
+ */
+export type DesktopDownloadBuild =
+  | 'macos-arm64'
+  | 'macos-intel'
+  | 'windows-x64'
+  | 'linux-deb'
+  | 'linux-appimage'
+  | 'linux-deb-arm64'
+  | 'linux-appimage-arm64'
+  | 'releases-page';
+
+/**
+ * Where a download was started from.
+ *
+ * The question this exists to answer is whether the toolbar icon earns its place
+ * in the workspace chrome, which no other property can express: a download from
+ * `toolbar` came from somebody already using the app, and one from `landing`
+ * from somebody deciding whether to.
+ */
+export type DesktopDownloadSurface = 'start-screen' | 'landing' | 'toolbar' | 'about';
 
 /**
  * A feature slide in one of the landing carousels.
@@ -156,6 +195,21 @@ export type FoldVerdict =
 /** Which way a press of the one solution verb moved. */
 export type FoldCycleDirection = 'next' | 'wrap';
 
+/**
+ * Which appearance setting a folded figure's Style menu changed.
+ *
+ * One value per adjustment: a colour drag counts once, when it starts, never
+ * per pointer move — and never with the colour, which is the user's work. The
+ * question is which of the six rows earn their place, not what anyone chose.
+ */
+export type FoldedFigureStyleOption =
+  | 'display_style'
+  | 'side'
+  | 'front_color'
+  | 'back_color'
+  | 'line_color'
+  | 'shadow';
+
 /** Where a foldability check was run from. */
 export type FoldabilityCheckSource = 'pre-fold';
 
@@ -239,10 +293,25 @@ export type CpExactSolveRejectionReason =
 export type CpExactSolveResolution = 'accepted' | 'accepted-partial' | 'retried';
 
 /** How an image reached the Detect dialog. */
-export type CpDetectImageSource = 'picker' | 'drop';
+export type CpDetectImageSource = 'picker' | 'drop' | 'canvas-suggestion';
+
+/** The likelihood gate's verdict on an image added to the canvas. */
+export type CpDetectLikelihoodVerdict = 'likely' | 'unlikely';
+
+/**
+ * The gate's probability, bucketed. The operating threshold is 0.8, so the
+ * `0.8-0.9` and `0.9+` buckets are the offers and the two below are the
+ * near-misses worth knowing the size of.
+ */
+export function cpDetectScoreBucket(score: number): string {
+  if (score < 0.5) return '<0.5';
+  if (score < 0.8) return '0.5-0.8';
+  if (score < 0.9) return '0.8-0.9';
+  return '0.9+';
+}
 
 /** Where the Detect dialog stood when it was closed without importing. */
-export type CpDetectDismissStage = 'upload' | 'crop' | 'detecting' | 'review';
+export type CpDetectDismissStage = 'upload' | 'confirm' | 'crop' | 'detecting' | 'review';
 
 /**
  * Why a detection did not complete.
@@ -318,6 +387,7 @@ export type ContextMenuTargetKind =
   | 'circle'
   | 'text'
   | 'image'
+  | 'region'
   | 'folded-figure'
   | 'flap'
   | 'river'
@@ -475,6 +545,17 @@ export const ANALYTICS_EVENTS = {
   bpPatternNotFound: 'bp pattern not found',
   bpFlapResized: 'bp flap resized',
   /**
+   * A mirror pairing was made or broken by hand.
+   *
+   * Hand-placed because the three verbs — Pair with mirror, Pair all mirrored,
+   * Unpair from mirror — are toolbar and context-menu rows that call the store
+   * directly, so the `command invoked` chokepoint never sees them. Shared by
+   * the box-pleat and ExplOri trees, which have the same verbs over the same
+   * pairing model; `design_kind` says which. `pair_count_bucket` is bucketed
+   * and everything else is an enum: no ids, no positions.
+   */
+  symmetryPairChanged: 'symmetry pair changed',
+  /**
    * A check-suppression region was placed.
    *
    * Hand-placed because the `cp tool used` chokepoint cannot see it: that fires
@@ -503,12 +584,34 @@ export const ANALYTICS_EVENTS = {
   cpExactSolveResolved: 'cp exact solve resolved',
   /**
    * The Image→CP funnel, in order. `command invoked` (`file.detectCpImage`)
-   * opens the dialog; then an image is loaded, Detect is pressed, detection
-   * completes, and the pattern is imported. A close at any point before the
-   * import is a `cp detect dismissed` with the stage it happened at, so the
-   * drop-off between any two steps is a count, not an inference.
+   * opens the dialog; then an image is loaded, its rights are confirmed,
+   * Detect is pressed, detection completes, and the pattern is imported. A
+   * close at any point before the import is a `cp detect dismissed` with the
+   * stage it happened at, so the drop-off between any two steps is a count,
+   * not an inference.
    */
   cpDetectImageLoaded: 'cp detect image loaded',
+  /**
+   * The canvas entry to the same funnel. Every reference image added to the
+   * Edit canvas is scored by the likelihood gate (`scored`, the denominator);
+   * the ones that clear the threshold show the pill (`suggested`); the pill is
+   * either taken (`accepted`, which then produces a `cp detect image loaded`
+   * with `source: 'canvas-suggestion'`) or closed (`dismissed`). `scored`
+   * carries a bucketed score and verdict only — the field false-positive rate
+   * is read off the acceptance rate per bucket, never off the image.
+   */
+  cpDetectImageScored: 'cp detect image scored',
+  cpDetectSuggested: 'cp detect suggested',
+  cpDetectSuggestionAccepted: 'cp detect suggestion accepted',
+  cpDetectSuggestionDismissed: 'cp detect suggestion dismissed',
+  /**
+   * The rights gate between an image loading and Detect was answered:
+   * `accepted` is Continue, and `false` is Back. A close at the gate is a
+   * `cp detect dismissed` at stage `confirm` instead, the same split the
+   * dialog makes everywhere between abandoning and declining. No "shown"
+   * event: every `cp detect image loaded` shows it.
+   */
+  cpDetectRightsAnswered: 'cp detect rights answered',
   cpDetectStarted: 'cp detect started',
   cpDetectCompleted: 'cp detect completed',
   cpDetectImported: 'cp detect imported',
@@ -541,6 +644,7 @@ export const ANALYTICS_EVENTS = {
   foldAttempted: 'fold attempted',
   foldCompleted: 'fold completed',
   foldSolutionCycled: 'fold solution cycled',
+  foldedFigureStyled: 'folded figure styled',
   foldedFigureOrbited: 'folded figure orbited',
   foldedFigureZoomed: 'folded figure zoomed',
   // Whether anyone reaches for a model up at all is the question this answers —
@@ -582,6 +686,23 @@ export const ANALYTICS_EVENTS = {
   landingSectionViewed: 'landing section viewed',
   landingFeatureOpened: 'landing feature opened',
   landingCtaClicked: 'landing cta clicked',
+  /**
+   * A desktop installer link was followed.
+   *
+   * "Started", not "completed": a link hand-off is the last thing the page can
+   * see. What happens after — GitHub's redirect, the transfer, the install — is
+   * off this origin entirely.
+   */
+  desktopDownloadStarted: 'desktop download started',
+  /**
+   * A link out to the community Discord was followed.
+   *
+   * Nothing here dispatches through `handleMenuAction`, so the `command invoked`
+   * chokepoint cannot see it — and "does anyone press this" is the only question
+   * that decides whether an icon keeps a slot in the workspace chrome. Same
+   * argument as `desktop download started`'s `toolbar` surface.
+   */
+  communityLinkOpened: 'community link opened',
   orieditaShortcutsImported: 'oriedita shortcuts imported',
   orieditaShortcutsOverrideAll: 'oriedita shortcuts override all',
   shortcutDefaultsSourceChanged: 'shortcut defaults source changed',
@@ -595,8 +716,23 @@ export const ANALYTICS_EVENTS = {
    * view options. That is the question undocking the pane raises — whether the
    * canvas width was bought at the cost of controls nobody finds again — and it
    * cannot be answered from `command invoked`, since no menu action reaches it.
+   *
+   * `pane` names which side pane the sheet opened on (`cp-view-controls`,
+   * `cp-properties`, `simulator-view-controls`) — an enum, never content.
    */
   viewDrawerOpened: 'view drawer opened',
+  /**
+   * A property of a selected canvas object was changed from the Properties
+   * pane.
+   *
+   * The pane is the first surface that edits every canvas-object kind through
+   * one renderer, so this is what says whether people edit there rather than on
+   * the floating toolbars and menus that still exist — the question adding a
+   * second surface for the same edits raises. Once per recorded change, never
+   * per input event. `object_kind` is the kind table's key and `property` the
+   * field's id: enums by construction, never a value.
+   */
+  canvasObjectPropertyChanged: 'canvas object property changed',
   /**
    * The phone layout's tool sheet was opened.
    *
@@ -750,6 +886,15 @@ export const BP_PATTERNLESS_STRETCH_BUCKETS = [1, 2, 4, 8] as const;
  * common the action needs to say so rather than appearing to do nothing.
  */
 export const PACKING_CIRCLE_COUNT_BUCKETS = [0, 2, 4, 8, 16, 32] as const;
+
+/**
+ * How many mirror pairs one Pair verb made or broke.
+ *
+ * Pair and Unpair always report 1; the buckets exist for Pair all mirrored,
+ * where the question is whether people reach for it on a handful of hand-drawn
+ * flaps or to pair a whole imported design at once.
+ */
+export const SYMMETRY_PAIR_COUNT_BUCKETS = [1, 2, 5, 10, 20] as const;
 
 /**
  * Threshold ladder for the crease-pattern snap radius, in Oriedita model units.

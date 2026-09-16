@@ -70,6 +70,23 @@ export interface SimulatorLoadOptions {
    * prepares from scratch, which is right for a source that actually changed.
    */
   modelKey?: string;
+  /**
+   * The camera and appearance to open on.
+   *
+   * Without it a session opens on whatever the most recent session was looking
+   * through, or on the worker's own defaults when there is none — and a rebuild
+   * after the fold went away has none, which is how a refresh turned the paper
+   * blue. The runtime knows what it last forwarded and hands it over here, so
+   * the opening settle is drawn right rather than drawn wrong and corrected a
+   * message later.
+   */
+  view?: SimulatorOpeningView;
+}
+
+/** What a new session should look through, when its owner already knows. */
+export interface SimulatorOpeningView {
+  camera?: SimulatorCamera;
+  settings?: RenderSettings;
 }
 
 /**
@@ -955,14 +972,14 @@ const api = {
   },
 
   load(fold: FoldDocument, options: SimulatorLoadOptions = {}): SimulatorModelInfo {
-    // Carry the panel's camera and render settings across reloads. The panel
-    // only pushes them when the GPU path first turns on, so a plain reset here
-    // would make every segment switch snap back to the default view and the
-    // default (blue) front colour until the next user interaction. Only the fit
+    // Open on the view the caller asked for; failing that, carry the camera and
+    // render settings of the most recent session, so a model that replaces one
+    // opens with the camera and palette already in use rather than the
+    // defaults. The caller's answer comes first because the carry-over has a
+    // gap: a session released before its replacement loads — the fold went
+    // null in between — leaves nothing here to carry from. Only the fit
     // (center/radius) is model-specific and recomputed by refitOnce.
-    // Carried from the most recent session, not from one being replaced: a load
-    // no longer displaces anything, so this is only about a new model opening
-    // with the camera and palette already in use rather than the defaults.
+    const opening = options.view;
     const previous = latestSession()?.view;
     // A fresh load gets a fresh context, so a previous loss is no longer the
     // truth about this session.
@@ -1014,10 +1031,10 @@ const api = {
       colorScratch: new Float32Array(prepared.vertexCount * 3),
       foldPercent: options.solver?.foldPercent ?? 0,
       view: {
-        view: previous?.view ?? { yaw: 0, pitch: 0.38, zoom: 1 },
-        width: previous?.width ?? renderCanvas?.width ?? 512,
-        height: previous?.height ?? renderCanvas?.height ?? 512,
-        settings: previous?.settings ?? DEFAULT_RENDER_SETTINGS,
+        view: opening?.camera?.view ?? previous?.view ?? { yaw: 0, pitch: 0.38, zoom: 1 },
+        width: opening?.camera?.width ?? previous?.width ?? renderCanvas?.width ?? 512,
+        height: opening?.camera?.height ?? previous?.height ?? renderCanvas?.height ?? 512,
+        settings: opening?.settings ?? previous?.settings ?? DEFAULT_RENDER_SETTINGS,
         center: [0, 0, 0],
         radius: 1,
         fitted: false,

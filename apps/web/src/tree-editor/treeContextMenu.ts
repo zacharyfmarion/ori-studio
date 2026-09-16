@@ -31,6 +31,17 @@ export interface TreeContextMenuDeps {
   addLeafHere: (() => void) | null;
   /** Break this vertex's explicit mirror pairing. Absent when it has none. */
   unpair: (() => void) | null;
+  /**
+   * Pair this vertex with the unpaired vertex at its reflection. Absent when it
+   * is already paired or nothing sits opposite it — the same slot as `unpair`,
+   * never both.
+   */
+  pair: (() => void) | null;
+  /**
+   * Pair every unpaired vertex that has one opposite. Absent when the surface
+   * has no mirror at all; disabled, with the reason, when nothing would pair.
+   */
+  pairAll: { count: number; run: () => void } | null;
   /** Mirror draw, when the surface has a mirror at all. */
   mirror: { enabled: boolean; toggle: () => void; label: string } | null;
   labels: { visible: boolean; toggle: () => void; label: string };
@@ -58,7 +69,14 @@ export function treeVertexMenuItems(deps: TreeContextMenuDeps): ContextMenuItem[
           label: t('panels:bpPacking.unpair', 'Unpair from mirror'),
           onSelect: deps.unpair,
         }
-      : null,
+      : deps.pair
+        ? {
+            kind: 'action',
+            id: 'tree-pair',
+            label: t('panels:bpPacking.pair', 'Pair with mirror'),
+            onSelect: deps.pair,
+          }
+        : null,
     { kind: 'separator' },
     ...contextMenuActionItems(['edit.delete'], action, labels).map(
       (item): ContextMenuItem => (item.kind === 'action' ? { ...item, danger: true } : item)
@@ -112,6 +130,23 @@ export function treeCanvasMenuItems(deps: TreeContextMenuDeps): ContextMenuItem[
           id: 'tree-deselect',
           label: t('panels:treeEditor.contextMenu.deselect', 'Deselect all'),
           onSelect: deps.clearSelection,
+        }
+      : null,
+    { kind: 'separator' },
+    deps.pairAll
+      ? {
+          kind: 'action',
+          id: 'tree-pair-all',
+          label: t('panels:bpPacking.pairAll', 'Pair all mirrored'),
+          disabled: deps.pairAll.count === 0,
+          hint:
+            deps.pairAll.count === 0
+              ? t(
+                  'panels:treeEditor.contextMenu.pairAllNone',
+                  'No unpaired nodes sit opposite each other.'
+                )
+              : undefined,
+          onSelect: deps.pairAll.run,
         }
       : null,
     { kind: 'separator' },

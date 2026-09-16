@@ -68,6 +68,7 @@ import {
   hasAttachedSolveInput,
   type CpSuppressionRegion,
 } from '../annotations/suppressionRegion';
+import { boxContainsModelPoint } from '../annotations/annotationTransform';
 import type { CpRegionSolveBinding } from './CpRegionLayer';
 import type { CpRegionSolveState } from './SolveRegionChip';
 import { emptyOristudioCpSelection } from '../../lib/creasePatternViewport';
@@ -80,7 +81,9 @@ import type { CpSolveFrameTransform } from '../../engine/cpExactSolveTypes';
 import {
   cpRegionPatternLines,
   foldEdgesVertices,
+  foldVerticesCoords,
   partialVertexPositions,
+  pinnedFoldVertexIds,
   solvedRegionSegments,
   solvedVertexPositions,
   type CpSolvedVertexPositions,
@@ -230,10 +233,19 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
           failed(placementRefusalLabel(latest.current.t, 'graph_mismatch'));
           return;
         }
+        // The pins the *solver* has to hold, resolved against the very FOLD the
+        // input is about to be rebuilt from — so an id here is an id there. Read
+        // at solve time rather than captured, because the user pins between
+        // solves and that is the whole point of the feature.
+        const pinnedVertexIds = pinnedFoldVertexIds(
+          foldVerticesCoords(foldJson) ?? [],
+          useWorkspaceStore.getState().oristudioCpPinnedVertices
+        );
         const rebuilt = await rebuildCpExactSolveInput(foldJson);
         frame = { edgesVertices, transform: rebuilt.transform };
         const run = await latest.current.solve(rebuilt.input, {
           timeoutSeconds: CP_REGION_SOLVE_BUDGET_SECONDS,
+          pinnedVertexIds,
           run: { kind, targetId: regionId },
         } satisfies CpExactSolveRunOptions);
         outcome = run.outcome;
@@ -425,6 +437,13 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
           .executeOristudioCpCommand('DeleteExtraVerticesAmong', { line_ids: owned.lineIds });
       }
       write(regionId, null);
+      // The pins go with the region. They are scaffolding for the repair — the
+      // user pinned junctions to steer *this* solve — and leaving them behind
+      // would silently constrain every later transform over the accepted
+      // pattern, with the marks still on screen and nothing left explaining
+      // them. Scoped to this region's box, so a second region's pins and any
+      // pin placed from the rail outside it survive.
+      if (region) clearPinsInRegion(region);
       removeRegionAndItsImage(regionId, acceptLabel(latest.current.t));
       // The second half of the solve funnel: a solve that landed and was kept.
       // A timed-out partial is its own value, being a weaker endorsement.
@@ -631,6 +650,20 @@ function commandTargetRegion(): CpSuppressionRegion | null {
  * because the label has to say what the user pressed; the protocol is the same
  * one, and it is the annotation stack's own single-entry rule.
  */
+/**
+ * Drop the pins inside a region — what accepting or deleting one does.
+ *
+ * The same containment test the owned-crease scan uses, so "inside the region"
+ * means one thing on this surface. Not a clear-all: pinning is available from
+ * the rail as well, and a pin placed away from any region is the user's own
+ * standing constraint rather than this flow's scaffolding.
+ */
+function clearPinsInRegion(region: CpSuppressionRegion): void {
+  useWorkspaceStore.getState().clearOristudioCpVertexPinsIn({
+    contains: (point) => boxContainsModelPoint(region, point),
+  });
+}
+
 function removeRegionAndItsImage(regionId: string, label: string): void {
   const store = useWorkspaceStore.getState();
   const before = store.oristudioCpAnnotations;

@@ -3,6 +3,9 @@
     "failed": "无法完成该操作",
     "failedDetail": "未做任何更改。如果反复出现，请尝试重新加载。"
   },
+  "cpDetectSuggestion": {
+    "turnOff": "可以在“设置 ▸ 常规 ▸ 模型”中关闭这些建议。"
+  },
   "cpRegionSolve": {
     "failed": "无法求解该折痕图",
     "incompleteAction": "点击“重试”可修复拓扑后重新求解，或点击“仍然采用”保留这些坐标。",

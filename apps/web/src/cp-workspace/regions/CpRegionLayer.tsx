@@ -36,6 +36,13 @@ export interface CpRegionLayerProps {
    */
   container: HTMLElement | null;
   /**
+   * Right-click on a region's bar, by region id and client point — the same
+   * entry every other canvas object's right-click takes, so the region gets
+   * the menu its layer binding builds. Omitted, a right-click on a bar is the
+   * browser's.
+   */
+  onContextMenu?: (id: string, clientX: number, clientY: number) => void;
+  /**
    * How to run and settle a solve. Omitted, no chip offers Solve at all.
    *
    * Two separate questions, kept separate on purpose: **whether a region can be
@@ -70,7 +77,7 @@ export interface CpRegionLayerProps {
  * site; it should not be assembling a region list, counting hidden findings, or
  * adapting eight callbacks on this layer's behalf.
  */
-export function CpRegionLayer({ container, solve }: CpRegionLayerProps) {
+export function CpRegionLayer({ container, solve, onContextMenu }: CpRegionLayerProps) {
   const {
     regions,
     selectRegion,
@@ -101,6 +108,8 @@ export function CpRegionLayer({ container, solve }: CpRegionLayerProps) {
           // that knows what the drag was names it.
           onGestureCommit: commitGesture,
           onDelete: () => removeRegion(region.id),
+          onContextMenu:
+            onContextMenu && ((clientX: number, clientY: number) => onContextMenu(region.id, clientX, clientY)),
           onToggleImageHidden: () => toggleRegionImageHidden(region.id),
           onImageOpacity: (opacity: number) => setRegionImageOpacity(region.id, opacity),
           onDeleteImage: () => removeRegionImage(region.id),

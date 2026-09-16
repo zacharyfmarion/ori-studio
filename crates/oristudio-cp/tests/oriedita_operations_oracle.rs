@@ -49,6 +49,7 @@ use oristudio_cp::operations::generators::{
     regular_polygon_no_corners, voronoi_apply, voronoi_press,
 };
 use oristudio_cp::operations::measure::{angle_between_three_points, length_between_points};
+use oristudio_cp::operations::native::pinned::PinnedPoints;
 use oristudio_cp::operations::point::{
     divide_segment_by_count, divide_segment_by_ratio, draw_point_on_segment,
 };
@@ -1348,7 +1349,7 @@ fn transform_commands_match_oriedita_foldlineset_oracle() {
     ];
     let mut model = model_from_segments(&selected_segments);
     model.line_segments[1] = model.line_segments[1].with_selected(2);
-    move_selected_lines(&mut model, Point::new(0.0, 1.0));
+    move_selected_lines(&mut model, Point::new(0.0, 1.0), PinnedPoints::none());
     let mut args = vec![
         "foldline-transform-selected".to_string(),
         "move".to_string(),
@@ -1388,7 +1389,14 @@ fn transform_commands_match_oriedita_foldlineset_oracle() {
 
     let mut model = model_from_segments(&four_point_segments);
     model.line_segments[0] = model.line_segments[0].with_selected(2);
-    move_selected_lines_by_points(&mut model, original_a, original_b, target_a, target_b);
+    move_selected_lines_by_points(
+        &mut model,
+        original_a,
+        original_b,
+        target_a,
+        target_b,
+        PinnedPoints::none(),
+    );
     let mut args = vec![
         "foldline-transform-selected-4p".to_string(),
         "move".to_string(),
@@ -1540,13 +1548,17 @@ fn lengthen_crease_matches_oriedita_oracle() {
         ];
         let selection_line = segment(0.5, -1.0, 0.5, 1.0, LineColor::Magenta5);
         let mut model = model_from_segments(&segments);
+        // No pins: the oracle compares against Oriedita, which has no notion of
+        // one, so parity is measured on the port's own behaviour.
         let added = lengthen_crease(
             &mut model,
             selection_line.clone(),
             extension_point,
             1.0,
             color_mode,
-        );
+            PinnedPoints::none(),
+        )
+        .expect("no pins, so no refusal");
 
         let mut args = vec![
             "foldline-lengthen".to_string(),

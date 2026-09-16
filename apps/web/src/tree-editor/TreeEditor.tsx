@@ -151,8 +151,8 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
    * The commit mirrors the move itself, so this exists only to show it happening
    * — without it the partner sat still through the gesture and jumped on
    * release. Written here rather than in either surface's host: which vertex
-   * pairs with which is per-surface and already answered by `resolveMirrorOf`,
-   * but *reflecting across the axis* is the same arithmetic on both.
+   * pairs with which is per-surface and already answered by `partnerOf`, but
+   * *reflecting across the axis* is the same arithmetic on both.
    *
    * A vertex that is its own mirror, or whose partner is being dragged anyway,
    * contributes nothing: it is already in the moved set.
@@ -162,8 +162,8 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
       if (!symmetry?.enabled) return { ids: [] as number[], reflect: null };
       const moved = new Set(movedIds);
       const pairs = movedIds.flatMap((id) => {
-        const partner = symmetry.resolveMirrorOf(id);
-        return partner === null || partner === id || moved.has(partner)
+        const partner = symmetry.partnerOf(id);
+        return partner === null || moved.has(partner)
           ? []
           : [[id, partner] as const];
       });
@@ -309,7 +309,10 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
     let mirror: { from: Point; to: Point } | null = null;
     let unresolved = false;
     if (!snap.snapped) {
-      const mirrorParentId = symmetry.resolveMirrorOf(parentId);
+      // The twin hangs from the parent's pair — or from the parent itself when
+      // it sits on the mirror line. No other vertex can stand in for either.
+      const mirrorParentId =
+        symmetry.partnerOf(parentId) ?? (symmetry.isOnAxis(parentId) ? parentId : null);
       const mirrorParent = mirrorParentId != null ? findVertex(mirrorParentId) : undefined;
       if (mirrorParent) {
         mirror = { from: mirrorParent.loc, to: reflectPointAcrossSymmetryAxis(primaryTip, axis) };
@@ -609,6 +612,14 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
               target?.kind === 'vertex' && symmetry?.partnerOf(target.id) !== null
                 ? () => symmetry?.unpair(target.id)
                 : null,
+            pair:
+              target?.kind === 'vertex' &&
+              symmetry &&
+              symmetry.partnerOf(target.id) === null &&
+              symmetry.pairableWith(target.id) !== null
+                ? () => symmetry.pair(target.id)
+                : null,
+            pairAll: symmetry ? { count: symmetry.pairAllCount, run: symmetry.pairAll } : null,
             mirror: symmetry
               ? {
                   enabled: symmetry.enabled,
@@ -832,6 +843,13 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
         symmetry={symmetry}
         canUnpair={selectedVertex !== null && (symmetry?.partnerOf(selectedVertex) ?? null) !== null}
         onUnpair={() => selectedVertex !== null && symmetry?.unpair(selectedVertex)}
+        canPair={
+          selectedVertex !== null &&
+          symmetry !== null &&
+          symmetry.partnerOf(selectedVertex) === null &&
+          symmetry.pairableWith(selectedVertex) !== null
+        }
+        onPair={() => selectedVertex !== null && symmetry?.pair(selectedVertex)}
         zoomIn={zoomIn}
         zoomOut={zoomOut}
         fitToView={() => fitToView()}

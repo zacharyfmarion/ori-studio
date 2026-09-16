@@ -1,25 +1,36 @@
 import { useCallback, useEffect, useId, useRef, useState, type RefObject } from 'react';
 import { ANALYTICS_EVENTS, track } from '../analytics';
-import { isShortcutEditingTarget } from '../keyboard/shortcutDispatcher';
+import { isOpenLayerTarget, isShortcutEditingTarget } from '../keyboard/shortcutDispatcher';
 import { useIsCoarsePointerSurface } from '../platform/pointerSurface';
 import {
-  reconcileViewPanel,
+  reconcileSidePanes,
+  sidePanesFor,
   useLayoutStore,
-  viewPanelFor,
-  type ViewPanelSpec,
+  type SidePaneId,
+  type SidePaneSpec,
 } from '../store/layoutStore';
+import { subscribeSidePaneRequests } from '../store/sidePaneRequests';
+import { useWorkspaceStore } from '../store/workspaceStore';
+import { selectedCanvasObjectIdOf } from '../cp-workspace/canvasObjects/canvasObjectKinds';
+import { useTranslation } from 'react-i18next';
+
+const NO_PANES: readonly SidePaneSpec[] = [];
 
 export interface WorkspaceViewDrawerState {
   /**
-   * The View pane the active workspace would dock, or `null` where the drawer
+   * The side panes the active workspace would dock, or empty where the drawer
    * has nothing to offer — the Design workspace, or any fine-pointer session,
-   * where the pane is docked and reachable already.
+   * where the panes are docked and reachable already.
    */
-  spec: ViewPanelSpec | null;
+  panes: readonly SidePaneSpec[];
+  /** The pane the sheet is showing; one of `panes`. */
+  activePane: SidePaneSpec | null;
+  setActivePane: (id: SidePaneId) => void;
   open: boolean;
   /** DOM id the trigger points `aria-controls` at, and the dialog wears. */
   drawerId: string;
-  openDrawer: () => void;
+  /** Open, on `paneId` if given, else on the pane last shown. */
+  openDrawer: (paneId?: SidePaneId) => void;
   /** Close, and hand focus back to the trigger the user opened it from. */
   close: () => void;
   triggerRef: RefObject<HTMLButtonElement | null>;
@@ -48,10 +59,15 @@ export function useViewPanelReconcile(): void {
   const activeWorkspace = useLayoutStore((state) => state.activeWorkspace);
   const dockviewApi = useLayoutStore((state) => state.dockviewApi);
 
+  // The language is a dep so a change re-runs the retitle pass the reconcile
+  // carries; dockview persists the title it was given, and a tab restored under
+  // another language would otherwise keep it. `useTranslation` is what makes
+  // the shell re-render for it.
+  const language = useTranslation().i18n.language;
   useEffect(() => {
     if (!dockviewApi) return;
-    reconcileViewPanel(dockviewApi, activeWorkspace, coarsePointer);
-  }, [dockviewApi, activeWorkspace, coarsePointer]);
+    reconcileSidePanes(dockviewApi, activeWorkspace, coarsePointer);
+  }, [dockviewApi, activeWorkspace, coarsePointer, language]);
 }
 
 /**
@@ -66,6 +82,20 @@ export function useWorkspaceViewDrawer(): WorkspaceViewDrawerState {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const drawerId = useId();
+  const panes = coarsePointer ? sidePanesFor(activeWorkspace) : NO_PANES;
+  const [activePaneId, setActivePaneId] = useState<SidePaneId | null>(null);
+  // The one thing the sheet knows about what it shows: a canvas object being
+  // selected is what makes Properties the pane to open on. The dock's pane
+  // reveals itself on that transition (`usePropertiesPaneActivation`); the
+  // sheet is modal and never opens on a tap, so it asks at open time instead.
+  const canvasObjectSelected = useWorkspaceStore(
+    (state) => selectedCanvasObjectIdOf(state) !== null
+  );
+  // A request from `activatePanel` — View ▸ Properties, the phone overflow row
+  // — parked until this workspace's panes include it. Latched because a request
+  // raised from another workspace lands in the same commit as the workspace
+  // switch, whose force-close below would otherwise shut the sheet it opened.
+  const [pendingPane, setPendingPane] = useState<string | null>(null);
 
   /**
    * `open`, readable from an effect that must not re-run when it changes.
@@ -105,6 +135,20 @@ export function useWorkspaceViewDrawer(): WorkspaceViewDrawerState {
     close();
   }, [coarsePointer, activeWorkspace, close]);
 
+  useEffect(() => subscribeSidePaneRequests(setPendingPane), []);
+
+  // After the force-close above, so a request that arrived with a workspace
+  // switch opens the sheet rather than being closed by it.
+  useEffect(() => {
+    if (pendingPane === null) return;
+    const pane = panes.find((candidate) => candidate.id === pendingPane);
+    if (!pane) return;
+    setPendingPane(null);
+    setActivePaneId(pane.id);
+    setOpen(true);
+    track(ANALYTICS_EVENTS.viewDrawerOpened, { workspace: activeWorkspace, pane: pane.id });
+  }, [pendingPane, panes, activeWorkspace]);
+
   // Escape, the way both existing modals do it (`HelpModal`, `SettingsModal`): a
   // capture-phase listener on `window`, so it works wherever focus happens to be
   // inside the sheet.
@@ -120,17 +164,16 @@ export function useWorkspaceViewDrawer(): WorkspaceViewDrawerState {
   // is no private copy.
   //
   // The pane also has `Select`s, and Radix portals an open dropdown *outside* the
-  // sheet, so neither the target check nor a listener scoped to the sheet sees
-  // it. Radix mounts `[data-radix-popper-content-wrapper]` only while a layer is
-  // open, so its presence is the question "is a layer above me holding Escape"
-  // asked directly. Without this, Escape aimed at a dropdown closed the whole
+  // sheet, so a listener scoped to the sheet would never see it — but the
+  // dropdown holds focus while it is open, so the keystroke's target is inside
+  // it, and `isOpenLayerTarget` is the repo's one answer to "is a layer holding
+  // this key". Without the bail, Escape aimed at a dropdown closed the whole
   // drawer — one keystroke discarding the wrong thing.
   useEffect(() => {
     if (!open) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      if (isShortcutEditingTarget(event.target)) return;
-      if (document.querySelector('[data-radix-popper-content-wrapper]')) return;
+      if (isShortcutEditingTarget(event.target) || isOpenLayerTarget(event.target)) return;
       event.preventDefault();
       event.stopPropagation();
       close();
@@ -139,8 +182,13 @@ export function useWorkspaceViewDrawer(): WorkspaceViewDrawerState {
     return () => window.removeEventListener('keydown', onKeyDown, true);
   }, [open, close]);
 
+  const activePane =
+    panes.find((candidate) => candidate.id === activePaneId) ?? panes[0] ?? null;
+
   return {
-    spec: coarsePointer ? viewPanelFor(activeWorkspace) : null,
+    panes,
+    activePane,
+    setActivePane: setActivePaneId,
     open,
     drawerId,
     // Instrumented here rather than at the button, because opening is the
@@ -152,11 +200,20 @@ export function useWorkspaceViewDrawer(): WorkspaceViewDrawerState {
     // one visit. `view drawer opened` is meant to count sessions that went
     // looking for the view options — an inflated count is the one failure that
     // would make the number answer the wrong question.
-    openDrawer: useCallback(() => {
-      if (open) return;
-      setOpen(true);
-      track(ANALYTICS_EVENTS.viewDrawerOpened, { workspace: activeWorkspace });
-    }, [open, activeWorkspace]),
+    openDrawer: useCallback(
+      (paneId?: SidePaneId) => {
+        if (open) return;
+        const preferred = paneId ?? (canvasObjectSelected ? 'cp-properties' : undefined);
+        const pane = panes.find((candidate) => candidate.id === preferred) ?? activePane;
+        if (pane) setActivePaneId(pane.id);
+        setOpen(true);
+        track(ANALYTICS_EVENTS.viewDrawerOpened, {
+          workspace: activeWorkspace,
+          pane: pane?.id ?? null,
+        });
+      },
+      [open, panes, activePane, activeWorkspace, canvasObjectSelected]
+    ),
     close,
     triggerRef,
   };

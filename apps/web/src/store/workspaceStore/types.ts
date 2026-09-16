@@ -7,6 +7,7 @@ import type {
   WasmErrorEnvelope,
 } from '../../engine/types';
 import type { Point } from '../../lib/geometry';
+import type { CpVertexPin } from '../../cp-workspace/pins/vertexPins';
 import type { SerializedDockview } from 'dockview';
 import type { DesignTab } from './designTabs';
 import type { EditingContext } from '../../workspaces/editingContext';
@@ -772,6 +773,15 @@ export interface CreasePatternSliceState {
    */
   oristudioCpInlineSimulations: InlineSimulation[];
   /**
+   * Vertices the user has pinned: held exactly where they are by the exact
+   * solver and by every transform. See `cp-workspace/pins/vertexPins.ts` for why
+   * a pin is a *position* rather than an id, and why it is session state —
+   * a pin says what should happen to the pattern next, not what the pattern is,
+   * so it is deliberately absent from `.osf`, from share links and from history
+   * entries.
+   */
+  oristudioCpPinnedVertices: readonly CpVertexPin[];
+  /**
    * The window that currently owns the solver. At most one runs at a time: the
    * rest hold their last rendered frame, which costs nothing, and keeps the
    * worker to a single live session.
@@ -907,6 +917,13 @@ export interface CreasePatternSliceActions {
   requestOristudioCpAction: (operationId: OristudioCpOperationId) => void;
   requestOristudioCpSurface: (kind: OristudioCpSurfaceRequestKind) => void;
   setOristudioCpActiveToolId: (id: OristudioCpActionId | null) => void;
+  /** Pin the vertex at `point`, or unpin the one already there. */
+  toggleOristudioCpVertexPin: (point: { x: number; y: number }) => void;
+  /**
+   * Drop every pin inside `box` — what accepting or deleting a solve region
+   * does. Scoped rather than a clear-all, so pins outside it survive.
+   */
+  clearOristudioCpVertexPinsIn: (box: { contains: (point: { x: number; y: number }) => boolean }) => void;
   clearOristudioCpActionRequest: (id: number) => void;
   clearOristudioCpSurfaceRequest: (id: number) => void;
   setOristudioCpActiveDiagnostic: (id: string | null) => void;
@@ -951,6 +968,16 @@ export interface CreasePatternSliceActions {
     id: string,
     update: Partial<OristudioCpFoldedFigureModel>
   ) => Promise<boolean>;
+  /**
+   * Make every in-flight live model write stale, for an undo taken mid-drag.
+   *
+   * A stale write lands in the kernel and nowhere else, so the figure is
+   * reconciled against the store once its last write has landed — the reconcile
+   * the undo itself schedules runs while the write is still counted and stands
+   * down. Without this the tick that lands after the undo would carry the
+   * dragged colour into the kernel with the store showing the restored one.
+   */
+  supersedeOristudioCpFoldedFigureModelWrites: () => void;
   duplicateOristudioCpFoldedFigure: (id?: string) => Promise<boolean>;
   /**
    * Re-fold a figure from its recorded source region, in place — same id,
@@ -1314,10 +1341,24 @@ export interface OristudioBpSliceActions {
   ) => Promise<boolean>;
   /**
    * Forget that this vertex mirrors another. The two stay where they are; they
-   * simply stop being each other's mirror, and the optimizer will fall back to
-   * whatever their positions imply.
+   * simply stop being each other's mirror, everywhere — the tree drag, the flap
+   * drag, resize, delete and the optimizer all read the pairing and nothing
+   * else, so where the two happen to sit no longer pairs them.
    */
   unpairOristudioBpTreeSymmetry: (vertexId: number) => void;
+  /**
+   * Pair this vertex with the unpaired vertex sitting at its reflection, if
+   * there is exactly one (`inferBpTreeSymmetryPartner`). A no-op, recording
+   * nothing, when there is none. One of the three verbs that create a pair; the
+   * others are mirror-add and {@link pairAllOristudioBpTreeSymmetry}.
+   */
+  pairOristudioBpTreeSymmetry: (vertexId: number) => void;
+  /**
+   * Pair every unpaired vertex that has an unpaired reflection, at once. How a
+   * hand-drawn or imported symmetric tree becomes a paired one. A no-op,
+   * recording nothing, when nothing new pairs.
+   */
+  pairAllOristudioBpTreeSymmetry: () => void;
   /**
    * Run the BP layout optimizer and apply its result as one undoable step.
    * Cancelling leaves the document and history untouched.
@@ -1652,7 +1693,16 @@ export interface ExploriSlice {
     updates: readonly TreeVertexUpdate[]
   ) => Promise<boolean>;
   toggleExploriSymmetry: () => Promise<boolean>;
+  /** Break this node's mirror pairing. False when it had none. */
   unpairExploriNode: (nodeId: number) => Promise<boolean>;
+  /**
+   * Pair this node with the unpaired node at its reflection, if there is
+   * exactly one (`inferExploriPartner`). False, recording nothing, when there
+   * is none.
+   */
+  pairExploriNode: (nodeId: number) => Promise<boolean>;
+  /** Pair every unpaired node that has an unpaired reflection. False when nothing new pairs. */
+  pairAllExploriNodes: () => Promise<boolean>;
   setExploriDbConfigs: (dbConfigs: ExploriDbConfig[]) => Promise<boolean>;
   setExploriResultLimit: (resultLimit: number) => Promise<boolean>;
   selectExploriResult: (result: ExploriResult | null, detailIndex: number | null) => Promise<boolean>;

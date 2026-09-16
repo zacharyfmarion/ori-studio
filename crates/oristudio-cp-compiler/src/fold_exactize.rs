@@ -32,6 +32,7 @@ use crate::candidate_graph::{
     BoundaryModel, BoundaryReconstructionPolicy, BoundarySide, BoundarySideModel,
     CandidateCarrierGeometry, CandidateVertex, CandidateVertexKind, CandidateVertexMovementPolicy,
 };
+use crate::carrier_lines::{carrier_bin, carrier_from};
 use crate::fold_export::export_exact_solved_to_fold_document;
 use crate::{
     AssignmentEvidence, AssignmentEvidenceSource, AssignmentLabel, CandidateCreaseSourceKind,
@@ -726,44 +727,6 @@ fn polygon_plan(raw: &[Point2], quad: &QuadBoundary) -> Result<BoundaryPlan, Str
     })
 }
 
-fn carrier_from(a: Point2, b: Point2) -> (CandidateCarrierGeometry, [f64; 2]) {
-    let (dx, dy) = (b.x - a.x, b.y - a.y);
-    let len = (dx * dx + dy * dy).sqrt().max(1e-12);
-    let dir = Point2::new(dx / len, dy / len);
-    let mut normal = Point2::new(dir.y, -dir.x);
-    let mut rho = a.x * normal.x + a.y * normal.y;
-    if rho < 0.0 {
-        normal = Point2::new(-normal.x, -normal.y);
-        rho = -rho;
-    }
-    let ta = a.x * dir.x + a.y * dir.y;
-    let tb = b.x * dir.x + b.y * dir.y;
-    (
-        CandidateCarrierGeometry {
-            normal,
-            direction: dir,
-            rho,
-        },
-        [ta.min(tb), ta.max(tb)],
-    )
-}
-
-/// The bin a carrier line falls in — the same 0.01 rad / 0.0025 grid the
-/// solver's `CarrierGroupKey::Geometry` uses — so collinear creases share one.
-fn carrier_bin(carrier: &CandidateCarrierGeometry) -> (i64, i64) {
-    let rho_bin = (carrier.rho / 0.0025).round() as i64;
-    let mut theta = carrier.normal.y.atan2(carrier.normal.x);
-    // A line through the frame's origin has no offset, so the sign rule
-    // `carrier_from` orients a normal by (rho >= 0) does not pick a direction
-    // for it: the two halves of such a crease, drawn towards and away from the
-    // origin, had normals a half-turn apart and were two carriers. Where the
-    // offset bin is zero the angle is folded to a half-turn, where they are one.
-    if rho_bin == 0 {
-        theta = theta.rem_euclid(std::f64::consts::PI);
-    }
-    ((theta / 0.01).round() as i64, rho_bin)
-}
-
 /// A small, dense id per distinct bin, in first-seen order.
 ///
 /// This used to be a hash of the bin folded into a `usize` — the angle bin
@@ -1196,6 +1159,183 @@ mod tests {
                 .iter()
                 .any(|spacing| (spacing - pitch).abs() > 1e-4),
             "without the round the noise should survive: {spacings:?}"
+        );
+    }
+
+    /// Five creases through one vertex, drawn on the 11.25° lattice a 22.5°
+    /// design uses for its finer subdivisions, each a few tenths of a degree
+    /// off. Three of the five sit on the 22.5° lattice, so the pattern reads
+    /// as 22.5°, and the family pin alone would leave the two odd creases at
+    /// their detected 11.65° and 123.4°. Any odd number of lines through a
+    /// point satisfies Kawasaki, so the fan is exact for every choice of angle
+    /// and only the pin decides where the creases end up.
+    fn eleven_and_a_quarter_fan() -> FoldDocument {
+        let lines = [0.0_f64, 11.65, 22.8, 67.5, 123.4];
+        let labels = [
+            (Assignment::Mountain, Assignment::Mountain),
+            (Assignment::Valley, Assignment::Valley),
+            (Assignment::Mountain, Assignment::Mountain),
+            (Assignment::Mountain, Assignment::Mountain),
+            (Assignment::Valley, Assignment::Valley),
+        ];
+        // Boundary points by their position around the perimeter, so the
+        // border can be chained in order: side 0 is the right edge going up.
+        let perimeter = |x: f64, y: f64| -> f64 {
+            if (x - 200.0).abs() < 1e-9 {
+                y + 200.0
+            } else if (y - 200.0).abs() < 1e-9 {
+                400.0 + (200.0 - x)
+            } else if (x + 200.0).abs() < 1e-9 {
+                800.0 + (200.0 - y)
+            } else {
+                1200.0 + (x + 200.0)
+            }
+        };
+        let mut coords = vec![vec![0.0, 0.0]];
+        let mut creases: Vec<([usize; 2], Assignment)> = Vec::new();
+        let mut boundary: Vec<(f64, usize)> = Vec::new();
+        for (&degrees, (out_label, back_label)) in lines.iter().zip(labels) {
+            for (angle, label) in [(degrees, out_label), (degrees + 180.0, back_label)] {
+                let (dx, dy) = (angle.to_radians().cos(), angle.to_radians().sin());
+                let t = 200.0 / dx.abs().max(dy.abs());
+                let (x, y) = ((t * dx * 1e9).round() / 1e9, (t * dy * 1e9).round() / 1e9);
+                let id = coords.len();
+                coords.push(vec![x, y]);
+                creases.push(([0, id], label));
+                boundary.push((perimeter(x, y), id));
+            }
+        }
+        for (x, y) in [
+            (200.0, -200.0),
+            (200.0, 200.0),
+            (-200.0, 200.0),
+            (-200.0, -200.0),
+        ] {
+            let id = coords.len();
+            coords.push(vec![x, y]);
+            boundary.push((perimeter(x, y), id));
+        }
+        boundary.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let mut edges = Vec::new();
+        let mut assignments = Vec::new();
+        for k in 0..boundary.len() {
+            edges.push([boundary[k].1, boundary[(k + 1) % boundary.len()].1]);
+            assignments.push(Assignment::Boundary);
+        }
+        for (edge, label) in creases {
+            edges.push(edge);
+            assignments.push(label);
+        }
+        let count = edges.len();
+        let mut fold = FoldDocument::new(coords, edges);
+        fold.edges_assignment = assignments;
+        fold.edges_fold_angle = vec![None; count];
+        fold
+    }
+
+    #[test]
+    fn a_22_5_family_is_refined_to_its_half_step() {
+        let (input, _) = exact_solve_input_from_fold(&eleven_and_a_quarter_fan()).unwrap();
+        let solved = solve_exact(&input, options());
+        let pinned = &solved.movement_report["polish"]["pinned_family"];
+        assert_eq!(pinned["step_degrees"], serde_json::json!(22.5), "{pinned}");
+        assert_eq!(pinned["adopted"], serde_json::json!(true), "{pinned}");
+        let attempts = pinned["attempts"].as_array().unwrap();
+        let half = attempts
+            .iter()
+            .find(|attempt| attempt["step_degrees"] == serde_json::json!(11.25))
+            .unwrap_or_else(|| panic!("no half-step attempt in {pinned}"));
+        assert_eq!(half["refusals"], serde_json::json!([]), "{half}");
+        let centre = solved.vertices_exact[0];
+        for (id, point) in solved.vertices_exact.iter().enumerate().skip(1).take(10) {
+            let degrees = (point.y - centre.y).atan2(point.x - centre.x).to_degrees();
+            let off = degrees - (degrees / 11.25).round() * 11.25;
+            assert!(
+                off.abs() < 1e-7,
+                "crease to vertex {id} sits {off} degrees off the 11.25 lattice"
+            );
+        }
+    }
+
+    /// A horizontal crease crossing a vertical one at the centre, its right
+    /// half bent up by `bend_degrees` at the crossing.
+    fn crossing_with_a_bend(bend_degrees: f64) -> FoldDocument {
+        let y = 200.0 * bend_degrees.to_radians().tan();
+        let mut fold = FoldDocument::new(
+            vec![
+                vec![-200.0, -200.0],
+                vec![200.0, -200.0],
+                vec![200.0, 200.0],
+                vec![-200.0, 200.0],
+                vec![0.0, 0.0],
+                vec![-200.0, 0.0],
+                vec![200.0, y],
+                vec![0.0, -200.0],
+                vec![0.0, 200.0],
+            ],
+            vec![
+                [0, 7],
+                [7, 1],
+                [1, 6],
+                [6, 2],
+                [2, 8],
+                [8, 3],
+                [3, 5],
+                [5, 0],
+                [5, 4],
+                [4, 6],
+                [7, 4],
+                [4, 8],
+            ],
+        );
+        fold.edges_assignment = [Assignment::Boundary; 8]
+            .into_iter()
+            .chain([
+                Assignment::Mountain,
+                Assignment::Mountain,
+                Assignment::Mountain,
+                Assignment::Valley,
+            ])
+            .collect();
+        fold.edges_fold_angle = vec![None; 12];
+        fold
+    }
+
+    /// The input builder keeps the bent halves as two lines, since a join
+    /// there has no judge; the solve's carrier round reads them as one off the
+    /// straightened geometry and the answer is a straight crease.
+    #[test]
+    fn the_carrier_round_straightens_a_crease_noise_bent_at_a_crossing() {
+        let (input, _) = exact_solve_input_from_fold(&crossing_with_a_bend(1.2)).unwrap();
+        assert_ne!(
+            input.selected_spans[8].source_carrier_ids,
+            input.selected_spans[9].source_carrier_ids
+        );
+        let solved = solve_exact(&input, options());
+        let join = &solved.movement_report["carrier_join"];
+        assert!(join["adopted_rounds"].as_u64().unwrap_or(0) >= 1, "{join}");
+        assert!(
+            solved.movement_report["termination"]
+                .as_str()
+                .unwrap()
+                .contains("+carriers("),
+            "{}",
+            solved.movement_report["termination"]
+        );
+        let v = &solved.vertices_exact;
+        let left = (v[4].y - v[5].y).atan2(v[4].x - v[5].x);
+        let right = (v[6].y - v[4].y).atan2(v[6].x - v[4].x);
+        assert!(
+            (left - right).abs().to_degrees() < 1e-7,
+            "the halves still bend by {}°",
+            (left - right).abs().to_degrees()
+        );
+        assert_eq!(
+            solved.status,
+            crate::ExactSolvedGraphStatus::Solved,
+            "after {} polish {}",
+            solved.theorem_residual_report["after"],
+            solved.movement_report["polish"]
         );
     }
 }

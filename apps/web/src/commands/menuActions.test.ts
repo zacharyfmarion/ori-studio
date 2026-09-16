@@ -9,6 +9,7 @@ import { getWorkspaceCapabilities } from '../lib/workspaceCapabilities';
 import { createFileService } from '../platform/fileService';
 import { useLayoutStore } from '../store/layoutStore';
 import { createMenuActionHandler, isMenuActionId } from './menuActions';
+import { registerCanvasSessionEnder } from '../cp-workspace/canvasObjects/canvasSessions';
 
 // The default `showWorkspace` navigates for real, and the point of the tests
 // below is that it is a default rather than a wiring line — so the router itself
@@ -190,6 +191,7 @@ describe('menu actions', () => {
     await expect(handle('view.creasePattern')).resolves.toBe(true);
     await expect(handle('view.simulator')).resolves.toBe(true);
     await expect(handle('view.references')).resolves.toBe(true);
+    await expect(handle('view.properties')).resolves.toBe(true);
     await expect(handle('file.settings')).resolves.toBe(true);
     await expect(handle('help.about')).resolves.toBe(true);
     await expect(handle('app.about')).resolves.toBe(true);
@@ -201,7 +203,8 @@ describe('menu actions', () => {
     expect(deps.layout.activatePanel).toHaveBeenCalledWith('crease-pattern');
     expect(deps.layout.activatePanel).toHaveBeenCalledWith('simulator');
     expect(deps.layout.activatePanel).toHaveBeenCalledWith('references');
-    expect(deps.layout.activatePanel).toHaveBeenCalledTimes(5);
+    expect(deps.layout.activatePanel).toHaveBeenCalledWith('cp-properties');
+    expect(deps.layout.activatePanel).toHaveBeenCalledTimes(6);
     expect(deps.settings).toHaveBeenCalledOnce();
     expect(deps.about).toHaveBeenCalledTimes(2);
     expect(deps.workspace.buildCreasePattern).toHaveBeenCalledOnce();
@@ -342,6 +345,26 @@ describe('menu actions', () => {
 
     expect(deps.workspace.requestOristudioCpAction).toHaveBeenCalledWith('CircleChangeColor');
     expect(deps.workspace.executeOristudioCpCommand).not.toHaveBeenCalled();
+  });
+
+  it('ends open canvas sessions before an undo or redo runs', async () => {
+    // A text box mid-edit commits and a drag mid-gesture aborts *before* the
+    // history step, whichever surface the undo came from — this arm is the one
+    // every path reaches.
+    const deps = createDeps();
+    const handle = createMenuActionHandler(deps);
+    const reasons: string[] = [];
+    const unregister = registerCanvasSessionEnder((reason) => {
+      reasons.push(`${reason}:${deps.workspace.undo.mock.calls.length}`);
+    });
+    try {
+      await expect(handle('edit.undo')).resolves.toBe(true);
+      await expect(handle('edit.redo')).resolves.toBe(true);
+    } finally {
+      unregister();
+    }
+    // Ended before the undo ran (no undo call yet), and again before the redo.
+    expect(reasons).toEqual(['history:0', 'history:1']);
   });
 
   it('dispatches edit commands through workspace actions', async () => {

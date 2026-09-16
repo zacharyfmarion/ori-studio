@@ -601,6 +601,10 @@ export function SimulatorViewport({
 
   // When the GPU path becomes active (first load, or after a path switch), send
   // the worker the current camera and settings so it does not draw with defaults.
+  // Only the first session needs this: every later one — a reload, a rebuild
+  // after the fold went away — opens on what the runtime last forwarded, which
+  // is why a session replaced while `gpuActive` stays true is not covered here
+  // and does not have to be.
   useEffect(() => {
     if (!gpuActive) return;
     if (!canvasRef.current) return;

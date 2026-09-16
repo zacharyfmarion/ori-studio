@@ -105,6 +105,7 @@ fn compiler_v2_evidence_config(config: &DecodeConfig) -> EvidenceExtractionConfi
         junction_cluster_keep_rule: JunctionClusterKeepRule::default(),
         junction_evidence_source: JunctionEvidenceSource::Model,
         junction_peak_threshold: None,
+        boundary_contact_threshold: None,
     }
 }
 

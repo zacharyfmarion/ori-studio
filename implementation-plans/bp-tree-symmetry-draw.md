@@ -100,6 +100,14 @@ pairs to it. Port `findMirrorNodeId` semantics against `OristudioBpTree`.
 loaded) before mirror mode was enabled, not only on branches drawn inside it — matching
 TreeMaker's `mirroredNodeForEdgeEndpoint`.
 
+> **Superseded (2026-09-10)** by `bp-symmetry-explicit-pairs.md`. The geometric branch
+> made Unpair a no-op once pairs were persisted: Unpair moves nothing, so the two
+> vertices were still reflections and the fallback found the partner straight back.
+> A partner is now an explicit pair or nothing; matching by position survives only as
+> the user-invoked *Pair with mirror* / *Pair all mirrored*. (TreeMaker's
+> `mirroredNodeForEdgeEndpoint` never had the geometric branch — it is explicit pair,
+> else self on the axis — so the port had gone beyond what this decision claimed.)
+
 ### D4 — Metric mirror semantics (the crux)
 
 **Mirror-add** (`addOristudioBpTreeLeafWithSymmetry`): add the leaf to `parent` at

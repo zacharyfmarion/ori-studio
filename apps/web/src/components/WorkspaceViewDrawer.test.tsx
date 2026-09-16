@@ -11,6 +11,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('./panels/CpViewControlsPanel', () => ({
   CpViewControlsPanel: () => <input aria-label="grid size" defaultValue="8" />,
 }));
+vi.mock('./panels/CpPropertiesPanel', () => ({
+  CpPropertiesPanel: () => <p>cp properties</p>,
+}));
 vi.mock('./panels/SimulatorViewControlsPanel', () => ({
   SimulatorViewControlsPanel: () => <p>simulator view controls</p>,
 }));
@@ -26,6 +29,7 @@ vi.mock('../analytics', async (importOriginal) => {
 });
 
 import { useLayoutStore } from '../store/layoutStore';
+import { requestSidePane } from '../store/sidePaneRequests';
 import { WorkspaceViewDrawer } from './WorkspaceViewDrawer';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -76,6 +80,10 @@ const trigger = () => container?.querySelector<HTMLButtonElement>('.view-drawer_
  */
 const dialog = () => document.querySelector<HTMLElement>('[role="dialog"]');
 const sheet = () => document.querySelector<HTMLElement>('.view-drawer__sheet');
+const tab = (label: string) =>
+  [...document.querySelectorAll<HTMLButtonElement>('.view-drawer__header .segmented__option')].find(
+    (option) => option.textContent === label
+  );
 
 function press(element: Element | null | undefined) {
   act(() => element?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
@@ -204,6 +212,47 @@ describe('the workspace View drawer', () => {
 
     expect(analytics.track).toHaveBeenCalledWith('view drawer opened', {
       workspace: 'simulate',
+      pane: 'simulator-view-controls',
+    });
+  });
+
+  it('offers the Edit workspace its two panes as tabs of one sheet', () => {
+    // The Properties pane is docked as a tab of the View pane's group, and the
+    // sheet mirrors that: one trigger, one dialog, a switch at the top. The
+    // Simulate workspace has one pane and keeps its plain title (above).
+    render();
+    press(trigger());
+
+    expect(tab('View')?.getAttribute('aria-pressed')).toBe('true');
+    expect(document.querySelector('input[aria-label="grid size"]')).not.toBeNull();
+    expect(dialog()?.textContent).not.toContain('cp properties');
+
+    press(tab('Properties'));
+
+    expect(tab('Properties')?.getAttribute('aria-pressed')).toBe('true');
+    expect(dialog()?.textContent).toContain('cp properties');
+    expect(document.querySelector('input[aria-label="grid size"]')).toBeNull();
+  });
+
+  it('opens on a requested pane, including one raised with a workspace switch', () => {
+    // `activatePanel('cp-properties')` — View ▸ Properties — has no docked
+    // panel to activate under a coarse pointer, so it asks the drawer instead.
+    // Raised from another workspace the request lands in the same commit as
+    // the switch, whose force-close would otherwise shut the sheet it opened.
+    useLayoutStore.setState({ activeWorkspace: 'simulate' });
+    render();
+
+    act(() => {
+      useLayoutStore.setState({ activeWorkspace: 'edit' });
+      requestSidePane('cp-properties');
+    });
+
+    expect(dialog()).not.toBeNull();
+    expect(tab('Properties')?.getAttribute('aria-pressed')).toBe('true');
+    expect(dialog()?.textContent).toContain('cp properties');
+    expect(analytics.track).toHaveBeenCalledWith('view drawer opened', {
+      workspace: 'edit',
+      pane: 'cp-properties',
     });
   });
 
@@ -244,6 +293,41 @@ describe('the workspace View drawer', () => {
     pressEscape(field as EventTarget);
 
     expect(dialog()).not.toBeNull();
+  });
+
+  it('leaves Escape to an open dropdown inside the sheet', () => {
+    // The pane's `Select`s portal their open listbox outside the sheet, so a
+    // listener scoped to the sheet would never see it — but the listbox holds
+    // focus while open, so the key's target is inside it. Escape aimed at a
+    // dropdown must close the dropdown, not the whole drawer.
+    render();
+    press(trigger());
+    const wrapper = document.body.appendChild(document.createElement('div'));
+    wrapper.setAttribute('data-radix-popper-content-wrapper', '');
+    const option = wrapper.appendChild(document.createElement('div'));
+    option.setAttribute('role', 'option');
+    option.tabIndex = -1;
+    act(() => option.focus());
+
+    pressEscape(option);
+
+    expect(dialog()).not.toBeNull();
+    wrapper.remove();
+  });
+
+  it('closes on Escape while a layer is open somewhere else', () => {
+    // A tooltip is a popper layer too, and it holds no focus. Asking "is any
+    // layer open" would leave the sheet's one keyboard exit dead for as long as
+    // a label happened to be showing; asking where the key landed does not.
+    render();
+    press(trigger());
+    const tooltip = document.body.appendChild(document.createElement('div'));
+    tooltip.setAttribute('data-radix-popper-content-wrapper', '');
+
+    pressEscape(sheet() as EventTarget);
+
+    expect(dialog()).toBeNull();
+    tooltip.remove();
   });
 
   it('closes on a backdrop press but not on a press inside the sheet', () => {

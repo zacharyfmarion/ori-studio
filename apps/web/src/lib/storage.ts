@@ -40,6 +40,7 @@ export const STORAGE_KEYS = {
   bpOptimizer: 'bp-optimizer',
   simulatorSettings: 'simulator-settings',
   /** Whether product analytics is enabled (opt-out preference; default true). */
+  cpDetectSuggestions: 'cp-detect-suggestions',
   analyticsEnabled: 'analytics-enabled',
   /** Anonymous, locally-generated stable id used to `identify()` in PostHog. */
   analyticsId: 'analytics-id',
@@ -61,6 +62,13 @@ export const STORAGE_KEYS = {
   layout: 'layout',
   layoutVersion: 'layout-version',
   shareAuthor: 'share-author',
+  /**
+   * The newest desktop release's version and asset URLs, as last read from the
+   * GitHub API. Cached so a returning visitor spends none of GitHub's 60
+   * requests an hour, and so a rate-limited or offline load still labels the
+   * download button — the links it holds keep working until the next release.
+   */
+  desktopRelease: 'desktop-release',
 } as const;
 
 /** Build a namespaced key: `storageKey('layout', 'design') → 'oristudio:layout:design'`. */

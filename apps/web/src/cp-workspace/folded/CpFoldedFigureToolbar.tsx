@@ -1,21 +1,22 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Check } from 'lucide-react';
 import { FloatingToolbar } from '../../components/ui/FloatingToolbar';
 import { resolveCpViewportCanvas } from '../cpViewportCanvas';
 import { IconButton } from '../../components/ui/IconButton';
 import { MenuIconButton } from '../../components/ui/MenuIconButton';
+import { renderContextMenuItems } from '../../components/ui/ContextMenu';
+import type { ContextMenuItem } from '../../components/ui/contextMenuTypes';
 import { useCanvasObjectAnchor } from '../canvasObjects/useCanvasObjectAnchor';
 import { foldedFigureBox } from '../adapters/cpFoldedToScene';
 import {
   buildFoldedFigureActions,
   type FoldedFigureActionDeps,
-  type FoldedFigureChoice,
   type FoldedFigureCommand,
   type FoldedFigureNoteAction,
 } from './foldedFigureActions';
 import { foldedFigureActionIconNode } from './foldedFigureActionIcons';
+import { choiceMenuItems, styleMenuItems } from './foldedFigureMenuItems';
 import type { OristudioCpFoldedFigureEntry } from '../../engine/oristudioCpTypes';
 
 function CommandButton({ action }: { action: FoldedFigureCommand }) {
@@ -67,14 +68,34 @@ function NoticeChip({ action }: { action: FoldedFigureNoteAction }) {
   );
 }
 
-function ChoiceMenu({ action }: { action: FoldedFigureChoice }) {
+/**
+ * An icon button that opens rows from the context-menu vocabulary.
+ *
+ * The rows are the same descriptors the right-click menu renders, through the
+ * same renderer, so the Style menu here and the Style submenu there are one
+ * definition — a colour row or a check row is written once.
+ *
+ * Non-modal, unlike the right-click menu. A modal menu blocks pointer events
+ * everywhere outside it, so the press that dismisses it never reaches the
+ * canvas — and a press on the canvas away from the figure is how the figure is
+ * deselected. This menu floats over a selection; a press elsewhere should
+ * dismiss it *and* do what it would have done, which is what the viewport
+ * bar's own dropdown always did.
+ */
+function ToolbarMenu({
+  label,
+  icon,
+  disabled,
+  items,
+}: {
+  label: string;
+  icon: ReactNode;
+  disabled: boolean;
+  items: ContextMenuItem[];
+}) {
   return (
-    <DropdownMenu.Root>
-      <MenuIconButton
-        label={action.label}
-        icon={foldedFigureActionIconNode(action.icon)}
-        disabled={action.disabled}
-      />
+    <DropdownMenu.Root modal={false}>
+      <MenuIconButton label={label} icon={icon} disabled={disabled} />
       <DropdownMenu.Portal>
         <DropdownMenu.Content
           className="context-menu"
@@ -84,22 +105,7 @@ function ChoiceMenu({ action }: { action: FoldedFigureChoice }) {
           collisionPadding={8}
           loop
         >
-          {action.options.map((option) => (
-            <DropdownMenu.Item
-              key={option.id}
-              className="context-menu__item"
-              onSelect={option.run}
-            >
-              {/* The check column is reserved for an exclusive set only, so its
-                  labels stay put as the check moves. A list of one-shot actions
-                  has nothing to check, and an always-empty column just reads as
-                  a stray indent. */}
-              {action.exclusive && (
-                <span className="context-menu__icon">{option.checked && <Check size={12} />}</span>
-              )}
-              <span className="context-menu__label">{option.label}</span>
-            </DropdownMenu.Item>
-          ))}
+          {renderContextMenuItems(items)}
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
@@ -107,9 +113,9 @@ function ChoiceMenu({ action }: { action: FoldedFigureChoice }) {
 }
 
 /**
- * Floating actions for the selected folded figure: flip, display style, another
- * solution, refold (when stale), duplicate, and delete. Hovers above the figure
- * via {@link FloatingToolbar}, mirroring {@link CpImageInspector}.
+ * Floating actions for the selected folded figure: flip, style, another
+ * solution, refold (when stale), export, duplicate, and delete. Hovers above the
+ * figure via {@link FloatingToolbar}, mirroring {@link CpImageInspector}.
  *
  * Items come from {@link buildFoldedFigureActions}, which the right-click menu
  * also renders — so the two surfaces present the same verbs in the same order.
@@ -158,7 +164,25 @@ export function CpFoldedFigureToolbar({
           case 'separator':
             return <span key={action.id} className="floating-toolbar__separator" />;
           case 'choice':
-            return <ChoiceMenu key={action.id} action={action} />;
+            return (
+              <ToolbarMenu
+                key={action.id}
+                label={action.label}
+                icon={foldedFigureActionIconNode(action.icon)}
+                disabled={action.disabled}
+                items={choiceMenuItems(action)}
+              />
+            );
+          case 'group':
+            return (
+              <ToolbarMenu
+                key={action.id}
+                label={action.label}
+                icon={foldedFigureActionIconNode(action.icon)}
+                disabled={action.disabled}
+                items={styleMenuItems(action, { keepOpen: true })}
+              />
+            );
           case 'note':
             return <NoticeChip key={action.id} action={action} />;
           case 'command':

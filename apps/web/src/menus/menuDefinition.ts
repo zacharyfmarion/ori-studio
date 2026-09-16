@@ -187,6 +187,8 @@ export function getMenuBarDef(
         { type: 'action', id: 'view.simulate', label: t('menu:view.simulate', 'Simulate') },
         { type: 'action', id: 'view.references', label: t('menu:view.references', 'References') },
         { type: 'separator' },
+        { type: 'action', id: 'view.properties', label: t('menu:view.properties', 'Properties') },
+        { type: 'separator' },
         { type: 'action', id: 'view.resetLayout', label: t('menu:view.resetLayout', 'Reset Layout') },
       ],
     },

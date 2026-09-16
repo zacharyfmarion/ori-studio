@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState, type RefObject } from 'react';
 import { ANALYTICS_EVENTS, track } from '../../analytics';
-import { isShortcutEditingTarget } from '../../keyboard/shortcutDispatcher';
+import { isOpenLayerTarget, isShortcutEditingTarget } from '../../keyboard/shortcutDispatcher';
 import { useIsPhoneLayout } from '../../platform/phoneLayout';
 import { useLayoutStore } from '../../store/layoutStore';
 import { useCpToolSurface, type CpToolSurface } from './cpToolSurface';
@@ -37,17 +37,13 @@ export interface CpToolsTriggerState {
  * - **A published tool surface.** No editable crease pattern means no tools, and
  *   it is the same condition the rail itself renders under.
  *
- * Modelled on `useWorkspaceViewDrawer`, including the Escape listener: the same
- * problem (a sheet that must close from wherever focus landed inside it) has one
- * answer in this repo, and a second, subtly different one would be worse than
- * either.
- *
- * With one of its guards deliberately absent. The drawer also bails while a
- * `[data-radix-popper-content-wrapper]` is mounted, because its body is full of
- * `Select`s whose open dropdown owns Escape from outside the sheet. This sheet
- * holds buttons and the Shift latch and nothing that portals a layer, so the
- * only popper that can be up is a `useTouchLabel` tooltip — which owns nothing,
- * and bailing for it would leave the sheet's one keyboard exit dead.
+ * Modelled on `useWorkspaceViewDrawer`, including the Escape listener and both
+ * of its guards: the same problem (a sheet that must close from wherever focus
+ * landed inside it) has one answer in this repo, and a second, subtly different
+ * one would be worse than either. Nothing in this sheet opens a layer today, so
+ * the layer guard is inert here — but it asks about the key's *target*, so a
+ * `useTouchLabel` tooltip, which holds no focus, cannot trip it and leave the
+ * sheet's one keyboard exit dead.
  */
 export function useCpToolsTrigger(): CpToolsTriggerState {
   const phoneLayout = useIsPhoneLayout();
@@ -76,14 +72,15 @@ export function useCpToolsTrigger(): CpToolsTriggerState {
 
   // Capture-phase on `window`, like `HelpModal`, `SettingsModal` and the View
   // drawer — so it fires wherever focus is inside the sheet rather than only on
-  // whatever happens to be focused. `isShortcutEditingTarget` is the repo's one
-  // answer to "does this target own its keystrokes"; there is no copy of it here
-  // for the same reason there is no copy of it there.
+  // whatever happens to be focused. `isShortcutEditingTarget` and
+  // `isOpenLayerTarget` are the repo's one answer each to "does this target own
+  // its keystrokes"; there is no copy of them here for the same reason there is
+  // no copy of them there.
   useEffect(() => {
     if (!open) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      if (isShortcutEditingTarget(event.target)) return;
+      if (isShortcutEditingTarget(event.target) || isOpenLayerTarget(event.target)) return;
       event.preventDefault();
       event.stopPropagation();
       close();

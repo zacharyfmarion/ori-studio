@@ -19,18 +19,25 @@ export const SITE_NAME = 'Ori Studio';
 /**
  * The `<title>`, and the `<h1>` the prerender puts above the landing.
  *
- * Written for the query rather than the brand, deliberately. "Ori Studio" alone competes
- * with two commercial design studios of the same name that hold `oristudio.app` and
- * `ori.studio`; naming the category is what separates this from them in a result set
- * containing all three. See `implementation-plans/seo-discoverability.md`.
+ * Names the category, deliberately. "Ori Studio" alone competes with two commercial design
+ * studios of the same name that hold `oristudio.app` and `ori.studio`, so the bare brand
+ * does not resolve to an entity; "Origami" is what separates this from them in a result
+ * set containing all three.
+ *
+ * It stops there rather than listing the tools. This ran to 76 characters for a while
+ * — "free online origami crease pattern editor and folding simulator" — which is past the
+ * ~600px a result gives a title, so the tail was never displayed, and a title that long is
+ * one Google is more likely to rewrite into something we did not choose. Those query terms
+ * are still in {@link SITE_DESCRIPTION}, in `og:title`, and all through the landing copy,
+ * where they are not competing for the one line a result gets. See
+ * `implementation-plans/seo-discoverability.md`.
  */
-export const SITE_TITLE =
-  'Ori Studio — free online origami crease pattern editor and folding simulator';
+export const SITE_TITLE = 'Ori Studio — Origami Design Workspace';
 
 export const SITE_DESCRIPTION =
   'Ori Studio is a free, open-source workspace for origami design: draw and edit crease ' +
   'patterns, design from a tree structure or a box-pleating grid, and fold the result in ' +
-  'the simulator. Runs in the browser, nothing to install.';
+  'the simulator. Runs in your browser, or as a desktop app for macOS, Windows and Linux.';
 
 /** The social card. 1200×630 is what every platform asks for. */
 export const SITE_OG_IMAGE = `${SITE_ORIGIN}/og-default.png`;

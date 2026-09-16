@@ -37,6 +37,8 @@ let root: Root;
 let forwarded: WheelEvent[] = [];
 
 const NOOP = () => {};
+/** A begin that is never refused, for chips whose drags these tests do not record. */
+const BEGIN = () => true;
 
 function region(patch: Partial<CpSuppressionRegion> = {}): CpSuppressionRegion {
   return {
@@ -76,7 +78,7 @@ function renderChip(props: {
   onSelect?: () => void;
   onToggleCheckClass?: (cpCheckClass: CpCheckClass) => void;
   onMove?: (center: Vec2) => void;
-  onGestureStart?: () => void;
+  onGestureStart?: () => boolean;
   onGestureCommit?: (label: string) => void;
   onDelete?: () => void;
   onToggleImageHidden?: () => void;
@@ -94,7 +96,7 @@ function renderChip(props: {
           onSelect={props.onSelect ?? NOOP}
           onToggleCheckClass={props.onToggleCheckClass ?? NOOP}
           onMove={props.onMove ?? NOOP}
-          onGestureStart={props.onGestureStart ?? NOOP}
+          onGestureStart={props.onGestureStart ?? BEGIN}
           onGestureCommit={props.onGestureCommit ?? NOOP}
           onDelete={props.onDelete ?? NOOP}
           onToggleImageHidden={props.onToggleImageHidden ?? NOOP}
@@ -340,7 +342,7 @@ describe('SuppressionRegionChip', () => {
     });
 
     it('brackets an opacity drag as one undo entry, not one per sample', () => {
-      const onGestureStart = vi.fn();
+      const onGestureStart = vi.fn(() => true);
       const onGestureCommit = vi.fn();
       renderChip({ image: referenceImage(), onGestureStart, onGestureCommit });
       openImageMenu();
@@ -423,7 +425,7 @@ describe('SuppressionRegionChip', () => {
 
   it('moves the region on a drag, as one gesture', () => {
     const onMove = vi.fn();
-    const onGestureStart = vi.fn();
+    const onGestureStart = vi.fn(() => true);
     const onGestureCommit = vi.fn();
     renderChip({ onMove, onGestureStart, onGestureCommit });
 
@@ -446,7 +448,7 @@ describe('SuppressionRegionChip', () => {
 
   it('does not turn a click into a move', () => {
     const onMove = vi.fn();
-    const onGestureStart = vi.fn();
+    const onGestureStart = vi.fn(() => true);
     renderChip({ onMove, onGestureStart });
 
     const bar = chip();

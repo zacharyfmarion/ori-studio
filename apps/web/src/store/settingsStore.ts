@@ -31,6 +31,7 @@ import type { WheelGesturePreference } from '../lib/wheelGesture';
 export type SettingsTab = 'general' | 'appearance' | 'shortcuts' | 'workspace';
 
 const SHOW_WELCOME_ON_STARTUP_KEY = storageKey(STORAGE_KEYS.showWelcomeOnStartup);
+const CP_DETECT_SUGGESTIONS_KEY = storageKey(STORAGE_KEYS.cpDetectSuggestions);
 const FOLD_WARNING_KEY = storageKey(STORAGE_KEYS.foldWarning);
 const ANALYTICS_ENABLED_KEY = storageKey(STORAGE_KEYS.analyticsEnabled);
 const CP_WHEEL_GESTURE_KEY = storageKey(STORAGE_KEYS.cpWheelGesture);
@@ -86,6 +87,12 @@ interface SettingsState {
    */
   analyticsEnabled: boolean;
   /**
+   * Whether a reference image added to the Edit canvas that looks like a
+   * crease pattern gets the "Detect creases" offer. Default on; the offer's
+   * own × only retires one image, this retires the feature.
+   */
+  cpDetectSuggestions: boolean;
+  /**
    * What an *unmodified* scroll or two-finger drag does on the crease-pattern
    * canvas. `'zoom'` is the default: it is what the canvas shipped with, what
    * upstream Oriedita's canvas does, and what users asked to have back. `'pan'`
@@ -107,6 +114,7 @@ interface SettingsState {
   setShowWelcomeOnStartup: (value: boolean) => void;
   setFoldWarningEnabled: (value: boolean) => void;
   setAnalyticsEnabled: (value: boolean) => void;
+  setCpDetectSuggestions: (value: boolean) => void;
   setCpWheelGesture: (value: WheelGesturePreference) => void;
   setCpSnapRadius: (value: number) => void;
 }
@@ -121,6 +129,7 @@ export const useSettingsStore = create<SettingsState>()(
       showWelcomeOnStartup: readBoolean(SHOW_WELCOME_ON_STARTUP_KEY, true),
       foldWarningEnabled: readBoolean(FOLD_WARNING_KEY, true),
       analyticsEnabled: readBoolean(ANALYTICS_ENABLED_KEY, true),
+      cpDetectSuggestions: readBoolean(CP_DETECT_SUGGESTIONS_KEY, true),
       cpWheelGesture: readCpWheelGesture(),
       cpSnapRadius: readCpSnapRadius(),
       openSettings: (tab) => set({ isSettingsOpen: true, settingsInitialTab: tab ?? null }),
@@ -144,6 +153,10 @@ export const useSettingsStore = create<SettingsState>()(
       setAnalyticsEnabled: (value) => {
         writeBoolean(ANALYTICS_ENABLED_KEY, value);
         set({ analyticsEnabled: value });
+      },
+      setCpDetectSuggestions: (value) => {
+        writeBoolean(CP_DETECT_SUGGESTIONS_KEY, value);
+        set({ cpDetectSuggestions: value });
       },
       setCpWheelGesture: (value) => {
         writeString(CP_WHEEL_GESTURE_KEY, value);

@@ -44,7 +44,6 @@
     "buildCpBeforeSelectingCorridorFacets": "选择走廊面前请先生成折痕图",
     "buildCpRequiresTree": "生成折痕图需要可编辑的树文档",
     "buildCreasePattern": "生成折痕图",
-    "buildOrEditCpBeforeRefreshing": "刷新模拟器前请先生成或编辑折痕图",
     "changeCircleColor": "更改圆的颜色...",
     "changeCreaseType": "更改折痕类型",
     "changeSelectedCpLineTypes": "更改所选折痕图线型",
@@ -178,6 +177,7 @@
     "perturbSelectedNodes": "扰动所选节点",
     "placeReferenceImage": "在折痕图上放置参考图片",
     "placeTextBox": "在折痕图上放置文本框",
+    "properties": "属性",
     "pruneZeroRadiusCircles": "剪除无效的零半径圆",
     "rebuildCp": "重新生成折痕图",
     "rebuildCreasePattern": "重新生成折痕图",
@@ -185,8 +185,6 @@
     "redoNextCpEdit": "重做下一步折痕图编辑",
     "redoNextTreeEdit": "重做下一步树编辑",
     "references": "参考",
-    "refresh": "刷新",
-    "refreshSimulatorModel": "刷新模拟器模型",
     "relieveAllStrain": "缓解所有张力",
     "relieveStrain": "缓解张力",
     "removeAllStrain": "移除所有张力",
@@ -233,6 +231,7 @@
     "showConditionsPane": "显示条件窗格",
     "showDesignWorkspace": "显示设计工作区",
     "showEditWorkspace": "显示编辑工作区",
+    "showPropertiesPane": "显示属性窗格",
     "showReferencesWorkspace": "显示参考工作区",
     "showSimulateWorkspace": "显示模拟工作区",
     "simulate": "模拟",
@@ -260,6 +259,28 @@
     "reset": "重置为默认",
     "resetNamed": "将 {{label}} 重置为默认"
   },
+  "download": {
+    "allReleases": "GitHub 上的所有下载",
+    "build": {
+      "linuxAppImage": "x86-64 (.AppImage)",
+      "linuxAppImageArm": "ARM64 (.AppImage)",
+      "linuxDeb": "x86-64 (.deb)",
+      "linuxDebArm": "ARM64 (.deb)",
+      "macosArm": "Apple 芯片 (.dmg)",
+      "macosIntel": "Intel (.dmg)",
+      "windows": "安装程序 (.exe)"
+    },
+    "cta": "下载桌面应用",
+    "ctaLinux": "下载 Linux 版",
+    "ctaMacos": "下载 macOS 版",
+    "ctaWindows": "下载 Windows 版",
+    "os": {
+      "linux": "Linux",
+      "macos": "macOS",
+      "windows": "Windows"
+    },
+    "otherPlatforms": "其他平台"
+  },
   "fileDrop": {
     "open": "拖放以打开",
     "openOrImport": "拖放以打开或导入"
@@ -272,11 +293,11 @@
     "credit": "设计者：<2>Brandon Wong</2>"
   },
   "toolbar": {
-    "new": "新建",
-    "open": "打开",
+    "discord": "加入 Discord",
+    "downloadDesktop": "获取桌面应用",
+    "downloadDesktopVersion": "获取桌面应用 ({{version}})",
     "optimizeLayout": "优化",
     "optimizeScale": "优化比例",
-    "save": "保存",
     "sendToEdit": "发送到编辑",
     "sendToEditMore": "“发送到编辑”的更多选项",
     "sendToEditTooltip": "将此设计的折痕图发送到编辑画布",

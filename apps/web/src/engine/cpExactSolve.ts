@@ -86,6 +86,22 @@ export interface CpExactSolveRunOptions {
    */
   exemptVertexIds?: readonly number[];
   /**
+   * Vertices the user has **pinned**: held exactly where the input puts them,
+   * with no degrees of freedom at all.
+   *
+   * Not a stronger prior than an exemption — a different thing. An exemption
+   * lets a vertex move without counting against the movement budget; a pin
+   * parameterizes it `Fixed`, so nothing in the solve can move it: no residual,
+   * no polish round, no grid snap, no symmetry tie. It is how a user picks
+   * between the several valid answers the solver has for a detected pattern.
+   *
+   * These are `CandidateVertex.id`s, like the exemptions, and the bridge refuses
+   * an id naming no vertex in the input (`unknown_pinned_vertex_id`) rather than
+   * dropping it — a silently-lost pin comes back as a solve that moved the one
+   * vertex the user said not to.
+   */
+  pinnedVertexIds?: readonly number[];
+  /**
    * Register this solve under a run id, so a second one for the same target is
    * refused rather than queued invisibly behind it.
    *
@@ -232,7 +248,10 @@ async function solveOnSession(
     // ending — gating the refinement stage on `solved` would skip the stage
     // that exists to close that gap, on exactly the runs that need it.
     if (!isCpExactSolveAccepted(geometryOutcome)) {
-      return complete({ outcome: geometryOutcome, fold: null, durationMs: elapsed(startedAt) });
+      return complete(
+        { outcome: geometryOutcome, fold: null, durationMs: elapsed(startedAt) },
+        options
+      );
     }
 
     enterStage('refinement');
@@ -245,11 +264,14 @@ async function solveOnSession(
       )
     );
     const outcome = classifyCpExactSolve(refined.solved, 'refinement');
-    return complete({
-      outcome,
-      fold: outcome.kind === 'solved' ? refined.fold : null,
-      durationMs: elapsed(startedAt),
-    });
+    return complete(
+      {
+        outcome,
+        fold: outcome.kind === 'solved' ? refined.fold : null,
+        durationMs: elapsed(startedAt),
+      },
+      options
+    );
   } catch (error) {
     // Neither ending is one of the solver's five verdicts — the solve did not
     // reach one — so both are rethrown rather than folded into the outcome
@@ -331,9 +353,17 @@ function stageSeconds(solved: CpExactSolvedGraph, stageStartedAt: number): numbe
  * `command invoked` already counts the *intent* at the menu chokepoint; this
  * counts the outcome, and the ratio between them is the feature's success rate.
  * Nothing user-authored is sent: a verdict, a stage, a fixed solver token, and
- * two buckets.
+ * three buckets.
+ *
+ * `pinned_vertices_bucket` is the third, and it is what makes pinning
+ * measurable: it says whether this run was steered at all, so the verdict
+ * distribution can be read separately for pinned and unpinned solves. A count,
+ * bucketed — never which vertices, which would be geometry.
  */
-function complete(run: CpExactSolveResult): CpExactSolveResult {
+function complete(
+  run: CpExactSolveResult,
+  options: CpExactSolveRunOptions
+): CpExactSolveResult {
   const reason = primaryCpExactSolveReason(run.outcome);
   track(ANALYTICS_EVENTS.cpExactSolveCompleted, {
     verdict: verdictOf(run.outcome),
@@ -341,6 +371,10 @@ function complete(run: CpExactSolveResult): CpExactSolveResult {
     reason: reason ? (reason satisfies CpExactSolveRejectionReason) : undefined,
     duration_ms_bucket: bucketCount(run.durationMs, CP_EXACT_SOLVE_MS_BUCKETS),
     moved_vertices_bucket: bucketCount(movedVertexCount(run.outcome), COUNT_BUCKETS),
+    pinned_vertices_bucket: bucketCount(
+      normalizedVertexIds(options.pinnedVertexIds).length,
+      COUNT_BUCKETS
+    ),
   });
   return run;
 }
@@ -372,10 +406,10 @@ function elapsed(startedAt: number): number {
  * no-op — so this deliberately spells only the knobs the caller has an opinion
  * about.
  *
- * `exempt_vertex_ids` is omitted when empty rather than sent as `[]`: the two are
- * equivalent (`solve_exact_with_exemptions` with an empty set *is* `solve_exact`),
- * and omitting keeps an ordinary automatic solve's options byte-identical to what
- * they were before exemptions existed.
+ * `exempt_vertex_ids` and `pinned_vertex_ids` are omitted when empty rather than
+ * sent as `[]`: the two are equivalent (`solve_exact_with_exemptions` with both
+ * sets empty *is* `solve_exact`), and omitting keeps an ordinary automatic
+ * solve's options byte-identical to what they were before either existed.
  */
 function stageOptionsJson(
   options: CpExactSolveRunOptions,
@@ -384,20 +418,22 @@ function stageOptionsJson(
 ): string {
   const overrides: Record<string, unknown> = { polish };
   if (timeoutSeconds !== undefined) overrides.timeout_seconds = timeoutSeconds;
-  const exempt = exemptVertexIds(options.exemptVertexIds);
+  const exempt = normalizedVertexIds(options.exemptVertexIds);
   if (exempt.length > 0) overrides.exempt_vertex_ids = exempt;
+  const pinned = normalizedVertexIds(options.pinnedVertexIds);
+  if (pinned.length > 0) overrides.pinned_vertex_ids = pinned;
   return JSON.stringify(overrides);
 }
 
 /**
- * The exemption set, deduplicated and ascending.
+ * A vertex-id set, deduplicated and ascending. Shared by both sets.
  *
- * Rust parses it into a `BTreeSet`, so duplicates and order never reach the
- * solver — normalising here is so that two calls asking for the same exemptions
- * produce the same options string, which is what makes an options diff readable
- * in a bug report.
+ * Rust parses each into a `BTreeSet`, so duplicates and order never reach the
+ * solver — normalising here is so that two calls asking for the same set produce
+ * the same options string, which is what makes an options diff readable in a bug
+ * report.
  */
-function exemptVertexIds(ids: readonly number[] | undefined): number[] {
+function normalizedVertexIds(ids: readonly number[] | undefined): number[] {
   if (!ids || ids.length === 0) return [];
   return [...new Set(ids)].sort((a, b) => a - b);
 }

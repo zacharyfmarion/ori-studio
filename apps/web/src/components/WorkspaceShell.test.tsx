@@ -24,16 +24,15 @@ vi.mock('./panels/PanelComponents', () => ({ panelComponents: {} }));
 vi.mock('./panels/DesignTabStrip', () => ({ DesignTabStrip: () => null }));
 
 // The View drawer *is* mounted here — its trigger is the touch layer's only way
-// back to the pane the dock stops showing, so the wiring is worth asserting. Only
-// its three bodies are stubbed, for the same reason as the dock's panels above.
+// back to the panes the dock stops showing, so the wiring is worth asserting.
+// Only its bodies are stubbed, for the same reason as the dock's panels above.
 vi.mock('./panels/CpViewControlsPanel', () => ({ CpViewControlsPanel: () => null }));
+vi.mock('./panels/CpPropertiesPanel', () => ({ CpPropertiesPanel: () => null }));
 vi.mock('./panels/SimulatorViewControlsPanel', () => ({
   SimulatorViewControlsPanel: () => null,
 }));
-vi.mock('./panels/ReferencesViewControlsPanel', () => ({
-  ReferencesViewControlsPanel: () => null,
-}));
 
+import { DISCORD_URL } from '../constants/release';
 import { useLayoutStore } from '../store/layoutStore';
 import { TooltipProvider } from './ui/Tooltip';
 import { WorkspaceShell } from './WorkspaceShell';
@@ -185,23 +184,42 @@ describe('the workspace dock under a coarse pointer', () => {
     // second half of this test: on a fine pointer the drawer is not mounted, so
     // a reconcile owned by it could never put the pane back.
     stubPointer(true);
-    const docked = new Map<string, { id: string }>([
-      ['crease-pattern', { id: 'crease-pattern' }],
-      ['cp-view-controls', { id: 'cp-view-controls' }],
+    interface Docked {
+      id: string;
+      title: string;
+      group: { id: string; header: { hidden: boolean } };
+      api: { setTitle: (title: string) => void };
+    }
+    const dock = (id: string, title: string): Docked => ({
+      id,
+      title,
+      group: { id: 'side', header: { hidden: false } },
+      api: { setTitle: vi.fn() },
+    });
+    const docked = new Map<string, Docked>([
+      ['crease-pattern', dock('crease-pattern', 'Crease Pattern')],
+      ['cp-view-controls', dock('cp-view-controls', 'View')],
+      ['cp-properties', dock('cp-properties', 'Properties')],
     ]);
     const dockviewApi = {
       getPanel: vi.fn((id: string) => docked.get(id) ?? null),
       removePanel: vi.fn((panel: { id: string }) => void docked.delete(panel.id)),
-      addPanel: vi.fn((options: { id: string }) => {
-        docked.set(options.id, { id: options.id });
-        return options;
+      addPanel: vi.fn((options: { id: string; title: string }) => {
+        const panel = dock(options.id, options.title);
+        docked.set(options.id, panel);
+        return panel;
       }),
     } as unknown as DockviewApi;
     useLayoutStore.setState({ activeWorkspace: 'edit', dockviewApi });
 
     renderShell();
 
-    expect(dockviewApi.removePanel).toHaveBeenCalledWith({ id: 'cp-view-controls' });
+    expect(dockviewApi.removePanel).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'cp-view-controls' })
+    );
+    expect(dockviewApi.removePanel).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'cp-properties' })
+    );
     expect([...docked.keys()]).toEqual(['crease-pattern']);
 
     flipPointer(false);
@@ -209,26 +227,45 @@ describe('the workspace dock under a coarse pointer', () => {
     expect(dockviewApi.addPanel).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'cp-view-controls', initialWidth: 260 })
     );
+    expect(dockviewApi.addPanel).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'cp-properties', inactive: true })
+    );
   });
+});
 
-  it('leaves the References pill to the pane, not the lane', () => {
-    // Its settings moved from a header popover into a Settings pane, so the
-    // touch layer reaches them the way it reaches the other two panes' controls
-    // — but the lane's corner is that workspace's header, so the pane seats the
-    // pill itself, at the top right of its view, and the lane holds nothing
-    // until it has (`viewDrawerSlot`).
-    stubPointer(true);
-    useLayoutStore.setState({ activeWorkspace: 'references' });
+describe('the toolbar', () => {
+  it('links out to the community Discord, as a link', () => {
+    // An anchor with a real `href`, not a button that opens a window: seeing
+    // where an outbound control goes before committing to it is the whole reason
+    // it is a link, and only the DOM node can say which one this is.
+    stubPointer(false);
 
     renderShell();
 
-    const lane = container?.querySelector('.canvas-pill-lane');
-    expect(lane?.getAttribute('data-view-panel')).toBe('references-view-controls');
-    expect(lane?.querySelector('.view-drawer__trigger')).toBeNull();
-    const slot = document.createElement('div');
-    act(() => useLayoutStore.setState({ viewDrawerSlot: slot }));
-    expect(lane?.querySelector('.view-drawer__trigger')).toBeNull();
-    // Named as the docked pane is: Settings here, View in Edit.
-    expect(slot.querySelector('.view-drawer__trigger')?.textContent).toBe('Settings');
+    const link = container?.querySelector('.toolbar__actions a[href*="discord"]');
+    expect(link?.getAttribute('href')).toBe(DISCORD_URL);
+    expect(link?.getAttribute('target')).toBe('_blank');
+    // `_blank` without this hands the opened tab a live handle back into the app.
+    expect(link?.getAttribute('rel')).toContain('noopener');
+  });
+
+  it('leaves New, Open and Save to the menus', () => {
+    // They were three unconditional File-menu entries duplicated as icons — the
+    // phone layout had already hidden them in CSS. Asserted by their labels
+    // because that is what a user looking for them would see; the menu bar in
+    // the same header is where they live now.
+    stubPointer(false);
+
+    renderShell();
+
+    const labels = [...(container?.querySelectorAll('.toolbar__actions [aria-label]') ?? [])].map(
+      (node) => node.getAttribute('aria-label')
+    );
+    // The row is read, not merely missed: without this the assertions below pass
+    // just as well against a selector that matched nothing.
+    expect(labels).toContain('Settings');
+    expect(labels).not.toContain('New');
+    expect(labels).not.toContain('Open');
+    expect(labels).not.toContain('Save');
   });
 });

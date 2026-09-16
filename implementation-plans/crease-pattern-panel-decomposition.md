@@ -442,7 +442,7 @@ both guards in place so the floor holds whether or not 4 and 5 follow.
 - [x] Phase 1 — collapse the Escape special case in `appKeyboard.ts`
 - [x] Phase 1 — confirm Escape-from-floating-toolbar in the browser
 - [x] Phase 1 — `no-restricted-syntax` keydown ban (CP still exempt for its Delete listener; Phase 2 removes it)
-- [x] Phase 2a — single `activeFloatingSurface` replaces the four-way toolbar chain
+- [x] Phase 2a — landed, in a different shape, with the Properties pane (`implementation-plans/canvas-object-properties-panel.md`): the four-way toolbar chain is one exhaustive switch over the canvas-object kind table (`cp-workspace/canvasObjects/CpFloatingInspectors.tsx`), dispatching on the resolved selection (`useSelectedCanvasObject`) rather than a derived `activeFloatingSurface` string; the delete ladder and the object context menu resolve through the same table, and the canvas layer bindings (Phase C2 of that plan) take the id-addressed callbacks with them
 - [ ] Phase 2 — fold canvas-object Delete into the `edit.delete` menu action; drop the CP keydown exemption
 - [x] Phase 2b — `useCpAnnotations`; lower the CP `max-lines` freeze
 - [x] Phase 3 — `useFoldedFigures` binding layer + context-menu adapter extracted + `cp-workspace/folded/` consolidation; lower the freeze

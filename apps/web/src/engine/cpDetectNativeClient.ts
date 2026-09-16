@@ -50,7 +50,13 @@ import {
 } from '../lib/cpDetectModels';
 import type { CpDetectClient } from '../store/workspaceStore/cpDetectRuntime';
 
-export const DETECT_DECODER_BACKEND_DEFAULT = 'legacy_v2_decoder';
+/**
+ * The backend a caller gets without asking: the fused candidate / exact-solve
+ * decoder the import dialog names explicitly and the curated benchmark runs.
+ * It was `legacy_v2_decoder` until September 9, 2026 — a different decoder
+ * that nothing shipped used, waiting for a caller to omit the option.
+ */
+export const DETECT_DECODER_BACKEND_DEFAULT = 'legacy_candidate_exact_solve_v1';
 
 interface NativeRecognizeResponse extends DecodedFold {
   runtime: CpDetectRuntimeInfo & { model_id: string };

@@ -65,3 +65,17 @@ describe('cpCanvasCursor', () => {
     expect(cpCanvasCursor(state({ ...over, foldedOrbitDragging: true }))).toBe('grabbing');
   });
 });
+
+describe('the Pin Vertex tool', () => {
+  it('points at a vertex it would toggle', () => {
+    expect(cpCanvasCursor(state({ vertexPickable: true }))).toBe('pointer');
+  });
+
+  it('loses to pan, which claims any drag under it', () => {
+    expect(cpCanvasCursor(state({ vertexPickable: true, panModifierHeld: true }))).toBe('grab');
+  });
+
+  it('outranks the crease hover, being the more specific claim', () => {
+    expect(cpCanvasCursor(state({ vertexPickable: true, creaseHovered: true }))).toBe('pointer');
+  });
+});

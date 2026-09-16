@@ -44,7 +44,6 @@
     "buildCpBeforeSelectingCorridorFacets": "Gere um padrão de vincos antes de selecionar facetas de corredor",
     "buildCpRequiresTree": "Gerar padrão de vincos requer um documento de árvore editável",
     "buildCreasePattern": "Gerar padrão de vincos",
-    "buildOrEditCpBeforeRefreshing": "Gere ou edite um padrão de vincos antes de atualizar o simulador",
     "changeCircleColor": "Alterar cor do círculo...",
     "changeCreaseType": "Alterar tipo de vinco",
     "changeSelectedCpLineTypes": "Alterar os tipos das linhas selecionadas do padrão de vincos",
@@ -178,6 +177,7 @@
     "perturbSelectedNodes": "Perturbar nós selecionados",
     "placeReferenceImage": "Coloque uma imagem de referência sobre o padrão de vincos",
     "placeTextBox": "Coloque uma caixa de texto sobre o padrão de vincos",
+    "properties": "Propriedades",
     "pruneZeroRadiusCircles": "Remover círculos inválidos de raio zero",
     "rebuildCp": "Regerar padrão de vincos",
     "rebuildCreasePattern": "Regerar padrão de vincos",
@@ -185,8 +185,6 @@
     "redoNextCpEdit": "Refazer a próxima edição do padrão de vincos",
     "redoNextTreeEdit": "Refazer a próxima edição da árvore",
     "references": "Referências",
-    "refresh": "Atualizar",
-    "refreshSimulatorModel": "Atualizar modelo do simulador",
     "relieveAllStrain": "Aliviar toda a tensão",
     "relieveStrain": "Aliviar tensão",
     "removeAllStrain": "Remover toda a tensão",
@@ -233,6 +231,7 @@
     "showConditionsPane": "Mostrar o painel de condições",
     "showDesignWorkspace": "Mostrar o workspace de Design",
     "showEditWorkspace": "Mostrar o workspace de Edição",
+    "showPropertiesPane": "Mostrar o painel de propriedades",
     "showReferencesWorkspace": "Mostrar o workspace de referências",
     "showSimulateWorkspace": "Mostrar o workspace de Simulação",
     "simulate": "Simular",
@@ -260,6 +259,28 @@
     "reset": "Redefinir",
     "resetNamed": "Redefinir {{label}}"
   },
+  "download": {
+    "allReleases": "Todos os downloads no GitHub",
+    "build": {
+      "linuxAppImage": "x86-64 (.AppImage)",
+      "linuxAppImageArm": "ARM64 (.AppImage)",
+      "linuxDeb": "x86-64 (.deb)",
+      "linuxDebArm": "ARM64 (.deb)",
+      "macosArm": "Apple Silicon (.dmg)",
+      "macosIntel": "Intel (.dmg)",
+      "windows": "Instalador (.exe)"
+    },
+    "cta": "Baixar o aplicativo para desktop",
+    "ctaLinux": "Baixar para Linux",
+    "ctaMacos": "Baixar para macOS",
+    "ctaWindows": "Baixar para Windows",
+    "os": {
+      "linux": "Linux",
+      "macos": "macOS",
+      "windows": "Windows"
+    },
+    "otherPlatforms": "Outras plataformas"
+  },
   "fileDrop": {
     "open": "Solte para abrir",
     "openOrImport": "Solte para abrir ou importar"
@@ -272,11 +293,11 @@
     "credit": "Criado por <2>Brandon Wong</2>"
   },
   "toolbar": {
-    "new": "Novo",
-    "open": "Abrir",
+    "discord": "Entrar no Discord",
+    "downloadDesktop": "Obter o aplicativo para desktop",
+    "downloadDesktopVersion": "Obter o aplicativo para desktop ({{version}})",
     "optimizeLayout": "Otimizar",
     "optimizeScale": "Otimizar escala",
-    "save": "Salvar",
     "sendToEdit": "Enviar para Edição",
     "sendToEditMore": "Mais opções de Enviar para Edição",
     "sendToEditTooltip": "Enviar o padrão de vincos deste design para o canvas de Edição",

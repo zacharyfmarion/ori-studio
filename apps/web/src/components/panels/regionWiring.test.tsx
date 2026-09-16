@@ -15,6 +15,7 @@ import { cpOverlayViewStore } from '../../cp-workspace/cpOverlayViewStore';
 import { toolbarRenderProbe } from '../../cp-workspace/cpSelectionToolbarDebug';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import { TooltipProvider } from '../ui/Tooltip';
+import { CpPropertiesPanel } from './CpPropertiesPanel';
 import { CreasePatternPanel } from './CreasePatternPanel';
 
 /**
@@ -132,6 +133,9 @@ function mount(regions: CanvasAnnotation[] = [REGION]): void {
     root?.render(
       <TooltipProvider>
         <CreasePatternPanel />
+        {/* The pane, as the dock mounts it beside the canvas: the region's
+            sheet has to agree with the chip about what a check toggle does. */}
+        <CpPropertiesPanel />
       </TooltipProvider>
     )
   );
@@ -208,6 +212,94 @@ describe('suppression regions in the crease-pattern panel', () => {
     expect(toolbarRenderProbe.renders).toBe(0);
     // ...and the chip it stood down for is the one on screen.
     expect(present('.cp-region-chip')).toBe(true);
+  });
+
+  it('gives a selected region its chip and its sheet, with no Solve on the sheet', () => {
+    mount([DETECTED_REGION]);
+    act(() => {
+      useWorkspaceStore.setState({ oristudioCpSelectedAnnotationId: DETECTED_REGION.id });
+    });
+    // The chip keeps every verb, Solve included; the sheet holds properties only.
+    expect(present('.cp-region-chip')).toBe(true);
+    expect(
+      [...document.querySelectorAll('.cp-region-chip button')].map((b) => b.textContent)
+    ).toContain('Solve');
+    expect(document.querySelector('.property-sheet__title')?.textContent).toBe(
+      'Detected crease pattern'
+    );
+    const sheetButtons = [...document.querySelectorAll('.cp-properties-panel button')].map(
+      (button) => button.textContent
+    );
+    expect(sheetButtons).not.toContain('Solve');
+  });
+
+  it('records one entry for a check toggled from the sheet, and one from the chip', async () => {
+    mount();
+    act(() => {
+      useWorkspaceStore.setState({ oristudioCpSelectedAnnotationId: REGION.id });
+    });
+    const past = () => useWorkspaceStore.getState().oristudioCpHistoryPast;
+    const suppress = () => {
+      const region = useWorkspaceStore
+        .getState()
+        .oristudioCpAnnotations.find((annotation) => annotation.id === REGION.id);
+      return region && 'suppress' in region ? region.suppress : [];
+    };
+    const before = past().length;
+
+    // From the sheet: the Maekawa toggle.
+    const switches = [
+      ...document.querySelectorAll<HTMLButtonElement>('.cp-properties-panel [role="switch"]'),
+    ];
+    const maekawa = switches.find((s) => s.getAttribute('aria-label') === 'Maekawa (parity)');
+    const wasOn = suppress().includes('maekawa');
+    await act(async () => maekawa?.click());
+    expect(suppress().includes('maekawa')).toBe(!wasOn);
+    expect(past()).toHaveLength(before + 1);
+    expect(past().at(-1)?.label).toBe('Change suppressed checks');
+
+    // From the chip: the same class back, through its checks menu.
+    const trigger = document.querySelector<HTMLButtonElement>(
+      '.cp-region-chip button[aria-label="Suppressed checks"]'
+    );
+    act(() => {
+      trigger?.focus();
+      trigger?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+      );
+    });
+    const item = [...document.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]')].find(
+      (candidate) => candidate.textContent === 'Maekawa (parity)'
+    );
+    expect(item).toBeDefined();
+    await act(async () => item?.click());
+    expect(suppress().includes('maekawa')).toBe(wasOn);
+    expect(past()).toHaveLength(before + 2);
+    // ...and the sheet followed the store back.
+    expect(maekawa?.getAttribute('aria-checked')).toBe(String(wasOn));
+  });
+
+  it('opens the region menu from a right-click on its chip bar', () => {
+    // A region's body is inert to the overlay, so the bar is where a right-click
+    // reaches it. The rows are the layer binding's (`cpRegionMenuItems`), and
+    // the raise goes through the same object-menu entry every other kind takes
+    // — the prop `CpRegionLayer` has to be passed, which nothing else fails for.
+    mount();
+    const bar = document.querySelector<HTMLElement>('.cp-region-chip');
+    expect(bar).not.toBeNull();
+
+    act(() => {
+      bar?.dispatchEvent(
+        new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 40, clientY: 50 })
+      );
+    });
+
+    const labels = [...document.querySelectorAll('[role="menuitem"]')].map(
+      (item) => item.textContent
+    );
+    expect(labels).toEqual(['Suppressed checks', 'Delete region']);
+    // Raising the menu selects the region, so the menu and the chip agree.
+    expect(useWorkspaceStore.getState().oristudioCpSelectedAnnotationId).toBe(REGION.id);
   });
 
   /**

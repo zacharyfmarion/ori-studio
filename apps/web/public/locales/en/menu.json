@@ -127,6 +127,7 @@
   "view": {
     "design": "Design",
     "edit": "Edit",
+    "properties": "Properties",
     "references": "References",
     "resetLayout": "Reset Layout",
     "simulate": "Simulate"

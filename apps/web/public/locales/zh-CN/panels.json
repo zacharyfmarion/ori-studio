@@ -60,6 +60,9 @@
     "nudgeRight": "向右微移 BP 所选内容",
     "nudgeUp": "向上微移 BP 所选内容",
     "onlyOnePattern": "仅有一种图案",
+    "pair": "与镜像配对",
+    "pairAll": "配对所有镜像对称项",
+    "pairAllNone": "没有彼此相对的未配对襟片。",
     "pattern": "图案",
     "patternNotFound": "未找到图案",
     "patternNotFoundFor": "{{flaps}}没有折痕图案",
@@ -106,6 +109,11 @@
     "fold": {
       "book": "对折",
       "diagonal": "对角折"
+    },
+    "problem": {
+      "axisOffCentre": "对称轴必须经过纸张中心，优化器才能保持纸张对称。",
+      "notAMirror": "配对不构成镜像：有些襟片没有相互配对。每个襟片必须与另一个襟片一一配对，或在轴上与自身配对。",
+      "unpaired": "没有与 {{names}} 配对的项。请选中它并选择“与镜像配对”，或使用“配对所有镜像对称项”，或开启镜像绘制后重新绘制，或将其移到镜像线上。"
     }
   },
   "bpTree": {
@@ -121,6 +129,8 @@
     "length": "长度",
     "mirrorDraw": "镜像绘制",
     "mirrorDrawOn": "镜像绘制（开）",
+    "pair": "与镜像配对",
+    "pairAll": "配对所有镜像对称项",
     "selectEdge": "选择 BP 边 {{id}}，长度 {{length}}",
     "selectLeafVertex": "选择 BP 叶顶点 {{id}}",
     "selectLeafVertexWithLabel": "选择 BP 叶顶点 {{id}}，{{label}}",
@@ -172,6 +182,12 @@
     "maekawa": "前川（奇偶）",
     "vertexClosure": "顶点闭合"
   },
+  "cpDetectSuggestion": {
+    "ariaLabel": "在图像中检测到折痕图",
+    "detect": "检测折痕",
+    "label": "看起来像折痕图",
+    "notNow": "暂不"
+  },
   "cpExactSolve": {
     "hint": {
       "geometry": "通常不到一秒。",
@@ -201,12 +217,48 @@
       "refinement": "正在细化到折叠精度"
     }
   },
+  "cpProperties": {
+    "empty": "在画布上选择一个对象以编辑其属性。",
+    "folded": {
+      "appearance": "外观",
+      "camera": "相机",
+      "changeView": "更改折叠模型视角",
+      "pitch": "俯仰",
+      "placement": "位置",
+      "refoldToChange": "重新折叠后才能更改此模型的外观",
+      "rotation": "旋转",
+      "scale": "缩放",
+      "yaw": "转向",
+      "zoom": "视距"
+    },
+    "image": {
+      "rotation": "旋转",
+      "title": "图像"
+    },
+    "inlineSimulation": {
+      "settings": "模拟器设置",
+      "sharedNote": "与模拟工作区和所有窗口共享",
+      "title": "模拟窗口"
+    },
+    "region": {
+      "hidden": "隐藏",
+      "imageShown": "显示",
+      "section": "区域",
+      "title": "检查抑制区域"
+    },
+    "text": {
+      "changeSize": "更改文本大小",
+      "size": "大小",
+      "title": "文本"
+    }
+  },
   "cpRegion": {
     "accept": "采用",
     "acceptAnyway": "仍然采用",
     "acceptHistory": "采用精确求解结果",
     "acceptPartialHistory": "采用精确求解的部分结果",
     "addRegion": "添加抑制区域",
+    "bringToFront": "将区域置于顶层",
     "changeChecks": "更改抑制的检查",
     "checksMenu": "抑制的检查",
     "completion": {
@@ -246,6 +298,8 @@
       "graphMismatch": "求解结果与该区域内的折痕不匹配，因此未做任何更改。请重新求解。",
       "noPattern": "该区域内没有折痕，因此没有可求解的内容。请将区域移到检测到的折痕图上再试一次。"
     },
+    "repairTools": "修复工具",
+    "sendToBack": "将区域置于底层",
     "solve": "求解",
     "solveError": "无法运行求解 — {{message}}",
     "solveErrorUnknown": "无法运行求解。",
@@ -294,13 +348,13 @@
     "angleBisectorSelectSegmentToEnd": "角平分线：选择终止线段",
     "anotherSolutionAction": "显示另一个解",
     "bringImageToFront": "将图像置于顶层",
+    "bringTextToFront": "将文本置于顶层",
     "buildingCreasePattern": "正在生成折痕图",
     "canvasDiagnostics_other": "画布诊断：{{count}} 项",
     "case_other": "情形 {{count}}",
     "changeFoldedColor": "更改折叠模型颜色",
     "changeFoldedDisplayStyle": "更改折叠显示样式",
     "changeFoldedModel": "更改折叠模型",
-    "closeFoldedModels": "关闭折叠模型",
     "commandFailed": "命令失败",
     "contextMenu": {
       "creaseType": "折线类型",
@@ -342,7 +396,6 @@
       "warningOther_other": "{{count}} 个 {{label}} 警告"
     },
     "diagnosticsHidden_other": "筛选器已隐藏 {{count}} 个问题",
-    "display": "显示",
     "duplicateFoldedModelAction": "复制折叠模型",
     "flipFoldedModel": "翻转折叠模型",
     "fold": "折叠",
@@ -386,14 +439,10 @@
       "front": "正面颜色",
       "line": "线条颜色"
     },
-    "foldedDisplayStyle": "折叠显示样式",
     "foldedFigure": {
       "windowAriaLabel": "折叠模型（三维）",
       "windowFailed": "无法绘制此模型"
     },
-    "foldedModelControls": "折叠模型控件",
-    "foldedModels": "折叠模型",
-    "foldedModelSide": "折叠模型侧面",
     "foldedModelStatus": {
       "error": "失败",
       "loading": "正在折叠…"
@@ -401,14 +450,6 @@
     "foldedState": {
       "back": "背面",
       "front": "正面"
-    },
-    "foldedStyle": {
-      "dev1": "Dev 1",
-      "dev4": "Dev 4",
-      "none": "无",
-      "paper": "纸张",
-      "transparent": "透明",
-      "wire": "线框"
     },
     "foldModelAction": "折叠模型",
     "inlineSimulation": {
@@ -444,11 +485,11 @@
     "moveSimulationWindow": "移动模拟窗口",
     "noCreasePattern": "无折痕图",
     "noImportedCreasePattern": "无导入的折痕图",
-    "none": "无",
     "openingSharedLink": "正在打开分享的折痕图…",
     "optimizingScale": "正在优化比例",
     "orbitFoldedForm": "旋转折叠图形",
     "preparing": "正在准备编辑器…",
+    "propertiesEllipsis": "属性…",
     "refoldFoldedModelAction": "重新折叠模型",
     "rendererContextLost": "正在恢复折痕图画布…",
     "rendererContextLostHint": "系统收回了此画布的图形内存，设备内存不足时可能发生。你的折痕图安然无恙——图形上下文恢复后，视图也会随之恢复。若一直没有恢复，请重新加载 Ori Studio。",
@@ -479,11 +520,10 @@
       "simulateInline": "内嵌模拟"
     },
     "sendImageToBack": "将图像置于底层",
+    "sendTextToBack": "将文本置于底层",
     "setFoldedModelUpright": "设置折叠模型的向上方向",
     "shadow": "阴影",
     "shadowUnsupported3d": "尚不支持为 3D 折叠模型绘制阴影",
-    "showFoldedModelShadow": "显示折叠模型阴影",
-    "side": "侧面",
     "stale": "已过期",
     "viewFoldedModelOtherSide": "从另一侧查看",
     "viewportControls": "折痕图视口控件",
@@ -629,6 +669,8 @@
     "noResultsYetTitle": "暂无结果",
     "openInExplori": "在 ExplOri 中打开",
     "openResult": "打开结果 {{id}}",
+    "pair": "与镜像配对",
+    "pairAll": "配对所有镜像对称项",
     "previousResult": "上一个结果",
     "qualityAcceptable": "尚可匹配",
     "qualityGood": "良好匹配",
@@ -682,7 +724,6 @@
   "foldedFigureActions": {
     "anotherSolution": "另一个解",
     "delete": "删除",
-    "displayStyle": "显示样式",
     "duplicate": "复制",
     "export": "导出…",
     "exportPng": "PNG 图像",
@@ -692,8 +733,12 @@
     "label": "折叠模型操作",
     "otherSide": "另一侧",
     "refold": "重新折叠",
+    "renderAs": "渲染为",
     "resetView": "重置视角",
     "setUpright": "设置向上方向",
+    "side": "侧面",
+    "sideUnsupported3d": "3D 模型请使用“另一侧”翻转",
+    "style": "样式",
     "styleDev1": "开发 1",
     "styleDev4": "开发 4",
     "styleNone": "无",
@@ -970,6 +1015,11 @@
       "zeroLengthSegments": "有 {{n}} 条折线过短无法测量，已跳过。"
     }
   },
+  "sidePane": {
+    "properties": "属性",
+    "settings": "设置",
+    "view": "视图"
+  },
   "simulator": {
     "backendCpu": "CPU",
     "backendCpuTitle": "在 CPU 上求解（WebGL2 不可用）",
@@ -991,8 +1041,7 @@
     "pause": "暂停",
     "percent": "{{value}}%",
     "play": "播放",
-    "refresh": "刷新",
-    "reset": "重置",
+    "restart": "重新开始",
     "setUpright": "设置向上方向",
     "stats": "{{vertices}} 个顶点 | {{triangles}} 个三角形",
     "step": "步骤",
@@ -1072,13 +1121,18 @@
     "addText": "添加文本",
     "alignCenter": "居中对齐",
     "alignLeft": "左对齐",
-    "alignment": "对齐",
     "alignRight": "右对齐",
     "blockBody": "正文",
     "blockHeading": "标题",
     "blockSubheading": "副标题",
     "bold": "粗体",
     "color": "文本颜色",
+    "colorBlue": "蓝色",
+    "colorDefault": "默认",
+    "colorGreen": "绿色",
+    "colorOrange": "橙色",
+    "colorPurple": "紫色",
+    "colorRed": "红色",
     "deleteText": "删除文本",
     "editText": "编辑文本",
     "italic": "斜体",
@@ -1090,7 +1144,8 @@
   "treeEditor": {
     "contextMenu": {
       "addLeaf": "在此添加叶节点",
-      "deselect": "取消全部选择"
+      "deselect": "取消全部选择",
+      "pairAllNone": "没有彼此相对的未配对节点。"
     }
   }
 }

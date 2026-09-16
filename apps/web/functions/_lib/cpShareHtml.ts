@@ -125,12 +125,28 @@ function stripSeoContent(html: string): string {
   return html.slice(0, start) + html.slice(end);
 }
 
+/**
+ * Remove the landing's structured data from a share page.
+ *
+ * Same reasoning as {@link stripSeoContent}, one field over: every share serves
+ * `dist/index.html`, so without this a share page publishes the landing's graph — a
+ * `WebSite` node claiming to be the site, and a `SoftwareApplication` describing Ori Studio
+ * — while its own `<title>` and card describe someone's crease pattern. `WebSite` in
+ * particular is homepage-only by definition, and the page it would be speaking for here is
+ * not the homepage.
+ *
+ * A no-op when the block is absent, which is every build that skipped the prerender.
+ */
+function stripLandingJsonLd(html: string): string {
+  return html.replace(/[ \t]*<script type="application\/ld\+json">[\s\S]*?<\/script>\n?/g, '');
+}
+
 /** Apply the card metadata only — used when the share is missing but the SPA still serves. */
 export function renderShareCardMeta(html: string, meta: ShareCardMeta): string {
   const title = shareCardTitle(meta);
   const description = shareCardDescription();
 
-  let next = stripSeoContent(html);
+  let next = stripLandingJsonLd(stripSeoContent(html));
   next = setDocumentTitle(next, title);
   next = setMetaTag(next, 'name', 'description', description);
   next = setMetaTag(next, 'property', 'og:title', title);

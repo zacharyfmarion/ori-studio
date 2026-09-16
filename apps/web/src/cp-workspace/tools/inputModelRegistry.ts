@@ -35,6 +35,7 @@ export type CpInputModel =
   | 'drag-box'
   | 'drag-path'
   | 'drag-vertex' // press on a vertex, drag it, its creases follow
+  | 'pick-vertex' // click a vertex; commits on press, no drag and no preview
   | 'bespoke' // per-tool state machine (SquareBisector, Voronoi, Text)
   | 'select-apply'; // no canvas interaction; operates on the selection via Apply
 
@@ -202,6 +203,7 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
   // vertex dots (not from the snap settings, so the tool works with snapping
   // off); the release commits [vertex, destination].
   VertexMove: { model: 'drag-vertex' },
+  VertexPin: { model: 'pick-vertex' },
 
   // DRAG-PATH (§4.C)
   FlatFoldableCheck: { model: 'drag-path' },

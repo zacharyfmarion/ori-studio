@@ -14,6 +14,7 @@ use oristudio_cp::model::{CreasePatternModel, crease_fold_angle};
 use oristudio_cp::operations::construction::{
     double_symmetric_draw, mirror_selected_lines, symmetric_draw,
 };
+use oristudio_cp::operations::native::pinned::PinnedPoints;
 use oristudio_cp::operations::transform::{LengthenColorMode, lengthen_crease};
 
 fn crease(
@@ -158,7 +159,15 @@ fn lengthened_model(source_degrees: Option<f64>, mode: LengthenColorMode) -> Cre
     model.add_line_segment(crease(200.0, -100.0, 200.0, 100.0, LineColor::Blue2, None));
 
     let stroke = LineSegment::from_coordinates(50.0, -20.0, 50.0, 20.0);
-    let added = lengthen_crease(&mut model, stroke, Point::new(200.0, 0.0), 10.0, mode);
+    let added = lengthen_crease(
+        &mut model,
+        stroke,
+        Point::new(200.0, 0.0),
+        10.0,
+        mode,
+        PinnedPoints::none(),
+    )
+    .expect("no pins, so no refusal");
     assert!(
         added > 0,
         "fixture extended nothing, so the test would be vacuous"

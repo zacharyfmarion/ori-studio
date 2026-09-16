@@ -44,7 +44,6 @@
     "buildCpBeforeSelectingCorridorFacets": "Build a crease pattern before selecting corridor facets",
     "buildCpRequiresTree": "Build CP requires an editable tree document",
     "buildCreasePattern": "Build crease pattern",
-    "buildOrEditCpBeforeRefreshing": "Build or edit a crease pattern before refreshing the simulator",
     "changeCircleColor": "Change Circle Color...",
     "changeCreaseType": "Change Crease Type",
     "changeSelectedCpLineTypes": "Change selected crease-pattern line types",
@@ -178,6 +177,7 @@
     "perturbSelectedNodes": "Perturb selected nodes",
     "placeReferenceImage": "Place a reference image on the crease pattern",
     "placeTextBox": "Place a text box on the crease pattern",
+    "properties": "Properties",
     "pruneZeroRadiusCircles": "Prune invalid zero-radius circles",
     "rebuildCp": "Rebuild CP",
     "rebuildCreasePattern": "Rebuild crease pattern",
@@ -185,8 +185,6 @@
     "redoNextCpEdit": "Redo the next crease-pattern edit",
     "redoNextTreeEdit": "Redo the next tree edit",
     "references": "References",
-    "refresh": "Refresh",
-    "refreshSimulatorModel": "Refresh simulator model",
     "relieveAllStrain": "Relieve All Strain",
     "relieveStrain": "Relieve Strain",
     "removeAllStrain": "Remove All Strain",
@@ -233,6 +231,7 @@
     "showConditionsPane": "Show the conditions pane",
     "showDesignWorkspace": "Show the design workspace",
     "showEditWorkspace": "Show the edit workspace",
+    "showPropertiesPane": "Show the properties pane",
     "showReferencesWorkspace": "Show the references workspace",
     "showSimulateWorkspace": "Show the simulate workspace",
     "simulate": "Simulate",
@@ -260,6 +259,28 @@
     "reset": "Reset to default",
     "resetNamed": "Reset {{label}} to default"
   },
+  "download": {
+    "allReleases": "All downloads on GitHub",
+    "build": {
+      "linuxAppImage": "x86-64 (.AppImage)",
+      "linuxAppImageArm": "ARM64 (.AppImage)",
+      "linuxDeb": "x86-64 (.deb)",
+      "linuxDebArm": "ARM64 (.deb)",
+      "macosArm": "Apple Silicon (.dmg)",
+      "macosIntel": "Intel (.dmg)",
+      "windows": "Installer (.exe)"
+    },
+    "cta": "Download the desktop app",
+    "ctaLinux": "Download for Linux",
+    "ctaMacos": "Download for macOS",
+    "ctaWindows": "Download for Windows",
+    "os": {
+      "linux": "Linux",
+      "macos": "macOS",
+      "windows": "Windows"
+    },
+    "otherPlatforms": "Other platforms"
+  },
   "fileDrop": {
     "open": "Drop to open",
     "openOrImport": "Drop to open or import"
@@ -272,11 +293,11 @@
     "credit": "Designed by <2>Brandon Wong</2>"
   },
   "toolbar": {
-    "new": "New",
-    "open": "Open",
+    "discord": "Join the Discord",
+    "downloadDesktop": "Get the desktop app",
+    "downloadDesktopVersion": "Get the desktop app ({{version}})",
     "optimizeLayout": "Optimize",
     "optimizeScale": "Optimize Scale",
-    "save": "Save",
     "sendToEdit": "Send to Edit",
     "sendToEditMore": "More Send to Edit options",
     "sendToEditTooltip": "Send this design's crease pattern to the Edit canvas",

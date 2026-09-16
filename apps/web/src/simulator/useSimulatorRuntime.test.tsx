@@ -1,7 +1,7 @@
 import { act, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { FoldDocument } from '@treemaker/origami-simulator';
+import type { FoldDocument, RenderSettings } from '@treemaker/origami-simulator';
 import type { SimulatorBackendId, SimulatorFramePayload } from './simulatorSession';
 
 /**
@@ -555,5 +555,131 @@ describe('canvas commitment follows the worker, not the main thread', () => {
 
     expect(transferred).toBe(1);
     expect(generation).toBe(1);
+  });
+});
+
+/**
+ * A session is made by `load`, and the worker's own carry-over of camera and
+ * palette only reaches from a session it still has. A fold that goes null in
+ * between — a rebuild re-deriving the artifacts — released the old session
+ * first, so the new one opened on the worker's defaults: blue paper, default
+ * orbit, and nothing on the main thread noticing because `gpuActive` never
+ * flipped. The runtime remembers what it forwarded and opens every later
+ * session on it.
+ */
+describe('a replacement session opens on the view in use', () => {
+  let contextSpy: ReturnType<typeof vi.spyOn> | null = null;
+  let live: ReturnType<typeof useSimulatorRuntime> | null = null;
+
+  const SETTINGS: RenderSettings = {
+    frontColor: [1, 1, 0.2],
+    backColor: [0.95, 0.94, 0.9],
+    mountainColor: [0.86, 0.12, 0.14],
+    valleyColor: [0.11, 0.36, 0.85],
+    borderColor: [0.16, 0.18, 0.2],
+    lightDir: [-0.45, 0.58, 0.68],
+    background: [0.05, 0.06, 0.07],
+    showFaces: true,
+    showEdges: true,
+    lighting: true,
+    creaseWidthPx: 3,
+    faceAlpha: 1,
+  };
+
+  beforeEach(() => {
+    live = null;
+    // The GPU path, for the same two reasons as `camera coalescing`.
+    vi.stubGlobal('OffscreenCanvas', class {});
+    contextSpy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      getExtension: () => ({ loseContext: () => undefined }),
+    } as unknown as RenderingContext);
+    client.load.mockImplementation(async () => {
+      const token = ++nextToken;
+      await new Promise<void>((resolve) => pendingLoads.push(resolve));
+      return {
+        token,
+        backend: 'webgl2' as const,
+        edgeCount: 0,
+        creaseCount: 0,
+        diagnostics: null,
+        positions: null,
+        indices: new Int32Array(0),
+        vertexCount: 0,
+      };
+    });
+    client.setCamera.mockClear();
+    client.setRenderSettings.mockClear();
+  });
+
+  afterEach(() => {
+    contextSpy?.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
+  function ViewProbe({ fold }: { fold: FoldDocument | null }) {
+    const runtime = useSimulatorRuntime({
+      fold,
+      solverOptions: {},
+      triangulate: false,
+      canvas: null,
+      bitmapOutput: { width: 64, height: 64 },
+      paused: true,
+    });
+    useEffect(() => {
+      live = runtime;
+    });
+    return null;
+  }
+
+  /**
+   * The options the most recent `load` was given. `defaultLoad` takes no
+   * parameters, so the mock's call tuple is typed empty; the real signature is
+   * `(fold, options)`.
+   */
+  function lastLoadOptions(): { view?: unknown } | undefined {
+    const calls = client.load.mock.calls as unknown as Array<[unknown, { view?: unknown }]>;
+    return calls.at(-1)?.[1];
+  }
+
+  it('hands the last camera and render settings to a load after the fold went away', async () => {
+    await act(async () => root?.render(<ViewProbe fold={FOLD} />));
+    await settleLoads();
+    // A first load has nothing to open on; the viewport pushes once the GPU
+    // path turns on, and that is the first the runtime hears of either.
+    expect(lastLoadOptions()?.view).toEqual({ camera: undefined, settings: undefined });
+
+    await act(async () => {
+      live?.setCamera({ yaw: 0.7, pitch: -0.2, zoom: 1.5 }, 300, 200);
+      live?.setRenderSettings(SETTINGS);
+    });
+
+    // The fold goes away and comes back as a new document: the old session is
+    // released in between, so the worker has nothing of its own to carry.
+    await act(async () => root?.render(<ViewProbe fold={null} />));
+    expect(client.release).toHaveBeenCalledTimes(1);
+    await act(async () => root?.render(<ViewProbe fold={{ ...FOLD }} />));
+    await settleLoads();
+
+    expect(client.load).toHaveBeenCalledTimes(2);
+    expect(lastLoadOptions()?.view).toEqual({
+      camera: { view: { yaw: 0.7, pitch: -0.2, zoom: 1.5 }, width: 300, height: 200 },
+      settings: SETTINGS,
+    });
+  });
+
+  it('forgets a model’s error once the fold is gone', async () => {
+    client.load.mockImplementationOnce(async () => {
+      throw new Error('the worker refused it');
+    });
+    await act(async () => root?.render(<ViewProbe fold={FOLD} />));
+    await settleLoads();
+    expect(live?.status).toBe('error');
+    expect(live?.error).toBe('the worker refused it');
+
+    // A rebuild passes through null on its way to a new load. Reporting the old
+    // model's failure across that gap would mislabel the rebuild as failed too.
+    await act(async () => root?.render(<ViewProbe fold={null} />));
+    expect(live?.status).toBe('idle');
+    expect(live?.error).toBeNull();
   });
 });

@@ -20,7 +20,8 @@ export type OristudioCpActionInputMode =
   | 'drag-path'
   | 'drag-line'
   | 'drag-box'
-  | 'drag-vertex';
+  | 'drag-vertex'
+  | 'pick-vertex';
 export const DEFAULT_ORISTUDIO_CP_ACTION_ID =
   'cp.action.crease-select' as const satisfies OristudioCpActionId;
 
@@ -385,6 +386,13 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
     // after Move and Copy, which is where someone looks after finding that those
     // translate whole creases and tear a shared vertex apart.
     upstreamAction: 'vertexMoveAction',
+  },
+  // No `upstreamMouseMode`, like the suppression region: there is no Oriedita
+  // mouse mode to name, and leaving it unset is what keeps this tool out of the
+  // Oriedita hotkey import rather than offering a binding upstream cannot have.
+  VertexPin: {
+    label: 'Pin Vertex',
+    upstreamAction: 'vertexPinAction',
   },
   CreaseMove4p: {
     upstreamAction: 'move2p2pAction',

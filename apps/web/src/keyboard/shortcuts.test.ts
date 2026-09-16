@@ -745,10 +745,10 @@ describe('findShortcutShadowing', () => {
   it('calls two simulator bindings on one chord a hard collision', () => {
     // Same scope, so the dispatcher's `find` takes exactly one of them and the
     // other key is dead in every stack a simulator binding is ever dispatched
-    // from. Nothing outside the simulator scope claims Shift+Right, and reading
+    // from. Nothing outside the simulator scope claims Cmd+Right, and reading
     // "no non-simulator claimant" as conditional let the capture UI assign this
     // silently onto a chord that fires the other action.
-    const chord = { shift: true, key: 'arrowright' };
+    const chord = { primary: true, key: 'arrowright' };
     expect(getResolvedShortcuts('simulator.foldEnd')).toEqual([chord]);
 
     const shadowing = findShortcutShadowing('simulator.foldStart', chord);

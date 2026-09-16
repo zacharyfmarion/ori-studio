@@ -65,6 +65,7 @@
       "opening": "Bild wird geöffnet",
       "rectifying": "Zuschnitt wird entzerrt"
     },
+    "canvasImageName": "Bild auf der Arbeitsfläche",
     "chooseImage": "Bild auswählen",
     "compilerReviewOverlays": "Compiler-Prüfungs-Overlays",
     "crop": "Zuschneiden",
@@ -90,7 +91,14 @@
     "rectified": "Entzerrt",
     "regionLabel": "Erkanntes Faltmuster",
     "repairLabel": "Erkanntes Faltmuster zum Korrigieren hinzufügen",
+    "replacesImage": "Hinzufügen ersetzt das Bild durch das Muster. Prüfen & Korrigieren behält es halbtransparent darunter, während Sie reparieren.",
     "reviewAndFix": "Prüfen und korrigieren",
+    "rights": {
+      "attest": "Ich bestätige, dass dieses Faltmuster auf legalem Weg erworben wurde und dass ich das Recht habe, es zu verwenden.",
+      "back": "Zurück",
+      "continue": "Weiter",
+      "lead": "Faltmuster sind das Werk ihrer Designer. Erkennen Sie nur ein Muster, das Sie verwenden dürfen: eines, das Sie selbst entworfen haben, eines, das zum Nachfalten veröffentlicht wurde, oder eines, dessen Designer Ihnen die Erlaubnis gegeben hat. Das Bild wird auf diesem Gerät verarbeitet und nie hochgeladen."
+    },
     "runningModel": "Modell wird ausgeführt",
     "stopping": "Wird gestoppt…",
     "stopSolve": "Stoppen",
@@ -208,6 +216,8 @@
   "help": {
     "about": {
       "acknowledgements": "Danksagungen",
+      "desktop": "Desktop-App",
+      "desktopDetail": "Derselbe Arbeitsbereich als native App, mit Systemmenüs, Dateidialogen und Dateien, die sich direkt aus dem Finder oder Explorer öffnen lassen.",
       "intro": "Ori Studio möchte der ultimative Arbeitsbereich für Origami-Design und -Analyse sein. Es stützt sich stark auf Portierungen bestehender Origami-Werkzeuge, die von der Community erstellt wurden — der Bearbeiten-Arbeitsbereich ist zum Beispiel eine Portierung von Oriedita nach Rust, mit Fokus auf Benutzerfreundlichkeit und Leistung. Wenn Sie Vorschläge haben, können Sie gerne <2>ein Issue auf GitHub eröffnen</2>.",
       "subtitle": "Ein moderner gemeinsamer Arbeitsbereich zum Entwerfen, Bearbeiten und Falten von Origami-Faltmustern.",
       "title": "Über Ori Studio"
@@ -343,6 +353,8 @@
       "orphanedLabel": "Erkennungsmodell (zurückgezogen)",
       "remove": "Entfernen",
       "row": "Erkennungsmodell v{{version}}",
+      "suggestDetection": "Erkennung von Faltmustern in zur Arbeitsfläche hinzugefügten Bildern vorschlagen",
+      "suggestDetectionDescription": "Wenn ein Referenzbild wie ein Faltmuster aussieht, die Erkennung anbieten. Die Prüfung läuft auf diesem Gerät und lädt nichts herunter.",
       "title": "Modelle",
       "unavailable": "Das Modellverzeichnis konnte nicht gelesen werden: {{reason}}",
       "update": "Aktualisieren",

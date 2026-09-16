@@ -294,7 +294,7 @@
     "foldForward": "Avancer le pliage",
     "foldStart": "Aller à plat",
     "playPause": "Lecture / pause du pliage",
-    "replay": "Rejouer depuis le plat",
+    "replay": "Redémarrer la simulation",
     "resetView": "Réinitialiser la vue du simulateur",
     "toggleCreases": "Lignes de pli",
     "toggleFaces": "Faces",

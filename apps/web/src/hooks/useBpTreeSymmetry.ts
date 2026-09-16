@@ -7,7 +7,8 @@ import {
   bpTreeSymmetryDefaultLoc,
   bpTreeMirrorHeldIds,
   explicitBpTreePairId,
-  mirrorBpTreeVertexId,
+  inferBpTreeSymmetryPairs,
+  inferBpTreeSymmetryPartner,
   type BpTreeSymmetryPair,
 } from '../lib/bpTreeSymmetry';
 import { symmetrySide } from '../lib/symmetryGeometry';
@@ -46,8 +47,14 @@ export interface BpTreeSymmetryView extends TreeSymmetryHost {
    * path it was on before.
    */
   pairs: readonly BpTreeSymmetryPair[];
-  /** The vertex this one is explicitly mirrored with, if any. */
+  /** The vertex this one is paired with, if any. */
   partnerOf: (vertexId: number) => number | null;
+  /** The vertex Pair with mirror would pair this one with, if any. */
+  pairableWith: (vertexId: number) => number | null;
+  pair: (vertexId: number) => void;
+  /** How many pairs Pair all mirrored would make. */
+  pairAllCount: number;
+  pairAll: () => void;
   /**
    * Whether this vertex sits on the mirror line *and* the drag should refuse it.
    *
@@ -82,6 +89,12 @@ export function useBpTreeSymmetry(
   const setOristudioBpSymmetry = useWorkspaceStore((state) => state.setOristudioBpSymmetry);
   const unpairOristudioBpTreeSymmetry = useWorkspaceStore(
     (state) => state.unpairOristudioBpTreeSymmetry
+  );
+  const pairOristudioBpTreeSymmetry = useWorkspaceStore(
+    (state) => state.pairOristudioBpTreeSymmetry
+  );
+  const pairAllOristudioBpTreeSymmetry = useWorkspaceStore(
+    (state) => state.pairAllOristudioBpTreeSymmetry
   );
 
   const toggle = useCallback(() => {
@@ -150,15 +163,24 @@ export function useBpTreeSymmetry(
     [symmetry.loc, symmetry.angle]
   );
 
-  const resolveMirrorOf = useCallback(
-    (vertexId: number) =>
-      mirrorBpTreeVertexId(tree, symmetry.pairs, axis, vertexId, BP_TREE_SYMMETRY_TOLERANCE),
-    [tree, symmetry.pairs, axis]
-  );
-
   const partnerOf = useCallback(
     (vertexId: number) => explicitBpTreePairId(symmetry.pairs, vertexId),
     [symmetry.pairs]
+  );
+
+  // Position proposes a pair here and nowhere else — and only ever as an offer
+  // the user takes up. The drag, the delete and the length edit read `partnerOf`.
+  const pairableWith = useCallback(
+    (vertexId: number) =>
+      inferBpTreeSymmetryPartner(tree, symmetry.pairs, axis, vertexId, BP_TREE_SYMMETRY_TOLERANCE),
+    [tree, symmetry.pairs, axis]
+  );
+
+  const pairAllCount = useMemo(
+    () =>
+      inferBpTreeSymmetryPairs(tree, symmetry.pairs, axis, BP_TREE_SYMMETRY_TOLERANCE).length -
+      symmetry.pairs.length,
+    [tree, symmetry.pairs, axis]
   );
 
   const isOnAxis = useCallback(
@@ -189,11 +211,14 @@ export function useBpTreeSymmetry(
     enabled: symmetry.enabled,
     toggle,
     axis,
-    resolveMirrorOf,
     dragMirror,
     axisLine,
     pairs,
     partnerOf,
+    pairableWith,
+    pair: pairOristudioBpTreeSymmetry,
+    pairAllCount,
+    pairAll: pairAllOristudioBpTreeSymmetry,
     isOnAxis,
     unpair: unpairOristudioBpTreeSymmetry,
   };

@@ -44,7 +44,6 @@
     "buildCpBeforeSelectingCorridorFacets": "Постройте паттерн складок перед выбором граней коридора",
     "buildCpRequiresTree": "Для построения CP требуется редактируемый документ дерева",
     "buildCreasePattern": "Построить паттерн складок",
-    "buildOrEditCpBeforeRefreshing": "Постройте или отредактируйте паттерн складок перед обновлением симулятора",
     "changeCircleColor": "Изменить цвет круга...",
     "changeCreaseType": "Изменить тип складки",
     "changeSelectedCpLineTypes": "Изменить типы выбранных линий паттерна складок",
@@ -178,6 +177,7 @@
     "perturbSelectedNodes": "Возмутить выбранные узлы",
     "placeReferenceImage": "Поместить эталонное изображение на схему складок",
     "placeTextBox": "Поместить текстовое поле на схему складок",
+    "properties": "Свойства",
     "pruneZeroRadiusCircles": "Удалить недопустимые круги нулевого радиуса",
     "rebuildCp": "Перестроить CP",
     "rebuildCreasePattern": "Перестроить паттерн складок",
@@ -185,8 +185,6 @@
     "redoNextCpEdit": "Повторить следующую правку паттерна складок",
     "redoNextTreeEdit": "Повторить следующую правку дерева",
     "references": "Референсы",
-    "refresh": "Обновить",
-    "refreshSimulatorModel": "Обновить модель симулятора",
     "relieveAllStrain": "Ослабить всё натяжение",
     "relieveStrain": "Ослабить натяжение",
     "removeAllStrain": "Убрать всё натяжение",
@@ -233,6 +231,7 @@
     "showConditionsPane": "Показать панель условий",
     "showDesignWorkspace": "Показать рабочее пространство дизайна",
     "showEditWorkspace": "Показать рабочее пространство правки",
+    "showPropertiesPane": "Показать панель свойств",
     "showReferencesWorkspace": "Показать рабочее пространство референсов",
     "showSimulateWorkspace": "Показать рабочее пространство симуляции",
     "simulate": "Симуляция",
@@ -260,6 +259,28 @@
     "reset": "Сбросить",
     "resetNamed": "Сбросить {{label}}"
   },
+  "download": {
+    "allReleases": "Все загрузки на GitHub",
+    "build": {
+      "linuxAppImage": "x86-64 (.AppImage)",
+      "linuxAppImageArm": "ARM64 (.AppImage)",
+      "linuxDeb": "x86-64 (.deb)",
+      "linuxDebArm": "ARM64 (.deb)",
+      "macosArm": "Apple Silicon (.dmg)",
+      "macosIntel": "Intel (.dmg)",
+      "windows": "Установщик (.exe)"
+    },
+    "cta": "Скачать приложение для компьютера",
+    "ctaLinux": "Скачать для Linux",
+    "ctaMacos": "Скачать для macOS",
+    "ctaWindows": "Скачать для Windows",
+    "os": {
+      "linux": "Linux",
+      "macos": "macOS",
+      "windows": "Windows"
+    },
+    "otherPlatforms": "Другие платформы"
+  },
   "fileDrop": {
     "open": "Отпустите, чтобы открыть",
     "openOrImport": "Отпустите, чтобы открыть или импортировать"
@@ -272,11 +293,11 @@
     "credit": "Дизайн: <2>Brandon Wong</2>"
   },
   "toolbar": {
-    "new": "Создать",
-    "open": "Открыть",
+    "discord": "Присоединиться к Discord",
+    "downloadDesktop": "Получить приложение для компьютера",
+    "downloadDesktopVersion": "Получить приложение для компьютера ({{version}})",
     "optimizeLayout": "Оптимизировать",
     "optimizeScale": "Оптимизировать масштаб",
-    "save": "Сохранить",
     "sendToEdit": "Отправить в Правку",
     "sendToEditMore": "Другие варианты отправки в Правку",
     "sendToEditTooltip": "Отправить паттерн складок этого дизайна на холст Правки",

@@ -286,7 +286,7 @@
     "foldForward": "Fold Forward",
     "foldStart": "Jump To Flat",
     "playPause": "Play / Pause Fold",
-    "replay": "Replay From Flat",
+    "replay": "Restart Simulation",
     "resetView": "Reset Simulator View",
     "toggleCreases": "Crease lines",
     "toggleFaces": "Faces",

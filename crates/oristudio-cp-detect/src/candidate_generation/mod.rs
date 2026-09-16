@@ -1,6 +1,8 @@
 use std::fmt;
 use std::str::FromStr;
 
+mod contact_relocalize;
+mod grid_prior;
 mod junction_carrier_v1;
 mod junction_first_v1;
 mod legacy_topology_v2;
@@ -135,6 +137,13 @@ impl Default for LegacyTopologyV2StrategyOptions {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct JunctionCarrierV1StrategyOptions {
     pub vertex_merge_radius_px: f64,
+    /// Merge radius for a junction peak below the product's old floor (0.40):
+    /// such a peak within this distance of a vertex already placed is a second
+    /// firing of that junction, not a junction of its own.
+    pub weak_junction_merge_radius_px: f64,
+    /// A junction peak this close to the paper edge is a crease meeting the
+    /// border, which the contact head owns; it becomes no interior vertex.
+    pub junction_border_exclusion_px: f64,
     pub carrier_angle_tolerance_degrees: f64,
     pub carrier_rho_tolerance_px: f64,
     pub carrier_extent_padding_px: f64,
@@ -158,12 +167,17 @@ pub struct JunctionCarrierV1StrategyOptions {
     /// background pixels between the 4px sample steps cannot dilute the M/V/B
     /// channel means into an Unknown label (see `sample_span_stats`).
     pub ink_weighted_assignment: bool,
+    /// Override for the boundary-contact peak threshold (see
+    /// `EvidenceExtractionConfig::boundary_contact_threshold`).
+    pub boundary_contact_threshold: Option<f32>,
 }
 
 impl Default for JunctionCarrierV1StrategyOptions {
     fn default() -> Self {
         Self {
             vertex_merge_radius_px: 6.0,
+            weak_junction_merge_radius_px: 6.0,
+            junction_border_exclusion_px: 6.0,
             carrier_angle_tolerance_degrees: 2.5,
             carrier_rho_tolerance_px: 8.0,
             carrier_extent_padding_px: 16.0,
@@ -181,6 +195,7 @@ impl Default for JunctionCarrierV1StrategyOptions {
             junction_cluster_keep_rule: JunctionClusterKeepRule::default(),
             junction_evidence_source: JunctionEvidenceSource::Model,
             ink_weighted_assignment: false,
+            boundary_contact_threshold: None,
         }
     }
 }
@@ -189,6 +204,12 @@ impl Default for JunctionCarrierV1StrategyOptions {
 pub struct JunctionFirstV1StrategyOptions {
     /// Vertex merge radius forwarded to dense evidence vertex building.
     pub vertex_merge_radius_px: f64,
+    /// Merge radius for junction peaks below the old 0.40 floor; see
+    /// `JunctionCarrierV1StrategyOptions::weak_junction_merge_radius_px`.
+    pub weak_junction_merge_radius_px: f64,
+    /// Junction peaks closer than this to the paper edge become no vertex; see
+    /// `JunctionCarrierV1StrategyOptions::junction_border_exclusion_px`.
+    pub junction_border_exclusion_px: f64,
     /// Minimum proposed span length.
     pub min_span_length_px: f64,
     /// A pair (A, B) is rejected when a third vertex sits within this
@@ -223,6 +244,26 @@ pub struct JunctionFirstV1StrategyOptions {
     pub junction_evidence_source: JunctionEvidenceSource,
     /// See [`JunctionCarrierV1StrategyOptions::ink_weighted_assignment`].
     pub ink_weighted_assignment: bool,
+    /// Move each boundary contact onto the ink centreline of its incident
+    /// spans and merge the contacts that then coincide (see
+    /// `contact_relocalize`). The contact head fires where the crease stroke
+    /// meets the border stroke, up to 3 px along the edge from the crease's
+    /// true crossing at shallow angles.
+    pub contact_relocalize: bool,
+    /// After re-localisation, two contacts on one side closer than this (px),
+    /// at least one of which the re-localisation moved, are one contact: two
+    /// creases from a V that decoded as two ink corners 6–8 px apart and were
+    /// both corrected onto the same crossing, where each fit lands within a
+    /// pixel or so of it. Unmoved contacts never merge, so two close but
+    /// distinct contacts survive.
+    pub contact_merge_px: f64,
+    /// Override for the boundary-contact peak threshold. `None` keeps the
+    /// shared default (`line_threshold.max(0.50)`). For sweeps.
+    pub boundary_contact_threshold: Option<f32>,
+    /// When the proposed graph shows a box-pleat grid, complete the border at
+    /// the grid positions where the ink shows a crease leaving the edge and
+    /// the contact head fired under its floor (see `grid_prior`).
+    pub grid_prior: bool,
 }
 
 impl Default for JunctionFirstV1StrategyOptions {
@@ -232,6 +273,17 @@ impl Default for JunctionFirstV1StrategyOptions {
         // pairs and tiny creases that the previous 6/8/4 defaults destroyed.
         Self {
             vertex_merge_radius_px: 3.0,
+            // A peak under 0.40 within 8 px of a stronger vertex is that
+            // junction firing twice; 3 px would keep it and select 3-6 px stub
+            // spans between the pair (2026-09-09, 21 of 28 regressions of the
+            // 0.25 floor). Strong peaks keep 3 px so real close pairs survive.
+            weak_junction_merge_radius_px: 8.0,
+            // A peak under 0.50 within 6 px of the paper edge is a crease
+            // meeting the border (the contact head's), not a junction: the
+            // 0.25 floor's one blow-up (cat-in-grass, 14 -> 82 defects) was
+            // three such peaks 3 px inside the bottom edge. Real junctions
+            // that close to the edge fire at 0.49 or more and keep 3 px.
+            junction_border_exclusion_px: 6.0,
             // 1px (not the old 3px) so genuine sub-3px creases between close
             // junction pairs are proposable once junction detection resolves
             // them; harmless with the production model (its junction head merges
@@ -251,6 +303,10 @@ impl Default for JunctionFirstV1StrategyOptions {
             junction_cluster_keep_rule: JunctionClusterKeepRule::default(),
             junction_evidence_source: JunctionEvidenceSource::Model,
             ink_weighted_assignment: false,
+            contact_relocalize: true,
+            contact_merge_px: 3.0,
+            boundary_contact_threshold: None,
+            grid_prior: true,
         }
     }
 }

@@ -341,9 +341,12 @@ const SIMULATOR_SHORTCUTS: ShortcutDefinition[] = [
   simulatorShortcut('simulator.playPause', 'Play / Pause Fold', { key: ' ' }),
   simulatorShortcut('simulator.foldForward', 'Fold Forward', { key: 'arrowright' }),
   simulatorShortcut('simulator.foldBackward', 'Fold Backward', { key: 'arrowleft' }),
-  simulatorShortcut('simulator.foldEnd', 'Jump To Folded', { shift: true, key: 'arrowright' }),
-  simulatorShortcut('simulator.foldStart', 'Jump To Flat', { shift: true, key: 'arrowleft' }),
-  simulatorShortcut('simulator.replay', 'Replay From Flat', { key: 'r' }),
+  // Cmd/Ctrl+arrow, the "start of line / end of line" idiom: either end of the
+  // fold, camera untouched. Restart (R) is the one that also puts the view back.
+  simulatorShortcut('simulator.foldEnd', 'Jump To Folded', { primary: true, key: 'arrowright' }),
+  simulatorShortcut('simulator.foldStart', 'Jump To Flat', { primary: true, key: 'arrowleft' }),
+  // The id predates the label: it is what saved overrides are keyed by.
+  simulatorShortcut('simulator.replay', 'Restart Simulation', { key: 'r' }),
   simulatorShortcut('simulator.resetView', 'Reset Simulator View', [
     { key: '0' },
     { key: 'home' },

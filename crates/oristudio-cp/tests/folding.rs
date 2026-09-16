@@ -1684,3 +1684,71 @@ fn sub_tolerance_creases_do_not_stop_a_fold() {
         Err(error) => panic!("sub-tolerance creases stopped the fold: {error}"),
     }
 }
+
+/// A figure held by a session renders from inputs derived once at fold time
+/// (`FoldedRenderInputs`); the from-segments entry point derives them per
+/// call. The two must agree byte for byte in every style, and across a model
+/// change — the cache is a cost, never an answer.
+#[test]
+fn session_renders_from_cached_inputs_identically_to_the_segments_path() {
+    let segments = kabuto_segments();
+    let mut session = oristudio_cp::session::CpSession::default();
+    let handle = session.load_document(oristudio_cp::CreasePatternDocument {
+        crease_pattern: oristudio_cp::CreasePatternModel {
+            line_segments: segments.clone(),
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+    let ids: Vec<usize> = (1..=segments.len()).collect();
+    let folded = session
+        .folded_figure_fold_selected(
+            handle,
+            &ids,
+            1,
+            EstimationOrder::Order5,
+            FoldedFigureModel::default(),
+        )
+        .expect("kabuto folds");
+
+    let recoloured = FoldedFigureModel {
+        front_color: RgbColor::new(10, 20, 30),
+        display_shadows: true,
+        ..FoldedFigureModel::default()
+    };
+    let after_change = session
+        .folded_figure_set_model(folded.handle, recoloured.clone())
+        .expect("set model");
+    assert_eq!(
+        after_change.wireframe,
+        estimate_wireframe_from_segments(&segments, 1).expect("wireframe"),
+        "the snapshot's wireframe is the cached one, unchanged by the model"
+    );
+
+    for style in [
+        DisplayStyle::Wire2,
+        DisplayStyle::Transparent3,
+        DisplayStyle::Paper5,
+    ] {
+        let cached = session
+            .folded_figure_render_snapshot(
+                folded.handle,
+                Some(style),
+                FoldedFigureRenderOptions::default(),
+            )
+            .expect("session render");
+        let fresh = folded_figure_render_snapshot_from_segments(
+            &segments,
+            1,
+            style,
+            recoloured.clone(),
+            FoldedFigureRenderOptions::default(),
+        )
+        .expect("segments render");
+        assert!(fresh.is_some(), "{style:?} renders");
+        assert_eq!(
+            cached, fresh,
+            "{style:?}: cached inputs changed the picture"
+        );
+    }
+}

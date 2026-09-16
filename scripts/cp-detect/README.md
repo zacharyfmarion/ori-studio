@@ -559,6 +559,235 @@ accepted-but-wrong 46→17). The committed parity fixtures in
 guardrail; regenerate goldens after intentional solver changes with
 `UPDATE_GOLDEN=1 cargo test -p oristudio-cp-compiler --test exact_solve_parity -- --include-ignored`.
 
+## Curated benchmark (real inputs, hand-established truth)
+
+The packs above render crease patterns and use the source FOLD as truth. The
+curated benchmark scores the pipeline on the *real* inputs users give the
+detect dialog — scans, screenshots, photographed diagrams — against truth a
+person established in the editor. The patterns are other designers' work, so
+the corpus never enters the repository and never runs in CI; what is committed
+is the harness and the scorecard it is measured against. Plan and format:
+`implementation-plans/cp-detect-curated-ground-truth.md`.
+
+A case is a directory: `source.<ext>`, the exact image the dialog was given;
+`detected.fold`, what the detector produced when the case was curated;
+`topology.fold`, the repaired pattern exported before solving; `truth.fold`,
+the solved pattern. No metadata file — status, exactness, failure tags, all
+of it is derived. Aux lines export as `F` edges and are ignored.
+
+Cases sit in groups, one directory each under the corpus root: `curated/`,
+the hand-established truths, and `cpoogle/`, native crease patterns rendered
+and filtered by `rendered_corpus` (below). A directory with a `source.<ext>`
+is a case, any other directory is a group, and every record, table and
+scorecard keys a case `group/slug`. `--group curated` runs one group, which
+is the ten-minute gate; the full run also covers the rendered group.
+
+```bash
+export CP_DETECT_CURATED_CORPUS_DIR=/path/to/real_benchmark
+cargo run --release -p oristudio-cp-detect --features native-inference \
+  --bin curated_benchmark -- --out artifacts/cp-detect-curated/$(date +%F) \
+  --compare tests/corpus/cp-detect-curated-baseline.json
+```
+
+Run it with nothing else building or sweeping on the machine: the solve's
+verdicts no longer depend on the load (see the work budget below), but the
+wall time and the gate's seconds do.
+
+The model comes from `scripts/cp-detect/current-model.json` when run from the
+repository root, or `--model <model.onnx>`. Inference is native (CoreML on
+macOS, the CPU elsewhere) through the same code the batch tool uses; behind a
+proxy, unset `HTTPS_PROXY` for the build that downloads ONNX Runtime.
+
+Per case, three scores:
+
+- **decoder** — the pipeline's graph against `topology.fold`, the strict
+  topology metric at 4 px of 1024: `exact` / `near` (edge F1 ≥ 0.95) / `off`.
+- **end to end** — the pipeline's solved answer against `truth.fold`:
+  `recovered` (accepted, **and** the strict topology metric at 2 px finds the
+  same vertices, creases and assignments) / `accepted_wrong` /
+  `not_accepted`. The vertex-to-vertex correspondence (mutual nearest
+  neighbour, so a hand-fixed truth's split points and aux endpoints count as
+  unpaired rather than as error) stays in the record as a distance readout;
+  it was the verdict until September 9, 2026, and over-counted by 34 cases
+  paired within 2 px on a different crease set and 8 with wrong assignments.
+- **gate** — `topology.fold` through the solver's refinement stage against
+  `truth.fold`, the same way; the solver on correct topology with no model
+  involved: `reproduced` (within 1 px) / `close` (within 5 px) / `off` /
+  `not_solved` / `skipped` (over `--max-edges`, where one solver step outlasts
+  the budget by minutes).
+
+The solve runs on a **work budget**, not a clock: `--budget-work 500000000`
+(the default) is 5·10⁸ vertex²·checks, where every deadline check the solver
+makes costs the square of the model's vertex count — a check's cost grows
+that way (seconds per check ∝ vertices^2.2 over the corpus, R² 0.88), so the
+unit tracks wall time within a factor of three across pattern sizes, and the
+default is the 25 s the old clock allowed at the corpus's median rate of
+1.9·10⁷ units per second on one Apple Silicon core. The same input then stops
+at the same place on any machine under any load; the clock (`--budget <s>`,
+off by default) had turned a contended run's 6 s solve into a `failed`.
+Wall time still follows the load, so run alone when the seconds matter. The
+product keeps its wall clock (`DecodeConfig::exact_solve_timeout_seconds`,
+25 s by default), and `detection.exact_solve_work` in `per_case.jsonl` says
+what each solve spent.
+
+`per_case.jsonl` holds every number; `summary.json` is the scorecard, with
+the aggregates overall and per group, and `summary.md` the table.
+`answers/<group>__<slug>.recognised.fold` is the graph as recognised before
+the compiler and the solve, `.pipeline.fold` the pipeline's solved answer,
+`.gate.fold` the gate's, all in the case's own frame, and `.gate.report.json`
+the gate's stage-2 reports, to open beside `truth.fold` or diff against
+another build's when a bucket needs explaining. `--compare` prints every
+case whose bucket changed, both directions, and every group aggregate that
+moved. The binary refuses to run from another commit's build unless
+`--allow-stale`, the same footgun guard as the benchmark above.
+
+The decoder is scored on the recognised graph, not the solved one: the solve
+merges detector-split junctions and moves vertices, and scored on its output
+three exact decodes read as near the moment the carrier round landed. A
+pattern over `--max-edges` is scored on the decoder the same way and only
+its solve is skipped (`solve_status: skipped_too_large`).
+
+`--write-detected` writes the pipeline's output as `detected.fold` into any
+case that has none: how a generated group gets the curation-time detection
+its drift and failure tags are measured against.
+
+Cases run on `--jobs` worker threads (every core but two): inference is the
+one serial stage, and the decode, the solve, the scoring and the gate run
+beside the other workers'. A pattern whose topology has more creases than
+`--max-recognise-creases` (4,000) is not put through the detector at all
+(decoder and end to end `skipped`): the recognise stage takes three to seven
+minutes on a 4,000 to 6,000-crease design, the case keeps its gate, and the
+cap can be raised for a full measurement.
+
+Two readings the buckets need: an `accepted_wrong` at 0 px with one unpaired
+junction is a junction the decoder never found, with the creases around it,
+that the solve accepted without (the pattern is still exact); a gate `off` at
+0 px is the solve merging or collapsing vertices the truth keeps. The unpaired
+junction count sits beside the max in the table for that reason.
+
+The rule: before merging a change under `crates/oristudio-cp-detect*`,
+`crates/oristudio-cp-compiler`, or the detect and repair surfaces in
+`apps/web`, run it and paste the comparison into the PR. A change that moves a
+case lands with `tests/corpus/cp-detect-curated-baseline.json` updated in the
+same PR and the flip explained.
+
+Two flips are not evidence. A design with a free slide, a pleat group or a
+boundary vertex the priors rather than the design place, can solve to points
+a few pixels apart under two builds of the same solver, because the last
+digits of the arithmetic differ between binaries and the objective is flat
+along the slide: the penguin and the bat of the curated set read `close` or
+`reproduced` at 0 px or 2.65 px depending on which binary solved them, with
+identical solver code. Read a flip with `curated_solve` at both commits in
+one build before attributing it, and treat a case that moves under a change
+that cannot have touched it as this noise until shown otherwise.
+
+### What the curated group cannot judge: contact placement
+
+The curated truths are the detection fixed up by eye in the editor, so a
+boundary contact's position in them is wherever the contact head put it, to
+a tenth of a pixel; the solve then holds it there. A change that moves
+contacts toward the ink therefore reads as *worse* on that group (`end to
+end recovered` is, for contacts, a regression test against main's own
+placement), and the solver's slide from the recognised position is anchored
+to the same positions. Judge contacts against the ink instead:
+
+```bash
+export MODEL=$(node -p "const m = require('./scripts/cp-detect/current-model.json'); m.versioned_model_asset_dir + '/' + m.model_filename")
+CONTACT_RELOCALIZE=0 cargo run --release -p oristudio-cp-detect --features native-inference \
+  --example dump_candidate_pool -- $MODEL /tmp/pool-off $CP_DETECT_CURATED_CORPUS_DIR/curated/<case>...
+cargo run --release -p oristudio-cp-detect --features native-inference \
+  --example dump_candidate_pool -- $MODEL /tmp/pool-on $CP_DETECT_CURATED_CORPUS_DIR/curated/<case>...
+python3 scripts/cp-detect/contact_ink_referee.py /tmp/pool-off /tmp/pool-on
+```
+
+`GRID_PRIOR=0` switches off the box-pleat grid completion of the border in
+the same tool, for an A/B of that lever on the candidate pools.
+
+Two more questions have a tool each. Does an answer fold flat by the
+editor's own Fold, and is it on its lattice:
+
+```bash
+cargo run --release -p oristudio-cp --example fold_check -- answers/<case>.pipeline.fold
+cargo run --release -p oristudio-cp-compiler --example lattice_probe -- answers/<case>.pipeline.fold
+```
+
+`fold_check` runs `FoldingEstimateSession` to `Order5` on the file's creases
+and prints the outcome; `lattice_probe` rebuilds the solve input from the
+document, runs the lattice's answer alone (`solve_exact_on_lattice`) and
+prints the round — the lattice read, the snap, and why it was adopted or
+refused. The harness records the same round per case as
+`detection.lattice_round`.
+
+For every contact the second dump moved, the referee fits the crease's ink
+centreline on the rectified grayscale from 12 to 90 px inside the edge and
+extrapolates it to the paper edge, then reports how far the head's position
+and the moved one sit from that crossing, by the crease's angle to the edge,
+with the moves that went furthest from the ink listed. Run it on a few
+rendered cases too: there the crossing sits about half a pixel from the
+design's contact, which is the calibration.
+
+### What the curated group cannot judge: the paper's frame
+
+A curated truth is also in whatever *frame* the pipeline produced at curation
+time, and until the auto-crop could find a rotated paper that frame kept the
+paper as it was drawn — a diamond, or a scan a few degrees off square. The
+crop now rectifies such a paper upright, so the pipeline's answer and the
+curated truth differ by a rigid rotation, and the strict 4 px of 1024
+comparison reads that as total failure: `mammoth-v2` and `swallow-swallow`
+scored `decoder: off` at edge F1 0.00 while matching their truth at
+0.92-1.00 both ways once a rotation was allowed.
+
+Re-express such a case's truth in the frame the pipeline now produces:
+
+```bash
+scripts/cp-detect/upright-curated-paper.py $CP_DETECT_CURATED_CORPUS_DIR/cpoogle/<case> --apply
+```
+
+It rotates `topology.fold` and `truth.fold` rigidly about the paper's own
+centre, by the angle of the paper's own `B` edges taken into (-45, 45] — the
+same range the crop searches, so the two agree without the truth ever being
+fitted to the detector's answer. Nothing is regenerated: every crease,
+assignment, fold angle and face stays the curated one. Without `--apply` it
+only reports. A paper already upright is left alone.
+
+**Score such a fit in both directions.** A one-sided recall of the pipeline's
+vertices against the truth's reads 1.000 for a partial detection that happens
+to sit on true vertices — `rabbit` scores 1.000 forward and 0.558 back, being
+24 of 43 vertices of a paper that is a square with one corner cut off, which
+the square-only pipeline cannot represent at any angle. Only a case that
+matches both ways is a frame problem.
+
+### The rendered group
+
+`rendered_corpus`, an example in `oristudio-cp`, makes cases out of native
+crease patterns (`.cp`, `.ori`): each file imported with the kernel's own
+readers, folded with the editor's Fold (`FoldingEstimateSession` to
+`Order5`) under a per-case deadline, and, when a layer ordering exists,
+rendered as `source.png` the way the editor's Export PNG draws it (the light
+export palette: paper `#f8f5ec` inset 48 on a 1024 page, mountain `#ff4d5d`,
+valley `#60a5fa`, border `#111417`, aux `#64c8c8`, the export's stroke width,
+drawn at 3× and downsampled) and exported through `export_fold_document` as
+`topology.fold` and `truth.fold`, one pattern that is its own truth, aux lines
+as `F` edges. The group's `README.md` lists every case with its segment count,
+exactness at the editor's bar and fold time, the files excluded with the
+reason, and the duplicates set aside (files sharing a cpoogle drive id or a
+segment set).
+
+```bash
+cargo run --release -p oristudio-cp --example rendered_corpus -- \
+  --from /path/to/scraped/native/raw/cpoogle \
+  --into $CP_DETECT_CURATED_CORPUS_DIR/cpoogle
+cargo run --release -p oristudio-cp-detect --features native-inference \
+  --bin curated_benchmark -- --group cpoogle --write-detected \
+  --out artifacts/cp-detect-curated/$(date +%F)
+```
+
+What the rendered group measures: the decoder on clean renders across the
+whole size range with exact topology known, end to end against an exact
+truth, and the solver gate on a few hundred designs that fold flat by
+construction. It cannot measure rectification of photographs or the repair
+flow; that is the curated group.
+
 ## GPU-native dense cache (MPS/CUDA, no browser)
 
 `run-browser-dense-cache.mjs` exists for product parity (it runs the same
@@ -648,3 +877,73 @@ provenance banner at startup; if that commit ≠ the working-tree `HEAD` at the 
 cwd it refuses to run (`STALE BINARY`) unless you pass `--allow-stale`. Note the
 benchmark default line evidence is `model`; the product/inspector path uses
 `--line-evidence-source source-image`, so pass that for product-faithful runs.
+
+## Crease-pattern likelihood gate
+
+`crates/oristudio-cp-detect/src/likelihood.rs` answers "does this image look
+like a crease pattern?" for every reference image added to the Edit canvas —
+the gate behind the "Looks like a crease pattern · Detect creases" offer. It
+is hand features on a ≤512 px copy (straight-line length, skeleton endpoint
+rate, orientation lattice fit, full-span segment share, background fraction,
+periodicity…) combined by a table of 100 depth-3 trees in
+`likelihood_model.rs`. That file is **generated** here and never edited: the
+Rust extractor is the only implementation of the features, so the table is
+fitted on features the product itself computed and cannot drift from them.
+
+Refit when the features change, when the corpus grows, or to move the
+operating point. It needs the `create-pattern-detector` datasets and repo
+checked out beside this one (defaults in `build-manifest.py`), and a venv with
+numpy, Pillow and scikit-learn:
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install numpy pillow scikit-learn
+OUT=artifacts/cp-likelihood && mkdir -p $OUT
+
+# 1. The labelled set: designer sets, curated cases, rendered corpus, and the
+#    scrape pipeline's Gemini-labelled crops (accepted = positive, rejected =
+#    negative by kind). Add --photo-dir for natural photographs.
+python3 scripts/cp-detect/cp-likelihood/build-manifest.py --out $OUT/manifest.jsonl
+
+# 2. Structured negatives the corpus lacks (graph paper, mats, tables, charts,
+#    plans, flowcharts, text, brick/plaid, mazes, random line art). Without
+#    them every model lets grids through.
+python3 scripts/cp-detect/cp-likelihood/synth-negatives.py --out-dir $OUT/synth --manifest $OUT/synth.jsonl
+
+# 3. Features, with the product's own extractor (parallel; ~1 min for 5k images).
+cargo build --release -p oristudio-cp-detect --examples
+target/release/examples/cp_likelihood_features --manifest $OUT/manifest.jsonl --out $OUT/features.jsonl
+target/release/examples/cp_likelihood_features --manifest $OUT/synth.jsonl --out $OUT/synth-features.jsonl
+
+# 4. Fit, report, and write the table. Rows split 70/30 by an md5 of the path;
+#    the operating point is chosen on the held-out rows, then the shipped table
+#    is refitted on everything.
+.venv/bin/python scripts/cp-detect/cp-likelihood/fit-model.py \
+  --features $OUT/features.jsonl $OUT/synth-features.jsonl \
+  --model-rs crates/oristudio-cp-detect/src/likelihood_model.rs \
+  --report $OUT/report.md --threshold 0.8
+
+cargo test -p oristudio-cp-detect --lib likelihood
+npm --workspace @treemaker/web run build:oristudio-cp-detect-wasm
+```
+
+`fit-model.py` prints a sweep of operating points before it writes anything.
+The 2026-09-15 fit (4,909 labelled rows, held-out AUC 0.979):
+
+| threshold | recall (all / designer sets) | FPR clean negatives | folded-model photos | synthetic line art |
+|---|---|---|---|---|
+| 0.7 | 0.93 / 0.93 | 0.036 | 0.029 | 0.078 |
+| **0.8 (shipped)** | **0.89 / 0.90** | **0.025** | **0.021** | **0.047** |
+| 0.9 | 0.81 / 0.82 | 0.017 | 0.011 | 0.047 |
+
+"Clean negatives" are the folded-model photos, natural photographs, text and
+diagram rejects plus every synthetic class — not the noisy "multi-panel",
+"blank" and "other" rejects, which often contain a real crease pattern and
+would count a correct offer as a false positive. Evenly spaced grids are the
+residual: about a quarter of synthetic graph paper is offered at 0.8, and a
+grid *is* a precrease pattern, so this is accepted rather than chased.
+
+To see why one image got its verdict:
+
+```bash
+cargo run --release -p oristudio-cp-detect --example cp_likelihood_score -- path/to/image.png
+```

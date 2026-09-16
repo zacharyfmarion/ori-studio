@@ -27,6 +27,8 @@ function deps(overrides: Partial<TreeContextMenuDeps> = {}): TreeContextMenuDeps
     action: { capabilities: capabilities(), run: vi.fn() },
     addLeafHere: null,
     unpair: null,
+    pair: null,
+    pairAll: null,
     mirror: { enabled: false, toggle: vi.fn(), label: 'Mirror draw' },
     labels: { visible: true, toggle: vi.fn(), label: 'Labels' },
     clearSelection: vi.fn(),
@@ -44,6 +46,17 @@ describe('the vertex menu', () => {
     expect(ids(treeMenuItems({ kind: 'vertex', id: 1 }, deps()))).toEqual(['edit.delete']);
     expect(
       ids(treeMenuItems({ kind: 'vertex', id: 1 }, deps({ unpair: vi.fn() })))
+    ).toEqual(['tree-unpair', 'edit.delete']);
+  });
+
+  it('offers Pair in the same slot, and only when there is nothing to unpair', () => {
+    expect(ids(treeMenuItems({ kind: 'vertex', id: 1 }, deps({ pair: vi.fn() })))).toEqual([
+      'tree-pair',
+      'edit.delete',
+    ]);
+    // A paired vertex is never also pairable; if a host said both, Unpair wins.
+    expect(
+      ids(treeMenuItems({ kind: 'vertex', id: 1 }, deps({ unpair: vi.fn(), pair: vi.fn() })))
     ).toEqual(['tree-unpair', 'edit.delete']);
   });
 
@@ -83,6 +96,20 @@ describe('the empty-canvas menu', () => {
     });
     expect(items.find((item) => 'id' in item && item.id === 'tree-labels')).toMatchObject({
       checked: true,
+    });
+  });
+
+  it('offers Pair all mirrored, disabled with a reason when nothing would pair', () => {
+    const live = treeMenuItems(null, deps({ pairAll: { count: 2, run: vi.fn() } }));
+    expect(live.find((item) => 'id' in item && item.id === 'tree-pair-all')).toMatchObject({
+      kind: 'action',
+      disabled: false,
+    });
+
+    const idle = treeMenuItems(null, deps({ pairAll: { count: 0, run: vi.fn() } }));
+    expect(idle.find((item) => 'id' in item && item.id === 'tree-pair-all')).toMatchObject({
+      disabled: true,
+      hint: 'No unpaired nodes sit opposite each other.',
     });
   });
 

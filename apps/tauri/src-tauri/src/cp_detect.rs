@@ -666,6 +666,8 @@ fn parse_request(
     parse_exact_solve_request(&args.input_json, &args.options_json).map_err(|message| {
         let code = if message.starts_with("exempt_vertex_ids names") {
             "unknown_exempt_vertex_id"
+        } else if message.starts_with("pinned_vertex_ids names") {
+            "unknown_pinned_vertex_id"
         } else {
             "invalid_exact_solve_options"
         };

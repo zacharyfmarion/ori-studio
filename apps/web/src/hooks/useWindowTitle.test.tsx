@@ -1,13 +1,16 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { useWindowTitle } from './useWindowTitle';
+import { SITE_TITLE } from '../seo/siteMeta';
 import {
   singleBoxPleatDesignTab,
   singleDesignTab,
   singleTreemakerDesignTab,
 } from '../store/workspaceStore/designTabs';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import { EDIT_PATH, WELCOME_PATH } from '../routing/paths';
 
 /**
  * The window title names the **open file**, falling back to the **project** —
@@ -25,6 +28,10 @@ import { useWorkspaceStore } from '../store/workspaceStore';
  * - The file half is gated on `currentFilePath`, never `currentFileName`, because
  *   the latter is always populated — `defaultNativeFilename` synthesizes
  *   `Untitled.osf` for a project that has never been saved.
+ * - The route half is here because the store answers this question even where
+ *   there is nothing to answer it about: on `/welcome` it holds a blank project
+ *   called `Untitled`, and titling the landing page after it is what Google
+ *   indexed the site as.
  */
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -37,12 +44,27 @@ function Probe() {
   return null;
 }
 
-/** Publish a store state, then mount the hook against it. */
-function mountWith(state: Partial<Parameters<typeof useWorkspaceStore.setState>[0]>) {
+/**
+ * Publish a store state, then mount the hook against it at `path`.
+ *
+ * A real router rather than a mocked `useLocation`: the paths the hook treats as
+ * the landing are the ones `appRouter` actually routes, and a mock would assert
+ * agreement with itself.
+ */
+function mountWith(
+  state: Partial<Parameters<typeof useWorkspaceStore.setState>[0]>,
+  path = EDIT_PATH
+) {
   act(() => {
     useWorkspaceStore.setState(state as never);
   });
-  act(() => root?.render(<Probe />));
+  act(() =>
+    root?.render(
+      <MemoryRouter initialEntries={[path]}>
+        <Probe />
+      </MemoryRouter>
+    )
+  );
 }
 
 beforeEach(() => {
@@ -123,6 +145,40 @@ describe('useWindowTitle', () => {
       ...singleTreemakerDesignTab(),
     });
     expect(window.document.title).toBe('Untitled - Ori Studio');
+  });
+
+  /**
+   * The regression that put "Ori Studio: Untitled" in Google's result for the
+   * site.
+   *
+   * `index.html` and the prerendered copy both carry `SITE_TITLE`, but Googlebot
+   * crawls and *renders* separately, and it indexes what the render produced.
+   * The render ran this hook, which named the landing page after the blank
+   * project the store holds behind it, so the title Google saw was the one no
+   * page was written to have.
+   *
+   * The store is deliberately loaded with a real project here: what makes the
+   * landing not a document is the route, not an empty store.
+   */
+  it('titles the landing page for the site, not for the project behind it', () => {
+    mountWith(
+      { workspaceTitle: 'Crane', dirty: true, ...singleTreemakerDesignTab() },
+      WELCOME_PATH
+    );
+    expect(window.document.title).toBe(SITE_TITLE);
+  });
+
+  it('titles the landing the same way when a trailing slash comes back from Pages', () => {
+    // The deploy 308s `/welcome` to `/welcome/`, because the prerender writes a
+    // real `dist/welcome/index.html`. So the trailing form is the one a crawler
+    // fetching that URL directly ends up on.
+    mountWith({ workspaceTitle: 'Crane', dirty: false, ...singleTreemakerDesignTab() }, '/welcome/');
+    expect(window.document.title).toBe(SITE_TITLE);
+  });
+
+  it('takes the document title back on the way into a workspace', () => {
+    mountWith({ workspaceTitle: 'Crane', dirty: false, ...singleTreemakerDesignTab() }, EDIT_PATH);
+    expect(window.document.title).toBe('Crane - Ori Studio');
   });
 
   it('follows a Save As onto the new filename', () => {

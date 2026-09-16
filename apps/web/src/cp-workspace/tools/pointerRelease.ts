@@ -45,6 +45,7 @@ const ALL_MODES: Record<ActiveToolMode, true> = {
   'drag-box': true,
   'drag-path': true,
   'drag-vertex': true,
+  'pick-vertex': true,
   sequence: true,
   'line-entity': true,
   lengthen: true,
@@ -71,6 +72,15 @@ export const CP_ACTIVE_TOOL_MODES = Object.keys(ALL_MODES) as readonly ActiveToo
 export function toolModeSnapsDrawPoint(mode: ActiveToolMode | null): boolean {
   return mode === 'drag-line' || mode === 'angle-drag' || mode === 'drag-vertex';
 }
+
+/*
+ * `pick-vertex` is absent from both predicates above, and from
+ * `cpPointerReleaseRoute` below, on purpose. It commits on *press*: by the time
+ * a release arrives the gesture is over, there is nothing parked and nothing to
+ * snap, so it takes the default route ('none' unless a plain-canvas gesture had
+ * started). Adding it to the release switch would give it a second commit and
+ * toggle the pin straight back off.
+ */
 
 /**
  * Which modes park a start point *between* gestures, and therefore share one

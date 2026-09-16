@@ -43,7 +43,7 @@ describe('web menu definition', () => {
     expect(submenuLabels).toEqual(['Select', 'Node', 'Edge', 'Strain', 'Stubs']);
   });
 
-  it('exposes the four workspace entries from the View menu', () => {
+  it('exposes the workspace entries and the Properties pane from the View menu', () => {
     const viewMenu = getMenuBarDef().find((menu) => menu.label === 'View');
     const actionItems =
       viewMenu?.items.flatMap((item) =>
@@ -55,6 +55,7 @@ describe('web menu definition', () => {
       'Edit',
       'Simulate',
       'References',
+      'Properties',
       'Reset Layout',
     ]);
     expect(actionItems.map((item) => item.id)).toEqual([
@@ -62,6 +63,7 @@ describe('web menu definition', () => {
       'view.edit',
       'view.simulate',
       'view.references',
+      'view.properties',
       'view.resetLayout',
     ]);
   });

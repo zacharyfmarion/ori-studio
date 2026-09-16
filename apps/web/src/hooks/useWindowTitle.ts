@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { applyWindowTitle, formatWindowTitle } from '../platform/windowTitle';
+import { isLandingPath } from '../routing/paths';
 import { useWorkspaceStore } from '../store/workspaceStore';
 
 /**
@@ -25,16 +27,23 @@ import { useWorkspaceStore } from '../store/workspaceStore';
  * document window is conventionally titled by. The same care applies to the
  * field choice here: the gate is `currentFilePath`, not `currentFileName` — see
  * `formatWindowTitle` for why the latter cannot answer "is there a file".
+ *
+ * **And it reads the route**, because the landing page is not a document. This
+ * runs from the root layout route, so it runs there too, and naming that page
+ * after the blank project behind it is what Google indexed the site as — see the
+ * `landing` note in `formatWindowTitle`.
  */
 export function useWindowTitle() {
+  const { pathname } = useLocation();
   const workspaceTitle = useWorkspaceStore((state) => state.workspaceTitle);
   const dirty = useWorkspaceStore((state) => state.dirty);
   const fileName = useWorkspaceStore((state) => state.currentFileName);
   const filePath = useWorkspaceStore((state) => state.currentFilePath);
+  const landing = isLandingPath(pathname);
 
   useEffect(() => {
     void applyWindowTitle(
-      formatWindowTitle({ projectTitle: workspaceTitle, dirty, fileName, filePath })
+      formatWindowTitle({ projectTitle: workspaceTitle, dirty, fileName, filePath, landing })
     );
-  }, [dirty, fileName, filePath, workspaceTitle]);
+  }, [dirty, fileName, filePath, landing, workspaceTitle]);
 }

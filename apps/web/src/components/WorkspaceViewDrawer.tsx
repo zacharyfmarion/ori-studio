@@ -3,24 +3,32 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal, X } from 'lucide-react';
 import { useWorkspaceViewDrawer } from '../hooks/useWorkspaceViewDrawer';
-import { useLayoutStore, type ViewPanelId } from '../store/layoutStore';
+import {
+  drawerTriggerFor,
+  sidePaneTitle,
+  useLayoutStore,
+  type SidePaneId,
+} from '../store/layoutStore';
 import { ErrorBoundary } from './errors/ErrorBoundary';
+import { CpPropertiesPanel } from './panels/CpPropertiesPanel';
 import { CpViewControlsPanel } from './panels/CpViewControlsPanel';
 import { ReferencesViewControlsPanel } from './panels/ReferencesViewControlsPanel';
 import { SimulatorViewControlsPanel } from './panels/SimulatorViewControlsPanel';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
+import { SegmentedControl } from './ui/SegmentedControl';
 
 /**
- * What the sheet shows, per View pane.
+ * What the sheet shows, per side pane.
  *
- * Keyed on `ViewPanelId` rather than `string` on purpose: a workspace added to
- * the layout store's View-pane table without a body here fails to compile, so
- * the touch path cannot quietly ship an empty sheet the way a half-registered
+ * Keyed on `SidePaneId` rather than `string` on purpose: a pane added to the
+ * layout store's side-pane table without a body here fails to compile, so the
+ * touch path cannot quietly ship an empty sheet the way a half-registered
  * `Record<string, …>` would let it.
  */
-const VIEW_DRAWER_BODIES: Record<ViewPanelId, ComponentType> = {
+const VIEW_DRAWER_BODIES: Record<SidePaneId, ComponentType> = {
   'cp-view-controls': CpViewControlsPanel,
+  'cp-properties': CpPropertiesPanel,
   'simulator-view-controls': SimulatorViewControlsPanel,
   'references-view-controls': ReferencesViewControlsPanel,
 };
@@ -41,7 +49,9 @@ const VIEW_DRAWER_BODIES: Record<ViewPanelId, ComponentType> = {
  */
 export function WorkspaceViewDrawer() {
   const { t } = useTranslation();
-  const { spec, open, drawerId, openDrawer, close, triggerRef } = useWorkspaceViewDrawer();
+  const { panes, activePane, setActivePane, open, drawerId, openDrawer, close, triggerRef } =
+    useWorkspaceViewDrawer();
+  const activeWorkspace = useLayoutStore((state) => state.activeWorkspace);
   const slot = useLayoutStore((state) => state.viewDrawerSlot);
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
@@ -51,17 +61,19 @@ export function WorkspaceViewDrawer() {
     if (open) dialogRef.current?.focus();
   }, [open]);
 
-  if (!spec) return null;
+  if (!activePane) return null;
   // A pane that seats the pill itself has nowhere for it until its view is
   // up — References' phone list screen has no view, and no settings to be
   // about until a sheet is opened. A pane that does not is not handed a slot
   // another pane may have left behind.
-  const seat = spec.trigger === 'slot' ? slot : null;
-  if (spec.trigger === 'slot' && !seat) return null;
+  const seatsPill = drawerTriggerFor(activeWorkspace) === 'slot';
+  const seat = seatsPill ? slot : null;
+  if (seatsPill && !seat) return null;
 
-  // Named as the docked pane is named: the Simulate and References panes are
-  // "Settings", Edit's is "View" — see `WORKSPACE_VIEW_PANELS`.
-  const settings = spec.title === 'Settings';
+  // Named as the docked column is named: a Settings column (Simulate,
+  // References) is "Settings" on the pill and the sheet, a View column is
+  // "View" and "View options" — see `SidePaneDefinition.role`.
+  const settings = panes[0]?.role === 'settings';
   const title = settings
     ? t('common:viewDrawer.settingsTitle', 'Settings')
     : t('common:viewDrawer.title', 'View options');
@@ -71,7 +83,7 @@ export function WorkspaceViewDrawer() {
   const closeLabel = settings
     ? t('common:viewDrawer.closeSettings', 'Close settings')
     : t('common:viewDrawer.close', 'Close view options');
-  const Body = VIEW_DRAWER_BODIES[spec.id];
+  const Body = VIEW_DRAWER_BODIES[activePane.id];
 
   const trigger = (
     <Button
@@ -82,7 +94,7 @@ export function WorkspaceViewDrawer() {
       aria-haspopup="dialog"
       aria-expanded={open}
       aria-controls={drawerId}
-      onClick={openDrawer}
+      onClick={() => openDrawer()}
     >
       <SlidersHorizontal size={15} aria-hidden="true" />
       {openLabel}
@@ -142,7 +154,19 @@ export function WorkspaceViewDrawer() {
               onClick={(event) => event.stopPropagation()}
             >
               <header className="view-drawer__header">
-                <span className="view-drawer__title">{title}</span>
+                {/* One pane is the sheet's whole subject; two or more are tabs
+                    of it. The Simulate workspace has one and keeps its plain
+                    title. */}
+                {panes.length > 1 ? (
+                  <SegmentedControl
+                    aria-label={title}
+                    options={panes.map((pane) => ({ value: pane.id, label: sidePaneTitle(pane) }))}
+                    value={activePane.id}
+                    onChange={(id) => setActivePane(id as SidePaneId)}
+                  />
+                ) : (
+                  <span className="view-drawer__title">{title}</span>
+                )}
                 <IconButton size="sm" aria-label={closeLabel} onClick={close}>
                   <X size={15} />
                 </IconButton>
@@ -154,7 +178,7 @@ export function WorkspaceViewDrawer() {
                   standing. The dock gives every panel one for the same reason (see
                   `withPanelErrorBoundary`).
                 */}
-                <ErrorBoundary surface={`drawer:${spec.id}`} variant="pane">
+                <ErrorBoundary key={activePane.id} surface={`drawer:${activePane.id}`} variant="pane">
                   <Body />
                 </ErrorBoundary>
               </div>

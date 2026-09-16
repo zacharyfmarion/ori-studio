@@ -299,7 +299,18 @@
   align-items: stretch;
 }
 
+/*
+ * `flex: 1 1 auto` so a stretched split button is actually filled.
+ *
+ * A no-op wherever the container shrink-wraps, which is every toolbar use of
+ * this: `inline-flex` sizes to its content, so there is no free space for a
+ * grow factor to claim. It earns its place where something else sets the
+ * width — the landing page's phone block stretches every call to action to the
+ * column, and without this the fill stopped 55px short of the plain buttons
+ * above and below it while the box itself ran the full width.
+ */
 .ui-split-button__primary {
+  flex: 1 1 auto;
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
@@ -511,6 +522,16 @@
   background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-elevated));
 }
 
+/* An item that is genuinely an anchor — a download link, reached through Radix's
+   `asChild`. Two things the item class does not cover: the user-agent's
+   underline for `a` survives it, and an underlined row reads as prose inside a
+   menu; and `cursor: default` above is right for a row that only selects, but
+   wrong for one that goes somewhere. */
+a.context-menu__item {
+  cursor: pointer;
+  text-decoration: none;
+}
+
 .context-menu__item[data-disabled] {
   color: var(--text-disabled, var(--text-secondary));
   opacity: 0.5;
@@ -555,6 +576,18 @@
   background: var(--border-default);
 }
 
+/* A `DropdownMenu.Label` heading a group of items — an operating system over its
+   builds, say. Not focusable and not an item, so it takes none of the item
+   padding that would make it look like one. */
+.context-menu__group-label {
+  padding: 6px 8px 2px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 /* Trailing chevron on a submenu trigger; the leading slot stays the icon's. */
 .context-menu__subtrigger-arrow {
   display: inline-flex;
@@ -565,6 +598,41 @@
 
 .context-menu__item[data-highlighted] .context-menu__subtrigger-arrow {
   color: currentcolor;
+}
+
+/* A colour row's value, painted, in the leading slot where a sibling's icon
+   sits. The native input lies over it invisibly so the engine's picker anchors
+   beside the swatch rather than at the row's origin, and `pointer-events: none`
+   sends a click to the row instead — whose select opens the picker, so it
+   cannot open twice. */
+.context-menu__swatch {
+  position: relative;
+  display: block;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+}
+
+.context-menu__color-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Up while a colour row's picker is open: the press that closes the picker
+   lands here and goes no further. Below the menu, so its rows stay usable, and
+   above everything else — see ContextMenuColorItem. */
+.context-menu__picker-shield {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-portaled-popover) - 1);
 }
 
 .panel-shell {
@@ -1480,27 +1548,6 @@
   flex-direction: column;
   width: min(980px, calc(100vw - var(--space-6)));
   max-height: calc(100vh - var(--space-6));
-}
-
-/*
- * Eleven controls, on the shortest screen the app runs on. The dropdown this
- * replaces could size to its content because it hung over the canvas; a modal is
- * centred, so it caps and scrolls instead — otherwise the header and the last
- * colour field leave the viewport together.
- */
-.folded-figure-modal__document {
-  display: flex;
-  flex-direction: column;
-  max-height: calc(100vh - var(--safe-top) - var(--safe-bottom) - var(--space-6));
-}
-
-.folded-figure-modal__body {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow-y: auto;
-  /* Reaching the end must not start scrolling the canvas behind it. */
-  overscroll-behavior: contain;
 }
 
 .simple-modal__header,
@@ -3091,6 +3138,19 @@
   font-size: 0.88rem;
 }
 
+.about-modal__desktop-note {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+/* The section is a stretch grid, which would pull the split button the full
+   width of the dialog. It is a control, not a banner. */
+.about-modal__section .ui-split-button {
+  justify-self: start;
+}
+
 .about-modal__ack {
   display: grid;
   gap: 4px;
@@ -3582,6 +3642,46 @@ button.cp-folded-figure-toolbar__notice:hover {
   width: 90px;
 }
 
+/* "Looks like a crease pattern — Detect creases?" on a reference image.
+   Floating-toolbar chrome, so it is one of the canvas's own controls and not a
+   notification; only the fade-in and the label are its own. */
+.cp-detect-suggestion {
+  animation: cp-detect-suggestion-in 150ms ease-out;
+}
+
+.cp-detect-suggestion__body {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cp-detect-suggestion__icon {
+  color: var(--accent-primary);
+  flex: 0 0 auto;
+}
+
+.cp-detect-suggestion__label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+@keyframes cp-detect-suggestion-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-detect-suggestion {
+    animation: none;
+  }
+}
+
 /* --- Text annotations --------------------------------------------------- */
 
 .cp-text-box {
@@ -3662,51 +3762,20 @@ button.cp-folded-figure-toolbar__notice:hover {
   text-decoration: underline line-through;
 }
 
-/* Text toolbar controls */
+/* Text toolbar controls: the per-selection block preset, marks, alignment,
+   colour and Delete. The Properties pane carries the same properties for the
+   whole box. */
 .cp-text-toolbar__group {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.cp-text-toolbar__select,
-.cp-text-toolbar__color-select {
+/* A select in the pill sits at the buttons' height and hugs its label. */
+.cp-text-toolbar__select {
+  width: auto;
   height: 24px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm, 4px);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  font-size: 12px;
-  padding: 0 4px;
-}
-
-.cp-text-toolbar__align {
-  display: inline-flex;
-  gap: 2px;
-}
-
-.cp-text-toolbar__align-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm, 4px);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-}
-
-.cp-text-toolbar__align-btn[data-active] {
-  background: color-mix(in srgb, var(--accent-primary) 22%, transparent);
-  color: var(--text-primary);
-}
-
-.cp-text-toolbar__color {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  padding: 0 6px;
 }
 
 /* In WebGL mode the SVG is covered by the canvas; hide it so the browser stops
@@ -6507,24 +6576,10 @@ button.cp-folded-figure-toolbar__notice:hover {
   margin-inline: 1px;
 }
 
-.cp-folded-figure-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-
 .cp-line-type-toolbar__button {
   min-width: 28px;
   font-size: 0.72rem;
   font-weight: 800;
-}
-
-/* A figure that no longer matches its creases, in the folded-models list. Reads
-   as a state rather than another case number. `.cp-folded-model-status` used to
-   carry this warning colour; that readout is gone, so the colour moved here. */
-.folded-figure-menu__figure small[data-stale] {
-  color: var(--status-warning);
-  font-weight: 700;
 }
 
 .cp-view-controls-panel__empty {
@@ -6536,6 +6591,76 @@ button.cp-folded-figure-toolbar__notice:hover {
 .cp-view-controls-panel__body {
   display: flex;
   flex-direction: column;
+}
+
+/* The Properties pane's one-line empty state sits where a sheet's first row
+   would, at the same inset the View pane's empty state uses. */
+.cp-properties-panel__body {
+  display: flex;
+  flex-direction: column;
+}
+
+.cp-properties-panel__body > .empty-note {
+  padding: var(--space-3);
+}
+
+/* A property sheet: the selected object's name and context, then its rows in
+   sections — the same `control-row` / `collapsible-section` idiom as the View
+   pane, so the two tabs read as one pane. See components/properties. */
+.property-sheet {
+  display: flex;
+  flex-direction: column;
+}
+
+.property-sheet__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 10px var(--space-3) 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.property-sheet__icon {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  color: var(--text-tertiary);
+}
+
+.property-sheet__titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.property-sheet__title {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.property-sheet__subtitle {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* An untitled section is the sheet's plain body: rows with no header. */
+.property-sheet__section {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.property-sheet__section:last-child {
+  border-bottom: 0;
 }
 
 .cp-view-controls-panel__view-options {
@@ -6557,16 +6682,147 @@ button.cp-folded-figure-toolbar__notice:hover {
   width: 112px;
 }
 
+/* The stepper keeps its width and the reset trails it, the way a colour
+   field's clear does; inside the fixed box the two overlapped. */
+.control-row__value--input.control-row__value--reset {
+  width: calc(112px + 22px);
+}
+
 .control-row__value--select {
   display: flex;
   justify-content: flex-end;
 }
 
-/* A select filling its value column, in every View pane. */
+/* One trigger height for every pane's selects: the default 28px trigger is a
+   toolbar control, and a row of them beside 26px steppers looked ragged in each
+   pane that set this by hand. */
 .control-row__select {
   width: 100%;
   min-width: 0;
   height: 26px;
+}
+
+.control-row__value--text {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* A segmented control hugs its options; stretched to the column it reads as a
+   half-filled progress bar. */
+.control-row__value--segmented {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Slider plus its readout: the number column is fixed so the sliders align. */
+.control-row__value--slider {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.control-row__value--slider .ui-slider {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.control-row__readout {
+  flex: 0 0 auto;
+  min-width: 28px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.control-row[data-disabled] .control-row__label,
+.control-row[data-disabled] .control-row__readout {
+  opacity: 0.5;
+}
+
+/* A titled group of rows, optionally folded behind its title. Shared by every
+   options pane; see components/ui/CollapsibleSection.tsx. */
+.collapsible-section {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.collapsible-section:last-child {
+  border-bottom: 0;
+}
+
+.collapsible-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 8px var(--space-3) 4px;
+}
+
+.collapsible-section__title {
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.collapsible-section__toggle {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.collapsible-section__toggle:hover .collapsible-section__title {
+  color: var(--text-primary);
+}
+
+.collapsible-section__chevron {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  transition: transform 0.12s ease;
+}
+
+.collapsible-section[data-open] .collapsible-section__chevron {
+  transform: rotate(90deg);
+}
+
+/* A closed section is just its header, so the extra bottom padding that spaces a
+   header from its controls would read as a gap. */
+.collapsible-section:not([data-open]) .collapsible-section__header {
+  padding-bottom: 8px;
+}
+
+.collapsible-section__hint {
+  margin: 0;
+  padding: 0 var(--space-3) 6px;
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+/* The header slot for a small control (a reset), shown only while open. */
+.collapsible-section__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border: 0;
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+
+.collapsible-section__action:hover {
+  background: var(--surface-hover, rgb(255 255 255 / 8%));
+  color: var(--text-primary);
 }
 
 /* An option that qualifies the one above it — "Only where needed" under
@@ -6590,94 +6846,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   padding: var(--space-3);
 }
 
-/*
- * A View pane's sections (`ViewPaneControls.tsx`), shared by the Simulate and
- * References panes.
- */
-.view-pane-section {
-  flex: 0 0 auto;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.view-pane-section:last-child {
-  border-bottom: 0;
-}
-
-.view-pane-section__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  padding: 8px var(--space-3) 4px;
-}
-
-.view-pane-section__title {
-  color: var(--text-secondary);
-  font-size: 0.74rem;
-  font-weight: 600;
-}
-
-/* Collapsible section header, following `.grid-settings__toggle` in the Edit
-   workspace's view pane so the panes disclose the same way. */
-.view-pane-section__toggle {
-  display: flex;
-  flex: 1 1 auto;
-  align-items: center;
-  gap: 5px;
-  min-width: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.view-pane-section__toggle:hover .view-pane-section__title {
-  color: var(--text-primary);
-}
-
-.view-pane-section__chevron {
-  flex: 0 0 auto;
-  color: var(--text-tertiary);
-  transition: transform 0.12s ease;
-}
-
-.view-pane-section[data-open] .view-pane-section__chevron {
-  transform: rotate(90deg);
-}
-
-/* A closed section is just its header, so the extra bottom padding that spaces a
-   header from its controls would read as a gap. */
-.view-pane-section:not([data-open]) .view-pane-section__header {
-  padding-bottom: 8px;
-}
-
-.view-pane-section__hint {
-  margin: 0;
-  padding: 0 var(--space-3) 6px;
-  color: var(--text-tertiary);
-  font-size: 0.7rem;
-  line-height: 1.35;
-}
-
-.simulator-view-controls-panel__reset {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2px;
-  border: 0;
-  border-radius: var(--radius-sm, 4px);
-  background: transparent;
-  color: var(--text-tertiary);
-  cursor: pointer;
-}
-
-.simulator-view-controls-panel__reset:hover {
-  background: var(--surface-hover, rgb(255 255 255 / 8%));
-  color: var(--text-primary);
-}
-
 /* A text action inside a section body, rather than the icon-only affordance in a
    section header. Sized to the pane's other controls so a row of them lines up
    with the selects and toggles above. */
@@ -6696,70 +6864,6 @@ button.cp-folded-figure-toolbar__notice:hover {
 .simulator-view-controls-panel__action:hover {
   background: var(--surface-hover, rgb(255 255 255 / 8%));
   color: var(--text-primary);
-}
-
-/* Slider plus its readout: the number column is fixed so the sliders align. */
-.simulator-view-controls-panel__slider-value {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.simulator-view-controls-panel__slider-value .ui-slider {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.simulator-view-controls-panel__number {
-  flex: 0 0 auto;
-  min-width: 28px;
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-.control-row[data-disabled] .control-row__label {
-  opacity: 0.5;
-}
-
-.grid-settings {
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.grid-settings__toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 8px var(--space-3);
-  border: 0;
-  background: transparent;
-  color: var(--text-secondary);
-  font: inherit;
-  font-size: 0.74rem;
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-}
-
-.grid-settings__toggle:hover {
-  color: var(--text-primary);
-}
-
-.grid-settings__chevron {
-  flex: 0 0 auto;
-  color: var(--text-tertiary);
-  transition: transform 0.12s ease;
-}
-
-.grid-settings[data-open] .grid-settings__chevron {
-  transform: rotate(90deg);
-}
-
-.grid-settings__body {
-  padding-bottom: var(--space-2);
-  background: color-mix(in srgb, var(--bg-primary) 45%, transparent);
 }
 
 .grid-scale-row {
@@ -7074,157 +7178,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   text-align: center;
 }
 
-.folded-figure-menu__panel {
-  width: min(286px, calc(100vw - var(--space-6)));
-  max-width: calc(100vw - var(--space-6));
-  padding: 8px;
-  gap: 6px;
-  color: var(--text-secondary);
-  white-space: normal;
-}
-
-.folded-figure-menu__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: 0 2px 5px;
-  border-bottom: 1px solid var(--border-subtle);
-  color: var(--text-primary);
-  font-size: 0.75rem;
-  font-weight: 760;
-}
-
-.folded-figure-menu__header span:last-child {
-  min-width: 0;
-  max-width: 150px;
-  overflow: hidden;
-  color: var(--text-tertiary);
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.folded-figure-menu__list {
-  display: grid;
-  max-height: 118px;
-  overflow: auto;
-  gap: 3px;
-  padding-right: 2px;
-}
-
-.folded-figure-menu__figure {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  min-height: 28px;
-  padding: 0 7px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-}
-
-.folded-figure-menu__figure:hover {
-  background: var(--bg-surface);
-  color: var(--text-primary);
-}
-
-.folded-figure-menu__figure[data-active] {
-  border-color: color-mix(in srgb, var(--accent-primary) 42%, transparent);
-  background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
-  color: var(--text-primary);
-}
-
-.folded-figure-menu__figure span {
-  min-width: 0;
-  overflow: hidden;
-  font-size: 0.72rem;
-  font-weight: 740;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.folded-figure-menu__figure small {
-  color: var(--text-tertiary);
-  font-size: 0.64rem;
-  font-weight: 680;
-}
-
-/* 76px is the widest label the popover carries ("Front color", 71px) plus a
-   little; below that it wraps to two lines and the row grows. */
-.folded-figure-menu__field,
-.folded-figure-menu__toggle-row {
-  display: grid;
-  grid-template-columns: 76px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  min-height: 28px;
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  font-weight: 700;
-}
-
-.folded-figure-menu__toggle-row {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-
-.folded-figure-menu__field input,
-.folded-figure-menu__field select {
-  min-width: 0;
-  height: 26px;
-  padding: 0 7px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font: inherit;
-  font-size: 0.72rem;
-}
-
-.folded-figure-menu__field input:focus-visible,
-.folded-figure-menu__field select:focus-visible {
-  border-color: var(--accent-primary);
-  outline: none;
-}
-
-.folded-figure-menu__field input:disabled,
-.folded-figure-menu__field select:disabled {
-  opacity: 0.55;
-}
-
-/* Sized to its options and parked at the right edge of the field column, where the
-   inputs above it end. Stretching a segmented control to the full row divides the
-   width by however many options there happen to be, so the active segment lands
-   somewhere different each time the set changes — and at two options it reads as a
-   half-filled progress bar rather than a choice. */
-.folded-figure-menu__field--segmented .segmented {
-  justify-self: end;
-}
-
-/* The colour rows carry the same label column as the fields around them, so the
-   three swatches line up under the Display select rather than under their own
-   labels. `inline` brings no pane chrome of its own — see ColorField. */
-.folded-figure-menu__panel .color-field--inline {
-  display: grid;
-  grid-template-columns: 76px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  min-height: 28px;
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  font-weight: 700;
-}
-
-.folded-figure-menu__panel .color-field--inline .color-field__value {
-  justify-content: flex-end;
-}
-
 .design-layer-menu {
   right: 0;
   display: grid;
@@ -7446,6 +7399,25 @@ button.cp-folded-figure-toolbar__notice:hover {
 
 .symmetry-menu__item:disabled {
   opacity: 0.45;
+  cursor: default;
+}
+
+/* Pair all mirrored: a full-width row in the preset style, count at the right. */
+.symmetry-menu__action {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.symmetry-menu__action small {
+  font-size: 0.64rem;
+  color: var(--text-tertiary);
+}
+
+.symmetry-menu__action:disabled {
+  opacity: 0.4;
   cursor: default;
 }
 
@@ -8898,6 +8870,44 @@ button.bp-packing-alert:focus-visible {
   color: var(--text-primary);
 }
 
+/* A colour named in a select's option, drawn as a dot beside its label. */
+.select-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 7px;
+  border: 1px solid var(--border-default);
+  border-radius: 50%;
+  vertical-align: -1px;
+}
+
+/* The same affordance on any other row: a field's `reset`, trailing the control. */
+.control-row__reset {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 22px;
+  margin-left: 4px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+
+.control-row__reset:hover:not(:disabled) {
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+
+.control-row__reset:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
 .simulator-view-controls-panel__colors > .control-row:last-child {
   border-bottom: 0;
 }
@@ -9710,7 +9720,6 @@ button.bp-packing-alert:focus-visible {
   .context-menu__item,
   .viewport-toolbar__dropdown-item,
   .symmetry-menu__item,
-  .folded-figure-menu__figure,
   .menu-dropdown__item {
     min-height: var(--touch-target);
   }
@@ -9831,15 +9840,11 @@ button.bp-packing-alert:focus-visible {
   .field-row input,
   .settings-shortcuts__toolbar input[type='search'],
   .design-tab__name-input,
-  .cp-text-toolbar__select,
-  .cp-text-toolbar__color-select,
   .condition-number input,
   .cp-context-panel__field input:not(.number-field__input),
   .cp-context-panel__field select,
   .cp-context-panel__field textarea,
   .viewport-toolbar__rotation-input,
-  .folded-figure-menu__field input,
-  .folded-figure-menu__field select,
   .bp-sheet-menu__input,
   .symmetry-menu__field input,
   .bp-tree-edge-editor__input,
@@ -9924,7 +9929,7 @@ button.bp-packing-alert:focus-visible {
    * `--touch-target` and that is what actually sets the height — so the offset is
    * written in the same token rather than in the number it happens to produce.
    */
-  .canvas-pill-lane[data-view-panel='simulator-view-controls'] {
+  .canvas-pill-lane[data-view-workspace='simulate'] {
     --view-drawer-inset-top: calc(var(--touch-target) + var(--space-2));
   }
 

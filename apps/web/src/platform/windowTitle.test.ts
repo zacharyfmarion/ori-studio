@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SITE_NAME, SITE_TITLE } from '../seo/siteMeta';
 import { formatWindowTitle } from './windowTitle';
 
 describe('window title formatting', () => {
@@ -51,6 +52,41 @@ describe('window title formatting', () => {
         filePath: null,
       })
     ).toBe('Untitled - Ori Studio');
+  });
+
+  /**
+   * On the landing there is no document to name, and the two surfaces want
+   * genuinely different strings for it.
+   *
+   * The web one is the search result, so it has to be the sentence `index.html`
+   * already serves — `useWindowTitle` running on `/welcome` and overwriting that
+   * with the blank project's name is what Google indexed as
+   * "Ori Studio: Untitled". A title bar is not a search result and not a tab, so
+   * desktop takes the name alone rather than a seventy-character sentence.
+   *
+   * The project fields are populated in both cases: what makes this page not a
+   * document is the route, not an empty store.
+   */
+  it('titles the landing for the site on web', () => {
+    expect(
+      formatWindowTitle({
+        projectTitle: 'Crane base',
+        dirty: true,
+        landing: true,
+        surface: 'web',
+      })
+    ).toBe(SITE_TITLE);
+  });
+
+  it('titles the landing with just the app name on desktop', () => {
+    expect(
+      formatWindowTitle({
+        projectTitle: 'Crane base',
+        dirty: true,
+        landing: true,
+        surface: 'desktop',
+      })
+    ).toBe(SITE_NAME);
   });
 
   it('keeps naming the project on web, where no path is ever produced', () => {

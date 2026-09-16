@@ -44,7 +44,6 @@
     "buildCpBeforeSelectingCorridorFacets": "回廊の面を選択する前に展開図を作成してください",
     "buildCpRequiresTree": "CP の作成には編集可能なツリードキュメントが必要です",
     "buildCreasePattern": "展開図を作成",
-    "buildOrEditCpBeforeRefreshing": "シミュレーターを更新する前に展開図を作成または編集してください",
     "changeCircleColor": "円の色を変更...",
     "changeCreaseType": "折り線の種類を変更",
     "changeSelectedCpLineTypes": "選択した展開図の線種を変更",
@@ -178,6 +177,7 @@
     "perturbSelectedNodes": "選択したノードを摂動",
     "placeReferenceImage": "展開図に参照画像を配置します",
     "placeTextBox": "展開図にテキストボックスを配置します",
+    "properties": "プロパティ",
     "pruneZeroRadiusCircles": "無効な半径ゼロの円を除去",
     "rebuildCp": "CP を再作成",
     "rebuildCreasePattern": "展開図を再作成",
@@ -185,8 +185,6 @@
     "redoNextCpEdit": "次の展開図の編集をやり直し",
     "redoNextTreeEdit": "次のツリーの編集をやり直し",
     "references": "リファレンス",
-    "refresh": "更新",
-    "refreshSimulatorModel": "シミュレーターモデルを更新",
     "relieveAllStrain": "すべてのひずみを緩和",
     "relieveStrain": "ひずみを緩和",
     "removeAllStrain": "すべてのひずみを除去",
@@ -233,6 +231,7 @@
     "showConditionsPane": "条件ペインを表示",
     "showDesignWorkspace": "デザインワークスペースを表示",
     "showEditWorkspace": "編集ワークスペースを表示",
+    "showPropertiesPane": "プロパティペインを表示",
     "showReferencesWorkspace": "リファレンスワークスペースを表示",
     "showSimulateWorkspace": "シミュレートワークスペースを表示",
     "simulate": "シミュレート",
@@ -260,6 +259,28 @@
     "reset": "既定に戻す",
     "resetNamed": "{{label}} を既定に戻す"
   },
+  "download": {
+    "allReleases": "GitHub のすべてのダウンロード",
+    "build": {
+      "linuxAppImage": "x86-64 (.AppImage)",
+      "linuxAppImageArm": "ARM64 (.AppImage)",
+      "linuxDeb": "x86-64 (.deb)",
+      "linuxDebArm": "ARM64 (.deb)",
+      "macosArm": "Apple Silicon (.dmg)",
+      "macosIntel": "Intel (.dmg)",
+      "windows": "インストーラー (.exe)"
+    },
+    "cta": "デスクトップアプリをダウンロード",
+    "ctaLinux": "Linux 版をダウンロード",
+    "ctaMacos": "macOS 版をダウンロード",
+    "ctaWindows": "Windows 版をダウンロード",
+    "os": {
+      "linux": "Linux",
+      "macos": "macOS",
+      "windows": "Windows"
+    },
+    "otherPlatforms": "その他のプラットフォーム"
+  },
   "fileDrop": {
     "open": "ドロップして開く",
     "openOrImport": "ドロップして開く／インポート"
@@ -272,11 +293,11 @@
     "credit": "デザイン: <2>Brandon Wong</2>"
   },
   "toolbar": {
-    "new": "新規",
-    "open": "開く",
+    "discord": "Discord に参加",
+    "downloadDesktop": "デスクトップアプリを入手",
+    "downloadDesktopVersion": "デスクトップアプリを入手 ({{version}})",
     "optimizeLayout": "最適化",
     "optimizeScale": "スケールを最適化",
-    "save": "保存",
     "sendToEdit": "編集に送る",
     "sendToEditMore": "「編集に送る」のその他のオプション",
     "sendToEditTooltip": "このデザインの展開図を編集キャンバスに送る",

@@ -5,6 +5,7 @@ import {
 } from '../annotations/annotation';
 import type { AnnotationBox, AspectLockPolicy } from '../annotations/annotationTransform';
 import type { OristudioCpFoldedFigureEntry } from '../../engine/oristudioCpTypes';
+import { selectedCanvasObjectIdOf } from './canvasObjectKinds';
 
 /**
  * The interaction contract for anything the CP surface lets you select, move,
@@ -116,9 +117,14 @@ export function selectedCanvasObjectId(selection: {
   foldedFigureId: string | null;
   inlineSimulationId: string | null;
 }): string | null {
-  return (
-    selection.annotationId ?? selection.foldedFigureId ?? selection.inlineSimulationId ?? null
-  );
+  // The precedence is the kind table's, so a new kind's field is read here the
+  // moment its row exists; this shape stays for the callers that hold the three
+  // ids as props rather than the store.
+  return selectedCanvasObjectIdOf({
+    oristudioCpSelectedAnnotationId: selection.annotationId,
+    oristudioCpActiveFoldedFigureId: selection.foldedFigureId,
+    oristudioCpFocusedInlineSimulationId: selection.inlineSimulationId,
+  });
 }
 
 /**

@@ -8,6 +8,8 @@ const VF: Rgba = [0.9, 0.9, 0.8, 0.72];
 const VS: Rgba = [0.5, 0.5, 0.5, 1];
 
 const CS: Rgba = [0.2, 0.7, 0.7, 1];
+const NF: Rgba = [0.84, 0.66, 0.36, 1];
+const NS: Rgba = [0.1, 0.1, 0.1, 1];
 
 const style = {
   pointSize: 1,
@@ -16,6 +18,8 @@ const style = {
   vertexFill: VF,
   vertexStroke: VS,
   circleStroke: CS,
+  pinnedFill: NF,
+  pinnedStroke: NS,
 };
 
 describe('cpPointsToScene', () => {
@@ -96,5 +100,45 @@ describe('cpPointsToScene', () => {
     // circle (instance index 3) keeps transparent fill, ring takes accent
     closeToAll(geo.fill.slice(12, 16), [0, 0, 0, 0]);
     closeToAll(geo.stroke.slice(12, 16), [...SEL]);
+  });
+});
+
+describe('pinned vertices', () => {
+  const SEL: Rgba = [0, 1, 0, 1];
+  // Float32Array rounds, as the suite above notes.
+  const rgbaAt = (buffer: Float32Array, index: number, expected: Rgba) =>
+    expected.forEach((value, offset) =>
+      expect(buffer[index * 4 + offset]).toBeCloseTo(value, 5)
+    );
+  const vertices = [
+    { x: 0, y: 0 },
+    { x: 1, y: 1 },
+  ];
+
+  it('draws a pinned vertex in the pin colour, larger than an ordinary one', () => {
+    const geometry = cpPointsToScene([], vertices, [], style, {
+      pointIdx: new Set(),
+      circleIdx: new Set(),
+      pinnedIdx: new Set([1]),
+      color: SEL,
+    });
+    rgbaAt(geometry.fill, 0, VF);
+    rgbaAt(geometry.fill, 1, NF);
+    rgbaAt(geometry.stroke, 1, NS);
+    expect(geometry.radius[1]).toBeGreaterThan(geometry.radius[0]);
+  });
+
+  it('lets the grab highlight win where a vertex is both', () => {
+    // The grab highlight answers "what will this press do", which outranks
+    // "this one is held" — and on a pinned vertex the press does nothing, which
+    // the cursor says.
+    const geometry = cpPointsToScene([], vertices, [], style, {
+      pointIdx: new Set(),
+      circleIdx: new Set(),
+      vertexIdx: new Set([1]),
+      pinnedIdx: new Set([1]),
+      color: SEL,
+    });
+    rgbaAt(geometry.fill, 1, SEL);
   });
 });

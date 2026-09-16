@@ -67,8 +67,8 @@
     "discord": "Rejoindre le Discord",
     "eyebrow": "Commencer",
     "github": "Code source et tickets",
-    "lead": "Remontez et commencez un patron de pliage : voilà toute la mise en route. Discord est le meilleur endroit pour signaler un bug ou proposer une idée, et c’est là que les nouveautés sont annoncées en premier.",
-    "title": "Ça tourne dans le navigateur. Rien à installer."
+    "lead": "Ori Studio fonctionne entièrement dans votre navigateur mais, si vous préférez, vous pouvez l’installer comme application de bureau.",
+    "title": "Ouvrez un onglet, ou installez-le"
   },
   "scrollCue": "Voir ce qu’il fait",
   "simulate": {
@@ -80,7 +80,7 @@
   "what": {
     "eyebrow": "De quoi s’agit-il",
     "figureAlt": "L’espace de travail d’Ori Studio : un patron de pliage sur le plan de travail, entouré de la barre d’outils et des panneaux d’inspection.",
-    "lead": "Esquissez une base, dessinez le patron de pliage, puis pliez-le pour voir s’il fonctionne — au même endroit, dans le navigateur, sans rien à installer ni compte à créer.",
+    "lead": "Esquissez une base, dessinez le patron de pliage, puis pliez-le pour voir s’il fonctionne — le tout au même endroit, sans compte. Ouvrez-le dans un onglet de navigateur, ou installez l’application de bureau.",
     "title": "Un espace de travail libre et open source pour la conception d’origami"
   }
 }

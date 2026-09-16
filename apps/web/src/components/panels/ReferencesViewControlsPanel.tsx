@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { REFERENCES_CANDIDATE_COUNTS } from '../../store/workspaceStore/slices/referencesSlice';
 import { useReferencesSettings } from '../../cp-workspace/references/useReferencesSettings';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
-import { ViewPaneSection, ViewPaneToggleRow } from './ViewPaneControls';
+import { CollapsibleSection } from '../ui/CollapsibleSection';
+import { SelectRow, ToggleRow } from '../ui/fieldRows';
 
 /**
  * Options pane for the References workspace, mirroring the Edit and Simulate
@@ -37,33 +37,20 @@ export function ReferencesViewControlsPanel() {
     );
   }
 
-  const solutionsLabel = t('panels:references.settings.solutions', 'Solutions');
-
   return (
     <section className="panel-shell references-view-controls-panel">
       <div className="panel-body references-view-controls-panel__body">
-        <ViewPaneSection title={t('panels:references.settings.candidates', 'Candidates')}>
-          <div className="control-row">
-            <span className="control-row__label">{solutionsLabel}</span>
-            <div className="control-row__value control-row__value--select">
-              <Select
-                value={String(settings.candidateCount)}
-                onValueChange={(value) => setSettings({ candidateCount: Number(value) })}
-              >
-                <SelectTrigger aria-label={solutionsLabel} className="control-row__select">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {REFERENCES_CANDIDATE_COUNTS.map((count) => (
-                    <SelectItem key={count} value={String(count)}>
-                      {count}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <ViewPaneToggleRow
+        <CollapsibleSection title={t('panels:references.settings.candidates', 'Candidates')}>
+          <SelectRow
+            label={t('panels:references.settings.solutions', 'Solutions')}
+            value={String(settings.candidateCount)}
+            options={REFERENCES_CANDIDATE_COUNTS.map((count) => ({
+              id: String(count),
+              label: String(count),
+            }))}
+            onChange={(value) => setSettings({ candidateCount: Number(value) })}
+          />
+          <ToggleRow
             label={t(
               'panels:references.settings.includeApproximate',
               'Include approximate solutions'
@@ -71,27 +58,27 @@ export function ReferencesViewControlsPanel() {
             checked={settings.includeApproximate}
             onChange={(checked) => setSettings({ includeApproximate: checked })}
           />
-        </ViewPaneSection>
+        </CollapsibleSection>
 
-        <ViewPaneSection title={t('panels:references.settings.sequence', 'Precreasing sequence')}>
-          <ViewPaneToggleRow
+        <CollapsibleSection title={t('panels:references.settings.sequence', 'Precreasing sequence')}>
+          <ToggleRow
             label={t('panels:references.settings.landmarksFirst', 'Landmarks first')}
             checked={landmarksFirst}
             onChange={toggleLandmarksFirst}
           />
-          <ViewPaneToggleRow
+          <ToggleRow
             label={t('panels:references.settings.precreaseGrid', 'Precrease grid')}
             checked={settings.precreaseGrid}
             onChange={(checked) => setSettings({ precreaseGrid: checked })}
           />
-          <ViewPaneToggleRow
+          <ToggleRow
             label={t('panels:references.settings.gridWhereNeeded', 'Only where needed')}
             checked={settings.gridWhereNeeded}
             disabled={!settings.precreaseGrid}
             nested
             onChange={(checked) => setSettings({ gridWhereNeeded: checked })}
           />
-          <ViewPaneToggleRow
+          <ToggleRow
             label={t('panels:references.settings.allowDangling', 'Allow dangling folds')}
             help={t(
               'panels:references.settings.allowDanglingHelp',
@@ -100,7 +87,7 @@ export function ReferencesViewControlsPanel() {
             checked={settings.allowDanglingFolds}
             onChange={(checked) => setSettings({ allowDanglingFolds: checked })}
           />
-          <ViewPaneToggleRow
+          <ToggleRow
             label={t('panels:references.settings.mergeSymmetric', 'Merge symmetric steps')}
             help={t(
               'panels:references.settings.mergeSymmetricHelp',
@@ -109,7 +96,7 @@ export function ReferencesViewControlsPanel() {
             checked={settings.mergeSymmetricSteps}
             onChange={(checked) => setSettings({ mergeSymmetricSteps: checked })}
           />
-        </ViewPaneSection>
+        </CollapsibleSection>
       </div>
     </section>
   );

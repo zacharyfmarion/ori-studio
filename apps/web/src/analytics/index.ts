@@ -19,12 +19,15 @@ export type {
   AnalyticsPropertyValue,
   AnalyticsErrorDomain,
   CommandGroup,
+  CommunityLinkSurface,
   ContextMenuSurface,
   ContextMenuTargetKind,
   CpFavoriteSurface,
   DesignMethod,
   DesignTabSource,
   DesignVariant,
+  DesktopDownloadBuild,
+  DesktopDownloadSurface,
   ExportFormat,
   FoldabilityCheckSource,
   FoldCycleDirection,
@@ -64,7 +67,10 @@ export {
   trackCpToolFavorited,
   trackCpToolFavoritesReordered,
 } from './trackCpToolFavorites';
+export { trackCommunityLink } from './trackCommunityLink';
 export { trackDesignSentToEdit } from './trackSendToEdit';
+export { trackDesktopDownload } from './trackDesktopDownload';
+export { trackSymmetryPairChanged, type SymmetryPairAction } from './trackSymmetryPairChanged';
 
 export { useAppOpenedEvent } from './useAppOpenedEvent';
 export { useBpPatternNotFoundEvent } from './useBpPatternNotFoundEvent';

@@ -141,6 +141,7 @@ describe('cpPointerReleaseRoute', () => {
         'drag-box',
         'drag-path',
         'drag-vertex',
+        'pick-vertex',
         'sequence',
         'line-entity',
         'lengthen',

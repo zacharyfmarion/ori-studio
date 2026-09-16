@@ -2229,6 +2229,34 @@ pub fn folded_figure_snapshot_from_session(
     } else {
         None
     };
+    folded_figure_snapshot_with_wireframe(session, model, wireframe)
+}
+
+/// [`folded_figure_snapshot_from_session`] over the figure's cached inputs: the
+/// wireframe is theirs rather than a fresh walk of the graph, under the same
+/// rule — it is part of the answer only once the estimation has reached Step2.
+pub fn folded_figure_snapshot_with_inputs(
+    session: &FoldingEstimateSession,
+    model: FoldedFigureModel,
+    inputs: Option<&FoldedRenderInputs>,
+) -> FoldedFigureSnapshot {
+    let wireframe = inputs
+        .filter(|_| {
+            session
+                .estimate()
+                .estimation_step
+                .is_at_least(EstimationStep::Step2)
+        })
+        .map(|inputs| inputs.folded.clone());
+    folded_figure_snapshot_with_wireframe(session, model, wireframe)
+}
+
+fn folded_figure_snapshot_with_wireframe(
+    session: &FoldingEstimateSession,
+    model: FoldedFigureModel,
+    wireframe: Option<FoldedWireframe>,
+) -> FoldedFigureSnapshot {
+    let estimate = session.estimate();
     let contradiction_faces = estimate.contradiction.and_then(|contradiction| {
         contradiction_flat_faces(&session.segments, session.starting_face_id, contradiction)
     });
@@ -2247,28 +2275,83 @@ pub fn folded_figure_snapshot_from_session(
     }
 }
 
+/// What a flat fold derives from its segments once and every later call
+/// starts from: the fold graph and wireframe, and the subface arrangement the
+/// transparent and paper styles draw. A colour change on a figure used to
+/// rebuild all three per slider tick — and on a ~1800-crease figure that was
+/// most of the tick. Built after the fold succeeds, held by the figure, and
+/// borrowed by every snapshot and render of it. The from-segments entry points
+/// rebuild them each call, which is what the render oracle diffs.
+#[derive(Clone)]
+pub struct FoldedRenderInputs {
+    graph: FoldGraph,
+    folded: FoldedWireframe,
+    /// `None` when the wireframe has no subfaces — a result, not a failure —
+    /// and the styles that need them render nothing, as they always have.
+    subfaces: Option<(FoldGraph, SubFaceConfiguration)>,
+}
+
+impl FoldedRenderInputs {
+    /// The inputs of a session's fold: its segments from its starting face.
+    pub fn for_session(
+        session: &FoldingEstimateSession,
+    ) -> Result<Option<Self>, FoldingEstimateError> {
+        Self::from_segments(&session.segments, session.starting_face_id)
+    }
+
+    /// `Ok(None)` when the segments trace no faces.
+    pub fn from_segments(
+        segments: &[LineSegment],
+        starting_face_id: i32,
+    ) -> Result<Option<Self>, FoldingEstimateError> {
+        let Some((graph, folded)) =
+            folded_graph_and_wireframe_from_segments(segments, starting_face_id)?
+        else {
+            return Ok(None);
+        };
+        let subfaces = folded_subface_graph_and_config(&folded)?;
+        Ok(Some(Self {
+            graph,
+            folded,
+            subfaces,
+        }))
+    }
+}
+
+/// Where a `Paper5` render gets its layer ordering.
+enum HierarchySource<'a> {
+    /// The owning session's solved ordering.
+    Solved(&'a InitialHierarchy),
+    /// Search it from the segments — the from-segments path, with no session
+    /// to ask, and a session whose search found nothing.
+    Search {
+        segments: &'a [LineSegment],
+        starting_face_id: i32,
+    },
+}
+
 pub fn folded_figure_render_snapshot_from_session(
     session: &FoldingEstimateSession,
+    inputs: &FoldedRenderInputs,
     display_style: DisplayStyle,
     model: FoldedFigureModel,
     options: FoldedFigureRenderOptions,
 ) -> Result<Option<FoldedFigureRenderSnapshot>, FoldingEstimateError> {
     // Reuse the layer ordering the session already solved rather than re-running
     // the whole fold estimation inside the renderer.
-    let precomputed_hierarchy = session
+    let hierarchy = match session
         .estimate()
         .overlap
         .as_ref()
         .filter(|overlap| overlap.found)
-        .map(|overlap| &overlap.hierarchy);
-    render_snapshot_impl(
-        &session.segments,
-        session.starting_face_id,
-        display_style,
-        model,
-        options,
-        precomputed_hierarchy,
-    )
+    {
+        Some(overlap) => HierarchySource::Solved(&overlap.hierarchy),
+        None => HierarchySource::Search {
+            segments: &session.segments,
+            starting_face_id: session.starting_face_id,
+        },
+    };
+    render_snapshot_impl(inputs, hierarchy, display_style, model, options)
 }
 
 pub fn folded_figure_snapshot_from_segments(
@@ -2396,39 +2479,41 @@ pub fn folded_figure_render_snapshot_from_segments(
     model: FoldedFigureModel,
     options: FoldedFigureRenderOptions,
 ) -> Result<Option<FoldedFigureRenderSnapshot>, FoldingEstimateError> {
+    let Some(inputs) = FoldedRenderInputs::from_segments(segments, starting_face_id)? else {
+        return Ok(None);
+    };
     render_snapshot_impl(
-        segments,
-        starting_face_id,
+        &inputs,
+        HierarchySource::Search {
+            segments,
+            starting_face_id,
+        },
         display_style,
         model,
         options,
-        None,
     )
 }
 
-/// Shared render-snapshot builder. `precomputed_hierarchy`, when supplied, is the
-/// solved layer ordering from the owning session — reusing it avoids re-running
-/// the entire (expensive) fold estimation just to draw the solid `Paper5` view.
+/// Shared render-snapshot builder over inputs already derived from the
+/// segments. A solved hierarchy is reused rather than searched again — the
+/// search is the entire (expensive) fold estimation, and only the solid
+/// `Paper5` view needs an ordering at all.
 fn render_snapshot_impl(
-    segments: &[LineSegment],
-    starting_face_id: i32,
+    inputs: &FoldedRenderInputs,
+    hierarchy: HierarchySource<'_>,
     display_style: DisplayStyle,
     model: FoldedFigureModel,
     options: FoldedFigureRenderOptions,
-    precomputed_hierarchy: Option<&InitialHierarchy>,
 ) -> Result<Option<FoldedFigureRenderSnapshot>, FoldingEstimateError> {
-    let Some((graph, folded)) =
-        folded_graph_and_wireframe_from_segments(segments, starting_face_id)?
-    else {
-        return Ok(None);
-    };
+    let graph = &inputs.graph;
+    let folded = &inputs.folded;
 
     let needs_subfaces = matches!(
         display_style,
         DisplayStyle::Transparent3 | DisplayStyle::Paper5
     );
     let subface_data = if needs_subfaces {
-        let Some(data) = folded_subface_graph_and_config(&folded)? else {
+        let Some(data) = inputs.subfaces.as_ref() else {
             return Ok(None);
         };
         Some(data)
@@ -2437,19 +2522,23 @@ fn render_snapshot_impl(
     };
 
     let hierarchy = if display_style == DisplayStyle::Paper5 {
-        if let Some(precomputed) = precomputed_hierarchy {
-            Some(HierarchyTable::from_initial(precomputed))
-        } else {
-            let Some(mut enumerator) =
-                overlap_enumerator_from_segments(segments, starting_face_id)?
-            else {
-                return Ok(None);
-            };
-            let overlap = enumerator.possible_overlapping_search(true)?;
-            if !overlap.found {
-                return Ok(None);
+        match hierarchy {
+            HierarchySource::Solved(solved) => Some(HierarchyTable::from_initial(solved)),
+            HierarchySource::Search {
+                segments,
+                starting_face_id,
+            } => {
+                let Some(mut enumerator) =
+                    overlap_enumerator_from_segments(segments, starting_face_id)?
+                else {
+                    return Ok(None);
+                };
+                let overlap = enumerator.possible_overlapping_search(true)?;
+                if !overlap.found {
+                    return Ok(None);
+                }
+                Some(HierarchyTable::from_initial(&overlap.hierarchy))
             }
-            Some(HierarchyTable::from_initial(&overlap.hierarchy))
         }
     } else {
         None
@@ -2478,13 +2567,13 @@ fn render_snapshot_impl(
     if display_style == DisplayStyle::Wire2 {
         match model.state {
             FoldedFigureState::Front0 => {
-                push_wire_render_pass_primitives(&folded, front, &mut primitives)
+                push_wire_render_pass_primitives(folded, front, &mut primitives)
             }
             FoldedFigureState::Back1 => {
-                push_wire_render_pass_primitives(&folded, rear, &mut primitives)
+                push_wire_render_pass_primitives(folded, rear, &mut primitives)
             }
             FoldedFigureState::Both2 | FoldedFigureState::Transparent3 => {
-                push_wire_render_interleaved_primitives(&folded, front, rear, &mut primitives);
+                push_wire_render_interleaved_primitives(folded, front, rear, &mut primitives);
             }
         }
     }
@@ -2492,8 +2581,8 @@ fn render_snapshot_impl(
     if model.state.draws_front() {
         push_folded_display_style_pass_primitives(
             display_style,
-            &folded,
-            subface_data.as_ref(),
+            folded,
+            subface_data,
             hierarchy.as_ref(),
             &model,
             &options.custom_constraints,
@@ -2517,8 +2606,8 @@ fn render_snapshot_impl(
     if model.state.draws_back() {
         push_folded_display_style_pass_primitives(
             display_style,
-            &folded,
-            subface_data.as_ref(),
+            folded,
+            subface_data,
             hierarchy.as_ref(),
             &model,
             &options.custom_constraints,
@@ -2541,8 +2630,8 @@ fn render_snapshot_impl(
 
     if model.state == FoldedFigureState::Transparent3 && display_style == DisplayStyle::Paper5 {
         push_folded_transparency_pass_primitives(
-            &folded,
-            subface_data.as_ref(),
+            folded,
+            subface_data,
             &model,
             &options.custom_constraints,
             transparent_front,
@@ -2561,8 +2650,8 @@ fn render_snapshot_impl(
         }
 
         push_folded_transparency_pass_primitives(
-            &folded,
-            subface_data.as_ref(),
+            folded,
+            subface_data,
             &model,
             &options.custom_constraints,
             transparent_rear,
@@ -2582,8 +2671,8 @@ fn render_snapshot_impl(
     }
 
     push_selected_point_primitives(
-        &graph,
-        &folded,
+        graph,
+        folded,
         model.state,
         front,
         rear,

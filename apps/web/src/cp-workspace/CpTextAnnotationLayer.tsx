@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import type { SerializedEditorState } from 'lexical';
 import type { CpOverlayView } from './CreasePatternWebglCanvas';
 import { useCpOverlayView } from './cpOverlayViewStore';
@@ -82,8 +82,8 @@ export function CpTextAnnotationLayer({
           left: center.x,
           top: center.y,
           width: text.width * pxPerModel,
-          // A drag-created box seeds a minimum height; content grows it downward
-          // past that but never shrinks below (the top stays fixed).
+          // The floor a creation drag or a resize handle set; content grows the
+          // box downward past it but never shrinks it below (the top stays fixed).
           minHeight: text.minHeight > 0 ? text.minHeight * pxPerModel : undefined,
           transform: `translate(-50%, -50%) rotate(${angle}rad)`,
           transformOrigin: 'center center',
@@ -151,24 +151,32 @@ function TextBox({
   // inner scroll for the wheel to have meant.
   useWheelPassthrough(box, resolveCpViewportCanvas);
 
-  // Keep the model height tracking the content so the selection box matches.
+  // Keep the model height tracking the rendered box so the selection frame
+  // matches the ink.
+  const syncHeight = useCallback(() => {
+    if (!box) return;
+    const { pxPerModel: px, height } = measureRef.current;
+    if (px <= 0) return;
+    const modelHeight = box.offsetHeight / px;
+    if (Math.abs(modelHeight - height) * px > 0.5) {
+      onSyncHeight(text.id, modelHeight);
+    }
+  }, [box, text.id, onSyncHeight]);
+  // The two can diverge from either side. Typing and reflow move the DOM box,
+  // which the observer sees. A handle drag moves the *model* height — and when
+  // it asks for less than the content needs, the DOM box stays put at the
+  // content height and the observer never fires, so that side needs its own
+  // trigger or the frame is left shorter than the text.
   useLayoutEffect(() => {
-    if (!text.autoHeight) return;
-    const el = box;
-    if (!el) return;
-    const measure = () => {
-      const { pxPerModel: px, height } = measureRef.current;
-      if (px <= 0) return;
-      const modelHeight = el.offsetHeight / px;
-      if (Math.abs(modelHeight - height) * px > 0.5) {
-        onSyncHeight(text.id, modelHeight);
-      }
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
+    if (!text.autoHeight || !box) return;
+    syncHeight();
+    const observer = new ResizeObserver(syncHeight);
+    observer.observe(box);
     return () => observer.disconnect();
-  }, [box, text.id, text.autoHeight, onSyncHeight, text.doc]);
+  }, [box, text.autoHeight, syncHeight, text.doc]);
+  useLayoutEffect(() => {
+    if (text.autoHeight) syncHeight();
+  }, [text.autoHeight, text.height, text.minHeight, syncHeight]);
 
   return (
     <div

@@ -10,14 +10,13 @@ import {
   Box,
   Compass,
   DraftingCompass,
-  FilePlus,
-  FolderOpen,
+  MessageCircle,
   PenTool,
-  Save,
   Send,
   Settings,
   Sparkles,
 } from 'lucide-react';
+import { ToolbarDownloadButton } from './download/ToolbarDownloadButton';
 import { MenuBar } from './MenuBar';
 import { CanvasHistoryPills } from './CanvasHistoryPills';
 import { CanvasPillLane } from './CanvasPillLane';
@@ -31,10 +30,12 @@ import { WorkspaceViewDrawer } from './WorkspaceViewDrawer';
 import { CpToolsTrigger } from '../cp-workspace/toolCatalog/CpToolsTrigger';
 import { panelComponents } from './panels/PanelComponents';
 import { Button } from './ui/Button';
-import { IconButton } from './ui/IconButton';
+import { IconButton, IconButtonLink } from './ui/IconButton';
 import { SplitButton } from './ui/SplitButton';
 import { useSendToEditActions } from '../designKinds/useSendToEditActions';
+import { trackCommunityLink } from '../analytics';
 import { handleMenuAction } from '../commands/menuActions';
+import { DISCORD_URL } from '../constants/release';
 import { useFileDropTarget } from '../hooks/useFileDropTarget';
 import { useViewPanelReconcile } from '../hooks/useWorkspaceViewDrawer';
 import type { DropTargetPolicy } from '../lib/fileDrop';
@@ -43,7 +44,8 @@ import { usesNativeAppMenu } from '../platform/runtime';
 import {
   applyDefaultLayout,
   clearPersistedLayout,
-  reconcileViewPanel,
+  reconcileSidePanes,
+  refuseDropsIntoHeaderlessGroups,
   useLayoutStore,
 } from '../store/layoutStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -171,43 +173,6 @@ function Toolbar() {
       </div>
       <div className="toolbar__actions">
         {/*
-          `toolbar__action--file` marks the three the phone layout drops. All
-          three are unconditional File-menu entries and no capability can hide
-          them, so the icons are a shortcut rather than the only path — see the
-          phone block in App.css.
-        */}
-        <IconButton
-          size="sm"
-          className="toolbar__action--file"
-          title={t('common:toolbar.new', 'New')}
-          tooltipSide="bottom"
-          disabled={!capabilities['file.new'].enabled}
-          onClick={() => void handleMenuAction('file.new')}
-        >
-          <FilePlus size={15} />
-        </IconButton>
-        <IconButton
-          size="sm"
-          className="toolbar__action--file"
-          title={t('common:toolbar.open', 'Open')}
-          tooltipSide="bottom"
-          disabled={!capabilities['file.open'].enabled}
-          onClick={() => void handleMenuAction('file.open')}
-        >
-          <FolderOpen size={15} />
-        </IconButton>
-        <IconButton
-          size="sm"
-          className="toolbar__action--file"
-          title={t('common:toolbar.save', 'Save')}
-          tooltipSide="bottom"
-          disabled={!capabilities['file.save'].enabled}
-          onClick={() => void handleMenuAction('file.save')}
-        >
-          <Save size={15} />
-        </IconButton>
-        <span className="toolbar__separator" />
-        {/*
           Optimize is the primary action and Send to Edit the secondary one, in
           both design kinds. Optimize is the step that makes the design; Send is
           the hand-off you reach for once it is made. The two kinds used to
@@ -268,6 +233,33 @@ function Toolbar() {
         {(optimizeScale.visible || buildCp.visible || isBpContext) && (
           <span className="toolbar__separator" />
         )}
+        {/*
+          The two outward-facing controls, then Settings.
+
+          A link and not a button that opens a window: everything that makes a
+          destination inspectable before you commit to it — the status bar, the
+          context menu, a middle click — comes from this actually being an
+          anchor. `noopener` because `_blank` would otherwise hand Discord a
+          live `window.opener` back into the app.
+        */}
+        <IconButtonLink
+          size="sm"
+          title={t('common:toolbar.discord', 'Join the Discord')}
+          tooltipSide="bottom"
+          href={DISCORD_URL}
+          target="_blank"
+          rel="noreferrer noopener"
+          onClick={() => trackCommunityLink('toolbar')}
+        >
+          <MessageCircle size={15} />
+        </IconButtonLink>
+        {/*
+          Renders nothing on desktop, where the app is already the thing it
+          offers, and nothing on a phone, which cannot run any of it — so this is
+          the browser build's one piece of chrome the desktop build does not
+          have.
+        */}
+        <ToolbarDownloadButton />
         <IconButton size="sm" title={t('common:toolbar.settings', 'Settings')} tooltipSide="bottom" onClick={() => openSettings()}>
           <Settings size={15} />
         </IconButton>
@@ -367,6 +359,7 @@ export function WorkspaceShell() {
     (event: DockviewReadyEvent) => {
       const { api } = event;
       setDockviewApi(api);
+      refuseDropsIntoHeaderlessGroups(api);
 
       // Build for the workspace the URL asks for, not the store default, so the
       // layout is built once, correctly, with no second rebuild churning the
@@ -391,12 +384,13 @@ export function WorkspaceShell() {
       }
 
       // A restored layout carries the panel set from whenever it was captured,
-      // which need not be the set this pointer wants — see `reconcileViewPanel`.
-      // Idempotent, so the freshly built path above pays nothing for it. Ahead of
-      // the `onDidLayoutChange` subscription below on purpose: a repair is not an
-      // arrangement the user made, so it should not be what gets written back
-      // before they have touched anything.
-      reconcileViewPanel(api, workspace);
+      // which need not be the set this pointer wants, nor the set the table
+      // lists today — see `reconcileSidePanes`. Idempotent, so the freshly built
+      // path above pays nothing for it. Ahead of the `onDidLayoutChange`
+      // subscription below on purpose: a repair is not an arrangement the user
+      // made, so it should not be what gets written back before they have
+      // touched anything.
+      reconcileSidePanes(api, workspace);
 
       // The active panel drives the active editing context (menus, history,
       // shortcuts). Seed it and keep it in sync as the user focuses panels.

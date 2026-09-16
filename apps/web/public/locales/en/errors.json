@@ -18,7 +18,8 @@
     "stripTitle": "This toolbar stopped working"
   },
   "cp": {
-    "foldProducedNothing": "These creases have no flat folded form to draw"
+    "foldProducedNothing": "These creases have no flat folded form to draw",
+    "pinnedVertex": "That crease starts at a pinned vertex, so it cannot be lengthened. Unpin the vertex first, or extend a different crease."
   },
   "cpDetectImport": {
     "addFailed": "The detected crease pattern could not be added.",

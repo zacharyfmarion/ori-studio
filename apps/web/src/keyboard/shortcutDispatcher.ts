@@ -76,11 +76,44 @@ export function isShortcutEditingTarget(target: EventTarget | null): boolean {
   );
 }
 
+/**
+ * Does the target sit inside an open layer — a menu, a Select's listbox, a
+ * popover — which owns the keys aimed at it?
+ *
+ * The other half of {@link isShortcutEditingTarget}'s question. An input owns
+ * its keystrokes because it is typing; an open layer owns them because it is
+ * navigating — Escape dismisses it, arrows and typeahead move through it, Enter
+ * and Space choose. Radix answers all of those *after* the app's capture
+ * listener (its Escape listener is capture-phase on the document too, but
+ * registered when the layer opens, and it stands down once the chord is
+ * `defaultPrevented`), so a runtime that claims the chord first leaves the menu
+ * open while the selection under it goes away.
+ *
+ * Asked of the target's ancestry, not of the document. Radix mounts
+ * `[data-radix-popper-content-wrapper]` for every open layer, so querying the
+ * document for it answers "is any layer open" — and a tooltip is a layer too,
+ * one that holds no focus and owns nothing. The global form stands the runtime
+ * down whenever the pointer happens to rest on a toolbar button; the ancestry
+ * form only while focus is actually inside the layer, which is the only time
+ * the layer is what the user is typing at. `[role="menu"]` is the ARIA
+ * contract and outlives Radix's private attribute; the popper wrapper is what
+ * reaches the layers that are not menus.
+ */
+export function isOpenLayerTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  return target.closest('[role="menu"], [data-radix-popper-content-wrapper]') !== null;
+}
+
 export function handleShortcutKeyDown(
   event: KeyboardEvent,
   options: ShortcutDispatchOptions
 ): boolean {
-  if (event.defaultPrevented || event.isComposing || isShortcutEditingTarget(event.target)) {
+  if (
+    event.defaultPrevented ||
+    event.isComposing ||
+    isShortcutEditingTarget(event.target) ||
+    isOpenLayerTarget(event.target)
+  ) {
     return false;
   }
 

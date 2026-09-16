@@ -20,7 +20,7 @@
  * the chip carries the gesture instead. Resize and rotate still come from that
  * overlay's handles through `useCpAnnotations`, as they do for every other kind.
  */
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { OristudioCpDiagnosticEntry } from '../../engine/oristudioCpTypes';
@@ -32,14 +32,16 @@ import {
 } from '../annotations/annotation';
 import type { CpImage } from '../images/cpImage';
 import {
-  CP_CHECK_CLASSES,
   createCpSuppressionRegion,
   hasAttachedSolveInput,
+  toggledCheckClasses,
   type CpCheckClass,
   type CpSuppressionRegion,
   type CreateCpSuppressionRegionInput,
 } from '../annotations/suppressionRegion';
 import { boxContainsModelPoint } from '../annotations/annotationTransform';
+import { annotationGesture } from '../annotations/annotationGesture';
+import type { GestureToken } from '../canvasObjects/gestureBracket';
 import { cpCheckSuppressionRules, isCpDiagnosticSuppressed } from '../diagnostics/checkSuppression';
 import { visibleCpDiagnostics } from '../diagnostics/visibleEntries';
 
@@ -108,14 +110,18 @@ export interface UseCpRegionActions {
   /**
    * Set a region's owned image opacity. Deliberately unbracketed, like
    * {@link moveRegion}: a slider drag is one gesture and forty samples, and
-   * `AnnotationOpacitySlider` opens and closes the snapshot around the whole of
+   * `GestureSlider` opens and closes the snapshot around the whole of
    * it.
    */
   setRegionImageOpacity: (id: string, opacity: number) => void;
   /** Delete a region's owned image and drop the link, as one undo entry. */
   removeRegionImage: (id: string) => void;
-  /** Snapshot before a multi-step edit (a chip drag), so it undoes as one. */
-  beginGesture: () => void;
+  /**
+   * Snapshot before a multi-step edit (a chip drag), so it undoes as one. False
+   * when another surface holds the annotation layer's bracket; the caller must
+   * not start its drag then.
+   */
+  beginGesture: () => boolean;
   /** Close the snapshot opened by {@link beginGesture} under `label`. */
   commitGesture: (label: string) => void;
 }
@@ -186,19 +192,9 @@ export function cpRegionHiddenCounts(
   return counts;
 }
 
-/** The canonical suppression list with `cpCheckClass` flipped. */
-export function toggledCheckClasses(
-  suppress: readonly CpCheckClass[],
-  cpCheckClass: CpCheckClass
-): CpCheckClass[] {
-  const on = suppress.includes(cpCheckClass);
-  // Rebuilt from the canonical order rather than pushed or spliced, so two
-  // regions suppressing the same set hold equal arrays — the same rule
-  // `normalizeCheckClasses` applies on create and on load.
-  return CP_CHECK_CLASSES.filter((candidate) =>
-    candidate === cpCheckClass ? !on : suppress.includes(candidate)
-  );
-}
+// Moved beside the region type so the Properties pane's catalog, which is
+// React-free, can reach it; re-exported for the callers that import it here.
+export { toggledCheckClasses };
 
 /**
  * The region verbs, without subscribing to anything the verbs do not need.
@@ -215,18 +211,31 @@ export function useCpRegionActions(): UseCpRegionActions {
   const removeAnnotation = useWorkspaceStore((state) => state.removeAnnotation);
   const setSelectedAnnotation = useWorkspaceStore((state) => state.setSelectedAnnotation);
   const recordAnnotationHistory = useWorkspaceStore((state) => state.recordAnnotationHistory);
+  const clearPinsIn = useWorkspaceStore((state) => state.clearOristudioCpVertexPinsIn);
 
-  const preGestureRef = useRef<readonly CanvasAnnotation[] | null>(null);
+  // The layer's bracket, shared with every other annotation surface — a chip
+  // drag and a Properties-pane slider cannot both hold it. `beginGesture`
+  // answers false when refused; a chip drag then does not start.
+  const gestureTokenRef = useRef<GestureToken | null>(null);
   const beginGesture = useCallback(() => {
-    preGestureRef.current = useWorkspaceStore.getState().oristudioCpAnnotations;
+    const token = annotationGesture.begin('chip');
+    gestureTokenRef.current = token;
+    return token !== null;
   }, []);
-  const commitGesture = useCallback(
-    (label: string) => {
-      const previous = preGestureRef.current;
-      preGestureRef.current = null;
-      if (previous) recordAnnotationHistory([...previous], label);
+  const commitGesture = useCallback((label: string) => {
+    const token = gestureTokenRef.current;
+    gestureTokenRef.current = null;
+    if (token) void annotationGesture.commit(token, label);
+  }, []);
+  // A chip drag whose surface unmounted mid-gesture must not hold the
+  // module-level bracket against every later annotation gesture.
+  useEffect(
+    () => () => {
+      const token = gestureTokenRef.current;
+      gestureTokenRef.current = null;
+      if (token) annotationGesture.abort(token);
     },
-    [recordAnnotationHistory]
+    []
   );
 
   const selectRegion = useCallback(
@@ -281,6 +290,14 @@ export function useCpRegionActions(): UseCpRegionActions {
   const removeRegion = useCallback(
     (id: string) => {
       const imageId = ownedImageId(id);
+      // Read imperatively, like every other mutation here, so this hook keeps
+      // subscribing to no store slice at all — see the note on the hook.
+      const region = useWorkspaceStore
+        .getState()
+        .oristudioCpAnnotations.find(
+          (annotation): annotation is CpSuppressionRegion =>
+            annotation.id === id && isSuppressionRegionAnnotation(annotation)
+        );
       beginGesture();
       removeAnnotation(id);
       // After the region, not before: `removeAnnotation` clears the canvas
@@ -288,8 +305,15 @@ export function useCpRegionActions(): UseCpRegionActions {
       // holding it.
       if (imageId) removeAnnotation(imageId);
       commitGesture(t('panels:cpRegion.delete', 'Delete region'));
+      // Outside the gesture bracket, deliberately: pins are not annotations and
+      // record no history entry, so folding them into the undo snapshot would
+      // claim a restore this cannot make. Deleting a region abandons the repair
+      // it was for, which is exactly when its scaffolding should go.
+      if (region) {
+        clearPinsIn({ contains: (point) => boxContainsModelPoint(region, point) });
+      }
     },
-    [beginGesture, commitGesture, removeAnnotation, t]
+    [beginGesture, clearPinsIn, commitGesture, removeAnnotation, t]
   );
 
   const toggleRegionImageHidden = useCallback(

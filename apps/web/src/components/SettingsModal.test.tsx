@@ -122,6 +122,7 @@ function rowChecked(label: string): boolean {
 const ORIEDITA_DEFAULTS_LABEL = 'Use Oriedita defaults';
 const WELCOME_LABEL = 'Show welcome screen on startup';
 const FOLD_WARNING_LABEL = 'Warn before folding a crease pattern with flat-foldability errors';
+const SUGGEST_DETECTION_LABEL = 'Suggest detecting crease patterns in images added to the canvas';
 const ANALYTICS_LABEL =
   'Send anonymous usage analytics and crash reports to help improve Ori Studio';
 
@@ -294,10 +295,11 @@ describe('SettingsModal', () => {
   it('presents the general booleans as switches, each naming its own row copy', () => {
     const rendered = renderModal('general');
 
-    // Startup and Privacy. Updates sits between them but renders nothing off
-    // the desktop build, so it contributes no control here.
-    expect(rendered.querySelectorAll('.settings-toggle-row [role="switch"]')).toHaveLength(2);
-    for (const label of [WELCOME_LABEL, ANALYTICS_LABEL]) {
+    // Startup, the detection suggestion in Models, and Privacy. Updates sits
+    // between them but renders nothing off the desktop build, so it
+    // contributes no control here.
+    expect(rendered.querySelectorAll('.settings-toggle-row [role="switch"]')).toHaveLength(3);
+    for (const label of [WELCOME_LABEL, SUGGEST_DETECTION_LABEL, ANALYTICS_LABEL]) {
       expectSwitchRow(rendered, label);
     }
   });

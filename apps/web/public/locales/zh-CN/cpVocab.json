@@ -277,6 +277,14 @@
         "0": "拖动顶点以移动"
       }
     },
+    "cp_action_vertex_pin": {
+      "label": "固定顶点",
+      "tooltip": "点击顶点将其固定，求解器和所有变换都不会移动它",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "点击顶点以固定或取消固定"
+      }
+    },
     "cp_action_crease_make_mountain": {
       "label": "设为山折",
       "tooltip": "将所选线设为山折",

@@ -12,6 +12,10 @@ pub mod decode;
 pub mod defaults;
 pub mod evidence_extract;
 mod legacy_decode;
+pub mod likelihood;
+mod likelihood_model;
+#[cfg(feature = "native-inference")]
+pub mod native_inference;
 pub mod opencv_hough_lines_p;
 pub mod rectify;
 pub mod refinement;

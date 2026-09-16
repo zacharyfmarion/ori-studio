@@ -167,10 +167,10 @@ describe('CpViewControlsPanel', () => {
     });
 
     // The section expands inline within the panel rather than as a popover.
-    expect(view.querySelector('.grid-settings__body')).toBeNull();
-    const toggle = view.querySelector<HTMLButtonElement>('.grid-settings__toggle');
+    expect(view.querySelector('.collapsible-section__body')).toBeNull();
+    const toggle = view.querySelector<HTMLButtonElement>('.collapsible-section__toggle');
     act(() => toggle?.click());
-    expect(view.querySelector('.grid-settings__body')).not.toBeNull();
+    expect(view.querySelector('.collapsible-section__body')).not.toBeNull();
 
     const angleInput = view.querySelector<HTMLInputElement>('input[aria-label="Angle"]');
     expect(angleInput?.value).toBe('90');

@@ -277,6 +277,14 @@
         "0": "Drag a vertex to move it"
       }
     },
+    "cp_action_vertex_pin": {
+      "label": "Pin Vertex",
+      "tooltip": "Click a vertex to hold it in place — the solver and every transform leave it alone",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Click a vertex to pin or unpin it"
+      }
+    },
     "cp_action_crease_make_mountain": {
       "label": "Make mountain",
       "tooltip": "Make selected lines mountain folds",

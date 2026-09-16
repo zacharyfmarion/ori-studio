@@ -44,7 +44,6 @@
     "buildCpBeforeSelectingCorridorFacets": "통로 면을 선택하기 전에 전개도를 생성하세요",
     "buildCpRequiresTree": "전개도 생성에는 편집 가능한 트리 문서가 필요합니다",
     "buildCreasePattern": "전개도 생성",
-    "buildOrEditCpBeforeRefreshing": "시뮬레이터를 새로 고치기 전에 전개도를 생성하거나 편집하세요",
     "changeCircleColor": "원 색상 변경...",
     "changeCreaseType": "접힘선 종류 변경",
     "changeSelectedCpLineTypes": "선택한 전개도 선 종류 변경",
@@ -178,6 +177,7 @@
     "perturbSelectedNodes": "선택한 노드 섭동",
     "placeReferenceImage": "전개도에 참조 이미지를 배치합니다",
     "placeTextBox": "전개도에 텍스트 상자를 배치합니다",
+    "properties": "속성",
     "pruneZeroRadiusCircles": "반지름이 0인 잘못된 원 정리",
     "rebuildCp": "전개도 다시 생성",
     "rebuildCreasePattern": "전개도 다시 생성",
@@ -185,8 +185,6 @@
     "redoNextCpEdit": "다음 전개도 편집 다시 실행",
     "redoNextTreeEdit": "다음 트리 편집 다시 실행",
     "references": "참조",
-    "refresh": "새로 고침",
-    "refreshSimulatorModel": "시뮬레이터 모델 새로 고침",
     "relieveAllStrain": "모든 장력 완화",
     "relieveStrain": "장력 완화",
     "removeAllStrain": "모든 장력 제거",
@@ -233,6 +231,7 @@
     "showConditionsPane": "조건 창 표시",
     "showDesignWorkspace": "디자인 작업 공간 표시",
     "showEditWorkspace": "편집 작업 공간 표시",
+    "showPropertiesPane": "속성 창 표시",
     "showReferencesWorkspace": "참조 작업 공간 표시",
     "showSimulateWorkspace": "시뮬레이션 작업 공간 표시",
     "simulate": "시뮬레이션",
@@ -260,6 +259,28 @@
     "reset": "기본값으로 재설정",
     "resetNamed": "{{label}}을(를) 기본값으로 재설정"
   },
+  "download": {
+    "allReleases": "GitHub의 모든 다운로드",
+    "build": {
+      "linuxAppImage": "x86-64 (.AppImage)",
+      "linuxAppImageArm": "ARM64 (.AppImage)",
+      "linuxDeb": "x86-64 (.deb)",
+      "linuxDebArm": "ARM64 (.deb)",
+      "macosArm": "Apple Silicon (.dmg)",
+      "macosIntel": "Intel (.dmg)",
+      "windows": "설치 프로그램 (.exe)"
+    },
+    "cta": "데스크톱 앱 다운로드",
+    "ctaLinux": "Linux용 다운로드",
+    "ctaMacos": "macOS용 다운로드",
+    "ctaWindows": "Windows용 다운로드",
+    "os": {
+      "linux": "Linux",
+      "macos": "macOS",
+      "windows": "Windows"
+    },
+    "otherPlatforms": "다른 플랫폼"
+  },
   "fileDrop": {
     "open": "놓아서 열기",
     "openOrImport": "놓아서 열거나 가져오기"
@@ -272,11 +293,11 @@
     "credit": "디자인: <2>Brandon Wong</2>"
   },
   "toolbar": {
-    "new": "새로 만들기",
-    "open": "열기",
+    "discord": "Discord 참여하기",
+    "downloadDesktop": "데스크톱 앱 받기",
+    "downloadDesktopVersion": "데스크톱 앱 받기 ({{version}})",
     "optimizeLayout": "최적화",
     "optimizeScale": "배율 최적화",
-    "save": "저장",
     "sendToEdit": "편집으로 보내기",
     "sendToEditMore": "편집으로 보내기 추가 옵션",
     "sendToEditTooltip": "이 디자인의 전개도를 편집 캔버스로 보냅니다",

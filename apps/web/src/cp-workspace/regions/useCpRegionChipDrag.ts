@@ -32,6 +32,7 @@
 import { useCallback, useRef, type PointerEvent as ReactPointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCpOverlayViews } from '../cpOverlayViewStore';
+import { cpSurfacePanPress } from '../picking/cpSurfacePressRegistry';
 import { overlayCssDeltaToModel, type Vec2 } from '../annotations/annotationTransform';
 
 /**
@@ -72,7 +73,8 @@ export interface CpRegionChipDragOptions {
   /** Write a new centre. Unbracketed — see {@link onGestureStart}. */
   onMove: (center: Vec2) => void;
   /** Snapshot for undo, opened on the first move rather than on the press. */
-  onGestureStart: () => void;
+  /** Opens the layer's bracket; false refuses the drag. */
+  onGestureStart: () => boolean;
   /** Close the snapshot under a label, so the drag undoes as one entry. */
   onGestureCommit: (label: string) => void;
 }
@@ -101,6 +103,19 @@ export function useCpRegionChipDrag({
 
   const onPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLElement>) => {
+      // Before the selection, and before the button check: Meta, the middle
+      // button and the hand tool pan the crease pattern, and pan is unclaimable
+      // by design — a bar floating over the canvas may not be the one place it
+      // dies. Handed over as the *native* event, since the canvas takes pointer
+      // capture on it to redirect the rest of the gesture to itself.
+      //
+      // This bar is portalled out of the viewport, so the press registry is not
+      // merely the tidy channel to the canvas — it is the only one.
+      const surface = cpSurfacePanPress(event.nativeEvent);
+      if (surface) {
+        surface.press(event.nativeEvent);
+        return;
+      }
       onSelect();
       if (event.button !== 0 || isChipControl(event.target)) return;
       // Optional because the bar moves *with* the region it is dragging, so the
@@ -133,8 +148,14 @@ export function useCpRegionChipDrag({
       };
       if (!drag.moved) {
         if (Math.hypot(dCss.x, dCss.y) <= DRAG_THRESHOLD_PX) return;
+        // Refused when another surface holds the annotation layer's bracket
+        // (a Properties-pane slider mid-drag): a move that cannot be recorded
+        // is a move that must not happen.
+        if (!onGestureStart()) {
+          dragRef.current = null;
+          return;
+        }
         drag.moved = true;
-        onGestureStart();
       }
       const dModel = overlayCssDeltaToModel(views.model, dCss);
       if (!dModel) return;

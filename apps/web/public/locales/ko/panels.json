@@ -60,6 +60,9 @@
     "nudgeRight": "BP 선택 항목 오른쪽으로 이동",
     "nudgeUp": "BP 선택 항목 위로 이동",
     "onlyOnePattern": "패턴 하나뿐",
+    "pair": "미러와 페어 지정",
+    "pairAll": "대칭인 것 모두 페어 지정",
+    "pairAllNone": "서로 마주 보는 미지정 플랩이 없습니다.",
     "pattern": "패턴",
     "patternNotFound": "패턴을 찾을 수 없음",
     "patternNotFoundFor": "{{flaps}}의 접힘 패턴이 없습니다",
@@ -106,6 +109,11 @@
     "fold": {
       "book": "반 접기",
       "diagonal": "대각선 접기"
+    },
+    "problem": {
+      "axisOffCentre": "옵티마이저가 용지를 대칭으로 유지하려면 대칭축이 용지 중심을 지나야 합니다.",
+      "notAMirror": "페어가 대칭이 아닙니다. 서로 페어를 이루지 않는 플랩이 있습니다. 각 플랩은 정확히 다른 플랩 하나와 페어이거나, 축 위에서 자기 자신과 페어여야 합니다.",
+      "unpaired": "{{names}}와(과) 페어인 항목이 없습니다. 선택한 뒤 ‘미러와 페어 지정’을 선택하거나, ‘대칭인 것 모두 페어 지정’을 사용하거나, 대칭 그리기를 켜고 그리거나, 미러 선 위로 옮기세요."
     }
   },
   "bpTree": {
@@ -121,6 +129,8 @@
     "length": "길이",
     "mirrorDraw": "대칭 그리기",
     "mirrorDrawOn": "대칭 그리기(켜짐)",
+    "pair": "미러와 페어 지정",
+    "pairAll": "대칭인 것 모두 페어 지정",
     "selectEdge": "BP 모서리 {{id}} 선택, 길이 {{length}}",
     "selectLeafVertex": "BP 리프 정점 {{id}} 선택",
     "selectLeafVertexWithLabel": "BP 리프 정점 {{id}} 선택, {{label}}",
@@ -172,6 +182,12 @@
     "maekawa": "마에카와(패리티)",
     "vertexClosure": "꼭짓점 닫힘"
   },
+  "cpDetectSuggestion": {
+    "ariaLabel": "이미지에서 전개도 감지됨",
+    "detect": "접는 선 감지",
+    "label": "전개도처럼 보입니다",
+    "notNow": "나중에"
+  },
   "cpExactSolve": {
     "hint": {
       "geometry": "보통 1초 이내입니다.",
@@ -201,12 +217,48 @@
       "refinement": "접기 정밀도로 다듬는 중"
     }
   },
+  "cpProperties": {
+    "empty": "캔버스에서 개체를 선택하면 속성을 편집할 수 있습니다.",
+    "folded": {
+      "appearance": "모양",
+      "camera": "카메라",
+      "changeView": "접힌 모델 보기 변경",
+      "pitch": "기울기",
+      "placement": "배치",
+      "refoldToChange": "이 모델의 모양을 바꾸려면 다시 접으세요",
+      "rotation": "회전",
+      "scale": "크기",
+      "yaw": "회전 각도",
+      "zoom": "확대"
+    },
+    "image": {
+      "rotation": "회전",
+      "title": "이미지"
+    },
+    "inlineSimulation": {
+      "settings": "시뮬레이터 설정",
+      "sharedNote": "시뮬레이트 작업 공간 및 모든 창과 공유됨",
+      "title": "시뮬레이션 창"
+    },
+    "region": {
+      "hidden": "숨김",
+      "imageShown": "표시",
+      "section": "영역",
+      "title": "검사 억제 영역"
+    },
+    "text": {
+      "changeSize": "텍스트 크기 변경",
+      "size": "크기",
+      "title": "텍스트"
+    }
+  },
   "cpRegion": {
     "accept": "적용",
     "acceptAnyway": "그래도 적용",
     "acceptHistory": "정밀 풀이 적용",
     "acceptPartialHistory": "정밀 풀이 부분 결과 적용",
     "addRegion": "억제 영역 추가",
+    "bringToFront": "영역을 맨 앞으로 가져오기",
     "changeChecks": "억제할 검사 변경",
     "checksMenu": "억제된 검사",
     "completion": {
@@ -246,6 +298,8 @@
       "graphMismatch": "풀이 결과가 이 영역의 접는 선과 맞지 않아 아무것도 바뀌지 않았습니다. 다시 풀어 보세요.",
       "noPattern": "이 영역 안에 접는 선이 없어 풀 것이 없습니다. 영역을 감지된 전개도 위로 옮긴 뒤 다시 시도하세요."
     },
+    "repairTools": "복구 도구",
+    "sendToBack": "영역을 맨 뒤로 보내기",
     "solve": "풀기",
     "solveError": "풀이를 실행할 수 없습니다 — {{message}}",
     "solveErrorUnknown": "풀이를 실행할 수 없습니다.",
@@ -294,13 +348,13 @@
     "angleBisectorSelectSegmentToEnd": "각 이등분선: 끝낼 선분 선택",
     "anotherSolutionAction": "다른 해 표시",
     "bringImageToFront": "이미지를 맨 앞으로 가져오기",
+    "bringTextToFront": "텍스트를 맨 앞으로 가져오기",
     "buildingCreasePattern": "전개도 생성 중",
     "canvasDiagnostics_other": "캔버스 진단: {{count}}개",
     "case_other": "케이스 {{count}}",
     "changeFoldedColor": "접힌 모델 색상 변경",
     "changeFoldedDisplayStyle": "접힌 표시 스타일 변경",
     "changeFoldedModel": "접힌 모델 변경",
-    "closeFoldedModels": "접힌 모델 닫기",
     "commandFailed": "명령 실패",
     "contextMenu": {
       "creaseType": "접는 선 종류",
@@ -342,7 +396,6 @@
       "warningOther_other": "{{label}} 경고 {{count}}개"
     },
     "diagnosticsHidden_other": "필터로 문제 {{count}}개 숨김",
-    "display": "표시",
     "duplicateFoldedModelAction": "접힌 모델 복제",
     "flipFoldedModel": "접힌 모델 뒤집기",
     "fold": "접기",
@@ -386,14 +439,10 @@
       "front": "앞면 색",
       "line": "선 색"
     },
-    "foldedDisplayStyle": "접힌 표시 스타일",
     "foldedFigure": {
       "windowAriaLabel": "접힌 모델, 3차원",
       "windowFailed": "이 모델을 그릴 수 없습니다"
     },
-    "foldedModelControls": "접힌 모델 컨트롤",
-    "foldedModels": "접힌 모델",
-    "foldedModelSide": "접힌 모델 면",
     "foldedModelStatus": {
       "error": "실패",
       "loading": "접는 중…"
@@ -401,14 +450,6 @@
     "foldedState": {
       "back": "뒷면",
       "front": "앞면"
-    },
-    "foldedStyle": {
-      "dev1": "Dev 1",
-      "dev4": "Dev 4",
-      "none": "없음",
-      "paper": "종이",
-      "transparent": "투명",
-      "wire": "와이어"
     },
     "foldModelAction": "모델 접기",
     "inlineSimulation": {
@@ -444,11 +485,11 @@
     "moveSimulationWindow": "시뮬레이션 창 이동",
     "noCreasePattern": "전개도 없음",
     "noImportedCreasePattern": "가져온 전개도 없음",
-    "none": "없음",
     "openingSharedLink": "공유된 전개도를 여는 중…",
     "optimizingScale": "배율 최적화 중",
     "orbitFoldedForm": "접힌 도형 회전",
     "preparing": "편집기를 준비하는 중…",
+    "propertiesEllipsis": "속성…",
     "refoldFoldedModelAction": "접힌 모델 다시 접기",
     "rendererContextLost": "전개도 캔버스를 복원하는 중…",
     "rendererContextLostHint": "시스템이 이 캔버스의 그래픽 메모리를 회수했습니다. 기기의 메모리가 부족할 때 일어날 수 있습니다. 전개도는 안전하며, 그래픽 컨텍스트가 돌아오는 즉시 화면도 돌아옵니다. 돌아오지 않으면 Ori Studio를 새로 고치세요.",
@@ -479,11 +520,10 @@
       "simulateInline": "인라인 시뮬레이션"
     },
     "sendImageToBack": "이미지를 맨 뒤로 보내기",
+    "sendTextToBack": "텍스트를 맨 뒤로 보내기",
     "setFoldedModelUpright": "접힌 모델의 위쪽 방향 설정",
     "shadow": "그림자",
     "shadowUnsupported3d": "3D 접힌 모델에는 아직 그림자가 그려지지 않습니다",
-    "showFoldedModelShadow": "접힌 모델 그림자 표시",
-    "side": "면",
     "stale": "오래됨",
     "viewFoldedModelOtherSide": "반대편에서 보기",
     "viewportControls": "전개도 뷰포트 컨트롤",
@@ -629,6 +669,8 @@
     "noResultsYetTitle": "아직 결과가 없습니다",
     "openInExplori": "ExplOri에서 열기",
     "openResult": "결과 {{id}} 열기",
+    "pair": "대칭 연결",
+    "pairAll": "대칭인 것 모두 연결",
     "previousResult": "이전 결과",
     "qualityAcceptable": "보통 일치",
     "qualityGood": "좋은 일치",
@@ -682,7 +724,6 @@
   "foldedFigureActions": {
     "anotherSolution": "다른 해",
     "delete": "삭제",
-    "displayStyle": "표시 스타일",
     "duplicate": "복제",
     "export": "내보내기…",
     "exportPng": "PNG 이미지",
@@ -692,8 +733,12 @@
     "label": "접힌 모델 작업",
     "otherSide": "반대편",
     "refold": "다시 접기",
+    "renderAs": "표시 방식",
     "resetView": "보기 초기화",
     "setUpright": "위쪽 방향 설정",
+    "side": "면",
+    "sideUnsupported3d": "3D 모델은 “반대편”으로 돌립니다",
+    "style": "스타일",
     "styleDev1": "개발 1",
     "styleDev4": "개발 4",
     "styleNone": "없음",
@@ -970,6 +1015,11 @@
       "zeroLengthSegments": "{{n}}개의 접는 선이 너무 짧아 측정할 수 없어 건너뛰었습니다."
     }
   },
+  "sidePane": {
+    "properties": "속성",
+    "settings": "설정",
+    "view": "보기"
+  },
   "simulator": {
     "backendCpu": "CPU",
     "backendCpuTitle": "CPU에서 계산 중 (WebGL2 사용 불가)",
@@ -991,8 +1041,7 @@
     "pause": "일시정지",
     "percent": "{{value}}%",
     "play": "재생",
-    "refresh": "새로 고침",
-    "reset": "초기화",
+    "restart": "다시 시작",
     "setUpright": "위쪽 방향 설정",
     "stats": "정점 {{vertices}}개 | 삼각형 {{triangles}}개",
     "step": "단계",
@@ -1072,13 +1121,18 @@
     "addText": "텍스트 추가",
     "alignCenter": "가운데 정렬",
     "alignLeft": "왼쪽 정렬",
-    "alignment": "정렬",
     "alignRight": "오른쪽 정렬",
     "blockBody": "본문",
     "blockHeading": "제목",
     "blockSubheading": "부제목",
     "bold": "굵게",
     "color": "텍스트 색상",
+    "colorBlue": "파란색",
+    "colorDefault": "기본",
+    "colorGreen": "초록색",
+    "colorOrange": "주황색",
+    "colorPurple": "보라색",
+    "colorRed": "빨간색",
     "deleteText": "텍스트 삭제",
     "editText": "텍스트 편집",
     "italic": "기울임꼴",
@@ -1090,7 +1144,8 @@
   "treeEditor": {
     "contextMenu": {
       "addLeaf": "여기에 잎 추가",
-      "deselect": "모두 선택 해제"
+      "deselect": "모두 선택 해제",
+      "pairAllNone": "서로 마주 보는 미지정 노드가 없습니다."
     }
   }
 }

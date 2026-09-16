@@ -3,6 +3,9 @@
     "failed": "Cette action n’a pas pu être effectuée",
     "failedDetail": "Rien n’a été modifié. Si cela persiste, essayez de recharger."
   },
+  "cpDetectSuggestion": {
+    "turnOff": "Vous pouvez désactiver ces suggestions dans Réglages ▸ Général ▸ Modèles."
+  },
   "cpRegionSolve": {
     "failed": "Impossible de résoudre ce patron",
     "incompleteAction": "« Réessayer » pour réparer la topologie et relancer la résolution, ou « Accepter quand même » pour conserver ces coordonnées.",

@@ -6,6 +6,8 @@ import type { CpPointStyle } from './cpPointsToScene';
 const VERTEX_OPACITY = 0.72;
 
 const FALLBACK: Rgba = [0.6, 0.6, 0.64, 1];
+/** `--status-warning` in the default theme, for a root that resolves nothing. */
+const PINNED_FALLBACK: Rgba = [0xd7 / 255, 0xa8 / 255, 0x5c / 255, 1];
 
 function withAlpha(color: Rgba, alpha: number): Rgba {
   return [color[0], color[1], color[2], color[3] * alpha];
@@ -28,5 +30,10 @@ export function resolveCpPointStyle(styleRoot: Element, pointSize: number): CpPo
     vertexFill: withAlpha(readCssVarColor(styleRoot, '--bg-paper', FALLBACK), VERTEX_OPACITY),
     vertexStroke: withAlpha(readCssVarColor(styleRoot, '--text-secondary', FALLBACK), VERTEX_OPACITY),
     circleStroke: readCssVarColor(styleRoot, '--accent-secondary', FALLBACK),
+    // Fully opaque, unlike the ordinary vertex dot: a pin is a constraint the
+    // user placed and has to be able to find again, so it does not wear the
+    // 0.72 the derived-vertex marks wear to stay out of the way of the creases.
+    pinnedFill: readCssVarColor(styleRoot, '--status-warning', PINNED_FALLBACK),
+    pinnedStroke: readCssVarColor(styleRoot, '--bg-primary', FALLBACK),
   };
 }

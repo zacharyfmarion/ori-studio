@@ -38,6 +38,7 @@ import {
   SquareDashedBottom,
   Tag,
   TriangleAlert,
+  Link,
   Unlink,
   Waypoints,
 } from 'lucide-react';
@@ -533,6 +534,14 @@ function BpPackingViewportToolbar({
           icon: <Unlink size={14} />,
           onSelect: () => symmetry.unpair(symmetry.unpairableId as number),
         },
+        symmetry.unpairableId === null &&
+          symmetry.pairableId !== null && {
+            kind: 'action' as const,
+            id: 'pair',
+            label: t('panels:bpPacking.pair', 'Pair with mirror'),
+            icon: <Link size={14} />,
+            onSelect: () => symmetry.pair(symmetry.pairableId as number),
+          },
       ],
     },
     {

@@ -181,6 +181,35 @@ the DOM**.
   (mirroring the crease move-drag: `setStrokes`/`setPoints`), coalesced to one
   render per rAF — never rebuild buffers or re-upload textures mid-gesture.
 
+- **Selection, properties and floating chrome:** register the kind in the
+  canvas-object kind table
+  ([`src/cp-workspace/canvasObjects/canvasObjectKinds.ts`](../src/cp-workspace/canvasObjects/canvasObjectKinds.ts))
+  with a row beside the kind (`selectionIdField`, `entriesField`,
+  `resolve`), and the typechecker names the rest: a `useSheet` row in
+  [`src/cp-workspace/properties/canvasObjectPropertyRegistry.ts`](../src/cp-workspace/properties/canvasObjectPropertyRegistry.ts)
+  built from a React-free catalog (`build<Kind>Properties(target, deps)`, see
+  [`src/cp-workspace/images/imageProperties.ts`](../src/cp-workspace/images/imageProperties.ts)),
+  an arm in
+  [`src/cp-workspace/canvasObjects/CpFloatingInspectors.tsx`](../src/cp-workspace/canvasObjects/CpFloatingInspectors.tsx)
+  (`return null` if the kind has no floating verbs), and — for an annotation
+  kind — a row in `annotationVerbLabels`. The layer's `use*` hook returns one
+  [`CanvasLayerBinding`](../src/cp-workspace/canvasObjects/canvasLayerBindings.ts)
+  (transformables, framing boxes, inert bodies, select/release, the four
+  gesture callbacks, remove, `contextMenu`); the crease-pattern panel merges the
+  layers and dispatches by id without naming a kind. A kind that joins an
+  existing layer touches nothing under `components/panels/`; a kind on a *new*
+  layer costs the panel two lines (mount the hook, append its binding) plus a
+  fourth `createGestureBracket` instance and its history fields.
+
+  Two honest counts, from the Properties pane plan
+  (`implementation-plans/canvas-object-properties-panel.md`): what the pane adds
+  to a kind that already exists on the canvas is three new files (kind row,
+  catalog, hook), four compile-enforced edits and the locale files; what a
+  brand-new kind costs *before* the pane sees it is everything above this
+  bullet — the `.osf` field, the export-loss row, the render seam, the creation
+  verb and its labels — which is the 20–40 file reality that a
+  "register a kind" checklist should not hide.
+
 ### 5. Preserve unknown `extensions` for forward-compat
 So data written by a *newer* app version survives a round-trip through an
 *older* one, thread the previously-loaded `extensions` back through save instead

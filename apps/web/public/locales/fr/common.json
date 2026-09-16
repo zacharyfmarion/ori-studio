@@ -44,7 +44,6 @@
     "buildCpBeforeSelectingCorridorFacets": "Générez un patron de plis avant de sélectionner les facettes de couloir",
     "buildCpRequiresTree": "La génération du patron de plis requiert un document d'arbre modifiable",
     "buildCreasePattern": "Générer le patron de plis",
-    "buildOrEditCpBeforeRefreshing": "Générez ou modifiez un patron de plis avant d'actualiser le simulateur",
     "changeCircleColor": "Changer la couleur du cercle...",
     "changeCreaseType": "Changer le type de pli",
     "changeSelectedCpLineTypes": "Changer les types de ligne du patron de plis sélectionnés",
@@ -178,6 +177,7 @@
     "perturbSelectedNodes": "Perturber les nœuds sélectionnés",
     "placeReferenceImage": "Placer une image de référence sur le patron de plis",
     "placeTextBox": "Placer une zone de texte sur le patron de plis",
+    "properties": "Propriétés",
     "pruneZeroRadiusCircles": "Élaguer les cercles invalides de rayon zéro",
     "rebuildCp": "Regénérer le patron de plis",
     "rebuildCreasePattern": "Regénérer le patron de plis",
@@ -185,8 +185,6 @@
     "redoNextCpEdit": "Rétablir la prochaine modification du patron de plis",
     "redoNextTreeEdit": "Rétablir la prochaine modification de l'arbre",
     "references": "Références",
-    "refresh": "Actualiser",
-    "refreshSimulatorModel": "Actualiser le modèle du simulateur",
     "relieveAllStrain": "Soulager toute la tension",
     "relieveStrain": "Soulager la tension",
     "removeAllStrain": "Supprimer toute la tension",
@@ -233,6 +231,7 @@
     "showConditionsPane": "Afficher le panneau des conditions",
     "showDesignWorkspace": "Afficher l'espace de travail Conception",
     "showEditWorkspace": "Afficher l'espace de travail Édition",
+    "showPropertiesPane": "Afficher le panneau des propriétés",
     "showReferencesWorkspace": "Afficher l'espace de travail Références",
     "showSimulateWorkspace": "Afficher l'espace de travail Simuler",
     "simulate": "Simuler",
@@ -260,6 +259,28 @@
     "reset": "Réinitialiser",
     "resetNamed": "Réinitialiser {{label}}"
   },
+  "download": {
+    "allReleases": "Tous les téléchargements sur GitHub",
+    "build": {
+      "linuxAppImage": "x86-64 (.AppImage)",
+      "linuxAppImageArm": "ARM64 (.AppImage)",
+      "linuxDeb": "x86-64 (.deb)",
+      "linuxDebArm": "ARM64 (.deb)",
+      "macosArm": "Apple Silicon (.dmg)",
+      "macosIntel": "Intel (.dmg)",
+      "windows": "Programme d'installation (.exe)"
+    },
+    "cta": "Télécharger l'application de bureau",
+    "ctaLinux": "Télécharger pour Linux",
+    "ctaMacos": "Télécharger pour macOS",
+    "ctaWindows": "Télécharger pour Windows",
+    "os": {
+      "linux": "Linux",
+      "macos": "macOS",
+      "windows": "Windows"
+    },
+    "otherPlatforms": "Autres plateformes"
+  },
   "fileDrop": {
     "open": "Déposez pour ouvrir",
     "openOrImport": "Déposez pour ouvrir ou importer"
@@ -272,11 +293,11 @@
     "credit": "Conçu par <2>Brandon Wong</2>"
   },
   "toolbar": {
-    "new": "Nouveau",
-    "open": "Ouvrir",
+    "discord": "Rejoindre le Discord",
+    "downloadDesktop": "Obtenir l'application de bureau",
+    "downloadDesktopVersion": "Obtenir l'application de bureau ({{version}})",
     "optimizeLayout": "Optimiser",
     "optimizeScale": "Optimiser l'échelle",
-    "save": "Enregistrer",
     "sendToEdit": "Envoyer vers Édition",
     "sendToEditMore": "Autres options d’envoi vers Édition",
     "sendToEditTooltip": "Envoyer le patron de plis de cette conception vers le canevas Édition",

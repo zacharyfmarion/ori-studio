@@ -44,7 +44,6 @@
     "buildCpBeforeSelectingCorridorFacets": "Generar un patrón de pliegues antes de seleccionar facetas de corredor",
     "buildCpRequiresTree": "Generar CP requiere un documento de árbol editable",
     "buildCreasePattern": "Generar patrón de pliegues",
-    "buildOrEditCpBeforeRefreshing": "Generar o editar un patrón de pliegues antes de actualizar el simulador",
     "changeCircleColor": "Cambiar color del círculo...",
     "changeCreaseType": "Cambiar tipo de pliegue",
     "changeSelectedCpLineTypes": "Cambiar los tipos de línea del patrón de pliegues seleccionados",
@@ -178,6 +177,7 @@
     "perturbSelectedNodes": "Perturbar los nodos seleccionados",
     "placeReferenceImage": "Coloca una imagen de referencia sobre el patrón de pliegues",
     "placeTextBox": "Coloca un cuadro de texto sobre el patrón de pliegues",
+    "properties": "Propiedades",
     "pruneZeroRadiusCircles": "Eliminar círculos inválidos de radio cero",
     "rebuildCp": "Regenerar CP",
     "rebuildCreasePattern": "Regenerar patrón de pliegues",
@@ -185,8 +185,6 @@
     "redoNextCpEdit": "Rehacer la siguiente edición del patrón de pliegues",
     "redoNextTreeEdit": "Rehacer la siguiente edición del árbol",
     "references": "Referencias",
-    "refresh": "Actualizar",
-    "refreshSimulatorModel": "Actualizar el modelo del simulador",
     "relieveAllStrain": "Aliviar toda la tensión",
     "relieveStrain": "Aliviar tensión",
     "removeAllStrain": "Eliminar toda la tensión",
@@ -233,6 +231,7 @@
     "showConditionsPane": "Mostrar el panel de condiciones",
     "showDesignWorkspace": "Mostrar el espacio de trabajo de diseño",
     "showEditWorkspace": "Mostrar el espacio de trabajo de edición",
+    "showPropertiesPane": "Mostrar el panel de propiedades",
     "showReferencesWorkspace": "Mostrar el espacio de trabajo de referencias",
     "showSimulateWorkspace": "Mostrar el espacio de trabajo de simulación",
     "simulate": "Simular",
@@ -260,6 +259,28 @@
     "reset": "Restablecer",
     "resetNamed": "Restablecer {{label}}"
   },
+  "download": {
+    "allReleases": "Todas las descargas en GitHub",
+    "build": {
+      "linuxAppImage": "x86-64 (.AppImage)",
+      "linuxAppImageArm": "ARM64 (.AppImage)",
+      "linuxDeb": "x86-64 (.deb)",
+      "linuxDebArm": "ARM64 (.deb)",
+      "macosArm": "Apple Silicon (.dmg)",
+      "macosIntel": "Intel (.dmg)",
+      "windows": "Instalador (.exe)"
+    },
+    "cta": "Descargar la aplicación de escritorio",
+    "ctaLinux": "Descargar para Linux",
+    "ctaMacos": "Descargar para macOS",
+    "ctaWindows": "Descargar para Windows",
+    "os": {
+      "linux": "Linux",
+      "macos": "macOS",
+      "windows": "Windows"
+    },
+    "otherPlatforms": "Otras plataformas"
+  },
   "fileDrop": {
     "open": "Suelta para abrir",
     "openOrImport": "Suelta para abrir o importar"
@@ -272,11 +293,11 @@
     "credit": "Diseñado por <2>Brandon Wong</2>"
   },
   "toolbar": {
-    "new": "Nuevo",
-    "open": "Abrir",
+    "discord": "Únete al Discord",
+    "downloadDesktop": "Obtener la aplicación de escritorio",
+    "downloadDesktopVersion": "Obtener la aplicación de escritorio ({{version}})",
     "optimizeLayout": "Optimizar",
     "optimizeScale": "Optimizar escala",
-    "save": "Guardar",
     "sendToEdit": "Enviar a Editar",
     "sendToEditMore": "Más opciones de Enviar a Editar",
     "sendToEditTooltip": "Enviar el patrón de pliegues de este diseño al lienzo de edición",

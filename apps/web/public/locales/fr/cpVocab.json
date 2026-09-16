@@ -277,6 +277,14 @@
         "0": "Faites glisser un sommet pour le déplacer"
       }
     },
+    "cp_action_vertex_pin": {
+      "label": "Épingler le sommet",
+      "tooltip": "Cliquez sur un sommet pour le maintenir en place : le solveur et toutes les transformations le laissent intact",
+      "disabledReason": "Prêt",
+      "steps": {
+        "0": "Cliquez sur un sommet pour l’épingler ou le détacher"
+      }
+    },
     "cp_action_crease_make_mountain": {
       "label": "Définir comme montagne",
       "tooltip": "Définir les lignes sélectionnées comme plis montagne",

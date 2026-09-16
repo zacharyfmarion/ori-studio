@@ -111,6 +111,28 @@ function restoredInlineSimulationState(entry: OristudioCpHistoryEntry) {
 }
 
 /**
+ * The annotation selection after a history step: kept when the restored list
+ * still holds the selected annotation, dropped when the step removed it.
+ *
+ * History restores content, not what was selected — but a selection whose
+ * object survives the step is not something the step touched. Dropping it made
+ * every undo of an image's opacity leave the image unselected and its
+ * properties gone from view; a folded figure already kept its selection
+ * through undo for the same reason. Window focus is still dropped (see
+ * {@link restoredInlineSimulationState}): focus is a running solver and the
+ * app-wide `simulator` shortcut scope, which history must not resurrect.
+ */
+function restoredAnnotationSelection(
+  entry: OristudioCpHistoryEntry,
+  selectedAnnotationId: string | null
+): string | null {
+  if (selectedAnnotationId === null) return null;
+  return entry.annotations.some((annotation) => annotation.id === selectedAnnotationId)
+    ? selectedAnnotationId
+    : null;
+}
+
+/**
  * Build a history entry that owns its figures' handles. Undo/redo move an entry
  * from one stack to the other; the entry leaving releases (via
  * {@link releasedFrom}) and the entry being pushed retains here, so a handle
@@ -302,7 +324,10 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           set({
       oristudioCpHistoryBusy: false,
             oristudioCpAnnotations: previous.annotations,
-            oristudioCpSelectedAnnotationId: null,
+            oristudioCpSelectedAnnotationId: restoredAnnotationSelection(
+              previous,
+              get().oristudioCpSelectedAnnotationId
+            ),
             ...restoredFoldedFigureState(previous),
             ...restoredInlineSimulationState(previous),
             oristudioCpHistoryPast: releasedFrom(past.slice(0, -1), previous),
@@ -349,7 +374,10 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
             get().oristudioCpCamvResult
           ),
           oristudioCpAnnotations: previous.annotations,
-          oristudioCpSelectedAnnotationId: null,
+          oristudioCpSelectedAnnotationId: restoredAnnotationSelection(
+            previous,
+            get().oristudioCpSelectedAnnotationId
+          ),
           ...restoredFoldedFigureState(previous),
           ...restoredInlineSimulationState(previous),
           oristudioCpHistoryPast: releasedFrom(past.slice(0, -1), previous),
@@ -472,7 +500,10 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           set({
       oristudioCpHistoryBusy: false,
             oristudioCpAnnotations: next.annotations,
-            oristudioCpSelectedAnnotationId: null,
+            oristudioCpSelectedAnnotationId: restoredAnnotationSelection(
+              next,
+              get().oristudioCpSelectedAnnotationId
+            ),
             ...restoredFoldedFigureState(next),
             ...restoredInlineSimulationState(next),
             oristudioCpHistoryPast: [
@@ -509,7 +540,10 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       oristudioCpHistoryBusy: false,
           ...setRestoredCreasePatternState(restored, next.selection, get().oristudioCpCamvResult),
           oristudioCpAnnotations: next.annotations,
-          oristudioCpSelectedAnnotationId: null,
+          oristudioCpSelectedAnnotationId: restoredAnnotationSelection(
+            next,
+            get().oristudioCpSelectedAnnotationId
+          ),
           ...restoredFoldedFigureState(next),
           ...restoredInlineSimulationState(next),
           oristudioCpHistoryPast: [

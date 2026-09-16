@@ -53,6 +53,7 @@ const WORKSPACE_BY_PANEL_ID: Record<string, WorkspaceId> = {
   diagnostics: 'design',
   'crease-pattern': 'edit',
   'cp-view-controls': 'edit',
+  'cp-properties': 'edit',
   'simulator-view-controls': 'simulate',
   simulator: 'simulate',
   references: 'references',

@@ -12,8 +12,10 @@ import type { ExploriDocument } from './document';
  * Mirror draw for an ExplOri tree.
  *
  * The same rules box-pleat's tree follows — a pairing outlives the toggle, a
- * node on the line is its own mirror, a partner is explicit first and inferred
- * from position second — over a document rather than an engine snapshot.
+ * node on the line is its own mirror, and a partner is an explicit pair or
+ * nothing — over a document rather than an engine snapshot. A pair exists
+ * because mirror-add, Pair with mirror or Pair all mirrored made it; position
+ * only ever proposes a pair ({@link inferExploriPartner}), never decides one.
  *
  * The axis is the y-axis and does not move. A box-pleat tree measures its
  * mirror against the sheet it will be packed onto; a query tree has no sheet,
@@ -60,9 +62,13 @@ export function explicitExploriPairId(
 }
 
 /**
- * A node's mirror: an explicit pairing first, else the node sitting at the
- * reflected position. A node on the axis mirrors to itself; `null` means the
- * mirror is unresolved and the caller should leave that node alone.
+ * A node's mirror: its explicit pairing, else itself when it sits on the axis,
+ * else `null` — the mirror is unresolved and the caller leaves that node alone.
+ *
+ * Position is not consulted. It used to be a fallback, and that made Unpair a
+ * no-op: it moves nothing, so the two nodes were still reflections and the
+ * fallback found the partner straight back. See {@link inferExploriPartner}
+ * for the on-request matching that replaced it.
  */
 export function mirrorExploriNodeId(
   document: ExploriDocument,
@@ -73,11 +79,65 @@ export function mirrorExploriNodeId(
   if (explicit !== null && document.nodes.some((node) => node.id === explicit)) return explicit;
   const loc = document.nodes.find((node) => node.id === nodeId)?.loc;
   if (!loc) return null;
-  if (symmetrySide(loc, EXPLORI_SYMMETRY_AXIS, tolerance) === 0) return nodeId;
+  return symmetrySide(loc, EXPLORI_SYMMETRY_AXIS, tolerance) === 0 ? nodeId : null;
+}
+
+/**
+ * The node *Pair with mirror* would pair `nodeId` with, or `null`.
+ *
+ * Both must be unpaired and off the axis, the candidate must sit within
+ * `tolerance` of `nodeId`'s reflection, and the match must be mutual — the
+ * candidate's own nearest reflection has to be `nodeId` — so an ambiguous
+ * drawing is refused rather than guessed at. Same rule as box-pleat's
+ * `inferBpTreeSymmetryPartner`.
+ */
+export function inferExploriPartner(
+  document: ExploriDocument,
+  nodeId: number,
+  tolerance = EXPLORI_SYMMETRY_TOLERANCE
+): number | null {
+  const candidate = nearestUnpairedReflection(document, nodeId, tolerance);
+  if (candidate === null) return null;
+  return nearestUnpairedReflection(document, candidate, tolerance) === nodeId ? candidate : null;
+}
+
+/**
+ * *Pair all mirrored*: every pair {@link inferExploriPartner} would make, at
+ * once. Returns the new pair list — the same array when nothing pairs.
+ */
+export function inferExploriPairs(
+  document: ExploriDocument,
+  tolerance = EXPLORI_SYMMETRY_TOLERANCE
+): TreeSymmetryPair[] {
+  let pairs = document.symmetry.pairs;
+  for (const node of document.nodes) {
+    if (explicitExploriPairId(pairs, node.id) !== null) continue;
+    const partner = inferExploriPartner(
+      { ...document, symmetry: { ...document.symmetry, pairs } },
+      node.id,
+      tolerance
+    );
+    if (partner !== null) pairs = addExploriPair(pairs, node.id, partner);
+  }
+  return pairs;
+}
+
+/** The nearest unpaired, off-axis node within `tolerance` of `nodeId`'s reflection. */
+function nearestUnpairedReflection(
+  document: ExploriDocument,
+  nodeId: number,
+  tolerance: number
+): number | null {
+  const pairs = document.symmetry.pairs;
+  if (explicitExploriPairId(pairs, nodeId) !== null) return null;
+  const loc = document.nodes.find((node) => node.id === nodeId)?.loc;
+  if (!loc || symmetrySide(loc, EXPLORI_SYMMETRY_AXIS, tolerance) === 0) return null;
   const target = reflectPointAcrossSymmetryAxis(loc, EXPLORI_SYMMETRY_AXIS);
   let best: { id: number; distance: number } | null = null;
   for (const node of document.nodes) {
     if (node.id === nodeId) continue;
+    if (explicitExploriPairId(pairs, node.id) !== null) continue;
+    if (symmetrySide(node.loc, EXPLORI_SYMMETRY_AXIS, tolerance) === 0) continue;
     const distance = Math.hypot(node.loc.x - target.x, node.loc.y - target.y);
     if (distance <= tolerance && (!best || distance < best.distance)) {
       best = { id: node.id, distance };

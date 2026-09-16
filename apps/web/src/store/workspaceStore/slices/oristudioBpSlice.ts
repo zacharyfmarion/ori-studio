@@ -31,7 +31,9 @@ import {
   switchOristudioBpStretchPattern as switchRuntimeOristudioBpStretchPattern,
 } from '../oristudioBpRuntime';
 import { designKind } from '../../../designKinds/registry';
-import { trackDesignSentToEdit } from '../../../analytics';
+import { trackDesignSentToEdit, trackSymmetryPairChanged } from '../../../analytics';
+import i18n from '../../../i18n';
+import { symmetryProblemLabel } from '../../../lib/bpSymmetryLabels';
 import { recordSnapshot, snapshotEntry } from '../snapshotHistory';
 import {
   addBpTreeSymmetryPair,
@@ -43,6 +45,8 @@ import {
   defaultBpDocumentSymmetry,
   type BpDocumentSymmetry,
   filterBpTreeSymmetryPairs,
+  inferBpTreeSymmetryPairs,
+  inferBpTreeSymmetryPartner,
   mirrorBpTreeVertexId,
   BP_TREE_SYMMETRY_ANGLE,
   BP_TREE_SYMMETRY_TOLERANCE,
@@ -1457,7 +1461,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         if (!resolved.ok) {
           // Falling back to an unconstrained solve would hand back a layout the
           // user did not ask for, so refuse and say why.
-          set({ oristudioBpError: resolved.reason });
+          set({ oristudioBpError: symmetryProblemLabel(i18n.t, resolved.problem) });
           return 'failed';
         }
         symmetry = resolved.payload;
@@ -1493,14 +1497,59 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       return cancelled ? 'cancelled' : 'failed';
     },
 
+    // The three pairing verbs are synchronous: they touch only the mirror-draw
+    // state, so there is no engine round trip and no await for a tab switch to
+    // slip into — which is why none of them addresses a design id.
     unpairOristudioBpTreeSymmetry: (vertexId) => {
       const symmetry = selectOristudioBpSymmetry(get());
       const pairs = removeBpTreeSymmetryPair(symmetry.pairs, vertexId);
       if (pairs.length === symmetry.pairs.length) return;
       recordSymmetryHistory('Unpair from mirror');
+      set({ ...patchBoxPleatDesign(get(), { symmetry: { ...symmetry, pairs } }), dirty: true });
+      trackSymmetryPairChanged({ designKind: 'box-pleat', action: 'unpair', pairCount: 1 });
+    },
+
+    pairOristudioBpTreeSymmetry: (vertexId) => {
+      const document = selectOristudioBpDocument(get());
+      if (!document) return;
+      const symmetry = selectOristudioBpSymmetry(get());
+      const partner = inferBpTreeSymmetryPartner(
+        document.snapshot.tree,
+        symmetry.pairs,
+        { loc: symmetry.loc, angle: symmetry.angle },
+        vertexId,
+        BP_TREE_SYMMETRY_TOLERANCE
+      );
+      if (partner === null) return;
+      recordSymmetryHistory('Pair with mirror');
       set({
-      ...patchBoxPleatDesign(get(), { symmetry: { ...symmetry, pairs }
-      }), dirty: true });
+        ...patchBoxPleatDesign(get(), {
+          symmetry: { ...symmetry, pairs: addBpTreeSymmetryPair(symmetry.pairs, vertexId, partner) },
+        }),
+        dirty: true,
+      });
+      trackSymmetryPairChanged({ designKind: 'box-pleat', action: 'pair', pairCount: 1 });
+    },
+
+    pairAllOristudioBpTreeSymmetry: () => {
+      const document = selectOristudioBpDocument(get());
+      if (!document) return;
+      const symmetry = selectOristudioBpSymmetry(get());
+      const pairs = inferBpTreeSymmetryPairs(
+        document.snapshot.tree,
+        symmetry.pairs,
+        { loc: symmetry.loc, angle: symmetry.angle },
+        BP_TREE_SYMMETRY_TOLERANCE
+      );
+      // Same array back means nothing paired; the helper promises that identity.
+      if (pairs === symmetry.pairs) return;
+      recordSymmetryHistory('Pair all mirrored');
+      set({ ...patchBoxPleatDesign(get(), { symmetry: { ...symmetry, pairs } }), dirty: true });
+      trackSymmetryPairChanged({
+        designKind: 'box-pleat',
+        action: 'pair_all',
+        pairCount: pairs.length - symmetry.pairs.length,
+      });
     },
 
     // `null` dimensions travel through to the engine, which fills them from its

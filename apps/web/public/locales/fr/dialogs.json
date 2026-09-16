@@ -65,6 +65,7 @@
       "opening": "Ouverture de l'image",
       "rectifying": "Redressement du recadrage"
     },
+    "canvasImageName": "Image du canevas",
     "chooseImage": "Choisir une image",
     "compilerReviewOverlays": "Superpositions de révision du compilateur",
     "crop": "Recadrer",
@@ -90,7 +91,14 @@
     "rectified": "Redressé",
     "regionLabel": "Patron de plis détecté",
     "repairLabel": "Ajouter le patron de plis détecté pour le corriger",
+    "replacesImage": "Ajouter remplace votre image par le patron. Vérifier et corriger la garde dessous, à demi-opacité, pendant la réparation.",
     "reviewAndFix": "Vérifier et corriger",
+    "rights": {
+      "attest": "Je confirme que ce patron de plis a été obtenu légalement et que j’ai le droit de l’utiliser.",
+      "back": "Retour",
+      "continue": "Continuer",
+      "lead": "Les patrons de plis sont l’œuvre de leurs créateurs. Ne détectez qu’un patron que vous avez le droit d’utiliser : un patron que vous avez conçu, un patron publié pour que d’autres le plient, ou un patron dont le créateur vous a donné son accord. L’image est traitée sur cet appareil et n’est jamais envoyée."
+    },
     "runningModel": "Exécution du modèle",
     "stopping": "Arrêt…",
     "stopSolve": "Arrêter",
@@ -211,6 +219,8 @@
   "help": {
     "about": {
       "acknowledgements": "Remerciements",
+      "desktop": "Application de bureau",
+      "desktopDetail": "Le même espace de travail sous forme d’application native, avec les menus système, les boîtes de dialogue de fichiers, et des fichiers qui s’ouvrent directement depuis le Finder ou l’Explorateur.",
       "intro": "Ori Studio a pour ambition d'être l'espace de travail ultime pour la conception et l'analyse d'origami. Il repose largement sur des portages d'outils d'origami existants créés par la communauté — l'espace de travail Édition, par exemple, est un portage d'Oriedita vers Rust, axé sur la convivialité et les performances. Si vous avez des suggestions, n'hésitez pas à <2>ouvrir un ticket sur GitHub</2>.",
       "subtitle": "Un espace de travail partagé et moderne pour concevoir, modifier et plier des patrons de plis d'origami.",
       "title": "À propos d'Ori Studio"
@@ -351,6 +361,8 @@
       "orphanedLabel": "Détecteur retiré",
       "remove": "Supprimer",
       "row": "Détecteur v{{version}}",
+      "suggestDetection": "Proposer la détection des patrons de pliage dans les images ajoutées au canevas",
+      "suggestDetectionDescription": "Quand une image de référence ressemble à un patron de pliage, proposer de le détecter. La vérification s’exécute sur cet appareil et ne télécharge rien.",
       "title": "Modèles",
       "unavailable": "Le registre des modèles n’a pas pu être lu : {{reason}}",
       "update": "Mettre à jour",

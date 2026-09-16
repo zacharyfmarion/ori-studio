@@ -49,6 +49,8 @@ const storeActions = {
   loadCreasePatternText: vi.fn(async () => undefined),
   executeOristudioCpCommand: vi.fn(async (_operation: string) => true),
   addAnnotation: vi.fn((_annotation: CanvasAnnotation) => undefined),
+  updateAnnotation: vi.fn((_id: string, _patch: unknown) => undefined),
+  removeAnnotation: vi.fn((_id: string) => undefined),
   recordAnnotationHistory: vi.fn(() => undefined),
   oristudioCpAnnotations: [] as CanvasAnnotation[],
   oristudioCpError: null as string | null,
@@ -140,6 +142,8 @@ vi.mock('../engine/cpExactSolve', () => ({
 
 import { TooltipProvider } from './ui/Tooltip';
 import { CpDetectImportModal } from './CpDetectImportModal';
+import { useCpDetectSuggestionStore } from '../cp-workspace/images/cpDetectSuggestionStore';
+import { createCpImage } from '../cp-workspace/images/cpImage';
 
 const IMAGE_SIZE = 1024;
 const PAPER_SIZE = 400;
@@ -349,8 +353,18 @@ function bodyText(): string {
   return document.body.textContent ?? '';
 }
 
-/** Walk the modal from the upload stage to the review stage. */
-async function reachReviewStage(): Promise<void> {
+function rightsGate(): Element | null {
+  return document.querySelector('[data-testid="cp-detect-rights"]');
+}
+
+function rightsCheckbox(): HTMLInputElement {
+  const found = rightsGate()?.querySelector('input[type="checkbox"]');
+  if (!found) throw new Error('no rights checkbox on screen');
+  return found as HTMLInputElement;
+}
+
+/** Open the modal and choose an image, which lands on the rights gate. */
+async function reachRightsGate(): Promise<void> {
   await act(async () => {
     root?.render(
       <TooltipProvider>
@@ -364,6 +378,19 @@ async function reachReviewStage(): Promise<void> {
   await settle();
   click('Choose Image');
   await settle();
+}
+
+/** Answer the rights gate: tick the attestation and continue to the crop. */
+async function confirmRights(): Promise<void> {
+  act(() => rightsCheckbox().click());
+  click('Continue');
+  await settle();
+}
+
+/** Walk the modal from the upload stage to the review stage. */
+async function reachReviewStage(): Promise<void> {
+  await reachRightsGate();
+  await confirmRights();
   click('Detect');
   await settle();
 }
@@ -1045,6 +1072,12 @@ describe('CpDetectImportModal session reset', () => {
     expect(button('Choose Image')).not.toBeNull();
     expect(button('Detect')).toBeNull();
     expect(button('Review & Fix')).toBeNull();
+
+    // And the rights gate is asked again: the answer went with the session.
+    click('Choose Image');
+    await settle();
+    expect(rightsGate()).not.toBeNull();
+    expect(button('Detect')).toBeNull();
   });
 
   it('starts from the file picker after being closed', async () => {
@@ -1067,6 +1100,11 @@ describe('CpDetectImportModal session reset', () => {
 
     expect(button('Choose Image')).not.toBeNull();
     expect(button('Detect')).toBeNull();
+
+    click('Choose Image');
+    await settle();
+    expect(rightsGate()).not.toBeNull();
+    expect(button('Detect')).toBeNull();
   });
 
   it('releases the source object URL rather than holding it for the session', async () => {
@@ -1079,6 +1117,138 @@ describe('CpDetectImportModal session reset', () => {
 });
 
 /**
+ * The rights gate between an image loading and the crop step.
+ *
+ * A crease pattern is its designer's work. The gate is asked about the image
+ * on screen, for every image the dialog loads, and the tick is the affirmative
+ * act — so the tests are about what is reachable without it, what Back throws
+ * away, and when the question comes back.
+ */
+describe('CpDetectImportModal rights confirmation', () => {
+  it('asks after an image is chosen, before any crop or Detect', async () => {
+    await reachRightsGate();
+
+    expect(rightsGate()).not.toBeNull();
+    expect(bodyText()).toContain('crane.png');
+    expect(bodyText()).toContain('I confirm that this crease pattern was obtained legally');
+    expect(button('Detect')).toBeNull();
+    expect(document.querySelector('.cp-detect-modal__image-wrap')).toBeNull();
+    // The image itself, by its object URL — the user attests about what they see.
+    expect(rightsGate()?.querySelector('img')?.getAttribute('src')).toBe('blob:source');
+  });
+
+  it('keeps Continue disabled until the attestation is ticked', async () => {
+    await reachRightsGate();
+
+    expect(button('Continue')?.disabled).toBe(true);
+    act(() => rightsCheckbox().click());
+    expect(button('Continue')?.disabled).toBe(false);
+    act(() => rightsCheckbox().click());
+    expect(button('Continue')?.disabled).toBe(true);
+  });
+
+  it('rectifies underneath the gate, so Continue lands on a crop that is already there', async () => {
+    await reachRightsGate();
+    expect(detectClient.autoRectifyImage).toHaveBeenCalledTimes(1);
+
+    await confirmRights();
+
+    expect(rightsGate()).toBeNull();
+    expect(button('Detect')).not.toBeNull();
+    expect(document.querySelector('.cp-detect-modal__image-wrap')).not.toBeNull();
+    expect(detectClient.autoRectifyImage).toHaveBeenCalledTimes(1);
+    expect(track).toHaveBeenCalledWith('cp detect rights answered', { accepted: true });
+  });
+
+  it('goes back to the picker on Back, with the image gone', async () => {
+    await reachRightsGate();
+
+    click('Back');
+    await settle();
+
+    expect(rightsGate()).toBeNull();
+    expect(button('Choose Image')).not.toBeNull();
+    expect(button('Detect')).toBeNull();
+    expect(bodyText()).not.toContain('crane.png');
+    expect(globalThis.URL.revokeObjectURL).toHaveBeenCalledWith('blob:source');
+    expect(track).toHaveBeenCalledWith('cp detect rights answered', { accepted: false });
+  });
+
+  it('counts a close at the gate as a dismissal there, not as an answer', async () => {
+    await reachRightsGate();
+
+    const dismiss = [...document.querySelectorAll('button')].find(
+      (element) => element.getAttribute('aria-label') === 'Close'
+    );
+    if (!dismiss) throw new Error('no close button');
+    act(() => dismiss.click());
+    await settle();
+
+    expect(track).toHaveBeenCalledWith('cp detect dismissed', { stage: 'confirm' });
+    expect(track).not.toHaveBeenCalledWith('cp detect rights answered', expect.anything());
+  });
+
+  it('asks again for a second image chosen from the crop step', async () => {
+    await reachRightsGate();
+    await confirmRights();
+    expect(button('Detect')).not.toBeNull();
+
+    click('Choose Image');
+    await settle();
+
+    expect(rightsGate()).not.toBeNull();
+    expect(button('Detect')).toBeNull();
+  });
+
+  it('asks again for a second image chosen from the review step', async () => {
+    await reachReviewStage();
+    expect(button('Review & Fix')).not.toBeNull();
+
+    click('Choose Image');
+    await settle();
+
+    expect(rightsGate()).not.toBeNull();
+    expect(button('Review & Fix')).toBeNull();
+    expect(button('Detect')).toBeNull();
+  });
+
+  it('refuses Back while the first rectification is still running, and says so', async () => {
+    let finishRectifying: (() => void) | null = null;
+    detectClient.autoRectifyImage.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishRectifying = () => resolve(rectifiedImage());
+        })
+    );
+    await reachRightsGate();
+
+    expect(rightsGate()).not.toBeNull();
+    expect(button('Back')?.disabled).toBe(true);
+    expect(bodyText()).toContain('Rectifying crop');
+    // Continue is not gated on it: the crop step draws itself around a
+    // rectification still in flight.
+    act(() => rightsCheckbox().click());
+    expect(button('Continue')?.disabled).toBe(false);
+
+    await act(async () => {
+      finishRectifying?.();
+    });
+    await settle();
+
+    expect(button('Back')?.disabled).toBe(false);
+    expect(bodyText()).not.toContain('Rectifying crop');
+  });
+
+  it('shows a failed rectification at the gate rather than after it', async () => {
+    detectClient.autoRectifyImage.mockRejectedValueOnce(new Error('no paper found'));
+    await reachRightsGate();
+
+    expect(rightsGate()).not.toBeNull();
+    expect(bodyText()).toContain('no paper found');
+  });
+});
+
+/**
  * The crop step: a corner drag is the whole interaction, and the crop must
  * follow the pointer, show the magnifier while it does, and re-rectify itself
  * when the corner is let go — there is no button for that, and the one that was
@@ -1086,19 +1256,8 @@ describe('CpDetectImportModal session reset', () => {
  */
 describe('CpDetectImportModal crop editing', () => {
   async function reachCropStage(): Promise<void> {
-    await act(async () => {
-      root?.render(
-        <TooltipProvider>
-          <CpDetectImportModal />
-        </TooltipProvider>
-      );
-    });
-    await act(async () => {
-      window.dispatchEvent(new CustomEvent('ori-studio:detect-cp-image'));
-    });
-    await settle();
-    click('Choose Image');
-    await settle();
+    await reachRightsGate();
+    await confirmRights();
   }
 
   function pointer(type: string, target: Element, x: number, y: number): void {
@@ -1194,5 +1353,197 @@ describe('CpDetectImportModal crop editing', () => {
     expect(detectClient.manualRectifyImage).toHaveBeenCalledTimes(1);
     expect(button('Edit Crop')).toBeNull();
     expect(document.querySelector('.cp-detect-modal__image-wrap')).not.toBeNull();
+  });
+});
+
+describe('CpDetectImportModal canvas image entry', () => {
+  const detail = {
+    source: 'canvas-suggestion' as const,
+    annotationId: 'image-1',
+    image: {
+      src: `data:image/png;base64,${btoa('not really a png')}`,
+      naturalWidth: 800,
+      naturalHeight: 800,
+      crop: { x: 0, y: 0, w: 1, h: 1 },
+    },
+  };
+
+  async function dispatchCanvasImage(): Promise<void> {
+    await act(async () => {
+      root?.render(
+        <TooltipProvider>
+          <CpDetectImportModal />
+        </TooltipProvider>
+      );
+    });
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('ori-studio:detect-cp-image', { detail }));
+    });
+  }
+
+  /**
+   * The data URL is read through `fetch` and lands over several async hops,
+   * so poll — with a flush of React's queue on each turn, and outside any
+   * enclosing `act`, which would hold every update back until it returned.
+   */
+  async function landed(check: () => void): Promise<void> {
+    await vi.waitFor(
+      async () => {
+        await act(async () => {
+          await Promise.resolve();
+        });
+        check();
+      },
+      { timeout: 3000 }
+    );
+  }
+
+  async function openOnCanvasImage(): Promise<void> {
+    await dispatchCanvasImage();
+    await landed(() => expect(detectClient.autoRectifyImage).toHaveBeenCalled());
+    await settle();
+  }
+
+  let fetchSpy: ReturnType<typeof vi.spyOn> | null = null;
+
+  beforeEach(() => {
+    const store = useCpDetectSuggestionStore.getState();
+    store.reset();
+    store.recordSuggestion('image-1', 0.9, true);
+    store.setSuggestionState('image-1', 'open');
+    // The test setup replaces `fetch` with a network refusal; a data URL is
+    // not the network, so answer it with a few bytes of "PNG".
+    fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async () =>
+        ({
+          blob: async () => new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }),
+        }) as unknown as Response
+    );
+  });
+
+  afterEach(() => {
+    fetchSpy?.mockRestore();
+    fetchSpy = null;
+  });
+
+  it('lands on the rights gate with the image loaded, attributed to the pill', async () => {
+    await openOnCanvasImage();
+    expect(detectClient.autoRectifyImage).toHaveBeenCalledTimes(1);
+    expect(rightsGate()).not.toBeNull();
+    expect(track).toHaveBeenCalledWith(
+      'cp detect image loaded',
+      expect.objectContaining({ source: 'canvas-suggestion' })
+    );
+    expect(useCpDetectSuggestionStore.getState().suggestions['image-1'].state).toBe('open');
+  });
+
+  it('returns the offer when the dialog is closed without importing', async () => {
+    await openOnCanvasImage();
+    const closeButton = [...document.querySelectorAll('button')].find(
+      (element) => element.getAttribute('aria-label') === 'Close'
+    );
+    if (!closeButton) throw new Error('no close button');
+    act(() => closeButton.click());
+    await settle();
+    expect(useCpDetectSuggestionStore.getState().suggestions['image-1'].state).toBe('pending');
+  });
+
+  it('retires the offer once the pattern is imported', async () => {
+    await openOnCanvasImage();
+    await confirmRights();
+    click('Detect');
+    await settle();
+    click('Add as-is');
+    await settle();
+    expect(storeActions.importAddOristudioCpText).toHaveBeenCalled();
+    expect(useCpDetectSuggestionStore.getState().suggestions['image-1'].state).toBe('accepted');
+  });
+
+  function canvasImageOnCanvas() {
+    storeActions.oristudioCpAnnotations = [
+      createCpImage({
+        id: 'image-1',
+        src: detail.image.src,
+        naturalWidth: 800,
+        naturalHeight: 800,
+        center: { x: 50, y: 50 },
+        width: 100,
+        height: 100,
+        rotation: 0.4,
+      }),
+    ];
+  }
+
+  it('replaces the canvas image with the pattern on a clean add, as the direct flow keeps no image', async () => {
+    canvasImageOnCanvas();
+    await openOnCanvasImage();
+    await confirmRights();
+    click('Detect');
+    await settle();
+    click('Add as-is');
+    await settle();
+
+    expect(storeActions.importAddOristudioCpText).toHaveBeenCalled();
+    expect(storeActions.removeAnnotation).toHaveBeenCalledWith('image-1');
+    // Never demoted to an underlay here: nothing outside Review & Fix owns a
+    // locked image, so it could not be removed afterwards.
+    expect(storeActions.updateAnnotation).not.toHaveBeenCalled();
+    expect(storeActions.addAnnotation).not.toHaveBeenCalled();
+    // One overlay entry after the crease entry, so undo brings the image back first.
+    expect(storeActions.recordAnnotationHistory).toHaveBeenCalledTimes(1);
+  });
+
+  it('says on the review step what happens to the image', async () => {
+    canvasImageOnCanvas();
+    await openOnCanvasImage();
+    await confirmRights();
+    click('Detect');
+    await settle();
+    expect(bodyText()).toContain('Adding replaces your image with the pattern');
+  });
+
+  it('removes the canvas image in Review & Fix, whose own underlay replaces it', async () => {
+    canvasImageOnCanvas();
+    await openOnCanvasImage();
+    await confirmRights();
+    click('Detect');
+    await settle();
+    click('Review & Fix');
+    await settle();
+
+    expect(storeActions.removeAnnotation).toHaveBeenCalledWith('image-1');
+    expect(storeActions.addAnnotation).toHaveBeenCalledTimes(2);
+    expect(storeActions.updateAnnotation).not.toHaveBeenCalled();
+    expect(storeActions.recordAnnotationHistory).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the document alone when the canvas image was deleted meanwhile', async () => {
+    await openOnCanvasImage();
+    await confirmRights();
+    click('Detect');
+    await settle();
+    click('Add as-is');
+    await settle();
+    expect(storeActions.removeAnnotation).not.toHaveBeenCalled();
+    expect(storeActions.recordAnnotationHistory).not.toHaveBeenCalled();
+    expect(useCpDetectSuggestionStore.getState().suggestions['image-1'].state).toBe('accepted');
+  });
+
+  it('returns the offer and shows the error when the image cannot be read', async () => {
+    // Rejects a tick later, as a real read would: an immediate rejection
+    // would land before the dialog's open effect, whose own `setError(null)`
+    // then wipes it — a race a data URL never wins in practice.
+    fetchSpy?.mockImplementationOnce(
+      () => new Promise((_resolve, reject) => setTimeout(() => reject(new Error('unreadable')), 20))
+    );
+    await dispatchCanvasImage();
+    // The offer returns in the same catch that records the error, so once the
+    // store shows it the message is queued; one settle then paints it.
+    await landed(() =>
+      expect(useCpDetectSuggestionStore.getState().suggestions['image-1'].state).toBe('pending')
+    );
+    await settle();
+    expect(detectClient.autoRectifyImage).not.toHaveBeenCalled();
+    expect(bodyText()).toContain('unreadable');
   });
 });

@@ -37,6 +37,7 @@ export interface EditingContextInput {
 const STATIC_PANEL_CONTEXTS: Record<string, EditingContext> = {
   'crease-pattern': 'crease-pattern',
   'cp-view-controls': 'crease-pattern',
+  'cp-properties': 'crease-pattern',
   simulator: 'simulate',
   'simulator-view-controls': 'simulate',
   references: 'references',

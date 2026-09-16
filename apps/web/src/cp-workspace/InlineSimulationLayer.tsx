@@ -487,7 +487,11 @@ function InlineSimulationWindow({
         setFoldPercent(percent);
         publishInlineSimulationFold(simulation.id, percent);
       },
-      replay: () => replayRef.current(),
+      rewind: () => replayRef.current(),
+      restart: () => {
+        replayRef.current();
+        viewportRef.current?.resetView();
+      },
       resetView: () => viewportRef.current?.resetView(),
       zoomBy: (factor) => viewportRef.current?.zoomBy(factor),
       // No toggleSetting: an inline window has no options pane of its own, and

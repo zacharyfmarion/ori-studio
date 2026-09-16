@@ -119,6 +119,22 @@ pub struct CreasePatternCommandPayload {
     /// Resolved model-space points, in the same order as the active tool steps.
     #[serde(default)]
     pub points: Vec<geometry::Point>,
+    /// Vertices the user has **pinned**, in model space: positions the operation
+    /// must leave exactly where they are.
+    ///
+    /// A constraint rather than an operand — see
+    /// [`operations::native::pinned`]. Only the operations that move existing
+    /// crease endpoints read it (`CreaseMove`, `CreaseMove4p`) and the one that
+    /// would build onto a held vertex (`LengthenCrease`); the copy siblings
+    /// deliberately do not, because a copy moves nothing and its output inherits
+    /// no constraint. Empty — the default, and what every caller that has no
+    /// pins sends — leaves each of them byte-identical to its Oriedita port.
+    ///
+    /// Positions rather than ids for the reason the browser's own pin is a
+    /// position: a crease-pattern vertex is a coincidence of endpoints, and
+    /// line ids are indices that an undo reshuffles.
+    #[serde(default)]
+    pub pinned_points: Vec<geometry::Point>,
     /// Optional active Oriedita line color for commands that use the current color.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub line_color: Option<geometry::LineColor>,
@@ -676,7 +692,27 @@ pub enum CommandError {
         /// Explanation suitable for logs or user-facing diagnostics.
         message: String,
     },
+    /// The input was well-formed and the operation declined to run on it.
+    ///
+    /// Distinct from [`Self::InvalidInput`] because it travels differently. That
+    /// one carries a *sentence*, written here and shown verbatim — which is fine
+    /// for "expected 2 resolved point(s)" and wrong for anything a user reads in
+    /// their own language, since a Rust `String` cannot be translated. This
+    /// carries a **token**, which becomes the `EngineError` code and which
+    /// `humanizeError` maps to a translated sentence, exactly as the share-link
+    /// and worker codes already do.
+    #[error("Oriedita operation {operation:?} refused: {code}")]
+    Refused {
+        /// Operation that declined.
+        operation: OperationId,
+        /// A stable token. Add a case to `lib/toastMessages.ts` for each one.
+        code: &'static str,
+    },
 }
+
+/// The refusal token for an operation that would have built onto a pinned
+/// vertex. See `apps/web/src/lib/toastMessages.ts` for the sentence.
+pub const REFUSED_PINNED_VERTEX: &str = "pinned_vertex";
 
 /// High-level implementation state for a source-mapped Oriedita operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -2298,6 +2334,7 @@ fn dispatch_command(
             operations::transform::move_selected_lines(
                 &mut document.crease_pattern,
                 points[0].delta(points[1]),
+                pinned_points(&command),
             )
         }
         OperationId::CreaseCopy => {
@@ -2319,6 +2356,7 @@ fn dispatch_command(
                 points[1],
                 points[2],
                 points[3],
+                pinned_points(&command),
             )
         }
         OperationId::CreaseCopy4p => {
@@ -3249,7 +3287,9 @@ fn dispatch_command(
                     extension_point,
                     selection_distance(&command),
                     operations::transform::LengthenColorMode::Current(active_line_color(&command)),
+                    pinned_points(&command),
                 )
+                .map_err(|refusal| lengthen_refusal(command.operation, refusal))?
             } else {
                 let points = required_points(&command, 3)?;
                 operations::transform::lengthen_crease(
@@ -3258,7 +3298,9 @@ fn dispatch_command(
                     points[2],
                     selection_distance(&command),
                     operations::transform::LengthenColorMode::Current(active_line_color(&command)),
+                    pinned_points(&command),
                 )
+                .map_err(|refusal| lengthen_refusal(command.operation, refusal))?
             }
         }
         OperationId::LengthenCreaseSameColor => {
@@ -3271,7 +3313,9 @@ fn dispatch_command(
                     extension_point,
                     selection_distance(&command),
                     operations::transform::LengthenColorMode::SameAsOriginal,
+                    pinned_points(&command),
                 )
+                .map_err(|refusal| lengthen_refusal(command.operation, refusal))?
             } else {
                 let points = required_points(&command, 3)?;
                 operations::transform::lengthen_crease(
@@ -3280,7 +3324,9 @@ fn dispatch_command(
                     points[2],
                     selection_distance(&command),
                     operations::transform::LengthenColorMode::SameAsOriginal,
+                    pinned_points(&command),
                 )
+                .map_err(|refusal| lengthen_refusal(command.operation, refusal))?
             }
         }
         OperationId::ReplaceLineTypeSelect => {
@@ -4869,6 +4915,32 @@ fn required_text_indices(command: &CreasePatternCommand) -> Result<Vec<usize>> {
                 })
         })
         .collect()
+}
+
+/// The pinned positions this command carries — empty for every caller that has
+/// none, which is every caller that is not the CP editor with pins on screen.
+///
+/// Infallible on purpose. A pin naming a position with no vertex on it is not an
+/// error: pins are matched positionally and the document moves under them, so a
+/// stale one has to be inert rather than a refusal. That is the opposite of the
+/// solver's `pinned_vertex_ids`, which names *ids* and refuses an unknown one —
+/// there, a dropped id would silently un-hold a vertex the user pinned, and
+/// there is no positional fallback to fall back to.
+fn pinned_points(command: &CreasePatternCommand) -> operations::native::pinned::PinnedPoints<'_> {
+    operations::native::pinned::PinnedPoints::new(&command.payload.pinned_points)
+}
+
+/// A lengthen's refusal as a dispatch error carrying a translatable token.
+fn lengthen_refusal(
+    operation: OperationId,
+    refusal: operations::transform::LengthenRefusal,
+) -> CommandError {
+    match refusal {
+        operations::transform::LengthenRefusal::PinnedVertex => CommandError::Refused {
+            operation,
+            code: REFUSED_PINNED_VERTEX,
+        },
+    }
 }
 
 fn required_points(command: &CreasePatternCommand, count: usize) -> Result<Vec<geometry::Point>> {

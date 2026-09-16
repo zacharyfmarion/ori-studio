@@ -4,23 +4,31 @@ import { WORKSPACE_IDS, workspaceForPanelId } from '../workspaces/workspaces';
 import {
   LAYOUT_VERSION,
   applyDefaultLayout,
-  reconcileViewPanel,
+  reconcileSidePanes,
+  refuseDropsIntoHeaderlessGroups,
   registerActivePanelSink,
+  sidePanesFor,
   useLayoutStore,
-  viewPanelFor,
 } from './layoutStore';
+import { subscribeSidePaneRequests } from './sidePaneRequests';
 
 interface MockPanel {
   id: string;
-  title?: string;
+  title: string | undefined;
   group: MockGroup;
-  api: { setActive: ReturnType<typeof vi.fn> };
-  setTitle: ReturnType<typeof vi.fn>;
+  api: { setActive: ReturnType<typeof vi.fn>; setTitle: ReturnType<typeof vi.fn> };
 }
 
 interface MockGroup {
   id: string;
-  hideHeader?: boolean;
+  /** The real API's shape: `group.header.hidden`, set by `addGroup({ hideHeader })`. */
+  header: { hidden: boolean };
+}
+
+interface MockDropEvent {
+  group: MockGroup | undefined;
+  position: string;
+  preventDefault: ReturnType<typeof vi.fn>;
 }
 
 type MockDockviewApi = DockviewApi & {
@@ -33,14 +41,34 @@ type MockDockviewApi = DockviewApi & {
   getPanel: ReturnType<typeof vi.fn>;
   removePanel: ReturnType<typeof vi.fn>;
   toJSON: ReturnType<typeof vi.fn>;
+  /** Fire what dockview would as a drag crosses a group, and as it drops. */
+  dragOver: (event: MockDropEvent) => void;
+  drop: (event: MockDropEvent) => void;
 };
 
 const initialLayoutState = useLayoutStore.getInitialState();
 
-function dockviewLayout(label = 'branch', panelIds: string[] = []): SerializedDockview {
+/** A serialized group, in the shape dockview's grid leaves carry. */
+interface SerializedGroup {
+  id: string;
+  views: string[];
+  hideHeader?: boolean;
+}
+
+function dockviewLayout(
+  label = 'branch',
+  panelIds: string[] = [],
+  groups: SerializedGroup[] = []
+): SerializedDockview {
+  const allPanelIds = [...panelIds, ...groups.flatMap((group) => group.views)];
   return {
-    grid: { root: { type: label } },
-    panels: Object.fromEntries(panelIds.map((id) => [id, { id }])),
+    grid: {
+      root: {
+        type: label,
+        data: groups.map((group) => ({ type: 'leaf', data: group })),
+      },
+    },
+    panels: Object.fromEntries(allPanelIds.map((id) => [id, { id }])),
   } as unknown as SerializedDockview;
 }
 
@@ -52,17 +80,20 @@ function createDockviewApi(layout: SerializedDockview = dockviewLayout()) {
   // real one reports the result as `api.activePanel`; modelled here because
   // reconciling against it is the point of the no-op-switch test below.
   let activePanelId: string | null = null;
+  const overlayListeners: Array<(event: MockDropEvent) => void> = [];
+  const dropListeners: Array<(event: MockDropEvent) => void> = [];
 
   function addPanel(options: {
     id: string;
     title?: string;
+    inactive?: boolean;
     position?: { referenceGroup?: string | MockGroup; referencePanel?: string };
   }): MockPanel {
     const referenceGroup = options.position?.referenceGroup;
     const group =
       typeof referenceGroup === 'string'
-        ? (groups.get(referenceGroup) ?? { id: referenceGroup })
-        : (referenceGroup ?? { id: `${options.id}-group` });
+        ? (groups.get(referenceGroup) ?? { id: referenceGroup, header: { hidden: false } })
+        : (referenceGroup ?? { id: `${options.id}-group`, header: { hidden: false } });
     // A panel positioned against another *panel* lands in a new group of its
     // own, and that group is a column in the dock — registering it is what lets
     // a test see the column go when the panel is removed.
@@ -75,13 +106,15 @@ function createDockviewApi(layout: SerializedDockview = dockviewLayout()) {
         setActive: vi.fn(() => {
           activePanelId = options.id;
         }),
+        setTitle: vi.fn((title: string) => {
+          panel.title = title;
+        }),
       },
-      setTitle: vi.fn((title: string) => {
-        panel.title = title;
-      }),
     };
     panels.set(options.id, panel);
-    activePanelId = options.id;
+    // Dockview activates an added panel unless told not to — which is how a tab
+    // joins a group behind its lead.
+    if (!options.inactive) activePanelId = options.id;
     return panel;
   }
 
@@ -93,7 +126,7 @@ function createDockviewApi(layout: SerializedDockview = dockviewLayout()) {
     },
     addGroup: vi.fn((options?: { id?: string; hideHeader?: boolean }) => {
       const id = options?.id ?? `group-${++groupSequence}`;
-      const group: MockGroup = { id, hideHeader: options?.hideHeader };
+      const group: MockGroup = { id, header: { hidden: options?.hideHeader === true } };
       groups.set(id, group);
       return group;
     }),
@@ -105,11 +138,26 @@ function createDockviewApi(layout: SerializedDockview = dockviewLayout()) {
     // Enough of a restore to matter: the real `fromJSON` replaces the layout with
     // whatever panel set was serialized, and that set is exactly what reconciling
     // afterwards has to answer for.
+    //
+    // Groups come back with their serialized ids and header state when the
+    // layout carries leaves (`dockviewLayout`'s third argument); a panel the grid
+    // does not place lands in a group of its own, as before.
     fromJSON: vi.fn((serialized: SerializedDockview) => {
       panels.clear();
       groups.clear();
       activePanelId = null;
-      for (const id of Object.keys(serialized.panels ?? {})) addPanel({ id });
+      const placed = new Set<string>();
+      const leaves = (serialized.grid.root as { data?: Array<{ data: SerializedGroup }> }).data ?? [];
+      for (const leaf of leaves) {
+        const group = api.addGroup({ id: leaf.data.id, hideHeader: leaf.data.hideHeader });
+        for (const id of leaf.data.views) {
+          addPanel({ id, position: { referenceGroup: group } });
+          placed.add(id);
+        }
+      }
+      for (const id of Object.keys(serialized.panels ?? {})) {
+        if (!placed.has(id)) addPanel({ id });
+      }
     }),
     getPanel: vi.fn((id: string) => panels.get(id) ?? null),
     // Dockview's own default is `removeEmptyGroup: true` (verified in
@@ -125,6 +173,18 @@ function createDockviewApi(layout: SerializedDockview = dockviewLayout()) {
       if (!stillInGroup) groups.delete(panel.group.id);
     }),
     toJSON: vi.fn(() => layout),
+    onWillShowOverlay: vi.fn((listener: (event: MockDropEvent) => void) => {
+      overlayListeners.push(listener);
+    }),
+    onWillDrop: vi.fn((listener: (event: MockDropEvent) => void) => {
+      dropListeners.push(listener);
+    }),
+    dragOver: (event: MockDropEvent) => {
+      for (const listener of overlayListeners) listener(event);
+    },
+    drop: (event: MockDropEvent) => {
+      for (const listener of dropListeners) listener(event);
+    },
   };
   return api as unknown as MockDockviewApi;
 }
@@ -151,7 +211,7 @@ describe('layout store', () => {
       'design-workspace',
     ]);
     expect(api.addGroup).toHaveBeenCalledWith({ direction: 'right', hideHeader: true });
-    expect(api.panelMap.get('design-workspace')?.group.hideHeader).toBe(true);
+    expect(api.panelMap.get('design-workspace')?.group.header.hidden).toBe(true);
     // The panes a design used to contribute at this level are gone from it.
     expect(api.getPanel('inspector')).toBeNull();
     expect(api.getPanel('bp-editor')).toBeNull();
@@ -167,20 +227,33 @@ describe('layout store', () => {
     expect(editApi.addPanel.mock.calls.map(([options]) => options.id)).toEqual([
       'crease-pattern',
       'cp-view-controls',
+      'cp-properties',
     ]);
     expect(editApi.addGroup).toHaveBeenCalledWith({ direction: 'right', hideHeader: true });
-    expect(editApi.panelMap.get('crease-pattern')?.group.hideHeader).toBe(true);
+    expect(editApi.panelMap.get('crease-pattern')?.group.header.hidden).toBe(true);
     expect(editApi.addPanel.mock.calls[1][0]).toMatchObject({
       id: 'cp-view-controls',
+      title: 'View',
       position: { referencePanel: 'crease-pattern', direction: 'right' },
       initialWidth: 260,
     });
+    // Properties is a tab of the View pane's group, added behind it: one column,
+    // the View pane on top, the canvas active.
+    const viewGroup = editApi.panelMap.get('cp-view-controls')?.group;
+    expect(editApi.addPanel.mock.calls[2][0]).toMatchObject({
+      id: 'cp-properties',
+      title: 'Properties',
+      position: { referenceGroup: viewGroup },
+      inactive: true,
+    });
+    expect(editApi.panelMap.get('cp-properties')?.group).toBe(viewGroup);
+    expect(editApi.activePanel?.id).toBe('crease-pattern');
     expect(simulateApi.addPanel.mock.calls.map(([options]) => options.id)).toEqual([
       'simulator',
       'simulator-view-controls',
     ]);
     expect(simulateApi.addGroup).toHaveBeenCalledWith({ direction: 'right', hideHeader: true });
-    expect(simulateApi.panelMap.get('simulator')?.group.hideHeader).toBe(true);
+    expect(simulateApi.panelMap.get('simulator')?.group.header.hidden).toBe(true);
     // Options pane, mirroring the Edit workspace's view pane.
     expect(simulateApi.addPanel.mock.calls[1][0]).toMatchObject({
       id: 'simulator-view-controls',
@@ -201,7 +274,7 @@ describe('layout store', () => {
       'references-view-controls',
     ]);
     expect(api.addGroup).toHaveBeenCalledWith({ direction: 'right', hideHeader: true });
-    expect(api.panelMap.get('references')?.group.hideHeader).toBe(true);
+    expect(api.panelMap.get('references')?.group.header.hidden).toBe(true);
     expect(api.addPanel.mock.calls[1][0]).toMatchObject({
       id: 'references-view-controls',
       component: 'references-view-controls',
@@ -252,8 +325,10 @@ describe('layout store', () => {
       'design-workspace',
       'crease-pattern',
       'cp-view-controls',
+      'cp-properties',
     ]);
-    expect(api.panelMap.get('crease-pattern')?.api.setActive).toHaveBeenCalledOnce();
+    // Once by the layout builder, once by the activation.
+    expect(api.panelMap.get('crease-pattern')?.api.setActive).toHaveBeenCalledTimes(2);
   });
 
   it('reconciles the active panel when the workspace is already active', () => {
@@ -276,7 +351,7 @@ describe('layout store', () => {
     useLayoutStore.getState().activateWorkspace('edit');
 
     expect(api.clear).not.toHaveBeenCalled();
-    expect(reported).toEqual(['cp-view-controls']);
+    expect(reported).toEqual(['crease-pattern']);
   });
 
   it('saves and reloads versioned layouts from local storage', () => {
@@ -316,7 +391,7 @@ describe('layout store', () => {
     //
     // A second, pointer-scoped bucket was the obvious alternative and is worse:
     // it cannot touch a dock that is already built, so the live flip needs
-    // `reconcileViewPanel` regardless, and once that exists the extra key buys
+    // `reconcileSidePanes` regardless, and once that exists the extra key buys
     // nothing while doubling what `clearAllPersistedLayouts` has to know about.
     const capture = (coarse: boolean) => {
       const api = createDockviewApi(dockviewLayout(coarse ? 'touch' : 'desktop'));
@@ -340,11 +415,11 @@ describe('layout store', () => {
     const restored = (captured: boolean, restoring: boolean) => {
       const api = createDockviewApi();
       applyDefaultLayout(api, 'edit', captured);
-      reconcileViewPanel(api, 'edit', restoring);
+      reconcileSidePanes(api, 'edit', restoring);
       return [...api.panelMap.keys()];
     };
 
-    expect(restored(true, false)).toEqual(['crease-pattern', 'cp-view-controls']);
+    expect(restored(true, false)).toEqual(['crease-pattern', 'cp-view-controls', 'cp-properties']);
     expect(restored(false, true)).toEqual(['crease-pattern']);
   });
 
@@ -407,9 +482,10 @@ describe('the View pane under a coarse pointer', () => {
     expect(viewGroupId).toBeDefined();
     expect(api.groupMap.has(viewGroupId as string)).toBe(true);
 
-    reconcileViewPanel(api, 'edit', true);
+    reconcileSidePanes(api, 'edit', true);
 
     expect(api.getPanel('cp-view-controls')).toBeNull();
+    expect(api.getPanel('cp-properties')).toBeNull();
     expect(api.groupMap.has(viewGroupId as string)).toBe(false);
     // The crease pattern keeps its own headerless group.
     expect([...api.panelMap.keys()]).toEqual(['crease-pattern']);
@@ -424,7 +500,7 @@ describe('the View pane under a coarse pointer', () => {
     const api = createDockviewApi();
     applyDefaultLayout(api, 'simulate', true);
 
-    reconcileViewPanel(api, 'simulate', false);
+    reconcileSidePanes(api, 'simulate', false);
 
     expect(api.addPanel.mock.calls.at(-1)?.[0]).toMatchObject({
       id: 'simulator-view-controls',
@@ -444,8 +520,9 @@ describe('the View pane under a coarse pointer', () => {
     expect(panel?.title).toBe('Settings');
     panel!.title = 'View';
 
-    reconcileViewPanel(api, 'simulate', false);
+    reconcileSidePanes(api, 'simulate', false);
 
+    expect(panel?.api.setTitle).toHaveBeenCalledWith('Settings');
     expect(panel?.title).toBe('Settings');
     expect(api.addPanel.mock.calls.filter(([o]) => o.id === 'simulator-view-controls')).toHaveLength(1);
   });
@@ -454,13 +531,15 @@ describe('the View pane under a coarse pointer', () => {
     const api = createDockviewApi();
     applyDefaultLayout(api, 'edit', false);
 
-    reconcileViewPanel(api, 'edit', true);
-    reconcileViewPanel(api, 'edit', true);
-    expect(api.removePanel).toHaveBeenCalledOnce();
+    reconcileSidePanes(api, 'edit', true);
+    reconcileSidePanes(api, 'edit', true);
+    // Both panes, once each.
+    expect(api.removePanel).toHaveBeenCalledTimes(2);
 
-    reconcileViewPanel(api, 'edit', false);
-    reconcileViewPanel(api, 'edit', false);
+    reconcileSidePanes(api, 'edit', false);
+    reconcileSidePanes(api, 'edit', false);
     expect(api.addPanel.mock.calls.filter(([o]) => o.id === 'cp-view-controls')).toHaveLength(2);
+    expect(api.addPanel.mock.calls.filter(([o]) => o.id === 'cp-properties')).toHaveLength(2);
   });
 
   it('leaves the Design workspace alone', () => {
@@ -470,8 +549,8 @@ describe('the View pane under a coarse pointer', () => {
     const api = createDockviewApi();
     applyDefaultLayout(api, 'design', true);
 
-    reconcileViewPanel(api, 'design', true);
-    reconcileViewPanel(api, 'design', false);
+    reconcileSidePanes(api, 'design', true);
+    reconcileSidePanes(api, 'design', false);
 
     expect(api.removePanel).not.toHaveBeenCalled();
     expect([...api.panelMap.keys()]).toEqual(['design-workspace']);
@@ -482,8 +561,101 @@ describe('the View pane under a coarse pointer', () => {
     // against layouts this module did not build.
     const api = createDockviewApi();
 
-    expect(() => reconcileViewPanel(api, 'edit', false)).not.toThrow();
+    expect(() => reconcileSidePanes(api, 'edit', false)).not.toThrow();
     expect(api.addPanel).not.toHaveBeenCalled();
+  });
+
+  it('repairs a persisted layout by tabbing Properties into the View group', () => {
+    // A layout saved before the Properties pane existed restores exactly the
+    // panel set it was given. Adding the missing pane keeps the user's sash
+    // widths; a `LAYOUT_VERSION` bump would have thrown them away.
+    const api = createDockviewApi();
+    api.fromJSON(dockviewLayout('branch', ['crease-pattern', 'cp-view-controls']));
+    const viewGroup = api.panelMap.get('cp-view-controls')?.group;
+
+    reconcileSidePanes(api, 'edit', false);
+
+    expect(api.removePanel).not.toHaveBeenCalled();
+    expect(api.addPanel).toHaveBeenCalledOnce();
+    expect(api.addPanel.mock.calls[0][0]).toMatchObject({
+      id: 'cp-properties',
+      position: { referenceGroup: viewGroup },
+      inactive: true,
+    });
+    // The restored View pane carried whatever title it was saved with; the
+    // reconcile gives it the current language's.
+    expect(api.panelMap.get('cp-view-controls')?.api.setTitle).toHaveBeenCalledWith('View');
+  });
+
+  it('moves a side pane out of the headerless primary group', () => {
+    // A layout persisted by a build that accepted the drop: the View pane sits
+    // in the canvas's headerless group, active, covering the canvas with no tab
+    // to bring it back. The repair re-adds it through the placement path, and
+    // Properties then tabs into the *new* View group, not the headerless one.
+    const api = createDockviewApi();
+    api.fromJSON(
+      dockviewLayout('branch', [], [
+        { id: '1', views: ['crease-pattern', 'cp-view-controls'], hideHeader: true },
+      ])
+    );
+
+    reconcileSidePanes(api, 'edit', false);
+
+    expect(api.removePanel).toHaveBeenCalledWith(expect.objectContaining({ id: 'cp-view-controls' }));
+    expect(api.addPanel.mock.calls.slice(-2).map(([options]) => options.id)).toEqual([
+      'cp-view-controls',
+      'cp-properties',
+    ]);
+    const view = api.panelMap.get('cp-view-controls');
+    expect(view?.group.id).not.toBe('1');
+    expect(view?.group.header.hidden).toBe(false);
+    expect(api.panelMap.get('cp-properties')?.group).toBe(view?.group);
+    expect(api.panelMap.get('crease-pattern')?.group.id).toBe('1');
+  });
+
+  it('refuses a drop that would tab a panel into a headerless group', () => {
+    // The centre drop on the canvas is the one that hides a pane; an edge drop
+    // splits the group and the new group has a header, so it stays allowed, as
+    // does any drop onto a group whose tabs can be seen.
+    const api = createDockviewApi();
+    applyDefaultLayout(api, 'edit', false);
+    refuseDropsIntoHeaderlessGroups(api);
+    const canvas = api.panelMap.get('crease-pattern')?.group;
+    const side = api.panelMap.get('cp-view-controls')?.group;
+    const event = (group: MockGroup | undefined, position: string): MockDropEvent => ({
+      group,
+      position,
+      preventDefault: vi.fn(),
+    });
+
+    const hidden = event(canvas, 'center');
+    api.dragOver(hidden);
+    api.drop(hidden);
+    expect(hidden.preventDefault).toHaveBeenCalledTimes(2);
+
+    for (const allowed of [event(canvas, 'left'), event(side, 'center'), event(undefined, 'center')]) {
+      api.dragOver(allowed);
+      api.drop(allowed);
+      expect(allowed.preventDefault).not.toHaveBeenCalled();
+    }
+  });
+
+  it('asks the drawer for a listed pane the dock does not hold', () => {
+    // Under a coarse pointer the side panes are not docked, and `activatePanel`
+    // used to do nothing at all for them. View ▸ Properties on an iPad reaches
+    // the sheet through this request instead.
+    const api = createDockviewApi();
+    applyDefaultLayout(api, 'edit', true);
+    useLayoutStore.getState().setDockviewApi(api);
+    useLayoutStore.setState({ activeWorkspace: 'edit' });
+    const requests: string[] = [];
+    const unsubscribe = subscribeSidePaneRequests((id) => requests.push(id));
+
+    useLayoutStore.getState().activatePanel('cp-properties');
+    useLayoutStore.getState().activatePanel('not-a-pane');
+    unsubscribe();
+
+    expect(requests).toEqual(['cp-properties']);
   });
 
   it('reconciles a layout restored by a workspace switch', () => {
@@ -513,15 +685,15 @@ describe('the View pane under a coarse pointer', () => {
     // Two directions, two modules: this one owns the `addPanel` options, and
     // `workspaces.ts` owns "which workspace does this panel id belong to". They
     // are written by hand and nothing else would notice them drifting.
-    const mapped = WORKSPACE_IDS.flatMap((workspace) => {
-      const spec = viewPanelFor(workspace);
-      return spec ? [[workspace, workspaceForPanelId(spec.id)]] : [];
-    });
+    const mapped = WORKSPACE_IDS.flatMap((workspace) =>
+      sidePanesFor(workspace).map((spec) => [workspace, spec.id, workspaceForPanelId(spec.id)])
+    );
 
     expect(mapped).toEqual([
-      ['edit', 'edit'],
-      ['simulate', 'simulate'],
-      ['references', 'references'],
+      ['edit', 'cp-view-controls', 'edit'],
+      ['edit', 'cp-properties', 'edit'],
+      ['simulate', 'simulator-view-controls', 'simulate'],
+      ['references', 'references-view-controls', 'references'],
     ]);
   });
 
@@ -532,7 +704,7 @@ describe('the View pane under a coarse pointer', () => {
     const api = createDockviewApi();
     api.fromJSON(dockviewLayout('branch', ['references']));
 
-    reconcileViewPanel(api, 'references', false);
+    reconcileSidePanes(api, 'references', false);
 
     expect(api.addPanel).toHaveBeenCalledWith(
       expect.objectContaining({

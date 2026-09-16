@@ -65,6 +65,7 @@
       "opening": "Abriendo imagen",
       "rectifying": "Rectificando el recorte"
     },
+    "canvasImageName": "Imagen del lienzo",
     "chooseImage": "Elegir imagen",
     "compilerReviewOverlays": "Superposiciones de revisión del compilador",
     "crop": "Recortar",
@@ -90,7 +91,14 @@
     "rectified": "Rectificado",
     "regionLabel": "Patrón de pliegues detectado",
     "repairLabel": "Añadir el patrón de pliegues detectado para repararlo",
+    "replacesImage": "Añadir sustituye tu imagen por el patrón. Revisar y corregir la mantiene debajo, a media opacidad, mientras reparas.",
     "reviewAndFix": "Revisar y corregir",
+    "rights": {
+      "attest": "Confirmo que este patrón de pliegues se obtuvo legalmente y que tengo derecho a usarlo.",
+      "back": "Atrás",
+      "continue": "Continuar",
+      "lead": "Los patrones de pliegues son obra de sus diseñadores. Detecte solo un patrón que tenga derecho a usar: uno que haya diseñado usted, uno que se haya publicado para que otros lo plieguen, o uno cuyo diseñador le haya dado permiso. La imagen se procesa en este dispositivo y nunca se sube."
+    },
     "runningModel": "Ejecutando el modelo",
     "stopping": "Deteniendo…",
     "stopSolve": "Detener",
@@ -211,6 +219,8 @@
   "help": {
     "about": {
       "acknowledgements": "Agradecimientos",
+      "desktop": "Aplicación de escritorio",
+      "desktopDetail": "El mismo espacio de trabajo como aplicación nativa, con menús del sistema, diálogos de archivo y archivos que se abren directamente desde el Finder o el Explorador.",
       "intro": "Ori Studio aspira a ser el espacio de trabajo definitivo para el diseño y el análisis de origami. Se apoya en gran medida en migraciones de herramientas de origami existentes creadas por la comunidad: el espacio de trabajo de edición, por ejemplo, es una migración de Oriedita a Rust, centrada en la usabilidad y el rendimiento. Si tienes alguna sugerencia, no dudes en <2>abrir una incidencia en GitHub</2>.",
       "subtitle": "Un espacio de trabajo compartido y moderno para diseñar, editar y plegar patrones de pliegues de origami.",
       "title": "Acerca de Ori Studio"
@@ -351,6 +361,8 @@
       "orphanedLabel": "Detector retirado",
       "remove": "Eliminar",
       "row": "Detector v{{version}}",
+      "suggestDetection": "Sugerir detectar patrones de pliegues en imágenes añadidas al lienzo",
+      "suggestDetectionDescription": "Cuando una imagen de referencia parezca un patrón de pliegues, ofrecer detectarlo. La comprobación se ejecuta en este dispositivo y no descarga nada.",
       "title": "Modelos",
       "unavailable": "No se pudo leer el registro de modelos: {{reason}}",
       "update": "Actualizar",

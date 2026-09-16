@@ -201,7 +201,12 @@ node. Decide during Phase 3.
 - Persisting symmetry `pairs` to `.bps`. They are ephemeral web state, so after
   reload mirroring degrades to geometric inference — symmetry behavior depends
   on session history. Called out in `bp-studio-audit-fixes.md`; a file-format
-  change is out of scope here.
+  change is out of scope here. *(Resolved since: pairs persist in `.osf` per
+  `bp-symmetry-persistence.md`, and there is no geometric inference to degrade
+  to — a partner is an explicit pair or nothing, per
+  `bp-symmetry-explicit-pairs.md`. A `.bps` still carries no pairs; the
+  one-click *Pair all mirrored* is how an imported symmetric layout becomes a
+  paired one.)*
 - The open audit item "flap drag must not move the viewport"
   (`bp-studio-audit-fixes.md` item 6). Its root cause — the packing `viewBox`
   growing to include the dragged flap — is a camera concern, so it should be
