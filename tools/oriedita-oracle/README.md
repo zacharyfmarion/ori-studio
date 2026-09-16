@@ -48,6 +48,13 @@ reimplementing Oriedita drawing logic inside the oracle harness.
 The oracle intentionally compiles against a pinned Oriedita source checkout
 instead of reimplementing the behavior in Rust.
 
+Both launchers disable JVM performance counters (`-XX:-UsePerfData`). Parallel,
+short-lived oracle processes do not need the shared `hsperfdata` files; a lock
+warning from that facility can otherwise appear on stdout and be mistaken for
+an extra protocol record. Geometry output and strict parity comparisons remain
+unchanged. Rebuild the wrapper after changing launcher options; CI's geometry
+oracle cache key includes its build script.
+
 ## Baseline
 
 The native document interchange plan targets Oriedita commit

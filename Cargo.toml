@@ -123,3 +123,9 @@ opt-level = 2
 # (iguana fold ~34s vs ~1.5s), so optimize it even in dev/`tauri dev`.
 [profile.dev.package.oristudio-cp]
 opt-level = 3
+
+# Exhaustive precrease fixture tests spent ~15 minutes in unoptimized geometry
+# search on CI. Optimize this test package while retaining test-profile debug
+# assertions and overflow checks; no fixtures or assertions are skipped.
+[profile.test.package.oristudio-precrease]
+opt-level = 2

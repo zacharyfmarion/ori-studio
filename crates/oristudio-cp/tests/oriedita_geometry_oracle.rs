@@ -97,6 +97,46 @@ fn line_segment_intersections_match_oriedita_geometry_oracle() {
     }
 }
 
+#[test]
+fn jvm_performance_diagnostics_do_not_pollute_oracle_stdout() {
+    let Ok(oracle) = std::env::var("ORIEDITA_GEOMETRY_ORACLE") else {
+        eprintln!("skipping Oriedita geometry oracle test: ORIEDITA_GEOMETRY_ORACLE is not set");
+        return;
+    };
+    // Exercise HotSpot's same stdout logging channel as the intermittent
+    // hsperfdata lock warning, without relying on an actual process-ID race.
+    let output = Command::new(resolve_oracle_path(&oracle))
+        .env("JAVA_TOOL_OPTIONS", "-Xlog:perf+memops=debug")
+        .args([
+            "intersection",
+            "strict",
+            "default",
+            "0",
+            "0",
+            "10",
+            "0",
+            "5",
+            "-5",
+            "5",
+            "5",
+        ])
+        .output()
+        .expect("run Oriedita geometry oracle with performance diagnostics");
+    assert!(
+        output.status.success(),
+        "oracle failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let expected = rust_intersection(&oracle_cases()[0]).state().to_string();
+    assert_eq!(
+        String::from_utf8(output.stdout)
+            .expect("oracle stdout is UTF-8")
+            .trim(),
+        expected,
+        "stdout must contain only the oracle result, even with JVM diagnostics enabled"
+    );
+}
+
 fn rust_intersection(case: &OracleCase) -> Intersection {
     if case.sweet {
         determine_line_segment_intersection_sweet(&case.s1, &case.s2)
