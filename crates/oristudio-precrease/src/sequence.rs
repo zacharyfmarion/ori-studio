@@ -16,6 +16,19 @@ use crate::predicates::{Ref, Witness};
 use crate::sheet::{EdgeSide, Sheet};
 use crate::state::{LineTag, State};
 
+/// Whether a witness uses only exact lines and intersections of exact lines.
+/// Shared by wire emission and the scheduling acceptance gate.
+pub(crate) fn witness_is_exact(state: &State, exact_lines: &[bool], w: &Witness) -> bool {
+    w.inputs.iter().all(|r| match r {
+        Ref::Line { id } => exact_lines[*id],
+        Ref::Point { id } => state
+            .points()
+            .get(*id)
+            .is_some_and(|pt| pt.lines.iter().filter(|&&l| exact_lines[l]).count() >= 2),
+        Ref::Edge { .. } | Ref::Corner { .. } => true,
+    })
+}
+
 /// A step folds a CP line or an auxiliary one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

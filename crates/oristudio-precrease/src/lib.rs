@@ -95,6 +95,7 @@ pub mod pinch;
 pub mod planner;
 pub mod pointgrid;
 pub mod predicates;
+pub mod quality;
 pub mod sequence;
 pub mod sheet;
 pub mod state;
