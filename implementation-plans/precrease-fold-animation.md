@@ -484,4 +484,9 @@ Enums only; no step numbers, no geometry.
       exactly the card's grey picture on the canvas: that was made before
       the sheet turned over there (Zach, 2026-09-16: "still render the
       front and back like in the normal steps").
+- [x] Auto-play defaults to **on** (Zach, 2026-09-16), reversing D1's
+      default: the fold is the card, and a reader who finds the paper moving
+      under the arrow keys has the switch. A turn-over plays on arrival
+      whatever the setting says — it has no crease to read and nothing to
+      line up, and left flat it is a symbol on an unchanged sheet.
 - [ ] *Later, not this plan:* pleats.

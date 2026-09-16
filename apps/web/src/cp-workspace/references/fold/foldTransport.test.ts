@@ -195,6 +195,25 @@ describe('FoldTransport', () => {
     expect(t.status().playing).toBe(false);
   });
 
+  it('turns the sheet over on arrival whatever the setting says, but not on the first card', () => {
+    const t = transport();
+    t.setAutoPlay(false);
+    t.setScene(scene('turn-over'));
+    clock.wait(AUTO_PLAY_SETTLE_MS * 2);
+    expect(t.status().playing).toBe(false);
+    t.setScene(scene());
+    t.setScene(scene('turn-over'));
+    clock.wait(AUTO_PLAY_SETTLE_MS / 2);
+    expect(t.status().playing).toBe(false);
+    clock.wait(AUTO_PLAY_SETTLE_MS);
+    expect(t.status().playing).toBe(true);
+    expect(onPlay).toHaveBeenLastCalledWith('auto', 'fold', 'turn-over');
+    // A fold card after it still waits to be asked.
+    t.setScene(scene());
+    clock.wait(AUTO_PLAY_SETTLE_MS * 2);
+    expect(t.status().playing).toBe(false);
+  });
+
   it('plays a twin as three legs and rests folded on the second flap', () => {
     const t = transport();
     t.setScene(scene('cp', 2));

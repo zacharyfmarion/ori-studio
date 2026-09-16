@@ -1013,7 +1013,7 @@
       "allowDangling": "Allow dangling folds",
       "allowDanglingHelp": "A dangling fold is a crease with an end on blank paper — nothing to stop at. On, each crease starts from a reference (the paper’s edge or a crease already made) and runs to a second one only when that adds no more crease than the crease itself. Off, every crease runs from reference to reference, however much extra crease that takes.",
       "autoPlayFolds": "Auto-play folds",
-      "autoPlayFoldsHelp": "Play a step’s fold as soon as its card is reached. Off, the fold plays when you press Play or Space, and plays back when you press again.",
+      "autoPlayFoldsHelp": "Play a step’s fold as soon as its card is reached. Off, the fold plays when you press Play or Space, and plays back when you press again; the paper still turns over on its own.",
       "candidates": "Candidates",
       "emptyNote": "Open a crease pattern to adjust how its references are found.",
       "gridWhereNeeded": "Only where needed",

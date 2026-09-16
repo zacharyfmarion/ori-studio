@@ -110,9 +110,9 @@ interface SettingsState {
   cpSnapRadius: number;
   /**
    * Play a step's fold as soon as its card is reached in the References
-   * workspace. Off by default: the animation is there to be asked for, and a
-   * reader stepping through a long sequence with the arrow keys should not
-   * have the paper moving under every card.
+   * workspace. On by default (Zach, 2026-09-16): the fold is the card, and
+   * a reader who finds the paper moving under the arrow keys has the switch.
+   * A turn-over plays on arrival either way — see `FoldTransport.setScene`.
    */
   referencesAutoPlayFolds: boolean;
   openSettings: (tab?: SettingsTab) => void;
@@ -141,7 +141,7 @@ export const useSettingsStore = create<SettingsState>()(
       cpDetectSuggestions: readBoolean(CP_DETECT_SUGGESTIONS_KEY, true),
       cpWheelGesture: readCpWheelGesture(),
       cpSnapRadius: readCpSnapRadius(),
-      referencesAutoPlayFolds: readBoolean(REFERENCES_AUTO_PLAY_FOLDS_KEY, false),
+      referencesAutoPlayFolds: readBoolean(REFERENCES_AUTO_PLAY_FOLDS_KEY, true),
       openSettings: (tab) => set({ isSettingsOpen: true, settingsInitialTab: tab ?? null }),
       closeSettings: () => set({ isSettingsOpen: false, settingsInitialTab: null }),
       setBpTreeLayer: (layer, visible) =>

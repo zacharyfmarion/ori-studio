@@ -107,7 +107,7 @@ export function ReferencesViewControlsPanel() {
             label={t('panels:references.settings.autoPlayFolds', 'Auto-play folds')}
             help={t(
               'panels:references.settings.autoPlayFoldsHelp',
-              'Play a step’s fold as soon as its card is reached. Off, the fold plays when you press Play or Space, and plays back when you press again.'
+              'Play a step’s fold as soon as its card is reached. Off, the fold plays when you press Play or Space, and plays back when you press again; the paper still turns over on its own.'
             )}
             checked={autoPlayFolds}
             onChange={setAutoPlayFolds}

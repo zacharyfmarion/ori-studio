@@ -106,9 +106,16 @@ export class FoldTransport {
 
   /**
    * The card's fold, or none. The same object again changes nothing. A
-   * different one lays the paper flat, whatever was playing, and with
-   * auto-play on plays it after a moment — except the first, which is the
-   * card the transport starts on, not one arrived at.
+   * different one lays the paper flat, whatever was playing, and plays it
+   * after a moment when the card asks to be played on arrival — except the
+   * first, which is the card the transport starts on, not one arrived at.
+   *
+   * A fold card asks only with auto-play on: the animation is there to be
+   * asked for, and a reader stepping through with the arrow keys should not
+   * have the paper moving under every card. A turn-over asks regardless:
+   * it has no crease to read and nothing to line up, and the sheet turning
+   * over *is* the card — left flat, it is a symbol on an unchanged sheet
+   * (Zach, 2026-09-16).
    */
   setScene(scene: FoldScene | null): void {
     if (this.seenScene && scene === this.scene) return;
@@ -117,7 +124,7 @@ export class FoldTransport {
     this.scene = scene;
     this.clearTimer();
     this.rest();
-    if (arrival && this.autoPlay && scene) {
+    if (arrival && scene && (this.autoPlay || scene.kind === 'turn-over')) {
       this.timer = this.clock.setTimer(() => {
         this.timer = 0;
         this.play('auto');
