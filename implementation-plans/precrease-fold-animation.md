@@ -341,15 +341,29 @@ Enums only; no step numbers, no geometry.
       the reflection at `r = 0`, the overhang and shortfall at `θ = π`, and
       `c(s)` on a pinch versus a full crease. Verified on a pinch step and a
       full-crease step side by side.
-- [ ] **Phase 3 — height cues.** The cast shadow; `prefers-reduced-motion`;
-      constants (`R₀`, ramp, `k`, durations) settled in the pane, light and
-      dark.
-- [ ] **Phase 4 — the awkward cases.** Twins, press steps, O4, O1, flaps that
-      land partly off the sheet, a 50k-segment pattern for the split's cost;
-      grid steps disabled with the hint.
-- [ ] Panel hook-order test through play / pause / step change; the renderer
-      layer-order test extended for a References-view folded upload; lint,
-      typecheck, `test:web`.
+- [x] **Phase 3 — height cues.** The cast shadow of the flat part;
+      `prefers-reduced-motion` snaps between the rest poses. Constants as
+      shipped: `R₀` 2% and the ramp 3% of the short side, the shade the text
+      colour at the theme's shadow share (18% light, 28% dark — the
+      `--paper-shadow` token itself is a `color-mix()` the GPU colour reader
+      cannot parse), the shadow 0.55 of the height along the light, the swing
+      1150 ms with the last fifth the press. Looked at in One Dark and Atom
+      One Light; Zach's eye decides the rest.
+- [x] **Phase 4 — the awkward cases.** Twins (two corner flaps swinging in
+      together, checked in the pane), press steps, O4 and O1 (unit tests on
+      the motion), a flap landing off the sheet (drawn wherever it lands —
+      nothing special), pleats disabled with the hint. Cost, measured on a
+      synthetic 50k-segment pattern under vitest: the one-off split at play
+      start 33 ms, a frame 37 ms with 25k strokes on the flap — allocation
+      bound, so a real pattern (hundreds to a few thousand creases) is well
+      under a frame. A typed-array packer with no per-stroke objects is the
+      lever if a pattern that size ever needs to play smoothly. A split is now
+      cached per upload, so a hover no longer re-splits the pattern under it.
+- [x] The panel's hook-order test passes as is — the transport hook is
+      unconditional, and the view is mocked out of it; the renderer's layer
+      order is untouched (the folded channel already sat between the points
+      and the preview), so its test needed no extension. Lint, typecheck and
+      the whole web suite are green.
 - [ ] Zach tries it on a desktop and a phone.
 - [ ] *Later, not this plan:* a turn-over card animating the sheet flipping
       over (the same rig, rigid, hinge at the sheet's centre line); Find-mode
