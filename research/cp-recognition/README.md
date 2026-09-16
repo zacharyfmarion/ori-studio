@@ -63,6 +63,7 @@ patterns. It has not replaced the published model.
 | E029 | Lower peak confidence threshold | Rejected; Hand/Dwarf worsen; higher threshold helps Frog but hurts Hand |
 | E030 | Existing detector only after compact topology defects | 339 → 342 exact development graphs, one partial regression; retained as optional research, not default |
 | E031 | Preserve detected sub-percent paper margins | Adopted; synthetic regression catches discarded crops; private diagnostic excluded from every dataset |
+| E032 | Connected AUX references and source-supported continuity | Corrects isolated-segment design; shared vertices survive solving and import |
 
 E004 was not assigned. Artifact directories retain experimental states; the
 candidate pointer and results report identify the selected combination.

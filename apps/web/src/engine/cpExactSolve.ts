@@ -145,6 +145,8 @@ export interface CpExactSolveResult {
    * design, the same way a timeout's partial is.
    */
   fold: Record<string, unknown> | null;
+  /** Explicitly non-exact preview; never applied automatically. */
+  previewFold?: Record<string, unknown> | null;
   /** Wall time across both stages, measured here rather than in the solver. */
   durationMs: number;
 }
@@ -248,6 +250,7 @@ async function solveOnSession(
       );
       const outcome = classifyCpExactSolve(result.solved, 'refinement');
       return complete({ outcome, fold: outcome.kind === 'solved' ? result.fold : null,
+        previewFold: outcome.kind === 'ambiguous' ? result.fold : result.partial_fold,
         durationMs: elapsed(startedAt) }, options);
     }
     const geometryStartedAt = Date.now();
@@ -281,6 +284,7 @@ async function solveOnSession(
       {
         outcome,
         fold: outcome.kind === 'solved' ? refined.fold : null,
+        previewFold: outcome.kind === 'ambiguous' ? refined.fold : refined.partial_fold,
         durationMs: elapsed(startedAt),
       },
       options

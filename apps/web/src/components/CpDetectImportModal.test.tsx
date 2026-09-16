@@ -543,6 +543,20 @@ describe('CpDetectImportModal recognize-then-solve', () => {
     expect(button('Add')).toBeNull();
   });
 
+  it('imports the reconstructed AUX preview instead of moving old split vertices', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(0)));
+    const preview = {
+      vertices_coords: [[0, 0.5], [0.45, 0.5], [1, 0.5]],
+      edges_vertices: [[0, 1], [1, 2]], edges_assignment: ['F', 'F'],
+    };
+    runCpExactSolve.mockResolvedValue({ ...solveResult(ambiguousOutcome(), null), previewFold: preview });
+    await reachReviewStage();
+    click('Add improved result');
+    await settle();
+    const [{ text }] = storeActions.importAddOristudioCpText.mock.calls[0] as unknown as [{ text: string }];
+    expect(JSON.parse(text)).toEqual(preview);
+  });
+
   it('adds the improved result at the coordinates the solve reached', async () => {
     detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(0)));
     runCpExactSolve.mockResolvedValue(solveResult(ambiguousOutcome(), null));

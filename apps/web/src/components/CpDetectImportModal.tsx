@@ -273,7 +273,7 @@ type SolvePhase =
    */
   | { kind: 'cancelled' }
   /** The solver reached a verdict. `fold` is non-null only when it accepted. */
-  | { kind: 'settled'; outcome: CpExactSolveOutcome; fold: Record<string, unknown> | null }
+  | { kind: 'settled'; outcome: CpExactSolveOutcome; fold: Record<string, unknown> | null; previewFold?: Record<string, unknown> | null }
   /**
    * The solve could not run at all — a dead worker, not one of the solver's
    * endings. Separate from `settled` so a bridge failure is never reported as a
@@ -670,7 +670,7 @@ export function CpDetectImportModal() {
           run: { kind: 'detect-import', targetId },
           onStage: (stage) => setPhase({ kind: 'solving', stage }),
         });
-        setPhase({ kind: 'settled', outcome: result.outcome, fold: result.fold });
+        setPhase({ kind: 'settled', outcome: result.outcome, fold: result.fold, previewFold: result.previewFold });
         publishDetectionResult(source, recognized, foldJsonOf(result.fold) ?? recognized.foldJson);
       } catch (caught) {
         // Stop is not a failure, and must not leave an error line behind saying
@@ -767,22 +767,20 @@ export function CpDetectImportModal() {
   /**
    * The timed-out solve's partial coordinates, as a FOLD ready to add.
    *
-   * Computed rather than promised: the mapping needs `cp_detector
-   * .vertex_original_ids`, so this returns null when the export carries none and
-   * the button is then not offered at all. An offer that cannot be honoured is
-   * worse than no offer.
+   * AUX graphs come from the shared Rust exporter so their derived crossings
+   * follow the moved folds. Legacy exports use the original-id mapping and
+   * omit the offer when that mapping is unavailable.
    */
   const partialFoldJson = useMemo(
     () =>
       recognition && phase.kind === 'settled' && phase.outcome.kind === 'timeout'
-        ? foldJsonWithMovedVertices(recognition.foldJson, phase.outcome.partialMovedVertices)
+        ? foldJsonOf(phase.previewFold ?? null) ?? foldJsonWithMovedVertices(recognition.foldJson, phase.outcome.partialMovedVertices)
         : null,
     [phase, recognition]
   );
 
   /**
-   * The improved-but-not-exact document, built here because the runner will not
-   * hand one over.
+   * The improved-but-not-exact document, offered explicitly as a preview.
    *
    * `CpExactSolveResult.fold` is deliberately null on an `ambiguous` acceptance:
    * that field is the *exactly* solved document, and returning improved geometry
@@ -795,7 +793,7 @@ export function CpDetectImportModal() {
   const improvedFoldJson = useMemo(
     () =>
       recognition && phase.kind === 'settled' && phase.outcome.kind === 'ambiguous'
-        ? foldJsonWithMovedVertices(recognition.foldJson, phase.outcome.movedVertices)
+        ? foldJsonOf(phase.previewFold ?? null) ?? foldJsonWithMovedVertices(recognition.foldJson, phase.outcome.movedVertices)
         : null,
     [phase, recognition]
   );

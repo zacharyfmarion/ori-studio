@@ -1,11 +1,12 @@
-//! Auxiliary ink is positive geometry, separate from physical fold topology.
-//! Oriedita cyan strokes become FOLD `F` edges. They do not split physical
-//! creases at crossings or participate in M/V theorem completion.
+//! Oriedita cyan references are FOLD `F` edges in the connected drawing graph.
+//! Fold constraints use the reduced physical graph; exports restore AUX and
+//! split every crossing into a shared vertex without changing physical folds.
+mod graph;
 use crate::decode::DecodeError;
 use crate::opencv_hough_lines_p::{HoughLinesPConfig, hough_lines_p_opencv_cpu};
+pub use graph::{append_auxiliary, append_solved_auxiliary, partial_auxiliary_fold};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use treemaker_fold::{Assignment, FoldAngle, FoldDocument};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct AuxiliarySegment {
@@ -19,7 +20,20 @@ pub fn attach_to_decoded(
     decoded: &mut crate::decode::DecodedFold,
     segments: &[AuxiliarySegment],
 ) -> Result<(), DecodeError> {
-    decoded.fold_json = append_auxiliary(&decoded.fold_json, segments)?;
+    let compiler = &decoded.report.quality_report["compiler_report"];
+    decoded.fold_json = if let (Some(input), Some(solved)) = (
+        compiler.get("exact_solve_input"),
+        compiler.get("exact_solve"),
+    ) {
+        append_solved_auxiliary(
+            &decoded.fold_json,
+            segments,
+            &serde_json::from_value(input.clone())?,
+            &serde_json::from_value(solved.clone())?,
+        )?
+    } else {
+        append_auxiliary(&decoded.fold_json, segments)?
+    };
     if let Some(input) = decoded
         .report
         .quality_report
@@ -31,8 +45,16 @@ pub fn attach_to_decoded(
         // and both export bridges reattach it after solving.
         input.insert("auxiliary_segments".into(), serde_json::to_value(segments)?);
     }
-    decoded.report.edge_count += segments.len();
-    decoded.report.vertex_count += segments.len() * 2;
+    let fold: treemaker_fold::FoldDocument = serde_json::from_str(&decoded.fold_json)?;
+    decoded.report.edge_count = fold.edges_vertices.len();
+    decoded.report.vertex_count = fold.vertices_coords.len();
+    decoded.report.border_edge_count = fold
+        .edges_assignment
+        .iter()
+        .filter(|&&a| a == treemaker_fold::Assignment::Boundary)
+        .count();
+    decoded.report.interior_edge_count =
+        decoded.report.edge_count - decoded.report.border_edge_count;
     decoded.report.quality_report["auxiliary_segment_count"] = json!(segments.len());
     Ok(())
 }
@@ -77,19 +99,24 @@ pub fn extract_auxiliary_segments(
             "invalid AUX probabilities",
         ));
     }
-    let cyan: Vec<bool> = rgba
+    let cyan: Vec<f32> = rgba
         .chunks_exact(4)
         .map(|p| {
             let [r, g, b] = [p[0] as f32, p[1] as f32, p[2] as f32];
             let chroma = (g - r).min(b - r);
-            chroma > 12.0 && (g - b).abs() <= 12.0 + 0.25 * chroma
+            if chroma > 6.0 && (g - b).abs() <= 6.0 + 0.25 * chroma {
+                (chroma / 20.0).min(1.0)
+            } else {
+                0.0
+            }
         })
         .collect();
     let mut p = vec![0.0; size * size];
     let mut support = Vec::new();
     for y in 32..=size - 32 {
         for x in 32..=size - 32 {
-            let near = (y - 1..=y + 1).any(|yy| (x - 1..=x + 1).any(|xx| cyan[yy * size + xx]));
+            let near =
+                (y - 1..=y + 1).any(|yy| (x - 1..=x + 1).any(|xx| cyan[yy * size + xx] >= 0.6));
             if near {
                 p[y * size + x] = probability[y * size + x];
                 if p[y * size + x] >= 0.30 {
@@ -172,6 +199,13 @@ pub fn extract_auxiliary_segments(
             })
             .count();
         if length(segment) >= 8.0 && supported as f64 / (samples + 1) as f64 >= 0.65 {
+            // The model establishes the carrier; visible cyan continues it
+            // through low-confidence ends and small occlusions at crossings.
+            // Do not propose carriers from color alone: JPEG speckles around
+            // pale cyan otherwise create short, off-axis branches.
+            for _ in 0..4 {
+                segment = grow_on_cyan(segment, &cyan, size);
+            }
             result.push(segment);
         }
     }
@@ -204,6 +238,74 @@ pub fn extract_auxiliary_segments(
         .collect())
 }
 
+fn grow_on_cyan(segment: Segment, cyan: &[f32], size: usize) -> Segment {
+    let len = length(segment);
+    let direction = [0, 1].map(|d| (segment[1][d] - segment[0][d]) / len);
+    let mut ends = segment;
+    for i in 0..2 {
+        let sign = if i == 0 { -1.0 } else { 1.0 };
+        let mut gap = 0;
+        for step in 1..size {
+            let point = [0, 1].map(|d| segment[i][d] + sign * step as f64 * direction[d]);
+            if point.iter().any(|&v| v < 32.0 || v > (size - 32) as f64) {
+                break;
+            }
+            let [x, y] = point.map(|v| v.round() as usize);
+            let supported =
+                (y - 1..=y + 1).any(|yy| (x - 1..=x + 1).any(|xx| cyan[yy * size + xx] >= 0.3));
+            if supported {
+                ends[i] = point;
+                gap = 0;
+            } else {
+                gap += 1;
+            }
+            if gap > 12 {
+                break;
+            }
+        }
+    }
+    // Fit the center of actual ink, not the edge of the sampling band.
+    let mut points = Vec::new();
+    let low = [0, 1].map(|d| (ends[0][d].min(ends[1][d]) - 3.0).floor().max(32.0) as usize);
+    let high = [0, 1].map(|d| {
+        (ends[0][d].max(ends[1][d]) + 3.0)
+            .ceil()
+            .min((size - 32) as f64) as usize
+    });
+    let span = length(ends);
+    // Visit a narrow strip, not the line's potentially image-sized bounding
+    // box. Dense reference hatching must stay fast in browser WASM.
+    let major = usize::from(direction[1].abs() > direction[0].abs());
+    let minor = 1 - major;
+    for coordinate in low[major]..=high[major] {
+        let center = ends[0][minor]
+            + (coordinate as f64 - ends[0][major]) * direction[minor] / direction[major];
+        let lower = (center - 4.0).floor().max(low[minor] as f64) as usize;
+        let upper = (center + 4.0).ceil().min(high[minor] as f64) as usize;
+        for adjacent in lower..=upper {
+            let mut pixel = [0; 2];
+            pixel[major] = coordinate;
+            pixel[minor] = adjacent;
+            let [x, y] = pixel;
+            let strength = cyan[y * size + x];
+            let v = [x as f64 - ends[0][0], y as f64 - ends[0][1]];
+            let along = v[0] * direction[0] + v[1] * direction[1];
+            if strength >= 0.3
+                && (v[0] * direction[1] - v[1] * direction[0]).abs() <= 2.5
+                && along >= 0.0
+                && along <= span
+            {
+                points.push(([x as f64, y as f64], strength as f64));
+            }
+        }
+    }
+    if points.len() >= 6 {
+        fit(&points)
+    } else {
+        segment
+    }
+}
+
 fn length(s: Segment) -> f64 {
     (s[1][0] - s[0][0]).hypot(s[1][1] - s[0][1])
 }
@@ -227,7 +329,7 @@ fn mergeable(a: Segment, b: Segment) -> bool {
         return false;
     }
     let t = relative.map(|v| v[0] * d[0] + v[1] * d[1]);
-    t[0].min(t[1]) <= len + 6.0 && t[0].max(t[1]) >= -6.0
+    t[0].min(t[1]) <= len + 12.0 && t[0].max(t[1]) >= -12.0
 }
 
 fn fit(points: &[([f64; 2], f64)]) -> Segment {
@@ -251,66 +353,12 @@ fn fit(points: &[([f64; 2], f64)]) -> Segment {
     [lo, hi].map(|t| [center[0] + axis[0] * t, center[1] + axis[1] * t])
 }
 
-/// Attach only after physical recognition/solving. Existing vertex/edge indices
-/// remain stable; all detector per-edge metadata is extended consistently.
-pub fn append_auxiliary(
-    fold_json: &str,
-    segments: &[AuxiliarySegment],
-) -> Result<String, DecodeError> {
-    if segments.is_empty() {
-        return Ok(fold_json.to_owned());
-    }
-    let mut fold: FoldDocument = serde_json::from_str(fold_json)?;
-    let old_edges = fold.edges_vertices.len();
-    let old_vertices = fold.vertices_coords.len();
-    for segment in segments {
-        if segment.endpoints.iter().flatten().any(|v| !v.is_finite()) {
-            return Err(DecodeError::InvalidPixelEvidence(
-                "nonfinite AUX coordinates",
-            ));
-        }
-        let id = fold.vertices_coords.len();
-        fold.vertices_coords
-            .extend(segment.endpoints.map(Vec::from));
-        fold.edges_vertices.push([id, id + 1]);
-        fold.edges_assignment.push(Assignment::Flat);
-        fold.edges_fold_angle
-            .push(FoldAngle::default_for_assignment(Assignment::Flat));
-    }
-    if let Some(Value::Object(metadata)) = fold.extra.get_mut("cp_detector") {
-        for (key, value) in metadata.iter_mut() {
-            if let Value::Array(array) = value {
-                if array.len() == old_edges
-                    && (key.starts_with("edge_")
-                        || key.starts_with("assignment_")
-                        || key == "boundary_role")
-                {
-                    let neutral = match key.as_str() {
-                        "edge_source" => json!("auxiliary"),
-                        "edge_provenance" => json!([]),
-                        "boundary_role" | "edge_boundary_role" => json!("none"),
-                        "assignment_confidence" | "assignment_margin" | "edge_support" => {
-                            json!(1.0)
-                        }
-                        _ => Value::Null,
-                    };
-                    array.extend((0..segments.len()).map(|_| neutral.clone()));
-                } else if array.len() == old_vertices && key.starts_with("vertex_") {
-                    array.extend((0..2 * segments.len()).map(|_| Value::Null));
-                }
-            }
-        }
-        metadata.insert("auxiliary_segments".into(), json!(segments));
-    }
-    Ok(serde_json::to_string(&fold)?)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn cyan_is_preserved_as_aux_without_splitting_physical_edges() {
+    fn cyan_is_preserved_as_aux_with_shared_crossing_vertices() {
         let mut rgba = vec![255; 128 * 128 * 4];
         let mut p = vec![0.0; 128 * 128];
         for y in [44, 56, 68, 80] {
@@ -324,16 +372,98 @@ mod tests {
         assert_eq!(aux.len(), 4, "{aux:?}");
         let source = r#"{"vertices_coords":[[0,0],[1,1]],"edges_vertices":[[0,1]],"edges_assignment":["M"],"edges_foldAngle":[-180],"cp_detector":{"source":"exact_solve_candidate","edge_support":[0.9]}}"#;
         let fold: Value = serde_json::from_str(&append_auxiliary(source, &aux).unwrap()).unwrap();
-        assert_eq!(fold["edges_vertices"][0], json!([0, 1]));
-        assert_eq!(fold["edges_assignment"], json!(["M", "F", "F", "F", "F"]));
+        assert_ne!(fold["edges_vertices"][0], json!([0, 1]));
+        assert_eq!(
+            fold["edges_assignment"],
+            json!([
+                "M", "M", "M", "M", "M", "F", "F", "F", "F", "F", "F", "F", "F"
+            ])
+        );
         assert_eq!(
             fold["cp_detector"]["edge_support"]
                 .as_array()
                 .unwrap()
                 .len(),
-            5
+            13
         );
-        assert_eq!(fold["edges_foldAngle"][1], 0.0);
+        assert_eq!(fold["edges_foldAngle"][5], 0.0);
+    }
+
+    #[test]
+    fn visible_cyan_recovers_low_probability_ends_and_occluded_crossings() {
+        let size = 256usize;
+        let mut rgba = vec![255; size * size * 4];
+        let mut p = vec![0.0; size * size];
+        for x in 40..=215 {
+            rgba[(100 * size + x) * 4..(100 * size + x) * 4 + 4]
+                .copy_from_slice(&[215, 235, 235, 255]);
+            if (75..=100).contains(&x) || (150..=185).contains(&x) {
+                p[100 * size + x] = 0.9;
+            }
+        }
+        for y in 70..130 {
+            for x in 124..=129 {
+                rgba[(y * size + x) * 4..(y * size + x) * 4 + 4].copy_from_slice(&[255, 0, 0, 255]);
+            }
+        }
+        let aux = extract_auxiliary_segments(&rgba, &p, size as u32).unwrap();
+        assert_eq!(aux.len(), 1, "{aux:?}");
+        let xs = aux[0].endpoints.map(|v| 32.0 + v[0] * (size - 64) as f64);
+        assert!((xs[0].min(xs[1]) - 40.0).abs() <= 1.0);
+        assert!((xs[0].max(xs[1]) - 215.0).abs() <= 1.0);
+    }
+
+    #[test]
+    fn cyan_without_a_learned_seed_and_separate_collinear_strokes_stay_separate() {
+        let size = 256usize;
+        let mut rgba = vec![255; size * size * 4];
+        let mut p = vec![0.0; size * size];
+        for x in (40..100).chain(145..215) {
+            rgba[(100 * size + x) * 4..(100 * size + x) * 4 + 4]
+                .copy_from_slice(&[100, 200, 200, 255]);
+            p[100 * size + x] = 0.9;
+        }
+        assert_eq!(
+            extract_auxiliary_segments(&rgba, &p, size as u32)
+                .unwrap()
+                .len(),
+            2
+        );
+        p.fill(0.0);
+        assert!(
+            extract_auxiliary_segments(&rgba, &p, size as u32)
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn dense_parallel_references_keep_their_identity_through_crossing_occlusions() {
+        let size = 256usize;
+        let mut rgba = vec![255; size * size * 4];
+        let mut p = vec![0.0; size * size];
+        for y in (40..=210).step_by(10) {
+            for x in 40..=215 {
+                rgba[(y * size + x) * 4..(y * size + x) * 4 + 4]
+                    .copy_from_slice(&[100, 200, 200, 255]);
+                if (60..=195).contains(&x) && !(114..=140).contains(&x) {
+                    p[y * size + x] = 1.0;
+                }
+            }
+        }
+        for y in 32..224 {
+            for x in 125..=129 {
+                rgba[(y * size + x) * 4..(y * size + x) * 4 + 4].copy_from_slice(&[0, 0, 255, 255]);
+            }
+        }
+        let aux = extract_auxiliary_segments(&rgba, &p, size as u32).unwrap();
+        assert_eq!(aux.len(), 18, "{aux:?}");
+        for s in aux {
+            let x = s.endpoints.map(|p| 32.0 + p[0] * 192.0);
+            assert!((x[0].min(x[1]) - 40.0).abs() < 1.0);
+            assert!((x[0].max(x[1]) - 215.0).abs() < 1.0);
+            assert!((s.endpoints[0][1] - s.endpoints[1][1]).abs() < 1e-5);
+        }
     }
 
     #[test]

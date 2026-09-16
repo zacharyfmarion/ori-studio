@@ -467,15 +467,24 @@ pub fn cp_detect_solve_exact_to_fold(
     let document =
         oristudio_cp_compiler::fold_export::export_exact_solved_to_fold_document(&input, &solved)
             .map_err(to_js_compiler_error)?;
-    let document = oristudio_cp_detect::auxiliary::append_auxiliary(
+    let document = oristudio_cp_detect::auxiliary::append_solved_auxiliary(
         &serde_json::to_string(&document).map_err(|e| js_error("invalid_json", e.to_string()))?,
         &auxiliary,
+        &input,
+        &solved,
     )
     .map_err(to_js_decode_error)?;
     let document: serde_json::Value =
         serde_json::from_str(&document).map_err(|e| js_error("invalid_json", e.to_string()))?;
 
+    let partial =
+        oristudio_cp_detect::auxiliary::partial_auxiliary_fold(&auxiliary, &input, &solved)
+            .map_err(to_js_decode_error)?;
     let mut payload = serde_json::Map::new();
+    payload.insert(
+        "partial_fold".to_owned(),
+        partial.unwrap_or(serde_json::Value::Null),
+    );
     payload.insert(
         "schema".to_owned(),
         serde_json::Value::String(SOLVE_EXACT_FOLD_SCHEMA.to_owned()),

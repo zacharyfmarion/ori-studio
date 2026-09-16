@@ -129,7 +129,9 @@ declared generator families, and groups equivalent rotated/reflected geometry
 across training and validation. `pixel_vertex.py` requires the pack's provenance
 sidecar; it never imports the real inventory or benchmark. Training includes
 cyan AUX as positive AUX targets and excludes AUX intersections from physical
-junction labels. Black/gray physical ink, background grids, and dark styles are
+junction labels. E032 reconstructs those reference intersections geometrically
+and exports them as shared graph vertices; the reduced fold-constraint graph
+continues to exclude AUX. Black/gray physical ink, background grids, and dark styles are
 render augmentations. Unit checks are in `test_pixel_vertex.py`.
 
 The selected checkpoint is E013 step 9000, initialized from the saved E007
@@ -190,3 +192,14 @@ experiments. Oracle outputs contain truth substitutions and are never candidate
 scores. `fine_tune_text.py` and `widen_pixel_model.py` use synthetic-only weights
 and patches; E023 and E024 were not selected. See the notebook for their exact
 configurations, rejection reasons, and source snapshots.
+
+## AUX graph diagnostics (E032)
+
+`auxiliary_probe` reads a rectified source image, its AUX float32 plane, and the
+saved physical solve input, then runs the product Rust extraction/export. It
+never reads truth. `audit_auxiliary_graph.py BEFORE.fold AFTER.fold` checks that
+physical geometry and assignments are unchanged by subdivision and reports
+shared vertices, loose AUX ends, isolated vertices, and unmodeled crossings.
+A loose endpoint is diagnostic, not automatically a defect: references can end
+freely. The old Python `auxiliary_lines.py` is the frozen E008 prototype and
+must not be used to assess current product connectivity.

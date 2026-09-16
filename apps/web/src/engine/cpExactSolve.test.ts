@@ -72,6 +72,29 @@ it('runs recognition fallback once with polish and the remaining total budget', 
   expect(result.fold).toEqual(FOLD);
 });
 
+it('keeps a connected AUX timeout preview separate from an accepted fold', async () => {
+  const bridge = solver(REJECTED);
+  const partial = { vertices_coords: [[0.45, 0.5]], edges_vertices: [], edges_assignment: ['F'] };
+  bridge.solveExactToFold.mockResolvedValue({
+    schema: 'oristudio/cp-detect/solve-exact-fold-v1',
+    solved: graph({ ...REJECTED, timed_out: true, attempted_moved_vertices: ACCEPTED.moved_vertices }),
+    fold: FOLD,
+    partial_fold: partial,
+  });
+  const result = await runCpExactSolve({}, { recognitionFallback: true, solver: async () => bridge });
+  expect(result.outcome.kind).toBe('timeout');
+  expect(result.fold).toBeNull();
+  expect(result.previewFold).toEqual(partial);
+});
+
+it('keeps an ambiguous AUX export as a preview without accepting it automatically', async () => {
+  const bridge = solver(ACCEPTED, ACCEPTED, { stage2: 'ambiguous' });
+  const result = await runCpExactSolve({}, { recognitionFallback: true, solver: async () => bridge });
+  expect(result.outcome.kind).toBe('ambiguous');
+  expect(result.fold).toBeNull();
+  expect(result.previewFold).toEqual(FOLD);
+});
+
 function solver(
   stage1: CpExactSolveMovementReport,
   stage2: CpExactSolveMovementReport = stage1,

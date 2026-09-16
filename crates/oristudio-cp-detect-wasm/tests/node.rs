@@ -38,6 +38,48 @@ fn auxiliary_lines_survive_the_actual_solve_and_fold_export_bridge() {
 }
 
 #[wasm_bindgen_test]
+fn auxiliary_crossings_and_boundary_contacts_share_vertices_after_solving() {
+    let size = 128;
+    let mut decoded = oristudio_cp_detect::decode::decode_pixel_evidence(
+        &vec![255; size * size * 4],
+        &vec![0.0; size * size],
+        &[],
+        oristudio_cp_detect::decode::DecodeConfig {
+            image_size: size as u32,
+            recognize_only: true,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let segments = [[[0.003, 0.5], [0.997, 0.5]], [[0.5, 0.003], [0.5, 0.997]]]
+        .map(|endpoints| oristudio_cp_detect::auxiliary::AuxiliarySegment { endpoints });
+    oristudio_cp_detect::auxiliary::attach_to_decoded(&mut decoded, &segments).unwrap();
+    let input = &decoded.report.quality_report["compiler_report"]["exact_solve_input"];
+    let result = oristudio_cp_detect_wasm::cp_detect_solve_exact_to_fold(
+        &input.to_string(),
+        r#"{"timeout_seconds":1}"#,
+    )
+    .unwrap();
+    let result: serde_json::Value = serde_wasm_bindgen::from_value(result).unwrap();
+    let fold: treemaker_fold::FoldDocument =
+        serde_json::from_value(result["fold"].clone()).unwrap();
+    assert_eq!(fold.vertices_coords.len(), 9);
+    assert_eq!(fold.edges_vertices.len(), 12);
+    let center = fold
+        .vertices_coords
+        .iter()
+        .position(|p| (p[0] - 0.5).abs() < 1e-8 && (p[1] - 0.5).abs() < 1e-8)
+        .unwrap();
+    assert_eq!(
+        fold.edges_vertices
+            .iter()
+            .filter(|e| e.contains(&center))
+            .count(),
+        4
+    );
+}
+
+#[wasm_bindgen_test]
 fn package_info_serializes_browser_detector_contract() {
     let info =
         oristudio_cp_detect_wasm::cp_detect_package_info().expect("package info should serialize");

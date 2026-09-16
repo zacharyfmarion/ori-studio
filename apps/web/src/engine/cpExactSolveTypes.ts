@@ -335,6 +335,8 @@ export interface CpExactSolveFoldResult {
   schema: string;
   solved: CpExactSolvedGraph;
   fold: Record<string, unknown>;
+  /** Non-exact timeout preview with AUX topology rebuilt by the shared exporter. */
+  partial_fold?: Record<string, unknown> | null;
 }
 
 /**
