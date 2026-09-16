@@ -287,4 +287,24 @@ describe('model status', () => {
     expect(formatModelSize(2_500_000)).toBe('2.5 MB');
     expect(formatModelSize(150_000_000)).toBe('150 MB');
   });
+
+  it('honors a rollback when both the old and newer models are cached', () => {
+    const registry = parseCpDetectModelRegistry(registryText('detector-v4'));
+    const status = cpDetectModelStatus(registry, [
+      { id: 'detector-v4', size_bytes: 10, sha256: 'a'.repeat(64), installed_at: '' },
+      { id: 'detector-v5', size_bytes: 20, sha256: 'b'.repeat(64), installed_at: '' },
+    ]);
+    expect(status?.installed?.id).toBe('detector-v4');
+    expect(status?.updateAvailable).toBe(false);
+  });
+
+  it('downloads the rollback target instead of using an ineligible newer cache', () => {
+    const registry = parseCpDetectModelRegistry(registryText('detector-v4'));
+    const status = cpDetectModelStatus(registry, [
+      { id: 'detector-v5', size_bytes: 20, sha256: 'b'.repeat(64), installed_at: '' },
+    ]);
+    expect(status?.installed).toBeNull();
+    expect(status?.current.id).toBe('detector-v4');
+    expect(status?.updateAvailable).toBe(false);
+  });
 });
