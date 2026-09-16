@@ -44,6 +44,8 @@ export const STORAGE_KEYS = {
   analyticsEnabled: 'analytics-enabled',
   /** Anonymous, locally-generated stable id used to `identify()` in PostHog. */
   analyticsId: 'analytics-id',
+  /** This device belongs to someone who works on the app; see `analytics/internalUser.ts`. */
+  analyticsInternalUser: 'analytics-internal-user',
   /**
    * How updates are delivered: automatic, notify-only, or off. Tauri has no
    * delta updates, so every release is a full download — someone on metered or

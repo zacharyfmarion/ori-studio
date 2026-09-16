@@ -83,3 +83,4 @@ export {
 export type { BootstrapOptions, PostHogClientLike, PostHogEnvironment } from './bootstrap';
 
 export { clearStableId, getOrCreateStableId, peekStableId } from './stableId';
+export { consumeInternalUserFlag, isInternalUser } from './internalUser';

@@ -116,6 +116,31 @@ recognizes the fold chord and calls the store action directly, *before*
 calls the same store action, so there is no `command invoked` either. Every
 `fold *` event is hand-placed for that reason.
 
+### Filtering yourself out
+
+Analytics is anonymous, so there is no email to exclude and the stable id is
+re-minted whenever storage is cleared. To keep your own use of the production
+app out of the numbers, open it once with **`?internal=1`** on the URL
+(`https://oristudio.dev/?internal=1`). `analytics/internalUser.ts` persists the
+flag, strips the parameter, and from then on every event from that browser
+carries `internal_user: true`. `?internal=0` clears it. Do it per browser
+profile, and again after clearing site data. The desktop app has no address
+bar; opt out of analytics in Settings ▸ Workspace ▸ Privacy there instead, or
+set `oristudio:analytics-internal-user` to `true` in its web inspector.
+
+On the PostHog side, the project setting *Filter out internal and test users*
+is `internal_user is not set` (plus the developer's pre-flag device id, which is
+how the history before the flag existed stays excluded), new insights default
+to that filter, and every tile on the Product Overview and Crease-Pattern
+Detection dashboards has it on. An insight built without it counts you.
+
+Not the SDK's own mechanism, on purpose: posthog-js sets the person property
+`$internal_or_test_user` for any page whose hostname is `localhost`, and the
+macOS desktop app is served from `tauri://localhost`, so its default put every
+Mac desktop user in the "test users" cohort. `initializePostHog` disables that
+heuristic (`internal_or_test_user_hostname: null`); the cohort it fed is legacy
+and must not be used as a filter.
+
 ## Crash reporting (Sentry)
 
 Project `ori-studio` in the `zachary-marion` org. All of it goes through
@@ -176,7 +201,9 @@ crash. If you want *frequency*, that is a PostHog event, not a Sentry one.
 
 Every event also carries the super properties `app_version`, `app_commit`,
 `runtime_surface`, `display_mode`, `analytics_enabled`, `locale`, and
-`locale_source`.
+`locale_source` — plus `internal_user: true` on a device marked as a
+developer's own, and no `internal_user` key at all on everyone else's (see
+"Filtering yourself out" below).
 
 **`display_mode`** is `standalone` or `browser` — whether the session came off a
 home screen (the installed PWA) or out of a browser tab. It is a super property
