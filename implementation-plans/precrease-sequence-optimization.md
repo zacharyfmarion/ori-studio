@@ -42,4 +42,7 @@ this change must not imply that flat-sheet monotonicity extends to it.
 - [x] Add adversarial, regression, and budget/determinism coverage.
 - [x] Validate native, WASM, and affected browser behavior.
 - [x] Record reproducible results and remaining research limitations.
-- [ ] Open a draft PR against `main` and provide the local testing surface.
+- [x] Open a draft PR against `main` and provide the local testing surface.
+
+Draft PR: https://github.com/zacharyfmarion/ori-studio/pull/383. The local
+References preview runs through `scripts/dev-server.sh` on port 5246.
