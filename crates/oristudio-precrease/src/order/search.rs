@@ -125,6 +125,7 @@ pub fn improve(
             deadline,
             None,
             Some(&mut checkpoints),
+            None,
         )
         .is_none()
         {
@@ -175,6 +176,7 @@ pub fn improve(
                 &proposed,
                 deadline,
                 prefix.map(|(_, s)| s),
+                None,
                 None,
             ) else {
                 return best;
@@ -247,7 +249,7 @@ fn tighten_extents(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn replay_order(
+pub(super) fn replay_order(
     closure: &Closure,
     landmarks_first: bool,
     merge_twins: bool,
@@ -255,6 +257,7 @@ fn replay_order(
     deadline: &crate::clock::Deadline,
     prefix: Option<&Schedule>,
     mut checkpoints: Option<&mut Vec<(Vec<usize>, Schedule)>>,
+    choices: Option<&[Option<Witness>]>,
 ) -> Option<Vec<Placed>> {
     let mut schedule = prefix
         .cloned()
@@ -298,7 +301,7 @@ fn replay_order(
             })
             .count();
         let mut block = pending.drain(..count).collect();
-        schedule.place(
+        schedule.place_with(
             closure,
             i,
             angle,
@@ -306,6 +309,7 @@ fn replay_order(
             side,
             &mut block,
             merge_twins,
+            choices.and_then(|c| c.get(i)).and_then(Option::as_ref),
         );
         block.append(&mut pending);
         pending = block;

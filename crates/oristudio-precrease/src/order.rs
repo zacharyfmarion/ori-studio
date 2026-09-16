@@ -34,6 +34,40 @@ use std::rc::Rc;
 
 mod search;
 pub use search::improve;
+pub mod construction;
+pub mod rollout;
+
+/// Improve the emitted construction within one shared wall-clock budget.
+/// A short ordering pass is followed by joint witness/extent cleanup; both
+/// return a complete validated incumbent when their budget expires.
+pub fn optimize(
+    closure: &Closure,
+    landmarks_first: bool,
+    merge_twins: bool,
+    baseline: Vec<Placed>,
+    budget_ms: f64,
+    clock: crate::clock::Clock,
+) -> Vec<Placed> {
+    if budget_ms <= 0.0 || !budget_ms.is_finite() {
+        return baseline;
+    }
+    let deadline = crate::clock::Deadline::after(clock, budget_ms);
+    let placed = improve(
+        closure,
+        landmarks_first,
+        merge_twins,
+        baseline,
+        64,
+        &crate::clock::Deadline::after(clock, budget_ms.min(1500.0)),
+    );
+    construction::refine(
+        closure,
+        placed,
+        construction::Options::production(),
+        &deadline,
+    )
+    .placed
+}
 
 use crate::closure::{Closure, FoldedLine};
 use crate::constants::MIN_ANGLE_SINE;
@@ -1925,6 +1959,7 @@ fn sight(
     sweep: u32,
     side: Side,
     placed: &mut Vec<Placed>,
+    preferred: Option<&Witness>,
 ) -> Sighted {
     let f = &closure.folded()[i];
     // The line the witnesses construct — the approximation, for a fold made
@@ -1971,7 +2006,17 @@ fn sight(
         &direction_of_line,
         &pool,
     );
-    let pick = pick_scored(state, &fold, spans, &pool, &scored);
+    // Counterfactuals request an execution choice, never bypass the geometric
+    // and physical eligibility checks used by the normal picker.
+    let pick = preferred
+        .and_then(|w| {
+            scored.iter().find(|s| {
+                let c = &pool[s.index];
+                c.axiom == w.axiom && c.inputs == w.inputs && c.root == w.root
+            })
+        })
+        .map(|s| (s.index, s.judgement.clone()))
+        .or_else(|| pick_scored(state, &fold, spans, &pool, &scored));
     let mut vouches = free_vouches(state, creased, &fold, &pool, &scored);
     // None of them can be folded, whatever is pressed — a perpendicular
     // whose line ends at the sheet's edge exactly at the foot, say. The step
@@ -2412,6 +2457,21 @@ impl Schedule {
         queue: &mut VecDeque<(usize, f64)>,
         merge_twins: bool,
     ) {
+        self.place_with(closure, i, angle, sweep, side, queue, merge_twins, None);
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn place_with(
+        &mut self,
+        closure: &Closure,
+        i: usize,
+        angle: f64,
+        sweep: u32,
+        side: Side,
+        queue: &mut VecDeque<(usize, f64)>,
+        merge_twins: bool,
+        preferred: Option<&Witness>,
+    ) {
         self.side = side;
         let state = closure.state();
         let folded = closure.folded();
@@ -2438,6 +2498,7 @@ impl Schedule {
             sweep,
             side,
             placed,
+            preferred,
         );
         let presented = sighted.found.clone().or_else(|| {
             sighted
