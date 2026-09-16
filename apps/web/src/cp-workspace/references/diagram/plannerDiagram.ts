@@ -147,7 +147,7 @@ function gridBoundSegment(
 }
 
 /** The in-paper segment an input reference stands for, if it is a line at all. */
-function segmentOfRef(
+export function segmentOfRef(
   sequence: PrecreaseSequence,
   frame: DiagramFrame,
   ref: PrecreaseRef
@@ -178,7 +178,7 @@ function markSegment(
 }
 
 /** Where an input sits, as the one point an arrow can be drawn from. */
-function anchorOfRef(
+export function anchorOfRef(
   sequence: PrecreaseSequence,
   frame: DiagramFrame,
   chord: DiagramSegment,
@@ -205,7 +205,7 @@ function anchorOfRef(
  * written down in the planner's own units. A similarity carries a reflection to
  * a reflection, so the two agree wherever both exist.
  */
-function reflectAcross(segment: DiagramSegment, p: readonly [number, number]): [number, number] {
+export function reflectAcross(segment: DiagramSegment, p: readonly [number, number]): [number, number] {
   const dx = segment[1].x - segment[0].x;
   const dy = segment[1].y - segment[0].y;
   const length = Math.hypot(dx, dy);
@@ -339,7 +339,7 @@ function movingPortion(
  * alone is not enough either: a pinch pressed on the line later is crease too,
  * and is sometimes the only crease the fold lines up against.
  */
-function spansOfRef(
+export function spansOfRef(
   sequence: PrecreaseSequence,
   frame: DiagramFrame,
   step: PrecreaseStep,
@@ -452,15 +452,23 @@ function alignment(
   return best;
 }
 
-/**
- * How much paper lies on `side` of the fold: the sheet clipped to that
- * half-plane. A folder swings the smaller flap.
- */
-function flapArea(frame: DiagramFrame, chord: DiagramSegment, side: number): number {
+/** The sheet as a polygon in the frame's coordinates, or null without edges to build it from. */
+export function sheetPolygon(frame: DiagramFrame): Point[] | null {
   const bottom = frame.edge('bottom');
   const top = frame.edge('top');
-  if (!bottom || !top) return 0;
-  let polygon: Point[] = [bottom[0], bottom[1], top[1], top[0]];
+  if (!bottom || !top) return null;
+  return [bottom[0], bottom[1], top[1], top[0]];
+}
+
+/**
+ * The part of a convex polygon on `side` of the chord, the line itself
+ * included: one Sutherland–Hodgman pass against the half-plane.
+ */
+export function clipPolygonToSide(
+  polygon: readonly Point[],
+  chord: DiagramSegment,
+  side: number
+): Point[] {
   const clipped: Point[] = [];
   for (let i = 0; i < polygon.length; i += 1) {
     const p = polygon[i]!;
@@ -473,7 +481,11 @@ function flapArea(frame: DiagramFrame, chord: DiagramSegment, side: number): num
       if (t !== null) clipped.push(lerp(p, q, t));
     }
   }
-  polygon = clipped;
+  return clipped;
+}
+
+/** The area a polygon encloses, whichever way round it is wound. */
+export function polygonArea(polygon: readonly Point[]): number {
   let area = 0;
   for (let i = 0; i < polygon.length; i += 1) {
     const p = polygon[i]!;
@@ -481,6 +493,15 @@ function flapArea(frame: DiagramFrame, chord: DiagramSegment, side: number): num
     area += p.x * q.y - q.x * p.y;
   }
   return Math.abs(area) / 2;
+}
+
+/**
+ * How much paper lies on `side` of the fold: the sheet clipped to that
+ * half-plane. A folder swings the smaller flap.
+ */
+export function flapArea(frame: DiagramFrame, chord: DiagramSegment, side: number): number {
+  const sheet = sheetPolygon(frame);
+  return sheet ? polygonArea(clipPolygonToSide(sheet, chord, side)) : 0;
 }
 
 /** The pieces of `runs` on `side` of the fold. */
@@ -537,7 +558,7 @@ function landingStretch(
  * on crease, the smaller flap whose arm lands on the paper at all; and when
  * the moving line does not cross the fold, the side it is on.
  */
-function movingSide(
+export function movingSide(
   frame: DiagramFrame,
   chord: DiagramSegment,
   source: DiagramSegment,
@@ -586,7 +607,7 @@ const ALIGNMENT_FLOOR = 0.06;
  * Which line inputs a point input lands on, by input index: the crate's O5
  * is `[pivot, p, m1]`, O6 `[p1, m1, p2, m2]`, O7 `[p, m1, m2]`.
  */
-function landingPairs(witness: PrecreaseWitness | null): Map<number, number> {
+export function landingPairs(witness: PrecreaseWitness | null): Map<number, number> {
   switch (witness?.axiom) {
     case 5:
       return new Map([[2, 1]]);
@@ -612,7 +633,7 @@ function distanceToSegment([a, b]: DiagramSegment, p: Point): number {
 }
 
 /** Which side of `chord` the point is on: +1, −1, or 0 on the line. */
-function sideOf(chord: DiagramSegment, p: Point): number {
+export function sideOf(chord: DiagramSegment, p: Point): number {
   const [a, b] = chord;
   const cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
   const scale = Math.hypot(b.x - a.x, b.y - a.y);
@@ -688,7 +709,7 @@ export interface PlannerStepDiagramOptions {
  * crease are not on the paper, and drawing them is the difference between a
  * diagram and a picture of a line.
  */
-function creasedSpans(
+export function creasedSpans(
   frame: DiagramFrame,
   step: PrecreaseStep,
   patterned = true
