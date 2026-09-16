@@ -371,3 +371,43 @@ describe('useReferencesTarget: the frames effect', () => {
     expect(stubs.framesCalls).toBe(1);
   });
 });
+
+describe('useReferencesTarget: a setting that shapes the answer', () => {
+  afterEach(() => {
+    useWorkspaceStore.getState().setReferencesSettings({ includeApproximate: false, candidateCount: 5 });
+  });
+
+  it('asks again about the picked target when approximate answers are switched on', async () => {
+    mount();
+    act(() => stubs.frames!.resolve(ANALYSIS));
+    await settle();
+    act(() => controller!.pick({ kind: 'line', id: 1 }));
+    await settle();
+    act(() => stubs.solve!.resolve([]));
+    act(() => stubs.mapping!.resolve(Float64Array.from(new Array(32).fill(0))));
+    await settle();
+    expect(useWorkspaceStore.getState().referencesRun.status).toBe('idle');
+    expect(referencesResultsSnapshot().results).not.toBeNull();
+
+    // The toggle: a fresh query for the same crease, with the new settings.
+    stubs.solve = deferred<unknown[]>();
+    stubs.mapping = deferred<Float64Array>();
+    act(() => useWorkspaceStore.getState().setReferencesSettings({ includeApproximate: true }));
+    await settle();
+    expect(useWorkspaceStore.getState().referencesRun.status).toBe('running');
+    expect(referencesResultsSnapshot().pending).toMatchObject({ record: { kind: 'crease', lineId: 1 } });
+  });
+
+  it('does nothing with nothing picked, and nothing on mount', async () => {
+    useWorkspaceStore.getState().setReferencesSettings({ includeApproximate: true });
+    mount();
+    act(() => stubs.frames!.resolve(ANALYSIS));
+    await settle();
+    expect(useWorkspaceStore.getState().referencesRun.status).toBe('idle');
+
+    act(() => useWorkspaceStore.getState().setReferencesSettings({ candidateCount: 10 }));
+    await settle();
+    expect(useWorkspaceStore.getState().referencesRun.status).toBe('idle');
+    expect(referencesResultsSnapshot().pending).toBeNull();
+  });
+});

@@ -164,3 +164,13 @@ off is "Solution 1 of 1", exact, three cards (the two diagonals, then the
 mark); with it on, "Solution 2 of 5" is six cards with six pictures, each
 fold's card naming its mark before the pinch note and the final mark on its
 own.
+
+**The toggle re-asks.** Switching "Include approximate solutions", or the
+candidate count, used to change nothing until the next pick (Zach:
+"checking it should probably recompute solutions, right now it doesn't").
+`useReferencesTarget` now runs `recompute` for the current target when
+either changes — a no-op with nothing picked, skipped on mount — so the
+centre goes from "Solution 1 of 1" to "1 of 5" and back as the box is
+ticked. The alternatives themselves stay as the core ranks them: Zach
+looked at the rank-5 near misses and called it parity ("ehh its fine i
+guess its parity"), so no further filtering was added.

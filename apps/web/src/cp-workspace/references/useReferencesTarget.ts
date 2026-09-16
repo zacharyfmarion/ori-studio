@@ -783,6 +783,30 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
     void query({ kind: 'line', id: index + 1 }, revisionRef.current, false);
   }, [query, setReferencesCandidates, setReferencesRun, setReferencesTarget, t, target]);
 
+  // A setting that shapes the answer — how many candidates, whether inexact
+  // ones are listed — asks again about the current target, as Recompute
+  // would. Zach: "checking it should probably recompute solutions, right now
+  // it doesn't." Keyed on the two values alone, with `recompute` behind a ref,
+  // so it runs for a change in them and for nothing else; skipped on mount,
+  // where the settings are whatever the store already held; and a no-op with
+  // nothing picked, so a toggle in Sequence mode plans nothing.
+  const recomputeRef = useRef(recompute);
+  useEffect(() => {
+    recomputeRef.current = recompute;
+  });
+  const answerSettings = `${settings.candidateCount}|${settings.includeApproximate}`;
+  const seenAnswerSettings = useRef(answerSettings);
+  useEffect(() => {
+    if (seenAnswerSettings.current === answerSettings) return;
+    seenAnswerSettings.current = answerSettings;
+    const side = referencesResultsSnapshot();
+    const asked =
+      side.results !== null ||
+      side.pending !== null ||
+      useWorkspaceStore.getState().referencesTarget !== null;
+    if (asked) recomputeRef.current();
+  }, [answerSettings]);
+
   // --- Navigation -----------------------------------------------------------
   const activeCandidate = current && results ? Math.min(viewState.activeCandidate, Math.max(0, results.candidates.length - 1)) : 0;
   const active = current && results ? (results.candidates[activeCandidate] ?? null) : null;
