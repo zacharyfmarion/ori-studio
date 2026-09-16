@@ -26,6 +26,7 @@ deployment smoke checks, release documentation.
 - [x] Confirm E027 default behavior and inspect current release path.
 - [x] Merge current main and check compatibility with older clients.
 - [x] Implement and validate the compatible registry channel and release tools.
+- [x] Diagnose and fix the narrow-border crop issue with a synthetic regression; exclude private input from every dataset.
 - [ ] Verify the hosted preview, required CI, and merge PR #384.
 - [ ] Verify production code before publishing any model assets.
 - [ ] Publish verified weights and new registry; leave the legacy registry intact.

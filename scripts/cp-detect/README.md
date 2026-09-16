@@ -587,7 +587,7 @@ Run it with nothing else building or sweeping on the machine: the solve's
 verdicts no longer depend on the load (see the work budget below), but the
 wall time and the gate's seconds do.
 
-The model comes from `scripts/cp-detect/current-model.json` when run from the
+This legacy CPLineNet benchmark reads `scripts/cp-detect/legacy-cpline-model.json` when run from the
 repository root, or `--model <model.onnx>`. Inference is native (CoreML on
 macOS, the CPU elsewhere) through the same code the batch tool uses; behind a
 proxy, unset `HTTPS_PROXY` for the build that downloads ONNX Runtime.

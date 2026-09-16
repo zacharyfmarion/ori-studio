@@ -128,7 +128,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
     std::fs::create_dir_all(&out)?;
     let pointer: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(
-        "scripts/cp-detect/current-model.json",
+        "scripts/cp-detect/legacy-cpline-model.json",
     )?)?;
     let model = PathBuf::from(
         pointer["versioned_model_asset_dir"]
