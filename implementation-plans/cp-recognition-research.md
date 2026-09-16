@@ -39,7 +39,8 @@ synthetic patterns. Keep all attempts, including negative results, reproducible.
 - [x] Run held-out evaluation and browser runtime checks.
 - [x] Complete relevant tests and document limitations.
 - [x] Confirm all research-created RunPod resources are deleted.
-- [ ] Open a draft PR against `main` with reproducible results.
+- [x] Open [draft PR #384](https://github.com/zacharyfmarion/ori-studio/pull/384)
+  against `main` with reproducible results.
 
 ## Measured outcome and remaining objective
 
