@@ -44,9 +44,17 @@ Two placed CP folds `A` and `B` are twins when all of these hold:
    the block after `order_round`; the angle-cluster sweep is otherwise
    untouched).
 5. **Same kind of crease.** Both CP (an auxiliary fold and a CP fold are
-   never twins), same direction, and `made` of one the mirror of the
-   other's within a pinch — a pair whose creases stop at different
-   references is two different instructions.
+   never twins), and `made` of one the mirror of the other's within a
+   pinch — a pair whose creases stop at different references is two
+   different instructions. *Not* the same majority direction in the
+   finished pattern: the block already fixes the face both are made from,
+   and a mixed line's majority says nothing about that. Angelfish's two
+   diagonals (2026-09-16) are a weak mountain and a weak valley, both
+   folded on the front as corner-to-corner valleys, and comparing the
+   majorities kept them on two cards — Zach: "they are functionally
+   symmetric. We should be merging based on the actual creases that are
+   folded." Angelfish reads as 52 cards, not 53; gigantura and markhor
+   are unchanged.
 
 Quads (the four edge-to-crease folds of the Terao excerpt, step 4) are two
 twin pairs that are twins of each other about the other axis. Phase 1 is
