@@ -271,7 +271,15 @@ export function describePlannerStep(
       witness.axiom === 4 ? perpendicularMotion(sequence, unitFrame(sequence), step, witness) : null;
     const letters = alsoLetters(witness.inputs, !!corner && !corner.ontoItself, twinWitness.inputs);
     const first = inputLetters(witness.inputs);
-    const paired = twinSentence(t, witness, first, twinWitness, letters);
+    const paired = twinSentence(
+      t,
+      witness,
+      first,
+      pairOrder(sequence, step, witness),
+      twinWitness,
+      letters,
+      pairOrder(sequence, twinStep, twinWitness)
+    );
     sentence =
       paired ?? `${sentence} ${witnessClause(t, sequence, twinStep, twinWitness, letters)}`;
   }
@@ -340,26 +348,43 @@ export function describePlannerStep(
 }
 
 /**
+ * The two inputs of a fold that brings one onto the other, the one that
+ * swings first. The picture's call (`movingInputs`): the crate's mover
+ * unless that sits on the larger flap, in which case the other is brought
+ * onto it — and the caption has to name them the way round the arrow goes.
+ */
+function pairOrder(
+  sequence: PrecreaseSequence,
+  step: PrecreaseStep,
+  witness: PrecreaseWitness
+): [number, number] {
+  return movingInputs(sequence, unitFrame(sequence), step, witness).includes(1) ? [1, 0] : [0, 1];
+}
+
+/**
  * One sentence for a twin pair of the common kinds — two points onto two
  * points, two lines onto two lines, two creases through two pairs of marks
- * — or null when the pair reads better as two sentences.
+ * — or null when the pair reads better as two sentences. Each pair is named
+ * in its own order: the one that swings, then the one it lands on.
  */
 function twinSentence(
   t: TFunction,
   witness: PrecreaseWitness,
   first: InputLetters,
+  order: readonly [number, number],
   twin: PrecreaseWitness,
-  second: InputLetters
+  second: InputLetters,
+  twinOrder: readonly [number, number]
 ): string | null {
   if (witness.axiom !== twin.axiom) return null;
-  const a = (which: number) => first.byInput[which] ?? '?';
-  const c = (which: number) => second.byInput[which] ?? '?';
+  const a = (which: number) => first.byInput[order[which] ?? which] ?? '?';
+  const c = (which: number) => second.byInput[twinOrder[which] ?? which] ?? '?';
   // The same references on both sides — each half of the top edge onto the
   // centre line — is one instruction with "both sides" in it, not "A onto
   // B and A onto B".
   const same =
     first.byInput.length === second.byInput.length &&
-    first.byInput.every((letter, i) => letter === second.byInput[i]);
+    first.byInput.every((_, i) => a(i) === c(i));
   if (same && (witness.axiom === 2 || witness.axiom === 3)) {
     return t('panels:references.planStep.twinBothSides', 'Fold {{a}} onto {{b}} on both sides.', {
       a: a(0),
@@ -406,18 +431,25 @@ function witnessClause(
         b: name(1),
       });
       break;
-    case 2:
+    case 2: {
+      // The one that swings comes first — the picture's call (`movingInputs`),
+      // which is the crate's unless that sits on the larger flap — so the
+      // caption, the arrow and the animation move the same thing.
+      const [mover, still] = pairOrder(sequence, step, witness);
       sentence = t('panels:references.planStep.axiom2', 'Fold {{a}} onto {{b}}.', {
-        a: name(0),
-        b: name(1),
+        a: name(mover),
+        b: name(still),
       });
       break;
-    case 3:
+    }
+    case 3: {
+      const [mover, still] = pairOrder(sequence, step, witness);
       sentence = t('panels:references.planStep.axiom3', 'Fold {{a}} onto {{b}}.', {
-        a: name(0),
-        b: name(1),
+        a: name(mover),
+        b: name(still),
       });
       break;
+    }
     case 4: {
       // The card draws a perpendicular as a folder makes one — hold the mark,
       // swing a corner onto the line's other arm — when it can find that
@@ -455,13 +487,18 @@ function witnessClause(
             { a: name(0), b: name(1), c: name(2) }
           );
       break;
-    case 6:
+    case 6: {
+      // `[p1, m1, p2, m2]`, each pair the way round the picture swings it.
+      const moving = movingInputs(sequence, unitFrame(sequence), step, witness);
+      const [a, b] = moving.includes(1) ? [1, 0] : [0, 1];
+      const [c, d] = moving.includes(3) ? [3, 2] : [2, 3];
       sentence = t(
         'panels:references.planStep.axiom6',
         'Fold {{a}} onto {{b}} and {{c}} onto {{d}}.',
-        { a: name(0), b: name(1), c: name(2), d: name(3) }
+        { a: name(a), b: name(b), c: name(c), d: name(d) }
       );
       break;
+    }
     case 7:
       // The crate's O7 is `[p, m1, m2]`: `p` lands on `m1`, and the crease is
       // perpendicular to `m2` — so `m2` is the line folded onto itself. The

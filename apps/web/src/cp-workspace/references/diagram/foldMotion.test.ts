@@ -6,7 +6,7 @@ import {
   plannerSequenceFixture,
   plannerSequenceWithGridFixture,
 } from '../__fixtures__/plannerSequence';
-import { plannerStepDiagram, sideOf } from './plannerDiagram';
+import { plannerStepDiagram, reflectAcross, sideOf } from './plannerDiagram';
 import { MARK_PRESS_SHARE, flapCentroid, stepFoldMotion } from './foldMotion';
 import type {
   PrecreaseSequence,
@@ -156,24 +156,67 @@ describe('stepFoldMotion', () => {
   const sequence = widened();
   const { unit, model } = frames(sequence);
 
+  /**
+   * Every arrow the card draws starts on the flap that swings across the
+   * line it is drawn for — the flap whose line mirrors the arrow's start
+   * onto its end. Returns how many arrows were checked.
+   */
+  function arrowsAgree(
+    of: PrecreaseSequence,
+    frame: DiagramFrame,
+    index: number,
+    twin?: number
+  ): number {
+    const motion = stepFoldMotion(of, frame, index, twin);
+    const diagram = plannerStepDiagram(of, frame, index, twin === undefined ? {} : { twin });
+    expect(motion).not.toBeNull();
+    let arrows = 0;
+    for (const primitive of diagram?.primitives ?? []) {
+      if (primitive.kind !== 'fold-arrow') continue;
+      arrows += 1;
+      const [start, , end] = arcSamplePoints(primitive.out);
+      const flap = motion!.flaps.find((candidate) => {
+        const image = reflectAcross(candidate.chord, start);
+        return Math.hypot(image[0] - end[0], image[1] - end[1]) < 1e-6;
+      });
+      expect(flap).toBeDefined();
+      expect(sideOf(flap!.chord, { x: start[0], y: start[1] })).toBe(flap!.side);
+    }
+    return arrows;
+  }
+
   it("swings the side the card's arrow starts from, in both frames", () => {
     let arrows = 0;
     for (const frame of [unit, model]) {
       sequence.steps.forEach((_, index) => {
-        const motion = stepFoldMotion(sequence, frame, index);
-        const diagram = plannerStepDiagram(sequence, frame, index);
-        expect(motion).not.toBeNull();
-        for (const primitive of diagram?.primitives ?? []) {
-          if (primitive.kind !== 'fold-arrow') continue;
-          arrows += 1;
-          const [start] = arcSamplePoints(primitive.out);
-          const flap = motion!.flaps[0]!;
-          expect(sideOf(flap.chord, { x: start[0], y: start[1] })).toBe(flap.side);
-        }
+        arrows += arrowsAgree(sequence, frame, index);
       });
     }
     // Every fixture fold, the perpendicular and the O5 draw one; only O1 draws none.
     expect(arrows).toBe(2 * (sequence.steps.length - 1));
+  });
+
+  it('swings, for each flap of a twin, the side its own arrow starts from', () => {
+    expect(arrowsAgree(fixture, unitFrame(fixture), 1, 3)).toBe(2);
+    expect(arrowsAgree(fixture, frames(fixture).model, 1, 3)).toBe(2);
+  });
+
+  it('swings the smaller part for a crease folded onto a crease, whichever line the crate names', () => {
+    // The fixture's O3 — the bottom edge onto the landmark at y = ½, the
+    // crease at ¼ — with the crate naming the landmark: three quarters of
+    // the sheet. The picture brings the quarter below up, and so does this.
+    const crate: PrecreaseSequence = {
+      ...fixture,
+      steps: fixture.steps.map((step, i) =>
+        i === 4
+          ? { ...step, witnesses: [{ ...step.witnesses[0]!, who_moves: [1] }] }
+          : step
+      ),
+    };
+    const frame = unitFrame(crate);
+    const motion = stepFoldMotion(crate, frame, 4)!;
+    expect(sideOf(motion.flaps[0]!.chord, { x: 0.5, y: 0.1 })).toBe(motion.flaps[0]!.side);
+    expect(arrowsAgree(crate, frame, 4)).toBe(1);
   });
 
   it('names the same physical side from both frames', () => {

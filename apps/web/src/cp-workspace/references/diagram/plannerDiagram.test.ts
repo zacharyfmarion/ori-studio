@@ -93,6 +93,91 @@ describe('the picture’s movers', () => {
     expect(movingInputs(near, unitFrame(near), near.steps[5]!, near.steps[5]!.witnesses[0]!)).toEqual([1]);
     expect(arrowStart(near)[1]).toBeCloseTo(0.65);
   });
+
+  /**
+   * The fixture's O3 — the bottom edge onto the landmark's crease — with the
+   * landmark moved to `lineY`, so the fold bisects at `lineY / 2`, and the
+   * crate naming whichever input `who` says; `reversed` lists the crease
+   * before the edge.
+   */
+  function o3(lineY: number, who: number, reversed = false): PrecreaseSequence {
+    const fixture = plannerSequenceFixture();
+    const landmark = fixture.steps[0]!;
+    const fold = fixture.steps[4]!;
+    const inputs = [fold.witnesses[0]!.inputs[0]!, fold.witnesses[0]!.inputs[1]!];
+    return {
+      ...fixture,
+      steps: fixture.steps.map((step, i) =>
+        i === 0
+          ? {
+              ...landmark,
+              line: { n: [0, 1], d: lineY },
+              segment: [
+                [0, lineY],
+                [1, lineY],
+              ],
+              extent: {
+                kind: 'pinches',
+                spans: [
+                  [
+                    [0, lineY],
+                    [0.06, lineY],
+                  ],
+                  [
+                    [0.94, lineY],
+                    [1, lineY],
+                  ],
+                ],
+              },
+            }
+          : i === 4
+            ? {
+                ...fold,
+                line: { n: [0, 1], d: lineY / 2 },
+                segment: [
+                  [0, lineY / 2],
+                  [1, lineY / 2],
+                ],
+                witnesses: [
+                  {
+                    ...fold.witnesses[0]!,
+                    inputs: reversed ? [inputs[1]!, inputs[0]!] : inputs,
+                    who_moves: [who],
+                  },
+                ],
+              }
+            : step
+      ),
+    };
+  }
+  const o3Movers = (sequence: PrecreaseSequence) =>
+    movingInputs(sequence, unitFrame(sequence), sequence.steps[4]!, sequence.steps[4]!.witnesses[0]!);
+  const o3ArrowStart = (sequence: PrecreaseSequence) => {
+    const diagram = plannerStepDiagram(sequence, unitFrame(sequence), 4);
+    const arrow = diagram?.primitives.find((p) => p.kind === 'fold-arrow');
+    if (!arrow || arrow.kind !== 'fold-arrow') throw new Error('no arrow');
+    return arcSamplePoints(arrow.out)[0];
+  };
+
+  it('swings the other line onto the crate’s when the crate’s line sits on the larger part', () => {
+    // The landmark at y = ½ folded onto the bottom edge: the crease is at ¼,
+    // and the crate says the landmark moves — three quarters of the sheet
+    // over one. The picture brings the edge up instead (markhor 28).
+    expect(o3Movers(o3(0.5, 1))).toEqual([0]);
+    expect(o3ArrowStart(o3(0.5, 1))[1]).toBeLessThan(0.25);
+    // The same fold with the inputs the other way round: still the edge.
+    expect(o3Movers(o3(0.5, 0, true))).toEqual([1]);
+    expect(o3ArrowStart(o3(0.5, 0, true))[1]).toBeLessThan(0.25);
+    // And the crate's own choice, when it is the edge, stands.
+    expect(o3Movers(o3(0.5, 0))).toEqual([0]);
+  });
+
+  it('keeps the crate’s line near a tie between the two', () => {
+    // The landmark at y = 0.9: the crease at 0.45 leaves 0.55 above, which
+    // is not a quarter larger than the 0.45 below.
+    expect(o3Movers(o3(0.9, 1))).toEqual([1]);
+    expect(o3ArrowStart(o3(0.9, 1))[1]).toBeGreaterThan(0.45);
+  });
 });
 
 describe('plannerStepDiagram', () => {

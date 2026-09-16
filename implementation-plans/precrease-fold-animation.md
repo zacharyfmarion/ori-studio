@@ -464,4 +464,14 @@ Enums only; no step numbers, no geometry.
       paper comes down. A mark on the resting paper, on the hinge, or off the
       sheet (the point a flap is folded *to*, as often as not) stays put and
       stays lit.
+- [x] The arrow, the caption and the animation cannot disagree. The
+      animation no longer re-reads the witness: `stepFoldMotion` draws the
+      card (`plannerStepDiagram`, twin and all) and reads its arrows — the
+      arrow whose ends mirror across a step's line is that step's, and the
+      side it starts from swings. The caption names the one that swings
+      first for O2, O3 and O6 (`pairOrder`), twins included. And O3 gets the
+      smaller-flap rule the other axioms had (`lineMovers`): either line can
+      swing onto the other, each the side `movingSide` finds for it, and the
+      crate's stands only within the slack — markhor 28 swung two thirds of
+      the sheet over the other third (Zach, 2026-09-16).
 - [ ] *Later, not this plan:* pleats.

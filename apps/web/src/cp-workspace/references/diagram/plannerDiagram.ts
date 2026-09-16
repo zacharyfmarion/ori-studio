@@ -626,8 +626,8 @@ export const FLAP_PREFERENCE_SLACK = 0.25;
  * by more than {@link FLAP_PREFERENCE_SLACK}, the alternative moves.
  *
  * One decision, read by the arrow, the sentence and the animation alike.
- * O3 has its own form of the same rule in `movingSide`; O4's shorter arm is
- * the same idea again; O1 moves nothing.
+ * O3's alternative is the other line, each swinging the side `movingSide`
+ * finds for it; O4's shorter arm is the same idea again; O1 moves nothing.
  */
 export function movingInputs(
   sequence: PrecreaseSequence,
@@ -637,14 +637,65 @@ export function movingInputs(
 ): number[] {
   const crate = [...witness.who_moves];
   const chord = frame.chord(step);
-  const alternative = chord ? alternativeMovers(witness.axiom, crate) : null;
-  if (!chord || !alternative) return crate;
+  if (!chord) return crate;
+  if (witness.axiom === 3) return lineMovers(sequence, frame, step, chord, witness, crate);
+  const alternative = alternativeMovers(witness.axiom, crate);
+  if (!alternative) return crate;
   const side = moversSide(sequence, frame, chord, witness, crate);
   const other = moversSide(sequence, frame, chord, witness, alternative);
   if (side === 0 || other === 0 || side === other) return crate;
-  const mine = flapArea(frame, chord, side);
-  const theirs = flapArea(frame, chord, other);
-  return theirs < mine * (1 - FLAP_PREFERENCE_SLACK) ? alternative : crate;
+  return prefersAlternative(frame, chord, side, other) ? alternative : crate;
+}
+
+/** The other flap is the smaller by more than the slack. */
+function prefersAlternative(
+  frame: DiagramFrame,
+  chord: DiagramSegment,
+  mine: number,
+  theirs: number
+): boolean {
+  return flapArea(frame, chord, theirs) < flapArea(frame, chord, mine) * (1 - FLAP_PREFERENCE_SLACK);
+}
+
+/**
+ * O3's form of the rule. A line folded onto a line is made by swinging
+ * either: the one the crate names, or the other onto it — the same crease,
+ * the same alignment. Each swings the side `movingSide` finds for it, the
+ * arm that lands on the other's crease, and the crate's line stands unless
+ * the other's flap is the smaller by more than the slack. Markhor step 28:
+ * a crease onto a crease where the crate's line swung two thirds of the
+ * sheet over the other third, and a folder lifts the third (Zach,
+ * 2026-09-16).
+ */
+function lineMovers(
+  sequence: PrecreaseSequence,
+  frame: DiagramFrame,
+  step: PrecreaseStep,
+  chord: DiagramSegment,
+  witness: PrecreaseWitness,
+  crate: number[]
+): number[] {
+  const which = crate[0];
+  if (which === undefined || witness.inputs.length !== 2 || crate.length !== 1) return crate;
+  const other = which === 0 ? 1 : 0;
+  const sideFor = (mover: number, still: number): number => {
+    const ref = witness.inputs[mover];
+    const stillRef = witness.inputs[still];
+    if (!ref || !stillRef) return 0;
+    const source = segmentOfRef(sequence, frame, ref);
+    if (!source) return 0;
+    return movingSide(
+      frame,
+      chord,
+      source,
+      spansOfRef(sequence, frame, step, ref),
+      spansOfRef(sequence, frame, step, stillRef)
+    );
+  };
+  const mine = sideFor(which, other);
+  const theirs = sideFor(other, which);
+  if (mine === 0 || theirs === 0 || mine === theirs) return crate;
+  return prefersAlternative(frame, chord, mine, theirs) ? [other] : crate;
 }
 
 /**
