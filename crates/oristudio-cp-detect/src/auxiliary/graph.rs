@@ -59,7 +59,14 @@ struct Anchor {
 }
 
 fn anchor(p: Point, other: Point, fold: &FoldDocument, radius: f64) -> Option<Anchor> {
-    let radius = radius.min(distance(p, other) * 0.5);
+    let radius = radius.min(distance(p, other));
+    // Missing ink at a crossing calls for outward continuation. An interior
+    // crossing is already handled by planarization; snapping an endpoint to
+    // it would silently erase part of a short reference. Allow inward cleanup
+    // of a fitted overhang only up to a small fraction of the reference span.
+    let inward_radius = radius.min(distance(p, other) * 0.2);
+    let preserves_span =
+        |q: Point| dot(sub(q, p), sub(p, other)) >= -inward_radius * distance(p, other);
     let nearest = fold
         .vertices_coords
         .iter()
@@ -69,7 +76,9 @@ fn anchor(p: Point, other: Point, fold: &FoldDocument, radius: f64) -> Option<An
             let ray = sub(p, other);
             let normal_error = cross(sub(point(&fold.vertices_coords[*id]), other), ray).abs()
                 / distance(p, other).max(WELD);
-            *d <= radius && normal_error <= radius.min(snap_radius(fold) / 8.0)
+            *d <= radius
+                && normal_error <= radius.min(snap_radius(fold) / 8.0)
+                && preserves_span(point(&fold.vertices_coords[*id]))
         })
         .min_by(|a, b| a.0.total_cmp(&b.0));
     if let Some((_, id)) = nearest {
@@ -94,7 +103,7 @@ fn anchor(p: Point, other: Point, fold: &FoldDocument, radius: f64) -> Option<An
         }
         let q = lerp(a, b, t);
         let d = distance(p, q);
-        if d <= radius && best.as_ref().is_none_or(|(old, _)| d < *old) {
+        if d <= radius && preserves_span(q) && best.as_ref().is_none_or(|(old, _)| d < *old) {
             best = Some((d, Anchor { vertices, t }));
         }
     }
@@ -229,11 +238,21 @@ fn anchored_segments(
                     continue;
                 }
                 let t = cross(sub(other[0], s[0]), db) / denom;
-                let q = lerp(s[0], s[1], t);
+                let mut q = lerp(s[0], s[1], t);
                 let u = dot(sub(q, other[0]), db) / dot(db, db);
+                // If the other reference already terminates on a crease,
+                // share that junction rather than ending just beyond it on
+                // the fitted infinite carrier. Do not move its binding.
+                if let Some(endpoint) = (0..2).find(|&endpoint| {
+                    bindings[j][endpoint].is_some() && distance(q, other[endpoint]) <= radius / 8.0
+                }) {
+                    q = other[endpoint];
+                }
                 let d = distance(q, s[end]);
                 let other_extension = (-u).max(u - 1.0).max(0.0) * length(*other);
                 if d <= radius.min(length(*s) * 0.5)
+                    && dot(sub(q, s[end]), sub(s[end], s[1 - end]))
+                        >= -radius.min(length(*s) * 0.2) * length(*s)
                     && other_extension <= radius.min(length(*other) * 0.5)
                     && best.as_ref().is_none_or(|(old, _)| d < *old)
                 {
@@ -688,6 +707,42 @@ mod tests {
             assert_eq!(degree(&f, id, Assignment::Boundary), 2);
             assert_eq!(degree(&f, id, Assignment::Flat), 1);
         }
+    }
+    #[test]
+    fn short_reference_extends_to_its_ends_without_trimming_at_an_interior_crossing() {
+        let mut source = FoldDocument::new(
+            vec![
+                vec![0.48, 0.5],
+                vec![0.48, 0.45],
+                vec![0.525, 0.5],
+                vec![0.525, 0.55],
+                vec![0.497, 0.45],
+                vec![0.497, 0.55],
+            ],
+            vec![[0, 1], [2, 3], [4, 5]],
+        );
+        source.edges_assignment = vec![Assignment::Mountain; 3];
+        let f = attach(&source, &[[[0.49, 0.5], [0.514, 0.5]]]);
+        assert_eq!(degree(&f, 0, Assignment::Flat), 1);
+        assert_eq!(degree(&f, 2, Assignment::Flat), 1);
+        let crossing = vertex(&f, [0.497, 0.5]);
+        assert_eq!(degree(&f, crossing, Assignment::Flat), 2);
+        assert_eq!(degree(&f, crossing, Assignment::Mountain), 2);
+    }
+    #[test]
+    fn reference_corner_shares_the_other_references_bound_endpoint() {
+        let mut source = FoldDocument::new(vec![vec![0.5, 0.4], vec![0.5, 0.6]], vec![[0, 1]]);
+        source.edges_assignment = vec![Assignment::Mountain];
+        let f = attach(
+            &source,
+            &[
+                [[0.3, 0.5], [0.499, 0.5]],
+                [[0.5015, 0.490], [0.5015, 0.55]],
+            ],
+        );
+        let corner = vertex(&f, [0.5, 0.5]);
+        assert_eq!(degree(&f, corner, Assignment::Flat), 2);
+        assert_eq!(degree(&f, corner, Assignment::Mountain), 2);
     }
     #[test]
     fn overlapping_aux_never_relabels_or_duplicates_a_physical_edge() {

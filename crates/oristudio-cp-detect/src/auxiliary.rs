@@ -104,11 +104,21 @@ pub fn extract_auxiliary_segments(
         .map(|p| {
             let [r, g, b] = [p[0] as f32, p[1] as f32, p[2] as f32];
             let chroma = (g - r).min(b - r);
-            if chroma > 6.0 && (g - b).abs() <= 6.0 + 0.25 * chroma {
+            if chroma > 6.0 && (g - b).abs() <= 12.0 + 0.25 * chroma {
                 (chroma / 20.0).min(1.0)
             } else {
                 0.0
             }
+        })
+        .collect();
+    // Preserve the original seed color gate exactly. Tightening it even a few
+    // RGB levels can remove the last Hough votes on a short JPEG-softened AUX.
+    let seed_cyan: Vec<bool> = rgba
+        .chunks_exact(4)
+        .map(|pixel| {
+            let [r, g, b] = [pixel[0] as f32, pixel[1] as f32, pixel[2] as f32];
+            let chroma = (g - r).min(b - r);
+            chroma > 12.0 && (g - b).abs() <= 12.0 + 0.25 * chroma
         })
         .collect();
     let mut p = vec![0.0; size * size];
@@ -116,7 +126,7 @@ pub fn extract_auxiliary_segments(
     for y in 32..=size - 32 {
         for x in 32..=size - 32 {
             let near =
-                (y - 1..=y + 1).any(|yy| (x - 1..=x + 1).any(|xx| cyan[yy * size + xx] >= 0.6));
+                (y - 1..=y + 1).any(|yy| (x - 1..=x + 1).any(|xx| seed_cyan[yy * size + xx]));
             if near {
                 p[y * size + x] = probability[y * size + x];
                 if p[y * size + x] >= 0.30 {
@@ -151,7 +161,7 @@ pub fn extract_auxiliary_segments(
             groups.push(segment.map(|p| (p, 1.0)).to_vec());
         }
     }
-    let mut result = Vec::new();
+    let mut grown = Vec::new();
     for group in groups {
         let mut segment = fit(&group);
         let len = length(segment);
@@ -203,9 +213,21 @@ pub fn extract_auxiliary_segments(
             // through low-confidence ends and small occlusions at crossings.
             // Do not propose carriers from color alone: JPEG speckles around
             // pale cyan otherwise create short, off-axis branches.
+            let seed = segment;
             for _ in 0..4 {
                 segment = grow_on_cyan(segment, &cyan, size);
             }
+            grown.push((segment, seed));
+        }
+    }
+    // A short seed's noisy angle can grow into a second approximation of a
+    // longer, well-supported stroke. If that long stroke already explains the
+    // original seed within 1.5 pixels, retain one carrier rather than parallel
+    // duplicate reference edges. Compare seeds, not the extended guesses.
+    grown.sort_by(|a, b| length(b.0).total_cmp(&length(a.0)));
+    let mut result: Vec<Segment> = Vec::new();
+    for (segment, seed) in grown {
+        if !result.iter().any(|&other| contains_seed(other, seed)) {
             result.push(segment);
         }
     }
@@ -236,6 +258,22 @@ pub fn extract_auxiliary_segments(
                 .map(|p| p.map(|v| ((v - 32.0) / (size as f64 - 64.0)).clamp(0.0, 1.0))),
         })
         .collect())
+}
+
+fn contains_seed(carrier: Segment, seed: Segment) -> bool {
+    let len = length(carrier);
+    if len <= 0.0 {
+        return false;
+    }
+    let d = [
+        (carrier[1][0] - carrier[0][0]) / len,
+        (carrier[1][1] - carrier[0][1]) / len,
+    ];
+    seed.iter().all(|p| {
+        let v = [p[0] - carrier[0][0], p[1] - carrier[0][1]];
+        let along = v[0] * d[0] + v[1] * d[1];
+        (v[0] * d[1] - v[1] * d[0]).abs() <= 1.5 && along >= -1.0 && along <= len + 1.0
+    })
 }
 
 fn grow_on_cyan(segment: Segment, cyan: &[f32], size: usize) -> Segment {
@@ -329,7 +367,7 @@ fn mergeable(a: Segment, b: Segment) -> bool {
         return false;
     }
     let t = relative.map(|v| v[0] * d[0] + v[1] * d[1]);
-    t[0].min(t[1]) <= len + 12.0 && t[0].max(t[1]) >= -12.0
+    t[0].min(t[1]) <= len + 6.0 && t[0].max(t[1]) >= -6.0
 }
 
 fn fit(points: &[([f64; 2], f64)]) -> Segment {
@@ -464,6 +502,19 @@ mod tests {
             assert!((x[0].max(x[1]) - 215.0).abs() < 1.0);
             assert!((s.endpoints[0][1] - s.endpoints[1][1]).abs() < 1e-5);
         }
+    }
+
+    #[test]
+    fn short_jpeg_tinted_cyan_keeps_the_original_seed_color_tolerance() {
+        let mut rgba = vec![255; 128 * 128 * 4];
+        let mut p = vec![0.0; 128 * 128];
+        for x in 40..60 {
+            rgba[(64 * 128 + x) * 4..(64 * 128 + x) * 4 + 4].copy_from_slice(&[215, 230, 240, 255]);
+            p[64 * 128 + x] = 0.9;
+        }
+        let aux = extract_auxiliary_segments(&rgba, &p, 128).unwrap();
+        assert_eq!(aux.len(), 1);
+        assert!(length(aux[0].endpoints) > 18.0 / 64.0, "{aux:?}");
     }
 
     #[test]
