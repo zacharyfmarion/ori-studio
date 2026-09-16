@@ -62,7 +62,7 @@ pub struct PinchVerdict {
 /// whose first choice named a mark that is not on the paper.
 fn downstream_uses(
     closure: &Closure,
-    presented: &[Option<&Witness>],
+    presented: &[Vec<&Witness>],
     from: usize,
     line_id: usize,
 ) -> (bool, Vec<usize>) {
@@ -126,6 +126,48 @@ pub fn pinch_pass(
     closure: &Closure,
     order: &[usize],
     presented: &[Option<&Witness>],
+) -> Vec<PinchVerdict> {
+    let inputs: Vec<Vec<&Witness>> = presented
+        .iter()
+        .map(|w| w.iter().copied().collect())
+        .collect();
+    pinch_pass_for_inputs(closure, order, &inputs)
+}
+
+/// Final instructions can show a second alignment or repeat an earlier
+/// alignment on a press. Every displayed input must retain its reference
+/// marks, even when only the primary witness was chosen by the closure.
+pub(crate) fn placed_pinch_pass(
+    closure: &Closure,
+    placed: &[crate::order::Placed],
+) -> Vec<PinchVerdict> {
+    let order: Vec<_> = placed.iter().map(|p| p.folded).collect();
+    let inputs: Vec<Vec<&Witness>> = placed
+        .iter()
+        .enumerate()
+        .map(|(k, p)| {
+            let presenting = if p.press.is_some() && p.chosen.is_none() {
+                placed[..k]
+                    .iter()
+                    .find(|q| q.folded == p.folded && q.press.is_none())
+                    .unwrap_or(p)
+            } else {
+                p
+            };
+            presenting
+                .presented(&closure.folded()[p.folded])
+                .into_iter()
+                .chain(presenting.also.as_ref())
+                .collect()
+        })
+        .collect();
+    pinch_pass_for_inputs(closure, &order, &inputs)
+}
+
+fn pinch_pass_for_inputs(
+    closure: &Closure,
+    order: &[usize],
+    presented: &[Vec<&Witness>],
 ) -> Vec<PinchVerdict> {
     debug_assert_eq!(order.len(), presented.len());
     order
@@ -297,5 +339,35 @@ mod tests {
         let mut c2 = Closure::new(Sheet::unit_square(), vec![], DEFAULT_POINT_CAP);
         c2.fold_line(v(0.5), LineTag::Aux).expect("fold");
         assert_eq!(visible_aux_count(&c2), 1);
+    }
+
+    #[test]
+    fn both_displayed_alignments_keep_their_auxiliary_marks() {
+        let mut c = Closure::new(
+            Sheet::unit_square(),
+            vec![Target::unassigned(v(0.25), vec![])],
+            DEFAULT_POINT_CAP,
+        );
+        c.fold_line(v(0.5), LineTag::Aux).unwrap();
+        c.close(&Deadline::unbounded(frozen_clock())).unwrap();
+        let placed = crate::order::order_with(&c, false, false);
+        let target = placed
+            .iter()
+            .find(|p| c.folded()[p.folded].target.is_some())
+            .unwrap();
+        assert!(
+            target.also.is_some(),
+            "fixture must show both edge alignments"
+        );
+        let verdicts = placed_pinch_pass(&c, &placed);
+        let aux = placed
+            .iter()
+            .position(|p| c.folded()[p.folded].tag == LineTag::Aux)
+            .unwrap();
+        let Extent::Pinches { spans } = &verdicts[aux].extent else {
+            panic!("expected endpoint pinches")
+        };
+        assert_eq!(spans.len(), 2, "both ends of the auxiliary are consumed");
+        assert_eq!(crate::quality::evaluate(&c, &placed).unavailable, 0);
     }
 }

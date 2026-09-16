@@ -24,7 +24,7 @@ use crate::line::Line;
 use crate::marks::crease_runs;
 use crate::merge::coalesce_lines;
 use crate::order::{Placed, group, order_with, pattern};
-use crate::pinch::{Extent, pinch_pass};
+use crate::pinch::Extent;
 use crate::predicates::{Ref, Witness, full_facts, witnesses};
 use crate::sequence::{
     Diagnostics, ExactnessSummary, FactsSummary, Finding, FindingReason, GridBound, GridRegion,
@@ -125,7 +125,7 @@ impl Default for PlannerOptions {
             allow_dangling_folds: true,
             defer_far_anchors: true,
             merge_symmetric_steps: true,
-            sequence_budget_ms: 1500.0,
+            sequence_budget_ms: 10000.0,
             clock: default_clock(),
         }
     }
@@ -1183,24 +1183,19 @@ impl Planner {
         let placed: Vec<Placed> =
             order_with(closure, landmarks_first, self.opts.merge_symmetric_steps);
         let placed = if self.opts.sequence_budget_ms > 0.0 {
-            crate::order::improve(
+            crate::order::optimize(
                 closure,
                 landmarks_first,
                 self.opts.merge_symmetric_steps,
                 placed,
-                64,
-                &Deadline::after(self.opts.clock, self.opts.sequence_budget_ms),
+                self.opts.sequence_budget_ms,
+                self.opts.clock,
             )
         } else {
             placed
         };
-        let fold_order: Vec<usize> = placed.iter().map(|p| p.folded).collect();
         let folded = closure.folded();
-        let presented: Vec<Option<&Witness>> = placed
-            .iter()
-            .map(|p| p.presented(&folded[p.folded]))
-            .collect();
-        let verdicts = pinch_pass(closure, &fold_order, &presented);
+        let verdicts = crate::pinch::placed_pinch_pass(closure, &placed);
         let state = closure.state();
 
         // The grid comes first, one step per family, ahead of every placed
