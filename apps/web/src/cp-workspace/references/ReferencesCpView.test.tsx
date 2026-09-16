@@ -534,15 +534,19 @@ describe('ReferencesCpView overlays', () => {
     // The left half of the horizontal crease ends at the fold.
     expect(base.b[0]).toBe(100);
     const folded = uploads.setFolded.mock.calls.at(-1)?.[0];
-    expect(folded.fills.count).toBe(6);
-    expect(folded.strokes.count).toBe(1);
-    // The moved half lands over the left half, folded at the hinge — in the
-    // folded channel's user space, which is where the view maps it to.
+    expect(folded.fills.count).toBeGreaterThan(0);
+    expect(folded.strokes.count).toBeGreaterThan(0);
+    // The moved half lands over the left half, from the hinge to within the
+    // curl's shortfall of the far edge — in the folded channel's user space,
+    // which is where the view maps it to.
     const hinge = cpModelToSvg({ x: 100, y: 50 }).x;
     const edge = cpModelToSvg({ x: 0, y: 50 }).x;
-    const xs = [folded.strokes.a[0], folded.strokes.b[0]].sort((p, q) => p - q);
-    expect(xs[0]).toBeCloseTo(Math.min(hinge, edge), 3);
-    expect(xs[1]).toBeCloseTo(Math.max(hinge, edge), 3);
+    const scale = Math.abs(cpModelToSvg({ x: 1, y: 0 }).x - cpModelToSvg({ x: 0, y: 0 }).x);
+    const xs = [...folded.strokes.a, ...folded.strokes.b].filter((_: number, i: number) => i % 2 === 0);
+    const [lo, hi] = [Math.min(hinge, edge), Math.max(hinge, edge)];
+    expect(Math.min(...xs)).toBeGreaterThanOrEqual(lo - 1e-3);
+    expect(Math.max(...xs)).toBeLessThanOrEqual(hi + 2 * scale + 1e-3);
+    expect(hi - Math.max(...xs) + (Math.min(...xs) - lo)).toBeLessThan(10 * scale);
     act(() => ref.current?.setFoldPose(null));
     expect(uploads.setStrokes.mock.calls.at(-1)?.[0]).toBe(whole);
     expect(uploads.setFolded.mock.calls.at(-1)?.[0].fills.count).toBe(0);

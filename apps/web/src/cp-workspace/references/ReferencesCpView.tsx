@@ -229,6 +229,17 @@ const CANVAS_BG_VAR = '--bg-primary';
  * about which face is up.
  */
 const PAPER_BACK_VAR = '--paper-back';
+/**
+ * What a tilted flap is shaded toward. `--paper-shadow` is the folded figure's
+ * own shadow ink and would be the token to use, but the theme emits it as a
+ * `color-mix()` the renderer's colour reader cannot parse, so the same
+ * derivation is made here: the text colour, at the shares `applyTheme` gives
+ * the shadow on a light and on a dark ground.
+ */
+const TEXT_COLOR_VAR = '--text-primary';
+const TEXT_FALLBACK: Rgba = [0.91, 0.929, 0.941, 1];
+const PAPER_SHADE_LIGHT_ALPHA = 0.18;
+const PAPER_SHADE_DARK_ALPHA = 0.28;
 const FALLBACK_CLEAR: Rgba = [0.157, 0.172, 0.204, 1];
 /** Matches the editor's crease width law so the pattern looks the same here. */
 const CREASE_WIDTH_FACTOR = 1.5;
@@ -327,11 +338,13 @@ function overlayColors(canvas: HTMLCanvasElement): ReferencesOverlayColors {
   };
 }
 
-/** What the three upload effects last computed, before any fold was applied. */
+/** What the upload effects last computed, before any fold was applied. */
 interface FoldUploads {
   strokes: StrokeGeometry | null;
   points: PointGeometry | null;
   preview: StrokeGeometry | null;
+  /** The paper's other face, when the view is on its back; null on the front. */
+  sheet: { geometry: CpGeometryTransport; border: ReadonlySet<number> | null; color: Rgba } | null;
 }
 
 /** The uploads split at a fold, kept while the uploads and the fold stand. */
@@ -363,7 +376,16 @@ function foldPaint(canvas: HTMLCanvasElement, mirrored: boolean): Omit<FoldPaint
     valley: readCssVarColor(canvas, VALLEY_COLOR_VAR, VALLEY_FALLBACK),
     mountainSlot: diagramDashSlot('mountain'),
     valleySlot: diagramDashSlot('valley'),
+    shade: paperShade(canvas, ground),
   };
+}
+
+/** The text colour at the shadow's share for the ground's lightness. */
+function paperShade(canvas: HTMLCanvasElement, ground: Rgba): Rgba {
+  const text = readCssVarColor(canvas, TEXT_COLOR_VAR, TEXT_FALLBACK);
+  const luminance = 0.2126 * ground[0] + 0.7152 * ground[1] + 0.0722 * ground[2];
+  const alpha = luminance > 0.5 ? PAPER_SHADE_LIGHT_ALPHA : PAPER_SHADE_DARK_ALPHA;
+  return [text[0], text[1], text[2], alpha];
 }
 
 /** Everything the imperative handlers read, refreshed every render without re-binding them. */
@@ -568,7 +590,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
     // The fold's pose, and what the channels held before it was applied, so
     // the paper can be laid flat again from exactly what was uploaded.
     const poseRef = useRef<FoldPose | null>(null);
-    const fullRef = useRef<FoldUploads>({ strokes: null, points: null, preview: null });
+    const fullRef = useRef<FoldUploads>({ strokes: null, points: null, preview: null, sheet: null });
     const rigRef = useRef<FoldRig | null>(null);
     const applyFoldRef = useRef<() => void>(() => undefined);
     const lastViewRef = useRef<ReferencesDiagramView | null>(null);
@@ -742,11 +764,16 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         const full = fullRef.current;
         const pose = poseRef.current;
         const scene = liveRef.current.fold;
+        const sheetFill = (flaps: FoldScene['flaps']) =>
+          full.sheet
+            ? sheetFillGeometry(full.sheet.geometry, full.sheet.border, full.sheet.color, flaps)
+            : null;
         if (!pose || !scene) {
           rigRef.current = null;
           if (full.strokes) renderer.setStrokes(full.strokes);
           if (full.points) renderer.setPoints(full.points);
           renderer.setPreview(full.preview);
+          renderer.setSheetFill(sheetFill([]));
           renderer.setFolded(EMPTY_FOLDED);
           return;
         }
@@ -773,6 +800,8 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           if (rig.split) renderer.setStrokes(rig.split.base);
           if (rig.basePoints) renderer.setPoints(rig.basePoints);
           renderer.setPreview(rig.previewSplit?.base ?? null);
+          // The paper the flap has left is the ground now, not sheet.
+          renderer.setSheetFill(sheetFill(scene.flaps));
         }
         renderer.setFolded(
           foldPoseGeometry(scene, pose, [rig.split?.flap, rig.previewSplit?.flap], {
@@ -1068,15 +1097,14 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       // Only when the paper is on its back: the front face is the same colour
       // as the ground it lies on, so filling it would draw nothing and cost a
       // buffer upload per theme change.
-      renderer.setSheetFill(
-        mirrored
-          ? sheetFillGeometry(
-              geometry,
-              creaseVisibility.borderLineIds ?? null,
-              readCssVarColor(canvas, PAPER_BACK_VAR, FALLBACK_CLEAR)
-            )
-          : null
-      );
+      fullRef.current.sheet = mirrored
+        ? {
+            geometry,
+            border: creaseVisibility.borderLineIds ?? null,
+            color: readCssVarColor(canvas, PAPER_BACK_VAR, FALLBACK_CLEAR),
+          }
+        : null;
+      applyFoldRef.current();
       renderNowRef.current();
     }, [
       lineWidth,

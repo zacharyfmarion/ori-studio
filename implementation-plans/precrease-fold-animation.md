@@ -336,7 +336,7 @@ Enums only; no step numbers, no geometry.
       Check that Space with the Play button focused toggles once (the
       dispatcher's `preventDefault` on keydown should suppress the button's
       keyup activation; if not, the button drops focus on press).
-- [ ] **Phase 2 — the curl.** `foldSurface` with `R₀`, the creasedness
+- [x] **Phase 2 — the curl.** `foldSurface` with `R₀`, the creasedness
       profile, the press phase and shading; tests for the identity at `θ = 0`,
       the reflection at `r = 0`, the overhang and shortfall at `θ = π`, and
       `c(s)` on a pinch versus a full crease. Verified on a pinch step and a
