@@ -90,8 +90,9 @@ import { NextDocumentAction } from './NextDocumentAction';
  * numbered cards, the active step's sentence under it, and the crease pattern
  * below showing the sheet as it stands at that step. The left rail is the
  * document's patterns, one of which is being folded. The header is the mode
- * switch — two tabs, the Design workspace's — and, with a target picked, that
- * target's controls; no title, the tabs say what the panel is. The view verbs
+ * switch — two tabs, the Design workspace's — and no title: the tabs say what
+ * the panel is. With a target picked, its controls take a row of their own
+ * under the tabs, above the strip. The view verbs
  * float over the canvas on the Edit workspace's bar, and the settings are the
  * View pane beside the panel (`ReferencesViewControlsPanel`), which reads the
  * store on its own.
@@ -508,23 +509,25 @@ export function ReferencesPanel() {
                 onChange={setMode}
                 disabled={!view.hasDocument || emptySheet}
               />
-              {targeted && controller.target && (
-                <ReferencesTargetControls
-                  target={controller.target}
-                  candidateCount={controller.candidates?.length ?? 0}
-                  activeCandidate={controller.activeCandidate}
-                  active={active}
-                  onPreviousCandidate={controller.previousCandidate}
-                  onNextCandidate={controller.nextCandidate}
-                  onClear={controller.clear}
-                  previousLabel={commandById('previous-candidate')?.label ?? ''}
-                  nextLabel={commandById('next-candidate')?.label ?? ''}
-                  previousDisabled={commandById('previous-candidate')?.disabled ?? true}
-                  nextDisabled={commandById('next-candidate')?.disabled ?? true}
-                />
-              )}
             </div>
           </div>
+          {targeted && controller.target && (
+            <div className="references-target-row">
+              <ReferencesTargetControls
+                target={controller.target}
+                candidateCount={controller.candidates?.length ?? 0}
+                activeCandidate={controller.activeCandidate}
+                active={active}
+                onPreviousCandidate={controller.previousCandidate}
+                onNextCandidate={controller.nextCandidate}
+                onClear={controller.clear}
+                previousLabel={commandById('previous-candidate')?.label ?? ''}
+                nextLabel={commandById('next-candidate')?.label ?? ''}
+                previousDisabled={commandById('previous-candidate')?.disabled ?? true}
+                nextDisabled={commandById('next-candidate')?.disabled ?? true}
+              />
+            </div>
+          )}
 
           {surfaces.strip === 'none' ? (
             <ReferencesLead lead={surfaces.lead} onPlan={breakdown.run} />

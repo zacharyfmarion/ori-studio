@@ -789,8 +789,7 @@
     },
     "canvasAriaLabel": "전개도. 꼭짓점이나 접는 선을 클릭하면 기준점을 찾습니다. 드래그로 이동, 스크롤로 확대/축소.",
     "card": {
-      "error": "오차 {{value}}",
-      "folds_other": "{{count}}번 접기"
+      "error": "오차 {{value}}"
     },
     "direction": {
       "angle": "{{deg}}° 방향으로",

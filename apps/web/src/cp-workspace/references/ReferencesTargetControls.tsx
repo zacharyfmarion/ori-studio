@@ -8,8 +8,10 @@ import type { ReferencesTarget } from '../../store/workspaceStore/types';
 import type { ReferencesCandidateResult } from './referencesResults';
 
 /**
- * What the toolbar says while one vertex or crease is picked: which one, which
- * of ReferenceFinder's answers is showing, how good it is — and the way back.
+ * What the row under the tabs says while one vertex or crease is picked: which
+ * one, which of ReferenceFinder's answers is showing, how good it is — and the
+ * way back. Not how many folds: the strip's cards are that count, and the
+ * number crowded the row.
  *
  * The way back is the reason this is a component rather than three spans. A
  * pick used to be dismissed only by clicking bare paper, which nothing said and
@@ -78,15 +80,6 @@ export const ReferencesTargetControls = memo(function ReferencesTargetControls({
           >
             <ChevronsRight size={14} />
           </IconButton>
-        </span>
-      )}
-      {active && (
-        <span className="references-target__readout">
-          {t('panels:references.card.folds', {
-            defaultValue_one: '{{count}} fold',
-            defaultValue_other: '{{count}} folds',
-            count: active.solution.steps.length + active.solution.freeDiagonals.length,
-          })}
         </span>
       )}
       {active && (

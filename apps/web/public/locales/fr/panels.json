@@ -851,10 +851,7 @@
     },
     "canvasAriaLabel": "Patron de pliage. Cliquez sur un sommet ou un pli pour trouver ses références ; glissez pour déplacer, faites défiler pour zoomer.",
     "card": {
-      "error": "err {{value}}",
-      "folds_one": "{{count}} pli",
-      "folds_many": "{{count}} plis",
-      "folds_other": "{{count}} plis"
+      "error": "err {{value}}"
     },
     "direction": {
       "angle": "à {{deg}}°",

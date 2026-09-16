@@ -851,10 +851,7 @@
     },
     "canvasAriaLabel": "Padrão de dobras. Clique em um vértice ou dobra para encontrar suas referências; arraste para mover, rode a roda para dar zoom.",
     "card": {
-      "error": "erro {{value}}",
-      "folds_one": "{{count}} dobra",
-      "folds_many": "{{count}} dobras",
-      "folds_other": "{{count}} dobras"
+      "error": "erro {{value}}"
     },
     "direction": {
       "angle": "a {{deg}}°",

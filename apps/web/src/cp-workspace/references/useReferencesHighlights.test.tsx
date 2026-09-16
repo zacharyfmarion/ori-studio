@@ -43,9 +43,24 @@ const SOLUTION: ExtractedSolution = {
   target: { kind: 'line', line: { a: [0, 0], b: [0, 1] } },
 };
 
+/** ReferenceFinder's own picture of each step: the sheet and the fold line. */
+const RAW = {
+  diagrams: [
+    [
+      { type: 3, width: 1, height: 1 },
+      { type: 1, from: [0, 0.5], to: [1, 0.5], style: 3 },
+    ],
+    [
+      { type: 3, width: 1, height: 1 },
+      { type: 1, from: [0, 0.5], to: [1, 0.5], style: 0 },
+      { type: 1, from: [0, 0], to: [0, 1], style: 3 },
+    ],
+  ],
+} as unknown as RawSolution;
+
 const CANDIDATE: ReferencesCandidateResult = {
   solution: SOLUTION,
-  raw: { diagrams: [] } as unknown as RawSolution,
+  raw: RAW,
   modelSteps: [
     { line: { a: { x: 100, y: 50 }, b: { x: 0, y: 50 } } },
     { line: { a: { x: 0, y: 0 }, b: { x: 0, y: 100 } } },
@@ -68,7 +83,7 @@ const TARGET: ReferencesTargetRecord = {
 const RESULTS: ReferencesResults = {
   revision: 'r1',
   target: TARGET,
-  frame: { origin: [0, 0], x_axis: [1, 0], y_axis: [0, -1], width: 100, height: 100 } as never,
+  frame: { origin: [0, 100], x_axis: [1, 0], y_axis: [0, -1], width: 100, height: 100 },
   originals: {
     lines: {
       s: { a: { x: 0, y: 100 }, b: { x: 100, y: 100 } },
@@ -120,8 +135,10 @@ describe('useReferencesHighlights', () => {
     render(RESULTS, 0);
     expect(highlights?.selected).toBeNull();
     expect(highlights?.highlightLineIds.size).toBe(0);
-    // The step itself is still drawn.
-    expect(highlights?.diagram?.primitives.length ?? 0).toBeGreaterThan(0);
+    // The step itself is still drawn — the card's own picture, on the pattern.
+    expect(highlights?.diagram?.primitives).toEqual([
+      expect.objectContaining({ kind: 'line', style: 'valley', from: [0, 50], to: [100, 50] }),
+    ]);
 
     render(RESULTS, 1);
     expect(highlights?.selected).toEqual({ kind: 'line', id: 2 });

@@ -10843,9 +10843,8 @@ button.bp-packing-alert:focus-visible {
     order: 0;
   }
 
-  .references-workspace .references-target {
-    flex: 1 0 100%;
-    order: 2;
+  .references-workspace .references-target-row {
+    padding: var(--space-2);
   }
 
   /* The mode tabs take a row of their own under the Back button, the two of
@@ -11482,18 +11481,31 @@ button.bp-packing-alert:focus-visible {
   font-size: 0.7rem;
 }
 
-/* The picked target, and the way back out of it. */
+/* The picked target, and the way back out of it: a row of its own under the
+   tabs, where there is room for it, rather than the header's right end. */
+.references-target-row {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-height: 40px;
+  padding: var(--space-1) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+}
+
 .references-target {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: var(--space-3);
   align-items: center;
   min-width: 0;
 }
 
+/* The stepper's buttons stand off the readout between them and the badges
+   either side; jammed together they read as one control. */
 .references-target__candidates {
   display: flex;
-  gap: 2px;
+  gap: var(--space-2);
   align-items: center;
 }
 

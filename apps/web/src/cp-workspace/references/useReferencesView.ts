@@ -22,7 +22,7 @@ import type {
 } from './referencesResults';
 import type { ReferencesViewStep } from './referencesSequenceView';
 import { findingBounds, planStepScene } from './referencesPlanGeometry';
-import { referencesStepPrimitives } from './referencesStepGeometry';
+import { referenceFinderStepInModel } from './referenceFinderStepInModel';
 import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
 import {
   clampStepIndex,
@@ -189,6 +189,18 @@ export function useReferencesHighlights(
     return idx === undefined ? null : { kind: 'vertex', idx };
   }, [picked, highlightVertexIdx, targetMade]);
 
+  // What the step's card draws, on the pattern — one description of the step
+  // for both surfaces (`referenceFinderStepInModel`); the overlay's summary
+  // of it is kept for the framing bounds alone.
+  const diagram = useMemo(() => {
+    if (!candidate || !results) return null;
+    return referenceFinderStepInModel(
+      candidate.raw,
+      candidate.solution,
+      clampStepIndex(candidate.solution, activeStep),
+      results.frame
+    );
+  }, [candidate, results, activeStep]);
   const overlay = useMemo(() => {
     if (!candidate || !results) return null;
     return referencesStepOverlay(
@@ -203,7 +215,7 @@ export function useReferencesHighlights(
     highlightLineIds,
     highlightVertexIdx,
     selected,
-    diagram: overlay && results ? referencesStepPrimitives(overlay, results.originals) : null,
+    diagram,
     stepBounds: overlay?.bounds ?? null,
   };
 }

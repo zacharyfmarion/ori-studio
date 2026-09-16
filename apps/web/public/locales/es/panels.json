@@ -851,10 +851,7 @@
     },
     "canvasAriaLabel": "Patrón de pliegues. Haz clic en un vértice o pliegue para hallar sus referencias; arrastra para desplazar, desplaza la rueda para hacer zoom.",
     "card": {
-      "error": "err {{value}}",
-      "folds_one": "{{count}} pliegue",
-      "folds_many": "{{count}} pliegues",
-      "folds_other": "{{count}} pliegues"
+      "error": "err {{value}}"
     },
     "direction": {
       "angle": "a {{deg}}°",

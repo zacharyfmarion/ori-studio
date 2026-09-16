@@ -56,11 +56,7 @@ describe('clampStepIndex', () => {
 describe('referencesStepOverlay', () => {
   it('draws the first step as new with its original inputs as marks', () => {
     const overlay = referencesStepOverlay(solution(STEPS), MODEL, ORIGINALS, 0);
-    // The fold this step makes, as the valley ReferenceFinder draws every
-    // fold as — pinched, since A is only made to place P.
-    expect(overlay.ghosts).toEqual([
-      { ...MODEL[0].line, kind: 'new', direction: 'valley', pinch: true },
-    ]);
+    expect(overlay.ghosts).toEqual([{ ...MODEL[0].line, kind: 'new' }]);
     // `se` is a known corner, `ne` is not in these originals and is skipped.
     expect(overlay.markers).toEqual([{ at: ORIGINALS.marks.se, kind: 'input' }]);
     expect(overlay.bounds).toEqual({ minX: 0, minY: 50, maxX: 100, maxY: 100 });
@@ -78,7 +74,7 @@ describe('referencesStepOverlay', () => {
       { ...MODEL[0].line, kind: 'folded' },
       { ...ORIGINALS.lines.n, kind: 'input' },
       { ...ORIGINALS.lines.s, kind: 'input' },
-      { ...MODEL[2].line, kind: 'new', direction: 'valley', pinch: true },
+      { ...MODEL[2].line, kind: 'new' },
     ]);
     expect(overlay.markers).toEqual([
       { at: ORIGINALS.marks.se, kind: 'input' },

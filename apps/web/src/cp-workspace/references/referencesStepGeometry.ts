@@ -1,5 +1,5 @@
 /**
- * What the CP view shows for one step of a ReferenceFinder construction.
+ * What one step of a ReferenceFinder construction is *about*, on the CP view.
  *
  * Pure bookkeeping over geometry that already exists in model space (the
  * candidate's steps mapped by the planner bridge, and the sheet's own
@@ -7,14 +7,15 @@
  * marks the active step *uses*, and what it makes. No coordinates are computed
  * here — only selected and grouped — which is what lets it be tested without a
  * worker.
+ *
+ * The view no longer *draws* from this summary: it draws the card's own
+ * diagram, mapped onto the pattern (`referenceFinderStepInModel`), so the two
+ * pictures of a step are one description. What is left of the summary's job
+ * is the frame — `bounds`, the step's references and what it makes, for the
+ * camera to show.
  */
 import type { Point } from '../../lib/geometry';
-import type {
-  DiagramLineStyleName,
-  StepDiagramModel,
-  StepDiagramPrimitive,
-} from './referenceFinderDiagramToPrimitives';
-import { dashRulerAlong, type DiagramArc } from './stepDiagramGeometry';
+import type { DiagramArc } from './stepDiagramGeometry';
 import type { ExtractedSolution, ExtractedStep } from './referenceFinder/extractor';
 import type { ReferencesModelStep, ReferencesOriginals } from './referencesResults';
 
@@ -45,17 +46,8 @@ export interface ReferencesGhostSegment {
    *
    * A crease is drawn in the ink that says which way it folds, never in a
    * colour of its own — that is the one thing the reader is looking for.
-   * ReferenceFinder's folds are all valleys: its diagrams draw every new
-   * line as one (`refLine.cpp`, `LINESTYLE_VALLEY`), and the card the
-   * reader compares the view against is that diagram.
    */
   direction?: ReferencesGhostDirection;
-  /**
-   * The line is only made to place a mark, so it is pressed as a pinch
-   * rather than creased across — what ReferenceFinder draws with its pinch
-   * style, and the card shows.
-   */
-  pinch?: boolean;
 }
 
 export type ReferencesMarkerKind = 'input' | 'new';
@@ -179,15 +171,7 @@ export function referencesStepOverlay(
   const made = modelSteps[active];
   if (made?.arc) overlay_arc = made.arc;
   if (made?.line) {
-    // The fold this step makes, in a fold line's ink — the view used to draw
-    // it as one more thin crease, indistinguishable from the ones already
-    // made, while the card showed it dashed.
-    ghosts.push({
-      ...made.line,
-      kind: 'new',
-      direction: 'valley',
-      ...(step.pinch ? { pinch: true } : {}),
-    });
+    ghosts.push({ ...made.line, kind: 'new' });
     bounds = extend(extend(bounds, made.line.a), made.line.b);
   }
   if (made?.point) {
@@ -196,78 +180,4 @@ export function referencesStepOverlay(
   }
 
   return { ghosts, markers, bounds, arc: overlay_arc };
-}
-
-/**
- * A ReferenceFinder step's overlay as diagram primitives.
- *
- * The planner's steps are described as primitives and drawn from them; a
- * candidate's steps arrive as ghosts and markers, from an extractor that
- * predates the shared model. Adapting them here rather than rewriting that
- * extractor keeps one pipe into the canvas without disturbing the search — and
- * it is where the arrows go when ReferenceFinder's own arcs are mapped into
- * model space.
- *
- * The kind → style map is the card's own: an earlier crease is context, an
- * input is picked out, a new crease takes its direction's ink — a pinch's
- * where the line is only made for a mark. `unfolded` has no style because the
- * diagram no longer draws the part of a fold the pattern does not crease.
- */
-export function referencesStepPrimitives(
-  overlay: ReferencesStepOverlay,
-  originals: ReferencesOriginals
-): StepDiagramModel {
-  const sheet = sheetOf(originals);
-  const styleOf = (ghost: ReferencesGhostSegment): DiagramLineStyleName | null => {
-    if (ghost.kind === 'unfolded') return null;
-    if (ghost.kind === 'folded') return 'crease';
-    if (ghost.kind === 'input') return 'highlight';
-    if (ghost.pinch) return ghost.direction === 'mountain' ? 'pinch-mountain' : 'pinch-valley';
-    if (ghost.direction === 'mountain') return 'mountain';
-    if (ghost.direction === 'valley') return 'valley';
-    return 'crease';
-  };
-  const primitives: StepDiagramPrimitive[] = [];
-  for (const ghost of overlay.ghosts) {
-    const style = styleOf(ghost);
-    if (!style) continue;
-    const ruler = dashRulerAlong(ghost.a.x, ghost.a.y, ghost.b.x, ghost.b.y);
-    primitives.push({
-      kind: 'line',
-      from: [ruler.ax, ruler.ay],
-      to: [ruler.bx, ruler.by],
-      style,
-      dashPhase: ruler.phase,
-    });
-  }
-  // The motion, the same symbol the planner's steps get: out over the crease
-  // and back, one head where the paper comes to rest. Upstream ships the
-  // outgoing arc and throws its directions away, so the return is derived here
-  // exactly as it is for a witness-built arrow — one place decides the symbol.
-  if (overlay.arc) primitives.push({ kind: 'fold-arrow', out: overlay.arc });
-  for (const marker of overlay.markers) {
-    primitives.push({
-      kind: 'point',
-      at: [marker.at.x, marker.at.y],
-      style: marker.kind === 'input' ? 'highlight' : 'action',
-    });
-  }
-  return { sheet, primitives };
-}
-
-/**
- * The paper's size in model space, from the originals ReferenceFinder was given.
- *
- * Its originals are the sheet's own edges and diagonals, so the longest of them
- * that is not a diagonal is a side — and a side is a side whichever way the
- * paper is turned, which a bounding box would not be. Only the things measured
- * against the paper need this: an arrowhead, the ring round a mark.
- */
-function sheetOf(originals: ReferencesOriginals): { width: number; height: number } {
-  const lengths = Object.values(originals.lines)
-    .map((line) => Math.hypot(line.b.x - line.a.x, line.b.y - line.a.y))
-    .sort((a, b) => a - b);
-  // A square sheet's diagonal is the longest; the sides are the rest.
-  const side = lengths.length > 1 ? lengths[lengths.length - 2] : (lengths[0] ?? 1);
-  return { width: side || 1, height: side || 1 };
 }
