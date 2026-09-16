@@ -354,6 +354,8 @@ interface FoldUploads {
  */
 interface FoldRig {
   scene: FoldScene;
+  /** Which of the scene's flaps the split is for: a pose moves one at a time. */
+  flap: number;
   strokes: { source: StrokeGeometry; split: SplitStrokes } | null;
   preview: { source: StrokeGeometry; split: SplitStrokes } | null;
   points: { source: PointGeometry; base: PointGeometry } | null;
@@ -769,7 +771,8 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           full.sheet
             ? sheetFillGeometry(full.sheet.geometry, full.sheet.border, full.sheet.color, flaps)
             : null;
-        if (!pose || !scene) {
+        const moving = pose && scene ? scene.flaps[pose.flap] : undefined;
+        if (!pose || !scene || !moving) {
           rigRef.current = null;
           if (full.strokes) renderer.setStrokes(full.strokes);
           if (full.points) renderer.setPoints(full.points);
@@ -778,11 +781,12 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           renderer.setFolded(EMPTY_FOLDED);
           return;
         }
-        const { flaps } = scene;
+        const flaps = [moving];
         let rig = rigRef.current;
-        if (!rig || rig.scene !== scene) {
+        if (!rig || rig.scene !== scene || rig.flap !== pose.flap) {
           rig = {
             scene,
+            flap: pose.flap,
             strokes: null,
             preview: null,
             points: null,

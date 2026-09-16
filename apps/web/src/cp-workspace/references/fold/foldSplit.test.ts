@@ -93,6 +93,30 @@ describe('splitStrokesAtFolds', () => {
   });
 });
 
+describe('a sheet turning over', () => {
+  it('takes every stroke and every mark with it, the line included', () => {
+    const source = strokes([
+      [6, 1, 9, 1],
+      [1, 3, 9, 3],
+      [5, 0, 5, 10],
+    ]);
+    const whole = { ...VERTICAL, whole: true };
+    const { base, flap } = splitStrokesAtFolds(source, [whole]);
+    expect(base.count).toBe(0);
+    expect(flap.count).toBe(3);
+    expect(Array.from(flap.flap)).toEqual([0, 0, 0]);
+    const points: PointGeometry = {
+      center: Float32Array.from([1, 1, 5, 5, 9, 9]),
+      radius: Float32Array.from([1, 2, 3]),
+      screenSpace: Float32Array.from([1, 1, 1]),
+      fill: new Float32Array(12),
+      stroke: new Float32Array(12),
+      count: 3,
+    };
+    expect(dropPointsOnFlaps(points, [whole]).count).toBe(0);
+  });
+});
+
 describe('dropPointsOnFlaps', () => {
   it('drops the marks that would move and keeps the rest, the hinge included', () => {
     const points: PointGeometry = {

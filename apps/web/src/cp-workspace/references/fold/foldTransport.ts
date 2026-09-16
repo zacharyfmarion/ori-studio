@@ -11,20 +11,20 @@
  * The clock is injectable so the whole thing runs under a hand-driven one in
  * tests; the default is the browser's.
  */
-import type { FoldMotionKind } from '../diagram/foldMotion';
 import {
-  FOLD_AT_REST,
-  isFlat,
+  foldLegs,
   isFolded,
-  poseAt,
-  snapFoldPlayback,
-  tickFoldPlayback,
-  toggleFoldPlayback,
+  runAtRest,
+  runHeading,
+  runPose,
+  snapFoldRun,
+  tickFoldRun,
+  toggleFoldRun,
   type FoldHeading,
-  type FoldPlayback,
   type FoldPose,
+  type FoldRun,
 } from './foldPlayback';
-import type { FoldScene } from './foldScene';
+import type { FoldScene, FoldSceneKind } from './foldScene';
 
 /** Where a pose goes: the view's imperative handle, or anything shaped like it. */
 export interface FoldPoseSink {
@@ -35,7 +35,7 @@ export interface FoldPoseSink {
 export type FoldPlayTrigger = 'user' | 'auto';
 
 export interface FoldTransportStatus {
-  /** The card has a fold to play. */
+  /** The card has something to play. */
   available: boolean;
   playing: boolean;
   /** At rest, folded over: Play would unfold. */
@@ -54,7 +54,7 @@ export interface FoldTransportOptions {
   /** The view to pose, looked up at each push: it may not be mounted yet. */
   sink: () => FoldPoseSink | null;
   /** Every play, for the analytics event; a pause is not one. */
-  onPlay?: (trigger: FoldPlayTrigger, heading: FoldHeading, kind: FoldMotionKind) => void;
+  onPlay?: (trigger: FoldPlayTrigger, heading: FoldHeading, kind: FoldSceneKind) => void;
   /** Motion is unwelcome: Play snaps between the rest poses instead. */
   reducedMotion?: () => boolean;
   clock?: FoldTransportClock;
@@ -74,7 +74,7 @@ const browserClock: FoldTransportClock = {
 const AT_REST_STATUS: FoldTransportStatus = { available: false, playing: false, folded: false };
 
 export class FoldTransport {
-  private state: FoldPlayback = FOLD_AT_REST;
+  private run: FoldRun = runAtRest([]);
   private scene: FoldScene | null = null;
   private autoPlay = false;
   private frame = 0;
@@ -124,7 +124,7 @@ export class FoldTransport {
     }
   }
 
-  /** The Play button, Space and the menu row: fold, pause, resume, unfold. */
+  /** The Play button, Space and the menu row: play, pause, resume, play back. */
   toggle(): void {
     this.play('user');
   }
@@ -138,27 +138,25 @@ export class FoldTransport {
   private play(trigger: FoldPlayTrigger): void {
     const scene = this.scene;
     if (!scene) return;
-    const before = this.state;
-    const next = this.options.reducedMotion?.()
-      ? snapFoldPlayback(before)
-      : toggleFoldPlayback(before);
-    this.state = next;
+    const before = this.run;
+    const next = this.options.reducedMotion?.() ? snapFoldRun(before) : toggleFoldRun(before);
+    this.run = next;
     this.push();
     this.publish();
     if (next.playing) this.start();
     else this.stop();
     // A pause is not a play; everything else that moves the paper is.
-    if (!before.playing) this.options.onPlay?.(trigger, next.heading, scene.kind);
+    if (!before.playing) this.options.onPlay?.(trigger, runHeading(next), scene.kind);
   }
 
   private start(): void {
     this.stop();
     this.last = this.clock.now();
     const frame = (now: number): void => {
-      this.state = tickFoldPlayback(this.state, now - this.last);
+      this.run = tickFoldRun(this.run, now - this.last);
       this.last = now;
       this.push();
-      if (this.state.playing) {
+      if (this.run.playing) {
         this.frame = this.clock.requestFrame(frame);
       } else {
         this.frame = 0;
@@ -180,20 +178,20 @@ export class FoldTransport {
 
   private rest(): void {
     this.stop();
-    this.state = FOLD_AT_REST;
+    this.run = runAtRest(this.scene ? foldLegs(this.scene.flaps.length) : []);
     this.push();
     this.publish();
   }
 
   private push(): void {
-    this.options.sink()?.setFoldPose(isFlat(this.state) ? null : poseAt(this.state.at));
+    this.options.sink()?.setFoldPose(runPose(this.run));
   }
 
   private publish(): void {
     const next: FoldTransportStatus = {
       available: this.scene !== null,
-      playing: this.state.playing,
-      folded: isFolded(this.state),
+      playing: this.run.playing,
+      folded: isFolded(this.run),
     };
     const prev = this.snapshot;
     if (

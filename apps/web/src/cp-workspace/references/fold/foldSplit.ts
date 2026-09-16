@@ -49,7 +49,7 @@ interface Piece {
   flap: number;
 }
 
-type Flap = Pick<FoldFlapScene, 'chord' | 'side'>;
+type Flap = Pick<FoldFlapScene, 'chord' | 'side' | 'whole'>;
 
 /** Where `[a, b]` crosses the chord's line, as a fraction along it, or null. */
 function crossing(a: Point, b: Point, chord: readonly [Point, Point]): number | null {
@@ -66,6 +66,8 @@ function crossing(a: Point, b: Point, chord: readonly [Point, Point]): number | 
 /** A piece against one flap: itself, moved; itself, staying; or cut in two. */
 function divide(piece: Piece, flap: Flap, index: number): Piece[] {
   if (piece.flap >= 0) return [piece];
+  // The whole sheet turns: everything on it goes with it, the line included.
+  if (flap.whole) return [{ ...piece, flap: index }];
   const a = { x: piece.ax, y: piece.ay };
   const b = { x: piece.bx, y: piece.by };
   const sa = sideOf(flap.chord, a);
@@ -182,7 +184,7 @@ export function dropPointsOnFlaps(points: PointGeometry, flaps: readonly Flap[])
   const keep: number[] = [];
   for (let i = 0; i < points.count; i += 1) {
     const p = { x: points.center[i * 2]!, y: points.center[i * 2 + 1]! };
-    const moves = flaps.some((flap) => sideOf(flap.chord, p) === flap.side);
+    const moves = flaps.some((flap) => flap.whole || sideOf(flap.chord, p) === flap.side);
     if (!moves) keep.push(i);
   }
   if (keep.length === points.count) return points;

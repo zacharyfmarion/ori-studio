@@ -154,6 +154,24 @@ export function createFoldSurface(params: FoldSurfaceParams): FoldSurface {
   };
 }
 
+/**
+ * The whole sheet turning over about a line through it: a rigid turn of
+ * `angle` about the line, lifted so the low side never passes through the
+ * table. `halfWidth` is how far the sheet reaches from the line on its far
+ * side. At `π` the sheet lies flat again, mirrored — the picture the next
+ * card starts from.
+ */
+export function createTurnOverSurface(angle: number, halfWidth: number): FoldSurface {
+  const sinT = Math.sin(angle);
+  const cosT = Math.cos(angle);
+  const lift = Math.max(0, halfWidth) * Math.abs(sinT);
+  return {
+    bendReach: 0,
+    place: (s, u) => ({ s, v: u * cosT, z: u * sinT + lift, nz: cosT }),
+    breakpoints: () => [],
+  };
+}
+
 /** A point in the fold's frame, before placement. */
 export interface FlatPoint {
   s: number;
@@ -257,11 +275,6 @@ export function bendRows(surface: FoldSurface, reach: number, rows = BEND_ROWS):
 export interface FlapMesh {
   /** Placed vertices, three per triangle. */
   vertices: PlacedPoint[];
-  /**
-   * Per triangle, whether it lies wholly past the bend — on the flat part of
-   * the flap, which is planar and casts a shadow that does not overlap itself.
-   */
-  flat: boolean[];
 }
 
 /**
@@ -277,18 +290,21 @@ export function tessellateFlap(
   rows = BEND_ROWS
 ): FlapMesh {
   const vertices: PlacedPoint[] = [];
-  const flat: boolean[] = [];
-  if (polygon.length < 3) return { vertices, flat };
+  if (polygon.length < 3) return { vertices };
   let sMin = Infinity;
   let sMax = -Infinity;
+  let uMin = 0;
   let uMax = 0;
   for (const p of polygon) {
     sMin = Math.min(sMin, p.s);
     sMax = Math.max(sMax, p.s);
+    uMin = Math.min(uMin, p.u);
     uMax = Math.max(uMax, p.u);
   }
   const columns = samples(sMin, sMax, columnSpacing, surface.breakpoints());
-  const uRows = bendRows(surface, uMax, rows);
+  // A flap lies on one side of its line; a sheet turning over lies on both,
+  // and the other side is one more row, since nothing bends there.
+  const uRows = [...(uMin < -EPSILON ? [uMin] : []), ...bendRows(surface, uMax, rows)];
   for (let i = 0; i + 1 < columns.length; i += 1) {
     for (let j = 0; j + 1 < uRows.length; j += 1) {
       const cell: FlatPoint[] = [
@@ -300,14 +316,12 @@ export function tessellateFlap(
       const piece = clipCellToPolygon(cell, polygon);
       if (piece.length < 3) continue;
       const placed = piece.map((p) => surface.place(p.s, p.u));
-      const pastBend = uRows[j]! >= surface.bendReach - EPSILON;
       for (let k = 1; k + 1 < placed.length; k += 1) {
         vertices.push(placed[0]!, placed[k]!, placed[k + 1]!);
-        flat.push(pastBend);
       }
     }
   }
-  return { vertices, flat };
+  return { vertices };
 }
 
 /**

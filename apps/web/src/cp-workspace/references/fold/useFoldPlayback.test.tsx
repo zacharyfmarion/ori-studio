@@ -13,7 +13,22 @@ vi.mock('../../../analytics', () => ({
   track,
 }));
 
-const SCENE: FoldScene = { kind: 'cp', flaps: [], sheetShortSide: 1, reach: 1 };
+const SCENE: FoldScene = {
+  kind: 'cp',
+  flaps: [
+    {
+      chord: [
+        { x: 0, y: 0 },
+        { x: 0, y: 1 },
+      ],
+      side: 1,
+      polygon: [],
+      creased: [],
+    },
+  ],
+  sheetShortSide: 1,
+  reach: 1,
+};
 
 const sink: FoldPoseSink = { setFoldPose: vi.fn() };
 const view = { current: sink };
@@ -63,7 +78,7 @@ describe('useFoldPlayback', () => {
     // Reduced motion is stubbed on, so a press lands at the far end at once.
     act(() => probe()?.click());
     expect(probe()?.dataset.folded).toBe('true');
-    expect(sink.setFoldPose).toHaveBeenLastCalledWith({ angle: Math.PI, press: 1 });
+    expect(sink.setFoldPose).toHaveBeenLastCalledWith({ flap: 0, angle: Math.PI, press: 1 });
     expect(track).toHaveBeenCalledWith('references fold played', {
       trigger: 'user',
       direction: 'fold',

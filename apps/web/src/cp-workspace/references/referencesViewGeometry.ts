@@ -657,8 +657,10 @@ export function sheetFillGeometry(
    * resting side of each, so a folded-over flap leaves the ground behind it
    * rather than a sheet-shaped stand-in.
    */
-  without: readonly { chord: readonly [Point, Point]; side: 1 | -1 }[] = []
+  without: readonly { chord: readonly [Point, Point]; side: 1 | -1; whole?: boolean }[] = []
 ): FillGeometry | null {
+  // The whole sheet in the air leaves no paper on the table.
+  if (without.some((flap) => flap.whole)) return null;
   if (!borderLineIds || borderLineIds.size === 0) return null;
   const endpoints = geometry.segEndpoints;
   const corners: Point[] = [];

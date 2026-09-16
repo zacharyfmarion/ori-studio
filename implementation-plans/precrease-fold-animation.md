@@ -266,6 +266,17 @@ on the paper. Three cues carry the height, all cheap in this channel:
 - The geometry itself: the curl's overhang and the flat part's shortfall
   (D2).
 
+**Revised 2026-09-16.** The cast shadow went first (a raised flap's shadow
+landed a flap's width away and read as a second sheet), then the contact
+rim that replaced it: Zach had shadows removed altogether. What remains of
+the height cues is the shading of the bend. Two more calls from the same
+round: a **twin card plays its folds one after the other** — fold the first,
+hold a moment, unfold it, then the second — and rests flat, since that is
+how a folder makes them; and a **turn-over card plays the sheet turning
+over**, a rigid turn about its vertical centre line lifted so the low side
+never passes through the table, which ends in exactly the picture the next
+card starts from.
+
 Both dark and light themes are checked in the pane, since the back face's
 contrast rule (`themes/paperBack.ts`) was tuned by luminance step and a shading
 multiplier moves it.
@@ -377,7 +388,8 @@ Enums only; no step numbers, no geometry.
       and the preview), so its test needed no extension. Lint, typecheck and
       the whole web suite are green.
 - [ ] Zach tries it on a desktop and a phone.
-- [ ] *Later, not this plan:* a turn-over card animating the sheet flipping
-      over (the same rig, rigid, hinge at the sheet's centre line); Find-mode
-      candidates (ReferenceFinder steps are folds too, with the moving point
-      in the diagram); pleats.
+- [x] A turn-over card animates the sheet turning over (the same rig,
+      rigid, hinge at the sheet's centre line), and a twin card plays its
+      two folds in turn.
+- [ ] *Later, not this plan:* Find-mode candidates (ReferenceFinder steps
+      are folds too, with the moving point in the diagram); pleats.

@@ -36,7 +36,7 @@ export function useFoldPlayback({ view, scene, autoPlay }: FoldPlaybackInput): F
           track(ANALYTICS_EVENTS.referencesFoldPlayed, {
             trigger,
             direction: heading,
-            step_kind: kind,
+            step_kind: kind === 'turn-over' ? 'turn_over' : kind,
           }),
       })
   );

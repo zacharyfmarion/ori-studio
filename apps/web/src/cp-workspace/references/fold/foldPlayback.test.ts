@@ -1,66 +1,130 @@
 import { describe, expect, it } from 'vitest';
 import {
-  FOLD_AT_REST,
   FOLD_DURATION_MS,
   FOLD_SWING_SHARE,
+  TWIN_HOLD_MS,
+  foldLegs,
   isFlat,
   isFolded,
   poseAt,
-  snapFoldPlayback,
-  tickFoldPlayback,
-  toggleFoldPlayback,
+  reversedLegs,
+  runAtRest,
+  runPose,
+  snapFoldRun,
+  tickFoldRun,
+  toggleFoldRun,
+  type FoldRun,
 } from './foldPlayback';
 
-describe('toggleFoldPlayback', () => {
-  it('heads for folded from flat, and back for flat from folded', () => {
-    const going = toggleFoldPlayback(FOLD_AT_REST);
-    expect(going).toEqual({ at: 0, heading: 'fold', playing: true });
-    const folded = tickFoldPlayback(going, FOLD_DURATION_MS);
+const single = () => runAtRest(foldLegs(1));
+const twin = () => runAtRest(foldLegs(2));
+
+/** Tick in frames of `ms` until the run stops or `limit` ms have passed. */
+function playOut(run: FoldRun, ms = 50, limit = 20_000): FoldRun {
+  let state = run;
+  for (let t = 0; t < limit && state.playing; t += ms) state = tickFoldRun(state, ms);
+  return state;
+}
+
+describe('a fold card', () => {
+  it('folds to the end, rests folded, then unfolds on the next Play', () => {
+    const going = toggleFoldRun(single());
+    expect(going.playing).toBe(true);
+    const folded = playOut(going);
     expect(isFolded(folded)).toBe(true);
-    expect(folded.playing).toBe(false);
-    const back = toggleFoldPlayback(folded);
-    expect(back).toEqual({ at: 1, heading: 'unfold', playing: true });
-    const flat = tickFoldPlayback(back, FOLD_DURATION_MS);
+    expect(runPose(folded)).toEqual({ flap: 0, angle: Math.PI, press: 1 });
+    const back = toggleFoldRun(folded);
+    expect(back.legs[0]?.heading).toBe('unfold');
+    expect(back.at).toBe(1);
+    const flat = playOut(back);
     expect(isFlat(flat)).toBe(true);
+    expect(runPose(flat)).toBeNull();
     expect(flat.playing).toBe(false);
-    // Flat again after unfolding: Play folds, whatever the last heading was.
-    expect(toggleFoldPlayback(flat).heading).toBe('fold');
+    // Flat again: Play folds, whatever the last run was.
+    expect(toggleFoldRun(flat).legs[0]?.heading).toBe('fold');
   });
 
   it('pauses mid-flight and resumes the same way', () => {
-    const halfway = tickFoldPlayback(toggleFoldPlayback(FOLD_AT_REST), FOLD_DURATION_MS / 2);
+    const halfway = tickFoldRun(toggleFoldRun(single()), FOLD_DURATION_MS / 2);
     expect(halfway.at).toBeCloseTo(0.5);
-    const paused = toggleFoldPlayback(halfway);
+    const paused = toggleFoldRun(halfway);
     expect(paused.playing).toBe(false);
-    expect(tickFoldPlayback(paused, 1000)).toBe(paused);
-    const resumed = toggleFoldPlayback(paused);
-    expect(resumed).toEqual({ at: halfway.at, heading: 'fold', playing: true });
+    expect(tickFoldRun(paused, 1000)).toBe(paused);
+    const resumed = toggleFoldRun(paused);
+    expect(resumed).toEqual({ ...halfway, playing: true });
     // Paused on the way back, it keeps heading back.
-    const returning = tickFoldPlayback(toggleFoldPlayback({ at: 1, heading: 'fold', playing: false }), 200);
-    const pausedBack = toggleFoldPlayback(returning);
-    expect(toggleFoldPlayback(pausedBack).heading).toBe('unfold');
+    const returning = tickFoldRun(toggleFoldRun(playOut(toggleFoldRun(single()))), 200);
+    const pausedBack = toggleFoldRun(returning);
+    expect(toggleFoldRun(pausedBack).legs[0]?.heading).toBe('unfold');
   });
 
   it('comes to rest exactly at the ends, never past them', () => {
-    const over = tickFoldPlayback(toggleFoldPlayback(FOLD_AT_REST), FOLD_DURATION_MS * 3);
+    const over = tickFoldRun(toggleFoldRun(single()), FOLD_DURATION_MS * 3);
     expect(over.at).toBe(1);
     expect(over.playing).toBe(false);
-    const under = tickFoldPlayback({ at: 0.1, heading: 'unfold', playing: true }, FOLD_DURATION_MS);
+    const under = tickFoldRun(
+      { ...runAtRest(reversedLegs(foldLegs(1))), at: 0.1, playing: true },
+      FOLD_DURATION_MS
+    );
     expect(under.at).toBe(0);
     expect(under.playing).toBe(false);
   });
 });
 
-describe('snapFoldPlayback', () => {
-  it('jumps to the far end without playing', () => {
-    expect(snapFoldPlayback(FOLD_AT_REST)).toEqual({ at: 1, heading: 'fold', playing: false });
-    expect(snapFoldPlayback({ at: 1, heading: 'fold', playing: false })).toEqual({
-      at: 0,
-      heading: 'unfold',
-      playing: false,
-    });
-    // Paused partway, it finishes the way it was going.
-    expect(snapFoldPlayback({ at: 0.4, heading: 'unfold', playing: false }).at).toBe(0);
+describe('a twin card', () => {
+  it('folds the first, holds, unfolds it, then the second, and rests flat', () => {
+    expect(foldLegs(2).map((leg) => `${leg.flap}:${leg.heading}`)).toEqual([
+      '0:fold',
+      '0:unfold',
+      '1:fold',
+      '1:unfold',
+    ]);
+    let run = toggleFoldRun(twin());
+    const seen: string[] = [];
+    let t = 0;
+    while (run.playing && t < 20_000) {
+      run = tickFoldRun(run, 25);
+      t += 25;
+      const pose = runPose(run);
+      const mark = pose ? `${pose.flap}:${pose.angle > 3 ? 'over' : 'up'}` : 'flat';
+      if (seen[seen.length - 1] !== mark) seen.push(mark);
+    }
+    expect(seen).toEqual(['0:up', '0:over', '0:up', 'flat', '1:up', '1:over', '1:up', 'flat']);
+    expect(isFlat(run)).toBe(true);
+    expect(isFolded(run)).toBe(false);
+    // Long enough for four legs and two holds, and not much longer.
+    expect(t).toBeGreaterThan(4 * FOLD_DURATION_MS + 2 * TWIN_HOLD_MS - 100);
+    expect(t).toBeLessThan(4 * FOLD_DURATION_MS + 2 * TWIN_HOLD_MS + 200);
+    // Rested flat, Play runs it forwards again.
+    expect(toggleFoldRun(run).legs).toEqual(foldLegs(2));
+  });
+
+  it('holds the landing before unfolding', () => {
+    const landed = tickFoldRun(toggleFoldRun(twin()), FOLD_DURATION_MS);
+    expect(landed.at).toBe(1);
+    expect(landed.holdLeft).toBe(TWIN_HOLD_MS);
+    expect(landed.playing).toBe(true);
+    const still = tickFoldRun(landed, TWIN_HOLD_MS / 2);
+    expect(still.at).toBe(1);
+    expect(still.leg).toBe(0);
+    const moving = tickFoldRun(still, TWIN_HOLD_MS);
+    expect(moving.leg).toBe(1);
+    expect(moving.at).toBe(1);
+  });
+});
+
+describe('snapFoldRun', () => {
+  it('jumps to the run’s end without playing, and to the next run’s end after that', () => {
+    const folded = snapFoldRun(single());
+    expect(isFolded(folded)).toBe(true);
+    expect(folded.playing).toBe(false);
+    const flat = snapFoldRun(folded);
+    expect(isFlat(flat)).toBe(true);
+    // A twin snaps straight to flat: its run ends there.
+    expect(isFlat(snapFoldRun(twin()))).toBe(true);
+    // Paused partway, it finishes the run it was on.
+    const partway = { ...toggleFoldRun(single()), at: 0.4, playing: false };
+    expect(isFolded(snapFoldRun(partway))).toBe(true);
   });
 });
 

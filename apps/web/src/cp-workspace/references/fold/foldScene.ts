@@ -10,6 +10,7 @@
 import type { Point } from '../../../lib/geometry';
 import { modelFrame } from '../diagram/diagramFrames';
 import { stepFoldMotion, type FoldMotionKind, type FoldSide } from '../diagram/foldMotion';
+import type { Point as ModelPoint } from '../../../lib/geometry';
 import { clipPolygonToSide, sheetPolygon } from '../diagram/plannerDiagram';
 import type { ReferencesPlanVariant } from '../referencesResults';
 import type { ReferencesViewStep } from '../referencesSequenceView';
@@ -25,10 +26,18 @@ export interface FoldFlapScene {
    * chord from its first end, each `[from, to]` ascending.
    */
   creased: readonly (readonly [number, number])[];
+  /**
+   * The whole sheet, turning over about the line rather than a flap swinging
+   * from it: paper on both sides of the line moves, and nothing bends.
+   */
+  whole?: boolean;
 }
 
+/** A step's kind, or the card between steps where the paper is turned over. */
+export type FoldSceneKind = FoldMotionKind | 'turn-over';
+
 export interface FoldScene {
-  kind: FoldMotionKind;
+  kind: FoldSceneKind;
   flaps: readonly FoldFlapScene[];
   /** The sheet's shorter side in model units: what a bend radius is a share of. */
   sheetShortSide: number;
@@ -82,18 +91,25 @@ export function foldCardKind(
   variants: readonly ReferencesPlanVariant[],
   viewSteps: readonly ReferencesViewStep[],
   activeStep: number
-): 'fold' | 'pleat' | 'other' {
+): 'fold' | 'pleat' | 'turn-over' | 'other' {
   const target = viewSteps[activeStep];
+  if (target?.kind === 'turn-over') return 'turn-over';
   if (!target || target.kind !== 'fold') return 'other';
   const step = variants[target.component]?.sequence.steps[target.step];
   if (!step) return 'other';
   return step.grid ? 'pleat' : 'fold';
 }
 
+const midpoint = (segment: readonly [ModelPoint, ModelPoint]): ModelPoint => ({
+  x: (segment[0].x + segment[1].x) / 2,
+  y: (segment[0].y + segment[1].y) / 2,
+});
+
 /**
- * The fold the reader is looking at, or null when the card is not a fold —
- * a turn-over, the finished pattern, a pleat — or there is nothing to draw
- * it on.
+ * What the reader is looking at moves, or null when nothing does — the
+ * finished pattern, a pleat — or there is nothing to draw it on. A fold
+ * card swings its flap; a turn-over card turns the whole sheet over, left
+ * to right, about its vertical centre line.
  */
 export function planFoldScene(
   variants: readonly ReferencesPlanVariant[],
@@ -101,10 +117,26 @@ export function planFoldScene(
   activeStep: number
 ): FoldScene | null {
   const target = viewSteps[activeStep];
-  if (!target || target.kind !== 'fold') return null;
+  if (!target || target.kind === 'done') return null;
   const variant = variants[target.component];
   if (!variant) return null;
   const frame = modelFrame(variant.sequence, variant.model);
+  if (target.kind === 'turn-over') {
+    const sheet = sheetPolygon(frame);
+    const bottom = frame.edge('bottom');
+    const top = frame.edge('top');
+    if (!sheet || !bottom || !top) return null;
+    const chord: readonly [ModelPoint, ModelPoint] = [midpoint(bottom), midpoint(top)];
+    const along = chordFrame(chord, 1);
+    let reach = 0;
+    for (const corner of sheet) reach = Math.max(reach, Math.abs(inChordFrame(along, corner).u));
+    return {
+      kind: 'turn-over',
+      flaps: [{ chord, side: 1, polygon: sheet, creased: [], whole: true }],
+      sheetShortSide: Math.min(frame.sheet.width, frame.sheet.height),
+      reach,
+    };
+  }
   const motion = stepFoldMotion(variant.sequence, frame, target.step, target.twin);
   const sheet = sheetPolygon(frame);
   if (!motion || !sheet) return null;

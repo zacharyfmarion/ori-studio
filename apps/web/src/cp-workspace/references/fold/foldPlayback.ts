@@ -1,18 +1,25 @@
 /**
- * Where a step's fold is, and where it is going.
+ * Where a card's animation is, and where it is going.
  *
- * A step arrives flat. Play takes it to folded and pressed; Play again brings
- * it back. Pressed while it moves, it pauses; pressed again, it carries on the
- * way it was going. Pure and clock-free: the hook that owns the animation
- * frame feeds `tickFoldPlayback` the time that passed, and everything else
- * here is arithmetic on the result.
+ * A card plays a **run** of legs. A fold card is one leg — fold — and rests
+ * folded; Play again runs the reverse, one leg of unfold. A twin card is two
+ * folds shown one after the other: fold the first, hold a moment so the
+ * landing can be read, unfold it, then the same for the second, and it rests
+ * flat, so Play runs it again. A turn-over is one leg too: the whole sheet
+ * turning over, and back on the next Play.
  *
- * Progress runs linearly with time from 0 to 1 and the easing lives in
- * {@link poseAt}, so a pause and a resume cannot change the shape of the
- * motion — only where along it the paper stopped.
+ * Pressed while it moves, a run pauses; pressed again, it carries on the way
+ * it was going. Pure and clock-free: the transport feeds `tickFoldRun` the
+ * time that passed, and everything else here is arithmetic on the result.
+ *
+ * Progress within a leg runs linearly with time from flat to folded and the
+ * easing lives in {@link poseAt}, so a pause and a resume cannot change the
+ * shape of the motion — only where along it the paper stopped.
  */
 
 export interface FoldPose {
+  /** Which of the card's flaps is moving; the others lie flat. */
+  flap: number;
   /** The swing, in radians: 0 flat, π folded over onto the paper. */
   angle: number;
   /** How far the creased stretches have been pressed sharp, 0 to 1. */
@@ -21,20 +28,32 @@ export interface FoldPose {
 
 export type FoldHeading = 'fold' | 'unfold';
 
-export interface FoldPlayback {
-  /** Progress along the fold, 0 flat, 1 folded and pressed. */
-  at: number;
-  /** The way it is going, or last went. */
+export interface FoldLeg {
+  flap: number;
   heading: FoldHeading;
+  /** Rest at the end of this leg for this long before the next begins. */
+  holdMs: number;
+}
+
+export interface FoldRun {
+  /** What the card plays forwards; a run may be this or its reverse. */
+  programme: readonly FoldLeg[];
+  legs: readonly FoldLeg[];
+  /** Index of the leg in progress. */
+  leg: number;
+  /** Progress of that leg's flap, 0 flat, 1 folded and pressed. */
+  at: number;
+  /** Hold time left at the end of the current leg, in ms. */
+  holdLeft: number;
   playing: boolean;
 }
 
-export const FOLD_AT_REST: FoldPlayback = { at: 0, heading: 'fold', playing: false };
-
-/** The whole motion, one way. */
+/** One leg, one way. */
 export const FOLD_DURATION_MS = 1150;
-/** The swing's share of the progress; the rest is the press. */
+/** The swing's share of a leg's progress; the rest is the press. */
 export const FOLD_SWING_SHARE = 0.8;
+/** How long a twin's first fold rests folded before it comes back up. */
+export const TWIN_HOLD_MS = 450;
 
 const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
 
@@ -51,7 +70,7 @@ export function easeOut(t: number): number {
 }
 
 /** The paper's pose at a progress: the swing first, then the press. */
-export function poseAt(progress: number): FoldPose {
+export function poseAt(progress: number): Omit<FoldPose, 'flap'> {
   const at = clamp01(progress);
   if (at <= FOLD_SWING_SHARE) {
     return { angle: Math.PI * easeInOut(at / FOLD_SWING_SHARE), press: 0 };
@@ -62,39 +81,118 @@ export function poseAt(progress: number): FoldPose {
   };
 }
 
-/** Flat, folded, or somewhere between: whether a pose draws anything. */
-export function isFlat(state: FoldPlayback): boolean {
-  return state.at <= 0;
+/**
+ * What a card plays: one fold for one flap, and for a pair, each flap
+ * folded and unfolded in turn.
+ */
+export function foldLegs(flapCount: number): FoldLeg[] {
+  if (flapCount <= 1) return [{ flap: 0, heading: 'fold', holdMs: 0 }];
+  const legs: FoldLeg[] = [];
+  for (let flap = 0; flap < flapCount; flap += 1) {
+    legs.push({ flap, heading: 'fold', holdMs: TWIN_HOLD_MS });
+    legs.push({ flap, heading: 'unfold', holdMs: 0 });
+  }
+  return legs;
 }
 
-export function isFolded(state: FoldPlayback): boolean {
-  return state.at >= 1;
+/** The same run backwards: each leg the other way, in the other order. */
+export function reversedLegs(legs: readonly FoldLeg[]): FoldLeg[] {
+  return [...legs]
+    .reverse()
+    .map((leg) => ({ ...leg, heading: leg.heading === 'fold' ? 'unfold' : 'fold' }));
+}
+
+const startOf = (leg: FoldLeg): number => (leg.heading === 'fold' ? 0 : 1);
+const endOf = (leg: FoldLeg): number => (leg.heading === 'fold' ? 1 : 0);
+
+/** A run before it has been played. */
+export function runAtRest(legs: readonly FoldLeg[]): FoldRun {
+  const first = legs[0];
+  return { programme: legs, legs, leg: 0, at: first ? startOf(first) : 0, holdLeft: 0, playing: false };
+}
+
+/** Nothing on the paper is moved: the pose is null. */
+export function isFlat(run: FoldRun): boolean {
+  return run.at <= 0;
+}
+
+/** Every leg has been played, and nothing is left to hold. */
+export function isComplete(run: FoldRun): boolean {
+  const last = run.legs[run.legs.length - 1];
+  if (!last) return true;
+  return run.leg === run.legs.length - 1 && run.at === endOf(last) && run.holdLeft <= 0;
+}
+
+/** Played through and resting folded: Play would unfold. */
+export function isFolded(run: FoldRun): boolean {
+  const last = run.legs[run.legs.length - 1];
+  return !!last && isComplete(run) && endOf(last) === 1;
+}
+
+/** The pose the run holds now, or null with the paper flat. */
+export function runPose(run: FoldRun): FoldPose | null {
+  const leg = run.legs[run.leg];
+  if (!leg || isFlat(run)) return null;
+  return { flap: leg.flap, ...poseAt(run.at) };
+}
+
+/** The way the run is going, for the record. */
+export function runHeading(run: FoldRun): FoldHeading {
+  return run.legs[run.leg]?.heading ?? 'fold';
 }
 
 /**
- * The Play button's one rule. Moving: pause. Paused: carry on. At rest: head
- * for the far end — folded from flat, flat from folded.
+ * The Play button's one rule. Moving: pause. Paused: carry on. Played
+ * through: the card's programme backwards if it rests folded, so the paper
+ * comes back up; forwards if it rests flat.
  */
-export function toggleFoldPlayback(state: FoldPlayback): FoldPlayback {
-  if (state.playing) return { ...state, playing: false };
-  const heading: FoldHeading = isFolded(state) ? 'unfold' : isFlat(state) ? 'fold' : state.heading;
-  return { at: state.at, heading, playing: true };
+export function toggleFoldRun(run: FoldRun): FoldRun {
+  if (run.playing) return { ...run, playing: false };
+  if (isComplete(run)) {
+    const legs = isFolded(run) ? reversedLegs(run.programme) : run.programme;
+    const first = legs[0];
+    return { ...run, legs, leg: 0, at: first ? startOf(first) : 0, holdLeft: 0, playing: true };
+  }
+  return { ...run, playing: true };
 }
 
-/** The motion `elapsedMs` later, coming to rest at either end. */
-export function tickFoldPlayback(state: FoldPlayback, elapsedMs: number): FoldPlayback {
-  if (!state.playing) return state;
-  const step = Math.max(0, elapsedMs) / FOLD_DURATION_MS;
-  const at = clamp01(state.heading === 'fold' ? state.at + step : state.at - step);
-  const done = state.heading === 'fold' ? at >= 1 : at <= 0;
-  return { at, heading: state.heading, playing: !done };
+function nextLeg(run: FoldRun): FoldRun {
+  const next = run.legs[run.leg + 1];
+  if (!next) return { ...run, holdLeft: 0, playing: false };
+  return { ...run, leg: run.leg + 1, at: startOf(next), holdLeft: 0, playing: true };
+}
+
+/** The run `elapsedMs` later. */
+export function tickFoldRun(run: FoldRun, elapsedMs: number): FoldRun {
+  if (!run.playing) return run;
+  const leg = run.legs[run.leg];
+  if (!leg) return { ...run, playing: false };
+  const elapsed = Math.max(0, elapsedMs);
+  if (run.holdLeft > 0) {
+    const holdLeft = run.holdLeft - elapsed;
+    return holdLeft > 0 ? { ...run, holdLeft } : nextLeg({ ...run, holdLeft: 0 });
+  }
+  const step = elapsed / FOLD_DURATION_MS;
+  const at = clamp01(leg.heading === 'fold' ? run.at + step : run.at - step);
+  const done = leg.heading === 'fold' ? at >= 1 : at <= 0;
+  if (!done) return { ...run, at };
+  const hasNext = run.leg + 1 < run.legs.length;
+  if (hasNext && leg.holdMs > 0) return { ...run, at, holdLeft: leg.holdMs };
+  return nextLeg({ ...run, at });
 }
 
 /**
- * What Play does when motion is unwelcome (`prefers-reduced-motion`): straight
- * to the far end, no frames between.
+ * What Play does when motion is unwelcome (`prefers-reduced-motion`): the
+ * run's end, no frames between — and, played through, the next run's end.
  */
-export function snapFoldPlayback(state: FoldPlayback): FoldPlayback {
-  const heading: FoldHeading = isFolded(state) ? 'unfold' : isFlat(state) ? 'fold' : state.heading;
-  return { at: heading === 'fold' ? 1 : 0, heading, playing: false };
+export function snapFoldRun(run: FoldRun): FoldRun {
+  const started = isComplete(run) ? toggleFoldRun(run) : run;
+  const last = started.legs[started.legs.length - 1];
+  return {
+    ...started,
+    leg: Math.max(0, started.legs.length - 1),
+    at: last ? endOf(last) : 0,
+    holdLeft: 0,
+    playing: false,
+  };
 }

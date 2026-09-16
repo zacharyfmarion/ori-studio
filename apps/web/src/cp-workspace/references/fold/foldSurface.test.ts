@@ -3,6 +3,7 @@ import {
   bendRows,
   clipCellToPolygon,
   createFoldSurface,
+  createTurnOverSurface,
   creasedness,
   rigidHinge,
   strokeCuts,
@@ -138,6 +139,27 @@ describe('createFoldSurface', () => {
   });
 });
 
+describe('createTurnOverSurface', () => {
+  it('turns both sides about the line, lifted so the low side stays on the table', () => {
+    const halfway = createTurnOverSurface(Math.PI / 2, 4);
+    // Edge-on: everything projects onto the line, the far side four up, the near side on the table.
+    expect(halfway.place(1, 4).v).toBeCloseTo(0);
+    expect(halfway.place(1, 4).z).toBeCloseTo(8);
+    expect(halfway.place(1, -4).z).toBeCloseTo(0);
+    expect(halfway.place(1, 0).z).toBeCloseTo(4);
+    expect(halfway.place(1, 2).nz).toBeCloseTo(0);
+    const over = createTurnOverSurface(Math.PI, 4);
+    for (const u of [-4, -1, 0, 2.5, 4]) {
+      const p = over.place(0, u);
+      expect(p.v).toBeCloseTo(-u);
+      expect(p.z).toBeCloseTo(0);
+      expect(p.nz).toBeCloseTo(-1);
+    }
+    expect(over.bendReach).toBe(0);
+    expect(over.breakpoints()).toEqual([]);
+  });
+});
+
 describe('clipCellToPolygon', () => {
   it('cuts a cell to a triangle whichever way the triangle winds', () => {
     const cell: FlatPoint[] = [
@@ -211,6 +233,17 @@ describe('tessellateFlap', () => {
     expect(outside.length).toBeGreaterThan(0);
     expect(Math.max(...outside.map((p) => p.z))).toBeCloseTo(1);
     for (const p of outside) expect(p.z).toBeGreaterThanOrEqual(-1e-9);
+  });
+
+  it('meshes a sheet lying on both sides of its line', () => {
+    const both: FlatPoint[] = [
+      { s: 0, u: -3 },
+      { s: 10, u: -3 },
+      { s: 10, u: 4 },
+      { s: 0, u: 4 },
+    ];
+    const surface = createTurnOverSurface(0, 4);
+    expect(meshArea(tessellateFlap(both, surface, 2).vertices)).toBeCloseTo(70);
   });
 
   it('follows a triangular flap without spilling past its edges', () => {

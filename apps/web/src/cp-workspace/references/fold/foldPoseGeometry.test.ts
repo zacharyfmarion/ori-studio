@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type { Rgba } from '../../renderer/types';
 import {
   DEFAULT_SURFACE_SHARES,
-  SHADOW_OFFSET_PER_HEIGHT,
   foldPoseGeometry,
   type FoldPaint,
   type FoldSurfaceShares,
@@ -29,16 +28,18 @@ const paint: FoldPaint = {
 /** No bend: the rigid hinge, for the expectations a curl would blur. */
 const RIGID: FoldSurfaceShares = { ...DEFAULT_SURFACE_SHARES, radius: 0 };
 
+const CHORD = [
+  { x: 0.5, y: 0 },
+  { x: 0.5, y: 1 },
+] as const;
+
 /** A unit square folded along x = 0.5, the right half swinging over the left. */
 function square(creased: readonly (readonly [number, number])[] = [[0, 1]]): FoldScene {
   return {
     kind: 'cp',
     flaps: [
       {
-        chord: [
-          { x: 0.5, y: 0 },
-          { x: 0.5, y: 1 },
-        ],
+        chord: CHORD,
         // The right half: the cross product's sign for a point at x > 0.5.
         side: -1,
         polygon: [
@@ -72,22 +73,6 @@ function creases(): FlapStrokes {
 }
 
 const xs = (position: Float32Array) => Array.from(position).filter((_, i) => i % 2 === 0);
-
-type Fills = { position: Float32Array; color: Float32Array; depth?: Float32Array; count: number };
-/** The fills at the shadow's depth, or the rest: the shadow is drawn first, under the paper. */
-function only(fills: Fills, which: 'paper' | 'shadow'): Fills {
-  const keep: number[] = [];
-  for (let i = 0; i < fills.count; i += 1) {
-    const shadow = fills.depth![i]! < 0.03;
-    if ((which === 'shadow') === shadow) keep.push(i);
-  }
-  return {
-    position: Float32Array.from(keep.flatMap((i) => [fills.position[i * 2]!, fills.position[i * 2 + 1]!])),
-    color: Float32Array.from(keep.flatMap((i) => Array.from(fills.color.slice(i * 4, i * 4 + 4)))),
-    depth: Float32Array.from(keep.map((i) => fills.depth![i]!)),
-    count: keep.length,
-  };
-}
 /** Four channels of a float buffer, rounded past the float32 narrowing. */
 const rgba = (buffer: Float32Array, at = 0) =>
   Array.from(buffer.slice(at, at + 4)).map((v) => Number(v.toFixed(4)));
@@ -107,11 +92,11 @@ function fillArea(position: Float32Array): number {
   }
   return area;
 }
+const pose = (angle: number, press = 0, flap = 0) => ({ flap, angle, press });
 
 describe('foldPoseGeometry, rigid', () => {
   it('leaves the flap where it is at angle 0, face up and unshaded', () => {
-    const { fills: all, strokes } = foldPoseGeometry(scene, { angle: 0, press: 0 }, [creases()], paint, RIGID);
-    const fills = only(all, 'paper');
+    const { fills, strokes } = foldPoseGeometry(scene, pose(0), [creases()], paint, RIGID);
     expect(fills.count).toBeGreaterThan(0);
     expect(fillArea(fills.position)).toBeCloseTo(0.5 * 4);
     expect(Math.min(...xs(fills.position))).toBeCloseTo(1);
@@ -124,7 +109,7 @@ describe('foldPoseGeometry, rigid', () => {
   });
 
   it('lifts the flap halfway through the swing and lays it edge-on', () => {
-    const fills = only(foldPoseGeometry(scene, { angle: Math.PI / 2, press: 0 }, [], paint, RIGID).fills, 'paper');
+    const { fills } = foldPoseGeometry(scene, pose(Math.PI / 2), [], paint, RIGID);
     // Every point projects onto the line: the flap is seen edge-on.
     for (const x of xs(fills.position)) expect(x).toBeCloseTo(1);
     // The far corners are as high as the flap reaches.
@@ -132,8 +117,7 @@ describe('foldPoseGeometry, rigid', () => {
   });
 
   it('lands the flap on the other half showing its other face, creases renamed', () => {
-    const { fills: all, strokes } = foldPoseGeometry(scene, { angle: Math.PI, press: 0 }, [creases()], paint, RIGID);
-    const fills = only(all, 'paper');
+    const { fills, strokes } = foldPoseGeometry(scene, pose(Math.PI), [creases()], paint, RIGID);
     expect(Math.min(...xs(fills.position))).toBeCloseTo(0);
     expect(Math.max(...xs(fills.position))).toBeCloseTo(1);
     expect(rgba(fills.color)).toEqual(OTHER);
@@ -150,7 +134,7 @@ describe('foldPoseGeometry, rigid', () => {
 
   it('scales a dash phase with the drawn length of its segment', () => {
     // Through the user map alone the segment doubles, so the phase does.
-    const flat = foldPoseGeometry(scene, { angle: 0, press: 0 }, [creases()], paint, RIGID);
+    const flat = foldPoseGeometry(scene, pose(0), [creases()], paint, RIGID);
     expect(flat.strokes.dashPhase![0]).toBeCloseTo(0.2);
     // A crease across the fold's direction foreshortens with the swing.
     const across: FlapStrokes = {
@@ -158,8 +142,12 @@ describe('foldPoseGeometry, rigid', () => {
       a: Float32Array.from([0.6, 0.5]),
       b: Float32Array.from([0.9, 0.5]),
     };
-    const tilted = foldPoseGeometry(scene, { angle: Math.PI / 3, press: 0 }, [across], paint, RIGID);
+    const tilted = foldPoseGeometry(scene, pose(Math.PI / 3), [across], paint, RIGID);
     expect(tilted.strokes.dashPhase![0]).toBeCloseTo(0.2 * Math.cos(Math.PI / 3));
+  });
+
+  it('draws nothing for a flap the card does not have', () => {
+    expect(foldPoseGeometry(scene, pose(1, 0, 3), [creases()], paint).fills.count).toBe(0);
   });
 });
 
@@ -167,21 +155,20 @@ describe('foldPoseGeometry, curled', () => {
   const r = DEFAULT_SURFACE_SHARES.radius;
 
   it('is the sheet at rest: nothing moves, nothing is shaded', () => {
-    const fills = only(foldPoseGeometry(scene, { angle: 0, press: 0 }, [], paint).fills, 'paper');
+    const { fills } = foldPoseGeometry(scene, pose(0), [], paint);
     expect(fillArea(fills.position)).toBeCloseTo(2);
     for (let i = 0; i < fills.count; i += 1) expect(rgba(fills.color, i * 4)).toEqual(UP);
   });
 
   it('lands exactly on the other half, hovering, with the bend shaded', () => {
-    const { fills: all, strokes } = foldPoseGeometry(scene, { angle: Math.PI, press: 0 }, [creases()], paint);
-    const fills = only(all, 'paper');
+    const { fills, strokes } = foldPoseGeometry(scene, pose(Math.PI), [creases()], paint);
     // The far edge lands on x = 0 as a sharp fold would; nothing crosses the line.
     expect(Math.min(...xs(fills.position))).toBeCloseTo(0, 3);
     expect(Math.max(...xs(fills.position))).toBeCloseTo(2 * 0.5, 3);
     // The flat part hovers at 2r above the paper.
     const depths = Array.from(fills.depth!);
     expect(Math.max(...depths)).toBeCloseTo(0.05 + 0.9 * ((2 * r) / 0.5), 3);
-    // Somewhere on the curl the paper is edge-on and shaded toward black.
+    // Somewhere on the bend the paper is edge-on and shaded toward black.
     const shaded = [...Array(fills.count).keys()].filter((i) => fills.color[i * 4]! < 0.95);
     expect(shaded.length).toBeGreaterThan(0);
     // A crease along the fold never enters the bend: one piece, carried whole.
@@ -192,7 +179,7 @@ describe('foldPoseGeometry, curled', () => {
       a: Float32Array.from([0.5, 0.5]),
       b: Float32Array.from([1, 0.5]),
     };
-    const bent = foldPoseGeometry(scene, { angle: Math.PI, press: 0 }, [across], paint);
+    const bent = foldPoseGeometry(scene, pose(Math.PI), [across], paint);
     expect(bent.strokes.count).toBeGreaterThan(10);
     // Its pieces run from the hinge up round the bend and over to the far edge,
     // which lands exactly where the crease's mirror is.
@@ -206,7 +193,7 @@ describe('foldPoseGeometry, curled', () => {
   it('presses the creased stretch flat and leaves the rest hovering', () => {
     // Creased only along the middle fifth of the line.
     const partial = square([[0.4, 0.6]]);
-    const fills = only(foldPoseGeometry(partial, { angle: Math.PI, press: 1 }, [], paint).fills, 'paper');
+    const { fills } = foldPoseGeometry(partial, pose(Math.PI, 1), [], paint);
     const ys = (i: number) => fills.position[i * 2 + 1]!;
     // At y = 0.5 (user y = −1) the far edge is on the paper; at y = 0 it hovers.
     const middle = [...Array(fills.count).keys()].filter(
@@ -222,47 +209,59 @@ describe('foldPoseGeometry, curled', () => {
   });
 });
 
-describe('foldPoseGeometry, shadow', () => {
-  const r = DEFAULT_SURFACE_SHARES.radius;
+describe('foldPoseGeometry, turning the sheet over', () => {
+  /** The unit square turning over about x = 0.5, left to right. */
+  const turning: FoldScene = {
+    kind: 'turn-over',
+    flaps: [
+      {
+        chord: CHORD,
+        side: 1,
+        polygon: [
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+          { x: 1, y: 1 },
+          { x: 0, y: 1 },
+        ],
+        creased: [],
+        whole: true,
+      },
+    ],
+    sheetShortSide: 1,
+    reach: 0.5,
+  };
+  /** A valley on the left half. */
+  const left: FlapStrokes = {
+    ...creases(),
+    a: Float32Array.from([0.25, 0.2]),
+    b: Float32Array.from([0.25, 0.8]),
+    color: Float32Array.from(VALLEY),
+    dashSlot: Float32Array.from([1]),
+  };
 
-  it('casts the flat part along the light, under the flap, in the shadow ink', () => {
-    const { fills } = foldPoseGeometry(scene, { angle: Math.PI, press: 0 }, [], paint);
-    const shadow = only(fills, 'shadow');
-    const paper = only(fills, 'paper');
-    expect(shadow.count).toBeGreaterThan(0);
-    expect(paper.count).toBeGreaterThan(shadow.count);
-    expect(rgba(shadow.color)).toEqual([0, 0, 0, 0.5]);
-    expect(shadow.depth![0]).toBeCloseTo(0.02);
-    // The flat part hovers at 2r; its far edge is the paper's leftmost point,
-    // and its shadow's far edge lies the height along the light from it, in
-    // user units — where a model unit is two.
-    expect(Math.min(...xs(shadow.position)) - Math.min(...xs(paper.position))).toBeCloseTo(
-      2 * r * 2 * SHADOW_OFFSET_PER_HEIGHT[0],
-      3
-    );
+  it('is the whole sheet at rest, and the whole sheet mirrored at the end', () => {
+    const rest = foldPoseGeometry(turning, pose(0), [left], paint);
+    expect(fillArea(rest.fills.position)).toBeCloseTo(4);
+    expect(rgba(rest.fills.color)).toEqual(UP);
+    expect(rest.strokes.a[0]).toBeCloseTo(0.5);
+    const over = foldPoseGeometry(turning, pose(Math.PI), [left], paint);
+    expect(fillArea(over.fills.position)).toBeCloseTo(4);
+    expect(Math.min(...xs(over.fills.position))).toBeCloseTo(0);
+    expect(Math.max(...xs(over.fills.position))).toBeCloseTo(2);
+    expect(rgba(over.fills.color)).toEqual(OTHER);
+    // Flat on the table again.
+    for (const d of Array.from(over.fills.depth!)) expect(d).toBeCloseTo(0.05);
+    // The valley at x = 0.25 is now at x = 0.75, named a mountain from this side.
+    expect(over.strokes.a[0]).toBeCloseTo(1.5);
+    expect(rgba(over.strokes.color)).toEqual(MOUNTAIN);
+    expect(over.strokes.dashSlot![0]).toBe(2);
   });
 
-  it('caps the rim at the hover height, so a flap standing up casts no far shadow', () => {
-    const { fills } = foldPoseGeometry(scene, { angle: Math.PI / 2, press: 0 }, [], paint);
-    const shadow = only(fills, 'shadow');
-    const paper = only(fills, 'paper');
-    // Edge-on, the paper projects onto the line; its shadow sits a hover's
-    // offset beside it, not a flap's reach away.
-    const hover = 2 * r * 2;
-    expect(Math.max(...xs(shadow.position)) - Math.max(...xs(paper.position))).toBeCloseTo(
-      hover * SHADOW_OFFSET_PER_HEIGHT[0],
-      3
-    );
-  });
-
-  it('casts nothing that shows when the flap is flat, and none at all without ink', () => {
-    const { fills } = foldPoseGeometry(scene, { angle: 0, press: 0 }, [], paint);
-    // On the paper the shadow is exactly under the flap: present, at no offset.
-    for (const x of xs(only(fills, 'shadow').position)) expect(x).toBeGreaterThanOrEqual(1 - 1e-6);
-    const inkless = foldPoseGeometry(scene, { angle: 1, press: 0 }, [], {
-      ...paint,
-      shade: [0, 0, 0, 0],
-    });
-    expect(only(inkless.fills, 'shadow').count).toBe(0);
+  it('stands the sheet on its edge halfway, lifted clear of the table', () => {
+    const { fills } = foldPoseGeometry(turning, pose(Math.PI / 2), [], paint);
+    for (const x of xs(fills.position)) expect(x).toBeCloseTo(1);
+    // Nothing below the table: the lowest point is on it, the highest a sheet's width up.
+    expect(Math.min(...Array.from(fills.depth!))).toBeCloseTo(0.05);
+    expect(Math.max(...Array.from(fills.depth!))).toBeCloseTo(0.95);
   });
 });

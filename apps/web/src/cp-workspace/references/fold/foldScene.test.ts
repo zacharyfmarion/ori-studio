@@ -49,6 +49,20 @@ describe('planFoldScene', () => {
     expect(scene.reach).toBeCloseTo(200);
   });
 
+  it('turns the whole sheet over about its vertical centre line on a turn-over card', () => {
+    const cards = [{ kind: 'turn-over', side: 'front', component: 0, after: null } as const];
+    const scene = planFoldScene([plan], cards, 0)!;
+    expect(scene.kind).toBe('turn-over');
+    const [flap] = scene.flaps;
+    expect(flap!.whole).toBe(true);
+    expect(flap!.chord).toEqual([
+      { x: 0, y: -200 },
+      { x: 0, y: 200 },
+    ]);
+    expect(flap!.polygon).toHaveLength(4);
+    expect(scene.reach).toBeCloseTo(200);
+  });
+
   it('has no fold for the finished card', () => {
     expect(planFoldScene([plan], steps, steps.length - 1)).toBeNull();
   });

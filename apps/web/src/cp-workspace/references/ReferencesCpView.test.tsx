@@ -528,7 +528,7 @@ describe('ReferencesCpView overlays', () => {
     );
     const whole = uploads.setStrokes.mock.calls.at(-1)?.[0];
     expect(whole.count).toBe(2);
-    act(() => ref.current?.setFoldPose({ angle: Math.PI, press: 1 }));
+    act(() => ref.current?.setFoldPose({ flap: 0, angle: Math.PI, press: 1 }));
     const base = uploads.setStrokes.mock.calls.at(-1)?.[0];
     expect(base.count).toBe(2);
     // The left half of the horizontal crease ends at the fold.

@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { FOLD_DURATION_MS, type FoldHeading } from './foldPlayback';
-import type { FoldMotionKind } from '../diagram/foldMotion';
-import type { FoldScene } from './foldScene';
+import { FOLD_DURATION_MS, TWIN_HOLD_MS, type FoldHeading } from './foldPlayback';
+import type { FoldScene, FoldSceneKind } from './foldScene';
 import {
   AUTO_PLAY_SETTLE_MS,
   FoldTransport,
@@ -10,8 +9,18 @@ import {
   type FoldTransportClock,
 } from './foldTransport';
 
-function scene(kind: FoldScene['kind'] = 'cp'): FoldScene {
-  return { kind, flaps: [], sheetShortSide: 1, reach: 1 };
+const FLAP: FoldScene['flaps'][number] = {
+  chord: [
+    { x: 0, y: 0 },
+    { x: 0, y: 1 },
+  ],
+  side: 1,
+  polygon: [],
+  creased: [],
+};
+
+function scene(kind: FoldSceneKind = 'cp', flaps = 1): FoldScene {
+  return { kind, flaps: Array.from({ length: flaps }, () => FLAP), sheetShortSide: 1, reach: 1 };
 }
 
 /** A hand-driven clock: frames and timers run when the test says so. */
@@ -64,7 +73,7 @@ class FakeClock implements FoldTransportClock {
 
 let clock: FakeClock;
 let sink: FoldPoseSink;
-let onPlay: Mock<(trigger: FoldPlayTrigger, heading: FoldHeading, kind: FoldMotionKind) => void>;
+let onPlay: Mock<(trigger: FoldPlayTrigger, heading: FoldHeading, kind: FoldSceneKind) => void>;
 let reduced = false;
 
 function transport() {
@@ -100,7 +109,7 @@ describe('FoldTransport', () => {
     expect(t.status().folded).toBe(false);
     clock.frame(FOLD_DURATION_MS);
     expect(t.status()).toEqual({ available: true, playing: false, folded: true });
-    expect(lastPose()).toEqual({ angle: Math.PI, press: 1 });
+    expect(lastPose()).toEqual({ flap: 0, angle: Math.PI, press: 1 });
     expect(clock.pendingFrames).toBe(0);
     t.toggle();
     clock.frame(FOLD_DURATION_MS * 2);
@@ -169,13 +178,30 @@ describe('FoldTransport', () => {
     expect(t.status().playing).toBe(false);
   });
 
+  it('plays a twin as four legs and rests flat', () => {
+    const t = transport();
+    t.setScene(scene('cp', 2));
+    t.toggle();
+    const flaps: number[] = [];
+    for (let i = 0; i < 400 && t.status().playing; i += 1) {
+      clock.frame(25);
+      const pose = lastPose();
+      if (pose && flaps[flaps.length - 1] !== pose.flap) flaps.push(pose.flap);
+    }
+    expect(flaps).toEqual([0, 1]);
+    expect(t.status()).toEqual({ available: true, playing: false, folded: false });
+    expect(lastPose()).toBeNull();
+    expect(clock.time).toBeGreaterThan(4 * FOLD_DURATION_MS + 2 * TWIN_HOLD_MS - 100);
+    expect(onPlay).toHaveBeenCalledTimes(1);
+  });
+
   it('snaps to the far end when motion is unwelcome', () => {
     reduced = true;
     const t = transport();
     t.setScene(scene());
     t.toggle();
     expect(t.status()).toEqual({ available: true, playing: false, folded: true });
-    expect(lastPose()).toEqual({ angle: Math.PI, press: 1 });
+    expect(lastPose()).toEqual({ flap: 0, angle: Math.PI, press: 1 });
     expect(clock.pendingFrames).toBe(0);
     t.toggle();
     expect(lastPose()).toBeNull();
