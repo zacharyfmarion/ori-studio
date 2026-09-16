@@ -28,7 +28,7 @@ at the paths in the frozen inventory. No private files or weights are in Git.
 ## Preview the selected model
 
 `research/cp-recognition/candidate.json` is the research identity; the shipped
-model's `scripts/cp-detect/current-model.json` remains unchanged. Export verifies
+model is now selected by `scripts/cp-detect/current-model.json` for release. Export verifies
 the checkpoint SHA, synthetic-only declaration, exact ONNX SHA/size, and numerical
 PyTorch/ONNX parity before creating a manifest.
 
@@ -41,7 +41,7 @@ npm --workspace @treemaker/web run dev -- --host 127.0.0.1
 Use the ML `.venv/bin/python` if these packages are not in the active environment.
 `--checkpoint /path/to/best.pt` supports a restored checkpoint in another
 location. `--preview` creates an ignored local registry override pointing to the
-candidate. Remove `apps/web/public/models/registry.json` to return to the stable
+candidate. Remove `apps/web/public/models/registry-pixel-v1.json` to return to the stable
 local manifest. This command does not publish anything or alter production.
 
 The current development preview is `http://127.0.0.1:5176`. The normal import

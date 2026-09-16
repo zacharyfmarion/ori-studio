@@ -19,7 +19,8 @@ import type { CpDetectModelManifest } from '../engine/cpDetectTypes';
 import { getRuntimeSurface } from '../platform/runtime';
 import { tauriModelStore } from './cpDetectModelsTauri';
 
-export const CP_DETECT_MODEL_REGISTRY_URL = '/models/registry.json';
+// A separate channel keeps older desktop clients on manifests they can decode.
+export const CP_DETECT_MODEL_REGISTRY_URL = '/models/registry-pixel-v1.json';
 export const CP_DETECT_MODEL_FAMILY = 'cp-detector';
 export const CP_DETECT_MODEL_CACHE_NAME = 'oristudio-cp-detect-models';
 export const CP_DETECT_MODEL_REGISTRY_SCHEMA = 'oristudio/cp-detect-model-registry/v1';

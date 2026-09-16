@@ -2,12 +2,24 @@
 
 Everything here is for developing and evaluating the detector against a local
 checkout. The **product** does not read these files: a deployed build
-downloads its model from the registry the site serves (`/models/registry.json`,
+downloads its model from the registry the site serves (`/models/registry-pixel-v1.json`,
 backed by the `oristudio-models` R2 bucket), which `publish-model.mjs` in this
 directory maintains — see `RELEASE.md`, "Detector models". A dev server, which
 serves no registry, falls back to the local manifest under
 `apps/web/public/models`, which is why the assets below are still needed for
 local work.
+
+The current product model is the synthetic pixel recognizer recorded in
+`current-model.json`. Export it with
+`python scripts/cp-detect/research/export_pixel_model.py --install-current`, then
+run `node scripts/cp-detect/check-local-model-assets.mjs`. See `RELEASE.md` for
+publication and compatibility channels. E027 solving is automatic for this
+model. The research README explains checkpoint recovery and benchmark results.
+
+The CPLineNet export, dense-cache and oracle commands below are legacy research
+tools. Set `CP_DETECT_MODEL_POINTER=scripts/cp-detect/legacy-cpline-model.json`
+when running them; they cannot export the pixel architecture. Dataset selection
+commands can still use the ML repository recorded by the current pointer.
 
 ## Fresh checkout prerequisites
 
@@ -28,7 +40,7 @@ build artifacts. All three failure modes used to present as a silent hang;
    manifest.json}` are gitignored. The tracked source of truth for the current
    model is `scripts/cp-detect/current-model.json`. Copy the stable and
    versioned asset directories named there from a checkout that has them, or
-   re-export with `scripts/cp-detect/export-cpline-onnx.py`. Verify with
+   re-export with `scripts/cp-detect/research/export_pixel_model.py --install-current`. Verify with
    `node scripts/cp-detect/check-local-model-assets.mjs`; it reads the pointer
    file and intentionally fails if the stable `cp-detector-v3` directory
    contains an older model.
@@ -48,48 +60,30 @@ cd apps/web && npx vite --host 127.0.0.1 --port 5175
 
 ## Model layout
 
-Phase 1 keeps the browser detector model artifact local and ignored. Put the
-exported ONNX model here during development:
+Local model assets are ignored; the stable development fallback is:
 
 ```text
 apps/web/public/models/cp-detector-v3/model.onnx
 apps/web/public/models/cp-detector-v3/manifest.json
 ```
 
-The source checkpoint and Python oracle currently live in the
-`create-pattern-detector` repository. Read
-`scripts/cp-detect/current-model.json` for the current model ID, expected ONNX
-SHA, stable and versioned local asset directories, and ML checkpoint manifest.
-When promoting a new detector, update that pointer once instead of repeating the
-new model in this README or helper scripts.
-
-Run the local asset checker before app testing:
+Read `scripts/cp-detect/current-model.json` for the current model identity,
+expected ONNX SHA, stable and versioned asset directories, and checkpoint.
+When promoting a detector, update that pointer rather than duplicating its
+identity in helpers. Export and verify it with:
 
 ```bash
+python scripts/cp-detect/research/export_pixel_model.py --install-current
 node scripts/cp-detect/check-local-model-assets.mjs
 ```
 
-Export the current checkpoint from a local `create-pattern-detector` checkout.
-By default the exporter reads `scripts/cp-detect/current-model.json`:
-
-```bash
-python scripts/cp-detect/export-cpline-onnx.py
-```
-
-The exporter writes both `model.onnx` and `manifest.json`, validates the ONNX
-graph, and records the model size plus SHA-256 digest in the manifest. The
-browser feature requires these files; there is no mock or degraded fallback.
-
-Then verify the local assets:
-
-```bash
-node scripts/cp-detect/check-local-model-assets.mjs
-```
+The exporter checks the checkpoint provenance, exact ONNX bytes and numerical
+parity before writing the manifest. The browser requires those assets.
 
 ## Vertex Refiner V3 Assets
 
-The source-only vertex refiner is a second ONNX model used for junction
-refinement after rectification. It does not replace the dense CPLineNet model:
+The legacy CPLineNet path has a separate source-only vertex refiner for junction
+refinement after rectification. The pixel recognizer does not need this model. It does not replace the dense CPLineNet model:
 the dense model still provides assignment, style, and fallback evidence. The
 product decode path uses source-image line evidence by default, with
 `lineEvidenceSource: 'dense-model'` available for ablations.

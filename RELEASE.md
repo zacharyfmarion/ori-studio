@@ -23,11 +23,13 @@ non-fork PRs to `https://pr-<number>.oristudio.pages.dev/`.
 
 ## Detector models
 
-The crease-pattern detector's model (45 MB) is not in the build: Cloudflare
-Pages caps a static file at 25 MiB. It lives in the `oristudio-models` R2
-bucket at an immutable versioned key and is served from the site's origin by
-`apps/web/functions/models/[[path]].ts`; `registry.json` in the same bucket
-says which version is current. The app downloads a model once, verifies its
+The crease-pattern detector's models are not in the build: Cloudflare
+Pages caps a static file at 25 MiB (the legacy model exceeds that). They live
+in the `oristudio-models` R2 bucket at immutable versioned keys, served by
+`apps/web/functions/models/[[path]].ts`. Updated clients read
+`registry-pixel-v1.json`; older installed clients keep reading `registry.json`,
+which must retain a compatible CPLineNet model. Each registry says which version
+is current. The app downloads a model once, verifies its
 sha256, and keeps it (Cache API on the web, the app data directory on desktop,
 listed under Settings ▸ Models).
 
@@ -44,10 +46,28 @@ and `scripts/verify-cp-detect-build.mjs` fails a deploy whose `dist` has the
 wrong one of the two (the first flagged deploy shipped the dialog over the
 stub). It also refuses a service worker that precaches the runtime.
 
-It verifies the local sha, uploads the model and manifest if the key is new,
+The pointer's `registry_key` selects the publication channel. For the first
+publication of a new channel, add `--initialize-from registry.json`; subsequent
+publications read the existing channel. Failed remote reads stop publication.
+Deploy and verify the compatible app code first, then publish the new channel.
+Until that channel exists, its route serves the legacy registry with `no-store`.
+This keeps new clients working during the transition and leaves old clients
+unaffected throughout. Do not put pixel-model entries in the legacy registry.
+
+Reproduce the current synthetic-only model with
+`python scripts/cp-detect/research/export_pixel_model.py --install-current`
+(checkpoint recovery is documented in `research/cp-recognition/README.md`).
+The new weights are about 1.6 MB. E027 bounded exact solving is app code and
+automatically applies to imports using pixel-model manifests; no toggle or
+additional model is required. Updated web clients receive this on reload.
+Existing desktop binaries need a new app release, not just new weights.
+
+The publisher verifies the local sha, uploads the model and manifest if the key is new,
 appends the version to the registry, and moves `current` (`--no-promote` to
-publish without promoting; `--dry-run` to see what it would do). Rolling back
-is running it again for the previous pointer. It needs `wrangler` logged in;
+publish without promoting; `--dry-run` to see what it would do). Roll back the
+new channel with `--pointer scripts/cp-detect/legacy-cpline-model.json
+--registry registry-pixel-v1.json`; this keeps its newer entry available while
+selecting the previous model. It needs `wrangler` logged in;
 in CI, `CLOUDFLARE_API_TOKEN` must carry **Workers R2 Storage: Edit** for the
 account. The deploy's `Verify model store` step fails a deploy whose registry
 or model is unreachable.
@@ -96,7 +116,7 @@ bucket and the objects are immutable.
    ```
 
 3. **Desktop build**: the desktop shell reads the registry from
-   `https://oristudio.dev/models/registry.json`, which a branch's changes do
+   `https://oristudio.dev/models/registry-pixel-v1.json`, which a branch's changes do
    not reach until the merge, so a pre-merge desktop build names the preview
    too. Locally, with the proxy unset for the ONNX Runtime download:
 

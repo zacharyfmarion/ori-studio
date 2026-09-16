@@ -99,7 +99,7 @@ function fetchOf(routes: Record<string, () => Response>): typeof fetch {
 describe('the model registry', () => {
   it('parses, resolves relative URLs against its own, and names the current version', async () => {
     const fetchImpl = fetchOf({
-      'https://example.test/models/registry.json': () => new Response(registryText()),
+      'https://example.test/models/registry-pixel-v1.json': () => new Response(registryText()),
     });
     const registry = await fetchCpDetectModelRegistry({
       fetchImpl,
@@ -171,7 +171,7 @@ describe('the model registry', () => {
     await expect(
       fetchCpDetectModelRegistry({
         fetchImpl: fetchOf({
-          'https://example.test/models/registry.json': html,
+          'https://example.test/models/registry-pixel-v1.json': html,
           'https://example.test/models/cp-detector-v3/manifest.json': html,
         }),
         base: 'https://example.test/',

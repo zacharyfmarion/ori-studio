@@ -7,6 +7,7 @@ local registry is a preview override; remove it to return to the stable model.
 import argparse
 import hashlib
 import json
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -27,6 +28,7 @@ def main():
     p.add_argument('--candidate', type=Path, default=ROOT / 'research/cp-recognition/candidate.json')
     p.add_argument('--checkpoint', type=Path)
     p.add_argument('--preview', action='store_true')
+    p.add_argument('--install-current', action='store_true', help='Copy the verified export to the current product asset directories')
     args = p.parse_args()
     config = json.loads(args.candidate.read_text())
     checkpoint = args.checkpoint or ROOT / config['checkpoint']['path']
@@ -60,9 +62,19 @@ def main():
                 'model':{'url':'model.onnx','sha256':digest(path),'size_bytes':path.stat().st_size,'format':'onnx'},
                 'inference':config['inference'],'outputs':config['outputs']}
     (folder / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+    if args.install_current:
+        current = json.loads((ROOT / 'scripts/cp-detect/current-model.json').read_text())
+        if current['model_id'] != config['model_id'] or current['model_sha256'] != digest(path):
+            raise ValueError('Research export is not the current product model')
+        for key in ['stable_model_asset_dir', 'versioned_model_asset_dir']:
+            target = ROOT / current[key]
+            target.mkdir(parents=True, exist_ok=True)
+            for name in ['model.onnx', 'manifest.json']:
+                if (folder / name).resolve() != (target / name).resolve():
+                    shutil.copyfile(folder / name, target / name)
     if args.preview:
         public = ROOT / 'apps/web/public'
-        registry_path = public / 'models/registry.json'
+        registry_path = public / 'models/registry-pixel-v1.json'
         registry = json.loads(registry_path.read_text()) if registry_path.exists() else {
             'schema':'oristudio/cp-detect-model-registry/v1', 'families':{}}
         if registry['schema'] != 'oristudio/cp-detect-model-registry/v1':
