@@ -40,14 +40,18 @@
  *   either: a click on blank paper clears the pick, and the whole sheet is
  *   back — that is how the reader moves on, not by hitting a crease they
  *   cannot see.
- * - **A turn-over shows the build-up too, and one more step of it.** Turning
- *   the paper over happens between folds, not only at the end, so it holds back
- *   the creases that are not made yet exactly as a fold card does — but the
- *   fold it comes after *is* made, so its crease is on the paper. It picks
- *   nothing out, and so it dims nothing either: dimming is what a fold's own
- *   line stands out from, and a card with no line of its own has nothing to
- *   stand out. The finished card is the same rule at the end — its build-up is
- *   the whole sheet, at full strength, which is the point of it.
+ * - **A turn-over shows the paper's outline, and its diagram draws the rest.**
+ *   Turning the paper over happens between folds, not only at the end, so it
+ *   holds back the creases that are not made yet exactly as a fold card does
+ *   — but the fold it comes after *is* made, so its crease is on the paper.
+ *   Its card shows that build-up greyed out under the turn-over symbol, and
+ *   the canvas shows exactly the card (`referencesPlanGeometry.planTurnOverScene`
+ *   draws the creases, in the card's grey), so in this channel only the
+ *   outline is drawn. The creases stay pickable: a tap on one still jumps to
+ *   the step that made it. The finished card shows the build-up itself — the
+ *   whole sheet, at full strength, which is the point of it — and dims
+ *   nothing: dimming is what a fold's own line stands out from, and a card
+ *   with no line of its own has nothing to stand out.
  *
  * The border is always visible, and never dimmed. A sheet with no edges is not
  * a sheet; the paper's outline is the thing the folds are drawn on rather than
@@ -177,6 +181,16 @@ export function planVisibility(
       }
     }
     }
+  }
+  if (target.kind === 'turn-over') {
+    return {
+      visible: new Set(borderLineIds ?? []),
+      pickable: visible,
+      dimmed: null,
+      dimAlpha: 1,
+      directions,
+      borderLineIds,
+    };
   }
   if (target.kind !== 'fold') {
     return { visible, pickable: visible, dimmed: null, dimAlpha: 1, directions, borderLineIds };

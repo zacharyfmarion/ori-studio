@@ -8,6 +8,7 @@ import {
   EDGE_ORDER,
   planModelPoints,
   planStepScene,
+  planTurnOverScene,
 } from './referencesPlanGeometry';
 
 /**
@@ -147,6 +148,30 @@ describe('planStepScene', () => {
     const scene = planStepScene(sequence, model, 99);
     expect(scene.diagram).toBeNull();
     expect(scene.highlightLineIds).toEqual([]);
+  });
+});
+
+describe('planTurnOverScene', () => {
+  const sequence = plannerSequenceFixture();
+  const model = decodePlanModel(sequence, mapToModel(planModelPoints(sequence)));
+
+  // The card's own picture, on the pattern: the creases so far in the card's
+  // grey, and the symbol — nothing picked out, nothing to frame.
+  it('draws the creases made so far, greyed, under the turn-over symbol', () => {
+    const scene = planTurnOverScene(sequence, model, 1);
+    const primitives = scene.diagram?.primitives ?? [];
+    const lines = primitives.filter((p) => p.kind === 'line');
+    expect(lines.length).toBeGreaterThan(0);
+    expect(lines.every((p) => p.kind === 'line' && p.style === 'crease')).toBe(true);
+    expect(primitives.filter((p) => p.kind === 'turn-over')).toHaveLength(1);
+    expect(scene.bounds).toBeNull();
+    expect(scene.highlightLineIds).toEqual([]);
+  });
+
+  it('draws only the symbol before the first fold', () => {
+    const primitives = planTurnOverScene(sequence, model, null).diagram?.primitives ?? [];
+    expect(primitives.filter((p) => p.kind === 'line')).toHaveLength(0);
+    expect(primitives.filter((p) => p.kind === 'turn-over')).toHaveLength(1);
   });
 
   it('frames a grid step by its whole family, not its first line', () => {

@@ -21,7 +21,7 @@ import type {
   ReferencesTargetRecord,
 } from './referencesResults';
 import type { ReferencesViewStep } from './referencesSequenceView';
-import { findingBounds, planStepScene } from './referencesPlanGeometry';
+import { findingBounds, planStepScene, planTurnOverScene } from './referencesPlanGeometry';
 import {
   candidateViewSteps,
   clampCandidateStep,
@@ -293,11 +293,18 @@ function planHighlights(
     }
   }
   const target = viewSteps[activeStep];
-  // A turn-over is not a fold, so it has no references and no new crease to
-  // overlay; the pattern itself is the picture.
-  if (!target || target.kind !== 'fold') return NO_HIGHLIGHTS;
+  if (!target) return NO_HIGHLIGHTS;
   const entry = variants[target.component];
   if (!entry) return NO_HIGHLIGHTS;
+  // A turn-over is not a fold: no references, no new crease. Its picture is
+  // the card's — the creases so far greyed out under the symbol — drawn here
+  // over a sheet the visibility rule has emptied for it. The finished card
+  // has no picture of its own; the pattern itself is that one.
+  if (target.kind === 'turn-over') {
+    const scene = planTurnOverScene(entry.sequence, entry.model, target.after);
+    return { ...NO_HIGHLIGHTS, diagram: scene.diagram };
+  }
+  if (target.kind !== 'fold') return NO_HIGHLIGHTS;
   const overlay = planStepScene(entry.sequence, entry.model, target.step, target.twin);
   return {
     highlightLineIds: new Set(overlay.highlightLineIds),

@@ -15,7 +15,7 @@
  */
 import type { Point } from '../../lib/geometry';
 import { modelFrame } from './diagram/diagramFrames';
-import { plannerStepDiagram } from './diagram/plannerDiagram';
+import { plannerStepDiagram, plannerTurnOverDiagram } from './diagram/plannerDiagram';
 import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
 import type {
   ModelBounds,
@@ -210,6 +210,32 @@ export function planStepScene(
   };
 }
 
+/**
+ * The turn-over card, on the pattern: every crease made so far in the
+ * card's own grey, and the symbol that says to flip the sheet — the same
+ * primitives the card draws, in the model frame.
+ *
+ * The canvas used to show a turn-over as the build-up in full colour and
+ * nothing else, while its card showed the creases greyed out under the
+ * symbol. Zach (2026-09-16): "make the turnover step in the main part show
+ * EXACTLY the same thing that is shown in the smaller diagram step". So the
+ * pattern's own creases are held back for this step
+ * (`referencesCreaseVisibility.planVisibility`) and this draws them.
+ *
+ * `after` is the last planner step folded by this point, or null before the
+ * first fold. No bounds: the sheet as a whole is the picture.
+ */
+export function planTurnOverScene(
+  sequence: PrecreaseSequence,
+  model: ReferencesPlanModel,
+  after: number | null
+): ReferencesPlanScene {
+  return {
+    diagram: plannerTurnOverDiagram(sequence, modelFrame(sequence, model), after),
+    bounds: null,
+    highlightLineIds: [],
+  };
+}
 
 /** The model-space bounds of a finding, for click-to-frame in the findings list. */
 export function findingBounds(model: ReferencesPlanModel, index: number): ModelBounds | null {

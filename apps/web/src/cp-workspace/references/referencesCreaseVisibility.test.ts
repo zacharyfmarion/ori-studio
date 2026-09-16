@@ -224,7 +224,7 @@ describe('a card that is not a fold', () => {
   // Dimming is what makes one crease stand out. A turn-over and the finished
   // pattern have no crease of their own, so a dimmed build-up would just be a
   // faded picture with nothing picked out of it.
-  it('shows its build-up at full strength', () => {
+  it('shows the finished pattern at full strength', () => {
     const views: ReferencesViewStep[] = [
       fold(0),
       fold(1),
@@ -232,16 +232,28 @@ describe('a card that is not a fold', () => {
       fold(2),
       { kind: 'done', side: 'front', component: 0 },
     ];
-    const turn = planVisibility(variants, views, 2, input);
-    expect(turn.dimAlpha).toBe(1);
-    expect(turn.dimmed).toBeNull();
-    // …and still holds back the crease that is not made yet. The fold it comes
-    // after *is* made, unlike on a fold card, which stops short of its own.
-    expect([...(turn.visible ?? [])].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 10, 11]);
-
     const done = planVisibility(variants, views, 4, input);
     expect(done.dimAlpha).toBe(1);
+    expect(done.dimmed).toBeNull();
     expect([...(done.visible ?? [])].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 10, 11, 12]);
+  });
+
+  // The turn-over card draws the build-up itself, greyed out under the
+  // symbol, and the canvas shows exactly the card: so this channel draws the
+  // outline alone, while the creases made so far stay there to tap.
+  it('draws only the outline on a turn-over, and keeps the build-up pickable', () => {
+    const views: ReferencesViewStep[] = [
+      fold(0),
+      fold(1),
+      { kind: 'turn-over', side: 'front', component: 0, after: 1 },
+      fold(2),
+    ];
+    const turn = planVisibility(variants, views, 2, input);
+    expect([...(turn.visible ?? [])].sort((a, b) => a - b)).toEqual([1, 2, 3, 4]);
+    expect(turn.dimmed).toBeNull();
+    // The fold it comes after *is* made, unlike on a fold card, which stops
+    // short of its own; the one after it is not.
+    expect([...(turn.pickable ?? [])].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 10, 11]);
   });
 
   it('still dims behind a fold', () => {
