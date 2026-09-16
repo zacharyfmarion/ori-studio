@@ -1,6 +1,6 @@
 /**
  * The steps a ReferenceFinder answer is *read* as: the sheet's diagonals it
- * leans on, folded first, then ReferenceFinder's own.
+ * leans on, folded first, then one card per diagram of ReferenceFinder's own.
  *
  * ReferenceFinder treats both diagonals as rank-1 originals, so they never
  * appear as a step of its own — a solution that folds a corner onto the
@@ -9,37 +9,97 @@
  * should be a part of the folding sequence. The sequence should always start
  * from the empty square." So each diagonal the answer uses is a step, the
  * first ones, drawn and described here the way the planner draws a corner
- * onto a corner; ReferenceFinder's steps follow, renumbered after them.
+ * onto a corner; ReferenceFinder's follow, renumbered after them.
+ *
+ * ReferenceFinder's own steps are not its cards. Its `steps` list has an
+ * entry per reference — a fold makes a line, an intersection makes a mark —
+ * but it draws one diagram per *fold*, and the mark that fold is for is
+ * drawn in the same picture (`third_party/reference-finder/src/core/class/
+ * refBase.cpp`, `DrawDiagram`: the action line, and the mark right after it
+ * in action style too, unless that mark is the very last step, which gets a
+ * standalone diagram). A card per step therefore showed every fold twice —
+ * once for the fold, once more for its mark, borrowing the same picture —
+ * which is what Zach saw on the sheet centre's alternatives: "steps 2 and 3
+ * are exactly the same. Same with 4 and 5, 6 and 7, and 8 and 9." A card is
+ * a diagram, and its sentence names everything the diagram introduces.
  *
  * Pure: the same list drives the strip's cards, the canvas and the step
  * navigation, so the three cannot count the steps differently.
  */
 import type { TFunction } from 'i18next';
-import type { ExtractedSolution } from './referenceFinder/extractor';
-import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
-import { referenceName } from './referencesStepSentences';
+import type { ExtractedSolution, ExtractedStep } from './referenceFinder/extractor';
+import type { Diagram, RawSolution } from './referenceFinder/solution';
+import { finalMarkDiagram, type StepDiagramModel } from './referenceFinderDiagramToPrimitives';
+import { pinchNote, referenceName, stepSentence } from './referencesStepSentences';
 import { foldArrowArc } from './stepDiagramGeometry';
 
 /** One of the sheet's two diagonals, by ReferenceFinder's name for it. */
 export type FreeDiagonal = ExtractedSolution['freeDiagonals'][number];
 
+/**
+ * One of ReferenceFinder's diagrams: the fold it draws and the marks it
+ * introduces, as indices into `solution.steps`, in the order they are read.
+ */
+export interface ReferencesCandidateRfStep {
+  kind: 'rf';
+  /** The steps this card covers — its fold, and the marks first drawn in it. */
+  steps: readonly number[];
+  /**
+   * Which `diagrams[]` entry draws it; null for the trailing standalone
+   * diagram the core prints for a point query's final mark.
+   */
+  diagramIndex: number | null;
+}
+
 export type ReferencesCandidateStep =
   /** One of the sheet's diagonals the answer leans on: fold corner onto corner. */
   | { kind: 'diagonal'; diagonal: FreeDiagonal }
-  /** One of ReferenceFinder's own steps, by its index in `solution.steps`. */
-  | { kind: 'rf'; index: number };
+  | ReferencesCandidateRfStep;
+
+/**
+ * ReferenceFinder's steps grouped as it draws them, one group per diagram.
+ *
+ * `BuildDiagrams` makes a diagram per action line, and `DrawDiagram` draws the
+ * mark right after that line in it — the mark the fold is for — unless the
+ * mark is the last step of all, which gets a diagram of its own. Any other
+ * mark (one made only of the sheet's lines before any fold, or the second of
+ * two in a row) is first drawn, as an input, in the diagram of the next fold,
+ * so it is read there, before the fold.
+ */
+function referenceFinderCards(steps: readonly ExtractedStep[]): ReferencesCandidateRfStep[] {
+  const cards: ReferencesCandidateRfStep[] = [];
+  let pending: number[] = [];
+  for (let i = 0; i < steps.length; i += 1) {
+    const step = steps[i];
+    if (step.diagramIndex === null) {
+      pending.push(i);
+      continue;
+    }
+    const covered = [...pending, i];
+    pending = [];
+    // refBase.cpp: `act < ss - 2 && !sSequence[act + 1]->IsLine()`.
+    const next = steps[i + 1];
+    if (next && next.diagramIndex === null && i + 1 < steps.length - 1) {
+      covered.push(i + 1);
+      i += 1;
+    }
+    cards.push({ kind: 'rf', steps: covered, diagramIndex: step.diagramIndex });
+  }
+  if (pending.length > 0) cards.push({ kind: 'rf', steps: pending, diagramIndex: null });
+  return cards;
+}
 
 /** The answer's steps in reading order: the diagonals it uses, then its own. */
 export function candidateViewSteps(solution: ExtractedSolution): ReferencesCandidateStep[] {
   return [
     ...solution.freeDiagonals.map((diagonal) => ({ kind: 'diagonal' as const, diagonal })),
-    ...solution.steps.map((_, index) => ({ kind: 'rf' as const, index })),
+    ...referenceFinderCards(solution.steps),
   ];
 }
 
 export function candidateStepCount(solution: ExtractedSolution | null): number {
   if (!solution) return 0;
-  return solution.freeDiagonals.length + solution.steps.length;
+  return candidateViewSteps(solution).length;
 }
 
 /**
@@ -50,6 +110,31 @@ export function clampCandidateStep(solution: ExtractedSolution | null, index: nu
   const count = candidateStepCount(solution);
   if (count === 0) return 0;
   return Math.max(0, Math.min(count - 1, Math.trunc(index)));
+}
+
+/**
+ * The diagram a ReferenceFinder card draws: its fold's own, or the trailing
+ * standalone one for a final mark. Null when the core printed none.
+ */
+export function candidateStepDiagram(raw: RawSolution, step: ReferencesCandidateRfStep): Diagram | null {
+  if (step.diagramIndex !== null) return raw.diagrams[step.diagramIndex] ?? null;
+  return finalMarkDiagram(raw);
+}
+
+/**
+ * A card's sentence: each step it covers, in reading order, and the pinch
+ * note last — after the mark the pinch is for has been named.
+ */
+export function describeCandidateStep(
+  t: TFunction,
+  solution: ExtractedSolution,
+  step: ReferencesCandidateStep
+): string {
+  if (step.kind === 'diagonal') return describeDiagonalStep(t, step.diagonal);
+  const covered = step.steps.map((index) => solution.steps[index]).filter((s) => s !== undefined);
+  const sentences = covered.map((s) => stepSentence(t, s));
+  if (covered.some((s) => s.pinch)) sentences.push(pinchNote(t));
+  return sentences.join(' ');
 }
 
 /** A sheet's size in ReferenceFinder's units, where the longer side is 1. */

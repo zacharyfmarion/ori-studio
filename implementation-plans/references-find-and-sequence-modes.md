@@ -129,3 +129,38 @@ the "References" title is gone. On the phone viewport the list opens the detail 
 on the first toolbar row and the switch full-width on the second (44 px
 options), the strip is the cards alone with scroll-snap, and touch taps
 jump to the making step (cards 48, 112 and 2 from three spots).
+
+**A Find card is a ReferenceFinder diagram, not a step** (2026-09-15, from
+the sheet centre of a square with both diagonals: "steps 2 and 3 are
+exactly the same. Same with 4 and 5, 6 and 7, and 8 and 9"). The core's
+`steps` has an entry per reference, folds and marks alike, but it draws one
+diagram per fold and puts the mark that fold is for in the same picture
+(`refBase.cpp` `DrawDiagram`), so a card per step borrowed every fold's
+picture twice. `referencesCandidateSteps.candidateViewSteps` now groups the
+steps as the core draws them — a fold with the mark right after it, unless
+that mark is the last step, which keeps its standalone diagram; a mark made
+before any fold or the second of two in a row reads with the next fold,
+whose diagram is the first to draw it — and the card's sentence names
+everything its picture introduces, the pinch note last. The runner-up went
+from ten cards to six, every picture distinct, and a fixture sweep asserts
+one card per diagram for every captured solution.
+
+**Approximate answers are listed only when asked for.** The same runner-up
+was a rank-6 construction landing 0.00024 off the centre, pinching a
+"corner" a quarter of a thousandth from the real one ("6 and 7 appear to be
+establishing a reference point for the corner of the paper, which does not
+need a reference point... its the corner"). The core keeps one reference per
+position, so for a target it constructs exactly the candidates after the
+exact one are always such near misses; `goodEnoughError` only changes their
+order. "Include approximate solutions" promised exact-only answers and did
+not filter, so now (`referencesShownCandidates`) with it off an inexact
+candidate is listed only when nothing exact exists, and with it on every
+candidate is, in the core's order. The target row's count also said "9
+folds" for that answer — it counted steps, marks included — and now says
+the extractor's `foldCount`, 5.
+
+Verified in the pane on the debugging square: the centre with the setting
+off is "Solution 1 of 1", exact, three cards (the two diagonals, then the
+mark); with it on, "Solution 2 of 5" is six cards with six pictures, each
+fold's card naming its mark before the pinch note and the final mark on its
+own.

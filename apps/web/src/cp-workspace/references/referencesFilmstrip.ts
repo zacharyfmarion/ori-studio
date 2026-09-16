@@ -19,16 +19,16 @@ import {
 import { unitFrame } from './diagram/diagramFrames';
 import type { Diagram } from './referenceFinder/solution';
 import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
-import { stepDiagram } from './referenceFinderDiagramToPrimitives';
 import {
+  candidateStepDiagram,
   candidateViewSteps,
-  describeDiagonalStep,
+  describeCandidateStep,
   diagonalStepDiagram,
   type RfSheet,
 } from './referencesCandidateSteps';
 import type { ReferencesCandidateResult, ReferencesPlanVariant } from './referencesResults';
 import type { ReferencesViewStep } from './referencesSequenceView';
-import { describePlannerStep, describeStep } from './referencesStepSentences';
+import { describePlannerStep } from './referencesStepSentences';
 
 /** One card: a picture and the sentence under the strip when it is active. */
 export interface ReferencesFilmstripStep {
@@ -65,7 +65,8 @@ export interface ReferencesFilmstripStep {
 /**
  * The active candidate's steps, from the empty square: the sheet's diagonals
  * it leans on first — folded corner onto corner, drawn from primitives of our
- * own — then ReferenceFinder's, each with the core's own diagram
+ * own — then one card per diagram of ReferenceFinder's, the core's own
+ * picture with a sentence for everything it introduces
  * (`referencesCandidateSteps`). `sheet` is the paper in ReferenceFinder's
  * units, for the diagonal cards.
  */
@@ -85,17 +86,17 @@ export function candidateFilmstrip(
           diagram: null,
           primitives: diagonalStepDiagram(step.diagonal, sheet),
           mirrored: false,
-          sentence: describeDiagonalStep(t, step.diagonal),
+          sentence: describeCandidateStep(t, candidate.solution, step),
         }
       : {
-          key: `rf-${step.index}`,
+          key: `rf-${step.steps[0] ?? 'final'}`,
           kind: 'fold' as const,
           badge: '',
           number: number + 1,
-          diagram: stepDiagram(candidate.raw, candidate.solution, step.index),
+          diagram: candidateStepDiagram(candidate.raw, step),
           primitives: null,
           mirrored: false,
-          sentence: describeStep(t, candidate.solution.steps[step.index]),
+          sentence: describeCandidateStep(t, candidate.solution, step),
         }
   );
 }

@@ -56,6 +56,7 @@ import {
 } from './referencesRun';
 import { referencesSidebarText, refusalMessageFor } from './referencesSidebarText';
 import { candidateStepCount, clampCandidateStep } from './referencesCandidateSteps';
+import { shownCandidates } from './referencesShownCandidates';
 import type { ReferencesPick } from './referencesViewGeometry';
 import {
   collinearSegments,
@@ -548,8 +549,12 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
 
       // ReferenceFinder answers from the bare sheet, and that is the ranking
       // shown: a construction for one crease, on its own. The core's raw
-      // output is parallel to the extracted list.
-      const raws = transport.raw;
+      // output is parallel to the extracted list. Without approximate
+      // solutions asked for, the near misses after an exact answer are not
+      // listed (`referencesShownCandidates`).
+      const shown = shownCandidates(solutions, includeApproximate);
+      solutions = shown.map((index) => solutions[index]);
+      const raws = shown.map((index) => transport.raw[index]);
 
       try {
         const { modelSteps, originals } = await whilePrecreaseClientAlive(

@@ -6,7 +6,11 @@ have open, without changing it:
 - **How do I fold this whole pattern?** An ordered sequence of folds that creases
   every line of the design.
 - **How do I locate this one reference?** Click a vertex or a crease and get
-  ranked folding sequences for it, with a diagram per step.
+  ranked folding sequences for it, with a diagram per step. Only exact
+  constructions are listed unless you turn on **Include approximate
+  solutions** under the settings button; when nothing exact exists within the
+  search, the closest constructions are listed instead, marked with how far
+  off they land.
 
 Open it from the rail, from **View → References**, or — when the whole crease
 pattern is selected in Edit — from the selection toolbar. It never edits the

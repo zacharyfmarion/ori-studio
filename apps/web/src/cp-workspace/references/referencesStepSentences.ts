@@ -104,11 +104,27 @@ export function referenceName(t: TFunction, label: string): string {
 }
 
 /**
- * The instruction for one step. Unknown axioms (the core's enum is closed, so
- * this is a wire-shape change) fall back to naming the fold and its inputs
- * rather than inventing a Huzita–Justin reading.
+ * The instruction for one step, with the pinch note after it when the line is
+ * only pressed where its mark is wanted.
  */
 export function describeStep(t: TFunction, step: ExtractedStep): string {
+  const sentence = stepSentence(t, step);
+  return step.pinch ? `${sentence} ${pinchNote(t)}` : sentence;
+}
+
+/** "Pinch only — just the mark is needed." */
+export function pinchNote(t: TFunction): string {
+  return t('panels:references.step.pinch', 'Pinch only — just the mark is needed.');
+}
+
+/**
+ * The instruction for one step, the sentence alone — a card that covers a
+ * fold and the mark it is for names the mark first and notes the pinch last
+ * (`referencesCandidateSteps.describeCandidateStep`). Unknown axioms (the
+ * core's enum is closed, so this is a wire-shape change) fall back to naming
+ * the fold and its inputs rather than inventing a Huzita–Justin reading.
+ */
+export function stepSentence(t: TFunction, step: ExtractedStep): string {
   const { points, lines } = splitStepInputs(step);
   const name = (label: string | undefined) => (label ? referenceName(t, label) : '?');
   const x = step.label || '?';
@@ -182,9 +198,6 @@ export function describeStep(t: TFunction, step: ExtractedStep): string {
         x,
         inputs: step.inputs.map((label) => referenceName(t, label)).join(', '),
       });
-  }
-  if (step.pinch) {
-    return `${sentence} ${t('panels:references.step.pinch', 'Pinch only — just the mark is needed.')}`;
   }
   return sentence;
 }

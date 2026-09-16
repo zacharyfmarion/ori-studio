@@ -278,34 +278,8 @@ function lineStepCount(solution: ExtractedSolution): number {
  * `[placeholder, final-mark]` and index `lineStepCount === 0` is the
  * placeholder, not the mark.
  */
-function finalMarkDiagram(raw: RawSolution): Diagram | null {
+export function finalMarkDiagram(raw: RawSolution): Diagram | null {
   return raw.diagrams[raw.diagrams.length - 1] ?? null;
-}
-
-/**
- * The diagram to show for step `index`.
- *
- * A line step has its own. A mark step has none (`extractor.ts`), so it borrows
- * the diagram of the next line step — which highlights that mark as an input —
- * or, for a final mark, the trailing standalone diagram the core prints for a
- * point query. Null when the solution has no diagram to offer.
- */
-export function stepDiagram(
-  raw: RawSolution,
-  solution: ExtractedSolution,
-  index: number
-): Diagram | null {
-  const step = solution.steps[index];
-  if (!step) return null;
-  if (step.diagramIndex !== null) return raw.diagrams[step.diagramIndex] ?? null;
-  for (let i = index + 1; i < solution.steps.length; i += 1) {
-    const later = solution.steps[i].diagramIndex;
-    if (later !== null) return raw.diagrams[later] ?? null;
-  }
-  // Only reachable for a point solution: `resolveLineTarget` refuses a line
-  // solution whose last step is not a line step, so the scan above always finds
-  // one there.
-  return finalMarkDiagram(raw);
 }
 
 /**

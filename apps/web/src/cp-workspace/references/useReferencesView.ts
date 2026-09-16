@@ -213,7 +213,7 @@ export function useReferencesHighlights(
         results.frame
       );
     }
-    return referenceFinderStepInModel(candidate.raw, candidate.solution, step.index, results.frame);
+    return referenceFinderStepInModel(candidate.raw, step, results.frame);
   }, [candidate, results, step]);
   const stepBounds = useMemo<ModelBounds | null>(() => {
     if (!candidate || !results || !step) return null;
@@ -227,12 +227,26 @@ export function useReferencesHighlights(
         maxY: Math.max(line.a.y, line.b.y),
       };
     }
-    return referencesStepOverlay(
-      candidate.solution,
-      candidate.modelSteps,
-      results.originals,
-      step.index
-    ).bounds;
+    // A card covers a fold and the marks it introduces; frame all of them.
+    let bounds: ModelBounds | null = null;
+    for (const index of step.steps) {
+      const own = referencesStepOverlay(
+        candidate.solution,
+        candidate.modelSteps,
+        results.originals,
+        index
+      ).bounds;
+      if (!own) continue;
+      bounds = bounds
+        ? {
+            minX: Math.min(bounds.minX, own.minX),
+            minY: Math.min(bounds.minY, own.minY),
+            maxX: Math.max(bounds.maxX, own.maxX),
+            maxY: Math.max(bounds.maxY, own.maxY),
+          }
+        : own;
+    }
+    return bounds;
   }, [candidate, results, step]);
 
   return {

@@ -15,8 +15,10 @@ import {
   describePlannerStep,
   describeStep,
   isLineLabel,
+  pinchNote,
   referenceName,
   splitStepInputs,
+  stepSentence,
 } from './referencesStepSentences';
 
 /**
@@ -126,9 +128,15 @@ describe('describeStep', () => {
   });
 
   it('appends the pinch note for a pinched line', () => {
-    expect(describeStep(t, step({ axiom: 2, inputs: ['se', 'ne'], label: 'A', pinch: true }))).toBe(
+    const pinched = step({ axiom: 2, inputs: ['se', 'ne'], label: 'A', pinch: true });
+    expect(describeStep(t, pinched)).toBe(
       'Fold A, bringing the bottom-right corner onto the top-right corner. Pinch only — just the mark is needed.'
     );
+    // The sentence alone, for a card that names the mark before the note.
+    expect(stepSentence(t, pinched)).toBe(
+      'Fold A, bringing the bottom-right corner onto the top-right corner.'
+    );
+    expect(pinchNote(t)).toBe('Pinch only — just the mark is needed.');
   });
 
   it('names the inputs rather than guessing an axiom it does not know', () => {

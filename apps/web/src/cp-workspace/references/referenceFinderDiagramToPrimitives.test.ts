@@ -8,9 +8,9 @@ import type { ReferenceFinderReplayFixture } from './referenceFinder/replayClien
 import type { Diagram } from './referenceFinder/solution';
 import {
   candidateDiagram,
+  finalMarkDiagram,
   referenceFinderDiagramToPrimitives,
   StepDiagramAdapterError,
-  stepDiagram,
 } from './referenceFinderDiagramToPrimitives';
 
 const mark = markFixture as unknown as ReferenceFinderReplayFixture;
@@ -123,25 +123,16 @@ describe('referenceFinderDiagramToPrimitives', () => {
   });
 });
 
-describe('stepDiagram / candidateDiagram', () => {
+describe('finalMarkDiagram / candidateDiagram', () => {
   const raw = mark.solutions[0];
   const solution = extractSolution(raw, mark.query, sheet);
 
-  it('gives a line step its own diagram', () => {
-    expect(solution.steps[0].diagramIndex).toBe(0);
-    expect(stepDiagram(raw, solution, 0)).toBe(raw.diagrams[0]);
-    expect(stepDiagram(raw, solution, 2)).toBe(raw.diagrams[1]);
-  });
-
-  it("lends a mark step the next line step's diagram, and the trailing one to the final mark", () => {
-    // Steps: A (line), P (mark), B (line), Q (final mark).
-    expect(stepDiagram(raw, solution, 1)).toBe(raw.diagrams[1]);
-    expect(stepDiagram(raw, solution, 3)).toBe(raw.diagrams[2]);
+  it("is the trailing diagram a point query ends on — the one past the folds'", () => {
+    // Steps: A (line), P (mark), B (line), Q (final mark): two fold diagrams
+    // and the standalone one for Q.
     expect(raw.diagrams).toHaveLength(3);
-  });
-
-  it('is null past the last step', () => {
-    expect(stepDiagram(raw, solution, 4)).toBeNull();
+    expect(finalMarkDiagram(raw)).toBe(raw.diagrams[2]);
+    expect(finalMarkDiagram({ ...raw, diagrams: [] })).toBeNull();
   });
 
   it("uses the trailing mark diagram for a point query's card and the last line diagram for a line's", () => {
@@ -169,7 +160,7 @@ describe('stepDiagram / candidateDiagram', () => {
     });
     expect(centre.steps.filter((s) => s.diagramIndex !== null)).toHaveLength(0);
     const markPoint = { kind: 'point', at: [0.5, 0.5], style: 'action' };
-    for (const diagram of [stepDiagram(centreRaw, centre, 0), candidateDiagram(centreRaw, centre)]) {
+    for (const diagram of [finalMarkDiagram(centreRaw), candidateDiagram(centreRaw, centre)]) {
       expect(diagram).not.toBeNull();
       const model = referenceFinderDiagramToPrimitives(diagram as Diagram);
       expect(model.primitives).toContainEqual(markPoint);

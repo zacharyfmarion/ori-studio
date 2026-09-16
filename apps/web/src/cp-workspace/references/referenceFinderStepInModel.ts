@@ -23,13 +23,12 @@
  * primitives onto a square viewBox, this projects them onto the pattern.
  */
 import type { RawSolution } from './referenceFinder/solution';
-import type { ExtractedSolution } from './referenceFinder/extractor';
 import {
   referenceFinderDiagramToPrimitives,
-  stepDiagram,
   type StepDiagramModel,
   type StepDiagramPrimitive,
 } from './referenceFinderDiagramToPrimitives';
+import { candidateStepDiagram, type ReferencesCandidateRfStep } from './referencesCandidateSteps';
 import type { PrecreaseFrame } from './sheetFrames';
 import {
   arcSamplePoints,
@@ -130,16 +129,15 @@ export function diagramInModel(model: StepDiagramModel, frame: PrecreaseFrame): 
 }
 
 /**
- * The diagram the card draws for step `index` of a candidate, on the pattern:
- * null when the core printed none for it.
+ * The diagram the card draws for one of a candidate's ReferenceFinder steps,
+ * on the pattern: null when the core printed none for it.
  */
 export function referenceFinderStepInModel(
   raw: RawSolution,
-  solution: ExtractedSolution,
-  index: number,
+  step: ReferencesCandidateRfStep,
   frame: PrecreaseFrame
 ): StepDiagramModel | null {
-  const diagram = stepDiagram(raw, solution, index);
+  const diagram = candidateStepDiagram(raw, step);
   if (!diagram) return null;
   return diagramInModel(referenceFinderDiagramToPrimitives(diagram), frame);
 }

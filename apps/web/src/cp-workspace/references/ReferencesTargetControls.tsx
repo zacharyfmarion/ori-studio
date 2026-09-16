@@ -59,7 +59,8 @@ export const ReferencesTargetControls = memo(function ReferencesTargetControls({
           {t('panels:references.card.folds', {
             defaultValue_one: '{{count}} fold',
             defaultValue_other: '{{count}} folds',
-            count: active.solution.steps.length + active.solution.freeDiagonals.length,
+            // The folds, not the steps: a mark is made by folding nothing.
+            count: active.solution.foldCount,
           })}
         </span>
       )}
