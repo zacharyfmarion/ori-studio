@@ -514,7 +514,6 @@ export function ReferencesPanel() {
           {targeted && controller.target && (
             <div className="references-target-row">
               <ReferencesTargetControls
-                target={controller.target}
                 candidateCount={controller.candidates?.length ?? 0}
                 activeCandidate={controller.activeCandidate}
                 active={active}

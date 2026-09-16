@@ -789,7 +789,8 @@
     },
     "canvasAriaLabel": "折痕图。点击顶点或折痕以查找其参考点；拖动平移，滚动缩放。",
     "card": {
-      "error": "误差 {{value}}"
+      "error": "误差 {{value}}",
+      "folds_other": "{{count}} 次折叠"
     },
     "direction": {
       "angle": "在 {{deg}}° 方向",
@@ -835,9 +836,7 @@
       "planAction": "计算预折顺序"
     },
     "meta": {
-      "crease": "折痕",
-      "solution": "第 {{n}} / {{total}} 个解",
-      "vertex": "顶点"
+      "solution": "第 {{n}} / {{total}} 个解"
     },
     "mode": {
       "find": "查找参考点",

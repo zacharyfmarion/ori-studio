@@ -11495,10 +11495,25 @@ button.bp-packing-alert:focus-visible {
 
 .references-target {
   display: flex;
+  flex: 1 1 auto;
   flex-wrap: wrap;
   gap: var(--space-3);
   align-items: center;
   min-width: 0;
+}
+
+/* The fold count at the left; the answer's stepper, its badge and the way
+   out together at the right. */
+.references-target__count {
+  margin-right: auto;
+}
+
+.references-target__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  margin-left: auto;
 }
 
 /* The stepper's buttons stand off the readout between them and the badges

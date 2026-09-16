@@ -818,7 +818,9 @@
     },
     "canvasAriaLabel": "Crease pattern. Click a vertex or crease to find its references; drag to pan, scroll to zoom.",
     "card": {
-      "error": "err {{value}}"
+      "error": "err {{value}}",
+      "folds_one": "{{count}} fold",
+      "folds_other": "{{count}} folds"
     },
     "direction": {
       "angle": "at {{deg}}°",
@@ -864,9 +866,7 @@
       "planAction": "Plan the precreasing sequence"
     },
     "meta": {
-      "crease": "Crease",
-      "solution": "Solution {{n}} of {{total}}",
-      "vertex": "Vertex"
+      "solution": "Solution {{n}} of {{total}}"
     },
     "mode": {
       "find": "Find a reference",

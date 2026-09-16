@@ -1,17 +1,16 @@
-import { memo } from 'react';
-import { useTranslation } from 'react-i18next';
-import { ChevronsLeft, ChevronsRight, X } from 'lucide-react';
-import { Badge } from '../../components/ui/Badge';
-import { Button } from '../../components/ui/Button';
-import { IconButton } from '../../components/ui/IconButton';
-import type { ReferencesTarget } from '../../store/workspaceStore/types';
-import type { ReferencesCandidateResult } from './referencesResults';
+import { memo } from "react";
+import { useTranslation } from "react-i18next";
+import { ChevronsLeft, ChevronsRight, X } from "lucide-react";
+import { Badge } from "../../components/ui/Badge";
+import { Button } from "../../components/ui/Button";
+import { IconButton } from "../../components/ui/IconButton";
+import type { ReferencesCandidateResult } from "./referencesResults";
 
 /**
- * What the row under the tabs says while one vertex or crease is picked: which
- * one, which of ReferenceFinder's answers is showing, how good it is — and the
- * way back. Not how many folds: the strip's cards are that count, and the
- * number crowded the row.
+ * What the row under the tabs says while one vertex or crease is picked: how
+ * many folds the answer takes, at the left; which of ReferenceFinder's answers
+ * is showing, how good it is, and the way back, at the right. Not *what* was
+ * picked — a "Vertex" badge said nothing the mark on the sheet does not.
  *
  * The way back is the reason this is a component rather than three spans. A
  * pick used to be dismissed only by clicking bare paper, which nothing said and
@@ -19,7 +18,6 @@ import type { ReferencesCandidateResult } from './referencesResults';
  * carry its own exit. `Escape` does the same thing from the keyboard.
  */
 export interface ReferencesTargetControlsProps {
-  target: ReferencesTarget;
   candidateCount: number;
   activeCandidate: number;
   active: ReferencesCandidateResult | null;
@@ -34,7 +32,6 @@ export interface ReferencesTargetControlsProps {
 }
 
 export const ReferencesTargetControls = memo(function ReferencesTargetControls({
-  target,
   candidateCount,
   activeCandidate,
   active,
@@ -49,54 +46,66 @@ export const ReferencesTargetControls = memo(function ReferencesTargetControls({
   const { t } = useTranslation();
   return (
     <div className="references-target">
-      <Badge tone="accent">
-        {target.kind === 'vertex'
-          ? t('panels:references.meta.vertex', 'Vertex')
-          : t('panels:references.meta.crease', 'Crease')}
-      </Badge>
-      {candidateCount > 0 && (
-        <span className="references-target__candidates">
-          <IconButton
-            size="sm"
-            variant="toolbar"
-            title={previousLabel}
-            disabled={previousDisabled}
-            onClick={onPreviousCandidate}
-          >
-            <ChevronsLeft size={14} />
-          </IconButton>
-          <span className="references-target__readout">
-            {t('panels:references.meta.solution', 'Solution {{n}} of {{total}}', {
-              n: activeCandidate + 1,
-              total: candidateCount,
-            })}
-          </span>
-          <IconButton
-            size="sm"
-            variant="toolbar"
-            title={nextLabel}
-            disabled={nextDisabled}
-            onClick={onNextCandidate}
-          >
-            <ChevronsRight size={14} />
-          </IconButton>
+      {active && (
+        <span className="references-target__readout references-target__count">
+          {t("panels:references.card.folds", {
+            defaultValue_one: "{{count}} fold",
+            defaultValue_other: "{{count}} folds",
+            count:
+              active.solution.steps.length +
+              active.solution.freeDiagonals.length,
+          })}
         </span>
       )}
-      {active && (
-        <Badge tone={active.solution.exact ? 'accent' : 'neutral'}>
-          {active.solution.exact
-            ? t('panels:references.exact', 'Exact')
-            : t('panels:references.card.error', 'err {{value}}', {
-                value: active.solution.err.toExponential(1),
-              })}
-        </Badge>
-      )}
-      {/* The accent, not a quiet outline: this is the one way out of a pick,
+      <span className="references-target__actions">
+        {candidateCount > 0 && (
+          <span className="references-target__candidates">
+            <IconButton
+              size="sm"
+              variant="toolbar"
+              title={previousLabel}
+              disabled={previousDisabled}
+              onClick={onPreviousCandidate}
+            >
+              <ChevronsLeft size={14} />
+            </IconButton>
+            <span className="references-target__readout">
+              {t(
+                "panels:references.meta.solution",
+                "Solution {{n}} of {{total}}",
+                {
+                  n: activeCandidate + 1,
+                  total: candidateCount,
+                },
+              )}
+            </span>
+            <IconButton
+              size="sm"
+              variant="toolbar"
+              title={nextLabel}
+              disabled={nextDisabled}
+              onClick={onNextCandidate}
+            >
+              <ChevronsRight size={14} />
+            </IconButton>
+          </span>
+        )}
+        {active && (
+          <Badge tone={active.solution.exact ? "accent" : "neutral"}>
+            {active.solution.exact
+              ? t("panels:references.exact", "Exact")
+              : t("panels:references.card.error", "err {{value}}", {
+                  value: active.solution.err.toExponential(1),
+                })}
+          </Badge>
+        )}
+        {/* The accent, not a quiet outline: this is the one way out of a pick,
           and it went unnoticed beside the badges it matched. */}
-      <Button size="sm" variant="primary" onClick={onClear}>
-        <X size={12} aria-hidden="true" />
-        {t('panels:references.backToPattern', 'Back to the whole pattern')}
-      </Button>
+        <Button size="sm" variant="primary" onClick={onClear}>
+          <X size={12} aria-hidden="true" />
+          {t("panels:references.backToPattern", "Back to the whole pattern")}
+        </Button>
+      </span>
     </div>
   );
 });

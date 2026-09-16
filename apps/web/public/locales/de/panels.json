@@ -818,7 +818,9 @@
     },
     "canvasAriaLabel": "Faltmuster. Klicke auf einen Scheitelpunkt oder eine Falte, um ihre Referenzen zu finden; ziehen zum Verschieben, scrollen zum Zoomen.",
     "card": {
-      "error": "Fehler {{value}}"
+      "error": "Fehler {{value}}",
+      "folds_one": "{{count}} Faltung",
+      "folds_other": "{{count}} Faltungen"
     },
     "direction": {
       "angle": "bei {{deg}}°",
@@ -864,9 +866,7 @@
       "planAction": "Vorfaltfolge berechnen"
     },
     "meta": {
-      "crease": "Falte",
-      "solution": "Lösung {{n}} von {{total}}",
-      "vertex": "Scheitelpunkt"
+      "solution": "Lösung {{n}} von {{total}}"
     },
     "mode": {
       "find": "Referenz finden",

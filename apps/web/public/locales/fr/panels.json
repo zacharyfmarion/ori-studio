@@ -851,7 +851,10 @@
     },
     "canvasAriaLabel": "Patron de pliage. Cliquez sur un sommet ou un pli pour trouver ses références ; glissez pour déplacer, faites défiler pour zoomer.",
     "card": {
-      "error": "err {{value}}"
+      "error": "err {{value}}",
+      "folds_one": "{{count}} pli",
+      "folds_many": "{{count}} plis",
+      "folds_other": "{{count}} plis"
     },
     "direction": {
       "angle": "à {{deg}}°",
@@ -897,9 +900,7 @@
       "planAction": "Calculer la séquence de prépliage"
     },
     "meta": {
-      "crease": "Pli",
-      "solution": "Solution {{n}} sur {{total}}",
-      "vertex": "Sommet"
+      "solution": "Solution {{n}} sur {{total}}"
     },
     "mode": {
       "find": "Trouver une référence",
