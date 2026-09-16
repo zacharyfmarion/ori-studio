@@ -50,9 +50,51 @@ export interface FoldFlap {
    * What the step presses along the line — the stretches that go sharp once
    * the flap is down. The pattern's pieces joined and carried to references,
    * a pinch's worth at each mark, or the whole chord of an auxiliary fold
-   * pressed in full (`creasedSpans`).
+   * pressed in full (`creasedSpans`) — and a pinch's worth centred on every
+   * mark the fold passes through, since a fold "through P" is registered on
+   * P by pressing there (markhor 68, Zach 2026-09-16).
    */
   creased: readonly DiagramSegment[];
+}
+
+/**
+ * How much of the line is pressed around a mark the fold passes through, as
+ * a share of the sheet's short side: a pinch, the crate's own measure.
+ */
+export const MARK_PRESS_SHARE = 0.06;
+
+/** A pinch's worth of the chord centred on each input mark that lies on it. */
+export function pressesAtMarks(
+  frame: DiagramFrame,
+  chord: DiagramSegment,
+  witnesses: readonly (PrecreaseWitness | null | undefined)[]
+): DiagramSegment[] {
+  const dx = chord[1].x - chord[0].x;
+  const dy = chord[1].y - chord[0].y;
+  const length = Math.hypot(dx, dy);
+  if (length === 0) return [];
+  const t = { x: dx / length, y: dy / length };
+  const half = (MARK_PRESS_SHARE * Math.min(frame.sheet.width, frame.sheet.height)) / 2;
+  const along = (p: Point): number => (p.x - chord[0].x) * t.x + (p.y - chord[0].y) * t.y;
+  const at = (distance: number): Point => ({
+    x: chord[0].x + t.x * distance,
+    y: chord[0].y + t.y * distance,
+  });
+  const out: DiagramSegment[] = [];
+  const seen = new Set<number>();
+  for (const witness of witnesses) {
+    for (const ref of witness?.inputs ?? []) {
+      if (ref.kind !== 'point' && ref.kind !== 'corner') continue;
+      const mark = frame.point(ref.id);
+      if (!mark || sideOf(chord, mark) !== 0 || seen.has(ref.id)) continue;
+      seen.add(ref.id);
+      const centre = along(mark);
+      const from = Math.max(0, centre - half);
+      const to = Math.min(length, centre + half);
+      if (to > from) out.push([at(from), at(to)]);
+    }
+  }
+  return out;
 }
 
 export type FoldMotionKind = 'cp' | 'aux' | 'press';
@@ -146,7 +188,11 @@ function flapOf(sequence: PrecreaseSequence, frame: DiagramFrame, step: Precreas
     (witness ? arrowSide(sequence, frame, step, chord, witness) : null) ??
     smallerFlap(frame, chord);
   if (side === null) return null;
-  return { chord, side, creased: creasedSpans(frame, step) };
+  return {
+    chord,
+    side,
+    creased: [...creasedSpans(frame, step), ...pressesAtMarks(frame, chord, [witness, step.also])],
+  };
 }
 
 /** A point inside the flap, for a test or a caller that needs one. */

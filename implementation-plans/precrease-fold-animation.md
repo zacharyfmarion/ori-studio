@@ -280,6 +280,17 @@ on the paper. Three cues carry the height, all cheap in this channel:
 - The geometry itself: the curl's overhang and the flat part's shortfall
   (D2).
 
+**And later still.** Two things seen on markhor card 68. A fold "through P"
+is registered on P by pressing there, so a pinch's worth of the line centred
+on every input mark the fold passes through is pressed along with the
+step's own stretches (`pressesAtMarks`). And a seam showed along every
+hinge: the bend's first row stood edge-on in the stretched model and took
+the full shade, and beside it the base's clipped fill and the flap's mesh
+met on one line drawn in two passes, which anti-aliasing lets the ground
+bleed through. The bend is now shaded by the arc it is drawn from, face up
+at the hinge, and the flap's mesh reaches a hairline past the hinge onto
+the base, flat, sized on screen from the camera (`hingeOverlap`).
+
 **Revised again, later the same day.** A twin card's flaps used to play only
 when apart, a rule from when they swung at once; now they always play, in
 turn, and the run rests folded on the second so its landing can be read

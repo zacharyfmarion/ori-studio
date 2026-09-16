@@ -7,7 +7,7 @@ import {
   plannerSequenceWithGridFixture,
 } from '../__fixtures__/plannerSequence';
 import { plannerStepDiagram, sideOf } from './plannerDiagram';
-import { flapCentroid, stepFoldMotion } from './foldMotion';
+import { MARK_PRESS_SHARE, flapCentroid, stepFoldMotion } from './foldMotion';
 import type {
   PrecreaseSequence,
   PrecreaseStep,
@@ -215,6 +215,27 @@ describe('stepFoldMotion', () => {
     const motion = stepFoldMotion(sequence, unit, 6)!;
     // The foot is at x = 0.3, so the south-west corner is the nearer one.
     expect(sideOf(motion.flaps[0]!.chord, { x: 0, y: 0 })).toBe(motion.flaps[0]!.side);
+  });
+
+  it('presses a pinch around every mark the fold passes through', () => {
+    // The O5 folds through the mark at (0, 0.3) on the left edge: a pinch's
+    // worth from there along the line, clipped at the edge it starts on.
+    const pivot = stepFoldMotion(sequence, unit, 7)!.flaps[0]!;
+    const half = MARK_PRESS_SHARE / 2;
+    expect(pivot.creased).toContainEqual([
+      { x: 0, y: 0.3 },
+      { x: half, y: 0.3 },
+    ]);
+    // The perpendicular passes through the mark at (0.3, 0.6): a full pinch
+    // centred on it.
+    const perpendicular = stepFoldMotion(sequence, unit, 6)!.flaps[0]!;
+    const centred = perpendicular.creased.find(
+      ([a, b]) => Math.abs((a.y + b.y) / 2 - 0.6) < 1e-9 && Math.abs(a.x - 0.3) < 1e-9
+    );
+    expect(centred).toBeDefined();
+    expect(Math.abs(centred![1].y - centred![0].y)).toBeCloseTo(MARK_PRESS_SHARE);
+    // A fold that passes through no mark presses only what the step creases.
+    expect(stepFoldMotion(sequence, unit, 0)!.flaps[0]!.creased).toHaveLength(2);
   });
 
   it('swings the smaller flap when the crate’s mover sits on the larger one', () => {

@@ -67,6 +67,14 @@ export interface FoldSurfaceShares {
   column: number;
   /** The roll a sheet turns over in. */
   roll: number;
+  /**
+   * How far past the hinge onto the base the flap's mesh reaches, flat, in
+   * **model units** — a hairline, sized on screen by the caller. The base's
+   * fill and the flap's mesh meet on the hinge line in two draws, and
+   * anti-aliasing lets the ground bleed through a shared edge; a flat
+   * overlap in the paper's own colour closes it.
+   */
+  hingeOverlap: number;
 }
 
 export const DEFAULT_SURFACE_SHARES: FoldSurfaceShares = {
@@ -74,6 +82,7 @@ export const DEFAULT_SURFACE_SHARES: FoldSurfaceShares = {
   ramp: CREASE_RAMP_SHARE,
   column: COLUMN_SHARE,
   roll: ROLL_RADIUS_SHARE,
+  hingeOverlap: 0,
 };
 
 /** Depths the paper is drawn at. */
@@ -147,7 +156,14 @@ export function foldPoseGeometry(
     DEPTH_FLOOR + DEPTH_SPAN * Math.max(0, Math.min(1, z / reach));
   const short = scene.sheetShortSide > 0 ? scene.sheetShortSide : 1;
   const frame = chordFrame(flap.chord, flap.side);
-  const polygon: FlatPoint[] = flap.polygon.map((corner) => inChordFrame(frame, corner));
+  const overlap = flap.whole ? 0 : Math.max(0, shares.hingeOverlap);
+  // The flap's corners on the hinge are pushed a hairline onto the base, so
+  // the mesh's first row lies flat over the base's own fill.
+  const onHinge = 1e-9 * Math.max(1, short);
+  const polygon: FlatPoint[] = flap.polygon.map((corner) => {
+    const p = inChordFrame(frame, corner);
+    return overlap > 0 && Math.abs(p.u) <= onHinge ? { s: p.s, u: -overlap } : p;
+  });
   let uMin = 0;
   let uMax = 0;
   for (const p of polygon) {

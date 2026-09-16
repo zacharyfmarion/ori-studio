@@ -41,7 +41,12 @@ import type { CpRenderer } from '../renderer/CpRenderer';
 import { readCssVarColor, readCssVarNumber } from '../renderer/cssColor';
 import { canvasDiagramInk, diagramDashSlot } from './diagram/diagramInk';
 import type { FoldPose } from './fold/foldPlayback';
-import { EMPTY_FOLDED, foldPoseGeometry, type FoldPaint } from './fold/foldPoseGeometry';
+import {
+  DEFAULT_SURFACE_SHARES,
+  EMPTY_FOLDED,
+  foldPoseGeometry,
+  type FoldPaint,
+} from './fold/foldPoseGeometry';
 import type { FoldScene } from './fold/foldScene';
 import { dropPointsOnFlaps, splitStrokesAtFolds, type SplitStrokes } from './fold/foldSplit';
 import { createReglRenderer } from '../renderer/reglRenderer';
@@ -246,6 +251,12 @@ const CREASE_WIDTH_FACTOR = 1.5;
 const POINT_OUTLINE_CSS = 1.4;
 /** Highlighted creases draw this much wider than their neighbours. */
 const HIGHLIGHT_WIDTH_MUL = 2.6;
+/**
+ * How far a folding flap overlaps its base at the hinge, in CSS pixels: a
+ * hair more than the anti-aliasing seam between two draws that share an
+ * edge, and less than a crease is wide.
+ */
+const HINGE_OVERLAP_CSS = 0.75;
 const ZOOM_STEP = 1.25;
 
 const MOUNTAIN_COLOR_VAR = '--fold-mountain';
@@ -811,11 +822,22 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           rig.points = { source: full.points, base: dropPointsOnFlaps(full.points, flaps) };
           renderer.setPoints(rig.points.base);
         }
+        // The overlap is a screen-space hairline, so it is measured against
+        // the camera each time the flap is posed: model units per CSS pixel.
+        const cam = cameraRef.current;
+        const modelToUser = liveRef.current.modelToSvg;
+        const o = modelToUser({ x: 0, y: 0 });
+        const e = modelToUser({ x: 1, y: 0 });
+        const userPerModel = Math.hypot(e.x - o.x, e.y - o.y) || 1;
+        const cssPerModel = cam ? (cam.zoom / dpr()) * userPerModel : 1;
         renderer.setFolded(
-          foldPoseGeometry(scene, pose, [rig.strokes?.split.flap, rig.preview?.split.flap], {
-            ...rig.paint,
-            modelToUser: liveRef.current.modelToSvg,
-          })
+          foldPoseGeometry(
+            scene,
+            pose,
+            [rig.strokes?.split.flap, rig.preview?.split.flap],
+            { ...rig.paint, modelToUser },
+            { ...DEFAULT_SURFACE_SHARES, hingeOverlap: HINGE_OVERLAP_CSS / cssPerModel }
+          )
         );
       };
       applyFoldRef.current = applyFold;

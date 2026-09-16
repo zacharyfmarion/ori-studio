@@ -146,6 +146,29 @@ describe('foldPoseGeometry, rigid', () => {
     expect(tilted.strokes.dashPhase![0]).toBeCloseTo(0.2 * Math.cos(Math.PI / 3));
   });
 
+  it('overlaps its base by the hairline asked for, flat and unshaded', () => {
+    const shares: FoldSurfaceShares = { ...RIGID, hingeOverlap: 0.05 };
+    const { fills } = foldPoseGeometry(scene, pose(Math.PI), [], paint, shares);
+    // The right half lands on the left, showing its other face; the overlap
+    // is the strip of base from the hinge at 0.5 back to 0.45. Its outer
+    // row is face up and on the paper, under the landed flap — in user
+    // units twice that; the hinge row itself already shows the other face.
+    const up = [...Array(fills.count).keys()].filter(
+      (i) => Math.abs(rgba(fills.color, i * 4)[0]! - UP[0]) < 1e-3
+    );
+    expect(up.length).toBeGreaterThan(0);
+    for (const i of up) {
+      expect(fills.position[i * 2]).toBeCloseTo(2 * 0.45, 6);
+      expect(fills.depth![i]).toBeCloseTo(0.05);
+    }
+    // Without it, nothing face up is drawn at all.
+    const bare = foldPoseGeometry(scene, pose(Math.PI), [], paint, RIGID);
+    const bareUp = [...Array(bare.fills.count).keys()].filter(
+      (i) => Math.abs(rgba(bare.fills.color, i * 4)[0]! - UP[0]) < 1e-3
+    );
+    expect(bareUp).toHaveLength(0);
+  });
+
   it('draws nothing for a flap the card does not have', () => {
     expect(foldPoseGeometry(scene, pose(1, 0, 3), [creases()], paint).fills.count).toBe(0);
   });
@@ -251,11 +274,14 @@ describe('foldPoseGeometry, turning the sheet over', () => {
     expect(Math.max(...xs(over.fills.position))).toBeCloseTo(2, 3);
     // Hovering a roll's height over the table, showing its other face.
     expect(Math.max(...Array.from(over.fills.depth!))).toBeCloseTo(0.05 + 0.9 * ((2 * roll) / 0.5), 3);
-    // Every face has turned: none is the reader's face unshaded, and the flat
-    // part shows the other face plain. (The bend is sampled densely, so most
-    // vertices are on it, shaded between the two.)
+    // Every face has turned but the hinge row on the far edge, where the
+    // bend starts face up on the table; the flat part shows the other face
+    // plain. (The bend is sampled densely, so most vertices are on it,
+    // shaded between the two.)
     const faces = [...Array(over.fills.count).keys()].map((i) => rgba(over.fills.color, i * 4)[0]);
-    expect(faces.filter((red) => Math.abs(red - UP[0]) < 1e-3)).toHaveLength(0);
+    faces.forEach((red, i) => {
+      if (Math.abs(red - UP[0]) < 1e-3) expect(over.fills.position[i * 2]).toBeCloseTo(0, 6);
+    });
     expect(faces.some((red) => Math.abs(red - OTHER[0]) < 1e-3)).toBe(true);
     // The valley at x = 0.25 is now at x = 0.75, named a mountain from this side.
     expect(over.strokes.a[0]).toBeCloseTo(1.5, 3);

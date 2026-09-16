@@ -135,23 +135,27 @@ export function createFoldSurface(params: FoldSurfaceParams): FoldSurface {
   // How far into the flap the bend can reach, over the whole swing.
   const bendReach = radius * Math.PI;
   return {
-    rows: (uMin, uMax) => rowsThrough(uMin, uMax, [[0, bendReach]]),
+    // The hinge is a row whatever the radius: with none, the surface kinks there.
+    rows: (uMin, uMax) => rowsThrough(uMin, uMax, [[0, bendReach]], [0]),
     bent: (uLo, uHi) => bendReach > 0 && uLo < bendReach && uHi > 0,
     place(s, u) {
+      // Paper short of the hinge lies on the table: the hairline a flap
+      // overlaps its base by, so the two meet with no seam between them.
+      if (u < 0) return { s, v: u, z: 0, nz: 1 };
       const r = radiusAt(s);
       const bend = r * angle;
       // The hinge itself (u = 0) is the bend's start, on the paper — not the
       // flat part's formula, which would lift it by the bend's height.
-      if (r > 0 && u >= 0 && u <= bend) {
+      if (r > 0 && u <= bend) {
         const phi = u / r;
-        // The sheared arc's tangent is the sum of the arc's and the flat
-        // part's directions, which bisects them: its normal is at the mean
-        // of the two angles, with no degenerate case at the hinge.
+        // Shaded as the arc it is drawn from, not by the sheared surface's
+        // true normal: that stands edge-on at the hinge, and a hinge row
+        // shaded edge-on is a bright line along every fold.
         return {
           s,
           v: r * Math.sin(phi) + u * cosT,
           z: r * (1 - Math.cos(phi)) + u * sinT,
-          nz: Math.cos((phi + angle) / 2),
+          nz: Math.cos(phi),
         };
       }
       const past = Math.max(0, u);
@@ -213,7 +217,7 @@ export function createRollOverSurface(
       return { s, v: hinge + slide + over.v - halfWidth, z: over.z, nz: over.nz };
     },
     breakpoints: () => [],
-    rows: (uMin, uMax) => rowsThrough(uMin, uMax, [[hingeU, hingeU + reach]]),
+    rows: (uMin, uMax) => rowsThrough(uMin, uMax, [[hingeU, hingeU + reach]], [hingeU]),
     bent: (uLo, uHi) => reach > 0 && uLo < hingeU + reach && uHi > hingeU,
   };
 }
@@ -307,17 +311,22 @@ function samples(lo: number, hi: number, spacing: number, extra: readonly number
 }
 
 /**
- * Sample positions from `uMin` to `uMax`: both ends, and {@link BEND_ROWS}
- * evenly through each bend's stretch where it falls inside — the one part of
- * a surface that is not linear in `u`.
+ * Sample positions from `uMin` to `uMax`: both ends, every `pin` that falls
+ * inside — a hinge, where the surface kinks — and {@link BEND_ROWS} evenly
+ * through each bend's stretch where it falls inside, the one part of a
+ * surface that is not linear in `u`.
  */
 export function rowsThrough(
   uMin: number,
   uMax: number,
   bends: readonly (readonly [number, number])[],
+  pins: readonly number[] = [],
   rows = BEND_ROWS
 ): number[] {
   const out = new Set<number>([uMin, uMax]);
+  for (const pin of pins) {
+    if (pin > uMin + EPSILON && pin < uMax - EPSILON) out.add(pin);
+  }
   for (const [from, to] of bends) {
     if (to <= from) continue;
     for (let j = 0; j <= rows; j += 1) {

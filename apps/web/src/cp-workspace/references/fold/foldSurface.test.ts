@@ -84,11 +84,14 @@ describe('createFoldSurface', () => {
     const end = surface.place(0, Math.PI * r);
     expect(end.v).toBeCloseTo(-Math.PI * r);
     expect(end.z).toBeCloseTo(2 * r);
-    // The paper leaves the hinge edge-on, rising straight up, and turns
-    // over to face down by the end of the bend; it never crosses the line
+    // The paper is shaded as an arc from the hinge, face up there, edge-on
+    // midway, face down by the end of the bend; it never crosses the line
     // onto the flap's own side.
-    expect(surface.place(0, 1e-6).nz).toBeCloseTo(0, 3);
+    expect(surface.place(0, 1e-6).nz).toBeCloseTo(1, 3);
+    expect(surface.place(0, (Math.PI * r) / 2).nz).toBeCloseTo(0);
     expect(end.nz).toBeCloseTo(-1);
+    // Short of the hinge the paper lies flat, for the overlap a flap draws.
+    expect(surface.place(0, -0.2)).toEqual({ s: 0, v: -0.2, z: 0, nz: 1 });
     let last = 1;
     for (const u of [0.1, 0.4, 0.8, 1.2, 1.5]) {
       const p = surface.place(0, u);
@@ -269,6 +272,8 @@ describe('tessellateFlap', () => {
     expect(rows).toHaveLength(14);
     expect(rowsThrough(0, 4, [[0, 1.5]])).toHaveLength(14);
     expect(rowsThrough(0, 4, [])).toEqual([0, 4]);
+    // A pin inside is a row; the ends never repeat.
+    expect(rowsThrough(-1, 4, [], [0, -1, 4])).toEqual([-1, 0, 4]);
     const mesh = tessellateFlap(RECT, surface, 2);
     // Every vertex is on the surface: over the pressed middle the far edge
     // lies flat on the paper; away from it the flap hovers at twice the radius.
