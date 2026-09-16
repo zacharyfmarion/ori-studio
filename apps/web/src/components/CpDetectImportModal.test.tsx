@@ -575,32 +575,26 @@ describe('CpDetectImportModal recognize-then-solve', () => {
     ]);
   });
 
-  /**
-   * The budget rule Rust cannot enforce. `solve_exact` builds its deadline from
-   * the `timeout_seconds` of the call it is in, so the published total has to be
-   * handed over for `runCpExactSolve` to divide between its two stages.
-   */
-  it('runs the solve without a deadline, whatever budget the recognize path published', async () => {
+  it('uses the bounded proposal solver for legacy recognition too', async () => {
     detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(0)));
     await reachReviewStage();
 
     const [input, options] = runCpExactSolve.mock.calls[0] as [unknown, Record<string, unknown>];
     expect(input).toEqual({ schema: 'exact-solve-input-v1' });
-    // Negative disables the solver's timeout; the published 25 s is not sent.
-    expect(options.timeoutSeconds).toBe(-1);
+    expect(options).toMatchObject({ timeoutSeconds: 25, recognitionFallback: true });
     expect(options.run).toEqual({ kind: 'detect-import', targetId: expect.any(String) });
   });
 
-  it('subtracts compact recognition time from the automatic solve budget', async () => {
+  it.each([[20, 25], [50, 10]])('bounds the solve after %s seconds of compact recognition', async (recognitionSeconds, budget) => {
     const now = vi.spyOn(performance, 'now').mockReturnValue(1000);
     detectClient.recognizeRectifiedFold.mockImplementation(async () => {
-      now.mockReturnValue(21000);
+      now.mockReturnValue(1000 + recognitionSeconds * 1000);
       return recognition(diagnostics(0), undefined, undefined, manifest(true));
     });
     try {
       await reachReviewStage();
       const [, options] = runCpExactSolve.mock.calls[0] as [unknown, Record<string, unknown>];
-      expect(options).toMatchObject({ timeoutSeconds: 40, recognitionFallback: true });
+      expect(options).toMatchObject({ timeoutSeconds: budget, recognitionFallback: true });
     } finally {
       now.mockRestore();
     }

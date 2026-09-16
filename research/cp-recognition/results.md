@@ -8,6 +8,11 @@ The model was published to the web app on 2026-09-16 after code deployment
 and the E031/E032 fixes. Earlier measurements below retain their original
 evaluation scope; the chronological notebook records final rollout checks.
 
+The subsequent [solver-only investigation](../cp-solver/results.md) now reaches
+all supported clean repaired graphs and all correctly recognized graphs within
+25 seconds in the browser. It leaves this detector comparison unchanged and
+reports geometric solving separately from original-reference recovery.
+
 ## Matched recognition comparison
 
 The latest `curated_benchmark` supplies the baseline. Its truth-size recognition

@@ -1,4 +1,4 @@
-//! Automatic recognition's bounded fallback, separate from manual solving.
+//! Bounded proposals for recognition and whole-pattern repair.
 use super::*;
 
 const LARGE_SPANS: usize = 1500;
@@ -13,12 +13,12 @@ pub(super) fn solve(
     options.recognition_fallback = false;
     let clock = ExactSolveDeadline::start(options.timeout_seconds, options.work_budget);
     let mut primary_options = options;
-    // Preserve the benchmark's ordinary 25-second solve, leaving the rest of
-    // the caller's total for a fallback. No independent second time budget.
+    // Reserve part of the same 25-second budget for the direct feasibility
+    // proposal. A slow ordinary polish must not starve every alternative.
     primary_options.timeout_seconds = if options.timeout_seconds < 0.0 {
-        DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS
+        20.0
     } else {
-        remaining(&clock).min(DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS)
+        (remaining(&clock) * 0.8).min(20.0)
     };
     let mut primary = solve_exact_inner(
         input,
@@ -29,45 +29,73 @@ pub(super) fn solve(
     );
     let spent = primary.movement_report["work_spent"].as_u64().unwrap_or(0);
     clock.work.set(spent);
-    if primary.movement_report["accepted"] == true || clock.expired() {
-        return finish(primary, &clock, options, None);
-    }
-    let Some((proposal, mut report)) = propose(input, &pinned) else {
-        return finish(primary, &clock, options, None);
-    };
-    let mut fallback_options = options;
-    fallback_options.timeout_seconds = remaining(&clock);
-    fallback_options.work_budget = clock.work_left();
-    let candidate = solve_exact_inner(
-        &proposal,
-        fallback_options,
-        Rc::clone(&exempt),
-        Rc::clone(&pinned),
-        false,
-    );
-    clock.work.set(
-        spent.saturating_add(
-            candidate.movement_report["work_spent"]
-                .as_u64()
-                .unwrap_or(0),
-        ),
-    );
-    report["candidate_status"] = json!(candidate.status);
-    report["candidate_timed_out"] = candidate.movement_report["timed_out"].clone();
-    report["adopted"] = json!(false);
-    // Require a complete solved graph, not just a lower objective. Merging is
-    // deliberately unsupported here until its original-anchor accounting has
-    // separate evidence; the ordinary solver may still merge as before.
-    if !clock.expired()
-        && candidate.status == ExactSolvedGraphStatus::Solved
-        && candidate.movement_report["accepted"] == true
-        && candidate.merged_vertices.is_empty()
-        && let Some(rebased) = judge_original(input, &candidate, options, &clock, exempt, pinned)
+    if (primary.status == ExactSolvedGraphStatus::Solved
+        && primary.movement_report["accepted"] == true)
+        || clock.expired()
     {
-        primary = rebased;
-        report["adopted"] = json!(true);
+        return finish(primary, &clock, options, None);
     }
-    finish(primary, &clock, options, Some(report))
+    let mut lattice_report = None;
+    if let Some((proposal, mut report)) = propose(input, &pinned) {
+        let mut fallback_options = options;
+        fallback_options.timeout_seconds = if options.timeout_seconds < 0.0 {
+            5.0
+        } else {
+            (remaining(&clock) * 0.5).min(5.0)
+        };
+        fallback_options.work_budget = clock.work_left();
+        let candidate = solve_exact_inner(
+            &proposal,
+            fallback_options,
+            Rc::clone(&exempt),
+            Rc::clone(&pinned),
+            false,
+        );
+        clock.work.set(
+            spent.saturating_add(
+                candidate.movement_report["work_spent"]
+                    .as_u64()
+                    .unwrap_or(0),
+            ),
+        );
+        report["candidate_status"] = json!(candidate.status);
+        report["candidate_timed_out"] = candidate.movement_report["timed_out"].clone();
+        report["adopted"] = json!(false);
+        if !clock.expired()
+            && candidate.status == ExactSolvedGraphStatus::Solved
+            && candidate.movement_report["accepted"] == true
+            && candidate.merged_vertices.is_empty()
+            && let Some(rebased) = judge_original(
+                input,
+                &candidate,
+                options,
+                &clock,
+                Rc::clone(&exempt),
+                Rc::clone(&pinned),
+            )
+        {
+            report["adopted"] = json!(true);
+            return finish(rebased, &clock, options, Some(report));
+        }
+        lattice_report = Some(report);
+    }
+    if !clock.expired() {
+        let candidate = projection::solve(input, options, &clock, exempt, pinned);
+        let adopted = candidate.status == ExactSolvedGraphStatus::Solved
+            && candidate.movement_report["accepted"] == true
+            && !clock.expired();
+        let report = json!({
+            "status": candidate.status,
+            "adopted": adopted,
+            "rejection_reasons": candidate.movement_report["rejection_reasons"],
+            "details": candidate.movement_report["constraint_projection"],
+        });
+        if adopted {
+            primary = candidate;
+        }
+        primary.movement_report["recognition_projection"] = report;
+    }
+    finish(primary, &clock, options, lattice_report)
 }
 
 fn remaining(clock: &ExactSolveDeadline) -> f64 {

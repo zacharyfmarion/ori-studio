@@ -32,7 +32,7 @@ use crate::candidate_graph::{
     BoundaryModel, BoundaryReconstructionPolicy, BoundarySide, BoundarySideModel,
     CandidateCarrierGeometry, CandidateVertex, CandidateVertexKind, CandidateVertexMovementPolicy,
 };
-use crate::carrier_lines::{carrier_bin, carrier_from};
+use crate::carrier_lines::carrier_from;
 use crate::fold_export::export_exact_solved_to_fold_document;
 use crate::{
     AssignmentEvidence, AssignmentEvidenceSource, AssignmentLabel, CandidateCreaseSourceKind,
@@ -404,8 +404,11 @@ fn build_input(
         if is_border {
             border_span_ids.push(id);
         }
-        // Collinear folding creases share a carrier (same angle/rho bin the solver
-        // uses) so pass-through creases stay straight during the solve.
+        // A document states its geometry: only numerically collinear creases
+        // become a shared source constraint. Detector-scale bins can put two
+        // distinct dense pleats on one carrier, making an already exact CP
+        // impossible to solve. Noisy pass-through proposals remain the solver's
+        // responsibility, with the usual movement and checker validation.
         let source_carrier_ids = if is_border {
             vec![]
         } else {
@@ -743,8 +746,9 @@ fn carrier_id_for(
     ids: &mut BTreeMap<(i64, i64), usize>,
     carrier: &CandidateCarrierGeometry,
 ) -> usize {
+    let key = crate::carrier_lines::numerical_carrier_bin(carrier);
     let next = ids.len();
-    *ids.entry(carrier_bin(carrier)).or_insert(next)
+    *ids.entry(key).or_insert(next)
 }
 
 fn side_of(p: Point2) -> Option<BoundarySide> {
@@ -894,6 +898,20 @@ mod tests {
         ];
         fold.edges_fold_angle = vec![None; 8];
         fold
+    }
+
+    #[test]
+    fn dense_parallel_document_creases_do_not_become_one_source_constraint() {
+        let mut ids = BTreeMap::new();
+        let line = |y| carrier_from(Point2::new(0., y), Point2::new(1., y)).0;
+        let first = carrier_id_for(&mut ids, &line(0.5001));
+        let parallel = carrier_id_for(&mut ids, &line(0.5009));
+        assert_ne!(
+            first, parallel,
+            "distinct pleats share the old detector bin"
+        );
+        let continued = carrier_from(Point2::new(0.5, 0.5001), Point2::new(1., 0.5001)).0;
+        assert_eq!(first, carrier_id_for(&mut ids, &continued));
     }
 
     /// The carrier id used to be a hash folded into a `usize`, which put a

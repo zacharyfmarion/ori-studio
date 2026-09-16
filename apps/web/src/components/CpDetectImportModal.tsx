@@ -29,7 +29,7 @@ import {
   type CpDetectRecognizeResult,
   type CpDetectRectifiedImage,
 } from '../engine/cpDetectTypes';
-import { CP_EXACT_SOLVE_NO_DEADLINE, runCpExactSolve } from '../engine/cpExactSolve';
+import { runCpExactSolve } from '../engine/cpExactSolve';
 import { requestCpExactSolveStop } from '../engine/cpExactSolveRuns';
 import { isCpExactSolveCancelledError } from '../engine/cpExactSolveSession';
 import {
@@ -663,10 +663,10 @@ export function CpDetectImportModal() {
       setSolveTargetId(targetId);
       try {
         const result = await runCpExactSolve(recognized.solveInput, {
-          ...('pixel_evidence' in recognized.manifest.outputs
-            ? { timeoutSeconds: Math.max(0, 60 - (performance.now() - startedAt) / 1000),
-                recognitionFallback: true }
-            : { timeoutSeconds: CP_EXACT_SOLVE_NO_DEADLINE }),
+          timeoutSeconds: 'pixel_evidence' in recognized.manifest.outputs
+            ? Math.min(25, Math.max(0, 60 - (performance.now() - startedAt) / 1000))
+            : 25,
+          recognitionFallback: true,
           run: { kind: 'detect-import', targetId },
           onStage: (stage) => setPhase({ kind: 'solving', stage }),
         });

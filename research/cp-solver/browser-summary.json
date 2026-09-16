@@ -1,0 +1,225 @@
+{
+  "date": "2026-09-16",
+  "hardware": "Apple M1 Max, 64 GB RAM",
+  "browser": {
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Safari/537.36",
+    "cores": 10,
+    "isolated": true
+  },
+  "wasm_sha256": "6d7a048b0ff864795e7cd7f2d443234286a4b619743ab24d3a0466eef0b68d96",
+  "timing": "One fresh actual solve worker per case; includes worker startup and export. Replace the first 256 repaired development timings with S016 isolated repeats; retain original S015 geometry scores. All other S015 runs had no competing test/build jobs from this task.",
+  "baseline": "Frozen native S000; topology reference scores corrected with verified frame inverse. Status/reference comparisons only, not a browser speed comparison.",
+  "holdout": "Previously observed; S014 was developed after holdout failure inspection, not a blind test.",
+  "groups": {
+    "topology": {
+      "all": {
+        "cases": 545,
+        "solved_within_25s": 531,
+        "reference_scored": 526,
+        "reference_recovered_within_25s": 494,
+        "solved_seconds": {
+          "median": 0.07222500014305115,
+          "p95": 1.8741449999809265,
+          "max": 10.98315499997139
+        }
+      },
+      "complexity": {
+        "small": {
+          "cases": 242,
+          "solved_within_25s": 236,
+          "reference_scored": 238,
+          "reference_recovered_within_25s": 224,
+          "solved_seconds": {
+            "median": 0.05254499995708466,
+            "p95": 0.20214499998092653,
+            "max": 0.8457249999046326
+          }
+        },
+        "medium": {
+          "cases": 219,
+          "solved_within_25s": 214,
+          "reference_scored": 207,
+          "reference_recovered_within_25s": 192,
+          "solved_seconds": {
+            "median": 0.09048500001430512,
+            "p95": 2.411539999961853,
+            "max": 10.98315499997139
+          }
+        },
+        "large": {
+          "cases": 60,
+          "solved_within_25s": 58,
+          "reference_scored": 57,
+          "reference_recovered_within_25s": 55,
+          "solved_seconds": {
+            "median": 0.43908750009536746,
+            "p95": 9.39456500005722,
+            "max": 10.013365000009538
+          }
+        },
+        "giant": {
+          "cases": 24,
+          "solved_within_25s": 23,
+          "reference_scored": 24,
+          "reference_recovered_within_25s": 23,
+          "solved_seconds": {
+            "median": 0.33454999995231627,
+            "p95": 1.4163149998188018,
+            "max": 2.5382300000190736
+          }
+        }
+      },
+      "comparison": {
+        "solved_25s": {
+          "baseline": 484,
+          "gains": 47,
+          "losses": 0
+        },
+        "recovered_25s": {
+          "baseline": 453,
+          "gains": 41,
+          "losses": 0
+        }
+      }
+    },
+    "detected": {
+      "all": {
+        "cases": 431,
+        "solved_within_25s": 421,
+        "reference_scored": 431,
+        "reference_recovered_within_25s": 387,
+        "solved_seconds": {
+          "median": 0.30114000010490416,
+          "p95": 7.993254999876022,
+          "max": 20.523410000085832
+        }
+      },
+      "complexity": {
+        "small": {
+          "cases": 216,
+          "solved_within_25s": 216,
+          "reference_scored": 216,
+          "reference_recovered_within_25s": 208,
+          "solved_seconds": {
+            "median": 0.16371499991416932,
+            "p95": 0.32561500000953675,
+            "max": 0.834164999961853
+          }
+        },
+        "medium": {
+          "cases": 162,
+          "solved_within_25s": 157,
+          "reference_scored": 162,
+          "reference_recovered_within_25s": 132,
+          "solved_seconds": {
+            "median": 0.6205699999332428,
+            "p95": 4.599990000009536,
+            "max": 19.119420000076293
+          }
+        },
+        "large": {
+          "cases": 43,
+          "solved_within_25s": 40,
+          "reference_scored": 43,
+          "reference_recovered_within_25s": 39,
+          "solved_seconds": {
+            "median": 7.83537250006199,
+            "p95": 20.449474999904634,
+            "max": 20.523410000085832
+          }
+        },
+        "giant": {
+          "cases": 10,
+          "solved_within_25s": 8,
+          "reference_scored": 10,
+          "reference_recovered_within_25s": 8,
+          "solved_seconds": {
+            "median": 1.0154349999427796,
+            "p95": 4.334179999828339,
+            "max": 4.334179999828339
+          }
+        }
+      },
+      "comparison": {
+        "solved_25s": {
+          "baseline": 404,
+          "gains": 17,
+          "losses": 0
+        },
+        "recovered_25s": {
+          "baseline": 372,
+          "gains": 15,
+          "losses": 0
+        }
+      },
+      "correct_topology_and_assignment": {
+        "cases": 421,
+        "solved_within_25s": 421,
+        "reference_scored": 421,
+        "reference_recovered_within_25s": 387,
+        "solved_seconds": {
+          "median": 0.30114000010490416,
+          "p95": 7.993254999876022,
+          "max": 20.523410000085832
+        }
+      }
+    },
+    "synthetic": {
+      "cases": 12,
+      "solved_within_25s": 12,
+      "reference_scored": 12,
+      "reference_recovered_within_25s": 12,
+      "solved_seconds": {
+        "median": 3.012125,
+        "p95": 12.78717999982834,
+        "max": 12.78717999982834
+      }
+    },
+    "synthetic-fans": {
+      "cases": 12,
+      "solved_within_25s": 12,
+      "reference_scored": 12,
+      "reference_recovered_within_25s": 9,
+      "solved_seconds": {
+        "median": 0.03848249995708465,
+        "p95": 0.06797500014305115,
+        "max": 0.06797500014305115
+      }
+    }
+  },
+  "source_runs_sha256": {
+    "S015-scores/topology-development/runs.json": "0062301df02d82eb1ab339dbaf3ce7a60b5fe17e7bd630285ef248e0f1850369",
+    "S015-scores/topology-holdout/runs.json": "e33ce93de49f0b2c9ee9f56aa7b71ed3d72eb98cabe59bcd79647cff7f7276bf",
+    "S015-scores/detected-development/runs.json": "1ec84346135b05decd5c85b58da73364c61b6a3c52413f9d3f4b3f687bc2b137",
+    "S015-scores/detected-holdout/runs.json": "d8992e9ae30f955539e30f4eec4ae045b8bea6610b10b61b09f8849255d3da8f",
+    "S015-scores/synthetic/runs.json": "a98876bbcd558b85bc0b510676145055f2d3796d7ce4e3239a13e811c5d88fee",
+    "S015-scores/synthetic-fans/runs.json": "7b03c4238d477661ecc8d1cf6aa18ee61692c5bdefa801ad1ccce318a59caaf6",
+    "S016-isolated/topology-development/runs.json": "edb7252a3b12eb6561f1bea53c6a71361ff14d2df9796c6c7d6f0126e70b9a99",
+    "S016-isolated/detected-development/runs.json": "bf2ea68824fded0578fcc661423d5f3f841178991f82c9a40eb402b012f0d8c8",
+    "S016-isolated/detected-holdout/runs.json": "60ad5707d71cbc058db92a5c5f647f17dc2ee67fff7d21ec590896b6725ae15a"
+  },
+  "slow_case_repeats": {
+    "detected-development": {
+      "cases": 1,
+      "solved_within_25s": 1,
+      "reference_scored": 0,
+      "reference_recovered_within_25s": 0,
+      "solved_seconds": {
+        "median": 20.509125,
+        "p95": 20.509125,
+        "max": 20.509125
+      }
+    },
+    "detected-holdout": {
+      "cases": 1,
+      "solved_within_25s": 1,
+      "reference_scored": 0,
+      "reference_recovered_within_25s": 0,
+      "solved_seconds": {
+        "median": 20.504789999961854,
+        "p95": 20.504789999961854,
+        "max": 20.504789999961854
+      }
+    }
+  }
+}

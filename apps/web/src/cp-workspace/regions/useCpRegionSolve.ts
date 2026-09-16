@@ -35,7 +35,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 
 import { CP_EXACT_SOLVE_REQUEST_EVENT } from '../../commands/menuActions';
-import { CP_EXACT_SOLVE_NO_DEADLINE, runCpExactSolve, type CpExactSolveRunOptions } from '../../engine/cpExactSolve';
+import { runCpExactSolve, type CpExactSolveRunOptions } from '../../engine/cpExactSolve';
 import {
   cpExactSolveRunFor,
   cpExactSolveRunsSnapshot,
@@ -93,17 +93,11 @@ import {
 } from './regionSolveGeometry';
 
 /**
- * A region solve runs until it converges, gives up, or is stopped.
- *
- * It was capped at 25 s — the figure every measurement in
- * `crease-topology-repair.md` was taken against — and a solve still converging
- * at the cap was cut off and offered as a partial. The verdict on that, from
- * use: a complex pattern that would get there in forty seconds is worth forty
- * seconds, and the chip already carries the Stop for the ones that would not.
- * A negative budget disables the solver's deadline; the timed-out partial path
- * below stays for a solver that reports one.
+ * One shared budget for the ordinary solve and the feasibility proposals.
+ * The direct-coordinate fallback handles large non-grid patterns without
+ * waiting indefinitely for a carrier factorization. Stop remains immediate.
  */
-export const CP_REGION_SOLVE_BUDGET_SECONDS = CP_EXACT_SOLVE_NO_DEADLINE;
+export const CP_REGION_SOLVE_BUDGET_SECONDS = 25;
 
 /**
  * The paper edge in pixels, for the chip's "moved < N px".
@@ -246,6 +240,7 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
         frame = { edgesVertices, transform: rebuilt.transform };
         const run = await latest.current.solve(rebuilt.input, {
           timeoutSeconds: CP_REGION_SOLVE_BUDGET_SECONDS,
+          recognitionFallback: true,
           pinnedVertexIds,
           run: { kind, targetId: regionId },
         } satisfies CpExactSolveRunOptions);

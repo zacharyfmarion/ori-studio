@@ -50,7 +50,7 @@ import {
 export type { CpExactSolver } from './cpExactSolveSession';
 
 export interface CpExactSolveRunOptions {
-  /** Automatic compact recognition: one fused, bounded call with grid fallback. */
+  /** One bounded call with lattice and direct-coordinate feasibility proposals. */
   recognitionFallback?: boolean;
   /**
    * The wall-clock budget for **the whole solve**, in seconds — not per stage.

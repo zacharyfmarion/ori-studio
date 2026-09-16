@@ -32,7 +32,31 @@ use std::rc::Rc;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 
+mod projection;
 mod recognition;
+
+/// Research entry point for a bounded direct-coordinate feasibility proposal.
+/// Uses the same final checks, pins and movement budget as the ordinary solve.
+pub fn solve_exact_projection(
+    input: &ExactSolveInput,
+    options: &ExactSolveOptionsWithExemptions,
+) -> ExactSolvedGraph {
+    let pinned = Rc::new(options.pinned_vertex_ids.clone());
+    let normalized = normalized_input(input, &pinned);
+    let clock =
+        ExactSolveDeadline::start(options.options.timeout_seconds, options.options.work_budget);
+    let mut result = projection::solve(
+        &normalized,
+        options.options,
+        &clock,
+        Rc::new(options.exempt_vertex_ids.clone()),
+        Rc::clone(&pinned),
+    );
+    place_dissolved_vertices(&normalized, input, &mut result.vertices_exact);
+    report_dissolved_movement(&normalized, input, &mut result);
+    restore_original_edges(input, &mut result);
+    result
+}
 
 const SCHEMA: &str = "oristudio/cp-compiler/exact-solved-graph-v1";
 /// The single source of truth for the exact-solve wall-clock budget, shared by
@@ -58,9 +82,10 @@ pub enum LinearSolver {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ExactSolveOptions {
-    /// Bounded automatic recognition policy: preserve accepted ordinary solves,
-    /// then try a dominant partial lattice. Large graphs first use the existing
-    /// lattice-only pass. Opt-in; manual exact solving retains its policy.
+    /// Bounded proposal policy: preserve exact ordinary solves, then try a
+    /// dominant partial lattice and direct-coordinate feasibility projection.
+    /// Large graphs start with lattice-only instead of a dense factorization.
+    /// Opt-in at the API; recognition and whole-region solving enable it.
     #[serde(default)]
     pub recognition_fallback: bool,
     pub patience: usize,
@@ -1638,6 +1663,27 @@ impl SolveModel {
         exempt_vertex_ids: Rc<BTreeSet<usize>>,
         pinned_vertex_ids: Rc<BTreeSet<usize>>,
     ) -> Self {
+        Self::with_carrier_resolution(
+            input,
+            options,
+            deadline,
+            exempt_vertex_ids,
+            pinned_vertex_ids,
+            false,
+        )
+    }
+
+    /// Read inferred carriers from a feasibility proposal at numerical
+    /// collinearity. Explicit source groups remain hard constraints in either
+    /// mode; only detector-scale observation bins are reconsidered.
+    fn with_carrier_resolution(
+        input: &ExactSolveInput,
+        options: ExactSolveOptions,
+        deadline: ExactSolveDeadline,
+        exempt_vertex_ids: Rc<BTreeSet<usize>>,
+        pinned_vertex_ids: Rc<BTreeSet<usize>>,
+        numerical_carriers: bool,
+    ) -> Self {
         let mut params = Vec::new();
         let polygon = is_polygon_boundary(input);
         let corner_points = if polygon {
@@ -1706,7 +1752,7 @@ impl SolveModel {
             {
                 continue;
             }
-            let key = CarrierGroupKey::from_span(span);
+            let key = CarrierGroupKey::from_span(span, numerical_carriers);
             let group_index = if let Some(index) = group_by_key.get(&key).copied() {
                 index
             } else {
@@ -3222,7 +3268,7 @@ enum CarrierGroupKey {
 }
 
 impl CarrierGroupKey {
-    fn from_span(span: &CandidateCreaseSpan) -> Self {
+    fn from_span(span: &CandidateCreaseSpan, numerical_carriers: bool) -> Self {
         if let Some(id) = span.source_carrier_ids.first().copied() {
             return Self::Source(id);
         }
@@ -3232,6 +3278,10 @@ impl CarrierGroupKey {
                 | CandidateCreaseSpanKind::NormalizedPassThroughSpan
                 | CandidateCreaseSpanKind::SharedCarrierSpan
         ) {
+            if numerical_carriers {
+                let (angle, rho) = crate::carrier_lines::numerical_carrier_bin(&span.carrier);
+                return Self::Geometry(angle, rho);
+            }
             let theta = span.carrier.normal.y.atan2(span.carrier.normal.x);
             let angle_bin = (theta / 0.01).round() as i64;
             let rho_bin = (span.carrier.rho / 0.0025).round() as i64;
