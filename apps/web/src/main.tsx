@@ -5,6 +5,7 @@ import posthog from 'posthog-js';
 import * as Sentry from '@sentry/react';
 import {
   AnalyticsRuntimeProvider,
+  consumeInternalUserFlag,
   initializePostHog,
   type PostHogClientLike,
 } from './analytics';
@@ -32,6 +33,11 @@ import './App.css';
 // Before `createRoot`, not after: the node is a sibling of `#root`, so nothing else would
 // ever take it away. In dev there is no prerender and this is a no-op.
 document.getElementById(SEO_CONTENT_ID)?.remove();
+
+// `?internal=1` marks this device as a developer's own so analytics can filter it
+// out. Consumed before the router reads the URL and before PostHog registers
+// anything, so the parameter reaches neither.
+consumeInternalUserFlag();
 
 const router = createAppRouter();
 setAppRouter(router);

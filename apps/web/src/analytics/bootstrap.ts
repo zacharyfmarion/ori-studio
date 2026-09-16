@@ -18,6 +18,7 @@ import { redactSensitiveText } from '../lib/redact';
 import { getRuntimeSurface } from '../platform/runtime';
 import { getDisplayMode } from '../pwa/register';
 import type { AnalyticsErrorDomain } from './events';
+import { getInternalUserProperties } from './internalUser';
 import { getOrCreateStableId } from './stableId';
 
 /** The subset of the PostHog client surface this layer uses. */
@@ -97,6 +98,9 @@ export function getBootstrapSharedProperties(options: BootstrapOptions): Record<
     display_mode: getDisplayMode(),
     analytics_enabled: options.analyticsEnabled,
     ...getLocaleProperties(resolveLanguage(preference), preference),
+    // Present only on a device marked with `?internal=1`; the project's
+    // test-account filter excludes it. See `internalUser.ts`.
+    ...getInternalUserProperties(),
   };
 }
 
@@ -140,6 +144,12 @@ export function initializePostHog(
     mask_all_element_attributes: true,
     // Anonymous until we explicitly identify() below.
     person_profiles: 'identified_only',
+    // The dated defaults above turn on the SDK's "localhost is a test user"
+    // heuristic, which sets the `$internal_or_test_user` person property by
+    // hostname — and the desktop app's origin on macOS is `tauri://localhost`,
+    // so it marked every Mac desktop user as a tester. Internal devices are
+    // marked explicitly instead (`internalUser.ts`).
+    internal_or_test_user_hostname: null,
   });
 
   client.register(getBootstrapSharedProperties(options));

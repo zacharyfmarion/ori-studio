@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LOCALE_STORAGE_KEY } from '../../i18n/locales';
+import { storageKey, STORAGE_KEYS } from '../../lib/storage';
 import {
   fingerprintError,
   getBootstrapSharedProperties,
@@ -61,6 +62,17 @@ describe('initializePostHog', () => {
       disable_surveys: true,
       autocapture: true,
     });
+  });
+
+  // The dated `defaults` bundle turns the SDK's localhost heuristic on, and the
+  // macOS desktop app lives at `tauri://localhost` — with it on, every Mac
+  // desktop user was a "test user". `null` is the SDK's documented off switch;
+  // `undefined` would fall back to the bundle's regex.
+  it('switches off the hostname test-user heuristic explicitly', () => {
+    const client = makeFakeClient();
+    initializePostHog(client, { analyticsEnabled: true }, KEY_ENV);
+    const [, config] = client.init.mock.calls[0];
+    expect(config).toHaveProperty('internal_or_test_user_hostname', null);
   });
 
   it('opts in and identifies with a persisted stable id when enabled', () => {
@@ -134,6 +146,21 @@ describe('locale super properties', () => {
     expect(getLocaleProperties('pt-BR', 'pt-BR')).toEqual({
       locale: 'pt-BR',
       locale_source: 'pinned',
+    });
+  });
+});
+
+describe('internal user super property', () => {
+  // The project filter is `internal_user is not set`, so an ordinary device
+  // must not carry the key at all — not `false`.
+  it('is absent on an ordinary device', () => {
+    expect(getBootstrapSharedProperties({ analyticsEnabled: true })).not.toHaveProperty('internal_user');
+  });
+
+  it('rides on every event once the device is marked', () => {
+    localStorage.setItem(storageKey(STORAGE_KEYS.analyticsInternalUser), 'true');
+    expect(getBootstrapSharedProperties({ analyticsEnabled: true })).toMatchObject({
+      internal_user: true,
     });
   });
 });
