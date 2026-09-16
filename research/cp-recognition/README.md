@@ -61,7 +61,7 @@ patterns. It has not replaced the published model.
 | E027 | Bounded, validated partial-grid fallback | Integrated: 293 → 307 development recoveries; Dwarf browser fully exact in 14.2 s |
 | E028 | More clean-patch rehearsal after annotation learning | Rejected; no checkpoint met the clean-accuracy gate |
 | E029 | Lower peak confidence threshold | Rejected; Hand/Dwarf worsen; higher threshold helps Frog but hurts Hand |
-| E030 | Existing detector only after compact topology defects | Screening: 339 → 342 exact development graphs; browser feasibility under review |
+| E030 | Existing detector only after compact topology defects | 339 → 342 exact development graphs, one partial regression; retained as optional research, not default |
 
 E004 was not assigned. Artifact directories retain experimental states; the
 candidate pointer and results report identify the selected combination.

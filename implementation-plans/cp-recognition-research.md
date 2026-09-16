@@ -63,4 +63,11 @@ these quality objectives are solved.
 - [x] Prototype a partial dominant-grid solve on development only.
 - [x] Integrate opt-in fallback with original-coordinate checks and a shared deadline.
 - [x] Replay the integrated policy and verify browser results and elapsed time.
-- [ ] Update reproducible evidence, tests, notes, and the draft PR.
+- [x] Update reproducible evidence, tests, notes, and the draft PR.
+
+E027 raises strict solved recovery to 390/526, with 20 gains and no recovery
+regressions over the prior candidate. Dwarf is fully exact in the browser in
+14.16 seconds. Automatic compact import shares a cooperative 60-second budget;
+recognition quality, ambiguous low-resolution inputs, and curated regressions
+remain limitations. E028 and E029 did not justify changing the selected model.
+E030's optional second-model strategy is recorded but is not the default.
