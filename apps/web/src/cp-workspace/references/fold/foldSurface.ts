@@ -184,14 +184,20 @@ export function createFoldSurface(params: FoldSurfaceParams): FoldSurface {
  * table does (Zach, 2026-09-16).
  *
  * In the sheet's own material, measured from the far edge, the bend sits at
- * `hinge` and moves from the taken edge to the far one as `progress` runs 0
- * to 1. What is short of it lies on the table; what is past it has come
- * over, hovering `2r` up, mirrored about the bend. Left to itself the sheet
- * would land a width past the far edge, so once the paper is half over the
- * part still on the table slides back under the part that has come over,
- * just as far as keeps the far end where it started, and the sheet lands
- * exactly on its own footprint, mirrored: the picture the next card starts
- * from.
+ * `hinge`. What is short of it lies on the table; what is past it has come
+ * over, hovering `2r` up, mirrored about the bend. The bend starts at the
+ * taken edge and, as `progress` runs 0 to 1, travels to the far edge and
+ * then its own length past it, so the last of the paper has unrolled and
+ * lies flat when the roll ends — stopped at the far edge, the sheet was
+ * left with its last stretch still curled (Zach, 2026-09-16).
+ *
+ * Left to itself the sheet would land a width past the far edge, so the
+ * part still on the table slides back under the part that has come over —
+ * gathering speed, and never past the sheet's own edge — and the taken edge
+ * comes down on the far one slowing to a stop, just as the bend reaches it.
+ * From there the bend rolls off the far edge with the free end at rest, and
+ * the sheet ends exactly on its own footprint, mirrored: the picture the
+ * next card starts from.
  */
 export function createRollOverSurface(
   progress: number,
@@ -200,10 +206,16 @@ export function createRollOverSurface(
 ): FoldSurface {
   const width = 2 * Math.max(0, halfWidth);
   const p = Math.max(0, Math.min(1, progress));
-  const hinge = width * (1 - p);
-  const slide = Math.max(0, width - 2 * hinge);
   const bend = createFoldSurface({ radius, angle: Math.PI, press: 0, creased: [], ramp: 0 });
   const reach = radius * Math.PI;
+  const hinge = width - p * (width + reach);
+  // How much of the width the bend has crossed; 1 as it reaches the far edge.
+  const crossed = width > 0 ? (p * (width + reach)) / width : 1;
+  // The free end comes down as `width·(1 − crossed)²` short of the far edge
+  // — at rest there from `crossed = 1` — and the paper still on the table
+  // is carried whatever distance keeps it so.
+  const landing = width * Math.max(0, 1 - crossed) ** 2;
+  const slide = landing - width + 2 * p * (width + reach);
   // The frame's `u` runs from −halfWidth at the far edge to +halfWidth at
   // the taken one; material is counted from the far edge.
   const hingeU = hinge - halfWidth;

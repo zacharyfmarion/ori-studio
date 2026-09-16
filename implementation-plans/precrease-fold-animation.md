@@ -437,9 +437,24 @@ Enums only; no step numbers, no geometry.
       only a mark is wanted. A card that only makes a mark has no fold and
       keeps the hint. Same transport, same Play button, same Space and
       auto-play; the analytics event carries `tab` to tell the two apart.
-- [x] A turn-over rolls at its own pace, half as long again as a swing
-      (`TURN_OVER_DURATION_MS`, 1725 ms): legs carry their duration and the
-      transport reads a card's from its kind.
+- [x] A turn-over rolls at its own pace: legs carry a `FoldLegPace`
+      (duration, and whether they roll) and the transport reads a card's from
+      its kind. A roll is the whole leg — 1380 ms, half as long again as a
+      swing, with no press phase to sit through — and eases in sine rather
+      than cubic, which peaked at three times the mean pace and read as
+      aggressive (Zach, 2026-09-16).
+- [x] The roll completes. The bend used to stop at the far edge with the
+      last `π·r` of paper still curled there; now it travels its own length
+      past the edge, the taken edge comes down on the far one slowing to a
+      stop (`width·(1 − crossed)²` short of it) just as the bend arrives, and
+      the last of the paper unrolls flat with the free end at rest. The paper
+      on the table slides under throughout, never past the sheet's edge; the
+      one departure from the footprint is the roll's own radius as the far
+      edge comes round at the end.
+- [x] A symbol can ride both halves of a twin — their flaps overlap where the
+      creases cross, and a mark there (card 18's P) moves with each in turn —
+      so a group is tagged with every flap its symbol rides, and fades with
+      whichever is moving.
 - [x] The symbols over the canvas fade with the paper they mark. A letter,
       ring or arrow anchored on the moving flap (`foldSymbolFade`: inside the
       flap's polygon, off the hinge; an arrow by where it leaves from; all of

@@ -14,7 +14,7 @@
 import {
   foldLegs,
   isFolded,
-  legDurationMs,
+  legPace,
   runAtRest,
   runHeading,
   runPose,
@@ -180,7 +180,7 @@ export class FoldTransport {
   private rest(): void {
     this.stop();
     const scene = this.scene;
-    this.run = runAtRest(scene ? foldLegs(scene.flaps.length, legDurationMs(scene.kind)) : []);
+    this.run = runAtRest(scene ? foldLegs(scene.flaps.length, legPace(scene.kind)) : []);
     this.push();
     this.publish();
   }

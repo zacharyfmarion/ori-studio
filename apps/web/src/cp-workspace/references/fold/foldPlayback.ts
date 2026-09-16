@@ -37,6 +37,17 @@ export interface FoldLeg {
   holdMs: number;
   /** How long this leg takes, one way, in ms. */
   durationMs: number;
+  /**
+   * The whole sheet rolling over rather than a flap swinging: the roll runs
+   * the whole leg with no press to end on, and eases more gently.
+   */
+  roll: boolean;
+}
+
+/** How a card's legs go: how long, and whether they roll. */
+export interface FoldLegPace {
+  durationMs: number;
+  roll: boolean;
 }
 
 export interface FoldRun {
@@ -55,11 +66,13 @@ export interface FoldRun {
 /** One leg, one way. */
 export const FOLD_DURATION_MS = 1150;
 /**
- * A turn-over's leg. The whole sheet is on the move and the eye has to
- * follow the far edge all the way across the table, so it goes half as long
- * again as a flap's swing.
+ * A turn-over's leg, all of it roll. The whole sheet is on the move and the
+ * eye has to follow the far edge all the way across the table, so it goes
+ * half as long again as a flap's swing.
  */
-export const TURN_OVER_DURATION_MS = 1725;
+export const TURN_OVER_DURATION_MS = 1380;
+export const FOLD_PACE: FoldLegPace = { durationMs: FOLD_DURATION_MS, roll: false };
+export const TURN_OVER_PACE: FoldLegPace = { durationMs: TURN_OVER_DURATION_MS, roll: true };
 /** The swing's share of a leg's progress; the rest is the press. */
 export const FOLD_SWING_SHARE = 0.8;
 /** How long a twin's first fold rests folded before it comes back up. */
@@ -79,9 +92,24 @@ export function easeOut(t: number): number {
   return 1 - Math.pow(1 - x, 3);
 }
 
-/** The paper's pose at a progress: the swing first, then the press. */
-export function poseAt(progress: number): Omit<FoldPose, 'flap'> {
+/**
+ * Sine ease-in-out: gentler than the cubic, peaking at half again the mean
+ * pace where the cubic peaks at three times it. A whole sheet on the move
+ * across the table wants the gentler one (Zach: the cubic felt aggressive,
+ * the end sudden).
+ */
+export function easeInOutSine(t: number): number {
+  return (1 - Math.cos(Math.PI * clamp01(t))) / 2;
+}
+
+/**
+ * The paper's pose at a progress: the swing first, then the press — or,
+ * rolling, the roll alone over the whole leg, since a sheet turning over
+ * has nothing to press.
+ */
+export function poseAt(progress: number, roll = false): Omit<FoldPose, 'flap'> {
   const at = clamp01(progress);
+  if (roll) return { angle: Math.PI * easeInOutSine(at), press: 0 };
   if (at <= FOLD_SWING_SHARE) {
     return { angle: Math.PI * easeInOut(at / FOLD_SWING_SHARE), press: 0 };
   }
@@ -91,21 +119,21 @@ export function poseAt(progress: number): Omit<FoldPose, 'flap'> {
   };
 }
 
-/** How long a card of this kind takes over each leg. */
-export function legDurationMs(kind: FoldSceneKind): number {
-  return kind === 'turn-over' ? TURN_OVER_DURATION_MS : FOLD_DURATION_MS;
+/** How a card of this kind goes. */
+export function legPace(kind: FoldSceneKind): FoldLegPace {
+  return kind === 'turn-over' ? TURN_OVER_PACE : FOLD_PACE;
 }
 
 /**
  * What a card plays: one fold for one flap; for a pair, the first folded,
  * held and unfolded, then the second folded — and left folded.
  */
-export function foldLegs(flapCount: number, durationMs = FOLD_DURATION_MS): FoldLeg[] {
-  if (flapCount <= 1) return [{ flap: 0, heading: 'fold', holdMs: 0, durationMs }];
+export function foldLegs(flapCount: number, pace: FoldLegPace = FOLD_PACE): FoldLeg[] {
+  if (flapCount <= 1) return [{ flap: 0, heading: 'fold', holdMs: 0, ...pace }];
   const legs: FoldLeg[] = [];
   for (let flap = 0; flap < flapCount; flap += 1) {
-    legs.push({ flap, heading: 'fold', holdMs: TWIN_HOLD_MS, durationMs });
-    if (flap + 1 < flapCount) legs.push({ flap, heading: 'unfold', holdMs: 0, durationMs });
+    legs.push({ flap, heading: 'fold', holdMs: TWIN_HOLD_MS, ...pace });
+    if (flap + 1 < flapCount) legs.push({ flap, heading: 'unfold', holdMs: 0, ...pace });
   }
   return legs;
 }
@@ -114,7 +142,7 @@ export function foldLegs(flapCount: number, durationMs = FOLD_DURATION_MS): Fold
 export function unfoldingLegs(legs: readonly FoldLeg[]): FoldLeg[] {
   const last = legs[legs.length - 1];
   return last
-    ? [{ flap: last.flap, heading: 'unfold', holdMs: 0, durationMs: last.durationMs }]
+    ? [{ flap: last.flap, heading: 'unfold', holdMs: 0, durationMs: last.durationMs, roll: last.roll }]
     : [];
 }
 
@@ -149,7 +177,7 @@ export function isFolded(run: FoldRun): boolean {
 export function runPose(run: FoldRun): FoldPose | null {
   const leg = run.legs[run.leg];
   if (!leg || isFlat(run)) return null;
-  return { flap: leg.flap, ...poseAt(run.at) };
+  return { flap: leg.flap, ...poseAt(run.at, leg.roll) };
 }
 
 /** The way the run is going, for the record. */

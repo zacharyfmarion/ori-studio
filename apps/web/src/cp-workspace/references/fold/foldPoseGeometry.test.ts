@@ -274,29 +274,38 @@ describe('foldPoseGeometry, turning the sheet over', () => {
     expect(Math.max(...xs(over.fills.position))).toBeCloseTo(2, 3);
     // Hovering a roll's height over the table, showing its other face.
     expect(Math.max(...Array.from(over.fills.depth!))).toBeCloseTo(0.05 + 0.9 * ((2 * roll) / 0.5), 3);
-    // Every face has turned but the hinge row on the far edge, where the
-    // bend starts face up on the table; the flat part shows the other face
-    // plain. (The bend is sampled densely, so most vertices are on it,
-    // shaded between the two.)
+    // Everything has come over and lies flat: every face shows the other
+    // side plain, with nothing left curled face up at the far edge.
     const faces = [...Array(over.fills.count).keys()].map((i) => rgba(over.fills.color, i * 4)[0]);
-    faces.forEach((red, i) => {
-      if (Math.abs(red - UP[0]) < 1e-3) expect(over.fills.position[i * 2]).toBeCloseTo(0, 6);
-    });
-    expect(faces.some((red) => Math.abs(red - OTHER[0]) < 1e-3)).toBe(true);
+    expect(faces.every((red) => Math.abs(red - OTHER[0]) < 1e-3)).toBe(true);
     // The valley at x = 0.25 is now at x = 0.75, named a mountain from this side.
     expect(over.strokes.a[0]).toBeCloseTo(1.5, 3);
     expect(rgba(over.strokes.color)).toEqual(MOUNTAIN);
     expect(over.strokes.dashSlot![0]).toBe(2);
   });
 
-  it('halfway, has carried the left half over onto the right, the rest still on the table', () => {
+  it('halfway, has the taken edge most of the way over and the rest sliding under it', () => {
     const { fills } = foldPoseGeometry(turning, pose(Math.PI / 2), [], paint);
-    // Nothing left of the centre line; the right half is two layers deep.
-    expect(Math.min(...xs(fills.position))).toBeGreaterThanOrEqual(1 - 1e-6);
-    expect(Math.max(...xs(fills.position))).toBeCloseTo(2, 3);
+    // Two layers in the middle of the footprint: the far edge has come in
+    // from the right, the taken edge is on its way down toward it.
+    expect(Math.min(...xs(fills.position))).toBeGreaterThan(0.3);
+    expect(Math.max(...xs(fills.position))).toBeLessThan(1.7);
     const faces = [...Array(fills.count).keys()].map((i) => rgba(fills.color, i * 4)[0]);
     expect(faces.some((red) => Math.abs(red - UP[0]) < 1e-3)).toBe(true);
     expect(faces.some((red) => Math.abs(red - OTHER[0]) < 1e-3)).toBe(true);
     expect(Math.min(...Array.from(fills.depth!))).toBeCloseTo(0.05);
+  });
+
+  it('brings the taken edge down on the far one just as the bend gets there', () => {
+    // In the sheet's own units: 1 wide, the roll's radius a share of that.
+    const landing = 1 / (1 + Math.PI * roll);
+    const { fills } = foldPoseGeometry(turning, pose(Math.PI * landing), [], paint);
+    // The whole footprint again: the taken edge on the right, and the far
+    // edge on the left, face up, about to go round the bend.
+    expect(Math.min(...xs(fills.position))).toBeCloseTo(0, 3);
+    expect(Math.max(...xs(fills.position))).toBeCloseTo(2, 3);
+    const faces = [...Array(fills.count).keys()].map((i) => rgba(fills.color, i * 4)[0]);
+    expect(faces.some((red) => Math.abs(red - UP[0]) < 1e-3)).toBe(true);
+    expect(faces.some((red) => Math.abs(red - OTHER[0]) < 1e-3)).toBe(true);
   });
 });

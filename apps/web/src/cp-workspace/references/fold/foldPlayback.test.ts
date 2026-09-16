@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   FOLD_DURATION_MS,
-  legDurationMs,
   TURN_OVER_DURATION_MS,
   unfoldingLegs,
   FOLD_SWING_SHARE,
@@ -16,6 +15,11 @@ import {
   tickFoldRun,
   toggleFoldRun,
   type FoldRun,
+  legPace,
+  FOLD_PACE,
+  TURN_OVER_PACE,
+  easeInOut,
+  easeInOutSine,
 } from './foldPlayback';
 
 const single = () => runAtRest(foldLegs(1));
@@ -66,7 +70,7 @@ describe('a fold card', () => {
     expect(over.playing).toBe(false);
     const under = tickFoldRun(
       {
-        ...runAtRest([{ flap: 0, heading: 'unfold', holdMs: 0, durationMs: FOLD_DURATION_MS }]),
+        ...runAtRest([{ flap: 0, heading: 'unfold', holdMs: 0, ...FOLD_PACE }]),
         at: 0.1,
         playing: true,
       },
@@ -103,7 +107,7 @@ describe('a twin card', () => {
     // Rested folded on the second flap, Play unfolds that flap alone…
     const back = toggleFoldRun(run);
     expect(back.legs).toEqual([
-      { flap: 1, heading: 'unfold', holdMs: 0, durationMs: FOLD_DURATION_MS },
+      { flap: 1, heading: 'unfold', holdMs: 0, ...FOLD_PACE },
     ]);
     const flat = playOut(back);
     expect(isFlat(flat)).toBe(true);
@@ -167,17 +171,28 @@ describe('poseAt', () => {
     }
   });
 
-  it('takes a turn-over half as long again as a fold, and unfolds at the same pace', () => {
-    expect(legDurationMs('turn-over')).toBe(TURN_OVER_DURATION_MS);
-    expect(legDurationMs('cp')).toBe(FOLD_DURATION_MS);
-    expect(legDurationMs('reference')).toBe(FOLD_DURATION_MS);
-    expect(TURN_OVER_DURATION_MS / FOLD_DURATION_MS).toBeCloseTo(1.5);
-    const over = runAtRest(foldLegs(1, TURN_OVER_DURATION_MS));
+  it('rolls a turn-over over the whole leg at its own pace, easing gently', () => {
+    expect(legPace('turn-over')).toBe(TURN_OVER_PACE);
+    expect(legPace('cp')).toBe(FOLD_PACE);
+    expect(legPace('reference')).toBe(FOLD_PACE);
+    // No press at the end of a roll: the sheet is still turning where a flap
+    // would be pressing, and lands flat at the very end.
+    expect(poseAt(0.9).angle).toBe(Math.PI);
+    expect(poseAt(0.9, true).angle).toBeLessThan(Math.PI);
+    expect(poseAt(0.9, true).press).toBe(0);
+    expect(poseAt(1, true)).toEqual({ angle: Math.PI, press: 0 });
+    // The sine ease: symmetric, and gentler through the middle than the cubic.
+    expect(easeInOutSine(0.5)).toBeCloseTo(0.5);
+    expect(easeInOutSine(0.25)).toBeCloseTo((1 - Math.SQRT1_2) / 2);
+    expect(easeInOutSine(0.75)).toBeCloseTo(1 - easeInOutSine(0.25));
+    expect(easeInOutSine(0.6) - easeInOutSine(0.4)).toBeLessThan(easeInOut(0.6) - easeInOut(0.4));
+    // A whole leg of roll, timed by its pace, and the way back the same.
+    const over = runAtRest(foldLegs(1, TURN_OVER_PACE));
     const atFoldTime = tickFoldRun(toggleFoldRun(over), FOLD_DURATION_MS);
     expect(atFoldTime.playing).toBe(true);
-    expect(atFoldTime.at).toBeCloseTo(FOLD_DURATION_MS / TURN_OVER_DURATION_MS);
+    expect(runPose(atFoldTime)?.angle).toBeLessThan(Math.PI);
     const landed = tickFoldRun(atFoldTime, TURN_OVER_DURATION_MS - FOLD_DURATION_MS);
     expect(isFolded(landed)).toBe(true);
-    expect(unfoldingLegs(landed.programme)[0]?.durationMs).toBe(TURN_OVER_DURATION_MS);
+    expect(unfoldingLegs(landed.programme)[0]).toMatchObject(TURN_OVER_PACE);
   });
 });

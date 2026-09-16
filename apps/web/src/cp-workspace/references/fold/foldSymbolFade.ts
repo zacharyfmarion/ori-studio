@@ -88,17 +88,22 @@ function ridesFlap(anchor: Point, flap: FoldFlapScene, tolerance: number): boole
 }
 
 /**
- * Which of the fold's flaps a symbol rides, or null when it stays where it
+ * Which of the fold's flaps a symbol rides — every one whose paper it sits
+ * on, since a twin's two flaps overlap where their creases cross and a mark
+ * in the overlap moves with each in turn — or none when it stays where it
  * is: on the paper that does not move, on the hinge itself, or off the
- * sheet altogether — the mark a flap is folded *to* is as often outside the
+ * sheet altogether. The mark a flap is folded *to* is as often outside the
  * paper as on it, and it goes nowhere either way.
  */
-export function symbolFlap(primitive: StepDiagramPrimitive, scene: FoldScene): number | null {
+export function symbolFlaps(primitive: StepDiagramPrimitive, scene: FoldScene): number[] {
   const anchor = symbolAnchor(primitive);
-  if (!anchor) return null;
+  if (!anchor) return [];
   const tolerance = scene.sheetShortSide * 1e-9;
-  const index = scene.flaps.findIndex((flap) => ridesFlap(anchor, flap, tolerance));
-  return index < 0 ? null : index;
+  const out: number[] = [];
+  scene.flaps.forEach((flap, index) => {
+    if (ridesFlap(anchor, flap, tolerance)) out.push(index);
+  });
+  return out;
 }
 
 const smoothstep = (t: number): number => {
@@ -107,12 +112,12 @@ const smoothstep = (t: number): number => {
 };
 
 /**
- * How visible a symbol riding `flap` is under `pose`: 1 with the paper flat,
- * 0 once it has lifted through {@link SYMBOL_FADE_ANGLE}, and back to 1 the
- * same way as it comes down. A symbol on a flap that is not the one moving
- * — a twin's other half — is untouched.
+ * How visible a symbol riding `flaps` is under `pose`: 1 with the paper
+ * flat, 0 once it has lifted through {@link SYMBOL_FADE_ANGLE}, and back to
+ * 1 the same way as it comes down. A symbol on no flap, or only on a flap
+ * that is not the one moving — a twin's other half — is untouched.
  */
-export function symbolOpacity(flap: number | null, pose: FoldPose | null): number {
-  if (flap === null || !pose || pose.flap !== flap) return 1;
+export function symbolOpacity(flaps: readonly number[], pose: FoldPose | null): number {
+  if (!pose || !flaps.includes(pose.flap)) return 1;
   return 1 - smoothstep(pose.angle / SYMBOL_FADE_ANGLE);
 }

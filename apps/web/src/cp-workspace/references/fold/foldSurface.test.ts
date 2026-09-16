@@ -145,65 +145,89 @@ describe('createFoldSurface', () => {
 
 describe('createRollOverSurface', () => {
   const r = 0.5;
+  const reach = Math.PI * r;
+  /** A sheet 8 wide: `u` from −4 at the far edge to +4 at the taken one. */
+  const surface = (progress: number) => createRollOverSurface(progress, 4, r);
+  /** Where the bend reaches the far edge, and the taken edge has come down. */
+  const landing = 8 / (8 + reach);
 
   it('is the sheet on the table before it is taken, and the sheet mirrored in place once over', () => {
-    const before = createRollOverSurface(0, 4, r);
+    const before = surface(0);
     for (const u of [-4, -1, 0, 2.5, 4]) {
       const p = before.place(0, u);
       expect(p.v).toBeCloseTo(u);
       expect(p.z).toBeCloseTo(0);
       expect(p.nz).toBeCloseTo(1);
     }
-    const over = createRollOverSurface(1, 4, r);
-    // Past the bend at the far edge, every point lies mirrored, hovering 2r up.
-    for (const u of [-4 + Math.PI * r + 0.01, -1, 0, 2.5, 4]) {
+    const over = surface(1);
+    // Every point, the far edge included, lies mirrored and flat, hovering
+    // 2r up: nothing is left curled at the edge.
+    for (const u of [-4, -3.9, -1, 0, 2.5, 4]) {
       const p = over.place(0, u);
       expect(p.v).toBeCloseTo(-u);
       expect(p.z).toBeCloseTo(2 * r);
       expect(p.nz).toBeCloseTo(-1);
     }
+    expect(over.bent(-4, 4)).toBe(false);
+    expect(over.rows(-4, 4)).toEqual([-4, 4]);
     expect(over.breakpoints()).toEqual([]);
   });
 
-  it('halfway, has carried the taken half over onto the other half', () => {
-    const half = createRollOverSurface(0.5, 4, r);
-    // The far half still lies where it was.
-    for (const u of [-4, -2, -0.5]) {
-      const p = half.place(0, u);
-      expect(p.v).toBeCloseTo(u);
-      expect(p.z).toBeCloseTo(0);
-    }
-    // The taken half lies over it, mirrored about the centre line.
-    for (const u of [Math.PI * r + 0.01, 2, 4]) {
-      const p = half.place(0, u);
-      expect(p.v).toBeCloseTo(-u);
-      expect(p.z).toBeCloseTo(2 * r);
-      expect(p.nz).toBeCloseTo(-1);
-    }
-    // The bend is at the centre line, and the rows and cuts know it.
-    expect(half.bent(-4, -1)).toBe(false);
-    expect(half.bent(-1, 1)).toBe(true);
-    expect(half.bent(2, 4)).toBe(false);
+  it('carries the taken edge over to the far one, slowing as it comes down', () => {
+    const end = (progress: number) => surface(progress).place(0, 4).v;
+    const along = [0.2, 0.4, 0.6, 0.8].map(end);
+    // Ever nearer the far edge, by ever less.
+    expect(along[0]).toBeGreaterThan(along[1]!);
+    expect(along[1]).toBeGreaterThan(along[2]!);
+    expect(along[2]).toBeGreaterThan(along[3]!);
+    expect(along[0]! - along[1]!).toBeGreaterThan(along[1]! - along[2]!);
+    expect(along[1]! - along[2]!).toBeGreaterThan(along[2]! - along[3]!);
+    // Down just as the bend reaches the far edge, and at rest there after.
+    expect(end(landing)).toBeCloseTo(-4);
+    expect(end((1 + landing) / 2)).toBeCloseTo(-4);
+    expect(surface(landing).place(0, 4).z).toBeCloseTo(2 * r);
+  });
+
+  it('slides the paper on the table under, never past the edge, then unrolls the last of it', () => {
+    // Halfway: the far edge has moved toward the taken one, still on the table.
+    const half = surface(0.5);
+    const far = half.place(0, -4);
+    expect(far.v).toBeGreaterThan(-4);
+    expect(far.v).toBeLessThan(0);
+    expect(far.z).toBeCloseTo(0);
+    expect(far.nz).toBeCloseTo(1);
+    // The bend is on the sheet, and the rows and cuts know where.
+    const hingeU = 8 - 0.5 * (8 + reach) - 4;
+    expect(half.bent(-4, hingeU - 0.01)).toBe(false);
+    expect(half.bent(hingeU - 0.1, hingeU + 0.1)).toBe(true);
+    expect(half.bent(hingeU + reach + 0.01, 4)).toBe(false);
     const rows = half.rows(-4, 4);
     expect(rows[0]).toBe(-4);
     expect(rows[rows.length - 1]).toBe(4);
-    expect(rows.filter((u) => u >= 0 && u <= Math.PI * r + 1e-9)).toHaveLength(13);
+    expect(rows.filter((u) => u >= hingeU - 1e-9 && u <= hingeU + reach + 1e-9)).toHaveLength(13);
+    // As the bend reaches the far edge, that edge lies where the taken one
+    // was, about to go over...
+    const atLanding = surface(landing).place(0, -4);
+    expect(atLanding.v).toBeCloseTo(4);
+    expect(atLanding.z).toBeCloseTo(0);
+    // ...and just short of the end it is still coming round, past the edge
+    // by no more than the roll's own radius.
+    const late = surface((1 + landing) / 2).place(0, -4);
+    expect(late.v).toBeGreaterThan(4 - 1e-9);
+    expect(late.v).toBeLessThanOrEqual(4 + r + 1e-9);
+    expect(late.z).toBeGreaterThan(0);
   });
 
-  it('never leaves its footprint, and slides the rest under as the last of it comes over', () => {
-    for (const progress of [0.1, 0.3, 0.5, 0.7, 0.9]) {
-      const surface = createRollOverSurface(progress, 4, r);
+  it('keeps to its footprint but for the roll itself at the taken edge', () => {
+    for (const progress of [0.1, 0.3, 0.5, 0.7, 0.9, 0.97]) {
+      const s = surface(progress);
       for (const u of [-4, -3, -1, 0, 1, 3, 4]) {
-        const p = surface.place(0, u);
+        const p = s.place(0, u);
         expect(p.v).toBeGreaterThanOrEqual(-4 - 1e-9);
-        expect(p.v).toBeLessThanOrEqual(4 + 1e-9);
+        expect(p.v).toBeLessThanOrEqual(4 + r + 1e-9);
         expect(p.z).toBeGreaterThanOrEqual(-1e-9);
       }
     }
-    // Three quarters over: the far quarter has slid toward the taken edge.
-    const late = createRollOverSurface(0.75, 4, r);
-    expect(late.place(0, -4).v).toBeCloseTo(0);
-    expect(late.place(0, -4).z).toBeCloseTo(0);
   });
 });
 

@@ -12,7 +12,7 @@ import { createDiagramRenderContext, diagramPrimitiveShape } from './diagram/Dia
 import { canvasDiagramInk } from './diagram/diagramInk';
 import type { FoldPose } from './fold/foldPlayback';
 import type { FoldScene } from './fold/foldScene';
-import { symbolFlap, symbolOpacity } from './fold/foldSymbolFade';
+import { symbolFlaps, symbolOpacity } from './fold/foldSymbolFade';
 import type { FoldPoseSink } from './fold/foldTransport';
 import { createOverlayProjector } from './stepDiagramGeometry';
 
@@ -70,8 +70,13 @@ export const ReferencesDiagramLayer = forwardRef<
       model && project ? createDiagramRenderContext(model.primitives, model.sheet, project) : null,
     [model, project]
   );
+  // Each symbol's flaps, as the group's tag: `"0"`, `"0 1"` for one riding both
+  // halves of a twin, or nothing for one that stays put.
   const flaps = useMemo(
-    () => (model && fold ? model.primitives.map((primitive) => symbolFlap(primitive, fold)) : null),
+    () =>
+      model && fold
+        ? model.primitives.map((primitive) => symbolFlaps(primitive, fold).join(' '))
+        : null,
     [model, fold]
   );
 
@@ -80,7 +85,8 @@ export const ReferencesDiagramLayer = forwardRef<
     if (!svg) return;
     const pose = poseRef.current;
     for (const group of svg.querySelectorAll<SVGGElement>('g[data-fold-flap]')) {
-      group.style.opacity = String(symbolOpacity(Number(group.dataset.foldFlap), pose));
+      const riding = (group.dataset.foldFlap ?? '').split(' ').map(Number);
+      group.style.opacity = String(symbolOpacity(riding, pose));
     }
   }, []);
   useImperativeHandle(
@@ -111,11 +117,11 @@ export const ReferencesDiagramLayer = forwardRef<
     >
       {model.primitives.map((primitive, index) => {
         const shape = diagramPrimitiveShape(primitive, index, context);
-        const flap = flaps?.[index] ?? null;
-        return flap === null ? (
+        const riding = flaps?.[index] ?? '';
+        return riding === '' ? (
           shape
         ) : (
-          <g key={index} data-fold-flap={flap}>
+          <g key={index} data-fold-flap={riding}>
             {shape}
           </g>
         );
