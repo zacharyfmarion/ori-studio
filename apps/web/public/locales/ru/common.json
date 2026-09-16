@@ -15,6 +15,8 @@
     "addTreeEdgesThenOptimize": "Добавьте рёбра дерева, затем выполните оптимизацию перед построением паттерна складок",
     "advanceCreaseType": "Следующий тип складки",
     "advanceSelectedCpLineTypes": "Перейти к следующему типу для выбранных линий паттерна складок",
+    "analyzeReferences": "Анализ опор",
+    "analyzeReferencesHint": "Узнать, какие линии этого узора трудно найти складыванием",
     "bpFlipHorizontal": "Отразить по горизонтали",
     "bpFlipHorizontalReason": "Отражает проект слева направо",
     "bpFlipVertical": "Отразить по вертикали",
@@ -182,6 +184,7 @@
     "redo": "Повторить",
     "redoNextCpEdit": "Повторить следующую правку паттерна складок",
     "redoNextTreeEdit": "Повторить следующую правку дерева",
+    "references": "Референсы",
     "relieveAllStrain": "Ослабить всё натяжение",
     "relieveStrain": "Ослабить натяжение",
     "removeAllStrain": "Убрать всё натяжение",
@@ -229,6 +232,7 @@
     "showDesignWorkspace": "Показать рабочее пространство дизайна",
     "showEditWorkspace": "Показать рабочее пространство правки",
     "showPropertiesPane": "Показать панель свойств",
+    "showReferencesWorkspace": "Показать рабочее пространство референсов",
     "showSimulateWorkspace": "Показать рабочее пространство симуляции",
     "simulate": "Симуляция",
     "simulateBeforeExportingFolded": "Смоделируйте паттерн сгибов перед экспортом сложенной формы",
@@ -310,16 +314,21 @@
   },
   "viewDrawer": {
     "close": "Закрыть параметры вида",
+    "closeSettings": "Закрыть настройки",
     "open": "Вид",
+    "openSettings": "Настройки",
+    "settingsTitle": "Настройки",
     "title": "Параметры вида"
   },
   "workspaceRail": {
     "design": "Рабочее пространство дизайна",
     "edit": "Рабочее пространство правки",
     "label": "Рабочие пространства",
+    "references": "Рабочее пространство референсов",
     "simulate": "Рабочее пространство симуляции",
     "tabDesign": "Дизайн",
     "tabEdit": "Правка",
+    "tabReferences": "Референсы",
     "tabSimulate": "Симуляция"
   }
 }

@@ -1,0 +1,185 @@
+/**
+ * The step strip's rows, from either source.
+ *
+ * The workspace has two kinds of sequence — ReferenceFinder's answer for one
+ * picked vertex or crease, and the planner's breakdown of a whole sheet — and
+ * they arrive in different shapes: RF ships a diagram per step and its own
+ * labelled sentence, the planner ships witnesses that we draw and describe
+ * ourselves, and the planner's list also carries the turn-overs and the
+ * finished pattern (`referencesSequenceView.ts`). The strip should not know any
+ * of that.
+ * This flattens it all into one list of numbered cards.
+ */
+import type { TFunction } from 'i18next';
+import {
+  plannerFinishedDiagram,
+  plannerStepDiagram,
+  plannerTurnOverDiagram,
+} from './diagram/plannerDiagram';
+import { unitFrame } from './diagram/diagramFrames';
+import type { Diagram } from './referenceFinder/solution';
+import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
+import {
+  candidateStepDiagram,
+  candidateViewSteps,
+  describeCandidateStep,
+  diagonalStepDiagram,
+  type RfSheet,
+} from './referencesCandidateSteps';
+import type { ReferencesCandidateResult, ReferencesPlanVariant } from './referencesResults';
+import type { ReferencesViewStep } from './referencesSequenceView';
+import { describePlannerStep } from './referencesStepSentences';
+
+/** One card: a picture and the sentence under the strip when it is active. */
+export interface ReferencesFilmstripStep {
+  key: string;
+  /**
+   * What the card is. `fold` is numbered; the other two are steps the folder
+   * performs but does not crease, and they carry a badge instead so the strip
+   * does not read as a numbered run with unexplained gaps in it.
+   */
+  kind: 'fold' | 'turn-over' | 'done';
+  /**
+   * The badge on a card: what a card that is not a fold is, or what a fold
+   * needs the reader to know before the sentence (approximate, a grid pleat).
+   * Empty for an ordinary exact fold.
+   */
+  badge: string;
+  /**
+   * What the card is numbered.
+   *
+   * Null for a step that is not a fold — turning the paper over is part of the
+   * sequence but it is not a crease, and numbering it would inflate the count
+   * the summary states.
+   */
+  number: number | null;
+  /** ReferenceFinder's own diagram, when this step came from one. */
+  diagram: Diagram | null;
+  /** Primitives we built, when it came from the planner. */
+  primitives: StepDiagramModel | null;
+  /** The card draws the paper's back, as the view does on that side. */
+  mirrored: boolean;
+  sentence: string;
+}
+
+/**
+ * The active candidate's steps, from the empty square: the sheet's diagonals
+ * it leans on first — folded corner onto corner, drawn from primitives of our
+ * own — then one card per diagram of ReferenceFinder's, the core's own
+ * picture with a sentence for everything it introduces
+ * (`referencesCandidateSteps`). `sheet` is the paper in ReferenceFinder's
+ * units, for the diagonal cards.
+ */
+export function candidateFilmstrip(
+  t: TFunction,
+  candidate: ReferencesCandidateResult | null,
+  sheet: RfSheet
+): ReferencesFilmstripStep[] {
+  if (!candidate) return [];
+  return candidateViewSteps(candidate.solution).map((step, number) =>
+    step.kind === 'diagonal'
+      ? {
+          key: `diagonal-${step.diagonal}`,
+          kind: 'fold' as const,
+          badge: '',
+          number: number + 1,
+          diagram: null,
+          primitives: diagonalStepDiagram(step.diagonal, sheet),
+          mirrored: false,
+          sentence: describeCandidateStep(t, candidate.solution, step),
+        }
+      : {
+          key: `rf-${step.steps[0] ?? 'final'}`,
+          kind: 'fold' as const,
+          badge: '',
+          number: number + 1,
+          diagram: candidateStepDiagram(candidate.raw, step),
+          primitives: null,
+          mirrored: false,
+          sentence: describeCandidateStep(t, candidate.solution, step),
+        }
+  );
+}
+
+/**
+ * The planner's steps for the sheet being read, plus the turn-overs between
+ * them and the finished pattern at the end.
+ *
+ * The ref index is built once per variant rather than per step: it is a scan of
+ * the whole sequence, and doing it inside the map would make the strip
+ * quadratic.
+ */
+export function planFilmstrip(
+  t: TFunction,
+  variants: readonly ReferencesPlanVariant[],
+  viewSteps: readonly ReferencesViewStep[]
+): ReferencesFilmstripStep[] {
+  let folds = 0;
+  return viewSteps.flatMap((view, viewIndex): ReferencesFilmstripStep[] => {
+    const variant = variants[view.component];
+    if (!variant) return [];
+    const sequence = variant.sequence;
+    switch (view.kind) {
+      case 'fold': {
+        folds += 1;
+        // A step that is not exact — folded by the closest construction there
+        // was, or sighted from one — wears it on the card, not only in the
+        // sentence: the folder reads the strip before the sentence. A grid
+        // step is exact by construction (a pleat sights nothing), so the two
+        // badges never compete.
+        const step = sequence.steps[view.step];
+        const badge =
+          step?.kind === 'grid'
+            ? t('panels:references.planStep.gridBadge', 'Grid')
+            : (step?.exact ?? true)
+              ? ''
+              : t('panels:references.planStep.approximateBadge', 'Approximate');
+        return [
+          {
+            key: `plan-${view.component}-${view.step}`,
+            kind: 'fold',
+            badge,
+            number: folds,
+            diagram: null,
+            primitives: plannerStepDiagram(sequence, unitFrame(sequence), view.step, {
+              twin: view.twin,
+            }),
+            mirrored: view.side === 'back',
+            sentence: describePlannerStep(t, sequence, view.step, view.twin),
+          },
+        ];
+      }
+      case 'turn-over':
+        return [
+          {
+            // A sequence turns the paper over a handful of times, so the key
+            // has to name the card and not just the sheet.
+            key: `turn-over-${view.component}-${viewIndex}`,
+            kind: 'turn-over',
+            badge: t('panels:references.flip.turnOverBadge', 'Turn over'),
+            number: null,
+            diagram: null,
+            primitives: plannerTurnOverDiagram(sequence, unitFrame(sequence), view.after),
+            mirrored: view.side === 'back',
+            sentence: t('panels:references.flip.turnOver', 'Turn the paper over, left to right.'),
+          },
+        ];
+      case 'done':
+        return [
+          {
+            key: `done-${view.component}`,
+            kind: 'done',
+            badge: t('panels:references.flip.doneBadge', 'Finished'),
+            number: null,
+            diagram: null,
+            primitives: plannerFinishedDiagram(sequence, unitFrame(sequence)),
+            mirrored: false,
+            sentence: t(
+              'panels:references.flip.finished',
+              'Every crease is made. The pattern collapses from here, and the creases it wants the other way reverse as it does.'
+            ),
+          },
+        ];
+    }
+  });
+}

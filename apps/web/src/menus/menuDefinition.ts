@@ -185,6 +185,7 @@ export function getMenuBarDef(
         { type: 'action', id: 'view.design', label: t('menu:view.design', 'Design') },
         { type: 'action', id: 'view.edit', label: t('menu:view.edit', 'Edit') },
         { type: 'action', id: 'view.simulate', label: t('menu:view.simulate', 'Simulate') },
+        { type: 'action', id: 'view.references', label: t('menu:view.references', 'References') },
         { type: 'separator' },
         { type: 'action', id: 'view.properties', label: t('menu:view.properties', 'Properties') },
         { type: 'separator' },
@@ -266,6 +267,7 @@ export function getMenuBarDef(
             { type: 'action', id: 'cp.check2', label: t('menu:cp.check2', 'Check T-junctions') },
             { type: 'action', id: 'cp.check3', label: t('menu:cp.check3', 'Check Vertex Foldability') },
             { type: 'action', id: 'cp.check4', label: t('menu:cp.check4', 'Check Maekawa/BLB') },
+            { type: 'action', id: 'cp.analyzeReferences', label: t('menu:cp.analyzeReferences', 'Analyze References') },
           ],
         },
         {

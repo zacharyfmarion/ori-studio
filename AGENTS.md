@@ -99,6 +99,7 @@ prior behavior — is the canonical behavioral reference:
 | TreeMaker (`treemaker-*`) | `third_party/treemaker-5.0.1` | `tools/oracle` (C++) |
 | Box pleating (`oristudio-bp*`) | `third_party/box-pleating-studio` | `tools/bp-studio-oracle` |
 | Flat folding (`treemaker-flatfold`) | `third_party/flat-folder` | `tools/flat-folder-oracle` |
+| Reference finding (ReferenceFinder — not a port; the vendored C++ is compiled to wasm and consumed as a black box) | `third_party/reference-finder` | `tools/reference-finder-oracle` (build-equivalence, not parity) |
 
 General rules, which apply to every port:
 
@@ -249,6 +250,26 @@ wasm-pack test --node crates/treemaker-wasm
 
 Choose the smallest validation set that covers the files you changed, and
 report any skipped checks with the reason.
+
+### The dev server outlives the tooling
+
+Start it with **`scripts/dev-server.sh`**, and point the agent Browser pane at
+it with the **`web-attached`** configuration in `.claude/launch.json`:
+
+```bash
+scripts/dev-server.sh start     # idempotent; reuses a healthy server
+scripts/dev-server.sh status
+```
+
+`preview_start { name: "web" }` *spawns* a server the app owns, and the app
+stops it when the session goes away — so it dies every time the tooling
+restarts, which is never when you wanted it to. `web-attached` carries a `url`
+and no command, so the pane attaches to whatever is already listening and owns
+nothing; the script detaches vite from the calling shell's process group, so it
+survives the pane, the agent session and the terminal.
+
+`--strictPort`, on purpose: the `web` configuration has `autoPort`, and a server
+that quietly slides from 5224 to 5225 is how you end up reading a stale tab.
 
 **Every wasm artifact under `apps/web/src/generated/` is a build output, and
 none of them are tracked.** Everything that ships rebuilds them from the Rust

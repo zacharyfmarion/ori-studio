@@ -92,8 +92,9 @@ import {
   cpTrimmedCreaseBounds,
   unionBounds,
 } from './cpContentBounds';
-import { cpSizingScales } from './cpSizingScales';
-import { cpPointsToScene, VERTEX_RADIUS_FACTOR } from './adapters/cpPointsToScene';
+import { cpDpr } from './cpDpr';
+import { cpSizingScales, cpVertexCrowding, cpVertexSpacingModel } from './cpSizingScales';
+import { cpPointsToScene } from './adapters/cpPointsToScene';
 import { createCpLineAppearanceResolver } from './adapters/cpLineStyle';
 import { cpLineStyleDashPatterns } from '../lib/oristudioCpLineStyle';
 import { resolveCpPointStyle } from './adapters/cpPointStyle';
@@ -182,9 +183,6 @@ export interface CpOverlayView {
 import type { OristudioCpGridMetadata } from '../engine/oristudioCpTypes';
 import { useThemeStore } from '../store/themeStore';
 
-/** Cap DPR at 2 — matches the perf budget and avoids 3x/4x fill on hidpi. */
-const MAX_DPR = 2;
-
 /** Stable empty image list so the upload effect doesn't re-run on every render. */
 const EMPTY_IMAGES: readonly CpImage[] = [];
 /** The same, for regions — an absent prop must not look like a changed one. */
@@ -205,40 +203,9 @@ const CREASE_WIDTH_FACTOR = 1.5;
 /** Point/vertex outline width in CSS px (SVG non-scaling stroke ~1.4). */
 const POINT_OUTLINE_CSS = 1.4;
 
-/**
- * Crease point/vertex visibility, in units of *crowding*: a dot's diameter as a
- * fraction of the on-screen distance between neighbouring vertices. 0.1 means
- * dots take up a tenth of the gap between them; 1.0 means they touch and the
- * pattern reads as a field of dots rather than as creases.
- *
- * Vertices are an up-close editing affordance (snap and hit targets). Surveying
- * a dense pattern, they are noise over the creases they annotate, so they fade
- * out entirely rather than shrinking forever.
- *
- * Crowding is a ratio of two CSS-px lengths, which is what makes it behave the
- * same everywhere: on any display density, at any `Point size`, at any document
- * coordinate scale. An earlier version keyed this to `cam.zoom / fitZoom`, which
- * measures zoom against the bounding box of the *whole document* — on a sheet
- * holding several patterns spread over thousands of units that reads as "zoomed
- * way in" while you look at one small pattern, and every fade stayed off.
- */
-const VERTEX_CROWD_FULL_AT = 0.15;
-const VERTEX_CROWD_GONE_AT = 0.45;
-/**
- * Where the outline ring collapses into the fill, same units. It goes first: a
- * ring reads as a target, and a plain dot is quieter at the same size.
- */
-const VERTEX_RING_FULL_AT = 0.12;
-const VERTEX_RING_GONE_AT = 0.3;
-
-/** Creases sampled when estimating vertex spacing. See `vertexSpacingModel`. */
-const VERTEX_SPACING_SAMPLE_CAP = 2048;
-
-/** Hermite ramp between two edges, clamped — the GLSL `smoothstep`. */
-function smoothstep(edge0: number, edge1: number, x: number): number {
-  const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
-  return t * t * (3 - 2 * t);
-}
+// The vertex crowding ramp itself — its constants, its `smoothstep` and its
+// spacing sample — lives in `cpSizingScales`, shared with the References view so
+// the two CP surfaces cannot fade at different points.
 
 /** Tool previews and cursor highlights: geometry being *drawn*, not selected. */
 const SELECTION_COLOR_VAR = '--accent-primary';
@@ -279,7 +246,7 @@ const SNAP_INDICATOR_RADIUS = 5;
 const PLACED_POINT_RADIUS = 3;
 const TRANSPARENT: Rgba = [0, 0, 0, 0];
 
-const dpr = () => Math.min(window.devicePixelRatio || 1, MAX_DPR);
+const dpr = cpDpr;
 
 /** Clamped projection of `p` onto the segment a→b. */
 function projectPointOnSegment(
@@ -1184,23 +1151,21 @@ export function CreasePatternWebglCanvas({
   // (iguana_19.osf: 25-unit grid, 71-unit median crease), so the grid says
   // "crowded" while the vertices have ample room. It is kept only as the
   // fallback for a document with no creases to measure.
-  // Sampled rather than exhaustive: this runs again whenever the geometry
-  // changes, and sorting every length costs ~17ms on a 52k-edge document —
-  // a dropped frame per edit. A strided sample bounds it to a fixed ~0.1ms and
-  // is not an approximation worth worrying about: on a real 7.4k-edge pattern
-  // even a 512-sample stride reproduces the exhaustive median exactly.
-  const vertexSpacingModel = useMemo(() => {
-    const stride = Math.max(1, Math.ceil(lineSegments.length / VERTEX_SPACING_SAMPLE_CAP));
-    const lengths: number[] = [];
-    for (let i = 0; i < lineSegments.length; i += stride) {
-      const seg = lineSegments[i];
-      const length = Math.hypot(seg.b.x - seg.a.x, seg.b.y - seg.a.y);
-      if (length > 1e-9) lengths.push(length);
-    }
-    if (lengths.length === 0) return grid ? getOrieditaGridBasis(grid).gridWidth : 0;
-    lengths.sort((a, b) => a - b);
-    return lengths[lengths.length >> 1];
-  }, [lineSegments, grid]);
+  // Sampled rather than exhaustive (see `cpVertexSpacingModel`): this runs again
+  // whenever the geometry changes, and sorting every length costs ~17ms on a
+  // 52k-edge document — a dropped frame per edit.
+  const vertexSpacingModel = useMemo(
+    () =>
+      cpVertexSpacingModel(
+        (i) => {
+          const seg = lineSegments[i];
+          return Math.hypot(seg.b.x - seg.a.x, seg.b.y - seg.a.y);
+        },
+        lineSegments.length,
+        grid ? getOrieditaGridBasis(grid).gridWidth : 0
+      ),
+    [lineSegments, grid]
+  );
 
   // Content bounds in SVG user coords, for the initial camera fit (independent
   // of the SVG's own fixed-rect fit, which mis-centres imported cameras).
@@ -1796,16 +1761,14 @@ export function CreasePatternWebglCanvas({
         ratio,
       });
       // How much of the on-screen gap between neighbouring vertices a dot eats
-      // up. Both terms are CSS px, so this is a pure ratio: independent of
-      // display density, of the document's coordinate scale, and of how far
-      // apart several patterns happen to sit on one sheet. `view.ex` is the
-      // model->device basis, so its length is device px per model unit.
-      const vertexDiameterCss = 2 * VERTEX_RADIUS_FACTOR * liveRef.current.pointSize;
-      const modelPxPerUnit = Math.hypot(view.ex[0], view.ex[1]);
-      const spacingCss = (liveRef.current.vertexSpacingModel * modelPxPerUnit) / ratio;
-      const crowding = spacingCss > 1e-6 ? vertexDiameterCss / spacingCss : 0;
-      const pointOpacity = 1 - smoothstep(VERTEX_CROWD_FULL_AT, VERTEX_CROWD_GONE_AT, crowding);
-      const pointRingScale = 1 - smoothstep(VERTEX_RING_FULL_AT, VERTEX_RING_GONE_AT, crowding);
+      // up. `view.ex` is the model->device basis, so its length is device px
+      // per model unit.
+      const { pointOpacity, pointRingScale } = cpVertexCrowding({
+        vertexSpacingModel: liveRef.current.vertexSpacingModel,
+        pointSize: liveRef.current.pointSize,
+        modelPxPerUnit: Math.hypot(view.ex[0], view.ex[1]),
+        ratio,
+      });
 
       // Report the zoom percent so the viewport toolbar reflects the owned camera.
       // 100% = actual size (1 user unit == 1 CSS px, i.e. zoom == dpr), matching the

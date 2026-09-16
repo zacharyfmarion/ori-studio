@@ -1315,6 +1315,19 @@
   border-bottom: 1px solid var(--border-subtle);
 }
 
+/*
+ * The Simulate and References workspaces dock one pane beside a headerless
+ * primary whose own toolbar is 36px (`.toolbar`, `.panel-toolbar`). The pane's
+ * tab bar is the dock's 28px, so the two headers met at different heights and
+ * the seam between them read as a step. Sized to the toolbar in those two
+ * workspaces — on the dock's own element, since the theme class sets the
+ * variable there and an inherited value would lose to it.
+ */
+.workspace-shell__dock[data-workspace='simulate'] .dockview-theme-treemaker,
+.workspace-shell__dock[data-workspace='references'] .dockview-theme-treemaker {
+  --dv-tabs-and-actions-container-height: 36px;
+}
+
 .dockview-theme-treemaker .dv-split-view-container .dv-sash-container .dv-sash {
   --dv-sash-size: 6px;
 }

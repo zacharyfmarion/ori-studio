@@ -1,0 +1,1129 @@
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
+import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
+import type { Point } from '../../lib/geometry';
+import { cpModelToSvg, type OristudioCpLineStyle } from '../../lib/creasePatternViewport';
+import { cpLineStyleDashPatterns } from '../../lib/oristudioCpLineStyle';
+import { CP_DEFAULT_SNAP_RADIUS } from '../../lib/cpSnapRadiusSetting';
+import { resolveWheelGesture, type WheelGesturePreference } from '../../lib/wheelGesture';
+import { reportError } from '../../monitoring';
+import { cpGeometryStrokesToScene } from '../adapters/cpGeometryToScene';
+import { createCpLineAppearanceResolver } from '../adapters/cpLineStyle';
+import { cpPointsToScene } from '../adapters/cpPointsToScene';
+import { resolveCpPointStyle } from '../adapters/cpPointStyle';
+import { CpRendererUnavailable, type CpRendererStatus } from '../CpRendererUnavailable';
+import { cpCanvasCursor } from '../cpCanvasCursor';
+import { cpDpr } from '../cpDpr';
+import { cpSizingScales, cpVertexCrowding, cpVertexSpacingModel } from '../cpSizingScales';
+import { applyPinchToCamera } from '../gestures/pinchCamera';
+import { contactCentroid, pinchTransform, type GesturePoint } from '../gestures/pinchTransform';
+import { LineHitIndex, type IndexedSegment } from '../picking/lineHitIndex';
+import {
+  cameraZoomForPercent,
+  fitUserCamera,
+  frameUserCameraOnBounds,
+  modelViewFromCamera,
+  panUserCamera,
+  unprojectDevicePoint,
+  userCameraToView,
+  zoomUserCameraAt,
+  type UserBounds,
+  type UserCamera,
+} from '../renderer/camera';
+import type { CpRenderer } from '../renderer/CpRenderer';
+import { readCssVarColor, readCssVarNumber } from '../renderer/cssColor';
+import { canvasDiagramInk } from './diagram/diagramInk';
+import { createReglRenderer } from '../renderer/reglRenderer';
+import type { Rgba, StrokeGeometry, Viewport } from '../renderer/types';
+import type { CpOverlayView } from '../CreasePatternWebglCanvas';
+import { classifyCpWebglFailure, cpWebglSupport, describeCpWebglGap } from '../renderer/webglSupport';
+import {
+  CP_LINE_HIT_MIN_CSS,
+  CP_LINE_HIT_RATIO,
+  CP_POINT_HIT_MIN_CSS,
+  CP_POINT_HIT_RATIO,
+  cpHitRadiusModel,
+  CP_LINE_HIT_MIN_CSS_COARSE,
+  CP_POINT_HIT_MIN_CSS_COARSE,
+} from '../snapRadius';
+import { useIsCoarsePointerSurface } from '../../platform/pointerSurface';
+import type { ModelBounds } from './referencesStepGeometry';
+import {
+  applyCreaseVisibility,
+  concatOverlayPoints,
+  concatStrokes,
+  hoveredCreaseToPreviewStroke,
+  hoveredVertexToOverlayPoint,
+  isClick,
+  highlightedVerticesToOverlayPoints,
+  modelBoundsToUser,
+  resolveReferencesPick,
+  transportUserBounds,
+  sheetFillGeometry,
+  verticesOfLines,
+  type ReferencesCreaseVisibility,
+  type ReferencesOverlayColors,
+  type ReferencesHitIndexes,
+  type ReferencesPick,
+} from './referencesViewGeometry';
+
+/**
+ * The References workspace's crease-pattern view: the document's creases,
+ * read-only, with the active step's references drawn over them.
+ *
+ * A small, props-driven surface on the renderer seam (plan decision D5) rather
+ * than a mode of `CreasePatternWebglCanvas`: that canvas has no read-only mode,
+ * takes ~80 tool props, and registers the camera, surface-press and
+ * transform-preview singletons on mount. This one reuses its exported pieces —
+ * `createReglRenderer` behind `CpRenderer`, the owned `UserCamera`, the scene
+ * adapters, `LineHitIndex` — and none of its registrations. It does **not**
+ * carry the `cp-webgl-layer` class (the editor's floating toolbars forward
+ * wheel events to the first such canvas) and publishes into no store.
+ *
+ * Input: wheel and drag pan/zoom, two-finger pinch through a local pointer map,
+ * and a click (under four CSS px of travel) that hit-tests **on release only**
+ * — vertices first, then creases — and calls `onPick`. The same hit test runs
+ * under a passing pointer, once a frame, and what it finds is drawn in the
+ * pick accent — a translucent stroke over the crease, a ring round the vertex
+ * — so that a pattern of identical lines says which of them a click would
+ * take. Everything else it draws beyond the document arrives as props: which
+ * creases to highlight, which vertices, the step's ghost lines and marks.
+ * Colours are read from the theme on the canvas element and re-read when
+ * `themeKey` changes.
+ */
+
+export interface ReferencesCpViewHandle {
+  zoomIn: () => void;
+  zoomOut: () => void;
+  /** Zoom to a percentage, about the centre — the viewport toolbar's presets. */
+  setZoomPercent: (percent: number) => void;
+  /** Frame the whole crease pattern. */
+  fit: () => void;
+  /** Point the camera at model-space bounds without zooming out (a jump, not a fit). */
+  frameModelBounds: (bounds: ModelBounds) => void;
+}
+
+/**
+ * The canvas's camera, as the layer drawn over it needs to see it.
+ *
+ * Model space → CSS pixels of the canvas box. The pen the layer draws with is
+ * not here: it comes from the reader's crease width, so the diagram and the
+ * creases under it are the same weight whatever the camera is doing.
+ */
+export interface ReferencesDiagramView {
+  view: CpOverlayView;
+}
+
+/** What the view draws as picked. Ids as {@link ReferencesPick}: 1-based crease, 0-based vertex. */
+export type ReferencesSelection = { kind: 'line'; id: number } | { kind: 'vertex'; idx: number };
+
+export interface ReferencesCpViewProps {
+  geometry: CpGeometryTransport;
+  lineStyle: OristudioCpLineStyle;
+  mode: 'mvf' | 'agrh';
+  lineWidth: number;
+  pointSize: number;
+  wheelGesture: WheelGesturePreference;
+  /** The user's snap radius, model units; sets the click radii at the live zoom. */
+  snapRadius?: number;
+  /** 0-based vertex indices drawn in the "new crease" colour. */
+  highlightVertexIdx: ReadonlySet<number>;
+  /**
+   * The step's own lines, already packed for the preview channel.
+   *
+   * Built from the same primitives the filmstrip card draws
+   * (`diagram/diagramToScene.ts`), so the two pictures cannot disagree about
+   * what a step contains. The symbols that go with them — arcs, arrowheads,
+   * the turn-over glyph, letters, the rings round the marks — are drawn by
+   * `ReferencesDiagramLayer` over this canvas, because this renderer has no
+   * vocabulary for any of them.
+   */
+  diagramStrokes?: StrokeGeometry | null;
+  /**
+   * The sheet in scope: the 1-based crease ids of the pattern being read.
+   *
+   * Everything outside it is not this problem — the workspace answers for one
+   * crease pattern at a time — so those creases and the vertices that only they
+   * touch are neither drawn nor pickable. Without the picking half, a crease
+   * hidden with its sheet still answered a click, and the workspace would
+   * quietly start describing a pattern that is not on screen. Null scopes to
+   * the whole document.
+   */
+  sheetLineIds?: ReadonlySet<number> | null;
+  /**
+   * Which of the document's creases this step shows, and how faintly.
+   *
+   * The sheet as it stands at the active step: creases a later step makes are
+   * not drawn at all, and creases an earlier step made are dimmed behind the
+   * ones this step is about — and, through `pickable`, what can be hovered or
+   * picked: a crease the folder has not made yet is not something they can
+   * point at. Omit to draw the whole document at full strength.
+   */
+  creaseVisibility?: ReferencesCreaseVisibility;
+  /**
+   * Draw the pattern as seen from the back of the paper.
+   *
+   * A reflection about the sheet's own vertical centre line, folded into the
+   * `modelToSvg` the camera is built from — so it costs one negation and the
+   * inverse comes back for free, which means picking mirrors with the drawing
+   * rather than needing its own case. The folded figure does the same thing
+   * with `mirror: -1`.
+   */
+  mirrored?: boolean;
+  selected: ReferencesSelection | null;
+  onPick: (hit: ReferencesPick | null) => void;
+  /**
+   * The live camera, reported every frame it changes.
+   *
+   * Deliberately not a store: this canvas publishes into none of the editor's
+   * singletons (see the note at the top of this file), and the layer that reads
+   * it is its own sibling. De-duped here, so a redraw that does not move the
+   * camera does not wake it.
+   */
+  onViewChange?: (view: ReferencesDiagramView) => void;
+  /**
+   * The zoom as a percentage, for the viewport toolbar's readout. 100% is
+   * actual size — one user unit to one CSS pixel — the editor's definition, so
+   * the two readouts agree about the same pattern. De-duped like the view.
+   */
+  onZoomPercentChange?: (percent: number) => void;
+  /** The camera refits when this changes (a new document), never on an edit. */
+  framingKey: string;
+  /** Theme-resolved colours are re-read when this changes. */
+  themeKey?: string;
+  ariaLabel: string;
+  className?: string;
+}
+
+const CANVAS_BG_VAR = '--bg-primary';
+/**
+ * The paper's other face, filled as a shape under the creases.
+ *
+ * The clear colour is the ground the sheet lies on, not the sheet — tinting the
+ * whole canvas to say "you are looking at the back" claims the table turned
+ * over too. Same token the step cards use, so the strip and the view agree
+ * about which face is up.
+ */
+const PAPER_BACK_VAR = '--paper-back';
+const FALLBACK_CLEAR: Rgba = [0.157, 0.172, 0.204, 1];
+/** Matches the editor's crease width law so the pattern looks the same here. */
+const CREASE_WIDTH_FACTOR = 1.5;
+const POINT_OUTLINE_CSS = 1.4;
+/** Highlighted creases draw this much wider than their neighbours. */
+const HIGHLIGHT_WIDTH_MUL = 2.6;
+const ZOOM_STEP = 1.25;
+
+const MOUNTAIN_COLOR_VAR = '--fold-mountain';
+const MOUNTAIN_FALLBACK: Rgba = [1, 0.302, 0.365, 1];
+const VALLEY_COLOR_VAR = '--fold-valley';
+const VALLEY_FALLBACK: Rgba = [0.376, 0.647, 0.98, 1];
+const INK_COLOR_VAR = '--fold-border';
+const INK_FALLBACK: Rgba = [0.067, 0.078, 0.09, 1];
+const INPUT_COLOR_VAR = '--cp-reference-input';
+const INPUT_FALLBACK: Rgba = [0.949, 0.353, 0.722, 1];
+const FOLDED_COLOR_VAR = '--fold-unassigned';
+const FOLDED_FALLBACK: Rgba = [0.604, 0.643, 0.678, 1];
+/** Ghosted "folded so far" lines sit back from the pattern. */
+const FOLDED_ALPHA = 0.55;
+/**
+ * How faint a pattern crease made by an earlier step draws: the theme's, held
+ * to the light theme's step off the ground (`themes/referencesInk.ts`). The
+ * fallback is that tuning itself.
+ */
+const DIM_ALPHA_VAR = '--references-dim-alpha';
+/** The part of a fold that is not creased: present, but barely. */
+const UNFOLDED_ALPHA = 0.22;
+
+const EMPTY_IDS: ReadonlySet<number> = new Set();
+/** No step filter: the whole document, at full strength. */
+const ALL_CREASES: ReferencesCreaseVisibility = { visible: null, dimmed: null, dimAlpha: 1 };
+
+/** The shared CP policy — see `cpDpr.ts`; the editor renders under the same cap. */
+const dpr = cpDpr;
+
+function lineSegmentsOf(geometry: CpGeometryTransport): IndexedSegment[] {
+  const endpoints = geometry.segEndpoints;
+  const count = endpoints.length / 4;
+  const segments: IndexedSegment[] = new Array(count);
+  for (let i = 0; i < count; i += 1) {
+    const e = i * 4;
+    segments[i] = {
+      id: i + 1,
+      a: { x: endpoints[e], y: endpoints[e + 1] },
+      b: { x: endpoints[e + 2], y: endpoints[e + 3] },
+    };
+  }
+  return segments;
+}
+
+/** The mid-x of the sheet in scope, in model space, for the back-view mirror. */
+function sheetCentreX(
+  geometry: CpGeometryTransport,
+  ids: ReadonlySet<number> | null
+): number | null {
+  const endpoints = geometry.segEndpoints;
+  let min = Infinity;
+  let max = -Infinity;
+  for (let i = 0; i + 3 < endpoints.length; i += 4) {
+    if (ids !== null && !ids.has(i / 4 + 1)) continue;
+    min = Math.min(min, endpoints[i], endpoints[i + 2]);
+    max = Math.max(max, endpoints[i], endpoints[i + 2]);
+  }
+  return Number.isFinite(min) && Number.isFinite(max) ? (min + max) / 2 : null;
+}
+
+function withAlpha(color: Rgba, alpha: number): Rgba {
+  return [color[0], color[1], color[2], color[3] * alpha];
+}
+
+/** The same thing under the pointer as a frame ago, by identity rather than position. */
+function samePick(a: ReferencesPick | null, b: ReferencesPick | null): boolean {
+  if (a === null || b === null) return a === b;
+  if (a.kind === 'line') return b.kind === 'line' && a.id === b.id;
+  return b.kind === 'vertex' && a.idx === b.idx;
+}
+
+/**
+ * The overlay's inks, resolved from the canvas's own theme.
+ *
+ * A crease is drawn in the colour that says which way it folds — the one thing
+ * the reader is looking for — so the overlay has no "new crease" hue of its
+ * own. Marks and arrows take the ink the paper's edge is drawn in, the way a
+ * printed diagram does.
+ */
+function overlayColors(canvas: HTMLCanvasElement): ReferencesOverlayColors {
+  return {
+    folded: withAlpha(readCssVarColor(canvas, FOLDED_COLOR_VAR, FOLDED_FALLBACK), FOLDED_ALPHA),
+    input: readCssVarColor(canvas, INPUT_COLOR_VAR, INPUT_FALLBACK),
+    mark: readCssVarColor(canvas, INK_COLOR_VAR, INK_FALLBACK),
+    mountain: readCssVarColor(canvas, MOUNTAIN_COLOR_VAR, MOUNTAIN_FALLBACK),
+    valley: readCssVarColor(canvas, VALLEY_COLOR_VAR, VALLEY_FALLBACK),
+    unassigned: readCssVarColor(canvas, FOLDED_COLOR_VAR, FOLDED_FALLBACK),
+    unfoldedAlpha: UNFOLDED_ALPHA,
+  };
+}
+
+/** Everything the imperative handlers read, refreshed every render without re-binding them. */
+interface LiveProps {
+  /** Model → SVG, mirrored about the sheet when the paper is on its back. */
+  modelToSvg: (point: Point) => Point;
+  /** The paper is on its back, so the ground takes the colour side's tint. */
+  mirrored: boolean;
+  lineWidth: number;
+  pointSize: number;
+  wheelGesture: WheelGesturePreference;
+  snapRadius: number;
+  /** The hit floors, in CSS px: fingertip-sized under a coarse pointer. */
+  pointFloorCss: number;
+  lineFloorCss: number;
+  onPick: (hit: ReferencesPick | null) => void;
+  onViewChange?: (view: ReferencesDiagramView) => void;
+  onZoomPercentChange?: (percent: number) => void;
+  contentBounds: UserBounds | null;
+  vertices: readonly Point[];
+  /** Median crease length, for the vertex crowding ramp. */
+  vertexSpacingModel: number;
+  hitIndexes: ReferencesHitIndexes;
+}
+
+export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpViewProps>(
+  function ReferencesCpView(props, ref) {
+    const {
+      geometry,
+      lineStyle,
+      mode,
+      lineWidth,
+      pointSize,
+      wheelGesture,
+      snapRadius = CP_DEFAULT_SNAP_RADIUS,
+      highlightVertexIdx,
+      diagramStrokes = null,
+      onViewChange,
+      onZoomPercentChange,
+      selected,
+      sheetLineIds = null,
+      creaseVisibility = ALL_CREASES,
+      mirrored = false,
+      onPick,
+      framingKey,
+      themeKey,
+      ariaLabel,
+      className,
+    } = props;
+
+    const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const rendererRef = useRef<CpRenderer | null>(null);
+    const cameraRef = useRef<UserCamera | null>(null);
+    const preservedCameraRef = useRef<UserCamera | null>(null);
+    const fitRequestedRef = useRef(true);
+    const renderNowRef = useRef<() => void>(() => undefined);
+    const [rendererStatus, setRendererStatus] = useState<CpRendererStatus | null>(null);
+    // Bumped when a lost context comes back, so the lifecycle effect rebuilds
+    // the renderer and every upload effect below re-runs against it.
+    const [rendererGeneration, setRendererGeneration] = useState(0);
+    // What the pointer is over, and whether it is dragging — what the cursor
+    // and the hover mark need. Both are mirrored in refs the raw handlers read
+    // and write, and only pushed into state when the answer changes, so a
+    // pointermove along the same crease re-renders nothing (the Edit canvas's
+    // `applyCreaseHover` shape, `CreasePatternWebglCanvas.tsx`).
+    const [hovered, setHovered] = useState<ReferencesPick | null>(null);
+    // A fingertip is not a cursor: the hit floors grow under a coarse pointer,
+    // and the mark under the finger shows on touch-down rather than on hover.
+    const coarse = useIsCoarsePointerSurface();
+    const pointFloorCss = coarse ? CP_POINT_HIT_MIN_CSS_COARSE : CP_POINT_HIT_MIN_CSS;
+    const lineFloorCss = coarse ? CP_LINE_HIT_MIN_CSS_COARSE : CP_LINE_HIT_MIN_CSS;
+    const [dragging, setDragging] = useState(false);
+    const hoveredRef = useRef<ReferencesPick | null>(null);
+
+    const vertices = useMemo(() => vertexPointsFromTransport(geometry), [geometry]);
+    /**
+     * The vertices the sheet in scope actually touches, 0-based into
+     * `vertices`.
+     *
+     * A mask rather than a filtered list, because a vertex's index into the
+     * full list is its identity everywhere else — `highlightVertexIdx` and
+     * `selected` are both indices into it (`useReferencesView`), so compacting
+     * the array here would silently renumber them.
+     */
+    const sheetVertexIdx = useMemo<Set<number> | null>(
+      () => (sheetLineIds ? verticesOfLines(geometry, vertices, sheetLineIds) : null),
+      [geometry, vertices, sheetLineIds]
+    );
+    const sheetVertices = useMemo(
+      () => (sheetVertexIdx ? vertices.filter((_, i) => sheetVertexIdx.has(i)) : vertices),
+      [vertices, sheetVertexIdx]
+    );
+    /**
+     * The vertices the *step* has made, which is not the same set.
+     *
+     * A vertex is where creases cross, so one whose creases are all still to be
+     * folded does not exist yet on the paper — drawing it gave away where later
+     * folds land and made the sheet look finished from step one.
+     */
+    const drawnVertices = useMemo(() => {
+      const visible = creaseVisibility.visible;
+      if (!visible) return sheetVertices;
+      // The border is always drawn, but its own vertices are not landmarks
+      // until something reaches them: on a blank sheet the outline carries a
+      // dot at every place a crease will *later* arrive, which is both a
+      // giveaway and a lot of dots. So the point layer follows the creases,
+      // and the border rides along only where one of them lands.
+      const creases = new Set<number>();
+      for (const id of visible) {
+        if (!creaseVisibility.borderLineIds?.has(id)) creases.add(id);
+      }
+      const kept = verticesOfLines(geometry, vertices, creases, { dropCollinear: true });
+      return vertices.filter((_, i) => kept.has(i));
+    }, [geometry, vertices, sheetVertices, creaseVisibility]);
+    // What the vertex crowding ramp measures against — the same strided median
+    // the editor uses, so the two surfaces fade at the same point.
+    const vertexSpacingModel = useMemo(() => {
+      const endpoints = geometry.segEndpoints;
+      return cpVertexSpacingModel(
+        (i) => Math.hypot(endpoints[i * 4 + 2] - endpoints[i * 4], endpoints[i * 4 + 3] - endpoints[i * 4 + 1]),
+        endpoints.length / 4
+      );
+    }, [geometry]);
+    // The sheet in scope is what the camera fits and what `frameModelBounds`
+    // clamps against; another pattern's extent is not this pattern's context.
+    const contentBounds = useMemo(
+      () => transportUserBounds(geometry, sheetLineIds),
+      [geometry, sheetLineIds]
+    );
+    /**
+     * Model → SVG, reflected about the sheet's own vertical centre when the
+     * paper is on its back.
+     *
+     * Folded into the map the camera is built from rather than applied to the
+     * scene, so the camera, the hit test and every overlay channel see one
+     * consistent space — and `unprojectDevicePoint` inverts the reflected
+     * transform, so a click on the mirrored drawing lands on the crease it
+     * looks like it is on.
+     */
+    const modelToSvg = useMemo(() => {
+      if (!mirrored) return cpModelToSvg;
+      const centre = sheetCentreX(geometry, sheetLineIds);
+      if (centre === null) return cpModelToSvg;
+      return (point: Point) => cpModelToSvg({ x: 2 * centre - point.x, y: point.y });
+    }, [mirrored, geometry, sheetLineIds]);
+    /**
+     * What a click or a passing pointer can land on.
+     *
+     * While something is being read, what is drawn (`creaseVisibility.pickable`)
+     * — the creases made so far, or the one reference being read, the border
+     * among them — and the vertices those creases make: where they cross,
+     * where they meet the border, and the sheet's corners, which are there
+     * from the start. A point where one line merely changes colour is not a
+     * landmark and is left out, as it is from the dots. A crease that is not
+     * drawn is not there to point at, so hovering it marks nothing and a click
+     * there is a click on blank paper. Otherwise the whole sheet in scope.
+     */
+    const pickableLineIds = creaseVisibility.pickable ?? sheetLineIds;
+    const pickableVertexIdx = useMemo<Set<number> | null>(
+      () =>
+        creaseVisibility.pickable
+          ? verticesOfLines(geometry, vertices, creaseVisibility.pickable, { dropCollinear: true })
+          : sheetVertexIdx,
+      [geometry, vertices, creaseVisibility.pickable, sheetVertexIdx]
+    );
+    const hitIndexes = useMemo<ReferencesHitIndexes>(
+      () => ({
+        vertices: new LineHitIndex(
+          vertices
+            .map((v, i) => ({ id: i + 1, a: v, b: v }))
+            .filter((entry) => pickableVertexIdx === null || pickableVertexIdx.has(entry.id - 1))
+        ),
+        lines: new LineHitIndex(
+          lineSegmentsOf(geometry).filter(
+            (segment) => pickableLineIds === null || pickableLineIds.has(segment.id)
+          )
+        ),
+      }),
+      [geometry, vertices, pickableVertexIdx, pickableLineIds]
+    );
+
+    const liveRef = useRef<LiveProps>({
+      modelToSvg,
+      mirrored,
+      lineWidth,
+      pointSize,
+      wheelGesture,
+      snapRadius,
+      pointFloorCss,
+      lineFloorCss,
+      onPick,
+      onViewChange,
+      onZoomPercentChange,
+      contentBounds,
+      vertices,
+      vertexSpacingModel,
+      hitIndexes,
+    });
+    const lastViewRef = useRef<ReferencesDiagramView | null>(null);
+    const lastZoomPercentRef = useRef<number | null>(null);
+    // Declared before every effect below, so within one commit the handlers
+    // and uploads read this render's values.
+    useEffect(() => {
+      liveRef.current = {
+        modelToSvg,
+        mirrored,
+        lineWidth,
+        pointSize,
+        wheelGesture,
+        snapRadius,
+        pointFloorCss,
+        lineFloorCss,
+        onPick,
+        onViewChange,
+        onZoomPercentChange,
+        contentBounds,
+        vertices,
+        vertexSpacingModel,
+        hitIndexes,
+      };
+    });
+
+    // --- Renderer lifecycle, camera, input -----------------------------------
+    useEffect(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const support = cpWebglSupport();
+      if (!support.supported) {
+        setRendererStatus({ kind: 'unsupported', detail: describeCpWebglGap(support.gap) });
+        return;
+      }
+
+      let renderer: CpRenderer;
+      try {
+        renderer = createReglRenderer(canvas, {
+          onContextLost: () => {
+            preservedCameraRef.current = cameraRef.current;
+            setRendererStatus({ kind: 'context-lost' });
+          },
+          onContextRestored: () => setRendererGeneration((generation) => generation + 1),
+        });
+      } catch (error) {
+        const gap = classifyCpWebglFailure(canvas);
+        reportError(error, {
+          surface: 'references:webgl',
+          tags: { webgl_gap: gap ?? 'unclassified' },
+        });
+        setRendererStatus({
+          kind: 'unsupported',
+          detail: gap
+            ? describeCpWebglGap(gap)
+            : error instanceof Error
+              ? error.message
+              : String(error),
+        });
+        return;
+      }
+      setRendererStatus(null);
+      rendererRef.current = renderer;
+
+      const viewportOf = (ratio: number): Viewport => ({
+        width: canvas.width,
+        height: canvas.height,
+        dpr: ratio,
+      });
+
+      const ensureCamera = (viewport: Viewport): UserCamera | null => {
+        if (preservedCameraRef.current) {
+          cameraRef.current = preservedCameraRef.current;
+          preservedCameraRef.current = null;
+          fitRequestedRef.current = false;
+          return cameraRef.current;
+        }
+        if (cameraRef.current && !fitRequestedRef.current) return cameraRef.current;
+        const bounds = liveRef.current.contentBounds;
+        if (!bounds) return cameraRef.current;
+        fitRequestedRef.current = false;
+        cameraRef.current = fitUserCamera(bounds, viewport);
+        return cameraRef.current;
+      };
+
+      const reportView = (view: CpOverlayView) => {
+        const seen = lastViewRef.current;
+        const same =
+          seen !== null &&
+          seen.view.origin[0] === view.origin[0] &&
+          seen.view.origin[1] === view.origin[1] &&
+          seen.view.ex[0] === view.ex[0] &&
+          seen.view.ex[1] === view.ex[1] &&
+          seen.view.ey[0] === view.ey[0] &&
+          seen.view.ey[1] === view.ey[1];
+        if (same) return;
+        const next = { view };
+        lastViewRef.current = next;
+        liveRef.current.onViewChange?.(next);
+      };
+
+      const reportZoom = (cam: UserCamera, ratio: number) => {
+        const percent = Math.round((cam.zoom / ratio) * 100);
+        if (percent === lastZoomPercentRef.current) return;
+        lastZoomPercentRef.current = percent;
+        liveRef.current.onZoomPercentChange?.(percent);
+      };
+
+      const renderNow = () => {
+        const ratio = dpr();
+        const viewport = viewportOf(ratio);
+        if (viewport.width === 0 || viewport.height === 0) return;
+        const cam = ensureCamera(viewport);
+        if (!cam) return;
+        const view = modelViewFromCamera(cam, viewport, liveRef.current.modelToSvg);
+        const userView = userCameraToView(cam, viewport);
+        const bounds = liveRef.current.contentBounds;
+        const fitZoom = bounds ? fitUserCamera(bounds, viewport).zoom : cam.zoom;
+        const { widthBoost, markerScalePx, pointScalePx } = cpSizingScales({
+          camZoom: cam.zoom,
+          fitZoom,
+          ratio,
+        });
+        // The editor's vertex fade, ported rather than re-decided: on a dense
+        // pattern (a 9.4k-segment CP has a ~5 CSS px vertex pitch) a field of
+        // full-opacity dots buries the creases the user is trying to pick.
+        // The picked and step-highlighted vertices ride the overlay channel
+        // instead, which is never faded — see the overlay upload below.
+        const { pointOpacity, pointRingScale } = cpVertexCrowding({
+          vertexSpacingModel: liveRef.current.vertexSpacingModel,
+          pointSize: liveRef.current.pointSize,
+          modelPxPerUnit: Math.hypot(view.ex[0], view.ex[1]),
+          ratio,
+        });
+        // The layer over this canvas draws through the same camera, in CSS
+        // pixels rather than device ones.
+        reportView({
+          origin: [view.origin[0] / ratio, view.origin[1] / ratio],
+          ex: [view.ex[0] / ratio, view.ex[1] / ratio],
+          ey: [view.ey[0] / ratio, view.ey[1] / ratio],
+        });
+        reportZoom(cam, ratio);
+        renderer.render({
+          clearColor: readCssVarColor(canvas, CANVAS_BG_VAR, FALLBACK_CLEAR),
+          view,
+          userView,
+          strokeWidthPx: CREASE_WIDTH_FACTOR * liveRef.current.lineWidth * ratio * widthBoost,
+          userScalePx: cam.zoom,
+          markerScalePx,
+          pointScalePx,
+          constantOutlinePx: POINT_OUTLINE_CSS * ratio,
+          markerOutlinePx: POINT_OUTLINE_CSS * markerScalePx,
+          pointOutlinePx: POINT_OUTLINE_CSS * pointScalePx * pointRingScale,
+          pointOpacity,
+        });
+      };
+      renderNowRef.current = renderNow;
+
+      const applySize = () => {
+        const rect = canvas.getBoundingClientRect();
+        const ratio = dpr();
+        const width = Math.max(1, Math.round(rect.width * ratio));
+        const height = Math.max(1, Math.round(rect.height * ratio));
+        if (canvas.width !== width || canvas.height !== height) {
+          canvas.width = width;
+          canvas.height = height;
+        }
+        renderer.resize({ width, height, dpr: ratio });
+        renderNow();
+      };
+      // jsdom has no ResizeObserver; the size is then applied once.
+      const observer =
+        typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(applySize);
+      observer?.observe(canvas);
+      applySize();
+
+      // --- Pointer input: pan, pinch, click ---------------------------------
+      // A local map of the contacts on this canvas, in press order. Two or more
+      // is a pinch; the transform is differenced frame to frame, so each
+      // `pointermove` (one contact at a time) is a valid sample.
+      const pointers = new Map<number, GesturePoint>();
+      let press: { pointerId: number; x: number; y: number } | null = null;
+      let moved = false;
+
+      const hitTest = (clientX: number, clientY: number): ReferencesPick | null => {
+        const cam = cameraRef.current;
+        if (!cam) return null;
+        const ratio = dpr();
+        const rect = canvas.getBoundingClientRect();
+        const view = modelViewFromCamera(cam, viewportOf(ratio), liveRef.current.modelToSvg);
+        const model = unprojectDevicePoint(
+          view,
+          (clientX - rect.left) * ratio,
+          (clientY - rect.top) * ratio
+        );
+        if (!model) return null;
+        // `cpHitRadiusModel` wants CSS px per user unit; the camera zoom is in
+        // device px, hence the ratio. Vertices get the tighter radius so a
+        // crease cannot shadow its own endpoint — see `snapRadius.ts`.
+        const zoom = cam.zoom / ratio;
+        const live = liveRef.current;
+        return resolveReferencesPick(
+          live.hitIndexes,
+          live.vertices,
+          model,
+          cpHitRadiusModel(live.snapRadius, zoom, CP_POINT_HIT_RATIO, live.pointFloorCss),
+          cpHitRadiusModel(live.snapRadius, zoom, CP_LINE_HIT_RATIO, live.lineFloorCss)
+        );
+      };
+
+      // Hover, for the cursor and the hover mark. Coalesced to a frame because
+      // `LineHitIndex` falls back to a linear scan at fit zoom (~2 ms at 50k
+      // segments), which is fine once per frame and not fine once per
+      // pointermove sample.
+      let hoverProbe = 0;
+      let hoverAt: { x: number; y: number } | null = null;
+      const applyHover = (next: ReferencesPick | null) => {
+        if (samePick(next, hoveredRef.current)) return;
+        hoveredRef.current = next;
+        setHovered(next);
+      };
+      const probeHover = (clientX: number, clientY: number) => {
+        hoverAt = { x: clientX, y: clientY };
+        if (hoverProbe !== 0) return;
+        hoverProbe = requestAnimationFrame(() => {
+          hoverProbe = 0;
+          const at = hoverAt;
+          if (!at) return;
+          applyHover(hitTest(at.x, at.y));
+        });
+      };
+      const cancelHover = () => {
+        hoverAt = null;
+        if (hoverProbe !== 0) {
+          cancelAnimationFrame(hoverProbe);
+          hoverProbe = 0;
+        }
+        applyHover(null);
+      };
+
+
+      const onPointerDown = (e: PointerEvent) => {
+        // The right button is the panel's context menu; nothing to do here.
+        if (e.button !== 0) return;
+        e.preventDefault();
+        canvas.setPointerCapture(e.pointerId);
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pointers.size === 1) {
+          press = { pointerId: e.pointerId, x: e.clientX, y: e.clientY };
+          moved = false;
+          setDragging(true);
+          cancelHover();
+          // No hover on touch, so the mark shows under the finger from the
+          // press, and follows it while the press is still a tap: what a
+          // release will pick is visible before it is picked.
+          if (e.pointerType === 'touch') applyHover(hitTest(e.clientX, e.clientY));
+        } else {
+          // A second finger turns the gesture into a camera gesture; no click
+          // can come out of it.
+          press = null;
+        }
+      };
+
+      const onPointerMove = (e: PointerEvent) => {
+        // No contact down: the pointer is only passing over, so all this does is
+        // decide the cursor. `pointers` is empty then, which is why the hover
+        // probe sits above the guard the gesture handling starts with.
+        if (!pointers.has(e.pointerId)) {
+          if (pointers.size === 0) probeHover(e.clientX, e.clientY);
+          return;
+        }
+        const cam = cameraRef.current;
+        const prev = [...pointers.values()];
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        const next = [...pointers.values()];
+        if (!cam) return;
+        const ratio = dpr();
+        if (pointers.size >= 2) {
+          const anchor = contactCentroid(prev);
+          if (!anchor) return;
+          const rect = canvas.getBoundingClientRect();
+          applyPinchToCamera(
+            cam,
+            viewportOf(ratio),
+            pinchTransform(prev, next),
+            { x: anchor.x - rect.left, y: anchor.y - rect.top },
+            ratio
+          );
+          renderNow();
+          return;
+        }
+        const from = prev[0];
+        if (press && !moved && !isClick(press, { x: e.clientX, y: e.clientY })) {
+          moved = true;
+          // A pan, not a tap: nothing will be picked, so nothing is marked.
+          if (e.pointerType === 'touch') applyHover(null);
+        } else if (press && !moved && e.pointerType === 'touch') {
+          applyHover(hitTest(e.clientX, e.clientY));
+        }
+        // A drag pans from the first pixel; the click test on release is what
+        // says whether it was one. The few pixels a click wobbles by are a pan
+        // nobody sees.
+        panUserCamera(cam, (e.clientX - from.x) * ratio, (e.clientY - from.y) * ratio);
+        renderNow();
+      };
+
+      const onPointerUp = (e: PointerEvent) => {
+        if (!pointers.has(e.pointerId)) return;
+        pointers.delete(e.pointerId);
+        try {
+          canvas.releasePointerCapture(e.pointerId);
+        } catch {
+          // Already released, or never captured under this browser's rules.
+        }
+        const wasPress = press !== null && press.pointerId === e.pointerId;
+        if (wasPress && !moved && pointers.size === 0) {
+          liveRef.current.onPick(hitTest(e.clientX, e.clientY));
+        }
+        if (wasPress) press = null;
+        if (pointers.size === 0) {
+          setDragging(false);
+          // The pointer has not moved, but what is under it may have: a click
+          // that picked a crease leaves the cursor where the press left it. A
+          // finger has left; nothing is under it.
+          if (e.pointerType === 'touch') applyHover(null);
+          else probeHover(e.clientX, e.clientY);
+        }
+      };
+
+      const onPointerCancel = (e: PointerEvent) => {
+        pointers.delete(e.pointerId);
+        if (press?.pointerId === e.pointerId) press = null;
+        if (pointers.size === 0) setDragging(false);
+      };
+
+      const onPointerLeave = () => cancelHover();
+
+      const onWheel = (e: WheelEvent) => {
+        const cam = cameraRef.current;
+        if (!cam) return;
+        e.preventDefault();
+        const ratio = dpr();
+        const gesture = resolveWheelGesture(e, liveRef.current.wheelGesture);
+        if (gesture.kind === 'pan') {
+          // Negated: `panUserCamera` takes a *drag* delta, and a scroll moves
+          // the content the other way — so the paper follows the fingers.
+          panUserCamera(cam, -gesture.dx * ratio, -gesture.dy * ratio);
+        } else {
+          if (gesture.factor === 1) return;
+          const rect = canvas.getBoundingClientRect();
+          zoomUserCameraAt(
+            cam,
+            viewportOf(ratio),
+            (e.clientX - rect.left) * ratio,
+            (e.clientY - rect.top) * ratio,
+            gesture.factor
+          );
+        }
+        renderNow();
+      };
+
+      canvas.addEventListener('pointerdown', onPointerDown);
+      canvas.addEventListener('pointermove', onPointerMove);
+      canvas.addEventListener('pointerup', onPointerUp);
+      canvas.addEventListener('pointercancel', onPointerCancel);
+      canvas.addEventListener('pointerleave', onPointerLeave);
+      canvas.addEventListener('wheel', onWheel, { passive: false });
+
+      return () => {
+        observer?.disconnect();
+        canvas.removeEventListener('pointerdown', onPointerDown);
+        canvas.removeEventListener('pointermove', onPointerMove);
+        canvas.removeEventListener('pointerup', onPointerUp);
+        canvas.removeEventListener('pointercancel', onPointerCancel);
+        canvas.removeEventListener('pointerleave', onPointerLeave);
+        canvas.removeEventListener('wheel', onWheel);
+        cancelHover();
+        renderNowRef.current = () => undefined;
+        rendererRef.current = null;
+        renderer.dispose();
+      };
+    }, [rendererGeneration]);
+
+    // --- Framing -------------------------------------------------------------
+    useEffect(() => {
+      fitRequestedRef.current = true;
+      renderNowRef.current();
+    }, [framingKey]);
+
+    // Turning the paper over changes the map, not the camera: the pattern
+    // reflects in place rather than refitting.
+    useEffect(() => {
+      renderNowRef.current();
+    }, [modelToSvg]);
+
+    // --- Scene uploads -------------------------------------------------------
+    // Creases, with the highlighted ones in the "new crease" colour. Theme
+    // colours are DOM-resolved, so `themeKey` is a dependency on purpose.
+    useEffect(() => {
+      const renderer = rendererRef.current;
+      const canvas = canvasRef.current;
+      if (!renderer || !canvas) return;
+      // Only the *picked* crease takes the selection accent here. The active
+      // step's creases are recoloured in `applyCreaseVisibility` instead, to the
+      // one direction the step folds — see
+      // `ReferencesCreaseVisibility.emphasisColor`.
+      const picked = selected?.kind === 'line' ? new Set([selected.id]) : EMPTY_IDS;
+      const { strokes } = cpGeometryStrokesToScene(
+        geometry,
+        createCpLineAppearanceResolver(lineStyle, mode, canvas),
+        cpLineStyleDashPatterns(lineStyle),
+        {
+          selected: picked,
+          color: readCssVarColor(canvas, INPUT_COLOR_VAR, INPUT_FALLBACK),
+          widthMul: HIGHLIGHT_WIDTH_MUL,
+        }
+      );
+      // The directions the crate settled, in this canvas's ink. Resolved here
+      // because this is the one place that owns the palette; the rule that says
+      // *which* direction lives in `referencesCreaseVisibility`.
+      const palette = overlayColors(canvas);
+      // How far back the earlier steps' creases sit is the theme's call too:
+      // one alpha reads twice as strong over a dark ground as over a light.
+      const dimAlpha =
+        creaseVisibility.dimAlpha < 1
+          ? readCssVarNumber(canvas, DIM_ALPHA_VAR, creaseVisibility.dimAlpha)
+          : creaseVisibility.dimAlpha;
+      renderer.setStrokes(
+        applyCreaseVisibility(
+          strokes,
+          geometry.segEndpoints.length / 4,
+          {
+            ...creaseVisibility,
+            dimAlpha,
+            ink: { mountain: palette.mountain, valley: palette.valley },
+          },
+          canvasDiagramInk(lineWidth)
+        )
+      );
+      // Only when the paper is on its back: the front face is the same colour
+      // as the ground it lies on, so filling it would draw nothing and cost a
+      // buffer upload per theme change.
+      renderer.setSheetFill(
+        mirrored
+          ? sheetFillGeometry(
+              geometry,
+              creaseVisibility.borderLineIds ?? null,
+              readCssVarColor(canvas, PAPER_BACK_VAR, FALLBACK_CLEAR)
+            )
+          : null
+      );
+      renderNowRef.current();
+    }, [
+      lineWidth,
+      geometry,
+      lineStyle,
+      mode,
+      selected,
+      creaseVisibility,
+      mirrored,
+      themeKey,
+      rendererGeneration,
+    ]);
+
+    // Vertex dots. Deliberately *without* the highlighted ones: this layer rides
+    // the crowding ramp (`renderNow`) and fades to nothing on a dense pattern,
+    // so the picked vertex is drawn on the overlay channel below instead.
+    useEffect(() => {
+      const renderer = rendererRef.current;
+      const canvas = canvasRef.current;
+      if (!renderer || !canvas) return;
+      renderer.setPoints(
+        cpPointsToScene([], drawnVertices, [], resolveCpPointStyle(canvas, pointSize), {
+          pointIdx: new Set(),
+          circleIdx: new Set(),
+          vertexIdx: new Set(),
+          color: readCssVarColor(canvas, INK_COLOR_VAR, INK_FALLBACK),
+        })
+      );
+      renderNowRef.current();
+    }, [drawnVertices, pointSize, themeKey, rendererGeneration]);
+
+    // The step's lines that the pattern does not contain, over the creases —
+    // and the crease under the pointer, in the accent it would be picked in.
+    // On this channel rather than in the crease upload, which is the whole
+    // document: a hover must not cost a 50k-segment re-pack. The picked crease
+    // is already drawn in the accent, so hovering it adds nothing.
+    useEffect(() => {
+      const renderer = rendererRef.current;
+      const canvas = canvasRef.current;
+      if (!renderer || !canvas) return;
+      const hoverStroke =
+        hovered?.kind === 'line' && !(selected?.kind === 'line' && selected.id === hovered.id)
+          ? hoveredCreaseToPreviewStroke(
+              geometry,
+              hovered.id,
+              readCssVarColor(canvas, INPUT_COLOR_VAR, INPUT_FALLBACK),
+              HIGHLIGHT_WIDTH_MUL
+            )
+          : null;
+      renderer.setPreview(concatStrokes(diagramStrokes, hoverStroke));
+      renderNowRef.current();
+    }, [diagramStrokes, hovered, selected, geometry, themeKey, rendererGeneration]);
+
+    // Input rings, the new mark, the picked/highlighted vertices and the ring
+    // round the vertex under the pointer, on top of everything. This channel
+    // draws at full opacity whatever the crowding, which is why the vertex
+    // marks live here rather than in the point layer.
+    useEffect(() => {
+      const renderer = rendererRef.current;
+      const canvas = canvasRef.current;
+      if (!renderer || !canvas) return;
+      const newColor = readCssVarColor(canvas, INK_COLOR_VAR, INK_FALLBACK);
+      const highlighted = new Set(highlightVertexIdx);
+      if (selected?.kind === 'vertex') highlighted.add(selected.idx);
+      const picked = [...highlighted]
+        .map((idx) => vertices[idx])
+        .filter((point): point is Point => point !== undefined);
+      const hoverRing =
+        hovered?.kind === 'vertex' && !(selected?.kind === 'vertex' && selected.idx === hovered.idx)
+          ? hoveredVertexToOverlayPoint(
+              hovered.point,
+              readCssVarColor(canvas, INPUT_COLOR_VAR, INPUT_FALLBACK),
+              pointSize
+            )
+          : null;
+      renderer.setOverlayPoints(
+        concatOverlayPoints(
+          highlightedVerticesToOverlayPoints(picked, newColor, pointSize),
+          hoverRing
+        )
+      );
+      renderNowRef.current();
+    }, [
+      highlightVertexIdx,
+      selected,
+      hovered,
+      vertices,
+      pointSize,
+      themeKey,
+      rendererGeneration,
+    ]);
+
+    // Width is a per-frame parameter; a change only needs a redraw.
+    useEffect(() => {
+      renderNowRef.current();
+    }, [lineWidth, themeKey]);
+
+    // --- Imperative handle -----------------------------------------------------
+    useImperativeHandle(
+      ref,
+      () => {
+        const viewport = (): Viewport | null => {
+          const canvas = canvasRef.current;
+          if (!canvas || canvas.width === 0 || canvas.height === 0) return null;
+          return { width: canvas.width, height: canvas.height, dpr: dpr() };
+        };
+        const zoomBy = (factor: number) => {
+          const cam = cameraRef.current;
+          const vp = viewport();
+          if (!cam || !vp) return;
+          zoomUserCameraAt(cam, vp, vp.width / 2, vp.height / 2, factor);
+          renderNowRef.current();
+        };
+        return {
+          zoomIn: () => zoomBy(ZOOM_STEP),
+          zoomOut: () => zoomBy(1 / ZOOM_STEP),
+          setZoomPercent: (percent) => {
+            const cam = cameraRef.current;
+            const vp = viewport();
+            if (!cam || !vp) return;
+            // The inverse of `reportZoom`: 100% is one user unit per CSS pixel.
+            cam.zoom = cameraZoomForPercent(percent, vp.dpr);
+            renderNowRef.current();
+          },
+          fit: () => {
+            fitRequestedRef.current = true;
+            renderNowRef.current();
+          },
+          frameModelBounds: (bounds) => {
+            const cam = cameraRef.current;
+            const vp = viewport();
+            if (!cam || !vp) return;
+            cameraRef.current = frameUserCameraOnBounds(
+              modelBoundsToUser(bounds),
+              vp,
+              cam,
+              liveRef.current.contentBounds
+            );
+            renderNowRef.current();
+          },
+        };
+      },
+      []
+    );
+
+    // The shared predicate, not a second copy of the rule. Both a vertex and a
+    // crease report as `creaseHovered`: here they are the same press — a click
+    // that selects what is under the cursor — where in the editor a vertex under
+    // Move Vertex is dragged, which is what `vertexGrabbable` is for.
+    const cursor = cpCanvasCursor({
+      panToolActive: false,
+      panModifierHeld: false,
+      panDragging: dragging,
+      creaseHovered: hovered !== null,
+    });
+
+    return (
+      <div className={['references-view', className].filter(Boolean).join(' ')}>
+        <canvas
+          ref={canvasRef}
+          className="references-canvas"
+          role="img"
+          aria-label={ariaLabel}
+          data-testid="references-cp-view"
+          style={cursor ? { cursor } : undefined}
+        />
+        {rendererStatus && <CpRendererUnavailable status={rendererStatus} />}
+      </div>
+    );
+  }
+);

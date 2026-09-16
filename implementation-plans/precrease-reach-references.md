@@ -1,0 +1,574 @@
+# Precrease steps: one crease per line, from reference to reference
+
+## Goal
+
+A precrease step creases exactly the pattern's segments on its line and
+nothing else. Where the pattern's crease stops short of anything, the step
+stops there too, and a card says *fold corner to corner* over a picture of a
+crease that begins and ends in blank paper. On Xiao Dai's *Abra* the first
+three steps show both halves of the defect:
+
+- Step 1 folds the sheet in half — "fold corner Sw onto corner Se" — and
+  creases the midline from `y = 0.207` to the top edge. Step 2 folds it in
+  half the other way and creases from the left edge to `x = 0.793`. Each
+  leaves one end of the crease nowhere a folder can find.
+- Step 3 folds corner to corner along the main diagonal, and the pattern
+  holds that diagonal in three runs — from the corner to (0.104, 0.104),
+  from (0.25, 0.25) to (0.75, 0.75), and from (0.896, 0.896) to the far
+  corner — so the card shows three dashes with 0.41 of blank paper between
+  them and four ends in the middle of nowhere. Steps 14 and 57 are then
+  **presses on the same diagonal**, to put marks in the gaps that later
+  steps sight from. A diagram folds that diagonal once, corner to corner,
+  and neither press is ever needed.
+
+A diagram's instruction is a whole crease with a reference at each end: the
+sheet's edge, or a crease already there. Where the pattern's own crease has
+no such end, a diagram creases *more* than the pattern asks — out to the
+nearest reference — rather than asking the folder to stop at a spot on blank
+paper. That is the target: **a CP step creases one run on its line, from the
+pattern's first piece to its last, and each end of that run is carried
+outward to the nearest reference the folder can find at that moment.** Any
+later press for a mark on that line falls away, because the crease is
+already there.
+
+`measure_ends -v` names the defect on *Abra* at HEAD: 22 of the plan's 168
+crease ends are nowhere to be found (13.1%), 9 of its 74 CP steps are made
+in pieces with 3.5 sheet-lengths of blank paper between the pieces, and 12
+of its 86 steps are presses. The plan below makes the first two numbers
+zero by construction and measures the third. Its cost, estimated on the
+plan as ordered today, is 5.3 sheet-lengths of crease the pattern does not
+contain — 3.5 of it the blank between pieces, 1.8 the extensions — and the
+longest single extension is 0.21, step 1's midline carried to the bottom
+edge. Fifteen ends extend; the other seven lost ends are interior to a hull
+and vanish with it.
+
+## What the code already knows
+
+The machinery is in place; it is applied to presses and not to folds.
+
+- `marks::end_is_found` is the rule for a findable end: on the sheet's
+  boundary, or on a line creased there that crosses this one squarely
+  (`MIN_ANGLE_SINE`). `settled_end_is_found` is the same rule counting only
+  lines whose extent is settled — an edge, a CP line, a grid line — because
+  an auxiliary line is recorded as creased along its whole chord until the
+  pinch pass reduces it to marks, so a crossing with one is not a promise.
+- `order::press_span` already searches outward from a run end **past a mark
+  to the nearest findable end** ("stopping at the mark would be the original
+  defect moved from the mark to the crease end"), by exactly the settled
+  rule. It is only ever run for a press.
+- `Placed.pressed_on` / `Step.pressed_on` is crease a step makes past the
+  pattern's own because a later step lines up against it, absorbed into the
+  making step when the far end was findable at the time (`make_marks_real`).
+  The web draws it in the step's made style (`plannerDiagram.ts`) and the
+  card says so in one sentence.
+- `marks::crease_runs` merges a line's pieces into runs, and the grid's
+  stage-2 extents (`grid::snap_outward` to `grid::stops()`) already carry a
+  band line's ends out to the nearest crossing with another family's pleat
+  line or the sheet's edge — the same rule, for grid lines only.
+- The closure prefers targets whose pattern ends are findable
+  (`Closure::ends_findable`, `prefer_findable_ends`); a target that never
+  passes is folded anyway, with its ends lost. That preference is measured
+  by `measure_ends` at 9.9% lost ends with it and 12.2% without over four
+  designs; the preference moves the number, it cannot make it zero.
+
+What is missing is one rule, applied when a CP fold is recorded on the paper
+in both places the paper is kept — the closure's `record_crease` and the
+ordering pass's `record` — and one field on a step that says how far it
+creased.
+
+## What the corpus says
+
+`measure_ends -v` at HEAD over the curated benchmark, *Abra*, *Wolpertinger*
+and the crate's fixtures — 56 designs, 4,512 steps, through
+`plan_without_reference_finder`, so ceilings: 863 of 8,630 crease ends are
+nowhere to be found (10.0%), 588 CP steps are made in pieces with 195
+sheet-lengths of blank paper between the pieces, and 711 steps are presses
+(53.5 sheet-lengths of crease). The worst sheets are the ones with the most
+steps — *markhor-detailed* 88 lost ends and 41 steps in pieces of 231
+steps, *frigate-bird* 59 and 25 of 196, *Wolpertinger* 47 and 40 of 169.
+
+The rule's estimated cost on today's order: joining the pieces is those 195
+sheet-lengths, and carrying the 573 lost hull ends out to a reference adds
+111 more — 233 of them under 0.1, 192 between 0.1 and 0.25, 97 between
+0.25 and 0.5, 48 between 0.5 and 1, and 3 over a sheet-length. The long
+ones are the first steps on a blank sheet: *halibut*'s step 1 folds corner
+Se onto corner Nw and the pattern wants 0.12 of that diagonal at one
+corner, so the rule creases the whole diagonal, 1.29 more than the pattern
+has. That is "fold in half diagonally", which is how a diagram opens — but
+it is also a crease across the finished model that the pattern does not
+contain, and it is the case the by-hand reading in §Measurement is for.
+
+## Approach
+
+### The rule: *reach*
+
+For a CP fold along line `L` whose target holds pattern spans `S` (non-empty;
+an empty `S` is the whole chord and already ends on the edge), against the
+paper `P` as it stands when the fold is made:
+
+1. **Each piece reaches a reference at each end.** For every run of
+   `crease_runs(L, S)`: if `settled_end_is_found(P, L, end)`, the end
+   stays. Otherwise it moves *outward* — away from the piece, never inward
+   — to the nearest parameter at which it would be found: the sheet's
+   boundary (`clip_parameters`), or a crossing with a line of settled
+   extent (tag `Edge`, `Cp` or `Grid`, never `Aux`/`RfAux`) that crosses
+   `L` squarely and is creased at the crossing (`Creased::reaches`). The
+   boundary always qualifies, so the search always terminates on the sheet.
+2. **Pieces merge where their reaches meet.** Two pieces with nothing
+   crossing the blank between them run into each other and become one
+   crease; two pieces with a crossing between them each stop at it — or at
+   their own nearer crossings — and the blank between the references stays
+   blank. (The first cut of this rule joined every piece into one hull
+   before reaching; markhor's ⅛ line, three short pieces with crossings in
+   the gaps, showed that creases far more than the nearest reference asks.)
+3. The step's crease is recorded on the paper as those runs and reported
+   as `Step.made`.
+
+Every CP step then has every crease end findable at the moment it is made,
+by construction, with the least excess that does. This is `press_span`'s
+far-end search factored out and run for the fold itself: a press ran from a
+run end past a mark to a findable end; a fold now runs from reference to
+reference in the first place. Presses for marks *on the fold's own line*
+that the hull covers disappear; presses for marks beyond the reach, and
+`presses_for_lines` for alignment further out, still work exactly as now
+(they start from the larger runs, so they are shorter) and `pressed_on`
+still absorbs them when it can.
+
+The rule extends *outward only*: it never shortens the pattern's crease, and
+it never crosses the boundary. Its cost is crease the pattern does not
+contain — the blank between pieces plus the two extensions — and that cost
+is measured, per step and in total, not reasoned about.
+
+### The cap: one end always, the other when it is cheap
+
+The first cut had no cap: a short crease in the middle of the sheet with
+no reference nearby was extended to the edge, bounded only by the sheet,
+and its length reported. The reading (markhor, step 47 — a fifth of a
+sheet creased top to bottom for a piece a fifth long) said a cap is
+wanted, and said what it must mean: *leave the end where the pattern has
+it* when the nearest reference is too far, never *stop part way*.
+
+A first cap — the whole crease on a line under twice the pattern's own —
+was the wrong quantity: markhor's step 4 has three short pieces spread
+over most of a line, and the sum of the pieces (0.2) made joining them
+(0.73) look like 3.7×, leaving one fold pressed in three places with
+five ends on blank paper. What is being minimised is the number of ends
+the folder cannot find, and crease is the price of removing them; the
+rule in `marks::reach` is now:
+
+1. **A gap between two pieces with no reference in it is creased
+   through.** The folder makes the fold once; joining removes two unfound
+   ends for the gap's length, always the best deal on the line. A gap that
+   holds references is not a gap in this sense: each piece runs to the
+   nearest one and stops, and the blank between two references stays
+   blank (markhor 101, unchanged).
+2. **No run is left with both ends unfound.** A run neither of whose ends
+   is somewhere the folder can find is carried to the nearer reference,
+   whatever that costs — a crease floating on blank paper cannot be
+   placed at all; one anchored at a reference is "from here, this far".
+3. **The other end is carried to its reference when the extension is no
+   longer than the run already is** — the crease with both ends found is
+   then under twice the crease with one. Step 47's line (one run, its
+   second reference 0.2 away for 0.23 of crease) is finished; a fifth of
+   a sheet is not creased top to bottom for its second reference; a crease
+   already most of the way across is.
+
+Marks are not creases: a pinch lives at a crossing, located by the crease
+it is sighted from, and needs no reference of its own.
+
+Ends left on blank paper are now the rule's choice rather than a defect
+(`measure_ends` counts them as lost ends still) — one at most per run,
+and only where the second reference would cost more than the crease.
+
+### Marks the fold could have pinched
+
+The cap costs marks. A crease made whole to the edge crossed every crease
+on its way and left a mark at each; left short, it leaves none, and a
+later fold sighted at one of those crossings paid a press for it — iguana
+went from no presses to three the moment the cap landed, each a pinch on
+one of two short diagonals at a crossing with an edge or the midline,
+which were there when the diagonal was folded. The folder would not have
+made a step of that: they fold along the diagonal once and press it at
+the pattern's crease *and* at the crossing.
+
+So the paper knows about them (`Creased::note_pinchable`, called by
+whoever records a fold): a spot on a fold's line, beyond the crease it
+left, where a crease *already on the paper* crosses it squarely is
+**pinchable** — a mark the fold could have made and has not. `mark_exists`
+counts a pinchable spot as one of a mark's two creases, provided the other
+is there in fact (it is what the pinch is sighted from); a crease end may
+not stop at one, and nothing is drawn there. When a fold is placed and its
+witness names such a mark, `order::pinch_while_folding` makes it real: the
+pinch joins the making step as `pressed_on`, a pinch long, and the paper
+records it. `make_marks_real` keeps the same rule for the residue — a pinch
+located by a crease that was there when the line was folded joins the
+making step rather than becoming a step — and a pinch located by a crease
+made *later* stays a step, since the crossing was not there to sight.
+
+The closure's own paper does the same, so `prefer_sightable` no longer
+waits a sweep for a mark that a pinch at the making step supplies — and
+that is where the turn-overs went: waiting is a sweep, and a sweep
+boundary is where the sheet is turned.
+
+### What is deliberately not done
+
+- **Extend only an end a later step uses.** The finer alternative to the
+  cap — carry an end out only where something later sights from it — is
+  what pinching while folding does for marks, a pinch long rather than the
+  whole extension. For a crease a later step *lines up along*, the
+  existing `pressed_on` join already carries it out at the making step
+  when the far end was findable then. Neither reads the future: both are
+  the ordering pass's hindsight, applied to the step already placed.
+- **Nearest reference, not best.** An end 0.02 from the edge with a
+  crossing 0.01 beyond it stops at the crossing. Preferring the edge when
+  it is within a hair is a refinement to measure separately, not a first
+  rule.
+- **Auxiliary lines are not references** for an end, per the settled rule,
+  even when the pinch pass will later leave them visible. Using them means a
+  second ordering pass after the pinch pass, which is not in scope; the
+  cost is a longer extension in the cases where an aux line is the nearest
+  crossing.
+- **Auxiliary folds and presses are unchanged.** An aux fold is recorded
+  whole and pinched later; a press is already made by this rule.
+- **A crease whose ends are marks stays as it is.** "Fold through P and Q"
+  for a short crease between two marks on the paper (`crease_between_marks`)
+  has both ends found, so nothing extends; the bias toward more line is
+  only for an end that has nothing, never for one that has a reference.
+- **No sentence.** A diagram shows how far a crease goes and does not say
+  it. The card's sentence stays what it is ("Fold corner Sw onto corner
+  Se"), the picture draws the crease the step makes, and the `pressed_on`
+  sentence — "Also crease where shown past the pattern's line — a later
+  step uses it there" — covers both the stretch a later step lines up
+  against and the pinch a later step is sighted at.
+
+### Where it lives
+
+**Crate (`crates/oristudio-precrease`)**
+
+- `marks.rs`: `pub fn findable_end_beyond(state, creased, line, t, forward)
+  -> f64` — the far-end search lifted out of `order::press_span`, which then
+  calls it — and `pub fn reach(state, creased, line, spans) ->
+  Option<[[f64; 2]; 2]>`: the hull of `crease_runs(line, spans)` with each
+  end carried by `findable_end_beyond` unless `settled_end_is_found`.
+  `None` for empty spans. Unit tests: three pieces become one run; an end
+  on the edge stays; an end on a squarely creased crossing stays; an end
+  nowhere goes to the nearest settled crossing beyond, not to an aux line's
+  crossing nearer in; an end with nothing beyond goes to the edge; nothing
+  ever moves inward.
+- `closure.rs`: `reach_references: bool` beside `prefer_findable_ends`,
+  with `set_reach_references`; `record_crease` records `reach(...)` when on,
+  so the closure's own paper — what `ends_findable` judges the next sweep's
+  targets against — is the paper the folder will have. The stuck search's
+  and the candidates' sub-closures are built with `Closure::new` and keep
+  the default (on); the option is threaded to them only if the measurement
+  says it matters there. A line the grid step made keeps the grid's extent
+  (`fold_grid`, and `order::record`'s grid branch): its bands were already
+  carried out to stops, and the rule is for the folds sighted after it.
+- `order.rs`: `record` records the same run and returns it; `Placed.made:
+  Vec<[[f64; 2]; 2]>` carries it (one span when reach is on; the pattern's
+  own runs when off, so the web has one path). `press_span` uses
+  `findable_end_beyond`. Test: a fixture shaped like *Abra*'s opening —
+  half, half, diagonal in three pieces — orders with no press on the
+  diagonal, the diagonal made corner to corner, and the midlines made edge
+  to edge.
+- `sequence.rs`: `Step.made: Vec<[[f64; 2]; 2]>` (`serde(default)`; empty
+  for aux and press steps, whose `extent` already says), doc'd as "the
+  crease this step leaves on its line: the pattern's pieces joined, each
+  end carried to the reference it stops at; `cp_spans` lies within it".
+  `Totals.reach_length: f64`: crease made past the pattern by the rule, in
+  sheet-lengths, summed over CP steps (length of `made` minus length of
+  `crease_runs(cp_spans)`), the way `grid_unwanted_length` is kept.
+- `planner.rs`: `PlannerOptions.reach_references: bool` (default `true`),
+  `PlannerOptionsJson.reach_references`, `from_json`; passed to every
+  closure the planner builds (`plan`, `plan_without_reference_finder`, the
+  RF-fallback path); `sequence()` copies `Placed.made` and sums the total.
+  `settle_grid` is unaffected — presses on grid lines are still folded into
+  the grid's spans, and a reach end may land on a grid line's crossing.
+- `crates/oristudio-precrease-wasm`: nothing but the option passing through
+  `PlannerOptionsJson`; rebuild
+  (`npm --workspace @treemaker/web run build:oristudio-precrease-wasm`).
+- Fixtures: `tests/fixtures/precrease/manifest.json` step counts and press
+  counts move (down); `tests/planner_fixtures.rs` `folds_only` zeroes
+  `reach_length` as it does `presses`.
+- `examples/measure_ends.rs`: replays `made` (not `cp_spans`) and
+  `pressed_on`; `-v` names lost ends and steps in pieces, and the reach
+  estimate — what the rule would add on today's order, per end and in total
+  — is already there (added with this plan) to be replaced by the measured
+  `reach_length` once the rule exists. `examples/dump_steps.rs` prints
+  `made`.
+
+**Web (`apps/web/src`)**
+
+- `cp-workspace/references/precreaseSequence.ts`: `PrecreaseStep.made`,
+  `PrecreaseTotals.reach_length`, `PrecreasePlannerOptions.reach_references`.
+- `diagram/diagramFrames.ts`: `DiagramFrame.made(step)` — unit frame maps
+  `step.made`; the model frame recovers it by ratio along the mapped chord
+  exactly as `creases` and a grid line's `spans` are, so
+  `referencesPlanGeometry.ts` needs no new points.
+- `diagram/plannerDiagram.ts`: the step's own crease is `made` when
+  non-empty, else `creases` (a plan with the rule off, or an old record);
+  `creasedSpans(frame, step, patterned)` — what an earlier step left, for
+  context creases and the witness-line highlight — is `made ∪ pressed_on`
+  when patterned and `uncreased(made, creases) ∪ pressed_on` when the
+  canvas already draws the pattern's creases (the grid line's own case,
+  reused). The comment that "the pattern only wants creases where its own
+  segments are, so that is all the picture draws" is revised: the picture
+  draws the crease the *step* makes — more than the pattern's pieces, still
+  never the bare chord.
+- Settings: the rule is always on in the product — a "Crease to
+  references" switch shipped and was removed as useless (2026-09-12), the
+  crate's `reach_references` staying as the corpus comparison. What the
+  Settings pane has is **"Allow dangling folds"**
+  (`ReferencesSettings.allowDanglingFolds`, default on, with an info mark
+  whose tooltip says what it does): off, every crease is finished to its
+  second reference whatever that costs (`allow_dangling_folds` through the
+  bridge; `ReferencesPlanRecord.allowDanglingFolds`, and
+  `useReferencesBreakdown.ts` re-plans on change, the `gridWhereNeeded`
+  pattern). Removed at the same time, from the same pane: "Start from this
+  sequence" (a picked crease's candidates are always ranked from the bare
+  sheet; `referencesFromPlan.ts` and the planner kept alive for it are
+  gone) and "Show pinches" (a pinched auxiliary fold is always drawn as
+  its pinches).
+- Analytics: `reach_bucket` on `folding steps completed` — crease past the
+  pattern by the rule, in tenths of a sheet-length, bucketed like
+  `grid_unwanted_bucket` — and `dangling_folds` (`allowed` /
+  `disallowed`), the setting the plan was made under; `analytics/events.ts`
+  and `docs/analytics.md`.
+- i18n: the one settings label through `i18n:extract` → 8 locales →
+  `i18n:stamp` → `i18n:check`.
+- Tests: `plannerDiagram.test.ts` (a step in pieces draws one run; an
+  earlier step's context shows its reach; unpatterned draws only what the
+  pattern lacks), `diagramFrames` model recovery of `made`,
+  `precreasePlan.wasm.test.ts` (`made` present, one span, covering
+  `cp_spans`; `reach_references: false` gives the pieces back),
+  `__fixtures__/plannerSequence.ts` gains `made`, `precreasePlan.test.ts`.
+
+### Measurement
+
+`measure_ends -v` over the curated benchmark, *Abra*, *Wolpertinger* and
+the crate's fixtures, with the option on and off (the `prefer_findable_ends`
+comparison it already runs stays), planned through
+`plan_without_reference_finder` as every number here is — ceilings, not the
+shipped driver. Gates, read against the baseline recorded below:
+
+1. **Lost ends on CP steps: 0.** By construction; any residue is a bug in
+   the rule or the replay, not a trade.
+2. **Steps in pieces: 0.** Same.
+3. **Presses: down**, and the presses that remain are pinches on the
+   *other* line of a mark, or presses for alignment beyond the reach — none
+   on a stretch the hull covers. A mark neither line reached used to cost a
+   press on one and a pinch on the other; when the hull now reaches it, the
+   pinch alone remains. *Abra*: 12 at HEAD, with the two on the diagonal
+   (steps 14 and 57) among those expected to go.
+4. **Steps: down by the presses removed.** No step turns phantom
+   (`marks_exist` false) and nothing becomes unsolved: reach only adds
+   crease, and a witness certified against the geometry is certified still.
+   Turn-overs not up.
+5. **Extra crease (`reach_length`): reported**, total and per step, with
+   the ten longest single extensions listed to be read by hand (*Abra*'s
+   step 79, two pieces with a whole sheet-length between them, is one).
+   There is no gate on it — the request is to pay it — but the reading
+   decides whether a cap or an edge preference is wanted next. The
+   estimate in the baseline below is the ceiling to read it against: the
+   rule's own paper carries more crease, so its references are nearer.
+6. `measure_grid`: grid steps and lines unchanged (the grid is detected
+   before anything is folded); `grid_unwanted_length` not up — it can only
+   fall, since the presses `settle_grid` folds into a grid line's spans are
+   fewer.
+
+Then the live check Zach owns, on *Abra* at `http://localhost:5224/`: step 1
+creases the whole midline, step 3 the whole diagonal in one dash, no press
+on the diagonal anywhere in the sequence, and the quarter line of step 40 —
+two pieces at HEAD, with 0.43 blank between — made as one run.
+
+## Affected Areas
+
+- `crates/oristudio-precrease/src/marks.rs` — `findable_end_beyond`,
+  `reach`, tests
+- `crates/oristudio-precrease/src/closure.rs` — option, `record_crease`
+- `crates/oristudio-precrease/src/order.rs` — `record`, `Placed.made`,
+  `press_span`, test
+- `crates/oristudio-precrease/src/sequence.rs` — `Step.made`,
+  `Totals.reach_length`
+- `crates/oristudio-precrease/src/planner.rs` — options, `sequence()`
+- `crates/oristudio-precrease/examples/{measure_ends,dump_steps}.rs`
+- `crates/oristudio-precrease/tests/{planner_fixtures,planner_grid,common}`,
+  `tests/fixtures/precrease/manifest.json`
+- `crates/oristudio-precrease-wasm` (rebuild)
+- `apps/web/src/cp-workspace/references/precreaseSequence.ts`,
+  `diagram/diagramFrames.ts`, `diagram/plannerDiagram.ts`,
+  `ReferencesSettingsMenu.tsx`, `useReferencesBreakdown.ts`,
+  `referencesResults.ts`, `store/workspaceStore/{types,slices/referencesSlice}.ts`,
+  `analytics/events.ts`, `docs/analytics.md`, locales, tests and fixtures
+
+## Checklist
+
+Baseline at HEAD (`measure_ends -v`, preference on, `plan_without_reference_finder`):
+
+| corpus | steps | presses | lost ends | in pieces (blank) | reach est. (longest) |
+| --- | --- | --- | --- | --- | --- |
+| *Abra* | 86 | 12 (1.1 sheet-lengths) | 22 / 168 (13.1%) | 9 (3.5) | 1.8 (0.21) |
+| curated + *Abra* + *Wolpertinger* + fixtures (56 designs) | 4,512 | 711 (53.5) | 863 / 8,630 (10.0%) | 588 (195.3) | 110.9 (1.29, *halibut* step 1) |
+
+With the endpoint preference off the same corpus has 1,099 lost ends
+(12.7%) and a reach estimate of 138 sheet-lengths: the preference already
+buys a fifth of the extension, and stays.
+
+**Measured with the rule** (`measure_ends -v`, same corpus, preference on):
+
+| corpus | steps | presses | lost ends | in pieces | reach (most in one step) |
+| --- | --- | --- | --- | --- | --- |
+| *Abra* | 80 (was 86) | 6 (was 12) | 0 / 148 | 0 | 5.2 (1.00, step 74) |
+| *Wolpertinger* | 167 (was 169) | — | 0 (was 47) | 0 (was 40) | 13.8 (0.90) |
+| 56 designs | 4,325 (was 4,512) | 534, 36.0 sheet-lengths (was 711, 53.5) | 0 / 7,258 (was 863) | 0 (was 588) | 281.3 (1.36, *earwig* step 1) |
+
+Gates: 1 and 2 hold by construction and the replay agrees (0 of 7,258
+ends, 0 steps in pieces). 3: presses down by a quarter, and every one
+left is a pinch on the other line of a mark or a press for an alignment
+beyond the reach — the press test's invariants hold on iguana-c0 line by
+line, the one fixture that still needs any (3, from 6). 4: steps down by
+187, 177 of them the presses removed and the rest folds the closure's
+changed order no longer takes; phantom marks 2 → 2, turn-overs 301 →
+301. 5: 281 sheet-lengths of crease past the pattern, under the 306 the
+estimate gave, because the rule's own paper has more references on it;
+1,000 of the 4,325 steps crease past the pattern at all, 240 of them by
+under 0.1, 320 by 0.1–0.25, 263 by 0.25–0.5, 165 by 0.5–1, and 12 by more
+than a sheet-length. 6: `measure_grid` over the gridded components of
+the same corpus (Alebrijes aside), where-needed mode against the earlier
+run: grid steps 109 → 109 and lines 1,588 → 1,588 (the grid is detected
+before anything is folded), `grid_unwanted_length` 765.5 → 760.6,
+unsolved 26 → 26, hard witnesses 370 → 355, presses 128 → 114, steps
+2,082 → 2,068, turn-overs 127 → 124.
+
+**The twelve longest, read by hand.** Every one is a corner-to-corner or
+corner-to-mark fold along a diagonal. Ten have the pattern holding the
+line only at its ends — *secretary-bird* 36, *roadrunner* 3 and *crocodile* 6 have
+the main diagonal creased for 0.04–0.14 at *both* corners and nothing
+between; *roadrunner* 58/59 and *secretary-bird* 21/37 the same on the
+diagonals parallel to it; *frigate-bird* 3 and *Abra* 74 pieces at both
+ends of an antidiagonal — and the rule joins the ends across the sheet:
+"fold in half diagonally", the opening of every such diagram, and the
+shape of *Abra*'s step 3 that this plan was asked for. The other kind is
+a single short crease on a corner-to-corner fold: *halibut* 1 (0.12 at
+one corner), *frog-naoki-terao* 1 (0.35 from a corner) and *earwig* 1
+(0.05 at the centre of the sheet, the longest extension of all at 1.36)
+become the whole diagonal. *Earwig*'s is the one a diagram might instead
+call a pinch — "fold in half diagonally, pinch the centre" — and the
+refinement, if wanted, is the one already named above: a pattern crease
+no longer than a pinch's worth (`MIN_ALIGNMENT`, 0.06) whose ends nothing
+later sights stays a pinch. Not done here; the request was for the bias,
+and the corner-and-corner cases that make up most of the twelve are
+exactly it.
+
+- [x] `measure_ends -v`: names lost ends and steps in pieces, replays
+      `pressed_on`, counts pieces and blank length, estimates the reach
+- [x] `marks::findable_end_beyond` + `marks::reach`, unit tests;
+      `press_span` on the shared search
+- [x] Closure option and `record_crease`; `order::record` and `Placed.made`;
+      *Abra*-shaped ordering test
+- [x] `Step.made`, `Totals.reach_length`, `PlannerOptions.reach_references`
+      through JSON and wasm; `dump_steps` prints `made`; `measure_ends`
+      measures the rule (`--no-reach` for without) and replays `made`;
+      iguana-c0's pinned counts re-recorded (presses 6 → 3, steps 97 → 94)
+- [x] Gates 1–6 measured on the corpus; the twelve longest extensions read
+      by hand and the reading recorded above
+- [x] Web: `made` drawn as the step's crease and in context; "Crease to
+      references" setting; `reach_bucket`; i18n; tests
+- [x] Structural check on *Abra* in the browser pane: step 1's card draws
+      the midline edge to edge, step 3's the diagonal corner to corner in
+      one dash; with the setting off step 1 goes back to its piece from
+      0.207 up, and on again the whole line
+- [x] From the live reading of *Abra*: a perpendicular to the sheet's
+      edge is said and shown as the edge folded onto itself through the
+      mark, and ranks before a swing of a mark onto a line
+      (`FOLD_EASE_ORDER`; step 20 read "fold through P, bringing Q onto A"
+      for a vertical a diagram gives as "fold the bottom edge onto itself
+      through P"); a press that carries a line out is drawn as crease, not
+      as the heavy solid pinch stroke (step 23). Corpus with both: steps
+      4,325 → 4,290, presses 534 → 489, turn-overs 301 → 302, reach and
+      lost ends unchanged; *Abra* 80 → 77 steps and 6 → 3 presses,
+      *Wolpertinger* 167 → 161.
+- [x] From the live reading of markhor (step 101, y = ⅛): the hull rule
+      joined three short pieces — at each edge and in the middle — into one
+      crease edge to edge when creases crossing the blank between them
+      would have stopped each piece a hair past its end. The rule is now
+      per piece: each end of each piece is carried outward to the *nearest*
+      reference, and pieces merge only where their reaches meet — the least
+      excess that reaches a reference, so *Abra*'s diagonal (nothing crosses
+      its gaps at the time) is still one crease corner to corner and
+      markhor's ⅛ line is three creases ending at the crossings at 0.073,
+      0.375, 0.625 and 0.927. Less crease means fewer marks for later
+      steps, so presses can rise where the joined crease used to supply
+      them (markhor 11 → 16); measured below.
+- [x] Corpus with the three fixes of 2026-09-12 together — found witnesses
+      name only marks that are there, two marks beat a press, reach piece
+      by piece — against the reach-and-edge state above: steps 4,290 →
+      4,259, presses 489 → 458, lost ends 0 of 8,430, crease past the
+      pattern 281 → 118 sheet-lengths (the longest single extension still
+      *earwig*'s 1.36), phantom marks and turn-overs unchanged; *Abra* 77
+      steps and 3 presses either way with 5.2 → 2.5 of excess,
+      *Wolpertinger* 161 → 157. `measure_ends`'s "in pieces" column now
+      counts steps whose crease is several runs each ending at a reference
+      (509 of them, 166 sheet-lengths of blank left blank between
+      references) — no longer a defect, and read as such.
+- [x] The closure and the ordering pass fold first what the paper can
+      sight (`c41e2fc1`: witnesses enumerated marks-first before the caps,
+      `prefer_sightable` in the closure, `marks_first` within a round):
+      presses 458 → 296 (51 with a free witness the ease budget let a press
+      beat, 29 for a mark the pattern makes later, 216 necessary), steps
+      4,097, turn-overs 302 → 370 — a wait is a sweep, and a sweep boundary
+      turns the sheet. *Abra* 12 → 0 presses, *plantcient dragon* 16 → 4,
+      markhor 16 → 1.
+- [x] `REACH_MAX_RATIO = 2.0` in `marks::reach`, budget per line spent
+      shortest-first; a pinch located by a crease that was there when the
+      line was folded joins the making step. Corpus against the state above:
+      steps 4,097 → 4,001, presses 296 → 200, turn-overs 370 → 379, lost
+      ends 0 → 312 of 8,462 (creases the rule leaves as the pattern has
+      them), crease past the pattern 122 → 54 sheet-lengths (longest single
+      extension 1.36 → 0.55). markhor's step 47 line (x = 0.463, pattern
+      0.735..0.963) is made 0.537..0.963 — 1.87×, to the crossing at 0.537
+      — rather than top to bottom; iguana line by line 91 steps → 94, with
+      three pinches on the short diagonals.
+- [x] Pinchable marks (`Creased::note_pinchable`, `mark_exists`,
+      `order::pinch_while_folding`, the closure's paper too). Corpus:
+      steps 4,001 → 3,987, rounds 615 → 546, presses 200 → 186, turn-overs
+      379 → 332, lost ends 326 of 8,464 (3.9%), reach 52 sheet-lengths;
+      iguana back to 91 steps and no press at 7 turn-overs (8 before the
+      cap). Per design the turn-overs are where it shows: *halibut* 15 → 9,
+      *roadrunner* 16 → 11, *common wildebeest* 14 → 10, *frigate bird*
+      13 → 9.
+- [x] Two corrections the reading of *Abra* forced, which had gained a
+      press (74 steps → 75): `pick_witness` let one press buy *any* easier
+      fold within the budget, so a free O6 lost to an O7 with a press
+      before it — now a press buys a one-motion fold and nothing else; and
+      a mark that is only a pinchable spot counted like one that is there,
+      so an O2 wanting a pinch beat a free O3 — now `already`, the
+      one-motion fold taken as it stands, is chosen among witnesses whose
+      marks are there in fact (`witness_marks_real`), and a pinch is made
+      only when no such fold exists. Corpus: steps 3,983, presses 182 (8
+      with a free witness, 18 for a mark made later, 156 necessary),
+      turn-overs 332, lost ends 326, reach 52 — unchanged by the second
+      correction, which only took the pinches made while folding from
+      1,431 to **616** (37 sheet-lengths of pinch, against the 70 of reach
+      the cap saved). *Abra* 74 steps, no press, 9 pinches; markhor 198
+      steps and 1 press → 197 and none, reach 8.3 → 4.0; *Wolpertinger*
+      146 either way, reach 5.4 → 2.5.
+- [x] The cap re-cut as the two rules above (markhor step 4: three pieces
+      on x = ⅜ pressed in three places, five ends on blank paper — now one
+      crease edge to edge). Corpus against the ratio state: steps 3,983 →
+      3,973, presses 182 → 172, pinches while folding 616 → 573, turn-overs
+      332 → 320, ends on blank paper 326 → **149** of 8,250 (1.8%, at most
+      one per run), reach 52 → 94 sheet-lengths — the price, still below
+      the 122 of no cap at all (the longest single extension is *earwig*'s
+      1.36 again, an anchoring one). No design gains a step beyond noise;
+      *ubu* 16 → 2 unfound ends, *frigate bird* 28 → 7, *Abra* 8 → 2.
+- [ ] With `prefer_findable_ends` off the same corpus is 3,975 steps, 174
+      presses, **242** turn-overs, 181 lost ends and 117 of reach: waiting
+      for a crease's ends to become findable costs a quarter of the
+      turn-overs to buy 32 references and 23 sheet-lengths less crease —
+      the next lever to weigh, against turn-over smoothing across rounds.
+- [x] Settings pane: "Allow dangling folds" (default on, info tooltip) in
+      place of "Crease to references", "Start from this sequence" and "Show
+      pinches"; `PlannerOptions.allow_dangling_folds`, `measure_ends
+      --no-dangling` / `dump_steps --no-dangling` to measure the off state.
+- [ ] Live check on *Abra* and markhor 4 / 47 (Zach)

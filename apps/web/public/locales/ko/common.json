@@ -15,6 +15,8 @@
     "addTreeEdgesThenOptimize": "트리 모서리를 추가한 다음 전개도를 생성하기 전에 최적화하세요",
     "advanceCreaseType": "접힘선 종류 다음으로",
     "advanceSelectedCpLineTypes": "선택한 전개도 선 종류 다음으로",
+    "analyzeReferences": "참조 분석",
+    "analyzeReferencesHint": "이 패턴의 어떤 선이 접기로 찾기 어려운지 확인합니다",
     "bpFlipHorizontal": "좌우 뒤집기",
     "bpFlipHorizontalReason": "디자인을 좌우로 뒤집습니다",
     "bpFlipVertical": "상하 뒤집기",
@@ -182,6 +184,7 @@
     "redo": "다시 실행",
     "redoNextCpEdit": "다음 전개도 편집 다시 실행",
     "redoNextTreeEdit": "다음 트리 편집 다시 실행",
+    "references": "참조",
     "relieveAllStrain": "모든 장력 완화",
     "relieveStrain": "장력 완화",
     "removeAllStrain": "모든 장력 제거",
@@ -229,6 +232,7 @@
     "showDesignWorkspace": "디자인 작업 공간 표시",
     "showEditWorkspace": "편집 작업 공간 표시",
     "showPropertiesPane": "속성 창 표시",
+    "showReferencesWorkspace": "참조 작업 공간 표시",
     "showSimulateWorkspace": "시뮬레이션 작업 공간 표시",
     "simulate": "시뮬레이션",
     "simulateBeforeExportingFolded": "접힌 형태를 내보내기 전에 접는 선 패턴을 시뮬레이션하세요",
@@ -310,16 +314,21 @@
   },
   "viewDrawer": {
     "close": "보기 옵션 닫기",
+    "closeSettings": "설정 닫기",
     "open": "보기",
+    "openSettings": "설정",
+    "settingsTitle": "설정",
     "title": "보기 옵션"
   },
   "workspaceRail": {
     "design": "디자인 작업 공간",
     "edit": "편집 작업 공간",
     "label": "작업 공간",
+    "references": "참조 작업 공간",
     "simulate": "시뮬레이션 작업 공간",
     "tabDesign": "디자인",
     "tabEdit": "편집",
+    "tabReferences": "참조",
     "tabSimulate": "시뮬레이션"
   }
 }

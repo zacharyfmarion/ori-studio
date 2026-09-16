@@ -3,13 +3,17 @@ Ori Studio — Third-Party Notices
 
 This product is distributed as a whole under the GNU General Public License,
 version 2 or (at your option) any later version (GPL-2.0-or-later), because it
-incorporates a Rust/WASM port of Robert J. Lang's TreeMaker. See LICENSE.txt
-for the GPL text and LICENSING.md for the full licensing posture.
+incorporates a Rust/WASM port of Robert J. Lang's TreeMaker and bundles a
+WebAssembly build of ReferenceFinder, Lang's C++ as extended by Mu-Tsun Tsai and
+Omri Shavit. See LICENSE.txt for the GPL text and LICENSING.md for the full
+licensing posture, including the open question about the GPL version of the
+ReferenceFinder modifications.
 
-The GPL-licensed whole additionally bundles the following works, whose original
-licenses are permissive and GPL-compatible. Their copyright and permission
-notices are reproduced here to satisfy their attribution requirements. Nothing
-in this file narrows the GPL obligations that govern the combined distribution.
+The whole bundles two GPL works — TreeMaker (section 1) and ReferenceFinder
+(section 6) — together with the permissively licensed, GPL-compatible works
+listed between them. Copyright and permission notices are reproduced here to
+satisfy their attribution requirements. Nothing in this file narrows the GPL
+obligations that govern the combined distribution.
 
 The last section is different in kind: it records a third-party *service* the
 product calls rather than a work it bundles. It grants nothing and requires
@@ -99,7 +103,34 @@ Ported into: packages/origami-simulator (@treemaker/origami-simulator)
   for the full MIT text and the list of upstream source files used.
 
 --------------------------------------------------------------------------------
-6. ExplOri 22.5 — Brandon Wong (theplantpsychologist)
+6. ReferenceFinder — Robert J. Lang (original); Mu-Tsun Tsai and Omri Shavit
+   (web/Emscripten build and modifications)
+--------------------------------------------------------------------------------
+License:  GNU GPL, version 2. Lang's original distribution grants version 2 or
+          (at your option) any later version; the fork's LICENSE says only
+          "GNU GPL" over the version 2 text and its package.json states
+          GPL-2.0, so the Tsai/Shavit modifications carry no confirmed
+          or-later grant — see LICENSING.md.
+Upstream: https://github.com/MuTsunTsai/reference-finder (the C++ core derives
+          from Lang's ReferenceFinder 4,
+          https://langorigami.com/article/referencefinder/)
+Pinned at: e2163f0cb483592f757520647e7df192b6570386 (v4.8.1, 2026-08-20). The
+          pin is maintained in upstream-sync.json, which is authoritative.
+Compiled into: apps/web/src/generated/reference-finder (Emscripten build of the
+          vendored C++, run as a Web Worker; not a Rust port)
+Vendored source: third_party/reference-finder (see its LICENSE)
+
+  Copyright (c) 1999-2006 Robert J. Lang; (c) 2024-2025 Mu-Tsun Tsai;
+  (c) 2024-2025 Omri Shavit. All rights reserved.
+
+  Unlike the works above, this one is not ported: the shipped .wasm is the
+  upstream C++ itself, compiled by scripts/build-reference-finder.mjs. The
+  GPL's corresponding-source obligation for it is met by the vendored source
+  together with that build script and the toolchain pin in
+  scripts/reference-finder-emsdk.json.
+
+--------------------------------------------------------------------------------
+7. ExplOri 22.5 — Brandon Wong (theplantpsychologist)
 --------------------------------------------------------------------------------
 Service, not a port. Nothing from ExplOri is vendored, ported, or bundled, so
 this section carries no license grant to reproduce — it is here because the

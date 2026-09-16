@@ -1,0 +1,44 @@
+[package]
+name = "oristudio-precrease"
+version.workspace = true
+publish.workspace = true
+edition.workspace = true
+# Not the workspace GPL default: the precrease planner is original work (sheet
+# frames, line canonicalisation, the exactness probe, and later the closure
+# planner). No dependency edge from here reaches the TreeMaker port, and no
+# code is ported from ReferenceFinder's `src/core` — the planner consumes
+# ReferenceFinder's JSON at runtime from a separate worker and links none of it.
+# The three licensing tiers are stated in src/lib.rs; see LICENSING.md.
+license = "MIT OR Apache-2.0"
+description = "Precrease planner for Ori Studio: sheet frames, collinear merge, the exactness probe, and the closure planner"
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["origami", "crease-pattern", "geometry", "folding"]
+categories = ["algorithms", "mathematics"]
+include = [
+    "Cargo.toml",
+    "LICENSE-APACHE",
+    "LICENSE-MIT",
+    "README.md",
+    "src/**",
+    "tests/**",
+    "examples/**",
+]
+
+[lints]
+workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+# Browser-only: `std::time::Instant` panics on wasm32-unknown-unknown, so the
+# planner's default clock reads `Date.now()` there (the `oristudio-cp-detect`
+# pattern). Native builds never link js-sys.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

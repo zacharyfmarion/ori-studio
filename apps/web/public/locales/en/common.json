@@ -15,6 +15,8 @@
     "addTreeEdgesThenOptimize": "Add tree edges, then optimize before building the crease pattern",
     "advanceCreaseType": "Advance Crease Type",
     "advanceSelectedCpLineTypes": "Advance selected crease-pattern line types",
+    "analyzeReferences": "Analyze References",
+    "analyzeReferencesHint": "Find which of this pattern’s lines are hard to locate by folding",
     "bpFlipHorizontal": "Horizontal Flip",
     "bpFlipHorizontalReason": "Mirror the design left to right",
     "bpFlipVertical": "Vertical Flip",
@@ -182,6 +184,7 @@
     "redo": "Redo",
     "redoNextCpEdit": "Redo the next crease-pattern edit",
     "redoNextTreeEdit": "Redo the next tree edit",
+    "references": "References",
     "relieveAllStrain": "Relieve All Strain",
     "relieveStrain": "Relieve Strain",
     "removeAllStrain": "Remove All Strain",
@@ -229,6 +232,7 @@
     "showDesignWorkspace": "Show the design workspace",
     "showEditWorkspace": "Show the edit workspace",
     "showPropertiesPane": "Show the properties pane",
+    "showReferencesWorkspace": "Show the references workspace",
     "showSimulateWorkspace": "Show the simulate workspace",
     "simulate": "Simulate",
     "simulateBeforeExportingFolded": "Simulate a crease pattern before exporting its folded form",
@@ -310,16 +314,21 @@
   },
   "viewDrawer": {
     "close": "Close view options",
+    "closeSettings": "Close settings",
     "open": "View",
+    "openSettings": "Settings",
+    "settingsTitle": "Settings",
     "title": "View options"
   },
   "workspaceRail": {
     "design": "Design workspace",
     "edit": "Edit workspace",
     "label": "Workspaces",
+    "references": "References workspace",
     "simulate": "Simulate workspace",
     "tabDesign": "Design",
     "tabEdit": "Edit",
+    "tabReferences": "References",
     "tabSimulate": "Simulate"
   }
 }

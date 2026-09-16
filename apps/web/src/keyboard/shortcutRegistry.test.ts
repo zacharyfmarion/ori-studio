@@ -167,9 +167,11 @@ describe('adopted single-key layout', () => {
   // chord reaches the fold then and the CP tool the rest of the time. Asserting
   // global chord uniqueness would forbid exactly what the scope stack exists to
   // allow. The arbitration itself is covered in shortcutDispatcher.test.ts.
+  // `references` is the same kind of scope -- present only while its panel is
+  // mounted -- and shares the simulator's arrows and zoom keys.
   const byChord = new Map<string, string[]>();
   for (const definition of SHORTCUT_DEFINITIONS) {
-    if (definition.scope === 'simulator') continue;
+    if (definition.scope === 'simulator' || definition.scope === 'references') continue;
     for (const chord of definition.defaultChords) {
       const id = keyChordId(chord);
       byChord.set(id, [...(byChord.get(id) ?? []), definition.id]);
@@ -188,6 +190,38 @@ describe('adopted single-key layout', () => {
     expect(simulatorChords.has('f')).toBe(true);
     expect(simulatorChords.has('c')).toBe(true);
     expect(simulatorChords.has('r')).toBe(true);
+  });
+
+  it('keeps the references scope off the crease-pattern letters', () => {
+    // Unlike the simulator, References has no reason to take a CP tool's key:
+    // it is a separate workspace, never an inline window over the Edit canvas.
+    // Its chords may coincide with the simulator's (the two scopes are never in
+    // the stack together), but not with a `global` or `crease-pattern` binding
+    // that always claims its key.
+    //
+    // The `viewport` scope is excluded, and that is a claim about the runtime
+    // rather than a softened rule: a viewport chord is dispatched through
+    // `executors.viewport`, which is registered by whichever panel owns the
+    // active viewport surface — and the References workspace mounts none, so
+    // `executeShortcut` finds no executor and every `viewport.*` binding already
+    // falls straight through there. Shadowing one costs nothing. That is why
+    // `references.clearTarget` may take Escape, which `viewport.cancel` claims
+    // in the Edit workspace and cannot claim here.
+    const alwaysPresent = new Set(
+      SHORTCUT_DEFINITIONS.filter(
+        (d) =>
+          d.scope !== 'simulator' &&
+          d.scope !== 'references' &&
+          d.scope !== 'viewport' &&
+          !shortcutMayDecline(d.id)
+      ).flatMap((d) => d.defaultChords.map(keyChordId))
+    );
+    const collisions = SHORTCUT_DEFINITIONS.filter((d) => d.scope === 'references').flatMap((d) =>
+      d.defaultChords.map(keyChordId).filter((chord) => alwaysPresent.has(chord)).map(
+        (chord) => `${d.id}=${chord}`
+      )
+    );
+    expect(collisions).toEqual([]);
   });
 
   it.each(EXPECTED_SINGLE_KEY_LAYOUT)('binds %s to %s', (chord, actionId) => {

@@ -513,6 +513,7 @@
       "exportSvg": "SVG 图像",
       "fold": "折叠",
       "label": "折痕图操作",
+      "references": "折叠参考",
       "saveImage": "保存为图像",
       "share": "创建共享链接",
       "simulate": "模拟",
@@ -800,8 +801,223 @@
     "y": "Y",
     "yes": "是"
   },
+  "references": {
+    "actions": {
+      "noTargetHint": "请先选择一个顶点或折痕"
+    },
+    "alreadyOnSheet": "这个点已经在纸上了，无需折叠。",
+    "alreadyOnSheetLine": "这条线已经在纸上了，无需折叠。",
+    "analysis": {
+      "approximate": "近似，误差 {{err}}",
+      "badge": "{{closure}}/{{lines}} 来自纸张",
+      "closure": "可直接从纸张折出",
+      "exact": "在第 {{rank}} 级精确，{{folds}} 次折叠",
+      "line": "第 {{n}} 条线",
+      "summary": "{{lines}} 条线中有 {{closure}} 条可直接从纸张折出；{{queried}} 条需要搜索。",
+      "title": "参照分析",
+      "unsolved": "未找到作图方法"
+    },
+    "axiom": {
+      "free": "已经在纸上",
+      "o1": "通过两点",
+      "o2": "点对点",
+      "o3": "边对边",
+      "o4": "过一点作垂线",
+      "o5": "点落到线上，且过一点",
+      "o6": "两点分别落到两线上",
+      "o7": "点落到线上，且垂直"
+    },
+    "backToPattern": "返回整个折痕图",
+    "backToPatterns": "图样",
+    "breakdown": {
+      "sheetId": "纸张 {{n}}"
+    },
+    "canvasAriaLabel": "折痕图。点击顶点或折痕以查找其参考点；拖动平移，滚动缩放。",
+    "card": {
+      "error": "误差 {{value}}",
+      "folds_other": "{{count}} 次折叠"
+    },
+    "direction": {
+      "angle": "在 {{deg}}° 方向",
+      "diagonalDown": "沿下降对角线",
+      "diagonalUp": "沿上升对角线",
+      "horizontal": "水平方向",
+      "vertical": "垂直方向"
+    },
+    "dismiss": "关闭",
+    "empty": "没有折痕图。请在“编辑”中打开或绘制一个，然后再回来。",
+    "emptySheet": "尚无折痕",
+    "emptySheetHint": "此纸张尚无折痕。请在“编辑”中绘制图样，然后返回。",
+    "errorTitle": "参考不可用",
+    "exact": "精确",
+    "filmstrip": {
+      "label": "折叠步骤"
+    },
+    "findings": {
+      "approximation": "最接近：{{folds}} 次折叠，误差 {{err}}",
+      "noApproximation": "未找到作图方法",
+      "note": "只作报告，不会折叠：近似值会成为后续每一步的参照。",
+      "offLattice": "不在格点上",
+      "refusedTitle": "已排除的纸张",
+      "title": "无法精确折出的线",
+      "unsolved": "未找到作图方法"
+    },
+    "flip": {
+      "doneBadge": "完成",
+      "finished": "所有折痕都已折好。从这里开始收拢，需要反向的折痕会在收拢时翻转。",
+      "turnOver": "把纸左右翻面。",
+      "turnOverBadge": "翻面"
+    },
+    "goToEdit": "前往编辑",
+    "hint": {
+      "jump": "点击折痕，跳转到折出它的步骤。",
+      "open": "打开一个图样，查看如何折出它。",
+      "pick": "点击顶点或折痕，查看如何折出它。"
+    },
+    "lead": {
+      "find": "点击顶点或折痕，查看如何从空白纸张折出它。",
+      "findSequence": "或者计算完整的预折顺序。",
+      "plan": "图样的全部预折痕，按折叠顺序排列。",
+      "planAction": "计算预折顺序"
+    },
+    "meta": {
+      "solution": "第 {{n}} / {{total}} 个解",
+      "solutionShort": "{{n}} / {{total}}"
+    },
+    "mode": {
+      "find": "查找参考点",
+      "findTitle": "点击顶点或折痕，查看如何从空白纸张折出它",
+      "label": "显示内容",
+      "sequence": "预折顺序",
+      "sequenceTitle": "图样的全部预折痕，按折叠顺序排列"
+    },
+    "noCreasePattern": "没有折痕图",
+    "nonRectangular": "这张纸不是矩形。目前只能在矩形纸上查找参考点。",
+    "noRectangularSheet": "没有矩形纸张：目前只能在矩形纸张上查找参照。",
+    "openOutline": "所选位置周围的边缘折痕没有闭合成一张纸。",
+    "outOfDate": "已过期",
+    "outOfDateHint": "找到这些参考点之后，折痕图发生了变化。",
+    "outsideSheet": "所选位置不在任何一张纸内。",
+    "planning": "正在计算预折顺序…",
+    "planStep": {
+      "alsoNote": "同时对齐两处，折痕才能保持笔直。",
+      "approximate": "近似——此作图偏离纸张的 {{pct}}%。",
+      "approximateBadge": "近似",
+      "axiom1": "沿通过 {{a}} 和 {{b}} 的直线折叠。",
+      "axiom2": "将 {{a}} 折到 {{b}} 上。",
+      "axiom3": "将 {{a}} 折到 {{b}} 上。",
+      "axiom4": "沿通过 {{a}} 的直线折叠，使 {{b}} 折到自身上。",
+      "axiom4Corner": "沿经过{{p}}的线折叠，把{{q}}对到{{a}}上。",
+      "axiom5": "沿通过 {{a}} 的直线折叠，使 {{b}} 落在 {{c}} 上。",
+      "axiom5LineMoves": "沿通过 {{a}} 的直线折叠，使 {{c}} 落在 {{b}} 上。",
+      "axiom6": "将 {{a}} 折到 {{b}} 上，同时将 {{c}} 折到 {{d}} 上。",
+      "axiom7": "将 {{lSelf}} 折到自身上，使 {{p}} 落在 {{lLand}} 上。",
+      "axiom7LineMoves": "将 {{lSelf}} 折到自身上，使 {{lLand}} 落在 {{p}} 上。",
+      "free": "这条线已经在纸上了。",
+      "gridBadge": "网格",
+      "gridBand": "{{lo}}与{{hi}}之间",
+      "gridBandAlong": "{{band}}，从{{lo}}到{{hi}}",
+      "gridBands_other": "在{{where}}{{direction}}加上{{level}}的线：共 {{count}} 条，按图示压出折痕。",
+      "gridBandsAnd": "，以及",
+      "gridBoundAcross": "横向 {{fraction}} 处",
+      "gridBoundLine": "{{fraction}} 线",
+      "gridBoundUp": "纵向 {{fraction}} 处",
+      "gridCell_ordinal_other": "{{count}}分之一",
+      "gridFraction_ordinal_other": "{{count}}等分",
+      "gridMountainFirst_other": "{{pleat}}：共 {{count}} 条线，山谷交替，先山折。",
+      "gridPleatInto": "将纸{{direction}}折成{{fraction}}",
+      "gridPleatSpaced": "将纸{{direction}}以纸张的{{cell}}为间距折叠",
+      "gridReversed_other": "折痕图中其中 {{count}} 条需要反向，会在收拢时翻转。",
+      "gridValleyFirst_other": "{{pleat}}：共 {{count}} 条线，谷山交替，先谷折。",
+      "impractical": "两个点都不在纸边上，所以这一折只能透过纸对齐 — 纸上还没有任何参考能让它折得更准。",
+      "inherited": "以近似折痕为参照，因此精度不高于该折痕。",
+      "markFirst": "其中一个参考点位于两条折痕延长后的交点处。请先捏出这个记号。",
+      "noAlignment": "纸上还没有可以与这条折线对齐的参照，请按图示压出折痕。",
+      "partlyReversed": "这条线在折痕图中山谷混合，其余部分会在收拢时翻转。",
+      "pinch": "只需捏一下——只要有标记就够了。",
+      "pressedOn": "也按图示越过图案的线压出折痕——后面的步骤要在那里用到它。",
+      "pressOut": "只在所示部分压出折痕。",
+      "shortAlignment": "这里两条折痕只有很短一段重合，请仔细对齐。",
+      "twinAxiom1": "沿经过 {{a}} 和 {{b}} 的线折叠，再沿经过 {{c}} 和 {{d}} 的线折叠。",
+      "twinAxiom2": "将 {{a}} 折到 {{b}}，同时将 {{c}} 折到 {{d}}。",
+      "twinBothSides": "两侧都将 {{a}} 折到 {{b}}。",
+      "unknown": "使用 {{inputs}} 折叠。",
+      "visibleAux": "这条折痕会留在完成的作品上。"
+    },
+    "progress": {
+      "closing": "已折叠 {{total}} 条线中的 {{done}} 条",
+      "querying": "正在搜索 {{total}} 条线中的 {{done}} 条"
+    },
+    "recompute": "重新计算",
+    "ref": {
+      "bottomEdge": "下边",
+      "cornerNe": "右上角",
+      "cornerNw": "左上角",
+      "cornerSe": "右下角",
+      "cornerSw": "左下角",
+      "diagonalNwSe": "从左上到右下的对角线",
+      "diagonalSwNe": "从左下到右上的对角线",
+      "leftEdge": "左边",
+      "line": "线 {{name}}",
+      "point": "点 {{name}}",
+      "rightEdge": "右边",
+      "topEdge": "上边"
+    },
+    "refusedSheet": "无法将所选位置周围的纸读取为矩形。",
+    "searching": "正在查找参考点…",
+    "settings": {
+      "allowDangling": "允许悬空折痕",
+      "allowDanglingHelp": "悬空折痕是指一端落在空白纸面上、没有任何参照可停的折痕。开启时：每条折痕从一个参照（纸边或已有折痕）出发，只有在不会多压出比折痕本身更长的部分时才延伸到第二个参照。关闭时：每条折痕都从参照压到参照，无论要多压多少。",
+      "candidates": "候选数",
+      "emptyNote": "打开折痕图以调整其参考的查找方式。",
+      "gridWhereNeeded": "仅在需要处",
+      "includeApproximate": "包含近似解",
+      "landmarksFirst": "先做基准点",
+      "mergeSymmetric": "合并对称步骤",
+      "mergeSymmetricHelp": "两个互为镜像的折叠 — 例如左角折向中心和右角折向中心 — 会像折图那样显示为一个步骤，各带一个箭头。关闭后，每个折叠都是单独的步骤。",
+      "precreaseGrid": "预折网格",
+      "sequence": "预折顺序",
+      "solutions": "解的数量"
+    },
+    "sheets": {
+      "cardTitle_other": "图样 {{n}}：{{count}} 条折痕",
+      "creases_other": "{{count}} 条折痕",
+      "label": "折痕图",
+      "title": "图样"
+    },
+    "sidebar": {
+      "none": "在当前设置下，ReferenceFinder 没有为此目标找到作图。",
+      "planning": "正在计算预折顺序…"
+    },
+    "step": {
+      "axiom1": "经过 {{p0}} 和 {{p1}} 折出 {{x}}。",
+      "axiom2": "将 {{p0}} 对齐到 {{p1}}，折出 {{x}}。",
+      "axiom3": "将 {{l0}} 对齐到 {{l1}}，折出 {{x}}。",
+      "axiom4": "经过 {{p0}} 折出 {{x}}，同时使 {{l0}} 与自身重合。",
+      "axiom5": "经过 {{p1}} 折出 {{x}}，同时将 {{p0}} 对齐到 {{l0}}。",
+      "axiom6": "将 {{p0}} 对齐到 {{l0}}、{{p1}} 对齐到 {{l1}}，折出 {{x}}。",
+      "axiom7": "使 {{lSelf}} 与自身重合并让 {{p0}} 落在 {{lLand}} 上，折出 {{x}}。",
+      "diagonal": "将{{a}}折到{{b}}上，压出对角线折痕。",
+      "mark": "在 {{l0}} 与 {{l1}} 相交处标记 {{x}}。",
+      "pinch": "只需轻捏——只需要一个标记。",
+      "unknown": "使用 {{inputs}} 折出 {{x}}。"
+    },
+    "stop": "停止",
+    "stopping": "正在取消…",
+    "targetGone": "所选折痕已不在折痕图中。",
+    "viewportControls": "参考视口控件",
+    "warning": {
+      "degenerateBorderSegments": "有 {{n}} 条边界折线两端重合，已忽略。",
+      "noBorder": "没有边缘折痕：以默认纸张作为纸。",
+      "overlappingSheets": "有 {{n}} 条折线同时位于多张纸内，已归入第一张。",
+      "refusedSheets": "{{n}} 张纸不是矩形，已被排除。",
+      "unassignedSegments": "有 {{n}} 条折线不在任何纸张内，已被排除。",
+      "zeroLengthSegments": "有 {{n}} 条折线过短无法测量，已跳过。"
+    }
+  },
   "sidePane": {
     "properties": "属性",
+    "settings": "设置",
     "view": "视图"
   },
   "simulator": {

@@ -567,6 +567,7 @@
       "exportSvg": "Imagem SVG",
       "fold": "Dobrar",
       "label": "Ações do padrão de vincos",
+      "references": "Referências de dobra",
       "saveImage": "Salvar como imagem",
       "share": "Criar link de compartilhamento",
       "simulate": "Simular",
@@ -862,8 +863,237 @@
     "y": "Y",
     "yes": "Sim"
   },
+  "references": {
+    "actions": {
+      "noTargetHint": "Escolha primeiro um vértice ou uma dobra"
+    },
+    "alreadyOnSheet": "Este ponto já está no papel — nenhuma dobra é necessária.",
+    "alreadyOnSheetLine": "Esta linha já está no papel — nenhuma dobra é necessária.",
+    "analysis": {
+      "approximate": "aproximado, erro {{err}}",
+      "badge": "{{closure}}/{{lines}} da folha",
+      "closure": "sai da própria folha",
+      "exact": "exato no rank {{rank}}, {{folds}} dobras",
+      "line": "Linha {{n}}",
+      "summary": "{{closure}} de {{lines}} linhas saem da própria folha; {{queried}} exigiram uma busca.",
+      "title": "Análise de referências",
+      "unsolved": "nenhuma construção encontrada"
+    },
+    "axiom": {
+      "free": "já está na folha",
+      "o1": "por dois pontos",
+      "o2": "ponto sobre ponto",
+      "o3": "borda sobre borda",
+      "o4": "perpendicular por um ponto",
+      "o5": "ponto sobre uma linha, por um ponto",
+      "o6": "dois pontos sobre duas linhas",
+      "o7": "ponto sobre uma linha, perpendicular"
+    },
+    "backToPattern": "Voltar ao padrão inteiro",
+    "backToPatterns": "Padrões",
+    "breakdown": {
+      "sheetId": "Folha {{n}}"
+    },
+    "canvasAriaLabel": "Padrão de dobras. Clique em um vértice ou dobra para encontrar suas referências; arraste para mover, rode a roda para dar zoom.",
+    "card": {
+      "error": "erro {{value}}",
+      "folds_one": "{{count}} dobra",
+      "folds_many": "{{count}} dobras",
+      "folds_other": "{{count}} dobras"
+    },
+    "direction": {
+      "angle": "a {{deg}}°",
+      "diagonalDown": "na diagonal descendente",
+      "diagonalUp": "na diagonal ascendente",
+      "horizontal": "na horizontal",
+      "vertical": "na vertical"
+    },
+    "dismiss": "Fechar",
+    "empty": "Nenhum padrão de vincos. Abra ou desenhe um em Editar e volte.",
+    "emptySheet": "Ainda não há dobras",
+    "emptySheetHint": "Esta folha ainda não tem dobras. Desenhe o padrão em Editar e depois volte.",
+    "errorTitle": "Referências indisponíveis",
+    "exact": "Exato",
+    "filmstrip": {
+      "label": "Passos de dobra"
+    },
+    "findings": {
+      "approximation": "mais próximo: {{folds}} dobras, erro {{err}}",
+      "noApproximation": "nenhuma construção encontrada",
+      "note": "São apenas relatadas, nunca dobradas: uma aproximação viraria referência para todos os passos seguintes.",
+      "offLattice": "Fora da malha",
+      "refusedTitle": "Folhas deixadas de fora",
+      "title": "Linhas sem dobra exata",
+      "unsolved": "Nenhuma construção encontrada"
+    },
+    "flip": {
+      "doneBadge": "Concluído",
+      "finished": "Todos os vincos estão feitos. A partir daqui o modelo se fecha, e os vincos que vão no outro sentido se invertem nesse momento.",
+      "turnOver": "Vire o papel, da esquerda para a direita.",
+      "turnOverBadge": "Virar"
+    },
+    "goToEdit": "Ir para Editar",
+    "hint": {
+      "jump": "Toque em uma dobra para ir ao passo que a faz.",
+      "open": "Abra um padrão para ver como dobrá-lo.",
+      "pick": "Clique em um vértice ou dobra para ver como dobrá-lo."
+    },
+    "lead": {
+      "find": "Toque em um vértice ou dobra para ver como dobrá-lo a partir de uma folha em branco.",
+      "findSequence": "Ou calcule toda a sequência de pré-dobras.",
+      "plan": "Todas as pré-dobras do padrão, na ordem em que são dobradas.",
+      "planAction": "Calcular a sequência de pré-dobras"
+    },
+    "meta": {
+      "solution": "Solução {{n}} de {{total}}",
+      "solutionShort": "{{n}} / {{total}}"
+    },
+    "mode": {
+      "find": "Encontrar uma referência",
+      "findTitle": "Toque em um vértice ou dobra para ver como dobrá-lo a partir de uma folha em branco",
+      "label": "O que mostrar",
+      "sequence": "Sequência de pré-dobras",
+      "sequenceTitle": "Todas as pré-dobras do padrão, na ordem em que são dobradas"
+    },
+    "noCreasePattern": "Sem padrão de dobras",
+    "nonRectangular": "Esta folha não é um retângulo. Por enquanto, referências só podem ser encontradas em folhas retangulares.",
+    "noRectangularSheet": "Nenhuma folha retangular: por enquanto, só é possível encontrar referências em folhas retangulares.",
+    "openOutline": "As dobras de borda ao redor desta seleção não fecham uma folha.",
+    "outOfDate": "Desatualizado",
+    "outOfDateHint": "O padrão de dobras mudou desde que estas referências foram encontradas.",
+    "outsideSheet": "Esta seleção não está dentro de nenhuma folha.",
+    "planning": "Calculando a sequência de pré-dobras…",
+    "planStep": {
+      "alsoNote": "Alinhe os dois ao mesmo tempo, para que a dobra fique reta.",
+      "approximate": "Aproximado — esta construção desvia {{pct}} % da folha.",
+      "approximateBadge": "Aproximado",
+      "axiom1": "Dobre passando por {{a}} e {{b}}.",
+      "axiom2": "Dobre {{a}} sobre {{b}}.",
+      "axiom3": "Dobre {{a}} sobre {{b}}.",
+      "axiom4": "Dobre passando por {{a}}, dobrando {{b}} sobre si mesma.",
+      "axiom4Corner": "Dobre por {{p}}, levando {{q}} sobre {{a}}.",
+      "axiom5": "Dobre passando por {{a}}, levando {{b}} até {{c}}.",
+      "axiom5LineMoves": "Dobre passando por {{a}}, levando {{c}} até {{b}}.",
+      "axiom6": "Dobre {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+      "axiom7": "Dobre {{lSelf}} sobre si mesma de modo que {{p}} caia em {{lLand}}.",
+      "axiom7LineMoves": "Dobre {{lSelf}} sobre si mesma de modo que {{lLand}} caia em {{p}}.",
+      "free": "Esta linha já está na folha.",
+      "gridBadge": "Grade",
+      "gridBand": "entre {{lo}} e {{hi}}",
+      "gridBandAlong": "{{band}}, de {{lo}} até {{hi}}",
+      "gridBands_one": "Adicione os {{level}} {{direction}} {{where}}: {{count}} linha, vincada como mostrado.",
+      "gridBands_many": "Adicione os {{level}} {{direction}} {{where}}: {{count}} linhas, vincadas como mostrado.",
+      "gridBands_other": "Adicione os {{level}} {{direction}} {{where}}: {{count}} linhas, vincadas como mostrado.",
+      "gridBandsAnd": " e ",
+      "gridBoundAcross": "{{fraction}} da largura",
+      "gridBoundLine": "a linha {{fraction}}",
+      "gridBoundUp": "{{fraction}} da altura",
+      "gridCell_ordinal_other": "{{count}} avos",
+      "gridFraction_ordinal_other": "{{count}} avos",
+      "gridMountainFirst_one": "{{pleat}}: {{count}} linha, alternando montanha e vale, montanha primeiro.",
+      "gridMountainFirst_many": "{{pleat}}: {{count}} linhas, alternando montanha e vale, montanha primeiro.",
+      "gridMountainFirst_other": "{{pleat}}: {{count}} linhas, alternando montanha e vale, montanha primeiro.",
+      "gridPleatInto": "Dobre a folha {{direction}} em {{fraction}}",
+      "gridPleatSpaced": "Dobre a folha {{direction}}, a um {{cell}} da folha de distância",
+      "gridReversed_one": "O padrão quer {{count}} delas no outro sentido; ela se inverte quando o modelo se fecha.",
+      "gridReversed_many": "O padrão quer {{count}} delas no outro sentido; elas se invertem quando o modelo se fecha.",
+      "gridReversed_other": "O padrão quer {{count}} delas no outro sentido; elas se invertem quando o modelo se fecha.",
+      "gridValleyFirst_one": "{{pleat}}: {{count}} linha, alternando vale e montanha, vale primeiro.",
+      "gridValleyFirst_many": "{{pleat}}: {{count}} linhas, alternando vale e montanha, vale primeiro.",
+      "gridValleyFirst_other": "{{pleat}}: {{count}} linhas, alternando vale e montanha, vale primeiro.",
+      "impractical": "Nenhum dos pontos está numa borda, então esta é alinhada através do papel — nada na folha a torna uma dobra mais limpa ainda.",
+      "inherited": "Referenciado a partir de um vinco aproximado, portanto só tão exato quanto ele.",
+      "markFirst": "Uma destas marcas está onde dois vincos se cruzariam se seguissem adiante: faça primeiro um beliscão ali.",
+      "noAlignment": "Nada no papel coincide ainda com esta dobra — vinque como desenhado.",
+      "partlyReversed": "No padrão, esta linha é vincada nos dois sentidos; o restante se inverte quando o modelo se fecha.",
+      "pinch": "Apenas belisque: só a marca é necessária.",
+      "pressedOn": "Vinque também, onde mostrado, além da linha do padrão — um passo posterior a usa ali.",
+      "pressOut": "Vinque apenas a parte mostrada.",
+      "shortAlignment": "Aqui os vincos coincidem só brevemente — alinhe com cuidado.",
+      "twinAxiom1": "Dobre por {{a}} e {{b}}, e por {{c}} e {{d}}.",
+      "twinAxiom2": "Dobre {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+      "twinBothSides": "Dobre {{a}} sobre {{b}} dos dois lados.",
+      "unknown": "Dobre usando {{inputs}}.",
+      "visibleAux": "Este vinco aparecerá no modelo pronto."
+    },
+    "progress": {
+      "closing": "Dobradas {{done}} de {{total}} linhas",
+      "querying": "Buscando {{done}} de {{total}} linhas"
+    },
+    "recompute": "Recalcular",
+    "ref": {
+      "bottomEdge": "a borda inferior",
+      "cornerNe": "o canto superior direito",
+      "cornerNw": "o canto superior esquerdo",
+      "cornerSe": "o canto inferior direito",
+      "cornerSw": "o canto inferior esquerdo",
+      "diagonalNwSe": "a diagonal do canto superior esquerdo ao inferior direito",
+      "diagonalSwNe": "a diagonal do canto inferior esquerdo ao superior direito",
+      "leftEdge": "a borda esquerda",
+      "line": "a linha {{name}}",
+      "point": "o ponto {{name}}",
+      "rightEdge": "a borda direita",
+      "topEdge": "a borda superior"
+    },
+    "refusedSheet": "A folha ao redor desta seleção não pôde ser lida como um retângulo.",
+    "searching": "Procurando referências…",
+    "settings": {
+      "allowDangling": "Permitir dobras soltas",
+      "allowDanglingHelp": "Uma dobra solta é um vinco que termina em papel em branco — sem nada onde parar. Ligado: cada vinco parte de uma referência (a borda do papel ou um vinco já feito) e só chega a uma segunda quando isso não acrescenta mais vinco do que o próprio vinco. Desligado: cada vinco vai de referência a referência, por mais vinco extra que isso custe.",
+      "candidates": "Candidatos",
+      "emptyNote": "Abra um padrão de vincos para ajustar como suas referências são encontradas.",
+      "gridWhereNeeded": "Só onde for preciso",
+      "includeApproximate": "Incluir soluções aproximadas",
+      "landmarksFirst": "Marcos primeiro",
+      "mergeSymmetric": "Unir passos simétricos",
+      "mergeSymmetricHelp": "Duas dobras que se espelham — o canto esquerdo ao centro e o canto direito ao centro, por exemplo — aparecem como um só passo com uma seta para cada uma, como um diagrama as dobra. Desligado, cada dobra é um passo próprio.",
+      "precreaseGrid": "Pré-vincar a grade",
+      "sequence": "Sequência de pré-dobras",
+      "solutions": "Soluções"
+    },
+    "sheets": {
+      "cardTitle_one": "Padrão {{n}}: {{count}} vinco",
+      "cardTitle_many": "Padrão {{n}}: {{count}} vincos",
+      "cardTitle_other": "Padrão {{n}}: {{count}} vincos",
+      "creases_one": "{{count}} vinco",
+      "creases_many": "{{count}} vincos",
+      "creases_other": "{{count}} vincos",
+      "label": "Padrões de vincos",
+      "title": "Padrões"
+    },
+    "sidebar": {
+      "none": "O ReferenceFinder não encontrou nenhuma construção para este alvo com as configurações atuais.",
+      "planning": "Calculando a sequência de pré-dobras…"
+    },
+    "step": {
+      "axiom1": "Dobre {{x}} passando por {{p0}} e {{p1}}.",
+      "axiom2": "Dobre {{x}} levando {{p0}} sobre {{p1}}.",
+      "axiom3": "Dobre {{x}} levando {{l0}} sobre {{l1}}.",
+      "axiom4": "Dobre {{x}} passando por {{p0}}, dobrando {{l0}} sobre si mesma.",
+      "axiom5": "Dobre {{x}} passando por {{p1}}, levando {{p0}} sobre {{l0}}.",
+      "axiom6": "Dobre {{x}} levando {{p0}} sobre {{l0}} e {{p1}} sobre {{l1}}.",
+      "axiom7": "Dobre {{x}} dobrando {{lSelf}} sobre si mesma de modo que {{p0}} caia sobre {{lLand}}.",
+      "diagonal": "Dobre {{a}} sobre {{b}}, vincando a diagonal.",
+      "mark": "Marque {{x}} onde {{l0}} encontra {{l1}}.",
+      "pinch": "Só um beliscão — apenas a marca é necessária.",
+      "unknown": "Dobre {{x}} usando {{inputs}}."
+    },
+    "stop": "Parar",
+    "stopping": "Cancelando…",
+    "targetGone": "A dobra escolhida não está mais no padrão.",
+    "viewportControls": "Controles da viewport de referências",
+    "warning": {
+      "degenerateBorderSegments": "{{n}} vinco(s) de borda têm extremidades coincidentes e foram ignorados.",
+      "noBorder": "Sem dobras de borda: o papel padrão é usado como folha.",
+      "overlappingSheets": "{{n}} vinco(s) estão dentro de mais de uma folha e foram atribuídos à primeira.",
+      "refusedSheets": "{{n}} folha(s) não são retângulos e ficam de fora.",
+      "unassignedSegments": "{{n}} vinco(s) ficam fora de todas as folhas e são deixados de fora.",
+      "zeroLengthSegments": "{{n}} vinco(s) são curtos demais para medir e foram ignorados."
+    }
+  },
   "sidePane": {
     "properties": "Propriedades",
+    "settings": "Configurações",
     "view": "Exibir"
   },
   "simulator": {

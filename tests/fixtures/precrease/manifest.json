@@ -1,0 +1,211 @@
+{
+  "$comment": [
+    "Fixture manifest for the precrease planner (implementation-plans/reference-finder-integration.md, Phase 4).",
+    "`prototype` is the JavaScript spike's upper bound and `panel` the design panel's best-found value",
+    "(exhaustive search to depth k WITHOUT O6, under the spike's own predicate); both are recorded in the",
+    "plan's evidence table. `crate` is the value oristudio-precrease re-derives with the corrected",
+    "predicates, and is what tests/planner_fixtures.rs asserts. Counts can move either way: removing the",
+    "spike's O3 external-bisector / O4 foot / O7 crossing false positives raises them, and fixing its",
+    "rounded-normal point-on-line index (which hid every +/-45 line) lowers them. `null` means the plan",
+    "records no value for that fixture.",
+    "Four fixtures are referenced where they already live rather than copied here.",
+    "`grid` is the precrease grid the planner pleats first with its default options (null when the design is not box- or hex-pleated): kind, cells across the anchoring side, and lines pleated over every family. `crate` is the auxiliary count with that grid."
+  ],
+  "fixtures": [
+    {
+      "file": "crates/oristudio-cp/resources/default-molecules/bird_base.fold",
+      "component": 0,
+      "description": "Bird base molecule, 22.5 degrees; the two midlines and eight corner lines.",
+      "lines": 10,
+      "status": "complete",
+      "prototype": 0,
+      "panel": 0,
+      "crate": 0,
+      "note": "Agrees. Every line closes from the bare sheet. The axioms its witnesses use are O2, O3 and O5 only — not the O5/O6/O7 the plan's evidence table names: with only the four edges and two midlines folded, each 67.5-degree corner line has exactly one lander (the centre onto an edge), and O6 needs two.",
+      "grid": null
+    },
+    {
+      "file": "crates/oristudio-cp/resources/default-molecules/frog_base.fold",
+      "component": 0,
+      "description": "Frog base molecule; nothing closes from the bare sheet until a diagonal is folded.",
+      "lines": 16,
+      "status": "complete",
+      "prototype": 1,
+      "panel": 1,
+      "crate": 1,
+      "note": "Agrees. One depth-1 auxiliary (a diagonal) unlocks all 16 lines; it stays a full crease because later steps use it as an O3 reflection line.",
+      "grid": null
+    },
+    {
+      "file": "tests/fixtures/precrease/grid6.fold",
+      "component": 0,
+      "description": "Synthetic 1/6 grid with both diagonals and two chords.",
+      "lines": 14,
+      "status": "complete",
+      "prototype": 1,
+      "panel": 1,
+      "crate": 0,
+      "note": "Agrees line by line (crate 1: four lines close from the bare sheet, then one depth-1 auxiliary unlocks the remaining ten). Pleated on its 6-grid — the default — the ten axis lines are two grid steps and the four diagonals close from the grid's crossings with no auxiliary fold.",
+      "grid": {
+        "kind": "box",
+        "n": 6,
+        "steps": 2,
+        "lines": 10
+      }
+    },
+    {
+      "file": "tests/fixtures/flat-folder/kabuto.fold",
+      "component": 0,
+      "description": "Kabuto (referenced from the Flat-Folder fixtures, not copied).",
+      "lines": 13,
+      "status": "complete",
+      "prototype": 2,
+      "panel": 1,
+      "crate": 1,
+      "note": "Agrees with the panel, not the prototype. The prototype's second auxiliary fold was an artefact of its rounded-normal point-on-line index, which made five of kabuto's +/-45 degree lines invisible from the marks lying on them.",
+      "grid": null
+    },
+    {
+      "file": "tests/fixtures/oriedita/solution_sample_1.cp",
+      "component": 0,
+      "description": "Oriedita's solution_sample_1 (referenced from the Oriedita fixtures, not copied).",
+      "lines": 14,
+      "status": "complete",
+      "prototype": 2,
+      "panel": 1,
+      "crate": 1,
+      "note": "Agrees with the panel, not the prototype: one auxiliary fold (corner onto centre) unlocks twelve lines.",
+      "grid": null
+    },
+    {
+      "file": "tests/fixtures/precrease/g3d_x19.fold",
+      "component": 0,
+      "description": "Panel counterexample: thirds grid plus both diagonals plus x = 1/9.",
+      "lines": 7,
+      "status": "complete",
+      "prototype": 3,
+      "panel": 2,
+      "crate": 2,
+      "note": "Agrees with the panel. Two things were needed to reach 2: the stuck search must keep deepening until a set COMPLETES the closure (stopping at the first set that unlocks anything gave 3), and the candidate cap must be taken round-robin across axioms — a flat cut of the ease-sorted list drops every O1 candidate, and the second line of the optimal pair is an O1.",
+      "grid": null
+    },
+    {
+      "file": "tests/fixtures/precrease/x13_x38.fold",
+      "component": 0,
+      "description": "Panel counterexample: x = 1/3 and x = 3/8.",
+      "lines": 2,
+      "status": "complete",
+      "prototype": 4,
+      "panel": 3,
+      "crate": 3,
+      "note": "Agrees with the panel. Found at depth 3, which the plan's 'depth 3 when the candidate count is small' rule allows (4 root candidates).",
+      "grid": null
+    },
+    {
+      "file": "tests/fixtures/precrease/x13_diag_pair.fold",
+      "component": 0,
+      "description": "Panel counterexample: x = 1/3 and the slope-1/3 diagonal from the corner.",
+      "lines": 2,
+      "status": "complete",
+      "prototype": 4,
+      "panel": 3,
+      "crate": 3,
+      "note": "Agrees with the panel; found at depth 3.",
+      "grid": null
+    },
+    {
+      "file": "tests/fixtures/precrease/g3d_x112.fold",
+      "component": 0,
+      "description": "Panel counterexample: thirds grid plus both diagonals plus x = 1/12.",
+      "lines": 7,
+      "status": "complete",
+      "prototype": 2,
+      "panel": 2,
+      "crate": 2,
+      "note": "Agrees. The prototype reached 2 folds plus one unsolved line here (6 folds once its deleted 'fold the best approximation' branch ran); the crate solves all seven exactly with two auxiliary folds.",
+      "grid": null
+    },
+    {
+      "file": "tests/fixtures/precrease/claim7-cand9.fold",
+      "component": 0,
+      "description": "Panel counterexample synthesised to defeat a greedy stuck handler: two chords, one 1-fold and one 2-fold.",
+      "lines": 2,
+      "status": "complete",
+      "prototype": 3,
+      "panel": 2,
+      "crate": 2,
+      "note": "Agrees with the panel. Reaching 2 needed the lander scan to accept a mirror line that only touches the sheet at a corner: a lander is a point of P on the reflected reference line, and a corner is such a point, but the scan asked whether that line CROSSES the sheet (an in-paper segment longer than TOL) and so lost every corner lander. That false negative alone cost this fixture one auxiliary fold.",
+      "grid": null
+    },
+    {
+      "file": "tests/fixtures/precrease/iguana-c0.fold",
+      "component": 0,
+      "description": "Component 0 of the iguana_24 box-pleated canvas: 1,640 segments merging to 89 lines on a 24-grid.",
+      "lines": 89,
+      "status": "complete",
+      "prototype": 2,
+      "panel": null,
+      "crate": 0,
+      "note": "Agrees with the prototype's upper bound of 2 (the plan records no certified panel value; its sheet frame was unverified there and is derived from the border loop here). Two of the 89 lines close from the bare sheet; one depth-2 auxiliary pair unlocks the other 87. Pleated on its 50-grid — the default — the verticals are one pleat of 50ths and the horizontals, which the pattern holds only across the middle, a band of 25ths and a band of 50ths there: 72 lines in three grid steps, 65 of them the pattern's, and the rest close from the grid's crossings with no auxiliary fold (line by line: 2).",
+      "grid": {
+        "kind": "box",
+        "n": 50,
+        "steps": 3,
+        "lines": 72
+      }
+    },
+    {
+      "file": "tests/fixtures/precrease/divergence-1.cp",
+      "component": 0,
+      "description": "Panel probe search-divergence.mjs case 1: four chords chosen to make the prototype's cost proxy disagree with its real cost.",
+      "lines": 4,
+      "status": "complete",
+      "prototype": null,
+      "panel": null,
+      "crate": 1,
+      "note": "No plan value to compare against; recorded so a change in the search is visible. Solved by one depth-1 auxiliary fold.",
+      "grid": null
+    },
+    {
+      "file": "tests/fixtures/precrease/divergence-2.cp",
+      "component": 0,
+      "description": "Panel probe search-divergence.mjs case 2.",
+      "lines": 4,
+      "status": "complete",
+      "prototype": null,
+      "panel": null,
+      "crate": 1,
+      "note": "No plan value to compare against. Solved by one depth-2 auxiliary pair until the tier-1 scan learned to see a point a shallow-crossing line makes on a target (predicates::scan_points); one depth-1 auxiliary since.",
+      "grid": null
+    },
+    {
+      "file": "tests/fixtures/precrease/divergence-3.cp",
+      "component": 0,
+      "description": "Panel probe search-divergence.mjs case 3.",
+      "lines": 4,
+      "status": "complete",
+      "prototype": null,
+      "panel": null,
+      "crate": 1,
+      "note": "No plan value to compare against. Solved by one depth-2 auxiliary pair until the tier-1 scan learned to see a point a shallow-crossing line makes on a target (predicates::scan_points); one depth-1 auxiliary since.",
+      "grid": null
+    },
+    {
+      "file": "tests/fixtures/precrease/hex-14.fold",
+      "component": 0,
+      "description": "A 14-row triangle grid on its own rectangle (W/H = 4*sqrt3/7, drawn rotated 30 degrees on the Oriedita canvas): 13 rows and two families of 21 oblique lines whose ring offsets are k*sqrt3/14 with k up to 21, past the dense tier's landmark bound on q.",
+      "lines": 55,
+      "status": "complete",
+      "prototype": null,
+      "panel": null,
+      "crate": 0,
+      "note": "Classified off the lattice until the dense tier admitted pure ring elements q*sqrt3/D with no bound on q; the planner then solved one line (the midline) and stopped. Exact now: the midline from the bare sheet, one depth-1 auxiliary (a corner onto an edge through the opposite corner, the diagram's 60-degree reference), and every other line closes. Pleated on the two oblique families of its 16-column hex grid — the default — the 42 oblique lines are two grid steps and the 13 rows close from their crossings with no auxiliary fold (line by line: 1).",
+      "grid": {
+        "kind": "hex",
+        "n": 16,
+        "steps": 2,
+        "lines": 42
+      }
+    }
+  ]
+}

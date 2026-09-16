@@ -15,6 +15,8 @@
     "addTreeEdgesThenOptimize": "先添加树的边，然后优化，再生成折痕图",
     "advanceCreaseType": "递进折痕类型",
     "advanceSelectedCpLineTypes": "递进所选折痕图线型",
+    "analyzeReferences": "分析参照",
+    "analyzeReferencesHint": "找出此折痕图中哪些线难以通过折叠定位",
     "bpFlipHorizontal": "水平翻转",
     "bpFlipHorizontalReason": "将设计左右镜像",
     "bpFlipVertical": "垂直翻转",
@@ -182,6 +184,7 @@
     "redo": "重做",
     "redoNextCpEdit": "重做下一步折痕图编辑",
     "redoNextTreeEdit": "重做下一步树编辑",
+    "references": "参考",
     "relieveAllStrain": "缓解所有张力",
     "relieveStrain": "缓解张力",
     "removeAllStrain": "移除所有张力",
@@ -229,6 +232,7 @@
     "showDesignWorkspace": "显示设计工作区",
     "showEditWorkspace": "显示编辑工作区",
     "showPropertiesPane": "显示属性窗格",
+    "showReferencesWorkspace": "显示参考工作区",
     "showSimulateWorkspace": "显示模拟工作区",
     "simulate": "模拟",
     "simulateBeforeExportingFolded": "导出折叠结果前请先模拟折痕图",
@@ -310,16 +314,21 @@
   },
   "viewDrawer": {
     "close": "关闭视图选项",
+    "closeSettings": "关闭设置",
     "open": "视图",
+    "openSettings": "设置",
+    "settingsTitle": "设置",
     "title": "视图选项"
   },
   "workspaceRail": {
     "design": "设计工作区",
     "edit": "编辑工作区",
     "label": "工作区",
+    "references": "参考工作区",
     "simulate": "模拟工作区",
     "tabDesign": "设计",
     "tabEdit": "编辑",
+    "tabReferences": "参考",
     "tabSimulate": "模拟"
   }
 }

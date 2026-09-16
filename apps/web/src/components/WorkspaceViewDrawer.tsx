@@ -3,10 +3,16 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal, X } from 'lucide-react';
 import { useWorkspaceViewDrawer } from '../hooks/useWorkspaceViewDrawer';
-import { sidePaneTitle, type SidePaneId } from '../store/layoutStore';
+import {
+  drawerTriggerFor,
+  sidePaneTitle,
+  useLayoutStore,
+  type SidePaneId,
+} from '../store/layoutStore';
 import { ErrorBoundary } from './errors/ErrorBoundary';
 import { CpPropertiesPanel } from './panels/CpPropertiesPanel';
 import { CpViewControlsPanel } from './panels/CpViewControlsPanel';
+import { ReferencesViewControlsPanel } from './panels/ReferencesViewControlsPanel';
 import { SimulatorViewControlsPanel } from './panels/SimulatorViewControlsPanel';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
@@ -24,6 +30,7 @@ const VIEW_DRAWER_BODIES: Record<SidePaneId, ComponentType> = {
   'cp-view-controls': CpViewControlsPanel,
   'cp-properties': CpPropertiesPanel,
   'simulator-view-controls': SimulatorViewControlsPanel,
+  'references-view-controls': ReferencesViewControlsPanel,
 };
 
 /**
@@ -44,6 +51,8 @@ export function WorkspaceViewDrawer() {
   const { t } = useTranslation();
   const { panes, activePane, setActivePane, open, drawerId, openDrawer, close, triggerRef } =
     useWorkspaceViewDrawer();
+  const activeWorkspace = useLayoutStore((state) => state.activeWorkspace);
+  const slot = useLayoutStore((state) => state.viewDrawerSlot);
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
   // Focus the dialog itself rather than the first control in it, so a screen
@@ -53,25 +62,53 @@ export function WorkspaceViewDrawer() {
   }, [open]);
 
   if (!activePane) return null;
+  // A pane that seats the pill itself has nowhere for it until its view is
+  // up — References' phone list screen has no view, and no settings to be
+  // about until a sheet is opened. A pane that does not is not handed a slot
+  // another pane may have left behind.
+  const seatsPill = drawerTriggerFor(activeWorkspace) === 'slot';
+  const seat = seatsPill ? slot : null;
+  if (seatsPill && !seat) return null;
 
-  const title = t('common:viewDrawer.title', 'View options');
+  // Named as the docked column is named: a Settings column (Simulate,
+  // References) is "Settings" on the pill and the sheet, a View column is
+  // "View" and "View options" — see `SidePaneDefinition.role`.
+  const settings = panes[0]?.role === 'settings';
+  const title = settings
+    ? t('common:viewDrawer.settingsTitle', 'Settings')
+    : t('common:viewDrawer.title', 'View options');
+  const openLabel = settings
+    ? t('common:viewDrawer.openSettings', 'Settings')
+    : t('common:viewDrawer.open', 'View');
+  const closeLabel = settings
+    ? t('common:viewDrawer.closeSettings', 'Close settings')
+    : t('common:viewDrawer.close', 'Close view options');
   const Body = VIEW_DRAWER_BODIES[activePane.id];
+
+  const trigger = (
+    <Button
+      ref={triggerRef}
+      size="md"
+      variant="secondary"
+      className="view-drawer__trigger"
+      aria-haspopup="dialog"
+      aria-expanded={open}
+      aria-controls={drawerId}
+      onClick={() => openDrawer()}
+    >
+      <SlidersHorizontal size={15} aria-hidden="true" />
+      {openLabel}
+    </Button>
+  );
 
   return (
     <>
-      <Button
-        ref={triggerRef}
-        size="md"
-        variant="secondary"
-        className="view-drawer__trigger"
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-controls={drawerId}
-        onClick={() => openDrawer()}
-      >
-        <SlidersHorizontal size={15} aria-hidden="true" />
-        {t('common:viewDrawer.open', 'View')}
-      </Button>
+      {/*
+        In the pane's own slot when it offers one — References seats it at the
+        right end of its header, beside Back on a phone, where the lane's
+        corner would have been the header — else here in the lane.
+      */}
+      {seat ? createPortal(trigger, seat) : trigger}
       {/*
         Portaled, for the reason `CpToolPickerSheet` is: this component now
         renders *inside* the pill lane, and that lane is `pointer-events: none`
@@ -130,11 +167,7 @@ export function WorkspaceViewDrawer() {
                 ) : (
                   <span className="view-drawer__title">{title}</span>
                 )}
-                <IconButton
-                  size="sm"
-                  aria-label={t('common:viewDrawer.close', 'Close view options')}
-                  onClick={close}
-                >
+                <IconButton size="sm" aria-label={closeLabel} onClick={close}>
                   <X size={15} />
                 </IconButton>
               </header>

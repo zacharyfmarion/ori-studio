@@ -17,6 +17,7 @@ import { createProjectSlice } from './slices/projectSlice';
 import { createExploriSlice } from './slices/exploriSlice';
 import { createOristudioBpSlice } from './slices/oristudioBpSlice';
 import { createSimulatorSlice } from './slices/simulatorSlice';
+import { createReferencesSlice } from './slices/referencesSlice';
 import { resolveEditingContext } from '../../workspaces/editingContext';
 import type { WorkspaceState } from './types';
 
@@ -32,6 +33,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       ...createOristudioBpSlice(...args),
       ...createExploriSlice(...args),
       ...createSimulatorSlice(...args),
+      ...createReferencesSlice(...args),
     }),
     { name: 'treemaker-workspace' }
   )

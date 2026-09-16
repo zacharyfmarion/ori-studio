@@ -18,7 +18,8 @@ export type EditingContext =
   | 'explori-tree'
   | 'explori-results'
   | 'crease-pattern'
-  | 'simulate';
+  | 'simulate'
+  | 'references';
 
 export interface EditingContextInput {
   activePanelId: string | null;
@@ -27,11 +28,11 @@ export interface EditingContextInput {
 }
 
 /**
- * Panels that belong to Edit and Simulate.
+ * Panels that belong to Edit, Simulate and References.
  *
- * Static, because those workspaces have no kinds — there is one crease pattern
- * and one simulator, and a pane of either is that workspace's context whatever
- * else is open.
+ * Static, because those workspaces have no kinds — there is one crease pattern,
+ * one simulator and one references view, and a pane of any is that workspace's
+ * context whatever else is open.
  */
 const STATIC_PANEL_CONTEXTS: Record<string, EditingContext> = {
   'crease-pattern': 'crease-pattern',
@@ -39,6 +40,8 @@ const STATIC_PANEL_CONTEXTS: Record<string, EditingContext> = {
   'cp-properties': 'crease-pattern',
   simulator: 'simulate',
   'simulator-view-controls': 'simulate',
+  references: 'references',
+  'references-view-controls': 'references',
 };
 
 /**

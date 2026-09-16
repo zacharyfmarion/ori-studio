@@ -3,6 +3,7 @@ import {
   DESIGN_PATH,
   EDIT_PATH,
   LEGACY_DESIGN_PATHS,
+  REFERENCES_PATH,
   SIMULATE_PATH,
   WELCOME_PATH,
   isLandingPath,
@@ -21,6 +22,7 @@ describe('workspacePath', () => {
   it('returns the single path for non-design workspaces', () => {
     expect(workspacePath('edit')).toBe(EDIT_PATH);
     expect(workspacePath('simulate')).toBe(SIMULATE_PATH);
+    expect(workspacePath('references')).toBe(REFERENCES_PATH);
   });
 });
 
@@ -28,6 +30,7 @@ describe('parseWorkspacePath', () => {
   it('parses each workspace path', () => {
     expect(parseWorkspacePath(EDIT_PATH)).toEqual({ workspace: 'edit' });
     expect(parseWorkspacePath(SIMULATE_PATH)).toEqual({ workspace: 'simulate' });
+    expect(parseWorkspacePath(REFERENCES_PATH)).toEqual({ workspace: 'references' });
     expect(parseWorkspacePath(DESIGN_PATH)).toEqual({ workspace: 'design' });
   });
 
@@ -46,7 +49,7 @@ describe('parseWorkspacePath', () => {
   });
 
   it('round-trips with workspacePath', () => {
-    for (const workspace of ['design', 'edit', 'simulate'] as const) {
+    for (const workspace of ['design', 'edit', 'simulate', 'references'] as const) {
       expect(parseWorkspacePath(workspacePath(workspace))).toEqual({ workspace });
     }
   });

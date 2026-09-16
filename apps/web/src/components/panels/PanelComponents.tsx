@@ -11,6 +11,8 @@ import { CpViewControlsPanel } from './CpViewControlsPanel';
 import { CpPropertiesPanel } from './CpPropertiesPanel';
 import { SimulatorPanel } from './SimulatorPanel';
 import { SimulatorViewControlsPanel } from './SimulatorViewControlsPanel';
+import { ReferencesPanel } from './ReferencesPanel';
+import { ReferencesViewControlsPanel } from './ReferencesViewControlsPanel';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { ConditionsPanel } from './ConditionsPanel';
 import { withPanelErrorBoundary } from '../errors/withPanelErrorBoundary';
@@ -29,6 +31,8 @@ const panels: Record<string, FC<IDockviewPanelProps>> = {
   'cp-properties': CpPropertiesPanel,
   simulator: SimulatorPanel,
   'simulator-view-controls': SimulatorViewControlsPanel,
+  references: ReferencesPanel,
+  'references-view-controls': ReferencesViewControlsPanel,
   diagnostics: DiagnosticsPanel,
   conditions: ConditionsPanel,
 };

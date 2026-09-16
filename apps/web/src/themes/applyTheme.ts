@@ -1,4 +1,6 @@
 import { mixHexColors } from '../lib/rgbColor';
+import { paperBackFor } from './paperBack';
+import { FOLD_UNASSIGNED, referencesCreaseAlpha, referencesDimAlpha } from './referencesInk';
 import type { ThemeTokens, TreeMakerTheme } from './types';
 import { tokenToCssVar } from './types';
 
@@ -55,6 +57,22 @@ const MOUNTAIN_VALLEY_COLORS = {
   },
 } as const;
 
+/**
+ * The References workspace's two highlight colours: the references a step uses
+ * (`input`) and the crease it makes (`new`). Neither may be a crease hue —
+ * every hue the palette gives a crease (red, blue, cyan, orange, magenta,
+ * green, yellow, purple, teal) is spoken for, and `--cp-selection` is a theme's
+ * gold — so these sit in the two gaps the wheel has left: a lime at ~83°
+ * (35° from yellow, 59° from green) and a pink at ~323° (31° from magenta, 32°
+ * from mountain red), each ≥ 28° from every fold hue, which is the distance
+ * `selectionColor.test.ts` holds selections to. Light variants are the same
+ * hues darkened to read on a light canvas.
+ */
+const REFERENCE_COLORS = {
+  dark: { input: '#f25ab8', new: '#a3e635' },
+  light: { input: '#c91d87', new: '#4d7c0f' },
+} as const;
+
 function colorMix(color: string, amount: number): string {
   return `color-mix(in srgb, ${color} ${amount}%, transparent)`;
 }
@@ -76,6 +94,10 @@ function applyTreeMakerDerivedTokens(theme: TreeMakerTheme, setVar: (name: strin
   setVar('--bg-paper', isLight ? '#fffdf7' : '#f2f0e7');
   setVar('--paper-shadow', colorMix(colors['text.primary'], isLight ? 18 : 28));
   setVar('--paper-stroke', colorMix(colors['text.primary'], isLight ? 70 : 62));
+  // The paper's other face — the origami house's legend, held to a step a light
+  // theme would read at. See `paperBack.ts`; it is the one `--fold-*`-adjacent
+  // token whose right answer is not the same arithmetic in both branches.
+  setVar('--paper-back', paperBackFor(colors['bg.primary'], colors['text.primary']));
 
   setVar('--tree-edge', colors['text.primary']);
   setVar('--tree-node', colors['bg.tertiary']);
@@ -86,11 +108,28 @@ function applyTreeMakerDerivedTokens(theme: TreeMakerTheme, setVar: (name: strin
   setVar('--fold-mountain', MOUNTAIN_VALLEY_COLORS[theme.type].mountain);
   setVar('--fold-valley', MOUNTAIN_VALLEY_COLORS[theme.type].valley);
   setVar('--fold-flat', MOUNTAIN_VALLEY_COLORS[theme.type].aux);
+  setVar('--fold-unassigned', FOLD_UNASSIGNED);
+  // What the References workspace draws its context at — an earlier crease's
+  // grey, and the pattern's creases made by earlier steps — held to the light
+  // theme's step off the ground rather than to one alpha. See `referencesInk.ts`.
+  const ground = colors['bg.primary'];
+  setVar('--references-crease-alpha', referencesCreaseAlpha(ground).toFixed(3));
+  setVar(
+    '--references-dim-alpha',
+    referencesDimAlpha(
+      ground,
+      MOUNTAIN_VALLEY_COLORS[theme.type].mountain,
+      MOUNTAIN_VALLEY_COLORS[theme.type].valley,
+      theme.type
+    ).toFixed(3)
+  );
   setVar('--fold-border', colors['text.primary']);
   // The theme's own accent, unless that accent is confusable with a fold colour —
   // red is mountain, blue is valley, and a selected crease is painted this outright,
   // so either would be read as its assignment. See `selection.cp` in themes/types.
   setVar('--cp-selection', colors['selection.cp'] ?? colors['accent.primary']);
+  setVar('--cp-reference-input', REFERENCE_COLORS[theme.type].input);
+  setVar('--cp-reference-new', REFERENCE_COLORS[theme.type].new);
   setVar(
     '--fold-monochrome-valley',
     mixHexColors(colors['text.primary'], colors['bg.canvas'], MONOCHROME_VALLEY_INK_RATIO)

@@ -3,6 +3,7 @@ import {
   keyChordEquals,
   keyChordFromKeyboardEvent,
   SHORTCUT_DEFINITIONS,
+  type ReferencesShortcutId,
   type ShortcutActionId,
   type ShortcutDefaultsSource,
   type ShortcutOverrides,
@@ -46,6 +47,11 @@ export interface ShortcutExecutors {
    * the time.
    */
   simulator?: (id: SimulatorShortcutId) => unknown;
+  /**
+   * Registered only while the References panel is mounted; absent, the
+   * `references` scope resolves nothing and the chord falls through.
+   */
+  references?: (id: ReferencesShortcutId) => unknown;
 }
 
 export interface ShortcutDispatchOptions {
@@ -167,6 +173,10 @@ function executeShortcut(
     case 'simulator':
       if (!executors.simulator) return false;
       void executors.simulator(id as SimulatorShortcutId);
+      return true;
+    case 'references':
+      if (!executors.references) return false;
+      void executors.references(id as ReferencesShortcutId);
       return true;
   }
 }

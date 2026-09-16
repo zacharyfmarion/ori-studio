@@ -662,6 +662,42 @@ describe('SettingsModal', () => {
     expect(document.body.textContent).not.toContain('Unbind');
   });
 
+  it('binds a chord only the References workspace also holds, with no prompt', () => {
+    // Same rule as the simulator case above, for the second conditional scope:
+    // `references` is in the stack only while that panel owns the keyboard, so
+    // its arrows coexist with everything else. This regressed when References
+    // was added — `findChordCoClaimant` knew only about `simulator`, so Save
+    // capturing ArrowRight offered to unbind Next Step.
+    renderModal('shortcuts');
+    const saveRow = shortcutRowFor('Save');
+
+    act(() => {
+      (saveRow.querySelector('.settings-shortcuts__capture') as HTMLButtonElement).click();
+    });
+    pressChord({ key: 'ArrowRight' });
+
+    expect(useShortcutStore.getState().overrides['file.save']?.[0]?.key).toBe('arrowright');
+    expect(useShortcutStore.getState().overrides['references.nextStep']).toBeUndefined();
+    expect(document.body.textContent).not.toContain('Unbind');
+  });
+
+  it('still asks when two References shortcuts want one chord', () => {
+    // The deferral is across scopes only. Inside one conditional scope the
+    // dispatcher takes the first match, so the loser holds a chord it can never
+    // answer — the very thing this prompt exists to prevent. Recompute precedes
+    // Reset View in the registry, so capturing Home for Recompute kills it.
+    renderModal('shortcuts');
+    const recomputeRow = shortcutRowFor('Recompute References');
+
+    act(() => {
+      (recomputeRow.querySelector('.settings-shortcuts__capture') as HTMLButtonElement).click();
+    });
+    pressChord({ key: 'Home' });
+
+    expect(useShortcutStore.getState().overrides['references.recompute']).toBeUndefined();
+    expect(document.body.textContent).toContain('Unbind Reset References View?');
+  });
+
   it('asks before a capture kills the holder it outranks, and agrees with an import', async () => {
     // The plan's own example: "I want to bind mountain line to M but M is mirror
     // by default." Mountain sits ahead of Mirror Line in the registry, so nothing

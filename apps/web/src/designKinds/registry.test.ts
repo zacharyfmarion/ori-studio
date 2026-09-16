@@ -63,7 +63,12 @@ describe('design kind registry', () => {
 
   it('claims no kind for the contexts no design owns', () => {
     const registry = designKindRegistry();
-    for (const context of ['design-nux', 'crease-pattern', 'simulate'] as EditingContext[]) {
+    for (const context of [
+      'design-nux',
+      'crease-pattern',
+      'simulate',
+      'references',
+    ] as EditingContext[]) {
       expect(registry.forContext(context)).toBeUndefined();
     }
   });
@@ -246,6 +251,7 @@ describe('extensibility: a third design kind', () => {
       'bp-packing',
       'crease-pattern',
       'simulate',
+      'references',
     ] as EditingContext[]) {
       expect(
         maskCapabilitiesForContext(base, context, kinds),

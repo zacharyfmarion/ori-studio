@@ -540,6 +540,7 @@
       "exportSvg": "SVG-Bild",
       "fold": "Falten",
       "label": "Aktionen für Faltmuster",
+      "references": "Faltreferenzen",
       "saveImage": "Als Bild speichern",
       "share": "Link zum Teilen erstellen",
       "simulate": "Simulieren",
@@ -829,8 +830,230 @@
     "y": "Y",
     "yes": "Ja"
   },
+  "references": {
+    "actions": {
+      "noTargetHint": "Wähle zuerst einen Scheitelpunkt oder eine Falte"
+    },
+    "alreadyOnSheet": "Dieser Punkt liegt bereits auf dem Papier – keine Faltung nötig.",
+    "alreadyOnSheetLine": "Diese Linie liegt bereits auf dem Papier – keine Faltung nötig.",
+    "analysis": {
+      "approximate": "näherungsweise, Abweichung {{err}}",
+      "badge": "{{closure}}/{{lines}} aus dem Blatt",
+      "closure": "ergibt sich aus dem Blatt selbst",
+      "exact": "exakt bei Rang {{rank}}, {{folds}} Faltungen",
+      "line": "Linie {{n}}",
+      "summary": "{{closure}} von {{lines}} Linien ergeben sich aus dem Blatt selbst; {{queried}} erforderten eine Suche.",
+      "title": "Referenzanalyse",
+      "unsolved": "keine Konstruktion gefunden"
+    },
+    "axiom": {
+      "free": "bereits auf dem Blatt",
+      "o1": "durch zwei Punkte",
+      "o2": "Punkt auf Punkt",
+      "o3": "Kante auf Kante",
+      "o4": "Senkrechte durch einen Punkt",
+      "o5": "Punkt auf eine Linie, durch einen Punkt",
+      "o6": "zwei Punkte auf zwei Linien",
+      "o7": "Punkt auf eine Linie, senkrecht"
+    },
+    "backToPattern": "Zurück zum ganzen Muster",
+    "backToPatterns": "Muster",
+    "breakdown": {
+      "sheetId": "Blatt {{n}}"
+    },
+    "canvasAriaLabel": "Faltmuster. Klicke auf einen Scheitelpunkt oder eine Falte, um ihre Referenzen zu finden; ziehen zum Verschieben, scrollen zum Zoomen.",
+    "card": {
+      "error": "Fehler {{value}}",
+      "folds_one": "{{count}} Faltung",
+      "folds_other": "{{count}} Faltungen"
+    },
+    "direction": {
+      "angle": "bei {{deg}}°",
+      "diagonalDown": "auf der fallenden Diagonale",
+      "diagonalUp": "auf der steigenden Diagonale",
+      "horizontal": "waagerecht",
+      "vertical": "senkrecht"
+    },
+    "dismiss": "Schließen",
+    "empty": "Kein Faltmuster. Öffne oder zeichne eines unter Bearbeiten und komm dann zurück.",
+    "emptySheet": "Noch keine Falten",
+    "emptySheetHint": "Dieses Blatt hat noch keine Falten. Zeichne das Muster unter Bearbeiten und komm dann zurück.",
+    "errorTitle": "Referenzen nicht verfügbar",
+    "exact": "Exakt",
+    "filmstrip": {
+      "label": "Faltschritte"
+    },
+    "findings": {
+      "approximation": "am nächsten: {{folds}} Faltungen, Abweichung {{err}}",
+      "noApproximation": "keine Konstruktion gefunden",
+      "note": "Sie werden nur gemeldet, nie gefaltet: eine Näherung würde zur Referenz für jeden späteren Schritt.",
+      "offLattice": "Außerhalb des Gitters",
+      "refusedTitle": "Ausgelassene Blätter",
+      "title": "Linien ohne exakte Faltung",
+      "unsolved": "Keine Konstruktion gefunden"
+    },
+    "flip": {
+      "doneBadge": "Fertig",
+      "finished": "Alle Falten sind gemacht. Von hier aus wird das Modell zusammengelegt, und die Falten, die andersherum sollen, kehren sich dabei um.",
+      "turnOver": "Wende das Papier, von links nach rechts.",
+      "turnOverBadge": "Wenden"
+    },
+    "goToEdit": "Zu Bearbeiten",
+    "hint": {
+      "jump": "Tippe auf eine Falte, um zu dem Schritt zu springen, der sie faltet.",
+      "open": "Öffne ein Muster, um zu sehen, wie man es faltet.",
+      "pick": "Klicke auf einen Scheitelpunkt oder eine Falte, um zu sehen, wie man sie faltet."
+    },
+    "lead": {
+      "find": "Tippe auf einen Scheitelpunkt oder eine Falte, um zu sehen, wie man sie von einem leeren Blatt aus faltet.",
+      "findSequence": "Oder berechne die ganze Vorfaltfolge.",
+      "plan": "Alle Vorfalten des Musters, in der Reihenfolge, in der sie gefaltet werden.",
+      "planAction": "Vorfaltfolge berechnen"
+    },
+    "meta": {
+      "solution": "Lösung {{n}} von {{total}}",
+      "solutionShort": "{{n}} / {{total}}"
+    },
+    "mode": {
+      "find": "Referenz finden",
+      "findTitle": "Tippe auf einen Scheitelpunkt oder eine Falte, um zu sehen, wie man sie von einem leeren Blatt aus faltet",
+      "label": "Was angezeigt wird",
+      "sequence": "Vorfaltfolge",
+      "sequenceTitle": "Alle Vorfalten des Musters, in der Reihenfolge, in der sie gefaltet werden"
+    },
+    "noCreasePattern": "Kein Faltmuster",
+    "nonRectangular": "Dieser Bogen ist kein Rechteck. Referenzen lassen sich derzeit nur auf rechteckigen Bögen finden.",
+    "noRectangularSheet": "Kein rechteckiges Blatt: Referenzen können vorerst nur auf rechteckigen Blättern gefunden werden.",
+    "openOutline": "Die Randfalten um diese Auswahl schließen sich nicht zu einem Bogen.",
+    "outOfDate": "Veraltet",
+    "outOfDateHint": "Das Faltmuster hat sich geändert, seit diese Referenzen gefunden wurden.",
+    "outsideSheet": "Diese Auswahl liegt in keinem Bogen.",
+    "planning": "Vorfaltfolge wird berechnet…",
+    "planStep": {
+      "alsoNote": "Richte beide zugleich aus, damit die Faltung gerade bleibt.",
+      "approximate": "Näherung – diese Konstruktion liegt {{pct}} % der Blattseite daneben.",
+      "approximateBadge": "Näherung",
+      "axiom1": "Falte durch {{a}} und {{b}}.",
+      "axiom2": "Falte {{a}} auf {{b}}.",
+      "axiom3": "Falte {{a}} auf {{b}}.",
+      "axiom4": "Falte durch {{a}}, sodass {{b}} auf sich selbst fällt.",
+      "axiom4Corner": "Falte durch {{p}} und bringe {{q}} auf {{a}}.",
+      "axiom5": "Falte durch {{a}} und bringe {{b}} auf {{c}}.",
+      "axiom5LineMoves": "Falte durch {{a}} und bringe {{c}} auf {{b}}.",
+      "axiom6": "Falte {{a}} auf {{b}} und {{c}} auf {{d}}.",
+      "axiom7": "Falte {{lSelf}} auf sich selbst, sodass {{p}} auf {{lLand}} landet.",
+      "axiom7LineMoves": "Falte {{lSelf}} auf sich selbst, sodass {{lLand}} auf {{p}} landet.",
+      "free": "Diese Linie ist bereits auf dem Blatt.",
+      "gridBadge": "Raster",
+      "gridBand": "zwischen {{lo}} und {{hi}}",
+      "gridBandAlong": "{{band}}, von {{lo}} bis {{hi}}",
+      "gridBands_one": "Füge die {{level}} {{direction}} {{where}} hinzu: {{count}} Linie, wie gezeigt gefalzt.",
+      "gridBands_other": "Füge die {{level}} {{direction}} {{where}} hinzu: {{count}} Linien, wie gezeigt gefalzt.",
+      "gridBandsAnd": " und ",
+      "gridBoundAcross": "{{fraction}} der Breite",
+      "gridBoundLine": "der {{fraction}}-Linie",
+      "gridBoundUp": "{{fraction}} der Höhe",
+      "gridCell_ordinal_other": "{{count}}tel",
+      "gridFraction_ordinal_other": "{{count}}tel",
+      "gridMountainFirst_one": "{{pleat}}: {{count}} Linie, abwechselnd Berg und Tal, zuerst Berg.",
+      "gridMountainFirst_other": "{{pleat}}: {{count}} Linien, abwechselnd Berg und Tal, zuerst Berg.",
+      "gridPleatInto": "Falte das Blatt {{direction}} in {{fraction}}",
+      "gridPleatSpaced": "Falte das Blatt {{direction}}, jeweils ein {{cell}} des Blatts auseinander",
+      "gridReversed_one": "Das Muster will {{count}} davon andersherum; sie kehrt sich beim Zusammenlegen um.",
+      "gridReversed_other": "Das Muster will {{count}} davon andersherum; sie kehren sich beim Zusammenlegen um.",
+      "gridValleyFirst_one": "{{pleat}}: {{count}} Linie, abwechselnd Tal und Berg, zuerst Tal.",
+      "gridValleyFirst_other": "{{pleat}}: {{count}} Linien, abwechselnd Tal und Berg, zuerst Tal.",
+      "impractical": "Keiner der Punkte liegt an einer Kante, daher wird diese Faltung durch das Papier hindurch ausgerichtet — nichts auf dem Bogen macht sie bisher zu einer saubereren Faltung.",
+      "inherited": "Von einer genäherten Falte aus angepeilt, also nur so genau wie diese.",
+      "markFirst": "Eine dieser Markierungen liegt dort, wo sich zwei Falten kreuzen würden, wenn sie weiterliefen — kneife sie zuerst.",
+      "noAlignment": "Noch nichts auf dem Papier passt zu dieser Falte – falte sie wie gezeichnet.",
+      "partlyReversed": "Diese Linie ist im Muster in beide Richtungen gefaltet; der Rest kehrt sich beim Zusammenlegen um.",
+      "pinch": "Nur kneifen – es wird nur die Markierung gebraucht.",
+      "pressedOn": "Falte außerdem, wo gezeigt, über die Musterlinie hinaus – ein späterer Schritt nutzt sie dort.",
+      "pressOut": "Nur den gezeigten Teil falten.",
+      "shortAlignment": "Die Falten überlappen hier nur kurz – richte sie sorgfältig aus.",
+      "twinAxiom1": "Falte durch {{a}} und {{b}} sowie durch {{c}} und {{d}}.",
+      "twinAxiom2": "Falte {{a}} auf {{b}} und {{c}} auf {{d}}.",
+      "twinBothSides": "Falte {{a}} auf beiden Seiten auf {{b}}.",
+      "unknown": "Falte mit {{inputs}}.",
+      "visibleAux": "Diese Faltlinie ist im fertigen Modell sichtbar."
+    },
+    "progress": {
+      "closing": "{{done}} von {{total}} Linien gefaltet",
+      "querying": "{{done}} von {{total}} Linien werden durchsucht"
+    },
+    "recompute": "Neu berechnen",
+    "ref": {
+      "bottomEdge": "die untere Kante",
+      "cornerNe": "die obere rechte Ecke",
+      "cornerNw": "die obere linke Ecke",
+      "cornerSe": "die untere rechte Ecke",
+      "cornerSw": "die untere linke Ecke",
+      "diagonalNwSe": "die Diagonale von oben links nach unten rechts",
+      "diagonalSwNe": "die Diagonale von unten links nach oben rechts",
+      "leftEdge": "die linke Kante",
+      "line": "Linie {{name}}",
+      "point": "Punkt {{name}}",
+      "rightEdge": "die rechte Kante",
+      "topEdge": "die obere Kante"
+    },
+    "refusedSheet": "Der Bogen um diese Auswahl konnte nicht als Rechteck gelesen werden.",
+    "searching": "Referenzen werden gesucht…",
+    "settings": {
+      "allowDangling": "Lose Falten erlauben",
+      "allowDanglingHelp": "Eine lose Falte ist ein Kniff, der auf leerem Papier endet – ohne Anhaltspunkt, wo er aufhört. An: Jeder Kniff beginnt an einer Referenz (Papierkante oder bereits vorhandene Falte) und läuft nur dann bis zu einer zweiten, wenn das nicht mehr Falz kostet als der Kniff selbst lang ist. Aus: Jeder Kniff läuft von Referenz zu Referenz, egal wie viel zusätzlicher Falz nötig ist.",
+      "candidates": "Kandidaten",
+      "emptyNote": "Öffne ein Faltmuster, um einzustellen, wie seine Referenzen gefunden werden.",
+      "gridWhereNeeded": "Nur wo nötig",
+      "includeApproximate": "Näherungslösungen einbeziehen",
+      "landmarksFirst": "Orientierungspunkte zuerst",
+      "mergeSymmetric": "Symmetrische Schritte zusammenfassen",
+      "mergeSymmetricHelp": "Zwei Faltungen, die sich spiegeln — etwa die linke Ecke zur Mitte und die rechte Ecke zur Mitte — werden als ein Schritt mit je einem Pfeil gezeigt, so wie ein Diagramm sie faltet. Aus: jede Faltung ist ein eigener Schritt.",
+      "precreaseGrid": "Raster vorfalten",
+      "sequence": "Vorfaltfolge",
+      "solutions": "Lösungen"
+    },
+    "sheets": {
+      "cardTitle_one": "Muster {{n}}: {{count}} Faltlinie",
+      "cardTitle_other": "Muster {{n}}: {{count}} Faltlinien",
+      "creases_one": "{{count}} Faltlinie",
+      "creases_other": "{{count}} Faltlinien",
+      "label": "Faltmuster",
+      "title": "Muster"
+    },
+    "sidebar": {
+      "none": "ReferenceFinder hat mit den aktuellen Einstellungen keine Konstruktion für dieses Ziel gefunden.",
+      "planning": "Vorfaltfolge wird berechnet…"
+    },
+    "step": {
+      "axiom1": "Falte {{x}} durch {{p0}} und {{p1}}.",
+      "axiom2": "Falte {{x}}, indem du {{p0}} auf {{p1}} legst.",
+      "axiom3": "Falte {{x}}, indem du {{l0}} auf {{l1}} legst.",
+      "axiom4": "Falte {{x}} durch {{p0}} und lege dabei {{l0}} auf sich selbst.",
+      "axiom5": "Falte {{x}} durch {{p1}} und lege dabei {{p0}} auf {{l0}}.",
+      "axiom6": "Falte {{x}}, indem du {{p0}} auf {{l0}} und {{p1}} auf {{l1}} legst.",
+      "axiom7": "Falte {{x}}, indem du {{lSelf}} auf sich selbst legst, sodass {{p0}} auf {{lLand}} landet.",
+      "diagonal": "Falte {{a}} auf {{b}} und falze die Diagonale.",
+      "mark": "Markiere {{x}}, wo {{l0}} auf {{l1}} trifft.",
+      "pinch": "Nur anknicken — nur die Markierung wird gebraucht.",
+      "unknown": "Falte {{x}} mit {{inputs}}."
+    },
+    "stop": "Stopp",
+    "stopping": "Wird abgebrochen…",
+    "targetGone": "Die gewählte Falte ist nicht mehr im Muster.",
+    "viewportControls": "Ansichtssteuerung der Referenzen",
+    "warning": {
+      "degenerateBorderSegments": "{{n}} Randlinie(n) haben zusammenfallende Enden und wurden ignoriert.",
+      "noBorder": "Keine Randfalten: das Standardpapier wird als Bogen genommen.",
+      "overlappingSheets": "{{n}} Faltlinie(n) liegen in mehr als einem Papier und wurden dem ersten zugeordnet.",
+      "refusedSheets": "{{n}} Bogen/Bögen sind keine Rechtecke und werden ausgelassen.",
+      "unassignedSegments": "{{n}} Faltlinie(n) liegen außerhalb jedes Papiers und werden ausgelassen.",
+      "zeroLengthSegments": "{{n}} Faltlinie(n) sind zu kurz zum Messen und wurden übersprungen."
+    }
+  },
   "sidePane": {
     "properties": "Eigenschaften",
+    "settings": "Einstellungen",
     "view": "Ansicht"
   },
   "simulator": {

@@ -18,6 +18,7 @@ const ALL_CONTEXTS: EditingContext[] = [
   'bp-packing',
   'crease-pattern',
   'simulate',
+  'references',
 ];
 
 /**
@@ -92,11 +93,18 @@ function legacyMask(
     }
   }
 
-  if (context === 'simulate') {
+  // References joined the read-only arm when the workspace was added: it reads
+  // the crease pattern exactly as Simulate does and authors nothing.
+  //
+  // `insert.*` was added to the arm later. It places an image or a text box *on
+  // the crease pattern*, so it is authoring like the rest — and being outside
+  // the list left the Insert menu standing open over both read-only workspaces.
+  if (context === 'simulate' || context === 'references') {
     for (const id of ids) {
       const isAuthoring =
         id.startsWith('cp.') ||
         id.startsWith('optimize.') ||
+        id.startsWith('insert.') ||
         (id.startsWith('edit.') && !LEGACY_SIMULATE_VISIBLE_EDIT.has(id));
       if (isAuthoring) hide(id);
     }

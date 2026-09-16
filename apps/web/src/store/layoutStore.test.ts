@@ -262,6 +262,29 @@ describe('layout store', () => {
     });
   });
 
+  it('builds the references workspace on the simulate shape', () => {
+    // Its settings are a View pane beside the panel, the way the Edit and
+    // Simulate workspaces dock theirs; the panel itself is headerless.
+    const api = createDockviewApi();
+
+    applyDefaultLayout(api, 'references');
+
+    expect(api.addPanel.mock.calls.map(([options]) => options.id)).toEqual([
+      'references',
+      'references-view-controls',
+    ]);
+    expect(api.addGroup).toHaveBeenCalledWith({ direction: 'right', hideHeader: true });
+    expect(api.panelMap.get('references')?.group.header.hidden).toBe(true);
+    expect(api.addPanel.mock.calls[1][0]).toMatchObject({
+      id: 'references-view-controls',
+      component: 'references-view-controls',
+      position: { referencePanel: 'references', direction: 'right' },
+      initialWidth: 260,
+    });
+    // The workspace's own panel stays the active one, not the pane added after it.
+    expect(api.activePanel?.id).toBe('references');
+  });
+
   it('activates existing panels through the dockview api', () => {
     const api = createDockviewApi();
     applyDefaultLayout(api, 'edit');
@@ -428,19 +451,25 @@ describe('the View pane under a coarse pointer', () => {
     vi.restoreAllMocks();
   });
 
-  it('leaves it out of the default edit and simulate layouts', () => {
+  it('leaves it out of the default edit, simulate and references layouts', () => {
     const editApi = createDockviewApi();
     const simulateApi = createDockviewApi();
+    const referencesApi = createDockviewApi();
 
     applyDefaultLayout(editApi, 'edit', true);
     applyDefaultLayout(simulateApi, 'simulate', true);
+    applyDefaultLayout(referencesApi, 'references', true);
 
     expect(editApi.addPanel.mock.calls.map(([options]) => options.id)).toEqual(['crease-pattern']);
     expect(simulateApi.addPanel.mock.calls.map(([options]) => options.id)).toEqual(['simulator']);
+    expect(referencesApi.addPanel.mock.calls.map(([options]) => options.id)).toEqual([
+      'references',
+    ]);
     // Never mounted for a frame and then removed: the touch build simply does
     // not add it, so the pane's controls never run.
     expect(editApi.removePanel).not.toHaveBeenCalled();
     expect(simulateApi.removePanel).not.toHaveBeenCalled();
+    expect(referencesApi.removePanel).not.toHaveBeenCalled();
   });
 
   it('gives the canvas the column back rather than hiding it', () => {
@@ -479,6 +508,23 @@ describe('the View pane under a coarse pointer', () => {
       position: { referencePanel: 'simulator', direction: 'right' },
       initialWidth: 260,
     });
+  });
+
+  it('renames a restored pane to what the table calls it now', () => {
+    // A restored layout carries the title the pane was saved with. The
+    // Simulate and References panes were "View" until they were "Settings";
+    // the repair is here, not a layout version bump.
+    const api = createDockviewApi();
+    applyDefaultLayout(api, 'simulate', false);
+    const panel = api.panelMap.get('simulator-view-controls');
+    expect(panel?.title).toBe('Settings');
+    panel!.title = 'View';
+
+    reconcileSidePanes(api, 'simulate', false);
+
+    expect(panel?.api.setTitle).toHaveBeenCalledWith('Settings');
+    expect(panel?.title).toBe('Settings');
+    expect(api.addPanel.mock.calls.filter(([o]) => o.id === 'simulator-view-controls')).toHaveLength(1);
   });
 
   it('is idempotent in both directions', () => {
@@ -647,7 +693,26 @@ describe('the View pane under a coarse pointer', () => {
       ['edit', 'cp-view-controls', 'edit'],
       ['edit', 'cp-properties', 'edit'],
       ['simulate', 'simulator-view-controls', 'simulate'],
+      ['references', 'references-view-controls', 'references'],
     ]);
+  });
+
+  it('repairs a references layout saved before the pane existed', () => {
+    // The pane arrived without a `LAYOUT_VERSION` bump: a restored layout of
+    // the lone panel is the shape a coarse pointer wants, and on a fine one the
+    // reconcile adds the pane the way it does after any restore.
+    const api = createDockviewApi();
+    api.fromJSON(dockviewLayout('branch', ['references']));
+
+    reconcileSidePanes(api, 'references', false);
+
+    expect(api.addPanel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'references-view-controls',
+        position: { referencePanel: 'references', direction: 'right' },
+      })
+    );
+    expect([...api.panelMap.keys()]).toEqual(['references', 'references-view-controls']);
   });
 
   it('keeps the active editing context on the primary pane', () => {

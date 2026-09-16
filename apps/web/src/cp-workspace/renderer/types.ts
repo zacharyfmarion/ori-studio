@@ -78,6 +78,17 @@ export interface StrokeGeometry {
    * slot 1 — the uniform-dash case (measure guides, the operation frame).
    */
   dashSlot?: Float32Array;
+  /**
+   * Per-segment dash offset in **model units**: `[phase] * count`.
+   *
+   * A crease pattern's line is many segments, split at every crossing, and each
+   * one restarts the pattern at its own start — so a dashed crease reads as a
+   * row of unrelated dashes rather than one line. Give collinear segments a
+   * shared parameterisation here (distance along the line's own axis) and they
+   * dash continuously. Omitted means zero, which is what every other surface
+   * wants.
+   */
+  dashPhase?: Float32Array;
 }
 
 /**

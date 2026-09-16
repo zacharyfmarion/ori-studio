@@ -15,6 +15,8 @@
     "addTreeEdgesThenOptimize": "Añadir aristas de árbol y luego optimizar antes de generar el patrón de pliegues",
     "advanceCreaseType": "Avanzar tipo de pliegue",
     "advanceSelectedCpLineTypes": "Avanzar los tipos de línea del patrón de pliegues seleccionados",
+    "analyzeReferences": "Analizar referencias",
+    "analyzeReferencesHint": "Descubre qué líneas de este patrón son difíciles de localizar plegando",
     "bpFlipHorizontal": "Voltear horizontalmente",
     "bpFlipHorizontalReason": "Refleja el diseño de izquierda a derecha",
     "bpFlipVertical": "Voltear verticalmente",
@@ -182,6 +184,7 @@
     "redo": "Rehacer",
     "redoNextCpEdit": "Rehacer la siguiente edición del patrón de pliegues",
     "redoNextTreeEdit": "Rehacer la siguiente edición del árbol",
+    "references": "Referencias",
     "relieveAllStrain": "Aliviar toda la tensión",
     "relieveStrain": "Aliviar tensión",
     "removeAllStrain": "Eliminar toda la tensión",
@@ -229,6 +232,7 @@
     "showDesignWorkspace": "Mostrar el espacio de trabajo de diseño",
     "showEditWorkspace": "Mostrar el espacio de trabajo de edición",
     "showPropertiesPane": "Mostrar el panel de propiedades",
+    "showReferencesWorkspace": "Mostrar el espacio de trabajo de referencias",
     "showSimulateWorkspace": "Mostrar el espacio de trabajo de simulación",
     "simulate": "Simular",
     "simulateBeforeExportingFolded": "Simula un patrón de pliegues antes de exportar su forma plegada",
@@ -310,16 +314,21 @@
   },
   "viewDrawer": {
     "close": "Cerrar opciones de vista",
+    "closeSettings": "Cerrar ajustes",
     "open": "Ver",
+    "openSettings": "Ajustes",
+    "settingsTitle": "Ajustes",
     "title": "Opciones de vista"
   },
   "workspaceRail": {
     "design": "Espacio de trabajo de diseño",
     "edit": "Espacio de trabajo de edición",
     "label": "Espacios de trabajo",
+    "references": "Espacio de trabajo de referencias",
     "simulate": "Espacio de trabajo de simulación",
     "tabDesign": "Diseño",
     "tabEdit": "Editar",
+    "tabReferences": "Referencias",
     "tabSimulate": "Simular"
   }
 }

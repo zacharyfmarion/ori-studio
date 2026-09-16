@@ -12,6 +12,11 @@
       "autoPort": false
     },
     {
+      "name": "web-attached",
+      "url": "http://localhost:5224",
+      "port": 5224
+    },
+    {
       "name": "web-prod",
       "runtimeExecutable": "npx",
       "runtimeArgs": [
