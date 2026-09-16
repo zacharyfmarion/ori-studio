@@ -225,6 +225,11 @@ export function bendRows(surface: FoldSurface, reach: number, rows = BEND_ROWS):
 export interface FlapMesh {
   /** Placed vertices, three per triangle. */
   vertices: PlacedPoint[];
+  /**
+   * Per triangle, whether it lies wholly past the bend — on the flat part of
+   * the flap, which is planar and casts a shadow that does not overlap itself.
+   */
+  flat: boolean[];
 }
 
 /**
@@ -240,7 +245,8 @@ export function tessellateFlap(
   rows = BEND_ROWS
 ): FlapMesh {
   const vertices: PlacedPoint[] = [];
-  if (polygon.length < 3) return { vertices };
+  const flat: boolean[] = [];
+  if (polygon.length < 3) return { vertices, flat };
   let sMin = Infinity;
   let sMax = -Infinity;
   let uMax = 0;
@@ -262,12 +268,14 @@ export function tessellateFlap(
       const piece = clipCellToPolygon(cell, polygon);
       if (piece.length < 3) continue;
       const placed = piece.map((p) => surface.place(p.s, p.u));
+      const pastBend = uRows[j]! >= surface.bendReach - EPSILON;
       for (let k = 1; k + 1 < placed.length; k += 1) {
         vertices.push(placed[0]!, placed[k]!, placed[k + 1]!);
+        flat.push(pastBend);
       }
     }
   }
-  return { vertices };
+  return { vertices, flat };
 }
 
 /**

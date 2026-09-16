@@ -17,6 +17,16 @@
  * over swaps to the other face's naming where that face shows. A face is
  * shaded by how far it tilts from the reader, which is what makes the curl
  * read as a rounded ridge rather than a stripe.
+ *
+ * Seen from straight above, a flat flap hovering over the paper looks like a
+ * flat flap on the paper. The height is read from a **cast shadow**: the
+ * flat part of the flap projected along a light tilted a little off the
+ * vertical, drawn under the flap in the shadow ink. Under the flap it is
+ * hidden; along the far edge it shows as a rim proportional to the height,
+ * and during the swing it sweeps across the paper. Only the flat part
+ * casts one — it is planar, so its shadow cannot overlap itself and
+ * double up through the translucency — and the curl, which sits at the
+ * hinge where the paper is nearly on the paper anyway, casts none.
  */
 import type { Point } from '../../../lib/geometry';
 import type { FoldedGeometry, Rgba, StrokeGeometry } from '../../renderer/types';
@@ -71,6 +81,14 @@ const DEPTH_FLOOR = 0.05;
 const DEPTH_SPAN = 0.9;
 /** A crease sits a hair above the paper it is on. */
 const STROKE_LIFT = 0.02;
+/** The shadow lies on the paper, under everything the flap draws. */
+const SHADOW_DEPTH = 0.02;
+/**
+ * Where the light is, as the shadow's offset per unit of height in user
+ * space — a little down and to the right on screen, so a raised edge shows
+ * a rim of shadow along its lower and right sides.
+ */
+export const SHADOW_OFFSET_PER_HEIGHT: readonly [number, number] = [0.55, 0.55];
 
 export const EMPTY_FOLDED: FoldedGeometry = {
   fills: { position: new Float32Array(0), color: new Float32Array(0), count: 0 },
@@ -141,33 +159,63 @@ export function foldPoseGeometry(
       ramp: shares.ramp * short,
     })
   );
-  const flapReach = (index: number): number => {
+  const reaches = scene.flaps.map((flap, index) => {
     const frame = frames[index]!;
     let max = 0;
-    for (const corner of scene.flaps[index]!.polygon) {
-      max = Math.max(max, inChordFrame(frame, corner).u);
-    }
+    for (const corner of flap.polygon) max = Math.max(max, inChordFrame(frame, corner).u);
     return max;
-  };
+  });
+  const breakpoints = surfaces.map((surface) => surface.breakpoints());
 
-  // Fills: the flap meshed on its surface.
+  // The user map is a similarity, so one scale carries a height into it.
+  const origin = paint.modelToUser({ x: 0, y: 0 });
+  const unit = paint.modelToUser({ x: 1, y: 0 });
+  const userPerModel = Math.hypot(unit.x - origin.x, unit.y - origin.y) || 1;
+  const [shadowX, shadowY] = SHADOW_OFFSET_PER_HEIGHT;
+
+  // Fills: the shadow of each flap's flat part, then the flap meshed on its
+  // surface. The depth test keeps the shadow under the flap whatever the
+  // order; drawing it first only spares the blend.
   const position: number[] = [];
   const color: number[] = [];
   const depth: number[] = [];
-  scene.flaps.forEach((flap, index) => {
+  const meshes = scene.flaps.map((flap, index) => {
     const frame = frames[index]!;
-    const surface = surfaces[index]!;
     const polygon: FlatPoint[] = flap.polygon.map((corner) => inChordFrame(frame, corner));
-    const mesh = tessellateFlap(polygon, surface, shares.column * short);
-    for (const placed of mesh.vertices) {
-      const at = paint.modelToUser(fromChordFrame(frame, placed.s, placed.v));
-      position.push(at.x, at.y);
-      color.push(...shadedFace(paint, placed.nz));
-      depth.push(depthOf(placed.z));
-    }
+    const mesh = tessellateFlap(polygon, surfaces[index]!, shares.column * short);
+    const placed = mesh.vertices.map((vertex) => ({
+      at: paint.modelToUser(fromChordFrame(frame, vertex.s, vertex.v)),
+      z: vertex.z,
+      nz: vertex.nz,
+    }));
+    return { placed, flat: mesh.flat };
   });
+  const shadow: Rgba = paint.shade;
+  if (shadow[3] > 0) {
+    for (const mesh of meshes) {
+      mesh.flat.forEach((flat, triangle) => {
+        if (!flat) return;
+        for (let k = 0; k < 3; k += 1) {
+          const vertex = mesh.placed[triangle * 3 + k]!;
+          const height = vertex.z * userPerModel;
+          position.push(vertex.at.x + height * shadowX, vertex.at.y + height * shadowY);
+          color.push(...shadow);
+          depth.push(SHADOW_DEPTH);
+        }
+      });
+    }
+  }
+  for (const mesh of meshes) {
+    for (const vertex of mesh.placed) {
+      position.push(vertex.at.x, vertex.at.y);
+      color.push(...shadedFace(paint, vertex.nz));
+      depth.push(depthOf(vertex.z));
+    }
+  }
 
   // Strokes: each cut where the surface bends under it, every piece placed.
+  // Most of a dense pattern's creases lie past the bend and cross no ramp,
+  // and those are one piece each, decided without building a cut list.
   const a: number[] = [];
   const b: number[] = [];
   const strokeColor: number[] = [];
@@ -176,6 +224,7 @@ export function foldPoseGeometry(
   const dashPhase: number[] = [];
   const strokeDepth: number[] = [];
   let dashPatterns: readonly (readonly number[])[] | undefined;
+  const WHOLE = [0, 1];
   for (const list of strokes) {
     if (!list || list.count === 0) continue;
     dashPatterns ??= list.dashPatterns;
@@ -189,7 +238,12 @@ export function foldPoseGeometry(
       const fa = inChordFrame(frame, from);
       const fb = inChordFrame(frame, to);
       const flat = Math.hypot(to.x - from.x, to.y - from.y);
-      const cuts = strokeCuts(fa, fb, surface, flapReach(flapIndex));
+      const sLo = Math.min(fa.s, fb.s);
+      const sHi = Math.max(fa.s, fb.s);
+      const straight =
+        Math.min(fa.u, fb.u) >= surface.bendReach &&
+        !breakpoints[flapIndex]!.some((s) => s > sLo && s < sHi);
+      const cuts = straight ? WHOLE : strokeCuts(fa, fb, surface, reaches[flapIndex]!);
       const at = (t: number): PlacedPoint =>
         surface.place(fa.s + (fb.s - fa.s) * t, fa.u + (fb.u - fa.u) * t);
       let start = at(cuts[0]!);

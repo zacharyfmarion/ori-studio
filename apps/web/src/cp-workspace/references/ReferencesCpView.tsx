@@ -347,15 +347,16 @@ interface FoldUploads {
   sheet: { geometry: CpGeometryTransport; border: ReadonlySet<number> | null; color: Rgba } | null;
 }
 
-/** The uploads split at a fold, kept while the uploads and the fold stand. */
+/**
+ * The uploads split at a fold, each kept while its own upload and the fold
+ * stand: a hover changes the preview every frame the pointer moves, and must
+ * not cost a re-split of the crease pattern under it.
+ */
 interface FoldRig {
   scene: FoldScene;
-  strokes: StrokeGeometry | null;
-  preview: StrokeGeometry | null;
-  points: PointGeometry | null;
-  split: SplitStrokes | null;
-  previewSplit: SplitStrokes | null;
-  basePoints: PointGeometry | null;
+  strokes: { source: StrokeGeometry; split: SplitStrokes } | null;
+  preview: { source: StrokeGeometry; split: SplitStrokes } | null;
+  points: { source: PointGeometry; base: PointGeometry } | null;
   paint: Omit<FoldPaint, 'modelToUser'>;
 }
 
@@ -777,34 +778,37 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           renderer.setFolded(EMPTY_FOLDED);
           return;
         }
+        const { flaps } = scene;
         let rig = rigRef.current;
-        if (
-          !rig ||
-          rig.scene !== scene ||
-          rig.strokes !== full.strokes ||
-          rig.preview !== full.preview ||
-          rig.points !== full.points
-        ) {
-          const { flaps } = scene;
+        if (!rig || rig.scene !== scene) {
           rig = {
             scene,
-            strokes: full.strokes,
-            preview: full.preview,
-            points: full.points,
-            split: full.strokes ? splitStrokesAtFolds(full.strokes, flaps) : null,
-            previewSplit: full.preview ? splitStrokesAtFolds(full.preview, flaps) : null,
-            basePoints: full.points ? dropPointsOnFlaps(full.points, flaps) : null,
+            strokes: null,
+            preview: null,
+            points: null,
             paint: foldPaint(canvas, liveRef.current.mirrored),
           };
           rigRef.current = rig;
-          if (rig.split) renderer.setStrokes(rig.split.base);
-          if (rig.basePoints) renderer.setPoints(rig.basePoints);
-          renderer.setPreview(rig.previewSplit?.base ?? null);
           // The paper the flap has left is the ground now, not sheet.
-          renderer.setSheetFill(sheetFill(scene.flaps));
+          renderer.setSheetFill(sheetFill(flaps));
+        }
+        if (full.strokes && rig.strokes?.source !== full.strokes) {
+          rig.strokes = { source: full.strokes, split: splitStrokesAtFolds(full.strokes, flaps) };
+          renderer.setStrokes(rig.strokes.split.base);
+        }
+        if (full.preview && rig.preview?.source !== full.preview) {
+          rig.preview = { source: full.preview, split: splitStrokesAtFolds(full.preview, flaps) };
+          renderer.setPreview(rig.preview.split.base);
+        } else if (!full.preview && rig.preview) {
+          rig.preview = null;
+          renderer.setPreview(null);
+        }
+        if (full.points && rig.points?.source !== full.points) {
+          rig.points = { source: full.points, base: dropPointsOnFlaps(full.points, flaps) };
+          renderer.setPoints(rig.points.base);
         }
         renderer.setFolded(
-          foldPoseGeometry(scene, pose, [rig.split?.flap, rig.previewSplit?.flap], {
+          foldPoseGeometry(scene, pose, [rig.strokes?.split.flap, rig.preview?.split.flap], {
             ...rig.paint,
             modelToUser: liveRef.current.modelToSvg,
           })
