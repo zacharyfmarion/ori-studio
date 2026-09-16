@@ -5,7 +5,7 @@ import wasm from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url';
 import { runPixelInference } from '../../../apps/web/src/lib/cpDetectPixelInference';
 import init, { cp_detect_decode_pixel_evidence } from '../../../apps/web/src/generated/oristudio-cp-detect-wasm/oristudio_cp_detect_wasm';
 
-export async function recognizeWithWorker(manifestUrl, imageUrl) {
+export async function recognizeWithWorker(manifestUrl, imageUrl, solve = false) {
   const { getCpDetectClient, releaseCpDetectClient } = await import('../../../apps/web/src/store/workspaceStore/cpDetectRuntime');
   const bitmap = await createImageBitmap(await (await fetch(imageUrl)).blob());
   const canvas = new OffscreenCanvas(bitmap.width,bitmap.height);
@@ -18,7 +18,15 @@ export async function recognizeWithWorker(manifestUrl, imageUrl) {
     const result = await client.recognizeRectifiedFold(rectified.image, {
       manifestUrl:new URL(manifestUrl,location.href).href, executionProvider:'wasm', highResolutionSource:{image,quad:rectified.report.source_quad},
     });
-    return {...result,totalMs:performance.now()-started};
+    const recognitionMs = performance.now() - started;
+    if (solve) {
+      const { runCpExactSolve } = await import('../../../apps/web/src/engine/cpExactSolve');
+      const solved = await runCpExactSolve(result.solveInput, {
+        recognitionFallback: true, timeoutSeconds: Math.max(0, 60 - recognitionMs / 1000),
+      });
+      return { ...result, recognitionMs, solved, totalMs: performance.now() - started };
+    }
+    return {...result,totalMs:recognitionMs};
   } catch (error) { throw new Error(JSON.stringify(error, Object.getOwnPropertyNames(error))); }
   finally { releaseCpDetectClient(); }
 }

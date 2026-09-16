@@ -50,6 +50,8 @@ import {
 export type { CpExactSolver } from './cpExactSolveSession';
 
 export interface CpExactSolveRunOptions {
+  /** Automatic compact recognition: one fused, bounded call with grid fallback. */
+  recognitionFallback?: boolean;
   /**
    * The wall-clock budget for **the whole solve**, in seconds — not per stage.
    *
@@ -237,6 +239,17 @@ async function solveOnSession(
 
   try {
     enterStage('geometry');
+    if (options.recognitionFallback) {
+      // This policy includes its own ordinary solve and conditional fallback.
+      // Repeating it for a staged progress label would spend the budget twice.
+      const result = await solver.solveExactToFold(
+        inputJson,
+        stageOptionsJson(options, remainingSolveBudget(options.timeoutSeconds, elapsed(startedAt) / 1000), true)
+      );
+      const outcome = classifyCpExactSolve(result.solved, 'refinement');
+      return complete({ outcome, fold: outcome.kind === 'solved' ? result.fold : null,
+        durationMs: elapsed(startedAt) }, options);
+    }
     const geometryStartedAt = Date.now();
     const geometry = await solver.solveExact(
       inputJson,
@@ -417,6 +430,7 @@ function stageOptionsJson(
   polish: boolean
 ): string {
   const overrides: Record<string, unknown> = { polish };
+  if (options.recognitionFallback) overrides.recognition_fallback = true;
   if (timeoutSeconds !== undefined) overrides.timeout_seconds = timeoutSeconds;
   const exempt = normalizedVertexIds(options.exemptVertexIds);
   if (exempt.length > 0) overrides.exempt_vertex_ids = exempt;

@@ -1,5 +1,5 @@
 //! Replay a recognized input through the product solver. Never reads truth.
-//! solve_recognition INPUT_JSON OUT_DIR SECONDS [lattice-only]
+//! solve_recognition INPUT_JSON OUT_DIR SECONDS [lattice-only|recognition]
 use oristudio_cp_compiler::{
     ExactSolveInput, ExactSolveOptions, solve_exact, solve_exact_on_lattice,
 };
@@ -8,7 +8,9 @@ use std::{path::PathBuf, time::Instant};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args().skip(1).collect();
     if args.len() < 3 {
-        return Err("usage: solve_recognition INPUT_JSON OUT_DIR SECONDS [lattice-only]".into());
+        return Err(
+            "usage: solve_recognition INPUT_JSON OUT_DIR SECONDS [lattice-only|recognition]".into(),
+        );
     }
     let raw = std::fs::read_to_string(&args[0])?;
     let input: ExactSolveInput = serde_json::from_str(&raw)?;
@@ -16,6 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let out = PathBuf::from(&args[1]);
     std::fs::create_dir_all(&out)?;
     let options = ExactSolveOptions {
+        recognition_fallback: args.get(3).is_some_and(|v| v == "recognition"),
         timeout_seconds: args[2].parse()?,
         polish: true,
         ..Default::default()

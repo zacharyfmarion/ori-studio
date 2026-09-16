@@ -653,18 +653,9 @@ export function CpDetectImportModal() {
     [quad, source]
   );
 
-  /**
-   * Solve the recognized candidate, with no deadline.
-   *
-   * The recognize path publishes `solve.budget.total_seconds` — the 25 s the
-   * native decode was measured against — and this used to hand it over. It no
-   * longer does: a solve that is still converging at 25 s was being cut off and
-   * offered as a partial, and a complex pattern that gets there in forty
-   * seconds is worth forty seconds. The dialog's own Stop, and the solving
-   * toast's Cancel, are how a solve that would not get there ends.
-   */
+  /** Compact recognition and automatic refinement share a one-minute budget. */
   const solveRecognized = useCallback(
-    async (recognized: CpDetectRecognizeResult) => {
+    async (recognized: CpDetectRecognizeResult, startedAt: number) => {
       setBusy('solving');
       setPhase({ kind: 'solving', stage: 'geometry' });
       solveCountRef.current += 1;
@@ -672,7 +663,10 @@ export function CpDetectImportModal() {
       setSolveTargetId(targetId);
       try {
         const result = await runCpExactSolve(recognized.solveInput, {
-          timeoutSeconds: CP_EXACT_SOLVE_NO_DEADLINE,
+          ...('pixel_evidence' in recognized.manifest.outputs
+            ? { timeoutSeconds: Math.max(0, 60 - (performance.now() - startedAt) / 1000),
+                recognitionFallback: true }
+            : { timeoutSeconds: CP_EXACT_SOLVE_NO_DEADLINE }),
           run: { kind: 'detect-import', targetId },
           onStage: (stage) => setPhase({ kind: 'solving', stage }),
         });
@@ -709,6 +703,7 @@ export function CpDetectImportModal() {
    */
   const runDetection = useCallback(async () => {
     if (!rectified || !model) return;
+    const startedAt = performance.now();
     setBusy('detecting');
     setError(null);
     setRecognition(null);
@@ -761,7 +756,7 @@ export function CpDetectImportModal() {
       setBusy(null);
       return;
     }
-    await solveRecognized(recognized);
+    await solveRecognized(recognized, startedAt);
   }, [model, rectified, solveRecognized, source]);
 
   const topology = useMemo(

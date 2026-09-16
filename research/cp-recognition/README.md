@@ -52,6 +52,16 @@ patterns. It has not replaced the published model.
 | E018 | Change solver pixel scale after high-resolution inference | No lattice recovery; rejected |
 | E019 | Project near-45°/22.5° edges before solving | Fast but inaccurate; rejected |
 | E020 | Spatial index for intermediate-vertex rejection | All 558 graphs identical; Skytree browser 72.4 → 23.6 s |
+| E021 | Truth substitution for error attribution | Diagnostic only; Hand has both prediction and decoding errors |
+| E022 | Sampling at 3072/4096 | Rejected; large-case recognition worsened |
+| E023 | Synthetic annotation fine-tuning | Rejected; development exact graphs 339 → 323 |
+| E024 | Width24 model with annotation training | No checkpoint passed the clean-accuracy gate |
+| E025 | Finer solver grid precision | Rejected; Dwarf still found no full lattice |
+| E026 | Partial dominant grid | Fallback-only prototype: 293 → 308 development recoveries, zero regressions |
+| E027 | Bounded, validated partial-grid fallback | Integrated: 293 → 307 development recoveries; Dwarf browser fully exact in 14.2 s |
+| E028 | More clean-patch rehearsal after annotation learning | Rejected; no checkpoint met the clean-accuracy gate |
+| E029 | Lower peak confidence threshold | Rejected; Hand/Dwarf worsen; higher threshold helps Frog but hurts Hand |
+| E030 | Existing detector only after compact topology defects | Screening: 339 → 342 exact development graphs; browser feasibility under review |
 
 E004 was not assigned. Artifact directories retain experimental states; the
 candidate pointer and results report identify the selected combination.

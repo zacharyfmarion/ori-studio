@@ -149,8 +149,8 @@ const IMAGE_SIZE = 1024;
 const PAPER_SIZE = 400;
 const BUDGET_SECONDS = 25;
 
-function manifest() {
-  return { id: 'test-model' } as never;
+function manifest(compact = false) {
+  return { id: 'test-model', outputs: compact ? { pixel_evidence: 'vertices' } : {} } as never;
 }
 
 function modelVersion() {
@@ -230,7 +230,8 @@ function candidateFold() {
 function recognition(
   topologyDiagnostics: unknown,
   solveInput: unknown = { schema: 'exact-solve-input-v1' },
-  foldJson = candidateFold()
+  foldJson = candidateFold(),
+  modelManifest = manifest()
 ) {
   return {
     status: 'recognized',
@@ -243,7 +244,7 @@ function recognition(
       warnings: [],
       quality_report: { compiler_report: { output: { selected: 'recognized_candidate' } } },
     },
-    manifest: manifest(),
+    manifest: modelManifest,
     candidateSource: 'exact_solve_candidate',
     solve: {
       attempted: false,
@@ -574,6 +575,21 @@ describe('CpDetectImportModal recognize-then-solve', () => {
     // Negative disables the solver's timeout; the published 25 s is not sent.
     expect(options.timeoutSeconds).toBe(-1);
     expect(options.run).toEqual({ kind: 'detect-import', targetId: expect.any(String) });
+  });
+
+  it('subtracts compact recognition time from the automatic solve budget', async () => {
+    const now = vi.spyOn(performance, 'now').mockReturnValue(1000);
+    detectClient.recognizeRectifiedFold.mockImplementation(async () => {
+      now.mockReturnValue(21000);
+      return recognition(diagnostics(0), undefined, undefined, manifest(true));
+    });
+    try {
+      await reachReviewStage();
+      const [, options] = runCpExactSolve.mock.calls[0] as [unknown, Record<string, unknown>];
+      expect(options).toMatchObject({ timeoutSeconds: 40, recognitionFallback: true });
+    } finally {
+      now.mockRestore();
+    }
   });
 
   /**

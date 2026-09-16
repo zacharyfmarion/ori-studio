@@ -161,3 +161,32 @@ that explicitly owned pod immediately afterward.
 investigations rather than product alternatives selected by truth. In
 particular, direction projection can move vertices substantially and did not
 solve the exact-folding problem. Do not silently apply it to imported geometry.
+
+## Bounded partial-grid fallback (E027)
+
+The selected model remains E013. The opt-in `recognition_fallback` solve option
+preserves accepted ordinary solutions, then proposes a dominant partial grid
+and validates any solution against the original positions. It is enabled only
+for the compact model's automatic import. Recognition and solving share60s;
+manual solving retains the existing policy.
+
+```bash
+python scripts/cp-detect/research/run_solve_corpus.py \
+  --inventory artifacts/cp-recognition/frozen/inventory.json \
+  --corpus artifacts/cp-recognition/E020-development-parity \
+  --out artifacts/cp-recognition/E027-development \
+  --split development --recognition-budget 35 --jobs 4
+```
+
+Run the browser probe above with `worker-solve` to include the fused solver.
+It deliberately calls solving even if diagnostics would make the modal stop
+at recognition, so report that distinction for a blocked graph. Dwarf has no
+blockers and follows the same automatic route as the modal. Isolate browser
+runtime runs from CPU-heavy tests; do not silently discard failed stress runs.
+
+Follow-up scripts `oracle_pixel_probe.py`, `resolution_probe.py`,
+`partial_lattice_probe.py`, and `run_partial_lattice_corpus.py` retain diagnostic
+experiments. Oracle outputs contain truth substitutions and are never candidate
+scores. `fine_tune_text.py` and `widen_pixel_model.py` use synthetic-only weights
+and patches; E023 and E024 were not selected. See the notebook for their exact
+configurations, rejection reasons, and source snapshots.

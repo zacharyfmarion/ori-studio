@@ -16,15 +16,16 @@ page.on('pageerror', error => console.error(error));
 const results = [];
 try {
   await page.goto(base);
-  if (mode === 'recognize' || mode === 'solve' || mode === 'worker') {
+  if (mode === 'recognize' || mode === 'solve' || mode === 'worker' || mode === 'worker-solve') {
     const result = await page.evaluate(async ({ module, model, image, solve, mode }) => {
       const { recognize, recognizeWithWorker } = await import(/* @vite-ignore */ module);
-      return mode === 'worker' ? recognizeWithWorker(model, image) : recognize(model, image, solve);
+      return mode.startsWith('worker') ? recognizeWithWorker(model, image, mode === 'worker-solve') : recognize(model, image, solve);
     }, { module: `/@fs/${root}/scripts/cp-detect/research/browser_pixel_probe.mjs`,
       model: `/@fs/${resolve(model)}`, image: `/@fs/${resolve(image)}`, solve: mode === 'solve', mode });
     writeFileSync(out, JSON.stringify(result, null, 2));
     console.log(JSON.stringify({ inferenceMs: result.inferenceMs, decodeMs: result.decodeMs,
-      totalMs: result.totalMs, tiles: result.tiles, vertices: result.vertices?.length, runtime: result.runtime }));
+      totalMs: result.totalMs, recognitionMs: result.recognitionMs, verdict: result.solved?.outcome.kind,
+      solveMs: result.solved?.durationMs, tiles: result.tiles, vertices: result.vertices?.length, runtime: result.runtime }));
   } else {
   for (const provider of ['webgpu', 'wasm']) {
     try {

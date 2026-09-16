@@ -58,6 +58,20 @@ const REJECTED: CpExactSolveMovementReport = {
 
 const FOLD = { vertices_coords: [[0, 0]], edges_vertices: [] };
 
+it('runs recognition fallback once with polish and the remaining total budget', async () => {
+  const bridge = solver(ACCEPTED);
+  const result = await runCpExactSolve({}, {
+    timeoutSeconds: 30, recognitionFallback: true, solver: async () => bridge,
+  });
+  expect(bridge.solveExact).not.toHaveBeenCalled();
+  expect(bridge.solveExactToFold).toHaveBeenCalledTimes(1);
+  const options = JSON.parse(bridge.solveExactToFold.mock.calls[0][1] as string);
+  expect(options).toMatchObject({ polish: true, recognition_fallback: true });
+  expect(options.timeout_seconds).toBeGreaterThan(29);
+  expect(options.timeout_seconds).toBeLessThanOrEqual(30);
+  expect(result.fold).toEqual(FOLD);
+});
+
 function solver(
   stage1: CpExactSolveMovementReport,
   stage2: CpExactSolveMovementReport = stage1,

@@ -13,7 +13,7 @@ from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import lsmr
 
 
-def project(value, requested_degrees=None):
+def project(value, requested_degrees=None, max_angle_error_degrees=None):
     start = time.perf_counter()
     points = np.array([[v['point']['x'], v['point']['y']] for v in value['vertices']])
     edges = np.array([s['vertices'] for s in value['selected_spans']])
@@ -37,6 +37,8 @@ def project(value, requested_degrees=None):
     normals = np.column_stack([-np.sin(target), np.cos(target)])
     distance = abs((angles - target + np.pi) % (2*np.pi) - np.pi)
     eligible = distance <= np.minimum(step * 0.35, np.arctan2(2 / 1024, lengths) + np.deg2rad(2))
+    if max_angle_error_degrees is not None:
+        eligible &= distance <= np.deg2rad(max_angle_error_degrees)
     row, col, data, rhs = [], [], [], []
 
     def constraint(entries, target):
@@ -65,7 +67,8 @@ def project(value, requested_degrees=None):
         d /= max(np.linalg.norm(d), 1e-15)
         n = np.array([-d[1], d[0]])
         span['carrier'] = {'direction': dict(zip(['x', 'y'], d)), 'normal': dict(zip(['x', 'y'], n)), 'rho': float(n @ projected[a])}
-    return value, {'accepted_family': True, 'degrees': degrees, 'fraction': float(fraction), 'constrained_edges': int(eligible.sum()),
+    return value, {'accepted_family': True, 'degrees': degrees, 'max_angle_error_degrees': max_angle_error_degrees,
+                   'fraction': float(fraction), 'constrained_edges': int(eligible.sum()),
                    'max_movement_px': float(movement.max()), 'mean_movement_px': float(movement.mean()),
                    'max_constraint_error': float(abs(matrix @ projected.ravel() - rhs).max()),
                    'iterations': correction[2], 'seconds': time.perf_counter() - start}
@@ -76,8 +79,9 @@ def main():
     p.add_argument('input', type=Path)
     p.add_argument('output', type=Path)
     p.add_argument('--degrees', type=float, choices=[45, 22.5, 11.25])
+    p.add_argument('--max-angle-error-degrees', type=float)
     args = p.parse_args()
-    value, report = project(json.loads(args.input.read_text()), args.degrees)
+    value, report = project(json.loads(args.input.read_text()), args.degrees, args.max_angle_error_degrees)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(value))
     args.output.with_suffix('.projection.json').write_text(json.dumps(report, indent=2))

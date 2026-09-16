@@ -55,3 +55,12 @@ a one-minute bound including exact solving remain unmet. The production model
 is not promoted. See `research/cp-recognition/results.md` for the evidence and
 the remaining research questions; the delivery checklist is not a claim that
 these quality objectives are solved.
+
+## Follow-up investigation
+
+- [x] Diagnose remaining model versus decoder errors with clearly labeled oracles.
+- [x] Test larger sampling and synthetic-only annotation training; reject regressions.
+- [x] Prototype a partial dominant-grid solve on development only.
+- [x] Integrate opt-in fallback with original-coordinate checks and a shared deadline.
+- [x] Replay the integrated policy and verify browser results and elapsed time.
+- [ ] Update reproducible evidence, tests, notes, and the draft PR.

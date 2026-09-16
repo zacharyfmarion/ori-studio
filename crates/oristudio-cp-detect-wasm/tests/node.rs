@@ -23,7 +23,7 @@ fn auxiliary_lines_survive_the_actual_solve_and_fold_export_bridge() {
     let input = &recognized.report.quality_report["compiler_report"]["exact_solve_input"];
     let result = oristudio_cp_detect_wasm::cp_detect_solve_exact_to_fold(
         &input.to_string(),
-        r#"{"timeout_seconds":1}"#,
+        r#"{"timeout_seconds":1,"polish":true,"recognition_fallback":true}"#,
     )
     .unwrap();
     let result: serde_json::Value = serde_wasm_bindgen::from_value(result).unwrap();

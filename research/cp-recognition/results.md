@@ -170,3 +170,45 @@ No vendored port behavior changed; external port oracles were not rerun for
 this original detector work. WebGPU execution and other hardware/browser
 combinations were not validated here. Private per-case evidence remains in
 `artifacts/cp-recognition/`, with reproduction instructions beside the tools.
+
+## Follow-up: bounded exact solving (E027)
+
+Recognition weights and the recognition tables above remain unchanged. An
+opt-in partial-grid fallback improves exact solving while preserving every
+previously accepted ordinary solve. It holds only well-supported grid points,
+leaves off-grid vertices free, and rechecks a proposed solution against the
+original coordinates and movement budget. Manual exact solving is unchanged.
+
+| Exact recovery at 2 px, including assignments | Previous candidate | E027 |
+| --- | ---: | ---: |
+| Development | 293/418 | 307/418 |
+| Previously observed holdout | 77/108 | 83/108 |
+| Combined | 370/526 | 390/526 |
+
+There are 20 gains and 0 recovery regressions across these 526 cases. The replay's
+solve allowance is 35 s rather than the earlier 25 s, so these are results of the
+new algorithm **and** its budget policy. Accepted ordinary solves remain
+unchanged; large inputs retain the existing lattice-first policy. Compared
+with the original product baseline, strict recoveries rise from 341 to 390.
+The post-solve edge-error total is 14,011 versus 42,982 originally (3.07× lower).
+This follow-up began after the original holdout was observed and is not a new
+blind holdout claim.
+
+In the actual browser worker and fused solver, Dwarf completes in 14.16 s
+(12.88 s recognition, 1.15 s solve), matching all 2,327 edges and assignments at 2 px.
+Maximum normalized vertex error is about 7.1e-9 px. Compact automatic import now
+allocates the remainder of 60 s after recognition to solving. This is a
+cooperative runtime budget, not a guarantee on every device or a promise that
+every returned graph is correct.
+
+Skytree's isolated stress run recognizes in 19.80 s and rejects a forced solve
+in another 20.00 s. The normal modal stops at recognition because the graph still
+has combinatorial defects. A preceding concurrent stress run exited 137 and
+produced no result; it is recorded in the notebook. No perfect Skytree recovery
+is claimed. The earlier curated and non-square limitations remain.
+
+E021–E026 also tested diagnostic truth substitutions, larger image sampling,
+synthetic annotation training, wider capacity, and direction/grid precision.
+None changed the selected weights. E023 improved annotation validation but
+reduced real development exact graphs 339 → 323; E024 failed the clean-accuracy
+gate. Negative results and their source/configuration snapshots are retained.

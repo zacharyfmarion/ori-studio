@@ -32,6 +32,8 @@ use std::rc::Rc;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 
+mod recognition;
+
 const SCHEMA: &str = "oristudio/cp-compiler/exact-solved-graph-v1";
 /// The single source of truth for the exact-solve wall-clock budget, shared by
 /// the product decode path, the inspector, and the benchmark. Raised 10 -> 25s
@@ -56,6 +58,11 @@ pub enum LinearSolver {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ExactSolveOptions {
+    /// Bounded automatic recognition policy: preserve accepted ordinary solves,
+    /// then try a dominant partial lattice. Large graphs first use the existing
+    /// lattice-only pass. Opt-in; manual exact solving retains its policy.
+    #[serde(default)]
+    pub recognition_fallback: bool,
     pub patience: usize,
     pub ftol: f64,
     pub xtol: f64,
@@ -444,6 +451,7 @@ const fn default_polish_target_kawasaki_degrees() -> f64 {
 impl Default for ExactSolveOptions {
     fn default() -> Self {
         Self {
+            recognition_fallback: false,
             patience: 40,
             ftol: 1e-10,
             xtol: 1e-10,
@@ -989,6 +997,9 @@ fn solve_exact_inner(
     pinned_vertex_ids: Rc<BTreeSet<usize>>,
     lattice_only: bool,
 ) -> ExactSolvedGraph {
+    if options.recognition_fallback && !lattice_only {
+        return recognition::solve(input, options, exempt_vertex_ids, pinned_vertex_ids);
+    }
     let deadline = ExactSolveDeadline::start(options.timeout_seconds, options.work_budget);
     let validation = validate_input(input);
     if !validation.is_empty() {
@@ -8862,6 +8873,111 @@ mod tests {
         assert_eq!(solved.status, ExactSolvedGraphStatus::Solved);
         assert!(solved.movement_report["polish"]["lattice_round"].is_null());
         assert!(lattice_offset_px(&solved.vertices_exact, 8.0) > 1e-6);
+    }
+
+    #[test]
+    fn recognition_fallback_preserves_an_accepted_ordinary_solve() {
+        let input = pleat_grid_input(0.8);
+        let options = ExactSolveOptions {
+            polish: true,
+            timeout_seconds: 30.0,
+            ..Default::default()
+        };
+        let ordinary = solve_exact(&input, options);
+        assert_eq!(ordinary.movement_report["accepted"], true);
+        let fallback = solve_exact(
+            &input,
+            ExactSolveOptions {
+                recognition_fallback: true,
+                ..options
+            },
+        );
+        assert_eq!(fallback.status, ordinary.status);
+        assert_eq!(fallback.vertices_exact, ordinary.vertices_exact);
+        assert!(fallback.movement_report["recognition_fallback"].is_null());
+    }
+
+    #[test]
+    fn partial_lattice_leaves_outliers_and_user_pins_in_place() {
+        let mut input = pleat_grid_input(0.8);
+        let ids: Vec<_> = input
+            .vertices
+            .iter()
+            .filter(|v| v.kind == CandidateVertexKind::InteriorJunction)
+            .map(|v| v.id)
+            .collect();
+        let outlier = ids[0];
+        input.vertices[outlier].point.x += 0.03;
+        input.vertices[outlier].point.y += 0.02;
+        let pin = ids[1];
+        let (proposal, report) = recognition::propose(&input, &BTreeSet::from([pin])).unwrap();
+        assert_eq!(report["cells"], 8);
+        assert_eq!(proposal.vertices[outlier], input.vertices[outlier]);
+        assert_eq!(proposal.vertices[pin], input.vertices[pin]);
+        assert_ne!(
+            proposal.vertices[ids[2]].point,
+            input.vertices[ids[2]].point
+        );
+        assert_eq!(
+            proposal.vertices[ids[2]].movement_policy,
+            CandidateVertexMovementPolicy::Locked
+        );
+    }
+
+    #[test]
+    fn partial_lattice_accounts_for_snapping_in_original_movement_budget() {
+        let input = pleat_grid_input(0.8);
+        let (proposal, _) = recognition::propose(&input, &BTreeSet::new()).unwrap();
+        let options = ExactSolveOptions {
+            polish: true,
+            ..Default::default()
+        };
+        let candidate = solve_exact(&proposal, options);
+        assert_eq!(candidate.status, ExactSolvedGraphStatus::Solved);
+        let judge = |options| {
+            recognition::judge_original(
+                &input,
+                &candidate,
+                options,
+                &ExactSolveDeadline::start(-1.0, None),
+                Rc::default(),
+                Rc::default(),
+            )
+        };
+        let rebased = judge(options).unwrap();
+        assert!(
+            rebased.movement_report["max_vertex_movement"]
+                .as_f64()
+                .unwrap()
+                > 0.001
+        );
+        assert!(
+            judge(ExactSolveOptions {
+                max_vertex_movement: 0.0001,
+                ..options
+            })
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn recognition_fallback_respects_exhausted_budget() {
+        let input = pleat_grid_input(0.8);
+        let solved = solve_exact(
+            &input,
+            ExactSolveOptions {
+                recognition_fallback: true,
+                timeout_seconds: 0.0,
+                ..Default::default()
+            },
+        );
+        assert_eq!(solved.status, ExactSolvedGraphStatus::Failed);
+        assert_eq!(
+            solved.vertices_exact,
+            input.vertices.iter().map(|v| v.point).collect::<Vec<_>>()
+        );
+        assert!(solved.movement_report["recognition_fallback"].is_null());
+        assert_eq!(solved.movement_report["timed_out"], true);
     }
 
     fn base_square_input() -> ExactSolveInput {

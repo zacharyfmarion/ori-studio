@@ -34,6 +34,8 @@ def main():
     p.add_argument('--out', type=Path, required=True)
     p.add_argument('--split', choices=['development', 'holdout'], required=True)
     p.add_argument('--jobs', type=int, default=4)
+    p.add_argument('--recognition-budget', type=float,
+                   help='Opt into bounded recognition fallback with this total solve budget')
     a = p.parse_args()
     if bool(a.corpus) == bool(a.baseline):
         p.error('Choose exactly one of --corpus or --baseline')
@@ -43,6 +45,11 @@ def main():
     config = {'inventory_sha256': hashlib.sha256(a.inventory.read_bytes()).hexdigest(),
               'corpus': str(a.corpus), 'baseline': str(a.baseline), 'split': a.split,
               'budget': 25, 'max_edges': 1500, 'process_timeout': 60}
+    if a.recognition_budget is not None:
+        if not 0 < a.recognition_budget <= 55:
+            p.error('Recognition solve budget must be in (0, 55] seconds')
+        config.update(budget=a.recognition_budget, recognition_fallback=True,
+                      binary_sha256=hashlib.sha256(Path('target/release/examples/solve_recognition').read_bytes()).hexdigest())
     config_path = a.out / 'config.json'
     if config_path.exists() and json.loads(config_path.read_text()) != config:
         raise ValueError('Output protocol changed')
@@ -70,9 +77,11 @@ def main():
                 (out / 'input.json').write_text(raw)
                 record['input_sha256'] = hashlib.sha256(raw.encode()).hexdigest()
                 record['spans'] = len(input_['selected_spans'])
-                record['lattice_only'] = record['spans'] > 1500
-                command = ['target/release/examples/solve_recognition', str(out / 'input.json'), str(out), '25']
-                if record['lattice_only']:
+                record['lattice_only'] = record['spans'] > 1500 and a.recognition_budget is None
+                command = ['target/release/examples/solve_recognition', str(out / 'input.json'), str(out), str(config['budget'])]
+                if a.recognition_budget is not None:
+                    command.append('recognition')
+                elif record['lattice_only']:
                     command.append('lattice-only')
                 try:
                     with (out / 'solve.log').open('w') as log:
