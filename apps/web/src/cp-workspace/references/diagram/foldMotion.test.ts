@@ -71,6 +71,27 @@ function widened(): PrecreaseSequence {
       ],
       cp_line_ids: [7],
     },
+    // O5 through a mark on the left edge, bringing a mark above the fold
+    // onto the crease at y = ¼ below it: the mark sits on the larger part
+    // of the sheet, so the picture swings the strip below instead.
+    {
+      ...base,
+      id: 9,
+      line_id: 11,
+      line: { n: [0, 1], d: 0.3 },
+      segment: [
+        [0, 0.3],
+        [1, 0.3],
+      ],
+      witnesses: [
+        witness(
+          5,
+          [{ kind: 'point', id: 12 }, { kind: 'point', id: 13 }, { kind: 'line', id: 8 }],
+          [1]
+        ),
+      ],
+      cp_line_ids: [8],
+    },
     // A press on the landmark: a pinch's worth at a crossing, sighted from a crease.
     {
       ...fixture.steps[0]!,
@@ -98,11 +119,14 @@ function widened(): PrecreaseSequence {
       { id: 9, p: [1, 0.5], lines: [1], on_boundary: true },
       { id: 10, p: [0.3, 0.6], lines: [], on_boundary: false },
       { id: 11, p: [0.43, 0.5], lines: [4], on_boundary: false },
+      { id: 12, p: [0, 0.3], lines: [0], on_boundary: true },
+      { id: 13, p: [0.5, 0.35], lines: [], on_boundary: false },
     ],
     lines: [
       ...fixture.lines,
       { id: 9, tag: 'aux', step: 6 },
       { id: 10, tag: 'cp', step: 7 },
+      { id: 11, tag: 'cp', step: 9 },
     ],
   };
 }
@@ -148,7 +172,7 @@ describe('stepFoldMotion', () => {
         }
       });
     }
-    // Every fixture fold and the perpendicular draw one; only O1 draws none.
+    // Every fixture fold, the perpendicular and the O5 draw one; only O1 draws none.
     expect(arrows).toBe(2 * (sequence.steps.length - 1));
   });
 
@@ -193,8 +217,17 @@ describe('stepFoldMotion', () => {
     expect(sideOf(motion.flaps[0]!.chord, { x: 0, y: 0 })).toBe(motion.flaps[0]!.side);
   });
 
-  it("presses only a press step's own spans", () => {
+  it('swings the smaller flap when the crate’s mover sits on the larger one', () => {
+    // The mark at (0.5, 0.35) is above the fold at y = 0.3, on seven tenths
+    // of the sheet; its landing on y = ¼ is on the three tenths below. The
+    // strip below swings, as a folder would have it.
     const motion = stepFoldMotion(sequence, unit, 7)!;
+    expect(sideOf(motion.flaps[0]!.chord, { x: 0.5, y: 0.25 })).toBe(motion.flaps[0]!.side);
+    expect(sideOf(motion.flaps[0]!.chord, { x: 0.5, y: 0.35 })).toBe(-motion.flaps[0]!.side);
+  });
+
+  it("presses only a press step's own spans", () => {
+    const motion = stepFoldMotion(sequence, unit, 8)!;
     expect(motion.kind).toBe('press');
     expect(motion.flaps[0]!.creased).toEqual([
       [

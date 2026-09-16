@@ -22,6 +22,7 @@ import {
   creasedSpans,
   flapArea,
   landingPairs,
+  movingInputs,
   movingSide,
   perpendicularMotion,
   polygonArea,
@@ -79,8 +80,10 @@ function together(frame: DiagramFrame, first: FoldFlap, second: FoldFlap): boole
  *
  * The same reading of the witness the arrow makes, case for case: a
  * perpendicular swings the shorter arm's corner; a bisection swings the side
- * `movingSide` picks; otherwise the first moving input — from the place on
- * it that a mark lands when it carries one, else from where the input sits.
+ * `movingSide` picks; otherwise the first of the picture's movers
+ * (`movingInputs`: the crate's, unless they sit on the larger flap) — from
+ * the place on it that a mark lands when it carries one, else from where
+ * the input sits.
  */
 function arrowSide(
   sequence: PrecreaseSequence,
@@ -94,7 +97,7 @@ function arrowSide(
     const motion = perpendicularMotion(sequence, frame, step, witness);
     return motion ? sign(motion.moving) : null;
   }
-  const moving = witness.who_moves;
+  const moving = movingInputs(sequence, frame, step, witness);
   if (moving.length === 0) return null;
   const runsOf = (index: number) => {
     const ref = witness.inputs[index];

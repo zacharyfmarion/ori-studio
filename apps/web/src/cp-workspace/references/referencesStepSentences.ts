@@ -28,7 +28,7 @@ import type { ExtractedStep } from './referenceFinder/extractor';
 import { directionOfGroup, type ReferencesDirection } from './referencesBreakdown';
 import { unitFrame } from './diagram/diagramFrames';
 import { alsoLetters, inputLetters, type InputLetters } from './diagram/inputLetters';
-import { perpendicularMotion } from './diagram/plannerDiagram';
+import { movingInputs, perpendicularMotion } from './diagram/plannerDiagram';
 import {
   SHORT_ALIGNMENT,
   chosenWitness,
@@ -439,10 +439,11 @@ function witnessClause(
     }
     case 5:
       // `[pivot, p, m1]`. Which of the mark and the line swings over is the
-      // crate's call (`who_moves`): a mark on the edge is brought onto the
+      // picture's call (`movingInputs`: the crate's `who_moves`, unless that
+      // sits on the larger flap): a mark on the edge is brought onto the
       // line; a line on the edge is brought onto the mark — and the card's
       // arrow goes the same way, so the caption has to.
-      sentence = witness.who_moves.includes(2)
+      sentence = movingInputs(sequence, unitFrame(sequence), step, witness).includes(2)
         ? t(
             'panels:references.planStep.axiom5LineMoves',
             'Fold through {{a}}, bringing {{c}} onto {{b}}.',
@@ -467,7 +468,7 @@ function witnessClause(
       // placeholders are named by role, as the ReferenceFinder sentence's are,
       // because this once had the two lines the other way round and the card's
       // arrow disagreed with its caption.
-      sentence = witness.who_moves.includes(1)
+      sentence = movingInputs(sequence, unitFrame(sequence), step, witness).includes(1)
         ? t(
             'panels:references.planStep.axiom7LineMoves',
             'Fold {{lSelf}} onto itself so that {{lLand}} lands on {{p}}.',

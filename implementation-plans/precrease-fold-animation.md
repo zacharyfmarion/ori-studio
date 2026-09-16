@@ -78,6 +78,20 @@ the arrow's own, verbatim:
 
 - O2/O3/O5/O6/O7 — the side `movingSide` picks: the arm that lands on crease,
   then the smaller flap.
+
+  **Revised 2026-09-16, markhor card 47.** The crate's `who_moves` names the
+  input whose motion makes the alignment *legible* (a corner brought onto a
+  mark), and the card's arrow followed it. On a fold through a mark near the
+  bottom edge that brings a top corner onto a line, that swung nine tenths
+  of the sheet over a strip; Zach: "step 46 of markhor should fold the
+  bottom part up … instead it folds the top part of the paper down". So the
+  picture now has movers of its own, `movingInputs` in `plannerDiagram.ts`:
+  the crate's, unless the axiom has a symmetric alternative (O2, O5, O6, O7)
+  and the crate's side is the larger flap by more than a quarter, in which
+  case the alternative moves — the arrow starts from where the mark lands,
+  the sentence says "bringing A onto Q", and the animation lifts the strip.
+  One decision, three readers. On markhor that flips cards 23 and 47 and
+  leaves the other eight O5 cards as they were.
 - O4 — `perpendicularMotion`'s `moving` side (the shorter arm swings).
 - O1, and any witness with an empty `who_moves` — nothing is brought onto
   anything, so the card draws no arrow; the animation still has to move
