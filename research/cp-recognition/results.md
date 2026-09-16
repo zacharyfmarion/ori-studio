@@ -4,7 +4,9 @@ The candidate reduces missing/extra edges by **4.09× across the combined
 development and holdout corpus**, and by **2.39× on the reserved internal
 holdout**. It recovers 75 additional graphs exactly. The holdout result falls
 short of the 3–5× target, and perfect large-pattern recovery remains unsolved.
-This is an unpublished local preview, not a production model promotion.
+The model was published to the web app on 2026-09-16 after code deployment
+and the E031/E032 fixes. Earlier measurements below retain their original
+evaluation scope; the chronological notebook records final rollout checks.
 
 ## Matched recognition comparison
 
@@ -113,8 +115,9 @@ largest unresolved requirements.
   cannot be inferred from color.
 - Learned AUX evidence plus cyan source support is fitted into straight
   segments and retained as F, including through the exact-solve attachment.
-  AUX does not create physical junctions or enter flat-fold constraints. The
-  import preview displays it in Oriedita cyan.
+  AUX shares drawing-graph vertices at every recovered crossing and endpoint.
+  Flat-fold constraints use the reduced physical graph; solved and partial
+  previews restore connected references. Import cleanup preserves the junctions.
 - Cached graph scoring and a conservative intermediate-vertex spatial index
   remove redundant work while preserving selection and geometric predicates.
 - Browser and desktop use the shared compact inference path; desktop exact
