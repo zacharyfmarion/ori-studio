@@ -705,13 +705,14 @@ fn on_span(a: [f64; 2], b: [f64; 2], p: [f64; 2]) -> bool {
 }
 
 /// grid6 is the fully determined case: seven mountains, seven valleys, and no
-/// line carrying both, so exactly one schedule is correct — folded line by
-/// line, with the grid off.
+/// line carrying both. Each crease's face is forced, while their execution
+/// order can improve — folded line by line, with the grid off.
 #[test]
-fn a_grid_folds_each_round_from_one_side() {
+fn a_grid_refines_face_blocks_across_closure_sweeps() {
     let seq = plan_line_by_line("tests/fixtures/precrease/grid6.fold");
-    assert_eq!(sides(&seq), "FBBBBFFFFFBBBBF", "grid6 schedule");
-    assert_eq!(turn_overs(&seq), 4, "grid6 turn-overs");
+    // The old sweep skeleton needed four turnovers; an independent final
+    // front-side fold can now be advanced to the preceding front block.
+    assert!(turn_overs(&seq) <= 3, "grid6: {}", sides(&seq));
     // The pattern's own lines; the one auxiliary fold is made toward the
     // folder like any other and is not counted against the pattern.
     let count = |d: Direction| {
@@ -834,7 +835,7 @@ fn a_real_design_turns_over_a_handful_of_times() {
     // back for a nearer anchor and every fold is again a valley from the
     // face it is made on — the presses went, and the sheet turns for it:
     // more cards, less ink, and the corpus is where that is judged too.
-    assert_eq!(turn_overs(&seq), 12, "iguana-c0 turn-overs");
+    assert!(turn_overs(&seq) <= 9, "iguana-c0: {}", turn_overs(&seq));
 }
 
 /// The snappable path builds its targets from `SnappedLine`, which carries no

@@ -658,6 +658,8 @@ export interface PrecreasePlannerOptions {
   max_depth?: number;
   depth3_threshold?: number;
   max_candidates?: number;
+  /** Time for replay-validated sequence refinement; zero disables it. */
+  sequence_budget_ms?: number;
   stuck_budget_ms?: number;
   total_budget_ms?: number;
   /**

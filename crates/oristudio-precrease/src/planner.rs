@@ -91,6 +91,10 @@ pub struct PlannerOptions {
     /// (`order::twin_in_queue`). On by default; off, every fold is a card
     /// of its own.
     pub merge_symmetric_steps: bool,
+    /// Maximum time spent improving the emitted schedule, in milliseconds.
+    /// Zero disables refinement. Every candidate is physically replayed and
+    /// must preserve quality; the existing plan survives an exhausted budget.
+    pub sequence_budget_ms: f64,
     pub clock: Clock,
 }
 
@@ -121,6 +125,7 @@ impl Default for PlannerOptions {
             allow_dangling_folds: true,
             defer_far_anchors: true,
             merge_symmetric_steps: true,
+            sequence_budget_ms: 1500.0,
             clock: default_clock(),
         }
     }
@@ -150,6 +155,7 @@ pub struct PlannerOptionsJson {
     pub defer_far_anchors: Option<bool>,
     pub merge_symmetric_steps: Option<bool>,
     pub prefer_sightable: Option<bool>,
+    pub sequence_budget_ms: Option<f64>,
 }
 
 impl PlannerOptions {
@@ -201,6 +207,7 @@ impl PlannerOptions {
         for (value, slot) in [
             (parsed.stuck_budget_ms, &mut opts.stuck_budget_ms),
             (parsed.total_budget_ms, &mut opts.total_budget_ms),
+            (parsed.sequence_budget_ms, &mut opts.sequence_budget_ms),
         ] {
             if let Some(v) = value {
                 if !v.is_finite() || v < 0.0 {
@@ -1175,6 +1182,18 @@ impl Planner {
         };
         let placed: Vec<Placed> =
             order_with(closure, landmarks_first, self.opts.merge_symmetric_steps);
+        let placed = if self.opts.sequence_budget_ms > 0.0 {
+            crate::order::improve(
+                closure,
+                landmarks_first,
+                self.opts.merge_symmetric_steps,
+                placed,
+                64,
+                &Deadline::after(self.opts.clock, self.opts.sequence_budget_ms),
+            )
+        } else {
+            placed
+        };
         let fold_order: Vec<usize> = placed.iter().map(|p| p.folded).collect();
         let folded = closure.folded();
         let presented: Vec<Option<&Witness>> = placed
@@ -1314,22 +1333,10 @@ impl Planner {
                 target.map_or(0.0, |t| t.direction_share),
                 direction,
             );
-            let exact_point = |id: usize| {
-                state
-                    .points()
-                    .get(id)
-                    .is_some_and(|pt| pt.lines.iter().filter(|&&l| exact_lines[l]).count() >= 2)
-            };
             // A press is located by the crease it is sighted from, and is
             // only as exact as that crease.
             let exact = f.approximation.is_none()
-                && chosen.is_none_or(|w| {
-                    w.inputs.iter().all(|r| match r {
-                        Ref::Line { id } => exact_lines[*id],
-                        Ref::Point { id } => exact_point(*id),
-                        Ref::Edge { .. } | Ref::Corner { .. } => true,
-                    })
-                })
+                && chosen.is_none_or(|w| crate::sequence::witness_is_exact(state, &exact_lines, w))
                 && p.press
                     .as_ref()
                     .and_then(|press| press.sighted_from)
@@ -1732,6 +1739,13 @@ mod tests {
             PlannerOptions::from_json(r#"{"max_depth": 3, "stuck_budget_ms": 10}"#).expect("parse");
         assert_eq!(o.stuck.max_depth, 3);
         assert_eq!(o.stuck_budget_ms, 10.0);
+        assert_eq!(
+            PlannerOptions::from_json(r#"{"sequence_budget_ms": 0}"#)
+                .unwrap()
+                .sequence_budget_ms,
+            0.0
+        );
+        assert!(PlannerOptions::from_json(r#"{"sequence_budget_ms": -1}"#).is_err());
         assert!(PlannerOptions::from_json(r#"{"nope": 1}"#).is_err());
         assert!(PlannerOptions::from_json(r#"{"stuck_budget_ms": -1}"#).is_err());
     }
