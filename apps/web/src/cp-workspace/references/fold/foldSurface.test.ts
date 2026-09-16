@@ -71,20 +71,47 @@ describe('createFoldSurface', () => {
     expect(p.nz).toBeCloseTo(1);
   });
 
-  it('lands hovering at twice the radius, short of the mirror by the bend, bulging past the line', () => {
+  it('lands exactly on the mirror, hovering at twice the radius, with the bend stretched to meet it', () => {
     const r = 0.5;
     const surface = createFoldSurface({ radius: r, angle: Math.PI, press: 0, creased: [], ramp: 1 });
-    // Past the bend: flat at 2r, mirrored about the line but πr short.
+    // Past the bend: flat at 2r, exactly where a sharp fold would land it.
     const far = surface.place(0, 4);
     expect(far.z).toBeCloseTo(2 * r);
-    expect(far.v).toBeCloseTo(-(4 - Math.PI * r));
+    expect(far.v).toBeCloseTo(-4);
     expect(far.nz).toBeCloseTo(-1);
-    // Halfway round the bend: the bulge, r past the line at height r, edge-on.
-    const bulge = surface.place(0, (Math.PI * r) / 2);
-    expect(bulge.v).toBeCloseTo(r);
-    expect(bulge.z).toBeCloseTo(r);
-    expect(bulge.nz).toBeCloseTo(0);
+    // Where the bend ends it meets the flat part: continuous in position.
+    const end = surface.place(0, Math.PI * r);
+    expect(end.v).toBeCloseTo(-Math.PI * r);
+    expect(end.z).toBeCloseTo(2 * r);
+    // The paper leaves the hinge edge-on, rising straight up, and turns
+    // over to face down by the end of the bend; it never crosses the line
+    // onto the flap's own side.
+    expect(surface.place(0, 1e-6).nz).toBeCloseTo(0, 3);
+    expect(end.nz).toBeCloseTo(-1);
+    let last = 1;
+    for (const u of [0.1, 0.4, 0.8, 1.2, 1.5]) {
+      const p = surface.place(0, u);
+      expect(p.v).toBeLessThanOrEqual(1e-9);
+      expect(p.nz).toBeLessThanOrEqual(last + 1e-9);
+      last = p.nz;
+    }
     expect(surface.bendReach).toBeCloseTo(Math.PI * r);
+  });
+
+  it('lands every point of the flat part where the rigid hinge would, whatever the angle', () => {
+    const r = 0.5;
+    for (const angle of [0.4, Math.PI / 2, 2.2, Math.PI]) {
+      const surface = createFoldSurface({ radius: r, angle, press: 0, creased: [], ramp: 1 });
+      const hinge = rigidHinge(angle);
+      for (const u of [2, 3, 4]) {
+        const a = surface.place(1, u);
+        const b = hinge.place(1, u);
+        // Lifted off the rigid position by the bend's own offset, which is
+        // straight up at 180° and never along the flap.
+        expect(a.v - b.v).toBeCloseTo(r * Math.sin(angle));
+        expect(a.z - b.z).toBeCloseTo(r * (1 - Math.cos(angle)));
+      }
+    }
   });
 
   it('goes sharp only where the step creases when pressed', () => {
@@ -100,9 +127,10 @@ describe('createFoldSurface', () => {
     const pressed = surface.place(3, 4);
     expect(pressed.z).toBeCloseTo(0);
     expect(pressed.v).toBeCloseTo(-4);
-    // Away from it: still the curl.
+    // Away from it: still lifted, at the same place in the plane.
     const curled = surface.place(8, 4);
     expect(curled.z).toBeCloseTo(2 * r);
+    expect(curled.v).toBeCloseTo(-4);
     // Half way up the ramp: half the radius, the S-curve's midpoint.
     const ramping = surface.place(4.5, 4);
     expect(ramping.z).toBeCloseTo(r);
@@ -144,13 +172,21 @@ describe('clipCellToPolygon', () => {
 });
 
 describe('tessellateFlap', () => {
-  it('covers exactly the flap when flat, and exactly its mirror when folded sharp', () => {
+  it('covers exactly the flap when flat, and exactly its mirror when folded, sharp or rounded', () => {
     const flat = createFoldSurface({ radius: 0.5, angle: 0, press: 0, creased: [], ramp: 1 });
     expect(meshArea(tessellateFlap(RECT, flat, 1).vertices)).toBeCloseTo(40);
-    const sharp = createFoldSurface({ radius: 0, angle: Math.PI, press: 0, creased: [], ramp: 1 });
-    const mesh = tessellateFlap(RECT, sharp, 1);
-    expect(meshArea(mesh.vertices)).toBeCloseTo(40);
-    for (const p of mesh.vertices) expect(p.v).toBeLessThanOrEqual(1e-9);
+    for (const radius of [0, 0.5]) {
+      const folded = createFoldSurface({ radius, angle: Math.PI, press: 0, creased: [], ramp: 1 });
+      const mesh = tessellateFlap(RECT, folded, 1);
+      // The bend's stretch folds the seam back over the mirror, so the footprint is
+      // the mirror's whatever the radius; a rounded bend only adds the strip it
+      // rises through, counted twice by an area sum.
+      expect(meshArea(mesh.vertices)).toBeGreaterThanOrEqual(40 - 1e-6);
+      for (const p of mesh.vertices) {
+        expect(p.v).toBeLessThanOrEqual(1e-9);
+        expect(p.v).toBeGreaterThanOrEqual(-4 - 1e-9);
+      }
+    }
   });
 
   it('samples the bend densely and the flat part once, breaking columns at the ramps', () => {

@@ -172,12 +172,12 @@ describe('foldPoseGeometry, curled', () => {
     for (let i = 0; i < fills.count; i += 1) expect(rgba(fills.color, i * 4)).toEqual(UP);
   });
 
-  it('lands hovering, short of the mirror by the bend, with the curl bulging past the line and shaded', () => {
+  it('lands exactly on the other half, hovering, with the bend shaded', () => {
     const { fills: all, strokes } = foldPoseGeometry(scene, { angle: Math.PI, press: 0 }, [creases()], paint);
     const fills = only(all, 'paper');
-    // The far edge falls πr short of x = 0; the curl reaches r past the line.
-    expect(Math.min(...xs(fills.position))).toBeCloseTo(2 * Math.PI * r, 3);
-    expect(Math.max(...xs(fills.position))).toBeCloseTo(2 * (0.5 + r), 3);
+    // The far edge lands on x = 0 as a sharp fold would; nothing crosses the line.
+    expect(Math.min(...xs(fills.position))).toBeCloseTo(0, 3);
+    expect(Math.max(...xs(fills.position))).toBeCloseTo(2 * 0.5, 3);
     // The flat part hovers at 2r above the paper.
     const depths = Array.from(fills.depth!);
     expect(Math.max(...depths)).toBeCloseTo(0.05 + 0.9 * ((2 * r) / 0.5), 3);
@@ -194,12 +194,13 @@ describe('foldPoseGeometry, curled', () => {
     };
     const bent = foldPoseGeometry(scene, { angle: Math.PI, press: 0 }, [across], paint);
     expect(bent.strokes.count).toBeGreaterThan(10);
-    // Its pieces run from the hinge, out round the bulge, and back over the paper.
+    // Its pieces run from the hinge up round the bend and over to the far edge,
+    // which lands exactly where the crease's mirror is.
     const ends = [...Array.from(bent.strokes.a), ...Array.from(bent.strokes.b)].filter(
       (_, i) => i % 2 === 0
     );
-    expect(Math.max(...ends)).toBeCloseTo(2 * (0.5 + r), 3);
-    expect(Math.min(...ends)).toBeCloseTo(2 * Math.PI * r, 3);
+    expect(Math.max(...ends)).toBeCloseTo(2 * 0.5, 3);
+    expect(Math.min(...ends)).toBeCloseTo(0, 3);
   });
 
   it('presses the creased stretch flat and leaves the rest hovering', () => {
@@ -212,7 +213,7 @@ describe('foldPoseGeometry, curled', () => {
       (i) => Math.abs(ys(i) + 1) < 0.02 && fills.position[i * 2]! < 0.05
     );
     const corner = [...Array(fills.count).keys()].filter(
-      (i) => Math.abs(ys(i)) < 0.02 && fills.position[i * 2]! < 0.3
+      (i) => Math.abs(ys(i)) < 0.02 && fills.position[i * 2]! < 0.05
     );
     expect(middle.length).toBeGreaterThan(0);
     expect(corner.length).toBeGreaterThan(0);

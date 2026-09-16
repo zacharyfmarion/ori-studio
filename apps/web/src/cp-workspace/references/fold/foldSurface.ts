@@ -4,21 +4,31 @@
  * only where the step presses it.
  *
  * In the fold's own frame — `s` along the line, `u` into the flap, `z`
- * toward the reader — the flap at swing angle `θ` and press `p` is a circular
+ * toward the reader — the flap at swing angle `θ` and press `p` is a rounded
  * bend of radius `r(s)` followed by a flat plane at angle `θ`:
  *
  *     r(s) = R · (1 − p · c(s))              bend radius along the line
- *     L(s) = r(s) · θ                        material length in the bend
- *     u ≤ L:  ( s, r·sin(u/r),                    r·(1 − cos(u/r)) )
- *     u > L:  ( s, r·sinθ + (u−L)·cosθ,           r·(1 − cosθ) + (u−L)·sinθ )
+ *     L(s) = r(s) · θ                        how far into the flap the bend reaches
+ *     u ≤ L:  ( s, r·sin(u/r) + u·cosθ,           r·(1 − cos(u/r)) + u·sinθ )
+ *     u > L:  ( s, r·sinθ + u·cosθ,               r·(1 − cosθ) + u·sinθ )
+ *
+ * The flat part is the **rigid hinge's own position** lifted off the paper
+ * by the bend's height — a point of the flap lands exactly where a sharp
+ * fold would put it, and hovers `2R` above that at `θ = π`. That is a
+ * deliberate stretching of the truth (Zach, 2026-09-16): real paper cannot
+ * stretch, so a bend of radius `r` would spend `πr` of material and land the
+ * flap that much short of the mirror — and then a mark the step brings onto
+ * a line stops short of the line, which is the one thing the picture must
+ * not say. So the material is stretched inside the bend instead: the arc is
+ * sheared along the flap's direction by `u`, which leaves the hinge
+ * continuous and the flat part exact, and the rounding shows only as the
+ * bend's shading and the hover's shadow.
  *
  * `c(s)` is the creasedness: 1 on the stretches the step creases, 0 elsewhere,
- * with a short ramp between so the surface has no seam. Pressing takes the
+ * with an eased ramp between so the surface has no seam. Pressing takes the
  * radius to zero only there, so the flap drops flat onto the paper along a
- * full crease and by a pinch's width at a pinch, and stays a curl elsewhere.
- * At `r = 0` this is the rigid hinge exactly, and at `θ = π` with `r = R` the
- * flat part lies at height `2R`, its far edge `πR` short of the mirror
- * position, and the curl bulges `R` past the line on the flap's own side.
+ * full crease and by a pinch's width at a pinch, and stays lifted elsewhere.
+ * At `r = 0` this is the rigid hinge exactly.
  *
  * The surface is exactly linear in `u` past the bend and, over a ramp, linear
  * in `s` too — which is what lets the mesh be coarse everywhere but the bend
@@ -117,9 +127,17 @@ export function createFoldSurface(params: FoldSurfaceParams): FoldSurface {
       const bend = r * angle;
       if (r > 0 && u > 0 && u <= bend) {
         const phi = u / r;
-        return { s, v: r * Math.sin(phi), z: r * (1 - Math.cos(phi)), nz: Math.cos(phi) };
+        // The sheared arc's tangent is the sum of the arc's and the flat
+        // part's directions, which bisects them: its normal is at the mean
+        // of the two angles, with no degenerate case at the hinge.
+        return {
+          s,
+          v: r * Math.sin(phi) + u * cosT,
+          z: r * (1 - Math.cos(phi)) + u * sinT,
+          nz: Math.cos((phi + angle) / 2),
+        };
       }
-      const past = Math.max(0, u - bend);
+      const past = Math.max(0, u);
       return {
         s,
         v: r * sinT + past * cosT,

@@ -138,6 +138,18 @@ lists:
 The normal is analytic (`(0, −sin φ, cos φ)` with `φ = min(u, L)/r`, `θ` past
 the bend); its `z` sign says which face the reader sees at that point.
 
+**Revised 2026-09-16, after markhor step 11.** The material bookkeeping above
+lands the flat part `πr` short of the mirror, and on a step that brings a
+mark onto a line the mark then stops short of the line — the one thing the
+picture must not say. Zach: "stretch the truth a bit … the paper always folds
+to exactly the place where it would if the entire crease was made, but we
+render the part of the paper that should not be creased as rounded." So the
+flat part is now the rigid hinge's own position lifted by the bend's height
+(`u·(cos θ, sin θ) + r·(sin θ, 1 − cos θ)`), the bend is the arc sheared along
+the flap's direction by `u` so it meets that flat part continuously, and the
+rounding shows only as the bend's shading and the hover's shadow. Nothing
+about where a point lands depends on `r` any more, in the plane.
+
 **Mesh.** The flap polygon is the sheet (`ReferencesPlanModel.edges`, a
 rectangle in model space) clipped to the moving half-plane — convex, so each
 cell of an `(s, u)` grid clips to a convex polygon that fans into triangles.
