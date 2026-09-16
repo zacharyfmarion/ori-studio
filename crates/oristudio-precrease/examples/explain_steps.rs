@@ -327,7 +327,7 @@ fn explain_step(seq: &Sequence, step: &Step, state: &State, creased: &Creased, r
             .map(|x| ref_name(state, creased, x))
             .collect();
         println!(
-            "   {}{} O{} ease={} [{}] cost={} lever={} reach={} err={} moves={:?} {}{}",
+            "   {}{} O{} ease={} [{}] cost={} lever={} reach={} err={} off={} moves={:?} {}{}",
             if r.chosen { "card " } else { "     " },
             match r.cost {
                 Some(0) => "OK ",
@@ -341,6 +341,7 @@ fn explain_step(seq: &Sequence, step: &Step, state: &State, creased: &Creased, r
             num(j.lever, 3),
             num(j.reach, 3),
             num(j.error, 2),
+            num(j.mark_offset, 3),
             w.who_moves,
             inputs.join(", "),
             if r.also { " (also)" } else { "" }

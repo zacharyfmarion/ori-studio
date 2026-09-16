@@ -357,6 +357,32 @@ Second round, from Zach's next fold of markhor (2026-09-14):
   the right edge swung onto a mark. An edge landed on is there everywhere;
   a flap's own edge is seen wherever it overlaps; a line folded onto itself
   is judged for the shorter arm, the one the card swings.
+  The line an O7 folds onto itself is held to the same rule (2026-09-16,
+  tabby cat card 41: "fold B onto itself so that P lands on A", with B
+  the diagonal creased only near its ends — the corner flap carried B's
+  arm onto a stretch of B that was bare, so there was nothing to line it
+  up by, and only P's landing had been checked). For an O7 the flap is
+  not the card's to choose: it is P's side when P moves, and the other
+  side when the edge is brought onto P, so that arm is the one judged.
+  Tabby cat 41 is now an O5 through the crease's own edge mark; markhor
+  93 (whose O7 folded the anti-diagonal onto itself across its uncreased
+  middle the same way) is an O6 with both landings seen, and the press
+  that was sighted by such an O7 is gone — cards 17/18 vouch for its
+  pinch instead, through a longer alignment on a parallel crease.
+- **R2 for a perpendicular through a mark** (`Judgement::mark_offset`,
+  2026-09-16). An O4's alignment is the line laid onto itself, so its
+  anchor is the foot on that line and the reach is measured from there —
+  and the mark the fold goes through, its second anchor, was never
+  measured. Tabby cat 46 folded the right edge onto itself through a mark
+  0.38 from the crease when a crossing inside the crease was on offer;
+  the two judged the same on everything and the tie fell to the
+  residual. Zach: "prefer a vertex that is closest to the centre of mass
+  of the folded line as a reference point, so that the error on either
+  side is minimized". The mark's offset from the crease's centre of mass
+  (its runs weighted by length) is a term of the key, after the error at
+  the crease and before the residual, so it decides only among folds tied
+  on everything else. Tabby cat: 46/47 and 80 move onto their creases;
+  markhor: four O4s (64, 65, 66, 104) do the same; nothing else moves.
 - **A crease through two marks runs from the one to the other**
   (`order::through_marks`): "fold through P and Q" creases all the way to
   both, whatever the pattern wants between them (markhor 50), and the

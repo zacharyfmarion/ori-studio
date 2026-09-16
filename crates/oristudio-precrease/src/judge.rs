@@ -31,7 +31,9 @@
 //!   error at the crease is bounded by their ratio ([`Judgement::error`]),
 //!   and a witness whose lever is under [`MIN_LEVER`], whose error is over
 //!   [`MAX_ERROR`] or whose crease is further than [`MAX_REACH`] from the
-//!   alignment is imprecise.
+//!   alignment is imprecise. A perpendicular through a mark has a second
+//!   anchor, the mark, and of the marks on the fold the one nearest the
+//!   crease's centre of mass is preferred ([`Judgement::mark_offset`]).
 //! - **R3** A bisection whose vertex is at the crease is the fold — when the
 //!   folder can see the angle: its vertex on the sheet's edge, or one of its
 //!   arms the edge itself. Two interior creases meeting inside the sheet are
@@ -131,6 +133,16 @@ pub struct Judgement {
     /// `reach_far / lever`: how many times the alignment's own error the
     /// crease's end can be off by.
     pub error: Option<f64>,
+    /// For a fold through a mark perpendicular to a line (O4): how far
+    /// along the fold the mark is from the centre of mass of the crease
+    /// being made. The line laid onto itself fixes the fold's direction and
+    /// the mark fixes where it lies, so the crease is off by the mark's
+    /// error grown over the distance to it, on whichever side — and of the
+    /// marks on the fold, the one nearest the crease's middle keeps that
+    /// smallest on both sides (tabby cat 46: a mark 0.38 from the crease
+    /// over one inside it). `None` for any other fold, or one creased
+    /// whole.
+    pub mark_offset: Option<f64>,
     /// R2: lever at least [`MIN_LEVER`], error at most [`MAX_ERROR`] and the
     /// crease within [`MAX_REACH`] of the alignment; a witness with nothing
     /// to measure is not called imprecise, and nor is a crease joined
@@ -275,11 +287,11 @@ pub fn landings_seen(state: &State, creased: &Creased, fold: &Line, w: &Witness)
         3 => match (line(0), line(1)) {
             (Some(a), Some(b)) => {
                 let (moving, base) = if moves(1) { (b, a) } else { (a, b) };
-                crease_onto(state, creased, fold, moving, base, false)
+                crease_onto(state, creased, fold, moving, base, Arm::Either)
             }
             _ => true,
         },
-        4 => line(1).is_none_or(|l| crease_onto(state, creased, fold, l, l, true)),
+        4 => line(1).is_none_or(|l| crease_onto(state, creased, fold, l, l, Arm::Shorter)),
         // [pivot, p, m]: p onto m, or m — the edge — onto p.
         5 => !moves(1) || mark_onto(point(1), line(2)),
         // [p1, m1, p2, m2].
@@ -287,10 +299,43 @@ pub fn landings_seen(state: &State, creased: &Creased, fold: &Line, w: &Witness)
             (!moves(0) || mark_onto(point(0), line(1)))
                 && (!moves(2) || mark_onto(point(2), line(3)))
         }
-        // [p, m1, m2]: p onto m1, or m1 — the edge — onto p.
-        7 => !moves(0) || mark_onto(point(0), line(1)),
+        // [p, m1, m2]: p onto m1, or m1 — the edge — onto p; and m2 onto
+        // itself, which is seen the way an O4's line is — except that the
+        // flap is not the card's to choose: it is p's side when p moves,
+        // and the other side when the edge is brought onto p.
+        7 => {
+            let point_seen = !moves(0) || mark_onto(point(0), line(1));
+            let self_seen = match (point(0), line(2)) {
+                (Some(p), Some(l)) => {
+                    let side = fold.signed_distance(p) * if moves(0) { 1.0 } else { -1.0 };
+                    let arm = if side.abs() <= TOL {
+                        Arm::Either
+                    } else {
+                        Arm::OnSide(side)
+                    };
+                    crease_onto(state, creased, fold, l, l, arm)
+                }
+                _ => true,
+            };
+            point_seen && self_seen
+        }
         _ => true,
     }
+}
+
+/// Which arm of a line carried onto another — or onto itself — is the one
+/// swung, for [`crease_onto`].
+#[derive(Clone, Copy)]
+enum Arm {
+    /// Either may be: the folder lifts whichever side (an O3).
+    Either,
+    /// The shorter one — the card swings that one, less paper to move (a
+    /// line folded onto itself through a mark, O4).
+    Shorter,
+    /// The one on the flap: the side of the fold this signed distance is
+    /// on, as [`Line::signed_distance`] signs it (an O7, whose moving point
+    /// fixes the flap).
+    OnSide(f64),
 }
 
 /// Whether the crease of `base` is there from `x` — where the folded flap's
@@ -324,17 +369,15 @@ fn crease_past_edge(
 /// Whether a crease `moving` carried onto `base` is seen at the flap's edge:
 /// the flap is the side of the fold the moving arm is on, its edge crosses
 /// `base` at the image of that arm's end on the sheet's boundary, and the
-/// base crease must run on from there. Either arm may be the one swung,
-/// except a line folded onto itself, where the shorter arm is (the card
-/// swings that one: less paper to move). A flap's own edge is seen wherever
-/// it overlaps.
+/// base crease must run on from there. Which arm is swung is `arm`'s to
+/// say ([`Arm`]). A flap's own edge is seen wherever it overlaps.
 fn crease_onto(
     state: &State,
     creased: &Creased,
     fold: &Line,
     moving: usize,
     base: usize,
-    shorter_arm_only: bool,
+    arm: Arm,
 ) -> bool {
     if state.is_edge(moving) {
         return true;
@@ -347,15 +390,21 @@ fn crease_onto(
         .into_iter()
         .filter(|e| fold.signed_distance(*e).abs() > TOL)
         .collect();
-    if shorter_arm_only && let Some(f) = foot {
-        let reach = |e: &[f64; 2]| (e[0] - f[0]).hypot(e[1] - f[1]);
-        if let Some(nearest) = ends
-            .iter()
-            .copied()
-            .min_by(|p, q| reach(p).total_cmp(&reach(q)))
-        {
-            ends = vec![nearest];
+    match arm {
+        Arm::Either => {}
+        Arm::Shorter => {
+            if let Some(f) = foot {
+                let reach = |e: &[f64; 2]| (e[0] - f[0]).hypot(e[1] - f[1]);
+                if let Some(nearest) = ends
+                    .iter()
+                    .copied()
+                    .min_by(|p, q| reach(p).total_cmp(&reach(q)))
+                {
+                    ends = vec![nearest];
+                }
+            }
         }
+        Arm::OnSide(side) => ends.retain(|e| fold.signed_distance(*e) * side > 0.0),
     }
     ends.into_iter()
         .any(|e| crease_past_edge(state, creased, fold, base, fold.reflect_point(e)))
@@ -462,6 +511,12 @@ pub fn judge(
     let lever = lever(state, creased, fold, w);
     let anchor = anchor(state, fold, w);
     let (reach, reach_far, error) = grown(lever, anchor, made);
+    let mark_offset = match (w.axiom, w.inputs.first()) {
+        (4, Some(Ref::Point { id } | Ref::Corner { id, .. })) => {
+            centre_offset(fold, made, state.point(*id))
+        }
+        _ => None,
+    };
     let own_ends = w.axiom == 1 && is_own_ends(state, fold, spans, w);
     // The crease's own two marks are as far apart as the crease is long, and
     // nothing lines a crease up better than the marks it runs between; the
@@ -521,6 +576,7 @@ pub fn judge(
         reach,
         reach_far,
         error,
+        mark_offset,
         precise,
         at_crease,
         bisection_at_crease,
@@ -532,6 +588,18 @@ pub fn judge(
         ease,
         one_motion,
     }
+}
+
+/// How far along `fold` the point `p` on it is from the centre of mass of
+/// the crease `made` — its runs weighted by their length. `None` when
+/// nothing is made: a fold creased whole has no middle to be near.
+fn centre_offset(fold: &Line, made: &[[[f64; 2]; 2]], p: [f64; 2]) -> Option<f64> {
+    let runs = crate::marks::crease_runs(fold, made);
+    let (moment, length) = runs.iter().fold((0.0, 0.0), |(m, l), (a, b)| {
+        let (u, v) = (fold.parameter_of(*a), fold.parameter_of(*b));
+        (m + (u + v) / 2.0 * (v - u).abs(), l + (v - u).abs())
+    });
+    (length > TOL).then(|| (fold.parameter_of(p) - moment / length).abs())
 }
 
 /// An alignment's error grown to `spans`: how near they come to where the
@@ -935,6 +1003,91 @@ mod tests {
         assert!(landings_seen(&state2, &hidden, &swing, &onto_edge));
     }
 
+    /// Tabby cat, card 41: "fold B onto itself so that P lands on A", with B
+    /// the diagonal creased only near its ends. The fold is perpendicular to
+    /// B, and the corner flap it lifts carries B's arm up onto a stretch of
+    /// B that is not creased yet — so where the flap's edge crosses B there
+    /// is nothing to sight the alignment on, and P landing on A does not
+    /// make up for it. The line an O7 folds onto itself is held to the rule
+    /// an O4's is.
+    #[test]
+    fn a_line_an_o7_folds_onto_itself_is_seen_only_where_it_runs_out_past_the_flap() {
+        let mut state = State::new(Sheet::unit_square(), DEFAULT_POINT_CAP);
+        let b = Line::from_points([0.0, 0.0], [1.0, 1.0]).expect("b");
+        let b_id = state.add_line(b, LineTag::Cp).expect("b").id;
+        let a_id = state.add_line(h(0.2), LineTag::Cp).expect("a").id;
+        // P = (0.25, 0), where a vertical meets the bottom edge.
+        let _ = state.add_line(v(0.25), LineTag::Cp).expect("through p");
+        let p = state.find_point([0.25, 0.0]).expect("p");
+        // The fold x + y = 0.45 carries P onto A at (0.45, 0.2) and crosses
+        // B at (0.225, 0.225); the corner lands at (0.45, 0.45).
+        let fold = Line::from_points([0.45, 0.0], [0.0, 0.45]).expect("fold");
+        assert!(h(0.2).distance_to_point(fold.reflect_point([0.25, 0.0])) <= 1e-9);
+        let w = witness(
+            7,
+            vec![
+                Ref::Point { id: p },
+                Ref::Line { id: a_id },
+                Ref::Line { id: b_id },
+            ],
+            vec![0],
+            true,
+        );
+        // B creased from the corner to (0.3, 0.3): the flap's arm lands on
+        // (0.225, 0.225)–(0.45, 0.45), and past the flap's corner B is bare.
+        let mut short = Creased::new(&state);
+        short.add_whole(&state, a_id);
+        short.add_spans(&state, b_id, &b, &[[[0.0, 0.0], [0.3, 0.3]]]);
+        assert!(
+            !landings_seen(&state, &short, &fold, &w),
+            "B is not creased where the flap's corner lands"
+        );
+        // B creased on past the corner's landing: the folder sights on that.
+        let mut long = Creased::new(&state);
+        long.add_whole(&state, a_id);
+        long.add_spans(&state, b_id, &b, &[[[0.0, 0.0], [0.6, 0.6]]]);
+        assert!(landings_seen(&state, &long, &fold, &w));
+        // The flap is P's side, whichever arm is shorter. P = (0.7, 0.5)
+        // carried onto y = 0.1 by x + y = 0.8 swings the long arm of B over
+        // the short one, and the flap covers every bit of the crease it
+        // lands on — B creased whole is no help to a folder shown that.
+        let mut state2 = State::new(Sheet::unit_square(), DEFAULT_POINT_CAP);
+        let b2 = state2.add_line(b, LineTag::Cp).expect("b").id;
+        let a2 = state2.add_line(h(0.1), LineTag::Cp).expect("a").id;
+        let _ = state2.add_line(v(0.7), LineTag::Cp).expect("through p");
+        let _ = state2.add_line(h(0.5), LineTag::Cp).expect("through p");
+        let _ = state2
+            .add_line(v(0.3), LineTag::Cp)
+            .expect("through the fold");
+        let p2 = state2.find_point([0.7, 0.5]).expect("p");
+        let fold2 = Line::from_points([0.8, 0.0], [0.0, 0.8]).expect("fold");
+        assert!(h(0.1).distance_to_point(fold2.reflect_point([0.7, 0.5])) <= 1e-9);
+        let w2 = witness(
+            7,
+            vec![
+                Ref::Point { id: p2 },
+                Ref::Line { id: a2 },
+                Ref::Line { id: b2 },
+            ],
+            vec![0],
+            true,
+        );
+        let mut whole = Creased::new(&state2);
+        whole.add_whole(&state2, a2);
+        whole.add_whole(&state2, b2);
+        assert!(!landings_seen(&state2, &whole, &fold2, &w2));
+        // The same fold as an O4 through a mark on it, (0.3, 0.5), swings
+        // the short arm instead, and is seen.
+        let on_fold = state2.find_point([0.3, 0.5]).expect("mark on the fold");
+        let o4 = witness(
+            4,
+            vec![Ref::Point { id: on_fold }, Ref::Line { id: b2 }],
+            vec![],
+            true,
+        );
+        assert!(landings_seen(&state2, &whole, &fold2, &o4));
+    }
+
     /// Two marks far beyond a short crease: joining them is more crease than
     /// the pattern asks for by more than the crease itself, and the card
     /// would rather sight the crease some other way.
@@ -1192,6 +1345,87 @@ mod tests {
         assert!(j.at_crease);
         assert!(j.reach.expect("reach") < 1e-9);
         assert!(j.precise);
+    }
+
+    /// Tabby cat 46: "fold through P, folding the right edge onto itself" for
+    /// a crease near that edge. Two marks on the fold — one 0.7 from the
+    /// crease, one inside it — judge the same on everything the edge fixes,
+    /// and the mark's own offset from the crease's centre of mass is what
+    /// tells them apart. Nothing to measure for a fold creased whole, or for
+    /// a fold of another kind.
+    #[test]
+    fn a_perpendicular_through_a_mark_measures_the_mark_from_the_crease_s_middle() {
+        let mut state = State::new(Sheet::unit_square(), DEFAULT_POINT_CAP);
+        // Two marks on y = 0.6: verticals crossed by 45° creases through
+        // (0.2, 0.6) and (0.9, 0.6).
+        let far_up = state.add_line(v(0.2), LineTag::Cp).expect("far up").id;
+        let far_across = state
+            .add_line(
+                Line::from_points([0.0, 0.4], [0.6, 1.0]).expect("line"),
+                LineTag::Cp,
+            )
+            .expect("far across")
+            .id;
+        let near_up = state.add_line(v(0.9), LineTag::Cp).expect("near up").id;
+        let near_across = state
+            .add_line(
+                Line::from_points([0.3, 0.0], [1.0, 0.7]).expect("line"),
+                LineTag::Cp,
+            )
+            .expect("near across")
+            .id;
+        let mut creased = Creased::new(&state);
+        for id in [far_up, far_across, near_up, near_across] {
+            creased.add_whole(&state, id);
+        }
+        let far = state.find_point([0.2, 0.6]).expect("far mark");
+        let near = state.find_point([0.9, 0.6]).expect("near mark");
+        let right = state.find_line(&v(1.0)).expect("right edge");
+        let fold = h(0.6);
+        // The crease: 0.8..0.86 and 0.9..1.0 along the fold, centre of mass
+        // at 0.905 (0.06 of it at 0.83, 0.1 of it at 0.95).
+        let made = [[[0.8, 0.6], [0.86, 0.6]], [[0.9, 0.6], [1.0, 0.6]]];
+        let through = |id: usize, axiom: u8| Witness {
+            axiom,
+            inputs: vec![
+                Ref::Point { id },
+                Ref::Edge {
+                    id: right,
+                    side: crate::sheet::EdgeSide::Right,
+                },
+            ],
+            root: 0,
+            who_moves: vec![],
+            hard: false,
+            visible: true,
+            skinny: false,
+            ease: fold_ease(axiom, true).expect("ease") as u8,
+            err: 0.0,
+        };
+        let none: DirectionOfLine<'_> = &|_| None;
+        let judged = |w: &Witness, made: &[[[f64; 2]; 2]]| {
+            judge(
+                &state,
+                &creased,
+                &fold,
+                made,
+                made,
+                Direction::Valley,
+                none,
+                w,
+            )
+        };
+        let far_j = judged(&through(far, 4), &made);
+        let near_j = judged(&through(near, 4), &made);
+        assert!((far_j.mark_offset.expect("far offset") - 0.705).abs() < 1e-9);
+        assert!((near_j.mark_offset.expect("near offset") - 0.005).abs() < 1e-9);
+        // Everything the edge fixes is the same for both.
+        assert_eq!(far_j.lever, near_j.lever);
+        assert_eq!(far_j.reach, near_j.reach);
+        assert_eq!(far_j.error, near_j.error);
+        assert!(far_j.precise && near_j.precise);
+        assert!(judged(&through(far, 4), &[]).mark_offset.is_none());
+        assert!(judged(&through(far, 5), &made).mark_offset.is_none());
     }
 
     #[test]

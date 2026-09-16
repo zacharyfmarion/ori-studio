@@ -170,8 +170,10 @@ pub struct Placed {
     /// sightable before either was made — and the card shows the two as
     /// one step, as a diagram does. The value is the folded index of the
     /// other. See [`twin_in_queue`]. Sighted again for a pinch it could not
-    /// vouch for ([`repick_to_vouch`]), either may present a witness that
-    /// is no longer the other's image; the pair stays one card.
+    /// vouch for ([`repick_to_vouch`]), either may come to present a witness
+    /// that is no longer the other's image; the pair is then parted at the
+    /// end ([`part_twins_no_longer_mirrored`]), since two folds made two
+    /// different ways are two instructions.
     pub twin_of: Option<usize>,
 }
 
@@ -1056,9 +1058,10 @@ fn pinch_while_folding(
 /// is within reach. The crease the new witness leaves is put on the paper
 /// (an O1 runs mark to mark), and what the line can be pinched at is
 /// re-noted for what the new alignment vouches for. A twin keeps its
-/// place; its witness is no longer the mirror image, and the card shows
-/// the two as they are. `false` when nothing on offer vouches: the pinch
-/// is then a press of its own.
+/// place; if its witness is no longer the other's mirror image the pair is
+/// parted into two cards at the end
+/// ([`part_twins_no_longer_mirrored`]). `false` when nothing on offer
+/// vouches: the pinch is then a press of its own.
 #[allow(clippy::too_many_arguments)]
 fn repick_to_vouch(
     state: &State,
@@ -1607,8 +1610,10 @@ fn witness_cost(state: &State, creased: &Creased, fold: &Line, witness: &Witness
 ///    the edge onto itself — and only here: a fold whose alignment is half
 ///    a sheet from its crease is not made easier by being one motion.
 /// 10. The **ease order** — two points, line onto line, the edge onto itself
-///     … — then the skinny flap, the error at the crease, the residual. For
-///     a perpendicular to the sheet's edge, the edge whose foot is at the
+///     … — then the skinny flap, the error at the crease, and for a
+///     perpendicular through a mark, the mark nearest the crease's centre of
+///     mass ([`Judgement::mark_offset`]); then the residual. For a
+///     perpendicular to the sheet's edge, the edge whose foot is at the
 ///     crease.
 ///
 /// Then one override: among what is visible and precise in the winning
@@ -1818,6 +1823,12 @@ fn pick_scored(
             // twelve fields.
             (
                 j.error.map_or(0, |e| (e * 1e3) as u64),
+                // A perpendicular through the mark nearest the crease's
+                // middle: its direction is the line's, and where it lies is
+                // the mark's, so the crease is off by the mark's error grown
+                // over the distance to it, least when the mark is in the
+                // crease (tabby cat 46).
+                j.mark_offset.map_or(0, |o| (o * 1e3) as u64),
                 (w.err / 1e-18) as u64,
                 at_the_crease(w),
             ),
@@ -2250,31 +2261,7 @@ fn twin_in_queue(
             };
             // The crease the image of the other's: a pair whose creases stop
             // at different references is two instructions.
-            let mut image_runs: Vec<(f64, f64)> = crease_runs(&fa.line, &a.made)
-                .iter()
-                .map(|(p, q)| {
-                    let (u, v) = (
-                        fb.line.parameter_of(sym.point(sheet, *p)),
-                        fb.line.parameter_of(sym.point(sheet, *q)),
-                    );
-                    (u.min(v), u.max(v))
-                })
-                .collect();
-            let mut runs_b: Vec<(f64, f64)> = crease_runs(&fb.line, &made_b)
-                .iter()
-                .map(|(p, q)| {
-                    let (u, v) = (fb.line.parameter_of(*p), fb.line.parameter_of(*q));
-                    (u.min(v), u.max(v))
-                })
-                .collect();
-            image_runs.sort_by(|x, y| x.0.total_cmp(&y.0));
-            runs_b.sort_by(|x, y| x.0.total_cmp(&y.0));
-            let same_runs = image_runs.len() == runs_b.len()
-                && image_runs
-                    .iter()
-                    .zip(&runs_b)
-                    .all(|(x, y)| (x.0 - y.0).abs() <= 1e-6 && (x.1 - y.1).abs() <= 1e-6);
-            if !same_runs {
+            if !mirrored_creases(sheet, sym, &fa.line, &a.made, &fb.line, &made_b) {
                 continue;
             }
             if !sightable(state, before, &fold_b, wb)
@@ -2286,6 +2273,87 @@ fn twin_in_queue(
         }
     }
     None
+}
+
+/// Whether the crease `made_a` on `line_a` is carried by `sym` onto the
+/// crease `made_b` on `line_b`, run for run.
+fn mirrored_creases(
+    sheet: &Sheet,
+    sym: Symmetry,
+    line_a: &Line,
+    made_a: &[[[f64; 2]; 2]],
+    line_b: &Line,
+    made_b: &[[[f64; 2]; 2]],
+) -> bool {
+    let mut image_runs: Vec<(f64, f64)> = crease_runs(line_a, made_a)
+        .iter()
+        .map(|(p, q)| {
+            let (u, v) = (
+                line_b.parameter_of(sym.point(sheet, *p)),
+                line_b.parameter_of(sym.point(sheet, *q)),
+            );
+            (u.min(v), u.max(v))
+        })
+        .collect();
+    let mut runs_b: Vec<(f64, f64)> = crease_runs(line_b, made_b)
+        .iter()
+        .map(|(p, q)| {
+            let (u, v) = (line_b.parameter_of(*p), line_b.parameter_of(*q));
+            (u.min(v), u.max(v))
+        })
+        .collect();
+    image_runs.sort_by(|x, y| x.0.total_cmp(&y.0));
+    runs_b.sort_by(|x, y| x.0.total_cmp(&y.0));
+    image_runs.len() == runs_b.len()
+        && image_runs
+            .iter()
+            .zip(&runs_b)
+            .all(|(x, y)| (x.0 - y.0).abs() <= 1e-6 && (x.1 - y.1).abs() <= 1e-6)
+}
+
+/// Whether the entry `b`, the twin of `a`, is still its mirror image as the
+/// two stand at the end: some symmetry of the sheet carries `a`'s line onto
+/// `b`'s, `a`'s presented witness onto `b`'s, and `a`'s crease onto `b`'s
+/// — the test [`twin_in_queue`] made when it paired them.
+fn twins_still_mirror(closure: &Closure, a: &Placed, b: &Placed) -> bool {
+    let state = closure.state();
+    let sheet = state.sheet();
+    let folded = closure.folded();
+    let (fa, fb) = (&folded[a.folded], &folded[b.folded]);
+    let (Some(wa), Some(wb)) = (a.presented(fa), b.presented(fb)) else {
+        return false;
+    };
+    Symmetry::of(sheet).into_iter().any(|sym| {
+        sym.line(sheet, &fa.line)
+            .is_some_and(|image| same_line(&image, &fb.line))
+            && sym.maps_witness(state, wa, wb)
+            && mirrored_creases(sheet, sym, &fa.line, &a.made, &fb.line, &b.made)
+    })
+}
+
+/// Part every twin pair that is no longer one. A pair is made a card when
+/// both are mirror images, line and witness and crease alike
+/// ([`twin_in_queue`]); sighted again for a pinch it could not vouch for
+/// ([`repick_to_vouch`]), either may come to present a witness that is no
+/// longer the other's image, and the crease it leaves may grow. Two folds
+/// made two different ways are two instructions whatever their lines — "fold
+/// through P, bringing Q onto A; fold B onto C" is not one step a diagram
+/// gives (markhor-detailed 113, a perpendicular through a mark beside a
+/// bisection) — so such a
+/// pair is parted here, at the end, and each is a card of its own. Neither
+/// gets an `also`: the mirror that stood in for it was checked on the paper
+/// as it was, not as it is.
+fn part_twins_no_longer_mirrored(closure: &Closure, placed: &mut [Placed]) {
+    for k in 1..placed.len() {
+        let Some(twin_of) = placed[k].twin_of else {
+            continue;
+        };
+        let still = placed[k - 1].folded == twin_of
+            && twins_still_mirror(closure, &placed[k - 1], &placed[k]);
+        if !still {
+            placed[k].twin_of = None;
+        }
+    }
 }
 
 /// Place every folded line. Returns the presentation order, with symmetric
@@ -2661,6 +2729,7 @@ pub fn order_with(closure: &Closure, landmarks_first: bool, merge_twins: bool) -
             }
         }
     }
+    part_twins_no_longer_mirrored(closure, &mut schedule.placed);
     schedule.placed
 }
 
@@ -2801,6 +2870,73 @@ mod tests {
         creased.add_spans(&state, up, &v(0.5), &[[[0.5, 0.0], [0.5, 0.3]]]);
         creased.add_whole(&state, diag);
         (state, creased)
+    }
+
+    /// Tabby cat 46: of two marks on the fold, a perpendicular to the edge
+    /// is made through the one nearest the crease's centre of mass — the
+    /// mark inside a crease at the right edge, not one 0.7 away — and the
+    /// other way about for a crease at the left edge.
+    #[test]
+    fn a_perpendicular_goes_through_the_mark_nearest_the_crease_s_middle() {
+        let mut state = State::new(Sheet::unit_square(), DEFAULT_POINT_CAP);
+        let lines = [
+            v(0.2),
+            Line::from_points([0.0, 0.4], [0.6, 1.0]).expect("line"),
+            v(0.9),
+            Line::from_points([0.3, 0.0], [1.0, 0.7]).expect("line"),
+        ];
+        let mut creased = Creased::new(&state);
+        for line in lines {
+            let id = state.add_line(line, LineTag::Cp).expect("line").id;
+            creased.add_whole(&state, id);
+        }
+        let left_mark = state.find_point([0.2, 0.6]).expect("left mark");
+        let right_mark = state.find_point([0.9, 0.6]).expect("right mark");
+        let fold = h(0.6);
+        let through = |id: usize, side: crate::sheet::EdgeSide, x: f64| Witness {
+            axiom: 4,
+            inputs: vec![
+                Ref::Point { id },
+                Ref::Edge {
+                    id: state.find_line(&v(x)).expect("edge"),
+                    side,
+                },
+            ],
+            root: 0,
+            who_moves: Vec::new(),
+            hard: false,
+            visible: true,
+            skinny: false,
+            ease: crate::constants::fold_ease(4, true).expect("ease") as u8,
+            err: 0.0,
+        };
+        let none: crate::judge::DirectionOfLine<'_> = &|_| None;
+        let pick_for = |witnesses: &[Witness], made: &[[[f64; 2]; 2]]| {
+            pick_witness(
+                &state,
+                &creased,
+                &fold,
+                &[],
+                made,
+                Direction::Unassigned,
+                none,
+                witnesses,
+            )
+            .expect("a pick")
+        };
+        use crate::sheet::EdgeSide::{Left, Right};
+        let at_right = [
+            through(left_mark, Right, 1.0),
+            through(right_mark, Right, 1.0),
+        ];
+        let (index, judgement) = pick_for(&at_right, &[[[0.8, 0.6], [1.0, 0.6]]]);
+        assert_eq!(index, 1, "the mark in the crease: {judgement:?}");
+        let at_left = [
+            through(left_mark, Left, 0.0),
+            through(right_mark, Left, 0.0),
+        ];
+        let (index, judgement) = pick_for(&at_left, &[[[0.0, 0.6], [0.3, 0.6]]]);
+        assert_eq!(index, 0, "the mark in the crease: {judgement:?}");
     }
 
     /// A witness found against the paper names marks that are on it — two
@@ -3957,6 +4093,58 @@ mod tests {
         let apart = order_with(&c, false, false);
         assert!(apart.iter().all(|p| p.twin_of.is_none()));
         assert_eq!(apart.len(), placed.len());
+    }
+
+    /// Markhor-detailed 113: a twin pair is one card only while both are
+    /// made the same way. Sighted again for a pinch, one of the quarter
+    /// lines comes to present a witness that is not the other's image — its
+    /// top corner onto the top edge's midpoint, against the other's bottom
+    /// corner onto the bottom's — and the pair is parted at the end. A pair
+    /// still mirrored is left as it is.
+    #[test]
+    fn twins_made_two_different_ways_are_parted() {
+        let c = closure_of(&[v(0.5), h(0.5), v(0.25), v(0.75)]);
+        let mut placed = order(&c, false);
+        let f = c.folded();
+        let state = c.state();
+        let untouched = placed.clone();
+        part_twins_no_longer_mirrored(&c, &mut placed);
+        assert_eq!(placed, untouched, "a mirrored pair is left as it is");
+        let k = placed
+            .iter()
+            .position(|p| {
+                p.twin_of.is_some()
+                    && (same_line(&f[p.folded].line, &v(0.25))
+                        || same_line(&f[p.folded].line, &v(0.75)))
+            })
+            .expect("the quarter lines are a pair");
+        let x = if same_line(&f[placed[k].folded].line, &v(0.25)) {
+            0.0
+        } else {
+            1.0
+        };
+        let corner = state.find_point([x, 1.0]).expect("top corner");
+        let top_mid = state.find_point([0.5, 1.0]).expect("top edge's midpoint");
+        let other = Witness {
+            axiom: 2,
+            inputs: vec![point_ref(state, corner), Ref::Point { id: top_mid }],
+            root: 0,
+            who_moves: vec![0],
+            hard: false,
+            visible: true,
+            skinny: false,
+            ease: crate::constants::fold_ease(2, false).expect("ease") as u8,
+            err: 0.0,
+        };
+        placed[k].chosen = Some(f[placed[k].folded].witnesses.len());
+        placed[k].found = Some(other);
+        part_twins_no_longer_mirrored(&c, &mut placed);
+        assert!(placed[k].twin_of.is_none(), "made two ways: two cards");
+        assert_eq!(
+            placed.iter().filter(|p| p.twin_of.is_some()).count(),
+            1,
+            "the midlines stay a pair"
+        );
     }
 
     /// The two diagonals of angelfish: each a mixed line, one a weak
