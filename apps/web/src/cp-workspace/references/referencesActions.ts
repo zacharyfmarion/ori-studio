@@ -17,12 +17,19 @@ import { getShortcutDefinition, type ReferencesShortcutId } from '../../keyboard
 export type ReferencesActionIcon =
   | 'previous-step'
   | 'next-step'
+  | 'play-fold'
   | 'previous-candidate'
   | 'next-candidate'
   | 'recompute'
   | 'reset-view'
   | 'zoom-in'
   | 'zoom-out';
+
+/**
+ * What a command draws: its own id, or, for the one verb whose picture
+ * follows its state, what pressing it would do next.
+ */
+export type ReferencesIconName = ReferencesActionIcon | 'pause-fold' | 'unfold';
 
 export interface ReferencesCommand {
   kind: 'command';
@@ -35,7 +42,7 @@ export interface ReferencesCommand {
    */
   shortcutId: ReferencesShortcutId;
   label: string;
-  icon: ReferencesActionIcon;
+  icon: ReferencesIconName;
   disabled: boolean;
   /** Why it is disabled, for a menu row's hint. */
   hint?: string;
@@ -58,6 +65,16 @@ export interface ReferencesActionState {
   canRecompute: boolean;
   /** The view has a pattern to look at. */
   hasView: boolean;
+  /** The active card's fold, as the transport has it. */
+  fold: {
+    /** The card has a fold to play. */
+    available: boolean;
+    playing: boolean;
+    /** At rest, folded over: the verb is Unfold. */
+    folded: boolean;
+    /** The card is a pleat, which is many folds and not animated. */
+    pleat: boolean;
+  };
 }
 
 export interface ReferencesActionDeps {
@@ -92,6 +109,26 @@ export function buildReferencesActions(
     disabled,
     hint: disabled ? hint : undefined,
   });
+  // One verb, three faces: Play from flat, Pause while it moves, Unfold from
+  // folded. The registry names the first; the other two are what the same
+  // key does next.
+  const { fold } = state;
+  const playFold: ReferencesCommand = {
+    ...command(
+      'play-fold',
+      'references.playFold',
+      'Play Fold',
+      !fold.available,
+      fold.pleat
+        ? t('panels:references.actions.pleatHint', 'Pleats aren’t animated yet')
+        : t('panels:references.actions.noFoldHint', 'Open a fold of the sequence to play it')
+    ),
+    ...(fold.playing
+      ? { label: t('panels:references.actions.pauseFold', 'Pause Fold'), icon: 'pause-fold' as const }
+      : fold.folded
+        ? { label: t('panels:references.actions.unfold', 'Unfold'), icon: 'unfold' as const }
+        : {}),
+  };
 
   return [
     command(
@@ -108,6 +145,7 @@ export function buildReferencesActions(
       !hasSteps || state.activeStep >= state.stepCount - 1,
       hasSteps ? undefined : noTarget
     ),
+    playFold,
     { kind: 'separator', id: 'after-steps' },
     command(
       'previous-candidate',

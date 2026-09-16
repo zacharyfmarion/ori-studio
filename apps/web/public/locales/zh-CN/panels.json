@@ -803,7 +803,11 @@
   },
   "references": {
     "actions": {
-      "noTargetHint": "请先选择一个顶点或折痕"
+      "noFoldHint": "打开序列中的一个折叠即可播放",
+      "noTargetHint": "请先选择一个顶点或折痕",
+      "pauseFold": "暂停折叠",
+      "pleatHint": "百褶折暂不支持动画",
+      "unfold": "展开"
     },
     "alreadyOnSheet": "这个点已经在纸上了，无需折叠。",
     "alreadyOnSheetLine": "这条线已经在纸上了，无需折叠。",
@@ -968,6 +972,8 @@
     "settings": {
       "allowDangling": "允许悬空折痕",
       "allowDanglingHelp": "悬空折痕是指一端落在空白纸面上、没有任何参照可停的折痕。开启时：每条折痕从一个参照（纸边或已有折痕）出发，只有在不会多压出比折痕本身更长的部分时才延伸到第二个参照。关闭时：每条折痕都从参照压到参照，无论要多压多少。",
+      "autoPlayFolds": "自动播放折叠",
+      "autoPlayFoldsHelp": "到达某一步的卡片时立即播放其折叠。关闭时，按“播放”或空格键播放折叠，再按一次则折回。",
       "candidates": "候选数",
       "emptyNote": "打开折痕图以调整其参考的查找方式。",
       "gridWhereNeeded": "仅在需要处",

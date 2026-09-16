@@ -39,9 +39,13 @@ import {
 } from '../renderer/camera';
 import type { CpRenderer } from '../renderer/CpRenderer';
 import { readCssVarColor, readCssVarNumber } from '../renderer/cssColor';
-import { canvasDiagramInk } from './diagram/diagramInk';
+import { canvasDiagramInk, diagramDashSlot } from './diagram/diagramInk';
+import type { FoldPose } from './fold/foldPlayback';
+import { EMPTY_FOLDED, foldPoseGeometry, type FoldPaint } from './fold/foldPoseGeometry';
+import type { FoldScene } from './fold/foldScene';
+import { dropPointsOnFlaps, splitStrokesAtFolds, type SplitStrokes } from './fold/foldSplit';
 import { createReglRenderer } from '../renderer/reglRenderer';
-import type { Rgba, StrokeGeometry, Viewport } from '../renderer/types';
+import type { PointGeometry, Rgba, StrokeGeometry, Viewport } from '../renderer/types';
 import type { CpOverlayView } from '../CreasePatternWebglCanvas';
 import { classifyCpWebglFailure, cpWebglSupport, describeCpWebglGap } from '../renderer/webglSupport';
 import {
@@ -108,6 +112,12 @@ export interface ReferencesCpViewHandle {
   fit: () => void;
   /** Point the camera at model-space bounds without zooming out (a jump, not a fit). */
   frameModelBounds: (bounds: ModelBounds) => void;
+  /**
+   * Put the `fold` prop's flap at a pose, or lay the paper flat again with
+   * null. Imperative because it arrives once a frame from the transport's
+   * animation loop, and a prop would re-render the panel on every one.
+   */
+  setFoldPose: (pose: FoldPose | null) => void;
 }
 
 /**
@@ -177,6 +187,13 @@ export interface ReferencesCpViewProps {
    * with `mirror: -1`.
    */
   mirrored?: boolean;
+  /**
+   * The active step's fold, for {@link ReferencesCpViewHandle.setFoldPose}
+   * to move. Null when the card has nothing to fold. At rest it changes
+   * nothing; with a pose set, every line on the paper is split at the fold
+   * and the flap's half rides the folded channel (`fold/foldSplit.ts`).
+   */
+  fold?: FoldScene | null;
   selected: ReferencesSelection | null;
   onPick: (hit: ReferencesPick | null) => void;
   /**
@@ -310,6 +327,45 @@ function overlayColors(canvas: HTMLCanvasElement): ReferencesOverlayColors {
   };
 }
 
+/** What the three upload effects last computed, before any fold was applied. */
+interface FoldUploads {
+  strokes: StrokeGeometry | null;
+  points: PointGeometry | null;
+  preview: StrokeGeometry | null;
+}
+
+/** The uploads split at a fold, kept while the uploads and the fold stand. */
+interface FoldRig {
+  scene: FoldScene;
+  strokes: StrokeGeometry | null;
+  preview: StrokeGeometry | null;
+  points: PointGeometry | null;
+  split: SplitStrokes | null;
+  previewSplit: SplitStrokes | null;
+  basePoints: PointGeometry | null;
+  paint: Omit<FoldPaint, 'modelToUser'>;
+}
+
+/**
+ * The flap's inks, from the canvas's theme. The face the reader is on is the
+ * ground the sheet is drawn as — the back when the view is mirrored — and
+ * the other face the paper's other colour; the direction inks are the ones
+ * `applyCreaseVisibility` gave the creases, so a swap on the other face
+ * finds them.
+ */
+function foldPaint(canvas: HTMLCanvasElement, mirrored: boolean): Omit<FoldPaint, 'modelToUser'> {
+  const ground = readCssVarColor(canvas, CANVAS_BG_VAR, FALLBACK_CLEAR);
+  const back = readCssVarColor(canvas, PAPER_BACK_VAR, FALLBACK_CLEAR);
+  return {
+    up: mirrored ? back : ground,
+    other: mirrored ? ground : back,
+    mountain: readCssVarColor(canvas, MOUNTAIN_COLOR_VAR, MOUNTAIN_FALLBACK),
+    valley: readCssVarColor(canvas, VALLEY_COLOR_VAR, VALLEY_FALLBACK),
+    mountainSlot: diagramDashSlot('mountain'),
+    valleySlot: diagramDashSlot('valley'),
+  };
+}
+
 /** Everything the imperative handlers read, refreshed every render without re-binding them. */
 interface LiveProps {
   /** Model → SVG, mirrored about the sheet when the paper is on its back. */
@@ -331,6 +387,7 @@ interface LiveProps {
   /** Median crease length, for the vertex crowding ramp. */
   vertexSpacingModel: number;
   hitIndexes: ReferencesHitIndexes;
+  fold: FoldScene | null;
 }
 
 export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpViewProps>(
@@ -351,6 +408,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       sheetLineIds = null,
       creaseVisibility = ALL_CREASES,
       mirrored = false,
+      fold = null,
       onPick,
       framingKey,
       themeKey,
@@ -505,7 +563,14 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       vertices,
       vertexSpacingModel,
       hitIndexes,
+      fold,
     });
+    // The fold's pose, and what the channels held before it was applied, so
+    // the paper can be laid flat again from exactly what was uploaded.
+    const poseRef = useRef<FoldPose | null>(null);
+    const fullRef = useRef<FoldUploads>({ strokes: null, points: null, preview: null });
+    const rigRef = useRef<FoldRig | null>(null);
+    const applyFoldRef = useRef<() => void>(() => undefined);
     const lastViewRef = useRef<ReferencesDiagramView | null>(null);
     const lastZoomPercentRef = useRef<number | null>(null);
     // Declared before every effect below, so within one commit the handlers
@@ -527,6 +592,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         vertices,
         vertexSpacingModel,
         hitIndexes,
+        fold,
       };
     });
 
@@ -652,6 +718,8 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           view,
           userView,
           strokeWidthPx: CREASE_WIDTH_FACTOR * liveRef.current.lineWidth * ratio * widthBoost,
+          // A crease on the flap is the same crease: the same pen.
+          foldedStrokeWidthPx: CREASE_WIDTH_FACTOR * liveRef.current.lineWidth * ratio * widthBoost,
           userScalePx: cam.zoom,
           markerScalePx,
           pointScalePx,
@@ -662,6 +730,58 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         });
       };
       renderNowRef.current = renderNow;
+
+      /**
+       * Bring the channels in line with the pose: at rest, exactly what the
+       * upload effects computed; posed, the paper split at the fold and the
+       * flap drawn through the folded channel. The split is kept while the
+       * uploads and the fold it was made for stay the same, so a frame of
+       * the animation costs one pack of the flap and nothing of the base.
+       */
+      const applyFold = () => {
+        const full = fullRef.current;
+        const pose = poseRef.current;
+        const scene = liveRef.current.fold;
+        if (!pose || !scene) {
+          rigRef.current = null;
+          if (full.strokes) renderer.setStrokes(full.strokes);
+          if (full.points) renderer.setPoints(full.points);
+          renderer.setPreview(full.preview);
+          renderer.setFolded(EMPTY_FOLDED);
+          return;
+        }
+        let rig = rigRef.current;
+        if (
+          !rig ||
+          rig.scene !== scene ||
+          rig.strokes !== full.strokes ||
+          rig.preview !== full.preview ||
+          rig.points !== full.points
+        ) {
+          const { flaps } = scene;
+          rig = {
+            scene,
+            strokes: full.strokes,
+            preview: full.preview,
+            points: full.points,
+            split: full.strokes ? splitStrokesAtFolds(full.strokes, flaps) : null,
+            previewSplit: full.preview ? splitStrokesAtFolds(full.preview, flaps) : null,
+            basePoints: full.points ? dropPointsOnFlaps(full.points, flaps) : null,
+            paint: foldPaint(canvas, liveRef.current.mirrored),
+          };
+          rigRef.current = rig;
+          if (rig.split) renderer.setStrokes(rig.split.base);
+          if (rig.basePoints) renderer.setPoints(rig.basePoints);
+          renderer.setPreview(rig.previewSplit?.base ?? null);
+        }
+        renderer.setFolded(
+          foldPoseGeometry(scene, pose, [rig.split?.flap, rig.previewSplit?.flap], {
+            ...rig.paint,
+            modelToUser: liveRef.current.modelToSvg,
+          })
+        );
+      };
+      applyFoldRef.current = applyFold;
 
       const applySize = () => {
         const rect = canvas.getBoundingClientRect();
@@ -883,6 +1003,8 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         canvas.removeEventListener('wheel', onWheel);
         cancelHover();
         renderNowRef.current = () => undefined;
+        applyFoldRef.current = () => undefined;
+        rigRef.current = null;
         rendererRef.current = null;
         renderer.dispose();
       };
@@ -932,18 +1054,17 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         creaseVisibility.dimAlpha < 1
           ? readCssVarNumber(canvas, DIM_ALPHA_VAR, creaseVisibility.dimAlpha)
           : creaseVisibility.dimAlpha;
-      renderer.setStrokes(
-        applyCreaseVisibility(
-          strokes,
-          geometry.segEndpoints.length / 4,
-          {
-            ...creaseVisibility,
-            dimAlpha,
-            ink: { mountain: palette.mountain, valley: palette.valley },
-          },
-          canvasDiagramInk(lineWidth)
-        )
+      fullRef.current.strokes = applyCreaseVisibility(
+        strokes,
+        geometry.segEndpoints.length / 4,
+        {
+          ...creaseVisibility,
+          dimAlpha,
+          ink: { mountain: palette.mountain, valley: palette.valley },
+        },
+        canvasDiagramInk(lineWidth)
       );
+      applyFoldRef.current();
       // Only when the paper is on its back: the front face is the same colour
       // as the ground it lies on, so filling it would draw nothing and cost a
       // buffer upload per theme change.
@@ -976,14 +1097,19 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       const renderer = rendererRef.current;
       const canvas = canvasRef.current;
       if (!renderer || !canvas) return;
-      renderer.setPoints(
-        cpPointsToScene([], drawnVertices, [], resolveCpPointStyle(canvas, pointSize), {
+      fullRef.current.points = cpPointsToScene(
+        [],
+        drawnVertices,
+        [],
+        resolveCpPointStyle(canvas, pointSize),
+        {
           pointIdx: new Set(),
           circleIdx: new Set(),
           vertexIdx: new Set(),
           color: readCssVarColor(canvas, INK_COLOR_VAR, INK_FALLBACK),
-        })
+        }
       );
+      applyFoldRef.current();
       renderNowRef.current();
     }, [drawnVertices, pointSize, themeKey, rendererGeneration]);
 
@@ -1005,9 +1131,16 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
               HIGHLIGHT_WIDTH_MUL
             )
           : null;
-      renderer.setPreview(concatStrokes(diagramStrokes, hoverStroke));
+      fullRef.current.preview = concatStrokes(diagramStrokes, hoverStroke);
+      applyFoldRef.current();
       renderNowRef.current();
     }, [diagramStrokes, hovered, selected, geometry, themeKey, rendererGeneration]);
+
+    // A different fold under the same uploads: the split is for the old one.
+    useEffect(() => {
+      applyFoldRef.current();
+      renderNowRef.current();
+    }, [fold]);
 
     // Input rings, the new mark, the picked/highlighted vertices and the ring
     // round the vertex under the pointer, on top of everything. This channel
@@ -1094,6 +1227,11 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
               cam,
               liveRef.current.contentBounds
             );
+            renderNowRef.current();
+          },
+          setFoldPose: (pose) => {
+            poseRef.current = pose;
+            applyFoldRef.current();
             renderNowRef.current();
           },
         };

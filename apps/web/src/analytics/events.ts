@@ -526,6 +526,15 @@ export const ANALYTICS_EVENTS = {
    * about which one, which would be the user's geometry.
    */
   referencesStepJumped: 'references step jumped',
+  /**
+   * A step's fold was set moving in the References workspace. `trigger` is
+   * `user` (the button, Space or the menu row) or `auto` (the setting);
+   * `direction` is `fold` or `unfold`; `step_kind` is `cp`, `aux` or
+   * `press`. A pause is not counted. Nothing about the fold itself.
+   */
+  referencesFoldPlayed: 'references fold played',
+  /** The "Auto-play folds" preference was switched; `enabled` is `on` / `off`. */
+  referencesFoldAutoplayChanged: 'references fold autoplay changed',
   creasePatternBuilt: 'crease pattern built',
   optimizerRun: 'optimizer run',
   projectOpened: 'project opened',

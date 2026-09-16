@@ -865,7 +865,11 @@
   },
   "references": {
     "actions": {
-      "noTargetHint": "Elige primero un vértice o un pliegue"
+      "noFoldHint": "Abre un pliegue de la secuencia para reproducirlo",
+      "noTargetHint": "Elige primero un vértice o un pliegue",
+      "pauseFold": "Pausar pliegue",
+      "pleatHint": "Los plisados aún no se animan",
+      "unfold": "Desplegar"
     },
     "alreadyOnSheet": "Este punto ya está en el papel: no hace falta doblar.",
     "alreadyOnSheetLine": "Esta línea ya está en el papel: no hace falta doblar.",
@@ -1040,6 +1044,8 @@
     "settings": {
       "allowDangling": "Permitir pliegues sueltos",
       "allowDanglingHelp": "Un pliegue suelto es una marca que termina en papel en blanco, sin nada donde detenerse. Activado: cada marca parte de una referencia (el borde del papel o un pliegue ya hecho) y llega a una segunda solo cuando eso no añade más marca que la propia marca. Desactivado: cada marca va de referencia a referencia, cueste el pliegue extra que cueste.",
+      "autoPlayFolds": "Reproducir pliegues automáticamente",
+      "autoPlayFoldsHelp": "Reproduce el pliegue de un paso en cuanto se llega a su tarjeta. Desactivado, el pliegue se reproduce al pulsar Reproducir o la barra espaciadora, y vuelve atrás al pulsar de nuevo.",
       "candidates": "Candidatos",
       "emptyNote": "Abre un patrón de plegado para ajustar cómo se buscan sus referencias.",
       "gridWhereNeeded": "Solo donde haga falta",

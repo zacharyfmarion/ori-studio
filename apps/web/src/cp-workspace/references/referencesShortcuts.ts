@@ -12,6 +12,7 @@ export const REFERENCES_SHORTCUT_IDS: readonly ReferencesShortcutId[] = [
   'references.zoomIn',
   'references.zoomOut',
   'references.clearTarget',
+  'references.playFold',
 ];
 
 /**
@@ -30,6 +31,8 @@ export interface ReferencesShortcutActions {
   zoomOut: () => void;
   /** Stop asking about the picked vertex or crease (`Escape`). */
   clearTarget: () => void;
+  /** Play the step's fold, pause it, or play it back (`Space`). */
+  playFold: () => void;
 }
 
 /**
@@ -74,6 +77,9 @@ export function runReferencesShortcut(
       return;
     case 'references.clearTarget':
       actions.clearTarget();
+      return;
+    case 'references.playFold':
+      actions.playFold();
       return;
   }
 }

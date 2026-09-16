@@ -62,7 +62,8 @@ export type ReferencesShortcutId =
   | 'references.resetView'
   | 'references.zoomIn'
   | 'references.zoomOut'
-  | 'references.clearTarget';
+  | 'references.clearTarget'
+  | 'references.playFold';
 export type ShortcutActionId =
   | MenuActionId
   | OristudioCpActionId
@@ -414,6 +415,10 @@ const REFERENCES_SHORTCUTS: ShortcutDefinition[] = [
   // stack together — References has no selection, no tool and no drag to cancel,
   // so the one thing Escape can mean here is "stop asking about this vertex".
   referencesShortcut('references.clearTarget', 'Clear Reference Target', { key: 'escape' }),
+  // Space, as the simulator's play/pause: the two scopes are never in the
+  // stack together, and space-to-pan belongs to the crease-pattern scope
+  // beneath this one.
+  referencesShortcut('references.playFold', 'Play Fold', { key: ' ' }),
 ];
 
 /**

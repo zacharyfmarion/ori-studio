@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Pause, Play, RefreshCw, Rewind } from 'lucide-react';
 import {
   ViewportToolbar,
   type ViewportToolbarGroupSpec,
@@ -35,6 +35,11 @@ export interface ReferencesViewportToolbarProps {
  * only a title. It sits where Fold sits on the Edit bar and for the same
  * reason. Pinned, so on touch the bar is the whole set and there is no `⋯` to
  * open for one row.
+ *
+ * Play comes before Recompute: it is the sequence's own verb, and the one a
+ * reader presses most while reading. Its glyph follows the transport — Play
+ * from flat, Pause while it moves, a rewind from folded — because the
+ * catalog says so; the bar only draws the icon it is handed.
  *
  * On the phone the bar also ends with Previous and Next step. The filmstrip
  * carries them everywhere else, but on a 375px strip two touch-sized buttons
@@ -88,9 +93,38 @@ export function ReferencesViewportToolbar({
       ]
     : [];
 
+  const play = command('play-fold');
+  const playChord = shortcutLabelForAction('references.playFold', shortcuts);
+  const playIcon =
+    play?.icon === 'pause-fold' ? (
+      <Pause size={14} />
+    ) : play?.icon === 'unfold' ? (
+      <Rewind size={14} />
+    ) : (
+      <Play size={14} />
+    );
   const recompute = command('recompute');
   const recomputeChord = shortcutLabelForAction('references.recompute', shortcuts);
   const groups: ViewportToolbarGroupSpec[] = [
+    ...(play
+      ? [
+          {
+            id: 'fold',
+            items: [
+              {
+                kind: 'action' as const,
+                id: 'play-fold',
+                label: play.label,
+                title: playChord ? `${play.label} (${playChord})` : play.label,
+                icon: playIcon,
+                disabled: play.disabled,
+                pinned: true,
+                onSelect: dispatch('play-fold'),
+              },
+            ],
+          },
+        ]
+      : []),
     ...(recompute
       ? [
           {

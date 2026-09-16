@@ -36,6 +36,7 @@ const FOLD_WARNING_KEY = storageKey(STORAGE_KEYS.foldWarning);
 const ANALYTICS_ENABLED_KEY = storageKey(STORAGE_KEYS.analyticsEnabled);
 const CP_WHEEL_GESTURE_KEY = storageKey(STORAGE_KEYS.cpWheelGesture);
 const CP_SNAP_RADIUS_KEY = storageKey(STORAGE_KEYS.cpSnapRadius);
+const REFERENCES_AUTO_PLAY_FOLDS_KEY = storageKey(STORAGE_KEYS.referencesAutoPlayFolds);
 
 /**
  * Anything unrecognised — absent, stale, hand-edited — reads as the default.
@@ -107,6 +108,13 @@ interface SettingsState {
    * same thing in both apps.
    */
   cpSnapRadius: number;
+  /**
+   * Play a step's fold as soon as its card is reached in the References
+   * workspace. Off by default: the animation is there to be asked for, and a
+   * reader stepping through a long sequence with the arrow keys should not
+   * have the paper moving under every card.
+   */
+  referencesAutoPlayFolds: boolean;
   openSettings: (tab?: SettingsTab) => void;
   closeSettings: () => void;
   setBpTreeLayer: (layer: BpTreeViewLayerKey, visible: boolean) => void;
@@ -117,6 +125,7 @@ interface SettingsState {
   setCpDetectSuggestions: (value: boolean) => void;
   setCpWheelGesture: (value: WheelGesturePreference) => void;
   setCpSnapRadius: (value: number) => void;
+  setReferencesAutoPlayFolds: (value: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -132,6 +141,7 @@ export const useSettingsStore = create<SettingsState>()(
       cpDetectSuggestions: readBoolean(CP_DETECT_SUGGESTIONS_KEY, true),
       cpWheelGesture: readCpWheelGesture(),
       cpSnapRadius: readCpSnapRadius(),
+      referencesAutoPlayFolds: readBoolean(REFERENCES_AUTO_PLAY_FOLDS_KEY, false),
       openSettings: (tab) => set({ isSettingsOpen: true, settingsInitialTab: tab ?? null }),
       closeSettings: () => set({ isSettingsOpen: false, settingsInitialTab: null }),
       setBpTreeLayer: (layer, visible) =>
@@ -177,6 +187,13 @@ export const useSettingsStore = create<SettingsState>()(
         track(ANALYTICS_EVENTS.cpSnapRadiusChanged, {
           snap_radius: bucketCount(radius, CP_SNAP_RADIUS_BUCKETS),
         });
+      },
+      setReferencesAutoPlayFolds: (value) => {
+        writeBoolean(REFERENCES_AUTO_PLAY_FOLDS_KEY, value);
+        set({ referencesAutoPlayFolds: value });
+        // Hand-placed like the two above: no chokepoint sees a preference
+        // change, and on/off is the whole question.
+        track(ANALYTICS_EVENTS.referencesFoldAutoplayChanged, { enabled: value ? 'on' : 'off' });
       },
     }),
     { name: 'SettingsStore' }

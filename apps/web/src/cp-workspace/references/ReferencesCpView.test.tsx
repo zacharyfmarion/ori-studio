@@ -21,6 +21,7 @@ const uploads = vi.hoisted(() => ({
   setPreview: vi.fn(),
   setOverlayPoints: vi.fn(),
   setPoints: vi.fn(),
+  setFolded: vi.fn(),
   render: vi.fn(),
 }));
 vi.mock('../renderer/reglRenderer', () => ({
@@ -98,6 +99,7 @@ afterEach(() => {
   uploads.setPreview.mockClear();
   uploads.setOverlayPoints.mockClear();
   uploads.setPoints.mockClear();
+  uploads.setFolded.mockClear();
   uploads.render.mockClear();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -492,6 +494,58 @@ describe('ReferencesCpView overlays', () => {
     // Dimmed, not recoloured: alpha alone moves.
     expect(strokes.color[3]).toBeCloseTo(0.25, 5);
     expect(strokes.color[7]).toBeCloseTo(1, 5);
+  });
+
+  it('splits the paper at the fold while a pose is set, and lays it flat again', () => {
+    const ref = createRef<ReferencesCpViewHandle>();
+    // The fold line is x = 100, the right half swinging: the horizontal crease
+    // crosses it and is cut in two, the vertical crease lies on it and stays.
+    mount(
+      {
+        fold: {
+          kind: 'cp',
+          flaps: [
+            {
+              chord: [
+                { x: 100, y: 0 },
+                { x: 100, y: 100 },
+              ],
+              side: -1,
+              polygon: [
+                { x: 100, y: 0 },
+                { x: 200, y: 0 },
+                { x: 200, y: 100 },
+                { x: 100, y: 100 },
+              ],
+              creased: [[0, 100]],
+            },
+          ],
+          sheetShortSide: 100,
+          reach: 100,
+        },
+      },
+      ref
+    );
+    const whole = uploads.setStrokes.mock.calls.at(-1)?.[0];
+    expect(whole.count).toBe(2);
+    act(() => ref.current?.setFoldPose({ angle: Math.PI, press: 1 }));
+    const base = uploads.setStrokes.mock.calls.at(-1)?.[0];
+    expect(base.count).toBe(2);
+    // The left half of the horizontal crease ends at the fold.
+    expect(base.b[0]).toBe(100);
+    const folded = uploads.setFolded.mock.calls.at(-1)?.[0];
+    expect(folded.fills.count).toBe(6);
+    expect(folded.strokes.count).toBe(1);
+    // The moved half lands over the left half, folded at the hinge — in the
+    // folded channel's user space, which is where the view maps it to.
+    const hinge = cpModelToSvg({ x: 100, y: 50 }).x;
+    const edge = cpModelToSvg({ x: 0, y: 50 }).x;
+    const xs = [folded.strokes.a[0], folded.strokes.b[0]].sort((p, q) => p - q);
+    expect(xs[0]).toBeCloseTo(Math.min(hinge, edge), 3);
+    expect(xs[1]).toBeCloseTo(Math.max(hinge, edge), 3);
+    act(() => ref.current?.setFoldPose(null));
+    expect(uploads.setStrokes.mock.calls.at(-1)?.[0]).toBe(whole);
+    expect(uploads.setFolded.mock.calls.at(-1)?.[0].fills.count).toBe(0);
   });
 
   it('exposes zoom, fit and framing on its handle', () => {

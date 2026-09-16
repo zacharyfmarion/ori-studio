@@ -70,6 +70,7 @@ function commandsFor(overrides: Partial<ReferencesActionState> = {}) {
         activeCandidate: 0,
         canRecompute: true,
         hasView: true,
+        fold: { available: true, playing: false, folded: false, pleat: false },
         ...overrides,
       },
       { t }
@@ -131,7 +132,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const BAR = ['Zoom Out', '100%', 'Zoom In', 'Fit', 'Recompute References'];
+const BAR = ['Zoom Out', '100%', 'Zoom In', 'Fit', 'Play Fold', 'Recompute References'];
 
 describe('ReferencesViewportToolbar', () => {
   it('holds the zoom cluster, Fit and Recompute, and nothing to overflow', () => {
@@ -158,6 +159,19 @@ describe('ReferencesViewportToolbar', () => {
       'references.resetView',
       'references.recompute',
     ]);
+  });
+
+  it('shows the fold verb as what pressing it does next: play, pause, or unfold', () => {
+    render({ fold: { available: true, playing: true, folded: false, pleat: false } });
+    expect(button('Pause Fold')).toBeTruthy();
+    press(button('Pause Fold'));
+    expect(run).toHaveBeenLastCalledWith('references.playFold');
+    act(() => root?.unmount());
+    render({ fold: { available: true, playing: false, folded: true, pleat: false } });
+    expect(button('Unfold')).toBeTruthy();
+    act(() => root?.unmount());
+    render({ fold: { available: false, playing: false, folded: false, pleat: true } });
+    expect(button('Play Fold')?.disabled).toBe(true);
   });
 
   it("takes Recompute's gating from the catalog", () => {

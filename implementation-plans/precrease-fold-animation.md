@@ -323,11 +323,11 @@ Enums only; no step numbers, no geometry.
 
 ## Checklist
 
-- [ ] **Phase 0 — name the motion.** `stepFoldMotion` extracted from the
+- [x] **Phase 0 — name the motion.** `stepFoldMotion` extracted from the
       arrow code; the arrow reads it; a test over the `plannerSequence`
       fixture pins arrow side = swing side; the O1 / press / grid / twin rules
       above pinned by case.
-- [ ] **Phase 1 — the pipeline, with a rigid hinge.** Transport state machine
+- [x] **Phase 1 — the pipeline, with a rigid hinge.** Transport state machine
       and hook, `setFoldPose`, the split, the folded-channel upload with
       `r = 0`, face colours and depth, the Play button, Space, the setting,
       analytics, locales. Visible result: the flap swings over as a flat plate

@@ -39,6 +39,8 @@ export const STORAGE_KEYS = {
   cpToolHintCollapsed: 'cp-tool-hint-collapsed',
   bpOptimizer: 'bp-optimizer',
   simulatorSettings: 'simulator-settings',
+  /** Play a step's fold on arriving at its card in the References workspace. */
+  referencesAutoPlayFolds: 'references-auto-play-folds',
   /** Whether product analytics is enabled (opt-out preference; default true). */
   cpDetectSuggestions: 'cp-detect-suggestions',
   analyticsEnabled: 'analytics-enabled',

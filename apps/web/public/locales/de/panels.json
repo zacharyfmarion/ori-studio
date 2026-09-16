@@ -832,7 +832,11 @@
   },
   "references": {
     "actions": {
-      "noTargetHint": "Wähle zuerst einen Scheitelpunkt oder eine Falte"
+      "noFoldHint": "Öffne eine Faltung der Sequenz, um sie abzuspielen",
+      "noTargetHint": "Wähle zuerst einen Scheitelpunkt oder eine Falte",
+      "pauseFold": "Faltung pausieren",
+      "pleatHint": "Plissees werden noch nicht animiert",
+      "unfold": "Entfalten"
     },
     "alreadyOnSheet": "Dieser Punkt liegt bereits auf dem Papier – keine Faltung nötig.",
     "alreadyOnSheetLine": "Diese Linie liegt bereits auf dem Papier – keine Faltung nötig.",
@@ -1002,6 +1006,8 @@
     "settings": {
       "allowDangling": "Lose Falten erlauben",
       "allowDanglingHelp": "Eine lose Falte ist ein Kniff, der auf leerem Papier endet – ohne Anhaltspunkt, wo er aufhört. An: Jeder Kniff beginnt an einer Referenz (Papierkante oder bereits vorhandene Falte) und läuft nur dann bis zu einer zweiten, wenn das nicht mehr Falz kostet als der Kniff selbst lang ist. Aus: Jeder Kniff läuft von Referenz zu Referenz, egal wie viel zusätzlicher Falz nötig ist.",
+      "autoPlayFolds": "Faltungen automatisch abspielen",
+      "autoPlayFoldsHelp": "Spielt die Faltung eines Schritts ab, sobald seine Karte erreicht ist. Aus: Die Faltung läuft, wenn du Abspielen oder die Leertaste drückst, und zurück, wenn du erneut drückst.",
       "candidates": "Kandidaten",
       "emptyNote": "Öffne ein Faltmuster, um einzustellen, wie seine Referenzen gefunden werden.",
       "gridWhereNeeded": "Nur wo nötig",
