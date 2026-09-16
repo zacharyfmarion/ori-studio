@@ -895,6 +895,7 @@
     },
     "lead": {
       "find": "Toque em um vértice ou dobra para ver como dobrá-lo a partir de uma folha em branco.",
+      "findSequence": "Ou calcule toda a sequência de pré-dobras.",
       "plan": "Todas as pré-dobras do padrão, na ordem em que são dobradas.",
       "planAction": "Calcular a sequência de pré-dobras"
     },

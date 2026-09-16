@@ -254,14 +254,26 @@ it('lands in Find with the lead where the filmstrip goes, and plans only when th
     });
     useWorkspaceStore.setState({ oristudioCpDocument: document1 } as never);
   });
-  // Find: the hint, no strip, and nothing running.
+  // Find: the hint naming both jobs, no strip, and nothing running.
   expect(useWorkspaceStore.getState().referencesView.mode).toBe('find');
   expect(query('.references-lead')?.textContent).toContain('Tap a vertex or crease');
+  expect(query('.references-lead__link')?.textContent).toContain('plan the whole precreasing');
   expect(query('.references-filmstrip')).toBeNull();
   expect(useWorkspaceStore.getState().referencesRun.status).toBe('idle');
 
-  // Sequence: the planner is asked, and the lead says so. (Radix activates a
-  // tab on mousedown, not click.)
+  // The lead's own link is a way into the sequence…
+  act(() =>
+    query('.references-lead__link')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+  );
+  expect(useWorkspaceStore.getState().referencesView.mode).toBe('sequence');
+  // …and back to Find by the tab. (Radix activates a tab on mousedown, not click.)
+  act(() =>
+    query('.references-mode [role="tab"][aria-selected="false"]')?.dispatchEvent(
+      new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+    )
+  );
+  expect(useWorkspaceStore.getState().referencesView.mode).toBe('find');
+  // Sequence by the tab: the planner is asked, and the lead says so.
   act(() =>
     query('.references-mode [role="tab"][aria-selected="false"]')?.dispatchEvent(
       new MouseEvent('mousedown', { bubbles: true, cancelable: true })

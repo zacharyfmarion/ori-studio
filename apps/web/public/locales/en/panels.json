@@ -861,6 +861,7 @@
     },
     "lead": {
       "find": "Tap a vertex or crease to see how to fold it from a blank sheet.",
+      "findSequence": "Or plan the whole precreasing sequence.",
       "plan": "Every precrease of the pattern, in the order to fold them.",
       "planAction": "Plan the precreasing sequence"
     },

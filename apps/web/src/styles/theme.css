@@ -10991,6 +10991,26 @@ button.bp-packing-alert:focus-visible {
 }
 
 /*
+ * Two tabs that are peers, not a row of documents one of which dominates: the
+ * Design strip dims an inactive tab to the tertiary colour, which with two
+ * tabs read as disabled and hid the second job. Here the inactive one keeps
+ * the secondary colour with its icon at full strength, gains a ground on
+ * hover, and the active one keeps the accent line and the lighter ground.
+ */
+.references-mode .design-tab {
+  color: var(--text-secondary);
+}
+
+.references-mode .design-tab .design-tab__trigger > svg {
+  color: var(--text-primary);
+}
+
+.references-mode .design-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+/*
  * The one line where the filmstrip goes once there are cards: the mode's hint,
  * the wait while the sequence is planned, or the button that plans it. The
  * strip's own height, so the canvas does not jump when the cards arrive.
@@ -11013,6 +11033,28 @@ button.bp-packing-alert:focus-visible {
 .references-lead__text {
   flex: 1 1 24ch;
   margin: 0;
+}
+
+/* The lead's second sentence, which is the way into the other job: a link
+   in the running text, in the accent, so it reads as somewhere to go. */
+.references-lead__link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-primary);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.references-lead__link:hover {
+  color: var(--text-primary);
+}
+
+.references-lead__link:focus-visible {
+  outline: 1px solid var(--accent-primary);
+  outline-offset: 2px;
 }
 
 .references-panel__overlay {

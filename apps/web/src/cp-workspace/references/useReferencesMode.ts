@@ -15,15 +15,25 @@ import type { ReferencesMode } from './referencesMode';
  * pattern and survives a switch either way, so coming back to Sequence costs
  * nothing.
  */
+/** What switched the mode: the tab itself, or the lead's line under it. */
+export type ReferencesModeSource = 'tab' | 'lead';
+
 export interface ReferencesModeController {
   mode: ReferencesMode;
-  setMode: (mode: ReferencesMode) => void;
+  setMode: (mode: ReferencesMode, source?: ReferencesModeSource) => void;
 }
 
 export function useReferencesMode(
   /** Refit-on-new-document key from `useReferencesView`. */
   framingKey: string,
-  /** The target controller's `clear`, run when Find is left. */
+  /** Whether a vertex or crease is picked — there is something to clear. */
+  hasPick: boolean,
+  /**
+   * The target controller's `clear`, run when Find is left with a pick. Only
+   * then: it also ends whatever run the registry holds, and with nothing
+   * picked that is the sequence's own plan, which a switch away and back
+   * would otherwise leave computing with its status reset to idle.
+   */
   clearPick: () => void
 ): ReferencesModeController {
   const mode = useWorkspaceStore((state) => state.referencesView.mode);
@@ -32,9 +42,11 @@ export function useReferencesMode(
   // Through refs, so the effect below keys on the document alone and the
   // callback closes over nothing that changes identity per render.
   const clearRef = useRef(clearPick);
+  const hasPickRef = useRef(hasPick);
   const modeRef = useRef(mode);
   useEffect(() => {
     clearRef.current = clearPick;
+    hasPickRef.current = hasPick;
     modeRef.current = mode;
   });
 
@@ -49,11 +61,11 @@ export function useReferencesMode(
   }, [framingKey, setReferencesView]);
 
   const setMode = useCallback(
-    (next: ReferencesMode) => {
+    (next: ReferencesMode, source: ReferencesModeSource = 'tab') => {
       if (next === modeRef.current) return;
-      if (next === 'sequence') clearRef.current();
+      if (next === 'sequence' && hasPickRef.current) clearRef.current();
       setReferencesView({ mode: next });
-      track(ANALYTICS_EVENTS.referencesModeChanged, { mode: next });
+      track(ANALYTICS_EVENTS.referencesModeChanged, { mode: next, source });
     },
     [setReferencesView]
   );

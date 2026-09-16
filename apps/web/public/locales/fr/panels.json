@@ -895,6 +895,7 @@
     },
     "lead": {
       "find": "Touchez un sommet ou un pli pour voir comment le plier à partir d’une feuille vierge.",
+      "findSequence": "Ou calculez toute la séquence de prépliage.",
       "plan": "Tous les prépliages du patron, dans l’ordre où les plier.",
       "planAction": "Calculer la séquence de prépliage"
     },

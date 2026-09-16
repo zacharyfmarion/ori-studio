@@ -443,9 +443,11 @@ export const ANALYTICS_EVENTS = {
   referencesPatternOpened: 'references pattern opened',
   /**
    * The reader switched the References workspace between its two jobs —
-   * finding one reference, or reading the folding sequence. `mode` is the one
-   * switched *to* (`find` / `sequence`). The workspace lands in Find and plans
-   * only when asked, so this is how often the sequence is asked for at all.
+   * finding one reference, or reading the precreasing sequence. `mode` is the
+   * one switched *to* (`find` / `sequence`) and `source` what did it: the tab,
+   * or the lead's line under the tabs that names the other job. The workspace
+   * lands in Find and plans only when asked, so this is how often the sequence
+   * is asked for at all, and whether the tab or the line is how it is found.
    */
   referencesModeChanged: 'references mode changed',
   /**

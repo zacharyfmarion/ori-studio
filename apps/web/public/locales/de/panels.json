@@ -861,6 +861,7 @@
     },
     "lead": {
       "find": "Tippe auf einen Scheitelpunkt oder eine Falte, um zu sehen, wie man sie von einem leeren Blatt aus faltet.",
+      "findSequence": "Oder berechne die ganze Vorfaltfolge.",
       "plan": "Alle Vorfalten des Musters, in der Reihenfolge, in der sie gefaltet werden.",
       "planAction": "Vorfaltfolge berechnen"
     },

@@ -120,7 +120,11 @@ export function ReferencesPanel() {
   const setViewDrawerSlot = useLayoutStore((state) => state.setViewDrawerSlot);
   const view = useReferencesView();
   const controller = useReferencesTarget(view);
-  const { mode, setMode } = useReferencesMode(view.framingKey, controller.clear);
+  const { mode, setMode } = useReferencesMode(
+    view.framingKey,
+    controller.target !== null,
+    controller.clear
+  );
   const storedSheet = useWorkspaceStore((state) => state.referencesSelectedSheet);
   const setSelectedSheet = useWorkspaceStore((state) => state.setReferencesSelectedSheet);
 
@@ -353,6 +357,8 @@ export function ReferencesPanel() {
     breakdown.run
   );
   const goToEdit = useCallback(() => useLayoutStore.getState().activateWorkspace('edit'), []);
+  // The lead's second sentence: to the sequence, which plans on arrival there.
+  const planSequenceFromLead = useCallback(() => setMode('sequence', 'lead'), [setMode]);
 
   /** Recompute re-runs whatever the workspace is showing. */
   const recompute = useCallback(() => {
@@ -516,7 +522,11 @@ export function ReferencesPanel() {
           )}
 
           {surfaces.strip === 'none' ? (
-            <ReferencesLead lead={surfaces.lead} onPlan={breakdown.run} />
+            <ReferencesLead
+              lead={surfaces.lead}
+              onPlan={breakdown.run}
+              onPlanSequence={planSequenceFromLead}
+            />
           ) : (
             <ReferencesStepFilmstrip
               steps={filmstrip}

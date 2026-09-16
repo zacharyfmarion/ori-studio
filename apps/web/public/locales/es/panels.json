@@ -895,6 +895,7 @@
     },
     "lead": {
       "find": "Toca un vértice o pliegue para ver cómo doblarlo desde una hoja en blanco.",
+      "findSequence": "O calcula toda la secuencia de prepliegues.",
       "plan": "Todos los prepliegues del patrón, en el orden en que se doblan.",
       "planAction": "Calcular la secuencia de prepliegues"
     },

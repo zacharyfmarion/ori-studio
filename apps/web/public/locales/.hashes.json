@@ -2982,7 +2982,8 @@
     "panels:references.mode.label": "9a87d71b1266",
     "panels:references.mode.sequence": "1695245a2b15",
     "panels:references.mode.sequenceTitle": "4bf719b1b9ce",
-    "panels:references.step.diagonal": "a5c51940a272"
+    "panels:references.step.diagonal": "a5c51940a272",
+    "panels:references.lead.findSequence": "c95373b2b462"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5967,7 +5968,8 @@
     "panels:references.mode.label": "9a87d71b1266",
     "panels:references.mode.sequence": "1695245a2b15",
     "panels:references.mode.sequenceTitle": "4bf719b1b9ce",
-    "panels:references.step.diagonal": "a5c51940a272"
+    "panels:references.step.diagonal": "a5c51940a272",
+    "panels:references.lead.findSequence": "c95373b2b462"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8954,7 +8956,8 @@
     "panels:references.mode.label": "9a87d71b1266",
     "panels:references.mode.sequence": "1695245a2b15",
     "panels:references.mode.sequenceTitle": "4bf719b1b9ce",
-    "panels:references.step.diagonal": "a5c51940a272"
+    "panels:references.step.diagonal": "a5c51940a272",
+    "panels:references.lead.findSequence": "c95373b2b462"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11881,7 +11884,8 @@
     "panels:references.mode.label": "9a87d71b1266",
     "panels:references.mode.sequence": "1695245a2b15",
     "panels:references.mode.sequenceTitle": "4bf719b1b9ce",
-    "panels:references.step.diagonal": "a5c51940a272"
+    "panels:references.step.diagonal": "a5c51940a272",
+    "panels:references.lead.findSequence": "c95373b2b462"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14808,7 +14812,8 @@
     "panels:references.mode.label": "9a87d71b1266",
     "panels:references.mode.sequence": "1695245a2b15",
     "panels:references.mode.sequenceTitle": "4bf719b1b9ce",
-    "panels:references.step.diagonal": "a5c51940a272"
+    "panels:references.step.diagonal": "a5c51940a272",
+    "panels:references.lead.findSequence": "c95373b2b462"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -17793,7 +17798,8 @@
     "panels:references.mode.label": "9a87d71b1266",
     "panels:references.mode.sequence": "1695245a2b15",
     "panels:references.mode.sequenceTitle": "4bf719b1b9ce",
-    "panels:references.step.diagonal": "a5c51940a272"
+    "panels:references.step.diagonal": "a5c51940a272",
+    "panels:references.lead.findSequence": "c95373b2b462"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -20778,7 +20784,8 @@
     "panels:references.mode.label": "9a87d71b1266",
     "panels:references.mode.sequence": "1695245a2b15",
     "panels:references.mode.sequenceTitle": "4bf719b1b9ce",
-    "panels:references.step.diagonal": "a5c51940a272"
+    "panels:references.step.diagonal": "a5c51940a272",
+    "panels:references.lead.findSequence": "c95373b2b462"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -23705,6 +23712,7 @@
     "panels:references.mode.label": "9a87d71b1266",
     "panels:references.mode.sequence": "1695245a2b15",
     "panels:references.mode.sequenceTitle": "4bf719b1b9ce",
-    "panels:references.step.diagonal": "a5c51940a272"
+    "panels:references.step.diagonal": "a5c51940a272",
+    "panels:references.lead.findSequence": "c95373b2b462"
   }
 }

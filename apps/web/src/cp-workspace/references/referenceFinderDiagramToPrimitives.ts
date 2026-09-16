@@ -112,6 +112,15 @@ export class StepDiagramAdapterError extends Error {
   }
 }
 
+/**
+ * `RefDgmr::LineStyle` by code. The core's pinch style is directionless, but
+ * every fold ReferenceFinder makes is a valley (`refLine.cpp`,
+ * `LINESTYLE_VALLEY` for the action line, `LINESTYLE_PINCH` for the same line
+ * pressed only where a mark is wanted), so its pinch is a valley pinch and
+ * takes the valley's ink — drawn as our own directionless `pinch` it came out
+ * in the unassigned grey beside blue valleys, on the card and the canvas
+ * alike.
+ */
 const LINE_STYLE_NAMES: readonly DiagramLineStyleName[] = [
   'crease',
   'edge',
@@ -120,7 +129,7 @@ const LINE_STYLE_NAMES: readonly DiagramLineStyleName[] = [
   'mountain',
   'arrow',
   'dotted',
-  'pinch',
+  'pinch-valley',
 ];
 
 const POINT_STYLE_NAMES: readonly DiagramPointStyleName[] = ['normal', 'highlight', 'action'];

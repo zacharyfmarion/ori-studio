@@ -15,10 +15,21 @@ import type { ReferencesLead as ReferencesLeadState } from './referencesMode';
  */
 export interface ReferencesLeadProps {
   lead: ReferencesLeadState;
+  /** Plan the sequence now: the button, when nothing is there to read. */
   onPlan: () => void;
+  /**
+   * Switch to the Precreasing sequence tab, from Find's hint. The first
+   * thing anyone reads names both jobs, so the second is found without
+   * noticing the tab — the tab stays as the switch, and the line teaches it.
+   */
+  onPlanSequence: () => void;
 }
 
-export const ReferencesLead = memo(function ReferencesLead({ lead, onPlan }: ReferencesLeadProps) {
+export const ReferencesLead = memo(function ReferencesLead({
+  lead,
+  onPlan,
+  onPlanSequence,
+}: ReferencesLeadProps) {
   const { t } = useTranslation();
   if (lead.kind === 'none') return null;
   return (
@@ -28,7 +39,10 @@ export const ReferencesLead = memo(function ReferencesLead({ lead, onPlan }: Ref
           {t(
             'panels:references.lead.find',
             'Tap a vertex or crease to see how to fold it from a blank sheet.'
-          )}
+          )}{' '}
+          <button type="button" className="references-lead__link" onClick={onPlanSequence}>
+            {t('panels:references.lead.findSequence', 'Or plan the whole precreasing sequence.')}
+          </button>
         </p>
       )}
       {lead.kind === 'planning' && (

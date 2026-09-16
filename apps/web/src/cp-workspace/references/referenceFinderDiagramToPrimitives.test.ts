@@ -25,12 +25,13 @@ describe('referenceFinderDiagramToPrimitives', () => {
     expect(model.primitives[0]).toEqual({ kind: 'sheet', width: 1, height: 1 });
     const kinds = new Set(model.primitives.map((p) => p.kind));
     expect(kinds).toEqual(new Set(['sheet', 'line', 'point', 'fold-arrow', 'label']));
-    // The pinch element the extractor reads as the new crease keeps its name.
+    // The pinch element the extractor reads as the new crease: a valley pinch,
+    // since every fold ReferenceFinder makes is a valley.
     expect(model.primitives).toContainEqual({
       kind: 'line',
       from: [0, 0.5],
       to: [0.1, 0.5],
-      style: 'pinch',
+      style: 'pinch-valley',
     });
     // Points and labels share the three-value style enum.
     expect(model.primitives).toContainEqual({ kind: 'point', at: [1, 1], style: 'highlight' });
@@ -85,7 +86,7 @@ describe('referenceFinderDiagramToPrimitives', () => {
       'mountain',
       'arrow',
       'dotted',
-      'pinch',
+      'pinch-valley',
     ]);
   });
 
