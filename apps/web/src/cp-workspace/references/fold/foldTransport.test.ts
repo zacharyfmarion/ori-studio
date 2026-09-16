@@ -178,7 +178,7 @@ describe('FoldTransport', () => {
     expect(t.status().playing).toBe(false);
   });
 
-  it('plays a twin as four legs and rests flat', () => {
+  it('plays a twin as three legs and rests folded on the second flap', () => {
     const t = transport();
     t.setScene(scene('cp', 2));
     t.toggle();
@@ -189,9 +189,9 @@ describe('FoldTransport', () => {
       if (pose && flaps[flaps.length - 1] !== pose.flap) flaps.push(pose.flap);
     }
     expect(flaps).toEqual([0, 1]);
-    expect(t.status()).toEqual({ available: true, playing: false, folded: false });
-    expect(lastPose()).toBeNull();
-    expect(clock.time).toBeGreaterThan(4 * FOLD_DURATION_MS + 2 * TWIN_HOLD_MS - 100);
+    expect(t.status()).toEqual({ available: true, playing: false, folded: true });
+    expect(lastPose()).toEqual({ flap: 1, angle: Math.PI, press: 1 });
+    expect(clock.time).toBeGreaterThan(3 * FOLD_DURATION_MS + TWIN_HOLD_MS - 100);
     expect(onPlay).toHaveBeenCalledTimes(1);
   });
 

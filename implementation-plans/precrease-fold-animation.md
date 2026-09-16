@@ -280,6 +280,18 @@ on the paper. Three cues carry the height, all cheap in this channel:
 - The geometry itself: the curl's overhang and the flat part's shortfall
   (D2).
 
+**Revised again, later the same day.** A twin card's flaps used to play only
+when apart, a rule from when they swung at once; now they always play, in
+turn, and the run rests folded on the second so its landing can be read
+like a single fold's — Play then unfolds that flap. And the turn-over is no
+longer a card flipping about its middle, which "just rotates along the
+central point"; it is a roll across the table (`createRollOverSurface`):
+the hand takes the left edge, carries it over parallel to the part still
+lying there, the bend travelling across, and once the paper is half over
+the rest slides under it so the sheet lands on its own footprint. The
+surface interface grew `rows` and `bent` for that: a bend is wherever a
+surface says it is, not always at the hinge.
+
 **Revised 2026-09-16.** The cast shadow went first (a raised flap's shadow
 landed a flap's width away and read as a second sheet), then the contact
 rim that replaced it: Zach had shadows removed altogether. What remains of

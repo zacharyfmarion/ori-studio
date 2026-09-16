@@ -2,11 +2,11 @@
  * Where a card's animation is, and where it is going.
  *
  * A card plays a **run** of legs. A fold card is one leg — fold — and rests
- * folded; Play again runs the reverse, one leg of unfold. A twin card is two
- * folds shown one after the other: fold the first, hold a moment so the
- * landing can be read, unfold it, then the same for the second, and it rests
- * flat, so Play runs it again. A turn-over is one leg too: the whole sheet
- * turning over, and back on the next Play.
+ * folded; Play again unfolds it. A twin card is two folds shown one after
+ * the other: fold the first, hold a moment so the landing can be read,
+ * unfold it, then fold the second and rest there, so the second landing can
+ * be read the way a single fold's is; Play again unfolds it. A turn-over is
+ * one leg too: the whole sheet turning over, and back on the next Play.
  *
  * Pressed while it moves, a run pauses; pressed again, it carries on the way
  * it was going. Pure and clock-free: the transport feeds `tickFoldRun` the
@@ -82,24 +82,23 @@ export function poseAt(progress: number): Omit<FoldPose, 'flap'> {
 }
 
 /**
- * What a card plays: one fold for one flap, and for a pair, each flap
- * folded and unfolded in turn.
+ * What a card plays: one fold for one flap; for a pair, the first folded,
+ * held and unfolded, then the second folded — and left folded.
  */
 export function foldLegs(flapCount: number): FoldLeg[] {
   if (flapCount <= 1) return [{ flap: 0, heading: 'fold', holdMs: 0 }];
   const legs: FoldLeg[] = [];
   for (let flap = 0; flap < flapCount; flap += 1) {
     legs.push({ flap, heading: 'fold', holdMs: TWIN_HOLD_MS });
-    legs.push({ flap, heading: 'unfold', holdMs: 0 });
+    if (flap + 1 < flapCount) legs.push({ flap, heading: 'unfold', holdMs: 0 });
   }
   return legs;
 }
 
-/** The same run backwards: each leg the other way, in the other order. */
-export function reversedLegs(legs: readonly FoldLeg[]): FoldLeg[] {
-  return [...legs]
-    .reverse()
-    .map((leg) => ({ ...leg, heading: leg.heading === 'fold' ? 'unfold' : 'fold' }));
+/** The way back from a run that rests folded: the folded flap unfolding. */
+export function unfoldingLegs(legs: readonly FoldLeg[]): FoldLeg[] {
+  const last = legs[legs.length - 1];
+  return last ? [{ flap: last.flap, heading: 'unfold', holdMs: 0 }] : [];
 }
 
 const startOf = (leg: FoldLeg): number => (leg.heading === 'fold' ? 0 : 1);
@@ -143,13 +142,13 @@ export function runHeading(run: FoldRun): FoldHeading {
 
 /**
  * The Play button's one rule. Moving: pause. Paused: carry on. Played
- * through: the card's programme backwards if it rests folded, so the paper
- * comes back up; forwards if it rests flat.
+ * through: the folded flap comes back up if it rests folded; the card's
+ * programme runs again if it rests flat.
  */
 export function toggleFoldRun(run: FoldRun): FoldRun {
   if (run.playing) return { ...run, playing: false };
   if (isComplete(run)) {
-    const legs = isFolded(run) ? reversedLegs(run.programme) : run.programme;
+    const legs = isFolded(run) ? unfoldingLegs(run.programme) : run.programme;
     const first = legs[0];
     return { ...run, legs, leg: 0, at: first ? startOf(first) : 0, holdLeft: 0, playing: true };
   }

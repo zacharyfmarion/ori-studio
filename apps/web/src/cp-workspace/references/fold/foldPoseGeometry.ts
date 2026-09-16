@@ -32,8 +32,9 @@ import {
   BEND_RADIUS_SHARE,
   COLUMN_SHARE,
   CREASE_RAMP_SHARE,
+  ROLL_RADIUS_SHARE,
   createFoldSurface,
-  createTurnOverSurface,
+  createRollOverSurface,
   strokeCuts,
   tessellateFlap,
   type FlatPoint,
@@ -64,12 +65,15 @@ export interface FoldSurfaceShares {
   radius: number;
   ramp: number;
   column: number;
+  /** The roll a sheet turns over in. */
+  roll: number;
 }
 
 export const DEFAULT_SURFACE_SHARES: FoldSurfaceShares = {
   radius: BEND_RADIUS_SHARE,
   ramp: CREASE_RAMP_SHARE,
   column: COLUMN_SHARE,
+  roll: ROLL_RADIUS_SHARE,
 };
 
 /** Depths the paper is drawn at. */
@@ -150,8 +154,10 @@ export function foldPoseGeometry(
     uMin = Math.min(uMin, p.u);
     uMax = Math.max(uMax, p.u);
   }
+  // A sheet turning over rolls across itself as the swing runs 0 to π; the
+  // press has nothing to do there.
   const surface = flap.whole
-    ? createTurnOverSurface(pose.angle, Math.max(uMax, -uMin))
+    ? createRollOverSurface(pose.angle / Math.PI, Math.max(uMax, -uMin), shares.roll * short)
     : createFoldSurface({
         radius: shares.radius * short,
         angle: pose.angle,
@@ -197,8 +203,9 @@ export function foldPoseGeometry(
       const sLo = Math.min(fa.s, fb.s);
       const sHi = Math.max(fa.s, fb.s);
       const straight =
-        Math.min(fa.u, fb.u) >= surface.bendReach && !breakpoints.some((s) => s > sLo && s < sHi);
-      const cuts = straight ? WHOLE : strokeCuts(fa, fb, surface, uMax);
+        !surface.bent(Math.min(fa.u, fb.u), Math.max(fa.u, fb.u)) &&
+        !breakpoints.some((s) => s > sLo && s < sHi);
+      const cuts = straight ? WHOLE : strokeCuts(fa, fb, surface);
       const at = (t: number): PlacedPoint =>
         surface.place(fa.s + (fb.s - fa.s) * t, fa.u + (fb.u - fa.u) * t);
       let start = at(cuts[0]!);

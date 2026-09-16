@@ -242,12 +242,16 @@ describe('stepFoldMotion', () => {
     expect(stepFoldMotion(grid, unitFrame(grid), 0)).toBeNull();
   });
 
-  it('swings both flaps of a twin when they are apart, and the first alone when they overlap', () => {
+  it('carries both flaps of a twin, overlapping or not, in the order the card names them', () => {
     // x = ¼ and x = ¾, the corner at the south-west swinging for both: the
-    // left flap of the second contains the whole first flap.
-    expect(stepFoldMotion(fixture, unitFrame(fixture), 1, 3)!.flaps).toHaveLength(1);
+    // left flap of the second contains the whole first flap — and both play,
+    // one after the other.
+    const overlapping = stepFoldMotion(fixture, unitFrame(fixture), 1, 3)!;
+    expect(overlapping.flaps).toHaveLength(2);
+    expect(overlapping.flaps[0]!.chord[0]).toEqual({ x: 0.25, y: 0 });
+    expect(overlapping.flaps[1]!.chord[0]).toEqual({ x: 0.75, y: 0 });
     // The same pair with the south-east corner swinging for the second: the
-    // right quarter and the left quarter, apart.
+    // right quarter and the left quarter.
     const apart: PrecreaseSequence = {
       ...fixture,
       steps: fixture.steps.map((step, i) =>

@@ -239,29 +239,38 @@ describe('foldPoseGeometry, turning the sheet over', () => {
     dashSlot: Float32Array.from([1]),
   };
 
-  it('is the whole sheet at rest, and the whole sheet mirrored at the end', () => {
+  const roll = DEFAULT_SURFACE_SHARES.roll;
+
+  it('is the whole sheet at rest, and the whole sheet mirrored in place once over', () => {
     const rest = foldPoseGeometry(turning, pose(0), [left], paint);
     expect(fillArea(rest.fills.position)).toBeCloseTo(4);
     expect(rgba(rest.fills.color)).toEqual(UP);
     expect(rest.strokes.a[0]).toBeCloseTo(0.5);
     const over = foldPoseGeometry(turning, pose(Math.PI), [left], paint);
-    expect(fillArea(over.fills.position)).toBeCloseTo(4);
-    expect(Math.min(...xs(over.fills.position))).toBeCloseTo(0);
-    expect(Math.max(...xs(over.fills.position))).toBeCloseTo(2);
-    expect(rgba(over.fills.color)).toEqual(OTHER);
-    // Flat on the table again.
-    for (const d of Array.from(over.fills.depth!)) expect(d).toBeCloseTo(0.05);
+    expect(Math.min(...xs(over.fills.position))).toBeCloseTo(0, 3);
+    expect(Math.max(...xs(over.fills.position))).toBeCloseTo(2, 3);
+    // Hovering a roll's height over the table, showing its other face.
+    expect(Math.max(...Array.from(over.fills.depth!))).toBeCloseTo(0.05 + 0.9 * ((2 * roll) / 0.5), 3);
+    // Every face has turned: none is the reader's face unshaded, and the flat
+    // part shows the other face plain. (The bend is sampled densely, so most
+    // vertices are on it, shaded between the two.)
+    const faces = [...Array(over.fills.count).keys()].map((i) => rgba(over.fills.color, i * 4)[0]);
+    expect(faces.filter((red) => Math.abs(red - UP[0]) < 1e-3)).toHaveLength(0);
+    expect(faces.some((red) => Math.abs(red - OTHER[0]) < 1e-3)).toBe(true);
     // The valley at x = 0.25 is now at x = 0.75, named a mountain from this side.
-    expect(over.strokes.a[0]).toBeCloseTo(1.5);
+    expect(over.strokes.a[0]).toBeCloseTo(1.5, 3);
     expect(rgba(over.strokes.color)).toEqual(MOUNTAIN);
     expect(over.strokes.dashSlot![0]).toBe(2);
   });
 
-  it('stands the sheet on its edge halfway, lifted clear of the table', () => {
+  it('halfway, has carried the left half over onto the right, the rest still on the table', () => {
     const { fills } = foldPoseGeometry(turning, pose(Math.PI / 2), [], paint);
-    for (const x of xs(fills.position)) expect(x).toBeCloseTo(1);
-    // Nothing below the table: the lowest point is on it, the highest a sheet's width up.
+    // Nothing left of the centre line; the right half is two layers deep.
+    expect(Math.min(...xs(fills.position))).toBeGreaterThanOrEqual(1 - 1e-6);
+    expect(Math.max(...xs(fills.position))).toBeCloseTo(2, 3);
+    const faces = [...Array(fills.count).keys()].map((i) => rgba(fills.color, i * 4)[0]);
+    expect(faces.some((red) => Math.abs(red - UP[0]) < 1e-3)).toBe(true);
+    expect(faces.some((red) => Math.abs(red - OTHER[0]) < 1e-3)).toBe(true);
     expect(Math.min(...Array.from(fills.depth!))).toBeCloseTo(0.05);
-    expect(Math.max(...Array.from(fills.depth!))).toBeCloseTo(0.95);
   });
 });

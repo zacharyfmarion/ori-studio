@@ -125,14 +125,19 @@ export function planFoldScene(
     const sheet = sheetPolygon(frame);
     const bottom = frame.edge('bottom');
     const top = frame.edge('top');
-    if (!sheet || !bottom || !top) return null;
+    const left = frame.edge('left');
+    if (!sheet || !bottom || !top || !left) return null;
     const chord: readonly [ModelPoint, ModelPoint] = [midpoint(bottom), midpoint(top)];
-    const along = chordFrame(chord, 1);
+    // "Left to right": the hand takes the sheet's left edge, so the frame
+    // puts that edge at positive `u` whichever way the document's axes run.
+    const leftward = inChordFrame(chordFrame(chord, 1), midpoint(left)).u;
+    const side: FoldSide = leftward >= 0 ? 1 : -1;
+    const along = chordFrame(chord, side);
     let reach = 0;
     for (const corner of sheet) reach = Math.max(reach, Math.abs(inChordFrame(along, corner).u));
     return {
       kind: 'turn-over',
-      flaps: [{ chord, side: 1, polygon: sheet, creased: [], whole: true }],
+      flaps: [{ chord, side, polygon: sheet, creased: [], whole: true }],
       sheetShortSide: Math.min(frame.sheet.width, frame.sheet.height),
       reach,
     };

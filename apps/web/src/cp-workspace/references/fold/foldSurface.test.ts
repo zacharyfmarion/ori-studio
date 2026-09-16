@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
-  bendRows,
   clipCellToPolygon,
   createFoldSurface,
-  createTurnOverSurface,
+  createRollOverSurface,
   creasedness,
   rigidHinge,
+  rowsThrough,
   strokeCuts,
   tessellateFlap,
   type FlatPoint,
@@ -96,7 +96,8 @@ describe('createFoldSurface', () => {
       expect(p.nz).toBeLessThanOrEqual(last + 1e-9);
       last = p.nz;
     }
-    expect(surface.bendReach).toBeCloseTo(Math.PI * r);
+    expect(surface.bent(0, 4)).toBe(true);
+    expect(surface.bent(Math.PI * r + 0.01, 4)).toBe(false);
   });
 
   it('lands every point of the flat part where the rigid hinge would, whatever the angle', () => {
@@ -139,24 +140,67 @@ describe('createFoldSurface', () => {
   });
 });
 
-describe('createTurnOverSurface', () => {
-  it('turns both sides about the line, lifted so the low side stays on the table', () => {
-    const halfway = createTurnOverSurface(Math.PI / 2, 4);
-    // Edge-on: everything projects onto the line, the far side four up, the near side on the table.
-    expect(halfway.place(1, 4).v).toBeCloseTo(0);
-    expect(halfway.place(1, 4).z).toBeCloseTo(8);
-    expect(halfway.place(1, -4).z).toBeCloseTo(0);
-    expect(halfway.place(1, 0).z).toBeCloseTo(4);
-    expect(halfway.place(1, 2).nz).toBeCloseTo(0);
-    const over = createTurnOverSurface(Math.PI, 4);
+describe('createRollOverSurface', () => {
+  const r = 0.5;
+
+  it('is the sheet on the table before it is taken, and the sheet mirrored in place once over', () => {
+    const before = createRollOverSurface(0, 4, r);
     for (const u of [-4, -1, 0, 2.5, 4]) {
+      const p = before.place(0, u);
+      expect(p.v).toBeCloseTo(u);
+      expect(p.z).toBeCloseTo(0);
+      expect(p.nz).toBeCloseTo(1);
+    }
+    const over = createRollOverSurface(1, 4, r);
+    // Past the bend at the far edge, every point lies mirrored, hovering 2r up.
+    for (const u of [-4 + Math.PI * r + 0.01, -1, 0, 2.5, 4]) {
       const p = over.place(0, u);
       expect(p.v).toBeCloseTo(-u);
-      expect(p.z).toBeCloseTo(0);
+      expect(p.z).toBeCloseTo(2 * r);
       expect(p.nz).toBeCloseTo(-1);
     }
-    expect(over.bendReach).toBe(0);
     expect(over.breakpoints()).toEqual([]);
+  });
+
+  it('halfway, has carried the taken half over onto the other half', () => {
+    const half = createRollOverSurface(0.5, 4, r);
+    // The far half still lies where it was.
+    for (const u of [-4, -2, -0.5]) {
+      const p = half.place(0, u);
+      expect(p.v).toBeCloseTo(u);
+      expect(p.z).toBeCloseTo(0);
+    }
+    // The taken half lies over it, mirrored about the centre line.
+    for (const u of [Math.PI * r + 0.01, 2, 4]) {
+      const p = half.place(0, u);
+      expect(p.v).toBeCloseTo(-u);
+      expect(p.z).toBeCloseTo(2 * r);
+      expect(p.nz).toBeCloseTo(-1);
+    }
+    // The bend is at the centre line, and the rows and cuts know it.
+    expect(half.bent(-4, -1)).toBe(false);
+    expect(half.bent(-1, 1)).toBe(true);
+    expect(half.bent(2, 4)).toBe(false);
+    const rows = half.rows(-4, 4);
+    expect(rows[0]).toBe(-4);
+    expect(rows[rows.length - 1]).toBe(4);
+    expect(rows.filter((u) => u >= 0 && u <= Math.PI * r + 1e-9)).toHaveLength(13);
+  });
+
+  it('never leaves its footprint, and slides the rest under as the last of it comes over', () => {
+    for (const progress of [0.1, 0.3, 0.5, 0.7, 0.9]) {
+      const surface = createRollOverSurface(progress, 4, r);
+      for (const u of [-4, -3, -1, 0, 1, 3, 4]) {
+        const p = surface.place(0, u);
+        expect(p.v).toBeGreaterThanOrEqual(-4 - 1e-9);
+        expect(p.v).toBeLessThanOrEqual(4 + 1e-9);
+        expect(p.z).toBeGreaterThanOrEqual(-1e-9);
+      }
+    }
+    // Three quarters over: the far quarter has slid toward the taken edge.
+    const late = createRollOverSurface(0.75, 4, r);
+    expect(late.place(0, -4).v).toBeCloseTo(0);
+    expect(late.place(0, -4).z).toBeCloseTo(0);
   });
 });
 
@@ -219,10 +263,12 @@ describe('tessellateFlap', () => {
       creased: [[4, 6]],
       ramp: 1,
     });
-    const rows = bendRows(surface, 4);
+    const rows = surface.rows(0, 4);
     expect(rows[0]).toBe(0);
     expect(rows[rows.length - 1]).toBe(4);
     expect(rows).toHaveLength(14);
+    expect(rowsThrough(0, 4, [[0, 1.5]])).toHaveLength(14);
+    expect(rowsThrough(0, 4, [])).toEqual([0, 4]);
     const mesh = tessellateFlap(RECT, surface, 2);
     // Every vertex is on the surface: over the pressed middle the far edge
     // lies flat on the paper; away from it the flap hovers at twice the radius.
@@ -242,7 +288,7 @@ describe('tessellateFlap', () => {
       { s: 10, u: 4 },
       { s: 0, u: 4 },
     ];
-    const surface = createTurnOverSurface(0, 4);
+    const surface = createRollOverSurface(0, 4, 0.5);
     expect(meshArea(tessellateFlap(both, surface, 2).vertices)).toBeCloseTo(70);
   });
 
@@ -271,13 +317,13 @@ describe('strokeCuts', () => {
   });
 
   it('leaves a stroke on the flat part whole unless it crosses a ramp', () => {
-    expect(strokeCuts({ s: 0, u: 3 }, { s: 2, u: 3.5 }, surface, 4)).toEqual([0, 1]);
-    const cuts = strokeCuts({ s: 0, u: 3 }, { s: 8, u: 3 }, surface, 4);
+    expect(strokeCuts({ s: 0, u: 3 }, { s: 2, u: 3.5 }, surface)).toEqual([0, 1]);
+    const cuts = strokeCuts({ s: 0, u: 3 }, { s: 8, u: 3 }, surface);
     expect(cuts.map((t) => t * 8)).toEqual([0, 3, 4, 6, 7, 8]);
   });
 
   it('cuts a stroke through the bend at every row it crosses', () => {
-    const cuts = strokeCuts({ s: 1, u: 0 }, { s: 1, u: 4 }, surface, 4);
+    const cuts = strokeCuts({ s: 1, u: 0 }, { s: 1, u: 4 }, surface);
     // The bend reaches π/2 in: twelve rows through it, plus the ends.
     expect(cuts).toHaveLength(14);
     expect(cuts[0]).toBe(0);

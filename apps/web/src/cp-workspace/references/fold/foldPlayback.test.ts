@@ -7,7 +7,6 @@ import {
   isFlat,
   isFolded,
   poseAt,
-  reversedLegs,
   runAtRest,
   runPose,
   snapFoldRun,
@@ -63,7 +62,7 @@ describe('a fold card', () => {
     expect(over.at).toBe(1);
     expect(over.playing).toBe(false);
     const under = tickFoldRun(
-      { ...runAtRest(reversedLegs(foldLegs(1))), at: 0.1, playing: true },
+      { ...runAtRest([{ flap: 0, heading: 'unfold', holdMs: 0 }]), at: 0.1, playing: true },
       FOLD_DURATION_MS
     );
     expect(under.at).toBe(0);
@@ -72,12 +71,11 @@ describe('a fold card', () => {
 });
 
 describe('a twin card', () => {
-  it('folds the first, holds, unfolds it, then the second, and rests flat', () => {
+  it('folds the first, holds, unfolds it, then folds the second and rests there', () => {
     expect(foldLegs(2).map((leg) => `${leg.flap}:${leg.heading}`)).toEqual([
       '0:fold',
       '0:unfold',
       '1:fold',
-      '1:unfold',
     ]);
     let run = toggleFoldRun(twin());
     const seen: string[] = [];
@@ -89,14 +87,19 @@ describe('a twin card', () => {
       const mark = pose ? `${pose.flap}:${pose.angle > 3 ? 'over' : 'up'}` : 'flat';
       if (seen[seen.length - 1] !== mark) seen.push(mark);
     }
-    expect(seen).toEqual(['0:up', '0:over', '0:up', 'flat', '1:up', '1:over', '1:up', 'flat']);
-    expect(isFlat(run)).toBe(true);
-    expect(isFolded(run)).toBe(false);
-    // Long enough for four legs and two holds, and not much longer.
-    expect(t).toBeGreaterThan(4 * FOLD_DURATION_MS + 2 * TWIN_HOLD_MS - 100);
-    expect(t).toBeLessThan(4 * FOLD_DURATION_MS + 2 * TWIN_HOLD_MS + 200);
-    // Rested flat, Play runs it forwards again.
-    expect(toggleFoldRun(run).legs).toEqual(foldLegs(2));
+    expect(seen).toEqual(['0:up', '0:over', '0:up', 'flat', '1:up', '1:over']);
+    expect(isFolded(run)).toBe(true);
+    expect(runPose(run)).toEqual({ flap: 1, angle: Math.PI, press: 1 });
+    // Long enough for three legs and one hold, and not much longer.
+    expect(t).toBeGreaterThan(3 * FOLD_DURATION_MS + TWIN_HOLD_MS - 100);
+    expect(t).toBeLessThan(3 * FOLD_DURATION_MS + TWIN_HOLD_MS + 200);
+    // Rested folded on the second flap, Play unfolds that flap alone…
+    const back = toggleFoldRun(run);
+    expect(back.legs).toEqual([{ flap: 1, heading: 'unfold', holdMs: 0 }]);
+    const flat = playOut(back);
+    expect(isFlat(flat)).toBe(true);
+    // …and flat again, Play runs the whole card forwards.
+    expect(toggleFoldRun(flat).legs).toEqual(foldLegs(2));
   });
 
   it('holds the landing before unfolding', () => {
@@ -120,8 +123,10 @@ describe('snapFoldRun', () => {
     expect(folded.playing).toBe(false);
     const flat = snapFoldRun(folded);
     expect(isFlat(flat)).toBe(true);
-    // A twin snaps straight to flat: its run ends there.
-    expect(isFlat(snapFoldRun(twin()))).toBe(true);
+    // A twin snaps to its end: the second flap folded.
+    const snapped = snapFoldRun(twin());
+    expect(isFolded(snapped)).toBe(true);
+    expect(runPose(snapped)?.flap).toBe(1);
     // Paused partway, it finishes the run it was on.
     const partway = { ...toggleFoldRun(single()), at: 0.4, playing: false };
     expect(isFolded(snapFoldRun(partway))).toBe(true);

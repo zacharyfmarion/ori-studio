@@ -61,6 +61,9 @@ describe('planFoldScene', () => {
     ]);
     expect(flap!.polygon).toHaveLength(4);
     expect(scene.reach).toBeCloseTo(200);
+    // The hand takes the sheet's left edge: positive `u` points that way.
+    const along = chordFrame(flap!.chord, flap!.side);
+    expect(inChordFrame(along, { x: -200, y: 0 }).u).toBeCloseTo(200);
   });
 
   it('has no fold for the finished card', () => {

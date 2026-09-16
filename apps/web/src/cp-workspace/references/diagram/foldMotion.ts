@@ -59,20 +59,8 @@ export type FoldMotionKind = 'cp' | 'aux' | 'press';
 
 export interface FoldMotion {
   kind: FoldMotionKind;
-  /** One flap, or two for a twin pair whose flaps are apart. */
+  /** One flap, or two for a twin pair, in the order the card names them. */
   flaps: readonly FoldFlap[];
-}
-
-/** Two flaps as one motion, when they are apart; the first alone when they overlap. */
-function together(frame: DiagramFrame, first: FoldFlap, second: FoldFlap): boolean {
-  const sheet = sheetPolygon(frame);
-  if (!sheet) return false;
-  const both = clipPolygonToSide(
-    clipPolygonToSide(sheet, first.chord, first.side),
-    second.chord,
-    second.side
-  );
-  return polygonArea(both) <= 1e-9 * polygonArea(sheet);
 }
 
 /**
@@ -175,8 +163,9 @@ export function flapCentroid(frame: DiagramFrame, flap: FoldFlap): Point | null 
 
 /**
  * What `sequence.steps[index]` moves, in the frame's coordinates — with its
- * twin's flap beside it when the card shows the pair and the two flaps are
- * apart. Null for a grid step, and for an index that names no step.
+ * twin's flap after it when the card shows the pair. The two are played one
+ * after the other, so they may overlap. Null for a grid step, and for an
+ * index that names no step.
  */
 export function stepFoldMotion(
   sequence: PrecreaseSequence,
@@ -191,7 +180,7 @@ export function stepFoldMotion(
   const flaps: FoldFlap[] = [flap];
   const twinStep = twin === undefined ? undefined : sequence.steps[twin];
   const second = twinStep ? flapOf(sequence, frame, twinStep) : null;
-  if (second && together(frame, flap, second)) flaps.push(second);
+  if (second) flaps.push(second);
   const kind: FoldMotionKind =
     step.kind === 'press' ? 'press' : step.kind === 'aux' ? 'aux' : 'cp';
   return { kind, flaps };

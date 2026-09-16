@@ -70,10 +70,16 @@ export interface FoldSurfaceParams {
 }
 
 export interface FoldSurface extends FoldPlacement {
-  /** Where along the line the bend radius stops being constant. */
+  /** Where along the line the surface changes: the mesh's columns break there. */
   breakpoints(): number[];
-  /** How far into the flap the bend can reach, over the whole swing. */
-  bendReach: number;
+  /**
+   * Where into the flap to sample between `uMin` and `uMax`, ascending and
+   * ending at both: dense through a bend, since that is the one curved part,
+   * and nowhere else, since the surface is linear everywhere else.
+   */
+  rows(uMin: number, uMax: number): number[];
+  /** Whether the paper bends anywhere between `uLo` and `uHi` into the flap. */
+  bent(uLo: number, uHi: number): boolean;
 }
 
 /**
@@ -82,6 +88,12 @@ export interface FoldSurface extends FoldPlacement {
  * kept small: the hover is a hair, and what shows is the shortfall.
  */
 export const BEND_RADIUS_SHARE = 0.0075;
+/**
+ * A share of the sheet's short side: the roll a sheet turns over in. Loose,
+ * as a sheet lifted by one edge is — what shows is the shaded band of the
+ * bend travelling across the paper.
+ */
+export const ROLL_RADIUS_SHARE = 0.05;
 /**
  * A share of the sheet's short side: how far past a creased stretch the paper
  * takes to reach its full curl. Long against the shortfall it has to carry,
@@ -120,12 +132,17 @@ export function createFoldSurface(params: FoldSurfaceParams): FoldSurface {
   const cosT = Math.cos(angle);
   const radiusAt = (s: number): number =>
     radius <= 0 ? 0 : radius * (1 - press * creasedness(creased, ramp, s));
+  // How far into the flap the bend can reach, over the whole swing.
+  const bendReach = radius * Math.PI;
   return {
-    bendReach: radius * Math.PI,
+    rows: (uMin, uMax) => rowsThrough(uMin, uMax, [[0, bendReach]]),
+    bent: (uLo, uHi) => bendReach > 0 && uLo < bendReach && uHi > 0,
     place(s, u) {
       const r = radiusAt(s);
       const bend = r * angle;
-      if (r > 0 && u > 0 && u <= bend) {
+      // The hinge itself (u = 0) is the bend's start, on the paper — not the
+      // flat part's formula, which would lift it by the bend's height.
+      if (r > 0 && u >= 0 && u <= bend) {
         const phi = u / r;
         // The sheared arc's tangent is the sum of the arc's and the flat
         // part's directions, which bisects them: its normal is at the mean
@@ -155,20 +172,49 @@ export function createFoldSurface(params: FoldSurfaceParams): FoldSurface {
 }
 
 /**
- * The whole sheet turning over about a line through it: a rigid turn of
- * `angle` about the line, lifted so the low side never passes through the
- * table. `halfWidth` is how far the sheet reaches from the line on its far
- * side. At `π` the sheet lies flat again, mirrored — the picture the next
- * card starts from.
+ * The whole sheet turning over on the table, the way a hand does it: take
+ * the edge at `u = +halfWidth`, lift it and carry it back over the sheet,
+ * parallel to the part still lying there, the bend travelling across until
+ * the last of the paper has come over. Not a card flipping about its middle
+ * — that stands the sheet on edge at the centre line, which nothing on a
+ * table does (Zach, 2026-09-16).
+ *
+ * In the sheet's own material, measured from the far edge, the bend sits at
+ * `hinge` and moves from the taken edge to the far one as `progress` runs 0
+ * to 1. What is short of it lies on the table; what is past it has come
+ * over, hovering `2r` up, mirrored about the bend. Left to itself the sheet
+ * would land a width past the far edge, so once the paper is half over the
+ * part still on the table slides back under the part that has come over,
+ * just as far as keeps the far end where it started, and the sheet lands
+ * exactly on its own footprint, mirrored: the picture the next card starts
+ * from.
  */
-export function createTurnOverSurface(angle: number, halfWidth: number): FoldSurface {
-  const sinT = Math.sin(angle);
-  const cosT = Math.cos(angle);
-  const lift = Math.max(0, halfWidth) * Math.abs(sinT);
+export function createRollOverSurface(
+  progress: number,
+  halfWidth: number,
+  radius: number
+): FoldSurface {
+  const width = 2 * Math.max(0, halfWidth);
+  const p = Math.max(0, Math.min(1, progress));
+  const hinge = width * (1 - p);
+  const slide = Math.max(0, width - 2 * hinge);
+  const bend = createFoldSurface({ radius, angle: Math.PI, press: 0, creased: [], ramp: 0 });
+  const reach = radius * Math.PI;
+  // The frame's `u` runs from −halfWidth at the far edge to +halfWidth at
+  // the taken one; material is counted from the far edge.
+  const hingeU = hinge - halfWidth;
   return {
-    bendReach: 0,
-    place: (s, u) => ({ s, v: u * cosT, z: u * sinT + lift, nz: cosT }),
+    place(s, u) {
+      const x = u + halfWidth;
+      // The hinge row belongs to the bend once anything has come over; before
+      // that the taken edge is simply the last of the paper on the table.
+      if (x < hinge || p <= 0) return { s, v: x + slide - halfWidth, z: 0, nz: 1 };
+      const over = bend.place(s, x - hinge);
+      return { s, v: hinge + slide + over.v - halfWidth, z: over.z, nz: over.nz };
+    },
     breakpoints: () => [],
+    rows: (uMin, uMax) => rowsThrough(uMin, uMax, [[hingeU, hingeU + reach]]),
+    bent: (uLo, uHi) => reach > 0 && uLo < hingeU + reach && uHi > hingeU,
   };
 }
 
@@ -260,16 +306,31 @@ function samples(lo: number, hi: number, spacing: number, extra: readonly number
   return merged;
 }
 
-/** Rows into the flap: dense through the bend, then one to the far edge. */
-export function bendRows(surface: FoldSurface, reach: number, rows = BEND_ROWS): number[] {
-  const out = [0];
-  const bend = Math.min(surface.bendReach, reach);
-  for (let j = 1; j <= rows; j += 1) {
-    const u = (bend * j) / rows;
-    if (u > out[out.length - 1]! + EPSILON) out.push(u);
+/**
+ * Sample positions from `uMin` to `uMax`: both ends, and {@link BEND_ROWS}
+ * evenly through each bend's stretch where it falls inside — the one part of
+ * a surface that is not linear in `u`.
+ */
+export function rowsThrough(
+  uMin: number,
+  uMax: number,
+  bends: readonly (readonly [number, number])[],
+  rows = BEND_ROWS
+): number[] {
+  const out = new Set<number>([uMin, uMax]);
+  for (const [from, to] of bends) {
+    if (to <= from) continue;
+    for (let j = 0; j <= rows; j += 1) {
+      const u = from + ((to - from) * j) / rows;
+      if (u > uMin + EPSILON && u < uMax - EPSILON) out.add(u);
+    }
   }
-  if (reach > out[out.length - 1]! + EPSILON) out.push(reach);
-  return out;
+  const sorted = [...out].sort((p, q) => p - q);
+  const merged: number[] = [];
+  for (const u of sorted) {
+    if (merged.length === 0 || u - merged[merged.length - 1]! > EPSILON) merged.push(u);
+  }
+  return merged;
 }
 
 export interface FlapMesh {
@@ -286,8 +347,7 @@ export interface FlapMesh {
 export function tessellateFlap(
   polygon: readonly FlatPoint[],
   surface: FoldSurface,
-  columnSpacing: number,
-  rows = BEND_ROWS
+  columnSpacing: number
 ): FlapMesh {
   const vertices: PlacedPoint[] = [];
   if (polygon.length < 3) return { vertices };
@@ -302,9 +362,7 @@ export function tessellateFlap(
     uMax = Math.max(uMax, p.u);
   }
   const columns = samples(sMin, sMax, columnSpacing, surface.breakpoints());
-  // A flap lies on one side of its line; a sheet turning over lies on both,
-  // and the other side is one more row, since nothing bends there.
-  const uRows = [...(uMin < -EPSILON ? [uMin] : []), ...bendRows(surface, uMax, rows)];
+  const uRows = surface.rows(uMin, uMax);
   for (let i = 0; i + 1 < columns.length; i += 1) {
     for (let j = 0; j + 1 < uRows.length; j += 1) {
       const cell: FlatPoint[] = [
@@ -326,17 +384,11 @@ export function tessellateFlap(
 
 /**
  * Where a straight line on the flap has to be cut to follow the surface: at
- * every crossing of a breakpoint column and, through the bend, of a row.
+ * every crossing of a breakpoint column and, through a bend, of a row.
  * Elsewhere the surface is linear along it, so the piece between two cuts is
  * drawn straight. The parameters returned are ascending, from 0 to 1.
  */
-export function strokeCuts(
-  from: FlatPoint,
-  to: FlatPoint,
-  surface: FoldSurface,
-  reach: number,
-  rows = BEND_ROWS
-): number[] {
+export function strokeCuts(from: FlatPoint, to: FlatPoint, surface: FoldSurface): number[] {
   const cuts = new Set<number>([0, 1]);
   const ds = to.s - from.s;
   const du = to.u - from.u;
@@ -347,11 +399,10 @@ export function strokeCuts(
     for (const s of surface.breakpoints()) add((s - from.s) / ds);
   }
   if (Math.abs(du) > EPSILON) {
-    const bend = Math.min(surface.bendReach, reach);
     const lo = Math.min(from.u, to.u);
     const hi = Math.max(from.u, to.u);
-    if (lo < bend) {
-      for (const u of bendRows(surface, Math.min(hi, bend), rows)) add((u - from.u) / du);
+    if (surface.bent(lo, hi)) {
+      for (const u of surface.rows(lo, hi)) add((u - from.u) / du);
     }
   }
   return [...cuts].sort((p, q) => p - q);
