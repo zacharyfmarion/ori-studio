@@ -44,7 +44,7 @@ read, use, stop, or delete another agent's resources.
 - [x] Train and evaluate a small ranker if the teacher warrants it; otherwise document why.
 - [x] Evaluate untouched prospective cases and the 20% target, including difficulty.
 - [x] Ship justified improvements and run native/WASM/web validation.
-- [ ] Publish results, update the draft PR and provide a local preview.
+- [x] Publish results, update the draft PR and provide a local preview.
 
 ## Outcome
 
@@ -78,3 +78,10 @@ and difficulty. No training, credentials or RunPod resources were used. See
   separate oracle/desktop-shell validation is not needed for this original planner.
 - Exact private Markhor feedback file unavailable; its optional test is not
   counted as physical validation of that file.
+
+## Handoff
+
+Draft PR: https://github.com/zacharyfmarion/ori-studio/pull/385 (base `main`).
+Local preview: http://localhost:5246/references, served by `scripts/dev-server.sh`.
+The browser preview contains a generated test pattern and its folding cards.
+Stopped algorithm experiments after meeting the prospective evaluation target.

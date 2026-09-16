@@ -131,6 +131,9 @@ browser latency or a browser-wide benchmark.
 
 ## Additional experiments
 
+The [ablation receipts](precrease-construction-ablations.json) record the native
+development experiments described here.
+
 A slower teacher explores the full witness pool and up to 64,000 physical replay
 evaluations. On Bali Myna it reduced 138 marks to 118, whereas 256 trials of the
 old ordering search, capped at 60 seconds, left 138. The deeper old search produced
@@ -149,8 +152,8 @@ the interactive policy.
 
 Turning off grid precreasing can dramatically reduce extra length, but often adds
 many individual instructions or worsens difficulty and endpoint location. For
-example, Cordyceps Ant's extra length fell from roughly 23.5 to 7.9 sheet units,
-while cards rose from 21 to 69 and difficulty worsened. Grid replacement is therefore
+example, Turtle's extra length fell from 14.75 to 4.97 sheet units, while cards
+rose from 23 to 47 and difficult instructions rose from zero to two. Grid replacement is therefore
 not enabled by this change. The benchmark exposes grid alternatives for further
 study; comparing different closures requires matching original target identities,
 not their internal fold indices.
