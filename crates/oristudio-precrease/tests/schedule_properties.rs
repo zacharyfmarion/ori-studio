@@ -59,5 +59,38 @@ fn finite_mixed_assignment_patterns_keep_coverage_and_never_regress_on_replay() 
         assert_eq!(after.duplicate_folds, 0);
         assert_eq!(after.uncovered, 0);
         assert_eq!(after.wrong_face, 0);
+        let construction = order::construction::refine(
+            &c,
+            improved,
+            order::construction::Options {
+                max_evaluations: 1000,
+                max_passes: 2,
+                tradeoffs: true,
+                single_alignment: true,
+                witnesses_per_fold: 24,
+            },
+            &deadline,
+        );
+        let final_quality = quality::evaluate(&c, &construction.placed);
+        assert!(
+            final_quality.preserves_requirements(&after),
+            "construction seed {seed}: {after:?} -> {final_quality:?}"
+        );
+        assert!(construction.stats.evaluations <= 1000);
+        assert_eq!(final_quality.missing_targets, 0);
+        if seed <= 4 {
+            let teacher = order::rollout::improve(
+                &c,
+                construction.placed,
+                order::rollout::Options {
+                    trials: 6,
+                    width: 2,
+                    cleanup_evaluations: 50,
+                },
+                &deadline,
+            );
+            assert!(teacher.stats.trials <= 6);
+            assert!(quality::evaluate(&c, &teacher.placed).preserves_requirements(&final_quality));
+        }
     }
 }

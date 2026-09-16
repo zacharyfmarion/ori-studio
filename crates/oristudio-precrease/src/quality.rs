@@ -13,7 +13,7 @@ use crate::judge::{MAX_PINCH_ERROR, Vouch, judge};
 use crate::line::Line;
 use crate::marks::{Creased, crease_runs, end_is_found, witness_sightable};
 use crate::order::Placed;
-use crate::pinch::{Extent, PINCH_HALF_LENGTH, pinch_pass};
+use crate::pinch::{Extent, PINCH_HALF_LENGTH, placed_pinch_pass};
 use crate::state::LineTag;
 use crate::tol::TOL;
 
@@ -23,6 +23,15 @@ use crate::tol::TOL;
 pub struct Quality {
     pub folds: usize,
     pub missing_folds: usize,
+    /// Required pattern folds omitted from the emitted plan. Auxiliary folds
+    /// may be removed if physical replay proves nobody still needs them.
+    pub missing_targets: usize,
+    pub auxiliary_folds: usize,
+    pub attached_marks: usize,
+    pub auxiliary_pinches: usize,
+    pub extra_length_cp: f64,
+    pub extra_length_grid: f64,
+    pub extra_length_aux: f64,
     pub duplicate_folds: usize,
     pub unavailable: usize,
     pub unavailable_folds: Vec<usize>,
@@ -37,6 +46,8 @@ pub struct Quality {
     pub invisible: usize,
     pub imprecise: usize,
     pub impractical: usize,
+    /// Unique pattern instructions failing at least one difficulty criterion.
+    pub difficult: usize,
     pub unknown_precision: usize,
     pub measured_precision: usize,
     pub error_sum: f64,
@@ -71,6 +82,19 @@ impl Quality {
     pub fn no_worse_than(&self, other: &Self) -> bool {
         self.folds == other.folds
             && self.missing_folds <= other.missing_folds
+            && self.preserves_requirements(other)
+            && self.presses <= other.presses
+            && self.extra_marks <= other.extra_marks
+            && self.extra_length <= other.extra_length + 1e-8
+            && self.turnovers <= other.turnovers
+            && self.cards <= other.cards
+    }
+
+    /// Correctness and difficulty guard shared by construction alternatives.
+    /// Unlike the old ordering gate, this permits unused auxiliary folds to
+    /// disappear and allows the search to compare different effort profiles.
+    pub fn preserves_requirements(&self, other: &Self) -> bool {
+        self.missing_targets <= other.missing_targets
             && self.duplicate_folds <= other.duplicate_folds
             && self.unavailable <= other.unavailable
             && self
@@ -89,13 +113,9 @@ impl Quality {
             && self.invisible <= other.invisible
             && self.imprecise <= other.imprecise
             && self.impractical <= other.impractical
+            && self.difficult <= other.difficult
             && self.unknown_precision <= other.unknown_precision
             && self.lost_ends <= other.lost_ends
-            && self.presses <= other.presses
-            && self.extra_marks <= other.extra_marks
-            && self.extra_length <= other.extra_length + 1e-8
-            && self.turnovers <= other.turnovers
-            && self.cards <= other.cards
     }
 }
 
@@ -132,12 +152,7 @@ pub(crate) fn replay(
 ) -> Quality {
     let state = closure.state();
     let folded = closure.folded();
-    let order: Vec<_> = placed.iter().map(|p| p.folded).collect();
-    let presented: Vec<_> = placed
-        .iter()
-        .map(|p| p.presented(&folded[p.folded]))
-        .collect();
-    let extents = pinch_pass(closure, &order, &presented);
+    let extents = placed_pinch_pass(closure, placed);
     let mut paper = Creased::new(state);
     // Lengths count pinches too; visibility/alignment must keep them separate.
     let mut ink = Creased::new(state);
@@ -180,6 +195,7 @@ pub(crate) fn replay(
         quality.cards += usize::from(p.twin_of.is_none());
         if p.press.is_none() {
             quality.folds += 1;
+            quality.auxiliary_folds += usize::from(f.target.is_none());
             quality.duplicate_folds += usize::from(seen[p.folded]);
             seen[p.folded] = true;
             quality.wrong_face += usize::from(
@@ -214,7 +230,8 @@ pub(crate) fn replay(
         }
         // Auxiliary folds from external RF answers may lack a recorded
         // witness. Report this as unverified, rather than granting free credit.
-        let available = w.is_some_and(|w| witness_sightable(state, &paper, &fold, w))
+        let available = (p.press.is_none() || paper.is_folded(f.line_id))
+            && w.is_some_and(|w| witness_sightable(state, &paper, &fold, w))
             && presenting
                 .also
                 .as_ref()
@@ -269,6 +286,7 @@ pub(crate) fn replay(
                 quality.invisible += usize::from(!j.visible);
                 quality.imprecise += usize::from(!j.precise);
                 quality.impractical += usize::from(!j.practical);
+                quality.difficult += usize::from(!j.visible || !j.precise || !j.practical);
                 if let Some(e) = j.error.filter(|e| e.is_finite()) {
                     quality.measured_precision += 1;
                     quality.error_sum += e;
@@ -290,6 +308,7 @@ pub(crate) fn replay(
             paper.add_spans(state, f.line_id, &f.line, made);
         } else {
             quality.extra_marks += made.len();
+            quality.auxiliary_pinches += made.len();
             for &span in made {
                 paper.add_pinch(state, f.line_id, &f.line, span);
             }
@@ -298,6 +317,7 @@ pub(crate) fn replay(
         direction[f.line_id] = Some(side.direction());
         for &span in &p.pressed_on {
             quality.extra_marks += 1;
+            quality.attached_marks += 1;
             match vouch.as_ref().and_then(|v| v.error_at(span)) {
                 Some(e) if e > MAX_PINCH_ERROR => quality.pinches_beyond += 1,
                 None => quality.unknown_pinch_precision += 1,
@@ -314,6 +334,11 @@ pub(crate) fn replay(
         }
     }
     quality.missing_folds = seen.iter().filter(|&&s| !s).count();
+    quality.missing_targets = folded
+        .iter()
+        .enumerate()
+        .filter(|(i, f)| f.target.is_some() && !seen[*i])
+        .count();
     for f in folded {
         let chord = state
             .sheet()
@@ -331,7 +356,15 @@ pub(crate) fn replay(
                     intervals(&f.line, &t.spans)
                 }
             });
-        quality.extra_length += outside(made, &wanted);
+        let extra = outside(made, &wanted);
+        quality.extra_length += extra;
+        if f.grid.is_some() {
+            quality.extra_length_grid += extra;
+        } else if f.target.is_some() {
+            quality.extra_length_cp += extra;
+        } else {
+            quality.extra_length_aux += extra;
+        }
     }
     quality
 }
