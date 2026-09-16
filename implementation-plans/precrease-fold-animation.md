@@ -437,4 +437,16 @@ Enums only; no step numbers, no geometry.
       only a mark is wanted. A card that only makes a mark has no fold and
       keeps the hint. Same transport, same Play button, same Space and
       auto-play; the analytics event carries `tab` to tell the two apart.
+- [x] A turn-over rolls at its own pace, half as long again as a swing
+      (`TURN_OVER_DURATION_MS`, 1725 ms): legs carry their duration and the
+      transport reads a card's from its kind.
+- [x] The symbols over the canvas fade with the paper they mark. A letter,
+      ring or arrow anchored on the moving flap (`foldSymbolFade`: inside the
+      flap's polygon, off the hinge; an arrow by where it leaves from; all of
+      them on a turn-over) is wrapped in a group tagged with its flap, and the
+      transport's pose — pushed to the layer's handle beside the canvas's —
+      sets the group's opacity: gone by 45° of swing, back the same way as the
+      paper comes down. A mark on the resting paper, on the hinge, or off the
+      sheet (the point a flap is folded *to*, as often as not) stays put and
+      stays lit.
 - [ ] *Later, not this plan:* pleats.

@@ -33,7 +33,10 @@ import {
 } from '../../cp-workspace/references/referencesStepIndex';
 import { useReferencesMode } from '../../cp-workspace/references/useReferencesMode';
 import { ANALYTICS_EVENTS, track } from '../../analytics';
-import { ReferencesDiagramLayer } from '../../cp-workspace/references/ReferencesDiagramLayer';
+import {
+  ReferencesDiagramLayer,
+  type ReferencesDiagramLayerHandle,
+} from '../../cp-workspace/references/ReferencesDiagramLayer';
 import { useReferencesDiagramScene } from '../../cp-workspace/references/useReferencesDiagramScene';
 import { ReferencesSheetsSidebar } from '../../cp-workspace/references/ReferencesSheetsSidebar';
 import { ReferencesStepFilmstrip } from '../../cp-workspace/references/ReferencesStepFilmstrip';
@@ -230,7 +233,13 @@ export function ReferencesPanel() {
   // step's, whichever strip is showing — and its transport.
   const foldScene = highlights.fold;
   const autoPlayFolds = useSettingsStore((state) => state.referencesAutoPlayFolds);
-  const fold = useFoldPlayback({ view: viewRef, scene: foldScene, autoPlay: autoPlayFolds });
+  const symbolsRef = useRef<ReferencesDiagramLayerHandle | null>(null);
+  const fold = useFoldPlayback({
+    view: viewRef,
+    symbols: symbolsRef,
+    scene: foldScene,
+    autoPlay: autoPlayFolds,
+  });
 
   // The CP-wide analysis is asked for from the Crease Pattern menu, which runs
   // before this panel exists; the request waits in the store until it mounts.
@@ -601,9 +610,11 @@ export function ReferencesPanel() {
               />
             )}
             <ReferencesDiagramLayer
+              ref={symbolsRef}
               model={scene.symbols}
               camera={diagramCamera}
               lineWidth={view.lineWidth}
+              fold={foldScene}
             />
             {view.geometry && (
               <ReferencesViewportToolbar

@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { FOLD_DURATION_MS, TWIN_HOLD_MS, type FoldHeading } from './foldPlayback';
+import {
+  FOLD_DURATION_MS,
+  TURN_OVER_DURATION_MS,
+  TWIN_HOLD_MS,
+  type FoldHeading,
+} from './foldPlayback';
 import type { FoldScene, FoldSceneKind } from './foldScene';
 import {
   AUTO_PLAY_SETTLE_MS,
@@ -119,6 +124,18 @@ describe('FoldTransport', () => {
     expect(onPlay).toHaveBeenLastCalledWith('user', 'unfold', 'cp');
     // Available, playing, rested folded, playing, rested flat.
     expect(changes).toHaveBeenCalledTimes(5);
+  });
+
+  it('turns the sheet over at its own, slower pace', () => {
+    const t = transport();
+    t.setScene(scene('turn-over'));
+    t.toggle();
+    clock.frame(FOLD_DURATION_MS);
+    expect(t.status().playing).toBe(true);
+    expect(lastPose()?.angle).toBeLessThan(Math.PI);
+    clock.frame(TURN_OVER_DURATION_MS - FOLD_DURATION_MS);
+    expect(t.status()).toEqual({ available: true, playing: false, folded: true });
+    expect(onPlay).toHaveBeenLastCalledWith('user', 'fold', 'turn-over');
   });
 
   it('pauses without counting a play, and lays the paper flat on a new card', () => {

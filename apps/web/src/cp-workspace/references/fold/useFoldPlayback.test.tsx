@@ -32,10 +32,12 @@ const SCENE: FoldScene = {
 
 const sink: FoldPoseSink = { setFoldPose: vi.fn() };
 const view = { current: sink };
+const symbolsSink: FoldPoseSink = { setFoldPose: vi.fn() };
+const symbols = { current: symbolsSink };
 
 /** The controller's facts as attributes, and its verb as a button: no globals. */
 function Probe({ scene, autoPlay }: { scene: FoldScene | null; autoPlay: boolean }) {
-  const fold = useFoldPlayback({ view, scene, autoPlay });
+  const fold = useFoldPlayback({ view, symbols, scene, autoPlay });
   return (
     <button
       type="button"
@@ -64,6 +66,7 @@ afterEach(() => {
   root = null;
   container = null;
   vi.mocked(sink.setFoldPose).mockClear();
+  vi.mocked(symbolsSink.setFoldPose).mockClear();
   track.mockClear();
   vi.unstubAllGlobals();
 });
@@ -79,6 +82,8 @@ describe('useFoldPlayback', () => {
     act(() => probe()?.click());
     expect(probe()?.dataset.folded).toBe('true');
     expect(sink.setFoldPose).toHaveBeenLastCalledWith({ flap: 0, angle: Math.PI, press: 1 });
+    // The symbols over the canvas get the same pose, so they fade with the paper.
+    expect(symbolsSink.setFoldPose).toHaveBeenLastCalledWith({ flap: 0, angle: Math.PI, press: 1 });
     expect(track).toHaveBeenCalledWith('references fold played', {
       trigger: 'user',
       direction: 'fold',
@@ -88,5 +93,6 @@ describe('useFoldPlayback', () => {
     act(() => probe()?.click());
     expect(probe()?.dataset.folded).toBe('false');
     expect(sink.setFoldPose).toHaveBeenLastCalledWith(null);
+    expect(symbolsSink.setFoldPose).toHaveBeenLastCalledWith(null);
   });
 });

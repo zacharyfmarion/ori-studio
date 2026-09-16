@@ -9,6 +9,8 @@ export interface FoldPlaybackController extends FoldTransportStatus {
 
 export interface FoldPlaybackInput {
   view: RefObject<FoldPoseSink | null>;
+  /** The layer drawing the step's symbols, which fade as the paper they mark moves. */
+  symbols?: RefObject<FoldPoseSink | null>;
   /** The card's fold, or null when the card has none. A new object is a new card. */
   scene: FoldScene | null;
   /** Play on arriving at a fold card. */
@@ -26,11 +28,23 @@ function prefersReducedMotion(): boolean {
  * read through `useSyncExternalStore` so a frame never re-renders anything
  * and a transition re-renders exactly the button.
  */
-export function useFoldPlayback({ view, scene, autoPlay }: FoldPlaybackInput): FoldPlaybackController {
+export function useFoldPlayback({
+  view,
+  symbols,
+  scene,
+  autoPlay,
+}: FoldPlaybackInput): FoldPlaybackController {
   const [transport] = useState(
     () =>
       new FoldTransport({
-        sink: () => view.current,
+        // One pose, every surface that draws the paper: the refs are read at
+        // each push, since either may mount after the transport.
+        sink: () => ({
+          setFoldPose: (pose) => {
+            view.current?.setFoldPose(pose);
+            symbols?.current?.setFoldPose(pose);
+          },
+        }),
         reducedMotion: prefersReducedMotion,
         onPlay: (trigger, heading, kind) =>
           track(ANALYTICS_EVENTS.referencesFoldPlayed, {

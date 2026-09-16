@@ -17,6 +17,8 @@
  * shape of the motion — only where along it the paper stopped.
  */
 
+import type { FoldSceneKind } from './foldScene';
+
 export interface FoldPose {
   /** Which of the card's flaps is moving; the others lie flat. */
   flap: number;
@@ -33,6 +35,8 @@ export interface FoldLeg {
   heading: FoldHeading;
   /** Rest at the end of this leg for this long before the next begins. */
   holdMs: number;
+  /** How long this leg takes, one way, in ms. */
+  durationMs: number;
 }
 
 export interface FoldRun {
@@ -50,6 +54,12 @@ export interface FoldRun {
 
 /** One leg, one way. */
 export const FOLD_DURATION_MS = 1150;
+/**
+ * A turn-over's leg. The whole sheet is on the move and the eye has to
+ * follow the far edge all the way across the table, so it goes half as long
+ * again as a flap's swing.
+ */
+export const TURN_OVER_DURATION_MS = 1725;
 /** The swing's share of a leg's progress; the rest is the press. */
 export const FOLD_SWING_SHARE = 0.8;
 /** How long a twin's first fold rests folded before it comes back up. */
@@ -81,16 +91,21 @@ export function poseAt(progress: number): Omit<FoldPose, 'flap'> {
   };
 }
 
+/** How long a card of this kind takes over each leg. */
+export function legDurationMs(kind: FoldSceneKind): number {
+  return kind === 'turn-over' ? TURN_OVER_DURATION_MS : FOLD_DURATION_MS;
+}
+
 /**
  * What a card plays: one fold for one flap; for a pair, the first folded,
  * held and unfolded, then the second folded — and left folded.
  */
-export function foldLegs(flapCount: number): FoldLeg[] {
-  if (flapCount <= 1) return [{ flap: 0, heading: 'fold', holdMs: 0 }];
+export function foldLegs(flapCount: number, durationMs = FOLD_DURATION_MS): FoldLeg[] {
+  if (flapCount <= 1) return [{ flap: 0, heading: 'fold', holdMs: 0, durationMs }];
   const legs: FoldLeg[] = [];
   for (let flap = 0; flap < flapCount; flap += 1) {
-    legs.push({ flap, heading: 'fold', holdMs: TWIN_HOLD_MS });
-    if (flap + 1 < flapCount) legs.push({ flap, heading: 'unfold', holdMs: 0 });
+    legs.push({ flap, heading: 'fold', holdMs: TWIN_HOLD_MS, durationMs });
+    if (flap + 1 < flapCount) legs.push({ flap, heading: 'unfold', holdMs: 0, durationMs });
   }
   return legs;
 }
@@ -98,7 +113,9 @@ export function foldLegs(flapCount: number): FoldLeg[] {
 /** The way back from a run that rests folded: the folded flap unfolding. */
 export function unfoldingLegs(legs: readonly FoldLeg[]): FoldLeg[] {
   const last = legs[legs.length - 1];
-  return last ? [{ flap: last.flap, heading: 'unfold', holdMs: 0 }] : [];
+  return last
+    ? [{ flap: last.flap, heading: 'unfold', holdMs: 0, durationMs: last.durationMs }]
+    : [];
 }
 
 const startOf = (leg: FoldLeg): number => (leg.heading === 'fold' ? 0 : 1);
@@ -171,7 +188,7 @@ export function tickFoldRun(run: FoldRun, elapsedMs: number): FoldRun {
     const holdLeft = run.holdLeft - elapsed;
     return holdLeft > 0 ? { ...run, holdLeft } : nextLeg({ ...run, holdLeft: 0 });
   }
-  const step = elapsed / FOLD_DURATION_MS;
+  const step = elapsed / leg.durationMs;
   const at = clamp01(leg.heading === 'fold' ? run.at + step : run.at - step);
   const done = leg.heading === 'fold' ? at >= 1 : at <= 0;
   if (!done) return { ...run, at };

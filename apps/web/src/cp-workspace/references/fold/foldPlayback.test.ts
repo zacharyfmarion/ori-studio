@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   FOLD_DURATION_MS,
+  legDurationMs,
+  TURN_OVER_DURATION_MS,
+  unfoldingLegs,
   FOLD_SWING_SHARE,
   TWIN_HOLD_MS,
   foldLegs,
@@ -62,7 +65,11 @@ describe('a fold card', () => {
     expect(over.at).toBe(1);
     expect(over.playing).toBe(false);
     const under = tickFoldRun(
-      { ...runAtRest([{ flap: 0, heading: 'unfold', holdMs: 0 }]), at: 0.1, playing: true },
+      {
+        ...runAtRest([{ flap: 0, heading: 'unfold', holdMs: 0, durationMs: FOLD_DURATION_MS }]),
+        at: 0.1,
+        playing: true,
+      },
       FOLD_DURATION_MS
     );
     expect(under.at).toBe(0);
@@ -95,7 +102,9 @@ describe('a twin card', () => {
     expect(t).toBeLessThan(3 * FOLD_DURATION_MS + TWIN_HOLD_MS + 200);
     // Rested folded on the second flap, Play unfolds that flap alone…
     const back = toggleFoldRun(run);
-    expect(back.legs).toEqual([{ flap: 1, heading: 'unfold', holdMs: 0 }]);
+    expect(back.legs).toEqual([
+      { flap: 1, heading: 'unfold', holdMs: 0, durationMs: FOLD_DURATION_MS },
+    ]);
     const flat = playOut(back);
     expect(isFlat(flat)).toBe(true);
     // …and flat again, Play runs the whole card forwards.
@@ -156,5 +165,19 @@ describe('poseAt', () => {
       expect(next.press).toBeGreaterThanOrEqual(last.press);
       last = next;
     }
+  });
+
+  it('takes a turn-over half as long again as a fold, and unfolds at the same pace', () => {
+    expect(legDurationMs('turn-over')).toBe(TURN_OVER_DURATION_MS);
+    expect(legDurationMs('cp')).toBe(FOLD_DURATION_MS);
+    expect(legDurationMs('reference')).toBe(FOLD_DURATION_MS);
+    expect(TURN_OVER_DURATION_MS / FOLD_DURATION_MS).toBeCloseTo(1.5);
+    const over = runAtRest(foldLegs(1, TURN_OVER_DURATION_MS));
+    const atFoldTime = tickFoldRun(toggleFoldRun(over), FOLD_DURATION_MS);
+    expect(atFoldTime.playing).toBe(true);
+    expect(atFoldTime.at).toBeCloseTo(FOLD_DURATION_MS / TURN_OVER_DURATION_MS);
+    const landed = tickFoldRun(atFoldTime, TURN_OVER_DURATION_MS - FOLD_DURATION_MS);
+    expect(isFolded(landed)).toBe(true);
+    expect(unfoldingLegs(landed.programme)[0]?.durationMs).toBe(TURN_OVER_DURATION_MS);
   });
 });
