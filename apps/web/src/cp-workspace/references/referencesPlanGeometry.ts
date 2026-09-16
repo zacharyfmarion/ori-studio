@@ -211,16 +211,18 @@ export function planStepScene(
 }
 
 /**
- * The turn-over card, on the pattern: every crease made so far in the
- * card's own grey, and the symbol that says to flip the sheet — the same
- * primitives the card draws, in the model frame.
+ * The turn-over card, on the pattern: the symbol that says to flip the
+ * sheet, over the build-up so far.
  *
- * The canvas used to show a turn-over as the build-up in full colour and
- * nothing else, while its card showed the creases greyed out under the
- * symbol. Zach (2026-09-16): "make the turnover step in the main part show
- * EXACTLY the same thing that is shown in the smaller diagram step". So the
- * pattern's own creases are held back for this step
- * (`referencesCreaseVisibility.planVisibility`) and this draws them.
+ * The build-up itself is the pattern's own creases, held to the steps folded
+ * so far by `referencesCreaseVisibility` in the document's own ink, as on a
+ * fold card — so this draws only what the pattern cannot: the pinches and
+ * auxiliary folds no crease pattern records, and the symbol. The canvas
+ * once drew the creases greyed under the symbol to match the card exactly
+ * (Zach, 2026-09-16); now that the sheet turns over on the canvas, the ink
+ * has to be the pattern's, so the face that comes up shows the assignment
+ * reversed the way a fold card's flap does (Zach, later the same day: "still
+ * render the front and back like in the normal steps").
  *
  * `after` is the last planner step folded by this point, or null before the
  * first fold. No bounds: the sheet as a whole is the picture.
@@ -231,7 +233,9 @@ export function planTurnOverScene(
   after: number | null
 ): ReferencesPlanScene {
   return {
-    diagram: plannerTurnOverDiagram(sequence, modelFrame(sequence, model), after),
+    diagram: plannerTurnOverDiagram(sequence, modelFrame(sequence, model), after, {
+      earlier: 'unpatterned',
+    }),
     bounds: null,
     highlightLineIds: [],
   };

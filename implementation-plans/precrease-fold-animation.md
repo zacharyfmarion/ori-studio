@@ -474,4 +474,14 @@ Enums only; no step numbers, no geometry.
       swing onto the other, each the side `movingSide` finds for it, and the
       crate's stands only within the slack — markhor 28 swung two thirds of
       the sheet over the other third (Zach, 2026-09-16).
+- [x] A turn-over card shows the build-up in the pattern's own ink and
+      directions, as a fold card does, so the roll carries the creases with
+      the sheet and the face that comes up shows them mirrored with the
+      assignment reversed. The canvas draws only the symbol and the marks the
+      pattern lacks over it (`plannerTurnOverDiagram` with
+      `earlier: 'unpatterned'`); the card itself still greys the build-up
+      under the symbol. This supersedes the earlier same-day call to show
+      exactly the card's grey picture on the canvas: that was made before
+      the sheet turned over there (Zach, 2026-09-16: "still render the
+      front and back like in the normal steps").
 - [ ] *Later, not this plan:* pleats.

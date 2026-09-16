@@ -779,6 +779,42 @@ describe('the cards that are not folds', () => {
     expect(lines(0)).toBeLessThan(lines(sequence.steps.length - 1));
   });
 
+  // On the canvas the pattern's own creases are beneath, in their own ink,
+  // so the picture there draws only what the pattern lacks — the landmark's
+  // pinches — and the symbol.
+  it('draws only the marks the pattern lacks when asked to', () => {
+    // The first two steps creasing something the pattern holds; the third's
+    // chord is not in it, so that one is still drawn.
+    const held: PrecreaseSequence = {
+      ...sequence,
+      steps: sequence.steps.map((step, i) =>
+        i < 2
+          ? {
+              ...step,
+              extent: { kind: 'full' as const },
+              cp_spans: [
+                [
+                  [0, 0.2 * (i + 1)],
+                  [1, 0.2 * (i + 1)],
+                ],
+              ] as PrecreasePlanSegment[],
+            }
+          : step
+      ),
+    };
+    const lines = (earlier: 'all' | 'unpatterned') =>
+      plannerTurnOverDiagram(held, unitFrame(held), 2, { earlier }).primitives.filter(
+        (p) => p.kind === 'line'
+      );
+    expect(lines('all')).toHaveLength(3);
+    expect(lines('unpatterned')).toHaveLength(1);
+    expect(
+      plannerTurnOverDiagram(held, unitFrame(held), null, { earlier: 'unpatterned' }).primitives.filter(
+        (p) => p.kind === 'turn-over'
+      )
+    ).toHaveLength(1);
+  });
+
   it('draws the finished pattern in the directions its steps were made in', () => {
     // The auxiliary first step was made in a direction too, but the finished
     // pattern assigns it none: it is drawn neutral there.

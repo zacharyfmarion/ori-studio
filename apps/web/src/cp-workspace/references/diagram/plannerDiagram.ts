@@ -1370,17 +1370,22 @@ export function plannerStepDiagram(
 export function plannerTurnOverDiagram(
   sequence: PrecreaseSequence,
   frame: DiagramFrame,
-  after: number | null
+  after: number | null,
+  options: Pick<PlannerStepDiagramOptions, 'earlier'> = {}
 ): StepDiagramModel {
   const sheet = frame.sheet;
   const primitives: StepDiagramPrimitive[] = [];
   if (frame.outline) {
     primitives.push({ kind: 'sheet', width: sheet.width, height: sheet.height });
   }
+  // The build-up so far: all of it on a card; on the canvas, which has the
+  // pattern's own creases beneath in their own ink, only what the pattern
+  // does not hold — the pinches and the auxiliary folds.
+  const patterned = (options.earlier ?? 'all') === 'all';
   for (let i = 0; after !== null && i <= after && i < sequence.steps.length; i += 1) {
     const step = sequence.steps[i];
     if (!step) continue;
-    for (const span of creasedSpans(frame, step)) {
+    for (const span of creasedSpans(frame, step, patterned)) {
       primitives.push(spanLine(span, 'crease'));
     }
   }
