@@ -2117,12 +2117,21 @@ fn one_card(w: &Witness) -> bool {
 /// just placed: its line the image of `a`'s under a symmetry of the sheet,
 /// its witness the image of `a`'s presented one, both sightable and free on
 /// `before` — the paper as it stood before `a` was made, so the order
-/// between the two is immaterial — its crease the image of `a`'s, and the
-/// same kind of fold in the same direction. A diagram folds such a pair as
-/// one step, and so does the card — for the kinds a card can hold at once
-/// ([`one_card`]); the rest are placed side by side on cards of their own.
-/// The queue position and folded index of the twin, its witness, the
-/// crease it makes, and whether the pair is one card.
+/// between the two is immaterial — and its crease the image of `a`'s. A
+/// diagram folds such a pair as one step, and so does the card — for the
+/// kinds a card can hold at once ([`one_card`]); the rest are placed side
+/// by side on cards of their own. The queue position and folded index of
+/// the twin, its witness, the crease it makes, and whether the pair is one
+/// card.
+///
+/// The direction is not compared: the queue is one block of one sweep, and
+/// every fold in a block is made from the same face, as a valley toward the
+/// folder. What the finished pattern wants on each line is another matter —
+/// angelfish's two diagonals are both mixed lines, one a weak mountain
+/// majority and the other a weak valley, and both are folded on the front
+/// as the same pair of corner-to-corner valleys. Comparing the majorities
+/// kept them on two cards (Zach: "they are functionally symmetric. We
+/// should be merging based on the actual creases that are folded").
 fn twin_in_queue(
     state: &State,
     closure: &Closure,
@@ -2132,7 +2141,7 @@ fn twin_in_queue(
 ) -> Option<TwinFound> {
     let folded = closure.folded();
     let fa = &folded[a.folded];
-    let ta = closure.targets().get(fa.target?)?;
+    closure.targets().get(fa.target?)?;
     if fa.grid.is_some() || fa.tag != LineTag::Cp || a.press.is_some() || !a.marks_exist {
         return None;
     }
@@ -2157,9 +2166,6 @@ fn twin_in_queue(
             let Some(tb) = fb.target.and_then(|t| closure.targets().get(t)) else {
                 continue;
             };
-            if tb.direction != ta.direction {
-                continue;
-            }
             let fold_b = fb.constructed();
             let pool = candidates(state, before, &fold_b, fb.line_id, &[], &fb.witnesses);
             let Some(wb) = pool.iter().find(|w| sym.maps_witness(state, wa, w)) else {
@@ -3776,6 +3782,43 @@ mod tests {
         let apart = order_with(&c, false, false);
         assert!(apart.iter().all(|p| p.twin_of.is_none()));
         assert_eq!(apart.len(), placed.len());
+    }
+
+    /// The two diagonals of angelfish: each a mixed line, one a weak
+    /// mountain majority and the other a weak valley, so neither forces a
+    /// side and both are folded on the front as corner-to-corner valleys.
+    /// The same pair of folds, one card — the pattern's majorities are not
+    /// the direction the folds are made in, and comparing them kept the two
+    /// apart.
+    #[test]
+    fn mirrored_folds_with_opposite_weak_majorities_are_still_twins() {
+        let anti = Line::from_points([1.0, 0.0], [0.0, 1.0]).expect("anti-diagonal");
+        let main = Line::from_points([0.0, 0.0], [1.0, 1.0]).expect("diagonal");
+        let chord = |l: &Line| {
+            let (a, b) = Sheet::unit_square().clip(l).expect("chord");
+            vec![[a, b]]
+        };
+        let mut c = Closure::new(
+            Sheet::unit_square(),
+            vec![
+                Target::new(anti, vec![1], chord(&anti), 0.55, 0.45),
+                Target::new(main, vec![2], chord(&main), 0.45, 0.55),
+            ],
+            DEFAULT_POINT_CAP,
+        );
+        c.close(&Deadline::unbounded(frozen_clock()))
+            .expect("close");
+        let placed = order(&c, false);
+        assert_eq!(placed.len(), 2);
+        assert_eq!(
+            placed[0].side, placed[1].side,
+            "one block: neither forces a side"
+        );
+        assert_eq!(
+            placed[1].twin_of,
+            Some(placed[0].folded),
+            "the diagonals are one card: {placed:?}"
+        );
     }
 
     #[test]
