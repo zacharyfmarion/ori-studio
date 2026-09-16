@@ -73,7 +73,7 @@ export function ReferencesViewControlsPanel() {
           />
         </ViewPaneSection>
 
-        <ViewPaneSection title={t('panels:references.settings.sequence', 'Folding sequence')}>
+        <ViewPaneSection title={t('panels:references.settings.sequence', 'Precreasing sequence')}>
           <ViewPaneToggleRow
             label={t('panels:references.settings.landmarksFirst', 'Landmarks first')}
             checked={landmarksFirst}

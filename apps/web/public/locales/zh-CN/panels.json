@@ -833,7 +833,7 @@
     "lead": {
       "find": "点击顶点或折痕，查看如何从空白纸张折出它。",
       "plan": "图样的全部预折痕，按折叠顺序排列。",
-      "planAction": "计算折叠顺序"
+      "planAction": "计算预折顺序"
     },
     "meta": {
       "crease": "折痕",
@@ -844,7 +844,7 @@
       "find": "查找参考点",
       "findTitle": "点击顶点或折痕，查看如何从空白纸张折出它",
       "label": "显示内容",
-      "sequence": "折叠顺序",
+      "sequence": "预折顺序",
       "sequenceTitle": "图样的全部预折痕，按折叠顺序排列"
     },
     "noCreasePattern": "没有折痕图",
@@ -854,7 +854,7 @@
     "outOfDate": "已过期",
     "outOfDateHint": "找到这些参考点之后，折痕图发生了变化。",
     "outsideSheet": "所选位置不在任何一张纸内。",
-    "planning": "正在计算折叠顺序…",
+    "planning": "正在计算预折顺序…",
     "planStep": {
       "alsoNote": "同时对齐两处，折痕才能保持笔直。",
       "approximate": "近似——此作图偏离纸张的 {{pct}}%。",
@@ -932,7 +932,7 @@
       "mergeSymmetric": "合并对称步骤",
       "mergeSymmetricHelp": "两个互为镜像的折叠 — 例如左角折向中心和右角折向中心 — 会像折图那样显示为一个步骤，各带一个箭头。关闭后，每个折叠都是单独的步骤。",
       "precreaseGrid": "预折网格",
-      "sequence": "折叠顺序",
+      "sequence": "预折顺序",
       "solutions": "解的数量"
     },
     "sheets": {
@@ -943,7 +943,7 @@
     },
     "sidebar": {
       "none": "在当前设置下，ReferenceFinder 没有为此目标找到作图。",
-      "planning": "正在计算折叠顺序…"
+      "planning": "正在计算预折顺序…"
     },
     "step": {
       "axiom1": "经过 {{p0}} 和 {{p1}} 折出 {{x}}。",
@@ -960,7 +960,6 @@
     "stop": "停止",
     "stopping": "正在取消…",
     "targetGone": "所选折痕已不在折痕图中。",
-    "title": "参考",
     "viewportControls": "参考视口控件",
     "warning": {
       "degenerateBorderSegments": "有 {{n}} 条边界折线两端重合，已忽略。",

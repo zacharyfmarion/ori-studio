@@ -639,7 +639,7 @@ export function ReferencesPanel() {
                     ? t('panels:references.stopping', 'Cancelling…')
                     : targeted
                       ? t('panels:references.searching', 'Finding references…')
-                      : t('panels:references.planning', 'Working out the folding sequence…')}
+                      : t('panels:references.planning', 'Working out the precreasing sequence…')}
                 </span>
                 {breakdown.progress && breakdown.progress.total > 0 && (
                   <small>

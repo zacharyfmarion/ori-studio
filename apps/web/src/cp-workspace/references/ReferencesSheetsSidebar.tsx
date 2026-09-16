@@ -104,7 +104,7 @@ export const ReferencesSheetsSidebar = memo(function ReferencesSheetsSidebar({
             or failed. Recompute in the toolbar is the way to ask again. */}
         {hasDocument && !targeted && !planned && busy && (
           <p className="references-sidebar__hint">
-            {t('panels:references.sidebar.planning', 'Working out the folding sequence…')}
+            {t('panels:references.sidebar.planning', 'Working out the precreasing sequence…')}
           </p>
         )}
         {hint && (planned || targeted) && <p className="references-sidebar__hint">{hint}</p>}

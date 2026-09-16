@@ -71,7 +71,7 @@ describe('ReferencesViewControlsPanel', () => {
     const rendered = render();
 
     expect(rendered.textContent).toContain('Candidates');
-    expect(rendered.textContent).toContain('Folding sequence');
+    expect(rendered.textContent).toContain('Precreasing sequence');
     expect(
       [...rendered.querySelectorAll('button[role="switch"]')].map((button) =>
         button.getAttribute('aria-label')

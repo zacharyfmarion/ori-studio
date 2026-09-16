@@ -133,6 +133,13 @@ export interface ReferencesHighlights {
  * the clicked crease unmarked for the whole 70 ms-to-6 s wait, and for good on
  * either terminal path, while the toolbar went on saying "Crease".
  *
+ * Once there is an answer with steps, though, the target is shown only on the
+ * **last** of them. The steps are a construction on blank paper, and the thing
+ * being constructed is not on the paper until the last fold makes it — drawn
+ * on every step in its own colour it read as part of each step, which it is
+ * not (Zach, 2026-09-15). Until then the pick is the toolbar's badge and the
+ * strip; the sheet is the outline and the step.
+ *
  * *What did ReferenceFinder say?* is `results`, and `current` says whether that
  * answer still describes the geometry on screen. Stale results draw nothing,
  * because their crease ids and vertex positions may name something else now —
@@ -150,32 +157,37 @@ export function useReferencesHighlights(
 ): ReferencesHighlights {
   const candidate: ReferencesCandidateResult | null =
     current && results ? (results.candidates[activeCandidate] ?? results.candidates[0] ?? null) : null;
+  // The target is on the paper only once the construction has made it: on
+  // the last step, or with no steps at all (already on the paper).
+  const stepCount = candidate?.solution.steps.length ?? 0;
+  const targetMade =
+    stepCount === 0 || clampStepIndex(candidate?.solution ?? null, activeStep) >= stepCount - 1;
 
   // The collinear run is genuinely a *result* — the frames analysis found it —
   // so it stays keyed on the answer, not on the pick.
   const answered = current ? results?.target : undefined;
 
   const highlightLineIds = useMemo<ReadonlySet<number>>(() => {
-    if (!answered || answered.kind !== 'crease') return EMPTY_IDS;
+    if (!answered || answered.kind !== 'crease' || !targetMade) return EMPTY_IDS;
     return new Set(answered.cpLineIds);
-  }, [answered]);
+  }, [answered, targetMade]);
 
   // Vertex requests are keyed on coordinates (`cpVertexId`); the draw index is
   // looked up from them here, against the geometry actually on screen. No extra
   // staleness guard is needed: a vertex that is no longer there yields no index.
   const highlightVertexIdx = useMemo<ReadonlySet<number>>(() => {
-    if (!picked || picked.kind !== 'vertex' || !geometry) return EMPTY_IDS;
+    if (!picked || picked.kind !== 'vertex' || !geometry || !targetMade) return EMPTY_IDS;
     const key = cpVertexId(picked.point);
     const idx = vertexPointsFromTransport(geometry).findIndex((v) => cpVertexId(v) === key);
     return idx >= 0 ? new Set([idx]) : EMPTY_IDS;
-  }, [picked, geometry]);
+  }, [picked, geometry, targetMade]);
 
   const selected = useMemo<ReferencesSelection | null>(() => {
-    if (!picked) return null;
+    if (!picked || !targetMade) return null;
     if (picked.kind === 'crease') return { kind: 'line', id: picked.lineId };
     const [idx] = highlightVertexIdx;
     return idx === undefined ? null : { kind: 'vertex', idx };
-  }, [picked, highlightVertexIdx]);
+  }, [picked, highlightVertexIdx, targetMade]);
 
   const overlay = useMemo(() => {
     if (!candidate || !results) return null;

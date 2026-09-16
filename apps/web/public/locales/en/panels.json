@@ -863,7 +863,7 @@
     "lead": {
       "find": "Tap a vertex or crease to see how to fold it from a blank sheet.",
       "plan": "Every precrease of the pattern, in the order to fold them.",
-      "planAction": "Plan the folding sequence"
+      "planAction": "Plan the precreasing sequence"
     },
     "meta": {
       "crease": "Crease",
@@ -874,7 +874,7 @@
       "find": "Find a reference",
       "findTitle": "Tap a vertex or crease to see how to fold it from a blank sheet",
       "label": "What to show",
-      "sequence": "Folding sequence",
+      "sequence": "Precreasing sequence",
       "sequenceTitle": "Every precrease of the pattern, in the order to fold them"
     },
     "noCreasePattern": "No crease pattern",
@@ -884,7 +884,7 @@
     "outOfDate": "Out of date",
     "outOfDateHint": "The crease pattern changed since these references were found.",
     "outsideSheet": "This pick is not inside any sheet.",
-    "planning": "Working out the folding sequence…",
+    "planning": "Working out the precreasing sequence…",
     "planStep": {
       "alsoNote": "Line up both at once, so the fold stays straight.",
       "approximate": "Approximate — this construction is off by {{pct}}% of the sheet.",
@@ -972,7 +972,7 @@
       "mergeSymmetric": "Merge symmetric steps",
       "mergeSymmetricHelp": "Two folds that mirror each other — the left corner to the centre and the right corner to the centre, say — are shown as one step with an arrow for each, the way a diagram folds them. Off, every fold is a step of its own.",
       "precreaseGrid": "Precrease grid",
-      "sequence": "Folding sequence",
+      "sequence": "Precreasing sequence",
       "solutions": "Solutions"
     },
     "sheets": {
@@ -985,7 +985,7 @@
     },
     "sidebar": {
       "none": "ReferenceFinder found no construction for this target at the current settings.",
-      "planning": "Working out the folding sequence…"
+      "planning": "Working out the precreasing sequence…"
     },
     "step": {
       "axiom1": "Fold {{x}} through {{p0}} and {{p1}}.",
@@ -1002,7 +1002,6 @@
     "stop": "Stop",
     "stopping": "Cancelling…",
     "targetGone": "The picked crease is no longer in the pattern.",
-    "title": "References",
     "viewportControls": "References viewport controls",
     "warning": {
       "degenerateBorderSegments": "{{n}} border crease(s) have coincident ends and were ignored.",

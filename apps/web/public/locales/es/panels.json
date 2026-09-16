@@ -897,7 +897,7 @@
     "lead": {
       "find": "Toca un vértice o pliegue para ver cómo doblarlo desde una hoja en blanco.",
       "plan": "Todos los prepliegues del patrón, en el orden en que se doblan.",
-      "planAction": "Calcular la secuencia de plegado"
+      "planAction": "Calcular la secuencia de prepliegues"
     },
     "meta": {
       "crease": "Pliegue",
@@ -908,7 +908,7 @@
       "find": "Buscar una referencia",
       "findTitle": "Toca un vértice o pliegue para ver cómo doblarlo desde una hoja en blanco",
       "label": "Qué mostrar",
-      "sequence": "Secuencia de plegado",
+      "sequence": "Secuencia de prepliegues",
       "sequenceTitle": "Todos los prepliegues del patrón, en el orden en que se doblan"
     },
     "noCreasePattern": "Sin patrón de pliegues",
@@ -918,7 +918,7 @@
     "outOfDate": "Desactualizado",
     "outOfDateHint": "El patrón de pliegues cambió desde que se hallaron estas referencias.",
     "outsideSheet": "Esta selección no está dentro de ninguna hoja.",
-    "planning": "Calculando la secuencia de plegado…",
+    "planning": "Calculando la secuencia de prepliegues…",
     "planStep": {
       "alsoNote": "Alinea ambos a la vez para que el pliegue quede recto.",
       "approximate": "Aproximado: esta construcción se desvía un {{pct}} % de la hoja.",
@@ -1004,7 +1004,7 @@
       "mergeSymmetric": "Combinar pasos simétricos",
       "mergeSymmetricHelp": "Dos pliegues que son imagen especular uno del otro — la esquina izquierda al centro y la derecha al centro, por ejemplo — se muestran como un solo paso con una flecha para cada uno, como los pliega un diagrama. Desactivado, cada pliegue es un paso propio.",
       "precreaseGrid": "Preplegar la cuadrícula",
-      "sequence": "Secuencia de plegado",
+      "sequence": "Secuencia de prepliegues",
       "solutions": "Soluciones"
     },
     "sheets": {
@@ -1019,7 +1019,7 @@
     },
     "sidebar": {
       "none": "ReferenceFinder no halló ninguna construcción para este objetivo con los ajustes actuales.",
-      "planning": "Calculando la secuencia de plegado…"
+      "planning": "Calculando la secuencia de prepliegues…"
     },
     "step": {
       "axiom1": "Dobla {{x}} pasando por {{p0}} y {{p1}}.",
@@ -1036,7 +1036,6 @@
     "stop": "Detener",
     "stopping": "Cancelando…",
     "targetGone": "El pliegue elegido ya no está en el patrón.",
-    "title": "Referencias",
     "viewportControls": "Controles de la vista de referencias",
     "warning": {
       "degenerateBorderSegments": "{{n}} pliegue(s) del borde tienen extremos coincidentes y se ignoraron.",

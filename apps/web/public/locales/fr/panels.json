@@ -897,7 +897,7 @@
     "lead": {
       "find": "Touchez un sommet ou un pli pour voir comment le plier à partir d’une feuille vierge.",
       "plan": "Tous les prépliages du patron, dans l’ordre où les plier.",
-      "planAction": "Calculer la séquence de pliage"
+      "planAction": "Calculer la séquence de prépliage"
     },
     "meta": {
       "crease": "Pli",
@@ -908,7 +908,7 @@
       "find": "Trouver une référence",
       "findTitle": "Touchez un sommet ou un pli pour voir comment le plier à partir d’une feuille vierge",
       "label": "Quoi afficher",
-      "sequence": "Séquence de pliage",
+      "sequence": "Séquence de prépliage",
       "sequenceTitle": "Tous les prépliages du patron, dans l’ordre où les plier"
     },
     "noCreasePattern": "Aucun patron de pliage",
@@ -918,7 +918,7 @@
     "outOfDate": "Obsolète",
     "outOfDateHint": "Le patron de pliage a changé depuis que ces références ont été trouvées.",
     "outsideSheet": "Cette sélection n’est dans aucune feuille.",
-    "planning": "Calcul de la séquence de pliage…",
+    "planning": "Calcul de la séquence de prépliage…",
     "planStep": {
       "alsoNote": "Alignez les deux en même temps pour que le pli reste droit.",
       "approximate": "Approximatif — cette construction s’écarte de {{pct}} % de la feuille.",
@@ -1006,7 +1006,7 @@
       "mergeSymmetric": "Fusionner les étapes symétriques",
       "mergeSymmetricHelp": "Deux plis qui se reflètent — le coin gauche vers le centre et le coin droit vers le centre, par exemple — sont montrés en une seule étape avec une flèche pour chacun, comme un diagramme les plie. Désactivé, chaque pli est une étape à part.",
       "precreaseGrid": "Préplier la grille",
-      "sequence": "Séquence de pliage",
+      "sequence": "Séquence de prépliage",
       "solutions": "Solutions"
     },
     "sheets": {
@@ -1021,7 +1021,7 @@
     },
     "sidebar": {
       "none": "ReferenceFinder n’a trouvé aucune construction pour cette cible avec les réglages actuels.",
-      "planning": "Calcul de la séquence de pliage…"
+      "planning": "Calcul de la séquence de prépliage…"
     },
     "step": {
       "axiom1": "Pliez {{x}} en passant par {{p0}} et {{p1}}.",
@@ -1038,7 +1038,6 @@
     "stop": "Arrêter",
     "stopping": "Annulation…",
     "targetGone": "Le pli choisi n’est plus dans le patron.",
-    "title": "Références",
     "viewportControls": "Commandes d'affichage des références",
     "warning": {
       "degenerateBorderSegments": "{{n}} pli(s) de bord ont des extrémités confondues et ont été ignorés.",

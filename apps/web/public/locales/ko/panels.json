@@ -833,7 +833,7 @@
     "lead": {
       "find": "꼭짓점이나 접는 선을 탭하면 빈 종이에서 접는 방법이 표시됩니다.",
       "plan": "패턴의 모든 사전 접기를 접는 순서대로 표시합니다.",
-      "planAction": "접기 순서 계산"
+      "planAction": "사전 접기 순서 계산"
     },
     "meta": {
       "crease": "접는 선",
@@ -844,7 +844,7 @@
       "find": "기준점 찾기",
       "findTitle": "꼭짓점이나 접는 선을 탭하면 빈 종이에서 접는 방법이 표시됩니다",
       "label": "표시 내용",
-      "sequence": "접기 순서",
+      "sequence": "사전 접기 순서",
       "sequenceTitle": "패턴의 모든 사전 접기를 접는 순서대로 표시합니다"
     },
     "noCreasePattern": "전개도 없음",
@@ -854,7 +854,7 @@
     "outOfDate": "오래된 결과",
     "outOfDateHint": "이 기준점을 찾은 뒤 전개도가 바뀌었습니다.",
     "outsideSheet": "이 선택은 어떤 종이 안에도 있지 않습니다.",
-    "planning": "접기 순서를 계산하는 중…",
+    "planning": "사전 접기 순서를 계산하는 중…",
     "planStep": {
       "alsoNote": "두 곳을 동시에 맞추면 접는 선이 곧게 유지됩니다.",
       "approximate": "근사입니다. 이 작도는 종이의 {{pct}}%만큼 어긋납니다.",
@@ -932,7 +932,7 @@
       "mergeSymmetric": "대칭인 단계 합치기",
       "mergeSymmetricHelp": "서로 거울상인 두 접기 — 예를 들어 왼쪽 모서리를 중심으로, 오른쪽 모서리를 중심으로 — 를 접기 도면처럼 화살표를 하나씩 둔 한 단계로 보여 줍니다. 끄면 접기마다 별도의 단계가 됩니다.",
       "precreaseGrid": "격자 먼저 접기",
-      "sequence": "접기 순서",
+      "sequence": "사전 접기 순서",
       "solutions": "해답 수"
     },
     "sheets": {
@@ -943,7 +943,7 @@
     },
     "sidebar": {
       "none": "현재 설정으로는 이 대상에 대한 작도를 찾지 못했습니다.",
-      "planning": "접기 순서를 계산하는 중…"
+      "planning": "사전 접기 순서를 계산하는 중…"
     },
     "step": {
       "axiom1": "{{p0}}과(와) {{p1}}을(를) 지나도록 {{x}}을(를) 접습니다.",
@@ -960,7 +960,6 @@
     "stop": "중지",
     "stopping": "취소 중…",
     "targetGone": "선택한 접는 선이 전개도에 더 이상 없습니다.",
-    "title": "참조",
     "viewportControls": "참조 뷰포트 컨트롤",
     "warning": {
       "degenerateBorderSegments": "{{n}}개의 가장자리 선은 양 끝이 같아 무시했습니다.",

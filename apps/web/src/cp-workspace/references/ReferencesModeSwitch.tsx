@@ -6,7 +6,7 @@ import type { ReferencesMode } from './referencesMode';
 
 /**
  * The switch between the workspace's two jobs — find one reference, or read
- * the folding sequence — as the tabs the Design workspace draws its designs
+ * the precreasing sequence — as the tabs the Design workspace draws its designs
  * with (`DesignTabStrip`): the same classes, so the two strips cannot drift
  * apart, and the same Radix tabs underneath, so the keyboard reaches them the
  * same way.
@@ -47,7 +47,7 @@ export const ReferencesModeSwitch = memo(function ReferencesModeSwitch({
     },
     {
       value: 'sequence',
-      label: t('panels:references.mode.sequence', 'Folding sequence'),
+      label: t('panels:references.mode.sequence', 'Precreasing sequence'),
       title: t(
         'panels:references.mode.sequenceTitle',
         'Every precrease of the pattern, in the order to fold them'

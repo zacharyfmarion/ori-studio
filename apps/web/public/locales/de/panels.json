@@ -863,7 +863,7 @@
     "lead": {
       "find": "Tippe auf einen Scheitelpunkt oder eine Falte, um zu sehen, wie man sie von einem leeren Blatt aus faltet.",
       "plan": "Alle Vorfalten des Musters, in der Reihenfolge, in der sie gefaltet werden.",
-      "planAction": "Faltfolge berechnen"
+      "planAction": "Vorfaltfolge berechnen"
     },
     "meta": {
       "crease": "Falte",
@@ -874,7 +874,7 @@
       "find": "Referenz finden",
       "findTitle": "Tippe auf einen Scheitelpunkt oder eine Falte, um zu sehen, wie man sie von einem leeren Blatt aus faltet",
       "label": "Was angezeigt wird",
-      "sequence": "Faltfolge",
+      "sequence": "Vorfaltfolge",
       "sequenceTitle": "Alle Vorfalten des Musters, in der Reihenfolge, in der sie gefaltet werden"
     },
     "noCreasePattern": "Kein Faltmuster",
@@ -884,7 +884,7 @@
     "outOfDate": "Veraltet",
     "outOfDateHint": "Das Faltmuster hat sich geändert, seit diese Referenzen gefunden wurden.",
     "outsideSheet": "Diese Auswahl liegt in keinem Bogen.",
-    "planning": "Faltfolge wird berechnet…",
+    "planning": "Vorfaltfolge wird berechnet…",
     "planStep": {
       "alsoNote": "Richte beide zugleich aus, damit die Faltung gerade bleibt.",
       "approximate": "Näherung – diese Konstruktion liegt {{pct}} % der Blattseite daneben.",
@@ -966,7 +966,7 @@
       "mergeSymmetric": "Symmetrische Schritte zusammenfassen",
       "mergeSymmetricHelp": "Zwei Faltungen, die sich spiegeln — etwa die linke Ecke zur Mitte und die rechte Ecke zur Mitte — werden als ein Schritt mit je einem Pfeil gezeigt, so wie ein Diagramm sie faltet. Aus: jede Faltung ist ein eigener Schritt.",
       "precreaseGrid": "Raster vorfalten",
-      "sequence": "Faltfolge",
+      "sequence": "Vorfaltfolge",
       "solutions": "Lösungen"
     },
     "sheets": {
@@ -979,7 +979,7 @@
     },
     "sidebar": {
       "none": "ReferenceFinder hat mit den aktuellen Einstellungen keine Konstruktion für dieses Ziel gefunden.",
-      "planning": "Faltfolge wird berechnet…"
+      "planning": "Vorfaltfolge wird berechnet…"
     },
     "step": {
       "axiom1": "Falte {{x}} durch {{p0}} und {{p1}}.",
@@ -996,7 +996,6 @@
     "stop": "Stopp",
     "stopping": "Wird abgebrochen…",
     "targetGone": "Die gewählte Falte ist nicht mehr im Muster.",
-    "title": "Referenzen",
     "viewportControls": "Ansichtssteuerung der Referenzen",
     "warning": {
       "degenerateBorderSegments": "{{n}} Randlinie(n) haben zusammenfallende Enden und wurden ignoriert.",

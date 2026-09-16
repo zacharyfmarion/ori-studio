@@ -45,8 +45,17 @@ export interface ReferencesGhostSegment {
    *
    * A crease is drawn in the ink that says which way it folds, never in a
    * colour of its own — that is the one thing the reader is looking for.
+   * ReferenceFinder's folds are all valleys: its diagrams draw every new
+   * line as one (`refLine.cpp`, `LINESTYLE_VALLEY`), and the card the
+   * reader compares the view against is that diagram.
    */
   direction?: ReferencesGhostDirection;
+  /**
+   * The line is only made to place a mark, so it is pressed as a pinch
+   * rather than creased across — what ReferenceFinder draws with its pinch
+   * style, and the card shows.
+   */
+  pinch?: boolean;
 }
 
 export type ReferencesMarkerKind = 'input' | 'new';
@@ -170,7 +179,15 @@ export function referencesStepOverlay(
   const made = modelSteps[active];
   if (made?.arc) overlay_arc = made.arc;
   if (made?.line) {
-    ghosts.push({ ...made.line, kind: 'new' });
+    // The fold this step makes, in a fold line's ink — the view used to draw
+    // it as one more thin crease, indistinguishable from the ones already
+    // made, while the card showed it dashed.
+    ghosts.push({
+      ...made.line,
+      kind: 'new',
+      direction: 'valley',
+      ...(step.pinch ? { pinch: true } : {}),
+    });
     bounds = extend(extend(bounds, made.line.a), made.line.b);
   }
   if (made?.point) {
@@ -192,9 +209,9 @@ export function referencesStepOverlay(
  * model space.
  *
  * The kind → style map is the card's own: an earlier crease is context, an
- * input is picked out, a new crease takes its direction's ink. `unfolded` has
- * no style because the diagram no longer draws the part of a fold the pattern
- * does not crease.
+ * input is picked out, a new crease takes its direction's ink — a pinch's
+ * where the line is only made for a mark. `unfolded` has no style because the
+ * diagram no longer draws the part of a fold the pattern does not crease.
  */
 export function referencesStepPrimitives(
   overlay: ReferencesStepOverlay,
@@ -205,6 +222,7 @@ export function referencesStepPrimitives(
     if (ghost.kind === 'unfolded') return null;
     if (ghost.kind === 'folded') return 'crease';
     if (ghost.kind === 'input') return 'highlight';
+    if (ghost.pinch) return ghost.direction === 'mountain' ? 'pinch-mountain' : 'pinch-valley';
     if (ghost.direction === 'mountain') return 'mountain';
     if (ghost.direction === 'valley') return 'valley';
     return 'crease';

@@ -227,7 +227,7 @@ it('keeps the header to the title and floats the view verbs over the canvas', ()
     [...(header?.querySelectorAll('button') ?? [])].map(
       (button) => `${button.getAttribute('role')}:${button.textContent}`
     )
-  ).toEqual(['tab:Find a reference', 'tab:Folding sequence']);
+  ).toEqual(['tab:Find a reference', 'tab:Precreasing sequence']);
   expect(header?.querySelector('.design-tab-strip [role="tablist"]')).not.toBeNull();
   const bar = query('.references-panel__body .viewport-toolbar');
   expect(
@@ -269,7 +269,7 @@ it('lands in Find with the lead where the filmstrip goes, and plans only when th
   );
   expect(useWorkspaceStore.getState().referencesView.mode).toBe('sequence');
   expect(useWorkspaceStore.getState().referencesRun.status).toBe('running');
-  expect(query('.references-lead')?.textContent).toContain('Working out the folding sequence');
+  expect(query('.references-lead')?.textContent).toContain('Working out the precreasing sequence');
   expect(query('.references-filmstrip')).toBeNull();
 
   // A new document lands in Find again.

@@ -897,7 +897,7 @@
     "lead": {
       "find": "Toque em um vértice ou dobra para ver como dobrá-lo a partir de uma folha em branco.",
       "plan": "Todas as pré-dobras do padrão, na ordem em que são dobradas.",
-      "planAction": "Calcular a sequência de dobras"
+      "planAction": "Calcular a sequência de pré-dobras"
     },
     "meta": {
       "crease": "Dobra",
@@ -908,7 +908,7 @@
       "find": "Encontrar uma referência",
       "findTitle": "Toque em um vértice ou dobra para ver como dobrá-lo a partir de uma folha em branco",
       "label": "O que mostrar",
-      "sequence": "Sequência de dobras",
+      "sequence": "Sequência de pré-dobras",
       "sequenceTitle": "Todas as pré-dobras do padrão, na ordem em que são dobradas"
     },
     "noCreasePattern": "Sem padrão de dobras",
@@ -918,7 +918,7 @@
     "outOfDate": "Desatualizado",
     "outOfDateHint": "O padrão de dobras mudou desde que estas referências foram encontradas.",
     "outsideSheet": "Esta seleção não está dentro de nenhuma folha.",
-    "planning": "Calculando a sequência de dobras…",
+    "planning": "Calculando a sequência de pré-dobras…",
     "planStep": {
       "alsoNote": "Alinhe os dois ao mesmo tempo, para que a dobra fique reta.",
       "approximate": "Aproximado — esta construção desvia {{pct}} % da folha.",
@@ -1004,7 +1004,7 @@
       "mergeSymmetric": "Unir passos simétricos",
       "mergeSymmetricHelp": "Duas dobras que se espelham — o canto esquerdo ao centro e o canto direito ao centro, por exemplo — aparecem como um só passo com uma seta para cada uma, como um diagrama as dobra. Desligado, cada dobra é um passo próprio.",
       "precreaseGrid": "Pré-vincar a grade",
-      "sequence": "Sequência de dobras",
+      "sequence": "Sequência de pré-dobras",
       "solutions": "Soluções"
     },
     "sheets": {
@@ -1019,7 +1019,7 @@
     },
     "sidebar": {
       "none": "O ReferenceFinder não encontrou nenhuma construção para este alvo com as configurações atuais.",
-      "planning": "Calculando a sequência de dobras…"
+      "planning": "Calculando a sequência de pré-dobras…"
     },
     "step": {
       "axiom1": "Dobre {{x}} passando por {{p0}} e {{p1}}.",
@@ -1036,7 +1036,6 @@
     "stop": "Parar",
     "stopping": "Cancelando…",
     "targetGone": "A dobra escolhida não está mais no padrão.",
-    "title": "Referências",
     "viewportControls": "Controles da viewport de referências",
     "warning": {
       "degenerateBorderSegments": "{{n}} vinco(s) de borda têm extremidades coincidentes e foram ignorados.",

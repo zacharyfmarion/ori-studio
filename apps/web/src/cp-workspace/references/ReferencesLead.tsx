@@ -33,7 +33,7 @@ export const ReferencesLead = memo(function ReferencesLead({ lead, onPlan }: Ref
       )}
       {lead.kind === 'planning' && (
         <p className="references-lead__text">
-          {t('panels:references.planning', 'Working out the folding sequence…')}
+          {t('panels:references.planning', 'Working out the precreasing sequence…')}
         </p>
       )}
       {lead.kind === 'plan' && (
@@ -45,7 +45,7 @@ export const ReferencesLead = memo(function ReferencesLead({ lead, onPlan }: Ref
             )}
           </p>
           <Button variant="primary" size="sm" onClick={onPlan}>
-            {t('panels:references.lead.planAction', 'Plan the folding sequence')}
+            {t('panels:references.lead.planAction', 'Plan the precreasing sequence')}
           </Button>
         </>
       )}
