@@ -99,7 +99,7 @@ function fetchOf(routes: Record<string, () => Response>): typeof fetch {
 describe('the model registry', () => {
   it('parses, resolves relative URLs against its own, and names the current version', async () => {
     const fetchImpl = fetchOf({
-      'https://example.test/models/registry.json': () => new Response(registryText()),
+      'https://example.test/models/registry-pixel-v1.json': () => new Response(registryText()),
     });
     const registry = await fetchCpDetectModelRegistry({
       fetchImpl,
@@ -171,7 +171,7 @@ describe('the model registry', () => {
     await expect(
       fetchCpDetectModelRegistry({
         fetchImpl: fetchOf({
-          'https://example.test/models/registry.json': html,
+          'https://example.test/models/registry-pixel-v1.json': html,
           'https://example.test/models/cp-detector-v3/manifest.json': html,
         }),
         base: 'https://example.test/',
@@ -286,5 +286,25 @@ describe('model status', () => {
     expect(formatModelSize(45_206_364)).toBe('45 MB');
     expect(formatModelSize(2_500_000)).toBe('2.5 MB');
     expect(formatModelSize(150_000_000)).toBe('150 MB');
+  });
+
+  it('honors a rollback when both the old and newer models are cached', () => {
+    const registry = parseCpDetectModelRegistry(registryText('detector-v4'));
+    const status = cpDetectModelStatus(registry, [
+      { id: 'detector-v4', size_bytes: 10, sha256: 'a'.repeat(64), installed_at: '' },
+      { id: 'detector-v5', size_bytes: 20, sha256: 'b'.repeat(64), installed_at: '' },
+    ]);
+    expect(status?.installed?.id).toBe('detector-v4');
+    expect(status?.updateAvailable).toBe(false);
+  });
+
+  it('downloads the rollback target instead of using an ineligible newer cache', () => {
+    const registry = parseCpDetectModelRegistry(registryText('detector-v4'));
+    const status = cpDetectModelStatus(registry, [
+      { id: 'detector-v5', size_bytes: 20, sha256: 'b'.repeat(64), installed_at: '' },
+    ]);
+    expect(status?.installed).toBeNull();
+    expect(status?.current.id).toBe('detector-v4');
+    expect(status?.updateAvailable).toBe(false);
   });
 });

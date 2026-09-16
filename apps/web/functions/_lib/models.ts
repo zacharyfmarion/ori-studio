@@ -50,6 +50,9 @@ export interface ModelsContext {
 }
 
 export const REGISTRY_KEY = 'registry.json';
+// Old installed clients cannot decode pixel evidence. Their registry stays on
+// the CPLineNet model; only compatible clients request this channel.
+const REGISTRY_KEYS = new Set([REGISTRY_KEY, 'registry-pixel-v1.json']);
 const SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
 /**
@@ -61,7 +64,7 @@ export function modelKey(path: string | string[] | undefined): string | null {
   const segments = (Array.isArray(path) ? path : (path ?? '').split('/')).filter(
     (segment) => segment.length > 0
   );
-  if (segments.length === 1 && segments[0] === REGISTRY_KEY) return REGISTRY_KEY;
+  if (segments.length === 1 && REGISTRY_KEYS.has(segments[0])) return segments[0];
   if (segments.length !== 3) return null;
   if (!segments.every((segment) => SEGMENT.test(segment) && segment !== '..')) return null;
   const file = segments[2];
@@ -70,7 +73,7 @@ export function modelKey(path: string | string[] | undefined): string | null {
 }
 
 export function cacheControlFor(key: string): string {
-  return key === REGISTRY_KEY
+  return REGISTRY_KEYS.has(key)
     ? 'public, max-age=300, must-revalidate'
     : 'public, max-age=31536000, immutable';
 }
@@ -139,14 +142,22 @@ export async function handleModels(
   const key = modelKey(context.params.path);
   if (!key) return notFound();
 
-  const cacheable = key !== REGISTRY_KEY && method === 'GET' && !request.headers.has('Range');
+  const cacheable = !REGISTRY_KEYS.has(key) && method === 'GET' && !request.headers.has('Range');
   const cacheKey = new Request(new URL(request.url).toString(), { method: 'GET' });
   if (cacheable && edgeCache) {
     const hit = await edgeCache.match(cacheKey);
     if (hit) return hit;
   }
 
-  const head = await env.MODELS_R2.head(key);
+  // Deploy the compatible runtime before publishing its model. Until its
+  // channel exists, new clients can safely use the legacy model. Old clients
+  // never take this path and keep their unchanged registry.
+  let objectKey = key;
+  let head = await env.MODELS_R2.head(objectKey);
+  if (!head && key === 'registry-pixel-v1.json') {
+    objectKey = REGISTRY_KEY;
+    head = await env.MODELS_R2.head(objectKey);
+  }
   if (!head) return notFound();
 
   const range = method === 'GET' ? parseRange(request.headers.get('Range'), head.size) : null;
@@ -158,13 +169,15 @@ export async function handleModels(
 
   if (method === 'HEAD') {
     const headers = baseHeaders(key, head);
+    if (objectKey !== key) headers.set('Cache-Control', 'no-store');
     headers.set('Content-Length', String(head.size));
     return new Response(null, { status: 200, headers });
   }
 
-  const object = await env.MODELS_R2.get(key, range ? { range } : undefined);
+  const object = await env.MODELS_R2.get(objectKey, range ? { range } : undefined);
   if (!object) return notFound();
   const headers = baseHeaders(key, object);
+  if (objectKey !== key) headers.set('Cache-Control', 'no-store');
   if (range) {
     const end = range.offset + (range.length ?? head.size - range.offset) - 1;
     headers.set('Content-Range', `bytes ${range.offset}-${end}/${head.size}`);

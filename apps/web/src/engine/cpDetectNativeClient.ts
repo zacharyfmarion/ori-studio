@@ -132,6 +132,13 @@ export function nativeCpDetectClient(
     return { manifest, version, source };
   }
 
+  async function shouldUseWorkerInference(options: CpDetectWorkerRunOptions): Promise<boolean> {
+    if (!(await nativeInferenceAvailable())) return true;
+    // Compact inference is shared with the browser; the desktop exact solver
+    // remains native. Never hand its five-channel tensor to the legacy parser.
+    return 'pixel_evidence' in (await manifestFor(options, fetchImpl)).manifest.outputs;
+  }
+
   async function decode(
     image: ImageData,
     options: CpDetectWorkerRunOptions,
@@ -190,7 +197,7 @@ export function nativeCpDetectClient(
       options: CpDetectWorkerRunOptions = {},
       onModelProgress?: CpDetectModelProgressListener
     ): Promise<CpDetectFoldResult> {
-      if (!(await nativeInferenceAvailable())) {
+      if (await shouldUseWorkerInference(options)) {
         return worker.detectRectifiedFold(image, options, onModelProgress);
       }
       const decoded = await decode(image, options, false, onModelProgress);
@@ -210,7 +217,7 @@ export function nativeCpDetectClient(
       options: CpDetectWorkerRunOptions = {},
       onModelProgress?: CpDetectModelProgressListener
     ): Promise<CpDetectRecognizeResult> {
-      if (!(await nativeInferenceAvailable())) {
+      if (await shouldUseWorkerInference(options)) {
         return worker.recognizeRectifiedFold(image, options, onModelProgress);
       }
       const decoded = await decode(image, options, true, onModelProgress);

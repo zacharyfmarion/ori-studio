@@ -1,3 +1,4 @@
+import { extraVertexCleanupLineIds } from '../../lib/cpGraphCleanup';
 /**
  * The one exact-solve implementation, and the binding both entry points reach it
  * through.
@@ -431,10 +432,14 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
       // the partial and before the region goes, for the same undo reason.
       const region = solvableRegion(regionId);
       const owned = region ? ownedLines(region) : null;
-      if (owned && owned.lineIds.length > 0) {
+      const cleanupIds = extraVertexCleanupLineIds(
+        useWorkspaceStore.getState().oristudioCpDocument?.document.crease_pattern.line_segments ?? [],
+        owned?.lineIds ?? []
+      );
+      if (cleanupIds.length > 0) {
         await useWorkspaceStore
           .getState()
-          .executeOristudioCpCommand('DeleteExtraVerticesAmong', { line_ids: owned.lineIds });
+          .executeOristudioCpCommand('DeleteExtraVerticesAmong', { line_ids: cleanupIds });
       }
       write(regionId, null);
       // The pins go with the region. They are scaffolding for the repair — the

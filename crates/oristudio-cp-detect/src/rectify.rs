@@ -318,6 +318,42 @@ pub fn auto_rectify_rgba(
     Ok(result)
 }
 
+/// Compact detector geometry uses a fixed 32px inset at every resolution.
+/// Preserve the established rectifier and explicitly convert its scaled frame.
+pub fn remap_to_pixel_inset(image: &mut RectifiedRgbaImage) -> Result<(), RectificationError> {
+    let size = image.report.image_size;
+    let (margin, _) = paper_target_span(size);
+    if margin == 32.0 {
+        return Ok(());
+    }
+    if size <= 64 {
+        return Err(RectificationError::InvalidDimensions {
+            width: size,
+            height: size,
+        });
+    }
+    use imageproc::geometric_transformations::{Interpolation, Projection, warp};
+    let scale = (size as f32 - 64.0) / (size as f32 - 2.0 * margin);
+    let shift = 32.0 - scale * margin;
+    let projection = Projection::from_matrix([scale, 0.0, shift, 0.0, scale, shift, 0.0, 0.0, 1.0])
+        .ok_or(RectificationError::SingularHomography)?;
+    let rgba = image::RgbaImage::from_raw(size, size, std::mem::take(&mut image.rgba)).ok_or(
+        RectificationError::InvalidDimensions {
+            width: size,
+            height: size,
+        },
+    )?;
+    image.rgba = warp(
+        &rgba,
+        &projection,
+        Interpolation::Bilinear,
+        image::Rgba([255, 255, 255, 255]),
+    )
+    .into_raw();
+    image.report.target_quad = Some(Quad::square(32.0, size as f32 - 32.0));
+    Ok(())
+}
+
 pub fn manual_rectify_rgba(
     rgba: &[u8],
     width: u32,
@@ -1475,39 +1511,17 @@ fn local_edge(analysis: &ImageAnalysis, x: isize, y: isize, radius: isize) -> bo
 }
 
 fn is_full_frame_panel(width: u32, height: u32, quad: Quad) -> bool {
-    if width == 0 || height == 0 {
+    if width == 0
+        || height == 0
+        || width.abs_diff(height) > (width.max(height) as f32 * 0.02).round().max(2.0) as u32
+    {
         return false;
     }
-    if width.abs_diff(height) > (width.max(height) as f32 * 0.02).round().max(2.0) as u32 {
-        return false;
-    }
-    let area_ratio = quad.area() / ((width - 1).max(1) * (height - 1).max(1)) as f32;
-    // A bordered square a few pixels inside the frame is the frame; one 1.5%
-    // inside is a paper with a margin, and resizing the frame would hand the
-    // decoder that margin as a scale error (u-waluigi001: 23 px on 1566).
-    let tolerance = (width.min(height) as f32 * 0.005).max(3.0);
-    let points = quad.points();
-    let min_x = points
-        .iter()
-        .map(|point| point.x)
-        .fold(f32::INFINITY, f32::min);
-    let max_x = points
-        .iter()
-        .map(|point| point.x)
-        .fold(f32::NEG_INFINITY, f32::max);
-    let min_y = points
-        .iter()
-        .map(|point| point.y)
-        .fold(f32::INFINITY, f32::min);
-    let max_y = points
-        .iter()
-        .map(|point| point.y)
-        .fold(f32::NEG_INFINITY, f32::max);
-    area_ratio >= 0.94
-        && min_x <= tolerance
-        && min_y <= tolerance
-        && max_x >= width.saturating_sub(1) as f32 - tolerance
-        && max_y >= height.saturating_sub(1) as f32 - tolerance
+    // The decoder interprets the crop's edge as the paper boundary. Even a
+    // sub-percent margin can become many inference pixels after adaptive
+    // upscaling, so a detected inset quad must never be replaced by the frame.
+    // The fast resize is valid only for an actual full-frame candidate.
+    quad == Quad::frame(width, height)
 }
 
 fn resize_full_frame(
@@ -2207,6 +2221,43 @@ mod tests {
             (detected.bottom_right.y - 393.0).abs() <= 3.0,
             "{detected:?}"
         );
+    }
+
+    #[test]
+    fn auto_rectifier_keeps_a_detected_subpercent_margin_at_high_resolution() {
+        // Entirely synthetic: the old 0.5% "full frame" tolerance discarded
+        // this detected border. Adaptive inference then magnified the gap past
+        // the four-pixel boundary-contact tolerance and invented an outer frame.
+        let size = 2000;
+        let lo = 8;
+        let hi = size - 1 - lo;
+        let mut image = white_rgba(size, size);
+        draw_rect(&mut image, size, lo, lo, hi, hi, [0, 0, 0], 2);
+        draw_line(&mut image, size, lo, lo, hi, hi, [255, 0, 0], 2);
+        draw_line(&mut image, size, hi, lo, lo, hi, [0, 0, 255], 2);
+        draw_line(&mut image, size, lo, size / 2, hi, size / 2, [255, 0, 0], 2);
+
+        let mut result =
+            auto_rectify_rgba(&image, size as u32, size as u32, 2048).expect("rectify");
+        let detected = result.report.detected_source_quad.expect("detected border");
+        assert!(detected.top_left.x > 4.0, "{detected:?}");
+        assert_eq!(
+            result.report.source_quad, detected,
+            "Never replace a detected paper with the image frame"
+        );
+        remap_to_pixel_inset(&mut result).expect("pixel inset");
+        // The black border must land on the decoder's x=32, not farther inside.
+        let y = 2048 / 3;
+        let minimum = (28..=44)
+            .min_by_key(|&x| {
+                let index = (y * 2048 + x) * 4;
+                result.rgba[index..index + 3]
+                    .iter()
+                    .map(|&v| u16::from(v))
+                    .sum::<u16>()
+            })
+            .expect("scan border");
+        assert!(minimum.abs_diff(32) <= 2, "border at {minimum}");
     }
 
     /// A scan with one dark image edge is not a paper filling the frame: the

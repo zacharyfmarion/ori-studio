@@ -18,6 +18,53 @@ pub use crate::legacy_decode::{
     decode_stage_snapshot_from_line_mask, decode_vertex_stage_snapshot_from_maps,
 };
 
+/// Decode the compact pixel model's physical crease evidence. Auxiliary ink
+/// is deliberately a separate plane and never enters physical graph selection.
+/// RGB is in the rectified image frame; vertices use the same pixel frame and
+/// boundary side coordinates use the inset paper's unit coordinates.
+pub fn decode_pixel_evidence(
+    rgba: &[u8],
+    crease_probability: &[f32],
+    vertices: &[RefinedVertexPrimitive],
+    config: DecodeConfig,
+) -> Result<DecodedFold, DecodeError> {
+    let mut evidence = crate::pixel_evidence::physical_evidence(
+        rgba,
+        crease_probability,
+        vertices,
+        config.image_size,
+    )?;
+    let refined_vertex_report =
+        apply_refined_vertex_evidence_override(&mut evidence, vertices, config.image_size, None);
+    let options = default_candidate_generation_options(
+        &config,
+        crate::evidence_extract::JunctionEvidenceSource::Model,
+    );
+    let strategy =
+        crate::candidate_generation::JunctionFirstV1Strategy::new(options.junction_first_v1);
+    let evidence_report = Some(serde_json::to_value(&evidence.report)?);
+    let generation = strategy.generate_from_evidence(&evidence, &config);
+    let mut recognized = recognize_from_generation(
+        generation,
+        CandidateExactSolveContext {
+            junction_source: "pixel-vertex-v1",
+            evidence_report,
+            refined_vertex_report: Some(refined_vertex_report),
+        },
+    )?;
+    crate::pixel_evidence::finalize_color_assignments(
+        rgba,
+        config.image_size,
+        &mut recognized.exact_input,
+    );
+    recognized.exact_solve_input = serde_json::to_value(&recognized.exact_input)?;
+    if config.recognize_only {
+        recognized_candidate_fold(&config, recognized)
+    } else {
+        solve_recognized_candidate(&config, recognized)
+    }
+}
+
 pub fn decode_dense_outputs(
     outputs: DenseOutputs<'_>,
     config: DecodeConfig,

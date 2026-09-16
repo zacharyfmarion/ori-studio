@@ -3,11 +3,11 @@ use crate::opencv_hough_lines_p::{HoughLinesPConfig, HoughSegment, hough_lines_p
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-/// Offset-vote cluster radius the production model ships with — mirrors
-/// `scripts/cp-detect/current-model.json` `inference.junction_offset_radius_px`,
+/// Offset-vote cluster radius the legacy CPLineNet model ships with — mirrors
+/// `scripts/cp-detect/legacy-cpline-model.json` `inference.junction_offset_radius_px`,
 /// which the browser passes into decoding. The benchmark and stage inspector
 /// default to this same value so all three decode identically; a test
-/// (`product_junction_offset_cluster_radius_matches_manifest`) asserts the const
+/// (`legacy_junction_offset_cluster_radius_matches_manifest`) asserts the const
 /// and the manifest stay equal, so they cannot silently diverge. Change both
 /// together. Paired with the `PeakGate` keep-rule default (see
 /// `JunctionClusterKeepRule`), this is the shipping junction decode.
@@ -307,6 +307,8 @@ pub struct RepairAction {
 
 #[derive(Debug, thiserror::Error)]
 pub enum DecodeError {
+    #[error("invalid pixel evidence: {0}")]
+    InvalidPixelEvidence(&'static str),
     #[error("invalid image size: {0}")]
     InvalidImageSize(u32),
     #[error("{name} length mismatch: expected {expected}, got {actual}")]
@@ -4594,13 +4596,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn product_junction_offset_cluster_radius_matches_manifest() {
+    fn legacy_junction_offset_cluster_radius_matches_manifest() {
         // The const is a compile-time mirror of the radius the browser ships
         // (from the model manifest). If they drift, the benchmark/inspector
         // decode diverges from the product — fail loudly instead.
         let manifest_path = concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../scripts/cp-detect/current-model.json"
+            "/../../scripts/cp-detect/legacy-cpline-model.json"
         );
         let text = std::fs::read_to_string(manifest_path)
             .unwrap_or_else(|err| panic!("read {manifest_path}: {err}"));
@@ -4610,7 +4612,7 @@ mod tests {
             .expect("manifest inference.junction_offset_radius_px is a number");
         assert_eq!(
             radius as f32, PRODUCT_JUNCTION_OFFSET_CLUSTER_RADIUS_PX,
-            "PRODUCT_JUNCTION_OFFSET_CLUSTER_RADIUS_PX ({PRODUCT_JUNCTION_OFFSET_CLUSTER_RADIUS_PX}) must equal current-model.json inference.junction_offset_radius_px ({radius}); update both together"
+            "PRODUCT_JUNCTION_OFFSET_CLUSTER_RADIUS_PX ({PRODUCT_JUNCTION_OFFSET_CLUSTER_RADIUS_PX}) must equal legacy-cpline-model.json inference.junction_offset_radius_px ({radius}); update both together"
         );
     }
 

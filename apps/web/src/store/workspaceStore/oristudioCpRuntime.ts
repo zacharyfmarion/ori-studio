@@ -1,3 +1,4 @@
+import { extraVertexCleanupLineIds } from '../../lib/cpGraphCleanup';
 import { connectEngine, isEngineConnected } from '../../engines/engineHost';
 import { FOLD_RUN_NONE } from '../../lib/foldCancellation';
 import type { Remote } from 'comlink';
@@ -554,7 +555,9 @@ async function finishAddedLines(
 ): Promise<OristudioCpDocumentState> {
   let state = placed;
   if (wanted.mergeExtraVertices) {
-    const lineIds = addedLineIds(state, existingCount);
+    const lineIds = extraVertexCleanupLineIds(
+      state.document.crease_pattern.line_segments, addedLineIds(state, existingCount)
+    );
     if (lineIds.length > 0) {
       state = await runOnAddedLines(api, targetHandle, 'DeleteExtraVerticesAmong', {
         line_ids: lineIds,

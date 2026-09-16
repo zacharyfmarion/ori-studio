@@ -149,8 +149,8 @@ const IMAGE_SIZE = 1024;
 const PAPER_SIZE = 400;
 const BUDGET_SECONDS = 25;
 
-function manifest() {
-  return { id: 'test-model' } as never;
+function manifest(compact = false) {
+  return { id: 'test-model', outputs: compact ? { pixel_evidence: 'vertices' } : {} } as never;
 }
 
 function modelVersion() {
@@ -229,11 +229,13 @@ function candidateFold() {
 
 function recognition(
   topologyDiagnostics: unknown,
-  solveInput: unknown = { schema: 'exact-solve-input-v1' }
+  solveInput: unknown = { schema: 'exact-solve-input-v1' },
+  foldJson = candidateFold(),
+  modelManifest = manifest()
 ) {
   return {
     status: 'recognized',
-    foldJson: candidateFold(),
+    foldJson,
     detectorReport: {
       status: 'recognized',
       decoder_backend: 'legacy_candidate_exact_solve_v1',
@@ -242,7 +244,7 @@ function recognition(
       warnings: [],
       quality_report: { compiler_report: { output: { selected: 'recognized_candidate' } } },
     },
-    manifest: manifest(),
+    manifest: modelManifest,
     candidateSource: 'exact_solve_candidate',
     solve: {
       attempted: false,
@@ -502,6 +504,17 @@ describe('CpDetectImportModal recognize-then-solve', () => {
     expect(bodyText()).toMatch(/now meets the foldability check/);
   });
 
+  it('previews retained auxiliary geometry separately from valleys', async () => {
+    const fold = JSON.parse(candidateFold());
+    fold.edges_assignment = ['F'];
+    detectClient.recognizeRectifiedFold.mockResolvedValue(
+      recognition(diagnostics(1), undefined, JSON.stringify(fold))
+    );
+    await reachReviewStage();
+    expect(document.querySelector('.cp-detect-modal__fold-line--auxiliary')).not.toBeNull();
+    expect(document.querySelector('.cp-detect-modal__fold-line--valley')).toBeNull();
+  });
+
   /**
    * The reading `mid-solve_2.osf` broke. An accepted solve at `status: Ambiguous`
    * moved Kawasaki 14.367° -> 0.00747° — a 1,900x improvement — and still sat
@@ -528,6 +541,20 @@ describe('CpDetectImportModal recognize-then-solve', () => {
     expect(button('Review & Fix')).not.toBeNull();
     expect(button('Add improved result')).not.toBeNull();
     expect(button('Add')).toBeNull();
+  });
+
+  it('imports the reconstructed AUX preview instead of moving old split vertices', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(0)));
+    const preview = {
+      vertices_coords: [[0, 0.5], [0.45, 0.5], [1, 0.5]],
+      edges_vertices: [[0, 1], [1, 2]], edges_assignment: ['F', 'F'],
+    };
+    runCpExactSolve.mockResolvedValue({ ...solveResult(ambiguousOutcome(), null), previewFold: preview });
+    await reachReviewStage();
+    click('Add improved result');
+    await settle();
+    const [{ text }] = storeActions.importAddOristudioCpText.mock.calls[0] as unknown as [{ text: string }];
+    expect(JSON.parse(text)).toEqual(preview);
   });
 
   it('adds the improved result at the coordinates the solve reached', async () => {
@@ -562,6 +589,21 @@ describe('CpDetectImportModal recognize-then-solve', () => {
     // Negative disables the solver's timeout; the published 25 s is not sent.
     expect(options.timeoutSeconds).toBe(-1);
     expect(options.run).toEqual({ kind: 'detect-import', targetId: expect.any(String) });
+  });
+
+  it('subtracts compact recognition time from the automatic solve budget', async () => {
+    const now = vi.spyOn(performance, 'now').mockReturnValue(1000);
+    detectClient.recognizeRectifiedFold.mockImplementation(async () => {
+      now.mockReturnValue(21000);
+      return recognition(diagnostics(0), undefined, undefined, manifest(true));
+    });
+    try {
+      await reachReviewStage();
+      const [, options] = runCpExactSolve.mock.calls[0] as [unknown, Record<string, unknown>];
+      expect(options).toMatchObject({ timeoutSeconds: 40, recognitionFallback: true });
+    } finally {
+      now.mockRestore();
+    }
   });
 
   /**

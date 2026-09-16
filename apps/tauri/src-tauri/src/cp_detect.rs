@@ -729,6 +729,8 @@ pub async fn cp_detect_solve_exact_to_fold(
     args: SolveArgs,
 ) -> Result<serde_json::Value, EngineError> {
     let (input, options) = parse_request(&args)?;
+    let auxiliary = oristudio_cp_detect::auxiliary::segments_from_solve_request(&args.input_json)
+        .map_err(|e| error("invalid_auxiliary", e.to_string()))?;
     solve_under_stop(state, args.run_id, move |flag| {
         let mut solved = oristudio_cp_compiler::solve_exact_with_exemptions(&input, &options);
         mark_cancelled(&mut solved, flag);
@@ -736,8 +738,21 @@ pub async fn cp_detect_solve_exact_to_fold(
             &input, &solved,
         )
         .map_err(|e| error("exact_export", e.to_string()))?;
+        let document = oristudio_cp_detect::auxiliary::append_solved_auxiliary(
+            &serde_json::to_string(&document).map_err(|e| error("json", e.to_string()))?,
+            &auxiliary,
+            &input,
+            &solved,
+        )
+        .map_err(|e| error("auxiliary_export", e.to_string()))?;
+        let document: serde_json::Value =
+            serde_json::from_str(&document).map_err(|e| error("json", e.to_string()))?;
+        let partial =
+            oristudio_cp_detect::auxiliary::partial_auxiliary_fold(&auxiliary, &input, &solved)
+                .map_err(|e| error("auxiliary_export", e.to_string()))?;
         Ok(serde_json::json!({
             "schema": SOLVE_EXACT_FOLD_SCHEMA,
+            "partial_fold": partial,
             "solved": serde_json::to_value(&solved).map_err(|e| error("json", e.to_string()))?,
             "fold": serde_json::to_value(&document).map_err(|e| error("json", e.to_string()))?,
         }))

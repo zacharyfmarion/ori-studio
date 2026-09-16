@@ -4,6 +4,7 @@
 //! types. The numeric crop, evidence, topology, and FOLD export ports land in
 //! later roadmap phases behind these contracts.
 
+pub mod auxiliary;
 mod backend;
 pub mod candidate_generation;
 mod compiler_decode;
@@ -17,6 +18,7 @@ mod likelihood_model;
 #[cfg(feature = "native-inference")]
 pub mod native_inference;
 pub mod opencv_hough_lines_p;
+mod pixel_evidence;
 pub mod rectify;
 pub mod refinement;
 pub mod segments;
@@ -60,7 +62,26 @@ pub struct ModelManifest {
     pub created_at: Option<String>,
     pub model: ModelArtifact,
     pub inference: InferenceDefaults,
-    pub outputs: OutputTensorNames,
+    pub outputs: ModelOutputNames,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ModelOutputNames {
+    Pixel { pixel_evidence: String },
+    Dense(Box<OutputTensorNames>),
+}
+
+impl ModelOutputNames {
+    fn validate(&self) -> Result<()> {
+        match self {
+            Self::Pixel { pixel_evidence } if pixel_evidence.trim().is_empty() => {
+                Err(DetectConfigError::InvalidField("outputs.pixel_evidence"))
+            }
+            Self::Pixel { .. } => Ok(()),
+            Self::Dense(names) => names.validate(),
+        }
+    }
 }
 
 impl ModelManifest {
@@ -285,7 +306,10 @@ mod tests {
         assert_eq!(manifest.schema, MODEL_MANIFEST_SCHEMA);
         assert_eq!(manifest.inference.image_size, 1024);
         assert_eq!(manifest.inference.threshold, 0.65);
-        assert_eq!(manifest.outputs.boundary_coord, "boundary_coord");
+        let ModelOutputNames::Dense(outputs) = manifest.outputs else {
+            panic!("dense fixture");
+        };
+        assert_eq!(outputs.boundary_coord, "boundary_coord");
     }
 
     #[test]
@@ -298,6 +322,19 @@ mod tests {
                 expected: MODEL_MANIFEST_SCHEMA,
                 ..
             }
+        ));
+    }
+
+    #[test]
+    fn compact_manifest_requires_a_named_pixel_output() {
+        let mut value: serde_json::Value = serde_json::from_str(MODEL_MANIFEST_JSON).unwrap();
+        value["outputs"] = serde_json::json!({"pixel_evidence": "vertices"});
+        let parsed = parse_model_manifest_json(&value.to_string()).unwrap();
+        assert!(matches!(parsed.outputs, ModelOutputNames::Pixel { .. }));
+        value["outputs"]["pixel_evidence"] = serde_json::json!(" ");
+        assert!(matches!(
+            parse_model_manifest_json(&value.to_string()),
+            Err(DetectConfigError::InvalidField("outputs.pixel_evidence"))
         ));
     }
 

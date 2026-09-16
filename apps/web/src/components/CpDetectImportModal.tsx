@@ -273,7 +273,7 @@ type SolvePhase =
    */
   | { kind: 'cancelled' }
   /** The solver reached a verdict. `fold` is non-null only when it accepted. */
-  | { kind: 'settled'; outcome: CpExactSolveOutcome; fold: Record<string, unknown> | null }
+  | { kind: 'settled'; outcome: CpExactSolveOutcome; fold: Record<string, unknown> | null; previewFold?: Record<string, unknown> | null }
   /**
    * The solve could not run at all — a dead worker, not one of the solver's
    * endings. Separate from `settled` so a bridge failure is never reported as a
@@ -653,18 +653,9 @@ export function CpDetectImportModal() {
     [quad, source]
   );
 
-  /**
-   * Solve the recognized candidate, with no deadline.
-   *
-   * The recognize path publishes `solve.budget.total_seconds` — the 25 s the
-   * native decode was measured against — and this used to hand it over. It no
-   * longer does: a solve that is still converging at 25 s was being cut off and
-   * offered as a partial, and a complex pattern that gets there in forty
-   * seconds is worth forty seconds. The dialog's own Stop, and the solving
-   * toast's Cancel, are how a solve that would not get there ends.
-   */
+  /** Compact recognition and automatic refinement share a one-minute budget. */
   const solveRecognized = useCallback(
-    async (recognized: CpDetectRecognizeResult) => {
+    async (recognized: CpDetectRecognizeResult, startedAt: number) => {
       setBusy('solving');
       setPhase({ kind: 'solving', stage: 'geometry' });
       solveCountRef.current += 1;
@@ -672,11 +663,14 @@ export function CpDetectImportModal() {
       setSolveTargetId(targetId);
       try {
         const result = await runCpExactSolve(recognized.solveInput, {
-          timeoutSeconds: CP_EXACT_SOLVE_NO_DEADLINE,
+          ...('pixel_evidence' in recognized.manifest.outputs
+            ? { timeoutSeconds: Math.max(0, 60 - (performance.now() - startedAt) / 1000),
+                recognitionFallback: true }
+            : { timeoutSeconds: CP_EXACT_SOLVE_NO_DEADLINE }),
           run: { kind: 'detect-import', targetId },
           onStage: (stage) => setPhase({ kind: 'solving', stage }),
         });
-        setPhase({ kind: 'settled', outcome: result.outcome, fold: result.fold });
+        setPhase({ kind: 'settled', outcome: result.outcome, fold: result.fold, previewFold: result.previewFold });
         publishDetectionResult(source, recognized, foldJsonOf(result.fold) ?? recognized.foldJson);
       } catch (caught) {
         // Stop is not a failure, and must not leave an error line behind saying
@@ -709,6 +703,7 @@ export function CpDetectImportModal() {
    */
   const runDetection = useCallback(async () => {
     if (!rectified || !model) return;
+    const startedAt = performance.now();
     setBusy('detecting');
     setError(null);
     setRecognition(null);
@@ -735,6 +730,7 @@ export function CpDetectImportModal() {
             junctionSource: 'dense-model',
             model: model.active,
             manifestUrl: model.active.manifest_url,
+            ...(source ? { highResolutionSource: { image: source.image, quad: rectified.report.source_quad } } : {}),
           },
           proxy((progress: CpDetectModelDownloadProgress) => setModelProgress(progress))
         )
@@ -760,7 +756,7 @@ export function CpDetectImportModal() {
       setBusy(null);
       return;
     }
-    await solveRecognized(recognized);
+    await solveRecognized(recognized, startedAt);
   }, [model, rectified, solveRecognized, source]);
 
   const topology = useMemo(
@@ -771,22 +767,20 @@ export function CpDetectImportModal() {
   /**
    * The timed-out solve's partial coordinates, as a FOLD ready to add.
    *
-   * Computed rather than promised: the mapping needs `cp_detector
-   * .vertex_original_ids`, so this returns null when the export carries none and
-   * the button is then not offered at all. An offer that cannot be honoured is
-   * worse than no offer.
+   * AUX graphs come from the shared Rust exporter so their derived crossings
+   * follow the moved folds. Legacy exports use the original-id mapping and
+   * omit the offer when that mapping is unavailable.
    */
   const partialFoldJson = useMemo(
     () =>
       recognition && phase.kind === 'settled' && phase.outcome.kind === 'timeout'
-        ? foldJsonWithMovedVertices(recognition.foldJson, phase.outcome.partialMovedVertices)
+        ? foldJsonOf(phase.previewFold ?? null) ?? foldJsonWithMovedVertices(recognition.foldJson, phase.outcome.partialMovedVertices)
         : null,
     [phase, recognition]
   );
 
   /**
-   * The improved-but-not-exact document, built here because the runner will not
-   * hand one over.
+   * The improved-but-not-exact document, offered explicitly as a preview.
    *
    * `CpExactSolveResult.fold` is deliberately null on an `ambiguous` acceptance:
    * that field is the *exactly* solved document, and returning improved geometry
@@ -799,7 +793,7 @@ export function CpDetectImportModal() {
   const improvedFoldJson = useMemo(
     () =>
       recognition && phase.kind === 'settled' && phase.outcome.kind === 'ambiguous'
-        ? foldJsonWithMovedVertices(recognition.foldJson, phase.outcome.movedVertices)
+        ? foldJsonOf(phase.previewFold ?? null) ?? foldJsonWithMovedVertices(recognition.foldJson, phase.outcome.movedVertices)
         : null,
     [phase, recognition]
   );
@@ -1611,6 +1605,7 @@ function assignmentClass(assignment: string | undefined): string {
   if (assignment === 'M') return 'mountain';
   if (assignment === 'V') return 'valley';
   if (assignment === 'B') return 'border';
+  if (assignment === 'F') return 'auxiliary';
   return 'unknown';
 }
 

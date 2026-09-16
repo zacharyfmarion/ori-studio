@@ -51,7 +51,7 @@ export function detectedJunctionSource(
   fallback: CpDetectJunctionSource
 ): CpDetectJunctionSource {
   const source = report.quality_report?.junction_source;
-  return source === 'dense-model' || source === 'line-arrangement' || source === 'vertex-refiner-v3'
+  return source === 'dense-model' || source === 'line-arrangement' || source === 'vertex-refiner-v3' || source === 'pixel-vertex-v1'
     ? source
     : fallback;
 }

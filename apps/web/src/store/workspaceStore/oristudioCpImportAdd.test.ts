@@ -316,6 +316,16 @@ describe('import (add) with the extra-vertex sweep', () => {
     );
   });
 
+  it('preserves shared AUX junctions during automatic cleanup', async () => {
+    await createBlankOristudioCpDocument();
+    await importAdd({ mergeExtraVertices: true }, JSON.stringify({ segments: [
+      segment(-100, 0, 0, 0), segment(0, 0, 100, 0),
+      { ...segment(0, -100, 0, 0), color: 'Cyan3' },
+      { ...segment(0, 0, 0, 100), color: 'Cyan3' },
+    ] }));
+    expect(api.executeCommand).not.toHaveBeenCalled();
+  });
+
   it('sweeps every crease when the import is the whole document', async () => {
     await createBlankOristudioCpDocument();
 

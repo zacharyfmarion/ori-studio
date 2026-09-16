@@ -1,4 +1,5 @@
 import { expose } from 'comlink';
+import { runPixelInference, type PixelSession, type PixelTensor } from '../lib/cpDetectPixelInference';
 import type * as ort from 'onnxruntime-web/webgpu';
 import init, {
   cp_detect_ablate_dense_outputs,
@@ -8,6 +9,8 @@ import init, {
   cp_detect_decode_dense_output_bundle_with_source_image_line_evidence,
   cp_detect_decode_dense_output_bundle_with_junction_source,
   cp_detect_manual_rectify_rgba,
+  cp_detect_manual_rectify_pixel_rgba,
+  cp_detect_decode_pixel_evidence,
   cp_detect_package_info,
   cp_detect_parse_model_manifest,
   cp_detect_solve_exact,
@@ -604,6 +607,37 @@ async function decodeRectifiedImage(
   recognizeOnly: boolean,
   onModelProgress?: CpDetectModelProgressListener
 ): Promise<DecodedRectifiedImage> {
+  const manifestUrl = options.manifestUrl ?? DEFAULT_CP_DETECT_MODEL_MANIFEST_URL;
+  const manifest = await ensureManifest(manifestUrl);
+  if ('pixel_evidence' in manifest.outputs) {
+    const sessionRuntime = await ensureSession(manifest, manifestUrl, options, onModelProgress);
+    const ortModule = await loadOrt();
+    const pixelOutputName = manifest.outputs.pixel_evidence;
+    const infer = (input: ImageData) => runPixelInference(
+      sessionRuntime.session as unknown as PixelSession,
+      (data, dims) => new ortModule.Tensor('float32', data, dims) as PixelTensor,
+      input, options.threshold ?? manifest.inference.threshold, pixelOutputName,
+    );
+    let evidence = await infer(image);
+    let inferenceMs = evidence.inferenceMs;
+    if (image.width === 1024 && evidence.vertices.length > 700 && options.highResolutionSource) {
+      const source = options.highResolutionSource;
+      image = rectifyFromWasm(cp_detect_manual_rectify_pixel_rgba(
+        imageDataBytes(source.image), source.image.width, source.image.height, 2048,
+        JSON.stringify(source.quad),
+      )).image;
+      evidence = await infer(image);
+      inferenceMs += evidence.inferenceMs;
+    }
+    const decoded = cp_detect_decode_pixel_evidence(
+      imageDataBytes(image), evidence.crease, evidence.auxiliary, image.width,
+      JSON.stringify(evidence.vertices), recognizeOnly, options.exactSolveTimeoutSeconds,
+    ) as DecodedFold;
+    return { ...decoded, manifest, junctionSource: 'pixel-vertex-v1',
+      lineEvidenceSource: 'pixel-vertex-v1', runtime: {
+        ...sessionRuntime.runtime, model_run_ms: inferenceMs, total_inference_ms: inferenceMs,
+      } };
+  }
   const requestedJunctionSource = options.junctionSource ?? CP_DETECT_DEFAULT_JUNCTION_SOURCE;
   const lineEvidenceSource = resolveLineEvidenceSource(options.lineEvidenceSource);
   const inference = await denseInferenceForImage(image, options, onModelProgress);

@@ -47,6 +47,7 @@ function bucket(objects: Record<string, [Uint8Array, string]>): ModelsR2 & { get
 function request(path: string, init: RequestInit = {}): ModelsContext {
   const r2 = bucket({
     'registry.json': [new TextEncoder().encode('{"schema":"x"}'), 'application/json'],
+    'registry-pixel-v1.json': [new TextEncoder().encode('{"schema":"pixel"}'), 'application/json'],
     'cp-detector/v5/model.onnx': [MODEL, 'application/octet-stream'],
     'cp-detector/v5/manifest.json': [new TextEncoder().encode('{}'), 'application/json'],
   });
@@ -75,6 +76,8 @@ describe('model keys', () => {
     expect(modelKey(['cp-detector', 'v5', 'model.onnx'])).toBe('cp-detector/v5/model.onnx');
     expect(modelKey('cp-detector/v5/manifest.json')).toBe('cp-detector/v5/manifest.json');
     expect(modelKey(['registry.json'])).toBe('registry.json');
+    expect(modelKey(['registry-pixel-v1.json'])).toBe('registry-pixel-v1.json');
+    expect(modelKey(['registry-unknown.json'])).toBeNull();
     expect(modelKey(['cp-detector', '..', 'model.onnx'])).toBeNull();
     expect(modelKey(['cp-detector', 'v5', 'model.bin'])).toBeNull();
     expect(modelKey(['cp-detector', 'v5'])).toBeNull();
@@ -134,18 +137,37 @@ describe('serving a model', () => {
     expect(response.body).toBeNull();
   });
 
-  it('serves the registry fresh, never from the edge cache', async () => {
+  it.each(['registry.json', 'registry-pixel-v1.json'])('serves %s fresh, never from the edge cache', async (key) => {
     const cache = memoryCache();
-    const response = await handleModels(request('registry.json'), cache);
+    const response = await handleModels(request(key), cache);
     expect(response.status).toBe(200);
     expect(response.headers.get('Cache-Control')).toContain('max-age=300');
     expect(cache.entries.size).toBe(0);
+    const payload = await response.json() as { schema: string };
+    expect(payload.schema).toBe(key === 'registry.json' ? 'x' : 'pixel');
   });
 
   it('404s an absent object and a bad key, and refuses other methods', async () => {
     expect((await handleModels(request('cp-detector/v4/model.onnx'), null)).status).toBe(404);
     expect((await handleModels(request('nope'), null)).status).toBe(404);
     expect((await handleModels(request('registry.json', { method: 'POST' }), null)).status).toBe(405);
+  });
+
+  it('uses the legacy registry until the compatible channel is published, without caching the fallback', async () => {
+    const context = request('registry-pixel-v1.json');
+    context.env.MODELS_R2 = bucket({
+      'registry.json': [new TextEncoder().encode('{"current":"legacy"}'), 'application/json'],
+    });
+    const cache = memoryCache();
+    const response = await handleModels(context, cache);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ current: 'legacy' });
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
+    expect(cache.entries.size).toBe(0);
+    const head = await handleModels({ ...context, request: new Request(context.request.url, { method: 'HEAD' }) }, cache);
+    expect(head.status).toBe(200);
+    expect(head.body).toBeNull();
+    expect(head.headers.get('Cache-Control')).toBe('no-store');
   });
 
   it('416s a range past the end', async () => {

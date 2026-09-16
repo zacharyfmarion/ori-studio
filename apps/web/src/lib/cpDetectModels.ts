@@ -19,7 +19,8 @@ import type { CpDetectModelManifest } from '../engine/cpDetectTypes';
 import { getRuntimeSurface } from '../platform/runtime';
 import { tauriModelStore } from './cpDetectModelsTauri';
 
-export const CP_DETECT_MODEL_REGISTRY_URL = '/models/registry.json';
+// A separate channel keeps older desktop clients on manifests they can decode.
+export const CP_DETECT_MODEL_REGISTRY_URL = '/models/registry-pixel-v1.json';
 export const CP_DETECT_MODEL_FAMILY = 'cp-detector';
 export const CP_DETECT_MODEL_CACHE_NAME = 'oristudio-cp-detect-models';
 export const CP_DETECT_MODEL_REGISTRY_SCHEMA = 'oristudio/cp-detect-model-registry/v1';
@@ -538,7 +539,7 @@ export async function ensureCpDetectModelInstalled(
 
 export interface CpDetectModelStatus {
   current: CpDetectModelVersion;
-  /** The installed version of this family that is current, or the newest installed, or null. */
+  /** Current if installed, otherwise the newest installed version older than current, or null. */
   installed: CpDetectModelVersion | null;
   /** Something newer than what is installed is published. */
   updateAvailable: boolean;
@@ -557,7 +558,9 @@ export function cpDetectModelStatus(
   if (!current) return null;
   const installedIds = new Set(installed.map((model) => model.id));
   const installedVersions = versions
-    .filter((version) => installedIds.has(version.id))
+    // A rolled-back registry can retain newer entries for history. Their
+    // cached bytes must not override its selected current version.
+    .filter((version) => installedIds.has(version.id) && version.version <= current.version)
     .sort((a, b) => b.version - a.version);
   const known = new Set(versions.map((version) => version.id));
   return {

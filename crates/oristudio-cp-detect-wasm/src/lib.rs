@@ -110,6 +110,25 @@ pub fn cp_detect_crease_pattern_likelihood(
 }
 
 #[wasm_bindgen]
+pub fn cp_detect_manual_rectify_pixel_rgba(
+    rgba: &[u8],
+    width: u32,
+    height: u32,
+    image_size: u32,
+    quad_json: &str,
+) -> Result<WasmRectifiedImage, JsValue> {
+    install_panic_hook();
+    let quad =
+        serde_json::from_str(quad_json).map_err(|e| js_error("invalid_json", e.to_string()))?;
+    let mut result =
+        oristudio_cp_detect::rectify::manual_rectify_rgba(rgba, width, height, image_size, quad)
+            .map_err(to_js_rectification_error)?;
+    oristudio_cp_detect::rectify::remap_to_pixel_inset(&mut result)
+        .map_err(to_js_rectification_error)?;
+    wasm_rectified_image(result)
+}
+
+#[wasm_bindgen]
 pub fn cp_detect_manual_rectify_rgba(
     rgba: &[u8],
     width: u32,
@@ -209,6 +228,43 @@ pub fn cp_detect_decode_dense_output_bundle(
         backend,
     )
     .map_err(to_js_decode_error)?;
+    to_js_value_via_json(&decoded)
+}
+
+#[wasm_bindgen]
+pub fn cp_detect_decode_pixel_evidence(
+    rgba: &[u8],
+    crease_probability: &[f32],
+    auxiliary_probability: &[f32],
+    image_size: u32,
+    vertices_json: &str,
+    recognize_only: bool,
+    exact_solve_timeout_seconds: Option<f64>,
+) -> Result<JsValue, JsValue> {
+    install_panic_hook();
+    let vertices: Vec<oristudio_cp_detect::decode::RefinedVertexPrimitive> =
+        serde_json::from_str(vertices_json)
+            .map_err(|e| js_error("invalid_vertices", e.to_string()))?;
+    let auxiliary = oristudio_cp_detect::auxiliary::extract_auxiliary_segments(
+        rgba,
+        auxiliary_probability,
+        image_size,
+    )
+    .map_err(to_js_decode_error)?;
+    let mut decoded = oristudio_cp_detect::decode::decode_pixel_evidence(
+        rgba,
+        crease_probability,
+        &vertices,
+        oristudio_cp_detect::decode::DecodeConfig {
+            image_size,
+            recognize_only,
+            exact_solve_timeout_seconds: exact_solve_timeout_seconds.unwrap_or(20.0),
+            ..Default::default()
+        },
+    )
+    .map_err(to_js_decode_error)?;
+    oristudio_cp_detect::auxiliary::attach_to_decoded(&mut decoded, &auxiliary)
+        .map_err(to_js_decode_error)?;
     to_js_value_via_json(&decoded)
 }
 
@@ -405,12 +461,30 @@ pub fn cp_detect_solve_exact_to_fold(
 ) -> Result<JsValue, JsValue> {
     install_panic_hook();
     let (input, options) = parse_exact_solve_request(input_json, options_json)?;
+    let auxiliary = oristudio_cp_detect::auxiliary::segments_from_solve_request(input_json)
+        .map_err(to_js_decode_error)?;
     let solved = oristudio_cp_compiler::solve_exact_with_exemptions(&input, &options);
     let document =
         oristudio_cp_compiler::fold_export::export_exact_solved_to_fold_document(&input, &solved)
             .map_err(to_js_compiler_error)?;
+    let document = oristudio_cp_detect::auxiliary::append_solved_auxiliary(
+        &serde_json::to_string(&document).map_err(|e| js_error("invalid_json", e.to_string()))?,
+        &auxiliary,
+        &input,
+        &solved,
+    )
+    .map_err(to_js_decode_error)?;
+    let document: serde_json::Value =
+        serde_json::from_str(&document).map_err(|e| js_error("invalid_json", e.to_string()))?;
 
+    let partial =
+        oristudio_cp_detect::auxiliary::partial_auxiliary_fold(&auxiliary, &input, &solved)
+            .map_err(to_js_decode_error)?;
     let mut payload = serde_json::Map::new();
+    payload.insert(
+        "partial_fold".to_owned(),
+        partial.unwrap_or(serde_json::Value::Null),
+    );
     payload.insert(
         "schema".to_owned(),
         serde_json::Value::String(SOLVE_EXACT_FOLD_SCHEMA.to_owned()),
@@ -830,6 +904,9 @@ fn to_js_rectification_error(error: oristudio_cp_detect::rectify::RectificationE
 fn to_js_decode_error(error: oristudio_cp_detect::decode::DecodeError) -> JsValue {
     let code = match error {
         oristudio_cp_detect::decode::DecodeError::InvalidImageSize(_) => "invalid_image_size",
+        oristudio_cp_detect::decode::DecodeError::InvalidPixelEvidence(_) => {
+            "invalid_pixel_evidence"
+        }
         oristudio_cp_detect::decode::DecodeError::TensorLength { .. } => "tensor_length",
         oristudio_cp_detect::decode::DecodeError::BufferLength { .. } => "buffer_length",
         oristudio_cp_detect::decode::DecodeError::Hough(_) => "hough",

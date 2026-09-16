@@ -6,6 +6,7 @@ mod grid_prior;
 mod junction_carrier_v1;
 mod junction_first_v1;
 mod legacy_topology_v2;
+mod vertex_spatial_index;
 
 pub use junction_first_v1::{OracleSpanProber, SpanGateProbe};
 

@@ -24,7 +24,7 @@ async function registryFetch(): Promise<typeof fetch> {
   };
   return (async (input: RequestInfo | URL) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-    if (url.endsWith('/models/registry.json')) return new Response(JSON.stringify(registry));
+    if (url.endsWith('/models/registry-pixel-v1.json')) return new Response(JSON.stringify(registry));
     if (url.endsWith('/model.onnx')) return new Response(BYTES);
     return new Response('nope', { status: 404 });
   }) as typeof fetch;

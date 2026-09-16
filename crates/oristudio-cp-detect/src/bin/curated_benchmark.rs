@@ -170,7 +170,7 @@ fn parse_args() -> Args {
     }
     if args.model.as_os_str().is_empty() {
         args.model = model_from_pointer_file().expect(
-            "--model <model.onnx>, or run from the repository root so scripts/cp-detect/current-model.json can name it",
+            "--model <model.onnx>, or run from the repository root so scripts/cp-detect/legacy-cpline-model.json can name it",
         );
     }
     assert!(
@@ -185,11 +185,11 @@ fn parse_args() -> Args {
     args
 }
 
-/// The current product model, from the tracked pointer file, when run from
+/// The legacy CPLineNet baseline, from its tracked pointer file, when run from
 /// the repository root.
 fn model_from_pointer_file() -> Option<PathBuf> {
     let pointer: Value = serde_json::from_str(
-        &std::fs::read_to_string("scripts/cp-detect/current-model.json").ok()?,
+        &std::fs::read_to_string("scripts/cp-detect/legacy-cpline-model.json").ok()?,
     )
     .ok()?;
     let dir = pointer.get("versioned_model_asset_dir")?.as_str()?;

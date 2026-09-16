@@ -407,35 +407,40 @@ pub fn select_candidate_graph_beam_from_ir(
         seed_ids.insert(span.id);
     }
     let seed_state = score_ir_beam_state(graph, &seed_ids, &options);
-    let mut candidate_ids = graph
+    let scoring = IrScoreCache::new(graph, &seed_ids, &options);
+    // The seed stays fixed while ranking. A priority evaluates graph-wide
+    // residuals, so computing it inside the comparator repeated that work
+    // O(log n) times per span (the dominant cost on large detected patterns).
+    // Cache each score once, preserving the descending total order and id tie.
+    let mut candidates = graph
         .crease_candidates
         .iter()
         .filter(|span| span.selection_policy != CandidateSelectionPolicy::Locked)
-        .map(|span| span.id)
+        .map(|span| {
+            (
+                span.id,
+                ir_candidate_priority(
+                    graph,
+                    &seed_state,
+                    span.id,
+                    &conflict_map,
+                    &locked_ids,
+                    &options,
+                    &scoring,
+                ),
+            )
+        })
         .collect::<Vec<_>>();
-    candidate_ids.sort_by(|left, right| {
-        ir_candidate_priority(
-            graph,
-            &seed_state,
-            *right,
-            &conflict_map,
-            &locked_ids,
-            &options,
-        )
-        .total_cmp(&ir_candidate_priority(
-            graph,
-            &seed_state,
-            *left,
-            &conflict_map,
-            &locked_ids,
-            &options,
-        ))
-        .then_with(|| left.cmp(right))
+    candidates.sort_by(|left, right| {
+        right
+            .1
+            .total_cmp(&left.1)
+            .then_with(|| left.0.cmp(&right.0))
     });
-    candidate_ids.truncate(options.max_beam_candidates);
+    candidates.truncate(options.max_beam_candidates);
 
     let mut beam = vec![seed_state];
-    for candidate_id in candidate_ids {
+    for (candidate_id, _) in candidates {
         let mut next = Vec::with_capacity(beam.len() * 2);
         for state in &beam {
             next.push(state.clone());
@@ -494,6 +499,9 @@ fn parity_repair_ir_state(
         if odd_vertices.is_empty() {
             break;
         }
+        // Every trial changes only the endpoints of added/removed spans.
+        // Cache the unchanged stars and span scores for this search round.
+        let scoring = IrScoreCache::new(graph, &best.selected_span_ids, options);
         let mut next_best: Option<IrBeamState> = None;
         for span in &graph.crease_candidates {
             if span.selection_policy == CandidateSelectionPolicy::Locked
@@ -523,7 +531,7 @@ fn parity_repair_ir_state(
                 };
                 with
             };
-            let trial = score_ir_beam_state(graph, &trial_ids, options);
+            let trial = scoring.score(graph, &trial_ids, options);
             if trial.residuals.odd_degree_vertices >= best.residuals.odd_degree_vertices {
                 continue;
             }
@@ -961,6 +969,7 @@ fn ir_candidate_priority(
     conflict_map: &BTreeMap<usize, BTreeSet<usize>>,
     locked_ids: &BTreeSet<usize>,
     options: &SelectionOptions,
+    scoring: &IrScoreCache,
 ) -> f64 {
     let Some(span) = graph.crease_candidates.get(candidate_id) else {
         return f64::NEG_INFINITY;
@@ -972,6 +981,7 @@ fn ir_candidate_priority(
         conflict_map,
         locked_ids,
         options,
+        scoring,
     )
     .unwrap_or_default();
     span.selection_score(graph) + delta.combined_score_delta()
@@ -1873,6 +1883,7 @@ fn ir_candidate_delta(
     conflict_map: &BTreeMap<usize, BTreeSet<usize>>,
     locked_ids: &BTreeSet<usize>,
     options: &SelectionOptions,
+    scoring: &IrScoreCache,
 ) -> Option<IrCandidateDelta> {
     let selected = state.selected_span_ids.contains(&candidate_id);
     let trial_ids = if selected {
@@ -1888,7 +1899,7 @@ fn ir_candidate_delta(
             locked_ids,
         )?
     };
-    let trial = ir_state_residuals(graph, &trial_ids, options);
+    let trial = scoring.residuals(graph, &trial_ids, options);
     let (before, after) = if selected {
         (&trial, &state.residuals)
     } else {
@@ -1927,6 +1938,137 @@ struct IrIncidentRay {
     assignment: AssignmentLabel,
 }
 
+/// Replay the same ordered additions as the full residual scan. Storing the
+/// individual terms (rather than summing vertex totals) preserves floating
+/// point ties in selection while avoiding repeated geometry and angle work.
+#[derive(Clone, Default)]
+struct IrVertexContribution {
+    counts: IrStateResiduals,
+    topology: [f64; 2],
+    theorem: [f64; 2],
+}
+
+impl IrVertexContribution {
+    fn add_to(&self, target: &mut IrStateResiduals) {
+        target.odd_degree_vertices += self.counts.odd_degree_vertices;
+        target.dangling_interior_vertices += self.counts.dangling_interior_vertices;
+        target.non_collinear_degree_two_vertices += self.counts.non_collinear_degree_two_vertices;
+        target.hard_kawasaki_vertices += self.counts.hard_kawasaki_vertices;
+        target.maekawa_impossible_vertices += self.counts.maekawa_impossible_vertices;
+        target.maekawa_ambiguous_vertices += self.counts.maekawa_ambiguous_vertices;
+        for term in self.topology {
+            target.topology_penalty += term;
+        }
+        for term in self.theorem {
+            target.local_theorem_penalty += term;
+        }
+    }
+}
+
+struct IrScoreCache {
+    selected: BTreeSet<usize>,
+    incident: Vec<Vec<(usize, IrIncidentRay)>>,
+    contributions: Vec<IrVertexContribution>,
+    scores: Vec<f64>,
+}
+
+impl IrScoreCache {
+    fn new(graph: &CandidateGraph, selected: &BTreeSet<usize>, options: &SelectionOptions) -> Self {
+        let mut incident = vec![Vec::new(); graph.vertices.len()];
+        let mut scores = Vec::with_capacity(graph.crease_candidates.len());
+        for span in &graph.crease_candidates {
+            scores.push(span.selection_score(graph));
+            if !span_counts_for_local_theorems(span) {
+                continue;
+            }
+            let [a, b] = span.vertices;
+            let (Some(va), Some(vb)) = (graph.vertices.get(a), graph.vertices.get(b)) else {
+                continue;
+            };
+            for (id, origin, target) in [(a, va, vb), (b, vb, va)] {
+                incident[id].push((
+                    span.id,
+                    IrIncidentRay {
+                        angle_degrees: angle_degrees(origin.point, target.point),
+                        assignment: span.assignment_label(),
+                    },
+                ));
+            }
+        }
+        let mut cache = Self {
+            selected: selected.clone(),
+            incident,
+            contributions: Vec::new(),
+            scores,
+        };
+        cache.contributions = (0..graph.vertices.len())
+            .map(|id| cache.contribution(graph, id, selected, options))
+            .collect();
+        cache
+    }
+
+    fn contribution(
+        &self,
+        graph: &CandidateGraph,
+        id: usize,
+        selected: &BTreeSet<usize>,
+        options: &SelectionOptions,
+    ) -> IrVertexContribution {
+        if !ir_vertex_is_interior_fold_vertex(&graph.vertices[id]) {
+            return Default::default();
+        }
+        let mut rays = self.incident[id]
+            .iter()
+            .filter(|(span, _)| selected.contains(span))
+            .map(|(_, ray)| *ray)
+            .collect::<Vec<_>>();
+        rays.sort_by(|a, b| a.angle_degrees.total_cmp(&b.angle_degrees));
+        ir_vertex_contribution(&rays, options)
+    }
+
+    fn score(
+        &self,
+        graph: &CandidateGraph,
+        selected: &BTreeSet<usize>,
+        options: &SelectionOptions,
+    ) -> IrBeamState {
+        let residuals = self.residuals(graph, selected, options);
+        let base_score = selected
+            .iter()
+            .filter_map(|id| self.scores.get(*id))
+            .sum::<f64>();
+        IrBeamState {
+            selected_span_ids: selected.clone(),
+            total_score: base_score - residuals.total_penalty(),
+            residuals,
+        }
+    }
+
+    fn residuals(
+        &self,
+        graph: &CandidateGraph,
+        selected: &BTreeSet<usize>,
+        options: &SelectionOptions,
+    ) -> IrStateResiduals {
+        let mut changed = BTreeSet::new();
+        for id in self.selected.symmetric_difference(selected) {
+            if let Some(span) = graph.crease_candidates.get(*id) {
+                changed.extend(span.vertices);
+            }
+        }
+        let mut residuals = IrStateResiduals::default();
+        for (id, cached) in self.contributions.iter().enumerate() {
+            if changed.contains(&id) {
+                self.contribution(graph, id, selected, options)
+                    .add_to(&mut residuals);
+            } else {
+                cached.add_to(&mut residuals);
+            }
+        }
+        residuals
+    }
+}
+
 fn ir_state_residuals(
     graph: &CandidateGraph,
     selected_span_ids: &BTreeSet<usize>,
@@ -1963,38 +2105,47 @@ fn accumulate_ir_vertex_residuals(
     options: &SelectionOptions,
     residuals: &mut IrStateResiduals,
 ) {
+    ir_vertex_contribution(rays, options).add_to(residuals);
+}
+
+fn ir_vertex_contribution(
+    rays: &[IrIncidentRay],
+    options: &SelectionOptions,
+) -> IrVertexContribution {
+    let mut contribution = IrVertexContribution::default();
+    let residuals = &mut contribution.counts;
     let degree = rays.len();
     if degree == 0 {
-        return;
+        return contribution;
     }
     if degree % 2 == 1 {
         residuals.odd_degree_vertices += 1;
-        residuals.topology_penalty += options.odd_degree_bonus;
+        contribution.topology[0] = options.odd_degree_bonus;
     }
     if degree == 1 {
         residuals.dangling_interior_vertices += 1;
-        residuals.topology_penalty += options.odd_degree_bonus * 1.25;
+        contribution.topology[1] = options.odd_degree_bonus * 1.25;
     } else if degree == 2 && !degree_two_is_collinear(rays) {
         residuals.non_collinear_degree_two_vertices += 1;
-        residuals.topology_penalty += options.non_collinear_degree_two_cost;
+        contribution.topology[1] = options.non_collinear_degree_two_cost;
     }
     if let Some(kawasaki) = kawasaki_residual_degrees(rays) {
         let normalized = (kawasaki / 12.0).min(3.0);
-        residuals.local_theorem_penalty +=
-            normalized * normalized * options.exact_hard_kawasaki_cost;
+        contribution.theorem[0] = normalized * normalized * options.exact_hard_kawasaki_cost;
         if kawasaki > 12.0 {
             residuals.hard_kawasaki_vertices += 1;
         }
     }
     if degree >= 4 {
         let (maekawa_cost, ambiguous) = maekawa_cost(rays, options);
-        residuals.local_theorem_penalty += maekawa_cost;
+        contribution.theorem[1] = maekawa_cost;
         if maekawa_cost > 0.0 && !ambiguous {
             residuals.maekawa_impossible_vertices += 1;
         } else if ambiguous {
             residuals.maekawa_ambiguous_vertices += 1;
         }
     }
+    contribution
 }
 
 /// Total penalty of one interior fold vertex; sorts the rays in place.
@@ -2106,6 +2257,7 @@ fn candidate_selection_from_ir_state(
     state: &IrBeamState,
     options: &SelectionOptions,
 ) -> CandidateSelection {
+    let scoring = IrScoreCache::new(graph, &state.selected_span_ids, options);
     let selected_graph = SelectedGraph::from_selected_span_ids(
         graph,
         state.selected_span_ids.iter().copied().collect(),
@@ -2157,8 +2309,16 @@ fn candidate_selection_from_ir_state(
         } else {
             reasons.push("rejected by CandidateGraph policy/cost".to_owned());
         }
-        let delta = ir_candidate_delta(graph, state, span.id, &conflict_map, &locked_ids, options)
-            .unwrap_or_default();
+        let delta = ir_candidate_delta(
+            graph,
+            state,
+            span.id,
+            &conflict_map,
+            &locked_ids,
+            options,
+            &scoring,
+        )
+        .unwrap_or_default();
         if delta.topology_delta.abs() > 1e-6 {
             reasons.push(format!("local topology delta {:+.3}", delta.topology_delta));
         }
@@ -5972,6 +6132,34 @@ mod tests {
                 source_ids: Vec::new(),
                 notes: Vec::new(),
             },
+        }
+    }
+
+    #[test]
+    fn cached_trial_scores_preserve_all_square_subsets() {
+        let graph = parity_square_graph();
+        let options = SelectionOptions::default();
+        for baseline in 0..16 {
+            let selected = (0..4).filter(|id| baseline & (1 << id) != 0).collect();
+            let cache = IrScoreCache::new(&graph, &selected, &options);
+            for trial in 0..16 {
+                let ids = (0..4).filter(|id| trial & (1 << id) != 0).collect();
+                let expected = score_ir_beam_state(&graph, &ids, &options);
+                let actual = cache.score(&graph, &ids, &options);
+                assert_eq!(actual.total_score.to_bits(), expected.total_score.to_bits());
+                assert_eq!(
+                    actual.residuals.odd_degree_vertices,
+                    expected.residuals.odd_degree_vertices
+                );
+                assert_eq!(
+                    actual.residuals.topology_penalty.to_bits(),
+                    expected.residuals.topology_penalty.to_bits()
+                );
+                assert_eq!(
+                    actual.residuals.local_theorem_penalty.to_bits(),
+                    expected.residuals.local_theorem_penalty.to_bits()
+                );
+            }
         }
     }
 
