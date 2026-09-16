@@ -315,10 +315,11 @@ it('says a sheet with no creases has nothing to find, and disables the switch', 
   expect(useWorkspaceStore.getState().referencesRun.status).toBe('idle');
 });
 
-it('offers the touch drawer a slot at the top right of its view', () => {
+it('offers the touch drawer a seat at the right end of its header', () => {
   // The shell's pill lane sits over the dock's top-right corner, which here is
-  // the header and the filmstrip. The panel knows where its view begins, so it
-  // registers a slot there and takes it back when it goes.
+  // the header. The panel seats the trigger itself, at the right end of the
+  // header's first row — beside Back on a phone — and takes the seat back
+  // when it goes.
   act(() =>
     root?.render(
       <TooltipProvider>
@@ -326,7 +327,7 @@ it('offers the touch drawer a slot at the top right of its view', () => {
       </TooltipProvider>
     )
   );
-  const slot = container?.querySelector('.references-panel__body .references-panel__pills');
+  const slot = container?.querySelector('.references-panel .panel-toolbar .references-panel__pills');
   expect(slot).not.toBeNull();
   expect(useLayoutStore.getState().viewDrawerSlot).toBe(slot);
 

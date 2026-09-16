@@ -503,6 +503,14 @@ export function ReferencesPanel() {
                 disabled={!view.hasDocument || emptySheet}
               />
             </div>
+            {/*
+              Where the touch layer's Settings pill goes: the right end of the
+              header's first row, beside Back on a phone. Registered with the
+              layout store as an element, and cleared by the same callback when
+              the header unmounts; empty under a fine pointer, where the
+              settings are the docked pane.
+            */}
+            <div className="references-panel__pills" ref={setViewDrawerSlot} />
           </div>
           {targeted && controller.target && (
             <div className="references-target-row">
@@ -517,6 +525,8 @@ export function ReferencesPanel() {
                 nextLabel={commandById('next-candidate')?.label ?? ''}
                 previousDisabled={commandById('previous-candidate')?.disabled ?? true}
                 nextDisabled={commandById('next-candidate')?.disabled ?? true}
+                // One line on a phone: the readout as numbers, the way out an icon.
+                compact={flow.screen !== null}
               />
             </div>
           )}
@@ -545,13 +555,6 @@ export function ReferencesPanel() {
           )}
 
           <div className="panel-body references-panel__body" onContextMenu={onBodyContextMenu}>
-            {/*
-              Where the touch layer's Settings pill goes: the top right of the
-              view, below the filmstrip. The shell's pill lane would put it over
-              the header. Registered with the layout store as an element, and
-              cleared by the same callback when the body unmounts.
-            */}
-            <div className="references-panel__pills" ref={setViewDrawerSlot} />
             {view.geometry && (
               <ReferencesCpView
                 ref={viewRef}

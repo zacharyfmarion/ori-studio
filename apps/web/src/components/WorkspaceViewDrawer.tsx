@@ -92,9 +92,9 @@ export function WorkspaceViewDrawer() {
   return (
     <>
       {/*
-        In the pane's own slot when it offers one — References puts it at the
-        top right of its view, below the filmstrip, where the lane's corner
-        would have been the header — else here in the lane.
+        In the pane's own slot when it offers one — References seats it at the
+        right end of its header, beside Back on a phone, where the lane's
+        corner would have been the header — else here in the lane.
       */}
       {seat ? createPortal(trigger, seat) : trigger}
       {/*

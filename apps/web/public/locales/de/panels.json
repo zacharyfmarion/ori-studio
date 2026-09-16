@@ -866,7 +866,8 @@
       "planAction": "Vorfaltfolge berechnen"
     },
     "meta": {
-      "solution": "Lösung {{n}} von {{total}}"
+      "solution": "Lösung {{n}} von {{total}}",
+      "solutionShort": "{{n}} / {{total}}"
     },
     "mode": {
       "find": "Referenz finden",

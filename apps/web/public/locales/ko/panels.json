@@ -836,7 +836,8 @@
       "planAction": "사전 접기 순서 계산"
     },
     "meta": {
-      "solution": "해답 {{n}} / {{total}}"
+      "solution": "해답 {{n}} / {{total}}",
+      "solutionShort": "{{n}} / {{total}}"
     },
     "mode": {
       "find": "기준점 찾기",

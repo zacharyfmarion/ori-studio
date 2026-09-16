@@ -836,7 +836,8 @@
       "planAction": "计算预折顺序"
     },
     "meta": {
-      "solution": "第 {{n}} / {{total}} 个解"
+      "solution": "第 {{n}} / {{total}} 个解",
+      "solutionShort": "{{n}} / {{total}}"
     },
     "mode": {
       "find": "查找参考点",

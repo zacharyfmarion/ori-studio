@@ -900,7 +900,8 @@
       "planAction": "Calculer la séquence de prépliage"
     },
     "meta": {
-      "solution": "Solution {{n}} sur {{total}}"
+      "solution": "Solution {{n}} sur {{total}}",
+      "solutionShort": "{{n}} / {{total}}"
     },
     "mode": {
       "find": "Trouver une référence",

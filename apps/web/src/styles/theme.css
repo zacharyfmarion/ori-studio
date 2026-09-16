@@ -10830,8 +10830,11 @@ button.bp-packing-alert:focus-visible {
    */
   .references-workspace .references-panel .panel-toolbar {
     flex-wrap: wrap;
-    gap: var(--space-1);
-    padding: var(--space-1) var(--space-2);
+    gap: var(--space-1) 0;
+    /* No side or bottom padding: the tabs' row runs edge to edge and meets
+       the toolbar's bottom border, as the strip does on a desktop; the first
+       row's Back and Settings carry their own gutters. */
+    padding: var(--space-1) 0 0;
   }
 
   .references-workspace .references-panel .panel-toolbar__group {
@@ -10841,18 +10844,33 @@ button.bp-packing-alert:focus-visible {
   .references-workspace .references-panel__back {
     flex: 0 0 auto;
     order: 0;
+    margin-left: var(--space-2);
   }
 
+  .references-workspace .references-panel__pills {
+    order: 0;
+    margin-right: var(--space-2);
+  }
+
+  /* The picked target's row, on one line: the count, the stepper's numbers,
+     the badge and the way out as an icon — nothing wraps. */
   .references-workspace .references-target-row {
-    padding: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .references-workspace .references-target,
+  .references-workspace .references-target__actions {
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+  }
+
+  .references-workspace .references-target__count,
+  .references-workspace .references-target__readout {
+    white-space: nowrap;
   }
 
   /* The mode tabs take a row of their own under the Back button, the two of
      them sharing the width, each a thumb-sized target. */
-  .references-workspace .references-panel .panel-toolbar {
-    padding-left: var(--space-2);
-  }
-
   .references-workspace .references-mode {
     flex: 1 0 100%;
     order: 1;
@@ -10922,25 +10940,22 @@ button.bp-packing-alert:focus-visible {
 }
 
 /*
- * The touch layer's Settings pill, at the top right of the view — below the
- * filmstrip, where the shell's pill lane would have put it over the header.
- * Empty under a fine pointer (the drawer renders nothing), so it costs the
- * desktop layout nothing; on touch the pill inside it re-asserts its own
- * pointer events and the view keeps every tap around it.
+ * The touch layer's Settings trigger, at the right end of the header's first
+ * row — beside Back on a phone. A button in the row, not a floating pill: no
+ * shadow, the toolbar's own ground. Empty under a fine pointer (the drawer
+ * renders nothing), so it costs the desktop layout nothing.
  */
 .references-panel__pills {
-  position: absolute;
-  top: var(--space-3);
-  right: var(--space-3);
-  z-index: 17;
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: var(--space-2);
-  pointer-events: none;
+  margin-left: auto;
 }
 
-.references-panel__pills > * {
-  pointer-events: auto;
+.references-panel__pills .view-drawer__trigger {
+  border-color: var(--border-subtle);
+  box-shadow: none;
 }
 
 /* No `cp-webgl-layer` here on purpose: the editor's floating toolbars forward

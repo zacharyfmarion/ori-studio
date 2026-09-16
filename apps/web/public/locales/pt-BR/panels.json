@@ -900,7 +900,8 @@
       "planAction": "Calcular a sequência de pré-dobras"
     },
     "meta": {
-      "solution": "Solução {{n}} de {{total}}"
+      "solution": "Solução {{n}} de {{total}}",
+      "solutionShort": "{{n}} / {{total}}"
     },
     "mode": {
       "find": "Encontrar uma referência",

@@ -836,7 +836,8 @@
       "planAction": "下折りの手順を計算"
     },
     "meta": {
-      "solution": "解 {{n}} / {{total}}"
+      "solution": "解 {{n}} / {{total}}",
+      "solutionShort": "{{n}} / {{total}}"
     },
     "mode": {
       "find": "参照点を探す",

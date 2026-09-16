@@ -1,10 +1,10 @@
-import { memo } from "react";
-import { useTranslation } from "react-i18next";
-import { ChevronsLeft, ChevronsRight, X } from "lucide-react";
-import { Badge } from "../../components/ui/Badge";
-import { Button } from "../../components/ui/Button";
-import { IconButton } from "../../components/ui/IconButton";
-import type { ReferencesCandidateResult } from "./referencesResults";
+import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { ChevronsLeft, ChevronsRight, X } from 'lucide-react';
+import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
+import { IconButton } from '../../components/ui/IconButton';
+import type { ReferencesCandidateResult } from './referencesResults';
 
 /**
  * What the row under the tabs says while one vertex or crease is picked: how
@@ -29,6 +29,12 @@ export interface ReferencesTargetControlsProps {
   nextLabel: string;
   previousDisabled: boolean;
   nextDisabled: boolean;
+  /**
+   * One line where there is room for little else — a phone: the readout is
+   * the numbers alone, and the way out is its icon with the words as its
+   * name.
+   */
+  compact?: boolean;
 }
 
 export const ReferencesTargetControls = memo(function ReferencesTargetControls({
@@ -42,18 +48,18 @@ export const ReferencesTargetControls = memo(function ReferencesTargetControls({
   nextLabel,
   previousDisabled,
   nextDisabled,
+  compact = false,
 }: ReferencesTargetControlsProps) {
   const { t } = useTranslation();
+  const backLabel = t('panels:references.backToPattern', 'Back to the whole pattern');
   return (
     <div className="references-target">
       {active && (
         <span className="references-target__readout references-target__count">
-          {t("panels:references.card.folds", {
-            defaultValue_one: "{{count}} fold",
-            defaultValue_other: "{{count}} folds",
-            count:
-              active.solution.steps.length +
-              active.solution.freeDiagonals.length,
+          {t('panels:references.card.folds', {
+            defaultValue_one: '{{count}} fold',
+            defaultValue_other: '{{count}} folds',
+            count: active.solution.steps.length + active.solution.freeDiagonals.length,
           })}
         </span>
       )}
@@ -70,14 +76,15 @@ export const ReferencesTargetControls = memo(function ReferencesTargetControls({
               <ChevronsLeft size={14} />
             </IconButton>
             <span className="references-target__readout">
-              {t(
-                "panels:references.meta.solution",
-                "Solution {{n}} of {{total}}",
-                {
+              {compact
+              ? t('panels:references.meta.solutionShort', '{{n}} / {{total}}', {
                   n: activeCandidate + 1,
                   total: candidateCount,
-                },
-              )}
+                })
+              : t('panels:references.meta.solution', 'Solution {{n}} of {{total}}', {
+                  n: activeCandidate + 1,
+                  total: candidateCount,
+                })}
             </span>
             <IconButton
               size="sm"
@@ -91,20 +98,26 @@ export const ReferencesTargetControls = memo(function ReferencesTargetControls({
           </span>
         )}
         {active && (
-          <Badge tone={active.solution.exact ? "accent" : "neutral"}>
+          <Badge tone={active.solution.exact ? 'accent' : 'neutral'}>
             {active.solution.exact
-              ? t("panels:references.exact", "Exact")
-              : t("panels:references.card.error", "err {{value}}", {
+              ? t('panels:references.exact', 'Exact')
+              : t('panels:references.card.error', 'err {{value}}', {
                   value: active.solution.err.toExponential(1),
                 })}
           </Badge>
         )}
         {/* The accent, not a quiet outline: this is the one way out of a pick,
           and it went unnoticed beside the badges it matched. */}
-        <Button size="sm" variant="primary" onClick={onClear}>
-          <X size={12} aria-hidden="true" />
-          {t("panels:references.backToPattern", "Back to the whole pattern")}
-        </Button>
+        <Button
+        size="sm"
+        variant="primary"
+        onClick={onClear}
+        aria-label={compact ? backLabel : undefined}
+        title={compact ? backLabel : undefined}
+      >
+        <X size={12} aria-hidden="true" />
+        {!compact && backLabel}
+      </Button>
       </span>
     </div>
   );

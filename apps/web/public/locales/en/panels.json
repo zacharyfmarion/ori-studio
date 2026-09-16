@@ -866,7 +866,8 @@
       "planAction": "Plan the precreasing sequence"
     },
     "meta": {
-      "solution": "Solution {{n}} of {{total}}"
+      "solution": "Solution {{n}} of {{total}}",
+      "solutionShort": "{{n}} / {{total}}"
     },
     "mode": {
       "find": "Find a reference",
