@@ -1,5 +1,14 @@
 # Clean-topology geometric solving — September 16, 2026
 
+**Correction after the user's clarification:** the results below establish local
+constraint satisfaction, not the requested exact ground-truth recovery. The
+new [coordinate audit](exact-recovery-audit.md) finds **178/421 (42.3%)** clean
+recognition outputs recover the complete reference graph including AUX at a
+1e-9-paper-width numerical threshold. The goal is **not achieved**. Also,
+505/526 scored repaired-topology inputs already equal truth before solving;
+their results primarily measure preservation. The historical measurements below
+are retained, but must not be cited as 100% design recovery.
+
 The browser replay solves **531/531 supported clean repaired graphs** and
 **421/421 recognition outputs with correct topology and assignments** within
 25 seconds. Maximum measured times are 10.98s and 20.52s respectively, including

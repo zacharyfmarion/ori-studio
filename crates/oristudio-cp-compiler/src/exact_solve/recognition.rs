@@ -3,6 +3,7 @@ use super::*;
 
 const LARGE_SPANS: usize = 1500;
 const NOISE_PX: f64 = 1.5;
+const RETRY_NOISE_PX: f64 = 2.0;
 
 pub(super) fn solve(
     input: &ExactSolveInput,
@@ -38,19 +39,36 @@ pub(super) fn solve(
     let mut lattice_report = None;
     if let Some((proposal, mut report)) = propose(input, &pinned) {
         let mut fallback_options = options;
+        // A fully fixed document proposal needs validation, not a search. Its
+        // large graph checks can outlast the small iterative-proposal slice.
+        let fixed_document = input.image_size.is_none() && all_vertices_fixed(&proposal, &pinned);
+        let proposal_limit = if fixed_document { 10.0 } else { 5.0 };
         fallback_options.timeout_seconds = if options.timeout_seconds < 0.0 {
-            5.0
+            proposal_limit
         } else {
-            (remaining(&clock) * 0.5).min(5.0)
+            (remaining(&clock) * 0.5).min(proposal_limit)
         };
         fallback_options.work_budget = clock.work_left();
-        let candidate = solve_exact_inner(
-            &proposal,
-            fallback_options,
-            Rc::clone(&exempt),
-            Rc::clone(&pinned),
-            false,
-        );
+        let candidate = if input.image_size.is_none() {
+            solve_proposal(
+                &proposal,
+                fallback_options,
+                Rc::clone(&exempt),
+                Rc::clone(&pinned),
+            )
+        } else {
+            // Preserve the recognition path's structural polish: accepting a
+            // coordinate projection first can leave off-grid construction
+            // points at a different locally valid solution. Document rebuilds
+            // previously had no partial-lattice path at all.
+            solve_exact_inner(
+                &proposal,
+                fallback_options,
+                Rc::clone(&exempt),
+                Rc::clone(&pinned),
+                false,
+            )
+        };
         clock.work.set(
             spent.saturating_add(
                 candidate.movement_report["work_spent"]
@@ -98,6 +116,61 @@ pub(super) fn solve(
     finish(primary, &clock, options, lattice_report)
 }
 
+/// A mostly locked grid has few coordinate unknowns, even when thousands of
+/// spans leave the carrier formulation large. Try the sparse projection before
+/// spending the proposal's remaining budget on the ordinary solver.
+fn solve_proposal(
+    input: &ExactSolveInput,
+    mut options: ExactSolveOptions,
+    exempt: Rc<BTreeSet<usize>>,
+    pinned: Rc<BTreeSet<usize>>,
+) -> ExactSolvedGraph {
+    let clock = ExactSolveDeadline::start(options.timeout_seconds, options.work_budget);
+    let fixed = all_vertices_fixed(input, &pinned);
+    let projection_clock = ExactSolveDeadline::start(
+        if fixed {
+            options.timeout_seconds
+        } else {
+            (options.timeout_seconds * 0.5).min(2.5)
+        },
+        options.work_budget,
+    );
+    let projected = projection::solve(
+        input,
+        options,
+        &projection_clock,
+        Rc::clone(&exempt),
+        Rc::clone(&pinned),
+    );
+    clock.work.set(projection_clock.work.get());
+    if (projected.status == ExactSolvedGraphStatus::Solved
+        && projected.movement_report["accepted"] == true)
+        || clock.expired()
+        || fixed
+    {
+        return projected;
+    }
+    options.timeout_seconds = remaining(&clock);
+    options.work_budget = clock.work_left();
+    let mut ordinary = solve_exact_inner(input, options, exempt, pinned, false);
+    ordinary.movement_report["proposal_projection"] = projected.movement_report;
+    ordinary.movement_report["work_spent"] = json!(
+        clock
+            .work
+            .get()
+            .saturating_add(ordinary.movement_report["work_spent"].as_u64().unwrap_or(0))
+    );
+    ordinary
+}
+
+fn all_vertices_fixed(input: &ExactSolveInput, pinned: &BTreeSet<usize>) -> bool {
+    input.vertices.iter().all(|v| {
+        v.movement_policy == CandidateVertexMovementPolicy::Locked
+            || pinned.contains(&v.id)
+            || input.boundary.corners.contains(&v.id)
+    })
+}
+
 fn remaining(clock: &ExactSolveDeadline) -> f64 {
     if clock.timeout_seconds < 0.0 {
         -1.0
@@ -129,14 +202,33 @@ pub(super) fn propose(
     input: &ExactSolveInput,
     pinned: &BTreeSet<usize>,
 ) -> Option<(ExactSolveInput, Value)> {
+    propose_at_noise(input, pinned, NOISE_PX).or_else(|| {
+        input
+            .image_size
+            .is_none()
+            .then(|| propose_at_noise(input, pinned, RETRY_NOISE_PX))
+            .flatten()
+    })
+}
+
+fn propose_at_noise(
+    input: &ExactSolveInput,
+    pinned: &BTreeSet<usize>,
+    noise_px: f64,
+) -> Option<(ExactSolveInput, Value)> {
     if !validate_input(input).is_empty() || is_polygon_boundary(input) {
         return None;
     }
-    let pixels = f64::from(input.image_size?.checked_sub(64)?);
+    // Live-document rebuilding has no raster metadata. Use the same 1024-unit
+    // fallback as SolveModel instead of silently disabling structural repair.
+    let pixels = f64::from(match input.image_size {
+        Some(size) => size.checked_sub(64)?,
+        None => 1024,
+    });
     if pixels <= 0.0 || input.vertices.is_empty() {
         return None;
     }
-    let tolerance = NOISE_PX / pixels;
+    let tolerance = noise_px / pixels;
     for cells in 4..=512 {
         let band = 2.0 * tolerance * f64::from(cells);
         if band >= 0.5 {
@@ -173,7 +265,7 @@ pub(super) fn propose(
             );
             if (snapped.x - vertex.point.x).abs() <= tolerance
                 && (snapped.y - vertex.point.y).abs() <= tolerance
-                && distance(snapped, vertex.point) * pixels <= NOISE_PX * 2.0
+                && distance(snapped, vertex.point) * pixels <= noise_px * 2.0
             {
                 vertex.point = snapped;
                 vertex.movement_policy = CandidateVertexMovementPolicy::Locked;
@@ -187,6 +279,7 @@ pub(super) fn propose(
         return Some((
             proposal,
             json!({"cells": cells, "coordinate_support": fraction,
+                                      "noise_px": noise_px, "pixels_per_unit": pixels,
                                       "locked_vertices": locked}),
         ));
     }

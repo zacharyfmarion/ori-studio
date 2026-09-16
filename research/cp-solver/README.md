@@ -1,23 +1,29 @@
 # Exact CP solving research
 
-User objective (2026-09-16): approach 100% clean-topology solving, regardless of
-complexity, within 25 seconds. This follows the pixel detector and AUX graph
-work in `../cp-recognition/`.
+User objective (clarified 2026-09-16): recover the exact ground-truth geometry
+from clean recognition topology, including AUX, within 25 seconds. Passing
+local foldability checks or matching within 2px does not meet this objective.
+The earlier S000–S016 work optimized the wrong primary outcome. The goal is
+**not achieved**; see [the exact-coordinate audit](exact-recovery-audit.md).
 
 ## Protocol
 
 - The original external `real_benchmark` inventory remains frozen. No real
   patterns, including evaluation cases, may be used for model training.
-- `Solved` plus passing the editor's existing checks is the primary outcome;
-  `accepted` alone includes ambiguous results and is insufficient.
+- Exact reference coordinates, graph and assignments within 25 seconds are the
+  primary outcome. Report a 1e-9-paper-width numerical threshold and sensitivity
+  at literal equality and 1e-12; do not call any of these mathematical proof.
+  Local `Solved` status is a separate necessary check, not reference recovery.
 - Report recognition-correct topology and repaired-topology solver-only gates
   separately. Report assignment defects, reference mismatch, and unsupported
   boundary cases; no complexity cap or silent removal of failures.
 - Wall time is measured at 25 seconds, sequentially for timing claims. A timeout
   is a failure even if an earlier intermediate graph looked promising. Native
   results do not establish browser performance; test the actual WASM worker.
-- Geometric truth agreement (2 px) is a separate outcome: a nearby valid CP may
-  not reproduce the original underdetermined design.
+- The legacy 2px metric is only a near-match diagnostic. Include AUX in the
+  primary reference score; retain the physical-only score as a separate diagnostic.
+- Audit whether solver inputs already equal truth. In the old repaired-topology
+  gate, 505/526 scored inputs do. That gate measures preservation, not recovery.
 - All previous benchmark splits have already been observed. Develop on the
   development split; label holdout replays as observed, never blind. Add
   independent procedural stress cases without real-pattern training.
@@ -38,6 +44,18 @@ work in `../cp-recognition/`.
 | S014 | Numerical grouping for inferred proposal carriers | Clears remaining three recognition geometry failures |
 | S015 | Complete actual-browser replay | 531/531 supported clean repaired; 421/421 correct recognition; 24/24 procedural |
 | S016 | Isolated timing audit | 256 repaired repeats agree; both slow recognition repeats below 20.6s |
+| S017, S019 | Initial user-provided Knight files | Superseded: user clarified these were the wrong file; do not use for the Knight fix |
+| S018 | Exact coordinate recovery audit | Only 178/421 clean recognition outputs match including AUX at 1e-9 paper width |
+| S020 | Corrected user-provided Knight file | Missing raster metadata disables partial-grid repair; no GT available |
+| S021 | Projection-first partial-grid repair everywhere | Rejected: four exact-reference losses despite all local solves passing |
+| S022–S024 | Preserve outer/dark crop candidates | Rejected: neighboring illustration outlines can win |
+| S025 | Partial-grid repair for document inputs | Knight aligned in ~2.1s browser; 421/421 local passes, 178/421 numerical reference matches preserved |
+| S026 | Additional crop candidates require complete outline | 14/209 source crops change; Knight fixed; existing partial crops remain |
+| S027 | Generated document grids up to 18,624 edges | Largest fails: fully fixed proposal validation outlasts its short slice |
+| S028 | Reserve validation time for fully fixed document proposals | All three pass in browser; maximum 21.297s, coordinate error at most 3.93e-17 |
+
+The [Knight follow-up](knight-followup.md) records the selected changes and
+the rejected experiments.
 
 Final [results](results.md), [machine-readable summary](browser-summary.json),
 and [chronological notebook](2026-09-16-log.md) retain the full failure counts

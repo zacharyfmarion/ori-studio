@@ -18,7 +18,9 @@ test profile now uses optimization level 2, retaining debug assertions,
 overflow checks, fixtures, and assertions. An isolated representative test
 dropped from 110.849s to 15.053s locally. The complete precrease test run passed
 268 tests (two existing ignored tests), with 73.77s summed test-binary time.
-This is local evidence, not yet a measured CI speedup.
+The replacement GitHub run `35159117254` then passed all three CI jobs. Its
+native job took **11m42s**, versus 24m55s for the failed run. Clippy plus workspace
+tests took 8m22s, versus 21m54s previously; Oriedita parity passed in 73s.
 
 Validation: all seven configured Oriedita parity/guard suites passed (118 tests),
 the native IO launcher rebuilt and its IO suite passed with both geometry and

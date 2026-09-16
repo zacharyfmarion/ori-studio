@@ -221,5 +221,10 @@
         "max": 20.504789999961854
       }
     }
+  },
+  "interpretation_correction": {
+    "goal_achieved": false,
+    "reason": "These are local constraint results and 2px near matches, not exact reference recovery. 505/526 repaired inputs already equal truth. See exact-recovery-audit.md.",
+    "legacy_reference_tolerance_paper_width": 0.001953125
   }
 }
