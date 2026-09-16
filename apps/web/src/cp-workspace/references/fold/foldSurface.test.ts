@@ -29,12 +29,15 @@ const RECT: FlatPoint[] = [
 ];
 
 describe('creasedness', () => {
-  it('is 1 on a creased stretch, 0 away from it, and ramps between', () => {
+  it('is 1 on a creased stretch, 0 away from it, and eases between', () => {
     const creased = [[2, 4]] as const;
     expect(creasedness(creased, 1, 3)).toBe(1);
     expect(creasedness(creased, 1, 4)).toBe(1);
     expect(creasedness(creased, 1, 4.5)).toBeCloseTo(0.5);
-    expect(creasedness(creased, 1, 1.25)).toBeCloseTo(0.25);
+    // An S-curve: flat at both ends of the ramp, steepest in the middle.
+    expect(creasedness(creased, 1, 4.1)).toBeGreaterThan(0.95);
+    expect(creasedness(creased, 1, 1.1)).toBeLessThan(0.05);
+    expect(creasedness(creased, 1, 1.25)).toBeCloseTo(0.15625);
     expect(creasedness(creased, 1, 6)).toBe(0);
     expect(creasedness([], 1, 3)).toBe(0);
   });
@@ -100,7 +103,7 @@ describe('createFoldSurface', () => {
     // Away from it: still the curl.
     const curled = surface.place(8, 4);
     expect(curled.z).toBeCloseTo(2 * r);
-    // Half way up the ramp: half the radius.
+    // Half way up the ramp: half the radius, the S-curve's midpoint.
     const ramping = surface.place(4.5, 4);
     expect(ramping.z).toBeCloseTo(r);
     expect(surface.breakpoints()).toEqual([1, 2, 4, 5]);

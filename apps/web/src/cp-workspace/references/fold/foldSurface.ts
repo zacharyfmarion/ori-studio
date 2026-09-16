@@ -66,16 +66,27 @@ export interface FoldSurface extends FoldPlacement {
   bendReach: number;
 }
 
-/** A share of the sheet's short side: the curl's radius at rest. */
-export const BEND_RADIUS_SHARE = 0.02;
-/** A share of the sheet's short side: the ramp from creased to curled. */
-export const CREASE_RAMP_SHARE = 0.03;
+/**
+ * A share of the sheet's short side: the curl's radius at rest. The flat part
+ * hovers at twice this and lands π times it short of the mirror, so it is
+ * kept small: the hover is a hair, and what shows is the shortfall.
+ */
+export const BEND_RADIUS_SHARE = 0.0075;
+/**
+ * A share of the sheet's short side: how far past a creased stretch the paper
+ * takes to reach its full curl. Long against the shortfall it has to carry,
+ * so the flap's edge bends where the crease ends rather than jogging.
+ */
+export const CREASE_RAMP_SHARE = 0.08;
 /** Rows through the bend, which is the one curved part. */
 export const BEND_ROWS = 12;
 /** Columns along the line, as a share of the sheet's short side. */
 export const COLUMN_SHARE = 1 / 48;
 
-/** How creased the line is at `s`: 1 on a stretch, 0 away from all, a ramp between. */
+/**
+ * How creased the line is at `s`: 1 on a stretch, 0 away from all, and an
+ * S-curve between, so the paper leaves a crease with no kink at either end.
+ */
 export function creasedness(
   creased: readonly (readonly [number, number])[],
   ramp: number,
@@ -85,7 +96,10 @@ export function creasedness(
   for (const [from, to] of creased) {
     if (s >= from && s <= to) return 1;
     const gap = s < from ? from - s : s - to;
-    if (ramp > 0 && gap < ramp) best = Math.max(best, 1 - gap / ramp);
+    if (ramp > 0 && gap < ramp) {
+      const t = gap / ramp;
+      best = Math.max(best, 1 - t * t * (3 - 2 * t));
+    }
   }
   return best;
 }

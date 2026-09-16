@@ -19,14 +19,15 @@
  * read as a rounded ridge rather than a stripe.
  *
  * Seen from straight above, a flat flap hovering over the paper looks like a
- * flat flap on the paper. The height is read from a **cast shadow**: the
- * flat part of the flap projected along a light tilted a little off the
+ * flat flap on the paper. The height is read from a **contact shadow**: the
+ * flat part of the flap, offset a little along a light tilted off the
  * vertical, drawn under the flap in the shadow ink. Under the flap it is
- * hidden; along the far edge it shows as a rim proportional to the height,
- * and during the swing it sweeps across the paper. Only the flat part
- * casts one — it is planar, so its shadow cannot overlap itself and
- * double up through the translucency — and the curl, which sits at the
- * hinge where the paper is nearly on the paper anyway, casts none.
+ * hidden; along the flap's edges it shows as a thin rim. The offset is
+ * capped at the hover height — a true cast shadow of a flap standing up
+ * mid-swing lands far from it and reads as a second sheet, not as height —
+ * so the rim says "lifted" and never where the light is. Only the flat part
+ * casts one: it is planar, so its shadow cannot overlap itself and double
+ * up through the translucency, and the curl at the hinge casts none.
  */
 import type { Point } from '../../../lib/geometry';
 import type { FoldedGeometry, Rgba, StrokeGeometry } from '../../renderer/types';
@@ -89,6 +90,8 @@ const SHADOW_DEPTH = 0.02;
  * a rim of shadow along its lower and right sides.
  */
 export const SHADOW_OFFSET_PER_HEIGHT: readonly [number, number] = [0.55, 0.55];
+/** The height the shadow's offset is capped at, as a multiple of the hover height. */
+const SHADOW_HEIGHT_CAP_HOVERS = 1;
 
 export const EMPTY_FOLDED: FoldedGeometry = {
   fills: { position: new Float32Array(0), color: new Float32Array(0), count: 0 },
@@ -191,13 +194,14 @@ export function foldPoseGeometry(
     return { placed, flat: mesh.flat };
   });
   const shadow: Rgba = paint.shade;
-  if (shadow[3] > 0) {
+  const heightCap = SHADOW_HEIGHT_CAP_HOVERS * 2 * shares.radius * short;
+  if (shadow[3] > 0 && heightCap > 0) {
     for (const mesh of meshes) {
       mesh.flat.forEach((flat, triangle) => {
         if (!flat) return;
         for (let k = 0; k < 3; k += 1) {
           const vertex = mesh.placed[triangle * 3 + k]!;
-          const height = vertex.z * userPerModel;
+          const height = Math.min(vertex.z, heightCap) * userPerModel;
           position.push(vertex.at.x + height * shadowX, vertex.at.y + height * shadowY);
           color.push(...shadow);
           depth.push(SHADOW_DEPTH);

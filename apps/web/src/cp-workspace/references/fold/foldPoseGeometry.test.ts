@@ -241,6 +241,19 @@ describe('foldPoseGeometry, shadow', () => {
     );
   });
 
+  it('caps the rim at the hover height, so a flap standing up casts no far shadow', () => {
+    const { fills } = foldPoseGeometry(scene, { angle: Math.PI / 2, press: 0 }, [], paint);
+    const shadow = only(fills, 'shadow');
+    const paper = only(fills, 'paper');
+    // Edge-on, the paper projects onto the line; its shadow sits a hover's
+    // offset beside it, not a flap's reach away.
+    const hover = 2 * r * 2;
+    expect(Math.max(...xs(shadow.position)) - Math.max(...xs(paper.position))).toBeCloseTo(
+      hover * SHADOW_OFFSET_PER_HEIGHT[0],
+      3
+    );
+  });
+
   it('casts nothing that shows when the flap is flat, and none at all without ink', () => {
     const { fills } = foldPoseGeometry(scene, { angle: 0, press: 0 }, [], paint);
     // On the paper the shadow is exactly under the flap: present, at no offset.
