@@ -15,6 +15,8 @@
     "addTreeEdgesThenOptimize": "Adicione arestas à árvore e otimize antes de gerar o padrão de vincos",
     "advanceCreaseType": "Avançar tipo de vinco",
     "advanceSelectedCpLineTypes": "Avançar os tipos das linhas selecionadas do padrão de vincos",
+    "analyzeReferences": "Analisar referências",
+    "analyzeReferencesHint": "Descubra quais linhas deste padrão são difíceis de localizar dobrando",
     "bpFlipHorizontal": "Espelhar horizontalmente",
     "bpFlipHorizontalReason": "Espelha o design da esquerda para a direita",
     "bpFlipVertical": "Espelhar verticalmente",
@@ -182,6 +184,7 @@
     "redo": "Refazer",
     "redoNextCpEdit": "Refazer a próxima edição do padrão de vincos",
     "redoNextTreeEdit": "Refazer a próxima edição da árvore",
+    "references": "Referências",
     "relieveAllStrain": "Aliviar toda a tensão",
     "relieveStrain": "Aliviar tensão",
     "removeAllStrain": "Remover toda a tensão",
@@ -229,6 +232,7 @@
     "showDesignWorkspace": "Mostrar o workspace de Design",
     "showEditWorkspace": "Mostrar o workspace de Edição",
     "showPropertiesPane": "Mostrar o painel de propriedades",
+    "showReferencesWorkspace": "Mostrar o workspace de referências",
     "showSimulateWorkspace": "Mostrar o workspace de Simulação",
     "simulate": "Simular",
     "simulateBeforeExportingFolded": "Simule um padrão de dobras antes de exportar sua forma dobrada",
@@ -310,16 +314,21 @@
   },
   "viewDrawer": {
     "close": "Fechar opções de exibição",
+    "closeSettings": "Fechar configurações",
     "open": "Exibir",
+    "openSettings": "Configurações",
+    "settingsTitle": "Configurações",
     "title": "Opções de exibição"
   },
   "workspaceRail": {
     "design": "Workspace de Design",
     "edit": "Workspace de Edição",
     "label": "Workspaces",
+    "references": "Workspace de Referências",
     "simulate": "Workspace de Simulação",
     "tabDesign": "Design",
     "tabEdit": "Editar",
+    "tabReferences": "Referências",
     "tabSimulate": "Simular"
   }
 }

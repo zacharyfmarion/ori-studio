@@ -10,6 +10,7 @@
   },
   "cp": {
     "advanceCreaseType": "Следующий тип складки",
+    "analyzeReferences": "Анализ опор",
     "annotations": "Аннотации",
     "build": "Построить паттерн складок",
     "changeCircleColor": "Изменить цвет круга...",
@@ -127,6 +128,7 @@
     "design": "Дизайн",
     "edit": "Правка",
     "properties": "Свойства",
+    "references": "Референсы",
     "resetLayout": "Сбросить макет",
     "simulate": "Симуляция"
   }

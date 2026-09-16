@@ -37,6 +37,27 @@
   --bg-canvas: #0c0f12;
   --bg-canvas-grid: #1d2a31;
   --bg-paper: #f2f0e7;
+  /*
+   * The two faces of a sheet, as an origami diagram draws them: the white side
+   * is the paper itself, the colour side a 30% grey against it (the house
+   * template's own legend).
+   *
+   * The value here is only the default-dark fallback; `applyTheme` mixes the
+   * real one per theme, so a dark theme's colour side comes out lighter than
+   * its paper the way a light theme's comes out darker. It is a flat hex and
+   * not a `color-mix()` on purpose: the References canvas reads this token from
+   * JS to clear a WebGL surface, and `parseCssColor` understands hex and rgb()
+   * and nothing else — a `color-mix()` parses to null and falls back to a
+   * hard-coded near-black, which is exactly how this token looked implemented
+   * and did nothing.
+   *
+   * Computed by the same rule `themes/paperBack.ts` applies, against the
+   * fallback ground above, so the checked-in default and every applied theme
+   * agree: a dark ground shades 30% toward black, because the other side of
+   * paper is the darker side. It was `#515558` and then `#404447` — both
+   * lighter than the ground, a glow rather than a turn-over.
+   */
+  --paper-back: #0b0e10;
   /* Two-tone origami paper in the simulator: yellow front, light back. The
      yellow matches a generated folded figure in the edit pane (the CP engine's
      default front colour, RgbColor(255,255,50)); the blue valley and red
@@ -105,6 +126,12 @@
      confusable with a fold colour -- red is mountain, blue is valley. One-dark's
      accent is blue, so it overrides to its gold; see themes/applyTheme. */
   --cp-selection: #e5c07b;
+  /* References workspace: the references a folding step uses, and the crease
+     it makes. Hues in the two gaps the crease palette leaves (a pink between
+     magenta and mountain red, a lime between yellow and green), so neither
+     reads as a crease type; see themes/applyTheme. */
+  --cp-reference-input: #f25ab8;
+  --cp-reference-new: #a3e635;
   /* Hue a shallower crease shifts toward: mountains run red -> magenta, valleys
      blue -> violet. Magenta is the only anchor where both halves take the short
      way round the wheel, so neither desaturates into grey. See
@@ -511,6 +538,12 @@ a.context-menu__item {
   pointer-events: none;
 }
 
+/* An item that qualifies the one above it — "Only where needed" under
+   "Precrease grid" — sits a step in, so the pair reads as one setting. */
+.context-menu__item--nested {
+  padding-left: 24px;
+}
+
 .context-menu__item[data-danger] {
   color: var(--status-danger);
 }
@@ -668,6 +701,24 @@ a.context-menu__item {
   min-width: 0;
   color: var(--text-secondary);
   font-size: 0.74rem;
+}
+
+/* The info mark after a label whose name cannot carry what the setting does. */
+.control-row__help {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  vertical-align: -2px;
+  cursor: help;
+}
+
+.control-row__help:hover,
+.control-row__help:focus-visible {
+  color: var(--text-primary);
 }
 
 .control-row__value {
@@ -6774,11 +6825,25 @@ button.cp-folded-figure-toolbar__notice:hover {
   color: var(--text-primary);
 }
 
-/* Simulate workspace options pane, alongside the Edit workspace's view pane. */
-.simulator-view-controls-panel__body {
+/* An option that qualifies the one above it — "Only where needed" under
+   "Precrease grid" — sits a step in, so the pair reads as one setting. The
+   menu form of the same idea is `.context-menu__item--nested`. */
+.control-row--nested {
+  padding-left: 24px;
+}
+
+/* Simulate and References options panes, alongside the Edit workspace's view pane. */
+.simulator-view-controls-panel__body,
+.references-view-controls-panel__body {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+}
+
+.references-view-controls-panel__empty {
+  display: flex;
+  align-items: flex-start;
+  padding: var(--space-3);
 }
 
 /* A text action inside a section body, rather than the icon-only affordance in a
@@ -9869,6 +9934,13 @@ button.bp-packing-alert:focus-visible {
   }
 
   /*
+   * The References pane does not use the lane at all: it registers a slot at
+   * the top right of its own view (`.references-panel__pills`), below the
+   * filmstrip, and the drawer's pill goes there — the lane's corner is that
+   * workspace's header.
+   */
+
+  /*
    * The pill row. The inset lives here rather than on any one pill because
    * several share it — undo/redo, Tools, View — and "left of View" has to be a
    * layout fact rather than an offset somebody computed from View's width, which
@@ -10669,4 +10741,1034 @@ button.bp-packing-alert:focus-visible {
   .cp-tool-picker__sheet {
     width: calc(100% - var(--touch-target));
   }
+
+  /*
+   * References: one screen at a time. `useReferencesPhoneFlow` mounts either
+   * the rail or the panel, never both, so the rail here is the list screen —
+   * the whole width, scrolling as one — and the panel is the detail screen with
+   * a Back button where its title was.
+   *
+   * Every selector below is prefixed with `.references-workspace`, and not for
+   * scoping: the workspace's own rules come *after* this block in the file, so
+   * at equal specificity they would win on source order and none of this would
+   * apply. The prefix is what makes these the later word.
+   */
+  .references-workspace .references-sidebar {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    border-right: 0;
+  }
+
+  /* Its height is the coarse block's, shared with the panel's header. */
+  .references-workspace .references-sidebar__header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 0 var(--space-3);
+  }
+
+  /* The list screen's header is the full width, and its right end is where
+     the View pill floats — so the count keeps to the title's side. */
+  .references-workspace .references-sidebar__count {
+    margin-left: var(--space-1);
+  }
+
+  /*
+   * Two cards per row, sized for a thumb, and no cap on the strip: the rail's
+   * 40% ceiling exists so a long list leaves room for the notes beside the
+   * canvas, and on this screen the notes come *after* the list, in the same
+   * scroll.
+   */
+  .references-workspace .references-sheets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+    max-height: none;
+    overflow: visible;
+    padding: var(--space-3);
+  }
+
+  .references-workspace .references-sheet {
+    gap: var(--space-2);
+    min-height: var(--touch-target);
+    padding: var(--space-2);
+  }
+
+  .references-workspace .references-sheet__meta {
+    font-size: 0.8rem;
+  }
+
+  .references-workspace .references-sheet__index {
+    min-width: 20px;
+    height: 20px;
+    font-size: 0.72rem;
+  }
+
+  .references-workspace .references-sidebar__notes {
+    overflow: visible;
+  }
+
+  .references-workspace .references-sidebar__hint {
+    font-size: 0.85rem;
+  }
+
+  .references-workspace .references-sidebar__warning {
+    padding: 0 var(--space-3) var(--space-2);
+    font-size: 0.8rem;
+  }
+
+  /* A finding is a button that frames a line on the detail, so it is a target. */
+  .references-workspace .references-finding {
+    min-height: var(--touch-target);
+    font-size: 0.8rem;
+  }
+
+  /*
+   * The detail's toolbar, as rows rather than a row.
+   *
+   * At 375px the picked target's controls — its badge, the candidate stepper,
+   * the readouts and the way out of it — are wider than the row, so they take
+   * a full row of their own under the Back button. They are children of the
+   * one group in the markup, beside that button; `display: contents` on the
+   * group hands them to the toolbar's own flex layout, where `order` and a
+   * 100% basis can put them where the first row cannot. The first row's right
+   * end stays clear for the View pill (see the pill lane's References inset).
+   */
+  .references-workspace .references-panel .panel-toolbar {
+    flex-wrap: wrap;
+    gap: var(--space-1) 0;
+    /* No side or bottom padding: the tabs' row runs edge to edge and meets
+       the toolbar's bottom border, as the strip does on a desktop; the first
+       row's Back and Settings carry their own gutters. */
+    padding: var(--space-1) 0 0;
+  }
+
+  .references-workspace .references-panel .panel-toolbar__group {
+    display: contents;
+  }
+
+  .references-workspace .references-panel__back {
+    flex: 0 0 auto;
+    order: 0;
+    margin-left: var(--space-2);
+  }
+
+  .references-workspace .references-panel__pills {
+    order: 0;
+    margin-right: var(--space-2);
+  }
+
+  /* The picked target's row, on one line: the count, the stepper's numbers,
+     the badge and the way out as an icon — nothing wraps. */
+  .references-workspace .references-target-row {
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .references-workspace .references-target,
+  .references-workspace .references-target__actions {
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+  }
+
+  .references-workspace .references-target__count,
+  .references-workspace .references-target__readout {
+    white-space: nowrap;
+  }
+
+  /* The mode tabs take a row of their own under the Back button, the two of
+     them sharing the width, each a thumb-sized target. */
+  .references-workspace .references-mode {
+    flex: 1 0 100%;
+    order: 1;
+  }
+
+  .references-workspace .references-mode .design-tab-strip__root,
+  .references-workspace .references-mode .design-tab-strip__list {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+
+  .references-workspace .references-mode .design-tab {
+    flex: 1 1 0;
+    max-width: none;
+    min-height: var(--touch-target);
+  }
+
+  .references-workspace .references-mode .design-tab:last-child {
+    border-right: 0;
+  }
+
+  .references-workspace .references-mode .design-tab__trigger {
+    justify-content: center;
+    font-size: 0.8rem;
+  }
+
+  /* One card at a time under a thumb: the strip snaps to a card's centre. */
+  .references-workspace .references-filmstrip__list {
+    scroll-snap-type: x proximity;
+  }
+
+  .references-workspace .references-filmstrip__item {
+    scroll-snap-align: center;
+  }
+
 }
+
+/*
+ * References workspace. The simulator's shape under its own prefix — a sidebar,
+ * a positioned body the overlays fill, a transport strip — copied rather than
+ * shared because the two panels diverge (candidate cards and step rows here, a
+ * fold slider there). The generic `.panel-shell` / `.panel-toolbar` /
+ * `.panel-body` / `.ui-badge` classes are reused as they are.
+ */
+.references-workspace {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.references-workspace .references-panel {
+  flex: 1;
+  min-width: 0;
+}
+
+.references-panel__body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.references-view {
+  position: absolute;
+  inset: 0;
+}
+
+/*
+ * The touch layer's Settings trigger, at the right end of the header's first
+ * row — beside Back on a phone. A button in the row, not a floating pill: no
+ * shadow, the toolbar's own ground. Empty under a fine pointer (the drawer
+ * renders nothing), so it costs the desktop layout nothing.
+ */
+.references-panel__pills {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.references-panel__pills .view-drawer__trigger {
+  border-color: var(--border-subtle);
+  box-shadow: none;
+}
+
+/* No `cp-webgl-layer` here on purpose: the editor's floating toolbars forward
+   wheel events to the first canvas carrying that class. */
+/* The resting cursor only. Hover and drag are decided in JS through the shared
+   `cpCanvasCursor` and applied inline, because a click here selects what is
+   under the pointer and the canvas has to say so — and an inline `pointer`
+   would beat an `:active { grabbing }` rule, so the drag state is set inline
+   too rather than left half in CSS. */
+.references-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+
+/*
+ * The switch between the workspace's two jobs is the header: the Design
+ * workspace's tab strip (`.design-tab-strip`, the same classes) inside the
+ * panel toolbar, which already has the strip's height, ground and bottom
+ * border — so the strip brings none of its own, and the tabs run flush from
+ * the toolbar's left edge the way the design tabs do from the shell's.
+ */
+.references-panel .panel-toolbar {
+  padding-left: 0;
+}
+
+/* The toolbar centres its groups; the tabs want its full height, so the
+   group that holds them stretches and the strip stretches inside it. The
+   target's controls in the same group stay centred by the group's own rule. */
+.references-panel .panel-toolbar > .panel-toolbar__group {
+  align-self: stretch;
+}
+
+.references-mode.design-tab-strip {
+  align-self: stretch;
+  min-height: 0;
+  padding-right: 0;
+  border-bottom: 0;
+  background: transparent;
+}
+
+.references-mode .design-tab-strip__root,
+.references-mode .design-tab-strip__list,
+.references-mode .design-tab {
+  align-self: stretch;
+}
+
+/*
+ * Two tabs that are peers, not a row of documents one of which dominates: the
+ * Design strip dims an inactive tab to the tertiary colour, which with two
+ * tabs read as disabled and hid the second job. Here the inactive one keeps
+ * the secondary colour with its icon at full strength, gains a ground on
+ * hover, and the active one keeps the accent line and the lighter ground.
+ */
+.references-mode .design-tab {
+  color: var(--text-secondary);
+}
+
+.references-mode .design-tab .design-tab__trigger > svg {
+  color: var(--text-primary);
+}
+
+.references-mode .design-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+/*
+ * The one line where the filmstrip goes once there are cards: the mode's hint,
+ * the wait while the sequence is planned, or the button that plans it. The
+ * strip's own height, so the canvas does not jump when the cards arrive.
+ */
+.references-lead {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.references-lead__text {
+  flex: 1 1 24ch;
+  margin: 0;
+}
+
+/* The lead's second sentence, which is the way into the other job: a link
+   in the running text, in the accent, so it reads as somewhere to go. */
+.references-lead__link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-primary);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.references-lead__link:hover {
+  color: var(--text-primary);
+}
+
+.references-lead__link:focus-visible {
+  outline: 1px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.references-panel__overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: var(--space-3);
+  justify-items: center;
+  background: var(--domain-overlay-bg);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 650;
+  text-align: center;
+}
+
+/* A running query keeps the pattern readable underneath: the user just
+   clicked something and is waiting to see it explained, not hidden. */
+.references-panel__overlay--loading {
+  background: color-mix(in srgb, var(--bg-primary) 40%, transparent);
+}
+
+.references-panel__overlay small {
+  max-width: min(52ch, 80%);
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.references-panel__overlay-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.references-sidebar {
+  display: flex;
+  flex: 0 0 260px;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--border-subtle);
+  background: var(--bg-secondary);
+}
+
+.references-sidebar__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 36px;
+  padding: 0 var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+}
+
+.references-sidebar__count {
+  margin-left: auto;
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.references-sidebar__notes {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.references-sidebar__hint {
+  padding: var(--space-3);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.references-sidebar__hint p {
+  margin: 0 0 var(--space-2);
+}
+
+.references-sidebar__warning {
+  color: var(--status-warning);
+  font-size: 0.7rem;
+}
+
+/* The document's crease patterns. Two columns rather than the simulator's one:
+   this rail is 260px because it also carries the sequence outline, and a
+   full-width thumbnail there would push everything else off the screen. */
+.references-sheets {
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: var(--space-2);
+  max-height: 40%;
+  overflow: auto;
+  margin: 0;
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+  list-style: none;
+}
+
+.references-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: var(--space-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md, 6px);
+  background: var(--bg-canvas, #0c0f12);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.references-sheet:hover {
+  border-color: var(--border-strong, var(--border-subtle));
+}
+
+.references-sheet--selected {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
+/* A sheet the planner will not take still gets a row: it is a pattern the user
+   can see on the canvas, and a row that quietly vanished would read as a bug. */
+.references-sheet--refused {
+  opacity: 0.55;
+}
+
+.references-sheet__thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+}
+
+.references-sheet__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.references-sheet__stroke {
+  fill: none;
+  stroke-width: 1.1;
+  vector-effect: non-scaling-stroke;
+}
+
+.references-sheet__stroke--border {
+  stroke: var(--text-tertiary);
+  stroke-width: 1.6;
+}
+
+.references-sheet__stroke--mountain {
+  stroke: var(--fold-mountain);
+}
+
+.references-sheet__stroke--valley {
+  stroke: var(--fold-valley);
+}
+
+.references-sheet__stroke--other {
+  stroke: var(--fold-unassigned);
+}
+
+.references-sheet__meta {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A chip, not a bare digit: beside "8 creases" a plain 1 reads as part of the
+   number ("18 creases"), which is what it did. */
+.references-sheet__index {
+  display: inline-flex;
+  flex: 0 0 auto;
+  justify-content: center;
+  align-items: center;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.references-sheet--selected .references-sheet__index {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+}
+
+.references-sheet__count {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* One number for the card's box, because the strip is windowed: the cards are
+   positioned rather than laid out, so the track has to be told how tall a row
+   of them is, and a second literal would be a second thing to keep in step. */
+.references-filmstrip,
+.references-card {
+  --references-card-size: 128px;
+}
+
+.references-card {
+  position: relative;
+  display: block;
+  width: var(--references-card-size);
+  padding: var(--space-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md, 6px);
+  background: var(--bg-canvas, #0c0f12);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.references-card:hover {
+  border-color: var(--border-strong, var(--border-subtle));
+}
+
+/*
+ * The card owns its focus ring, or the user agent draws its own in its own
+ * colour — which, next to the selected card's, reads as a second competing
+ * selection. `outline: none` is safe only because the shadow replaces it; the
+ * same trade `.ui-button` makes.
+ */
+.references-card:focus {
+  outline: none;
+}
+
+.references-card:focus-visible {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--accent-primary);
+}
+
+.references-card--selected {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
+.references-card__thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+}
+
+/* Over the picture rather than beside it: the card is the diagram, and a
+   separate column for one or two digits would halve the drawing. */
+.references-card__number {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+/*
+ * A card that is not a fold. Turning the paper over is a step the folder
+ * performs, so it is a card like any other — but it makes no crease, so it
+ * carries a badge where a fold carries its number rather than leaving an
+ * unexplained gap in the numbering.
+ */
+.references-card__badge {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  color: var(--text-secondary);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* A fold that is not exact carries both: its number where every fold's is,
+   and the badge in the opposite corner. */
+.references-card--fold .references-card__badge {
+  left: auto;
+  right: 4px;
+}
+
+.references-card--turn-over,
+.references-card--done {
+  border-style: dashed;
+}
+
+.references-card__thumb svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/*
+ * Findings: the lines a plan cannot construct, the sheets it would not take,
+ * and the CP-wide analysis. Not a sequence, so not a numbered list.
+ */
+.references-findings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.references-findings__title {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.references-findings__note {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 0.66rem;
+  line-height: 1.4;
+}
+
+.references-findings__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.references-finding {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.7rem;
+  text-align: left;
+}
+
+.references-finding:hover {
+  background: var(--bg-tertiary);
+}
+
+.references-finding--active {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  color: var(--text-primary);
+}
+
+.references-finding--static {
+  cursor: default;
+}
+
+.references-finding--static:hover {
+  background: transparent;
+}
+
+.references-finding__meta {
+  color: var(--text-tertiary);
+  font-size: 0.66rem;
+}
+
+/*
+  The step filmstrip: the sequence read left to right, above the pattern.
+
+  It replaced a scrubber and a transport strip along the bottom. A slider and a
+  "4 / 17" readout say where you are in a list; a row of numbered pictures says
+  what the folds *are*, which is what a diagram is for.
+*/
+.references-filmstrip {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-2) var(--space-1);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+}
+
+.references-filmstrip__strip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+/* The cards alone, without the chevrons: the phone (see the filmstrip's
+   `navigation` prop), where the stepping sits on the floating bar. */
+.references-filmstrip__strip--bare {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.references-filmstrip__list {
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 0;
+  padding: 2px;
+  scroll-behavior: smooth;
+}
+
+/* The strip is windowed, so its width is the virtualizer's total rather than
+   the sum of what happens to be mounted — otherwise the scrollbar would report
+   a dozen cards and the reader could not reach the rest. */
+.references-filmstrip__track {
+  position: relative;
+  height: var(--references-card-size);
+}
+
+/* The gap belongs to the item, not to the list: the cards are positioned by
+   the virtualizer rather than laid out by flex, so a `gap` would have nothing
+   to act on and each card must carry its own trailing space to be measured
+   with it. */
+.references-filmstrip__item {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding-right: var(--space-2);
+}
+
+.references-filmstrip__caption {
+  min-height: 2.6em;
+  margin: 0;
+  padding: 0 var(--space-2);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.references-filmstrip__caption-number {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.references-filmstrip__caption-empty {
+  color: var(--text-tertiary);
+}
+
+/* Its own line, because it qualifies the whole sequence rather than the step
+   the sentence above is about. */
+.references-filmstrip__note {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+}
+
+/* The picked target, and the way back out of it: a row of its own under the
+   tabs, where there is room for it, rather than the header's right end. */
+.references-target-row {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-height: 40px;
+  padding: var(--space-1) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+}
+
+.references-target {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  min-width: 0;
+}
+
+/* The fold count at the left; the answer's stepper, its badge and the way
+   out together at the right. */
+.references-target__count {
+  margin-right: auto;
+}
+
+.references-target__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  margin-left: auto;
+}
+
+/* The stepper's buttons stand off the readout between them and the badges
+   either side; jammed together they read as one control. */
+.references-target__candidates {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.references-target__readout {
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/*
+ * Step diagrams: ReferenceFinder's picture of one fold, as a small SVG. Every
+ * style code the core emits (`RefDgmr::LineStyle` / `PointStyle`) is a class
+ * here, and every colour is a token — the `--fold-*` inks the crease pattern
+ * itself draws with, plus the two References highlight colours — so the
+ * thumbnails follow the theme like the view they sit beside.
+ */
+/* `visible` was safe while every diagram sat alone in a row. Side by side in
+   the filmstrip, an arc or a label that leaves the sheet would paint over the
+   neighbouring step, so the box clips. */
+/*
+  The half of a step's diagram the crease-pattern renderer cannot draw: arcs,
+  arrowheads, the turn-over glyph, the rings round the marks, the letters. Same
+  classes as the card below, so the two pictures cannot be styled apart.
+
+  z-index 7: above the WebGL canvas, below anything the reader can click — the
+  same band `CpMeasureLayer` uses, and for the same reason.
+*/
+.references-diagram-layer {
+  z-index: 7;
+}
+
+.step-diagram {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/*
+  Colour only, from here down.
+
+  Every weight, dash run and letter size is set by `diagram/diagramInk.ts` and
+  emitted as an attribute, because they all depend on how big the drawing is and
+  a stylesheet cannot know that. They were `stroke-width` and `stroke-dasharray`
+  here, under `vector-effect: non-scaling-stroke`, which pinned them to screen
+  pixels: correct on a 118 px card, a hairline sketch at 800 px, and with the
+  valley and mountain patterns running so short against the paper that the two
+  stopped being distinguishable.
+
+  A `stroke-width` added back here would win over the attribute and give a card
+  that disagrees with the canvas, with no build error. `diagramInk.test.ts`
+  guards the values; nothing guards the location.
+*/
+
+/*
+  The sheet is drawn on the *canvas's* ground, not on `--bg-paper`.
+
+  `--bg-paper` is one of two near-whites — `applyTheme` branches on theme type
+  and picks between #fffdf7 and #f2f0e7 — while `--fold-border` is the theme's
+  own `text.primary`. In a dark theme that pairing is light ink on a near-white
+  square: 1.07:1 in dracula and monokai, 1.87:1 in the default one-dark. The
+  filmstrip sits directly above the crease pattern, and a card that does not
+  look like the pattern below it reads as a different drawing rather than the
+  same one at another moment.
+*/
+.step-diagram__sheet {
+  fill: var(--bg-primary);
+  stroke: var(--fold-border);
+}
+
+/* The paper seen from its other face — see `--paper-back`. */
+.step-diagram__sheet--back {
+  fill: var(--paper-back);
+}
+
+/* The band a grid step works in: a wash of the highlight ink, so it reads as
+   a stretch of the paper the step is about rather than as a crease. */
+.step-diagram__region {
+  fill: var(--cp-reference-input, var(--accent-primary));
+  fill-opacity: 0.12;
+  stroke: none;
+}
+
+/* A diagram the adapter refused: a box where the picture would be, rather than
+   nothing at all, so a wire-shape change reads as one. */
+.step-diagram--unavailable {
+  border: 1px dashed var(--border-subtle);
+  border-radius: 2px;
+  opacity: 0.6;
+}
+
+.step-diagram__line,
+.step-diagram__arc {
+  fill: none;
+}
+
+/* An already-made crease is context, not an instruction. How far back it sits
+   is the theme's call (`themes/referencesInk.ts`): the same grey at one alpha
+   stands twice as far off a dark ground as off a light one. */
+.step-diagram__line--crease {
+  stroke: var(--fold-unassigned);
+  stroke-opacity: var(--references-crease-alpha, 0.75);
+}
+
+.step-diagram__line--edge {
+  stroke: var(--fold-border);
+}
+
+.step-diagram__line--highlight {
+  stroke: var(--cp-reference-input);
+}
+
+.step-diagram__line--valley {
+  stroke: var(--fold-valley);
+}
+
+.step-diagram__line--mountain {
+  stroke: var(--fold-mountain);
+}
+
+/* Arrows are ink, not colour. A printed diagram draws the motion in the same
+   black as the paper's edge; giving it a hue makes it compete with the two
+   hues that carry meaning here, mountain and valley. */
+.step-diagram__line--arrow {
+  stroke: var(--fold-border);
+}
+
+.step-diagram__line--dotted {
+  stroke: var(--fold-unassigned);
+}
+
+/* A pinch is a crease, so it takes its direction's own colour. */
+.step-diagram__line--pinch {
+  stroke: var(--fold-unassigned);
+}
+
+.step-diagram__line--pinch-mountain {
+  stroke: var(--fold-mountain);
+}
+
+.step-diagram__line--pinch-valley {
+  stroke: var(--fold-valley);
+}
+
+/* The rest of a fold, which is not creased: the same line, barely there. */
+.step-diagram__line--unfolded {
+  stroke: var(--fold-unassigned);
+}
+
+.step-diagram__arrowhead {
+  fill: var(--fold-border);
+}
+
+/*
+  A mark is *circled*, not blotted out — the way a diagram picks out the point a
+  fold is read from. A filled disc covers the very crossing the reader is being
+  sent to look at, and colouring it made it a third thing competing with
+  mountain and valley for attention; the ring does the job in the drawing's own
+  ink. The letter beside it keeps the reference colour, because a letter is an
+  annotation rather than part of the picture.
+*/
+.step-diagram__point {
+  fill: none;
+  stroke: var(--fold-border);
+}
+
+/*
+  The halo is the ground the label sits on. `placeLabels` pushes a label off
+  the sheet into the padding band on purpose, so a halo painted in `--bg-paper`
+  was a near-white ring floating on the dark card — which is what it looked like.
+*/
+.step-diagram__label {
+  fill: var(--text-primary);
+  font-family: inherit;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: var(--bg-primary);
+  stroke-linejoin: round;
+}
+
+.step-diagram__label--highlight {
+  fill: var(--cp-reference-input);
+}
+
+.step-diagram__label--action {
+  fill: var(--fold-border);
+}
+

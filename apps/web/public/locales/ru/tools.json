@@ -283,6 +283,19 @@
     "valley": "Линия V",
     "yellow": "Линия жёлтая"
   },
+  "references": {
+    "categoryLabel": "Референсы",
+    "nextCandidate": "Следующий вариант",
+    "nextStep": "Следующий шаг",
+    "previousCandidate": "Предыдущий вариант",
+    "previousStep": "Предыдущий шаг",
+    "recompute": "Пересчитать референсы",
+    "resetView": "Сбросить вид референсов",
+    "scopeLabel": "референсы",
+    "toggleLandmarksFirst": "Сначала ориентиры",
+    "zoomIn": "Приблизить референсы",
+    "zoomOut": "Отдалить референсы"
+  },
   "simulator": {
     "foldBackward": "Складывать назад",
     "foldEnd": "Перейти к сложенному",

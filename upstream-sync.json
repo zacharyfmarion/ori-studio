@@ -1,7 +1,7 @@
 {
   "$comment": [
-    "Sync state for every upstream Ori Studio ports. Consolidates four pins that",
-    "previously lived in four different places and formats.",
+    "Sync state for every upstream Ori Studio ports or bundles. Consolidates four",
+    "pins that previously lived in four different places and formats.",
     "",
     "Two commits are tracked per upstream and they mean different things:",
     "  vendored_commit     what third_party/<name>/ actually contains, and what",
@@ -13,6 +13,12 @@
     "Drift checks are run with the upstream-drift skill; see",
     ".agents/skills/upstream-drift/ and",
     "implementation-plans/upstream-drift-watcher.md.",
+    "",
+    "reference-finder is not a port: its vendored C++ is compiled to wasm by",
+    "scripts/build-reference-finder.mjs and consumed as a black box, so its",
+    "port_map names the build recipe rather than Rust files, and its oracle is a",
+    "build-equivalence check (from-source wasm vs upstream's committed artifact),",
+    "not a parity oracle.",
     "",
     "TreeMaker 5.0.1 is absent on purpose: the upstream is a 2015 release and",
     "cannot drift."
@@ -96,6 +102,26 @@
       "port_map": {
         "js/": "packages/origami-simulator/src/"
       }
+    },
+    "reference-finder": {
+      "repo": "https://github.com/MuTsunTsai/reference-finder",
+      "branch": "main",
+      "vendored_path": "third_party/reference-finder",
+      "vendored_commit": "e2163f0cb483592f757520647e7df192b6570386",
+      "vendored_commit_note": "package.json version 4.8.1, subject 'Update names', 2026-08-20. This pin is what scripts/build-reference-finder.mjs compiles to wasm, what its dev-only fallback fetch of upstream's committed src/lib/ref.{js,wasm} is SHA-verified against, and what the build-equivalence oracle compares the from-source build to.",
+      "last_checked_commit": "e2163f0cb483592f757520647e7df192b6570386",
+      "last_checked_date": "2026-09-05",
+      "vendored_subset_note": "Curated subset like flat-folder, not a full copy: src/core/** (the engine and its Emscripten interop), makefile (the authoritative compiler-flag list; never invoked directly, the build script copies its flags), LICENSE, package.json (the only file stating a GPL version), README.md, CONTRIBUTING.md, CHANGELOG.md, .clang-format, .clang-tidy. Omitted on purpose: the React app (src/app), locales, icons, public assets, pnpm-lock.yaml, the rsbuild/eslint/gulp configuration, and upstream's committed build outputs src/lib/ref.{js,wasm}, which are rebuilt from src/core into the gitignored apps/web/src/generated/reference-finder/ so no binary is tracked. A re-vendor must update the vendored files rather than copying the tree.",
+      "oracle": "tools/reference-finder-oracle/equiv.mjs",
+      "watch_paths": [
+        "src/core/",
+        "makefile",
+        "package.json"
+      ],
+      "port_map": {
+        "makefile": "scripts/build-reference-finder.mjs"
+      },
+      "port_map_note": "Nothing is ported. The only mapping is the build recipe: scripts/build-reference-finder.mjs copies the makefile's flags and must be re-read on every makefile change. Changes under src/core/ are consumed by re-vendoring and rebuilding, not by porting."
     }
   }
 }

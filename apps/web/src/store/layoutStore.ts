@@ -102,7 +102,14 @@ export function clearPersistedLayout(workspace: WorkspaceId): void {
  * workspace's old per-variant scoping produced. Kept in the *clear* list so an
  * upgrade does not strand them in local storage forever.
  */
-const ALL_LAYOUT_SCOPES = ['design', 'design:box-pleat', 'design:nux', 'edit', 'simulate'];
+const ALL_LAYOUT_SCOPES = [
+  'design',
+  'design:box-pleat',
+  'design:nux',
+  'edit',
+  'simulate',
+  'references',
+];
 
 /**
  * Drop every persisted layout, for the app-level error recovery path: when the
@@ -145,10 +152,30 @@ interface PrimaryPanelOptions {
 interface SidePaneDefinition {
   id: string;
   component: string;
+  /**
+   * What the pane is, which names its tab (`sidePaneTitle`) and the touch
+   * drawer that stands in for it. "Settings", not "View", for Simulate and
+   * References: what those panes hold is how the model is run and how the
+   * plan is made, and only a little of it is about looking. Edit's pane is
+   * view options through and through, and Properties is the selection's.
+   */
+  role: 'view' | 'properties' | 'settings';
   initialWidth?: number;
   /** The primary pane the column docks to the right of. */
   referencePanelId: string;
-  placement: { kind: 'beside-primary' } | { kind: 'tab-of'; leadId: string };
+  placement:
+    | {
+        kind: 'beside-primary';
+        /**
+         * Where the touch drawer's pill goes: the shell's canvas pill lane, or
+         * only a slot the pane registers (`viewDrawerSlot`) — nowhere when the
+         * pane offers none, as References does on its phone list screen, where
+         * there is no view for the settings to be about. On the lead because
+         * the pill is the column's: a tab has none of its own.
+         */
+        trigger: 'lane' | 'slot';
+      }
+    | { kind: 'tab-of'; leadId: string };
 }
 
 const WORKSPACE_SIDE_PANES = {
@@ -156,13 +183,15 @@ const WORKSPACE_SIDE_PANES = {
     {
       id: 'cp-view-controls',
       component: 'cp-view-controls',
+      role: 'view',
       initialWidth: 260,
       referencePanelId: 'crease-pattern',
-      placement: { kind: 'beside-primary' },
+      placement: { kind: 'beside-primary', trigger: 'lane' },
     },
     {
       id: 'cp-properties',
       component: 'cp-properties',
+      role: 'properties',
       referencePanelId: 'crease-pattern',
       placement: { kind: 'tab-of', leadId: 'cp-view-controls' },
     },
@@ -171,9 +200,20 @@ const WORKSPACE_SIDE_PANES = {
     {
       id: 'simulator-view-controls',
       component: 'simulator-view-controls',
+      role: 'settings',
       initialWidth: 260,
       referencePanelId: 'simulator',
-      placement: { kind: 'beside-primary' },
+      placement: { kind: 'beside-primary', trigger: 'lane' },
+    },
+  ],
+  references: [
+    {
+      id: 'references-view-controls',
+      component: 'references-view-controls',
+      role: 'settings',
+      initialWidth: 260,
+      referencePanelId: 'references',
+      placement: { kind: 'beside-primary', trigger: 'slot' },
     },
   ],
 } as const satisfies Partial<Record<WorkspaceId, readonly SidePaneDefinition[]>>;
@@ -200,6 +240,12 @@ export function leadSidePaneFor(workspace: WorkspaceId): SidePaneSpec | null {
   return sidePanesFor(workspace)[0] ?? null;
 }
 
+/** Where a workspace's touch drawer seats its pill: the column's lead says. */
+export function drawerTriggerFor(workspace: WorkspaceId): 'lane' | 'slot' {
+  const lead = leadSidePaneFor(workspace);
+  return lead?.placement.kind === 'beside-primary' ? lead.placement.trigger : 'lane';
+}
+
 /**
  * A side pane's tab title, localised.
  *
@@ -210,12 +256,13 @@ export function leadSidePaneFor(workspace: WorkspaceId): SidePaneSpec | null {
  * change (`retitleSidePanes`); before that, tab titles were English literals.
  */
 export function sidePaneTitle(spec: SidePaneSpec): string {
-  switch (spec.id) {
-    case 'cp-view-controls':
-    case 'simulator-view-controls':
+  switch (spec.role) {
+    case 'view':
       return i18n.t('panels:sidePane.view', 'View');
-    case 'cp-properties':
+    case 'properties':
       return i18n.t('panels:sidePane.properties', 'Properties');
+    case 'settings':
+      return i18n.t('panels:sidePane.settings', 'Settings');
   }
 }
 
@@ -363,6 +410,9 @@ export function applyDefaultLayout(
     case 'simulate':
       applySimulateLayout(api, coarsePointer);
       return;
+    case 'references':
+      applyReferencesLayout(api, coarsePointer);
+      return;
   }
 }
 
@@ -410,6 +460,22 @@ function applySimulateLayout(api: DockviewApi, coarsePointer: boolean): void {
   simulator.api.setActive();
 }
 
+/**
+ * The Simulate shape again: the workspace's panel, and its settings docked
+ * beside it on a fine pointer. A layout persisted before the pane existed
+ * restores without it and is repaired by `reconcileSidePanes`, so this needed
+ * no `LAYOUT_VERSION` bump.
+ */
+function applyReferencesLayout(api: DockviewApi, coarsePointer: boolean): void {
+  const references = addHeaderlessPanel(api, {
+    id: 'references',
+    component: 'references',
+    title: 'References',
+  });
+  if (!coarsePointer) for (const spec of sidePanesFor('references')) addSidePane(api, spec);
+  references.api.setActive();
+}
+
 interface LayoutState {
   dockviewApi: DockviewApi | null;
   /**
@@ -440,8 +506,19 @@ interface LayoutState {
    * and because `activePanelId` below has to consult it.
    */
   designPaneId: string | null;
+  /**
+   * Where the touch drawer's pill goes when the active pane offers a place for
+   * it, registered by that pane while mounted; null means the canvas pill lane.
+   *
+   * The lane sits over the dock's top-right corner, which for References is
+   * its header and filmstrip — chrome the pill would cover. The panel knows
+   * where its own view begins and the lane cannot, so it hands the drawer a
+   * slot in that corner instead (`WorkspaceViewDrawer`).
+   */
+  viewDrawerSlot: HTMLElement | null;
   activeWorkspace: WorkspaceId;
   setDockviewApi: (api: DockviewApi | null) => void;
+  setViewDrawerSlot: (slot: HTMLElement | null) => void;
   setDesignPaneApi: (api: DockviewApi | null) => void;
   setDesignPaneId: (panelId: string | null) => void;
   setActiveWorkspace: (workspace: WorkspaceId) => void;
@@ -462,8 +539,10 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
   dockviewApi: null,
   designPaneApi: null,
   designPaneId: null,
+  viewDrawerSlot: null,
   activeWorkspace: 'design',
   setDockviewApi: (api) => set({ dockviewApi: api }),
+  setViewDrawerSlot: (slot) => set({ viewDrawerSlot: slot }),
   setDesignPaneApi: (api) => set({ designPaneApi: api }),
   setDesignPaneId: (panelId) => set({ designPaneId: panelId }),
   setActiveWorkspace: (workspace) => set({ activeWorkspace: workspace }),

@@ -167,5 +167,10 @@ Ori Studio builds directly on origami tools created by the community:
 ## License
 
 This project is `GPL-2.0-or-later` because it includes a direct Rust port of
-TreeMaker's GPL model code. See [`LICENSING.md`](LICENSING.md) for the full
-licensing guide, including optimizer backend notes and dependency inventory.
+TreeMaker's GPL model code, and because it bundles a second GPL work:
+[ReferenceFinder](https://github.com/MuTsunTsai/reference-finder) — Robert J.
+Lang's C++ as extended by Mu-Tsun Tsai and Omri Shavit — compiled to
+WebAssembly from vendored source rather than ported. See
+[`LICENSING.md`](LICENSING.md) for the full licensing guide, including the GPL
+version question for that second work, optimizer backend notes, and the
+dependency inventory.

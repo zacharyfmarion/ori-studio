@@ -94,6 +94,15 @@ export const CP_LINE_HIT_MIN_CSS = 8;
 export const CP_POINT_HIT_MIN_CSS = 6;
 
 /**
+ * The same minimums under a coarse pointer, where the target is a fingertip
+ * rather than a cursor: a crease 8 px wide to a finger is a miss more often
+ * than a hit. Sized so a crease is still not shadowed by its own endpoint —
+ * the point floor stays under the line floor, as the ratios keep it.
+ */
+export const CP_LINE_HIT_MIN_CSS_COARSE = 14;
+export const CP_POINT_HIT_MIN_CSS_COARSE = 11;
+
+/**
  * Resolve a hit-test radius in model units: the snap law, but never tighter than
  * the pointer-precision minimum for that kind of target.
  */

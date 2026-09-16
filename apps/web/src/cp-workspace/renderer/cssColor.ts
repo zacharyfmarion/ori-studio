@@ -45,3 +45,14 @@ export function readCssVarColor(element: Element, varName: string, fallback: Rgb
   const raw = getComputedStyle(element).getPropertyValue(varName);
   return parseCssColor(raw) ?? fallback;
 }
+
+/**
+ * Read a CSS custom property from `element` and parse it as a number, falling
+ * back to `fallback` when the variable is unset or not a finite number.
+ */
+export function readCssVarNumber(element: Element, varName: string, fallback: number): number {
+  const raw = getComputedStyle(element).getPropertyValue(varName).trim();
+  if (raw === '') return fallback;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : fallback;
+}

@@ -86,6 +86,7 @@ export const MENU_ACTION_IDS = [
   'view.creasePattern',
   'view.simulate',
   'view.simulator',
+  'view.references',
   'view.conditions',
   'view.properties',
   'view.resetLayout',
@@ -127,6 +128,7 @@ export const MENU_ACTION_IDS = [
   'cp.deleteExtraVerticesIgnoreColor',
   'cp.fixInaccurate',
   'cp.exactSolve',
+  'cp.analyzeReferences',
   'cp.changeCircleColor',
   'cp.organizeCircles',
   'cp.setActiveCreaseAngle',
@@ -199,6 +201,7 @@ export interface WorkspaceCommands {
   oristudioCpDocument: OristudioCpDocumentState | null;
   oristudioCpSelection: OristudioCpSelection;
   setOristudioCpSelection(selection: OristudioCpSelection): void;
+  requestReferencesAnalysis(): void;
   clearOristudioCpSelection(): void;
   requestOristudioCpAction(operationId: OristudioCpOperationId): void;
   requestOristudioCpSurface(kind: OristudioCpSurfaceRequestKind): void;
@@ -351,6 +354,7 @@ const VIEW_PANEL_ACTIONS: Partial<Record<MenuActionId, string>> = {
   'view.creasePattern': 'crease-pattern',
   'view.simulate': 'simulator',
   'view.simulator': 'simulator',
+  'view.references': 'references',
   'view.conditions': 'conditions',
   'view.properties': 'cp-properties',
 };
@@ -769,6 +773,16 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
       // supplies none dispatches every id it is handed.
       case 'cp.exactSolve':
         window.dispatchEvent(new CustomEvent(CP_EXACT_SOLVE_REQUEST_EVENT));
+        return true;
+      // Reading, not authoring: it opens the References workspace and asks it
+      // to analyse the pattern. The request is a store counter rather than a
+      // window event because the panel is not mounted yet when this runs —
+      // switching workspaces rebuilds the dock, and an event fired now would
+      // land before anything was listening.
+      case 'cp.analyzeReferences':
+        deps.workspace.requestReferencesAnalysis();
+        deps.layout.activatePanel('references');
+        showWorkspace();
         return true;
       case 'help.about':
         deps.about?.();

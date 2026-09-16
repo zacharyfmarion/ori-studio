@@ -17,6 +17,9 @@ vi.mock('./panels/CpPropertiesPanel', () => ({
 vi.mock('./panels/SimulatorViewControlsPanel', () => ({
   SimulatorViewControlsPanel: () => <p>simulator view controls</p>,
 }));
+vi.mock('./panels/ReferencesViewControlsPanel', () => ({
+  ReferencesViewControlsPanel: () => <p>references view controls</p>,
+}));
 
 const analytics = vi.hoisted(() => ({ track: vi.fn() }));
 
@@ -153,9 +156,49 @@ describe('the workspace View drawer', () => {
     useLayoutStore.setState({ activeWorkspace: 'simulate' });
     render();
 
+    // Named as its docked pane is — Settings, where Edit's is View.
+    expect(trigger()?.textContent).toBe('Settings');
     press(trigger());
 
     expect(dialog()?.textContent).toContain('simulator view controls');
+    expect(dialog()?.getAttribute('aria-label')).toBe('Settings');
+    expect(document.querySelector('[aria-label="Close settings"]')).not.toBeNull();
+  });
+
+  it('puts the References pill in the slot its pane offers, and nowhere without one', () => {
+    // References registers the top-right corner of its own view: the lane's
+    // corner is that workspace's header, and the pill would sit over the title.
+    // On the phone's list screen there is no view and no slot — and no pill,
+    // since there is nothing yet for the settings to be about.
+    useLayoutStore.setState({ activeWorkspace: 'references' });
+    render();
+    expect(container?.querySelector('.view-drawer__trigger')).toBeNull();
+
+    const slot = document.createElement('div');
+    document.body.append(slot);
+    act(() => useLayoutStore.setState({ viewDrawerSlot: slot }));
+
+    expect(container?.querySelector('.view-drawer__trigger')).toBeNull();
+    expect(slot.querySelector('.view-drawer__trigger')?.textContent).toBe('Settings');
+    // It is the same trigger: it opens the same sheet.
+    press(slot.querySelector('.view-drawer__trigger'));
+    expect(dialog()?.textContent).toContain('references view controls');
+
+    act(() => useLayoutStore.setState({ viewDrawerSlot: null }));
+    expect(document.querySelector('.view-drawer__trigger')).toBeNull();
+    slot.remove();
+  });
+
+  it('keeps the lane for a pane that does not seat the pill itself', () => {
+    // Simulate has no slot of its own, and a slot left registered by another
+    // pane is not its business: the pill stays in the lane.
+    useLayoutStore.setState({ activeWorkspace: 'simulate' });
+    const stray = document.createElement('div');
+    useLayoutStore.setState({ viewDrawerSlot: stray });
+    render();
+
+    expect(trigger()?.textContent).toBe('Settings');
+    expect(stray.querySelector('.view-drawer__trigger')).toBeNull();
   });
 
   it('reports that the drawer was opened', () => {

@@ -39,6 +39,10 @@ jobs:
       - name: Install wasm-pack
         uses: ./.github/actions/install-wasm-pack
 
+      # ReferenceFinder is C++ compiled with em++ inside `build:wasm`.
+      - name: Install Emscripten SDK
+        uses: ./.github/actions/install-emsdk
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -51,6 +55,9 @@ jobs:
       - name: Build web app
         run: npm run build:web
         env:
+          # `prebuild` runs `build:wasm`; the ReferenceFinder step there must compile
+          # from source and never take the upstream-binary fallback in a deploy.
+          REFERENCE_FINDER_FORCE_SOURCE: '1'
           # Opts this build into a crawlable robots.txt. Absence means "not production",
           # so PR previews de-index themselves rather than competing with the real site
           # for the same copy. Same absence-is-off firewall as the telemetry below.

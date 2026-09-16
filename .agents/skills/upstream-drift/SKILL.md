@@ -23,6 +23,7 @@ not, ask which.
 | Box Pleating Studio | `references/box-pleating-studio.md` | `crates/oristudio-bp` |
 | Flat-Folder | `references/flat-folder.md` | `crates/treemaker-flatfold` |
 | Origami Simulator | `references/origami-simulator.md` | `packages/origami-simulator` |
+| ReferenceFinder | `references/reference-finder.md` | none — not a port; `third_party/reference-finder/src/core` is compiled to wasm by `scripts/build-reference-finder.mjs` |
 
 **Read the reference file for the chosen upstream before doing anything else.**
 It carries the repo URL, branch, watch paths, port map, and — most importantly —

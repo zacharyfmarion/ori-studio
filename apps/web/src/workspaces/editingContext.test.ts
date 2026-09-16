@@ -73,6 +73,21 @@ describe('resolveEditingContext', () => {
     expect(resolveEditingContext({ ...base, activePanelId: 'simulator' })).toBe('simulate');
   });
 
+  it('maps the references pane and its side controls, whatever design is active', () => {
+    expect(resolveEditingContext({ ...base, activePanelId: 'references' })).toBe('references');
+    expect(resolveEditingContext({ ...base, activePanelId: 'references-view-controls' })).toBe(
+      'references'
+    );
+    expect(
+      resolveEditingContext({
+        ...base,
+        activePanelId: 'references',
+        designMethod: 'box-pleat',
+        hasBpDocument: true,
+      })
+    ).toBe('references');
+  });
+
   it('resolves TreeMaker side panes to the tree context', () => {
     for (const id of ['inspector', 'diagnostics', 'conditions']) {
       expect(resolveEditingContext({ ...base, activePanelId: id })).toBe('treemaker-tree');

@@ -540,6 +540,7 @@
       "exportSvg": "SVG image",
       "fold": "Fold",
       "label": "Crease pattern actions",
+      "references": "Folding references",
       "saveImage": "Save to image",
       "share": "Create shareable link",
       "simulate": "Simulate",
@@ -829,8 +830,236 @@
     "y": "Y",
     "yes": "Yes"
   },
+  "references": {
+    "actions": {
+      "noTargetHint": "Pick a vertex or crease first"
+    },
+    "alreadyOnSheet": "This point is already on the paper — no folds needed.",
+    "alreadyOnSheetLine": "This line is already on the paper — no folds needed.",
+    "analysis": {
+      "approximate": "approximate, off by {{err}}",
+      "badge": "{{closure}}/{{lines}} from the sheet",
+      "closure": "folds from the sheet itself",
+      "exact": "exact at rank {{rank}}, {{folds}} folds",
+      "line": "Line {{n}}",
+      "summary": "{{closure}} of {{lines}} lines fold from the sheet itself; {{queried}} needed a search.",
+      "title": "Reference analysis",
+      "unsolved": "no construction found"
+    },
+    "axiom": {
+      "free": "already on the sheet",
+      "o1": "through two points",
+      "o2": "point onto point",
+      "o3": "edge onto edge",
+      "o4": "perpendicular through a point",
+      "o5": "point onto a line, through a point",
+      "o6": "two points onto two lines",
+      "o7": "point onto a line, perpendicular"
+    },
+    "backToPattern": "Back to the whole pattern",
+    "backToPatterns": "Patterns",
+    "breakdown": {
+      "sheetId": "Sheet {{n}}"
+    },
+    "canvasAriaLabel": "Crease pattern. Click a vertex or crease to find its references; drag to pan, scroll to zoom.",
+    "card": {
+      "error": "err {{value}}",
+      "folds_one": "{{count}} fold",
+      "folds_other": "{{count}} folds"
+    },
+    "direction": {
+      "angle": "at {{deg}}°",
+      "diagonalDown": "on the falling diagonal",
+      "diagonalUp": "on the rising diagonal",
+      "horizontal": "horizontally",
+      "vertical": "vertically"
+    },
+    "dismiss": "Dismiss",
+    "empty": "No crease pattern. Open or draw one in Edit, then come back.",
+    "emptySheet": "No creases yet",
+    "emptySheetHint": "This sheet has no creases yet. Draw the pattern in Edit, then come back.",
+    "errorTitle": "References unavailable",
+    "exact": "Exact",
+    "filmstrip": {
+      "label": "Folding steps"
+    },
+    "findings": {
+      "approximation": "closest: {{folds}} folds, off by {{err}}",
+      "noApproximation": "no construction found",
+      "note": "These are reported, never folded: an approximation would become a reference for every later step.",
+      "offLattice": "Off the lattice",
+      "refusedTitle": "Sheets left out",
+      "title": "Lines with no exact fold",
+      "unsolved": "No construction found"
+    },
+    "flip": {
+      "doneBadge": "Finished",
+      "finished": "Every crease is made. The pattern collapses from here, and the creases it wants the other way reverse as it does.",
+      "turnOver": "Turn the paper over, left to right.",
+      "turnOverBadge": "Turn over"
+    },
+    "goToEdit": "Go to Edit",
+    "hint": {
+      "jump": "Tap a crease to jump to the step that makes it.",
+      "open": "Open a pattern to see how to fold it.",
+      "pick": "Click a vertex or crease to see how to fold it."
+    },
+    "lead": {
+      "find": "Tap a vertex or crease to see how to fold it from a blank sheet.",
+      "findSequence": "Or plan the whole precreasing sequence.",
+      "plan": "Every precrease of the pattern, in the order to fold them.",
+      "planAction": "Plan the precreasing sequence"
+    },
+    "meta": {
+      "solution": "Solution {{n}} of {{total}}",
+      "solutionShort": "{{n}} / {{total}}"
+    },
+    "mode": {
+      "find": "Find a reference",
+      "findTitle": "Tap a vertex or crease to see how to fold it from a blank sheet",
+      "label": "What to show",
+      "sequence": "Precreasing sequence",
+      "sequenceTitle": "Every precrease of the pattern, in the order to fold them"
+    },
+    "noCreasePattern": "No crease pattern",
+    "nonRectangular": "This sheet is not a rectangle. References can only be found on rectangular sheets for now.",
+    "noRectangularSheet": "No rectangular sheet: references can only be found on rectangular sheets for now.",
+    "openOutline": "The border creases around this pick do not close into a sheet.",
+    "outOfDate": "Out of date",
+    "outOfDateHint": "The crease pattern changed since these references were found.",
+    "outsideSheet": "This pick is not inside any sheet.",
+    "planning": "Working out the precreasing sequence…",
+    "planStep": {
+      "alsoNote": "Line up both at once, so the fold stays straight.",
+      "approximate": "Approximate — this construction is off by {{pct}}% of the sheet.",
+      "approximateBadge": "Approximate",
+      "axiom1": "Fold through {{a}} and {{b}}.",
+      "axiom2": "Fold {{a}} onto {{b}}.",
+      "axiom3": "Fold {{a}} onto {{b}}.",
+      "axiom4": "Fold through {{a}}, folding {{b}} onto itself.",
+      "axiom4Corner": "Fold through {{p}}, bringing {{q}} onto {{a}}.",
+      "axiom5": "Fold through {{a}}, bringing {{b}} onto {{c}}.",
+      "axiom5LineMoves": "Fold through {{a}}, bringing {{c}} onto {{b}}.",
+      "axiom6": "Fold {{a}} onto {{b}} and {{c}} onto {{d}}.",
+      "axiom7": "Fold {{lSelf}} onto itself so that {{p}} lands on {{lLand}}.",
+      "axiom7LineMoves": "Fold {{lSelf}} onto itself so that {{lLand}} lands on {{p}}.",
+      "free": "This line is already on the sheet.",
+      "gridBadge": "Grid",
+      "gridBand": "between {{lo}} and {{hi}}",
+      "gridBandAlong": "{{band}}, from {{lo}} to {{hi}}",
+      "gridBands_one": "Add the {{level}} {{direction}} {{where}}: {{count}} line, creased as shown.",
+      "gridBands_other": "Add the {{level}} {{direction}} {{where}}: {{count}} lines, creased as shown.",
+      "gridBandsAnd": ", and ",
+      "gridBoundAcross": "{{fraction}} of the way across",
+      "gridBoundLine": "the {{fraction}} line",
+      "gridBoundUp": "{{fraction}} of the way up",
+      "gridCell_ordinal_one": "{{count}}st",
+      "gridCell_ordinal_two": "{{count}}nd",
+      "gridCell_ordinal_few": "{{count}}rd",
+      "gridCell_ordinal_other": "{{count}}th",
+      "gridFraction_ordinal_one": "{{count}}sts",
+      "gridFraction_ordinal_two": "{{count}}nds",
+      "gridFraction_ordinal_few": "{{count}}rds",
+      "gridFraction_ordinal_other": "{{count}}ths",
+      "gridMountainFirst_one": "{{pleat}}: {{count}} line, alternating mountain and valley, mountain first.",
+      "gridMountainFirst_other": "{{pleat}}: {{count}} lines, alternating mountain and valley, mountain first.",
+      "gridPleatInto": "Pleat the sheet into {{fraction}} {{direction}}",
+      "gridPleatSpaced": "Pleat the sheet {{direction}}, one {{cell}} of the sheet apart",
+      "gridReversed_one": "The pattern wants {{count}} of them the other way; it reverses as the model collapses.",
+      "gridReversed_other": "The pattern wants {{count}} of them the other way; they reverse as the model collapses.",
+      "gridValleyFirst_one": "{{pleat}}: {{count}} line, alternating valley and mountain, valley first.",
+      "gridValleyFirst_other": "{{pleat}}: {{count}} lines, alternating valley and mountain, valley first.",
+      "impractical": "Neither point is on an edge, so this one is lined up through the paper — nothing on the sheet makes it a cleaner fold yet.",
+      "inherited": "Sighted from an approximate crease, so only as exact as that is.",
+      "markFirst": "One of these marks is where two creases would cross if they ran further — pinch it in first.",
+      "noAlignment": "Nothing on the paper lines up with this fold yet — crease it as drawn.",
+      "partlyReversed": "This line is creased both ways in the pattern — the rest reverses as the model collapses.",
+      "pinch": "Pinch only — just the mark is needed.",
+      "pressedOn": "Also crease where shown past the pattern’s line — a later step uses it there.",
+      "pressOut": "Crease only the part shown.",
+      "shortAlignment": "The creases line up only briefly here — align with care.",
+      "twinAxiom1": "Fold through {{a}} and {{b}}, and through {{c}} and {{d}}.",
+      "twinAxiom2": "Fold {{a}} onto {{b}} and {{c}} onto {{d}}.",
+      "twinBothSides": "Fold {{a}} onto {{b}} on both sides.",
+      "unknown": "Fold using {{inputs}}.",
+      "visibleAux": "This crease will show in the finished model."
+    },
+    "progress": {
+      "closing": "Folded {{done}} of {{total}} lines",
+      "querying": "Searching {{done}} of {{total}} lines"
+    },
+    "recompute": "Recompute",
+    "ref": {
+      "bottomEdge": "the bottom edge",
+      "cornerNe": "the top-right corner",
+      "cornerNw": "the top-left corner",
+      "cornerSe": "the bottom-right corner",
+      "cornerSw": "the bottom-left corner",
+      "diagonalNwSe": "the top-left to bottom-right diagonal",
+      "diagonalSwNe": "the bottom-left to top-right diagonal",
+      "leftEdge": "the left edge",
+      "line": "line {{name}}",
+      "point": "point {{name}}",
+      "rightEdge": "the right edge",
+      "topEdge": "the top edge"
+    },
+    "refusedSheet": "The sheet around this pick could not be read as a rectangle.",
+    "searching": "Finding references…",
+    "settings": {
+      "allowDangling": "Allow dangling folds",
+      "allowDanglingHelp": "A dangling fold is a crease with an end on blank paper — nothing to stop at. On, each crease starts from a reference (the paper’s edge or a crease already made) and runs to a second one only when that adds no more crease than the crease itself. Off, every crease runs from reference to reference, however much extra crease that takes.",
+      "candidates": "Candidates",
+      "emptyNote": "Open a crease pattern to adjust how its references are found.",
+      "gridWhereNeeded": "Only where needed",
+      "includeApproximate": "Include approximate solutions",
+      "landmarksFirst": "Landmarks first",
+      "mergeSymmetric": "Merge symmetric steps",
+      "mergeSymmetricHelp": "Two folds that mirror each other — the left corner to the centre and the right corner to the centre, say — are shown as one step with an arrow for each, the way a diagram folds them. Off, every fold is a step of its own.",
+      "precreaseGrid": "Precrease grid",
+      "sequence": "Precreasing sequence",
+      "solutions": "Solutions"
+    },
+    "sheets": {
+      "cardTitle_one": "Pattern {{n}}: {{count}} crease",
+      "cardTitle_other": "Pattern {{n}}: {{count}} creases",
+      "creases_one": "{{count}} crease",
+      "creases_other": "{{count}} creases",
+      "label": "Crease patterns",
+      "title": "Patterns"
+    },
+    "sidebar": {
+      "none": "ReferenceFinder found no construction for this target at the current settings.",
+      "planning": "Working out the precreasing sequence…"
+    },
+    "step": {
+      "axiom1": "Fold {{x}} through {{p0}} and {{p1}}.",
+      "axiom2": "Fold {{x}}, bringing {{p0}} onto {{p1}}.",
+      "axiom3": "Fold {{x}}, bringing {{l0}} onto {{l1}}.",
+      "axiom4": "Fold {{x}} through {{p0}}, folding {{l0}} onto itself.",
+      "axiom5": "Fold {{x}} through {{p1}}, bringing {{p0}} onto {{l0}}.",
+      "axiom6": "Fold {{x}}, bringing {{p0}} onto {{l0}} and {{p1}} onto {{l1}}.",
+      "axiom7": "Fold {{x}}, folding {{lSelf}} onto itself so that {{p0}} lands on {{lLand}}.",
+      "diagonal": "Fold {{a}} onto {{b}}, creasing the diagonal.",
+      "mark": "Mark {{x}} where {{l0}} meets {{l1}}.",
+      "pinch": "Pinch only — just the mark is needed.",
+      "unknown": "Fold {{x}} using {{inputs}}."
+    },
+    "stop": "Stop",
+    "stopping": "Cancelling…",
+    "targetGone": "The picked crease is no longer in the pattern.",
+    "viewportControls": "References viewport controls",
+    "warning": {
+      "degenerateBorderSegments": "{{n}} border crease(s) have coincident ends and were ignored.",
+      "noBorder": "No border creases: the default paper is taken as the sheet.",
+      "overlappingSheets": "{{n}} crease(s) lie inside more than one sheet and were given to the first.",
+      "refusedSheets": "{{n}} sheet(s) are not rectangles and are left out.",
+      "unassignedSegments": "{{n}} crease(s) fall outside every sheet and are left out.",
+      "zeroLengthSegments": "{{n}} crease(s) are too short to measure and were skipped."
+    }
+  },
   "sidePane": {
     "properties": "Properties",
+    "settings": "Settings",
     "view": "View"
   },
   "simulator": {

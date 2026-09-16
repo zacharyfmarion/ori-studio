@@ -15,6 +15,8 @@
     "addTreeEdgesThenOptimize": "Fügen Sie Baumkanten hinzu und optimieren Sie, bevor Sie das Faltmuster erstellen",
     "advanceCreaseType": "Faltentyp weiterschalten",
     "advanceSelectedCpLineTypes": "Ausgewählte Faltmuster-Linientypen weiterschalten",
+    "analyzeReferences": "Referenzen analysieren",
+    "analyzeReferencesHint": "Herausfinden, welche Linien dieses Musters durch Falten schwer zu finden sind",
     "bpFlipHorizontal": "Horizontal spiegeln",
     "bpFlipHorizontalReason": "Spiegelt den Entwurf von links nach rechts",
     "bpFlipVertical": "Vertikal spiegeln",
@@ -182,6 +184,7 @@
     "redo": "Wiederholen",
     "redoNextCpEdit": "Nächste Faltmuster-Bearbeitung wiederholen",
     "redoNextTreeEdit": "Nächste Baumbearbeitung wiederholen",
+    "references": "Referenzen",
     "relieveAllStrain": "Gesamte Dehnung ausgleichen",
     "relieveStrain": "Dehnung ausgleichen",
     "removeAllStrain": "Gesamte Dehnung entfernen",
@@ -229,6 +232,7 @@
     "showDesignWorkspace": "Design-Arbeitsbereich anzeigen",
     "showEditWorkspace": "Bearbeiten-Arbeitsbereich anzeigen",
     "showPropertiesPane": "Eigenschaftenbereich anzeigen",
+    "showReferencesWorkspace": "Referenzen-Arbeitsbereich anzeigen",
     "showSimulateWorkspace": "Simulieren-Arbeitsbereich anzeigen",
     "simulate": "Simulieren",
     "simulateBeforeExportingFolded": "Simuliere ein Faltmuster, bevor du seine gefaltete Form exportierst",
@@ -310,16 +314,21 @@
   },
   "viewDrawer": {
     "close": "Ansichtsoptionen schließen",
+    "closeSettings": "Einstellungen schließen",
     "open": "Ansicht",
+    "openSettings": "Einstellungen",
+    "settingsTitle": "Einstellungen",
     "title": "Ansichtsoptionen"
   },
   "workspaceRail": {
     "design": "Design-Arbeitsbereich",
     "edit": "Bearbeiten-Arbeitsbereich",
     "label": "Arbeitsbereiche",
+    "references": "Referenzen-Arbeitsbereich",
     "simulate": "Simulieren-Arbeitsbereich",
     "tabDesign": "Design",
     "tabEdit": "Bearbeiten",
+    "tabReferences": "Referenzen",
     "tabSimulate": "Simulieren"
   }
 }

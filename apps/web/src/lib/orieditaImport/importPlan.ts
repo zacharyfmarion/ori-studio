@@ -18,6 +18,7 @@ import {
   type ShortcutDefinition,
   type ShortcutOverrides,
   type ShortcutResolution,
+  isConditionalShortcutScope,
   type ShortcutScope,
   type ShortcutShadowing,
 } from '../../keyboard/shortcuts';
@@ -409,7 +410,7 @@ function shadowingRecord(shadowing: ShortcutShadowing): OrieditaImportShadowing 
  */
 const CONDITIONAL_CLAIMANTS_SILENCED: ShortcutOverrides = Object.fromEntries(
   SHORTCUT_DEFINITIONS.filter(
-    (definition) => definition.scope === 'simulator' || shortcutMayDecline(definition.id)
+    (definition) => isConditionalShortcutScope(definition.scope) || shortcutMayDecline(definition.id)
   ).map((definition) => [definition.id, []])
 );
 
@@ -426,7 +427,7 @@ function shadowingWithoutConditionalClaimants(
 ): ShortcutShadowing | null {
   // Silencing the binding being asked about would ask a meaningless question.
   const definition = getShortcutDefinition(id);
-  if (definition?.scope === 'simulator' || shortcutMayDecline(id)) return null;
+  if ((definition && isConditionalShortcutScope(definition.scope)) || shortcutMayDecline(id)) return null;
   return findShortcutShadowing(id, chord, {
     ...resolution,
     overrides: { ...resolution.overrides, ...CONDITIONAL_CLAIMANTS_SILENCED },

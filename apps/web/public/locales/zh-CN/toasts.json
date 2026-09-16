@@ -37,6 +37,13 @@
     "solving": "正在求解…",
     "solvingLong": "仍在求解 — 这可能需要一段时间"
   },
+  "references": {
+    "searching": "正在查找参考点…",
+    "searchingLong": "仍在查找参考点——首次搜索需要构建一张表",
+    "stop": "取消",
+    "stopped": "搜索已取消",
+    "stopping": "正在取消…"
+  },
   "simulatorExport": {
     "empty": "此模拟暂无可导出的内容",
     "failed": "无法导出此视图",

@@ -513,6 +513,7 @@
       "exportSvg": "SVG 画像",
       "fold": "折る",
       "label": "展開図の操作",
+      "references": "折りのリファレンス",
       "saveImage": "画像として保存",
       "share": "共有リンクを作成",
       "simulate": "シミュレート",
@@ -800,8 +801,223 @@
     "y": "Y",
     "yes": "はい"
   },
+  "references": {
+    "actions": {
+      "noTargetHint": "先に頂点または折り線を選んでください"
+    },
+    "alreadyOnSheet": "この点はすでに紙の上にあります。折る必要はありません。",
+    "alreadyOnSheetLine": "この線はすでに紙の上にあります。折る必要はありません。",
+    "analysis": {
+      "approximate": "近似、誤差 {{err}}",
+      "badge": "{{closure}}/{{lines}} が紙から",
+      "closure": "紙そのものから折れます",
+      "exact": "ランク {{rank}} で厳密、{{folds}} 回の折り",
+      "line": "線 {{n}}",
+      "summary": "{{lines}} 本のうち {{closure}} 本は紙そのものから折れます。{{queried}} 本は探索が必要でした。",
+      "title": "参照の分析",
+      "unsolved": "作図方法が見つかりません"
+    },
+    "axiom": {
+      "free": "すでに紙の上にあります",
+      "o1": "2 点を通る",
+      "o2": "点を点に重ねる",
+      "o3": "辺を辺に重ねる",
+      "o4": "点を通る垂線",
+      "o5": "点を線に重ね、点を通す",
+      "o6": "2 点を 2 本の線に重ねる",
+      "o7": "点を線に重ね、垂直に"
+    },
+    "backToPattern": "パターン全体に戻る",
+    "backToPatterns": "パターン",
+    "breakdown": {
+      "sheetId": "シート {{n}}"
+    },
+    "canvasAriaLabel": "展開図。頂点や折り線をクリックすると基準点の折り方を探します。ドラッグで移動、スクロールでズーム。",
+    "card": {
+      "error": "誤差 {{value}}",
+      "folds_other": "{{count}} 回の折り"
+    },
+    "direction": {
+      "angle": "{{deg}}° の向きで",
+      "diagonalDown": "右下がりの対角線で",
+      "diagonalUp": "右上がりの対角線で",
+      "horizontal": "水平に",
+      "vertical": "垂直に"
+    },
+    "dismiss": "閉じる",
+    "empty": "展開図がありません。編集で開くか描いてから戻ってください。",
+    "emptySheet": "まだ折り線がありません",
+    "emptySheetHint": "この用紙にはまだ折り線がありません。「編集」でパターンを描いてから戻ってきてください。",
+    "errorTitle": "リファレンスを利用できません",
+    "exact": "厳密",
+    "filmstrip": {
+      "label": "折り手順"
+    },
+    "findings": {
+      "approximation": "最も近い方法: {{folds}} 回の折り、誤差 {{err}}",
+      "noApproximation": "作図方法が見つかりません",
+      "note": "報告するだけで折りません。近似は以降のすべての手順の基準になってしまうからです。",
+      "offLattice": "格子から外れています",
+      "refusedTitle": "対象外のシート",
+      "title": "厳密に折れない線",
+      "unsolved": "作図方法が見つかりません"
+    },
+    "flip": {
+      "doneBadge": "完成",
+      "finished": "すべての折り目がつきました。ここからたたみ込むと、逆向きにしたい折り目はその過程で反転します。",
+      "turnOver": "紙を左右に裏返します。",
+      "turnOverBadge": "裏返す"
+    },
+    "goToEdit": "編集へ",
+    "hint": {
+      "jump": "折り線をタップすると、それを折るステップに移動します。",
+      "open": "パターンを開くと、折り方が表示されます。",
+      "pick": "頂点または折り線をクリックすると、折り方が表示されます。"
+    },
+    "lead": {
+      "find": "頂点または折り線をタップすると、白紙の状態からの折り方が表示されます。",
+      "findSequence": "または、下折りの手順全体を計算します。",
+      "plan": "パターンのすべての下折りを、折る順番に表示します。",
+      "planAction": "下折りの手順を計算"
+    },
+    "meta": {
+      "solution": "解 {{n}} / {{total}}",
+      "solutionShort": "{{n}} / {{total}}"
+    },
+    "mode": {
+      "find": "参照点を探す",
+      "findTitle": "頂点または折り線をタップすると、白紙の状態からの折り方が表示されます",
+      "label": "表示内容",
+      "sequence": "下折りの手順",
+      "sequenceTitle": "パターンのすべての下折りを、折る順番に表示します"
+    },
+    "noCreasePattern": "展開図がありません",
+    "nonRectangular": "この用紙は長方形ではありません。現在、基準点は長方形の用紙でのみ探せます。",
+    "noRectangularSheet": "長方形のシートがありません。今のところ参照は長方形のシートでしか見つけられません。",
+    "openOutline": "この選択の周りの端の線が閉じた用紙になっていません。",
+    "outOfDate": "古い結果",
+    "outOfDateHint": "これらの基準点を探した後に展開図が変更されました。",
+    "outsideSheet": "この選択はどの用紙の内側にもありません。",
+    "planning": "下折りの手順を計算しています…",
+    "planStep": {
+      "alsoNote": "両方を同時に合わせると、折り目がまっすぐになります。",
+      "approximate": "近似です。この作図は用紙の{{pct}}%だけずれています。",
+      "approximateBadge": "近似",
+      "axiom1": "{{a}} と {{b}} を通るように折ります。",
+      "axiom2": "{{a}} を {{b}} に重ねて折ります。",
+      "axiom3": "{{a}} を {{b}} に重ねて折ります。",
+      "axiom4": "{{b}} を自身に重ねながら {{a}} を通るように折ります。",
+      "axiom4Corner": "{{p}}を通るように折り、{{q}}を{{a}}に合わせます。",
+      "axiom5": "{{a}} を通しつつ {{b}} を {{c}} に重ねて折ります。",
+      "axiom5LineMoves": "{{a}} を通しつつ {{c}} を {{b}} に重ねて折ります。",
+      "axiom6": "{{a}} を {{b}} に、{{c}} を {{d}} に重ねて折ります。",
+      "axiom7": "{{lSelf}} を自身に重ねて折り、{{p}} が {{lLand}} に載るようにします。",
+      "axiom7LineMoves": "{{lSelf}} を自身に重ねて折り、{{lLand}} が {{p}} に載るようにします。",
+      "free": "この線はすでに紙の上にあります。",
+      "gridBadge": "グリッド",
+      "gridBand": "{{lo}}と{{hi}}の間",
+      "gridBandAlong": "{{band}}、{{lo}}から{{hi}}まで",
+      "gridBands_other": "{{where}}に{{direction}}{{level}}の線を加えます：{{count}} 本、図のとおりに折り筋をつけます。",
+      "gridBandsAnd": "、および",
+      "gridBoundAcross": "横 {{fraction}} の位置",
+      "gridBoundLine": "{{fraction}} の線",
+      "gridBoundUp": "縦 {{fraction}} の位置",
+      "gridCell_ordinal_other": "{{count}}分の1",
+      "gridFraction_ordinal_other": "{{count}}等分",
+      "gridMountainFirst_other": "{{pleat}}：{{count}} 本の線を山折りと谷折りを交互に、山折りから始めます。",
+      "gridPleatInto": "用紙を{{direction}}{{fraction}}に蛇腹折りします",
+      "gridPleatSpaced": "用紙を{{direction}}、用紙の{{cell}}の間隔で蛇腹折りします",
+      "gridReversed_other": "展開図ではそのうち {{count}} 本が逆向きです。たたみ込むときに反転します。",
+      "gridValleyFirst_other": "{{pleat}}：{{count}} 本の線を谷折りと山折りを交互に、谷折りから始めます。",
+      "impractical": "どちらの点も端にないため、この折りは紙越しに合わせます — 紙面上にはまだ、これをより正確な折りにするものがありません。",
+      "inherited": "近似の折り目を基準にしているため、その精度までしか出ません。",
+      "markFirst": "この印は、折り目をさらに延ばせば交わる位置にあります。先につまんで印をつけてください。",
+      "noAlignment": "この折りに合わせられるものはまだ紙の上にありません。図のとおりに折り目を付けてください。",
+      "partlyReversed": "この線は展開図では山谷が混ざっています。残りはたたみ込むときに反転します。",
+      "pinch": "つまむだけ — 印だけがあれば十分です。",
+      "pressedOn": "図に示す箇所では展開図の線を越えて折り目も付けます。後の手順でそこを使います。",
+      "pressOut": "示された部分だけに折り目を付けます。",
+      "shortAlignment": "ここでは折り目が重なる部分がごく短いので、慎重に合わせてください。",
+      "twinAxiom1": "{{a}}と{{b}}を通る線、さらに{{c}}と{{d}}を通る線で折ります。",
+      "twinAxiom2": "{{a}}を{{b}}に、{{c}}を{{d}}に合わせて折ります。",
+      "twinBothSides": "両側で{{a}}を{{b}}に合わせて折ります。",
+      "unknown": "{{inputs}} を使って折ります。",
+      "visibleAux": "この折り線は完成した作品に残ります。"
+    },
+    "progress": {
+      "closing": "{{total}} 本中 {{done}} 本を折りました",
+      "querying": "{{total}} 本中 {{done}} 本を探索中"
+    },
+    "recompute": "再計算",
+    "ref": {
+      "bottomEdge": "下の辺",
+      "cornerNe": "右上の角",
+      "cornerNw": "左上の角",
+      "cornerSe": "右下の角",
+      "cornerSw": "左下の角",
+      "diagonalNwSe": "左上から右下への対角線",
+      "diagonalSwNe": "左下から右上への対角線",
+      "leftEdge": "左の辺",
+      "line": "線 {{name}}",
+      "point": "点 {{name}}",
+      "rightEdge": "右の辺",
+      "topEdge": "上の辺"
+    },
+    "refusedSheet": "この選択の周りの用紙を長方形として読み取れませんでした。",
+    "searching": "基準点を探しています…",
+    "settings": {
+      "allowDangling": "宙ぶらりんの折り目を許可",
+      "allowDanglingHelp": "宙ぶらりんの折り目とは、端が何もない紙の上で終わる折り目のことで、止める目印がありません。オン：各折り目は基準（紙の縁、または既にある折り目）から始まり、折り目自体より長くならない場合にだけ二つ目の基準まで伸ばします。オフ：どれだけ余分に折り目が増えても、すべての折り目を基準から基準まで付けます。",
+      "candidates": "候補数",
+      "emptyNote": "リファレンスの探し方を調整するには展開図を開いてください。",
+      "gridWhereNeeded": "必要な場所だけ",
+      "includeApproximate": "近似解も含める",
+      "landmarksFirst": "目印を先に",
+      "mergeSymmetric": "対称な手順をまとめる",
+      "mergeSymmetricHelp": "鏡映しになる2つの折り — 左の角を中心へ、右の角を中心へ、など — を、折り図のようにそれぞれ矢印付きの1つの手順として示します。オフにすると、折りごとに1手順になります。",
+      "precreaseGrid": "グリッドを先に折る",
+      "sequence": "下折りの手順",
+      "solutions": "解の数"
+    },
+    "sheets": {
+      "cardTitle_other": "パターン {{n}}: 折り線 {{count}} 本",
+      "creases_other": "折り線 {{count}} 本",
+      "label": "折り紙パターン",
+      "title": "パターン"
+    },
+    "sidebar": {
+      "none": "現在の設定では、この対象の作図は見つかりませんでした。",
+      "planning": "下折りの手順を計算しています…"
+    },
+    "step": {
+      "axiom1": "{{p0}} と {{p1}} を通るように {{x}} を折ります。",
+      "axiom2": "{{p0}} を {{p1}} に合わせて {{x}} を折ります。",
+      "axiom3": "{{l0}} を {{l1}} に合わせて {{x}} を折ります。",
+      "axiom4": "{{l0}} を自身に重ねながら、{{p0}} を通るように {{x}} を折ります。",
+      "axiom5": "{{p0}} を {{l0}} に合わせながら、{{p1}} を通るように {{x}} を折ります。",
+      "axiom6": "{{p0}} を {{l0}} に、{{p1}} を {{l1}} に合わせて {{x}} を折ります。",
+      "axiom7": "{{lSelf}} を自身に重ね、{{p0}} が {{lLand}} に来るように {{x}} を折ります。",
+      "diagonal": "{{a}}を{{b}}に合わせて折り、対角線に折り目を付けます。",
+      "mark": "{{l0}} と {{l1}} の交点に {{x}} の印を付けます。",
+      "pinch": "軽くつまむだけ — 印だけが必要です。",
+      "unknown": "{{inputs}} を使って {{x}} を折ります。"
+    },
+    "stop": "停止",
+    "stopping": "キャンセル中…",
+    "targetGone": "選んだ折り線は展開図にもうありません。",
+    "viewportControls": "リファレンスのビューポート操作",
+    "warning": {
+      "degenerateBorderSegments": "{{n}} 本の端の線は両端が一致しているため、無視しました。",
+      "noBorder": "端の線がないため、既定の用紙を用紙として使います。",
+      "overlappingSheets": "{{n}} 本の折り線が複数の用紙に重なっているため、最初の用紙に割り当てました。",
+      "refusedSheets": "{{n}} 枚の用紙は長方形ではないため除外されます。",
+      "unassignedSegments": "{{n}} 本の折り線がどの用紙にも入らないため除外されます。",
+      "zeroLengthSegments": "{{n}} 本の折り線は短すぎて測定できないため、省略しました。"
+    }
+  },
   "sidePane": {
     "properties": "プロパティ",
+    "settings": "設定",
     "view": "表示"
   },
   "simulator": {

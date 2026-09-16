@@ -1,0 +1,90 @@
+name: Install Emscripten SDK
+description: >-
+  Install the Emscripten SDK pinned in scripts/reference-finder-emsdk.json (shared with
+  scripts/build-reference-finder.mjs), cache it together with EM_CACHE, and put em++ on PATH.
+
+inputs:
+  version:
+    description: >-
+      Emscripten version to install. Defaults to the `emsdk` field of
+      scripts/reference-finder-emsdk.json so the build script and CI cannot drift apart.
+    required: false
+    default: ''
+  emsdk-commit:
+    description: >-
+      Commit of emscripten-core/emsdk to clone. Defaults to the `emsdkRepoCommit` field of
+      the same file. Pinning the SDK manager fixes the download URLs it resolves the release
+      from, which is the only pin emsdk offers — it publishes per-component archives rather
+      than one release tarball with a checksum we could verify the way install-wasm-pack does.
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve pinned Emscripten version
+      id: pin
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_COMMIT: ${{ inputs.emsdk-commit }}
+      run: |
+        set -euo pipefail
+        pin=scripts/reference-finder-emsdk.json
+        version="${INPUT_VERSION:-$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['emsdk'])" "$pin")}"
+        commit="${INPUT_COMMIT:-$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['emsdkRepoCommit'])" "$pin")}"
+        echo "version=${version}" >> "$GITHUB_OUTPUT"
+        echo "commit=${commit}" >> "$GITHUB_OUTPUT"
+        echo "Emscripten ${version} via emsdk ${commit}"
+
+    # The SDK (~1 GB with its LLVM) and the compiled system libraries (EM_CACHE, built on
+    # the first link and reused after) are both keyed on the version, so a bump to the pin
+    # file invalidates the cache and a rerun does not pay the ~3 minute install.
+    - name: Cache Emscripten SDK
+      id: cache
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: |
+          ~/.emsdk
+          ~/.emscripten-cache
+        key: emsdk-${{ steps.pin.outputs.version }}-${{ runner.os }}
+
+    - name: Install Emscripten SDK
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        EMSDK_VERSION: ${{ steps.pin.outputs.version }}
+        EMSDK_COMMIT: ${{ steps.pin.outputs.commit }}
+      run: |
+        set -euo pipefail
+        rm -rf "${HOME}/.emsdk"
+        git clone --quiet https://github.com/emscripten-core/emsdk.git "${HOME}/.emsdk"
+        git -C "${HOME}/.emsdk" checkout --quiet "${EMSDK_COMMIT}"
+        "${HOME}/.emsdk/emsdk" install "${EMSDK_VERSION}"
+        "${HOME}/.emsdk/emsdk" activate "${EMSDK_VERSION}"
+
+    - name: Add em++ to PATH
+      shell: bash
+      env:
+        EMSDK_VERSION: ${{ steps.pin.outputs.version }}
+      run: |
+        set -euo pipefail
+        emsdk_dir="${HOME}/.emsdk"
+        # `emsdk activate` wrote .emscripten with absolute paths to this checkout, which is
+        # the same path a cache restore lands on, so no re-activation is needed.
+        echo "${emsdk_dir}" >> "$GITHUB_PATH"
+        echo "${emsdk_dir}/upstream/emscripten" >> "$GITHUB_PATH"
+        echo "EMSDK=${emsdk_dir}" >> "$GITHUB_ENV"
+        echo "EM_CACHE=${HOME}/.emscripten-cache" >> "$GITHUB_ENV"
+        mkdir -p "${HOME}/.emscripten-cache"
+        export PATH="${emsdk_dir}/upstream/emscripten:${PATH}"
+        export EM_CACHE="${HOME}/.emscripten-cache"
+        installed="$(em++ --version | head -n1)"
+        echo "${installed}"
+        case "${installed}" in
+          *"${EMSDK_VERSION}"*) ;;
+          *)
+            echo "em++ reports '${installed}', expected Emscripten ${EMSDK_VERSION}" >&2
+            exit 1
+            ;;
+        esac

@@ -66,6 +66,11 @@
     "cpDetect": "La detección de patrones de pliegues se ha detenido inesperadamente. Prueba a importar la imagen de nuevo.",
     "oristudioBp": "El motor de plegado en caja se ha detenido inesperadamente. Recarga Ori Studio para seguir trabajando en este diseño.",
     "oristudioCp": "El motor de patrones de pliegues se ha detenido inesperadamente. Recarga Ori Studio: puedes perder los cambios posteriores al último guardado.",
+    "precrease": "El planificador de predoblado se ha detenido inesperadamente. Vuelve a abrir el espacio de trabajo de referencias para reiniciarlo.",
+    "precreaseLost": "El planificador de prepliegues se detuvo antes de poder responder. Inténtalo de nuevo.",
+    "referenceFinder": "El buscador de referencias se ha detenido inesperadamente. Vuelve a abrir el espacio de trabajo de referencias para reiniciarlo.",
+    "referenceFinderLost": "El buscador de referencias se detuvo antes de poder responder. Inténtalo de nuevo.",
+    "referenceFinderTimeout": "El buscador de referencias tardó demasiado y se reinició. Inténtalo de nuevo.",
     "simulator": "El simulador se ha detenido inesperadamente. Vuelve a abrir el espacio de trabajo de simulación para reiniciarlo.",
     "treemaker": "El motor de diseño se ha detenido inesperadamente. Recarga Ori Studio para seguir trabajando en este árbol."
   }

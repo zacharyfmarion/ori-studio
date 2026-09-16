@@ -54,6 +54,7 @@ describe('web menu definition', () => {
       'Design',
       'Edit',
       'Simulate',
+      'References',
       'Properties',
       'Reset Layout',
     ]);
@@ -61,6 +62,7 @@ describe('web menu definition', () => {
       'view.design',
       'view.edit',
       'view.simulate',
+      'view.references',
       'view.properties',
       'view.resetLayout',
     ]);
@@ -118,6 +120,7 @@ describe('web menu definition', () => {
       'cp.check2',
       'cp.check3',
       'cp.check4',
+      'cp.analyzeReferences',
       'cp.fix1',
       'cp.fix2',
       'cp.deleteExtraVertices',

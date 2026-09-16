@@ -66,6 +66,11 @@
     "cpDetect": "折痕图检测意外停止。请重新导入该图像。",
     "oristudioBp": "箱形褶皱引擎意外停止。请重新加载 Ori Studio 以继续处理此设计。",
     "oristudioCp": "折痕图引擎意外停止。请重新加载 Ori Studio——上次保存后的编辑可能会丢失。",
+    "precrease": "预折痕规划器意外停止。请重新打开参考工作区以重新启动。",
+    "precreaseLost": "预折规划器在给出结果前停止了。请重新搜索。",
+    "referenceFinder": "参考查找器意外停止。请重新打开参考工作区以重新启动。",
+    "referenceFinderLost": "参考点搜索在给出结果前停止了。请重新搜索。",
+    "referenceFinderTimeout": "参考点搜索耗时过长，已重新启动。请重新搜索。",
     "simulator": "模拟器意外停止。请重新打开模拟工作区以重新启动。",
     "treemaker": "设计引擎意外停止。请重新加载 Ori Studio 以继续处理此树结构。"
   }

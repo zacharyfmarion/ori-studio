@@ -1391,6 +1391,287 @@ export interface SimulatorSliceActions {
 
 export type SimulatorSlice = SimulatorSliceState & SimulatorSliceActions;
 
+/** What the References workspace is being asked about. */
+export type ReferencesTarget =
+  | { kind: 'whole'; component: number }
+  | { kind: 'crease'; component: number; lineId: number }
+  | { kind: 'vertex'; component: number; point: Point };
+
+/**
+ * A ranked ReferenceFinder answer for a picked vertex or crease, as the sidebar
+ * cards summarise it. The construction itself — steps, diagrams, model-space
+ * geometry — lives in the References result side table
+ * (`cp-workspace/references/referencesResults.ts`), keyed on the document
+ * revision; this is only what a card and the transport readout print.
+ */
+export interface ReferencesCandidate {
+  rank: number;
+  /** Line steps plus the free diagonals the construction relies on. */
+  foldCount: number;
+  stepCount: number;
+  err: number;
+  /** `err <= 1e-9`: the construction lands on the target, not near it. */
+  exact: boolean;
+}
+
+/** The toolbar popover's settings. Transient like the rest of the slice. */
+export interface ReferencesSettings {
+  /** How many ranked solutions ReferenceFinder is asked for (`count`). */
+  candidateCount: number;
+  /**
+   * Accept approximate constructions: `goodEnoughError` 0.005 (upstream's
+   * default) instead of the exact-only 1e-9. Off by default, because at 0.005 a
+   * rank-3 approximation sorts above an exact rank-4 solution.
+   */
+  includeApproximate: boolean;
+  /**
+   * Open a box- or hex-pleated design with its grid pleated before anything is
+   * sighted. On by default: it is how every folder precreases such a design.
+   * Unlike `landmarksFirst` this changes the plan itself, so toggling it
+   * re-plans (`implementation-plans/precrease-grid-first.md`).
+   */
+  precreaseGrid: boolean;
+  /**
+   * Make the grid only where the pattern needs it — the lines it uses, at the
+   * resolution each part of the sheet needs — rather than every line of the
+   * finest grid edge to edge. On by default; changes the plan, so toggling it
+   * re-plans (`implementation-plans/precrease-grid-where-needed.md`).
+   */
+  gridWhereNeeded: boolean;
+  /**
+   * Let a crease end on blank paper at one end. On by default: a crease is
+   * anchored at a reference — the sheet's edge or a crease already made — at
+   * one end and carried to a second only when that adds no more crease than
+   * the crease itself, so a short crease may dangle at one end. Off, every
+   * crease runs from reference to reference, whatever extra crease that
+   * takes. Changes the plan, so toggling it re-plans
+   * (`implementation-plans/precrease-reach-references.md`).
+   */
+  allowDanglingFolds: boolean;
+  /**
+   * Two folds that are each other's mirror image — line and witness alike,
+   * both sightable before either is made — are shown as one card, as a
+   * diagram folds them. On by default.
+   */
+  mergeSymmetricSteps: boolean;
+}
+
+/** How the exactness policy classified the component being planned (D8). */
+export type ReferencesExactnessClass = 'exact' | 'snappable' | 'off_lattice';
+
+/**
+ * What the summary strip and the staleness guard need from a breakdown. The
+ * plan itself — steps, groups, witnesses, model geometry — lives in the
+ * References result side table for the same reason
+ * {@link ReferencesCandidate}'s construction does: it is large, it changes
+ * wholesale, and no field inside it should re-render anything.
+ *
+ * `computedAtRevision` is the revision string the guard compares against the
+ * live one; a mismatch means stale, never "recompute automatically".
+ */
+export interface ReferencesPlanSummary {
+  computedAtRevision: string;
+  component: number;
+  /** The crate's own status for the plan. */
+  status:
+    | 'complete'
+    | 'partial_unsolved'
+    | 'partial_off_lattice'
+    | 'refused_sheet'
+    | 'invalid_input';
+  /** Why the orchestrator's loop ended. */
+  stopReason: string;
+  /** The plan does not cover every line of the component. */
+  partial: boolean;
+  /** `"best_found_to_depth_<d>"` or `"heuristic"` — never a claimed minimum. */
+  certification: string;
+  folds: number;
+  cpLines: number;
+  aux: number;
+  visibleAux: number;
+  /** Distinct CP lines off the outline: the flat-sheet model's lower bound. */
+  lowerBound: number;
+  freeLines: number;
+  unsolved: number;
+  stepCount: number;
+  findingCount: number;
+  approximateCount: number;
+  /**
+   * Steps that are not exact: folded by the closest construction there was, or
+   * sighted from one. Every one of them says so on its card.
+   */
+  inexactSteps: number;
+  /** How many times the folder turns the paper over to make these folds. */
+  turnOvers: number;
+  /** Steps whose line is creased both ways in the pattern (plan D21). */
+  mixedSteps: number;
+  /** The grid the plan opens with, or null when the design is not pleated on one. */
+  gridKind: 'box' | 'hex' | null;
+  /** Cells across the grid's anchored side; 0 without a grid. */
+  gridN: number;
+  /** Lines pleated over every grid family, the pattern's and the grid's own alike. */
+  gridLines: number;
+  /**
+   * Of `gridLines`, the lines the pattern contains. The rest are in `folds`
+   * but not in `cpLines`, which is why `folds = cpLines + aux` stops holding
+   * once a grid is pleated.
+   */
+  gridCpLines: number;
+  /** Grid steps: the pleats and the band steps; 0 without a grid. */
+  gridSteps: number;
+  /**
+   * Crease the grid put on lines where the pattern has none, in sheet
+   * units — what a grid made only where it is needed exists to lower.
+   */
+  gridUnwantedLength: number;
+  /**
+   * Crease the steps made past the pattern's own to be made from reference
+   * to reference, in sheet units — the cost of the "Crease to references"
+   * setting.
+   */
+  reachLength: number;
+  exactnessClass: ReferencesExactnessClass | null;
+  /** Snappable only: the largest distance a line moved, in model units. */
+  maxDisplacementModel: number;
+  durationMs: number;
+}
+
+/** The CP-wide analysis's counts, for the summary strip. */
+export interface ReferencesAnalysisSummaryState {
+  computedAtRevision: string;
+  component: number;
+  lines: number;
+  closure: number;
+  exact: number;
+  approximate: number;
+  unsolved: number;
+  free: number;
+  /** A Stop landed or the budget ran out; the list is what was reached. */
+  partial: boolean;
+  durationMs: number;
+}
+
+/** What a long run is doing, for the panel-body overlay. */
+export interface ReferencesProgress {
+  phase: 'closing' | 'searching' | 'querying' | 'approximating' | 'done';
+  /** Steps folded, or lines queried, depending on the phase. */
+  done: number;
+  total: number;
+}
+
+/**
+ * Which of the workspace's two jobs the reader is doing: asking how to get one
+ * picked point or crease from a blank sheet, or reading the planner's whole
+ * precrease order. See `cp-workspace/references/referencesMode.ts`.
+ */
+export type ReferencesMode = 'find' | 'sequence';
+
+export interface ReferencesView {
+  /**
+   * Where the reader is, like the active step: Find on arrival and on a new
+   * document, Sequence once they ask for the order. A view choice rather than
+   * a setting — it says nothing about how either answer is computed.
+   */
+  mode: ReferencesMode;
+  /**
+   * Which step the view frames: an index into the active candidate's steps in
+   * target mode, and into the breakdown's steps in whole-pattern mode.
+   */
+  activeStep: number;
+  activeCandidate: number;
+  /**
+   * Hoist every auxiliary fold to a phase 0. Valid by monotonicity only for
+   * the landmarks that certify from the bare sheet; the crate decides which,
+   * so the toggle re-reads `sequence(landmarksFirst)` rather than reordering.
+   */
+  landmarksFirst: boolean;
+  /** The analysis finding the view frames; null for none. */
+  activeFinding: number | null;
+}
+
+export type ReferencesRun =
+  | { status: 'idle' }
+  | { status: 'running'; startedAt: number }
+  | { status: 'stopping'; startedAt: number }
+  | { status: 'stale' }
+  | { status: 'error'; message: string };
+
+export interface ReferencesSliceState {
+  /** The picked vertex or crease, or the whole pattern; null before any pick. */
+  referencesTarget: ReferencesTarget | null;
+  /** The planner's breakdown for the whole pattern, once computed. */
+  referencesPlan: ReferencesPlanSummary | null;
+  /** The CP-wide analysis's counts, once computed. */
+  referencesAnalysis: ReferencesAnalysisSummaryState | null;
+  /** What a run in flight is doing; null when nothing is running. */
+  referencesProgress: ReferencesProgress | null;
+  /** ReferenceFinder's ranked solutions for a vertex or crease target. */
+  referencesCandidates: readonly ReferencesCandidate[] | null;
+  /**
+   * Which sheet the workspace is working on — a precrease component id.
+   *
+   * The References workspace answers for one crease pattern at a time: a
+   * document holding several disjoint sheets is several separate folding
+   * problems, and nobody folds them at once. Null until the frames analysis
+   * lands and the first plannable sheet is chosen; the sidebar sets it.
+   */
+  referencesSelectedSheet: number | null;
+  /** Which step and candidate the view frames, and the landmarks-first toggle. */
+  referencesView: ReferencesView;
+  /** Whether a computation is in flight, stale, or failed. */
+  referencesRun: ReferencesRun;
+  referencesSettings: ReferencesSettings;
+  /**
+   * Bumped by `cp.analyzeReferences`. A counter rather than a boolean because
+   * the panel is not mounted when the menu action runs — switching workspaces
+   * rebuilds the dock — so the request has to survive until something can act
+   * on it, and asking twice has to be two runs.
+   */
+  referencesAnalysisRequest: number;
+}
+
+export interface ReferencesSliceActions {
+  setReferencesTarget: (target: ReferencesTarget | null) => void;
+  setReferencesPlan: (plan: ReferencesPlanSummary | null) => void;
+  setReferencesAnalysis: (analysis: ReferencesAnalysisSummaryState | null) => void;
+  setReferencesProgress: (progress: ReferencesProgress | null) => void;
+  setReferencesCandidates: (candidates: readonly ReferencesCandidate[] | null) => void;
+  /**
+   * Work on a different sheet. Everything keyed on the old one is dropped —
+   * the plan, the pick and the step index all name geometry that belongs to a
+   * sheet, so carrying any of them across would describe the wrong pattern.
+   */
+  setReferencesSelectedSheet: (component: number | null) => void;
+  setReferencesView: (view: Partial<ReferencesView>) => void;
+  setReferencesRun: (run: ReferencesRun) => void;
+  setReferencesSettings: (settings: Partial<ReferencesSettings>) => void;
+  /** Hoist every auxiliary fold to a phase 0 (`references.toggleLandmarksFirst`). */
+  toggleReferencesLandmarksFirst: () => void;
+  /** Ask the References workspace for a CP-wide analysis (`cp.analyzeReferences`). */
+  requestReferencesAnalysis: () => void;
+  /**
+   * Take the pending analysis request, if there is one. The panel consumes it
+   * rather than remembering what it has seen: it is unmounted and remounted on
+   * every workspace switch, and a request it merely *remembered* would either
+   * be lost on the switch that delivers it or replayed on the next one.
+   */
+  consumeReferencesAnalysisRequest: () => boolean;
+  /**
+   * Switch to the References workspace on the whole pattern. Nothing carries
+   * over from the caller — no crease target, no selection — so the entry from
+   * the rail, the View menu and the selection toolbar all land in one place.
+   */
+  openReferencesWorkspace: () => void;
+}
+
+/**
+ * The References workspace's transient state. Never persisted: every field is
+ * derived from the crease pattern and recomputed on demand, and a plan saved
+ * across reloads would be stale against a document that changed while it was
+ * away.
+ */
+export type ReferencesSlice = ReferencesSliceState & ReferencesSliceActions;
+
 /**
  * The ExplOri design's actions.
  *
@@ -1441,7 +1722,8 @@ export type WorkspaceState =
   ConditionSlice &
   CreasePatternSlice &
   OristudioBpSlice &
-  SimulatorSlice;
+  SimulatorSlice &
+  ReferencesSlice;
 
 export type WorkspaceSliceCreator<T> = StateCreator<
   WorkspaceState,

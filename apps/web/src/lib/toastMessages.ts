@@ -115,6 +115,35 @@ export function humanizeError(error: unknown, t: TFunction): string {
         'errors:worker.cpDetect',
         'Crease-pattern detection stopped unexpectedly. Try importing the image again.'
       );
+    case 'worker_reference_finder':
+      return t(
+        'errors:worker.referenceFinder',
+        'The reference finder stopped unexpectedly. Reopen the References workspace to restart it.'
+      );
+    case 'worker_precrease':
+      return t(
+        'errors:worker.precrease',
+        'The precrease planner stopped unexpectedly. Reopen the References workspace to restart it.'
+      );
+    // The runtimes' own loss envelopes. A deliberate teardown never reaches a
+    // user-facing message any more, so what is left here is a crash or a
+    // timeout — and their raw messages are internal English written for the
+    // caller, not for the person waiting on the answer.
+    case 'reference_finder_client_lost':
+      return t(
+        'errors:worker.referenceFinderLost',
+        'The reference finder stopped before it could answer. Try the search again.'
+      );
+    case 'reference_finder_timeout':
+      return t(
+        'errors:worker.referenceFinderTimeout',
+        'The reference finder took too long and was restarted. Try the search again.'
+      );
+    case 'precrease_client_lost':
+      return t(
+        'errors:worker.precreaseLost',
+        'The precrease planner stopped before it could answer. Try the search again.'
+      );
     // Project files we read and rejected (see lib/projectFileError.ts). Their
     // own messages are precise but internal ("field workspace.documents must be
     // an array"); all the user can act on is which of these three it is.

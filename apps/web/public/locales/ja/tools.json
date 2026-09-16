@@ -259,6 +259,19 @@
     "valley": "線 V",
     "yellow": "線 黄"
   },
+  "references": {
+    "categoryLabel": "リファレンス",
+    "nextCandidate": "次の候補",
+    "nextStep": "次のステップ",
+    "previousCandidate": "前の候補",
+    "previousStep": "前のステップ",
+    "recompute": "リファレンスを再計算",
+    "resetView": "リファレンスビューをリセット",
+    "scopeLabel": "リファレンス",
+    "toggleLandmarksFirst": "目印を先に",
+    "zoomIn": "リファレンスを拡大",
+    "zoomOut": "リファレンスを縮小"
+  },
   "simulator": {
     "foldBackward": "折りを戻す",
     "foldEnd": "折り上がりへ移動",

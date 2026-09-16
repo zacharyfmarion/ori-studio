@@ -267,6 +267,19 @@
     "valley": "Line V",
     "yellow": "Line yellow"
   },
+  "references": {
+    "categoryLabel": "References",
+    "nextCandidate": "Next Candidate",
+    "nextStep": "Next Step",
+    "previousCandidate": "Previous Candidate",
+    "previousStep": "Previous Step",
+    "recompute": "Recompute References",
+    "resetView": "Reset References View",
+    "scopeLabel": "references",
+    "toggleLandmarksFirst": "Landmarks First",
+    "zoomIn": "Zoom In References",
+    "zoomOut": "Zoom Out References"
+  },
   "simulator": {
     "foldBackward": "Fold Backward",
     "foldEnd": "Jump To Folded",

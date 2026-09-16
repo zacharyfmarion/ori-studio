@@ -3241,6 +3241,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "oristudio-precrease"
+version = "0.4.0"
+dependencies = [
+ "js-sys",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "oristudio-precrease-wasm"
+version = "0.4.0"
+dependencies = [
+ "console_error_panic_hook",
+ "js-sys",
+ "oristudio-precrease",
+ "serde",
+ "serde-wasm-bindgen",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "ort"
 version = "2.0.0-rc.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"

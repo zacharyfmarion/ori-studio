@@ -1,0 +1,9 @@
+{
+  "emsdk": "6.0.9",
+  "emsdkRepoCommit": "5eb0bde7585670252e8ba05e9d361627bffd08b5",
+  "pinnedUpstreamCommit": "e2163f0cb483592f757520647e7df192b6570386",
+  "fallbackSha256": {
+    "ref.js": "505b40d1c01dbc4066b061063074e569cbf257d8dec46cc568df5605ff5f4c09",
+    "ref.wasm": "4641c5329584b1d791437012cba18b6d6d31a378d699f881a00afa711f274cb0"
+  }
+}

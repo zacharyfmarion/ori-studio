@@ -16,8 +16,8 @@ export type AnalyticsProperties = Record<string, AnalyticsPropertyValue>;
 // Enum property values
 // ---------------------------------------------------------------------------
 
-/** The three top-level workspaces, plus the share screen. */
-export type WorkspaceScreen = 'design' | 'edit' | 'simulate' | 'share';
+/** The four top-level workspaces, plus the share screen. */
+export type WorkspaceScreen = 'design' | 'edit' | 'simulate' | 'references' | 'share';
 /**
  * A Design workspace's method, for the events that describe *one* design.
  *
@@ -367,7 +367,8 @@ export type ContextMenuSurface =
   | 'bp-packing'
   | 'tree'
   | 'design-tree'
-  | 'simulator';
+  | 'simulator'
+  | 'references';
 
 /**
  * What the menu was raised *on*, coarsely.
@@ -393,6 +394,28 @@ export type ContextMenuTargetKind =
   | 'sheet'
   | 'node'
   | 'edge';
+
+/**
+ * What a picked reference was, on the References workspace's events.
+ * `whole_cp` is the breakdown, which is not picked but asked for.
+ */
+export type ReferenceTargetKind = 'vertex' | 'crease' | 'whole_cp';
+
+/** How the exactness probe classified the pattern a breakdown was made of. */
+export type ReferenceExactnessClass = 'exact' | 'snappable' | 'off_lattice';
+
+/**
+ * Why a breakdown produced no sequence. `non_rectangular` is D10's refusal,
+ * `point_cap` the `|P|` ceiling, `budget` the run's own clock.
+ */
+export type ReferenceRefusalReason = 'non_rectangular' | 'point_cap' | 'budget' | 'error';
+
+/**
+ * How a ReferenceFinder query ended. `exact` when any construction lands on
+ * the target (`err <= 1e-9`), `approximate` when only near ones came back,
+ * `none` for an empty answer, `error` for a worker or extractor failure.
+ */
+export type ReferenceQueryOutcome = 'exact' | 'approximate' | 'none' | 'error';
 
 /** Where an error was surfaced, for `app error` bucketing. */
 export type AnalyticsErrorDomain =
@@ -434,6 +457,75 @@ export const ANALYTICS_EVENTS = {
   contextMenuOpened: 'context menu opened',
   cpToolUsed: 'cp tool used',
   workspaceViewed: 'workspace viewed',
+  /**
+   * References workspace (`implementation-plans/reference-finder-integration.md`).
+   * `reference target picked` is the pick itself — a vertex or a crease in the
+   * References view; `reference query completed` is ReferenceFinder's answer
+   * to it, with the outcome and a bucketed duration; `folding steps opened` is
+   * a step list actually being shown for a target. All carry `target_kind`
+   * (`vertex` / `crease`; Phase 5 adds `whole_cp`). Nothing about *which*
+   * vertex or crease — a coordinate is the user's geometry.
+   */
+  referenceTargetPicked: 'reference target picked',
+  referenceQueryCompleted: 'reference query completed',
+  foldingStepsOpened: 'folding steps opened',
+  /**
+   * A whole-pattern breakdown run, however it ended: `completed` when the
+   * planner produced a sequence, `cancelled` when a Stop landed, `refused`
+   * when it could not (a non-rectangular sheet, the point cap, the budget).
+   *
+   * Carries only enums and bucketed counts: `target_kind`, `lines_bucket`,
+   * `aux_bucket`, `visible_aux_bucket`, `turn_overs_bucket`,
+   * `mixed_steps_bucket`, `duration_bucket`, `exactness_class`, `grid_kind`
+   * (`box` / `hex` / `none` — whether the plan opened with a precrease grid),
+   * `grid_lines_bucket`, `grid_steps_bucket`, `grid_unwanted_bucket` (crease
+   * the grid put where the pattern has none, in tenths of a sheet-length),
+   * `reach_bucket` (crease the steps made past the pattern's own to end at
+   * references, likewise), `dangling_folds` (`allowed` / `disallowed` — the
+   * "Allow dangling folds" setting the plan was made under),
+   * `symmetric_steps` (`merged` / `separate` — the "Merge symmetric steps"
+   * setting, likewise) and, on a refusal, `refusal_reason`.
+   * Never a fold
+   * count, a line, a coordinate or anything else derived from the user's
+   * geometry — the shape of a design is the design.
+   */
+  foldingStepsCompleted: 'folding steps completed',
+  foldingStepsCancelled: 'folding steps cancelled',
+  foldingStepsRefused: 'folding steps refused',
+  /**
+   * A CP-wide analysis finished. `unreachable_bucket` is how many of the
+   * pattern's distinct lines the closure could not reach and ReferenceFinder
+   * was asked about — the number that says whether the closure-first ordering
+   * is doing the work the plan claims it does.
+   */
+  referenceBatchCompleted: 'reference batch completed',
+  /**
+   * A pattern's detail — the steps and the canvas — was opened from the
+   * References list on a phone.
+   *
+   * Phone-only, because that is the one layout that shows the list and the
+   * detail one at a time; everywhere else the detail is always on screen and
+   * there is nothing to open. So every one of these is a phone session that got
+   * past the list to the folds, which is the question putting the list first
+   * raises. `source` is which press did it: a pattern's card, or a finding in
+   * the notes under the cards.
+   */
+  referencesPatternOpened: 'references pattern opened',
+  /**
+   * The reader switched the References workspace between its two jobs —
+   * finding one reference, or reading the precreasing sequence. `mode` is the
+   * one switched *to* (`find` / `sequence`) and `source` what did it: the tab,
+   * or the lead's line under the tabs that names the other job. The workspace
+   * lands in Find and plans only when asked, so this is how often the sequence
+   * is asked for at all, and whether the tab or the line is how it is found.
+   */
+  referencesModeChanged: 'references mode changed',
+  /**
+   * A tap on the sheet in Sequence mode moved the strip to the step that
+   * made what was tapped. `target_kind` is `crease` or `vertex`; nothing
+   * about which one, which would be the user's geometry.
+   */
+  referencesStepJumped: 'references step jumped',
   creasePatternBuilt: 'crease pattern built',
   optimizerRun: 'optimizer run',
   projectOpened: 'project opened',

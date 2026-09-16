@@ -23,6 +23,11 @@ apps/web/public/models/cp-vertex-refiner-v3/*
 apps/web/public/models/cp-vertex-refiner-v3-*
 tools/oracle/build/
 tools/oriedita-oracle/build/
+# ReferenceFinder wasm build (scripts/build-reference-finder.mjs). Already inside the
+# /target/ and artifacts/ rules above; listed so the pipeline's outputs are findable here.
+target/reference-finder-obj/
+artifacts/reference-finder-node/
+artifacts/reference-finder-upstream/
 .env.release.local
 .DS_Store
 

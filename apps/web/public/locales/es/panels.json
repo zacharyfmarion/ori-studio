@@ -567,6 +567,7 @@
       "exportSvg": "Imagen SVG",
       "fold": "Plegar",
       "label": "Acciones del patrón de pliegues",
+      "references": "Referencias de plegado",
       "saveImage": "Guardar como imagen",
       "share": "Crear enlace para compartir",
       "simulate": "Simular",
@@ -862,8 +863,237 @@
     "y": "Y",
     "yes": "Sí"
   },
+  "references": {
+    "actions": {
+      "noTargetHint": "Elige primero un vértice o un pliegue"
+    },
+    "alreadyOnSheet": "Este punto ya está en el papel: no hace falta doblar.",
+    "alreadyOnSheetLine": "Esta línea ya está en el papel: no hace falta doblar.",
+    "analysis": {
+      "approximate": "aproximado, error {{err}}",
+      "badge": "{{closure}}/{{lines}} desde la hoja",
+      "closure": "se obtiene de la propia hoja",
+      "exact": "exacto en el rango {{rank}}, {{folds}} dobleces",
+      "line": "Línea {{n}}",
+      "summary": "{{closure}} de {{lines}} líneas se obtienen de la propia hoja; {{queried}} requirieron una búsqueda.",
+      "title": "Análisis de referencias",
+      "unsolved": "no se encontró construcción"
+    },
+    "axiom": {
+      "free": "ya está en la hoja",
+      "o1": "por dos puntos",
+      "o2": "punto sobre punto",
+      "o3": "borde sobre borde",
+      "o4": "perpendicular por un punto",
+      "o5": "punto sobre una línea, por un punto",
+      "o6": "dos puntos sobre dos líneas",
+      "o7": "punto sobre una línea, perpendicular"
+    },
+    "backToPattern": "Volver al patrón completo",
+    "backToPatterns": "Patrones",
+    "breakdown": {
+      "sheetId": "Hoja {{n}}"
+    },
+    "canvasAriaLabel": "Patrón de pliegues. Haz clic en un vértice o pliegue para hallar sus referencias; arrastra para desplazar, desplaza la rueda para hacer zoom.",
+    "card": {
+      "error": "err {{value}}",
+      "folds_one": "{{count}} pliegue",
+      "folds_many": "{{count}} pliegues",
+      "folds_other": "{{count}} pliegues"
+    },
+    "direction": {
+      "angle": "a {{deg}}°",
+      "diagonalDown": "en la diagonal descendente",
+      "diagonalUp": "en la diagonal ascendente",
+      "horizontal": "en horizontal",
+      "vertical": "en vertical"
+    },
+    "dismiss": "Descartar",
+    "empty": "No hay patrón de plegado. Abre o dibuja uno en Editar y vuelve.",
+    "emptySheet": "Aún no hay pliegues",
+    "emptySheetHint": "Esta hoja aún no tiene pliegues. Dibuja el patrón en Editar y vuelve después.",
+    "errorTitle": "Referencias no disponibles",
+    "exact": "Exacto",
+    "filmstrip": {
+      "label": "Pasos de plegado"
+    },
+    "findings": {
+      "approximation": "más cercano: {{folds}} dobleces, error {{err}}",
+      "noApproximation": "no se encontró construcción",
+      "note": "Se informan, nunca se doblan: una aproximación se convertiría en referencia para todos los pasos posteriores.",
+      "offLattice": "Fuera de la retícula",
+      "refusedTitle": "Hojas omitidas",
+      "title": "Líneas sin doblez exacto",
+      "unsolved": "No se encontró construcción"
+    },
+    "flip": {
+      "doneBadge": "Terminado",
+      "finished": "Todos los pliegues están hechos. A partir de aquí el patrón se colapsa, y los pliegues que van al revés se invierten al hacerlo.",
+      "turnOver": "Da la vuelta al papel, de izquierda a derecha.",
+      "turnOverBadge": "Dar la vuelta"
+    },
+    "goToEdit": "Ir a Editar",
+    "hint": {
+      "jump": "Toca un pliegue para saltar al paso que lo dobla.",
+      "open": "Abre un patrón para ver cómo doblarlo.",
+      "pick": "Haz clic en un vértice o pliegue para ver cómo doblarlo."
+    },
+    "lead": {
+      "find": "Toca un vértice o pliegue para ver cómo doblarlo desde una hoja en blanco.",
+      "findSequence": "O calcula toda la secuencia de prepliegues.",
+      "plan": "Todos los prepliegues del patrón, en el orden en que se doblan.",
+      "planAction": "Calcular la secuencia de prepliegues"
+    },
+    "meta": {
+      "solution": "Solución {{n}} de {{total}}",
+      "solutionShort": "{{n}} / {{total}}"
+    },
+    "mode": {
+      "find": "Buscar una referencia",
+      "findTitle": "Toca un vértice o pliegue para ver cómo doblarlo desde una hoja en blanco",
+      "label": "Qué mostrar",
+      "sequence": "Secuencia de prepliegues",
+      "sequenceTitle": "Todos los prepliegues del patrón, en el orden en que se doblan"
+    },
+    "noCreasePattern": "Sin patrón de pliegues",
+    "nonRectangular": "Esta hoja no es un rectángulo. Por ahora solo se pueden hallar referencias en hojas rectangulares.",
+    "noRectangularSheet": "No hay hoja rectangular: por ahora solo se pueden hallar referencias en hojas rectangulares.",
+    "openOutline": "Los pliegues de borde alrededor de esta selección no cierran una hoja.",
+    "outOfDate": "Desactualizado",
+    "outOfDateHint": "El patrón de pliegues cambió desde que se hallaron estas referencias.",
+    "outsideSheet": "Esta selección no está dentro de ninguna hoja.",
+    "planning": "Calculando la secuencia de prepliegues…",
+    "planStep": {
+      "alsoNote": "Alinea ambos a la vez para que el pliegue quede recto.",
+      "approximate": "Aproximado: esta construcción se desvía un {{pct}} % de la hoja.",
+      "approximateBadge": "Aproximado",
+      "axiom1": "Dobla por {{a}} y {{b}}.",
+      "axiom2": "Dobla {{a}} sobre {{b}}.",
+      "axiom3": "Dobla {{a}} sobre {{b}}.",
+      "axiom4": "Dobla por {{a}}, doblando {{b}} sobre sí misma.",
+      "axiom4Corner": "Dobla por {{p}}, llevando {{q}} sobre {{a}}.",
+      "axiom5": "Dobla por {{a}}, llevando {{b}} sobre {{c}}.",
+      "axiom5LineMoves": "Dobla por {{a}}, llevando {{c}} sobre {{b}}.",
+      "axiom6": "Dobla {{a}} sobre {{b}} y {{c}} sobre {{d}}.",
+      "axiom7": "Dobla {{lSelf}} sobre sí misma de modo que {{p}} caiga en {{lLand}}.",
+      "axiom7LineMoves": "Dobla {{lSelf}} sobre sí misma de modo que {{lLand}} caiga en {{p}}.",
+      "free": "Esta línea ya está en la hoja.",
+      "gridBadge": "Cuadrícula",
+      "gridBand": "entre {{lo}} y {{hi}}",
+      "gridBandAlong": "{{band}}, desde {{lo}} hasta {{hi}}",
+      "gridBands_one": "Añade los {{level}} {{direction}} {{where}}: {{count}} línea, marcada como se muestra.",
+      "gridBands_many": "Añade los {{level}} {{direction}} {{where}}: {{count}} líneas, marcadas como se muestra.",
+      "gridBands_other": "Añade los {{level}} {{direction}} {{where}}: {{count}} líneas, marcadas como se muestra.",
+      "gridBandsAnd": " y ",
+      "gridBoundAcross": "{{fraction}} del ancho",
+      "gridBoundLine": "la línea {{fraction}}",
+      "gridBoundUp": "{{fraction}} de la altura",
+      "gridCell_ordinal_other": "{{count}}avo",
+      "gridFraction_ordinal_other": "{{count}}avos",
+      "gridMountainFirst_one": "{{pleat}}: {{count}} línea, alternando montaña y valle, primero montaña.",
+      "gridMountainFirst_many": "{{pleat}}: {{count}} líneas, alternando montaña y valle, primero montaña.",
+      "gridMountainFirst_other": "{{pleat}}: {{count}} líneas, alternando montaña y valle, primero montaña.",
+      "gridPleatInto": "Pliega la hoja {{direction}} en {{fraction}}",
+      "gridPleatSpaced": "Pliega la hoja {{direction}}, a un {{cell}} de la hoja de distancia",
+      "gridReversed_one": "El patrón quiere {{count}} de ellas al revés; se invierte al colapsar el modelo.",
+      "gridReversed_many": "El patrón quiere {{count}} de ellas al revés; se invierten al colapsar el modelo.",
+      "gridReversed_other": "El patrón quiere {{count}} de ellas al revés; se invierten al colapsar el modelo.",
+      "gridValleyFirst_one": "{{pleat}}: {{count}} línea, alternando valle y montaña, primero valle.",
+      "gridValleyFirst_many": "{{pleat}}: {{count}} líneas, alternando valle y montaña, primero valle.",
+      "gridValleyFirst_other": "{{pleat}}: {{count}} líneas, alternando valle y montaña, primero valle.",
+      "impractical": "Ningún punto está en un borde, así que este se alinea a través del papel — nada en la hoja lo convierte aún en un pliegue más limpio.",
+      "inherited": "Referenciado desde un pliegue aproximado, así que solo es tan exacto como ese.",
+      "markFirst": "Una de estas marcas está donde se cruzarían dos pliegues si siguieran: haz primero un pellizco ahí.",
+      "noAlignment": "Todavía nada en el papel coincide con este pliegue: márcalo tal como se muestra.",
+      "partlyReversed": "En el patrón esta línea se pliega en ambos sentidos; el resto se invierte al colapsar el modelo.",
+      "pinch": "Solo pellizca: basta con la marca.",
+      "pressedOn": "Marca también, donde se muestra, más allá de la línea del patrón: un paso posterior la usa ahí.",
+      "pressOut": "Marca solo la parte mostrada.",
+      "shortAlignment": "Aquí los pliegues coinciden solo brevemente: alinéalos con cuidado.",
+      "twinAxiom1": "Pliega por {{a}} y {{b}}, y por {{c}} y {{d}}.",
+      "twinAxiom2": "Pliega {{a}} sobre {{b}} y {{c}} sobre {{d}}.",
+      "twinBothSides": "Pliega {{a}} sobre {{b}} por ambos lados.",
+      "unknown": "Dobla usando {{inputs}}.",
+      "visibleAux": "Este pliegue se verá en el modelo terminado."
+    },
+    "progress": {
+      "closing": "Dobladas {{done}} de {{total}} líneas",
+      "querying": "Buscando {{done}} de {{total}} líneas"
+    },
+    "recompute": "Recalcular",
+    "ref": {
+      "bottomEdge": "el borde inferior",
+      "cornerNe": "la esquina superior derecha",
+      "cornerNw": "la esquina superior izquierda",
+      "cornerSe": "la esquina inferior derecha",
+      "cornerSw": "la esquina inferior izquierda",
+      "diagonalNwSe": "la diagonal de arriba a la izquierda a abajo a la derecha",
+      "diagonalSwNe": "la diagonal de abajo a la izquierda a arriba a la derecha",
+      "leftEdge": "el borde izquierdo",
+      "line": "la línea {{name}}",
+      "point": "el punto {{name}}",
+      "rightEdge": "el borde derecho",
+      "topEdge": "el borde superior"
+    },
+    "refusedSheet": "La hoja alrededor de esta selección no pudo leerse como un rectángulo.",
+    "searching": "Buscando referencias…",
+    "settings": {
+      "allowDangling": "Permitir pliegues sueltos",
+      "allowDanglingHelp": "Un pliegue suelto es una marca que termina en papel en blanco, sin nada donde detenerse. Activado: cada marca parte de una referencia (el borde del papel o un pliegue ya hecho) y llega a una segunda solo cuando eso no añade más marca que la propia marca. Desactivado: cada marca va de referencia a referencia, cueste el pliegue extra que cueste.",
+      "candidates": "Candidatos",
+      "emptyNote": "Abre un patrón de plegado para ajustar cómo se buscan sus referencias.",
+      "gridWhereNeeded": "Solo donde haga falta",
+      "includeApproximate": "Incluir soluciones aproximadas",
+      "landmarksFirst": "Referencias primero",
+      "mergeSymmetric": "Combinar pasos simétricos",
+      "mergeSymmetricHelp": "Dos pliegues que son imagen especular uno del otro — la esquina izquierda al centro y la derecha al centro, por ejemplo — se muestran como un solo paso con una flecha para cada uno, como los pliega un diagrama. Desactivado, cada pliegue es un paso propio.",
+      "precreaseGrid": "Preplegar la cuadrícula",
+      "sequence": "Secuencia de prepliegues",
+      "solutions": "Soluciones"
+    },
+    "sheets": {
+      "cardTitle_one": "Patrón {{n}}: {{count}} pliegue",
+      "cardTitle_many": "Patrón {{n}}: {{count}} pliegues",
+      "cardTitle_other": "Patrón {{n}}: {{count}} pliegues",
+      "creases_one": "{{count}} pliegue",
+      "creases_many": "{{count}} pliegues",
+      "creases_other": "{{count}} pliegues",
+      "label": "Patrones de pliegues",
+      "title": "Patrones"
+    },
+    "sidebar": {
+      "none": "ReferenceFinder no halló ninguna construcción para este objetivo con los ajustes actuales.",
+      "planning": "Calculando la secuencia de prepliegues…"
+    },
+    "step": {
+      "axiom1": "Dobla {{x}} pasando por {{p0}} y {{p1}}.",
+      "axiom2": "Dobla {{x}} llevando {{p0}} sobre {{p1}}.",
+      "axiom3": "Dobla {{x}} llevando {{l0}} sobre {{l1}}.",
+      "axiom4": "Dobla {{x}} pasando por {{p0}}, plegando {{l0}} sobre sí misma.",
+      "axiom5": "Dobla {{x}} pasando por {{p1}}, llevando {{p0}} sobre {{l0}}.",
+      "axiom6": "Dobla {{x}} llevando {{p0}} sobre {{l0}} y {{p1}} sobre {{l1}}.",
+      "axiom7": "Dobla {{x}} plegando {{lSelf}} sobre sí misma de modo que {{p0}} caiga sobre {{lLand}}.",
+      "diagonal": "Dobla {{a}} sobre {{b}}, marcando la diagonal.",
+      "mark": "Marca {{x}} donde {{l0}} se cruza con {{l1}}.",
+      "pinch": "Solo un pellizco: basta con la marca.",
+      "unknown": "Dobla {{x}} usando {{inputs}}."
+    },
+    "stop": "Detener",
+    "stopping": "Cancelando…",
+    "targetGone": "El pliegue elegido ya no está en el patrón.",
+    "viewportControls": "Controles de la vista de referencias",
+    "warning": {
+      "degenerateBorderSegments": "{{n}} pliegue(s) del borde tienen extremos coincidentes y se ignoraron.",
+      "noBorder": "Sin pliegues de borde: se toma el papel predeterminado como hoja.",
+      "overlappingSheets": "{{n}} pliegue(s) están dentro de más de una hoja y se asignaron a la primera.",
+      "refusedSheets": "{{n}} hoja(s) no son rectángulos y se omiten.",
+      "unassignedSegments": "{{n}} pliegue(s) quedan fuera de todas las hojas y se dejan fuera.",
+      "zeroLengthSegments": "{{n}} pliegue(s) son demasiado cortos para medirlos y se omitieron."
+    }
+  },
   "sidePane": {
     "properties": "Propiedades",
+    "settings": "Ajustes",
     "view": "Ver"
   },
   "simulator": {

@@ -78,16 +78,19 @@ describe('the canvas history pills', () => {
     expect(buttons().map((each) => each.getAttribute('aria-label'))).toEqual(['Undo', 'Redo']);
   });
 
-  it.each(['design', 'simulate'] as const)('renders nothing in the %s workspace', (workspace) => {
-    // Simulate shows both in its Edit menu, but they act on the crease pattern
-    // you are not looking at; Design's panes are a separate piece of work. A
-    // pill that edits something off-screen is worse than no pill.
+  it.each(['design', 'simulate', 'references'] as const)(
+    'renders nothing in the %s workspace',
+    (workspace) => {
+    // Simulate and References show both in their Edit menu, but they act on the
+    // crease pattern you are not looking at; Design's panes are a separate piece
+    // of work. A pill that edits something off-screen is worse than no pill.
     useLayoutStore.setState({ activeWorkspace: workspace });
 
     render();
 
     expect(buttons()).toHaveLength(0);
-  });
+    }
+  );
 
   it('dispatches through the menu-action chokepoint', () => {
     // Not a store call: `handleMenuAction` is what keeps one implementation

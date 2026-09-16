@@ -259,6 +259,19 @@
     "valley": "线 V",
     "yellow": "线 黄色"
   },
+  "references": {
+    "categoryLabel": "参考",
+    "nextCandidate": "下一个候选",
+    "nextStep": "下一步",
+    "previousCandidate": "上一个候选",
+    "previousStep": "上一步",
+    "recompute": "重新计算参考",
+    "resetView": "重置参考视图",
+    "scopeLabel": "参考",
+    "toggleLandmarksFirst": "先折标记",
+    "zoomIn": "放大参考",
+    "zoomOut": "缩小参考"
+  },
   "simulator": {
     "foldBackward": "向后折叠",
     "foldEnd": "跳到折好",

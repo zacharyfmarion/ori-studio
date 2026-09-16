@@ -41,6 +41,10 @@ export type {
   LandingSurface,
   OptimizerKind,
   ProjectOpenSource,
+  ReferenceExactnessClass,
+  ReferenceQueryOutcome,
+  ReferenceRefusalReason,
+  ReferenceTargetKind,
   UpdateCheckResult,
   UpdateDismissScope,
   UpdateFailureReason,
@@ -83,3 +87,4 @@ export {
 export type { BootstrapOptions, PostHogClientLike, PostHogEnvironment } from './bootstrap';
 
 export { clearStableId, getOrCreateStableId, peekStableId } from './stableId';
+export { consumeInternalUserFlag, isInternalUser } from './internalUser';

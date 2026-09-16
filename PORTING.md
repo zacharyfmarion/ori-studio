@@ -845,6 +845,31 @@ pass), the curved-folding path, the SVG import path, `removeBorderFaces`, and
 the FOLD carries no `edges_foldAngle`; our option of that name is dead and reads
 the assignment either way).
 
+## ReferenceFinder (`third_party/reference-finder`) — not a port
+
+ReferenceFinder is the one vendored upstream this file's rules do **not** apply
+to, and it is listed here so nobody goes looking for the Rust that isn't there.
+Robert J. Lang's C++ core, as extended by Mu-Tsun Tsai and Omri Shavit, is
+compiled unchanged to WebAssembly by `scripts/build-reference-finder.mjs`
+(Emscripten pinned in `scripts/reference-finder-emsdk.json`) into the gitignored
+`apps/web/src/generated/reference-finder/`, and the app runs it in a Web Worker
+as a black box over its own console protocol — numbers in on stdin, JSON lines
+out on stdout. There is no port, so there is no parity surface: nothing to read
+upstream before changing, no simpler algorithm to refuse, no
+`UnsupportedOperation` to return, and no divergence list to keep. A behaviour
+change in ReferenceFinder reaches Ori Studio only by re-vendoring and
+rebuilding.
+
+What does apply is the vendoring and pin discipline shared with every upstream:
+the pin lives in `upstream-sync.json` (`reference-finder`), the vendored tree is
+a curated subset that is never edited, the binary is never tracked, and the
+drift check runs through the `upstream-drift` skill. Its oracle,
+`tools/reference-finder-oracle`, is a **build-equivalence** oracle, not a parity
+oracle — it asks whether our from-source wasm returns the same solutions as
+upstream's committed artifact at the pinned commit, which is the question that
+can go wrong here (compiler flags, toolchain version, the Safari floor), rather
+than whether a transcription matches its source.
+
 ## Staying current: two mechanisms, never one
 
 Every pin above is a snapshot of a project that keeps moving. Two separate
