@@ -162,8 +162,12 @@ logs a warning saying so.
 ```sh
 ./scripts/release.sh prepare 0.3.0    # branch, bump, changelog, PR
 # ...a human reviews and merges...
-./scripts/release.sh publish 0.3.0    # verify the merge, tag, push
+./scripts/release.sh publish 0.3.0    # verify the merge, wait for CI, tag, push
 ```
+
+`publish` waits for CI to be green at the merge commit before it tags: CI
+starts at the merge and takes 15–20 minutes, and the tagged build refuses a
+commit without a successful run (see below). `--no-wait` skips the wait.
 
 The pushed tag triggers the same build, which additionally uploads to a GitHub
 Release created as a **draft**. From there it is four steps, and the order
@@ -229,14 +233,28 @@ release looks perfect; the fleet you already shipped to is the part that breaks.
 ### If the release build reports `no successful CI run`
 
 `release.yml`'s `validate` job asks GitHub for a *successful* CI run at the
-tagged commit. A cancelled run, or no run at all, fails the build immediately.
+tagged commit. A run still in progress, a cancelled run, or no run at all fails
+the build immediately.
 
-Merging to `main` while a release was in flight used to cause this, and `main`
-had to stay still between merging the release PR and `publish`. **That is no
-longer true.** `ci.yml` keys `main` commits by SHA and never cancels them, so
-merges during a release are safe; see the comment above `concurrency:` there.
+**The common cause is tagging before the merge commit's CI has finished.** CI
+on `main` starts at the merge and takes 15–20 minutes, so `release.sh publish`
+straight after `gh pr merge` pushed the tag into a commit whose CI was still
+running, and the Desktop Build failed `validate` within seconds. 0.5.0 did
+exactly this: PR #391 merged at 17:06 as `7f7b2320a`, the tag went up the same
+minute, and Desktop Build run 35250674517 failed against a CI run
+(35250652951) that was twelve seconds old. `publish` now polls for a
+successful CI run at the merge commit before it tags — progress every 30 s,
+giving up after 40 minutes — and refuses to tag a commit whose CI concluded
+anything but `success`. `--no-wait` restores the old behaviour for someone who
+wants the tag up now and will re-run the Desktop Build later.
 
-What still reaches this gate is a commit that never had a run: CI does not
+Merging to `main` while a release was in flight used to cause this too, and
+`main` had to stay still between merging the release PR and `publish`. **That
+is no longer true.** `ci.yml` keys `main` commits by SHA and never cancels
+them, so merges during a release are safe; see the comment above
+`concurrency:` there.
+
+What else reaches this gate is a commit that never had a run: CI does not
 trigger on tags, so a hotfix cut outside a PR arrives with nothing to find.
 Start a fresh run at that ref — Actions ▸ CI ▸ Run workflow, or:
 
@@ -248,13 +266,18 @@ Dispatch takes a branch or tag, not a bare commit SHA, and runs the `ci.yml`
 that exists *at that ref* — so a tag cut before `workflow_dispatch` was added
 cannot be dispatched; use `gh run rerun <id>` on an existing run there instead.
 
-If the tag is not pushed yet, that is the whole fix — wait for green, then run
-`release.sh publish`. If it is, re-run the failed Desktop Build run once CI is
-green. Do not delete or re-point the tag:
+If the tag is not pushed yet, that is the whole fix — wait for green (which is
+what `publish` does), then run `release.sh publish`. If the tag is already
+pushed, the recovery is to re-run the failed Desktop Build run once CI at that
+commit is green, and nothing else:
 
 ```sh
 gh run rerun <failed-desktop-build-run-id>
 ```
+
+Never delete or re-point the tag. It is the release's identity — the draft
+release, the updater manifest and every download link hang off it — and a
+re-pointed tag would ship different bytes under the same version.
 
 ### Release states
 
@@ -265,7 +288,7 @@ corruption. Do not delete or re-point a tag.
 | --- | --- | --- |
 | No tag, no release | Nothing started | `release.sh prepare` |
 | Tag pushed, build running | Normal | Wait |
-| Tag pushed, `no successful CI run` | The tagged commit has no successful CI run — usually a hotfix cut outside a PR | Dispatch CI at that ref, then re-run the failed Desktop Build run — see above |
+| Tag pushed, `no successful CI run` | CI at the tagged commit is still running (the tag went up before it finished — `publish` now waits) or it never ran (a hotfix cut outside a PR) | Wait for CI at that commit to go green, dispatching it if there is no run, then `gh run rerun <failed-desktop-build-run-id>`. Never delete or re-point the tag — see above |
 | Tag pushed, some legs failed | Draft holds a partial asset set | `gh run rerun --failed`; if the failure is real, burn the version and cut the next patch |
 | Draft release, all assets | Ready to test | Publish as prerelease, then `publish-updater-manifest.sh X.Y.Z` |
 | Prerelease, no `latest.json` | The manifest step was skipped; arming now silently strands every install | `./scripts/publish-updater-manifest.sh X.Y.Z` before arming |
