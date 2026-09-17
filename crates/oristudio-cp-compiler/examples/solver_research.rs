@@ -12,21 +12,41 @@ use treemaker_fold::FoldDocument;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if !(3..=4).contains(&args.len()) {
-        return Err("usage: solver_research INPUT OUT_DIR OPTIONS_JSON [projection]".into());
+        return Err(
+            "usage: solver_research INPUT OUT_DIR OPTIONS_JSON [projection|validate-fixed]".into(),
+        );
     }
     let raw = std::fs::read_to_string(&args[0])?;
     let value: Value = serde_json::from_str(&raw)?;
     let started = Instant::now();
-    let (input, transform): (ExactSolveInput, _) = if value.get("selected_spans").is_some() {
+    let (mut input, transform): (ExactSolveInput, _) = if value.get("selected_spans").is_some() {
         (serde_json::from_value(value)?, None)
     } else {
         let fold: FoldDocument = serde_json::from_value(value)?;
         let (input, transform) = exact_solve_input_from_fold(&fold)?;
         (input, Some(transform))
     };
+    // Evaluation-only oracle: check whether a supplied geometry itself passes,
+    // without allowing optimization to move it into an admissible result.
+    if args.get(3).is_some_and(|s| s == "validate-fixed") {
+        for vertex in &mut input.vertices {
+            vertex.movement_policy = oristudio_cp_compiler::CandidateVertexMovementPolicy::Locked;
+        }
+    }
     let preparation_seconds = started.elapsed().as_secs_f64();
     let topology = analyze_candidate_topology(&input);
-    let (parsed, options) = parse_exact_solve_request(&serde_json::to_string(&input)?, &args[2])?;
+    let mut option_value: Value = serde_json::from_str(&args[2])?;
+    if args.get(3).is_some_and(|s| s == "validate-fixed") {
+        option_value["pinned_vertex_ids"] =
+            json!(input.vertices.iter().map(|v| v.id).collect::<Vec<_>>());
+        option_value["construction_recovery"] = json!("off");
+        option_value["recognition_fallback"] = json!(false);
+        option_value["polish"] = json!(false);
+    }
+    let (parsed, options) = parse_exact_solve_request(
+        &serde_json::to_string(&input)?,
+        &serde_json::to_string(&option_value)?,
+    )?;
     let start = Instant::now();
     let solved = if args.get(3).is_some_and(|s| s == "projection") {
         oristudio_cp_compiler::exact_solve::solve_exact_projection(&parsed, &options)

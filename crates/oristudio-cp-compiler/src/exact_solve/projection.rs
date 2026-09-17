@@ -6,11 +6,11 @@ use super::*;
 use std::f64::consts::PI;
 
 #[derive(Clone)]
-struct Fan {
-    center: usize,
-    neighbors: Vec<usize>,
+pub(super) struct Fan {
+    pub(super) center: usize,
+    pub(super) neighbors: Vec<usize>,
     colors: Vec<AssignmentLabel>,
-    boundary: bool,
+    pub(super) boundary: bool,
 }
 
 #[derive(Clone)]
@@ -60,7 +60,7 @@ impl Sector {
     }
 }
 
-fn fans(input: &ExactSolveInput, points: &[Point2]) -> Vec<Fan> {
+pub(super) fn fans(input: &ExactSolveInput, points: &[Point2]) -> Vec<Fan> {
     let mut adjacent = vec![Vec::new(); points.len()];
     for span in &input.selected_spans {
         if !is_fold_span(span) && !is_boundary_like_span(span) {
@@ -191,9 +191,9 @@ fn propose_ties(fan: &Fan, bearings: &[f64]) -> Vec<Sector> {
 }
 
 #[derive(Clone)]
-struct Row {
-    entries: Vec<(usize, f64)>,
-    rhs: f64,
+pub(super) struct Row {
+    pub(super) entries: Vec<(usize, f64)>,
+    pub(super) rhs: f64,
 }
 
 fn row(
@@ -270,12 +270,21 @@ fn transpose(rows: &[Row], x: &[f64], out: &mut [f64]) {
 /// avoid a dense factorization and work for dependent constraint rows. Reference:
 /// https://web.stanford.edu/group/SOL/software/lsqr/ . Independent implementation.
 fn least_norm(rows: &[Row], n: usize, clock: &ExactSolveDeadline) -> Option<(Vec<f64>, usize)> {
+    least_norm_at_precision(rows, n, clock, false)
+}
+
+pub(super) fn least_norm_at_precision(
+    rows: &[Row],
+    n: usize,
+    clock: &ExactSolveDeadline,
+    precision: bool,
+) -> Option<(Vec<f64>, usize)> {
     // Regularize the step, not the geometry. This bounds roundoff in the
     // numerical null space of redundant angle/collinearity equations. Newton
     // relinearizes from the new point, so no residual tolerance is relaxed.
     let mut regularized = rows.to_vec();
     regularized.extend((0..n).map(|i| Row {
-        entries: vec![(i, 1e-6)],
+        entries: vec![(i, if precision { 1e-10 } else { 1e-6 })],
         rhs: 0.,
     }));
     let rows = regularized.as_slice();
@@ -340,11 +349,21 @@ fn least_norm(rows: &[Row], n: usize, clock: &ExactSolveDeadline) -> Option<(Vec
             // thousands of iterations on large redundant grids. Newton then
             // relinearizes and the original exact geometric check still gates
             // success, so an inexact early step cannot relax the final answer.
-            if norm(&normal_residual) <= 1e-8 * initial_normal_residual + 1e-16 {
+            let tolerance = if precision {
+                1e-14 * initial_normal_residual
+            } else {
+                1e-8 * initial_normal_residual + 1e-16
+            };
+            if norm(&normal_residual) <= tolerance {
                 return Some((x, iteration + 1));
             }
         }
-        if phibar.abs() <= initial * 1e-11 + 1e-14 || alpha == 0. {
+        let residual_tolerance = if precision {
+            initial * 1e-14
+        } else {
+            initial * 1e-11 + 1e-14
+        };
+        if phibar.abs() <= residual_tolerance || alpha == 0. {
             return x
                 .iter()
                 .all(|v| v.is_finite())

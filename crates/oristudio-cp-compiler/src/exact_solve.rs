@@ -34,6 +34,18 @@ use std::time::Instant;
 
 mod projection;
 mod recognition;
+mod recovery;
+
+/// Optional reconstruction of precise, simple geometric constructions after
+/// an accepted solve. Proposals remain subject to the original product checks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConstructionRecoveryMode {
+    #[default]
+    Off,
+    Precision,
+    Constructions,
+}
 
 /// Research entry point for a bounded direct-coordinate feasibility proposal.
 /// Uses the same final checks, pins and movement budget as the ordinary solve.
@@ -82,6 +94,8 @@ pub enum LinearSolver {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ExactSolveOptions {
+    #[serde(default)]
+    pub construction_recovery: ConstructionRecoveryMode,
     /// Bounded proposal policy: preserve exact ordinary solves, then try a
     /// dominant partial lattice and direct-coordinate feasibility projection.
     /// Large graphs start with lattice-only instead of a dense factorization.
@@ -476,6 +490,7 @@ const fn default_polish_target_kawasaki_degrees() -> f64 {
 impl Default for ExactSolveOptions {
     fn default() -> Self {
         Self {
+            construction_recovery: ConstructionRecoveryMode::Off,
             recognition_fallback: false,
             patience: 40,
             ftol: 1e-10,
@@ -715,6 +730,7 @@ impl ExactSolveDeadline {
 }
 
 pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> ExactSolvedGraph {
+    let recovery_clock = ExactSolveDeadline::start(options.timeout_seconds, options.work_budget);
     let no_pins = Rc::new(BTreeSet::new());
     let normalized = normalized_input(input, &no_pins);
     let mut solved = solve_exact_inner(
@@ -727,6 +743,14 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
     place_dissolved_vertices(&normalized, input, &mut solved.vertices_exact);
     report_dissolved_movement(&normalized, input, &mut solved);
     restore_original_edges(input, &mut solved);
+    recovery::refine(
+        input,
+        &mut solved,
+        options,
+        &recovery_clock,
+        Rc::new(BTreeSet::new()),
+        no_pins,
+    );
     solved
 }
 
@@ -837,6 +861,8 @@ pub fn solve_exact_with_exemptions(
     input: &ExactSolveInput,
     options: &ExactSolveOptionsWithExemptions,
 ) -> ExactSolvedGraph {
+    let recovery_clock =
+        ExactSolveDeadline::start(options.options.timeout_seconds, options.options.work_budget);
     let pinned = Rc::new(options.pinned_vertex_ids.clone());
     let normalized = normalized_input(input, &pinned);
     let mut solved = solve_exact_inner(
@@ -849,6 +875,14 @@ pub fn solve_exact_with_exemptions(
     place_dissolved_vertices(&normalized, input, &mut solved.vertices_exact);
     report_dissolved_movement(&normalized, input, &mut solved);
     restore_original_edges(input, &mut solved);
+    recovery::refine(
+        input,
+        &mut solved,
+        options.options,
+        &recovery_clock,
+        Rc::new(options.exempt_vertex_ids.clone()),
+        pinned,
+    );
     solved
 }
 
