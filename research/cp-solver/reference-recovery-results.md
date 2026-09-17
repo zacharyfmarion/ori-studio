@@ -4,7 +4,8 @@
 
 Candidate implementation: `codex/cp-exact-recovery`, following merged #387.
 Native, browser and independent procedural replays, repository tests and the
-production build are complete. The candidate is ready for an unmerged draft PR. See the [experiment notebook](reference-recovery-log.md)
+production build are complete. [Draft PR #389](https://github.com/zacharyfmarion/ori-studio/pull/389) is open and
+unmerged. Local app: http://127.0.0.1:5176/welcome. See the [experiment notebook](reference-recovery-log.md)
 for every candidate and rejection, including research-to-research regressions.
 
 ## Frozen comparison
@@ -134,5 +135,6 @@ publication or merge occurred in this follow-up.
 
 Durable archive location:
 `/Users/zacharymarion/Documents/datasets/create-pattern-detector/research/cp-reference-recovery-2026-09-16/`.
-Its manifest records per-file SHA256 values; generated CPs and per-case outputs
+Its manifest records per-file SHA256 values for 179,498 files (29.50 GB logical
+size; APFS clone copy). Generated CPs and per-case outputs
 remain outside Git.

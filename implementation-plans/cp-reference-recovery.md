@@ -33,8 +33,8 @@ is empirical evidence, not a proof of a universal theoretical maximum.
 - [x] Diagnose residual ambiguity with explicit alternative solutions (27 checked witnesses; not a universal ceiling).
 - [x] Replay all 421 cases plus the ten assignment-defect controls in browser (S070: 285/276; maximum 24.551s).
 - [x] Validate AUX, pins, existing exact inputs, and independent synthetic cases; retain and explain the underdefined synthetic misses.
-- [ ] Archive immutable evidence and report per-case gains/losses at both thresholds.
-- [ ] Run affected checks and open a draft PR against main; do not merge.
+- [x] Archive immutable evidence and report per-case gains/losses at both thresholds (179,498 files; SHA256 manifest).
+- [x] Run affected checks and open [draft PR #389](https://github.com/zacharyfmarion/ori-studio/pull/389) against main; not merged.
 
 No production/model publication is authorized. If training becomes useful it
 must use synthetic data only. No RunPod resources are currently owned by this

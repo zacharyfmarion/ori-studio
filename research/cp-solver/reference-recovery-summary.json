@@ -77,5 +77,12 @@
     "web_lint": "passed",
     "web_typecheck": "passed",
     "production_build": "passed"
+  },
+  "draft_pr": "https://github.com/zacharyfmarion/ori-studio/pull/389",
+  "archive": {
+    "path": "/Users/zacharymarion/Documents/datasets/create-pattern-detector/research/cp-reference-recovery-2026-09-16",
+    "files": 179498,
+    "logical_bytes": 29502718637,
+    "manifest_sha256": "8fe4e4a9ba07206ae3a2877829d1a32e1fe63b09e92c417dd2f93b584ce8e63a"
   }
 }

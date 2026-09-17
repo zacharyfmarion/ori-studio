@@ -510,3 +510,18 @@ hooks, Rust format, diff check and exact-audit unit tests. Browser benchmark
 source is unchanged; subsequent builds stamp the newer Git revision through
 `oristudio-cp-detect/build.rs`, so build-stamp hash changes alone are not a new
 algorithm. The frozen S070 binary/WASM/source remain intact for reproduction.
+
+## Delivery
+
+[Draft PR #389](https://github.com/zacharyfmarion/ori-studio/pull/389) is open,
+unmerged. Local app remains at http://127.0.0.1:5176/welcome. Required local
+checks pass; remote CI/preview jobs were still running at handoff.
+
+Durable archive completed: **179,498 files, 29,502,718,637 logical bytes**,
+APFS clone copy at
+`/Users/zacharymarion/Documents/datasets/create-pattern-detector/research/cp-reference-recovery-2026-09-16/`.
+Manifest SHA256: `8fe4e4a9ba07206ae3a2877829d1a32e1fe63b09e92c417dd2f93b584ce8e63a`. Frozen S070 native binary, WASM and browser
+audit were compared against the archived copies and match. The archive records
+validated source commit `6b75e467`; subsequent handoff edits are documentation
+only and are recorded in supplemental `delivery.json`. No merge, production or
+model publication, cloud resource use or real-CP training occurred.
