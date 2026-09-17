@@ -62,6 +62,10 @@
     "tooLarge": "此折痕图过大，无法通过链接分享。请改为导出为文件。",
     "tooNew": "该共享链接由更新版本的 Ori Studio 创建。请重新加载以获取最新版本，然后再次打开。"
   },
+  "unsupportedBrowser": {
+    "description": "Ori Studio 的引擎运行在模块化 Web Worker 中，而此浏览器不支持该功能。请更新到最新版本的 Firefox、Chrome、Edge 或 Safari，然后重新打开此页面。",
+    "title": "Ori Studio 无法在此浏览器中运行"
+  },
   "worker": {
     "cpDetect": "折痕图检测意外停止。请重新导入该图像。",
     "oristudioBp": "箱形褶皱引擎意外停止。请重新加载 Ori Studio 以继续处理此设计。",

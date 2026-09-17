@@ -62,6 +62,10 @@
     "tooLarge": "This crease pattern is too large to share as a link. Export it as a file instead.",
     "tooNew": "That share link was made with a newer version of Ori Studio. Reload to get the latest version, then open it again."
   },
+  "unsupportedBrowser": {
+    "description": "Its engines run in module Web Workers, which this browser does not support. Update to a current version of Firefox, Chrome, Edge or Safari and open this page again.",
+    "title": "Ori Studio can’t run in this browser"
+  },
   "worker": {
     "cpDetect": "Crease-pattern detection stopped unexpectedly. Try importing the image again.",
     "oristudioBp": "The box-pleating engine stopped unexpectedly. Reload Ori Studio to continue working on this design.",

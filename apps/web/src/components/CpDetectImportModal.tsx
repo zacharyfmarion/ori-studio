@@ -196,7 +196,10 @@ const REGION_PAPER_MARGIN_RATIO = 0.02;
  *   `CpExactSolveResult.fold`, which is deliberately null for this ending.
  * - `reviewAndFix` — the candidate, plus the rectified image and a
  *   check-suppression region carrying the `ExactSolveInput`, so the pattern can
- *   be repaired and solved in the document.
+ *   be repaired and solved in the document. Always the candidate **as
+ *   recognized**, even beside an exact solve: it is the state to pin or move
+ *   vertices in *before* solving, which is the whole reason to choose it over
+ *   `add` there.
  * - `addPartial` — the candidate with a timed-out solve's partial coordinates
  *   written in. Real coordinates from a real run that simply did not clear the
  *   acceptance gate before the clock did.
@@ -1697,9 +1700,17 @@ function candidateTopology(recognition: CpDetectRecognizeResult): CandidateTopol
  * The rule the old screen broke: **a button names what it does**. So `add` is
  * offered only where a solve this modal ran was accepted and produced a
  * document, `addAsIs` only where the pattern is genuinely unsolved, and
- * `reviewAndFix` wherever there is anything to repair — at **any** site count,
- * with no threshold. While the solve is running there is no decision to offer,
- * so there is no button at all.
+ * `reviewAndFix` everywhere there is a candidate to hand over — wherever there
+ * is anything to repair, at **any** site count and with no threshold, and
+ * beside an exact solve too. While the solve is running there is no decision to
+ * offer, so there is no button at all.
+ *
+ * Beside an exact solve because a solve guarantees a pattern that folds flat,
+ * not the one the designer drew, and the way to get the drawn one is to pin the
+ * vertices that matter and solve again — possible only in the document, on the
+ * candidate, with the solver data attached. A clean solve is where steering is
+ * most worth doing, and it used to be the one state with no way in short of
+ * pressing Stop during a sub-second run.
  */
 function availableImportModes(
   topology: CandidateTopology | null,
@@ -1709,7 +1720,7 @@ function availableImportModes(
 ): { primary: ImportMode | null; secondary: ImportMode[] } {
   if (!topology || phase.kind === 'solving') return { primary: null, secondary: [] };
   if (phase.kind === 'settled' && phase.outcome.kind === 'solved' && phase.fold) {
-    return { primary: 'add', secondary: [] };
+    return { primary: 'add', secondary: ['reviewAndFix'] };
   }
   // Accepted, kept, and not exact. It may be added — the coordinates are real
   // and better — but it may not be the recommended one-word answer: it did not
@@ -1897,10 +1908,13 @@ function verdictMessage(
     // instead would send a user to a Review & Fix that is not on the screen.
     return `${detail} ${
       cpSolveIsExactVerdict(facts.completion)
-        ? t(
+        ? `${t(
             'dialogs:cpDetectImport.verdict.exact',
             'Adding it beside your work leaves the rest of the document untouched.'
-          )
+          )} ${t(
+            'dialogs:cpDetectImport.verdict.exactReview',
+            'Review & Fix adds the pattern as recognized instead, with the source image behind it and the solver data kept, so you can pin or move vertices before solving it again yourself.'
+          )}`
         : canAddImproved
           ? t(
               'dialogs:cpDetectImport.verdict.improved',

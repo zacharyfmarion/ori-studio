@@ -32,6 +32,7 @@ use std::rc::Rc;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 
+mod image_recovery;
 mod projection;
 mod recognition;
 mod recovery;
@@ -734,28 +735,14 @@ impl ExactSolveDeadline {
 }
 
 pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> ExactSolvedGraph {
-    let recovery_clock = ExactSolveDeadline::start(options.timeout_seconds, options.work_budget);
-    let no_pins = Rc::new(BTreeSet::new());
-    let normalized = normalized_input(input, &no_pins);
-    let mut solved = solve_exact_inner(
-        &normalized,
-        options,
-        Rc::new(BTreeSet::new()),
-        Rc::clone(&no_pins),
-        false,
-    );
-    place_dissolved_vertices(&normalized, input, &mut solved.vertices_exact);
-    report_dissolved_movement(&normalized, input, &mut solved);
-    restore_original_edges(input, &mut solved);
-    recovery::refine(
+    solve_exact_with_exemptions(
         input,
-        &mut solved,
-        options,
-        &recovery_clock,
-        Rc::new(BTreeSet::new()),
-        no_pins,
-    );
-    solved
+        &ExactSolveOptionsWithExemptions {
+            options,
+            exempt_vertex_ids: BTreeSet::new(),
+            pinned_vertex_ids: BTreeSet::new(),
+        },
+    )
 }
 
 /// The lattice's answer alone: [`solve_exact`] when the input is a
@@ -867,6 +854,17 @@ pub fn solve_exact_with_exemptions(
 ) -> ExactSolvedGraph {
     let recovery_clock =
         ExactSolveDeadline::start(options.options.timeout_seconds, options.options.work_budget);
+    let mut solved = solve_with_recovery(input, options, &recovery_clock, 8.);
+    image_recovery::refine(input, &mut solved, options, &recovery_clock);
+    solved
+}
+
+fn solve_with_recovery(
+    input: &ExactSolveInput,
+    options: &ExactSolveOptionsWithExemptions,
+    recovery_clock: &ExactSolveDeadline,
+    observation_weight: f64,
+) -> ExactSolvedGraph {
     let pinned = Rc::new(options.pinned_vertex_ids.clone());
     let normalized = normalized_input(input, &pinned);
     let mut solved = solve_exact_inner(
@@ -883,9 +881,10 @@ pub fn solve_exact_with_exemptions(
         input,
         &mut solved,
         options.options,
-        &recovery_clock,
+        recovery_clock,
         Rc::new(options.exempt_vertex_ids.clone()),
         pinned,
+        observation_weight,
     );
     solved
 }
@@ -9305,6 +9304,7 @@ mod tests {
             ),
         ];
         let mut input = ExactSolveInput {
+            image_evidence: None,
             schema: "test".to_owned(),
             coordinate_space: "fold_normalized".to_owned(),
             image_size: Some(128),

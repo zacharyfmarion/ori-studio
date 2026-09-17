@@ -1,3 +1,5 @@
+// First, before any module that could call a missing built-in at load time.
+import './polyfills';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
@@ -7,16 +9,14 @@ import {
   AnalyticsRuntimeProvider,
   consumeInternalUserFlag,
   initializePostHog,
+  track,
   type PostHogClientLike,
 } from './analytics';
-import {
-  initializeSentry,
-  MonitoringRuntimeProvider,
-  reportError,
-  type SentryClientLike,
-} from './monitoring';
+import { initializeSentry, MonitoringRuntimeProvider, type SentryClientLike } from './monitoring';
 import { installTranslatedDomGuard } from './lib/translatedDomGuard';
+import { probeModuleWorkerSupport } from './lib/moduleWorkerSupport';
 import { AppErrorBoundary } from './components/errors/AppErrorBoundary';
+import { UnsupportedBrowserNotice } from './components/errors/UnsupportedBrowserNotice';
 import { readBoolean, storageKey, STORAGE_KEYS } from './lib/storage';
 import { registerServiceWorker } from './pwa/register';
 import { createAppRouter, setAppRouter } from './routing/appRouter';
@@ -67,10 +67,14 @@ const analyticsReady = initializePostHog(
 );
 const analyticsClient = analyticsReady ? (posthog as unknown as PostHogClientLike) : null;
 
-// Before the first render, and after Sentry so the one report it makes is deliverable:
-// an in-page translator (Google Translate and friends) rewraps text nodes React owns, and
-// React throws the moment it tries to remove one. See `translatedDomGuard` for why the app
-// tolerates that rather than opting out of translation.
+// Before the first render: an in-page translator (Google Translate and friends) rewraps
+// text nodes React owns, and React throws the moment it tries to remove one. See
+// `translatedDomGuard` for why the app tolerates that rather than opting out of translation.
+//
+// Counted, not reported. A blocked call is the guard doing its job — nothing broke and there
+// is no stack worth reading — so the only question left is how many sessions are being
+// translated, and that is an analytics question. It went to Sentry first (ORI-STUDIO-A) and
+// arrived as an "error" from five users in twelve days whose sessions were all fine.
 let reportedTranslatedDom = false;
 installTranslatedDomGuard({
   onBlocked: (method) => {
@@ -78,10 +82,7 @@ installTranslatedDomGuard({
     // every event after the first repeats what the first already said.
     if (reportedTranslatedDom) return;
     reportedTranslatedDom = true;
-    reportError(new Error('DOM mutated outside React, likely an in-page translator'), {
-      surface: 'dom:translated',
-      tags: { blocked_method: method },
-    });
+    track('dom mutated outside react', { blocked_method: method });
   },
 });
 
@@ -90,7 +91,8 @@ installTranslatedDomGuard({
 // a failure there is still a readable, copyable report rather than a blank page.
 // Both reporting providers sit outside it so a caught error can still be
 // reported — the boundary reaches them through their module singletons.
-createRoot(document.getElementById('root')!).render(
+const root = createRoot(document.getElementById('root')!);
+root.render(
   <StrictMode>
     <AnalyticsRuntimeProvider client={analyticsClient}>
       <MonitoringRuntimeProvider client={monitoringClient}>
@@ -101,6 +103,16 @@ createRoot(document.getElementById('root')!).render(
     </AnalyticsRuntimeProvider>
   </StrictMode>
 );
+
+// Alongside the first render rather than ahead of it: the probe is a blob worker's round
+// trip, and only a negative answer changes anything. On a browser that starts a classic
+// worker where a module one was asked for, no engine can ever come up, so the app is
+// replaced with the reason (ORI-STUDIO-B) instead of failing one worker at a time.
+void probeModuleWorkerSupport().then((support) => {
+  if (support !== 'unsupported') return;
+  track('browser unsupported', { capability: 'module_workers' });
+  root.render(<UnsupportedBrowserNotice />);
+});
 
 // Last, and it waits for `load` on top of that: registration kicks off an
 // install that refetches most of what the page is already downloading, and the

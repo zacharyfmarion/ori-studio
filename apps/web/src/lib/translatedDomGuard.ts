@@ -63,9 +63,10 @@ export interface TranslatedDomGuardOptions {
   /**
    * Called when a call was blocked rather than allowed to throw.
    *
-   * The caller decides what to do with it. `main.tsx` reports the first one of a session and
-   * then goes quiet: one event says a translator is in play and which method it broke, and
-   * every event after that says the same thing again — the observed session produced fifteen.
+   * The caller decides what to do with it. `main.tsx` counts the first one of a session (an
+   * analytics event, not a crash report — nothing broke) and then goes quiet: one event says
+   * a translator is in play and which method it broke, and every event after that says the
+   * same thing again — the observed session produced fifteen.
    */
   onBlocked?: (method: GuardedDomMethod) => void;
 }

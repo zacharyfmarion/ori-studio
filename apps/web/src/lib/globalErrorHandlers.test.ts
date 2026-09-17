@@ -57,6 +57,22 @@ describe('installGlobalErrorHandlers', () => {
     expect(onError.mock.calls[1][0]).toMatchObject({ kind: 'unhandledrejection' });
   });
 
+  it("drops a cross-origin script's placeholder error, which carries nothing to report", () => {
+    const target = harness();
+    const onError = vi.fn();
+    installGlobalErrorHandlers({ onError, target: target as unknown as EventTarget });
+
+    // What `window` receives when a script from another origin throws: no error, no
+    // location, and this exact message, in either spelling.
+    target.dispatch('error', { type: 'error', error: null, message: 'Script error.' });
+    target.dispatch('error', { type: 'error', error: null, message: 'Script error' });
+    expect(onError).not.toHaveBeenCalled();
+
+    // A same-origin throw that happens to lack an `error` object still reports.
+    target.dispatch('error', { type: 'error', error: null, message: 'Uncaught boom' });
+    expect(onError).toHaveBeenCalledTimes(1);
+  });
+
   it('suppresses the same error repeating inside the dedupe window', () => {
     const target = harness();
     const onError = vi.fn();

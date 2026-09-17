@@ -108,6 +108,7 @@
       "blocked": "Le solveur n'a pas pu lire ce graphe candidat : il n'y a donc rien à corriger à la main. Vous pouvez tout de même l'ajouter tel quel.",
       "cancelled": "Vous avez arrêté la résolution : rien n’a été modifié, voici le patron exactement tel qu’il a été reconnu. « Vérifier et corriger » l’ajoute avec l’image source derrière et conserve les données du solveur, pour le résoudre à nouveau dans le document.",
       "exact": "L’ajouter à côté de votre travail laisse le reste du document intact.",
+      "exactReview": "« Vérifier et corriger » ajoute plutôt le patron tel qu’il a été reconnu, avec l’image source derrière et les données du solveur conservées, pour épingler ou déplacer des sommets avant de relancer la résolution vous-même.",
       "improved": "« Vérifier et corriger » l’ajoute avec l’image source derrière et conserve les données du solveur, pour corriger ce qui reste puis relancer la résolution — ou vous pouvez ajouter le résultat amélioré tel quel.",
       "improvedNoFold": "« Vérifier et corriger » l’ajoute avec l’image source derrière et conserve les données du solveur, pour corriger ce qui reste puis relancer la résolution.",
       "repairable_one": "Reconnu, avec 1 endroit à réparer — la résolution n’a donc pas été lancée : elle aurait dépensé tout son budget sur une géométrie que vous allez modifier. « Vérifier et corriger » ajoute le candidat avec l’image source derrière, pour le corriger puis le résoudre.",

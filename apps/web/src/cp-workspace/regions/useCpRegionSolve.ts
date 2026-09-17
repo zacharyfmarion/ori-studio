@@ -1,4 +1,5 @@
 import { extraVertexCleanupLineIds } from '../../lib/cpGraphCleanup';
+import { measureRegionSourceImage } from './regionSolveImage';
 /**
  * The one exact-solve implementation, and the binding both entry points reach it
  * through.
@@ -238,8 +239,10 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
         );
         const rebuilt = await rebuildCpExactSolveInput(foldJson);
         frame = { edgesVertices, transform: rebuilt.transform };
-        const run = await latest.current.solve(rebuilt.input, {
-          timeoutSeconds: CP_REGION_SOLVE_BUDGET_SECONDS,
+        const measured = await measureRegionSourceImage(rebuilt.input, rebuilt.transform, region,
+          useWorkspaceStore.getState().oristudioCpAnnotations);
+        const run = await latest.current.solve(measured.input, {
+          timeoutSeconds: Math.max(0, CP_REGION_SOLVE_BUDGET_SECONDS - measured.seconds),
           recognitionFallback: true,
           pinnedVertexIds,
           run: { kind, targetId: regionId },
