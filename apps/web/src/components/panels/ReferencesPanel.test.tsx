@@ -327,7 +327,7 @@ it('offers the touch drawer a seat at the right end of its header', () => {
       </TooltipProvider>
     )
   );
-  const slot = container?.querySelector('.references-panel .panel-toolbar .references-panel__pills');
+  const slot = container?.querySelector('.references-panel .panel-toolbar .panel-toolbar__pills');
   expect(slot).not.toBeNull();
   expect(useLayoutStore.getState().viewDrawerSlot).toBe(slot);
 
@@ -377,9 +377,9 @@ it('on a phone, opens a sheet from the list into the detail and comes back', () 
   });
   // A document: the list, alone, with its one card.
   expect(query('.references-panel')).toBeNull();
-  expect(container?.querySelectorAll('.references-sheet')).toHaveLength(1);
+  expect(container?.querySelectorAll('.sheet-card')).toHaveLength(1);
 
-  press('.references-sheet');
+  press('.sheet-card');
   // The detail, alone, with the way back where the title was.
   expect(query('.references-sidebar')).toBeNull();
   expect(query('.references-panel')).not.toBeNull();
@@ -391,7 +391,7 @@ it('on a phone, opens a sheet from the list into the detail and comes back', () 
   expect(query('.references-panel')).toBeNull();
 
   // Open again, then a new document arrives under the detail: back to the list.
-  press('.references-sheet');
+  press('.sheet-card');
   expect(query('.references-panel')).not.toBeNull();
   act(() => useWorkspaceStore.setState({ oristudioCpDocument: cpDocument(2) } as never));
   expect(query('.references-sidebar')).not.toBeNull();

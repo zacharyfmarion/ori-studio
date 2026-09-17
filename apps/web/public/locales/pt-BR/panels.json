@@ -1058,9 +1058,6 @@
       "solutions": "Soluções"
     },
     "sheets": {
-      "cardTitle_one": "Padrão {{n}}: {{count}} vinco",
-      "cardTitle_many": "Padrão {{n}}: {{count}} vincos",
-      "cardTitle_other": "Padrão {{n}}: {{count}} vincos",
       "creases_one": "{{count}} vinco",
       "creases_many": "{{count}} vincos",
       "creases_other": "{{count}} vincos",
@@ -1098,6 +1095,10 @@
       "zeroLengthSegments": "{{n}} vinco(s) são curtos demais para medir e foram ignorados."
     }
   },
+  "sheets": {
+    "cardTitle": "Padrão {{n}}: {{size}}",
+    "label": "Padrões de vincos"
+  },
   "sidePane": {
     "properties": "Propriedades",
     "settings": "Configurações",
@@ -1108,6 +1109,7 @@
     "backendCpuTitle": "Resolvendo na CPU (WebGL2 indisponível)",
     "backendGpu": "GPU",
     "backendGpuTitle": "Resolvendo na GPU (WebGL2)",
+    "backToPatterns": "Padrões",
     "canvasAriaLabel": "Simulador de base dobrada de origami. Arraste para girar, role para aproximar, clique duplo para redefinir a visualização.",
     "canvasTitle": "Arraste para girar, role para aproximar, clique duplo para redefinir a visualização",
     "contextMenu": {
@@ -1150,11 +1152,10 @@
   },
   "simulatorSegments": {
     "creasePatterns": "Padrões de vincos",
-    "patternLabel": "Padrão {{n}}",
-    "patterns": "Padrões",
-    "patternTitle_one": "Padrão {{n}} — {{count}} face",
-    "patternTitle_many": "Padrão {{n}} — {{count}} faces",
-    "patternTitle_other": "Padrão {{n}} — {{count}} faces"
+    "faces_one": "{{count}} face",
+    "faces_many": "{{count}} faces",
+    "faces_other": "{{count}} faces",
+    "patterns": "Padrões"
   },
   "simulatorViewControls": {
     "axialStiffness": "Estiramento",

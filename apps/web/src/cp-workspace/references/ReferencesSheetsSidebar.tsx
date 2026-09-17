@@ -1,11 +1,11 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Shapes } from 'lucide-react';
 import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
+import { SheetGrid, type SheetGridItem } from '../sheets/SheetGrid';
 import { ReferencesFindingsList } from './ReferencesFindingsList';
-import { ReferencesSheetGrid } from './ReferencesSheetGrid';
 import type { ReferencesAnalysis } from './referencesAnalysis';
-import type { ReferencesSheet } from './referencesSheets';
+import { sheetThumbnail, type ReferencesSheet } from './referencesSheets';
 import type { PrecreaseComponent } from './sheetFrames';
 import type { ReferencesBreakdownController } from './useReferencesBreakdown';
 
@@ -13,10 +13,11 @@ import type { ReferencesBreakdownController } from './useReferencesBreakdown';
  * The References workspace's left rail: which crease pattern the workspace is
  * working on, and what it has to say about it.
  *
- * On the Simulate workspace's shape (`SimulatorSegmentsSidebar`) — a fixed,
- * non-draggable column of thumbnails driving one selected id — because the
- * question is the same one: a document can hold several disjoint patterns and
- * only one of them is being folded right now.
+ * The Simulate workspace's shape (`SimulatorSegmentsSidebar`) — a fixed,
+ * non-draggable column of cards driving one selected id — because the question
+ * is the same one: a document can hold several disjoint patterns and only one
+ * of them is being folded right now. The cards themselves are shared
+ * (`SheetGrid`); what this rail owns is its reading of the document into them.
  *
  * It stays mounted for a single sheet, where the simulator's hides itself. This
  * rail is also where the run affordance and the notes live, so hiding it would
@@ -27,7 +28,7 @@ import type { ReferencesBreakdownController } from './useReferencesBreakdown';
  * picks a pattern from, with the detail behind a press (`useReferencesPhoneFlow`).
  * Same component, because it is the same list — the header, the cards and the
  * notes — and the stylesheet's phone block is what stretches it to the width
- * and grows the cards (`theme.css`, `.references-sidebar`).
+ * and grows the cards (`theme.css`, `.references-sidebar` and `.sheet-grid`).
  *
  * Under the pattern list it carries only the notes: what the frames analysis
  * warned about, and the lines no exact fold reaches. It deliberately does *not*
@@ -75,6 +76,27 @@ export const ReferencesSheetsSidebar = memo(function ReferencesSheetsSidebar({
 }: ReferencesSheetsSidebarProps) {
   const { t } = useTranslation();
   const planned = breakdown.record !== null;
+  // The rail's reading of the document, as the shared cards take it: a sheet's
+  // component drawn into a thumbnail, and the refusal the planner gave it.
+  const items = useMemo<SheetGridItem[]>(
+    () =>
+      geometry
+        ? sheets.map((sheet) => {
+            const component = components.find((entry) => entry.id === sheet.id) ?? null;
+            return {
+              id: sheet.id,
+              thumbnail: component ? sheetThumbnail(geometry, component) : null,
+              size: t('panels:references.sheets.creases', {
+                defaultValue_one: '{{count}} crease',
+                defaultValue_other: '{{count}} creases',
+                count: sheet.creaseCount,
+              }),
+              refused: !sheet.plannable,
+            };
+          })
+        : [],
+    [sheets, components, geometry, t]
+  );
 
   return (
     <aside
@@ -87,13 +109,12 @@ export const ReferencesSheetsSidebar = memo(function ReferencesSheetsSidebar({
         {sheets.length > 0 && <span className="references-sidebar__count">{sheets.length}</span>}
       </div>
 
-      {sheets.length > 0 && geometry && (
-        <ReferencesSheetGrid
-          sheets={sheets}
-          components={components}
-          geometry={geometry}
+      {items.length > 0 && (
+        <SheetGrid
+          sheets={items}
           selected={selected}
           onSelect={onSelect}
+          className="references-sidebar__sheets"
         />
       )}
 

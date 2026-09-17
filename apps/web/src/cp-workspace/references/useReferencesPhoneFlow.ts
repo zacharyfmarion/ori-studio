@@ -2,30 +2,27 @@
  * The References workspace on a phone: a list of the document's patterns, and
  * a detail screen for one of them.
  *
- * At 375px the desktop shape — a 260px rail beside the canvas — leaves the
- * crease pattern 115px, so the phone shows one of the two at a time and moves
- * between them the way the Design workspace's ExplOri panes do: a press on a
- * card opens the detail, and a Back button at the start of its toolbar returns
- * to the list. The list is where every visit starts, even for a document with
- * one sheet, because the list is also where the notes and the findings are read.
- *
- * Local state, not a store slice. The dock is cleared on every workspace switch
- * (`layoutStore.activateWorkspace`), so the panel unmounts and a return to
- * References starts on the list — which is the behaviour wanted, not a loss to
- * work around. Nothing outside the panel asks which screen is showing.
+ * The list/detail state is `usePhoneListDetail`, shared with Simulate; what is
+ * References' own is when there is a list at all, and what a press means — a
+ * card selects a sheet, and a finding in the notes selects itself and frames
+ * itself on the canvas, which is on the detail. The list is where every visit
+ * starts, even for a document with one sheet, because the list is also where
+ * the notes and the findings are read.
  */
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { ANALYTICS_EVENTS, track } from '../../analytics';
-import { useIsPhoneLayout } from '../../platform/phoneLayout';
+import {
+  phoneScreen,
+  usePhoneListDetail,
+  type PhoneScreen,
+  type PhoneScreenChoice,
+} from '../../hooks/usePhoneListDetail';
 import type { ReferencesViewState } from './useReferencesView';
 
-export type ReferencesPhoneScreen = 'list' | 'detail';
+export type ReferencesPhoneScreen = PhoneScreen;
 
 /** The screen last chosen, and the document it was chosen for. */
-export interface ReferencesPhoneChoice {
-  screen: ReferencesPhoneScreen;
-  revision: string;
-}
+export type ReferencesPhoneChoice = PhoneScreenChoice;
 
 /** What the flow reads: the document's identity, and what there is to list. */
 export type ReferencesPhoneFlowView = Pick<ReferencesViewState, 'hasDocument' | 'revision'> & {
@@ -49,21 +46,12 @@ export function referencesPhoneHasList(view: ReferencesPhoneFlowView): boolean {
   return view.hasDocument && (view.sheets > 0 || !view.failed);
 }
 
-/**
- * Which screen the phone shows.
- *
- * The choice is stamped with the revision it was made for rather than reset by
- * an effect, so a document that changes under an open detail — a new file, a
- * cleared one, an edit that reshapes the sheets — reads as the list on the same
- * render, with no frame of a detail for a sheet that may no longer exist.
- */
+/** Which screen the phone shows — `phoneScreen` under References' own list test. */
 export function referencesPhoneScreen(
   choice: ReferencesPhoneChoice,
   view: ReferencesPhoneFlowView
 ): ReferencesPhoneScreen {
-  if (!referencesPhoneHasList(view)) return 'detail';
-  if (choice.revision !== view.revision) return 'list';
-  return choice.screen;
+  return phoneScreen(choice, { hasList: referencesPhoneHasList(view), revision: view.revision });
 }
 
 export interface ReferencesPhoneFlow {
@@ -110,41 +98,31 @@ export function useReferencesPhoneFlow(
   view: ReferencesPhoneFlowView,
   actions: ReferencesPhoneFlowActions
 ): ReferencesPhoneFlow {
-  const phoneLayout = useIsPhoneLayout();
-  const [choice, setChoice] = useState<ReferencesPhoneChoice>({
-    screen: 'list',
+  const flow = usePhoneListDetail({
+    hasList: referencesPhoneHasList(view),
     revision: view.revision,
   });
-  const revision = view.revision;
+  const { openDetail } = flow;
   const { selectSheet, selectFinding } = actions;
   const showDetail = useCallback(
     (source: 'card' | 'finding') => {
-      setChoice({ screen: 'detail', revision });
-      track(ANALYTICS_EVENTS.referencesPatternOpened, { source });
+      if (openDetail()) track(ANALYTICS_EVENTS.referencesPatternOpened, { source });
     },
-    [revision]
+    [openDetail]
   );
   const openSheet = useCallback(
     (component: number) => {
       selectSheet(component);
-      if (phoneLayout) showDetail('card');
+      showDetail('card');
     },
-    [selectSheet, phoneLayout, showDetail]
+    [selectSheet, showDetail]
   );
   const openFinding = useCallback(
     (index: number | null) => {
       selectFinding(index);
-      if (phoneLayout && index !== null) showDetail('finding');
+      if (index !== null) showDetail('finding');
     },
-    [selectFinding, phoneLayout, showDetail]
+    [selectFinding, showDetail]
   );
-  const back = useCallback(() => setChoice({ screen: 'list', revision }), [revision]);
-
-  const screen = phoneLayout ? referencesPhoneScreen(choice, view) : null;
-  return {
-    screen,
-    openSheet,
-    openFinding,
-    back: screen === 'detail' && referencesPhoneHasList(view) ? back : null,
-  };
+  return { screen: flow.screen, openSheet, openFinding, back: flow.back };
 }

@@ -1096,10 +1096,6 @@
       "solutions": "Решения"
     },
     "sheets": {
-      "cardTitle_one": "Узор {{n}}: {{count}} складка",
-      "cardTitle_few": "Узор {{n}}: {{count}} складки",
-      "cardTitle_many": "Узор {{n}}: {{count}} складок",
-      "cardTitle_other": "Узор {{n}}: {{count}} складки",
       "creases_one": "{{count}} складка",
       "creases_few": "{{count}} складки",
       "creases_many": "{{count}} складок",
@@ -1138,6 +1134,10 @@
       "zeroLengthSegments": "{{n}} складок слишком коротки для измерения и пропущены."
     }
   },
+  "sheets": {
+    "cardTitle": "Узор {{n}}: {{size}}",
+    "label": "Узоры складок"
+  },
   "sidePane": {
     "properties": "Свойства",
     "settings": "Настройки",
@@ -1148,6 +1148,7 @@
     "backendCpuTitle": "Вычисление на CPU (WebGL2 недоступен)",
     "backendGpu": "GPU",
     "backendGpuTitle": "Вычисление на GPU (WebGL2)",
+    "backToPatterns": "Паттерны",
     "canvasAriaLabel": "Симулятор сложенной базы оригами. Перетаскивайте для вращения, прокручивайте для масштабирования, двойной щелчок сбрасывает вид.",
     "canvasTitle": "Перетаскивайте для вращения, прокручивайте для масштабирования, двойной щелчок сбрасывает вид",
     "contextMenu": {
@@ -1190,12 +1191,11 @@
   },
   "simulatorSegments": {
     "creasePatterns": "Паттерны складок",
-    "patternLabel": "Паттерн {{n}}",
-    "patterns": "Паттерны",
-    "patternTitle_one": "Паттерн {{n}} — {{count}} грань",
-    "patternTitle_few": "Паттерн {{n}} — {{count}} грани",
-    "patternTitle_many": "Паттерн {{n}} — {{count}} граней",
-    "patternTitle_other": "Паттерн {{n}} — {{count}} грани"
+    "faces_one": "{{count}} грань",
+    "faces_few": "{{count}} грани",
+    "faces_many": "{{count}} граней",
+    "faces_other": "{{count}} грани",
+    "patterns": "Паттерны"
   },
   "simulatorViewControls": {
     "axialStiffness": "Растяжение",

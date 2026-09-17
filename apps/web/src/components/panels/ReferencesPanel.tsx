@@ -536,7 +536,7 @@ export function ReferencesPanel() {
               the header unmounts; empty under a fine pointer, where the
               settings are the docked pane.
             */}
-            <div className="references-panel__pills" ref={setViewDrawerSlot} />
+            <div className="panel-toolbar__pills" ref={setViewDrawerSlot} />
           </div>
           {targeted && controller.target && (
             <div className="references-target-row">

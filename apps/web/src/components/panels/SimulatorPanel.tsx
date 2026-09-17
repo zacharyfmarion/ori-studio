@@ -10,6 +10,7 @@ import {
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
+  ArrowLeft,
   Axis3d,
   Pause,
   Play,
@@ -45,9 +46,12 @@ import { useShortcutStore } from "../../store/shortcutStore";
 import { FoldPlayhead } from "../../simulator/foldPlayhead";
 import { SimulatorExportMenu } from "../../simulator/SimulatorExportMenu";
 import { useSimulatorViewExport } from "../../simulator/useSimulatorViewExport";
+import { useSimulatorPhoneFlow } from "../../simulator/useSimulatorPhoneFlow";
 import { foldNeedsTriangulation } from "../../simulator/canvas2dFrame";
 import { simulatorMaterialOptions } from "../../lib/simulatorSettings";
+import { useLayoutStore } from "../../store/layoutStore";
 import { useWorkspaceStore } from "../../store/workspaceStore";
+import { Button } from "../ui/Button";
 import { IconButton } from "../ui/IconButton";
 import { NextDocumentAction } from "./NextDocumentAction";
 // Registers `__simCapabilityProbe()` in dev builds; no-op in production.
@@ -64,7 +68,10 @@ export function SimulatorPanel() {
   const { t } = useTranslation();
   // The solver lives in a worker and the drawing surface lives in
   // SimulatorViewport; this component owns neither. It resolves *what* to
-  // simulate from the document, and drives playback.
+  // simulate from the document, and drives playback. A document with several
+  // patterns gets a rail to pick one from (SimulatorSegmentsSidebar); on a
+  // phone the rail and the simulator are two screens, and
+  // `useSimulatorPhoneFlow` says which is showing.
   const viewportRef = useRef<SimulatorViewportHandle | null>(null);
   const playRafRef = useRef<number | null>(null);
   const playheadRef = useRef(new FoldPlayhead(INITIAL_FOLD_PERCENT));
@@ -90,6 +97,10 @@ export function SimulatorPanel() {
   const selectedSegmentId = useWorkspaceStore(
     (state) => state.selectedSegmentId,
   );
+  const setSelectedSegment = useWorkspaceStore(
+    (state) => state.setSelectedSegment,
+  );
+  const setViewDrawerSlot = useLayoutStore((state) => state.setViewDrawerSlot);
   const foldArtifactError = useWorkspaceStore(
     (state) => state.foldArtifactError,
   );
@@ -119,14 +130,20 @@ export function SimulatorPanel() {
   // Segment the whole document's fold and simulate only the selected pattern.
   // Memoized so a new sub-fold object is not produced on every render (which
   // would thrash the prepare/dispose effect).
+  const segments = useMemo(() => resolveCpSegments(foldArtifacts), [foldArtifacts]);
   const activeSegmentId = useMemo(() => {
-    const segments = resolveCpSegments(foldArtifacts);
     if (segments.length <= 1) return null;
     const segment =
       segments.find((candidate) => candidate.id === selectedSegmentId) ??
       segments[0];
     return segment?.id ?? null;
-  }, [foldArtifacts, selectedSegmentId]);
+  }, [segments, selectedSegmentId]);
+  // A phone shows the rail and the simulator one at a time; every other layout
+  // shows both, and the flow is inert there.
+  const flow = useSimulatorPhoneFlow(
+    { segments: segments.length, revision: foldArtifactRevision },
+    setSelectedSegment,
+  );
   const simulationFold = useMemo(() => {
     const wholeFold =
       foldArtifacts?.simulation_model?.fold ?? foldArtifacts?.fold ?? null;
@@ -490,199 +507,232 @@ export function SimulatorPanel() {
 
   return (
     <div className="simulator-workspace">
-      <SimulatorSegmentsSidebar />
-      <section className="panel-shell simulator-panel">
-        <div className="panel-toolbar">
-          <div className="panel-toolbar__group">
-            <Waves size={14} />
-            <span className="panel-title">
-              {t("panels:simulator.title", "Simulator")}
-            </span>
-          </div>
-          <div className="panel-toolbar__group">
-            {/*
-              Which way the model is up. Here rather than in the view pane because
-              it is something you reach for *while* positioning a model — it acts
-              on the thing beside it, and the options pane is for settings you
-              configure once.
-
-              No matching "clear": the way back is the view reset (0 / Home, or
-              double-click the canvas), which drops the orientation with the
-              angles. See `SimulatorViewport.resetView`.
-            */}
-            {/*
-              `toolbar` to match the export control beside it. Omitting the
-              variant gives the ghost look, which sat next to the export button's
-              filled one and read as two different kinds of control rather than
-              two actions. `SimulatorExportMenu` defaults to `toolbar` and this
-              panel does not override it, so that is the look this header has.
-            */}
-            <IconButton
-              size="sm"
-              variant="toolbar"
-              title={t("panels:simulator.setUpright", "Set upright")}
-              disabled={loadState !== "ready"}
-              onClick={() => {
-                viewportRef.current?.setUpright();
-                announceUprightSet(t);
-              }}
-            >
-              <Axis3d size={14} />
-            </IconButton>
-            <SimulatorExportMenu
-              onExport={exportView}
-              disabled={loadState !== "ready"}
-            />
-          </div>
-        </div>
-        <div
-          className="panel-body simulator-panel__body"
-          onContextMenu={onViewportContextMenu}
-        >
-          <SimulatorViewport
-            ref={viewportRef}
-            canvasKey={`gl:${runtime.canvasGeneration}`}
-            onCanvasChange={setCanvasEl}
-            interactive={loadState === "ready"}
-            gpuActive={gpuActive}
-            viewSettings={viewSettings}
-            // This is the surface with room for one. `.simulator-panel__body` is
-            // the positioned container it anchors to; see the prop.
-            viewCube={viewSettings.showViewCube}
-            pushCamera={pushCamera}
-            pushRenderSettings={pushRenderSettings}
-            perfSurface="simulate-panel"
-            className="simulator-canvas"
-            ariaLabel={t(
-              "panels:simulator.canvasAriaLabel",
-              "Origami folded-base simulator. Drag to rotate, scroll to zoom, double-click to reset view.",
-            )}
-            title={t(
-              "panels:simulator.canvasTitle",
-              "Drag to rotate, scroll to zoom, double-click to reset view",
-            )}
-          />
-          <ContextMenu
-            open={contextMenu.open}
-            x={contextMenu.x}
-            y={contextMenu.y}
-            items={contextMenu.items}
-            onOpenChange={contextMenu.onOpenChange}
-            onCloseAutoFocus={contextMenu.onCloseAutoFocus}
-          />
-          {loadState !== "ready" && (
-            <div className="simulator-panel__empty">
-              <span title={loadState === "error" ? errorDetail : undefined}>
-                {statusLabel}
-              </span>
-              {loadState === "error" && <small>{errorDetail}</small>}
-              {loadState === "empty" && <NextDocumentAction />}
+      {/* A single pattern needs no picker; the rail hides to reclaim the space. */}
+      {flow.screen !== "detail" && foldArtifacts && segments.length > 1 && (
+        <SimulatorSegmentsSidebar
+          fold={foldArtifacts.fold}
+          segments={segments}
+          selected={activeSegmentId}
+          onSelect={flow.openSegment}
+        />
+      )}
+      {flow.screen !== "list" && (
+        <section className="panel-shell simulator-panel">
+          <div className="panel-toolbar">
+            <div className="panel-toolbar__group">
+              {/* On a phone the way back to the list stands where the title was. */}
+              {flow.back ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="simulator-panel__back"
+                  onClick={flow.back}
+                >
+                  <ArrowLeft size={14} aria-hidden="true" />
+                  {t("panels:simulator.backToPatterns", "Patterns")}
+                </Button>
+              ) : (
+                <>
+                  <Waves size={14} />
+                  <span className="panel-title">
+                    {t("panels:simulator.title", "Simulator")}
+                  </span>
+                </>
+              )}
             </div>
-          )}
-        </div>
-        <div className="simulator-controls">
-          <div
-            className="simulator-transport"
-            aria-label={t("panels:simulator.controls", "Simulation controls")}
-          >
-            <IconButton
-              size="sm"
-              title={`${t("panels:simulator.restart", "Restart")} (R)`}
-              aria-label={t("panels:simulator.restart", "Restart")}
-              tooltipSide="top"
-              onClick={restartSimulation}
-              disabled={!canRestart}
-            >
-              <RotateCcw size={14} />
-            </IconButton>
-            <IconButton
-              size="sm"
-              title={`${
-                playing
-                  ? t("panels:simulator.pause", "Pause")
-                  : t("panels:simulator.play", "Play")
-              } (Space)`}
-              aria-label={
-                playing
-                  ? t("panels:simulator.pause", "Pause")
-                  : t("panels:simulator.play", "Play")
-              }
-              tooltipSide="top"
-              onClick={() => setPlaying(!playing)}
-              disabled={loadState !== "ready"}
-            >
-              {playing ? <Pause size={14} /> : <Play size={14} />}
-            </IconButton>
-            <IconButton
-              size="sm"
-              title={`${t("panels:simulator.step", "Step")} (→)`}
-              aria-label={t("panels:simulator.step", "Step")}
-              tooltipSide="top"
-              onClick={stepFoldTarget}
-              disabled={loadState !== "ready"}
-            >
-              <StepForward size={14} />
-            </IconButton>
-          </div>
-          <label className="simulator-slider">
-            <span>{t("panels:simulator.fold", "Fold")}</span>
-            <input
-              aria-label={t("panels:simulator.foldPercent", "Fold percent")}
-              type="range"
-              min="0"
-              max="100"
-              step="1"
-              value={Math.round(foldPercent)}
-              onChange={(event) =>
-                setFoldTarget(Number(event.currentTarget.value))
-              }
-              disabled={loadState !== "ready"}
-            />
-            <output>
-              {t("panels:simulator.percent", "{{value}}%", {
-                value: Math.round(foldPercent),
-              })}
-            </output>
-          </label>
-          {/*
-            `data-state` so the touch layout can hide the *stats* without hiding
-            the *errors*. `statusLabel` is both: on `ready` it is the vertex and
-            triangle count, and on `empty` or `error` it is the only place the
-            reason surfaces. A blanket `display: none` under a coarse pointer
-            would have made a failed simulator look like an idle one.
-          */}
-          <div className="simulator-readout" data-state={loadState}>
-            <span>{statusLabel}</span>
-            <span>
-              {t("panels:simulator.stepReadout", "Step {{n}}", { n: step })}
-            </span>
-            <span>
-              {t("panels:simulator.strain", "Strain {{value}}", {
-                value: strain.toFixed(4),
-              })}
-            </span>
-            {backend && (
-              <span
-                title={
-                  backend === "webgl2"
-                    ? t(
-                        "panels:simulator.backendGpuTitle",
-                        "Solving on the GPU (WebGL2)",
-                      )
-                    : t(
-                        "panels:simulator.backendCpuTitle",
-                        "Solving on the CPU (WebGL2 unavailable)",
-                      )
-                }
+            <div className="panel-toolbar__group">
+              {/*
+                Which way the model is up. Here rather than in the view pane because
+                it is something you reach for *while* positioning a model — it acts
+                on the thing beside it, and the options pane is for settings you
+                configure once.
+
+                No matching "clear": the way back is the view reset (0 / Home, or
+                double-click the canvas), which drops the orientation with the
+                angles. See `SimulatorViewport.resetView`.
+              */}
+              {/*
+                `toolbar` to match the export control beside it. Omitting the
+                variant gives the ghost look, which sat next to the export button's
+                filled one and read as two different kinds of control rather than
+                two actions. `SimulatorExportMenu` defaults to `toolbar` and this
+                panel does not override it, so that is the look this header has.
+              */}
+              <IconButton
+                size="sm"
+                variant="toolbar"
+                title={t("panels:simulator.setUpright", "Set upright")}
+                disabled={loadState !== "ready"}
+                onClick={() => {
+                  viewportRef.current?.setUpright();
+                  announceUprightSet(t);
+                }}
               >
-                {backend === "webgl2"
-                  ? t("panels:simulator.backendGpu", "GPU")
-                  : t("panels:simulator.backendCpu", "CPU")}
-              </span>
+                <Axis3d size={14} />
+              </IconButton>
+              <SimulatorExportMenu
+                onExport={exportView}
+                disabled={loadState !== "ready"}
+              />
+              {/*
+                Where the touch layer's Settings pill goes: the right end of the
+                toolbar, beside Export. Seated here rather than floated over the
+                canvas so the phone's list screen, which has no simulator for the
+                settings to be about, carries no pill (`WorkspaceViewDrawer`).
+                Empty under a fine pointer, where the settings are the docked pane.
+              */}
+              <div className="panel-toolbar__pills" ref={setViewDrawerSlot} />
+            </div>
+          </div>
+          <div
+            className="panel-body simulator-panel__body"
+            onContextMenu={onViewportContextMenu}
+          >
+            <SimulatorViewport
+              ref={viewportRef}
+              canvasKey={`gl:${runtime.canvasGeneration}`}
+              onCanvasChange={setCanvasEl}
+              interactive={loadState === "ready"}
+              gpuActive={gpuActive}
+              viewSettings={viewSettings}
+              // This is the surface with room for one. `.simulator-panel__body` is
+              // the positioned container it anchors to; see the prop.
+              viewCube={viewSettings.showViewCube}
+              pushCamera={pushCamera}
+              pushRenderSettings={pushRenderSettings}
+              perfSurface="simulate-panel"
+              className="simulator-canvas"
+              ariaLabel={t(
+                "panels:simulator.canvasAriaLabel",
+                "Origami folded-base simulator. Drag to rotate, scroll to zoom, double-click to reset view.",
+              )}
+              title={t(
+                "panels:simulator.canvasTitle",
+                "Drag to rotate, scroll to zoom, double-click to reset view",
+              )}
+            />
+            <ContextMenu
+              open={contextMenu.open}
+              x={contextMenu.x}
+              y={contextMenu.y}
+              items={contextMenu.items}
+              onOpenChange={contextMenu.onOpenChange}
+              onCloseAutoFocus={contextMenu.onCloseAutoFocus}
+            />
+            {loadState !== "ready" && (
+              <div className="simulator-panel__empty">
+                <span title={loadState === "error" ? errorDetail : undefined}>
+                  {statusLabel}
+                </span>
+                {loadState === "error" && <small>{errorDetail}</small>}
+                {loadState === "empty" && <NextDocumentAction />}
+              </div>
             )}
           </div>
-        </div>
-      </section>
+          <div className="simulator-controls">
+            <div
+              className="simulator-transport"
+              aria-label={t("panels:simulator.controls", "Simulation controls")}
+            >
+              <IconButton
+                size="sm"
+                title={`${t("panels:simulator.restart", "Restart")} (R)`}
+                aria-label={t("panels:simulator.restart", "Restart")}
+                tooltipSide="top"
+                onClick={restartSimulation}
+                disabled={!canRestart}
+              >
+                <RotateCcw size={14} />
+              </IconButton>
+              <IconButton
+                size="sm"
+                title={`${
+                  playing
+                    ? t("panels:simulator.pause", "Pause")
+                    : t("panels:simulator.play", "Play")
+                } (Space)`}
+                aria-label={
+                  playing
+                    ? t("panels:simulator.pause", "Pause")
+                    : t("panels:simulator.play", "Play")
+                }
+                tooltipSide="top"
+                onClick={() => setPlaying(!playing)}
+                disabled={loadState !== "ready"}
+              >
+                {playing ? <Pause size={14} /> : <Play size={14} />}
+              </IconButton>
+              <IconButton
+                size="sm"
+                title={`${t("panels:simulator.step", "Step")} (→)`}
+                aria-label={t("panels:simulator.step", "Step")}
+                tooltipSide="top"
+                onClick={stepFoldTarget}
+                disabled={loadState !== "ready"}
+              >
+                <StepForward size={14} />
+              </IconButton>
+            </div>
+            <label className="simulator-slider">
+              <span>{t("panels:simulator.fold", "Fold")}</span>
+              <input
+                aria-label={t("panels:simulator.foldPercent", "Fold percent")}
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value={Math.round(foldPercent)}
+                onChange={(event) =>
+                  setFoldTarget(Number(event.currentTarget.value))
+                }
+                disabled={loadState !== "ready"}
+              />
+              <output>
+                {t("panels:simulator.percent", "{{value}}%", {
+                  value: Math.round(foldPercent),
+                })}
+              </output>
+            </label>
+            {/*
+              `data-state` so the touch layout can hide the *stats* without hiding
+              the *errors*. `statusLabel` is both: on `ready` it is the vertex and
+              triangle count, and on `empty` or `error` it is the only place the
+              reason surfaces. A blanket `display: none` under a coarse pointer
+              would have made a failed simulator look like an idle one.
+            */}
+            <div className="simulator-readout" data-state={loadState}>
+              <span>{statusLabel}</span>
+              <span>
+                {t("panels:simulator.stepReadout", "Step {{n}}", { n: step })}
+              </span>
+              <span>
+                {t("panels:simulator.strain", "Strain {{value}}", {
+                  value: strain.toFixed(4),
+                })}
+              </span>
+              {backend && (
+                <span
+                  title={
+                    backend === "webgl2"
+                      ? t(
+                          "panels:simulator.backendGpuTitle",
+                          "Solving on the GPU (WebGL2)",
+                        )
+                      : t(
+                          "panels:simulator.backendCpuTitle",
+                          "Solving on the CPU (WebGL2 unavailable)",
+                        )
+                  }
+                >
+                  {backend === "webgl2"
+                    ? t("panels:simulator.backendGpu", "GPU")
+                    : t("panels:simulator.backendCpu", "CPU")}
+                </span>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

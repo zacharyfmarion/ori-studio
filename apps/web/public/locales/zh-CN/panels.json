@@ -986,7 +986,6 @@
       "solutions": "解的数量"
     },
     "sheets": {
-      "cardTitle_other": "图样 {{n}}：{{count}} 条折痕",
       "creases_other": "{{count}} 条折痕",
       "label": "折痕图",
       "title": "图样"
@@ -1022,6 +1021,10 @@
       "zeroLengthSegments": "有 {{n}} 条折线过短无法测量，已跳过。"
     }
   },
+  "sheets": {
+    "cardTitle": "图样 {{n}}：{{size}}",
+    "label": "折痕图"
+  },
   "sidePane": {
     "properties": "属性",
     "settings": "设置",
@@ -1032,6 +1035,7 @@
     "backendCpuTitle": "在 CPU 上求解（WebGL2 不可用）",
     "backendGpu": "GPU",
     "backendGpuTitle": "在 GPU 上求解（WebGL2）",
+    "backToPatterns": "折痕图",
     "canvasAriaLabel": "折纸折叠基础模拟器。拖动以旋转，滚动以缩放，双击以重置视图。",
     "canvasTitle": "拖动以旋转，滚动以缩放，双击以重置视图",
     "contextMenu": {
@@ -1074,9 +1078,8 @@
   },
   "simulatorSegments": {
     "creasePatterns": "折痕图",
-    "patternLabel": "折痕图 {{n}}",
-    "patterns": "折痕图",
-    "patternTitle_other": "折痕图 {{n}} — {{count}} 个面"
+    "faces_other": "{{count}} 个面",
+    "patterns": "折痕图"
   },
   "simulatorViewControls": {
     "axialStiffness": "拉伸",

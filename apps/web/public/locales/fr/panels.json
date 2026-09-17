@@ -1060,9 +1060,6 @@
       "solutions": "Solutions"
     },
     "sheets": {
-      "cardTitle_one": "Patron {{n}} : {{count}} pli",
-      "cardTitle_many": "Patron {{n}} : {{count}} plis",
-      "cardTitle_other": "Patron {{n}} : {{count}} plis",
       "creases_one": "{{count}} pli",
       "creases_many": "{{count}} plis",
       "creases_other": "{{count}} plis",
@@ -1100,6 +1097,10 @@
       "zeroLengthSegments": "{{n}} pli(s) sont trop courts pour être mesurés et ont été ignorés."
     }
   },
+  "sheets": {
+    "cardTitle": "Patron {{n}} : {{size}}",
+    "label": "Patrons de plis"
+  },
   "sidePane": {
     "properties": "Propriétés",
     "settings": "Réglages",
@@ -1110,6 +1111,7 @@
     "backendCpuTitle": "Résolution sur le CPU (WebGL2 indisponible)",
     "backendGpu": "GPU",
     "backendGpuTitle": "Résolution sur le GPU (WebGL2)",
+    "backToPatterns": "Patrons",
     "canvasAriaLabel": "Simulateur de base pliée en origami. Faites glisser pour pivoter, défilez pour zoomer, double-cliquez pour réinitialiser la vue.",
     "canvasTitle": "Faites glisser pour pivoter, défilez pour zoomer, double-cliquez pour réinitialiser la vue",
     "contextMenu": {
@@ -1152,11 +1154,10 @@
   },
   "simulatorSegments": {
     "creasePatterns": "Patrons de plis",
-    "patternLabel": "Patron {{n}}",
-    "patterns": "Patrons",
-    "patternTitle_one": "Patron {{n}} — {{count}} face",
-    "patternTitle_many": "Patron {{n}} — {{count}} faces",
-    "patternTitle_other": "Patron {{n}} — {{count}} faces"
+    "faces_one": "{{count}} face",
+    "faces_many": "{{count}} faces",
+    "faces_other": "{{count}} faces",
+    "patterns": "Patrons"
   },
   "simulatorViewControls": {
     "axialStiffness": "Étirement",

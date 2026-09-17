@@ -169,9 +169,9 @@ interface SidePaneDefinition {
         /**
          * Where the touch drawer's pill goes: the shell's canvas pill lane, or
          * only a slot the pane registers (`viewDrawerSlot`) — nowhere when the
-         * pane offers none, as References does on its phone list screen, where
-         * there is no view for the settings to be about. On the lead because
-         * the pill is the column's: a tab has none of its own.
+         * pane offers none, as References and Simulate do on their phone list
+         * screens, where there is no view for the settings to be about. On the
+         * lead because the pill is the column's: a tab has none of its own.
          */
         trigger: 'lane' | 'slot';
       }
@@ -203,7 +203,7 @@ const WORKSPACE_SIDE_PANES = {
       role: 'settings',
       initialWidth: 260,
       referencePanelId: 'simulator',
-      placement: { kind: 'beside-primary', trigger: 'lane' },
+      placement: { kind: 'beside-primary', trigger: 'slot' },
     },
   ],
   references: [

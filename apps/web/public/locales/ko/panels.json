@@ -986,7 +986,6 @@
       "solutions": "해답 수"
     },
     "sheets": {
-      "cardTitle_other": "패턴 {{n}}: 접힘선 {{count}}개",
       "creases_other": "접힘선 {{count}}개",
       "label": "접힘선 패턴",
       "title": "패턴"
@@ -1022,6 +1021,10 @@
       "zeroLengthSegments": "{{n}}개의 접는 선이 너무 짧아 측정할 수 없어 건너뛰었습니다."
     }
   },
+  "sheets": {
+    "cardTitle": "패턴 {{n}}: {{size}}",
+    "label": "접힘선 패턴"
+  },
   "sidePane": {
     "properties": "속성",
     "settings": "설정",
@@ -1032,6 +1035,7 @@
     "backendCpuTitle": "CPU에서 계산 중 (WebGL2 사용 불가)",
     "backendGpu": "GPU",
     "backendGpuTitle": "GPU에서 계산 중 (WebGL2)",
+    "backToPatterns": "패턴",
     "canvasAriaLabel": "종이접기 접힌 베이스 시뮬레이터. 드래그하여 회전, 스크롤하여 확대/축소, 더블 클릭하여 보기 초기화.",
     "canvasTitle": "드래그하여 회전, 스크롤하여 확대/축소, 더블 클릭하여 보기 초기화",
     "contextMenu": {
@@ -1074,9 +1078,8 @@
   },
   "simulatorSegments": {
     "creasePatterns": "전개도",
-    "patternLabel": "패턴 {{n}}",
-    "patterns": "패턴",
-    "patternTitle_other": "패턴 {{n}} — 면 {{count}}개"
+    "faces_other": "면 {{count}}개",
+    "patterns": "패턴"
   },
   "simulatorViewControls": {
     "axialStiffness": "늘어남",

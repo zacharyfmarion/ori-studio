@@ -519,13 +519,51 @@ function scopeAnnotationExtrasToSegment(
   }
 }
 
+/** One edge of a segment, with the assignment that decides how it is drawn. */
+export interface SegmentEdge {
+  a: number;
+  b: number;
+  /** The effective assignment (see {@link buildAssignmentByKey}); `F` when the fold has none. */
+  assignment: string;
+}
+
+/**
+ * The distinct edges of one or more segments, walked off their faces.
+ *
+ * A segment references faces, not edges, so its lines are the edges of those
+ * faces — each shared edge once. Border edges included: they are the paper's
+ * own outline, which a picture of the pattern has to show.
+ */
+export function segmentEdges(fold: FoldDocument, segments: readonly CpSegment[]): SegmentEdge[] {
+  const faces = fold.faces_vertices ?? [];
+  const assignmentByKey = buildAssignmentByKey(fold);
+  const seen = new Set<string>();
+  const edges: SegmentEdge[] = [];
+  for (const segment of segments) {
+    for (const faceIndex of segment.faceIndices) {
+      const face = faces[faceIndex] ?? [];
+      for (let i = 0; i < face.length; i += 1) {
+        const a = face[i] ?? 0;
+        const b = face[(i + 1) % face.length] ?? 0;
+        if (a === b) continue;
+        const key = edgeKey(a, b);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        edges.push({ a, b, assignment: assignmentByKey.get(key) ?? 'F' });
+      }
+    }
+  }
+  return edges;
+}
+
 export interface SegmentThumbnailOptions {
   size?: number;
   padding?: number;
   /**
-   * Crease colours, keyed by assignment. Defaults to the app-theme CSS
-   * variables used by the simulator sidebar; the export dialog passes its own
-   * palette so thumbnails match the exported image.
+   * Crease colours, keyed by assignment. Defaults to app-theme CSS variables;
+   * the export dialog passes its own palette so thumbnails match the exported
+   * image. (The Simulate rail does not draw through here: its cards are the
+   * shared `cp-workspace/sheets` ones, coloured by the stylesheet.)
    */
   strokes?: Record<string, string>;
   /** Thumbnail background. Transparent when omitted. */
@@ -540,9 +578,11 @@ const THUMBNAIL_STROKES: Record<string, { color: string; width: number; dash?: s
 };
 
 /**
- * Flat 2D SVG of one or more segments' creases, scaled into a square viewBox.
- * Static and cheap — rendered once per segment, no simulator involved. Passing
- * every segment gives the whole document ("all patterns") at a single scale.
+ * Flat 2D SVG of one or more segments' creases, scaled into a square viewBox,
+ * as a string with the colours baked in — for the export dialog, whose
+ * thumbnails must match the exported image rather than the theme. Static and
+ * cheap — rendered once per segment, no simulator involved. Passing every
+ * segment gives the whole document ("all patterns") at a single scale.
  */
 export function cpThumbnailSvg(
   fold: FoldDocument,
@@ -552,9 +592,7 @@ export function cpThumbnailSvg(
   const size = options.size ?? 96;
   const padding = options.padding ?? 6;
   const coords = fold.vertices_coords ?? [];
-  const faces = fold.faces_vertices ?? [];
   const readPoint = flatPlaneReader(fold);
-  const assignmentByKey = buildAssignmentByKey(fold);
   const background = options.background
     ? `<rect width="${size}" height="${size}" fill="${options.background}"/>`
     : '';
@@ -587,29 +625,16 @@ export function cpThumbnailSvg(
     return [x, y];
   };
 
-  const drawn = new Set<string>();
   const lines: string[] = [];
-  for (const segment of segments) {
-    for (const faceIndex of segment.faceIndices) {
-      const face = faces[faceIndex] ?? [];
-      for (let i = 0; i < face.length; i += 1) {
-        const a = face[i] ?? 0;
-        const b = face[(i + 1) % face.length] ?? 0;
-        if (a === b) continue;
-        const key = edgeKey(a, b);
-        if (drawn.has(key)) continue;
-        drawn.add(key);
-        const assignment = assignmentByKey.get(key) ?? 'F';
-        const style = THUMBNAIL_STROKES[assignment] ?? THUMBNAIL_STROKES.F!;
-        const color = options.strokes?.[assignment] ?? options.strokes?.F ?? style.color;
-        const [x1, y1] = project(a);
-        const [x2, y2] = project(b);
-        const dash = style.dash ? ` stroke-dasharray="${style.dash}"` : '';
-        lines.push(
-          `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="${color}" stroke-width="${style.width}"${dash} stroke-linecap="round"/>`
-        );
-      }
-    }
+  for (const { a, b, assignment } of segmentEdges(fold, segments)) {
+    const style = THUMBNAIL_STROKES[assignment] ?? THUMBNAIL_STROKES.F!;
+    const color = options.strokes?.[assignment] ?? options.strokes?.F ?? style.color;
+    const [x1, y1] = project(a);
+    const [x2, y2] = project(b);
+    const dash = style.dash ? ` stroke-dasharray="${style.dash}"` : '';
+    lines.push(
+      `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="${color}" stroke-width="${style.width}"${dash} stroke-linecap="round"/>`
+    );
   }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img">${background}${lines.join('')}</svg>`;
