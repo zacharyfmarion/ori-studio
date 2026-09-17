@@ -97,9 +97,17 @@ impl PointGrid {
     /// the query circle actually reaches are probed.
     pub fn within(&self, p: [f64; 2], radius: f64) -> Vec<usize> {
         let mut hits: Vec<(f64, usize)> = Vec::new();
+        self.within_into(p, radius, &mut hits);
+        hits.into_iter().map(|(_, id)| id).collect()
+    }
+
+    /// [`PointGrid::within`] into a caller's buffer — cleared first, then
+    /// `(distance, id)` nearest first — so a caller probing many points
+    /// allocates once.
+    pub fn within_into(&self, p: [f64; 2], radius: f64, hits: &mut Vec<(f64, usize)>) {
+        hits.clear();
         self.for_each_within(p, radius, |id, dist| hits.push((dist, id)));
         hits.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
-        hits.into_iter().map(|(_, id)| id).collect()
     }
 
     /// Whether any stored point lies within `radius` of `p`.

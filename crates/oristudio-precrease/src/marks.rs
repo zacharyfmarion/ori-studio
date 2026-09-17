@@ -19,6 +19,8 @@
 //! decide how to describe a step. They must not be able to disagree about what
 //! is on the paper.
 
+use std::rc::Rc;
+
 use crate::constants::MIN_ANGLE_SINE;
 use crate::line::Line;
 use crate::pinch::PINCH_HALF_LENGTH;
@@ -48,41 +50,64 @@ use crate::tol::TOL;
 /// is on the paper the moment a fold needs it — [`mark_exists`] counts it,
 /// and the ordering pass adds the pinch to the making step — but it is not a
 /// crease, and not a crease end: nothing is drawn there until a fold asks.
+///
+/// Each line's record sits behind an [`Rc`], so a copy of the paper — the
+/// ordering pass prices every construction a fold could be sighted by on
+/// a copy, and keeps one per fold placed — is one allocation and a
+/// reference count per line, and a copy that then records a press copies
+/// only the line it presses ([`Rc::make_mut`]).
 #[derive(Debug, Clone, Default)]
 pub struct Creased {
-    runs: Vec<Option<Vec<(f64, f64)>>>,
-    pinches: Vec<Vec<(f64, f64)>>,
-    pinchable: Vec<Vec<f64>>,
+    lines: Vec<Rc<LineMarks>>,
+}
+
+/// What one line of the state carries — see [`Creased`].
+#[derive(Debug, Clone, Default)]
+struct LineMarks {
+    /// Creased runs; `None` once creased everywhere it exists.
+    runs: Option<Vec<(f64, f64)>>,
+    pinches: Vec<(f64, f64)>,
+    pinchable: Vec<f64>,
+}
+
+impl LineMarks {
+    /// A line not creased at all, or a sheet edge, creased everywhere.
+    fn bare(edge: bool) -> Rc<LineMarks> {
+        Rc::new(LineMarks {
+            runs: if edge { None } else { Some(Vec::new()) },
+            ..LineMarks::default()
+        })
+    }
 }
 
 impl Creased {
     /// Nothing creased yet but the sheet's own edges.
     pub fn new(state: &State) -> Creased {
-        let mut runs = vec![Some(Vec::new()); state.line_count()];
-        for (id, l) in state.lines().iter().enumerate() {
-            if l.tag == LineTag::Edge {
-                runs[id] = None;
-            }
-        }
         Creased {
-            pinches: vec![Vec::new(); runs.len()],
-            pinchable: vec![Vec::new(); runs.len()],
-            runs,
+            lines: state
+                .lines()
+                .iter()
+                .map(|l| LineMarks::bare(l.tag == LineTag::Edge))
+                .collect(),
         }
     }
 
     /// Grow to cover a state that has gained lines since this was built.
     fn widen(&mut self, state: &State) {
-        while self.runs.len() < state.line_count() {
-            let id = self.runs.len();
+        while self.lines.len() < state.line_count() {
+            let id = self.lines.len();
             let edge = state
                 .lines()
                 .get(id)
                 .is_some_and(|l| l.tag == LineTag::Edge);
-            self.runs.push(if edge { None } else { Some(Vec::new()) });
-            self.pinches.push(Vec::new());
-            self.pinchable.push(Vec::new());
+            self.lines.push(LineMarks::bare(edge));
         }
+    }
+
+    /// Line `line_id`'s record, to write: copied first if another paper
+    /// shares it.
+    fn line_mut(&mut self, line_id: usize) -> Option<&mut LineMarks> {
+        self.lines.get_mut(line_id).map(Rc::make_mut)
     }
 
     /// Record that `line` is creased along `spans` — **in addition to** whatever
@@ -102,7 +127,7 @@ impl Creased {
         spans: &[[[f64; 2]; 2]],
     ) {
         self.widen(state);
-        let Some(Some(runs)) = self.runs.get_mut(line_id) else {
+        let Some(Some(runs)) = self.line_mut(line_id).map(|l| l.runs.as_mut()) else {
             return;
         };
         runs.extend(spans.iter().map(|[a, b]| {
@@ -130,11 +155,11 @@ impl Creased {
     /// type's doc.
     pub fn add_pinch(&mut self, state: &State, line_id: usize, line: &Line, span: [[f64; 2]; 2]) {
         self.widen(state);
-        let Some(pinches) = self.pinches.get_mut(line_id) else {
+        let (u, v) = (line.parameter_of(span[0]), line.parameter_of(span[1]));
+        let Some(l) = self.line_mut(line_id) else {
             return;
         };
-        let (u, v) = (line.parameter_of(span[0]), line.parameter_of(span[1]));
-        pinches.push(if u <= v { (u, v) } else { (v, u) });
+        l.pinches.push(if u <= v { (u, v) } else { (v, u) });
     }
 
     /// Note where `line_id`, just folded, could be pinched while it is:
@@ -154,8 +179,8 @@ impl Creased {
     ) {
         self.widen(state);
         let spots = self.pinchable_spots(state, line_id, vouched);
-        if let Some(entry) = self.pinchable.get_mut(line_id) {
-            entry.extend(spots);
+        if let Some(l) = self.line_mut(line_id) {
+            l.pinchable.extend(spots);
         }
     }
 
@@ -206,8 +231,8 @@ impl Creased {
     /// for a press to make, as [`mark_exists`] will now say.
     pub fn forget_pinchable(&mut self, state: &State, line_id: usize, p: [f64; 2]) {
         let t = state.line(line_id).parameter_of(p);
-        if let Some(entry) = self.pinchable.get_mut(line_id) {
-            entry.retain(|&u| (u - t).abs() > TOL);
+        if let Some(l) = self.line_mut(line_id) {
+            l.pinchable.retain(|&u| (u - t).abs() > TOL);
         }
     }
 
@@ -216,8 +241,8 @@ impl Creased {
     /// alignment vouches for ([`Creased::pinchable_spots`]).
     pub fn set_pinchable(&mut self, state: &State, line_id: usize, spots: Vec<f64>) {
         self.widen(state);
-        if let Some(entry) = self.pinchable.get_mut(line_id) {
-            *entry = spots;
+        if let Some(l) = self.line_mut(line_id) {
+            l.pinchable = spots;
         }
     }
 
@@ -227,29 +252,29 @@ impl Creased {
     pub fn pinchable_at(&self, state: &State, line_id: usize, p: [f64; 2]) -> bool {
         !self.reaches(state, line_id, p) && {
             let t = state.line(line_id).parameter_of(p);
-            self.pinchable
+            self.lines
                 .get(line_id)
-                .is_some_and(|spots| spots.iter().any(|&u| (u - t).abs() <= TOL))
+                .is_some_and(|l| l.pinchable.iter().any(|&u| (u - t).abs() <= TOL))
         }
     }
 
     /// Record a fold creased along its whole chord.
     pub fn add_whole(&mut self, state: &State, line_id: usize) {
         self.widen(state);
-        if let Some(entry) = self.runs.get_mut(line_id) {
-            *entry = None;
+        if let Some(l) = self.line_mut(line_id) {
+            l.runs = None;
         }
     }
 
     /// Whether `line_id` has been folded at all — creased somewhere, or
     /// everywhere, or pinched. A sheet edge always has.
     pub fn is_folded(&self, line_id: usize) -> bool {
-        match self.runs.get(line_id) {
+        match self.lines.get(line_id) {
             None => false,
-            Some(None) => true,
-            Some(Some(runs)) => {
-                !runs.is_empty() || self.pinches.get(line_id).is_some_and(|p| !p.is_empty())
-            }
+            Some(l) => match &l.runs {
+                None => true,
+                Some(runs) => !runs.is_empty() || !l.pinches.is_empty(),
+            },
         }
     }
 
@@ -257,12 +282,14 @@ impl Creased {
     /// pinches not among them — or `None` when it is creased everywhere (or
     /// unknown).
     pub fn runs_of(&self, line_id: usize) -> Option<&[(f64, f64)]> {
-        self.runs.get(line_id).and_then(|r| r.as_deref())
+        self.lines.get(line_id).and_then(|l| l.runs.as_deref())
     }
 
     /// The pinches on `line_id` as parameter intervals along the line.
     pub fn pinches_of(&self, line_id: usize) -> &[(f64, f64)] {
-        self.pinches.get(line_id).map_or(&[], Vec::as_slice)
+        self.lines
+            .get(line_id)
+            .map_or(&[], |l| l.pinches.as_slice())
     }
 
     /// Whether `p` is marked on `line_id`: the crease reaches it, or a pinch
@@ -279,7 +306,7 @@ impl Creased {
     /// Whether the crease proper on `line_id` reaches `p` — a pinch does not
     /// count. The question for a line to be aligned along.
     pub fn crease_reaches(&self, state: &State, line_id: usize, p: [f64; 2]) -> bool {
-        match self.runs.get(line_id) {
+        match self.lines.get(line_id).map(|l| &l.runs) {
             None => false,
             Some(None) => true,
             Some(Some(runs)) => {

@@ -217,6 +217,12 @@ impl State {
         self.grid.within(q, POINT_LOOKUP_RADIUS)
     }
 
+    /// [`State::points_near`] into a caller's buffer, as `(distance, id)`
+    /// in the same order, for a scan that probes many crossings.
+    pub fn points_near_into(&self, q: [f64; 2], out: &mut Vec<(f64, usize)>) {
+        self.grid.within_into(q, POINT_LOOKUP_RADIUS, out);
+    }
+
     /// Whether `p` lies on the sheet (padded by `TOL`).
     pub fn in_paper(&self, p: [f64; 2]) -> bool {
         self.sheet.contains(p, TOL)
