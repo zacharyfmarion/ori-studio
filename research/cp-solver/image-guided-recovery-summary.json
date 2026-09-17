@@ -1,0 +1,878 @@
+{
+  "base_commit": "8b0d958499be0e6bd9b360cccece067f497fa894",
+  "selected_experiment": "S114-raster-phase",
+  "confirmation_experiment": "S115-oriedita-confirmation",
+  "cases": {
+    "clean": 421,
+    "assignment_defect_controls": 10,
+    "references_used_only_for_evaluation": true,
+    "private_alligator_included": false,
+    "historical_split_labels_previously_observed": true
+  },
+  "exact_comparisons": {
+    "direct-browser": {
+      "0": {
+        "cases": 421,
+        "baseline": 0,
+        "candidate": 0,
+        "gains": [],
+        "losses": []
+      },
+      "1e-12": {
+        "cases": 421,
+        "baseline": 278,
+        "candidate": 308,
+        "gains": [
+          "cpoogle/among-us-crewmate-among-us-crewmate-by-juston-hairgrove",
+          "cpoogle/angelfish-angelfish-by-mineo-shotaro",
+          "cpoogle/arabian-oryx-2-5-arabian-oryx-2-5-by-ikuno-riku",
+          "cpoogle/barnowl-barn-owl-by-seth-friedman",
+          "cpoogle/baxcalibur-baxcalibur-by-kota-imai",
+          "cpoogle/bristling-cat-bristling-cat-by-ikuno-riku",
+          "cpoogle/cat-cat-by-gen-hagiwara",
+          "cpoogle/collie-collie-by-gen-hagiwara",
+          "cpoogle/dachshund-2-0-dachshund-2-0-by-ikuno-riko",
+          "cpoogle/dilophosaurus-dilophosaurus-by-juanfran-carillo",
+          "cpoogle/dodo-dodo-by-rokishi-cello",
+          "cpoogle/dragon-dragon-by-lorbeer",
+          "cpoogle/dragon-dragon-by-rokishi-cello",
+          "cpoogle/eagle-eagle-by-lorbeer",
+          "cpoogle/golden-retriever-golden-retriever-by-ikuno-riku",
+          "cpoogle/ladybug-ladybug-by-bodo-haag",
+          "cpoogle/little-bird-2-0-little-bird-2-0-by-ikuno-riku",
+          "cpoogle/nazgul-8-1-nazgul-8-1-by-jason-ku",
+          "cpoogle/panda-panda-by-obelisk",
+          "cpoogle/rabbit-rabbit-by-gen-hagiwara",
+          "cpoogle/reindeer-reindeer-by-lorbeer",
+          "cpoogle/reindeer-with-cranes-in-antlers-cranedeer",
+          "cpoogle/sea-otter-sea-otter-by-1proto",
+          "cpoogle/sitting-okapi-sitting-okapi-by-ms-255ori",
+          "cpoogle/skeleton-head-skeleton-head-by-min-skywalker",
+          "cpoogle/some-creature-some-creature-by-tera-origami",
+          "cpoogle/squid-squid-by-birb",
+          "cpoogle/squid-squid-by-xiao-dai",
+          "cpoogle/venom-venom-by-juanfran-carrillo",
+          "cpoogle/wild-boar-wild-boar-by-gen-hagiwara"
+        ],
+        "losses": []
+      },
+      "1e-09": {
+        "cases": 421,
+        "baseline": 287,
+        "candidate": 319,
+        "gains": [
+          "cpoogle/among-us-crewmate-among-us-crewmate-by-juston-hairgrove",
+          "cpoogle/angelfish-angelfish-by-mineo-shotaro",
+          "cpoogle/arabian-oryx-2-5-arabian-oryx-2-5-by-ikuno-riku",
+          "cpoogle/barnowl-barn-owl-by-seth-friedman",
+          "cpoogle/baxcalibur-baxcalibur-by-kota-imai",
+          "cpoogle/bristling-cat-bristling-cat-by-ikuno-riku",
+          "cpoogle/cat-cat-by-gen-hagiwara",
+          "cpoogle/collie-collie-by-gen-hagiwara",
+          "cpoogle/dachshund-2-0-dachshund-2-0-by-ikuno-riko",
+          "cpoogle/dilophosaurus-dilophosaurus-by-juanfran-carillo",
+          "cpoogle/dodo-dodo-by-rokishi-cello",
+          "cpoogle/dragon-dragon-by-lorbeer",
+          "cpoogle/dragon-dragon-by-rokishi-cello",
+          "cpoogle/dragon-dragon-by-takuro-kashiwamura",
+          "cpoogle/eagle-eagle-by-lorbeer",
+          "cpoogle/golden-retriever-golden-retriever-by-ikuno-riku",
+          "cpoogle/ladybug-ladybug-by-bodo-haag",
+          "cpoogle/little-bird-2-0-little-bird-2-0-by-ikuno-riku",
+          "cpoogle/nazgul-8-1-nazgul-8-1-by-jason-ku",
+          "cpoogle/panda-panda-by-obelisk",
+          "cpoogle/rabbit-rabbit-by-gen-hagiwara",
+          "cpoogle/reindeer-reindeer-by-lorbeer",
+          "cpoogle/reindeer-with-cranes-in-antlers-cranedeer",
+          "cpoogle/sea-otter-sea-otter-by-1proto",
+          "cpoogle/sitting-okapi-sitting-okapi-by-ms-255ori",
+          "cpoogle/skeleton-head-skeleton-head-by-min-skywalker",
+          "cpoogle/some-creature-some-creature-by-tera-origami",
+          "cpoogle/squid-squid-by-birb",
+          "cpoogle/squid-squid-by-xiao-dai",
+          "cpoogle/venom-venom-by-juanfran-carrillo",
+          "cpoogle/wild-boar-wild-boar-by-gen-hagiwara",
+          "curated/markhor-detailed"
+        ],
+        "losses": []
+      }
+    },
+    "original-native": {
+      "0": {
+        "cases": 421,
+        "baseline": 0,
+        "candidate": 0,
+        "gains": [],
+        "losses": []
+      },
+      "1e-12": {
+        "cases": 421,
+        "baseline": 278,
+        "candidate": 308,
+        "gains": [
+          "cpoogle/among-us-crewmate-among-us-crewmate-by-juston-hairgrove",
+          "cpoogle/angelfish-angelfish-by-mineo-shotaro",
+          "cpoogle/arabian-oryx-2-5-arabian-oryx-2-5-by-ikuno-riku",
+          "cpoogle/barnowl-barn-owl-by-seth-friedman",
+          "cpoogle/baxcalibur-baxcalibur-by-kota-imai",
+          "cpoogle/bristling-cat-bristling-cat-by-ikuno-riku",
+          "cpoogle/cat-cat-by-gen-hagiwara",
+          "cpoogle/collie-collie-by-gen-hagiwara",
+          "cpoogle/dachshund-2-0-dachshund-2-0-by-ikuno-riko",
+          "cpoogle/dilophosaurus-dilophosaurus-by-juanfran-carillo",
+          "cpoogle/dodo-dodo-by-rokishi-cello",
+          "cpoogle/dragon-dragon-by-lorbeer",
+          "cpoogle/dragon-dragon-by-rokishi-cello",
+          "cpoogle/eagle-eagle-by-lorbeer",
+          "cpoogle/golden-retriever-golden-retriever-by-ikuno-riku",
+          "cpoogle/ladybug-ladybug-by-bodo-haag",
+          "cpoogle/little-bird-2-0-little-bird-2-0-by-ikuno-riku",
+          "cpoogle/nazgul-8-1-nazgul-8-1-by-jason-ku",
+          "cpoogle/panda-panda-by-obelisk",
+          "cpoogle/rabbit-rabbit-by-gen-hagiwara",
+          "cpoogle/reindeer-reindeer-by-lorbeer",
+          "cpoogle/reindeer-with-cranes-in-antlers-cranedeer",
+          "cpoogle/sea-otter-sea-otter-by-1proto",
+          "cpoogle/sitting-okapi-sitting-okapi-by-ms-255ori",
+          "cpoogle/skeleton-head-skeleton-head-by-min-skywalker",
+          "cpoogle/some-creature-some-creature-by-tera-origami",
+          "cpoogle/squid-squid-by-birb",
+          "cpoogle/squid-squid-by-xiao-dai",
+          "cpoogle/venom-venom-by-juanfran-carrillo",
+          "cpoogle/wild-boar-wild-boar-by-gen-hagiwara"
+        ],
+        "losses": []
+      },
+      "1e-09": {
+        "cases": 421,
+        "baseline": 287,
+        "candidate": 319,
+        "gains": [
+          "cpoogle/among-us-crewmate-among-us-crewmate-by-juston-hairgrove",
+          "cpoogle/angelfish-angelfish-by-mineo-shotaro",
+          "cpoogle/arabian-oryx-2-5-arabian-oryx-2-5-by-ikuno-riku",
+          "cpoogle/barnowl-barn-owl-by-seth-friedman",
+          "cpoogle/baxcalibur-baxcalibur-by-kota-imai",
+          "cpoogle/bristling-cat-bristling-cat-by-ikuno-riku",
+          "cpoogle/cat-cat-by-gen-hagiwara",
+          "cpoogle/collie-collie-by-gen-hagiwara",
+          "cpoogle/dachshund-2-0-dachshund-2-0-by-ikuno-riko",
+          "cpoogle/dilophosaurus-dilophosaurus-by-juanfran-carillo",
+          "cpoogle/dodo-dodo-by-rokishi-cello",
+          "cpoogle/dragon-dragon-by-lorbeer",
+          "cpoogle/dragon-dragon-by-rokishi-cello",
+          "cpoogle/dragon-dragon-by-takuro-kashiwamura",
+          "cpoogle/eagle-eagle-by-lorbeer",
+          "cpoogle/golden-retriever-golden-retriever-by-ikuno-riku",
+          "cpoogle/ladybug-ladybug-by-bodo-haag",
+          "cpoogle/little-bird-2-0-little-bird-2-0-by-ikuno-riku",
+          "cpoogle/nazgul-8-1-nazgul-8-1-by-jason-ku",
+          "cpoogle/panda-panda-by-obelisk",
+          "cpoogle/rabbit-rabbit-by-gen-hagiwara",
+          "cpoogle/reindeer-reindeer-by-lorbeer",
+          "cpoogle/reindeer-with-cranes-in-antlers-cranedeer",
+          "cpoogle/sea-otter-sea-otter-by-1proto",
+          "cpoogle/sitting-okapi-sitting-okapi-by-ms-255ori",
+          "cpoogle/skeleton-head-skeleton-head-by-min-skywalker",
+          "cpoogle/some-creature-some-creature-by-tera-origami",
+          "cpoogle/squid-squid-by-birb",
+          "cpoogle/squid-squid-by-xiao-dai",
+          "cpoogle/venom-venom-by-juanfran-carrillo",
+          "cpoogle/wild-boar-wild-boar-by-gen-hagiwara",
+          "curated/markhor-detailed"
+        ],
+        "losses": []
+      }
+    },
+    "region-browser": {
+      "0": {
+        "cases": 421,
+        "baseline": 0,
+        "candidate": 0,
+        "gains": [],
+        "losses": []
+      },
+      "1e-12": {
+        "cases": 421,
+        "baseline": 280,
+        "candidate": 307,
+        "gains": [
+          "cpoogle/among-us-crewmate-among-us-crewmate-by-juston-hairgrove",
+          "cpoogle/angelfish-angelfish-by-mineo-shotaro",
+          "cpoogle/ant-ant-by-busi12341",
+          "cpoogle/anya-anya-by-xiao-dai",
+          "cpoogle/arabian-oryx-2-5-arabian-oryx-2-5-by-ikuno-riku",
+          "cpoogle/barnowl-barn-owl-by-seth-friedman",
+          "cpoogle/baxcalibur-baxcalibur-by-kota-imai",
+          "cpoogle/bristling-cat-bristling-cat-by-ikuno-riku",
+          "cpoogle/cat-cat-by-gen-hagiwara",
+          "cpoogle/collie-collie-by-gen-hagiwara",
+          "cpoogle/dodo-dodo-by-rokishi-cello",
+          "cpoogle/dragon-dragon-by-rokishi-cello",
+          "cpoogle/eagle-eagle-by-lorbeer",
+          "cpoogle/golden-retriever-golden-retriever-by-ikuno-riku",
+          "cpoogle/honeybee-bodo-s-honeybee-by-bodo-haag-and-lorbeer",
+          "cpoogle/ladybug-ladybug-by-bodo-haag",
+          "cpoogle/panda-panda-by-obelisk",
+          "cpoogle/phoenix-little-phoenix-by-gen-hagiwara",
+          "cpoogle/rabbit-rabbit-by-gen-hagiwara",
+          "cpoogle/reindeer-reindeer-by-lorbeer",
+          "cpoogle/reindeer-with-cranes-in-antlers-cranedeer",
+          "cpoogle/sea-otter-sea-otter-by-1proto",
+          "cpoogle/sitting-okapi-sitting-okapi-by-ms-255ori",
+          "cpoogle/skeleton-head-skeleton-head-by-min-skywalker",
+          "cpoogle/velociraptor-velociraptor-by-tkg-origami",
+          "cpoogle/venom-venom-by-juanfran-carrillo",
+          "cpoogle/wild-boar-wild-boar-by-gen-hagiwara"
+        ],
+        "losses": []
+      },
+      "1e-09": {
+        "cases": 421,
+        "baseline": 289,
+        "candidate": 318,
+        "gains": [
+          "cpoogle/among-us-crewmate-among-us-crewmate-by-juston-hairgrove",
+          "cpoogle/angelfish-angelfish-by-mineo-shotaro",
+          "cpoogle/ant-ant-by-busi12341",
+          "cpoogle/anya-anya-by-xiao-dai",
+          "cpoogle/arabian-oryx-2-5-arabian-oryx-2-5-by-ikuno-riku",
+          "cpoogle/barnowl-barn-owl-by-seth-friedman",
+          "cpoogle/baxcalibur-baxcalibur-by-kota-imai",
+          "cpoogle/bristling-cat-bristling-cat-by-ikuno-riku",
+          "cpoogle/cat-cat-by-gen-hagiwara",
+          "cpoogle/collie-collie-by-gen-hagiwara",
+          "cpoogle/dodo-dodo-by-rokishi-cello",
+          "cpoogle/dragon-dragon-by-rokishi-cello",
+          "cpoogle/dragon-dragon-by-takuro-kashiwamura",
+          "cpoogle/eagle-eagle-by-lorbeer",
+          "cpoogle/golden-retriever-golden-retriever-by-ikuno-riku",
+          "cpoogle/honeybee-bodo-s-honeybee-by-bodo-haag-and-lorbeer",
+          "cpoogle/ladybug-ladybug-by-bodo-haag",
+          "cpoogle/maid-maid-by-dhujsi-er",
+          "cpoogle/panda-panda-by-obelisk",
+          "cpoogle/phoenix-little-phoenix-by-gen-hagiwara",
+          "cpoogle/rabbit-rabbit-by-gen-hagiwara",
+          "cpoogle/reindeer-reindeer-by-lorbeer",
+          "cpoogle/reindeer-with-cranes-in-antlers-cranedeer",
+          "cpoogle/sea-otter-sea-otter-by-1proto",
+          "cpoogle/sitting-okapi-sitting-okapi-by-ms-255ori",
+          "cpoogle/skeleton-head-skeleton-head-by-min-skywalker",
+          "cpoogle/velociraptor-velociraptor-by-tkg-origami",
+          "cpoogle/venom-venom-by-juanfran-carrillo",
+          "cpoogle/wild-boar-wild-boar-by-gen-hagiwara"
+        ],
+        "losses": []
+      }
+    }
+  },
+  "timing": {
+    "original-native": {
+      "cases": 421,
+      "solved_25s": 421,
+      "median_seconds": 0.747390708,
+      "p95_seconds": 23.841113917,
+      "max_seconds": 24.498608167,
+      "defect_controls_solved": 0
+    },
+    "region-browser": {
+      "cases": 421,
+      "solved_25s": 421,
+      "median_seconds": 1.0796800000667572,
+      "p95_seconds": 24.156424999952318,
+      "max_seconds": 24.70981500005722,
+      "defect_controls_solved": 0
+    },
+    "region-baseline": {
+      "cases": 421,
+      "solved_25s": 421,
+      "median_seconds": 0.5396749999523163,
+      "p95_seconds": 9.67825500011444,
+      "max_seconds": 24.599700000047683,
+      "defect_controls_solved": 0
+    },
+    "direct-browser": {
+      "cases": 421,
+      "solved_25s": 421,
+      "median_seconds": 0.9625049998760223,
+      "p95_seconds": 23.9709350001812,
+      "max_seconds": 24.706859999895094,
+      "defect_controls_solved": 0
+    }
+  },
+  "previous_ink_group": {
+    "original_favorable": 99,
+    "already_recovered_before_this_work": 2,
+    "remaining_before_this_work": 97,
+    "direct-browser": 28,
+    "region-browser": 25,
+    "region-baseline": 4
+  },
+  "oriedita_fixed_graph": [
+    {
+      "style": "aliased-markers",
+      "cases": 36,
+      "solved_25s": 36,
+      "max_seconds": 24.477807875,
+      "exact": {
+        "0": {
+          "cases": 36,
+          "baseline": 0,
+          "candidate": 0,
+          "gains": 0,
+          "losses": 0
+        },
+        "1e-12": {
+          "cases": 36,
+          "baseline": 17,
+          "candidate": 21,
+          "gains": 4,
+          "losses": 0
+        },
+        "1e-09": {
+          "cases": 36,
+          "baseline": 18,
+          "candidate": 23,
+          "gains": 5,
+          "losses": 0
+        }
+      }
+    },
+    {
+      "style": "aliased-thin",
+      "cases": 36,
+      "solved_25s": 36,
+      "max_seconds": 24.478426499,
+      "exact": {
+        "0": {
+          "cases": 36,
+          "baseline": 0,
+          "candidate": 0,
+          "gains": 0,
+          "losses": 0
+        },
+        "1e-12": {
+          "cases": 36,
+          "baseline": 17,
+          "candidate": 20,
+          "gains": 3,
+          "losses": 0
+        },
+        "1e-09": {
+          "cases": 36,
+          "baseline": 18,
+          "candidate": 22,
+          "gains": 4,
+          "losses": 0
+        }
+      }
+    },
+    {
+      "style": "black-gray",
+      "cases": 36,
+      "solved_25s": 36,
+      "max_seconds": 18.258462332999997,
+      "exact": {
+        "0": {
+          "cases": 36,
+          "baseline": 0,
+          "candidate": 0,
+          "gains": 0,
+          "losses": 0
+        },
+        "1e-12": {
+          "cases": 36,
+          "baseline": 17,
+          "candidate": 17,
+          "gains": 0,
+          "losses": 0
+        },
+        "1e-09": {
+          "cases": 36,
+          "baseline": 18,
+          "candidate": 18,
+          "gains": 0,
+          "losses": 0
+        }
+      }
+    },
+    {
+      "style": "color-and-shape",
+      "cases": 36,
+      "solved_25s": 36,
+      "max_seconds": 24.484408375,
+      "exact": {
+        "0": {
+          "cases": 36,
+          "baseline": 0,
+          "candidate": 0,
+          "gains": 0,
+          "losses": 0
+        },
+        "1e-12": {
+          "cases": 36,
+          "baseline": 17,
+          "candidate": 20,
+          "gains": 3,
+          "losses": 0
+        },
+        "1e-09": {
+          "cases": 36,
+          "baseline": 18,
+          "candidate": 22,
+          "gains": 4,
+          "losses": 0
+        }
+      }
+    },
+    {
+      "style": "dark",
+      "cases": 36,
+      "solved_25s": 36,
+      "max_seconds": 24.513479416000003,
+      "exact": {
+        "0": {
+          "cases": 36,
+          "baseline": 0,
+          "candidate": 0,
+          "gains": 0,
+          "losses": 0
+        },
+        "1e-12": {
+          "cases": 36,
+          "baseline": 17,
+          "candidate": 20,
+          "gains": 3,
+          "losses": 0
+        },
+        "1e-09": {
+          "cases": 36,
+          "baseline": 18,
+          "candidate": 22,
+          "gains": 4,
+          "losses": 0
+        }
+      }
+    },
+    {
+      "style": "high-resolution",
+      "cases": 36,
+      "solved_25s": 36,
+      "max_seconds": 24.494113833,
+      "exact": {
+        "0": {
+          "cases": 36,
+          "baseline": 0,
+          "candidate": 0,
+          "gains": 0,
+          "losses": 0
+        },
+        "1e-12": {
+          "cases": 36,
+          "baseline": 17,
+          "candidate": 21,
+          "gains": 4,
+          "losses": 0
+        },
+        "1e-09": {
+          "cases": 36,
+          "baseline": 18,
+          "candidate": 23,
+          "gains": 5,
+          "losses": 0
+        }
+      }
+    },
+    {
+      "style": "markers-medium",
+      "cases": 36,
+      "solved_25s": 36,
+      "max_seconds": 24.485955708000002,
+      "exact": {
+        "0": {
+          "cases": 36,
+          "baseline": 0,
+          "candidate": 0,
+          "gains": 0,
+          "losses": 0
+        },
+        "1e-12": {
+          "cases": 36,
+          "baseline": 17,
+          "candidate": 20,
+          "gains": 3,
+          "losses": 0
+        },
+        "1e-09": {
+          "cases": 36,
+          "baseline": 18,
+          "candidate": 22,
+          "gains": 4,
+          "losses": 0
+        }
+      }
+    },
+    {
+      "style": "markers-small",
+      "cases": 36,
+      "solved_25s": 36,
+      "max_seconds": 24.479647417000002,
+      "exact": {
+        "0": {
+          "cases": 36,
+          "baseline": 0,
+          "candidate": 0,
+          "gains": 0,
+          "losses": 0
+        },
+        "1e-12": {
+          "cases": 36,
+          "baseline": 17,
+          "candidate": 20,
+          "gains": 3,
+          "losses": 0
+        },
+        "1e-09": {
+          "cases": 36,
+          "baseline": 18,
+          "candidate": 22,
+          "gains": 4,
+          "losses": 0
+        }
+      }
+    },
+    {
+      "style": "thick-markers",
+      "cases": 36,
+      "solved_25s": 36,
+      "max_seconds": 24.490615792000003,
+      "exact": {
+        "0": {
+          "cases": 36,
+          "baseline": 0,
+          "candidate": 0,
+          "gains": 0,
+          "losses": 0
+        },
+        "1e-12": {
+          "cases": 36,
+          "baseline": 17,
+          "candidate": 20,
+          "gains": 3,
+          "losses": 0
+        },
+        "1e-09": {
+          "cases": 36,
+          "baseline": 18,
+          "candidate": 22,
+          "gains": 4,
+          "losses": 0
+        }
+      }
+    },
+    {
+      "style": "thin",
+      "cases": 36,
+      "solved_25s": 36,
+      "max_seconds": 24.480118625,
+      "exact": {
+        "0": {
+          "cases": 36,
+          "baseline": 0,
+          "candidate": 0,
+          "gains": 0,
+          "losses": 0
+        },
+        "1e-12": {
+          "cases": 36,
+          "baseline": 17,
+          "candidate": 20,
+          "gains": 3,
+          "losses": 0
+        },
+        "1e-09": {
+          "cases": 36,
+          "baseline": 18,
+          "candidate": 22,
+          "gains": 4,
+          "losses": 0
+        }
+      }
+    }
+  ],
+  "oriedita_confirmation": [
+    {
+      "style": "aliased-1536",
+      "cases": 12,
+      "solved_25s": 12,
+      "max_seconds": 4.788915084,
+      "exact": {
+        "0": {
+          "cases": 12,
+          "baseline": 0,
+          "candidate": 0,
+          "gains": 0,
+          "losses": 0
+        },
+        "1e-12": {
+          "cases": 12,
+          "baseline": 6,
+          "candidate": 6,
+          "gains": 0,
+          "losses": 0
+        },
+        "1e-09": {
+          "cases": 12,
+          "baseline": 6,
+          "candidate": 6,
+          "gains": 0,
+          "losses": 0
+        }
+      }
+    },
+    {
+      "style": "hairline",
+      "cases": 12,
+      "solved_25s": 12,
+      "max_seconds": 6.069940208,
+      "exact": {
+        "0": {
+          "cases": 12,
+          "baseline": 0,
+          "candidate": 0,
+          "gains": 0,
+          "losses": 0
+        },
+        "1e-12": {
+          "cases": 12,
+          "baseline": 6,
+          "candidate": 6,
+          "gains": 0,
+          "losses": 0
+        },
+        "1e-09": {
+          "cases": 12,
+          "baseline": 6,
+          "candidate": 6,
+          "gains": 0,
+          "losses": 0
+        }
+      }
+    },
+    {
+      "style": "large-dots",
+      "cases": 12,
+      "solved_25s": 12,
+      "max_seconds": 6.162502291,
+      "exact": {
+        "0": {
+          "cases": 12,
+          "baseline": 0,
+          "candidate": 0,
+          "gains": 0,
+          "losses": 0
+        },
+        "1e-12": {
+          "cases": 12,
+          "baseline": 6,
+          "candidate": 6,
+          "gains": 0,
+          "losses": 0
+        },
+        "1e-09": {
+          "cases": 12,
+          "baseline": 6,
+          "candidate": 6,
+          "gains": 0,
+          "losses": 0
+        }
+      }
+    },
+    {
+      "style": "wide-small-markers",
+      "cases": 12,
+      "solved_25s": 12,
+      "max_seconds": 5.920870291,
+      "exact": {
+        "0": {
+          "cases": 12,
+          "baseline": 0,
+          "candidate": 0,
+          "gains": 0,
+          "losses": 0
+        },
+        "1e-12": {
+          "cases": 12,
+          "baseline": 6,
+          "candidate": 6,
+          "gains": 0,
+          "losses": 0
+        },
+        "1e-09": {
+          "cases": 12,
+          "baseline": 6,
+          "candidate": 6,
+          "gains": 0,
+          "losses": 0
+        }
+      }
+    }
+  ],
+  "oriedita_recognition": [
+    {
+      "style": "aliased-markers",
+      "cases": 6,
+      "errors": 0,
+      "physical_topology_and_assignment": 0,
+      "including_aux_topology_and_assignment": 0,
+      "max_seconds": 2.8471600000858306
+    },
+    {
+      "style": "aliased-thin",
+      "cases": 6,
+      "errors": 0,
+      "physical_topology_and_assignment": 5,
+      "including_aux_topology_and_assignment": 4,
+      "max_seconds": 2.8814750001430514
+    },
+    {
+      "style": "black-gray",
+      "cases": 6,
+      "errors": 0,
+      "physical_topology_and_assignment": 0,
+      "including_aux_topology_and_assignment": 0,
+      "max_seconds": 2.9138300001621245
+    },
+    {
+      "style": "color-and-shape",
+      "cases": 6,
+      "errors": 0,
+      "physical_topology_and_assignment": 0,
+      "including_aux_topology_and_assignment": 0,
+      "max_seconds": 16.889084999799728
+    },
+    {
+      "style": "dark",
+      "cases": 6,
+      "errors": 0,
+      "physical_topology_and_assignment": 4,
+      "including_aux_topology_and_assignment": 4,
+      "max_seconds": 2.9372599999904634
+    },
+    {
+      "style": "high-resolution",
+      "cases": 6,
+      "errors": 0,
+      "physical_topology_and_assignment": 6,
+      "including_aux_topology_and_assignment": 6,
+      "max_seconds": 3.2371900000572205
+    },
+    {
+      "style": "markers-medium",
+      "cases": 6,
+      "errors": 0,
+      "physical_topology_and_assignment": 0,
+      "including_aux_topology_and_assignment": 0,
+      "max_seconds": 3.0906850001811983
+    },
+    {
+      "style": "markers-small",
+      "cases": 6,
+      "errors": 0,
+      "physical_topology_and_assignment": 6,
+      "including_aux_topology_and_assignment": 5,
+      "max_seconds": 2.8475350000858306
+    },
+    {
+      "style": "thick-markers",
+      "cases": 6,
+      "errors": 0,
+      "physical_topology_and_assignment": 0,
+      "including_aux_topology_and_assignment": 0,
+      "max_seconds": 14.199420000076294
+    },
+    {
+      "style": "thin",
+      "cases": 6,
+      "errors": 0,
+      "physical_topology_and_assignment": 6,
+      "including_aux_topology_and_assignment": 5,
+      "max_seconds": 3.4346500000953673
+    }
+  ],
+  "knight_no_ground_truth": {
+    "vertices": 1664,
+    "edges": 3662,
+    "same_edges": true,
+    "same_assignments": true,
+    "max_coordinate_difference": 0,
+    "no_ground_truth": true
+  },
+  "validation": {
+    "rust_workspace_passed": 2233,
+    "rust_ignored": 7,
+    "web_passed": 7001,
+    "web_files_passed": 560,
+    "focused_web_passed": 39,
+    "clippy_affected_crates": true,
+    "web_lint": true,
+    "web_typecheck": true,
+    "normal_production_build_and_wasm": true,
+    "format_and_diff_check": true,
+    "old_solver_optional_evidence_smoke": true,
+    "extra_upstream_oracle_run": false,
+    "extra_upstream_oracle_reason": "No ported kernel, parser or serializer behavior changed."
+  },
+  "shipping": {
+    "normal_recognition_and_region_solve_flow": true,
+    "model_or_registry_changed": false,
+    "trained_models": false,
+    "runpod_resources_used": false,
+    "merge_authorized": false
+  },
+  "source_fingerprints": {
+    "apps/web/src/cp-workspace/regions/useCpRegionSolve.ts": "92e757d99acd21565c4818b2a924664013efd787fe808ce885759884aa7195d6",
+    "apps/web/src/workers/cpDetectWorker.ts": "23d42890809be7f52854eaeff0a99c9d70490dbaba2bc4d5b32c0a971c6b4c01",
+    "crates/oristudio-cp-compiler/src/candidate_graph.rs": "bea90f66db0077cf73255df95618ae4e79b030ba5d5dd52847017f388c644513",
+    "crates/oristudio-cp-compiler/src/exact_solve.rs": "c7b2ca908ac397f7fa8ee48b2f6c9f1701db29fdaba0b9434e151642dced4e76",
+    "crates/oristudio-cp-compiler/src/exact_solve/recognition.rs": "8a92c760b4c6b2899f8bc358e998d0e9d727c70ccd82a1892f0c10a7883d5610",
+    "crates/oristudio-cp-compiler/src/exact_solve/recovery.rs": "06f382512dd6fbc7cb6e7de6ac37608160f34bf86d93bc536491059bcc99b72b",
+    "crates/oristudio-cp-compiler/src/exact_solve/recovery/constructions.rs": "d7def6776c5cfc51c2027be2082e7b55d6c3802738d94af0cbeb5088f16ccb9b",
+    "crates/oristudio-cp-compiler/src/exact_solve/recovery/constructions/joint.rs": "25d792276285ea8da16c261fd5a57b59c9533ebd68d1da5d18f7589f98f6ef1a",
+    "crates/oristudio-cp-compiler/src/fold_exactize.rs": "4a6d523dfe5f58b2f9d223e6398c70660abe0033793c68947ea1883e100f4ab1",
+    "crates/oristudio-cp-compiler/src/lib.rs": "cd5d812bc4a3bfdfa269533a098761d33a2d914f4e66502ceef7e9e0a775fb9d",
+    "crates/oristudio-cp-detect-wasm/src/lib.rs": "17a8e3c7e5dee9264133c5c0f1c2a556150a01fe4b7da8b014022e08e41b7cef",
+    "crates/oristudio-cp-detect/src/bin/simulate_topology_repair.rs": "16cb588c9cc6f85baebdf140a7a68f59d55ee2015d42a96652c4cbb10851a3ad",
+    "crates/oristudio-cp-detect/src/lib.rs": "7305e4907805398711751156929d0a81ee3d08657a5549ac3e188b87109312fe",
+    "apps/web/src/cp-workspace/regions/regionSolveImage.test.ts": "e33d6fbd686a7226a11d61bdbb0f792d967f4f650b3a7acaaa329127344100b1",
+    "apps/web/src/cp-workspace/regions/regionSolveImage.ts": "214d48d20c981ed8821cb25fda96c105b3b80f7cf652e341f7e65f7820484265",
+    "crates/oristudio-cp-compiler/src/exact_solve/image_recovery.rs": "d6d65056c8bada5f5bf29f335f3dc49ebb63529c780ef5c71150d9e91d2e2163",
+    "crates/oristudio-cp-compiler/src/image_evidence.rs": "634f6ba1f247bb14eb58e00c4a5993c0f818fc59ee03c080e2e43a8638834a02",
+    "crates/oristudio-cp-detect/examples/source_line_probe.rs": "9da4b34686b31923972116e1b66f3f299381b557774b97ac345e18b07ce852d9",
+    "crates/oristudio-cp-detect/src/source_line_fit.rs": "d93082c8131ec090e96ae9e57b4b046e794d470fca42e3c91d8199751df0bd5e",
+    "apps/web/src/generated/oristudio-cp-detect-wasm/oristudio_cp_detect_wasm_bg.wasm": "1234e8d079df89c1aa270ebdbc0f8560abccebe486c48a80273ccecb3b25cc4b"
+  },
+  "artifact_fingerprints": {
+    "artifacts/cp-solver/S114-raster-phase/solver_research": "4ed94eabcafd2f24d1d4ef6dc2614feefa24e63d4db8d64a30e8fdc69860455b",
+    "artifacts/cp-solver/S114-raster-phase/source_line_probe": "f451ac25ee314b2ff980acb3168a06c2c46c7a249b1fea0742bd6d0c6e5b4a86",
+    "artifacts/cp-solver/S114-raster-phase/environment.json": "8e0056bc08d78ab04045f895e741baafdba629514e913e1160a6e72fe1293fc9",
+    "artifacts/cp-solver/S114-raster-phase/direct-browser/audit/protocol.json": "83f27260aeecffcc0c059f26af6185b099970bd8306c3bfb2af42538df6f010d",
+    "artifacts/cp-solver/S114-raster-phase/region-browser/audit/protocol.json": "d61cb89a8d3edd29a72e6c4771df28b7ca6847ab035d736c0a852c576ea5c22f",
+    "artifacts/cp-solver/S114-raster-phase/region-baseline/audit/protocol.json": "53c00d0946a549064cb22de7bcca13c1b95e08f14ae2558cd8b7342e86dc9646",
+    "artifacts/cp-solver/S114-raster-phase/oriedita/comparison.json": "7e7dadc8639c8eb5f781ef9b8667352587472757c2b2287ebffe18c78696d200",
+    "artifacts/cp-solver/S115-oriedita-confirmation/study/comparison.json": "abc65ee51fab9307c3f78cb1a0677ab8d023a46119f0194ad9ba75ab3fd4aa21"
+  },
+  "archive": "/Users/zacharymarion/Documents/datasets/create-pattern-detector/research/cp-image-recovery-2026-09-17/",
+  "timing_environment": {
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "machine": "arm64",
+    "cpu": "Apple M1 Max",
+    "physical_cores": 10,
+    "logical_cores": 10,
+    "rustc": "rustc 1.96.1 (31fca3adb 2026-06-26)",
+    "node": "v22.14.0",
+    "base_commit": "8b0d958499be0e6bd9b360cccece067f497fa894",
+    "concurrency": "Sequential within each runner. Native original + native Oriedita + candidate-region browser + baseline-region browser overlapped. Direct browser replaces completed baseline browser; confirmation replaces completed Oriedita. Normal user applications also running. No model training or GPU resources.",
+    "timing_claim": "Observed on this machine; shared 25s request budget, not a guarantee of equal recovery on every slower device."
+  }
+}

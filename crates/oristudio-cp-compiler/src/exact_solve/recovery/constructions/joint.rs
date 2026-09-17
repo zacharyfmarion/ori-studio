@@ -90,6 +90,13 @@ impl Catalog {
     }
 }
 
+pub(in crate::exact_solve) fn description_cost(points: &[Point2]) -> f64 {
+    let coordinates: Vec<_> = points.iter().flat_map(|p| [p.x, p.y]).collect();
+    // Use the same catalog for both answers, irrespective of their detected
+    // angle family, so their description lengths are directly comparable.
+    catalog(true).cost(&coordinates, &coordinates, 0.)
+}
+
 fn has_fifteen_degree_edges(input: &ExactSolveInput, points: &[Point2]) -> bool {
     input
         .selected_spans

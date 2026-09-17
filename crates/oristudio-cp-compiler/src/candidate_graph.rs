@@ -1049,6 +1049,9 @@ impl SelectedGraph {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ExactSolveInput {
+    /// Optional source-only measurements. Older documents and API clients omit it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_evidence: Option<crate::image_evidence::SourceImageEvidence>,
     pub schema: String,
     pub coordinate_space: String,
     pub image_size: Option<u32>,
@@ -1076,6 +1079,7 @@ impl ExactSolveInput {
         classify_cut_boundary_spans(&graph.vertices, &mut selected_spans);
         Self {
             schema: "oristudio/cp-compiler/exact-solve-input-v1".to_owned(),
+            image_evidence: None,
             coordinate_space: graph.coordinate_space.clone(),
             image_size: graph.image_size,
             vertices: graph.vertices.clone(),

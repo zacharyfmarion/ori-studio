@@ -19,6 +19,7 @@ pub mod exact_solve;
 pub mod exactize;
 pub mod fold_exactize;
 pub mod fold_export;
+pub mod image_evidence;
 pub mod lattice;
 pub mod optimizer;
 pub mod pleat_runs;

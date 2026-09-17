@@ -232,6 +232,64 @@ pub fn cp_detect_decode_dense_output_bundle(
 }
 
 #[wasm_bindgen]
+pub fn cp_detect_measure_source_image(
+    input_json: &str,
+    rgba: &[u8],
+    width: u32,
+    height: u32,
+    quad_json: &str,
+    previous_input_json: Option<String>,
+    previous_quad_json: Option<String>,
+) -> Result<String, JsValue> {
+    install_panic_hook();
+    let mut payload: serde_json::Value = serde_json::from_str(input_json)
+        .map_err(|e| js_error("invalid_solve_input", e.to_string()))?;
+    let mut input: oristudio_cp_compiler::ExactSolveInput = serde_json::from_value(payload.clone())
+        .map_err(|e| js_error("invalid_solve_input", e.to_string()))?;
+    let frame_quad = serde_json::from_str(quad_json)
+        .map_err(|e| js_error("invalid_source_quad", e.to_string()))?;
+    let quad =
+        oristudio_cp_detect::source_line_fit::refine_source_border(rgba, width, height, frame_quad)
+            .map_err(|e| js_error("invalid_source_image", e.to_string()))?;
+    let mut evidence = oristudio_cp_detect::source_line_fit::measure_source_lines(
+        &input, rgba, width, height, quad,
+    )
+    .map_err(|e| js_error("invalid_source_image", e.to_string()))?;
+    let mut reused = 0;
+    if let (Some(previous), Some(previous_quad)) = (previous_input_json, previous_quad_json)
+        && let (Ok(previous), Ok(previous_quad)) = (
+            serde_json::from_str(&previous),
+            serde_json::from_str(&previous_quad),
+        )
+    {
+        // A FOLD rebuild drops the detector's resolution. Its uncertainty and
+        // recognition proposal path must survive a document round trip, even
+        // when an older saved input has no cached line observations.
+        if input.image_size.is_none() {
+            input.image_size = oristudio_cp_detect::source_line_fit::inherited_image_size(
+                &previous,
+                frame_quad,
+                previous_quad,
+            );
+            payload["image_size"] = serde_json::json!(input.image_size);
+        }
+        reused = oristudio_cp_detect::source_line_fit::reuse_source_lines(
+            &input,
+            &mut evidence,
+            frame_quad,
+            &previous,
+            previous_quad,
+        );
+    }
+    payload["source_image_reused_lines"] = serde_json::json!(reused);
+    // Preserve opaque bridge attachments such as AUX segments verbatim.
+    payload["image_evidence"] = serde_json::to_value(evidence)
+        .map_err(|e| js_error("source_image_serialization", e.to_string()))?;
+    serde_json::to_string(&payload)
+        .map_err(|e| js_error("source_image_serialization", e.to_string()))
+}
+
+#[wasm_bindgen]
 pub fn cp_detect_decode_pixel_evidence(
     rgba: &[u8],
     crease_probability: &[f32],

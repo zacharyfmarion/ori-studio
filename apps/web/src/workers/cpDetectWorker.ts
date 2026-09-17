@@ -10,6 +10,7 @@ import init, {
   cp_detect_decode_dense_output_bundle_with_junction_source,
   cp_detect_manual_rectify_rgba,
   cp_detect_manual_rectify_pixel_rgba,
+  cp_detect_measure_source_image,
   cp_detect_decode_pixel_evidence,
   cp_detect_package_info,
   cp_detect_parse_model_manifest,
@@ -403,6 +404,11 @@ const api = {
   ): Promise<CpDetectInferenceResult> {
     return call(() => denseInferenceForImage(image, options, onModelProgress));
   },
+  /** Source-only measurements; shared by browser and native solve requests. */
+  async measureSourceImage(input: unknown, image: ImageData, quad: CpDetectQuad,
+    previous?: { input: unknown; quad: CpDetectQuad }): Promise<unknown> {
+    return call(() => measureSourceImage(input, image, quad, previous));
+  },
   /**
    * Recognize **and** solve, in one call — the original fused decode.
    *
@@ -633,6 +639,19 @@ async function decodeRectifiedImage(
       imageDataBytes(image), evidence.crease, evidence.auxiliary, image.width,
       JSON.stringify(evidence.vertices), recognizeOnly, options.exactSolveTimeoutSeconds,
     ) as DecodedFold;
+    const input = cpDetectSolveInput(decoded.report);
+    const compiler = decoded.report.quality_report?.compiler_report;
+    if (recognizeOnly && input && compiler && typeof compiler === 'object') {
+      const source = options.highResolutionSource ?? {
+        image,
+        quad: { top_left: { x: 32, y: 32 }, top_right: { x: image.width - 32, y: 32 },
+          bottom_right: { x: image.width - 32, y: image.height - 32 },
+          bottom_left: { x: 32, y: image.height - 32 } },
+      };
+      decoded.report.quality_report = { ...decoded.report.quality_report,
+        compiler_report: { ...compiler, exact_solve_input: measureSourceImage(input, source.image, source.quad) },
+      };
+    }
     return { ...decoded, manifest, junctionSource: 'pixel-vertex-v1',
       lineEvidenceSource: 'pixel-vertex-v1', runtime: {
         ...sessionRuntime.runtime, model_run_ms: inferenceMs, total_inference_ms: inferenceMs,
@@ -659,6 +678,16 @@ async function decodeRectifiedImage(
     lineEvidenceSource,
     runtime: inference.runtime,
   };
+}
+
+function measureSourceImage(input: unknown, image: ImageData, quad: CpDetectQuad,
+  previous?: { input: unknown; quad: CpDetectQuad }): unknown {
+  const corners = (q: CpDetectQuad) => [q.top_left, q.top_right, q.bottom_right, q.bottom_left]
+    .map(({ x, y }) => [x, y]);
+  return JSON.parse(cp_detect_measure_source_image(JSON.stringify(input), imageDataBytes(image),
+    image.width, image.height, JSON.stringify(corners(quad)),
+    previous ? JSON.stringify(previous.input) : undefined,
+    previous ? JSON.stringify(corners(previous.quad)) : undefined));
 }
 
 /**
