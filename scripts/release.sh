@@ -19,6 +19,13 @@ RELEASE_GITHUB_REPO="${RELEASE_GITHUB_REPO:-zacharyfmarion/ori-studio}"
 RELEASE_REMOTE="${RELEASE_REMOTE:-origin}"
 LOCAL_MACOS_RELEASE_SCRIPT="scripts/local-macos-release.sh"
 DEFAULT_RELEASE_ENV_FILE=".env.release.local"
+CI_WORKFLOW="CI"
+# CI on a main commit takes 15-20 minutes; the timeout leaves room for a slow day.
+RELEASE_CI_WAIT_TIMEOUT="${RELEASE_CI_WAIT_TIMEOUT:-2400}"
+RELEASE_CI_POLL_INTERVAL="${RELEASE_CI_POLL_INTERVAL:-30}"
+# A push run appears within seconds of the merge. This is how long "no run yet"
+# is read as "not yet" rather than "never".
+CI_RUN_APPEAR_GRACE=120
 
 error() {
     echo -e "${RED}Error: $1${NC}" >&2
@@ -31,6 +38,10 @@ success() {
 
 info() {
     echo -e "${BLUE}Info: $1${NC}"
+}
+
+warn() {
+    echo -e "${YELLOW}Warning: $1${NC}" >&2
 }
 
 confirm() {
@@ -50,24 +61,31 @@ usage() {
     cat <<EOF
 Usage:
   ./scripts/release.sh prepare <version> [--notes-file <path> | --notes <text> | --notes-stdin] [--yes]
-  ./scripts/release.sh publish <version> [--env-file <path>] [--artifacts-dir <path>]
-                              [--target <triple>] [--arch <name>] [--skip-deps]
-                              [--local-build]
+  ./scripts/release.sh publish <version> [--no-wait] [--env-file <path>]
+                              [--artifacts-dir <path>] [--target <triple>]
+                              [--arch <name>] [--skip-deps] [--local-build]
 
 Commands:
   prepare   Create release/v<version> from ${RELEASE_REMOTE}/${MAIN_BRANCH},
             bump versions, update CHANGELOG.md, push, and open a PR.
   publish   Find the merged release PR, verify the merge commit and its version
-            files, then push tag v<version>. The Desktop Build workflow builds
-            and signs all four platform legs from that tag.
+            files, wait for CI to be green at that commit, then push tag
+            v<version>. The Desktop Build workflow builds and signs all four
+            platform legs from that tag.
+
+            --no-wait pushes the tag without waiting for CI. The Desktop Build
+            then fails its CI gate until CI is green at that commit, and must
+            be re-run (gh run rerun <run-id>); never delete or re-point the tag.
 
             --local-build additionally runs the break-glass local macOS build;
             it is not needed for a normal release.
 
 Environment:
-  RELEASE_GITHUB_REPO  GitHub repo slug for gh CLI calls (default: ${RELEASE_GITHUB_REPO})
-  RELEASE_REMOTE       Git remote used for fetch/push/tag checks (default: ${RELEASE_REMOTE})
-  ${DEFAULT_RELEASE_ENV_FILE}  Optional ignored env file loaded by the local macOS release builder.
+  RELEASE_GITHUB_REPO       GitHub repo slug for gh CLI calls (default: ${RELEASE_GITHUB_REPO})
+  RELEASE_REMOTE            Git remote used for fetch/push/tag checks (default: ${RELEASE_REMOTE})
+  RELEASE_CI_WAIT_TIMEOUT   Seconds publish waits for CI at the merge commit (default: ${RELEASE_CI_WAIT_TIMEOUT})
+  RELEASE_CI_POLL_INTERVAL  Seconds between CI polls (default: ${RELEASE_CI_POLL_INTERVAL})
+  ${DEFAULT_RELEASE_ENV_FILE}        Optional ignored env file loaded by the local macOS release builder.
 EOF
 }
 
@@ -387,6 +405,86 @@ extract_changelog_from_ref() {
     git show "${ref}:${CHANGELOG_FILE}" | extract_changelog_section_from_stream "$version"
 }
 
+list_ci_runs() {
+    local sha="$1"
+
+    # The query release.yml's "Check CI was green at this commit" step makes.
+    # --commit wants the full 40-character SHA; an abbreviation matches nothing.
+    gh run list \
+        --repo "$RELEASE_GITHUB_REPO" \
+        --workflow "$CI_WORKFLOW" \
+        --commit "$sha" \
+        --json databaseId,url,status,conclusion
+}
+
+format_duration() {
+    local seconds="$1"
+
+    printf '%dm%02ds' "$((seconds / 60))" "$((seconds % 60))"
+}
+
+# release.yml's validate job refuses a tag whose commit has no *successful* CI
+# run. CI on a merge commit starts at the merge and takes 15-20 minutes, so
+# tagging straight after `gh pr merge` failed that gate every time (0.5.0 did),
+# and the tag is the one step that cannot be redone. So wait here.
+wait_for_ci_success() {
+    local sha="$1"
+    local started_at elapsed runs_json run_count
+    local active_run active_id active_status active_url announced_url=""
+    local concluded_id concluded_conclusion concluded_url
+
+    info "Waiting for a successful CI run at $sha (polling every ${RELEASE_CI_POLL_INTERVAL}s, up to $(format_duration "$RELEASE_CI_WAIT_TIMEOUT"); --no-wait skips this)..."
+
+    started_at=$(date +%s)
+    while :; do
+        runs_json=$(list_ci_runs "$sha") || error "Could not list CI runs for $sha"
+        run_count=$(printf '%s' "$runs_json" | jq 'length')
+        elapsed=$(( $(date +%s) - started_at ))
+
+        if printf '%s' "$runs_json" | jq -e 'any(.[]; .conclusion == "success")' >/dev/null; then
+            success "CI is green at $sha"
+            return 0
+        fi
+
+        # The newest run that has not completed, as "<id> <status> <url>".
+        active_run=$(printf '%s' "$runs_json" \
+            | jq -r 'map(select(.status != "completed")) | first // empty | "\(.databaseId) \(.status) \(.url)"')
+
+        if [ -n "$active_run" ]; then
+            read -r active_id active_status active_url <<< "$active_run"
+            if [ "$active_url" != "$announced_url" ]; then
+                info "Watching $active_url"
+                announced_url="$active_url"
+            fi
+            if [ "$elapsed" -ge "$RELEASE_CI_WAIT_TIMEOUT" ]; then
+                error "CI run $active_id at $sha is still $active_status after $(format_duration "$elapsed").
+Watch it (gh run watch $active_id --repo $RELEASE_GITHUB_REPO) and run publish again
+once it is green, or raise RELEASE_CI_WAIT_TIMEOUT. The tag has not been pushed."
+            fi
+            info "CI run $active_id is $active_status; waited $(format_duration "$elapsed") of $(format_duration "$RELEASE_CI_WAIT_TIMEOUT")"
+        elif [ "$run_count" -eq 0 ] && [ "$elapsed" -lt "$CI_RUN_APPEAR_GRACE" ]; then
+            info "No CI run at $sha yet; a push run appears within seconds of the merge..."
+        elif [ "$run_count" -eq 0 ]; then
+            error "No CI run at $sha, and release.yml's validate job needs a successful one.
+CI does not trigger on tags. Dispatch it at a branch or tag that points at this
+commit (gh workflow run CI --repo $RELEASE_GITHUB_REPO --ref <branch-or-tag>),
+wait for green, then run publish again. See RELEASE.md, 'If the release build
+reports no successful CI run'. The tag has not been pushed."
+        else
+            read -r concluded_id concluded_conclusion concluded_url <<< "$(printf '%s' "$runs_json" \
+                | jq -r '.[0] | "\(.databaseId) \(.conclusion) \(.url)"')"
+            error "CI at $sha concluded $concluded_conclusion ($concluded_url), and release.yml's
+validate job needs a successful run. If it was cancelled or flaky, re-run it:
+  gh run rerun $concluded_id --repo $RELEASE_GITHUB_REPO
+then run publish again once it is green. If it failed for real, fix forward.
+See RELEASE.md, 'If the release build reports no successful CI run'. The tag
+has not been pushed."
+        fi
+
+        sleep "$RELEASE_CI_POLL_INTERVAL"
+    done
+}
+
 prepare_release() {
     local version="$1"
     local notes_file="${2:-}"
@@ -477,6 +575,7 @@ publish_release() {
     local arch="${6:-}"
     local local_build="${7:-false}"
     local skip_deps="${8:-false}"
+    local no_wait="${9:-false}"
     local tag_name
     local release_branch
     local pr_json
@@ -532,6 +631,12 @@ publish_release() {
     info "Validating changelog entry for v$version..."
     changelog_entry=$(extract_changelog_from_ref "$merge_sha" "$version") || error "No CHANGELOG.md entry found for $version at $merge_sha"
     require_non_empty_text "$changelog_entry" "CHANGELOG entry for $version"
+
+    if [ "$no_wait" = "true" ]; then
+        warn "Not waiting for CI by request. The Desktop Build's validate job fails until CI is green at $merge_sha; re-run it then (gh run rerun <desktop-build-run-id>) rather than touching the tag."
+    else
+        wait_for_ci_success "$merge_sha"
+    fi
 
     if [ -z "$artifacts_dir" ]; then
         artifacts_dir="target/release-artifacts/$tag_name"
@@ -636,6 +741,7 @@ main() {
     local arch=""
     local local_build="false"
     local skip_deps="false"
+    local no_wait="false"
 
     ensure_repo_root
 
@@ -708,6 +814,10 @@ main() {
                 skip_deps="true"
                 shift
                 ;;
+            --no-wait)
+                no_wait="true"
+                shift
+                ;;
             *)
                 error "Unknown option: $1"
                 ;;
@@ -723,6 +833,7 @@ main() {
             [ -z "$arch" ] || error "--arch is only supported for publish"
             [ "$local_build" = "false" ] || error "--local-build is only supported for publish"
             [ "$skip_deps" = "false" ] || error "--skip-deps is only supported for publish"
+            [ "$no_wait" = "false" ] || error "--no-wait is only supported for publish"
             info "Starting release preparation for Ori Studio"
             prepare_release "$version" "$notes_file" "$inline_notes" "$notes_from_stdin" "$auto_confirm"
             ;;
@@ -733,7 +844,7 @@ main() {
             [ "$notes_from_stdin" != "true" ] || error "--notes-stdin is only supported for prepare"
             [ "$auto_confirm" = "false" ] || error "--yes is only supported for prepare"
             info "Starting release publish for Ori Studio"
-            publish_release "$version" "$env_file" "$env_file_explicit" "$artifacts_dir" "$target_triple" "$arch" "$local_build" "$skip_deps"
+            publish_release "$version" "$env_file" "$env_file_explicit" "$artifacts_dir" "$target_triple" "$arch" "$local_build" "$skip_deps" "$no_wait"
             ;;
         *)
             usage
