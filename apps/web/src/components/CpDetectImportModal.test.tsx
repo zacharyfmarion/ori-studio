@@ -502,6 +502,12 @@ describe('CpDetectImportModal recognize-then-solve', () => {
     expect(button('Add as-is')).toBeNull();
     expect(button('Solve & Add')).toBeNull();
     expect(bodyText()).toMatch(/now meets the foldability check/);
+    // But the door to steering the solve stays open. A solve guarantees a
+    // pattern that folds flat, not the one the designer drew, and pinning the
+    // vertices that matter before solving again is only possible in the
+    // document — so the clean result must not be the one state that hides it.
+    expect(button('Review & Fix')).not.toBeNull();
+    expect(bodyText()).toMatch(/pin or move vertices before solving it again/);
   });
 
   it('previews retained auxiliary geometry separately from valleys', async () => {
@@ -930,6 +936,38 @@ describe('CpDetectImportModal add', () => {
     expect(storeActions.importAddOristudioCpText).toHaveBeenCalledWith(
       expect.objectContaining({ mergeExtraVertices: true })
     );
+  });
+
+  it('adds the candidate as recognized, not the solved document, when Review & Fix is chosen beside an exact solve', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(0)));
+    await reachReviewStage();
+    click('Review & Fix');
+    await settle();
+
+    // The state to pin or move vertices in *before* solving, which is the whole
+    // reason to choose it over Add — never the solved coordinates under the
+    // repair scaffolding, which would be a second name for Add.
+    const [{ text }] = storeActions.importAddOristudioCpText.mock.calls[0] as unknown as [
+      { text: string },
+    ];
+    expect(JSON.parse(text)).toEqual(JSON.parse(candidateFold()));
+    expect(storeActions.importAddOristudioCpText).toHaveBeenCalledWith(
+      expect.objectContaining({ mergeExtraVertices: false })
+    );
+    // The same underlay and solve-carrying region as after a failure: one
+    // destination, whatever the modal's own solve said about the candidate.
+    const added = storeActions.addAnnotation.mock.calls.map((call) => call[0]);
+    expect(added.some(isImageAnnotation)).toBe(true);
+    const region = added.find(isSuppressionRegionAnnotation);
+    expect(region?.solveInput).toEqual({ schema: 'exact-solve-input-v1' });
+    expect(activateWorkspace).toHaveBeenCalledWith('edit');
+    // `mode` and `outcome` are separate on purpose: this pairing is the count of
+    // people who declined a clean solve to steer it by hand.
+    expect(track).toHaveBeenCalledWith('cp detect imported', {
+      mode: 'reviewAndFix',
+      outcome: 'solved',
+      repair_sites: '0',
+    });
   });
 
   it('runs no kernel command after adding: the fixes would edit the user’s creases, and the boundary check needs a dragged path', async () => {

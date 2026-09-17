@@ -28,7 +28,7 @@ The wanted flow, frontend-controlled:
 ```
 Recognize  ──►  topology issues?
                  │
-                 ├── no ──►  "Solving…"  ──►  solved   ──► [Add]
+                 ├── no ──►  "Solving…"  ──►  solved   ──► [Add] · [Review & Fix]
                  │                        └─► failed   ──► repair path
                  │
                  └── yes ─►  [Review & Fix]  ──►  user repairs in the editor

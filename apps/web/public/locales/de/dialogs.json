@@ -108,6 +108,7 @@
       "blocked": "Der Solver konnte diesen Kandidatengraphen nicht lesen, es gibt also nichts von Hand zu korrigieren. Unverändert hinzufügen ist weiterhin möglich.",
       "cancelled": "Sie haben das Lösen gestoppt, daher wurde nichts geändert – das ist das Muster genau so, wie es erkannt wurde. „Prüfen und korrigieren“ fügt es mit dem Quellbild dahinter ein und behält die Solver-Daten, damit Sie es im Dokument erneut lösen können.",
       "exact": "Wird es neben Ihrer Arbeit eingefügt, bleibt der Rest des Dokuments unverändert.",
+      "exactReview": "„Prüfen und korrigieren“ fügt stattdessen das Muster so ein, wie es erkannt wurde, mit dem Quellbild dahinter und den Solver-Daten, damit Sie Knoten fixieren oder verschieben können, bevor Sie es selbst erneut lösen.",
       "improved": "„Prüfen und korrigieren“ fügt es mit dem Quellbild dahinter ein und behält die Solver-Daten, damit Sie den Rest korrigieren und erneut lösen können – oder Sie fügen das verbesserte Ergebnis so hinzu, wie es ist.",
       "improvedNoFold": "„Prüfen und korrigieren“ fügt es mit dem Quellbild dahinter ein und behält die Solver-Daten, damit Sie den Rest korrigieren und erneut lösen können.",
       "repairable_one": "Erkannt, mit einer zu reparierenden Stelle – das Lösen wurde deshalb nicht ausgeführt: Es hätte sein ganzes Zeitbudget für Geometrie verbraucht, die Sie gleich ändern. „Prüfen und korrigieren“ fügt den Kandidaten mit dem Quellbild dahinter ein, damit Sie ihn korrigieren und lösen können.",
