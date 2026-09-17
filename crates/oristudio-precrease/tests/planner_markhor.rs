@@ -172,15 +172,14 @@ const EXPECTED: &[Expect] = &[
         points: &[(0.25, 0.5732)],
         ..ANY
     },
-    // 93: the crease between its own marks, or the right edge carried onto
-    // a mark perpendicular to the diagonal — at the crease either way — not
-    // a swing whose pivot grazes the landing line.
-    Expect {
-        item: 93,
-        line: (FRAC_1_SQRT_2, -FRAC_1_SQRT_2, 0.5),
-        axioms: &[1, 4, 7],
-        ..ANY
-    },
+    // 93 was pinned to the crease between its own marks, or the right edge
+    // carried onto a mark perpendicular to the antidiagonal (O1, O4, O7).
+    // The perpendicular it got folded the antidiagonal onto itself across
+    // its uncreased middle — the corner landed on bare paper, nothing to
+    // line it up by — and once an O7's line folded onto itself is judged
+    // for that (2026-09-16), neither end of the crease being a mark yet,
+    // the plan gives an O6. Zach: "I don't love O6 but the changes we made
+    // here do enforce correctness which I want" — so no pin.
     // 103, 104: the top edge folded onto itself through the crease's start
     // point — Zach's ask — not two interior points, and not an edge mark
     // onto a mark that would first have to be pinched.
@@ -417,14 +416,17 @@ fn markhor_feedback_picks_are_the_ones_zach_asked_for() {
     let mut planner = Planner::new(&analysis.components[0], opts);
     planner.plan_without_reference_finder().expect("plan");
     let seq = planner.sequence(false);
-    // R10 (third round) costs one press: the mark at (0.25, 0.677), a 45°
+    // R10 (third round) cost one press: the mark at (0.25, 0.677), a 45°
     // crease's crossing with a line the fold that made the crease — 0.02 of
     // it, lined up over a tenth of the sheet — could not vouch for from 4.2
-    // levers away, and nothing else on that paper could. The press is
-    // sighted for itself, by a mark onto the top edge with a crease folded
-    // onto itself, and the pinch is within reach of that.
-    assert_eq!(seq.steps.len(), 164, "markhor steps");
-    assert_eq!(seq.totals.presses, 1, "markhor presses");
+    // levers away. The press was sighted by a mark onto the top edge with a
+    // crease folded onto itself — an O7 whose crease was bare where the
+    // flap's corner landed, which no longer passes as visible (2026-09-16)
+    // — and the fold that makes the crease is sighted again instead,
+    // through a longer alignment on a parallel crease that vouches for the
+    // pinch. No press.
+    assert_eq!(seq.steps.len(), 163, "markhor steps");
+    assert_eq!(seq.totals.presses, 0, "markhor presses");
     assert!(
         seq.steps.iter().all(|s| !s.impractical),
         "every fold on this sheet has a practical construction"

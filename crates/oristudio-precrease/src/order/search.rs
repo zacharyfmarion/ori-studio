@@ -314,6 +314,9 @@ pub(super) fn replay_order(
         block.append(&mut pending);
         pending = block;
     }
+    // A replayed order is a schedule like any other: a pair re-sighted two
+    // different ways along the way is two cards.
+    part_twins_no_longer_mirrored(closure, &mut schedule.placed);
     Some(schedule.placed)
 }
 

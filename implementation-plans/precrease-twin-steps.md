@@ -55,6 +55,18 @@ Two placed CP folds `A` and `B` are twins when all of these hold:
    symmetric. We should be merging based on the actual creases that are
    folded." Angelfish reads as 52 cards, not 53; gigantura and markhor
    are unchanged.
+6. **Still mirrored at the end.** Rules 2 and 5 are checked when the pair
+   is placed; a fold sighted again later for a pinch it could not vouch
+   for (R10, `repick_to_vouch`) may come to present a witness that is no
+   longer the other's image, or leave a longer crease. Such a pair is
+   parted at the end of the ordering pass
+   (`order::part_twins_no_longer_mirrored`) and each is a card of its own
+   — markhor-detailed 113 (2026-09-16) read "fold through P, bringing Q
+   onto A; fold B onto C", a perpendicular through a mark beside a
+   bisection, and Zach: "both the
+   creases made and the way the creases are made need to be symmetric".
+   The parted pair gets no `also`: the mirror that stood in for it was
+   checked on the paper as it was, not as it is.
 
 Quads (the four edge-to-crease folds of the Terao excerpt, step 4) are two
 twin pairs that are twins of each other about the other axis. Phase 1 is
@@ -164,6 +176,10 @@ mirrored arrows, which keeps them apart in every pair looked at so far.
 - [x] Twin card: both creases, both witnesses.
 - [ ] Arrows in separate lanes when mirrored arcs cross.
 - [x] Twin sentence and locales.
+- [x] A pair made two different ways after a re-sighting is parted
+      (2026-09-16): markhor-detailed 136 → 137 cards, the pair on the two
+      45° lines through (½, 0.573) and (0.448, 0.521); tabby cat and
+      markhor unchanged.
 - [x] Corpus (54 designs, 2026-09-15): 4,035 steps read as 3,168 cards —
       867 pairs, a fifth fewer cards — with steps, turn-overs, lost ends,
       pieces and reach unchanged against the run before twins (53 common
