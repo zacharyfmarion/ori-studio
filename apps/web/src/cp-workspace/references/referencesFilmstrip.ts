@@ -86,7 +86,7 @@ export function candidateFilmstrip(
           diagram: null,
           primitives: diagonalStepDiagram(step.diagonal, sheet),
           mirrored: false,
-          sentence: describeCandidateStep(t, candidate.solution, step),
+          sentence: describeCandidateStep(t, candidate.solution, step, sheet),
         }
       : {
           key: `rf-${step.steps[0] ?? 'final'}`,
@@ -96,7 +96,7 @@ export function candidateFilmstrip(
           diagram: candidateStepDiagram(candidate.raw, step),
           primitives: null,
           mirrored: false,
-          sentence: describeCandidateStep(t, candidate.solution, step),
+          sentence: describeCandidateStep(t, candidate.solution, step, sheet),
         }
   );
 }

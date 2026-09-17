@@ -1082,6 +1082,7 @@
       "axiom6": "Pliez {{x}} en amenant {{p0}} sur {{l0}} et {{p1}} sur {{l1}}.",
       "axiom7": "Pliez {{x}} en rabattant {{lSelf}} sur elle-même de sorte que {{p0}} tombe sur {{lLand}}.",
       "diagonal": "Pliez {{a}} sur {{b}}, en marquant la diagonale.",
+      "diagonalThrough": "Pliez en passant par {{a}} et {{b}}, en marquant la diagonale.",
       "mark": "Marquez {{x}} là où {{l0}} rencontre {{l1}}.",
       "pinch": "Simple pincement : seule la marque est nécessaire.",
       "unknown": "Pliez {{x}} à l’aide de {{inputs}}."

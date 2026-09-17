@@ -1040,6 +1040,7 @@
       "axiom6": "Falte {{x}}, indem du {{p0}} auf {{l0}} und {{p1}} auf {{l1}} legst.",
       "axiom7": "Falte {{x}}, indem du {{lSelf}} auf sich selbst legst, sodass {{p0}} auf {{lLand}} landet.",
       "diagonal": "Falte {{a}} auf {{b}} und falze die Diagonale.",
+      "diagonalThrough": "Falte durch {{a}} und {{b}} und falze die Diagonale.",
       "mark": "Markiere {{x}}, wo {{l0}} auf {{l1}} trifft.",
       "pinch": "Nur anknicken — nur die Markierung wird gebraucht.",
       "unknown": "Falte {{x}} mit {{inputs}}."

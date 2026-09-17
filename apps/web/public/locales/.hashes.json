@@ -3062,7 +3062,8 @@
     "panels:references.actions.unfold": "ae11429cfc27",
     "panels:references.settings.autoPlayFolds": "e5fad7f61227",
     "panels:references.settings.autoPlayFoldsHelp": "9938788f2238",
-    "tools:references.playFold": "86f81edff193"
+    "tools:references.playFold": "86f81edff193",
+    "panels:references.step.diagonalThrough": "43a088892849"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -6127,7 +6128,8 @@
     "panels:references.actions.unfold": "ae11429cfc27",
     "panels:references.settings.autoPlayFolds": "e5fad7f61227",
     "panels:references.settings.autoPlayFoldsHelp": "9938788f2238",
-    "tools:references.playFold": "86f81edff193"
+    "tools:references.playFold": "86f81edff193",
+    "panels:references.step.diagonalThrough": "43a088892849"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -9194,7 +9196,8 @@
     "panels:references.actions.unfold": "ae11429cfc27",
     "panels:references.settings.autoPlayFolds": "e5fad7f61227",
     "panels:references.settings.autoPlayFoldsHelp": "9938788f2238",
-    "tools:references.playFold": "86f81edff193"
+    "tools:references.playFold": "86f81edff193",
+    "panels:references.step.diagonalThrough": "43a088892849"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -12201,7 +12204,8 @@
     "panels:references.actions.unfold": "ae11429cfc27",
     "panels:references.settings.autoPlayFolds": "e5fad7f61227",
     "panels:references.settings.autoPlayFoldsHelp": "9938788f2238",
-    "tools:references.playFold": "86f81edff193"
+    "tools:references.playFold": "86f81edff193",
+    "panels:references.step.diagonalThrough": "43a088892849"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -15208,7 +15212,8 @@
     "panels:references.actions.unfold": "ae11429cfc27",
     "panels:references.settings.autoPlayFolds": "e5fad7f61227",
     "panels:references.settings.autoPlayFoldsHelp": "9938788f2238",
-    "tools:references.playFold": "86f81edff193"
+    "tools:references.playFold": "86f81edff193",
+    "panels:references.step.diagonalThrough": "43a088892849"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -18273,7 +18278,8 @@
     "panels:references.actions.unfold": "ae11429cfc27",
     "panels:references.settings.autoPlayFolds": "e5fad7f61227",
     "panels:references.settings.autoPlayFoldsHelp": "9938788f2238",
-    "tools:references.playFold": "86f81edff193"
+    "tools:references.playFold": "86f81edff193",
+    "panels:references.step.diagonalThrough": "43a088892849"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -21338,7 +21344,8 @@
     "panels:references.actions.unfold": "ae11429cfc27",
     "panels:references.settings.autoPlayFolds": "e5fad7f61227",
     "panels:references.settings.autoPlayFoldsHelp": "9938788f2238",
-    "tools:references.playFold": "86f81edff193"
+    "tools:references.playFold": "86f81edff193",
+    "panels:references.step.diagonalThrough": "43a088892849"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -24345,6 +24352,7 @@
     "panels:references.actions.unfold": "ae11429cfc27",
     "panels:references.settings.autoPlayFolds": "e5fad7f61227",
     "panels:references.settings.autoPlayFoldsHelp": "9938788f2238",
-    "tools:references.playFold": "86f81edff193"
+    "tools:references.playFold": "86f81edff193",
+    "panels:references.step.diagonalThrough": "43a088892849"
   }
 }

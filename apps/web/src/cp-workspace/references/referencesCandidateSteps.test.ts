@@ -22,9 +22,11 @@ import {
   clampCandidateStep,
   describeCandidateStep,
   describeDiagonalStep,
+  diagonalStep,
   diagonalStepDiagram,
   type ReferencesCandidateRfStep,
 } from './referencesCandidateSteps';
+import { arcSamplePoints } from './stepDiagramGeometry';
 
 function step(overrides: Partial<ExtractedStep>): ExtractedStep {
   return { axiom: 1, inputs: [], label: '', pinch: false, diagramIndex: null, ...overrides };
@@ -66,6 +68,11 @@ const t = ((key: string, defaultValue: string, options?: Record<string, string>)
     /\{\{(\w+)\}\}/g,
     (_, name) => options?.[name] ?? ''
   )) as unknown as TFunction;
+
+const UNIT = { width: 1, height: 1 };
+/** A landscape sheet, and the same one upright. */
+const WIDE = { width: 1, height: 0.75 };
+const TALL = { width: 0.75, height: 1 };
 
 const fixtures: Record<string, ReferenceFinderReplayFixture> = {
   'mark.json': markFixture as unknown as ReferenceFinderReplayFixture,
@@ -209,10 +216,10 @@ describe('candidateViewSteps', () => {
       { kind: 'rf', steps: [8], diagramIndex: 4 },
       { kind: 'rf', steps: [9], diagramIndex: null },
     ]);
-    expect(describeCandidateStep(t, second.solution, cards[1])).toBe(
+    expect(describeCandidateStep(t, second.solution, cards[1], UNIT)).toBe(
       'Fold B, bringing the bottom-right corner onto point P. Mark Q where the right edge meets line B. Pinch only — just the mark is needed.'
     );
-    expect(describeCandidateStep(t, second.solution, cards[5])).toBe(
+    expect(describeCandidateStep(t, second.solution, cards[5], UNIT)).toBe(
       'Mark T where line A meets line E.'
     );
   });
@@ -269,7 +276,7 @@ describe('describeCandidateStep', () => {
       mark('Q', ['A', 'A']),
     ]);
     const [first] = candidateViewSteps(pinched);
-    expect(describeCandidateStep(t, pinched, first)).toBe(
+    expect(describeCandidateStep(t, pinched, first, UNIT)).toBe(
       'Fold A, bringing the bottom-left corner onto the top-right corner. Mark P where the right edge meets line A. Pinch only — just the mark is needed.'
     );
   });
@@ -280,21 +287,132 @@ describe('describeCandidateStep', () => {
       line: { a: [0, 0], b: [1, 1] },
     });
     const [, , card] = candidateViewSteps(leading);
-    expect(describeCandidateStep(t, leading, card)).toBe(
+    expect(describeCandidateStep(t, leading, card, UNIT)).toBe(
       'Mark P where the bottom-left to top-right diagonal meets the top-left to bottom-right diagonal. Fold A, bringing the bottom-left corner onto the top-right corner.'
     );
   });
 
   it('describes a diagonal step as the diagonal', () => {
-    expect(describeCandidateStep(t, solution([]), { kind: 'diagonal', diagonal: 'sw_ne' })).toBe(
-      describeDiagonalStep(t, 'sw_ne')
-    );
+    for (const sheet of [UNIT, WIDE]) {
+      expect(
+        describeCandidateStep(t, solution([]), { kind: 'diagonal', diagonal: 'sw_ne' }, sheet)
+      ).toBe(describeDiagonalStep(t, 'sw_ne', sheet));
+    }
+  });
+});
+
+/** `p` reflected across the line through `a` and `b`. */
+function reflect(
+  p: readonly [number, number],
+  [a, b]: readonly [readonly [number, number], readonly [number, number]]
+): [number, number] {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const t = ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy);
+  const foot = [a[0] + t * dx, a[1] + t * dy];
+  return [2 * foot[0]! - p[0], 2 * foot[1]! - p[1]];
+}
+
+describe('diagonalStep', () => {
+  // The corners on the crease stay put; the fold brings the other two
+  // together, the bottom one moving (Zach, 2026-09-17: the arrows "should go
+  // from the opposite corners because that's the paper that is being brought
+  // together to make the crease").
+  it('brings the two corners off the crease together on a square, the bottom one moving', () => {
+    const main = diagonalStep('sw_ne', UNIT);
+    expect(main.through).toEqual(['sw', 'ne']);
+    expect(main.ends).toEqual([
+      [0, 0],
+      [1, 1],
+    ]);
+    expect(main.from).toEqual([1, 0]);
+    expect(main.to).toEqual([0, 1]);
+    expect(main.onto).toEqual(['se', 'nw']);
+    const anti = diagonalStep('nw_se', UNIT);
+    expect(anti.through).toEqual(['nw', 'se']);
+    expect(anti.from).toEqual([0, 0]);
+    expect(anti.to).toEqual([1, 1]);
+    expect(anti.onto).toEqual(['sw', 'ne']);
+  });
+
+  // `RefLine_C2P_C2P_Logic::DrawSelf`: the perpendicular through the middle
+  // of the sighted pair, clipped to the paper at the nearer exit. On a
+  // 1 × 0.75 sheet that is 0.375 along the unnormalised normal (−0.75, 1)
+  // from the centre (0.5, 0.375).
+  it('brings the two edge points that meet together on a rectangle, through its corners', () => {
+    const wide = diagonalStep('sw_ne', WIDE);
+    expect(wide.onto).toBeNull();
+    expect(wide.through).toEqual(['sw', 'ne']);
+    expect(wide.from).toEqual([0.78125, 0]);
+    expect(wide.to).toEqual([0.21875, 0.75]);
+    const tall = diagonalStep('sw_ne', TALL);
+    expect(tall.from).toEqual([0.75, 0.21875]);
+    expect(tall.to).toEqual([0, 0.78125]);
+    // Each pair mates across the crease, and neither point is off the paper.
+    for (const step of [wide, tall, diagonalStep('nw_se', WIDE), diagonalStep('nw_se', TALL)]) {
+      const image = reflect(step.from, step.ends);
+      expect(image[0]).toBeCloseTo(step.to[0], 12);
+      expect(image[1]).toBeCloseTo(step.to[1], 12);
+      expect(step.from[1]).toBeLessThan(step.to[1]);
+      for (const [x, y] of [step.from, step.to]) {
+        expect(x).toBeGreaterThanOrEqual(0);
+        expect(y).toBeGreaterThanOrEqual(0);
+      }
+    }
+  });
+
+  it('reads a sheet square to within the extractor tolerance as square', () => {
+    expect(diagonalStep('sw_ne', { width: 1, height: 1 - 1e-7 }).onto).toEqual(['se', 'nw']);
+    expect(diagonalStep('sw_ne', { width: 1, height: 1 - 1e-5 }).onto).toBeNull();
   });
 });
 
 describe('diagonalStepDiagram', () => {
-  it('folds corner onto corner along the diagonal, as a valley, with the motion drawn', () => {
-    const model = diagonalStepDiagram('sw_ne', { width: 1, height: 0.75 });
+  const arrowOf = (model: ReturnType<typeof diagonalStepDiagram>) => {
+    const arrow = model.primitives.find((p) => p.kind === 'fold-arrow');
+    if (!arrow || arrow.kind !== 'fold-arrow') throw new Error('no fold arrow');
+    const [start, , end] = arcSamplePoints(arrow.out);
+    return { start, end };
+  };
+  const rings = (model: ReturnType<typeof diagonalStepDiagram>) =>
+    model.primitives.flatMap((p) => (p.kind === 'point' ? [p.at] : []));
+
+  it('creases the diagonal as a valley and swings the bottom corner onto the top one', () => {
+    const model = diagonalStepDiagram('sw_ne', UNIT);
+    expect(model.sheet).toEqual({ width: 1, height: 1 });
+    expect(model.primitives).toContainEqual({
+      kind: 'line',
+      from: [0, 0],
+      to: [1, 1],
+      style: 'valley',
+    });
+    // The rings are on the corners the sentence names, not the crease's.
+    expect(rings(model)).toEqual([
+      [1, 0],
+      [0, 1],
+    ]);
+    const { start, end } = arrowOf(model);
+    expect(start[0]).toBeCloseTo(1);
+    expect(start[1]).toBeCloseTo(0);
+    expect(end[0]).toBeCloseTo(0);
+    expect(end[1]).toBeCloseTo(1);
+    const other = diagonalStepDiagram('nw_se', UNIT);
+    expect(other.primitives).toContainEqual({
+      kind: 'line',
+      from: [0, 1],
+      to: [1, 0],
+      style: 'valley',
+    });
+    expect(rings(other)).toEqual([
+      [0, 0],
+      [1, 1],
+    ]);
+    expect(arrowOf(other).start[0]).toBeCloseTo(0);
+    expect(arrowOf(other).start[1]).toBeCloseTo(0);
+  });
+
+  it('rings the corners it is sighted through on a rectangle, the arrow between the points that meet', () => {
+    const model = diagonalStepDiagram('sw_ne', WIDE);
     expect(model.sheet).toEqual({ width: 1, height: 0.75 });
     expect(model.primitives).toContainEqual({
       kind: 'line',
@@ -302,25 +420,34 @@ describe('diagonalStepDiagram', () => {
       to: [1, 0.75],
       style: 'valley',
     });
-    expect(model.primitives.filter((p) => p.kind === 'point')).toHaveLength(2);
-    expect(model.primitives.some((p) => p.kind === 'fold-arrow')).toBe(true);
-    const other = diagonalStepDiagram('nw_se', { width: 1, height: 1 });
-    expect(other.primitives).toContainEqual({
-      kind: 'line',
-      from: [0, 1],
-      to: [1, 0],
-      style: 'valley',
-    });
+    expect(rings(model)).toEqual([
+      [0, 0],
+      [1, 0.75],
+    ]);
+    const { start, end } = arrowOf(model);
+    expect(start[0]).toBeCloseTo(0.78125);
+    expect(start[1]).toBeCloseTo(0);
+    expect(end[0]).toBeCloseTo(0.21875);
+    expect(end[1]).toBeCloseTo(0.75);
   });
 });
 
 describe('describeDiagonalStep', () => {
-  it('names the two corners', () => {
-    expect(describeDiagonalStep(t, 'sw_ne')).toBe(
+  it('names the corners brought together on a square', () => {
+    expect(describeDiagonalStep(t, 'sw_ne', UNIT)).toBe(
+      'Fold the bottom-right corner onto the top-left corner, creasing the diagonal.'
+    );
+    expect(describeDiagonalStep(t, 'nw_se', UNIT)).toBe(
       'Fold the bottom-left corner onto the top-right corner, creasing the diagonal.'
     );
-    expect(describeDiagonalStep(t, 'nw_se')).toBe(
-      'Fold the top-left corner onto the bottom-right corner, creasing the diagonal.'
+  });
+
+  it('names the corners the fold goes through on a rectangle', () => {
+    expect(describeDiagonalStep(t, 'sw_ne', WIDE)).toBe(
+      'Fold through the bottom-left corner and the top-right corner, creasing the diagonal.'
+    );
+    expect(describeDiagonalStep(t, 'nw_se', TALL)).toBe(
+      'Fold through the top-left corner and the bottom-right corner, creasing the diagonal.'
     );
   });
 });
