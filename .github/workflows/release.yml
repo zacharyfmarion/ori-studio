@@ -200,6 +200,13 @@ jobs:
       VITE_PUBLIC_POSTHOG_KEY: ${{ secrets.VITE_PUBLIC_POSTHOG_KEY }}
       VITE_PUBLIC_POSTHOG_HOST: https://us.i.posthog.com
       VITE_PUBLIC_SENTRY_DSN: ${{ secrets.VITE_PUBLIC_SENTRY_DSN }}
+      # Sourcemaps for the desktop bundle, on the same terms as deploy-web.yml:
+      # generated and uploaded only with the token, deleted from `dist` after
+      # upload, so none ship in an installer. Without this a desktop stack
+      # arrives in Sentry as `index-BuKxWBz0.js:3272:2113332` and nothing else —
+      # ORI-STUDIO-C (every undo failing on an older WebKit) took a from-scratch
+      # rebuild of the v0.4.0 bundle to read.
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
       # The detector ships in the desktop build on the same switch as the web
       # deploys; a build without it has no entry point and no runtime. The model
       # is not in the bundle — the first Detect downloads it from `model_origin`.
