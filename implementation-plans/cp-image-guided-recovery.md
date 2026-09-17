@@ -33,4 +33,7 @@ are needed initially. Private Alligator remains excluded.
       sizes, antialiasing, line styles and resolutions; preserve failed cases.
 - [x] Implement a general improvement with synthetic regression coverage.
 - [x] Replay the full exact-reference gate and measure actual browser timing.
-- [ ] Validate, archive evidence and open a draft PR without merging.
+- [x] Validate, archive evidence and open a draft PR without merging.
+
+Draft PR: https://github.com/zacharyfmarion/ori-studio/pull/396
+Local app: http://127.0.0.1:5176/welcome

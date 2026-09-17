@@ -828,7 +828,8 @@
     "model_or_registry_changed": false,
     "trained_models": false,
     "runpod_resources_used": false,
-    "merge_authorized": false
+    "merge_authorized": false,
+    "draft_pull_request": "https://github.com/zacharyfmarion/ori-studio/pull/396"
   },
   "source_fingerprints": {
     "apps/web/src/cp-workspace/regions/useCpRegionSolve.ts": "92e757d99acd21565c4818b2a924664013efd787fe808ce885759884aa7195d6",

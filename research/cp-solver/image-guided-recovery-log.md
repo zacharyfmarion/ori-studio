@@ -403,3 +403,7 @@ prerenders the landing page successfully. The earlier full-web timing failure
 is retained; the final full run passes without modifying the simulator test.
 No additional upstream oracle is run because no ported kernel/parser behavior
 changed. Application fingerprints still match the frozen S114 source.
+
+Handoff: draft PR #396 is open against main, with the existing local app at
+http://127.0.0.1:5176/welcome. No merge or model publication. The two pre-existing
+dirty Oriedita oracle launchers are intentionally excluded from the commits.
