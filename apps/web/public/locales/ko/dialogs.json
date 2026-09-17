@@ -297,6 +297,12 @@
     "willChange_other": "변경될 항목 ({{count}})",
     "willUnbind_other": "할당 해제됨 ({{count}})"
   },
+  "referencesApproximationWarning": {
+    "close": "근사 접기 경고 닫기",
+    "dismiss": "확인",
+    "message": "이 시퀀스에는 근사 접기가 포함되어 있습니다. 이 전개도가 “이미지에서 CP 감지”로 만들어졌다면 감지가 부정확한 결과로 수렴했을 수 있습니다. 모든 기준점이 정확한지 확인하세요.",
+    "title": "근사 접기"
+  },
   "selectByIndex": {
     "available": "사용 가능: {{ids}}",
     "close": "인덱스로 선택 닫기",

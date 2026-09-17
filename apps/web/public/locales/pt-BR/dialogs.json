@@ -313,6 +313,12 @@
     "willUnbind_many": "Serão removidos ({{count}})",
     "willUnbind_other": "Serão removidos ({{count}})"
   },
+  "referencesApproximationWarning": {
+    "close": "Fechar o aviso de dobras aproximadas",
+    "dismiss": "Entendi",
+    "message": "Esta sequência contém dobras aproximadas. Se este padrão de vincos veio de “Detectar CP a partir de imagem”, a detecção pode ter convergido para uma solução imprecisa. Verifique se todos os pontos de referência estão corretos.",
+    "title": "Dobras aproximadas"
+  },
   "selectByIndex": {
     "available": "Disponível: {{ids}}",
     "close": "Fechar seleção por índice",

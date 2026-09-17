@@ -305,6 +305,12 @@
     "willUnbind_one": "Will be unbound ({{count}})",
     "willUnbind_other": "Will be unbound ({{count}})"
   },
+  "referencesApproximationWarning": {
+    "close": "Close the approximated folds warning",
+    "dismiss": "Got it",
+    "message": "This sequence contains approximated folds. If this crease pattern came from Detect CP from Image, the detection may have converged on an inaccurate solution. Please verify that any reference points are correct.",
+    "title": "Approximated folds"
+  },
   "selectByIndex": {
     "available": "Available: {{ids}}",
     "close": "Close select by index",

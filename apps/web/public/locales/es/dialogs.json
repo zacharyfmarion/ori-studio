@@ -313,6 +313,12 @@
     "willUnbind_many": "Se quitarán ({{count}})",
     "willUnbind_other": "Se quitarán ({{count}})"
   },
+  "referencesApproximationWarning": {
+    "close": "Cerrar la advertencia de pliegues aproximados",
+    "dismiss": "Entendido",
+    "message": "Esta secuencia contiene pliegues aproximados. Si este patrón de pliegues proviene de «Detectar CP desde imagen», la detección puede haber convergido en una solución inexacta. Verifica que todos los puntos de referencia sean correctos.",
+    "title": "Pliegues aproximados"
+  },
   "selectByIndex": {
     "available": "Disponibles: {{ids}}",
     "close": "Cerrar seleccionar por índice",

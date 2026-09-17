@@ -297,6 +297,12 @@
     "willChange_other": "将会更改（{{count}}）",
     "willUnbind_other": "将取消分配（{{count}}）"
   },
+  "referencesApproximationWarning": {
+    "close": "关闭近似折痕警告",
+    "dismiss": "知道了",
+    "message": "此序列包含近似折痕。如果这张折痕图来自“从图像检测 CP”，检测可能收敛到了不准确的结果。请核对所有参考点是否正确。",
+    "title": "近似折痕"
+  },
   "selectByIndex": {
     "available": "可用：{{ids}}",
     "close": "关闭按索引选择",

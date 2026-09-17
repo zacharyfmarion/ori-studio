@@ -22,6 +22,7 @@ import {
   type ReferencesDiagramView,
 } from '../../cp-workspace/references/ReferencesCpView';
 import type { ReferencesPick } from '../../cp-workspace/references/referencesViewGeometry';
+import { ReferencesApproximationWarningDialog } from '../../cp-workspace/references/ReferencesApproximationWarningDialog';
 import { ReferencesLead } from '../../cp-workspace/references/ReferencesLead';
 import { ReferencesModeSwitch } from '../../cp-workspace/references/ReferencesModeSwitch';
 import { referencesSurfaces } from '../../cp-workspace/references/referencesMode';
@@ -71,6 +72,7 @@ import {
 } from '../../cp-workspace/references/referencesShortcuts';
 import { foldCardKind } from '../../cp-workspace/references/fold/foldScene';
 import { useFoldPlayback } from '../../cp-workspace/references/fold/useFoldPlayback';
+import { useReferencesApproximationWarning } from '../../cp-workspace/references/useReferencesApproximationWarning';
 import { useReferencesAutoPlan } from '../../cp-workspace/references/useReferencesAutoPlan';
 import { useReferencesBreakdown } from '../../cp-workspace/references/useReferencesBreakdown';
 import { useReferencesPhoneFlow } from '../../cp-workspace/references/useReferencesPhoneFlow';
@@ -164,6 +166,9 @@ export function ReferencesPanel() {
   );
   const run = useWorkspaceStore((state) => state.referencesRun);
   const busy = run.status === 'running' || run.status === 'stopping';
+  const approximationWarning = useReferencesApproximationWarning(
+    useWorkspaceStore((state) => state.referencesPlan)
+  );
   // A sheet that is only its border — a new document — has nothing to find
   // or to plan; unknown until the frames land, and not called empty before.
   const emptySheet = component !== null && component.segment_indices.length === 0;
@@ -484,6 +489,7 @@ export function ReferencesPanel() {
 
   return (
     <div className="references-workspace">
+      <ReferencesApproximationWarningDialog {...approximationWarning} />
       {flow.screen !== 'detail' && (
         <ReferencesSheetsSidebar
           sheets={sheets}

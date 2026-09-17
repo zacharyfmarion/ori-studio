@@ -297,6 +297,12 @@
     "willChange_other": "変更される項目 ({{count}})",
     "willUnbind_other": "割り当て解除 ({{count}})"
   },
+  "referencesApproximationWarning": {
+    "close": "近似の折りの警告を閉じる",
+    "dismiss": "了解",
+    "message": "この手順には近似の折りが含まれています。この展開図が「画像から CP を検出」で作られたものなら、検出が不正確な結果に収束した可能性があります。基準点が正しいか確認してください。",
+    "title": "近似の折り"
+  },
   "selectByIndex": {
     "available": "利用可能: {{ids}}",
     "close": "インデックスで選択を閉じる",

@@ -3059,7 +3059,11 @@
     "panels:simulatorSegments.faces_one": "0151d1bf5211",
     "panels:simulatorSegments.faces_other": "133efd624e4f",
     "panels:references.sheets.creases_one": "4b88310a50d6",
-    "panels:references.sheets.creases_other": "059cbfda69b1"
+    "panels:references.sheets.creases_other": "059cbfda69b1",
+    "dialogs:referencesApproximationWarning.close": "5576fd0c8653",
+    "dialogs:referencesApproximationWarning.dismiss": "5ad3dbd1242a",
+    "dialogs:referencesApproximationWarning.message": "d6f8ff8e251a",
+    "dialogs:referencesApproximationWarning.title": "dc5d2f478bf5"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -6121,7 +6125,11 @@
     "panels:simulatorSegments.faces_one": "0151d1bf5211",
     "panels:simulatorSegments.faces_other": "133efd624e4f",
     "panels:references.sheets.creases_one": "4b88310a50d6",
-    "panels:references.sheets.creases_other": "059cbfda69b1"
+    "panels:references.sheets.creases_other": "059cbfda69b1",
+    "dialogs:referencesApproximationWarning.close": "5576fd0c8653",
+    "dialogs:referencesApproximationWarning.dismiss": "5ad3dbd1242a",
+    "dialogs:referencesApproximationWarning.message": "d6f8ff8e251a",
+    "dialogs:referencesApproximationWarning.title": "dc5d2f478bf5"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -9185,7 +9193,11 @@
     "panels:simulatorSegments.faces_one": "0151d1bf5211",
     "panels:simulatorSegments.faces_other": "133efd624e4f",
     "panels:references.sheets.creases_one": "4b88310a50d6",
-    "panels:references.sheets.creases_other": "059cbfda69b1"
+    "panels:references.sheets.creases_other": "059cbfda69b1",
+    "dialogs:referencesApproximationWarning.close": "5576fd0c8653",
+    "dialogs:referencesApproximationWarning.dismiss": "5ad3dbd1242a",
+    "dialogs:referencesApproximationWarning.message": "d6f8ff8e251a",
+    "dialogs:referencesApproximationWarning.title": "dc5d2f478bf5"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -12190,7 +12202,11 @@
     "panels:simulator.backToPatterns": "160a13d94fb0",
     "panels:sheets.cardTitle": "540e12bd1254",
     "panels:simulatorSegments.faces_other": "133efd624e4f",
-    "panels:references.sheets.creases_other": "059cbfda69b1"
+    "panels:references.sheets.creases_other": "059cbfda69b1",
+    "dialogs:referencesApproximationWarning.close": "5576fd0c8653",
+    "dialogs:referencesApproximationWarning.dismiss": "5ad3dbd1242a",
+    "dialogs:referencesApproximationWarning.message": "d6f8ff8e251a",
+    "dialogs:referencesApproximationWarning.title": "dc5d2f478bf5"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -15195,7 +15211,11 @@
     "panels:simulator.backToPatterns": "160a13d94fb0",
     "panels:sheets.cardTitle": "540e12bd1254",
     "panels:simulatorSegments.faces_other": "133efd624e4f",
-    "panels:references.sheets.creases_other": "059cbfda69b1"
+    "panels:references.sheets.creases_other": "059cbfda69b1",
+    "dialogs:referencesApproximationWarning.close": "5576fd0c8653",
+    "dialogs:referencesApproximationWarning.dismiss": "5ad3dbd1242a",
+    "dialogs:referencesApproximationWarning.message": "d6f8ff8e251a",
+    "dialogs:referencesApproximationWarning.title": "dc5d2f478bf5"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -18257,7 +18277,11 @@
     "panels:simulatorSegments.faces_one": "0151d1bf5211",
     "panels:simulatorSegments.faces_other": "133efd624e4f",
     "panels:references.sheets.creases_one": "4b88310a50d6",
-    "panels:references.sheets.creases_other": "059cbfda69b1"
+    "panels:references.sheets.creases_other": "059cbfda69b1",
+    "dialogs:referencesApproximationWarning.close": "5576fd0c8653",
+    "dialogs:referencesApproximationWarning.dismiss": "5ad3dbd1242a",
+    "dialogs:referencesApproximationWarning.message": "d6f8ff8e251a",
+    "dialogs:referencesApproximationWarning.title": "dc5d2f478bf5"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -21319,7 +21343,11 @@
     "panels:simulatorSegments.faces_one": "0151d1bf5211",
     "panels:simulatorSegments.faces_other": "133efd624e4f",
     "panels:references.sheets.creases_one": "4b88310a50d6",
-    "panels:references.sheets.creases_other": "059cbfda69b1"
+    "panels:references.sheets.creases_other": "059cbfda69b1",
+    "dialogs:referencesApproximationWarning.close": "5576fd0c8653",
+    "dialogs:referencesApproximationWarning.dismiss": "5ad3dbd1242a",
+    "dialogs:referencesApproximationWarning.message": "d6f8ff8e251a",
+    "dialogs:referencesApproximationWarning.title": "dc5d2f478bf5"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -24324,6 +24352,10 @@
     "panels:simulator.backToPatterns": "160a13d94fb0",
     "panels:sheets.cardTitle": "540e12bd1254",
     "panels:simulatorSegments.faces_other": "133efd624e4f",
-    "panels:references.sheets.creases_other": "059cbfda69b1"
+    "panels:references.sheets.creases_other": "059cbfda69b1",
+    "dialogs:referencesApproximationWarning.close": "5576fd0c8653",
+    "dialogs:referencesApproximationWarning.dismiss": "5ad3dbd1242a",
+    "dialogs:referencesApproximationWarning.message": "d6f8ff8e251a",
+    "dialogs:referencesApproximationWarning.title": "dc5d2f478bf5"
   }
 }

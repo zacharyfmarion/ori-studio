@@ -212,8 +212,8 @@
   },
   "foldWarning": {
     "dontShowAgain": "Ne plus afficher",
-    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage\u00a0?",
-    "spatialMessage": "Des erreurs ont été détectées dans la façon dont ces plis se plient. Continuer le pliage\u00a0?",
+    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage ?",
+    "spatialMessage": "Des erreurs ont été détectées dans la façon dont ces plis se plient. Continuer le pliage ?",
     "title": "Avertissement"
   },
   "help": {
@@ -312,6 +312,12 @@
     "willUnbind_one": "Seront retirés ({{count}})",
     "willUnbind_many": "Seront retirés ({{count}})",
     "willUnbind_other": "Seront retirés ({{count}})"
+  },
+  "referencesApproximationWarning": {
+    "close": "Fermer l’avertissement sur les plis approximatifs",
+    "dismiss": "Compris",
+    "message": "Cette séquence contient des plis approximatifs. Si ce patron de pliage provient de « Détecter le CP depuis une image », la détection a peut-être convergé vers une solution inexacte. Vérifiez que tous les points de référence sont corrects.",
+    "title": "Plis approximatifs"
   },
   "selectByIndex": {
     "available": "Disponible : {{ids}}",
@@ -465,7 +471,7 @@
       "resetMessage": "Restaurer la disposition par défaut de l'espace de travail actuel ?",
       "resetTitle": "Réinitialiser la disposition de l'espace de travail",
       "snapRadius": "Rayon d'aimantation",
-      "snapRadiusHint": "À quelle distance le pointeur doit arriver d'un sommet, d'un pli ou d'un point de grille pour s'y aimanter, en unités de papier\u00a0: le papier fait 400 de large, c'est donc le même nombre que dans Oriedita.",
+      "snapRadiusHint": "À quelle distance le pointeur doit arriver d'un sommet, d'un pli ou d'un point de grille pour s'y aimanter, en unités de papier : le papier fait 400 de large, c'est donc le même nombre que dans Oriedita.",
       "wheelGestureHint": "Le pincement et Cmd/Ctrl+défilement zooment toujours, quel que soit votre choix.",
       "wheelPans": "Le défilement déplace, le pincement zoome",
       "wheelZooms": "Le défilement zoome"

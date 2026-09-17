@@ -537,6 +537,14 @@ export const ANALYTICS_EVENTS = {
   referencesFoldPlayed: 'references fold played',
   /** The "Auto-play folds" preference was switched; `enabled` is `on` / `off`. */
   referencesFoldAutoplayChanged: 'references fold autoplay changed',
+  /**
+   * The modal that warns that a precreasing sequence contains approximated
+   * folds was shown — once per plan whose steps are not all exact. Carries
+   * `inexact_steps_bucket` (how many steps are approximate or sighted from an
+   * approximation) and `exactness_class`, so how often readers are warned,
+   * and on which class of pattern, is measurable. Nothing about the folds.
+   */
+  referencesApproximationWarningShown: 'references approximation warning shown',
   creasePatternBuilt: 'crease pattern built',
   optimizerRun: 'optimizer run',
   projectOpened: 'project opened',
