@@ -24,6 +24,32 @@ export interface ReferencesFindingsListProps {
   onSelectFinding: (index: number | null) => void;
 }
 
+/** The plan's findings across its components, each with its approximation if one was found. */
+function planFindings(record: ReferencesPlanRecord | null) {
+  return (
+    record?.components.flatMap((entry) =>
+      entry.result.sequence.findings.map((finding, index) => ({
+        finding,
+        approximate: entry.result.approximate.find((a) => a.finding === index) ?? null,
+      }))
+    ) ?? []
+  );
+}
+
+/**
+ * Whether the list would draw anything at all. The rail mounts its notes only
+ * then: a plan that constructed every line has nothing to report, and an
+ * empty box under the cards read as a dead area.
+ */
+export function hasReferencesFindings(
+  record: ReferencesPlanRecord | null,
+  analysis: ReferencesAnalysis | null
+): boolean {
+  return (
+    planFindings(record).length > 0 || (record?.refused.length ?? 0) > 0 || analysis !== null
+  );
+}
+
 export const ReferencesFindingsList = memo(function ReferencesFindingsList({
   record,
   analysis,
@@ -31,17 +57,12 @@ export const ReferencesFindingsList = memo(function ReferencesFindingsList({
   onSelectFinding,
 }: ReferencesFindingsListProps) {
   const { t } = useTranslation();
-  const findings = record?.components.flatMap((entry) =>
-    entry.result.sequence.findings.map((finding, index) => ({
-      finding,
-      approximate: entry.result.approximate.find((a) => a.finding === index) ?? null,
-    }))
-  );
+  const findings = planFindings(record);
   const refused = record?.refused ?? [];
 
   return (
     <>
-      {findings && findings.length > 0 && (
+      {findings.length > 0 && (
         <section className="references-findings">
           <h3 className="references-findings__title">
             {t('panels:references.findings.title', 'Lines with no exact fold')}

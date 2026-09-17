@@ -682,6 +682,15 @@ export const ANALYTICS_EVENTS = {
    * whether anyone finds the control at all.
    */
   simulatorViewRolled: 'simulator view rolled',
+  /**
+   * A pattern's detail — the simulator — was opened from the Simulate list on
+   * a phone. {@link ANALYTICS_EVENTS.referencesPatternOpened}'s twin, and
+   * phone-only for the same reason: that is the one layout that shows the list
+   * and the simulator one at a time, and only a document with more than one
+   * pattern has a list at all. No `source`: a card is the only press that opens
+   * it.
+   */
+  simulatorPatternOpened: 'simulator pattern opened',
   foldedFigureRehydrated: 'folded figure rehydrated',
   creasePatternShared: 'crease pattern shared',
   shareLinkCopied: 'share link copied',

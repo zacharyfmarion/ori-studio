@@ -63,9 +63,9 @@ export function WorkspaceViewDrawer() {
 
   if (!activePane) return null;
   // A pane that seats the pill itself has nowhere for it until its view is
-  // up — References' phone list screen has no view, and no settings to be
-  // about until a sheet is opened. A pane that does not is not handed a slot
-  // another pane may have left behind.
+  // up — the References and Simulate phone list screens have no view, and no
+  // settings to be about until a pattern is opened. A pane that does not is
+  // not handed a slot another pane may have left behind.
   const seatsPill = drawerTriggerFor(activeWorkspace) === 'slot';
   const seat = seatsPill ? slot : null;
   if (seatsPill && !seat) return null;
@@ -104,9 +104,10 @@ export function WorkspaceViewDrawer() {
   return (
     <>
       {/*
-        In the pane's own slot when it offers one — References seats it at the
-        right end of its header, beside Back on a phone, where the lane's
-        corner would have been the header — else here in the lane.
+        In the pane's own slot when it offers one — References and Simulate
+        seat it at the right end of their toolbars, beside Back on a phone,
+        where the lane's corner would have been the toolbar — else here in
+        the lane.
       */}
       {seat ? createPortal(trigger, seat) : trigger}
       {/*

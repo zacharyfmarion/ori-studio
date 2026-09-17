@@ -13,9 +13,17 @@
  * The simulator's equivalent (`creasePatternSegmentation.ts`) flood-fills the
  * faces of a FOLD document. Deliberately not reused: References works from
  * `CpGeometryTransport` and never builds a fold, and a precrease component is
- * the thing the planner actually plans.
+ * the thing the planner actually plans. What the two *do* share is the card
+ * each pattern is drawn on — `../sheets` fits both readings into the same
+ * thumbnail, so the two rails list the same patterns the same way.
  */
 import { SEG_ATTR_STRIDE, type CpGeometryTransport } from '../../engine/oristudioCpGeometry';
+import {
+  fitSheetThumbnail,
+  type SheetStroke,
+  type SheetStrokeKind,
+  type SheetThumbnail,
+} from '../sheets/sheetThumbnail';
 import type { PrecreaseComponent, SheetAnalysis } from './sheetFrames';
 
 /** One row of the sheet picker. */
@@ -80,20 +88,6 @@ export function sheetBorderLineIds(component: PrecreaseComponent): Set<number> {
   return new Set(component.border_segment_indices.map((index) => index + 1));
 }
 
-export type ReferencesThumbnailStroke = {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  /** Which class the stroke takes; `border` is the paper's own edge. */
-  kind: 'border' | 'mountain' | 'valley' | 'other';
-};
-
-export interface ReferencesSheetThumbnail {
-  viewBox: string;
-  strokes: ReferencesThumbnailStroke[];
-}
-
 /** `Red1` and `Blue2` from `LINE_COLOR_BY_NUMBER` — Oriedita's own codes. */
 const CP_MOUNTAIN = 1;
 const CP_VALLEY = 2;
@@ -108,7 +102,7 @@ const CP_VALLEY = 2;
  * carries it (plan D24). This is the picker's own reading of a raw pattern,
  * which has no plan yet.
  */
-function strokeKind(colorNumber: number, isBorder: boolean): ReferencesThumbnailStroke['kind'] {
+function strokeKind(colorNumber: number, isBorder: boolean): SheetStrokeKind {
   if (isBorder) return 'border';
   if (colorNumber === CP_MOUNTAIN) return 'mountain';
   if (colorNumber === CP_VALLEY) return 'valley';
@@ -116,59 +110,28 @@ function strokeKind(colorNumber: number, isBorder: boolean): ReferencesThumbnail
 }
 
 /**
- * A sheet drawn to fit `size`, in its own coordinates.
- *
- * Model space is y-down and so is SVG, so the strokes go through unflipped; the
- * only transform is the uniform fit, which keeps the pattern's aspect ratio —
- * a squashed thumbnail is a different crease pattern.
+ * A sheet drawn to fit `size`, in its own coordinates: the component's lines
+ * read out of the transport, then the shared fit (`fitSheetThumbnail`).
  */
 export function sheetThumbnail(
   geometry: CpGeometryTransport,
   component: PrecreaseComponent,
   size = 100
-): ReferencesSheetThumbnail | null {
+): SheetThumbnail | null {
   const endpoints = geometry.segEndpoints;
   const attr = geometry.segAttr;
   const border = new Set(component.border_segment_indices);
-  const indices = [...component.border_segment_indices, ...component.segment_indices];
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  for (const index of indices) {
+  const strokes: SheetStroke[] = [];
+  for (const index of [...component.border_segment_indices, ...component.segment_indices]) {
     const base = index * 4;
     if (base + 3 >= endpoints.length) continue;
-    minX = Math.min(minX, endpoints[base], endpoints[base + 2]);
-    maxX = Math.max(maxX, endpoints[base], endpoints[base + 2]);
-    minY = Math.min(minY, endpoints[base + 1], endpoints[base + 3]);
-    maxY = Math.max(maxY, endpoints[base + 1], endpoints[base + 3]);
-  }
-  if (!Number.isFinite(minX) || !Number.isFinite(minY)) return null;
-  const span = Math.max(maxX - minX, maxY - minY);
-  if (!(span > 0)) return null;
-  const scale = size / span;
-  const offsetX = (size - (maxX - minX) * scale) / 2;
-  const offsetY = (size - (maxY - minY) * scale) / 2;
-  const at = (x: number, y: number) => ({
-    x: (x - minX) * scale + offsetX,
-    y: (y - minY) * scale + offsetY,
-  });
-
-  const strokes: ReferencesThumbnailStroke[] = [];
-  for (const index of indices) {
-    const base = index * 4;
-    if (base + 3 >= endpoints.length) continue;
-    const a = at(endpoints[base], endpoints[base + 1]);
-    const b = at(endpoints[base + 2], endpoints[base + 3]);
     strokes.push({
-      x1: a.x,
-      y1: a.y,
-      x2: b.x,
-      y2: b.y,
+      x1: endpoints[base],
+      y1: endpoints[base + 1],
+      x2: endpoints[base + 2],
+      y2: endpoints[base + 3],
       kind: strokeKind(attr[index * SEG_ATTR_STRIDE] ?? 0, border.has(index)),
     });
   }
-  // Border last so the paper's edge draws over the creases that end on it.
-  strokes.sort((a, b) => Number(a.kind === 'border') - Number(b.kind === 'border'));
-  return { viewBox: `0 0 ${size} ${size}`, strokes };
+  return fitSheetThumbnail(strokes, size);
 }

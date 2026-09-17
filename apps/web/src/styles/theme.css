@@ -671,6 +671,29 @@ a.context-menu__item {
   letter-spacing: 0;
 }
 
+/*
+ * Where a panel seats the touch layer's Settings pill: the right end of its
+ * toolbar, beside its own controls (`WorkspaceViewDrawer`, `viewDrawerSlot`).
+ * A button in the row, not a floating pill: no shadow, the toolbar's own
+ * ground. Empty under a fine pointer (the drawer renders nothing) and gone
+ * with it, so it costs the desktop layout not even the group's gap.
+ */
+.panel-toolbar__pills {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.panel-toolbar__pills:empty {
+  display: none;
+}
+
+.panel-toolbar__pills .view-drawer__trigger {
+  border-color: var(--border-subtle);
+  box-shadow: none;
+}
+
 .panel-toolbar__meta {
   overflow: hidden;
   max-width: 150px;
@@ -5125,7 +5148,16 @@ button.cp-folded-figure-toolbar__notice:hover {
   min-width: 0;
 }
 
-.segments-sidebar {
+/*
+ * The rail of the document's patterns: Simulate's (`.segments-sidebar`) and
+ * References' (`.references-sidebar`), one set of rules because they are the
+ * same rail — a header, then the cards filling the rest — and a width or a
+ * column count that differed between them read as two different pickers of
+ * the same list. References adds notes under its cards, only when there are
+ * any (`.references-sidebar__notes`).
+ */
+.segments-sidebar,
+.references-sidebar {
   display: flex;
   flex: 0 0 200px;
   flex-direction: column;
@@ -5134,7 +5166,8 @@ button.cp-folded-figure-toolbar__notice:hover {
   background: var(--bg-secondary);
 }
 
-.segments-sidebar__header {
+.segments-sidebar__header,
+.references-sidebar__header {
   display: flex;
   align-items: center;
   gap: var(--space-1);
@@ -5145,7 +5178,8 @@ button.cp-folded-figure-toolbar__notice:hover {
   color: var(--text-secondary);
 }
 
-.segments-sidebar__count {
+.segments-sidebar__count,
+.references-sidebar__count {
   margin-left: auto;
   color: var(--text-tertiary);
   font-size: 0.68rem;
@@ -5153,10 +5187,35 @@ button.cp-folded-figure-toolbar__notice:hover {
   font-weight: 650;
 }
 
-.segments-list {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
+/*
+ * The document's crease patterns as cards — the one picker both rails draw,
+ * so the two lists read as the same list. Base rules here, *before* the phone
+ * block, which is the later word.
+ *
+ * One card per row, filling what the header leaves and scrolling on its own:
+ * a pattern is a picture, and at a rail's width two of them side by side were
+ * too small to tell apart. The phone's block asks for two of thumb size.
+ */
+.sheet-grid {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(0, 1fr);
+  /*
+   * The rows are their cards' height, said twice, because the grid fills the
+   * rail and so has a definite height that is not its content's:
+   *
+   * - `align-content: start`: a grid's rows stretch into spare height by
+   *   default, so two cards in a tall rail each grew a blank third under
+   *   their label.
+   * - `grid-auto-rows: max-content`: WebKit squeezes `auto` rows to fit a
+   *   grid *shorter* than its content — eight cards on an iPhone came out
+   *   161px tall with a 179px thumbnail inside, the label of each pushed
+   *   under the next row (verified on iOS 26 in the simulator; Chrome sizes
+   *   the same rows to their content). Naming the rows' size function skips
+   *   the clamp, in the scroll box and in the phone's one long screen alike.
+   */
+  align-content: start;
+  grid-auto-rows: max-content;
   gap: var(--space-2);
   min-height: 0;
   overflow: auto;
@@ -5165,60 +5224,113 @@ button.cp-folded-figure-toolbar__notice:hover {
   list-style: none;
 }
 
-.segments-list__item {
-  margin: 0;
-}
-
-.segment-card {
-  position: relative;
-  display: block;
+.sheet-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   width: 100%;
-  padding: 0;
+  padding: var(--space-1);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md, 6px);
   background: var(--bg-canvas, #0c0f12);
   color: var(--text-secondary);
   cursor: pointer;
-  overflow: hidden;
+  font: inherit;
+  text-align: left;
   transition: border-color 0.12s ease, box-shadow 0.12s ease;
 }
 
-.segment-card:hover {
+.sheet-card:hover {
   border-color: var(--border-strong, var(--border-subtle));
 }
 
-.segment-card--selected {
+.sheet-card--selected {
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 1px var(--accent-primary);
 }
 
-.segment-card__thumb {
+/* A sheet the workspace will not take still gets a card: it is a pattern the
+   user can see on the canvas, and a card that quietly vanished would read as a
+   bug. */
+.sheet-card--refused {
+  opacity: 0.55;
+}
+
+.sheet-card__thumb {
   display: block;
   width: 100%;
   aspect-ratio: 1 / 1;
-  background: var(--bg-canvas, #0c0f12);
 }
 
-.segment-card__thumb svg {
+.sheet-card__svg {
   display: block;
   width: 100%;
   height: 100%;
 }
 
-.segment-card__badge {
-  position: absolute;
-  top: 4px;
-  left: 5px;
-  min-width: 16px;
-  padding: 0 4px;
-  border-radius: var(--radius-sm, 4px);
-  background: color-mix(in srgb, var(--bg-canvas, #0c0f12) 70%, transparent);
-  color: var(--text-secondary);
+/* Hairlines whatever the card's size: the strokes are in the thumbnail's own
+   100-unit box, and a width that scaled with the card drew a phone's cards in
+   3px crayon. The crease tokens, so a card reads like the canvas. */
+.sheet-card__stroke {
+  fill: none;
+  stroke-width: 1.1;
+  vector-effect: non-scaling-stroke;
+}
+
+.sheet-card__stroke--border {
+  stroke: var(--text-tertiary);
+  stroke-width: 1.6;
+}
+
+.sheet-card__stroke--mountain {
+  stroke: var(--fold-mountain);
+}
+
+.sheet-card__stroke--valley {
+  stroke: var(--fold-valley);
+}
+
+.sheet-card__stroke--other {
+  stroke: var(--fold-unassigned);
+}
+
+.sheet-card__meta {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
   font-size: 0.68rem;
   font-variant-numeric: tabular-nums;
+}
+
+/* A chip, not a bare digit: beside "8 creases" a plain 1 reads as part of the
+   number ("18 creases"), which is what it did. */
+.sheet-card__index {
+  display: inline-flex;
+  flex: 0 0 auto;
+  justify-content: center;
+  align-items: center;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 0.62rem;
   font-weight: 700;
-  line-height: 16px;
-  text-align: center;
+  line-height: 1;
+}
+
+.sheet-card--selected .sheet-card__index {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+}
+
+.sheet-card__count {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cp-panel__empty {
@@ -9915,29 +10027,17 @@ button.bp-packing-alert:focus-visible {
     /* The dock underneath keeps every tap that is not on the pill itself. */
     pointer-events: none;
 
-    /*
-     * Vertical inset, per pane. Zero chrome above the canvas is the common case.
-     */
+    /* Vertical inset. Nothing the lane holds sits under pane chrome: the
+       workspaces whose panes open with a toolbar seat their pill in it. */
     --view-drawer-inset-top: var(--space-3);
   }
 
   /*
-   * The Simulate pane opens with a real `.panel-toolbar` whose right end already
-   * holds Set upright and the export menu, so the pill drops below it rather than
-   * covering two controls that would then be unreachable. The toolbar's own
-   * `min-height` is 36px, but on touch its buttons are clamped to
-   * `--touch-target` and that is what actually sets the height — so the offset is
-   * written in the same token rather than in the number it happens to produce.
-   */
-  .canvas-pill-lane[data-view-workspace='simulate'] {
-    --view-drawer-inset-top: calc(var(--touch-target) + var(--space-2));
-  }
-
-  /*
-   * The References pane does not use the lane at all: it registers a slot at
-   * the top right of its own view (`.references-panel__pills`), below the
-   * filmstrip, and the drawer's pill goes there — the lane's corner is that
-   * workspace's header.
+   * The References and Simulate panes do not use the lane at all: each
+   * registers a slot at the right end of its own toolbar
+   * (`.panel-toolbar__pills`), and the drawer's pill goes there — the lane's
+   * corner is that workspace's toolbar, whose right end already holds
+   * controls the pill would otherwise cover.
    */
 
   /*
@@ -10743,24 +10843,26 @@ button.bp-packing-alert:focus-visible {
   }
 
   /*
-   * References: one screen at a time. `useReferencesPhoneFlow` mounts either
-   * the rail or the panel, never both, so the rail here is the list screen —
-   * the whole width, scrolling as one — and the panel is the detail screen with
-   * a Back button where its title was.
+   * References and Simulate: one screen at a time. `usePhoneListDetail` mounts
+   * either the rail or the panel, never both, so the rail here is the list
+   * screen — the whole width, scrolling as one — and the panel is the detail
+   * screen with a Back button where its title was.
    *
-   * Every selector below is prefixed with `.references-workspace`, and not for
-   * scoping: the workspace's own rules come *after* this block in the file, so
-   * at equal specificity they would win on source order and none of this would
-   * apply. The prefix is what makes these the later word.
+   * Every selector below is prefixed with its workspace, and not for scoping:
+   * the workspaces' own rules come *after* this block in the file, so at equal
+   * specificity they would win on source order and none of this would apply.
+   * The prefix is what makes these the later word.
    */
-  .references-workspace .references-sidebar {
+  .references-workspace .references-sidebar,
+  .simulator-workspace .segments-sidebar {
     flex: 1 1 auto;
     overflow-y: auto;
     border-right: 0;
   }
 
   /* Its height is the coarse block's, shared with the panel's header. */
-  .references-workspace .references-sidebar__header {
+  .references-workspace .references-sidebar__header,
+  .simulator-workspace .segments-sidebar__header {
     position: sticky;
     top: 0;
     z-index: 1;
@@ -10769,50 +10871,51 @@ button.bp-packing-alert:focus-visible {
 
   /* The list screen's header is the full width, and its right end is where
      the View pill floats — so the count keeps to the title's side. */
-  .references-workspace .references-sidebar__count {
+  .references-workspace .references-sidebar__count,
+  .simulator-workspace .segments-sidebar__count {
     margin-left: var(--space-1);
   }
 
   /*
-   * Two cards per row, sized for a thumb, and no cap on the strip: the rail's
-   * 40% ceiling exists so a long list leaves room for the notes beside the
-   * canvas, and on this screen the notes come *after* the list, in the same
-   * scroll.
+   * Two cards per row, sized for a thumb, and the grid no longer scrolling on
+   * its own: the whole screen scrolls as one, the References notes coming
+   * *after* the list in the same scroll.
    */
-  .references-workspace .references-sheets {
+  .references-workspace .sheet-grid,
+  .simulator-workspace .sheet-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-3);
-    max-height: none;
     overflow: visible;
     padding: var(--space-3);
   }
 
-  .references-workspace .references-sheet {
+  .references-workspace .sheet-card,
+  .simulator-workspace .sheet-card {
     gap: var(--space-2);
     min-height: var(--touch-target);
     padding: var(--space-2);
   }
 
-  .references-workspace .references-sheet__meta {
+  .references-workspace .sheet-card__meta,
+  .simulator-workspace .sheet-card__meta {
     font-size: 0.8rem;
   }
 
-  .references-workspace .references-sheet__index {
+  .references-workspace .sheet-card__index,
+  .simulator-workspace .sheet-card__index {
     min-width: 20px;
     height: 20px;
     font-size: 0.72rem;
   }
 
+  /* The notes scroll with the screen, not in a box of their own. */
   .references-workspace .references-sidebar__notes {
+    max-height: none;
     overflow: visible;
   }
 
-  .references-workspace .references-sidebar__hint {
-    font-size: 0.85rem;
-  }
-
   .references-workspace .references-sidebar__warning {
-    padding: 0 var(--space-3) var(--space-2);
+    padding: var(--space-2) var(--space-3) 0;
     font-size: 0.8rem;
   }
 
@@ -10852,7 +10955,7 @@ button.bp-packing-alert:focus-visible {
     margin-left: var(--space-2);
   }
 
-  .references-workspace .references-panel__pills {
+  .references-workspace .panel-toolbar__pills {
     order: 0;
     margin-right: var(--space-2);
   }
@@ -10944,23 +11047,11 @@ button.bp-packing-alert:focus-visible {
   inset: 0;
 }
 
-/*
- * The touch layer's Settings trigger, at the right end of the header's first
- * row — beside Back on a phone. A button in the row, not a floating pill: no
- * shadow, the toolbar's own ground. Empty under a fine pointer (the drawer
- * renders nothing), so it costs the desktop layout nothing.
- */
-.references-panel__pills {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: var(--space-2);
+/* References seats the pill as the toolbar's own last child, so it is what
+   holds the right end — under a phone's wrapped toolbar too, where the group
+   around it is `display: contents` and this margin is the row's only push. */
+.references-panel .panel-toolbar__pills {
   margin-left: auto;
-}
-
-.references-panel__pills .view-drawer__trigger {
-  border-color: var(--border-subtle);
-  box-shadow: none;
 }
 
 /* No `cp-webgl-layer` here on purpose: the editor's floating toolbars forward
@@ -11110,178 +11201,30 @@ button.bp-packing-alert:focus-visible {
   gap: var(--space-2);
 }
 
-.references-sidebar {
-  display: flex;
-  flex: 0 0 260px;
-  flex-direction: column;
-  min-height: 0;
-  border-right: 1px solid var(--border-subtle);
-  background: var(--bg-secondary);
-}
-
-.references-sidebar__header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-height: 36px;
-  padding: 0 var(--space-2);
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--bg-primary);
-  color: var(--text-secondary);
-}
-
-.references-sidebar__count {
-  margin-left: auto;
-  color: var(--text-tertiary);
-  font-size: 0.68rem;
-  font-variant-numeric: tabular-nums;
-  font-weight: 650;
-}
-
+/*
+ * What the References rail says under its cards, when it has anything to say:
+ * the frames analysis's warnings, the lines no exact fold reaches, and the
+ * CP-wide analysis. Mounted only then — the rail is a pattern picker, and an
+ * empty notes box under the cards read as a dead area (the rail's base rules
+ * are grouped with Simulate's, above). Capped so a long analysis never
+ * squeezes the cards out; the cards keep the larger half.
+ */
 .references-sidebar__notes {
   display: flex;
   flex: 0 0 auto;
   flex-direction: column;
+  max-height: 50%;
   min-height: 0;
   overflow: auto;
   border-top: 1px solid var(--border-subtle);
 }
 
-.references-sidebar__hint {
-  padding: var(--space-3);
-  color: var(--text-secondary);
-  font-size: 0.76rem;
-  line-height: 1.45;
-}
-
-.references-sidebar__hint p {
-  margin: 0 0 var(--space-2);
-}
-
 .references-sidebar__warning {
+  margin: 0;
+  padding: var(--space-2) var(--space-2) 0;
   color: var(--status-warning);
   font-size: 0.7rem;
-}
-
-/* The document's crease patterns. Two columns rather than the simulator's one:
-   this rail is 260px because it also carries the sequence outline, and a
-   full-width thumbnail there would push everything else off the screen. */
-.references-sheets {
-  display: grid;
-  flex: 0 0 auto;
-  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-  gap: var(--space-2);
-  max-height: 40%;
-  overflow: auto;
-  margin: 0;
-  padding: var(--space-2);
-  border-bottom: 1px solid var(--border-subtle);
-  list-style: none;
-}
-
-.references-sheet {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  width: 100%;
-  padding: var(--space-1);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md, 6px);
-  background: var(--bg-canvas, #0c0f12);
-  color: var(--text-secondary);
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-  transition: border-color 0.12s ease, box-shadow 0.12s ease;
-}
-
-.references-sheet:hover {
-  border-color: var(--border-strong, var(--border-subtle));
-}
-
-.references-sheet--selected {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 1px var(--accent-primary);
-}
-
-/* A sheet the planner will not take still gets a row: it is a pattern the user
-   can see on the canvas, and a row that quietly vanished would read as a bug. */
-.references-sheet--refused {
-  opacity: 0.55;
-}
-
-.references-sheet__thumb {
-  display: block;
-  width: 100%;
-  aspect-ratio: 1 / 1;
-}
-
-.references-sheet__svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.references-sheet__stroke {
-  fill: none;
-  stroke-width: 1.1;
-  vector-effect: non-scaling-stroke;
-}
-
-.references-sheet__stroke--border {
-  stroke: var(--text-tertiary);
-  stroke-width: 1.6;
-}
-
-.references-sheet__stroke--mountain {
-  stroke: var(--fold-mountain);
-}
-
-.references-sheet__stroke--valley {
-  stroke: var(--fold-valley);
-}
-
-.references-sheet__stroke--other {
-  stroke: var(--fold-unassigned);
-}
-
-.references-sheet__meta {
-  display: flex;
-  gap: 5px;
-  align-items: center;
-  min-width: 0;
-  font-size: 0.68rem;
-  font-variant-numeric: tabular-nums;
-}
-
-/* A chip, not a bare digit: beside "8 creases" a plain 1 reads as part of the
-   number ("18 creases"), which is what it did. */
-.references-sheet__index {
-  display: inline-flex;
-  flex: 0 0 auto;
-  justify-content: center;
-  align-items: center;
-  min-width: 15px;
-  height: 15px;
-  padding: 0 3px;
-  border-radius: 4px;
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  font-size: 0.62rem;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.references-sheet--selected .references-sheet__index {
-  background: var(--accent-primary);
-  color: var(--bg-primary);
-}
-
-.references-sheet__count {
-  overflow: hidden;
-  color: var(--text-tertiary);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.4;
 }
 
 /* One number for the card's box, because the strip is windowed: the cards are

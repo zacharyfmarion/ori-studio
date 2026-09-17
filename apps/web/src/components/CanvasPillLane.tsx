@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { useIsCoarsePointerSurface } from '../platform/pointerSurface';
-import { leadSidePaneFor, useLayoutStore } from '../store/layoutStore';
 
 /**
  * The row of pills floating over the canvas's top-right corner, on touch.
@@ -26,7 +25,6 @@ import { leadSidePaneFor, useLayoutStore } from '../store/layoutStore';
  */
 export function CanvasPillLane({ children }: { children: ReactNode }) {
   const coarsePointer = useIsCoarsePointerSurface();
-  const activeWorkspace = useLayoutStore((state) => state.activeWorkspace);
 
   // Nothing at all under a fine pointer, and not merely nothing *visible*: every
   // rule that shapes this lives in the coarse-pointer layer, so an unstyled
@@ -34,15 +32,11 @@ export function CanvasPillLane({ children }: { children: ReactNode }) {
   // the canvas — pushing the dock down by however tall its pills are.
   if (!coarsePointer) return null;
 
-  // Which pane's chrome the lane has to clear, which is a question about the
-  // workspace rather than about any one pill: Simulate opens with a
-  // `.panel-toolbar` whose right end already holds controls, and the lane drops
-  // below it. Read here rather than passed in, so a workspace with no View pane
-  // (Design) still gets a lane for its other pills.
-  const viewPanel = leadSidePaneFor(activeWorkspace);
-
+  // No chrome to clear: the workspaces whose panes open with a toolbar
+  // (Simulate, References) seat the View pill in that toolbar themselves
+  // (`viewDrawerSlot`) rather than in the lane.
   return (
-    <div className="canvas-pill-lane" data-view-workspace={viewPanel ? activeWorkspace : undefined}>
+    <div className="canvas-pill-lane">
       <div className="canvas-pill-lane__row">{children}</div>
     </div>
   );

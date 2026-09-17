@@ -903,11 +903,6 @@
       "turnOverBadge": "Wenden"
     },
     "goToEdit": "Zu Bearbeiten",
-    "hint": {
-      "jump": "Tippe auf eine Falte, um zu dem Schritt zu springen, der sie faltet.",
-      "open": "Öffne ein Muster, um zu sehen, wie man es faltet.",
-      "pick": "Klicke auf einen Scheitelpunkt oder eine Falte, um zu sehen, wie man sie faltet."
-    },
     "lead": {
       "find": "Tippe auf einen Scheitelpunkt oder eine Falte, um zu sehen, wie man sie von einem leeren Blatt aus faltet.",
       "findSequence": "Oder berechne die ganze Vorfaltfolge.",
@@ -1020,16 +1015,13 @@
       "solutions": "Lösungen"
     },
     "sheets": {
-      "cardTitle_one": "Muster {{n}}: {{count}} Faltlinie",
-      "cardTitle_other": "Muster {{n}}: {{count}} Faltlinien",
       "creases_one": "{{count}} Faltlinie",
       "creases_other": "{{count}} Faltlinien",
       "label": "Faltmuster",
       "title": "Muster"
     },
     "sidebar": {
-      "none": "ReferenceFinder hat mit den aktuellen Einstellungen keine Konstruktion für dieses Ziel gefunden.",
-      "planning": "Vorfaltfolge wird berechnet…"
+      "none": "ReferenceFinder hat mit den aktuellen Einstellungen keine Konstruktion für dieses Ziel gefunden."
     },
     "step": {
       "axiom1": "Falte {{x}} durch {{p0}} und {{p1}}.",
@@ -1058,6 +1050,10 @@
       "zeroLengthSegments": "{{n}} Faltlinie(n) sind zu kurz zum Messen und wurden übersprungen."
     }
   },
+  "sheets": {
+    "cardTitle": "Muster {{n}}: {{size}}",
+    "label": "Faltmuster"
+  },
   "sidePane": {
     "properties": "Eigenschaften",
     "settings": "Einstellungen",
@@ -1068,6 +1064,7 @@
     "backendCpuTitle": "Berechnung auf der CPU (WebGL2 nicht verfügbar)",
     "backendGpu": "GPU",
     "backendGpuTitle": "Berechnung auf der GPU (WebGL2)",
+    "backToPatterns": "Muster",
     "canvasAriaLabel": "Origami-Simulator für gefaltete Basen. Ziehen zum Drehen, Scrollen zum Zoomen, Doppelklick zum Zurücksetzen der Ansicht.",
     "canvasTitle": "Ziehen zum Drehen, Scrollen zum Zoomen, Doppelklick zum Zurücksetzen der Ansicht",
     "contextMenu": {
@@ -1110,10 +1107,9 @@
   },
   "simulatorSegments": {
     "creasePatterns": "Faltmuster",
-    "patternLabel": "Muster {{n}}",
-    "patterns": "Muster",
-    "patternTitle_one": "Muster {{n}} — {{count}} Fläche",
-    "patternTitle_other": "Muster {{n}} — {{count}} Flächen"
+    "faces_one": "{{count}} Fläche",
+    "faces_other": "{{count}} Flächen",
+    "patterns": "Muster"
   },
   "simulatorViewControls": {
     "axialStiffness": "Dehnung",

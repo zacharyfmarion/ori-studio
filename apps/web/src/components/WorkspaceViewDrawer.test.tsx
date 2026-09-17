@@ -74,6 +74,19 @@ function render() {
 
 const trigger = () => container?.querySelector<HTMLButtonElement>('.view-drawer__trigger');
 /**
+ * A pane that seats the pill itself (Simulate, References) offers a slot for
+ * it; the pill lives there, not in the lane this component renders. Appended
+ * to the body and removed with the container.
+ */
+function seatSlot(): HTMLDivElement {
+  const slot = document.createElement('div');
+  slot.className = 'test-slot';
+  document.body.append(slot);
+  act(() => useLayoutStore.setState({ viewDrawerSlot: slot }));
+  return slot;
+}
+const seated = () => document.querySelector<HTMLButtonElement>('.test-slot .view-drawer__trigger');
+/**
  * `document`, not `container`. The sheet is portaled to `document.body` because
  * the pill lane it renders inside is `pointer-events: none` and a stacking
  * context — see the comment at the `createPortal` call.
@@ -108,6 +121,7 @@ beforeEach(() => {
 afterEach(() => {
   if (root) act(() => root?.unmount());
   container?.remove();
+  document.querySelector('.test-slot')?.remove();
   root = null;
   container = null;
   mediaListeners.clear();
@@ -154,11 +168,12 @@ describe('the workspace View drawer', () => {
 
   it('shows the workspace its own controls', () => {
     useLayoutStore.setState({ activeWorkspace: 'simulate' });
+    seatSlot();
     render();
 
     // Named as its docked pane is — Settings, where Edit's is View.
-    expect(trigger()?.textContent).toBe('Settings');
-    press(trigger());
+    expect(seated()?.textContent).toBe('Settings');
+    press(seated());
 
     expect(dialog()?.textContent).toContain('simulator view controls');
     expect(dialog()?.getAttribute('aria-label')).toBe('Settings');
@@ -190,15 +205,30 @@ describe('the workspace View drawer', () => {
   });
 
   it('keeps the lane for a pane that does not seat the pill itself', () => {
-    // Simulate has no slot of its own, and a slot left registered by another
-    // pane is not its business: the pill stays in the lane.
-    useLayoutStore.setState({ activeWorkspace: 'simulate' });
+    // Edit has no slot of its own, and a slot left registered by another pane
+    // is not its business: the pill stays in the lane.
     const stray = document.createElement('div');
     useLayoutStore.setState({ viewDrawerSlot: stray });
     render();
 
-    expect(trigger()?.textContent).toBe('Settings');
+    expect(trigger()?.textContent).toBe('View');
     expect(stray.querySelector('.view-drawer__trigger')).toBeNull();
+  });
+
+  it('seats the Simulate pill in the toolbar slot its panel offers, as References does', () => {
+    // The simulator's toolbar registers the slot; on the phone's list screen
+    // there is no toolbar and no slot — and no pill, since there is no
+    // simulation yet for the settings to be about.
+    useLayoutStore.setState({ activeWorkspace: 'simulate' });
+    render();
+    expect(document.querySelector('.view-drawer__trigger')).toBeNull();
+
+    const slot = seatSlot();
+    expect(trigger()).toBeNull();
+    expect(slot.querySelector('.view-drawer__trigger')?.textContent).toBe('Settings');
+
+    act(() => useLayoutStore.setState({ viewDrawerSlot: null }));
+    expect(document.querySelector('.view-drawer__trigger')).toBeNull();
   });
 
   it('reports that the drawer was opened', () => {
@@ -206,9 +236,10 @@ describe('the workspace View drawer', () => {
     // cannot see it — and whether people find the controls again after the pane
     // stopped being docked is the question this change raises.
     useLayoutStore.setState({ activeWorkspace: 'simulate' });
+    seatSlot();
     render();
 
-    press(trigger());
+    press(seated());
 
     expect(analytics.track).toHaveBeenCalledWith('view drawer opened', {
       workspace: 'simulate',

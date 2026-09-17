@@ -1,6 +1,6 @@
 /**
- * What the References sidebar says about the sheets themselves: the hint above
- * the results, and the warnings that did not stop the analysis.
+ * What the References sidebar says about the sheets themselves: the warnings
+ * that did not stop the analysis, under the pattern cards.
  *
  * Outside the hook so the mapping from a `SheetAnalysis` to sentences is
  * unit-testable — every one of these is a signal the user only gets here, and a
@@ -40,18 +40,9 @@ export function refusalMessageFor(t: TFunction, component: PrecreaseComponent): 
   }
 }
 
-export interface ReferencesSidebarText {
-  hint: string;
-  warnings: string[];
-}
-
-export function referencesSidebarText(
-  t: TFunction,
-  frames: SheetAnalysis | null
-): ReferencesSidebarText {
+export function referencesSidebarWarnings(t: TFunction, frames: SheetAnalysis | null): string[] {
   const warnings: string[] = [];
-  const hint = t('panels:references.hint.pick', 'Click a vertex or crease to see how to fold it.');
-  if (!frames) return { hint, warnings };
+  if (!frames) return warnings;
 
   const refused = frames.components.filter((c) => c.refused);
   for (const warning of frames.warnings) {
@@ -111,5 +102,5 @@ export function referencesSidebarText(
       })
     );
   }
-  return { hint, warnings };
+  return warnings;
 }

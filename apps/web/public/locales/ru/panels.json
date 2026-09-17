@@ -971,11 +971,6 @@
       "turnOverBadge": "Перевернуть"
     },
     "goToEdit": "Перейти: Правка",
-    "hint": {
-      "jump": "Коснитесь сгиба, чтобы перейти к шагу, на котором он складывается.",
-      "open": "Откройте узор, чтобы увидеть, как его сложить.",
-      "pick": "Щёлкните вершину или сгиб, чтобы увидеть, как его сложить."
-    },
     "lead": {
       "find": "Коснитесь вершины или сгиба, чтобы увидеть, как сложить его с чистого листа.",
       "findSequence": "Или вычислите всю последовательность предварительных складок.",
@@ -1096,10 +1091,6 @@
       "solutions": "Решения"
     },
     "sheets": {
-      "cardTitle_one": "Узор {{n}}: {{count}} складка",
-      "cardTitle_few": "Узор {{n}}: {{count}} складки",
-      "cardTitle_many": "Узор {{n}}: {{count}} складок",
-      "cardTitle_other": "Узор {{n}}: {{count}} складки",
       "creases_one": "{{count}} складка",
       "creases_few": "{{count}} складки",
       "creases_many": "{{count}} складок",
@@ -1108,8 +1099,7 @@
       "title": "Узоры"
     },
     "sidebar": {
-      "none": "ReferenceFinder не нашёл построения для этой цели при текущих настройках.",
-      "planning": "Вычисление последовательности предварительных складок…"
+      "none": "ReferenceFinder не нашёл построения для этой цели при текущих настройках."
     },
     "step": {
       "axiom1": "Сложите {{x}} через {{p0}} и {{p1}}.",
@@ -1138,6 +1128,10 @@
       "zeroLengthSegments": "{{n}} складок слишком коротки для измерения и пропущены."
     }
   },
+  "sheets": {
+    "cardTitle": "Узор {{n}}: {{size}}",
+    "label": "Узоры складок"
+  },
   "sidePane": {
     "properties": "Свойства",
     "settings": "Настройки",
@@ -1148,6 +1142,7 @@
     "backendCpuTitle": "Вычисление на CPU (WebGL2 недоступен)",
     "backendGpu": "GPU",
     "backendGpuTitle": "Вычисление на GPU (WebGL2)",
+    "backToPatterns": "Паттерны",
     "canvasAriaLabel": "Симулятор сложенной базы оригами. Перетаскивайте для вращения, прокручивайте для масштабирования, двойной щелчок сбрасывает вид.",
     "canvasTitle": "Перетаскивайте для вращения, прокручивайте для масштабирования, двойной щелчок сбрасывает вид",
     "contextMenu": {
@@ -1190,12 +1185,11 @@
   },
   "simulatorSegments": {
     "creasePatterns": "Паттерны складок",
-    "patternLabel": "Паттерн {{n}}",
-    "patterns": "Паттерны",
-    "patternTitle_one": "Паттерн {{n}} — {{count}} грань",
-    "patternTitle_few": "Паттерн {{n}} — {{count}} грани",
-    "patternTitle_many": "Паттерн {{n}} — {{count}} граней",
-    "patternTitle_other": "Паттерн {{n}} — {{count}} грани"
+    "faces_one": "{{count}} грань",
+    "faces_few": "{{count}} грани",
+    "faces_many": "{{count}} граней",
+    "faces_other": "{{count}} грани",
+    "patterns": "Паттерны"
   },
   "simulatorViewControls": {
     "axialStiffness": "Растяжение",

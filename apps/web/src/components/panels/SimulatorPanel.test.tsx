@@ -9,6 +9,8 @@ import { TooltipProvider } from '../ui/Tooltip';
 import { SimulatorPanel } from './SimulatorPanel';
 import { createSimulatorSession } from '../../simulator/simulatorSession';
 import { handleShortcutRuntimeKeyDown } from '../../keyboard/shortcutRuntime';
+import { PHONE_MEDIA_QUERY } from '../../platform/phoneLayout';
+import { useLayoutStore } from '../../store/layoutStore';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -208,6 +210,114 @@ describe('SimulatorPanel', () => {
 });
 
 /**
+ * The rail of the document's patterns, and the phone's two screens.
+ *
+ * The rail is presentation the panel composes: the segments, the selected one,
+ * and a press that the panel routes through its phone flow. On a phone that
+ * flow mounts the rail or the simulator, never both — a press on a card opens
+ * the simulator with a Back button where the title was.
+ */
+describe('SimulatorPanel patterns', () => {
+  const cards = (rendered: HTMLElement) =>
+    [...rendered.querySelectorAll<HTMLButtonElement>('.sheet-card')];
+
+  it('lists a document with more than one pattern and hides the rail for one', async () => {
+    const rendered = renderPanel({ foldArtifacts: { fold: twoSquaresFold() } });
+    await flushSimulator();
+
+    expect(rendered.querySelector('.segments-sidebar')).not.toBeNull();
+    // Reading order, each drawn from its own edges: a square with a diagonal.
+    expect(cards(rendered)).toHaveLength(2);
+    expect(cards(rendered)[0]?.getAttribute('aria-selected')).toBe('true');
+    expect(cards(rendered)[0]?.querySelectorAll('.sheet-card__stroke')).toHaveLength(5);
+    // Sized in faces: what the simulator folds, and a number the planarized
+    // fold can answer for (its edge count is not the drawn-line count).
+    expect(cards(rendered)[0]?.querySelector('.sheet-card__count')?.textContent).toBe('2 faces');
+
+    // A press selects, on every layout.
+    act(() => cards(rendered)[1]?.click());
+    expect(useWorkspaceStore.getState().selectedSegmentId).toBe(1);
+    expect(cards(rendered)[1]?.getAttribute('aria-selected')).toBe('true');
+    // Both screens stay: the rail beside the simulator, whose title stays too.
+    expect(rendered.querySelector('.simulator-panel')).not.toBeNull();
+    expect(rendered.querySelector('.simulator-panel .panel-title')?.textContent).toBe('Simulator');
+
+    // Let the sub-fold swap the runtime kicked off settle before teardown.
+    await flushSimulator();
+  });
+
+  it('hides the rail for a single pattern', () => {
+    const rendered = renderPanel({ foldArtifacts: { fold: simpleFold() } });
+    expect(rendered.querySelector('.segments-sidebar')).toBeNull();
+    expect(rendered.querySelector('.simulator-panel')).not.toBeNull();
+  });
+
+  it('seats the touch Settings pill in its toolbar', () => {
+    const rendered = renderPanel({ foldArtifacts: { fold: simpleFold() } });
+    const slot = rendered.querySelector('.simulator-panel .panel-toolbar .panel-toolbar__pills');
+    expect(slot).not.toBeNull();
+    expect(useLayoutStore.getState().viewDrawerSlot).toBe(slot);
+    act(() => root?.unmount());
+    expect(useLayoutStore.getState().viewDrawerSlot).toBeNull();
+  });
+
+  it('on a phone, opens a pattern from the list into the simulator and comes back', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({
+        matches: query === PHONE_MEDIA_QUERY,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }))
+    );
+    try {
+      const rendered = renderPanel({ foldArtifacts: { fold: twoSquaresFold() } });
+      // The list, alone — the simulator, its toolbar and its slot are not mounted.
+      expect(rendered.querySelector('.segments-sidebar')).not.toBeNull();
+      expect(rendered.querySelector('.simulator-panel')).toBeNull();
+      expect(useLayoutStore.getState().viewDrawerSlot).toBeNull();
+
+      act(() => cards(rendered)[1]?.click());
+      await flushSimulator();
+      // The simulator, alone, on the pressed pattern, with the way back where
+      // the title was.
+      expect(useWorkspaceStore.getState().selectedSegmentId).toBe(1);
+      expect(rendered.querySelector('.segments-sidebar')).toBeNull();
+      expect(rendered.querySelector('.simulator-panel')).not.toBeNull();
+      expect(rendered.querySelector('.simulator-panel__back')).not.toBeNull();
+      expect(rendered.querySelector('.simulator-panel .panel-title')).toBeNull();
+
+      act(() => rendered.querySelector<HTMLButtonElement>('.simulator-panel__back')?.click());
+      expect(rendered.querySelector('.segments-sidebar')).not.toBeNull();
+      expect(rendered.querySelector('.simulator-panel')).toBeNull();
+      await flushSimulator();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('on a phone, opens straight on the simulator for a single pattern, with no Back', () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({
+        matches: query === PHONE_MEDIA_QUERY,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }))
+    );
+    try {
+      const rendered = renderPanel({ foldArtifacts: { fold: simpleFold() } });
+      expect(rendered.querySelector('.segments-sidebar')).toBeNull();
+      expect(rendered.querySelector('.simulator-panel')).not.toBeNull();
+      expect(rendered.querySelector('.simulator-panel__back')).toBeNull();
+      expect(rendered.querySelector('.simulator-panel .panel-title')?.textContent).toBe('Simulator');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+/**
  * The one transport control for starting over. It used to be two — Refresh,
  * which rebuilt the fold artifacts and loaded a new worker session, and Reset,
  * which rewound the session in hand — and the split was the bug: users pressed
@@ -386,6 +496,44 @@ function simpleFold(
     faces_vertices: [
       [0, 1, 2],
       [0, 2, 3],
+    ],
+  };
+}
+
+/** Two disjoint unit squares, each split by one diagonal: two patterns. */
+function twoSquaresFold(): FoldDocument {
+  return {
+    file_spec: 1.2,
+    frame_classes: ['creasePattern'],
+    vertices_coords: [
+      [0, 0],
+      [1, 0],
+      [1, 1],
+      [0, 1],
+      [2, 0],
+      [3, 0],
+      [3, 1],
+      [2, 1],
+    ],
+    edges_vertices: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 0],
+      [0, 2],
+      [4, 5],
+      [5, 6],
+      [6, 7],
+      [7, 4],
+      [4, 6],
+    ],
+    edges_assignment: ['B', 'B', 'B', 'B', 'V', 'B', 'B', 'B', 'B', 'M'],
+    edges_foldAngle: [null, null, null, null, 180, null, null, null, null, -180],
+    faces_vertices: [
+      [0, 1, 2],
+      [0, 2, 3],
+      [4, 5, 6],
+      [4, 6, 7],
     ],
   };
 }

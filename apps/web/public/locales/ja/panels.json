@@ -873,11 +873,6 @@
       "turnOverBadge": "裏返す"
     },
     "goToEdit": "編集へ",
-    "hint": {
-      "jump": "折り線をタップすると、それを折るステップに移動します。",
-      "open": "パターンを開くと、折り方が表示されます。",
-      "pick": "頂点または折り線をクリックすると、折り方が表示されます。"
-    },
     "lead": {
       "find": "頂点または折り線をタップすると、白紙の状態からの折り方が表示されます。",
       "findSequence": "または、下折りの手順全体を計算します。",
@@ -986,14 +981,12 @@
       "solutions": "解の数"
     },
     "sheets": {
-      "cardTitle_other": "パターン {{n}}: 折り線 {{count}} 本",
       "creases_other": "折り線 {{count}} 本",
       "label": "折り紙パターン",
       "title": "パターン"
     },
     "sidebar": {
-      "none": "現在の設定では、この対象の作図は見つかりませんでした。",
-      "planning": "下折りの手順を計算しています…"
+      "none": "現在の設定では、この対象の作図は見つかりませんでした。"
     },
     "step": {
       "axiom1": "{{p0}} と {{p1}} を通るように {{x}} を折ります。",
@@ -1022,6 +1015,10 @@
       "zeroLengthSegments": "{{n}} 本の折り線は短すぎて測定できないため、省略しました。"
     }
   },
+  "sheets": {
+    "cardTitle": "パターン {{n}}: {{size}}",
+    "label": "折り紙パターン"
+  },
   "sidePane": {
     "properties": "プロパティ",
     "settings": "設定",
@@ -1032,6 +1029,7 @@
     "backendCpuTitle": "CPUで計算中（WebGL2は利用できません）",
     "backendGpu": "GPU",
     "backendGpuTitle": "GPUで計算中（WebGL2）",
+    "backToPatterns": "パターン",
     "canvasAriaLabel": "折り紙の折りベースシミュレーター。ドラッグで回転、スクロールでズーム、ダブルクリックで表示をリセットします。",
     "canvasTitle": "ドラッグで回転、スクロールでズーム、ダブルクリックで表示をリセット",
     "contextMenu": {
@@ -1074,9 +1072,8 @@
   },
   "simulatorSegments": {
     "creasePatterns": "展開図",
-    "patternLabel": "パターン {{n}}",
-    "patterns": "パターン",
-    "patternTitle_other": "パターン {{n}} — {{count}} 面"
+    "faces_other": "{{count}} 面",
+    "patterns": "パターン"
   },
   "simulatorViewControls": {
     "axialStiffness": "伸び",

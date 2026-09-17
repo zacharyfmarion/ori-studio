@@ -493,17 +493,6 @@ export function ReferencesPanel() {
           onSelect={flow.openSheet}
           breakdown={breakdown}
           analysis={breakdown.analysisRecord}
-          busy={busy}
-          hasDocument={view.hasDocument}
-          targeted={targeted}
-          // The list screen has no canvas to click a vertex on.
-          hint={
-            flow.screen === 'list'
-              ? t('panels:references.hint.open', 'Open a pattern to see how to fold it.')
-              : mode === 'sequence'
-                ? t('panels:references.hint.jump', 'Tap a crease to jump to the step that makes it.')
-                : controller.hint
-          }
           warnings={controller.warnings}
           onSelectFinding={flow.openFinding}
         />
@@ -536,7 +525,7 @@ export function ReferencesPanel() {
               the header unmounts; empty under a fine pointer, where the
               settings are the docked pane.
             */}
-            <div className="references-panel__pills" ref={setViewDrawerSlot} />
+            <div className="panel-toolbar__pills" ref={setViewDrawerSlot} />
           </div>
           {targeted && controller.target && (
             <div className="references-target-row">

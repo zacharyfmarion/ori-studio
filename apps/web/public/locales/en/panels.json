@@ -903,11 +903,6 @@
       "turnOverBadge": "Turn over"
     },
     "goToEdit": "Go to Edit",
-    "hint": {
-      "jump": "Tap a crease to jump to the step that makes it.",
-      "open": "Open a pattern to see how to fold it.",
-      "pick": "Click a vertex or crease to see how to fold it."
-    },
     "lead": {
       "find": "Tap a vertex or crease to see how to fold it from a blank sheet.",
       "findSequence": "Or plan the whole precreasing sequence.",
@@ -1026,16 +1021,13 @@
       "solutions": "Solutions"
     },
     "sheets": {
-      "cardTitle_one": "Pattern {{n}}: {{count}} crease",
-      "cardTitle_other": "Pattern {{n}}: {{count}} creases",
       "creases_one": "{{count}} crease",
       "creases_other": "{{count}} creases",
       "label": "Crease patterns",
       "title": "Patterns"
     },
     "sidebar": {
-      "none": "ReferenceFinder found no construction for this target at the current settings.",
-      "planning": "Working out the precreasing sequence…"
+      "none": "ReferenceFinder found no construction for this target at the current settings."
     },
     "step": {
       "axiom1": "Fold {{x}} through {{p0}} and {{p1}}.",
@@ -1064,6 +1056,10 @@
       "zeroLengthSegments": "{{n}} crease(s) are too short to measure and were skipped."
     }
   },
+  "sheets": {
+    "cardTitle": "Pattern {{n}}: {{size}}",
+    "label": "Crease patterns"
+  },
   "sidePane": {
     "properties": "Properties",
     "settings": "Settings",
@@ -1074,6 +1070,7 @@
     "backendCpuTitle": "Solving on the CPU (WebGL2 unavailable)",
     "backendGpu": "GPU",
     "backendGpuTitle": "Solving on the GPU (WebGL2)",
+    "backToPatterns": "Patterns",
     "canvasAriaLabel": "Origami folded-base simulator. Drag to rotate, scroll to zoom, double-click to reset view.",
     "canvasTitle": "Drag to rotate, scroll to zoom, double-click to reset view",
     "contextMenu": {
@@ -1116,10 +1113,9 @@
   },
   "simulatorSegments": {
     "creasePatterns": "Crease patterns",
-    "patternLabel": "Pattern {{n}}",
-    "patterns": "Patterns",
-    "patternTitle_one": "Pattern {{n}} — {{count}} faces",
-    "patternTitle_other": "Pattern {{n}} — {{count}} faces"
+    "faces_one": "{{count}} face",
+    "faces_other": "{{count}} faces",
+    "patterns": "Patterns"
   },
   "simulatorViewControls": {
     "axialStiffness": "Stretch",

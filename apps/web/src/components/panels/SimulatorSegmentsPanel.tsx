@@ -1,106 +1,74 @@
 import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Shapes } from 'lucide-react';
-import {
-  segmentFoldDocument,
-  segmentThumbnailSvg,
-  type CpSegment,
-} from '../../lib/creasePatternSegmentation';
-import { useWorkspaceStore } from '../../store/workspaceStore';
+import { segmentSheetThumbnail } from '../../cp-workspace/sheets/segmentSheet';
+import { SheetGrid, type SheetGridItem } from '../../cp-workspace/sheets/SheetGrid';
+import type { FoldDocument } from '../../engine/types';
+import type { CpSegment } from '../../lib/creasePatternSegmentation';
 
 /**
  * Fixed, non-draggable sidebar rendered inside the simulator panel. Lists the
- * document's crease-pattern segments as flat 2D thumbnails and drives the
- * selected segment.
+ * document's crease-pattern segments as the shared sheet cards and reports
+ * which one was pressed.
+ *
+ * The same rail the References workspace has (`ReferencesSheetsSidebar`), for
+ * the same reason: a document can hold several disjoint patterns and only one
+ * of them is being folded right now. On a phone it is the whole screen rather
+ * than a rail — the list the reader picks a pattern from, with the simulator
+ * behind a press (`useSimulatorPhoneFlow`) — and the stylesheet's phone block
+ * is what stretches it and grows the cards (`theme.css`, `.segments-sidebar`
+ * and `.sheet-grid`).
+ *
+ * Presentation only: the segments, which one is active, and a press reports
+ * back. What a press *means* is the panel's — a selection beside the canvas
+ * on a desktop, and on a phone the detail screen too.
  */
-export const SimulatorSegmentsSidebar = memo(function SimulatorSegmentsSidebar() {
+export interface SimulatorSegmentsSidebarProps {
+  /**
+   * The fold the segments were cut from — the real (untriangulated) crease
+   * fold, not the simulation mesh, so the cards show the actual pattern.
+   */
+  fold: FoldDocument;
+  segments: readonly CpSegment[];
+  selected: number | null;
+  onSelect: (id: number) => void;
+}
+
+export const SimulatorSegmentsSidebar = memo(function SimulatorSegmentsSidebar({
+  fold,
+  segments,
+  selected,
+  onSelect,
+}: SimulatorSegmentsSidebarProps) {
   const { t } = useTranslation();
-  const foldArtifacts = useWorkspaceStore((state) => state.foldArtifacts);
-  const selectedSegmentId = useWorkspaceStore((state) => state.selectedSegmentId);
-  const setSelectedSegment = useWorkspaceStore((state) => state.setSelectedSegment);
-
-  // Thumbnails use the real (untriangulated) crease fold, not the simulation
-  // mesh, so they show the actual crease pattern. Segment ids match the
-  // simulator's (both segment the same topology deterministically), so
-  // selection still drives the simulator correctly.
-  const fold = foldArtifacts?.fold ?? null;
-  const segments = useMemo(() => (fold ? segmentFoldDocument(fold) : []), [fold]);
-  const activeId = segments.some((segment) => segment.id === selectedSegmentId)
-    ? selectedSegmentId
-    : (segments[0]?.id ?? null);
-
-  const thumbnails = useMemo(() => {
-    if (!fold) return new Map<number, string>();
-    const entries = new Map<number, string>();
-    for (const segment of segments) {
-      entries.set(segment.id, segmentThumbnailSvg(fold, segment, { size: 96 }));
-    }
-    return entries;
-  }, [fold, segments]);
-
-  // A single pattern needs no picker; hide the sidebar to reclaim the space.
-  if (segments.length <= 1) return null;
+  // Sized in faces, not creases: the fold's edges are split at every crossing,
+  // so a count of them is not the count of drawn lines the References rail
+  // gives the same pattern.
+  const items = useMemo<SheetGridItem[]>(
+    () =>
+      segments.map((segment) => ({
+        id: segment.id,
+        thumbnail: segmentSheetThumbnail(fold, segment),
+        size: t('panels:simulatorSegments.faces', {
+          defaultValue_one: '{{count}} face',
+          defaultValue_other: '{{count}} faces',
+          count: segment.faceIndices.length,
+        }),
+      })),
+    [fold, segments, t]
+  );
 
   return (
-    <aside className="segments-sidebar" aria-label={t('panels:simulatorSegments.creasePatterns', 'Crease patterns')}>
+    <aside
+      className="segments-sidebar"
+      aria-label={t('panels:simulatorSegments.creasePatterns', 'Crease patterns')}
+    >
       <div className="segments-sidebar__header">
         <Shapes size={14} />
         <span className="panel-title">{t('panels:simulatorSegments.patterns', 'Patterns')}</span>
         <span className="segments-sidebar__count">{segments.length}</span>
       </div>
-      <ul
-        className="segments-list"
-        role="listbox"
-        aria-label={t('panels:simulatorSegments.creasePatterns', 'Crease patterns')}
-      >
-        {segments.map((segment, index) => (
-          <SegmentThumbnail
-            key={segment.id}
-            segment={segment}
-            index={index}
-            svg={thumbnails.get(segment.id) ?? ''}
-            selected={segment.id === activeId}
-            onSelect={() => setSelectedSegment(segment.id)}
-          />
-        ))}
-      </ul>
+      <SheetGrid sheets={items} selected={selected} onSelect={onSelect} />
     </aside>
   );
 });
-
-interface SegmentThumbnailProps {
-  segment: CpSegment;
-  index: number;
-  svg: string;
-  selected: boolean;
-  onSelect: () => void;
-}
-
-function SegmentThumbnail({ segment, index, svg, selected, onSelect }: SegmentThumbnailProps) {
-  const { t } = useTranslation();
-  return (
-    <li className="segments-list__item">
-      <button
-        type="button"
-        role="option"
-        aria-selected={selected}
-        aria-label={t('panels:simulatorSegments.patternLabel', 'Pattern {{n}}', { n: index + 1 })}
-        className={`segment-card${selected ? ' segment-card--selected' : ''}`}
-        onClick={onSelect}
-        title={t('panels:simulatorSegments.patternTitle', 'Pattern {{n}} — {{count}} faces', {
-          n: index + 1,
-          count: segment.faceIndices.length,
-        })}
-      >
-        {/* Trusted, locally generated SVG string. */}
-        <span
-          className="segment-card__thumb"
-          dangerouslySetInnerHTML={{ __html: svg }}
-        />
-        <span className="segment-card__badge" aria-hidden="true">
-          {index + 1}
-        </span>
-      </button>
-    </li>
-  );
-}
