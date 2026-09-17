@@ -1219,6 +1219,7 @@ fn repair_candidate(
     boundary.generated_border_span_ids = Vec::new();
 
     let repaired = ExactSolveInput {
+        image_evidence: None,
         schema: input.schema.clone(),
         coordinate_space: input.coordinate_space.clone(),
         image_size: input.image_size,
@@ -2133,6 +2134,7 @@ mod tests {
 
     fn input_with(vertices: Vec<GraphVertex>, spans: Vec<CandidateCreaseSpan>) -> ExactSolveInput {
         ExactSolveInput {
+            image_evidence: None,
             schema: "oristudio/cp-compiler/exact-solve-input-v1".to_owned(),
             coordinate_space: "unit_square".to_owned(),
             image_size: Some(IMAGE_SIZE),

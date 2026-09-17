@@ -460,6 +460,7 @@ fn build_input(
         .collect();
 
     let input = ExactSolveInput {
+        image_evidence: None,
         schema: "oristudio/cp-compiler/exact-solve-input-v1".to_owned(),
         coordinate_space: "fold_normalized".to_owned(),
         image_size: None,

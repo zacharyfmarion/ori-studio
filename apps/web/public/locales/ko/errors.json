@@ -62,6 +62,10 @@
     "tooLarge": "이 전개도는 링크로 공유하기에 너무 큽니다. 대신 파일로 내보내세요.",
     "tooNew": "이 공유 링크는 더 새로운 버전의 Ori Studio에서 만들어졌습니다. 새로 고쳐 최신 버전을 받은 뒤 다시 열어 보세요."
   },
+  "unsupportedBrowser": {
+    "description": "Ori Studio의 엔진은 모듈 Web Worker에서 실행되는데, 이 브라우저는 이를 지원하지 않습니다. Firefox, Chrome, Edge 또는 Safari를 최신 버전으로 업데이트한 뒤 이 페이지를 다시 여세요.",
+    "title": "이 브라우저에서는 Ori Studio를 실행할 수 없습니다"
+  },
   "worker": {
     "cpDetect": "전개도 감지가 예기치 않게 중지되었습니다. 이미지를 다시 가져와 보세요.",
     "oristudioBp": "박스 플리팅 엔진이 예기치 않게 중지되었습니다. 이 디자인 작업을 계속하려면 Ori Studio를 새로 고치세요.",

@@ -3,6 +3,7 @@ use super::*;
 use std::sync::OnceLock;
 
 mod joint;
+pub(in crate::exact_solve) use joint::description_cost;
 pub(super) use joint::propose as joint_proposal;
 
 const NOISE: f64 = 5e-4;

@@ -23,6 +23,7 @@ pub mod rectify;
 pub mod refinement;
 pub mod segments;
 pub mod source_image_evidence;
+pub mod source_line_fit;
 
 use serde::{Deserialize, Serialize};
 

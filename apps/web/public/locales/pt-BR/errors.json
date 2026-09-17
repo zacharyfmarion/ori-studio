@@ -62,6 +62,10 @@
     "tooLarge": "Este padrão de vincos é grande demais para compartilhar como link. Exporte-o como arquivo.",
     "tooNew": "Esse link foi criado com uma versão mais recente do Ori Studio. Recarregue para obter a versão mais nova e abra-o de novo."
   },
+  "unsupportedBrowser": {
+    "description": "Seus motores rodam em Web Workers do tipo módulo, que este navegador não suporta. Atualize para uma versão atual do Firefox, Chrome, Edge ou Safari e abra esta página novamente.",
+    "title": "O Ori Studio não pode ser executado neste navegador"
+  },
   "worker": {
     "cpDetect": "A detecção de padrão de vincos parou inesperadamente. Tente importar a imagem novamente.",
     "oristudioBp": "O motor de box pleating parou inesperadamente. Recarregue o Ori Studio para continuar trabalhando neste design.",

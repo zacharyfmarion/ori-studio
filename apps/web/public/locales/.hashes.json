@@ -3060,7 +3060,9 @@
     "panels:simulatorSegments.faces_other": "133efd624e4f",
     "panels:references.sheets.creases_one": "4b88310a50d6",
     "panels:references.sheets.creases_other": "059cbfda69b1",
-    "dialogs:cpDetectImport.verdict.exactReview": "63e272eae39f"
+    "dialogs:cpDetectImport.verdict.exactReview": "63e272eae39f",
+    "errors:unsupportedBrowser.description": "fc5fdb611880",
+    "errors:unsupportedBrowser.title": "4ab55bbf0b59"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -6123,7 +6125,9 @@
     "panels:simulatorSegments.faces_other": "133efd624e4f",
     "panels:references.sheets.creases_one": "4b88310a50d6",
     "panels:references.sheets.creases_other": "059cbfda69b1",
-    "dialogs:cpDetectImport.verdict.exactReview": "63e272eae39f"
+    "dialogs:cpDetectImport.verdict.exactReview": "63e272eae39f",
+    "errors:unsupportedBrowser.description": "fc5fdb611880",
+    "errors:unsupportedBrowser.title": "4ab55bbf0b59"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -9188,7 +9192,9 @@
     "panels:simulatorSegments.faces_other": "133efd624e4f",
     "panels:references.sheets.creases_one": "4b88310a50d6",
     "panels:references.sheets.creases_other": "059cbfda69b1",
-    "dialogs:cpDetectImport.verdict.exactReview": "63e272eae39f"
+    "dialogs:cpDetectImport.verdict.exactReview": "63e272eae39f",
+    "errors:unsupportedBrowser.description": "fc5fdb611880",
+    "errors:unsupportedBrowser.title": "4ab55bbf0b59"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -12194,7 +12200,9 @@
     "panels:sheets.cardTitle": "540e12bd1254",
     "panels:simulatorSegments.faces_other": "133efd624e4f",
     "panels:references.sheets.creases_other": "059cbfda69b1",
-    "dialogs:cpDetectImport.verdict.exactReview": "63e272eae39f"
+    "dialogs:cpDetectImport.verdict.exactReview": "63e272eae39f",
+    "errors:unsupportedBrowser.description": "fc5fdb611880",
+    "errors:unsupportedBrowser.title": "4ab55bbf0b59"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -15200,7 +15208,9 @@
     "panels:sheets.cardTitle": "540e12bd1254",
     "panels:simulatorSegments.faces_other": "133efd624e4f",
     "panels:references.sheets.creases_other": "059cbfda69b1",
-    "dialogs:cpDetectImport.verdict.exactReview": "63e272eae39f"
+    "dialogs:cpDetectImport.verdict.exactReview": "63e272eae39f",
+    "errors:unsupportedBrowser.description": "fc5fdb611880",
+    "errors:unsupportedBrowser.title": "4ab55bbf0b59"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -18263,7 +18273,9 @@
     "panels:simulatorSegments.faces_other": "133efd624e4f",
     "panels:references.sheets.creases_one": "4b88310a50d6",
     "panels:references.sheets.creases_other": "059cbfda69b1",
-    "dialogs:cpDetectImport.verdict.exactReview": "63e272eae39f"
+    "dialogs:cpDetectImport.verdict.exactReview": "63e272eae39f",
+    "errors:unsupportedBrowser.description": "fc5fdb611880",
+    "errors:unsupportedBrowser.title": "4ab55bbf0b59"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -21326,7 +21338,9 @@
     "panels:simulatorSegments.faces_other": "133efd624e4f",
     "panels:references.sheets.creases_one": "4b88310a50d6",
     "panels:references.sheets.creases_other": "059cbfda69b1",
-    "dialogs:cpDetectImport.verdict.exactReview": "63e272eae39f"
+    "dialogs:cpDetectImport.verdict.exactReview": "63e272eae39f",
+    "errors:unsupportedBrowser.description": "fc5fdb611880",
+    "errors:unsupportedBrowser.title": "4ab55bbf0b59"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -24332,6 +24346,8 @@
     "panels:sheets.cardTitle": "540e12bd1254",
     "panels:simulatorSegments.faces_other": "133efd624e4f",
     "panels:references.sheets.creases_other": "059cbfda69b1",
-    "dialogs:cpDetectImport.verdict.exactReview": "63e272eae39f"
+    "dialogs:cpDetectImport.verdict.exactReview": "63e272eae39f",
+    "errors:unsupportedBrowser.description": "fc5fdb611880",
+    "errors:unsupportedBrowser.title": "4ab55bbf0b59"
   }
 }

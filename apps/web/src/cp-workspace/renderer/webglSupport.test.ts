@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  awaitContextRestore,
   classifyCpWebglFailure,
   CP_REQUIRED_EXTENSION,
   cpWebglSupport,
@@ -161,5 +162,32 @@ describe('classifyCpWebglFailure', () => {
     const { lose } = stubContext({ context: true, extensions: [CP_REQUIRED_EXTENSION] });
     classifyCpWebglFailure(canvas());
     expect(lose).not.toHaveBeenCalled();
+  });
+});
+
+describe('awaitContextRestore', () => {
+  it('keeps the queued loss restorable and rebuilds on restore, once armed', () => {
+    const element = document.createElement('canvas');
+    const onRestored = vi.fn();
+    const dispose = awaitContextRestore(element, onRestored);
+
+    // The browser's loss notice for a context created lost: default-prevented is what
+    // marks the context as one the page wants back.
+    const lost = new Event('webglcontextlost', { cancelable: true });
+    element.dispatchEvent(lost);
+    expect(lost.defaultPrevented).toBe(true);
+    expect(onRestored).not.toHaveBeenCalled();
+
+    element.dispatchEvent(new Event('webglcontextrestored'));
+    expect(onRestored).toHaveBeenCalledTimes(1);
+
+    // Disposed with the effect that armed it: a restore after that belongs to the
+    // renderer that replaced it, which has regl's own listeners.
+    dispose();
+    element.dispatchEvent(new Event('webglcontextrestored'));
+    const later = new Event('webglcontextlost', { cancelable: true });
+    element.dispatchEvent(later);
+    expect(onRestored).toHaveBeenCalledTimes(1);
+    expect(later.defaultPrevented).toBe(false);
   });
 });

@@ -62,6 +62,10 @@
     "tooLarge": "Dieses Faltmuster ist zu groß für einen Freigabelink. Exportiere es stattdessen als Datei.",
     "tooNew": "Dieser Link wurde mit einer neueren Version von Ori Studio erstellt. Lade neu, um die aktuelle Version zu erhalten, und öffne ihn dann erneut."
   },
+  "unsupportedBrowser": {
+    "description": "Seine Engines laufen in Modul-Web-Workern, die dieser Browser nicht unterstützt. Aktualisiere auf eine aktuelle Version von Firefox, Chrome, Edge oder Safari und öffne diese Seite erneut.",
+    "title": "Ori Studio kann in diesem Browser nicht laufen"
+  },
   "worker": {
     "cpDetect": "Die Faltmuster-Erkennung wurde unerwartet beendet. Versuche, das Bild erneut zu importieren.",
     "oristudioBp": "Die Box-Pleating-Engine wurde unerwartet beendet. Lade Ori Studio neu, um an diesem Entwurf weiterzuarbeiten.",

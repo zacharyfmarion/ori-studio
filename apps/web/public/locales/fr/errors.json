@@ -62,6 +62,10 @@
     "tooLarge": "Ce patron de pliage est trop volumineux pour être partagé par lien. Exportez-le plutôt sous forme de fichier.",
     "tooNew": "Ce lien de partage a été créé avec une version plus récente d'Ori Studio. Rechargez pour obtenir la dernière version, puis rouvrez-le."
   },
+  "unsupportedBrowser": {
+    "description": "Ses moteurs s'exécutent dans des Web Workers de type module, que ce navigateur ne prend pas en charge. Passez à une version récente de Firefox, Chrome, Edge ou Safari, puis rouvrez cette page.",
+    "title": "Ori Studio ne peut pas fonctionner dans ce navigateur"
+  },
   "worker": {
     "cpDetect": "La détection de patron de plis s'est arrêtée de façon inattendue. Réessayez d'importer l'image.",
     "oristudioBp": "Le moteur de pliage en boîte s'est arrêté de façon inattendue. Rechargez Ori Studio pour continuer à travailler sur ce modèle.",

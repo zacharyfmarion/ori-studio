@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createReglRenderer } from './renderer/reglRenderer';
 import { CpRendererUnavailable, type CpRendererStatus } from './CpRendererUnavailable';
 import {
+  awaitContextRestore,
   classifyCpWebglFailure,
   cpWebglSupport,
   describeCpWebglGap,
@@ -1645,6 +1646,18 @@ export function CreasePatternWebglCanvas({
       // browser", which is both unactionable on a tablet and, when the real
       // cause is a document out of GL contexts, simply untrue.
       const gap = classifyCpWebglFailure(canvas);
+      // A context that was already lost is the `onContextLost` case arriving a
+      // moment early, not a capability gap: the stack has WebGL, the document
+      // just does not have this context right now (Safari, ORI-STUDIO-4). Same
+      // handling as a loss mid-session — say so, and rebuild on restore — and
+      // like that path it is not reported; the permanent gaps below still are.
+      if (gap === 'context-lost-at-start') {
+        preservedCameraRef.current = cameraRef.current;
+        setRendererStatus({ kind: 'context-lost' });
+        return awaitContextRestore(canvas, () =>
+          setRendererGeneration((generation) => generation + 1)
+        );
+      }
       // Surfaced, not logged. A packaged desktop build has no console anyone
       // reads, so the old console.error left this as a silently blank editor —
       // which is exactly what WebKitGTK produces with no usable WebGL.

@@ -344,7 +344,7 @@ fn propose_at_noise(
     None
 }
 
-fn refresh_carriers(input: &mut ExactSolveInput) {
+pub(super) fn refresh_carriers(input: &mut ExactSolveInput) {
     for span in &mut input.selected_spans {
         let [a, b] = span.vertices;
         let (carrier, interval) = carrier_from(input.vertices[a].point, input.vertices[b].point);
