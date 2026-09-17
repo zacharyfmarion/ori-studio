@@ -1,0 +1,150 @@
+{
+  "benchmark": "unchanged 421 recognition-correct full graphs including AUX + 10 assignment-defect controls",
+  "baseline": "S070",
+  "selected_browser": "S093",
+  "comparison": {
+    "cases": 421,
+    "controls": 10,
+    "thresholds": {
+      "0": {
+        "baseline": 0,
+        "candidate": 0,
+        "gains": [],
+        "losses": [],
+        "split_counts": {
+          "development": {
+            "cases": 330,
+            "matches": 0
+          },
+          "holdout": {
+            "cases": 91,
+            "matches": 0
+          }
+        }
+      },
+      "1e-12": {
+        "baseline": 276,
+        "candidate": 278,
+        "gains": [
+          "cpoogle/ant-ant-by-busi12341",
+          "cpoogle/honeybee-bodo-s-honeybee-by-bodo-haag-and-lorbeer"
+        ],
+        "losses": [],
+        "split_counts": {
+          "development": {
+            "cases": 330,
+            "matches": 228
+          },
+          "holdout": {
+            "cases": 91,
+            "matches": 50
+          }
+        }
+      },
+      "1e-09": {
+        "baseline": 285,
+        "candidate": 287,
+        "gains": [
+          "cpoogle/ant-ant-by-busi12341",
+          "cpoogle/honeybee-bodo-s-honeybee-by-bodo-haag-and-lorbeer"
+        ],
+        "losses": [],
+        "split_counts": {
+          "development": {
+            "cases": 330,
+            "matches": 235
+          },
+          "holdout": {
+            "cases": 91,
+            "matches": 52
+          }
+        }
+      }
+    },
+    "timing": {
+      "max_seconds": 24.546835000038147,
+      "median_seconds": 0.37238000011444095,
+      "p95_seconds": 9.022325000047683,
+      "accepted_within_25s": 421,
+      "failures": []
+    },
+    "solved_controls": [],
+    "control_statuses": {
+      "cpoogle/2b-nier-automata-2b-nier-automata-by-yamashita-kohei-1": "ambiguous",
+      "cpoogle/allotopus-rosenbergi-2-allotopus-rosenbergi-2-by-sh-saku-uto-1": "ambiguous",
+      "cpoogle/camel-cricket-camel-cricket-by-kota-imai": "failed",
+      "cpoogle/chinese-dragon-chinese-dragon-by-matt-laboone": "ambiguous",
+      "cpoogle/dragonfly-dragonfly-by-bodo-haag": "ambiguous",
+      "cpoogle/fox-girl-foxgirl-by-aspen": "ambiguous",
+      "cpoogle/mantis-shrimp-mantis-shrimp-by-mineo-shotaro": "failed",
+      "cpoogle/mantis-shrimp-mantis-shrimp-by-victoria-serova": "failed",
+      "cpoogle/reze-reze-by-birb": "ambiguous",
+      "cpoogle/wolf-wolf-by-tera-origami": "ambiguous"
+    },
+    "source_sha256": {
+      "artifacts/cp-solver/S070-protected-coordinates/browser-audit/runs.json": "706aa44e5c09399de05df6c08cb1eaaf86422f64ee6f557afc8e172fc606cb61",
+      "artifacts/cp-solver/S093-browser-validation/browser-audit/runs.json": "1134cd067d4a0523a3149bcbabcfb8bb3b7c7e1b6c35901ac76086214431e42c",
+      "artifacts/cp-solver/S093-browser-validation/browser/runs.json": "d90728458c00470af54e756bcb5a98a7cb424fab9da48be7636230e19207cc53"
+    }
+  },
+  "selected_source": {
+    "base_head": "9ad0d530f68583a3f2413ef785ded0985716a54f",
+    "source_sha256": {
+      "crates/oristudio-cp-compiler/src/exact_solve.rs": "2f7945b6afe469f35474d4ba1c4f8dd1008515193a514d280621474db05f6be4",
+      "crates/oristudio-cp-compiler/src/exact_solve/projection.rs": "2cfdb91a64010b4cf5f52a799b62c1188d70bd0e0572082b1318d5a2bf4c5cd0",
+      "crates/oristudio-cp-compiler/src/exact_solve/recognition.rs": "13f35400c9c62e0c3c97807bec1b2782f908b399bc0e4bd2ee29c55d5815b74d",
+      "crates/oristudio-cp-detect/src/rectify.rs": "1afb6872fdf13fc7bd3aaf59d1b4617a0c07363f68aa4e961fef07c1ef2aad33",
+      "crates/oristudio-cp-detect/src/rectify/border_center.rs": "5b07892cc9bdaf5c3b94258993946b7b5aa8780edaad52c5d8203b31f5157203"
+    },
+    "wasm_sha256": "c790df2c49b7bd890f5f675b62e08b3fa2fe369802647af00d230ddff7cf13e8",
+    "native_final_path_experiment": "S092-supported-grid-axes"
+  },
+  "image_scoring": {
+    "baseline": "S070 unresolved outputs",
+    "comparable_cases": 124,
+    "missing_aux_excluded": 12,
+    "reference_better": 99,
+    "prediction_better": 5,
+    "near_tie": 20,
+    "tie_threshold": 0.0001,
+    "product_answer_selector": false
+  },
+  "knight": {
+    "has_ground_truth": false,
+    "fresh_recognition_verified": true,
+    "older_saved_graph_fully_repaired": false,
+    "recognition_seconds": 11.961289999961853,
+    "browser_solve_seconds": 8.89418499994278,
+    "verification": {
+      "vertices": 1664,
+      "edges": 3662,
+      "topology_preserved": true,
+      "input_sha256": "9a77c8655e0f9f843db1cdaae9bf76b6d8f8cdbfb2fd58d321da6c38eb18cffd",
+      "source_line_fit_input_sha256": "9a77c8655e0f9f843db1cdaae9bf76b6d8f8cdbfb2fd58d321da6c38eb18cffd",
+      "grid_direction_checks": 2147,
+      "max_direction_error_radians": 5.329070518200751e-15,
+      "grid_axis_checks": 1409,
+      "max_coordinate_error": 2.7755575615628914e-17,
+      "assignments_preserved": true,
+      "recognized_topology_preserved": true
+    },
+    "residuals": {
+      "maxKawasakiDegreesBefore": 29.196756,
+      "maxKawasakiDegreesAfter": 0,
+      "oddDegreeVerticesBefore": 0,
+      "oddDegreeVerticesAfter": 0,
+      "bigLittleBigViolationsBefore": 4,
+      "bigLittleBigViolationsAfter": 0,
+      "angleViolationsBefore": 1573,
+      "angleViolationsAfter": 0
+    }
+  },
+  "validation": {
+    "workspace_passed": 2215,
+    "workspace_ignored": 7,
+    "focused_web_tests_passed": 32,
+    "normal_web_build": true,
+    "workspace_clippy": true
+  },
+  "archive": "cp-grid-image-recovery-2026-09-17"
+}

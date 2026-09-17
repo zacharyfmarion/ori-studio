@@ -8998,7 +8998,11 @@ mod tests {
         input.vertices[outlier].point.x += 0.03;
         input.vertices[outlier].point.y += 0.02;
         let pin = ids[1];
-        let (proposal, report) = recognition::propose(&input, &BTreeSet::from([pin])).unwrap();
+        let recognition::GridProposal {
+            input: proposal,
+            report,
+            ..
+        } = recognition::propose(&input, &BTreeSet::from([pin])).unwrap();
         assert_eq!(report["cells"], 8);
         assert_eq!(proposal.vertices[outlier], input.vertices[outlier]);
         assert_eq!(proposal.vertices[pin], input.vertices[pin]);
@@ -9013,10 +9017,101 @@ mod tests {
     }
 
     #[test]
+    fn construction_grid_proposal_is_stable_when_the_same_image_is_enlarged() {
+        let mut input = pleat_grid_input(1.8);
+        input.image_size = None;
+        let pinned = BTreeSet::from([12]);
+        let document = recognition::propose_recovery(&input, &pinned)
+            .unwrap()
+            .input;
+        for size in [1088, 2048, 4096] {
+            input.image_size = Some(size);
+            let recognition::GridProposal {
+                input: enlarged,
+                report,
+                ..
+            } = recognition::propose_recovery(&input, &pinned).unwrap();
+            assert_eq!(report["cells"], 8);
+            assert_eq!(enlarged.vertices, document.vertices);
+            assert_eq!(enlarged.vertices[12], input.vertices[12]);
+        }
+    }
+
+    #[test]
+    fn proposal_rejudgment_keeps_close_parallel_lines_distinct() {
+        use treemaker_fold::{Assignment, FoldDocument};
+        let mut fold = FoldDocument::new(
+            vec![
+                vec![0., 0.],
+                vec![1., 0.],
+                vec![1., 1.],
+                vec![0., 1.],
+                vec![0.4994, 0.],
+                vec![0.5006, 0.],
+                vec![0.4994, 1.],
+                vec![0.5006, 1.],
+            ],
+            vec![
+                [0, 4],
+                [4, 5],
+                [5, 1],
+                [1, 2],
+                [2, 7],
+                [7, 6],
+                [6, 3],
+                [3, 0],
+                [4, 6],
+                [5, 7],
+            ],
+        );
+        fold.edges_assignment = vec![Assignment::Boundary; 8];
+        fold.edges_assignment
+            .extend([Assignment::Mountain, Assignment::Valley]);
+        let (mut input, _) = crate::exact_solve_input_from_fold(&fold).unwrap();
+        let options = ExactSolveOptions::default();
+        let clock = ExactSolveDeadline::start(5., None);
+        let candidate = projection::solve(&input, options, &clock, Rc::default(), Rc::default());
+        assert_eq!(candidate.status, ExactSolvedGraphStatus::Solved);
+        assert!(
+            recognition::judge_original(
+                &input,
+                &candidate,
+                options,
+                &clock,
+                Rc::default(),
+                Rc::default()
+            )
+            .is_some()
+        );
+        // Explicitly declaring the two distinct creases to share a line is
+        // inconsistent. Numerical grouping must not discard that constraint.
+        for span in &mut input.selected_spans {
+            if is_fold_span(span) {
+                span.source_carrier_ids = vec![999];
+            }
+        }
+        assert!(
+            recognition::judge_original(
+                &input,
+                &candidate,
+                options,
+                &clock,
+                Rc::default(),
+                Rc::default()
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
     fn partial_lattice_repairs_document_geometry_without_raster_metadata() {
         let mut input = pleat_grid_input(1.8);
         input.image_size = None;
-        let (proposal, report) = recognition::propose(&input, &BTreeSet::new()).unwrap();
+        let recognition::GridProposal {
+            input: proposal,
+            report,
+            ..
+        } = recognition::propose(&input, &BTreeSet::new()).unwrap();
         assert_eq!(report["cells"], 8);
         assert_eq!(report["noise_px"], 2.0);
         assert_eq!(report["pixels_per_unit"], 1024.0);
@@ -9123,7 +9218,9 @@ mod tests {
     #[test]
     fn partial_lattice_accounts_for_snapping_in_original_movement_budget() {
         let input = pleat_grid_input(0.8);
-        let (proposal, _) = recognition::propose(&input, &BTreeSet::new()).unwrap();
+        let proposal = recognition::propose(&input, &BTreeSet::new())
+            .unwrap()
+            .input;
         let options = ExactSolveOptions {
             polish: true,
             ..Default::default()
