@@ -1,0 +1,81 @@
+{
+  "protocol": "421 frozen recognition-correct cases; full canonical graph including AUX; 25 seconds",
+  "thresholds": {
+    "0": {
+      "baseline": 0,
+      "candidate": 0,
+      "gains": 0,
+      "losses": 0,
+      "split_counts": {
+        "development": {
+          "cases": 330,
+          "matches": 0
+        },
+        "holdout": {
+          "cases": 91,
+          "matches": 0
+        }
+      }
+    },
+    "1e-12": {
+      "baseline": 38,
+      "candidate": 276,
+      "gains": 238,
+      "losses": 0,
+      "split_counts": {
+        "development": {
+          "cases": 330,
+          "matches": 227
+        },
+        "holdout": {
+          "cases": 91,
+          "matches": 49
+        }
+      }
+    },
+    "1e-09": {
+      "baseline": 178,
+      "candidate": 285,
+      "gains": 107,
+      "losses": 0,
+      "split_counts": {
+        "development": {
+          "cases": 330,
+          "matches": 234
+        },
+        "holdout": {
+          "cases": 91,
+          "matches": 51
+        }
+      }
+    }
+  },
+  "browser_timing": {
+    "max_seconds": 24.550984999895096,
+    "median_seconds": 0.37197000002861025,
+    "p95_seconds": 9.372894999980927,
+    "accepted_within_25s": 421,
+    "failures": []
+  },
+  "control_cases": 10,
+  "completed_controls": 0,
+  "hardware": {
+    "cpu": "Apple M1 Max",
+    "physical_cores": 10,
+    "memory_bytes": 68719476736,
+    "timing_jobs": 1,
+    "concurrent_builds": false
+  },
+  "final_study": "artifacts/cp-solver/S070-protected-coordinates",
+  "validation": {
+    "rust_tests_passed": 2208,
+    "rust_tests_ignored": 7,
+    "recovery_tests_passed": 17,
+    "web_tests_passed": 6993,
+    "node": "22.14.0",
+    "workspace_clippy": "passed",
+    "web_lint": "passed",
+    "web_typecheck": "passed",
+    "production_build": "passed"
+  }
+}

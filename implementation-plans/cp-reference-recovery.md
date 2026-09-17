@@ -29,10 +29,10 @@ is empirical evidence, not a proof of a universal theoretical maximum.
 
 - [x] Freeze baseline and perform initial error triage of the 243 primary failures.
 - [x] Quantify numerical precision and reference-coordinate precision separately.
-- [ ] Test general construction inference and constraint formulations.
+- [x] Test general construction inference and constraint formulations (S030–S070; retain rejected variants).
 - [x] Diagnose residual ambiguity with explicit alternative solutions (27 checked witnesses; not a universal ceiling).
-- [ ] Replay all 421 cases plus the ten assignment-defect controls in browser.
-- [ ] Validate AUX, pins, existing exact inputs, and independent synthetic cases.
+- [x] Replay all 421 cases plus the ten assignment-defect controls in browser (S070: 285/276; maximum 24.551s).
+- [x] Validate AUX, pins, existing exact inputs, and independent synthetic cases; retain and explain the underdefined synthetic misses.
 - [ ] Archive immutable evidence and report per-case gains/losses at both thresholds.
 - [ ] Run affected checks and open a draft PR against main; do not merge.
 

@@ -447,3 +447,66 @@ bundles and model registries are unaffected. Exercise `runCpExactSolve` itself
 on three procedural grids (1,089 / 4,225 / 9,409 vertices), the corrected Knight
 (no GT), and six generated AUX crosses. Full browser timing includes startup.
 No new analytics event: the existing solve flow already captures its outcome.
+
+S070 full native replay: **285/421 primary, 276/421 secondary**, no merged
+baseline losses, all 421 valid cases accepted within 25s (maximum 24.477s).
+Compared with S069, gains Sweetfish and loses Squid (Xiao Dai) at both thresholds;
+net zero. Retain the protection because it enforces the stated invariant rather
+than silently overwriting an exact dependent coordinate. Development 234/227;
+observed holdout 51/49. Actual browser replay is in progress.
+
+S070 **full browser replay confirms 285/421 at 1e-9 and 276/421 at 1e-12**,
+zero merged-baseline losses, literal equality zero. All 421 valid cases accepted
+within 25s; no controls become solved. Worker-inclusive maximum **24.550985s**,
+median .371970s, p95 9.372895s. Native and browser per-threshold counts agree.
+The queued procedural wrapper reached its waiting limit before this replay
+finished; restart it against the same frozen candidate. This is orchestration,
+not a timed solver failure; no case run or result was discarded.
+
+S067 completed in native and browser: 32/32 locally solved; **20/24** perturbed
+construction cases recover at both 1e-9 and 1e-12. All four 11/32 crosses select
+the nearby simpler value 6 - 4sqrt(2), exposing the prior's bias. All eight
+continuous controls move (maximum displacement about .000231 paper width),
+as expected for an explicitly underdefined construction prior; they do not
+recover their unchanged input. Rotations and shuffled IDs produce consistent
+success/failure groups. Do not report this as 32/32 reference recovery.
+
+S071 product route: all ten cases solve within 25s. Procedural grids take .461s,
+3.944s, 18.262s for 1,089 / 4,225 / 9,409 vertices; all three complete graphs
+match truth at 1e-12 and 1e-9. Corrected Knight takes 9.200s, no GT and therefore
+no exact-reference claim. Six generated AUX cases take .061–.067s.
+
+## S073 — Stronger observation prior
+
+Fresh synthetic failures motivate one final global observation-weight check:
+32 instead of 8, same generated catalog, held geometry, frozen development
+inputs, product checker and independent scoring. No per-case selection or
+reference-informed proposal. This offline proposal run overlaps repository
+validation, so its timings are not product timing evidence. S070 remains the
+frozen, fully browser-measured candidate until this comparison completes.
+
+S073 completed **225/148** development, versus S060's 226/148: five primary
+gains/six losses, three secondary gains/three losses. Reject the stronger global
+observation weight. It addresses one type of synthetic ambiguity but trades
+away other reference recoveries. This supports an empirical plateau for these
+priors, not a universal theoretical ceiling. Product remains S070.
+
+## S072 — Delivery validation
+
+Rust workspace: 2,208 tests pass, seven pre-existing ignored tests. Workspace
+clippy passes; the local toolchain reports the existing unknown
+`clippy::chunks_exact_to_as_chunks` lint warning. Web lint and typecheck pass.
+The initial full web run used the shell's Node 26.8.1: 591 tests fail with
+`localStorage` unavailable during setup. CI specifies Node 22; rerun with the
+installed Node 22.14.0 before diagnosing any product regression. Preserve the
+failed log and do not change unrelated tests to accommodate this runtime.
+
+Node 22.14.0 rerun passes **all 6,993 web tests in 559 files**. No product/test
+code changes were needed for the Node 26 environment failure. Full production
+build, including normal WASM and prerender hooks, is running.
+
+All selected validation now passes: full production build with WASM/prerender
+hooks, Rust format, diff check and exact-audit unit tests. Browser benchmark
+source is unchanged; subsequent builds stamp the newer Git revision through
+`oristudio-cp-detect/build.rs`, so build-stamp hash changes alone are not a new
+algorithm. The frozen S070 binary/WASM/source remain intact for reproduction.

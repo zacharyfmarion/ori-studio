@@ -10,6 +10,9 @@ The follow-up [reference-recovery notebook](reference-recovery-log.md) records
 S029 onward: tighter numerical solving, generated construction hypotheses,
 nonlinear propagation, explicit ambiguity witnesses and rejected searches.
 These experiments target complete reference graphs, rather than local validity.
+The [validated result](reference-recovery-results.md) is 285/421 at 1e-9 and
+276/421 at 1e-12, with zero merged-baseline losses and a 24.551s browser maximum.
+See the [machine-readable summary](reference-recovery-summary.json).
 
 ## Protocol
 
