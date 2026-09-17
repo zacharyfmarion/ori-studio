@@ -6,11 +6,11 @@ use super::*;
 use std::f64::consts::PI;
 
 #[derive(Clone)]
-struct Fan {
-    center: usize,
-    neighbors: Vec<usize>,
+pub(super) struct Fan {
+    pub(super) center: usize,
+    pub(super) neighbors: Vec<usize>,
     colors: Vec<AssignmentLabel>,
-    boundary: bool,
+    pub(super) boundary: bool,
 }
 
 #[derive(Clone)]
@@ -60,7 +60,7 @@ impl Sector {
     }
 }
 
-fn fans(input: &ExactSolveInput, points: &[Point2]) -> Vec<Fan> {
+pub(super) fn fans(input: &ExactSolveInput, points: &[Point2]) -> Vec<Fan> {
     let mut adjacent = vec![Vec::new(); points.len()];
     for span in &input.selected_spans {
         if !is_fold_span(span) && !is_boundary_like_span(span) {
@@ -191,9 +191,9 @@ fn propose_ties(fan: &Fan, bearings: &[f64]) -> Vec<Sector> {
 }
 
 #[derive(Clone)]
-struct Row {
-    entries: Vec<(usize, f64)>,
-    rhs: f64,
+pub(super) struct Row {
+    pub(super) entries: Vec<(usize, f64)>,
+    pub(super) rhs: f64,
 }
 
 fn row(
@@ -270,12 +270,21 @@ fn transpose(rows: &[Row], x: &[f64], out: &mut [f64]) {
 /// avoid a dense factorization and work for dependent constraint rows. Reference:
 /// https://web.stanford.edu/group/SOL/software/lsqr/ . Independent implementation.
 fn least_norm(rows: &[Row], n: usize, clock: &ExactSolveDeadline) -> Option<(Vec<f64>, usize)> {
+    least_norm_at_precision(rows, n, clock, false)
+}
+
+pub(super) fn least_norm_at_precision(
+    rows: &[Row],
+    n: usize,
+    clock: &ExactSolveDeadline,
+    precision: bool,
+) -> Option<(Vec<f64>, usize)> {
     // Regularize the step, not the geometry. This bounds roundoff in the
     // numerical null space of redundant angle/collinearity equations. Newton
     // relinearizes from the new point, so no residual tolerance is relaxed.
     let mut regularized = rows.to_vec();
     regularized.extend((0..n).map(|i| Row {
-        entries: vec![(i, 1e-6)],
+        entries: vec![(i, if precision { 1e-10 } else { 1e-6 })],
         rhs: 0.,
     }));
     let rows = regularized.as_slice();
@@ -340,11 +349,21 @@ fn least_norm(rows: &[Row], n: usize, clock: &ExactSolveDeadline) -> Option<(Vec
             // thousands of iterations on large redundant grids. Newton then
             // relinearizes and the original exact geometric check still gates
             // success, so an inexact early step cannot relax the final answer.
-            if norm(&normal_residual) <= 1e-8 * initial_normal_residual + 1e-16 {
+            let tolerance = if precision {
+                1e-14 * initial_normal_residual
+            } else {
+                1e-8 * initial_normal_residual + 1e-16
+            };
+            if norm(&normal_residual) <= tolerance {
                 return Some((x, iteration + 1));
             }
         }
-        if phibar.abs() <= initial * 1e-11 + 1e-14 || alpha == 0. {
+        let residual_tolerance = if precision {
+            initial * 1e-14
+        } else {
+            initial * 1e-11 + 1e-14
+        };
+        if phibar.abs() <= residual_tolerance || alpha == 0. {
             return x
                 .iter()
                 .all(|v| v.is_finite())
@@ -354,7 +373,14 @@ fn least_norm(rows: &[Row], n: usize, clock: &ExactSolveDeadline) -> Option<(Vec
     x.iter().all(|v| v.is_finite()).then_some((x, 3000))
 }
 
+#[derive(Clone, Copy)]
+pub(super) struct Grid {
+    pub cells: u32,
+    pub tolerance: f64,
+}
+
 struct ProjectionAttempt {
+    grid: Option<Grid>,
     hold_carriers: bool,
     angle_step: Option<f64>,
     iterations: usize,
@@ -367,6 +393,32 @@ pub(super) fn solve(
     exempt: Rc<BTreeSet<usize>>,
     pinned: Rc<BTreeSet<usize>>,
 ) -> ExactSolvedGraph {
+    solve_ordered(input, options, clock, exempt, pinned, None)
+}
+
+pub(super) fn solve_grid(
+    input: &ExactSolveInput,
+    options: ExactSolveOptions,
+    clock: &ExactSolveDeadline,
+    exempt: Rc<BTreeSet<usize>>,
+    pinned: Rc<BTreeSet<usize>>,
+    grid: Grid,
+) -> ExactSolvedGraph {
+    // The mostly fixed lattice supplies stronger evidence for its horizontal,
+    // vertical, and diagonal continuations than for every nearby 22.5° ray.
+    // Other angles remain unknowns in the folding equations.
+    solve_ordered(input, options, clock, exempt, pinned, Some(grid))
+}
+
+fn solve_ordered(
+    input: &ExactSolveInput,
+    options: ExactSolveOptions,
+    clock: &ExactSolveDeadline,
+    exempt: Rc<BTreeSet<usize>>,
+    pinned: Rc<BTreeSet<usize>>,
+    grid: Option<Grid>,
+) -> ExactSolvedGraph {
+    let prefer_directions = grid.is_some();
     let validation = validate_input(input);
     if !validation.is_empty() {
         return failed_graph(
@@ -397,7 +449,11 @@ pub(super) fn solve(
         .map(f64::to_radians);
     // Leave time for a structured proposal on highly redundant systems. The
     // unrestricted attempt remains available when no angle family is observed.
-    let first_iterations = if step.is_some() { 8 } else { 30 };
+    let first_iterations = if step.is_some() && !prefer_directions {
+        8
+    } else {
+        30
+    };
     let first = project(
         input,
         options,
@@ -405,8 +461,13 @@ pub(super) fn solve(
         Rc::clone(&exempt),
         Rc::clone(&pinned),
         ProjectionAttempt {
+            grid,
             hold_carriers: false,
-            angle_step: None,
+            angle_step: if prefer_directions {
+                step.map(|_| PI / 4.)
+            } else {
+                None
+            },
             iterations: first_iterations,
         },
     );
@@ -414,7 +475,7 @@ pub(super) fn solve(
         return first;
     }
     let mut angle_attempt = None;
-    if let Some(step) = step {
+    if let Some(step) = step.filter(|_| !prefer_directions) {
         let mut candidate = project(
             input,
             options,
@@ -422,6 +483,7 @@ pub(super) fn solve(
             Rc::clone(&exempt),
             Rc::clone(&pinned),
             ProjectionAttempt {
+                grid: None,
                 hold_carriers: false,
                 angle_step: Some(step),
                 iterations: 30,
@@ -441,6 +503,7 @@ pub(super) fn solve(
             Rc::clone(&exempt),
             Rc::clone(&pinned),
             ProjectionAttempt {
+                grid: None,
                 hold_carriers: false,
                 angle_step: None,
                 iterations: 30,
@@ -458,6 +521,7 @@ pub(super) fn solve(
         exempt,
         pinned,
         ProjectionAttempt {
+            grid: None,
             hold_carriers: true,
             angle_step: None,
             iterations: 30,
@@ -477,6 +541,7 @@ fn project(
     attempt: ProjectionAttempt,
 ) -> ExactSolvedGraph {
     let ProjectionAttempt {
+        grid,
         hold_carriers,
         angle_step,
         iterations,
@@ -516,9 +581,30 @@ fn project(
                 continue;
             }
             let [a, b] = span.vertices;
+            // A nearby angle family is a hypothesis. Two pinned/grid-locked
+            // endpoints already determine the direction, including legitimate
+            // non-family slopes that happen to lie close to a family angle.
+            if matches!(model.vertex_params[a], VertexParameterization::Fixed { .. })
+                && matches!(model.vertex_params[b], VertexParameterization::Fixed { .. })
+            {
+                continue;
+            }
             let angle = angle_radians(before_points[a], before_points[b]);
             let target = (angle / step).round() * step;
-            if (angle - target).abs() <= options.angle_family_snap_tolerance_radians {
+            // A pixel of endpoint noise is a much larger angle on a short
+            // crossing span. The grid proposal allows the same bounded
+            // positional uncertainty there, capped well below half a 45° bin.
+            // Long segments retain the ordinary narrow angle window.
+            let tolerance = if grid.is_some() {
+                let positional =
+                    (3_f64 / 1024.).atan2(distance(before_points[a], before_points[b]));
+                options
+                    .angle_family_snap_tolerance_radians
+                    .max(positional.min(5_f64.to_radians()))
+            } else {
+                options.angle_family_snap_tolerance_radians
+            };
+            if (angle - target).abs() <= tolerance {
                 direction_constraints.push((a, b, target));
             }
         }
@@ -565,6 +651,68 @@ fn project(
         })
         .max()
         .map_or(0, |v| v + 1);
+    // A grid can fix just x or just y at a non-grid construction point. Holding
+    // whole vertices only would let an otherwise straight grid line slide.
+    // Eliminate supported coordinate parameters from the Newton updates;
+    // explicit fixed vertices/pins have no parameters and remain untouched.
+    let mut fixed_axes = BTreeSet::new();
+    if let Some(grid) = grid {
+        let mut support = vec![[false; 2]; before_points.len()];
+        for span in &input.selected_spans {
+            if !is_fold_span(span) {
+                continue;
+            }
+            let [a, b] = span.vertices;
+            let delta = Point2::new(
+                before_points[b].x - before_points[a].x,
+                before_points[b].y - before_points[a].y,
+            );
+            if delta.x.hypot(delta.y) < (16_f64 / 1024.).max(2. / f64::from(grid.cells)) {
+                continue;
+            }
+            for (axis, (across, along)) in [(delta.x, delta.y), (delta.y, delta.x)]
+                .into_iter()
+                .enumerate()
+            {
+                if across.abs().atan2(along.abs()) > options.angle_family_snap_tolerance_radians {
+                    continue;
+                }
+                let values =
+                    [before_points[a], before_points[b]].map(|p| if axis == 0 { p.x } else { p.y });
+                let targets = values.map(|v| crate::lattice::snap_to(v, grid.cells));
+                if targets[0] == targets[1]
+                    && values
+                        .iter()
+                        .zip(targets)
+                        .all(|(v, t)| (v - t).abs() <= grid.tolerance)
+                {
+                    support[a][axis] = true;
+                    support[b][axis] = true;
+                }
+            }
+        }
+        for (vertex, vp) in model.vertex_params.iter().enumerate() {
+            let indices = match *vp {
+                VertexParameterization::Free { x_index, y_index } => {
+                    vec![(x_index, 0), (y_index, 1)]
+                }
+                VertexParameterization::Boundary { index, side } => vec![(
+                    index,
+                    match side {
+                        BoundarySide::Top | BoundarySide::Bottom => 0,
+                        _ => 1,
+                    },
+                )],
+                _ => Vec::new(),
+            };
+            for (index, axis) in indices {
+                if support[vertex][axis] {
+                    params[index] = crate::lattice::snap_to(params[index], grid.cells);
+                    fixed_axes.insert(index);
+                }
+            }
+        }
+    }
     let mut ties: Vec<Relation> = Vec::new();
     let mut history = Vec::new();
     let mut termination = "projection_iterations";
@@ -660,6 +808,9 @@ fn project(
         if maximum < 1e-11 && iteration >= 2 {
             termination = "projection_converged";
             break;
+        }
+        for row in &mut rows {
+            row.entries.retain(|(index, _)| !fixed_axes.contains(index));
         }
         let Some((delta, iterations)) = least_norm(&rows, n, clock) else {
             termination = "projection_linear_stop";
@@ -790,7 +941,7 @@ fn project(
         &SolveCounterSnapshot::default(),
         &PolishOutcome::not_run("constraint_projection"),
     );
-    movement["constraint_projection"] = json!({"iterations":history,"ties":ties.len(),"hold_carriers":hold_carriers,"angle_step":angle_step});
+    movement["constraint_projection"] = json!({"iterations":history,"ties":ties.len(),"hold_carriers":hold_carriers,"angle_step":angle_step,"grid_direction_noise":grid.is_some(),"grid_coordinate_constraints":fixed_axes.len()});
     ExactSolvedGraph {
         schema: SCHEMA.to_owned(),
         vertices_exact: result_points,
@@ -849,6 +1000,192 @@ mod tests {
             Assignment::Valley,
         ];
         crate::exact_solve_input_from_fold(&fold).unwrap().0
+    }
+
+    #[test]
+    fn grid_can_fix_one_coordinate_without_inventing_the_other() {
+        let x = 0.5007;
+        let y = 0.4143;
+        let mut fold = FoldDocument::new(
+            vec![
+                vec![0., 0.],
+                vec![1., 0.],
+                vec![1., 1.],
+                vec![0., 1.],
+                vec![x, y],
+                vec![x, 0.],
+                vec![1., y],
+                vec![x, 1.],
+                vec![0., y],
+            ],
+            vec![
+                [0, 5],
+                [5, 1],
+                [1, 6],
+                [6, 2],
+                [2, 7],
+                [7, 3],
+                [3, 8],
+                [8, 0],
+                [4, 5],
+                [4, 6],
+                [4, 7],
+                [4, 8],
+            ],
+        );
+        fold.edges_assignment = vec![Assignment::Boundary; 8];
+        fold.edges_assignment.extend([
+            Assignment::Mountain,
+            Assignment::Mountain,
+            Assignment::Mountain,
+            Assignment::Valley,
+        ]);
+        let (input, _) = crate::exact_solve_input_from_fold(&fold).unwrap();
+        let result = solve_grid(
+            &input,
+            ExactSolveOptions::default(),
+            &ExactSolveDeadline::start(5., None),
+            Rc::default(),
+            Rc::default(),
+            Grid {
+                cells: 8,
+                tolerance: 1.5 / 1024.,
+            },
+        );
+        assert_eq!(
+            result.status,
+            ExactSolvedGraphStatus::Solved,
+            "{}",
+            result.movement_report
+        );
+        for v in [4, 5, 7] {
+            assert_eq!(result.vertices_exact[v].x, 0.5);
+        }
+        for v in [4, 6, 8] {
+            assert!((result.vertices_exact[v].y - y).abs() < 1e-12);
+        }
+        assert_eq!(result.edges_exact, fold.edges_vertices);
+        let pinned = solve_grid(
+            &input,
+            ExactSolveOptions::default(),
+            &ExactSolveDeadline::start(5., None),
+            Rc::default(),
+            Rc::new(BTreeSet::from([4])),
+            Grid {
+                cells: 8,
+                tolerance: 1.5 / 1024.,
+            },
+        );
+        assert_eq!(pinned.vertices_exact[4], input.vertices[4].point);
+    }
+
+    #[test]
+    fn grid_projection_recovers_short_crossings_without_moving_anchors() {
+        let axis = [0., 0.487, 0.5, 0.513, 1.];
+        let mut fold = FoldDocument::new(Vec::new(), Vec::new());
+        for y in axis {
+            for x in axis {
+                fold.vertices_coords.push(vec![x, y]);
+            }
+        }
+        for y in 0..5 {
+            for x in 0..5 {
+                let v = y * 5 + x;
+                if x < 4 {
+                    fold.edges_vertices.push([v, v + 1]);
+                    fold.edges_assignment.push(if y == 0 || y == 4 {
+                        Assignment::Boundary
+                    } else if x % 2 == 0 {
+                        Assignment::Mountain
+                    } else {
+                        Assignment::Valley
+                    });
+                }
+                if y < 4 {
+                    fold.edges_vertices.push([v, v + 5]);
+                    fold.edges_assignment.push(if x == 0 || x == 4 {
+                        Assignment::Boundary
+                    } else if x % 2 == 0 {
+                        Assignment::Mountain
+                    } else {
+                        Assignment::Valley
+                    });
+                }
+            }
+        }
+        let expected = fold.vertices_coords.clone();
+        fold.vertices_coords[12] = vec![0.5008, 0.4993];
+        let (mut input, _) = crate::exact_solve_input_from_fold(&fold).unwrap();
+        for v in &mut input.vertices {
+            if v.id != 12 {
+                v.movement_policy = CandidateVertexMovementPolicy::Locked;
+            }
+        }
+        let result = solve_grid(
+            &input,
+            ExactSolveOptions::default(),
+            &ExactSolveDeadline::start(5., None),
+            Rc::default(),
+            Rc::default(),
+            Grid {
+                cells: 8,
+                tolerance: 1.5 / 1024.,
+            },
+        );
+        assert_eq!(
+            result.status,
+            ExactSolvedGraphStatus::Solved,
+            "{}",
+            result.movement_report
+        );
+        for (v, target) in result.vertices_exact.iter().zip(expected) {
+            assert!((v.x - target[0]).abs() < 1e-12 && (v.y - target[1]).abs() < 1e-12);
+        }
+        assert_eq!(result.edges_exact, fold.edges_vertices);
+    }
+
+    #[test]
+    fn exact_endpoints_take_precedence_over_a_nearby_angle_family() {
+        let mut fold = FoldDocument::new(
+            vec![
+                vec![0., 0.],
+                vec![1., 0.],
+                vec![1., 1.],
+                vec![0., 1.],
+                vec![0., 0.3],
+                vec![1., 0.7],
+            ],
+            vec![[0, 1], [1, 5], [5, 2], [2, 3], [3, 4], [4, 0], [4, 5]],
+        );
+        fold.edges_assignment = vec![Assignment::Boundary; 6];
+        fold.edges_assignment.push(Assignment::Mountain);
+        let (mut input, _) = crate::exact_solve_input_from_fold(&fold).unwrap();
+        for v in &mut input.vertices {
+            v.movement_policy = CandidateVertexMovementPolicy::Locked;
+        }
+        let result = project(
+            &input,
+            ExactSolveOptions::default(),
+            &ExactSolveDeadline::start(5., None),
+            Rc::default(),
+            Rc::default(),
+            ProjectionAttempt {
+                grid: None,
+                hold_carriers: false,
+                angle_step: Some(PI / 8.),
+                iterations: 30,
+            },
+        );
+        assert_eq!(
+            result.status,
+            ExactSolvedGraphStatus::Solved,
+            "{}",
+            result.movement_report
+        );
+        assert_eq!(
+            result.vertices_exact,
+            input.vertices.iter().map(|v| v.point).collect::<Vec<_>>()
+        );
     }
 
     #[test]

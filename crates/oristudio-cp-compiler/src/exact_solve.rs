@@ -34,6 +34,20 @@ use std::time::Instant;
 
 mod projection;
 mod recognition;
+mod recovery;
+
+/// Optional reconstruction of precise, simple geometric constructions after
+/// an accepted solve. Proposals remain subject to the original product checks.
+/// Construction simplicity is a prior: acceptance does not prove that an
+/// underdetermined pattern has recovered its author's original coordinates.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConstructionRecoveryMode {
+    #[default]
+    Off,
+    Precision,
+    Constructions,
+}
 
 /// Research entry point for a bounded direct-coordinate feasibility proposal.
 /// Uses the same final checks, pins and movement budget as the ordinary solve.
@@ -82,6 +96,10 @@ pub enum LinearSolver {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ExactSolveOptions {
+    /// Opt-in at the Rust API; recognition and whole-region product solves
+    /// enable constructions. Shares the solve's deadline, pins and movement cap.
+    #[serde(default)]
+    pub construction_recovery: ConstructionRecoveryMode,
     /// Bounded proposal policy: preserve exact ordinary solves, then try a
     /// dominant partial lattice and direct-coordinate feasibility projection.
     /// Large graphs start with lattice-only instead of a dense factorization.
@@ -476,6 +494,7 @@ const fn default_polish_target_kawasaki_degrees() -> f64 {
 impl Default for ExactSolveOptions {
     fn default() -> Self {
         Self {
+            construction_recovery: ConstructionRecoveryMode::Off,
             recognition_fallback: false,
             patience: 40,
             ftol: 1e-10,
@@ -715,6 +734,7 @@ impl ExactSolveDeadline {
 }
 
 pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> ExactSolvedGraph {
+    let recovery_clock = ExactSolveDeadline::start(options.timeout_seconds, options.work_budget);
     let no_pins = Rc::new(BTreeSet::new());
     let normalized = normalized_input(input, &no_pins);
     let mut solved = solve_exact_inner(
@@ -727,6 +747,14 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
     place_dissolved_vertices(&normalized, input, &mut solved.vertices_exact);
     report_dissolved_movement(&normalized, input, &mut solved);
     restore_original_edges(input, &mut solved);
+    recovery::refine(
+        input,
+        &mut solved,
+        options,
+        &recovery_clock,
+        Rc::new(BTreeSet::new()),
+        no_pins,
+    );
     solved
 }
 
@@ -837,6 +865,8 @@ pub fn solve_exact_with_exemptions(
     input: &ExactSolveInput,
     options: &ExactSolveOptionsWithExemptions,
 ) -> ExactSolvedGraph {
+    let recovery_clock =
+        ExactSolveDeadline::start(options.options.timeout_seconds, options.options.work_budget);
     let pinned = Rc::new(options.pinned_vertex_ids.clone());
     let normalized = normalized_input(input, &pinned);
     let mut solved = solve_exact_inner(
@@ -849,6 +879,14 @@ pub fn solve_exact_with_exemptions(
     place_dissolved_vertices(&normalized, input, &mut solved.vertices_exact);
     report_dissolved_movement(&normalized, input, &mut solved);
     restore_original_edges(input, &mut solved);
+    recovery::refine(
+        input,
+        &mut solved,
+        options.options,
+        &recovery_clock,
+        Rc::new(options.exempt_vertex_ids.clone()),
+        pinned,
+    );
     solved
 }
 
@@ -8960,7 +8998,11 @@ mod tests {
         input.vertices[outlier].point.x += 0.03;
         input.vertices[outlier].point.y += 0.02;
         let pin = ids[1];
-        let (proposal, report) = recognition::propose(&input, &BTreeSet::from([pin])).unwrap();
+        let recognition::GridProposal {
+            input: proposal,
+            report,
+            ..
+        } = recognition::propose(&input, &BTreeSet::from([pin])).unwrap();
         assert_eq!(report["cells"], 8);
         assert_eq!(proposal.vertices[outlier], input.vertices[outlier]);
         assert_eq!(proposal.vertices[pin], input.vertices[pin]);
@@ -8975,10 +9017,101 @@ mod tests {
     }
 
     #[test]
+    fn construction_grid_proposal_is_stable_when_the_same_image_is_enlarged() {
+        let mut input = pleat_grid_input(1.8);
+        input.image_size = None;
+        let pinned = BTreeSet::from([12]);
+        let document = recognition::propose_recovery(&input, &pinned)
+            .unwrap()
+            .input;
+        for size in [1088, 2048, 4096] {
+            input.image_size = Some(size);
+            let recognition::GridProposal {
+                input: enlarged,
+                report,
+                ..
+            } = recognition::propose_recovery(&input, &pinned).unwrap();
+            assert_eq!(report["cells"], 8);
+            assert_eq!(enlarged.vertices, document.vertices);
+            assert_eq!(enlarged.vertices[12], input.vertices[12]);
+        }
+    }
+
+    #[test]
+    fn proposal_rejudgment_keeps_close_parallel_lines_distinct() {
+        use treemaker_fold::{Assignment, FoldDocument};
+        let mut fold = FoldDocument::new(
+            vec![
+                vec![0., 0.],
+                vec![1., 0.],
+                vec![1., 1.],
+                vec![0., 1.],
+                vec![0.4994, 0.],
+                vec![0.5006, 0.],
+                vec![0.4994, 1.],
+                vec![0.5006, 1.],
+            ],
+            vec![
+                [0, 4],
+                [4, 5],
+                [5, 1],
+                [1, 2],
+                [2, 7],
+                [7, 6],
+                [6, 3],
+                [3, 0],
+                [4, 6],
+                [5, 7],
+            ],
+        );
+        fold.edges_assignment = vec![Assignment::Boundary; 8];
+        fold.edges_assignment
+            .extend([Assignment::Mountain, Assignment::Valley]);
+        let (mut input, _) = crate::exact_solve_input_from_fold(&fold).unwrap();
+        let options = ExactSolveOptions::default();
+        let clock = ExactSolveDeadline::start(5., None);
+        let candidate = projection::solve(&input, options, &clock, Rc::default(), Rc::default());
+        assert_eq!(candidate.status, ExactSolvedGraphStatus::Solved);
+        assert!(
+            recognition::judge_original(
+                &input,
+                &candidate,
+                options,
+                &clock,
+                Rc::default(),
+                Rc::default()
+            )
+            .is_some()
+        );
+        // Explicitly declaring the two distinct creases to share a line is
+        // inconsistent. Numerical grouping must not discard that constraint.
+        for span in &mut input.selected_spans {
+            if is_fold_span(span) {
+                span.source_carrier_ids = vec![999];
+            }
+        }
+        assert!(
+            recognition::judge_original(
+                &input,
+                &candidate,
+                options,
+                &clock,
+                Rc::default(),
+                Rc::default()
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
     fn partial_lattice_repairs_document_geometry_without_raster_metadata() {
         let mut input = pleat_grid_input(1.8);
         input.image_size = None;
-        let (proposal, report) = recognition::propose(&input, &BTreeSet::new()).unwrap();
+        let recognition::GridProposal {
+            input: proposal,
+            report,
+            ..
+        } = recognition::propose(&input, &BTreeSet::new()).unwrap();
         assert_eq!(report["cells"], 8);
         assert_eq!(report["noise_px"], 2.0);
         assert_eq!(report["pixels_per_unit"], 1024.0);
@@ -9085,7 +9218,9 @@ mod tests {
     #[test]
     fn partial_lattice_accounts_for_snapping_in_original_movement_budget() {
         let input = pleat_grid_input(0.8);
-        let (proposal, _) = recognition::propose(&input, &BTreeSet::new()).unwrap();
+        let proposal = recognition::propose(&input, &BTreeSet::new())
+            .unwrap()
+            .input;
         let options = ExactSolveOptions {
             polish: true,
             ..Default::default()

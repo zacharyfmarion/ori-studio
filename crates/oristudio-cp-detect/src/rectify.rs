@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+mod border_center;
+
 const DEFAULT_BORDER_MARGIN_RATIO: f32 = 32.0 / 1024.0;
 
 /// Where the paper goes inside the rectified image: `[margin, image_size -
@@ -1712,9 +1714,15 @@ fn resize_without_panel(
 fn warp_detected_panel(
     analysis: &ImageAnalysis,
     image_size: u32,
-    panel: PanelCandidate,
+    mut panel: PanelCandidate,
     warnings: Vec<RectificationWarning>,
 ) -> Result<RectifiedRgbaImage, RectificationError> {
+    if panel.method != "density_bbox"
+        && let Some((quad, report)) = border_center::refine(analysis, panel.quad)
+    {
+        panel.quad = quad;
+        panel.metrics["border_center_refinement"] = report;
+    }
     let mode = if panel.method == "density_bbox" {
         "detect_density_crop"
     } else {

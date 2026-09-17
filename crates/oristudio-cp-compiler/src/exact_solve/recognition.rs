@@ -5,6 +5,12 @@ const LARGE_SPANS: usize = 1500;
 const NOISE_PX: f64 = 1.5;
 const RETRY_NOISE_PX: f64 = 2.0;
 
+pub(super) struct GridProposal {
+    pub input: ExactSolveInput,
+    pub grid: projection::Grid,
+    pub report: Value,
+}
+
 pub(super) fn solve(
     input: &ExactSolveInput,
     mut options: ExactSolveOptions,
@@ -37,11 +43,37 @@ pub(super) fn solve(
         return finish(primary, &clock, options, None);
     }
     let mut lattice_report = None;
-    if let Some((proposal, mut report)) = propose(input, &pinned) {
+    let construction_recovery =
+        options.construction_recovery == ConstructionRecoveryMode::Constructions;
+    // Preserve successful precise-grid repairs. Broadening the inlier band can
+    // accidentally lock a nearby construction point, so the enlarged-image
+    // proposal is a fallback, not a replacement for a solved tighter proposal.
+    for recover_grid in [false, true] {
+        if clock.expired() || (recover_grid && !construction_recovery) {
+            break;
+        }
+        let proposal = if recover_grid {
+            propose_recovery(input, &pinned)
+        } else {
+            propose(input, &pinned)
+        };
+        let Some(GridProposal {
+            input: proposal,
+            grid,
+            mut report,
+        }) = proposal
+        else {
+            continue;
+        };
+        report["scale_consistent_grid"] = json!(recover_grid);
+        if let Some(previous) = lattice_report.take() {
+            report["preceding_proposal"] = previous;
+        }
         let mut fallback_options = options;
         // A fully fixed document proposal needs validation, not a search. Its
         // large graph checks can outlast the small iterative-proposal slice.
-        let fixed_document = input.image_size.is_none() && all_vertices_fixed(&proposal, &pinned);
+        let fixed_document =
+            (input.image_size.is_none() || recover_grid) && all_vertices_fixed(&proposal, &pinned);
         let proposal_limit = if fixed_document { 10.0 } else { 5.0 };
         fallback_options.timeout_seconds = if options.timeout_seconds < 0.0 {
             proposal_limit
@@ -49,12 +81,13 @@ pub(super) fn solve(
             (remaining(&clock) * 0.5).min(proposal_limit)
         };
         fallback_options.work_budget = clock.work_left();
-        let candidate = if input.image_size.is_none() {
+        let candidate = if input.image_size.is_none() || recover_grid {
             solve_proposal(
                 &proposal,
                 fallback_options,
                 Rc::clone(&exempt),
                 Rc::clone(&pinned),
+                recover_grid.then_some(grid),
             )
         } else {
             // Preserve the recognition path's structural polish: accepting a
@@ -70,7 +103,7 @@ pub(super) fn solve(
             )
         };
         clock.work.set(
-            spent.saturating_add(
+            clock.work.get().saturating_add(
                 candidate.movement_report["work_spent"]
                     .as_u64()
                     .unwrap_or(0),
@@ -124,6 +157,7 @@ fn solve_proposal(
     mut options: ExactSolveOptions,
     exempt: Rc<BTreeSet<usize>>,
     pinned: Rc<BTreeSet<usize>>,
+    grid: Option<projection::Grid>,
 ) -> ExactSolvedGraph {
     let clock = ExactSolveDeadline::start(options.timeout_seconds, options.work_budget);
     let fixed = all_vertices_fixed(input, &pinned);
@@ -135,13 +169,24 @@ fn solve_proposal(
         },
         options.work_budget,
     );
-    let projected = projection::solve(
-        input,
-        options,
-        &projection_clock,
-        Rc::clone(&exempt),
-        Rc::clone(&pinned),
-    );
+    let projected = if let Some(grid) = grid {
+        projection::solve_grid(
+            input,
+            options,
+            &projection_clock,
+            Rc::clone(&exempt),
+            Rc::clone(&pinned),
+            grid,
+        )
+    } else {
+        projection::solve(
+            input,
+            options,
+            &projection_clock,
+            Rc::clone(&exempt),
+            Rc::clone(&pinned),
+        )
+    };
     clock.work.set(projection_clock.work.get());
     if (projected.status == ExactSolvedGraphStatus::Solved
         && projected.movement_report["accepted"] == true)
@@ -198,33 +243,45 @@ fn finish(
 
 /// Coarsest grid supported by 95% of coordinates; only its inliers are held.
 /// A finer grid is not allowed to absorb the remaining off-grid geometry.
-pub(super) fn propose(
-    input: &ExactSolveInput,
-    pinned: &BTreeSet<usize>,
-) -> Option<(ExactSolveInput, Value)> {
-    propose_at_noise(input, pinned, NOISE_PX).or_else(|| {
+pub(super) fn propose(input: &ExactSolveInput, pinned: &BTreeSet<usize>) -> Option<GridProposal> {
+    propose_at_noise(input, pinned, NOISE_PX, false).or_else(|| {
         input
             .image_size
             .is_none()
-            .then(|| propose_at_noise(input, pinned, RETRY_NOISE_PX))
+            .then(|| propose_at_noise(input, pinned, RETRY_NOISE_PX, false))
             .flatten()
     })
+}
+
+pub(super) fn propose_recovery(
+    input: &ExactSolveInput,
+    pinned: &BTreeSet<usize>,
+) -> Option<GridProposal> {
+    propose_at_noise(input, pinned, NOISE_PX, true)
+        .or_else(|| propose_at_noise(input, pinned, RETRY_NOISE_PX, true))
 }
 
 fn propose_at_noise(
     input: &ExactSolveInput,
     pinned: &BTreeSet<usize>,
     noise_px: f64,
-) -> Option<(ExactSolveInput, Value)> {
+    construction_recovery: bool,
+) -> Option<GridProposal> {
     if !validate_input(input).is_empty() || is_polygon_boundary(input) {
         return None;
     }
     // Live-document rebuilding has no raster metadata. Use the same 1024-unit
     // fallback as SolveModel instead of silently disabling structural repair.
-    let pixels = f64::from(match input.image_size {
+    let mut pixels = f64::from(match input.image_size {
         Some(size) => size.checked_sub(64)?,
         None => 1024,
     });
+    if construction_recovery {
+        // Larger inference tensors can be an enlargement of the same source
+        // image. They do not establish proportionally more precise junctions.
+        // The construction prior uses a bounded paper-relative noise floor.
+        pixels = pixels.min(1024.);
+    }
     if pixels <= 0.0 || input.vertices.is_empty() {
         return None;
     }
@@ -276,12 +333,13 @@ fn propose_at_noise(
             return None;
         }
         refresh_carriers(&mut proposal);
-        return Some((
-            proposal,
-            json!({"cells": cells, "coordinate_support": fraction,
-                                      "noise_px": noise_px, "pixels_per_unit": pixels,
-                                      "locked_vertices": locked}),
-        ));
+        return Some(GridProposal {
+            input: proposal,
+            grid: projection::Grid { cells, tolerance },
+            report: json!({"cells": cells, "coordinate_support": fraction,
+                           "noise_px": noise_px, "pixels_per_unit": pixels,
+                           "locked_vertices": locked}),
+        });
     }
     None
 }
@@ -336,8 +394,14 @@ pub(super) fn judge_original(
         vertex.point = *point;
     }
     refresh_carriers(&mut placed);
-    let model = SolveModel::new(&placed, options, clock.clone(), exempt, pinned);
-    let params = model.initial_params.clone();
+    // These coordinates are a completed geometric proposal. Detector-scale
+    // carrier bins can conflate nearby distinct lines, so judge at numerical
+    // collinearity, as projection::project does. Explicit source carrier IDs
+    // remain hard constraints in both modes.
+    let model =
+        SolveModel::with_carrier_resolution(&placed, options, clock.clone(), exempt, pinned, true);
+    let mut params = model.initial_params.clone();
+    refit_carriers_through(&model, &candidate.vertices_exact, &mut params);
     let after = analyze_graph(input, &candidate.vertices_exact, &model, &params, options);
     let status = classify_status(&before, &after, options);
     if status != ExactSolvedGraphStatus::Solved {
