@@ -21,7 +21,10 @@
  * artifact at the pinned commit is downloaded and SHA-256 verified so `npm run dev` works
  * without Emscripten. It is a development convenience only: `REFERENCE_FINDER_FORCE_SOURCE=1`
  * (set in every CI build) makes a missing compiler fatal so a fetched binary can never
- * become a shipped one.
+ * become a shipped one. The fetched binary also lacks the vendored core's local search
+ * patch (third_party/reference-finder/README.treemaker.md, "Local changes"): same answers,
+ * upstream's ~13x slower line queries, so a sluggish precrease plan on a machine without
+ * em++ is this fallback, not a regression.
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';

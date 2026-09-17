@@ -2,10 +2,14 @@
 /**
  * ReferenceFinder parity oracle: our from-source wasm vs upstream's committed artifact.
  *
- * Builds the same database in both modules, runs every query in queries.json through both,
- * and exits non-zero unless each solution list is identical — error, rank and the full
- * per-step JSON. Byte identity of the binaries is not a goal (a different emcc produces
- * different code); identical answers are.
+ * Builds the same database in both modules, runs every query in queries.json through both —
+ * under every entry of its `searches` list, so both line metrics (`worstCase` 0 and 1), both
+ * counts and both good-enough thresholds the app uses are covered — and exits non-zero unless
+ * each solution list is identical — error, rank and the full per-step JSON. Byte identity of
+ * the binaries is not a goal (a different emcc produces different code); identical answers
+ * are. The mean query time per module is printed as well: the vendored core carries a local
+ * search patch (third_party/reference-finder/README.treemaker.md, "Local changes") whose only
+ * claim is that same answers arrive faster, and this is where both halves are checked.
  *
  *   node tools/reference-finder-oracle/equiv.mjs [--ours <dir>] [--upstream <dir>]
  *                                                 [--queries <file>] [--rank N] [--verbose]
@@ -34,6 +38,8 @@ const defaultQueries = join(repoRoot, 'tools/reference-finder-oracle/queries.jso
 const options = parseArgs(process.argv.slice(2));
 const queries = JSON.parse(readFileSync(options.queries, 'utf8'));
 if (options.rank !== undefined) queries.database.rank = options.rank;
+// `searches` (a list) supersedes the older single `search`; either spelling works.
+const searches = queries.searches ?? [queries.search];
 
 const oursDir = options.ours;
 if (!existsSync(join(oursDir, 'ref.js')) || !existsSync(join(oursDir, 'ref.wasm'))) {
@@ -44,25 +50,29 @@ const upstreamDir = options.upstream ?? (await fetchUpstream(defaultUpstreamCach
 console.log(`ours:     ${oursDir}`);
 console.log(`upstream: ${upstreamDir}`);
 console.log(
-  `database: rank ${queries.database.rank}; ${queries.points.length} point + ${queries.lines.length} line queries`
+  `database: rank ${queries.database.rank}; ${queries.points.length} point + ${queries.lines.length} line queries` +
+    ` × ${searches.length} search setting(s)`
 );
 
 const ours = await runAll(oursDir, 'ours');
 const upstream = await runAll(upstreamDir, 'upstream');
 
 let mismatches = 0;
-for (const [i, point] of queries.points.entries()) {
-  mismatches += compare(`point ${JSON.stringify(point)}`, ours.points[i], upstream.points[i]);
-}
-for (const [i, line] of queries.lines.entries()) {
-  mismatches += compare(`line ${JSON.stringify(line)}`, ours.lines[i], upstream.lines[i]);
+for (const [s, search] of searches.entries()) {
+  const settings = JSON.stringify(search);
+  for (const [i, point] of queries.points.entries()) {
+    mismatches += compare(`point ${JSON.stringify(point)} ${settings}`, ours.points[s][i], upstream.points[s][i]);
+  }
+  for (const [i, line] of queries.lines.entries()) {
+    mismatches += compare(`line ${JSON.stringify(line)} ${settings}`, ours.lines[s][i], upstream.lines[s][i]);
+  }
 }
 if (JSON.stringify(ours.dbInfo) !== JSON.stringify(upstream.dbInfo)) {
   mismatches += 1;
   console.error(`MISMATCH database summary: ours ${JSON.stringify(ours.dbInfo)} vs upstream ${JSON.stringify(upstream.dbInfo)}`);
 }
 
-const total = queries.points.length + queries.lines.length;
+const total = (queries.points.length + queries.lines.length) * searches.length;
 if (mismatches > 0) {
   console.error(`reference-finder oracle: ${mismatches} mismatch(es) across ${total} queries`);
   process.exit(1);
@@ -98,23 +108,41 @@ function compare(label, a, b) {
 
 async function runAll(libDir, label) {
   const finder = await createFinder(libDir, queries.database);
+  // `points[s][i]` / `lines[s][i]`: the i-th query's solutions under the s-th search setting.
   const out = { buildMs: Math.round(finder.buildMs), dbInfo: finder.dbInfo, points: [], lines: [], solutionCount: 0 };
   const summarize = (solutions) =>
     solutions.map((s) => ({ err: s.err, rank: s.rank, steps: s.steps }));
-  for (const [x, y] of queries.points) {
-    const solutions = await finder.solvePoint(x, y, queries.search);
-    out.points.push(summarize(solutions));
-    out.solutionCount += solutions.length;
-  }
-  for (const [p1, p2] of queries.lines) {
-    const solutions = await finder.solveLine(p1, p2, queries.search);
-    out.lines.push(summarize(solutions));
-    out.solutionCount += solutions.length;
+  const timing = { point: [], line: [] };
+  const timed = async (kind, run) => {
+    const started = performance.now();
+    const solutions = await run();
+    timing[kind].push(performance.now() - started);
+    return solutions;
+  };
+  for (const search of searches) {
+    const points = [];
+    for (const [x, y] of queries.points) {
+      const solutions = await timed('point', () => finder.solvePoint(x, y, search));
+      points.push(summarize(solutions));
+      out.solutionCount += solutions.length;
+    }
+    out.points.push(points);
+    const lines = [];
+    for (const [p1, p2] of queries.lines) {
+      const solutions = await timed('line', () => finder.solveLine(p1, p2, search));
+      lines.push(summarize(solutions));
+      out.solutionCount += solutions.length;
+    }
+    out.lines.push(lines);
   }
   if (finder.stderr.length > 0) {
     console.warn(`${label}: stderr from the module:\n  ${finder.stderr.join('\n  ')}`);
   }
-  console.log(`${label}: database built in ${out.buildMs} ms, ${out.solutionCount} solutions`);
+  const mean = (values) => (values.length ? (values.reduce((a, b) => a + b, 0) / values.length).toFixed(1) : '-');
+  console.log(
+    `${label}: database built in ${out.buildMs} ms, ${out.solutionCount} solutions; ` +
+      `mean query ${mean(timing.point)} ms/point, ${mean(timing.line)} ms/line`
+  );
   return out;
 }
 

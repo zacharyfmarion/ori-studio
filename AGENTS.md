@@ -99,7 +99,7 @@ prior behavior — is the canonical behavioral reference:
 | TreeMaker (`treemaker-*`) | `third_party/treemaker-5.0.1` | `tools/oracle` (C++) |
 | Box pleating (`oristudio-bp*`) | `third_party/box-pleating-studio` | `tools/bp-studio-oracle` |
 | Flat folding (`treemaker-flatfold`) | `third_party/flat-folder` | `tools/flat-folder-oracle` |
-| Reference finding (ReferenceFinder — not a port; the vendored C++ is compiled to wasm and consumed as a black box) | `third_party/reference-finder` | `tools/reference-finder-oracle` (build-equivalence, not parity) |
+| Reference finding (ReferenceFinder — not a port; the vendored C++ is compiled to wasm and consumed as a black box) | `third_party/reference-finder` (upstream plus one documented local patch) | `tools/reference-finder-oracle` (answer-equivalence with upstream's artifact, not parity) |
 
 General rules, which apply to every port:
 
@@ -111,7 +111,10 @@ General rules, which apply to every port:
   result.
 - Preserve documented upstream quirks when they are required for parity.
 - Do not edit vendored upstream source except for clearly scoped oracle build
-  maintenance.
+  maintenance. The one standing exception is the ReferenceFinder search patch,
+  recorded as `local_patches` in `upstream-sync.json` and described in
+  `third_party/reference-finder/README.treemaker.md`: it changes speed, never an
+  answer, and the oracle proves that on every run.
 - Real-world user corpus files are not committed. Use the external corpus
   harness before making broad compatibility claims.
 

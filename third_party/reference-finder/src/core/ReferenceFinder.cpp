@@ -334,12 +334,117 @@ void fillBestSolutions(vector<T *> &v, vector<T *> &temp, short num) {
 	}
 }
 
+/**********
+Ori Studio patch — see third_party/reference-finder/README.treemaker.md, "Local changes".
+
+Upstream's FindBestMarks/FindBestLines run partial_sort_copy over every basis
+reference with CompareRankAndError, whose operator() recomputes DistanceTo() for
+both operands of every comparison — and, for lines with sLineWorstCaseError set,
+each DistanceTo() clips both lines to the paper before measuring, re-clipping the
+constant target every time. A rank-6 line query spent ~50 of its ~63 ms there.
+
+The searches below give the same answers: the same partial_sort_copy, over the
+same sequence, under the same rank-within-good-enough rule — but each reference
+is scored once per query (SearchCache::scores), each basis line's paper clip is computed
+once per database (SearchCache::clips), and GetRank(), which upstream evaluates
+recursively on demand, is cached alongside. Distances are evaluated by the very
+functions upstream used (RefLine::WorstCaseDistance, RefMark::DistanceTo), so the
+doubles the comparator sees are bit-identical. The scratch and the per-database
+tables are rebuilt whenever a container's size differs from theirs, which is the
+only way the database changes after the build.
+**********/
+namespace {
+
+/** Where a basis line leaves the paper, or `valid == false` when it misses it. */
+struct LineClip {
+	XYPt a;
+	XYPt b;
+	bool valid;
+};
+
+/** Per-database tables for one container, parallel to it. */
+template <class R>
+struct SearchCache {
+	std::vector<rank_t> ranks;
+	std::vector<LineClip> clips; // lines only; empty for marks
+	/** This query's distance from the target, per reference. */
+	std::vector<double> scores;
+	/** `0 .. n-1`: the container's order, which the partial sort walks. */
+	std::vector<index_t> order;
+};
+
+SearchCache<RefMark> sMarkSearch;
+SearchCache<RefLine> sLineSearch;
+
+/** CompareRankAndError, read off the cached distances and ranks. */
+template <class R>
+class CompareCachedRankAndError {
+  public:
+	const SearchCache<R> &mCache;
+	explicit CompareCachedRankAndError(const SearchCache<R> &cache): mCache(cache) {};
+	bool operator()(index_t i1, index_t i2) const {
+		double d1 = mCache.scores[i1];
+		double d2 = mCache.scores[i2];
+
+		bool notBothGood = d1 > Shared::sGoodEnoughError || d2 > Shared::sGoodEnoughError;
+		if(notBothGood && d1 != d2) return d1 < d2;
+
+		rank_t rank1 = mCache.ranks[i1];
+		rank_t rank2 = mCache.ranks[i2];
+		if(notBothGood) return rank1 < rank2; // we must have d1 == d2 here
+		if(rank1 == rank2) return d1 < d2;
+		return rank1 < rank2;
+	};
+};
+
+/** The rank of every reference, once per database. */
+template <class R>
+void EnsureRanks(const std::vector<R *> &refs, SearchCache<R> &cache) {
+	const size_t n = refs.size();
+	if(cache.ranks.size() == n) return;
+	cache.ranks.resize(n);
+	cache.order.resize(n);
+	for(size_t i = 0; i < n; i++) {
+		cache.ranks[i] = refs[i]->GetRank();
+		cache.order[i] = static_cast<index_t>(i);
+	}
+}
+
+/** Where every basis line leaves the paper, once per database. */
+void EnsureLineClips(const std::vector<RefLine *> &lines, SearchCache<RefLine> &cache) {
+	const size_t n = lines.size();
+	if(cache.clips.size() == n) return;
+	cache.clips.resize(n);
+	for(size_t i = 0; i < n; i++) {
+		LineClip &clip = cache.clips[i];
+		clip.valid = Shared::sPaper.ClipLine(lines[i]->l, clip.a, clip.b);
+	}
+}
+
+/**
+The best `temp.size()` references by this query's cached scores, in the order
+partial_sort_copy over the whole container gives them.
+*/
+template <class R>
+void SelectBestByScore(const std::vector<R *> &refs, SearchCache<R> &cache, std::vector<R *> &temp) {
+	std::vector<index_t> best(temp.size());
+	auto end = partial_sort_copy(cache.order.begin(), cache.order.end(), best.begin(), best.end(), CompareCachedRankAndError<R>(cache));
+	temp.resize(static_cast<size_t>(end - best.begin()));
+	for(size_t i = 0; i < temp.size(); i++) temp[i] = refs[best[i]];
+}
+
+} // namespace
+
 /*****
 Find the best marks closest to a given point ap, storing the results in the vector vm.
 *****/
 void ReferenceFinder::FindBestMarks(const XYPt &ap, vector<RefMark *> &vm, short numMarks) {
+	EnsureRanks<RefMark>(sBasisMarks, sMarkSearch);
+	const size_t n = sBasisMarks.size();
+	sMarkSearch.scores.resize(n);
+	for(size_t i = 0; i < n; i++) sMarkSearch.scores[i] = sBasisMarks[i]->DistanceTo(ap);
 	vector<RefMark *> temp(numMarks * 3);
-	partial_sort_copy(sBasisMarks.begin(), sBasisMarks.end(), temp.begin(), temp.end(), CompareRankAndError<RefMark>(ap));
+	SelectBestByScore<RefMark>(sBasisMarks, sMarkSearch, temp);
 	fillBestSolutions(vm, temp, numMarks);
 }
 
@@ -347,8 +452,25 @@ void ReferenceFinder::FindBestMarks(const XYPt &ap, vector<RefMark *> &vm, short
 Find the best lines closest to a given line al, storing the results in the vector vl.
 *****/
 void ReferenceFinder::FindBestLines(const XYLine &al, vector<RefLine *> &vl, short numLines) {
+	EnsureRanks<RefLine>(sBasisLines, sLineSearch);
+	const size_t n = sBasisLines.size();
+	sLineSearch.scores.resize(n);
+	if(Shared::sLineWorstCaseError) {
+		EnsureLineClips(sBasisLines, sLineSearch);
+		// The target's clip, once; then each line against it exactly as
+		// RefLine::DistanceTo does, from the clip computed when the cache was built.
+		XYPt ta;
+		XYPt tb;
+		const bool targetValid = Shared::sPaper.ClipLine(al, ta, tb);
+		for(size_t i = 0; i < n; i++) {
+			const LineClip &clip = sLineSearch.clips[i];
+			sLineSearch.scores[i] = clip.valid && targetValid ? RefLine::WorstCaseDistance(clip.a, clip.b, ta, tb) : 1 / EPS;
+		}
+	} else {
+		for(size_t i = 0; i < n; i++) sLineSearch.scores[i] = sBasisLines[i]->DistanceTo(al);
+	}
 	vector<RefLine *> temp(numLines * 3);
-	partial_sort_copy(sBasisLines.begin(), sBasisLines.end(), temp.begin(), temp.end(), CompareRankAndError<RefLine>(al));
+	SelectBestByScore<RefLine>(sBasisLines, sLineSearch, temp);
 	fillBestSolutions(vl, temp, numLines);
 }
 

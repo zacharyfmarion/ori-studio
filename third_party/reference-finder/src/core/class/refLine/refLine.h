@@ -27,6 +27,10 @@ struct RefLine: RefBase {
 	void FinishConstructor();
 	double DistanceTo(const XYLine &al) const;
 	double DistanceTo(const RefLine *ref) const;
+	// Ori Studio patch: the worst-case separation of two lines already clipped to the
+	// paper, `(p1a, p1b)` and `(p2a, p2b)`. Shared by DistanceTo and the search's cached
+	// scoring so both evaluate one expression. See README.treemaker.md, "Local changes".
+	static double WorstCaseDistance(const XYPt &p1a, const XYPt &p1b, const XYPt &p2a, const XYPt &p2b);
 	bool IsOnEdge() const;
 	void PutDistanceAndRank(JsonObject &solution, const XYLine &al) const;
 
