@@ -314,6 +314,14 @@ pub(super) fn propose(
             let nullity = original.len() - basis.order.len();
             report["linear_nullity_before"] = json!(nullity);
             if matches!(attempt, Attempt::FreeCoordinates) {
+                // Preserve known dependent coordinates too: changing a free
+                // coordinate can otherwise move an exact construction through
+                // back-substitution even though that coordinate was not snapped.
+                for (c, &value) in original.iter().enumerate() {
+                    if already_constructed(value) {
+                        basis.insert(BTreeMap::from([(c, 1.)]), value, clock)?;
+                    }
+                }
                 for (c, value) in x.iter_mut().enumerate() {
                     if basis.pivots.contains_key(&c) || already_constructed(*value) {
                         continue;
@@ -404,6 +412,27 @@ mod tests {
     fn preserve_a_rational_that_is_absent_from_the_small_dictionary() {
         assert!(already_constructed(3. / 44.));
         assert!(already_constructed(11. / 12.));
+    }
+
+    #[test]
+    fn free_snapping_cannot_move_an_exact_dependent_coordinate() {
+        let points = [Point2::new(1. / 3., (1. / 3.) / 0.77231)];
+        let geometry = LinearGeometry {
+            variables: vec![(0, 0), (0, 1)],
+            rows: vec![Row {
+                entries: vec![(0, 1.), (1, -0.77231)],
+                rhs: 0.,
+            }],
+        };
+        assert!(!already_constructed(points[0].y));
+        let (answer, _) = propose(
+            &geometry,
+            &points,
+            &ExactSolveDeadline::start(1., None),
+            Attempt::FreeCoordinates,
+        )
+        .unwrap();
+        assert!(distance(answer[0], points[0]) < 1e-14);
     }
 
     #[test]

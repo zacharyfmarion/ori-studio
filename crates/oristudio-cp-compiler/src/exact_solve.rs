@@ -38,6 +38,8 @@ mod recovery;
 
 /// Optional reconstruction of precise, simple geometric constructions after
 /// an accepted solve. Proposals remain subject to the original product checks.
+/// Construction simplicity is a prior: acceptance does not prove that an
+/// underdetermined pattern has recovered its author's original coordinates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ConstructionRecoveryMode {
@@ -94,6 +96,8 @@ pub enum LinearSolver {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ExactSolveOptions {
+    /// Opt-in at the Rust API; recognition and whole-region product solves
+    /// enable constructions. Shares the solve's deadline, pins and movement cap.
     #[serde(default)]
     pub construction_recovery: ConstructionRecoveryMode,
     /// Bounded proposal policy: preserve exact ordinary solves, then try a

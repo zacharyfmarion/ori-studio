@@ -6,6 +6,11 @@ local foldability checks or matching within 2px does not meet this objective.
 The earlier S000–S016 work optimized the wrong primary outcome. The goal is
 **not achieved**; see [the exact-coordinate audit](exact-recovery-audit.md).
 
+The follow-up [reference-recovery notebook](reference-recovery-log.md) records
+S029 onward: tighter numerical solving, generated construction hypotheses,
+nonlinear propagation, explicit ambiguity witnesses and rejected searches.
+These experiments target complete reference graphs, rather than local validity.
+
 ## Protocol
 
 - The original external `real_benchmark` inventory remains frozen. No real

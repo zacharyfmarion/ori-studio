@@ -50,7 +50,7 @@ import {
 export type { CpExactSolver } from './cpExactSolveSession';
 
 export interface CpExactSolveRunOptions {
-  /** One bounded call with lattice and direct-coordinate feasibility proposals. */
+  /** One bounded call with lattice, feasibility and precise construction proposals. */
   recognitionFallback?: boolean;
   /**
    * The wall-clock budget for **the whole solve**, in seconds — not per stage.
@@ -434,7 +434,12 @@ function stageOptionsJson(
   polish: boolean
 ): string {
   const overrides: Record<string, unknown> = { polish };
-  if (options.recognitionFallback) overrides.recognition_fallback = true;
+  if (options.recognitionFallback) {
+    overrides.recognition_fallback = true;
+    // Image-derived and whole-region solves share the native/WASM recovery
+    // implementation and its existing total deadline.
+    overrides.construction_recovery = 'constructions';
+  }
   if (timeoutSeconds !== undefined) overrides.timeout_seconds = timeoutSeconds;
   const exempt = normalizedVertexIds(options.exemptVertexIds);
   if (exempt.length > 0) overrides.exempt_vertex_ids = exempt;

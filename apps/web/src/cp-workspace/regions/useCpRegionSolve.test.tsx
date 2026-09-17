@@ -450,7 +450,9 @@ describe('useCpRegionSolve', () => {
   it('enables the bounded proposal solver when repairing a region', async () => {
     await solve();
     const options = JSON.parse(lastSolveOptionsJson!);
-    expect(options).toMatchObject({ recognition_fallback: true, polish: true });
+    expect(options).toMatchObject({
+      recognition_fallback: true, polish: true, construction_recovery: 'constructions',
+    });
     expect(options.timeout_seconds).toBeGreaterThan(0);
     expect(options.timeout_seconds).toBeLessThanOrEqual(25);
   });

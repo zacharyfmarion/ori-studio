@@ -366,3 +366,84 @@ Score the resulting graph and edge components together with the observation
 penalty, protecting already-known exact coordinates. Same frozen development
 inputs, no truth read during proposal selection, separate fixed-coordinate
 checks and scoring. The source snapshot freezes all imported proposal modules.
+
+S063 complete browser replay confirms **280/421 at 1e-9 and 268/421 at 1e-12**,
+zero merged-baseline losses at either threshold, 421 valid cases accepted and
+ten assignment controls remain unsolved. Maximum worker-inclusive time **23.935580s**
+(Aknosom); next slowest 23.20s, 21.41s, 20.71s. Literal equality remains zero.
+Native and browser counts agree.
+
+S065 now has sixteen passing focused tests, including a generated nonlinear
+intersection and an analytic-Jacobian finite-difference check.
+
+S066 completed **230/147** on development. Relative to S060, ten primary gains
+and six losses; relative to S063 development, ten gains and nine losses. Only
+one gain follows a rejected joint proposal; others replace valid alternatives.
+Do not integrate this mixed-result heuristic.
+
+## S068 — Bounded beam search
+
+Keep four construction alternatives instead of committing immediately to one
+anchor. Four seconds per proposal; validate alternatives in objective order
+without reading truth. This tests search truncation versus an ambiguous prior.
+Proposal generation complete; independent validation/scoring running.
+
+## S069 — Final integrated candidate replay
+
+Freeze the S063 implementation plus S065 nonlinear fallback. Rebuild detection
+WASM and replay all 431 frozen cases natively, then in actual browser workers.
+No new training or model assets. Product activation remains pending the checks.
+
+S068 completed **228/150** development: two primary gains/no losses versus S060,
+but one gain is already covered by nonlinear fallback. Against composed S063,
+three gains/four losses. Do not replace the selected search with the beam.
+The remaining gain from alternative search is Skeleton Head; its greedy choice
+is locally valid, so checker-only fallback cannot identify it.
+
+## S070 — Protect dependent exact coordinates
+
+S068 comparison exposed a general consistency defect: free-coordinate snapping
+protected only the free coordinates themselves. Back-substitution could move an
+already-exact dependent coordinate. Add all recognized coordinates as equations
+before choosing free coordinates. A generated two-variable regression protects
+a rational dependent coordinate from an arbitrary-coefficient free direction.
+S069 remains an immutable before-fix replay; validate this change separately.
+
+Control terminology clarification: “rejected” in the running ledger means not
+automatically accepted as a completed solve. S063 has seven `ambiguous` controls
+whose movement-report `accepted` flag is true and three `failed` controls.
+The UI requires both that flag and `status == solved`; none of the ten qualify.
+The final comparison reports statuses explicitly rather than using that flag
+alone. This does not change any of the 421-case counts.
+
+S069 native replay completed **285/421 at 1e-9, 276/421 at 1e-12**, literal
+equality zero. Against merged baseline: +107/+238 with zero losses. All 421
+valid cases accepted within 25s; maximum 24.477s. No controls become solved.
+Development counts 233/226, observed holdout 52/50. S070's seventeen focused
+Rust tests pass, including dependent-coordinate preservation.
+
+S069 versus S063: six primary gains/one loss (Wizard), nine secondary gains/one
+loss (also Wizard). Record this research-to-research regression even though no
+merged-baseline match is lost. The nonlinear proposal can select an admissible
+alternative rather than the author's geometry.
+
+## S067 — Independent generated construction checks
+
+Generate 24 rational/surd crosses with AUX subdivisions, small coherent noise,
+all four square rotations and randomly permuted vertex IDs (seed 763019). Eight
+additional continuous-coordinate controls start without noise and expose how
+the construction prior changes underdefined geometry. Their positions are not
+uniquely determined by folding constraints, so do not mislabel this as a
+uniqueness test or as an unbiased estimate of real-world recognition accuracy.
+The generator reads no real data. Native/browser replay is queued after S070.
+
+## S071 — Product entry-point regression checks
+
+The shared frontend enables `construction_recovery: constructions` whenever it
+enables recognition fallback (recognition and whole-region solve). Keep the
+Rust API default off for callers that do not request this policy. Both native
+desktop and browser transports use the same parser/compiler; existing desktop
+bundles and model registries are unaffected. Exercise `runCpExactSolve` itself
+on three procedural grids (1,089 / 4,225 / 9,409 vertices), the corrected Knight
+(no GT), and six generated AUX crosses. Full browser timing includes startup.
+No new analytics event: the existing solve flow already captures its outcome.
