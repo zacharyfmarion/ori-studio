@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { modelFrame } from './diagram/diagramFrames';
+import { plannerTurnOverDiagram } from './diagram/plannerDiagram';
 import {
   plannerSequenceFixture,
   plannerSequenceWithGridFixture,
@@ -155,14 +157,22 @@ describe('planTurnOverScene', () => {
   const sequence = plannerSequenceFixture();
   const model = decodePlanModel(sequence, mapToModel(planModelPoints(sequence)));
 
-  // The card's own picture, on the pattern: the creases so far in the card's
-  // grey, and the symbol — nothing picked out, nothing to frame.
-  it('draws the creases made so far, greyed, under the turn-over symbol', () => {
+  // The symbol over the build-up. The pattern's own creases are beneath, in
+  // the document's ink, so the picture draws only what the pattern lacks —
+  // here the landmark's two pinches — greyed; nothing picked out, nothing
+  // to frame.
+  it('draws the marks the pattern lacks, greyed, under the turn-over symbol', () => {
     const scene = planTurnOverScene(sequence, model, 1);
     const primitives = scene.diagram?.primitives ?? [];
     const lines = primitives.filter((p) => p.kind === 'line');
     expect(lines.length).toBeGreaterThan(0);
     expect(lines.every((p) => p.kind === 'line' && p.style === 'crease')).toBe(true);
+    // Exactly the turn-over picture drawn for a surface that has the
+    // pattern's creases beneath it, in the model frame.
+    expect(primitives).toEqual(
+      plannerTurnOverDiagram(sequence, modelFrame(sequence, model), 1, { earlier: 'unpatterned' })
+        .primitives
+    );
     expect(primitives.filter((p) => p.kind === 'turn-over')).toHaveLength(1);
     expect(scene.bounds).toBeNull();
     expect(scene.highlightLineIds).toEqual([]);

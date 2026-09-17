@@ -83,6 +83,7 @@ describe('ReferencesViewControlsPanel', () => {
       'Only where needed',
       'Allow dangling folds',
       'Merge symmetric steps',
+      'Auto-play folds',
     ]);
     // The candidate count is the one setting that is not a switch.
     expect(rendered.querySelector('button[aria-label="Solutions"]')?.textContent).toContain(
@@ -157,7 +158,7 @@ describe('ReferencesViewControlsPanel', () => {
     // hover as well.
     expect(help?.getAttribute('aria-label')).toContain('A dangling fold is a crease');
     // Only the rows whose names do not say what they do carry one.
-    expect(rendered.querySelectorAll('.control-row__help')).toHaveLength(2);
+    expect(rendered.querySelectorAll('.control-row__help')).toHaveLength(3);
 
     expect(settings().allowDanglingFolds).toBe(true);
     press(toggle(rendered, 'Allow dangling folds'));

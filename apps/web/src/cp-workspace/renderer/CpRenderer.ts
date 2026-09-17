@@ -130,6 +130,13 @@ export interface CpRenderFrame {
   userView: ViewTransform;
   /** Crease stroke width in device pixels (constant screen size, zoom-independent). */
   strokeWidthPx: number;
+  /**
+   * Width unit for the folded channel's strokes, in device pixels. Defaults to
+   * one CSS pixel, the generated folded figure's own rule; a surface that
+   * draws creases on a moving flap passes its crease width so a crease is the
+   * same weight on the flap as beside it.
+   */
+  foldedStrokeWidthPx?: number;
   /** SVG user unit → device px (scales circle radii with zoom). */
   userScalePx: number;
   /**

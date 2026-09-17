@@ -234,7 +234,7 @@ it('keeps the header to the title and floats the view verbs over the canvas', ()
     [...(bar?.querySelectorAll('button') ?? [])].map(
       (button) => button.getAttribute('aria-label') ?? button.textContent
     )
-  ).toEqual(['Zoom Out', '100%', 'Zoom In', 'Fit', 'Recompute References']);
+  ).toEqual(['Zoom Out', '100%', 'Zoom In', 'Fit', 'Play Fold', 'Recompute References']);
 });
 
 it('lands in Find with the lead where the filmstrip goes, and plans only when the sequence is asked for', () => {

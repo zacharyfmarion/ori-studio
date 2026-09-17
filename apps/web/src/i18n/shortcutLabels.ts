@@ -71,6 +71,8 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:references.zoomIn', 'Zoom In References');
     case 'references.zoomOut':
       return t('tools:references.zoomOut', 'Zoom Out References');
+    case 'references.playFold':
+      return t('tools:references.playFold', 'Play Fold');
     default:
       return definition.label;
   }

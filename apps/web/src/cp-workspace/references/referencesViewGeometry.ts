@@ -6,6 +6,7 @@
  */
 import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import type { Point } from '../../lib/geometry';
+import { clipPolygonToSide } from './diagram/plannerDiagram';
 import { cpModelToSvg, cpVertexId } from '../../lib/creasePatternViewport';
 import type { UserBounds } from '../renderer/camera';
 import type {
@@ -650,8 +651,16 @@ const COLLINEAR_SINE = 1e-6;
 export function sheetFillGeometry(
   geometry: CpGeometryTransport,
   borderLineIds: ReadonlySet<number> | null,
-  color: Rgba
+  color: Rgba,
+  /**
+   * Flaps that have left the sheet: the fill keeps only the paper on the
+   * resting side of each, so a folded-over flap leaves the ground behind it
+   * rather than a sheet-shaped stand-in.
+   */
+  without: readonly { chord: readonly [Point, Point]; side: 1 | -1; whole?: boolean }[] = []
 ): FillGeometry | null {
+  // The whole sheet in the air leaves no paper on the table.
+  if (without.some((flap) => flap.whole)) return null;
   if (!borderLineIds || borderLineIds.size === 0) return null;
   const endpoints = geometry.segEndpoints;
   const corners: Point[] = [];
@@ -661,7 +670,8 @@ export function sheetFillGeometry(
     corners.push({ x: endpoints[base], y: endpoints[base + 1] });
     corners.push({ x: endpoints[base + 2], y: endpoints[base + 3] });
   }
-  const hull = convexHull(corners);
+  let hull = convexHull(corners);
+  for (const flap of without) hull = clipPolygonToSide(hull, flap.chord, -flap.side);
   if (hull.length < 3) return null;
 
   // Fan from the first vertex: a convex polygon needs nothing cleverer.

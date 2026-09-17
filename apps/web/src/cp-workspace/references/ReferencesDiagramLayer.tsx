@@ -1,8 +1,19 @@
-import { useMemo } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+} from 'react';
 import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
 import type { ReferencesDiagramView } from './ReferencesCpView';
 import { createDiagramRenderContext, diagramPrimitiveShape } from './diagram/DiagramPrimitives';
 import { canvasDiagramInk } from './diagram/diagramInk';
+import type { FoldPose } from './fold/foldPlayback';
+import type { FoldScene } from './fold/foldScene';
+import { symbolFlaps, symbolOpacity } from './fold/foldSymbolFade';
+import type { FoldPoseSink } from './fold/foldTransport';
 import { createOverlayProjector } from './stepDiagramGeometry';
 
 /**
@@ -22,6 +33,11 @@ import { createOverlayProjector } from './stepDiagramGeometry';
  * It subscribes to nothing. The canvas hands its camera to the panel, the panel
  * hands it here, and a camera that has not moved does not re-render this at all
  * (`ReferencesCpView` de-dupes before it reports).
+ *
+ * The fold reaches it the way it reaches the canvas: as a pose pushed through
+ * the handle each frame, never as React state. A symbol that rides the moving
+ * paper is wrapped in a group tagged with its flap, and a pose sets the
+ * group's opacity in place (`foldSymbolFade`).
  */
 export interface ReferencesDiagramLayerProps {
   /** The step's symbols, in model space, and the sheet they were measured against. */
@@ -30,13 +46,18 @@ export interface ReferencesDiagramLayerProps {
   camera: ReferencesDiagramView | null;
   /** The reader's crease width, which is also this drawing's pen. */
   lineWidth: number;
+  /** The card's fold, so the symbols on its moving paper can fade with it. */
+  fold?: FoldScene | null;
 }
 
-export function ReferencesDiagramLayer({
-  model,
-  camera,
-  lineWidth,
-}: ReferencesDiagramLayerProps) {
+export type ReferencesDiagramLayerHandle = FoldPoseSink;
+
+export const ReferencesDiagramLayer = forwardRef<
+  ReferencesDiagramLayerHandle,
+  ReferencesDiagramLayerProps
+>(function ReferencesDiagramLayer({ model, camera, lineWidth, fold = null }, ref) {
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const poseRef = useRef<FoldPose | null>(null);
   const project = useMemo(
     () =>
       camera ? createOverlayProjector(camera.view, canvasDiagramInk(lineWidth)) : null,
@@ -49,17 +70,62 @@ export function ReferencesDiagramLayer({
       model && project ? createDiagramRenderContext(model.primitives, model.sheet, project) : null,
     [model, project]
   );
+  // Each symbol's flaps, as the group's tag: `"0"`, `"0 1"` for one riding both
+  // halves of a twin, or nothing for one that stays put.
+  const flaps = useMemo(
+    () =>
+      model && fold
+        ? model.primitives.map((primitive) => symbolFlaps(primitive, fold).join(' '))
+        : null,
+    [model, fold]
+  );
+
+  const applyPose = useCallback(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const pose = poseRef.current;
+    for (const group of svg.querySelectorAll<SVGGElement>('g[data-fold-flap]')) {
+      const riding = (group.dataset.foldFlap ?? '').split(' ').map(Number);
+      group.style.opacity = String(symbolOpacity(riding, pose));
+    }
+  }, []);
+  useImperativeHandle(
+    ref,
+    () => ({
+      setFoldPose: (pose) => {
+        poseRef.current = pose;
+        applyPose();
+      },
+    }),
+    [applyPose]
+  );
+  // A render can mount a fresh group — a new camera, a re-themed picture —
+  // and the fresh group knows nothing of the pose in force.
+  useLayoutEffect(() => {
+    applyPose();
+  });
 
   if (!model || !context || model.primitives.length === 0) return null;
 
   return (
     <svg
+      ref={svgRef}
       className="references-diagram-layer"
       // Above the WebGL canvas, below anything the reader can click.
       style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible' }}
       aria-hidden="true"
     >
-      {model.primitives.map((primitive, index) => diagramPrimitiveShape(primitive, index, context))}
+      {model.primitives.map((primitive, index) => {
+        const shape = diagramPrimitiveShape(primitive, index, context);
+        const riding = flaps?.[index] ?? '';
+        return riding === '' ? (
+          shape
+        ) : (
+          <g key={index} data-fold-flap={riding}>
+            {shape}
+          </g>
+        );
+      })}
     </svg>
   );
-}
+});

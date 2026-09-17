@@ -6,6 +6,7 @@ import {
   CP_MAX_SNAP_RADIUS,
   CP_MIN_SNAP_RADIUS,
 } from '../lib/cpSnapRadiusSetting';
+import { STORAGE_KEYS, storageKey } from '../lib/storage';
 import { useSettingsStore } from './settingsStore';
 
 const analytics = vi.hoisted(() => ({ track: vi.fn() }));
@@ -103,6 +104,15 @@ describe('settingsStore', () => {
 
     expect(useSettingsStore.getState().isSettingsOpen).toBe(true);
     expect(useSettingsStore.getState().settingsInitialTab).toBe('workspace');
+  });
+
+  it('plays folds on arrival by default, and remembers a reader turning that off', async () => {
+    const key = storageKey(STORAGE_KEYS.referencesAutoPlayFolds);
+    localStorage.removeItem(key);
+    expect((await freshSettingsStore()).getState().referencesAutoPlayFolds).toBe(true);
+    useSettingsStore.getState().setReferencesAutoPlayFolds(false);
+    expect(localStorage.getItem(key)).toBe('false');
+    expect((await freshSettingsStore()).getState().referencesAutoPlayFolds).toBe(false);
   });
 
   it('defaults the crease-pattern canvas to scroll-zooms and persists a change', () => {

@@ -13,6 +13,7 @@ import { ContextMenu } from '../ui/ContextMenu';
 import { useContextMenuController } from '../../menus/context/useContextMenuController';
 import type { ReferencesShortcutId } from '../../keyboard/shortcuts';
 import { useLayoutStore } from '../../store/layoutStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { useShortcutStore } from '../../store/shortcutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import {
@@ -32,7 +33,10 @@ import {
 } from '../../cp-workspace/references/referencesStepIndex';
 import { useReferencesMode } from '../../cp-workspace/references/useReferencesMode';
 import { ANALYTICS_EVENTS, track } from '../../analytics';
-import { ReferencesDiagramLayer } from '../../cp-workspace/references/ReferencesDiagramLayer';
+import {
+  ReferencesDiagramLayer,
+  type ReferencesDiagramLayerHandle,
+} from '../../cp-workspace/references/ReferencesDiagramLayer';
 import { useReferencesDiagramScene } from '../../cp-workspace/references/useReferencesDiagramScene';
 import { ReferencesSheetsSidebar } from '../../cp-workspace/references/ReferencesSheetsSidebar';
 import { ReferencesStepFilmstrip } from '../../cp-workspace/references/ReferencesStepFilmstrip';
@@ -65,6 +69,8 @@ import {
   runReferencesShortcut,
   type ReferencesShortcutActions,
 } from '../../cp-workspace/references/referencesShortcuts';
+import { foldCardKind } from '../../cp-workspace/references/fold/foldScene';
+import { useFoldPlayback } from '../../cp-workspace/references/fold/useFoldPlayback';
 import { useReferencesAutoPlan } from '../../cp-workspace/references/useReferencesAutoPlan';
 import { useReferencesBreakdown } from '../../cp-workspace/references/useReferencesBreakdown';
 import { useReferencesPhoneFlow } from '../../cp-workspace/references/useReferencesPhoneFlow';
@@ -222,6 +228,18 @@ export function ReferencesPanel() {
   // The bar's readout mirrors the canvas camera; the camera stays the truth.
   const [zoomPercent, setZoomPercent] = useState(100);
   const zoomTo = useCallback((percent: number) => viewRef.current?.setZoomPercent(percent), []);
+
+  // The active card's fold — a plan step's, a turn-over's or a ReferenceFinder
+  // step's, whichever strip is showing — and its transport.
+  const foldScene = highlights.fold;
+  const autoPlayFolds = useSettingsStore((state) => state.referencesAutoPlayFolds);
+  const symbolsRef = useRef<ReferencesDiagramLayerHandle | null>(null);
+  const fold = useFoldPlayback({
+    view: viewRef,
+    symbols: symbolsRef,
+    scene: foldScene,
+    autoPlay: autoPlayFolds,
+  });
 
   // The CP-wide analysis is asked for from the Crease Pattern menu, which runs
   // before this panel exists; the request waits in the store until it mounts.
@@ -386,6 +404,7 @@ export function ReferencesPanel() {
     zoomIn,
     zoomOut,
     clearTarget: controller.clear,
+    playFold: fold.toggle,
   };
   useReferencesShortcuts(shortcutActions, view.hasDocument);
   // Read through a ref refreshed after each commit rather than closed over, so
@@ -410,6 +429,13 @@ export function ReferencesPanel() {
       activeCandidate: controller.activeCandidate,
       canRecompute,
       hasView: view.geometry !== null,
+      fold: {
+        available: fold.available,
+        playing: fold.playing,
+        folded: fold.folded,
+        pleat:
+          readingPlan && foldCardKind(breakdown.variants, viewSteps, breakdown.activeStep) === 'pleat',
+      },
     },
     { t }
   );
@@ -573,6 +599,7 @@ export function ReferencesPanel() {
                 sheetLineIds={sheetIds}
                 creaseVisibility={creaseVisibility}
                 mirrored={mirrored}
+                fold={foldScene}
                 onPick={onPick}
                 framingKey={`${view.framingKey}-sheet-${selectedSheet ?? 'none'}`}
                 themeKey={view.themeKey}
@@ -583,9 +610,11 @@ export function ReferencesPanel() {
               />
             )}
             <ReferencesDiagramLayer
+              ref={symbolsRef}
               model={scene.symbols}
               camera={diagramCamera}
               lineWidth={view.lineWidth}
+              fold={foldScene}
             />
             {view.geometry && (
               <ReferencesViewportToolbar

@@ -147,7 +147,7 @@ function gridBoundSegment(
 }
 
 /** The in-paper segment an input reference stands for, if it is a line at all. */
-function segmentOfRef(
+export function segmentOfRef(
   sequence: PrecreaseSequence,
   frame: DiagramFrame,
   ref: PrecreaseRef
@@ -178,7 +178,7 @@ function markSegment(
 }
 
 /** Where an input sits, as the one point an arrow can be drawn from. */
-function anchorOfRef(
+export function anchorOfRef(
   sequence: PrecreaseSequence,
   frame: DiagramFrame,
   chord: DiagramSegment,
@@ -205,7 +205,7 @@ function anchorOfRef(
  * written down in the planner's own units. A similarity carries a reflection to
  * a reflection, so the two agree wherever both exist.
  */
-function reflectAcross(segment: DiagramSegment, p: readonly [number, number]): [number, number] {
+export function reflectAcross(segment: DiagramSegment, p: readonly [number, number]): [number, number] {
   const dx = segment[1].x - segment[0].x;
   const dy = segment[1].y - segment[0].y;
   const length = Math.hypot(dx, dy);
@@ -339,7 +339,7 @@ function movingPortion(
  * alone is not enough either: a pinch pressed on the line later is crease too,
  * and is sometimes the only crease the fold lines up against.
  */
-function spansOfRef(
+export function spansOfRef(
   sequence: PrecreaseSequence,
   frame: DiagramFrame,
   step: PrecreaseStep,
@@ -452,15 +452,23 @@ function alignment(
   return best;
 }
 
-/**
- * How much paper lies on `side` of the fold: the sheet clipped to that
- * half-plane. A folder swings the smaller flap.
- */
-function flapArea(frame: DiagramFrame, chord: DiagramSegment, side: number): number {
+/** The sheet as a polygon in the frame's coordinates, or null without edges to build it from. */
+export function sheetPolygon(frame: DiagramFrame): Point[] | null {
   const bottom = frame.edge('bottom');
   const top = frame.edge('top');
-  if (!bottom || !top) return 0;
-  let polygon: Point[] = [bottom[0], bottom[1], top[1], top[0]];
+  if (!bottom || !top) return null;
+  return [bottom[0], bottom[1], top[1], top[0]];
+}
+
+/**
+ * The part of a convex polygon on `side` of the chord, the line itself
+ * included: one Sutherland–Hodgman pass against the half-plane.
+ */
+export function clipPolygonToSide(
+  polygon: readonly Point[],
+  chord: DiagramSegment,
+  side: number
+): Point[] {
   const clipped: Point[] = [];
   for (let i = 0; i < polygon.length; i += 1) {
     const p = polygon[i]!;
@@ -473,7 +481,11 @@ function flapArea(frame: DiagramFrame, chord: DiagramSegment, side: number): num
       if (t !== null) clipped.push(lerp(p, q, t));
     }
   }
-  polygon = clipped;
+  return clipped;
+}
+
+/** The area a polygon encloses, whichever way round it is wound. */
+export function polygonArea(polygon: readonly Point[]): number {
   let area = 0;
   for (let i = 0; i < polygon.length; i += 1) {
     const p = polygon[i]!;
@@ -481,6 +493,15 @@ function flapArea(frame: DiagramFrame, chord: DiagramSegment, side: number): num
     area += p.x * q.y - q.x * p.y;
   }
   return Math.abs(area) / 2;
+}
+
+/**
+ * How much paper lies on `side` of the fold: the sheet clipped to that
+ * half-plane. A folder swings the smaller flap.
+ */
+export function flapArea(frame: DiagramFrame, chord: DiagramSegment, side: number): number {
+  const sheet = sheetPolygon(frame);
+  return sheet ? polygonArea(clipPolygonToSide(sheet, chord, side)) : 0;
 }
 
 /** The pieces of `runs` on `side` of the fold. */
@@ -537,7 +558,7 @@ function landingStretch(
  * on crease, the smaller flap whose arm lands on the paper at all; and when
  * the moving line does not cross the fold, the side it is on.
  */
-function movingSide(
+export function movingSide(
   frame: DiagramFrame,
   chord: DiagramSegment,
   source: DiagramSegment,
@@ -583,10 +604,165 @@ function movingSide(
 const ALIGNMENT_FLOOR = 0.06;
 
 /**
+ * How much smaller the other flap has to be before the picture swings it
+ * instead of the one the crate named: a quarter. Near a tie the crate's
+ * choice stands — it was made for the alignment's legibility, and nothing
+ * is gained by overriding it for a hair of paper.
+ */
+export const FLAP_PREFERENCE_SLACK = 0.25;
+
+/**
+ * The inputs that move in the picture.
+ *
+ * The crate's `who_moves` says which input's motion makes the alignment
+ * legible — a corner brought onto an interior mark rather than the mark
+ * brought onto the corner. A reflection is symmetric, so the other input
+ * could move instead and make the same crease, and that is what a folder
+ * does when the crate's input sits on the larger part of the sheet: a fold
+ * through a mark near the bottom edge that brings a top corner onto a line
+ * is made by lifting the strip below the fold, not by swinging nine tenths
+ * of the sheet over it (markhor step 47, Zach 2026-09-16). So where the
+ * axiom has a symmetric alternative and the crate's side is the larger flap
+ * by more than {@link FLAP_PREFERENCE_SLACK}, the alternative moves.
+ *
+ * One decision, read by the arrow, the sentence and the animation alike.
+ * O3's alternative is the other line, each swinging the side `movingSide`
+ * finds for it; O4's shorter arm is the same idea again; O1 moves nothing.
+ */
+export function movingInputs(
+  sequence: PrecreaseSequence,
+  frame: DiagramFrame,
+  step: PrecreaseStep,
+  witness: PrecreaseWitness
+): number[] {
+  const crate = [...witness.who_moves];
+  const chord = frame.chord(step);
+  if (!chord) return crate;
+  if (witness.axiom === 3) return lineMovers(sequence, frame, step, chord, witness, crate);
+  const alternative = alternativeMovers(witness.axiom, crate);
+  if (!alternative) return crate;
+  const side = moversSide(sequence, frame, chord, witness, crate);
+  const other = moversSide(sequence, frame, chord, witness, alternative);
+  if (side === 0 || other === 0 || side === other) return crate;
+  return prefersAlternative(frame, chord, side, other) ? alternative : crate;
+}
+
+/** The other flap is the smaller by more than the slack. */
+function prefersAlternative(
+  frame: DiagramFrame,
+  chord: DiagramSegment,
+  mine: number,
+  theirs: number
+): boolean {
+  return flapArea(frame, chord, theirs) < flapArea(frame, chord, mine) * (1 - FLAP_PREFERENCE_SLACK);
+}
+
+/**
+ * O3's form of the rule. A line folded onto a line is made by swinging
+ * either: the one the crate names, or the other onto it — the same crease,
+ * the same alignment. Each swings the side `movingSide` finds for it, the
+ * arm that lands on the other's crease, and the crate's line stands unless
+ * the other's flap is the smaller by more than the slack. Markhor step 28:
+ * a crease onto a crease where the crate's line swung two thirds of the
+ * sheet over the other third, and a folder lifts the third (Zach,
+ * 2026-09-16).
+ */
+function lineMovers(
+  sequence: PrecreaseSequence,
+  frame: DiagramFrame,
+  step: PrecreaseStep,
+  chord: DiagramSegment,
+  witness: PrecreaseWitness,
+  crate: number[]
+): number[] {
+  const which = crate[0];
+  if (which === undefined || witness.inputs.length !== 2 || crate.length !== 1) return crate;
+  const other = which === 0 ? 1 : 0;
+  const sideFor = (mover: number, still: number): number => {
+    const ref = witness.inputs[mover];
+    const stillRef = witness.inputs[still];
+    if (!ref || !stillRef) return 0;
+    const source = segmentOfRef(sequence, frame, ref);
+    if (!source) return 0;
+    return movingSide(
+      frame,
+      chord,
+      source,
+      spansOfRef(sequence, frame, step, ref),
+      spansOfRef(sequence, frame, step, stillRef)
+    );
+  };
+  const mine = sideFor(which, other);
+  const theirs = sideFor(other, which);
+  if (mine === 0 || theirs === 0 || mine === theirs) return crate;
+  return prefersAlternative(frame, chord, mine, theirs) ? [other] : crate;
+}
+
+/**
+ * The other way to make the same fold: the input the crate's mover lands
+ * on, for the axioms that bring one thing onto another. Null where there is
+ * no such swap — O1 and O4 move nothing, O3 is decided by `movingSide`.
+ */
+function alternativeMovers(axiom: number, movers: readonly number[]): number[] | null {
+  if (movers.length === 0) return null;
+  const swap = (pairs: readonly (readonly [number, number])[]): number[] | null => {
+    const out: number[] = [];
+    for (const index of movers) {
+      const pair = pairs.find((p) => p[0] === index || p[1] === index);
+      if (!pair) return null;
+      out.push(pair[0] === index ? pair[1] : pair[0]);
+    }
+    return out;
+  };
+  switch (axiom) {
+    case 2:
+      return swap([[0, 1]]);
+    case 5:
+      return swap([[1, 2]]);
+    case 6:
+      return swap([
+        [0, 1],
+        [2, 3],
+      ]);
+    case 7:
+      return swap([[0, 1]]);
+    default:
+      return null;
+  }
+}
+
+/**
+ * Which side of the fold a set of movers swings from: where the arrow for
+ * its first mover starts — the place a mark lands when the mover carries
+ * one, else where the mover sits. 0 when that cannot be placed.
+ */
+function moversSide(
+  sequence: PrecreaseSequence,
+  frame: DiagramFrame,
+  chord: DiagramSegment,
+  witness: PrecreaseWitness,
+  movers: readonly number[]
+): number {
+  const landings = landingPairs(witness);
+  for (const which of movers) {
+    const ref = witness.inputs[which];
+    if (!ref) continue;
+    const carried = landings.get(which);
+    const mark = carried === undefined ? undefined : witness.inputs[carried];
+    const at = mark && (mark.kind === 'point' || mark.kind === 'corner') ? frame.point(mark.id) : null;
+    const start = at ? reflectAcross(chord, [at.x, at.y]) : anchorOfRef(sequence, frame, chord, ref);
+    if (!start) continue;
+    const side = sideOf(chord, { x: start[0], y: start[1] });
+    if (side !== 0) return side;
+  }
+  return 0;
+}
+
+/**
  * Which line inputs a point input lands on, by input index: the crate's O5
  * is `[pivot, p, m1]`, O6 `[p1, m1, p2, m2]`, O7 `[p, m1, m2]`.
  */
-function landingPairs(witness: PrecreaseWitness | null): Map<number, number> {
+export function landingPairs(witness: PrecreaseWitness | null): Map<number, number> {
   switch (witness?.axiom) {
     case 5:
       return new Map([[2, 1]]);
@@ -612,7 +788,7 @@ function distanceToSegment([a, b]: DiagramSegment, p: Point): number {
 }
 
 /** Which side of `chord` the point is on: +1, −1, or 0 on the line. */
-function sideOf(chord: DiagramSegment, p: Point): number {
+export function sideOf(chord: DiagramSegment, p: Point): number {
   const [a, b] = chord;
   const cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
   const scale = Math.hypot(b.x - a.x, b.y - a.y);
@@ -688,7 +864,7 @@ export interface PlannerStepDiagramOptions {
  * crease are not on the paper, and drawing them is the difference between a
  * diagram and a picture of a line.
  */
-function creasedSpans(
+export function creasedSpans(
   frame: DiagramFrame,
   step: PrecreaseStep,
   patterned = true
@@ -901,7 +1077,7 @@ export function plannerStepDiagram(
   // extent of the crease actually on the paper — not just to where the edge
   // happens to land on it — because that crease is the thing the folder lines
   // up against.
-  const moving = new Set(witness?.who_moves ?? []);
+  const moving = new Set(witness ? movingInputs(sequence, frame, step, witness) : []);
   // O4 is a perpendicular to a line through a mark. The crate says nothing
   // moves — the fold is sighted, not swung — but a folder makes one by folding
   // the line onto itself with the mark as the hinge: hold the mark, bring the
@@ -1058,7 +1234,7 @@ export function plannerStepDiagram(
   // other line's crease — the longest such, or the longest piece when nothing
   // lands — so the arrow, the highlight and the landing agree on which arm
   // moves and where it goes.
-  for (const which of witness?.who_moves ?? []) {
+  for (const which of moving) {
     const ref = inputs[which];
     if (!ref || !chord) continue;
     // A line that carries a point's landing swings from that very place: the
@@ -1194,17 +1370,22 @@ export function plannerStepDiagram(
 export function plannerTurnOverDiagram(
   sequence: PrecreaseSequence,
   frame: DiagramFrame,
-  after: number | null
+  after: number | null,
+  options: Pick<PlannerStepDiagramOptions, 'earlier'> = {}
 ): StepDiagramModel {
   const sheet = frame.sheet;
   const primitives: StepDiagramPrimitive[] = [];
   if (frame.outline) {
     primitives.push({ kind: 'sheet', width: sheet.width, height: sheet.height });
   }
+  // The build-up so far: all of it on a card; on the canvas, which has the
+  // pattern's own creases beneath in their own ink, only what the pattern
+  // does not hold — the pinches and the auxiliary folds.
+  const patterned = (options.earlier ?? 'all') === 'all';
   for (let i = 0; after !== null && i <= after && i < sequence.steps.length; i += 1) {
     const step = sequence.steps[i];
     if (!step) continue;
-    for (const span of creasedSpans(frame, step)) {
+    for (const span of creasedSpans(frame, step, patterned)) {
       primitives.push(spanLine(span, 'crease'));
     }
   }

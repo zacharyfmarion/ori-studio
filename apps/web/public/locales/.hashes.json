@@ -3055,7 +3055,14 @@
     "panels:cpProperties.region.hidden": "7e6fefff0f0a",
     "panels:cpProperties.region.imageShown": "6ba2a0e0afd0",
     "panels:cpProperties.region.section": "d3a008ef1335",
-    "panels:sidePane.settings": "74a883a037bc"
+    "panels:sidePane.settings": "74a883a037bc",
+    "panels:references.actions.noFoldHint": "1f1752dcef08",
+    "panels:references.actions.pauseFold": "873316d346dd",
+    "panels:references.actions.pleatHint": "762e0df6f06d",
+    "panels:references.actions.unfold": "ae11429cfc27",
+    "panels:references.settings.autoPlayFolds": "e5fad7f61227",
+    "panels:references.settings.autoPlayFoldsHelp": "9938788f2238",
+    "tools:references.playFold": "86f81edff193"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -6113,7 +6120,14 @@
     "panels:cpProperties.region.hidden": "7e6fefff0f0a",
     "panels:cpProperties.region.imageShown": "6ba2a0e0afd0",
     "panels:cpProperties.region.section": "d3a008ef1335",
-    "panels:sidePane.settings": "74a883a037bc"
+    "panels:sidePane.settings": "74a883a037bc",
+    "panels:references.actions.noFoldHint": "1f1752dcef08",
+    "panels:references.actions.pauseFold": "873316d346dd",
+    "panels:references.actions.pleatHint": "762e0df6f06d",
+    "panels:references.actions.unfold": "ae11429cfc27",
+    "panels:references.settings.autoPlayFolds": "e5fad7f61227",
+    "panels:references.settings.autoPlayFoldsHelp": "9938788f2238",
+    "tools:references.playFold": "86f81edff193"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -9173,7 +9187,14 @@
     "panels:cpProperties.region.hidden": "7e6fefff0f0a",
     "panels:cpProperties.region.imageShown": "6ba2a0e0afd0",
     "panels:cpProperties.region.section": "d3a008ef1335",
-    "panels:sidePane.settings": "74a883a037bc"
+    "panels:sidePane.settings": "74a883a037bc",
+    "panels:references.actions.noFoldHint": "1f1752dcef08",
+    "panels:references.actions.pauseFold": "873316d346dd",
+    "panels:references.actions.pleatHint": "762e0df6f06d",
+    "panels:references.actions.unfold": "ae11429cfc27",
+    "panels:references.settings.autoPlayFolds": "e5fad7f61227",
+    "panels:references.settings.autoPlayFoldsHelp": "9938788f2238",
+    "tools:references.playFold": "86f81edff193"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -12173,7 +12194,14 @@
     "panels:cpProperties.region.hidden": "7e6fefff0f0a",
     "panels:cpProperties.region.imageShown": "6ba2a0e0afd0",
     "panels:cpProperties.region.section": "d3a008ef1335",
-    "panels:sidePane.settings": "74a883a037bc"
+    "panels:sidePane.settings": "74a883a037bc",
+    "panels:references.actions.noFoldHint": "1f1752dcef08",
+    "panels:references.actions.pauseFold": "873316d346dd",
+    "panels:references.actions.pleatHint": "762e0df6f06d",
+    "panels:references.actions.unfold": "ae11429cfc27",
+    "panels:references.settings.autoPlayFolds": "e5fad7f61227",
+    "panels:references.settings.autoPlayFoldsHelp": "9938788f2238",
+    "tools:references.playFold": "86f81edff193"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -15173,7 +15201,14 @@
     "panels:cpProperties.region.hidden": "7e6fefff0f0a",
     "panels:cpProperties.region.imageShown": "6ba2a0e0afd0",
     "panels:cpProperties.region.section": "d3a008ef1335",
-    "panels:sidePane.settings": "74a883a037bc"
+    "panels:sidePane.settings": "74a883a037bc",
+    "panels:references.actions.noFoldHint": "1f1752dcef08",
+    "panels:references.actions.pauseFold": "873316d346dd",
+    "panels:references.actions.pleatHint": "762e0df6f06d",
+    "panels:references.actions.unfold": "ae11429cfc27",
+    "panels:references.settings.autoPlayFolds": "e5fad7f61227",
+    "panels:references.settings.autoPlayFoldsHelp": "9938788f2238",
+    "tools:references.playFold": "86f81edff193"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -18231,7 +18266,14 @@
     "panels:cpProperties.region.hidden": "7e6fefff0f0a",
     "panels:cpProperties.region.imageShown": "6ba2a0e0afd0",
     "panels:cpProperties.region.section": "d3a008ef1335",
-    "panels:sidePane.settings": "74a883a037bc"
+    "panels:sidePane.settings": "74a883a037bc",
+    "panels:references.actions.noFoldHint": "1f1752dcef08",
+    "panels:references.actions.pauseFold": "873316d346dd",
+    "panels:references.actions.pleatHint": "762e0df6f06d",
+    "panels:references.actions.unfold": "ae11429cfc27",
+    "panels:references.settings.autoPlayFolds": "e5fad7f61227",
+    "panels:references.settings.autoPlayFoldsHelp": "9938788f2238",
+    "tools:references.playFold": "86f81edff193"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -21289,7 +21331,14 @@
     "panels:cpProperties.region.hidden": "7e6fefff0f0a",
     "panels:cpProperties.region.imageShown": "6ba2a0e0afd0",
     "panels:cpProperties.region.section": "d3a008ef1335",
-    "panels:sidePane.settings": "74a883a037bc"
+    "panels:sidePane.settings": "74a883a037bc",
+    "panels:references.actions.noFoldHint": "1f1752dcef08",
+    "panels:references.actions.pauseFold": "873316d346dd",
+    "panels:references.actions.pleatHint": "762e0df6f06d",
+    "panels:references.actions.unfold": "ae11429cfc27",
+    "panels:references.settings.autoPlayFolds": "e5fad7f61227",
+    "panels:references.settings.autoPlayFoldsHelp": "9938788f2238",
+    "tools:references.playFold": "86f81edff193"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -24289,6 +24338,13 @@
     "panels:cpProperties.region.hidden": "7e6fefff0f0a",
     "panels:cpProperties.region.imageShown": "6ba2a0e0afd0",
     "panels:cpProperties.region.section": "d3a008ef1335",
-    "panels:sidePane.settings": "74a883a037bc"
+    "panels:sidePane.settings": "74a883a037bc",
+    "panels:references.actions.noFoldHint": "1f1752dcef08",
+    "panels:references.actions.pauseFold": "873316d346dd",
+    "panels:references.actions.pleatHint": "762e0df6f06d",
+    "panels:references.actions.unfold": "ae11429cfc27",
+    "panels:references.settings.autoPlayFolds": "e5fad7f61227",
+    "panels:references.settings.autoPlayFoldsHelp": "9938788f2238",
+    "tools:references.playFold": "86f81edff193"
   }
 }

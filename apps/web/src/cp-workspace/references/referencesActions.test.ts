@@ -19,6 +19,7 @@ function state(overrides: Partial<ReferencesActionState> = {}): ReferencesAction
     activeCandidate: 1,
     canRecompute: true,
     hasView: true,
+    fold: { available: true, playing: false, folded: false, pleat: false },
     ...overrides,
   };
 }
@@ -39,6 +40,7 @@ describe('buildReferencesActions', () => {
     expect(ids).toEqual([
       'previous-step',
       'next-step',
+      'play-fold',
       'previous-candidate',
       'next-candidate',
       'recompute',
@@ -59,6 +61,7 @@ describe('buildReferencesActions', () => {
     expect(actions.map((action) => action.shortcutId)).toEqual([
       'references.previousStep',
       'references.nextStep',
+      'references.playFold',
       'references.previousCandidate',
       'references.nextCandidate',
       'references.recompute',
@@ -85,6 +88,36 @@ describe('buildReferencesActions', () => {
     }
     // An enabled verb carries no hint.
     expect(command(state(), 'next-step').hint).toBeUndefined();
+  });
+
+  it('names the fold verb by what pressing it does next, and says why it cannot', () => {
+    const flat = command(state(), 'play-fold');
+    expect(flat.label).toBe('Play Fold');
+    expect(flat.icon).toBe('play-fold');
+    expect(flat.disabled).toBe(false);
+    const moving = command(
+      state({ fold: { available: true, playing: true, folded: false, pleat: false } }),
+      'play-fold'
+    );
+    expect(moving.label).toBe('Pause Fold');
+    expect(moving.icon).toBe('pause-fold');
+    const folded = command(
+      state({ fold: { available: true, playing: false, folded: true, pleat: false } }),
+      'play-fold'
+    );
+    expect(folded.label).toBe('Unfold');
+    expect(folded.icon).toBe('unfold');
+    const pleat = command(
+      state({ fold: { available: false, playing: false, folded: false, pleat: true } }),
+      'play-fold'
+    );
+    expect(pleat.disabled).toBe(true);
+    expect(pleat.hint).toBe('Pleats aren’t animated yet');
+    const none = command(
+      state({ fold: { available: false, playing: false, folded: false, pleat: false } }),
+      'play-fold'
+    );
+    expect(none.hint).toBe('Nothing to fold on this card');
   });
 
   it('gates the camera verbs on there being a view', () => {

@@ -182,16 +182,12 @@ export function planVisibility(
     }
     }
   }
-  if (target.kind === 'turn-over') {
-    return {
-      visible: new Set(borderLineIds ?? []),
-      pickable: visible,
-      dimmed: null,
-      dimAlpha: 1,
-      directions,
-      borderLineIds,
-    };
-  }
+  // A turn-over and the finished card both show the build-up whole, in its
+  // directions. The turn-over used to hold the pattern's creases back and let
+  // its picture draw them greyed, as its card does; now that the sheet turns
+  // over on the canvas, the creases go with it in their own ink, and the
+  // face that comes up shows them mirrored with the assignment reversed —
+  // the same rendering a fold card's flap gets (Zach, 2026-09-16).
   if (target.kind !== 'fold') {
     return { visible, pickable: visible, dimmed: null, dimAlpha: 1, directions, borderLineIds };
   }

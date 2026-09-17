@@ -865,7 +865,11 @@
   },
   "references": {
     "actions": {
-      "noTargetHint": "Choisissez d’abord un sommet ou un pli"
+      "noFoldHint": "Rien à plier sur cette carte",
+      "noTargetHint": "Choisissez d’abord un sommet ou un pli",
+      "pauseFold": "Mettre le pli en pause",
+      "pleatHint": "Les plissés ne sont pas encore animés",
+      "unfold": "Déplier"
     },
     "alreadyOnSheet": "Ce point est déjà sur le papier : aucun pli nécessaire.",
     "alreadyOnSheetLine": "Cette ligne est déjà sur le papier : aucun pli nécessaire.",
@@ -1042,6 +1046,8 @@
     "settings": {
       "allowDangling": "Autoriser les plis flottants",
       "allowDanglingHelp": "Un pli flottant est une marque qui se termine sur du papier vierge, sans rien pour l’arrêter. Activé : chaque marque part d’une référence (le bord du papier ou un pli déjà fait) et ne va jusqu’à une seconde que si cela n’ajoute pas plus de marque que la marque elle-même. Désactivé : chaque marque va de référence à référence, quelle que soit la longueur supplémentaire.",
+      "autoPlayFolds": "Lecture automatique des plis",
+      "autoPlayFoldsHelp": "Joue le pli d’une étape dès que sa carte est atteinte. Désactivé, le pli se joue quand vous appuyez sur Lecture ou Espace, et se rejoue à l’envers quand vous appuyez à nouveau ; le papier se retourne tout de même de lui-même.",
       "candidates": "Candidats",
       "emptyNote": "Ouvrez un patron de pliage pour régler la recherche de ses références.",
       "gridWhereNeeded": "Seulement où nécessaire",

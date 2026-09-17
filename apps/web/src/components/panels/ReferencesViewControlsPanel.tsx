@@ -19,8 +19,15 @@ import { SelectRow, ToggleRow } from '../ui/fieldRows';
  */
 export function ReferencesViewControlsPanel() {
   const { t } = useTranslation();
-  const { settings, setSettings, landmarksFirst, toggleLandmarksFirst, hasDocument } =
-    useReferencesSettings();
+  const {
+    settings,
+    setSettings,
+    landmarksFirst,
+    toggleLandmarksFirst,
+    hasDocument,
+    autoPlayFolds,
+    setAutoPlayFolds,
+  } = useReferencesSettings();
 
   if (!hasDocument) {
     return (
@@ -95,6 +102,15 @@ export function ReferencesViewControlsPanel() {
             )}
             checked={settings.mergeSymmetricSteps}
             onChange={(checked) => setSettings({ mergeSymmetricSteps: checked })}
+          />
+          <ToggleRow
+            label={t('panels:references.settings.autoPlayFolds', 'Auto-play folds')}
+            help={t(
+              'panels:references.settings.autoPlayFoldsHelp',
+              'Play a step’s fold as soon as its card is reached. Off, the fold plays when you press Play or Space, and plays back when you press again; the paper still turns over on its own.'
+            )}
+            checked={autoPlayFolds}
+            onChange={setAutoPlayFolds}
           />
         </CollapsibleSection>
       </div>

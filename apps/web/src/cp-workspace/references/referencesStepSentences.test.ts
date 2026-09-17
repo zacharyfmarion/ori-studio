@@ -8,7 +8,9 @@ import { plannerStepDiagram } from './diagram/plannerDiagram';
 import type {
   PrecreaseGridStep,
   PrecreaseGridStepLine,
+  PrecreaseSequence,
   PrecreaseStep,
+  PrecreaseWitness,
 } from './precreaseSequence';
 import { plannerSequenceFixture } from './__fixtures__/plannerSequence';
 import {
@@ -212,6 +214,50 @@ describe('a planner step', () => {
     expect(describePlannerStep(t, sequence, 4)).toContain('Fold A onto B.');
   });
 
+  it('names the one that swings first, the way the card’s arrow goes', () => {
+    const o3 = (reverse: boolean, who: number[]): PrecreaseSequence => ({
+      ...sequence,
+      steps: sequence.steps.map((step, i) => {
+        if (i !== 4) return step;
+        const witness = step.witnesses[0]!;
+        const [first, second] = witness.inputs;
+        return {
+          ...step,
+          witnesses: [
+            { ...witness, inputs: reverse ? [second!, first!] : witness.inputs, who_moves: who },
+          ],
+        };
+      }),
+    });
+    // O3 with the crate naming the landmark's crease, three quarters of the
+    // sheet: the picture brings the edge up, and the caption says so — in
+    // either input order.
+    expect(describePlannerStep(t, o3(false, [1]), 4)).toContain('Fold A onto B.');
+    expect(describePlannerStep(t, o3(true, [0]), 4)).toContain('Fold B onto A.');
+
+    // O2 on real geometry: a mark at the bottom edge's middle and the SW
+    // corner, whose bisector is the fixture's crease at x = ¼, with the mark
+    // named first and said to move. The corner is the smaller flap, so the
+    // corner — Q, as the card letters it — is folded onto P. Its twin at
+    // x = ¾ brings the SE corner onto the same mark, and the crate's choice
+    // there stands.
+    const o2: PrecreaseSequence = {
+      ...sequence,
+      points: [...sequence.points, { id: 13, p: [0.5, 0], lines: [2], on_boundary: true }],
+      steps: sequence.steps.map((step, i) => {
+        if (i !== 1 && i !== 3) return step;
+        const witness = step.witnesses[0]!;
+        const inputs: PrecreaseWitness['inputs'] =
+          i === 1
+            ? [{ kind: 'point', id: 13 }, { kind: 'corner', id: 0, corner: 'sw' }]
+            : [{ kind: 'corner', id: 1, corner: 'se' }, { kind: 'point', id: 13 }];
+        return { ...step, witnesses: [{ ...witness, inputs, who_moves: [0] }] };
+      }),
+    };
+    expect(describePlannerStep(t, o2, 1)).toBe('Fold Q onto P.');
+    expect(describePlannerStep(t, o2, 1, 3)).toBe('Fold Q onto P and R onto P.');
+  });
+
   // axolotl (busi12341) step 26: `[P, m1, m2]` with P on the top edge, m1 the
   // horizontal midline and m2 the diagonal. The crease is perpendicular to the
   // diagonal and carries P onto the midline — so it is the diagonal (B) that
@@ -393,9 +439,11 @@ describe('a step with a mirror alignment', () => {
   // The second witness's letters carry on from the first's — the card
   // letters them the same way — and the sentence says why both are shown.
   it('names both alignments, lettered in turn, and says to line up both', () => {
-    // The mark both corners fold onto keeps its letter.
+    // The mark both corners fold onto keeps its letter. The second alignment
+    // names the one that swings first too: the SE corner sits on the larger
+    // part of the sheet, so the card's second arrow brings the mark onto it.
     expect(describePlannerStep(t, mirrored, 1)).toBe(
-      'Fold P onto Q. Fold R onto Q. Line up both at once, so the fold stays straight.'
+      'Fold P onto Q. Fold Q onto R. Line up both at once, so the fold stays straight.'
     );
   });
 });

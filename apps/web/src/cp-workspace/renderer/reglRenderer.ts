@@ -434,7 +434,11 @@ export function createReglRenderer(
       // user px (non-scaling): base = 1 css px (dpr device px) scaled per-segment
       // by the width multiplier.
       foldedFills.draw({ view: frame.userView, viewport });
-      foldedStrokes.draw({ view: frame.userView, viewport, widthPx: viewport.dpr });
+      foldedStrokes.draw({
+        view: frame.userView,
+        viewport,
+        widthPx: frame.foldedStrokeWidthPx ?? viewport.dpr,
+      });
       // Imported .fold folded-form frames are placed the same way, in user space,
       // and stay in the same band as the generated figures above them.
       if (hasImportedForms) {

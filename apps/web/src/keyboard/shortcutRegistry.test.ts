@@ -221,7 +221,13 @@ describe('adopted single-key layout', () => {
         (chord) => `${d.id}=${chord}`
       )
     );
-    expect(collisions).toEqual([]);
+    // The one exception, asked for by name (Zach, 2026-09-16): Space plays a
+    // step's fold, as it plays the simulator's. The crease-pattern binding it
+    // shadows arms the grid-restricted line tool, which while References is
+    // mounted would change the Edit workspace's tool out of sight — so taking
+    // the key here spares the reader a surprise rather than costing one. An
+    // allow-list, so a second collision still fails.
+    expect(collisions).toEqual(['references.playFold=space']);
   });
 
   it.each(EXPECTED_SINGLE_KEY_LAYOUT)('binds %s to %s', (chord, actionId) => {

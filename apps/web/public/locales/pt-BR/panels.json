@@ -865,7 +865,11 @@
   },
   "references": {
     "actions": {
-      "noTargetHint": "Escolha primeiro um vértice ou uma dobra"
+      "noFoldHint": "Não há nada para dobrar neste cartão",
+      "noTargetHint": "Escolha primeiro um vértice ou uma dobra",
+      "pauseFold": "Pausar dobra",
+      "pleatHint": "Pregas ainda não são animadas",
+      "unfold": "Desdobrar"
     },
     "alreadyOnSheet": "Este ponto já está no papel — nenhuma dobra é necessária.",
     "alreadyOnSheetLine": "Esta linha já está no papel — nenhuma dobra é necessária.",
@@ -1040,6 +1044,8 @@
     "settings": {
       "allowDangling": "Permitir dobras soltas",
       "allowDanglingHelp": "Uma dobra solta é um vinco que termina em papel em branco — sem nada onde parar. Ligado: cada vinco parte de uma referência (a borda do papel ou um vinco já feito) e só chega a uma segunda quando isso não acrescenta mais vinco do que o próprio vinco. Desligado: cada vinco vai de referência a referência, por mais vinco extra que isso custe.",
+      "autoPlayFolds": "Reproduzir dobras automaticamente",
+      "autoPlayFoldsHelp": "Reproduz a dobra de um passo assim que seu cartão é alcançado. Desligado, a dobra é reproduzida ao pressionar Reproduzir ou Espaço, e volta ao pressionar de novo; o papel ainda vira sozinho.",
       "candidates": "Candidatos",
       "emptyNote": "Abra um padrão de vincos para ajustar como suas referências são encontradas.",
       "gridWhereNeeded": "Só onde for preciso",
