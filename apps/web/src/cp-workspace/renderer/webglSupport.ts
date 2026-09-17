@@ -169,6 +169,29 @@ export function classifyCpWebglFailure(canvas: HTMLCanvasElement): CpWebglGap | 
   return null;
 }
 
+/**
+ * Wait on a canvas whose context was already lost when the renderer asked for it.
+ *
+ * regl never got as far as installing its own context-loss listeners — it threw on the
+ * first `getExtension` — so nothing is holding the door open for a restore. This does the
+ * two things regl would have: it `preventDefault()`s the `webglcontextlost` the browser
+ * queues for a context created lost, which is what marks the context as one the page wants
+ * back, and it calls `onRestored` on `webglcontextrestored` so the host can rebuild on the
+ * same canvas, which by then hands out a live context again.
+ *
+ * Returns the disposer; the host returns it from the same effect that would have owned the
+ * renderer.
+ */
+export function awaitContextRestore(canvas: HTMLCanvasElement, onRestored: () => void): () => void {
+  const onLost = (event: Event) => event.preventDefault();
+  canvas.addEventListener('webglcontextlost', onLost);
+  canvas.addEventListener('webglcontextrestored', onRestored);
+  return () => {
+    canvas.removeEventListener('webglcontextlost', onLost);
+    canvas.removeEventListener('webglcontextrestored', onRestored);
+  };
+}
+
 let cached: CpWebglSupport | null = null;
 
 /**

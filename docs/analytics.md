@@ -227,7 +227,9 @@ the person chose it or is following their OS. Two things it is deliberately not:
 | Event | Properties | Fires when |
 | --- | --- | --- |
 | `app opened` | — | App launch |
-| `app error` | `error_domain`, `operation`, `source_component`, `handled`, `fingerprint` | An error boundary catches (`handled: true`), or an uncaught window error / unhandled rejection reaches `GlobalErrorReporter` (`handled: false`, `source_component` `global:error` / `global:unhandledrejection`). Deduped over 30s **per surface** |
+| `app error` | `error_domain`, `operation`, `source_component`, `handled`, `fingerprint` | An error boundary catches (`handled: true`), or an uncaught window error / unhandled rejection reaches `GlobalErrorReporter` (`handled: false`, `source_component` `global:error` / `global:unhandledrejection`). Deduped over 30s **per surface**. A cross-origin script's `Script error.` placeholder is dropped before it gets here — the browser has already stripped everything but that message, and the script is never ours |
+| `dom mutated outside react` | `blocked_method` (`removeChild`/`insertBefore`) | The translated-DOM guard blocked a call React would otherwise have thrown on (`lib/translatedDomGuard.ts`) — an in-page translator has rewrapped React's text nodes. Once per session. A count, not an error: the guard is the fix, and the session is fine |
+| `browser unsupported` | `capability` (`module_workers`) | The startup probe found the browser starts a classic worker where a module one was asked for, so no engine can run; the app is replaced with `UnsupportedBrowserNotice` |
 | `analytics preference changed` | `enabled` | The privacy toggle changes |
 | `command invoked` | `command_id`, `command_group` | A menu / keyboard / palette action (recognized ids only; data suffixes stripped) |
 | `cp tool used` | `operation`, `group` | A CP editor operation executes |

@@ -63,6 +63,23 @@ export function globalErrorKey(kind: GlobalErrorKind, error: unknown): string {
   return `${kind}:${describeError(error)}:${firstFrame(error)}`;
 }
 
+/**
+ * Whether an `error` event is the browser's placeholder for a cross-origin script's throw.
+ *
+ * When a script from another origin throws — an extension, an in-page translator's injected
+ * loader, a third-party tag — the browser strips the error and the location before the
+ * event reaches `window`, leaving this one fixed message and nothing else. There is nothing
+ * to report and nothing to show: it is not our bundle, and the page is still fine.
+ *
+ * Sentry's SDK drops these by default; this keeps the analytics count and the toast on the
+ * same terms. Observed as the whole of a spike in `app error` — a run of `zh-CN` sessions
+ * with Chrome's auto-translate on, each of which also got a "something went wrong in the
+ * background" toast for a script that was never ours.
+ */
+export function isCrossOriginScriptError(event: ErrorEvent): boolean {
+  return /^Script error\.?$/.test(event.message ?? '');
+}
+
 export function installGlobalErrorHandlers(options: GlobalErrorHandlerOptions): () => void {
   const {
     onError,
@@ -106,6 +123,7 @@ export function installGlobalErrorHandlers(options: GlobalErrorHandlerOptions): 
   // exactly as it did before, so a developer's normal debugging still works.
   const onWindowError = (event: Event) => {
     const errorEvent = event as ErrorEvent;
+    if (isCrossOriginScriptError(errorEvent)) return;
     report('error', errorEvent.error ?? errorEvent.message ?? event);
   };
 

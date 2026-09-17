@@ -52,7 +52,12 @@ import { dropPointsOnFlaps, splitStrokesAtFolds, type SplitStrokes } from './fol
 import { createReglRenderer } from '../renderer/reglRenderer';
 import type { PointGeometry, Rgba, StrokeGeometry, Viewport } from '../renderer/types';
 import type { CpOverlayView } from '../CreasePatternWebglCanvas';
-import { classifyCpWebglFailure, cpWebglSupport, describeCpWebglGap } from '../renderer/webglSupport';
+import {
+  awaitContextRestore,
+  classifyCpWebglFailure,
+  cpWebglSupport,
+  describeCpWebglGap,
+} from '../renderer/webglSupport';
 import {
   CP_LINE_HIT_MIN_CSS,
   CP_LINE_HIT_RATIO,
@@ -654,6 +659,15 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         });
       } catch (error) {
         const gap = classifyCpWebglFailure(canvas);
+        // Already lost is a loss arriving early, not a gap — same handling as
+        // `onContextLost`, and like it not reported. See the editor canvas.
+        if (gap === 'context-lost-at-start') {
+          preservedCameraRef.current = cameraRef.current;
+          setRendererStatus({ kind: 'context-lost' });
+          return awaitContextRestore(canvas, () =>
+            setRendererGeneration((generation) => generation + 1)
+          );
+        }
         reportError(error, {
           surface: 'references:webgl',
           tags: { webgl_gap: gap ?? 'unclassified' },

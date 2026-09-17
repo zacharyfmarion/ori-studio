@@ -62,6 +62,10 @@
     "tooLarge": "Este patrón de pliegues es demasiado grande para compartirlo como enlace. Expórtalo como archivo en su lugar.",
     "tooNew": "Ese enlace se creó con una versión más reciente de Ori Studio. Recarga para obtener la última versión y ábrelo de nuevo."
   },
+  "unsupportedBrowser": {
+    "description": "Sus motores se ejecutan en Web Workers de tipo módulo, que este navegador no admite. Actualiza a una versión actual de Firefox, Chrome, Edge o Safari y vuelve a abrir esta página.",
+    "title": "Ori Studio no puede ejecutarse en este navegador"
+  },
   "worker": {
     "cpDetect": "La detección de patrones de pliegues se ha detenido inesperadamente. Prueba a importar la imagen de nuevo.",
     "oristudioBp": "El motor de plegado en caja se ha detenido inesperadamente. Recarga Ori Studio para seguir trabajando en este diseño.",
