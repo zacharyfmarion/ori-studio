@@ -873,11 +873,6 @@
       "turnOverBadge": "翻面"
     },
     "goToEdit": "前往编辑",
-    "hint": {
-      "jump": "点击折痕，跳转到折出它的步骤。",
-      "open": "打开一个图样，查看如何折出它。",
-      "pick": "点击顶点或折痕，查看如何折出它。"
-    },
     "lead": {
       "find": "点击顶点或折痕，查看如何从空白纸张折出它。",
       "findSequence": "或者计算完整的预折顺序。",
@@ -991,8 +986,7 @@
       "title": "图样"
     },
     "sidebar": {
-      "none": "在当前设置下，ReferenceFinder 没有为此目标找到作图。",
-      "planning": "正在计算预折顺序…"
+      "none": "在当前设置下，ReferenceFinder 没有为此目标找到作图。"
     },
     "step": {
       "axiom1": "经过 {{p0}} 和 {{p1}} 折出 {{x}}。",

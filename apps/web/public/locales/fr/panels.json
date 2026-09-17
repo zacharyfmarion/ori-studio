@@ -937,11 +937,6 @@
       "turnOverBadge": "Retourner"
     },
     "goToEdit": "Aller à Édition",
-    "hint": {
-      "jump": "Touchez un pli pour aller à l’étape qui le fait.",
-      "open": "Ouvrez un patron pour voir comment le plier.",
-      "pick": "Cliquez sur un sommet ou un pli pour voir comment le plier."
-    },
     "lead": {
       "find": "Touchez un sommet ou un pli pour voir comment le plier à partir d’une feuille vierge.",
       "findSequence": "Ou calculez toute la séquence de prépliage.",
@@ -1067,8 +1062,7 @@
       "title": "Patrons"
     },
     "sidebar": {
-      "none": "ReferenceFinder n’a trouvé aucune construction pour cette cible avec les réglages actuels.",
-      "planning": "Calcul de la séquence de prépliage…"
+      "none": "ReferenceFinder n’a trouvé aucune construction pour cette cible avec les réglages actuels."
     },
     "step": {
       "axiom1": "Pliez {{x}} en passant par {{p0}} et {{p1}}.",

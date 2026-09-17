@@ -68,12 +68,7 @@ export const SimulatorSegmentsSidebar = memo(function SimulatorSegmentsSidebar({
         <span className="panel-title">{t('panels:simulatorSegments.patterns', 'Patterns')}</span>
         <span className="segments-sidebar__count">{segments.length}</span>
       </div>
-      <SheetGrid
-        sheets={items}
-        selected={selected}
-        onSelect={onSelect}
-        className="segments-sidebar__sheets"
-      />
+      <SheetGrid sheets={items} selected={selected} onSelect={onSelect} />
     </aside>
   );
 });

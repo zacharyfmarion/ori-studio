@@ -375,9 +375,11 @@ it('on a phone, opens a sheet from the list into the detail and comes back', () 
     });
     useWorkspaceStore.setState({ oristudioCpDocument: document1 } as never);
   });
-  // A document: the list, alone, with its one card.
+  // A document: the list, alone, with its one card — and no notes under it,
+  // since the frames warned of nothing and no plan has reported anything.
   expect(query('.references-panel')).toBeNull();
   expect(container?.querySelectorAll('.sheet-card')).toHaveLength(1);
+  expect(query('.references-sidebar__notes')).toBeNull();
 
   press('.sheet-card');
   // The detail, alone, with the way back where the title was.

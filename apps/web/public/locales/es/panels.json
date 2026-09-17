@@ -937,11 +937,6 @@
       "turnOverBadge": "Dar la vuelta"
     },
     "goToEdit": "Ir a Editar",
-    "hint": {
-      "jump": "Toca un pliegue para saltar al paso que lo dobla.",
-      "open": "Abre un patrón para ver cómo doblarlo.",
-      "pick": "Haz clic en un vértice o pliegue para ver cómo doblarlo."
-    },
     "lead": {
       "find": "Toca un vértice o pliegue para ver cómo doblarlo desde una hoja en blanco.",
       "findSequence": "O calcula toda la secuencia de prepliegues.",
@@ -1065,8 +1060,7 @@
       "title": "Patrones"
     },
     "sidebar": {
-      "none": "ReferenceFinder no halló ninguna construcción para este objetivo con los ajustes actuales.",
-      "planning": "Calculando la secuencia de prepliegues…"
+      "none": "ReferenceFinder no halló ninguna construcción para este objetivo con los ajustes actuales."
     },
     "step": {
       "axiom1": "Dobla {{x}} pasando por {{p0}} y {{p1}}.",

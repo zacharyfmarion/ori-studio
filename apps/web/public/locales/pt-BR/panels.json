@@ -937,11 +937,6 @@
       "turnOverBadge": "Virar"
     },
     "goToEdit": "Ir para Editar",
-    "hint": {
-      "jump": "Toque em uma dobra para ir ao passo que a faz.",
-      "open": "Abra um padrão para ver como dobrá-lo.",
-      "pick": "Clique em um vértice ou dobra para ver como dobrá-lo."
-    },
     "lead": {
       "find": "Toque em um vértice ou dobra para ver como dobrá-lo a partir de uma folha em branco.",
       "findSequence": "Ou calcule toda a sequência de pré-dobras.",
@@ -1065,8 +1060,7 @@
       "title": "Padrões"
     },
     "sidebar": {
-      "none": "O ReferenceFinder não encontrou nenhuma construção para este alvo com as configurações atuais.",
-      "planning": "Calculando a sequência de pré-dobras…"
+      "none": "O ReferenceFinder não encontrou nenhuma construção para este alvo com as configurações atuais."
     },
     "step": {
       "axiom1": "Dobre {{x}} passando por {{p0}} e {{p1}}.",

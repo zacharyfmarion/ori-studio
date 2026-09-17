@@ -903,11 +903,6 @@
       "turnOverBadge": "Turn over"
     },
     "goToEdit": "Go to Edit",
-    "hint": {
-      "jump": "Tap a crease to jump to the step that makes it.",
-      "open": "Open a pattern to see how to fold it.",
-      "pick": "Click a vertex or crease to see how to fold it."
-    },
     "lead": {
       "find": "Tap a vertex or crease to see how to fold it from a blank sheet.",
       "findSequence": "Or plan the whole precreasing sequence.",
@@ -1032,8 +1027,7 @@
       "title": "Patterns"
     },
     "sidebar": {
-      "none": "ReferenceFinder found no construction for this target at the current settings.",
-      "planning": "Working out the precreasing sequence…"
+      "none": "ReferenceFinder found no construction for this target at the current settings."
     },
     "step": {
       "axiom1": "Fold {{x}} through {{p0}} and {{p1}}.",

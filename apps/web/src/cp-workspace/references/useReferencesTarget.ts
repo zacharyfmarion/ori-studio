@@ -54,7 +54,7 @@ import {
   referencesPickGeneration,
   referencesRunSnapshot,
 } from './referencesRun';
-import { referencesSidebarText, refusalMessageFor } from './referencesSidebarText';
+import { referencesSidebarWarnings, refusalMessageFor } from './referencesSidebarText';
 import { candidateStepCount, clampCandidateStep } from './referencesCandidateSteps';
 import { shownCandidates } from './referencesShownCandidates';
 import type { ReferencesPick } from './referencesViewGeometry';
@@ -112,8 +112,6 @@ export interface ReferencesTargetController {
   activeStep: number;
   active: ReferencesCandidateResult | null;
   stepCount: number;
-  /** What the sidebar says before or beside the results. */
-  hint: string;
   /** Things worth knowing that did not stop the analysis (the paper fallback, refused sheets). */
   warnings: string[];
   pick: (hit: ReferencesPick | null) => void;
@@ -840,8 +838,8 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
     [selectCandidate, activeCandidate]
   );
 
-  // --- Hint and warnings ---------------------------------------------------
-  const { hint, warnings } = useMemo(() => referencesSidebarText(t, frames), [frames, t]);
+  // --- Warnings --------------------------------------------------------------
+  const warnings = useMemo(() => referencesSidebarWarnings(t, frames), [frames, t]);
 
   return {
     target,
@@ -854,7 +852,6 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
     activeStep,
     active,
     stepCount,
-    hint,
     warnings,
     pick,
     clear,

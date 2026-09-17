@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TFunction } from 'i18next';
-import { referencesSidebarText } from './referencesSidebarText';
+import { referencesSidebarWarnings } from './referencesSidebarText';
 import type { PrecreaseComponent, PrecreaseWarning, SheetAnalysis } from './sheetFrames';
 
 /** Returns the English default with `{{name}}` interpolations applied. */
@@ -39,29 +39,22 @@ function analysis(warnings: PrecreaseWarning[], components = [component()]): She
   };
 }
 
-describe('referencesSidebarText', () => {
-  it('asks for a pick, whatever the document holds', () => {
-    // No longer varies with the sheet count: the sidebar's pattern picker says
-    // which sheet is being read, so the hint has nothing left to disambiguate.
-    expect(referencesSidebarText(t, null).hint).toBe(
-      'Click a vertex or crease to see how to fold it.'
-    );
-    expect(referencesSidebarText(t, analysis([], [component(), component({ id: 1 })])).hint).toBe(
-      'Click a vertex or crease to see how to fold it.'
-    );
+describe('referencesSidebarWarnings', () => {
+  it('has nothing to say before the frames are known', () => {
+    expect(referencesSidebarWarnings(t, null)).toEqual([]);
   });
 
   it('surfaces creases that fall inside no sheet', () => {
     // `Warning::UnassignedSegments` — creases dropped from every component
     // before planning. Silent until it is read here: the consumer matches on
     // `kind`, so an unlisted variant is simply never seen.
-    expect(referencesSidebarText(t, analysis([{ kind: 'unassigned_segments', count: 7 }])).warnings).toEqual(
-      ['7 crease(s) fall outside every sheet and are left out.']
-    );
+    expect(referencesSidebarWarnings(t, analysis([{ kind: 'unassigned_segments', count: 7 }]))).toEqual([
+      '7 crease(s) fall outside every sheet and are left out.',
+    ]);
   });
 
   it('surfaces every warning the planner can emit', () => {
-    const { warnings } = referencesSidebarText(
+    const warnings = referencesSidebarWarnings(
       t,
       analysis([
         { kind: 'no_border_fallback', paper: [-200, -200, 200, 200] },
@@ -76,7 +69,7 @@ describe('referencesSidebarText', () => {
   });
 
   it('still reports refused sheets after the planner warnings', () => {
-    const { warnings } = referencesSidebarText(
+    const warnings = referencesSidebarWarnings(
       t,
       analysis(
         [{ kind: 'unassigned_segments', count: 1 }],

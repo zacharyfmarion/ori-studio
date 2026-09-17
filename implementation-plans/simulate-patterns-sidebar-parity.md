@@ -91,3 +91,34 @@ workspaces wrap.
 - [x] i18n: new keys extracted, translated in all locales, stamped.
 - [x] Validation: lint, typecheck, unit tests, i18n check; browser check at
       desktop and phone widths.
+
+## Follow-up: the References rail, the other way round
+
+Zach, on the first cut: the References rail should render as the Simulate
+rail now does — one pattern per row — and "the bottom area of the left pane
+in the references tab is useless".
+
+- Both rails share one set of rules (`.segments-sidebar, .references-sidebar`
+  in `theme.css`): 200px, header, then the cards filling the rest, one per
+  row (`align-content: start`, or a tall rail stretches its rows into blank
+  space under each card). The References rail was 260px with two columns and
+  a 40% cap on the cards; both go.
+- The bottom area held four hints — all already said by the lead under the
+  toolbar ("Tap a vertex or crease…", "Working out the precreasing
+  sequence…") — and diagnostics that are empty on a well-formed document:
+  the frames analysis's warnings, the plan's "Lines with no exact fold" (with
+  click-to-frame), "Sheets left out", and the output of *Crease Pattern ›
+  Analyze references*. The hints are deleted (`referencesSidebarText` keeps
+  only the warnings, `useReferencesTarget` no longer carries a hint). The
+  diagnostics stay, but the notes box mounts only when one of them has
+  something to say (`hasReferencesFindings`), capped at half the rail so the
+  cards keep the larger half. On a clean document the rail is the cards alone.
+- Not changed: the References rail still stays mounted for a single-sheet
+  document, where Simulate's hides. Hiding it would leave the diagnostics with
+  no home and would make the rail pop in when a plan reports a finding; if the
+  single-sheet rail should go too, the notes need a home of their own first.
+
+- [x] Shared rail rules, one column, no row stretch.
+- [x] Notes only when there are any; hints deleted with their i18n keys.
+- [x] Tests: `hasReferencesFindings`, the panel's phone list without notes,
+      `referencesSidebarWarnings`.

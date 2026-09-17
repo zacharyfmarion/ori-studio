@@ -5148,7 +5148,16 @@ button.cp-folded-figure-toolbar__notice:hover {
   min-width: 0;
 }
 
-.segments-sidebar {
+/*
+ * The rail of the document's patterns: Simulate's (`.segments-sidebar`) and
+ * References' (`.references-sidebar`), one set of rules because they are the
+ * same rail — a header, then the cards filling the rest — and a width or a
+ * column count that differed between them read as two different pickers of
+ * the same list. References adds notes under its cards, only when there are
+ * any (`.references-sidebar__notes`).
+ */
+.segments-sidebar,
+.references-sidebar {
   display: flex;
   flex: 0 0 200px;
   flex-direction: column;
@@ -5157,7 +5166,8 @@ button.cp-folded-figure-toolbar__notice:hover {
   background: var(--bg-secondary);
 }
 
-.segments-sidebar__header {
+.segments-sidebar__header,
+.references-sidebar__header {
   display: flex;
   align-items: center;
   gap: var(--space-1);
@@ -5168,7 +5178,8 @@ button.cp-folded-figure-toolbar__notice:hover {
   color: var(--text-secondary);
 }
 
-.segments-sidebar__count {
+.segments-sidebar__count,
+.references-sidebar__count {
   margin-left: auto;
   color: var(--text-tertiary);
   font-size: 0.68rem;
@@ -5178,19 +5189,23 @@ button.cp-folded-figure-toolbar__notice:hover {
 
 /*
  * The document's crease patterns as cards — the one picker both rails draw,
- * the Simulate rail above and the References rail (`.references-sidebar`), so
- * the two lists read as the same list. Base rules here, *before* the phone
- * block: each rail's own rules and the phone's are the later word.
+ * so the two lists read as the same list. Base rules here, *before* the phone
+ * block, which is the later word.
  *
- * Auto-filled columns rather than a fixed count: the 200px Simulate rail
- * gives one column of large cards, the 260px References rail two, and the
- * phone's block asks for two of thumb size outright.
+ * One card per row, filling what the header leaves and scrolling on its own:
+ * a pattern is a picture, and at a rail's width two of them side by side were
+ * too small to tell apart. The phone's block asks for two of thumb size.
  */
 .sheet-grid {
   display: grid;
-  flex: 0 0 auto;
-  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  flex: 1 1 auto;
+  grid-template-columns: minmax(0, 1fr);
+  /* The grid fills the rail, and a grid's rows stretch into a definite height
+     by default — two cards in a tall rail each grew a blank third under their
+     label. The rows keep their own height; the rail's spare room stays below. */
+  align-content: start;
   gap: var(--space-2);
+  min-height: 0;
   overflow: auto;
   margin: 0;
   padding: var(--space-2);
@@ -5304,13 +5319,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   color: var(--text-tertiary);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-/* The Simulate rail's grid fills what the header leaves and scrolls on its
-   own. After the shared rule, whose `flex` it overrides. */
-.segments-sidebar__sheets {
-  flex: 1 1 auto;
-  min-height: 0;
 }
 
 .cp-panel__empty {
@@ -10857,16 +10865,14 @@ button.bp-packing-alert:focus-visible {
   }
 
   /*
-   * Two cards per row, sized for a thumb, and no cap on the strip: the
-   * References rail's 40% ceiling exists so a long list leaves room for the
-   * notes beside the canvas, and on this screen the notes come *after* the
-   * list, in the same scroll.
+   * Two cards per row, sized for a thumb, and the grid no longer scrolling on
+   * its own: the whole screen scrolls as one, the References notes coming
+   * *after* the list in the same scroll.
    */
   .references-workspace .sheet-grid,
   .simulator-workspace .sheet-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-3);
-    max-height: none;
     overflow: visible;
     padding: var(--space-3);
   }
@@ -10890,16 +10896,14 @@ button.bp-packing-alert:focus-visible {
     font-size: 0.72rem;
   }
 
+  /* The notes scroll with the screen, not in a box of their own. */
   .references-workspace .references-sidebar__notes {
+    max-height: none;
     overflow: visible;
   }
 
-  .references-workspace .references-sidebar__hint {
-    font-size: 0.85rem;
-  }
-
   .references-workspace .references-sidebar__warning {
-    padding: 0 var(--space-3) var(--space-2);
+    padding: var(--space-2) var(--space-3) 0;
     font-size: 0.8rem;
   }
 
@@ -11185,64 +11189,30 @@ button.bp-packing-alert:focus-visible {
   gap: var(--space-2);
 }
 
-.references-sidebar {
-  display: flex;
-  flex: 0 0 260px;
-  flex-direction: column;
-  min-height: 0;
-  border-right: 1px solid var(--border-subtle);
-  background: var(--bg-secondary);
-}
-
-.references-sidebar__header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-height: 36px;
-  padding: 0 var(--space-2);
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--bg-primary);
-  color: var(--text-secondary);
-}
-
-.references-sidebar__count {
-  margin-left: auto;
-  color: var(--text-tertiary);
-  font-size: 0.68rem;
-  font-variant-numeric: tabular-nums;
-  font-weight: 650;
-}
-
+/*
+ * What the References rail says under its cards, when it has anything to say:
+ * the frames analysis's warnings, the lines no exact fold reaches, and the
+ * CP-wide analysis. Mounted only then — the rail is a pattern picker, and an
+ * empty notes box under the cards read as a dead area (the rail's base rules
+ * are grouped with Simulate's, above). Capped so a long analysis never
+ * squeezes the cards out; the cards keep the larger half.
+ */
 .references-sidebar__notes {
   display: flex;
   flex: 0 0 auto;
   flex-direction: column;
+  max-height: 50%;
   min-height: 0;
   overflow: auto;
   border-top: 1px solid var(--border-subtle);
 }
 
-.references-sidebar__hint {
-  padding: var(--space-3);
-  color: var(--text-secondary);
-  font-size: 0.76rem;
-  line-height: 1.45;
-}
-
-.references-sidebar__hint p {
-  margin: 0 0 var(--space-2);
-}
-
 .references-sidebar__warning {
+  margin: 0;
+  padding: var(--space-2) var(--space-2) 0;
   color: var(--status-warning);
   font-size: 0.7rem;
-}
-
-/* The rail's cards, capped: this rail also carries the notes, and a long list
-   of full-height cards would push them off the screen. */
-.references-sidebar__sheets {
-  max-height: 40%;
-  border-bottom: 1px solid var(--border-subtle);
+  line-height: 1.4;
 }
 
 /* One number for the card's box, because the strip is windowed: the cards are

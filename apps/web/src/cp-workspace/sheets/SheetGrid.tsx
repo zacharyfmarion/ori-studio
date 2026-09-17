@@ -11,11 +11,12 @@ import type { SheetThumbnail } from './sheetThumbnail';
  * builds its items from its own reading of the document (a precrease component,
  * a FOLD segment) and this only draws them.
  *
- * One markup for two shapes. In a desktop rail it is a strip of small cards
- * under the "Patterns" header; on a phone the rail *is* the list screen and this
- * is a full-width grid of larger cards, sized for a thumb. The stylesheet's
- * phone block draws the difference (`theme.css`, `.sheet-grid`), because a
- * second card component would be a second thing to keep in step.
+ * One markup for two shapes. In a desktop rail it is a column of cards, one
+ * per row, under the "Patterns" header; on a phone the rail *is* the list
+ * screen and this is a full-width grid of larger cards, two to a row, sized
+ * for a thumb. The stylesheet's phone block draws the difference (`theme.css`,
+ * `.sheet-grid`), because a second card component would be a second thing to
+ * keep in step.
  *
  * Presentation only: which sheets, which one is active, and a press reports
  * back. What a press *means* is the caller's — on the desktop it changes the
@@ -45,22 +46,15 @@ export interface SheetGridProps {
   sheets: readonly SheetGridItem[];
   selected: number | null;
   onSelect: (id: number) => void;
-  /** The rail's own hook on the grid: how it sits in that rail (a cap, a fill). */
-  className?: string;
 }
 
-export const SheetGrid = memo(function SheetGrid({
-  sheets,
-  selected,
-  onSelect,
-  className,
-}: SheetGridProps) {
+export const SheetGrid = memo(function SheetGrid({ sheets, selected, onSelect }: SheetGridProps) {
   const { t } = useTranslation();
   // A plain container, not a list: a `listbox` may own only `option` and
   // `group`, and wrapping each option in an `li` puts something between them.
   return (
     <div
-      className={className ? `sheet-grid ${className}` : 'sheet-grid'}
+      className="sheet-grid"
       role="listbox"
       aria-label={t('panels:sheets.label', 'Crease patterns')}
     >
