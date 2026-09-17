@@ -1080,6 +1080,7 @@
       "axiom6": "Dobla {{x}} llevando {{p0}} sobre {{l0}} y {{p1}} sobre {{l1}}.",
       "axiom7": "Dobla {{x}} plegando {{lSelf}} sobre sí misma de modo que {{p0}} caiga sobre {{lLand}}.",
       "diagonal": "Dobla {{a}} sobre {{b}}, marcando la diagonal.",
+      "diagonalThrough": "Dobla pasando por {{a}} y {{b}}, marcando la diagonal.",
       "mark": "Marca {{x}} donde {{l0}} se cruza con {{l1}}.",
       "pinch": "Solo un pellizco: basta con la marca.",
       "unknown": "Dobla {{x}} usando {{inputs}}."

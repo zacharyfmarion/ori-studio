@@ -27,8 +27,12 @@
  * navigation, so the three cannot count the steps differently.
  */
 import type { TFunction } from 'i18next';
-import type { ExtractedSolution, ExtractedStep } from './referenceFinder/extractor';
-import type { Diagram, RawSolution } from './referenceFinder/solution';
+import {
+  EXTRACT_TOLERANCE,
+  type ExtractedSolution,
+  type ExtractedStep,
+} from './referenceFinder/extractor';
+import type { Diagram, OriginalMarkName, RawSolution } from './referenceFinder/solution';
 import { finalMarkDiagram, type StepDiagramModel } from './referenceFinderDiagramToPrimitives';
 import { pinchNote, referenceName, stepSentence } from './referencesStepSentences';
 import { foldArrowArc } from './stepDiagramGeometry';
@@ -123,14 +127,16 @@ export function candidateStepDiagram(raw: RawSolution, step: ReferencesCandidate
 
 /**
  * A card's sentence: each step it covers, in reading order, and the pinch
- * note last — after the mark the pinch is for has been named.
+ * note last — after the mark the pinch is for has been named. `sheet` is
+ * the paper in ReferenceFinder's units, which decides how a diagonal is made.
  */
 export function describeCandidateStep(
   t: TFunction,
   solution: ExtractedSolution,
-  step: ReferencesCandidateStep
+  step: ReferencesCandidateStep,
+  sheet: RfSheet
 ): string {
-  if (step.kind === 'diagonal') return describeDiagonalStep(t, step.diagonal);
+  if (step.kind === 'diagonal') return describeDiagonalStep(t, step.diagonal, sheet);
   const covered = step.steps.map((index) => solution.steps[index]).filter((s) => s !== undefined);
   const sentences = covered.map((s) => stepSentence(t, s));
   if (covered.some((s) => s.pinch)) sentences.push(pinchNote(t));
@@ -143,36 +149,87 @@ export interface RfSheet {
   height: number;
 }
 
+type SheetPoint = readonly [number, number];
+
+/** The sheet's corners by ReferenceFinder's names (y up, the lower-left at the origin). */
+function sheetCorners(sheet: RfSheet): Record<OriginalMarkName, SheetPoint> {
+  const { width: w, height: h } = sheet;
+  return { sw: [0, 0], se: [w, 0], nw: [0, h], ne: [w, h] };
+}
+
+/** How a diagonal step is made and drawn, in ReferenceFinder's sheet coordinates. */
+export interface DiagonalStep {
+  /** The corners the crease joins, sw before ne or nw before se, and where they are. */
+  through: readonly [OriginalMarkName, OriginalMarkName];
+  ends: readonly [SheetPoint, SheetPoint];
+  /** What moves and where it lands: the lower of the two mating points first. */
+  from: SheetPoint;
+  to: SheetPoint;
+  /**
+   * The corners `from` and `to` are, on a square — the fold brings one onto
+   * the other. Null on a rectangle, where the fold is made through `through`.
+   */
+  onto: readonly [OriginalMarkName, OriginalMarkName] | null;
+}
+
 /**
- * The two corners a diagonal joins, in ReferenceFinder's sheet coordinates
- * (y up, the lower-left corner at the origin): the one that moves first, the
- * one it lands on second.
+ * The crease runs corner to corner, and those two corners stay put: what a
+ * folder brings together is the paper on either side of it. On a square that
+ * is the other two corners, one onto the other — the reading the planner
+ * gives the same fold, whose O2 pairs are enumerated in the sheet's corner
+ * order (`crates/oristudio-precrease/src/predicates.rs`, `scan_points`) and
+ * whose first of the pair moves — so the bottom one moves. The sentence
+ * names the two, and the rings mark them.
+ *
+ * On a rectangle a crease through two corners carries neither of the others
+ * onto anything, so it is a fold sighted through the two it joins, and the
+ * motion is the one ReferenceFinder draws for that
+ * (`RefLine_C2P_C2P_Logic::DrawSelf`, `third_party/reference-finder/src/core/
+ * class/refLine/refLineC2PC2P.cpp`): the perpendicular to the fold through the
+ * middle of the two sighted points, clipped to the paper at the nearer of
+ * its exits on either side — the two edge points that meet. On a square those
+ * exits are the other two corners, so the arrow is one construction in both
+ * readings; only the words and the rings change.
  */
-export function diagonalCorners(
-  diagonal: FreeDiagonal,
-  sheet: RfSheet
-): { from: [number, number]; to: [number, number]; names: [string, string] } {
-  return diagonal === 'sw_ne'
-    ? { from: [0, 0], to: [sheet.width, sheet.height], names: ['sw', 'ne'] }
-    : { from: [0, sheet.height], to: [sheet.width, 0], names: ['nw', 'se'] };
+export function diagonalStep(diagonal: FreeDiagonal, sheet: RfSheet): DiagonalStep {
+  const { width: w, height: h } = sheet;
+  const corners = sheetCorners(sheet);
+  const through: DiagonalStep['through'] = diagonal === 'sw_ne' ? ['sw', 'ne'] : ['nw', 'se'];
+  const ends: DiagonalStep['ends'] = [corners[through[0]], corners[through[1]]];
+  // A normal of the crease pointing to its upper side — the crease's own
+  // direction turned a right angle — and how far along it the perpendicular
+  // through the sheet's centre reaches the nearer edge. Unnormalised, so a
+  // square's exits land on its corners exactly.
+  const up: SheetPoint = diagonal === 'sw_ne' ? [-h, w] : [h, w];
+  const reach = Math.min(w / (2 * h), h / (2 * w));
+  const from: SheetPoint = [w / 2 - reach * up[0], h / 2 - reach * up[1]];
+  const to: SheetPoint = [w / 2 + reach * up[0], h / 2 + reach * up[1]];
+  const square = Math.abs(w - h) <= EXTRACT_TOLERANCE;
+  const onto: DiagonalStep['onto'] = !square
+    ? null
+    : diagonal === 'sw_ne'
+      ? ['se', 'nw']
+      : ['sw', 'ne'];
+  return { through, ends, from, to, onto };
 }
 
 /**
  * The card for a diagonal step, in ReferenceFinder's sheet coordinates: the
- * sheet, the diagonal as the valley it is folded as, a mark on each corner,
- * and the corner's motion onto the other. The canvas draws the same
- * primitives mapped onto the pattern (`diagramInModel`), so the two
- * pictures are one description.
+ * sheet, the diagonal as the valley it is folded as, a ring on each reference
+ * the sentence names, and the motion that makes it. The canvas draws the same
+ * primitives mapped onto the pattern (`diagramInModel`), so the two pictures
+ * are one description.
  */
 export function diagonalStepDiagram(diagonal: FreeDiagonal, sheet: RfSheet): StepDiagramModel {
-  const { from, to } = diagonalCorners(diagonal, sheet);
+  const { ends, from, to, onto } = diagonalStep(diagonal, sheet);
+  const named: readonly [SheetPoint, SheetPoint] = onto ? [from, to] : ends;
   const model: StepDiagramModel = {
     sheet: { width: sheet.width, height: sheet.height },
     primitives: [
       { kind: 'sheet', width: sheet.width, height: sheet.height },
-      { kind: 'line', from, to, style: 'valley' },
-      { kind: 'point', at: from, style: 'highlight' },
-      { kind: 'point', at: to, style: 'highlight' },
+      { kind: 'line', from: ends[0], to: ends[1], style: 'valley' },
+      { kind: 'point', at: named[0], style: 'highlight' },
+      { kind: 'point', at: named[1], style: 'highlight' },
     ],
   };
   const out = foldArrowArc(from, to, [sheet.width / 2, sheet.height / 2]);
@@ -180,11 +237,22 @@ export function diagonalStepDiagram(diagonal: FreeDiagonal, sheet: RfSheet): Ste
   return model;
 }
 
-/** "Fold the bottom-left corner onto the top-right corner, creasing the diagonal." */
-export function describeDiagonalStep(t: TFunction, diagonal: FreeDiagonal): string {
-  const { names } = diagonalCorners(diagonal, { width: 1, height: 1 });
-  return t('panels:references.step.diagonal', 'Fold {{a}} onto {{b}}, creasing the diagonal.', {
-    a: referenceName(t, names[0]),
-    b: referenceName(t, names[1]),
-  });
+/**
+ * "Fold the bottom-right corner onto the top-left corner, creasing the
+ * diagonal." — or, on a rectangle, "Fold through the bottom-left corner and
+ * the top-right corner, creasing the diagonal."
+ */
+export function describeDiagonalStep(t: TFunction, diagonal: FreeDiagonal, sheet: RfSheet): string {
+  const { through, onto } = diagonalStep(diagonal, sheet);
+  if (onto) {
+    return t('panels:references.step.diagonal', 'Fold {{a}} onto {{b}}, creasing the diagonal.', {
+      a: referenceName(t, onto[0]),
+      b: referenceName(t, onto[1]),
+    });
+  }
+  return t(
+    'panels:references.step.diagonalThrough',
+    'Fold through {{a}} and {{b}}, creasing the diagonal.',
+    { a: referenceName(t, through[0]), b: referenceName(t, through[1]) }
+  );
 }

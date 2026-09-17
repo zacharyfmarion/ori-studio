@@ -1046,6 +1046,7 @@
       "axiom6": "Fold {{x}}, bringing {{p0}} onto {{l0}} and {{p1}} onto {{l1}}.",
       "axiom7": "Fold {{x}}, folding {{lSelf}} onto itself so that {{p0}} lands on {{lLand}}.",
       "diagonal": "Fold {{a}} onto {{b}}, creasing the diagonal.",
+      "diagonalThrough": "Fold through {{a}} and {{b}}, creasing the diagonal.",
       "mark": "Mark {{x}} where {{l0}} meets {{l1}}.",
       "pinch": "Pinch only — just the mark is needed.",
       "unknown": "Fold {{x}} using {{inputs}}."

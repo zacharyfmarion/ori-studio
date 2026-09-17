@@ -11,6 +11,8 @@ import type { RawSolution } from '../referenceFinder/solution';
 import type { StepDiagramModel } from '../referenceFinderDiagramToPrimitives';
 import type { PrecreaseFrame } from '../sheetFrames';
 import { foldArrowArc } from '../stepDiagramGeometry';
+import { diagonalStepDiagram } from '../referencesCandidateSteps';
+import { diagramInModel } from '../referenceFinderStepInModel';
 
 /** The fixture on a 400-unit sheet placed at −200, as the document would have it. */
 function variant(): ReferencesPlanVariant {
@@ -153,6 +155,13 @@ describe('candidateFoldScene', () => {
       { x: 200, y: 200 },
     ]);
     expect(diagonal.flaps[0]!.creased[0]![1]).toBeCloseTo(Math.hypot(400, 400));
+    // Read from its own card, the flap that swings is the one the arrow
+    // starts on — the bottom-right corner's half, off the crease — so the
+    // animation and the card agree on what moves.
+    const card = diagramInModel(diagonalStepDiagram('sw_ne', { width: 1, height: 1 }), frame);
+    const drawn = candidateFoldScene(frame, originals, candidate, { kind: 'diagonal', diagonal: 'sw_ne' }, card)!;
+    expect(drawn.flaps[0]!.side).toBe(sideOfChord(drawn.flaps[0]!.chord, { x: 200, y: -200 }));
+    expect(drawn.flaps[0]!.side).not.toBe(sideOfChord(drawn.flaps[0]!.chord, { x: -200, y: 200 }));
   });
 });
 

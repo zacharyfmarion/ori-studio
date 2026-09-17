@@ -1080,6 +1080,7 @@
       "axiom6": "Dobre {{x}} levando {{p0}} sobre {{l0}} e {{p1}} sobre {{l1}}.",
       "axiom7": "Dobre {{x}} dobrando {{lSelf}} sobre si mesma de modo que {{p0}} caia sobre {{lLand}}.",
       "diagonal": "Dobre {{a}} sobre {{b}}, vincando a diagonal.",
+      "diagonalThrough": "Dobre passando por {{a}} e {{b}}, vincando a diagonal.",
       "mark": "Marque {{x}} onde {{l0}} encontra {{l1}}.",
       "pinch": "Só um beliscão — apenas a marca é necessária.",
       "unknown": "Dobre {{x}} usando {{inputs}}."
