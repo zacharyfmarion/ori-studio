@@ -29,6 +29,7 @@
 //! axiom and input pattern into one row with a count ("fold the sixteenths
 //! horizontally: 7 creases").
 
+use std::borrow::Cow;
 use std::collections::VecDeque;
 use std::rc::Rc;
 
@@ -871,15 +872,18 @@ fn presses_for_lines(state: &State, creased: &Creased, fold: &Line, w: &Witness)
     let mut out = Vec::new();
     // Each press is recorded before the next spot is looked at: one press
     // from a run end past a spot to a findable end usually covers the spot
-    // on the other side of the foot as well.
-    let mut paper = creased.clone();
+    // on the other side of the foot as well. The paper is copied only once
+    // there is a press to record on it — most witnesses priced need none.
+    let mut paper = Cow::Borrowed(creased);
     for (line, at) in line_targets(state, creased, fold, w) {
         if paper.crease_reaches(state, line, at) {
             continue;
         }
         let t = state.line(line).parameter_of(at);
         if let Some((span, _)) = press_span(state, &paper, line, t) {
-            paper.add_spans(state, line, state.line(line), &[span]);
+            paper
+                .to_mut()
+                .add_spans(state, line, state.line(line), &[span]);
             out.push(Press {
                 line,
                 at,
@@ -932,17 +936,19 @@ const MAX_PRESSES_FOR_PREFERENCE: usize = 1;
 /// edge whatever is pressed — and the ordering pass weighs that as one press
 /// worth of trouble.
 fn repair(state: &State, creased: &Creased, line: &Line, witness: &Witness) -> Option<Repair> {
-    let mut paper = creased.clone();
+    // Copied the moment the first press is recorded, not before: every
+    // witness in a fold's pool is priced, and most need no press at all.
+    let mut paper = Cow::Borrowed(creased);
     let mut presses = 0;
     for point in witness_missing_marks(state, &paper, witness) {
         for press in presses_for_mark(state, &paper, point) {
-            press.record(state, &mut paper);
+            press.record(state, paper.to_mut());
             presses += 1;
         }
     }
     if !witness_aligns(state, &paper, line, witness) {
         for press in presses_for_lines(state, &paper, line, witness) {
-            press.record(state, &mut paper);
+            press.record(state, paper.to_mut());
             presses += 1;
         }
     }

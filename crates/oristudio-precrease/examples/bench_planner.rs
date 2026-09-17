@@ -1,14 +1,21 @@
 //! Measure the planner on a crease pattern: closure time, stuck-search time,
-//! point counts, auxiliary folds, status — per component and in total.
+//! presentation time, point counts, auxiliary folds, status — per component
+//! and in total.
 //!
 //! ```sh
 //! cargo run --release -p oristudio-precrease --example bench_planner -- <file> \
 //!     [--document N] [--component N] [--stuck-budget-ms N] [--total-budget-ms N] \
-//!     [--no-stuck] [--max-depth N]
+//!     [--sequence-budget-ms N] [--no-stuck] [--max-depth N]
 //! ```
 //!
 //! Numbers, not assertions: the plan's `|P|` cap and budgets are set from
 //! what this prints (Phase 4 "measure before fixing budgets").
+//!
+//! `seq_ms` is `Planner::sequence` — the ordering pass and its refinement
+//! budget (`--sequence-budget-ms`, default 10 s) — timed on its own, because
+//! the app calls it twice per sheet (plain and landmarks-first) and it is
+//! not covered by the plan's total budget: on knight (3,571 segments, 558
+//! lines) it was 46 s of a 47 s run, and `total_ms` alone did not say so.
 
 use std::path::PathBuf;
 use std::time::Instant;
@@ -49,6 +56,10 @@ fn main() {
                 opts.total_budget_ms = value(i + 1).parse().unwrap_or(0.0);
                 i += 1;
             }
+            "--sequence-budget-ms" => {
+                opts.sequence_budget_ms = value(i + 1).parse().unwrap_or(0.0);
+                i += 1;
+            }
             "--max-depth" => {
                 opts.stuck.max_depth = value(i + 1).parse().unwrap_or(2);
                 i += 1;
@@ -72,7 +83,7 @@ fn main() {
     }
     let Some(file) = file else {
         eprintln!(
-            "usage: bench_planner <file> [--document N] [--component N] [--stuck-budget-ms N] [--total-budget-ms N] [--no-stuck] [--max-depth N] [--child-candidates N] [--max-candidates N] [--depth3-threshold N]"
+            "usage: bench_planner <file> [--document N] [--component N] [--stuck-budget-ms N] [--total-budget-ms N] [--sequence-budget-ms N] [--no-stuck] [--max-depth N] [--child-candidates N] [--max-candidates N] [--depth3-threshold N]"
         );
         std::process::exit(2);
     };
@@ -103,7 +114,7 @@ fn main() {
         t_load.elapsed().as_secs_f64() * 1000.0
     );
     println!(
-        "{:>4} {:>6} {:>6} {:>5} {:>6} {:>4} {:>8} {:>6} {:>9} {:>5} {:>4} {:>4} {:>9} {:>9} status",
+        "{:>4} {:>6} {:>6} {:>5} {:>6} {:>4} {:>8} {:>6} {:>9} {:>5} {:>4} {:>4} {:>9} {:>9} {:>9} status",
         "comp",
         "segs",
         "lines",
@@ -117,6 +128,7 @@ fn main() {
         "aux",
         "vis",
         "search_ms",
+        "seq_ms",
         "total_ms"
     );
     let mut total_ms = 0.0;
@@ -140,7 +152,9 @@ fn main() {
             planner.plan_without_reference_finder().expect("plan");
         }
         let search_ms = t1.elapsed().as_secs_f64() * 1000.0;
+        let t2 = Instant::now();
         let seq = planner.sequence(false);
+        let seq_ms = t2.elapsed().as_secs_f64() * 1000.0;
         let closure = planner.closure_ref().expect("closure");
         let points = closure.state().point_count();
         peak_points = peak_points.max(points);
@@ -148,7 +162,7 @@ fn main() {
         total_ms += elapsed;
         let aux = seq.steps.iter().filter(|s| s.kind == StepKind::Aux).count();
         println!(
-            "{:>4} {:>6} {:>6} {:>5} {:>6} {:>4} {:>8} {:>6} {:>9.1} {:>5} {:>4} {:>4} {:>9.1} {:>9.1} {:?}{}",
+            "{:>4} {:>6} {:>6} {:>5} {:>6} {:>4} {:>8} {:>6} {:>9.1} {:>5} {:>4} {:>4} {:>9.1} {:>9.1} {:>9.1} {:?}{}",
             c.id,
             c.segment_indices.len(),
             c.merged_lines.len(),
@@ -162,6 +176,7 @@ fn main() {
             aux,
             seq.totals.visible_aux,
             search_ms,
+            seq_ms,
             elapsed,
             seq.status,
             if exactness.class != ExactnessClass::Exact {

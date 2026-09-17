@@ -1092,13 +1092,15 @@ impl Planner {
     /// out to the nearest end the folder can find on the paper the grid left,
     /// a whole pleat line of another family or the edge — and the ordering
     /// is run again, until no press lands on the grid.
-    fn settle_grid(&mut self, landmarks_first: bool) {
+    /// Returns the last ordering it computed when the closure has not
+    /// changed since — every press landed off the grid, so `sequence` can
+    /// present that order rather than compute the same one again — and
+    /// `None` when a pass extended a grid line after it (or there is no grid).
+    fn settle_grid(&mut self, landmarks_first: bool) -> Option<Vec<Placed>> {
         for _ in 0..4 {
-            let Some(closure) = &self.closure else {
-                return;
-            };
+            let closure = self.closure.as_ref()?;
             let (Some(grid), Some(sheet)) = (closure.grid(), &self.sheet) else {
-                return;
+                return None;
             };
             let placed = order_with(closure, landmarks_first, self.opts.merge_symmetric_steps);
             let folded = closure.folded();
@@ -1148,20 +1150,19 @@ impl Planner {
                 ));
             }
             if extensions.is_empty() {
-                return;
+                return Some(placed);
             }
-            let Some(closure) = self.closure.as_mut() else {
-                return;
-            };
+            let closure = self.closure.as_mut()?;
             for (line_id, span) in extensions {
                 closure.press_grid_line(line_id, span);
             }
         }
+        None
     }
 
     /// The plan in its wire shape.
     pub fn sequence(&mut self, landmarks_first: bool) -> Sequence {
-        self.settle_grid(landmarks_first);
+        let settled = self.settle_grid(landmarks_first);
         let status = self.status();
         let (Some(closure), Some(sheet)) = (&self.closure, &self.sheet) else {
             return Sequence {
@@ -1180,8 +1181,9 @@ impl Planner {
                 diagnostics: self.diagnostics(),
             };
         };
-        let placed: Vec<Placed> =
-            order_with(closure, landmarks_first, self.opts.merge_symmetric_steps);
+        let placed: Vec<Placed> = settled.unwrap_or_else(|| {
+            order_with(closure, landmarks_first, self.opts.merge_symmetric_steps)
+        });
         let placed = if self.opts.sequence_budget_ms > 0.0 {
             crate::order::optimize(
                 closure,

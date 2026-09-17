@@ -35,7 +35,7 @@
 //! themselves are the adopted facts declared in [`crate::constants`]; their
 //! tests here are written from those statements.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -446,15 +446,29 @@ fn witnesses_on_capped(
     cap: usize,
 ) -> Vec<Witness> {
     let mut out: Vec<Witness> = Vec::new();
-    let is_mark = |id: usize| paper.is_some_and(|creased| point_mark_exists(state, creased, id));
     let mut points_on: Vec<usize> = facts.points_on.clone();
     let mut o2_pairs: Vec<(usize, usize)> = facts.o2_pairs.clone();
     let mut landers: Vec<(usize, usize)> = facts.landers.clone();
-    if paper.is_some() {
+    if let Some(creased) = paper {
+        // Whether each point named is a mark, asked once per point: a point
+        // is on several of these lists, and a sort asks for its key more
+        // than once.
+        let mut marks: HashMap<usize, bool> = HashMap::new();
+        let mut is_mark = |id: usize| {
+            *marks
+                .entry(id)
+                .or_insert_with(|| point_mark_exists(state, creased, id))
+        };
         // Stable: among marks, and among the rest, the scan's order stands.
-        points_on.sort_by_key(|&p| !is_mark(p));
-        o2_pairs.sort_by_key(|&(p, r)| usize::from(!is_mark(p)) + usize::from(!is_mark(r)));
-        landers.sort_by_key(|&(p, _)| !is_mark(p));
+        let keys: Vec<bool> = points_on.iter().map(|&p| !is_mark(p)).collect();
+        sort_stably_by(&mut points_on, &keys);
+        let keys: Vec<usize> = o2_pairs
+            .iter()
+            .map(|&(p, r)| usize::from(!is_mark(p)) + usize::from(!is_mark(r)))
+            .collect();
+        sort_stably_by(&mut o2_pairs, &keys);
+        let keys: Vec<bool> = landers.iter().map(|&(p, _)| !is_mark(p)).collect();
+        sort_stably_by(&mut landers, &keys);
     }
     let facts = &Facts {
         points_on,
@@ -657,6 +671,16 @@ fn witnesses_on_capped(
     out
 }
 
+/// Reorder `items` by `keys` (one per item, computed beforehand), keeping
+/// the order of items with equal keys — `sort_by_key` with each key asked
+/// for once.
+fn sort_stably_by<T: Copy, K: Ord + Copy>(items: &mut [T], keys: &[K]) {
+    let mut order: Vec<usize> = (0..items.len()).collect();
+    order.sort_by_key(|&i| keys[i]);
+    let sorted: Vec<T> = order.iter().map(|&i| items[i]).collect();
+    items.copy_from_slice(&sorted);
+}
+
 /// Tier-1 facts for `target` from scratch: points on it, perpendiculars,
 /// O2 pairs and O3 pairs.
 pub fn tier1_facts(state: &State, target: &Line) -> Facts {
@@ -764,9 +788,19 @@ pub fn scan_landers_on(
 ) {
     let sheet = state.sheet();
     let n = state.line_count();
+    // Every `(p, m₁)` the scan has judged, kept or not. Whether a pair is a
+    // lander does not depend on the crossing it was found through, so a pair
+    // met again through another line `m` is skipped before any of its tests
+    // run — on a lattice design each lander is met once per line through it.
     let mut seen: HashSet<(usize, usize)> = facts.landers.iter().copied().collect();
+    let mut near: Vec<(f64, usize)> = Vec::new();
     for m1 in 0..n {
-        let Some(image) = target.reflect_line(state.line(m1)) else {
+        // Nothing can be kept past the cap ([`Facts::push_lander_within`]).
+        if facts.landers.len() >= max {
+            break;
+        }
+        let m1_line = state.line(m1);
+        let Some(image) = target.reflect_line(m1_line) else {
             continue;
         };
         // The image only has to *touch* the sheet, not cross it: a lander is
@@ -776,6 +810,13 @@ pub fn scan_landers_on(
         // wrong here) and lost, for instance, the corner lander that makes
         // an O6 out of (corner → top edge, mid-edge mark → bottom edge).
         if sheet.clip_parameters(&image).is_none() {
+            continue;
+        }
+        // Landers on this line so far, against its per-line cap: once it is
+        // full nothing more on it can be kept, so the rest of its crossings
+        // are not scanned.
+        let mut on_line = facts.landers.iter().filter(|(_, l)| *l == m1).count();
+        if on_line >= per_line {
             continue;
         }
         let start = if m1 < from { from } else { 0 };
@@ -793,11 +834,15 @@ pub fn scan_landers_on(
             if !sheet.contains(q, crate::state::POINT_LOOKUP_RADIUS) {
                 continue;
             }
-            for c in state.points_near(q) {
+            state.points_near_into(q, &mut near);
+            for &(_, c) in &near {
+                if !seen.insert((c, m1)) {
+                    continue;
+                }
                 let p = state.point(c);
                 if image.distance_to_point(p) > TOL
                     || target.distance_to_point(p) <= TOL
-                    || state.line(m1).distance_to_point(p) <= TOL
+                    || m1_line.distance_to_point(p) <= TOL
                 {
                     continue;
                 }
@@ -808,9 +853,15 @@ pub fn scan_landers_on(
                 if paper.is_some_and(|creased| !point_mark_exists(state, creased, c)) {
                     continue;
                 }
-                if seen.insert((c, m1)) {
-                    facts.push_lander_within(c, m1, max, per_point, per_line);
+                if facts.push_lander_within(c, m1, max, per_point, per_line) {
+                    on_line += 1;
+                    if facts.landers.len() >= max || on_line >= per_line {
+                        break;
+                    }
                 }
+            }
+            if facts.landers.len() >= max || on_line >= per_line {
+                break;
             }
         }
     }
