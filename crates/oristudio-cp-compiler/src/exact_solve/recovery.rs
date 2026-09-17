@@ -6,6 +6,18 @@ use super::*;
 
 mod carriers;
 mod constructions;
+pub(super) use constructions::description_cost;
+
+/// Image measurements may choose between constructions, but must not turn an
+/// already precise construction into a free coordinate just to fit raster ink.
+pub(super) fn preserves_constructed_coordinates(before: &[Point2], after: &[Point2]) -> bool {
+    before.iter().zip(after).all(|(a, b)| {
+        [(a.x, b.x), (a.y, b.y)].into_iter().all(|(old, new)| {
+            constructions::recognized_coordinate(old).is_none()
+                || constructions::recognized_coordinate(new).is_some()
+        })
+    })
+}
 mod nonlinear;
 
 struct LinearGeometry {
@@ -197,6 +209,7 @@ pub(super) fn refine(
     clock: &ExactSolveDeadline,
     exempt: Rc<BTreeSet<usize>>,
     pinned: Rc<BTreeSet<usize>>,
+    observation_weight: f64,
 ) {
     if options.construction_recovery == ConstructionRecoveryMode::Off
         || options.angle_family == AngleFamilyMode::Off
@@ -248,7 +261,7 @@ pub(super) fn refine(
                 input,
                 &solved.vertices_exact,
                 &proposal_clock,
-                8.,
+                observation_weight,
             ) {
                 recovery.adopt(solved, points, &mut report);
                 linear_rejected = report["reason"] == "original_request_checks";
@@ -268,7 +281,7 @@ pub(super) fn refine(
                 input,
                 &solved.vertices_exact,
                 &proposal_clock,
-                2.,
+                observation_weight * 0.25,
             ) && let Some((points, polish)) =
                 nonlinear::polish(&geometry, input, &points, &proposal_clock)
             {
