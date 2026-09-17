@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-09-17
+
+A References workspace that works out how to fold a pattern, a Properties pane, and a new crease-pattern detector.
+
+### Added
+
+- Add the **References** workspace, beside Edit, Design and Simulate. It shows the open crease pattern read-only and answers two questions about it. **Find a reference**: tap a vertex or a crease and get ranked folding constructions for it from Robert J. Lang's ReferenceFinder, each step drawn as a card and on the pattern itself; approximate solutions are opt-in. **Precreasing sequence**: an ordered sequence of folds that creases every line of the design from a blank sheet, with pinches wherever a mark is all that is needed, mountain and valley, and the turn-overs a folder would make. The phone layout is a first-class case throughout.
+- Play each step's fold. A Play button, Space, and an auto-play setting run the paper from flat to folded and back on both tabs of the References workspace: the flap lands exactly where a sharp fold would put it, pinches are pressed around the marks the fold passes through, and a turn-over rolls across the table.
+- Add a **Properties** pane to the Edit workspace, beside View. It shows the editable properties of whatever canvas object is selected — reference image, text box, folded figure, inline simulation window, suppression region — with one undo entry per change.
+- Add **Pin Vertex**, beside Move Vertex and on the solve chip. Pin the junctions whose position you already know and the exact solver, Move Vertex, Move and Lengthen all hold them while everything else re-equilibrates. Pinned vertices draw amber.
+- Give a folded figure its own **Style** menu, on the figure's floating toolbar and its right-click menu: render as paper, wireframe or X-ray, front or back, the three paper colours, and shadow. It acts on the figure you clicked, not on whichever figure happens to be active, and the viewport bar's Folded models dropdown retires.
+- Offer to detect a crease pattern dropped on the Edit canvas. When an image that looks like one lands there, a pill offers **Detect creases** and opens the Detect dialog with the image already loaded. The check runs on the device and downloads nothing; Settings ▸ General turns the suggestion off.
+- Ask, before detecting, that the crease pattern in the image was obtained legally and that you have the right to use it.
+- Add **Pair with mirror** and **Pair all mirrored** to box-pleating symmetry, and make Unpair mean unpaired: a vertex now mirrors only its explicit pair, so an unpaired vertex no longer follows whatever sits at its reflection. A `.bps` import, or a design whose two halves were drawn without mirror draw, mirrors nothing until it is paired; Pair all mirrored does it in one step.
+- Offer the desktop app on the website. The start screen, the landing page, the workspace toolbar and the About dialog link to the installer for each platform.
+- Add a Discord link to the workspace toolbar. New, Open and Save leave the toolbar and stay in the File menu.
+
+### Improved
+
+- Recognise crease patterns with a new detector. Dense patterns keep the nearby junctions the previous model lost, and cyan construction lines come through as auxiliary lines rather than valley folds. On patterns the model never trained against, exact recognitions rise from 74 to 92 of 112. The model is downloaded once, as before, and is 1.5 MB where the old one was 45.
+- Find the paper in a photo that is rotated or a few degrees off square, and crop to the paper rather than to a box one edge wider — a title, legend or page rule beside the pattern no longer stretches the crop. A tall image now fits the crop pane instead of running off the bottom of the dialog.
+- Solve a box-pleated design onto its grid. The exact solver reads the lattice from the geometry and snaps every vertex to it, so the answer lands exactly on the grid rather than a fraction of a pixel off, and the grid completes the creases that leave the paper edge in the last cell.
+- Straighten a crease that runs through several vertices. Detection bends such a line a degree or so at each vertex, and the solver held the halves as separate lines; it now reads which creases are one line and solves them as one. A 22.5° design's 11.25° subdivisions are held on their half step.
+- Put a crease's contact with the paper edge on the crease's centreline. A shallow crease met the border a few pixels along the edge from where it was drawn, and two shallow creases meeting at one point decoded as two.
+- Recover the construction behind a recognised pattern. A solve that passed the folding checks could still carry the image's noise or pick the wrong construction; it now proposes nearby construction coordinates and propagates them through the folding constraints, and a large clean pattern finishes within a 25-second budget instead of stopping after the lattice pass.
+- Give the simulator one **Restart** control (`R`) in place of Refresh and Reset. It rewinds the fold and puts the view back to its opening transform; Cmd/Ctrl+← and Cmd/Ctrl+→ jump to the flat and folded ends and leave the camera alone.
+- Recolour a folded figure without refolding it. A flat figure keeps its fold graph after the fold, so a colour tick no longer rebuilds it.
+- Let an open menu own the keys aimed at it. Escape on a context menu now closes the menu and keeps the selection, and Delete with a menu open no longer deletes the object the menu is about.
+
+### Fixed
+
+- Stop the simulator's rebuild changing the camera and paper colour. Refresh dropped the only session it had and reopened on the default view and the default blue.
+- Make Cmd+drag pan wherever it starts. Over a canvas object's body, its resize or rotate handle, or a focused folded figure, it moved, resized, rotated or orbited instead; the middle button and the hand tool were wrong in the same places.
+- Resize a text box around its text instead of sliding the text out of the frame.
+- Stop the Windows build opening a console window beside the app, which quit the app when closed. Contributed by @amatouhake.
+- Stop "Unpair from mirror" leaving the two vertices mirroring each other.
+
 ## [0.4.0] - 2026-09-04
 
 Crease patterns read from images, and a tool for moving a vertex.
