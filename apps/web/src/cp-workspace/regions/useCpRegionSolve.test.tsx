@@ -181,6 +181,7 @@ function graph(
 
 /** What the last `solveExact` was actually handed, parsed back. */
 let lastSolveInputJson: string | null = null;
+let lastSolveOptionsJson: string | undefined;
 function solveInputSeen(): unknown {
   return lastSolveInputJson === null ? null : JSON.parse(lastSolveInputJson);
 }
@@ -201,11 +202,15 @@ function bridge(
       lastSolveInputJson = inputJson;
       return answer();
     },
-    solveExactToFold: async () => ({
-      schema: 'oristudio/cp-detect/solve-exact-fold-v1',
-      solved: await answer(),
-      fold: {},
-    }),
+    solveExactToFold: async (inputJson, optionsJson) => {
+      lastSolveInputJson = inputJson;
+      lastSolveOptionsJson = optionsJson;
+      return {
+        schema: 'oristudio/cp-detect/solve-exact-fold-v1',
+        solved: await answer(),
+        fold: {},
+      };
+    },
   };
 }
 
@@ -352,6 +357,7 @@ describe('useCpRegionSolve', () => {
     toast.warning.mockClear();
     toast.error.mockClear();
     lastSolveInputJson = null;
+    lastSolveOptionsJson = undefined;
     exportCreasesAsFold.mockReset().mockResolvedValue(FOLD_JSON);
     rebuildSolveInput.mockReset().mockResolvedValue(REBUILT);
     solver = bridge(ACCEPTED);
@@ -439,6 +445,14 @@ describe('useCpRegionSolve', () => {
 
     expect(api.stateFor(REGION.id)).toBeUndefined();
     expect(replaceLineSegments).not.toHaveBeenCalled();
+  });
+
+  it('enables the bounded proposal solver when repairing a region', async () => {
+    await solve();
+    const options = JSON.parse(lastSolveOptionsJson!);
+    expect(options).toMatchObject({ recognition_fallback: true, polish: true });
+    expect(options.timeout_seconds).toBeGreaterThan(0);
+    expect(options.timeout_seconds).toBeLessThanOrEqual(25);
   });
 
   it('writes the solved coordinates onto the region’s creases', async () => {

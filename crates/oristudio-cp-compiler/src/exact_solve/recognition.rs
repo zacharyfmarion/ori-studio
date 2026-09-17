@@ -1,8 +1,9 @@
-//! Automatic recognition's bounded fallback, separate from manual solving.
+//! Bounded proposals for recognition and whole-pattern repair.
 use super::*;
 
 const LARGE_SPANS: usize = 1500;
 const NOISE_PX: f64 = 1.5;
+const RETRY_NOISE_PX: f64 = 2.0;
 
 pub(super) fn solve(
     input: &ExactSolveInput,
@@ -13,12 +14,12 @@ pub(super) fn solve(
     options.recognition_fallback = false;
     let clock = ExactSolveDeadline::start(options.timeout_seconds, options.work_budget);
     let mut primary_options = options;
-    // Preserve the benchmark's ordinary 25-second solve, leaving the rest of
-    // the caller's total for a fallback. No independent second time budget.
+    // Reserve part of the same 25-second budget for the direct feasibility
+    // proposal. A slow ordinary polish must not starve every alternative.
     primary_options.timeout_seconds = if options.timeout_seconds < 0.0 {
-        DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS
+        20.0
     } else {
-        remaining(&clock).min(DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS)
+        (remaining(&clock) * 0.8).min(20.0)
     };
     let mut primary = solve_exact_inner(
         input,
@@ -29,45 +30,145 @@ pub(super) fn solve(
     );
     let spent = primary.movement_report["work_spent"].as_u64().unwrap_or(0);
     clock.work.set(spent);
-    if primary.movement_report["accepted"] == true || clock.expired() {
+    if (primary.status == ExactSolvedGraphStatus::Solved
+        && primary.movement_report["accepted"] == true)
+        || clock.expired()
+    {
         return finish(primary, &clock, options, None);
     }
-    let Some((proposal, mut report)) = propose(input, &pinned) else {
-        return finish(primary, &clock, options, None);
-    };
-    let mut fallback_options = options;
-    fallback_options.timeout_seconds = remaining(&clock);
-    fallback_options.work_budget = clock.work_left();
-    let candidate = solve_exact_inner(
-        &proposal,
-        fallback_options,
+    let mut lattice_report = None;
+    if let Some((proposal, mut report)) = propose(input, &pinned) {
+        let mut fallback_options = options;
+        // A fully fixed document proposal needs validation, not a search. Its
+        // large graph checks can outlast the small iterative-proposal slice.
+        let fixed_document = input.image_size.is_none() && all_vertices_fixed(&proposal, &pinned);
+        let proposal_limit = if fixed_document { 10.0 } else { 5.0 };
+        fallback_options.timeout_seconds = if options.timeout_seconds < 0.0 {
+            proposal_limit
+        } else {
+            (remaining(&clock) * 0.5).min(proposal_limit)
+        };
+        fallback_options.work_budget = clock.work_left();
+        let candidate = if input.image_size.is_none() {
+            solve_proposal(
+                &proposal,
+                fallback_options,
+                Rc::clone(&exempt),
+                Rc::clone(&pinned),
+            )
+        } else {
+            // Preserve the recognition path's structural polish: accepting a
+            // coordinate projection first can leave off-grid construction
+            // points at a different locally valid solution. Document rebuilds
+            // previously had no partial-lattice path at all.
+            solve_exact_inner(
+                &proposal,
+                fallback_options,
+                Rc::clone(&exempt),
+                Rc::clone(&pinned),
+                false,
+            )
+        };
+        clock.work.set(
+            spent.saturating_add(
+                candidate.movement_report["work_spent"]
+                    .as_u64()
+                    .unwrap_or(0),
+            ),
+        );
+        report["candidate_status"] = json!(candidate.status);
+        report["candidate_timed_out"] = candidate.movement_report["timed_out"].clone();
+        report["adopted"] = json!(false);
+        if !clock.expired()
+            && candidate.status == ExactSolvedGraphStatus::Solved
+            && candidate.movement_report["accepted"] == true
+            && candidate.merged_vertices.is_empty()
+            && let Some(rebased) = judge_original(
+                input,
+                &candidate,
+                options,
+                &clock,
+                Rc::clone(&exempt),
+                Rc::clone(&pinned),
+            )
+        {
+            report["adopted"] = json!(true);
+            return finish(rebased, &clock, options, Some(report));
+        }
+        lattice_report = Some(report);
+    }
+    if !clock.expired() {
+        let candidate = projection::solve(input, options, &clock, exempt, pinned);
+        let adopted = candidate.status == ExactSolvedGraphStatus::Solved
+            && candidate.movement_report["accepted"] == true
+            && !clock.expired();
+        let report = json!({
+            "status": candidate.status,
+            "adopted": adopted,
+            "rejection_reasons": candidate.movement_report["rejection_reasons"],
+            "details": candidate.movement_report["constraint_projection"],
+        });
+        if adopted {
+            primary = candidate;
+        }
+        primary.movement_report["recognition_projection"] = report;
+    }
+    finish(primary, &clock, options, lattice_report)
+}
+
+/// A mostly locked grid has few coordinate unknowns, even when thousands of
+/// spans leave the carrier formulation large. Try the sparse projection before
+/// spending the proposal's remaining budget on the ordinary solver.
+fn solve_proposal(
+    input: &ExactSolveInput,
+    mut options: ExactSolveOptions,
+    exempt: Rc<BTreeSet<usize>>,
+    pinned: Rc<BTreeSet<usize>>,
+) -> ExactSolvedGraph {
+    let clock = ExactSolveDeadline::start(options.timeout_seconds, options.work_budget);
+    let fixed = all_vertices_fixed(input, &pinned);
+    let projection_clock = ExactSolveDeadline::start(
+        if fixed {
+            options.timeout_seconds
+        } else {
+            (options.timeout_seconds * 0.5).min(2.5)
+        },
+        options.work_budget,
+    );
+    let projected = projection::solve(
+        input,
+        options,
+        &projection_clock,
         Rc::clone(&exempt),
         Rc::clone(&pinned),
-        false,
     );
-    clock.work.set(
-        spent.saturating_add(
-            candidate.movement_report["work_spent"]
-                .as_u64()
-                .unwrap_or(0),
-        ),
-    );
-    report["candidate_status"] = json!(candidate.status);
-    report["candidate_timed_out"] = candidate.movement_report["timed_out"].clone();
-    report["adopted"] = json!(false);
-    // Require a complete solved graph, not just a lower objective. Merging is
-    // deliberately unsupported here until its original-anchor accounting has
-    // separate evidence; the ordinary solver may still merge as before.
-    if !clock.expired()
-        && candidate.status == ExactSolvedGraphStatus::Solved
-        && candidate.movement_report["accepted"] == true
-        && candidate.merged_vertices.is_empty()
-        && let Some(rebased) = judge_original(input, &candidate, options, &clock, exempt, pinned)
+    clock.work.set(projection_clock.work.get());
+    if (projected.status == ExactSolvedGraphStatus::Solved
+        && projected.movement_report["accepted"] == true)
+        || clock.expired()
+        || fixed
     {
-        primary = rebased;
-        report["adopted"] = json!(true);
+        return projected;
     }
-    finish(primary, &clock, options, Some(report))
+    options.timeout_seconds = remaining(&clock);
+    options.work_budget = clock.work_left();
+    let mut ordinary = solve_exact_inner(input, options, exempt, pinned, false);
+    ordinary.movement_report["proposal_projection"] = projected.movement_report;
+    ordinary.movement_report["work_spent"] = json!(
+        clock
+            .work
+            .get()
+            .saturating_add(ordinary.movement_report["work_spent"].as_u64().unwrap_or(0))
+    );
+    ordinary
+}
+
+fn all_vertices_fixed(input: &ExactSolveInput, pinned: &BTreeSet<usize>) -> bool {
+    input.vertices.iter().all(|v| {
+        v.movement_policy == CandidateVertexMovementPolicy::Locked
+            || pinned.contains(&v.id)
+            || input.boundary.corners.contains(&v.id)
+    })
 }
 
 fn remaining(clock: &ExactSolveDeadline) -> f64 {
@@ -101,14 +202,33 @@ pub(super) fn propose(
     input: &ExactSolveInput,
     pinned: &BTreeSet<usize>,
 ) -> Option<(ExactSolveInput, Value)> {
+    propose_at_noise(input, pinned, NOISE_PX).or_else(|| {
+        input
+            .image_size
+            .is_none()
+            .then(|| propose_at_noise(input, pinned, RETRY_NOISE_PX))
+            .flatten()
+    })
+}
+
+fn propose_at_noise(
+    input: &ExactSolveInput,
+    pinned: &BTreeSet<usize>,
+    noise_px: f64,
+) -> Option<(ExactSolveInput, Value)> {
     if !validate_input(input).is_empty() || is_polygon_boundary(input) {
         return None;
     }
-    let pixels = f64::from(input.image_size?.checked_sub(64)?);
+    // Live-document rebuilding has no raster metadata. Use the same 1024-unit
+    // fallback as SolveModel instead of silently disabling structural repair.
+    let pixels = f64::from(match input.image_size {
+        Some(size) => size.checked_sub(64)?,
+        None => 1024,
+    });
     if pixels <= 0.0 || input.vertices.is_empty() {
         return None;
     }
-    let tolerance = NOISE_PX / pixels;
+    let tolerance = noise_px / pixels;
     for cells in 4..=512 {
         let band = 2.0 * tolerance * f64::from(cells);
         if band >= 0.5 {
@@ -145,7 +265,7 @@ pub(super) fn propose(
             );
             if (snapped.x - vertex.point.x).abs() <= tolerance
                 && (snapped.y - vertex.point.y).abs() <= tolerance
-                && distance(snapped, vertex.point) * pixels <= NOISE_PX * 2.0
+                && distance(snapped, vertex.point) * pixels <= noise_px * 2.0
             {
                 vertex.point = snapped;
                 vertex.movement_policy = CandidateVertexMovementPolicy::Locked;
@@ -159,6 +279,7 @@ pub(super) fn propose(
         return Some((
             proposal,
             json!({"cells": cells, "coordinate_support": fraction,
+                                      "noise_px": noise_px, "pixels_per_unit": pixels,
                                       "locked_vertices": locked}),
         ));
     }

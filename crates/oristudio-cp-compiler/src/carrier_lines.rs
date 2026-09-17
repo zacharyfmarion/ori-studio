@@ -17,8 +17,9 @@
 //! noise bent. The second rule is *not* safe on its own for every pattern —
 //! an optimizer-drawn TreeMaker CP really does meet at tiny angles, and
 //! joining those made a square-paper CP worse — so the exact solve applies it
-//! as a judged round, adopted only when nothing regresses, and the FOLD input
-//! builder uses the bins alone.
+//! as a judged round, adopted only when nothing regresses. The FOLD input
+//! builder uses numerical collinearity for source constraints: these coarse
+//! observation bins can otherwise combine distinct tightly spaced pleats.
 
 use std::collections::BTreeMap;
 use std::f64::consts::{FRAC_PI_2, PI};
@@ -80,6 +81,17 @@ pub fn carrier_bin(carrier: &CandidateCarrierGeometry) -> (i64, i64) {
         theta = theta.rem_euclid(PI);
     }
     ((theta / 0.01).round() as i64, rho_bin)
+}
+
+/// Collinearity of stated/solved geometry. Detector-sized observation bins
+/// cannot serve as hard equalities for distinct, tightly spaced parallel lines.
+pub(crate) fn numerical_carrier_bin(carrier: &CandidateCarrierGeometry) -> (i64, i64) {
+    let rho_bin = (carrier.rho / 1e-8).round() as i64;
+    let mut theta = carrier.normal.y.atan2(carrier.normal.x);
+    if rho_bin == 0 {
+        theta = theta.rem_euclid(PI);
+    }
+    ((theta / 1e-8).round() as i64, rho_bin)
 }
 
 /// What [`shared_carrier_ids`] needs to know about a span.

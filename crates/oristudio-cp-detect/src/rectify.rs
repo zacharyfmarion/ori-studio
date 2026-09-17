@@ -54,8 +54,9 @@ const FRAME_MIN_SIDE_SUPPORT: f32 = 0.5;
 /// How far apart two projection peaks must be, as a fraction of the image's
 /// smaller side, to be opposite sides of a panel rather than one thick line.
 const MIN_PANEL_SPAN_RATIO: f32 = 0.12;
-/// How many lines an axis offers the panel search. The search is every pair
-/// against every pair, so this is a fourth-power cost.
+/// How many strong lines an axis offers the panel search. Upright axes also
+/// retain two well-supported dark neutral lines. The search is every pair against
+/// every pair, so keep this a small bounded set.
 const MAX_AXIS_CLUSTERS: usize = 12;
 /// How many angles the sweep looks at across the square's 90° of symmetry.
 const ANGLE_SWEEP_STEPS: usize = 90;
@@ -798,6 +799,14 @@ fn projection_candidates_at(analysis: &ImageAnalysis, angle_deg: f32) -> Vec<Pan
                         angle_deg,
                         metrics,
                     };
+                    // Additional dark-line candidates can also come from a
+                    // folded illustration beside the CP. Require a complete
+                    // outline before allowing them to enlarge the crop.
+                    if [left, right, top, bottom].iter().any(|c| c.supplemental)
+                        && min_side_support(&candidate) < 0.9
+                    {
+                        continue;
+                    }
                     if candidate.is_rotated() && !rotated_panel_is_credible(&candidate) {
                         continue;
                     }
@@ -963,6 +972,7 @@ fn gcd(left: usize, right: usize) -> usize {
 struct Cluster {
     center: usize,
     score: f32,
+    supplemental: bool,
 }
 
 /// The direction edge pixels are projected onto, with the offset that puts
@@ -1040,11 +1050,64 @@ fn axis_clusters(
     lines: Lines,
 ) -> Vec<Cluster> {
     let scores = smooth_scores(&project_edges(analysis, axis, stride));
-    top_clusters(
+    let mut clusters = line_clusters(
         &scores,
         axis.mean_chord(analysis.width, analysis.height),
         lines,
-    )
+    );
+    // Dense colored pleats can outrank a thin black paper border. Keep the
+    // strongest dark neutral lines as additional candidates, while excluding the
+    // pale background grid that often extends beyond the paper in screenshots.
+    let mut dark_lines: Vec<_> = if lines == Lines::PerRun {
+        clusters
+            .iter()
+            .map(|c| {
+                (
+                    upright_dark_line_support(analysis, axis, c.center),
+                    c.clone(),
+                )
+            })
+            .filter(|(support, _)| *support >= 0.35)
+            .collect()
+    } else {
+        Vec::new()
+    };
+    dark_lines.sort_by(|a, b| b.0.total_cmp(&a.0));
+    clusters.sort_by(|left, right| right.score.total_cmp(&left.score));
+    clusters.truncate(MAX_AXIS_CLUSTERS);
+    for (_, mut outer) in dark_lines.into_iter().take(2) {
+        if !clusters
+            .iter()
+            .any(|cluster| cluster.center == outer.center)
+        {
+            outer.supplemental = true;
+            clusters.push(outer);
+        }
+    }
+    clusters.sort_by_key(|cluster| cluster.center);
+    clusters
+}
+
+fn upright_dark_line_support(analysis: &ImageAnalysis, axis: ProjectionAxis, center: usize) -> f32 {
+    let vertical = axis.cos.abs() > 0.5;
+    let (along, across) = if vertical {
+        (analysis.height, analysis.width)
+    } else {
+        (analysis.width, analysis.height)
+    };
+    let radius = smoothing_radius(across);
+    let mut count = 0usize;
+    for p in 0..along {
+        let dark = (center.saturating_sub(radius)..=(center + radius).min(across - 1)).any(|q| {
+            let (x, y) = if vertical { (q, p) } else { (p, q) };
+            let rgb = &analysis.rgb[(y * analysis.width + x) * 3..][..3];
+            let low = *rgb.iter().min().unwrap_or(&255);
+            let high = *rgb.iter().max().unwrap_or(&255);
+            high < 160 && high - low <= 32
+        });
+        count += usize::from(dark);
+    }
+    count as f32 / along as f32
 }
 
 /// The edge pixels' histogram along an axis, one pixel in every `stride`
@@ -1105,7 +1168,7 @@ enum Lines {
     PerPeak,
 }
 
-fn top_clusters(scores: &[f32], cross_len: f32, lines: Lines) -> Vec<Cluster> {
+fn line_clusters(scores: &[f32], cross_len: f32, lines: Lines) -> Vec<Cluster> {
     if scores.is_empty() {
         return Vec::new();
     }
@@ -1131,9 +1194,6 @@ fn top_clusters(scores: &[f32], cross_len: f32, lines: Lines) -> Vec<Cluster> {
         }
         clusters.extend(split_run(&scores[start..idx], start, separation));
     }
-    clusters.sort_by(|left, right| right.score.total_cmp(&left.score));
-    clusters.truncate(MAX_AXIS_CLUSTERS);
-    clusters.sort_by_key(|cluster| cluster.center);
     clusters
 }
 
@@ -1176,6 +1236,7 @@ fn split_run(run: &[f32], offset: usize, separation: usize) -> Vec<Cluster> {
                 .map(|(idx, score)| (offset + pair[0] + idx) as f32 * score)
                 .sum();
             Cluster {
+                supplemental: false,
                 center: if total > 0.0 {
                     (weighted / total).round() as usize
                 } else {
@@ -2034,6 +2095,30 @@ fn clamp01(value: f32) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn upright_candidate_limit_keeps_weaker_outer_borders() {
+        let mut image = white_rgba(500, 350);
+        // Pale background grid continues past the paper and is not its border.
+        for x in (0..500).step_by(10) {
+            draw_line(&mut image, 500, x, 0, x, 349, [220, 220, 220], 1);
+        }
+        for y in (0..350).step_by(10) {
+            draw_line(&mut image, 500, 0, y, 499, y, [220, 220, 220], 1);
+        }
+        draw_rect(&mut image, 500, 20, 20, 330, 330, [0, 0, 0], 1);
+        for i in 1..16 {
+            let p = 20 + i * 19;
+            draw_line(&mut image, 500, p, 20, p, 330, [0, 0, 255], 2);
+            draw_line(&mut image, 500, 20, p, 330, p, [255, 0, 0], 2);
+        }
+        let result = auto_rectify_rgba(&image, 500, 350, 256).unwrap();
+        let quad = result.report.detected_source_quad.unwrap();
+        assert!((quad.top_left.x - 20.0).abs() <= 3.0, "{quad:?}");
+        assert!((quad.top_left.y - 20.0).abs() <= 3.0, "{quad:?}");
+        assert!((quad.bottom_right.x - 330.0).abs() <= 3.0, "{quad:?}");
+        assert!((quad.bottom_right.y - 330.0).abs() <= 3.0, "{quad:?}");
+    }
 
     #[test]
     fn auto_rectifier_crops_axis_aligned_cp_panel() {

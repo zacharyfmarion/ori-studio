@@ -1,9 +1,11 @@
 # Crease-pattern recognition research
 
 Started 2026-09-16 from `e042b18a`, on `codex/cp-recognition-research`.
-The compact synthetic-only candidate is implemented as a local preview.
+The compact synthetic-only recognizer was published to the web app on
+2026-09-16, after deploying and verifying the runtime and E031/E032 fixes.
 It substantially improves recognition but does not perfectly recover all complex
-patterns. It has not replaced the published model.
+patterns. Older desktop builds retain the compatible previous model; adopting
+the new runtime there requires an updated desktop release.
 
 - [Results and limitations](results.md): matched comparisons, runtime, remaining failures.
 - [Chronological notebook](2026-09-16-log.md): decisions and negative results.
@@ -18,15 +20,16 @@ patterns. It has not replaced the published model.
 - Real patterns are evaluation-only: no training, distillation, or pseudo-label
   training on them. All new weights descend exclusively from generated geometry.
 - The shipped model remains defined by `scripts/cp-detect/current-model.json`.
-  `candidate.json` describes this unpublished research candidate only.
+  `candidate.json` records the selected checkpoint and training provenance.
 - Use the latest `curated_benchmark` and external `real_benchmark` folder.
   Preserve the curated/rendered distinction and count failures in denominators.
 - Freeze inputs, metrics, and a geometry-grouped development/holdout split.
   This is an internal holdout: earlier product research used the whole corpus.
 - Never weaken metric tolerances or remove hard cases to claim improvement.
   Keep private images, truth, and per-case artifacts outside Git.
-- Keep cyan AUX as separate F geometry. Do not interpret it as valley folds or
-  silently remove it from the imported document.
+- Keep cyan AUX as F edges sharing vertices with the drawing graph. Exclude
+  them from fold constraints, not graph topology; never reinterpret them as
+  valley folds or silently remove them from the imported document.
 
 ## Experiment register
 

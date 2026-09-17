@@ -1,0 +1,632 @@
+{
+  "detected": [
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 0,
+      "gate": "all",
+      "cases": 431,
+      "matches": 0,
+      "recovered_within_25s": 0
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 0,
+      "gate": "detected_assignments_exact",
+      "cases": 421,
+      "matches": 0,
+      "recovered_within_25s": 0
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 0,
+      "gate": "input_equals_truth",
+      "cases": 427,
+      "matches": 0,
+      "recovered_within_25s": 0
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 1e-12,
+      "gate": "all",
+      "cases": 431,
+      "matches": 38,
+      "recovered_within_25s": 38
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 1e-12,
+      "gate": "detected_assignments_exact",
+      "cases": 421,
+      "matches": 38,
+      "recovered_within_25s": 38
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 1e-12,
+      "gate": "input_equals_truth",
+      "cases": 427,
+      "matches": 38,
+      "recovered_within_25s": 38
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 1e-09,
+      "gate": "all",
+      "cases": 431,
+      "matches": 179,
+      "recovered_within_25s": 179
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 1e-09,
+      "gate": "detected_assignments_exact",
+      "cases": 421,
+      "matches": 179,
+      "recovered_within_25s": 179
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 1e-09,
+      "gate": "input_equals_truth",
+      "cases": 427,
+      "matches": 179,
+      "recovered_within_25s": 179
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 1e-06,
+      "gate": "all",
+      "cases": 431,
+      "matches": 184,
+      "recovered_within_25s": 184
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 1e-06,
+      "gate": "detected_assignments_exact",
+      "cases": 421,
+      "matches": 184,
+      "recovered_within_25s": 184
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 1e-06,
+      "gate": "input_equals_truth",
+      "cases": 427,
+      "matches": 183,
+      "recovered_within_25s": 183
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 0.001953125,
+      "gate": "all",
+      "cases": 431,
+      "matches": 387,
+      "recovered_within_25s": 387
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 0.001953125,
+      "gate": "detected_assignments_exact",
+      "cases": 421,
+      "matches": 387,
+      "recovered_within_25s": 387
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 0.001953125,
+      "gate": "input_equals_truth",
+      "cases": 427,
+      "matches": 385,
+      "recovered_within_25s": 385
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 0,
+      "gate": "all",
+      "cases": 431,
+      "matches": 0,
+      "recovered_within_25s": 0
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 0,
+      "gate": "detected_assignments_exact",
+      "cases": 421,
+      "matches": 0,
+      "recovered_within_25s": 0
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 0,
+      "gate": "input_equals_truth",
+      "cases": 427,
+      "matches": 0,
+      "recovered_within_25s": 0
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 1e-12,
+      "gate": "all",
+      "cases": 431,
+      "matches": 38,
+      "recovered_within_25s": 38
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 1e-12,
+      "gate": "detected_assignments_exact",
+      "cases": 421,
+      "matches": 38,
+      "recovered_within_25s": 38
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 1e-12,
+      "gate": "input_equals_truth",
+      "cases": 427,
+      "matches": 38,
+      "recovered_within_25s": 38
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 1e-09,
+      "gate": "all",
+      "cases": 431,
+      "matches": 178,
+      "recovered_within_25s": 178
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 1e-09,
+      "gate": "detected_assignments_exact",
+      "cases": 421,
+      "matches": 178,
+      "recovered_within_25s": 178
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 1e-09,
+      "gate": "input_equals_truth",
+      "cases": 427,
+      "matches": 178,
+      "recovered_within_25s": 178
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 1e-06,
+      "gate": "all",
+      "cases": 431,
+      "matches": 182,
+      "recovered_within_25s": 182
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 1e-06,
+      "gate": "detected_assignments_exact",
+      "cases": 421,
+      "matches": 182,
+      "recovered_within_25s": 182
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 1e-06,
+      "gate": "input_equals_truth",
+      "cases": 427,
+      "matches": 182,
+      "recovered_within_25s": 182
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 0.001953125,
+      "gate": "all",
+      "cases": 431,
+      "matches": 378,
+      "recovered_within_25s": 378
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 0.001953125,
+      "gate": "detected_assignments_exact",
+      "cases": 421,
+      "matches": 378,
+      "recovered_within_25s": 378
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 0.001953125,
+      "gate": "input_equals_truth",
+      "cases": 427,
+      "matches": 378,
+      "recovered_within_25s": 378
+    }
+  ],
+  "topology": [
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 0,
+      "gate": "all",
+      "cases": 526,
+      "matches": 1,
+      "recovered_within_25s": 1
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 0,
+      "gate": "detected_assignments_exact",
+      "cases": 421,
+      "matches": 1,
+      "recovered_within_25s": 1
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 0,
+      "gate": "input_equals_truth",
+      "cases": 505,
+      "matches": 1,
+      "recovered_within_25s": 1
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 1e-12,
+      "gate": "all",
+      "cases": 526,
+      "matches": 456,
+      "recovered_within_25s": 455
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 1e-12,
+      "gate": "detected_assignments_exact",
+      "cases": 421,
+      "matches": 394,
+      "recovered_within_25s": 394
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 1e-12,
+      "gate": "input_equals_truth",
+      "cases": 505,
+      "matches": 456,
+      "recovered_within_25s": 455
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 1e-09,
+      "gate": "all",
+      "cases": 526,
+      "matches": 473,
+      "recovered_within_25s": 472
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 1e-09,
+      "gate": "detected_assignments_exact",
+      "cases": 421,
+      "matches": 402,
+      "recovered_within_25s": 402
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 1e-09,
+      "gate": "input_equals_truth",
+      "cases": 505,
+      "matches": 469,
+      "recovered_within_25s": 468
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 1e-06,
+      "gate": "all",
+      "cases": 526,
+      "matches": 477,
+      "recovered_within_25s": 476
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 1e-06,
+      "gate": "detected_assignments_exact",
+      "cases": 421,
+      "matches": 406,
+      "recovered_within_25s": 406
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 1e-06,
+      "gate": "input_equals_truth",
+      "cases": 505,
+      "matches": 472,
+      "recovered_within_25s": 471
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 0.001953125,
+      "gate": "all",
+      "cases": 526,
+      "matches": 496,
+      "recovered_within_25s": 495
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 0.001953125,
+      "gate": "detected_assignments_exact",
+      "cases": 421,
+      "matches": 416,
+      "recovered_within_25s": 416
+    },
+    {
+      "mode": "physical",
+      "epsilon_paper_width": 0.001953125,
+      "gate": "input_equals_truth",
+      "cases": 505,
+      "matches": 485,
+      "recovered_within_25s": 484
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 0,
+      "gate": "all",
+      "cases": 526,
+      "matches": 1,
+      "recovered_within_25s": 1
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 0,
+      "gate": "detected_assignments_exact",
+      "cases": 421,
+      "matches": 1,
+      "recovered_within_25s": 1
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 0,
+      "gate": "input_equals_truth",
+      "cases": 505,
+      "matches": 1,
+      "recovered_within_25s": 1
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 1e-12,
+      "gate": "all",
+      "cases": 526,
+      "matches": 454,
+      "recovered_within_25s": 454
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 1e-12,
+      "gate": "detected_assignments_exact",
+      "cases": 421,
+      "matches": 393,
+      "recovered_within_25s": 393
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 1e-12,
+      "gate": "input_equals_truth",
+      "cases": 505,
+      "matches": 454,
+      "recovered_within_25s": 454
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 1e-09,
+      "gate": "all",
+      "cases": 526,
+      "matches": 470,
+      "recovered_within_25s": 470
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 1e-09,
+      "gate": "detected_assignments_exact",
+      "cases": 421,
+      "matches": 401,
+      "recovered_within_25s": 401
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 1e-09,
+      "gate": "input_equals_truth",
+      "cases": 505,
+      "matches": 467,
+      "recovered_within_25s": 467
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 1e-06,
+      "gate": "all",
+      "cases": 526,
+      "matches": 474,
+      "recovered_within_25s": 474
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 1e-06,
+      "gate": "detected_assignments_exact",
+      "cases": 421,
+      "matches": 405,
+      "recovered_within_25s": 405
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 1e-06,
+      "gate": "input_equals_truth",
+      "cases": 505,
+      "matches": 470,
+      "recovered_within_25s": 470
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 0.001953125,
+      "gate": "all",
+      "cases": 526,
+      "matches": 494,
+      "recovered_within_25s": 494
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 0.001953125,
+      "gate": "detected_assignments_exact",
+      "cases": 421,
+      "matches": 415,
+      "recovered_within_25s": 415
+    },
+    {
+      "mode": "with_aux",
+      "epsilon_paper_width": 0.001953125,
+      "gate": "input_equals_truth",
+      "cases": 505,
+      "matches": 483,
+      "recovered_within_25s": 483
+    }
+  ],
+  "evidence_sha256": {
+    "detected": "61cff7699abb90aff113b88fa30a75d30e56902eab52a053e4865e65ac7ea3b1",
+    "topology": "7ab4465c53cd087ca0361d0d67dc0eae66dd583d590b7c9eab38a870cdb2ae68"
+  },
+  "historical_protocol_note": "The detected/topology/baseline arrays are S018 rescoring of frozen earlier outputs. S025 follow-up results below retain failures and distinguish numerical thresholds.",
+  "followup_s025": {
+    "recognized_cases": 431,
+    "assignment_correct_cases": 421,
+    "local_solved_under_25s": 421,
+    "max_seconds": 20.612105000019074,
+    "reference_scores": [
+      {
+        "mode": "physical",
+        "epsilon_paper_width": 0,
+        "gate": "detected_assignments_exact",
+        "cases": 421,
+        "matches": 0,
+        "recovered_within_25s": 0
+      },
+      {
+        "mode": "physical",
+        "epsilon_paper_width": 1e-12,
+        "gate": "detected_assignments_exact",
+        "cases": 421,
+        "matches": 38,
+        "recovered_within_25s": 38
+      },
+      {
+        "mode": "physical",
+        "epsilon_paper_width": 1e-09,
+        "gate": "detected_assignments_exact",
+        "cases": 421,
+        "matches": 179,
+        "recovered_within_25s": 179
+      },
+      {
+        "mode": "physical",
+        "epsilon_paper_width": 1e-06,
+        "gate": "detected_assignments_exact",
+        "cases": 421,
+        "matches": 183,
+        "recovered_within_25s": 183
+      },
+      {
+        "mode": "physical",
+        "epsilon_paper_width": 0.001953125,
+        "gate": "detected_assignments_exact",
+        "cases": 421,
+        "matches": 387,
+        "recovered_within_25s": 387
+      },
+      {
+        "mode": "with_aux",
+        "epsilon_paper_width": 0,
+        "gate": "detected_assignments_exact",
+        "cases": 421,
+        "matches": 0,
+        "recovered_within_25s": 0
+      },
+      {
+        "mode": "with_aux",
+        "epsilon_paper_width": 1e-12,
+        "gate": "detected_assignments_exact",
+        "cases": 421,
+        "matches": 38,
+        "recovered_within_25s": 38
+      },
+      {
+        "mode": "with_aux",
+        "epsilon_paper_width": 1e-09,
+        "gate": "detected_assignments_exact",
+        "cases": 421,
+        "matches": 178,
+        "recovered_within_25s": 178
+      },
+      {
+        "mode": "with_aux",
+        "epsilon_paper_width": 1e-06,
+        "gate": "detected_assignments_exact",
+        "cases": 421,
+        "matches": 181,
+        "recovered_within_25s": 181
+      },
+      {
+        "mode": "with_aux",
+        "epsilon_paper_width": 0.001953125,
+        "gate": "detected_assignments_exact",
+        "cases": 421,
+        "matches": 378,
+        "recovered_within_25s": 378
+      }
+    ],
+    "document_replay": {
+      "affected_cases": 36,
+      "local_solved_under_25s": 35,
+      "reference_scored_cases": 27,
+      "matches_with_aux_at_1e9": 26,
+      "reference_gains": 0,
+      "reference_losses": 0
+    },
+    "sensitivity_note": "Maid loses a 1e-6 near-match when the unchanged primary solver skips late polishing under its stage budget. Literal, 1e-12, 1e-9 and 2px verdicts are unchanged."
+  },
+  "followup_s028": {
+    "generated_document_grids": [
+      {
+        "key": "grid-32-seed-12071",
+        "vertices": 1089,
+        "edges": 2112,
+        "seconds": 0.4740250000953674,
+        "solved_25s": true,
+        "literal_coordinates_equal": true,
+        "max_coordinate_error": 0.0,
+        "edges_equal": true,
+        "assignments_equal": true
+      },
+      {
+        "key": "grid-64-seed-91237",
+        "vertices": 4225,
+        "edges": 8320,
+        "seconds": 4.492005000114441,
+        "solved_25s": true,
+        "literal_coordinates_equal": true,
+        "max_coordinate_error": 0.0,
+        "edges_equal": true,
+        "assignments_equal": true
+      },
+      {
+        "key": "grid-96-seed-40099",
+        "vertices": 9409,
+        "edges": 18624,
+        "seconds": 21.29746499991417,
+        "solved_25s": true,
+        "literal_coordinates_equal": false,
+        "max_coordinate_error": 3.925231146709438e-17,
+        "edges_equal": true,
+        "assignments_equal": true
+      }
+    ],
+    "knight_seconds": [
+      2.140125,
+      2.0766399998664857,
+      2.0080950000286104
+    ],
+    "wasm_sha256": "f6f9f5d64c796b829c59569320f916bc094fd4e581f89be2fdd0c2371355c0ff",
+    "no_ground_truth_for_knight": true
+  }
+}

@@ -94,10 +94,13 @@ javac \
 
 cp "$source_root/oriedita/src/main/resources/fixData_22_5.bin" "$classes_root/fixData_22_5.bin"
 
+# Short-lived parallel JVMs do not need jstat's shared performance counters.
+# A locked hsperfdata file can make HotSpot print a startup warning to stdout,
+# corrupting the oracle protocol even when the geometry matches exactly.
 cat > "$build_root/oriedita-geometry-oracle" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-java -cp "$classes_root" OrieditaGeometryOracle "\$@"
+exec java -XX:-UsePerfData -cp "$classes_root" OrieditaGeometryOracle "\$@"
 EOF
 chmod +x "$build_root/oriedita-geometry-oracle"
 cp "$build_root/oriedita-geometry-oracle" "$build_root/oriedita-oracle"

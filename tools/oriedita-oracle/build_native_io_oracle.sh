@@ -83,10 +83,12 @@ javac \
   -sourcepath "$stubs_root:$oracle_root/src:$origami_source:$common_source:$data_source" \
   "$oracle_root/src/OrieditaNativeIoOracle.java"
 
+# Keep shared JVM performance-file warnings out of the stdout data protocol,
+# as in the geometry oracle. These short-lived processes need no jstat data.
 cat > "$build_root/oriedita-native-io-oracle" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-java -cp "$classes_root:$classpath" OrieditaNativeIoOracle "\$@"
+exec java -XX:-UsePerfData -cp "$classes_root:$classpath" OrieditaNativeIoOracle "\$@"
 EOF
 chmod +x "$build_root/oriedita-native-io-oracle"
 

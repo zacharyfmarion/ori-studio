@@ -32,7 +32,31 @@ use std::rc::Rc;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 
+mod projection;
 mod recognition;
+
+/// Research entry point for a bounded direct-coordinate feasibility proposal.
+/// Uses the same final checks, pins and movement budget as the ordinary solve.
+pub fn solve_exact_projection(
+    input: &ExactSolveInput,
+    options: &ExactSolveOptionsWithExemptions,
+) -> ExactSolvedGraph {
+    let pinned = Rc::new(options.pinned_vertex_ids.clone());
+    let normalized = normalized_input(input, &pinned);
+    let clock =
+        ExactSolveDeadline::start(options.options.timeout_seconds, options.options.work_budget);
+    let mut result = projection::solve(
+        &normalized,
+        options.options,
+        &clock,
+        Rc::new(options.exempt_vertex_ids.clone()),
+        Rc::clone(&pinned),
+    );
+    place_dissolved_vertices(&normalized, input, &mut result.vertices_exact);
+    report_dissolved_movement(&normalized, input, &mut result);
+    restore_original_edges(input, &mut result);
+    result
+}
 
 const SCHEMA: &str = "oristudio/cp-compiler/exact-solved-graph-v1";
 /// The single source of truth for the exact-solve wall-clock budget, shared by
@@ -58,9 +82,10 @@ pub enum LinearSolver {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ExactSolveOptions {
-    /// Bounded automatic recognition policy: preserve accepted ordinary solves,
-    /// then try a dominant partial lattice. Large graphs first use the existing
-    /// lattice-only pass. Opt-in; manual exact solving retains its policy.
+    /// Bounded proposal policy: preserve exact ordinary solves, then try a
+    /// dominant partial lattice and direct-coordinate feasibility projection.
+    /// Large graphs start with lattice-only instead of a dense factorization.
+    /// Opt-in at the API; recognition and whole-region solving enable it.
     #[serde(default)]
     pub recognition_fallback: bool,
     pub patience: usize,
@@ -1638,6 +1663,27 @@ impl SolveModel {
         exempt_vertex_ids: Rc<BTreeSet<usize>>,
         pinned_vertex_ids: Rc<BTreeSet<usize>>,
     ) -> Self {
+        Self::with_carrier_resolution(
+            input,
+            options,
+            deadline,
+            exempt_vertex_ids,
+            pinned_vertex_ids,
+            false,
+        )
+    }
+
+    /// Read inferred carriers from a feasibility proposal at numerical
+    /// collinearity. Explicit source groups remain hard constraints in either
+    /// mode; only detector-scale observation bins are reconsidered.
+    fn with_carrier_resolution(
+        input: &ExactSolveInput,
+        options: ExactSolveOptions,
+        deadline: ExactSolveDeadline,
+        exempt_vertex_ids: Rc<BTreeSet<usize>>,
+        pinned_vertex_ids: Rc<BTreeSet<usize>>,
+        numerical_carriers: bool,
+    ) -> Self {
         let mut params = Vec::new();
         let polygon = is_polygon_boundary(input);
         let corner_points = if polygon {
@@ -1706,7 +1752,7 @@ impl SolveModel {
             {
                 continue;
             }
-            let key = CarrierGroupKey::from_span(span);
+            let key = CarrierGroupKey::from_span(span, numerical_carriers);
             let group_index = if let Some(index) = group_by_key.get(&key).copied() {
                 index
             } else {
@@ -3222,7 +3268,7 @@ enum CarrierGroupKey {
 }
 
 impl CarrierGroupKey {
-    fn from_span(span: &CandidateCreaseSpan) -> Self {
+    fn from_span(span: &CandidateCreaseSpan, numerical_carriers: bool) -> Self {
         if let Some(id) = span.source_carrier_ids.first().copied() {
             return Self::Source(id);
         }
@@ -3232,6 +3278,10 @@ impl CarrierGroupKey {
                 | CandidateCreaseSpanKind::NormalizedPassThroughSpan
                 | CandidateCreaseSpanKind::SharedCarrierSpan
         ) {
+            if numerical_carriers {
+                let (angle, rho) = crate::carrier_lines::numerical_carrier_bin(&span.carrier);
+                return Self::Geometry(angle, rho);
+            }
             let theta = span.carrier.normal.y.atan2(span.carrier.normal.x);
             let angle_bin = (theta / 0.01).round() as i64;
             let rho_bin = (span.carrier.rho / 0.0025).round() as i64;
@@ -8921,6 +8971,114 @@ mod tests {
         assert_eq!(
             proposal.vertices[ids[2]].movement_policy,
             CandidateVertexMovementPolicy::Locked
+        );
+    }
+
+    #[test]
+    fn partial_lattice_repairs_document_geometry_without_raster_metadata() {
+        let mut input = pleat_grid_input(1.8);
+        input.image_size = None;
+        let (proposal, report) = recognition::propose(&input, &BTreeSet::new()).unwrap();
+        assert_eq!(report["cells"], 8);
+        assert_eq!(report["noise_px"], 2.0);
+        assert_eq!(report["pixels_per_unit"], 1024.0);
+        let expected = pleat_grid_input(0.0);
+        for (actual, expected) in proposal.vertices.iter().zip(&expected.vertices) {
+            assert_eq!(actual.point, expected.point);
+        }
+        let options = ExactSolveOptions::default();
+        let clock = ExactSolveDeadline::start(5.0, None);
+        let solved = projection::solve(&proposal, options, &clock, Rc::default(), Rc::default());
+        let judged = recognition::judge_original(
+            &input,
+            &solved,
+            options,
+            &clock,
+            Rc::default(),
+            Rc::default(),
+        )
+        .unwrap();
+        assert_eq!(judged.status, ExactSolvedGraphStatus::Solved);
+        assert_eq!(
+            judged.vertices_exact,
+            expected
+                .vertices
+                .iter()
+                .map(|v| v.point)
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn large_noisy_document_grid_recovers_exact_generated_coordinates() {
+        const CELLS: usize = 32;
+        let mut fold = treemaker_fold::FoldDocument::new(Vec::new(), Vec::new());
+        let id = |x: usize, y: usize| y * (CELLS + 1) + x;
+        for y in 0..=CELLS {
+            for x in 0..=CELLS {
+                let mut p = [x as f64 / CELLS as f64, y as f64 / CELLS as f64];
+                if x > 0 && x < CELLS && y > 0 && y < CELLS {
+                    let sign = if (x + y) % 2 == 0 { 1.0 } else { -1.0 };
+                    p[0] += sign * 1.8 / 1024.0;
+                    p[1] -= sign * 1.8 / 1024.0;
+                }
+                fold.vertices_coords.push(p.to_vec());
+            }
+        }
+        for y in 0..=CELLS {
+            for x in 0..=CELLS {
+                if x < CELLS {
+                    fold.edges_vertices.push([id(x, y), id(x + 1, y)]);
+                    fold.edges_assignment.push(if y == 0 || y == CELLS {
+                        treemaker_fold::Assignment::Boundary
+                    } else {
+                        treemaker_fold::Assignment::Mountain
+                    });
+                }
+                if y < CELLS {
+                    fold.edges_vertices.push([id(x, y), id(x, y + 1)]);
+                    fold.edges_assignment.push(if x == 0 || x == CELLS {
+                        treemaker_fold::Assignment::Boundary
+                    } else if y % 2 == 0 {
+                        treemaker_fold::Assignment::Mountain
+                    } else {
+                        treemaker_fold::Assignment::Valley
+                    });
+                }
+            }
+        }
+        let (input, _) = crate::exact_solve_input_from_fold(&fold).unwrap();
+        let mut truth = fold.clone();
+        for (i, point) in truth.vertices_coords.iter_mut().enumerate() {
+            point[0] = (i % (CELLS + 1)) as f64 / CELLS as f64;
+            point[1] = (i / (CELLS + 1)) as f64 / CELLS as f64;
+        }
+        let (expected, _) = crate::exact_solve_input_from_fold(&truth).unwrap();
+        assert!(input.image_size.is_none());
+        assert!(input.selected_spans.len() > 1500);
+        let solved = solve_exact(
+            &input,
+            ExactSolveOptions {
+                recognition_fallback: true,
+                timeout_seconds: 25.0,
+                ..Default::default()
+            },
+        );
+        assert_eq!(solved.status, ExactSolvedGraphStatus::Solved);
+        assert_eq!(
+            solved.movement_report["recognition_fallback"]["adopted"],
+            true
+        );
+        assert_eq!(solved.vertices_exact.len(), fold.vertices_coords.len());
+        // This asserts exact generated geometry, not only a small theorem residual.
+        assert_eq!(lattice_offset_px(&solved.vertices_exact, CELLS as f64), 0.0);
+        assert_eq!(
+            solved.vertices_exact,
+            expected
+                .vertices
+                .iter()
+                .map(|v| v.point)
+                .collect::<Vec<_>>()
         );
     }
 
