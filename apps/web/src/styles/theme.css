@@ -5200,10 +5200,22 @@ button.cp-folded-figure-toolbar__notice:hover {
   display: grid;
   flex: 1 1 auto;
   grid-template-columns: minmax(0, 1fr);
-  /* The grid fills the rail, and a grid's rows stretch into a definite height
-     by default — two cards in a tall rail each grew a blank third under their
-     label. The rows keep their own height; the rail's spare room stays below. */
+  /*
+   * The rows are their cards' height, said twice, because the grid fills the
+   * rail and so has a definite height that is not its content's:
+   *
+   * - `align-content: start`: a grid's rows stretch into spare height by
+   *   default, so two cards in a tall rail each grew a blank third under
+   *   their label.
+   * - `grid-auto-rows: max-content`: WebKit squeezes `auto` rows to fit a
+   *   grid *shorter* than its content — eight cards on an iPhone came out
+   *   161px tall with a 179px thumbnail inside, the label of each pushed
+   *   under the next row (verified on iOS 26 in the simulator; Chrome sizes
+   *   the same rows to their content). Naming the rows' size function skips
+   *   the clamp, in the scroll box and in the phone's one long screen alike.
+   */
   align-content: start;
+  grid-auto-rows: max-content;
   gap: var(--space-2);
   min-height: 0;
   overflow: auto;
