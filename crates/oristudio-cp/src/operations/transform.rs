@@ -306,12 +306,33 @@ pub fn move_selected_lines(
         return 0;
     }
 
-    delete_selected_lines(model);
     translate_segments(&mut selected, delta, pinned);
+    if !all_finite(&selected) {
+        return 0;
+    }
+    delete_selected_lines(model);
     drop_collapsed_segments(&mut selected, pinned);
     append_and_split(model, selected);
     unselect_all(model);
     moved_count
+}
+
+/// Whether every endpoint a transform produced is a real position.
+///
+/// The transforms are the one family that reaches [`append_and_split`], which
+/// has no guard of its own, so this is checked before anything is deleted or
+/// appended: a result with a NaN or infinite coordinate is refused whole and
+/// the model is left exactly as it was. A crease with such an endpoint is
+/// never drawn, is never picked, poisons every nearest-point search that
+/// compares against it, and is written to disk as JSON `null`, which the
+/// reader then rejects for the whole file — the worst outcome of an edit, and
+/// one no gesture can mean.
+fn all_finite(segments: &[LineSegment]) -> bool {
+    segments.iter().all(|segment| {
+        [segment.a, segment.b]
+            .iter()
+            .all(|p| p.x.is_finite() && p.y.is_finite())
+    })
 }
 
 /// Oriedita `CREASE_COPY_22` final mutation after selected lines and delta are known.
@@ -333,6 +354,9 @@ pub fn copy_selected_lines(model: &mut CreasePatternModel, delta: Point) -> usiz
     }
 
     translate_segments(&mut selected, delta, PinnedPoints::none());
+    if !all_finite(&selected) {
+        return 0;
+    }
     for segment in &mut selected {
         *segment = segment.with_selected(0);
     }
@@ -341,11 +365,37 @@ pub fn copy_selected_lines(model: &mut CreasePatternModel, delta: Point) -> usiz
     copied_count
 }
 
+/// Whether a four-point transform has nothing to resolve.
+///
+/// Oriedita never runs `FoldLineSet.move(ta, tb, tc, td)` on a zero-length pair:
+/// its handlers' `release_select_2_original_points` /
+/// `release_select_2_target_points` refuse a second point within the selection
+/// distance of the first and stay on that step. Our surface collects the four
+/// points without that gate, so the refusal lives here. It matters because the
+/// transform divides its scale by `|ta tb|` — a coincident source pair turns
+/// every endpoint non-finite, which serializes as JSON `null` and leaves the
+/// saved file unreadable — and a coincident target pair scales the selection to
+/// a point. The zero test is the one the two-point variants apply to their delta,
+/// and it also refuses a non-finite input, since `gt0(NaN)` is false.
+fn four_point_pair_is_degenerate(
+    original_a: Point,
+    original_b: Point,
+    target_a: Point,
+    target_b: Point,
+) -> bool {
+    !Epsilon::HIGH.gt0(original_a.distance(original_b))
+        || !Epsilon::HIGH.gt0(target_a.distance(target_b))
+}
+
 /// Oriedita `CREASE_MOVE_4P_31` final mutation once all four points are known.
 ///
 /// Pinned endpoints are held, as in [`move_selected_lines`]. A similarity is
 /// still a similarity for everything else in the selection — only the held ends
 /// sit out.
+///
+/// A degenerate pair (see [`four_point_pair_is_degenerate`]) and a non-finite
+/// result (see [`all_finite`]) are both refused before anything is deleted, so
+/// the selection stays exactly where it was.
 pub fn move_selected_lines_by_points(
     model: &mut CreasePatternModel,
     original_a: Point,
@@ -354,13 +404,16 @@ pub fn move_selected_lines_by_points(
     target_b: Point,
     pinned: PinnedPoints<'_>,
 ) -> usize {
+    if four_point_pair_is_degenerate(original_a, original_b, target_a, target_b) {
+        return 0;
+    }
+
     let mut selected = selected_line_segments(model);
     let moved_count = selected.len();
     if moved_count == 0 {
         return 0;
     }
 
-    delete_selected_lines(model);
     transform_segments_by_points(
         &mut selected,
         original_a,
@@ -369,6 +422,10 @@ pub fn move_selected_lines_by_points(
         target_b,
         pinned,
     );
+    if !all_finite(&selected) {
+        return 0;
+    }
+    delete_selected_lines(model);
     drop_collapsed_segments(&mut selected, pinned);
     append_and_split(model, selected);
     unselect_all(model);
@@ -376,7 +433,8 @@ pub fn move_selected_lines_by_points(
 }
 
 /// Oriedita `CREASE_COPY_4P_32` final mutation once all four points are known.
-/// Takes no pinned set, for the reason [`copy_selected_lines`] gives.
+/// Takes no pinned set, for the reason [`copy_selected_lines`] gives, and
+/// refuses a degenerate pair like [`move_selected_lines_by_points`].
 pub fn copy_selected_lines_by_points(
     model: &mut CreasePatternModel,
     original_a: Point,
@@ -384,6 +442,10 @@ pub fn copy_selected_lines_by_points(
     target_a: Point,
     target_b: Point,
 ) -> usize {
+    if four_point_pair_is_degenerate(original_a, original_b, target_a, target_b) {
+        return 0;
+    }
+
     let mut selected = selected_line_segments(model);
     let copied_count = selected.len();
     if copied_count == 0 {
@@ -398,6 +460,9 @@ pub fn copy_selected_lines_by_points(
         target_b,
         PinnedPoints::none(),
     );
+    if !all_finite(&selected) {
+        return 0;
+    }
     for segment in &mut selected {
         *segment = segment.with_selected(0);
     }

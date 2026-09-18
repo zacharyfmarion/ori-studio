@@ -357,6 +357,48 @@ describe('crease pattern viewport helpers', () => {
     ).toBeNull();
   });
 
+  it('ignores an endpoint with a non-finite coordinate instead of snapping to it', () => {
+    // A crease copied with a coincident source pair once landed in the document
+    // with NaN endpoints. Its NaN distance passed the `> max` rejection, became
+    // the best candidate wherever no valid vertex came first in the list, and
+    // could never be displaced — so every snap below the pattern resolved to
+    // (NaN, NaN), the copy ghost vanished and the commit was refused.
+    const damaged: OristudioCpDocumentSnapshot = {
+      ...document,
+      crease_pattern: {
+        ...document.crease_pattern,
+        line_segments: [
+          {
+            ...document.crease_pattern.line_segments[0],
+            a: { x: Number.NaN, y: Number.NaN },
+            b: { x: Number.NaN, y: Number.NaN },
+          },
+          ...document.crease_pattern.line_segments,
+        ],
+      },
+    };
+    const bounds = getEditableCpModelBounds(document);
+    const options = {
+      gridVisible: true,
+      snapToGrid: true,
+      snapToVertices: true,
+      snapToLines: true,
+    };
+
+    // Far from every vertex, the grid point is still the answer.
+    expect(nearestOrieditaDrawPointTarget(damaged, { x: 38, y: 42 }, bounds, options)).toMatchObject(
+      { kind: 'grid', point: { x: 40, y: 40 } }
+    );
+    expect(nearestCpSnapTarget(damaged, { x: 38, y: 42 }, bounds, options)).toMatchObject({
+      kind: 'grid',
+      point: { x: 40, y: 40 },
+    });
+    // And a vertex listed after the damaged crease is still reachable.
+    expect(
+      nearestOrieditaDrawPointTarget(damaged, { x: 10.2, y: 0.1 }, bounds, options, 3)
+    ).toMatchObject({ kind: 'vertex', point: { x: 10, y: 0 } });
+  });
+
   it('snaps to the same Oriedita paper grid basis used for rendering', () => {
     expect(closestOrieditaGridPoint({ x: 2, y: -3 }, document.crease_pattern.grid)).toEqual({
       x: 0,

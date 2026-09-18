@@ -223,6 +223,61 @@ describe('native project file', () => {
     });
   });
 
+  it('drops crease-pattern geometry whose coordinates were written as null', () => {
+    // A four-point Copy with a coincident source pair once appended creases
+    // with NaN endpoints; JSON.stringify writes those as null, and the kernel
+    // rejects null for f64 — so the whole file refused to open. Those entries
+    // carry no position and were never drawn, so the reader drops them and
+    // hands the kernel the rest as it was.
+    const documentSnapshot = cpDocument();
+    const [crease] = documentSnapshot.crease_pattern.line_segments;
+    const damagedPoint = { x: Number.NaN, y: Number.NaN };
+    documentSnapshot.crease_pattern.line_segments = [
+      crease,
+      { ...crease, a: damagedPoint, b: damagedPoint, color: 'Red1' },
+      { ...crease, a: { x: 0, y: 1 }, b: { x: Number.POSITIVE_INFINITY, y: 1 } },
+      { ...crease, a: { x: 0, y: 2 }, b: { x: 1, y: 2 }, color: 'Blue2' },
+    ];
+    documentSnapshot.crease_pattern.aux_line_segments = [
+      { ...crease, a: damagedPoint, b: { x: 1, y: 3 } },
+    ];
+    documentSnapshot.crease_pattern.points = [{ x: 0.5, y: 0.5 }, damagedPoint];
+    documentSnapshot.crease_pattern.circles = [
+      { x: 0.5, y: 0.5, r: 0.25, color: 'Cyan3', customized: 0, customized_color: crease.customized_color },
+      { x: Number.NaN, y: 0.5, r: 0.25, color: 'Cyan3', customized: 0, customized_color: crease.customized_color },
+    ];
+    const file = createNativeCreasePatternProjectFile({
+      title: 'Square CP',
+      filename: 'square.cp',
+      path: null,
+      document: documentSnapshot,
+      source: null,
+      foldProjection: null,
+      sourceFold: null,
+      foldArtifacts: null,
+      creaseColorMode: 'mvf',
+      selection: emptyOristudioCpSelection(),
+      viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+      foldedFigures: [],
+      activeFoldedFigureId: null,
+      lineage: importedCpLineage(),
+      appVersion: '0.5.0',
+      now,
+    });
+    const text = serializeNativeProjectFile(file);
+    expect(text).toContain('"x": null');
+
+    const parsed = parseNativeProjectFile(text);
+    const model = parsed.workspace.creasePattern?.creasePattern.document.crease_pattern;
+    if (!model) throw new Error('expected CP document');
+    expect(model.line_segments.map((segment) => segment.color)).toEqual(['Black0', 'Blue2']);
+    expect(model.line_segments[1]).toMatchObject({ a: { x: 0, y: 2 }, b: { x: 1, y: 2 } });
+    expect(model.aux_line_segments).toEqual([]);
+    expect(model.points).toEqual([{ x: 0.5, y: 0.5 }]);
+    expect(model.circles).toHaveLength(1);
+    expect(model.grid).toEqual(cpDocument().crease_pattern.grid);
+  });
+
   it('preserves editable CP snapshots, fold projection, and view state', () => {
     const selection = { ...emptyOristudioCpSelection(), lines: [1] };
     const documentSnapshot = cpDocument();
