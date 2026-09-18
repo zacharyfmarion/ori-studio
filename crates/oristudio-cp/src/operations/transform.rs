@@ -306,12 +306,33 @@ pub fn move_selected_lines(
         return 0;
     }
 
-    delete_selected_lines(model);
     translate_segments(&mut selected, delta, pinned);
+    if !all_finite(&selected) {
+        return 0;
+    }
+    delete_selected_lines(model);
     drop_collapsed_segments(&mut selected, pinned);
     append_and_split(model, selected);
     unselect_all(model);
     moved_count
+}
+
+/// Whether every endpoint a transform produced is a real position.
+///
+/// The transforms are the one family that reaches [`append_and_split`], which
+/// has no guard of its own, so this is checked before anything is deleted or
+/// appended: a result with a NaN or infinite coordinate is refused whole and
+/// the model is left exactly as it was. A crease with such an endpoint is
+/// never drawn, is never picked, poisons every nearest-point search that
+/// compares against it, and is written to disk as JSON `null`, which the
+/// reader then rejects for the whole file — the worst outcome of an edit, and
+/// one no gesture can mean.
+fn all_finite(segments: &[LineSegment]) -> bool {
+    segments.iter().all(|segment| {
+        [segment.a, segment.b]
+            .iter()
+            .all(|p| p.x.is_finite() && p.y.is_finite())
+    })
 }
 
 /// Oriedita `CREASE_COPY_22` final mutation after selected lines and delta are known.
@@ -333,6 +354,9 @@ pub fn copy_selected_lines(model: &mut CreasePatternModel, delta: Point) -> usiz
     }
 
     translate_segments(&mut selected, delta, PinnedPoints::none());
+    if !all_finite(&selected) {
+        return 0;
+    }
     for segment in &mut selected {
         *segment = segment.with_selected(0);
     }
@@ -369,8 +393,9 @@ fn four_point_pair_is_degenerate(
 /// still a similarity for everything else in the selection — only the held ends
 /// sit out.
 ///
-/// A degenerate pair (see [`four_point_pair_is_degenerate`]) is refused before
-/// anything is deleted, so the selection stays exactly where it was.
+/// A degenerate pair (see [`four_point_pair_is_degenerate`]) and a non-finite
+/// result (see [`all_finite`]) are both refused before anything is deleted, so
+/// the selection stays exactly where it was.
 pub fn move_selected_lines_by_points(
     model: &mut CreasePatternModel,
     original_a: Point,
@@ -389,7 +414,6 @@ pub fn move_selected_lines_by_points(
         return 0;
     }
 
-    delete_selected_lines(model);
     transform_segments_by_points(
         &mut selected,
         original_a,
@@ -398,6 +422,10 @@ pub fn move_selected_lines_by_points(
         target_b,
         pinned,
     );
+    if !all_finite(&selected) {
+        return 0;
+    }
+    delete_selected_lines(model);
     drop_collapsed_segments(&mut selected, pinned);
     append_and_split(model, selected);
     unselect_all(model);
@@ -432,6 +460,9 @@ pub fn copy_selected_lines_by_points(
         target_b,
         PinnedPoints::none(),
     );
+    if !all_finite(&selected) {
+        return 0;
+    }
     for segment in &mut selected {
         *segment = segment.with_selected(0);
     }

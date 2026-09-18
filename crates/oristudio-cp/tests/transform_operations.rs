@@ -173,6 +173,36 @@ fn four_point_transforms_refuse_a_coincident_pair_and_leave_the_model_untouched(
     }
 }
 
+/// The two-point transforms refuse a NaN delta through their zero test, but an
+/// infinite one passes it (`gt0(inf)` holds) and would translate every
+/// endpoint out of existence. The result is checked before the move deletes
+/// anything, so the selection is still there afterwards.
+#[test]
+fn two_point_transforms_refuse_a_result_that_is_not_finite() {
+    let selected = || {
+        model_from_segments(&[
+            segment(1.0, 0.0, 1.0, 1.0, LineColor::Red1).with_selected(2),
+            segment(0.0, 2.0, 1.0, 2.0, LineColor::Blue2),
+        ])
+    };
+    for delta in [
+        Point::new(f64::INFINITY, f64::INFINITY),
+        Point::new(0.0, f64::NEG_INFINITY),
+        Point::new(f64::NAN, f64::NAN),
+    ] {
+        let mut copy_model = selected();
+        assert_eq!(copy_selected_lines(&mut copy_model, delta), 0);
+        assert_eq!(copy_model.line_segments, selected().line_segments);
+
+        let mut move_model = selected();
+        assert_eq!(
+            move_selected_lines(&mut move_model, delta, PinnedPoints::none()),
+            0
+        );
+        assert_eq!(move_model.line_segments, selected().line_segments);
+    }
+}
+
 #[test]
 fn insert_line_segments_preserves_metadata_and_selects_inserted_lines() {
     let mut model =
