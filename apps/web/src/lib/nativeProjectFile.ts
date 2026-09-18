@@ -841,6 +841,46 @@ function finiteNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+/**
+ * The kernel document, with any geometry it could not load dropped.
+ *
+ * A coordinate that was NaN or infinite in memory is written as JSON `null`,
+ * and the kernel rejects `null` for `f64` — so one such crease used to make the
+ * whole file unopenable ("invalid type: unit value, expected f64"). Nothing is
+ * lost by dropping it: an element without a position was never drawn and can
+ * never be picked. The one way such a crease is known to have arisen — a
+ * four-point Copy or Move with a coincident source pair — is refused by the
+ * kernel now; this is the reader's half, for files written before that.
+ *
+ * Only the carriers of bare coordinates are filtered. Everything else in the
+ * document is handed to the kernel as it was, which is still its validator.
+ */
+function creasePatternDocumentField(
+  document: Record<string, unknown>
+): OristudioCpDocumentSnapshot {
+  const creasePattern = isRecord(document.crease_pattern) ? document.crease_pattern : null;
+  if (!creasePattern) return document as unknown as OristudioCpDocumentSnapshot;
+  const keepIf = (key: string, valid: (entry: Record<string, unknown>) => boolean) => {
+    const entries = creasePattern[key];
+    return Array.isArray(entries)
+      ? entries.filter((entry) => isRecord(entry) && valid(entry))
+      : entries;
+  };
+  const finitePoint = (value: unknown) => pointField(value) !== null;
+  const finiteSegment = (entry: Record<string, unknown>) =>
+    finitePoint(entry.a) && finitePoint(entry.b);
+  return {
+    ...document,
+    crease_pattern: {
+      ...creasePattern,
+      line_segments: keepIf('line_segments', finiteSegment),
+      aux_line_segments: keepIf('aux_line_segments', finiteSegment),
+      points: keepIf('points', finitePoint),
+      circles: keepIf('circles', (entry) => finitePoint(entry) && finiteNumber(entry.r) !== null),
+    },
+  } as unknown as OristudioCpDocumentSnapshot;
+}
+
 /** A scale must be finite and > 0, else the figure would collapse or invert. */
 function positiveNumber(value: unknown): number | null {
   const number = finiteNumber(value);
@@ -1193,10 +1233,9 @@ function validateDocumentV1(value: unknown): NativeProjectDocumentV1 {
       source,
       creasePattern: {
         engine,
-        document: recordField(
-          creasePattern.document,
-          'document.creasePattern.document'
-        ) as unknown as OristudioCpDocumentSnapshot,
+        document: creasePatternDocumentField(
+          recordField(creasePattern.document, 'document.creasePattern.document')
+        ),
         source: validateSource(creasePattern.source) ?? validateImportedSource(creasePattern.source),
         foldProjection: isRecord(creasePattern.foldProjection)
           ? (creasePattern.foldProjection as unknown as FoldDocument)

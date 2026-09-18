@@ -121,6 +121,58 @@ fn four_point_selected_move_and_copy_apply_oriedita_scale_rotate_translate() {
     );
 }
 
+/// A repeated click on the same source vertex is the gesture that produced a
+/// document full of `null` coordinates: Oriedita's handler stays on the step
+/// for it, so `FoldLineSet.move` never divides its scale by zero. The kernel
+/// refuses the pair outright — the copy appends nothing, and the move deletes
+/// nothing — and the same for a coincident target pair, which would scale the
+/// selection down to a point.
+#[test]
+fn four_point_transforms_refuse_a_coincident_pair_and_leave_the_model_untouched() {
+    let selected = || {
+        model_from_segments(&[
+            segment(1.0, 0.0, 1.0, 1.0, LineColor::Red1).with_selected(2),
+            segment(0.0, 2.0, 1.0, 2.0, LineColor::Blue2),
+        ])
+    };
+    let same = Point::new(0.0, 0.0);
+    let apart = Point::new(1.0, 0.0);
+    let far = Point::new(3.0, 3.0);
+    let pairs = [
+        // coincident source pair, distinct targets
+        (same, same, apart, far),
+        // distinct sources, coincident target pair
+        (same, apart, far, far),
+        // a non-finite input point
+        (same, Point::new(f64::NAN, f64::NAN), apart, far),
+    ];
+
+    for (original_a, original_b, target_a, target_b) in pairs {
+        let mut copy_model = selected();
+        let copied = copy_selected_lines_by_points(
+            &mut copy_model,
+            original_a,
+            original_b,
+            target_a,
+            target_b,
+        );
+        assert_eq!(copied, 0);
+        assert_eq!(copy_model.line_segments, selected().line_segments);
+
+        let mut move_model = selected();
+        let moved = move_selected_lines_by_points(
+            &mut move_model,
+            original_a,
+            original_b,
+            target_a,
+            target_b,
+            PinnedPoints::none(),
+        );
+        assert_eq!(moved, 0);
+        assert_eq!(move_model.line_segments, selected().line_segments);
+    }
+}
+
 #[test]
 fn insert_line_segments_preserves_metadata_and_selects_inserted_lines() {
     let mut model =
