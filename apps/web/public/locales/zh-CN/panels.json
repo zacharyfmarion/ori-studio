@@ -860,7 +860,7 @@
     "findings": {
       "approximation": "最接近：{{folds}} 次折叠，误差 {{err}}",
       "noApproximation": "未找到作图方法",
-      "note": "只作报告，不会折叠：近似值会成为后续每一步的参照。",
+      "note": "未折叠：没有作图方法在规划的容差内到达这些线，或规划在此之前已停止。每条旁边是找到的最接近的作图方法。",
       "offLattice": "不在格点上",
       "refusedTitle": "已排除的纸张",
       "title": "无法精确折出的线",
@@ -869,8 +869,16 @@
     "flip": {
       "doneBadge": "完成",
       "finished": "所有折痕都已折好。从这里开始收拢，需要反向的折痕会在收拢时翻转。",
+      "incompleteBadge": "未完成",
+      "outOfTime": "规划已超时停止，{{total}} 条折痕中已完成 {{made}} 条。",
+      "pointCap": "规划已在规划器的点数上限处停止，{{total}} 条折痕中已完成 {{made}} 条。",
+      "refused": "无法为这张纸规划；卡片下方的说明给出了原因。",
+      "stopped": "已按你的要求在此停止，{{total}} 条折痕中已完成 {{made}} 条。重新计算将从头开始。",
+      "stoppedBadge": "已停止",
+      "tooManyApproximations": "规划在完成 {{total}} 条折痕中的 {{made}} 条后停止：其余的没有精确作图方法，而用参考折出它们所需的参考折痕数量超过了一个序列所能承载的数量。",
       "turnOver": "把纸左右翻面。",
-      "turnOverBadge": "翻面"
+      "turnOverBadge": "翻面",
+      "unsolved": "{{total}} 条折痕中已完成 {{made}} 条。其余的规划器找不到作图方法，已列在卡片下方。"
     },
     "goToEdit": "前往编辑",
     "lead": {
@@ -986,7 +994,8 @@
       "title": "图样"
     },
     "sidebar": {
-      "none": "在当前设置下，ReferenceFinder 没有为此目标找到作图。"
+      "none": "在当前设置下，ReferenceFinder 没有为此目标找到作图。",
+      "nonePlanned": "没有任何纸张能够规划；卡片下方的说明解释了原因。"
     },
     "step": {
       "axiom1": "经过 {{p0}} 和 {{p1}} 折出 {{x}}。",

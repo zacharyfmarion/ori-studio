@@ -406,9 +406,16 @@ export type ReferenceExactnessClass = 'exact' | 'snappable' | 'off_lattice';
 
 /**
  * Why a breakdown produced no sequence. `non_rectangular` is D10's refusal,
- * `point_cap` the `|P|` ceiling, `budget` the run's own clock.
+ * `point_cap` the `|P|` ceiling, `budget` the run's own clock,
+ * `too_many_approximations` a plan that stopped rather than fold more lines
+ * by references than a sequence can carry.
  */
-export type ReferenceRefusalReason = 'non_rectangular' | 'point_cap' | 'budget' | 'error';
+export type ReferenceRefusalReason =
+  | 'non_rectangular'
+  | 'point_cap'
+  | 'budget'
+  | 'too_many_approximations'
+  | 'error';
 
 /**
  * How a ReferenceFinder query ended. `exact` when any construction lands on
@@ -472,7 +479,8 @@ export const ANALYTICS_EVENTS = {
   /**
    * A whole-pattern breakdown run, however it ended: `completed` when the
    * planner produced a sequence, `cancelled` when a Stop landed, `refused`
-   * when it could not (a non-rectangular sheet, the point cap, the budget).
+   * when it could not (a non-rectangular sheet, the point cap, or a run
+   * ceiling — which the sequence no longer sets, so that one is a driver's).
    *
    * Carries only enums and bucketed counts: `target_kind`, `lines_bucket`,
    * `aux_bucket`, `visible_aux_bucket`, `turn_overs_bucket`,
@@ -537,6 +545,16 @@ export const ANALYTICS_EVENTS = {
   referencesFoldPlayed: 'references fold played',
   /** The "Auto-play folds" preference was switched; `enabled` is `on` / `off`. */
   referencesFoldAutoplayChanged: 'references fold autoplay changed',
+  /**
+   * The modal that warns that a precreasing sequence contains approximated
+   * folds was shown — once per plan whose steps are not all exact, or that
+   * stopped rather than approximate more lines than a sequence can carry.
+   * Carries `reason` (`inexact` / `too_many`), `inexact_steps_bucket` (how
+   * many steps are approximate or sighted from an approximation) and
+   * `exactness_class`, so how often readers are warned, of what, and on
+   * which class of pattern, is measurable. Nothing about the folds.
+   */
+  referencesApproximationWarningShown: 'references approximation warning shown',
   creasePatternBuilt: 'crease pattern built',
   optimizerRun: 'optimizer run',
   projectOpened: 'project opened',

@@ -306,6 +306,14 @@
     "willUnbind_one": "Werden entfernt ({{count}})",
     "willUnbind_other": "Werden entfernt ({{count}})"
   },
+  "referencesApproximationWarning": {
+    "close": "Warnung zu näherungsweisen Faltungen schließen",
+    "dismiss": "Verstanden",
+    "failedMessage": "Die Planung ist fehlgeschlagen, weil eine sehr große Zahl von Referenzfalten nötig wäre, um dieses Muster innerhalb der Fehlertoleranz zu falten. Stammt dieses Crease Pattern aus „CP aus Bild erkennen“, ist die Erkennung möglicherweise zu einer ungenauen Lösung konvergiert. Bitte prüfe, ob alle Referenzpunkte stimmen.",
+    "failedTitle": "Planung fehlgeschlagen",
+    "message": "Diese Sequenz enthält näherungsweise Faltungen. Stammt dieses Crease Pattern aus „CP aus Bild erkennen“, ist die Erkennung möglicherweise zu einer ungenauen Lösung konvergiert. Bitte prüfe, ob alle Referenzpunkte stimmen.",
+    "title": "Näherungsweise Faltungen"
+  },
   "selectByIndex": {
     "available": "Verfügbar: {{ids}}",
     "close": "Auswahl nach Index schließen",

@@ -120,7 +120,13 @@ the whole was already GPL.
 The **corresponding source** for the shipped wasm is `third_party/reference-finder`
 plus `scripts/build-reference-finder.mjs` and `scripts/reference-finder-emsdk.json`
 — the exact source, the exact build recipe, and the exact toolchain pin. Publish
-all three with any artifact that contains the wasm.
+all three with any artifact that contains the wasm. That source is upstream's
+pinned commit **plus one local modification** — the search patch described under
+"Local changes" in `third_party/reference-finder/README.treemaker.md` and
+recorded as `local_patches` in `upstream-sync.json` — so the shipped binary is a
+modified version of the GPL work, and the modified source is what the repository
+carries and what must accompany it. The modification is marked in the source
+("Ori Studio patch") as GPLv2 §2(a) asks.
 
 One more artifact exists and is deliberately not a distributed one. When `em++`
 is absent and no build output exists, the build script fetches upstream's

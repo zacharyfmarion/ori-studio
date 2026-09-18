@@ -22,6 +22,7 @@ import {
   type ReferencesDiagramView,
 } from '../../cp-workspace/references/ReferencesCpView';
 import type { ReferencesPick } from '../../cp-workspace/references/referencesViewGeometry';
+import { ReferencesApproximationWarningDialog } from '../../cp-workspace/references/ReferencesApproximationWarningDialog';
 import { ReferencesLead } from '../../cp-workspace/references/ReferencesLead';
 import { ReferencesModeSwitch } from '../../cp-workspace/references/ReferencesModeSwitch';
 import { referencesSurfaces } from '../../cp-workspace/references/referencesMode';
@@ -71,6 +72,7 @@ import {
 } from '../../cp-workspace/references/referencesShortcuts';
 import { foldCardKind } from '../../cp-workspace/references/fold/foldScene';
 import { useFoldPlayback } from '../../cp-workspace/references/fold/useFoldPlayback';
+import { useReferencesApproximationWarning } from '../../cp-workspace/references/useReferencesApproximationWarning';
 import { useReferencesAutoPlan } from '../../cp-workspace/references/useReferencesAutoPlan';
 import { useReferencesBreakdown } from '../../cp-workspace/references/useReferencesBreakdown';
 import { useReferencesPhoneFlow } from '../../cp-workspace/references/useReferencesPhoneFlow';
@@ -164,6 +166,9 @@ export function ReferencesPanel() {
   );
   const run = useWorkspaceStore((state) => state.referencesRun);
   const busy = run.status === 'running' || run.status === 'stopping';
+  const approximationWarning = useReferencesApproximationWarning(
+    useWorkspaceStore((state) => state.referencesPlan)
+  );
   // A sheet that is only its border — a new document — has nothing to find
   // or to plan; unknown until the frames land, and not called empty before.
   const emptySheet = component !== null && component.segment_indices.length === 0;
@@ -267,28 +272,35 @@ export function ReferencesPanel() {
 
   const active = controller.active;
   /**
-   * What the caption says when the target's strip is empty. A solution with no
-   * steps is the one worth telling apart: a corner or an edge midpoint is
-   * already on the paper, so "no construction found" would be exactly wrong
-   * about an answer that is both found and free. Without a target the strip
-   * is not rendered at all — the lead stands in its place.
+   * What the caption says when the strip is empty. A solution with no steps
+   * is the one worth telling apart: a corner or an edge midpoint is already
+   * on the paper, so "no construction found" would be exactly wrong about an
+   * answer that is both found and free. Without a target the strip is not
+   * rendered at all — the lead stands in its place. A plan's strip is empty
+   * only when no sheet could be planned at all: a planned sheet always ends
+   * on its ending card, folds or none.
    */
   const filmstripPlaceholder = busy
     ? t('panels:references.searching', 'Finding references…')
-    : active
-      ? controller.target?.kind === 'crease'
-        ? t(
-            'panels:references.alreadyOnSheetLine',
-            'This line is already on the paper — no folds needed.'
-          )
+    : readingPlan
+      ? t(
+          'panels:references.sidebar.nonePlanned',
+          'No sheet could be planned; the notes under the cards say why.'
+        )
+      : active
+        ? controller.target?.kind === 'crease'
+          ? t(
+              'panels:references.alreadyOnSheetLine',
+              'This line is already on the paper — no folds needed.'
+            )
+          : t(
+              'panels:references.alreadyOnSheet',
+              'This point is already on the paper — no folds needed.'
+            )
         : t(
-            'panels:references.alreadyOnSheet',
-            'This point is already on the paper — no folds needed.'
-          )
-      : t(
-          'panels:references.sidebar.none',
-          'ReferenceFinder found no construction for this target at the current settings.'
-        );
+            'panels:references.sidebar.none',
+            'ReferenceFinder found no construction for this target at the current settings.'
+          );
   // The diagonals an answer leans on are its first steps, from the empty
   // square, drawn on the paper in ReferenceFinder's units — no footnote.
   const rfSheet = useMemo(
@@ -300,9 +312,9 @@ export function ReferencesPanel() {
       targeted
         ? candidateFilmstrip(t, active, rfSheet)
         : readingPlan
-          ? planFilmstrip(t, breakdown.variants, viewSteps)
+          ? planFilmstrip(t, breakdown.variants, viewSteps, breakdown.stopReasons)
           : [],
-    [targeted, readingPlan, t, active, rfSheet, breakdown.variants, viewSteps]
+    [targeted, readingPlan, t, active, rfSheet, breakdown.variants, viewSteps, breakdown.stopReasons]
   );
 
   // The sheet as it stands — see `referencesCreaseVisibility`: whole in Find
@@ -484,6 +496,7 @@ export function ReferencesPanel() {
 
   return (
     <div className="references-workspace">
+      <ReferencesApproximationWarningDialog {...approximationWarning} />
       {flow.screen !== 'detail' && (
         <ReferencesSheetsSidebar
           sheets={sheets}

@@ -8,11 +8,17 @@
  * not have to share a component, and outside the store because a run's clock
  * is not document state.
  *
- * A query cannot be interrupted cooperatively (plan decision D7: the core
- * polls `checkCancel` only in the statistics command), so Stop is
- * `releaseReferenceFinderClient('window')` — terminate the worker, which
- * rejects the query's promise through the runtime — and `stopping` holds from
- * the press until that rejection lands and the run ends.
+ * Each run says how it is stopped when it begins, and a Stop press calls that.
+ * The two kinds differ: a Find query cannot be interrupted cooperatively (plan
+ * decision D7: the core polls `checkCancel` only in the statistics command), so
+ * its stop is `releaseReferenceFinderClient('window')` — terminate the worker,
+ * which rejects the query's promise through the runtime — while the
+ * whole-pattern plan and the CP-wide analysis run on the planner instance and
+ * end through their `AbortController`. The registry used to kill the window
+ * worker for every run, which stopped a Find query and did nothing to a plan:
+ * "Cancelling…" then held until the plan ended on its own, and once a plan had
+ * no time ceiling that was never. `stopping` holds from the press until the
+ * run actually ends.
  */
 import { releaseReferenceFinderClient } from '../../store/workspaceStore/referenceFinderRuntime';
 
@@ -29,7 +35,14 @@ const IDLE: ReferencesRunState = { running: false, startedAt: null, stopping: fa
 
 let state: ReferencesRunState = IDLE;
 let nextRunId = 1;
+/** How the running run is stopped; null when nothing runs. */
+let stopCurrent: (() => void) | null = null;
 const listeners = new Set<() => void>();
+
+/** The Find query's stop: the only cancel the core allows is losing the worker. */
+export function stopWindowQuery(): void {
+  releaseReferenceFinderClient('window');
+}
 
 function set(next: ReferencesRunState): void {
   state = next;
@@ -47,9 +60,15 @@ export function referencesRunSnapshot(): ReferencesRunState {
   return state;
 }
 
-/** Start a run; returns its id, which {@link endReferencesRun} needs back. */
-export function beginReferencesRun(now = Date.now()): number {
+/**
+ * Start a run; returns its id, which {@link endReferencesRun} needs back.
+ * `stop` is what a Stop press does to this run: abort its controller, or, for
+ * a Find query, {@link stopWindowQuery}. The run still ends itself — the stop
+ * only asks — so `stopping` shows until {@link endReferencesRun}.
+ */
+export function beginReferencesRun(stop: () => void, now = Date.now()): number {
   const runId = nextRunId++;
+  stopCurrent = stop;
   set({ running: true, startedAt: now, stopping: false, runId });
   return runId;
 }
@@ -57,18 +76,18 @@ export function beginReferencesRun(now = Date.now()): number {
 /** End the run with this id. A stale id (a run already superseded) is ignored. */
 export function endReferencesRun(runId: number): void {
   if (!state.running || state.runId !== runId) return;
+  stopCurrent = null;
   set({ ...IDLE, runId });
 }
 
 /**
- * Ask the running query to end. Kills the window instance's worker — the only
- * cancel the core allows — so the query rejects and its caller ends the run.
- * Returns false when nothing was running or a stop was already written.
+ * Ask the running run to end, the way it said it is ended. Returns false when
+ * nothing was running or a stop was already written.
  */
 export function requestReferencesStop(): boolean {
   if (!state.running || state.stopping) return false;
   set({ ...state, stopping: true });
-  releaseReferenceFinderClient('window');
+  stopCurrent?.();
   return true;
 }
 
@@ -98,6 +117,7 @@ export function referencesPickGeneration(): number {
 /** Tests only. */
 export function resetReferencesRun(): void {
   state = IDLE;
+  stopCurrent = null;
   nextRunId = 1;
   pickGeneration = 0;
 }

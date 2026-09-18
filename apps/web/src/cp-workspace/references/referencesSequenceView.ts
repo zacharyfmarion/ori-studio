@@ -112,11 +112,15 @@ export function referencesViewSteps(
     last = flat;
   }
 
-  if (!last) return steps;
   // One sheet is planned at a time, so the closing cards belong to whichever
   // component the folds did. A plan carried over from a multi-sheet run would
   // have more; taking the last fold's component keeps them with the pattern the
-  // reader ends on.
+  // reader ends on. A plan that stopped before its first fold still ends: its
+  // one card is the ending, which is where the strip says why it stopped.
+  if (!last) {
+    if (variants.length > 0) steps.push({ kind: 'done', side: 'front', component: 0 });
+    return steps;
+  }
   const component = last.component;
   if (side === 'back') {
     steps.push({ kind: 'turn-over', side, component, after: last.step });

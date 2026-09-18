@@ -56,9 +56,7 @@ double RefLine::DistanceTo(const XYLine &al) const {
 		XYPt p2a;
 		XYPt p2b;
 		if(Shared::sPaper.ClipLine(l, p1a, p1b) && Shared::sPaper.ClipLine(al, p2a, p2b)) {
-			double err1 = max_val((p1a - p2a).Mag(), (p1b - p2b).Mag());
-			double err2 = max_val((p1a - p2b).Mag(), (p1b - p2a).Mag());
-			return min_val(err1, err2);
+			return WorstCaseDistance(p1a, p1b, p2a, p2b);
 		}
 		return 1 / EPS; // lines don't intersect the paper, return very large number
 	}
@@ -69,6 +67,18 @@ double RefLine::DistanceTo(const XYLine &al) const {
 
 double RefLine::DistanceTo(const RefLine *ref) const {
 	return DistanceTo(ref->l);
+}
+
+/*****
+Ori Studio patch: the worst-case separation between the endpoints of two lines
+where they leave the paper — the arithmetic DistanceTo() used to inline. Kept as
+one function so the search, which scores every basis line from clips it computed
+once, evaluates exactly the expression DistanceTo() does.
+*****/
+double RefLine::WorstCaseDistance(const XYPt &p1a, const XYPt &p1b, const XYPt &p2a, const XYPt &p2b) {
+	double err1 = max_val((p1a - p2a).Mag(), (p1b - p2b).Mag());
+	double err2 = max_val((p1a - p2b).Mag(), (p1b - p2a).Mag());
+	return min_val(err1, err2);
 }
 
 /*****

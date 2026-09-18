@@ -65,6 +65,12 @@ interface FakeSpec {
    * remaining and `point_cap_hit` set for the rules.
    */
   pointCapAfter?: number;
+  /**
+   * The crate's `approximate_lines_cap`: with more targets than this still
+   * remaining once nothing exact is left, the rules stop the plan instead of
+   * approximating. Absent means no cap.
+   */
+  approximateLinesCap?: number;
 }
 
 function keyOf(line: PrecreasePlanLine): string {
@@ -140,6 +146,9 @@ class FakePlanner implements PrecreasePlannerHandle {
         refused: this.spec.refused ?? false,
         complete: this.remainingKeys.size === 0,
         point_cap_hit: this.pointCapHit,
+        approximations_exceed_cap:
+          this.spec.approximateLinesCap !== undefined &&
+          this.remainingKeys.size > this.spec.approximateLinesCap,
       },
       driver
     );
@@ -581,6 +590,40 @@ describe('runPrecreasePlan', () => {
     expect(result.approximated).toBe(0);
     expect(planner.approximations).toHaveLength(0);
     expect(result.sequence.findings).toHaveLength(0);
+  });
+
+  it('stops, before any approximation, when more lines are left than a plan may approximate', async () => {
+    // Two awkward lines, a cap of one: the exact avenues are still taken —
+    // the search, the exact query — and then the plan ends rather than
+    // spending a construction on each. Nothing is approximated, nothing
+    // more is asked of ReferenceFinder, and the remainder is not dressed up
+    // with best attempts either.
+    const second: FakeTarget = {
+      key: keyOf(lineThrough([0.2, 0], [0.7, 1])),
+      line: lineThrough([0.2, 0], [0.7, 1]),
+      segment: [
+        [0.2, 0],
+        [0.7, 1],
+      ],
+    };
+    const planner = new FakePlanner({
+      targets: [awkwardTarget, second],
+      closable: [],
+      offLattice: true,
+      stuck: [null],
+      approximateLinesCap: 1,
+    });
+    const result = await runPrecreasePlan(planner, {
+      computedAtRevision: 'r1',
+      referenceFinder: { exact: exactClient(), approximate: approximateClient() },
+    });
+    expect(result.stopReason).toBe('too_many_approximations');
+    expect(result.partial).toBe(true);
+    expect(planner.calls.stuck).toBe(1);
+    expect(planner.calls.approximate).toBe(0);
+    expect(result.approximated).toBe(0);
+    expect(result.sequence.findings).toHaveLength(2);
+    expect(result.approximate).toHaveLength(0);
   });
 
   it('attaches ReferenceFinder’s best approximation to a finding it could not fold', async () => {

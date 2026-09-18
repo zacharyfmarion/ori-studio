@@ -26,6 +26,7 @@ import {
   runPrecreasePlan,
   type PrecreasePlanProgress,
   type PrecreasePlanResult,
+  type PrecreasePlanStopReason,
 } from './precreasePlan';
 import type {
   PrecreasePlannerInfo,
@@ -34,6 +35,7 @@ import type {
   PrecreaseStep,
 } from './precreaseSequence';
 import { analyzeReferences, type ReferencesAnalysis } from './referencesAnalysis';
+import { trackPlan } from './referencesPlanEvents';
 import {
   breakdownTotals,
   flatPlanSteps,
@@ -103,6 +105,8 @@ export interface ReferencesBreakdownController {
   flatSteps: ReferencesFlatStep[];
   /** The steps the reader walks: the folds, then the closing flips. */
   viewSteps: ReferencesViewStep[];
+  /** Why each sheet's run ended, in `variants` order — the strip's last card is worded by it. */
+  stopReasons: PrecreasePlanStopReason[];
   activeStep: number;
   landmarksFirst: boolean;
   activeFinding: number | null;
@@ -157,6 +161,9 @@ function plannerClients(rect: PrecreaseRfRect) {
     }),
   };
 }
+
+/** `0` is "no ceiling" to both the loop and the crate's `Deadline::after`. */
+const NO_TIME_CEILING_MS = 0;
 
 /**
  * The sheet to plan: the selected one, or the largest plannable one when the
@@ -512,7 +519,7 @@ export function useReferencesBreakdown(
     }
     const controller = new AbortController();
     abortRef.current = controller;
-    const runId = beginReferencesRun();
+    const runId = beginReferencesRun(() => controller.abort());
     setReferencesRun({ status: 'running', startedAt: Date.now() });
     setReferencesProgress({ phase: 'closing', done: 0, total: 0 });
     const started = performance.now();
@@ -531,27 +538,26 @@ export function useReferencesBreakdown(
       const planned: ReferencesPlanComponent[] = [];
       const refused: ReferencesPlanRecord['refused'] = [];
       try {
-        // The whole run shares one budget; each sheet gets what is left,
-        // divided by the sheets still to do, so one pathological component
-        // cannot eat a canvas.
-        const totalBudgetMs = 30_000;
-        for (let i = 0; i < sheets.length; i += 1) {
+        // No time ceiling: the run lasts as long as the pattern needs, and the
+        // Stop button — the overlay's and the long-run toast's — is the way
+        // out. A 30 s ceiling used to end a pattern off its lattice everywhere
+        // after a handful of folds, with nothing on screen saying so and no way
+        // to ask for the rest. The list is one sheet (D12); a multi-sheet run
+        // would simply take its sheets in turn.
+        for (const sheet of sheets) {
           if (controller.signal.aborted) break;
-          const spent = performance.now() - started;
-          const share = Math.max(1_000, (totalBudgetMs - spent) / (sheets.length - i));
           const outcome = await planComponent(
             client,
-            sheets[i],
+            sheet,
             input,
             forRevision,
             controller.signal,
-            share,
+            NO_TIME_CEILING_MS,
             grid,
             (progress) => setReferencesProgress(progressOf(progress))
           );
-          if ('refusedKind' in outcome) refused.push({ component: sheets[i].id, kind: outcome.refusedKind });
+          if ('refusedKind' in outcome) refused.push({ component: sheet.id, kind: outcome.refusedKind });
           else planned.push(outcome);
-          if (performance.now() - started >= totalBudgetMs) break;
         }
       } catch (error) {
         endReferencesRun(runId);
@@ -612,7 +618,7 @@ export function useReferencesBreakdown(
     const forRevision = current.revision;
     const controller = new AbortController();
     abortRef.current = controller;
-    const runId = beginReferencesRun();
+    const runId = beginReferencesRun(() => controller.abort());
     setReferencesRun({ status: 'running', startedAt: Date.now() });
     setReferencesProgress({ phase: 'closing', done: 0, total: 0 });
     const input = precreaseInputFromTransport(current.geometry);
@@ -733,6 +739,12 @@ export function useReferencesBreakdown(
     [variants]
   );
 
+  /** Why each sheet's run ended, in `variants` order, for the strip's last card. */
+  const stopReasons = useMemo(
+    () => record?.components.map((entry) => entry.result.stopReason) ?? [],
+    [record]
+  );
+
   /**
    * The steps as they are *read*, which is longer than the planner's own list:
    * turning the paper over and reversing the mountains are steps the reader
@@ -783,6 +795,7 @@ export function useReferencesBreakdown(
     analysisRecord: analysisRecord?.analysis ?? null,
     flatSteps,
     viewSteps,
+    stopReasons,
     activeStep,
     landmarksFirst,
     activeFinding: viewState.activeFinding,
@@ -795,75 +808,3 @@ export function useReferencesBreakdown(
     toggleLandmarksFirst,
   };
 }
-
-/**
- * One of the three breakdown outcomes, with bucketed counts only — never a
- * fold count, never a coordinate (`docs/analytics.md`). A run that produced no
- * plan at all is `refused`, which is the fact worth knowing: it means the
- * workspace had nothing to offer for this pattern.
- */
-function trackPlan(
-  record: ReferencesPlanRecord,
-  summary: ReferencesPlanSummary | null,
-  aborted: boolean
-): void {
-  const duration_bucket = bucketCount(Math.round(record.durationMs), DURATION_MS_BUCKETS);
-  if (!summary) {
-    track(ANALYTICS_EVENTS.foldingStepsRefused, {
-      target_kind: 'whole_cp',
-      refusal_reason: 'non_rectangular',
-      duration_bucket,
-    });
-    return;
-  }
-  const properties = {
-    target_kind: 'whole_cp' as const,
-    lines_bucket: bucketCount(summary.cpLines, COUNT_BUCKETS),
-    aux_bucket: bucketCount(summary.aux, COUNT_BUCKETS),
-    visible_aux_bucket: bucketCount(summary.visibleAux, COUNT_BUCKETS),
-    duration_bucket,
-    exactness_class: summary.exactnessClass ?? 'exact',
-    // The whole architecture of the schedule was chosen on this number, so it
-    // is the one to watch: a median of 4 was what the corpus predicted.
-    turn_overs_bucket: bucketCount(summary.turnOvers, COUNT_BUCKETS),
-    mixed_steps_bucket: bucketCount(summary.mixedSteps, COUNT_BUCKETS),
-    // Whether the design was pleated on a grid at all, and how big the grid
-    // was — the share of real designs the grid-first opening applies to.
-    grid_kind: summary.gridKind ?? 'none',
-    grid_lines_bucket: bucketCount(summary.gridLines, COUNT_BUCKETS),
-    // How the grid was made — one pleat per family, or pleats plus bands —
-    // and how much crease it put where the pattern has none, in tenths of a
-    // sheet-length: the number "only where needed" exists to lower.
-    grid_steps_bucket: bucketCount(summary.gridSteps, COUNT_BUCKETS),
-    grid_unwanted_bucket: bucketCount(
-      Math.round(summary.gridUnwantedLength * 10),
-      COUNT_BUCKETS
-    ),
-    // How much crease the steps made past the pattern's own to end at
-    // references, in tenths of a sheet-length: the cost of the reach rule,
-    // and of "Allow dangling folds" being off on top of it — which is why
-    // the setting the plan was made under goes with it.
-    reach_bucket: bucketCount(Math.round(summary.reachLength * 10), COUNT_BUCKETS),
-    dangling_folds: record.allowDanglingFolds ? ('allowed' as const) : ('disallowed' as const),
-    // Whether mirrored folds were shown as one card, and how many cards that
-    // saved — bucketed, like every count here.
-    symmetric_steps: record.mergeSymmetricSteps ? ('merged' as const) : ('separate' as const),
-  };
-  if (aborted) {
-    track(ANALYTICS_EVENTS.foldingStepsCancelled, properties);
-    return;
-  }
-  const refusal = REFUSAL_REASONS[summary.stopReason];
-  if (refusal) {
-    track(ANALYTICS_EVENTS.foldingStepsRefused, { ...properties, refusal_reason: refusal });
-    return;
-  }
-  track(ANALYTICS_EVENTS.foldingStepsCompleted, properties);
-}
-
-/** Which stop reasons are refusals, and what to call them. */
-const REFUSAL_REASONS: Readonly<Record<string, 'non_rectangular' | 'point_cap' | 'budget'>> = {
-  refused_sheet: 'non_rectangular',
-  point_cap: 'point_cap',
-  budget: 'budget',
-};

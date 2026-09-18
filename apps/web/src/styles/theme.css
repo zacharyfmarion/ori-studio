@@ -1586,6 +1586,27 @@ a.context-menu__item {
   border-bottom: 1px solid var(--border-default);
 }
 
+.simple-modal__footer {
+  justify-content: flex-end;
+}
+
+/*
+ * Where the footer sits decides its padding, not source order. Most modals put
+ * it inside `.simple-modal__body`, which is already padded, so there it carries
+ * none of its own. Beside the body — the header's position, mirrored — it keeps
+ * the base padding and gets the header's rule as a top border. A bare
+ * `.simple-modal__footer { padding: 0 }` used to do the first job for every
+ * footer at once, which left the buttons of any footer placed beside the body
+ * flush against the document's corner until that modal grew a scoped override.
+ */
+.simple-modal__body > .simple-modal__footer {
+  padding: 0;
+}
+
+.simple-modal__document > .simple-modal__footer {
+  border-top: 1px solid var(--border-default);
+}
+
 .simple-modal__header span {
   display: inline-flex;
   align-items: center;
@@ -1891,12 +1912,8 @@ a.context-menu__item {
 }
 
 /* The link is the one thing this dialog exists to produce, so its row gets real padding
-   and a divider rather than floating flush against the columns above it.
-   
-   Scoped through `.share-link-modal` rather than written as a bare `.share-link-modal__footer`,
-   which is what `.export-modal` next door already does: a later `.simple-modal__footer`
-   rule sets `padding: 0` at equal specificity, so a single-class selector here loses on
-   source order no matter what it declares. */
+   and a divider rather than floating flush against the columns above it: wider than the
+   base footer's, and a subtler rule than the one a footer beside the body gets by default. */
 .share-link-modal .simple-modal__footer {
   flex: 0 0 auto;
   gap: var(--space-2);
@@ -2157,11 +2174,6 @@ a.context-menu__item {
   color: var(--text-tertiary);
   font-size: 0.72rem;
   line-height: 1.45;
-}
-
-.simple-modal__footer {
-  justify-content: flex-end;
-  padding: 0;
 }
 
 .export-modal {

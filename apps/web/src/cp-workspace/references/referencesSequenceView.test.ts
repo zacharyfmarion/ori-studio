@@ -93,8 +93,16 @@ describe('a twin pair in the view steps', () => {
 });
 
 describe('referencesViewSteps', () => {
-  it('is empty for a plan with no steps', () => {
+  it('is empty without a planned sheet', () => {
     expect(referencesViewSteps([], [])).toEqual([]);
+  });
+
+  it('ends a planned sheet with no folds on its ending card', () => {
+    // A plan that stopped before its first fold has nothing to show but why.
+    const { variants } = planOf('');
+    expect(referencesViewSteps(variants, [])).toEqual([
+      { kind: 'done', side: 'front', component: 0 },
+    ]);
   });
 
   it('adds no turn-over to a plan folded entirely from the front', () => {

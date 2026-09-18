@@ -924,7 +924,7 @@
     "findings": {
       "approximation": "mais próximo: {{folds}} dobras, erro {{err}}",
       "noApproximation": "nenhuma construção encontrada",
-      "note": "São apenas relatadas, nunca dobradas: uma aproximação viraria referência para todos os passos seguintes.",
+      "note": "Não dobradas: nenhuma construção as alcançou dentro da tolerância do plano, ou o plano parou antes. Ao lado de cada uma está a construção mais próxima encontrada.",
       "offLattice": "Fora da malha",
       "refusedTitle": "Folhas deixadas de fora",
       "title": "Linhas sem dobra exata",
@@ -933,8 +933,16 @@
     "flip": {
       "doneBadge": "Concluído",
       "finished": "Todos os vincos estão feitos. A partir daqui o modelo se fecha, e os vincos que vão no outro sentido se invertem nesse momento.",
+      "incompleteBadge": "Incompleto",
+      "outOfTime": "O plano ficou sem tempo, com {{made}} de {{total}} dobras feitas.",
+      "pointCap": "O plano parou no limite de pontos do planejador, com {{made}} de {{total}} dobras feitas.",
+      "refused": "Esta folha não pôde ser planejada; as notas sob os cartões explicam por quê.",
+      "stopped": "Parado aqui a seu pedido, com {{made}} de {{total}} dobras feitas. Recalcular recomeça o plano do início.",
+      "stoppedBadge": "Parado",
+      "tooManyApproximations": "O planejamento parou com {{made}} de {{total}} vincos feitos: as demais não têm construção exata, e dobrá-las por referências exigiria mais vincos de referência do que uma sequência consegue carregar.",
       "turnOver": "Vire o papel, da esquerda para a direita.",
-      "turnOverBadge": "Virar"
+      "turnOverBadge": "Virar",
+      "unsolved": "{{made}} de {{total}} dobras estão feitas. Para as demais o planejador não encontrou nenhuma construção; elas estão listadas sob os cartões."
     },
     "goToEdit": "Ir para Editar",
     "lead": {
@@ -1060,7 +1068,8 @@
       "title": "Padrões"
     },
     "sidebar": {
-      "none": "O ReferenceFinder não encontrou nenhuma construção para este alvo com as configurações atuais."
+      "none": "O ReferenceFinder não encontrou nenhuma construção para este alvo com as configurações atuais.",
+      "nonePlanned": "Nenhuma folha pôde ser planejada; as notas sob os cartões explicam por quê."
     },
     "step": {
       "axiom1": "Dobre {{x}} passando por {{p0}} e {{p1}}.",

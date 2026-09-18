@@ -112,6 +112,16 @@
       "last_checked_commit": "e2163f0cb483592f757520647e7df192b6570386",
       "last_checked_date": "2026-09-05",
       "vendored_subset_note": "Curated subset like flat-folder, not a full copy: src/core/** (the engine and its Emscripten interop), makefile (the authoritative compiler-flag list; never invoked directly, the build script copies its flags), LICENSE, package.json (the only file stating a GPL version), README.md, CONTRIBUTING.md, CHANGELOG.md, .clang-format, .clang-tidy. Omitted on purpose: the React app (src/app), locales, icons, public assets, pnpm-lock.yaml, the rsbuild/eslint/gulp configuration, and upstream's committed build outputs src/lib/ref.{js,wasm}, which are rebuilt from src/core into the gitignored apps/web/src/generated/reference-finder/ so no binary is tracked. A re-vendor must update the vendored files rather than copying the tree.",
+      "local_patches": [
+        {
+          "files": [
+            "src/core/ReferenceFinder.cpp",
+            "src/core/class/refLine/refLine.h",
+            "src/core/class/refLine/refLine.cpp"
+          ],
+          "note": "Search patch (README.treemaker.md, 'Local changes'): FindBestMarks/FindBestLines score every basis reference once per query from per-database caches (line paper clips, ranks) instead of recomputing DistanceTo for both operands of every comparison. Bit-identical answers, ~13x faster line queries. A re-vendor re-applies it on top of the new pin and re-runs tools/reference-finder-oracle/equiv.mjs, whose queries.json covers every search setting the app uses. Not upstreamed on purpose: upstream shows one solution per query and does not feel the cost."
+        }
+      ],
       "oracle": "tools/reference-finder-oracle/equiv.mjs",
       "watch_paths": [
         "src/core/",

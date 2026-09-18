@@ -13,6 +13,19 @@ persistence, axiom priorities, scoring, seeding).
 | Manifest key | `reference-finder` |
 | Oracle | `tools/reference-finder-oracle` — a **build-equivalence** oracle, not a parity oracle |
 
+## A local patch rides on top of the pin
+
+`third_party/reference-finder` is upstream's pinned commit **plus** the search
+patch listed under `local_patches` in the manifest (`src/core/ReferenceFinder.cpp`
+and `src/core/class/refLine/refLine.{h,cpp}`; README.treemaker.md, "Local
+changes"). A re-vendor therefore has one step the other upstreams do not: update
+the vendored files to the new pin, re-apply the patch (it is confined to the two
+`FindBest*` functions and one extracted helper), rebuild, and run the oracle —
+identical answers under every search setting in `queries.json` is the whole
+claim the patch makes. An upstream change to `FindBestMarks`, `FindBestLines`,
+`CompareRankAndError`, `RefLine::DistanceTo` or `Paper::ClipLine` is a `PORT`
+finding *for the patch* even when it would otherwise be `SKIP-REFACTOR`.
+
 ## This upstream is different: nothing is ported
 
 Every other reference file asks "does a change here need re-implementing in our

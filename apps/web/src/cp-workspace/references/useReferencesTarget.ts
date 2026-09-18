@@ -51,6 +51,7 @@ import {
   beginReferencesPick,
   beginReferencesRun,
   endReferencesRun,
+  stopWindowQuery,
   referencesPickGeneration,
   referencesRunSnapshot,
 } from './referencesRun';
@@ -485,7 +486,7 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
       const frame = component.frame;
       const rect = component.rf_rect;
       if (!frame || !rect) return;
-      const runId = beginReferencesRun();
+      const runId = beginReferencesRun(stopWindowQuery);
       setReferencesRun({ status: 'running', startedAt: Date.now() });
       setReferencesCandidates(null);
       setReferencesResults(null);

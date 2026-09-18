@@ -95,8 +95,28 @@ pub struct PlannerOptions {
     /// Zero disables refinement. Every candidate is physically replayed and
     /// must preserve quality; the existing plan survives an exhausted budget.
     pub sequence_budget_ms: f64,
+    /// How many lines a plan may still have left, with every exact avenue
+    /// exhausted, before it stops rather than folding them all as
+    /// approximations ([`Planner::approximations_exceed_cap`]). A tenth of
+    /// the pattern's lines when that is more, so a large design with a few
+    /// stray lines is planned and a design off its lattice everywhere is not.
+    /// Zero means no cap.
+    pub approximate_lines_cap: usize,
     pub clock: Clock,
 }
+
+/// Default for [`PlannerOptions::approximate_lines_cap`].
+///
+/// Each line folded as an approximation, or exactly relative to one, costs
+/// the folder reference creases — its own construction, or an auxiliary and
+/// a press — and a sighting error of its own. Two dozen of them is a plan a
+/// determined folder can still use; the 332-line pattern that prompted this
+/// planned complete at 648 cards, 316 of them reference creases, and took
+/// two minutes to say so. Detector output at pixel precision sits far above
+/// this line (39 of 61 curated `topology.fold` files, 1–21 approximations
+/// and hundreds of lines sighted from them); every curated truth sits below
+/// it (the two that approximate at all have one line each).
+pub const DEFAULT_APPROXIMATE_LINES_CAP: usize = 24;
 
 /// How much of a pleated design's grid the plan opens with.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -126,6 +146,7 @@ impl Default for PlannerOptions {
             defer_far_anchors: true,
             merge_symmetric_steps: true,
             sequence_budget_ms: 10000.0,
+            approximate_lines_cap: DEFAULT_APPROXIMATE_LINES_CAP,
             clock: default_clock(),
         }
     }
@@ -156,6 +177,7 @@ pub struct PlannerOptionsJson {
     pub merge_symmetric_steps: Option<bool>,
     pub prefer_sightable: Option<bool>,
     pub sequence_budget_ms: Option<f64>,
+    pub approximate_lines_cap: Option<usize>,
 }
 
 impl PlannerOptions {
@@ -180,6 +202,9 @@ impl PlannerOptions {
         }
         if let Some(c) = parsed.max_candidates {
             opts.stuck.candidates.max_candidates = c.max(1);
+        }
+        if let Some(cap) = parsed.approximate_lines_cap {
+            opts.approximate_lines_cap = cap;
         }
         if let Some(on) = parsed.reach_references {
             opts.reach_references = on;
@@ -808,6 +833,19 @@ impl Planner {
     /// Run the forward-first search from the current (stuck) state with the
     /// given maximum depth and budget, and **apply** the best auxiliary set
     /// found (folding it and re-closing). `None` when nothing was found.
+    ///
+    /// Once an approximation is on the paper the search no longer deepens,
+    /// whatever depth is asked for: depth 1, and no promotion to 3 for a
+    /// small root set. The search deepens to find a set that *completes* the
+    /// closure, and a pattern that needed an approximation is off its lattice
+    /// from here — every exact avenue was exhausted before the first one —
+    /// so such a set exists only for its last few lines, which depth 1
+    /// reaches a round or two later anyway; everywhere else deepening only
+    /// runs the cap out looking for one. Measured on a 332-line off-lattice
+    /// design: a depth-1 sweep of the root set exhausts in 0.15–1 s and
+    /// unlocks a target, the same target the deepened search returns after
+    /// being cut at 4 s; the plan took two minutes instead of twenty, with
+    /// the same two approximations.
     pub fn stuck_search(
         &mut self,
         max_depth: u8,
@@ -815,7 +853,12 @@ impl Planner {
     ) -> Result<Option<StuckSummary>, PrecreaseError> {
         let deadline = self.deadline(budget_ms);
         let mut opts = self.opts.stuck;
-        opts.max_depth = max_depth.clamp(1, 3);
+        if self.approximations > 0 {
+            opts.max_depth = 1;
+            opts.depth3_threshold = 0;
+        } else {
+            opts.max_depth = max_depth.clamp(1, 3);
+        }
         let closure = self.closure()?.clone();
         if closure.is_complete() {
             return Ok(None);
@@ -953,7 +996,25 @@ impl Planner {
             refused: self.refused,
             complete: self.closure.as_ref().is_some_and(|c| c.is_complete()),
             point_cap_hit: self.point_cap_hit,
+            approximations_exceed_cap: self.approximations_exceed_cap(),
         }
+    }
+
+    /// Whether more lines remain than the plan may fold as approximations:
+    /// [`PlannerOptions::approximate_lines_cap`], or a tenth of the
+    /// pattern's lines when that is more. The rules read this only once every
+    /// exact avenue is exhausted, when the remaining lines are exactly the
+    /// ones that would each cost the folder reference creases.
+    pub fn approximations_exceed_cap(&self) -> bool {
+        let cap = self.opts.approximate_lines_cap;
+        if cap == 0 {
+            return false;
+        }
+        let Some(closure) = &self.closure else {
+            return false;
+        };
+        let targets = closure.targets().len() - closure.free_targets().len();
+        closure.remaining().len() > cap.max(targets / 10)
     }
 
     /// What a driver should do next. See [`crate::drive`] for why the rules

@@ -3,15 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { Badge } from '../../components/ui/Badge';
 import type { ReferencesAnalysis, ReferencesAnalysisLine } from './referencesAnalysis';
 import type { PrecreaseFinding } from './precreaseSequence';
-import type { ReferencesPlanRecord } from './referencesResults';
+import type { ReferencesPlanComponent, ReferencesPlanRecord } from './referencesResults';
 
 /**
  * The two lists that are not a sequence: the lines a plan could not construct,
  * and the CP-wide analysis's verdict per line.
  *
  * Both exist because the honest answer to "how do I fold this?" is sometimes
- * "you cannot, exactly" (D8). An approximate finding carries ReferenceFinder's
- * best construction and its error and is never folded into the plan; a refused
+ * "not this line". A finding is a line the plan left unfolded — nothing exact
+ * or close enough reached it, or the run was stopped before it got there — with
+ * ReferenceFinder's closest construction and its error beside it; a refused
  * sheet says why the planner would not take it. Selecting a row frames it on
  * the view, which is the only way to see *which* line is meant without naming
  * coordinates at the reader.
@@ -24,16 +25,33 @@ export interface ReferencesFindingsListProps {
   onSelectFinding: (index: number | null) => void;
 }
 
-/** The plan's findings across its components, each with its approximation if one was found. */
+/**
+ * The plan's findings across its components, each with its approximation if
+ * one was found — from the sheets whose findings were searched for one.
+ */
 function planFindings(record: ReferencesPlanRecord | null) {
   return (
-    record?.components.flatMap((entry) =>
-      entry.result.sequence.findings.map((finding, index) => ({
-        finding,
-        approximate: entry.result.approximate.find((a) => a.finding === index) ?? null,
-      }))
-    ) ?? []
+    record?.components
+      .filter((entry) => !stoppedShort(entry))
+      .flatMap((entry) =>
+        entry.result.sequence.findings.map((finding, index) => ({
+          finding,
+          approximate: entry.result.approximate.find((a) => a.finding === index) ?? null,
+        }))
+      ) ?? []
   );
+}
+
+/**
+ * A sheet whose plan stopped rather than approximate more lines than a
+ * sequence can carry. Its findings were never searched for a closest
+ * construction — the search would have taken minutes to describe folds the
+ * plan had already decided not to make — so a row per line would only say
+ * nothing was found. The modal has already said why the plan stopped; the
+ * rail lists nothing for such a sheet.
+ */
+function stoppedShort(entry: ReferencesPlanComponent): boolean {
+  return entry.result.stopReason === 'too_many_approximations';
 }
 
 /**
@@ -70,7 +88,7 @@ export const ReferencesFindingsList = memo(function ReferencesFindingsList({
           <p className="references-findings__note">
             {t(
               'panels:references.findings.note',
-              'These are reported, never folded: an approximation would become a reference for every later step.'
+              'Not folded: no construction reached these within the plan\'s tolerance, or the plan stopped first. Beside each is the closest construction found.'
             )}
           </p>
           <ul className="references-findings__list" role="listbox">
