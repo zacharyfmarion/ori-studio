@@ -65,3 +65,11 @@ has to dismiss.
 - [x] Failure variant: hook `reason`, dialog copy, analytics `reason`; tests.
 - [x] Seen in the browser on glaucus once the planner stops early: 5.8 s,
       0 of 332 creases, the "Planning failed" modal up; Got it closes it.
+- [x] The sidebar lists nothing for a sheet whose plan stopped this way — the
+      modal has said it; the strip's ending card is the only other mention.
+- [x] Measured: `trackPlan` (outcome → `folding steps completed` / `refused`
+      / `cancelled`) moved to `referencesPlanEvents.ts` and tested, including
+      `refusal_reason: too_many_approximations`; the References dashboard
+      (PostHog 2107139) has two new tiles beside "plans by outcome" —
+      "approximation warning shown, weekly" by reason, and "share of plans
+      that warn" — and "plans by outcome" names the new refusal.
