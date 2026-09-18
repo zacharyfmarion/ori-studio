@@ -24,7 +24,9 @@ export interface ToolInput {
    * threshold through the live camera, so the same gesture reads the same way at
    * any zoom. A release within this distance of the tool's start point is a
    * *click*, not a drag. Absent → 0, i.e. any non-zero movement reads as a drag.
-   * Only the drag-line engine consumes it; box/path engines ignore it.
+   * The drag-line engine consumes it, and so does a point sequence with
+   * `distinctPairs`, as the distance within which a press lands *on* the point
+   * before it; box/path engines ignore it.
    */
   tolerance?: number;
   /**
@@ -112,6 +114,12 @@ export interface ToolOutput<S> {
    * shows the snap indicator only then (not while picking a crease).
    */
   awaitingPoint?: boolean;
+  /**
+   * True when the engine refused the input and its state did not advance — the
+   * surface leaves its own step accounting, and whatever it drew for the step,
+   * exactly where they were. Set by a point sequence with `distinctPairs`.
+   */
+  ignored?: boolean;
 }
 
 /** A pure tool state machine. `S` is the engine's private interaction state. */

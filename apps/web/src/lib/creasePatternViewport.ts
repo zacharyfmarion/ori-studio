@@ -835,7 +835,7 @@ export function nearestCpSnapTarget(
   let best: CpSnapTarget | null = null;
   const pointSnapDistance = maxDistance * POINT_SNAP_DISTANCE_MULTIPLIER;
   const consider = (target: CpSnapTarget, targetMaxDistance = maxDistance) => {
-    if (target.distance > targetMaxDistance) return;
+    if (!withinSnapDistance(target, targetMaxDistance)) return;
     if (!best || target.distance < best.distance) best = target;
   };
 
@@ -886,7 +886,7 @@ export function nearestOrieditaDrawPointTarget(
   let best: CpSnapTarget | null = null;
   const pointSnapDistance = maxDistance * POINT_SNAP_DISTANCE_MULTIPLIER;
   const consider = (target: CpSnapTarget, targetMaxDistance = maxDistance) => {
-    if (target.distance > targetMaxDistance) return;
+    if (!withinSnapDistance(target, targetMaxDistance)) return;
     if (!best || target.distance < best.distance) best = target;
   };
 
@@ -1164,6 +1164,19 @@ function scalePoint(point: Point, scalar: number): Point {
 
 function nearlyEqual(a: number, b: number): boolean {
   return Math.abs(a - b) <= GRID_EPSILON;
+}
+
+/**
+ * Written as `<=` rather than `!(> max)` on purpose: a candidate with a
+ * non-finite coordinate has a NaN distance, which fails every comparison — it
+ * would pass a `> max` rejection, become `best` whenever nothing valid came
+ * before it, and then never be displaced, so every snap from there on would
+ * resolve to `(NaN, NaN)`. A document with such an endpoint should not exist
+ * (the kernel refuses the transform that produced one, and the project reader
+ * drops any it finds), but the snap must not be the thing that amplifies it.
+ */
+function withinSnapDistance(target: CpSnapTarget, maxDistance: number): boolean {
+  return target.distance <= maxDistance;
 }
 
 function pointTarget(

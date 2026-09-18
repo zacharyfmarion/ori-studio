@@ -2532,7 +2532,14 @@ export function CreasePatternWebglCanvas({
       }
       const stepKinds = dynamicStepKindsRef.current ?? liveRef.current.activeToolStepKinds;
       if (!persistentToolRuntimeRef.current) {
-        persistentToolRuntimeRef.current = createToolRuntime(createStepSequenceTool(stepKinds.length));
+        persistentToolRuntimeRef.current = createToolRuntime(
+          createStepSequenceTool(stepKinds.length, {
+            // The four-point transforms take two pairs, and a pair closed on its
+            // own first point has no length to scale by. Upstream's handlers
+            // refuse that press; so does the engine (see `StepSequenceOptions`).
+            distinctPairs: liveRef.current.activeToolTransform?.pointCount === 4,
+          })
+        );
         sequenceStepRef.current = 0;
       }
       const runtime = persistentToolRuntimeRef.current;
@@ -2596,7 +2603,11 @@ export function CreasePatternWebglCanvas({
           ? liveRef.current.hitIndex.query(point.x, point.y, lineHitTolerance())
           : -1;
       const highlight = hoverLine > 0 ? [hoverLine] : [];
-      const out = runtime.feed({ kind, point });
+      const out = runtime.feed({ kind, point, tolerance: tol });
+      // A refused press (a pair-mate on the point just placed) leaves the step,
+      // the placed dots and the ghost as they are — the same silence as a
+      // destination pick with no crease in range above.
+      if (out.ignored) return;
       const transform = liveRef.current.activeToolTransform;
       if (out.commit) {
         liveRef.current.onToolCommit(out.commit);
