@@ -924,7 +924,7 @@
     "findings": {
       "approximation": "au plus près : {{folds}} plis, écart {{err}}",
       "noApproximation": "aucune construction trouvée",
-      "note": "Elles sont signalées, jamais pliées : une approximation deviendrait la référence de toutes les étapes suivantes.",
+      "note": "Non pliés : aucune construction ne les a atteints dans la tolérance du plan, ou le plan s’est arrêté avant. À côté de chacun figure la construction la plus proche trouvée.",
       "offLattice": "Hors du réseau",
       "refusedTitle": "Feuilles écartées",
       "title": "Lignes sans pli exact",
@@ -933,8 +933,15 @@
     "flip": {
       "doneBadge": "Terminé",
       "finished": "Tous les plis sont marqués. Le modèle se referme à partir d’ici, et les plis qui doivent aller dans l’autre sens s’inversent alors.",
+      "incompleteBadge": "Incomplet",
+      "outOfTime": "Le plan a manqué de temps, avec {{made}} plis sur {{total}} faits.",
+      "pointCap": "Le plan s’est arrêté au plafond de points du planificateur, avec {{made}} plis sur {{total}} faits.",
+      "refused": "Cette feuille n’a pas pu être planifiée ; les notes sous les cartes expliquent pourquoi.",
+      "stopped": "Arrêté ici à votre demande, avec {{made}} plis sur {{total}} faits. Recalculer reprend le plan depuis le début.",
+      "stoppedBadge": "Arrêté",
       "turnOver": "Retournez le papier, de gauche à droite.",
-      "turnOverBadge": "Retourner"
+      "turnOverBadge": "Retourner",
+      "unsolved": "{{made}} plis sur {{total}} sont faits. Pour les autres, le planificateur n’a trouvé aucune construction ; ils sont listés sous les cartes."
     },
     "goToEdit": "Aller à Édition",
     "lead": {

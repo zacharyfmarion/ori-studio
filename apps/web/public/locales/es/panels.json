@@ -924,7 +924,7 @@
     "findings": {
       "approximation": "más cercano: {{folds}} dobleces, error {{err}}",
       "noApproximation": "no se encontró construcción",
-      "note": "Se informan, nunca se doblan: una aproximación se convertiría en referencia para todos los pasos posteriores.",
+      "note": "Sin plegar: ninguna construcción las alcanzó dentro de la tolerancia del plan, o el plan se detuvo antes. Junto a cada una está la construcción más cercana encontrada.",
       "offLattice": "Fuera de la retícula",
       "refusedTitle": "Hojas omitidas",
       "title": "Líneas sin doblez exacto",
@@ -933,8 +933,15 @@
     "flip": {
       "doneBadge": "Terminado",
       "finished": "Todos los pliegues están hechos. A partir de aquí el patrón se colapsa, y los pliegues que van al revés se invierten al hacerlo.",
+      "incompleteBadge": "Incompleto",
+      "outOfTime": "El plan se quedó sin tiempo, con {{made}} de {{total}} pliegues hechos.",
+      "pointCap": "El plan se detuvo en el límite de puntos del planificador, con {{made}} de {{total}} pliegues hechos.",
+      "refused": "Esta hoja no se pudo planificar; las notas bajo las tarjetas explican por qué.",
+      "stopped": "Detenido aquí a petición tuya, con {{made}} de {{total}} pliegues hechos. Recalcular empieza el plan de nuevo.",
+      "stoppedBadge": "Detenido",
       "turnOver": "Da la vuelta al papel, de izquierda a derecha.",
-      "turnOverBadge": "Dar la vuelta"
+      "turnOverBadge": "Dar la vuelta",
+      "unsolved": "{{made}} de {{total}} pliegues están hechos. Para el resto el planificador no encontró ninguna construcción; aparecen bajo las tarjetas."
     },
     "goToEdit": "Ir a Editar",
     "lead": {

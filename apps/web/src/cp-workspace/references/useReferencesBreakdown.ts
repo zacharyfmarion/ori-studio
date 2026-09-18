@@ -26,6 +26,7 @@ import {
   runPrecreasePlan,
   type PrecreasePlanProgress,
   type PrecreasePlanResult,
+  type PrecreasePlanStopReason,
 } from './precreasePlan';
 import type {
   PrecreasePlannerInfo,
@@ -103,6 +104,8 @@ export interface ReferencesBreakdownController {
   flatSteps: ReferencesFlatStep[];
   /** The steps the reader walks: the folds, then the closing flips. */
   viewSteps: ReferencesViewStep[];
+  /** Why each sheet's run ended, in `variants` order — the strip's last card is worded by it. */
+  stopReasons: PrecreasePlanStopReason[];
   activeStep: number;
   landmarksFirst: boolean;
   activeFinding: number | null;
@@ -157,6 +160,9 @@ function plannerClients(rect: PrecreaseRfRect) {
     }),
   };
 }
+
+/** `0` is "no ceiling" to both the loop and the crate's `Deadline::after`. */
+const NO_TIME_CEILING_MS = 0;
 
 /**
  * The sheet to plan: the selected one, or the largest plannable one when the
@@ -512,7 +518,7 @@ export function useReferencesBreakdown(
     }
     const controller = new AbortController();
     abortRef.current = controller;
-    const runId = beginReferencesRun();
+    const runId = beginReferencesRun(() => controller.abort());
     setReferencesRun({ status: 'running', startedAt: Date.now() });
     setReferencesProgress({ phase: 'closing', done: 0, total: 0 });
     const started = performance.now();
@@ -531,27 +537,26 @@ export function useReferencesBreakdown(
       const planned: ReferencesPlanComponent[] = [];
       const refused: ReferencesPlanRecord['refused'] = [];
       try {
-        // The whole run shares one budget; each sheet gets what is left,
-        // divided by the sheets still to do, so one pathological component
-        // cannot eat a canvas.
-        const totalBudgetMs = 30_000;
-        for (let i = 0; i < sheets.length; i += 1) {
+        // No time ceiling: the run lasts as long as the pattern needs, and the
+        // Stop button — the overlay's and the long-run toast's — is the way
+        // out. A 30 s ceiling used to end a pattern off its lattice everywhere
+        // after a handful of folds, with nothing on screen saying so and no way
+        // to ask for the rest. The list is one sheet (D12); a multi-sheet run
+        // would simply take its sheets in turn.
+        for (const sheet of sheets) {
           if (controller.signal.aborted) break;
-          const spent = performance.now() - started;
-          const share = Math.max(1_000, (totalBudgetMs - spent) / (sheets.length - i));
           const outcome = await planComponent(
             client,
-            sheets[i],
+            sheet,
             input,
             forRevision,
             controller.signal,
-            share,
+            NO_TIME_CEILING_MS,
             grid,
             (progress) => setReferencesProgress(progressOf(progress))
           );
-          if ('refusedKind' in outcome) refused.push({ component: sheets[i].id, kind: outcome.refusedKind });
+          if ('refusedKind' in outcome) refused.push({ component: sheet.id, kind: outcome.refusedKind });
           else planned.push(outcome);
-          if (performance.now() - started >= totalBudgetMs) break;
         }
       } catch (error) {
         endReferencesRun(runId);
@@ -612,7 +617,7 @@ export function useReferencesBreakdown(
     const forRevision = current.revision;
     const controller = new AbortController();
     abortRef.current = controller;
-    const runId = beginReferencesRun();
+    const runId = beginReferencesRun(() => controller.abort());
     setReferencesRun({ status: 'running', startedAt: Date.now() });
     setReferencesProgress({ phase: 'closing', done: 0, total: 0 });
     const input = precreaseInputFromTransport(current.geometry);
@@ -733,6 +738,12 @@ export function useReferencesBreakdown(
     [variants]
   );
 
+  /** Why each sheet's run ended, in `variants` order, for the strip's last card. */
+  const stopReasons = useMemo(
+    () => record?.components.map((entry) => entry.result.stopReason) ?? [],
+    [record]
+  );
+
   /**
    * The steps as they are *read*, which is longer than the planner's own list:
    * turning the paper over and reversing the mountains are steps the reader
@@ -783,6 +794,7 @@ export function useReferencesBreakdown(
     analysisRecord: analysisRecord?.analysis ?? null,
     flatSteps,
     viewSteps,
+    stopReasons,
     activeStep,
     landmarksFirst,
     activeFinding: viewState.activeFinding,

@@ -10,8 +10,9 @@ import type { ReferencesPlanRecord } from './referencesResults';
  * and the CP-wide analysis's verdict per line.
  *
  * Both exist because the honest answer to "how do I fold this?" is sometimes
- * "you cannot, exactly" (D8). An approximate finding carries ReferenceFinder's
- * best construction and its error and is never folded into the plan; a refused
+ * "not this line". A finding is a line the plan left unfolded — nothing exact
+ * or close enough reached it, or the run was stopped before it got there — with
+ * ReferenceFinder's closest construction and its error beside it; a refused
  * sheet says why the planner would not take it. Selecting a row frames it on
  * the view, which is the only way to see *which* line is meant without naming
  * coordinates at the reader.
@@ -70,7 +71,7 @@ export const ReferencesFindingsList = memo(function ReferencesFindingsList({
           <p className="references-findings__note">
             {t(
               'panels:references.findings.note',
-              'These are reported, never folded: an approximation would become a reference for every later step.'
+              'Not folded: no construction reached these within the plan\'s tolerance, or the plan stopped first. Beside each is the closest construction found.'
             )}
           </p>
           <ul className="references-findings__list" role="listbox">

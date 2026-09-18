@@ -890,7 +890,7 @@
     "findings": {
       "approximation": "closest: {{folds}} folds, off by {{err}}",
       "noApproximation": "no construction found",
-      "note": "These are reported, never folded: an approximation would become a reference for every later step.",
+      "note": "Not folded: no construction reached these within the plan's tolerance, or the plan stopped first. Beside each is the closest construction found.",
       "offLattice": "Off the lattice",
       "refusedTitle": "Sheets left out",
       "title": "Lines with no exact fold",
@@ -899,8 +899,15 @@
     "flip": {
       "doneBadge": "Finished",
       "finished": "Every crease is made. The pattern collapses from here, and the creases it wants the other way reverse as it does.",
+      "incompleteBadge": "Incomplete",
+      "outOfTime": "The plan ran out of time, with {{made}} of {{total}} creases made.",
+      "pointCap": "The plan stopped at the planner's point cap, with {{made}} of {{total}} creases made.",
+      "refused": "This sheet could not be planned; the notes under the cards say why.",
+      "stopped": "Stopped here at your request, with {{made}} of {{total}} creases made. Recompute starts the plan over.",
+      "stoppedBadge": "Stopped",
       "turnOver": "Turn the paper over, left to right.",
-      "turnOverBadge": "Turn over"
+      "turnOverBadge": "Turn over",
+      "unsolved": "{{made}} of {{total}} creases are made. The rest have no construction the planner could find; they are listed under the cards."
     },
     "goToEdit": "Go to Edit",
     "lead": {

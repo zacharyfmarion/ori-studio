@@ -472,7 +472,8 @@ export const ANALYTICS_EVENTS = {
   /**
    * A whole-pattern breakdown run, however it ended: `completed` when the
    * planner produced a sequence, `cancelled` when a Stop landed, `refused`
-   * when it could not (a non-rectangular sheet, the point cap, the budget).
+   * when it could not (a non-rectangular sheet, the point cap, or a run
+   * ceiling — which the sequence no longer sets, so that one is a driver's).
    *
    * Carries only enums and bucketed counts: `target_kind`, `lines_bucket`,
    * `aux_bucket`, `visible_aux_bucket`, `turn_overs_bucket`,

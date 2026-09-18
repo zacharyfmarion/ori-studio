@@ -305,9 +305,9 @@ export function ReferencesPanel() {
       targeted
         ? candidateFilmstrip(t, active, rfSheet)
         : readingPlan
-          ? planFilmstrip(t, breakdown.variants, viewSteps)
+          ? planFilmstrip(t, breakdown.variants, viewSteps, breakdown.stopReasons)
           : [],
-    [targeted, readingPlan, t, active, rfSheet, breakdown.variants, viewSteps]
+    [targeted, readingPlan, t, active, rfSheet, breakdown.variants, viewSteps, breakdown.stopReasons]
   );
 
   // The sheet as it stands — see `referencesCreaseVisibility`: whole in Find

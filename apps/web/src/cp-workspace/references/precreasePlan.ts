@@ -10,13 +10,16 @@
  *
  * Three rules this module exists to keep:
  *
- * - **No approximation is ever folded** (D8). ReferenceFinder's solutions are
- *   mined for the *lines* they construct; each is scored against the planner's
- *   own state and only folded when the planner certifies it, tagged `rf_aux`.
- *   A line the planner will not certify is reported, never applied.
+ * - **Nothing is folded unverified.** ReferenceFinder's solutions are mined
+ *   for the *lines* they construct; each is scored against the planner's own
+ *   state and only folded when the planner certifies it, tagged `rf_aux`. A
+ *   line with no exact construction is folded last, by the closest one, and
+ *   says so (`Step.approximation`); what even that cannot reach is reported.
  * - **The search is bounded, not exhaustive.** Everything that stops early —
- *   the budget, the abort, the fallback limit — comes back as a `partial`
- *   result with the reason, so no surface can print "minimum".
+ *   the abort, a ceiling a driver set, the fallback limit — comes back as a
+ *   `partial` result with the reason, so no surface can print "minimum".
+ *   There is no ceiling by default: a plan runs until it is complete or
+ *   nothing is left to try, and the reader's Stop is the way out.
  * - **A result belongs to one revision of the document.** `computedAtRevision`
  *   travels with it and the caller drops it when the pattern moves on.
  *
@@ -175,7 +178,12 @@ export interface PrecreasePlanOptions {
   /** The revision the caller will compare against before using the result. */
   computedAtRevision: string;
   referenceFinder?: PrecreasePlanReferenceFinder | null;
-  /** Whole-run ceiling, milliseconds (plan default 30 s). */
+  /**
+   * Whole-run ceiling, milliseconds; `0` (the default) means none. A pattern
+   * off its lattice everywhere needs minutes, and a ceiling turned that into a
+   * plan that stopped after a handful of folds with no way to ask for the
+   * rest — so the product sets none and offers Stop instead.
+   */
   totalBudgetMs?: number;
   /** One resumable `close()` chunk, milliseconds. */
   closeChunkMs?: number;
@@ -239,7 +247,7 @@ export interface PrecreasePlanResult {
 }
 
 const DEFAULTS = {
-  totalBudgetMs: 30_000,
+  totalBudgetMs: 0,
   closeChunkMs: 250,
   stuckDepth: 2,
   stuckBudgetMs: 4_000,
@@ -281,18 +289,22 @@ export async function runPrecreasePlan(
   const checkAbort = () => {
     if (signal?.aborted) throw new PlanAborted();
   };
-  const report = (phase: PrecreasePlanPhase, state: { folded: number; remaining: number }, extra?: { queried: number; queryTotal: number }) => {
+  const targets = info.targets - info.free_targets;
+  // Progress is what is left, not what the closure folded: a target the stuck
+  // search unlocked, or one folded by its closest construction, leaves
+  // `remaining` and never passes through `close()`'s own count. Counting only
+  // the latter read "Folded 0 of 332" through a minute of real progress.
+  const report = (phase: PrecreasePlanPhase, remaining: number, extra?: { queried: number; queryTotal: number }) => {
     onProgress?.({
       phase,
-      folded: state.folded,
-      remaining: state.remaining,
-      targets: info.targets - info.free_targets,
+      folded: Math.max(0, targets - remaining),
+      remaining,
+      targets,
       ...(extra ?? {}),
     });
   };
 
   let remaining = info.remaining;
-  let folded = 0;
   let rfEvents = 0;
   let rfQueries = 0;
   let rfAuxFolded = 0;
@@ -355,7 +367,6 @@ export async function runPrecreasePlan(
 
       if (action.kind === 'close') {
         const closed = await closeToFixpoint();
-        folded += closed.folded;
         remaining = closed.remaining;
         last = { kind: 'closed', stalled: closed.stalled };
         continue;
@@ -367,7 +378,7 @@ export async function runPrecreasePlan(
         // four-second budget. A Stop pressed during the closure must not buy
         // four more seconds of searching.
         checkAbort();
-        report('searching', { folded, remaining });
+        report('searching', remaining);
         const summary = await planner.stuckSearch(stuckDepth, stuckBudgetMs);
         if (summary) stuckEvents += 1;
         last = { kind: 'searched', found: Boolean(summary) };
@@ -404,18 +415,18 @@ export async function runPrecreasePlan(
 
   let approximate: PrecreaseApproximateFinding[] = [];
   if (referenceFinder?.approximate && sequence.findings.length > 0 && !signal?.aborted) {
-    report('approximating', { folded, remaining });
+    report('approximating', remaining);
     approximate = await approximateFindings(
       referenceFinder.approximate,
       sequence.findings,
       await planner.lineKeys(),
       signal,
       (queried, queryTotal) =>
-        report('approximating', { folded, remaining }, { queried, queryTotal })
+        report('approximating', remaining, { queried, queryTotal })
     );
   }
 
-  report('done', { folded, remaining });
+  report('done', remaining);
   return {
     computedAtRevision: options.computedAtRevision,
     component: info.component,
@@ -437,21 +448,19 @@ export async function runPrecreasePlan(
    * so a 2 s closure yields to the message loop eight times instead of once —
    * that is the whole reason the crate's `close` is resumable.
    */
-  async function closeToFixpoint(): Promise<{ folded: number; remaining: number; stalled: boolean }> {
-    let closedFolded = 0;
+  async function closeToFixpoint(): Promise<{ remaining: number; stalled: boolean }> {
     let idle = 0;
     for (;;) {
       checkAbort();
       const budget = outOfTime() ? 1 : closeChunkMs;
       const chunk = await planner.close(budget);
-      closedFolded += chunk.folded;
-      report('closing', { folded: folded + closedFolded, remaining: chunk.remaining });
+      report('closing', chunk.remaining);
       if (chunk.fixpoint || chunk.remaining === 0) {
-        return { folded: closedFolded, remaining: chunk.remaining, stalled: false };
+        return { remaining: chunk.remaining, stalled: false };
       }
       idle = chunk.folded === 0 ? idle + 1 : 0;
       if (outOfTime() && idle >= MAX_IDLE_CLOSE_CHUNKS) {
-        return { folded: closedFolded, remaining: chunk.remaining, stalled: true };
+        return { remaining: chunk.remaining, stalled: true };
       }
     }
   }
@@ -480,10 +489,10 @@ export async function runPrecreasePlan(
       b: line.segment[1] as RfPoint,
       key: keys[i] ?? `${line.line.n[0]},${line.line.n[1]},${line.line.d}`,
     }));
-    report('querying', { folded, remaining }, { queried: 0, queryTotal: requests.length });
+    report('querying', remaining, { queried: 0, queryTotal: requests.length });
     const outcome = await client.batchLines(
       requests,
-      (done, total) => report('querying', { folded, remaining }, { queried: done, queryTotal: total }),
+      (done, total) => report('querying', remaining, { queried: done, queryTotal: total }),
       signal
     );
     const queries = outcome.results.length - outcome.fromCache;
@@ -533,10 +542,10 @@ export async function runPrecreasePlan(
       b: line.segment[1] as RfPoint,
       key: keys[i] ?? `${line.line.n[0]},${line.line.n[1]},${line.line.d}`,
     }));
-    report('querying', { folded, remaining }, { queried: 0, queryTotal: requests.length });
+    report('querying', remaining, { queried: 0, queryTotal: requests.length });
     const outcome = await client.batchLines(
       requests,
-      (done, total) => report('querying', { folded, remaining }, { queried: done, queryTotal: total }),
+      (done, total) => report('querying', remaining, { queried: done, queryTotal: total }),
       signal
     );
     const queries = outcome.results.length - outcome.fromCache;

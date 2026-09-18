@@ -78,10 +78,23 @@ carries), and AGENTS.md's vendored-source rule names the exception.
 - [x] Patch documented in README.treemaker.md, upstream-sync.json,
       LICENSING.md, AGENTS.md, the upstream-drift reference, the build script.
 
+## Done alongside, in the same PR
+
+- The sequence run has **no time ceiling** any more (`totalBudgetMs` 0): it
+  lasts as long as the pattern needs and Stop is the way out. Stop had never
+  reached a plan run — `requestReferencesStop` killed the Find tab's window
+  worker, which the plan does not use, so "Cancelling…" held until the plan
+  ended by itself; each run now registers its own stop (`beginReferencesRun`).
+- The strip's last card is worded by the run's stop reason (`planEndingCard`):
+  finished, stopped at your request, incomplete, the point cap, out of time.
+- The progress counter derives from what is left rather than from the
+  closure's own folds, so a run advancing through the search reads as one.
+
 ## Out of scope (follow-ups from the glaucus diagnosis)
 
 - The plan loop's per-round cost model for a fully off-lattice component (one
-  target per 4 s stuck search after the first approximation).
-- The "Finished — every crease is made" card on a budget stop, and a way to
-  continue a stopped run.
+  target per 4 s stuck search after the first approximation): a run now
+  finishes, but a 332-line off-lattice pattern takes on the order of twenty
+  minutes.
+- A way to continue a stopped run rather than recompute from the start.
 - A numeric error bound propagated through steps sighted from approximations.

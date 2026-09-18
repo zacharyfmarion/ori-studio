@@ -890,7 +890,7 @@
     "findings": {
       "approximation": "am nächsten: {{folds}} Faltungen, Abweichung {{err}}",
       "noApproximation": "keine Konstruktion gefunden",
-      "note": "Sie werden nur gemeldet, nie gefaltet: eine Näherung würde zur Referenz für jeden späteren Schritt.",
+      "note": "Nicht gefaltet: keine Konstruktion hat diese Linien innerhalb der Toleranz des Plans erreicht, oder der Plan wurde vorher gestoppt. Neben jeder steht die nächstliegende gefundene Konstruktion.",
       "offLattice": "Außerhalb des Gitters",
       "refusedTitle": "Ausgelassene Blätter",
       "title": "Linien ohne exakte Faltung",
@@ -899,8 +899,15 @@
     "flip": {
       "doneBadge": "Fertig",
       "finished": "Alle Falten sind gemacht. Von hier aus wird das Modell zusammengelegt, und die Falten, die andersherum sollen, kehren sich dabei um.",
+      "incompleteBadge": "Unvollständig",
+      "outOfTime": "Dem Plan ging die Zeit aus, {{made}} von {{total}} Falten sind gemacht.",
+      "pointCap": "Der Plan wurde an der Punktobergrenze des Planers gestoppt, {{made}} von {{total}} Falten sind gemacht.",
+      "refused": "Dieser Bogen konnte nicht geplant werden; die Hinweise unter den Karten sagen, warum.",
+      "stopped": "Auf deinen Wunsch hier gestoppt, {{made}} von {{total}} Falten sind gemacht. „Neu berechnen“ beginnt den Plan von vorn.",
+      "stoppedBadge": "Gestoppt",
       "turnOver": "Wende das Papier, von links nach rechts.",
-      "turnOverBadge": "Wenden"
+      "turnOverBadge": "Wenden",
+      "unsolved": "{{made}} von {{total}} Falten sind gemacht. Für die übrigen hat der Planer keine Konstruktion gefunden; sie sind unter den Karten aufgeführt."
     },
     "goToEdit": "Zu Bearbeiten",
     "lead": {
