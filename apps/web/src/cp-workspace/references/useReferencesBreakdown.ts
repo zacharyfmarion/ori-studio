@@ -874,8 +874,11 @@ function trackPlan(
 }
 
 /** Which stop reasons are refusals, and what to call them. */
-const REFUSAL_REASONS: Readonly<Record<string, 'non_rectangular' | 'point_cap' | 'budget'>> = {
+const REFUSAL_REASONS: Readonly<
+  Record<string, 'non_rectangular' | 'point_cap' | 'budget' | 'too_many_approximations'>
+> = {
   refused_sheet: 'non_rectangular',
   point_cap: 'point_cap',
   budget: 'budget',
+  too_many_approximations: 'too_many_approximations',
 };

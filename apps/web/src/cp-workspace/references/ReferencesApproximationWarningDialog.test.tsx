@@ -26,6 +26,7 @@ function render(props: Partial<ReferencesApproximationWarning> = {}) {
   const dismiss = vi.fn();
   const all: ReferencesApproximationWarning = {
     open: true,
+    reason: 'inexact',
     inexactSteps: 22,
     exactnessClass: 'off_lattice',
     dismiss,
@@ -48,8 +49,21 @@ describe('ReferencesApproximationWarningDialog', () => {
     const node = dialog();
     expect(node).not.toBeNull();
     expect(node?.getAttribute('aria-modal')).toBe('true');
+    expect(node?.textContent).toContain('Approximated folds');
     expect(node?.textContent).toContain('This sequence contains approximated folds.');
     expect(node?.textContent).toContain('verify that any reference points are correct');
+  });
+
+  it('says planning failed when the plan stopped rather than approximate', () => {
+    render({ reason: 'too_many', inexactSteps: 0 });
+    const node = dialog();
+    expect(node?.textContent).toContain('Planning failed');
+    expect(node?.textContent).toContain(
+      'Planning failed because a huge number of reference creases would be necessary to fold this pattern within error tolerances.'
+    );
+    expect(node?.textContent).toContain('Detect CP from Image');
+    expect(node?.textContent).toContain('verify that any reference points are correct');
+    expect(node?.textContent).not.toContain('This sequence contains approximated folds.');
   });
 
   it('dismisses from the action, the close button, the backdrop and Escape', () => {

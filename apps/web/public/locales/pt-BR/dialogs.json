@@ -317,6 +317,8 @@
   "referencesApproximationWarning": {
     "close": "Fechar o aviso de dobras aproximadas",
     "dismiss": "Entendi",
+    "failedMessage": "O planejamento falhou porque seria necessário um número enorme de vincos de referência para dobrar este padrão dentro das tolerâncias de erro. Se este padrão de vincos veio de “Detectar CP a partir de imagem”, a detecção pode ter convergido para uma solução imprecisa. Verifique se todos os pontos de referência estão corretos.",
+    "failedTitle": "O planejamento falhou",
     "message": "Esta sequência contém dobras aproximadas. Se este padrão de vincos veio de “Detectar CP a partir de imagem”, a detecção pode ter convergido para uma solução imprecisa. Verifique se todos os pontos de referência estão corretos.",
     "title": "Dobras aproximadas"
   },

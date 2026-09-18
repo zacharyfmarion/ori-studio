@@ -317,6 +317,8 @@
   "referencesApproximationWarning": {
     "close": "Fermer l’avertissement sur les plis approximatifs",
     "dismiss": "Compris",
+    "failedMessage": "La planification a échoué, car il faudrait un très grand nombre de plis de référence pour plier ce patron dans les tolérances d’erreur. Si ce patron de pliage provient de « Détecter le CP depuis une image », la détection a peut-être convergé vers une solution inexacte. Vérifiez que tous les points de référence sont corrects.",
+    "failedTitle": "Échec de la planification",
     "message": "Cette séquence contient des plis approximatifs. Si ce patron de pliage provient de « Détecter le CP depuis une image », la détection a peut-être convergé vers une solution inexacte. Vérifiez que tous les points de référence sont corrects.",
     "title": "Plis approximatifs"
   },

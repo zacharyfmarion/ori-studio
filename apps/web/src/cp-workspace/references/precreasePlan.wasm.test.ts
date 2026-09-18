@@ -203,15 +203,25 @@ describe.skipIf(!available)('runPrecreasePlan over the real planner bridge', () 
     const wasm = await import('../../generated/oristudio-precrease-wasm/oristudio_precrease_wasm');
     wasm.initSync({ module: readFileSync(WASM) });
     const { segments, colors } = loadFold('grid6.fold');
-    const planner = new wasm.PrecreasePlanner(segments, colors, undefined, 0, '');
+    // Two fresh planners: nothing folded, nothing refused, on a lattice — so
+    // `PlanState` is all false, except that the second is told it may
+    // approximate no line at all while every target still remains, which is
+    // the one plan fact the rules read that a fresh planner can be made to
+    // say either way.
+    const planners = [
+      { planner: new wasm.PrecreasePlanner(segments, colors, undefined, 0, ''), exceeds: false },
+      {
+        planner: new wasm.PrecreasePlanner(
+          segments,
+          colors,
+          undefined,
+          0,
+          JSON.stringify({ approximate_lines_cap: 1 })
+        ),
+        exceeds: true,
+      },
+    ];
     try {
-      // A fresh planner: nothing folded, nothing refused, on a lattice — so
-      // `PlanState` is all false and the double can be handed the same.
-      const plan = {
-        refused: false,
-        complete: false,
-        point_cap_hit: false,
-      };
       const lasts: PrecreaseLastStep[] = [
         { kind: 'nothing' },
         { kind: 'closed', stalled: false },
@@ -224,30 +234,39 @@ describe.skipIf(!available)('runPrecreasePlan over the real planner bridge', () 
         { kind: 'approximated', folded: true },
       ];
       let checked = 0;
-      for (const last of lasts) {
-        for (const out_of_time of [false, true]) {
-          for (const aborted of [false, true]) {
-            for (const reference_finder of [false, true]) {
-              for (const approximate of [false, true]) {
-                for (const [rf_events, max_rf_events] of [
-                  [0, 0],
-                  [0, 3],
-                  [3, 3],
-                  [4, 3],
-                ]) {
-                  const driver = {
-                    last,
-                    out_of_time,
-                    aborted,
-                    reference_finder,
-                    rf_events,
-                    max_rf_events,
-                    approximate,
-                  };
-                  expect(nextActionDouble(plan, driver)).toEqual(
-                    planner.next_action(driver) as PrecreasePlanAction
-                  );
-                  checked += 1;
+      let stops = 0;
+      for (const { planner, exceeds } of planners) {
+        const plan = {
+          refused: false,
+          complete: false,
+          point_cap_hit: false,
+          approximations_exceed_cap: exceeds,
+        };
+        for (const last of lasts) {
+          for (const out_of_time of [false, true]) {
+            for (const aborted of [false, true]) {
+              for (const reference_finder of [false, true]) {
+                for (const approximate of [false, true]) {
+                  for (const [rf_events, max_rf_events] of [
+                    [0, 0],
+                    [0, 3],
+                    [3, 3],
+                    [4, 3],
+                  ]) {
+                    const driver = {
+                      last,
+                      out_of_time,
+                      aborted,
+                      reference_finder,
+                      rf_events,
+                      max_rf_events,
+                      approximate,
+                    };
+                    const action = planner.next_action(driver) as PrecreasePlanAction;
+                    expect(nextActionDouble(plan, driver)).toEqual(action);
+                    if (action.kind === 'stop' && action.reason === 'too_many_approximations') stops += 1;
+                    checked += 1;
+                  }
                 }
               }
             }
@@ -255,9 +274,11 @@ describe.skipIf(!available)('runPrecreasePlan over the real planner bridge', () 
         }
       }
       // A loop that silently checked nothing would pass too.
-      expect(checked).toBe(lasts.length * 2 * 2 * 2 * 2 * 4);
+      expect(checked).toBe(2 * lasts.length * 2 * 2 * 2 * 2 * 4);
+      // And the capped planner really did reach the new stop somewhere.
+      expect(stops).toBeGreaterThan(0);
     } finally {
-      planner.free();
+      for (const { planner } of planners) planner.free();
     }
   });
 

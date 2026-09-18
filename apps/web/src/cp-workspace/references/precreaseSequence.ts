@@ -250,7 +250,13 @@ export type PrecreaseStopReason =
   | 'budget'
   | 'aborted'
   | 'refused_sheet'
-  | 'point_cap';
+  | 'point_cap'
+  /**
+   * Nothing exact was left to make and more lines remained than a sequence
+   * can carry as approximations (`approximate_lines_cap`): folding them
+   * would take more reference creases than a folder could use.
+   */
+  | 'too_many_approximations';
 
 /** What the driver just finished doing — the crate's `drive::LastStep`. */
 export type PrecreaseLastStep =
@@ -662,6 +668,13 @@ export interface PrecreasePlannerOptions {
   sequence_budget_ms?: number;
   stuck_budget_ms?: number;
   total_budget_ms?: number;
+  /**
+   * How many lines may be left, with every exact avenue exhausted, before
+   * the plan stops rather than folding them all as approximations; a tenth
+   * of the pattern's lines when that is more. Zero is no cap; the crate's
+   * default is 24.
+   */
+  approximate_lines_cap?: number;
   /**
    * Open a box- or hex-pleated design with its grid pleated before anything
    * is sighted. The crate's default is on.

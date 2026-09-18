@@ -421,10 +421,16 @@ export async function runPrecreasePlan(
   if (sequence.diagnostics.point_cap_hit) stop = 'point_cap';
 
   let approximate: PrecreaseApproximateFinding[] = [];
-  if (referenceFinder?.approximate && sequence.findings.length > 0 && !signal?.aborted) {
+  // A plan that stopped rather than approximate too many lines does not get
+  // its findings' closest constructions: the findings are the whole
+  // remainder, the search over them is minutes on hundreds of lines, and the
+  // sidebar says why the plan stopped rather than listing them.
+  const listFindings = stop !== 'too_many_approximations';
+  const approximateClient = listFindings ? referenceFinder?.approximate : undefined;
+  if (approximateClient && sequence.findings.length > 0 && !signal?.aborted) {
     report('approximating', remaining);
     approximate = await approximateFindings(
-      referenceFinder.approximate,
+      approximateClient,
       sequence.findings,
       await planner.lineKeys(),
       signal,

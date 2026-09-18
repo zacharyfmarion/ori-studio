@@ -7,21 +7,23 @@ import { IconButton } from '../../components/ui/IconButton';
 import type { ReferencesApproximationWarning } from './useReferencesApproximationWarning';
 
 /**
- * The modal that says a precreasing sequence contains approximated folds.
+ * The modal that says a precreasing sequence contains approximated folds —
+ * or that planning stopped because too many folds would have had to be.
  *
  * Presentation only: `useReferencesApproximationWarning` decides when it is
- * up. The `simple-modal` shell, as every other confirm-sized dialog; Escape,
- * the backdrop, the close button and the one action all dismiss — there is
- * nothing to choose, only something to have read.
+ * up and why. The `simple-modal` shell, as every other confirm-sized dialog;
+ * Escape, the backdrop, the close button and the one action all dismiss —
+ * there is nothing to choose, only something to have read.
  */
 export function ReferencesApproximationWarningDialog({
   open,
+  reason,
   inexactSteps,
   exactnessClass,
   dismiss,
 }: ReferencesApproximationWarning) {
   const { t } = useTranslation();
-  useReferencesApproximationWarningEvent({ open, inexactSteps, exactnessClass });
+  useReferencesApproximationWarningEvent({ open, reason, inexactSteps, exactnessClass });
 
   useEffect(() => {
     if (!open) return;
@@ -37,7 +39,20 @@ export function ReferencesApproximationWarningDialog({
 
   if (!open) return null;
 
-  const title = t('dialogs:referencesApproximationWarning.title', 'Approximated folds');
+  const title =
+    reason === 'too_many'
+      ? t('dialogs:referencesApproximationWarning.failedTitle', 'Planning failed')
+      : t('dialogs:referencesApproximationWarning.title', 'Approximated folds');
+  const message =
+    reason === 'too_many'
+      ? t(
+          'dialogs:referencesApproximationWarning.failedMessage',
+          'Planning failed because a huge number of reference creases would be necessary to fold this pattern within error tolerances. If this crease pattern came from Detect CP from Image, the detection may have converged on an inaccurate solution. Please verify that any reference points are correct.'
+        )
+      : t(
+          'dialogs:referencesApproximationWarning.message',
+          'This sequence contains approximated folds. If this crease pattern came from Detect CP from Image, the detection may have converged on an inaccurate solution. Please verify that any reference points are correct.'
+        );
   return (
     <div
       role="alertdialog"
@@ -61,12 +76,7 @@ export function ReferencesApproximationWarningDialog({
           </IconButton>
         </header>
         <div className="simple-modal__body">
-          <p className="simple-modal__message">
-            {t(
-              'dialogs:referencesApproximationWarning.message',
-              'This sequence contains approximated folds. If this crease pattern came from Detect CP from Image, the detection may have converged on an inaccurate solution. Please verify that any reference points are correct.'
-            )}
-          </p>
+          <p className="simple-modal__message">{message}</p>
         </div>
         <footer className="simple-modal__footer">
           <Button size="sm" variant="primary" onClick={dismiss} autoFocus>

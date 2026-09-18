@@ -893,6 +893,10 @@
       "note": "Not folded: no construction reached these within the plan's tolerance, or the plan stopped first. Beside each is the closest construction found.",
       "offLattice": "Off the lattice",
       "refusedTitle": "Sheets left out",
+      "stoppedCount_one": "{{count}} line with no exact fold",
+      "stoppedCount_other": "{{count}} lines with no exact fold",
+      "stoppedNote": "More lines have no exact fold than a sequence can carry as reference creases, so the plan stopped rather than approximate them all. Their closest constructions were not searched for.",
+      "stoppedTitle": "Planning stopped",
       "title": "Lines with no exact fold",
       "unsolved": "No construction found"
     },
@@ -905,6 +909,7 @@
       "refused": "This sheet could not be planned; the notes under the cards say why.",
       "stopped": "Stopped here at your request, with {{made}} of {{total}} creases made. Recompute starts the plan over.",
       "stoppedBadge": "Stopped",
+      "tooManyApproximations": "Planning stopped with {{made}} of {{total}} creases made: the rest have no exact construction, and folding them by references would take more reference creases than a sequence can carry.",
       "turnOver": "Turn the paper over, left to right.",
       "turnOverBadge": "Turn over",
       "unsolved": "{{made}} of {{total}} creases are made. The rest have no construction the planner could find; they are listed under the cards."
@@ -1034,7 +1039,8 @@
       "title": "Patterns"
     },
     "sidebar": {
-      "none": "ReferenceFinder found no construction for this target at the current settings."
+      "none": "ReferenceFinder found no construction for this target at the current settings.",
+      "nonePlanned": "No sheet could be planned; the notes under the cards say why."
     },
     "step": {
       "axiom1": "Fold {{x}} through {{p0}} and {{p1}}.",

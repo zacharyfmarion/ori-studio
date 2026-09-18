@@ -171,6 +171,15 @@ export function planEndingCard(
           'This sheet could not be planned; the notes under the cards say why.'
         ),
       };
+    case 'too_many_approximations':
+      return {
+        badge: t('panels:references.flip.stoppedBadge', 'Stopped'),
+        sentence: t(
+          'panels:references.flip.tooManyApproximations',
+          'Planning stopped with {{made}} of {{total}} creases made: the rest have no exact construction, and folding them by references would take more reference creases than a sequence can carry.',
+          counts
+        ),
+      };
   }
 }
 

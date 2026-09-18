@@ -127,6 +127,33 @@ carries), and AGENTS.md's vendored-source rule names the exception.
   patterns rather than by curated truths — see the PR for the
   `detected.fold` pass.
 
+- **The plan stops rather than approximate more lines than a sequence can
+  carry** (`PlanAction::Stop { TooManyApproximations }`). D made glaucus
+  finish, in 125 s, as a 648-card plan with 316 reference creases — complete
+  and unusable, and the reader waited minutes to learn so. The rule is in
+  `drive.rs`, at the two places the plan would approximate: if the closure's
+  remaining lines exceed `PlannerOptions::approximate_lines_cap` (24, or a
+  tenth of the pattern's lines when that is larger; 0 disables it), the plan
+  stops with the sequence it has — every exact avenue is exhausted before
+  the first approximation, so nothing exact is lost. The cap does not count
+  lines that go exact *after* an approximation, only what is left when the
+  next one is asked for, so a design that needs one or two hubs and then
+  folds the rest exactly still gets its plan. On that stop the driver skips
+  the closest-construction pass over the findings (it is minutes on
+  hundreds of lines, describing folds the plan will not make).
+
+  Surfaces: the warning modal opens with "Planning failed …" wording
+  (`useReferencesApproximationWarning` → `reason: 'too_many'`), the strip's
+  ending card says how many creases were made and why it stopped, and the
+  findings rail lists one row per stopped sheet with its count instead of a
+  row per line. A plan with no folds at all now still ends on its ending
+  card (`referencesViewSteps`), and the plan strip's empty copy no longer
+  borrows Find's. Analytics: `references approximation warning shown` gains
+  `reason`, `folding steps refused` gains `too_many_approximations`.
+
+  Glaucus in the browser: stops in 5.8 s (closure, one stuck search, the
+  exact ReferenceFinder batch), 0 of 332 creases, modal up.
+
 ## Out of scope
 
 - The approximate fallback ends the whole plan when its three best candidates

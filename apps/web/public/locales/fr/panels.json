@@ -927,6 +927,11 @@
       "note": "Non pliés : aucune construction ne les a atteints dans la tolérance du plan, ou le plan s’est arrêté avant. À côté de chacun figure la construction la plus proche trouvée.",
       "offLattice": "Hors du réseau",
       "refusedTitle": "Feuilles écartées",
+      "stoppedCount_one": "{{count}} ligne sans pli exact",
+      "stoppedCount_many": "{{count}} lignes sans pli exact",
+      "stoppedCount_other": "{{count}} lignes sans pli exact",
+      "stoppedNote": "Plus de lignes n’ont pas de pli exact qu’une séquence ne peut porter de plis de référence ; le plan s’est donc arrêté plutôt que de toutes les approximer. Leurs constructions les plus proches n’ont pas été recherchées.",
+      "stoppedTitle": "Planification arrêtée",
       "title": "Lignes sans pli exact",
       "unsolved": "Aucune construction trouvée"
     },
@@ -939,6 +944,7 @@
       "refused": "Cette feuille n’a pas pu être planifiée ; les notes sous les cartes expliquent pourquoi.",
       "stopped": "Arrêté ici à votre demande, avec {{made}} plis sur {{total}} faits. Recalculer reprend le plan depuis le début.",
       "stoppedBadge": "Arrêté",
+      "tooManyApproximations": "La planification s’est arrêtée avec {{made}} plis sur {{total}} faits : les autres n’ont pas de construction exacte, et les plier par références demanderait plus de plis de référence qu’une séquence ne peut en porter.",
       "turnOver": "Retournez le papier, de gauche à droite.",
       "turnOverBadge": "Retourner",
       "unsolved": "{{made}} plis sur {{total}} sont faits. Pour les autres, le planificateur n’a trouvé aucune construction ; ils sont listés sous les cartes."
@@ -1069,7 +1075,8 @@
       "title": "Patrons"
     },
     "sidebar": {
-      "none": "ReferenceFinder n’a trouvé aucune construction pour cette cible avec les réglages actuels."
+      "none": "ReferenceFinder n’a trouvé aucune construction pour cette cible avec les réglages actuels.",
+      "nonePlanned": "Aucune feuille n’a pu être planifiée ; les notes sous les cartes expliquent pourquoi."
     },
     "step": {
       "axiom1": "Pliez {{x}} en passant par {{p0}} et {{p1}}.",

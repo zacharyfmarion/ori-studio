@@ -27,6 +27,15 @@ has to dismiss.
   pattern came from Detect CP from Image, the detection may have converged on
   an inaccurate solution. Please verify that any reference points are
   correct."*
+- **A second reason: the plan stopped rather than approximate.** When more
+  lines are left without an exact construction than a sequence can carry as
+  reference creases, the planner stops (`too_many_approximations`) before
+  folding any of them, and the same modal opens with failure wording —
+  *"Planning failed because a huge number of reference creases would be
+  necessary to fold this pattern within error tolerances. If this crease
+  pattern came from Detect CP from Image, …"* The hook reports `reason`
+  (`inexact` / `too_many`) from the summary's `stopReason`; the dialog picks
+  its title and message by it.
 - **Mounted from `ReferencesPanel`** (a composition site: the hook call and the
   element, nothing else).
 - **Analytics**: `references approximation warning shown`, fired from the
@@ -53,3 +62,6 @@ has to dismiss.
 - [x] Locales extracted, translated, stamped; `i18n:check` passes.
 - [x] Seen in the browser on glaucus (22 inexact steps → modal; Got it closes it
       and it stays closed), and not on an exact square (0 inexact steps).
+- [x] Failure variant: hook `reason`, dialog copy, analytics `reason`; tests.
+- [x] Seen in the browser on glaucus once the planner stops early: 5.8 s,
+      0 of 332 creases, the "Planning failed" modal up; Got it closes it.

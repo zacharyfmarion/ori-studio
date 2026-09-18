@@ -272,28 +272,35 @@ export function ReferencesPanel() {
 
   const active = controller.active;
   /**
-   * What the caption says when the target's strip is empty. A solution with no
-   * steps is the one worth telling apart: a corner or an edge midpoint is
-   * already on the paper, so "no construction found" would be exactly wrong
-   * about an answer that is both found and free. Without a target the strip
-   * is not rendered at all — the lead stands in its place.
+   * What the caption says when the strip is empty. A solution with no steps
+   * is the one worth telling apart: a corner or an edge midpoint is already
+   * on the paper, so "no construction found" would be exactly wrong about an
+   * answer that is both found and free. Without a target the strip is not
+   * rendered at all — the lead stands in its place. A plan's strip is empty
+   * only when no sheet could be planned at all: a planned sheet always ends
+   * on its ending card, folds or none.
    */
   const filmstripPlaceholder = busy
     ? t('panels:references.searching', 'Finding references…')
-    : active
-      ? controller.target?.kind === 'crease'
-        ? t(
-            'panels:references.alreadyOnSheetLine',
-            'This line is already on the paper — no folds needed.'
-          )
+    : readingPlan
+      ? t(
+          'panels:references.sidebar.nonePlanned',
+          'No sheet could be planned; the notes under the cards say why.'
+        )
+      : active
+        ? controller.target?.kind === 'crease'
+          ? t(
+              'panels:references.alreadyOnSheetLine',
+              'This line is already on the paper — no folds needed.'
+            )
+          : t(
+              'panels:references.alreadyOnSheet',
+              'This point is already on the paper — no folds needed.'
+            )
         : t(
-            'panels:references.alreadyOnSheet',
-            'This point is already on the paper — no folds needed.'
-          )
-      : t(
-          'panels:references.sidebar.none',
-          'ReferenceFinder found no construction for this target at the current settings.'
-        );
+            'panels:references.sidebar.none',
+            'ReferenceFinder found no construction for this target at the current settings.'
+          );
   // The diagonals an answer leans on are its first steps, from the empty
   // square, drawn on the paper in ReferenceFinder's units — no footnote.
   const rfSheet = useMemo(

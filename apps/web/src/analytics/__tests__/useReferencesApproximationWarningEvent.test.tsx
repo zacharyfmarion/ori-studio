@@ -53,7 +53,13 @@ function render(client: PostHogClientLike, node: ReactNode) {
 }
 
 const shown = (overrides: Partial<ReferencesApproximationWarningEventInput> = {}) =>
-  createElement(Probe, { open: true, inexactSteps: 22, exactnessClass: 'off_lattice', ...overrides });
+  createElement(Probe, {
+    open: true,
+    reason: 'inexact',
+    inexactSteps: 22,
+    exactnessClass: 'off_lattice',
+    ...overrides,
+  });
 
 describe('useReferencesApproximationWarningEvent', () => {
   it('stays silent while the warning is closed', () => {
@@ -62,12 +68,12 @@ describe('useReferencesApproximationWarningEvent', () => {
     expect(events(client)).toEqual([]);
   });
 
-  it('reports the opening once, with a bucketed count and the class', () => {
+  it('reports the opening once, with the reason, a bucketed count and the class', () => {
     const client = makeFakeClient();
     render(client, shown());
     render(client, shown());
     expect(events(client)).toEqual([
-      { inexact_steps_bucket: '<=50', exactness_class: 'off_lattice' },
+      { reason: 'inexact', inexact_steps_bucket: '<=50', exactness_class: 'off_lattice' },
     ]);
   });
 
@@ -77,8 +83,16 @@ describe('useReferencesApproximationWarningEvent', () => {
     render(client, shown({ open: false }));
     render(client, shown({ inexactSteps: 300, exactnessClass: 'snappable' }));
     expect(events(client)).toEqual([
-      { inexact_steps_bucket: '<=1', exactness_class: 'exact' },
-      { inexact_steps_bucket: '<=500', exactness_class: 'snappable' },
+      { reason: 'inexact', inexact_steps_bucket: '<=1', exactness_class: 'exact' },
+      { reason: 'inexact', inexact_steps_bucket: '<=500', exactness_class: 'snappable' },
+    ]);
+  });
+
+  it('reports a plan that stopped rather than approximate as its own reason', () => {
+    const client = makeFakeClient();
+    render(client, shown({ reason: 'too_many', inexactSteps: 0 }));
+    expect(events(client)).toEqual([
+      { reason: 'too_many', inexact_steps_bucket: '<=1', exactness_class: 'off_lattice' },
     ]);
   });
 });

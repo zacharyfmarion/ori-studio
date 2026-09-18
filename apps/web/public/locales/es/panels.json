@@ -927,6 +927,11 @@
       "note": "Sin plegar: ninguna construcción las alcanzó dentro de la tolerancia del plan, o el plan se detuvo antes. Junto a cada una está la construcción más cercana encontrada.",
       "offLattice": "Fuera de la retícula",
       "refusedTitle": "Hojas omitidas",
+      "stoppedCount_one": "{{count}} línea sin doblez exacto",
+      "stoppedCount_many": "{{count}} líneas sin doblez exacto",
+      "stoppedCount_other": "{{count}} líneas sin doblez exacto",
+      "stoppedNote": "Hay más líneas sin doblez exacto de las que una secuencia puede llevar como pliegues de referencia, así que el plan se detuvo en lugar de aproximarlas todas. No se buscaron sus construcciones más cercanas.",
+      "stoppedTitle": "Planificación detenida",
       "title": "Líneas sin doblez exacto",
       "unsolved": "No se encontró construcción"
     },
@@ -939,6 +944,7 @@
       "refused": "Esta hoja no se pudo planificar; las notas bajo las tarjetas explican por qué.",
       "stopped": "Detenido aquí a petición tuya, con {{made}} de {{total}} pliegues hechos. Recalcular empieza el plan de nuevo.",
       "stoppedBadge": "Detenido",
+      "tooManyApproximations": "La planificación se detuvo con {{made}} de {{total}} pliegues hechos: el resto no tiene construcción exacta, y plegarlos por referencias necesitaría más pliegues de referencia de los que una secuencia puede llevar.",
       "turnOver": "Da la vuelta al papel, de izquierda a derecha.",
       "turnOverBadge": "Dar la vuelta",
       "unsolved": "{{made}} de {{total}} pliegues están hechos. Para el resto el planificador no encontró ninguna construcción; aparecen bajo las tarjetas."
@@ -1067,7 +1073,8 @@
       "title": "Patrones"
     },
     "sidebar": {
-      "none": "ReferenceFinder no halló ninguna construcción para este objetivo con los ajustes actuales."
+      "none": "ReferenceFinder no halló ninguna construcción para este objetivo con los ajustes actuales.",
+      "nonePlanned": "No se pudo planificar ninguna hoja; las notas bajo las tarjetas explican por qué."
     },
     "step": {
       "axiom1": "Dobla {{x}} pasando por {{p0}} y {{p1}}.",

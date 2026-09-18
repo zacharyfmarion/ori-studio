@@ -309,6 +309,8 @@
   "referencesApproximationWarning": {
     "close": "Close the approximated folds warning",
     "dismiss": "Got it",
+    "failedMessage": "Planning failed because a huge number of reference creases would be necessary to fold this pattern within error tolerances. If this crease pattern came from Detect CP from Image, the detection may have converged on an inaccurate solution. Please verify that any reference points are correct.",
+    "failedTitle": "Planning failed",
     "message": "This sequence contains approximated folds. If this crease pattern came from Detect CP from Image, the detection may have converged on an inaccurate solution. Please verify that any reference points are correct.",
     "title": "Approximated folds"
   },

@@ -317,6 +317,8 @@
   "referencesApproximationWarning": {
     "close": "Cerrar la advertencia de pliegues aproximados",
     "dismiss": "Entendido",
+    "failedMessage": "La planificación falló porque haría falta un número enorme de pliegues de referencia para plegar este patrón dentro de las tolerancias de error. Si este patrón de pliegues proviene de «Detectar CP desde imagen», la detección puede haber convergido en una solución inexacta. Verifica que todos los puntos de referencia sean correctos.",
+    "failedTitle": "La planificación falló",
     "message": "Esta secuencia contiene pliegues aproximados. Si este patrón de pliegues proviene de «Detectar CP desde imagen», la detección puede haber convergido en una solución inexacta. Verifica que todos los puntos de referencia sean correctos.",
     "title": "Pliegues aproximados"
   },

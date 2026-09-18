@@ -39,7 +39,12 @@ use serde::{Deserialize, Serialize};
 /// become a reference for every later step. It would — but the folder has to
 /// make those creases either way, and a plan that stops leaves them to guess.
 /// So such a component goes round the same loop as any other, and the lines
-/// with no exact construction are folded last, by the closest one, and say so.
+/// with no exact construction are folded last, by the closest one, and say so
+/// — up to a point. When every exact avenue is exhausted and more lines are
+/// left than a sequence can carry as approximations
+/// ([`PlanState::approximations_exceed_cap`]), the plan stops instead: each
+/// such line costs the folder reference creases, and a plan of hundreds of
+/// them is complete but not foldable, and takes minutes to say so.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StopReason {
@@ -55,6 +60,10 @@ pub enum StopReason {
     RefusedSheet,
     /// The state grew past the point cap.
     PointCap,
+    /// Nothing exact is left to make, and more lines remain than a sequence
+    /// can carry as approximations: folding them would take more reference
+    /// creases than a folder could use.
+    TooManyApproximations,
 }
 
 /// What the driver just finished doing, so the rules know where in the loop it
@@ -142,6 +151,24 @@ pub struct PlanState {
     pub refused: bool,
     pub complete: bool,
     pub point_cap_hit: bool,
+    /// More lines remain than the plan may fold as approximations
+    /// (`Planner::approximations_exceed_cap`). Only read where the rules
+    /// would otherwise say [`PlanAction::Approximate`]: every exact avenue
+    /// is exhausted by then, so the lines left are the ones that would each
+    /// cost reference creases.
+    pub approximations_exceed_cap: bool,
+}
+
+/// Approximate the next line — unless more lines are left than a sequence
+/// can carry that way, which ends the plan rather than folding them all.
+fn approximate_or_stop(plan: PlanState) -> PlanAction {
+    if plan.approximations_exceed_cap {
+        PlanAction::Stop {
+            reason: StopReason::TooManyApproximations,
+        }
+    } else {
+        PlanAction::Approximate
+    }
 }
 
 /// The rules. A pure function, so both drivers and a test can ask it.
@@ -201,7 +228,7 @@ pub fn next_action(plan: PlanState, driver: DriverState) -> PlanAction {
                 // round comes back through here, which is why the cap must
                 // not end it.
                 if driver.approximate {
-                    PlanAction::Approximate
+                    approximate_or_stop(plan)
                 } else {
                     PlanAction::Stop {
                         reason: StopReason::Budget,
@@ -230,7 +257,7 @@ pub fn next_action(plan: PlanState, driver: DriverState) -> PlanAction {
             } else if matches!(driver.last, LastStep::Approximated { .. }) {
                 PlanAction::Close
             } else {
-                PlanAction::Approximate
+                approximate_or_stop(plan)
             }
         }
         LastStep::Approximated { folded: false } => PlanAction::Stop {
@@ -247,6 +274,7 @@ mod tests {
         refused: false,
         complete: false,
         point_cap_hit: false,
+        approximations_exceed_cap: false,
     };
 
     fn after(last: LastStep) -> DriverState {
@@ -272,6 +300,9 @@ mod tests {
             },
             PlanAction::Stop {
                 reason: StopReason::PointCap,
+            },
+            PlanAction::Stop {
+                reason: StopReason::TooManyApproximations,
             },
         ] {
             let json = serde_json::to_string(&action).expect("serialize");
@@ -525,6 +556,89 @@ mod tests {
                 }
             ),
             PlanAction::StuckSearch
+        );
+    }
+
+    /// With more lines left than a sequence can carry as approximations, the
+    /// plan stops exactly where it would otherwise approximate — and nowhere
+    /// else: every exact avenue is still taken first, and a driver that
+    /// cannot approximate stops for its own reasons as before.
+    #[test]
+    fn too_many_lines_to_approximate_stops_the_plan_where_it_would_approximate() {
+        let too_many = PlanState {
+            approximations_exceed_cap: true,
+            ..RUNNING
+        };
+        let can = DriverState {
+            approximate: true,
+            reference_finder: true,
+            max_rf_events: 4,
+            ..DriverState::default()
+        };
+        let stop = PlanAction::Stop {
+            reason: StopReason::TooManyApproximations,
+        };
+        // The two edges that lead to an approximation.
+        assert_eq!(
+            next_action(
+                too_many,
+                DriverState {
+                    last: LastStep::AskedReferenceFinder { folded: false },
+                    ..can
+                }
+            ),
+            stop
+        );
+        assert_eq!(
+            next_action(
+                too_many,
+                DriverState {
+                    last: LastStep::Searched { found: false },
+                    rf_events: 4,
+                    ..can
+                }
+            ),
+            stop
+        );
+        // Not before the exact avenues are spent.
+        assert_eq!(
+            next_action(too_many, after(LastStep::Closed { stalled: false })),
+            PlanAction::StuckSearch
+        );
+        assert_eq!(
+            next_action(
+                too_many,
+                DriverState {
+                    last: LastStep::Searched { found: false },
+                    ..can
+                }
+            ),
+            PlanAction::AskReferenceFinder
+        );
+        // And not for a driver that cannot approximate: its stop is its own.
+        assert_eq!(
+            next_action(
+                too_many,
+                DriverState {
+                    last: LastStep::AskedReferenceFinder { folded: false },
+                    approximate: false,
+                    ..can
+                }
+            ),
+            PlanAction::Stop {
+                reason: StopReason::Unsolved
+            }
+        );
+        // An approximation already folded goes round to close as before.
+        assert_eq!(
+            next_action(
+                too_many,
+                DriverState {
+                    last: LastStep::Approximated { folded: true },
+                    ..can
+                }
+            ),
+            PlanAction::Close
         );
     }
 }

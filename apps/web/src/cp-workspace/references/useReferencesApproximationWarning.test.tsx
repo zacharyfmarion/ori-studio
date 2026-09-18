@@ -30,6 +30,7 @@ function summary(overrides: Partial<ReferencesPlanSummary> = {}): ReferencesPlan
   return {
     inexactSteps: 0,
     exactnessClass: 'exact',
+    stopReason: 'complete',
     computedAtRevision: 'r1',
     ...overrides,
   } as ReferencesPlanSummary;
@@ -63,8 +64,29 @@ describe('useReferencesApproximationWarning', () => {
   it('opens for a plan with inexact steps, carrying their count and the class', () => {
     render(summary({ inexactSteps: 22, exactnessClass: 'off_lattice' }));
     expect(latest?.open).toBe(true);
+    expect(latest?.reason).toBe('inexact');
     expect(latest?.inexactSteps).toBe(22);
     expect(latest?.exactnessClass).toBe('off_lattice');
+  });
+
+  it('opens, as a failure, for a plan that stopped rather than approximate', () => {
+    render(
+      summary({
+        stopReason: 'too_many_approximations',
+        inexactSteps: 0,
+        exactnessClass: 'off_lattice',
+      })
+    );
+    expect(latest?.open).toBe(true);
+    expect(latest?.reason).toBe('too_many');
+    expect(latest?.exactnessClass).toBe('off_lattice');
+  });
+
+  it('stays closed for a plan that stopped for any other reason without inexact steps', () => {
+    render(summary({ stopReason: 'unsolved' }));
+    expect(latest?.open).toBe(false);
+    render(summary({ stopReason: 'aborted', computedAtRevision: 'r2' }));
+    expect(latest?.open).toBe(false);
   });
 
   it('closes on dismiss and does not reopen for the same plan', () => {

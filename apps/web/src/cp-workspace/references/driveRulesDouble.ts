@@ -25,9 +25,15 @@ export interface DoublePlanState {
   refused: boolean;
   complete: boolean;
   point_cap_hit: boolean;
+  /** More lines remain than the plan may fold as approximations. */
+  approximations_exceed_cap: boolean;
 }
 
 const stop = (reason: PrecreaseStopReason): PrecreasePlanAction => ({ kind: 'stop', reason });
+
+/** Approximate the next line, unless more are left than a sequence can carry that way. */
+const approximateOrStop = (plan: DoublePlanState): PrecreasePlanAction =>
+  plan.approximations_exceed_cap ? stop('too_many_approximations') : { kind: 'approximate' };
 
 export function nextActionDouble(
   plan: DoublePlanState,
@@ -49,14 +55,14 @@ export function nextActionDouble(
       if (!driver.reference_finder) return stop('unsolved');
       if (driver.out_of_time) return stop('budget');
       if (driver.rf_events >= driver.max_rf_events) {
-        return driver.approximate ? { kind: 'approximate' } : stop('budget');
+        return driver.approximate ? approximateOrStop(plan) : stop('budget');
       }
       return { kind: 'ask_reference_finder' };
     case 'asked_reference_finder':
       if (driver.last.folded) return { kind: 'close' };
       if (!driver.approximate) return stop('unsolved');
       if (driver.out_of_time) return stop('budget');
-      return { kind: 'approximate' };
+      return approximateOrStop(plan);
     case 'approximated':
       if (!driver.last.folded) return stop('unsolved');
       if (!driver.approximate) return stop('unsolved');

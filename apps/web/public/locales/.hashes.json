@@ -3073,7 +3073,15 @@
     "panels:references.flip.refused": "b0e8535db902",
     "panels:references.flip.stopped": "2dfe93781804",
     "panels:references.flip.stoppedBadge": "1a4f630ac1b6",
-    "panels:references.flip.unsolved": "98766635b894"
+    "panels:references.flip.unsolved": "98766635b894",
+    "panels:references.findings.stoppedCount_one": "ba469cf323ca",
+    "panels:references.findings.stoppedCount_other": "125e5083084a",
+    "panels:references.findings.stoppedNote": "6f78af57796e",
+    "panels:references.findings.stoppedTitle": "a060a9e8f832",
+    "panels:references.flip.tooManyApproximations": "6f2ad2fe9517",
+    "dialogs:referencesApproximationWarning.failedMessage": "a1a2748f5a1b",
+    "dialogs:referencesApproximationWarning.failedTitle": "9f9a22221350",
+    "panels:references.sidebar.nonePlanned": "54493d6c174a"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -6149,7 +6157,15 @@
     "panels:references.flip.refused": "b0e8535db902",
     "panels:references.flip.stopped": "2dfe93781804",
     "panels:references.flip.stoppedBadge": "1a4f630ac1b6",
-    "panels:references.flip.unsolved": "98766635b894"
+    "panels:references.flip.unsolved": "98766635b894",
+    "panels:references.findings.stoppedCount_one": "ba469cf323ca",
+    "panels:references.findings.stoppedCount_other": "125e5083084a",
+    "panels:references.findings.stoppedNote": "6f78af57796e",
+    "panels:references.findings.stoppedTitle": "a060a9e8f832",
+    "panels:references.flip.tooManyApproximations": "6f2ad2fe9517",
+    "dialogs:referencesApproximationWarning.failedMessage": "a1a2748f5a1b",
+    "dialogs:referencesApproximationWarning.failedTitle": "9f9a22221350",
+    "panels:references.sidebar.nonePlanned": "54493d6c174a"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -9227,7 +9243,15 @@
     "panels:references.flip.refused": "b0e8535db902",
     "panels:references.flip.stopped": "2dfe93781804",
     "panels:references.flip.stoppedBadge": "1a4f630ac1b6",
-    "panels:references.flip.unsolved": "98766635b894"
+    "panels:references.flip.unsolved": "98766635b894",
+    "panels:references.findings.stoppedCount_one": "ba469cf323ca",
+    "panels:references.findings.stoppedCount_other": "125e5083084a",
+    "panels:references.findings.stoppedNote": "6f78af57796e",
+    "panels:references.findings.stoppedTitle": "a060a9e8f832",
+    "panels:references.flip.tooManyApproximations": "6f2ad2fe9517",
+    "dialogs:referencesApproximationWarning.failedMessage": "a1a2748f5a1b",
+    "dialogs:referencesApproximationWarning.failedTitle": "9f9a22221350",
+    "panels:references.sidebar.nonePlanned": "54493d6c174a"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -12246,7 +12270,14 @@
     "panels:references.flip.refused": "b0e8535db902",
     "panels:references.flip.stopped": "2dfe93781804",
     "panels:references.flip.stoppedBadge": "1a4f630ac1b6",
-    "panels:references.flip.unsolved": "98766635b894"
+    "panels:references.flip.unsolved": "98766635b894",
+    "panels:references.findings.stoppedCount_other": "125e5083084a",
+    "panels:references.findings.stoppedNote": "6f78af57796e",
+    "panels:references.findings.stoppedTitle": "a060a9e8f832",
+    "panels:references.flip.tooManyApproximations": "6f2ad2fe9517",
+    "dialogs:referencesApproximationWarning.failedMessage": "a1a2748f5a1b",
+    "dialogs:referencesApproximationWarning.failedTitle": "9f9a22221350",
+    "panels:references.sidebar.nonePlanned": "54493d6c174a"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -15265,7 +15296,14 @@
     "panels:references.flip.refused": "b0e8535db902",
     "panels:references.flip.stopped": "2dfe93781804",
     "panels:references.flip.stoppedBadge": "1a4f630ac1b6",
-    "panels:references.flip.unsolved": "98766635b894"
+    "panels:references.flip.unsolved": "98766635b894",
+    "panels:references.findings.stoppedCount_other": "125e5083084a",
+    "panels:references.findings.stoppedNote": "6f78af57796e",
+    "panels:references.findings.stoppedTitle": "a060a9e8f832",
+    "panels:references.flip.tooManyApproximations": "6f2ad2fe9517",
+    "dialogs:referencesApproximationWarning.failedMessage": "a1a2748f5a1b",
+    "dialogs:referencesApproximationWarning.failedTitle": "9f9a22221350",
+    "panels:references.sidebar.nonePlanned": "54493d6c174a"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -18341,7 +18379,15 @@
     "panels:references.flip.refused": "b0e8535db902",
     "panels:references.flip.stopped": "2dfe93781804",
     "panels:references.flip.stoppedBadge": "1a4f630ac1b6",
-    "panels:references.flip.unsolved": "98766635b894"
+    "panels:references.flip.unsolved": "98766635b894",
+    "panels:references.findings.stoppedCount_one": "ba469cf323ca",
+    "panels:references.findings.stoppedCount_other": "125e5083084a",
+    "panels:references.findings.stoppedNote": "6f78af57796e",
+    "panels:references.findings.stoppedTitle": "a060a9e8f832",
+    "panels:references.flip.tooManyApproximations": "6f2ad2fe9517",
+    "dialogs:referencesApproximationWarning.failedMessage": "a1a2748f5a1b",
+    "dialogs:referencesApproximationWarning.failedTitle": "9f9a22221350",
+    "panels:references.sidebar.nonePlanned": "54493d6c174a"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -21417,7 +21463,15 @@
     "panels:references.flip.refused": "b0e8535db902",
     "panels:references.flip.stopped": "2dfe93781804",
     "panels:references.flip.stoppedBadge": "1a4f630ac1b6",
-    "panels:references.flip.unsolved": "98766635b894"
+    "panels:references.flip.unsolved": "98766635b894",
+    "panels:references.findings.stoppedCount_one": "ba469cf323ca",
+    "panels:references.findings.stoppedCount_other": "125e5083084a",
+    "panels:references.findings.stoppedNote": "6f78af57796e",
+    "panels:references.findings.stoppedTitle": "a060a9e8f832",
+    "panels:references.flip.tooManyApproximations": "6f2ad2fe9517",
+    "dialogs:referencesApproximationWarning.failedMessage": "a1a2748f5a1b",
+    "dialogs:referencesApproximationWarning.failedTitle": "9f9a22221350",
+    "panels:references.sidebar.nonePlanned": "54493d6c174a"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -24436,6 +24490,13 @@
     "panels:references.flip.refused": "b0e8535db902",
     "panels:references.flip.stopped": "2dfe93781804",
     "panels:references.flip.stoppedBadge": "1a4f630ac1b6",
-    "panels:references.flip.unsolved": "98766635b894"
+    "panels:references.flip.unsolved": "98766635b894",
+    "panels:references.findings.stoppedCount_other": "125e5083084a",
+    "panels:references.findings.stoppedNote": "6f78af57796e",
+    "panels:references.findings.stoppedTitle": "a060a9e8f832",
+    "panels:references.flip.tooManyApproximations": "6f2ad2fe9517",
+    "dialogs:referencesApproximationWarning.failedMessage": "a1a2748f5a1b",
+    "dialogs:referencesApproximationWarning.failedTitle": "9f9a22221350",
+    "panels:references.sidebar.nonePlanned": "54493d6c174a"
   }
 }
