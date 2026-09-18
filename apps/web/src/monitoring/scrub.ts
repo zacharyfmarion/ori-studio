@@ -163,7 +163,11 @@ export function scrubEvent(event: ErrorEvent): ErrorEvent {
   }
 
   // This layer never sets `extra`, so anything here came from an integration or
-  // a third-party `captureException` call. Unknown provenance — drop it.
+  // a third-party `captureException` call. Unknown provenance — drop it. That
+  // includes the SDK's own `__serialized__` copy of a non-`Error` value, which
+  // is why `reportError` turns a bridge's `{ code, message }` envelope into an
+  // `Error` before the SDK sees it: after this line, that copy is the only
+  // place the code and message would have been.
   delete event.extra;
 
   // `initialScope` sets `user.id` to the anonymous analytics id and nothing
