@@ -59,6 +59,49 @@ export interface MonitoringErrorContext {
 }
 
 /**
+ * A bridge's `{ code, message }` rejection, as the SDK needs to see it.
+ *
+ * Every engine worker rejects with that envelope rather than an `Error`, on
+ * purpose: comlink rethrows a plain object as it is, where an `Error` would
+ * arrive on this side without its `code`. Handed the envelope itself, Sentry
+ * synthesises "Object captured as exception with keys: code, message", keeps
+ * the object only under `extra.__serialized__` — which `scrubEvent` deletes as
+ * being of unknown provenance — and takes its stack from the call site of
+ * `captureException`. ORI-STUDIO-D and -E arrived exactly like that: a title
+ * with no information in it, and nothing else.
+ *
+ * So the envelope becomes an `Error` here, before the SDK sees it. The message
+ * is redacted on the way out like every message; the code is the part that
+ * has to stay readable, so it also travels as a tag — bounded, because every
+ * code is a literal in the bridge that raises it — and in the fingerprint, so
+ * two codes from one call site are two issues rather than one.
+ */
+export class EngineError extends Error {
+  readonly code: string;
+
+  constructor(envelope: ErrorEnvelope) {
+    super(`${envelope.code}: ${envelope.message}`);
+    this.name = 'EngineError';
+    this.code = envelope.code;
+  }
+}
+
+interface ErrorEnvelope {
+  code: string;
+  message: string;
+}
+
+/** Codes are `snake_case` literals; anything else is not a bridge's envelope. */
+const ENVELOPE_CODE = /^[a-z0-9_]{1,64}$/;
+
+function asErrorEnvelope(error: unknown): ErrorEnvelope | null {
+  if (!error || typeof error !== 'object' || error instanceof Error) return null;
+  const { code, message } = error as { code?: unknown; message?: unknown };
+  if (typeof code !== 'string' || !ENVELOPE_CODE.test(code)) return null;
+  return { code, message: typeof message === 'string' ? message : String(message) };
+}
+
+/**
  * Report a caught error.
  *
  * Unhandled errors and rejections need no call here — Sentry's global handlers
@@ -68,11 +111,17 @@ export interface MonitoringErrorContext {
 export function reportError(error: unknown, context: MonitoringErrorContext = {}): void {
   if (!activeClient || !consented) return;
   try {
-    activeClient.captureException(error, {
+    const envelope = asErrorEnvelope(error);
+    activeClient.captureException(envelope ? new EngineError(envelope) : error, {
       mechanism: { type: 'generic', handled: context.handled ?? true },
       captureContext: {
         // `surface` last, so a caller's `tags` can never take the name over.
-        tags: { ...context.tags, surface: context.surface ?? 'unknown' },
+        tags: {
+          ...context.tags,
+          ...(envelope ? { error_code: envelope.code } : {}),
+          surface: context.surface ?? 'unknown',
+        },
+        ...(envelope ? { fingerprint: ['{{ default }}', envelope.code] } : {}),
         contexts: context.componentStack
           ? { react: { component_stack: context.componentStack } }
           : undefined,

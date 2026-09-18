@@ -5,9 +5,9 @@ mod common;
 
 use common::*;
 
-use oristudio_precrease::planner::{GridMode, PlannerOptions};
+use oristudio_precrease::planner::{GridMode, Planner, PlannerOptions};
 use oristudio_precrease::predicates::Ref;
-use oristudio_precrease::sequence::{Sequence, StepKind};
+use oristudio_precrease::sequence::{Sequence, Status, StepKind};
 use oristudio_precrease::{Direction, ExactnessClass, GridKind, Side, analyze};
 
 /// The fixtures that are pleated, with the grid the manifest records.
@@ -562,6 +562,37 @@ fn a_grid_cut_short_by_the_point_cap_is_reported_as_far_as_it_got() {
             entry.id
         );
     }
+}
+
+/// The cap reached inside the closure, not the grid pass: `close` raises it
+/// as an error, records it, and `next_action` answers `Stop` to it on the next
+/// ask — which the driver only reaches if it survives the error. It did not:
+/// the error escaped `plan_without_reference_finder` (and the browser's loop,
+/// as a Sentry report from a user with a large pattern), so the one stop
+/// reason the rules reserve for the cap was unreachable in either driver.
+#[test]
+fn the_point_cap_inside_the_closure_is_a_stop_reason_not_an_error() {
+    let cp = load("tests/fixtures/precrease/grid6.fold");
+    let analysis = analyze_cp(&cp);
+    let opts = PlannerOptions {
+        point_cap: 8,
+        ..grid_off_options()
+    };
+    let mut planner = Planner::new(&analysis.components[0], opts);
+    let status = planner
+        .plan_without_reference_finder()
+        .expect("the cap ends the plan, it does not fail it");
+    assert_eq!(status, Status::PartialUnsolved);
+    let seq = planner.sequence(false);
+    assert!(seq.diagnostics.point_cap_hit);
+    // What was folded before the cap is on the paper and in the plan; what
+    // was not is a finding, and nothing is planned twice.
+    assert!(seq.totals.folds > 0, "{:?}", seq.totals);
+    assert!(seq.totals.unsolved > 0, "{:?}", seq.totals);
+    assert_eq!(
+        seq.totals.cp_lines + seq.totals.unsolved,
+        seq.totals.lower_bound
+    );
 }
 
 /// The curated benchmark designs, when they are on this machine

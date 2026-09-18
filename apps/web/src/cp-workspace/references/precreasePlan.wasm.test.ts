@@ -261,6 +261,24 @@ describe.skipIf(!available)('runPrecreasePlan over the real planner bridge', () 
     }
   });
 
+  // The crate raises the `|P|` cap as an error from `close`, records it, and
+  // answers `stop` to it on the next ask — a contract the loop only honours if
+  // it survives the error. Grid off, so the cap trips inside the closure and
+  // not in the grid pass, which swallows it on its own.
+  it('reports the point cap as a stop reason rather than an error', async () => {
+    const { result } = await plan(
+      'grid6.fold',
+      0,
+      JSON.stringify({ precrease_grid: false, point_cap: 8 })
+    );
+    expect(result.stopReason).toBe('point_cap');
+    expect(result.partial).toBe(true);
+    expect(result.sequence.diagnostics.point_cap_hit).toBe(true);
+    expect(result.sequence.totals.unsolved).toBeGreaterThan(0);
+    // What was folded before the cap is on the paper, and in the plan.
+    expect(result.sequence.totals.folds).toBeGreaterThan(0);
+  });
+
   it('plans grid6 with the auxiliary count the manifest records', async () => {
     const { result } = await plan('grid6.fold');
     // The same manifest entry the Rust driver is held to.

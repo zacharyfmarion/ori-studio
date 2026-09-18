@@ -271,6 +271,32 @@ class PlanAborted extends Error {
   }
 }
 
+/** The bridge's `{ code: 'point_cap' }` envelope: the `|P|` ceiling was reached. */
+function isPointCap(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { code?: unknown }).code === 'point_cap'
+  );
+}
+
+/** An action the loop carries out — every one but `stop`. */
+type PlanStep = Exclude<PrecreasePlanAction, { kind: 'stop' }>;
+
+/** What the rules are told about a step the cap cut short. */
+function nothingDone(action: PlanStep): PrecreaseLastStep {
+  switch (action.kind) {
+    case 'close':
+      return { kind: 'closed', stalled: true };
+    case 'stuck_search':
+      return { kind: 'searched', found: false };
+    case 'approximate':
+      return { kind: 'approximated', folded: false };
+    case 'ask_reference_finder':
+      return { kind: 'asked_reference_finder', folded: false };
+  }
+}
+
 /**
  * Run the loop. Always resolves — an abort, an exhausted budget and an
  * unsolvable line are all *results*, distinguished by `stopReason`, so the
@@ -371,45 +397,20 @@ export async function runPrecreasePlan(
         break;
       }
 
-      if (action.kind === 'close') {
-        const closed = await closeToFixpoint();
-        remaining = closed.remaining;
-        last = { kind: 'closed', stalled: closed.stalled };
-        continue;
+      try {
+        last = await execute(action);
+      } catch (error) {
+        // The point cap is a stop reason, not a failure: the planner refuses
+        // the fold that would cross it, leaves the paper as it was, and
+        // records `point_cap_hit` — which the rules answer with `stop` on the
+        // next ask. The call it interrupted is over, so the step is recorded
+        // as having achieved nothing; what it folded before the cap is on the
+        // paper regardless, and the sequence says so. Rethrown, this was an
+        // error overlay and a Sentry report for a user whose pattern was
+        // merely large — the headless driver does the same.
+        if (!isPointCap(error)) throw error;
+        last = nothingDone(action);
       }
-
-      if (action.kind === 'stuck_search') {
-        // Before the search, not only at the top of the loop: `stuckSearch` is
-        // the one call that cannot be interrupted once it starts, and it has a
-        // four-second budget. A Stop pressed during the closure must not buy
-        // four more seconds of searching.
-        checkAbort();
-        report('searching', remaining);
-        const summary = await planner.stuckSearch(stuckDepth, stuckBudgetMs);
-        if (summary) stuckEvents += 1;
-        last = { kind: 'searched', found: Boolean(summary) };
-        continue;
-      }
-
-      if (action.kind === 'approximate') {
-        // Only ever returned because we said we can, and only once nothing
-        // exact is left to make.
-        const fallback = await approximateFallback();
-        rfQueries += fallback.queries;
-        if (fallback.aborted) checkAbort();
-        if (fallback.approximated) approximated += 1;
-        last = { kind: 'approximated', folded: fallback.folded };
-        continue;
-      }
-
-      // `ask_reference_finder`, which the rules only ever return because we
-      // told them we have one.
-      rfEvents += 1;
-      const fallback = await referenceFinderFallback();
-      rfQueries += fallback.queries;
-      if (fallback.aborted) checkAbort();
-      if (fallback.folded) rfAuxFolded += 1;
-      last = { kind: 'asked_reference_finder', folded: fallback.folded };
     }
   } catch (error) {
     if (!(error instanceof PlanAborted)) throw error;
@@ -448,6 +449,46 @@ export async function runPrecreasePlan(
     durationMs: now() - started,
     landmarksFirst,
   };
+
+  /** One action of the rules; returns what the rules are told about it next. */
+  async function execute(action: PlanStep): Promise<PrecreaseLastStep> {
+    if (action.kind === 'close') {
+      const closed = await closeToFixpoint();
+      remaining = closed.remaining;
+      return { kind: 'closed', stalled: closed.stalled };
+    }
+
+    if (action.kind === 'stuck_search') {
+      // Before the search, not only at the top of the loop: `stuckSearch` is
+      // the one call that cannot be interrupted once it starts, and it has a
+      // four-second budget. A Stop pressed during the closure must not buy
+      // four more seconds of searching.
+      checkAbort();
+      report('searching', remaining);
+      const summary = await planner.stuckSearch(stuckDepth, stuckBudgetMs);
+      if (summary) stuckEvents += 1;
+      return { kind: 'searched', found: Boolean(summary) };
+    }
+
+    if (action.kind === 'approximate') {
+      // Only ever returned because we said we can, and only once nothing
+      // exact is left to make.
+      const fallback = await approximateFallback();
+      rfQueries += fallback.queries;
+      if (fallback.aborted) checkAbort();
+      if (fallback.approximated) approximated += 1;
+      return { kind: 'approximated', folded: fallback.folded };
+    }
+
+    // `ask_reference_finder`, which the rules only ever return because we
+    // told them we have one.
+    rfEvents += 1;
+    const fallback = await referenceFinderFallback();
+    rfQueries += fallback.queries;
+    if (fallback.aborted) checkAbort();
+    if (fallback.folded) rfAuxFolded += 1;
+    return { kind: 'asked_reference_finder', folded: fallback.folded };
+  }
 
   /**
    * `close()` in chunks until the fixpoint, the budget or the signal. Chunked
