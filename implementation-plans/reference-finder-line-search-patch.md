@@ -129,6 +129,11 @@ carries), and AGENTS.md's vendored-source rule names the exception.
 
 ## Out of scope
 
+- The approximate fallback ends the whole plan when its three best candidates
+  fail to fold (hex-tiger's topology: 1 of 193); it should try further
+  candidates, or leave that line as a finding and go on.
+- The presentation pass on detector-scale sequences: uninterruptible, and
+  minutes at 2,000 cards.
 - A way to continue a stopped run rather than recompute from the start.
 - A numeric error bound propagated through steps sighted from approximations.
 - Landmarks first for off-lattice designs: a plan of several hundred cards
