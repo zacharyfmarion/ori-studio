@@ -989,7 +989,15 @@ impl Planner {
                     // the same thing the browser's `closeToFixpoint` does, minus
                     // the chunking, which is a UI concern and not a rule.
                     let stalled = loop {
-                        let out = self.close(self.opts.total_budget_ms)?;
+                        let out = match self.close(self.opts.total_budget_ms) {
+                            Ok(out) => out,
+                            // The cap is a stop reason, not a failure: `close`
+                            // recorded it, and the rules answer `Stop` to it at
+                            // the next ask — if the driver survives to ask. The
+                            // browser's loop does the same.
+                            Err(PrecreaseError::PointCap { .. }) => break true,
+                            Err(e) => return Err(e),
+                        };
                         if out.fixpoint || out.remaining == 0 {
                             break false;
                         }
@@ -1002,7 +1010,11 @@ impl Planner {
                 PlanAction::StuckSearch => {
                     let depth = self.opts.stuck.max_depth;
                     let budget = self.opts.stuck_budget_ms;
-                    let found = self.stuck_search(depth, budget)?.is_some();
+                    let found = match self.stuck_search(depth, budget) {
+                        Ok(found) => found.is_some(),
+                        Err(PrecreaseError::PointCap { .. }) => false,
+                        Err(e) => return Err(e),
+                    };
                     driver.last = LastStep::Searched { found };
                 }
                 // Unreachable: `reference_finder` is false for this driver, so

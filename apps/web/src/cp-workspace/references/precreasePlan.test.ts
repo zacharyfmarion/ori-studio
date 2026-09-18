@@ -59,6 +59,12 @@ interface FakeSpec {
    */
   auxiliariesSolve?: boolean;
   refused?: boolean;
+  /**
+   * The `|P|` cap, as the crate raises it: `close` folds this many targets in
+   * all and then rejects with the `point_cap` envelope, leaving the rest
+   * remaining and `point_cap_hit` set for the rules.
+   */
+  pointCapAfter?: number;
 }
 
 function keyOf(line: PrecreasePlanLine): string {
@@ -98,6 +104,7 @@ class FakePlanner implements PrecreasePlannerHandle {
   private readonly foldedTargets: string[] = [];
   private readonly foldedAux: string[] = [];
   private stuckAt = 0;
+  private pointCapHit = false;
 
   constructor(private readonly spec: FakeSpec) {
     this.remainingKeys = new Set(spec.targets.map((target) => target.key));
@@ -132,7 +139,7 @@ class FakePlanner implements PrecreasePlannerHandle {
       {
         refused: this.spec.refused ?? false,
         complete: this.remainingKeys.size === 0,
-        point_cap_hit: false,
+        point_cap_hit: this.pointCapHit,
       },
       driver
     );
@@ -143,6 +150,12 @@ class FakePlanner implements PrecreasePlannerHandle {
     let folded = 0;
     for (const key of [...this.remainingKeys]) {
       if (!this.closable.has(key)) continue;
+      if (this.foldedTargets.length >= (this.spec.pointCapAfter ?? Infinity)) {
+        // As `Closure::close` does: what this round folded stays folded, the
+        // refused target stays remaining, and the call ends on the error.
+        this.pointCapHit = true;
+        throw { code: 'point_cap', message: 'point cap of 600000 points reached' };
+      }
       this.remainingKeys.delete(key);
       this.foldedTargets.push(key);
       folded += 1;
@@ -295,7 +308,7 @@ class FakePlanner implements PrecreasePlannerHandle {
         lines: 4,
         elapsed_ms: 1,
         budget_hit: false,
-        point_cap_hit: false,
+        point_cap_hit: this.pointCapHit,
         max_depth_searched: 2,
         search_exhausted: true,
         witnesses_incomplete_steps: 0,
@@ -414,6 +427,31 @@ describe('runPrecreasePlan', () => {
     expect(result.partial).toBe(true);
     expect(result.rfAuxFolded).toBe(0);
     expect(result.sequence.findings).toHaveLength(1);
+  });
+
+  // The crate raises the `|P|` cap as an error from `close`, records it, and
+  // answers `stop` for it on the next ask — so the driver has to survive the
+  // error to ask. It did not: the envelope escaped the loop, and a user whose
+  // pattern was merely large got an error overlay and a Sentry report
+  // (`references:plan`) instead of the partial plan.
+  it('treats the point cap as a stop reason, keeping what was folded', async () => {
+    const planner = new FakePlanner({
+      targets: [quarterTarget, { ...quarterTarget, key: HALF, line: { n: [0, 1], d: 0.5 } }],
+      closable: [QUARTER, HALF],
+      pointCapAfter: 1,
+    });
+    const result = await runPrecreasePlan(planner, {
+      computedAtRevision: 'r1',
+      referenceFinder: { exact: exactClient() },
+    });
+    expect(result.stopReason).toBe('point_cap');
+    expect(result.partial).toBe(true);
+    expect(result.sequence.totals.cp_lines).toBe(1);
+    expect(result.sequence.findings).toHaveLength(1);
+    expect(result.sequence.diagnostics.point_cap_hit).toBe(true);
+    // The rules stop the moment the cap is recorded: no search, no query.
+    expect(planner.calls.stuck).toBe(0);
+    expect(result.rfQueries).toBe(0);
   });
 
   /** The line `line-approximate.json` was captured for: nothing exact reaches it. */
