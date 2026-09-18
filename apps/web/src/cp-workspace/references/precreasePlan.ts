@@ -187,7 +187,13 @@ export interface PrecreasePlanOptions {
   totalBudgetMs?: number;
   /** One resumable `close()` chunk, milliseconds. */
   closeChunkMs?: number;
-  /** Stuck-search depth (plan: 2, the crate deepens to 3 itself when it can). */
+  /**
+   * Stuck-search depth (plan: 2, the crate deepens to 3 itself when it can).
+   * Only while nothing has been approximated: once an approximation is on
+   * the paper the planner searches depth 1 whatever is asked, since no set
+   * of auxiliaries completes a closure that is off its lattice, and deepening
+   * only ran the per-event cap out (`Planner::stuck_search`).
+   */
   stuckDepth?: number;
   /** Per stuck event, milliseconds (plan: 4 s, twice the measured worst case). */
   stuckBudgetMs?: number;

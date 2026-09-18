@@ -141,3 +141,48 @@ fn an_approximation_is_folded_last_and_everything_sighted_from_it_says_so() {
             .all(|s| !s.exact || s.kind == StepKind::Press)
     );
 }
+
+/// The search deepens to find a set of auxiliaries that *completes* the
+/// closure. Once an approximation is on the paper there is no such set to
+/// find — the pattern is off its lattice from here — and deepening only ran
+/// the cap out: on a 332-line off-lattice design every search took the full
+/// four seconds to unlock one target, twenty minutes a plan. So the same
+/// root set the exact regime searches to the depth asked for (and promotes
+/// to 3 when it is small) is searched to depth 1 once anything has been
+/// approximated, whatever depth is asked for.
+#[test]
+fn once_an_approximation_is_on_the_paper_the_search_stops_deepening() {
+    let off = v(0.3141592653589793);
+    let through = Line::from_points([0.0, 0.0], [0.3141592653589793, 0.5]).expect("line");
+    // A line from the awkward vertical's foot to nowhere the paper marks:
+    // still stuck after the vertical is approximated, so a search runs.
+    let stuck = Line::from_points([0.3141592653589793, 0.0], [0.7, 1.0]).expect("line");
+    let mut planner = Planner::from_lines(
+        Sheet::unit_square(),
+        &[v(0.5), h(0.5), off, through, stuck],
+        unbounded_options(),
+    );
+    planner.close(0.0).expect("close");
+    assert!(planner.stuck_search(2, 0.0).expect("search").is_none());
+    let exact_regime = planner.stuck_events().last().expect("an event");
+    assert!(
+        exact_regime.depth_reached >= 2,
+        "the exact regime deepens to the depth asked for: {exact_regime:?}"
+    );
+
+    let out = planner
+        .fold_approximation(&off, &v(0.25), 0.3141592653589793 - 0.25, 0.0)
+        .expect("fold");
+    assert!(matches!(out, FoldOutcome::Folded { .. }), "{out:?}");
+    assert!(planner.remaining().iter().any(|r| r.line == stuck));
+
+    planner.stuck_search(2, 0.0).expect("search");
+    let after = planner.stuck_events().last().expect("an event");
+    // Nothing completed at depth 1, so the exact regime would have gone on
+    // to depth 2 here; the approximate regime does not.
+    assert!(!after.complete && after.exhausted, "{after:?}");
+    assert_eq!(
+        after.depth_reached, 1,
+        "with an approximation on the paper the search does not deepen: {after:?}"
+    );
+}

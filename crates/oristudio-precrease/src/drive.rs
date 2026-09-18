@@ -4,7 +4,11 @@
 //! and when that runs out, search for an auxiliary fold that unlocks more; when
 //! *that* runs out, ask ReferenceFinder for an exact construction; and when
 //! there is none, ask it for the closest one and fold that, marked as the
-//! approximation it is. The loop body cannot live in this crate
+//! approximation it is. From then on the same loop runs, and the search in it
+//! no longer deepens ([`crate::planner::Planner::stuck_search`]): what a
+//! deeper search looks for — a set of auxiliaries that completes the closure —
+//! does not exist once the pattern has needed an approximation. The loop body
+//! cannot live in this crate
 //! — ReferenceFinder is vendored C++ that only the browser can reach, the loop
 //! has to yield between chunks so a large pattern does not freeze the UI, and it
 //! has to be interruptible. All three make it async, and nothing here is.

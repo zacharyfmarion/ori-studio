@@ -90,11 +90,47 @@ carries), and AGENTS.md's vendored-source rule names the exception.
 - The progress counter derives from what is left rather than from the
   closure's own folds, so a run advancing through the search reads as one.
 
-## Out of scope (follow-ups from the glaucus diagnosis)
+- **The search stops deepening once an approximation is on the paper**
+  (`Planner::stuck_search`). With the ceiling gone, a 332-line off-lattice
+  pattern still took ~4 s per line: every search after the first
+  approximation ran to its cap. Per-event summaries showed why — the depth-1
+  sweep of the root set (≤ 400 candidates) exhausts in 0.15–1 s and unlocks a
+  target, then the search deepens into pairs looking for a set that
+  *completes* the closure, which cannot exist once the pattern has needed an
+  approximation, and is cut at 4 s on 16 of 18 events. The deepened search
+  returns the same target. So in that regime the planner searches depth 1
+  whatever depth the driver asks for, and does not promote a small root set
+  to depth 3. Gated on the planner's own approximation count, so a pattern
+  that never approximates — every exact and snappable design — is untouched.
 
-- The plan loop's per-round cost model for a fully off-lattice component (one
-  target per 4 s stuck search after the first approximation): a run now
-  finishes, but a 332-line off-lattice pattern takes on the order of twenty
-  minutes.
+  Measured on glaucus (patched RF, shared query cache, error cap 1e-2), the
+  alternatives, each run to completion:
+
+  | after the first approximation | time | hubs approximated directly | hub err max | hubs a typical line depends on p50 / max |
+  | --- | --- | --- | --- | --- |
+  | status quo (depth 2→3, 4 s cap) | 65 lines in 187 s ≈ 15–20 min | 1 | 8e-5 | 1 / 1 |
+  | never search, approximate the next-best line | 24 s | 44 | 5.4e-3 | 24 / 43 |
+  | depth 1, 300 ms, else approximate at once | 84 s, 1 line unsolved | 24 | 5.4e-3 | 8 / 24 |
+  | depth 1, 300 ms, else the rules | 63 s | 18 | 5.4e-3 | 9 / 17 |
+  | depth 1, 1 s, else the rules | 100 s | 13 | 5.4e-3 | 8 / 13 |
+  | **depth 1, 4 s cap, else the rules** (this) | **125 s** | **2** | **1.0e-4** | **2 / 2** |
+
+  A shorter cap is not the lever: every search it cuts short spends the
+  next-best approximation, and those get worse as they go. Skipping the
+  exact-ReferenceFinder ask after a failed search lost a line.
+
+  Corpus (browser driver, no ceiling, the 42 curated and every 8th `cpoogle`
+  design's `truth.fold`): 102 of 102 plannable designs complete, median 2.5 s,
+  slowest 91 s (earwig, 21 exact-regime searches); two designs approximated
+  one line each. The truths are exactly constructible almost without
+  exception, so the regime is exercised by hand-drawn and detector-output
+  patterns rather than by curated truths — see the PR for the
+  `detected.fold` pass.
+
+## Out of scope
+
 - A way to continue a stopped run rather than recompute from the start.
 - A numeric error bound propagated through steps sighted from approximations.
+- Landmarks first for off-lattice designs: a plan of several hundred cards
+  whose construction chains run 30–200 deep is complete, not usable; a folder
+  locates the vertices and connects them.

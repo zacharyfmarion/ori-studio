@@ -808,6 +808,19 @@ impl Planner {
     /// Run the forward-first search from the current (stuck) state with the
     /// given maximum depth and budget, and **apply** the best auxiliary set
     /// found (folding it and re-closing). `None` when nothing was found.
+    ///
+    /// Once an approximation is on the paper the search no longer deepens,
+    /// whatever depth is asked for: depth 1, and no promotion to 3 for a
+    /// small root set. The search deepens to find a set that *completes* the
+    /// closure, and a pattern that needed an approximation is off its lattice
+    /// from here — every exact avenue was exhausted before the first one —
+    /// so such a set exists only for its last few lines, which depth 1
+    /// reaches a round or two later anyway; everywhere else deepening only
+    /// runs the cap out looking for one. Measured on a 332-line off-lattice
+    /// design: a depth-1 sweep of the root set exhausts in 0.15–1 s and
+    /// unlocks a target, the same target the deepened search returns after
+    /// being cut at 4 s; the plan took two minutes instead of twenty, with
+    /// the same two approximations.
     pub fn stuck_search(
         &mut self,
         max_depth: u8,
@@ -815,7 +828,12 @@ impl Planner {
     ) -> Result<Option<StuckSummary>, PrecreaseError> {
         let deadline = self.deadline(budget_ms);
         let mut opts = self.opts.stuck;
-        opts.max_depth = max_depth.clamp(1, 3);
+        if self.approximations > 0 {
+            opts.max_depth = 1;
+            opts.depth3_threshold = 0;
+        } else {
+            opts.max_depth = max_depth.clamp(1, 3);
+        }
         let closure = self.closure()?.clone();
         if closure.is_complete() {
             return Ok(None);
