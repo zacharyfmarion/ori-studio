@@ -927,11 +927,6 @@
       "note": "Non pliés : aucune construction ne les a atteints dans la tolérance du plan, ou le plan s’est arrêté avant. À côté de chacun figure la construction la plus proche trouvée.",
       "offLattice": "Hors du réseau",
       "refusedTitle": "Feuilles écartées",
-      "stoppedCount_one": "{{count}} ligne sans pli exact",
-      "stoppedCount_many": "{{count}} lignes sans pli exact",
-      "stoppedCount_other": "{{count}} lignes sans pli exact",
-      "stoppedNote": "Plus de lignes n’ont pas de pli exact qu’une séquence ne peut porter de plis de référence ; le plan s’est donc arrêté plutôt que de toutes les approximer. Leurs constructions les plus proches n’ont pas été recherchées.",
-      "stoppedTitle": "Planification arrêtée",
       "title": "Lignes sans pli exact",
       "unsolved": "Aucune construction trouvée"
     },

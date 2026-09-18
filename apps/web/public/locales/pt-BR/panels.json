@@ -927,11 +927,6 @@
       "note": "Não dobradas: nenhuma construção as alcançou dentro da tolerância do plano, ou o plano parou antes. Ao lado de cada uma está a construção mais próxima encontrada.",
       "offLattice": "Fora da malha",
       "refusedTitle": "Folhas deixadas de fora",
-      "stoppedCount_one": "{{count}} linha sem dobra exata",
-      "stoppedCount_many": "{{count}} linhas sem dobra exata",
-      "stoppedCount_other": "{{count}} linhas sem dobra exata",
-      "stoppedNote": "Há mais linhas sem dobra exata do que uma sequência consegue carregar como vincos de referência, então o plano parou em vez de aproximar todas elas. Suas construções mais próximas não foram procuradas.",
-      "stoppedTitle": "Planejamento interrompido",
       "title": "Linhas sem dobra exata",
       "unsolved": "Nenhuma construção encontrada"
     },

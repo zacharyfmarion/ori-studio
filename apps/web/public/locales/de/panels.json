@@ -893,10 +893,6 @@
       "note": "Nicht gefaltet: keine Konstruktion hat diese Linien innerhalb der Toleranz des Plans erreicht, oder der Plan wurde vorher gestoppt. Neben jeder steht die nächstliegende gefundene Konstruktion.",
       "offLattice": "Außerhalb des Gitters",
       "refusedTitle": "Ausgelassene Blätter",
-      "stoppedCount_one": "{{count}} Linie ohne exakte Faltung",
-      "stoppedCount_other": "{{count}} Linien ohne exakte Faltung",
-      "stoppedNote": "Mehr Linien haben keine exakte Faltung, als eine Sequenz an Referenzfalten tragen kann; der Plan wurde deshalb gestoppt, statt sie alle anzunähern. Nach ihren nächstliegenden Konstruktionen wurde nicht gesucht.",
-      "stoppedTitle": "Planung gestoppt",
       "title": "Linien ohne exakte Faltung",
       "unsolved": "Keine Konstruktion gefunden"
     },

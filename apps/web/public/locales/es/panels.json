@@ -927,11 +927,6 @@
       "note": "Sin plegar: ninguna construcción las alcanzó dentro de la tolerancia del plan, o el plan se detuvo antes. Junto a cada una está la construcción más cercana encontrada.",
       "offLattice": "Fuera de la retícula",
       "refusedTitle": "Hojas omitidas",
-      "stoppedCount_one": "{{count}} línea sin doblez exacto",
-      "stoppedCount_many": "{{count}} líneas sin doblez exacto",
-      "stoppedCount_other": "{{count}} líneas sin doblez exacto",
-      "stoppedNote": "Hay más líneas sin doblez exacto de las que una secuencia puede llevar como pliegues de referencia, así que el plan se detuvo en lugar de aproximarlas todas. No se buscaron sus construcciones más cercanas.",
-      "stoppedTitle": "Planificación detenida",
       "title": "Líneas sin doblez exacto",
       "unsolved": "No se encontró construcción"
     },

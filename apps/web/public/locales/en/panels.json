@@ -893,10 +893,6 @@
       "note": "Not folded: no construction reached these within the plan's tolerance, or the plan stopped first. Beside each is the closest construction found.",
       "offLattice": "Off the lattice",
       "refusedTitle": "Sheets left out",
-      "stoppedCount_one": "{{count}} line with no exact fold",
-      "stoppedCount_other": "{{count}} lines with no exact fold",
-      "stoppedNote": "More lines have no exact fold than a sequence can carry as reference creases, so the plan stopped rather than approximate them all. Their closest constructions were not searched for.",
-      "stoppedTitle": "Planning stopped",
       "title": "Lines with no exact fold",
       "unsolved": "No construction found"
     },

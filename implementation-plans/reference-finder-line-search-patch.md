@@ -143,13 +143,15 @@ carries), and AGENTS.md's vendored-source rule names the exception.
   hundreds of lines, describing folds the plan will not make).
 
   Surfaces: the warning modal opens with "Planning failed …" wording
-  (`useReferencesApproximationWarning` → `reason: 'too_many'`), the strip's
-  ending card says how many creases were made and why it stopped, and the
-  findings rail lists one row per stopped sheet with its count instead of a
-  row per line. A plan with no folds at all now still ends on its ending
-  card (`referencesViewSteps`), and the plan strip's empty copy no longer
-  borrows Find's. Analytics: `references approximation warning shown` gains
-  `reason`, `folding steps refused` gains `too_many_approximations`.
+  (`useReferencesApproximationWarning` → `reason: 'too_many'`), and the
+  strip's ending card says how many creases were made and why it stopped.
+  The findings rail lists nothing for such a sheet — its findings were never
+  searched for a closest construction, and the modal has already said why.
+  A plan with no folds at all now still ends on its ending card
+  (`referencesViewSteps`), and the plan strip's empty copy no longer borrows
+  Find's. Analytics: `references approximation warning shown` gains
+  `reason`, `folding steps refused` gains `too_many_approximations`, both on
+  the References dashboard.
 
   Glaucus in the browser: stops in 5.8 s (closure, one stuck search, the
   exact ReferenceFinder batch), 0 of 332 creases, modal up.

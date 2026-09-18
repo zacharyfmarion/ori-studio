@@ -43,11 +43,12 @@ function planFindings(record: ReferencesPlanRecord | null) {
 }
 
 /**
- * The sheets whose plan stopped rather than approximate more lines than a
- * sequence can carry. Their findings were never searched for a closest
+ * A sheet whose plan stopped rather than approximate more lines than a
+ * sequence can carry. Its findings were never searched for a closest
  * construction — the search would have taken minutes to describe folds the
- * plan had already decided not to make — so they are one row per sheet, with
- * the count, not a row per line saying nothing was found.
+ * plan had already decided not to make — so a row per line would only say
+ * nothing was found. The modal has already said why the plan stopped; the
+ * rail lists nothing for such a sheet.
  */
 function stoppedShort(entry: ReferencesPlanComponent): boolean {
   return entry.result.stopReason === 'too_many_approximations';
@@ -63,10 +64,7 @@ export function hasReferencesFindings(
   analysis: ReferencesAnalysis | null
 ): boolean {
   return (
-    planFindings(record).length > 0 ||
-    (record?.components.some(stoppedShort) ?? false) ||
-    (record?.refused.length ?? 0) > 0 ||
-    analysis !== null
+    planFindings(record).length > 0 || (record?.refused.length ?? 0) > 0 || analysis !== null
   );
 }
 
@@ -78,43 +76,10 @@ export const ReferencesFindingsList = memo(function ReferencesFindingsList({
 }: ReferencesFindingsListProps) {
   const { t } = useTranslation();
   const findings = planFindings(record);
-  const unsearched = record?.components.filter(stoppedShort) ?? [];
   const refused = record?.refused ?? [];
 
   return (
     <>
-      {unsearched.length > 0 && (
-        <section className="references-findings">
-          <h3 className="references-findings__title">
-            {t('panels:references.findings.stoppedTitle', 'Planning stopped')}
-          </h3>
-          <p className="references-findings__note">
-            {t(
-              'panels:references.findings.stoppedNote',
-              'More lines have no exact fold than a sequence can carry as reference creases, so the plan stopped rather than approximate them all. Their closest constructions were not searched for.'
-            )}
-          </p>
-          <ul className="references-findings__list">
-            {unsearched.map((entry) => (
-              <li key={entry.component} className="references-finding references-finding--static">
-                <span className="references-finding__title">
-                  {t('panels:references.breakdown.sheetId', 'Sheet {{n}}', {
-                    n: entry.component + 1,
-                  })}
-                </span>
-                <span className="references-finding__meta">
-                  {t('panels:references.findings.stoppedCount', {
-                    defaultValue_one: '{{count}} line with no exact fold',
-                    defaultValue_other: '{{count}} lines with no exact fold',
-                    count: entry.result.sequence.findings.length,
-                  })}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
       {findings.length > 0 && (
         <section className="references-findings">
           <h3 className="references-findings__title">
