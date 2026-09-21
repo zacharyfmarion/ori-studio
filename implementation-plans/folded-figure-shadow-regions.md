@@ -109,8 +109,8 @@ FoldedFigureRenderPrimitive {
   kind: FillPath,
   geometry: Path { one closed subpath per member subface, in tv space },
   style.paint: LayerShadow {
-    width:  f64,                 // SHADOW_OFFSET carried through the camera scale
-    strength: f64,               // 50/255, Oriedita's alpha, as a fraction
+    sheet_thickness: f64,        // one sheet of paper, carried through the camera scale
+    strength: f64,               // darkness at the contact line
     occluder_edges: Vec<FoldedFigureRenderEdge>,   // { from, to, step }, tv space
   },
 }
@@ -180,9 +180,10 @@ float a = 0.0;
 for (int i = 0; i < MAX_SHADOW_EDGES; i++) {
   if (float(i) >= vEdgeCount) break;
   vec4 e = fetchEdge(vEdgeBase + float(i));   // x0 y0 x1 y1, user space
-  float ledge = fetchStep(vEdgeBase + float(i));
+  float h = ledgeHeight(fetchStep(vEdgeBase + float(i)), vSheet);
+  float boost = ledgeBoost(h * pxPerUnit);         // the pixel floor
   float d = segmentDistance(vUser, e.xy, e.zw);
-  a = max(a, vStrength * stepStrength(ledge) * profile(d / (vWidth * stepReach(ledge))));
+  a = max(a, vStrength / boost * profile(d, h * boost));
 }
 gl_FragColor = vec4(0.0, 0.0, 0.0, a);        // premultiplied black
 ```
@@ -196,42 +197,53 @@ Drawn between `foldedFills` and `foldedStrokes` in `reglRenderer.ts`. The
 unchanged. Per-frame cost is the edge texture re-upload (8 bytes per edge)
 plus a few texel fetches per shadowed fragment.
 
-### Ledge height
+### The curve: a contact shadow, not a band
 
-`shadowStepReach(step) = min(step, 4) ^ 0.5` scales the reach and
-`shadowStepStrength(step) = 1 + 0.05 · (min(step, 4) − 1)` the darkness, in
-`foldedShadowProfile.ts` and its GLSL twin. Sub-linear and capped on purpose:
-the physical contact shadow of a step grows about linearly with its height,
-but stacks of eight and sixteen sheets are ordinary in a folded model (the
-crane fixture has both) and a linear reach on those buries everything nearby.
-Tuned by eye on kabuto (ledges of 1–10 sheets, yellow front) and the crane:
-cap 6 with `step^0.6` turned the pockets between stacks to mud; cap 4 keeps a
-one-sheet flap edge a thin line and a four-plus-sheet stack edge clearly
-deeper without swallowing the paper it falls on.
+The first version drew a band of half-width `0.4·reach` blurred by
+`σ = 0.3·reach`, peaking at 20 %, ten units wide — a soft gradient with no
+edge, which is a stylisation, not a shadow. What a step of paper actually
+casts under diffuse light is ambient occlusion by a wall of height `h`: for a
+long ledge under a uniform sky the light lost at distance `d` from the
+contact line is
 
-### One profile, shared with the export
+```text
+f(d) = (1/2π) ∫ cos²φ / (cos²φ + (d/h)²) dφ      (φ over a half turn)
+```
 
-The falloff is defined once, as *a band of half-width `0.4·width` blurred by a
-Gaussian of `σ = 0.3·width`*, in a small pure module
-(`cp-workspace/folded/foldedShadowProfile.ts`):
+— one half at the contact, about half of that by `d ≈ 0.55 h`, and a
+`h²/4d²` tail. Dark, narrow, sharp-edged, and as wide as the ledge is tall:
+the thin dark line at the foot of every layer in a photograph.
 
-- The shader evaluates it analytically —
-  `½·[erf((h−d)/σ√2) + erf((h+d)/σ√2))]` with the Abramowitz–Stegun erf
-  approximation — as a function of the min distance.
+`foldedShadowProfile.ts` draws that curve as the weighted sum of three
+Gaussian-blurred bands (half-widths 0.2/0.6/1.5 h, σ 0.15/0.4/1.2 h; fitted to
+within a few percent out to 2 h, and unit-tested against the integral), because
+a blurred band is what both renderers can produce exactly:
+
+- The shader evaluates each band analytically — a box convolved with a
+  Gaussian is `½·[erf((a−d)/σ√2) + erf((a+d)/σ√2)]`, with the Abramowitz–Stegun
+  erf approximation — from the distance to each casting segment, at that
+  segment's ledge height, and keeps the darkest.
 - `foldedFigureSvg.ts` draws the same thing literally: a `<clipPath>` of the
   receiving subpaths around one `<path>` per ledge height of the occluder
-  edges, stroked black, `stroke-width = 0.8·reach`, round caps and joins, under
-  a `feGaussianBlur stdDeviation = 0.3·reach`, at the opacity that makes the
-  blurred stroke read the ledge's darkness at the edge. PNG export goes
-  through `svgToPng`, so both files agree with each other; along straight
-  edges they match the canvas exactly, at corners a 2D blur is marginally
-  lighter on convex and darker on concave corners than the distance field.
-  The `<linearGradient>` writer goes with the gradients.
+  edges, stroked with round caps at the innermost band's width, under a
+  filter that dilates and blurs the stroke's alpha once per band, sums the
+  bands with their weights (`feComposite operator="arithmetic"` — stacking
+  would multiply them) and inks the sum black at the contact darkness. PNG
+  export goes through `svgToPng`, so both files agree with each other; along
+  straight edges they match the canvas exactly, at corners a 2D blur is
+  marginally lighter on convex and darker on concave corners than the
+  distance field. The `<linearGradient>` writer went with the gradients.
 
-Defaults to start from, chosen on the prototype: `width = 10` object units
-(unchanged from Oriedita), `strength = 0.2` (Oriedita's 50/255). Both are
-constants in the kernel, so tuning them is a one-line change; a user-facing
-width control is not part of this plan.
+Ledge height `h = sheet_thickness · min(step, 12)`. Two deliberate departures
+from the physics: the kernel's sheet is one object unit — a few times real
+kami on a hand-sized sheet, since at true scale a one-sheet shadow is
+invisible — and a ledge whose innermost band would be under 1.5 px wide is
+widened to that and lightened by the same factor (`shadowLedgeBoost`), so a
+flap edge draws as a crisp faint line at any zoom instead of flickering
+between pixel centres. Contact darkness is 0.35: half the light is the
+uniform-sky answer, and paper and the room reflect some back. The export's
+pixel floor uses page units as pixels, which they are at the export raster
+size.
 
 ### What stays exactly the same
 
@@ -300,8 +312,10 @@ refinement plan added.
       tested) + draw order pinned in the layer-order test
 - [x] `foldedFigureSvg.ts`: clip + blurred stroke; tests
 - [x] Ledge height on every casting edge (kernel, tested against the cells'
-      layer counts on kabuto), reach and darkness scaled by it in the shader
-      and the export, tuned on kabuto and the crane
+      layer counts on kabuto)
+- [x] Occlusion curve: three-band fit of the wall integral, tested against
+      it; pixel floor; SVG filter chain that sums the bands; seen on kabuto
+      and the crane
 - [x] Rebuild the CP wasm bridge before looking at anything in the browser
 - [x] Validation: `cargo test -p oristudio-cp` (40 binaries green), clippy,
       fmt, `lint:web`, typecheck, `test:web` (7109 passing; the one failing

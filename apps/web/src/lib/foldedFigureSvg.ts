@@ -7,11 +7,7 @@ import type {
   OristudioCpFoldedRenderStroke,
   OristudioCpRgbaColor,
 } from '../engine/oristudioCpTypes';
-import {
-  shadowStepReach,
-  shadowStepStrength,
-  shadowSvgStroke,
-} from '../cp-workspace/folded/foldedShadowProfile';
+import { shadowLedgeHeight, shadowSvgBands } from '../cp-workspace/folded/foldedShadowProfile';
 import type { Point } from './geometry';
 import { escapeXml } from './xmlEscape';
 
@@ -22,8 +18,9 @@ import { escapeXml } from './xmlEscape';
  * **model** coordinates, so they map onto SVG elements one for one — no
  * tessellation, unlike the WebGL canvas path in `cpFoldedToScene`, which has to
  * triangulate. A layer shadow is the one primitive with no direct element: it
- * becomes the casting outline, stroked and blurred, clipped to the paper it
- * falls on — the same curve the canvas evaluates, see `foldedShadowProfile`.
+ * becomes the casting outline, stroked, dilated and blurred into the occlusion
+ * curve, clipped to the paper it falls on — the same curve the canvas
+ * evaluates, see `foldedShadowProfile`.
  */
 export interface FoldedFigureSvgOptions {
   /** Model point → page coordinates. */
@@ -217,11 +214,16 @@ function paintAttr(
 }
 
 /**
- * A layer shadow: the casting outline as round-capped strokes under a Gaussian
- * blur, clipped to the receiving paper — one stroke and one blur per ledge
- * height, since a taller ledge casts a wider, darker shadow. The stroke width,
- * blur and opacity come from the shared profile, so a straight edge fades on
- * the page exactly as it does on the canvas.
+ * A layer shadow: the casting outline stroked with round caps, turned into the
+ * occlusion curve by a filter, clipped to the receiving paper — one stroke
+ * and filter per ledge height, since the curve scales with the height.
+ *
+ * The filter is the profile's definition drawn literally: the stroke's alpha
+ * is the innermost band; each wider band is that alpha dilated out to its
+ * half-width; every band is Gaussian-blurred by its σ; the bands are summed
+ * with their weights by arithmetic compositing (plain stacking would
+ * multiply them instead), and the sum inks black at the contact darkness.
+ * Along a straight edge that is exactly what the canvas evaluates.
  *
  * The filter region is given explicitly, in page units: the default is the
  * element's box plus ten per cent, which for a short outline is narrower than
@@ -260,19 +262,49 @@ function layerShadowElement(
 
   const strokes: string[] = [];
   for (const [step, group] of [...byStep].sort(([l], [r]) => l - r)) {
-    const stroke = shadowSvgStroke(
-      paint.width * scale * shadowStepReach(step),
-      paint.strength * shadowStepStrength(step)
+    const height = shadowLedgeHeight(step, paint.sheet_thickness * scale);
+    const shadow = shadowSvgBands(height, paint.strength);
+    if (!(shadow.strokeWidth > 0) || !(shadow.opacity > 0)) continue;
+    // Everything the widest blurred band can reach: its half-width plus three sigma.
+    const margin = Math.max(
+      ...shadow.bands.map((band) => shadow.strokeWidth / 2 + band.dilateRadius + 3 * band.stdDeviation)
     );
-    if (!(stroke.strokeWidth > 0) || !(stroke.opacity > 0)) continue;
-    // Everything the blurred stroke can reach: its half-width plus three sigma.
-    const margin = stroke.strokeWidth / 2 + 3 * stroke.stdDeviation;
-    const blurId = `${id}-blur-${step}`;
+    const filterId = `${id}-occlusion-${step}`;
+    const stages: string[] = [];
+    const bandResults: string[] = [];
+    shadow.bands.forEach((band, index) => {
+      const spread = `band${index}`;
+      const source =
+        band.dilateRadius > 0
+          ? (stages.push(
+              `<feMorphology in="SourceAlpha" operator="dilate" radius="${num(band.dilateRadius)}" result="${spread}-wide"/>`
+            ),
+            `${spread}-wide`)
+          : 'SourceAlpha';
+      stages.push(
+        `<feGaussianBlur in="${source}" stdDeviation="${num(band.stdDeviation)}" result="${spread}"/>`
+      );
+      bandResults.push(spread);
+    });
+    // sum = w0·band0 + w1·band1 (+ w2·band2 …), one arithmetic composite per band after the first.
+    let acc = bandResults[0];
+    shadow.bands.forEach((band, index) => {
+      if (index === 0) return;
+      const k2 = index === 1 ? num(shadow.bands[0].weight) : '1.00';
+      stages.push(
+        `<feComposite in="${acc}" in2="${bandResults[index]}" operator="arithmetic" k1="0" k2="${k2}" k3="${num(band.weight)}" k4="0" result="sum${index}"/>`
+      );
+      acc = `sum${index}`;
+    });
+    stages.push(
+      `<feFlood flood-color="#000000" flood-opacity="${num(shadow.opacity)}" result="ink"/>`,
+      `<feComposite in="ink" in2="${acc}" operator="in"/>`
+    );
     defs.push(
-      `    <filter id="${blurId}" filterUnits="userSpaceOnUse" x="${num(group.bounds.minX - margin)}" y="${num(group.bounds.minY - margin)}" width="${num(group.bounds.maxX - group.bounds.minX + 2 * margin)}" height="${num(group.bounds.maxY - group.bounds.minY + 2 * margin)}"><feGaussianBlur stdDeviation="${num(stroke.stdDeviation)}"/></filter>`
+      `    <filter id="${filterId}" filterUnits="userSpaceOnUse" x="${num(group.bounds.minX - margin)}" y="${num(group.bounds.minY - margin)}" width="${num(group.bounds.maxX - group.bounds.minX + 2 * margin)}" height="${num(group.bounds.maxY - group.bounds.minY + 2 * margin)}" color-interpolation-filters="sRGB">${stages.join('')}</filter>`
     );
     strokes.push(
-      `<path d="${group.outline.join(' ')}" fill="none" stroke="#000000" stroke-opacity="${num(stroke.opacity)}" stroke-width="${num(stroke.strokeWidth)}" stroke-linecap="round" stroke-linejoin="round" filter="url(#${blurId})"/>`
+      `<path d="${group.outline.join(' ')}" fill="none" stroke="#000000" stroke-width="${num(shadow.strokeWidth)}" stroke-linecap="round" stroke-linejoin="round" filter="url(#${filterId})"/>`
     );
   }
   if (strokes.length === 0) return null;

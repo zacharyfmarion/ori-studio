@@ -444,14 +444,15 @@ export type OristudioCpFoldedRenderPaint =
   | { kind: 'other'; class_name: string }
   | {
       /**
-       * A soft shadow over the paper this primitive covers, cast by the layers
-       * nearer the viewer. Evaluated from the distance to the nearest
-       * `occluder_edges` segment, so it never leaves the primitive's geometry.
+       * The contact shadow over the paper this primitive covers, cast by the
+       * layers nearer the viewer. Evaluated from the distance to each
+       * `occluder_edges` segment and its ledge height, so it never leaves the
+       * primitive's geometry.
        */
       kind: 'layer_shadow';
-      /** How far a one-sheet ledge's shadow reaches from its edge, in the snapshot's units. */
-      width: number;
-      /** Darkness at the casting edge, as a fraction of black. */
+      /** Thickness of one sheet of paper, in the snapshot's units; a ledge is `step` of these tall. */
+      sheet_thickness: number;
+      /** Darkness at the contact line, as a fraction of black. */
       strength: number;
       /** Outline segments of every casting layer, in the snapshot's units. */
       occluder_edges: OristudioCpFoldedRenderEdge[];
@@ -462,8 +463,8 @@ export interface OristudioCpFoldedRenderEdge {
   to: Point;
   /**
    * How many sheets tall the ledge along this segment is (≥ 1): the layers
-   * stacked on the casting side beyond those across the line. Taller ledges
-   * cast further — see `foldedShadowProfile`.
+   * stacked on the casting side beyond those across the line. Its shadow is
+   * as wide as it is tall — see `foldedShadowProfile`.
    */
   step: number;
 }

@@ -1303,10 +1303,11 @@ fn a_shadow_is_cast_by_drawn_edges_that_meet_its_paper() {
     }
 }
 
-/// The reach and darkness are Oriedita's constants, carried through the
-/// figure's scale, and the shadow sits between the pass's faces and its edges.
+/// The sheet thickness is carried through the figure's scale, the contact
+/// darkness is the one constant, and the shadow sits between the pass's faces
+/// and its edges.
 #[test]
-fn a_shadow_keeps_upstreams_reach_and_sits_between_faces_and_edges() {
+fn a_shadow_carries_the_sheet_thickness_and_sits_between_faces_and_edges() {
     let primitives = kabuto_front_render(true);
     let sequence_of = |predicate: &dyn Fn(&FoldedFigureRenderPrimitive) -> bool| {
         primitives
@@ -1333,24 +1334,24 @@ fn a_shadow_keeps_upstreams_reach_and_sits_between_faces_and_edges() {
     let mut tallest = 0;
     for primitive in &primitives {
         if let FoldedFigureRenderPaint::LayerShadow {
-            width,
+            sheet_thickness,
             strength,
             occluder_edges,
         } = &primitive.style.paint
         {
             assert!(
-                (width - 10.0).abs() < 1e-9,
-                "reach is the 10-unit offset, got {width}"
+                (sheet_thickness - 1.0).abs() < 1e-9,
+                "one sheet is one object unit at scale 1, got {sheet_thickness}"
             );
-            assert!((strength - 50.0 / 255.0).abs() < 1e-12);
+            assert!((strength - 0.35).abs() < 1e-12);
             for edge in occluder_edges {
                 assert!(edge.step >= 1, "a casting edge is at least one sheet tall");
                 tallest = tallest.max(edge.step);
             }
         }
     }
-    // The base reach is per region; how far past it a ledge casts is the
-    // renderer's reading of its height, so the height has to travel with it.
+    // The thickness is per region; how wide a ledge's shadow is comes from
+    // its height in sheets, so the height has to travel with every edge.
     assert!(
         tallest > 1,
         "kabuto's stacks give ledges taller than one sheet"

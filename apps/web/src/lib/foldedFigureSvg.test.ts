@@ -4,9 +4,8 @@ import type {
   OristudioCpFoldedRenderSnapshot,
 } from '../engine/oristudioCpTypes';
 import {
-  shadowStepReach,
-  shadowStepStrength,
-  shadowSvgStroke,
+  shadowLedgeHeight,
+  shadowSvgBands,
 } from '../cp-workspace/folded/foldedShadowProfile';
 import { foldedFigureSvgBody, projectedFoldedFigureBounds } from './foldedFigureSvg';
 
@@ -80,15 +79,15 @@ describe('folded figure SVG', () => {
   });
 
   describe('layer shadow', () => {
-    /** A strip of paper with one casting edge along its top, 10 model units of reach. */
+    /** A strip of paper with one casting edge along its top, sheets 5 model units thick. */
     const shadow = (): OristudioCpFoldedRenderPrimitive => ({
       sequence: 0,
       kind: 'fill_path',
       style: {
         paint: {
           kind: 'layer_shadow',
-          width: 10,
-          strength: 0.2,
+          sheet_thickness: 5,
+          strength: 0.35,
           occluder_edges: [{ from: { x: 0, y: 0 }, to: { x: 40, y: 0 }, step: 1 }],
         },
         stroke: { kind: 'none' },
@@ -106,30 +105,52 @@ describe('folded figure SVG', () => {
       },
     });
 
-    it('strokes and blurs the casting outline, clipped to the receiving paper', () => {
+    it('strokes the casting outline and turns it into the occlusion curve, clipped to the paper', () => {
       const svg = foldedFigureSvgBody(snapshot([shadow()]), { project, scale: 2, idPrefix: 'fig' });
-      const { strokeWidth, stdDeviation, opacity } = shadowSvgStroke(20, 0.2);
-
-      expect(svg).toContain('<clipPath id="fig-0-paper"><path d="M 0.00 0.00 L 80.00 0.00 L 80.00 16.00 L 0.00 16.00 Z"/></clipPath>');
-      expect(svg).toContain(`<feGaussianBlur stdDeviation="${stdDeviation.toFixed(2)}"/>`);
-      expect(svg).toContain('<g clip-path="url(#fig-0-paper)"><path d="M 0.00 0.00 L 80.00 0.00"');
-      expect(svg).toContain(`stroke-width="${strokeWidth.toFixed(2)}"`);
-      expect(svg).toContain(`stroke-opacity="${opacity.toFixed(2)}"`);
-      expect(svg).toContain('stroke-linecap="round"');
-      expect(svg).toContain('filter="url(#fig-0-blur-1)"');
-    });
-
-    it('gives the blur a region wide enough to hold it', () => {
-      const svg = foldedFigureSvgBody(snapshot([shadow()]), { project, scale: 2, idPrefix: 'fig' });
-      const { strokeWidth, stdDeviation } = shadowSvgStroke(20, 0.2);
-      const margin = strokeWidth / 2 + 3 * stdDeviation;
+      // One sheet, 5 model units, projected at 2: a 10-unit ledge on the page.
+      const { strokeWidth, opacity, bands } = shadowSvgBands(shadowLedgeHeight(1, 10), 0.35);
 
       expect(svg).toContain(
-        `<filter id="fig-0-blur-1" filterUnits="userSpaceOnUse" x="${(-margin).toFixed(2)}" y="${(-margin).toFixed(2)}" width="${(80 + 2 * margin).toFixed(2)}" height="${(2 * margin).toFixed(2)}">`
+        '<clipPath id="fig-0-paper"><path d="M 0.00 0.00 L 80.00 0.00 L 80.00 16.00 L 0.00 16.00 Z"/></clipPath>'
+      );
+      expect(svg).toContain(
+        `<g clip-path="url(#fig-0-paper)"><path d="M 0.00 0.00 L 80.00 0.00" fill="none" stroke="#000000" stroke-width="${strokeWidth.toFixed(2)}" stroke-linecap="round" stroke-linejoin="round" filter="url(#fig-0-occlusion-1)"/></g>`
+      );
+      // The innermost band is the stroke itself, blurred; each wider one is dilated first.
+      expect(svg).toContain(
+        `<feGaussianBlur in="SourceAlpha" stdDeviation="${bands[0].stdDeviation.toFixed(2)}" result="band0"/>`
+      );
+      expect(svg).toContain(
+        `<feMorphology in="SourceAlpha" operator="dilate" radius="${bands[1].dilateRadius.toFixed(2)}" result="band1-wide"/>`
+      );
+      expect(svg).toContain(
+        `<feGaussianBlur in="band1-wide" stdDeviation="${bands[1].stdDeviation.toFixed(2)}" result="band1"/>`
+      );
+      // Summed with their weights, not stacked.
+      expect(svg).toContain(
+        `<feComposite in="band0" in2="band1" operator="arithmetic" k1="0" k2="${bands[0].weight.toFixed(2)}" k3="${bands[1].weight.toFixed(2)}" k4="0" result="sum1"/>`
+      );
+      expect(svg).toContain(
+        `<feComposite in="sum1" in2="band2" operator="arithmetic" k1="0" k2="1.00" k3="${bands[2].weight.toFixed(2)}" k4="0" result="sum2"/>`
+      );
+      expect(svg).toContain(
+        `<feFlood flood-color="#000000" flood-opacity="${opacity.toFixed(2)}" result="ink"/><feComposite in="ink" in2="sum2" operator="in"/>`
       );
     });
 
-    it('strokes a taller ledge wider and darker, on its own blur', () => {
+    it('gives the filter a region wide enough to hold the widest band', () => {
+      const svg = foldedFigureSvgBody(snapshot([shadow()]), { project, scale: 2, idPrefix: 'fig' });
+      const { strokeWidth, bands } = shadowSvgBands(shadowLedgeHeight(1, 10), 0.35);
+      const margin = Math.max(
+        ...bands.map((band) => strokeWidth / 2 + band.dilateRadius + 3 * band.stdDeviation)
+      );
+
+      expect(svg).toContain(
+        `<filter id="fig-0-occlusion-1" filterUnits="userSpaceOnUse" x="${(-margin).toFixed(2)}" y="${(-margin).toFixed(2)}" width="${(80 + 2 * margin).toFixed(2)}" height="${(2 * margin).toFixed(2)}" color-interpolation-filters="sRGB">`
+      );
+    });
+
+    it('draws a taller ledge as a taller, wider curve, on its own filter', () => {
       const primitive = shadow();
       if (primitive.style.paint.kind === 'layer_shadow') {
         primitive.style.paint.occluder_edges = [
@@ -138,16 +159,20 @@ describe('folded figure SVG', () => {
         ];
       }
       const svg = foldedFigureSvgBody(snapshot([primitive]), { project, scale: 2, idPrefix: 'fig' });
-      const low = shadowSvgStroke(20, 0.2);
-      const tall = shadowSvgStroke(20 * shadowStepReach(4), 0.2 * shadowStepStrength(4));
+      const low = shadowSvgBands(shadowLedgeHeight(1, 10), 0.35);
+      const tall = shadowSvgBands(shadowLedgeHeight(4, 10), 0.35);
 
-      expect(tall.strokeWidth).toBeGreaterThan(low.strokeWidth);
-      expect(tall.opacity).toBeGreaterThan(low.opacity);
-      expect(svg).toContain(`<path d="M 0.00 0.00 L 40.00 0.00" fill="none" stroke="#000000" stroke-opacity="${low.opacity.toFixed(2)}" stroke-width="${low.strokeWidth.toFixed(2)}"`);
-      expect(svg).toContain(`<path d="M 40.00 0.00 L 80.00 0.00" fill="none" stroke="#000000" stroke-opacity="${tall.opacity.toFixed(2)}" stroke-width="${tall.strokeWidth.toFixed(2)}"`);
-      expect(svg).toContain('filter="url(#fig-0-blur-4)"');
-      expect(svg).toContain(`<filter id="fig-0-blur-4"`);
-      expect(svg).toContain(`<feGaussianBlur stdDeviation="${tall.stdDeviation.toFixed(2)}"/>`);
+      expect(tall.strokeWidth).toBeCloseTo(4 * low.strokeWidth, 9);
+      expect(svg).toContain(
+        `<path d="M 0.00 0.00 L 40.00 0.00" fill="none" stroke="#000000" stroke-width="${low.strokeWidth.toFixed(2)}"`
+      );
+      expect(svg).toContain(
+        `<path d="M 40.00 0.00 L 80.00 0.00" fill="none" stroke="#000000" stroke-width="${tall.strokeWidth.toFixed(2)}"`
+      );
+      expect(svg).toContain('filter="url(#fig-0-occlusion-4)"');
+      expect(svg).toContain(
+        `<feGaussianBlur in="SourceAlpha" stdDeviation="${tall.bands[0].stdDeviation.toFixed(2)}" result="band0"/>`
+      );
     });
 
     it('counts the shadowed paper in the figure bounds', () => {

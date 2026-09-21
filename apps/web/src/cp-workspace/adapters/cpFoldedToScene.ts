@@ -19,7 +19,7 @@ import type {
 import {
   MAX_SHADOW_EDGES,
   SHADOW_REACH_RATIO,
-  shadowStepReach,
+  shadowLedgeHeight,
 } from '../folded/foldedShadowProfile';
 import type { Aabb } from '../picking/lineHitIndex';
 import {
@@ -157,7 +157,7 @@ export interface ShadowEdge {
   ay: number;
   bx: number;
   by: number;
-  /** Sheets tall, ≥ 1; see `shadowStepReach`. */
+  /** Sheets tall, ≥ 1; see `shadowLedgeHeight`. */
   step: number;
 }
 
@@ -184,14 +184,16 @@ function shadowEdgeToUser(
  * own reach of the ring's box, nearest first when there are too many.
  *
  * Reach is each edge's — a taller ledge casts further — measured with
- * {@link SHADOW_REACH_RATIO}, where the curve is already below anything an
- * 8-bit alpha shows, so an edge outside it would change no pixel of this
- * polygon: dropping it costs nothing and keeps the per-fragment loop short.
+ * {@link SHADOW_REACH_RATIO} ledge heights, where the curve is already below
+ * anything an 8-bit alpha shows, so an edge outside it would change no pixel
+ * of this polygon: dropping it costs nothing and keeps the per-fragment loop
+ * short. (The pixel floor can widen a ledge past this at extreme zoom-out;
+ * what it would add there is lightened by the same factor, so nothing shows.)
  */
 export function occluderEdgesNear(
   ring: readonly Point[],
   edges: readonly ShadowEdge[],
-  width: number
+  sheetThickness: number
 ): ShadowEdge[] {
   if (ring.length < 3) return [];
   let minX = Infinity;
@@ -205,7 +207,7 @@ export function occluderEdgesNear(
     if (p.y > maxY) maxY = p.y;
   }
   const near = edges.filter((e) => {
-    const reach = width * shadowStepReach(e.step) * SHADOW_REACH_RATIO;
+    const reach = shadowLedgeHeight(e.step, sheetThickness) * SHADOW_REACH_RATIO;
     return (
       Math.min(e.ax, e.bx) <= maxX + reach &&
       Math.max(e.ax, e.bx) >= minX - reach &&
@@ -287,8 +289,13 @@ class FoldedBuilder {
    * that come within reach of it. A polygon nothing reaches draws nothing, and
    * that is most of a large region: the shadow only ever hugs its boundary.
    */
-  addShadowRing(ring: Point[], edges: readonly ShadowEdge[], width: number, strength: number): void {
-    const near = occluderEdgesNear(ring, edges, width);
+  addShadowRing(
+    ring: Point[],
+    edges: readonly ShadowEdge[],
+    sheetThickness: number,
+    strength: number
+  ): void {
+    const near = occluderEdgesNear(ring, edges, sheetThickness);
     if (near.length === 0) return;
     const start = this.shadowEdges.length / 4;
     for (const edge of near) {
@@ -301,7 +308,7 @@ class FoldedBuilder {
       this.shadowPos.push(flat[i * 2], flat[i * 2 + 1]);
       this.shadowDepth.push(this.depth);
       this.shadowEdgeRange.push(start, near.length);
-      this.shadowFalloff.push(width, strength);
+      this.shadowFalloff.push(sheetThickness, strength);
     }
   }
 
@@ -450,11 +457,11 @@ export function foldedFigureLocalGeometry(
     builder.depth = (index + 1) / (primitives.length + 1);
     const paint = primitive.style.paint;
     if (paint.kind === 'layer_shadow') {
-      // Reach and outline come in the snapshot's units, like the geometry.
-      const width = paint.width * USER_UNITS_PER_MODEL_UNIT;
+      // Thickness and outline come in the snapshot's units, like the geometry.
+      const sheet = paint.sheet_thickness * USER_UNITS_PER_MODEL_UNIT;
       const edges = paint.occluder_edges.map((edge) => shadowEdgeToUser(edge, toUser));
       for (const local of geometrySubpaths(primitive.geometry)) {
-        builder.addShadowRing(local.map(toUser), edges, width, paint.strength);
+        builder.addShadowRing(local.map(toUser), edges, sheet, paint.strength);
       }
       continue;
     }
@@ -632,8 +639,8 @@ export function cpFoldedToScene(
       strokeDepth.push(bandBase + local.strokeDepth[i] * bandSpan);
     }
 
-    // The shadow's outline moves with the paper it is cast on, and its reach
-    // scales with the figure the way a real shadow would; a similarity keeps
+    // The shadow's outline moves with the paper it is cast on, and the sheets
+    // scale with the figure the way a real shadow would; a similarity keeps
     // distances, so nothing else about it changes under the placement.
     const edgeBase = shadowEdges.length / 4;
     for (let i = 0; i < local.shadowEdges.length; i += 2) {

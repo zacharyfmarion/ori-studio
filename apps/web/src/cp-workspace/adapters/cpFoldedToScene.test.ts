@@ -19,7 +19,7 @@ import type {
   OristudioCpFoldedRenderEdge,
   OristudioCpFoldedRenderPrimitive,
 } from '../../engine/oristudioCpTypes';
-import { SHADOW_REACH_RATIO, shadowStepReach } from '../folded/foldedShadowProfile';
+import { SHADOW_REACH_RATIO, shadowLedgeHeight } from '../folded/foldedShadowProfile';
 
 function figure(
   primitives: OristudioCpFoldedRenderPrimitive[],
@@ -855,7 +855,7 @@ describe('layer shadow paint', () => {
     sequence: 1,
     kind: 'fill_path',
     style: {
-      paint: { kind: 'layer_shadow', width: 10, strength: 0.2, occluder_edges: edges },
+      paint: { kind: 'layer_shadow', sheet_thickness: 1, strength: 0.35, occluder_edges: edges },
       stroke: { kind: 'none' },
       antialias: 'default',
     },
@@ -913,11 +913,11 @@ describe('layer shadow paint', () => {
     }
   });
 
-  it('scales the reach into user units and keeps the edge darkness', () => {
+  it('scales the sheet thickness into user units and keeps the contact darkness', () => {
     const geo = cpFoldedToScene([figure([shadowed()])]);
 
-    expect(geo.shadows?.falloff[0]).toBeCloseTo(10 * unitsPerModel, 4);
-    expect(geo.shadows?.falloff[1]).toBeCloseTo(0.2, 6);
+    expect(geo.shadows?.falloff[0]).toBeCloseTo(1 * unitsPerModel, 4);
+    expect(geo.shadows?.falloff[1]).toBeCloseTo(0.35, 6);
   });
 
   it('drops casting edges that cannot reach the polygon, and the polygon when none can', () => {
@@ -933,7 +933,8 @@ describe('layer shadow paint', () => {
     const distance = 24;
     const low = { from: { x: 0, y: distance }, to: { x: 40, y: distance }, step: 1 };
     const tall = { from: { x: 0, y: distance }, to: { x: 40, y: distance }, step: 6 };
-    const reach = (step: number) => 10 * unitsPerModel * shadowStepReach(step) * SHADOW_REACH_RATIO;
+    const reach = (step: number) =>
+      shadowLedgeHeight(step, 1 * unitsPerModel) * SHADOW_REACH_RATIO;
     expect(reach(1)).toBeLessThan((distance - 8) * unitsPerModel);
     expect(reach(6)).toBeGreaterThan((distance - 8) * unitsPerModel);
 
@@ -999,7 +1000,7 @@ describe('layer shadow paint', () => {
   it('fades the shadow with the figure', () => {
     const geo = cpFoldedToScene([figure([shadowed()])], () => 0.5).shadows;
 
-    expect(geo?.falloff[1]).toBeCloseTo(0.1, 6);
+    expect(geo?.falloff[1]).toBeCloseTo(0.175, 6);
   });
 
   it('shares the figure\'s depth stream, so it lands between its fills and its edges', () => {

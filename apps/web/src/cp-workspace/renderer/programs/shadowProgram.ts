@@ -12,10 +12,10 @@ type Texture = ReturnType<Regl['texture']>;
  *
  * Triangles cover the paper that receives a shadow (the same polygons as the
  * fills); each fragment takes its distance to each of the casting outline
- * segments its vertices name, darkens by the shared profile of that distance
- * scaled to the segment's ledge height, and keeps the darkest. Evaluating the
- * field per fragment is what makes the shadow continuous along a split edge,
- * rounded at corners, single-valued where two bands would overlap, and
+ * segments its vertices name, darkens by the shared occlusion curve of that
+ * distance at the segment's ledge height, and keeps the darkest. Evaluating
+ * the field per fragment is what makes the shadow continuous along a split
+ * edge, rounded at corners, single-valued where two bands would overlap, and
  * confined to the receiving paper — everything a band of triangles per edge
  * could not be.
  *
@@ -29,7 +29,7 @@ precision highp float;
 attribute vec2 position;   // user coords
 attribute float aDepth;    // draw order in [0, 1], 0 farthest — see fillProgram
 attribute vec2 aEdgeRange; // first casting segment, count
-attribute vec2 aFalloff;   // one-sheet reach in user units, darkness at the edge
+attribute vec2 aFalloff;   // one sheet's thickness in user units, contact darkness
 uniform vec2 u_origin;
 uniform vec2 u_ex;
 uniform vec2 u_ey;
@@ -37,6 +37,7 @@ uniform vec2 u_viewport;
 varying vec2 vUser;
 varying vec2 vEdgeRange;
 varying vec2 vFalloff;
+varying float vPxPerUnit;  // device pixels per user unit, for the pixel floor
 void main() {
   vec2 dev = u_origin + position.x * u_ex + position.y * u_ey;
   vec2 clip = vec2(dev.x / u_viewport.x * 2.0 - 1.0, 1.0 - dev.y / u_viewport.y * 2.0);
@@ -44,6 +45,7 @@ void main() {
   vUser = position;
   vEdgeRange = aEdgeRange;
   vFalloff = aFalloff;
+  vPxPerUnit = length(u_ex);
 }`;
 
 const FRAG = `
@@ -51,6 +53,7 @@ precision highp float;
 varying vec2 vUser;
 varying vec2 vEdgeRange;
 varying vec2 vFalloff;
+varying float vPxPerUnit;
 uniform sampler2D u_edges;
 uniform vec2 u_edgeTexSize; // texels
 uniform vec2 u_edgeMin;     // user coords the packed 0 stands for
@@ -87,16 +90,17 @@ void main() {
   float start = floor(vEdgeRange.x + 0.5);
   float count = floor(vEdgeRange.y + 0.5);
   // Each ledge casts its own shadow; the fragment shows the darkest. For
-  // ledges of one height that is the nearest edge, as before; a taller ledge
-  // further away can win over a lower one nearby.
+  // ledges of one height that is the nearest edge; a taller ledge further
+  // away can win over a lower one nearby. A ledge too thin to resolve is
+  // widened to a pixel or two and lightened by as much (shadowLedgeBoost).
   float a = 0.0;
   for (int i = 0; i < MAX_SHADOW_EDGES; i++) {
     if (float(i) >= count) break;
     float texel = (start + float(i)) * 3.0;
     float d = segmentDistance(vUser, fetchPoint(texel), fetchPoint(texel + 1.0));
-    float ledge = fetchStep(texel + 2.0);
-    float reach = vFalloff.x * shadowStepReach(ledge);
-    a = max(a, vFalloff.y * shadowStepStrength(ledge) * shadowProfile(d, reach));
+    float height = shadowLedgeHeight(fetchStep(texel + 2.0), vFalloff.x);
+    float boost = shadowLedgeBoost(height * vPxPerUnit);
+    a = max(a, vFalloff.y / boost * shadowProfile(d, height * boost));
   }
   gl_FragColor = vec4(0.0, 0.0, 0.0, a); // premultiplied black
 }`;
