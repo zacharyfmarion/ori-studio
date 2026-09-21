@@ -5,7 +5,7 @@ import { FloatingToolbar } from '../../components/ui/FloatingToolbar';
 import { resolveCpViewportCanvas } from '../cpViewportCanvas';
 import { IconButton } from '../../components/ui/IconButton';
 import { MenuIconButton } from '../../components/ui/MenuIconButton';
-import { renderContextMenuItems } from '../../components/ui/ContextMenu';
+import { ContextMenuItems } from '../../components/ui/ContextMenu';
 import type { ContextMenuItem } from '../../components/ui/contextMenuTypes';
 import { useCanvasObjectAnchor } from '../canvasObjects/useCanvasObjectAnchor';
 import { foldedFigureBox } from '../adapters/cpFoldedToScene';
@@ -105,7 +105,7 @@ function ToolbarMenu({
           collisionPadding={8}
           loop
         >
-          {renderContextMenuItems(items)}
+          <ContextMenuItems items={items} />
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>

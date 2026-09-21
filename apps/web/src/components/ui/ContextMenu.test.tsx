@@ -467,6 +467,73 @@ describe('ContextMenu', () => {
       expect(shield()).toBeNull();
     });
 
+    /**
+     * jsdom has no `:open`, so the shield tests above run the engine-cannot-say
+     * path. This lends the input an engine that can: `matches(':open')`
+     * answers `showing`, everything else as before.
+     */
+    function lendPickerState() {
+      const state = { showing: false };
+      const matches = Element.prototype.matches;
+      vi.spyOn(HTMLInputElement.prototype, 'matches').mockImplementation(function (
+        this: Element,
+        selector: string
+      ) {
+        return selector === ':open' ? state.showing : matches.call(this, selector);
+      });
+      return state;
+    }
+
+    // A pick in WebKit's popover closes the popover, and the page hears
+    // nothing: no blur, no event. Left up, the shield would swallow the next
+    // press on the canvas.
+    it('takes the shield down when the engine reports the picker closed', () => {
+      vi.useFakeTimers();
+      try {
+        const engine = lendPickerState();
+        const item = renderColor();
+        engine.showing = true;
+        act(() => {
+          menuItems()[0]?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+        });
+        expect(shield()).not.toBeNull();
+        act(() => {
+          vi.advanceTimersByTime(500);
+        });
+        expect(shield()).not.toBeNull();
+        engine.showing = false;
+        act(() => {
+          vi.advanceTimersByTime(100);
+        });
+        expect(shield()).toBeNull();
+        // Nothing blurred the input, so nothing has committed yet: the next
+        // press, or the menu closing, does that as ever.
+        expect(document.activeElement).toBe(colorInput());
+        expect(item.onCommit).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+        vi.restoreAllMocks();
+      }
+    });
+
+    it('leaves the shield to the press when the picker never reports open', () => {
+      vi.useFakeTimers();
+      try {
+        lendPickerState();
+        renderColor();
+        act(() => {
+          menuItems()[0]?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+        });
+        act(() => {
+          vi.advanceTimersByTime(1000);
+        });
+        expect(shield()).not.toBeNull();
+      } finally {
+        vi.useRealTimers();
+        vi.restoreAllMocks();
+      }
+    });
+
     it('takes the shield down with the row', () => {
       renderColor();
       act(() => {
@@ -486,6 +553,95 @@ describe('ContextMenu', () => {
         menuItems()[0]?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
       });
       expect(showPicker).not.toHaveBeenCalled();
+    });
+
+    function hover(target: Element, type: 'pointermove' | 'pointerleave') {
+      act(() => {
+        target.dispatchEvent(
+          new PointerEvent(type, { bubbles: type === 'pointermove', pointerType: 'mouse' })
+        );
+      });
+    }
+
+    /** The colour row and a check row beside it, as an open menu. */
+    function renderColorBesideCheck(): [HTMLElement, HTMLElement] {
+      render(true, [
+        { kind: 'color', id: 'front', label: 'Front colour', value: '#ffff32', onChange: () => {}, onCommit: () => {} },
+        { kind: 'checkbox', id: 'shadow', label: 'Shadow', checked: true, onToggle: () => {} },
+      ]);
+      const [row, sibling] = document.querySelectorAll<HTMLElement>(
+        '[role="menuitem"], [role="menuitemcheckbox"]'
+      );
+      if (!row || !sibling) throw new Error('expected two rows');
+      return [row, sibling];
+    }
+
+    // Radix focuses a row on every mouse move over it, and the menu when the
+    // mouse leaves one. WebKit closes a colour picker the moment its input
+    // blurs, so in Safari the picker went away on the first mouse movement.
+    it('holds focus on the input while the picker is open, whatever the mouse does', () => {
+      const [row, sibling] = renderColorBesideCheck();
+      act(() => {
+        row.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      });
+      expect(document.activeElement).toBe(colorInput());
+
+      hover(row, 'pointermove');
+      expect(document.activeElement).toBe(colorInput());
+      hover(row, 'pointerleave');
+      expect(document.activeElement).toBe(colorInput());
+      // A neighbour too: a picker stays until it is dismissed, not until the
+      // mouse drifts over the next row.
+      hover(sibling, 'pointermove');
+      expect(document.activeElement).toBe(colorInput());
+      expect(shield()).not.toBeNull();
+    });
+
+    // The right-click menu keeps its colour rows in a Style submenu. One
+    // picker state per menu tree, not per list, or the parent's rows would
+    // still take focus while a submenu's picker is up.
+    it('holds focus for a picker opened inside a submenu, over the parent rows too', () => {
+      render(true, [
+        { kind: 'action', id: 'flip', label: 'Flip', onSelect: () => {} },
+        {
+          kind: 'submenu',
+          id: 'style',
+          label: 'Style',
+          items: [
+            { kind: 'color', id: 'front', label: 'Front colour', value: '#ffff32', onChange: () => {}, onCommit: () => {} },
+          ],
+        },
+      ]);
+      const [flip, trigger] = menuItems();
+      if (!flip || !trigger) throw new Error('expected two rows');
+      act(() => {
+        trigger.focus();
+        trigger.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true })
+        );
+      });
+      const row = document.querySelector<HTMLElement>('[role="menuitem"] .context-menu__swatch')?.closest<HTMLElement>('[role="menuitem"]');
+      if (!row) throw new Error('submenu did not open');
+      act(() => {
+        row.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      });
+      expect(document.activeElement).toBe(colorInput());
+      hover(row, 'pointerleave');
+      hover(flip, 'pointermove');
+      expect(document.activeElement).toBe(colorInput());
+    });
+
+    it('moves focus on hover again once the picker is closed', () => {
+      const [row, sibling] = renderColorBesideCheck();
+      act(() => {
+        row.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      });
+      act(() => {
+        colorInput().blur();
+      });
+      expect(shield()).toBeNull();
+      hover(sibling, 'pointermove');
+      expect(document.activeElement).toBe(sibling);
     });
   });
 });
