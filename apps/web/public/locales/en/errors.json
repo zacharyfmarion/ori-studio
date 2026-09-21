@@ -29,6 +29,9 @@
   "creasePattern": {
     "imageNotDecodable": "Ori Studio could not read {{name}} as an image. Try a PNG, JPEG, or WebP."
   },
+  "explori": {
+    "unrouted": "This build cannot reach the search service."
+  },
   "fileDrop": {
     "dialogOpen": "Finish the open dialog before dropping a file.",
     "imageNotHere": "Drop {{name}} onto the crease pattern to add it as a reference image.",

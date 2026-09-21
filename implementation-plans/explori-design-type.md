@@ -795,7 +795,7 @@ enums and bucketed numbers only. Proposed:
 | Event | Properties |
 | --- | --- |
 | `explori search` | `node_count_bucket`, `edge_count_bucket`, `db_config_count`, `result_limit`, `duration_ms_bucket`, `result_count_bucket`, `mirror_draw` |
-| `explori search failed` | `reason` (enum: `network`, `timeout`, `upstream_error`, `invalid_tree`, `rate_limited`) |
+| `explori search failed` | `reason` (enum: `network`, `timeout`, `unrouted`, `upstream_error`, `invalid_tree`, `rate_limited`; `unknown` for an error the service did not classify) |
 | `explori result opened` | `rank_bucket`, `quality` |
 | `explori sent to edit` | `source` (`card` \| `detail`), `quality` |
 

@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { arrayAt, installPolyfills } from './polyfills';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { abortSignalTimeout, arrayAt, installPolyfills } from './polyfills';
 
 describe('arrayAt', () => {
   const list = ['a', 'b', 'c'];
@@ -30,11 +30,38 @@ describe('arrayAt', () => {
   });
 });
 
+describe('abortSignalTimeout', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('is not aborted until the time is up, then is, with a TimeoutError', () => {
+    vi.useFakeTimers();
+    const signal = abortSignalTimeout(1000);
+    vi.advanceTimersByTime(999);
+    expect(signal.aborted).toBe(false);
+    vi.advanceTimersByTime(1);
+    expect(signal.aborted).toBe(true);
+    expect((signal.reason as DOMException).name).toBe('TimeoutError');
+  });
+});
+
 describe('installPolyfills', () => {
-  it('leaves an engine that has the built-in alone', () => {
-    const native = Array.prototype.at;
+  it('leaves an engine that has the built-ins alone', () => {
+    const nativeAt = Array.prototype.at;
+    const nativeTimeout = AbortSignal.timeout;
     installPolyfills();
-    expect(Array.prototype.at).toBe(native);
+    expect(Array.prototype.at).toBe(nativeAt);
+    expect(AbortSignal.timeout).toBe(nativeTimeout);
+  });
+
+  it('installs a non-enumerable `AbortSignal.timeout` where there is none', () => {
+    // Catalina's WebKit (Safari 15.6) has `AbortSignal` and not `timeout`; the
+    // ExplOri client calls it before every request.
+    const realm = { Array: { prototype: {} }, AbortSignal: {} as { timeout?: unknown } };
+    installPolyfills(realm);
+    expect(realm.AbortSignal.timeout).toBe(abortSignalTimeout);
+    expect(Object.keys(realm.AbortSignal)).not.toContain('timeout');
   });
 
   it('installs a non-enumerable `at` where there is none', () => {

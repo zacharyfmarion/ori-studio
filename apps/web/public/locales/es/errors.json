@@ -29,6 +29,9 @@
   "creasePattern": {
     "imageNotDecodable": "Ori Studio no pudo leer {{name}} como imagen. Prueba con PNG, JPEG o WebP."
   },
+  "explori": {
+    "unrouted": "Esta versión no puede conectarse al servicio de búsqueda."
+  },
   "fileDrop": {
     "dialogOpen": "Termina el diálogo abierto antes de soltar un archivo.",
     "imageNotHere": "Suelta {{name}} sobre el patrón de pliegues para añadirlo como imagen de referencia.",
