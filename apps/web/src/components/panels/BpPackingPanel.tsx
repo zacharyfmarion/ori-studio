@@ -1616,35 +1616,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
               )}
             </g>
             {layers.conflicts && (
-              // Conflict fills sit *under* the creases, rivers and flaps, so an
-              // overlap never hides the geometry you need in order to fix it.
-              // (Box Pleating Studio draws its `Layer.junction` above them; on
-              // our canvas the fill obscured the creases, so this deviates
-              // deliberately.) Clipped to the sheet and non-interactive — the
-              // hit targets are a separate group below the flap shades.
-              <g className="bp-packing-conflicts" clipPath={sheetClipPath} aria-hidden="true">
-                {conflictVisuals.map((visual) => (
-                  <g
-                    key={visual.junction.id}
-                    className={
-                      visual.active
-                        ? 'bp-packing-conflict-group bp-packing-conflict--selected'
-                        : 'bp-packing-conflict-group'
-                    }
-                  >
-                    {visual.paths.map((path, index) => (
-                      <path
-                        key={`${visual.junction.id}:${index}`}
-                        className="bp-packing-conflict"
-                        d={path.d}
-                        strokeWidth={path.strokeWidth}
-                      />
-                    ))}
-                  </g>
-                ))}
-              </g>
-            )}
-            {layers.conflicts && (
               // Hit targets only — the conflict graphics render above the flaps (see
               // below), but the click targets stay under the flap shades so a flap
               // stays selectable where a conflict region overlaps it.
@@ -1868,6 +1839,39 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                 ) : null
               )}
             </g>
+            {layers.conflicts && (
+              // Box Pleating Studio's `Layer.junction`: above the shade, hinge,
+              // ridge and axis-parallel layers, so a conflict is painted over the
+              // flap outlines it sits between. A hairline overlap is a lens whose
+              // two edges *are* those outlines; drawn underneath them (9c4ff55b2)
+              // it had nothing left to show. The fill is translucent, so the
+              // creases still read through it. Clipped to the sheet and
+              // non-interactive — the hit targets are the group above, under the
+              // flap shades, so a flap stays selectable where a conflict overlaps
+              // it. Dots and labels are drawn with their flap, so they sit under
+              // this layer rather than over it as upstream's do.
+              <g className="bp-packing-conflicts" clipPath={sheetClipPath} aria-hidden="true">
+                {conflictVisuals.map((visual) => (
+                  <g
+                    key={visual.junction.id}
+                    className={
+                      visual.active
+                        ? 'bp-packing-conflict-group bp-packing-conflict--selected'
+                        : 'bp-packing-conflict-group'
+                    }
+                  >
+                    {visual.paths.map((path, index) => (
+                      <path
+                        key={`${visual.junction.id}:${index}`}
+                        className="bp-packing-conflict"
+                        d={path.d}
+                        strokeWidth={path.strokeWidth}
+                      />
+                    ))}
+                  </g>
+                ))}
+              </g>
+            )}
             {/* Selection chrome, so above every geometry layer and outside the
                 sheet clip — a corner flap's handles must not be masked away. */}
             {flapResize.flap && (

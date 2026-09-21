@@ -434,21 +434,34 @@ describe('BP packing pane — empty space', () => {
   });
 });
 
-describe('BP packing pane — conflict fills sit behind the geometry', () => {
-  it('paints conflicts before the rivers, flaps and creases', () => {
+describe('BP packing pane — conflicts paint over the geometry, like Layer.junction', () => {
+  it('paints conflicts after the flaps and their shades', () => {
+    // Box Pleating Studio's junction layer sits above shade, hinge, ridge and
+    // axis-parallels. A hairline lens's two edges are the two flap outlines, so
+    // painted underneath them (9c4ff55b2) it had nothing left to show.
     const host = renderPacking();
     const canvas = host.querySelector('.bp-packing-canvas');
     expect(canvas).not.toBeNull();
     const order = [...canvas!.children].map((child) => child.getAttribute('class') ?? '');
     const conflicts = order.findIndex((c) => c.includes('bp-packing-conflicts'));
     expect(conflicts).toBeGreaterThanOrEqual(0);
-    // SVG paints in document order, so "behind" means "earlier". Compare against
+    // SVG paints in document order, so "over" means "later". Compare against
     // whichever geometry layers this fixture actually renders.
     const geometry = ['bp-packing-flaps', 'bp-packing-flap-shades']
       .map((name) => order.findIndex((c) => c.includes(name)))
       .filter((index) => index >= 0);
     expect(geometry.length).toBeGreaterThan(0);
-    for (const index of geometry) expect(conflicts).toBeLessThan(index);
+    for (const index of geometry) expect(conflicts).toBeGreaterThan(index);
+  });
+
+  it('keeps the hit targets under the flap shades, so a flap stays selectable there', () => {
+    const host = renderPacking();
+    const canvas = host.querySelector('.bp-packing-canvas');
+    const order = [...canvas!.children].map((child) => child.getAttribute('class') ?? '');
+    const hits = order.findIndex((c) => c.includes('bp-packing-conflict-hits'));
+    const shades = order.findIndex((c) => c.includes('bp-packing-flap-shades'));
+    expect(hits).toBeGreaterThanOrEqual(0);
+    expect(shades).toBeGreaterThan(hits);
   });
 
   it('fades the conflict layer once, so overlaps cannot compound to opaque', () => {

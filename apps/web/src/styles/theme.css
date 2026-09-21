@@ -8104,10 +8104,15 @@ button.cp-folded-figure-toolbar__notice:hover {
  * an AlphaFilter to `Layer.junction` itself (layout.ts), so overlapping
  * junctions flatten first and then fade together. Fading each group separately
  * compounds (two at 0.6 read as 0.84, three as 0.94) until the fill is opaque
- * and hides the creases underneath.
+ * and hides the creases underneath. The values are `styleService.junction.alpha`:
+ * 0.6 on a dark canvas, 0.4 on a light one.
  */
 .bp-packing-conflicts {
-  opacity: 0.55;
+  opacity: 0.6;
+}
+
+:root[data-theme-type='light'] .bp-packing-conflicts {
+  opacity: 0.4;
 }
 
 .bp-packing-conflict {
