@@ -10,6 +10,7 @@ import { handleShortcutRuntimeKeyDown } from '../../keyboard/shortcutRuntime';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { DEFAULT_BP_PACKING_VIEW_LAYERS } from '../../lib/oristudioBpViewportSettings';
+import { bpPackingPaperRect, bpPackingUnitToSvg } from '../../lib/bpPackingViewport';
 import { bpFlapSelection } from '../../lib/oristudioBpSelection';
 import { TooltipProvider } from '../ui/Tooltip';
 import { BpPackingPanel } from './BpPackingPanel';
@@ -23,6 +24,9 @@ import { BpPackingPanel } from './BpPackingPanel';
  * drag. Selection here is by pointer; the pane's keyboard actions (nudge) live
  * on the container, which is focusable via tabIndex={-1} without drawing a ring.
  */
+
+/** The zoom the mocked camera reports on mount; a test may set it before rendering. */
+const mockCamera = vi.hoisted(() => ({ scale: 1 }));
 
 vi.mock('react-zoom-pan-pinch', async () => {
   const React = await import('react');
@@ -43,7 +47,7 @@ vi.mock('react-zoom-pan-pinch', async () => {
         if (didInit.current) return;
         didInit.current = true;
         onInit?.(api);
-        onTransformed?.(api, { scale: 1 });
+        onTransformed?.(api, { scale: mockCamera.scale });
       }, [onInit, onTransformed]);
       return React.createElement('div', null, children);
     }),
@@ -300,6 +304,7 @@ afterEach(() => {
   container?.remove();
   root = null;
   container = null;
+  mockCamera.scale = 1;
   vi.unstubAllGlobals();
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
 });
@@ -490,17 +495,76 @@ describe('BP packing pane — conflicts never paint outside a flap', () => {
     }
   });
 
-  it('leaves a legible conflict unstroked, so its tips stay sharp', () => {
+  it('strokes a narrow lens 2 / narrowness screen pixels, as Box Pleating Studio does', () => {
     const host = renderPacking();
     const paths = [...host.querySelectorAll('.bp-packing-conflict')];
     expect(paths.length).toBeGreaterThan(0);
-    // This region renders ~6.6px thick — plainly visible. A stroke would be
-    // centred on its outline, and clipping that to the flap truncates the
-    // region's tips, blunting points that should be sharp.
+    // Both lenses in the fixture have narrowness 0.385, just under upstream's
+    // 0.4 threshold: `Junction.$draw` gives them a 2 / 0.385 ≈ 5.2px outline.
     for (const path of paths) {
       const width = Number(path.getAttribute('stroke-width') ?? '0');
-      expect(width).toBe(0);
+      expect(width).toBeGreaterThan(5.1);
+      expect(width).toBeLessThan(5.3);
     }
+  });
+
+  it('writes the stroke in SVG units, so it stays the same size on screen as you zoom', () => {
+    // The camera is a CSS transform outside the <svg>. `non-scaling-stroke`
+    // does not counter that, so a width meant as screen pixels has to be
+    // divided by the zoom before it goes on the attribute.
+    mockCamera.scale = 2;
+    const host = renderPacking();
+    const paths = [...host.querySelectorAll('.bp-packing-conflict')];
+    expect(paths.length).toBeGreaterThan(0);
+    for (const path of paths) {
+      const width = Number(path.getAttribute('stroke-width') ?? '0');
+      expect(width).toBeGreaterThan(2.55);
+      expect(width).toBeLessThan(2.65);
+    }
+  });
+
+  /**
+   * stretched-flap-hairline-overlap.sample.json: a lens 0.056 units thick,
+   * narrowness ≈ 0.112, which upstream strokes 2 / 0.112 ≈ 18px — capped at
+   * ProjectService.scale, one grid unit on screen. Invisible without it.
+   */
+  const hairline = (document_: OristudioBpDocumentState) => {
+    document_.snapshot.packing.invalidJunctions = [
+      {
+        id: '5,7',
+        flapIds: [5, 7],
+        riverIds: [],
+        paths: [
+          [
+            { x: 8.77220486043289, y: 6.3305902791342215, arc: { x: 8.50561797752809, y: 6.752808988764045 }, r: 5 },
+            { x: 8.32779513956711, y: 7.219409720865778, arc: { x: 8.605633802816902, y: 6.802816901408451 }, r: 4 },
+          ],
+        ],
+        overlap: 0.0557,
+        message: 'Flaps 5 and 7 overlap by 0.056',
+      },
+    ];
+  };
+  const conflictStrokeWidth = (host: HTMLElement) => {
+    const path = host.querySelector('.bp-packing-conflict');
+    expect(path).not.toBeNull();
+    return Number(path!.getAttribute('stroke-width') ?? '0');
+  };
+
+  it('turns a hairline overlap into an ~18px bar', () => {
+    const width = conflictStrokeWidth(renderPacking(hairline));
+    expect(width).toBeGreaterThan(17.5);
+    expect(width).toBeLessThan(18);
+  });
+
+  it('caps that bar at one grid cell on screen when zoomed out', () => {
+    // A cell of this 16-unit sheet is 38.25 SVG units; at a quarter zoom that
+    // is 9.6px on screen, under the 18px the rule asks for, so the cap binds —
+    // and written in SVG units, a one-cell stroke is one cell whatever the zoom.
+    mockCamera.scale = 0.25;
+    const cell = bpPackingUnitToSvg(sheet, bpPackingPaperRect(sheet));
+    expect(cell * mockCamera.scale).toBeLessThan(17.5);
+    expect(conflictStrokeWidth(renderPacking(hairline))).toBeCloseTo(cell, 6);
   });
 
   it('paints a conflict path that stays on its flap circle', () => {

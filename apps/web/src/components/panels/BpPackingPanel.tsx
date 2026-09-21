@@ -63,7 +63,7 @@ import {
   toggleBpRiverSelection,
 } from '../../lib/oristudioBpSelection';
 import {
-  bpArcPathThickness,
+  bpConflictStrokePx,
   bpArcPathToSvgPath,
   bpPackingFlapClearanceRect,
   bpPackingGridLines,
@@ -895,31 +895,28 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     [document.snapshot.diagnostics]
   );
   const conflictVisuals = useMemo(() => {
-    const thicknessPx = (thickness: number | null): number | null =>
-      thickness === null ? null : thickness * unit * (zoomPercent / 100);
+    const cameraScale = zoomPercent / 100;
     return packing.invalidJunctions.map((junction) => ({
-        junction,
-        active: linkedSelection.invalidJunctions.has(junction.id),
-        paths: junction.paths.map((path) => ({
-          d: bpArcPathToSvgPath(path, packing.sheet, paperRect),
-          strokeWidth: conflictStrokeWidth(
-            // Rendered thickness: grid units → SVG units → screen pixels.
-            thicknessPx(bpArcPathThickness(path)),
-            // Screen pixels per grid cell: SVG user units scaled by the camera.
-            unit * (zoomPercent / 100)
-          ),
-        })),
+      junction,
+      active: linkedSelection.invalidJunctions.has(junction.id),
+      paths: junction.paths.map((path) => ({
+        d: bpArcPathToSvgPath(path, packing.sheet, paperRect),
+        // The rule is in screen pixels; the attribute is in SVG units. The
+        // camera is a CSS transform outside the <svg>, which
+        // `vector-effect: non-scaling-stroke` does not counter, so the
+        // conversion is explicit — as `BpFlapResizeHandles` sizes its handles.
+        strokeWidth: bpConflictStrokePx(path, unit * cameraScale) / cameraScale,
+      })),
     }));
   }, [
-      linkedSelection.invalidJunctions,
-      packing.invalidJunctions,
-      packing.sheet,
-      paperRect,
-      unit,
-      // The stroke is in screen pixels, so it has to be recomputed as you zoom.
-      zoomPercent,
-    ]
-  );
+    linkedSelection.invalidJunctions,
+    packing.invalidJunctions,
+    packing.sheet,
+    paperRect,
+    unit,
+    // The stroke is in screen pixels, so it has to be recomputed as you zoom.
+    zoomPercent,
+  ]);
   useBpPatternNotFoundEvent(packing.stretches);
   const patternlessVisuals = useMemo(
     () =>
@@ -2050,33 +2047,6 @@ function BpPackingAlerts({
       )}
     </div>
   );
-}
-
-/**
- * Smallest a conflict region may render before it needs help to be seen, in
- * screen pixels.
- */
-const MIN_CONFLICT_VISIBLE_PX = 2.5;
-
-/**
- * Stroke width for a conflict outline, in screen pixels — 0 for anything already
- * thick enough to read as a filled shape.
- *
- * Box Pleating Studio strokes the outline when `narrowness` (the ratio of the
- * arcs' anchor span to their chord) falls under a threshold, at width
- * `2 / narrowness` (`Junction.$draw`). That ratio is a proxy for "this is too
- * thin to see"; we measure the thing itself, because the stroke has a cost the
- * ratio can't account for.
- *
- * The cost: the stroke is centred on the region's outline, and that outline's
- * outer edge *is* the flap circle. Clipping it to the flap (which is what keeps
- * it from painting outside) then truncates it at the region's tips, blunting
- * points that should be sharp. So stroke only what would otherwise be invisible,
- * and only by enough to reach that floor.
- */
-function conflictStrokeWidth(thicknessPx: number | null, cellPx: number): number {
-  if (thicknessPx === null || thicknessPx >= MIN_CONFLICT_VISIBLE_PX) return 0;
-  return Math.min(MIN_CONFLICT_VISIBLE_PX - thicknessPx, cellPx);
 }
 
 /**

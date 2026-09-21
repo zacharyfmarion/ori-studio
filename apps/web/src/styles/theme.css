@@ -8092,8 +8092,9 @@ button.cp-folded-figure-toolbar__notice:hover {
 }
 
 /* Box Pleating Studio's junction layer: one solid colour for both fill and stroke,
-   translucent as a whole, with the stroke width set per path by the renderer and kept
-   in screen pixels. */
+   translucent as a whole, with the stroke width set per path by the renderer. The
+   renderer converts it from screen pixels itself — the camera is a CSS transform
+   outside the <svg>, which `vector-effect: non-scaling-stroke` does not counter. */
 .bp-packing-conflicts {
   pointer-events: none;
 }
@@ -8113,7 +8114,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   fill: var(--bp-junction);
   stroke: var(--bp-junction);
   stroke-linejoin: bevel;
-  vector-effect: non-scaling-stroke;
 }
 
 /* Selected conflicts read fully saturated against the faded layer. */
