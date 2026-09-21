@@ -11,7 +11,10 @@ use crate::geometry::{
 use crate::model::CreasePatternModel;
 use crate::operations::arrangement::divide_intersections;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt};
+use std::{
+    collections::{BTreeMap, BTreeSet, HashMap},
+    fmt,
+};
 
 #[allow(clippy::approx_constant)]
 const ORIEDITA_DEGREES_TO_RADIANS: f64 = 3.14159265 / 180.0;
@@ -415,24 +418,6 @@ pub enum OrieditaFoldedFigureCameraTarget {
     TransparentRear,
 }
 
-/// Which shadow-band geometry the paper renderer draws.
-///
-/// Oriedita's Java2D drawer derives the shadow's offset length from
-/// `getBegin(lineId)` — the 1-based *point id* — used as an x-coordinate
-/// (`FoldedFigure_Worker_Drawer.java`). The band width therefore comes out as
-/// `SHADOW_OFFSET · edgeLength / unrelatedNumber` rather than the constant
-/// `SHADOW_OFFSET` the surrounding code reads as intending, which makes a
-/// figure's bands vary several-fold in width with no relation to the light.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum FoldedShadowGeometry {
-    /// Constant-width bands: the offset uses the edge's true length.
-    #[default]
-    Refined,
-    /// The upstream arithmetic reproduced verbatim, for oracle parity.
-    OrieditaExact,
-}
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct FoldedFigureRenderOptions {
@@ -443,7 +428,6 @@ pub struct FoldedFigureRenderOptions {
     pub selected_flat_point_indices: Vec<usize>,
     pub selected_folded_point_indices: Vec<usize>,
     pub custom_constraints: Vec<OrieditaCustomConstraint>,
-    pub shadow_geometry: FoldedShadowGeometry,
 }
 
 impl Default for FoldedFigureRenderOptions {
@@ -456,7 +440,6 @@ impl Default for FoldedFigureRenderOptions {
             selected_flat_point_indices: Vec::new(),
             selected_folded_point_indices: Vec::new(),
             custom_constraints: Vec::new(),
-            shadow_geometry: FoldedShadowGeometry::default(),
         }
     }
 }
@@ -539,6 +522,38 @@ pub enum FoldedFigureRenderPaint {
     Other {
         class_name: String,
     },
+    /// A soft shadow over the paper this primitive covers, cast by the layers
+    /// nearer the viewer. The renderer evaluates it as a function of the
+    /// distance to the nearest `occluder_edges` segment, so it stays inside the
+    /// primitive's geometry and reads as one continuous band however many
+    /// lines the casting edge is split into. See [`ShadowRegion`].
+    ///
+    /// **Ori Studio native.** Oriedita fills one gradient rectangle per
+    /// subface-graph line instead (`FoldedFigure_Worker_Drawer`); that shape
+    /// spills off narrow receivers, ends square at every corner and compounds
+    /// where two rectangles overlap, so it was replaced rather than ported.
+    LayerShadow {
+        /// How far the shadow of a one-sheet ledge reaches from its edge, in
+        /// the primitive's coordinate units; a taller ledge reaches further
+        /// (`FoldedFigureRenderEdge::step`).
+        width: f64,
+        /// Darkness at the casting edge, as a fraction of black.
+        strength: f64,
+        /// Outline segments of every casting layer.
+        occluder_edges: Vec<FoldedFigureRenderEdge>,
+    },
+}
+
+/// One segment of a casting layer's outline, in the primitive's coordinates.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct FoldedFigureRenderEdge {
+    pub from: Point,
+    pub to: Point,
+    /// How many sheets thick the ledge along this segment is: the layers
+    /// stacked in the casting cell beyond those in the cell across the line,
+    /// never below one. A single flap edge is `1`; the side of a many-layer
+    /// stack is that many, and casts a wider shadow.
+    pub step: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2377,11 +2392,8 @@ pub fn folded_figure_paper_front_render_snapshot_from_segments(
 
 /// Paper-style render of a fold, in a single pass, for oracle comparison.
 ///
-/// Shadows use [`FoldedShadowGeometry::OrieditaExact`]: this entry point exists
-/// to be diffed against the Oriedita render oracle, so it has to reproduce
-/// upstream's shadow-width quirk rather than the product's corrected geometry.
 /// The renderer the app drives is `folded_figure_render_snapshot_from_segments`,
-/// which takes [`FoldedFigureRenderOptions`] and defaults to `Refined`.
+/// which takes [`FoldedFigureRenderOptions`].
 pub fn folded_figure_paper_render_snapshot_from_segments(
     segments: &[LineSegment],
     starting_face_id: i32,
@@ -2403,7 +2415,7 @@ pub fn folded_figure_paper_render_snapshot_from_segments(
     if !overlap.found {
         return Ok(None);
     }
-    let Some(pass_name) = paper_render_pass_name(model.state, model.display_shadows) else {
+    let Some(pass_name) = paper_render_pass_name(model.state) else {
         return Ok(None);
     };
 
@@ -2419,7 +2431,6 @@ pub fn folded_figure_paper_render_snapshot_from_segments(
             &overlap.hierarchy,
             &model,
             &[],
-            FoldedShadowGeometry::OrieditaExact,
         ),
     }))
 }
@@ -2587,7 +2598,6 @@ fn render_snapshot_impl(
             &model,
             &options.custom_constraints,
             front,
-            options.shadow_geometry,
             &mut render_state,
             &mut primitives,
         );
@@ -2612,7 +2622,6 @@ fn render_snapshot_impl(
             &model,
             &options.custom_constraints,
             rear,
-            options.shadow_geometry,
             &mut render_state,
             &mut primitives,
         );
@@ -3024,8 +3033,10 @@ impl OrieditaRenderCamera {
         recorded_point(self.object_to_tv_raw(point))
     }
 
-    fn object_to_tv_gradient(self, point: Point) -> Point {
-        recorded_float_point(self.object_to_tv_raw(point))
+    /// Length in view units of one object unit — the zoom, which is the same
+    /// on both axes for every camera built here.
+    fn object_scale(self) -> f64 {
+        self.zoom_x.abs()
     }
 
     fn object_to_tv_raw(self, point: Point) -> Point {
@@ -3077,13 +3088,6 @@ fn recorded_point(point: Point) -> Point {
     Point::new(recorded_f64(point.x), recorded_f64(point.y))
 }
 
-fn recorded_float_point(point: Point) -> Point {
-    Point::new(
-        recorded_f64(point.x as f32 as f64),
-        recorded_f64(point.y as f32 as f64),
-    )
-}
-
 fn recorded_f64(value: f64) -> f64 {
     if value.is_finite() {
         (value * 1_000_000_000.0).round() / 1_000_000_000.0
@@ -3127,15 +3131,12 @@ impl Default for OrieditaRenderState {
     }
 }
 
-fn paper_render_pass_name(state: FoldedFigureState, shadows: bool) -> Option<&'static str> {
-    match (state, shadows) {
-        (FoldedFigureState::Front0, false) => Some("paper-front"),
-        (FoldedFigureState::Back1, false) => Some("paper-back"),
-        (FoldedFigureState::Both2, false) => Some("paper-both"),
-        (FoldedFigureState::Front0, true) => Some("paper-front-shadows"),
-        (FoldedFigureState::Back1, true) => Some("paper-back-shadows"),
-        (FoldedFigureState::Both2, true) => Some("paper-both-shadows"),
-        (FoldedFigureState::Transparent3, _) => None,
+fn paper_render_pass_name(state: FoldedFigureState) -> Option<&'static str> {
+    match state {
+        FoldedFigureState::Front0 => Some("paper-front"),
+        FoldedFigureState::Back1 => Some("paper-back"),
+        FoldedFigureState::Both2 => Some("paper-both"),
+        FoldedFigureState::Transparent3 => None,
     }
 }
 
@@ -3228,7 +3229,6 @@ fn paper_render_primitives(
     hierarchy: &InitialHierarchy,
     model: &FoldedFigureModel,
     custom_constraints: &[OrieditaCustomConstraint],
-    shadow_geometry: FoldedShadowGeometry,
 ) -> Vec<FoldedFigureRenderPrimitive> {
     let hierarchy = HierarchyTable::from_initial(hierarchy);
     let mut primitives = Vec::new();
@@ -3247,7 +3247,6 @@ fn paper_render_primitives(
             model,
             custom_constraints,
             pass,
-            shadow_geometry,
             &mut render_state,
             &mut primitives,
         );
@@ -3446,7 +3445,6 @@ fn push_folded_display_style_pass_primitives(
     model: &FoldedFigureModel,
     custom_constraints: &[OrieditaCustomConstraint],
     pass: OrieditaPaperRenderPass,
-    shadow_geometry: FoldedShadowGeometry,
     render_state: &mut OrieditaRenderState,
     primitives: &mut Vec<FoldedFigureRenderPrimitive>,
 ) {
@@ -3475,7 +3473,6 @@ fn push_folded_display_style_pass_primitives(
                 model,
                 custom_constraints,
                 pass,
-                shadow_geometry,
                 render_state,
                 primitives,
             );
@@ -3958,7 +3955,6 @@ fn push_paper_render_pass_primitives(
     model: &FoldedFigureModel,
     custom_constraints: &[OrieditaCustomConstraint],
     pass: OrieditaPaperRenderPass,
-    shadow_geometry: FoldedShadowGeometry,
     render_state: &mut OrieditaRenderState,
     primitives: &mut Vec<FoldedFigureRenderPrimitive>,
 ) {
@@ -3997,7 +3993,6 @@ fn push_paper_render_pass_primitives(
             subfaces,
             hierarchy,
             pass,
-            shadow_geometry,
             render_state,
             primitives,
         );
@@ -4044,218 +4039,214 @@ fn push_paper_render_pass_primitives(
     push_custom_constraint_primitives(custom_constraints, pass, render_state, primitives);
 }
 
-/// How far a shadow band reaches from its edge, in object units (Oriedita's `10.0`).
+/// How far a layer's shadow reaches across the paper beneath it, in object
+/// units (Oriedita's `10.0`).
 const SHADOW_OFFSET: f64 = 10.0;
+/// How dark the shadow is where it meets the casting edge (Oriedita's
+/// `new Color(0, 0, 0, 50)`), as a fraction of black.
+const SHADOW_STRENGTH: f64 = 50.0 / 255.0;
+
+/// The paper one visible face covers in a pass, and the layers that cast onto
+/// it.
+///
+/// The subfaces showing the same face — the cells between drawn paper edges —
+/// form the region; every face that meets it along a line and that the layer
+/// order puts nearer the viewer is an occluder. The shadow is a property of
+/// the receiving region, evaluated by the renderer from the distance to its
+/// occluders' outlines, which is what keeps it inside that region, continuous
+/// along a ledge however many lines the subface graph cuts the ledge into, and
+/// rounded where the ledge turns.
+///
+/// The outline is every line of the occluder, not only the lines it shares
+/// with the receiver: where a flap's edge runs across the receiver's boundary
+/// the shadow has to keep its full width right up to that boundary rather
+/// than rounding off at the last shared vertex. Lines of the outline that lie
+/// elsewhere are never the nearest to a point of the receiver — any point of
+/// the region is at least as close to the boundary it shares with the
+/// occluder — so including them changes nothing there.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ShadowRegion {
+    /// The visible face receiving the shadow.
+    face: usize,
+    /// Every subface showing that face, in subface order.
+    subfaces: Vec<usize>,
+    /// The faces casting onto it, ascending.
+    occluders: Vec<usize>,
+    /// Subface-graph lines on the outline of any occluder, ascending by line
+    /// and without repeats, each with the height of the ledge it forms.
+    occluder_lines: Vec<ShadowLine>,
+}
+
+/// A line of a casting face's outline and how tall a step it is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ShadowLine {
+    line: usize,
+    /// Sheets in the cell on the casting face's side beyond those in the cell
+    /// on the other side — the physical height of the ledge, at least one. A
+    /// line the two casting faces of one region share is counted from whichever
+    /// side is taller.
+    step: u32,
+}
+
+/// Which of two faces meeting along a line is nearer the viewer, as
+/// `(occluder, receiver)`, or `None` when the layer order does not relate
+/// them — two flaps side by side cast nothing on each other, as upstream.
+///
+/// The hierarchy's `Above` means nearer the front. The rear pass looks at the
+/// figure from behind, so the layer it sees on top is the hierarchy's lower
+/// one.
+fn viewer_order(
+    hierarchy: &HierarchyTable,
+    first: usize,
+    second: usize,
+    flipped: bool,
+) -> Option<(usize, usize)> {
+    let (upper, lower) = match hierarchy.get(first, second)? {
+        FaceOrder::Above => (first, second),
+        FaceOrder::Below => (second, first),
+    };
+    Some(if flipped {
+        (lower, upper)
+    } else {
+        (upper, lower)
+    })
+}
+
+/// Every region of a pass that receives a shadow, in ascending face order.
+fn shadow_regions(
+    subface_graph: &FoldGraph,
+    subfaces: &SubFaceConfiguration,
+    hierarchy: &HierarchyTable,
+    flipped: bool,
+) -> Vec<ShadowRegion> {
+    // `None` is a hole: a cell of the subface graph no face covers.
+    let visible = (0..subface_graph.faces.len())
+        .map(|subface| visible_subface_face(subface, subfaces, hierarchy, flipped))
+        .collect::<Vec<_>>();
+    let visible_at = |subface: usize| visible.get(subface).copied().flatten();
+
+    // Sheets stacked in a cell; the table, past the outer edge, holds none.
+    let layers = |cell: Option<usize>| {
+        cell.and_then(|cell| subfaces.subfaces.get(cell))
+            .map_or(0, |subface| subface.face_ids.len())
+    };
+
+    let mut outlines: BTreeMap<usize, Vec<ShadowLine>> = BTreeMap::new();
+    let mut occluders: BTreeMap<usize, BTreeSet<usize>> = BTreeMap::new();
+    for line in 0..subface_graph.lines.len() {
+        let Some((first, second)) = subface_graph.line_face_border(line) else {
+            continue;
+        };
+        // A line bordering one cell is the figure's outer edge: `(f, f)`.
+        let (first, second) = (Some(first), (first != second).then_some(second));
+        let one_side = first.and_then(visible_at);
+        let other_side = second.and_then(visible_at);
+        if one_side == other_side {
+            continue;
+        }
+        for (face, cell, across) in [(one_side, first, second), (other_side, second, first)] {
+            let Some(face) = face else {
+                continue;
+            };
+            let step = layers(cell).saturating_sub(layers(across)).max(1);
+            outlines.entry(face).or_default().push(ShadowLine {
+                line,
+                step: u32::try_from(step).unwrap_or(u32::MAX),
+            });
+        }
+        let (Some(one_side), Some(other_side)) = (one_side, other_side) else {
+            continue;
+        };
+        if let Some((occluder, receiver)) = viewer_order(hierarchy, one_side, other_side, flipped) {
+            occluders.entry(receiver).or_default().insert(occluder);
+        }
+    }
+
+    occluders
+        .into_iter()
+        .map(|(face, occluding)| {
+            let mut by_line: BTreeMap<usize, u32> = BTreeMap::new();
+            for shadow_line in occluding
+                .iter()
+                .flat_map(|occluder| outlines.get(occluder).into_iter().flatten())
+            {
+                let step = by_line.entry(shadow_line.line).or_default();
+                *step = (*step).max(shadow_line.step);
+            }
+            let occluder_lines = by_line
+                .into_iter()
+                .map(|(line, step)| ShadowLine { line, step })
+                .collect();
+            ShadowRegion {
+                face,
+                subfaces: (0..subface_graph.faces.len())
+                    .filter(|subface| visible_at(*subface) == Some(face))
+                    .collect(),
+                occluders: occluding.into_iter().collect(),
+                occluder_lines,
+            }
+        })
+        .collect()
+}
 
 fn push_paper_shadow_primitives(
     subface_graph: &FoldGraph,
     subfaces: &SubFaceConfiguration,
     hierarchy: &HierarchyTable,
     pass: OrieditaPaperRenderPass,
-    geometry: FoldedShadowGeometry,
     render_state: &OrieditaRenderState,
     primitives: &mut Vec<FoldedFigureRenderPrimitive>,
 ) {
-    for line_index in 0..subface_graph.lines.len() {
-        let Some(shadow_subface) =
-            shadow_subface_for_line(line_index, subface_graph, subfaces, hierarchy, pass.flipped)
-        else {
-            continue;
-        };
-        let Some(line) = subface_graph.lines.get(line_index).copied() else {
-            continue;
-        };
-        let Some(begin) = subface_graph.points.get(line.begin).copied() else {
-            continue;
-        };
-        let Some(end) = subface_graph.points.get(line.end).copied() else {
-            continue;
-        };
-        let length = match geometry {
-            // `(begin.x - end.x, begin.y - end.y)` rotated a quarter turn has the
-            // edge's length, so dividing by that length is what makes the offset
-            // a constant SHADOW_OFFSET across every band.
-            FoldedShadowGeometry::Refined => begin.distance(end),
-            // Oriedita's Java2D drawer accidentally uses getBegin(lineId), the
-            // 1-based point id, as the x-coordinate when computing shadow length.
-            // The rectangle coordinates still use the real point coordinates.
-            FoldedShadowGeometry::OrieditaExact => {
-                Point::new((line.begin + 1) as f64, begin.y).distance(end)
-            }
-        };
-        if length == 0.0 {
-            continue;
-        }
-
-        let offset = Point::new(
-            -(begin.y - end.y) * SHADOW_OFFSET / length,
-            (begin.x - end.x) * SHADOW_OFFSET / length,
-        );
-        let reverse_offset = Point::new(-offset.x, -offset.y);
-        let midpoint = Point::new((begin.x + end.x) / 2.0, (begin.y + end.y) / 2.0);
-        if shadow_offset_inside(subface_graph, shadow_subface, midpoint, offset, geometry) {
-            push_shadow_rectangle(
-                begin,
-                end,
-                offset,
-                midpoint,
-                midpoint.move_by(offset),
-                pass,
-                render_state,
-                primitives,
-            );
-        }
-
-        if shadow_offset_inside(
-            subface_graph,
-            shadow_subface,
-            midpoint,
-            reverse_offset,
-            geometry,
-        ) {
-            push_shadow_rectangle(
-                begin,
-                end,
-                reverse_offset,
-                begin,
-                begin.move_by(reverse_offset),
-                pass,
-                render_state,
-                primitives,
-            );
-        }
-    }
-}
-
-fn shadow_subface_for_line(
-    line_index: usize,
-    subface_graph: &FoldGraph,
-    subfaces: &SubFaceConfiguration,
-    hierarchy: &HierarchyTable,
-    flipped: bool,
-) -> Option<usize> {
-    let (first, second) = subface_graph.line_face_border(line_index)?;
-    let first_count = subfaces
-        .subfaces
-        .get(first)
-        .map(|subface| subface.face_ids.len())
-        .unwrap_or(0);
-    let second_count = subfaces
-        .subfaces
-        .get(second)
-        .map(|subface| subface.face_ids.len())
-        .unwrap_or(0);
-    if first_count == 0 || second_count == 0 || first == second {
-        return None;
-    }
-
-    let first_visible = visible_subface_face(first, subfaces, hierarchy, flipped)?;
-    let second_visible = visible_subface_face(second, subfaces, hierarchy, flipped)?;
-    if first_visible == second_visible {
-        return None;
-    }
-
-    let mut target = first;
-    match hierarchy.get(first_visible, second_visible)? {
-        FaceOrder::Above => target = second,
-        FaceOrder::Below => {}
-    }
-
-    if flipped {
-        if target == first {
-            Some(second)
-        } else {
-            Some(first)
-        }
-    } else {
-        Some(target)
-    }
-}
-
-/// How far off an edge to sample when asking which side its subface lies on.
-///
-/// `Polygon::inside` reports `Border` within `Epsilon::UNKNOWN_001` of an edge,
-/// so the sample has to clear that band by a wide margin to get a definite
-/// answer. Two orders of magnitude does it while staying negligible against
-/// subface sizes, which run in the tens of units.
-const SHADOW_PROBE_DISTANCE: f64 = Epsilon::UNKNOWN_001 * 100.0;
-
-/// Whether the shadow cast along `offset` falls inside the subface casting it.
-///
-/// Upstream samples at `midpoint + ε · offset` and accepts anything that is not
-/// `Outside`. Both halves of that misfire once the band width is corrected: the
-/// step scales with the band, and `Border` counts as a hit. Since the sample sits
-/// within a hair of the edge it usually *is* on the border, so both directions
-/// pass and the edge gets a shadow on each side — the doubled, muddy bands.
-/// `Refined` samples a fixed distance along the unit normal and demands a strict
-/// `Inside`, which is the actual question: which side is the paper on.
-fn shadow_offset_inside(
-    subface_graph: &FoldGraph,
-    subface_index: usize,
-    midpoint: Point,
-    offset: Point,
-    geometry: FoldedShadowGeometry,
-) -> bool {
-    let Some(face) = subface_graph.faces.get(subface_index) else {
-        return false;
+    let tv_point = |index: usize| {
+        subface_graph
+            .points
+            .get(index)
+            .map(|point| pass.camera.object_to_tv(*point))
     };
-    let polygon = subface_polygon(subface_graph, face);
-    match geometry {
-        FoldedShadowGeometry::Refined => {
-            let length = offset.distance(Point::new(0.0, 0.0));
-            if length == 0.0 {
-                return false;
+    for region in shadow_regions(subface_graph, subfaces, hierarchy, pass.flipped) {
+        let mut commands = Vec::new();
+        for subface in region.subfaces {
+            let points = subface_graph
+                .faces
+                .get(subface)
+                .into_iter()
+                .flatten()
+                .filter_map(|point| tv_point(*point))
+                .collect::<Vec<_>>();
+            if points.len() >= 3 {
+                commands.extend(closed_path_commands(&points));
             }
-            let step = SHADOW_PROBE_DISTANCE / length;
-            polygon.inside(Point::new(
-                midpoint.x + step * offset.x,
-                midpoint.y + step * offset.y,
-            )) == PolygonIntersection::Inside
         }
-        FoldedShadowGeometry::OrieditaExact => {
-            polygon.inside(Point::new(
-                midpoint.x + Epsilon::UNKNOWN_001 * offset.x,
-                midpoint.y + Epsilon::UNKNOWN_001 * offset.y,
-            )) != PolygonIntersection::Outside
+        let occluder_edges = region
+            .occluder_lines
+            .iter()
+            .filter_map(|shadow_line| {
+                let line = subface_graph.lines.get(shadow_line.line)?;
+                Some(FoldedFigureRenderEdge {
+                    from: tv_point(line.begin)?,
+                    to: tv_point(line.end)?,
+                    step: shadow_line.step,
+                })
+            })
+            .collect::<Vec<_>>();
+        if commands.is_empty() || occluder_edges.is_empty() {
+            continue;
         }
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn push_shadow_rectangle(
-    begin: Point,
-    end: Point,
-    offset: Point,
-    gradient_from: Point,
-    gradient_to: Point,
-    pass: OrieditaPaperRenderPass,
-    render_state: &OrieditaRenderState,
-    primitives: &mut Vec<FoldedFigureRenderPrimitive>,
-) {
-    let points = [
-        pass.camera.object_to_tv(begin),
-        pass.camera.object_to_tv(begin.move_by(offset)),
-        pass.camera.object_to_tv(end.move_by(offset)),
-        pass.camera.object_to_tv(end),
-    ];
-    primitives.push(FoldedFigureRenderPrimitive {
-        sequence: primitives.len(),
-        kind: FoldedFigureRenderPrimitiveKind::FillPath,
-        style: FoldedFigureRenderStyle {
-            paint: FoldedFigureRenderPaint::Gradient {
-                from: pass.camera.object_to_tv_gradient(gradient_from),
-                from_color: RgbaColor::new(0, 0, 0, 50),
-                to: pass.camera.object_to_tv_gradient(gradient_to),
-                to_color: RgbaColor::new(0, 0, 0, 0),
-                cyclic: false,
+        primitives.push(FoldedFigureRenderPrimitive {
+            sequence: primitives.len(),
+            kind: FoldedFigureRenderPrimitiveKind::FillPath,
+            style: FoldedFigureRenderStyle {
+                paint: FoldedFigureRenderPaint::LayerShadow {
+                    width: SHADOW_OFFSET * pass.camera.object_scale(),
+                    strength: SHADOW_STRENGTH,
+                    occluder_edges,
+                },
+                stroke: render_state.stroke.clone(),
+                antialias: FoldedFigureRenderAntialias::Off,
             },
-            stroke: render_state.stroke.clone(),
-            antialias: FoldedFigureRenderAntialias::Off,
-        },
-        geometry: FoldedFigureRenderGeometry::Path {
-            commands: closed_path_commands(&points),
-        },
-    });
+            geometry: FoldedFigureRenderGeometry::Path { commands },
+        });
+    }
 }
 
 fn visible_subface_face(
@@ -5163,4 +5154,259 @@ fn remove_line_segment_set_duplicates(segments: &mut Vec<LineSegment>) {
         .enumerate()
         .filter_map(|(index, segment)| (!remove[index]).then_some(segment.clone()))
         .collect();
+}
+
+#[cfg(test)]
+mod shadow_region_tests {
+    use super::*;
+
+    /// The kabuto fixture folds to a stack with several layer steps, so both
+    /// passes have regions that receive a shadow.
+    fn kabuto_segments() -> Vec<LineSegment> {
+        let fold: treemaker_fold::FoldDocument = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/flat-folder/kabuto.fold"
+        ))
+        .expect("kabuto fold fixture");
+        fold.edges_vertices
+            .iter()
+            .enumerate()
+            .map(|(index, edge)| {
+                let a = &fold.vertices_coords[edge[0]];
+                let b = &fold.vertices_coords[edge[1]];
+                let color = match fold.edges_assignment.get(index).map(|value| value.as_str()) {
+                    Some("M") => LineColor::Red1,
+                    Some("V") => LineColor::Blue2,
+                    _ => LineColor::Black0,
+                };
+                LineSegment::with_color(
+                    Point::new(a[0] * 400.0, a[1] * 400.0),
+                    Point::new(b[0] * 400.0, b[1] * 400.0),
+                    color,
+                )
+            })
+            .collect()
+    }
+
+    /// What a paper pass has in hand when it draws: the subface graph, the
+    /// faces stacked in each subface, and the solved layer order.
+    fn kabuto_pass() -> (FoldGraph, SubFaceConfiguration, HierarchyTable) {
+        let segments = kabuto_segments();
+        let (_, folded) = folded_graph_and_wireframe_from_segments(&segments, 1)
+            .expect("kabuto fold graph")
+            .expect("kabuto wireframe");
+        let (subface_graph, subfaces) = folded_subface_graph_and_config(&folded)
+            .expect("kabuto subfaces")
+            .expect("kabuto subface graph");
+        let mut enumerator = overlap_enumerator_from_segments(&segments, 1)
+            .expect("kabuto enumerator")
+            .expect("kabuto faces");
+        let overlap = enumerator
+            .possible_overlapping_search(true)
+            .expect("kabuto layer order");
+        assert!(overlap.found, "kabuto has a layer order");
+        (
+            subface_graph,
+            subfaces,
+            HierarchyTable::from_initial(&overlap.hierarchy),
+        )
+    }
+
+    fn two_face_table(upper: usize, lower: usize) -> HierarchyTable {
+        HierarchyTable::from_initial(&InitialHierarchy {
+            faces_total: 2,
+            relations: vec![HierarchyRelation {
+                upper_face: upper,
+                lower_face: lower,
+            }],
+        })
+    }
+
+    #[test]
+    fn viewer_order_names_the_nearer_face_first_whichever_way_it_is_asked() {
+        let table = two_face_table(0, 1);
+        assert_eq!(viewer_order(&table, 0, 1, false), Some((0, 1)));
+        assert_eq!(viewer_order(&table, 1, 0, false), Some((0, 1)));
+    }
+
+    #[test]
+    fn the_rear_pass_sees_the_lower_face_on_top() {
+        let table = two_face_table(0, 1);
+        assert_eq!(viewer_order(&table, 0, 1, true), Some((1, 0)));
+        assert_eq!(viewer_order(&table, 1, 0, true), Some((1, 0)));
+    }
+
+    #[test]
+    fn unrelated_faces_cast_nothing_on_each_other() {
+        let table = HierarchyTable::from_initial(&InitialHierarchy {
+            faces_total: 3,
+            relations: vec![HierarchyRelation {
+                upper_face: 0,
+                lower_face: 1,
+            }],
+        });
+        assert_eq!(viewer_order(&table, 0, 2, false), None);
+        assert_eq!(viewer_order(&table, 1, 2, true), None);
+    }
+
+    #[test]
+    fn regions_are_the_subfaces_showing_one_face() {
+        for flipped in [false, true] {
+            let (graph, subfaces, hierarchy) = kabuto_pass();
+            let regions = shadow_regions(&graph, &subfaces, &hierarchy, flipped);
+            assert!(
+                !regions.is_empty(),
+                "kabuto casts shadows (flipped: {flipped})"
+            );
+
+            let mut seen = BTreeSet::new();
+            for region in &regions {
+                assert!(!region.subfaces.is_empty());
+                for subface in &region.subfaces {
+                    assert_eq!(
+                        visible_subface_face(*subface, &subfaces, &hierarchy, flipped),
+                        Some(region.face)
+                    );
+                    assert!(seen.insert(*subface), "subface {subface} in two regions");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn every_occluder_is_nearer_the_viewer_than_its_receiver() {
+        for flipped in [false, true] {
+            let (graph, subfaces, hierarchy) = kabuto_pass();
+            for region in shadow_regions(&graph, &subfaces, &hierarchy, flipped) {
+                assert!(!region.occluders.is_empty());
+                for occluder in &region.occluders {
+                    assert_eq!(
+                        viewer_order(&hierarchy, *occluder, region.face, flipped),
+                        Some((*occluder, region.face)),
+                        "face {occluder} casts onto {} (flipped: {flipped})",
+                        region.face
+                    );
+                }
+            }
+        }
+    }
+
+    /// The relation is read off the lines: a region's occluders are exactly the
+    /// faces meeting it along some line from the viewer's side of the stack,
+    /// and every line on such an occluder's outline is in the region's list —
+    /// the shared ones and the rest of the outline alike.
+    #[test]
+    fn occluders_and_their_outlines_come_from_the_lines() {
+        for flipped in [false, true] {
+            let (graph, subfaces, hierarchy) = kabuto_pass();
+            let visible =
+                |subface: usize| visible_subface_face(subface, &subfaces, &hierarchy, flipped);
+            let regions = shadow_regions(&graph, &subfaces, &hierarchy, flipped);
+            let region_of = |face: usize| regions.iter().find(|region| region.face == face);
+
+            let mut outline_lines_seen = 0;
+            for line in 0..graph.lines.len() {
+                let Some((first, second)) = graph.line_face_border(line) else {
+                    continue;
+                };
+                let near = visible(first);
+                let far = (first != second).then(|| visible(second)).flatten();
+                if near == far {
+                    continue;
+                }
+                if let (Some(near), Some(far)) = (near, far)
+                    && let Some((occluder, receiver)) = viewer_order(&hierarchy, near, far, flipped)
+                {
+                    let region = region_of(receiver).expect("a shadowed face has a region");
+                    assert!(region.occluders.contains(&occluder));
+                    assert!(region.occluder_lines.iter().any(|l| l.line == line));
+                }
+                // Any outline line of an occluder is on every region it casts on.
+                for face in [near, far].into_iter().flatten() {
+                    for region in regions
+                        .iter()
+                        .filter(|region| region.occluders.contains(&face))
+                    {
+                        assert!(
+                            region.occluder_lines.iter().any(|l| l.line == line),
+                            "line {line} of face {face} missing from region {}",
+                            region.face
+                        );
+                        outline_lines_seen += 1;
+                    }
+                }
+            }
+            assert!(outline_lines_seen > 0);
+
+            // And nothing else: every listed line has an occluder on a side.
+            for region in &regions {
+                for shadow_line in &region.occluder_lines {
+                    let (first, second) = graph
+                        .line_face_border(shadow_line.line)
+                        .expect("bordered line");
+                    let sides = [
+                        visible(first),
+                        (first != second).then(|| visible(second)).flatten(),
+                    ];
+                    assert!(
+                        sides
+                            .iter()
+                            .flatten()
+                            .any(|face| region.occluders.contains(face)),
+                        "line {} is on no occluder of face {}",
+                        shadow_line.line,
+                        region.face
+                    );
+                }
+            }
+        }
+    }
+
+    /// A line the receiver shares with an occluder is a ledge as many sheets
+    /// tall as the occluder's cell has beyond the receiver's; kabuto's stacks
+    /// give both single-sheet flap edges and taller steps.
+    #[test]
+    fn a_shared_line_is_as_tall_as_the_stacks_differ() {
+        for flipped in [false, true] {
+            let (graph, subfaces, hierarchy) = kabuto_pass();
+            let layers = |cell: usize| subfaces.subfaces[cell].face_ids.len();
+            let visible =
+                |subface: usize| visible_subface_face(subface, &subfaces, &hierarchy, flipped);
+            let mut tallest = 0;
+            let mut single = 0;
+            for region in shadow_regions(&graph, &subfaces, &hierarchy, flipped) {
+                for shadow_line in &region.occluder_lines {
+                    let (first, second) = graph
+                        .line_face_border(shadow_line.line)
+                        .expect("bordered line");
+                    if first == second {
+                        continue;
+                    }
+                    let (receiver_cell, occluder_cell) = if visible(first) == Some(region.face) {
+                        (first, second)
+                    } else if visible(second) == Some(region.face) {
+                        (second, first)
+                    } else {
+                        continue;
+                    };
+                    let expected = layers(occluder_cell)
+                        .saturating_sub(layers(receiver_cell))
+                        .max(1);
+                    assert_eq!(
+                        shadow_line.step as usize, expected,
+                        "line {}",
+                        shadow_line.line
+                    );
+                    tallest = tallest.max(shadow_line.step);
+                    single += usize::from(shadow_line.step == 1);
+                }
+            }
+            assert!(
+                tallest > 1,
+                "kabuto has a ledge more than one sheet tall (flipped: {flipped})"
+            );
+            // Seen from the front, the flaps' own edges are one sheet tall; the
+            // back is a stack all the way to its rim.
+            assert!(flipped || single > 0, "and single-sheet flap edges");
+        }
+    }
 }

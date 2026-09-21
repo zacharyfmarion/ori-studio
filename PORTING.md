@@ -42,23 +42,31 @@ are unchanged:
   doubles as "which solution is on screen", which only holds while movement is
   forward-only. Backwards navigation splits the two: the count keeps its meaning,
   the shown case gets its own field.
-- **Paper shadow geometry.** `FoldedFigureRenderOptions::shadow_geometry`
-  selects between `OrieditaExact` and the default `Refined`; only the band
-  rectangles differ, and which edges cast at all is otherwise unchanged.
-  `FoldedFigure_Worker_Drawer` derives the shadow's offset length from
-  `getBegin(lineId)` — the 1-based *point id* — used as an x-coordinate, so a
-  band comes out `10 · edgeLength / unrelatedNumber` wide instead of a constant
-  10. On the kabuto fixture that is a 5.1× spread within one figure, with width
-  tracking edge length. The same function then asks which side of the edge the
-  paper is on by sampling at `midpoint + ε · offset` and accepting anything that
-  is not `Outside`; because the sample sits inside `Polygon::inside`'s `Border`
-  tolerance, both directions often pass and the edge is shadowed twice.
-  `Refined` divides by the edge's true length, samples a fixed distance along
-  the unit normal, and requires a strict `Inside` — one constant-width band per
-  shadowed edge. `OrieditaExact` keeps the upstream arithmetic verbatim and is
-  what `folded_figure_paper_render_snapshot_from_segments` renders, so the
-  render oracle in `crates/oristudio-cp/tests/oriedita_render_oracle.rs` remains
-  a byte-for-byte gate.
+- **Paper shadows are a region model, not upstream's rectangles.** With
+  `display_shadows` on, `FoldedFigure_Worker_Drawer` fills one gradient
+  rectangle per subface-graph line, `10` object units wide, on the lower side
+  of every line whose two faces the layer order relates. That shape is wrong
+  in ways no rectangle can fix: nothing clips it to the paper receiving it, so
+  it spills over narrower receivers, higher layers and the background; its
+  ends are square whatever the receiver's boundary does there; two of them
+  compound where they overlap and leave a wedge where they don't. (Upstream
+  also derives the offset length from `getBegin(lineId)` — a point id used as
+  an x-coordinate — which makes its bands `0.5`–`3` units wide instead of `10`
+  and is the only reason the defects are hard to see there.) Ori Studio keeps
+  upstream's decision of *what casts onto what* — `visible_subface_face` on
+  both sides of a line, related through the hierarchy, mirrored for the rear
+  pass — and replaces the drawing: `push_paper_shadow_primitives` emits one
+  `LayerShadow` paint per receiving face, covering that face's subfaces and
+  carrying the outline of every face that casts onto it, and the renderers
+  shade it by the distance to the nearest outline segment
+  (`apps/web/src/cp-workspace/folded/foldedShadowProfile.ts`). Each outline
+  segment also carries how many sheets tall its ledge is — the layers in the
+  casting cell beyond those across the line — and a taller ledge casts further
+  and a little darker, which upstream's constant band cannot express. The base
+  reach (`10`) and edge darkness (`50/255`) are upstream's constants. There is
+  no parity surface for this pass: the render oracle diffs the paper passes
+  with shadows off, and `parse_oriedita_render_primitives` still reads
+  upstream's gradient paints so the oracle's own output stays parseable.
 
 - **Kernel-side snapping states its candidates.** `SnapCandidates` (grid state
   plus a vertices flag) is threaded into

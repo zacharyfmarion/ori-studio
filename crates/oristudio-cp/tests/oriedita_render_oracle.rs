@@ -2,7 +2,7 @@ use oristudio_cp::folding::{
     DisplayStyle, FoldedFigureModel, FoldedFigureRenderGeometry, FoldedFigureRenderOptions,
     FoldedFigureRenderPaint, FoldedFigureRenderPrimitive, FoldedFigureRenderPrimitiveKind,
     FoldedFigureRenderSnapshot, FoldedFigureRenderStroke, FoldedFigureRenderStyle,
-    FoldedFigureState, FoldedShadowGeometry, FoldedSubfaceFigure, OrieditaCustomConstraint,
+    FoldedFigureState, FoldedSubfaceFigure, OrieditaCustomConstraint,
     OrieditaCustomConstraintFaceOrder, OrieditaCustomConstraintType, OrieditaFoldedFigureCamera,
     OrieditaFoldedFigureCameraSet, OrieditaFoldedFigureCameraTarget, RenderPathCommand,
     folded_figure_camera_set_display_position_moved, folded_figure_camera_set_from_segments,
@@ -204,63 +204,6 @@ fn kabuto_folded_camera_mutations_match_oriedita_oracle() {
 }
 
 #[test]
-fn paper_shadow_render_oracle_outputs_are_parseable() {
-    let Some(oracle) = render_oracle() else {
-        eprintln!("skipping Oriedita render oracle test: ORIEDITA_RENDER_ORACLE is not set");
-        return;
-    };
-
-    let segments = kabuto_segments();
-    for case in paper_shadow_render_cases() {
-        let output = run_oracle_owned(&oracle, &segment_oracle_args(case.command, &segments));
-        let snapshot =
-            parse_oriedita_render_primitives(&output).expect("parse Oriedita render primitives");
-
-        assert_eq!(snapshot.schema_version, 1);
-        assert_eq!(snapshot.fixture.as_deref(), Some("segments"));
-        assert_eq!(snapshot.pass.as_deref(), Some(case.pass));
-        assert!(
-            snapshot.primitives.iter().any(|primitive| matches!(
-                primitive.style.paint,
-                FoldedFigureRenderPaint::Gradient { .. }
-            )),
-            "{} should include gradient shadows",
-            case.pass
-        );
-    }
-}
-
-#[test]
-fn kabuto_paper_shadow_render_primitives_match_oriedita_oracle() {
-    let Some(oracle) = render_oracle() else {
-        eprintln!("skipping Oriedita render oracle test: ORIEDITA_RENDER_ORACLE is not set");
-        return;
-    };
-
-    let segments = kabuto_segments();
-    for case in paper_shadow_render_cases() {
-        let output = run_oracle_owned(&oracle, &segment_oracle_args(case.command, &segments));
-        let oracle_snapshot =
-            parse_oriedita_render_primitives(&output).expect("parse Oriedita render primitives");
-        let model = FoldedFigureModel {
-            state: case.state,
-            display_shadows: true,
-            ..FoldedFigureModel::default()
-        };
-        let rust_snapshot = folded_figure_paper_render_snapshot_from_segments(&segments, 1, model)
-            .expect("Rust paper shadow render")
-            .expect("paper shadow primitives");
-
-        assert_eq!(rust_snapshot.pass.as_deref(), Some(case.pass));
-        assert_primitives_match_with_coordinate_tolerance(
-            case.pass,
-            &rust_snapshot,
-            &oracle_snapshot,
-        );
-    }
-}
-
-#[test]
 fn paper_visible_face_oracle_outputs_are_parseable() {
     let Some(oracle) = render_oracle() else {
         eprintln!("skipping Oriedita render oracle test: ORIEDITA_RENDER_ORACLE is not set");
@@ -451,9 +394,6 @@ fn kabuto_folded_overlay_primitives_match_oriedita_oracle() {
                 selected_flat_point_indices: vec![0, 2],
                 selected_folded_point_indices: vec![1, 3],
                 custom_constraints: constraints.clone(),
-                // Diffed against Oriedita's own output, so shadow bands have to
-                // carry upstream's width quirk rather than the product default.
-                shadow_geometry: FoldedShadowGeometry::OrieditaExact,
             },
         ),
         (
@@ -482,7 +422,6 @@ fn kabuto_folded_overlay_primitives_match_oriedita_oracle() {
             ],
             FoldedFigureRenderOptions {
                 custom_constraints: constraints.clone(),
-                shadow_geometry: FoldedShadowGeometry::OrieditaExact,
                 ..FoldedFigureRenderOptions::default()
             },
         ),
@@ -1077,26 +1016,6 @@ fn paper_render_segment_cases() -> [PaperRenderCase; 3] {
         PaperRenderCase {
             command: "folded-render-paper-both-segments",
             pass: "paper-both",
-            state: FoldedFigureState::Both2,
-        },
-    ]
-}
-
-fn paper_shadow_render_cases() -> [PaperRenderCase; 3] {
-    [
-        PaperRenderCase {
-            command: "folded-render-paper-front-shadows-segments",
-            pass: "paper-front-shadows",
-            state: FoldedFigureState::Front0,
-        },
-        PaperRenderCase {
-            command: "folded-render-paper-back-shadows-segments",
-            pass: "paper-back-shadows",
-            state: FoldedFigureState::Back1,
-        },
-        PaperRenderCase {
-            command: "folded-render-paper-both-shadows-segments",
-            pass: "paper-both-shadows",
             state: FoldedFigureState::Both2,
         },
     ]
