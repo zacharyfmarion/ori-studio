@@ -40,6 +40,20 @@ describe('SiteFooter', () => {
     }
   });
 
+  it('marks the links that leave the site, and only those', () => {
+    // GitHub sits beside Download in the same type; the arrow is what says one is another
+    // site. On-site links must not carry it, or it stops meaning anything.
+    const rendered = render();
+    const marked = Array.from(rendered.querySelectorAll('a.site-external-link')).map((a) =>
+      a.getAttribute('href')
+    );
+    expect(marked).toHaveLength(3);
+    for (const href of marked) expect(href).toMatch(/^https:\/\//);
+    for (const page of SITE_PAGES) {
+      expect(rendered.querySelector(`a[href="${page.path}"] .site-external-link__mark`)).toBeNull();
+    }
+  });
+
   it('marks the page it is on', () => {
     const rendered = render();
     expect(rendered.querySelector('a[aria-current="page"]')?.getAttribute('href')).toBe('/');

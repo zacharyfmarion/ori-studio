@@ -5,13 +5,6 @@
       "lead": "One file per platform and architecture, published on GitHub Releases.",
       "title": "Every build"
     },
-    "desktop": {
-      "files": "Ori Studio projects (.osf) open straight from Finder or Explorer.",
-      "menus": "Native menus and file dialogs, so opening and saving feel like every other app on your machine.",
-      "same": "Everything else is identical. Files move between the two freely, and there is nothing the desktop app can do that the browser cannot.",
-      "title": "What the desktop app adds",
-      "updates": "It checks for new releases and installs them itself."
-    },
     "eyebrow": "Desktop app",
     "latest": "Latest release: {{version}}",
     "lead": "Ori Studio runs in your browser with nothing to install. The desktop app is the same workspace, packaged for macOS, Windows and Linux — with native menus and file dialogs, projects that open straight from Finder or Explorer, and updates that install themselves.",

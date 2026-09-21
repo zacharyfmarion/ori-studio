@@ -5,13 +5,6 @@
       "lead": "Un archivo por plataforma y arquitectura, publicado en GitHub Releases.",
       "title": "Todas las compilaciones"
     },
-    "desktop": {
-      "files": "Los proyectos de Ori Studio (.osf) se abren directamente desde el Finder o el Explorador.",
-      "menus": "Menús y diálogos de archivo nativos, para que abrir y guardar se sienta como en cualquier otra aplicación de tu equipo.",
-      "same": "Todo lo demás es idéntico. Los archivos van y vienen libremente entre ambas versiones, y no hay nada que la aplicación de escritorio pueda hacer que el navegador no pueda.",
-      "title": "Qué añade la aplicación de escritorio",
-      "updates": "Comprueba si hay versiones nuevas y las instala por sí sola."
-    },
     "eyebrow": "Aplicación de escritorio",
     "latest": "Última versión: {{version}}",
     "lead": "Ori Studio funciona en tu navegador sin instalar nada. La aplicación de escritorio es el mismo espacio de trabajo, empaquetado para macOS, Windows y Linux, con menús y diálogos de archivo nativos, proyectos que se abren directamente desde el Finder o el Explorador y actualizaciones que se instalan solas.",

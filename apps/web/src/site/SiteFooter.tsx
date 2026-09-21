@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { DISCORD_URL, RELEASES_URL, REPOSITORY_URL } from '../constants/release';
 import { isWebRuntime } from '../platform/runtime';
 import { SITE_NAME } from '../seo/siteMeta';
+import { ExternalLink } from './ExternalLink';
 import { SiteNav } from './SiteNav';
 import './site.css';
 
@@ -11,6 +12,9 @@ import './site.css';
  * On the landing this is the only place the other pages are linked from, which makes it
  * load-bearing rather than decorative: it is how a crawler on the homepage finds that a
  * download page exists. See {@link SiteNav}.
+ *
+ * One line where there is room — the pages, a rule, the places off-site, and the note at
+ * the far end — and a stack on a phone.
  *
  * Renders nothing in the desktop app. The site routes are web-only — a download page inside
  * the thing it downloads is nonsense — and the landing there is the start screen, which
@@ -26,19 +30,19 @@ export function SiteFooter() {
         <SiteNav label={t('site:nav.label', 'Site')} />
         <ul className="site-footer__links" aria-label={t('site:footer.communityLabel', 'Community')}>
           <li>
-            <a className="site-nav__link" href={REPOSITORY_URL} rel="noreferrer">
+            <ExternalLink className="site-nav__link" href={REPOSITORY_URL}>
               {t('site:footer.github', 'GitHub')}
-            </a>
+            </ExternalLink>
           </li>
           <li>
-            <a className="site-nav__link" href={DISCORD_URL} rel="noreferrer">
+            <ExternalLink className="site-nav__link" href={DISCORD_URL}>
               {t('site:footer.discord', 'Discord')}
-            </a>
+            </ExternalLink>
           </li>
           <li>
-            <a className="site-nav__link" href={RELEASES_URL} rel="noreferrer">
+            <ExternalLink className="site-nav__link" href={RELEASES_URL}>
               {t('site:footer.releases', 'Releases')}
-            </a>
+            </ExternalLink>
           </li>
         </ul>
         <p className="site-footer__note">

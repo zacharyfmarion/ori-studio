@@ -5,13 +5,6 @@
       "lead": "Un fichier par plateforme et architecture, publié sur GitHub Releases.",
       "title": "Toutes les versions"
     },
-    "desktop": {
-      "files": "Les projets Ori Studio (.osf) s’ouvrent directement depuis le Finder ou l’Explorateur.",
-      "menus": "Des menus et des boîtes de dialogue natifs, pour qu’ouvrir et enregistrer se passent comme dans toute autre application de votre machine.",
-      "same": "Tout le reste est identique. Les fichiers circulent librement entre les deux, et il n’y a rien que l’application de bureau sache faire et que le navigateur ne sache pas.",
-      "title": "Ce que l’application de bureau apporte",
-      "updates": "Elle vérifie les nouvelles versions et les installe elle-même."
-    },
     "eyebrow": "Application de bureau",
     "latest": "Dernière version : {{version}}",
     "lead": "Ori Studio fonctionne dans votre navigateur, sans rien installer. L’application de bureau est le même espace de travail, empaqueté pour macOS, Windows et Linux — avec des menus et des boîtes de dialogue natifs, des projets qui s’ouvrent directement depuis le Finder ou l’Explorateur, et des mises à jour qui s’installent toutes seules.",

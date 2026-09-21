@@ -4,16 +4,15 @@ import { Link } from 'react-router-dom';
 import { buttonClassName } from '../components/ui/Button';
 import { EDIT_PATH } from '../routing/paths';
 import { SITE_NAME } from '../seo/siteMeta';
-import { SiteNav } from './SiteNav';
-import { CONTENT_PAGES } from './sitePages';
 
 /**
- * The masthead of a content page: the name, the other pages, and the way into the app.
+ * The masthead of a content page: the name, and the way into the app.
  *
- * Only on content pages — the landing has the start screen where a masthead would go, and
- * its links live in the footer instead. The call to action goes to Edit rather than back to
- * the landing: someone reading the download page has already been pitched, and the next
- * useful thing is the editor.
+ * No page nav. The footer carries the site's links on every page, landing included, and
+ * that is the copy a crawler needs; a second list up here was the page you are on, next to
+ * the name of the site, which read as a breadcrumb that went nowhere. The call to action
+ * goes to Edit rather than back to the landing: someone reading the download page has
+ * already been pitched, and the next useful thing is the editor.
  */
 export function SiteHeader() {
   const { t } = useTranslation();
@@ -24,7 +23,6 @@ export function SiteHeader() {
         <Link className="site-header__brand" to="/">
           {SITE_NAME}
         </Link>
-        <SiteNav pages={CONTENT_PAGES} label={t('site:nav.label', 'Site')} />
         <Link
           className={buttonClassName({ variant: 'primary', size: 'sm', className: 'site-header__cta' })}
           to={EDIT_PATH}

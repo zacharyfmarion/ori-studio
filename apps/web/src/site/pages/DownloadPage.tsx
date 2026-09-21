@@ -5,6 +5,7 @@ import { buttonClassName } from '../../components/ui/Button';
 import { RELEASES_URL } from '../../constants/release';
 import { useDesktopDownloads } from '../../platform/useDesktopDownloads';
 import { EDIT_PATH } from '../../routing/paths';
+import { ExternalLink } from '../ExternalLink';
 import { SiteLayout } from '../SiteLayout';
 import { DesktopBuildList } from './DesktopBuildList';
 
@@ -16,9 +17,9 @@ import { DesktopBuildList } from './DesktopBuildList';
  * the registry, the per-page prerender, the routes — before the prose-heavy pages
  * committed eight locales of text to it.
  *
- * Every claim about what the desktop app does is grounded in the shell's config: the
- * `.osf` file association and the updater endpoint are both in `tauri.conf.json`, and the
- * menus and dialogs are what `apps/tauri` exists to own. It says nothing about system
+ * The lead's claims about the desktop app are grounded in the shell's config: the `.osf`
+ * file association and the updater endpoint are both in `tauri.conf.json`, and the menus
+ * and dialogs are what `apps/tauri` exists to own. It says nothing about system
  * requirements, because nothing in the repo states them and a guess on a download page is
  * a support ticket.
  */
@@ -63,9 +64,9 @@ export function DownloadPage() {
           </p>
           <DesktopBuildList surface="download-page" />
           <p className="site-note">
-            <a href={RELEASES_URL} rel="noreferrer">
+            <ExternalLink href={RELEASES_URL}>
               {t('site:download.builds.allReleases', 'All releases, with their notes, on GitHub')}
-            </a>
+            </ExternalLink>
           </p>
         </section>
 
@@ -93,38 +94,6 @@ export function DownloadPage() {
               )}
             </dd>
           </dl>
-        </section>
-
-        <section className="site-section" aria-labelledby="download-desktop-title">
-          <h2 className="site-heading" id="download-desktop-title">
-            {t('site:download.desktop.title', 'What the desktop app adds')}
-          </h2>
-          <ul className="site-list">
-            <li>
-              {t(
-                'site:download.desktop.menus',
-                'Native menus and file dialogs, so opening and saving feel like every other app on your machine.'
-              )}
-            </li>
-            <li>
-              {t(
-                'site:download.desktop.files',
-                'Ori Studio projects (.osf) open straight from Finder or Explorer.'
-              )}
-            </li>
-            <li>
-              {t(
-                'site:download.desktop.updates',
-                'It checks for new releases and installs them itself.'
-              )}
-            </li>
-            <li>
-              {t(
-                'site:download.desktop.same',
-                'Everything else is identical. Files move between the two freely, and there is nothing the desktop app can do that the browser cannot.'
-              )}
-            </li>
-          </ul>
         </section>
       </article>
     </SiteLayout>

@@ -5,13 +5,6 @@
       "lead": "Um arquivo por plataforma e arquitetura, publicado no GitHub Releases.",
       "title": "Todas as compilações"
     },
-    "desktop": {
-      "files": "Projetos do Ori Studio (.osf) abrem direto do Finder ou do Explorador de Arquivos.",
-      "menus": "Menus e diálogos de arquivo nativos, para que abrir e salvar pareçam iguais a qualquer outro aplicativo da sua máquina.",
-      "same": "Todo o resto é idêntico. Os arquivos circulam livremente entre os dois, e não há nada que o aplicativo para desktop faça que o navegador não faça.",
-      "title": "O que o aplicativo para desktop acrescenta",
-      "updates": "Ele verifica novas versões e as instala sozinho."
-    },
     "eyebrow": "Aplicativo para desktop",
     "latest": "Versão mais recente: {{version}}",
     "lead": "O Ori Studio funciona no seu navegador sem instalar nada. O aplicativo para desktop é o mesmo espaço de trabalho, empacotado para macOS, Windows e Linux — com menus e diálogos de arquivo nativos, projetos que abrem direto do Finder ou do Explorador de Arquivos e atualizações que se instalam sozinhas.",

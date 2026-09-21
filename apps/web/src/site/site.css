@@ -101,18 +101,59 @@
   background: var(--bg-primary);
 }
 
+/*
+ * One line: pages, a hairline, the places off-site, and the note pushed to the far end.
+ * `baseline` so the note's smaller type sits on the same line as the links rather than
+ * floating a pixel above them. Wraps onto rows where there is no room.
+ */
 .site-footer__inner {
-  display: grid;
-  gap: var(--space-3);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3) var(--space-5);
   width: min(1120px, 100%);
   margin-inline: auto;
-  padding: var(--space-6) clamp(20px, 5vw, 56px);
+  padding: var(--space-5) clamp(20px, 5vw, 56px);
+}
+
+.site-footer__links {
+  padding-left: var(--space-5);
+  border-left: 1px solid var(--border-subtle);
 }
 
 .site-footer__note {
-  margin: 0;
+  margin: 0 0 0 auto;
   color: var(--text-tertiary);
   font-size: 0.8rem;
+}
+
+@media (max-width: 560px) {
+  .site-footer__inner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .site-footer__links {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .site-footer__note {
+    margin-left: 0;
+  }
+}
+
+/* --- External links --- */
+
+.site-external-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.site-external-link__mark {
+  flex-shrink: 0;
+  opacity: 0.6;
 }
 
 /* --- Prose --- */
