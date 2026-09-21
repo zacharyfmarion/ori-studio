@@ -283,7 +283,6 @@
     "resetView": "重置模拟器视图",
     "toggleCreases": "折线",
     "toggleFaces": "面",
-    "toggleHiddenLines": "隐藏线",
     "toggleLighting": "光照"
   },
   "viewport": {

@@ -111,12 +111,6 @@ export function SimulatorViewControlsPanel() {
             onChange={(checked) => setSetting('showEdges', checked)}
           />
           <ToggleRow
-            label={t('panels:simulatorViewControls.hiddenLines', 'Hidden lines')}
-            checked={settings.showHiddenLines}
-            disabled={!settings.showEdges}
-            onChange={(checked) => setSetting('showHiddenLines', checked)}
-          />
-          <ToggleRow
             label={t('panels:simulatorViewControls.lighting', 'Lighting')}
             checked={settings.lighting}
             onChange={(checked) => setSetting('lighting', checked)}

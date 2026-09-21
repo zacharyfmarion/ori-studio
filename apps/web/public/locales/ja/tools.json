@@ -283,7 +283,6 @@
     "resetView": "シミュレーターの視点をリセット",
     "toggleCreases": "折り線",
     "toggleFaces": "面",
-    "toggleHiddenLines": "隠れ線",
     "toggleLighting": "ライティング"
   },
   "viewport": {

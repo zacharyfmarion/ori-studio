@@ -225,12 +225,6 @@ export function resolveRenderSettings(
 export interface SimulatorPaint {
   render: RenderSettings;
   chrome: SimulatorChrome;
-  /**
-   * Draw occluded creases faintly. Canvas-2D only: the GPU renderer has no
-   * hidden-line mode, so it is not on {@link RenderSettings} — a field there that
-   * two of three renderers ignored would make the contract lie.
-   */
-  showHiddenLines: boolean;
 }
 
 export function resolveSimulatorPaint(
@@ -241,7 +235,6 @@ export function resolveSimulatorPaint(
   return {
     render: resolveRenderSettings(styles, settings, surface),
     chrome: resolveSimulatorChrome(styles),
-    showHiddenLines: settings.showHiddenLines,
   };
 }
 

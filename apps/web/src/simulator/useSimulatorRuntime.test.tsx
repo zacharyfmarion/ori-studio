@@ -93,6 +93,15 @@ const client = {
   setRenderSettings: vi.fn(async () => undefined),
   setFoldPercent: vi.fn(async () => undefined),
   reset: vi.fn(async () => undefined),
+  // Typed for the same reason as `setCamera`: the export test asserts what view
+  // travelled with the request.
+  exportSvg: vi.fn(
+    async (_options: {
+      token?: number;
+      camera?: { view: { yaw: number; pitch: number; zoom: number }; width: number; height: number };
+      settings?: RenderSettings;
+    }): Promise<null> => null
+  ),
 };
 
 vi.mock('../store/workspaceStore/simulatorRuntime', () => ({
@@ -681,5 +690,110 @@ describe('a replacement session opens on the view in use', () => {
     await act(async () => root?.render(<ViewProbe fold={null} />));
     expect(live?.status).toBe('idle');
     expect(live?.error).toBeNull();
+  });
+});
+
+/**
+ * On the canvas-2D path the main thread draws, so the runtime forwards neither
+ * camera nor settings to the worker — a message per orbit frame would buy
+ * nothing. But the worker still builds the export, and with nothing forwarded
+ * it drew its own defaults at the opening camera: blue paper, 3 px creases, a
+ * view nobody was looking at. The runtime remembers both and sends them with
+ * the export instead.
+ */
+describe('the canvas-2D path exports what it shows', () => {
+  let live: ReturnType<typeof useSimulatorRuntime> | null = null;
+
+  const SETTINGS: RenderSettings = {
+    frontColor: [1, 1, 0.2],
+    backColor: [0.95, 0.94, 0.9],
+    mountainColor: [0.86, 0.12, 0.14],
+    valleyColor: [0.11, 0.36, 0.85],
+    borderColor: [0.16, 0.18, 0.2],
+    lightDir: [-0.45, 0.58, 0.68],
+    background: [0.05, 0.06, 0.07],
+    showFaces: true,
+    showEdges: true,
+    lighting: true,
+    creaseWidthPx: 3,
+    faceAlpha: 1,
+  };
+
+  beforeEach(() => {
+    live = null;
+    client.setCamera.mockClear();
+    client.setRenderSettings.mockClear();
+    client.exportSvg.mockClear();
+  });
+
+  function CpuProbe({ fold }: { fold: FoldDocument | null }) {
+    // No canvas and no bitmap output: nothing to render into, so the runtime
+    // never asks for the GPU path and `defaultLoad` answers with the CPU solver.
+    const runtime = useSimulatorRuntime({
+      fold,
+      solverOptions: {},
+      triangulate: false,
+      canvas: null,
+      bitmapOutput: null,
+      paused: true,
+    });
+    useEffect(() => {
+      live = runtime;
+    });
+    return null;
+  }
+
+  it('remembers the camera and settings without sending them, and exports with both', async () => {
+    await act(async () => root?.render(<CpuProbe fold={FOLD} />));
+    await settleLoads();
+    expect(live?.status).toBe('ready');
+    expect(live?.gpuActive).toBe(false);
+
+    await act(async () => {
+      live?.setCamera({ yaw: 0.7, pitch: -0.2, zoom: 1.5 }, 300, 200);
+      live?.setRenderSettings(SETTINGS);
+    });
+    // Recorded on the main thread only: the worker is not drawing this view.
+    expect(client.setCamera).not.toHaveBeenCalled();
+    expect(client.setRenderSettings).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await live?.exportSvg();
+    });
+    expect(client.exportSvg).toHaveBeenCalledTimes(1);
+    expect(client.exportSvg.mock.calls[0]?.[0]).toMatchObject({
+      token: 1,
+      camera: { view: { yaw: 0.7, pitch: -0.2, zoom: 1.5 }, width: 300, height: 200 },
+      settings: SETTINGS,
+    });
+  });
+
+  it('exports the newest camera, not the one last drawn', async () => {
+    await act(async () => root?.render(<CpuProbe fold={FOLD} />));
+    await settleLoads();
+
+    await act(async () => {
+      live?.setCamera({ yaw: 0.1, pitch: 0, zoom: 1 }, 300, 200);
+      live?.setCamera({ yaw: 0.9, pitch: 0, zoom: 1 }, 300, 200);
+      await live?.exportSvg();
+    });
+    expect(client.exportSvg.mock.calls[0]?.[0]).toMatchObject({
+      camera: { view: { yaw: 0.9, pitch: 0, zoom: 1 } },
+    });
+  });
+
+  it('sends nothing it was never told', async () => {
+    await act(async () => root?.render(<CpuProbe fold={FOLD} />));
+    await settleLoads();
+
+    await act(async () => {
+      await live?.exportSvg();
+    });
+    // The worker's own view stands: an `undefined` here is "no opinion", not a
+    // reset to defaults.
+    expect(client.exportSvg.mock.calls[0]?.[0]).toMatchObject({
+      camera: undefined,
+      settings: undefined,
+    });
   });
 });

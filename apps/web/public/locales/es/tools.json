@@ -299,7 +299,6 @@
     "resetView": "Restablecer vista del simulador",
     "toggleCreases": "Líneas de pliegue",
     "toggleFaces": "Caras",
-    "toggleHiddenLines": "Líneas ocultas",
     "toggleLighting": "Iluminación"
   },
   "viewport": {

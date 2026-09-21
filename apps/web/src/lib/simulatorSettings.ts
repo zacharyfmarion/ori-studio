@@ -50,9 +50,7 @@ export type SimulatorColorOverride = string | null;
  * `mono-dashed` exists because the simulator spends a lot of time near 0% fold,
  * where the model is nearly flat and the dashes *are* the crease-pattern
  * convention the user just came from. Its usefulness decays as the fold closes;
- * it does not vanish. Hidden lines stay a separate axis for the same reason —
- * on an already-folded form a dashed line usually means "behind a layer", so the
- * two must not compete for the same signal.
+ * it does not vanish.
  */
 export type SimulatorCreaseStyle = 'color' | 'mono' | 'mono-dashed';
 
@@ -67,7 +65,6 @@ export interface SimulatorSettings {
   colorMode: SimulatorColorMode;
   showFaces: boolean;
   showEdges: boolean;
-  showHiddenLines: boolean;
   lighting: boolean;
   /**
    * Offer the view cube in the corner of the Simulate workspace's viewport.
@@ -128,7 +125,6 @@ export const DEFAULT_SIMULATOR_SETTINGS: SimulatorSettings = {
   colorMode: 'paper',
   showFaces: true,
   showEdges: true,
-  showHiddenLines: false,
   lighting: true,
   showViewCube: true,
   paperFront: null,

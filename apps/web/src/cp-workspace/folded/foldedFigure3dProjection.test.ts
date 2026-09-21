@@ -38,6 +38,7 @@ import {
   type Folded3dPaperStyle,
 } from './folded3dStyle';
 import { buildFolded3dInk, planeFrame } from './folded3dModelReader';
+import { folded3dMesh } from './folded3dMesh';
 import { foldedFigureBox, foldedFigureLocalGeometry } from '../adapters/cpFoldedToScene';
 import {
   IDENTITY_FOLDED_PLACEMENT,
@@ -487,11 +488,22 @@ describe('the layer order the kernel computed', () => {
         }
       }
       expect(covered.size).toBe(model.edge_count);
-      // One triangle per ear, for every cell: `ring_len - 2`.
+      // One triangle per ear, for every cell — `ring_len - 2` — less the dust
+      // the mesh drops below its area floor, which the items now drop too. This
+      // used to pin `ring_len - 2` exactly; `box_90` cell 2 has three collinear
+      // ring corners and its ear there is a zero-area sliver.
+      const meshed = folded3dMesh(model);
+      if (meshed.kind !== 'mesh') throw new Error(`${name} did not mesh`);
+      const { slots } = meshed.mesh;
+      let ears = 0;
       let expectedTriangles = 0;
       for (let cell = 0; cell < model.cell_count; cell += 1) {
-        expectedTriangles += cellAttr(model, cell, 2) - 2;
+        ears += cellAttr(model, cell, 2) - 2;
+        const slot = slots.cell.indexOf(cell);
+        expect(slot).toBeGreaterThanOrEqual(0);
+        expectedTriangles += (slots.indexStart[slot + 1]! - slots.indexStart[slot]!) / 3;
       }
+      expect(expectedTriangles).toBeLessThanOrEqual(ears);
       expect(faces).toHaveLength(expectedTriangles);
     }
   });

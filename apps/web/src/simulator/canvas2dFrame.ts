@@ -212,24 +212,6 @@ export function drawFrame(
           highlights,
           depthSurface,
         );
-        if (paint.showHiddenLines) {
-          drawAllEdges(
-            ctx,
-            model,
-            projected,
-            map,
-            dpr,
-            0.26,
-            // Hidden lines and crease kinds must not both speak through dashes.
-            // On a folded form a dashed line conventionally means "behind a
-            // layer", so when the crease style is already dashing for
-            // mountain/valley, this pass distinguishes itself by weight and
-            // opacity alone.
-            !palette.dash,
-            palette,
-            highlights,
-          );
-        }
       }
       return;
     }
@@ -285,18 +267,8 @@ export function drawFrame(
     }
   }
 
-  if (render.showEdges && (!render.showFaces || paint.showHiddenLines)) {
-    drawAllEdges(
-      ctx,
-      model,
-      projected,
-      map,
-      dpr,
-      render.showFaces ? 0.34 : 0.95,
-      render.showFaces && !xray,
-      palette,
-      highlights,
-    );
+  if (render.showEdges && !render.showFaces) {
+    drawAllEdges(ctx, model, projected, map, dpr, 0.95, palette, highlights);
   }
 }
 
@@ -765,6 +737,7 @@ function drawTriangleEdges(
   });
 }
 
+/** Every edge, front and back alike: the wireframe drawn when faces are off. */
 function drawAllEdges(
   ctx: CanvasRenderingContext2D,
   model: SimulatorRenderModel,
@@ -772,16 +745,14 @@ function drawAllEdges(
   map: (point: ProjectedPoint) => { x: number; y: number },
   dpr: number,
   alpha: number,
-  dashed: boolean,
   palette: SimulatorPalette,
   highlights: SimulatorHighlights,
 ): void {
-  ctx.setLineDash(dashed ? [Math.max(3, dpr * 3), Math.max(3, dpr * 3)] : []);
-  // With dash unavailable as a signal (the crease style is already using it),
-  // weight carries the distinction instead: a hidden line is thinner than the
-  // visible pass as well as fainter. `drawEdgeSegment` then applies each crease
-  // kind's own pattern per edge, which is only ever set in this branch.
-  ctx.lineWidth = Math.max(0.5, palette.creaseWidthPx * (dashed ? 1 : 0.7));
+  ctx.setLineDash([]);
+  // Thinner than the visible-edge pass over faces, which keeps a wireframe of
+  // every layer from reading as one solid mass. `drawEdgeSegment` applies each
+  // crease kind's own dash pattern per edge.
+  ctx.lineWidth = Math.max(0.5, palette.creaseWidthPx * 0.7);
   model.edgesVertices.forEach((edge, index) => {
     drawEdgeSegment(
       ctx,

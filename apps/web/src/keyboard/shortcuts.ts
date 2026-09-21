@@ -50,7 +50,6 @@ export type SimulatorShortcutId =
   | 'simulator.zoomOut'
   | 'simulator.toggleFaces'
   | 'simulator.toggleCreases'
-  | 'simulator.toggleHiddenLines'
   | 'simulator.toggleLighting';
 export type ReferencesShortcutId =
   | 'references.nextStep'
@@ -356,7 +355,6 @@ const SIMULATOR_SHORTCUTS: ShortcutDefinition[] = [
   simulatorShortcut('simulator.zoomOut', 'Zoom Out Simulator', [{ key: '-' }, { key: '_' }]),
   simulatorShortcut('simulator.toggleFaces', 'Toggle Faces', { key: 'f' }),
   simulatorShortcut('simulator.toggleCreases', 'Toggle Crease Lines', { key: 'c' }),
-  simulatorShortcut('simulator.toggleHiddenLines', 'Toggle Hidden Lines', { key: 'h' }),
   simulatorShortcut('simulator.toggleLighting', 'Toggle Lighting', { key: 'l' }),
 ];
 

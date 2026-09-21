@@ -1222,10 +1222,35 @@ const api = {
        * baked in. Transparent composites into anything.
        */
       background?: SimulatorExportBackground;
+      /**
+       * Device pixels per CSS pixel of the frame being exported. The view is
+       * held in device pixels — the drawing buffer's size, the crease width the
+       * palette scaled up to match — and the page is written in CSS pixels, so
+       * the same frame exports at the same size from every display. Defaults to
+       * 1, which is a page in device pixels.
+       */
+      devicePixelRatio?: number;
+      /**
+       * The view to export, when the caller knows it better than this session
+       * does. Applied as {@link setCamera} and {@link setRenderSettings} would
+       * be, minus the redraw. The canvas-2D path never sends either — the main
+       * thread draws, so a message per orbit frame would buy nothing — and
+       * without them the file was the defaults at the opening camera. On the
+       * GPU path they are what was already pushed, or a camera still queued
+       * behind an in-flight one, and either way the newest.
+       */
+      camera?: SimulatorCamera;
+      settings?: RenderSettings;
     } = {}
   ): SvgRenderResult | null {
     const active = sessionFor(options.token);
     if (!active) return null;
+    if (options.camera) {
+      active.view.view = options.camera.view;
+      active.view.width = options.camera.width;
+      active.view.height = options.camera.height;
+    }
+    if (options.settings) active.view.settings = options.settings;
     const prepared = active.model.prepared;
     const positions = new Float32Array(prepared.vertexCount * 3);
     active.backend.readPositions(positions);
@@ -1239,18 +1264,19 @@ const api = {
       active.backend.readStrain(strain);
     }
 
+    const dpr = Math.max(1, options.devicePixelRatio ?? 1);
     const camera = cameraUniforms(
       active.view.view,
       active.view.center,
       active.view.radius,
-      active.view.width,
-      active.view.height
+      active.view.width / dpr,
+      active.view.height / dpr
     );
     const mode = options.background ?? 'transparent';
     const settings: RenderSettings =
       mode === 'white'
-        ? { ...active.view.settings, background: [1, 1, 1], backgroundAlpha: 1 }
-        : { ...active.view.settings, backgroundAlpha: 1 };
+        ? { ...cssPixelInk(active.view.settings, dpr), background: [1, 1, 1], backgroundAlpha: 1 }
+        : { ...cssPixelInk(active.view.settings, dpr), backgroundAlpha: 1 };
 
     // The page size comes back with the document because a rasterizer needs it,
     // and re-deriving it from a string we just produced would be worse.
@@ -1857,6 +1883,33 @@ function fitTo(positions: Float32Array, state: SessionView): void {
 }
 
 export type SimulatorWorkerApi = typeof api;
+
+/**
+ * Render settings with every device-pixel length divided down to CSS pixels,
+ * for a page written in CSS pixels. The crease width, the frame edge it is
+ * calibrated for and the dash runs measured along it all scale together, so the
+ * ink keeps its proportion to the frame — an inline window's frame-shrink
+ * factor (`creaseFrameScale`) reads edge over reference and sees the same
+ * ratio it did on screen.
+ */
+export function cssPixelInk(settings: RenderSettings, devicePixelRatio: number): RenderSettings {
+  if (devicePixelRatio === 1) return settings;
+  const runs = (pattern: readonly number[] | null) =>
+    pattern ? pattern.map((run) => run / devicePixelRatio) : null;
+  return {
+    ...settings,
+    creaseWidthPx: settings.creaseWidthPx / devicePixelRatio,
+    creaseWidthReferenceEdge:
+      settings.creaseWidthReferenceEdge === undefined
+        ? undefined
+        : settings.creaseWidthReferenceEdge / devicePixelRatio,
+    creaseDash: settings.creaseDash && {
+      border: runs(settings.creaseDash.border),
+      mountain: runs(settings.creaseDash.mountain),
+      valley: runs(settings.creaseDash.valley),
+    },
+  };
+}
 
 /**
  * The worker API as a plain object, usable without a Worker.

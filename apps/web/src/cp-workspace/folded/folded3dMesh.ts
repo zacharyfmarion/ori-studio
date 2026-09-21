@@ -69,12 +69,11 @@
  * GPU agree with the flat/3D figure the user already has, every triangle is
  * wound CCW about **`−paperFrontNormal`**.
  *
- * Note this puts a 3D folded figure's two tones *opposite* an inline
- * simulation's on the same physical surface: the simulator lifts FOLD faces with
- * `[x, 0, y]`, another determinant −1 map, so its right-hand normals end up on
- * the paper's FOLD-front. Parity with the folded figure beside it is the
- * non-negotiable, so the folded figure's convention wins and the disagreement is
- * recorded here rather than discovered later.
+ * An inline simulation of the same FOLD agrees: it cancels the same reflection
+ * with its 2D lift `[x, y] → [x, 0, −y]` (`normalizePoint` in
+ * `packages/origami-simulator/src/geometry.ts`; PR #325 negated the y), so the
+ * two surfaces paint one physical side one colour. Change either cancellation
+ * and check the other — they are only correct together.
  */
 
 import earcut from 'earcut';
@@ -110,6 +109,16 @@ export const FOLDED_3D_MESH_VERTEX_BUDGET = 1_048_576;
 
 /** Triangles smaller than this fraction of `radius²` are dropped. */
 const MIN_TRIANGLE_AREA_RELATIVE = 1e-12;
+
+/**
+ * The doubled-area floor a triangle of a model of this `radius` must clear, in
+ * the units {@link signedArea2} reports: a plane's own `(u, v)`, which is
+ * orthonormal, so model length². Shared with the projector's `buildItems` so
+ * the exported drawing and the mesh drop the same earcut dust.
+ */
+export function folded3dMinTriangleArea2(radius: number): number {
+  return MIN_TRIANGLE_AREA_RELATIVE * Math.max(radius * radius, Number.MIN_VALUE);
+}
 
 /**
  * One emitted (cell, stack slot) pair.
@@ -352,7 +361,7 @@ export function folded3dEdgeAssignment(kind: number, foldDegrees: number): numbe
 }
 
 /** Signed area of a triangle in a plane's `(u, v)`, doubled. */
-function signedArea2(
+export function signedArea2(
   ax: number,
   ay: number,
   bx: number,
@@ -426,7 +435,7 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
     return { kind: 'too-large', vertexCount, limit: FOLDED_3D_MESH_VERTEX_BUDGET };
   }
 
-  const minArea2 = MIN_TRIANGLE_AREA_RELATIVE * Math.max(radius * radius, Number.MIN_VALUE);
+  const minArea2 = folded3dMinTriangleArea2(radius);
   const ink = buildFolded3dInk(model);
   const assignmentOf = new Uint8Array(model.edge_count);
   for (let edge = 0; edge < model.edge_count; edge += 1) {

@@ -30,7 +30,7 @@ export interface SimulatorShortcutHandlers {
   resetView: () => void;
   zoomBy: (factor: number) => void;
   /** Toggle a render setting. Optional: an inline window has no options pane. */
-  toggleSetting?: (key: 'showFaces' | 'showEdges' | 'showHiddenLines' | 'lighting') => void;
+  toggleSetting?: (key: 'showFaces' | 'showEdges' | 'lighting') => void;
 }
 
 /** Zoom step, matching the wheel's feel. */
@@ -85,9 +85,6 @@ export function runSimulatorShortcut(
       return;
     case 'simulator.toggleCreases':
       handlers.toggleSetting?.('showEdges');
-      return;
-    case 'simulator.toggleHiddenLines':
-      handlers.toggleSetting?.('showHiddenLines');
       return;
     case 'simulator.toggleLighting':
       handlers.toggleSetting?.('lighting');

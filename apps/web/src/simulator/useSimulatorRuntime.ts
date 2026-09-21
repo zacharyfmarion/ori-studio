@@ -22,6 +22,7 @@ import {
   recordSimulatorProbe,
 } from './simulatorPerfProbe';
 import { useSimulatorPerfLog } from './useSimulatorPerfLog';
+import { simulatorDevicePixelRatio } from './simulatorDevicePixelRatio';
 import type { SimulatorExportBackground } from '../lib/simulatorSettings';
 
 // Drives the simulator worker and exposes the latest frame to a renderer.
@@ -160,9 +161,12 @@ export interface SimulatorRuntime {
    * so the only way back to a drawable surface is a new one.
    */
   canvasGeneration: number;
-  /** Push a new orbit camera to the worker (GPU mode); no-op in CPU mode. */
+  /**
+   * Push a new orbit camera to the worker (GPU mode). In CPU mode it is only
+   * remembered, for the next session to open on and for {@link exportSvg}.
+   */
   setCamera: (view: OrbitView, width: number, height: number) => void;
-  /** Push render settings to the worker (GPU mode); no-op in CPU mode. */
+  /** Push render settings to the worker (GPU mode); remembered in CPU mode. */
   setRenderSettings: (settings: RenderSettings) => void;
   /**
    * The current view as a standalone SVG document, or null when there is nothing
@@ -171,7 +175,10 @@ export interface SimulatorRuntime {
    * The worker builds it: that is where the complete render state lives, so this
    * is one message rather than an exporter reaching for positions, a camera and a
    * palette from three different owners. Keeps the session token private, like
-   * every other call here.
+   * every other call here. The camera and settings last handed to `setCamera`
+   * and `setRenderSettings` travel with the request, which is what makes the
+   * file the view on screen on the canvas-2D path, where the worker was never
+   * sent them.
    */
   exportSvg: (background?: SimulatorExportBackground) => Promise<SvgRenderResult | null>;
 }
@@ -675,8 +682,10 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
   const setCamera = useCallback(
     (view: OrbitView, width: number, height: number) => {
       const payload = { view, width, height };
-      // Remembered before the gate: it is the consumer's view either way, and
-      // the next session opens on it.
+      // Remembered before the gate: it is the consumer's view either way, the
+      // next session opens on it, and an export is taken from it. On the
+      // canvas-2D path this is all that happens — the frame is drawn on the main
+      // thread, so an orbit costs no worker message.
       lastCameraRef.current = payload;
       if (!gpuActiveRef.current) return;
       if (cameraBusyRef.current) {
@@ -702,7 +711,21 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
   const exportSvg = useCallback(async (background?: SimulatorExportBackground) => {
     const client = clientRef.current;
     if (!client || tokenRef.current === undefined) return null;
-    return client.exportSvg({ token: tokenRef.current, background });
+    // The worker holds the frame in device pixels; the ratio the viewport sized
+    // it by is what takes the page back to CSS pixels.
+    //
+    // The view goes with the request. On the GPU path the worker already has
+    // it, bar a camera still queued behind an in-flight one (`pendingCameraRef`),
+    // and this is the newest. On the canvas-2D path the worker was never sent
+    // either, so without them the file would be the worker's defaults at the
+    // opening camera rather than what is on screen.
+    return client.exportSvg({
+      token: tokenRef.current,
+      background,
+      devicePixelRatio: simulatorDevicePixelRatio(),
+      camera: lastCameraRef.current ?? undefined,
+      settings: lastRenderSettingsRef.current ?? undefined,
+    });
   }, []);
 
   // Opt-in perf logging: set `oristudio:sim-perf` to `1` in localStorage, then

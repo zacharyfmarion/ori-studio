@@ -129,6 +129,7 @@ import {
   planeFrame,
   type Folded3dInk,
 } from './folded3dModelReader';
+import { folded3dMinTriangleArea2, signedArea2 } from './folded3dMesh';
 import type { Point } from '../../lib/geometry';
 
 /**
@@ -708,6 +709,10 @@ function buildItems(
     sideOfPlane.push(up[0] * eye[0] + up[1] * eye[1] + up[2] * eye[2] >= 0 ? 1 : -1);
   }
   const opaque = plan.faceAlpha >= 1;
+  // The mesh's dust floor, in the same units: earcut on a ring with near-
+  // collinear corners returns slivers the window never draws, and each one the
+  // export kept was a separate polygon in a vector editor.
+  const minArea2 = folded3dMinTriangleArea2(modelRadius(model));
   const hingeShows = (cell: number, slot: number, segment: number): boolean => {
     if (!opaque) return true;
     const hinge = ink.hingeAt(cell, slot, segment);
@@ -733,11 +738,23 @@ function buildItems(
       }
       const indices = earcut(flat);
       for (let i = 0; i + 2 < indices.length; i += 3) {
+        const a = indices[i]!;
+        const b = indices[i + 1]!;
+        const c = indices[i + 2]!;
+        const area2 = signedArea2(
+          flat[a * 2]!,
+          flat[a * 2 + 1]!,
+          flat[b * 2]!,
+          flat[b * 2 + 1]!,
+          flat[c * 2]!,
+          flat[c * 2 + 1]!
+        );
+        if (Math.abs(area2) < minArea2) continue;
         items.push({
           kind: 0,
           ref: cell,
           order: drawRank,
-          points: [ring[indices[i]!]!, ring[indices[i + 1]!]!, ring[indices[i + 2]!]!],
+          points: [ring[a]!, ring[b]!, ring[c]!],
         });
       }
       if (!plan.strokes) continue;

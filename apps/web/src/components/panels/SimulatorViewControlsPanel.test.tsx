@@ -99,19 +99,12 @@ describe('SimulatorViewControlsPanel', () => {
     expect(useWorkspaceStore.getState().simulatorSettings.showFaces).toBe(false);
   });
 
-  it('disables hidden lines while crease lines are off', () => {
+  it('offers no hidden-lines toggle', () => {
+    // Re-pinned: the row used to disable while crease lines were off. It is
+    // gone outright — the GPU renderer never honoured it, so on every WebGL2
+    // machine the switch did nothing.
     const rendered = render();
-    expect(
-      rendered.querySelector<HTMLButtonElement>('[aria-label="Hidden lines"]')?.disabled
-    ).toBe(false);
-
-    act(() => {
-      useWorkspaceStore.getState().setSimulatorSetting('showEdges', false);
-    });
-
-    expect(
-      rendered.querySelector<HTMLButtonElement>('[aria-label="Hidden lines"]')?.disabled
-    ).toBe(true);
+    expect(rendered.querySelector('[aria-label="Hidden lines"]')).toBeNull();
   });
 
   it('commits a material slider to the store', () => {

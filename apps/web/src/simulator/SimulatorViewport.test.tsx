@@ -341,3 +341,48 @@ describe('SimulatorViewport view cube', () => {
     expect(host?.querySelector('.simulator-view-cube')).toBeNull();
   });
 });
+
+/**
+ * The canvas-2D path draws on the main thread, and used to keep the camera and
+ * palette to itself for that reason — so the worker, which still builds every
+ * export, drew its defaults at the opening view. Both are handed to the runtime
+ * on every path now; whether a message follows is the runtime's call.
+ */
+describe('SimulatorViewport on the canvas-2D path', () => {
+  let pushRenderSettings: Mock<(settings: unknown) => void>;
+
+  function renderCpu() {
+    pushRenderSettings = vi.fn();
+    act(() => {
+      root?.render(
+        <SimulatorViewport
+          canvasKey="2d"
+          onCanvasChange={() => {}}
+          interactive
+          gpuActive={false}
+          viewSettings={DEFAULT_SIMULATOR_SETTINGS}
+          pushCamera={pushCamera}
+          pushRenderSettings={pushRenderSettings}
+          ariaLabel="simulator"
+        />
+      );
+    });
+  }
+
+  it('hands the palette over as it resolves it', () => {
+    renderCpu();
+
+    expect(pushRenderSettings).toHaveBeenCalledTimes(1);
+    expect(pushRenderSettings.mock.calls[0]?.[0]).toMatchObject({ showFaces: true });
+  });
+
+  it('hands the camera over as it moves', () => {
+    renderCpu();
+    pushCamera.mockClear();
+
+    pinch(-100);
+
+    expect(pushCamera).toHaveBeenCalledTimes(1);
+    expect(lastZoom()).toBeGreaterThan(DEFAULT_SIMULATOR_VIEW.zoom);
+  });
+});

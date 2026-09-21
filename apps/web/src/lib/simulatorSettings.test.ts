@@ -77,6 +77,16 @@ describe('simulatorSettings', () => {
     expect(normalizeSimulatorSettings({ showViewCube: false }).showViewCube).toBe(false);
   });
 
+  it('drops a setting that has since been retired', () => {
+    // `showHiddenLines` was persisted for months before it went (only the
+    // canvas-2D fallback ever read it). Old JSON still carries it; it must not
+    // come back as a stray key on the live settings.
+    const restored = normalizeSimulatorSettings({ showHiddenLines: true, lighting: false });
+
+    expect('showHiddenLines' in restored).toBe(false);
+    expect(restored.lighting).toBe(false);
+  });
+
   it('validates the export background and clamps the crease weight', () => {
     expect(normalizeSimulatorSettings({ exportBackground: 'chartreuse' }).exportBackground).toBe(
       DEFAULT_SIMULATOR_SETTINGS.exportBackground

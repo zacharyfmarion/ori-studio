@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   createSimulatorSession,
+  cssPixelInk,
   foldScaledForSolver,
   type SimulatorFramePayload,
 } from './simulatorSession';
@@ -520,6 +521,104 @@ describe('exporting the current view as SVG', () => {
     expect(themed).not.toContain('fill-opacity');
     session.dispose();
   }, 30_000);
+
+  it('writes the page in CSS pixels, whatever the display drew it at', async () => {
+    // The view is held in device pixels: the drawing buffer is the frame times
+    // the device-pixel ratio, and the palette scales the crease width by the
+    // same ratio so it reads the same on every display. Exported as they are, a
+    // Retina frame came out at twice its on-screen size with strokes to match.
+    // The ratio the viewport sized the frame by takes the page back down.
+    const session = createSimulatorSession();
+    const info = session.load(miura(6, 6), {});
+    await frame(session.settle(2000, {}));
+    await session.setCamera(
+      { view: { yaw: 0.8, pitch: -0.6, zoom: 1 }, width: 1280, height: 960 },
+      info.token
+    );
+    await session.setRenderSettings(
+      {
+        ...DEFAULT_EXPORT_SETTINGS,
+        creaseWidthPx: 4,
+        creaseDash: { border: null, mountain: [10, 3, 3, 3], valley: [8, 8] },
+      },
+      info.token
+    );
+
+    const standard = session.exportSvg({ token: info.token })!;
+    const retina = session.exportSvg({ token: info.token, devicePixelRatio: 2 })!;
+
+    expect(retina.width).toBeCloseTo(standard.width / 2, 6);
+    expect(retina.height).toBeCloseTo(standard.height / 2, 6);
+    expect(standard.svg).toContain('stroke-width="4.00"');
+    expect(retina.svg).toContain('stroke-width="2.00"');
+    expect(retina.svg).not.toContain('stroke-width="4.00"');
+    // Dash runs are measured along the stroke and come down with it.
+    expect(standard.svg).toContain('stroke-dasharray="10.00 3.00 3.00 3.00"');
+    expect(retina.svg).toContain('stroke-dasharray="5.00 1.50 1.50 1.50"');
+
+    // A ratio of 1 is the page as it always was.
+    expect(session.exportSvg({ token: info.token, devicePixelRatio: 1 })!.svg).toBe(standard.svg);
+    session.dispose();
+  }, 30_000);
+
+  it('draws the camera and settings it is handed', async () => {
+    // The canvas-2D path draws on the main thread and never sends the worker a
+    // camera or a palette, so the runtime hands both over with the export
+    // instead. The result must be the same document as pushing them first.
+    const session = createSimulatorSession();
+    const info = session.load(miura(6, 6), {});
+    await frame(session.settle(2000, { token: info.token }));
+    // Loaded now, before either has a view of its own, so it carries nothing
+    // of the handed one forward and the comparison below is a real one.
+    const other = session.load(miura(6, 6), {});
+    await frame(session.settle(2000, { token: other.token }));
+    const camera = { view: { yaw: 0.8, pitch: -0.6, zoom: 1.2 }, width: 640, height: 480 };
+
+    const handed = session.exportSvg({
+      token: info.token,
+      camera,
+      settings: DEFAULT_EXPORT_SETTINGS,
+    })!.svg;
+    expect(handed).toContain('#ffff00');
+
+    await session.setCamera(camera, other.token);
+    await session.setRenderSettings(DEFAULT_EXPORT_SETTINGS, other.token);
+    expect(session.exportSvg({ token: other.token })!.svg).toBe(handed);
+
+    // Without either, the export is the worker's own view -- which is now the
+    // handed one, the same as after a push.
+    expect(session.exportSvg({ token: info.token })!.svg).toBe(handed);
+    session.dispose();
+  }, 30_000);
+});
+
+describe('cssPixelInk', () => {
+  const ink: RenderSettings = {
+    ...DEFAULT_EXPORT_SETTINGS,
+    creaseWidthPx: 3,
+    creaseWidthReferenceEdge: 600,
+    creaseDash: { border: null, mountain: [10, 3, 3, 3], valley: [8, 8] },
+  };
+
+  it('divides every device-pixel length by the ratio, together', () => {
+    // The frame-shrink factor an inline window exports with reads the frame
+    // edge over the reference edge, so the reference has to come down with the
+    // frame or a window would export with its creases shrunk a second time.
+    expect(cssPixelInk(ink, 2)).toEqual({
+      ...ink,
+      creaseWidthPx: 1.5,
+      creaseWidthReferenceEdge: 300,
+      creaseDash: { border: null, mountain: [5, 1.5, 1.5, 1.5], valley: [4, 4] },
+    });
+  });
+
+  it('leaves unset fields unset, and a ratio of 1 untouched', () => {
+    const plain = cssPixelInk({ ...DEFAULT_EXPORT_SETTINGS, creaseWidthPx: 3 }, 2);
+    expect(plain.creaseWidthPx).toBe(1.5);
+    expect(plain.creaseWidthReferenceEdge).toBeUndefined();
+    expect(plain.creaseDash).toBeUndefined();
+    expect(cssPixelInk(ink, 1)).toBe(ink);
+  });
 });
 
 describe('prepared-model reuse', () => {

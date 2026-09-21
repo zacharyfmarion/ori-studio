@@ -307,7 +307,6 @@
     "resetView": "Сбросить вид симулятора",
     "toggleCreases": "Линии сгиба",
     "toggleFaces": "Грани",
-    "toggleHiddenLines": "Скрытые линии",
     "toggleLighting": "Освещение"
   },
   "viewport": {

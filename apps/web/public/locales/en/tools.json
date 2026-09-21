@@ -291,7 +291,6 @@
     "resetView": "Reset Simulator View",
     "toggleCreases": "Crease lines",
     "toggleFaces": "Faces",
-    "toggleHiddenLines": "Hidden lines",
     "toggleLighting": "Lighting"
   },
   "viewport": {

@@ -291,7 +291,6 @@
     "resetView": "Simulatoransicht zurücksetzen",
     "toggleCreases": "Falzlinien",
     "toggleFaces": "Flächen",
-    "toggleHiddenLines": "Verdeckte Linien",
     "toggleLighting": "Beleuchtung"
   },
   "viewport": {

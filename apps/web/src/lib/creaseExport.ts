@@ -1159,6 +1159,10 @@ export function buildCreaseExportArtwork(
           };
         },
         scale: scale * foldedTransform.scale * fit,
+        // The figure's edges are screen-px widths, like the creases beside
+        // them; both scale into the export's larger box by the same factor, so
+        // edge and crease keep their on-screen ratio.
+        strokeScale: VIEW_SCALE,
       });
     }
   }

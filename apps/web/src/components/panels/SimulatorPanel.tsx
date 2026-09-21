@@ -449,11 +449,7 @@ export function SimulatorPanel() {
     restart: restartSimulation,
     resetView,
     zoomBy,
-    toggleSetting: (key) => {
-      // Hidden lines only mean anything while crease lines are drawn.
-      if (key === "showHiddenLines" && !viewSettings.showEdges) return;
-      setSimulatorSetting(key, !viewSettings[key]);
-    },
+    toggleSetting: (key) => setSimulatorSetting(key, !viewSettings[key]),
   };
 
   useSimulatorShortcuts({

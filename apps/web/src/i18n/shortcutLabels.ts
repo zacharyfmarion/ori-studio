@@ -49,8 +49,6 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:simulator.toggleFaces', 'Faces');
     case 'simulator.toggleCreases':
       return t('tools:simulator.toggleCreases', 'Crease lines');
-    case 'simulator.toggleHiddenLines':
-      return t('tools:simulator.toggleHiddenLines', 'Hidden lines');
     case 'simulator.toggleLighting':
       return t('tools:simulator.toggleLighting', 'Lighting');
     case 'references.nextStep':

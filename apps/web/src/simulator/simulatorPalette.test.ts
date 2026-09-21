@@ -137,13 +137,12 @@ describe('resolving simulator colours', () => {
     expect(paint.chrome.highlight).toBeTruthy();
   });
 
-  it('carries hidden lines outside RenderSettings, where only one path honours them', () => {
-    const paint = resolveSimulatorPaint(
-      themed(),
-      settingsWith({ showHiddenLines: true })
-    );
-    expect(paint.showHiddenLines).toBe(true);
-    expect('showHiddenLines' in paint.render).toBe(false);
+  it('carries nothing a renderer does not read', () => {
+    // Re-pinned: `showHiddenLines` used to ride here for the canvas-2D path
+    // alone. A GPU-side no-op is gone rather than a third field the worker
+    // ignores.
+    const paint = resolveSimulatorPaint(themed(), DEFAULT_SIMULATOR_SETTINGS);
+    expect(Object.keys(paint).sort()).toEqual(['chrome', 'render']);
   });
 });
 

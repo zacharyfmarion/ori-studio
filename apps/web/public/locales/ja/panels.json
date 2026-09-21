@@ -1107,7 +1107,6 @@
     "exportHint": "書き出す画像の背景です。",
     "faces": "面",
     "faceStiffness": "面",
-    "hiddenLines": "隠線",
     "lighting": "照明",
     "material": "材質",
     "materialHint": "紙が伸びや折れにどれだけ抵抗するか。",
