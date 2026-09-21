@@ -437,6 +437,115 @@ Who has overrides: flat figures, 3D figures, inline simulations. The Simulate
 workspace and the References workspace are not document objects and use the
 app style directly.
 
+### 5. Phase 1 contracts
+
+Fixed here so six implementers build against one shape. Deviations are
+recorded in the checklist, not improvised.
+
+**Module** `apps/web/src/lib/paper/` — no React, no store, no CP-workspace
+imports: `paperStyle.ts` (types, `DEFAULT_PAPER_STYLE`, `normalizePaperStyle`,
+field paths, overrides, `effectivePaperStyle`), `paperStyleResolve.ts`
+(`resolvePaperStyle`, `SurfaceStylePolicy`, `PAPER_STYLE_POLICIES`, pt → px,
+light vector), `paperPresets.ts` (built-ins, `parsePaperStylePreset`,
+`serializePaperStylePreset`).
+
+**Units.** Pen widths are pt. On screen a pen draws at `pt × 4/3 × dpr` device
+px (`ptToDevicePx`). Colours are `#rrggbb` lowercase; `normalizePaperStyle`
+rejects anything else and falls back to the default for that field.
+
+**Defaults** (`DEFAULT_PAPER_STYLE`, chosen so Phase 1 is behaviour-preserving
+where a surface already had a value): paper front `#ffff32`, back `#e9e9e9`
+(Oriedita's; the simulator's back moves from `#f2f0e7`); edges `{ width: 0.9,
+color: '#000000', dash: null, cap: 'butt' }` (1.2 px, the folded figure's;
+the simulator's border moves from the theme text colour to black);
+mountainFolds `{ width: 0.825, color: '#db1f24', dash: null, cap: 'butt' }`
+and valleyFolds the same at `#1c5cd9` (1.1 px, the simulator's);
+auxCreases `{ visible: false, pen: { width: 0.5, color: '#9aa4ad', dash: null, cap: 'butt' } }`;
+arrows `{ width: 1.05, color: '#000000', dash: null, cap: 'round' }`;
+erode `0`; light `{ enabled: true, azimuth, elevation }` with the two angles
+chosen so `lightVector(azimuth, elevation)` equals today's
+`normalize([-0.45, 0.58, 0.68])` in view space (x right, y up, z toward the
+eye) — `azimuth` is degrees clockwise from straight up in the screen plane,
+`elevation` degrees out of the screen; a test pins the round trip.
+
+**Field paths** (`PaperStyleField`): `'paper.front' | 'paper.back' | 'edges' |
+'mountainFolds' | 'valleyFolds' | 'auxCreases.visible' | 'auxCreases.pen' |
+'arrows' | 'erode' | 'light'`. A pen is overridden whole.
+`PaperStyleOverrides = Partial<{ [F in PaperStyleField]: PaperStyleValue<F> }>`;
+`effectivePaperStyle(base, overrides?)` applies them; `normalizePaperStyleOverrides`
+drops unknown keys and malformed values.
+
+**Policy** (`SurfaceStylePolicy`): `{ surface: PaperSurface; applies: PaperStyleField[]; forced?: PaperStyleOverrides }`
+for `PaperSurface = 'simulator' | 'inline-simulation' | 'folded-3d' |
+'folded-flat' | 'references'`. Phase 1 values: simulator and inline-simulation
+apply paper, edges, mountainFolds, valleyFolds, light; folded-3d applies
+paper, edges, light; folded-flat applies paper, edges; references applies
+edges, mountainFolds, valleyFolds, auxCreases.pen, arrows. `auxCreases.*`
+and `erode` join every surface in Phase 5, `arrows` stays References-only.
+The Properties panel shows exactly `applies`.
+
+**Resolver** `resolvePaperStyle(style, policy, options: { dpr; background: [r,g,b]; backgroundAlpha; faceAlpha; colorMode; strainClip; creaseWidthReferenceEdge?; creaseWidthShrinkExponent? }): RenderSettings`
+— the one place pt becomes px and a pen's `dash` becomes device-px runs.
+`RenderSettings` keeps its shape; `lightDir` is now data from the style.
+`simulatorPalette.resolveRenderSettings` becomes a thin wrapper that only
+resolves the theme ground (`--bg-canvas`) and delegates.
+
+**Shading.** `packages/origami-simulator/src/shading.ts` exports the shade
+band constants and `shadeFor(normal, lightDir)`; the GLSL builder, `svgRenderer`
+and `canvas2dFrame` import it (canvas-2D drops its lift-toward-white and its
+drop shadow, D7).
+
+**Store.** `settingsStore.paperStyle: { display: PaperStyle; export: PaperStyle | null; presets: PaperStylePreset[] }`,
+actions `setPaperStyleField(slot, field, value)`, `applyPaperPreset(slot, preset)`,
+`setExportPaperStyleFollowsDisplay(follows)`, `savePaperPreset(name)`,
+`removePaperPreset(name)`, `importPaperPreset(json)`; persisted under
+`STORAGE_KEYS.paperStyle = 'paper-style'` as `{ version: 1, display, export, presets }`.
+First read with no key seeds `display` from `simulator-settings` (paperFront,
+paperBack, mountainColor, valleyColor, borderColor, creaseWidth, creaseStyle,
+lighting) when present, then those keys leave `SimulatorSettings` and its
+normaliser drops them. `SimulatorSettings` keeps renderMode, colorMode,
+showFaces, showEdges, showViewCube, exportBackground, physics.
+
+**Crease-style switch.** `creaseStyleOf(style): 'color' | 'mono' | 'mono-dashed' | 'custom'`
+reads the M/V pens; `applyCreaseStyle(style, mode)` writes them: `color` =
+`#db1f24`/`#1c5cd9` solid; `mono` = the edge pen's colour, solid;
+`mono-dashed` = the edge pen's colour with Oriedita's runs in multiples of the
+pen width (`[10,3,3,3] / 1.1` for mountain, `[8,8] / 1.1` for valley).
+
+**Objects.** `appearance?: PaperStyleOverrides` on `OristudioCpFoldedFigureEntry`
+and `InlineSimulation`; store actions `setFoldedFigureAppearance(id, field, value | undefined)`
+and `setInlineSimulationAppearance(id, field, value | undefined)` (undefined
+clears = reset), each an undo entry; continuous colour drags keep the
+bracketed gesture protocol. `effectiveObjectPaperStyle(entry)` = display
+style + `appearance`. For folded figures the store mirrors the effective
+`paper.front`, `paper.back`, `edges.color` into the kernel model (D6) after
+any change to the display style or the figure's overrides; the flat figure's
+Oriedita `display_shadows` stays a model field edited as today.
+
+**Migration on read (D1).** A figure without `appearance`: each of
+`front_color`, `back_color`, `line_color` that differs from the Oriedita
+default (`#ffff32`, `#e9e9e9`, `#000000`) becomes the override
+`paper.front` / `paper.back` / `edges` (the edge pen with the default width
+and that colour).
+
+**Presets.** `PaperStylePreset = { version: 1; name: string; author?: string; style: PaperStyle }`
+(a full style, normalised on import). Built-ins: `ori-default`, `oriedita`,
+`black-and-white`, `origami-house` (values in §1). Files are `.json`.
+
+**Analytics** (`analytics/events.ts`): `paper style changed { slot: 'display' | 'export', field }`,
+`paper preset applied { slot, preset: builtin id | 'custom' }`,
+`paper style overridden { surface, field, reset: boolean }`.
+
+**UI.** Settings ▸ Paper (new `SettingsTab` `'paper'`): slot switch
+(Display / Export, with "Export uses display style" toggle), preset list with
+Apply / Save current as… / Import / Export / Delete, then field editors for
+the slot: two paper swatches, one row per pen (colour swatch, width in pt,
+dash as space-separated multiples, cap), aux toggle, light enabled +
+azimuth/elevation. The Simulator View Controls panel keeps its rows but they
+read and write `display` (colour/mono/mono-dashed through the switch above).
+Properties sheets show the policy's fields with a per-row `reset` while
+overridden.
+
 ## Affected Areas
 
 - `apps/web/src/lib/paper/` (new): style, scene, painter, presets, tests.
