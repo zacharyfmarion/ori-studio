@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import fixture from './__fixtures__/queryResponse.json';
 import { createExploriDocument, type ExploriDocument } from './document';
+import { SITE_ORIGIN } from '../seo/siteMeta';
 import {
   ExploriError,
+  exploriApiBase,
   exploriDbConfigsForQuery,
   exploriQueryBlocker,
   exploriQueryTree,
@@ -68,6 +70,26 @@ describe('the query payload', () => {
   });
 });
 
+describe('where the proxy lives', () => {
+  it('is the site from a deployed desktop shell, and its own origin on the web', () => {
+    // `tauri://localhost` serves the bundle and nothing else, and answers any
+    // unknown path with `index.html`, status 200 — which is how every desktop
+    // search read as a timeout for two releases.
+    expect(exploriApiBase('desktop', undefined, false)).toBe(SITE_ORIGIN);
+    expect(exploriApiBase('web', undefined, false)).toBe(window.location.origin);
+  });
+
+  it('is the dev server from a dev desktop shell, whose Vite proxy is the hop', () => {
+    expect(exploriApiBase('desktop', undefined, true)).toBe(window.location.origin);
+  });
+
+  it('lets a build-time override win on both surfaces', () => {
+    expect(exploriApiBase('web', 'http://localhost:8788', false)).toBe('http://localhost:8788');
+    expect(exploriApiBase('desktop', 'http://localhost:8788', false)).toBe('http://localhost:8788');
+    expect(exploriApiBase('desktop', '', false)).toBe(SITE_ORIGIN);
+  });
+});
+
 describe('reading a response', () => {
   function stubFetch(body: unknown, init: { status?: number; text?: string } = {}) {
     const response = new Response(init.text ?? JSON.stringify(body), {
@@ -110,6 +132,25 @@ describe('reading a response', () => {
     // own client special-cases too. "Invalid JSON" would name the symptom.
     stubFetch(null, { status: 502, text: '<!DOCTYPE html><html><body>Gateway</body></html>' });
     await expect(queryExplori(documentWith())).rejects.toMatchObject({ code: 'timeout' });
+  });
+
+  it("reads the proxy's named upstream timeout as a timeout too", async () => {
+    stubFetch(
+      { code: 'upstream_timeout', error: 'The search service timed out.' },
+      { status: 502 }
+    );
+    await expect(queryExplori(documentWith())).rejects.toMatchObject({
+      code: 'timeout',
+      message: 'The search service timed out.',
+    });
+  });
+
+  it('does not read a served app page as a timeout', async () => {
+    // HTML with a success status never came from the proxy: it is `index.html`
+    // from a host with no route for `/api/explori/*` — a deployed desktop shell
+    // on `tauri://localhost`, a Pages deploy whose Functions did not come up.
+    stubFetch(null, { status: 200, text: '<!doctype html><html><head></head><body></body></html>' });
+    await expect(queryExplori(documentWith())).rejects.toMatchObject({ code: 'unrouted' });
   });
 
   it('names a rate limit as one', async () => {

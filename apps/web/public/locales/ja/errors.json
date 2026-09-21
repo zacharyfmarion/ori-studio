@@ -29,6 +29,9 @@
   "creasePattern": {
     "imageNotDecodable": "Ori Studio は {{name}} を画像として読み込めませんでした。PNG、JPEG、WebP をお試しください。"
   },
+  "explori": {
+    "unrouted": "このビルドからは検索サービスに接続できません。"
+  },
   "fileDrop": {
     "dialogOpen": "ファイルをドロップする前に、開いているダイアログを閉じてください。",
     "imageNotHere": "{{name}} を参照画像として追加するには、展開図の上にドロップしてください。",

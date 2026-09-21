@@ -29,6 +29,9 @@
   "creasePattern": {
     "imageNotDecodable": "Ori Studio n'a pas pu lire {{name}} comme image. Essayez un PNG, un JPEG ou un WebP."
   },
+  "explori": {
+    "unrouted": "Cette version ne peut pas joindre le service de recherche."
+  },
   "fileDrop": {
     "dialogOpen": "Terminez la boîte de dialogue ouverte avant de déposer un fichier.",
     "imageNotHere": "Déposez {{name}} sur le patron de plis pour l’ajouter comme image de référence.",

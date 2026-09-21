@@ -27,6 +27,14 @@
  * direct call impossible, it halves the bytes, it gives one stable error shape,
  * and it identifies our traffic. That is the whole job.
  *
+ * **CORS open**, like `/models/*`, because the desktop shell calls this from its
+ * own origin (`tauri://localhost`): it ships no proxy of its own, and for two
+ * releases it did not call this one either — its own asset protocol answered
+ * `/api/explori/query` with `index.html`, and the client read that as a
+ * timeout. Opening CORS gives up nothing: it only ever governed browsers on
+ * other origins, and the validation in `api/explori/query.ts` is what protects
+ * upstream from a request, whoever sends it.
+ *
  * Binding shapes are declared locally rather than pulled from
  * `@cloudflare/workers-types`, matching `cpShare.ts`: the surface used is small
  * and stable, so this stays typechecked with no dependency.
@@ -53,7 +61,24 @@ export const UPSTREAM_TIMEOUT_MS = 40_000;
 export function jsonResponse(status: number, payload: unknown, headers: HeadersInit = {}): Response {
   return new Response(JSON.stringify(payload), {
     status,
-    headers: { 'Content-Type': 'application/json; charset=utf-8', ...headers },
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Access-Control-Allow-Origin': '*',
+      ...headers,
+    },
+  });
+}
+
+/** The answer to a browser's preflight, from any origin. */
+export function preflight(): Response {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Max-Age': '86400',
+    },
   });
 }
 
