@@ -353,12 +353,7 @@ describe('BP packing pane — the sheet crops what hangs over its edge', () => {
    * Studio addition, since upstream offers no way to look past the edge — lifts
    * it.
    */
-  /**
-   * Whether the element is inside a clipping group. Asked per element rather
-   * than by counting clips on the canvas: the conflict layer carries a second,
-   * unrelated clip — to the flap circles, so a conflict stroke cannot paint
-   * outside the flap it belongs to — which the sheet crop must leave alone.
-   */
+  /** Whether the element is inside a clipping group. */
   const isCropped = (root: HTMLElement, selector: string) => {
     const node = root.querySelector(selector);
     expect(node, selector).not.toBeNull();
@@ -468,31 +463,18 @@ describe('BP packing pane — conflict fills sit behind the geometry', () => {
   });
 });
 
-describe('BP packing pane — conflicts never paint outside a flap', () => {
-  it('clips the conflict layer to the flaps own shapes', () => {
+describe('BP packing pane — conflicts are drawn as Box Pleating Studio draws them', () => {
+  it('clips the conflict layer to the sheet and nothing else', () => {
+    // `Layer.junction` is `clipped: true` — masked to the sheet like every
+    // geometry layer — and that is its only clip. The outline stroke is centred
+    // on the region's edge, which *is* the flap circle, so part of it paints
+    // past the flap; clipping that away (2f34f1676) is what left a hairline
+    // overlap with nothing visible, since the widening is the whole point.
     const host = renderPacking();
     const layer = host.querySelector('.bp-packing-conflicts');
     expect(layer).not.toBeNull();
-
-    // The conflict outline stroke is centred on the region's edge, and that edge
-    // *is* the flap circle — so without a clip half the stroke renders outside
-    // the flap and reads as the conflict being somewhere it isn't.
-    const inner = layer!.querySelector('g[clip-path]');
-    expect(inner).not.toBeNull();
-    const id = /url\(#([^)]+)\)/.exec(inner!.getAttribute('clip-path') ?? '')?.[1];
-    expect(id).toBeTruthy();
-
-    const clip = [...(host.querySelector('defs')?.children ?? [])].find(
-      (node) => node.getAttribute('id') === id
-    );
-    expect(clip).toBeDefined();
-    // One shape per flap, matching what the clearance circles draw.
-    const shapes = [...clip!.children];
-    expect(shapes).toHaveLength(2); // one per flap in the fixture
-    for (const shape of shapes) {
-      expect(Number(shape.getAttribute('width'))).toBeGreaterThan(0);
-      expect(Number(shape.getAttribute('rx'))).toBeGreaterThan(0);
-    }
+    expect(layer!.getAttribute('clip-path')).toMatch(/^url\(#/);
+    expect(layer!.querySelector('[clip-path]')).toBeNull();
   });
 
   it('strokes a narrow lens 2 / narrowness screen pixels, as Box Pleating Studio does', () => {
@@ -571,11 +553,10 @@ describe('BP packing pane — conflicts never paint outside a flap', () => {
     const host = renderPacking();
     const paths = [...host.querySelectorAll('.bp-packing-conflict')];
     expect(paths.length).toBeGreaterThan(0);
-    // Every conflict vertex sits on a flap circle: that is what makes clipping
-    // to the flaps lossless for the fill, and lossy only for the stray stroke.
-    const defs = host.querySelector('defs');
-    const circles = [...(defs?.children ?? [])]
-      .flatMap((clip) => [...clip.children])
+    // Every conflict vertex sits on a flap circle — the region is the
+    // intersection of the two clearance shapes, so only the stroke ever paints
+    // past one. The clearance rects are those circles.
+    const circles = [...host.querySelectorAll('.bp-packing-flap-clearance')]
       .filter((el) => Number(el.getAttribute('rx')) > 0)
       .map((el) => {
         const x = Number(el.getAttribute('x'));
@@ -584,7 +565,6 @@ describe('BP packing pane — conflicts never paint outside a flap', () => {
         const h = Number(el.getAttribute('height'));
         return { cx: x + w / 2, cy: y + h / 2, r: Number(el.getAttribute('rx')) };
       });
-    expect(defs).not.toBeNull();
     expect(circles.length).toBeGreaterThan(0);
     for (const path of paths) {
       const move = /M([\d.]+),([\d.]+)/.exec(path.getAttribute('d') ?? '');
