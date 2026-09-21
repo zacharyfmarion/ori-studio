@@ -181,11 +181,11 @@ preview` does not redirect; it serves the bare form from the SPA fallback and le
 React render the page, which is fine for a person and is why the smoke test asks
 for the slash.) React-router matches both, and `sitePageForPath` normalises.
 
-### Phase 2 — Chinese-language pages
+### Phase 2 — Localized pages, every locale the app ships
 
 Pulled forward from `seo-discoverability.md` Phase 6, where it sat as "optional,
-last" (2026-09-21). Nearly half the audience is in mainland China, where Google
-does not exist: search there is Baidu, then Bing. Baidu's crawler is far weaker
+last" (2026-09-21). The case that moved it is China: nearly half the audience
+is there, and Google does not exist there — search is Baidu, then Bing. Baidu's crawler is far weaker
 at JavaScript than Google's — the safe assumption is that it reads the raw HTML
 and nothing else — and the raw HTML is English:
 
@@ -203,13 +203,18 @@ rank against Chinese content, and it does not. The content is not the gap: the
 zh-CN catalogs already cover the landing, the site pages and the whole app.
 The gap is that no URL *is* the Chinese page.
 
-**Scope: zh-CN first, list-driven.** `SITE_LOCALES = ['zh-CN']` beside the page
-registry; the machinery takes any code from `SUPPORTED_LOCALES`, and adding
-Japanese later is a list entry plus a native read of its copy.
+**Scope: all eight non-English locales, from the start.** The machinery is a
+list — every code in `SUPPORTED_LOCALES` but `en` — so eight cost what one
+costs, and the app already ships every one of these catalogs to its users; a
+page is those same strings on a URL. The first draft of this phase said "zh-CN
+first, the rest after a native read", which was a quality pass dressed up as a
+gate: the read is worth doing, in audience order (zh-CN, then ja), and it does
+not decide whether the URL exists.
 
-**URLs.** A locale prefix on site pages only: `/zh-CN/` and `/zh-CN/download/`.
-`zh-CN`, not `zh` — it is the app's own code and it says *simplified*, which is
-the right claim to make to Baidu. The app routes (`/edit`, `/design`,
+**URLs.** A locale prefix on site pages only: `/zh-CN/`, `/zh-CN/download/`,
+`/fr/`, `/fr/download/`, and so on — the app's own codes verbatim, so `zh-CN`
+and `pt-BR` keep their region (which tells Baidu *simplified*, and a Brazilian
+reader that this is theirs). The app routes (`/edit`, `/design`,
 `/simulate`) take no prefix: nothing indexes them, and forcing their UI language
 from the URL would regress every Chinese user who lands on `/edit` from a link.
 The unprefixed site pages keep following the browser, as they do today: a
@@ -235,17 +240,21 @@ English `<title>`, which is the right tab for them and invisible to any crawler.
 **Prerender per locale.** `renderPageMarkup(page, locale)`: the prerender's
 i18n instance loads `public/locales/<locale>/*.json` for a non-English locale
 and stays resourceless for English, so English keeps rendering the inline
-defaults and cannot drift. Each localized file gets `<html lang="zh-CN">` (the
+defaults and cannot drift. Each localized file gets `<html lang="…">` (the
 template hardcodes `en`; one more `htmlMeta` rewrite), the localized title and
 description, a canonical to *itself* — a translation is a different page, not a
-duplicate — `og:locale`, and the `hreflang` set: `en`, `zh-CN`, `x-default → en`.
-Baidu ignores `hreflang` and reads `lang` and the words; Bing and Google use it.
+duplicate — `og:locale` in its `ll_CC` form, and the full `hreflang` set: all
+nine languages plus `x-default → en`, on every one of the nine files. Baidu
+ignores `hreflang` and reads `lang` and the words; Bing and Google use it.
+Nine locales × the pages in the registry is the file count; today that is 18.
 
-**Discovery is links, again.** Baidu finds `/zh-CN/` by following a link to it.
-The footer gains a language switch (English · 简体中文) pointing at the same
-page in the other locale, on every page in both locales; `SiteNav` links stay
-within the current locale; the masthead's "Open the app" goes to the unprefixed
-`/edit`. The sitemap lists every locale's URL.
+**Discovery is links, again.** A crawler finds `/fr/download/` by following a
+link to it. The footer gains a language switch — every locale by its native
+name, `nativeName` from `SUPPORTED_LOCALES`, each pointing at the same page in
+that locale, on every page in every locale. Real anchors, not a `<select>`:
+a crawler follows an `href` and cannot operate a control. `SiteNav` links stay
+within the current locale; the masthead's "Open the app" goes to the
+unprefixed `/edit`. The sitemap lists every locale's URL.
 
 **What this cannot do.** Two things only Zach can:
 
@@ -253,29 +262,36 @@ within the current locale; the masthead's "Open the app" goes to the unprefixed
   URLs pushed; registration has required a mainland phone number. Without it
   Baidu still crawls through links, slowly. **Bing Webmaster Tools** has no
   such friction and is already a checklist item.
-- **A native read of the zh-CN copy** before it is the text a Chinese searcher
-  judges the site by. The catalogs were machine-translated and have had no
-  native review. The title and description matter most, and so does the
-  vocabulary: the translation says 展开图 for crease pattern, and the community
-  also says CP图 and 折痕图; which dominates is not a call to make from here.
+- **A native read of each locale's copy**, in audience order — zh-CN, then ja —
+  since it is the text a searcher judges the site by. The catalogs were
+  machine-translated and have had no native review. The title and description
+  matter most, and so does the vocabulary: the Chinese says 展开图 for crease
+  pattern, and the community also says CP图 and 折痕图; which dominates is not a
+  call to make from here. This does not gate the URLs: the app has been showing
+  these strings all along.
 
-- [ ] `SITE_LOCALES`, `sitePageForPath` returning `{ page, locale }`, a locale
-      prefix on every path helper
-- [ ] Route locale override: `/zh-CN/` renders the landing and `/zh-CN/download/`
-      the page, in Chinese, whatever the stored preference; restored on leaving
+- [ ] `SITE_LOCALES` (every supported code but `en`), `sitePageForPath`
+      returning `{ page, locale }`, a locale prefix on every path helper
+- [ ] Route locale override: `/<locale>/` renders the landing and
+      `/<locale>/download/` the page, in that language, whatever the stored
+      preference; restored on leaving
 - [ ] Titles/descriptions as literal-key `t()` helpers; English defaults asserted
       equal to the `siteMeta` constants
-- [ ] Prerender with the locale's catalogs; `lang`, canonical-to-self,
-      `og:locale`, `hreflang` set with `x-default`; sitemap lists every locale
-- [ ] Footer language switch; nav and masthead links locale-aware
-- [ ] Tests, one per failure: `/zh-CN/download/` carries Chinese words and no
-      English copy, `lang="zh-CN"`, a canonical to itself and not to the English
-      page, a complete `hreflang` set; every locale path resolves to a route; the
-      window title on `/zh-CN/download/` is the Chinese title; the override does
-      not persist past the route
-- [ ] `seo-smoke.mjs` asserts `/zh-CN/` is Chinese on the real host
-- [ ] Native review of the zh-CN title, description and landing copy *(needs a
-      Chinese speaker — not Zach's call to make alone either)*
+- [ ] Prerender with each locale's catalogs; `lang`, canonical-to-self,
+      `og:locale`, the full `hreflang` set with `x-default`; sitemap lists every
+      locale
+- [ ] Footer language switch, every locale by native name; nav and masthead
+      links locale-aware
+- [ ] Tests, one per failure, run over every locale: `/<locale>/download/`
+      carries that locale's words and none of the English copy, the right
+      `lang`, a canonical to itself and not to the English page, a complete
+      `hreflang` set naming all nine; every locale path resolves to a route; the
+      window title there is the localized title; the override does not persist
+      past the route
+- [ ] `seo-smoke.mjs` asserts `/zh-CN/` and `/ja/` carry their language on the
+      real host
+- [ ] Native review of the zh-CN copy, then ja *(needs speakers — not Zach's
+      call to make alone either)*
 - [ ] Bing Webmaster Tools: verify, submit the sitemap *(needs Zach)*
 - [ ] Baidu Webmaster Tools, if an account is obtainable *(needs Zach)*
 

@@ -315,10 +315,11 @@ blocked and search is Baidu, whose crawler reads the raw HTML and finds it
 English. The English-only crawl copy is the entire reason a Chinese search finds
 nothing, so waiting for search data to justify fixing it was circular.
 
-It is now **Phase 2 of `site-content-pages.md`**, scoped to zh-CN first, with the
-design there. The original caution stands: done wrong this is thin duplicate
-pages and a net negative, which is why each locale gets a native read of its
-copy before it ships and a canonical to itself rather than to the English page.
+It is now **Phase 2 of `site-content-pages.md`**, for every locale the app ships,
+with the design there. The original caution was about thin duplicate pages; the
+answer to it is a canonical to itself on every localized page and a native read
+of the copy in audience order, not fewer locales — the app already shows these
+strings to these users, and a page is the same strings on a URL.
 
 ## Affected Areas
 
@@ -529,8 +530,7 @@ is already shipped.
 
 ### Phase 6 — Localized pages
 
-Moved to `site-content-pages.md` Phase 2 (zh-CN first; the other locales are a
-list entry each once the machinery exists).
+Moved to `site-content-pages.md` Phase 2, all eight non-English locales at once.
 
 ### Validation
 
