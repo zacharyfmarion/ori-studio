@@ -3,8 +3,8 @@ use oristudio_cp::folding::{
     AdditionalEstimationError, ChainPermutationGenerator, DisplayStyle, EstimationOrder,
     EstimationStep, FoldContradiction, FoldOutcome, FoldSetupError, FoldedFigureModel,
     FoldedFigureRenderAntialias, FoldedFigureRenderGeometry, FoldedFigureRenderOptions,
-    FoldedFigureRenderPaint, FoldedFigureRenderPrimitiveKind, FoldedFigureRenderStroke,
-    FoldedFigureState, FoldedShadowGeometry, FoldingEstimateError, FoldingEstimateSession,
+    FoldedFigureRenderPaint, FoldedFigureRenderPrimitive, FoldedFigureRenderPrimitiveKind,
+    FoldedFigureRenderStroke, FoldedFigureState, FoldingEstimateError, FoldingEstimateSession,
     HierarchyRelation, InitialHierarchy, RenderPathCommand, RgbaColor, SubFacePermutationSearch,
     SubFaceSwapper, WorkerOverlapEnumerator, WorkerOverlapSearchError,
     additional_estimation_from_segments, configure_subfaces_from_segments,
@@ -1142,133 +1142,218 @@ fn kabuto_segments() -> Vec<LineSegment> {
         .collect()
 }
 
-fn kabuto_shadow_bands(geometry: FoldedShadowGeometry) -> Vec<ShadowBand> {
-    let segments = kabuto_segments();
+/// The kabuto paper render, front side only so every primitive is one pass.
+fn kabuto_front_render(display_shadows: bool) -> Vec<FoldedFigureRenderPrimitive> {
     let model = FoldedFigureModel {
-        display_shadows: true,
+        display_shadows,
         ..FoldedFigureModel::default()
     };
-    let snapshot = folded_figure_render_snapshot_from_segments(
-        &segments,
+    folded_figure_render_snapshot_from_segments(
+        &kabuto_segments(),
         1,
         DisplayStyle::Paper5,
         model,
-        FoldedFigureRenderOptions {
-            shadow_geometry: geometry,
-            ..FoldedFigureRenderOptions::default()
-        },
+        FoldedFigureRenderOptions::default(),
     )
     .expect("kabuto paper render")
-    .expect("paper primitives");
+    .expect("paper primitives")
+    .primitives
+}
 
-    snapshot
-        .primitives
+/// The closed polygons of a path primitive, one per subpath.
+fn path_polygons(primitive: &FoldedFigureRenderPrimitive) -> Vec<Vec<Point>> {
+    let FoldedFigureRenderGeometry::Path { commands } = &primitive.geometry else {
+        return Vec::new();
+    };
+    let mut polygons = Vec::new();
+    for command in commands {
+        match command {
+            RenderPathCommand::MoveTo { point } => polygons.push(vec![*point]),
+            RenderPathCommand::LineTo { point } => {
+                if let Some(polygon) = polygons.last_mut() {
+                    polygon.push(*point);
+                }
+            }
+            _ => {}
+        }
+    }
+    polygons
+}
+
+fn same_polygon(a: &[Point], b: &[Point]) -> bool {
+    a.len() == b.len()
+        && a.iter()
+            .zip(b)
+            .all(|(first, second)| first.distance(*second) < 1e-9)
+}
+
+struct KabutoShadows {
+    receivers: Vec<FoldedFigureRenderPrimitive>,
+    faces: Vec<Vec<Point>>,
+    edges: Vec<(Point, Point)>,
+}
+
+fn kabuto_shadows() -> KabutoShadows {
+    let primitives = kabuto_front_render(true);
+    let receivers = primitives
         .iter()
         .filter(|primitive| {
             matches!(
                 primitive.style.paint,
-                FoldedFigureRenderPaint::Gradient { .. }
+                FoldedFigureRenderPaint::LayerShadow { .. }
             )
         })
-        .filter_map(|primitive| {
-            let FoldedFigureRenderGeometry::Path { commands } = &primitive.geometry else {
-                return None;
-            };
-            let points = commands
-                .iter()
-                .filter_map(|command| match command {
-                    RenderPathCommand::MoveTo { point } | RenderPathCommand::LineTo { point } => {
-                        Some(*point)
-                    }
-                    _ => None,
-                })
-                .collect::<Vec<_>>();
-            // The band is begin, begin + offset, end + offset, end.
-            (points.len() >= 4).then(|| ShadowBand {
-                width: points[0].distance(points[1]),
-                edge: (points[0], points[3]),
-            })
+        .cloned()
+        .collect::<Vec<_>>();
+    let faces = primitives
+        .iter()
+        .filter(|primitive| {
+            primitive.kind == FoldedFigureRenderPrimitiveKind::FillPath
+                && matches!(primitive.style.paint, FoldedFigureRenderPaint::Color { .. })
         })
-        .collect()
-}
-
-struct ShadowBand {
-    width: f64,
-    edge: (Point, Point),
-}
-
-#[test]
-fn refined_shadow_bands_all_share_one_width() {
-    let bands = kabuto_shadow_bands(FoldedShadowGeometry::Refined);
-    assert!(!bands.is_empty(), "kabuto should cast shadows");
-
-    for band in &bands {
-        assert!(
-            (band.width - 10.0).abs() < 1e-9,
-            "every band is the constant offset wide, got {}",
-            band.width
-        );
+        .flat_map(path_polygons)
+        .collect::<Vec<_>>();
+    let edges = primitives
+        .iter()
+        .filter(|primitive| primitive.kind == FoldedFigureRenderPrimitiveKind::StrokePath)
+        .flat_map(path_polygons)
+        .filter(|points| points.len() == 2)
+        .map(|points| (points[0], points[1]))
+        .collect::<Vec<_>>();
+    assert!(!receivers.is_empty(), "kabuto should cast shadows");
+    KabutoShadows {
+        receivers,
+        faces,
+        edges,
     }
-}
-
-#[test]
-fn refined_shadows_fall_on_one_side_of_each_edge() {
-    let bands = kabuto_shadow_bands(FoldedShadowGeometry::Refined);
-
-    // Two bands on the same edge means the "which side is the paper on" probe
-    // answered yes both ways, which paints the edge twice and reads as a muddy
-    // double shadow.
-    for (index, band) in bands.iter().enumerate() {
-        let duplicates = bands
-            .iter()
-            .skip(index + 1)
-            .filter(|other| {
-                other.edge.0.distance(band.edge.0) < 1e-9
-                    && other.edge.1.distance(band.edge.1) < 1e-9
-            })
-            .count();
-        assert_eq!(duplicates, 0, "edge {:?} is shadowed twice", band.edge);
-    }
-}
-
-#[test]
-fn oriedita_exact_shadows_keep_the_upstream_width_quirk() {
-    let bands = kabuto_shadow_bands(FoldedShadowGeometry::OrieditaExact);
-    assert!(!bands.is_empty(), "kabuto should cast shadows");
-
-    let min = bands.iter().map(|band| band.width).fold(f64::MAX, f64::min);
-    let max = bands.iter().map(|band| band.width).fold(0.0, f64::max);
-
-    // Upstream derives the offset length from a point id used as an
-    // x-coordinate, so band width tracks edge length instead of staying
-    // constant. The oracle test diffs against this, so it has to stay.
-    assert!(
-        max / min > 2.0,
-        "upstream widths vary with edge length, got {min}..{max}"
-    );
 }
 
 #[test]
 fn shadows_need_the_model_flag() {
-    let bands = kabuto_shadow_bands(FoldedShadowGeometry::Refined);
-    assert!(!bands.is_empty());
-
-    let snapshot = folded_figure_render_snapshot_from_segments(
-        &kabuto_segments(),
-        1,
-        DisplayStyle::Paper5,
-        FoldedFigureModel::default(),
-        FoldedFigureRenderOptions::default(),
-    )
-    .expect("kabuto paper render")
-    .expect("paper primitives");
-
+    let primitives = kabuto_front_render(false);
     assert!(
-        !snapshot.primitives.iter().any(|primitive| matches!(
+        !primitives.iter().any(|primitive| matches!(
             primitive.style.paint,
-            FoldedFigureRenderPaint::Gradient { .. }
+            FoldedFigureRenderPaint::LayerShadow { .. }
         )),
         "shadows are off by default"
+    );
+}
+
+/// A shadow is painted over the paper that receives it: every subpath is one
+/// of the pass's own subfaces, and no subface receives from two primitives.
+#[test]
+fn a_shadow_covers_subfaces_of_its_pass_and_each_subface_once() {
+    let shadows = kabuto_shadows();
+    let mut covered = 0;
+    for receiver in &shadows.receivers {
+        let polygons = path_polygons(receiver);
+        assert!(!polygons.is_empty());
+        for polygon in &polygons {
+            assert!(
+                shadows.faces.iter().any(|face| same_polygon(face, polygon)),
+                "shadow subpath {polygon:?} is not a subface"
+            );
+            let receivers = shadows
+                .receivers
+                .iter()
+                .filter(|other| {
+                    path_polygons(other)
+                        .iter()
+                        .any(|p| same_polygon(p, polygon))
+                })
+                .count();
+            assert_eq!(receivers, 1, "subface {polygon:?} receives twice");
+            covered += 1;
+        }
+    }
+    assert!(
+        covered < shadows.faces.len(),
+        "some paper is not in any shadow"
+    );
+}
+
+/// What casts the shadow is the outline of a layer above, and every outline
+/// line is a drawn paper edge; at least one of them borders the receiver.
+#[test]
+fn a_shadow_is_cast_by_drawn_edges_that_meet_its_paper() {
+    let shadows = kabuto_shadows();
+    for receiver in &shadows.receivers {
+        let FoldedFigureRenderPaint::LayerShadow { occluder_edges, .. } = &receiver.style.paint
+        else {
+            unreachable!()
+        };
+        assert!(!occluder_edges.is_empty());
+        let polygons = path_polygons(receiver);
+        let mut touches_receiver = false;
+        for edge in occluder_edges {
+            assert!(
+                shadows.edges.iter().any(|(a, b)| {
+                    (a.distance(edge.from) < 1e-9 && b.distance(edge.to) < 1e-9)
+                        || (a.distance(edge.to) < 1e-9 && b.distance(edge.from) < 1e-9)
+                }),
+                "occluder edge {edge:?} is not a drawn paper edge"
+            );
+            touches_receiver |= polygons.iter().any(|polygon| {
+                polygon.iter().any(|p| p.distance(edge.from) < 1e-9)
+                    && polygon.iter().any(|p| p.distance(edge.to) < 1e-9)
+            });
+        }
+        assert!(touches_receiver, "no occluder edge borders the receiver");
+    }
+}
+
+/// The reach and darkness are Oriedita's constants, carried through the
+/// figure's scale, and the shadow sits between the pass's faces and its edges.
+#[test]
+fn a_shadow_keeps_upstreams_reach_and_sits_between_faces_and_edges() {
+    let primitives = kabuto_front_render(true);
+    let sequence_of = |predicate: &dyn Fn(&FoldedFigureRenderPrimitive) -> bool| {
+        primitives
+            .iter()
+            .filter(|primitive| predicate(primitive))
+            .map(|primitive| primitive.sequence)
+            .collect::<Vec<_>>()
+    };
+    let faces = sequence_of(&|primitive| {
+        matches!(primitive.style.paint, FoldedFigureRenderPaint::Color { .. })
+            && primitive.kind == FoldedFigureRenderPrimitiveKind::FillPath
+    });
+    let shadows = sequence_of(&|primitive| {
+        matches!(
+            primitive.style.paint,
+            FoldedFigureRenderPaint::LayerShadow { .. }
+        )
+    });
+    let edges =
+        sequence_of(&|primitive| primitive.kind == FoldedFigureRenderPrimitiveKind::StrokePath);
+    assert!(faces.iter().max() < shadows.iter().min());
+    assert!(shadows.iter().max() < edges.iter().min());
+
+    let mut tallest = 0;
+    for primitive in &primitives {
+        if let FoldedFigureRenderPaint::LayerShadow {
+            width,
+            strength,
+            occluder_edges,
+        } = &primitive.style.paint
+        {
+            assert!(
+                (width - 10.0).abs() < 1e-9,
+                "reach is the 10-unit offset, got {width}"
+            );
+            assert!((strength - 50.0 / 255.0).abs() < 1e-12);
+            for edge in occluder_edges {
+                assert!(edge.step >= 1, "a casting edge is at least one sheet tall");
+                tallest = tallest.max(edge.step);
+            }
+        }
+    }
+    // The base reach is per region; how far past it a ledge casts is the
+    // renderer's reading of its height, so the height has to travel with it.
+    assert!(
+        tallest > 1,
+        "kabuto's stacks give ledges taller than one sheet"
     );
 }
 

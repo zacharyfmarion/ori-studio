@@ -1,11 +1,12 @@
 import createREGL from 'regl';
 import type { CpRenderFrame, CpRenderer } from './CpRenderer';
-import type { Rgba, Viewport } from './types';
+import { EMPTY_SHADOW_GEOMETRY, type Rgba, type Viewport } from './types';
 import type { CpImage } from '../images/cpImage';
 import type { CpSuppressionRegion } from '../annotations/suppressionRegion';
 import { createStrokeProgram } from './programs/strokeProgram';
 import { createPointProgram } from './programs/pointProgram';
 import { createFillProgram } from './programs/fillProgram';
+import { createShadowProgram } from './programs/shadowProgram';
 import { createMarkerProgram } from './programs/markerProgram';
 import { createWedgeProgram } from './programs/wedgeProgram';
 import { createImageProgram, type ImageDrawItem } from './programs/imageProgram';
@@ -152,6 +153,9 @@ export function createReglRenderer(
   // over it. Everything else here is genuinely 2D, and the imported forms below
   // are translucent, which a depth test would order wrongly.
   const foldedFills = createFillProgram(regl, { depthOrdered: true });
+  // Layer shadows sit in the same stream, between a figure's fills and its
+  // creases, and carry the same depth so they land there.
+  const foldedShadows = createShadowProgram(regl);
   const foldedStrokes = createStrokeProgram(regl, { depthOrdered: true });
   // Imported .fold folded-form frames: reference figures in user space, like folded.
   const importedFills = createFillProgram(regl);
@@ -254,6 +258,7 @@ export function createReglRenderer(
     setFolded(folded) {
       if (disposed) return;
       foldedFills.setData(folded.fills);
+      foldedShadows.setData(folded.shadows ?? EMPTY_SHADOW_GEOMETRY);
       foldedStrokes.setData(folded.strokes);
     },
 
@@ -434,6 +439,7 @@ export function createReglRenderer(
       // user px (non-scaling): base = 1 css px (dpr device px) scaled per-segment
       // by the width multiplier.
       foldedFills.draw({ view: frame.userView, viewport });
+      foldedShadows.draw({ view: frame.userView, viewport });
       foldedStrokes.draw({
         view: frame.userView,
         viewport,
@@ -500,6 +506,7 @@ export function createReglRenderer(
       imageTextures.clear();
       regions.dispose();
       foldedFills.dispose();
+      foldedShadows.dispose();
       foldedStrokes.dispose();
       importedFills.dispose();
       importedStrokes.dispose();

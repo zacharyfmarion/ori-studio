@@ -213,8 +213,51 @@ export interface FillGeometry {
   depth?: Float32Array;
 }
 
+/**
+ * Layer shadows over folded-figure paper, in SVG user coordinates.
+ *
+ * Triangles cover the paper that receives a shadow; each vertex names the run
+ * of `edges` — the casting layers' outline — its triangle is shaded against,
+ * and the fragment shader takes the distance to the nearest of them. Per-vertex
+ * rather than per-draw so one upload carries every region of every figure.
+ */
+export interface ShadowGeometry {
+  /** Triangle vertex positions in user coords: [x, y] * count. */
+  position: Float32Array;
+  /** Draw order, as {@link FillGeometry.depth}: [d] * count. */
+  depth: Float32Array;
+  /** Per vertex, the run of `edges` to shade against: [start, count] * count. */
+  edgeRange: Float32Array;
+  /** Per vertex, the shadow's reach (user units) and edge darkness: [width, strength] * count. */
+  falloff: Float32Array;
+  /** Casting outline segments in user coords: [x0, y0, x1, y1] * edgeCount. */
+  edges: Float32Array;
+  /** How many sheets tall each segment's ledge is, ≥ 1: [step] * edgeCount. */
+  edgeSteps: Uint8Array;
+  /** Vertex count (a multiple of 3). */
+  count: number;
+  /** Segment count in `edges`. */
+  edgeCount: number;
+}
+
+export const EMPTY_SHADOW_GEOMETRY: ShadowGeometry = {
+  position: new Float32Array(0),
+  depth: new Float32Array(0),
+  edgeRange: new Float32Array(0),
+  falloff: new Float32Array(0),
+  edges: new Float32Array(0),
+  edgeSteps: new Uint8Array(0),
+  count: 0,
+  edgeCount: 0,
+};
+
 /** Folded-figure geometry: triangulated fills plus edge strokes (user coords). */
 export interface FoldedGeometry {
   fills: FillGeometry;
   strokes: StrokeGeometry;
+  /**
+   * Layer shadows, drawn between the fills and the strokes. Only a generated
+   * figure with Shadow on has any; imported forms and reference poses omit it.
+   */
+  shadows?: ShadowGeometry;
 }

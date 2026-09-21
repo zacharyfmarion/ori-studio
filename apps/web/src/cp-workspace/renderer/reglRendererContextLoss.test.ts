@@ -32,6 +32,7 @@ const noopProgram = () => ({ setData: () => {}, draw: () => {}, dispose: () => {
 vi.mock('./programs/strokeProgram', () => ({ createStrokeProgram: noopProgram }));
 vi.mock('./programs/pointProgram', () => ({ createPointProgram: noopProgram }));
 vi.mock('./programs/fillProgram', () => ({ createFillProgram: noopProgram }));
+vi.mock('./programs/shadowProgram', () => ({ createShadowProgram: noopProgram }));
 vi.mock('./programs/markerProgram', () => ({ createMarkerProgram: noopProgram }));
 vi.mock('./programs/wedgeProgram', () => ({ createWedgeProgram: noopProgram }));
 vi.mock('./programs/imageProgram', () => ({ createImageProgram: noopProgram }));

@@ -16,8 +16,10 @@ import type {
   OristudioCpContradictionFaceGeometry,
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureSnapshot,
+  OristudioCpFoldedRenderEdge,
   OristudioCpFoldedRenderPrimitive,
 } from '../../engine/oristudioCpTypes';
+import { SHADOW_REACH_RATIO, shadowStepReach } from '../folded/foldedShadowProfile';
 
 function figure(
   primitives: OristudioCpFoldedRenderPrimitive[],
@@ -842,23 +844,18 @@ describe('cpFoldedToScene figure opacity', () => {
   });
 });
 
-describe('gradient paint', () => {
+describe('layer shadow paint', () => {
   /**
-   * The shape a shadow band takes: a quad spanned by the shadowed edge and the
-   * offset, with the gradient running along that same offset.
+   * A receiving strip of paper with one casting edge along its top: the shape
+   * a flap's shadow takes on the layer under it.
    */
-  const shadowBand = (): OristudioCpFoldedRenderPrimitive => ({
-    sequence: 0,
+  const shadowed = (
+    edges: OristudioCpFoldedRenderEdge[] = [{ from: { x: 0, y: 0 }, to: { x: 40, y: 0 }, step: 1 }]
+  ): OristudioCpFoldedRenderPrimitive => ({
+    sequence: 1,
     kind: 'fill_path',
     style: {
-      paint: {
-        kind: 'gradient',
-        from: { x: 0, y: 0 },
-        from_color: { red: 0, green: 0, blue: 0, alpha: 50 },
-        to: { x: 0, y: 10 },
-        to_color: { red: 0, green: 0, blue: 0, alpha: 0 },
-        cyclic: false,
-      },
+      paint: { kind: 'layer_shadow', width: 10, strength: 0.2, occluder_edges: edges },
       stroke: { kind: 'none' },
       antialias: 'default',
     },
@@ -866,44 +863,151 @@ describe('gradient paint', () => {
       kind: 'path',
       commands: [
         { command: 'move_to', point: { x: 0, y: 0 } },
-        { command: 'line_to', point: { x: 0, y: 10 } },
-        { command: 'line_to', point: { x: 40, y: 10 } },
         { command: 'line_to', point: { x: 40, y: 0 } },
+        { command: 'line_to', point: { x: 40, y: 8 } },
+        { command: 'line_to', point: { x: 0, y: 8 } },
         { command: 'close' },
       ],
     },
   });
 
-  it('fades a shadow band from its start colour to transparent', () => {
-    const geo = cpFoldedToScene([figure([shadowBand()])]);
+  /** User units per model unit: what the snapshot's reach is scaled by. */
+  const unitsPerModel = cpModelToSvg({ x: 1, y: 0 }).x - cpModelToSvg({ x: 0, y: 0 }).x;
 
-    const alphas = new Set<number>();
-    for (let i = 3; i < geo.fills.color.length; i += 4) {
-      alphas.add(Number(geo.fills.color[i].toFixed(6)));
-    }
+  /** The paper under the shadow, drawn first as the kernel draws it. */
+  const paper: OristudioCpFoldedRenderPrimitive = {
+    sequence: 0,
+    kind: 'fill_path',
+    style: { paint: solid(233, 233, 233, 255), stroke: { kind: 'none' }, antialias: 'default' },
+    geometry: {
+      kind: 'path',
+      commands: [
+        { command: 'move_to', point: { x: 0, y: 0 } },
+        { command: 'line_to', point: { x: 40, y: 0 } },
+        { command: 'line_to', point: { x: 40, y: 8 } },
+        { command: 'line_to', point: { x: 0, y: 8 } },
+        { command: 'close' },
+      ],
+    },
+  };
 
-    // Both ends of the gradient are present, which a flat fill could not produce.
-    expect(alphas.has(Number((50 / 255).toFixed(6)))).toBe(true);
-    expect(alphas.has(0)).toBe(true);
+  it('shades the receiving polygon, not the fill channel', () => {
+    const geo = cpFoldedToScene([figure([shadowed()])]);
+
+    expect(geo.fills.count).toBe(0);
+    expect(geo.shadows?.count).toBe(6);
+    expect(geo.shadows?.edgeCount).toBe(1);
   });
 
-  it('places the opaque end on the shadowed edge and the clear end away from it', () => {
-    const geo = cpFoldedToScene([figure([shadowBand()])]);
+  it('carries the casting edge into user space beside the paper it shades', () => {
+    const geo = cpFoldedToScene([figure([shadowed()])]);
+    const edges = geo.shadows?.edges ?? new Float32Array();
+    const from = cpModelToSvg({ x: 0, y: 0 });
+    const to = cpModelToSvg({ x: 40, y: 0 });
 
-    // The gradient runs along +y, so every vertex's alpha must fall as y rises.
-    const byY = new Map<number, number>();
-    for (let v = 0; v < geo.fills.count; v++) {
-      const y = Number(geo.fills.position[v * 2 + 1].toFixed(4));
-      byY.set(y, geo.fills.color[v * 4 + 3]);
+    expect([...edges]).toEqual([from.x, from.y, to.x, to.y].map((v) => Math.fround(v)));
+    // Every vertex names that one edge.
+    for (let v = 0; v < (geo.shadows?.count ?? 0); v++) {
+      expect(geo.shadows?.edgeRange[v * 2]).toBe(0);
+      expect(geo.shadows?.edgeRange[v * 2 + 1]).toBe(1);
     }
-    const ys = [...byY.keys()].sort((l, r) => l - r);
-    expect(ys.length).toBeGreaterThan(1);
+  });
 
-    const first = byY.get(ys[0]);
-    const last = byY.get(ys[ys.length - 1]);
-    expect(first).toBeDefined();
-    expect(last).toBeDefined();
-    expect(first as number).toBeGreaterThan(last as number);
+  it('scales the reach into user units and keeps the edge darkness', () => {
+    const geo = cpFoldedToScene([figure([shadowed()])]);
+
+    expect(geo.shadows?.falloff[0]).toBeCloseTo(10 * unitsPerModel, 4);
+    expect(geo.shadows?.falloff[1]).toBeCloseTo(0.2, 6);
+  });
+
+  it('drops casting edges that cannot reach the polygon, and the polygon when none can', () => {
+    const far = { from: { x: 0, y: 500 }, to: { x: 40, y: 500 }, step: 1 };
+    const near = { from: { x: 0, y: 0 }, to: { x: 40, y: 0 }, step: 1 };
+
+    expect(cpFoldedToScene([figure([shadowed([near, far])])]).shadows?.edgeCount).toBe(1);
+    expect(cpFoldedToScene([figure([shadowed([far])])]).shadows?.count).toBe(0);
+  });
+
+  it('keeps a taller ledge that only its longer reach brings within range', () => {
+    // 16 model units off the paper: past a one-sheet ledge's reach, inside a six-sheet one's.
+    const distance = 24;
+    const low = { from: { x: 0, y: distance }, to: { x: 40, y: distance }, step: 1 };
+    const tall = { from: { x: 0, y: distance }, to: { x: 40, y: distance }, step: 6 };
+    const reach = (step: number) => 10 * unitsPerModel * shadowStepReach(step) * SHADOW_REACH_RATIO;
+    expect(reach(1)).toBeLessThan((distance - 8) * unitsPerModel);
+    expect(reach(6)).toBeGreaterThan((distance - 8) * unitsPerModel);
+
+    expect(cpFoldedToScene([figure([shadowed([low])])]).shadows?.edgeCount).toBe(0);
+    expect(cpFoldedToScene([figure([shadowed([tall])])]).shadows?.edgeCount).toBe(1);
+  });
+
+  it('carries each casting edge\'s ledge height, clamped to what the table can hold', () => {
+    const geo = cpFoldedToScene([
+      figure([
+        shadowed([
+          { from: { x: 0, y: 0 }, to: { x: 20, y: 0 }, step: 3 },
+          { from: { x: 20, y: 0 }, to: { x: 40, y: 0 }, step: 1000 },
+        ]),
+      ]),
+    ]).shadows;
+
+    expect([...(geo?.edgeSteps ?? [])]).toEqual([3, 255]);
+  });
+
+  it('follows the placement: outline and paper move together, reach scales with the figure', () => {
+    const placement: FoldedFigurePlacement = {
+      offset: { x: 100, y: -30 },
+      scale: 2,
+      rotation: Math.PI / 2,
+    };
+    const still = cpFoldedToScene([figure([shadowed()])]).shadows;
+    const moved = cpFoldedToScene([figure([shadowed()], placement)]).shadows;
+    const local = foldedFigureLocalGeometry(figure([shadowed()]).renderSnapshot!);
+    const center = local.center;
+    expect(still && moved).toBeTruthy();
+    if (!still || !moved) return;
+
+    // A vertex and the edge endpoint that coincide before the placement still
+    // coincide after it — both went through the same affine.
+    const vertex = applyFoldedPlacementToPoint(
+      { x: still.position[0], y: still.position[1] },
+      placement,
+      center
+    );
+    const edgeStart = applyFoldedPlacementToPoint(
+      { x: still.edges[0], y: still.edges[1] },
+      placement,
+      center
+    );
+    expect(moved.position[0]).toBeCloseTo(vertex.x, 3);
+    expect(moved.position[1]).toBeCloseTo(vertex.y, 3);
+    expect(moved.edges[0]).toBeCloseTo(edgeStart.x, 3);
+    expect(moved.edges[1]).toBeCloseTo(edgeStart.y, 3);
+    expect(moved.falloff[0]).toBeCloseTo(still.falloff[0] * 2, 4);
+  });
+
+  it('offsets a second figure\'s edge runs past the first figure\'s edges', () => {
+    const first = figure([shadowed()]);
+    const second = { ...figure([shadowed()], { ...IDENTITY_FOLDED_PLACEMENT, offset: { x: 300, y: 0 } }), id: 'f2' };
+    const geo = cpFoldedToScene([first, second]).shadows;
+
+    expect(geo?.edgeCount).toBe(2);
+    expect(geo?.edgeRange[0]).toBe(0);
+    expect(geo?.edgeRange[6 * 2]).toBe(1);
+  });
+
+  it('fades the shadow with the figure', () => {
+    const geo = cpFoldedToScene([figure([shadowed()])], () => 0.5).shadows;
+
+    expect(geo?.falloff[1]).toBeCloseTo(0.1, 6);
+  });
+
+  it('shares the figure\'s depth stream, so it lands between its fills and its edges', () => {
+    const geo = cpFoldedToScene([figure([paper, shadowed()])]);
+    const fillDepth = geo.fills.depth?.[0] ?? 0;
+    const shadowDepth = geo.shadows?.depth[0] ?? 0;
+
+    expect(shadowDepth).toBeGreaterThan(fillDepth);
   });
 
   it('keeps a solid fill uniform', () => {

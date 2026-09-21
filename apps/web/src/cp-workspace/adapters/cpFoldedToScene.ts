@@ -8,14 +8,19 @@ import type { Point } from '../../lib/geometry';
 import type {
   FoldedFigurePlacement,
   OristudioCpFoldedFigureEntry,
+  OristudioCpFoldedRenderEdge,
   OristudioCpFoldedRenderGeometry,
-  OristudioCpFoldedRenderPaint,
   OristudioCpFoldedRenderPathCommand,
   OristudioCpFoldedRenderPrimitive,
   OristudioCpFoldedRenderSnapshot,
   OristudioCpFoldedRenderStroke,
   OristudioCpRgbaColor,
 } from '../../engine/oristudioCpTypes';
+import {
+  MAX_SHADOW_EDGES,
+  SHADOW_REACH_RATIO,
+  shadowStepReach,
+} from '../folded/foldedShadowProfile';
 import type { Aabb } from '../picking/lineHitIndex';
 import {
   CANVAS_OBJECT_GAP,
@@ -25,7 +30,7 @@ import {
   pointToFrame,
   type BesideAnchor,
 } from '../canvasObjects/placeBesideCp';
-import type { FillGeometry, FoldedGeometry, Rgba } from '../renderer/types';
+import type { FillGeometry, FoldedGeometry, Rgba, ShadowGeometry } from '../renderer/types';
 
 /** Steps used to flatten quadratic/cubic path curves into polylines. */
 const CURVE_STEPS = 12;
@@ -36,55 +41,6 @@ const DEFAULT_STROKE_WIDTH = 1;
 
 function normColor(c: OristudioCpRgbaColor): Rgba {
   return [c.red / 255, c.green / 255, c.blue / 255, c.alpha / 255];
-}
-
-function mixColor(from: Rgba, to: Rgba, t: number): Rgba {
-  return [
-    from[0] + (to[0] - from[0]) * t,
-    from[1] + (to[1] - from[1]) * t,
-    from[2] + (to[2] - from[2]) * t,
-    from[3] + (to[3] - from[3]) * t,
-  ];
-}
-
-/**
- * Whether a paint draws anything at all — `none`, `texture` and `other` do not.
- * Checked before tessellating so an undrawable primitive costs nothing.
- */
-function paintDraws(paint: OristudioCpFoldedRenderPaint): boolean {
-  return paint.kind === 'color' || paint.kind === 'gradient';
-}
-
-/**
- * A paint's colour at one point, in the primitive's own coordinate space — the
- * space a gradient's `from`/`to` are expressed in, so this must run before the
- * points are mapped to user coordinates.
- *
- * Evaluating per vertex and letting the rasterizer interpolate reproduces a
- * linear gradient exactly wherever the polygon's vertices bracket the gradient
- * axis without clamping in between, which is the case for the shadow bands this
- * exists for: the band is spanned by its edge and the offset, the gradient axis
- * *is* the offset, so all four corners land at t=0 or t=1. Elsewhere it degrades
- * to a per-vertex approximation.
- */
-function paintColorAt(paint: OristudioCpFoldedRenderPaint, point: Point): Rgba | null {
-  if (paint.kind === 'color') return normColor(paint.color);
-  if (paint.kind !== 'gradient') return null;
-
-  const dx = paint.to.x - paint.from.x;
-  const dy = paint.to.y - paint.from.y;
-  const lengthSq = dx * dx + dy * dy;
-  if (lengthSq === 0) return normColor(paint.from_color);
-
-  const raw = ((point.x - paint.from.x) * dx + (point.y - paint.from.y) * dy) / lengthSq;
-  // Java2D's GradientPaint clamps outside [0,1] when acyclic and reflects when
-  // cyclic, which is what `cyclic` on the kernel primitive records.
-  const t = paint.cyclic
-    ? Math.abs(raw % 2) > 1
-      ? 2 - Math.abs(raw % 2)
-      : Math.abs(raw % 2)
-    : Math.min(1, Math.max(0, raw));
-  return mixColor(normColor(paint.from_color), normColor(paint.to_color), t);
 }
 
 function strokeWidth(stroke: OristudioCpFoldedRenderStroke): number {
@@ -190,6 +146,91 @@ function geometrySubpaths(geometry: OristudioCpFoldedRenderGeometry): Point[][] 
   }
 }
 
+/** Earcut over a flat `[x, y, ...]` ring; empty for anything under a triangle. */
+function triangulate(flat: number[]): number[] {
+  return flat.length < 6 ? [] : earcut(flat);
+}
+
+/** One casting-outline segment in user coordinates, with its ledge height. */
+export interface ShadowEdge {
+  ax: number;
+  ay: number;
+  bx: number;
+  by: number;
+  /** Sheets tall, ≥ 1; see `shadowStepReach`. */
+  step: number;
+}
+
+/** The tallest ledge the edge table can record; anything above casts like this. */
+const MAX_EDGE_STEP = 255;
+
+function shadowEdgeToUser(
+  edge: OristudioCpFoldedRenderEdge,
+  toUser: (point: Point) => Point
+): ShadowEdge {
+  const a = toUser(edge.from);
+  const b = toUser(edge.to);
+  return {
+    ax: a.x,
+    ay: a.y,
+    bx: b.x,
+    by: b.y,
+    step: Math.min(MAX_EDGE_STEP, Math.max(1, Math.round(edge.step))),
+  };
+}
+
+/**
+ * The casting edges that can reach `ring`: those whose box comes within their
+ * own reach of the ring's box, nearest first when there are too many.
+ *
+ * Reach is each edge's — a taller ledge casts further — measured with
+ * {@link SHADOW_REACH_RATIO}, where the curve is already below anything an
+ * 8-bit alpha shows, so an edge outside it would change no pixel of this
+ * polygon: dropping it costs nothing and keeps the per-fragment loop short.
+ */
+export function occluderEdgesNear(
+  ring: readonly Point[],
+  edges: readonly ShadowEdge[],
+  width: number
+): ShadowEdge[] {
+  if (ring.length < 3) return [];
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const p of ring) {
+    if (p.x < minX) minX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y > maxY) maxY = p.y;
+  }
+  const near = edges.filter((e) => {
+    const reach = width * shadowStepReach(e.step) * SHADOW_REACH_RATIO;
+    return (
+      Math.min(e.ax, e.bx) <= maxX + reach &&
+      Math.max(e.ax, e.bx) >= minX - reach &&
+      Math.min(e.ay, e.by) <= maxY + reach &&
+      Math.max(e.ay, e.by) >= minY - reach
+    );
+  });
+  if (near.length <= MAX_SHADOW_EDGES) return near;
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  return near
+    .map((edge) => ({ edge, d: segmentDistance(cx, cy, edge) }))
+    .sort((l, r) => l.d - r.d)
+    .slice(0, MAX_SHADOW_EDGES)
+    .map((entry) => entry.edge);
+}
+
+function segmentDistance(px: number, py: number, e: ShadowEdge): number {
+  const dx = e.bx - e.ax;
+  const dy = e.by - e.ay;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 > 0 ? Math.max(0, Math.min(1, ((px - e.ax) * dx + (py - e.ay) * dy) / len2)) : 0;
+  return Math.hypot(px - (e.ax + dx * t), py - (e.ay + dy * t));
+}
+
 /** Accumulates GPU-ready fill triangles and edge strokes across all figures. */
 class FoldedBuilder {
   fillPos: number[] = [];
@@ -211,39 +252,56 @@ class FoldedBuilder {
   /** The order stamped onto the next primitive. */
   depth = 0;
 
-  /**
-   * `colors` is either one colour for the whole ring or one per vertex, in which
-   * case the rasterizer interpolates between them — that is what turns a shadow
-   * band's gradient into an actual fade.
-   */
-  addFillRing(ring: Point[], colors: Rgba | Rgba[]): void {
-    if (ring.length < 3) return;
+  /** Layer shadows: see {@link ShadowGeometry}. Edge runs index `shadowEdges`. */
+  shadowPos: number[] = [];
+  shadowDepth: number[] = [];
+  shadowEdgeRange: number[] = [];
+  shadowFalloff: number[] = [];
+  shadowEdges: number[] = [];
+  shadowEdgeSteps: number[] = [];
+
+  addFillRing(ring: Point[], color: Rgba): void {
     const flat: number[] = [];
     for (const p of ring) flat.push(p.x, p.y);
-    const indices = earcut(flat);
-    const perVertex = Array.isArray(colors[0]);
-    for (const i of indices) {
-      const color = (perVertex ? (colors as Rgba[])[i] : colors) as Rgba;
+    for (const i of triangulate(flat)) {
       this.fillPos.push(flat[i * 2], flat[i * 2 + 1]);
       this.fillColor.push(color[0], color[1], color[2], color[3]);
       this.fillDepth.push(this.depth);
     }
   }
 
-  addStrokePolyline(points: Point[], colors: Rgba | Rgba[], width: number): void {
-    const perVertex = Array.isArray(colors[0]);
+  addStrokePolyline(points: Point[], color: Rgba, width: number): void {
     for (let i = 0; i + 1 < points.length; i++) {
       const a = points[i];
       const b = points[i + 1];
-      // One colour per segment, so a gradient stroke samples at its midpoint.
-      const color = perVertex
-        ? mixColor((colors as Rgba[])[i], (colors as Rgba[])[i + 1], 0.5)
-        : (colors as Rgba);
       this.strokeA.push(a.x, a.y);
       this.strokeB.push(b.x, b.y);
       this.strokeColor.push(color[0], color[1], color[2], color[3]);
       this.strokeWidthMul.push(width);
       this.strokeDepth.push(this.depth);
+    }
+  }
+
+  /**
+   * One receiving polygon of a layer shadow, shaded against the casting edges
+   * that come within reach of it. A polygon nothing reaches draws nothing, and
+   * that is most of a large region: the shadow only ever hugs its boundary.
+   */
+  addShadowRing(ring: Point[], edges: readonly ShadowEdge[], width: number, strength: number): void {
+    const near = occluderEdgesNear(ring, edges, width);
+    if (near.length === 0) return;
+    const start = this.shadowEdges.length / 4;
+    for (const edge of near) {
+      this.shadowEdges.push(edge.ax, edge.ay, edge.bx, edge.by);
+      this.shadowEdgeSteps.push(edge.step);
+    }
+    const flat: number[] = [];
+    for (const p of ring) flat.push(p.x, p.y);
+    for (const i of triangulate(flat)) {
+      this.shadowPos.push(flat[i * 2], flat[i * 2 + 1]);
+      this.shadowDepth.push(this.depth);
+      this.shadowEdgeRange.push(start, near.length);
+      this.shadowFalloff.push(width, strength);
     }
   }
 
@@ -293,6 +351,12 @@ class FoldedBuilder {
       strokeWidthMul: new Float32Array(this.strokeWidthMul),
       fillDepth: new Float32Array(this.fillDepth),
       strokeDepth: new Float32Array(this.strokeDepth),
+      shadowPos: new Float32Array(this.shadowPos),
+      shadowDepth: new Float32Array(this.shadowDepth),
+      shadowEdgeRange: new Float32Array(this.shadowEdgeRange),
+      shadowFalloff: new Float32Array(this.shadowFalloff),
+      shadowEdges: new Float32Array(this.shadowEdges),
+      shadowEdgeSteps: new Uint8Array(this.shadowEdgeSteps),
       bounds,
       center: bounds
         ? { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 }
@@ -327,6 +391,17 @@ export interface FoldedFigureLocalGeometry {
    */
   fillDepth: Float32Array;
   strokeDepth: Float32Array;
+  /**
+   * Layer shadows, laid out as {@link ShadowGeometry} but in local user coords,
+   * with edge runs indexing this figure's own `shadowEdges`. The shadow covers
+   * the same polygons as the fills, so it adds nothing to `bounds`.
+   */
+  shadowPos: Float32Array;
+  shadowDepth: Float32Array;
+  shadowEdgeRange: Float32Array;
+  shadowFalloff: Float32Array;
+  shadowEdges: Float32Array;
+  shadowEdgeSteps: Uint8Array;
   /** Bounding box of every emitted vertex, local user coords. Null when empty. */
   bounds: Aabb | null;
   /** Centre of {@link bounds} — the pivot placement scales and rotates about. */
@@ -349,8 +424,8 @@ const localGeometryCache = new WeakMap<
  * memoized on the snapshot's identity. Primitives are emitted in `sequence`
  * order so overlapping, semi-transparent facets composite correctly.
  *
- * Gradients are carried as per-vertex colour (see {@link paintColorAt}); text is
- * skipped.
+ * Only `color` and `layer_shadow` paints draw; text, textures and paints this
+ * renderer has no reading for are skipped, as the SVG export skips them.
  */
 export function foldedFigureLocalGeometry(
   snapshot: OristudioCpFoldedRenderSnapshot
@@ -374,18 +449,24 @@ export function foldedFigureLocalGeometry(
     // depth and none lands on the cleared value.
     builder.depth = (index + 1) / (primitives.length + 1);
     const paint = primitive.style.paint;
-    if (!paintDraws(paint)) continue;
+    if (paint.kind === 'layer_shadow') {
+      // Reach and outline come in the snapshot's units, like the geometry.
+      const width = paint.width * USER_UNITS_PER_MODEL_UNIT;
+      const edges = paint.occluder_edges.map((edge) => shadowEdgeToUser(edge, toUser));
+      for (const local of geometrySubpaths(primitive.geometry)) {
+        builder.addShadowRing(local.map(toUser), edges, width, paint.strength);
+      }
+      continue;
+    }
+    if (paint.kind !== 'color') continue;
+    const color = normColor(paint.color);
     const isFill = primitive.kind.startsWith('fill_');
     const width = isFill ? 0 : strokeWidth(primitive.style.stroke);
 
     for (const local of geometrySubpaths(primitive.geometry)) {
-      // Colours are sampled in the primitive's space, where a gradient's axis is
-      // defined; the points are only then carried into user space.
-      const colors = local.map((point) => paintColorAt(paint, point));
-      if (colors.some((color) => color === null)) continue;
       const ring = local.map(toUser);
-      if (isFill) builder.addFillRing(ring, colors as Rgba[]);
-      else builder.addStrokePolyline(ring, colors as Rgba[], width);
+      if (isFill) builder.addFillRing(ring, color);
+      else builder.addStrokePolyline(ring, color, width);
     }
   }
 
@@ -497,6 +578,12 @@ export function cpFoldedToScene(
   const strokeWidthMul: number[] = [];
   const fillDepth: number[] = [];
   const strokeDepth: number[] = [];
+  const shadowPos: number[] = [];
+  const shadowDepth: number[] = [];
+  const shadowEdgeRange: number[] = [];
+  const shadowFalloff: number[] = [];
+  const shadowEdges: number[] = [];
+  const shadowEdgeSteps: number[] = [];
 
   // Each figure gets its own band of the depth range, in draw order, so a later
   // figure always covers an earlier one however their own primitives are
@@ -544,7 +631,48 @@ export function cpFoldedToScene(
     for (let i = 0; i < local.strokeDepth.length; i++) {
       strokeDepth.push(bandBase + local.strokeDepth[i] * bandSpan);
     }
+
+    // The shadow's outline moves with the paper it is cast on, and its reach
+    // scales with the figure the way a real shadow would; a similarity keeps
+    // distances, so nothing else about it changes under the placement.
+    const edgeBase = shadowEdges.length / 4;
+    for (let i = 0; i < local.shadowEdges.length; i += 2) {
+      const x = local.shadowEdges[i];
+      const y = local.shadowEdges[i + 1];
+      shadowEdges.push(a * x - b * y + tx, b * x + a * y + ty);
+    }
+    for (let i = 0; i < local.shadowEdgeSteps.length; i++) {
+      shadowEdgeSteps.push(local.shadowEdgeSteps[i]);
+    }
+    for (let i = 0; i < local.shadowPos.length; i += 2) {
+      const x = local.shadowPos[i];
+      const y = local.shadowPos[i + 1];
+      shadowPos.push(a * x - b * y + tx, b * x + a * y + ty);
+    }
+    for (let i = 0; i < local.shadowDepth.length; i++) {
+      shadowDepth.push(bandBase + local.shadowDepth[i] * bandSpan);
+    }
+    for (let i = 0; i < local.shadowEdgeRange.length; i += 2) {
+      shadowEdgeRange.push(local.shadowEdgeRange[i] + edgeBase, local.shadowEdgeRange[i + 1]);
+    }
+    for (let i = 0; i < local.shadowFalloff.length; i += 2) {
+      shadowFalloff.push(
+        local.shadowFalloff[i] * figure.placement.scale,
+        local.shadowFalloff[i + 1] * opacity
+      );
+    }
   }
+
+  const shadows: ShadowGeometry = {
+    position: new Float32Array(shadowPos),
+    depth: new Float32Array(shadowDepth),
+    edgeRange: new Float32Array(shadowEdgeRange),
+    falloff: new Float32Array(shadowFalloff),
+    edges: new Float32Array(shadowEdges),
+    edgeSteps: new Uint8Array(shadowEdgeSteps),
+    count: shadowPos.length / 2,
+    edgeCount: shadowEdges.length / 4,
+  };
 
   return {
     fills: {
@@ -561,6 +689,7 @@ export function cpFoldedToScene(
       count: strokeA.length / 2,
       depth: new Float32Array(strokeDepth),
     },
+    shadows,
   };
 }
 

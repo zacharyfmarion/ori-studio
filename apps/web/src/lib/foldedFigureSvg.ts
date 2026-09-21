@@ -7,6 +7,11 @@ import type {
   OristudioCpFoldedRenderStroke,
   OristudioCpRgbaColor,
 } from '../engine/oristudioCpTypes';
+import {
+  shadowStepReach,
+  shadowStepStrength,
+  shadowSvgStroke,
+} from '../cp-workspace/folded/foldedShadowProfile';
 import type { Point } from './geometry';
 import { escapeXml } from './xmlEscape';
 
@@ -16,15 +21,16 @@ import { escapeXml } from './xmlEscape';
  * The kernel hands back declarative drawing primitives in crease-pattern
  * **model** coordinates, so they map onto SVG elements one for one — no
  * tessellation, unlike the WebGL canvas path in `cpFoldedToScene`, which has to
- * triangulate. That also means gradients survive as real `<linearGradient>`
- * defs here rather than collapsing to their start colour.
+ * triangulate. A layer shadow is the one primitive with no direct element: it
+ * becomes the casting outline, stroked and blurred, clipped to the paper it
+ * falls on — the same curve the canvas evaluates, see `foldedShadowProfile`.
  */
 export interface FoldedFigureSvgOptions {
   /** Model point → page coordinates. */
   project: (point: Point) => Point;
   /** Page units per model unit, for stroke widths and ellipse radii. */
   scale: number;
-  /** Prefix for generated gradient ids, to keep two figures from colliding. */
+  /** Prefix for generated def ids, to keep two figures from colliding. */
   idPrefix?: string;
 }
 
@@ -154,7 +160,7 @@ export function projectedFoldedFigureBounds(
 
 function isDrawn(primitive: OristudioCpFoldedRenderPrimitive): boolean {
   const paint = primitive.style.paint;
-  return paint.kind === 'color' || paint.kind === 'gradient';
+  return paint.kind === 'color' || paint.kind === 'layer_shadow';
 }
 
 function num(value: number): string {
@@ -178,7 +184,19 @@ export function foldedFigureSvgBody(
 
   primitives.forEach((primitive, index) => {
     if (!isDrawn(primitive)) return;
-    const paint = paintAttr(primitive.style.paint, `${prefix}-${index}`, project, defs);
+    if (primitive.style.paint.kind === 'layer_shadow') {
+      const element = layerShadowElement(
+        primitive,
+        primitive.style.paint,
+        `${prefix}-${index}`,
+        project,
+        scale,
+        defs
+      );
+      if (element) elements.push(element);
+      return;
+    }
+    const paint = paintAttr(primitive.style.paint);
     if (!paint) return;
     const isFill = primitive.kind.startsWith('fill_');
     const style = isFill
@@ -193,25 +211,73 @@ export function foldedFigureSvgBody(
 }
 
 function paintAttr(
-  paint: OristudioCpFoldedRenderPaint,
+  paint: OristudioCpFoldedRenderPaint
+): { value: string; opacity: number } | null {
+  return paint.kind === 'color' ? colorAttr(paint.color) : null;
+}
+
+/**
+ * A layer shadow: the casting outline as round-capped strokes under a Gaussian
+ * blur, clipped to the receiving paper — one stroke and one blur per ledge
+ * height, since a taller ledge casts a wider, darker shadow. The stroke width,
+ * blur and opacity come from the shared profile, so a straight edge fades on
+ * the page exactly as it does on the canvas.
+ *
+ * The filter region is given explicitly, in page units: the default is the
+ * element's box plus ten per cent, which for a short outline is narrower than
+ * the blur it has to hold.
+ */
+function layerShadowElement(
+  primitive: OristudioCpFoldedRenderPrimitive,
+  paint: Extract<OristudioCpFoldedRenderPaint, { kind: 'layer_shadow' }>,
   id: string,
   project: (point: Point) => Point,
+  scale: number,
   defs: string[]
-): { value: string; opacity: number } | null {
-  if (paint.kind === 'color') return colorAttr(paint.color);
-  if (paint.kind !== 'gradient') return null;
+): string | null {
+  if (primitive.geometry.kind !== 'path' || paint.occluder_edges.length === 0) return null;
+  const receiver = pathData(primitive.geometry.commands, project);
+  if (!receiver) return null;
 
-  const from = project(paint.from);
-  const to = project(paint.to);
-  const start = colorAttr(paint.from_color);
-  const end = colorAttr(paint.to_color);
-  defs.push(
-    `    <linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${num(from.x)}" y1="${num(from.y)}" x2="${num(to.x)}" y2="${num(to.y)}"${paint.cyclic ? ' spreadMethod="reflect"' : ''}>` +
-      `<stop offset="0" stop-color="${start.value}" stop-opacity="${num(start.opacity)}"/>` +
-      `<stop offset="1" stop-color="${end.value}" stop-opacity="${num(end.opacity)}"/>` +
-      `</linearGradient>`
-  );
-  return { value: `url(#${id})`, opacity: 1 };
+  const byStep = new Map<number, { outline: string[]; bounds: FoldedFigureBounds }>();
+  for (const edge of paint.occluder_edges) {
+    const step = Math.max(1, Math.round(edge.step));
+    const a = project(edge.from);
+    const b = project(edge.to);
+    let group = byStep.get(step);
+    if (!group) {
+      group = { outline: [], bounds: { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity } };
+      byStep.set(step, group);
+    }
+    for (const p of [a, b]) {
+      group.bounds.minX = Math.min(group.bounds.minX, p.x);
+      group.bounds.minY = Math.min(group.bounds.minY, p.y);
+      group.bounds.maxX = Math.max(group.bounds.maxX, p.x);
+      group.bounds.maxY = Math.max(group.bounds.maxY, p.y);
+    }
+    group.outline.push(`M ${num(a.x)} ${num(a.y)} L ${num(b.x)} ${num(b.y)}`);
+  }
+
+  const strokes: string[] = [];
+  for (const [step, group] of [...byStep].sort(([l], [r]) => l - r)) {
+    const stroke = shadowSvgStroke(
+      paint.width * scale * shadowStepReach(step),
+      paint.strength * shadowStepStrength(step)
+    );
+    if (!(stroke.strokeWidth > 0) || !(stroke.opacity > 0)) continue;
+    // Everything the blurred stroke can reach: its half-width plus three sigma.
+    const margin = stroke.strokeWidth / 2 + 3 * stroke.stdDeviation;
+    const blurId = `${id}-blur-${step}`;
+    defs.push(
+      `    <filter id="${blurId}" filterUnits="userSpaceOnUse" x="${num(group.bounds.minX - margin)}" y="${num(group.bounds.minY - margin)}" width="${num(group.bounds.maxX - group.bounds.minX + 2 * margin)}" height="${num(group.bounds.maxY - group.bounds.minY + 2 * margin)}"><feGaussianBlur stdDeviation="${num(stroke.stdDeviation)}"/></filter>`
+    );
+    strokes.push(
+      `<path d="${group.outline.join(' ')}" fill="none" stroke="#000000" stroke-opacity="${num(stroke.opacity)}" stroke-width="${num(stroke.strokeWidth)}" stroke-linecap="round" stroke-linejoin="round" filter="url(#${blurId})"/>`
+    );
+  }
+  if (strokes.length === 0) return null;
+  defs.push(`    <clipPath id="${id}-paper"><path d="${receiver}"/></clipPath>`);
+  return `  <g clip-path="url(#${id}-paper)">${strokes.join('')}</g>`;
 }
 
 function geometryElement(
